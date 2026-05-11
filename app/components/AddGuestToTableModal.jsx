@@ -16,9 +16,11 @@ export default function AddGuestToTableModal({
   const assignGuestsToTable = useSeatingStore((s) => s.assignGuestsToTable);
   const removeGuestFromTable = useSeatingStore((s) => s.removeGuestFromTable);
   const isLiveMode = useSeatingStore((s) => s.seatingMode === "live");
+
   const getOccupiedSeatsForTable = useSeatingStore(
     (s) => s.getOccupiedSeatsForTable
   );
+
   const tables = useSeatingStore((s) => s.tables);
 
   /* ================= TABLE + GUESTS ================= */
@@ -66,13 +68,16 @@ export default function AddGuestToTableModal({
   const extractNumberFromName = (name) => {
     const m = String(name || "").match(/\d+/);
     if (!m) return NaN;
+
     const n = Number(m[0]);
     return Number.isFinite(n) ? n : NaN;
   };
 
   const getInitials = (name = "") => {
     const parts = String(name).trim().split(/\s+/).filter(Boolean);
+
     if (!parts.length) return "א";
+
     return parts
       .slice(0, 2)
       .map((p) => p[0])
@@ -85,6 +90,7 @@ export default function AddGuestToTableModal({
     if (!tableData) return [];
 
     const totalSeats = Number(tableData.seats || 0);
+
     const arr = Array.from({ length: Math.max(0, totalSeats) }, (_, i) => ({
       index: i,
       guest: null,
@@ -92,6 +98,7 @@ export default function AddGuestToTableModal({
 
     for (const s of tableData.seatedGuests || []) {
       const g = tableGuests.find((gg) => getGuestId(gg) === String(s?.guestId));
+
       if (!g) continue;
 
       if (
@@ -107,6 +114,7 @@ export default function AddGuestToTableModal({
   }, [tableData, tableGuests]);
 
   const occupied = getOccupiedSeatsForTable(tableData?.id || tableData?._id);
+
   const remainingSeats = Math.max(0, (tableData?.seats ?? 0) - occupied);
 
   const occupancyPercent = tableData?.seats
@@ -147,7 +155,12 @@ export default function AddGuestToTableModal({
     const guestId = getGuestId(guest);
     const count = getPartySize(guest);
 
-    const localRes = assignGuestsToTable(tableData.id, guestId, count, seatIndex);
+    const localRes = assignGuestsToTable(
+      tableData.id,
+      guestId,
+      count,
+      seatIndex
+    );
 
     if (!localRes?.ok) {
       setError(localRes?.message || "לא ניתן להושיב כאן");
@@ -157,6 +170,7 @@ export default function AddGuestToTableModal({
     try {
       if (onAutoSave) {
         const ok = await onAutoSave();
+
         if (!ok) {
           removeGuestFromTable(tableData.id, guestId);
           setError("שמירה נכשלה, ההושבה בוטלה");
@@ -185,6 +199,7 @@ export default function AddGuestToTableModal({
     try {
       if (onAutoSave) {
         const ok = await onAutoSave();
+
         if (!ok) {
           const count = getPartySize(guest);
           assignGuestsToTable(tableData.id, guestId, count, 0);
@@ -205,12 +220,14 @@ export default function AddGuestToTableModal({
     if (!tableData) return;
 
     const newNameRaw = tableNameDraft.trim();
+
     if (!newNameRaw) {
       setError("שם שולחן לא תקין");
       return;
     }
 
     const newNumber = extractNumberFromName(newNameRaw);
+
     if (!Number.isFinite(newNumber)) {
       setError("יש להזין שם שמכיל מספר שולחן, לדוגמה: שולחן 50");
       return;
@@ -229,12 +246,16 @@ export default function AddGuestToTableModal({
     try {
       if (onAutoSave) {
         const ok = await onAutoSave();
+
         if (!ok) {
           useSeatingStore.setState((state) => ({
             tables: (state.tables || []).map((t) =>
-              String(t.id) === String(tableData.id) ? { ...t, name: prevName } : t
+              String(t.id) === String(tableData.id)
+                ? { ...t, name: prevName }
+                : t
             ),
           }));
+
           setError("שמירה נכשלה, שינוי שם בוטל");
           return;
         }
@@ -273,7 +294,7 @@ export default function AddGuestToTableModal({
           shadow-[0_30px_90px_rgba(46,30,20,0.28)]
         "
       >
-        {/* close */}
+        {/* Close */}
         <button
           onClick={onClose}
           className="
@@ -301,7 +322,7 @@ export default function AddGuestToTableModal({
           <div className="flex flex-col items-center gap-3 text-center">
             <div
               className="
-                flex h-13 w-13 items-center justify-center
+                flex h-14 w-14 items-center justify-center
                 rounded-2xl border border-[#D6A678]
                 bg-[#FFF8EF]
                 text-[#9A5A26]
@@ -320,6 +341,7 @@ export default function AddGuestToTableModal({
                   onBlur={commitTableName}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") commitTableName();
+
                     if (e.key === "Escape") {
                       setTableNameDraft(tableData.name || "");
                       setIsEditingName(false);
@@ -377,7 +399,7 @@ export default function AddGuestToTableModal({
               <div
                 className="
                   h-full rounded-full
-                  bg-gradient-to-l from-[#D6A678] to-[#7BCB95]
+                  bg-gradient-to-l from-[#B98A45] via-[#D8B36A] to-[#7BCB95]
                   transition-all
                 "
                 style={{ width: `${occupancyPercent}%` }}
@@ -444,7 +466,7 @@ export default function AddGuestToTableModal({
                       transition-all duration-200
                       ${
                         g
-                          ? "border-[#8FCFA7] bg-gradient-to-br from-[#E5FAEC] to-white shadow-[0_8px_22px_rgba(39,128,75,0.12)] hover:border-[#5DBB7C]"
+                          ? "border-[#8B6532] bg-gradient-to-br from-[#B98A45] via-[#D8B36A] to-[#FFF2D8] shadow-[0_10px_26px_rgba(128,86,35,0.22)] hover:border-[#6D4A24]"
                           : isOpen
                           ? "border-[#D6A678] bg-[#FFF5EA] shadow-[0_10px_24px_rgba(166,94,39,0.14)]"
                           : "border-[#E6D7C8] bg-white hover:border-[#D6A678] hover:bg-[#FFF9F3] hover:shadow-[0_8px_20px_rgba(104,72,46,0.08)]"
@@ -468,7 +490,7 @@ export default function AddGuestToTableModal({
                         rounded-full text-[11px] font-black
                         ${
                           g
-                            ? "bg-[#D6F5DF] text-[#137A3D]"
+                            ? "bg-[#FFF3D7] text-[#6D4A24] shadow-sm"
                             : "bg-[#F3E7DC] text-[#8B6F5A]"
                         }
                       `}
@@ -481,24 +503,25 @@ export default function AddGuestToTableModal({
                         <div
                           className="
                             flex h-9 w-9 items-center justify-center
-                            rounded-full bg-[#137A3D]
+                            rounded-full
+                            bg-[#6D4A24]
                             text-xs font-black text-white
-                            shadow-sm
+                            shadow-sm ring-2 ring-white/55
                           "
                         >
                           {getInitials(g.name)}
                         </div>
 
-                        <div className="w-full truncate text-[12px] font-black text-[#1F2E23]">
+                        <div className="w-full truncate text-[12px] font-black text-[#3A2814]">
                           {g.name}
                         </div>
 
-                        <div className="flex items-center gap-1 text-[11px] font-bold text-[#137A3D]">
+                        <div className="flex items-center gap-1 text-[11px] font-black text-[#5A3C1C]">
                           <CheckCircle2 size={12} />
                           {getPartySize(g)} מגיעים
                         </div>
 
-                        <div className="mt-0.5 text-[10px] text-[#7A5A43] opacity-0 transition group-hover:opacity-100">
+                        <div className="mt-0.5 text-[10px] font-bold text-[#6D4A24] opacity-0 transition group-hover:opacity-100">
                           לחץ להסרה
                         </div>
                       </div>
@@ -529,17 +552,30 @@ export default function AddGuestToTableModal({
                   {isOpen && !g && (
                     <div
                       className="
-                        absolute right-0 top-[calc(100%+10px)] z-50
-                        w-72 overflow-hidden
-                        rounded-3xl border border-[#E2CDBB]
+                        absolute right-1/2 top-[calc(100%+8px)] z-50
+                        w-[230px] translate-x-1/2
+                        overflow-hidden
+                        rounded-2xl
+                        border border-[#D6A678]
                         bg-white
-                        shadow-[0_20px_50px_rgba(46,30,20,0.18)]
+                        shadow-[0_14px_34px_rgba(46,30,20,0.18)]
                       "
+                      onClick={(e) => e.stopPropagation()}
                     >
-                      <div className="border-b border-[#F0E2D8] bg-[#FFF8F1] p-3">
+                      {/* חץ קטן שמחבר את הבחירה למושב */}
+                      <div
+                        className="
+                          absolute -top-2 right-1/2
+                          h-4 w-4 translate-x-1/2 rotate-45
+                          border-r border-t border-[#D6A678]
+                          bg-white
+                        "
+                      />
+
+                      <div className="relative border-b border-[#F0E2D8] bg-[#FFF8F1] p-2">
                         <div className="relative">
                           <Search
-                            size={15}
+                            size={14}
                             className="absolute right-3 top-1/2 -translate-y-1/2 text-[#A98167]"
                           />
 
@@ -548,11 +584,12 @@ export default function AddGuestToTableModal({
                             placeholder="חיפוש אורח…"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
+                            autoFocus
                             className="
-                              h-10 w-full rounded-2xl
+                              h-9 w-full rounded-xl
                               border border-[#E2CDBB]
-                              bg-white pr-9 pl-3
-                              text-sm text-[#2F241D]
+                              bg-white pr-8 pl-3
+                              text-xs text-[#2F241D]
                               outline-none
                               placeholder:text-[#B79B89]
                               focus:border-[#D6A678]
@@ -562,10 +599,16 @@ export default function AddGuestToTableModal({
                         </div>
                       </div>
 
-                      <div className="max-h-64 overflow-y-auto p-2">
+                      <div className="max-h-[190px] overflow-y-auto p-1.5">
                         {availableGuests.length === 0 ? (
-                          <div className="rounded-2xl bg-[#FBF7F3] p-4 text-center text-xs font-semibold text-[#8B6F5A]">
-                            אין אורחים מתאימים למושב הזה
+                          <div
+                            className="
+                              rounded-xl bg-[#FBF7F3]
+                              px-3 py-3
+                              text-center text-xs font-semibold text-[#8B6F5A]
+                            "
+                          >
+                            אין אורחים מתאימים
                           </div>
                         ) : (
                           availableGuests.map((g2) => (
@@ -574,8 +617,8 @@ export default function AddGuestToTableModal({
                               key={getGuestId(g2)}
                               onClick={() => handleSeatGuest(i, g2)}
                               className="
-                                flex w-full items-center justify-between gap-3
-                                rounded-2xl px-3 py-2.5
+                                flex w-full items-center justify-between gap-2
+                                rounded-xl px-2.5 py-2
                                 text-right transition
                                 hover:bg-[#FFF4E8]
                               "
@@ -583,23 +626,23 @@ export default function AddGuestToTableModal({
                               <div className="flex min-w-0 items-center gap-2">
                                 <div
                                   className="
-                                    flex h-8 w-8 shrink-0 items-center justify-center
+                                    flex h-7 w-7 shrink-0 items-center justify-center
                                     rounded-full bg-[#F1DFCF]
-                                    text-[11px] font-black text-[#7A4B2D]
+                                    text-[10px] font-black text-[#7A4B2D]
                                   "
                                 >
                                   {getInitials(g2.name)}
                                 </div>
 
-                                <span className="truncate text-sm font-bold text-[#2F241D]">
+                                <span className="truncate text-xs font-bold text-[#2F241D]">
                                   {g2.name}
                                 </span>
                               </div>
 
                               <span
                                 className="
-                                  shrink-0 rounded-full bg-[#E4FBEA]
-                                  px-2 py-1 text-[11px] font-black text-[#137A3D]
+                                  shrink-0 rounded-full bg-[#FFF0D2]
+                                  px-2 py-0.5 text-[10px] font-black text-[#8B6532]
                                 "
                               >
                                 {getPartySize(g2)}
