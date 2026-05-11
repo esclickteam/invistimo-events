@@ -541,85 +541,23 @@ function TableRenderer({ table, hideSeats = false }) {
 
           const rotation = getSeatRotation(layout, c) - (table.rotation || 0);
 
-          const seatBackFill = isOccupied ? "#E5CCA1" : "#FFF7EA";
-const seatBodyFill = isOccupied ? "#FFF8EE" : "#FFFDF9";
-const seatStroke = isOccupied ? "#C79E5C" : "#D9BE93";
-const seatLegFill = isOccupied ? "#CDA66A" : "#D8BC93";
+        
 
           return (
-  <Group key={i} x={c.x} y={c.y} rotation={rotation}>
-    {/* רגל אחורית שמאל */}
-    <Rect
-      x={-5.6}
-      y={-17.5}
-      width={1.5}
-      height={4.6}
-      cornerRadius={1}
-      fill={seatLegFill}
-      listening={false}
-    />
+            <Group key={i} x={c.x} y={c.y} rotation={rotation}>
+  <Rect
+    x={-5.5}
+    y={-11}
+    width={11}
+    height={22}
+    cornerRadius={3}
+    fill={isOccupied ? "#CBA56C" : "#F8EBDD"}
+    stroke={isOccupied ? "#8A642F" : "#D7C0A1"}
+    strokeWidth={0.9}
+  />
+</Group>
 
-    {/* רגל אחורית ימין */}
-    <Rect
-      x={4.1}
-      y={-17.5}
-      width={1.5}
-      height={4.6}
-      cornerRadius={1}
-      fill={seatLegFill}
-      listening={false}
-    />
-
-    {/* משענת */}
-    <Rect
-      x={-5.8}
-      y={-14}
-      width={11.6}
-      height={5.4}
-      cornerRadius={2.8}
-      fill={seatBackFill}
-      stroke={seatStroke}
-      strokeWidth={0.75}
-      listening={false}
-    />
-
-    {/* מושב */}
-    <Rect
-      x={-6.8}
-      y={-8.3}
-      width={13.6}
-      height={8.8}
-      cornerRadius={3.4}
-      fill={seatBodyFill}
-      stroke={seatStroke}
-      strokeWidth={0.95}
-      listening={false}
-    />
-
-    {/* רגל קדמית שמאל */}
-    <Rect
-      x={-4.5}
-      y={0.6}
-      width={1.5}
-      height={4.8}
-      cornerRadius={1}
-      fill={seatLegFill}
-      listening={false}
-    />
-
-    {/* רגל קדמית ימין */}
-    <Rect
-      x={3}
-      y={0.6}
-      width={1.5}
-      height={4.8}
-      cornerRadius={1}
-      fill={seatLegFill}
-      listening={false}
-    />
-  </Group>
-);
-
+          );
         })}
     </Group>
   );
