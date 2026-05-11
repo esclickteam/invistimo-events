@@ -454,20 +454,21 @@ function LogisticsRow({
           )
         }
         className={`
-          rounded-full
-          border
-          px-4
-          py-2
-          text-sm
-          font-bold
-          outline-none
-          min-w-[150px]
-          ${
-            STATUS_META[
-              item.status
-            ]?.className
-          }
-        `}
+  rounded-full
+  border
+  px-4
+  py-2
+  text-sm
+  font-bold
+  outline-none
+  w-[150px]
+  shrink-0
+  ${
+    STATUS_META[
+      item.status
+    ]?.className
+  }
+`}
       >
         {Object.keys(
           STATUS_META
@@ -487,7 +488,7 @@ function LogisticsRow({
 
       {/* TITLE */}
 
-    <div className="flex-1 min-w-0 pl-10 overflow-hidden">
+   <div className="min-w-0 overflow-hidden">
   <input
     value={item.title}
     onChange={(e) =>
