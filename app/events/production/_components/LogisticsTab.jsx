@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-
 import {
   DndContext,
   closestCenter,
@@ -10,7 +9,6 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-
 import {
   SortableContext,
   verticalListSortingStrategy,
@@ -18,54 +16,45 @@ import {
   arrayMove,
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
-
 import { CSS } from "@dnd-kit/utilities";
-
 import {
   Plus,
   GripVertical,
   Trash2,
+  Pencil,
+  CalendarDays,
+  Package,
   Clock3,
   CheckCircle2,
   AlertCircle,
-  Pencil,
   Sparkles,
+  ListChecks,
 } from "lucide-react";
-
-/* =========================
-   STATUS
-========================= */
 
 const STATUS_META = {
   pending: {
     label: "מתוכנן",
-    color:
-      "bg-blue-50 text-blue-700 border-blue-100",
+    className: "bg-blue-50 text-blue-700 border-blue-100",
   },
-
   missing: {
-    label: "לא מאושר",
-    color:
-      "bg-orange-50 text-orange-700 border-orange-100",
+    label: "בתהליך",
+    className: "bg-orange-50 text-orange-700 border-orange-100",
   },
-
   done: {
-    label:
-      "בוצע",
-    color:
-      "bg-green-50 text-green-700 border-green-100",
+    label: "הושלם",
+    className: "bg-green-50 text-green-700 border-green-100",
   },
 };
 
-/* =========================
-   SORTABLE ROW
-========================= */
+const EVENT_ICONS = [
+  "👥",
+  "🚚",
+  "🍽️",
+  "⭐",
+  "🎉",
+];
 
-function SortableRow({
-  item,
-  onUpdate,
-  onDelete,
-}) {
+function SortableTimelineRow({ item, index, onUpdate, onDelete }) {
   const {
     setNodeRef,
     setActivatorNodeRef,
@@ -73,329 +62,176 @@ function SortableRow({
     listeners,
     transform,
     transition,
-  } = useSortable({
-    id: item._id,
-  });
+  } = useSortable({ id: item._id });
+
+  const icon = EVENT_ICONS[index % EVENT_ICONS.length];
 
   return (
     <div
       ref={setNodeRef}
       style={{
-        transform:
-          CSS.Transform.toString(
-            transform
-          ),
+        transform: CSS.Transform.toString(transform),
         transition,
       }}
-      className="
-        relative
-        flex
-        gap-5
-      "
+      className="relative grid grid-cols-[92px_1fr] gap-0"
     >
-      {/* TIMELINE */}
-      <div className="flex flex-col items-center">
-
-        <div
-          className="
-            h-14
-            w-14
-            rounded-2xl
-            bg-white
-            border
-            border-purple-100
-            shadow-sm
-            flex
-            items-center
-            justify-center
-            text-[#1E1B2E]
-            font-black
-            text-sm
-          "
-        >
+      <div className="relative flex flex-col items-center">
+        <div className="z-10 rounded-2xl bg-purple-50 border border-purple-100 px-3 py-2 text-sm font-black text-purple-700">
           {item.time || "--:--"}
         </div>
 
-        <div className="w-px flex-1 bg-purple-100 mt-2" />
+        <div className="absolute top-11 bottom-[-24px] w-px bg-purple-100" />
+
+        <div className="z-10 mt-4 h-3 w-3 rounded-full bg-purple-500 shadow-[0_0_0_6px_rgba(124,58,237,0.12)]" />
       </div>
 
-      {/* CARD */}
-      <div
-        className="
-          flex-1
-          rounded-[28px]
-          border
-          border-white/60
-          bg-white/90
-          backdrop-blur-xl
-          p-5
-          shadow-[0_15px_50px_rgba(124,58,237,0.06)]
-        "
-      >
-        {/* TOP */}
-        <div className="flex items-start justify-between gap-4">
+      <div className="mb-4 rounded-[24px] border border-gray-100 bg-white shadow-[0_14px_40px_rgba(30,27,46,0.05)] p-4">
+        <div className="flex items-center gap-4">
+          <button
+            ref={setActivatorNodeRef}
+            {...attributes}
+            {...listeners}
+            className="cursor-grab text-gray-400 hover:text-purple-600"
+          >
+            <GripVertical size={20} />
+          </button>
 
-          <div className="flex items-start gap-3 flex-1">
-
-            <button
-              ref={
-                setActivatorNodeRef
-              }
-              {...attributes}
-              {...listeners}
-              className="
-                mt-1
-                cursor-grab
-                text-gray-400
-              "
-            >
-              <GripVertical
-                size={20}
-              />
-            </button>
-
-            <div className="flex-1">
-
-              <div className="flex flex-wrap items-center gap-3">
-
-                <div
-                  className={`
-                    rounded-full
-                    border
-                    px-3
-                    py-1
-                    text-xs
-                    font-bold
-                    ${
-                      STATUS_META[
-                        item.status
-                      ]?.color
-                    }
-                  `}
-                >
-                  {
-                    STATUS_META[
-                      item.status
-                    ]?.label
-                  }
-                </div>
-
-                <div className="text-xs text-gray-400">
-                  שלב בלו״ז
-                </div>
-              </div>
-
-              <input
-                value={item.title}
-                onChange={(e) =>
-                  onUpdate(
-                    item._id,
-                    {
-                      title:
-                        e.target
-                          .value,
-                    }
-                  )
-                }
-                className="
-                  w-full
-                  mt-4
-                  text-2xl
-                  font-black
-                  text-[#1E1B2E]
-                  bg-transparent
-                  outline-none
-                "
-              />
-
-              {item.phone && (
-                <div className="mt-4 text-sm text-gray-500">
-                  📞{" "}
-                  <a
-                    href={`tel:${item.phone}`}
-                  >
-                    {item.phone}
-                  </a>
-                </div>
-              )}
-            </div>
+          <div className="h-12 w-12 rounded-2xl bg-purple-50 flex items-center justify-center text-xl">
+            {icon}
           </div>
 
-          {/* ACTIONS */}
-          <div className="flex items-center gap-2">
-
-            <select
-              value={item.status}
+          <div className="flex-1">
+            <input
+              value={item.title || ""}
               onChange={(e) =>
-                onUpdate(
-                  item._id,
-                  {
-                    status:
-                      e.target
-                        .value,
-                  }
-                )
+                onUpdate(item._id, { title: e.target.value })
               }
-              className="
-                rounded-xl
-                border
-                border-gray-200
-                bg-white
-                px-3
-                py-2
-                text-sm
-                outline-none
-              "
-            >
-              {Object.keys(
-                STATUS_META
-              ).map((s) => (
-                <option
-                  key={s}
-                  value={s}
-                >
-                  {
-                    STATUS_META[
-                      s
-                    ].label
-                  }
-                </option>
-              ))}
-            </select>
+              className="w-full bg-transparent outline-none text-lg font-black text-[#1E1B2E]"
+              placeholder="שם האירוע"
+            />
 
-            <button
-              onClick={() =>
-                onDelete(
-                  item._id
-                )
-              }
-              className="
-                h-11
-                w-11
-                rounded-2xl
-                bg-red-50
-                border
-                border-red-100
-                text-red-600
-                flex
-                items-center
-                justify-center
-              "
-            >
-              <Trash2
-                size={18}
-              />
-            </button>
-          </div>
-        </div>
-
-        {/* BOTTOM */}
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-
-          <div>
-            <p className="text-xs text-gray-400 mb-2">
-              שעה
-            </p>
-
-            <div
-              className="
-                flex
-                items-center
-                gap-2
-                rounded-2xl
-                border
-                border-gray-200
-                px-4
-                py-3
-              "
-            >
-              <Clock3
-                size={16}
-                className="text-gray-400"
-              />
-
-              <input
-                type="time"
-                value={
-                  item.time ||
-                  ""
-                }
-                onChange={(e) =>
-                  onUpdate(
-                    item._id,
-                    {
-                      time:
-                        e.target
-                          .value,
-                    }
-                  )
-                }
-                className="
-                  bg-transparent
-                  outline-none
-                  w-full
-                "
-              />
+            <div className="mt-1 flex items-center gap-2 text-xs text-gray-400">
+              <Clock3 size={13} />
+              יום האירוע
             </div>
           </div>
 
-          <div>
-            <p className="text-xs text-gray-400 mb-2">
-              עריכת שלב
-            </p>
+          <input
+            type="time"
+            value={item.time || ""}
+            onChange={(e) =>
+              onUpdate(item._id, { time: e.target.value })
+            }
+            className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm outline-none"
+          />
 
-            <div
-              className="
-                flex
-                items-center
-                gap-2
-                rounded-2xl
-                border
-                border-gray-200
-                px-4
-                py-3
-              "
-            >
-              <Pencil
-                size={16}
-                className="text-gray-400"
-              />
-
-              <span className="text-sm text-gray-500">
-                ניתן לערוך
-                את השלב
-                בזמן אמת
-              </span>
-            </div>
-          </div>
+          <button
+            onClick={() => onDelete(item._id)}
+            className="h-10 w-10 rounded-xl border border-red-100 bg-red-50 text-red-600 flex items-center justify-center"
+          >
+            <Trash2 size={17} />
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-/* =========================
-   MAIN
-========================= */
+function SortableLogisticsRow({ item, onUpdate, onDelete }) {
+  const {
+    setNodeRef,
+    setActivatorNodeRef,
+    attributes,
+    listeners,
+    transform,
+    transition,
+  } = useSortable({ id: item._id });
 
-export default function LogisticsTab({
-  eventId,
-}) {
-  const [steps, setSteps] =
-    useState([]);
+  const meta = STATUS_META[item.status] || STATUS_META.pending;
 
-  const [loading, setLoading] =
-    useState(true);
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+      }}
+      className="rounded-[22px] border border-gray-100 bg-white shadow-[0_10px_30px_rgba(30,27,46,0.04)] p-4"
+    >
+      <div className="flex items-center gap-4">
+        <button
+          ref={setActivatorNodeRef}
+          {...attributes}
+          {...listeners}
+          className="cursor-grab text-gray-400 hover:text-purple-600"
+        >
+          <GripVertical size={20} />
+        </button>
 
-  const [newItem, setNewItem] =
-    useState({
-      time: "",
-      title: "",
-    });
+        <div className="h-11 w-11 rounded-2xl bg-stone-100 flex items-center justify-center text-[#7A4A35]">
+          <Package size={20} />
+        </div>
 
-  /* =========================
-     LOAD
-  ========================= */
+        <input
+          value={item.title || ""}
+          onChange={(e) =>
+            onUpdate(item._id, { title: e.target.value })
+          }
+          className="flex-1 bg-transparent outline-none font-bold text-[#1E1B2E]"
+          placeholder="שם השלב"
+        />
+
+        <select
+          value={item.status || "pending"}
+          onChange={(e) =>
+            onUpdate(item._id, { status: e.target.value })
+          }
+          className={`rounded-full border px-3 py-1.5 text-xs font-bold outline-none ${meta.className}`}
+        >
+          {Object.keys(STATUS_META).map((status) => (
+            <option key={status} value={status}>
+              {STATUS_META[status].label}
+            </option>
+          ))}
+        </select>
+
+        <input
+          type="time"
+          value={item.time || ""}
+          onChange={(e) =>
+            onUpdate(item._id, { time: e.target.value })
+          }
+          className="w-[110px] rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm outline-none"
+        />
+
+        <button
+          onClick={() => onDelete(item._id)}
+          className="h-10 w-10 rounded-xl border border-red-100 bg-red-50 text-red-600 flex items-center justify-center"
+        >
+          <Trash2 size={17} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export default function LogisticsTab({ eventId }) {
+  const [steps, setSteps] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const [newLogistic, setNewLogistic] = useState({
+    time: "",
+    title: "",
+    status: "pending",
+    type: "logistics",
+  });
+
+  const [newEvent, setNewEvent] = useState({
+    time: "",
+    title: "",
+    status: "pending",
+    type: "event",
+  });
 
   useEffect(() => {
     if (!eventId) return;
@@ -404,26 +240,17 @@ export default function LogisticsTab({
       setLoading(true);
 
       try {
-        const res = await fetch(
-          `/api/events/${eventId}/logistics`,
-          {
-            cache:
-              "no-store",
-          }
-        );
+        const res = await fetch(`/api/events/${eventId}/logistics`, {
+          cache: "no-store",
+        });
 
-        const data =
-          await res.json();
+        const data = await res.json();
 
         if (data.success) {
-          setSteps(
-            data.steps
-          );
+          setSteps(data.steps || []);
         }
       } catch (err) {
-        console.error(
-          err
-        );
+        console.error("LOGISTICS LOAD ERROR:", err);
       } finally {
         setLoading(false);
       }
@@ -432,203 +259,114 @@ export default function LogisticsTab({
     load();
   }, [eventId]);
 
-  /* =========================
-     DND
-  ========================= */
-
   const sensors = useSensors(
-    useSensor(
-      PointerSensor,
-      {
-        activationConstraint:
-          {
-            distance: 8,
-          },
-      }
-    ),
-
-    useSensor(
-      KeyboardSensor,
-      {
-        coordinateGetter:
-          sortableKeyboardCoordinates,
-      }
-    )
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
   );
 
-  const ids = useMemo(
-    () =>
-      steps.map(
-        (s) => s._id
-      ),
+  const logisticsSteps = useMemo(
+    () => steps.filter((s) => s.type !== "event"),
     [steps]
   );
 
-  /* =========================
-     ADD
-  ========================= */
+  const eventSteps = useMemo(
+    () => steps.filter((s) => s.type === "event"),
+    [steps]
+  );
 
-  async function addStep() {
-    if (!newItem.title)
-      return;
+  const logisticsIds = useMemo(
+    () => logisticsSteps.map((s) => s._id),
+    [logisticsSteps]
+  );
 
-    const res = await fetch(
-      `/api/events/${eventId}/logistics`,
-      {
-        method: "POST",
+  const eventIds = useMemo(
+    () => eventSteps.map((s) => s._id),
+    [eventSteps]
+  );
 
-        headers: {
-          "Content-Type":
-            "application/json",
-        },
+  async function addStep(payload, reset) {
+    if (!payload.title?.trim()) return;
 
-        body: JSON.stringify(
-          newItem
-        ),
-      }
-    );
+    const res = await fetch(`/api/events/${eventId}/logistics`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
 
-    const data =
-      await res.json();
+    const data = await res.json();
 
     if (data.success) {
-      setSteps((p) => [
-        ...p,
-        data.step,
-      ]);
-
-      setNewItem({
-        time: "",
-        title: "",
-      });
+      setSteps((prev) => [...prev, data.step]);
+      reset();
     }
   }
 
-  /* =========================
-     UPDATE
-  ========================= */
-
-  async function updateStep(
-    id,
-    patch
-  ) {
-    setSteps((p) =>
-      p.map((s) =>
-        s._id === id
-          ? {
-              ...s,
-              ...patch,
-            }
-          : s
-      )
+  async function updateStep(id, patch) {
+    setSteps((prev) =>
+      prev.map((s) => (s._id === id ? { ...s, ...patch } : s))
     );
 
-    await fetch(
-      `/api/logistics/${id}`,
-      {
+    try {
+      await fetch(`/api/logistics/${id}`, {
         method: "PATCH",
-
-        headers: {
-          "Content-Type":
-            "application/json",
-        },
-
-        body: JSON.stringify(
-          patch
-        ),
-      }
-    );
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+    } catch (err) {
+      console.error("UPDATE LOGISTICS ERROR:", err);
+    }
   }
 
-  /* =========================
-     DELETE
-  ========================= */
+  async function deleteStep(id) {
+    if (!confirm("למחוק את השלב?")) return;
 
-  async function deleteStep(
-    id
-  ) {
-    setSteps((p) =>
-      p.filter(
-        (s) =>
-          s._id !== id
-      )
-    );
+    setSteps((prev) => prev.filter((s) => s._id !== id));
 
-    await fetch(
-      `/api/logistics/${id}`,
-      {
+    try {
+      await fetch(`/api/logistics/${id}`, {
         method: "DELETE",
-      }
-    );
+      });
+    } catch (err) {
+      console.error("DELETE LOGISTICS ERROR:", err);
+    }
   }
 
-  /* =========================
-     DRAG
-  ========================= */
+  function handleDragEnd(type) {
+    return async ({ active, over }) => {
+      if (!over || active.id === over.id) return;
 
-  async function handleDragEnd({
-    active,
-    over,
-  }) {
-    if (
-      !over ||
-      active.id === over.id
-    )
-      return;
-
-    setSteps((items) => {
-      const oldIndex =
-        items.findIndex(
-          (i) =>
-            i._id ===
-            active.id
+      setSteps((items) => {
+        const group = items.filter((s) =>
+          type === "event" ? s.type === "event" : s.type !== "event"
         );
 
-      const newIndex =
-        items.findIndex(
-          (i) =>
-            i._id ===
-            over.id
+        const other = items.filter((s) =>
+          type === "event" ? s.type !== "event" : s.type === "event"
         );
 
-      const reordered =
-        arrayMove(
-          items,
-          oldIndex,
-          newIndex
-        );
+        const oldIndex = group.findIndex((i) => i._id === active.id);
+        const newIndex = group.findIndex((i) => i._id === over.id);
 
-      reordered.forEach(
-        (s, i) => {
-          fetch(
-            `/api/logistics/${s._id}`,
-            {
-              method:
-                "PATCH",
+        const reorderedGroup = arrayMove(group, oldIndex, newIndex);
 
-              headers: {
-                "Content-Type":
-                  "application/json",
-              },
+        reorderedGroup.forEach((s, index) => {
+          fetch(`/api/logistics/${s._id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ order: index }),
+          });
+        });
 
-              body: JSON.stringify(
-                {
-                  order:
-                    i,
-                }
-              ),
-            }
-          );
-        }
-      );
-
-      return reordered;
-    });
+        return type === "event"
+          ? [...other, ...reorderedGroup]
+          : [...reorderedGroup, ...other];
+      });
+    };
   }
-
-  /* =========================
-     LOADING
-  ========================= */
 
   if (loading) {
     return (
@@ -638,255 +376,205 @@ export default function LogisticsTab({
     );
   }
 
-  /* =========================
-     RENDER
-  ========================= */
-
   return (
     <div
       dir="rtl"
-      className="
-        max-w-6xl
-        mx-auto
-        p-6
-        space-y-8
-      "
+      className="max-w-7xl mx-auto px-6 py-10 space-y-10"
     >
-      {/* HERO */}
-      <section
-        className="
-          rounded-[36px]
-          border
-          border-white/60
-          bg-white/80
-          backdrop-blur-xl
-          p-8
-          shadow-[0_20px_60px_rgba(124,58,237,0.08)]
-        "
-      >
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+      <section className="text-center space-y-3">
+        <div className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white/70 px-4 py-2 text-sm font-bold text-[#7A4A35]">
+          <Sparkles size={16} />
+          ניהול האירוע
+        </div>
 
-          <div>
-            <div className="flex items-center gap-3 mb-3">
+        <h1 className="text-4xl font-black text-[#1E1B2E]">
+          ✨ ניהול לוגיסטיקה ולוח האירוע ✨
+        </h1>
 
-              <div
-                className="
-                  h-14
-                  w-14
-                  rounded-2xl
-                  bg-gradient-to-br
-                  from-violet-500
-                  to-purple-400
-                  flex
-                  items-center
-                  justify-center
-                  text-white
-                "
-              >
-                <Sparkles
-                  size={24}
-                />
+        <p className="text-gray-500">
+          ארגון כל השלבים החשובים במקום אחד
+        </p>
+      </section>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
+        {/* RIGHT - EVENT TIMELINE */}
+        <section className="rounded-[34px] border border-stone-200 bg-white/85 backdrop-blur-xl p-7 shadow-[0_22px_70px_rgba(30,27,46,0.08)]">
+          <div className="flex items-center justify-between mb-7">
+            <div className="flex items-center gap-3">
+              <div className="h-14 w-14 rounded-2xl bg-[#F5E7DC] text-[#7A4A35] flex items-center justify-center">
+                <CalendarDays size={24} />
               </div>
 
               <div>
-                <p className="text-sm text-purple-600 font-semibold">
-                  Event Logistics
+                <h2 className="text-2xl font-black text-[#1E1B2E]">
+                  לוח האירוע
+                </h2>
+                <p className="text-sm text-gray-500">
+                  סדר האירועים לפי שעות
                 </p>
-
-                <h1 className="text-3xl font-black text-[#1E1B2E]">
-                  ניהול לו״ז
-                  ולוגיסטיקה
-                </h1>
               </div>
             </div>
-
-            <p className="text-gray-500 leading-7">
-              ניהול השלבים
-              והמשימות של
-              האירוע במקום
-              אחד בצורה
-              מסודרת ומקצועית.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* ADD */}
-      <section
-        className="
-          rounded-[32px]
-          border
-          border-white/60
-          bg-white/80
-          backdrop-blur-xl
-          p-6
-          shadow-[0_15px_50px_rgba(124,58,237,0.05)]
-        "
-      >
-        <div className="flex items-center justify-between mb-5">
-
-          <div>
-            <h2 className="text-2xl font-black text-[#1E1B2E]">
-              הוספת שלב
-            </h2>
-
-            <p className="text-sm text-gray-500 mt-1">
-              יצירת שלבים
-              חדשים בלו״ז
-            </p>
           </div>
 
-          <div
-            className="
-              h-14
-              w-14
-              rounded-2xl
-              bg-purple-50
-              text-violet-600
-              flex
-              items-center
-              justify-center
-            "
-          >
-            <Plus
-              size={24}
+          <div className="grid grid-cols-1 md:grid-cols-[140px_1fr_auto] gap-3 mb-7">
+            <input
+              type="time"
+              value={newEvent.time}
+              onChange={(e) =>
+                setNewEvent((p) => ({ ...p, time: e.target.value }))
+              }
+              className="rounded-2xl border border-gray-200 bg-white px-4 py-3 outline-none"
             />
+
+            <input
+              value={newEvent.title}
+              onChange={(e) =>
+                setNewEvent((p) => ({ ...p, title: e.target.value }))
+              }
+              placeholder="שם האירוע בלו״ז"
+              className="rounded-2xl border border-gray-200 bg-white px-4 py-3 outline-none"
+            />
+
+            <button
+              onClick={() =>
+                addStep(newEvent, () =>
+                  setNewEvent({
+                    time: "",
+                    title: "",
+                    status: "pending",
+                    type: "event",
+                  })
+                )
+              }
+              className="rounded-2xl bg-gradient-to-r from-violet-600 to-purple-500 text-white px-5 py-3 font-bold shadow-[0_12px_30px_rgba(124,58,237,0.25)]"
+            >
+              <span className="flex items-center gap-2">
+                <Plus size={17} />
+                הוסף אירוע
+              </span>
+            </button>
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[160px_1fr_140px] gap-4">
-
-          <input
-            type="time"
-            value={
-              newItem.time
-            }
-            onChange={(e) =>
-              setNewItem(
-                (p) => ({
-                  ...p,
-                  time:
-                    e.target
-                      .value,
-                })
-              )
-            }
-            className="
-              rounded-2xl
-              border
-              border-gray-200
-              px-4
-              py-4
-              outline-none
-            "
-          />
-
-          <input
-            value={
-              newItem.title
-            }
-            onChange={(e) =>
-              setNewItem(
-                (p) => ({
-                  ...p,
-                  title:
-                    e.target
-                      .value,
-                })
-              )
-            }
-            placeholder="שם השלב"
-            className="
-              rounded-2xl
-              border
-              border-gray-200
-              px-4
-              py-4
-              outline-none
-            "
-          />
-
-          <button
-            onClick={
-              addStep
-            }
-            className="
-              rounded-2xl
-              bg-gradient-to-r
-              from-violet-600
-              to-purple-500
-              text-white
-              font-bold
-              shadow-[0_12px_30px_rgba(124,58,237,0.25)]
-            "
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd("event")}
           >
-            הוסף שלב
-          </button>
-        </div>
-      </section>
+            <SortableContext
+              items={eventIds}
+              strategy={verticalListSortingStrategy}
+            >
+              <div>
+                {eventSteps.length === 0 ? (
+                  <div className="rounded-3xl border border-dashed border-gray-200 p-10 text-center text-gray-400">
+                    עדיין אין אירועים בלו״ז
+                  </div>
+                ) : (
+                  eventSteps.map((item, index) => (
+                    <SortableTimelineRow
+                      key={item._id}
+                      item={item}
+                      index={index}
+                      onUpdate={updateStep}
+                      onDelete={deleteStep}
+                    />
+                  ))
+                )}
+              </div>
+            </SortableContext>
+          </DndContext>
+        </section>
 
-      {/* TIMELINE */}
-      <DndContext
-        sensors={sensors}
-        collisionDetection={
-          closestCenter
-        }
-        onDragEnd={
-          handleDragEnd
-        }
-      >
-        <SortableContext
-          items={ids}
-          strategy={
-            verticalListSortingStrategy
-          }
-        >
-          <div className="space-y-6">
+        {/* LEFT - LOGISTICS */}
+        <section className="rounded-[34px] border border-stone-200 bg-white/85 backdrop-blur-xl p-7 shadow-[0_22px_70px_rgba(30,27,46,0.08)]">
+          <div className="flex items-center justify-between mb-7">
+            <div className="flex items-center gap-3">
+              <div className="h-14 w-14 rounded-2xl bg-[#F5E7DC] text-[#7A4A35] flex items-center justify-center">
+                <ListChecks size={24} />
+              </div>
 
-            {steps.map(
-              (item) => (
-                <SortableRow
-                  key={
-                    item._id
-                  }
-                  item={item}
-                  onUpdate={
-                    updateStep
-                  }
-                  onDelete={
-                    deleteStep
-                  }
-                />
-              )
-            )}
+              <div>
+                <h2 className="text-2xl font-black text-[#1E1B2E]">
+                  לוגיסטיקה
+                </h2>
+                <p className="text-sm text-gray-500">
+                  משימות, ספקים והכנות לפני האירוע
+                </p>
+              </div>
+            </div>
           </div>
-        </SortableContext>
-      </DndContext>
 
-      {/* FOOTER */}
-      <div
-        className="
-          rounded-3xl
-          border
-          border-purple-100
-          bg-gradient-to-r
-          from-violet-50
-          to-purple-50
-          p-5
-          text-center
-        "
-      >
-        <div className="flex items-center justify-center gap-2 text-[#1E1B2E] font-bold">
+          <div className="grid grid-cols-1 md:grid-cols-[140px_1fr_auto] gap-3 mb-7">
+            <input
+              type="time"
+              value={newLogistic.time}
+              onChange={(e) =>
+                setNewLogistic((p) => ({ ...p, time: e.target.value }))
+              }
+              className="rounded-2xl border border-gray-200 bg-white px-4 py-3 outline-none"
+            />
 
-          <CheckCircle2
-            size={18}
-          />
+            <input
+              value={newLogistic.title}
+              onChange={(e) =>
+                setNewLogistic((p) => ({ ...p, title: e.target.value }))
+              }
+              placeholder="מה נדרש לארגן?"
+              className="rounded-2xl border border-gray-200 bg-white px-4 py-3 outline-none"
+            />
 
-          כל השלבים
-          נשמרים בזמן
-          אמת ומתעדכנים
-          אוטומטית
-        </div>
+            <button
+              onClick={() =>
+                addStep(newLogistic, () =>
+                  setNewLogistic({
+                    time: "",
+                    title: "",
+                    status: "pending",
+                    type: "logistics",
+                  })
+                )
+              }
+              className="rounded-2xl bg-gradient-to-r from-violet-600 to-purple-500 text-white px-5 py-3 font-bold shadow-[0_12px_30px_rgba(124,58,237,0.25)]"
+            >
+              <span className="flex items-center gap-2">
+                <Plus size={17} />
+                הוסף שלב
+              </span>
+            </button>
+          </div>
+
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd("logistics")}
+          >
+            <SortableContext
+              items={logisticsIds}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-4">
+                {logisticsSteps.length === 0 ? (
+                  <div className="rounded-3xl border border-dashed border-gray-200 p-10 text-center text-gray-400">
+                    עדיין אין שלבים לוגיסטיים
+                  </div>
+                ) : (
+                  logisticsSteps.map((item) => (
+                    <SortableLogisticsRow
+                      key={item._id}
+                      item={item}
+                      onUpdate={updateStep}
+                      onDelete={deleteStep}
+                    />
+                  ))
+                )}
+              </div>
+            </SortableContext>
+          </DndContext>
+        </section>
+      </div>
+
+      <div className="mx-auto max-w-xl rounded-3xl border border-stone-200 bg-[#FFF8F1] px-6 py-4 text-center text-sm text-[#7A4A35] shadow-sm">
+        💡 טיפ: אפשר לגרור שלבים כדי לסדר את הסדר, לערוך שעה/שם ולמחוק מה שלא רלוונטי.
       </div>
     </div>
   );
