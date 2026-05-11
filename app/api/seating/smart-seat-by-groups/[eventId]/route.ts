@@ -1,26 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 
-import db from "@/lib/db";
-import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
-
-import Guest from "@/models/Guest";
+import dbConnect from "@/lib/db";
+import InvitationGuest from "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
 import SeatingTable from "@/models/SeatingTable";
+import { requireSeating } from "@/lib/guards/requireSeating";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-/* ===============================
-   TYPES
-=============================== */
+type RouteContext = {
+  params: Promise<{ eventId: string }>;
+};
 
-type GuestDoc = {
+type InvitationGuestDoc = {
   _id: mongoose.Types.ObjectId;
   name?: string;
   fullName?: string;
+  phone?: string;
   guestsCount?: number;
   count?: number;
+  arrivedCount?: number;
+  actualArrivedCount?: number;
+  rsvp?: string;
+  status?: string;
   groupId?: mongoose.Types.ObjectId | string | null;
   relation?: string | null;
   tableId?: mongoose.Types.ObjectId | string | null;
@@ -42,16 +46,43 @@ type TableDoc = {
    HELPERS
 =============================== */
 
-function getGuestName(guest: GuestDoc) {
+function getGuestName(guest: InvitationGuestDoc) {
   return guest.name || guest.fullName || "אורח ללא שם";
 }
 
-function getGuestCount(guest: GuestDoc) {
-  const count = Number(guest.guestsCount || guest.count || 1);
+function getGuestCount(guest: InvitationGuestDoc) {
+  const count = Number(
+    guest.guestsCount ||
+      guest.count ||
+      guest.arrivedCount ||
+      guest.actualArrivedCount ||
+      1
+  );
+
   return Number.isFinite(count) && count > 0 ? count : 1;
 }
 
-function getGroupKey(guest: GuestDoc) {
+function isApprovedGuest(guest: InvitationGuestDoc) {
+  const rsvp = String(guest.rsvp || "").toLowerCase().trim();
+  const status = String(guest.status || "").toLowerCase().trim();
+
+  return (
+    rsvp === "yes" ||
+    rsvp === "approved" ||
+    rsvp === "confirmed" ||
+    rsvp === "attending" ||
+    rsvp === "מגיע" ||
+    rsvp === "אישר" ||
+    status === "yes" ||
+    status === "approved" ||
+    status === "confirmed" ||
+    status === "attending" ||
+    status === "מגיע" ||
+    status === "אישר"
+  );
+}
+
+function getGroupKey(guest: InvitationGuestDoc) {
   if (guest.groupId) {
     return `group:${String(guest.groupId)}`;
   }
@@ -76,27 +107,18 @@ function getTableName(table: TableDoc) {
    POST – SMART SEAT BY GROUPS
 =============================== */
 
-export async function POST(
-  req: NextRequest,
-  context: { params: Promise<{ eventId: string }> }
-) {
+export async function POST(req: NextRequest, context: RouteContext) {
   try {
-    await db();
+    await dbConnect();
 
     /* ===============================
        AUTH
     =============================== */
 
-    const auth = await getUserIdFromRequest(req);
+    const guard = await requireSeating();
 
-    if (!auth?.userId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "UNAUTHORIZED",
-        },
-        { status: 401 }
-      );
+    if (!guard.ok) {
+      return guard.response!;
     }
 
     /* ===============================
@@ -105,150 +127,124 @@ export async function POST(
 
     const { eventId } = await context.params;
 
-    if (!mongoose.Types.ObjectId.isValid(eventId)) {
+    if (!eventId) {
       return NextResponse.json(
         {
           success: false,
-          error: "INVALID_EVENT_ID",
+          error: "MISSING_EVENT_ID",
         },
         { status: 400 }
       );
     }
 
-    const eventObjectId = new mongoose.Types.ObjectId(eventId);
-
     /* ===============================
-       BODY
-       מקבלים invitationId מהפרונט
+       FIND INVITATION BY EVENT ID
+       זה בדיוק כמו /api/seating/guests/[eventId]
     =============================== */
 
-    const body = await req.json().catch(() => ({}));
+    const invitation = await Invitation.findOne({ eventId })
+      .select("_id eventId")
+      .lean<{
+        _id: mongoose.Types.ObjectId;
+        eventId?: string;
+      } | null>();
 
-    let invitationIdFromBody: string | null =
-      typeof body?.invitationId === "string" && body.invitationId
-        ? body.invitationId
-        : null;
-
-    let invitationObjectId: mongoose.Types.ObjectId | null = null;
-
-    if (
-      invitationIdFromBody &&
-      mongoose.Types.ObjectId.isValid(invitationIdFromBody)
-    ) {
-      invitationObjectId = new mongoose.Types.ObjectId(invitationIdFromBody);
-    }
-
-    /* ===============================
-       FALLBACK – FIND INVITATION BY EVENT
-       אם משום מה לא הגיע invitationId מהפרונט
-    =============================== */
-
-    if (!invitationObjectId) {
-      const invitation = await Invitation.findOne({
-        $or: [
-          { eventId: eventObjectId },
-          { eventId },
-          { _id: eventObjectId },
-        ],
-      })
-        .select("_id eventId")
-        .lean<{
-          _id: mongoose.Types.ObjectId;
-          eventId?: mongoose.Types.ObjectId | string;
-        } | null>();
-
-      if (invitation?._id) {
-        invitationObjectId = invitation._id;
-        invitationIdFromBody = String(invitation._id);
-      }
-    }
-
-    /* ===============================
-       GUEST QUERY
-       מחפש לפי כל האפשרויות:
-       eventId כאובייקט
-       eventId כסטרינג
-       invitationId כאובייקט
-       invitationId כסטרינג
-       invitation כאובייקט / סטרינג
-    =============================== */
-
-    const guestOrQuery: any[] = [
-      { eventId: eventObjectId },
-      { eventId },
-    ];
-
-    if (invitationObjectId) {
-      guestOrQuery.push({ invitationId: invitationObjectId });
-      guestOrQuery.push({ invitationId: String(invitationObjectId) });
-      guestOrQuery.push({ invitation: invitationObjectId });
-      guestOrQuery.push({ invitation: String(invitationObjectId) });
-    }
-
-    const guestBaseQuery = {
-      $and: [
-        {
-          $or: guestOrQuery,
-        },
-        {
-          $or: [{ isDeleted: { $exists: false } }, { isDeleted: false }],
-        },
-      ],
-    };
-
-    /* ===============================
-       LOAD DATA
-    =============================== */
-
-    const guests = await Guest.find(guestBaseQuery).lean<GuestDoc[]>();
-
-    const tables = await SeatingTable.find({
-      $or: [{ eventId: eventObjectId }, { eventId }],
-    }).lean<TableDoc[]>();
-
-    if (!guests.length) {
+    if (!invitation?._id) {
       return NextResponse.json(
         {
           success: false,
-          error:
-            "לא נמצאו אורחים לאירוע הזה. ה־API קיבל eventId אבל לא הצליח למצוא אורחים לפי eventId או invitationId.",
+          error: "לא נמצאה הזמנה לאירוע הזה",
+        },
+        { status: 400 }
+      );
+    }
+
+    const invitationId = invitation._id;
+
+    /* ===============================
+       LOAD GUESTS
+       אותו מקור כמו רשימת האורחים במסך
+    =============================== */
+
+    const allGuests = await InvitationGuest.find({
+      invitationId,
+    })
+      .lean<InvitationGuestDoc[]>()
+      .exec();
+
+    if (!Array.isArray(allGuests) || !allGuests.length) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "לא נמצאו אורחים להזמנה הזו",
           debug: {
             eventId,
-            invitationId: invitationObjectId ? String(invitationObjectId) : null,
-            guestOrQuery,
+            invitationId: String(invitationId),
           },
         },
         { status: 400 }
       );
     }
 
-    if (!tables.length) {
+    /*
+      הושבה חכמה רק למי שאישר הגעה
+    */
+    const approvedGuests = allGuests.filter(isApprovedGuest);
+
+    if (!approvedGuests.length) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "נמצאו אורחים, אבל אין אורחים שאישרו הגעה. ההושבה החכמה מתבצעת רק למי שאישר הגעה.",
+          debug: {
+            eventId,
+            invitationId: String(invitationId),
+            allGuestsCount: allGuests.length,
+            sampleGuest: allGuests[0],
+          },
+        },
+        { status: 400 }
+      );
+    }
+
+    /* ===============================
+       LOAD TABLES
+    =============================== */
+
+    const tables = await SeatingTable.find({
+      eventId,
+    })
+      .lean<TableDoc[]>()
+      .exec();
+
+    if (!Array.isArray(tables) || !tables.length) {
       return NextResponse.json(
         {
           success: false,
           error: "לא נמצאו שולחנות לאירוע הזה",
           debug: {
             eventId,
-            invitationId: invitationObjectId ? String(invitationObjectId) : null,
+            invitationId: String(invitationId),
           },
         },
         { status: 400 }
       );
     }
 
-    const validTables = tables
+    const tableStates = tables
       .map((table) => ({
         table,
         tableId: String(table._id),
         tableName: getTableName(table),
         capacity: getTableCapacity(table),
         remaining: getTableCapacity(table),
-        seatedGuests: [] as GuestDoc[],
+        seatedGuests: [] as InvitationGuestDoc[],
       }))
       .filter((table) => table.capacity > 0)
       .sort((a, b) => b.capacity - a.capacity);
 
-    if (!validTables.length) {
+    if (!tableStates.length) {
       return NextResponse.json(
         {
           success: false,
@@ -258,11 +254,15 @@ export async function POST(
       );
     }
 
-    const totalGuestSeats = guests.reduce((sum, guest) => {
+    /* ===============================
+       VALIDATE SEATS
+    =============================== */
+
+    const totalGuestSeats = approvedGuests.reduce((sum, guest) => {
       return sum + getGuestCount(guest);
     }, 0);
 
-    const totalTableSeats = validTables.reduce((sum, table) => {
+    const totalTableSeats = tableStates.reduce((sum, table) => {
       return sum + table.capacity;
     }, 0);
 
@@ -270,7 +270,7 @@ export async function POST(
       return NextResponse.json(
         {
           success: false,
-          error: `אין מספיק מקומות. יש ${totalGuestSeats} מקומות נדרשים לאורחים אבל רק ${totalTableSeats} מקומות בשולחנות.`,
+          error: `אין מספיק מקומות. יש ${totalGuestSeats} מקומות נדרשים למי שאישר הגעה, אבל רק ${totalTableSeats} מקומות בשולחנות.`,
           totalGuestSeats,
           totalTableSeats,
         },
@@ -280,12 +280,11 @@ export async function POST(
 
     /* ===============================
        RESET CURRENT SEATING
+       מאפס הושבה קיימת, לא מוחק אורחים ולא שולחנות
     =============================== */
 
     await SeatingTable.updateMany(
-      {
-        $or: [{ eventId: eventObjectId }, { eventId }],
-      },
+      { eventId },
       {
         $set: {
           seatedGuests: [],
@@ -293,8 +292,8 @@ export async function POST(
       }
     );
 
-    await Guest.updateMany(
-      guestBaseQuery,
+    await InvitationGuest.updateMany(
+      { invitationId },
       {
         $unset: {
           tableId: "",
@@ -306,18 +305,19 @@ export async function POST(
 
     /* ===============================
        BUILD GROUPS
+       רק מתוך מי שאישר הגעה
     =============================== */
 
     const groupMap = new Map<
       string,
       {
         key: string;
-        members: GuestDoc[];
+        members: InvitationGuestDoc[];
         seatsNeeded: number;
       }
     >();
 
-    for (const guest of guests) {
+    for (const guest of approvedGuests) {
       const key = getGroupKey(guest);
 
       if (!groupMap.has(key)) {
@@ -337,16 +337,20 @@ export async function POST(
       (a, b) => b.seatsNeeded - a.seatsNeeded
     );
 
-    const unseatedGuests: GuestDoc[] = [];
+    const unseatedGuests: InvitationGuestDoc[] = [];
 
     /* ===============================
        SMART SEATING ALGORITHM
+
+       1. קודם מנסה לשים קבוצה שלמה בשולחן אחד.
+       2. אם אי אפשר — מפצל לפי שולחנות פנויים.
+       3. קבוצות גדולות קודם.
     =============================== */
 
     for (const group of groups) {
       const groupSeatsNeeded = group.seatsNeeded;
 
-      const bestFullTable = validTables
+      const bestFullTable = tableStates
         .filter((table) => table.remaining >= groupSeatsNeeded)
         .sort((a, b) => a.remaining - b.remaining)[0];
 
@@ -358,7 +362,7 @@ export async function POST(
 
       let guestsToSeat = [...group.members];
 
-      const availableTables = validTables
+      const availableTables = tableStates
         .filter((table) => table.remaining > 0)
         .sort((a, b) => b.remaining - a.remaining);
 
@@ -366,7 +370,7 @@ export async function POST(
         if (!guestsToSeat.length) break;
 
         let remainingSeatsInTable = table.remaining;
-        const chunk: GuestDoc[] = [];
+        const chunk: InvitationGuestDoc[] = [];
 
         while (guestsToSeat.length && remainingSeatsInTable > 0) {
           const nextGuest = guestsToSeat[0];
@@ -404,7 +408,7 @@ export async function POST(
     let seatedGuestCount = 0;
     let seatedSeatsCount = 0;
 
-    for (const tableState of validTables) {
+    for (const tableState of tableStates) {
       let currentSeatNumber = 1;
 
       const seatedGuestsPayload = tableState.seatedGuests.map((guest) => {
@@ -416,10 +420,13 @@ export async function POST(
         return {
           guestId: guest._id,
           name: getGuestName(guest),
+          phone: guest.phone || "",
           guestsCount: guestCount,
           count: guestCount,
           groupId: guest.groupId || null,
           relation: guest.relation || "",
+          rsvp: guest.rsvp || "",
+          status: guest.status || "",
           seatNumber,
         };
       });
@@ -432,7 +439,8 @@ export async function POST(
 
       await SeatingTable.updateOne(
         {
-          _id: new mongoose.Types.ObjectId(tableState.tableId),
+          _id: tableState.tableId,
+          eventId,
         },
         {
           $set: {
@@ -446,11 +454,15 @@ export async function POST(
           (item) => String(item.guestId) === String(guest._id)
         );
 
-        await Guest.updateOne(
-          { _id: guest._id },
+        await InvitationGuest.updateOne(
+          {
+            _id: guest._id,
+            invitationId,
+          },
           {
             $set: {
-              tableId: new mongoose.Types.ObjectId(tableState.tableId),
+              tableId: tableState.tableId,
+              tableName: tableState.tableName,
               seatNumber: payloadItem?.seatNumber || null,
             },
           }
@@ -464,21 +476,27 @@ export async function POST(
       seatedGuestCount,
       seatedSeatsCount,
       seatedCount: seatedGuestCount,
-      totalGuests: guests.length,
+      totalApprovedGuests: approvedGuests.length,
+      totalGuestsInInvitation: allGuests.length,
       totalGuestSeats,
       totalTableSeats,
       unseatedCount: unseatedGuests.length,
-      debug: {
-        eventId,
-        invitationId: invitationObjectId ? String(invitationObjectId) : null,
-      },
       unseatedGuests: unseatedGuests.map((guest) => ({
         id: String(guest._id),
         name: getGuestName(guest),
+        phone: guest.phone || "",
         guestsCount: getGuestCount(guest),
         groupId: guest.groupId ? String(guest.groupId) : null,
         relation: guest.relation || "",
+        rsvp: guest.rsvp || "",
+        status: guest.status || "",
       })),
+      debug: {
+        eventId,
+        invitationId: String(invitationId),
+        allGuestsCount: allGuests.length,
+        approvedGuestsCount: approvedGuests.length,
+      },
     });
   } catch (error: any) {
     console.error("❌ SMART SEAT BY GROUPS ERROR:", error);

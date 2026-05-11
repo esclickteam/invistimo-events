@@ -61,6 +61,7 @@ export default function SeatingPage() {
   const [isAutoSaving, setIsAutoSaving] = useState(false);
   const [lastAutoSavedAt, setLastAutoSavedAt] = useState<Date | null>(null);
 
+  const [showSmartPanel, setShowSmartPanel] = useState(false);
   const [isSmartSeating, setIsSmartSeating] = useState(false);
   const [isClearingSmartSeating, setIsClearingSmartSeating] = useState(false);
 
@@ -179,12 +180,9 @@ export default function SeatingPage() {
 
       setZones(tData.zones || []);
 
-      const grRes = await fetch(
-        `/api/seating/groups/${invitationIdToLoad}`,
-        {
-          cache: "no-store",
-        }
-      );
+      const grRes = await fetch(`/api/seating/groups/${invitationIdToLoad}`, {
+        cache: "no-store",
+      });
 
       if (grRes.ok) {
         const grData = await grRes.json();
@@ -374,9 +372,9 @@ export default function SeatingPage() {
     if (isSmartSeating) return;
 
     const ok = window.confirm(
-      "המערכת תושיב את כל האורחים אוטומטית לפי קבוצות ומקומות פנויים בשולחנות.\n\n" +
+      "המערכת תושיב מחדש רק את האורחים שאישרו הגעה, לפי קבוצות ומקומות פנויים בשולחנות.\n\n" +
         "שימי לב: פעולה זו עשויה להחליף את ההושבה הקיימת.\n" +
-        "לאחר מכן עדיין תוכלי לגרור אורחים, להסיר אורחים משולחנות ולשנות הכל ידנית.\n\n" +
+        "לאחר מכן עדיין אפשר לגרור אורחים, להסיר אורחים משולחנות ולשנות הכל ידנית.\n\n" +
         "להמשיך?"
     );
 
@@ -385,18 +383,15 @@ export default function SeatingPage() {
     try {
       setIsSmartSeating(true);
 
-      const res = await fetch(
-  `/api/seating/smart-seat-by-groups/${eventId}`,
-  {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      invitationId,
-    }),
-  }
-);
+      const res = await fetch(`/api/seating/smart-seat-by-groups/${eventId}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          invitationId,
+        }),
+      });
 
       const data = await res.json().catch(() => ({}));
 
@@ -406,6 +401,8 @@ export default function SeatingPage() {
 
       await loadSeatingData(eventId, invitationId);
       await saveSeating(false);
+
+      setShowSmartPanel(false);
 
       alert(
         `✅ ההושבה החכמה הושלמה בהצלחה\n\nהושבו: ${
@@ -450,15 +447,12 @@ export default function SeatingPage() {
     try {
       setIsClearingSmartSeating(true);
 
-      const res = await fetch(
-        `/api/seating/clear-smart-seating/${eventId}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      const res = await fetch(`/api/seating/clear-smart-seating/${eventId}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
 
       const data = await res.json().catch(() => ({}));
 
@@ -468,6 +462,8 @@ export default function SeatingPage() {
 
       await loadSeatingData(eventId, invitationId);
       await saveSeating(false);
+
+      setShowSmartPanel(false);
 
       alert("✅ ההושבה הוסרה בהצלחה. האורחים חזרו לרשימת האורחים.");
     } catch (err: any) {
@@ -687,6 +683,96 @@ export default function SeatingPage() {
               whitespace-nowrap
             "
           >
+            {/* SMART SEATING MENU */}
+            <div className="relative shrink-0">
+              <button
+                onClick={() => setShowSmartPanel((v) => !v)}
+                disabled={!eventId || isSmartSeating || isClearingSmartSeating}
+                className="
+                  flex h-11 shrink-0 items-center gap-2 rounded-2xl
+                  bg-gradient-to-l from-[#2b2119] to-[#8b6b3e]
+                  px-4 text-sm font-black text-white
+                  shadow-[0_12px_28px_rgba(139,107,62,0.25)]
+                  transition hover:-translate-y-0.5 hover:brightness-105
+                  disabled:cursor-not-allowed disabled:opacity-50
+                "
+              >
+                <span>✨</span>
+                הושבה חכמה
+                <span className="text-xs opacity-80">
+                  {showSmartPanel ? "▲" : "▼"}
+                </span>
+              </button>
+
+              {showSmartPanel && (
+                <div
+                  className="
+                    absolute left-0 top-[54px] z-[10050]
+                    w-[360px] overflow-hidden rounded-[26px]
+                    border border-[#ead8c8]
+                    bg-white/95 p-4 text-right
+                    shadow-[0_24px_70px_rgba(70,45,20,0.18)]
+                    backdrop-blur-2xl
+                  "
+                >
+                  <div className="mb-4">
+                    <div className="mb-1 flex items-center gap-2 text-sm font-black text-[#2b2119]">
+                      <span>✨</span>
+                      הושבה חכמה לפי קבוצות
+                    </div>
+
+                    <p className="text-xs font-semibold leading-6 text-[#8a765f]">
+                      המערכת תושיב רק אורחים שאישרו הגעה, לפי קבוצות ומקומות
+                      פנויים. לאחר מכן אפשר לערוך ידנית, לגרור אורחים, להסיר
+                      אורחים משולחנות או לבצע הושבה מחדש.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <button
+                      onClick={handleSmartSeatByGroups}
+                      disabled={
+                        isSmartSeating || isClearingSmartSeating || !eventId
+                      }
+                      className="
+                        flex h-11 w-full items-center justify-center gap-2
+                        rounded-2xl bg-[#1f1b17] px-4
+                        text-sm font-black text-white
+                        shadow-[0_12px_26px_rgba(0,0,0,0.16)]
+                        transition hover:-translate-y-0.5 hover:bg-black
+                        disabled:cursor-not-allowed disabled:opacity-50
+                      "
+                    >
+                      <span>♛</span>
+                      {isSmartSeating
+                        ? "מבצע הושבה..."
+                        : "הושב מחדש לפי קבוצות"}
+                    </button>
+
+                    <button
+                      onClick={handleClearSmartSeating}
+                      disabled={
+                        isSmartSeating || isClearingSmartSeating || !eventId
+                      }
+                      className="
+                        flex h-11 w-full items-center justify-center gap-2
+                        rounded-2xl border border-[#ead8c8]
+                        bg-[#fffaf3] px-4
+                        text-sm font-black text-[#7a4d2c]
+                        transition hover:-translate-y-0.5 hover:bg-[#fff3e2]
+                        disabled:cursor-not-allowed disabled:opacity-50
+                      "
+                    >
+                      <span>↩️</span>
+                      {isClearingSmartSeating
+                        ? "מסיר הושבה..."
+                        : "הסר הושבה"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <button
               onClick={() => setShowAddModal(true)}
               className="
@@ -699,50 +785,6 @@ export default function SeatingPage() {
               <span className="text-lg leading-none">+</span>
               הוסף שולחן
             </button>
-
-            <div className="flex shrink-0 flex-col gap-1">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleSmartSeatByGroups}
-                  disabled={isSmartSeating || isClearingSmartSeating || !eventId}
-                  className="
-                    flex h-11 shrink-0 items-center gap-2 rounded-2xl
-                    bg-gradient-to-l from-[#2b2119] to-[#8b6b3e]
-                    px-4 text-sm font-black text-white
-                    shadow-[0_12px_28px_rgba(139,107,62,0.25)]
-                    transition hover:-translate-y-0.5 hover:brightness-105
-                    disabled:cursor-not-allowed disabled:opacity-50
-                  "
-                  title="הושבה אוטומטית לפי קבוצות ומקומות פנויים"
-                >
-                  <span>✨</span>
-                  {isSmartSeating ? "מושיב חכם..." : "הושבה חכמה לפי קבוצות"}
-                </button>
-
-                <button
-                  onClick={handleClearSmartSeating}
-                  disabled={
-                    isSmartSeating || isClearingSmartSeating || !eventId
-                  }
-                  className="
-                    flex h-11 shrink-0 items-center gap-2 rounded-2xl
-                    border border-[#eadcca] bg-white/90 px-4
-                    text-sm font-black text-[#7a4d2c]
-                    shadow-sm transition hover:-translate-y-0.5 hover:bg-[#fff8ee]
-                    disabled:cursor-not-allowed disabled:opacity-50
-                  "
-                  title="הסרת השיבוץ מכל השולחנות והחזרת האורחים לרשימה"
-                >
-                  <span>↩️</span>
-                  {isClearingSmartSeating ? "מסיר הושבה..." : "הסר הושבה חכמה"}
-                </button>
-              </div>
-
-              <p className="hidden max-w-[460px] text-[11px] font-semibold leading-4 text-[#9a8773] md:block">
-                ההושבה החכמה מסדרת לפי קבוצות ומקומות פנויים. לאחר מכן אפשר
-                לגרור, להסיר ולשנות ידנית כל אורח.
-              </p>
-            </div>
 
             <button
               onClick={() => setShowUpload(true)}

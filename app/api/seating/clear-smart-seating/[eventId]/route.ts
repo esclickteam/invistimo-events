@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import mongoose from "mongoose";
 
-import { connectDB } from "@/lib/db";
-import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
-
-import Guest from "@/models/Guest";
+import dbConnect from "@/lib/db";
+import InvitationGuest from "@/models/InvitationGuest";
+import Invitation from "@/models/Invitation";
 import SeatingTable from "@/models/SeatingTable";
+import { requireSeating } from "@/lib/guards/requireSeating";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+
+type RouteContext = {
+  params: Promise<{ eventId: string }>;
+};
 
 /* ===============================
    POST – CLEAR SMART SEATING
@@ -16,27 +19,18 @@ export const runtime = "nodejs";
    מחזיר אורחים לרשימת האורחים
 =============================== */
 
-export async function POST(
-  req: NextRequest,
-  context: { params: Promise<{ eventId: string }> }
-) {
+export async function POST(req: NextRequest, context: RouteContext) {
   try {
-    await connectDB();
+    await dbConnect();
 
     /* ===============================
        AUTH
     =============================== */
 
-    const auth = await getUserIdFromRequest(req);
+    const guard = await requireSeating();
 
-    if (!auth?.userId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "UNAUTHORIZED",
-        },
-        { status: 401 }
-      );
+    if (!guard.ok) {
+      return guard.response!;
     }
 
     /* ===============================
@@ -45,24 +39,46 @@ export async function POST(
 
     const { eventId } = await context.params;
 
-    if (!mongoose.Types.ObjectId.isValid(eventId)) {
+    if (!eventId) {
       return NextResponse.json(
         {
           success: false,
-          error: "INVALID_EVENT_ID",
+          error: "MISSING_EVENT_ID",
         },
         { status: 400 }
       );
     }
 
-    const eventObjectId = new mongoose.Types.ObjectId(eventId);
+    /* ===============================
+       FIND INVITATION BY EVENT ID
+       אותו מקור כמו /api/seating/guests/[eventId]
+    =============================== */
+
+    const invitation = await Invitation.findOne({ eventId })
+      .select("_id eventId")
+      .lean<{
+        _id: any;
+        eventId?: string;
+      } | null>();
+
+    if (!invitation?._id) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "לא נמצאה הזמנה לאירוע הזה",
+        },
+        { status: 404 }
+      );
+    }
+
+    const invitationId = invitation._id;
 
     /* ===============================
-       CHECK DATA
+       CHECK TABLES
     =============================== */
 
     const tablesCount = await SeatingTable.countDocuments({
-      eventId: eventObjectId,
+      eventId,
     });
 
     if (!tablesCount) {
@@ -75,16 +91,20 @@ export async function POST(
       );
     }
 
-    const guestsCount = await Guest.countDocuments({
-      eventId: eventObjectId,
-      $or: [{ isDeleted: { $exists: false } }, { isDeleted: false }],
+    /* ===============================
+       CHECK GUESTS
+       חשוב: InvitationGuest לפי invitationId
+    =============================== */
+
+    const guestsCount = await InvitationGuest.countDocuments({
+      invitationId,
     });
 
     if (!guestsCount) {
       return NextResponse.json(
         {
           success: false,
-          error: "לא נמצאו אורחים לאירוע הזה",
+          error: "לא נמצאו אורחים להזמנה הזו",
         },
         { status: 404 }
       );
@@ -97,7 +117,7 @@ export async function POST(
     =============================== */
 
     const tablesResult = await SeatingTable.updateMany(
-      { eventId: eventObjectId },
+      { eventId },
       {
         $set: {
           seatedGuests: [],
@@ -111,11 +131,8 @@ export async function POST(
        רק מסיר שיוך לשולחן
     =============================== */
 
-    const guestsResult = await Guest.updateMany(
-      {
-        eventId: eventObjectId,
-        $or: [{ isDeleted: { $exists: false } }, { isDeleted: false }],
-      },
+    const guestsResult = await InvitationGuest.updateMany(
+      { invitationId },
       {
         $unset: {
           tableId: "",
@@ -134,6 +151,12 @@ export async function POST(
       message: "CLEAR_SMART_SEATING_COMPLETED",
       clearedTablesCount: tablesResult.modifiedCount ?? 0,
       clearedGuestsCount: guestsResult.modifiedCount ?? 0,
+      debug: {
+        eventId,
+        invitationId: String(invitationId),
+        guestsCount,
+        tablesCount,
+      },
     });
   } catch (error: any) {
     console.error("❌ CLEAR SMART SEATING ERROR:", error);
