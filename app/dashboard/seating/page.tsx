@@ -61,6 +61,9 @@ export default function SeatingPage() {
   const [isAutoSaving, setIsAutoSaving] = useState(false);
   const [lastAutoSavedAt, setLastAutoSavedAt] = useState<Date | null>(null);
 
+  const [isSmartSeating, setIsSmartSeating] = useState(false);
+  const [isClearingSmartSeating, setIsClearingSmartSeating] = useState(false);
+
   /* ===============================
      STORES
   =============================== */
@@ -130,6 +133,70 @@ export default function SeatingPage() {
   }, [isProducer, setSeatingMode]);
 
   /* ===============================
+     LOAD SEATING DATA
+  =============================== */
+  const loadSeatingData = useCallback(
+    async (eventIdToLoad: string, invitationIdToLoad: string) => {
+      const gRes = await fetch(`/api/seating/guests/${eventIdToLoad}`, {
+        cache: "no-store",
+      });
+
+      if (gRes.status === 403) {
+        setBlockReason("no-plan");
+        return false;
+      }
+
+      const gData = await gRes.json();
+
+      const normalizedGuests = (gData.guests || []).map((g: GuestDTO) => ({
+        id: g._id,
+        name: g.name,
+        rsvp: g.rsvp,
+        guestsCount: g.guestsCount,
+        arrivedCount: g.arrivedCount,
+        actualArrivedCount: g.actualArrivedCount ?? 0,
+        groupId: g.groupId ?? null,
+        count: g.guestsCount ?? 1,
+      }));
+
+      const tRes = await fetch(`/api/seating/tables/${eventIdToLoad}`, {
+        cache: "no-store",
+      });
+
+      if (tRes.status === 403) {
+        setBlockReason("no-plan");
+        return false;
+      }
+
+      const tData = await tRes.json();
+
+      init(
+        tData.tables || [],
+        normalizedGuests,
+        tData.background ?? null,
+        tData.canvasView ?? null
+      );
+
+      setZones(tData.zones || []);
+
+      const grRes = await fetch(
+        `/api/seating/groups/${invitationIdToLoad}`,
+        {
+          cache: "no-store",
+        }
+      );
+
+      if (grRes.ok) {
+        const grData = await grRes.json();
+        setGroups(grData.groups || []);
+      }
+
+      return true;
+    },
+    [init, setGroups, setZones]
+  );
+
+  /* ===============================
      LOAD INITIAL DATA
   =============================== */
   useEffect(() => {
@@ -170,59 +237,7 @@ export default function SeatingPage() {
         setInvitationId(invitationIdFromApi);
         setEventId(eventIdFromApi);
 
-        const gRes = await fetch(`/api/seating/guests/${eventIdFromApi}`, {
-          cache: "no-store",
-        });
-
-        if (gRes.status === 403) {
-          setBlockReason("no-plan");
-          return;
-        }
-
-        const gData = await gRes.json();
-
-        const normalizedGuests = (gData.guests || []).map((g: GuestDTO) => ({
-          id: g._id,
-          name: g.name,
-          rsvp: g.rsvp,
-          guestsCount: g.guestsCount,
-          arrivedCount: g.arrivedCount,
-          actualArrivedCount: g.actualArrivedCount ?? 0,
-          groupId: g.groupId ?? null,
-          count: g.guestsCount ?? 1,
-        }));
-
-        const tRes = await fetch(`/api/seating/tables/${eventIdFromApi}`, {
-          cache: "no-store",
-        });
-
-        if (tRes.status === 403) {
-          setBlockReason("no-plan");
-          return;
-        }
-
-        const tData = await tRes.json();
-
-        init(
-          tData.tables || [],
-          normalizedGuests,
-          tData.background ?? null,
-          tData.canvasView ?? null
-        );
-
-        setZones(tData.zones || []);
-
-        const grRes = await fetch(
-          `/api/seating/groups/${invitationIdFromApi}`,
-          {
-            cache: "no-store",
-          }
-        );
-
-        if (grRes.ok) {
-          const grData = await grRes.json();
-          setGroups(grData.groups || []);
-        }
+        await loadSeatingData(eventIdFromApi, invitationIdFromApi);
       } catch (err) {
         console.error("❌ SeatingPage load error:", err);
       } finally {
@@ -231,7 +246,7 @@ export default function SeatingPage() {
     }
 
     load();
-  }, [isDemo, init, setGroups, setZones]);
+  }, [isDemo, loadSeatingData]);
 
   /* ===============================
      AUTO FIT ONE TIME
@@ -346,6 +361,125 @@ export default function SeatingPage() {
     },
     [eventId, invitationId]
   );
+
+  /* ===============================
+     SMART SEATING BY GROUPS
+  =============================== */
+  const handleSmartSeatByGroups = useCallback(async () => {
+    if (!eventId || !invitationId) {
+      alert("❌ חסר eventId או invitationId");
+      return;
+    }
+
+    if (isSmartSeating) return;
+
+    const ok = window.confirm(
+      "המערכת תושיב את כל האורחים אוטומטית לפי קבוצות ומקומות פנויים בשולחנות.\n\n" +
+        "שימי לב: פעולה זו עשויה להחליף את ההושבה הקיימת.\n" +
+        "לאחר מכן עדיין תוכלי לגרור אורחים, להסיר אורחים משולחנות ולשנות הכל ידנית.\n\n" +
+        "להמשיך?"
+    );
+
+    if (!ok) return;
+
+    try {
+      setIsSmartSeating(true);
+
+      const res = await fetch(
+        `/api/seating/smart-seat-by-groups/${eventId}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || "שגיאה בהושבה חכמה");
+      }
+
+      await loadSeatingData(eventId, invitationId);
+      await saveSeating(false);
+
+      alert(
+        `✅ ההושבה החכמה הושלמה בהצלחה\n\nהושבו: ${
+          data.seatedCount ?? 0
+        }\nלא הושבו: ${data.unseatedCount ?? 0}`
+      );
+    } catch (err: any) {
+      console.error("❌ Smart seating error:", err);
+      alert(err?.message || "❌ שגיאה בהושבה חכמה");
+    } finally {
+      setIsSmartSeating(false);
+    }
+  }, [
+    eventId,
+    invitationId,
+    isSmartSeating,
+    loadSeatingData,
+    saveSeating,
+  ]);
+
+  /* ===============================
+     CLEAR SMART SEATING
+  =============================== */
+  const handleClearSmartSeating = useCallback(async () => {
+    if (!eventId || !invitationId) {
+      alert("❌ חסר eventId או invitationId");
+      return;
+    }
+
+    if (isClearingSmartSeating) return;
+
+    const ok = window.confirm(
+      "הפעולה תסיר את ההושבה מכל השולחנות ותחזיר את האורחים לרשימת האורחים.\n\n" +
+        "השולחנות עצמם לא יימחקו.\n" +
+        "האורחים לא יימחקו.\n" +
+        "רק השיבוץ שלהם לשולחנות יתאפס.\n\n" +
+        "להמשיך?"
+    );
+
+    if (!ok) return;
+
+    try {
+      setIsClearingSmartSeating(true);
+
+      const res = await fetch(
+        `/api/seating/clear-smart-seating/${eventId}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || "שגיאה בהסרת ההושבה");
+      }
+
+      await loadSeatingData(eventId, invitationId);
+      await saveSeating(false);
+
+      alert("✅ ההושבה הוסרה בהצלחה. האורחים חזרו לרשימת האורחים.");
+    } catch (err: any) {
+      console.error("❌ Clear smart seating error:", err);
+      alert(err?.message || "❌ שגיאה בהסרת ההושבה");
+    } finally {
+      setIsClearingSmartSeating(false);
+    }
+  }, [
+    eventId,
+    invitationId,
+    isClearingSmartSeating,
+    loadSeatingData,
+    saveSeating,
+  ]);
 
   /* ===============================
      AUTO SAVE TEMPLATE
@@ -563,6 +697,50 @@ export default function SeatingPage() {
               הוסף שולחן
             </button>
 
+            <div className="flex shrink-0 flex-col gap-1">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleSmartSeatByGroups}
+                  disabled={isSmartSeating || isClearingSmartSeating || !eventId}
+                  className="
+                    flex h-11 shrink-0 items-center gap-2 rounded-2xl
+                    bg-gradient-to-l from-[#2b2119] to-[#8b6b3e]
+                    px-4 text-sm font-black text-white
+                    shadow-[0_12px_28px_rgba(139,107,62,0.25)]
+                    transition hover:-translate-y-0.5 hover:brightness-105
+                    disabled:cursor-not-allowed disabled:opacity-50
+                  "
+                  title="הושבה אוטומטית לפי קבוצות ומקומות פנויים"
+                >
+                  <span>✨</span>
+                  {isSmartSeating ? "מושיב חכם..." : "הושבה חכמה לפי קבוצות"}
+                </button>
+
+                <button
+                  onClick={handleClearSmartSeating}
+                  disabled={
+                    isSmartSeating || isClearingSmartSeating || !eventId
+                  }
+                  className="
+                    flex h-11 shrink-0 items-center gap-2 rounded-2xl
+                    border border-[#eadcca] bg-white/90 px-4
+                    text-sm font-black text-[#7a4d2c]
+                    shadow-sm transition hover:-translate-y-0.5 hover:bg-[#fff8ee]
+                    disabled:cursor-not-allowed disabled:opacity-50
+                  "
+                  title="הסרת השיבוץ מכל השולחנות והחזרת האורחים לרשימה"
+                >
+                  <span>↩️</span>
+                  {isClearingSmartSeating ? "מסיר הושבה..." : "הסר הושבה חכמה"}
+                </button>
+              </div>
+
+              <p className="hidden max-w-[460px] text-[11px] font-semibold leading-4 text-[#9a8773] md:block">
+                ההושבה החכמה מסדרת לפי קבוצות ומקומות פנויים. לאחר מכן אפשר
+                לגרור, להסיר ולשנות ידנית כל אורח.
+              </p>
+            </div>
+
             <button
               onClick={() => setShowUpload(true)}
               className="
@@ -606,8 +784,6 @@ export default function SeatingPage() {
                 <span>שמירה אוטומטית פעילה</span>
               )}
             </div>
-
-           
           </div>
         </div>
       </header>
