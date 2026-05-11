@@ -246,9 +246,87 @@ export default function LogisticsTab({ eventId }) {
 
         const data = await res.json();
 
-        if (data.success) {
-          setSteps(data.steps || []);
-        }
+      if (data.success) {
+  if (data.steps?.length) {
+    setSteps(data.steps);
+  } else {
+    setSteps([
+      // לוגיסטיקה
+      {
+        _id: "1",
+        type: "logistics",
+        title: "בחירת אולם וסגירה",
+        time: "09:00",
+        status: "done",
+      },
+
+      {
+        _id: "2",
+        type: "logistics",
+        title: "ספק קייטרינג",
+        time: "11:30",
+        status: "missing",
+      },
+
+      {
+        _id: "3",
+        type: "logistics",
+        title: "הזמנת ציוד הגברה ותאורה",
+        time: "13:00",
+        status: "pending",
+      },
+
+      {
+        _id: "4",
+        type: "logistics",
+        title: "עיצוב והדפסה",
+        time: "15:00",
+        status: "missing",
+      },
+
+      // לוח אירוע
+      {
+        _id: "5",
+        type: "event",
+        title: "הגעת צוות והכנות מוקדמות",
+        time: "09:00",
+        status: "pending",
+      },
+
+      {
+        _id: "6",
+        type: "event",
+        title: "הגעת ספקים והקמה",
+        time: "14:30",
+        status: "pending",
+      },
+
+      {
+        _id: "7",
+        type: "event",
+        title: "קבלת פנים ואירוח",
+        time: "18:00",
+        status: "pending",
+      },
+
+      {
+        _id: "8",
+        type: "event",
+        title: "טקס מרכזי",
+        time: "20:00",
+        status: "pending",
+      },
+
+      {
+        _id: "9",
+        type: "event",
+        title: "סיום האירוע",
+        time: "23:00",
+        status: "pending",
+      },
+    ]);
+  }
+}
       } catch (err) {
         console.error("LOGISTICS LOAD ERROR:", err);
       } finally {
