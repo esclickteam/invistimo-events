@@ -16,6 +16,8 @@ import {
   CalendarDays,
   CheckCircle2,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Clock3,
   Filter,
   LayoutDashboard,
@@ -252,6 +254,8 @@ export default function ProducerDashboard() {
     useState("");
   const [eventFilter, setEventFilter] =
     useState("all");
+  const [showProducerCalendar, setShowProducerCalendar] =
+    useState(false);
 
   const [editingPhoneClientId, setEditingPhoneClientId] =
     useState(null);
@@ -663,59 +667,52 @@ export default function ProducerDashboard() {
   }
 
   async function saveClientPhone(client) {
-  const clientId = String(client._id);
-  const phone = String(
-    phoneDraftByClientId[clientId] || ""
-  ).trim();
+    const clientId = String(client._id);
+    const phone = String(phoneDraftByClientId[clientId] || "").trim();
 
-  try {
-    setSavingPhoneClientId(clientId);
+    try {
+      setSavingPhoneClientId(clientId);
 
-    const res = await fetch("/api/producer/clients", {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      credentials: "include",
-      body: JSON.stringify({
-        clientId,
-        phone,
-      }),
-    });
+      const res = await fetch(`/api/producer/clients`, {
 
-    const data =
-      await res.json().catch(() => null);
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          phone,
+        }),
+      });
 
-    if (!res.ok || data?.success === false) {
-      throw new Error(
-        data?.message ||
-          "שגיאה בשמירת מספר טלפון"
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || data?.success === false) {
+        throw new Error(data?.message || "שגיאה בשמירת מספר טלפון");
+      }
+
+      setClients((prev) =>
+        prev.map((item) =>
+          String(item._id) === clientId
+            ? {
+                ...item,
+                phone,
+              }
+            : item
+        )
       );
+
+      setEditingPhoneClientId(null);
+    } catch (err) {
+      console.error(err);
+      alert(
+        err?.message ||
+          "לא הצלחנו לשמור מספר טלפון. צריך לוודא שקיים PATCH /api/producer/clients/[clientId]"
+      );
+    } finally {
+      setSavingPhoneClientId(null);
     }
-
-    setClients((prev) =>
-      prev.map((item) =>
-        String(item._id) === clientId
-          ? {
-              ...item,
-              phone,
-            }
-          : item
-      )
-    );
-
-    setEditingPhoneClientId(null);
-  } catch (err) {
-    console.error("SAVE PHONE ERROR:", err);
-
-    alert(
-      err?.message ||
-        "שגיאה בשמירת מספר טלפון"
-    );
-  } finally {
-    setSavingPhoneClientId(null);
   }
-}
 
   /* =========================
      Stats + Filters
@@ -789,6 +786,34 @@ export default function ProducerDashboard() {
         return new Date(aDate) - new Date(bDate);
       });
   }, [clients, searchTerm, eventFilter]);
+
+
+  const producerCalendarEvents = useMemo(() => {
+    return clients
+      .filter((client) => getEventDate(client))
+      .map((client) => ({
+        id:
+          getClientEventId(client) ||
+          client._id,
+        clientId: client._id,
+        clientName:
+          client.name || "לקוח ללא שם",
+        eventTitle: getEventTitle(client),
+        date: getEventDate(client),
+        location: getEventLocation(client),
+        phone: client.phone || "",
+        email: client.email || "",
+        totalGuests: getTotalGuests(client),
+        approvedCount: getApprovedCount(client),
+        status: getEventStatus(client),
+        client,
+      }))
+      .sort(
+        (a, b) =>
+          new Date(a.date).getTime() -
+          new Date(b.date).getTime()
+      );
+  }, [clients]);
 
   /* =========================
      UI
@@ -887,29 +912,57 @@ export default function ProducerDashboard() {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setShowCreateClient(true)}
-            className="
-              rounded-2xl
-              bg-[#1E1B2E]
-              text-white
-              font-black
-              px-6
-              py-4
-              text-sm
-              flex
-              items-center
-              justify-center
-              gap-2
-              shadow-[0_16px_35px_rgba(30,27,46,0.18)]
-              hover:opacity-95
-              transition
-            "
-          >
-            <UserPlus className="w-4 h-4" />
-            יצירת משתמש חדש
-          </button>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              type="button"
+              onClick={() => setShowProducerCalendar(true)}
+              className="
+                rounded-2xl
+                border
+                border-[#E8DDD3]
+                bg-white/85
+                text-[#1E1B2E]
+                font-black
+                px-6
+                py-4
+                text-sm
+                flex
+                items-center
+                justify-center
+                gap-2
+                shadow-sm
+                hover:bg-white
+                transition
+              "
+            >
+              <CalendarDays className="w-4 h-4 text-[#8B5CF6]" />
+              יומן מפיק
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowCreateClient(true)}
+              className="
+                rounded-2xl
+                bg-[#1E1B2E]
+                text-white
+                font-black
+                px-6
+                py-4
+                text-sm
+                flex
+                items-center
+                justify-center
+                gap-2
+                shadow-[0_16px_35px_rgba(30,27,46,0.18)]
+                hover:opacity-95
+                transition
+              "
+            >
+              <UserPlus className="w-4 h-4" />
+              יצירת משתמש חדש
+            </button>
+          </div>
         </div>
       </section>
 
@@ -1082,6 +1135,30 @@ export default function ProducerDashboard() {
 
             <button
               type="button"
+              onClick={() => setShowProducerCalendar(true)}
+              className="
+                rounded-2xl
+                border
+                border-[#E8DDD3]
+                bg-[#FCFBFA]
+                px-5
+                py-3
+                text-sm
+                font-black
+                text-[#1E1B2E]
+                flex
+                items-center
+                justify-center
+                gap-2
+                hover:bg-white
+              "
+            >
+              <CalendarDays size={16} className="text-[#8B5CF6]" />
+              יומן
+            </button>
+
+            <button
+              type="button"
               onClick={() =>
                 Promise.all([
                   fetchClients(),
@@ -1214,7 +1291,9 @@ export default function ProducerDashboard() {
                               {client.name || "ללא שם"}
                             </div>
 
-                            
+                            <div className="text-xs text-gray-400 mt-1">
+                              {client._id}
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -1592,6 +1671,16 @@ export default function ProducerDashboard() {
         )}
       </section>
 
+      <ProducerCalendarModal
+        open={showProducerCalendar}
+        events={producerCalendarEvents}
+        onClose={() => setShowProducerCalendar(false)}
+        onManage={(client) => {
+          setShowProducerCalendar(false);
+          handleManageClient(client);
+        }}
+      />
+
       <CreateClientModal
         open={showCreateClient}
         onClose={() =>
@@ -1793,6 +1882,543 @@ function EditablePhoneLine({
       >
         <Pencil size={12} />
       </button>
+    </div>
+  );
+}
+
+
+function ProducerCalendarModal({
+  open,
+  events,
+  onClose,
+  onManage,
+}) {
+  const [currentMonth, setCurrentMonth] =
+    useState(() => {
+      const now = new Date();
+      return new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        1
+      );
+    });
+
+  if (!open) return null;
+
+  const monthLabel =
+    currentMonth.toLocaleDateString("he-IL", {
+      month: "long",
+      year: "numeric",
+    });
+
+  const year = currentMonth.getFullYear();
+  const month = currentMonth.getMonth();
+
+  const firstDay = new Date(year, month, 1);
+  const daysInMonth = new Date(
+    year,
+    month + 1,
+    0
+  ).getDate();
+
+  const startOffset = firstDay.getDay();
+
+  const calendarCells = [];
+
+  for (let i = 0; i < startOffset; i++) {
+    calendarCells.push(null);
+  }
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    calendarCells.push(new Date(year, month, day));
+  }
+
+  while (calendarCells.length % 7 !== 0) {
+    calendarCells.push(null);
+  }
+
+  function sameDay(a, b) {
+    return (
+      a &&
+      b &&
+      a.getFullYear() === b.getFullYear() &&
+      a.getMonth() === b.getMonth() &&
+      a.getDate() === b.getDate()
+    );
+  }
+
+  function eventsForDate(date) {
+    if (!date) return [];
+
+    return events.filter((event) =>
+      sameDay(new Date(event.date), date)
+    );
+  }
+
+  function goPrevMonth() {
+    setCurrentMonth(
+      new Date(year, month - 1, 1)
+    );
+  }
+
+  function goNextMonth() {
+    setCurrentMonth(
+      new Date(year, month + 1, 1)
+    );
+  }
+
+  function goToday() {
+    const now = new Date();
+    setCurrentMonth(
+      new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        1
+      )
+    );
+  }
+
+  const upcomingEvents = events
+    .filter((event) => {
+      const d = new Date(event.date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return d >= today;
+    })
+    .slice(0, 8);
+
+  return (
+    <div
+      className="
+        fixed
+        inset-0
+        z-[100]
+        bg-black/35
+        backdrop-blur-sm
+        flex
+        items-center
+        justify-center
+        p-4
+      "
+      dir="rtl"
+    >
+      <div
+        className="
+          w-full
+          max-w-7xl
+          max-h-[92vh]
+          overflow-hidden
+          rounded-[38px]
+          border
+          border-[#ECE5DE]
+          bg-[#F8F3ED]
+          shadow-[0_30px_100px_rgba(30,27,46,0.25)]
+        "
+      >
+        <div
+          className="
+            flex
+            flex-col
+            lg:flex-row
+            lg:items-center
+            justify-between
+            gap-4
+            border-b
+            border-[#ECE5DE]
+            bg-gradient-to-br
+            from-white
+            via-[#FBF7F1]
+            to-[#F4EDFF]
+            p-6
+          "
+        >
+          <div>
+            <div
+              className="
+                inline-flex
+                items-center
+                gap-2
+                rounded-full
+                border
+                border-[#E8DDD3]
+                bg-white/80
+                px-4
+                py-2
+                text-xs
+                font-black
+                text-[#7A4A35]
+                mb-3
+              "
+            >
+              <CalendarDays size={15} />
+              יומן הפקות חודשי
+            </div>
+
+            <h2 className="text-3xl font-black text-[#1E1B2E]">
+              יומן מפיק
+            </h2>
+
+            <p className="text-sm text-gray-500 mt-2">
+              כל האירועים של הלקוחות שלך מרוכזים בלוח חודשי אחד.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={goToday}
+              className="
+                rounded-2xl
+                border
+                border-[#E8DDD3]
+                bg-white
+                px-4
+                py-3
+                text-sm
+                font-black
+                text-[#1E1B2E]
+              "
+            >
+              היום
+            </button>
+
+            <button
+              type="button"
+              onClick={goPrevMonth}
+              className="
+                h-11
+                w-11
+                rounded-2xl
+                border
+                border-[#E8DDD3]
+                bg-white
+                flex
+                items-center
+                justify-center
+              "
+            >
+              <ChevronRight size={18} />
+            </button>
+
+            <div
+              className="
+                min-w-[160px]
+                rounded-2xl
+                bg-white
+                border
+                border-[#E8DDD3]
+                px-4
+                py-3
+                text-center
+                font-black
+                text-[#1E1B2E]
+              "
+            >
+              {monthLabel}
+            </div>
+
+            <button
+              type="button"
+              onClick={goNextMonth}
+              className="
+                h-11
+                w-11
+                rounded-2xl
+                border
+                border-[#E8DDD3]
+                bg-white
+                flex
+                items-center
+                justify-center
+              "
+            >
+              <ChevronLeft size={18} />
+            </button>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="
+                h-11
+                w-11
+                rounded-2xl
+                bg-[#1E1B2E]
+                text-white
+                flex
+                items-center
+                justify-center
+              "
+            >
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+
+        <div
+          className="
+            grid
+            grid-cols-1
+            xl:grid-cols-[1fr_360px]
+            gap-5
+            p-5
+            overflow-y-auto
+            max-h-[calc(92vh-150px)]
+          "
+        >
+          <div
+            className="
+              rounded-[30px]
+              border
+              border-[#ECE5DE]
+              bg-white
+              overflow-hidden
+            "
+          >
+            <div
+              className="
+                grid
+                grid-cols-7
+                bg-[#FCFBFA]
+                border-b
+                border-[#ECE5DE]
+                text-center
+                text-xs
+                font-black
+                text-[#7B7285]
+              "
+            >
+              {["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"].map(
+                (day) => (
+                  <div key={day} className="py-3">
+                    {day}
+                  </div>
+                )
+              )}
+            </div>
+
+            <div className="grid grid-cols-7">
+              {calendarCells.map((date, index) => {
+                const dayEvents = eventsForDate(date);
+                const isToday =
+                  date && sameDay(date, new Date());
+
+                return (
+                  <div
+                    key={index}
+                    className={`
+                      min-h-[135px]
+                      border-b
+                      border-l
+                      border-[#F0ECE7]
+                      p-2
+                      ${
+                        date
+                          ? "bg-white"
+                          : "bg-[#FCFBFA]"
+                      }
+                    `}
+                  >
+                    {date && (
+                      <>
+                        <div
+                          className={`
+                            h-8
+                            w-8
+                            rounded-xl
+                            flex
+                            items-center
+                            justify-center
+                            text-sm
+                            font-black
+                            mb-2
+                            ${
+                              isToday
+                                ? "bg-[#8B5CF6] text-white"
+                                : "bg-[#F5E7DC] text-[#7A4A35]"
+                            }
+                          `}
+                        >
+                          {date.getDate()}
+                        </div>
+
+                        <div className="space-y-1.5">
+                          {dayEvents.slice(0, 3).map((event) => (
+                            <button
+                              type="button"
+                              key={`${event.id}-${event.clientId}`}
+                              onClick={() => onManage(event.client)}
+                              className="
+                                w-full
+                                rounded-xl
+                                border
+                                border-[#E7D8FF]
+                                bg-[#F4EDFF]
+                                px-2
+                                py-2
+                                text-right
+                                hover:bg-[#EFE4FF]
+                                transition
+                              "
+                            >
+                              <div className="text-[11px] font-black text-[#1E1B2E] truncate">
+                                {event.eventTitle}
+                              </div>
+
+                              <div className="text-[10px] text-[#7B7285] truncate mt-0.5">
+                                {event.clientName}
+                              </div>
+                            </button>
+                          ))}
+
+                          {dayEvents.length > 3 && (
+                            <div className="text-[10px] font-black text-[#8B5CF6]">
+                              +{dayEvents.length - 3} נוספים
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <aside
+            className="
+              rounded-[30px]
+              border
+              border-[#ECE5DE]
+              bg-white
+              p-5
+              h-fit
+            "
+          >
+            <div className="flex items-center gap-3 mb-5">
+              <div
+                className="
+                  h-12
+                  w-12
+                  rounded-2xl
+                  bg-[#F5E7DC]
+                  text-[#7A4A35]
+                  flex
+                  items-center
+                  justify-center
+                "
+              >
+                <Clock3 size={18} />
+              </div>
+
+              <div>
+                <h3 className="text-xl font-black text-[#1E1B2E]">
+                  אירועים קרובים
+                </h3>
+
+                <p className="text-xs text-gray-400">
+                  לחצי על אירוע כדי להיכנס לניהול
+                </p>
+              </div>
+            </div>
+
+            {upcomingEvents.length === 0 ? (
+              <div
+                className="
+                  rounded-2xl
+                  border
+                  border-dashed
+                  border-[#E8DDD3]
+                  bg-[#FCFBFA]
+                  p-5
+                  text-center
+                  text-sm
+                  text-gray-400
+                  font-bold
+                "
+              >
+                אין אירועים קרובים.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {upcomingEvents.map((event) => (
+                  <button
+                    key={`${event.id}-${event.clientId}`}
+                    type="button"
+                    onClick={() => onManage(event.client)}
+                    className="
+                      w-full
+                      rounded-2xl
+                      border
+                      border-[#F0ECE7]
+                      bg-[#FCFBFA]
+                      p-4
+                      text-right
+                      hover:border-[#E7D8FF]
+                      hover:bg-[#F4EDFF]
+                      transition
+                    "
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="font-black text-[#1E1B2E]">
+                          {event.eventTitle}
+                        </div>
+
+                        <div className="text-xs text-gray-400 mt-1">
+                          {event.clientName}
+                        </div>
+                      </div>
+
+                      <span
+                        className={`
+                          rounded-full
+                          border
+                          px-3
+                          py-1.5
+                          text-[11px]
+                          font-black
+                          ${event.status.className}
+                        `}
+                      >
+                        {event.status.label}
+                      </span>
+                    </div>
+
+                    <div
+                      className="
+                        mt-3
+                        grid
+                        grid-cols-2
+                        gap-2
+                        text-xs
+                        text-gray-500
+                      "
+                    >
+                      <div className="flex items-center gap-1">
+                        <CalendarDays size={13} />
+                        {formatDate(event.date)}
+                      </div>
+
+                      <div className="flex items-center gap-1 truncate">
+                        <MapPin size={13} />
+                        {event.location || "—"}
+                      </div>
+
+                      <div>
+                        מוזמנים: {event.totalGuests || "—"}
+                      </div>
+
+                      <div>
+                        אישרו: {event.approvedCount || 0}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </aside>
+        </div>
+      </div>
     </div>
   );
 }
