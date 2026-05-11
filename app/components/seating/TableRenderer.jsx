@@ -1,4 +1,4 @@
- "use client";
+"use client";
 
 import React from "react";
 import { useRef, useMemo, useState, useEffect } from "react";
@@ -154,11 +154,7 @@ function getSeatRotation(table, c) {
 /* ============================================================
    TableRenderer
 ============================================================ */
-
-  function TableRenderer({ table, hideSeats = false }) {
-
-
-
+function TableRenderer({ table, hideSeats = false }) {
   const tableRef = useRef(null);
 
   const [rotating, setRotating] = useState(false);
@@ -175,46 +171,37 @@ function getSeatRotation(table, c) {
   const assignGuestBlock = useSeatingStore((s) => s.assignGuestBlock);
   const selectedTableId = useSeatingStore((s) => s.selectedTableId);
 
-const liveArrivals = useSeatingStore((s) => s.liveArrivals);
+  const liveArrivals = useSeatingStore((s) => s.liveArrivals);
 
-const groups = useGroupStore((s) => s.groups);
+  const groups = useGroupStore((s) => s.groups);
 
-const groupForTable = useMemo(() => {
-  if (!table.seatedGuests?.length) return null;
+  const groupForTable = useMemo(() => {
+    if (!table.seatedGuests?.length) return null;
 
-  // מוצאים אורח ראשון עם קבוצה
-  const guestWithGroup = guests.find((g) =>
-    g.groupId &&
-    table.seatedGuests.some(
-      (s) => String(s.guestId) === String(g._id || g.id)
-    )
-  );
+    const guestWithGroup = guests.find(
+      (g) =>
+        g.groupId &&
+        table.seatedGuests.some(
+          (s) => String(s.guestId) === String(g._id || g.id)
+        )
+    );
 
-  if (!guestWithGroup?.groupId) return null;
+    if (!guestWithGroup?.groupId) return null;
 
-  return groups.find(
-    (gr) => String(gr._id) === String(guestWithGroup.groupId)
-  );
-}, [table.seatedGuests, guests, groups]);
-
-
-
-
-
-
-
+    return groups.find(
+      (gr) => String(gr._id) === String(guestWithGroup.groupId)
+    );
+  }, [table.seatedGuests, guests, groups]);
 
   const searchParams = useSearchParams();
-const from = searchParams.get("from");
-const guestIdFromUrl = searchParams.get("guestId");
+  const from = searchParams.get("from");
+  const guestIdFromUrl = searchParams.get("guestId");
 
-const seatingMode = useSeatingStore((s) => s.seatingMode);
+  const seatingMode = useSeatingStore((s) => s.seatingMode);
 
-useEffect(() => {
-  console.log("🟢 seatingMode in TableRenderer:", seatingMode);
-}, [seatingMode]);
-
-
+  useEffect(() => {
+    console.log("🟢 seatingMode in TableRenderer:", seatingMode);
+  }, [seatingMode]);
 
   const deleteTable =
     useSeatingStore((s) => s.deleteTable) ||
@@ -223,159 +210,149 @@ useEffect(() => {
 
   const assigned = table.seatedGuests || [];
 
- const occupiedSeatsCount = useMemo(() => {
-  if (!table.seatedGuests?.length) return 0;
+  const occupiedSeatsCount = useMemo(() => {
+    if (!table.seatedGuests?.length) return 0;
 
-  const counted = new Set();
+    const counted = new Set();
 
-  return table.seatedGuests.reduce((sum, s) => {
-    const guestId = String(s.guestId);
-    if (counted.has(guestId)) return sum;
+    return table.seatedGuests.reduce((sum, s) => {
+      const guestId = String(s.guestId);
+      if (counted.has(guestId)) return sum;
 
-    counted.add(guestId);
+      counted.add(guestId);
 
-    const g = guests.find((g) => String(g._id || g.id) === guestId);
-    if (!g) return sum;
+      const g = guests.find((g) => String(g._id || g.id) === guestId);
+      if (!g) return sum;
 
-    if (seatingMode === "live") {
-      const key = String(g.id ?? g._id);
-      return sum + Number(liveArrivals?.[key] ?? 0);
-    }
+      if (seatingMode === "live") {
+        const key = String(g.id ?? g._id);
+        return sum + Number(liveArrivals?.[key] ?? 0);
+      }
 
-    return sum + Number(g.arrivedCount ?? 0);
-  }, 0);
-}, [table.seatedGuests, guests, seatingMode, liveArrivals]);
+      return sum + Number(g.arrivedCount ?? 0);
+    }, 0);
+  }, [table.seatedGuests, guests, seatingMode, liveArrivals]);
 
-const seatsTotal = Number(table.seats || 0);
+  const seatsTotal = Number(table.seats || 0);
 
-const tableTitle = table.name || "";
+  const tableTitle = table.name || "";
 
-
-const tableLabel = groupForTable
-  ? `${groupForTable.name}\n${tableTitle}\n${occupiedSeatsCount}/${seatsTotal}`
-  : `${tableTitle}\n${occupiedSeatsCount}/${seatsTotal}`;
-
-
-
-
-
-
-
+  const tableLabel = groupForTable
+    ? `${groupForTable.name}\n${tableTitle}\n${occupiedSeatsCount}/${seatsTotal}`
+    : `${tableTitle}\n${occupiedSeatsCount}/${seatsTotal}`;
 
   const isHighlighted =
-  highlightedTable === table.id ||
-  assigned.some((s) => String(s.guestId) === String(selectedGuestId)) ||
-  (
-    from === "personal" &&
-    guestIdFromUrl &&
-    assigned.some((s) => String(s.guestId) === String(guestIdFromUrl))
-  );
-
+    highlightedTable === table.id ||
+    assigned.some((s) => String(s.guestId) === String(selectedGuestId)) ||
+    (from === "personal" &&
+      guestIdFromUrl &&
+      assigned.some((s) => String(s.guestId) === String(guestIdFromUrl)));
 
   const hasArrived = occupiedSeatsCount > 0;
 
-const tableFill = isHighlighted
-  ? "#fde047"           // מודגש
-  : hasArrived
-  ? "#3b82f6"           // רגיל
-  : "#e5e7eb";          // ריק (אפור בהיר)
+  const tableFill = isHighlighted
+    ? "#FFF3C4"
+    : hasArrived
+    ? "#F8F0E3"
+    : "#FFFFFF";
 
-const tableText = isHighlighted
-  ? "#713f12"
-  : hasArrived
-  ? "white"
-  : "#374151";          // טקסט כהה לשולחן ריק
+  const tableStroke = isHighlighted
+    ? "#D8A73D"
+    : hasArrived
+    ? "#C49A5F"
+    : "#E6D8C6";
 
-  
+  const tableText = isHighlighted
+    ? "#6B4300"
+    : hasArrived
+    ? "#3B2A1A"
+    : "#5B5148";
 
+  const accentColor = isHighlighted
+    ? "#D8A73D"
+    : hasArrived
+    ? "#2F8F68"
+    : "#C7B7A4";
 
-  const layout = useMemo(
-  () => getTableLayout(table),
-  [table.type, table.seats]
-);
-
+  const layout = useMemo(() => getTableLayout(table), [table.type, table.seats]);
 
   const seatsCoords = layout.coords;
 
   const arrivedSeatsSet = useMemo(() => {
-  const arrived = new Set();
-  let remaining = occupiedSeatsCount;
+    const arrived = new Set();
+    let remaining = occupiedSeatsCount;
 
-  const sorted = [...(table.seatedGuests || [])].sort(
-    (a, b) => (a.seatIndex ?? 0) - (b.seatIndex ?? 0)
-  );
+    const sorted = [...(table.seatedGuests || [])].sort(
+      (a, b) => (a.seatIndex ?? 0) - (b.seatIndex ?? 0)
+    );
 
-  for (const s of sorted) {
-    if (remaining <= 0) break;
-    arrived.add(s.seatIndex);
-    remaining--;
-  }
+    for (const s of sorted) {
+      if (remaining <= 0) break;
+      arrived.add(s.seatIndex);
+      remaining--;
+    }
 
-  return arrived;
-}, [table.seatedGuests, occupiedSeatsCount]);
-
-
+    return arrived;
+  }, [table.seatedGuests, occupiedSeatsCount]);
 
   /* ====== CACHE כמו Canva ====== */
-useEffect(() => {
-  if (tableRef.current) {
-    tableRef.current.clearCache();
-    tableRef.current.cache();
-    tableRef.current.getLayer()?.batchDraw();
-  }
-}, [
-  layout.type,
-  table.seats,
-  table.seatedGuests,
-  occupiedSeatsCount,
-  hideSeats,
-  liveArrivals,
-  table.name, // 🔥 זה מה שמפעיל redraw אחרי עריכה
-]);
-
+  useEffect(() => {
+    if (tableRef.current) {
+      tableRef.current.clearCache();
+      tableRef.current.cache();
+      tableRef.current.getLayer()?.batchDraw();
+    }
+  }, [
+    layout.type,
+    table.seats,
+    table.seatedGuests,
+    occupiedSeatsCount,
+    hideSeats,
+    liveArrivals,
+    table.name,
+  ]);
 
   const handleDrop = (e) => {
     e.cancelBubble = true;
     if (draggingGuest) {
       assignGuestBlock({
         guestId: draggingGuest._id || draggingGuest.id,
-
         tableId: table.id,
       });
     }
   };
 
   const handleClick = (e) => {
-  e.cancelBubble = true;
+    e.cancelBubble = true;
 
-  // תמיד לבחור שולחן
-  useSeatingStore.setState({ selectedTableId: table.id });
+    useSeatingStore.setState({ selectedTableId: table.id });
 
-  // אם גוררים אורח – לא לפתוח מודאל
-  if (draggingGuest) return;
+    if (draggingGuest) return;
 
-  // אם אין callback – לא לעשות כלום
-  if (typeof table.openAddGuestModal !== "function") return;
+    if (typeof table.openAddGuestModal !== "function") return;
 
-  // ✅ פתיחת מודאל הוספת אורח
-  table.openAddGuestModal();
-};
+    table.openAddGuestModal();
+  };
 
-const updatePositionInStore = () => {
-  if (!tableRef.current) return;
+  const updatePositionInStore = () => {
+    if (!tableRef.current) return;
 
-  const pos = tableRef.current.position();
-  const rotation = tableRef.current.rotation();
+    const pos = tableRef.current.position();
+    const rotation = tableRef.current.rotation();
 
-  useSeatingStore.setState((state) => ({
-    tables: state.tables.map((t) =>
-      t.id === table.id
-        ? { ...t, x: pos.x, y: pos.y, rotation }
-        : t
-    ),
-  }));
-};
-
+    useSeatingStore.setState((state) => ({
+      tables: state.tables.map((t) =>
+        t.id === table.id
+          ? {
+              ...t,
+              x: pos.x,
+              y: pos.y,
+              rotation,
+            }
+          : t
+      ),
+    }));
+  };
 
   /* ====== סיבוב ====== */
   const startRotate = (e) => {
@@ -409,7 +386,6 @@ const updatePositionInStore = () => {
       tableRef.current.getLayer()?.batchDraw();
     };
 
-    
     const end = () => {
       rotateActiveRef.current = false;
       setRotating(false);
@@ -422,184 +398,338 @@ const updatePositionInStore = () => {
     stage.on("mouseup.tableRotate", end);
   };
 
-  
   const { size, width, height, radius } = layout;
 
   return (
     <Group
-  ref={tableRef}
-  x={table.x}
-  y={table.y}
-  rotation={table.rotation || 0}
-  draggable={!rotating}
-  onDragEnd={updatePositionInStore}
-  onMouseUp={handleDrop}
-  onClick={handleClick}      // דסקטופ
-  onTap={handleClick}        // ✅ מובייל
->
-      {/* שולחן */}
+      ref={tableRef}
+      x={table.x}
+      y={table.y}
+      rotation={table.rotation || 0}
+      draggable={!rotating}
+      onDragEnd={updatePositionInStore}
+      onMouseUp={handleDrop}
+      onClick={handleClick}
+      onTap={handleClick}
+    >
+      {/* שולחן עגול */}
       {layout.type === "round" && (
         <>
-          <Circle radius={radius} fill={tableFill} shadowBlur={8} />
+          <Circle
+            radius={radius + 8}
+            fill="#000000"
+            opacity={0.08}
+            y={7}
+            listening={false}
+          />
+
+          <Circle
+            radius={radius + 4}
+            fill="#FFF7EA"
+            stroke="#E8D2AE"
+            strokeWidth={2}
+            shadowColor="rgba(90, 58, 24, 0.22)"
+            shadowBlur={18}
+            shadowOffset={{ x: 0, y: 8 }}
+            shadowOpacity={1}
+          />
+
+          <Circle
+            radius={radius - 4}
+            fill={tableFill}
+            stroke={tableStroke}
+            strokeWidth={2}
+          />
+
+          <Circle
+            radius={Math.max(12, radius - 18)}
+            stroke="#FFFFFF"
+            strokeWidth={1}
+            opacity={0.65}
+            listening={false}
+          />
+
+          <Circle
+            radius={4}
+            y={-radius + 16}
+            fill={accentColor}
+            listening={false}
+          />
+
           <Text
-  text={tableLabel}
-  width={radius * 2}
-  height={radius * 2 + 30}
-  offsetX={radius}
-  offsetY={(radius * 2 + 30) / 2}   // ✅ זה התיקון
-  align="center"
-  verticalAlign="middle"
-  fill={tableText}
-  fontSize={14}
-  lineHeight={1.25}
-/>
+            text={tableLabel}
+            width={radius * 2}
+            height={radius * 2 + 30}
+            offsetX={radius}
+            offsetY={(radius * 2 + 30) / 2}
+            align="center"
+            verticalAlign="middle"
+            fill={tableText}
+            fontSize={14}
+            fontStyle="700"
+            lineHeight={1.28}
+          />
         </>
       )}
 
+      {/* שולחן מרובע */}
       {layout.type === "square" && (
         <>
+          <Rect
+            width={size + 12}
+            height={size + 12}
+            offsetX={(size + 12) / 2}
+            offsetY={(size + 12) / 2 - 7}
+            fill="#000000"
+            opacity={0.075}
+            cornerRadius={24}
+            listening={false}
+          />
+
+          <Rect
+            width={size + 6}
+            height={size + 6}
+            offsetX={(size + 6) / 2}
+            offsetY={(size + 6) / 2}
+            fill="#FFF7EA"
+            stroke="#E8D2AE"
+            strokeWidth={2}
+            cornerRadius={22}
+            shadowColor="rgba(90, 58, 24, 0.22)"
+            shadowBlur={18}
+            shadowOffset={{ x: 0, y: 8 }}
+            shadowOpacity={1}
+          />
+
           <Rect
             width={size}
             height={size}
             offsetX={size / 2}
             offsetY={size / 2}
             fill={tableFill}
-            cornerRadius={10}
-            
+            stroke={tableStroke}
+            strokeWidth={2}
+            cornerRadius={18}
           />
+
+          <Rect
+            width={size - 18}
+            height={size - 18}
+            offsetX={(size - 18) / 2}
+            offsetY={(size - 18) / 2}
+            stroke="#FFFFFF"
+            strokeWidth={1}
+            cornerRadius={14}
+            opacity={0.65}
+            listening={false}
+          />
+
+          <Circle
+            radius={4}
+            y={-size / 2 + 17}
+            fill={accentColor}
+            listening={false}
+          />
+
           <Text
-  text={tableLabel}
-  width={size}
-  height={size + 30}
-  offsetX={size / 2}
-  offsetY={(size + 30) / 2}          // ✅
-  align="center"
-  verticalAlign="middle"
-  fill={tableText}
-  fontSize={14}
-  lineHeight={1.25}
-/>
-
-
+            text={tableLabel}
+            width={size}
+            height={size + 30}
+            offsetX={size / 2}
+            offsetY={(size + 30) / 2}
+            align="center"
+            verticalAlign="middle"
+            fill={tableText}
+            fontSize={14}
+            fontStyle="700"
+            lineHeight={1.28}
+          />
         </>
       )}
 
+      {/* שולחן מלבני / אבירים */}
       {layout.type === "banquet" && (
         <>
+          <Rect
+            width={width + 14}
+            height={height + 14}
+            offsetX={(width + 14) / 2}
+            offsetY={(height + 14) / 2 - 7}
+            fill="#000000"
+            opacity={0.075}
+            cornerRadius={25}
+            listening={false}
+          />
+
+          <Rect
+            width={width + 8}
+            height={height + 8}
+            offsetX={(width + 8) / 2}
+            offsetY={(height + 8) / 2}
+            fill="#FFF7EA"
+            stroke="#E8D2AE"
+            strokeWidth={2}
+            cornerRadius={24}
+            shadowColor="rgba(90, 58, 24, 0.22)"
+            shadowBlur={18}
+            shadowOffset={{ x: 0, y: 8 }}
+            shadowOpacity={1}
+          />
+
           <Rect
             width={width}
             height={height}
             offsetX={width / 2}
             offsetY={height / 2}
             fill={tableFill}
-            cornerRadius={12}
-            
+            stroke={tableStroke}
+            strokeWidth={2}
+            cornerRadius={20}
           />
+
+          <Rect
+            width={width - 20}
+            height={height - 18}
+            offsetX={(width - 20) / 2}
+            offsetY={(height - 18) / 2}
+            stroke="#FFFFFF"
+            strokeWidth={1}
+            cornerRadius={15}
+            opacity={0.68}
+            listening={false}
+          />
+
+          <Circle
+            radius={4}
+            y={-height / 2 + 15}
+            fill={accentColor}
+            listening={false}
+          />
+
           <Text
-  text={tableLabel}
-  width={width}
-  height={height + 30}
-  offsetX={width / 2}
-  offsetY={(height + 30) / 2}        // ✅
-  align="center"
-  verticalAlign="middle"
-  fill={tableText}
-  fontSize={14}
-  lineHeight={1.25}
-/>
-
-
+            text={tableLabel}
+            width={width}
+            height={height + 30}
+            offsetX={width / 2}
+            offsetY={(height + 30) / 2}
+            align="center"
+            verticalAlign="middle"
+            fill={tableText}
+            fontSize={14}
+            fontStyle="700"
+            lineHeight={1.28}
+          />
         </>
       )}
 
       {/* כפתור סיבוב */}
-     {!hideSeats && (
-  <Group
-  y={
-    layout.type === "round"
-      ? -radius - 35
-      : layout.type === "square"
-      ? -size / 2 - 35
-      : -height / 2 - 35
-  }
-  onMouseDown={startRotate}
->
+      {!hideSeats && (
+        <Group
+          y={
+            layout.type === "round"
+              ? -radius - 38
+              : layout.type === "square"
+              ? -size / 2 - 38
+              : -height / 2 - 38
+          }
+          onMouseDown={startRotate}
+        >
+          <Circle
+            radius={14}
+            fill="#FFFFFF"
+            stroke="#D8C3A3"
+            strokeWidth={1.5}
+            shadowColor="rgba(90, 58, 24, 0.18)"
+            shadowBlur={10}
+            shadowOffset={{ x: 0, y: 4 }}
+            shadowOpacity={1}
+          />
 
-    <Circle radius={12} fill="#64748b" />
-    <Text
-      text="↻"
-      width={24}
-      height={24}
-      offsetX={12}
-      offsetY={12}
-      align="center"
-      verticalAlign="middle"
-      fill="white"
-    />
-  </Group>
-)}
+          <Text
+            text="↻"
+            width={28}
+            height={28}
+            offsetX={14}
+            offsetY={14}
+            align="center"
+            verticalAlign="middle"
+            fill="#9A6A2F"
+            fontSize={16}
+            fontStyle="700"
+          />
+        </Group>
+      )}
 
       {/* כסאות */}
-{/* כסאות – מוסתרים במפיק */}
-{!hideSeats &&
-  seatsCoords.map((c, i) => {
-    const seat = table.seatedGuests.find((s) => s.seatIndex === i);
+      {!hideSeats &&
+        seatsCoords.map((c, i) => {
+          const seat = table.seatedGuests.find((s) => s.seatIndex === i);
 
-const isOccupied =
-  seatingMode === "live"
-    ? arrivedSeatsSet.has(i)   // 🔥 רק 2 כיסאות
-    : !!seat;
+          const isOccupied =
+            seatingMode === "live" ? arrivedSeatsSet.has(i) : !!seat;
 
+          const rotation = getSeatRotation(layout, c) - (table.rotation || 0);
 
+          const seatTopFill = isOccupied ? "#D8B56D" : "#F8EFE1";
+          const seatBodyFill = isOccupied ? "#B88A3D" : "#FFFFFF";
+          const seatStroke = isOccupied ? "#926B2E" : "#D8C3A3";
 
+          return (
+            <Group key={i} x={c.x} y={c.y} rotation={rotation}>
+              <Rect
+                x={-7}
+                y={-18}
+                width={14}
+                height={7}
+                cornerRadius={4}
+                fill={seatTopFill}
+                stroke={seatStroke}
+                strokeWidth={0.8}
+                shadowColor="rgba(90, 58, 24, 0.16)"
+                shadowBlur={5}
+                shadowOffset={{ x: 0, y: 2 }}
+                shadowOpacity={1}
+              />
 
+              <Rect
+                x={-9}
+                y={-11}
+                width={18}
+                height={13}
+                cornerRadius={5}
+                fill={seatBodyFill}
+                stroke={seatStroke}
+                strokeWidth={1}
+                shadowColor="rgba(90, 58, 24, 0.16)"
+                shadowBlur={5}
+                shadowOffset={{ x: 0, y: 2 }}
+                shadowOpacity={1}
+              />
 
+              <Rect
+                x={-5}
+                y={2}
+                width={3}
+                height={6}
+                cornerRadius={2}
+                fill={seatStroke}
+                opacity={0.75}
+              />
 
-    const rotation = getSeatRotation(layout, c) - (table.rotation || 0);
-
-
-    const seatTopFill = isOccupied
-  ? "#e5e7eb"   // אפור – תפוס
-  : "#bfdbfe";  // כחול בהיר – פנוי
-
-const seatBodyFill = isOccupied
-  ? "#9ca3af"   // אפור – תפוס
-  : "#3b82f6";  // כחול – פנוי
-
-const seatStroke = isOccupied
-  ? "#6b7280"   // אפור – תפוס
-  : "#2563eb";  // כחול – פנוי
-
-    return (
-      <Group key={i} x={c.x} y={c.y} rotation={rotation}>
-        <Rect
-          x={-5}
-          y={-16}
-          width={10}
-          height={6}
-          cornerRadius={3}
-          fill={seatTopFill}
-        />
-        <Rect
-          x={-7}
-          y={-10}
-          width={14}
-          height={10}
-          cornerRadius={4}
-          fill={seatBodyFill}
-          stroke={seatStroke}
-          strokeWidth={1}
-        />
-      </Group>
-    );
-  })}
-
-
-
-
+              <Rect
+                x={2}
+                y={2}
+                width={3}
+                height={6}
+                cornerRadius={2}
+                fill={seatStroke}
+                opacity={0.75}
+              />
+            </Group>
+          );
+        })}
     </Group>
   );
 }
 
 export default TableRenderer;
-
