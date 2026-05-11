@@ -606,7 +606,8 @@ export default function SeatingPage() {
       <header
         className="
           fixed inset-x-0 top-0 z-[9999]
-          h-[76px] border-b border-[#eadcca]/80
+          h-[76px] overflow-visible
+          border-b border-[#eadcca]/80
           bg-white/78 shadow-[0_10px_40px_rgba(100,70,40,0.08)]
           backdrop-blur-2xl
         "
@@ -614,6 +615,7 @@ export default function SeatingPage() {
         <div
           className="
             flex h-full items-center justify-between gap-4
+            overflow-visible
             px-4 md:px-7
           "
         >
@@ -679,12 +681,13 @@ export default function SeatingPage() {
           {/* LEFT ACTIONS */}
           <div
             className="
-              flex shrink-0 items-center gap-2 overflow-x-auto
+              flex shrink-0 items-center gap-2
+              overflow-visible
               whitespace-nowrap
             "
           >
             {/* SMART SEATING MENU */}
-            <div className="relative shrink-0">
+            <div className="relative z-[10060] shrink-0">
               <button
                 onClick={() => setShowSmartPanel((v) => !v)}
                 disabled={!eventId || isSmartSeating || isClearingSmartSeating}
@@ -705,71 +708,99 @@ export default function SeatingPage() {
               </button>
 
               {showSmartPanel && (
-                <div
-                  className="
-                    absolute left-0 top-[54px] z-[10050]
-                    w-[360px] overflow-hidden rounded-[26px]
-                    border border-[#ead8c8]
-                    bg-white/95 p-4 text-right
-                    shadow-[0_24px_70px_rgba(70,45,20,0.18)]
-                    backdrop-blur-2xl
-                  "
-                >
-                  <div className="mb-4">
-                    <div className="mb-1 flex items-center gap-2 text-sm font-black text-[#2b2119]">
-                      <span>✨</span>
-                      הושבה חכמה לפי קבוצות
+                <>
+                  <button
+                    type="button"
+                    aria-label="סגור תפריט הושבה חכמה"
+                    onClick={() => setShowSmartPanel(false)}
+                    className="
+                      fixed inset-0 z-[10050]
+                      cursor-default bg-transparent
+                    "
+                  />
+
+                  <div
+                    className="
+                      fixed left-4 top-[68px] z-[10070]
+                      w-[380px] max-w-[calc(100vw-32px)]
+                      overflow-hidden rounded-[28px]
+                      border border-[#ead8c8]
+                      bg-white/95 p-4 text-right
+                      shadow-[0_24px_70px_rgba(70,45,20,0.22)]
+                      backdrop-blur-2xl
+                    "
+                  >
+                    <div className="mb-4">
+                      <div className="mb-2 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2 text-sm font-black text-[#2b2119]">
+                          <span>✨</span>
+                          הושבה חכמה לפי קבוצות
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setShowSmartPanel(false)}
+                          className="
+                            flex h-8 w-8 items-center justify-center
+                            rounded-full bg-[#f8efe4]
+                            text-sm font-black text-[#8a765f]
+                            transition hover:bg-[#f0dfca]
+                          "
+                        >
+                          ×
+                        </button>
+                      </div>
+
+                      <p className="text-xs font-semibold leading-6 text-[#8a765f]">
+                        המערכת תושיב רק אורחים שאישרו הגעה, לפי קבוצות
+                        ומקומות פנויים. לאחר מכן אפשר לערוך ידנית, לגרור
+                        אורחים, להסיר אורחים משולחנות או לבצע הושבה מחדש.
+                      </p>
                     </div>
 
-                    <p className="text-xs font-semibold leading-6 text-[#8a765f]">
-                      המערכת תושיב רק אורחים שאישרו הגעה, לפי קבוצות ומקומות
-                      פנויים. לאחר מכן אפשר לערוך ידנית, לגרור אורחים, להסיר
-                      אורחים משולחנות או לבצע הושבה מחדש.
-                    </p>
-                  </div>
+                    <div className="flex flex-col gap-2">
+                      <button
+                        onClick={handleSmartSeatByGroups}
+                        disabled={
+                          isSmartSeating || isClearingSmartSeating || !eventId
+                        }
+                        className="
+                          flex h-11 w-full items-center justify-center gap-2
+                          rounded-2xl bg-[#1f1b17] px-4
+                          text-sm font-black text-white
+                          shadow-[0_12px_26px_rgba(0,0,0,0.16)]
+                          transition hover:-translate-y-0.5 hover:bg-black
+                          disabled:cursor-not-allowed disabled:opacity-50
+                        "
+                      >
+                        <span>♛</span>
+                        {isSmartSeating
+                          ? "מבצע הושבה..."
+                          : "הושב מחדש לפי קבוצות"}
+                      </button>
 
-                  <div className="flex flex-col gap-2">
-                    <button
-                      onClick={handleSmartSeatByGroups}
-                      disabled={
-                        isSmartSeating || isClearingSmartSeating || !eventId
-                      }
-                      className="
-                        flex h-11 w-full items-center justify-center gap-2
-                        rounded-2xl bg-[#1f1b17] px-4
-                        text-sm font-black text-white
-                        shadow-[0_12px_26px_rgba(0,0,0,0.16)]
-                        transition hover:-translate-y-0.5 hover:bg-black
-                        disabled:cursor-not-allowed disabled:opacity-50
-                      "
-                    >
-                      <span>♛</span>
-                      {isSmartSeating
-                        ? "מבצע הושבה..."
-                        : "הושב מחדש לפי קבוצות"}
-                    </button>
-
-                    <button
-                      onClick={handleClearSmartSeating}
-                      disabled={
-                        isSmartSeating || isClearingSmartSeating || !eventId
-                      }
-                      className="
-                        flex h-11 w-full items-center justify-center gap-2
-                        rounded-2xl border border-[#ead8c8]
-                        bg-[#fffaf3] px-4
-                        text-sm font-black text-[#7a4d2c]
-                        transition hover:-translate-y-0.5 hover:bg-[#fff3e2]
-                        disabled:cursor-not-allowed disabled:opacity-50
-                      "
-                    >
-                      <span>↩️</span>
-                      {isClearingSmartSeating
-                        ? "מסיר הושבה..."
-                        : "הסר הושבה"}
-                    </button>
+                      <button
+                        onClick={handleClearSmartSeating}
+                        disabled={
+                          isSmartSeating || isClearingSmartSeating || !eventId
+                        }
+                        className="
+                          flex h-11 w-full items-center justify-center gap-2
+                          rounded-2xl border border-[#ead8c8]
+                          bg-[#fffaf3] px-4
+                          text-sm font-black text-[#7a4d2c]
+                          transition hover:-translate-y-0.5 hover:bg-[#fff3e2]
+                          disabled:cursor-not-allowed disabled:opacity-50
+                        "
+                      >
+                        <span>↩️</span>
+                        {isClearingSmartSeating
+                          ? "מסיר הושבה..."
+                          : "הסר הושבה"}
+                      </button>
+                    </div>
                   </div>
-                </div>
+                </>
               )}
             </div>
 
