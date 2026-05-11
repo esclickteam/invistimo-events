@@ -553,13 +553,12 @@ export default function LogisticsTab({ eventId }) {
   }, [eventId]);
 
   const logisticsSteps = useMemo(
-  () =>
-    steps.filter(
-      (s) =>
-        s.type === "logistics"
-    ),
-  [steps]
-);
+    () =>
+      steps.filter(
+        (s) => !s.type || s.type === "logistics"
+      ),
+    [steps]
+  );
 
   const eventSteps = useMemo(
     () => steps.filter((s) => s.type === "event"),
