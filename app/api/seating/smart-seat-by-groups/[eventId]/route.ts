@@ -52,6 +52,12 @@ type SeatingInnerTable = {
   [key: string]: any;
 };
 
+type GroupBucket = {
+  key: string;
+  members: InvitationGuestDoc[];
+  seatsNeeded: number;
+};
+
 function getGuestCount(guest: InvitationGuestDoc) {
   const count = Number(
     guest.arrivedCount ||
@@ -119,6 +125,9 @@ export async function POST(req: NextRequest, context: RouteContext) {
       );
     }
 
+    /* ===============================
+       invitation לפי eventId
+    =============================== */
     const invitation = await Invitation.findOne({ eventId })
       .select("_id eventId")
       .lean<{ _id: mongoose.Types.ObjectId } | null>();
@@ -132,6 +141,9 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     const invitationId = invitation._id;
 
+    /* ===============================
+       אורחים
+    =============================== */
     const allGuests = await InvitationGuest.find({ invitationId })
       .lean<InvitationGuestDoc[]>()
       .exec();
@@ -156,6 +168,9 @@ export async function POST(req: NextRequest, context: RouteContext) {
       );
     }
 
+    /* ===============================
+       מסמך הושבה
+    =============================== */
     const seatingDoc = await SeatingTable.findOne({ eventId }).lean<any>();
 
     if (!seatingDoc) {
@@ -176,6 +191,9 @@ export async function POST(req: NextRequest, context: RouteContext) {
       );
     }
 
+    /* ===============================
+       טבלאות פעילות
+    =============================== */
     const tableStates = rawTables
       .map((table) => {
         const capacity = getTableCapacity(table);
@@ -202,7 +220,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
               id: t.id,
               name: t.name,
               seats: t.seats,
-              seatedGuests: t.seatedGuests,
             })),
           },
         },
@@ -232,6 +249,9 @@ export async function POST(req: NextRequest, context: RouteContext) {
       );
     }
 
+    /* ===============================
+       איפוס שיוך קודם באורחים
+    =============================== */
     await InvitationGuest.updateMany(
       { invitationId },
       {
@@ -244,19 +264,17 @@ export async function POST(req: NextRequest, context: RouteContext) {
       }
     );
 
-    const groupMap = new Map<
-      string,
-      {
-        members: InvitationGuestDoc[];
-        seatsNeeded: number;
-      }
-    >();
+    /* ===============================
+       בניית קבוצות
+    =============================== */
+    const groupMap = new Map<string, GroupBucket>();
 
     for (const guest of approvedGuests) {
       const key = getGroupKey(guest);
 
       if (!groupMap.has(key)) {
         groupMap.set(key, {
+          key,
           members: [],
           seatsNeeded: 0,
         });
@@ -267,54 +285,80 @@ export async function POST(req: NextRequest, context: RouteContext) {
       group.seatsNeeded += getGuestCount(guest);
     }
 
-    const groups = Array.from(groupMap.values()).sort(
+    const groupsPool: GroupBucket[] = Array.from(groupMap.values()).sort(
       (a, b) => b.seatsNeeded - a.seatsNeeded
     );
 
     const unseatedGuests: InvitationGuestDoc[] = [];
 
-    for (const group of groups) {
-      const fullTable = tableStates
-        .filter((table) => table.remaining >= group.seatsNeeded)
-        .sort((a, b) => a.remaining - b.remaining)[0];
+    /* =========================================================
+       אלגוריתם חדש:
+       ממלאים שולחן-שולחן, לא מפזרים קבוצות על הרבה שולחנות
+    ========================================================= */
+    for (const table of tableStates) {
+      if (!groupsPool.length) break;
 
-      if (fullTable) {
-        fullTable.seatedGuests.push(...group.members);
-        fullTable.remaining -= group.seatsNeeded;
-        continue;
+      while (table.remaining > 0 && groupsPool.length > 0) {
+        // מחפשים את הקבוצה הכי גדולה שנכנסת בשארית
+        let bestIndex = -1;
+
+        for (let i = 0; i < groupsPool.length; i++) {
+          if (groupsPool[i].seatsNeeded <= table.remaining) {
+            bestIndex = i;
+            break; // groupsPool כבר ממוין מהגדול לקטן
+          }
+        }
+
+        if (bestIndex === -1) {
+          // אין יותר קבוצה שלמה שנכנסת בשולחן הזה
+          break;
+        }
+
+        const chosenGroup = groupsPool[bestIndex];
+
+        table.seatedGuests.push(...chosenGroup.members);
+        table.remaining -= chosenGroup.seatsNeeded;
+
+        groupsPool.splice(bestIndex, 1);
       }
+    }
 
-      let guestsToSeat = [...group.members];
+    /* =========================================================
+       אם נשארו קבוצות שלא נכנסו שלמות:
+       רק עכשיו מנסים לפצל — ורק אם באמת חייבים
+    ========================================================= */
+    for (const group of groupsPool) {
+      let remainingGroupMembers = [...group.members];
 
       const availableTables = tableStates
         .filter((table) => table.remaining > 0)
         .sort((a, b) => b.remaining - a.remaining);
 
       for (const table of availableTables) {
-        if (!guestsToSeat.length) break;
+        if (!remainingGroupMembers.length) break;
 
-        let remainingSeats = table.remaining;
-
-        while (guestsToSeat.length && remainingSeats > 0) {
-          const guest = guestsToSeat[0];
+        while (remainingGroupMembers.length && table.remaining > 0) {
+          const guest = remainingGroupMembers[0];
           const guestSeats = getGuestCount(guest);
 
-          if (guestSeats <= remainingSeats) {
+          if (guestSeats <= table.remaining) {
             table.seatedGuests.push(guest);
-            guestsToSeat.shift();
-            remainingSeats -= guestSeats;
             table.remaining -= guestSeats;
+            remainingGroupMembers.shift();
           } else {
             break;
           }
         }
       }
 
-      if (guestsToSeat.length) {
-        unseatedGuests.push(...guestsToSeat);
+      if (remainingGroupMembers.length) {
+        unseatedGuests.push(...remainingGroupMembers);
       }
     }
 
+    /* ===============================
+       בניית seatedGuests לפי המודל האמיתי
+    =============================== */
     const tableStateById = new Map(
       tableStates.map((table) => [table.tableId, table])
     );
@@ -367,6 +411,9 @@ export async function POST(req: NextRequest, context: RouteContext) {
       }
     );
 
+    /* ===============================
+       עדכון InvitationGuest
+    =============================== */
     for (const tableState of tableStates) {
       let seatIndex = 0;
 
@@ -418,6 +465,14 @@ export async function POST(req: NextRequest, context: RouteContext) {
       totalTableSeats,
       tablesCount: tableStates.length,
       unseatedCount: unseatedGuests.length,
+      tablesSummary: tableStates.map((table) => ({
+        tableId: table.tableId,
+        tableName: table.tableName,
+        capacity: table.capacity,
+        used: table.capacity - table.remaining,
+        remaining: table.remaining,
+        seatedGuestsCount: table.seatedGuests.length,
+      })),
     });
   } catch (error: any) {
     console.error("❌ SMART SEAT BY GROUPS ERROR:", error);
