@@ -8,8 +8,8 @@ export default function AddGuestToTableModal({
   table,
   guests,
   onClose,
-  onAutoSave, // אופציונלי
-  invitationId, // אופציונלי
+  onAutoSave,
+  invitationId,
 }) {
   void invitationId;
 
@@ -468,7 +468,7 @@ export default function AddGuestToTableModal({
                         g
                           ? "border-[#8B6532] bg-gradient-to-br from-[#B98A45] via-[#D8B36A] to-[#FFF2D8] shadow-[0_10px_26px_rgba(128,86,35,0.22)] hover:border-[#6D4A24]"
                           : isOpen
-                          ? "border-[#D6A678] bg-[#FFF5EA] shadow-[0_10px_24px_rgba(166,94,39,0.14)]"
+                          ? "border-[#B98A45] bg-[#FFF5EA] shadow-[0_10px_24px_rgba(166,94,39,0.14)]"
                           : "border-[#E6D7C8] bg-white hover:border-[#D6A678] hover:bg-[#FFF9F3] hover:shadow-[0_8px_20px_rgba(104,72,46,0.08)]"
                       }
                     `}
@@ -528,12 +528,17 @@ export default function AddGuestToTableModal({
                     ) : (
                       <div className="flex h-full flex-col items-center justify-center gap-1 pt-3">
                         <div
-                          className="
+                          className={`
                             flex h-9 w-9 items-center justify-center
-                            rounded-full border border-dashed border-[#D6A678]
-                            bg-[#FFF8EF]
-                            text-[#A65E27]
-                          "
+                            rounded-full border border-dashed
+                            text-lg font-black
+                            transition
+                            ${
+                              isOpen
+                                ? "border-[#B98A45] bg-[#B98A45] text-white shadow-[0_6px_16px_rgba(185,138,69,0.28)]"
+                                : "border-[#D6A678] bg-[#FFF8EF] text-[#A65E27]"
+                            }
+                          `}
                         >
                           +
                         </div>
@@ -552,7 +557,7 @@ export default function AddGuestToTableModal({
                   {isOpen && !g && (
                     <div
                       className="
-                        absolute right-1/2 top-[calc(100%+8px)] z-50
+                        absolute right-1/2 top-[58px] z-50
                         w-[230px] translate-x-1/2
                         overflow-hidden
                         rounded-2xl
@@ -562,13 +567,13 @@ export default function AddGuestToTableModal({
                       "
                       onClick={(e) => e.stopPropagation()}
                     >
-                      {/* חץ קטן שמחבר את הבחירה למושב */}
+                      {/* חץ קטן שמחבר את הבחירה לפלוס */}
                       <div
                         className="
                           absolute -top-2 right-1/2
                           h-4 w-4 translate-x-1/2 rotate-45
                           border-r border-t border-[#D6A678]
-                          bg-white
+                          bg-[#FFF8F1]
                         "
                       />
 
