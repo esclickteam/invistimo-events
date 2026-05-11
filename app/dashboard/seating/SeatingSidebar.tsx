@@ -94,6 +94,7 @@ export default function SeatingSidebar({
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const [selectingGuestId, setSelectingGuestId] = useState<string | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
 
   useEffect(() => {
@@ -275,10 +276,6 @@ export default function SeatingSidebar({
       ...tables.map((table) => Number(table.seats || 0))
     );
 
-    /*
-      מציגים "חלק 1 / חלק 2" רק אם הקבוצה גדולה
-      יותר ממה ששולחן אחד יכול להכיל.
-    */
     const shouldShowAsParts =
       maxTableSeats > 0 && totalGroupSeats > maxTableSeats;
 
@@ -894,49 +891,104 @@ export default function SeatingSidebar({
                             <div
                               key={gid}
                               className="
-                                flex items-center justify-between gap-3
                                 border-b border-[#F7EEE8]
                                 px-4 py-3
                                 transition hover:bg-[#FFF9ED]
                               "
                             >
-                              <div className="min-w-0">
-                                <div className="truncate text-sm font-bold text-[#2F241D]">
-                                  {g.name}
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="min-w-0">
+                                  <div className="truncate text-sm font-bold text-[#2F241D]">
+                                    {g.name}
+                                  </div>
+
+                                  <div className="mt-1 truncate text-xs text-[#8B6F5A]">
+                                    {table
+                                      ? `${table.name} · ${count} ${
+                                          isLiveMode ? "הגיעו" : "מוזמנים"
+                                        }`
+                                      : `לא משובץ · ${count} ${
+                                          isLiveMode ? "הגיעו" : "מוזמנים"
+                                        }`}
+                                  </div>
                                 </div>
 
-                                <div className="mt-1 truncate text-xs text-[#8B6F5A]">
-                                  {table
-                                    ? `${table.name} · ${count} ${
-                                        isLiveMode ? "הגיעו" : "מוזמנים"
-                                      }`
-                                    : `לא משובץ · ${count} ${
-                                        isLiveMode ? "הגיעו" : "מוזמנים"
-                                      }`}
-                                </div>
+                                <button
+                                  className={`
+                                    shrink-0 rounded-xl border px-3 py-1.5
+                                    text-xs font-bold transition
+                                    ${
+                                      table
+                                        ? "border-green-300 bg-green-50 text-green-700 hover:bg-green-100"
+                                        : "border-[#E6C3AD] bg-white text-[#5D4032] hover:bg-[#F6EDE8]"
+                                    }
+                                  `}
+                                  onClick={async () => {
+                                    setSelectingGuestId(null);
+
+                                    if (table) {
+                                      removeFromSeat(gid);
+
+                                      const ok = await syncRemoveFromServer(gid);
+                                      if (!ok) {
+                                        console.error(
+                                          "Failed removing guest from server",
+                                          gid
+                                        );
+                                      }
+
+                                      return;
+                                    }
+
+                                    setSelectingGuestId(gid);
+                                  }}
+                                >
+                                  {table ? "הסר" : "הושב"}
+                                </button>
                               </div>
 
-                              <button
-                                className="
-                                  shrink-0 rounded-xl border border-red-200
-                                  bg-red-50 px-3 py-1.5
-                                  text-xs font-bold text-red-700
-                                  transition hover:bg-red-100
-                                "
-                                onClick={async () => {
-                                  removeFromSeat(gid);
+                              {selectingGuestId === gid && tables.length > 0 && (
+                                <select
+                                  className="
+                                    mt-3 h-10 w-full rounded-2xl
+                                    border border-[#E6C3AD]
+                                    bg-white px-3 text-xs
+                                    text-[#4B3528]
+                                    outline-none
+                                    focus:ring-2 focus:ring-[#E6C3AD]/35
+                                  "
+                                  defaultValue=""
+                                  onClick={(e) => e.stopPropagation()}
+                                  onChange={async (e) => {
+                                    const tableId = e.target.value;
+                                    if (!tableId) return;
 
-                                  const ok = await syncRemoveFromServer(gid);
-                                  if (!ok) {
-                                    console.error(
-                                      "Failed removing guest from server",
-                                      gid
+                                    assignGuestBlock({ guestId: gid, tableId });
+
+                                    const ok = await syncAssignToServer(
+                                      gid,
+                                      tableId
                                     );
-                                  }
-                                }}
-                              >
-                                הסר
-                              </button>
+                                    if (!ok) {
+                                      console.error(
+                                        "Failed assigning guest on server",
+                                        gid,
+                                        tableId
+                                      );
+                                    }
+
+                                    setSelectingGuestId(null);
+                                  }}
+                                >
+                                  <option value="">בחר שולחן…</option>
+
+                                  {tables.map((t) => (
+                                    <option key={t.id} value={t.id}>
+                                      {tableLabel(t)}
+                                    </option>
+                                  ))}
+                                </select>
+                              )}
                             </div>
                           );
                         })}
