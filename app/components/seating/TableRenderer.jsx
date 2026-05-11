@@ -417,17 +417,16 @@ function TableRenderer({ table, hideSeats = false }) {
         if (layout.type === "banquet") {
   /*
     שולחן אבירים:
-    לא מזיזים לפי המרחק המקורי של הכיסא,
-    אלא מצמידים אותו ממש לקצה השולחן עם חפיפה פנימה.
-    ככה גם כשהשולחן מסובב 90 מעלות, הכיסאות נכנסים לתוך השולחן.
+    מצמידים את הכיסאות לקצה השולחן,
+    עם חפיפה קטנה בלבד כדי שלא ייעלמו מתחת לשולחן.
   */
   const tableEdgeY = layout.height / 2;
-  const overlapInsideTable = 9;
+  const outsideOffset = 7;
 
   chairY =
     c.y > 0
-      ? tableEdgeY - overlapInsideTable
-      : -tableEdgeY + overlapInsideTable;
+      ? tableEdgeY + outsideOffset
+      : -tableEdgeY - outsideOffset;
 } else {
   const dist = Math.hypot(c.x, c.y) || 1;
   const inset = 7;
