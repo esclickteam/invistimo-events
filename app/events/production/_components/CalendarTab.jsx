@@ -1007,7 +1007,7 @@ export default function CalendarTab({ eventId }) {
         />
       )}
 
-      <style jsx global>{`
+      <style>{`
         .producer-calendar-shell .fc {
           direction: rtl;
           font-family: inherit;
