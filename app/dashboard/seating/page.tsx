@@ -1,263 +1,261 @@
-  "use client";
+"use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 
 import SeatingEditor from "./SeatingEditor";
 import UploadBackgroundModal from "./UploadBackgroundModal";
 import UpgradePlanModal from "./UpgradePlanModal";
 import MobileGuests from "./MobileGuests";
 import SeatingSidebar from "./SeatingSidebar";
-import { usePathname } from "next/navigation";
-import { useAuth } from "@/context/AuthContext"; 
+import ExportSeatingPdf from "./ExportSeatingPdf";
+
+import ZonesToolbar from "@/app/components/zones/ZonesToolbar";
+
+import { useAuth } from "@/context/AuthContext";
 import { useSeatingStore } from "@/store/seatingStore";
 import { useZoneStore } from "@/store/zoneStore";
-import ExportSeatingPdf from "./ExportSeatingPdf";
-import { useRef } from "react";
-
-
-/* ⭐ קומפוננטות עליונות */
- import ZonesToolbar from "@/app/components/zones/ZonesToolbar";
 
 /* ===============================
    TYPES
 =============================== */
-  type GuestDTO = {
+type GuestDTO = {
   _id: string;
   name: string;
   guestsCount?: number;
   arrivedCount?: number;
   actualArrivedCount?: number;
   rsvp?: "yes" | "no" | "pending";
-  groupId?: string | null; // ⭐ זה התיקון
+  groupId?: string | null;
 };
 
-type TableLite = { x: number; y: number };
-
+type TableLite = {
+  x: number;
+  y: number;
+};
 
 export default function SeatingPage() {
+  const pathname = usePathname();
+  const isProducer = pathname.includes("/events/production");
+  const isDemo = pathname.startsWith("/try/");
+
+  const didLoadRef = useRef(false);
+
+  /* ===============================
+     LOCAL STATE
+  =============================== */
   const [showUpload, setShowUpload] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [showGuests, setShowGuests] = useState(false);
+
   const [eventId, setEventId] = useState<string | null>(null);
-const [invitationId, setInvitationId] = useState<string | null>(null); 
-const didLoadRef = useRef(false);
-
-
+  const [invitationId, setInvitationId] = useState<string | null>(null);
 
   const [isMobile, setIsMobile] = useState(false);
-const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
-useEffect(() => {
-  const update = () => {
-    const mobile = window.innerWidth < 768;
-    setIsMobile(mobile);
-    setSidebarOpen((prev) => (mobile ? false : prev));
-  };
-
-  update(); // init
-  window.addEventListener("resize", update);
-  return () => window.removeEventListener("resize", update);
-}, []);
-
-
-
-  
-
-  const pathname = usePathname();
-const isProducer = pathname.includes("/events/production");
-
-const isDemo = pathname.startsWith("/try/");
-
-
-
-  /* Drawer אורחים במובייל */
-  const [showGuests, setShowGuests] = useState(false);
+  const [blockReason, setBlockReason] = useState<"no-plan" | null>(null);
 
   /* ===============================
      STORES
   =============================== */
-  const init = useSeatingStore((s) => s.init);
-  const tables = useSeatingStore((s) => s.tables);
-  const guests = useSeatingStore((s) => s.guests);
-  const setGroups = useSeatingStore((s) => s.setGroups);
-  const groups = useSeatingStore((s) => s.groups);
   const { user } = useAuth();
 
-  useEffect(() => {
-  if (!user) return;
+  const init = useSeatingStore((s) => s.init);
+  const tables = useSeatingStore((s) => s.tables);
 
-  // ⭐ אם זה מפיק – לא לחסום
-  if (user.role === "producer" || user.impersonated) {
-    return;
-  }
-
-  if (user.planLimits?.seatingEnabled !== true) {
-    setBlockReason("no-plan");
-  }
-}, [user]);
-
-
-const setShowAddModal = useSeatingStore((s) => s.setShowAddModal);
-
+  const setGroups = useSeatingStore((s) => s.setGroups);
+  const setShowAddModal = useSeatingStore((s) => s.setShowAddModal);
 
   const background = useSeatingStore((s) => s.background);
   const setBackground = useSeatingStore((s) => s.setBackground);
 
-    const canvasView = useSeatingStore((s) => s.canvasView);
+  const canvasView = useSeatingStore((s) => s.canvasView);
   const setCanvasView = useSeatingStore((s) => s.setCanvasView);
 
-    const setSeatingMode = useSeatingStore((s) => s.setSeatingMode);
-
-    const [blockReason, setBlockReason] =
-  useState<"no-plan" | null>(null);
-
-
-
-
-    useEffect(() => {
-  if (!isProducer) return;
-
-  console.log("🔥 ENABLE LIVE MODE (SEATING)");
-  setSeatingMode("live");
-}, [isProducer, setSeatingMode]);
-
-
-
+  const setSeatingMode = useSeatingStore((s) => s.setSeatingMode);
 
   const setZones = useZoneStore((s) => s.setZones);
+
+  const tablesLite = tables as unknown as TableLite[];
+
+  /* ===============================
+     RESPONSIVE SIDEBAR
+  =============================== */
+  useEffect(() => {
+    const update = () => {
+      const mobile = window.innerWidth < 768;
+
+      setIsMobile(mobile);
+
+      if (mobile) {
+        setSidebarOpen(false);
+      }
+    };
+
+    update();
+
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
+  /* ===============================
+     PLAN BLOCK
+  =============================== */
+  useEffect(() => {
+    if (!user) return;
+
+    if (user.role === "producer" || user.impersonated) {
+      return;
+    }
+
+    if (user.planLimits?.seatingEnabled !== true) {
+      setBlockReason("no-plan");
+    }
+  }, [user]);
+
+  /* ===============================
+     PRODUCER LIVE MODE
+  =============================== */
+  useEffect(() => {
+    if (!isProducer) return;
+
+    console.log("🔥 ENABLE LIVE MODE (SEATING)");
+    setSeatingMode("live");
+  }, [isProducer, setSeatingMode]);
 
   /* ===============================
      LOAD INITIAL DATA
   =============================== */
-  /* ===============================
-   LOAD INITIAL DATA (ONCE)
-=============================== */
-useEffect(() => {
-  if (isDemo) return; // 🔥 בדמו לא טוענים מהשרת
+  useEffect(() => {
+    if (isDemo) return;
 
-  if (didLoadRef.current) return;
-  didLoadRef.current = true;
+    if (didLoadRef.current) return;
+    didLoadRef.current = true;
 
-  async function load() {
-    try {
-      const seatingState = useSeatingStore.getState();
+    async function load() {
+      try {
+        const seatingState = useSeatingStore.getState();
 
-      const hasTables =
-        seatingState.tables && seatingState.tables.length > 0;
+        const hasTables =
+          seatingState.tables && seatingState.tables.length > 0;
 
-      if (!hasTables) {
-        seatingState.init([], [], null, null);
-        useZoneStore.getState().setZones([]);
+        if (!hasTables) {
+          seatingState.init([], [], null, null);
+          useZoneStore.getState().setZones([]);
+        }
+
+        const invRes = await fetch("/api/invitations/my", {
+          cache: "no-store",
+        });
+
+        const invData = await invRes.json();
+
+        const invitationIdFromApi: string | undefined =
+          invData?.invitation?._id;
+
+        const eventIdFromApi: string | undefined =
+          invData?.invitation?.eventId;
+
+        if (!invitationIdFromApi || !eventIdFromApi) {
+          console.error("❌ Missing invitation/event id", invData);
+          return;
+        }
+
+        setInvitationId(invitationIdFromApi);
+        setEventId(eventIdFromApi);
+
+        const gRes = await fetch(`/api/seating/guests/${eventIdFromApi}`, {
+          cache: "no-store",
+        });
+
+        if (gRes.status === 403) {
+          setBlockReason("no-plan");
+          return;
+        }
+
+        const gData = await gRes.json();
+
+        const normalizedGuests = (gData.guests || []).map((g: GuestDTO) => ({
+          id: g._id,
+          name: g.name,
+          rsvp: g.rsvp,
+          guestsCount: g.guestsCount,
+          arrivedCount: g.arrivedCount,
+          actualArrivedCount: g.actualArrivedCount ?? 0,
+          groupId: g.groupId ?? null,
+          count: g.guestsCount ?? 1,
+        }));
+
+        const tRes = await fetch(`/api/seating/tables/${eventIdFromApi}`, {
+          cache: "no-store",
+        });
+
+        if (tRes.status === 403) {
+          setBlockReason("no-plan");
+          return;
+        }
+
+        const tData = await tRes.json();
+
+        init(
+          tData.tables || [],
+          normalizedGuests,
+          tData.background ?? null,
+          tData.canvasView ?? null
+        );
+
+        setZones(tData.zones || []);
+
+        const grRes = await fetch(
+          `/api/seating/groups/${invitationIdFromApi}`,
+          {
+            cache: "no-store",
+          }
+        );
+
+        if (grRes.ok) {
+          const grData = await grRes.json();
+          setGroups(grData.groups || []);
+        }
+      } catch (err) {
+        console.error("❌ SeatingPage load error:", err);
       }
-
-      /* 1️⃣ מביאים הזמנה רק כדי לקבל eventId */
-      const invRes = await fetch("/api/invitations/my");
-const invData = await invRes.json();
-
-const invitationIdFromApi: string = invData?.invitation?._id;
-const eventIdFromApi: string = invData?.invitation?.eventId;
-
-if (!invitationIdFromApi || !eventIdFromApi) {
-  console.error("❌ Missing invitation/event id", invData);
-  return;
-}
-
-setInvitationId(invitationIdFromApi); 
-setEventId(eventIdFromApi);
-
-
-      /* 2️⃣ אורחים – לפי eventId */
-      const gRes = await fetch(`/api/seating/guests/${eventIdFromApi}`);
-
-      if (gRes.status === 403) {
-        setBlockReason("no-plan");
-        return;
-      }
-
-      const gData = await gRes.json();
-
-      const normalizedGuests = (gData.guests || []).map((g: GuestDTO) => ({
-        id: g._id,
-        name: g.name,
-        rsvp: g.rsvp,
-        guestsCount: g.guestsCount,
-        arrivedCount: g.arrivedCount,
-        actualArrivedCount: g.actualArrivedCount ?? 0,
-        groupId: g.groupId ?? null,
-        count: g.guestsCount ?? 1,
-      }));
-
-      /* 3️⃣ שולחנות + קנבס */
-      const tRes = await fetch(`/api/seating/tables/${eventIdFromApi}`);
-
-      if (tRes.status === 403) {
-        setBlockReason("no-plan");
-        return;
-      }
-
-      const tData = await tRes.json();
-
-      init(
-        tData.tables || [],
-        normalizedGuests,
-        tData.background ?? null,
-        tData.canvasView ?? null
-      );
-
-      setZones(tData.zones || []);
-
-      /* 4️⃣ קבוצות */
-      const grRes = await fetch(`/api/seating/groups/${invitationIdFromApi}`);
-
-
-      if (grRes.ok) {
-        const grData = await grRes.json();
-        setGroups(grData.groups || []);
-      }
-    } catch (err) {
-      console.error("❌ SeatingPage load error:", err);
     }
-  }
 
-  load();
-}, [isDemo]);
+    load();
+  }, [isDemo, init, setGroups, setZones]);
 
-
-
-
-  const tablesLite = tables as unknown as TableLite[];
-
-
-    /* ===============================
-     AUTO FIT (ONE TIME) – only if no saved canvasView
+  /* ===============================
+     AUTO FIT ONE TIME
   =============================== */
   useEffect(() => {
-  if (!tablesLite?.length) return;
+    if (!tablesLite?.length) return;
 
-  const isDefault =
-    !canvasView ||
-    (canvasView.scale === 1 && canvasView.x === 0 && canvasView.y === 0);
+    const isDefault =
+      !canvasView ||
+      (canvasView.scale === 1 && canvasView.x === 0 && canvasView.y === 0);
 
-  if (!isDefault) return;
+    if (!isDefault) return;
 
-  const minX = Math.min(...tablesLite.map((t) => t.x));
-  const maxX = Math.max(...tablesLite.map((t) => t.x));
-  const minY = Math.min(...tablesLite.map((t) => t.y));
-  const maxY = Math.max(...tablesLite.map((t) => t.y));
-
+    const minX = Math.min(...tablesLite.map((t) => t.x));
+    const maxX = Math.max(...tablesLite.map((t) => t.x));
+    const minY = Math.min(...tablesLite.map((t) => t.y));
+    const maxY = Math.max(...tablesLite.map((t) => t.y));
 
     const contentW = Math.max(1, maxX - minX);
     const contentH = Math.max(1, maxY - minY);
 
-    // padding נעים מסביב
-    const PAD = 400;
-
-    // הערכה סבירה למסך (ה־Stage שלך כמעט תמיד סביב זה)
+    const PAD = 420;
     const VIEW_W = 1200;
     const VIEW_H = 700;
 
     const scale = Math.max(
       0.4,
-      Math.min(3, Math.min(VIEW_W / (contentW + PAD), VIEW_H / (contentH + PAD)))
+      Math.min(
+        3,
+        Math.min(VIEW_W / (contentW + PAD), VIEW_H / (contentH + PAD))
+      )
     );
 
     const centerX = (minX + maxX) / 2;
@@ -271,14 +269,16 @@ setEventId(eventIdFromApi);
     setCanvasView({ x, y, scale });
   }, [tablesLite, canvasView, setCanvasView]);
 
-
-
   /* ===============================
      BACKGROUND
   =============================== */
   const handleBackgroundSelect = (bgUrl: string) => {
     if (!bgUrl) return;
-    setBackground({ url: bgUrl, opacity: 0.28 });
+
+    setBackground({
+      url: bgUrl,
+      opacity: 0.28,
+    });
   };
 
   /* ===============================
@@ -292,251 +292,378 @@ setEventId(eventIdFromApi);
      SAVE
   =============================== */
   async function saveSeating(showToast = true): Promise<boolean> {
-  if (!eventId || !invitationId) {
-    if (showToast) alert("❌ חסר invitationId או eventId");
-    return false;
-  }
-
-  try {
-    const zones = useZoneStore.getState().zones;
-    const cv = useSeatingStore.getState().canvasView;
-
-    const res = await fetch(`/api/seating/save/${eventId}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        eventId,
-        invitationId,
-        tables: useSeatingStore.getState().tables,
-        guests: useSeatingStore.getState().guests,
-        groups: useSeatingStore.getState().groups,
-        background: useSeatingStore.getState().background,
-        zones,
-        canvasView: cv,
-      }),
-    });
-
-    const data = await res.json().catch(() => ({}));
-    const ok = res.ok && data?.success;
-
-    if (showToast) {
-      alert(ok ? "🎉 נשמר בהצלחה" : "❌ שגיאה בשמירה");
+    if (!eventId || !invitationId) {
+      if (showToast) alert("❌ חסר invitationId או eventId");
+      return false;
     }
 
-    return !!ok;
-  } catch (e) {
-    if (showToast) alert("❌ שגיאת רשת בשמירה");
-    return false;
+    try {
+      const zones = useZoneStore.getState().zones;
+      const cv = useSeatingStore.getState().canvasView;
+
+      const res = await fetch(`/api/seating/save/${eventId}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          eventId,
+          invitationId,
+          tables: useSeatingStore.getState().tables,
+          guests: useSeatingStore.getState().guests,
+          groups: useSeatingStore.getState().groups,
+          background: useSeatingStore.getState().background,
+          zones,
+          canvasView: cv,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      const ok = res.ok && data?.success;
+
+      if (showToast) {
+        alert(ok ? "🎉 נשמר בהצלחה" : "❌ שגיאה בשמירה");
+      }
+
+      return !!ok;
+    } catch (e) {
+      console.error("❌ Seating save network error:", e);
+
+      if (showToast) {
+        alert("❌ שגיאת רשת בשמירה");
+      }
+
+      return false;
+    }
   }
-}
 
-
-
-  // ⛔ אין חבילה מתאימה
+  /* ===============================
+     BLOCKED PLAN VIEW
+  =============================== */
   if (blockReason === "no-plan") {
-  return (
-    <>
-      <div className="flex items-center justify-center h-screen bg-[#faf8f4]">
-        <div className="bg-white p-8 rounded-2xl shadow-xl text-center max-w-md">
-          <h2 className="text-2xl font-semibold mb-3">
-            הושבה אינה כלולה בחבילה שלך
-          </h2>
-
-          <p className="text-gray-600 mb-6">
-            כדי להשתמש במערכת ההושבה יש לשדרג לחבילת פרימיום.
-          </p>
-
-          <button
-            onClick={() => setShowUpgrade(true)}
-            className="px-5 py-2 bg-black text-white rounded-lg"
+    return (
+      <>
+        <div
+          dir="rtl"
+          className="
+            flex min-h-screen items-center justify-center
+            bg-[radial-gradient(circle_at_top,#fff8ec_0%,#f7f1e8_38%,#f2eee8_100%)]
+            px-4
+          "
+        >
+          <div
+            className="
+              relative w-full max-w-[520px] overflow-hidden
+              rounded-[34px] border border-[#ead8c5]
+              bg-white/85 p-9 text-center
+              shadow-[0_24px_80px_rgba(92,64,36,0.16)]
+              backdrop-blur-xl
+            "
           >
-            שדרוג חבילה
-          </button>
+            <div className="absolute -top-24 left-1/2 h-48 w-48 -translate-x-1/2 rounded-full bg-[#d7b56d]/20 blur-3xl" />
+
+            <div
+              className="
+                mx-auto mb-6 flex h-16 w-16 items-center justify-center
+                rounded-3xl bg-[#1f1b17] text-2xl text-[#d7b56d]
+                shadow-[0_16px_34px_rgba(0,0,0,0.18)]
+              "
+            >
+              ♛
+            </div>
+
+            <h2 className="mb-3 text-3xl font-black tracking-tight text-[#2c2118]">
+              הושבה אינה כלולה בחבילה שלך
+            </h2>
+
+            <p className="mx-auto mb-7 max-w-sm text-sm leading-7 text-[#7c6b5c]">
+              כדי להשתמש במערכת ההושבה, ניהול שולחנות, גרירה חכמה וסידור
+              אורחים באולם — יש לשדרג לחבילת פרימיום.
+            </p>
+
+            <button
+              onClick={() => setShowUpgrade(true)}
+              className="
+                h-12 rounded-2xl bg-[#171412] px-8
+                text-sm font-bold text-white
+                shadow-[0_14px_30px_rgba(0,0,0,0.18)]
+                transition hover:-translate-y-0.5 hover:bg-black
+              "
+            >
+              שדרוג חבילה
+            </button>
+          </div>
         </div>
-      </div>
 
-      <UpgradePlanModal
-  isOpen={showUpgrade}
-  onClose={() => setShowUpgrade(false)}
-  currentPaid={user?.paidAmount ?? 0}
-  currentPlan={(user?.plan as "plan1" | "plan2" | "plan3") ?? "plan1"}
-/>
+        <UpgradePlanModal
+          isOpen={showUpgrade}
+          onClose={() => setShowUpgrade(false)}
+          currentPaid={user?.paidAmount ?? 0}
+          currentPlan={(user?.plan as "plan1" | "plan2" | "plan3") ?? "plan1"}
+        />
+      </>
+    );
+  }
 
-    </>
-  );
-}
-
-/* ===============================
-   RENDER
-=============================== */
-return (
-   <div className="h-screen w-screen bg-gray-50 overflow-hidden">
-
-
-
-
-
-
-
-
-
-
-      {/* HEADER */}
-<div className="fixed top-0 inset-x-0 h-[64px] bg-white shadow-sm border-b z-[9999]">
-
-
-
-
-  <div className="flex items-center justify-between flex-nowrap px-4 py-3 gap-3 overflow-x-auto md:overflow-visible">
-
-
-
-    {/* צד ימין – כותרת */}
-    <h1 className="text-lg sm:text-xl font-semibold whitespace-nowrap shrink-0">
-
-      הושבה באולם
-    </h1>
-
-    {/* מרכז – אלמנטים */}
-<div className="flex items-center gap-2 shrink-0 relative">
-  <ZonesToolbar />
-
-  {/* יעד לדרופדאונים של ההידר */}
-  <div
-    id="header-portal"
-    className="relative z-[10000] pointer-events-none"
-  />
-</div>
-
-
-{/* צד שמאל – פעולות */}
-<div className="flex items-center gap-2 flex-nowrap whitespace-nowrap shrink-0">
-
-
-
-  {/* ➕ הוסף שולחן */}
-  <button
-    onClick={() => setShowAddModal(true)}
-    className="shrink-0 px-3 py-2 text-sm bg-green-600 text-white rounded-lg whitespace-nowrap flex items-center gap-1"
-
-  >
-    ➕ הוסף שולחן
-  </button>
-
-  <button
-    onClick={() => setShowUpload(true)}
-    className="shrink-0 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg whitespace-nowrap"
-
-  >
-    העלאת תבנית אולם
-  </button>
-
-  <div className="shrink-0">
-  <ExportSeatingPdf eventId={eventId} />
-</div>
-
-
-  <button
-    onClick={() => { void saveSeating(true); }}
-
-    className="shrink-0 px-4 py-2 text-sm bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition whitespace-nowrap"
-
-  >
-    💾 שמירה
-  </button>
-</div>
-
-
-  </div>
-</div>
-
-
-
-
-
-
-
-
-
-<button
-  onClick={() => setShowGuests(true)}
-  className="md:hidden fixed top-[80px] left-4 bg-white border rounded-lg px-3 py-2 shadow z-[10002]"
-
->
-  👥 רשימת אורחים
-</button>
-
-{showGuests && (
-  <Suspense fallback={null}>
-    <MobileGuests
-      onDragStart={handleDragStart}
-      onClose={() => setShowGuests(false)}
-    />
-  </Suspense>
-)}
-
-
-{/* 🎨 קנבס + סיידבר */}
-<div
-  className="absolute inset-x-0 flex flex-row-reverse min-w-0"
-  style={{ top: 64, bottom: 0 }}
->
-  {/* קנבס */}
-  <div className="flex-1 min-w-0">
-    <SeatingEditor
-      background={background?.url || null}
-      invitationId={invitationId}
-      onAutoSave={() => saveSeating(false)}
-      hideSeats={isProducer}
-      sidebarOpen={sidebarOpen}
-    />
-  </div>
-
-  {/* 🧾 סיידבר */}
-  <div className="hidden md:flex flex-shrink-0 relative">
-    <aside
-      className={`
-        transition-all duration-300
-        ${sidebarOpen ? "w-[400px]" : "w-0 overflow-hidden"}
-        bg-white border-l border-[#ead8cc]
-      `}
-    >
-      {sidebarOpen && (
-        <Suspense fallback={<div className="p-4 text-sm text-gray-400">טוען...</div>}>
-          <SeatingSidebar invitationId={invitationId} />
-        </Suspense>
-      )}
-    </aside>
-
-    {/* 🔘 חץ שליטה */}
+  /* ===============================
+     RENDER
+  =============================== */
+  return (
     <div
-      className={`
-        absolute top-1/2 -translate-y-1/2
-        right-full z-40 flex items-center
-        transition-all duration-300
-        ${sidebarOpen ? "mr-[18px]" : "mr-0"}
-      `}
+      dir="rtl"
+      className="
+        h-screen w-screen overflow-hidden
+        bg-[radial-gradient(circle_at_top_left,#fff8ec_0%,#faf6ef_34%,#f3efe8_100%)]
+        text-[#2a2119]
+      "
     >
-      {sidebarOpen && <div className="h-24 w-px bg-[#ead8cc]" />}
-
-      <button
-        onClick={() => setSidebarOpen((v) => !v)}
+      {/* HEADER */}
+      <header
         className="
-          ml-[-12px] h-9 w-9 rounded-full
-          bg-[#fdf9f6] border border-[#ead8cc]
-          shadow-sm flex items-center justify-center
-          hover:bg-[#f6ede8] transition
+          fixed inset-x-0 top-0 z-[9999]
+          h-[76px] border-b border-[#eadcca]/80
+          bg-white/78 shadow-[0_10px_40px_rgba(100,70,40,0.08)]
+          backdrop-blur-2xl
         "
       >
-        {sidebarOpen ? "❮" : "❯"}
+        <div
+          className="
+            flex h-full items-center justify-between gap-4
+            px-4 md:px-7
+          "
+        >
+          {/* RIGHT TITLE */}
+          <div className="flex shrink-0 items-center gap-4">
+            <div
+              className="
+                hidden h-11 w-11 items-center justify-center rounded-2xl
+                border border-[#e7d3b6] bg-[#fffaf3]
+                text-lg text-[#b78a45] shadow-sm md:flex
+              "
+            >
+              ♛
+            </div>
+
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="whitespace-nowrap text-xl font-black tracking-tight text-[#2b2119] md:text-2xl">
+                  הושבה באולם
+                </h1>
+
+                {isProducer && (
+                  <span
+                    className="
+                      rounded-full border border-[#d7b56d]/50
+                      bg-[#fff8e8] px-2.5 py-1
+                      text-[11px] font-bold text-[#9b7436]
+                    "
+                  >
+                    מצב מפיק
+                  </span>
+                )}
+              </div>
+
+              <p className="mt-0.5 hidden text-xs font-medium text-[#9a8773] md:block">
+                תכנון שולחנות, אורחים, אזורים וסידור הושבה חכם
+              </p>
+            </div>
+          </div>
+
+          {/* CENTER TOOLS */}
+          <div
+            className="
+              hidden min-w-0 flex-1 items-center justify-center md:flex
+            "
+          >
+            <div
+              className="
+                max-w-full overflow-x-auto rounded-[24px]
+                border border-[#eadcca]/80 bg-white/60
+                px-2 py-2 shadow-inner
+              "
+            >
+              <ZonesToolbar />
+
+              <div
+                id="header-portal"
+                className="relative z-[10000] pointer-events-none"
+              />
+            </div>
+          </div>
+
+          {/* LEFT ACTIONS */}
+          <div
+            className="
+              flex shrink-0 items-center gap-2 overflow-x-auto
+              whitespace-nowrap
+            "
+          >
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="
+                group flex h-11 shrink-0 items-center gap-2 rounded-2xl
+                bg-[#17203a] px-4 text-sm font-bold text-white
+                shadow-[0_12px_28px_rgba(23,32,58,0.22)]
+                transition hover:-translate-y-0.5 hover:bg-[#11182c]
+              "
+            >
+              <span className="text-lg leading-none">+</span>
+              הוסף שולחן
+            </button>
+
+            <button
+              onClick={() => setShowUpload(true)}
+              className="
+                flex h-11 shrink-0 items-center gap-2 rounded-2xl
+                border border-[#e5d2b8] bg-white/85 px-4
+                text-sm font-bold text-[#6f5536]
+                shadow-sm transition hover:-translate-y-0.5 hover:bg-[#fff8ee]
+              "
+            >
+              ☁️
+              העלאת תבנית אולם
+            </button>
+
+            <div
+              className="
+                shrink-0 rounded-2xl border border-[#e5d2b8]
+                bg-white/85 shadow-sm
+              "
+            >
+              <ExportSeatingPdf eventId={eventId} />
+            </div>
+
+            <button
+              onClick={() => {
+                void saveSeating(true);
+              }}
+              className="
+                flex h-11 shrink-0 items-center gap-2 rounded-2xl
+                bg-gradient-to-l from-[#caa15a] to-[#e3c17b]
+                px-5 text-sm font-black text-[#2d2114]
+                shadow-[0_12px_28px_rgba(178,128,57,0.28)]
+                transition hover:-translate-y-0.5
+              "
+            >
+              ✓
+              שמור את התכנית
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* MOBILE GUESTS BUTTON */}
+      <button
+        onClick={() => setShowGuests(true)}
+        className="
+          fixed left-4 top-[92px] z-[10002]
+          flex h-11 items-center gap-2 rounded-2xl
+          border border-[#eadcca] bg-white/90 px-4
+          text-sm font-bold text-[#4c3827]
+          shadow-[0_14px_34px_rgba(80,50,20,0.13)]
+          backdrop-blur-xl md:hidden
+        "
+      >
+        👥 רשימת אורחים
       </button>
-    </div>
-  </div>
-</div>
 
+      {showGuests && (
+        <Suspense fallback={null}>
+          <MobileGuests
+            onDragStart={handleDragStart}
+            onClose={() => setShowGuests(false)}
+          />
+        </Suspense>
+      )}
 
+      {/* MAIN AREA */}
+      <main
+        className="
+          absolute inset-x-0 flex min-w-0 flex-row-reverse
+        "
+        style={{
+          top: 76,
+          bottom: 0,
+        }}
+      >
+        {/* CANVAS AREA */}
+        <section className="relative min-w-0 flex-1 overflow-hidden">
+          <div className="pointer-events-none absolute inset-0 z-0 bg-[linear-gradient(90deg,rgba(202,161,90,0.04)_1px,transparent_1px),linear-gradient(rgba(202,161,90,0.04)_1px,transparent_1px)] bg-[size:34px_34px]" />
 
- 
+          <div className="relative z-10 h-full w-full">
+            <SeatingEditor
+              background={background?.url || null}
+              invitationId={invitationId}
+              onAutoSave={() => saveSeating(false)}
+              hideSeats={isProducer}
+              sidebarOpen={sidebarOpen}
+            />
+          </div>
+        </section>
+
+        {/* SIDEBAR */}
+        <div className="hidden flex-shrink-0 md:flex">
+          <aside
+            className={`
+              relative h-full overflow-hidden
+              border-l border-[#ead8c8]/90
+              bg-white/78 backdrop-blur-2xl
+              shadow-[-18px_0_48px_rgba(92,64,36,0.08)]
+              transition-all duration-300
+              ${sidebarOpen ? "w-[430px]" : "w-0"}
+            `}
+          >
+            {sidebarOpen && (
+              <div className="h-full">
+                <div
+                  className="
+                    pointer-events-none absolute inset-x-0 top-0 h-32
+                    bg-gradient-to-b from-[#fff8ed] to-transparent
+                  "
+                />
+
+                <Suspense
+                  fallback={
+                    <div className="flex h-full items-center justify-center">
+                      <div
+                        className="
+                          rounded-2xl border border-[#ead8c8]
+                          bg-white px-5 py-4 text-sm font-semibold
+                          text-[#9a8773] shadow-sm
+                        "
+                      >
+                        טוען רשימת שולחנות...
+                      </div>
+                    </div>
+                  }
+                >
+                  <SeatingSidebar invitationId={invitationId} />
+                </Suspense>
+              </div>
+            )}
+          </aside>
+
+          {/* SIDEBAR TOGGLE */}
+          <div className="relative h-full">
+            <button
+              onClick={() => setSidebarOpen((v) => !v)}
+              className={`
+                absolute top-1/2 z-40 flex h-11 w-11
+                -translate-y-1/2 items-center justify-center
+                rounded-full border border-[#e4caa7]
+                bg-white/95 text-lg font-black text-[#9b7436]
+                shadow-[0_12px_32px_rgba(80,50,20,0.16)]
+                backdrop-blur-xl transition
+                hover:scale-105 hover:bg-[#fff8ee]
+                ${sidebarOpen ? "right-[-22px]" : "right-[-22px]"}
+              `}
+              aria-label={sidebarOpen ? "סגור רשימת שולחנות" : "פתח רשימת שולחנות"}
+            >
+              {sidebarOpen ? "❯" : "❮"}
+            </button>
+          </div>
+        </div>
+      </main>
 
       {/* MODALS */}
       {showUpload && (
@@ -548,13 +675,6 @@ return (
           }}
         />
       )}
-
-
-
-
-
-
-
     </div>
- );
+  );
 }
