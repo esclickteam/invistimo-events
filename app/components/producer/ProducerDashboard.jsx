@@ -211,6 +211,34 @@ function getEventStatus(client) {
   };
 }
 
+function getProducerCalendarTypeLabel(type) {
+  switch (type) {
+    case "meeting":
+      return "פגישה";
+
+    case "event":
+      return "אירוע";
+
+    case "reminder":
+      return "תזכורת";
+
+    case "task":
+      return "משימה";
+
+    case "call":
+      return "שיחת טלפון";
+
+    case "zoom":
+      return "פגישת זום";
+
+    case "note":
+      return "הערה";
+
+    default:
+      return "פריט ביומן";
+  }
+}
+
 /* =========================
    Producer Dashboard
 ========================= */
@@ -789,31 +817,146 @@ export default function ProducerDashboard() {
 
 
   const producerCalendarEvents = useMemo(() => {
-    return clients
-      .filter((client) => getEventDate(client))
-      .map((client) => ({
-        id:
-          getClientEventId(client) ||
-          client._id,
+  const result = [];
+
+  clients.forEach((client) => {
+    const clientName =
+      client.name || "לקוח ללא שם";
+
+    const eventTitle =
+      getEventTitle(client);
+
+    const eventId =
+      getClientEventId(client) ||
+      client?.event?._id ||
+      client?.eventId ||
+      client?._id;
+
+    const eventLocation =
+      getEventLocation(client);
+
+    /*
+      1. האירוע הראשי של הלקוח
+    */
+    const mainEventDate =
+      getEventDate(client);
+
+    if (mainEventDate) {
+      result.push({
+        id: `${eventId}-main-event`,
+        kind: "main-event",
+
         clientId: client._id,
-        clientName:
-          client.name || "לקוח ללא שם",
-        eventTitle: getEventTitle(client),
-        date: getEventDate(client),
-        location: getEventLocation(client),
-        phone: client.phone || "",
-        email: client.email || "",
+        clientName,
+
+        eventId,
+        eventTitle,
+
+        title: eventTitle,
+        date: mainEventDate,
+        time: "",
+
+        location: eventLocation,
+        description: "תאריך האירוע הראשי",
+
+        type: "event",
+        typeLabel: "אירוע",
+
         totalGuests: getTotalGuests(client),
         approvedCount: getApprovedCount(client),
         status: getEventStatus(client),
+
         client,
-      }))
-      .sort(
-        (a, b) =>
-          new Date(a.date).getTime() -
-          new Date(b.date).getTime()
-      );
-  }, [clients]);
+      });
+    }
+
+    /*
+      2. כל מה שנוסף ביומן הלקוח בהפקה
+      פגישות / תזכורות / משימות / שיחות / זום
+    */
+    const calendarItems = Array.isArray(client.calendarItems)
+      ? client.calendarItems
+      : [];
+
+    calendarItems.forEach((item) => {
+      const itemDate =
+        item.date ||
+        item.meetingDate ||
+        item.eventDate ||
+        item.dueDate;
+
+      if (!itemDate) return;
+
+      const itemType =
+        item.calendarType ||
+        item.meetingType ||
+        item.type ||
+        "meeting";
+
+      const itemTime =
+        item.time ||
+        item.meetingTime ||
+        item.eventTime ||
+        item.hour ||
+        "";
+
+      const itemTitle =
+        item.title ||
+        item.entityName ||
+        item.name ||
+        "פריט ביומן";
+
+      result.push({
+        id: item._id,
+        kind: "calendar-item",
+
+        clientId: client._id,
+        clientName,
+
+        eventId,
+        eventTitle,
+
+        title: itemTitle,
+        date: itemDate,
+        time: itemTime,
+
+        location:
+          item.location ||
+          item.address ||
+          item.zoomLink ||
+          "",
+
+        description:
+          item.description ||
+          item.notes ||
+          item.summary ||
+          item.message ||
+          "",
+
+        type: itemType,
+        typeLabel: getProducerCalendarTypeLabel(itemType),
+
+        status: getEventStatus(client),
+
+        totalGuests: getTotalGuests(client),
+        approvedCount: getApprovedCount(client),
+
+        client,
+        raw: item,
+      });
+    });
+  });
+
+  return result.sort((a, b) => {
+    const aDate = `${a.date}T${a.time || "00:00"}`;
+    const bDate = `${b.date}T${b.time || "00:00"}`;
+
+    return (
+      new Date(aDate).getTime() -
+      new Date(bDate).getTime()
+    );
+  });
+}, [clients]);
 
   /* =========================
      UI
@@ -2261,12 +2404,17 @@ function ProducerCalendarModal({
                               "
                             >
                               <div className="text-[11px] font-black text-[#1E1B2E] truncate">
-                                {event.eventTitle}
-                              </div>
+  {event.title}
+</div>
 
-                              <div className="text-[10px] text-[#7B7285] truncate mt-0.5">
-                                {event.clientName}
-                              </div>
+<div className="text-[10px] text-[#7B7285] truncate mt-0.5">
+  {event.clientName}
+  {event.time ? ` · ${event.time}` : ""}
+</div>
+
+<div className="text-[10px] text-[#8B5CF6] font-black truncate mt-0.5">
+  {event.typeLabel}
+</div>
                             </button>
                           ))}
 
@@ -2361,12 +2509,26 @@ function ProducerCalendarModal({
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <div className="font-black text-[#1E1B2E]">
-                          {event.eventTitle}
-                        </div>
+  {event.title}
+</div>
 
-                        <div className="text-xs text-gray-400 mt-1">
-                          {event.clientName}
-                        </div>
+<div className="text-xs text-gray-400 mt-1">
+  לקוח: {event.clientName}
+</div>
+
+<div className="text-xs text-gray-400 mt-1">
+  אירוע: {event.eventTitle}
+</div>
+
+{event.time && (
+  <div className="text-xs text-gray-500 mt-1">
+    שעה: {event.time}
+  </div>
+)}
+
+<div className="mt-2 inline-flex rounded-full bg-[#F4EDFF] text-[#6D28D9] px-3 py-1 text-[11px] font-black">
+  {event.typeLabel}
+</div>
                       </div>
 
                       <span
