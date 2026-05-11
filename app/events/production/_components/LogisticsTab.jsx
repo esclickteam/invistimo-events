@@ -573,40 +573,30 @@ export default function LogisticsTab({ eventId }) {
   );
 
   async function addStep(payload) {
-  if (!payload.title) return;
+    if (!payload.title) return;
 
-  try {
-    const res = await fetch(
-      `/api/events/${eventId}/logistics`,
-      {
+    const optimistic = {
+      ...payload,
+      _id: Math.random().toString(36),
+    };
+
+    setSteps((prev) => [...prev, optimistic]);
+
+    try {
+      await fetch(`/api/events/${eventId}/logistics`, {
         method: "POST",
         headers: {
-          "Content-Type":
-            "application/json",
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           ...payload,
           type: payload.type,
         }),
-      }
-    );
-
-    const data =
-      await res.json();
-
-    if (
-      data.success &&
-      data.step
-    ) {
-      setSteps((prev) => [
-        ...prev,
-        data.step,
-      ]);
+      });
+    } catch (err) {
+      console.error(err);
     }
-  } catch (err) {
-    console.error(err);
   }
-}
 
   async function updateStep(id, patch) {
     setSteps((prev) =>
