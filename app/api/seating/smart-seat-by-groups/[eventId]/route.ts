@@ -28,17 +28,20 @@ type InvitationGuestDoc = {
   groupId?: mongoose.Types.ObjectId | string | null;
   relation?: string | null;
   tableId?: mongoose.Types.ObjectId | string | null;
+  tableName?: string | null;
   seatNumber?: number | null;
 };
 
 type TableDoc = {
   _id: mongoose.Types.ObjectId;
+  id?: string;
   name?: string;
   tableName?: string;
   title?: string;
-  seats?: number;
-  capacity?: number;
-  maxSeats?: number;
+
+  // ✅ אצלך כמות המקומות בשולחן היא seats
+  seats?: number | string;
+
   seatedGuests?: any[];
 };
 
@@ -52,10 +55,10 @@ function getGuestName(guest: InvitationGuestDoc) {
 
 function getGuestCount(guest: InvitationGuestDoc) {
   const count = Number(
-    guest.guestsCount ||
-      guest.count ||
-      guest.arrivedCount ||
+    guest.arrivedCount ||
       guest.actualArrivedCount ||
+      guest.guestsCount ||
+      guest.count ||
       1
   );
 
@@ -95,8 +98,13 @@ function getGroupKey(guest: InvitationGuestDoc) {
 }
 
 function getTableCapacity(table: TableDoc) {
-  const capacity = Number(table.seats || table.capacity || table.maxSeats || 0);
-  return Number.isFinite(capacity) && capacity > 0 ? capacity : 0;
+  const seats = Number(table.seats || 0);
+
+  if (Number.isFinite(seats) && seats > 0) {
+    return seats;
+  }
+
+  return 0;
 }
 
 function getTableName(table: TableDoc) {
@@ -139,7 +147,8 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     /* ===============================
        FIND INVITATION BY EVENT ID
-       זה בדיוק כמו /api/seating/guests/[eventId]
+       אותו מקור כמו:
+       /api/seating/guests/[eventId]
     =============================== */
 
     const invitation = await Invitation.findOne({ eventId })
@@ -163,7 +172,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     /* ===============================
        LOAD GUESTS
-       אותו מקור כמו רשימת האורחים במסך
+       לפי InvitationGuest כמו במסך ההושבה
     =============================== */
 
     const allGuests = await InvitationGuest.find({
@@ -186,9 +195,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
       );
     }
 
-    /*
-      הושבה חכמה רק למי שאישר הגעה
-    */
     const approvedGuests = allGuests.filter(isApprovedGuest);
 
     if (!approvedGuests.length) {
@@ -210,6 +216,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     /* ===============================
        LOAD TABLES
+       שולחנות לפי eventId
     =============================== */
 
     const tables = await SeatingTable.find({
@@ -232,15 +239,23 @@ export async function POST(req: NextRequest, context: RouteContext) {
       );
     }
 
+    /*
+      ✅ השדה של המקומות אצלך הוא seats.
+      כל שולחן שאין לו seats גדול מ־0 לא נכנס לחישוב.
+    */
     const tableStates = tables
-      .map((table) => ({
-        table,
-        tableId: String(table._id),
-        tableName: getTableName(table),
-        capacity: getTableCapacity(table),
-        remaining: getTableCapacity(table),
-        seatedGuests: [] as InvitationGuestDoc[],
-      }))
+      .map((table) => {
+        const capacity = getTableCapacity(table);
+
+        return {
+          table,
+          tableId: String(table._id),
+          tableName: getTableName(table),
+          capacity,
+          remaining: capacity,
+          seatedGuests: [] as InvitationGuestDoc[],
+        };
+      })
       .filter((table) => table.capacity > 0)
       .sort((a, b) => b.capacity - a.capacity);
 
@@ -249,6 +264,17 @@ export async function POST(req: NextRequest, context: RouteContext) {
         {
           success: false,
           error: "לא הוגדרה כמות מקומות בשולחנות",
+          debug: {
+            eventId,
+            invitationId: String(invitationId),
+            tablesCount: tables.length,
+            sampleTables: tables.slice(0, 5).map((table) => ({
+              id: String(table._id),
+              name: getTableName(table),
+              seats: table.seats,
+              seatedGuestsCount: table.seatedGuests?.length || 0,
+            })),
+          },
         },
         { status: 400 }
       );
@@ -273,6 +299,8 @@ export async function POST(req: NextRequest, context: RouteContext) {
           error: `אין מספיק מקומות. יש ${totalGuestSeats} מקומות נדרשים למי שאישר הגעה, אבל רק ${totalTableSeats} מקומות בשולחנות.`,
           totalGuestSeats,
           totalTableSeats,
+          approvedGuestsCount: approvedGuests.length,
+          tablesCount: tableStates.length,
         },
         { status: 400 }
       );
@@ -280,7 +308,8 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     /* ===============================
        RESET CURRENT SEATING
-       מאפס הושבה קיימת, לא מוחק אורחים ולא שולחנות
+       פעולה של "הושב מחדש" מאפסת הושבה קיימת
+       ואז בונה מחדש לפי קבוצות.
     =============================== */
 
     await SeatingTable.updateMany(
@@ -305,7 +334,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     /* ===============================
        BUILD GROUPS
-       רק מתוך מי שאישר הגעה
+       רק אורחים שאישרו הגעה
     =============================== */
 
     const groupMap = new Map<
@@ -343,8 +372,8 @@ export async function POST(req: NextRequest, context: RouteContext) {
        SMART SEATING ALGORITHM
 
        1. קודם מנסה לשים קבוצה שלמה בשולחן אחד.
-       2. אם אי אפשר — מפצל לפי שולחנות פנויים.
-       3. קבוצות גדולות קודם.
+       2. אם אין שולחן מתאים — מפצל לקבוצות שולחנות פנויים.
+       3. משתמש ב־table.seats ככמות המקומות.
     =============================== */
 
     for (const group of groups) {
@@ -473,14 +502,31 @@ export async function POST(req: NextRequest, context: RouteContext) {
     return NextResponse.json({
       success: true,
       message: "SMART_SEATING_COMPLETED",
+
       seatedGuestCount,
       seatedSeatsCount,
       seatedCount: seatedGuestCount,
+
       totalApprovedGuests: approvedGuests.length,
       totalGuestsInInvitation: allGuests.length,
+
       totalGuestSeats,
       totalTableSeats,
+
+      tablesCount: tableStates.length,
       unseatedCount: unseatedGuests.length,
+
+      tablesSummary: tableStates.map((table) => ({
+        tableId: table.tableId,
+        tableName: table.tableName,
+        seats: table.capacity,
+        seatedGuests: table.seatedGuests.length,
+        usedSeats: table.seatedGuests.reduce((sum, guest) => {
+          return sum + getGuestCount(guest);
+        }, 0),
+        remaining: table.remaining,
+      })),
+
       unseatedGuests: unseatedGuests.map((guest) => ({
         id: String(guest._id),
         name: getGuestName(guest),
@@ -491,11 +537,14 @@ export async function POST(req: NextRequest, context: RouteContext) {
         rsvp: guest.rsvp || "",
         status: guest.status || "",
       })),
+
       debug: {
         eventId,
         invitationId: String(invitationId),
         allGuestsCount: allGuests.length,
         approvedGuestsCount: approvedGuests.length,
+        tablesCount: tables.length,
+        validTablesCount: tableStates.length,
       },
     });
   } catch (error: any) {
