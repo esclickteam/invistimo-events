@@ -8,6 +8,8 @@ import { useGroupStore } from "@/store/groupStore";
 /* ================= CONSTANTS ================= */
 
 const NO_GROUP_KEY = "__no_group__";
+const ACTION_NONE = "__none__";
+const ACTION_REMOVE = "__remove__";
 
 const normalizeGroupId = (value: unknown) => {
   if (
@@ -98,6 +100,10 @@ export default function SeatingSidebar({
     Record<string, string>
   >({});
 
+  const [groupInnerFilter, setGroupInnerFilter] = useState<
+    Record<string, Filter>
+  >({});
+
   useEffect(() => {
     if (!invitationId) return;
     loadGroups(invitationId);
@@ -125,12 +131,6 @@ export default function SeatingSidebar({
     if (!isLiveMode) return g.rsvp === "yes";
     return getSeatCount(g) > 0;
   };
-
-  const getMaxTableSeats = () =>
-    Math.max(0, ...tables.map((table) => Number(table.seats || 0)));
-
-  const getTotalSeatsForGuests = (list: Guest[]) =>
-    list.reduce((sum, guest) => sum + getSeatCount(guest), 0);
 
   const syncAssignToServer = async (guestId: string, tableId: string) => {
     if (!invitationId) return false;
@@ -211,18 +211,16 @@ export default function SeatingSidebar({
         (sg) => String(sg.guestId) === String(guestId)
       );
 
-      if (seat) {
-        return { table, seat };
-      }
+      if (seat) return { table, seat };
     }
 
     return null;
   };
 
   /*
-    מזהה אם האורח הושב דרך הושבת קבוצה.
-    אם הוא הושב ידנית כאורח בודד, אין groupId בתוך seatedGuests,
-    ולכן הוא נשאר אורח רגיל ולא נגרר עם העברת קבוצה.
+    אם האורח הושב דרך seatGroup,
+    יהיה לו groupId בתוך seatedGuests.
+    אם הוא הושב ידנית - לא.
   */
   const isGuestSeatedByGroupAction = (guest: Guest) => {
     const gid = seatGuestId(guest);
@@ -300,10 +298,10 @@ export default function SeatingSidebar({
     if (!isEligibleInCurrentMode(g)) return false;
 
     const q = search.trim().toLowerCase();
-    const isSeated = isGuestSeated(g);
+    const seated = isGuestSeated(g);
 
-    if (filter === "seated" && !isSeated) return false;
-    if (filter === "unseated" && isSeated) return false;
+    if (filter === "seated" && !seated) return false;
+    if (filter === "unseated" && seated) return false;
 
     const groupName =
       normalizeGroupId(g.groupId) !== NO_GROUP_KEY
@@ -319,6 +317,20 @@ export default function SeatingSidebar({
     );
   }
 
+  const filterGuestsInsideGroup = (groupId: string, list: Guest[]) => {
+    const mode = groupInnerFilter[groupId] || "all";
+
+    if (mode === "seated") {
+      return list.filter((g) => isGuestSeated(g));
+    }
+
+    if (mode === "unseated") {
+      return list.filter((g) => !isGuestSeated(g));
+    }
+
+    return list;
+  };
+
   /* ================= GROUP TABLE BLOCKS ================= */
 
   const buildGroupTableBlocks = (list: Guest[]) => {
@@ -330,10 +342,6 @@ export default function SeatingSidebar({
       const gid = seatGuestId(guest);
       const table = guestTableMap.get(gid);
 
-      /*
-        רק אורחים שהושבו כקבוצה נכנסים להעברה קבוצתית לפי שולחן.
-        אורח שהושב ידנית נשאר רגיל ולא נגרר.
-      */
       if (!table || !isGuestSeatedByGroupAction(guest)) return;
 
       const key = String(table.id);
@@ -347,7 +355,6 @@ export default function SeatingSidebar({
       }
 
       const block = blocksMap.get(key)!;
-
       block.guests.push(guest);
       block.seatsUsed += getSeatCount(guest);
     });
@@ -391,17 +398,17 @@ export default function SeatingSidebar({
   const handleGroupTableChange = async ({
     group,
     groupId,
-    visibleGuests,
+    actionGuests,
     tableId,
   }: {
     group: Group | null;
     groupId: string;
-    visibleGuests: Guest[];
+    actionGuests: Guest[];
     tableId: string;
   }) => {
-    const eligibleGuests = visibleGuests.filter(isEligibleInCurrentMode);
+    const eligibleGuests = actionGuests.filter(isEligibleInCurrentMode);
 
-    if (!tableId) {
+    if (tableId === ACTION_REMOVE) {
       for (const g of eligibleGuests) {
         const gid = seatGuestId(g);
         await removeSingleGuestFromTable(gid);
@@ -409,6 +416,8 @@ export default function SeatingSidebar({
 
       return;
     }
+
+    if (!tableId || tableId === ACTION_NONE) return;
 
     if (group && groupId !== NO_GROUP_KEY) {
       const beforeUnseatedIds = new Set(
@@ -457,13 +466,14 @@ export default function SeatingSidebar({
     guestIds: string[];
     tableId: string;
   }) => {
-    if (!tableId) {
+    if (tableId === ACTION_REMOVE) {
       for (const gid of guestIds) {
         await removeSingleGuestFromTable(gid);
       }
-
       return;
     }
+
+    if (!tableId || tableId === ACTION_NONE) return;
 
     const result = moveGuestsToTable({
       guestIds,
@@ -485,6 +495,22 @@ export default function SeatingSidebar({
 
   /* ================= RENDER HELPERS ================= */
 
+  const chipClass = (active: boolean, type: "all" | "seated" | "unseated") => {
+    if (active && type === "seated") {
+      return "border-green-300 bg-green-50 text-green-700";
+    }
+
+    if (active && type === "unseated") {
+      return "border-orange-300 bg-orange-50 text-orange-700";
+    }
+
+    if (active) {
+      return "border-[#D7B28D] bg-[#FFF7EE] text-[#6A4E3B]";
+    }
+
+    return "border-[#EAD8CC] bg-white text-[#8B6F5A] hover:bg-[#FCF7F2]";
+  };
+
   const renderGuestRow = (g: Guest) => {
     const gid = seatGuestId(g);
     const table = guestTableMap.get(gid);
@@ -494,18 +520,18 @@ export default function SeatingSidebar({
       <div
         key={gid}
         className="
-          border-b border-[#F7EEE8]
-          px-4 py-3
-          transition hover:bg-[#FFF9ED]
+          border-b border-[#F4EAE2]
+          px-3 py-2.5
+          transition hover:bg-[#FFF9F3]
         "
       >
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <div className="truncate text-sm font-bold text-[#2F241D]">
+            <div className="truncate text-[13px] font-bold text-[#2F241D]">
               {g.name}
             </div>
 
-            <div className="mt-1 truncate text-xs text-[#8B6F5A]">
+            <div className="mt-0.5 truncate text-[11px] text-[#8B6F5A]">
               {table
                 ? `${table.name} · ${count} ${
                     isLiveMode ? "הגיעו" : "מוזמנים"
@@ -520,19 +546,17 @@ export default function SeatingSidebar({
             {table && (
               <select
                 className="
-                  h-9 max-w-[130px]
+                  h-8 max-w-[108px]
                   rounded-xl border border-[#E6C3AD]
-                  bg-white px-2 text-xs font-semibold
+                  bg-white px-2 text-[11px] font-semibold
                   text-[#4B3528]
                   outline-none
-                  focus:ring-2 focus:ring-[#E6C3AD]/35
                 "
                 value={table.id}
                 onClick={(e) => e.stopPropagation()}
                 onChange={async (e) => {
                   const nextTableId = e.target.value;
                   if (!nextTableId) return;
-
                   await assignSingleGuestToTable(gid, nextTableId);
                 }}
               >
@@ -547,7 +571,7 @@ export default function SeatingSidebar({
             <button
               className={`
                 rounded-xl border px-3 py-1.5
-                text-xs font-bold transition
+                text-[11px] font-bold transition
                 ${
                   table
                     ? "border-green-300 bg-green-50 text-green-700 hover:bg-green-100"
@@ -573,24 +597,23 @@ export default function SeatingSidebar({
         {selectingGuestId === gid && tables.length > 0 && (
           <select
             className="
-              mt-3 h-10 w-full rounded-2xl
+              mt-2 h-9 w-full rounded-xl
               border border-[#E6C3AD]
-              bg-white px-3 text-xs
+              bg-white px-3 text-[11px]
               text-[#4B3528]
               outline-none
-              focus:ring-2 focus:ring-[#E6C3AD]/35
             "
-            defaultValue=""
+            defaultValue={ACTION_NONE}
             onClick={(e) => e.stopPropagation()}
             onChange={async (e) => {
               const tableId = e.target.value;
-              if (!tableId) return;
+              if (!tableId || tableId === ACTION_NONE) return;
 
               await assignSingleGuestToTable(gid, tableId);
               setSelectingGuestId(null);
             }}
           >
-            <option value="">בחר שולחן…</option>
+            <option value={ACTION_NONE}>בחר שולחן…</option>
 
             {tables.map((t) => (
               <option key={t.id} value={t.id}>
@@ -631,15 +654,13 @@ export default function SeatingSidebar({
       <aside
         className={`
           fixed top-0 right-0 z-50
-          h-full w-[420px] max-w-[92vw]
+          h-full w-[410px] max-w-[92vw]
           flex flex-col
           border-l border-[#EAD8CC]
           bg-[#FBF7F3]
           shadow-2xl
           transform transition-transform duration-300
-
           md:static md:translate-x-0 md:z-auto md:pointer-events-auto md:shadow-none
-
           ${
             mobileOpen
               ? "translate-x-0 pointer-events-auto"
@@ -648,14 +669,14 @@ export default function SeatingSidebar({
         `}
       >
         {/* ===== Header ===== */}
-        <div className="border-b border-[#EAD8CC] bg-white/80 p-5 backdrop-blur">
-          <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="border-b border-[#EAD8CC] bg-white/85 p-4 backdrop-blur">
+          <div className="mb-3 flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-[17px] font-black text-[#2F241D]">
+              <h2 className="text-[16px] font-black text-[#2F241D]">
                 הקצאת מקומות
               </h2>
-              <p className="mt-1 text-xs text-[#8B6F5A]">
-                ניהול אורחים, קבוצות ושולחנות
+              <p className="mt-1 text-[11px] text-[#8B6F5A]">
+                תכנון שולחנות, אורחים וסידור הושבה חכם
               </p>
             </div>
 
@@ -670,24 +691,24 @@ export default function SeatingSidebar({
             </button>
           </div>
 
-          <div className="mb-4 grid grid-cols-3 gap-2">
-            <div className="rounded-2xl border border-[#EAD8CC] bg-[#FFF9ED] p-3 text-center">
-              <div className="text-[11px] text-[#8B6F5A]">סה״כ</div>
-              <div className="text-base font-black text-[#2F241D]">
+          <div className="mb-3 grid grid-cols-3 gap-2">
+            <div className="rounded-2xl border border-[#EAD8CC] bg-[#FFF9ED] p-2.5 text-center">
+              <div className="text-[10px] text-[#8B6F5A]">סה״כ</div>
+              <div className="text-[18px] font-black text-[#2F241D]">
                 {stats.total}
               </div>
             </div>
 
-            <div className="rounded-2xl border border-green-200 bg-green-50 p-3 text-center">
-              <div className="text-[11px] text-green-700">הושבו</div>
-              <div className="text-base font-black text-green-800">
+            <div className="rounded-2xl border border-green-200 bg-green-50 p-2.5 text-center">
+              <div className="text-[10px] text-green-700">הושבו</div>
+              <div className="text-[18px] font-black text-green-800">
                 {stats.seated}
               </div>
             </div>
 
-            <div className="rounded-2xl border border-orange-200 bg-orange-50 p-3 text-center">
-              <div className="text-[11px] text-orange-700">נשארו</div>
-              <div className="text-base font-black text-orange-800">
+            <div className="rounded-2xl border border-orange-200 bg-orange-50 p-2.5 text-center">
+              <div className="text-[10px] text-orange-700">נשארו</div>
+              <div className="text-[18px] font-black text-orange-800">
                 {stats.remaining}
               </div>
             </div>
@@ -699,7 +720,7 @@ export default function SeatingSidebar({
               onChange={(e) => setSearch(e.target.value)}
               placeholder="חיפוש אורח / טלפון / קבוצה"
               className="
-                h-11 flex-1 rounded-2xl
+                h-10 flex-1 rounded-2xl
                 border border-[#E6C3AD]
                 bg-white px-4 text-sm
                 text-[#2F241D]
@@ -714,7 +735,7 @@ export default function SeatingSidebar({
               <button
                 onClick={() => setFilterOpen((o) => !o)}
                 className="
-                  h-11 min-w-[92px]
+                  h-10 min-w-[88px]
                   rounded-2xl border border-[#E6C3AD]
                   bg-white px-4 text-sm font-semibold
                   text-[#4B3528]
@@ -728,7 +749,7 @@ export default function SeatingSidebar({
               </button>
 
               {filterOpen && (
-                <div className="absolute left-0 z-20 mt-2 w-[220px] overflow-hidden rounded-2xl border border-[#EAD8CC] bg-white shadow-xl">
+                <div className="absolute left-0 z-20 mt-2 w-[210px] overflow-hidden rounded-2xl border border-[#EAD8CC] bg-white shadow-xl">
                   <button
                     onClick={() => {
                       setFilter("all");
@@ -772,7 +793,7 @@ export default function SeatingSidebar({
         </div>
 
         {/* ===== Groups ===== */}
-        <div className="flex-1 space-y-3 overflow-y-auto p-4">
+        <div className="flex-1 space-y-2.5 overflow-y-auto p-3">
           {Object.entries(groupedGuests).map(([groupId, list]) => {
             const group: Group | null =
               groupId !== NO_GROUP_KEY
@@ -782,43 +803,34 @@ export default function SeatingSidebar({
             const visibleGuests = list.filter(guestVisible);
             if (!visibleGuests.length) return null;
 
-            const eligibleGuests = visibleGuests.filter(isEligibleInCurrentMode);
-            const { total, seated, remaining } = getGroupStats(eligibleGuests);
+            const actionGuests = list.filter(isEligibleInCurrentMode);
+            const displayGuests = filterGuestsInsideGroup(groupId, visibleGuests);
 
-            const maxTableSeats = getMaxTableSeats();
-            const totalGroupSeats = getTotalSeatsForGuests(eligibleGuests);
-            const isLargeGroup =
-              group && maxTableSeats > 0 && totalGroupSeats > maxTableSeats;
-
-            const tableBlocks = buildGroupTableBlocks(visibleGuests);
-
-            const selectedSourceTableId = moveSourceByGroup[groupId] || "";
-            const selectedBlock = tableBlocks.find(
-              (block) => String(block.table.id) === String(selectedSourceTableId)
-            );
-
-            const seatedEligibleGuestIds = eligibleGuests
-              .filter((g) => isGuestSeated(g))
-              .map((g) => seatGuestId(g));
+            const { total, seated, remaining } = getGroupStats(actionGuests);
 
             const isOpen = !!openGroups[groupId];
+
+            const tableBlocks = buildGroupTableBlocks(actionGuests);
+            const derivedSourceTableId =
+              moveSourceByGroup[groupId] ||
+              (tableBlocks.length === 1 ? tableBlocks[0].table.id : "");
+
+            const selectedBlock = tableBlocks.find(
+              (block) => String(block.table.id) === String(derivedSourceTableId)
+            );
 
             return (
               <div
                 key={groupId}
                 className="
-                  overflow-hidden rounded-3xl
+                  overflow-hidden rounded-[24px]
                   border border-[#EAD8CC]
-                  bg-white shadow-sm
+                  bg-white shadow-[0_2px_10px_rgba(104,72,46,0.04)]
                 "
               >
                 {/* ===== Group Header ===== */}
                 <div
-                  className="
-                    cursor-pointer
-                    bg-gradient-to-l from-[#FFF9ED] to-[#F7EDE6]
-                    px-4 py-4
-                  "
+                  className="cursor-pointer bg-[#F9F3EE] px-3 py-3"
                   onClick={() =>
                     setOpenGroups((o) => ({
                       ...o,
@@ -826,10 +838,10 @@ export default function SeatingSidebar({
                     }))
                   }
                 >
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-black text-[#2F241D]">
+                        <span className="truncate text-[14px] font-black text-[#2F241D]">
                           {group ? group.name : "ללא קבוצה"}
                         </span>
 
@@ -838,20 +850,57 @@ export default function SeatingSidebar({
                         </span>
                       </div>
 
-                      <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
-                        <span className="rounded-full bg-green-50 px-2 py-1 font-semibold text-green-700">
-                          הושבו {seated}
-                        </span>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setGroupInnerFilter((prev) => ({
+                              ...prev,
+                              [groupId]: "all",
+                            }));
+                          }}
+                          className={`rounded-full border px-2.5 py-1 text-[10px] font-bold transition ${chipClass(
+                            (groupInnerFilter[groupId] || "all") === "all",
+                            "all"
+                          )}`}
+                        >
+                          הכל {total}
+                        </button>
 
-                        {remaining > 0 ? (
-                          <span className="rounded-full bg-orange-50 px-2 py-1 font-semibold text-orange-700">
-                            נשארו {remaining}
-                          </span>
-                        ) : (
-                          <span className="rounded-full bg-[#F0F7F4] px-2 py-1 font-semibold text-[#2F7D59]">
-                            הושלם
-                          </span>
-                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setGroupInnerFilter((prev) => ({
+                              ...prev,
+                              [groupId]: "seated",
+                            }));
+                          }}
+                          className={`rounded-full border px-2.5 py-1 text-[10px] font-bold transition ${chipClass(
+                            groupInnerFilter[groupId] === "seated",
+                            "seated"
+                          )}`}
+                        >
+                          הושבו {seated}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setGroupInnerFilter((prev) => ({
+                              ...prev,
+                              [groupId]: "unseated",
+                            }));
+                          }}
+                          className={`rounded-full border px-2.5 py-1 text-[10px] font-bold transition ${chipClass(
+                            groupInnerFilter[groupId] === "unseated",
+                            "unseated"
+                          )}`}
+                        >
+                          לא שובצו {remaining}
+                        </button>
                       </div>
                     </div>
 
@@ -860,30 +909,32 @@ export default function SeatingSidebar({
                     </span>
                   </div>
 
-                  {/* הושבת קבוצה */}
-                  <div className="mt-4" onClick={(e) => e.stopPropagation()}>
+                  {/* ===== Group seat / remove ===== */}
+                  <div
+                    className="mt-3 flex flex-col gap-2"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <select
                       className="
-                        h-10 w-full
-                        rounded-2xl border border-[#E6C3AD]
-                        bg-white px-3 text-xs font-semibold
+                        h-9 w-full
+                        rounded-xl border border-[#E6C3AD]
+                        bg-white px-3 text-[11px] font-semibold
                         text-[#4B3528]
-                        outline-none transition
-                        focus:border-[#C79B7B]
-                        focus:ring-2 focus:ring-[#E6C3AD]/35
+                        outline-none
                       "
-                      value=""
+                      defaultValue={ACTION_NONE}
                       onChange={async (e) => {
                         const tableId = e.target.value;
                         await handleGroupTableChange({
                           group,
                           groupId,
-                          visibleGuests,
+                          actionGuests,
                           tableId,
                         });
+                        e.currentTarget.value = ACTION_NONE;
                       }}
                     >
-                      <option value="">
+                      <option value={ACTION_NONE}>
                         {group
                           ? remaining > 0
                             ? `הושב קבוצה · נשארו ${remaining}`
@@ -891,7 +942,7 @@ export default function SeatingSidebar({
                           : "בחר שולחן לאורחים ללא קבוצה"}
                       </option>
 
-                      <option value="">הסר קבוצה מהשולחנות</option>
+                      <option value={ACTION_REMOVE}>הסר קבוצה</option>
 
                       {tables.map((t) => (
                         <option key={t.id} value={t.id}>
@@ -899,73 +950,18 @@ export default function SeatingSidebar({
                         </option>
                       ))}
                     </select>
-                  </div>
 
-                  {/* קבוצה קטנה: שינוי / הסרה של כל הקבוצה יחד */}
-                  {group && !isLargeGroup && seatedEligibleGuestIds.length > 0 && (
-                    <div
-                      className="
-                        mt-3 rounded-2xl
-                        border border-[#EAD8CC]
-                        bg-white/70 p-3
-                      "
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <div className="mb-2 text-[11px] font-bold text-[#8B6F5A]">
-                        שינוי שולחן לכל הקבוצה
-                      </div>
-
-                      <select
-                        className="
-                          h-9 w-full
-                          rounded-xl border border-[#E6C3AD]
-                          bg-white px-2 text-xs font-semibold
-                          text-[#4B3528] outline-none
-                        "
-                        value=""
-                        onChange={async (e) => {
-                          const nextTableId = e.target.value;
-
-                          await handleMoveGuests({
-                            guestIds: seatedEligibleGuestIds,
-                            tableId: nextTableId,
-                          });
-                        }}
-                      >
-                        <option value="">בחר פעולה</option>
-                        <option value="">הסר את כל הקבוצה</option>
-
-                        {tables.map((t) => (
-                          <option key={t.id} value={t.id}>
-                            {tableLabel(t)}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-
-                  {/* קבוצה גדולה: העברת מי שיושב בשולחן מסוים */}
-                  {group && isLargeGroup && tableBlocks.length > 0 && (
-                    <div
-                      className="
-                        mt-3 rounded-2xl
-                        border border-[#EAD8CC]
-                        bg-white/70 p-3
-                      "
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <div className="mb-2 text-[11px] font-bold text-[#8B6F5A]">
-                        העברת קבוצה משולחן לשולחן
-                      </div>
-
+                    {/* ===== Move grouped seated guests ===== */}
+                    {tableBlocks.length > 0 && (
                       <div className="grid grid-cols-2 gap-2">
                         <select
                           className="
                             h-9 rounded-xl border border-[#E6C3AD]
-                            bg-white px-2 text-xs font-semibold
-                            text-[#4B3528] outline-none
+                            bg-white px-3 text-[11px] font-semibold
+                            text-[#4B3528]
+                            outline-none
                           "
-                          value={selectedSourceTableId}
+                          value={derivedSourceTableId}
                           onChange={(e) => {
                             setMoveSourceByGroup((prev) => ({
                               ...prev,
@@ -977,19 +973,21 @@ export default function SeatingSidebar({
 
                           {tableBlocks.map((block) => (
                             <option key={block.table.id} value={block.table.id}>
-                              {block.table.name} · {block.guests.length} אורחים
+                              {block.table.name} · {block.guests.length}
                             </option>
                           ))}
                         </select>
 
                         <select
+                          key={`${groupId}-${derivedSourceTableId}`}
                           className="
                             h-9 rounded-xl border border-[#E6C3AD]
-                            bg-white px-2 text-xs font-semibold
-                            text-[#4B3528] outline-none
+                            bg-white px-3 text-[11px] font-semibold
+                            text-[#4B3528]
+                            outline-none
                             disabled:cursor-not-allowed disabled:opacity-50
                           "
-                          value=""
+                          defaultValue={ACTION_NONE}
                           disabled={!selectedBlock}
                           onChange={async (e) => {
                             const nextTableId = e.target.value;
@@ -1006,10 +1004,12 @@ export default function SeatingSidebar({
                               ...prev,
                               [groupId]: "",
                             }));
+
+                            e.currentTarget.value = ACTION_NONE;
                           }}
                         >
-                          <option value="">לאיזה שולחן</option>
-                          <option value="">הסר מהשולחן</option>
+                          <option value={ACTION_NONE}>לאיזה שולחן</option>
+                          <option value={ACTION_REMOVE}>הסר מהשולחן</option>
 
                           {tables.map((t) => (
                             <option key={t.id} value={t.id}>
@@ -1018,12 +1018,22 @@ export default function SeatingSidebar({
                           ))}
                         </select>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
 
-                {/* כל האורחים רגיל — בלי חלקים / בלי חלוקה ויזואלית */}
-                {isOpen && visibleGuests.map(renderGuestRow)}
+                {/* ===== Guest list ===== */}
+                {isOpen && (
+                  <div>
+                    {displayGuests.length > 0 ? (
+                      displayGuests.map(renderGuestRow)
+                    ) : (
+                      <div className="px-3 py-4 text-center text-[11px] text-[#9A7E6A]">
+                        אין אורחים להצגה בסינון שנבחר
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}
