@@ -1,9 +1,38 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  useCallback,
+  useRef,
+} from "react";
+
 import { useRouter } from "next/navigation";
-import { UserPlus, ArrowUpRight, ChevronDown } from "lucide-react";
+
+import {
+  ArrowUpRight,
+  CalendarClock,
+  CalendarDays,
+  CheckCircle2,
+  ChevronDown,
+  Clock3,
+  Filter,
+  LayoutDashboard,
+  Mail,
+  MapPin,
+  Phone,
+  RefreshCcw,
+  Search,
+  Sparkles,
+  Users,
+  UserPlus,
+  UserRoundCheck,
+  UserRoundCog,
+} from "lucide-react";
+
 import { motion } from "framer-motion";
+
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import CreateClientModal from "@/app/components/producer/CreateClientModal";
@@ -11,68 +40,226 @@ import CreateClientModal from "@/app/components/producer/CreateClientModal";
 /* =========================
    Animations
 ========================= */
+
 const fadeUp = {
-  hidden: { opacity: 0, y: 18 },
+  hidden: {
+    opacity: 0,
+    y: 18,
+  },
   visible: (i = 1) => ({
     opacity: 1,
     y: 0,
-    transition: { delay: i * 0.12, duration: 0.55, ease: "easeOut" },
+    transition: {
+      delay: i * 0.08,
+      duration: 0.45,
+      ease: "easeOut",
+    },
   }),
 };
 
 /* =========================
    Utils
 ========================= */
+
 function isWithinDays(dateStr, days) {
+  if (!dateStr) return false;
+
   const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return false;
+
   const now = new Date();
-  const end = new Date();
+  now.setHours(0, 0, 0, 0);
+
+  const end = new Date(now);
   end.setDate(now.getDate() + days);
+  end.setHours(23, 59, 59, 999);
+
   return d >= now && d <= end;
+}
+
+function isPastDate(dateStr) {
+  if (!dateStr) return false;
+
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return false;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  d.setHours(0, 0, 0, 0);
+
+  return d < today;
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return "—";
+
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return "—";
+
+  return d.toLocaleDateString("he-IL", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+function getClientEventId(client, dataEventId = null) {
+  return (
+    client?.event?._id ||
+    client?.eventId ||
+    dataEventId ||
+    null
+  );
+}
+
+function getEventTitle(client) {
+  return (
+    client?.event?.title ||
+    client?.event?.name ||
+    client?.event?.eventName ||
+    client?.invitation?.title ||
+    client?.invitationTitle ||
+    "אירוע ללא שם"
+  );
+}
+
+function getEventLocation(client) {
+  return (
+    client?.event?.location ||
+    client?.event?.venue ||
+    client?.event?.place ||
+    client?.location ||
+    "—"
+  );
+}
+
+function getEventDate(client) {
+  return (
+    client?.event?.date ||
+    client?.event?.eventDate ||
+    client?.eventDate ||
+    client?.invitation?.eventDate ||
+    null
+  );
+}
+
+function getTotalGuests(client) {
+  return (
+    Number(client?.event?.totalGuests) ||
+    Number(client?.event?.guestCount) ||
+    Number(client?.totalGuests) ||
+    0
+  );
+}
+
+function getApprovedCount(client) {
+  return (
+    Number(client?.event?.approvedCount) ||
+    Number(client?.event?.confirmedCount) ||
+    Number(client?.approvedCount) ||
+    0
+  );
+}
+
+function getEventStatus(client) {
+  const date = getEventDate(client);
+
+  if (!date) {
+    return {
+      label: "ללא תאריך",
+      className:
+        "bg-orange-50 text-orange-700 border-orange-100",
+    };
+  }
+
+  if (isPastDate(date)) {
+    return {
+      label: "עבר",
+      className:
+        "bg-gray-50 text-gray-500 border-gray-100",
+    };
+  }
+
+  if (isWithinDays(date, 7)) {
+    return {
+      label: "השבוע",
+      className:
+        "bg-purple-50 text-purple-700 border-purple-100",
+    };
+  }
+
+  return {
+    label: "עתידי",
+    className:
+      "bg-green-50 text-green-700 border-green-100",
+  };
 }
 
 /* =========================
    Producer Dashboard
 ========================= */
+
 export default function ProducerDashboard() {
-  const { user, loading: authLoading, setUser, setIsAuthenticated } = useAuth();
+  const {
+    user,
+    loading: authLoading,
+    setUser,
+    setIsAuthenticated,
+  } = useAuth();
+
   const router = useRouter();
 
   const [clients, setClients] = useState([]);
-  const [clientsLoading, setClientsLoading] = useState(false);
-  const [showCreateClient, setShowCreateClient] = useState(false);
+  const [clientsLoading, setClientsLoading] =
+    useState(false);
+  const [
+    showCreateClient,
+    setShowCreateClient,
+  ] = useState(false);
 
-  // כדי למנוע "אין הרשאה" מוקדם מדי
-  const [authResolved, setAuthResolved] = useState(false);
+  const [authResolved, setAuthResolved] =
+    useState(false);
 
-  /* ===== NEW: Staff assignment states ===== */
-  const [staffList, setStaffList] = useState([]); // [{ _id,name,email,assignedClientIds }]
-  const [staffLoading, setStaffLoading] = useState(false);
-  const [openAssignForClientId, setOpenAssignForClientId] = useState(null);
-  const [savingClientId, setSavingClientId] = useState(null);
+  const [staffList, setStaffList] = useState([]);
+  const [staffLoading, setStaffLoading] =
+    useState(false);
+  const [
+    openAssignForClientId,
+    setOpenAssignForClientId,
+  ] = useState(null);
+  const [savingClientId, setSavingClientId] =
+    useState(null);
+  const [
+    staffSearchByClientId,
+    setStaffSearchByClientId,
+  ] = useState({});
 
-  // חיפוש עובדים בתוך כל דרופדאון לפי clientId
-  const [staffSearchByClientId, setStaffSearchByClientId] = useState({});
+  const [searchTerm, setSearchTerm] =
+    useState("");
+  const [eventFilter, setEventFilter] =
+    useState("all");
 
   const assignMenuRef = useRef(null);
 
   /* =========================
-     Ensure auth synced (important after set-password/login)
+     Auth sync
   ========================= */
+
   useEffect(() => {
     let mounted = true;
 
     const syncAuthFromServer = async () => {
-      // מחכים שה-auth הראשוני יסיים
       if (authLoading) return;
 
-      // אם כבר יש user אין צורך
       if (user) {
-        if (mounted) setAuthResolved(true);
+        if (mounted) {
+          setAuthResolved(true);
+        }
+
         return;
       }
 
-      // fallback: ננסה למשוך את המשתמש מה-cookie (authToken כבר קיים)
       try {
         const res = await fetch("/api/auth/me", {
           method: "GET",
@@ -84,6 +271,7 @@ export default function ProducerDashboard() {
 
         if (res.ok) {
           const data = await res.json();
+
           if (data?.user) {
             setUser?.(data.user);
             setIsAuthenticated?.(true);
@@ -92,7 +280,9 @@ export default function ProducerDashboard() {
       } catch (err) {
         console.error("Auth sync failed:", err);
       } finally {
-        if (mounted) setAuthResolved(true);
+        if (mounted) {
+          setAuthResolved(true);
+        }
       }
     };
 
@@ -101,13 +291,20 @@ export default function ProducerDashboard() {
     return () => {
       mounted = false;
     };
-  }, [authLoading, user, setUser, setIsAuthenticated]);
+  }, [
+    authLoading,
+    user,
+    setUser,
+    setIsAuthenticated,
+  ]);
 
   /* =========================
      Fetch Clients
   ========================= */
+
   const fetchClients = useCallback(async () => {
     setClientsLoading(true);
+
     try {
       const res = await fetch("/api/producer/clients", {
         cache: "no-store",
@@ -116,19 +313,30 @@ export default function ProducerDashboard() {
 
       if (!res.ok) {
         const text = await res.text();
+
         console.error(
           "Failed to fetch producer clients:",
           res.status,
           text.slice(0, 300)
         );
+
         setClients([]);
         return;
       }
 
       const data = await res.json();
-      setClients(Array.isArray(data?.clients) ? data.clients : []);
+
+      setClients(
+        Array.isArray(data?.clients)
+          ? data.clients
+          : []
+      );
     } catch (err) {
-      console.error("Failed to fetch producer clients:", err);
+      console.error(
+        "Failed to fetch producer clients:",
+        err
+      );
+
       setClients([]);
     } finally {
       setClientsLoading(false);
@@ -136,10 +344,12 @@ export default function ProducerDashboard() {
   }, []);
 
   /* =========================
-     NEW: Fetch Staff List
+     Fetch Staff
   ========================= */
+
   const fetchStaff = useCallback(async () => {
     setStaffLoading(true);
+
     try {
       const res = await fetch("/api/producer/staff/list", {
         cache: "no-store",
@@ -148,19 +358,30 @@ export default function ProducerDashboard() {
 
       if (!res.ok) {
         const text = await res.text();
+
         console.error(
           "Failed to fetch producer staff:",
           res.status,
           text.slice(0, 300)
         );
+
         setStaffList([]);
         return;
       }
 
       const data = await res.json();
-      setStaffList(Array.isArray(data?.staff) ? data.staff : []);
+
+      setStaffList(
+        Array.isArray(data?.staff)
+          ? data.staff
+          : []
+      );
     } catch (err) {
-      console.error("Failed to fetch producer staff:", err);
+      console.error(
+        "Failed to fetch producer staff:",
+        err
+      );
+
       setStaffList([]);
     } finally {
       setStaffLoading(false);
@@ -176,417 +397,1208 @@ export default function ProducerDashboard() {
 
     const run = async () => {
       if (!isMounted) return;
-      await Promise.all([fetchClients(), fetchStaff()]);
+
+      await Promise.all([
+        fetchClients(),
+        fetchStaff(),
+      ]);
     };
 
     run();
+
     intervalId = setInterval(run, 30000);
 
     return () => {
       isMounted = false;
       clearInterval(intervalId);
     };
-  }, [authResolved, user, fetchClients, fetchStaff]);
+  }, [
+    authResolved,
+    user,
+    fetchClients,
+    fetchStaff,
+  ]);
 
   /* =========================
-     Close dropdown on outside click
+     Close dropdown outside
   ========================= */
+
   useEffect(() => {
     const onClickOutside = (e) => {
       if (!openAssignForClientId) return;
-      if (assignMenuRef.current && !assignMenuRef.current.contains(e.target)) {
+
+      if (
+        assignMenuRef.current &&
+        !assignMenuRef.current.contains(e.target)
+      ) {
         setOpenAssignForClientId(null);
       }
     };
 
-    document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
+    document.addEventListener(
+      "mousedown",
+      onClickOutside
+    );
+
+    return () =>
+      document.removeEventListener(
+        "mousedown",
+        onClickOutside
+      );
   }, [openAssignForClientId]);
 
   /* =========================
      Impersonation
   ========================= */
+
   const handleManageClient = async (client) => {
-  try {
-    const res = await fetch("/api/producer/impersonate", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      credentials: "include",
-      body: JSON.stringify({ clientId: client._id }),
-    });
+    try {
+      const res = await fetch(
+        "/api/producer/impersonate",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            clientId: client._id,
+          }),
+        }
+      );
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (!res.ok || !data?.success) {
-      alert(data?.message || "שגיאה בכניסה ללקוח");
-      return;
+      if (!res.ok || !data?.success) {
+        alert(
+          data?.message ||
+            "שגיאה בכניסה ללקוח"
+        );
+        return;
+      }
+
+      const eventId = getClientEventId(
+        client,
+        data?.eventId
+      );
+
+      if (!eventId) {
+        alert("לא נמצא eventId ללקוח");
+        return;
+      }
+
+      router.push(
+        `/events/production?eventId=${eventId}&tab=overview`
+      );
+    } catch (err) {
+      console.error(
+        "❌ handleManageClient error:",
+        err
+      );
+
+      alert("שגיאה בכניסה לניהול הלקוח");
     }
-
-    const eventId =
-      client?.event?._id ||
-      client?.eventId ||
-      data?.eventId ||
-      null;
-
-    if (!eventId) {
-      alert("לא נמצא eventId ללקוח");
-      return;
-    }
-
-    router.push(`/events/production?eventId=${eventId}&tab=overview`);
-  } catch (err) {
-    console.error("❌ handleManageClient error:", err);
-    alert("שגיאה בכניסה לניהול הלקוח");
-  }
-};
-
-
+  };
 
   /* =========================
-     NEW: Assignment helpers
+     Assignment helpers
   ========================= */
-  const isClientAssignedToStaff = useCallback((clientId, staff) => {
-    const ids = Array.isArray(staff?.assignedClientIds)
-      ? staff.assignedClientIds
-      : [];
-    return ids.some((id) => String(id) === String(clientId));
-  }, []);
+
+  const isClientAssignedToStaff = useCallback(
+    (clientId, staff) => {
+      const ids = Array.isArray(
+        staff?.assignedClientIds
+      )
+        ? staff.assignedClientIds
+        : [];
+
+      return ids.some(
+        (id) => String(id) === String(clientId)
+      );
+    },
+    []
+  );
 
   const assignedStaffNamesForClient = useCallback(
     (clientId) => {
       const names = staffList
-        .filter((s) => isClientAssignedToStaff(clientId, s))
-        .map((s) => s.name);
+        .filter((s) =>
+          isClientAssignedToStaff(clientId, s)
+        )
+        .map((s) => s.name)
+        .filter(Boolean);
 
-      if (names.length === 0) return "ללא";
-      if (names.length <= 2) return names.join(", ");
-      return `${names.slice(0, 2).join(", ")} +${names.length - 2}`;
+      if (names.length === 0) return "ללא עובד";
+      if (names.length <= 2)
+        return names.join(", ");
+
+      return `${names
+        .slice(0, 2)
+        .join(", ")} +${names.length - 2}`;
     },
     [staffList, isClientAssignedToStaff]
   );
 
-  // NEW: סינון עובדים לפי חיפוש בדרופדאון (שם/אימייל)
   const getFilteredStaffForClient = useCallback(
     (clientId) => {
-      const q = String(staffSearchByClientId?.[String(clientId)] || "")
+      const q = String(
+        staffSearchByClientId?.[
+          String(clientId)
+        ] || ""
+      )
         .trim()
         .toLowerCase();
 
       if (!q) return staffList;
 
       return staffList.filter((s) => {
-        const name = String(s?.name || "").toLowerCase();
-        const email = String(s?.email || "").toLowerCase();
-        return name.includes(q) || email.includes(q);
+        const name = String(
+          s?.name || ""
+        ).toLowerCase();
+
+        const email = String(
+          s?.email || ""
+        ).toLowerCase();
+
+        return (
+          name.includes(q) ||
+          email.includes(q)
+        );
       });
     },
     [staffList, staffSearchByClientId]
   );
 
-  const toggleAssignClientToStaff = async (client, staff, shouldAssign) => {
-  try {
-    setSavingClientId(String(client._id));
+  const toggleAssignClientToStaff = async (
+    client,
+    staff,
+    shouldAssign
+  ) => {
+    try {
+      setSavingClientId(String(client._id));
 
-    const res = await fetch("/api/producer/staff/assign-clients", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({
-        staffId: String(staff._id),
-        clientId: String(client._id),
-        action: shouldAssign ? "add" : "remove",
-      }),
-    });
+      const res = await fetch(
+        "/api/producer/staff/assign-clients",
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            staffId: String(staff._id),
+            clientId: String(client._id),
+            action: shouldAssign
+              ? "add"
+              : "remove",
+          }),
+        }
+      );
 
-    const data = await res.json();
-    if (!res.ok || !data.success) {
-      throw new Error(data?.message || "שגיאה בשמירה");
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(
+          data?.message || "שגיאה בשמירה"
+        );
+      }
+
+      setStaffList((prev) =>
+        prev.map((s) =>
+          String(s._id) === String(staff._id)
+            ? {
+                ...s,
+                assignedClientIds:
+                  data.assignedClientIds,
+              }
+            : s
+        )
+      );
+    } catch (err) {
+      console.error(err);
+      alert(
+        err.message ||
+          "שגיאה בשמירת ההקצאה"
+      );
+    } finally {
+      setSavingClientId(null);
     }
-
-    // ✅ עדכון לוקאלי לפי מה שחזר מהשרת
-    setStaffList((prev) =>
-      prev.map((s) =>
-        String(s._id) === String(staff._id)
-          ? { ...s, assignedClientIds: data.assignedClientIds }
-          : s
-      )
-    );
-  } catch (err) {
-    console.error(err);
-    alert(err.message || "שגיאה בשמירת ההקצאה");
-  } finally {
-    setSavingClientId(null);
-  }
-};
-
+  };
 
   /* =========================
-     Stats
+     Stats + Filters
   ========================= */
+
   const stats = useMemo(() => {
-    const withEvent = clients.filter((c) => c.event);
+    const clientsWithEvent = clients.filter(
+      (client) =>
+        client.event ||
+        client.eventId ||
+        client.invitation
+    );
 
     return {
-      activeCount: withEvent.length,
-      upcomingWeekCount: withEvent.filter(
-        (c) => c.event?.date && isWithinDays(c.event.date, 7)
+      activeClients: clients.length,
+      activeEvents: clientsWithEvent.length,
+      upcomingWeek: clientsWithEvent.filter(
+        (client) =>
+          getEventDate(client) &&
+          isWithinDays(getEventDate(client), 7)
       ).length,
-      totalGuests: withEvent.reduce(
-        (sum, c) => sum + (c.event?.totalGuests || 0),
-        0
-      ),
-      totalConfirmed: withEvent.reduce(
-        (sum, c) => sum + (c.event?.approvedCount || 0),
-        0
-      ),
+      staffCount: staffList.length,
     };
-  }, [clients]);
+  }, [clients, staffList]);
 
+  const filteredClients = useMemo(() => {
+    const q = searchTerm
+      .trim()
+      .toLowerCase();
+
+    return clients
+      .filter((client) => {
+        if (!q) return true;
+
+        const haystack = [
+          client.name,
+          client.email,
+          client.phone,
+          getEventTitle(client),
+          getEventLocation(client),
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+
+        return haystack.includes(q);
+      })
+      .filter((client) => {
+        const date = getEventDate(client);
+
+        if (eventFilter === "all") return true;
+        if (eventFilter === "week")
+          return isWithinDays(date, 7);
+        if (eventFilter === "future")
+          return date && !isPastDate(date);
+        if (eventFilter === "past")
+          return isPastDate(date);
+        if (eventFilter === "no-date")
+          return !date;
+
+        return true;
+      })
+      .sort((a, b) => {
+        const aDate = getEventDate(a);
+        const bDate = getEventDate(b);
+
+        if (!aDate && !bDate) return 0;
+        if (!aDate) return 1;
+        if (!bDate) return -1;
+
+        return new Date(aDate) - new Date(bDate);
+      });
+  }, [clients, searchTerm, eventFilter]);
 
   /* =========================
      UI
   ========================= */
-  return (
-    <div className="p-6 space-y-10">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-900">דשבורד מפיק</h1>
 
-        <Button
-          onClick={() => setShowCreateClient(true)}
-          className="bg-[#3b2a22] hover:bg-[#2f211a] text-white rounded-full px-6 py-3 text-sm font-semibold flex items-center gap-2 shadow-sm"
+  return (
+    <div
+      dir="rtl"
+      className="
+        min-h-screen
+        bg-[#F8F3ED]
+        px-5
+        py-8
+        space-y-8
+      "
+    >
+      {/* Header */}
+      <section
+        className="
+          relative
+          overflow-hidden
+          rounded-[38px]
+          border
+          border-[#ECE5DE]
+          bg-gradient-to-br
+          from-white
+          via-[#FBF7F1]
+          to-[#F4EDFF]
+          px-7
+          py-8
+          shadow-[0_24px_70px_rgba(120,90,60,0.08)]
+        "
+      >
+        <div
+          className="
+            absolute
+            -top-20
+            -left-20
+            h-56
+            w-56
+            rounded-full
+            bg-purple-200/30
+            blur-3xl
+          "
+        />
+
+        <div
+          className="
+            relative
+            z-10
+            flex
+            flex-col
+            lg:flex-row
+            lg:items-center
+            justify-between
+            gap-6
+          "
         >
-          <UserPlus className="w-4 h-4" />
-          יצירת משתמש חדש
-        </Button>
-      </div>
+          <div>
+            <div
+              className="
+                inline-flex
+                items-center
+                gap-2
+                rounded-full
+                border
+                border-[#E8DDD3]
+                bg-white/80
+                px-4
+                py-2
+                text-xs
+                font-black
+                text-[#7A4A35]
+                mb-4
+              "
+            >
+              <Sparkles size={15} />
+              סביבת עבודה למפיקים
+            </div>
+
+            <h1
+              className="
+                text-4xl
+                xl:text-5xl
+                font-black
+                text-[#1E1B2E]
+                leading-tight
+              "
+            >
+              דשבורד מפיק
+            </h1>
+
+            <p className="text-gray-500 mt-3 max-w-2xl leading-7">
+              ניהול לקוחות, אירועים קרובים, שיוך עובדים
+              וכניסה מהירה לכל אירוע במקום אחד.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowCreateClient(true)}
+            className="
+              rounded-2xl
+              bg-[#1E1B2E]
+              text-white
+              font-black
+              px-6
+              py-4
+              text-sm
+              flex
+              items-center
+              justify-center
+              gap-2
+              shadow-[0_16px_35px_rgba(30,27,46,0.18)]
+              hover:opacity-95
+              transition
+            "
+          >
+            <UserPlus className="w-4 h-4" />
+            יצירת משתמש חדש
+          </button>
+        </div>
+      </section>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {[
-          ["אירועים פעילים", stats.activeCount],
-          ["בשבוע הקרוב", stats.upcomingWeekCount],
-          ["סה״כ מוזמנים", stats.totalGuests],
-          ["אישרו הגעה", stats.totalConfirmed],
-        ].map(([label, value], i) => (
-          <motion.div
-            key={label}
-            variants={fadeUp}
-            initial="hidden"
-            animate="visible"
-            custom={i}
-            className="bg-white rounded-2xl p-5 border"
+      <section
+        className="
+          grid
+          grid-cols-1
+          sm:grid-cols-2
+          xl:grid-cols-4
+          gap-4
+        "
+      >
+        <DashboardStat
+          index={0}
+          icon={Users}
+          label="לקוחות פעילים"
+          value={stats.activeClients}
+          description="כל הלקוחות תחת המפיק"
+        />
+
+        <DashboardStat
+          index={1}
+          icon={LayoutDashboard}
+          label="אירועים פעילים"
+          value={stats.activeEvents}
+          description="לקוחות עם אירוע פתוח"
+        />
+
+        <DashboardStat
+          index={2}
+          icon={CalendarClock}
+          label="אירועים בשבוע הקרוב"
+          value={stats.upcomingWeek}
+          description="דורש טיפול ותיאום קרוב"
+          highlight
+        />
+
+        <DashboardStat
+          index={3}
+          icon={UserRoundCog}
+          label="עובדים בצוות"
+          value={stats.staffCount}
+          description="זמינים להקצאה ללקוחות"
+        />
+      </section>
+
+      {/* Toolbar */}
+      <section
+        className="
+          rounded-[34px]
+          border
+          border-[#ECE5DE]
+          bg-white
+          p-5
+          shadow-sm
+        "
+      >
+        <div
+          className="
+            flex
+            flex-col
+            lg:flex-row
+            lg:items-center
+            justify-between
+            gap-4
+          "
+        >
+          <div>
+            <h2 className="text-2xl font-black text-[#1E1B2E]">
+              לקוחות ואירועים
+            </h2>
+
+            <p className="text-sm text-gray-400 mt-1">
+              הטבלה מציגה נתוני אירוע לכל לקוח בנפרד, כולל אישורי הגעה בתוך השורה.
+            </p>
+          </div>
+
+          <div
+            className="
+              flex
+              flex-col
+              md:flex-row
+              gap-3
+              w-full
+              lg:w-auto
+            "
           >
-            <p className="text-sm text-slate-500">{label}</p>
-            <p className="text-3xl font-bold">{value}</p>
-          </motion.div>
-        ))}
-      </div>
+            <div
+              className="
+                relative
+                w-full
+                md:w-[320px]
+              "
+            >
+              <Search
+                size={17}
+                className="
+                  absolute
+                  right-4
+                  top-1/2
+                  -translate-y-1/2
+                  text-gray-400
+                "
+              />
+
+              <input
+                value={searchTerm}
+                onChange={(e) =>
+                  setSearchTerm(e.target.value)
+                }
+                placeholder="חיפוש לפי לקוח, מייל, טלפון, מקום..."
+                className="
+                  w-full
+                  rounded-2xl
+                  border
+                  border-[#E7E2DD]
+                  bg-[#FCFBFA]
+                  py-3
+                  pr-11
+                  pl-4
+                  text-sm
+                  font-bold
+                  outline-none
+                  focus:border-[#B99C82]
+                "
+              />
+            </div>
+
+            <div className="relative">
+              <Filter
+                size={15}
+                className="
+                  absolute
+                  right-4
+                  top-1/2
+                  -translate-y-1/2
+                  text-gray-400
+                "
+              />
+
+              <select
+                value={eventFilter}
+                onChange={(e) =>
+                  setEventFilter(e.target.value)
+                }
+                className="
+                  w-full
+                  md:w-[210px]
+                  rounded-2xl
+                  border
+                  border-[#E7E2DD]
+                  bg-[#FCFBFA]
+                  py-3
+                  pr-11
+                  pl-4
+                  text-sm
+                  font-bold
+                  outline-none
+                  focus:border-[#B99C82]
+                "
+              >
+                <option value="all">כל האירועים</option>
+                <option value="week">השבוע הקרוב</option>
+                <option value="future">אירועים עתידיים</option>
+                <option value="past">אירועים שעברו</option>
+                <option value="no-date">ללא תאריך</option>
+              </select>
+            </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                Promise.all([
+                  fetchClients(),
+                  fetchStaff(),
+                ])
+              }
+              className="
+                rounded-2xl
+                border
+                border-[#E8DDD3]
+                bg-white
+                px-5
+                py-3
+                text-sm
+                font-black
+                text-[#1E1B2E]
+                flex
+                items-center
+                justify-center
+                gap-2
+                hover:bg-[#FCFBFA]
+              "
+            >
+              <RefreshCcw size={16} />
+              רענון
+            </button>
+          </div>
+        </div>
+      </section>
 
       {/* Clients Table */}
-      <div className="bg-white border rounded-2xl">
-
-        <div className="p-4 font-semibold text-lg">לקוחות</div>
-
+      <section
+        className="
+          rounded-[34px]
+          border
+          border-[#ECE5DE]
+          bg-white
+          shadow-sm
+          overflow-hidden
+        "
+      >
         {clientsLoading ? (
-          <div className="p-6 text-slate-500">טוען לקוחות…</div>
+          <EmptyPanel text="טוען לקוחות…" />
         ) : clients.length === 0 ? (
-          <div className="p-6 text-slate-500">עדיין לא נוצרו לקוחות</div>
+          <EmptyPanel text="עדיין לא נוצרו לקוחות" />
+        ) : filteredClients.length === 0 ? (
+          <EmptyPanel text="לא נמצאו לקוחות לפי הסינון הנוכחי" />
         ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 border-b">
-              <tr className="text-right">
-                <th className="p-4">שם</th>
-                <th className="p-4">אימייל</th>
-                <th className="p-4">טלפון</th>
-                <th className="p-4">תאריך אירוע</th>
-                <th className="p-4">מקום</th>
-                <th className="p-4">אישרו</th>
-                <th className="p-4">הקצאה לעובד/ים</th>
-                <th className="p-4"></th>
-              </tr>
-            </thead>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1180px] text-sm">
+              <thead>
+                <tr
+                  className="
+                    text-right
+                    bg-[#FCFBFA]
+                    border-b
+                    border-[#ECE5DE]
+                    text-[#7B7285]
+                  "
+                >
+                  <th className="p-4 font-black">לקוח</th>
+                  <th className="p-4 font-black">פרטי קשר</th>
+                  <th className="p-4 font-black">אירוע</th>
+                  <th className="p-4 font-black">תאריך</th>
+                  <th className="p-4 font-black">מקום</th>
+                  <th className="p-4 font-black">מוזמנים</th>
+                  <th className="p-4 font-black">אישורי הגעה</th>
+                  <th className="p-4 font-black">סטטוס</th>
+                  <th className="p-4 font-black">הקצאה לעובד/ים</th>
+                  <th className="p-4 font-black"></th>
+                </tr>
+              </thead>
 
-            <tbody>
-              {clients.map((client) => {
-                const isOpen = openAssignForClientId === String(client._id);
-                const isSavingThisRow = savingClientId === String(client._id);
-                const filteredStaff = getFilteredStaffForClient(client._id);
+              <tbody>
+                {filteredClients.map((client) => {
+                  const isOpen =
+                    openAssignForClientId ===
+                    String(client._id);
 
-                return (
-                  <tr key={client._id} className="border-b hover:bg-slate-50">
-                    <td className="p-4 font-medium">{client.name}</td>
-                    <td className="p-4">{client.email}</td>
-                    <td className="p-4">{client.phone}</td>
+                  const isSavingThisRow =
+                    savingClientId === String(client._id);
 
-                    <td className="p-4">
-                      {client.event?.date ? (
-                        new Date(client.event.date).toLocaleDateString("he-IL")
-                      ) : (
-                        <span className="text-slate-400">—</span>
-                      )}
-                    </td>
+                  const filteredStaff =
+                    getFilteredStaffForClient(
+                      client._id
+                    );
 
-                    <td className="p-4">
-                      {client.event?.location || (
-                        <span className="text-slate-400">—</span>
-                      )}
-                    </td>
+                  const eventStatus =
+                    getEventStatus(client);
 
-                    <td className="p-4 font-medium">
-                      {client.event ? (
-                        `${client.event.approvedCount} / ${client.event.totalGuests}`
-                      ) : (
-                        <span className="text-slate-400">—</span>
-                      )}
-                    </td>
+                  const totalGuests =
+                    getTotalGuests(client);
 
-                    {/* NEW: assignment dropdown */}
-                    <td className="p-4 relative">
-                      <div
-                        className="inline-flex items-center gap-2"
-                        ref={isOpen ? assignMenuRef : null}
-                      >
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="flex items-center gap-1"
-                          onClick={() =>
-                            setOpenAssignForClientId((prev) =>
-                              prev === String(client._id)
-                                ? null
-                                : String(client._id)
-                            )
-                          }
-                        >
-                          {isSavingThisRow
-                            ? "שומר..."
-                            : assignedStaffNamesForClient(client._id)}
-                          <ChevronDown className="w-4 h-4" />
-                        </Button>
+                  const approvedCount =
+                    getApprovedCount(client);
 
-                        {isOpen && (
-                          <div className="absolute z-50 mt-2 min-w-[320px] rounded-xl border bg-white shadow-lg p-2">
-                            <div className="px-2 py-1 text-xs text-slate-500 border-b mb-2">
-                              בחרי עובד/ים ללקוח זה
+                  return (
+                    <tr
+                      key={client._id}
+                      className="
+                        border-b
+                        border-[#F0ECE7]
+                        hover:bg-[#FCFBFA]
+                        transition
+                      "
+                    >
+                      <td className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="
+                              h-11
+                              w-11
+                              rounded-2xl
+                              bg-[#F5E7DC]
+                              text-[#7A4A35]
+                              flex
+                              items-center
+                              justify-center
+                              font-black
+                              shrink-0
+                            "
+                          >
+                            {String(client.name || "?")
+                              .slice(0, 1)
+                              .toUpperCase()}
+                          </div>
+
+                          <div>
+                            <div className="font-black text-[#1E1B2E]">
+                              {client.name || "ללא שם"}
                             </div>
 
-                            {/* NEW: חיפוש עובדים */}
-                            <div className="px-2 pb-2">
-                              <input
-                                type="text"
-                                value={
-                                  staffSearchByClientId[String(client._id)] || ""
-                                }
-                                onChange={(e) =>
-                                  setStaffSearchByClientId((prev) => ({
-                                    ...prev,
-                                    [String(client._id)]: e.target.value,
-                                  }))
-                                }
-                                placeholder="חיפוש לפי שם/אימייל..."
-                                className="w-full border rounded-lg px-3 py-2 text-sm"
-                              />
-                            </div>
-
-                            {staffLoading ? (
-                              <div className="px-2 py-2 text-sm text-slate-500">
-                                טוען עובדים…
-                              </div>
-                            ) : filteredStaff.length === 0 ? (
-                              <div className="px-2 py-2 text-sm text-slate-500">
-                                לא נמצאו עובדים
-                              </div>
-                            ) : (
-                              <div className="max-h-64 overflow-auto">
-                                {filteredStaff.map((staff) => {
-                                  const checked = isClientAssignedToStaff(
-                                    client._id,
-                                    staff
-                                  );
-                                  return (
-                                    <label
-                                      key={staff._id}
-                                      className="flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-slate-50 cursor-pointer"
-                                    >
-                                      <input
-                                        type="checkbox"
-                                        checked={checked}
-                                        disabled={isSavingThisRow}
-                                        onChange={(e) =>
-                                          toggleAssignClientToStaff(
-                                            client,
-                                            staff,
-                                            e.target.checked
-                                          )
-                                        }
-                                      />
-                                      <span className="text-sm">
-                                        {staff.name}{" "}
-                                        <span className="text-slate-500">
-                                          ({staff.email})
-                                        </span>
-                                      </span>
-                                    </label>
-                                  );
-                                })}
-                              </div>
-                            )}
-
-                            <div className="pt-2 mt-1 border-t flex items-center justify-between">
-                              <span className="text-xs text-slate-500">
-                                מוקצים כרגע:{" "}
-                                {
-                                  staffList.filter((s) =>
-                                    isClientAssignedToStaff(client._id, s)
-                                  ).length
-                                }
-                              </span>
-
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => setOpenAssignForClientId(null)}
-                              >
-                                סגור
-                              </Button>
+                            <div className="text-xs text-gray-400 mt-1">
+                              {client._id}
                             </div>
                           </div>
+                        </div>
+                      </td>
+
+                      <td className="p-4">
+                        <div className="space-y-1">
+                          <ContactLine
+                            icon={Mail}
+                            text={client.email || "—"}
+                          />
+
+                          <ContactLine
+                            icon={Phone}
+                            text={client.phone || "—"}
+                          />
+                        </div>
+                      </td>
+
+                      <td className="p-4">
+                        <div className="font-black text-[#1E1B2E]">
+                          {getEventTitle(client)}
+                        </div>
+                      </td>
+
+                      <td className="p-4">
+                        <div
+                          className="
+                            inline-flex
+                            items-center
+                            gap-2
+                            rounded-full
+                            bg-[#FCFBFA]
+                            border
+                            border-[#E8DDD3]
+                            px-3
+                            py-2
+                            font-bold
+                            text-[#1E1B2E]
+                          "
+                        >
+                          <CalendarDays size={14} />
+                          {formatDate(getEventDate(client))}
+                        </div>
+                      </td>
+
+                      <td className="p-4">
+                        <div
+                          className="
+                            flex
+                            items-center
+                            gap-2
+                            text-[#1E1B2E]
+                            font-bold
+                          "
+                        >
+                          <MapPin
+                            size={15}
+                            className="text-[#7A4A35]"
+                          />
+                          {getEventLocation(client)}
+                        </div>
+                      </td>
+
+                      <td className="p-4 font-black text-[#1E1B2E]">
+                        {totalGuests || "—"}
+                      </td>
+
+                      <td className="p-4">
+                        {totalGuests ? (
+                          <div className="min-w-[120px]">
+                            <div className="flex items-center justify-between text-xs font-black text-gray-400 mb-2">
+                              <span>
+                                {approvedCount} / {totalGuests}
+                              </span>
+                              <span>
+                                {Math.round(
+                                  (approvedCount / totalGuests) *
+                                    100
+                                )}
+                                %
+                              </span>
+                            </div>
+
+                            <div className="h-2 rounded-full bg-[#F5E7DC] overflow-hidden">
+                              <div
+                                className="h-full rounded-full bg-[#8B5CF6]"
+                                style={{
+                                  width: `${Math.min(
+                                    100,
+                                    Math.round(
+                                      (approvedCount /
+                                        totalGuests) *
+                                        100
+                                    )
+                                  )}%`,
+                                }}
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">—</span>
                         )}
-                      </div>
-                    </td>
+                      </td>
 
-                    <td className="p-4">
-                      <Button
-                        size="sm"
-                        className="flex items-center gap-1"
-                        onClick={() => handleManageClient(client)}
+                      <td className="p-4">
+                        <span
+                          className={`
+                            inline-flex
+                            items-center
+                            rounded-full
+                            border
+                            px-3
+                            py-2
+                            text-xs
+                            font-black
+                            ${eventStatus.className}
+                          `}
+                        >
+                          {eventStatus.label}
+                        </span>
+                      </td>
 
-                      >
-                        ניהול
-                        <ArrowUpRight className="w-4 h-4" />
-                      </Button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                      <td className="p-4 relative">
+                        <div
+                          className="inline-flex items-center gap-2"
+                          ref={
+                            isOpen
+                              ? assignMenuRef
+                              : null
+                          }
+                        >
+                          <button
+                            type="button"
+                            disabled={isSavingThisRow}
+                            onClick={() =>
+                              setOpenAssignForClientId(
+                                (prev) =>
+                                  prev ===
+                                  String(client._id)
+                                    ? null
+                                    : String(client._id)
+                              )
+                            }
+                            className="
+                              rounded-2xl
+                              border
+                              border-[#E8DDD3]
+                              bg-white
+                              px-4
+                              py-2.5
+                              text-sm
+                              font-black
+                              text-[#1E1B2E]
+                              flex
+                              items-center
+                              gap-2
+                              hover:bg-[#FCFBFA]
+                              disabled:opacity-50
+                            "
+                          >
+                            <UserRoundCheck size={15} />
+                            {isSavingThisRow
+                              ? "שומר..."
+                              : assignedStaffNamesForClient(
+                                  client._id
+                                )}
+                            <ChevronDown className="w-4 h-4" />
+                          </button>
+
+                          {isOpen && (
+                            <div
+                              className="
+                                absolute
+                                z-50
+                                top-12
+                                right-0
+                                min-w-[340px]
+                                rounded-[24px]
+                                border
+                                border-[#ECE5DE]
+                                bg-white
+                                shadow-[0_24px_70px_rgba(30,27,46,0.14)]
+                                p-3
+                              "
+                            >
+                              <div
+                                className="
+                                  px-3
+                                  py-2
+                                  text-xs
+                                  font-black
+                                  text-gray-400
+                                  border-b
+                                  border-[#F0ECE7]
+                                  mb-3
+                                "
+                              >
+                                בחרי עובד/ים ללקוח זה
+                              </div>
+
+                              <div className="px-1 pb-3">
+                                <input
+                                  type="text"
+                                  value={
+                                    staffSearchByClientId[
+                                      String(client._id)
+                                    ] || ""
+                                  }
+                                  onChange={(e) =>
+                                    setStaffSearchByClientId(
+                                      (prev) => ({
+                                        ...prev,
+                                        [String(
+                                          client._id
+                                        )]: e.target.value,
+                                      })
+                                    )
+                                  }
+                                  placeholder="חיפוש לפי שם/אימייל..."
+                                  className="
+                                    w-full
+                                    rounded-2xl
+                                    border
+                                    border-[#E7E2DD]
+                                    bg-[#FCFBFA]
+                                    px-4
+                                    py-3
+                                    text-sm
+                                    outline-none
+                                  "
+                                />
+                              </div>
+
+                              {staffLoading ? (
+                                <div className="px-3 py-3 text-sm text-gray-400">
+                                  טוען עובדים…
+                                </div>
+                              ) : filteredStaff.length === 0 ? (
+                                <div className="px-3 py-3 text-sm text-gray-400">
+                                  לא נמצאו עובדים
+                                </div>
+                              ) : (
+                                <div className="max-h-64 overflow-auto space-y-1">
+                                  {filteredStaff.map(
+                                    (staff) => {
+                                      const checked =
+                                        isClientAssignedToStaff(
+                                          client._id,
+                                          staff
+                                        );
+
+                                      return (
+                                        <label
+                                          key={staff._id}
+                                          className="
+                                            flex
+                                            items-center
+                                            gap-3
+                                            px-3
+                                            py-3
+                                            rounded-2xl
+                                            hover:bg-[#FCFBFA]
+                                            cursor-pointer
+                                          "
+                                        >
+                                          <input
+                                            type="checkbox"
+                                            checked={checked}
+                                            disabled={
+                                              isSavingThisRow
+                                            }
+                                            onChange={(e) =>
+                                              toggleAssignClientToStaff(
+                                                client,
+                                                staff,
+                                                e.target
+                                                  .checked
+                                              )
+                                            }
+                                          />
+
+                                          <span className="text-sm font-bold text-[#1E1B2E]">
+                                            {staff.name}{" "}
+                                            <span className="text-gray-400 font-medium">
+                                              ({staff.email})
+                                            </span>
+                                          </span>
+                                        </label>
+                                      );
+                                    }
+                                  )}
+                                </div>
+                              )}
+
+                              <div
+                                className="
+                                  pt-3
+                                  mt-3
+                                  border-t
+                                  border-[#F0ECE7]
+                                  flex
+                                  items-center
+                                  justify-between
+                                "
+                              >
+                                <span className="text-xs text-gray-400 font-bold">
+                                  מוקצים כרגע:{" "}
+                                  {
+                                    staffList.filter((s) =>
+                                      isClientAssignedToStaff(
+                                        client._id,
+                                        s
+                                      )
+                                    ).length
+                                  }
+                                </span>
+
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setOpenAssignForClientId(
+                                      null
+                                    )
+                                  }
+                                  className="
+                                    text-sm
+                                    font-black
+                                    text-[#8B5CF6]
+                                  "
+                                >
+                                  סגור
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+
+                      <td className="p-4">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleManageClient(client)
+                          }
+                          className="
+                            rounded-2xl
+                            bg-[#1E1B2E]
+                            text-white
+                            font-black
+                            px-4
+                            py-3
+                            text-sm
+                            flex
+                            items-center
+                            gap-2
+                            hover:opacity-95
+                          "
+                        >
+                          ניהול
+                          <ArrowUpRight className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
-      </div>
+      </section>
 
       <CreateClientModal
         open={showCreateClient}
-        onClose={() => setShowCreateClient(false)}
+        onClose={() =>
+          setShowCreateClient(false)
+        }
         onSuccess={async () => {
-          await Promise.all([fetchClients(), fetchStaff()]);
+          await Promise.all([
+            fetchClients(),
+            fetchStaff(),
+          ]);
         }}
       />
     </div>
   );
 }
 
+/* =========================
+   UI Components
+========================= */
+
+function DashboardStat({
+  icon: Icon,
+  label,
+  value,
+  description,
+  index,
+  highlight = false,
+}) {
+  return (
+    <motion.div
+      variants={fadeUp}
+      initial="hidden"
+      animate="visible"
+      custom={index}
+      className={`
+        rounded-[30px]
+        border
+        p-5
+        shadow-sm
+        ${
+          highlight
+            ? "bg-gradient-to-br from-[#F4EDFF] via-white to-[#FBF7F1] border-[#E7D8FF]"
+            : "bg-white border-[#ECE5DE]"
+        }
+      `}
+    >
+      <div className="flex items-center justify-between gap-4">
+        <div
+          className={`
+            h-12
+            w-12
+            rounded-2xl
+            flex
+            items-center
+            justify-center
+            ${
+              highlight
+                ? "bg-[#8B5CF6] text-white"
+                : "bg-[#F5E7DC] text-[#7A4A35]"
+            }
+          `}
+        >
+          <Icon size={20} />
+        </div>
+
+        <div className="text-4xl font-black text-[#1E1B2E]">
+          {value}
+        </div>
+      </div>
+
+      <div className="mt-5">
+        <div className="text-sm font-black text-[#1E1B2E]">
+          {label}
+        </div>
+
+        <div className="text-xs text-gray-400 mt-1">
+          {description}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function ContactLine({ icon: Icon, text }) {
+  return (
+    <div className="flex items-center gap-2 text-xs text-gray-500">
+      <Icon size={13} className="text-[#7A4A35]" />
+      <span>{text}</span>
+    </div>
+  );
+}
+
+function EmptyPanel({ text }) {
+  return (
+    <div
+      className="
+        p-12
+        text-center
+        text-gray-400
+        font-bold
+      "
+    >
+      {text}
+    </div>
+  );
+}
