@@ -1,7 +1,16 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { X, Pencil, Search, Users, Armchair, CheckCircle2 } from "lucide-react";
+import {
+  X,
+  Pencil,
+  Search,
+  Users,
+  Armchair,
+  CheckCircle2,
+  Minus,
+  Plus,
+} from "lucide-react";
 import { useSeatingStore } from "@/store/seatingStore";
 
 export default function AddGuestToTableModal({
@@ -46,6 +55,16 @@ export default function AddGuestToTableModal({
     setTableNameDraft(tableData.name || "");
   }, [tableData?.name]);
 
+  /* ================= EDIT TABLE SEATS ================= */
+
+  const [seatsDraft, setSeatsDraft] = useState(12);
+  const [isSavingSeats, setIsSavingSeats] = useState(false);
+
+  useEffect(() => {
+    if (!tableData) return;
+    setSeatsDraft(Number(tableData.seats || 0));
+  }, [tableData?.seats]);
+
   /* ================= HELPERS ================= */
 
   const getGuestId = (g) => String(g?._id ?? g?.id ?? "");
@@ -87,8 +106,6 @@ export default function AddGuestToTableModal({
   const getDropdownPositionClass = (index) => {
     const col = index % 6;
 
-    // RTL + desktop grid-cols-6:
-    // col 0 = הכי ימני, col 5 = הכי שמאלי
     if (col === 0) {
       return "right-0 translate-x-0";
     }
@@ -112,6 +129,87 @@ export default function AddGuestToTableModal({
     }
 
     return "right-1/2 translate-x-1/2";
+  };
+
+  const updateTableSeatsLocally = (nextSeats) => {
+    if (!tableData) return;
+
+    useSeatingStore.setState((state) => ({
+      tables: (state.tables || []).map((t) =>
+        String(t.id) === String(tableData.id)
+          ? {
+              ...t,
+              seats: nextSeats,
+            }
+          : t
+      ),
+    }));
+  };
+
+  const commitTableSeats = async (nextSeatsRaw) => {
+    if (!tableData) return;
+
+    const currentSeats = Number(tableData.seats || 0);
+    let nextSeats = Number(nextSeatsRaw);
+
+    if (Number.isNaN(nextSeats)) {
+      nextSeats = currentSeats || 12;
+    }
+
+    nextSeats = Math.floor(nextSeats);
+
+    if (nextSeats < 1) {
+      nextSeats = 1;
+    }
+
+    if (nextSeats > 100) {
+      nextSeats = 100;
+    }
+
+    const occupiedNow = getOccupiedSeatsForTable(tableData.id || tableData._id);
+
+    if (nextSeats < occupiedNow) {
+      setError(
+        `אי אפשר להקטין ל-${nextSeats}, כי כבר תפוסים ${occupiedNow} מקומות`
+      );
+      setSeatsDraft(currentSeats);
+      return;
+    }
+
+    if (nextSeats === currentSeats) {
+      setSeatsDraft(nextSeats);
+      return;
+    }
+
+    setIsSavingSeats(true);
+    setError("");
+
+    updateTableSeatsLocally(nextSeats);
+    setSeatsDraft(nextSeats);
+
+    try {
+      if (onAutoSave) {
+        const ok = await onAutoSave();
+
+        if (!ok) {
+          updateTableSeatsLocally(currentSeats);
+          setSeatsDraft(currentSeats);
+          setError("שמירה נכשלה, מספר המקומות הוחזר");
+          return;
+        }
+      }
+    } catch {
+      updateTableSeatsLocally(currentSeats);
+      setSeatsDraft(currentSeats);
+      setError("שגיאת רשת בעדכון מספר המקומות");
+    } finally {
+      setIsSavingSeats(false);
+    }
+  };
+
+  const incrementSeats = async (amount) => {
+    const current = Number(seatsDraft || tableData?.seats || 0);
+    await commitTableSeats(current + amount);
   };
 
   /* ================= SEATS ================= */
@@ -425,6 +523,100 @@ export default function AddGuestToTableModal({
               </span>
             </div>
 
+            {/* עדכון מספר מקומות בשולחן */}
+            <div
+              className="
+                mt-1 flex items-center gap-2
+                rounded-2xl border border-[#E2CDBB]
+                bg-white px-3 py-2
+                shadow-sm
+              "
+            >
+              <span className="text-xs font-black text-[#7A5A43]">
+                מספר מקומות:
+              </span>
+
+              <button
+                type="button"
+                disabled={isSavingSeats}
+                onClick={() => incrementSeats(-1)}
+                className="
+                  flex h-8 w-8 items-center justify-center
+                  rounded-xl border border-[#E2CDBB]
+                  bg-[#FFF8EF]
+                  text-[#8B6532]
+                  transition hover:bg-[#FFF0D2]
+                  disabled:opacity-50
+                "
+              >
+                <Minus size={14} />
+              </button>
+
+              <input
+                type="number"
+                min={1}
+                max={100}
+                value={seatsDraft}
+                disabled={isSavingSeats}
+                onChange={(e) => {
+                  const raw = e.target.value;
+
+                  if (raw === "") {
+                    setSeatsDraft("");
+                    return;
+                  }
+
+                  const next = Number(raw);
+                  if (Number.isNaN(next)) return;
+
+                  setSeatsDraft(next);
+                }}
+                onBlur={() => commitTableSeats(seatsDraft)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.currentTarget.blur();
+                  }
+
+                  if (e.key === "Escape") {
+                    setSeatsDraft(Number(tableData.seats || 0));
+                    e.currentTarget.blur();
+                  }
+                }}
+                className="
+                  h-8 w-16 rounded-xl
+                  border border-[#D6A678]
+                  bg-white px-2
+                  text-center text-sm font-black
+                  text-[#2F241D]
+                  outline-none
+                  focus:ring-2 focus:ring-[#D6A678]/25
+                  disabled:opacity-60
+                "
+              />
+
+              <button
+                type="button"
+                disabled={isSavingSeats}
+                onClick={() => incrementSeats(1)}
+                className="
+                  flex h-8 w-8 items-center justify-center
+                  rounded-xl border border-[#E2CDBB]
+                  bg-[#FFF8EF]
+                  text-[#8B6532]
+                  transition hover:bg-[#FFF0D2]
+                  disabled:opacity-50
+                "
+              >
+                <Plus size={14} />
+              </button>
+
+              {isSavingSeats && (
+                <span className="text-[11px] font-semibold text-[#9A7E6A]">
+                  שומר...
+                </span>
+              )}
+            </div>
+
             <div className="h-2 w-full max-w-[360px] overflow-hidden rounded-full bg-[#EAD8CC]">
               <div
                 className="
@@ -598,7 +790,6 @@ export default function AddGuestToTableModal({
                       `}
                       onClick={(e) => e.stopPropagation()}
                     >
-                      {/* חץ קטן שמחבר את הבחירה לפלוס */}
                       <div
                         className={`
                           absolute -top-2
