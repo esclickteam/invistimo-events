@@ -167,30 +167,41 @@ function TimelineRow({ item, onUpdate, onDelete }) {
         🎉
       </div>
 
-      <div className="flex-1 min-w-0 overflow-hidden">
-        <input
-          value={item.title}
-          onChange={(e) =>
-            onUpdate(item._id, {
-              title: e.target.value,
-            })
-          }
-          className="
-            w-full
-            bg-transparent
-            outline-none
-            text-[15px]
-            font-bold
-            text-[#1E1B2E]
-            text-right
-            truncate
-          "
-        />
+      <div className="flex-1 min-w-0 overflow-hidden pr-2">
+  <input
+    value={item.title}
+    onChange={(e) =>
+      onUpdate(item._id, {
+        title: e.target.value,
+      })
+    }
+    className="
+      w-full
+      bg-transparent
+      outline-none
+      text-[14px]
+      font-bold
+      text-[#1E1B2E]
+      text-right
+      truncate
+      leading-tight
+    "
+  />
 
-        <div className="text-[11px] text-gray-400 mt-1 text-right truncate">
-          יום האירוע
-        </div>
-      </div>
+  <div
+    className="
+      text-[10px]
+      text-gray-400
+      mt-1
+      text-right
+      whitespace-nowrap
+      overflow-hidden
+      text-ellipsis
+    "
+  >
+    יום האירוע
+  </div>
+</div>
 
       <div
         className="
@@ -214,7 +225,7 @@ function TimelineRow({ item, onUpdate, onDelete }) {
               time: e.target.value,
             })
           }
-          className="bg-transparent outline-none text-sm w-[70px]"
+          className="bg-transparent outline-none text-sm w-[58px]"
         />
 
         <Clock3 size={13} />
