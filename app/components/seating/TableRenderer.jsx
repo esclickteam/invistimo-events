@@ -167,6 +167,7 @@ function TableRenderer({ table, hideSeats = false }) {
   const tableRef = useRef(null);
 
   const [rotating, setRotating] = useState(false);
+  const [isDraggingTable, setIsDraggingTable] = useState(false);
 
   const rotateActiveRef = useRef(false);
   const startAngleRef = useRef(0);
@@ -293,12 +294,41 @@ function TableRenderer({ table, hideSeats = false }) {
   }, [table.seatedGuests, occupiedSeatsCount]);
 
   
-/* ====== NO CACHE - מונע חיתוכים וקווים על הטקסט ====== */
+/* ====== CACHE CONTROL ======
+   לא עושים cache קבוע כדי שלא יהיו קווים/חיתוכים.
+   עושים cache רק בזמן גרירה כדי שהגרירה תהיה מהירה וחלקה.
+============================================================ */
+const cacheTableForDrag = () => {
+  if (!tableRef.current) return;
+
+  tableRef.current.clearCache();
+
+  const PADDING = 120;
+
+  const bounds = tableRef.current.getClientRect({
+    skipTransform: true,
+  });
+
+  tableRef.current.cache({
+    x: bounds.x - PADDING,
+    y: bounds.y - PADDING,
+    width: bounds.width + PADDING * 2,
+    height: bounds.height + PADDING * 2,
+    pixelRatio: 1,
+  });
+
+  tableRef.current.getLayer()?.batchDraw();
+};
+
+const clearTableCache = () => {
+  if (!tableRef.current) return;
+
+  tableRef.current.clearCache();
+  tableRef.current.getLayer()?.batchDraw();
+};
+
 useEffect(() => {
-  if (tableRef.current) {
-    tableRef.current.clearCache();
-    tableRef.current.getLayer()?.batchDraw();
-  }
+  clearTableCache();
 }, [
   layout.type,
   table.seats,
@@ -416,16 +446,27 @@ useEffect(() => {
 
   return (
     <Group
-      ref={tableRef}
-      x={table.x}
-      y={table.y}
-      rotation={table.rotation || 0}
-      draggable={!rotating}
-      onDragEnd={updatePositionInStore}
-      onMouseUp={handleDrop}
-      onClick={handleClick}
-      onTap={handleClick}
-    >
+  ref={tableRef}
+  x={table.x}
+  y={table.y}
+  rotation={table.rotation || 0}
+  draggable={!rotating}
+  onDragStart={() => {
+    setIsDraggingTable(true);
+    cacheTableForDrag();
+  }}
+  onDragEnd={() => {
+    setIsDraggingTable(false);
+    updatePositionInStore();
+
+    requestAnimationFrame(() => {
+      clearTableCache();
+    });
+  }}
+  onMouseUp={handleDrop}
+  onClick={handleClick}
+  onTap={handleClick}
+>
       {/* שולחן עגול */}
       {layout.type === "round" && (
         <>
