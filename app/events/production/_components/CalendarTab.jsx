@@ -363,30 +363,35 @@ export default function CalendarTab({ eventId }) {
 
     try {
       const payload = {
-        type: form.type,
-        calendarType: form.type,
+  type: form.type || "meeting",
+  calendarType: form.type || "meeting",
+  meetingType: form.type || "meeting",
 
-        entityName: form.title.trim(),
-        title: form.title.trim(),
+  entityName: form.title.trim(),
+  title: form.title.trim(),
+  name: form.title.trim(),
 
-        date: form.date,
-        time: form.time || "",
+  date: form.date,
+  meetingDate: form.date,
+  eventDate: form.date,
 
-        description: form.description || "",
-        notes: form.description || "",
+  time: form.time || "",
+  meetingTime: form.time || "",
+  eventTime: form.time || "",
 
-        location: form.location || "",
-        status: form.status || "planned",
+  description: form.description || "",
+  notes: form.description || "",
+  message: form.description || "",
 
-        /*
-          חשוב ליומן מפיק:
-          כל מה שנוסף כאן נשמר על eventId.
-          יומן המפיק צריך לשלוף את כל conversations
-          של כל eventId ששייך ללקוחות של אותו מפיק.
-        */
-        eventId,
-        syncToProducerCalendar: true,
-      };
+  location: form.location || "",
+  address: form.location || "",
+  zoomLink: form.type === "zoom" ? form.location || "" : "",
+
+  status: form.status || "planned",
+
+  eventId,
+  syncToProducerCalendar: true,
+};
 
       let res;
 
