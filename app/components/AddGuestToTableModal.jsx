@@ -84,6 +84,36 @@ export default function AddGuestToTableModal({
       .join("");
   };
 
+  const getDropdownPositionClass = (index) => {
+    const col = index % 6;
+
+    // RTL + desktop grid-cols-6:
+    // col 0 = הכי ימני, col 5 = הכי שמאלי
+    if (col === 0) {
+      return "right-0 translate-x-0";
+    }
+
+    if (col === 5) {
+      return "left-0 right-auto translate-x-0";
+    }
+
+    return "right-1/2 translate-x-1/2";
+  };
+
+  const getDropdownArrowClass = (index) => {
+    const col = index % 6;
+
+    if (col === 0) {
+      return "right-[46px] translate-x-0";
+    }
+
+    if (col === 5) {
+      return "left-[46px] right-auto translate-x-0";
+    }
+
+    return "right-1/2 translate-x-1/2";
+  };
+
   /* ================= SEATS ================= */
 
   const seatsArray = useMemo(() => {
@@ -556,25 +586,27 @@ export default function AddGuestToTableModal({
 
                   {isOpen && !g && (
                     <div
-                      className="
-                        absolute right-1/2 top-[58px] z-50
-                        w-[230px] translate-x-1/2
+                      className={`
+                        absolute top-[58px] z-50
+                        w-[230px]
+                        ${getDropdownPositionClass(i)}
                         overflow-hidden
                         rounded-2xl
                         border border-[#D6A678]
                         bg-white
                         shadow-[0_14px_34px_rgba(46,30,20,0.18)]
-                      "
+                      `}
                       onClick={(e) => e.stopPropagation()}
                     >
                       {/* חץ קטן שמחבר את הבחירה לפלוס */}
                       <div
-                        className="
-                          absolute -top-2 right-1/2
-                          h-4 w-4 translate-x-1/2 rotate-45
+                        className={`
+                          absolute -top-2
+                          h-4 w-4 rotate-45
                           border-r border-t border-[#D6A678]
                           bg-[#FFF8F1]
-                        "
+                          ${getDropdownArrowClass(i)}
+                        `}
                       />
 
                       <div className="relative border-b border-[#F0E2D8] bg-[#FFF8F1] p-2">
