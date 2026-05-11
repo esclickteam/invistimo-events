@@ -532,33 +532,78 @@ function TableRenderer({ table, hideSeats = false }) {
       )}
 
       {/* כסאות – מוסתרים במפיק */}
-      {!hideSeats &&
-        seatsCoords.map((c, i) => {
-          const seat = table.seatedGuests.find((s) => s.seatIndex === i);
+{!hideSeats &&
+  seatsCoords.map((c, i) => {
+    const seat = table.seatedGuests.find((s) => s.seatIndex === i);
 
-          const isOccupied =
-            seatingMode === "live" ? arrivedSeatsSet.has(i) : !!seat;
+    const isOccupied =
+      seatingMode === "live" ? arrivedSeatsSet.has(i) : !!seat;
 
-          const rotation = getSeatRotation(layout, c) - (table.rotation || 0);
+    const rotation = getSeatRotation(layout, c) - (table.rotation || 0);
 
-        
+    const chairFill = isOccupied ? "#CBA56C" : "#FFF7EA";
+    const chairStroke = isOccupied ? "#8A642F" : "#D8C19E";
+    const chairShadow = isOccupied ? "#9B6D32" : "#E8D7BC";
 
-          return (
-            <Group key={i} x={c.x} y={c.y} rotation={rotation}>
-  <Rect
-    x={-5.5}
-    y={-11}
-    width={11}
-    height={22}
-    cornerRadius={3}
-    fill={isOccupied ? "#CBA56C" : "#F8EBDD"}
-    stroke={isOccupied ? "#8A642F" : "#D7C0A1"}
-    strokeWidth={0.9}
-  />
-</Group>
+    return (
+      <Group key={i} x={c.x} y={c.y} rotation={rotation}>
+        {/* גב הכיסא */}
+        <Rect
+          x={-8}
+          y={-14}
+          width={16}
+          height={7}
+          cornerRadius={3}
+          fill={chairFill}
+          stroke={chairStroke}
+          strokeWidth={1}
+          shadowColor="rgba(120, 90, 50, 0.16)"
+          shadowBlur={3}
+          shadowOffset={{ x: 0, y: 1 }}
+          shadowOpacity={1}
+        />
 
-          );
-        })}
+        {/* רווח קטן בין הגב למושב */}
+        <Rect
+          x={-5}
+          y={-7}
+          width={10}
+          height={3}
+          cornerRadius={2}
+          fill={chairShadow}
+          opacity={0.45}
+        />
+
+        {/* מושב הכיסא */}
+        <Rect
+          x={-9}
+          y={-4}
+          width={18}
+          height={13}
+          cornerRadius={4}
+          fill={chairFill}
+          stroke={chairStroke}
+          strokeWidth={1}
+          shadowColor="rgba(120, 90, 50, 0.18)"
+          shadowBlur={4}
+          shadowOffset={{ x: 0, y: 2 }}
+          shadowOpacity={1}
+        />
+
+        {/* פס עומק תחתון */}
+        <Rect
+          x={-7}
+          y={6}
+          width={14}
+          height={3}
+          cornerRadius={2}
+          fill={chairShadow}
+          opacity={0.55}
+        />
+      </Group>
+    );
+  })}
+
     </Group>
   );
 }
