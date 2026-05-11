@@ -419,6 +419,8 @@ function TableRenderer({ table, hideSeats = false }) {
           <Circle
   radius={radius}
   fill={tableFill}
+  stroke={tableStroke}
+  strokeWidth={1.4}
 />
 
           <Text
@@ -444,6 +446,8 @@ function TableRenderer({ table, hideSeats = false }) {
   offsetX={size / 2}
   offsetY={size / 2}
   fill={tableFill}
+  stroke={tableStroke}
+  strokeWidth={1.4}
   cornerRadius={10}
 />
 
@@ -470,6 +474,8 @@ function TableRenderer({ table, hideSeats = false }) {
   offsetX={width / 2}
   offsetY={height / 2}
   fill={tableFill}
+  stroke={tableStroke}
+  strokeWidth={1.4}
   cornerRadius={12}
 />
 
