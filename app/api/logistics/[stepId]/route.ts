@@ -19,9 +19,13 @@ export async function PATCH(
        Auth
     ========================= */
     const auth = await getUserIdFromRequest();
+
     if (!auth?.userId) {
       return NextResponse.json(
-        { success: false, error: "UNAUTHORIZED" },
+        {
+          success: false,
+          error: "UNAUTHORIZED",
+        },
         { status: 401 }
       );
     }
@@ -33,7 +37,10 @@ export async function PATCH(
 
     if (!mongoose.Types.ObjectId.isValid(stepId)) {
       return NextResponse.json(
-        { success: false, error: "INVALID_STEP_ID" },
+        {
+          success: false,
+          error: "INVALID_STEP_ID",
+        },
         { status: 400 }
       );
     }
@@ -49,6 +56,7 @@ export async function PATCH(
       "phone",
       "status",
       "order",
+      "type",
     ] as const;
 
     const update: Record<string, any> = {};
@@ -60,21 +68,31 @@ export async function PATCH(
     }
 
     if (Object.keys(update).length === 0) {
-      return NextResponse.json({ success: true });
+      return NextResponse.json({
+        success: true,
+      });
     }
 
     /* =========================
        Update
     ========================= */
-    const step = await EventLogisticsStep.findByIdAndUpdate(
-      stepId,
-      { $set: update },
-      { new: true }
-    ).lean();
+    const step =
+      await EventLogisticsStep.findByIdAndUpdate(
+        stepId,
+        {
+          $set: update,
+        },
+        {
+          new: true,
+        }
+      ).lean();
 
     if (!step) {
       return NextResponse.json(
-        { success: false, error: "STEP_NOT_FOUND" },
+        {
+          success: false,
+          error: "STEP_NOT_FOUND",
+        },
         { status: 404 }
       );
     }
@@ -84,9 +102,107 @@ export async function PATCH(
       step,
     });
   } catch (err) {
-    console.error("❌ PATCH logistics step failed:", err);
+    console.error(
+      "❌ PATCH logistics step failed:",
+      err
+    );
+
     return NextResponse.json(
-      { success: false, error: "SERVER_ERROR" },
+      {
+        success: false,
+        error: "SERVER_ERROR",
+      },
+      { status: 500 }
+    );
+  }
+}
+
+/* =========================================================
+   DELETE – Remove logistics step
+========================================================= */
+export async function DELETE(
+  _req: NextRequest,
+  context: {
+    params: Promise<{
+      stepId: string;
+    }>;
+  }
+) {
+  try {
+    await db();
+
+    /* =========================
+       Auth
+    ========================= */
+    const auth =
+      await getUserIdFromRequest();
+
+    if (!auth?.userId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "UNAUTHORIZED",
+        },
+        { status: 401 }
+      );
+    }
+
+    /* =========================
+       Params
+    ========================= */
+    const { stepId } =
+      await context.params;
+
+    if (
+      !mongoose.Types.ObjectId.isValid(
+        stepId
+      )
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "INVALID_STEP_ID",
+        },
+        { status: 400 }
+      );
+    }
+
+    /* =========================
+       Delete
+    ========================= */
+    const deleted =
+      await EventLogisticsStep.findByIdAndDelete(
+        stepId
+      );
+
+    if (!deleted) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "STEP_NOT_FOUND",
+        },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+    });
+  } catch (err) {
+    console.error(
+      "❌ DELETE logistics failed:",
+      err
+    );
+
+    return NextResponse.json(
+      {
+        success: false,
+        error:
+          "SERVER_ERROR",
+      },
       { status: 500 }
     );
   }

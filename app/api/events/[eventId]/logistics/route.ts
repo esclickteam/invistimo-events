@@ -88,13 +88,23 @@ export async function POST(
     const order = await EventLogisticsStep.countDocuments({ eventId });
 
     const step = await EventLogisticsStep.create({
-      eventId,
-      title,
-      time,
-      status: "pending",
-      order,
-      createdBy: auth.userId,
-    });
+  eventId,
+  title,
+  time,
+
+  status:
+    body?.status ||
+    "pending",
+
+  type:
+    body?.type ||
+    "logistics",
+
+  order,
+
+  createdBy:
+    auth.userId,
+});
 
     return NextResponse.json({ success: true, step });
   } catch (err) {
