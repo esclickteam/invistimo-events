@@ -132,6 +132,12 @@ export default function SeatingSidebar({
     return getSeatCount(g) > 0;
   };
 
+  const getMaxTableSeats = () =>
+    Math.max(0, ...tables.map((table) => Number(table.seats || 0)));
+
+  const getTotalSeatsForGuests = (list: Guest[]) =>
+    list.reduce((sum, guest) => sum + getSeatCount(guest), 0);
+
   const syncAssignToServer = async (guestId: string, tableId: string) => {
     if (!invitationId) return false;
 
@@ -217,11 +223,6 @@ export default function SeatingSidebar({
     return null;
   };
 
-  /*
-    אם האורח הושב דרך seatGroup,
-    יהיה לו groupId בתוך seatedGuests.
-    אם הוא הושב ידנית - לא.
-  */
   const isGuestSeatedByGroupAction = (guest: Guest) => {
     const gid = seatGuestId(guest);
     const guestGroupId = normalizeGroupId(guest.groupId);
@@ -290,6 +291,18 @@ export default function SeatingSidebar({
     return groupLabel
       ? `${groupLabel} · ${t.name} (${count}/${t.seats})`
       : `${t.name} (${count}/${t.seats})`;
+  };
+
+  const simpleTableLabel = (t: Table) => {
+    const count = guests
+      .filter(
+        (g) =>
+          isEligibleInCurrentMode(g) &&
+          guestTableMap.get(seatGuestId(g))?.id === t.id
+      )
+      .reduce((sum, g) => sum + getSeatCount(g), 0);
+
+    return `${t.name} (${count}/${t.seats})`;
   };
 
   /* ================= FILTER ================= */
@@ -362,6 +375,24 @@ export default function SeatingSidebar({
     return Array.from(blocksMap.values());
   };
 
+  const getSingleGroupTableId = (eligibleGuests: Guest[]) => {
+    const seatedGuests = eligibleGuests.filter((g) => isGuestSeated(g));
+    if (!seatedGuests.length) return ACTION_NONE;
+
+    const tableIds = Array.from(
+      new Set(
+        seatedGuests
+          .map((g) => guestTableMap.get(seatGuestId(g))?.id)
+          .filter(Boolean)
+          .map(String)
+      )
+    );
+
+    if (tableIds.length === 1) return tableIds[0];
+
+    return ACTION_NONE;
+  };
+
   /* ================= SEARCH OPEN ================= */
 
   useEffect(() => {
@@ -395,7 +426,7 @@ export default function SeatingSidebar({
 
   /* ================= GROUP ACTIONS ================= */
 
-  const handleGroupTableChange = async ({
+  const handleSeatGroupMore = async ({
     group,
     groupId,
     actionGuests,
@@ -410,8 +441,7 @@ export default function SeatingSidebar({
 
     if (tableId === ACTION_REMOVE) {
       for (const g of eligibleGuests) {
-        const gid = seatGuestId(g);
-        await removeSingleGuestFromTable(gid);
+        await removeSingleGuestFromTable(seatGuestId(g));
       }
 
       return;
@@ -454,8 +484,7 @@ export default function SeatingSidebar({
     }
 
     for (const g of eligibleGuests) {
-      const gid = seatGuestId(g);
-      await assignSingleGuestToTable(gid, tableId);
+      await assignSingleGuestToTable(seatGuestId(g), tableId);
     }
   };
 
@@ -489,6 +518,66 @@ export default function SeatingSidebar({
       const ok = await syncAssignToServer(gid, tableId);
       if (!ok) {
         console.error("Failed assigning guest on server", gid, tableId);
+      }
+    }
+  };
+
+  const handleSmallGroupDropdown = async ({
+    group,
+    groupId,
+    actionGuests,
+    tableId,
+  }: {
+    group: Group | null;
+    groupId: string;
+    actionGuests: Guest[];
+    tableId: string;
+  }) => {
+    const eligibleGuests = actionGuests.filter(isEligibleInCurrentMode);
+    const seatedGuestIds = eligibleGuests
+      .filter((g) => isGuestSeated(g))
+      .map((g) => seatGuestId(g));
+
+    if (tableId === ACTION_REMOVE) {
+      for (const g of eligibleGuests) {
+        await removeSingleGuestFromTable(seatGuestId(g));
+      }
+      return;
+    }
+
+    if (!tableId || tableId === ACTION_NONE) return;
+
+    /*
+      קבוצה קטנה:
+      אותו dropdown גם משבץ, גם משנה שולחן.
+      אם כבר יש אורחים יושבים — מעבירים אותם.
+      אם יש עוד שלא שובצו — seatGroup ישבץ גם אותם לאותו שולחן.
+    */
+    if (seatedGuestIds.length > 0) {
+      await handleMoveGuests({
+        guestIds: seatedGuestIds,
+        tableId,
+      });
+    }
+
+    if (group && groupId !== NO_GROUP_KEY) {
+      const hasUnseated = eligibleGuests.some((g) => !isGuestSeated(g));
+
+      if (hasUnseated) {
+        await handleSeatGroupMore({
+          group,
+          groupId,
+          actionGuests,
+          tableId,
+        });
+      }
+
+      return;
+    }
+
+    for (const g of eligibleGuests) {
+      if (!isGuestSeated(g)) {
+        await assignSingleGuestToTable(seatGuestId(g), tableId);
       }
     }
   };
@@ -630,7 +719,6 @@ export default function SeatingSidebar({
 
   return (
     <>
-      {/* ===== MOBILE BUTTON ===== */}
       <button
         onClick={() => setMobileOpen(true)}
         className="
@@ -643,7 +731,6 @@ export default function SeatingSidebar({
         אורחים
       </button>
 
-      {/* ===== OVERLAY ===== */}
       {mobileOpen && (
         <div
           className="fixed inset-0 bg-black/40 z-40 md:hidden"
@@ -668,7 +755,6 @@ export default function SeatingSidebar({
           }
         `}
       >
-        {/* ===== Header ===== */}
         <div className="border-b border-[#EAD8CC] bg-white/85 p-4 backdrop-blur">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
@@ -792,7 +878,6 @@ export default function SeatingSidebar({
           </div>
         </div>
 
-        {/* ===== Groups ===== */}
         <div className="flex-1 space-y-2.5 overflow-y-auto p-3">
           {Object.entries(groupedGuests).map(([groupId, list]) => {
             const group: Group | null =
@@ -808,9 +893,13 @@ export default function SeatingSidebar({
 
             const { total, seated, remaining } = getGroupStats(actionGuests);
 
-            const isOpen = !!openGroups[groupId];
+            const maxTableSeats = getMaxTableSeats();
+            const totalGroupSeats = getTotalSeatsForGuests(actionGuests);
+            const isLargeGroup =
+              !!group && maxTableSeats > 0 && totalGroupSeats > maxTableSeats;
 
             const tableBlocks = buildGroupTableBlocks(actionGuests);
+
             const derivedSourceTableId =
               moveSourceByGroup[groupId] ||
               (tableBlocks.length === 1 ? tableBlocks[0].table.id : "");
@@ -818,6 +907,9 @@ export default function SeatingSidebar({
             const selectedBlock = tableBlocks.find(
               (block) => String(block.table.id) === String(derivedSourceTableId)
             );
+
+            const smallGroupTableId = getSingleGroupTableId(actionGuests);
+            const isOpen = !!openGroups[groupId];
 
             return (
               <div
@@ -828,7 +920,6 @@ export default function SeatingSidebar({
                   bg-white shadow-[0_2px_10px_rgba(104,72,46,0.04)]
                 "
               >
-                {/* ===== Group Header ===== */}
                 <div
                   className="cursor-pointer bg-[#F9F3EE] px-3 py-3"
                   onClick={() =>
@@ -909,107 +1000,78 @@ export default function SeatingSidebar({
                     </span>
                   </div>
 
-                  {/* ===== Group seat / remove ===== */}
                   <div
                     className="mt-3 flex flex-col gap-2"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <select
-                      className="
-                        h-9 w-full
-                        rounded-xl border border-[#E6C3AD]
-                        bg-white px-3 text-[11px] font-semibold
-                        text-[#4B3528]
-                        outline-none
-                      "
-                      defaultValue={ACTION_NONE}
-                      onChange={async (e) => {
-                        const tableId = e.target.value;
-                        await handleGroupTableChange({
-                          group,
-                          groupId,
-                          actionGuests,
-                          tableId,
-                        });
-                        e.currentTarget.value = ACTION_NONE;
-                      }}
-                    >
-                      <option value={ACTION_NONE}>
-                        {group
-                          ? remaining > 0
-                            ? `הושב קבוצה · נשארו ${remaining}`
-                            : "כל הקבוצה שובצה"
-                          : "בחר שולחן לאורחים ללא קבוצה"}
-                      </option>
+                    {!isLargeGroup ? (
+                      <select
+                        className="
+                          h-9 w-full
+                          rounded-xl border border-[#E6C3AD]
+                          bg-white px-3 text-[11px] font-semibold
+                          text-[#4B3528]
+                          outline-none
+                        "
+                        value={smallGroupTableId}
+                        onChange={async (e) => {
+                          const tableId = e.target.value;
 
-                      <option value={ACTION_REMOVE}>הסר קבוצה</option>
-
-                      {tables.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {tableLabel(t)}
+                          await handleSmallGroupDropdown({
+                            group,
+                            groupId,
+                            actionGuests,
+                            tableId,
+                          });
+                        }}
+                      >
+                        <option value={ACTION_NONE}>
+                          {seated > 0
+                            ? "בחר שולחן / פעולה"
+                            : group
+                            ? "הושב קבוצה"
+                            : "בחר שולחן"}
                         </option>
-                      ))}
-                    </select>
 
-                    {/* ===== Move grouped seated guests ===== */}
-                    {tableBlocks.length > 0 && (
-                      <div className="grid grid-cols-2 gap-2">
+                        <option value={ACTION_REMOVE}>הסר קבוצה</option>
+
+                        {tables.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {simpleTableLabel(t)}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <>
                         <select
                           className="
-                            h-9 rounded-xl border border-[#E6C3AD]
+                            h-9 w-full
+                            rounded-xl border border-[#E6C3AD]
                             bg-white px-3 text-[11px] font-semibold
                             text-[#4B3528]
                             outline-none
-                          "
-                          value={derivedSourceTableId}
-                          onChange={(e) => {
-                            setMoveSourceByGroup((prev) => ({
-                              ...prev,
-                              [groupId]: e.target.value,
-                            }));
-                          }}
-                        >
-                          <option value="">מאיזה שולחן</option>
-
-                          {tableBlocks.map((block) => (
-                            <option key={block.table.id} value={block.table.id}>
-                              {block.table.name} · {block.guests.length}
-                            </option>
-                          ))}
-                        </select>
-
-                        <select
-                          key={`${groupId}-${derivedSourceTableId}`}
-                          className="
-                            h-9 rounded-xl border border-[#E6C3AD]
-                            bg-white px-3 text-[11px] font-semibold
-                            text-[#4B3528]
-                            outline-none
-                            disabled:cursor-not-allowed disabled:opacity-50
                           "
                           defaultValue={ACTION_NONE}
-                          disabled={!selectedBlock}
                           onChange={async (e) => {
-                            const nextTableId = e.target.value;
-                            if (!selectedBlock) return;
+                            const tableId = e.target.value;
 
-                            await handleMoveGuests({
-                              guestIds: selectedBlock.guests.map((g) =>
-                                seatGuestId(g)
-                              ),
-                              tableId: nextTableId,
+                            await handleSeatGroupMore({
+                              group,
+                              groupId,
+                              actionGuests,
+                              tableId,
                             });
-
-                            setMoveSourceByGroup((prev) => ({
-                              ...prev,
-                              [groupId]: "",
-                            }));
 
                             e.currentTarget.value = ACTION_NONE;
                           }}
                         >
-                          <option value={ACTION_NONE}>לאיזה שולחן</option>
-                          <option value={ACTION_REMOVE}>הסר מהשולחן</option>
+                          <option value={ACTION_NONE}>
+                            {remaining > 0
+                              ? `הושב קבוצה · נשארו ${remaining}`
+                              : "כל הקבוצה שובצה"}
+                          </option>
+
+                          <option value={ACTION_REMOVE}>הסר קבוצה</option>
 
                           {tables.map((t) => (
                             <option key={t.id} value={t.id}>
@@ -1017,12 +1079,82 @@ export default function SeatingSidebar({
                             </option>
                           ))}
                         </select>
-                      </div>
+
+                        {tableBlocks.length > 0 && (
+                          <div className="grid grid-cols-2 gap-2">
+                            <select
+                              className="
+                                h-9 rounded-xl border border-[#E6C3AD]
+                                bg-white px-3 text-[11px] font-semibold
+                                text-[#4B3528]
+                                outline-none
+                              "
+                              value={derivedSourceTableId}
+                              onChange={(e) => {
+                                setMoveSourceByGroup((prev) => ({
+                                  ...prev,
+                                  [groupId]: e.target.value,
+                                }));
+                              }}
+                            >
+                              <option value="">מאיזה שולחן</option>
+
+                              {tableBlocks.map((block) => (
+                                <option
+                                  key={block.table.id}
+                                  value={block.table.id}
+                                >
+                                  {block.table.name} · {block.seatsUsed}
+                                </option>
+                              ))}
+                            </select>
+
+                            <select
+                              key={`${groupId}-${derivedSourceTableId}`}
+                              className="
+                                h-9 rounded-xl border border-[#E6C3AD]
+                                bg-white px-3 text-[11px] font-semibold
+                                text-[#4B3528]
+                                outline-none
+                                disabled:cursor-not-allowed disabled:opacity-50
+                              "
+                              defaultValue={ACTION_NONE}
+                              disabled={!selectedBlock}
+                              onChange={async (e) => {
+                                const nextTableId = e.target.value;
+                                if (!selectedBlock) return;
+
+                                await handleMoveGuests({
+                                  guestIds: selectedBlock.guests.map((g) =>
+                                    seatGuestId(g)
+                                  ),
+                                  tableId: nextTableId,
+                                });
+
+                                setMoveSourceByGroup((prev) => ({
+                                  ...prev,
+                                  [groupId]: "",
+                                }));
+
+                                e.currentTarget.value = ACTION_NONE;
+                              }}
+                            >
+                              <option value={ACTION_NONE}>לאיזה שולחן</option>
+                              <option value={ACTION_REMOVE}>הסר מהשולחן</option>
+
+                              {tables.map((t) => (
+                                <option key={t.id} value={t.id}>
+                                  {simpleTableLabel(t)}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
 
-                {/* ===== Guest list ===== */}
                 {isOpen && (
                   <div>
                     {displayGuests.length > 0 ? (
