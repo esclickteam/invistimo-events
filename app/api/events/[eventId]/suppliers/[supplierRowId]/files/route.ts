@@ -31,19 +31,25 @@ export async function POST(
 
     const result: any = await new Promise((resolve, reject) => {
       cloudinary.uploader
-        .upload_stream(
-          {
-            folder: `events/suppliers/${supplierRowId}`,
-            resource_type:
-  file.type === "application/pdf"
-    ? "raw"
-    : "image",
+  .upload_stream(
+    {
+      folder: `events/suppliers/${supplierRowId}`,
 
-            // ⭐⭐⭐ העיקר כאן ⭐⭐⭐
-            filename_override: file.name, // שומר שם + סיומת (.pdf)
-            use_filename: false,
-            unique_filename: false,
-          },
+      resource_type:
+        file.type === "application/pdf"
+          ? "raw"
+          : "image",
+
+      format:
+        file.type === "application/pdf"
+          ? "pdf"
+          : undefined,
+
+      filename_override: file.name,
+
+      use_filename: false,
+      unique_filename: false,
+    },
           (error, result) => {
             if (error) reject(error);
             else resolve(result);
