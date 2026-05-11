@@ -9,6 +9,53 @@ import InvitationGuest from "@/models/InvitationGuest";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+/* =========================================================
+   HELPERS
+========================================================= */
+
+function getEventTitle(event: any, invitation: any) {
+  return (
+    event?.title ||
+    event?.eventTitle ||
+    event?.eventName ||
+    event?.name ||
+    event?.invitationTitle ||
+    invitation?.title ||
+    invitation?.eventTitle ||
+    invitation?.eventName ||
+    invitation?.invitationTitle ||
+    invitation?.name ||
+    ""
+  );
+}
+
+function getEventDate(event: any) {
+  return event?.date || event?.eventDate || null;
+}
+
+function getEventLocation(event: any) {
+  if (!event?.location) {
+    return event?.venue || event?.place || "";
+  }
+
+  if (typeof event.location === "object") {
+    return (
+      event.location.address ||
+      event.location.name ||
+      event.location.label ||
+      ""
+    );
+  }
+
+  return event.location;
+}
+
+/* =========================================================
+   GET – Producer Clients
+   Route: /api/producer/clients
+========================================================= */
 
 export async function GET(req: NextRequest) {
   try {
@@ -18,151 +65,265 @@ export async function GET(req: NextRequest) {
     console.log("🟢 DB connected");
 
     /* =========================
-       🔐 Auth – Producer
+       Auth – Producer
     ========================= */
     const auth = await getUserIdFromRequest(req);
     console.log("🟡 AUTH payload:", auth);
 
     if (!auth?.userId || auth.role !== "producer") {
       console.log("🔴 UNAUTHORIZED", auth);
+
       return NextResponse.json(
-        { success: false, message: "Unauthorized" },
+        {
+          success: false,
+          message: "Unauthorized",
+        },
         { status: 401 }
       );
     }
 
-    const producerObjectId = new mongoose.Types.ObjectId(auth.userId);
-    console.log("🟢 Producer ObjectId:", producerObjectId.toString());
+    const producerObjectId = new mongoose.Types.ObjectId(
+      auth.userId
+    );
+
+    console.log(
+      "🟢 Producer ObjectId:",
+      producerObjectId.toString()
+    );
 
     /* =========================
-       👥 Clients – לפי assignedProducerId בלבד
+       Clients – by assignedProducerId
     ========================= */
     const clients = await User.find({
-  assignedProducerId: producerObjectId,
-  role: { $in: ["client", "user"] }, // ⭐️ זה כל הסיפור
-})
+      assignedProducerId: producerObjectId,
+      role: {
+        $in: ["client", "user"],
+      },
+    })
       .select(
         "name email phone createdAt assignedProducerId billingSource"
       )
-      .sort({ createdAt: -1 })
+      .sort({
+        createdAt: -1,
+      })
       .lean();
 
     console.log("🟢 Clients found:", clients.length);
 
     if (clients.length === 0) {
       console.log("⚠️ NO CLIENTS MATCH QUERY");
-      return NextResponse.json({ success: true, clients: [] });
+
+      return NextResponse.json({
+        success: true,
+        clients: [],
+      });
     }
 
     console.log(
       "🧾 Client IDs:",
-      clients.map((c) => ({
-        _id: String(c._id),
-        assignedProducerId: String(c.assignedProducerId),
+      clients.map((client: any) => ({
+        _id: String(client._id),
+        assignedProducerId: String(
+          client.assignedProducerId
+        ),
       }))
     );
 
-    const clientIds = clients.map((c) => c._id);
+    const clientIds = clients.map(
+      (client: any) => client._id
+    );
 
     /* =========================
-       🎉 Events
+       Events
+       חשוב:
+       כאן שולפים גם שם אירוע.
     ========================= */
     const events = await Event.find({
-      userId: { $in: clientIds },
+      userId: {
+        $in: clientIds,
+      },
     })
-      .select("_id userId date location")
+      .select(
+        [
+          "_id",
+          "userId",
+
+          // dates / place
+          "date",
+          "eventDate",
+          "location",
+          "venue",
+          "place",
+
+          // possible event title fields
+          "title",
+          "eventTitle",
+          "eventName",
+          "name",
+          "invitationTitle",
+        ].join(" ")
+      )
       .lean();
 
     console.log("🟢 Events found:", events.length);
 
     const eventsByUserId = Object.fromEntries(
-      events.map((e) => [String(e.userId), e])
+      events.map((event: any) => [
+        String(event.userId),
+        event,
+      ])
     );
 
-    const eventIds = events.map((e) => e._id);
+    const eventIds = events.map(
+      (event: any) => event._id
+    );
 
     /* =========================
-       ✉️ Invitations
+       Invitations
+       גם כאן שולפים שדות שם.
     ========================= */
     const invitations = await Invitation.find({
-      eventId: { $in: eventIds },
+      eventId: {
+        $in: eventIds,
+      },
     })
-      .select("_id eventId")
+      .select(
+        [
+          "_id",
+          "eventId",
+
+          // possible invitation title fields
+          "title",
+          "eventTitle",
+          "eventName",
+          "name",
+          "invitationTitle",
+        ].join(" ")
+      )
       .lean();
 
-    console.log("🟢 Invitations found:", invitations.length);
+    console.log(
+      "🟢 Invitations found:",
+      invitations.length
+    );
 
-    const invitationsByEventId = invitations.reduce((acc: any, inv: any) => {
-      const key = String(inv.eventId);
-      acc[key] = acc[key] || [];
-      acc[key].push(inv._id);
-      return acc;
-    }, {});
+    const invitationsByEventId = invitations.reduce(
+      (acc: any, invitation: any) => {
+        const key = String(invitation.eventId);
 
-    const invitationIds = invitations.map((i) => i._id);
+        acc[key] = acc[key] || [];
+        acc[key].push(invitation);
+
+        return acc;
+      },
+      {}
+    );
+
+    const invitationIds = invitations.map(
+      (invitation: any) => invitation._id
+    );
 
     /* =========================
-       📊 Guests stats
+       Guests stats
     ========================= */
-    const guestStats = await InvitationGuest.aggregate([
-      {
-        $match: {
-          invitationId: { $in: invitationIds },
-        },
-      },
-      {
-        $group: {
-          _id: "$invitationId",
-          totalGuests: { $sum: "$guestsCount" },
-          approvedCount: {
-            $sum: {
-              $cond: [{ $eq: ["$rsvp", "yes"] }, "$guestsCount", 0],
+    const guestStats =
+      invitationIds.length > 0
+        ? await InvitationGuest.aggregate([
+            {
+              $match: {
+                invitationId: {
+                  $in: invitationIds,
+                },
+              },
             },
-          },
-          arrivedCount: {
-            $sum: { $ifNull: ["$arrivedCount", 0] },
-          },
-          actualArrivedCount: {
-            $sum: { $ifNull: ["$actualArrivedCount", 0] },
-          },
-        },
-      },
-    ]);
+            {
+              $group: {
+                _id: "$invitationId",
 
-    console.log("🟢 Guest stats rows:", guestStats.length);
+                totalGuests: {
+                  $sum: "$guestsCount",
+                },
+
+                approvedCount: {
+                  $sum: {
+                    $cond: [
+                      {
+                        $eq: ["$rsvp", "yes"],
+                      },
+                      "$guestsCount",
+                      0,
+                    ],
+                  },
+                },
+
+                arrivedCount: {
+                  $sum: {
+                    $ifNull: ["$arrivedCount", 0],
+                  },
+                },
+
+                actualArrivedCount: {
+                  $sum: {
+                    $ifNull: ["$actualArrivedCount", 0],
+                  },
+                },
+              },
+            },
+          ])
+        : [];
+
+    console.log(
+      "🟢 Guest stats rows:",
+      guestStats.length
+    );
 
     const statsByInvitationId = Object.fromEntries(
-      guestStats.map((g: any) => [
-        String(g._id),
+      guestStats.map((guest: any) => [
+        String(guest._id),
         {
-          totalGuests: g.totalGuests || 0,
-          approvedCount: g.approvedCount || 0,
-          arrivedCount: g.arrivedCount || 0,
-          actualArrivedCount: g.actualArrivedCount || 0,
+          totalGuests: guest.totalGuests || 0,
+          approvedCount: guest.approvedCount || 0,
+          arrivedCount: guest.arrivedCount || 0,
+          actualArrivedCount:
+            guest.actualArrivedCount || 0,
         },
       ])
     );
 
     /* =========================
-       🔗 Merge Client + Event + Stats
+       Merge Client + Event + Invitation + Stats
     ========================= */
     const result = clients.map((client: any) => {
       const event = eventsByUserId[String(client._id)];
 
       if (!event) {
-        console.log("⚠️ Client has NO event:", String(client._id));
-        return { ...client, event: null };
+        console.log(
+          "⚠️ Client has NO event:",
+          String(client._id)
+        );
+
+        return {
+          ...client,
+          event: null,
+          invitation: null,
+        };
       }
 
-      const invIds = invitationsByEventId[String(event._id)] || [];
+      const invitationsForEvent =
+        invitationsByEventId[String(event._id)] || [];
+
+      const mainInvitation =
+        invitationsForEvent[0] || null;
 
       let totalGuests = 0;
       let approvedCount = 0;
       let arrivedCount = 0;
       let actualArrivedCount = 0;
 
-      for (const invId of invIds) {
-        const stats = statsByInvitationId[String(invId)];
+      for (const invitation of invitationsForEvent) {
+        const stats =
+          statsByInvitationId[String(invitation._id)];
+
         if (!stats) continue;
 
         totalGuests += stats.totalGuests;
@@ -171,21 +332,49 @@ export async function GET(req: NextRequest) {
         actualArrivedCount += stats.actualArrivedCount;
       }
 
+      const eventTitle = getEventTitle(
+        event,
+        mainInvitation
+      );
+
+      const eventDate = getEventDate(event);
+      const eventLocation = getEventLocation(event);
+
       return {
-  ...client,
-  event: {
-    _id: event._id,
-    date: event.date,
-    location:
-      typeof event.location === "object"
-        ? event.location.address
-        : event.location,
-    totalGuests,
-    approvedCount,
-    arrivedCount,
-    actualArrivedCount,
-  },
-};
+        ...client,
+
+        event: {
+          _id: event._id,
+
+          // title fields for frontend compatibility
+          title: eventTitle,
+          eventTitle,
+          eventName: eventTitle,
+          name: eventTitle,
+
+          // date fields for frontend compatibility
+          date: eventDate,
+          eventDate,
+
+          location: eventLocation,
+
+          totalGuests,
+          approvedCount,
+          arrivedCount,
+          actualArrivedCount,
+        },
+
+        invitation: mainInvitation
+          ? {
+              _id: mainInvitation._id,
+              title: getEventTitle(null, mainInvitation),
+              eventTitle: getEventTitle(
+                null,
+                mainInvitation
+              ),
+            }
+          : null,
+      };
     });
 
     console.log("✅ FINAL RESULT COUNT:", result.length);
@@ -195,9 +384,140 @@ export async function GET(req: NextRequest) {
       clients: result,
     });
   } catch (error) {
-    console.error("❌ ERROR FETCHING PRODUCER CLIENTS:", error);
+    console.error(
+      "❌ ERROR FETCHING PRODUCER CLIENTS:",
+      error
+    );
+
     return NextResponse.json(
-      { success: false, message: "Failed to fetch clients" },
+      {
+        success: false,
+        message: "Failed to fetch clients",
+      },
+      { status: 500 }
+    );
+  }
+}
+
+/* =========================================================
+   PATCH – Update Producer Client
+   Route: /api/producer/clients
+
+   בלי route חדש.
+   הפרונט צריך לשלוח:
+   PATCH /api/producer/clients
+   body: { clientId, phone }
+========================================================= */
+
+export async function PATCH(req: NextRequest) {
+  try {
+    console.log(
+      "🟣 [PRODUCER CLIENTS PATCH] Route called"
+    );
+
+    await dbConnect();
+
+    /* =========================
+       Auth – Producer
+    ========================= */
+    const auth = await getUserIdFromRequest(req);
+
+    if (!auth?.userId || auth.role !== "producer") {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Unauthorized",
+        },
+        { status: 401 }
+      );
+    }
+
+    const body = await req.json();
+
+    const clientId = String(body?.clientId || "").trim();
+
+    if (
+      !clientId ||
+      !mongoose.Types.ObjectId.isValid(clientId)
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Invalid clientId",
+        },
+        { status: 400 }
+      );
+    }
+
+    const updates: Record<string, any> = {};
+
+    if (typeof body.phone === "string") {
+      updates.phone = body.phone.trim();
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "No valid fields to update",
+        },
+        { status: 400 }
+      );
+    }
+
+    const producerObjectId = new mongoose.Types.ObjectId(
+      auth.userId
+    );
+
+    /*
+      לפי ה־GET שלך, לקוח שייך למפיק דרך assignedProducerId.
+      לכן גם העדכון מוגבל רק ללקוח ששייך לאותו מפיק.
+    */
+    const updatedClient = await User.findOneAndUpdate(
+      {
+        _id: clientId,
+        assignedProducerId: producerObjectId,
+        role: {
+          $in: ["client", "user"],
+        },
+      },
+      {
+        $set: updates,
+      },
+      {
+        new: true,
+      }
+    )
+      .select(
+        "name email phone createdAt assignedProducerId billingSource role"
+      )
+      .lean();
+
+    if (!updatedClient) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Client not found for this producer",
+        },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      client: updatedClient,
+    });
+  } catch (error) {
+    console.error(
+      "❌ ERROR UPDATING PRODUCER CLIENT:",
+      error
+    );
+
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Failed to update client",
+      },
       { status: 500 }
     );
   }

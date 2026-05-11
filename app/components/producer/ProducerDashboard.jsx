@@ -669,7 +669,8 @@ export default function ProducerDashboard() {
     try {
       setSavingPhoneClientId(clientId);
 
-      const res = await fetch(`/api/producer/clients/${clientId}`, {
+      const res = await fetch(`/api/producer/clients`, {
+
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
