@@ -17,25 +17,50 @@ export const runtime = "nodejs";
 
 function getEventTitle(event: any, invitation: any) {
   return (
-    event?.title ||
-    event?.eventTitle ||
-    event?.eventName ||
-    event?.name ||
-    event?.invitationTitle ||
+    // קודם כל שם האירוע האמיתי מההזמנה
     invitation?.title ||
     invitation?.eventTitle ||
     invitation?.eventName ||
     invitation?.invitationTitle ||
     invitation?.name ||
-    ""
+
+    // ורק אם אין — fallback מה-event
+    event?.title ||
+    event?.eventTitle ||
+    event?.eventName ||
+    event?.name ||
+    event?.invitationTitle ||
+
+    "אירוע ללא שם"
   );
 }
 
-function getEventDate(event: any) {
-  return event?.date || event?.eventDate || null;
+function getEventDate(event: any, invitation: any) {
+  return (
+    invitation?.eventDate ||
+    event?.date ||
+    event?.eventDate ||
+    null
+  );
 }
 
-function getEventLocation(event: any) {
+function getEventLocation(event: any, invitation: any) {
+  const invitationLocation =
+    invitation?.location;
+
+  if (invitationLocation) {
+    if (typeof invitationLocation === "object") {
+      return (
+        invitationLocation.address ||
+        invitationLocation.name ||
+        invitationLocation.label ||
+        ""
+      );
+    }
+
+    return invitationLocation;
+  }
+
   if (!event?.location) {
     return event?.venue || event?.place || "";
   }
@@ -135,8 +160,6 @@ export async function GET(req: NextRequest) {
 
     /* =========================
        Events
-       חשוב:
-       כאן שולפים גם שם אירוע.
     ========================= */
     const events = await Event.find({
       userId: {
@@ -180,7 +203,7 @@ export async function GET(req: NextRequest) {
 
     /* =========================
        Invitations
-       גם כאן שולפים שדות שם.
+       כאן שם האירוע האמיתי נמצא בדרך כלל ב-title
     ========================= */
     const invitations = await Invitation.find({
       eventId: {
@@ -192,14 +215,22 @@ export async function GET(req: NextRequest) {
           "_id",
           "eventId",
 
-          // possible invitation title fields
+          // title fields
           "title",
           "eventTitle",
           "eventName",
           "name",
           "invitationTitle",
+
+          // date / time / location
+          "eventDate",
+          "eventTime",
+          "location",
         ].join(" ")
       )
+      .sort({
+        createdAt: -1,
+      })
       .lean();
 
     console.log(
@@ -337,8 +368,15 @@ export async function GET(req: NextRequest) {
         mainInvitation
       );
 
-      const eventDate = getEventDate(event);
-      const eventLocation = getEventLocation(event);
+      const eventDate = getEventDate(
+        event,
+        mainInvitation
+      );
+
+      const eventLocation = getEventLocation(
+        event,
+        mainInvitation
+      );
 
       return {
         ...client,
@@ -367,11 +405,24 @@ export async function GET(req: NextRequest) {
         invitation: mainInvitation
           ? {
               _id: mainInvitation._id,
+
               title: getEventTitle(null, mainInvitation),
-              eventTitle: getEventTitle(
-                null,
-                mainInvitation
-              ),
+              eventTitle: getEventTitle(null, mainInvitation),
+              eventName: getEventTitle(null, mainInvitation),
+              invitationTitle: getEventTitle(null, mainInvitation),
+
+              eventDate:
+                mainInvitation.eventDate || null,
+
+              eventTime:
+                mainInvitation.eventTime || null,
+
+              location:
+                typeof mainInvitation.location === "object"
+                  ? mainInvitation.location?.address ||
+                    mainInvitation.location?.name ||
+                    ""
+                  : mainInvitation.location || "",
             }
           : null,
       };
@@ -469,10 +520,6 @@ export async function PATCH(req: NextRequest) {
       auth.userId
     );
 
-    /*
-      לפי ה־GET שלך, לקוח שייך למפיק דרך assignedProducerId.
-      לכן גם העדכון מוגבל רק ללקוח ששייך לאותו מפיק.
-    */
     const updatedClient = await User.findOneAndUpdate(
       {
         _id: clientId,

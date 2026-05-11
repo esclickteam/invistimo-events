@@ -663,52 +663,59 @@ export default function ProducerDashboard() {
   }
 
   async function saveClientPhone(client) {
-    const clientId = String(client._id);
-    const phone = String(phoneDraftByClientId[clientId] || "").trim();
+  const clientId = String(client._id);
+  const phone = String(
+    phoneDraftByClientId[clientId] || ""
+  ).trim();
 
-    try {
-      setSavingPhoneClientId(clientId);
+  try {
+    setSavingPhoneClientId(clientId);
 
-      const res = await fetch(`/api/producer/clients`, {
+    const res = await fetch("/api/producer/clients", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({
+        clientId,
+        phone,
+      }),
+    });
 
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          phone,
-        }),
-      });
+    const data =
+      await res.json().catch(() => null);
 
-      const data = await res.json().catch(() => null);
-
-      if (!res.ok || data?.success === false) {
-        throw new Error(data?.message || "שגיאה בשמירת מספר טלפון");
-      }
-
-      setClients((prev) =>
-        prev.map((item) =>
-          String(item._id) === clientId
-            ? {
-                ...item,
-                phone,
-              }
-            : item
-        )
+    if (!res.ok || data?.success === false) {
+      throw new Error(
+        data?.message ||
+          "שגיאה בשמירת מספר טלפון"
       );
-
-      setEditingPhoneClientId(null);
-    } catch (err) {
-      console.error(err);
-      alert(
-        err?.message ||
-          "לא הצלחנו לשמור מספר טלפון. צריך לוודא שקיים PATCH /api/producer/clients/[clientId]"
-      );
-    } finally {
-      setSavingPhoneClientId(null);
     }
+
+    setClients((prev) =>
+      prev.map((item) =>
+        String(item._id) === clientId
+          ? {
+              ...item,
+              phone,
+            }
+          : item
+      )
+    );
+
+    setEditingPhoneClientId(null);
+  } catch (err) {
+    console.error("SAVE PHONE ERROR:", err);
+
+    alert(
+      err?.message ||
+        "שגיאה בשמירת מספר טלפון"
+    );
+  } finally {
+    setSavingPhoneClientId(null);
   }
+}
 
   /* =========================
      Stats + Filters
