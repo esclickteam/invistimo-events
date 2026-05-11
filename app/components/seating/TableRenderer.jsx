@@ -264,10 +264,8 @@ function TableRenderer({ table, hideSeats = false }) {
   const hasArrived = occupiedSeatsCount > 0;
 
   /* ============================================================
-     עיצוב בלבד - צבעי שולחן וכיסאות
-     לא נוגעים בלוגיקה / גרירה / cache / גודל / טקסט
+     עיצוב בלבד
   ============================================================ */
-
   const tableFill = "#FFF9ED";
 
   const tableStroke = isHighlighted
@@ -298,23 +296,6 @@ function TableRenderer({ table, hideSeats = false }) {
 
     return arrived;
   }, [table.seatedGuests, occupiedSeatsCount]);
-
-  /* ====== CACHE כמו Canva ====== */
-  useEffect(() => {
-    if (tableRef.current) {
-      tableRef.current.clearCache();
-      tableRef.current.cache();
-      tableRef.current.getLayer()?.batchDraw();
-    }
-  }, [
-    layout.type,
-    table.seats,
-    table.seatedGuests,
-    occupiedSeatsCount,
-    hideSeats,
-    liveArrivals,
-    table.name,
-  ]);
 
   const handleDrop = (e) => {
     e.cancelBubble = true;
@@ -419,11 +400,8 @@ function TableRenderer({ table, hideSeats = false }) {
       onTap={handleClick}
     >
       {/* ============================================================
-          כסאות
-          חשוב:
-          לא משתמשים ב-hideSeats כאן.
-          הכיסאות יוצגו גם במפיק.
-          מציירים אותם לפני השולחן כדי שחלק מהמושב ייכנס מתחת לשולחן.
+          כסאות - תמיד מוצגים גם במפיק
+          מצוירים לפני השולחן כדי שחלק מהם ייכנס מתחת לשולחן
       ============================================================ */}
       {seatsCoords.map((c, i) => {
         const seat = table.seatedGuests.find((s) => s.seatIndex === i);
@@ -433,14 +411,19 @@ function TableRenderer({ table, hideSeats = false }) {
 
         const rotation = getSeatRotation(layout, c) - (table.rotation || 0);
 
-        /*
-          הזזה קטנה לכיוון מרכז השולחן,
-          כדי שהכיסא לא יעמוד מנותק מבחוץ.
-        */
-        const dist = Math.hypot(c.x, c.y) || 1;
-        const inset = 5;
-        const chairX = c.x - (c.x / dist) * inset;
-        const chairY = c.y - (c.y / dist) * inset;
+        let chairX = c.x;
+        let chairY = c.y;
+
+        if (layout.type === "banquet") {
+          const inset = 12;
+          chairY = c.y > 0 ? c.y - inset : c.y + inset;
+        } else {
+          const dist = Math.hypot(c.x, c.y) || 1;
+          const inset = 7;
+
+          chairX = c.x - (c.x / dist) * inset;
+          chairY = c.y - (c.y / dist) * inset;
+        }
 
         const chairFill = isOccupied ? "#B98A45" : "#FFF9EF";
         const chairStroke = isOccupied ? "#8B6532" : "#D9C3A2";
@@ -449,7 +432,7 @@ function TableRenderer({ table, hideSeats = false }) {
 
         return (
           <Group key={i} x={chairX} y={chairY} rotation={rotation}>
-            {/* גב הכיסא - לכיוון השולחן */}
+            {/* גב הכיסא */}
             <Rect
               x={-7}
               y={-14}
@@ -459,10 +442,7 @@ function TableRenderer({ table, hideSeats = false }) {
               fill={chairFill}
               stroke={chairStroke}
               strokeWidth={0.8}
-              shadowColor="rgba(88, 58, 28, 0.14)"
-              shadowBlur={2}
-              shadowOffset={{ x: 0, y: 1 }}
-              shadowOpacity={1}
+              perfectDrawEnabled={false}
             />
 
             {/* רווח קטן בין הגב למושב */}
@@ -475,9 +455,10 @@ function TableRenderer({ table, hideSeats = false }) {
               fill={chairDepth}
               opacity={0.55}
               listening={false}
+              perfectDrawEnabled={false}
             />
 
-            {/* מושב הכיסא - כמעט באותו רוחב כמו הגב */}
+            {/* מושב הכיסא */}
             <Rect
               x={-7}
               y={-6}
@@ -487,10 +468,7 @@ function TableRenderer({ table, hideSeats = false }) {
               fill={chairFill}
               stroke={chairStroke}
               strokeWidth={0.9}
-              shadowColor="rgba(88, 58, 28, 0.13)"
-              shadowBlur={2.5}
-              shadowOffset={{ x: 0, y: 1 }}
-              shadowOpacity={1}
+              perfectDrawEnabled={false}
             />
 
             {/* הברקה פנימית עדינה */}
@@ -501,14 +479,15 @@ function TableRenderer({ table, hideSeats = false }) {
               height={3}
               cornerRadius={1.5}
               fill={chairHighlight}
-              opacity={0.35}
+              opacity={0.28}
               listening={false}
+              perfectDrawEnabled={false}
             />
           </Group>
         );
       })}
 
-      {/* שולחן */}
+      {/* שולחן עגול */}
       {layout.type === "round" && (
         <>
           <Circle
@@ -516,6 +495,7 @@ function TableRenderer({ table, hideSeats = false }) {
             fill={tableFill}
             stroke={tableStroke}
             strokeWidth={1.4}
+            perfectDrawEnabled={false}
           />
 
           <Text
@@ -529,10 +509,13 @@ function TableRenderer({ table, hideSeats = false }) {
             fill={tableText}
             fontSize={14}
             lineHeight={1.25}
+            listening={false}
+            perfectDrawEnabled={false}
           />
         </>
       )}
 
+      {/* שולחן מרובע */}
       {layout.type === "square" && (
         <>
           <Rect
@@ -544,6 +527,7 @@ function TableRenderer({ table, hideSeats = false }) {
             stroke={tableStroke}
             strokeWidth={1.4}
             cornerRadius={10}
+            perfectDrawEnabled={false}
           />
 
           <Text
@@ -557,10 +541,13 @@ function TableRenderer({ table, hideSeats = false }) {
             fill={tableText}
             fontSize={14}
             lineHeight={1.25}
+            listening={false}
+            perfectDrawEnabled={false}
           />
         </>
       )}
 
+      {/* שולחן אבירים / מלבני */}
       {layout.type === "banquet" && (
         <>
           <Rect
@@ -572,6 +559,7 @@ function TableRenderer({ table, hideSeats = false }) {
             stroke={tableStroke}
             strokeWidth={1.4}
             cornerRadius={12}
+            perfectDrawEnabled={false}
           />
 
           <Text
@@ -585,6 +573,8 @@ function TableRenderer({ table, hideSeats = false }) {
             fill={tableText}
             fontSize={14}
             lineHeight={1.25}
+            listening={false}
+            perfectDrawEnabled={false}
           />
         </>
       )}
@@ -606,10 +596,7 @@ function TableRenderer({ table, hideSeats = false }) {
             fill="#FFF9ED"
             stroke="#CBA56C"
             strokeWidth={1}
-            shadowColor="rgba(88, 58, 28, 0.18)"
-            shadowBlur={6}
-            shadowOffset={{ x: 0, y: 2 }}
-            shadowOpacity={0.8}
+            perfectDrawEnabled={false}
           />
 
           <Text
@@ -622,6 +609,8 @@ function TableRenderer({ table, hideSeats = false }) {
             verticalAlign="middle"
             fill="#9A6A2F"
             fontSize={14}
+            listening={false}
+            perfectDrawEnabled={false}
           />
         </Group>
       )}
