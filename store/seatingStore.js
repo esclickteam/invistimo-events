@@ -275,29 +275,42 @@ canSeatGuestAtTable: (tableId, guest) => {
 
 
 canSeatGroupAtTable: (tableId, groupId) => {
-  const { guests, getPlannedSeatCount, getGuestSeatCount, getFreeSeats, seatingMode } = get();
+  const {
+    guests,
+    tables,
+    getPlannedSeatCount,
+    getGuestSeatCount,
+    getFreeSeats,
+    seatingMode,
+  } = get();
 
-  const groupGuests = guests.filter(
-    (g) => String(g.groupId) === String(groupId)
+  const table = tables.find((t) => String(t.id) === String(tableId));
+  if (!table) return false;
+
+  const seatedGuestIds = new Set(
+    tables.flatMap((t) =>
+      (t.seatedGuests || []).map((s) => String(s.guestId))
+    )
   );
 
-  if (!groupGuests.length) return false;
-
-  const needed = groupGuests.reduce(
-    (sum, g) =>
-      sum +
-      (seatingMode === "live"
-        ? getGuestSeatCount(g)
-        : getPlannedSeatCount(g)),
-    0
+  const remainingGroupGuests = guests.filter(
+    (g) =>
+      String(g.groupId) === String(groupId) &&
+      !seatedGuestIds.has(String(g.id ?? g._id))
   );
 
-  if (needed <= 0) return false;
+  if (!remainingGroupGuests.length) return false;
 
   const free = getFreeSeats(tableId);
-  return free >= needed;
-},
+  if (free <= 0) return false;
 
+  return remainingGroupGuests.some((g) => {
+    const count =
+      seatingMode === "live" ? getGuestSeatCount(g) : getPlannedSeatCount(g);
+
+    return count > 0 && count <= free;
+  });
+},
 
 
 canSeatGuests: (tableId, guest) => {
@@ -352,59 +365,117 @@ removeGroup: (groupId) =>
   /* ================= ⭐ GROUP SEATING ================= */
 
 seatGroup: (groupId, tableId) => {
-  const { groups, guests, tables, seatingMode } = get();
+  const {
+    groups,
+    guests,
+    tables,
+    seatingMode,
+    getPlannedSeatCount,
+    getGuestSeatCount,
+  } = get();
 
-  const group = groups.find((g) => g._id === groupId);
-  if (!group) return { ok: false, message: "קבוצה לא נמצאה" };
+  const group = groups.find(
+    (g) => String(g._id) === String(groupId)
+  );
 
-  const groupGuests = guests.filter((g) => String(g.groupId) === String(groupId));
-  if (!groupGuests.length) {
-    return { ok: false, message: "אין מוזמנים בקבוצה" };
+  if (!group) {
+    return { ok: false, message: "קבוצה לא נמצאה" };
   }
 
-  // ✅ regular = planned | live = actual arrivals
-  const seatCountFn =
-    seatingMode === "live"
-      ? get().getGuestSeatCount
-      : get().getPlannedSeatCount;
+  const targetTable = tables.find(
+    (t) => String(t.id) === String(tableId)
+  );
 
-  const totalCount = groupGuests.reduce((sum, g) => sum + seatCountFn(g), 0);
-
-  if (totalCount <= 0) {
-    return {
-      ok: false,
-      message:
-        seatingMode === "live"
-          ? "בקבוצה אין הגעה בפועל לשיבוץ"
-          : "אין כמות מושבים תקינה בקבוצה",
-    };
-  }
-
-  // ניקוי הושבות קודמות של הקבוצה מכל השולחנות
-  let updatedTables = tables.map((t) => ({
-    ...t,
-    seatedGuests: (t.seatedGuests || []).filter(
-      (sg) => String(sg.groupId) !== String(groupId)
-    ),
-  }));
-
-  const targetTable = updatedTables.find((t) => String(t.id) === String(tableId));
   if (!targetTable) {
     return { ok: false, message: "שולחן לא נמצא" };
   }
 
-  const block = findFreeBlock(targetTable, totalCount);
-  if (!block || block.length < totalCount) {
-    return { ok: false, message: "אין מספיק מקומות פנויים" };
+  const seatCountFn =
+    seatingMode === "live"
+      ? getGuestSeatCount
+      : getPlannedSeatCount;
+
+  /*
+    כאן התיקון:
+    לא בודקים אם הקבוצה כבר שובצה.
+    בודקים מי מתוך הקבוצה עדיין לא יושב בשום שולחן.
+  */
+  const seatedGuestIds = new Set(
+    tables.flatMap((table) =>
+      (table.seatedGuests || []).map((seat) =>
+        String(seat.guestId)
+      )
+    )
+  );
+
+  const remainingGroupGuests = guests.filter(
+    (guest) =>
+      String(guest.groupId) === String(groupId) &&
+      !seatedGuestIds.has(String(guest.id ?? guest._id))
+  );
+
+  if (!remainingGroupGuests.length) {
+    return {
+      ok: false,
+      message: "כל האורחים בקבוצה כבר שובצו",
+    };
+  }
+
+  const currentTargetSeats = targetTable.seatedGuests || [];
+
+  const freeSeats =
+    Number(targetTable.seats || 0) -
+    Number(currentTargetSeats.length || 0);
+
+  if (freeSeats <= 0) {
+    return { ok: false, message: "אין מקומות פנויים בשולחן" };
+  }
+
+  /*
+    לוקחים רק את מי שנכנס לשולחן הזה.
+    אם יש קבוצה של 55 ושולחן של 12 —
+    ייכנסו רק עד 12 מקומות.
+  */
+  const guestsToSeat = [];
+  let neededSeats = 0;
+
+  for (const guest of remainingGroupGuests) {
+    const count = Number(seatCountFn(guest) || 0);
+
+    if (count <= 0) continue;
+
+    if (neededSeats + count > freeSeats) {
+      continue;
+    }
+
+    guestsToSeat.push(guest);
+    neededSeats += count;
+
+    if (neededSeats >= freeSeats) break;
+  }
+
+  if (!guestsToSeat.length || neededSeats <= 0) {
+    return {
+      ok: false,
+      message: "אין מספיק מקום לאורחים הבאים בקבוצה",
+    };
+  }
+
+  const block = findFreeBlock(targetTable, neededSeats);
+
+  if (!block || block.length < neededSeats) {
+    return {
+      ok: false,
+      message: "אין רצף מקומות פנוי בשולחן",
+    };
   }
 
   let cursor = 0;
 
-  const newSeats = groupGuests.flatMap((guest) => {
-    const count = seatCountFn(guest);
-    if (count <= 0) return [];
-
+  const newSeats = guestsToSeat.flatMap((guest) => {
+    const count = Number(seatCountFn(guest) || 0);
     const seats = block.slice(cursor, cursor + count);
+
     cursor += count;
 
     return seats.map((seatIndex) => ({
@@ -415,15 +486,6 @@ seatGroup: (groupId, tableId) => {
     }));
   });
 
-  updatedTables = updatedTables.map((t) =>
-    String(t.id) === String(tableId)
-      ? {
-          ...t,
-          seatedGuests: [...(t.seatedGuests || []), ...newSeats],
-        }
-      : t
-  );
-
   const resolvedTableName = String(
     targetTable?.number ??
       extractNumberFromName(targetTable?.name) ??
@@ -431,25 +493,64 @@ seatGroup: (groupId, tableId) => {
       ""
   ).trim();
 
+  const seatedNowIds = new Set(
+    guestsToSeat.map((guest) =>
+      String(guest.id ?? guest._id)
+    )
+  );
+
+  const updatedTables = tables.map((table) =>
+    String(table.id) === String(tableId)
+      ? {
+          ...table,
+          seatedGuests: [
+            ...(table.seatedGuests || []),
+            ...newSeats,
+          ],
+        }
+      : table
+  );
+
+  const updatedGuests = guests.map((guest) =>
+    seatedNowIds.has(String(guest.id ?? guest._id))
+      ? {
+          ...guest,
+          tableId,
+          tableName: resolvedTableName || null,
+        }
+      : guest
+  );
+
+  /*
+    אם נשארו עוד אנשים בקבוצה ללא שולחן,
+    הקבוצה לא מסומנת כסגורה לגמרי.
+  */
+  const stillRemaining = updatedGuests.some(
+    (guest) =>
+      String(guest.groupId) === String(groupId) &&
+      !guest.tableId
+  );
+
   set({
     tables: updatedTables,
-    guests: guests.map((g) =>
-      String(g.groupId) === String(groupId)
-        ? {
-            ...g,
-            tableId: tableId,
-            tableName: resolvedTableName || null,
-          }
-        : g
-    ),
+    guests: updatedGuests,
     groups: groups.map((g) =>
       String(g._id) === String(groupId)
-        ? { ...g, tableId, isSeated: true }
+        ? {
+            ...g,
+            tableId: stillRemaining ? null : tableId,
+            isSeated: !stillRemaining,
+          }
         : g
     ),
   });
 
-  return { ok: true };
+  return {
+    ok: true,
+    seatedGuests: guestsToSeat.length,
+    seatsUsed: neededSeats,
+    hasRemaining: stillRemaining,
+  };
 },
 
 
