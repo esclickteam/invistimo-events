@@ -9,21 +9,178 @@ import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-/* =========================
-   GET – Load conversations
-========================= */
-export async function GET(
+/* =========================================================
+   Helpers
+========================================================= */
+
+function normalizeConversationBody(body: any) {
+  const type =
+    body.type ||
+    body.calendarType ||
+    body.meetingType ||
+    "meeting";
+
+  const calendarType =
+    body.calendarType ||
+    body.meetingType ||
+    body.type ||
+    "meeting";
+
+  const meetingType =
+    body.meetingType ||
+    body.calendarType ||
+    body.type ||
+    "meeting";
+
+  const entityType =
+    body.entityType ||
+    "calendar";
+
+  const entityName =
+    body.entityName ||
+    body.title ||
+    body.name ||
+    body.subject ||
+    "";
+
+  const title =
+    body.title ||
+    body.entityName ||
+    body.name ||
+    body.subject ||
+    "";
+
+  const date =
+    body.date ||
+    body.meetingDate ||
+    body.eventDate ||
+    body.dueDate ||
+    "";
+
+  const time =
+    body.time ||
+    body.meetingTime ||
+    body.eventTime ||
+    body.hour ||
+    "";
+
+  const description =
+    body.description ||
+    body.notes ||
+    body.message ||
+    body.summary ||
+    "";
+
+  const summary =
+    body.summary ||
+    body.description ||
+    body.notes ||
+    body.message ||
+    "";
+
+  const location =
+    body.location ||
+    body.address ||
+    "";
+
+  const zoomLink =
+    body.zoomLink ||
+    (calendarType === "zoom" ? location : "");
+
+  return {
+    type,
+    calendarType,
+    meetingType,
+    entityType,
+
+    entityName,
+    title,
+    name: title,
+    subject: title,
+
+    date,
+    meetingDate: date,
+    eventDate: date,
+    dueDate: date,
+
+    time,
+    meetingTime: time,
+    eventTime: time,
+    hour: time,
+
+    summary,
+    description,
+    notes: description,
+    message: description,
+
+    location,
+    address: location,
+    zoomLink,
+
+    status: body.status || "planned",
+
+    syncToProducerCalendar:
+      body.syncToProducerCalendar !== false,
+  };
+}
+
+async function requireEventAccess(eventId: string, userId: string) {
+  if (!mongoose.Types.ObjectId.isValid(eventId)) {
+    return {
+      error: NextResponse.json(
+        {
+          success: false,
+          error: "INVALID_EVENT_ID",
+        },
+        { status: 400 }
+      ),
+    };
+  }
+
+  const event = await Event.findOne({
+    _id: eventId,
+    $or: [
+      { userId },
+      { producerId: userId },
+    ],
+  }).select("_id userId producerId");
+
+  if (!event) {
+    return {
+      error: NextResponse.json(
+        {
+          success: false,
+          error: "FORBIDDEN",
+        },
+        { status: 403 }
+      ),
+    };
+  }
+
+  return {
+    event,
+  };
+}
+
+/* =========================================================
+   PATCH – Update conversation/calendar item
+   Route:
+   /api/events/[eventId]/conversations/[conversationId]
+========================================================= */
+
+export async function PATCH(
   req: NextRequest,
   context: {
     params: Promise<{
       eventId: string;
+      conversationId: string;
     }>;
   }
 ) {
   try {
     await db();
 
-    const auth = await getUserIdFromRequest();
+    const auth = await getUserIdFromRequest(req);
 
     if (!auth?.userId) {
       return NextResponse.json(
@@ -35,52 +192,67 @@ export async function GET(
       );
     }
 
-    const { eventId } = await context.params;
+    const { eventId, conversationId } = await context.params;
 
-    if (!mongoose.Types.ObjectId.isValid(eventId)) {
+    const access = await requireEventAccess(eventId, auth.userId);
+
+    if (access.error) {
+      return access.error;
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(conversationId)) {
       return NextResponse.json(
         {
           success: false,
-          error: "INVALID_EVENT_ID",
+          error: "INVALID_CONVERSATION_ID",
         },
         { status: 400 }
       );
     }
 
-    const event = await Event.findOne({
-      _id: eventId,
-      $or: [
-        { userId: auth.userId },
-        { producerId: auth.userId },
-      ],
-    }).select("_id userId producerId");
+    const body = await req.json();
+    const updates = normalizeConversationBody(body);
 
-    if (!event) {
+    if (!updates.entityName || !updates.date) {
       return NextResponse.json(
         {
           success: false,
-          error: "FORBIDDEN",
+          error: "MISSING_FIELDS",
         },
-        { status: 403 }
+        { status: 400 }
       );
     }
 
-    const conversations = await EventConversation.find({
-      eventId,
-    })
-      .sort({
-        date: 1,
-        time: 1,
-        createdAt: -1,
-      })
-      .lean();
+    const conversation =
+      await EventConversation.findOneAndUpdate(
+        {
+          _id: conversationId,
+          eventId,
+        },
+        {
+          $set: updates,
+        },
+        {
+          new: true,
+        }
+      );
+
+    if (!conversation) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "CONVERSATION_NOT_FOUND",
+        },
+        { status: 404 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
-      conversations,
+      conversation,
     });
   } catch (err) {
-    console.error("❌ GET conversations failed:", err);
+    console.error("❌ PATCH conversation failed:", err);
 
     return NextResponse.json(
       {
@@ -92,21 +264,25 @@ export async function GET(
   }
 }
 
-/* =========================
-   POST – Create calendar item / meeting / reminder / event
-========================= */
-export async function POST(
+/* =========================================================
+   DELETE – Delete conversation/calendar item
+   Route:
+   /api/events/[eventId]/conversations/[conversationId]
+========================================================= */
+
+export async function DELETE(
   req: NextRequest,
   context: {
     params: Promise<{
       eventId: string;
+      conversationId: string;
     }>;
   }
 ) {
   try {
     await db();
 
-    const auth = await getUserIdFromRequest();
+    const auth = await getUserIdFromRequest(req);
 
     if (!auth?.userId) {
       return NextResponse.json(
@@ -118,175 +294,45 @@ export async function POST(
       );
     }
 
-    const { eventId } = await context.params;
+    const { eventId, conversationId } = await context.params;
 
-    if (!mongoose.Types.ObjectId.isValid(eventId)) {
+    const access = await requireEventAccess(eventId, auth.userId);
+
+    if (access.error) {
+      return access.error;
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(conversationId)) {
       return NextResponse.json(
         {
           success: false,
-          error: "INVALID_EVENT_ID",
+          error: "INVALID_CONVERSATION_ID",
         },
         { status: 400 }
       );
     }
 
-    const event = await Event.findOne({
-      _id: eventId,
-      $or: [
-        { userId: auth.userId },
-        { producerId: auth.userId },
-      ],
-    }).select("_id userId producerId");
-
-    if (!event) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "FORBIDDEN",
-        },
-        { status: 403 }
-      );
-    }
-
-    const body = await req.json();
-
-    const type =
-      body.type ||
-      body.calendarType ||
-      body.meetingType ||
-      "meeting";
-
-    const calendarType =
-      body.calendarType ||
-      body.meetingType ||
-      body.type ||
-      "meeting";
-
-    const meetingType =
-      body.meetingType ||
-      body.calendarType ||
-      body.type ||
-      "meeting";
-
-    const entityType =
-      body.entityType ||
-      "calendar";
-
-    const entityName =
-      body.entityName ||
-      body.title ||
-      body.name ||
-      body.subject ||
-      "";
-
-    const title =
-      body.title ||
-      body.entityName ||
-      body.name ||
-      body.subject ||
-      "";
-
-    const date =
-      body.date ||
-      body.meetingDate ||
-      body.eventDate ||
-      body.dueDate ||
-      "";
-
-    const time =
-      body.time ||
-      body.meetingTime ||
-      body.eventTime ||
-      body.hour ||
-      "";
-
-    const description =
-      body.description ||
-      body.notes ||
-      body.message ||
-      body.summary ||
-      "";
-
-    const summary =
-      body.summary ||
-      body.description ||
-      body.notes ||
-      body.message ||
-      "";
-
-    const location =
-      body.location ||
-      body.address ||
-      "";
-
-    const zoomLink =
-      body.zoomLink ||
-      (calendarType === "zoom" ? location : "");
-
-    const status =
-      body.status ||
-      "planned";
-
-    if (!entityName || !date) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "MISSING_FIELDS",
-          required: {
-            entityName: !!entityName,
-            date: !!date,
-          },
-        },
-        { status: 400 }
-      );
-    }
-
-    const conversation = await EventConversation.create({
+    const deleted = await EventConversation.findOneAndDelete({
+      _id: conversationId,
       eventId,
-
-      // old fields
-      type,
-      entityType,
-      entityName,
-      date,
-      summary,
-
-      // new calendar fields
-      calendarType,
-      meetingType,
-      title,
-      name: title,
-
-      meetingDate: date,
-      eventDate: date,
-      dueDate: date,
-
-      time,
-      meetingTime: time,
-      eventTime: time,
-
-      description,
-      notes: description,
-      message: description,
-
-      location,
-      address: location,
-      zoomLink,
-
-      status,
-
-      syncToProducerCalendar:
-        body.syncToProducerCalendar !== false,
-
-      createdBy: auth.userId,
     });
+
+    if (!deleted) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "CONVERSATION_NOT_FOUND",
+        },
+        { status: 404 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
-      conversation,
+      deletedId: conversationId,
     });
   } catch (err) {
-    console.error("❌ POST conversation failed:", err);
+    console.error("❌ DELETE conversation failed:", err);
 
     return NextResponse.json(
       {

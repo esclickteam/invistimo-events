@@ -23,7 +23,6 @@ import {
   PartyPopper,
   ChevronLeft,
   ChevronRight,
-  RefreshCcw,
 } from "lucide-react";
 
 /* ======================================================
@@ -117,6 +116,39 @@ function buildStart(date, time) {
   return date;
 }
 
+function formatDisplayDate(date) {
+  if (!date) return "—";
+
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return "—";
+
+  return d.toLocaleDateString("he-IL", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+function isSameDate(a, b) {
+  if (!a || !b) return false;
+
+  const d1 = new Date(a);
+  const d2 = new Date(b);
+
+  if (
+    Number.isNaN(d1.getTime()) ||
+    Number.isNaN(d2.getTime())
+  ) {
+    return false;
+  }
+
+  return (
+    d1.getFullYear() === d2.getFullYear() &&
+    d1.getMonth() === d2.getMonth() &&
+    d1.getDate() === d2.getDate()
+  );
+}
+
 function mapConversationToCalendarItem(item) {
   const itemType =
     item.calendarType ||
@@ -166,6 +198,7 @@ function mapConversationToCalendarItem(item) {
         item.description ||
         item.notes ||
         item.message ||
+        item.summary ||
         "",
       location:
         item.location ||
@@ -187,6 +220,10 @@ export default function CalendarTab({ eventId }) {
   const [calendarItems, setCalendarItems] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
+
+  const [selectedDate, setSelectedDate] = useState(() =>
+    formatDateInput(new Date())
+  );
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -235,6 +272,7 @@ export default function CalendarTab({ eventId }) {
             "task",
             "call",
             "zoom",
+            "note",
           ].includes(type);
         })
         .map(mapConversationToCalendarItem)
@@ -254,6 +292,40 @@ export default function CalendarTab({ eventId }) {
   }, [eventId]);
 
   /* ======================================================
+     DERIVED
+  ====================================================== */
+
+  const selectedDateItems = useMemo(() => {
+    return calendarItems
+      .filter((item) => isSameDate(item.start, selectedDate))
+      .sort((a, b) => {
+        const aTime = a.extendedProps.time || "99:99";
+        const bTime = b.extendedProps.time || "99:99";
+        return aTime.localeCompare(bTime);
+      });
+  }, [calendarItems, selectedDate]);
+
+  const upcomingWeekItems = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const weekEnd = new Date(today);
+    weekEnd.setDate(today.getDate() + 7);
+    weekEnd.setHours(23, 59, 59, 999);
+
+    return calendarItems
+      .filter((item) => {
+        const d = new Date(item.start);
+        return d >= today && d <= weekEnd;
+      })
+      .sort(
+        (a, b) =>
+          new Date(a.start).getTime() -
+          new Date(b.start).getTime()
+      );
+  }, [calendarItems]);
+
+  /* ======================================================
      CALENDAR CONTROLS
   ====================================================== */
 
@@ -266,7 +338,10 @@ export default function CalendarTab({ eventId }) {
 
   function goToday() {
     const api = calendarRef.current?.getApi?.();
+    const today = new Date();
+
     api?.today();
+    setSelectedDate(formatDateInput(today));
     updateTitle();
   }
 
@@ -293,6 +368,8 @@ export default function CalendarTab({ eventId }) {
   ====================================================== */
 
   function openCreateModal(date = new Date()) {
+    setSelectedDate(formatDateInput(date));
+
     setSelectedItem({
       _id: null,
       type: "meeting",
@@ -310,6 +387,11 @@ export default function CalendarTab({ eventId }) {
   function openEditModal(clickInfo) {
     const event = clickInfo.event;
     const raw = event.extendedProps.raw || {};
+
+    setSelectedDate(
+      event.extendedProps.date ||
+        formatDateInput(event.start)
+    );
 
     setSelectedItem({
       _id: event.id,
@@ -332,6 +414,7 @@ export default function CalendarTab({ eventId }) {
       description:
         event.extendedProps.description ||
         raw.description ||
+        raw.summary ||
         "",
       location:
         event.extendedProps.location ||
@@ -344,6 +427,17 @@ export default function CalendarTab({ eventId }) {
     });
 
     setModalOpen(true);
+  }
+
+  function openItemFromList(item) {
+    openEditModal({
+      event: {
+        id: item.id,
+        title: item.title,
+        start: new Date(item.start),
+        extendedProps: item.extendedProps,
+      },
+    });
   }
 
   async function saveCalendarItem(form) {
@@ -363,35 +457,41 @@ export default function CalendarTab({ eventId }) {
 
     try {
       const payload = {
-  type: form.type || "meeting",
-  calendarType: form.type || "meeting",
-  meetingType: form.type || "meeting",
+        type: form.type || "meeting",
+        calendarType: form.type || "meeting",
+        meetingType: form.type || "meeting",
 
-  entityName: form.title.trim(),
-  title: form.title.trim(),
-  name: form.title.trim(),
+        entityType: "calendar",
 
-  date: form.date,
-  meetingDate: form.date,
-  eventDate: form.date,
+        entityName: form.title.trim(),
+        title: form.title.trim(),
+        name: form.title.trim(),
 
-  time: form.time || "",
-  meetingTime: form.time || "",
-  eventTime: form.time || "",
+        date: form.date,
+        meetingDate: form.date,
+        eventDate: form.date,
 
-  description: form.description || "",
-  notes: form.description || "",
-  message: form.description || "",
+        time: form.time || "",
+        meetingTime: form.time || "",
+        eventTime: form.time || "",
 
-  location: form.location || "",
-  address: form.location || "",
-  zoomLink: form.type === "zoom" ? form.location || "" : "",
+        summary: form.description || "",
+        description: form.description || "",
+        notes: form.description || "",
+        message: form.description || "",
 
-  status: form.status || "planned",
+        location: form.location || "",
+        address: form.location || "",
+        zoomLink:
+          form.type === "zoom"
+            ? form.location || ""
+            : "",
 
-  eventId,
-  syncToProducerCalendar: true,
-};
+        status: form.status || "planned",
+
+        eventId,
+        syncToProducerCalendar: true,
+      };
 
       let res;
 
@@ -424,6 +524,7 @@ export default function CalendarTab({ eventId }) {
       if (!res.ok || data?.success === false) {
         throw new Error(
           data?.message ||
+            data?.error ||
             "שמירת הפריט ביומן נכשלה"
         );
       }
@@ -455,6 +556,7 @@ export default function CalendarTab({ eventId }) {
         return [...prev, mapped];
       });
 
+      setSelectedDate(form.date);
       setModalOpen(false);
       setSelectedItem(null);
     } catch (err) {
@@ -462,7 +564,7 @@ export default function CalendarTab({ eventId }) {
 
       alert(
         err?.message ||
-          "לא הצלחנו לשמור את הפריט ביומן. צריך לוודא שה־API תומך ב־POST/PATCH ל־conversations."
+          "לא הצלחנו לשמור את הפריט ביומן."
       );
     } finally {
       setSaving(false);
@@ -479,9 +581,15 @@ export default function CalendarTab({ eventId }) {
     const ok = confirm("למחוק את הפריט מהיומן?");
     if (!ok) return;
 
+    const previousItems = calendarItems;
+
     setSaving(true);
 
     try {
+      setCalendarItems((prev) =>
+        prev.filter((item) => String(item.id) !== String(id))
+      );
+
       const res = await fetch(
         `/api/events/${eventId}/conversations/${id}`,
         {
@@ -493,40 +601,27 @@ export default function CalendarTab({ eventId }) {
 
       if (!res.ok || data?.success === false) {
         throw new Error(
-          data?.message || "מחיקה נכשלה"
+          data?.message ||
+            data?.error ||
+            "מחיקה נכשלה"
         );
       }
-
-      setCalendarItems((prev) =>
-        prev.filter((item) => String(item.id) !== String(id))
-      );
 
       setModalOpen(false);
       setSelectedItem(null);
     } catch (err) {
       console.error(err);
+
+      setCalendarItems(previousItems);
+
       alert(
         err?.message ||
-          "לא הצלחנו למחוק. צריך לוודא שקיים DELETE ל־conversations."
+          "לא הצלחנו למחוק. צריך לוודא שקיים DELETE ל־conversations/[conversationId]."
       );
     } finally {
       setSaving(false);
     }
   }
-
-  const upcomingItems = useMemo(() => {
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-
-    return calendarItems
-      .filter((item) => new Date(item.start) >= now)
-      .sort(
-        (a, b) =>
-          new Date(a.start).getTime() -
-          new Date(b.start).getTime()
-      )
-      .slice(0, 6);
-  }, [calendarItems]);
 
   /* ======================================================
      UI
@@ -621,7 +716,7 @@ export default function CalendarTab({ eventId }) {
 
             <p className="text-gray-500 mt-3 max-w-2xl leading-7">
               כל הפגישות, האירועים, התזכורות והמשימות של ההפקה.
-              כל פריט שנוסף כאן נשמר תחת הלקוח ומיועד להופיע גם ביומן המפיק.
+              בצד ימין מוצגים 7 ימים קדימה, ובצד שמאל פירוט לפי היום שבחרת.
             </p>
           </div>
 
@@ -656,12 +751,59 @@ export default function CalendarTab({ eventId }) {
         className="
           grid
           grid-cols-1
-          xl:grid-cols-[1fr_340px]
+          2xl:grid-cols-[330px_1fr_330px]
+          xl:grid-cols-[300px_1fr_300px]
           gap-6
           items-start
         "
       >
-        {/* CALENDAR */}
+        {/* LEFT - SELECTED DATE DETAILS */}
+        <SidePanel
+          title="פירוט היום הנבחר"
+          subtitle={formatDisplayDate(selectedDate)}
+          icon={ClipboardList}
+        >
+          {selectedDateItems.length === 0 ? (
+            <EmptyBox text="אין פריטים ביום הזה." />
+          ) : (
+            <div className="space-y-3">
+              {selectedDateItems.map((item) => (
+                <CalendarSmallCard
+                  key={item.id}
+                  item={item}
+                  onClick={() => openItemFromList(item)}
+                />
+              ))}
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => openCreateModal(selectedDate)}
+            className="
+              mt-4
+              w-full
+              rounded-2xl
+              border
+              border-[#E7D8FF]
+              bg-[#F4EDFF]
+              text-[#6D28D9]
+              px-4
+              py-3
+              text-sm
+              font-black
+              flex
+              items-center
+              justify-center
+              gap-2
+            "
+          >
+            <Plus size={16} />
+            הוסף ליום הזה
+          </button>
+        </SidePanel>
+
+        {/* CENTER - CALENDAR */}
         <div
           className="
             rounded-[34px]
@@ -673,7 +815,6 @@ export default function CalendarTab({ eventId }) {
             overflow-hidden
           "
         >
-          {/* Toolbar */}
           <div
             className="
               flex
@@ -691,7 +832,7 @@ export default function CalendarTab({ eventId }) {
               </h3>
 
               <p className="text-sm text-gray-400 mt-1">
-                לחיצה על יום מוסיפה פריט חדש. לחיצה על פריט פותחת עריכה.
+                לחיצה על יום מציגה פירוט בצד שמאל ופותחת הוספה.
               </p>
             </div>
 
@@ -785,24 +926,6 @@ export default function CalendarTab({ eventId }) {
               >
                 שבוע
               </button>
-
-              <button
-                type="button"
-                onClick={loadCalendarItems}
-                className="
-                  rounded-2xl
-                  border
-                  border-[#E8DDD3]
-                  bg-white
-                  px-4
-                  py-3
-                  text-sm
-                  font-black
-                  text-[#1E1B2E]
-                "
-              >
-                רענון
-              </button>
             </div>
           </div>
 
@@ -839,9 +962,10 @@ export default function CalendarTab({ eventId }) {
                 editable={false}
                 height="auto"
                 events={calendarItems}
-                dateClick={(info) =>
-                  openCreateModal(info.date)
-                }
+                dateClick={(info) => {
+                  setSelectedDate(info.dateStr);
+                  openCreateModal(info.date);
+                }}
                 eventClick={openEditModal}
                 datesSet={updateTitle}
                 eventTimeFormat={{
@@ -854,146 +978,26 @@ export default function CalendarTab({ eventId }) {
           )}
         </div>
 
-        {/* UPCOMING */}
-        <aside
-          className="
-            rounded-[34px]
-            border
-            border-[#ECE5DE]
-            bg-white
-            p-5
-            shadow-sm
-            sticky
-            top-24
-          "
+        {/* RIGHT - UPCOMING WEEK */}
+        <SidePanel
+          title="7 ימים קדימה"
+          subtitle="כל מה שמתקרב השבוע"
+          icon={Clock3}
         >
-          <div className="flex items-center gap-3 mb-5">
-            <div
-              className="
-                h-12
-                w-12
-                rounded-2xl
-                bg-[#F5E7DC]
-                text-[#7A4A35]
-                flex
-                items-center
-                justify-center
-              "
-            >
-              <Clock3 size={18} />
-            </div>
-
-            <div>
-              <h3 className="text-xl font-black text-[#1E1B2E]">
-                הקרובים ביומן
-              </h3>
-
-              <p className="text-xs text-gray-400">
-                פגישות ותזכורות קרובות
-              </p>
-            </div>
-          </div>
-
-          {upcomingItems.length === 0 ? (
-            <div
-              className="
-                rounded-2xl
-                border
-                border-dashed
-                border-[#E8DDD3]
-                bg-[#FCFBFA]
-                p-5
-                text-center
-                text-sm
-                text-gray-400
-                font-bold
-              "
-            >
-              אין פריטים קרובים.
-            </div>
+          {upcomingWeekItems.length === 0 ? (
+            <EmptyBox text="אין פריטים בשבוע הקרוב." />
           ) : (
             <div className="space-y-3">
-              {upcomingItems.map((item) => {
-                const meta = getTypeMeta(
-                  item.extendedProps.type
-                );
-
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() =>
-                      openEditModal({
-                        event: {
-                          id: item.id,
-                          title: item.title,
-                          start: new Date(item.start),
-                          extendedProps: item.extendedProps,
-                        },
-                      })
-                    }
-                    className="
-                      w-full
-                      rounded-2xl
-                      border
-                      border-[#F0ECE7]
-                      bg-[#FCFBFA]
-                      p-4
-                      text-right
-                      hover:bg-[#F4EDFF]
-                      hover:border-[#E7D8FF]
-                      transition
-                    "
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="font-black text-[#1E1B2E]">
-                        {item.title}
-                      </div>
-
-                      <span
-                        className="
-                          rounded-full
-                          px-3
-                          py-1.5
-                          text-[11px]
-                          font-black
-                        "
-                        style={{
-                          backgroundColor: meta.bg,
-                          color: meta.text,
-                          border: `1px solid ${meta.border}`,
-                        }}
-                      >
-                        {meta.label}
-                      </span>
-                    </div>
-
-                    <div className="mt-3 grid grid-cols-1 gap-2 text-xs text-gray-500">
-                      <div className="flex items-center gap-2">
-                        <CalendarDays size={13} />
-                        {new Date(item.start).toLocaleDateString("he-IL")}
-                      </div>
-
-                      {item.extendedProps.time && (
-                        <div className="flex items-center gap-2">
-                          <Clock3 size={13} />
-                          {item.extendedProps.time}
-                        </div>
-                      )}
-
-                      {item.extendedProps.location && (
-                        <div className="flex items-center gap-2">
-                          <MapPin size={13} />
-                          {item.extendedProps.location}
-                        </div>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
+              {upcomingWeekItems.map((item) => (
+                <CalendarSmallCard
+                  key={item.id}
+                  item={item}
+                  onClick={() => openItemFromList(item)}
+                />
+              ))}
             </div>
           )}
-        </aside>
+        </SidePanel>
       </section>
 
       {modalOpen && selectedItem && (
@@ -1090,6 +1094,173 @@ export default function CalendarTab({ eventId }) {
 }
 
 /* ======================================================
+   SMALL COMPONENTS
+====================================================== */
+
+function SidePanel({
+  title,
+  subtitle,
+  icon: Icon,
+  children,
+}) {
+  return (
+    <aside
+      className="
+        rounded-[34px]
+        border
+        border-[#ECE5DE]
+        bg-white
+        p-5
+        shadow-sm
+        sticky
+        top-24
+      "
+    >
+      <div className="flex items-center gap-3 mb-5">
+        <div
+          className="
+            h-12
+            w-12
+            rounded-2xl
+            bg-[#F5E7DC]
+            text-[#7A4A35]
+            flex
+            items-center
+            justify-center
+            shrink-0
+          "
+        >
+          <Icon size={18} />
+        </div>
+
+        <div>
+          <h3 className="text-xl font-black text-[#1E1B2E]">
+            {title}
+          </h3>
+
+          <p className="text-xs text-gray-400">
+            {subtitle}
+          </p>
+        </div>
+      </div>
+
+      {children}
+    </aside>
+  );
+}
+
+function EmptyBox({ text }) {
+  return (
+    <div
+      className="
+        rounded-2xl
+        border
+        border-dashed
+        border-[#E8DDD3]
+        bg-[#FCFBFA]
+        p-5
+        text-center
+        text-sm
+        text-gray-400
+        font-bold
+      "
+    >
+      {text}
+    </div>
+  );
+}
+
+function CalendarSmallCard({ item, onClick }) {
+  const meta = getTypeMeta(item.extendedProps.type);
+  const Icon = meta.icon;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="
+        w-full
+        rounded-2xl
+        border
+        border-[#F0ECE7]
+        bg-[#FCFBFA]
+        p-4
+        text-right
+        hover:bg-[#F4EDFF]
+        hover:border-[#E7D8FF]
+        transition
+      "
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="font-black text-[#1E1B2E] truncate">
+            {item.title}
+          </div>
+
+          <div className="text-xs text-gray-400 mt-1">
+            {formatDisplayDate(item.start)}
+          </div>
+        </div>
+
+        <span
+          className="
+            h-9
+            w-9
+            rounded-xl
+            flex
+            items-center
+            justify-center
+            shrink-0
+          "
+          style={{
+            backgroundColor: meta.bg,
+            color: meta.text,
+            border: `1px solid ${meta.border}`,
+          }}
+        >
+          <Icon size={15} />
+        </span>
+      </div>
+
+      <div className="mt-3 grid grid-cols-1 gap-2 text-xs text-gray-500">
+        {item.extendedProps.time && (
+          <div className="flex items-center gap-2">
+            <Clock3 size={13} />
+            {item.extendedProps.time}
+          </div>
+        )}
+
+        {item.extendedProps.location && (
+          <div className="flex items-center gap-2">
+            <MapPin size={13} />
+            {item.extendedProps.location}
+          </div>
+        )}
+      </div>
+
+      <div
+        className="
+          mt-3
+          inline-flex
+          rounded-full
+          px-3
+          py-1.5
+          text-[11px]
+          font-black
+        "
+        style={{
+          backgroundColor: meta.bg,
+          color: meta.text,
+          border: `1px solid ${meta.border}`,
+        }}
+      >
+        {meta.label}
+      </div>
+    </button>
+  );
+}
+
+/* ======================================================
    MODAL
 ====================================================== */
 
@@ -1167,7 +1338,9 @@ function CalendarItemModal({
 
             <div>
               <h3 className="text-2xl font-black text-[#1E1B2E]">
-                {form._id ? "עריכת פריט ביומן" : "הוספת פריט ליומן"}
+                {form._id
+                  ? "עריכת פריט ביומן"
+                  : "הוספת פריט ליומן"}
               </h3>
 
               <p className="text-sm text-gray-400 mt-1">
