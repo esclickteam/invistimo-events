@@ -681,27 +681,22 @@ const handleAddTable = (type: string, seats: number) => {
 
 
 
-        <Layer listening={false}>
-          <GridLayer width={size.width} height={size.height} />
-        </Layer>
-
-        <Layer listening={false}>
-          {bgImage &&
-  bgImage.width > 0 &&
-  bgImage.height > 0 &&
-  size.width > 0 &&
-  size.height > 0 && (
-
-            <KonvaImage
-  image={bgImage}
-  x={0}
-  y={0}
-  width={bgImage.width}
-  height={bgImage.height}
-  opacity={0.28}
-/>
-          )}
-        </Layer>
+       <Layer listening={false}>
+  {bgImage &&
+    bgImage.width > 0 &&
+    bgImage.height > 0 &&
+    size.width > 0 &&
+    size.height > 0 && (
+      <KonvaImage
+        image={bgImage}
+        x={-stagePos.x / scale}
+        y={-stagePos.y / scale}
+        width={size.width / scale}
+        height={size.height / scale}
+        opacity={0.28}
+      />
+    )}
+</Layer>
 
         <Layer>
           {zones.map((z) => (
