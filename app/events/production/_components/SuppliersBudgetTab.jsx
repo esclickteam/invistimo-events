@@ -1972,7 +1972,12 @@ console.log("URL:", file?.url);
     </p>
 
     <a
-      href={url}
+     href={
+  url?.replace(
+    "/upload/",
+    "/upload/fl_attachment/"
+  )
+}
       target="_blank"
       rel="noopener noreferrer"
       className="
