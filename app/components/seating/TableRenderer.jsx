@@ -409,19 +409,22 @@ function TableRenderer({ table, hideSeats = false }) {
         const isOccupied =
           seatingMode === "live" ? arrivedSeatsSet.has(i) : !!seat;
 
-        const rotation = getSeatRotation(layout, c) - (table.rotation || 0);
+        const rotation = getSeatRotation(layout, c);
 
-        let chairX = c.x;
-        let chairY = c.y;
+let chairX = c.x;
+let chairY = c.y;
 
-        if (layout.type === "banquet") {
+if (layout.type === "banquet") {
   /*
     שולחן אבירים:
-    מצמידים את הכיסאות לקצה השולחן,
-    עם חפיפה קטנה בלבד כדי שלא ייעלמו מתחת לשולחן.
+    הכיסאות צריכים להיות צמודים לקצה האמיתי של השולחן,
+    עם חפיפה קטנה בלבד כדי שייראו מחוברים לשולחן
+    אבל לא ייעלמו מתחתיו.
+    בגלל שהשולחן עצמו מסתובב כ-Group,
+    לא צריך להחסיר כאן את table.rotation מהכיסא.
   */
   const tableEdgeY = layout.height / 2;
-  const outsideOffset = 7;
+  const outsideOffset = 2;
 
   chairY =
     c.y > 0
@@ -435,66 +438,66 @@ function TableRenderer({ table, hideSeats = false }) {
   chairY = c.y - (c.y / dist) * inset;
 }
 
-        const chairFill = isOccupied ? "#B98A45" : "#FFF9EF";
-        const chairStroke = isOccupied ? "#8B6532" : "#D9C3A2";
-        const chairHighlight = isOccupied ? "#CBA56C" : "#FFFFFF";
-        const chairDepth = isOccupied ? "#9E7135" : "#E9D8BD";
+const chairFill = isOccupied ? "#B98A45" : "#FFF9EF";
+const chairStroke = isOccupied ? "#8B6532" : "#D9C3A2";
+const chairHighlight = isOccupied ? "#CBA56C" : "#FFFFFF";
+const chairDepth = isOccupied ? "#9E7135" : "#E9D8BD";
 
-        return (
-          <Group key={i} x={chairX} y={chairY} rotation={rotation}>
-            {/* גב הכיסא */}
-            <Rect
-              x={-7}
-              y={-14}
-              width={14}
-              height={6}
-              cornerRadius={2.5}
-              fill={chairFill}
-              stroke={chairStroke}
-              strokeWidth={0.8}
-              perfectDrawEnabled={false}
-            />
+return (
+  <Group key={i} x={chairX} y={chairY} rotation={rotation}>
+    {/* גב הכיסא */}
+    <Rect
+      x={-7}
+      y={-14}
+      width={14}
+      height={6}
+      cornerRadius={2.5}
+      fill={chairFill}
+      stroke={chairStroke}
+      strokeWidth={0.8}
+      perfectDrawEnabled={false}
+    />
 
-            {/* רווח קטן בין הגב למושב */}
-            <Rect
-              x={-5}
-              y={-8}
-              width={10}
-              height={2}
-              cornerRadius={1}
-              fill={chairDepth}
-              opacity={0.55}
-              listening={false}
-              perfectDrawEnabled={false}
-            />
+    {/* רווח קטן בין הגב למושב */}
+    <Rect
+      x={-5}
+      y={-8}
+      width={10}
+      height={2}
+      cornerRadius={1}
+      fill={chairDepth}
+      opacity={0.55}
+      listening={false}
+      perfectDrawEnabled={false}
+    />
 
-            {/* מושב הכיסא */}
-            <Rect
-              x={-7}
-              y={-6}
-              width={14}
-              height={11}
-              cornerRadius={3}
-              fill={chairFill}
-              stroke={chairStroke}
-              strokeWidth={0.9}
-              perfectDrawEnabled={false}
-            />
+    {/* מושב הכיסא */}
+    <Rect
+      x={-7}
+      y={-6}
+      width={14}
+      height={11}
+      cornerRadius={3}
+      fill={chairFill}
+      stroke={chairStroke}
+      strokeWidth={0.9}
+      perfectDrawEnabled={false}
+    />
 
-            {/* הברקה פנימית עדינה */}
-            <Rect
-              x={-5}
-              y={-4}
-              width={10}
-              height={3}
-              cornerRadius={1.5}
-              fill={chairHighlight}
-              opacity={0.28}
-              listening={false}
-              perfectDrawEnabled={false}
-            />
-          </Group>
-        );
+    {/* הברקה פנימית עדינה */}
+    <Rect
+      x={-5}
+      y={-4}
+      width={10}
+      height={3}
+      cornerRadius={1.5}
+      fill={chairHighlight}
+      opacity={0.28}
+      listening={false}
+      perfectDrawEnabled={false}
+    />
+  </Group>
+);
       })}
 
       {/* שולחן עגול */}
