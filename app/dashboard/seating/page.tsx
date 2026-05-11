@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 
 import SeatingEditor from "./SeatingEditor";
@@ -40,6 +40,8 @@ export default function SeatingPage() {
   const isDemo = pathname.startsWith("/try/");
 
   const didLoadRef = useRef(false);
+  const didFinishInitialLoadRef = useRef(false);
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /* ===============================
      LOCAL STATE
@@ -55,6 +57,9 @@ export default function SeatingPage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const [blockReason, setBlockReason] = useState<"no-plan" | null>(null);
+
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
+  const [lastAutoSavedAt, setLastAutoSavedAt] = useState<Date | null>(null);
 
   /* ===============================
      STORES
@@ -220,6 +225,8 @@ export default function SeatingPage() {
         }
       } catch (err) {
         console.error("❌ SeatingPage load error:", err);
+      } finally {
+        didFinishInitialLoadRef.current = true;
       }
     }
 
@@ -291,51 +298,96 @@ export default function SeatingPage() {
   /* ===============================
      SAVE
   =============================== */
-  async function saveSeating(showToast = true): Promise<boolean> {
-    if (!eventId || !invitationId) {
-      if (showToast) alert("❌ חסר invitationId או eventId");
-      return false;
-    }
-
-    try {
-      const zones = useZoneStore.getState().zones;
-      const cv = useSeatingStore.getState().canvasView;
-
-      const res = await fetch(`/api/seating/save/${eventId}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          eventId,
-          invitationId,
-          tables: useSeatingStore.getState().tables,
-          guests: useSeatingStore.getState().guests,
-          groups: useSeatingStore.getState().groups,
-          background: useSeatingStore.getState().background,
-          zones,
-          canvasView: cv,
-        }),
-      });
-
-      const data = await res.json().catch(() => ({}));
-      const ok = res.ok && data?.success;
-
-      if (showToast) {
-        alert(ok ? "🎉 נשמר בהצלחה" : "❌ שגיאה בשמירה");
+  const saveSeating = useCallback(
+    async (showToast = true): Promise<boolean> => {
+      if (!eventId || !invitationId) {
+        if (showToast) alert("❌ חסר invitationId או eventId");
+        return false;
       }
 
-      return !!ok;
-    } catch (e) {
-      console.error("❌ Seating save network error:", e);
+      try {
+        const zones = useZoneStore.getState().zones;
+        const cv = useSeatingStore.getState().canvasView;
 
-      if (showToast) {
-        alert("❌ שגיאת רשת בשמירה");
+        const res = await fetch(`/api/seating/save/${eventId}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            eventId,
+            invitationId,
+            tables: useSeatingStore.getState().tables,
+            guests: useSeatingStore.getState().guests,
+            groups: useSeatingStore.getState().groups,
+            background: useSeatingStore.getState().background,
+            zones,
+            canvasView: cv,
+          }),
+        });
+
+        const data = await res.json().catch(() => ({}));
+        const ok = res.ok && data?.success;
+
+        if (showToast) {
+          alert(ok ? "🎉 נשמר בהצלחה" : "❌ שגיאה בשמירה");
+        }
+
+        return !!ok;
+      } catch (e) {
+        console.error("❌ Seating save network error:", e);
+
+        if (showToast) {
+          alert("❌ שגיאת רשת בשמירה");
+        }
+
+        return false;
+      }
+    },
+    [eventId, invitationId]
+  );
+
+  /* ===============================
+     AUTO SAVE TEMPLATE
+  =============================== */
+  useEffect(() => {
+    if (isDemo) return;
+    if (blockReason === "no-plan") return;
+
+    if (!eventId || !invitationId) return;
+    if (!didFinishInitialLoadRef.current) return;
+
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+    }
+
+    autoSaveTimerRef.current = setTimeout(async () => {
+      setIsAutoSaving(true);
+
+      const ok = await saveSeating(false);
+
+      if (ok) {
+        setLastAutoSavedAt(new Date());
       }
 
-      return false;
-    }
-  }
+      setIsAutoSaving(false);
+    }, 900);
+
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+    };
+  }, [
+    tables,
+    background,
+    canvasView,
+    eventId,
+    invitationId,
+    isDemo,
+    blockReason,
+    saveSeating,
+  ]);
 
   /* ===============================
      BLOCKED PLAN VIEW
@@ -533,6 +585,28 @@ export default function SeatingPage() {
               <ExportSeatingPdf eventId={eventId} />
             </div>
 
+            <div
+              className="
+                hidden shrink-0 rounded-2xl border border-[#eadcca]
+                bg-white/70 px-3 py-2 text-xs font-bold
+                text-[#8a765f] shadow-sm md:block
+              "
+            >
+              {isAutoSaving ? (
+                <span>שומר אוטומטית...</span>
+              ) : lastAutoSavedAt ? (
+                <span>
+                  נשמר ב־
+                  {lastAutoSavedAt.toLocaleTimeString("he-IL", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
+              ) : (
+                <span>שמירה אוטומטית פעילה</span>
+              )}
+            </div>
+
             <button
               onClick={() => {
                 void saveSeating(true);
@@ -657,7 +731,9 @@ export default function SeatingPage() {
                 hover:scale-105 hover:bg-[#fff8ee]
                 ${sidebarOpen ? "right-[-22px]" : "right-[-22px]"}
               `}
-              aria-label={sidebarOpen ? "סגור רשימת שולחנות" : "פתח רשימת שולחנות"}
+              aria-label={
+                sidebarOpen ? "סגור רשימת שולחנות" : "פתח רשימת שולחנות"
+              }
             >
               {sidebarOpen ? "❯" : "❮"}
             </button>
