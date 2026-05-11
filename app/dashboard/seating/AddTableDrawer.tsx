@@ -14,8 +14,6 @@ type TableType = "round" | "square" | "banquet";
 type AddTablePayload = {
   type: string;
   seats: number;
-  reserveSeats?: number;
-  totalSeatsWithReserve?: number;
 };
 
 type AddTableDrawerProps = {
@@ -311,7 +309,6 @@ export default function AddTableDrawer({
   const [type, setType] = useState<TableType>("square");
   const [tableCount, setTableCount] = useState(1);
   const [seats, setSeats] = useState(12);
-  const [reserveSeats, setReserveSeats] = useState(0);
   const [error, setError] = useState("");
 
   const selectedTable = useMemo(
@@ -321,11 +318,8 @@ export default function AddTableDrawer({
 
   const safeTableCount = Math.max(0, tableCount || 0);
   const safeSeats = Math.max(0, seats || 0);
-  const safeReserveSeats = Math.max(0, reserveSeats || 0);
 
   const regularSeatsTotal = safeTableCount * safeSeats;
-  const reserveSeatsTotal = safeTableCount * safeReserveSeats;
-  const totalWithReserve = regularSeatsTotal + reserveSeatsTotal;
 
   const handleAdd = () => {
     if (typeof onAdd !== "function") {
@@ -343,19 +337,12 @@ export default function AddTableDrawer({
       return;
     }
 
-    if (reserveSeats < 0) {
-      setError("כיסאות רזרבה לא יכולים להיות מתחת ל־0");
-      return;
-    }
-
     setError("");
 
     for (let i = 0; i < tableCount; i += 1) {
       onAdd({
         type,
         seats,
-        reserveSeats,
-        totalSeatsWithReserve: seats + reserveSeats,
       });
     }
 
@@ -419,7 +406,7 @@ export default function AddTableDrawer({
                   הוספת שולחנות
                 </h2>
                 <p className="mt-1 text-xs font-semibold text-[#8B6F5A]">
-                  בחרי סוג, כמות שולחנות, אורחים ורזרבה
+                  בחרי סוג, כמות שולחנות וכמות אורחים
                 </p>
               </div>
             </div>
@@ -496,7 +483,7 @@ export default function AddTableDrawer({
             </div>
 
             {/* FIELDS */}
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <NumberInput
                 label="כמות שולחנות"
                 hint="כמה ליצור"
@@ -513,15 +500,6 @@ export default function AddTableDrawer({
                 min={2}
                 max={60}
                 onChange={setSeats}
-              />
-
-              <NumberInput
-                label="כיסאות רזרבה"
-                hint="לא חובה"
-                value={reserveSeats}
-                min={0}
-                max={20}
-                onChange={setReserveSeats}
               />
             </div>
 
@@ -554,11 +532,11 @@ export default function AddTableDrawer({
                     px-3 py-1 text-xs font-black text-[#8B6532]
                   "
                 >
-                  {totalWithReserve} מקומות סה״כ
+                  {regularSeatsTotal} מקומות סה״כ
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="grid grid-cols-2 gap-2 text-center">
                 <div className="rounded-2xl bg-[#FFF8EF] p-3">
                   <div className="text-[10px] font-bold text-[#8B6F5A]">
                     שולחנות
@@ -577,23 +555,7 @@ export default function AddTableDrawer({
                     {regularSeatsTotal}
                   </div>
                 </div>
-
-                <div className="rounded-2xl bg-[#FFF0D2] p-3">
-                  <div className="text-[10px] font-bold text-[#8B6532]">
-                    רזרבה
-                  </div>
-                  <div className="text-lg font-black text-[#8B6532]">
-                    {reserveSeatsTotal}
-                  </div>
-                </div>
               </div>
-
-              {safeReserveSeats > 0 && (
-                <div className="mt-3 rounded-2xl bg-[#FFF9EF] px-3 py-2 text-center text-[11px] font-semibold text-[#8B6F5A]">
-                  כל שולחן ייפתח עם {safeSeats} מקומות רגילים +{" "}
-                  {safeReserveSeats} כיסאות רזרבה
-                </div>
-              )}
             </div>
 
             {error && (
