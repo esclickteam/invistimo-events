@@ -494,24 +494,60 @@ export default function LogisticsTab({ eventId }) {
         if (data.success) {
           const savedSteps = data.steps || [];
 
-          const merged = [
-            ...defaultSteps.filter(
-              (defaultStep) =>
-                !savedSteps.some(
-                  (saved) => saved.title === defaultStep.title
-                )
-            ),
-            ...savedSteps,
-          ];
+          if (
+  data.steps &&
+  data.steps.length > 0
+) {
+  setSteps(data.steps);
+} else {
+  try {
+    const created =
+      await Promise.all(
+        defaultSteps.map(
+          async ({
+            _id,
+            ...step
+          }) => {
+            const res =
+              await fetch(
+                `/api/events/${eventId}/logistics`,
+                {
+                  method:
+                    "POST",
+                  headers:
+                    {
+                      "Content-Type":
+                        "application/json",
+                    },
+                  body: JSON.stringify(
+                    step
+                  ),
+                }
+              );
 
-          setSteps(merged);
-        }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
+            const data =
+              await res.json();
+
+            return (
+              data.step
+            );
+          }
+        )
+      );
+
+    setSteps(created);
+  } catch (err) {
+    console.error(err);
+  }
+}
+
       }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
+  }
 
     load();
   }, [eventId]);
@@ -537,30 +573,40 @@ export default function LogisticsTab({ eventId }) {
   );
 
   async function addStep(payload) {
-    if (!payload.title) return;
+  if (!payload.title) return;
 
-    const optimistic = {
-      ...payload,
-      _id: Math.random().toString(36),
-    };
-
-    setSteps((prev) => [...prev, optimistic]);
-
-    try {
-      await fetch(`/api/events/${eventId}/logistics`, {
+  try {
+    const res = await fetch(
+      `/api/events/${eventId}/logistics`,
+      {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
+          "Content-Type":
+            "application/json",
         },
         body: JSON.stringify({
           ...payload,
           type: payload.type,
         }),
-      });
-    } catch (err) {
-      console.error(err);
+      }
+    );
+
+    const data =
+      await res.json();
+
+    if (
+      data.success &&
+      data.step
+    ) {
+      setSteps((prev) => [
+        ...prev,
+        data.step,
+      ]);
     }
+  } catch (err) {
+    console.error(err);
   }
+}
 
   async function updateStep(id, patch) {
     setSteps((prev) =>
@@ -574,7 +620,6 @@ export default function LogisticsTab({ eventId }) {
       )
     );
 
-    if (String(id).startsWith("default-")) return;
 
     try {
       await fetch(`/api/logistics/${id}`, {
@@ -592,7 +637,6 @@ export default function LogisticsTab({ eventId }) {
   async function deleteStep(id) {
     setSteps((prev) => prev.filter((s) => s._id !== id));
 
-    if (String(id).startsWith("default-")) return;
 
     try {
       await fetch(`/api/logistics/${id}`, {
