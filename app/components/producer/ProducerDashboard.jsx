@@ -1214,9 +1214,7 @@ export default function ProducerDashboard() {
                               {client.name || "ללא שם"}
                             </div>
 
-                            <div className="text-xs text-gray-400 mt-1">
-                              {client._id}
-                            </div>
+                            
                           </div>
                         </div>
                       </td>
