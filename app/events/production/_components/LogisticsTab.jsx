@@ -172,17 +172,18 @@ function TimelineRow({
         transition,
       }}
       className="
-        relative
-        flex
-        items-center
-        gap-4
-        rounded-[26px]
-        border
-        border-[#F0ECE7]
-        bg-[#FCFBFA]
-        px-5
-        py-5
-      "
+  relative
+  grid
+  grid-cols-[40px_56px_minmax(220px,1fr)_120px_120px_50px]
+  items-center
+  gap-4
+  rounded-[26px]
+  border
+  border-[#F0ECE7]
+  bg-[#FCFBFA]
+  px-5
+  py-5
+"
     >
       {/* DELETE */}
 
@@ -502,7 +503,7 @@ function LogisticsRow({
 
       {/* TITLE */}
 
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-[260px]">
         <input
           value={item.title}
           onChange={(e) =>
@@ -516,13 +517,15 @@ function LogisticsRow({
             )
           }
           className="
-            w-full
-            bg-transparent
-            outline-none
-            text-lg
-            font-black
-            text-[#1E1B2E]
-          "
+  w-full
+  min-w-[260px]
+  bg-transparent
+  outline-none
+  text-lg
+  font-black
+  text-[#1E1B2E]
+  truncate
+"
         />
       </div>
 
