@@ -607,21 +607,7 @@ export default function SeatingPage() {
               )}
             </div>
 
-            <button
-              onClick={() => {
-                void saveSeating(true);
-              }}
-              className="
-                flex h-11 shrink-0 items-center gap-2 rounded-2xl
-                bg-gradient-to-l from-[#caa15a] to-[#e3c17b]
-                px-5 text-sm font-black text-[#2d2114]
-                shadow-[0_12px_28px_rgba(178,128,57,0.28)]
-                transition hover:-translate-y-0.5
-              "
-            >
-              ✓
-              שמור את התכנית
-            </button>
+           
           </div>
         </div>
       </header>
