@@ -6,6 +6,7 @@ import User from "@/models/User";
 import Event from "@/models/Event";
 import Invitation from "@/models/Invitation";
 import InvitationGuest from "@/models/InvitationGuest";
+import EventConversation from "@/models/EventConversation";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 export const dynamic = "force-dynamic";
@@ -17,20 +18,16 @@ export const runtime = "nodejs";
 
 function getEventTitle(event: any, invitation: any) {
   return (
-    // קודם כל שם האירוע האמיתי מההזמנה
     invitation?.title ||
     invitation?.eventTitle ||
     invitation?.eventName ||
     invitation?.invitationTitle ||
     invitation?.name ||
-
-    // ורק אם אין — fallback מה-event
     event?.title ||
     event?.eventTitle ||
     event?.eventName ||
     event?.name ||
     event?.invitationTitle ||
-
     "אירוע ללא שם"
   );
 }
@@ -45,8 +42,7 @@ function getEventDate(event: any, invitation: any) {
 }
 
 function getEventLocation(event: any, invitation: any) {
-  const invitationLocation =
-    invitation?.location;
+  const invitationLocation = invitation?.location;
 
   if (invitationLocation) {
     if (typeof invitationLocation === "object") {
@@ -75,6 +71,85 @@ function getEventLocation(event: any, invitation: any) {
   }
 
   return event.location;
+}
+
+function getCalendarType(item: any) {
+  return (
+    item?.calendarType ||
+    item?.meetingType ||
+    item?.type ||
+    "meeting"
+  );
+}
+
+function getCalendarTypeLabel(type: string) {
+  switch (type) {
+    case "meeting":
+      return "פגישה";
+    case "event":
+      return "אירוע";
+    case "reminder":
+      return "תזכורת";
+    case "task":
+      return "משימה";
+    case "call":
+      return "שיחת טלפון";
+    case "zoom":
+      return "פגישת זום";
+    case "note":
+      return "הערה";
+    default:
+      return "פריט ביומן";
+  }
+}
+
+function getCalendarTitle(item: any) {
+  return (
+    item?.title ||
+    item?.entityName ||
+    item?.name ||
+    item?.subject ||
+    "פריט ביומן"
+  );
+}
+
+function getCalendarDate(item: any) {
+  return (
+    item?.date ||
+    item?.meetingDate ||
+    item?.eventDate ||
+    item?.dueDate ||
+    null
+  );
+}
+
+function getCalendarTime(item: any) {
+  return (
+    item?.time ||
+    item?.meetingTime ||
+    item?.eventTime ||
+    item?.hour ||
+    ""
+  );
+}
+
+function getCalendarDescription(item: any) {
+  return (
+    item?.description ||
+    item?.notes ||
+    item?.message ||
+    item?.summary ||
+    ""
+  );
+}
+
+function getCalendarLocation(item: any) {
+  return (
+    item?.location ||
+    item?.address ||
+    item?.zoomLink ||
+    ""
+  );
 }
 
 /* =========================================================
@@ -144,16 +219,6 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    console.log(
-      "🧾 Client IDs:",
-      clients.map((client: any) => ({
-        _id: String(client._id),
-        assignedProducerId: String(
-          client.assignedProducerId
-        ),
-      }))
-    );
-
     const clientIds = clients.map(
       (client: any) => client._id
     );
@@ -170,15 +235,11 @@ export async function GET(req: NextRequest) {
         [
           "_id",
           "userId",
-
-          // dates / place
           "date",
           "eventDate",
           "location",
           "venue",
           "place",
-
-          // possible event title fields
           "title",
           "eventTitle",
           "eventName",
@@ -203,7 +264,6 @@ export async function GET(req: NextRequest) {
 
     /* =========================
        Invitations
-       כאן שם האירוע האמיתי נמצא בדרך כלל ב-title
     ========================= */
     const invitations = await Invitation.find({
       eventId: {
@@ -214,15 +274,11 @@ export async function GET(req: NextRequest) {
         [
           "_id",
           "eventId",
-
-          // title fields
           "title",
           "eventTitle",
           "eventName",
           "name",
           "invitationTitle",
-
-          // date / time / location
           "eventDate",
           "eventTime",
           "location",
@@ -252,6 +308,77 @@ export async function GET(req: NextRequest) {
 
     const invitationIds = invitations.map(
       (invitation: any) => invitation._id
+    );
+
+    /* =========================
+       Producer calendar items
+       כל מה שנוסף ביומן לקוח בהפקה
+    ========================= */
+    const calendarItems =
+      eventIds.length > 0
+        ? await EventConversation.find({
+            eventId: {
+              $in: eventIds,
+            },
+            syncToProducerCalendar: {
+              $ne: false,
+            },
+          })
+            .select(
+              [
+                "_id",
+                "eventId",
+                "type",
+                "calendarType",
+                "meetingType",
+                "entityName",
+                "title",
+                "name",
+                "subject",
+                "date",
+                "meetingDate",
+                "eventDate",
+                "dueDate",
+                "time",
+                "meetingTime",
+                "eventTime",
+                "hour",
+                "summary",
+                "description",
+                "notes",
+                "message",
+                "location",
+                "address",
+                "zoomLink",
+                "status",
+                "syncToProducerCalendar",
+                "createdAt",
+                "updatedAt",
+              ].join(" ")
+            )
+            .sort({
+              date: 1,
+              time: 1,
+              createdAt: -1,
+            })
+            .lean()
+        : [];
+
+    console.log(
+      "🟢 Producer calendar items found:",
+      calendarItems.length
+    );
+
+    const calendarItemsByEventId = calendarItems.reduce(
+      (acc: any, item: any) => {
+        const key = String(item.eventId);
+
+        acc[key] = acc[key] || [];
+        acc[key].push(item);
+
+        return acc;
+      },
+      {}
     );
 
     /* =========================
@@ -322,7 +449,7 @@ export async function GET(req: NextRequest) {
     );
 
     /* =========================
-       Merge Client + Event + Invitation + Stats
+       Merge Client + Event + Invitation + Stats + Calendar
     ========================= */
     const result = clients.map((client: any) => {
       const event = eventsByUserId[String(client._id)];
@@ -337,6 +464,7 @@ export async function GET(req: NextRequest) {
           ...client,
           event: null,
           invitation: null,
+          calendarItems: [],
         };
       }
 
@@ -345,6 +473,9 @@ export async function GET(req: NextRequest) {
 
       const mainInvitation =
         invitationsForEvent[0] || null;
+
+      const eventCalendarItems =
+        calendarItemsByEventId[String(event._id)] || [];
 
       let totalGuests = 0;
       let approvedCount = 0;
@@ -378,19 +509,79 @@ export async function GET(req: NextRequest) {
         mainInvitation
       );
 
+      const clientName =
+        client.name || "לקוח ללא שם";
+
+      const normalizedCalendarItems = eventCalendarItems.map(
+        (item: any) => {
+          const itemType = getCalendarType(item);
+          const itemTitle = getCalendarTitle(item);
+          const itemDate = getCalendarDate(item);
+          const itemTime = getCalendarTime(item);
+          const itemDescription = getCalendarDescription(item);
+          const itemLocation = getCalendarLocation(item);
+
+          return {
+            _id: item._id,
+            eventId: item.eventId,
+
+            clientId: client._id,
+            clientName,
+
+            eventTitle,
+            eventName: eventTitle,
+
+            type: itemType,
+            calendarType: itemType,
+            meetingType: itemType,
+            typeLabel: getCalendarTypeLabel(itemType),
+
+            title: itemTitle,
+            entityName: itemTitle,
+            name: itemTitle,
+            subject: itemTitle,
+
+            date: itemDate,
+            meetingDate: itemDate,
+            eventDate: itemDate,
+            dueDate: itemDate,
+
+            time: itemTime,
+            meetingTime: itemTime,
+            eventTime: itemTime,
+            hour: itemTime,
+
+            description: itemDescription,
+            notes: itemDescription,
+            summary: itemDescription,
+            message: itemDescription,
+
+            location: itemLocation,
+            address: itemLocation,
+            zoomLink: item.zoomLink || "",
+
+            status: item.status || "planned",
+
+            syncToProducerCalendar:
+              item.syncToProducerCalendar !== false,
+
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+          };
+        }
+      );
+
       return {
         ...client,
 
         event: {
           _id: event._id,
 
-          // title fields for frontend compatibility
           title: eventTitle,
           eventTitle,
           eventName: eventTitle,
           name: eventTitle,
 
-          // date fields for frontend compatibility
           date: eventDate,
           eventDate,
 
@@ -425,6 +616,13 @@ export async function GET(req: NextRequest) {
                   : mainInvitation.location || "",
             }
           : null,
+
+        /*
+          זה השדה שיומן המפיק צריך לקרוא:
+          client.calendarItems
+          כל פריט כבר כולל clientName + eventTitle + title + date + time
+        */
+        calendarItems: normalizedCalendarItems,
       };
     });
 
