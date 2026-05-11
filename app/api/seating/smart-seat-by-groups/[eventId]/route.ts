@@ -364,42 +364,85 @@ export async function POST(req: NextRequest, context: RouteContext) {
     );
 
     const updatedTables = rawTables.map((table) => {
-      const state = tableStateById.get(table.id);
+  const state = tableStateById.get(table.id);
 
-      if (!state) {
-        return {
-          ...table,
-          seatedGuests: [],
-        };
-      }
+  if (!state) {
+    return {
+      ...table,
+      seatedGuests: [],
+      group: null,
+    };
+  }
 
-      const seatedGuestsPayload: {
-        guestId: mongoose.Types.ObjectId;
-        seatIndex: number;
-        arrived: boolean;
-        isVirtual: boolean;
-      }[] = [];
+  const seatedGuestsPayload: {
+    guestId: mongoose.Types.ObjectId;
+    seatIndex: number;
+    arrived: boolean;
+    isVirtual: boolean;
+  }[] = [];
 
-      let seatIndex = 0;
+  let seatIndex = 0;
 
-      for (const guest of state.seatedGuests) {
-        const guestSeats = getGuestCount(guest);
+  for (const guest of state.seatedGuests) {
+    const guestSeats = getGuestCount(guest);
 
-        seatedGuestsPayload.push({
-          guestId: guest._id,
-          seatIndex,
-          arrived: false,
-          isVirtual: false,
-        });
-
-        seatIndex += guestSeats;
-      }
-
-      return {
-        ...table,
-        seatedGuests: seatedGuestsPayload,
-      };
+    seatedGuestsPayload.push({
+      guestId: guest._id,
+      seatIndex,
+      arrived: false,
+      isVirtual: false,
     });
+
+    seatIndex += guestSeats;
+  }
+
+  /*
+    Snapshot של שמות הקבוצות שיושבות בשולחן.
+    אם יש כמה קבוצות באותו שולחן — נשמר שם משולב.
+  */
+  const groupNames = Array.from(
+    new Set(
+      state.seatedGuests
+        .map((guest) => String(guest.relation || "").trim())
+        .filter(Boolean)
+    )
+  );
+
+  const groupIds = Array.from(
+    new Set(
+      state.seatedGuests
+        .map((guest) => (guest.groupId ? String(guest.groupId) : ""))
+        .filter(Boolean)
+    )
+  );
+
+  const usedSeats = state.seatedGuests.reduce((sum, guest) => {
+    return sum + getGuestCount(guest);
+  }, 0);
+
+  const groupSnapshot =
+    groupNames.length || groupIds.length
+      ? {
+          id:
+            groupIds.length === 1 && mongoose.Types.ObjectId.isValid(groupIds[0])
+              ? new mongoose.Types.ObjectId(groupIds[0])
+              : null,
+          name:
+            groupNames.length > 0
+              ? groupNames.join(" / ")
+              : groupIds.length === 1
+              ? groupIds[0]
+              : "מספר קבוצות",
+          expectedCount: usedSeats,
+        }
+      : null;
+
+  return {
+    ...table,
+    seatedGuests: seatedGuestsPayload,
+    group: groupSnapshot,
+  };
+});
 
     await SeatingTable.updateOne(
       { eventId },
