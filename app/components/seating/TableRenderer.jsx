@@ -17,18 +17,18 @@ function getTableLayout(rawTable) {
       ? "banquet"
       : rawTable.type;
 
-  const SEAT_R = 8;
-  const SEAT_GAP = 7;
-  const OUTSIDE = 9;
+  const SEAT_R = 9;
+  const SEAT_GAP = 8;
+  const OUTSIDE = 10;
   const STEP = SEAT_R * 2 + SEAT_GAP;
   const PAD = SEAT_R + OUTSIDE + 10;
 
   const coords = [];
   const dims = {
-    size: 88,
-    width: 128,
-    height: 74,
-    radius: 46,
+    size: 150,
+    width: 240,
+    height: 75,
+    radius: 55,
   };
 
   if (!seats) return { coords, ...dims, type };
@@ -39,7 +39,6 @@ function getTableLayout(rawTable) {
     const pairs = even / 2;
     const horizontalPairs = Math.ceil(pairs / 2);
     const verticalPairs = Math.floor(pairs / 2);
-
     return {
       top: horizontalPairs + (hasExtra ? 1 : 0),
       bottom: horizontalPairs,
@@ -50,7 +49,6 @@ function getTableLayout(rawTable) {
 
   const placeLineCentered = (count, fixed, axis) => {
     if (count <= 0) return;
-
     if (count === 1) {
       coords.push(axis === "x" ? { x: 0, y: fixed } : { x: fixed, y: 0 });
       return;
@@ -67,13 +65,12 @@ function getTableLayout(rawTable) {
 
   if (type === "round") {
     const requiredCirc = seats * STEP;
-    const seatRing = Math.max(39, requiredCirc / (2 * Math.PI));
-    const tableRadius = Math.max(36, seatRing - (SEAT_R + OUTSIDE));
+    const seatRing = Math.max(42, requiredCirc / (2 * Math.PI));
+    const tableRadius = Math.max(38, seatRing - (SEAT_R + OUTSIDE));
     const ring = tableRadius + SEAT_R + OUTSIDE;
 
     for (let i = 0; i < seats; i++) {
       const angle = (2 * Math.PI * i) / seats - Math.PI / 2;
-
       coords.push({
         x: Math.cos(angle) * ring,
         y: Math.sin(angle) * ring,
@@ -88,7 +85,7 @@ function getTableLayout(rawTable) {
     const { top, right, bottom, left } = splitSquareOpposite(seats);
     const maxSide = Math.max(top, right, bottom, left);
     const span = maxSide <= 1 ? 0 : (maxSide - 1) * STEP;
-    const size = Math.max(84, span + PAD * 2);
+    const size = Math.max(120, span + PAD * 2);
     const half = size / 2;
     const fixed = half + SEAT_R + OUTSIDE;
 
@@ -106,13 +103,12 @@ function getTableLayout(rawTable) {
     const bottomCount = seats - topCount;
     const maxRow = Math.max(topCount, bottomCount);
     const span = maxRow <= 1 ? 0 : (maxRow - 1) * STEP;
-    const width = Math.max(104, span + PAD * 2);
-    const height = 66;
+    const width = Math.max(200, span + PAD * 2);
+    const height = 70;
     const yFixed = height / 2 + SEAT_R + OUTSIDE;
 
     const placeRow = (count, y) => {
       if (count <= 0) return;
-
       if (count === 1) {
         coords.push({ x: 0, y });
         return;
@@ -153,7 +149,6 @@ function getSeatRotation(table, c) {
     if (Math.abs(c.x) > Math.abs(c.y)) {
       return c.x > 0 ? -90 : 90;
     }
-
     return c.y > 0 ? 0 : 180;
   }
 
@@ -167,7 +162,6 @@ function TableRenderer({ table, hideSeats = false }) {
   const tableRef = useRef(null);
 
   const [rotating, setRotating] = useState(false);
-  const [isDraggingTable, setIsDraggingTable] = useState(false);
 
   const rotateActiveRef = useRef(false);
   const startAngleRef = useRef(0);
@@ -260,17 +254,25 @@ function TableRenderer({ table, hideSeats = false }) {
 
   const hasArrived = occupiedSeatsCount > 0;
 
-  const tableFill = "#FFFDF8";
-  const tableInnerFill = "#FFF8EC";
-  const tableStroke = isHighlighted ? "#D6A84A" : "#D8B98A";
-  const tableText = "#3D3025";
-  const tableShadowColor = "rgba(92, 62, 32, 0.24)";
+  /* ============================================================
+     עיצוב בלבד - צבעי שולחן וכיסאות
+     לא נוגעים בלוגיקה / גרירה / cache / גודל / טקסט
+  ============================================================ */
+  const tableFill = isHighlighted
+    ? "#FFF1C6"
+    : "#FFF9ED";
 
-  const accentColor = isHighlighted
-    ? "#D6A84A"
+  const tableStroke = isHighlighted
+    ? "#D7A63F"
     : hasArrived
-    ? "#268563"
-    : "#3B82F6";
+    ? "#CBA56C"
+    : "#D9C4A4";
+
+  const tableText = isHighlighted
+    ? "#6A4300"
+    : "#3D3025";
+
+  const tableShadowColor = "rgba(88, 58, 28, 0.24)";
 
   const layout = useMemo(() => getTableLayout(table), [table.type, table.seats]);
 
@@ -293,51 +295,22 @@ function TableRenderer({ table, hideSeats = false }) {
     return arrived;
   }, [table.seatedGuests, occupiedSeatsCount]);
 
-  
-/* ====== CACHE CONTROL ======
-   לא עושים cache קבוע כדי שלא יהיו קווים/חיתוכים.
-   עושים cache רק בזמן גרירה כדי שהגרירה תהיה מהירה וחלקה.
-============================================================ */
-const cacheTableForDrag = () => {
-  if (!tableRef.current) return;
-
-  tableRef.current.clearCache();
-
-  const PADDING = 120;
-
-  const bounds = tableRef.current.getClientRect({
-    skipTransform: true,
-  });
-
-  tableRef.current.cache({
-    x: bounds.x - PADDING,
-    y: bounds.y - PADDING,
-    width: bounds.width + PADDING * 2,
-    height: bounds.height + PADDING * 2,
-    pixelRatio: 1,
-  });
-
-  tableRef.current.getLayer()?.batchDraw();
-};
-
-const clearTableCache = () => {
-  if (!tableRef.current) return;
-
-  tableRef.current.clearCache();
-  tableRef.current.getLayer()?.batchDraw();
-};
-
-useEffect(() => {
-  clearTableCache();
-}, [
-  layout.type,
-  table.seats,
-  table.seatedGuests,
-  occupiedSeatsCount,
-  hideSeats,
-  liveArrivals,
-  table.name,
-]);
+  /* ====== CACHE כמו Canva ====== */
+  useEffect(() => {
+    if (tableRef.current) {
+      tableRef.current.clearCache();
+      tableRef.current.cache();
+      tableRef.current.getLayer()?.batchDraw();
+    }
+  }, [
+    layout.type,
+    table.seats,
+    table.seatedGuests,
+    occupiedSeatsCount,
+    hideSeats,
+    liveArrivals,
+    table.name,
+  ]);
 
   const handleDrop = (e) => {
     e.cancelBubble = true;
@@ -370,7 +343,14 @@ useEffect(() => {
 
     useSeatingStore.setState((state) => ({
       tables: state.tables.map((t) =>
-        t.id === table.id ? { ...t, x: pos.x, y: pos.y, rotation } : t
+        t.id === table.id
+          ? {
+              ...t,
+              x: pos.x,
+              y: pos.y,
+              rotation,
+            }
+          : t
       ),
     }));
   };
@@ -421,129 +401,49 @@ useEffect(() => {
 
   const { size, width, height, radius } = layout;
 
-  const renderStatusDots = (dotY, maxDots = 5) => {
-    const total = Math.max(1, seatsTotal);
-
-    const filled = Math.min(
-      maxDots,
-      Math.round((occupiedSeatsCount / total) * maxDots)
-    );
-
-    const startX = -((maxDots - 1) * 7) / 2;
-
-    return Array.from({ length: maxDots }).map((_, i) => (
-      <Circle
-        key={`dot-${table.id}-${i}`}
-        x={startX + i * 7}
-        y={dotY}
-        radius={2.2}
-        fill={i < filled ? accentColor : "#D8D2C8"}
-        opacity={i < filled ? 1 : 0.55}
-        listening={false}
-      />
-    ));
-  };
-
   return (
     <Group
-  ref={tableRef}
-  x={table.x}
-  y={table.y}
-  rotation={table.rotation || 0}
-  draggable={!rotating}
-  onDragStart={() => {
-    setIsDraggingTable(true);
-    cacheTableForDrag();
-  }}
-  onDragEnd={() => {
-    setIsDraggingTable(false);
-    updatePositionInStore();
-
-    requestAnimationFrame(() => {
-      clearTableCache();
-    });
-  }}
-  onMouseUp={handleDrop}
-  onClick={handleClick}
-  onTap={handleClick}
->
-      {/* שולחן עגול */}
+      ref={tableRef}
+      x={table.x}
+      y={table.y}
+      rotation={table.rotation || 0}
+      draggable={!rotating}
+      onDragEnd={updatePositionInStore}
+      onMouseUp={handleDrop}
+      onClick={handleClick}
+      onTap={handleClick}
+    >
+      {/* שולחן */}
       {layout.type === "round" && (
         <>
-          <Circle
-            radius={radius + 7}
-            fill="#000000"
-            opacity={0.08}
-            y={7}
-            listening={false}
-          />
-
-          <Circle
-            radius={radius + 3}
-            fill={tableInnerFill}
-            stroke="#E8D2AE"
-            strokeWidth={1.4}
-            shadowColor={tableShadowColor}
-            shadowBlur={12}
-            shadowOffset={{ x: 0, y: 6 }}
-            shadowOpacity={0.7}
-          />
-
           <Circle
             radius={radius}
             fill={tableFill}
             stroke={tableStroke}
             strokeWidth={1.4}
+            shadowColor={tableShadowColor}
+            shadowBlur={9}
+            shadowOffset={{ x: 0, y: 4 }}
+            shadowOpacity={0.7}
           />
 
           <Text
             text={tableLabel}
-            width={radius * 2 - 8}
-            height={radius * 2 - 10}
-            offsetX={(radius * 2 - 8) / 2}
-            offsetY={(radius * 2 - 10) / 2}
+            width={radius * 2}
+            height={radius * 2 + 30}
+            offsetX={radius}
+            offsetY={(radius * 2 + 30) / 2}
             align="center"
             verticalAlign="middle"
             fill={tableText}
-            fontSize={10.5}
-            fontStyle="700"
-            lineHeight={1.08}
-            listening={false}
+            fontSize={14}
+            lineHeight={1.25}
           />
-
-          {renderStatusDots(radius * 0.48)}
         </>
       )}
 
-      {/* שולחן מרובע */}
       {layout.type === "square" && (
         <>
-          <Rect
-            width={size + 10}
-            height={size + 10}
-            offsetX={(size + 10) / 2}
-            offsetY={(size + 10) / 2 - 6}
-            fill="#000000"
-            opacity={0.075}
-            cornerRadius={18}
-            listening={false}
-          />
-
-          <Rect
-            width={size + 5}
-            height={size + 5}
-            offsetX={(size + 5) / 2}
-            offsetY={(size + 5) / 2}
-            fill={tableInnerFill}
-            stroke="#E8D2AE"
-            strokeWidth={1.4}
-            cornerRadius={17}
-            shadowColor={tableShadowColor}
-            shadowBlur={12}
-            shadowOffset={{ x: 0, y: 6 }}
-            shadowOpacity={0.7}
-          />
-
           <Rect
             width={size}
             height={size}
@@ -552,57 +452,30 @@ useEffect(() => {
             fill={tableFill}
             stroke={tableStroke}
             strokeWidth={1.4}
-            cornerRadius={15}
+            cornerRadius={10}
+            shadowColor={tableShadowColor}
+            shadowBlur={9}
+            shadowOffset={{ x: 0, y: 4 }}
+            shadowOpacity={0.7}
           />
 
           <Text
             text={tableLabel}
-            width={size - 8}
-            height={size - 10}
-            offsetX={(size - 8) / 2}
-            offsetY={(size - 10) / 2}
+            width={size}
+            height={size + 30}
+            offsetX={size / 2}
+            offsetY={(size + 30) / 2}
             align="center"
             verticalAlign="middle"
             fill={tableText}
-            fontSize={10.5}
-            fontStyle="700"
-            lineHeight={1.08}
-            listening={false}
+            fontSize={14}
+            lineHeight={1.25}
           />
-
-          {renderStatusDots(size * 0.32)}
         </>
       )}
 
-      {/* שולחן מלבני / אבירים */}
       {layout.type === "banquet" && (
         <>
-          <Rect
-            width={width + 10}
-            height={height + 10}
-            offsetX={(width + 10) / 2}
-            offsetY={(height + 10) / 2 - 6}
-            fill="#000000"
-            opacity={0.075}
-            cornerRadius={18}
-            listening={false}
-          />
-
-          <Rect
-            width={width + 5}
-            height={height + 5}
-            offsetX={(width + 5) / 2}
-            offsetY={(height + 5) / 2}
-            fill={tableInnerFill}
-            stroke="#E8D2AE"
-            strokeWidth={1.4}
-            cornerRadius={16}
-            shadowColor={tableShadowColor}
-            shadowBlur={12}
-            shadowOffset={{ x: 0, y: 6 }}
-            shadowOpacity={0.7}
-          />
-
           <Rect
             width={width}
             height={height}
@@ -611,25 +484,25 @@ useEffect(() => {
             fill={tableFill}
             stroke={tableStroke}
             strokeWidth={1.4}
-            cornerRadius={15}
+            cornerRadius={12}
+            shadowColor={tableShadowColor}
+            shadowBlur={9}
+            shadowOffset={{ x: 0, y: 4 }}
+            shadowOpacity={0.7}
           />
 
           <Text
             text={tableLabel}
-            width={width - 10}
-            height={height - 8}
-            offsetX={(width - 10) / 2}
-            offsetY={(height - 8) / 2}
+            width={width}
+            height={height + 30}
+            offsetX={width / 2}
+            offsetY={(height + 30) / 2}
             align="center"
             verticalAlign="middle"
             fill={tableText}
-            fontSize={10.5}
-            fontStyle="700"
-            lineHeight={1.08}
-            listening={false}
+            fontSize={14}
+            lineHeight={1.25}
           />
-
-          {renderStatusDots(height * 0.35)}
         </>
       )}
 
@@ -638,35 +511,34 @@ useEffect(() => {
         <Group
           y={
             layout.type === "round"
-              ? -radius - 34
+              ? -radius - 35
               : layout.type === "square"
-              ? -size / 2 - 34
-              : -height / 2 - 34
+              ? -size / 2 - 35
+              : -height / 2 - 35
           }
           onMouseDown={startRotate}
         >
           <Circle
-            radius={11}
-            fill="#FFFDF8"
-            stroke="#D8B98A"
+            radius={12}
+            fill="#FFF9ED"
+            stroke="#CBA56C"
             strokeWidth={1}
-            shadowColor="rgba(92, 62, 32, 0.16)"
-            shadowBlur={7}
-            shadowOffset={{ x: 0, y: 3 }}
-            shadowOpacity={1}
+            shadowColor="rgba(88, 58, 28, 0.18)"
+            shadowBlur={6}
+            shadowOffset={{ x: 0, y: 2 }}
+            shadowOpacity={0.8}
           />
 
           <Text
             text="↻"
-            width={22}
-            height={22}
-            offsetX={11}
-            offsetY={11}
+            width={24}
+            height={24}
+            offsetX={12}
+            offsetY={12}
             align="center"
             verticalAlign="middle"
             fill="#9A6A2F"
-            fontSize={13}
-            fontStyle="700"
+            fontSize={14}
           />
         </Group>
       )}
@@ -681,25 +553,21 @@ useEffect(() => {
 
           const rotation = getSeatRotation(layout, c) - (table.rotation || 0);
 
-          const seatTopFill = isOccupied ? "#D4B072" : "#F7EFE3";
-          const seatBodyFill = isOccupied ? "#B98745" : "#FFFDF8";
-          const seatStroke = isOccupied ? "#926B2E" : "#D0B58D";
+          const seatTopFill = isOccupied ? "#CBA56C" : "#FFF3DE";
+          const seatBodyFill = isOccupied ? "#A87834" : "#FFF9ED";
+          const seatStroke = isOccupied ? "#7A5528" : "#D0B58D";
 
           return (
             <Group key={i} x={c.x} y={c.y} rotation={rotation}>
               <Rect
-                x={-5.5}
-                y={-15.5}
-                width={11}
-                height={5.5}
-                cornerRadius={2.8}
+                x={-5}
+                y={-16}
+                width={10}
+                height={6}
+                cornerRadius={3}
                 fill={seatTopFill}
                 stroke={seatStroke}
                 strokeWidth={0.6}
-                shadowColor="rgba(92, 62, 32, 0.13)"
-                shadowBlur={3.5}
-                shadowOffset={{ x: 0, y: 1.8 }}
-                shadowOpacity={1}
               />
 
               <Rect
@@ -707,34 +575,10 @@ useEffect(() => {
                 y={-10}
                 width={14}
                 height={10}
-                cornerRadius={3.5}
+                cornerRadius={4}
                 fill={seatBodyFill}
                 stroke={seatStroke}
-                strokeWidth={0.8}
-                shadowColor="rgba(92, 62, 32, 0.13)"
-                shadowBlur={3.5}
-                shadowOffset={{ x: 0, y: 1.8 }}
-                shadowOpacity={1}
-              />
-
-              <Rect
-                x={-4}
-                y={0}
-                width={2.2}
-                height={5.5}
-                cornerRadius={2}
-                fill={seatStroke}
-                opacity={0.68}
-              />
-
-              <Rect
-                x={1.8}
-                y={0}
-                width={2.2}
-                height={5.5}
-                cornerRadius={2}
-                fill={seatStroke}
-                opacity={0.68}
+                strokeWidth={1}
               />
             </Group>
           );
