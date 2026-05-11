@@ -39,6 +39,7 @@ function getTableLayout(rawTable) {
     const pairs = even / 2;
     const horizontalPairs = Math.ceil(pairs / 2);
     const verticalPairs = Math.floor(pairs / 2);
+
     return {
       top: horizontalPairs + (hasExtra ? 1 : 0),
       bottom: horizontalPairs,
@@ -49,6 +50,7 @@ function getTableLayout(rawTable) {
 
   const placeLineCentered = (count, fixed, axis) => {
     if (count <= 0) return;
+
     if (count === 1) {
       coords.push(axis === "x" ? { x: 0, y: fixed } : { x: fixed, y: 0 });
       return;
@@ -71,6 +73,7 @@ function getTableLayout(rawTable) {
 
     for (let i = 0; i < seats; i++) {
       const angle = (2 * Math.PI * i) / seats - Math.PI / 2;
+
       coords.push({
         x: Math.cos(angle) * ring,
         y: Math.sin(angle) * ring,
@@ -83,8 +86,10 @@ function getTableLayout(rawTable) {
 
   if (type === "square") {
     const { top, right, bottom, left } = splitSquareOpposite(seats);
+
     const maxSide = Math.max(top, right, bottom, left);
     const span = maxSide <= 1 ? 0 : (maxSide - 1) * STEP;
+
     const size = Math.max(120, span + PAD * 2);
     const half = size / 2;
     const fixed = half + SEAT_R + OUTSIDE;
@@ -102,6 +107,7 @@ function getTableLayout(rawTable) {
     const topCount = Math.ceil(seats / 2);
     const bottomCount = seats - topCount;
     const maxRow = Math.max(topCount, bottomCount);
+
     const span = maxRow <= 1 ? 0 : (maxRow - 1) * STEP;
     const width = Math.max(200, span + PAD * 2);
     const height = 70;
@@ -109,6 +115,7 @@ function getTableLayout(rawTable) {
 
     const placeRow = (count, y) => {
       if (count <= 0) return;
+
       if (count === 1) {
         coords.push({ x: 0, y });
         return;
@@ -127,6 +134,7 @@ function getTableLayout(rawTable) {
 
     dims.width = width;
     dims.height = height;
+
     return { coords, ...dims, type };
   }
 
@@ -149,6 +157,7 @@ function getSeatRotation(table, c) {
     if (Math.abs(c.x) > Math.abs(c.y)) {
       return c.x > 0 ? -90 : 90;
     }
+
     return c.y > 0 ? 0 : 180;
   }
 
@@ -255,15 +264,19 @@ function TableRenderer({ table, hideSeats = false }) {
   const hasArrived = occupiedSeatsCount > 0;
 
   /* ============================================================
-     עיצוב בלבד - לא נוגעים בלוגיקה
+     עיצוב בלבד - צבעי שולחן וכיסאות
+     לא נוגעים בלוגיקה / גרירה / cache / גודל / טקסט
   ============================================================ */
-  const tableFill = "#FBF8F3";
-  const tableStroke = isHighlighted ? "#D5A24E" : "#D9CAB4";
-  const tableText = isHighlighted ? "#6A4300" : "#4B433B";
-  const tableShadowColor = "rgba(125, 101, 72, 0.16)";
 
-  const statusBarColor =
-    seatsTotal > 0 && occupiedSeatsCount >= seatsTotal ? "#2EC8A6" : "#5F8FFB";
+  const tableFill = "#FFF9ED";
+
+  const tableStroke = isHighlighted
+    ? "#D7A63F"
+    : hasArrived
+    ? "#CBA56C"
+    : "#D9C4A4";
+
+  const tableText = isHighlighted ? "#6A4300" : "#3D3025";
 
   const layout = useMemo(() => getTableLayout(table), [table.type, table.seats]);
 
@@ -382,6 +395,7 @@ function TableRenderer({ table, hideSeats = false }) {
       rotateActiveRef.current = false;
       setRotating(false);
       updatePositionInStore();
+
       stage.off("mousemove.tableRotate", move);
       stage.off("mouseup.tableRotate", end);
     };
@@ -405,82 +419,96 @@ function TableRenderer({ table, hideSeats = false }) {
       onTap={handleClick}
     >
       {/* ============================================================
-          כסאות – לפני השולחן, כדי שחלק מהם ייכנס מתחת לשולחן
+          כסאות
+          חשוב:
+          לא משתמשים ב-hideSeats כאן.
+          הכיסאות יוצגו גם במפיק.
+          מציירים אותם לפני השולחן כדי שחלק מהמושב ייכנס מתחת לשולחן.
       ============================================================ */}
-      {!hideSeats &&
-        seatsCoords.map((c, i) => {
-          const seat = table.seatedGuests.find((s) => s.seatIndex === i);
+      {seatsCoords.map((c, i) => {
+        const seat = table.seatedGuests.find((s) => s.seatIndex === i);
 
-          const isOccupied =
-            seatingMode === "live" ? arrivedSeatsSet.has(i) : !!seat;
+        const isOccupied =
+          seatingMode === "live" ? arrivedSeatsSet.has(i) : !!seat;
 
-          const rotation = getSeatRotation(layout, c) - (table.rotation || 0);
+        const rotation = getSeatRotation(layout, c) - (table.rotation || 0);
 
-          /* מכניסים את הכיסא מעט פנימה כדי שחלק מהמושב יהיה מתחת לשולחן */
-          const dist = Math.hypot(c.x, c.y) || 1;
-          const inset = 7;
-          const chairX = c.x - (c.x / dist) * inset;
-          const chairY = c.y - (c.y / dist) * inset;
+        /*
+          הזזה קטנה לכיוון מרכז השולחן,
+          כדי שהכיסא לא יעמוד מנותק מבחוץ.
+        */
+        const dist = Math.hypot(c.x, c.y) || 1;
+        const inset = 5;
+        const chairX = c.x - (c.x / dist) * inset;
+        const chairY = c.y - (c.y / dist) * inset;
 
-          const chairSeatFill = isOccupied ? "#CFAC76" : "#F7F1E8";
-          const chairSeatInnerFill = isOccupied ? "#E3C08A" : "#FFFDFC";
-          const chairBackFill = isOccupied ? "#B98B4B" : "#EEDFCB";
-          const chairStroke = isOccupied ? "#9D7540" : "#D8C2A3";
-          const chairShadow = isOccupied
-            ? "rgba(113, 77, 34, 0.23)"
-            : "rgba(131, 106, 72, 0.14)";
+        const chairFill = isOccupied ? "#B98A45" : "#FFF9EF";
+        const chairStroke = isOccupied ? "#8B6532" : "#D9C3A2";
+        const chairHighlight = isOccupied ? "#CBA56C" : "#FFFFFF";
+        const chairDepth = isOccupied ? "#9E7135" : "#E9D8BD";
 
-          return (
-            <Group key={i} x={chairX} y={chairY} rotation={rotation}>
-              {/* גב הכיסא - לכיוון השולחן */}
-              <Rect
-                x={-6}
-                y={-12}
-                width={12}
-                height={5}
-                cornerRadius={2.2}
-                fill={chairBackFill}
-                stroke={chairStroke}
-                strokeWidth={0.8}
-                shadowColor={chairShadow}
-                shadowBlur={2}
-                shadowOffset={{ x: 0, y: 1 }}
-                shadowOpacity={0.9}
-              />
+        return (
+          <Group key={i} x={chairX} y={chairY} rotation={rotation}>
+            {/* גב הכיסא - לכיוון השולחן */}
+            <Rect
+              x={-7}
+              y={-14}
+              width={14}
+              height={6}
+              cornerRadius={2.5}
+              fill={chairFill}
+              stroke={chairStroke}
+              strokeWidth={0.8}
+              shadowColor="rgba(88, 58, 28, 0.14)"
+              shadowBlur={2}
+              shadowOffset={{ x: 0, y: 1 }}
+              shadowOpacity={1}
+            />
 
-              {/* מושב הכיסא - מרובע, עם חלק שנכנס מתחת לשולחן */}
-              <Rect
-                x={-7.5}
-                y={-5}
-                width={15}
-                height={15}
-                cornerRadius={3.6}
-                fill={chairSeatFill}
-                stroke={chairStroke}
-                strokeWidth={0.9}
-                shadowColor={chairShadow}
-                shadowBlur={3}
-                shadowOffset={{ x: 0, y: 1.5 }}
-                shadowOpacity={1}
-              />
+            {/* רווח קטן בין הגב למושב */}
+            <Rect
+              x={-5}
+              y={-8}
+              width={10}
+              height={2}
+              cornerRadius={1}
+              fill={chairDepth}
+              opacity={0.55}
+              listening={false}
+            />
 
-              {/* פנים המושב */}
-              <Rect
-                x={-5}
-                y={-2.5}
-                width={10}
-                height={10}
-                cornerRadius={2.4}
-                fill={chairSeatInnerFill}
-                listening={false}
-              />
-            </Group>
-          );
-        })}
+            {/* מושב הכיסא - כמעט באותו רוחב כמו הגב */}
+            <Rect
+              x={-7}
+              y={-6}
+              width={14}
+              height={11}
+              cornerRadius={3}
+              fill={chairFill}
+              stroke={chairStroke}
+              strokeWidth={0.9}
+              shadowColor="rgba(88, 58, 28, 0.13)"
+              shadowBlur={2.5}
+              shadowOffset={{ x: 0, y: 1 }}
+              shadowOpacity={1}
+            />
 
-      {/* ============================================================
-          שולחן
-      ============================================================ */}
+            {/* הברקה פנימית עדינה */}
+            <Rect
+              x={-5}
+              y={-4}
+              width={10}
+              height={3}
+              cornerRadius={1.5}
+              fill={chairHighlight}
+              opacity={0.35}
+              listening={false}
+            />
+          </Group>
+        );
+      })}
+
+      {/* שולחן */}
       {layout.type === "round" && (
         <>
           <Circle
@@ -488,10 +516,6 @@ function TableRenderer({ table, hideSeats = false }) {
             fill={tableFill}
             stroke={tableStroke}
             strokeWidth={1.4}
-            shadowColor={tableShadowColor}
-            shadowBlur={8}
-            shadowOffset={{ x: 0, y: 2 }}
-            shadowOpacity={1}
           />
 
           <Text
@@ -505,16 +529,6 @@ function TableRenderer({ table, hideSeats = false }) {
             fill={tableText}
             fontSize={14}
             lineHeight={1.25}
-          />
-
-          <Rect
-            x={-20}
-            y={22}
-            width={40}
-            height={3.5}
-            cornerRadius={3}
-            fill={statusBarColor}
-            listening={false}
           />
         </>
       )}
@@ -530,10 +544,6 @@ function TableRenderer({ table, hideSeats = false }) {
             stroke={tableStroke}
             strokeWidth={1.4}
             cornerRadius={10}
-            shadowColor={tableShadowColor}
-            shadowBlur={8}
-            shadowOffset={{ x: 0, y: 2 }}
-            shadowOpacity={1}
           />
 
           <Text
@@ -547,16 +557,6 @@ function TableRenderer({ table, hideSeats = false }) {
             fill={tableText}
             fontSize={14}
             lineHeight={1.25}
-          />
-
-          <Rect
-            x={-23}
-            y={25}
-            width={46}
-            height={3.5}
-            cornerRadius={3}
-            fill={statusBarColor}
-            listening={false}
           />
         </>
       )}
@@ -572,10 +572,6 @@ function TableRenderer({ table, hideSeats = false }) {
             stroke={tableStroke}
             strokeWidth={1.4}
             cornerRadius={12}
-            shadowColor={tableShadowColor}
-            shadowBlur={10}
-            shadowOffset={{ x: 0, y: 3 }}
-            shadowOpacity={1}
           />
 
           <Text
@@ -589,16 +585,6 @@ function TableRenderer({ table, hideSeats = false }) {
             fill={tableText}
             fontSize={14}
             lineHeight={1.25}
-          />
-
-          <Rect
-            x={-28}
-            y={18}
-            width={56}
-            height={3.5}
-            cornerRadius={3}
-            fill={statusBarColor}
-            listening={false}
           />
         </>
       )}
