@@ -905,7 +905,8 @@ export default function LogisticsTab({
     <div
       dir="rtl"
       className="
-        max-w-[1700px]
+        max-w-none
+w-full
         mx-auto
         px-6
         py-10
@@ -965,8 +966,8 @@ export default function LogisticsTab({
   className="
     grid
     grid-cols-1
-    2xl:grid-cols-2
-    gap-8
+    xl:grid-cols-2
+    gap-10
     items-start
   "
 >
