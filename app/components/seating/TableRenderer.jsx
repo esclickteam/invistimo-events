@@ -292,36 +292,22 @@ function TableRenderer({ table, hideSeats = false }) {
     return arrived;
   }, [table.seatedGuests, occupiedSeatsCount]);
 
-  /* ====== CACHE כמו Canva - עם padding כדי שלא ייחתך ====== */
-  useEffect(() => {
-    if (tableRef.current) {
-      tableRef.current.clearCache();
-
-      const PADDING = 90;
-
-      const bounds = tableRef.current.getClientRect({
-        skipTransform: true,
-      });
-
-      tableRef.current.cache({
-        x: bounds.x - PADDING,
-        y: bounds.y - PADDING,
-        width: bounds.width + PADDING * 2,
-        height: bounds.height + PADDING * 2,
-        pixelRatio: 2,
-      });
-
-      tableRef.current.getLayer()?.batchDraw();
-    }
-  }, [
-    layout.type,
-    table.seats,
-    table.seatedGuests,
-    occupiedSeatsCount,
-    hideSeats,
-    liveArrivals,
-    table.name,
-  ]);
+  
+/* ====== NO CACHE - מונע חיתוכים וקווים על הטקסט ====== */
+useEffect(() => {
+  if (tableRef.current) {
+    tableRef.current.clearCache();
+    tableRef.current.getLayer()?.batchDraw();
+  }
+}, [
+  layout.type,
+  table.seats,
+  table.seatedGuests,
+  occupiedSeatsCount,
+  hideSeats,
+  liveArrivals,
+  table.name,
+]);
 
   const handleDrop = (e) => {
     e.cancelBubble = true;
