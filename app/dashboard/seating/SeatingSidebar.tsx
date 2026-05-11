@@ -547,12 +547,6 @@ export default function SeatingSidebar({
 
     if (!tableId || tableId === ACTION_NONE) return;
 
-    /*
-      קבוצה קטנה:
-      אותו dropdown גם משבץ, גם משנה שולחן.
-      אם כבר יש אורחים יושבים — מעבירים אותם.
-      אם יש עוד שלא שובצו — seatGroup ישבץ גם אותם לאותו שולחן.
-    */
     if (seatedGuestIds.length > 0) {
       await handleMoveGuests({
         guestIds: seatedGuestIds,
@@ -584,20 +578,14 @@ export default function SeatingSidebar({
 
   /* ================= RENDER HELPERS ================= */
 
-  const chipClass = (active: boolean, type: "all" | "seated" | "unseated") => {
-    if (active && type === "seated") {
-      return "border-green-300 bg-green-50 text-green-700";
-    }
-
-    if (active && type === "unseated") {
-      return "border-orange-300 bg-orange-50 text-orange-700";
-    }
-
-    if (active) {
-      return "border-[#D7B28D] bg-[#FFF7EE] text-[#6A4E3B]";
-    }
-
-    return "border-[#EAD8CC] bg-white text-[#8B6F5A] hover:bg-[#FCF7F2]";
+  const compactSegmentClass = (
+    active: boolean,
+    type: "all" | "seated" | "unseated"
+  ) => {
+    if (active && type === "seated") return "bg-green-50 text-green-700";
+    if (active && type === "unseated") return "bg-orange-50 text-orange-700";
+    if (active) return "bg-[#E9D6C6] text-[#4B3528]";
+    return "bg-transparent text-[#8B6F5A] hover:bg-white";
   };
 
   const renderGuestRow = (g: Guest) => {
@@ -610,7 +598,8 @@ export default function SeatingSidebar({
         key={gid}
         className="
           border-b border-[#F4EAE2]
-          px-3 py-2.5
+          bg-white
+          px-3 py-2
           transition hover:bg-[#FFF9F3]
         "
       >
@@ -878,7 +867,7 @@ export default function SeatingSidebar({
           </div>
         </div>
 
-        <div className="flex-1 space-y-2.5 overflow-y-auto p-3">
+        <div className="flex-1 overflow-y-auto border-t border-[#EAD8CC] bg-white">
           {Object.entries(groupedGuests).map(([groupId, list]) => {
             const group: Group | null =
               groupId !== NO_GROUP_KEY
@@ -912,16 +901,9 @@ export default function SeatingSidebar({
             const isOpen = !!openGroups[groupId];
 
             return (
-              <div
-                key={groupId}
-                className="
-                  overflow-hidden rounded-[24px]
-                  border border-[#EAD8CC]
-                  bg-white shadow-[0_2px_10px_rgba(104,72,46,0.04)]
-                "
-              >
+              <div key={groupId} className="border-b border-[#EAD8CC] bg-white">
                 <div
-                  className="cursor-pointer bg-[#F9F3EE] px-3 py-3"
+                  className="cursor-pointer px-3 py-2.5 transition hover:bg-[#FFF9F3]"
                   onClick={() =>
                     setOpenGroups((o) => ({
                       ...o,
@@ -929,85 +911,101 @@ export default function SeatingSidebar({
                     }))
                   }
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="truncate text-[14px] font-black text-[#2F241D]">
-                          {group ? group.name : "ללא קבוצה"}
-                        </span>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex min-w-0 flex-1 items-center gap-2">
+                      <span className="text-[12px] text-[#8B6F5A]">
+                        {isOpen ? "▴" : "▾"}
+                      </span>
 
-                        <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-bold text-[#8B6F5A]">
-                          {seated}/{total}
-                        </span>
-                      </div>
+                      <span className="truncate text-[14px] font-black text-[#2F241D]">
+                        {group ? group.name : "ללא קבוצה"}
+                      </span>
 
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setGroupInnerFilter((prev) => ({
-                              ...prev,
-                              [groupId]: "all",
-                            }));
-                          }}
-                          className={`rounded-full border px-2.5 py-1 text-[10px] font-bold transition ${chipClass(
-                            (groupInnerFilter[groupId] || "all") === "all",
-                            "all"
-                          )}`}
-                        >
-                          הכל {total}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setGroupInnerFilter((prev) => ({
-                              ...prev,
-                              [groupId]: "seated",
-                            }));
-                          }}
-                          className={`rounded-full border px-2.5 py-1 text-[10px] font-bold transition ${chipClass(
-                            groupInnerFilter[groupId] === "seated",
-                            "seated"
-                          )}`}
-                        >
-                          הושבו {seated}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setGroupInnerFilter((prev) => ({
-                              ...prev,
-                              [groupId]: "unseated",
-                            }));
-                          }}
-                          className={`rounded-full border px-2.5 py-1 text-[10px] font-bold transition ${chipClass(
-                            groupInnerFilter[groupId] === "unseated",
-                            "unseated"
-                          )}`}
-                        >
-                          לא שובצו {remaining}
-                        </button>
-                      </div>
+                      <span className="shrink-0 rounded-full bg-[#F7EFE8] px-2 py-0.5 text-[10px] font-bold text-[#8B6F5A]">
+                        {seated}/{total}
+                      </span>
                     </div>
 
-                    <span className="pt-1 text-sm text-[#8B6F5A]">
-                      {isOpen ? "▴" : "▾"}
-                    </span>
+                    <div
+                      className="
+                        flex shrink-0 overflow-hidden rounded-full
+                        border border-[#EAD8CC] bg-[#FBF7F3]
+                      "
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setGroupInnerFilter((prev) => ({
+                            ...prev,
+                            [groupId]: "all",
+                          }))
+                        }
+                        className={`
+                          px-2.5 py-1 text-[10px] font-bold transition
+                          ${compactSegmentClass(
+                            (groupInnerFilter[groupId] || "all") === "all",
+                            "all"
+                          )}
+                        `}
+                      >
+                        הכל {total}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setGroupInnerFilter((prev) => ({
+                            ...prev,
+                            [groupId]: "seated",
+                          }))
+                        }
+                        className={`
+                          border-r border-[#EAD8CC] px-2.5 py-1
+                          text-[10px] font-bold transition
+                          ${compactSegmentClass(
+                            groupInnerFilter[groupId] === "seated",
+                            "seated"
+                          )}
+                        `}
+                      >
+                        הושבו {seated}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setGroupInnerFilter((prev) => ({
+                            ...prev,
+                            [groupId]: "unseated",
+                          }))
+                        }
+                        className={`
+                          border-r border-[#EAD8CC] px-2.5 py-1
+                          text-[10px] font-bold transition
+                          ${compactSegmentClass(
+                            groupInnerFilter[groupId] === "unseated",
+                            "unseated"
+                          )}
+                        `}
+                      >
+                        לא שובצו {remaining}
+                      </button>
+                    </div>
                   </div>
 
                   <div
-                    className="mt-3 flex flex-col gap-2"
+                    className="
+                      mt-2 grid gap-2
+                      rounded-2xl border border-[#F0E2D8]
+                      bg-[#FCF8F4] p-2
+                    "
                     onClick={(e) => e.stopPropagation()}
                   >
                     {!isLargeGroup ? (
                       <select
                         className="
-                          h-9 w-full
+                          h-8 w-full
                           rounded-xl border border-[#E6C3AD]
                           bg-white px-3 text-[11px] font-semibold
                           text-[#4B3528]
@@ -1045,7 +1043,7 @@ export default function SeatingSidebar({
                       <>
                         <select
                           className="
-                            h-9 w-full
+                            h-8 w-full
                             rounded-xl border border-[#E6C3AD]
                             bg-white px-3 text-[11px] font-semibold
                             text-[#4B3528]
@@ -1084,7 +1082,7 @@ export default function SeatingSidebar({
                           <div className="grid grid-cols-2 gap-2">
                             <select
                               className="
-                                h-9 rounded-xl border border-[#E6C3AD]
+                                h-8 rounded-xl border border-[#E6C3AD]
                                 bg-white px-3 text-[11px] font-semibold
                                 text-[#4B3528]
                                 outline-none
@@ -1112,7 +1110,7 @@ export default function SeatingSidebar({
                             <select
                               key={`${groupId}-${derivedSourceTableId}`}
                               className="
-                                h-9 rounded-xl border border-[#E6C3AD]
+                                h-8 rounded-xl border border-[#E6C3AD]
                                 bg-white px-3 text-[11px] font-semibold
                                 text-[#4B3528]
                                 outline-none
@@ -1156,7 +1154,7 @@ export default function SeatingSidebar({
                 </div>
 
                 {isOpen && (
-                  <div>
+                  <div className="border-t border-[#F4EAE2]">
                     {displayGuests.length > 0 ? (
                       displayGuests.map(renderGuestRow)
                     ) : (
