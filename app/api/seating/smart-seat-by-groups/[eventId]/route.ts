@@ -27,37 +27,41 @@ type InvitationGuestDoc = {
   status?: string;
   groupId?: mongoose.Types.ObjectId | string | null;
   relation?: string | null;
-  tableId?: string | null;
-  tableName?: string | null;
-  tableNumber?: number | null;
-  seatNumber?: number | null;
 };
 
 type SeatingInnerTable = {
-  id?: string;
-  _id?: string;
+  id: string;
   name?: string;
-  number?: number;
-  tableName?: string;
-  title?: string;
   type?: string;
-  seats?: number | string;
-  seatedGuests?: any[];
+  group?: any;
+  seats?: number;
+  x?: number;
+  y?: number;
+  rotation?: number;
+  width?: number;
+  height?: number;
+  radius?: number;
+  color?: string;
+  locked?: boolean;
+  seatedGuests?: {
+    guestId: mongoose.Types.ObjectId | string;
+    seatIndex: number;
+    arrived?: boolean;
+    isVirtual?: boolean;
+  }[];
   [key: string]: any;
 };
 
-function getGuestName(guest: InvitationGuestDoc) {
-  return guest.name || guest.fullName || "אורח ללא שם";
-}
-
 function getGuestCount(guest: InvitationGuestDoc) {
-  const arrived = Number(guest.arrivedCount || 0);
-  if (Number.isFinite(arrived) && arrived > 0) return Math.floor(arrived);
+  const count = Number(
+    guest.arrivedCount ||
+      guest.actualArrivedCount ||
+      guest.guestsCount ||
+      guest.count ||
+      1
+  );
 
-  const guestsCount = Number(guest.guestsCount || guest.count || 1);
-  return Number.isFinite(guestsCount) && guestsCount > 0
-    ? Math.floor(guestsCount)
-    : 1;
+  return Number.isFinite(count) && count > 0 ? Math.floor(count) : 1;
 }
 
 function isApprovedGuest(guest: InvitationGuestDoc) {
@@ -81,39 +85,17 @@ function isApprovedGuest(guest: InvitationGuestDoc) {
 }
 
 function getGroupKey(guest: InvitationGuestDoc) {
-  if (guest.groupId) {
-    return `group:${String(guest.groupId)}`;
-  }
+  if (guest.groupId) return `group:${String(guest.groupId)}`;
 
-  if (guest.relation && guest.relation.trim()) {
+  if (guest.relation?.trim()) {
     return `relation:${guest.relation.trim().toLowerCase()}`;
   }
 
   return `guest:${String(guest._id)}`;
 }
 
-function getTableId(table: SeatingInnerTable) {
-  return String(table.id || table._id || "");
-}
-
 function getTableName(table: SeatingInnerTable) {
-  return (
-    table.name ||
-    table.tableName ||
-    table.title ||
-    (table.number ? `שולחן ${table.number}` : "שולחן")
-  );
-}
-
-function getTableNumber(table: SeatingInnerTable) {
-  if (typeof table.number === "number") return table.number;
-
-  const name = String(table.name || table.tableName || table.title || "");
-  const match = name.match(/\d+/);
-  if (!match) return null;
-
-  const n = Number(match[0]);
-  return Number.isFinite(n) ? n : null;
+  return table.name || "שולחן";
 }
 
 function getTableCapacity(table: SeatingInnerTable) {
@@ -126,25 +108,20 @@ export async function POST(req: NextRequest, context: RouteContext) {
     await dbConnect();
 
     const guard = await requireSeating();
-    if (!guard.ok) {
-      return guard.response!;
-    }
+    if (!guard.ok) return guard.response!;
 
     const { eventId } = await context.params;
 
-    if (!eventId) {
+    if (!eventId || !mongoose.Types.ObjectId.isValid(eventId)) {
       return NextResponse.json(
-        { success: false, error: "MISSING_EVENT_ID" },
+        { success: false, error: "INVALID_EVENT_ID" },
         { status: 400 }
       );
     }
 
-    /*
-      1. מוצאים הזמנה לפי eventId
-    */
     const invitation = await Invitation.findOne({ eventId })
       .select("_id eventId")
-      .lean<{ _id: mongoose.Types.ObjectId; eventId?: string } | null>();
+      .lean<{ _id: mongoose.Types.ObjectId } | null>();
 
     if (!invitation?._id) {
       return NextResponse.json(
@@ -155,19 +132,13 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     const invitationId = invitation._id;
 
-    /*
-      2. שולפים אורחים מאותו מקור כמו /api/seating/guests/[eventId]
-    */
     const allGuests = await InvitationGuest.find({ invitationId })
       .lean<InvitationGuestDoc[]>()
       .exec();
 
     if (!allGuests.length) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "לא נמצאו אורחים להזמנה הזו",
-        },
+        { success: false, error: "לא נמצאו אורחים להזמנה הזו" },
         { status: 400 }
       );
     }
@@ -185,10 +156,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
       );
     }
 
-    /*
-      3. שולפים את מסמך ההושבה.
-      חשוב: אצלך SeatingTable הוא מסמך אחד עם tables בפנים.
-    */
     const seatingDoc = await SeatingTable.findOne({ eventId }).lean<any>();
 
     if (!seatingDoc) {
@@ -209,19 +176,13 @@ export async function POST(req: NextRequest, context: RouteContext) {
       );
     }
 
-    /*
-      4. מכינים שולחנות לפי table.seats
-    */
     const tableStates = rawTables
       .map((table) => {
-        const tableId = getTableId(table);
         const capacity = getTableCapacity(table);
 
         return {
-          table,
-          tableId,
+          tableId: table.id,
           tableName: getTableName(table),
-          tableNumber: getTableNumber(table),
           capacity,
           remaining: capacity,
           seatedGuests: [] as InvitationGuestDoc[],
@@ -236,13 +197,12 @@ export async function POST(req: NextRequest, context: RouteContext) {
           success: false,
           error: "לא הוגדרה כמות מקומות בשולחנות",
           debug: {
-            tablesCount: rawTables.length,
-            sampleTables: rawTables.slice(0, 5).map((table) => ({
-              id: table.id,
-              _id: table._id,
-              name: table.name,
-              number: table.number,
-              seats: table.seats,
+            rawTablesCount: rawTables.length,
+            sampleTables: rawTables.slice(0, 5).map((t) => ({
+              id: t.id,
+              name: t.name,
+              seats: t.seats,
+              seatedGuests: t.seatedGuests,
             })),
           },
         },
@@ -250,13 +210,15 @@ export async function POST(req: NextRequest, context: RouteContext) {
       );
     }
 
-    const totalGuestSeats = approvedGuests.reduce((sum, guest) => {
-      return sum + getGuestCount(guest);
-    }, 0);
+    const totalGuestSeats = approvedGuests.reduce(
+      (sum, guest) => sum + getGuestCount(guest),
+      0
+    );
 
-    const totalTableSeats = tableStates.reduce((sum, table) => {
-      return sum + table.capacity;
-    }, 0);
+    const totalTableSeats = tableStates.reduce(
+      (sum, table) => sum + table.capacity,
+      0
+    );
 
     if (totalGuestSeats > totalTableSeats) {
       return NextResponse.json(
@@ -270,30 +232,21 @@ export async function POST(req: NextRequest, context: RouteContext) {
       );
     }
 
-    /*
-      5. איפוס שיוך קודם אצל כל האורחים
-    */
     await InvitationGuest.updateMany(
       { invitationId },
       {
         $unset: {
           tableId: "",
-          seatNumber: "",
-        },
-        $set: {
-          tableNumber: null,
           tableName: "",
+          tableNumber: "",
+          seatNumber: "",
         },
       }
     );
 
-    /*
-      6. בניית קבוצות לפי groupId / relation
-    */
     const groupMap = new Map<
       string,
       {
-        key: string;
         members: InvitationGuestDoc[];
         seatsNeeded: number;
       }
@@ -304,7 +257,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
       if (!groupMap.has(key)) {
         groupMap.set(key, {
-          key,
           members: [],
           seatsNeeded: 0,
         });
@@ -321,19 +273,14 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     const unseatedGuests: InvitationGuestDoc[] = [];
 
-    /*
-      7. אלגוריתם הושבה
-    */
     for (const group of groups) {
-      const groupSeatsNeeded = group.seatsNeeded;
-
-      const bestFullTable = tableStates
-        .filter((table) => table.remaining >= groupSeatsNeeded)
+      const fullTable = tableStates
+        .filter((table) => table.remaining >= group.seatsNeeded)
         .sort((a, b) => a.remaining - b.remaining)[0];
 
-      if (bestFullTable) {
-        bestFullTable.seatedGuests.push(...group.members);
-        bestFullTable.remaining -= groupSeatsNeeded;
+      if (fullTable) {
+        fullTable.seatedGuests.push(...group.members);
+        fullTable.remaining -= group.seatsNeeded;
         continue;
       }
 
@@ -346,30 +293,20 @@ export async function POST(req: NextRequest, context: RouteContext) {
       for (const table of availableTables) {
         if (!guestsToSeat.length) break;
 
-        let remainingSeatsInTable = table.remaining;
-        const chunk: InvitationGuestDoc[] = [];
+        let remainingSeats = table.remaining;
 
-        while (guestsToSeat.length && remainingSeatsInTable > 0) {
-          const nextGuest = guestsToSeat[0];
-          const nextGuestCount = getGuestCount(nextGuest);
+        while (guestsToSeat.length && remainingSeats > 0) {
+          const guest = guestsToSeat[0];
+          const guestSeats = getGuestCount(guest);
 
-          if (nextGuestCount <= remainingSeatsInTable) {
-            chunk.push(nextGuest);
+          if (guestSeats <= remainingSeats) {
+            table.seatedGuests.push(guest);
             guestsToSeat.shift();
-            remainingSeatsInTable -= nextGuestCount;
+            remainingSeats -= guestSeats;
+            table.remaining -= guestSeats;
           } else {
             break;
           }
-        }
-
-        if (chunk.length) {
-          table.seatedGuests.push(...chunk);
-
-          const usedSeats = chunk.reduce((sum, guest) => {
-            return sum + getGuestCount(guest);
-          }, 0);
-
-          table.remaining -= usedSeats;
         }
       }
 
@@ -378,16 +315,12 @@ export async function POST(req: NextRequest, context: RouteContext) {
       }
     }
 
-    /*
-      8. מחזירים את seatedGuests לתוך מערך tables הקיים
-    */
     const tableStateById = new Map(
       tableStates.map((table) => [table.tableId, table])
     );
 
     const updatedTables = rawTables.map((table) => {
-      const tableId = getTableId(table);
-      const state = tableStateById.get(tableId);
+      const state = tableStateById.get(table.id);
 
       if (!state) {
         return {
@@ -396,27 +329,27 @@ export async function POST(req: NextRequest, context: RouteContext) {
         };
       }
 
-      let currentSeatNumber = 1;
+      const seatedGuestsPayload: {
+        guestId: mongoose.Types.ObjectId;
+        seatIndex: number;
+        arrived: boolean;
+        isVirtual: boolean;
+      }[] = [];
 
-      const seatedGuestsPayload = state.seatedGuests.map((guest) => {
-        const guestCount = getGuestCount(guest);
-        const seatNumber = currentSeatNumber;
+      let seatIndex = 0;
 
-        currentSeatNumber += guestCount;
+      for (const guest of state.seatedGuests) {
+        const guestSeats = getGuestCount(guest);
 
-        return {
-          guestId: String(guest._id),
-          name: getGuestName(guest),
-          phone: guest.phone || "",
-          guestsCount: guestCount,
-          count: guestCount,
-          groupId: guest.groupId || null,
-          relation: guest.relation || "",
-          rsvp: guest.rsvp || "",
-          status: guest.status || "",
-          seatNumber,
-        };
-      });
+        seatedGuestsPayload.push({
+          guestId: guest._id,
+          seatIndex,
+          arrived: false,
+          isVirtual: false,
+        });
+
+        seatIndex += guestSeats;
+      }
 
       return {
         ...table,
@@ -424,9 +357,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
       };
     });
 
-    /*
-      9. שמירת מערך הטבלאות במסמך ההושבה
-    */
     await SeatingTable.updateOne(
       { eventId },
       {
@@ -437,17 +367,11 @@ export async function POST(req: NextRequest, context: RouteContext) {
       }
     );
 
-    /*
-      10. עדכון האורחים עצמם
-    */
     for (const tableState of tableStates) {
-      let currentSeatNumber = 1;
+      let seatIndex = 0;
 
       for (const guest of tableState.seatedGuests) {
-        const guestCount = getGuestCount(guest);
-        const seatNumber = currentSeatNumber;
-
-        currentSeatNumber += guestCount;
+        const guestSeats = getGuestCount(guest);
 
         await InvitationGuest.updateOne(
           {
@@ -458,24 +382,27 @@ export async function POST(req: NextRequest, context: RouteContext) {
             $set: {
               tableId: tableState.tableId,
               tableName: tableState.tableName,
-              tableNumber: tableState.tableNumber,
-              seatNumber,
+              seatNumber: seatIndex + 1,
             },
           }
         );
+
+        seatIndex += guestSeats;
       }
     }
 
-    const seatedGuestCount = tableStates.reduce((sum, table) => {
-      return sum + table.seatedGuests.length;
-    }, 0);
+    const seatedGuestCount = tableStates.reduce(
+      (sum, table) => sum + table.seatedGuests.length,
+      0
+    );
 
     const seatedSeatsCount = tableStates.reduce((sum, table) => {
       return (
         sum +
-        table.seatedGuests.reduce((innerSum, guest) => {
-          return innerSum + getGuestCount(guest);
-        }, 0)
+        table.seatedGuests.reduce(
+          (innerSum, guest) => innerSum + getGuestCount(guest),
+          0
+        )
       );
     }, 0);
 

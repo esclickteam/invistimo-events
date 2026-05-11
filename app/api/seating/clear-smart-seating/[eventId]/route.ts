@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import mongoose from "mongoose";
 
 import dbConnect from "@/lib/db";
 import InvitationGuest from "@/models/InvitationGuest";
@@ -13,150 +14,81 @@ type RouteContext = {
   params: Promise<{ eventId: string }>;
 };
 
-/* ===============================
-   POST – CLEAR SMART SEATING
-   מסיר הושבה מכל השולחנות
-   מחזיר אורחים לרשימת האורחים
-=============================== */
-
 export async function POST(req: NextRequest, context: RouteContext) {
   try {
     await dbConnect();
 
-    /* ===============================
-       AUTH
-    =============================== */
-
     const guard = await requireSeating();
-
-    if (!guard.ok) {
-      return guard.response!;
-    }
-
-    /* ===============================
-       PARAMS
-    =============================== */
+    if (!guard.ok) return guard.response!;
 
     const { eventId } = await context.params;
 
-    if (!eventId) {
+    if (!eventId || !mongoose.Types.ObjectId.isValid(eventId)) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "MISSING_EVENT_ID",
-        },
+        { success: false, error: "INVALID_EVENT_ID" },
         { status: 400 }
       );
     }
 
-    /* ===============================
-       FIND INVITATION BY EVENT ID
-       אותו מקור כמו /api/seating/guests/[eventId]
-    =============================== */
-
     const invitation = await Invitation.findOne({ eventId })
       .select("_id eventId")
-      .lean<{
-        _id: any;
-        eventId?: string;
-      } | null>();
+      .lean<{ _id: mongoose.Types.ObjectId } | null>();
 
     if (!invitation?._id) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "לא נמצאה הזמנה לאירוע הזה",
-        },
+        { success: false, error: "לא נמצאה הזמנה לאירוע הזה" },
         { status: 404 }
       );
     }
 
     const invitationId = invitation._id;
 
-    /* ===============================
-       CHECK TABLES
-    =============================== */
+    const seatingDoc = await SeatingTable.findOne({ eventId }).lean<any>();
 
-    const tablesCount = await SeatingTable.countDocuments({
-      eventId,
-    });
-
-    if (!tablesCount) {
+    if (!seatingDoc) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "לא נמצאו שולחנות לאירוע הזה",
-        },
+        { success: false, error: "לא נמצא סידור הושבה לאירוע הזה" },
         { status: 404 }
       );
     }
 
-    /* ===============================
-       CHECK GUESTS
-       חשוב: InvitationGuest לפי invitationId
-    =============================== */
+    const rawTables = Array.isArray(seatingDoc.tables)
+      ? seatingDoc.tables
+      : [];
 
-    const guestsCount = await InvitationGuest.countDocuments({
-      invitationId,
-    });
+    const updatedTables = rawTables.map((table: any) => ({
+      ...table,
+      seatedGuests: [],
+    }));
 
-    if (!guestsCount) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "לא נמצאו אורחים להזמנה הזו",
-        },
-        { status: 404 }
-      );
-    }
-
-    /* ===============================
-       CLEAR TABLE SEATING
-       לא מוחק שולחנות
-       רק מרוקן seatedGuests
-    =============================== */
-
-    const tablesResult = await SeatingTable.updateMany(
+    const tablesResult = await SeatingTable.updateOne(
       { eventId },
       {
         $set: {
-          seatedGuests: [],
+          tables: updatedTables,
+          updatedAt: new Date(),
         },
       }
     );
-
-    /* ===============================
-       CLEAR GUEST SEATING
-       לא מוחק אורחים
-       רק מסיר שיוך לשולחן
-    =============================== */
 
     const guestsResult = await InvitationGuest.updateMany(
       { invitationId },
       {
         $unset: {
           tableId: "",
-          seatNumber: "",
           tableName: "",
+          tableNumber: "",
+          seatNumber: "",
         },
       }
     );
 
-    /* ===============================
-       RESPONSE
-    =============================== */
-
     return NextResponse.json({
       success: true,
       message: "CLEAR_SMART_SEATING_COMPLETED",
-      clearedTablesCount: tablesResult.modifiedCount ?? 0,
+      clearedTablesCount: rawTables.length,
       clearedGuestsCount: guestsResult.modifiedCount ?? 0,
-      debug: {
-        eventId,
-        invitationId: String(invitationId),
-        guestsCount,
-        tablesCount,
-      },
+      modifiedSeatingDocs: tablesResult.modifiedCount ?? 0,
     });
   } catch (error: any) {
     console.error("❌ CLEAR SMART SEATING ERROR:", error);
