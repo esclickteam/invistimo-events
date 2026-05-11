@@ -494,51 +494,8 @@ export default function LogisticsTab({ eventId }) {
         if (data.success) {
           const savedSteps = data.steps || [];
 
-          if (
-  data.steps &&
-  data.steps.length > 0
-) {
-  setSteps(data.steps);
-} else {
-  try {
-    const created =
-      await Promise.all(
-        defaultSteps.map(
-          async ({
-            _id,
-            ...step
-          }) => {
-            const res =
-              await fetch(
-                `/api/events/${eventId}/logistics`,
-                {
-                  method:
-                    "POST",
-                  headers:
-                    {
-                      "Content-Type":
-                        "application/json",
-                    },
-                  body: JSON.stringify(
-                    step
-                  ),
-                }
-              );
-
-            const data =
-              await res.json();
-
-            return (
-              data.step
-            );
-          }
-        )
-      );
-
-    setSteps(created);
-  } catch (err) {
-    console.error(err);
-  }
+          if (data.success) {
+  setSteps(data.steps || []);
 }
 
       }
