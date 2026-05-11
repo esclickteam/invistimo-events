@@ -487,32 +487,30 @@ function LogisticsRow({
 
       {/* TITLE */}
 
-     <div className="flex-1 min-w-[340px] flex justify-end">
-        <input
-          value={item.title}
-          onChange={(e) =>
-            onUpdate(
-              item._id,
-              {
-                title:
-                  e.target
-                    .value,
-              }
-            )
-          }
-          className="
-  w-full
-  min-w-[340px]
-  bg-transparent
-  outline-none
-  text-lg
-  font-black
-  text-[#1E1B2E]
-  text-right
-  pr-2
-"
-        />
-      </div>
+     <div className="flex-1 min-w-0 pl-6">
+  <input
+    value={item.title}
+    onChange={(e) =>
+      onUpdate(
+        item._id,
+        {
+          title:
+            e.target
+              .value,
+        }
+      )
+    }
+    className="
+      w-full
+      bg-transparent
+      outline-none
+      text-lg
+      font-black
+      text-[#1E1B2E]
+      text-right
+    "
+  />
+</div>
 
       {/* ICON */}
 
