@@ -112,7 +112,11 @@ const defaultSteps = [
   },
 ];
 
-function TimelineRow({ item, onUpdate, onDelete }) {
+function TimelineRow({
+  item,
+  onUpdate,
+  onDelete,
+}) {
   const {
     setNodeRef,
     attributes,
@@ -127,7 +131,10 @@ function TimelineRow({ item, onUpdate, onDelete }) {
     <div
       ref={setNodeRef}
       style={{
-        transform: CSS.Transform.toString(transform),
+        transform:
+          CSS.Transform.toString(
+            transform
+          ),
         transition,
       }}
       className="
@@ -144,13 +151,23 @@ function TimelineRow({ item, onUpdate, onDelete }) {
         overflow-hidden
       "
     >
+      {/* DRAG */}
+
       <button
         {...attributes}
         {...listeners}
-        className="text-gray-400 cursor-grab shrink-0"
+        className="
+          text-gray-400
+          cursor-grab
+          shrink-0
+        "
       >
-        <GripVertical size={18} />
+        <GripVertical
+          size={18}
+        />
       </button>
+
+      {/* ICON */}
 
       <div
         className="
@@ -167,75 +184,97 @@ function TimelineRow({ item, onUpdate, onDelete }) {
         🎉
       </div>
 
-      <div className="flex-1 min-w-0 overflow-hidden pr-2">
-  <input
-    value={item.title}
-    onChange={(e) =>
-      onUpdate(item._id, {
-        title: e.target.value,
-      })
-    }
-    className="
-      w-full
-      bg-transparent
-      outline-none
-      text-[14px]
-      font-bold
-      text-[#1E1B2E]
-      text-right
-      truncate
-      leading-tight
-    "
-  />
+      {/* TITLE + TIME */}
 
-  <div
-    className="
-      text-[10px]
-      text-gray-400
-      mt-1
-      text-right
-      whitespace-nowrap
-      overflow-hidden
-      text-ellipsis
-    "
-  >
-    יום האירוע
-  </div>
-</div>
+      <div className="flex-1 min-w-0 overflow-hidden text-right">
 
-      <div
-        className="
-          flex
-          items-center
-          gap-2
-          rounded-2xl
-          border
-          border-[#E7E2DD]
-          px-3
-          py-2
-          bg-white
-          shrink-0
-        "
-      >
+        {/* TIME */}
+
+        <div
+          className="
+            flex
+            items-center
+            justify-end
+            gap-2
+            mb-1
+          "
+        >
+          <Clock3
+            size={12}
+            className="text-gray-400"
+          />
+
+          <input
+            type="time"
+            value={item.time}
+            onChange={(e) =>
+              onUpdate(
+                item._id,
+                {
+                  time:
+                    e.target
+                      .value,
+                }
+              )
+            }
+            className="
+              bg-transparent
+              outline-none
+              text-[11px]
+              text-gray-500
+              w-[58px]
+            "
+          />
+        </div>
+
+        {/* TITLE */}
+
         <input
-          type="time"
-          value={item.time}
+          value={item.title}
           onChange={(e) =>
-            onUpdate(item._id, {
-              time: e.target.value,
-            })
+            onUpdate(
+              item._id,
+              {
+                title:
+                  e.target
+                    .value,
+              }
+            )
           }
-          className="bg-transparent outline-none text-sm w-[58px]"
+          className="
+            w-full
+            bg-transparent
+            outline-none
+            text-[15px]
+            font-bold
+            text-[#1E1B2E]
+            text-right
+            truncate
+          "
         />
 
-        <Clock3 size={13} />
+        {/* SUBTITLE */}
+
+        <div
+          className="
+            text-[10px]
+            text-gray-400
+            mt-1
+            whitespace-nowrap
+          "
+        >
+          יום האירוע
+        </div>
       </div>
+
+      {/* STATUS */}
 
       <select
         value={item.status}
         onChange={(e) =>
           onUpdate(item._id, {
-            status: e.target.value,
+            status:
+              e.target.value,
           })
         }
         className={`
@@ -248,18 +287,34 @@ function TimelineRow({ item, onUpdate, onDelete }) {
           text-xs
           font-bold
           outline-none
-          ${STATUS_META[item.status]?.className}
+          ${
+            STATUS_META[
+              item.status
+            ]?.className
+          }
         `}
       >
-        {Object.keys(STATUS_META).map((key) => (
-          <option key={key} value={key}>
-            {STATUS_META[key].label}
+        {Object.keys(
+          STATUS_META
+        ).map((key) => (
+          <option
+            key={key}
+            value={key}
+          >
+            {
+              STATUS_META[key]
+                .label
+            }
           </option>
         ))}
       </select>
 
+      {/* DELETE */}
+
       <button
-        onClick={() => onDelete(item._id)}
+        onClick={() =>
+          onDelete(item._id)
+        }
         className="
           h-10
           w-10
