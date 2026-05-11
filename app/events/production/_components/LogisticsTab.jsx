@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   DndContext,
@@ -46,71 +46,6 @@ const STATUS_META = {
   },
 };
 
-const defaultSteps = [
-  {
-    _id: "default-log-1",
-    type: "logistics",
-    title: "בחירת אולם וסגירה",
-    time: "09:00",
-    status: "done",
-  },
-  {
-    _id: "default-log-2",
-    type: "logistics",
-    title: "ספק קייטרינג",
-    time: "11:30",
-    status: "missing",
-  },
-  {
-    _id: "default-log-3",
-    type: "logistics",
-    title: "הזמנת ציוד הגברה ותאורה",
-    time: "13:00",
-    status: "pending",
-  },
-  {
-    _id: "default-log-4",
-    type: "logistics",
-    title: "עיצוב והדפסה",
-    time: "15:00",
-    status: "missing",
-  },
-  {
-    _id: "default-event-1",
-    type: "event",
-    title: "הגעת צוות והכנות מוקדמות",
-    time: "09:00",
-    status: "pending",
-  },
-  {
-    _id: "default-event-2",
-    type: "event",
-    title: "הגעת ספקים והקמה",
-    time: "14:30",
-    status: "pending",
-  },
-  {
-    _id: "default-event-3",
-    type: "event",
-    title: "קבלת פנים ואירוח",
-    time: "18:00",
-    status: "pending",
-  },
-  {
-    _id: "default-event-4",
-    type: "event",
-    title: "טקס מרכזי",
-    time: "20:00",
-    status: "pending",
-  },
-  {
-    _id: "default-event-5",
-    type: "event",
-    title: "סיום האירוע",
-    time: "23:00",
-    status: "pending",
-  },
-];
 
 function TimelineRow({
   item,
@@ -461,43 +396,73 @@ function LogisticsRow({ item, onUpdate, onDelete }) {
 }
 
 export default function LogisticsTab({ eventId }) {
-  const [steps, setSteps] = useState([]);
+  const [logisticsSteps, setLogisticsSteps] =
+  useState([]);
+
+const [timelineSteps, setTimelineSteps] =
+  useState([]);
   const [loading, setLoading] = useState(true);
 
   const [newLogistic, setNewLogistic] = useState({
     title: "",
     time: "",
     status: "pending",
-    type: "logistics",
   });
 
   const [newEvent, setNewEvent] = useState({
     title: "",
     time: "",
     status: "pending",
-    type: "event",
   });
 
   useEffect(() => {
-    if (!eventId) return;
+  if (!eventId) return;
 
-    async function load() {
-      setLoading(true);
+  async function load() {
+    setLoading(true);
 
-      try {
-        const res = await fetch(`/api/events/${eventId}/logistics`, {
-          cache: "no-store",
-        });
+    try {
+      const [
+        logisticsRes,
+        timelineRes,
+      ] = await Promise.all([
+        fetch(
+          `/api/events/${eventId}/logistics`,
+          {
+            cache: "no-store",
+          }
+        ),
 
-        const data = await res.json();
+        fetch(
+          `/api/events/${eventId}/timeline`,
+          {
+            cache: "no-store",
+          }
+        ),
+      ]);
 
-        if (data.success) {
-          const savedSteps = data.steps || [];
+      const logisticsData =
+        await logisticsRes.json();
 
-          if (data.success) {
-  setSteps(data.steps || []);
-}
+      const timelineData =
+        await timelineRes.json();
 
+      if (
+        logisticsData.success
+      ) {
+        setLogisticsSteps(
+          logisticsData.steps ||
+            []
+        );
+      }
+
+      if (
+        timelineData.success
+      ) {
+        setTimelineSteps(
+          timelineData.steps ||
+            []
+        );
       }
     } catch (err) {
       console.error(err);
@@ -506,21 +471,10 @@ export default function LogisticsTab({ eventId }) {
     }
   }
 
-    load();
-  }, [eventId]);
+  load();
+}, [eventId]);
 
-  const logisticsSteps = useMemo(
-    () =>
-      steps.filter(
-        (s) => !s.type || s.type === "logistics"
-      ),
-    [steps]
-  );
-
-  const eventSteps = useMemo(
-    () => steps.filter((s) => s.type === "event"),
-    [steps]
-  );
+  
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -529,101 +483,147 @@ export default function LogisticsTab({ eventId }) {
     })
   );
 
-  async function addStep(payload) {
-    if (!payload.title) return;
-
-    const optimistic = {
-      ...payload,
-      _id: Math.random().toString(36),
-    };
-
-    setSteps((prev) => [...prev, optimistic]);
+  
+  async function addLogisticsStep() {
+    if (!newLogistic.title) return;
 
     try {
-      await fetch(`/api/events/${eventId}/logistics`, {
+      const res = await fetch(`/api/events/${eventId}/logistics`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          ...payload,
-          type: payload.type,
-        }),
+        body: JSON.stringify(newLogistic),
       });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setLogisticsSteps((prev) => [...prev, data.step]);
+
+        setNewLogistic({
+          title: "",
+          time: "",
+          status: "pending",
+        });
+      }
     } catch (err) {
       console.error(err);
     }
   }
 
-  async function updateStep(id, patch) {
-    setSteps((prev) =>
-      prev.map((s) =>
-        s._id === id
-          ? {
-              ...s,
-              ...patch,
-            }
-          : s
-      )
-    );
-
+  async function addTimelineStep() {
+    if (!newEvent.title) return;
 
     try {
-      await fetch(`/api/logistics/${id}`, {
-        method: "PATCH",
+      const res = await fetch(`/api/events/${eventId}/timeline`, {
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(patch),
+        body: JSON.stringify(newEvent),
       });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setTimelineSteps((prev) => [...prev, data.step]);
+
+        setNewEvent({
+          title: "",
+          time: "",
+          status: "pending",
+        });
+      }
     } catch (err) {
       console.error(err);
     }
   }
 
-  async function deleteStep(id) {
-    setSteps((prev) => prev.filter((s) => s._id !== id));
+  async function updateLogisticsStep(id, patch) {
+    setLogisticsSteps((prev) =>
+      prev.map((s) =>
+        s._id === id ? { ...s, ...patch } : s
+      )
+    );
 
-
-    try {
-      await fetch(`/api/logistics/${id}`, {
-        method: "DELETE",
-      });
-    } catch (err) {
-      console.error(err);
-    }
+    await fetch(`/api/logistics/${id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(patch),
+    });
   }
 
-  function handleDragEnd(type) {
-    return ({ active, over }) => {
-      if (!over || active.id === over.id) return;
+  async function updateTimelineStep(id, patch) {
+    setTimelineSteps((prev) =>
+      prev.map((s) =>
+        s._id === id ? { ...s, ...patch } : s
+      )
+    );
 
-      const current =
-        type === "event" ? eventSteps : logisticsSteps;
-
-      const oldIndex = current.findIndex(
-        (i) => i._id === active.id
-      );
-
-      const newIndex = current.findIndex(
-        (i) => i._id === over.id
-      );
-
-      const reordered = arrayMove(
-        current,
-        oldIndex,
-        newIndex
-      );
-
-      const others = steps.filter((s) =>
-        type === "event"
-          ? s.type !== "event"
-          : s.type === "event"
-      );
-
-      setSteps([...others, ...reordered]);
-    };
+    await fetch(`/api/timeline/${id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(patch),
+    });
   }
+
+  async function deleteLogisticsStep(id) {
+    setLogisticsSteps((prev) =>
+      prev.filter((s) => s._id !== id)
+    );
+
+    await fetch(`/api/logistics/${id}`, {
+      method: "DELETE",
+    });
+  }
+
+  async function deleteTimelineStep(id) {
+    setTimelineSteps((prev) =>
+      prev.filter((s) => s._id !== id)
+    );
+
+    await fetch(`/api/timeline/${id}`, {
+      method: "DELETE",
+    });
+  }
+
+  function handleLogisticsDragEnd({ active, over }) {
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = logisticsSteps.findIndex(
+      (i) => i._id === active.id
+    );
+
+    const newIndex = logisticsSteps.findIndex(
+      (i) => i._id === over.id
+    );
+
+    setLogisticsSteps(
+      arrayMove(logisticsSteps, oldIndex, newIndex)
+    );
+  }
+
+  function handleTimelineDragEnd({ active, over }) {
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = timelineSteps.findIndex(
+      (i) => i._id === active.id
+    );
+
+    const newIndex = timelineSteps.findIndex(
+      (i) => i._id === over.id
+    );
+
+    setTimelineSteps(
+      arrayMove(timelineSteps, oldIndex, newIndex)
+    );
+  }
+
 
   if (loading) {
     return (
@@ -758,13 +758,13 @@ export default function LogisticsTab({ eventId }) {
           >
             <button
               onClick={() => {
-                addStep(newLogistic);
+                addLogisticsStep();
 
                 setNewLogistic({
                   title: "",
                   time: "",
                   status: "pending",
-                  type: "logistics",
+                  
                 });
               }}
               className="
@@ -831,7 +831,7 @@ export default function LogisticsTab({ eventId }) {
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd("logistics")}
+            onDragEnd={handleLogisticsDragEnd}
           >
             <SortableContext
               items={logisticsSteps.map((s) => s._id)}
@@ -842,8 +842,8 @@ export default function LogisticsTab({ eventId }) {
                   <LogisticsRow
                     key={item._id}
                     item={item}
-                    onUpdate={updateStep}
-                    onDelete={deleteStep}
+                    onUpdate={updateTimelineStep}
+                    onDelete={deleteTimelineStep}
                   />
                 ))}
               </div>
@@ -916,13 +916,13 @@ export default function LogisticsTab({ eventId }) {
           >
             <button
               onClick={() => {
-                addStep(newEvent);
+                addTimelineStep();
 
                 setNewEvent({
                   title: "",
                   time: "",
                   status: "pending",
-                  type: "event",
+                  
                 });
               }}
               className="
@@ -989,19 +989,19 @@ export default function LogisticsTab({ eventId }) {
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd("event")}
+            onDragEnd={handleTimelineDragEnd}
           >
             <SortableContext
-              items={eventSteps.map((s) => s._id)}
+              items={timelineSteps.map((s) => s._id)}
               strategy={verticalListSortingStrategy}
             >
               <div className="space-y-4 min-w-0">
-                {eventSteps.map((item) => (
+                {timelineSteps.map((item) => (
                   <TimelineRow
                     key={item._id}
                     item={item}
-                    onUpdate={updateStep}
-                    onDelete={deleteStep}
+                    onUpdate={updateLogisticsStep}
+                    onDelete={deleteLogisticsStep}
                   />
                 ))}
               </div>
