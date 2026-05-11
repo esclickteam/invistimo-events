@@ -750,14 +750,14 @@ export default function CalendarTab({ eventId }) {
 
       {/* BODY */}
       <section
-        className="
-          grid
-          grid-cols-1
-          xl:grid-cols-[300px_1fr_300px]
-          2xl:grid-cols-[330px_1fr_330px]
-          gap-6
-          items-start
-        "
+  className="
+    grid
+    grid-cols-1
+    xl:grid-cols-[240px_minmax(820px,1fr)_240px]
+    2xl:grid-cols-[260px_minmax(980px,1fr)_260px]
+    gap-5
+    items-start
+  "
       >
         {/* RIGHT - UPCOMING WEEK */}
         <SidePanel
@@ -940,9 +940,8 @@ export default function CalendarTab({ eventId }) {
                 height="auto"
                 events={calendarItems}
                 dateClick={(info) => {
-                  setSelectedDate(info.dateStr);
-                  openCreateModal(info.date);
-                }}
+  setSelectedDate(info.dateStr);
+}}
                 eventClick={openEditModal}
                 datesSet={updateTitle}
                 eventTimeFormat={{
@@ -1044,9 +1043,9 @@ export default function CalendarTab({ eventId }) {
         }
 
         .producer-calendar-shell .fc-daygrid-day {
-          min-height: 132px;
-          background: #fff;
-        }
+  min-height: 155px;
+  background: #fff;
+}
 
         .producer-calendar-shell .fc-daygrid-day-frame {
           padding: 8px;
