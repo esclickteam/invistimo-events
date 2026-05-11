@@ -541,35 +541,81 @@ function TableRenderer({ table, hideSeats = false }) {
 
           const rotation = getSeatRotation(layout, c) - (table.rotation || 0);
 
-          const seatTopFill = isOccupied ? "#CBA56C" : "#FFF3DE";
-          const seatBodyFill = isOccupied ? "#A87834" : "#FFF9ED";
-          const seatStroke = isOccupied ? "#7A5528" : "#D0B58D";
+          const seatTopFill = isOccupied ? "#EAD7B5" : "#FFF8EE";
+const seatBodyFill = isOccupied ? "#FFFDF9" : "#FFFDF9";
+const seatStroke = isOccupied ? "#D7B179" : "#DEC49F";
+const seatLegFill = isOccupied ? "#D1AC74" : "#D8BC93";
 
           return (
-            <Group key={i} x={c.x} y={c.y} rotation={rotation}>
-              <Rect
-                x={-5}
-                y={-16}
-                width={10}
-                height={6}
-                cornerRadius={3}
-                fill={seatTopFill}
-                stroke={seatStroke}
-                strokeWidth={0.6}
-              />
+  <Group key={i} x={c.x} y={c.y} rotation={rotation}>
+    {/* רגליים עליונות */}
+    <Rect
+      x={-5.2}
+      y={-18.2}
+      width={1.5}
+      height={4.2}
+      cornerRadius={1}
+      fill={seatLegFill}
+      listening={false}
+    />
+    <Rect
+      x={3.7}
+      y={-18.2}
+      width={1.5}
+      height={4.2}
+      cornerRadius={1}
+      fill={seatLegFill}
+      listening={false}
+    />
 
-              <Rect
-                x={-7}
-                y={-10}
-                width={14}
-                height={10}
-                cornerRadius={4}
-                fill={seatBodyFill}
-                stroke={seatStroke}
-                strokeWidth={1}
-              />
-            </Group>
-          );
+    {/* משענת */}
+    <Rect
+      x={-5.4}
+      y={-14.2}
+      width={10.8}
+      height={5.2}
+      cornerRadius={2.7}
+      fill={seatTopFill}
+      stroke={seatStroke}
+      strokeWidth={0.7}
+      listening={false}
+    />
+
+    {/* מושב */}
+    <Rect
+      x={-7}
+      y={-8.4}
+      width={14}
+      height={9.4}
+      cornerRadius={3.8}
+      fill={seatBodyFill}
+      stroke={seatStroke}
+      strokeWidth={0.95}
+      listening={false}
+    />
+
+    {/* רגליים תחתונות */}
+    <Rect
+      x={-4.2}
+      y={1}
+      width={1.6}
+      height={4.8}
+      cornerRadius={1}
+      fill={seatLegFill}
+      listening={false}
+    />
+    <Rect
+      x={2.6}
+      y={1}
+      width={1.6}
+      height={4.8}
+      cornerRadius={1}
+      fill={seatLegFill}
+      listening={false}
+    />
+  </Group>
+);
+
         })}
     </Group>
   );
