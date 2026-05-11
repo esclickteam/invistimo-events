@@ -403,7 +403,7 @@ function LogisticsRow({
       className="
   relative
   grid
-  grid-cols-[40px_56px_minmax(260px,1fr)_120px_50px]
+  grid-cols-[40px_56px_minmax(220px,1fr)_150px_50px]
   items-center
   gap-4
   rounded-[26px]
@@ -460,6 +460,7 @@ function LogisticsRow({
           text-sm
           font-bold
           outline-none
+          min-w-[150px]
           ${
             STATUS_META[
               item.status
