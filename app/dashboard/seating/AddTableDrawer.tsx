@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import type React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Plus, Armchair, Users, Sparkles } from "lucide-react";
 
@@ -101,12 +102,10 @@ function TablePreview({
               key={i}
               active={active}
               className="absolute"
-              style={
-                {
-                  right: `${x}px`,
-                  top: `${y}px`,
-                } as React.CSSProperties
-              }
+              style={{
+                right: `${x}px`,
+                top: `${y}px`,
+              }}
             />
           );
         })}
@@ -230,6 +229,22 @@ function NumberInput({
   max: number;
   onChange: (value: number) => void;
 }) {
+  const normalizeValue = () => {
+    if (Number.isNaN(value)) {
+      onChange(min);
+      return;
+    }
+
+    if (value < min) {
+      onChange(min);
+      return;
+    }
+
+    if (value > max) {
+      onChange(max);
+    }
+  };
+
   return (
     <div>
       <div className="mb-1.5 flex items-center justify-between gap-2">
@@ -250,13 +265,26 @@ function NumberInput({
         max={max}
         value={value}
         onChange={(e) => {
-          const rawValue = Number(e.target.value);
+          const raw = e.target.value;
 
-          if (Number.isNaN(rawValue)) return;
+          if (raw === "") {
+            onChange(0);
+            return;
+          }
 
-          const nextValue = Math.max(min, Math.min(max, rawValue));
-          onChange(nextValue);
+          const next = Number(raw);
+
+          if (Number.isNaN(next)) return;
+
+          /*
+            חשוב:
+            לא עושים כאן min/max בזמן הקלדה.
+            אחרת אי אפשר להקליד 11 / 12 / 13,
+            כי 1 מיד הופך ל-2 ואז נהיה 22/23.
+          */
+          onChange(next);
         }}
+        onBlur={normalizeValue}
         className="
           h-11 w-full rounded-2xl
           border border-[#D6A678]
@@ -291,8 +319,12 @@ export default function AddTableDrawer({
     [type]
   );
 
-  const regularSeatsTotal = tableCount * seats;
-  const reserveSeatsTotal = tableCount * reserveSeats;
+  const safeTableCount = Math.max(0, tableCount || 0);
+  const safeSeats = Math.max(0, seats || 0);
+  const safeReserveSeats = Math.max(0, reserveSeats || 0);
+
+  const regularSeatsTotal = safeTableCount * safeSeats;
+  const reserveSeatsTotal = safeTableCount * safeReserveSeats;
   const totalWithReserve = regularSeatsTotal + reserveSeatsTotal;
 
   const handleAdd = () => {
@@ -510,8 +542,8 @@ export default function AddTableDrawer({
                       סיכום הוספה
                     </div>
                     <div className="mt-0.5 text-xs font-semibold text-[#8B6F5A]">
-                      {selectedTable.name} · {tableCount}{" "}
-                      {tableCount === 1 ? "שולחן" : "שולחנות"}
+                      {selectedTable.name} · {safeTableCount}{" "}
+                      {safeTableCount === 1 ? "שולחן" : "שולחנות"}
                     </div>
                   </div>
                 </div>
@@ -532,7 +564,7 @@ export default function AddTableDrawer({
                     שולחנות
                   </div>
                   <div className="text-lg font-black text-[#2F241D]">
-                    {tableCount}
+                    {safeTableCount}
                   </div>
                 </div>
 
@@ -556,10 +588,10 @@ export default function AddTableDrawer({
                 </div>
               </div>
 
-              {reserveSeats > 0 && (
+              {safeReserveSeats > 0 && (
                 <div className="mt-3 rounded-2xl bg-[#FFF9EF] px-3 py-2 text-center text-[11px] font-semibold text-[#8B6F5A]">
-                  כל שולחן ייפתח עם {seats} מקומות רגילים + {reserveSeats}{" "}
-                  כיסאות רזרבה
+                  כל שולחן ייפתח עם {safeSeats} מקומות רגילים +{" "}
+                  {safeReserveSeats} כיסאות רזרבה
                 </div>
               )}
             </div>
@@ -612,7 +644,8 @@ export default function AddTableDrawer({
             >
               <span className="inline-flex items-center gap-2">
                 <Plus size={16} />
-                הוסף {tableCount} {tableCount === 1 ? "שולחן" : "שולחנות"}
+                הוסף {safeTableCount}{" "}
+                {safeTableCount === 1 ? "שולחן" : "שולחנות"}
               </span>
             </button>
           </div>
