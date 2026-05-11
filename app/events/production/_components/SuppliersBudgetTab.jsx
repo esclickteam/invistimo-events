@@ -1927,6 +1927,8 @@ function FilePreviewModal({
   file,
   onClose,
 }) {
+  console.log("FILE:", file);
+console.log("URL:", file?.url);
   const name = file?.name || "קובץ";
   const url = file?.url;
 
