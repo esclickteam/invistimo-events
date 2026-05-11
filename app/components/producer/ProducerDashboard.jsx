@@ -22,6 +22,9 @@ import {
   Mail,
   MapPin,
   Phone,
+  Pencil,
+  Save,
+  X,
   RefreshCcw,
   Search,
   Sparkles,
@@ -116,10 +119,20 @@ function getClientEventId(client, dataEventId = null) {
 function getEventTitle(client) {
   return (
     client?.event?.title ||
+    client?.event?.eventTitle ||
     client?.event?.name ||
     client?.event?.eventName ||
+    client?.event?.invitationTitle ||
+    client?.event?.invitation?.title ||
+    client?.event?.invitation?.eventTitle ||
     client?.invitation?.title ||
+    client?.invitation?.eventTitle ||
+    client?.invitation?.invitationTitle ||
     client?.invitationTitle ||
+    client?.eventTitle ||
+    client?.eventName ||
+    client?.title ||
+    client?.nameOfEvent ||
     "אירוע ללא שם"
   );
 }
@@ -239,6 +252,13 @@ export default function ProducerDashboard() {
     useState("");
   const [eventFilter, setEventFilter] =
     useState("all");
+
+  const [editingPhoneClientId, setEditingPhoneClientId] =
+    useState(null);
+  const [phoneDraftByClientId, setPhoneDraftByClientId] =
+    useState({});
+  const [savingPhoneClientId, setSavingPhoneClientId] =
+    useState(null);
 
   const assignMenuRef = useRef(null);
 
@@ -624,6 +644,70 @@ export default function ProducerDashboard() {
       setSavingClientId(null);
     }
   };
+
+  /* =========================
+     Phone edit
+  ========================= */
+
+  function startEditPhone(client) {
+    setEditingPhoneClientId(String(client._id));
+
+    setPhoneDraftByClientId((prev) => ({
+      ...prev,
+      [String(client._id)]: client.phone || "",
+    }));
+  }
+
+  function cancelEditPhone() {
+    setEditingPhoneClientId(null);
+  }
+
+  async function saveClientPhone(client) {
+    const clientId = String(client._id);
+    const phone = String(phoneDraftByClientId[clientId] || "").trim();
+
+    try {
+      setSavingPhoneClientId(clientId);
+
+      const res = await fetch(`/api/producer/clients/${clientId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          phone,
+        }),
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || data?.success === false) {
+        throw new Error(data?.message || "שגיאה בשמירת מספר טלפון");
+      }
+
+      setClients((prev) =>
+        prev.map((item) =>
+          String(item._id) === clientId
+            ? {
+                ...item,
+                phone,
+              }
+            : item
+        )
+      );
+
+      setEditingPhoneClientId(null);
+    } catch (err) {
+      console.error(err);
+      alert(
+        err?.message ||
+          "לא הצלחנו לשמור מספר טלפון. צריך לוודא שקיים PATCH /api/producer/clients/[clientId]"
+      );
+    } finally {
+      setSavingPhoneClientId(null);
+    }
+  }
 
   /* =========================
      Stats + Filters
@@ -1136,9 +1220,15 @@ export default function ProducerDashboard() {
                             text={client.email || "—"}
                           />
 
-                          <ContactLine
-                            icon={Phone}
-                            text={client.phone || "—"}
+                          <EditablePhoneLine
+                            client={client}
+                            editingPhoneClientId={editingPhoneClientId}
+                            phoneDraftByClientId={phoneDraftByClientId}
+                            setPhoneDraftByClientId={setPhoneDraftByClientId}
+                            savingPhoneClientId={savingPhoneClientId}
+                            onStartEdit={startEditPhone}
+                            onCancel={cancelEditPhone}
+                            onSave={saveClientPhone}
                           />
                         </div>
                       </td>
@@ -1584,6 +1674,119 @@ function ContactLine({ icon: Icon, text }) {
     <div className="flex items-center gap-2 text-xs text-gray-500">
       <Icon size={13} className="text-[#7A4A35]" />
       <span>{text}</span>
+    </div>
+  );
+}
+
+function EditablePhoneLine({
+  client,
+  editingPhoneClientId,
+  phoneDraftByClientId,
+  setPhoneDraftByClientId,
+  savingPhoneClientId,
+  onStartEdit,
+  onCancel,
+  onSave,
+}) {
+  const clientId = String(client._id);
+  const isEditing = editingPhoneClientId === clientId;
+  const isSaving = savingPhoneClientId === clientId;
+
+  if (isEditing) {
+    return (
+      <div className="flex items-center gap-2">
+        <Phone size={13} className="text-[#7A4A35]" />
+
+        <input
+          value={phoneDraftByClientId[clientId] || ""}
+          onChange={(e) =>
+            setPhoneDraftByClientId((prev) => ({
+              ...prev,
+              [clientId]: e.target.value,
+            }))
+          }
+          placeholder="הוספת טלפון"
+          className="
+            w-[150px]
+            rounded-xl
+            border
+            border-[#E7E2DD]
+            bg-[#FCFBFA]
+            px-3
+            py-1.5
+            text-xs
+            font-bold
+            outline-none
+            focus:border-[#B99C82]
+          "
+        />
+
+        <button
+          type="button"
+          disabled={isSaving}
+          onClick={() => onSave(client)}
+          className="
+            h-7
+            w-7
+            rounded-lg
+            bg-green-50
+            text-green-600
+            flex
+            items-center
+            justify-center
+            disabled:opacity-50
+          "
+        >
+          <Save size={13} />
+        </button>
+
+        <button
+          type="button"
+          disabled={isSaving}
+          onClick={onCancel}
+          className="
+            h-7
+            w-7
+            rounded-lg
+            bg-red-50
+            text-red-500
+            flex
+            items-center
+            justify-center
+            disabled:opacity-50
+          "
+        >
+          <X size={13} />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2 text-xs text-gray-500">
+      <Phone size={13} className="text-[#7A4A35]" />
+
+      <span>{client.phone || "אין טלפון"}</span>
+
+      <button
+        type="button"
+        onClick={() => onStartEdit(client)}
+        className="
+          mr-1
+          h-7
+          w-7
+          rounded-lg
+          bg-[#F5E7DC]
+          text-[#7A4A35]
+          flex
+          items-center
+          justify-center
+          hover:bg-[#EFE4DA]
+        "
+        title="עריכת טלפון"
+      >
+        <Pencil size={12} />
+      </button>
     </div>
   );
 }
