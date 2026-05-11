@@ -1,88 +1,334 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X } from "lucide-react";
+import { X, Plus, Armchair, Users, Sparkles } from "lucide-react";
 
 /* ============================================================
-   SVG ציור שולחנות (עגול / מרובע / אבירים)
+   TYPES
 ============================================================ */
-const TableIcons = {
-  round: ({ active }: { active: boolean }) => {
-    const table = active ? "#2563eb" : "#3b82f6";
-    const seat = active ? "#60a5fa" : "#93c5fd";
-    const stroke = active ? "#1d4ed8" : "#2563eb";
-    const circles = Array.from({ length: 10 }).map((_, i) => {
-      const angle = (2 * Math.PI * i) / 10 - Math.PI / 2;
-      const x = 40 + Math.cos(angle) * 26;
-      const y = 40 + Math.sin(angle) * 26;
-      return (
-        <circle key={i} cx={x} cy={y} r="4" fill={seat} stroke={stroke} />
-      );
-    });
-    return (
-      <svg viewBox="0 0 80 80" className="w-[64px] h-[64px]">
-        {circles}
-        <circle cx="40" cy="40" r="18" fill={table} />
-      </svg>
-    );
-  },
 
-  square: ({ active }: { active: boolean }) => {
-    const table = active ? "#2563eb" : "#3b82f6";
-    const seat = active ? "#60a5fa" : "#93c5fd";
-    const stroke = active ? "#1d4ed8" : "#2563eb";
-    const seats = [
-      [28, 10],[40, 10],[52, 10],
-      [28, 70],[40, 70],[52, 70],
-      [10, 28],[10, 40],[10, 52],
-      [70, 28],[70, 40],[70, 52],
-    ];
-    return (
-      <svg viewBox="0 0 80 80" className="w-[64px] h-[64px]">
-        {seats.map(([x, y], i) => (
-          <circle key={i} cx={x} cy={y} r="4" fill={seat} stroke={stroke} />
-        ))}
-        <rect x="22" y="22" width="36" height="36" rx="6" fill={table} />
-      </svg>
-    );
-  },
+type TableType = "round" | "square" | "banquet";
 
-  banquet: ({ active }: { active: boolean }) => {
-    const table = active ? "#2563eb" : "#3b82f6";
-    const seat = active ? "#60a5fa" : "#93c5fd";
-    const stroke = active ? "#1d4ed8" : "#2563eb";
-    const row = [20, 30, 40, 50, 60];
-    return (
-      <svg viewBox="0 0 80 80" className="w-[64px] h-[64px]">
-        {row.map((x, i) => (
-          <circle key={`t-${i}`} cx={x} cy={14} r="4" fill={seat} stroke={stroke} />
-        ))}
-        {row.map((x, i) => (
-          <circle key={`b-${i}`} cx={x} cy={66} r="4" fill={seat} stroke={stroke} />
-        ))}
-        <rect x="14" y="26" width="52" height="28" rx="10" fill={table} />
-      </svg>
-    );
-  },
+type AddTablePayload = {
+  type: string;
+  seats: number;
+  reserveSeats?: number;
+  totalSeatsWithReserve?: number;
+};
+
+type AddTableDrawerProps = {
+  open: boolean;
+  onClose: () => void;
+  onAdd: (data: AddTablePayload) => void;
+};
+
+type TableOption = {
+  id: TableType;
+  name: string;
+  subtitle: string;
 };
 
 /* ============================================================
-   AddTableModal
+   CONSTANTS
 ============================================================ */
-export default function AddTableDrawer({
 
+const TABLE_TYPES: TableOption[] = [
+  {
+    id: "banquet",
+    name: "אבירים",
+    subtitle: "שולחן מלבני ארוך",
+  },
+  {
+    id: "square",
+    name: "מרובע",
+    subtitle: "שולחן סטנדרטי",
+  },
+  {
+    id: "round",
+    name: "עגול",
+    subtitle: "שולחן עגול",
+  },
+];
+
+/* ============================================================
+   UI HELPERS
+============================================================ */
+
+function SeatDot({
+  active,
+  className = "",
+  style,
+}: {
+  active: boolean;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <span
+      style={style}
+      className={`
+        block h-[10px] w-[10px] rounded-[3px]
+        border shadow-[0_1px_3px_rgba(90,60,30,0.12)]
+        ${
+          active
+            ? "border-[#8B6532] bg-[#B98A45]"
+            : "border-[#D9C3A2] bg-[#FFF9EF]"
+        }
+        ${className}
+      `}
+    />
+  );
+}
+
+function TablePreview({
+  type,
+  active,
+}: {
+  type: TableType;
+  active: boolean;
+}) {
+  if (type === "round") {
+    return (
+      <div className="relative mx-auto h-[86px] w-[86px]">
+        {Array.from({ length: 12 }).map((_, i) => {
+          const angle = (i / 12) * Math.PI * 2;
+          const x = 38 + Math.cos(angle) * 34;
+          const y = 38 + Math.sin(angle) * 34;
+
+          return (
+            <SeatDot
+              key={i}
+              active={active}
+              className="absolute"
+              style={
+                {
+                  right: `${x}px`,
+                  top: `${y}px`,
+                } as React.CSSProperties
+              }
+            />
+          );
+        })}
+
+        <div
+          className={`
+            absolute left-1/2 top-1/2
+            flex h-[48px] w-[48px]
+            -translate-x-1/2 -translate-y-1/2
+            items-center justify-center
+            rounded-full border
+            shadow-[0_8px_18px_rgba(80,50,20,0.08)]
+            ${
+              active
+                ? "border-[#8B6532] bg-gradient-to-br from-[#FFF1CC] via-[#D8B36A] to-[#B98A45]"
+                : "border-[#D6C0A2] bg-[#FFFDF8]"
+            }
+          `}
+        >
+          <span className="text-[10px] font-black text-[#5D4032]">עגול</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (type === "banquet") {
+    return (
+      <div className="relative mx-auto h-[86px] w-[104px]">
+        <div className="absolute right-[8px] top-[9px] flex flex-col gap-[5px]">
+          {Array.from({ length: 7 }).map((_, i) => (
+            <SeatDot key={i} active={active} />
+          ))}
+        </div>
+
+        <div className="absolute left-[8px] top-[9px] flex flex-col gap-[5px]">
+          {Array.from({ length: 7 }).map((_, i) => (
+            <SeatDot key={i} active={active} />
+          ))}
+        </div>
+
+        <div
+          className={`
+            absolute left-1/2 top-1/2
+            flex h-[68px] w-[48px]
+            -translate-x-1/2 -translate-y-1/2
+            items-center justify-center
+            rounded-[17px] border
+            shadow-[0_8px_18px_rgba(80,50,20,0.08)]
+            ${
+              active
+                ? "border-[#8B6532] bg-gradient-to-b from-[#FFF1CC] via-[#D8B36A] to-[#B98A45]"
+                : "border-[#D6C0A2] bg-[#FFFDF8]"
+            }
+          `}
+        >
+          <span className="rotate-90 text-[10px] font-black text-[#5D4032]">
+            אבירים
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative mx-auto h-[86px] w-[96px]">
+      <div className="absolute right-[23px] top-0 flex gap-[6px]">
+        <SeatDot active={active} />
+        <SeatDot active={active} />
+        <SeatDot active={active} />
+      </div>
+
+      <div className="absolute right-[23px] bottom-0 flex gap-[6px]">
+        <SeatDot active={active} />
+        <SeatDot active={active} />
+        <SeatDot active={active} />
+      </div>
+
+      <div className="absolute right-0 top-[25px] flex flex-col gap-[6px]">
+        <SeatDot active={active} />
+        <SeatDot active={active} />
+      </div>
+
+      <div className="absolute left-0 top-[25px] flex flex-col gap-[6px]">
+        <SeatDot active={active} />
+        <SeatDot active={active} />
+      </div>
+
+      <div
+        className={`
+          absolute left-1/2 top-1/2
+          flex h-[50px] w-[56px]
+          -translate-x-1/2 -translate-y-1/2
+          items-center justify-center
+          rounded-[15px] border
+          shadow-[0_8px_18px_rgba(80,50,20,0.08)]
+          ${
+            active
+              ? "border-[#8B6532] bg-gradient-to-br from-[#FFF1CC] via-[#D8B36A] to-[#B98A45]"
+              : "border-[#D6C0A2] bg-[#FFFDF8]"
+          }
+        `}
+      >
+        <span className="text-[10px] font-black text-[#5D4032]">מרובע</span>
+      </div>
+    </div>
+  );
+}
+
+function NumberInput({
+  label,
+  hint,
+  value,
+  min,
+  max,
+  onChange,
+}: {
+  label: string;
+  hint?: string;
+  value: number;
+  min: number;
+  max: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <div>
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <label className="text-[13px] font-black text-[#2F241D]">
+          {label}
+        </label>
+
+        {hint && (
+          <span className="text-[10px] font-semibold text-[#9A7E6A]">
+            {hint}
+          </span>
+        )}
+      </div>
+
+      <input
+        type="number"
+        min={min}
+        max={max}
+        value={value}
+        onChange={(e) => {
+          const rawValue = Number(e.target.value);
+
+          if (Number.isNaN(rawValue)) return;
+
+          const nextValue = Math.max(min, Math.min(max, rawValue));
+          onChange(nextValue);
+        }}
+        className="
+          h-11 w-full rounded-2xl
+          border border-[#D6A678]
+          bg-white px-4
+          text-center text-lg font-black text-[#2F241D]
+          outline-none transition
+          focus:border-[#B98A45]
+          focus:ring-2 focus:ring-[#D6A678]/25
+        "
+      />
+    </div>
+  );
+}
+
+/* ============================================================
+   AddTableDrawer
+============================================================ */
+
+export default function AddTableDrawer({
   open,
   onClose,
   onAdd,
-}: {
-  open: boolean;
-  onClose: () => void;
-  onAdd: (data: { type: string; seats: number }) => void;
-}) {
-  const [type, setType] = useState("square");
-
+}: AddTableDrawerProps) {
+  const [type, setType] = useState<TableType>("square");
+  const [tableCount, setTableCount] = useState(1);
   const [seats, setSeats] = useState(12);
+  const [reserveSeats, setReserveSeats] = useState(0);
+  const [error, setError] = useState("");
+
+  const selectedTable = useMemo(
+    () => TABLE_TYPES.find((item) => item.id === type) || TABLE_TYPES[1],
+    [type]
+  );
+
+  const regularSeatsTotal = tableCount * seats;
+  const reserveSeatsTotal = tableCount * reserveSeats;
+  const totalWithReserve = regularSeatsTotal + reserveSeatsTotal;
+
+  const handleAdd = () => {
+    if (typeof onAdd !== "function") {
+      console.error("❌ onAdd is NOT a function!", onAdd);
+      return;
+    }
+
+    if (tableCount < 1) {
+      setError("יש להזין לפחות שולחן אחד");
+      return;
+    }
+
+    if (seats < 2) {
+      setError("יש להזין לפחות 2 אורחים בכל שולחן");
+      return;
+    }
+
+    if (reserveSeats < 0) {
+      setError("כיסאות רזרבה לא יכולים להיות מתחת ל־0");
+      return;
+    }
+
+    setError("");
+
+    for (let i = 0; i < tableCount; i += 1) {
+      onAdd({
+        type,
+        seats,
+        reserveSeats,
+        totalSeatsWithReserve: seats + reserveSeats,
+      });
+    }
+
+    onClose();
+  };
 
   if (!open) return null;
 
@@ -90,7 +336,7 @@ export default function AddTableDrawer({
     <AnimatePresence>
       {/* OVERLAY */}
       <motion.div
-        className="fixed inset-0 bg-black/40 z-[9998]"
+        className="fixed inset-0 z-[9998] bg-black/45 backdrop-blur-[2px]"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -100,64 +346,274 @@ export default function AddTableDrawer({
       {/* MODAL */}
       <motion.div
         className="fixed inset-0 z-[9999] flex items-center justify-center px-4"
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
+        initial={{ opacity: 0, scale: 0.95, y: 12 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 12 }}
       >
-        <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
+        <div
+          className="
+            w-full max-w-[620px]
+            overflow-hidden rounded-[34px]
+            border border-[#E2CDBB]
+            bg-[#FBF7F2]
+            shadow-[0_30px_90px_rgba(46,30,20,0.28)]
+          "
+          dir="rtl"
+        >
           {/* HEADER */}
-          <div className="flex items-center justify-between px-5 py-4 border-b">
-            <h2 className="text-lg font-semibold">הוספת שולחן</h2>
-            <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-              <X size={22} />
+          <div
+            className="
+              flex items-center justify-between gap-4
+              border-b border-[#EAD8CC]
+              bg-gradient-to-l from-[#FFF7EE] via-white to-[#F2E1D2]
+              px-6 py-5
+            "
+          >
+            <div className="flex items-center gap-3">
+              <div
+                className="
+                  flex h-12 w-12 items-center justify-center
+                  rounded-2xl border border-[#D6A678]
+                  bg-[#FFF8EF]
+                  text-[#9A5A26]
+                  shadow-sm
+                "
+              >
+                <Armchair size={22} />
+              </div>
+
+              <div>
+                <h2 className="text-xl font-black text-[#2F241D]">
+                  הוספת שולחנות
+                </h2>
+                <p className="mt-1 text-xs font-semibold text-[#8B6F5A]">
+                  בחרי סוג, כמות שולחנות, אורחים ורזרבה
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={onClose}
+              className="
+                flex h-10 w-10 items-center justify-center
+                rounded-full border border-[#E2CDBB]
+                bg-white text-[#8B6F5A]
+                transition hover:bg-[#FFF4E8] hover:text-[#2F241D]
+              "
+            >
+              <X size={20} />
             </button>
           </div>
 
           {/* CONTENT */}
-          <div className="p-5">
-            <p className="text-sm font-medium mb-2">בחר סוג שולחן:</p>
+          <div className="space-y-5 px-6 py-5">
+            {/* TABLE TYPE */}
+            <div>
+              <div className="mb-3 flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-black text-[#2F241D]">
+                    סוג שולחן
+                  </div>
+                  <div className="mt-0.5 text-xs font-semibold text-[#8B6F5A]">
+                    העיצוב תואם למפת ההושבה החדשה
+                  </div>
+                </div>
 
-            <div className="grid grid-cols-3 gap-3 mb-5">
-              {[
-                { id: "banquet", name: "אבירים" },
-                { id: "square", name: "מרובע" },
-                { id: "round", name: "עגול" },
-              ].map((t) => {
-                const Icon = TableIcons[t.id as keyof typeof TableIcons];
-                const active = type === t.id;
-                return (
-                  <button
-                    key={t.id}
-                    onClick={() => setType(t.id)}
-                    className={`flex flex-col items-center gap-2 border rounded-lg p-2 transition ${
-                      active ? "border-blue-500 bg-blue-50" : "border-gray-300"
-                    }`}
-                  >
-                    <Icon active={active} />
-                    <span className="text-sm">{t.name}</span>
-                  </button>
-                );
-              })}
+                <span
+                  className="
+                    rounded-full bg-[#FFF0D2]
+                    px-3 py-1 text-xs font-black text-[#8B6532]
+                  "
+                >
+                  {selectedTable.name}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                {TABLE_TYPES.map((item) => {
+                  const active = type === item.id;
+
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setType(item.id)}
+                      className={`
+                        rounded-[26px] border p-3
+                        text-center transition-all
+                        ${
+                          active
+                            ? "border-[#B98A45] bg-[#FFF2D8] shadow-[0_12px_28px_rgba(185,138,69,0.20)]"
+                            : "border-[#E2CDBB] bg-white hover:border-[#D6A678] hover:bg-[#FFF9F3]"
+                        }
+                      `}
+                    >
+                      <TablePreview type={item.id} active={active} />
+
+                      <div className="mt-2 text-sm font-black text-[#2F241D]">
+                        {item.name}
+                      </div>
+
+                      <div className="mt-0.5 text-[10px] font-semibold text-[#8B6F5A]">
+                        {item.subtitle}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
-            <label className="block text-sm font-medium mb-1">מספר כסאות:</label>
-            <input
-              type="number"
-              min={2}
-              max={40}
-              value={seats}
-              onChange={(e) => setSeats(Number(e.target.value))}
-              className="w-full border rounded-md px-3 py-2 mb-4 text-center"
-            />
+            {/* FIELDS */}
+            <div className="grid grid-cols-3 gap-3">
+              <NumberInput
+                label="כמות שולחנות"
+                hint="כמה ליצור"
+                value={tableCount}
+                min={1}
+                max={100}
+                onChange={setTableCount}
+              />
+
+              <NumberInput
+                label="אורחים בכל שולחן"
+                hint="מקומות רגילים"
+                value={seats}
+                min={2}
+                max={60}
+                onChange={setSeats}
+              />
+
+              <NumberInput
+                label="כיסאות רזרבה"
+                hint="לא חובה"
+                value={reserveSeats}
+                min={0}
+                max={20}
+                onChange={setReserveSeats}
+              />
+            </div>
+
+            {/* SUMMARY */}
+            <div
+              className="
+                rounded-3xl border border-[#E2CDBB]
+                bg-white px-4 py-4
+                shadow-[0_8px_20px_rgba(80,50,20,0.05)]
+              "
+            >
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Sparkles size={17} className="text-[#B98A45]" />
+
+                  <div>
+                    <div className="text-sm font-black text-[#2F241D]">
+                      סיכום הוספה
+                    </div>
+                    <div className="mt-0.5 text-xs font-semibold text-[#8B6F5A]">
+                      {selectedTable.name} · {tableCount}{" "}
+                      {tableCount === 1 ? "שולחן" : "שולחנות"}
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  className="
+                    rounded-full bg-[#FFF0D2]
+                    px-3 py-1 text-xs font-black text-[#8B6532]
+                  "
+                >
+                  {totalWithReserve} מקומות סה״כ
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="rounded-2xl bg-[#FFF8EF] p-3">
+                  <div className="text-[10px] font-bold text-[#8B6F5A]">
+                    שולחנות
+                  </div>
+                  <div className="text-lg font-black text-[#2F241D]">
+                    {tableCount}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl bg-[#EAFBF0] p-3">
+                  <div className="flex items-center justify-center gap-1 text-[10px] font-bold text-[#137A3D]">
+                    <Users size={12} />
+                    אורחים
+                  </div>
+                  <div className="text-lg font-black text-[#137A3D]">
+                    {regularSeatsTotal}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl bg-[#FFF0D2] p-3">
+                  <div className="text-[10px] font-bold text-[#8B6532]">
+                    רזרבה
+                  </div>
+                  <div className="text-lg font-black text-[#8B6532]">
+                    {reserveSeatsTotal}
+                  </div>
+                </div>
+              </div>
+
+              {reserveSeats > 0 && (
+                <div className="mt-3 rounded-2xl bg-[#FFF9EF] px-3 py-2 text-center text-[11px] font-semibold text-[#8B6F5A]">
+                  כל שולחן ייפתח עם {seats} מקומות רגילים + {reserveSeats}{" "}
+                  כיסאות רזרבה
+                </div>
+              )}
+            </div>
+
+            {error && (
+              <div
+                className="
+                  rounded-2xl border border-red-200
+                  bg-red-50 px-4 py-3
+                  text-center text-sm font-bold text-red-700
+                "
+              >
+                {error}
+              </div>
+            )}
+          </div>
+
+          {/* FOOTER */}
+          <div
+            className="
+              flex items-center justify-between gap-3
+              border-t border-[#EAD8CC]
+              bg-white px-6 py-4
+            "
+          >
+            <button
+              onClick={onClose}
+              className="
+                rounded-2xl border border-[#E2CDBB]
+                bg-[#F7F2EC]
+                px-5 py-2.5
+                text-sm font-bold text-[#5D4032]
+                transition hover:bg-[#EFE4DA]
+              "
+            >
+              ביטול
+            </button>
 
             <button
-              onClick={() => {
-                onAdd({ type, seats });
-                onClose();
-              }}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-medium"
+              onClick={handleAdd}
+              className="
+                rounded-2xl
+                bg-[#2F241D]
+                px-7 py-2.5
+                text-sm font-black text-white
+                shadow-sm transition
+                hover:bg-[#1E1712]
+                active:scale-[0.98]
+              "
             >
-              ➕ הוסף שולחן
+              <span className="inline-flex items-center gap-2">
+                <Plus size={16} />
+                הוסף {tableCount} {tableCount === 1 ? "שולחן" : "שולחנות"}
+              </span>
             </button>
           </div>
         </div>
