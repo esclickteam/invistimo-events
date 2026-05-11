@@ -174,7 +174,8 @@ function TimelineRow({
       className="
   relative
   grid
-  grid-cols-[40px_56px_minmax(220px,1fr)_120px_120px_50px]
+  grid-cols-[50px_130px_minmax(0,1fr)_70px_40px]
+
   items-center
   gap-4
   rounded-[26px]
@@ -249,75 +250,92 @@ function TimelineRow({
 
       {/* TITLE */}
 
-      <div className="flex-1 min-w-[220px]">
-        <input
-          value={item.title}
-          onChange={(e) =>
-            onUpdate(
-              item._id,
-              {
-                title:
-                  e.target
-                    .value,
-              }
-            )
-          }
-          className="
-  w-full
-  min-w-[220px]
-  bg-transparent
-  outline-none
-  text-lg
-  font-black
-  text-[#1E1B2E]
-"
-        />
-<select
-  value={item.status}
-  onChange={(e) =>
-    onUpdate(item._id, {
-      status: e.target.value,
-    })
-  }
-  className={`
-    rounded-full
-    border
-    px-4
-    py-2
-    text-sm
-    font-bold
-    outline-none
-    ${
-      STATUS_META[item.status]
-        ?.className
-    }
-  `}
->
-  {Object.keys(
-    STATUS_META
-  ).map((key) => (
-    <option
-      key={key}
-      value={key}
-    >
-      {
-        STATUS_META[key]
-          .label
-      }
-    </option>
-  ))}
-</select>
+      {/* TITLE + STATUS */}
 
-        <div
-          className="
-            text-xs
-            text-gray-400
-            mt-1
-          "
-        >
-          יום האירוע
-        </div>
-      </div>
+<div
+  className="
+    flex
+    items-center
+    justify-between
+    gap-6
+    w-full
+    min-w-[280px]
+  "
+>
+  <div className="flex-1 min-w-0">
+    <input
+      value={item.title}
+      onChange={(e) =>
+        onUpdate(
+          item._id,
+          {
+            title:
+              e.target
+                .value,
+          }
+        )
+      }
+      className="
+        w-full
+        bg-transparent
+        outline-none
+        text-lg
+        font-black
+        text-[#1E1B2E]
+        truncate
+      "
+    />
+
+    <div
+      className="
+        text-xs
+        text-gray-400
+        mt-1
+      "
+    >
+      יום האירוע
+    </div>
+  </div>
+
+  <select
+    value={item.status}
+    onChange={(e) =>
+      onUpdate(item._id, {
+        status:
+          e.target.value,
+      })
+    }
+    className={`
+      rounded-full
+      border
+      px-4
+      py-2
+      text-sm
+      font-bold
+      outline-none
+      w-[130px]
+      ${
+        STATUS_META[
+          item.status
+        ]?.className
+      }
+    `}
+  >
+    {Object.keys(
+      STATUS_META
+    ).map((key) => (
+      <option
+        key={key}
+        value={key}
+      >
+        {
+          STATUS_META[key]
+            .label
+        }
+      </option>
+    ))}
+  </select>
+</div>
 
       {/* ICON */}
 
@@ -383,16 +401,18 @@ function LogisticsRow({
         transition,
       }}
       className="
-        flex
-        items-center
-        gap-4
-        rounded-[26px]
-        border
-        border-[#F0ECE7]
-        bg-[#FCFBFA]
-        px-5
-        py-5
-      "
+  relative
+  grid
+  grid-cols-[40px_56px_minmax(260px,1fr)_120px_50px]
+  items-center
+  gap-4
+  rounded-[26px]
+  border
+  border-[#F0ECE7]
+  bg-[#FCFBFA]
+  px-5
+  py-5
+"
     >
       {/* DELETE */}
 
@@ -416,45 +436,7 @@ function LogisticsRow({
         <Trash2 size={16} />
       </button>
 
-      {/* TIME */}
-
-      <div
-        className="
-          flex
-          items-center
-          gap-2
-          rounded-2xl
-          border
-          border-[#E7E2DD]
-          px-4
-          py-3
-          min-w-[110px]
-          bg-white
-        "
-      >
-        <input
-          type="time"
-          value={item.time}
-          onChange={(e) =>
-            onUpdate(
-              item._id,
-              {
-                time:
-                  e.target
-                    .value,
-              }
-            )
-          }
-          className="
-            bg-transparent
-            outline-none
-            text-sm
-            w-full
-          "
-        />
-
-        <Clock3 size={14} />
-      </div>
+      
 
       {/* STATUS */}
 
