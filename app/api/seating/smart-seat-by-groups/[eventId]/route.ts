@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 
-import { connectDB } from "@/lib/db";
+import db from "@/lib/db";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 import Guest from "@/models/Guest";
+import Invitation from "@/models/Invitation";
 import SeatingTable from "@/models/SeatingTable";
 
 export const dynamic = "force-dynamic";
@@ -92,7 +93,7 @@ export async function POST(
   context: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    await connectDB();
+    await db();
 
     /* ===============================
        AUTH
@@ -129,12 +130,51 @@ export async function POST(
     const eventObjectId = new mongoose.Types.ObjectId(eventId);
 
     /* ===============================
+       FIND INVITATION BY EVENT
+       חשוב כי אצלך האורחים כנראה לפי invitationId
+    =============================== */
+
+    const invitation = await Invitation.findOne({
+      eventId: eventObjectId,
+    })
+      .select("_id eventId")
+      .lean<{
+        _id: mongoose.Types.ObjectId;
+        eventId?: mongoose.Types.ObjectId;
+      } | null>();
+
+    const invitationObjectId = invitation?._id || null;
+
+    /* ===============================
+       BUILD GUEST QUERY
+       מחפש גם לפי eventId וגם לפי invitationId
+    =============================== */
+
+    const guestOrQuery: any[] = [
+      {
+        eventId: eventObjectId,
+      },
+    ];
+
+    if (invitationObjectId) {
+      guestOrQuery.push({
+        invitationId: invitationObjectId,
+      });
+    }
+
+    /* ===============================
        LOAD DATA
     =============================== */
 
     const guests = await Guest.find({
-      eventId: eventObjectId,
-      $or: [{ isDeleted: { $exists: false } }, { isDeleted: false }],
+      $and: [
+        {
+          $or: guestOrQuery,
+        },
+        {
+          $or: [{ isDeleted: { $exists: false } }, { isDeleted: false }],
+        },
+      ],
     }).lean<GuestDoc[]>();
 
     const tables = await SeatingTable.find({
@@ -145,7 +185,12 @@ export async function POST(
       return NextResponse.json(
         {
           success: false,
-          error: "לא נמצאו אורחים לאירוע הזה",
+          error:
+            "לא נמצאו אורחים לאירוע הזה. בדקי שהאורחים שמורים לפי eventId או invitationId.",
+          debug: {
+            eventId,
+            invitationId: invitationObjectId ? String(invitationObjectId) : null,
+          },
         },
         { status: 400 }
       );
@@ -217,11 +262,21 @@ export async function POST(
     );
 
     await Guest.updateMany(
-      { eventId: eventObjectId },
+      {
+        $and: [
+          {
+            $or: guestOrQuery,
+          },
+          {
+            $or: [{ isDeleted: { $exists: false } }, { isDeleted: false }],
+          },
+        ],
+      },
       {
         $unset: {
           tableId: "",
           seatNumber: "",
+          tableName: "",
         },
       }
     );
@@ -266,10 +321,6 @@ export async function POST(
 
     /* ===============================
        SMART SEATING ALGORITHM
-
-       1. Try to put full group in one table.
-       2. If impossible, split group between available tables.
-       3. Larger groups first.
     =============================== */
 
     for (const group of groups) {
@@ -354,12 +405,16 @@ export async function POST(
       });
 
       seatedGuestCount += tableState.seatedGuests.length;
+
       seatedSeatsCount += tableState.seatedGuests.reduce((sum, guest) => {
         return sum + getGuestCount(guest);
       }, 0);
 
       await SeatingTable.updateOne(
-        { _id: tableState.tableId, eventId: eventObjectId },
+        {
+          _id: new mongoose.Types.ObjectId(tableState.tableId),
+          eventId: eventObjectId,
+        },
         {
           $set: {
             seatedGuests: seatedGuestsPayload,
@@ -373,10 +428,10 @@ export async function POST(
         );
 
         await Guest.updateOne(
-          { _id: guest._id, eventId: eventObjectId },
+          { _id: guest._id },
           {
             $set: {
-              tableId: tableState.tableId,
+              tableId: new mongoose.Types.ObjectId(tableState.tableId),
               seatNumber: payloadItem?.seatNumber || null,
             },
           }
@@ -398,6 +453,10 @@ export async function POST(
       totalGuestSeats,
       totalTableSeats,
       unseatedCount: unseatedGuests.length,
+      debug: {
+        eventId,
+        invitationId: invitationObjectId ? String(invitationObjectId) : null,
+      },
       unseatedGuests: unseatedGuests.map((guest) => ({
         id: String(guest._id),
         name: getGuestName(guest),
