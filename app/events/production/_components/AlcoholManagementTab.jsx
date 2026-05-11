@@ -1191,19 +1191,47 @@ function ModeButton({ item, active, onClick }) {
       onClick={onClick}
       className={`
         group
+        relative
+        overflow-hidden
         rounded-[30px]
         border
         p-5
         text-right
-        transition
+        transition-all
+        duration-300
         ${
           active
-            ? "bg-[#1E1B2E] text-white border-[#1E1B2E] shadow-lg"
-            : "bg-white text-[#1E1B2E] border-[#ECE5DE] hover:border-[#CDBBAA]"
+            ? `
+              bg-gradient-to-br
+              from-[#F4EDFF]
+              via-white
+              to-[#FBF7F1]
+              text-[#1E1B2E]
+              border-[#E7D8FF]
+              shadow-[0_18px_45px_rgba(132,90,223,0.13)]
+            `
+            : `
+              bg-white
+              text-[#1E1B2E]
+              border-[#ECE5DE]
+              hover:border-[#D9C8B8]
+              hover:shadow-[0_14px_35px_rgba(120,90,60,0.08)]
+            `
         }
       `}
     >
-      <div className="flex items-center justify-between gap-4">
+      {active && (
+        <div
+          className="
+            absolute
+            inset-0
+            bg-[radial-gradient(circle_at_top_left,rgba(139,92,246,0.16),transparent_35%)]
+            pointer-events-none
+          "
+        />
+      )}
+
+      <div className="relative z-10 flex items-center justify-between gap-4">
         <div
           className={`
             h-12
@@ -1213,10 +1241,18 @@ function ModeButton({ item, active, onClick }) {
             items-center
             justify-center
             shrink-0
+            transition
             ${
               active
-                ? "bg-white/15 text-white"
-                : "bg-[#F5E7DC] text-[#7A4A35]"
+                ? `
+                  bg-[#8B5CF6]
+                  text-white
+                  shadow-[0_10px_25px_rgba(139,92,246,0.25)]
+                `
+                : `
+                  bg-[#F5E7DC]
+                  text-[#7A4A35]
+                `
             }
           `}
         >
@@ -1225,21 +1261,27 @@ function ModeButton({ item, active, onClick }) {
 
         <ChevronRight
           size={18}
-          className={active ? "text-white/70" : "text-gray-300"}
+          className={
+            active
+              ? "text-[#8B5CF6]"
+              : "text-gray-300"
+          }
         />
       </div>
 
-      <div className="mt-4 font-black text-lg">
+      <div className="relative z-10 mt-4 font-black text-lg">
         {item.label}
       </div>
 
       <div
         className={`
+          relative
+          z-10
           mt-1
           text-sm
           ${
             active
-              ? "text-white/70"
+              ? "text-[#7B7285]"
               : "text-gray-400"
           }
         `}
