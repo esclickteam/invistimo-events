@@ -94,6 +94,14 @@ export default function SeatingSidebar({
   const [selectingGuestId, setSelectingGuestId] = useState<string | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
 
+  /*
+    לכל קבוצה שומרים מאיזה שולחן רוצים להעביר.
+    זה מחליף את ה"חלקים" — בלי להציג חלוקה מתחת לקבוצה.
+  */
+  const [moveSourceByGroup, setMoveSourceByGroup] = useState<
+    Record<string, string>
+  >({});
+
   useEffect(() => {
     if (!invitationId) return;
     loadGroups(invitationId);
@@ -202,16 +210,17 @@ export default function SeatingSidebar({
       );
 
       if (seat) {
-        return {
-          table,
-          seat,
-        };
+        return { table, seat };
       }
     }
 
     return null;
   };
 
+  /*
+    מזהה אורחים שהושבו דרך "הושב עוד מהקבוצה".
+    אורח שהושב לבד לא נכנס להעברה קבוצתית לפי שולחן.
+  */
   const isGuestSeatedByGroupAction = (guest: Guest) => {
     const gid = seatGuestId(guest);
     const guestGroupId = normalizeGroupId(guest.groupId);
@@ -313,20 +322,16 @@ export default function SeatingSidebar({
     const eligibleGuests = list.filter(isEligibleInCurrentMode);
 
     const blocksMap = new Map<string, GroupTableBlock>();
-    const normalGuests: Guest[] = [];
 
     eligibleGuests.forEach((guest) => {
       const gid = seatGuestId(guest);
       const table = guestTableMap.get(gid);
 
       /*
-        אם האורח לא יושב בכלל, או שהוא הושב ידנית כאורח בודד —
-        הוא נשאר אורח רגיל מתחת לקבוצה.
+        רק אורחים שהושבו כקבוצה נכנסים לרשימת ההעברה הקבוצתית.
+        אורח שהושב ידנית נשאר רגיל ולא נגרר עם הקבוצה.
       */
-      if (!table || !isGuestSeatedByGroupAction(guest)) {
-        normalGuests.push(guest);
-        return;
-      }
+      if (!table || !isGuestSeatedByGroupAction(guest)) return;
 
       const key = String(table.id);
 
@@ -344,10 +349,7 @@ export default function SeatingSidebar({
       block.seatsUsed += getSeatCount(guest);
     });
 
-    return {
-      tableBlocks: Array.from(blocksMap.values()),
-      normalGuests,
-    };
+    return Array.from(blocksMap.values());
   };
 
   /* ================= SEARCH OPEN ================= */
@@ -442,6 +444,41 @@ export default function SeatingSidebar({
     for (const g of eligibleGuests) {
       const gid = seatGuestId(g);
       await assignSingleGuestToTable(gid, tableId);
+    }
+  };
+
+  const handleMoveGroupTable = async ({
+    block,
+    nextTableId,
+  }: {
+    block: GroupTableBlock;
+    nextTableId: string;
+  }) => {
+    const guestIds = block.guests.map((g) => seatGuestId(g));
+
+    if (!nextTableId) {
+      for (const gid of guestIds) {
+        await removeSingleGuestFromTable(gid);
+      }
+
+      return;
+    }
+
+    const result = moveGuestsToTable({
+      guestIds,
+      tableId: nextTableId,
+    });
+
+    if (!result?.ok) {
+      console.error(result?.message || "Failed moving group table");
+      return;
+    }
+
+    for (const gid of guestIds) {
+      const ok = await syncAssignToServer(gid, nextTableId);
+      if (!ok) {
+        console.error("Failed assigning guest on server", gid, nextTableId);
+      }
     }
   };
 
@@ -749,8 +786,11 @@ export default function SeatingSidebar({
 
             const isOpen = !!openGroups[groupId];
 
-            const { tableBlocks, normalGuests } =
-              buildGroupTableBlocks(visibleGuests);
+            const tableBlocks = buildGroupTableBlocks(visibleGuests);
+            const selectedSourceTableId = moveSourceByGroup[groupId] || "";
+            const selectedBlock = tableBlocks.find(
+              (block) => String(block.table.id) === String(selectedSourceTableId)
+            );
 
             return (
               <div
@@ -809,7 +849,7 @@ export default function SeatingSidebar({
                     </span>
                   </div>
 
-                  {/* dropdown קבוצה */}
+                  {/* הושבת קבוצה */}
                   <div className="mt-4" onClick={(e) => e.stopPropagation()}>
                     <select
                       className="
@@ -849,99 +889,85 @@ export default function SeatingSidebar({
                       ))}
                     </select>
                   </div>
+
+                  {/* העברת מי שהושב כקבוצה משולחן לשולחן */}
+                  {group && tableBlocks.length > 0 && (
+                    <div
+                      className="
+                        mt-3 rounded-2xl
+                        border border-[#EAD8CC]
+                        bg-white/70 p-3
+                      "
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="mb-2 text-[11px] font-bold text-[#8B6F5A]">
+                        העברת קבוצה משולחן לשולחן
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <select
+                          className="
+                            h-9 rounded-xl border border-[#E6C3AD]
+                            bg-white px-2 text-xs font-semibold
+                            text-[#4B3528] outline-none
+                          "
+                          value={selectedSourceTableId}
+                          onChange={(e) => {
+                            setMoveSourceByGroup((prev) => ({
+                              ...prev,
+                              [groupId]: e.target.value,
+                            }));
+                          }}
+                        >
+                          <option value="">מאיזה שולחן</option>
+
+                          {tableBlocks.map((block) => (
+                            <option key={block.table.id} value={block.table.id}>
+                              {block.table.name} · {block.guests.length} אורחים
+                            </option>
+                          ))}
+                        </select>
+
+                        <select
+                          className="
+                            h-9 rounded-xl border border-[#E6C3AD]
+                            bg-white px-2 text-xs font-semibold
+                            text-[#4B3528] outline-none
+                            disabled:cursor-not-allowed disabled:opacity-50
+                          "
+                          value=""
+                          disabled={!selectedBlock}
+                          onChange={async (e) => {
+                            const nextTableId = e.target.value;
+                            if (!nextTableId || !selectedBlock) return;
+
+                            await handleMoveGroupTable({
+                              block: selectedBlock,
+                              nextTableId,
+                            });
+
+                            setMoveSourceByGroup((prev) => ({
+                              ...prev,
+                              [groupId]: "",
+                            }));
+                          }}
+                        >
+                          <option value="">לאיזה שולחן</option>
+                          <option value="">הסר מהשולחן</option>
+
+                          {tables.map((t) => (
+                            <option key={t.id} value={t.id}>
+                              {tableLabel(t)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                {/* ===== Group table blocks + normal guests ===== */}
-                {isOpen && (
-                  <>
-                    {tableBlocks.map((block) => {
-                      const guestIds = block.guests.map((g) => seatGuestId(g));
-
-                      return (
-                        <div
-                          key={`${groupId}-${block.table.id}`}
-                          className="border-t border-[#F1E4DC] bg-white"
-                        >
-                          <div className="border-b border-[#F1E4DC] bg-[#FFF9ED] px-4 py-3">
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="min-w-0">
-                                <div className="text-sm font-black text-[#2F241D]">
-                                  {block.table.name}
-                                </div>
-
-                                <div className="mt-1 text-xs text-[#8B6F5A]">
-                                  {block.guests.length} אורחים ·{" "}
-                                  {block.seatsUsed} מקומות
-                                </div>
-                              </div>
-
-                              <select
-                                className="
-                                  h-9 min-w-[155px]
-                                  rounded-xl border border-[#E6C3AD]
-                                  bg-white px-2 text-xs font-semibold
-                                  text-[#4B3528]
-                                  outline-none
-                                  focus:ring-2 focus:ring-[#E6C3AD]/35
-                                "
-                                value={block.table.id}
-                                onClick={(e) => e.stopPropagation()}
-                                onChange={async (e) => {
-                                  const nextTableId = e.target.value;
-
-                                  if (!nextTableId) {
-                                    for (const gid of guestIds) {
-                                      await removeSingleGuestFromTable(gid);
-                                    }
-
-                                    return;
-                                  }
-
-                                  const result = moveGuestsToTable({
-                                    guestIds,
-                                    tableId: nextTableId,
-                                  });
-
-                                  if (!result?.ok) {
-                                    console.error(
-                                      result?.message || "Failed moving guests"
-                                    );
-                                    return;
-                                  }
-
-                                  for (const gid of guestIds) {
-                                    const ok = await syncAssignToServer(
-                                      gid,
-                                      nextTableId
-                                    );
-                                    if (!ok) {
-                                      console.error(
-                                        "Failed assigning guest on server",
-                                        gid
-                                      );
-                                    }
-                                  }
-                                }}
-                              >
-                                <option value="">הסר מהשולחן</option>
-
-                                {tables.map((t) => (
-                                  <option key={t.id} value={t.id}>
-                                    {tableLabel(t)}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                          </div>
-
-                          {block.guests.map(renderGuestRow)}
-                        </div>
-                      );
-                    })}
-
-                    {normalGuests.map(renderGuestRow)}
-                  </>
-                )}
+                {/* כל האורחים רגיל — בלי חלקים / בלי חלוקה */}
+                {isOpen && visibleGuests.map(renderGuestRow)}
               </div>
             );
           })}
