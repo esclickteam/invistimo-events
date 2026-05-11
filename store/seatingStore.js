@@ -553,7 +553,110 @@ seatGroup: (groupId, tableId) => {
   };
 },
 
+moveGuestsToTable: ({ guestIds, tableId }) => {
+  const {
+    tables,
+    guests,
+    seatingMode,
+    getPlannedSeatCount,
+    getGuestSeatCount,
+  } = get();
 
+  if (!Array.isArray(guestIds) || !guestIds.length) {
+    return { ok: false, message: "לא נבחרו אורחים להעברה" };
+  }
+
+  const targetTable = tables.find(
+    (t) => String(t.id) === String(tableId)
+  );
+
+  if (!targetTable) {
+    return { ok: false, message: "שולחן לא נמצא" };
+  }
+
+  const idsToMove = new Set(guestIds.map(String));
+
+  const seatCountFn =
+    seatingMode === "live" ? getGuestSeatCount : getPlannedSeatCount;
+
+  const guestsToMove = guests.filter((g) =>
+    idsToMove.has(String(g.id ?? g._id))
+  );
+
+  const neededSeats = guestsToMove.reduce((sum, guest) => {
+    return sum + Number(seatCountFn(guest) || 0);
+  }, 0);
+
+  if (neededSeats <= 0) {
+    return { ok: false, message: "אין כמות מושבים תקינה" };
+  }
+
+  const cleanedTables = tables.map((table) => ({
+    ...table,
+    seatedGuests: (table.seatedGuests || []).filter(
+      (seat) => !idsToMove.has(String(seat.guestId))
+    ),
+  }));
+
+  const cleanTargetTable = cleanedTables.find(
+    (t) => String(t.id) === String(tableId)
+  );
+
+  if (!cleanTargetTable) {
+    return { ok: false, message: "שולחן יעד לא נמצא" };
+  }
+
+  const block = findFreeBlock(cleanTargetTable, neededSeats);
+
+  if (!block || block.length < neededSeats) {
+    return { ok: false, message: "אין מספיק מקומות פנויים בשולחן" };
+  }
+
+  let cursor = 0;
+
+  const newSeats = guestsToMove.flatMap((guest) => {
+    const count = Number(seatCountFn(guest) || 0);
+    const seats = block.slice(cursor, cursor + count);
+
+    cursor += count;
+
+    return seats.map((seatIndex) => ({
+      guestId: String(guest.id ?? guest._id),
+      seatIndex,
+      arrived: false,
+      groupId: guest.groupId ? String(guest.groupId) : undefined,
+    }));
+  });
+
+  const resolvedTableName = String(
+    cleanTargetTable?.number ??
+      extractNumberFromName(cleanTargetTable?.name) ??
+      cleanTargetTable?.name ??
+      ""
+  ).trim();
+
+  set({
+    tables: cleanedTables.map((table) =>
+      String(table.id) === String(tableId)
+        ? {
+            ...table,
+            seatedGuests: [...(table.seatedGuests || []), ...newSeats],
+          }
+        : table
+    ),
+    guests: guests.map((g) =>
+      idsToMove.has(String(g.id ?? g._id))
+        ? {
+            ...g,
+            tableId,
+            tableName: resolvedTableName || null,
+          }
+        : g
+    ),
+  });
+
+  return { ok: true };
+},
 
 unseatGroup: (groupId) => {
   const { tables, guests, groups } = get();
