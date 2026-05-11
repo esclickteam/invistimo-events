@@ -579,14 +579,23 @@ export default function SeatingSidebar({
   /* ================= RENDER HELPERS ================= */
 
   const compactSegmentClass = (
-    active: boolean,
-    type: "all" | "seated" | "unseated"
-  ) => {
-    if (active && type === "seated") return "bg-green-50 text-green-700";
-    if (active && type === "unseated") return "bg-orange-50 text-orange-700";
-    if (active) return "bg-[#E9D6C6] text-[#4B3528]";
-    return "bg-transparent text-[#8B6F5A] hover:bg-white";
-  };
+  active: boolean,
+  type: "all" | "seated" | "unseated"
+) => {
+  if (active && type === "seated") {
+    return "bg-[#DDF7E7] text-[#137A3D]";
+  }
+
+  if (active && type === "unseated") {
+    return "bg-[#FFE4D2] text-[#B64517]";
+  }
+
+  if (active) {
+    return "bg-[#D6B18A] text-white";
+  }
+
+  return "bg-transparent text-[#7A5A43] hover:bg-white";
+};
 
   const renderGuestRow = (g: Guest) => {
     const gid = seatGuestId(g);
@@ -652,8 +661,8 @@ export default function SeatingSidebar({
                 text-[11px] font-bold transition
                 ${
                   table
-                    ? "border-green-300 bg-green-50 text-green-700 hover:bg-green-100"
-                    : "border-[#E6C3AD] bg-white text-[#5D4032] hover:bg-[#F6EDE8]"
+  ? "border-[#98D8AF] bg-[#E4FBEA] text-[#137A3D] hover:bg-[#D6F5DF]"
+  : "border-[#D6A678] bg-[#FFF8EF] text-[#8A4B1F] hover:bg-[#F7E6D5]"
                 }
               `}
               onClick={async () => {
@@ -733,7 +742,7 @@ export default function SeatingSidebar({
           h-full w-[410px] max-w-[92vw]
           flex flex-col
           border-l border-[#EAD8CC]
-          bg-[#FBF7F3]
+          bg-[#F7F2EC]
           shadow-2xl
           transform transition-transform duration-300
           md:static md:translate-x-0 md:z-auto md:pointer-events-auto md:shadow-none
@@ -867,7 +876,7 @@ export default function SeatingSidebar({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto border-t border-[#EAD8CC] bg-white">
+        <div className="flex-1 overflow-y-auto border-t border-[#E2CDBB] bg-[#F8F1EA]">
           {Object.entries(groupedGuests).map(([groupId, list]) => {
             const group: Group | null =
               groupId !== NO_GROUP_KEY
@@ -901,7 +910,13 @@ export default function SeatingSidebar({
             const isOpen = !!openGroups[groupId];
 
             return (
-              <div key={groupId} className="border-b border-[#EAD8CC] bg-white">
+              <div
+  key={groupId}
+  className="
+    border-b border-[#E2CDBB]
+    bg-gradient-to-l from-[#FFF8F1] to-[#F4E7DA]
+  "
+>
                 <div
                   className="cursor-pointer px-3 py-2.5 transition hover:bg-[#FFF9F3]"
                   onClick={() =>
@@ -997,8 +1012,9 @@ export default function SeatingSidebar({
                   <div
                     className="
                       mt-2 grid gap-2
-                      rounded-2xl border border-[#F0E2D8]
-                      bg-[#FCF8F4] p-2
+                      rounded-2xl border border-[#DFC3AA]
+bg-[#FFFDF9] p-2
+shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]
                     "
                     onClick={(e) => e.stopPropagation()}
                   >
