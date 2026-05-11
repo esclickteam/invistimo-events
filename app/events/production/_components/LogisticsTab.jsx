@@ -100,13 +100,20 @@ function SortableTimelineRow({ item, index, onUpdate, onDelete }) {
             {icon}
           </div>
 
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <input
               value={item.title || ""}
               onChange={(e) =>
                 onUpdate(item._id, { title: e.target.value })
               }
-              className="w-full bg-transparent outline-none text-lg font-black text-[#1E1B2E]"
+              className="
+  w-full
+  bg-transparent
+  outline-none
+  text-lg
+  font-black
+  text-[#1E1B2E]
+"
               placeholder="שם האירוע"
             />
 
@@ -347,14 +354,23 @@ export default function LogisticsTab({ eventId }) {
   );
 
   const logisticsSteps = useMemo(
-    () => steps.filter((s) => s.type !== "event"),
-    [steps]
-  );
+  () =>
+    steps.filter(
+      (s) =>
+        !s.type ||
+        s.type === "logistics"
+    ),
+  [steps]
+);
 
-  const eventSteps = useMemo(
-    () => steps.filter((s) => s.type === "event"),
-    [steps]
-  );
+const eventSteps = useMemo(
+  () =>
+    steps.filter(
+      (s) =>
+        s.type === "event"
+    ),
+  [steps]
+);
 
   const logisticsIds = useMemo(
     () => logisticsSteps.map((s) => s._id),
@@ -372,7 +388,10 @@ export default function LogisticsTab({ eventId }) {
     const res = await fetch(`/api/events/${eventId}/logistics`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+  ...payload,
+  type: payload.type,
+}),
     });
 
     const data = await res.json();
