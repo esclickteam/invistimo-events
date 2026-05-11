@@ -63,18 +63,6 @@ function getGroupKey(guest: GuestDoc) {
   return `guest:${String(guest._id)}`;
 }
 
-function getGroupLabel(guest: GuestDoc) {
-  if (guest.relation && guest.relation.trim()) {
-    return guest.relation.trim();
-  }
-
-  if (guest.groupId) {
-    return String(guest.groupId);
-  }
-
-  return "ללא קבוצה";
-}
-
 function getTableCapacity(table: TableDoc) {
   const capacity = Number(table.seats || table.capacity || table.maxSeats || 0);
   return Number.isFinite(capacity) && capacity > 0 ? capacity : 0;
@@ -130,43 +118,74 @@ export async function POST(
     const eventObjectId = new mongoose.Types.ObjectId(eventId);
 
     /* ===============================
-       FIND INVITATION BY EVENT
-       חשוב כי אצלך האורחים כנראה לפי invitationId
+       BODY
+       מקבלים invitationId מהפרונט
     =============================== */
 
-    const invitation = await Invitation.findOne({
-      eventId: eventObjectId,
-    })
-      .select("_id eventId")
-      .lean<{
-        _id: mongoose.Types.ObjectId;
-        eventId?: mongoose.Types.ObjectId;
-      } | null>();
+    const body = await req.json().catch(() => ({}));
 
-    const invitationObjectId = invitation?._id || null;
+    let invitationIdFromBody: string | null =
+      typeof body?.invitationId === "string" && body.invitationId
+        ? body.invitationId
+        : null;
 
-    /* ===============================
-       BUILD GUEST QUERY
-       מחפש גם לפי eventId וגם לפי invitationId
-    =============================== */
+    let invitationObjectId: mongoose.Types.ObjectId | null = null;
 
-    const guestOrQuery: any[] = [
-      {
-        eventId: eventObjectId,
-      },
-    ];
-
-    if (invitationObjectId) {
-      guestOrQuery.push({
-        invitationId: invitationObjectId,
-      });
+    if (
+      invitationIdFromBody &&
+      mongoose.Types.ObjectId.isValid(invitationIdFromBody)
+    ) {
+      invitationObjectId = new mongoose.Types.ObjectId(invitationIdFromBody);
     }
 
     /* ===============================
-       LOAD DATA
+       FALLBACK – FIND INVITATION BY EVENT
+       אם משום מה לא הגיע invitationId מהפרונט
     =============================== */
 
-    const guests = await Guest.find({
+    if (!invitationObjectId) {
+      const invitation = await Invitation.findOne({
+        $or: [
+          { eventId: eventObjectId },
+          { eventId },
+          { _id: eventObjectId },
+        ],
+      })
+        .select("_id eventId")
+        .lean<{
+          _id: mongoose.Types.ObjectId;
+          eventId?: mongoose.Types.ObjectId | string;
+        } | null>();
+
+      if (invitation?._id) {
+        invitationObjectId = invitation._id;
+        invitationIdFromBody = String(invitation._id);
+      }
+    }
+
+    /* ===============================
+       GUEST QUERY
+       מחפש לפי כל האפשרויות:
+       eventId כאובייקט
+       eventId כסטרינג
+       invitationId כאובייקט
+       invitationId כסטרינג
+       invitation כאובייקט / סטרינג
+    =============================== */
+
+    const guestOrQuery: any[] = [
+      { eventId: eventObjectId },
+      { eventId },
+    ];
+
+    if (invitationObjectId) {
+      guestOrQuery.push({ invitationId: invitationObjectId });
+      guestOrQuery.push({ invitationId: String(invitationObjectId) });
+      guestOrQuery.push({ invitation: invitationObjectId });
+      guestOrQuery.push({ invitation: String(invitationObjectId) });
+    }
+
+    const guestBaseQuery = {
       $and: [
         {
           $or: guestOrQuery,
@@ -175,10 +194,16 @@ export async function POST(
           $or: [{ isDeleted: { $exists: false } }, { isDeleted: false }],
         },
       ],
-    }).lean<GuestDoc[]>();
+    };
+
+    /* ===============================
+       LOAD DATA
+    =============================== */
+
+    const guests = await Guest.find(guestBaseQuery).lean<GuestDoc[]>();
 
     const tables = await SeatingTable.find({
-      eventId: eventObjectId,
+      $or: [{ eventId: eventObjectId }, { eventId }],
     }).lean<TableDoc[]>();
 
     if (!guests.length) {
@@ -186,10 +211,11 @@ export async function POST(
         {
           success: false,
           error:
-            "לא נמצאו אורחים לאירוע הזה. בדקי שהאורחים שמורים לפי eventId או invitationId.",
+            "לא נמצאו אורחים לאירוע הזה. ה־API קיבל eventId אבל לא הצליח למצוא אורחים לפי eventId או invitationId.",
           debug: {
             eventId,
             invitationId: invitationObjectId ? String(invitationObjectId) : null,
+            guestOrQuery,
           },
         },
         { status: 400 }
@@ -201,6 +227,10 @@ export async function POST(
         {
           success: false,
           error: "לא נמצאו שולחנות לאירוע הזה",
+          debug: {
+            eventId,
+            invitationId: invitationObjectId ? String(invitationObjectId) : null,
+          },
         },
         { status: 400 }
       );
@@ -253,7 +283,9 @@ export async function POST(
     =============================== */
 
     await SeatingTable.updateMany(
-      { eventId: eventObjectId },
+      {
+        $or: [{ eventId: eventObjectId }, { eventId }],
+      },
       {
         $set: {
           seatedGuests: [],
@@ -262,16 +294,7 @@ export async function POST(
     );
 
     await Guest.updateMany(
-      {
-        $and: [
-          {
-            $or: guestOrQuery,
-          },
-          {
-            $or: [{ isDeleted: { $exists: false } }, { isDeleted: false }],
-          },
-        ],
-      },
+      guestBaseQuery,
       {
         $unset: {
           tableId: "",
@@ -289,7 +312,6 @@ export async function POST(
       string,
       {
         key: string;
-        label: string;
         members: GuestDoc[];
         seatsNeeded: number;
       }
@@ -297,12 +319,10 @@ export async function POST(
 
     for (const guest of guests) {
       const key = getGroupKey(guest);
-      const label = getGroupLabel(guest);
 
       if (!groupMap.has(key)) {
         groupMap.set(key, {
           key,
-          label,
           members: [],
           seatsNeeded: 0,
         });
@@ -413,7 +433,6 @@ export async function POST(
       await SeatingTable.updateOne(
         {
           _id: new mongoose.Types.ObjectId(tableState.tableId),
-          eventId: eventObjectId,
         },
         {
           $set: {
@@ -438,10 +457,6 @@ export async function POST(
         );
       }
     }
-
-    /* ===============================
-       RESPONSE
-    =============================== */
 
     return NextResponse.json({
       success: true,

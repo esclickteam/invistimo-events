@@ -386,14 +386,17 @@ export default function SeatingPage() {
       setIsSmartSeating(true);
 
       const res = await fetch(
-        `/api/seating/smart-seat-by-groups/${eventId}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
+  `/api/seating/smart-seat-by-groups/${eventId}`,
+  {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      invitationId,
+    }),
+  }
+);
 
       const data = await res.json().catch(() => ({}));
 
