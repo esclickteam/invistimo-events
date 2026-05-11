@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+
 import {
   BarChart3,
   BottleWine,
@@ -72,7 +73,7 @@ const QUICK_LOCATIONS = [
 
 const DEFAULT_BOTTLE = {
   category: "וודקה",
-  brand: "",
+  brand: "חדש",
   flavor: "",
   total: 1,
   allocations: [],
@@ -89,112 +90,13 @@ export default function AlcoholManagementSystem({ eventId }) {
   const [bottles, setBottles] = useState([]);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [savingId, setSavingId] = useState(null);
+  const [actionLoading, setActionLoading] = useState("");
   const [error, setError] = useState("");
 
   const bottleFieldTimeout = useRef({});
-  const logSaveTimeout = useRef(null);
+  const mountedRef = useRef(true);
 
   const storageKey = `${STORAGE_PREFIX}_${eventId || "unknown"}`;
-
-  /* ======================================================
-     LOAD FROM API
-  ====================================================== */
-
-  useEffect(() => {
-    if (!eventId) return;
-
-    let cancelled = false;
-
-    async function load() {
-      setLoading(true);
-      setError("");
-
-      try {
-        const res = await fetch(`/api/events/${eventId}/alcohol`, {
-          cache: "no-store",
-        });
-
-        if (!res.ok) {
-          throw new Error("Failed to load alcohol");
-        }
-
-        const data = await res.json();
-
-        if (cancelled) return;
-
-        const alcohol = Array.isArray(data?.alcohol)
-          ? data.alcohol.filter(Boolean)
-          : [];
-
-        setBottles(alcohol);
-
-        const serverLogs = Array.isArray(data?.logs)
-          ? data.logs
-          : Array.isArray(data?.alcoholLogs)
-            ? data.alcoholLogs
-            : [];
-
-        if (serverLogs.length > 0) {
-          setLogs(serverLogs);
-          localStorage.setItem(storageKey, JSON.stringify(serverLogs));
-        } else {
-          const savedLogs = localStorage.getItem(storageKey);
-          setLogs(savedLogs ? JSON.parse(savedLogs) : []);
-        }
-      } catch (err) {
-        console.error(err);
-
-        if (!cancelled) {
-          setBottles([]);
-          setError("לא הצלחנו לטעון את מערכת האלכוהול. נסי לרענן.");
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    }
-
-    load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [eventId, storageKey]);
-
-  /* ======================================================
-     STATS
-  ====================================================== */
-
-  const stats = useMemo(() => {
-    const total = bottles.reduce(
-      (sum, b) => sum + safeNumber(b.total),
-      0
-    );
-
-    const allocated = bottles.reduce(
-      (sum, b) => sum + totalAllocated(b),
-      0
-    );
-
-    const opened = bottles.reduce(
-      (sum, b) => sum + totalOpened(b),
-      0
-    );
-
-    const remaining = Math.max(total - opened, 0);
-    const unallocated = Math.max(total - allocated, 0);
-
-    return {
-      total,
-      allocated,
-      opened,
-      remaining,
-      unallocated,
-      bottleTypes: bottles.length,
-    };
-  }, [bottles]);
 
   /* ======================================================
      HELPERS
@@ -205,16 +107,52 @@ export default function AlcoholManagementSystem({ eventId }) {
     return Number.isFinite(number) ? number : 0;
   }
 
+  function normalizeBottleList(data) {
+    if (Array.isArray(data?.alcohol)) {
+      return data.alcohol.filter(Boolean);
+    }
+
+    if (Array.isArray(data?.data?.alcohol)) {
+      return data.data.alcohol.filter(Boolean);
+    }
+
+    if (Array.isArray(data?.items)) {
+      return data.items.filter(Boolean);
+    }
+
+    return [];
+  }
+
+  function normalizeSingleBottle(data) {
+    if (data?.alcohol && !Array.isArray(data.alcohol)) {
+      return data.alcohol;
+    }
+
+    if (data?.bottle && !Array.isArray(data.bottle)) {
+      return data.bottle;
+    }
+
+    if (data?.item && !Array.isArray(data.item)) {
+      return data.item;
+    }
+
+    if (data?.data && !Array.isArray(data.data)) {
+      return data.data;
+    }
+
+    return null;
+  }
+
   function totalAllocated(bottle) {
     return (bottle.allocations || []).reduce(
-      (sum, a) => sum + safeNumber(a.qty),
+      (sum, allocation) => sum + safeNumber(allocation.qty),
       0
     );
   }
 
   function totalOpened(bottle) {
     return (bottle.allocations || []).reduce(
-      (sum, a) => sum + safeNumber(a.opened),
+      (sum, allocation) => sum + safeNumber(allocation.opened),
       0
     );
   }
@@ -226,54 +164,14 @@ export default function AlcoholManagementSystem({ eventId }) {
     );
   }
 
-  function remainingInAllocation(allocation) {
-    return Math.max(
-      safeNumber(allocation.qty) - safeNumber(allocation.opened),
-      0
-    );
-  }
-
   function bottleLabel(bottle) {
     return [
-      bottle.category,
-      bottle.brand,
-      bottle.flavor,
+      bottle?.category,
+      bottle?.brand,
+      bottle?.flavor,
     ]
       .filter(Boolean)
       .join(" · ");
-  }
-
-  function getProgress(opened, total) {
-    if (!total) return 0;
-    return Math.min(100, Math.round((opened / total) * 100));
-  }
-
-  async function persistLogs(nextLogs) {
-    setLogs(nextLogs);
-    localStorage.setItem(storageKey, JSON.stringify(nextLogs));
-
-    if (logSaveTimeout.current) {
-      clearTimeout(logSaveTimeout.current);
-    }
-
-    logSaveTimeout.current = setTimeout(async () => {
-      try {
-        await fetch(`/api/events/${eventId}/alcohol/logs`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            logs: nextLogs,
-          }),
-        });
-      } catch (err) {
-        /*
-          אם אין עדיין route ללוגים בשרת, הלוגים נשמרים קבוע בדפדפן.
-          כשהשרת יתמוך ב-/alcohol/logs זה יישמר גם בדאטהבייס בלי שינוי בפרונט.
-        */
-      }
-    }, 350);
   }
 
   function addLog(text, type = "info") {
@@ -292,18 +190,128 @@ export default function AlcoholManagementSystem({ eventId }) {
       date: new Date().toLocaleDateString("he-IL"),
     };
 
-    const nextLogs = [entry, ...logs].slice(0, 300);
-    persistLogs(nextLogs);
+    setLogs((prev) => {
+      const next = [entry, ...prev].slice(0, 300);
+
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(next));
+      } catch (err) {
+        console.error(err);
+      }
+
+      return next;
+    });
   }
+
+  /* ======================================================
+     LOAD
+  ====================================================== */
+
+  async function loadAlcohol({ silent = false } = {}) {
+    if (!eventId) return;
+
+    if (!silent) {
+      setLoading(true);
+    }
+
+    setError("");
+
+    try {
+      const res = await fetch(`/api/events/${eventId}/alcohol`, {
+        cache: "no-store",
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to load alcohol");
+      }
+
+      const data = await res.json();
+      const alcohol = normalizeBottleList(data);
+
+      if (mountedRef.current) {
+        setBottles(alcohol);
+      }
+    } catch (err) {
+      console.error(err);
+
+      if (mountedRef.current) {
+        setError("לא הצלחנו לטעון את מערכת האלכוהול. בדקי שהשרת מחובר.");
+        setBottles([]);
+      }
+    } finally {
+      if (mountedRef.current && !silent) {
+        setLoading(false);
+      }
+    }
+  }
+
+  useEffect(() => {
+    mountedRef.current = true;
+
+    if (!eventId) {
+      setLoading(false);
+      return;
+    }
+
+    loadAlcohol();
+
+    try {
+      const savedLogs = localStorage.getItem(storageKey);
+      setLogs(savedLogs ? JSON.parse(savedLogs) : []);
+    } catch (err) {
+      setLogs([]);
+    }
+
+    return () => {
+      mountedRef.current = false;
+
+      Object.values(bottleFieldTimeout.current || {}).forEach((timeout) => {
+        clearTimeout(timeout);
+      });
+    };
+  }, [eventId]);
+
+  /* ======================================================
+     STATS
+  ====================================================== */
+
+  const stats = useMemo(() => {
+    const total = bottles.reduce(
+      (sum, bottle) => sum + safeNumber(bottle.total),
+      0
+    );
+
+    const allocated = bottles.reduce(
+      (sum, bottle) => sum + totalAllocated(bottle),
+      0
+    );
+
+    const opened = bottles.reduce(
+      (sum, bottle) => sum + totalOpened(bottle),
+      0
+    );
+
+    return {
+      bottleTypes: bottles.length,
+      total,
+      allocated,
+      opened,
+      remaining: Math.max(total - opened, 0),
+      unallocated: Math.max(total - allocated, 0),
+    };
+  }, [bottles]);
 
   /* ======================================================
      API ACTIONS
   ====================================================== */
 
   async function addBottle() {
-    try {
-      setSavingId("new");
+    if (!eventId) return;
 
+    setActionLoading("add");
+    setError("");
+
+    try {
       const res = await fetch(`/api/events/${eventId}/alcohol`, {
         method: "POST",
         headers: {
@@ -312,43 +320,48 @@ export default function AlcoholManagementSystem({ eventId }) {
         body: JSON.stringify(DEFAULT_BOTTLE),
       });
 
+      const data = await res.json().catch(() => null);
+
       if (!res.ok) {
-        throw new Error("Failed to add bottle");
+        throw new Error(data?.error || "Failed to add bottle");
       }
 
-      const data = await res.json();
+      const createdBottle = normalizeSingleBottle(data);
 
-      if (data?.alcohol) {
-        setBottles((prev) => [...prev, data.alcohol].filter(Boolean));
-        addLog("נוסף סוג אלכוהול חדש למלאי", "create");
+      if (createdBottle?._id) {
+        setBottles((prev) => [...prev, createdBottle].filter(Boolean));
+      } else {
+        await loadAlcohol({ silent: true });
       }
+
+      addLog("נוסף סוג אלכוהול חדש למלאי", "create");
     } catch (err) {
       console.error(err);
-      setError("לא הצלחנו להוסיף סוג אלכוהול.");
+      setError("לא הצלחנו להוסיף סוג אלכוהול. בדקי את ה־POST בשרת.");
     } finally {
-      setSavingId(null);
+      setActionLoading("");
     }
   }
 
   async function updateBottle(id, patch, logText = "") {
-    const prevBottles = bottles;
+    if (!id) return;
+
+    const previousBottles = bottles;
 
     setBottles((prev) =>
-      prev
-        .filter(Boolean)
-        .map((b) =>
-          b._id === id
-            ? {
-                ...b,
-                ...patch,
-              }
-            : b
-        )
+      prev.map((bottle) =>
+        bottle._id === id
+          ? {
+              ...bottle,
+              ...patch,
+            }
+          : bottle
+      )
     );
 
-    try {
-      setSavingId(id);
+    setError("");
 
+    try {
       const res = await fetch(`/api/events/alcohol/${id}`, {
         method: "PATCH",
         headers: {
@@ -357,71 +370,75 @@ export default function AlcoholManagementSystem({ eventId }) {
         body: JSON.stringify(patch),
       });
 
+      const data = await res.json().catch(() => null);
+
       if (!res.ok) {
-        throw new Error("Failed to update bottle");
+        throw new Error(data?.error || "Failed to update bottle");
       }
 
-      const data = await res.json();
+      const updatedBottle = normalizeSingleBottle(data);
 
-      setBottles((prev) =>
-        prev
-          .filter(Boolean)
-          .map((b) =>
-            b._id === id
-              ? data?.alcohol ?? b
-              : b
+      if (updatedBottle?._id) {
+        setBottles((prev) =>
+          prev.map((bottle) =>
+            bottle._id === id
+              ? updatedBottle
+              : bottle
           )
-      );
+        );
+      }
 
       if (logText) {
         addLog(logText, "update");
       }
     } catch (err) {
       console.error(err);
-      setBottles(prevBottles);
-      setError("לא הצלחנו לשמור את השינוי.");
-    } finally {
-      setSavingId(null);
+      setBottles(previousBottles);
+      setError("השינוי לא נשמר בשרת. בדקי את PATCH /api/events/alcohol/[id].");
     }
   }
 
   async function removeBottle(id) {
-    const bottle = bottles.find((b) => b._id === id);
-    const prevBottles = bottles;
+    const bottle = bottles.find((item) => item._id === id);
+    const previousBottles = bottles;
 
-    setBottles((prev) => prev.filter((b) => b._id !== id));
+    setBottles((prev) => prev.filter((item) => item._id !== id));
+    setActionLoading(id);
+    setError("");
 
     try {
-      setSavingId(id);
-
       const res = await fetch(`/api/events/alcohol/${id}`, {
         method: "DELETE",
       });
 
       if (!res.ok) {
-        throw new Error("Failed to delete bottle");
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || "Failed to delete bottle");
       }
 
-      addLog(`נמחק מהמלאי: ${bottleLabel(bottle) || "פריט אלכוהול"}`, "delete");
+      addLog(`נמחק מהמלאי: ${bottleLabel(bottle) || "סוג אלכוהול"}`, "delete");
     } catch (err) {
       console.error(err);
-      setBottles(prevBottles);
-      setError("לא הצלחנו למחוק את הפריט.");
+      setBottles(previousBottles);
+      setError("לא הצלחנו למחוק את סוג האלכוהול. בדקי את DELETE בשרת.");
     } finally {
-      setSavingId(null);
+      setActionLoading("");
     }
   }
 
   function updateBottleField(index, field, value) {
     const bottle = bottles[index];
+
     if (!bottle?._id) return;
 
     setBottles((prev) => {
       const copy = [...prev];
+
       copy[index] = {
         ...copy[index],
         [field]: value,
       };
+
       return copy;
     });
 
@@ -441,13 +458,12 @@ export default function AlcoholManagementSystem({ eventId }) {
   async function addAllocation(bottle, location, qty) {
     const cleanLocation = String(location || "").trim();
     const cleanQty = safeNumber(qty);
+    const max = remainingUnallocated(bottle);
 
     if (!cleanLocation || cleanQty <= 0) return;
 
-    const max = remainingUnallocated(bottle);
-
     if (cleanQty > max) {
-      setError(`אי אפשר להקצות יותר ממה שנשאר. נותרו ${max}.`);
+      setError(`אי אפשר להקצות ${cleanQty}. נותרו להקצאה רק ${max}.`);
       return;
     }
 
@@ -469,6 +485,7 @@ export default function AlcoholManagementSystem({ eventId }) {
 
   async function removeAllocation(bottle, allocationIndex) {
     const allocation = bottle.allocations?.[allocationIndex];
+
     if (!allocation) return;
 
     const allocations = [...(bottle.allocations || [])];
@@ -487,7 +504,10 @@ export default function AlcoholManagementSystem({ eventId }) {
 
     if (!allocation) return;
 
-    const cleanQty = Math.max(safeNumber(qty), safeNumber(allocation.opened));
+    const cleanQty = Math.max(
+      safeNumber(qty),
+      safeNumber(allocation.opened)
+    );
 
     allocations[allocationIndex] = {
       ...allocation,
@@ -503,13 +523,14 @@ export default function AlcoholManagementSystem({ eventId }) {
 
     if (!allocation) return;
 
-    if (safeNumber(allocation.opened) >= safeNumber(allocation.qty)) {
-      return;
-    }
+    const opened = safeNumber(allocation.opened);
+    const qty = safeNumber(allocation.qty);
+
+    if (opened >= qty) return;
 
     allocations[allocationIndex] = {
       ...allocation,
-      opened: safeNumber(allocation.opened) + 1,
+      opened: opened + 1,
     };
 
     await updateBottle(
@@ -523,11 +544,15 @@ export default function AlcoholManagementSystem({ eventId }) {
     const allocations = [...(bottle.allocations || [])];
     const allocation = allocations[allocationIndex];
 
-    if (!allocation || safeNumber(allocation.opened) <= 0) return;
+    if (!allocation) return;
+
+    const opened = safeNumber(allocation.opened);
+
+    if (opened <= 0) return;
 
     allocations[allocationIndex] = {
       ...allocation,
-      opened: safeNumber(allocation.opened) - 1,
+      opened: opened - 1,
     };
 
     await updateBottle(
@@ -537,31 +562,37 @@ export default function AlcoholManagementSystem({ eventId }) {
     );
   }
 
-  function clearLocalLogs() {
-    persistLogs([]);
+  function clearLogs() {
+    setLogs([]);
+
+    try {
+      localStorage.setItem(storageKey, JSON.stringify([]));
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   function exportLogs() {
-    const lines = logs.map(
-      (l) => `${l.date || ""} ${l.time || ""} - ${l.text || ""}`
-    );
+    const content = logs
+      .map((log) => `${log.date || ""} ${log.time || ""} - ${log.text || ""}`)
+      .join("\n");
 
-    const blob = new Blob([lines.join("\n")], {
+    const blob = new Blob([content], {
       type: "text/plain;charset=utf-8",
     });
 
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
+    const link = document.createElement("a");
 
-    a.href = url;
-    a.download = `alcohol-logs-${eventId}.txt`;
-    a.click();
+    link.href = url;
+    link.download = `alcohol-logs-${eventId}.txt`;
+    link.click();
 
     URL.revokeObjectURL(url);
   }
 
   /* ======================================================
-     RENDER STATES
+     RENDER
   ====================================================== */
 
   if (!eventId || loading) {
@@ -655,6 +686,7 @@ export default function AlcoholManagementSystem({ eventId }) {
           <span>{error}</span>
 
           <button
+            type="button"
             onClick={() => setError("")}
             className="text-sm underline"
           >
@@ -714,12 +746,12 @@ export default function AlcoholManagementSystem({ eventId }) {
           mb-10
         "
       >
-        {MODES.map((m) => (
+        {MODES.map((item) => (
           <ModeButton
-            key={m.key}
-            mode={m}
-            active={mode === m.key}
-            onClick={() => setMode(m.key)}
+            key={item.key}
+            item={item}
+            active={mode === item.key}
+            onClick={() => setMode(item.key)}
           />
         ))}
       </div>
@@ -733,8 +765,9 @@ export default function AlcoholManagementSystem({ eventId }) {
             description="הגדירי קטגוריה, מותג, טעם וכמות. כל שינוי נשמר אוטומטית בשרת."
             action={
               <button
+                type="button"
                 onClick={addBottle}
-                disabled={savingId === "new"}
+                disabled={actionLoading === "add"}
                 className="
                   rounded-2xl
                   bg-gradient-to-r
@@ -780,8 +813,8 @@ export default function AlcoholManagementSystem({ eventId }) {
                       label="קטגוריה"
                       value={bottle.category || ""}
                       options={CATEGORY_OPTIONS}
-                      onChange={(v) =>
-                        updateBottleField(index, "category", v)
+                      onChange={(value) =>
+                        updateBottleField(index, "category", value)
                       }
                     />
 
@@ -789,8 +822,8 @@ export default function AlcoholManagementSystem({ eventId }) {
                       label="מותג"
                       value={bottle.brand || ""}
                       placeholder="לדוגמה: Grey Goose"
-                      onChange={(v) =>
-                        updateBottleField(index, "brand", v)
+                      onChange={(value) =>
+                        updateBottleField(index, "brand", value)
                       }
                     />
 
@@ -798,8 +831,8 @@ export default function AlcoholManagementSystem({ eventId }) {
                       label="טעם / הערה"
                       value={bottle.flavor || ""}
                       placeholder="רגיל / לימון / רזרבה"
-                      onChange={(v) =>
-                        updateBottleField(index, "flavor", v)
+                      onChange={(value) =>
+                        updateBottleField(index, "flavor", value)
                       }
                     />
 
@@ -807,18 +840,19 @@ export default function AlcoholManagementSystem({ eventId }) {
                       label="סה״כ בקבוקים"
                       value={safeNumber(bottle.total)}
                       min={0}
-                      onChange={(v) =>
+                      onChange={(value) =>
                         updateBottleField(
                           index,
                           "total",
-                          safeNumber(v)
+                          safeNumber(value)
                         )
                       }
                     />
 
                     <button
+                      type="button"
                       onClick={() => removeBottle(bottle._id)}
-                      disabled={savingId === bottle._id}
+                      disabled={actionLoading === bottle._id}
                       className="
                         h-[50px]
                         rounded-2xl
@@ -910,12 +944,14 @@ export default function AlcoholManagementSystem({ eventId }) {
                       </h3>
 
                       <p className="text-sm text-gray-400 mt-1">
-                        סה״כ {safeNumber(bottle.total)} · הוקצו {totalAllocated(bottle)} · נותרו להקצאה {remainingUnallocated(bottle)}
+                        סה״כ {safeNumber(bottle.total)} · הוקצו{" "}
+                        {totalAllocated(bottle)} · נותרו להקצאה{" "}
+                        {remainingUnallocated(bottle)}
                       </p>
                     </div>
 
                     <AllocationProgress
-                      opened={totalAllocated(bottle)}
+                      current={totalAllocated(bottle)}
                       total={safeNumber(bottle.total)}
                       label="התקדמות הקצאה"
                     />
@@ -982,7 +1018,8 @@ export default function AlcoholManagementSystem({ eventId }) {
                               </div>
 
                               <div className="text-xs text-gray-400">
-                                נפתחו {safeNumber(allocation.opened)} מתוך {safeNumber(allocation.qty)}
+                                נפתחו {safeNumber(allocation.opened)} מתוך{" "}
+                                {safeNumber(allocation.qty)}
                               </div>
                             </div>
                           </div>
@@ -992,16 +1029,17 @@ export default function AlcoholManagementSystem({ eventId }) {
                               label="כמות"
                               value={safeNumber(allocation.qty)}
                               min={safeNumber(allocation.opened)}
-                              onChange={(v) =>
+                              onChange={(value) =>
                                 updateAllocationQty(
                                   bottle,
                                   index,
-                                  safeNumber(v)
+                                  safeNumber(value)
                                 )
                               }
                             />
 
                             <button
+                              type="button"
                               onClick={() =>
                                 removeAllocation(bottle, index)
                               }
@@ -1055,7 +1093,7 @@ export default function AlcoholManagementSystem({ eventId }) {
             <SectionHeader
               icon={GlassWater}
               title="ניהול אלכוהול בלייב"
-              description="כאן מנהלים פתיחת בקבוקים בזמן אמת. כל פעולה נכנסת ללוג."
+              description="כאן מנהלים פתיחת בקבוקים בזמן אמת. כל פעולה נכנסת ללוג קבוע."
             />
 
             {bottles.length === 0 ? (
@@ -1083,12 +1121,13 @@ export default function AlcoholManagementSystem({ eventId }) {
                       </h3>
 
                       <p className="text-sm text-gray-400 mt-1">
-                        נפתחו {totalOpened(bottle)} מתוך {totalAllocated(bottle)} שהוקצו
+                        נפתחו {totalOpened(bottle)} מתוך{" "}
+                        {totalAllocated(bottle)} שהוקצו
                       </p>
                     </div>
 
                     <AllocationProgress
-                      opened={totalOpened(bottle)}
+                      current={totalOpened(bottle)}
                       total={totalAllocated(bottle)}
                       label="נפתח בפועל"
                     />
@@ -1130,7 +1169,7 @@ export default function AlcoholManagementSystem({ eventId }) {
 
           <ActivityLogPanel
             logs={logs}
-            onClear={clearLocalLogs}
+            onClear={clearLogs}
             onExport={exportLogs}
           />
         </section>
@@ -1143,11 +1182,12 @@ export default function AlcoholManagementSystem({ eventId }) {
    UI COMPONENTS
 ====================================================== */
 
-function ModeButton({ mode, active, onClick }) {
-  const Icon = mode.icon;
+function ModeButton({ item, active, onClick }) {
+  const Icon = item.icon;
 
   return (
     <button
+      type="button"
       onClick={onClick}
       className={`
         group
@@ -1190,7 +1230,7 @@ function ModeButton({ mode, active, onClick }) {
       </div>
 
       <div className="mt-4 font-black text-lg">
-        {mode.label}
+        {item.label}
       </div>
 
       <div
@@ -1204,7 +1244,7 @@ function ModeButton({ mode, active, onClick }) {
           }
         `}
       >
-        {mode.description}
+        {item.description}
       </div>
     </button>
   );
@@ -1437,9 +1477,9 @@ function MiniInfo({ label, value }) {
   );
 }
 
-function AllocationProgress({ opened, total, label }) {
+function AllocationProgress({ current, total, label }) {
   const progress = total
-    ? Math.min(100, Math.round((opened / total) * 100))
+    ? Math.min(100, Math.round((current / total) * 100))
     : 0;
 
   return (
@@ -1482,10 +1522,11 @@ function AllocationAdder({ max, quickLocations, onAdd }) {
       "
     >
       <div className="flex flex-wrap gap-2 mb-4">
-        {quickLocations.map((loc) => (
+        {quickLocations.map((locationOption) => (
           <button
-            key={loc}
-            onClick={() => setLocation(loc)}
+            key={locationOption}
+            type="button"
+            onClick={() => setLocation(locationOption)}
             className={`
               rounded-full
               px-4
@@ -1494,13 +1535,13 @@ function AllocationAdder({ max, quickLocations, onAdd }) {
               font-black
               border
               ${
-                location === loc
+                location === locationOption
                   ? "bg-[#1E1B2E] text-white border-[#1E1B2E]"
                   : "bg-white text-[#7A4A35] border-[#E8DDD3]"
               }
             `}
           >
-            {loc}
+            {locationOption}
           </button>
         ))}
       </div>
@@ -1529,6 +1570,7 @@ function AllocationAdder({ max, quickLocations, onAdd }) {
         />
 
         <button
+          type="button"
           disabled={!location || qty <= 0 || qty > max}
           onClick={submit}
           className="
@@ -1611,6 +1653,7 @@ function LiveAllocationRow({ allocation, onOpen, onClose }) {
 
         <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={onClose}
             disabled={opened <= 0}
             className="
@@ -1631,6 +1674,7 @@ function LiveAllocationRow({ allocation, onOpen, onClose }) {
           </button>
 
           <button
+            type="button"
             onClick={onOpen}
             disabled={opened >= qty}
             className="
@@ -1704,7 +1748,7 @@ function ActivityLogPanel({ logs, onClear, onExport }) {
             </h3>
 
             <p className="text-xs text-gray-400">
-              נשמר קבוע ומוצג בכל כניסה
+              נשמר קבוע ומוצג בכל כניסה מאותו מחשב
             </p>
           </div>
         </div>
@@ -1714,6 +1758,7 @@ function ActivityLogPanel({ logs, onClear, onExport }) {
 
       <div className="flex items-center gap-2 mb-5">
         <button
+          type="button"
           onClick={onExport}
           disabled={logs.length === 0}
           className="
@@ -1739,6 +1784,7 @@ function ActivityLogPanel({ logs, onClear, onExport }) {
         </button>
 
         <button
+          type="button"
           onClick={onClear}
           disabled={logs.length === 0}
           className="
