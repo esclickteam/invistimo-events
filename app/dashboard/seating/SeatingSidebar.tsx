@@ -42,28 +42,27 @@ type Group = {
   tableId?: string | null;
 };
 
+type SeatedGuest = {
+  guestId: string;
+  groupId?: string;
+};
+
 type Table = {
   id: string;
   name: string;
   seats: number;
-  seatedGuests: { guestId: string; groupId?: string }[];
+  seatedGuests: SeatedGuest[];
 };
 
 type Filter = "all" | "seated" | "unseated";
 
-type GroupPart =
-  | {
-      type: "seated";
-      title: string;
-      table: Table;
-      guests: Guest[];
-    }
-  | {
-      type: "remaining";
-      title: string;
-      table: null;
-      guests: Guest[];
-    };
+type GroupPart = {
+  type: "groupPart" | "remaining" | "normal";
+  title: string;
+  table: Table | null;
+  guests: Guest[];
+  isSplitPart: boolean;
+};
 
 /* ================= COMPONENT ================= */
 
@@ -166,7 +165,25 @@ export default function SeatingSidebar({
     }
   };
 
-  /* ================= TABLE MAP ================= */
+  const assignSingleGuestToTable = async (guestId: string, tableId: string) => {
+    assignGuestBlock({ guestId, tableId });
+
+    const ok = await syncAssignToServer(guestId, tableId);
+    if (!ok) {
+      console.error("Failed assigning guest on server", guestId, tableId);
+    }
+  };
+
+  const removeSingleGuestFromTable = async (guestId: string) => {
+    removeFromSeat(guestId);
+
+    const ok = await syncRemoveFromServer(guestId);
+    if (!ok) {
+      console.error("Failed removing guest from server", guestId);
+    }
+  };
+
+  /* ================= TABLE MAPS ================= */
 
   const guestTableMap = useMemo(() => {
     const map = new Map<string, Table>();
@@ -179,6 +196,42 @@ export default function SeatingSidebar({
 
     return map;
   }, [tables]);
+
+  /*
+    חשוב:
+    כאן מזהים האם האורח הושב כחלק מקבוצה.
+    אם הוא הושב לבד דרך assignGuestBlock, אין sg.groupId,
+    ולכן הוא לא ייכנס ל"חלק 1".
+  */
+  const groupedSeatGuestIds = useMemo(() => {
+    const set = new Set<string>();
+
+    tables.forEach((t) => {
+      (t.seatedGuests || []).forEach((sg) => {
+        if (sg.groupId) {
+          set.add(String(sg.guestId));
+        }
+      });
+    });
+
+    return set;
+  }, [tables]);
+
+  const isGuestSeatedAsGroupPart = (guest: Guest) => {
+    const gid = seatGuestId(guest);
+    const guestGroupId = normalizeGroupId(guest.groupId);
+
+    if (guestGroupId === NO_GROUP_KEY) return false;
+    if (!groupedSeatGuestIds.has(gid)) return false;
+
+    return tables.some((table) =>
+      (table.seatedGuests || []).some(
+        (seat) =>
+          String(seat.guestId) === gid &&
+          String(seat.groupId) === guestGroupId
+      )
+    );
+  };
 
   /* ================= GROUPED GUESTS ================= */
 
@@ -276,57 +329,87 @@ export default function SeatingSidebar({
       ...tables.map((table) => Number(table.seats || 0))
     );
 
-    const shouldShowAsParts =
-      maxTableSeats > 0 && totalGroupSeats > maxTableSeats;
-
-    const seatedByTable = new Map<
+    const groupSeatedByTable = new Map<
       string,
       {
         table: Table;
         guests: Guest[];
+        seatsUsed: number;
       }
     >();
 
-    const unseatedGuests: Guest[] = [];
+    const normalGuests: Guest[] = [];
 
     eligibleGuests.forEach((guest) => {
       const gid = seatGuestId(guest);
       const table = guestTableMap.get(gid);
+      const seatedAsGroup = isGuestSeatedAsGroupPart(guest);
 
-      if (!table) {
-        unseatedGuests.push(guest);
+      /*
+        אורח שהושב לבד מתוך קבוצה גדולה:
+        לא נכנס לחלק 1.
+        נשאר כאורח רגיל מתחת לקבוצה.
+      */
+      if (!table || !seatedAsGroup) {
+        normalGuests.push(guest);
         return;
       }
 
       const key = String(table.id);
 
-      if (!seatedByTable.has(key)) {
-        seatedByTable.set(key, {
+      if (!groupSeatedByTable.has(key)) {
+        groupSeatedByTable.set(key, {
           table,
           guests: [],
+          seatsUsed: 0,
         });
       }
 
-      seatedByTable.get(key)!.guests.push(guest);
+      const part = groupSeatedByTable.get(key)!;
+
+      part.guests.push(guest);
+      part.seatsUsed += getSeatCount(guest);
     });
 
-    const seatedParts: GroupPart[] = Array.from(seatedByTable.values()).map(
-      (part, index) => ({
-        type: "seated",
-        title: shouldShowAsParts ? `חלק ${index + 1}` : part.table.name,
-        table: part.table,
-        guests: part.guests,
-      })
-    );
+    const groupPartsRaw = Array.from(groupSeatedByTable.values());
 
-    const parts: GroupPart[] = [...seatedParts];
+    const shouldShowAsParts =
+      maxTableSeats > 0 &&
+      totalGroupSeats > maxTableSeats &&
+      groupPartsRaw.length > 0;
 
-    if (unseatedGuests.length > 0) {
+    /*
+      אם אין הושבה קבוצתית בפועל:
+      מחזירים רק רשימה רגילה.
+      ככה אורח אחד שהושב לבד לא מקפיץ את הקבוצה לחלקים.
+    */
+    if (!shouldShowAsParts) {
+      return [
+        {
+          type: "normal",
+          title: "",
+          table: null,
+          guests: eligibleGuests,
+          isSplitPart: false,
+        },
+      ];
+    }
+
+    const parts: GroupPart[] = groupPartsRaw.map((part, index) => ({
+      type: "groupPart",
+      title: `חלק ${index + 1}`,
+      table: part.table,
+      guests: part.guests,
+      isSplitPart: true,
+    }));
+
+    if (normalGuests.length > 0) {
       parts.push({
-        type: "remaining",
-        title: shouldShowAsParts ? "נשארו לשיבוץ" : "ללא שולחן",
+        type: "normal",
+        title: "אורחים בודדים / ללא חלק",
         table: null,
-        guests: unseatedGuests,
+        guests: normalGuests,
+        isSplitPart: true,
       });
     }
 
@@ -382,12 +465,7 @@ export default function SeatingSidebar({
     if (!tableId) {
       for (const g of eligibleGuests) {
         const gid = seatGuestId(g);
-        removeFromSeat(gid);
-
-        const ok = await syncRemoveFromServer(gid);
-        if (!ok) {
-          console.error("Failed removing guest from server", gid);
-        }
+        await removeSingleGuestFromTable(gid);
       }
 
       return;
@@ -429,13 +507,7 @@ export default function SeatingSidebar({
 
     for (const g of eligibleGuests) {
       const gid = seatGuestId(g);
-
-      assignGuestBlock({ guestId: gid, tableId });
-
-      const ok = await syncAssignToServer(gid, tableId);
-      if (!ok) {
-        console.error("Failed assigning guest on server", gid, tableId);
-      }
+      await assignSingleGuestToTable(gid, tableId);
     }
   };
 
@@ -722,7 +794,7 @@ export default function SeatingSidebar({
                   </div>
                 </div>
 
-                {/* ===== Group Parts ===== */}
+                {/* ===== Group Parts / Guests ===== */}
                 {isOpen &&
                   buildGroupParts(visibleGuests).map((part) => {
                     const guestIds = part.guests.map((g) => seatGuestId(g));
@@ -734,154 +806,93 @@ export default function SeatingSidebar({
 
                     return (
                       <div
-                        key={`${groupId}-${part.type}-${
-                          part.table?.id || "remaining"
-                        }`}
+                        key={
+                          part.isSplitPart
+                            ? `${groupId}-${part.type}-${
+                                part.table?.id || "normal"
+                              }`
+                            : `${groupId}-normal`
+                        }
                         className="border-t border-[#F1E4DC] bg-white"
                       >
-                        {/* ===== Part Header ===== */}
-                        <div className="border-b border-[#F1E4DC] bg-[#FFF9ED] px-4 py-3">
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="min-w-0">
-                              <div className="text-sm font-black text-[#2F241D]">
-                                {part.title}
+                        {part.isSplitPart && (
+                          <div className="border-b border-[#F1E4DC] bg-[#FFF9ED] px-4 py-3">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="text-sm font-black text-[#2F241D]">
+                                  {part.title}
+                                </div>
+
+                                <div className="mt-1 text-xs text-[#8B6F5A]">
+                                  {part.table
+                                    ? `${part.table.name} · ${part.guests.length} אורחים · ${partSeats} מקומות`
+                                    : `${part.guests.length} אורחים · ${partSeats} מקומות`}
+                                </div>
                               </div>
 
-                              <div className="mt-1 text-xs text-[#8B6F5A]">
-                                {part.table
-                                  ? `${part.table.name} · ${part.guests.length} אורחים · ${partSeats} מקומות`
-                                  : `${part.guests.length} אורחים ללא שולחן · ${partSeats} מקומות`}
-                              </div>
+                              {part.type === "groupPart" && part.table && (
+                                <select
+                                  className="
+                                    h-9 min-w-[155px]
+                                    rounded-xl border border-[#E6C3AD]
+                                    bg-white px-2 text-xs font-semibold
+                                    text-[#4B3528]
+                                    outline-none
+                                    focus:ring-2 focus:ring-[#E6C3AD]/35
+                                  "
+                                  value={part.table.id}
+                                  onClick={(e) => e.stopPropagation()}
+                                  onChange={async (e) => {
+                                    const tableId = e.target.value;
+
+                                    if (!tableId) {
+                                      for (const gid of guestIds) {
+                                        await removeSingleGuestFromTable(gid);
+                                      }
+
+                                      return;
+                                    }
+
+                                    const result = moveGuestsToTable({
+                                      guestIds,
+                                      tableId,
+                                    });
+
+                                    if (!result?.ok) {
+                                      console.error(
+                                        result?.message ||
+                                          "Failed moving guests"
+                                      );
+                                      return;
+                                    }
+
+                                    for (const gid of guestIds) {
+                                      const ok = await syncAssignToServer(
+                                        gid,
+                                        tableId
+                                      );
+                                      if (!ok) {
+                                        console.error(
+                                          "Failed assigning guest on server",
+                                          gid
+                                        );
+                                      }
+                                    }
+                                  }}
+                                >
+                                  <option value="">הסר מהשולחן</option>
+
+                                  {tables.map((t) => (
+                                    <option key={t.id} value={t.id}>
+                                      {tableLabel(t)}
+                                    </option>
+                                  ))}
+                                </select>
+                              )}
                             </div>
-
-                            <select
-                              className="
-                                h-9 min-w-[155px]
-                                rounded-xl border border-[#E6C3AD]
-                                bg-white px-2 text-xs font-semibold
-                                text-[#4B3528]
-                                outline-none
-                                focus:ring-2 focus:ring-[#E6C3AD]/35
-                              "
-                              value={part.table?.id || ""}
-                              onClick={(e) => e.stopPropagation()}
-                              onChange={async (e) => {
-                                const tableId = e.target.value;
-
-                                if (!tableId) {
-                                  for (const gid of guestIds) {
-                                    removeFromSeat(gid);
-
-                                    const ok = await syncRemoveFromServer(gid);
-                                    if (!ok) {
-                                      console.error(
-                                        "Failed removing guest from server",
-                                        gid
-                                      );
-                                    }
-                                  }
-
-                                  return;
-                                }
-
-                                if (part.type === "seated") {
-                                  const result = moveGuestsToTable({
-                                    guestIds,
-                                    tableId,
-                                  });
-
-                                  if (!result?.ok) {
-                                    console.error(
-                                      result?.message || "Failed moving guests"
-                                    );
-                                    return;
-                                  }
-
-                                  for (const gid of guestIds) {
-                                    const ok = await syncAssignToServer(
-                                      gid,
-                                      tableId
-                                    );
-                                    if (!ok) {
-                                      console.error(
-                                        "Failed assigning guest on server",
-                                        gid
-                                      );
-                                    }
-                                  }
-
-                                  return;
-                                }
-
-                                if (group && groupId !== NO_GROUP_KEY) {
-                                  const result = seatGroup(group._id, tableId);
-
-                                  if (!result?.ok) {
-                                    console.error(
-                                      result?.message || "Failed seating group"
-                                    );
-                                    return;
-                                  }
-
-                                  const afterGuests = useSeatingStore.getState()
-                                    .guests as Guest[];
-
-                                  const newlySeatedIds = afterGuests
-                                    .filter(
-                                      (g) =>
-                                        guestIds.includes(
-                                          String(g.id ?? g._id)
-                                        ) &&
-                                        String(g.tableId) === String(tableId)
-                                    )
-                                    .map((g) => String(g.id ?? g._id));
-
-                                  for (const gid of newlySeatedIds) {
-                                    const ok = await syncAssignToServer(
-                                      gid,
-                                      tableId
-                                    );
-                                    if (!ok) {
-                                      console.error(
-                                        "Failed assigning guest on server",
-                                        gid
-                                      );
-                                    }
-                                  }
-
-                                  return;
-                                }
-
-                                for (const gid of guestIds) {
-                                  assignGuestBlock({ guestId: gid, tableId });
-
-                                  const ok = await syncAssignToServer(
-                                    gid,
-                                    tableId
-                                  );
-                                  if (!ok) {
-                                    console.error(
-                                      "Failed assigning guest on server",
-                                      gid
-                                    );
-                                  }
-                                }
-                              }}
-                            >
-                              <option value="">
-                                {part.table ? "הסר מהשולחן" : "בחר שולחן"}
-                              </option>
-
-                              {tables.map((t) => (
-                                <option key={t.id} value={t.id}>
-                                  {tableLabel(t)}
-                                </option>
-                              ))}
-                            </select>
                           </div>
-                        </div>
+                        )}
 
-                        {/* ===== Guests Inside Part ===== */}
                         {part.guests.map((g) => {
                           const gid = seatGuestId(g);
                           const table = guestTableMap.get(gid);
@@ -913,38 +924,61 @@ export default function SeatingSidebar({
                                   </div>
                                 </div>
 
-                                <button
-                                  className={`
-                                    shrink-0 rounded-xl border px-3 py-1.5
-                                    text-xs font-bold transition
-                                    ${
-                                      table
-                                        ? "border-green-300 bg-green-50 text-green-700 hover:bg-green-100"
-                                        : "border-[#E6C3AD] bg-white text-[#5D4032] hover:bg-[#F6EDE8]"
-                                    }
-                                  `}
-                                  onClick={async () => {
-                                    setSelectingGuestId(null);
+                                <div className="shrink-0 flex items-center gap-2">
+                                  {table && (
+                                    <select
+                                      className="
+                                        h-9 max-w-[130px]
+                                        rounded-xl border border-[#E6C3AD]
+                                        bg-white px-2 text-xs font-semibold
+                                        text-[#4B3528]
+                                        outline-none
+                                        focus:ring-2 focus:ring-[#E6C3AD]/35
+                                      "
+                                      value={table.id}
+                                      onClick={(e) => e.stopPropagation()}
+                                      onChange={async (e) => {
+                                        const tableId = e.target.value;
+                                        if (!tableId) return;
 
-                                    if (table) {
-                                      removeFromSeat(gid);
-
-                                      const ok = await syncRemoveFromServer(gid);
-                                      if (!ok) {
-                                        console.error(
-                                          "Failed removing guest from server",
-                                          gid
+                                        await assignSingleGuestToTable(
+                                          gid,
+                                          tableId
                                         );
+                                      }}
+                                    >
+                                      {tables.map((t) => (
+                                        <option key={t.id} value={t.id}>
+                                          {t.name}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  )}
+
+                                  <button
+                                    className={`
+                                      rounded-xl border px-3 py-1.5
+                                      text-xs font-bold transition
+                                      ${
+                                        table
+                                          ? "border-green-300 bg-green-50 text-green-700 hover:bg-green-100"
+                                          : "border-[#E6C3AD] bg-white text-[#5D4032] hover:bg-[#F6EDE8]"
+                                      }
+                                    `}
+                                    onClick={async () => {
+                                      setSelectingGuestId(null);
+
+                                      if (table) {
+                                        await removeSingleGuestFromTable(gid);
+                                        return;
                                       }
 
-                                      return;
-                                    }
-
-                                    setSelectingGuestId(gid);
-                                  }}
-                                >
-                                  {table ? "הסר" : "הושב"}
-                                </button>
+                                      setSelectingGuestId(gid);
+                                    }}
+                                  >
+                                    {table ? "הסר" : "הושב"}
+                                  </button>
+                                </div>
                               </div>
 
                               {selectingGuestId === gid && tables.length > 0 && (
@@ -963,19 +997,7 @@ export default function SeatingSidebar({
                                     const tableId = e.target.value;
                                     if (!tableId) return;
 
-                                    assignGuestBlock({ guestId: gid, tableId });
-
-                                    const ok = await syncAssignToServer(
-                                      gid,
-                                      tableId
-                                    );
-                                    if (!ok) {
-                                      console.error(
-                                        "Failed assigning guest on server",
-                                        gid,
-                                        tableId
-                                      );
-                                    }
+                                    await assignSingleGuestToTable(gid, tableId);
 
                                     setSelectingGuestId(null);
                                   }}
