@@ -784,7 +784,7 @@ const secondHalfCount = sortedGuests.slice(mid).length;
           : round2Locked
       )
     }
-    className={`w-full py-3 rounded-xl text-white font-medium ${
+     className={`w-full py-3 rounded-xl text-white font-medium ${
       (
         round === 1
           ? round1Locked

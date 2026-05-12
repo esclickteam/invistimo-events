@@ -766,50 +766,108 @@ export default function DashboardPage() {
   /* ============================================================
      Stats
   ============================================================ */
-  const stats = useMemo(() => {
-    const totalInvited = guests.reduce(
-      (s, g) => s + (g.guestsCount || 0),
-      0
-    );
+  /* ============================================================
+   Stats
+   חישוב לפי כמות מוזמנים בפועל, לא לפי מספר רשומות
+============================================================ */
+const stats = useMemo(() => {
+  const getGuestAmount = (guest: Guest) => {
+    const amount = Number(guest.guestsCount || 0);
+    return amount > 0 ? amount : 0;
+  };
 
-    const totalArrived = guests.reduce(
-      (s, g) => s + (g.arrivedCount || 0),
-      0
-    );
+  const getComingAmount = (guest: Guest) => {
+    /*
+      אם יש arrivedCount — משתמשים בו.
+      אם אין, אבל הסטטוס הוא yes — סופרים את guestsCount.
+      ככה "מגיע" מייצג כמה אנשים אישרו הגעה בפועל.
+    */
+    if (guest.rsvp !== "yes") return 0;
 
-    const totalActualArrived = guests.reduce(
-      (s, g) => s + (g.actualArrivedCount || 0),
-      0
-    );
+    const arrived = Number(guest.arrivedCount ?? 0);
 
-    const totalNo = guests.filter((g) => g.rsvp === "no").length;
-    const totalPending = guests.filter((g) => g.rsvp === "pending").length;
+    if (arrived > 0) return arrived;
 
-    return {
-      totalGuests: totalInvited,
-      comingGuests: totalArrived,
-      actualArrivedGuests: totalActualArrived,
-      notComing: totalNo,
-      noResponse: totalPending,
-    };
-  }, [guests]);
+    return getGuestAmount(guest);
+  };
 
-  const rsvpVisualStats = useMemo(() => {
-    const coming = guests.filter((g) => g.rsvp === "yes").length;
-    const notComing = guests.filter((g) => g.rsvp === "no").length;
-    const pending = guests.filter((g) => g.rsvp === "pending").length;
-    const total = guests.length;
+  const totalInvited = guests.reduce(
+    (sum, guest) => sum + getGuestAmount(guest),
+    0
+  );
 
-    return {
-      coming,
-      notComing,
-      pending,
-      total,
-      comingPercent: calcPercent(coming, total),
-      notComingPercent: calcPercent(notComing, total),
-      pendingPercent: calcPercent(pending, total),
-    };
-  }, [guests]);
+  const totalComing = guests.reduce(
+    (sum, guest) => sum + getComingAmount(guest),
+    0
+  );
+
+  const totalActualArrived = guests.reduce(
+    (sum, guest) => sum + Number(guest.actualArrivedCount || 0),
+    0
+  );
+
+  const totalNo = guests.reduce((sum, guest) => {
+    if (guest.rsvp !== "no") return sum;
+    return sum + getGuestAmount(guest);
+  }, 0);
+
+  const totalPending = guests.reduce((sum, guest) => {
+    if (guest.rsvp !== "pending") return sum;
+    return sum + getGuestAmount(guest);
+  }, 0);
+
+  return {
+    totalGuests: totalInvited,
+    comingGuests: totalComing,
+    actualArrivedGuests: totalActualArrived,
+    notComing: totalNo,
+    noResponse: totalPending,
+  };
+}, [guests]);
+
+const rsvpVisualStats = useMemo(() => {
+  const getGuestAmount = (guest: Guest) => {
+    const amount = Number(guest.guestsCount || 0);
+    return amount > 0 ? amount : 0;
+  };
+
+  const getComingAmount = (guest: Guest) => {
+    if (guest.rsvp !== "yes") return 0;
+
+    const arrived = Number(guest.arrivedCount ?? 0);
+
+    if (arrived > 0) return arrived;
+
+    return getGuestAmount(guest);
+  };
+
+  const coming = guests.reduce(
+    (sum, guest) => sum + getComingAmount(guest),
+    0
+  );
+
+  const notComing = guests.reduce((sum, guest) => {
+    if (guest.rsvp !== "no") return sum;
+    return sum + getGuestAmount(guest);
+  }, 0);
+
+  const pending = guests.reduce((sum, guest) => {
+    if (guest.rsvp !== "pending") return sum;
+    return sum + getGuestAmount(guest);
+  }, 0);
+
+  const total = coming + notComing + pending;
+
+  return {
+    coming,
+    notComing,
+    pending,
+    total,
+    comingPercent: calcPercent(coming, total),
+    notComingPercent: calcPercent(notComing, total),
+    pendingPercent: calcPercent(pending, total),
+  };
+}, [guests]);
 
   const recentActivityLogs = useMemo(() => {
     return [...guests]
