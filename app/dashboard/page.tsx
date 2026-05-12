@@ -1792,31 +1792,31 @@ function GoldenEventHero({
         shadow-[0_22px_70px_rgba(92,65,35,0.10)]
       "
     >
-      {/* רקע קבוע שלך: לשים את הקובץ public/background.png */}
-      <div
-        className="
-          absolute
-          inset-0
-          bg-cover
-          bg-center
-          bg-no-repeat
-        "
-        style={{
-          backgroundImage: "url('/background.png')",
-        }}
-      />
+      {/* רקע קבוע שלך: public/background.png */}
+<div
+  className="
+    absolute
+    inset-0
+    bg-no-repeat
+  "
+  style={{
+    backgroundImage: "url('/background.png')",
+    backgroundSize: "100% 100%",
+    backgroundPosition: "center",
+  }}
+/>
 
-      {/* שכבת הגנה כדי שהכתב לא ייבלע על הרקע */}
-      <div
-        className="
-          absolute
-          inset-0
-          bg-gradient-to-l
-          from-white/90
-          via-white/78
-          to-white/50
-        "
-      />
+{/* שכבת הגנה עדינה יותר כדי שיראו את הרקע אבל הכתב יישאר קריא */}
+<div
+  className="
+    absolute
+    inset-0
+    bg-gradient-to-l
+    from-white/78
+    via-white/52
+    to-white/20
+  "
+/>
 
       {/* שכבה זהובה עדינה לחיבור עם העיצוב */}
       <div
