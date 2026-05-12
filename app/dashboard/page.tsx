@@ -1394,23 +1394,25 @@ export default function DashboardPage() {
                   </td>
                 )}
 
-                <td className="p-4 font-bold text-[#1E1B2E]">
-                  {(() => {
-                    const guestKey = String(g.id ?? g._id ?? "");
-                    const tableFromStore =
-                      guestTableMap.get(guestKey) || null;
+                <td className="p-4 font-bold text-[#1E1B2E] whitespace-nowrap min-w-[120px]">
+  <span className="inline-flex items-center whitespace-nowrap">
+    {(() => {
+      const guestKey = String(g.id ?? g._id ?? "");
+      const tableFromStore =
+        guestTableMap.get(guestKey) || null;
 
-                    const tableLabel =
-                      (tableFromStore && tableFromStore.name) ||
-                      (g.tableName
-                        ? g.tableName
-                        : g.tableNumber
-                          ? `שולחן ${g.tableNumber}`
-                          : null);
+      const tableLabel =
+        (tableFromStore && tableFromStore.name) ||
+        (g.tableName
+          ? g.tableName
+          : g.tableNumber
+            ? `שולחן ${g.tableNumber}`
+            : null);
 
-                    return tableLabel || "-";
-                  })()}
-                </td>
+      return tableLabel || "-";
+    })()}
+  </span>
+</td>
 
                 <td className="p-4 text-sm text-[#5F564D]">
                   {g.notes?.trim() || "-"}
