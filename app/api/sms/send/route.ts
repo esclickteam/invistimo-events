@@ -563,17 +563,8 @@ export async function POST(req: Request) {
 
       const totalMessagesToCharge = guestsCount * partsPerMessage;
 
-      if (!usesNewLogic && totalMessagesToCharge > remainingMessages) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "SMS_LIMIT_REACHED",
-            required: totalMessagesToCharge,
-            remaining: remainingMessages,
-          },
-          { status: 403 }
-        );
-      }
+// בתזמון לא חוסמים לפי כמות הקהל הנוכחית.
+// הקהל האמיתי והחיוב בפועל צריכים להיבדק בזמן השליחה המתוזמנת.
 
       /**
        * שומרים תבנית עם placeholders.
