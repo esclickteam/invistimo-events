@@ -111,9 +111,9 @@ function getRoundAudienceLabel(round: RoundNumber) {
 }
 
 function getRoundSubtitle(round: RoundNumber) {
-  if (round === 1) return "נשלח לכל המוזמנים";
-  if (round === 2) return "נשלח רק למי שטרם אישר";
-  return "תזכורת אחרונה למי שעדיין לא אישר";
+  if (round === 1) return "לכל המוזמנים";
+  if (round === 2) return "למי שטרם אישר";
+  return "תזכורת אחרונה למי שטרם אישר";
 }
 
 function getWhatsappPreviewText({
@@ -142,7 +142,7 @@ function getWhatsappPreviewText({
   if (round === 2) {
     return `משפחה וחברים יקרים,
 
-תזכורת קצרה לאישור הגעה ל־${invitationTitle} 💜
+תזכורת קצרה לאישור הגעה ל־${invitationTitle} 🤍
 
 לאישור הגעה לחצו על הכפתור למטה 👇
 
@@ -233,8 +233,6 @@ export default function RsvpTab({
   const giftSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const didInitGift = useRef(false);
 
-  /* ================= SCHEDULED DATE ================= */
-
   const scheduledAt = useMemo(() => {
     if (sendTiming !== "scheduled" || !scheduledDate || !scheduledTime) {
       return null;
@@ -245,8 +243,6 @@ export default function RsvpTab({
 
     return new Date(year, month - 1, day, hour, minute, 0, 0);
   }, [sendTiming, scheduledDate, scheduledTime]);
-
-  /* ================= CURRENT ROUND STATE ================= */
 
   const currentSmsMessage = smsMessages[round];
 
@@ -272,8 +268,6 @@ export default function RsvpTab({
     existingSchedule?.scheduledAt &&
     !Number.isNaN(new Date(existingSchedule.scheduledAt).getTime());
 
-  /* ================= LOAD SCHEDULED MESSAGES ================= */
-
   async function loadScheduledMessages() {
     try {
       const res = await fetch("/api/scheduled-messages", {
@@ -296,8 +290,6 @@ export default function RsvpTab({
   useEffect(() => {
     loadScheduledMessages();
   }, []);
-
-  /* ================= LOAD EXISTING SCHEDULE ================= */
 
   useEffect(() => {
     async function loadExistingSchedule() {
@@ -334,8 +326,6 @@ export default function RsvpTab({
 
     loadExistingSchedule();
   }, [invitationId, round, selectedChannel]);
-
-  /* ================= LOAD DATA ================= */
 
   useEffect(() => {
     async function loadData() {
@@ -425,8 +415,6 @@ export default function RsvpTab({
     loadData();
   }, [invitationId, selectedChannel]);
 
-  /* ================= SAVE GIFT OPTIONS ================= */
-
   useEffect(() => {
     if (!didInitGift.current || !invitationId) return;
 
@@ -471,8 +459,6 @@ export default function RsvpTab({
     };
   }, [giftOptions, invitationId]);
 
-  /* ================= WHATSAPP STATS ================= */
-
   async function loadWhatsappStats() {
     try {
       const res = await fetch(
@@ -507,8 +493,6 @@ export default function RsvpTab({
 
     return () => clearInterval(interval);
   }, [selectedChannel, round1Sent, round2Sent, round3Sent, invitationId]);
-
-  /* ================= CANCEL SCHEDULE ================= */
 
   async function handleCancelSchedule() {
     if (!existingSchedule?._id) return;
@@ -548,8 +532,6 @@ export default function RsvpTab({
     }
   }
 
-  /* ================= ADMIN LOCK ================= */
-
   async function toggleMessageLock(key: string, current: boolean) {
     try {
       const res = await fetch("/api/admin/toggle-message-lock", {
@@ -579,8 +561,6 @@ export default function RsvpTab({
     const prefix = selectedChannel === "sms" ? "rsvpSms" : "rsvpWhatsapp";
     return `${prefix}Round${round}`;
   }
-
-  /* ================= DERIVED ================= */
 
   const totalCount = guests.length;
 
@@ -671,24 +651,18 @@ export default function RsvpTab({
     : currentRoundScheduled || hasExistingSchedule
     ? `⏱️ סבב ${round} כבר מתוזמן`
     : sendTiming === "scheduled"
-    ? `⏱️ תזמן סבב ${round} ב-${
-        selectedChannel === "sms" ? "SMS" : "WhatsApp"
-      }`
-    : `🚀 שלח עכשיו סבב ${round} ב-${
-        selectedChannel === "sms" ? "SMS" : "WhatsApp"
-      }`;
-
-  /* ================= LOADING ================= */
+    ? `תזמן שליחה - סבב ${round}`
+    : `שלח עכשיו - סבב ${round}`;
 
   if (loading) {
     return (
       <div
         dir="rtl"
-        className="min-h-[520px] flex items-center justify-center bg-[#FBFAF8]"
+        className="min-h-[520px] flex items-center justify-center bg-[#F6EFE6]"
       >
         <div className="text-center space-y-4">
-          <div className="mx-auto h-14 w-14 rounded-full border-4 border-blue-100 border-t-blue-600 animate-spin" />
-          <p className="text-sm font-bold text-gray-500">
+          <div className="mx-auto h-14 w-14 rounded-full border-4 border-[#E8D8BE] border-t-[#A87937] animate-spin" />
+          <p className="text-sm font-bold text-[#7A5A3A]">
             טוען אורחים ונתוני שליחה...
           </p>
         </div>
@@ -696,31 +670,32 @@ export default function RsvpTab({
     );
   }
 
-  /* ================= UI ================= */
-
   return (
-    <div dir="rtl" className="relative overflow-hidden bg-[#FBFAF8]">
-      <div className="pointer-events-none absolute -top-28 -right-24 h-96 w-96 rounded-full bg-blue-100/70 blur-3xl" />
-      <div className="pointer-events-none absolute top-40 -left-24 h-96 w-96 rounded-full bg-[#E9D6A7]/40 blur-3xl" />
-      <div className="pointer-events-none absolute bottom-0 right-1/3 h-80 w-80 rounded-full bg-purple-100/30 blur-3xl" />
+    <div dir="rtl" className="relative overflow-hidden bg-[#F6EFE6]">
+      <div className="pointer-events-none absolute -top-32 -right-28 h-[420px] w-[420px] rounded-full bg-[#E9D4AC]/70 blur-3xl" />
+      <div className="pointer-events-none absolute top-40 -left-24 h-[380px] w-[380px] rounded-full bg-[#B9894D]/20 blur-3xl" />
+      <div className="pointer-events-none absolute bottom-0 right-1/3 h-80 w-80 rounded-full bg-[#7B4E2E]/10 blur-3xl" />
 
       <div className="relative p-5 md:p-8 space-y-7">
         {/* HERO */}
-        <section className="rounded-[38px] border border-white bg-white/90 p-5 md:p-7 shadow-[0_28px_80px_rgba(31,41,55,0.09)] backdrop-blur">
-          <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-6">
+        <section className="relative overflow-hidden rounded-[38px] border border-[#E9D8BE] bg-gradient-to-br from-[#FFF8EF] via-[#F9EFE2] to-[#EFE0CB] p-5 md:p-7 shadow-[0_28px_80px_rgba(78,49,27,0.13)]">
+          <div className="pointer-events-none absolute -left-20 -top-20 h-56 w-56 rounded-full bg-[#C99A4A]/20 blur-2xl" />
+          <div className="pointer-events-none absolute right-10 bottom-0 h-32 w-32 rounded-full bg-white/50 blur-2xl" />
+
+          <div className="relative flex flex-col xl:flex-row xl:items-center xl:justify-between gap-6">
             <div className="space-y-3">
-              <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-sm font-black text-blue-700">
-                <span>✅</span>
-                <span>אישור הגעה</span>
+              <div className="inline-flex items-center gap-2 rounded-full border border-[#E5C88E] bg-white/70 px-4 py-2 text-sm font-black text-[#8A5A25] shadow-sm">
+                <span>✉️</span>
+                <span>ניהול אישורי הגעה</span>
               </div>
 
-              <h2 className="text-2xl md:text-4xl font-black text-[#1F2937] tracking-tight">
-                סבבי אישורי הגעה חכמים
+              <h2 className="text-3xl md:text-5xl font-black tracking-tight text-[#3A2417]">
+                שליחת הודעות
               </h2>
 
-              <p className="max-w-2xl text-sm md:text-base leading-7 text-gray-500">
-                סבב 1 נשלח לכל המוזמנים. סבב 2 וסבב 3 נשלחים למי שטרם אישר.
-                בכל סבב אפשר לבחור מחדש WhatsApp או SMS ולתזמן מראש.
+              <p className="max-w-2xl text-sm md:text-base leading-7 text-[#7A5A3A]">
+                בחרי סבב, ערוץ שליחה ומועד. סבב 1 נשלח לכל המוזמנים,
+                וסבבים 2–3 נשלחים למי שטרם אישר במועד השליחה.
               </p>
             </div>
 
@@ -731,14 +706,14 @@ export default function RsvpTab({
                 value={pendingGuests.length}
                 icon="⏳"
               />
-              <StatCard label="אישרו" value={yesCount} icon="💙" />
-              <StatCard label="לא מגיעים" value={noCount} icon="🤍" />
+              <StatCard label="אישרו" value={yesCount} icon="✓" />
+              <StatCard label="לא מגיעים" value={noCount} icon="—" />
             </div>
           </div>
         </section>
 
         {/* ROUND SELECTOR */}
-        <section className="rounded-[34px] border border-[#EEE8DD] bg-white p-3 shadow-[0_18px_50px_rgba(31,41,55,0.06)]">
+        <section className="rounded-[34px] border border-[#E6D6BC] bg-[#FFF9F1]/90 p-3 shadow-[0_18px_50px_rgba(78,49,27,0.08)]">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {[1, 2, 3].map((r) => (
               <RoundButton
@@ -763,16 +738,14 @@ export default function RsvpTab({
                     ? round2Scheduled
                     : round3Scheduled
                 }
-                onClick={() => {
-                  setRound(r as RoundNumber);
-                }}
+                onClick={() => setRound(r as RoundNumber)}
               />
             ))}
           </div>
         </section>
 
         <section className="grid grid-cols-1 xl:grid-cols-[0.94fr_1.06fr] gap-7 items-start">
-          {/* PREVIEW - now first side */}
+          {/* PREVIEW */}
           <aside className="space-y-5 xl:sticky xl:top-6">
             <PremiumCard
               icon="✨"
@@ -783,7 +756,7 @@ export default function RsvpTab({
                   : "כך תיראה הודעת ה-WhatsApp"
               }
             >
-              <div className="rounded-[34px] border border-[#EEE8DD] bg-gradient-to-b from-[#F8FAFF] via-white to-[#F6F1E8] p-3 md:p-5 shadow-inner">
+              <div className="rounded-[34px] border border-[#E6D6BC] bg-gradient-to-b from-[#FFF9F1] via-white to-[#EFE0CB] p-3 md:p-5 shadow-inner">
                 {selectedChannel === "whatsapp" ? (
                   <WhatsappTemplatePreview
                     templateKey={templateName}
@@ -841,9 +814,8 @@ export default function RsvpTab({
 
           {/* SEND SETTINGS */}
           <div className="space-y-5">
-            {/* CHANNEL */}
             <PremiumCard
-              icon="📡"
+              icon="📨"
               title={`ערוץ שליחה לסבב ${round}`}
               subtitle="אפשר לבחור מחדש בכל סבב בין WhatsApp ל-SMS"
             >
@@ -870,7 +842,6 @@ export default function RsvpTab({
               </div>
             </PremiumCard>
 
-            {/* AUDIENCE */}
             <PremiumCard
               icon="👥"
               title="קהל יעד"
@@ -884,25 +855,24 @@ export default function RsvpTab({
                 readOnly
               />
 
-              <div className="mt-4 rounded-3xl border border-blue-100 bg-gradient-to-l from-blue-50 to-white p-4">
+              <div className="mt-4 rounded-3xl border border-[#E6D6BC] bg-gradient-to-l from-[#FFF3DD] to-[#FFFDF9] p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <h3 className="font-black text-[#1F2937]">
-                      🎯 שליחה אוטומטית לפי הסבב
+                    <h3 className="font-black text-[#3A2417]">
+                      שליחה לפי סבב
                     </h3>
-                    <p className="mt-1 text-xs leading-6 text-gray-500">
-                      אין יותר פיצול רשימה. המערכת קובעת לבד את הקהל לפי הסבב.
+                    <p className="mt-1 text-xs leading-6 text-[#7A5A3A]">
+                      אין בחירת פיצול. המערכת שולחת לפי הכללים של הסבב הנבחר.
                     </p>
                   </div>
 
-                  <span className="rounded-full border border-blue-100 bg-white px-4 py-2 text-xs font-black text-blue-700">
+                  <span className="rounded-full border border-[#E5C88E] bg-white px-4 py-2 text-xs font-black text-[#8A5A25]">
                     {guestsToSend.length} נמענים
                   </span>
                 </div>
               </div>
             </PremiumCard>
 
-            {/* SMS EDITOR */}
             {selectedChannel === "sms" && (
               <PremiumCard
                 icon="✏️"
@@ -918,25 +888,24 @@ export default function RsvpTab({
                     }))
                   }
                   rows={7}
-                  className="w-full rounded-3xl border border-[#DDE3EE] bg-[#F8FAFC] px-4 py-4 text-sm leading-7 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                  className="w-full rounded-3xl border border-[#E6D6BC] bg-[#FFF9F1] px-4 py-4 text-sm leading-7 text-[#3A2417] outline-none transition focus:border-[#B9894D] focus:ring-4 focus:ring-[#E9D4AC]"
                 />
 
-                <p className="mt-3 text-xs leading-6 text-gray-500">
+                <p className="mt-3 text-xs leading-6 text-[#7A5A3A]">
                   משתנים אוטומטיים:
-                  <span className="mx-1 rounded-lg bg-gray-100 px-2 py-1 font-mono">
+                  <span className="mx-1 rounded-lg bg-[#F0E3D1] px-2 py-1 font-mono">
                     {"{{name}}"}
                   </span>
-                  <span className="mx-1 rounded-lg bg-gray-100 px-2 py-1 font-mono">
+                  <span className="mx-1 rounded-lg bg-[#F0E3D1] px-2 py-1 font-mono">
                     {"{{invitationTitle}}"}
                   </span>
-                  <span className="mx-1 rounded-lg bg-gray-100 px-2 py-1 font-mono">
+                  <span className="mx-1 rounded-lg bg-[#F0E3D1] px-2 py-1 font-mono">
                     {"{{rsvpLink}}"}
                   </span>
                 </p>
               </PremiumCard>
             )}
 
-            {/* GIFT OPTIONS */}
             <PremiumCard
               icon="🎁"
               title="קישור למתנה"
@@ -945,7 +914,7 @@ export default function RsvpTab({
                 <span
                   className={`rounded-full px-3 py-1 text-xs font-black ${
                     savingGift
-                      ? "bg-yellow-50 text-yellow-700"
+                      ? "bg-[#FFF3DD] text-[#8A5A25]"
                       : giftSaveError
                       ? "bg-red-50 text-red-600"
                       : "bg-green-50 text-green-700"
@@ -984,7 +953,7 @@ export default function RsvpTab({
                         }))
                       }
                       placeholder="הדביקי כאן קישור לתשלום באשראי"
-                      className="w-full rounded-2xl border border-[#DDE3EE] bg-white px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                      className="w-full rounded-2xl border border-[#E6D6BC] bg-white px-4 py-3 text-sm outline-none focus:border-[#B9894D] focus:ring-4 focus:ring-[#E9D4AC]"
                       dir="ltr"
                       inputMode="url"
                     />
@@ -1013,7 +982,7 @@ export default function RsvpTab({
                         }))
                       }
                       placeholder="הדביקי כאן קישור ל-PayBox"
-                      className="w-full rounded-2xl border border-[#DDE3EE] bg-white px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                      className="w-full rounded-2xl border border-[#E6D6BC] bg-white px-4 py-3 text-sm outline-none focus:border-[#B9894D] focus:ring-4 focus:ring-[#E9D4AC]"
                       dir="ltr"
                       inputMode="url"
                     />
@@ -1022,7 +991,6 @@ export default function RsvpTab({
               </div>
             </PremiumCard>
 
-            {/* TIMING */}
             <PremiumCard
               icon="⏱️"
               title="מועד שליחה"
@@ -1056,26 +1024,26 @@ export default function RsvpTab({
                     type="date"
                     value={scheduledDate}
                     onChange={(e) => setScheduledDate(e.target.value)}
-                    className="rounded-2xl border border-[#DDE3EE] bg-white px-4 py-3.5 text-sm font-bold outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                    className="rounded-2xl border border-[#E6D6BC] bg-white px-4 py-3.5 text-sm font-bold outline-none focus:border-[#B9894D] focus:ring-4 focus:ring-[#E9D4AC]"
                   />
 
                   <input
                     type="time"
                     value={scheduledTime}
                     onChange={(e) => setScheduledTime(e.target.value)}
-                    className="rounded-2xl border border-[#DDE3EE] bg-white px-4 py-3.5 text-sm font-bold outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                    className="rounded-2xl border border-[#E6D6BC] bg-white px-4 py-3.5 text-sm font-bold outline-none focus:border-[#B9894D] focus:ring-4 focus:ring-[#E9D4AC]"
                   />
                 </div>
               )}
 
               {hasExistingSchedule && (
-                <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50 p-4 space-y-3">
+                <div className="mt-4 rounded-2xl border border-[#E5C88E] bg-[#FFF3DD] p-4 space-y-3">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-sm font-black text-blue-800">
+                      <p className="text-sm font-black text-[#7B4E2E]">
                         סבב {round} מתוזמן
                       </p>
-                      <p className="mt-1 text-sm text-blue-700">
+                      <p className="mt-1 text-sm text-[#8A5A25]">
                         {formatDateTime(existingSchedule.scheduledAt)}
                       </p>
                     </div>
@@ -1095,8 +1063,7 @@ export default function RsvpTab({
               )}
             </PremiumCard>
 
-            {/* SEND */}
-            <div className="rounded-[34px] border border-[#EEE8DD] bg-white p-4 shadow-[0_22px_65px_rgba(31,41,55,0.09)] space-y-3">
+            <div className="rounded-[34px] border border-[#E6D6BC] bg-gradient-to-br from-[#FFF9F1] to-white p-4 shadow-[0_22px_65px_rgba(78,49,27,0.11)] space-y-3">
               {missingHeaderImage && (
                 <div className="rounded-2xl bg-orange-50 px-4 py-3 text-sm font-bold text-orange-700">
                   חסרה תמונת Header להזמנת WhatsApp. צריך להעלות תמונה לפני שליחה.
@@ -1129,7 +1096,7 @@ export default function RsvpTab({
                 {mainButtonText}
               </SendButton>
 
-              <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs text-gray-500">
+              <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs text-[#7A5A3A]">
                 <span>נמענים לשליחה: {guestsToSend.length}</span>
                 <span>
                   ערוץ: {selectedChannel === "sms" ? "SMS" : "WhatsApp"}
@@ -1147,7 +1114,7 @@ export default function RsvpTab({
                   }
                   className={`w-full rounded-2xl px-5 py-3 text-sm font-black text-white transition ${
                     currentRoundLocked
-                      ? "bg-orange-500 hover:bg-orange-600"
+                      ? "bg-[#B9894D] hover:bg-[#9C7037]"
                       : "bg-green-600 hover:bg-green-700"
                   }`}
                 >
@@ -1164,7 +1131,7 @@ export default function RsvpTab({
                     await loadScheduledMessages();
                     setShowScheduled(true);
                   }}
-                  className="rounded-2xl border border-[#DDE3EE] bg-white px-6 py-3 text-sm font-black text-[#1F2937] shadow-sm transition hover:bg-[#F8FAFC]"
+                  className="rounded-2xl border border-[#E6D6BC] bg-[#FFF9F1] px-6 py-3 text-sm font-black text-[#3A2417] shadow-sm transition hover:bg-[#FFF3DD]"
                 >
                   📅 צפייה בהודעות מתוזמנות
                 </button>
@@ -1174,19 +1141,18 @@ export default function RsvpTab({
         </section>
       </div>
 
-      {/* SCHEDULED MODAL */}
       {showScheduled && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="max-h-[90vh] w-full max-w-[980px] overflow-hidden rounded-[30px] bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-5">
-              <h2 className="text-xl font-black text-[#1F2937]">
+          <div className="max-h-[90vh] w-full max-w-[980px] overflow-hidden rounded-[30px] bg-[#FFF9F1] shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[#E6D6BC] px-6 py-5">
+              <h2 className="text-xl font-black text-[#3A2417]">
                 📅 הודעות מתוזמנות
               </h2>
 
               <button
                 type="button"
                 onClick={() => setShowScheduled(false)}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-lg font-black hover:bg-gray-200"
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F0E3D1] text-lg font-black text-[#3A2417] hover:bg-[#E6D6BC]"
               >
                 ✕
               </button>
@@ -1221,17 +1187,17 @@ function PremiumCard({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-[34px] border border-[#EEE8DD] bg-white/95 p-5 shadow-[0_18px_50px_rgba(31,41,55,0.06)] backdrop-blur">
+    <section className="rounded-[34px] border border-[#E6D6BC] bg-[#FFF9F1]/95 p-5 shadow-[0_18px_50px_rgba(78,49,27,0.08)] backdrop-blur">
       <div className="mb-4 flex items-start justify-between gap-4">
         <div className="flex items-start gap-3">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-50 via-white to-[#F6EBC8] text-xl shadow-inner">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#FFF3DD] via-white to-[#DDBB7A] text-xl shadow-inner">
             {icon}
           </div>
 
           <div>
-            <h3 className="text-lg font-black text-[#1F2937]">{title}</h3>
+            <h3 className="text-lg font-black text-[#3A2417]">{title}</h3>
             {subtitle && (
-              <p className="mt-1 text-sm leading-6 text-gray-500">
+              <p className="mt-1 text-sm leading-6 text-[#7A5A3A]">
                 {subtitle}
               </p>
             )}
@@ -1256,13 +1222,13 @@ function StatCard({
   icon: string;
 }) {
   return (
-    <div className="rounded-3xl border border-[#EEF2F7] bg-gradient-to-b from-white to-[#F8FAFC] p-4 shadow-[0_12px_30px_rgba(31,41,55,0.05)]">
+    <div className="rounded-3xl border border-[#E6D6BC] bg-gradient-to-b from-white to-[#FFF3DD] p-4 shadow-[0_12px_30px_rgba(78,49,27,0.07)]">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-2xl">{icon}</span>
-        <span className="text-2xl font-black text-[#1F2937]">{value}</span>
+        <span className="text-2xl text-[#A87937]">{icon}</span>
+        <span className="text-2xl font-black text-[#3A2417]">{value}</span>
       </div>
 
-      <p className="mt-2 text-xs font-bold text-gray-500">{label}</p>
+      <p className="mt-2 text-xs font-bold text-[#7A5A3A]">{label}</p>
     </div>
   );
 }
@@ -1294,12 +1260,12 @@ function RoundButton({
       onClick={onClick}
       className={`relative overflow-hidden rounded-[28px] border p-5 text-right transition-all duration-200 ${
         active
-          ? "border-blue-500 bg-gradient-to-l from-blue-600 to-blue-700 text-white shadow-[0_18px_36px_rgba(37,99,235,0.26)]"
-          : "border-[#E5E7EB] bg-[#F8FAFC] text-[#1F2937] hover:bg-white hover:shadow-[0_14px_30px_rgba(31,41,55,0.08)]"
+          ? "border-[#C99A4A] bg-gradient-to-l from-[#8A5A25] via-[#A87937] to-[#C99A4A] text-white shadow-[0_18px_36px_rgba(138,90,37,0.30)]"
+          : "border-[#E6D6BC] bg-[#FFF9F1] text-[#3A2417] hover:bg-white hover:shadow-[0_14px_30px_rgba(78,49,27,0.09)]"
       }`}
     >
       {active && (
-        <div className="pointer-events-none absolute -left-10 -top-10 h-28 w-28 rounded-full bg-white/15 blur-2xl" />
+        <div className="pointer-events-none absolute -left-10 -top-10 h-28 w-28 rounded-full bg-white/20 blur-2xl" />
       )}
 
       <div className="relative flex items-start justify-between gap-4">
@@ -1307,7 +1273,7 @@ function RoundButton({
           <div className="flex items-center gap-2">
             <span
               className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-black ${
-                active ? "bg-white text-blue-700" : "bg-blue-50 text-blue-700"
+                active ? "bg-white text-[#8A5A25]" : "bg-[#FFF3DD] text-[#8A5A25]"
               }`}
             >
               {roundNumber}
@@ -1316,14 +1282,14 @@ function RoundButton({
             <span className="text-lg font-black">{title}</span>
           </div>
 
-          <p className={`text-sm ${active ? "text-blue-50" : "text-gray-500"}`}>
+          <p className={`text-sm ${active ? "text-white/85" : "text-[#7A5A3A]"}`}>
             {subtitle}
           </p>
         </div>
 
         <div className="text-left">
           <div className="text-2xl font-black">{count}</div>
-          <div className={`text-xs ${active ? "text-blue-50" : "text-gray-500"}`}>
+          <div className={`text-xs ${active ? "text-white/80" : "text-[#7A5A3A]"}`}>
             נמענים
           </div>
         </div>
@@ -1331,7 +1297,7 @@ function RoundButton({
 
       <div
         className={`relative mt-4 inline-flex rounded-full px-3 py-1 text-xs font-black ${
-          active ? "bg-white/15 text-white" : "bg-white text-gray-600"
+          active ? "bg-white/18 text-white" : "bg-white text-[#7A5A3A]"
         }`}
       >
         {channel === "sms" ? "📩 SMS" : "💬 WhatsApp"}
@@ -1340,7 +1306,7 @@ function RoundButton({
       {(sent || scheduled) && (
         <div
           className={`relative mt-3 rounded-2xl px-3 py-2 text-xs font-bold ${
-            active ? "bg-white/15 text-white" : "bg-green-50 text-green-700"
+            active ? "bg-white/18 text-white" : "bg-green-50 text-green-700"
           }`}
         >
           {sent ? "נשלח" : "מתוזמן"}
@@ -1369,25 +1335,25 @@ function ChannelOption({
       onClick={onClick}
       className={`rounded-3xl border p-4 text-right transition-all ${
         active
-          ? "border-blue-500 bg-blue-50 shadow-[0_12px_28px_rgba(37,99,235,0.12)]"
-          : "border-[#E5E7EB] bg-[#F8FAFC] hover:bg-white"
+          ? "border-[#C99A4A] bg-[#FFF3DD] shadow-[0_12px_28px_rgba(138,90,37,0.14)]"
+          : "border-[#E6D6BC] bg-[#FFFDF9] hover:bg-white"
       }`}
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2 font-black text-[#1F2937]">
+          <div className="flex items-center gap-2 font-black text-[#3A2417]">
             <span className="text-lg">{icon}</span>
             <span>{title}</span>
           </div>
 
-          <p className="mt-1 text-xs leading-5 text-gray-500">{subtitle}</p>
+          <p className="mt-1 text-xs leading-5 text-[#7A5A3A]">{subtitle}</p>
         </div>
 
         <span
           className={`mt-1 h-5 w-5 rounded-full border ${
             active
-              ? "border-blue-600 bg-blue-600 shadow-[inset_0_0_0_4px_white]"
-              : "border-gray-300 bg-white"
+              ? "border-[#A87937] bg-[#A87937] shadow-[inset_0_0_0_4px_white]"
+              : "border-[#D8C3A3] bg-white"
           }`}
         />
       </div>
@@ -1412,12 +1378,12 @@ function GiftOptionCard({
     <div
       className={`rounded-3xl border p-4 transition ${
         checked
-          ? "border-blue-300 bg-blue-50/60"
-          : "border-[#E5E7EB] bg-[#F8FAFC]"
+          ? "border-[#C99A4A] bg-[#FFF3DD]"
+          : "border-[#E6D6BC] bg-[#FFFDF9]"
       }`}
     >
       <label className="flex cursor-pointer items-center justify-between gap-3">
-        <span className="flex items-center gap-2 text-sm font-black text-[#1F2937]">
+        <span className="flex items-center gap-2 text-sm font-black text-[#3A2417]">
           <span className="text-lg">{icon}</span>
           {title}
         </span>
@@ -1426,7 +1392,7 @@ function GiftOptionCard({
           type="checkbox"
           checked={checked}
           onChange={(e) => onCheckedChange(e.target.checked)}
-          className="h-5 w-5 accent-blue-600"
+          className="h-5 w-5 accent-[#A87937]"
         />
       </label>
 
@@ -1454,25 +1420,25 @@ function TimingOption({
       onClick={onClick}
       className={`rounded-3xl border p-4 text-right transition-all ${
         active
-          ? "border-blue-500 bg-blue-50 shadow-[0_12px_28px_rgba(37,99,235,0.12)]"
-          : "border-[#E5E7EB] bg-[#F8FAFC] hover:bg-white"
+          ? "border-[#C99A4A] bg-[#FFF3DD] shadow-[0_12px_28px_rgba(138,90,37,0.14)]"
+          : "border-[#E6D6BC] bg-[#FFFDF9] hover:bg-white"
       }`}
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2 font-black text-[#1F2937]">
+          <div className="flex items-center gap-2 font-black text-[#3A2417]">
             <span>{icon}</span>
             <span>{title}</span>
           </div>
 
-          <p className="mt-1 text-xs leading-5 text-gray-500">{subtitle}</p>
+          <p className="mt-1 text-xs leading-5 text-[#7A5A3A]">{subtitle}</p>
         </div>
 
         <span
           className={`mt-1 h-5 w-5 rounded-full border ${
             active
-              ? "border-blue-600 bg-blue-600 shadow-[inset_0_0_0_4px_white]"
-              : "border-gray-300 bg-white"
+              ? "border-[#A87937] bg-[#A87937] shadow-[inset_0_0_0_4px_white]"
+              : "border-[#D8C3A3] bg-white"
           }`}
         />
       </div>
@@ -1482,9 +1448,9 @@ function TimingOption({
 
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-[#EEF2F7] pb-3 last:border-b-0 last:pb-0">
-      <span className="text-gray-500">{label}</span>
-      <span className="font-black text-[#1F2937]">{value}</span>
+    <div className="flex items-center justify-between gap-3 border-b border-[#E6D6BC] pb-3 last:border-b-0 last:pb-0">
+      <span className="text-[#7A5A3A]">{label}</span>
+      <span className="font-black text-[#3A2417]">{value}</span>
     </div>
   );
 }
@@ -1503,7 +1469,7 @@ function MiniStat({
       className={`rounded-2xl border p-4 ${
         danger
           ? "border-red-100 bg-red-50 text-red-700"
-          : "border-[#E8EEF7] bg-[#F8FAFC] text-[#1F2937]"
+          : "border-[#E6D6BC] bg-[#FFF3DD] text-[#3A2417]"
       }`}
     >
       <div className="text-2xl font-black">{value}</div>
