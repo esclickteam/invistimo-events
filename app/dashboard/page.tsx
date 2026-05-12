@@ -2592,16 +2592,16 @@ function GoldenRecentActivityCard({
       </div>
 
       <div
-        className="
-          max-h-[290px]
-          overflow-y-auto
-          pr-1
-          space-y-3
-          scrollbar-thin
-          scrollbar-thumb-[#D9B46F]
-          scrollbar-track-[#F8EFE3]
-        "
-      >
+  className="
+    max-h-[170px]
+    overflow-y-auto
+    pr-1
+    space-y-2
+    scrollbar-thin
+    scrollbar-thumb-[#D9B46F]
+    scrollbar-track-[#F8EFE3]
+  "
+>
         {logs.length > 0 ? (
           logs.map((log) => (
             <GoldenActivityRow
