@@ -706,7 +706,7 @@ export default function RsvpTab({
                 value={pendingGuests.length}
                 icon="⏳"
               />
-              <StatCard label="אישרו" value={yesCount} icon="✓" />
+              <StatCard label="אישרורשומות ש" value={yesCount} icon="✓" />
               <StatCard label="לא מגיעים" value={noCount} icon="—" />
             </div>
           </div>
