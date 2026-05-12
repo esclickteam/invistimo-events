@@ -412,22 +412,22 @@ export default function RsvpTab({
         setRound3Scheduled(!!r3Scheduled);
 
         setRound1Locked(
-          selectedChannel === "sms"
-            ? inv?.messageLocks?.rsvpSmsRound1 ?? true
-            : inv?.messageLocks?.rsvpWhatsappRound1 ?? true
-        );
+  selectedChannel === "sms"
+    ? inv?.messageLocks?.rsvpSmsRound1 ?? false
+    : inv?.messageLocks?.rsvpWhatsappRound1 ?? false
+);
 
-        setRound2Locked(
-          selectedChannel === "sms"
-            ? inv?.messageLocks?.rsvpSmsRound2 ?? true
-            : inv?.messageLocks?.rsvpWhatsappRound2 ?? true
-        );
+setRound2Locked(
+  selectedChannel === "sms"
+    ? inv?.messageLocks?.rsvpSmsRound2 ?? false
+    : inv?.messageLocks?.rsvpWhatsappRound2 ?? false
+);
 
-        setRound3Locked(
-          selectedChannel === "sms"
-            ? inv?.messageLocks?.rsvpSmsRound3 ?? true
-            : inv?.messageLocks?.rsvpWhatsappRound3 ?? true
-        );
+setRound3Locked(
+  selectedChannel === "sms"
+    ? inv?.messageLocks?.rsvpSmsRound3 ?? false
+    : inv?.messageLocks?.rsvpWhatsappRound3 ?? false
+);
 
         setGiftOptions(normalizeGiftOptions(inv?.giftOptions));
         didInitGift.current = true;
@@ -652,12 +652,10 @@ export default function RsvpTab({
   const missingHeaderImage = selectedChannel === "whatsapp" && !headerImageUrl;
 
   const blocked =
-    sendingNow ||
-    noAudience ||
-    missingHeaderImage ||
-    (sendTiming === "scheduled" && !scheduledAt) ||
-    (hasExistingSchedule && currentRoundLocked) ||
-    ((currentRoundSent || currentRoundScheduled) && currentRoundLocked);
+  (sendTiming === "now" && noAudience) ||
+  missingHeaderImage ||
+  (sendTiming === "scheduled" && !scheduledAt) ||
+  (currentRoundSent && currentRoundLocked);
 
   const whatsappPreviewText = useMemo(() => {
     return getWhatsappPreviewText({
@@ -709,15 +707,13 @@ export default function RsvpTab({
           disabled: blocked,
         };
 
-  const mainButtonText = sendingNow
-    ? "שולח..."
-    : currentRoundSent
-    ? `✔ סבב ${round} כבר נשלח`
-    : currentRoundScheduled || hasExistingSchedule
-    ? `⏱️ סבב ${round} כבר מתוזמן`
-    : sendTiming === "scheduled"
-    ? `תזמן שליחה - סבב ${round}`
-    : `שלח עכשיו - סבב ${round}`;
+  const mainButtonText = currentRoundSent
+  ? `✔ סבב ${round} כבר נשלח`
+  : currentRoundScheduled || hasExistingSchedule
+  ? `⏱️ עדכן תזמון - סבב ${round}`
+  : sendTiming === "scheduled"
+  ? `תזמן שליחה - סבב ${round}`
+  : `שלח עכשיו - סבב ${round}`;
 
   /* ================= LOADING ================= */
 
@@ -1155,41 +1151,34 @@ export default function RsvpTab({
                 </div>
               )}
 
-              {noAudience && (
-                <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-600">
-                  אין נמענים לשליחה בסבב זה.
-                </div>
-              )}
+              {sendTiming === "now" && noAudience && (
+  <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-600">
+    אין נמענים לשליחה מיידית בסבב זה.
+  </div>
+)}
 
-              <div
-                onClickCapture={() => {
-                  if (blocked) return;
-                  lockSendImmediately();
-                }}
-              >
-                <SendButton
-                  key={`${invitationId}-${selectedChannel}-${round}-${templateName}-${currentRoundSent}-${currentRoundScheduled}-${hasExistingSchedule}`}
-                  {...sendButtonProps}
-                  disabled={blocked}
-                  onAfterSend={async () => {
-                    await loadScheduledMessages();
+              <SendButton
+  key={`${invitationId}-${selectedChannel}-${round}-${templateName}-${currentRoundSent}-${currentRoundScheduled}-${hasExistingSchedule}`}
+  {...sendButtonProps}
+  disabled={blocked}
+  onAfterSend={async () => {
+    await loadScheduledMessages();
 
-                    if (sendTiming === "scheduled") {
-                      if (round === 1) setRound1Scheduled(true);
-                      if (round === 2) setRound2Scheduled(true);
-                      if (round === 3) setRound3Scheduled(true);
-                    } else {
-                      if (round === 1) setRound1Sent(true);
-                      if (round === 2) setRound2Sent(true);
-                      if (round === 3) setRound3Sent(true);
-                    }
+    if (sendTiming === "scheduled") {
+      if (round === 1) setRound1Scheduled(true);
+      if (round === 2) setRound2Scheduled(true);
+      if (round === 3) setRound3Scheduled(true);
+    } else {
+      if (round === 1) setRound1Sent(true);
+      if (round === 2) setRound2Sent(true);
+      if (round === 3) setRound3Sent(true);
+    }
 
-                    unlockSendButton();
-                  }}
-                >
-                  {mainButtonText}
-                </SendButton>
-              </div>
+    unlockSendButton();
+  }}
+>
+  {mainButtonText}
+</SendButton>
 
               <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs text-[#7A5A3A]">
                 <span>נמענים לשליחה: {guestsToSend.length}</span>
