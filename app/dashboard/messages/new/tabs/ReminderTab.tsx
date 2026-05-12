@@ -128,6 +128,8 @@ export default function ReminderTab({
 
         if (inv?.reminderSentAt) {
           setReminderSentAt(new Date(inv.reminderSentAt));
+        } else {
+          setReminderSentAt(null);
         }
 
         setReminderLocked(inv?.messageLocks?.reminderSms ?? true);
@@ -202,11 +204,6 @@ export default function ReminderTab({
     [confirmedGuests]
   );
 
-  const guestsWithoutTable = useMemo(
-    () => confirmedGuests.filter((g) => !hasTable(g)),
-    [confirmedGuests]
-  );
-
   const guestsToSend = confirmedGuests;
 
   /* ================= AUTO MESSAGE TYPE ================= */
@@ -214,6 +211,10 @@ export default function ReminderTab({
   const hasSeatingPackage = useMemo(() => {
     return detectSeatingPackage(invitation, guestsWithTable.length);
   }, [invitation, guestsWithTable.length]);
+
+  const selectedTemplateLabel = hasSeatingPackage
+    ? "תזכורת עם מספר שולחן"
+    : "תזכורת רגילה";
 
   useEffect(() => {
     if (messageTouched) return;
@@ -224,10 +225,6 @@ export default function ReminderTab({
         : REMINDER_ONLY_TEMPLATE
     );
   }, [hasSeatingPackage, messageTouched]);
-
-  const selectedTemplateLabel = hasSeatingPackage
-    ? "תזכורת עם מספר שולחן"
-    : "תזכורת רגילה";
 
   /* ================= TIMING ================= */
 
@@ -251,7 +248,14 @@ export default function ReminderTab({
   const buildReminderMessage = (g: Guest) =>
     buildMessage({
       template: message,
-      guest: g,
+      guest: {
+        ...g,
+        tableName:
+          g.tableName ||
+          (typeof g.tableNumber === "number"
+            ? `שולחן ${g.tableNumber}`
+            : ""),
+      },
       invitationTitle,
       eventDate,
       eventLocation,
@@ -488,52 +492,16 @@ export default function ReminderTab({
         </div>
       </section>
 
-      {/* TOP CARDS */}
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <ActionCard
-          active
-          badge={`${guestsToSend.length}`}
-          title={selectedTemplateLabel}
-          subtitle="לכל מי שאישר הגעה"
-          channel="SMS"
-          status={reminderAlreadySent ? "נשלחה" : "מוכנה לשליחה"}
-          onClick={() => {}}
-        />
-
-        <ActionCard
-          active={false}
-          badge={`${confirmedGuests.length}`}
-          title="קהל יעד"
-          subtitle="נקבע אוטומטית לפי אישורי הגעה"
-          channel="AUTO"
-          status="ללא בחירה ידנית"
-          onClick={() => {}}
-        />
-
-        <ActionCard
-          active={false}
-          badge={`${reminderScheduledMessages.length}`}
-          title="הודעות מתוזמנות"
-          subtitle="צפייה וביטול תזמונים"
-          channel="Schedule"
-          status={
-            reminderScheduledMessages.length > 0
-              ? "יש תזמונים"
-              : "אין תזמונים"
-          }
-          onClick={async () => {
-            await loadScheduledMessages();
-            setShowScheduled(true);
-          }}
-        />
-      </section>
-
       {/* MAIN GRID */}
       <section className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
         {/* RIGHT SIDE */}
         <div className="space-y-6 xl:order-1">
           {/* PREVIEW */}
-          <Panel title="תצוגה מקדימה" subtitle="כך תיראה הודעת התזכורת" icon="✨">
+          <Panel
+            title="תצוגה מקדימה"
+            subtitle="כך תיראה הודעת התזכורת"
+            icon="✨"
+          >
             {preview ? (
               <PhonePreview text={preview.text} />
             ) : (
@@ -553,7 +521,11 @@ export default function ReminderTab({
           </Panel>
 
           {/* TEST */}
-          <Panel title="שליחת הודעה לבדיקה" subtitle="בדיקה לפני שליחה בפועל" icon="🧪">
+          <Panel
+            title="שליחת הודעה לבדיקה"
+            subtitle="בדיקה לפני שליחה בפועל"
+            icon="🧪"
+          >
             <div className="flex flex-col sm:flex-row gap-3">
               <input
                 type="tel"
@@ -607,7 +579,11 @@ export default function ReminderTab({
           </Panel>
 
           {/* TIMING */}
-          <Panel title="מועד שליחה" subtitle="שליחה מיידית או מתוזמנת" icon="⏱️">
+          <Panel
+            title="מועד שליחה"
+            subtitle="שליחה מיידית או מתוזמנת"
+            icon="⏱️"
+          >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <button
                 type="button"
@@ -674,31 +650,34 @@ export default function ReminderTab({
         {/* LEFT SIDE */}
         <div className="space-y-6 xl:order-2">
           {/* CHANNEL */}
-          <Panel title="ערוץ שליחה" subtitle="התזכורת נשלחת בסבב אחד" icon="💬">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <SelectableBox active>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-lg font-black">SMS</span>
-                  <span className="text-xl">📩</span>
-                </div>
-                <p className="mt-2 text-xs leading-6 text-[#7A6246]">
-                  שליחה לכל מי שאישר הגעה.
-                </p>
-              </SelectableBox>
+          <Panel
+            title="ערוץ שליחה"
+            subtitle="התזכורת נשלחת בסבב אחד"
+            icon="💬"
+          >
+            <div
+              className="
+                rounded-[24px]
+                border border-[#C79B45]
+                bg-[#FFF2D8]
+                p-5
+                shadow-sm
+              "
+            >
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-lg font-black text-[#3E2D20]">
+                  SMS
+                </span>
+                <span className="text-xl">📩</span>
+              </div>
 
-              <SelectableBox active={false} muted>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-lg font-black">WhatsApp</span>
-                  <span className="text-xl">💬</span>
-                </div>
-                <p className="mt-2 text-xs leading-6 text-[#7A6246]">
-                  לא פעיל בתזכורת.
-                </p>
-              </SelectableBox>
+              <p className="mt-2 text-xs leading-6 text-[#7A6246]">
+                שליחה לכל מי שאישר הגעה.
+              </p>
             </div>
           </Panel>
 
-          {/* AUTO TARGET */}
+          {/* TARGET */}
           <Panel title="קהל יעד" subtitle="נקבע אוטומטית" icon="👥">
             <div
               className="
@@ -717,7 +696,11 @@ export default function ReminderTab({
           </Panel>
 
           {/* MESSAGE */}
-          <Panel title="תוכן ההודעה" subtitle={selectedTemplateLabel} icon="✏️">
+          <Panel
+            title="תוכן ההודעה"
+            subtitle={selectedTemplateLabel}
+            icon="✏️"
+          >
             <textarea
               value={message}
               onChange={(e) => {
@@ -772,53 +755,76 @@ export default function ReminderTab({
             className="
               rounded-[30px]
               border border-[#D7BC8C]
-              bg-gradient-to-br from-[#CDAA55] to-[#9B661E]
+              bg-gradient-to-br from-[#CDAA55] via-[#B9822E] to-[#8D5A1C]
               p-5
               shadow-[0_18px_45px_rgba(120,78,24,0.22)]
             "
           >
-            <SendButton
-              channel="sms"
-              type="reminder"
-              invitationId={invitationId}
-              audience={guestsToSend.map((g) => g._id)}
-              scheduledAt={scheduledAt}
-              messageOverride={message}
-              onAfterSend={async () => {
-                if (sendTiming === "now") {
-                  setReminderSentAt(new Date());
-                }
-
-                await loadScheduledMessages();
-              }}
-              disabled={
-                (reminderAlreadySent && reminderLocked) ||
-                !preview ||
-                preview.blocked ||
-                guestsToSend.length === 0 ||
-                (sendTiming === "scheduled" && !scheduledAt)
-              }
+            <div
+              className="
+                mb-4
+                rounded-[22px]
+                bg-white/14
+                px-5 py-4
+                text-center
+                text-lg font-black
+                text-white
+              "
             >
               {reminderAlreadySent
-                ? "✅ תזכורת נשלחה"
+                ? "תזכורת נשלחה"
                 : sendTiming === "scheduled"
-                ? "⏱️ תזמן תזכורת"
-                : `📩 שלח תזכורת (${guestsToSend.length})`}
-            </SendButton>
+                ? `תזמן תזכורת (${guestsToSend.length})`
+                : `שלח תזכורת (${guestsToSend.length})`}
+            </div>
+
+            <div className="send-button-gold">
+              <SendButton
+                channel="sms"
+                type="reminder"
+                invitationId={invitationId}
+                audience={guestsToSend.map((g) => g._id)}
+                scheduledAt={scheduledAt}
+                messageOverride={message}
+                onAfterSend={async () => {
+                  if (sendTiming === "now") {
+                    setReminderSentAt(new Date());
+                  }
+
+                  await loadScheduledMessages();
+                }}
+                disabled={
+                  (reminderAlreadySent && reminderLocked) ||
+                  !preview ||
+                  preview.blocked ||
+                  guestsToSend.length === 0 ||
+                  (sendTiming === "scheduled" && !scheduledAt)
+                }
+              >
+                {reminderAlreadySent
+                  ? "✓ תזכורת נשלחה"
+                  : sendTiming === "scheduled"
+                  ? "⏱️ תזמן תזכורת"
+                  : "📩 שלח תזכורת"}
+              </SendButton>
+            </div>
 
             {isAdmin && (
               <button
                 type="button"
                 onClick={() => toggleMessageLock(reminderLocked)}
-                className={`
-                  mt-4 w-full rounded-[20px] px-5 py-3
-                  text-sm font-black text-white shadow-sm transition
-                  ${
-                    reminderLocked
-                      ? "bg-orange-500 hover:bg-orange-600"
-                      : "bg-green-600 hover:bg-green-700"
-                  }
-                `}
+                className="
+                  mt-4
+                  w-full
+                  rounded-[20px]
+                  bg-[#B9822E]
+                  px-5 py-3
+                  text-sm font-black
+                  text-white
+                  shadow-sm
+                  transition
+                  hover:bg-[#9B661E]
+                "
               >
                 {reminderLocked
                   ? "🔓 פתח תזכורת"
@@ -899,6 +905,35 @@ export default function ReminderTab({
           </div>
         </div>
       )}
+
+      <style jsx global>{`
+        .send-button-gold button {
+          width: 100% !important;
+          border-radius: 20px !important;
+          background: linear-gradient(
+            135deg,
+            #d9b45f 0%,
+            #b9822e 48%,
+            #8d5a1c 100%
+          ) !important;
+          color: #ffffff !important;
+          font-weight: 900 !important;
+          box-shadow: 0 14px 34px rgba(120, 78, 24, 0.25) !important;
+          border: 1px solid rgba(255, 255, 255, 0.22) !important;
+        }
+
+        .send-button-gold button:hover {
+          filter: brightness(1.04);
+        }
+
+        .send-button-gold button:disabled {
+          background: #c9b48d !important;
+          color: rgba(255, 255, 255, 0.85) !important;
+          cursor: not-allowed !important;
+          opacity: 1 !important;
+          box-shadow: none !important;
+        }
+      `}</style>
     </div>
   );
 }
@@ -1059,94 +1094,6 @@ function StatCard({
   );
 }
 
-function ActionCard({
-  active,
-  badge,
-  title,
-  subtitle,
-  channel,
-  status,
-  onClick,
-}: {
-  active: boolean;
-  badge: string;
-  title: string;
-  subtitle: string;
-  channel: string;
-  status: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`
-        text-right
-        rounded-[28px]
-        border
-        p-5
-        shadow-sm
-        transition-all
-        hover:-translate-y-0.5
-        hover:shadow-lg
-        ${
-          active
-            ? "border-[#B9862F] bg-gradient-to-br from-[#CDAA55] to-[#8D5A1C] text-white"
-            : "border-[#E2CFB5] bg-[#FFF9EF] text-[#3E2D20]"
-        }
-      `}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div
-            className={`
-              mb-2 inline-flex h-8 min-w-8 items-center justify-center
-              rounded-full px-3 text-sm font-black
-              ${
-                active
-                  ? "bg-white text-[#8D5A1C]"
-                  : "bg-[#F3E6D2] text-[#8A642B]"
-              }
-            `}
-          >
-            {badge}
-          </div>
-
-          <h3 className="text-lg font-black">{title}</h3>
-
-          <p
-            className={`mt-1 text-xs leading-6 ${
-              active ? "text-white/80" : "text-[#7A6246]"
-            }`}
-          >
-            {subtitle}
-          </p>
-        </div>
-
-        <div
-          className={`rounded-full px-3 py-1 text-xs font-black ${
-            active
-              ? "bg-white/20 text-white"
-              : "bg-white text-[#8A642B]"
-          }`}
-        >
-          {channel}
-        </div>
-      </div>
-
-      <div
-        className={`mt-5 rounded-full px-4 py-2 text-center text-xs font-black ${
-          active
-            ? "bg-white/15 text-white"
-            : "bg-[#E8F7EA] text-green-700"
-        }`}
-      >
-        {status}
-      </div>
-    </button>
-  );
-}
-
 function Panel({
   title,
   subtitle,
@@ -1196,35 +1143,6 @@ function Panel({
         )}
       </div>
 
-      {children}
-    </div>
-  );
-}
-
-function SelectableBox({
-  active,
-  muted,
-  children,
-}: {
-  active: boolean;
-  muted?: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <div
-      className={`
-        rounded-[24px]
-        border
-        p-5
-        transition
-        ${
-          active
-            ? "border-[#C79B45] bg-[#FFF2D8] shadow-sm"
-            : "border-[#E4D3BB] bg-white/70"
-        }
-        ${muted ? "opacity-60" : ""}
-      `}
-    >
       {children}
     </div>
   );
