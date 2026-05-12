@@ -240,6 +240,8 @@ export default function ReminderTab({
     return new Date(year, month - 1, day, hour, minute, 0, 0);
   }, [sendTiming, scheduledDate, scheduledTime]);
 
+  const isScheduledMode = sendTiming === "scheduled";
+
   /* ================= BUILD MESSAGE ================= */
 
   const buildReminderMessage = (g: Guest) => {
@@ -412,6 +414,12 @@ export default function ReminderTab({
   const isAdmin =
     user?.role === "admin" || (user as any)?.impersonatedByAdmin;
 
+  const sendButtonDisabled =
+    (reminderAlreadySent && reminderLocked) ||
+    (sendTiming === "now" &&
+      (!preview || preview.blocked || guestsToSend.length === 0)) ||
+    (sendTiming === "scheduled" && !scheduledAt);
+
   /* ================= LOADING ================= */
 
   if (loading) {
@@ -491,7 +499,11 @@ export default function ReminderTab({
             ) : (
               <EmptyState
                 title="אין הודעה לתצוגה"
-                text="אין אורחים שאישרו הגעה."
+                text={
+                  isScheduledMode
+                    ? "אפשר לתזמן גם אם כרגע אין אורחים שאישרו הגעה. במועד המתוזמן המערכת תמשוך את הקהל הרלוונטי."
+                    : "אין אורחים שאישרו הגעה."
+                }
               />
             )}
 
@@ -665,7 +677,9 @@ export default function ReminderTab({
                   שליחת תזכורת
                 </h3>
                 <p className="mt-1 text-sm text-[#7A6246]">
-                  SMS · {guestsToSend.length} נמענים
+                  {isScheduledMode
+                    ? "SMS · הקהל ייקבע בזמן השליחה המתוזמנת"
+                    : `SMS · ${guestsToSend.length} נמענים`}
                 </p>
               </div>
 
@@ -685,7 +699,11 @@ export default function ReminderTab({
             <div className="grid grid-cols-1 gap-3">
               <button
                 type="button"
-                onClick={() => setSendTiming("now")}
+                onClick={() => {
+                  setSendTiming("now");
+                  setScheduledDate("");
+                  setScheduledTime("");
+                }}
                 className={sendTimingOptionClass(sendTiming === "now")}
               >
                 <div>
@@ -710,7 +728,7 @@ export default function ReminderTab({
                     שליחה מתוזמנת
                   </div>
                   <div className="mt-1 text-xs text-[#7A6246]">
-                    קביעת תאריך ושעה.
+                    קביעת תאריך ושעה. הקהל ייקבע בזמן השליחה.
                   </div>
                 </div>
 
@@ -757,7 +775,11 @@ export default function ReminderTab({
                 channel="sms"
                 type="reminder"
                 invitationId={invitationId}
-                audience={guestsToSend.map((g) => g._id)}
+                audience={
+                  sendTiming === "scheduled"
+                    ? []
+                    : guestsToSend.map((g) => g._id)
+                }
                 scheduledAt={scheduledAt}
                 messageOverride={message}
                 onAfterSend={async () => {
@@ -767,18 +789,12 @@ export default function ReminderTab({
 
                   await loadScheduledMessages();
                 }}
-                disabled={
-                  (reminderAlreadySent && reminderLocked) ||
-                  !preview ||
-                  preview.blocked ||
-                  guestsToSend.length === 0 ||
-                  (sendTiming === "scheduled" && !scheduledAt)
-                }
+                disabled={sendButtonDisabled}
               >
                 {reminderAlreadySent
                   ? "✓ תזכורת נשלחה"
                   : sendTiming === "scheduled"
-                  ? `⏱️ תזמן תזכורת (${guestsToSend.length})`
+                  ? "⏱️ תזמן תזכורת"
                   : `📩 שלח תזכורת (${guestsToSend.length})`}
               </SendButton>
             </div>

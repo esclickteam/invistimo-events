@@ -31,7 +31,7 @@ const THANK_YOU_TEMPLATE =
   "היי {{name}} 🌸\n" +
   "שמחנו לראותך באירוע שלנו 💛\n\n" +
   "תודה שהגעת ושמחת איתנו.";
-  
+
 /* ================= COMPONENT ================= */
 
 export default function ThankYouTab({
@@ -52,8 +52,7 @@ export default function ThankYouTab({
   const [sendingTest, setSendingTest] = useState(false);
   const [testCount, setTestCount] = useState(0);
 
-  const [thankYouSentAt, setThankYouSentAt] =
-    useState<Date | null>(null);
+  const [thankYouSentAt, setThankYouSentAt] = useState<Date | null>(null);
   const [thankYouLocked, setThankYouLocked] = useState(true);
 
   const [scheduledMessages, setScheduledMessages] = useState<any[]>([]);
@@ -93,9 +92,7 @@ export default function ThankYouTab({
         const guestsData = await guestsRes.json();
         const invitationData = await invitationRes.json();
 
-        setGuests(
-          Array.isArray(guestsData?.guests) ? guestsData.guests : []
-        );
+        setGuests(Array.isArray(guestsData?.guests) ? guestsData.guests : []);
 
         const inv = invitationData?.invitation;
 
@@ -129,9 +126,7 @@ export default function ThankYouTab({
       const data = await res.json();
 
       if (data?.success) {
-        setScheduledMessages(
-          Array.isArray(data.messages) ? data.messages : []
-        );
+        setScheduledMessages(Array.isArray(data.messages) ? data.messages : []);
       } else {
         setScheduledMessages([]);
       }
@@ -179,11 +174,7 @@ export default function ThankYouTab({
   /* ================= TIMING ================= */
 
   const scheduledAt = useMemo(() => {
-    if (
-      sendTiming !== "scheduled" ||
-      !scheduledDate ||
-      !scheduledTime
-    ) {
+    if (sendTiming !== "scheduled" || !scheduledDate || !scheduledTime) {
       return null;
     }
 
@@ -192,6 +183,8 @@ export default function ThankYouTab({
 
     return new Date(year, month - 1, day, hour, minute, 0, 0);
   }, [sendTiming, scheduledDate, scheduledTime]);
+
+  const isScheduledMode = sendTiming === "scheduled";
 
   /* ================= BUILD MESSAGE ================= */
 
@@ -336,6 +329,12 @@ export default function ThankYouTab({
   const isAdmin =
     user?.role === "admin" || (user as any)?.impersonatedByAdmin;
 
+  const sendButtonDisabled =
+    (thankYouAlreadySent && thankYouLocked) ||
+    (sendTiming === "now" &&
+      (!preview || preview.blocked || guestsToSend.length === 0)) ||
+    (sendTiming === "scheduled" && !scheduledAt);
+
   /* ================= LOADING ================= */
 
   if (loading) {
@@ -396,21 +395,9 @@ export default function ThankYouTab({
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <StatCard
-                value={confirmedGuests.length}
-                label="יקבלו הודעה"
-                icon="✅"
-              />
-              <StatCard
-                value={pendingGuests.length}
-                label="ממתינים"
-                icon="⏳"
-              />
-              <StatCard
-                value={declinedGuests.length}
-                label="לא מגיעים"
-                icon="—"
-              />
+              <StatCard value={confirmedGuests.length} label="יקבלו הודעה" icon="✅" />
+              <StatCard value={pendingGuests.length} label="ממתינים" icon="⏳" />
+              <StatCard value={declinedGuests.length} label="לא מגיעים" icon="—" />
               <StatCard
                 value={thankYouScheduledMessages.length}
                 label="מתוזמנות"
@@ -425,17 +412,17 @@ export default function ThankYouTab({
       <section className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
         {/* RIGHT SIDE */}
         <div className="space-y-6 xl:order-1">
-          <Panel
-            title="תצוגה מקדימה"
-            subtitle="כך תיראה הודעת התודה"
-            icon="✨"
-          >
+          <Panel title="תצוגה מקדימה" subtitle="כך תיראה הודעת התודה" icon="✨">
             {preview ? (
               <PhonePreview text={preview.text} />
             ) : (
               <EmptyState
                 title="אין הודעה לתצוגה"
-                text="אין אורחים שאישרו הגעה."
+                text={
+                  isScheduledMode
+                    ? "אפשר לתזמן גם אם כרגע אין אורחים שאישרו הגעה. במועד המתוזמן המערכת תמשוך את הקהל הרלוונטי."
+                    : "אין אורחים שאישרו הגעה."
+                }
               />
             )}
 
@@ -448,11 +435,7 @@ export default function ThankYouTab({
             )}
           </Panel>
 
-          <Panel
-            title="שליחת הודעה לבדיקה"
-            subtitle="בדיקה לפני שליחה בפועל"
-            icon="🧪"
-          >
+          <Panel title="שליחת הודעה לבדיקה" subtitle="בדיקה לפני שליחה בפועל" icon="🧪">
             <div className="flex flex-col sm:flex-row gap-3">
               <input
                 type="tel"
@@ -508,11 +491,7 @@ export default function ThankYouTab({
 
         {/* LEFT SIDE */}
         <div className="space-y-6 xl:order-2">
-          <Panel
-            title="ערוץ שליחה"
-            subtitle="הודעת התודה נשלחת ב-SMS"
-            icon="💬"
-          >
+          <Panel title="ערוץ שליחה" subtitle="הודעת התודה נשלחת ב-SMS" icon="💬">
             <div
               className="
                 rounded-[24px]
@@ -523,9 +502,7 @@ export default function ThankYouTab({
               "
             >
               <div className="flex items-center justify-between gap-3">
-                <span className="text-lg font-black text-[#3E2D20]">
-                  SMS
-                </span>
+                <span className="text-lg font-black text-[#3E2D20]">SMS</span>
                 <span className="text-xl">📩</span>
               </div>
 
@@ -609,7 +586,9 @@ export default function ThankYouTab({
                   שליחת הודעת תודה
                 </h3>
                 <p className="mt-1 text-sm text-[#7A6246]">
-                  SMS · {guestsToSend.length} נמענים
+                  {isScheduledMode
+                    ? "SMS · הקהל ייקבע בזמן השליחה המתוזמנת"
+                    : `SMS · ${guestsToSend.length} נמענים`}
                 </p>
               </div>
 
@@ -637,9 +616,7 @@ export default function ThankYouTab({
                 className={sendTimingOptionClass(sendTiming === "now")}
               >
                 <div>
-                  <div className="font-black text-[#3E2D20]">
-                    שליחה מיידית
-                  </div>
+                  <div className="font-black text-[#3E2D20]">שליחה מיידית</div>
                   <div className="mt-1 text-xs text-[#7A6246]">
                     ההודעה תישלח עכשיו.
                   </div>
@@ -654,11 +631,9 @@ export default function ThankYouTab({
                 className={sendTimingOptionClass(sendTiming === "scheduled")}
               >
                 <div>
-                  <div className="font-black text-[#3E2D20]">
-                    שליחה מתוזמנת
-                  </div>
+                  <div className="font-black text-[#3E2D20]">שליחה מתוזמנת</div>
                   <div className="mt-1 text-xs text-[#7A6246]">
-                    קביעת תאריך ושעה.
+                    קביעת תאריך ושעה. הקהל ייקבע בזמן השליחה.
                   </div>
                 </div>
 
@@ -705,7 +680,11 @@ export default function ThankYouTab({
                 channel="sms"
                 type="thankyou"
                 invitationId={invitationId}
-                audience={guestsToSend.map((g) => g._id)}
+                audience={
+                  sendTiming === "scheduled"
+                    ? []
+                    : guestsToSend.map((g) => g._id)
+                }
                 scheduledAt={scheduledAt}
                 messageOverride={message}
                 onAfterSend={async () => {
@@ -715,18 +694,12 @@ export default function ThankYouTab({
 
                   await loadScheduledMessages();
                 }}
-                disabled={
-                  (thankYouAlreadySent && thankYouLocked) ||
-                  !preview ||
-                  preview.blocked ||
-                  guestsToSend.length === 0 ||
-                  (sendTiming === "scheduled" && !scheduledAt)
-                }
+                disabled={sendButtonDisabled}
               >
                 {thankYouAlreadySent
                   ? "✓ הודעת תודה נשלחה"
                   : sendTiming === "scheduled"
-                  ? `⏱️ תזמן הודעת תודה (${guestsToSend.length})`
+                  ? "⏱️ תזמן הודעת תודה"
                   : `📩 שלח הודעת תודה (${guestsToSend.length})`}
               </SendButton>
             </div>
@@ -1049,13 +1022,7 @@ function MiniStat({
   );
 }
 
-function EmptyState({
-  title,
-  text,
-}: {
-  title: string;
-  text: string;
-}) {
+function EmptyState({ title, text }: { title: string; text: string }) {
   return (
     <div
       className="
