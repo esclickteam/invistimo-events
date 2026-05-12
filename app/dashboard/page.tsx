@@ -2464,8 +2464,7 @@ function CountdownFireworksCanvas() {
     }
 
     function draw() {
-      ctx.fillStyle = "rgba(255, 253, 249, 0.12)";
-      ctx.fillRect(0, 0, w, h);
+      ctx.clearRect(0, 0, w, h);
 
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
@@ -2491,13 +2490,10 @@ function CountdownFireworksCanvas() {
 
     resize();
 
-    ctx.fillStyle = "rgba(255, 253, 249, 0.08)";
-    ctx.fillRect(0, 0, w, h);
-
     intervalRef.current = window.setInterval(() => {
       createBurst(
         Math.random() * w,
-        Math.random() * (h * 0.55) + h * 0.12
+        Math.random() * (h * 0.65) + h * 0.04
       );
     }, 520);
 
@@ -2521,7 +2517,7 @@ function CountdownFireworksCanvas() {
   return (
     <canvas
       ref={canvasRef}
-      className="pointer-events-none absolute inset-0 h-full w-full"
+      className="pointer-events-none absolute inset-0 z-20 h-full w-full"
       aria-hidden="true"
     />
   );
@@ -2553,33 +2549,28 @@ function GoldenCountdown({
   if (countdown.isEventDay) {
     return (
       <div
+        dir="ltr"
         className="
           relative
           mt-5
-          min-h-[150px]
+          grid
+          grid-cols-2
+          sm:grid-cols-6
+          gap-2
+          max-w-[760px]
           overflow-hidden
-          rounded-[26px]
-          border
-          border-[#E3D6C3]
-          bg-[#FFFDF9]/92
-          shadow-[0_14px_34px_rgba(184,132,79,0.18)]
-          backdrop-blur-[2px]
+          rounded-[22px]
         "
       >
-        {/* 🎇 אפקט זיקוקים בלבד בתוך כרטיס הספירה */}
+        {/* 🎇 אפקט זיקוקים מעל השעון בלבד */}
         <CountdownFireworksCanvas />
 
-        <div
-          className="
-            pointer-events-none
-            absolute
-            inset-0
-            bg-gradient-to-b
-            from-white/18
-            via-white/4
-            to-white/28
-          "
-        />
+        <CountdownUnit label="חודשים" value={countdown.months} />
+        <CountdownUnit label="שבועות" value={countdown.weeks} />
+        <CountdownUnit label="ימים" value={countdown.days} />
+        <CountdownUnit label="שעות" value={countdown.hours} />
+        <CountdownUnit label="דקות" value={countdown.minutes} />
+        <CountdownUnit label="שניות" value={countdown.seconds} isLive />
       </div>
     );
   }
@@ -2621,6 +2612,7 @@ function CountdownUnit({
     <div
       className={`
         relative
+        z-10
         overflow-hidden
         rounded-2xl
         border
