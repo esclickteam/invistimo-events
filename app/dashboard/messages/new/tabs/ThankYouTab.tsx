@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import AudienceFilterSelector from "../shared/AudienceFilterSelector";
 import SendButton from "../shared/SendButton";
 import ScheduledMessagesTable from "@/app/components/ScheduledMessagesTable";
 import { buildMessage } from "@/lib/messages/buildMessage";
@@ -30,8 +29,9 @@ type SendTiming = "now" | "scheduled";
 
 const THANK_YOU_TEMPLATE =
   "היי {{name}} 🌸\n" +
-  "שמחנו לראותכם באירוע.\n" +
-  "תודה שהשתתפתם בשמחתנו.";
+  "שמחנו לראותך באירוע שלנו 💛\n\n" +
+  "תודה שהגעת ושמחת איתנו.\n" +
+  "מעריכים מאוד את ההשתתפות שלך 🙏";
 
 /* ================= COMPONENT ================= */
 
@@ -45,11 +45,17 @@ export default function ThankYouTab({
 
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [message, setMessage] = useState(THANK_YOU_TEMPLATE);
   const [preview, setPreview] = useState<any>(null);
 
   const [testPhone, setTestPhone] = useState("");
   const [sendingTest, setSendingTest] = useState(false);
-  const [testRemaining, setTestRemaining] = useState<number | null>(null);
+  const [testCount, setTestCount] = useState(0);
+
+  const [thankYouSentAt, setThankYouSentAt] =
+    useState<Date | null>(null);
+  const [thankYouLocked, setThankYouLocked] = useState(true);
 
   const [scheduledMessages, setScheduledMessages] = useState<any[]>([]);
   const [showScheduled, setShowScheduled] = useState(false);
@@ -58,11 +64,7 @@ export default function ThankYouTab({
   const [scheduledDate, setScheduledDate] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
 
-  const [thankYouSentAt, setThankYouSentAt] =
-    useState<Date | null>(null);
-  const [thankYouLocked, setThankYouLocked] = useState(true);
-
-  const [message, setMessage] = useState(THANK_YOU_TEMPLATE);
+  const MAX_TEST_MESSAGES = 2;
 
   /* ================= LOAD DATA ================= */
 
@@ -93,13 +95,15 @@ export default function ThankYouTab({
         const invitationData = await invitationRes.json();
 
         setGuests(
-          Array.isArray(guestsData.guests) ? guestsData.guests : []
+          Array.isArray(guestsData?.guests) ? guestsData.guests : []
         );
 
         const inv = invitationData?.invitation;
 
         if (inv?.thankYouSentAt) {
           setThankYouSentAt(new Date(inv.thankYouSentAt));
+        } else {
+          setThankYouSentAt(null);
         }
 
         setThankYouLocked(inv?.messageLocks?.thankyouSms ?? true);
@@ -113,56 +117,6 @@ export default function ThankYouTab({
 
     loadData();
   }, [invitationId]);
-
-  /* ================= GUESTS ================= */
-
-  const confirmedGuests = useMemo(
-    () => guests.filter((g) => g.rsvp === "yes"),
-    [guests]
-  );
-
-  const pendingGuests = useMemo(
-    () => guests.filter((g) => g.rsvp === "pending"),
-    [guests]
-  );
-
-  const declinedGuests = useMemo(
-    () => guests.filter((g) => g.rsvp === "no"),
-    [guests]
-  );
-
-  const guestsToSend = useMemo(
-    () => confirmedGuests,
-    [confirmedGuests]
-  );
-
-  /* ================= LOCK ================= */
-
-  async function toggleMessageLock(current: boolean) {
-    try {
-      const res = await fetch("/api/admin/toggle-message-lock", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          invitationId,
-          key: "thankyouSms",
-          value: !current,
-        }),
-      });
-
-      if (!res.ok) {
-        throw new Error("FAILED");
-      }
-
-      setThankYouLocked(!current);
-    } catch (err) {
-      console.error(err);
-      alert("שגיאה בעדכון הנעילה");
-    }
-  }
 
   /* ================= SCHEDULED ================= */
 
@@ -192,26 +146,36 @@ export default function ThankYouTab({
     loadScheduledMessages();
   }, []);
 
-  /* ================= TEST LIMIT ================= */
+  const thankYouScheduledMessages = useMemo(() => {
+    return scheduledMessages.filter((msg) => {
+      const type = msg?.type || msg?.messageType;
+      const channel = msg?.channel;
 
-  useEffect(() => {
-    async function loadTestLimit() {
-      try {
-        const res = await fetch("/api/sms/test", {
-          credentials: "include",
-          cache: "no-store",
-        });
+      return (
+        (type === "thankyou" || type === "custom") &&
+        (!channel || channel === "sms")
+      );
+    });
+  }, [scheduledMessages]);
 
-        const data = await res.json();
+  /* ================= GUESTS ================= */
 
-        if (data?.success) {
-          setTestRemaining(data.remaining);
-        }
-      } catch {}
-    }
+  const confirmedGuests = useMemo(
+    () => guests.filter((g) => g.rsvp === "yes"),
+    [guests]
+  );
 
-    loadTestLimit();
-  }, []);
+  const pendingGuests = useMemo(
+    () => guests.filter((g) => g.rsvp === "pending"),
+    [guests]
+  );
+
+  const declinedGuests = useMemo(
+    () => guests.filter((g) => g.rsvp === "no"),
+    [guests]
+  );
+
+  const guestsToSend = confirmedGuests;
 
   /* ================= TIMING ================= */
 
@@ -302,13 +266,13 @@ export default function ThankYouTab({
     eventLocation,
   ]);
 
-  /* ================= TEST MESSAGE ================= */
+  /* ================= TEST ================= */
 
   const sendTestMessage = async () => {
     if (!preview?.text || !testPhone) return;
 
-    if (testRemaining !== null && testRemaining <= 0) {
-      alert("הגעת למגבלת הודעות בדיקה");
+    if (testCount >= MAX_TEST_MESSAGES) {
+      alert("ניתן לשלוח עד 2 הודעות בדיקה בלבד");
       return;
     }
 
@@ -329,7 +293,7 @@ export default function ThankYouTab({
       const data = await res.json();
 
       if (data?.success) {
-        setTestRemaining(data.remaining);
+        setTestCount((prev) => prev + 1);
         alert("הודעת בדיקה נשלחה בהצלחה");
         setTestPhone("");
       } else {
@@ -341,6 +305,32 @@ export default function ThankYouTab({
       setSendingTest(false);
     }
   };
+
+  /* ================= LOCK ================= */
+
+  async function toggleMessageLock(current: boolean) {
+    try {
+      const res = await fetch("/api/admin/toggle-message-lock", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          invitationId,
+          key: "thankyouSms",
+          value: !current,
+        }),
+      });
+
+      if (!res.ok) throw new Error("FAILED");
+
+      setThankYouLocked(!current);
+    } catch (err) {
+      console.error(err);
+      alert("שגיאה בעדכון הנעילה");
+    }
+  }
 
   const thankYouAlreadySent = !!thankYouSentAt;
 
@@ -402,8 +392,7 @@ export default function ThankYouTab({
               </h2>
 
               <p className="max-w-xl text-sm sm:text-base leading-8 text-[#7A6246] mx-auto lg:mx-0">
-                שלחו לאורחים שאישרו הגעה הודעת תודה אישית אחרי האירוע.
-                אפשר לשלוח מיד או לתזמן שליחה אוטומטית לזמן שתבחרו.
+                שליחת הודעת תודה לכל האורחים שאישרו הגעה.
               </p>
             </div>
 
@@ -424,7 +413,7 @@ export default function ThankYouTab({
                 icon="—"
               />
               <StatCard
-                value={scheduledMessages.length}
+                value={thankYouScheduledMessages.length}
                 label="מתוזמנות"
                 icon="📅"
               />
@@ -433,104 +422,138 @@ export default function ThankYouTab({
         </div>
       </section>
 
-      {/* SEND CARDS */}
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <ThankYouSendCard
-          active
-          title="הודעת תודה"
-          badge={`${guestsToSend.length}`}
-          subtitle="לכל האורחים שאישרו הגעה"
-          channel="SMS"
-          status={thankYouAlreadySent ? "נשלחה" : "מוכנה לשליחה"}
-          onClick={() => {}}
-        />
-
-        <ThankYouSendCard
-          active={false}
-          title="קהל יעד"
-          badge={`${confirmedGuests.length}`}
-          subtitle="רק אורחים עם אישור הגעה"
-          channel="Confirmed"
-          status="מסונן אוטומטית"
-          onClick={() => {}}
-        />
-
-        <ThankYouSendCard
-          active={false}
-          title="הודעות מתוזמנות"
-          badge={`${scheduledMessages.length}`}
-          subtitle="צפייה, ביטול וניהול תזמונים"
-          channel="Schedule"
-          status={
-            scheduledMessages.length > 0
-              ? "יש הודעות מתוזמנות"
-              : "אין תזמונים"
-          }
-          onClick={async () => {
-            await loadScheduledMessages();
-            setShowScheduled(true);
-          }}
-        />
-      </section>
-
-      {/* AUDIENCE */}
-      <section
-        className="
-          rounded-[30px]
-          border border-[#E7DCCB]
-          bg-[#FFF9EF]
-          p-5
-          shadow-sm
-        "
-      >
-        <AudienceFilterSelector
-          value="withTable"
-          onChange={() => {}}
-          withTableCount={guestsToSend.length}
-          readOnly
-          allowedFilters={["withTable"]}
-        />
-      </section>
-
       {/* MAIN GRID */}
       <section className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
         {/* RIGHT SIDE */}
-        <div className="space-y-6">
-          {/* CHANNEL */}
-          <GlassPanel
+        <div className="space-y-6 xl:order-1">
+          <Panel
+            title="תצוגה מקדימה"
+            subtitle="כך תיראה הודעת התודה"
+            icon="✨"
+          >
+            {preview ? (
+              <PhonePreview text={preview.text} />
+            ) : (
+              <EmptyState
+                title="אין הודעה לתצוגה"
+                text="אין אורחים שאישרו הגעה."
+              />
+            )}
+
+            {preview && (
+              <div className="mt-5 grid grid-cols-3 gap-3 text-center">
+                <MiniStat label="תווים" value={preview.totalChars || 0} />
+                <MiniStat label="חלקי SMS" value={preview.parts || 1} />
+                <MiniStat label="נמענים" value={guestsToSend.length} />
+              </div>
+            )}
+          </Panel>
+
+          <Panel
+            title="שליחת הודעה לבדיקה"
+            subtitle="בדיקה לפני שליחה בפועל"
+            icon="🧪"
+          >
+            <div className="flex flex-col sm:flex-row gap-3">
+              <input
+                type="tel"
+                inputMode="numeric"
+                dir="ltr"
+                placeholder="05XXXXXXXX"
+                value={testPhone}
+                onChange={(e) => setTestPhone(e.target.value)}
+                className={inputClassName}
+              />
+
+              <button
+                type="button"
+                onClick={sendTestMessage}
+                disabled={
+                  !testPhone ||
+                  preview?.blocked ||
+                  sendingTest ||
+                  testCount >= MAX_TEST_MESSAGES
+                }
+                className="
+                  rounded-[20px]
+                  bg-[#3E2D20]
+                  px-6 py-3
+                  text-sm font-black
+                  text-white
+                  shadow-lg
+                  transition
+                  hover:bg-[#5A3D25]
+                  disabled:cursor-not-allowed
+                  disabled:opacity-50
+                "
+              >
+                {testCount >= MAX_TEST_MESSAGES
+                  ? "הגעת למגבלה"
+                  : sendingTest
+                  ? "שולח..."
+                  : "שלח לבדיקה"}
+              </button>
+            </div>
+
+            <div
+              className={`mt-3 text-xs ${
+                testCount >= MAX_TEST_MESSAGES
+                  ? "font-bold text-red-500"
+                  : "text-[#7A6246]"
+              }`}
+            >
+              נשלחו {testCount} מתוך {MAX_TEST_MESSAGES} הודעות בדיקה
+            </div>
+          </Panel>
+        </div>
+
+        {/* LEFT SIDE */}
+        <div className="space-y-6 xl:order-2">
+          <Panel
             title="ערוץ שליחה"
-            subtitle="הודעת התודה תישלח לאורחים שאישרו הגעה"
+            subtitle="הודעת התודה נשלחת ב-SMS"
             icon="💬"
           >
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <SelectableBox active>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-lg font-black">SMS</span>
-                  <span className="text-xl">📩</span>
-                </div>
-                <p className="mt-2 text-xs leading-6 text-[#7A6246]">
-                  הודעת תודה קצרה ואישית לכל האורחים שאישרו הגעה.
-                </p>
-              </SelectableBox>
+            <div
+              className="
+                rounded-[24px]
+                border border-[#C79B45]
+                bg-[#FFF2D8]
+                p-5
+                shadow-sm
+              "
+            >
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-lg font-black text-[#3E2D20]">
+                  SMS
+                </span>
+                <span className="text-xl">📩</span>
+              </div>
 
-              <SelectableBox active={false} muted>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-lg font-black">WhatsApp</span>
-                  <span className="text-xl">💬</span>
-                </div>
-                <p className="mt-2 text-xs leading-6 text-[#7A6246]">
-                  שמור להמשך אם תרצי להפעיל הודעת תודה גם בוואטסאפ.
-                </p>
-              </SelectableBox>
+              <p className="mt-2 text-xs leading-6 text-[#7A6246]">
+                שליחה לכל מי שאישר הגעה.
+              </p>
             </div>
-          </GlassPanel>
+          </Panel>
 
-          {/* EDIT MESSAGE */}
-          <GlassPanel
-            title="עריכת תוכן ההודעה"
-            subtitle="הטקסט הזה יישלח לכל אורח עם השם האישי שלו"
-            icon="✏️"
-          >
+          <Panel title="קהל יעד" subtitle="נקבע אוטומטית" icon="👥">
+            <div
+              className="
+                rounded-[24px]
+                border border-[#E4D3BB]
+                bg-white/70
+                p-5
+              "
+            >
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <MiniStat label="מאשרים" value={confirmedGuests.length} />
+                <MiniStat label="ממתינים" value={pendingGuests.length} />
+                <MiniStat label="לא מגיעים" value={declinedGuests.length} />
+              </div>
+            </div>
+          </Panel>
+
+          <Panel title="תוכן ההודעה" subtitle="הודעת תודה" icon="✏️">
             <textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
@@ -568,42 +591,84 @@ export default function ThankYouTab({
                 </span>
               ))}
             </div>
-          </GlassPanel>
+          </Panel>
 
-          {/* TIMING */}
-          <GlassPanel
-            title="תזמון שליחת ההודעה"
-            subtitle="אפשר לשלוח עכשיו או לקבוע שליחה עתידית"
-            icon="⏱️"
+          {/* SEND AREA */}
+          <div
+            className="
+              rounded-[30px]
+              border border-[#E7DCCB]
+              bg-[#FFF9EF]
+              p-5
+              shadow-[0_14px_40px_rgba(95,68,34,0.08)]
+              space-y-5
+            "
           >
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-black text-[#3E2D20]">
+                  שליחת הודעת תודה
+                </h3>
+                <p className="mt-1 text-sm text-[#7A6246]">
+                  SMS · {guestsToSend.length} נמענים
+                </p>
+              </div>
+
+              <div
+                className="
+                  flex h-12 w-12 shrink-0 items-center justify-center
+                  rounded-[18px]
+                  bg-gradient-to-br from-white to-[#EBD8B6]
+                  text-xl
+                  shadow-sm
+                "
+              >
+                🎁
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3">
               <button
                 type="button"
-                onClick={() => setSendTiming("now")}
-                className={timingButtonClass(sendTiming === "now")}
+                onClick={() => {
+                  setSendTiming("now");
+                  setScheduledDate("");
+                  setScheduledTime("");
+                }}
+                className={sendTimingOptionClass(sendTiming === "now")}
               >
-                <span className="text-xl">⚡</span>
-                <span className="font-black">שליחה מיידית</span>
-                <span className="text-xs font-medium text-[#7A6246]">
-                  ההודעה תישלח מיד ולא ניתן יהיה לבטל.
-                </span>
+                <div>
+                  <div className="font-black text-[#3E2D20]">
+                    שליחה מיידית
+                  </div>
+                  <div className="mt-1 text-xs text-[#7A6246]">
+                    ההודעה תישלח עכשיו.
+                  </div>
+                </div>
+
+                <span className="text-xl">🚀</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setSendTiming("scheduled")}
-                className={timingButtonClass(sendTiming === "scheduled")}
+                className={sendTimingOptionClass(sendTiming === "scheduled")}
               >
+                <div>
+                  <div className="font-black text-[#3E2D20]">
+                    שליחה מתוזמנת
+                  </div>
+                  <div className="mt-1 text-xs text-[#7A6246]">
+                    קביעת תאריך ושעה.
+                  </div>
+                </div>
+
                 <span className="text-xl">📅</span>
-                <span className="font-black">שליחה מתוזמנת</span>
-                <span className="text-xs font-medium text-[#7A6246]">
-                  אפשר לערוך או לבטל עד מועד השליחה.
-                </span>
               </button>
             </div>
 
             {sendTiming === "scheduled" && (
-              <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="mb-2 block text-sm font-bold text-[#6B5138]">
                     תאריך שליחה
@@ -624,8 +689,7 @@ export default function ThankYouTab({
                   <input
                     type="time"
                     min={
-                      scheduledDate ===
-                      new Date().toLocaleDateString("en-CA")
+                      scheduledDate === new Date().toLocaleDateString("en-CA")
                         ? new Date().toTimeString().slice(0, 5)
                         : undefined
                     }
@@ -636,226 +700,60 @@ export default function ThankYouTab({
                 </div>
               </div>
             )}
-          </GlassPanel>
-        </div>
 
-        {/* LEFT SIDE */}
-        <div className="space-y-6">
-          {/* PREVIEW */}
-          <GlassPanel
-            title="תצוגה מקדימה"
-            subtitle="כך תיראה הודעת התודה לאורחים"
-            icon="✨"
-          >
-            {preview ? (
-              <div className="flex justify-center py-2">
-                <div className="relative w-[290px] h-[560px] rounded-[52px] bg-black p-3 shadow-2xl">
-                  <div className="absolute top-3 left-1/2 z-20 h-[22px] w-[122px] -translate-x-1/2 rounded-b-2xl bg-black" />
+            <div className="send-button-gold">
+              <SendButton
+                channel="sms"
+                type="thankyou"
+                invitationId={invitationId}
+                audience={guestsToSend.map((g) => g._id)}
+                scheduledAt={scheduledAt}
+                messageOverride={message}
+                onAfterSend={async () => {
+                  if (sendTiming === "now") {
+                    setThankYouSentAt(new Date());
+                  }
 
-                  <div className="relative h-full w-full overflow-hidden rounded-[40px] bg-[#F7F1E8]">
-                    <div
-                      className="
-                        border-b border-[#E5D7C5]
-                        bg-[#EFE4D4]
-                        py-3
-                        text-center
-                        text-[11px]
-                        font-black
-                        tracking-wide
-                        text-[#6B5138]
-                      "
-                    >
-                      INVISTIMO · SMS
-                    </div>
-
-                    <div className="flex h-[calc(100%-44px)] items-center justify-center p-4">
-                      <div
-                        className="
-                          max-h-[410px]
-                          max-w-[92%]
-                          overflow-y-auto
-                          whitespace-pre-wrap
-                          break-words
-                          rounded-[28px]
-                          bg-white
-                          px-4 py-4
-                          text-right
-                          text-sm
-                          leading-7
-                          text-[#3E2D20]
-                          shadow-sm
-                        "
-                      >
-                        {preview.text}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <EmptyState
-                title="אין הודעה לתצוגה"
-                text="אין אורחים שאישרו הגעה ולכן אין הודעת תודה להצגה."
-              />
-            )}
-
-            {preview && (
-              <div className="mt-5 grid grid-cols-3 gap-3 text-center">
-                <MiniStat
-                  label="תווים"
-                  value={preview.totalChars || 0}
-                />
-                <MiniStat label="חלקי SMS" value={preview.parts || 1} />
-                <MiniStat
-                  label="נמענים"
-                  value={guestsToSend.length}
-                />
-              </div>
-            )}
-          </GlassPanel>
-
-          {/* TEST */}
-          <GlassPanel
-            title="שליחת הודעה לבדיקה"
-            subtitle="הודעת בדיקה תישלח בדיוק כמו שתישלח לאורחים"
-            icon="🧪"
-          >
-            <div className="flex flex-col sm:flex-row gap-3">
-              <input
-                type="tel"
-                inputMode="numeric"
-                dir="ltr"
-                placeholder="05XXXXXXXX"
-                value={testPhone}
-                onChange={(e) => setTestPhone(e.target.value)}
-                className={inputClassName}
-              />
-
-              <button
-                type="button"
-                onClick={sendTestMessage}
+                  await loadScheduledMessages();
+                }}
                 disabled={
-                  !testPhone ||
-                  preview?.blocked ||
-                  sendingTest ||
-                  (testRemaining !== null && testRemaining <= 0)
+                  (thankYouAlreadySent && thankYouLocked) ||
+                  !preview ||
+                  preview.blocked ||
+                  guestsToSend.length === 0 ||
+                  (sendTiming === "scheduled" && !scheduledAt)
                 }
-                className="
-                  rounded-[20px]
-                  bg-[#3E2D20]
-                  px-6 py-3
-                  text-sm font-black
-                  text-white
-                  shadow-lg
-                  transition
-                  hover:bg-[#5A3D25]
-                  disabled:cursor-not-allowed
-                  disabled:opacity-50
-                "
               >
-                {testRemaining !== null && testRemaining <= 0
-                  ? "הגעת למגבלה"
-                  : sendingTest
-                  ? "שולח..."
-                  : "שלח לבדיקה"}
-              </button>
+                {thankYouAlreadySent
+                  ? "✓ הודעת תודה נשלחה"
+                  : sendTiming === "scheduled"
+                  ? `⏱️ תזמן הודעת תודה (${guestsToSend.length})`
+                  : `📩 שלח הודעת תודה (${guestsToSend.length})`}
+              </SendButton>
             </div>
-
-            {testRemaining !== null && (
-              <div
-                className={`mt-3 text-xs ${
-                  testRemaining <= 0
-                    ? "font-bold text-red-500"
-                    : "text-[#7A6246]"
-                }`}
-              >
-                נותרו {testRemaining} הודעות בדיקה
-              </div>
-            )}
-          </GlassPanel>
-
-          {/* SEND ACTION */}
-          <div
-            className="
-              rounded-[30px]
-              border border-[#D7BC8C]
-              bg-gradient-to-br from-[#CDAA55] to-[#9B661E]
-              p-5
-              shadow-[0_18px_45px_rgba(120,78,24,0.22)]
-            "
-          >
-            <div className="mb-4 text-white">
-              <div className="text-xl font-black">
-                {sendTiming === "scheduled"
-                  ? "תזמון הודעת תודה"
-                  : "שליחת הודעת תודה"}
-              </div>
-
-              <div className="mt-1 text-sm text-white/80">
-                {sendTiming === "scheduled"
-                  ? "ההודעה תיכנס לתור ותישלח בזמן שבחרת."
-                  : "ההודעה תישלח מיד לכל האורחים שאישרו הגעה."}
-              </div>
-            </div>
-
-            <SendButton
-              channel="sms"
-              type="thankyou"
-              invitationId={invitationId}
-              audience={guestsToSend.map((g) => g._id)}
-              scheduledAt={scheduledAt}
-              messageOverride={message}
-              onAfterSend={async () => {
-                if (sendTiming === "now") {
-                  setThankYouSentAt(new Date());
-                }
-
-                await loadScheduledMessages();
-              }}
-              disabled={
-                (thankYouAlreadySent && thankYouLocked) ||
-                !preview ||
-                preview.blocked ||
-                guestsToSend.length === 0 ||
-                (sendTiming === "scheduled" && !scheduledAt)
-              }
-            >
-              {thankYouAlreadySent
-                ? "✅ הודעת תודה נשלחה"
-                : sendTiming === "scheduled"
-                ? "⏱️ תזמן הודעת תודה"
-                : `📩 שלח הודעת תודה (${guestsToSend.length})`}
-            </SendButton>
-
-            {thankYouAlreadySent && thankYouLocked && (
-              <div className="mt-3 rounded-2xl bg-white/15 px-4 py-3 text-sm text-white">
-                הודעת התודה כבר נשלחה ולכן השליחה נעולה.
-              </div>
-            )}
 
             {isAdmin && (
               <button
                 type="button"
                 onClick={() => toggleMessageLock(thankYouLocked)}
-                className={`
-                  mt-4 w-full rounded-[20px] px-5 py-3
-                  text-sm font-black text-white shadow-sm transition
-                  ${
-                    thankYouLocked
-                      ? "bg-orange-500 hover:bg-orange-600"
-                      : "bg-green-600 hover:bg-green-700"
-                  }
-                `}
+                className="
+                  w-full
+                  rounded-[20px]
+                  bg-[#B9822E]
+                  px-5 py-3
+                  text-sm font-black
+                  text-white
+                  shadow-sm
+                  transition
+                  hover:bg-[#9B661E]
+                "
               >
-                {thankYouLocked
-                  ? "🔓 פתח תודה"
-                  : "🔒 סגור תודה"}
+                {thankYouLocked ? "🔓 פתח תודה" : "🔒 סגור תודה"}
               </button>
             )}
           </div>
 
-          {/* SCHEDULED BUTTON */}
-          {scheduledMessages.length > 0 && (
+          {thankYouScheduledMessages.length > 0 && (
             <button
               type="button"
               onClick={async () => {
@@ -882,7 +780,6 @@ export default function ThankYouTab({
         </div>
       </section>
 
-      {/* MODAL */}
       {showScheduled && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
           <div
@@ -900,14 +797,9 @@ export default function ThankYouTab({
             "
           >
             <div className="mb-5 flex items-center justify-between gap-4">
-              <div>
-                <h2 className="text-xl font-black text-[#3E2D20]">
-                  📅 הודעות מתוזמנות
-                </h2>
-                <p className="mt-1 text-sm text-[#7A6246]">
-                  כאן אפשר לראות, לערוך או לבטל הודעות שתוזמנו.
-                </p>
-              </div>
+              <h2 className="text-xl font-black text-[#3E2D20]">
+                📅 הודעות מתוזמנות
+              </h2>
 
               <button
                 type="button"
@@ -927,17 +819,140 @@ export default function ThankYouTab({
             </div>
 
             <ScheduledMessagesTable
-              messages={scheduledMessages}
+              messages={thankYouScheduledMessages}
               onChange={loadScheduledMessages}
             />
           </div>
         </div>
       )}
+
+      <style>{`
+        .send-button-gold button {
+          width: 100% !important;
+          border-radius: 20px !important;
+          background: linear-gradient(
+            135deg,
+            #c9964d 0%,
+            #b9822e 50%,
+            #a56d25 100%
+          ) !important;
+          color: #ffffff !important;
+          font-weight: 900 !important;
+          box-shadow: none !important;
+          border: none !important;
+          min-height: 48px !important;
+        }
+
+        .send-button-gold button:hover {
+          filter: brightness(1.03);
+        }
+
+        .send-button-gold button:disabled {
+          background: #ccb892 !important;
+          color: rgba(255, 255, 255, 0.92) !important;
+          cursor: not-allowed !important;
+          opacity: 1 !important;
+          box-shadow: none !important;
+        }
+      `}</style>
     </div>
   );
 }
 
-/* ================= UI HELPERS ================= */
+/* ================= UI ================= */
+
+function PhonePreview({ text }: { text: string }) {
+  return (
+    <div className="flex justify-center py-2">
+      <div
+        className="
+          relative
+          h-[610px]
+          w-[318px]
+          rounded-[56px]
+          bg-black
+          p-[12px]
+          shadow-[0_28px_70px_rgba(0,0,0,0.35)]
+        "
+      >
+        <div
+          className="
+            absolute
+            left-1/2
+            top-[12px]
+            z-20
+            h-[28px]
+            w-[126px]
+            -translate-x-1/2
+            rounded-b-[18px]
+            bg-black
+          "
+        />
+
+        <div
+          className="
+            relative
+            h-full
+            w-full
+            overflow-hidden
+            rounded-[44px]
+            bg-[#F6EFE6]
+          "
+        >
+          <div
+            className="
+              flex
+              h-[58px]
+              items-end
+              justify-center
+              border-b
+              border-[#E1D4C5]
+              bg-[#EFE4D4]
+              pb-3
+              text-[11px]
+              font-black
+              tracking-wide
+              text-[#6B5138]
+            "
+          >
+            INVISTIMO · SMS
+          </div>
+
+          <div
+            className="
+              h-[calc(100%-58px)]
+              overflow-y-auto
+              bg-[radial-gradient(circle_at_top,#FFF8EC_0,#F4EDE3_48%,#E9DDCD_100%)]
+              p-4
+            "
+          >
+            <div className="flex min-h-full items-center justify-center">
+              <div
+                className="
+                  max-w-[92%]
+                  whitespace-pre-wrap
+                  break-words
+                  rounded-[28px]
+                  rounded-tr-[10px]
+                  bg-white
+                  px-4
+                  py-4
+                  text-right
+                  text-sm
+                  leading-7
+                  text-[#3E2D20]
+                  shadow-[0_10px_30px_rgba(68,47,24,0.12)]
+                "
+              >
+                {text}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function StatCard({
   value,
@@ -959,106 +974,16 @@ function StatCard({
       "
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="text-2xl font-black text-[#3E2D20]">
-          {value}
-        </span>
+        <span className="text-2xl font-black text-[#3E2D20]">{value}</span>
         <span className="text-lg">{icon}</span>
       </div>
-      <div className="mt-2 text-xs font-bold text-[#7A6246]">
-        {label}
-      </div>
+
+      <div className="mt-2 text-xs font-bold text-[#7A6246]">{label}</div>
     </div>
   );
 }
 
-function ThankYouSendCard({
-  active,
-  title,
-  badge,
-  subtitle,
-  channel,
-  status,
-  onClick,
-}: {
-  active: boolean;
-  title: string;
-  badge: string;
-  subtitle: string;
-  channel: string;
-  status: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`
-        group text-right
-        rounded-[28px]
-        border
-        p-5
-        shadow-sm
-        transition-all
-        hover:-translate-y-0.5
-        hover:shadow-lg
-        ${
-          active
-            ? "border-[#B9862F] bg-gradient-to-br from-[#CDAA55] to-[#8D5A1C] text-white"
-            : "border-[#E2CFB5] bg-[#FFF9EF] text-[#3E2D20]"
-        }
-      `}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div
-            className={`
-              mb-2 inline-flex h-8 min-w-8 items-center justify-center
-              rounded-full px-3 text-sm font-black
-              ${
-                active
-                  ? "bg-white text-[#8D5A1C]"
-                  : "bg-[#F3E6D2] text-[#8A642B]"
-              }
-            `}
-          >
-            {badge}
-          </div>
-
-          <h3 className="text-lg font-black">{title}</h3>
-          <p
-            className={`mt-1 text-xs leading-6 ${
-              active ? "text-white/80" : "text-[#7A6246]"
-            }`}
-          >
-            {subtitle}
-          </p>
-        </div>
-
-        <div
-          className={`rounded-full px-3 py-1 text-xs font-black ${
-            active
-              ? "bg-white/20 text-white"
-              : "bg-white text-[#8A642B]"
-          }`}
-        >
-          {channel}
-        </div>
-      </div>
-
-      <div
-        className={`mt-5 rounded-full px-4 py-2 text-center text-xs font-black ${
-          active
-            ? "bg-white/15 text-white"
-            : "bg-[#E8F7EA] text-green-700"
-        }`}
-      >
-        {status}
-      </div>
-    </button>
-  );
-}
-
-function GlassPanel({
+function Panel({
   title,
   subtitle,
   icon,
@@ -1081,9 +1006,8 @@ function GlassPanel({
     >
       <div className="mb-5 flex items-start justify-between gap-4">
         <div>
-          <h3 className="text-xl font-black text-[#3E2D20]">
-            {title}
-          </h3>
+          <h3 className="text-xl font-black text-[#3E2D20]">{title}</h3>
+
           {subtitle && (
             <p className="mt-1 text-sm leading-6 text-[#7A6246]">
               {subtitle}
@@ -1111,35 +1035,6 @@ function GlassPanel({
   );
 }
 
-function SelectableBox({
-  active,
-  muted,
-  children,
-}: {
-  active: boolean;
-  muted?: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <div
-      className={`
-        rounded-[24px]
-        border
-        p-5
-        transition
-        ${
-          active
-            ? "border-[#C79B45] bg-[#FFF2D8] shadow-sm"
-            : "border-[#E4D3BB] bg-white/70"
-        }
-        ${muted ? "opacity-60" : ""}
-      `}
-    >
-      {children}
-    </div>
-  );
-}
-
 function MiniStat({
   label,
   value,
@@ -1149,12 +1044,8 @@ function MiniStat({
 }) {
   return (
     <div className="rounded-[18px] bg-white/80 px-3 py-3 shadow-sm">
-      <div className="text-lg font-black text-[#3E2D20]">
-        {value}
-      </div>
-      <div className="mt-1 text-[11px] font-bold text-[#7A6246]">
-        {label}
-      </div>
+      <div className="text-lg font-black text-[#3E2D20]">{value}</div>
+      <div className="mt-1 text-[11px] font-bold text-[#7A6246]">{label}</div>
     </div>
   );
 }
@@ -1176,22 +1067,18 @@ function EmptyState({
         text-center
       "
     >
-      <div className="text-lg font-black text-[#3E2D20]">
-        {title}
-      </div>
-      <div className="mt-2 text-sm text-[#7A6246]">
-        {text}
-      </div>
+      <div className="text-lg font-black text-[#3E2D20]">{title}</div>
+      <div className="mt-2 text-sm text-[#7A6246]">{text}</div>
     </div>
   );
 }
 
-function timingButtonClass(active: boolean) {
+function sendTimingOptionClass(active: boolean) {
   return `
-    flex min-h-[125px] flex-col items-start gap-2
-    rounded-[24px]
+    flex items-center justify-between gap-4
+    rounded-[22px]
     border
-    p-5
+    px-5 py-4
     text-right
     transition
     ${
