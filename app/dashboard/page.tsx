@@ -1838,10 +1838,31 @@ function GoldenEventHero({
         ✦
       </div>
 
+      {countdown.isEventDay && (
+        <>
+          {/* 🎇 זיקוקים על כל הכרטיסייה העליונה ביום האירוע */}
+          <CountdownFireworksCanvas />
+
+          <div
+            className="
+              pointer-events-none
+              absolute
+              inset-0
+              z-20
+              bg-gradient-to-b
+              from-white/10
+              via-transparent
+              to-white/16
+            "
+          />
+        </>
+      )}
+
       <div
         dir="ltr"
         className="
           relative
+          z-30
           grid
           grid-cols-1
           xl:grid-cols-[360px_minmax(0,1fr)]
@@ -2493,7 +2514,7 @@ function CountdownFireworksCanvas() {
     intervalRef.current = window.setInterval(() => {
       createBurst(
         Math.random() * w,
-        Math.random() * (h * 0.65) + h * 0.04
+        Math.random() * (h * 0.68) + h * 0.08
       );
     }, 520);
 
@@ -2550,21 +2571,8 @@ function GoldenCountdown({
     return (
       <div
         dir="ltr"
-        className="
-          relative
-          mt-5
-          grid
-          grid-cols-2
-          sm:grid-cols-6
-          gap-2
-          max-w-[760px]
-          overflow-hidden
-          rounded-[22px]
-        "
+        className="mt-5 grid grid-cols-2 sm:grid-cols-6 gap-2 max-w-[760px]"
       >
-        {/* 🎇 אפקט זיקוקים מעל השעון בלבד */}
-        <CountdownFireworksCanvas />
-
         <CountdownUnit label="חודשים" value={countdown.months} />
         <CountdownUnit label="שבועות" value={countdown.weeks} />
         <CountdownUnit label="ימים" value={countdown.days} />
@@ -2612,7 +2620,6 @@ function CountdownUnit({
     <div
       className={`
         relative
-        z-10
         overflow-hidden
         rounded-2xl
         border
