@@ -57,6 +57,13 @@ type Guest = {
   actualArrivedCount?: number;
   notes?: string;
 
+  createdAt?: string;
+  updatedAt?: string;
+  respondedAt?: string;
+  rsvpRespondedAt?: string;
+  rsvpUpdatedAt?: string;
+  lastResponseAt?: string;
+
   callRounds?: {
     roundNumber: number;
     status?: string;
@@ -116,6 +123,95 @@ function formatEventDate(date?: string) {
 function calcPercent(value: number, total: number) {
   if (!total) return 0;
   return Math.round((value / total) * 100);
+}
+
+
+function cleanText(value: any) {
+  if (typeof value !== "string") return "";
+  return value.trim();
+}
+
+function isGenericEventTitle(value?: string) {
+  const title = cleanText(value);
+
+  return (
+    !title ||
+    title === "הזמנה חדשה" ||
+    title === "אירוע חדש" ||
+    title === "האירוע שלך"
+  );
+}
+
+function buildCoupleTitle(source: any) {
+  const bride =
+    cleanText(source?.brideName) ||
+    cleanText(source?.bride) ||
+    cleanText(source?.brideFullName);
+
+  const groom =
+    cleanText(source?.groomName) ||
+    cleanText(source?.groom) ||
+    cleanText(source?.groomFullName);
+
+  if (bride && groom) return `${bride} & ${groom}`;
+  return "";
+}
+
+function resolveEventTitle(invitation: any, event: any) {
+  const invitationTitle =
+    cleanText(invitation?.eventName) ||
+    cleanText(invitation?.eventTitle) ||
+    cleanText(invitation?.invitationTitle) ||
+    cleanText(invitation?.title) ||
+    cleanText(invitation?.name) ||
+    cleanText(invitation?.coupleName) ||
+    cleanText(invitation?.coupleTitle) ||
+    buildCoupleTitle(invitation);
+
+  if (invitationTitle && !isGenericEventTitle(invitationTitle)) {
+    return invitationTitle;
+  }
+
+  const eventTitle =
+    cleanText(event?.eventName) ||
+    cleanText(event?.eventTitle) ||
+    cleanText(event?.title) ||
+    cleanText(event?.name) ||
+    cleanText(event?.coupleName) ||
+    buildCoupleTitle(event);
+
+  if (eventTitle && !isGenericEventTitle(eventTitle)) {
+    return eventTitle;
+  }
+
+  return "האירוע שלך";
+}
+
+function getGuestActivityDate(guest: Guest) {
+  return (
+    guest.rsvpRespondedAt ||
+    guest.respondedAt ||
+    guest.rsvpUpdatedAt ||
+    guest.lastResponseAt ||
+    guest.updatedAt ||
+    guest.createdAt ||
+    ""
+  );
+}
+
+function formatActivityDateTime(date?: string) {
+  if (!date) return "לא ידוע";
+
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return "לא ידוע";
+
+  return new Intl.DateTimeFormat("he-IL", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(d);
 }
 
 export default function DashboardPage() {
@@ -685,6 +781,52 @@ export default function DashboardPage() {
     };
   }, [guests]);
 
+  const recentActivityLogs = useMemo(() => {
+    return [...guests]
+      .map((guest) => {
+        const date = getGuestActivityDate(guest);
+        const timestamp = date ? new Date(date).getTime() : 0;
+
+        const count =
+          guest.rsvp === "yes"
+            ? guest.arrivedCount || guest.guestsCount || 0
+            : guest.guestsCount || 0;
+
+        if (guest.rsvp === "yes") {
+          return {
+            id: guest._id,
+            timestamp,
+            icon: "✓",
+            tone: "green" as const,
+            title: `${guest.name} אישר/ה הגעה`,
+            subtitle: `${count} מגיעים · ${formatActivityDateTime(date)}`,
+          };
+        }
+
+        if (guest.rsvp === "no") {
+          return {
+            id: guest._id,
+            timestamp,
+            icon: "×",
+            tone: "rose" as const,
+            title: `${guest.name} סימן/ה שלא מגיע/ה`,
+            subtitle: `${formatActivityDateTime(date)}`,
+          };
+        }
+
+        return {
+          id: guest._id,
+          timestamp,
+          icon: "⌛",
+          tone: "gold" as const,
+          title: `${guest.name} עדיין לא אישר/ה`,
+          subtitle: `${guest.guestsCount || 0} מוזמנים · ${formatActivityDateTime(date)}`,
+        };
+      })
+      .sort((a, b) => b.timestamp - a.timestamp);
+  }, [guests]);
+
+
   /* ============================================================
      קישור אישי להזמנה
   ============================================================ */
@@ -921,11 +1063,7 @@ export default function DashboardPage() {
   console.log("USER FROM /api/me:", user);
   console.log("INVITATION:", invitation);
 
-  const eventTitle =
-    event?.title ||
-    invitation?.title ||
-    invitation?.eventName ||
-    "האירוע שלך";
+  const eventTitle = resolveEventTitle(invitation, event);
 
   const eventDate =
     event?.date ||
@@ -1031,14 +1169,7 @@ export default function DashboardPage() {
             }}
           />
 
-          <GoldenRecentActivityCard
-            coming={rsvpVisualStats.coming}
-            notComing={rsvpVisualStats.notComing}
-            pending={rsvpVisualStats.pending}
-            total={rsvpVisualStats.total}
-            totalGuests={stats.totalGuests}
-            displayCount={displayGuests.length}
-          />
+          <GoldenRecentActivityCard logs={recentActivityLogs} />
         </aside>
 
         {/* צד שמאל: כפתורים, אחוזים, גרפים */}
@@ -2438,19 +2569,16 @@ function GoldenDetailRow({
 }
 
 function GoldenRecentActivityCard({
-  coming,
-  notComing,
-  pending,
-  total,
-  totalGuests,
-  displayCount,
+  logs,
 }: {
-  coming: number;
-  notComing: number;
-  pending: number;
-  total: number;
-  totalGuests: number;
-  displayCount: number;
+  logs: {
+    id: string;
+    timestamp: number;
+    icon: string;
+    tone: "green" | "gold" | "rose" | "bronze";
+    title: string;
+    subtitle: string;
+  }[];
 }) {
   return (
     <div className="rounded-[28px] border border-[#E3D6C3] bg-white p-5 shadow-[0_14px_34px_rgba(80,55,32,0.055)]">
@@ -2459,35 +2587,36 @@ function GoldenRecentActivityCard({
           פעילות אחרונה
         </h3>
         <span className="rounded-full bg-[#FFF5DF] px-3 py-1 text-xs font-black text-[#8B5E24] border border-[#E3D6C3]">
-          LIVE
+          חדש למעלה
         </span>
       </div>
 
-      <div className="space-y-3">
-        <GoldenActivityRow
-          icon="✓"
-          tone="green"
-          title={`${coming} אורחים סימנו מגיע`}
-          time={`מתוך ${total} רשומות`}
-        />
-        <GoldenActivityRow
-          icon="⌛"
-          tone="gold"
-          title={`${pending} עדיין בהמתנה`}
-          time="דורשים מעקב"
-        />
-        <GoldenActivityRow
-          icon="×"
-          tone="rose"
-          title={`${notComing} לא מגיעים`}
-          time="מעודכן לפי הרשימה"
-        />
-        <GoldenActivityRow
-          icon="▦"
-          tone="bronze"
-          title={`${totalGuests} מוזמנים בסך הכל`}
-          time={`${displayCount} מוצגים לפי הסינון הנוכחי`}
-        />
+      <div
+        className="
+          max-h-[290px]
+          overflow-y-auto
+          pr-1
+          space-y-3
+          scrollbar-thin
+          scrollbar-thumb-[#D9B46F]
+          scrollbar-track-[#F8EFE3]
+        "
+      >
+        {logs.length > 0 ? (
+          logs.map((log) => (
+            <GoldenActivityRow
+              key={`${log.id}-${log.timestamp}`}
+              icon={log.icon}
+              tone={log.tone}
+              title={log.title}
+              time={log.subtitle}
+            />
+          ))
+        ) : (
+          <div className="rounded-2xl bg-[#FBF7F0] p-4 text-sm font-bold text-[#8A7A68]">
+            עדיין אין פעילות להצגה.
+          </div>
+        )}
       </div>
     </div>
   );
