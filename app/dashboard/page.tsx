@@ -999,173 +999,57 @@ export default function DashboardPage() {
         />
       </section>
 
-      {/* ===================== ACTION BUTTONS כמו הסקיצה ===================== */}
+      {/* ===================== ACTION BUTTONS כמו הסקיצה - בלי AI ובלי שינוי סדר ===================== */}
 <section className="mb-6">
   <div
     className="
       hidden
-      md:grid
-      grid-cols-7
+      md:flex
+      flex-wrap
       gap-3
       items-center
     "
   >
-    {/* שליחת הודעות */}
+    {/* 1️⃣ עריכת / יצירת הזמנה */}
     <button
-      onClick={() =>
+      onClick={() => {
+        if (isDemo) {
+          handleDemoBlockedAction();
+          return;
+        }
+
         router.push(
-          isDemo
-            ? "/try/dashboard/messages/new"
-            : "/dashboard/messages/new"
-        )
-      }
-      disabled={!invitation}
-      className={`
+          invitation
+            ? `/dashboard/edit-invite/${invitationId}`
+            : "/dashboard/create-invite"
+        );
+      }}
+      className="
         group
         h-[54px]
+        min-w-[180px]
         rounded-[16px]
-        px-5
+        px-6
         font-black
         text-sm
         flex
         items-center
         justify-center
         gap-3
+        bg-[#1E1B2E]
+        text-white
+        shadow-[0_12px_24px_rgba(30,27,46,0.22)]
         transition-all
         duration-200
-        ${
-          invitation
-            ? `
-              bg-gradient-to-l
-              from-[#007A47]
-              to-[#10A66A]
-              text-white
-              shadow-[0_12px_24px_rgba(16,166,106,0.22)]
-              hover:-translate-y-0.5
-            `
-            : "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none"
-        }
-      `}
+        hover:-translate-y-0.5
+        hover:bg-[#141222]
+      "
     >
-      <span className="text-lg">✈️</span>
-      שליחת הודעות
+      <span className="text-lg">🖊️</span>
+      {invitation ? "עריכת הזמנה" : "יצירת הזמנה"}
     </button>
 
-    {/* סידורי הושבה */}
-    <button
-      onClick={() =>
-        router.push(
-          isDemo
-            ? "/try/dashboard/seating"
-            : "/dashboard/seating"
-        )
-      }
-      disabled={!invitation}
-      className={`
-        group
-        h-[54px]
-        rounded-[16px]
-        px-5
-        font-black
-        text-sm
-        flex
-        items-center
-        justify-center
-        gap-3
-        transition-all
-        duration-200
-        ${
-          invitation
-            ? `
-              bg-gradient-to-l
-              from-[#C19B52]
-              to-[#D9BE7A]
-              text-white
-              shadow-[0_12px_24px_rgba(193,155,82,0.24)]
-              hover:-translate-y-0.5
-            `
-            : "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none"
-        }
-      `}
-    >
-      <span className="text-lg">🪑</span>
-      סידורי הושבה
-      <span className="text-white/80 text-sm">⌄</span>
-    </button>
-
-    {/* ייצוא אקסל */}
-    <button
-      onClick={handleExportExcel}
-      disabled={!invitation}
-      className={`
-        group
-        h-[54px]
-        rounded-[16px]
-        px-5
-        font-black
-        text-sm
-        flex
-        items-center
-        justify-center
-        gap-3
-        border
-        transition-all
-        duration-200
-        ${
-          invitation
-            ? `
-              bg-white
-              border-[#E7DED1]
-              text-[#1E1B2E]
-              shadow-[0_8px_20px_rgba(30,27,46,0.06)]
-              hover:-translate-y-0.5
-              hover:bg-[#FBFAF7]
-            `
-            : "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
-        }
-      `}
-    >
-      <span className="text-lg">📊</span>
-      ייצוא אקסל
-    </button>
-
-    {/* הוספת מוזמן */}
-    <button
-      onClick={() => setOpenAddModal(true)}
-      disabled={!invitation}
-      className={`
-        group
-        h-[54px]
-        rounded-[16px]
-        px-5
-        font-black
-        text-sm
-        flex
-        items-center
-        justify-center
-        gap-3
-        border
-        transition-all
-        duration-200
-        ${
-          invitation
-            ? `
-              bg-white
-              border-[#E7DED1]
-              text-[#1E1B2E]
-              shadow-[0_8px_20px_rgba(30,27,46,0.06)]
-              hover:-translate-y-0.5
-              hover:bg-[#FBFAF7]
-            `
-            : "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
-        }
-      `}
-    >
-      <span className="text-lg">👤</span>
-      הוספת מוזמן
-    </button>
-
-    {/* עריכת פרטי האירוע */}
+    {/* 2️⃣ עריכת פרטי האירוע */}
     <button
       onClick={() => {
         if (!invitation) return;
@@ -1181,8 +1065,9 @@ export default function DashboardPage() {
       className={`
         group
         h-[54px]
+        min-w-[190px]
         rounded-[16px]
-        px-5
+        px-6
         font-black
         text-sm
         flex
@@ -1210,39 +1095,208 @@ export default function DashboardPage() {
       עריכת פרטי האירוע
     </button>
 
-    {/* כלי AI לאירוע */}
+    {/* 3️⃣ צפייה בהזמנה */}
+    {invitation && (
+      <button
+        onClick={() =>
+          isDemo
+            ? handleDemoBlockedAction()
+            : window.open(
+                `https://www.invistimo.com/invite/${invitation.shareId}`,
+                "_blank",
+                "noopener,noreferrer"
+              )
+        }
+        className="
+          group
+          h-[54px]
+          min-w-[170px]
+          rounded-[16px]
+          px-6
+          font-black
+          text-sm
+          flex
+          items-center
+          justify-center
+          gap-3
+          border
+          bg-white
+          border-[#E7DED1]
+          text-[#1E1B2E]
+          shadow-[0_8px_20px_rgba(30,27,46,0.06)]
+          transition-all
+          duration-200
+          hover:-translate-y-0.5
+          hover:bg-[#FBFAF7]
+        "
+      >
+        <span className="text-lg">👁️</span>
+        צפייה בהזמנה
+      </button>
+    )}
+
+    {/* 4️⃣ הוספת מוזמן */}
     <button
-      type="button"
-      onClick={() => {
-        alert("כלי AI לאירוע יתווסף בקרוב");
-      }}
-      className="
+      onClick={() => setOpenAddModal(true)}
+      disabled={!invitation}
+      className={`
         group
         h-[54px]
+        min-w-[170px]
         rounded-[16px]
-        px-5
+        px-6
         font-black
         text-sm
         flex
         items-center
         justify-center
         gap-3
-        bg-gradient-to-l
-        from-[#F2665E]
-        to-[#FF8A78]
-        text-white
-        shadow-[0_12px_24px_rgba(242,102,94,0.24)]
+        border
         transition-all
         duration-200
-        hover:-translate-y-0.5
-      "
+        ${
+          invitation
+            ? `
+              bg-white
+              border-[#E7DED1]
+              text-[#1E1B2E]
+              shadow-[0_8px_20px_rgba(30,27,46,0.06)]
+              hover:-translate-y-0.5
+              hover:bg-[#FBFAF7]
+            `
+            : "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+        }
+      `}
     >
-      <span className="text-lg">✨</span>
-      כלי AI לאירוע
+      <span className="text-lg">👤</span>
+      הוספת מוזמן
+    </button>
+
+    {/* 5️⃣ ייבוא מאקסל */}
+    <button
+      onClick={() => setShowImportModal(true)}
+      disabled={!invitation}
+      className={`
+        group
+        h-[54px]
+        min-w-[170px]
+        rounded-[16px]
+        px-6
+        font-black
+        text-sm
+        flex
+        items-center
+        justify-center
+        gap-3
+        border
+        transition-all
+        duration-200
+        ${
+          invitation
+            ? `
+              bg-white
+              border-[#E7DED1]
+              text-[#1E1B2E]
+              shadow-[0_8px_20px_rgba(30,27,46,0.06)]
+              hover:-translate-y-0.5
+              hover:bg-[#FBFAF7]
+            `
+            : "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+        }
+      `}
+    >
+      <span className="text-lg">📥</span>
+      ייבוא מאקסל
+    </button>
+
+    {/* 6️⃣ סידורי הושבה */}
+    <button
+      onClick={() =>
+        router.push(
+          isDemo
+            ? "/try/dashboard/seating"
+            : "/dashboard/seating"
+        )
+      }
+      disabled={!invitation}
+      className={`
+        group
+        h-[54px]
+        min-w-[170px]
+        rounded-[16px]
+        px-6
+        font-black
+        text-sm
+        flex
+        items-center
+        justify-center
+        gap-3
+        transition-all
+        duration-200
+        ${
+          invitation
+            ? `
+              bg-gradient-to-l
+              from-[#C19B52]
+              to-[#D9BE7A]
+              text-white
+              shadow-[0_12px_24px_rgba(193,155,82,0.24)]
+              hover:-translate-y-0.5
+            `
+            : "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none"
+        }
+      `}
+    >
+      <span className="text-lg">🪑</span>
+      סידורי הושבה
       <span className="text-white/80 text-sm">⌄</span>
     </button>
 
-    {/* עריכת הזמנה */}
+    {/* 7️⃣ שליחת הודעות */}
+    <button
+      onClick={() =>
+        router.push(
+          isDemo
+            ? "/try/dashboard/messages/new"
+            : "/dashboard/messages/new"
+        )
+      }
+      disabled={!invitation}
+      className={`
+        group
+        h-[54px]
+        min-w-[170px]
+        rounded-[16px]
+        px-6
+        font-black
+        text-sm
+        flex
+        items-center
+        justify-center
+        gap-3
+        transition-all
+        duration-200
+        ${
+          invitation
+            ? `
+              bg-gradient-to-l
+              from-[#007A47]
+              to-[#10A66A]
+              text-white
+              shadow-[0_12px_24px_rgba(16,166,106,0.22)]
+              hover:-translate-y-0.5
+            `
+            : "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none"
+        }
+      `}
+    >
+      <span className="text-lg">✈️</span>
+      שליחת הודעות
+    </button>
+  </div>
+
+  {/* מובייל - בלי שינוי לוגיקה */}
+  <div className="flex md:hidden flex-col gap-3">
     <button
       onClick={() => {
         if (isDemo) {
@@ -1257,53 +1311,14 @@ export default function DashboardPage() {
         );
       }}
       className="
-        group
-        h-[54px]
-        rounded-[16px]
-        px-5
-        font-black
-        text-sm
-        flex
-        items-center
-        justify-center
-        gap-3
-        bg-[#1E1B2E]
-        text-white
-        shadow-[0_12px_24px_rgba(30,27,46,0.22)]
-        transition-all
-        duration-200
-        hover:-translate-y-0.5
-        hover:bg-[#141222]
-      "
-    >
-      <span className="text-lg">🖊️</span>
-      {invitation ? "עריכת הזמנה" : "יצירת הזמנה"}
-    </button>
-  </div>
-
-  {/* מובייל */}
-  <div className="flex md:hidden flex-col gap-3">
-    <button
-      onClick={() =>
-        router.push(
-          isDemo
-            ? "/try/dashboard/messages/new"
-            : "/dashboard/messages/new"
-        )
-      }
-      disabled={!invitation}
-      className={`
         h-[54px]
         rounded-2xl
         font-black
-        ${
-          invitation
-            ? "bg-gradient-to-l from-[#007A47] to-[#10A66A] text-white"
-            : "bg-gray-200 text-gray-400 cursor-not-allowed"
-        }
-      `}
+        bg-[#1E1B2E]
+        text-white
+      "
     >
-      ✈️ שליחת הודעות
+      🖊️ {invitation ? "עריכת הזמנה" : "יצירת הזמנה"}
     </button>
 
     <button
@@ -1340,6 +1355,29 @@ export default function DashboardPage() {
       `}
     >
       📥 ייבוא מאקסל
+    </button>
+
+    <button
+      onClick={() =>
+        router.push(
+          isDemo
+            ? "/try/dashboard/messages/new"
+            : "/dashboard/messages/new"
+        )
+      }
+      disabled={!invitation}
+      className={`
+        h-[54px]
+        rounded-2xl
+        font-black
+        ${
+          invitation
+            ? "bg-gradient-to-l from-[#007A47] to-[#10A66A] text-white"
+            : "bg-gray-200 text-gray-400 cursor-not-allowed"
+        }
+      `}
+    >
+      ✈️ שליחת הודעות
     </button>
   </div>
 </section>
