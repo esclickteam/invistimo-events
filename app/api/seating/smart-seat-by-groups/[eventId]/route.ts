@@ -71,10 +71,8 @@ type GroupBucket = {
   isNoGroup: boolean;
 };
 
-type MovePlan = {
-  unit: GroupBucket;
-  target: TableState;
-};
+const DEFAULT_TABLE_CAPACITY = 12;
+const MIN_TABLE_OCCUPANCY_RATIO = 0.5;
 
 /* ===============================
    HELPERS
@@ -154,7 +152,6 @@ function getTableName(table: SeatingInnerTable) {
   return table.name || "שולחן";
 }
 
-/* ✅ חילוץ מספר שולחן מהשם, לדוגמה: "שולחן 16" => 16 */
 function getTableNumber(table: SeatingInnerTable, fallbackIndex: number) {
   const name = String(table.name || "").trim();
   const match = name.match(/\d+/);
@@ -179,6 +176,10 @@ function getUsedSeats(table: TableState) {
   return table.capacity - table.remaining;
 }
 
+function getMinOccupancy(table: TableState) {
+  return Math.ceil(table.capacity * MIN_TABLE_OCCUPANCY_RATIO);
+}
+
 function isPartiallyUsedTable(table: TableState) {
   const used = getUsedSeats(table);
   return used > 0 && table.remaining > 0;
@@ -192,12 +193,6 @@ function compareByTableNumber(a: TableState, b: TableState) {
   return a.originalIndex - b.originalIndex;
 }
 
-/*
-  ✅ שילוב חכם:
-  1. קודם חורים בשולחנות שכבר התחילו להתמלא.
-  2. בתוך החורים — לפי מספר שולחן מהנמוך לגבוה.
-  3. אחר כך שולחנות ריקים — גם לפי מספר מהנמוך לגבוה.
-*/
 function compareSmartFillOrder(a: TableState, b: TableState) {
   const aPartial = isPartiallyUsedTable(a);
   const bPartial = isPartiallyUsedTable(b);
@@ -278,16 +273,107 @@ function splitGroupIntoAvailableTables(
 }
 
 /* ===============================
-   GROUP UNIT HELPERS
-   לא מפצלים קבוצה בשלב האיחוד
+   AUTO TABLES
 =============================== */
 
-function buildGroupUnitsFromGuests(guests: InvitationGuestDoc[]) {
+function getNextTableNumber(rawTables: SeatingInnerTable[]) {
+  const numbers = rawTables
+    .map((table, index) => getTableNumber(table, index))
+    .filter((num) => Number.isFinite(num) && num > 0);
+
+  return numbers.length ? Math.max(...numbers) + 1 : 1;
+}
+
+function getDefaultAutoTablePosition(rawTables: SeatingInnerTable[]) {
+  const existingWithPosition = rawTables.filter(
+    (table) => Number.isFinite(Number(table.x)) && Number.isFinite(Number(table.y))
+  );
+
+  if (!existingWithPosition.length) {
+    return { x: 120, y: 120 };
+  }
+
+  const maxX = Math.max(...existingWithPosition.map((table) => Number(table.x || 0)));
+  const maxY = Math.max(...existingWithPosition.map((table) => Number(table.y || 0)));
+
+  return {
+    x: maxX + 160,
+    y: maxY,
+  };
+}
+
+function createAutoTable(
+  rawTables: SeatingInnerTable[],
+  tableNumber: number,
+  capacity: number
+): SeatingInnerTable {
+  const { x, y } = getDefaultAutoTablePosition(rawTables);
+
+  return {
+    id: `auto-table-${new mongoose.Types.ObjectId().toString()}`,
+    name: `שולחן ${tableNumber}`,
+    type: "round",
+    seats: capacity,
+    x,
+    y,
+    rotation: 0,
+    width: 120,
+    height: 120,
+    radius: 60,
+    color: "#F8F1E7",
+    locked: false,
+    seatedGuests: [],
+    group: null,
+    isAutoCreated: true,
+  };
+}
+
+function ensureEnoughTables(
+  rawTables: SeatingInnerTable[],
+  totalGuestSeats: number
+) {
+  let totalTableSeats = rawTables.reduce((sum, table) => {
+    return sum + getTableCapacity(table);
+  }, 0);
+
+  const existingCapacities = rawTables
+    .map(getTableCapacity)
+    .filter((capacity) => capacity > 0);
+
+  const defaultCapacity = existingCapacities.length
+    ? Math.max(...existingCapacities)
+    : DEFAULT_TABLE_CAPACITY;
+
+  let nextTableNumber = getNextTableNumber(rawTables);
+  let addedTablesCount = 0;
+
+  while (totalTableSeats < totalGuestSeats) {
+    const newTable = createAutoTable(rawTables, nextTableNumber, defaultCapacity);
+
+    rawTables.push(newTable);
+
+    totalTableSeats += defaultCapacity;
+    nextTableNumber += 1;
+    addedTablesCount += 1;
+  }
+
+  return {
+    rawTables,
+    totalTableSeats,
+    addedTablesCount,
+  };
+}
+
+/* ===============================
+   REBALANCE WEAK TABLES
+=============================== */
+
+function buildSeatedGroupBucketsFromTable(table: TableState): GroupBucket[] {
   const map = new Map<string, GroupBucket>();
 
-  for (const guest of guests) {
+  for (const guest of table.seatedGuests) {
     const key = getGroupKey(guest);
-    const guestSeats = getGuestCount(guest);
+    const seatsNeeded = getGuestCount(guest);
 
     if (!map.has(key)) {
       map.set(key, {
@@ -300,159 +386,149 @@ function buildGroupUnitsFromGuests(guests: InvitationGuestDoc[]) {
       });
     }
 
-    const unit = map.get(key)!;
-    unit.members.push(guest);
-    unit.seatsNeeded += guestSeats;
+    const bucket = map.get(key)!;
+    bucket.members.push(guest);
+    bucket.seatsNeeded += seatsNeeded;
   }
 
-  return Array.from(map.values()).sort((a, b) => {
-    if (b.seatsNeeded !== a.seatsNeeded) {
-      return b.seatsNeeded - a.seatsNeeded;
-    }
-
-    return a.label.localeCompare(b.label, "he");
-  });
+  return Array.from(map.values());
 }
 
-function tableHasSameGroup(table: TableState, unit: GroupBucket) {
-  if (!unit.groupId && unit.isNoGroup) {
-    return false;
-  }
+function removeGuestsFromTable(table: TableState, guestsToRemove: InvitationGuestDoc[]) {
+  const idsToRemove = new Set(guestsToRemove.map((guest) => String(guest._id)));
 
-  return table.seatedGuests.some((guest) => {
-    if (unit.groupId && guest.groupId) {
-      return String(guest.groupId) === unit.groupId;
-    }
+  table.seatedGuests = table.seatedGuests.filter(
+    (guest) => !idsToRemove.has(String(guest._id))
+  );
 
-    const relation = String(guest.relation || "").trim().toLowerCase();
-    const label = String(unit.label || "").trim().toLowerCase();
+  const removedSeats = guestsToRemove.reduce((sum, guest) => {
+    return sum + getGuestCount(guest);
+  }, 0);
 
-    return Boolean(relation && label && relation === label);
-  });
+  table.remaining += removedSeats;
+}
+
+function addGuestsToTable(table: TableState, guestsToAdd: InvitationGuestDoc[]) {
+  table.seatedGuests.push(...guestsToAdd);
+
+  const addedSeats = guestsToAdd.reduce((sum, guest) => {
+    return sum + getGuestCount(guest);
+  }, 0);
+
+  table.remaining -= addedSeats;
 }
 
 /*
-  ✅ מוצא יעד ליחידת קבוצה שלמה:
-  1. קודם שולחן קודם עם אותה קבוצה.
-  2. אחר כך שולחן קודם שכבר יש בו אורחים ויש בו מקום.
-  3. לא מעביר לשולחן ריק אחר, כי זה לא פותר שולחן קטן.
+  ✅ אם יש שולחן חלש, לדוגמה 2/12:
+  - לא משאירים אותו ככה.
+  - מחפשים קבוצות קטנות משולחנות אחרים.
+  - מעבירים כמה קבוצות קטנות לשולחן החלש.
+  - לא מפרקים קבוצות.
+  - לא הופכים את השולחן התורם לחלש מדי.
 */
-function findTargetForWholeUnit(
-  unit: GroupBucket,
-  sourceTable: TableState,
-  tableStates: TableState[],
-  reservedRemaining: Map<string, number>
-) {
-  const candidates = tableStates
-    .filter((table) => {
-      if (table.tableId === sourceTable.tableId) return false;
-
-      const usedSeats = getUsedSeats(table);
-      const remaining = reservedRemaining.get(table.tableId) ?? table.remaining;
-
-      return (
-        usedSeats > 0 &&
-        remaining >= unit.seatsNeeded &&
-        table.tableNumber < sourceTable.tableNumber
-      );
-    })
-    .sort((a, b) => {
-      const aSameGroup = tableHasSameGroup(a, unit);
-      const bSameGroup = tableHasSameGroup(b, unit);
-
-      if (aSameGroup && !bSameGroup) return -1;
-      if (!aSameGroup && bSameGroup) return 1;
-
-      return compareByTableNumber(a, b);
-    });
-
-  return candidates[0] || null;
-}
-
-/*
-  ✅ איחוד שולחנות לא משתלמים:
-  - עובד רק לפי יחידות קבוצה שלמות.
-  - לא מפצל קבוצה של 2/5/8.
-  - אם אין מקום לקבוצה כולה — משאיר אותה יחד.
-  - מנסה לרוקן שולחנות אחרונים/חצי ריקים לתוך שולחנות קודמים.
-*/
-function mergeUnderfilledTablesByWholeGroups(tableStates: TableState[]) {
+function rebalanceWeakTablesWithSmallGroups(tableStates: TableState[]) {
   let changed = true;
+  let movesCount = 0;
 
   while (changed) {
     changed = false;
 
-    const candidates = [...tableStates]
+    const weakTables = tableStates
       .filter((table) => {
-        const usedSeats = getUsedSeats(table);
+        const used = getUsedSeats(table);
+        const min = getMinOccupancy(table);
 
-        if (usedSeats <= 0) return false;
-
-        const underfilledLimit = Math.max(2, Math.floor(table.capacity * 0.5));
-
-        return usedSeats <= underfilledLimit;
+        return used > 0 && used < min && table.remaining > 0;
       })
       .sort((a, b) => {
-        if (b.tableNumber !== a.tableNumber) {
-          return b.tableNumber - a.tableNumber;
-        }
+        const usedA = getUsedSeats(a);
+        const usedB = getUsedSeats(b);
 
-        return b.originalIndex - a.originalIndex;
+        if (usedA !== usedB) return usedA - usedB;
+
+        return compareByTableNumber(a, b);
       });
 
-    for (const sourceTable of candidates) {
-      const sourceUsedSeats = getUsedSeats(sourceTable);
+    for (const weakTable of weakTables) {
+      const weakUsed = getUsedSeats(weakTable);
+      const weakMin = getMinOccupancy(weakTable);
 
-      if (sourceUsedSeats <= 0) continue;
+      if (weakUsed >= weakMin) continue;
 
-      const units = buildGroupUnitsFromGuests(sourceTable.seatedGuests);
+      const donorCandidates: {
+        donorTable: TableState;
+        group: GroupBucket;
+        donorAfterMove: number;
+      }[] = [];
 
-      if (!units.length) continue;
+      for (const donorTable of tableStates) {
+        if (donorTable.tableId === weakTable.tableId) continue;
 
-      const reservedRemaining = new Map<string, number>();
-      const plans: MovePlan[] = [];
+        const donorUsed = getUsedSeats(donorTable);
+        const donorMin = getMinOccupancy(donorTable);
 
-      let canMoveAllUnits = true;
+        if (donorUsed <= donorMin) continue;
 
-      for (const unit of units) {
-        const target = findTargetForWholeUnit(
-          unit,
-          sourceTable,
-          tableStates,
-          reservedRemaining
-        );
+        const donorGroups = buildSeatedGroupBucketsFromTable(donorTable);
 
-        if (!target) {
-          canMoveAllUnits = false;
-          break;
+        for (const group of donorGroups) {
+          if (group.seatsNeeded <= 0) continue;
+          if (group.seatsNeeded > weakTable.remaining) continue;
+
+          const donorAfterMove = donorUsed - group.seatsNeeded;
+
+          if (donorAfterMove < donorMin) continue;
+
+          donorCandidates.push({
+            donorTable,
+            group,
+            donorAfterMove,
+          });
         }
-
-        const currentRemaining =
-          reservedRemaining.get(target.tableId) ?? target.remaining;
-
-        reservedRemaining.set(target.tableId, currentRemaining - unit.seatsNeeded);
-        plans.push({ unit, target });
       }
 
-      /*
-        אם אי אפשר להעביר את כל הקבוצות מהשולחן בלי לפצל —
-        לא נוגעים בשולחן הזה.
-      */
-      if (!canMoveAllUnits) {
+      if (!donorCandidates.length) {
         continue;
       }
 
-      for (const plan of plans) {
-        plan.target.seatedGuests.push(...plan.unit.members);
-        plan.target.remaining -= plan.unit.seatsNeeded;
+      donorCandidates.sort((a, b) => {
+        if (a.group.seatsNeeded !== b.group.seatsNeeded) {
+          return a.group.seatsNeeded - b.group.seatsNeeded;
+        }
+
+        return compareByTableNumber(a.donorTable, b.donorTable);
+      });
+
+      for (const candidate of donorCandidates) {
+        const currentWeakUsed = getUsedSeats(weakTable);
+        const currentWeakMin = getMinOccupancy(weakTable);
+
+        if (currentWeakUsed >= currentWeakMin) {
+          break;
+        }
+
+        if (candidate.group.seatsNeeded > weakTable.remaining) {
+          continue;
+        }
+
+        const donorUsed = getUsedSeats(candidate.donorTable);
+        const donorMin = getMinOccupancy(candidate.donorTable);
+        const donorAfterMove = donorUsed - candidate.group.seatsNeeded;
+
+        if (donorAfterMove < donorMin) {
+          continue;
+        }
+
+        removeGuestsFromTable(candidate.donorTable, candidate.group.members);
+        addGuestsToTable(weakTable, candidate.group.members);
+
+        changed = true;
+        movesCount += 1;
       }
-
-      sourceTable.seatedGuests = [];
-      sourceTable.remaining = sourceTable.capacity;
-
-      changed = true;
     }
   }
+
+  return movesCount;
 }
 
 /* ===============================
@@ -477,10 +553,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
       );
     }
 
-    /* ===============================
-       1. מציאת הזמנה לפי eventId
-    =============================== */
-
     const invitation = await Invitation.findOne({ eventId })
       .select("_id eventId")
       .lean<{ _id: mongoose.Types.ObjectId } | null>();
@@ -493,10 +565,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
     }
 
     const invitationId = invitation._id;
-
-    /* ===============================
-       2. שליפת אורחים מהמקור האמיתי
-    =============================== */
 
     const allGuests = await InvitationGuest.find({ invitationId })
       .lean<InvitationGuestDoc[]>()
@@ -522,12 +590,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
       );
     }
 
-    /* ===============================
-       3. שליפת מסמך ההושבה
-       SeatingTable = מסמך אחד לאירוע
-       tables = מערך שולחנות בפנים
-    =============================== */
-
     const seatingDoc = await SeatingTable.findOne({ eventId }).lean<any>();
 
     if (!seatingDoc) {
@@ -537,8 +599,8 @@ export async function POST(req: NextRequest, context: RouteContext) {
       );
     }
 
-    const rawTables: SeatingInnerTable[] = Array.isArray(seatingDoc.tables)
-      ? seatingDoc.tables
+    let rawTables: SeatingInnerTable[] = Array.isArray(seatingDoc.tables)
+      ? [...seatingDoc.tables]
       : [];
 
     if (!rawTables.length) {
@@ -548,10 +610,20 @@ export async function POST(req: NextRequest, context: RouteContext) {
       );
     }
 
-    /* ===============================
-       4. בניית שולחנות לפי מספר שולחן
-       ✅ שולחן 1 ואז 2 ואז 3 וכן הלאה
-    =============================== */
+    const totalGuestSeats = approvedGuests.reduce((sum, guest) => {
+      return sum + getGuestCount(guest);
+    }, 0);
+
+    const totalTableSeatsBeforeAuto = rawTables.reduce((sum, table) => {
+      return sum + getTableCapacity(table);
+    }, 0);
+
+    const autoTableResult = ensureEnoughTables(rawTables, totalGuestSeats);
+
+    rawTables = autoTableResult.rawTables;
+
+    const totalTableSeats = autoTableResult.totalTableSeats;
+    const addedTablesCount = autoTableResult.addedTablesCount;
 
     const tableStates: TableState[] = rawTables
       .map((table, index) => {
@@ -591,30 +663,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
       );
     }
 
-    const totalGuestSeats = approvedGuests.reduce((sum, guest) => {
-      return sum + getGuestCount(guest);
-    }, 0);
-
-    const totalTableSeats = tableStates.reduce((sum, table) => {
-      return sum + table.capacity;
-    }, 0);
-
-    if (totalGuestSeats > totalTableSeats) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `אין מספיק מקומות. יש ${totalGuestSeats} מקומות נדרשים למי שאישר הגעה, אבל רק ${totalTableSeats} מקומות בשולחנות.`,
-          totalGuestSeats,
-          totalTableSeats,
-        },
-        { status: 400 }
-      );
-    }
-
-    /* ===============================
-       5. איפוס שיוך קודם באורחים
-    =============================== */
-
     await InvitationGuest.updateMany(
       { invitationId },
       {
@@ -626,12 +674,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
         },
       }
     );
-
-    /* ===============================
-       6. בניית קבוצות
-       קבוצות אמיתיות לפי groupId/relation
-       ללא קבוצה נשארים לסוף
-    =============================== */
 
     const groupedMap = new Map<string, GroupBucket>();
     const noGroupBuckets: GroupBucket[] = [];
@@ -678,11 +720,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
       ...tableStates.map((table) => table.capacity)
     );
 
-    /*
-      קבוצה גדולה:
-      לפחות 75% משולחן מלא או יותר.
-      לדוגמה אם שולחן הוא 12, אז 9+ נחשבת גדולה.
-    */
     const largeGroupThreshold = Math.max(2, Math.ceil(maxTableCapacity * 0.75));
 
     const largeGroups = groupedBuckets.filter(
@@ -694,14 +731,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
     );
 
     const unseatedGuests: InvitationGuestDoc[] = [];
-
-    /* =========================================================
-       שלב 1:
-       קבוצות גדולות קודם.
-       קבוצה גדולה מקבלת שולחנות ריקים ברצף לפי מספר שולחן.
-       אם היא גדולה משולחן אחד — היא תמלא כמה שולחנות מאותה קבוצה.
-       לא מכניסים לתוכה קבוצות קטנות בשלב הזה.
-    ========================================================= */
 
     let tableCursor = 0;
 
@@ -730,15 +759,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
       }
     }
 
-    /* =========================================================
-       שלב 2:
-       קבוצות קטנות.
-       קודם חורים בשולחנות שכבר התמלאו חלקית,
-       אבל לפי מספר שולחן מהנמוך לגבוה.
-       אם אין חור מתאים — עוברים לשולחן ריק הכי נמוך.
-       אם אין מקום לקבוצה שלמה — מפצלים רק אם חייבים.
-    ========================================================= */
-
     for (const group of smallGroups) {
       const seatedWhole = seatWholeGroupBestFit(group, tableStates);
 
@@ -752,13 +772,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
         unseatedGuests.push(...stillUnseated);
       }
     }
-
-    /* =========================================================
-       שלב 3:
-       ללא קבוצה / בודדים אחרונים.
-       נכנסים רק אחרי שכל הקבוצות שובצו.
-       גם כאן: קודם חורים, ואז שולחנות ריקים, הכל לפי מספר עולה.
-    ========================================================= */
 
     const sortedNoGroupBuckets = noGroupBuckets.sort(
       (a, b) => b.seatsNeeded - a.seatsNeeded
@@ -779,20 +792,12 @@ export async function POST(req: NextRequest, context: RouteContext) {
     }
 
     /*
-      ✅ שלב 4:
-      לא משאירים שולחן שלם בשביל 1–2 אורחים / שולחן חצי ריק,
-      אם אפשר להעביר את כל הקבוצות ממנו יחד לתוך שולחנות קודמים.
-      לא מפצלים קבוצות.
+      ✅ השלב החדש:
+      אחרי שכל האורחים שובצו, בודקים אם נוצר שולחן חלש.
+      לדוגמה 2/12, 3/12, 4/12, 5/12.
+      אם כן — מעבירים אליו כמה קבוצות קטנות משולחנות אחרים.
     */
-    mergeUnderfilledTablesByWholeGroups(tableStates);
-
-    /* ===============================
-       7. בניית tables[] לפי המודל האמיתי
-       seatedGuests = רשומה לכל כיסא תפוס
-       אם אורח מייצג כמה מוזמנים:
-       הראשון isVirtual=false
-       השאר isVirtual=true
-    =============================== */
+    const rebalanceMovesCount = rebalanceWeakTablesWithSmallGroups(tableStates);
 
     const tableStateById = new Map(
       tableStates.map((table) => [table.tableId, table])
@@ -833,11 +838,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
         }
       }
 
-      /*
-        Snapshot של הקבוצות שעל השולחן.
-        אם יש כמה קבוצות, השם יהיה משולב:
-        "משפחה קרובה / חברים"
-      */
       const groupNames = Array.from(
         new Set(
           state.seatedGuests
@@ -893,12 +893,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
       }
     );
 
-    /* ===============================
-       8. עדכון InvitationGuest
-       כל אורח אמיתי מתעדכן פעם אחת
-       גם אם הוא תפס כמה כיסאות
-    =============================== */
-
     for (const tableState of tableStates) {
       let seatIndex = 0;
 
@@ -950,7 +944,10 @@ export async function POST(req: NextRequest, context: RouteContext) {
       totalGuestsInInvitation: allGuests.length,
 
       totalGuestSeats,
+      totalTableSeatsBeforeAuto,
       totalTableSeats,
+      addedTablesCount,
+      rebalanceMovesCount,
 
       tablesCount: tableStates.length,
       unseatedCount: unseatedGuests.length,
@@ -966,6 +963,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
         capacity: table.capacity,
         usedSeats: table.capacity - table.remaining,
         remaining: table.remaining,
+        minOccupancy: getMinOccupancy(table),
         seatedRealGuestsCount: table.seatedGuests.length,
       })),
 
