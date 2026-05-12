@@ -999,178 +999,350 @@ export default function DashboardPage() {
         />
       </section>
 
-      {/* ===================== ACTION BUTTONS ===================== */}
-      <section className="mb-6">
-        <div className="hidden md:flex flex-wrap gap-3">
-          <button
-            onClick={() => {
-              if (isDemo) {
-                handleDemoBlockedAction();
-                return;
-              }
-
-              router.push(
-                invitation
-                  ? `/dashboard/edit-invite/${invitationId}`
-                  : "/dashboard/create-invite"
-              );
-            }}
-            className="
-              bg-[#1E1B2E]
+      {/* ===================== ACTION BUTTONS כמו הסקיצה ===================== */}
+<section className="mb-6">
+  <div
+    className="
+      hidden
+      md:grid
+      grid-cols-7
+      gap-3
+      items-center
+    "
+  >
+    {/* שליחת הודעות */}
+    <button
+      onClick={() =>
+        router.push(
+          isDemo
+            ? "/try/dashboard/messages/new"
+            : "/dashboard/messages/new"
+        )
+      }
+      disabled={!invitation}
+      className={`
+        group
+        h-[54px]
+        rounded-[16px]
+        px-5
+        font-black
+        text-sm
+        flex
+        items-center
+        justify-center
+        gap-3
+        transition-all
+        duration-200
+        ${
+          invitation
+            ? `
+              bg-gradient-to-l
+              from-[#007A47]
+              to-[#10A66A]
               text-white
-              px-6
-              py-3
-              rounded-2xl
-              font-bold
-              shadow-[0_10px_25px_rgba(30,27,46,0.18)]
+              shadow-[0_12px_24px_rgba(16,166,106,0.22)]
               hover:-translate-y-0.5
-              transition
-            "
-          >
-            {invitation ? "✏️ עריכת הזמנה" : "➕ יצירת הזמנה"}
-          </button>
+            `
+            : "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none"
+        }
+      `}
+    >
+      <span className="text-lg">✈️</span>
+      שליחת הודעות
+    </button>
 
-          <button
-            onClick={() => {
-              if (!invitation) return;
-              if (isDemo) {
-                handleDemoBlockedAction();
-                return;
-              }
+    {/* סידורי הושבה */}
+    <button
+      onClick={() =>
+        router.push(
+          isDemo
+            ? "/try/dashboard/seating"
+            : "/dashboard/seating"
+        )
+      }
+      disabled={!invitation}
+      className={`
+        group
+        h-[54px]
+        rounded-[16px]
+        px-5
+        font-black
+        text-sm
+        flex
+        items-center
+        justify-center
+        gap-3
+        transition-all
+        duration-200
+        ${
+          invitation
+            ? `
+              bg-gradient-to-l
+              from-[#C19B52]
+              to-[#D9BE7A]
+              text-white
+              shadow-[0_12px_24px_rgba(193,155,82,0.24)]
+              hover:-translate-y-0.5
+            `
+            : "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none"
+        }
+      `}
+    >
+      <span className="text-lg">🪑</span>
+      סידורי הושבה
+      <span className="text-white/80 text-sm">⌄</span>
+    </button>
 
-              router.push("/dashboard/event");
-            }}
-            disabled={!invitation}
-            className={`
-              px-6 py-3 rounded-2xl font-bold transition border shadow-sm
-              ${
-                invitation
-                  ? "bg-white border-[#E7DED1] hover:bg-[#FBFAF7] text-[#1E1B2E]"
-                  : "bg-gray-100 text-gray-400 cursor-not-allowed"
-              }
-            `}
-          >
-            🛠️ עריכת פרטי האירוע
-          </button>
+    {/* ייצוא אקסל */}
+    <button
+      onClick={handleExportExcel}
+      disabled={!invitation}
+      className={`
+        group
+        h-[54px]
+        rounded-[16px]
+        px-5
+        font-black
+        text-sm
+        flex
+        items-center
+        justify-center
+        gap-3
+        border
+        transition-all
+        duration-200
+        ${
+          invitation
+            ? `
+              bg-white
+              border-[#E7DED1]
+              text-[#1E1B2E]
+              shadow-[0_8px_20px_rgba(30,27,46,0.06)]
+              hover:-translate-y-0.5
+              hover:bg-[#FBFAF7]
+            `
+            : "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+        }
+      `}
+    >
+      <span className="text-lg">📊</span>
+      ייצוא אקסל
+    </button>
 
-          {invitation && (
-            <button
-              onClick={() =>
-                isDemo
-                  ? handleDemoBlockedAction()
-                  : window.open(
-                      `https://www.invistimo.com/invite/${invitation.shareId}`,
-                      "_blank",
-                      "noopener,noreferrer"
-                    )
-              }
-              className="
-                bg-white
-                border
-                border-[#E7DED1]
-                px-6
-                py-3
-                rounded-2xl
-                hover:bg-[#FBFAF7]
-                font-bold
-                text-[#1E1B2E]
-                shadow-sm
-                transition
-              "
-            >
-              👁️ צפייה בהזמנה
-            </button>
-          )}
+    {/* הוספת מוזמן */}
+    <button
+      onClick={() => setOpenAddModal(true)}
+      disabled={!invitation}
+      className={`
+        group
+        h-[54px]
+        rounded-[16px]
+        px-5
+        font-black
+        text-sm
+        flex
+        items-center
+        justify-center
+        gap-3
+        border
+        transition-all
+        duration-200
+        ${
+          invitation
+            ? `
+              bg-white
+              border-[#E7DED1]
+              text-[#1E1B2E]
+              shadow-[0_8px_20px_rgba(30,27,46,0.06)]
+              hover:-translate-y-0.5
+              hover:bg-[#FBFAF7]
+            `
+            : "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+        }
+      `}
+    >
+      <span className="text-lg">👤</span>
+      הוספת מוזמן
+    </button>
 
-          <button
-            onClick={() => setOpenAddModal(true)}
-            disabled={!invitation}
-            className={`
-              px-6 py-3 rounded-2xl font-bold transition border shadow-sm
-              ${
-                invitation
-                  ? "bg-white border-[#E7DED1] hover:bg-[#FBFAF7] text-[#1E1B2E]"
-                  : "bg-gray-100 text-gray-400 cursor-not-allowed"
-              }
-            `}
-          >
-            + הוספת מוזמן
-          </button>
+    {/* עריכת פרטי האירוע */}
+    <button
+      onClick={() => {
+        if (!invitation) return;
 
-          <button
-            onClick={() => setShowImportModal(true)}
-            disabled={!invitation}
-            className={`
-              px-6 py-3 rounded-2xl font-bold transition border shadow-sm
-              ${
-                invitation
-                  ? "bg-white border-[#E7DED1] hover:bg-[#FBFAF7] text-[#1E1B2E]"
-                  : "bg-gray-100 text-gray-400 cursor-not-allowed"
-              }
-            `}
-          >
-            📥 ייבוא מאקסל
-          </button>
+        if (isDemo) {
+          handleDemoBlockedAction();
+          return;
+        }
 
-          <button
-            onClick={() =>
-              router.push(
-                isDemo
-                  ? "/try/dashboard/seating"
-                  : "/dashboard/seating"
-              )
-            }
-            disabled={!invitation}
-            className={`
-              px-6 py-3 rounded-2xl font-bold transition shadow-sm
-              ${
-                invitation
-                  ? "bg-gradient-to-l from-[#C9A45C] to-[#D9BE87] text-white"
-                  : "bg-gray-200 text-gray-400 cursor-not-allowed"
-              }
-            `}
-          >
-            🪑 סידורי הושבה
-          </button>
+        router.push("/dashboard/event");
+      }}
+      disabled={!invitation}
+      className={`
+        group
+        h-[54px]
+        rounded-[16px]
+        px-5
+        font-black
+        text-sm
+        flex
+        items-center
+        justify-center
+        gap-3
+        border
+        transition-all
+        duration-200
+        ${
+          invitation
+            ? `
+              bg-white
+              border-[#E7DED1]
+              text-[#1E1B2E]
+              shadow-[0_8px_20px_rgba(30,27,46,0.06)]
+              hover:-translate-y-0.5
+              hover:bg-[#FBFAF7]
+            `
+            : "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+        }
+      `}
+    >
+      <span className="text-lg">✏️</span>
+      עריכת פרטי האירוע
+    </button>
 
-          <button
-            onClick={() =>
-              router.push(
-                isDemo
-                  ? "/try/dashboard/messages/new"
-                  : "/dashboard/messages/new"
-              )
-            }
-            disabled={!invitation}
-            className={`
-              px-6 py-3 rounded-2xl font-bold transition shadow-sm
-              ${
-                invitation
-                  ? "bg-gradient-to-l from-emerald-600 to-teal-500 text-white"
-                  : "bg-gray-200 text-gray-400 cursor-not-allowed"
-              }
-            `}
-          >
-            💬 שליחת הודעות
-          </button>
-        </div>
+    {/* כלי AI לאירוע */}
+    <button
+      type="button"
+      onClick={() => {
+        alert("כלי AI לאירוע יתווסף בקרוב");
+      }}
+      className="
+        group
+        h-[54px]
+        rounded-[16px]
+        px-5
+        font-black
+        text-sm
+        flex
+        items-center
+        justify-center
+        gap-3
+        bg-gradient-to-l
+        from-[#F2665E]
+        to-[#FF8A78]
+        text-white
+        shadow-[0_12px_24px_rgba(242,102,94,0.24)]
+        transition-all
+        duration-200
+        hover:-translate-y-0.5
+      "
+    >
+      <span className="text-lg">✨</span>
+      כלי AI לאירוע
+      <span className="text-white/80 text-sm">⌄</span>
+    </button>
 
-        <div className="flex md:hidden flex-col gap-3">
-          <button
-            onClick={() => setOpenAddModal(true)}
-            className="bg-[#1E1B2E] text-white px-6 py-3 rounded-2xl font-bold"
-          >
-            + הוספת מוזמן
-          </button>
+    {/* עריכת הזמנה */}
+    <button
+      onClick={() => {
+        if (isDemo) {
+          handleDemoBlockedAction();
+          return;
+        }
 
-          <button
-            onClick={() => setShowImportModal(true)}
-            className="border border-[#E7DED1] bg-white px-6 py-3 rounded-2xl font-bold"
-          >
-            📥 ייבוא מאקסל
-          </button>
-        </div>
-      </section>
+        router.push(
+          invitation
+            ? `/dashboard/edit-invite/${invitationId}`
+            : "/dashboard/create-invite"
+        );
+      }}
+      className="
+        group
+        h-[54px]
+        rounded-[16px]
+        px-5
+        font-black
+        text-sm
+        flex
+        items-center
+        justify-center
+        gap-3
+        bg-[#1E1B2E]
+        text-white
+        shadow-[0_12px_24px_rgba(30,27,46,0.22)]
+        transition-all
+        duration-200
+        hover:-translate-y-0.5
+        hover:bg-[#141222]
+      "
+    >
+      <span className="text-lg">🖊️</span>
+      {invitation ? "עריכת הזמנה" : "יצירת הזמנה"}
+    </button>
+  </div>
+
+  {/* מובייל */}
+  <div className="flex md:hidden flex-col gap-3">
+    <button
+      onClick={() =>
+        router.push(
+          isDemo
+            ? "/try/dashboard/messages/new"
+            : "/dashboard/messages/new"
+        )
+      }
+      disabled={!invitation}
+      className={`
+        h-[54px]
+        rounded-2xl
+        font-black
+        ${
+          invitation
+            ? "bg-gradient-to-l from-[#007A47] to-[#10A66A] text-white"
+            : "bg-gray-200 text-gray-400 cursor-not-allowed"
+        }
+      `}
+    >
+      ✈️ שליחת הודעות
+    </button>
+
+    <button
+      onClick={() => setOpenAddModal(true)}
+      disabled={!invitation}
+      className={`
+        h-[54px]
+        rounded-2xl
+        font-black
+        border
+        ${
+          invitation
+            ? "bg-white border-[#E7DED1] text-[#1E1B2E]"
+            : "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+        }
+      `}
+    >
+      + הוספת מוזמן
+    </button>
+
+    <button
+      onClick={() => setShowImportModal(true)}
+      disabled={!invitation}
+      className={`
+        h-[54px]
+        rounded-2xl
+        font-black
+        border
+        ${
+          invitation
+            ? "bg-white border-[#E7DED1] text-[#1E1B2E]"
+            : "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+        }
+      `}
+    >
+      📥 ייבוא מאקסל
+    </button>
+  </div>
+</section>
 
       {/* ===================== SERVICE TAGS ===================== */}
       <section className="mb-6 flex flex-wrap gap-3">
