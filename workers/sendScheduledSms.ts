@@ -6,6 +6,11 @@ import Invitation from "@/models/Invitation";
 import User from "@/models/User";
 import { shortenUrl } from "@/lib/shortenUrl";
 
+import {
+  sendRsvpTemplateMedia,
+  type SendRsvpTemplateMediaInput,
+} from "@/lib/whatsapp/sendRsvpTemplateMedia";
+
 /* ======================================================
    TYPES
 ====================================================== */
@@ -193,7 +198,10 @@ async function buildSmsText({
     .replace(/{{navigationLink}}/g, navigationLink || "");
 }
 
-function deepReplacePlaceholders(value: any, replacements: Record<string, string>): any {
+function deepReplacePlaceholders(
+  value: any,
+  replacements: Record<string, string>
+): any {
   if (typeof value === "string") {
     let next = value;
 
@@ -225,13 +233,7 @@ function deepReplacePlaceholders(value: any, replacements: Record<string, string
    SMS SEND
 ====================================================== */
 
-async function sendSms({
-  phone,
-  text,
-}: {
-  phone: string;
-  text: string;
-}) {
+async function sendSms({ phone, text }: { phone: string; text: string }) {
   try {
     const res = await fetch("https://api.sms4free.co.il/ApiSMS/v2/SendSMS", {
       method: "POST",
@@ -255,6 +257,7 @@ async function sendSms({
 
 /* ======================================================
    WHATSAPP SEND
+   משתמש ב-helper הקיים שלך, לא ב-Meta Graph ישיר
 ====================================================== */
 
 async function sendWhatsappTemplate({
@@ -267,52 +270,26 @@ async function sendWhatsappTemplate({
   payload: any;
 }) {
   try {
-    const res = await fetch(
-      `https://graph.facebook.com/v19.0/${process.env.WHATSAPP_PHONE_ID}/messages`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          messaging_product: "whatsapp",
-          to: phone,
-          type: "template",
-          template: {
-            name: templateName,
-            language: {
-              code: payload?.languageCode || "he",
-            },
-            components: payload?.components || [],
-          },
-        }),
-      }
-    );
-
-    const data = await res.json().catch(() => null);
-
-    if (!res.ok) {
-      console.error("❌ WhatsApp provider error:", data);
-      return {
-        success: false,
-        wamid: null,
-        error: data,
-      };
-    }
+    const result = await sendRsvpTemplateMedia({
+      to: phone,
+      ...(payload as Omit<SendRsvpTemplateMediaInput, "to" | "templateName">),
+      templateName,
+    });
 
     return {
       success: true,
-      wamid: data?.messages?.[0]?.id || null,
+      wamid: result?.providerResponse?.messages?.[0]?.id || null,
       error: null,
+      providerResponse: result?.providerResponse || null,
     };
-  } catch (err) {
-    console.error("❌ WhatsApp send error:", err);
+  } catch (err: any) {
+    console.error("❌ WhatsApp provider error:", err?.message || err);
 
     return {
       success: false,
       wamid: null,
       error: err,
+      providerResponse: err?.providerResponse || null,
     };
   }
 }
@@ -764,9 +741,23 @@ export async function sendScheduledWhatsapp() {
               wamid: result.wamid || null,
               sentAt: result.success ? new Date() : null,
               failedAt: result.success ? null : new Date(),
+              providerStatus: result.success ? "sent" : "failed",
               lastError: result.success
                 ? null
-                : JSON.stringify(result.error || {}),
+                : String(result.error?.message || result.error || ""),
+              failReason: {
+                code: result.success
+                  ? null
+                  : result.error?.providerResponse?.error?.code
+                  ? String(result.error.providerResponse.error.code)
+                  : null,
+                message: result.success
+                  ? null
+                  : String(result.error?.message || result.error || ""),
+                raw: result.success
+                  ? null
+                  : result.error?.providerResponse || result.error || null,
+              },
             },
             $inc: {
               attempts: 1,

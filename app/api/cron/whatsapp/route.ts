@@ -3,6 +3,11 @@ import db from "@/lib/db";
 import WhatsappQueue from "@/models/WhatsappQueue";
 import { sendScheduledWhatsapp } from "@/workers/sendScheduledSms";
 
+import {
+  sendRsvpTemplateMedia,
+  type SendRsvpTemplateMediaInput,
+} from "@/lib/whatsapp/sendRsvpTemplateMedia";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -49,7 +54,7 @@ function normalizeMaxAttempts(value: any) {
 
 /* ======================================================
    GENERIC WHATSAPP TEMPLATE SEND
-   עובד לפי payload.components שנשמר ב-WhatsappQueue
+   משתמש ב-helper הקיים שלך, לא ב-Meta Graph ישיר
 ====================================================== */
 
 async function sendWhatsappTemplateFromQueue(job: any) {
@@ -65,48 +70,15 @@ async function sendWhatsappTemplateFromQueue(job: any) {
     throw new Error("MISSING_PHONE");
   }
 
-  const res = await fetch(
-    `https://graph.facebook.com/v19.0/${process.env.WHATSAPP_PHONE_ID}/messages`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        messaging_product: "whatsapp",
-        to: phone,
-        type: "template",
-        template: {
-          name: templateName,
-          language: {
-            code: payload.languageCode || "he",
-          },
-          components: Array.isArray(payload.components)
-            ? payload.components
-            : [],
-        },
-      }),
-    }
-  );
-
-  const data = await res.json().catch(() => null);
-
-  if (!res.ok) {
-    const message =
-      data?.error?.message ||
-      data?.error?.error_data?.details ||
-      data?.error?.code ||
-      "WHATSAPP_PROVIDER_ERROR";
-
-    const err: any = new Error(String(message));
-    err.providerResponse = data;
-    throw err;
-  }
+  const result = await sendRsvpTemplateMedia({
+    to: phone,
+    ...(payload as Omit<SendRsvpTemplateMediaInput, "to" | "templateName">),
+    templateName,
+  });
 
   return {
-    providerResponse: data,
-    wamid: data?.messages?.[0]?.id || null,
+    providerResponse: result?.providerResponse || null,
+    wamid: result?.providerResponse?.messages?.[0]?.id || null,
   };
 }
 
@@ -189,13 +161,20 @@ async function processPendingWhatsappQueue() {
             status: "sent",
             sentAt: new Date(),
             failedAt: null,
+
             wamid: result.wamid || null,
+            providerStatus: "sent",
+
             lastError: null,
+            errorCode: null,
+            errorMessage: null,
+
             failReason: {
               code: null,
               message: null,
               raw: null,
             },
+
             lockedAt: null,
             lockedBy: null,
           },
@@ -224,7 +203,14 @@ async function processPendingWhatsappQueue() {
           $set: {
             status: shouldFail ? "failed" : "pending",
             failedAt: shouldFail ? new Date() : null,
+            providerStatus: shouldFail ? "failed" : "retry",
+
             lastError: msg,
+            errorCode: err?.providerResponse?.error?.code
+              ? String(err.providerResponse.error.code)
+              : null,
+            errorMessage: msg,
+
             failReason: {
               code: err?.providerResponse?.error?.code
                 ? String(err.providerResponse.error.code)
@@ -232,6 +218,7 @@ async function processPendingWhatsappQueue() {
               message: msg,
               raw: err?.providerResponse || null,
             },
+
             lockedAt: null,
             lockedBy: null,
           },
