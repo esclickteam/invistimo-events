@@ -258,9 +258,9 @@ const REMINDER_WITH_TABLE_SERVER_TEMPLATE =
 const REMINDER_WITHOUT_TABLE_SERVER_TEMPLATE =
   "היי {{name}} 🌸\n" +
   "תזכורת לקראת {{invitationTitle}} 💛\n\n" +
-  "מחכים לראותך!\n\n" +
   "ניווט לאירוע:\n" +
-  "{{navigationLink}}";
+  "{{navigationLink}}\n\n" +
+  "מחכים לך!";
 
 /* ======================================================
    POST
