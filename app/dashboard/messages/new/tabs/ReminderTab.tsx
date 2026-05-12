@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import AudienceFilterSelector from "../shared/AudienceFilterSelector";
+import type { ReactNode } from "react";
 import SendButton from "../shared/SendButton";
 import ScheduledMessagesTable from "@/app/components/ScheduledMessagesTable";
 import { buildMessage } from "@/lib/messages/buildMessage";
@@ -28,19 +28,27 @@ type Props = {
   giftCreditUrl?: string;
 };
 
-type AudienceType = "all" | "withTable";
 type SendTiming = "now" | "scheduled";
 
 /* ================= CONSTANTS ================= */
 
-const MESSAGE_WITH_TABLE =
+const REMINDER_WITH_TABLE_TEMPLATE =
   "היי {{name}} 🌸\n" +
-  "שמחים לראות אותך ב־{{invitationTitle}} 💛\n\n" +
+  "תזכורת לקראת {{invitationTitle}} 💛\n\n" +
   "השולחן שלך באירוע:\n" +
   "🪑 {{tableName}}\n\n" +
   "📍 ניווט:\n" +
   "{{navigationLink}}\n\n" +
-  "נתראה!";
+  "מחכים לראותך!";
+
+const REMINDER_ONLY_TEMPLATE =
+  "היי {{name}} 🌸\n" +
+  "תזכורת לקראת {{invitationTitle}} 💛\n\n" +
+  "האירוע יתקיים בתאריך {{eventDate}}\n" +
+  "במיקום: {{eventLocation}}\n\n" +
+  "📍 ניווט:\n" +
+  "{{navigationLink}}\n\n" +
+  "מחכים לראותך!";
 
 const MAX_TEST_MESSAGES = 2;
 
@@ -53,19 +61,15 @@ export default function ReminderTab({
   eventLocation,
   lat,
   lng,
-  giftCreditUrl,
 }: Props) {
   const { user } = useAuth();
 
   const [guests, setGuests] = useState<Guest[]>([]);
+  const [invitation, setInvitation] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  const [includeGiftLink, setIncludeGiftLink] = useState(false);
-  const [giftLink, setGiftLink] = useState(giftCreditUrl || "");
-
-  const [message, setMessage] = useState(MESSAGE_WITH_TABLE);
-  const [audienceType, setAudienceType] =
-    useState<AudienceType>("withTable");
+  const [message, setMessage] = useState(REMINDER_ONLY_TEMPLATE);
+  const [messageTouched, setMessageTouched] = useState(false);
 
   const [preview, setPreview] = useState<any>(null);
 
@@ -129,16 +133,26 @@ export default function ReminderTab({
     loadScheduledMessages();
   }, []);
 
-  /* ================= LOAD GUESTS + INVITATION ================= */
+  const reminderScheduledMessages = useMemo(() => {
+    return scheduledMessages.filter((msg) => {
+      const type = msg?.type || msg?.messageType;
+      const channel = msg?.channel;
+
+      return type === "reminder" && (!channel || channel === "sms");
+    });
+  }, [scheduledMessages]);
+
+  /* ================= LOAD DATA ================= */
 
   useEffect(() => {
     if (!invitationId) {
       setLoading(false);
       setGuests([]);
+      setInvitation(null);
       return;
     }
 
-    async function loadGuests() {
+    async function loadData() {
       try {
         setLoading(true);
 
@@ -156,11 +170,14 @@ export default function ReminderTab({
         const guestsData = await guestsRes.json();
         const invitationData = await invitationRes.json();
 
-        setGuests(
-          Array.isArray(guestsData.guests) ? guestsData.guests : []
-        );
+        const loadedGuests = Array.isArray(guestsData.guests)
+          ? guestsData.guests
+          : [];
 
-        const inv = invitationData?.invitation;
+        const inv = invitationData?.invitation || null;
+
+        setGuests(loadedGuests);
+        setInvitation(inv);
 
         if (inv?.reminderSentAt) {
           setReminderSentAt(new Date(inv.reminderSentAt));
@@ -170,13 +187,65 @@ export default function ReminderTab({
       } catch (err) {
         console.error("❌ Failed to load reminder tab data", err);
         setGuests([]);
+        setInvitation(null);
       } finally {
         setLoading(false);
       }
     }
 
-    loadGuests();
+    loadData();
   }, [invitationId]);
+
+  /* ================= GUESTS ================= */
+
+  const confirmedGuests = useMemo(
+    () => guests.filter((g) => g.rsvp === "yes"),
+    [guests]
+  );
+
+  const pendingGuests = useMemo(
+    () => guests.filter((g) => g.rsvp === "pending"),
+    [guests]
+  );
+
+  const declinedGuests = useMemo(
+    () => guests.filter((g) => g.rsvp === "no"),
+    [guests]
+  );
+
+  const guestsWithTable = useMemo(
+    () => confirmedGuests.filter((g) => hasTable(g)),
+    [confirmedGuests]
+  );
+
+  const guestsWithoutTable = useMemo(
+    () => confirmedGuests.filter((g) => !hasTable(g)),
+    [confirmedGuests]
+  );
+
+  const guestsToSend = useMemo(() => {
+    return confirmedGuests;
+  }, [confirmedGuests]);
+
+  /* ================= PACKAGE / SEATING LOGIC ================= */
+
+  const hasSeatingPackage = useMemo(() => {
+    return detectSeatingPackage(invitation, guestsWithTable.length);
+  }, [invitation, guestsWithTable.length]);
+
+  useEffect(() => {
+    if (messageTouched) return;
+
+    setMessage(
+      hasSeatingPackage
+        ? REMINDER_WITH_TABLE_TEMPLATE
+        : REMINDER_ONLY_TEMPLATE
+    );
+  }, [hasSeatingPackage, messageTouched]);
+
+  const selectedTemplateLabel = hasSeatingPackage
+    ? "תזכורת עם מספר שולחן"
+    : "תזכורת רגילה";
 
   /* ================= LOCK ================= */
 
@@ -206,33 +275,7 @@ export default function ReminderTab({
     }
   }
 
-  /* ================= HELPERS ================= */
-
-  const hasTable = (g: Guest) =>
-    !!g.tableName || typeof g.tableNumber === "number";
-
-  const confirmedGuests = useMemo(
-    () => guests.filter((g) => g.rsvp === "yes"),
-    [guests]
-  );
-
-  const guestsWithTable = useMemo(
-    () => confirmedGuests.filter(hasTable),
-    [confirmedGuests]
-  );
-
-  const guestsWithoutTable = useMemo(
-    () => confirmedGuests.filter((g) => !hasTable(g)),
-    [confirmedGuests]
-  );
-
-  const guestsToSend = useMemo(() => {
-    if (audienceType === "withTable") {
-      return guestsWithTable;
-    }
-
-    return confirmedGuests;
-  }, [audienceType, guestsWithTable, confirmedGuests]);
+  /* ================= BUILD MESSAGE ================= */
 
   const buildReminderMessage = (g: Guest) =>
     buildMessage({
@@ -245,14 +288,7 @@ export default function ReminderTab({
         typeof lat === "number" && typeof lng === "number"
           ? `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`
           : "",
-      includeGiftLink,
-      giftLink,
     });
-
-  const reminderAlreadySent = !!reminderSentAt;
-
-  const isAdmin =
-    user?.role === "admin" || (user as any)?.impersonatedByAdmin;
 
   /* ================= PREVIEW ================= */
 
@@ -262,7 +298,11 @@ export default function ReminderTab({
       return;
     }
 
-    const firstGuest = guestsToSend[0];
+    const firstGuest =
+      hasSeatingPackage && guestsWithTable.length > 0
+        ? guestsWithTable[0]
+        : guestsToSend[0];
+
     const localText = buildReminderMessage(firstGuest);
 
     setPreview({
@@ -309,8 +349,8 @@ export default function ReminderTab({
   }, [
     invitationId,
     guestsToSend,
-    includeGiftLink,
-    giftLink,
+    guestsWithTable,
+    hasSeatingPackage,
     message,
     invitationTitle,
     eventDate,
@@ -359,6 +399,11 @@ export default function ReminderTab({
     }
   };
 
+  const reminderAlreadySent = !!reminderSentAt;
+
+  const isAdmin =
+    user?.role === "admin" || (user as any)?.impersonatedByAdmin;
+
   /* ================= LOADING ================= */
 
   if (loading) {
@@ -367,7 +412,7 @@ export default function ReminderTab({
         dir="rtl"
         className="rounded-[32px] border border-[#E7DCCB] bg-[#F8F1E6] p-8 text-center text-sm text-[#7A6246]"
       >
-        טוען תזכורות…
+        טוען תזכורת…
       </div>
     );
   }
@@ -414,15 +459,16 @@ export default function ReminderTab({
               </h2>
 
               <p className="max-w-xl text-sm sm:text-base leading-8 text-[#7A6246] mx-auto lg:mx-0">
-                שלחו לאורחים שאישרו הגעה תזכורת עם מספר שולחן,
-                ניווט לאולם וקישור למתנה באשראי לפי הצורך.
+                המערכת שולחת תזכורת אחת בלבד לאורחים שאישרו הגעה.
+                אם החבילה כוללת הושבה בזמן השליחה — ההודעה תישלח עם מספר שולחן.
+                אם אין הושבה — תישלח תזכורת רגילה.
               </p>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <StatCard
                 value={confirmedGuests.length}
-                label="מאשרים הגעה"
+                label="יקבלו תזכורת"
                 icon="✅"
               />
               <StatCard
@@ -431,51 +477,55 @@ export default function ReminderTab({
                 icon="🪑"
               />
               <StatCard
-                value={guestsWithoutTable.length}
-                label="ללא שולחן"
-                icon="⚠️"
+                value={pendingGuests.length}
+                label="ממתינים"
+                icon="⏳"
               />
               <StatCard
-                value={scheduledMessages.length}
+                value={reminderScheduledMessages.length}
                 label="מתוזמנות"
-                icon="⏳"
+                icon="📅"
               />
             </div>
           </div>
         </div>
       </section>
 
-      {/* ROUND / SEND CARDS */}
+      {/* SEND SUMMARY CARDS */}
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <ReminderSendCard
-          active={audienceType === "withTable"}
-          title="תזכורת עם שולחן"
-          badge={`${guestsWithTable.length}`}
-          subtitle="למי שאישרו הגעה ויש להם שולחן"
+        <ReminderInfoCard
+          active
+          title={selectedTemplateLabel}
+          badge={`${guestsToSend.length}`}
+          subtitle={
+            hasSeatingPackage
+              ? "המערכת תשלח תזכורת עם מספר שולחן"
+              : "המערכת תשלח תזכורת רגילה"
+          }
           channel="SMS"
           status={reminderAlreadySent ? "נשלחה" : "מוכנה לשליחה"}
-          onClick={() => setAudienceType("withTable")}
+          onClick={() => {}}
         />
 
-        <ReminderSendCard
-          active={audienceType === "all"}
-          title="תזכורת לכל המאשרים"
+        <ReminderInfoCard
+          active={false}
+          title="קהל יעד"
           badge={`${confirmedGuests.length}`}
-          subtitle="לכל מי שאישרו הגעה"
-          channel="SMS"
-          status={reminderAlreadySent ? "נשלחה" : "מוכנה לשליחה"}
-          onClick={() => setAudienceType("all")}
+          subtitle="רק אורחים שאישרו הגעה"
+          channel="AUTO"
+          status="נקבע אוטומטית"
+          onClick={() => {}}
         />
 
-        <ReminderSendCard
+        <ReminderInfoCard
           active={false}
           title="הודעות מתוזמנות"
-          badge={`${scheduledMessages.length}`}
+          badge={`${reminderScheduledMessages.length}`}
           subtitle="צפייה, ביטול וניהול תזמונים"
           channel="Schedule"
           status={
-            scheduledMessages.length > 0
-              ? "יש הודעות מתוזמנות"
+            reminderScheduledMessages.length > 0
+              ? "יש תזמונים"
               : "אין תזמונים"
           }
           onClick={async () => {
@@ -485,7 +535,7 @@ export default function ReminderTab({
         />
       </section>
 
-      {/* AUDIENCE FILTER - keeps your existing component */}
+      {/* AUTO AUDIENCE */}
       <section
         className="
           rounded-[30px]
@@ -495,228 +545,30 @@ export default function ReminderTab({
           shadow-sm
         "
       >
-        <AudienceFilterSelector
-          value={audienceType}
-          onChange={(value) => setAudienceType(value as AudienceType)}
-          totalCount={confirmedGuests.length}
-          withTableCount={guestsWithTable.length}
-        />
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-lg font-black text-[#3E2D20]">
+              <span>👥</span>
+              <span>קהל יעד</span>
+            </div>
+
+            <p className="mt-2 text-sm leading-7 text-[#7A6246]">
+              אין בחירה ידנית בקהל היעד. המערכת שולחת אוטומטית לכל מי שאישר הגעה.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3 text-center">
+            <MiniStat label="מאשרים" value={confirmedGuests.length} />
+            <MiniStat label="לא מגיעים" value={declinedGuests.length} />
+            <MiniStat label="ממתינים" value={pendingGuests.length} />
+          </div>
+        </div>
       </section>
 
       {/* MAIN GRID */}
       <section className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
         {/* RIGHT SIDE */}
-        <div className="space-y-6">
-          {/* CHANNEL */}
-          <GlassPanel
-            title="ערוץ שליחה"
-            subtitle="בחרו איך התזכורת תישלח לאורחים"
-            icon="💬"
-          >
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <SelectableBox active>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-lg font-black">SMS</span>
-                  <span className="text-xl">📩</span>
-                </div>
-                <p className="mt-2 text-xs leading-6 text-[#7A6246]">
-                  שליחת הודעת טקסט עם פרטי שולחן וניווט.
-                </p>
-              </SelectableBox>
-
-              <SelectableBox active={false} muted>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-lg font-black">WhatsApp</span>
-                  <span className="text-xl">💬</span>
-                </div>
-                <p className="mt-2 text-xs leading-6 text-[#7A6246]">
-                  שמור להמשך אם תרצי להפעיל תזכורת גם בוואטסאפ.
-                </p>
-              </SelectableBox>
-            </div>
-          </GlassPanel>
-
-          {/* MESSAGE EDITOR */}
-          <GlassPanel
-            title="עריכת תוכן ההודעה"
-            subtitle="הטקסט הזה יישלח לכל אורח עם המשתנים האישיים שלו"
-            icon="✏️"
-          >
-            <textarea
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              rows={8}
-              className="
-                w-full resize-none
-                rounded-[24px]
-                border border-[#E4D3BB]
-                bg-white/80
-                p-5
-                text-sm leading-7
-                text-[#3E2D20]
-                shadow-inner
-                outline-none
-                focus:border-[#C79B45]
-                focus:ring-4
-                focus:ring-[#E8C878]/20
-                transition
-              "
-            />
-
-            <div className="mt-4 flex flex-wrap gap-2 text-xs">
-              {[
-                "{{name}}",
-                "{{invitationTitle}}",
-                "{{tableName}}",
-                "{{navigationLink}}",
-              ].map((item) => (
-                <span
-                  key={item}
-                  className="
-                    rounded-full
-                    border border-[#E2CFB5]
-                    bg-[#FFF8EA]
-                    px-3 py-1
-                    font-mono text-[#8A642B]
-                  "
-                >
-                  {item}
-                </span>
-              ))}
-            </div>
-          </GlassPanel>
-
-          {/* GIFT LINK */}
-          <GlassPanel
-            title="קישור למתנה באשראי"
-            subtitle="אפשר להוסיף קישור לתשלום/מתנה בסוף ההודעה"
-            icon="🎁"
-          >
-            <label
-              className="
-                flex cursor-pointer items-center justify-between gap-4
-                rounded-[24px]
-                border border-[#E4D3BB]
-                bg-white/70
-                p-4
-              "
-            >
-              <div>
-                <div className="font-black text-[#3E2D20]">
-                  הוסף קישור מתנה להודעה
-                </div>
-                <div className="mt-1 text-xs text-[#7A6246]">
-                  הקישור יתווסף רק אם האפשרות מסומנת.
-                </div>
-              </div>
-
-              <input
-                type="checkbox"
-                checked={includeGiftLink}
-                onChange={(e) => setIncludeGiftLink(e.target.checked)}
-                className="h-5 w-5 accent-[#B8862B]"
-              />
-            </label>
-
-            {includeGiftLink && (
-              <div className="mt-4">
-                <label className="mb-2 block text-sm font-bold text-[#6B5138]">
-                  קישור למתנה באשראי
-                </label>
-                <input
-                  type="url"
-                  value={giftLink}
-                  onChange={(e) => setGiftLink(e.target.value)}
-                  placeholder="https://..."
-                  className="
-                    w-full
-                    rounded-[20px]
-                    border border-[#E4D3BB]
-                    bg-white
-                    px-4 py-3
-                    text-sm
-                    outline-none
-                    focus:border-[#C79B45]
-                    focus:ring-4
-                    focus:ring-[#E8C878]/20
-                    transition
-                  "
-                />
-              </div>
-            )}
-          </GlassPanel>
-
-          {/* TIMING */}
-          <GlassPanel
-            title="תזמון שליחת ההודעה"
-            subtitle="אפשר לשלוח עכשיו או לקבוע שליחה עתידית"
-            icon="⏱️"
-          >
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setSendTiming("now")}
-                className={timingButtonClass(sendTiming === "now")}
-              >
-                <span className="text-xl">⚡</span>
-                <span className="font-black">שליחה מיידית</span>
-                <span className="text-xs font-medium text-[#7A6246]">
-                  ההודעה תישלח מיד ולא ניתן יהיה לבטל.
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setSendTiming("scheduled")}
-                className={timingButtonClass(sendTiming === "scheduled")}
-              >
-                <span className="text-xl">📅</span>
-                <span className="font-black">שליחה מתוזמנת</span>
-                <span className="text-xs font-medium text-[#7A6246]">
-                  אפשר לערוך או לבטל עד מועד השליחה.
-                </span>
-              </button>
-            </div>
-
-            {sendTiming === "scheduled" && (
-              <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="mb-2 block text-sm font-bold text-[#6B5138]">
-                    תאריך שליחה
-                  </label>
-                  <input
-                    type="date"
-                    min={new Date().toLocaleDateString("en-CA")}
-                    value={scheduledDate}
-                    onChange={(e) => setScheduledDate(e.target.value)}
-                    className={inputClassName}
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-sm font-bold text-[#6B5138]">
-                    שעת שליחה
-                  </label>
-                  <input
-                    type="time"
-                    min={
-                      scheduledDate ===
-                      new Date().toLocaleDateString("en-CA")
-                        ? new Date().toTimeString().slice(0, 5)
-                        : undefined
-                    }
-                    value={scheduledTime}
-                    onChange={(e) => setScheduledTime(e.target.value)}
-                    className={inputClassName}
-                  />
-                </div>
-              </div>
-            )}
-          </GlassPanel>
-        </div>
-
-        {/* LEFT SIDE */}
-        <div className="space-y-6">
+        <div className="space-y-6 xl:order-1">
           {/* PREVIEW */}
           <GlassPanel
             title="תצוגה מקדימה"
@@ -724,54 +576,11 @@ export default function ReminderTab({
             icon="✨"
           >
             {preview ? (
-              <div className="flex justify-center py-2">
-                <div className="relative w-[290px] h-[560px] rounded-[52px] bg-black p-3 shadow-2xl">
-                  <div className="absolute top-3 left-1/2 z-20 h-[22px] w-[122px] -translate-x-1/2 rounded-b-2xl bg-black" />
-
-                  <div className="relative h-full w-full overflow-hidden rounded-[40px] bg-[#F7F1E8]">
-                    <div
-                      className="
-                        border-b border-[#E5D7C5]
-                        bg-[#EFE4D4]
-                        py-3
-                        text-center
-                        text-[11px]
-                        font-black
-                        tracking-wide
-                        text-[#6B5138]
-                      "
-                    >
-                      INVISTIMO · SMS
-                    </div>
-
-                    <div className="flex h-[calc(100%-44px)] items-center justify-center p-4">
-                      <div
-                        className="
-                          max-h-[410px]
-                          max-w-[92%]
-                          overflow-y-auto
-                          whitespace-pre-wrap
-                          break-words
-                          rounded-[28px]
-                          bg-white
-                          px-4 py-4
-                          text-right
-                          text-sm
-                          leading-7
-                          text-[#3E2D20]
-                          shadow-sm
-                        "
-                      >
-                        {preview.text}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <PhonePreview text={preview.text} />
             ) : (
               <EmptyState
                 title="אין הודעה לתצוגה"
-                text="בחרי קהל יעד שיש בו אורחים כדי להציג תצוגה מקדימה."
+                text="אין אורחים שאישרו הגעה ולכן אין תזכורת להצגה."
               />
             )}
 
@@ -848,6 +657,234 @@ export default function ReminderTab({
             </div>
           </GlassPanel>
 
+          {/* TIMING */}
+          <GlassPanel
+            title="תזמון שליחת ההודעה"
+            subtitle="אפשר לשלוח עכשיו או לקבוע שליחה עתידית"
+            icon="⏱️"
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setSendTiming("now")}
+                className={timingButtonClass(sendTiming === "now")}
+              >
+                <span className="text-xl">⚡</span>
+                <span className="font-black">שליחה מיידית</span>
+                <span className="text-xs font-medium text-[#7A6246]">
+                  ההודעה תישלח מיד ולא ניתן יהיה לבטל.
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSendTiming("scheduled")}
+                className={timingButtonClass(sendTiming === "scheduled")}
+              >
+                <span className="text-xl">📅</span>
+                <span className="font-black">שליחה מתוזמנת</span>
+                <span className="text-xs font-medium text-[#7A6246]">
+                  אפשר לערוך או לבטל עד מועד השליחה.
+                </span>
+              </button>
+            </div>
+
+            {sendTiming === "scheduled" && (
+              <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="mb-2 block text-sm font-bold text-[#6B5138]">
+                    תאריך שליחה
+                  </label>
+                  <input
+                    type="date"
+                    min={new Date().toLocaleDateString("en-CA")}
+                    value={scheduledDate}
+                    onChange={(e) => setScheduledDate(e.target.value)}
+                    className={inputClassName}
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-bold text-[#6B5138]">
+                    שעת שליחה
+                  </label>
+                  <input
+                    type="time"
+                    min={
+                      scheduledDate ===
+                      new Date().toLocaleDateString("en-CA")
+                        ? new Date().toTimeString().slice(0, 5)
+                        : undefined
+                    }
+                    value={scheduledTime}
+                    onChange={(e) => setScheduledTime(e.target.value)}
+                    className={inputClassName}
+                  />
+                </div>
+              </div>
+            )}
+          </GlassPanel>
+        </div>
+
+        {/* LEFT SIDE */}
+        <div className="space-y-6 xl:order-2">
+          {/* CHANNEL */}
+          <GlassPanel
+            title="ערוץ שליחה"
+            subtitle="התזכורת נשלחת בסבב אחד בלבד"
+            icon="💬"
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <SelectableBox active>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-lg font-black">SMS</span>
+                  <span className="text-xl">📩</span>
+                </div>
+                <p className="mt-2 text-xs leading-6 text-[#7A6246]">
+                  שליחת תזכורת אחת לכל מי שאישר הגעה.
+                </p>
+              </SelectableBox>
+
+              <SelectableBox active={false} muted>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-lg font-black">WhatsApp</span>
+                  <span className="text-xl">💬</span>
+                </div>
+                <p className="mt-2 text-xs leading-6 text-[#7A6246]">
+                  לא פעיל כרגע בטאב התזכורת הזה.
+                </p>
+              </SelectableBox>
+            </div>
+          </GlassPanel>
+
+          {/* AUTO MESSAGE TYPE */}
+          <GlassPanel
+            title="סוג התזכורת שנבחר אוטומטית"
+            subtitle="לפי החבילה והאם קיימת הושבה באירוע"
+            icon="🧠"
+          >
+            <div
+              className="
+                rounded-[24px]
+                border border-[#E4D3BB]
+                bg-white/70
+                p-5
+              "
+            >
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <div className="text-lg font-black text-[#3E2D20]">
+                    {selectedTemplateLabel}
+                  </div>
+
+                  <p className="mt-2 text-sm leading-7 text-[#7A6246]">
+                    {hasSeatingPackage
+                      ? "החבילה כוללת הושבה, לכן התזכורת תכלול מספר שולחן לכל אורח."
+                      : "החבילה לא כוללת הושבה, לכן תישלח תזכורת רגילה ללא מספר שולחן."}
+                  </p>
+                </div>
+
+                <div
+                  className="
+                    flex h-12 w-12 shrink-0 items-center justify-center
+                    rounded-[18px]
+                    bg-[#FFF2D8]
+                    text-xl
+                  "
+                >
+                  {hasSeatingPackage ? "🪑" : "💌"}
+                </div>
+              </div>
+
+              {hasSeatingPackage && guestsWithoutTable.length > 0 && (
+                <div className="mt-4 rounded-[18px] bg-orange-50 px-4 py-3 text-sm leading-7 text-orange-700">
+                  שימי לב: יש {guestsWithoutTable.length} אורחים שאישרו הגעה
+                  אבל עדיין לא משויך להם שולחן.
+                </div>
+              )}
+            </div>
+          </GlassPanel>
+
+          {/* EDIT MESSAGE */}
+          <GlassPanel
+            title="עריכת תוכן ההודעה"
+            subtitle="הטקסט יישלח לכל אורח עם המשתנים האישיים שלו"
+            icon="✏️"
+          >
+            <textarea
+              value={message}
+              onChange={(e) => {
+                setMessageTouched(true);
+                setMessage(e.target.value);
+              }}
+              rows={8}
+              className="
+                w-full resize-none
+                rounded-[24px]
+                border border-[#E4D3BB]
+                bg-white/80
+                p-5
+                text-sm leading-7
+                text-[#3E2D20]
+                shadow-inner
+                outline-none
+                focus:border-[#C79B45]
+                focus:ring-4
+                focus:ring-[#E8C878]/20
+                transition
+              "
+            />
+
+            <div className="mt-4 flex flex-wrap gap-2 text-xs">
+              {[
+                "{{name}}",
+                "{{invitationTitle}}",
+                "{{eventDate}}",
+                "{{eventLocation}}",
+                "{{tableName}}",
+                "{{navigationLink}}",
+              ].map((item) => (
+                <span
+                  key={item}
+                  className="
+                    rounded-full
+                    border border-[#E2CFB5]
+                    bg-[#FFF8EA]
+                    px-3 py-1
+                    font-mono text-[#8A642B]
+                  "
+                >
+                  {item}
+                </span>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setMessageTouched(false);
+                setMessage(
+                  hasSeatingPackage
+                    ? REMINDER_WITH_TABLE_TEMPLATE
+                    : REMINDER_ONLY_TEMPLATE
+                );
+              }}
+              className="
+                mt-4
+                rounded-[18px]
+                border border-[#E2CFB5]
+                bg-white
+                px-4 py-2
+                text-xs font-black
+                text-[#6B5138]
+                hover:bg-[#FFF8EA]
+                transition
+              "
+            >
+              אפס לנוסח ברירת מחדל
+            </button>
+          </GlassPanel>
+
           {/* SEND ACTION */}
           <div
             className="
@@ -868,7 +905,7 @@ export default function ReminderTab({
               <div className="mt-1 text-sm text-white/80">
                 {sendTiming === "scheduled"
                   ? "ההודעה תיכנס לתור ותישלח בזמן שבחרת."
-                  : "ההודעה תישלח מיד לכל הנמענים שנבחרו."}
+                  : "ההודעה תישלח מיד לכל מי שאישר הגעה."}
               </div>
             </div>
 
@@ -878,8 +915,6 @@ export default function ReminderTab({
               invitationId={invitationId}
               audience={guestsToSend.map((g) => g._id)}
               scheduledAt={scheduledAt}
-              includeGiftLink={includeGiftLink}
-              giftLink={giftLink}
               messageOverride={message}
               onAfterSend={async () => {
                 if (sendTiming === "now") {
@@ -903,7 +938,7 @@ export default function ReminderTab({
                 : `📩 שלח תזכורת (${guestsToSend.length})`}
             </SendButton>
 
-            {(reminderAlreadySent && reminderLocked) && (
+            {reminderAlreadySent && reminderLocked && (
               <div className="mt-3 rounded-2xl bg-white/15 px-4 py-3 text-sm text-white">
                 התזכורת כבר נשלחה ולכן השליחה נעולה.
               </div>
@@ -930,8 +965,8 @@ export default function ReminderTab({
             )}
           </div>
 
-          {/* SCHEDULED */}
-          {scheduledMessages.length > 0 && (
+          {/* SCHEDULED BUTTON */}
+          {reminderScheduledMessages.length > 0 && (
             <button
               type="button"
               onClick={async () => {
@@ -1003,7 +1038,7 @@ export default function ReminderTab({
             </div>
 
             <ScheduledMessagesTable
-              messages={scheduledMessages}
+              messages={reminderScheduledMessages}
               onChange={loadScheduledMessages}
             />
           </div>
@@ -1013,7 +1048,128 @@ export default function ReminderTab({
   );
 }
 
-/* ================= UI HELPERS ================= */
+/* ================= HELPERS ================= */
+
+function hasTable(g: Guest) {
+  return !!g.tableName || typeof g.tableNumber === "number";
+}
+
+function detectSeatingPackage(invitation: any, guestsWithTableCount: number) {
+  if (!invitation) {
+    return guestsWithTableCount > 0;
+  }
+
+  return Boolean(
+    invitation?.includeSeating ||
+      invitation?.hasSeating ||
+      invitation?.seatingIncluded ||
+      invitation?.includeSeatingManagement ||
+      invitation?.packageIncludesSeating ||
+      invitation?.features?.seating ||
+      invitation?.features?.includeSeating ||
+      invitation?.addons?.seating ||
+      invitation?.package?.includeSeating ||
+      invitation?.package?.seating ||
+      invitation?.plan?.includeSeating ||
+      invitation?.plan?.seating ||
+      guestsWithTableCount > 0
+  );
+}
+
+/* ================= UI COMPONENTS ================= */
+
+function PhonePreview({ text }: { text: string }) {
+  return (
+    <div className="flex justify-center py-2">
+      <div
+        className="
+          relative
+          h-[600px]
+          w-[305px]
+          rounded-[54px]
+          bg-[#080808]
+          p-[11px]
+          shadow-[0_28px_70px_rgba(0,0,0,0.35)]
+        "
+      >
+        <div
+          className="
+            absolute
+            left-1/2
+            top-[11px]
+            z-20
+            h-[27px]
+            w-[122px]
+            -translate-x-1/2
+            rounded-b-[18px]
+            bg-[#080808]
+          "
+        />
+
+        <div
+          className="
+            relative
+            h-full
+            w-full
+            overflow-hidden
+            rounded-[43px]
+            bg-[#F4EDE3]
+          "
+        >
+          <div
+            className="
+              flex
+              h-[54px]
+              items-end
+              justify-center
+              border-b
+              border-[#E1D4C5]
+              bg-[#EFE4D4]
+              pb-3
+              text-[11px]
+              font-black
+              tracking-wide
+              text-[#6B5138]
+            "
+          >
+            INVISTIMO · SMS
+          </div>
+
+          <div
+            className="
+              h-[calc(100%-54px)]
+              overflow-y-auto
+              bg-[radial-gradient(circle_at_top,#FFF8EC_0,#F4EDE3_45%,#E9DDCD_100%)]
+              p-4
+            "
+          >
+            <div className="flex min-h-full items-center justify-center">
+              <div
+                className="
+                  max-w-[92%]
+                  whitespace-pre-wrap
+                  break-words
+                  rounded-[28px]
+                  rounded-tr-[10px]
+                  bg-white
+                  px-4
+                  py-4
+                  text-right
+                  text-sm
+                  leading-7
+                  text-[#3E2D20]
+                  shadow-[0_10px_30px_rgba(68,47,24,0.12)]
+                "
+              >
+                {text}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function StatCard({
   value,
@@ -1047,7 +1203,7 @@ function StatCard({
   );
 }
 
-function ReminderSendCard({
+function ReminderInfoCard({
   active,
   title,
   badge,
@@ -1143,7 +1299,7 @@ function GlassPanel({
   title: string;
   subtitle?: string;
   icon?: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div
@@ -1194,7 +1350,7 @@ function SelectableBox({
 }: {
   active: boolean;
   muted?: boolean;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div
