@@ -2331,15 +2331,16 @@ function getEventCountdown(
 
   if (!target) {
     return {
-      months: 0,
-      weeks: 0,
-      days: 0,
-      hours: 0,
-      seconds: 0,
-      isMissing: true,
-      isEventDay: false,
-      isPast: false,
-    };
+  months: 0,
+  weeks: 0,
+  days: 0,
+  hours: 0,
+  minutes: 0,
+  seconds: 0,
+  isMissing: true,
+  isEventDay: false,
+  isPast: false,
+};
   }
 
   const current = new Date(now);
@@ -2367,35 +2368,40 @@ function getEventCountdown(
   diff -= days * day;
 
   const hours = Math.floor(diff / hour);
-  diff -= hours * hour;
+diff -= hours * hour;
 
-  const seconds = Math.floor(diff / second);
+const minutes = Math.floor(diff / (60 * second));
+diff -= minutes * 60 * second;
 
-  return {
-    months,
-    weeks,
-    days,
-    hours,
-    seconds,
-    isMissing: false,
-    isEventDay: sameCalendarDay,
-    isPast: target.getTime() < now && !sameCalendarDay,
-  };
+const seconds = Math.floor(diff / second);
+
+return {
+  months,
+  weeks,
+  days,
+  hours,
+  minutes,
+  seconds,
+  isMissing: false,
+  isEventDay: sameCalendarDay,
+  isPast: target.getTime() < now && !sameCalendarDay,
+};
 }
 
 function GoldenCountdown({
   countdown,
 }: {
   countdown: {
-    months: number;
-    weeks: number;
-    days: number;
-    hours: number;
-    seconds: number;
-    isMissing: boolean;
-    isEventDay: boolean;
-    isPast: boolean;
-  };
+  months: number;
+  weeks: number;
+  days: number;
+  hours: number;
+  minutes: number;
+  seconds: number;
+  isMissing: boolean;
+  isEventDay: boolean;
+  isPast: boolean;
+};
 }) {
   if (countdown.isMissing) {
     return (
@@ -2457,12 +2463,13 @@ function GoldenCountdown({
   return (
   <div
     dir="ltr"
-    className="mt-5 grid grid-cols-2 sm:grid-cols-5 gap-2 max-w-[640px]"
+    className="mt-5 grid grid-cols-2 sm:grid-cols-6 gap-2 max-w-[760px]"
   >
     <CountdownUnit label="חודשים" value={countdown.months} />
     <CountdownUnit label="שבועות" value={countdown.weeks} />
     <CountdownUnit label="ימים" value={countdown.days} />
     <CountdownUnit label="שעות" value={countdown.hours} />
+    <CountdownUnit label="דקות" value={countdown.minutes} />
     <CountdownUnit label="שניות" value={countdown.seconds} isLive />
   </div>
 );
