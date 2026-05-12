@@ -23,15 +23,27 @@ export async function POST(req: Request) {
         const statuses = change?.value?.statuses ?? [];
 
         for (const status of statuses) {
-          const wamid = status.id;
-          const state = status.status;
-          const timestamp = status.timestamp
+          const wamid = status?.id;
+          const state = status?.status;
+
+          const timestamp = status?.timestamp
             ? new Date(Number(status.timestamp) * 1000)
             : new Date();
 
           const phone = status?.recipient_id ?? null;
 
-          console.log("📦 Status Update:", {
+          const errorCode =
+            status?.errors?.[0]?.code ??
+            status?.errors?.[0]?.error_code ??
+            null;
+
+          const errorMessage =
+            status?.errors?.[0]?.title ??
+            status?.errors?.[0]?.message ??
+            status?.errors?.[0]?.error_data?.details ??
+            null;
+
+          console.log("📦 WhatsApp Status Update:", {
             wamid,
             state,
             phone,
@@ -41,35 +53,74 @@ export async function POST(req: Request) {
 
           if (!wamid || !state) continue;
 
+          /**
+           * חשוב:
+           * status במודל נשאר אחד מ:
+           * pending / scheduled / sending / sent / failed / cancelled
+           *
+           * delivered/read נשמרים כשדות מידע,
+           * לא כ-status, כדי לא לשבור את enum של WhatsappQueue.
+           */
+
           if (state === "sent") {
             console.log("✅ SENT:", wamid);
-          }
-
-          if (state === "delivered" || state === "read") {
-            console.log("📬 DELIVERED/READ:", wamid);
 
             await WhatsappQueue.updateOne(
               { wamid },
               {
                 $set: {
-                  status: "delivered",
+                  status: "sent",
+                  sentAt: timestamp,
+                  providerStatus: "sent",
+                  lastError: null,
+                  errorCode: null,
+                  errorMessage: null,
+                },
+              }
+            );
+          }
+
+          if (state === "delivered") {
+            console.log("📬 DELIVERED:", wamid);
+
+            await WhatsappQueue.updateOne(
+              { wamid },
+              {
+                $set: {
+                  /**
+                   * לא להפוך status ל-delivered.
+                   * משאירים sent כדי לא לשבור enum ולוגיקות קיימות.
+                   */
+                  status: "sent",
                   deliveredAt: timestamp,
+                  providerStatus: "delivered",
+                  lastError: null,
+                  errorCode: null,
+                  errorMessage: null,
+                },
+              }
+            );
+          }
+
+          if (state === "read") {
+            console.log("👀 READ:", wamid);
+
+            await WhatsappQueue.updateOne(
+              { wamid },
+              {
+                $set: {
+                  status: "sent",
+                  readAt: timestamp,
+                  providerStatus: "read",
+                  lastError: null,
+                  errorCode: null,
+                  errorMessage: null,
                 },
               }
             );
           }
 
           if (state === "failed") {
-            const errorCode =
-              status?.errors?.[0]?.code ??
-              status?.errors?.[0]?.error_code ??
-              null;
-
-            const errorMessage =
-              status?.errors?.[0]?.title ??
-              status?.errors?.[0]?.message ??
-              null;
-
             console.error("❌ FAILED MESSAGE:", {
               wamid,
               phone,
@@ -82,9 +133,18 @@ export async function POST(req: Request) {
               {
                 $set: {
                   status: "failed",
+                  failedAt: timestamp,
+                  providerStatus: "failed",
+                  lastError: errorMessage || "WHATSAPP_MESSAGE_FAILED",
                   errorCode,
                   errorMessage,
-                  failedAt: timestamp,
+                  failReason: {
+                    code: errorCode,
+                    message: errorMessage,
+                    raw: status?.errors?.[0] ?? status?.errors ?? null,
+                  },
+                  lockedAt: null,
+                  lockedBy: null,
                 },
               }
             );
@@ -96,6 +156,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("❌ WhatsApp Webhook error", err);
+
+    /**
+     * חשוב להחזיר ok:true כדי שמטא לא תמשיך לנסות בלי סוף
+     * על שגיאה פנימית זמנית אצלנו.
+     */
     return NextResponse.json({ ok: true });
   }
 }

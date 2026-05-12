@@ -81,7 +81,7 @@ function getRsvpScheduledField(channel: string, round: 1 | 2 | 3) {
 }
 
 /* ======================================================
-   POST — CANCEL SCHEDULE
+   POST — UPDATE SCHEDULE DATE/TIME
 ====================================================== */
 
 export async function POST(req: NextRequest) {
@@ -101,13 +101,37 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
+
     const scheduleId = String(body.scheduleId || "");
+    const scheduledAtRaw = body.scheduledAt;
 
     if (!isValidObjectId(scheduleId)) {
       return NextResponse.json(
         {
           success: false,
           error: "INVALID_SCHEDULE_ID",
+        },
+        { status: 400 }
+      );
+    }
+
+    const scheduledAt = scheduledAtRaw ? new Date(scheduledAtRaw) : null;
+
+    if (!scheduledAt || Number.isNaN(scheduledAt.getTime())) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "INVALID_SCHEDULED_AT",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (scheduledAt.getTime() <= Date.now()) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "SCHEDULED_AT_MUST_BE_FUTURE",
         },
         { status: 400 }
       );
@@ -137,7 +161,7 @@ export async function POST(req: NextRequest) {
         {
           success: false,
           error: "SCHEDULE_ALREADY_SENT",
-          message: "ההודעה כבר נשלחה ולכן אי אפשר לבטל אותה.",
+          message: "ההודעה כבר נשלחה ולכן אי אפשר לערוך את התזמון.",
         },
         { status: 409 }
       );
@@ -148,31 +172,35 @@ export async function POST(req: NextRequest) {
         {
           success: false,
           error: "SCHEDULE_ALREADY_SENDING",
-          message: "השליחה כבר התחילה ולכן אי אפשר לבטל את התזמון.",
+          message: "השליחה כבר התחילה ולכן אי אפשר לערוך את התזמון.",
         },
         { status: 409 }
       );
     }
 
     if (schedule.status === "cancelled") {
-      return NextResponse.json({
-        success: true,
-        alreadyCancelled: true,
-        scheduleId: schedule._id,
-      });
+      return NextResponse.json(
+        {
+          success: false,
+          error: "SCHEDULE_CANCELLED",
+          message: "התזמון בוטל. צריך ליצור תזמון חדש.",
+        },
+        { status: 409 }
+      );
     }
 
-    /* ================= CANCEL SCHEDULED MESSAGE ================= */
+    /* ================= UPDATE SCHEDULED MESSAGE ================= */
 
-    schedule.status = "cancelled";
-    schedule.cancelledAt = new Date();
+    schedule.scheduledAt = scheduledAt;
+    schedule.status = "scheduled";
     schedule.lockedAt = null;
     schedule.lockedBy = null;
     schedule.error = "";
+    schedule.cancelledAt = null;
 
     await schedule.save();
 
-    /* ================= CANCEL WHATSAPP QUEUE IF EXISTS ================= */
+    /* ================= UPDATE WHATSAPP QUEUE IF EXISTS ================= */
 
     await WhatsappQueue.updateMany(
       {
@@ -181,15 +209,15 @@ export async function POST(req: NextRequest) {
       },
       {
         $set: {
-          status: "cancelled",
-          cancelledAt: new Date(),
+          scheduledAt,
+          status: "scheduled",
           lockedAt: null,
           lockedBy: null,
         },
       }
     );
 
-    /* ================= CLEAR INVITATION SCHEDULE FIELD ================= */
+    /* ================= UPDATE INVITATION SCHEDULE FIELD ================= */
 
     if (schedule.type === "rsvp") {
       const round = normalizeRound(schedule.round ?? schedule.roundNumber);
@@ -197,7 +225,7 @@ export async function POST(req: NextRequest) {
 
       await Invitation.findByIdAndUpdate(schedule.invitationId, {
         $set: {
-          [scheduledField]: null,
+          [scheduledField]: scheduledAt,
         },
       });
     }
@@ -209,17 +237,18 @@ export async function POST(req: NextRequest) {
       - rsvpWhatsappRoundXSentAt
       - messageLocks
 
-      כי ביטול תזמון לא אומר שהסבב נשלח.
+      כי עריכת תזמון אינה שליחה בפועל.
     */
 
     return NextResponse.json({
       success: true,
-      message: "SCHEDULE_CANCELLED",
+      message: "SCHEDULE_UPDATED",
       scheduleId: schedule._id,
-      status: "cancelled",
+      scheduledAt,
+      schedule,
     });
   } catch (err: any) {
-    console.error("❌ POST /api/scheduled/cancel error:", err);
+    console.error("❌ POST /api/scheduled/update error:", err);
 
     return NextResponse.json(
       {

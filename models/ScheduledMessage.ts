@@ -11,7 +11,25 @@ export type ScheduledMessageStatus =
   | "failed"
   | "cancelled";
 
-export type MessageTemplateKey = "rsvp" | "table" | "custom";
+export type ScheduledMessageChannel = "sms" | "whatsapp";
+
+export type ScheduledMessageType =
+  | "rsvp"
+  | "reminder"
+  | "thankyou"
+  | "table"
+  | "custom";
+
+export type MessageTemplateKey =
+  | "rsvp"
+  | "table"
+  | "custom"
+  | "reminder"
+  | "thankyou";
+
+export type ScheduledAudienceFilter = "all" | "pending" | "withTable";
+
+export type RsvpRoundNumber = 1 | 2 | 3;
 
 export interface ScheduledMessageDocument {
   _id: Types.ObjectId;
@@ -19,26 +37,67 @@ export interface ScheduledMessageDocument {
   invitationId: Types.ObjectId;
   userId: Types.ObjectId;
 
-  channel: "sms" | "whatsapp";
+  channel: ScheduledMessageChannel;
 
-  filter: "all" | "pending" | "withTable";
+  /**
+   * סוג הודעה:
+   * rsvp / reminder / thankyou / table / custom
+   */
+  type: ScheduledMessageType;
 
-  // ⭐️ מקור אמת לקהל
+  /**
+   * קהל יעד בזמן השליחה:
+   * RSVP round 1 => all
+   * RSVP round 2/3 => pending
+   */
+  filter: ScheduledAudienceFilter;
+
+  /**
+   * נשאר לתאימות / custom / הודעות אחרות.
+   * לא להשתמש בזה כמקור אמת לסבב 2/3.
+   * בסבב 2/3 ה-worker צריך לשלוף pending בזמן השליחה בפועל.
+   */
   guestIds?: Types.ObjectId[];
 
-  // 🧠 לוגיקה / סטטיסטיקה
+  /**
+   * מפתח תבנית כללי.
+   */
   templateKey: MessageTemplateKey;
 
-  roundNumber?: number;
+  /**
+   * שדה קיים אצלך.
+   */
+  roundNumber: RsvpRoundNumber;
 
-  // ✉️ מקור אמת לטקסט
+  /**
+   * שדה חדש/נוח יותר.
+   * נשמר במקביל ל-roundNumber כדי לא לשבור קוד ישן.
+   */
+  round: RsvpRoundNumber;
+
+  /**
+   * שם תבנית WhatsApp, לדוגמה:
+   * rsvp_invitation_media
+   * rsvp_reminder_invistimo
+   */
+  templateName?: string;
+
+  /**
+   * נוסח SMS מותאם.
+   */
+  messageOverride?: string;
+
+  /**
+   * מקור אמת לטקסט שנשמר לתזמון.
+   */
   messageContent: string;
 
-  // 🎁 מתנה באשראי
   includeGiftLink: boolean;
   giftLink?: string | null;
 
-  // ⚠️ legacy
+  /**
+   * legacy
+   */
   text?: string;
 
   scheduledAt: Date;
@@ -53,19 +112,44 @@ export interface ScheduledMessageDocument {
 
   batchSize?: number;
 
-  lastAttemptAt?: Date;
+  lastAttemptAt?: Date | null;
 
-  sentAt?: Date;
+  sentAt?: Date | null;
+  cancelledAt?: Date | null;
 
   error?: string;
 
-  lockedAt?: Date;
-  lockedBy?: string;
+  lockedAt?: Date | null;
+  lockedBy?: string | null;
 
   priority?: number;
 
   createdAt: Date;
   updatedAt: Date;
+}
+
+/* ======================================================
+   HELPERS
+====================================================== */
+
+function normalizeRound(value: unknown): RsvpRoundNumber {
+  const n = Number(value);
+
+  if (n === 2) return 2;
+  if (n === 3) return 3;
+
+  return 1;
+}
+
+function getDefaultFilterByTypeAndRound(
+  type: ScheduledMessageType,
+  round: RsvpRoundNumber
+): ScheduledAudienceFilter {
+  if (type === "rsvp") {
+    return round === 1 ? "all" : "pending";
+  }
+
+  return "all";
 }
 
 /* ======================================================
@@ -91,7 +175,14 @@ const ScheduledMessageSchema = new Schema<ScheduledMessageDocument>(
     channel: {
       type: String,
       enum: ["sms", "whatsapp"],
-      default: "sms",
+      required: true,
+      index: true,
+    },
+
+    type: {
+      type: String,
+      enum: ["rsvp", "reminder", "thankyou", "table", "custom"],
+      default: "rsvp",
       required: true,
       index: true,
     },
@@ -101,6 +192,7 @@ const ScheduledMessageSchema = new Schema<ScheduledMessageDocument>(
       enum: ["all", "pending", "withTable"],
       default: "all",
       required: true,
+      index: true,
     },
 
     /* ======================
@@ -120,14 +212,35 @@ const ScheduledMessageSchema = new Schema<ScheduledMessageDocument>(
 
     templateKey: {
       type: String,
-      enum: ["rsvp", "table", "custom"],
+      enum: ["rsvp", "table", "custom", "reminder", "thankyou"],
       required: true,
+      index: true,
     },
 
     roundNumber: {
-  type: Number,
-  default: 1,
-},
+      type: Number,
+      enum: [1, 2, 3],
+      default: 1,
+      index: true,
+    },
+
+    round: {
+      type: Number,
+      enum: [1, 2, 3],
+      default: 1,
+      index: true,
+    },
+
+    templateName: {
+      type: String,
+      default: "",
+      index: true,
+    },
+
+    messageOverride: {
+      type: String,
+      default: "",
+    },
 
     /* ======================
        MESSAGE CONTENT
@@ -136,6 +249,7 @@ const ScheduledMessageSchema = new Schema<ScheduledMessageDocument>(
     messageContent: {
       type: String,
       required: true,
+      default: "",
     },
 
     /* ======================
@@ -195,14 +309,18 @@ const ScheduledMessageSchema = new Schema<ScheduledMessageDocument>(
 
     lockedAt: {
       type: Date,
+      default: null,
+      index: true,
     },
 
     lockedBy: {
       type: String,
+      default: null,
     },
 
     lastAttemptAt: {
       type: Date,
+      default: null,
     },
 
     /* ======================
@@ -211,10 +329,12 @@ const ScheduledMessageSchema = new Schema<ScheduledMessageDocument>(
 
     guestsCount: {
       type: Number,
+      default: 0,
     },
 
     sentCount: {
       type: Number,
+      default: 0,
     },
 
     sentGuestIds: {
@@ -231,16 +351,83 @@ const ScheduledMessageSchema = new Schema<ScheduledMessageDocument>(
 
     sentAt: {
       type: Date,
+      default: null,
+      index: true,
+    },
+
+    cancelledAt: {
+      type: Date,
+      default: null,
+      index: true,
     },
 
     error: {
       type: String,
+      default: "",
     },
   },
   {
     timestamps: true,
   }
 );
+
+/* ======================================================
+   PRE VALIDATE
+====================================================== */
+
+ScheduledMessageSchema.pre("validate", function () {
+  const doc = this as ScheduledMessageDocument;
+
+  const normalizedRound = normalizeRound(doc.round ?? doc.roundNumber);
+
+  doc.round = normalizedRound;
+  doc.roundNumber = normalizedRound;
+
+  if (!doc.type) {
+    doc.type = "rsvp";
+  }
+
+  if (!doc.filter) {
+    doc.filter = getDefaultFilterByTypeAndRound(doc.type, normalizedRound);
+  }
+
+  /**
+   * חוק חשוב:
+   * באישורי הגעה:
+   * סבב 1 = all
+   * סבב 2 = pending
+   * סבב 3 = pending
+   *
+   * זה לא אומר שהקהל נקבע עכשיו.
+   * זה רק אומר ל-worker מה לשלוף בזמן השליחה בפועל.
+   */
+  if (doc.type === "rsvp") {
+    doc.filter = normalizedRound === 1 ? "all" : "pending";
+  }
+
+  const cleanMessageContent = (doc.messageContent || "").trim();
+  const cleanMessageOverride = (doc.messageOverride || "").trim();
+  const cleanText = (doc.text || "").trim();
+
+  doc.messageContent =
+    cleanMessageContent || cleanMessageOverride || cleanText || "";
+
+  doc.messageOverride = cleanMessageOverride;
+  doc.text = cleanText;
+
+  if (doc.status !== "cancelled") {
+    doc.cancelledAt = null;
+  }
+
+  if (doc.status !== "sent") {
+    doc.sentAt = doc.sentAt ?? null;
+  }
+
+  if (doc.status !== "sending") {
+    doc.lockedAt = doc.lockedAt ?? null;
+    doc.lockedBy = doc.lockedBy ?? null;
+  }
+});
 
 /* ======================================================
    INDEXES
@@ -251,6 +438,7 @@ ScheduledMessageSchema.index({
   status: 1,
   scheduledAt: 1,
   lockedAt: 1,
+  priority: -1,
 });
 
 // רשימת הודעות להזמנה
@@ -265,10 +453,54 @@ ScheduledMessageSchema.index({
   createdAt: -1,
 });
 
+// שליפה מדויקת לתזמון קיים לפי הפרונט:
+// /api/scheduled/by-invitation?invitationId=...&type=rsvp&round=...&channel=...
+ScheduledMessageSchema.index({
+  invitationId: 1,
+  type: 1,
+  channel: 1,
+  round: 1,
+  status: 1,
+  scheduledAt: 1,
+});
+
+// תאימות לקוד ישן שמשתמש roundNumber/templateKey
+ScheduledMessageSchema.index({
+  invitationId: 1,
+  templateKey: 1,
+  channel: 1,
+  roundNumber: 1,
+  status: 1,
+  scheduledAt: 1,
+});
+
 // שליחה לפי עדיפות
 ScheduledMessageSchema.index({
   priority: -1,
   scheduledAt: 1,
+});
+
+/**
+ * חשוב:
+ * אין כאן unique index.
+ *
+ * למה?
+ * כי את רוצה לאפשר לתזמן מראש כמה דברים במקביל:
+ * - RSVP סבב 1
+ * - RSVP סבב 2
+ * - RSVP סבב 3
+ * - תזכורת
+ * - הודעת תודה
+ *
+ * אם יש כבר תזמון פעיל לאותו סבב/ערוץ בדיוק,
+ * נטפל בזה ב-API: נעדכן את הקיים במקום ליצור חדש.
+ */
+ScheduledMessageSchema.index({
+  invitationId: 1,
+  type: 1,
+  channel: 1,
+  round: 1,
+  status: 1,
 });
 
 /* ======================================================
