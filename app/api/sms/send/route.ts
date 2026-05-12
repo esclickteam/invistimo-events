@@ -197,7 +197,6 @@ const MESSAGE_TEMPLATES: Record<
     round3:
       "היי {{name}},\n" +
       "תזכורת אחרונה לאישור הגעה ל־{{invitationTitle}} 🎉\n\n" +
-      "עדיין לא קיבלנו מענה.\n" +
       "לאישור הגעה לחצו כאן:\n" +
       "{{rsvpLink}}\n\n" +
       "נשמח לעדכון 💖",
