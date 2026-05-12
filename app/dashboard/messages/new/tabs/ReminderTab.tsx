@@ -906,34 +906,34 @@ export default function ReminderTab({
         </div>
       )}
 
-      <style jsx global>{`
-        .send-button-gold button {
-          width: 100% !important;
-          border-radius: 20px !important;
-          background: linear-gradient(
-            135deg,
-            #d9b45f 0%,
-            #b9822e 48%,
-            #8d5a1c 100%
-          ) !important;
-          color: #ffffff !important;
-          font-weight: 900 !important;
-          box-shadow: 0 14px 34px rgba(120, 78, 24, 0.25) !important;
-          border: 1px solid rgba(255, 255, 255, 0.22) !important;
-        }
+      <style>{`
+  .send-button-gold button {
+    width: 100% !important;
+    border-radius: 20px !important;
+    background: linear-gradient(
+      135deg,
+      #d9b45f 0%,
+      #b9822e 48%,
+      #8d5a1c 100%
+    ) !important;
+    color: #ffffff !important;
+    font-weight: 900 !important;
+    box-shadow: 0 14px 34px rgba(120, 78, 24, 0.25) !important;
+    border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  }
 
-        .send-button-gold button:hover {
-          filter: brightness(1.04);
-        }
+  .send-button-gold button:hover {
+    filter: brightness(1.04);
+  }
 
-        .send-button-gold button:disabled {
-          background: #c9b48d !important;
-          color: rgba(255, 255, 255, 0.85) !important;
-          cursor: not-allowed !important;
-          opacity: 1 !important;
-          box-shadow: none !important;
-        }
-      `}</style>
+  .send-button-gold button:disabled {
+    background: #c9b48d !important;
+    color: rgba(255, 255, 255, 0.85) !important;
+    cursor: not-allowed !important;
+    opacity: 1 !important;
+    box-shadow: none !important;
+  }
+`}</style>
     </div>
   );
 }
