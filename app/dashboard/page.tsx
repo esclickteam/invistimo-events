@@ -2875,6 +2875,7 @@ function PremiumEventHero({
   canViewActualArrived: boolean;
   setWorkMode: (mode: "regular" | "live") => void;
 }) {
+  const safePercent = Math.max(0, Math.min(100, responsePercent));
 
   return (
     <div
