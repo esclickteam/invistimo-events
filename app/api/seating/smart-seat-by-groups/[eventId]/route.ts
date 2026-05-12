@@ -71,6 +71,11 @@ type GroupBucket = {
   isNoGroup: boolean;
 };
 
+type MovePlan = {
+  unit: GroupBucket;
+  target: TableState;
+};
+
 /* ===============================
    HELPERS
 =============================== */
@@ -270,6 +275,184 @@ function splitGroupIntoAvailableTables(
   }
 
   return remainingMembers;
+}
+
+/* ===============================
+   GROUP UNIT HELPERS
+   לא מפצלים קבוצה בשלב האיחוד
+=============================== */
+
+function buildGroupUnitsFromGuests(guests: InvitationGuestDoc[]) {
+  const map = new Map<string, GroupBucket>();
+
+  for (const guest of guests) {
+    const key = getGroupKey(guest);
+    const guestSeats = getGuestCount(guest);
+
+    if (!map.has(key)) {
+      map.set(key, {
+        key,
+        label: getGroupLabel(guest),
+        groupId: getGroupId(guest),
+        members: [],
+        seatsNeeded: 0,
+        isNoGroup: !hasRealGroup(guest),
+      });
+    }
+
+    const unit = map.get(key)!;
+    unit.members.push(guest);
+    unit.seatsNeeded += guestSeats;
+  }
+
+  return Array.from(map.values()).sort((a, b) => {
+    if (b.seatsNeeded !== a.seatsNeeded) {
+      return b.seatsNeeded - a.seatsNeeded;
+    }
+
+    return a.label.localeCompare(b.label, "he");
+  });
+}
+
+function tableHasSameGroup(table: TableState, unit: GroupBucket) {
+  if (!unit.groupId && unit.isNoGroup) {
+    return false;
+  }
+
+  return table.seatedGuests.some((guest) => {
+    if (unit.groupId && guest.groupId) {
+      return String(guest.groupId) === unit.groupId;
+    }
+
+    const relation = String(guest.relation || "").trim().toLowerCase();
+    const label = String(unit.label || "").trim().toLowerCase();
+
+    return Boolean(relation && label && relation === label);
+  });
+}
+
+/*
+  ✅ מוצא יעד ליחידת קבוצה שלמה:
+  1. קודם שולחן קודם עם אותה קבוצה.
+  2. אחר כך שולחן קודם שכבר יש בו אורחים ויש בו מקום.
+  3. לא מעביר לשולחן ריק אחר, כי זה לא פותר שולחן קטן.
+*/
+function findTargetForWholeUnit(
+  unit: GroupBucket,
+  sourceTable: TableState,
+  tableStates: TableState[],
+  reservedRemaining: Map<string, number>
+) {
+  const candidates = tableStates
+    .filter((table) => {
+      if (table.tableId === sourceTable.tableId) return false;
+
+      const usedSeats = getUsedSeats(table);
+      const remaining = reservedRemaining.get(table.tableId) ?? table.remaining;
+
+      return (
+        usedSeats > 0 &&
+        remaining >= unit.seatsNeeded &&
+        table.tableNumber < sourceTable.tableNumber
+      );
+    })
+    .sort((a, b) => {
+      const aSameGroup = tableHasSameGroup(a, unit);
+      const bSameGroup = tableHasSameGroup(b, unit);
+
+      if (aSameGroup && !bSameGroup) return -1;
+      if (!aSameGroup && bSameGroup) return 1;
+
+      return compareByTableNumber(a, b);
+    });
+
+  return candidates[0] || null;
+}
+
+/*
+  ✅ איחוד שולחנות לא משתלמים:
+  - עובד רק לפי יחידות קבוצה שלמות.
+  - לא מפצל קבוצה של 2/5/8.
+  - אם אין מקום לקבוצה כולה — משאיר אותה יחד.
+  - מנסה לרוקן שולחנות אחרונים/חצי ריקים לתוך שולחנות קודמים.
+*/
+function mergeUnderfilledTablesByWholeGroups(tableStates: TableState[]) {
+  let changed = true;
+
+  while (changed) {
+    changed = false;
+
+    const candidates = [...tableStates]
+      .filter((table) => {
+        const usedSeats = getUsedSeats(table);
+
+        if (usedSeats <= 0) return false;
+
+        const underfilledLimit = Math.max(2, Math.floor(table.capacity * 0.5));
+
+        return usedSeats <= underfilledLimit;
+      })
+      .sort((a, b) => {
+        if (b.tableNumber !== a.tableNumber) {
+          return b.tableNumber - a.tableNumber;
+        }
+
+        return b.originalIndex - a.originalIndex;
+      });
+
+    for (const sourceTable of candidates) {
+      const sourceUsedSeats = getUsedSeats(sourceTable);
+
+      if (sourceUsedSeats <= 0) continue;
+
+      const units = buildGroupUnitsFromGuests(sourceTable.seatedGuests);
+
+      if (!units.length) continue;
+
+      const reservedRemaining = new Map<string, number>();
+      const plans: MovePlan[] = [];
+
+      let canMoveAllUnits = true;
+
+      for (const unit of units) {
+        const target = findTargetForWholeUnit(
+          unit,
+          sourceTable,
+          tableStates,
+          reservedRemaining
+        );
+
+        if (!target) {
+          canMoveAllUnits = false;
+          break;
+        }
+
+        const currentRemaining =
+          reservedRemaining.get(target.tableId) ?? target.remaining;
+
+        reservedRemaining.set(target.tableId, currentRemaining - unit.seatsNeeded);
+        plans.push({ unit, target });
+      }
+
+      /*
+        אם אי אפשר להעביר את כל הקבוצות מהשולחן בלי לפצל —
+        לא נוגעים בשולחן הזה.
+      */
+      if (!canMoveAllUnits) {
+        continue;
+      }
+
+      for (const plan of plans) {
+        plan.target.seatedGuests.push(...plan.unit.members);
+        plan.target.remaining -= plan.unit.seatsNeeded;
+      }
+
+      sourceTable.seatedGuests = [];
+      sourceTable.remaining = sourceTable.capacity;
+
+      changed = true;
+    }
+  }
 }
 
 /* ===============================
@@ -594,6 +777,14 @@ export async function POST(req: NextRequest, context: RouteContext) {
         unseatedGuests.push(...stillUnseated);
       }
     }
+
+    /*
+      ✅ שלב 4:
+      לא משאירים שולחן שלם בשביל 1–2 אורחים / שולחן חצי ריק,
+      אם אפשר להעביר את כל הקבוצות ממנו יחד לתוך שולחנות קודמים.
+      לא מפצלים קבוצות.
+    */
+    mergeUnderfilledTablesByWholeGroups(tableStates);
 
     /* ===============================
        7. בניית tables[] לפי המודל האמיתי
