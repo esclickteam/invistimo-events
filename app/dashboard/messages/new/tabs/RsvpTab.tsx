@@ -159,13 +159,6 @@ function getWhatsappPreviewText({
 נשמח לעדכון 💖`;
 }
 
-function getRoundLockKeys(round: RoundNumber) {
-  return {
-    sms: `rsvpSmsRound${round}`,
-    whatsapp: `rsvpWhatsappRound${round}`,
-  };
-}
-
 /* ================= COMPONENT ================= */
 
 export default function RsvpTab({
@@ -217,9 +210,9 @@ export default function RsvpTab({
   const [round2Scheduled, setRound2Scheduled] = useState(false);
   const [round3Scheduled, setRound3Scheduled] = useState(false);
 
-  const [round1Locked, setRound1Locked] = useState(false);
-  const [round2Locked, setRound2Locked] = useState(false);
-  const [round3Locked, setRound3Locked] = useState(false);
+  const [round1Locked, setRound1Locked] = useState(true);
+  const [round2Locked, setRound2Locked] = useState(true);
+  const [round3Locked, setRound3Locked] = useState(true);
 
   const [waStats, setWaStats] = useState<{
     total: number;
@@ -360,80 +353,93 @@ export default function RsvpTab({
 
   /* ================= LOAD DATA ================= */
 
-  async function loadData() {
-    if (!invitationId) return;
-
-    try {
-      setLoading(true);
-
-      const [guestsRes, invitationRes] = await Promise.all([
-        fetch(`/api/guests?invitation=${invitationId}`, {
-          cache: "no-store",
-        }),
-        fetch(`/api/invitations/${invitationId}`, {
-          cache: "no-store",
-        }),
-      ]);
-
-      const guestsData = await guestsRes.json();
-      const invitationData = await invitationRes.json();
-
-      setGuests(Array.isArray(guestsData?.guests) ? guestsData.guests : []);
-
-      const inv = invitationData?.invitation;
-      const locks = inv?.messageLocks || {};
-
-      const r1Sent =
-        inv?.rsvpRound1SentAt ||
-        inv?.rsvpSmsRound1SentAt ||
-        inv?.rsvpWhatsappRound1SentAt;
-
-      const r2Sent =
-        inv?.rsvpRound2SentAt ||
-        inv?.rsvpSmsRound2SentAt ||
-        inv?.rsvpWhatsappRound2SentAt;
-
-      const r3Sent =
-        inv?.rsvpRound3SentAt ||
-        inv?.rsvpSmsRound3SentAt ||
-        inv?.rsvpWhatsappRound3SentAt;
-
-      const r1Scheduled =
-        inv?.rsvpSmsRound1ScheduledAt ||
-        inv?.rsvpWhatsappRound1ScheduledAt;
-
-      const r2Scheduled =
-        inv?.rsvpSmsRound2ScheduledAt ||
-        inv?.rsvpWhatsappRound2ScheduledAt;
-
-      const r3Scheduled =
-        inv?.rsvpSmsRound3ScheduledAt ||
-        inv?.rsvpWhatsappRound3ScheduledAt;
-
-      setRound1Sent(!!r1Sent);
-      setRound2Sent(!!r2Sent);
-      setRound3Sent(!!r3Sent);
-
-      setRound1Scheduled(!!r1Scheduled);
-      setRound2Scheduled(!!r2Scheduled);
-      setRound3Scheduled(!!r3Scheduled);
-
-      setRound1Locked(!!locks.rsvpSmsRound1 || !!locks.rsvpWhatsappRound1);
-      setRound2Locked(!!locks.rsvpSmsRound2 || !!locks.rsvpWhatsappRound2);
-      setRound3Locked(!!locks.rsvpSmsRound3 || !!locks.rsvpWhatsappRound3);
-
-      setGiftOptions(normalizeGiftOptions(inv?.giftOptions));
-      didInitGift.current = true;
-    } catch (err) {
-      console.error("❌ Failed to load RSVP data", err);
-    } finally {
-      setLoading(false);
-    }
-  }
-
   useEffect(() => {
+    async function loadData() {
+      if (!invitationId) return;
+
+      try {
+        setLoading(true);
+
+        const [guestsRes, invitationRes] = await Promise.all([
+          fetch(`/api/guests?invitation=${invitationId}`, {
+            cache: "no-store",
+          }),
+          fetch(`/api/invitations/${invitationId}`, {
+            cache: "no-store",
+          }),
+        ]);
+
+        const guestsData = await guestsRes.json();
+        const invitationData = await invitationRes.json();
+
+        setGuests(Array.isArray(guestsData?.guests) ? guestsData.guests : []);
+
+        const inv = invitationData?.invitation;
+
+        const r1Sent =
+          inv?.rsvpRound1SentAt ||
+          inv?.rsvpSmsRound1SentAt ||
+          inv?.rsvpWhatsappRound1SentAt;
+
+        const r2Sent =
+          inv?.rsvpRound2SentAt ||
+          inv?.rsvpSmsRound2SentAt ||
+          inv?.rsvpWhatsappRound2SentAt;
+
+        const r3Sent =
+          inv?.rsvpRound3SentAt ||
+          inv?.rsvpSmsRound3SentAt ||
+          inv?.rsvpWhatsappRound3SentAt;
+
+        const r1Scheduled =
+          inv?.rsvpSmsRound1ScheduledAt ||
+          inv?.rsvpWhatsappRound1ScheduledAt;
+
+        const r2Scheduled =
+          inv?.rsvpSmsRound2ScheduledAt ||
+          inv?.rsvpWhatsappRound2ScheduledAt;
+
+        const r3Scheduled =
+          inv?.rsvpSmsRound3ScheduledAt ||
+          inv?.rsvpWhatsappRound3ScheduledAt;
+
+        setRound1Sent(!!r1Sent);
+        setRound2Sent(!!r2Sent);
+        setRound3Sent(!!r3Sent);
+
+        setRound1Scheduled(!!r1Scheduled);
+        setRound2Scheduled(!!r2Scheduled);
+        setRound3Scheduled(!!r3Scheduled);
+
+        setRound1Locked(
+  selectedChannel === "sms"
+    ? inv?.messageLocks?.rsvpSmsRound1 ?? false
+    : inv?.messageLocks?.rsvpWhatsappRound1 ?? false
+);
+
+setRound2Locked(
+  selectedChannel === "sms"
+    ? inv?.messageLocks?.rsvpSmsRound2 ?? false
+    : inv?.messageLocks?.rsvpWhatsappRound2 ?? false
+);
+
+setRound3Locked(
+  selectedChannel === "sms"
+    ? inv?.messageLocks?.rsvpSmsRound3 ?? false
+    : inv?.messageLocks?.rsvpWhatsappRound3 ?? false
+);
+
+        setGiftOptions(normalizeGiftOptions(inv?.giftOptions));
+        didInitGift.current = true;
+      } catch (err) {
+        console.error("❌ Failed to load RSVP data", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
     loadData();
-  }, [invitationId]);
+  }, [invitationId, selectedChannel]);
 
   /* ================= SAVE GIFT OPTIONS ================= */
 
@@ -551,7 +557,6 @@ export default function RsvpTab({
       if (round === 3) setRound3Scheduled(false);
 
       await loadScheduledMessages();
-      await loadData();
     } catch (err: any) {
       alert(err.message || "שגיאה בביטול התזמון");
     } finally {
@@ -563,41 +568,23 @@ export default function RsvpTab({
 
   async function toggleMessageLock(key: string, current: boolean) {
     try {
-      const { sms, whatsapp } = getRoundLockKeys(round);
-      const nextValue = !current;
-
-      const [smsRes, whatsappRes] = await Promise.all([
-        fetch("/api/admin/toggle-message-lock", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            invitationId,
-            key: sms,
-            value: nextValue,
-          }),
+      const res = await fetch("/api/admin/toggle-message-lock", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          invitationId,
+          key,
+          value: !current,
         }),
-        fetch("/api/admin/toggle-message-lock", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            invitationId,
-            key: whatsapp,
-            value: nextValue,
-          }),
-        }),
-      ]);
+      });
 
-      if (!smsRes.ok || !whatsappRes.ok) throw new Error("FAILED");
+      if (!res.ok) throw new Error("FAILED");
 
-      if (round === 1) setRound1Locked(nextValue);
-      if (round === 2) setRound2Locked(nextValue);
-      if (round === 3) setRound3Locked(nextValue);
-
-      await loadData();
+      if (key.includes("Round1")) setRound1Locked(!current);
+      if (key.includes("Round2")) setRound2Locked(!current);
+      if (key.includes("Round3")) setRound3Locked(!current);
     } catch (err) {
       console.error(err);
       alert("שגיאה בעדכון הסבב");
@@ -605,7 +592,8 @@ export default function RsvpTab({
   }
 
   function getCurrentLockKey() {
-    return getRoundLockKeys(round).whatsapp;
+    const prefix = selectedChannel === "sms" ? "rsvpSms" : "rsvpWhatsapp";
+    return `${prefix}Round${round}`;
   }
 
   /* ================= DOUBLE CLICK LOCK ================= */
@@ -664,10 +652,10 @@ export default function RsvpTab({
   const missingHeaderImage = selectedChannel === "whatsapp" && !headerImageUrl;
 
   const blocked =
-    (sendTiming === "now" && noAudience) ||
-    missingHeaderImage ||
-    (sendTiming === "scheduled" && !scheduledAt) ||
-    currentRoundLocked;
+  (sendTiming === "now" && noAudience) ||
+  missingHeaderImage ||
+  (sendTiming === "scheduled" && !scheduledAt) ||
+  (currentRoundSent && currentRoundLocked);
 
   const whatsappPreviewText = useMemo(() => {
     return getWhatsappPreviewText({
@@ -719,18 +707,13 @@ export default function RsvpTab({
           disabled: blocked,
         };
 
-  const mainButtonText =
-    currentRoundLocked
-      ? `✔ סבב ${round} כבר נשלח`
-      : currentRoundSent
-      ? sendTiming === "scheduled"
-        ? `תזמן שליחה חוזרת - סבב ${round}`
-        : `שלח שוב - סבב ${round}`
-      : currentRoundScheduled || hasExistingSchedule
-      ? `⏱️ עדכן תזמון - סבב ${round}`
-      : sendTiming === "scheduled"
-      ? `תזמן שליחה - סבב ${round}`
-      : `שלח עכשיו - סבב ${round}`;
+  const mainButtonText = currentRoundSent
+  ? `✔ סבב ${round} כבר נשלח`
+  : currentRoundScheduled || hasExistingSchedule
+  ? `⏱️ עדכן תזמון - סבב ${round}`
+  : sendTiming === "scheduled"
+  ? `תזמן שליחה - סבב ${round}`
+  : `שלח עכשיו - סבב ${round}`;
 
   /* ================= LOADING ================= */
 
@@ -812,13 +795,6 @@ export default function RsvpTab({
                     : r === 2
                     ? round2Sent
                     : round3Sent
-                }
-                locked={
-                  r === 1
-                    ? round1Locked
-                    : r === 2
-                    ? round2Locked
-                    : round3Locked
                 }
                 scheduled={
                   r === 1
@@ -976,7 +952,7 @@ export default function RsvpTab({
               >
                 <textarea
                   value={currentSmsMessage}
-                  disabled={sendingNow || currentRoundLocked}
+                  disabled={sendingNow}
                   onChange={(e) =>
                     setSmsMessages((p) => ({
                       ...p,
@@ -1102,7 +1078,7 @@ export default function RsvpTab({
                   subtitle="ההודעה תישלח עכשיו לפי הסבב והערוץ שנבחרו"
                   icon="🚀"
                   active={sendTiming === "now"}
-                  disabled={sendingNow || currentRoundLocked}
+                  disabled={sendingNow}
                   onClick={() => {
                     setSendTiming("now");
                     setScheduledDate("");
@@ -1115,7 +1091,7 @@ export default function RsvpTab({
                   subtitle="קבעי תאריך ושעה לשליחה אוטומטית"
                   icon="📅"
                   active={sendTiming === "scheduled"}
-                  disabled={sendingNow || currentRoundLocked}
+                  disabled={sendingNow}
                   onClick={() => setSendTiming("scheduled")}
                 />
               </div>
@@ -1125,7 +1101,7 @@ export default function RsvpTab({
                   <input
                     type="date"
                     value={scheduledDate}
-                    disabled={sendingNow || currentRoundLocked}
+                    disabled={sendingNow}
                     onChange={(e) => setScheduledDate(e.target.value)}
                     className="rounded-2xl border border-[#E6D6BC] bg-white px-4 py-3.5 text-sm font-bold outline-none focus:border-[#B9894D] focus:ring-4 focus:ring-[#E9D4AC] disabled:opacity-60"
                   />
@@ -1133,7 +1109,7 @@ export default function RsvpTab({
                   <input
                     type="time"
                     value={scheduledTime}
-                    disabled={sendingNow || currentRoundLocked}
+                    disabled={sendingNow}
                     onChange={(e) => setScheduledTime(e.target.value)}
                     className="rounded-2xl border border-[#E6D6BC] bg-white px-4 py-3.5 text-sm font-bold outline-none focus:border-[#B9894D] focus:ring-4 focus:ring-[#E9D4AC] disabled:opacity-60"
                   />
@@ -1176,45 +1152,33 @@ export default function RsvpTab({
               )}
 
               {sendTiming === "now" && noAudience && (
-                <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-600">
-                  אין נמענים לשליחה מיידית בסבב זה.
-                </div>
-              )}
+  <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-600">
+    אין נמענים לשליחה מיידית בסבב זה.
+  </div>
+)}
 
               <SendButton
-                key={`${invitationId}-${selectedChannel}-${round}-${templateName}-${currentRoundSent}-${currentRoundScheduled}-${currentRoundLocked}-${hasExistingSchedule}`}
-                {...sendButtonProps}
-                disabled={blocked}
-                onAfterSend={async () => {
-                  await loadScheduledMessages();
+  key={`${invitationId}-${selectedChannel}-${round}-${templateName}-${currentRoundSent}-${currentRoundScheduled}-${hasExistingSchedule}`}
+  {...sendButtonProps}
+  disabled={blocked}
+  onAfterSend={async () => {
+    await loadScheduledMessages();
 
-                  if (sendTiming === "scheduled") {
-                    if (round === 1) setRound1Scheduled(true);
-                    if (round === 2) setRound2Scheduled(true);
-                    if (round === 3) setRound3Scheduled(true);
-                  } else {
-                    if (round === 1) {
-                      setRound1Sent(true);
-                      setRound1Locked(true);
-                    }
+    if (sendTiming === "scheduled") {
+      if (round === 1) setRound1Scheduled(true);
+      if (round === 2) setRound2Scheduled(true);
+      if (round === 3) setRound3Scheduled(true);
+    } else {
+      if (round === 1) setRound1Sent(true);
+      if (round === 2) setRound2Sent(true);
+      if (round === 3) setRound3Sent(true);
+    }
 
-                    if (round === 2) {
-                      setRound2Sent(true);
-                      setRound2Locked(true);
-                    }
-
-                    if (round === 3) {
-                      setRound3Sent(true);
-                      setRound3Locked(true);
-                    }
-                  }
-
-                  await loadData();
-                  unlockSendButton();
-                }}
-              >
-                {mainButtonText}
-              </SendButton>
+    unlockSendButton();
+  }}
+>
+  {mainButtonText}
+</SendButton>
 
               <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs text-[#7A5A3A]">
                 <span>נמענים לשליחה: {guestsToSend.length}</span>
@@ -1363,7 +1327,6 @@ function RoundButton({
   count,
   channel,
   sent,
-  locked,
   scheduled,
   onClick,
 }: {
@@ -1374,7 +1337,6 @@ function RoundButton({
   count: number;
   channel: Channel;
   sent: boolean;
-  locked: boolean;
   scheduled: boolean;
   onClick: () => void;
 }) {
@@ -1397,9 +1359,7 @@ function RoundButton({
           <div className="flex items-center gap-2">
             <span
               className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-black ${
-                active
-                  ? "bg-white text-[#8A5A25]"
-                  : "bg-[#FFF3DD] text-[#8A5A25]"
+                active ? "bg-white text-[#8A5A25]" : "bg-[#FFF3DD] text-[#8A5A25]"
               }`}
             >
               {roundNumber}
@@ -1429,13 +1389,13 @@ function RoundButton({
         {channel === "sms" ? "📩 SMS" : "💬 WhatsApp"}
       </div>
 
-      {(locked || sent || scheduled) && (
+      {(sent || scheduled) && (
         <div
           className={`relative mt-3 rounded-2xl px-3 py-2 text-xs font-bold ${
             active ? "bg-white/18 text-white" : "bg-green-50 text-green-700"
           }`}
         >
-          {locked ? "סגור" : sent ? "נשלח" : "מתוזמן"}
+          {sent ? "נשלח" : "מתוזמן"}
         </div>
       )}
     </button>

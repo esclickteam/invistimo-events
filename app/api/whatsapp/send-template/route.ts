@@ -5,10 +5,16 @@ import { cookies } from "next/headers";
 
 import "@/models/Event";
 import db from "@/lib/db";
+
 import Invitation from "@/models/Invitation";
 import InvitationGuest from "@/models/InvitationGuest";
 import ScheduledMessage from "@/models/ScheduledMessage";
 import WhatsappQueue from "@/models/WhatsappQueue";
+
+import {
+  isRsvpRoundAlreadySent,
+  markRsvpRoundAsActuallySent,
+} from "@/lib/rsvpRoundLock";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -145,14 +151,6 @@ function getRsvpScheduledField(round: RoundNumber) {
   return `rsvpWhatsappRound${round}ScheduledAt`;
 }
 
-function getRsvpSentField(round: RoundNumber) {
-  return `rsvpWhatsappRound${round}SentAt`;
-}
-
-function getGenericRsvpSentField(round: RoundNumber) {
-  return `rsvpRound${round}SentAt`;
-}
-
 function cleanAddress(address?: string): string {
   if (!address) return "";
 
@@ -243,6 +241,12 @@ function buildPayloadTemplate({
 
   const eventLocation = cleanAddress(invitation.location?.address);
 
+  /**
+   * חשוב:
+   * כאן שומרים placeholders.
+   * ה-worker מחליף אותם בזמן השליחה בפועל.
+   * כך RSVP / שולחן / ניווט / שם אורח נשארים עדכניים.
+   */
   const basePayload: any = {
     languageCode,
     eventTitle: invitation.title || "",
@@ -339,6 +343,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = (await req.json()) as Partial<SendTemplateRequestBody>;
+
     const scheduledAtRaw = body.scheduledAt;
 
     if (!isTemplateName(body.templateName)) {
@@ -387,6 +392,56 @@ export async function POST(req: NextRequest) {
       ? body.guestIds.filter((id) => mongoose.Types.ObjectId.isValid(id))
       : [];
 
+    /* ======================================================
+       BLOCKS — RSVP לפי סבב כללי, לא לפי ערוץ
+       תזמון לא נחשב שליחה בפועל.
+       אם SMS כבר שלח את הסבב — WhatsApp נחסם.
+       אם WhatsApp כבר שלח את הסבב — SMS נחסם.
+    ====================================================== */
+
+    if (type === "rsvp") {
+      const alreadySent = isRsvpRoundAlreadySent(invitation, round);
+
+      if (alreadySent) {
+        return NextResponse.json(
+          {
+            success: false,
+            blocked: true,
+            error: "RSVP_ROUND_ALREADY_SENT",
+            message: `סבב ${round} כבר נשלח בפועל ולכן חסום לשליחה נוספת בכל הערוצים.`,
+            round,
+          },
+          { status: 409 }
+        );
+      }
+    }
+
+    if (type === "reminder" || type === "table") {
+      const reminderAlready =
+        invitation.reminderSentAt &&
+        invitation.messageLocks?.reminderWhatsapp;
+
+      if (reminderAlready) {
+        return NextResponse.json(
+          { success: false, error: "REMINDER_ALREADY_SENT" },
+          { status: 409 }
+        );
+      }
+    }
+
+    if (type === "thankyou" || type === "custom") {
+      const thankyouAlready =
+        invitation.thankYouSentAt &&
+        invitation.messageLocks?.thankyouWhatsapp;
+
+      if (thankyouAlready) {
+        return NextResponse.json(
+          { success: false, error: "THANKYOU_ALREADY_SENT" },
+          { status: 409 }
+        );
+      }
+    }
+
     const guestQuery = buildGuestQuery({
       invitationId,
       type,
@@ -401,58 +456,6 @@ export async function POST(req: NextRequest) {
       languageCode,
       invitation,
     });
-
-    /* ======================================================
-       BLOCKS — רק לפי שליחה בפועל, לא לפי scheduledAt
-       אחרי שליחה בפועל, אותו סבב חסום בכל הערוצים.
-    ====================================================== */
-
-    if (type === "rsvp") {
-      const sentField = getRsvpSentField(round);
-      const genericSentField = getGenericRsvpSentField(round);
-
-      const alreadySent =
-        ((invitation as any)[sentField] ||
-          (invitation as any)[genericSentField]) &&
-        ((invitation as any).messageLocks?.[`rsvpWhatsappRound${round}`] ||
-          (invitation as any).messageLocks?.[`rsvpSmsRound${round}`]);
-
-      if (alreadySent) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: `RSVP_ROUND${round}_ALREADY_SENT`,
-          },
-          { status: 400 }
-        );
-      }
-    }
-
-    if (type === "reminder" || type === "table") {
-      const reminderAlready =
-        invitation.reminderSentAt &&
-        invitation.messageLocks?.reminderWhatsapp;
-
-      if (reminderAlready) {
-        return NextResponse.json(
-          { success: false, error: "REMINDER_ALREADY_SENT" },
-          { status: 400 }
-        );
-      }
-    }
-
-    if (type === "thankyou" || type === "custom") {
-      const thankyouAlready =
-        invitation.thankYouSentAt &&
-        invitation.messageLocks?.thankyouWhatsapp;
-
-      if (thankyouAlready) {
-        return NextResponse.json(
-          { success: false, error: "THANKYOU_ALREADY_SENT" },
-          { status: 400 }
-        );
-      }
-    }
 
     /* ======================================================
        SCHEDULE
@@ -511,6 +514,8 @@ export async function POST(req: NextRequest) {
         templateName,
         payload,
 
+        // חובה כי ScheduledMessage דורש messageContent
+        // ב-WhatsApp מקור האמת הוא payload/templateName, לא טקסט חופשי
         messageContent: `whatsapp:${templateName}`,
         messageOverride: `whatsapp:${templateName}`,
         text: `whatsapp:${templateName}`,
@@ -566,7 +571,7 @@ export async function POST(req: NextRequest) {
        IMMEDIATE SEND
        כאן לא מתזמנים.
        יוצרים WhatsAppQueue לשליחה מיידית.
-       רק אחרי זה מסמנים שהסבב נכנס לשליחה בפועל.
+       אחרי זה מסמנים את הסבב כנשלח בפועל.
     ====================================================== */
 
     const guests = await InvitationGuest.find(guestQuery);
@@ -647,24 +652,17 @@ export async function POST(req: NextRequest) {
 
     if (queueDocs.length > 0) {
       if (type === "rsvp") {
-        const sentField = getRsvpSentField(round);
-        const genericSentField = getGenericRsvpSentField(round);
         const scheduledField = getRsvpScheduledField(round);
 
-        await Invitation.updateOne(
-          {
-            _id: invitation._id,
-            [sentField]: { $in: [null, undefined] },
-          },
-          {
-            $set: {
-              [sentField]: new Date(),
-              [genericSentField]: new Date(),
+        await markRsvpRoundAsActuallySent({
+          invitationId: String(invitation._id),
+          round,
+          channel: "whatsapp",
+        });
 
-              // ✅ אחרי שליחה בפועל — אותו סבב נחסם בכל הערוצים
-              [`messageLocks.rsvpWhatsappRound${round}`]: true,
-              [`messageLocks.rsvpSmsRound${round}`]: true,
-            },
+        await Invitation.updateOne(
+          { _id: invitation._id },
+          {
             $unset: {
               [scheduledField]: "",
             },

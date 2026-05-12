@@ -11,6 +11,11 @@ import {
   type SendRsvpTemplateMediaInput,
 } from "@/lib/whatsapp/sendRsvpTemplateMedia";
 
+import {
+  isRsvpRoundAlreadySent,
+  markRsvpRoundAsActuallySent,
+} from "@/lib/rsvpRoundLock";
+
 /* ======================================================
    TYPES
 ====================================================== */
@@ -53,18 +58,6 @@ function normalizeType(value: any): ScheduleType {
   }
 
   return "custom";
-}
-
-function getRsvpSmsSentField(round: RoundNumber) {
-  return `rsvpSmsRound${round}SentAt`;
-}
-
-function getRsvpWhatsappSentField(round: RoundNumber) {
-  return `rsvpWhatsappRound${round}SentAt`;
-}
-
-function getGenericRsvpSentField(round: RoundNumber) {
-  return `rsvpRound${round}SentAt`;
 }
 
 function getRsvpSmsScheduledField(round: RoundNumber) {
@@ -287,8 +280,31 @@ async function sendWhatsappTemplate({
 }
 
 /* ======================================================
-   MARK INVITATION AFTER ACTUAL SEND
+   SCHEDULE HELPERS
 ====================================================== */
+
+async function cancelScheduledBecauseRoundAlreadySent({
+  scheduleId,
+  round,
+  channel,
+}: {
+  scheduleId: any;
+  round: RoundNumber;
+  channel: Channel;
+}) {
+  await ScheduledMessage.updateOne(
+    { _id: scheduleId },
+    {
+      $set: {
+        status: "cancelled",
+        cancelledAt: new Date(),
+        lockedAt: null,
+        lockedBy: null,
+        error: `RSVP_ROUND_${round}_ALREADY_SENT_BEFORE_${channel.toUpperCase()}_SCHEDULED_SEND`,
+      },
+    }
+  );
+}
 
 async function markInvitationAfterSend({
   schedule,
@@ -305,30 +321,20 @@ async function markInvitationAfterSend({
   const round = normalizeRound(schedule.round ?? schedule.roundNumber);
 
   if (type === "rsvp") {
-    const sentField =
-      channel === "sms"
-        ? getRsvpSmsSentField(round)
-        : getRsvpWhatsappSentField(round);
-
     const scheduledField =
       channel === "sms"
         ? getRsvpSmsScheduledField(round)
         : getRsvpWhatsappScheduledField(round);
 
-    await Invitation.updateOne(
-      {
-        _id: schedule.invitationId,
-        [sentField]: { $in: [null, undefined] },
-      },
-      {
-        $set: {
-          [sentField]: new Date(),
-          [getGenericRsvpSentField(round)]: new Date(),
+    await markRsvpRoundAsActuallySent({
+      invitationId: String(schedule.invitationId),
+      round,
+      channel,
+    });
 
-          // ✅ אחרי שליחה בפועל — אותו סבב נחסם בכל הערוצים
-          [`messageLocks.rsvpSmsRound${round}`]: true,
-          [`messageLocks.rsvpWhatsappRound${round}`]: true,
-        },
+    await Invitation.updateOne(
+      { _id: schedule.invitationId },
+      {
         $unset: {
           [scheduledField]: "",
         },
@@ -445,11 +451,30 @@ export async function sendScheduledSms() {
         continue;
       }
 
+      const type = normalizeType(msg.type || msg.templateKey);
+      const round = normalizeRound(msg.round ?? msg.roundNumber);
+
       const invitation: any = await Invitation.findById(msg.invitationId).lean();
       const user: any = await User.findById(msg.userId).lean();
 
       if (!invitation || !user) {
         throw new Error("INVITATION_OR_USER_NOT_FOUND");
+      }
+
+      /**
+       * חשוב:
+       * תזמון לא חוסם.
+       * אבל ברגע שה-worker הגיע לשליחה בפועל,
+       * אם הסבב כבר נשלח בערוץ אחר — לא שולחים שוב.
+       */
+      if (type === "rsvp" && isRsvpRoundAlreadySent(invitation, round)) {
+        await cancelScheduledBecauseRoundAlreadySent({
+          scheduleId: msg._id,
+          round,
+          channel: "sms",
+        });
+
+        continue;
       }
 
       const navigationLink = await buildNavigationLink(invitation);
@@ -631,10 +656,29 @@ export async function sendScheduledWhatsapp() {
         continue;
       }
 
+      const type = normalizeType(msg.type || msg.templateKey);
+      const round = normalizeRound(msg.round ?? msg.roundNumber);
+
       const invitation: any = await Invitation.findById(msg.invitationId).lean();
 
       if (!invitation) {
         throw new Error("INVITATION_NOT_FOUND");
+      }
+
+      /**
+       * חשוב:
+       * תזמון לא חוסם.
+       * אבל ברגע שה-worker הגיע לשליחה בפועל,
+       * אם הסבב כבר נשלח בערוץ אחר — לא שולחים שוב.
+       */
+      if (type === "rsvp" && isRsvpRoundAlreadySent(invitation, round)) {
+        await cancelScheduledBecauseRoundAlreadySent({
+          scheduleId: msg._id,
+          round,
+          channel: "whatsapp",
+        });
+
+        continue;
       }
 
       const navigationLink = await buildNavigationLink(invitation);
@@ -687,9 +731,9 @@ export async function sendScheduledWhatsapp() {
 
         const idempotencyKey = [
           "whatsapp",
-          normalizeType(msg.type || msg.templateKey),
+          type,
           String(msg.invitationId),
-          String(normalizeRound(msg.round ?? msg.roundNumber)),
+          String(round),
           String(guest._id),
           String(msg._id),
           templateName,
@@ -703,9 +747,9 @@ export async function sendScheduledWhatsapp() {
               guestId: guest._id,
               scheduleId: msg._id,
               channel: "whatsapp",
-              type: normalizeType(msg.type || msg.templateKey),
-              round: normalizeRound(msg.round ?? msg.roundNumber),
-              roundNumber: normalizeRound(msg.round ?? msg.roundNumber),
+              type,
+              round,
+              roundNumber: round,
               phone,
               templateName,
               idempotencyKey,

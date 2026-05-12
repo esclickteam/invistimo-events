@@ -59,6 +59,49 @@ const InvitationSettingsSchema = new Schema(
   { _id: false }
 );
 
+/* ================= RSVP ROUND SENT SUB-SCHEMA ================= */
+/**
+ * SOURCE OF TRUTH לחסימת סבבי אישורי הגעה.
+ *
+ * חשוב:
+ * - מתעדכן רק אחרי שליחה בפועל.
+ * - תזמון לא מעדכן את זה.
+ * - אם סבב 1 נשלח ב-SMS, גם WhatsApp סבב 1 נחסם.
+ * - אם סבב 1 נשלח ב-WhatsApp, גם SMS סבב 1 נחסם.
+ */
+
+const RsvpRoundsSentSchema = new Schema(
+  {
+    round1: {
+      sentAt: { type: Date, default: null },
+      channel: {
+        type: String,
+        enum: ["sms", "whatsapp", null],
+        default: null,
+      },
+    },
+
+    round2: {
+      sentAt: { type: Date, default: null },
+      channel: {
+        type: String,
+        enum: ["sms", "whatsapp", null],
+        default: null,
+      },
+    },
+
+    round3: {
+      sentAt: { type: Date, default: null },
+      channel: {
+        type: String,
+        enum: ["sms", "whatsapp", null],
+        default: null,
+      },
+    },
+  },
+  { _id: false }
+);
+
 /* ================= MESSAGE LOCKS SUB-SCHEMA ================= */
 /**
  * חשוב:
@@ -254,6 +297,24 @@ const InvitationSchema = new Schema(
 
     invitationSettings: {
       type: InvitationSettingsSchema,
+      default: () => ({}),
+    },
+
+    /* =========================================================
+       RSVP ROUND SENT STATE - SOURCE OF TRUTH
+       זה השדה המרכזי לחסימת סבב שלם בכל הערוצים.
+
+       מתעדכן רק אחרי שליחה בפועל:
+       - SMS מיידי שנשלח בפועל
+       - WhatsApp מיידי שנשלח בפועל
+       - SMS מתוזמן רק כשה-worker באמת שלח
+       - WhatsApp מתוזמן רק כשה-worker באמת שלח
+
+       לא מתעדכן בזמן יצירת תזמון.
+    ========================================================= */
+
+    rsvpRoundsSent: {
+      type: RsvpRoundsSentSchema,
       default: () => ({}),
     },
 

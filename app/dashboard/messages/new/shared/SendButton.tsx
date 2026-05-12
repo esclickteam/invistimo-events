@@ -224,15 +224,32 @@ const SendButton: React.FC<Props> = ({
 
       /* ================= SUCCESS ================= */
 
-      if (isScheduled || data?.scheduled) {
-        alert("⏱️ ההודעות תוזמנו בהצלחה");
-      } else {
-        const count = data?.queued ?? data?.sent ?? audience.length;
-        alert(`📤 ${count} הודעות נכנסו לתהליך שליחה ב-${channelLabel}`);
-      }
+      /* ================= SUCCESS ================= */
 
-      setDone(true);
-      await onAfterSend?.();
+if (isScheduled || data?.scheduled) {
+  alert("⏱️ ההודעות תוזמנו בהצלחה");
+
+  /**
+   * חשוב:
+   * תזמון לא נחשב שליחה בפועל.
+   * לכן לא מסמנים done, כדי לא לחסום את הכפתור בפרונט.
+   * החסימה תקרה רק כשה-worker ישלח בפועל ויסמן את הסבב כנשלח.
+   */
+  setDone(false);
+  inFlightRef.current = false;
+} else {
+  const count = data?.queued ?? data?.sent ?? audience.length;
+  alert(`📤 ${count} הודעות נכנסו לתהליך שליחה ב-${channelLabel}`);
+
+  /**
+   * שליחה מיידית כן נחשבת פעולה שבוצעה.
+   * אחרי שהשרת יסמן את הסבב כנשלח בפועל,
+   * onAfterSend ירענן את הנתונים והכפתור ייחסם לפי השרת.
+   */
+  setDone(true);
+}
+
+await onAfterSend?.();
     } catch (err) {
       console.error("❌ SEND ERROR:", err);
       alert("❌ שגיאה בשליחה");

@@ -1,12 +1,19 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
+
 import InvitationGuest from "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
 import User from "@/models/User";
 import ScheduledMessage from "@/models/ScheduledMessage";
+
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import { shortenUrl } from "@/lib/shortenUrl";
+
+import {
+  isRsvpRoundAlreadySent,
+  markRsvpRoundAsActuallySent,
+} from "@/lib/rsvpRoundLock";
 
 /* ======================================================
    TYPES
@@ -97,14 +104,6 @@ function getFilterForSend({
 
 function getRsvpScheduledField(round: RoundNumber) {
   return `rsvpSmsRound${round}ScheduledAt`;
-}
-
-function getRsvpSentField(round: RoundNumber) {
-  return `rsvpSmsRound${round}SentAt`;
-}
-
-function getGenericRsvpSentField(round: RoundNumber) {
-  return `rsvpRound${round}SentAt`;
 }
 
 function buildGuestQuery({
@@ -320,8 +319,8 @@ export async function POST(req: Request) {
     const invitationId = body.invitationId;
     const templateKey = normalizeTemplateKey(body.templateKey || body.type);
     const round = normalizeRound(body.round ?? body.roundNumber);
-    const rawFilter = body.filter || "all";
 
+    const rawFilter = body.filter || "all";
     const filter = getFilterForSend({
       templateKey,
       round,
@@ -371,7 +370,7 @@ export async function POST(req: Request) {
 
     /* ================= INVITATION ================= */
 
-    const invitation: any = await Invitation.findById(invitationId).lean();
+    const invitation = await Invitation.findById(invitationId).lean();
 
     if (!invitation) {
       return NextResponse.json(
@@ -383,27 +382,25 @@ export async function POST(req: Request) {
     const invitationTitle = invitation.title?.trim() || "האירוע שלנו";
 
     /* ======================================================
-       BLOCKS — only sent locks, not scheduled
-       אחרי שליחה בפועל, הסבב חסום בכל הערוצים.
+       BLOCKS — RSVP לפי סבב כללי, לא לפי SMS בלבד
+       תזמון לא נחשב שליחה בפועל.
+       אם WhatsApp כבר שלח את הסבב — SMS נחסם.
+       אם SMS כבר שלח את הסבב — WhatsApp נחסם.
     ====================================================== */
 
     if (templateKey === "rsvp") {
-      const sentField = getRsvpSentField(round);
-      const genericSentField = getGenericRsvpSentField(round);
-
-      const alreadySent =
-        ((invitation as any)[sentField] ||
-          (invitation as any)[genericSentField]) &&
-        ((invitation as any).messageLocks?.[`rsvpSmsRound${round}`] ||
-          (invitation as any).messageLocks?.[`rsvpWhatsappRound${round}`]);
+      const alreadySent = isRsvpRoundAlreadySent(invitation, round);
 
       if (alreadySent) {
         return NextResponse.json(
           {
             success: false,
-            error: `RSVP_ROUND${round}_ALREADY_SENT`,
+            blocked: true,
+            error: "RSVP_ROUND_ALREADY_SENT",
+            message: `סבב ${round} כבר נשלח בפועל ולכן חסום לשליחה נוספת בכל הערוצים.`,
+            round,
           },
-          { status: 400 }
+          { status: 409 }
         );
       }
     }
@@ -418,7 +415,7 @@ export async function POST(req: Request) {
             success: false,
             error: "REMINDER_ALREADY_SENT",
           },
-          { status: 400 }
+          { status: 409 }
         );
       }
     }
@@ -433,7 +430,7 @@ export async function POST(req: Request) {
             success: false,
             error: "THANKYOU_ALREADY_SENT",
           },
-          { status: 400 }
+          { status: 409 }
         );
       }
     }
@@ -471,6 +468,7 @@ export async function POST(req: Request) {
 
     /* ======================================================
        SCHEDULE
+       חשוב:
        לא קובעים קהל סופי בזמן התזמון.
        לא מעדכנים SentAt.
        לא נועלים messageLocks.
@@ -493,6 +491,10 @@ export async function POST(req: Request) {
         );
       }
 
+      /**
+       * guestsCount הוא הערכה להצגה בלבד.
+       * ה-worker ישלוף מחדש בזמן השליחה בפועל.
+       */
       const guestsCount = await InvitationGuest.countDocuments(guestsQuery);
 
       let previewContent = baseTemplateText
@@ -534,6 +536,11 @@ export async function POST(req: Request) {
         );
       }
 
+      /**
+       * שומרים תבנית עם placeholders.
+       * בתזכורת/שולחן ה-worker יבנה שוב בזמן השליחה בפועל,
+       * כדי שמספר שולחן עדכני ייכנס להודעה.
+       */
       let messageContent = baseTemplateText
         .replace(/{{name}}/g, "{{name}}")
         .replace(/{{invitationTitle}}/g, invitationTitle)
@@ -545,6 +552,18 @@ export async function POST(req: Request) {
         messageContent += `\n\n🎁 למתנה באשראי:\n${giftLink}`;
       }
 
+      /**
+       * אם קיים כבר תזמון פעיל לאותו דבר בדיוק:
+       * אותה הזמנה + אותו סוג + אותו ערוץ + אותו סבב
+       * מעדכנים אותו.
+       *
+       * זה עדיין מאפשר במקביל:
+       * RSVP round 1
+       * RSVP round 2
+       * RSVP round 3
+       * reminder
+       * thankyou
+       */
       const existingSchedule = await ScheduledMessage.findOne({
         invitationId,
         userId: user._id,
@@ -580,6 +599,10 @@ export async function POST(req: Request) {
         messageOverride: baseTemplateText,
         text: messageContent,
 
+        /**
+         * RSVP לא שומר guestIds כמקור אמת.
+         * הודעות אחרות יכולות לשמור אם נבחרו.
+         */
         guestIds: templateKey === "rsvp" ? [] : guestIds,
 
         round,
@@ -625,7 +648,7 @@ export async function POST(req: Request) {
 
     /* ======================================================
        SEND NOW
-       כאן כן שולחים בפועל ולכן רק כאן מסמנים SentAt + locks.
+       כאן כן שולחים בפועל ולכן רק כאן מסמנים SentAt + lock.
     ====================================================== */
 
     const guests = await InvitationGuest.find(guestsQuery).lean();
@@ -654,7 +677,7 @@ export async function POST(req: Request) {
     for (let i = 0; i < guests.length; i += BATCH_SIZE) {
       const batch = guests.slice(i, i + BATCH_SIZE);
 
-      const tasks = batch.map(async (freshGuest: any) => {
+      const tasks = batch.map(async (freshGuest) => {
         if (
           template.requiresTable &&
           !freshGuest.tableName &&
@@ -679,6 +702,7 @@ export async function POST(req: Request) {
         }
 
         const personalRsvpUrl = `https://www.invistimo.com/invite/${invitation.shareId}?token=${freshGuest.token}`;
+
         const shortRsvpUrl = await shortenUrl(personalRsvpUrl);
 
         let finalText = baseMessage
@@ -744,33 +768,22 @@ export async function POST(req: Request) {
 
     if (sent > 0) {
       if (templateKey === "rsvp") {
-        const sentField = getRsvpSentField(round);
-        const genericSentField = getGenericRsvpSentField(round);
         const scheduledField = getRsvpScheduledField(round);
 
-        const result = await Invitation.updateOne(
-          {
-            _id: invitationId,
-            [sentField]: { $in: [null, undefined] },
-          },
-          {
-            $set: {
-              [sentField]: new Date(),
-              [genericSentField]: new Date(),
+        await markRsvpRoundAsActuallySent({
+          invitationId,
+          round,
+          channel: "sms",
+        });
 
-              // ✅ אחרי שליחה בפועל — אותו סבב נחסם בכל הערוצים
-              [`messageLocks.rsvpSmsRound${round}`]: true,
-              [`messageLocks.rsvpWhatsappRound${round}`]: true,
-            },
+        await Invitation.updateOne(
+          { _id: invitationId },
+          {
             $unset: {
               [scheduledField]: "",
             },
           }
         );
-
-        if (result.modifiedCount === 0) {
-          throw new Error(`ROUND${round}_ALREADY_SENT_RACE`);
-        }
       }
 
       if (templateKey === "table" || templateKey === "reminder") {
