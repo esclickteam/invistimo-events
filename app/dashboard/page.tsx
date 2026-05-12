@@ -1726,29 +1726,25 @@ function GoldenEventHero({
         </div>
 
         <div className="order-2 xl:order-2 flex items-center justify-center gap-8">
-          <div className="flex flex-col items-center gap-2">
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#D8B779] bg-[#FFF5DF] px-6 py-2.5 text-sm font-black text-[#8B5E24]">
-              LIVE
-              <span className="h-2.5 w-2.5 rounded-full bg-[#B8844F] animate-pulse" />
-            </div>
-            <div className="text-xs font-bold text-[#8A7A68]">האירוע פעיל</div>
-          </div>
+  <div className="flex flex-col items-center gap-2">
+    <div className="relative h-[98px] w-[98px] shrink-0">
+      <div
+        className="absolute inset-0 rounded-full bg-[conic-gradient(#B8844F_var(--p),#E8DCCB_0)]"
+        style={{ ["--p" as any]: `${safePercent}%` }}
+      />
 
-          <div className="hidden md:block h-24 w-px bg-[#E5D6C5]" />
-
-          <div className="flex flex-col items-center gap-2">
-            <div className="relative h-[98px] w-[98px] shrink-0">
-              <div
-                className="absolute inset-0 rounded-full bg-[conic-gradient(#B8844F_var(--p),#E8DCCB_0)]"
-                style={{ ["--p" as any]: `${safePercent}%` }}
-              />
-              <div className="absolute inset-[8px] rounded-full bg-white flex flex-col items-center justify-center shadow-inner">
-                <div className="text-2xl font-black text-[#241A14]">{safePercent}%</div>
-              </div>
-            </div>
-            <div className="text-xs font-bold text-[#8A7A68]">אחוז היענות</div>
-          </div>
+      <div className="absolute inset-[8px] rounded-full bg-white flex flex-col items-center justify-center shadow-inner">
+        <div className="text-2xl font-black text-[#241A14]">
+          {safePercent}%
         </div>
+      </div>
+    </div>
+
+    <div className="text-xs font-bold text-[#8A7A68]">
+      אחוז היענות
+    </div>
+  </div>
+</div>
 
         <div className="order-1 xl:order-3 text-right">
           <div className="mb-2 flex items-center justify-start gap-2">
