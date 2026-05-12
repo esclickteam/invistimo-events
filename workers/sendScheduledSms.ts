@@ -671,16 +671,21 @@ export async function sendScheduledWhatsapp() {
 
         const tableName = getTableName(guest);
 
-        const personalUrl = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
-        const shortUrl = await shortenUrl(personalUrl);
+        const urlSuffix = `invite/${invitation.shareId}?token=${guest.token}`;
+const personalUrl = `https://www.invistimo.com/${urlSuffix}`;
 
-        const replacements = {
-          name: guest.name || "",
-          invitationTitle: invitation.title || "האירוע שלנו",
-          rsvpLink: shortUrl,
-          tableName,
-          navigationLink: navigationLink || "",
-        };
+const replacements = {
+  name: guest.name || "",
+  invitationTitle: invitation.title || "האירוע שלנו",
+
+  // חשוב: לא לקצר ב-WhatsApp.
+  // ה-helper צריך לזהות inviteId מתוך הקישור המקורי.
+  rsvpLink: personalUrl,
+  urlSuffix,
+
+  tableName,
+  navigationLink: navigationLink || "",
+};
 
         const payload = deepReplacePlaceholders(msg.payload || {}, replacements);
 
