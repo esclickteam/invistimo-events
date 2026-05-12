@@ -1735,10 +1735,10 @@ export default function DashboardPage() {
 ============================================================ */
 function GoldenEventHero({
   title,
-  date,
+  date: _date,
   eventDateRaw,
   time,
-  location,
+  location: _location,
   responsePercent: _responsePercent,
   workMode,
   canViewActualArrived,
@@ -1769,6 +1769,10 @@ function GoldenEventHero({
     [eventDateRaw, time, now]
   );
 
+  void _date;
+  void _location;
+  void _responsePercent;
+
   return (
     <div
       className="
@@ -1782,41 +1786,55 @@ function GoldenEventHero({
         shadow-[0_22px_70px_rgba(92,65,35,0.10)]
       "
     >
-      <div className="absolute inset-0 bg-[linear-gradient(90deg,#FFF7E8_0%,#FFFFFF_38%,#FFFCF7_100%)]" />
+      {/* רקע קבוע לכרטיסייה העליונה: public/background1.png */}
+      <div
+        className="
+          absolute
+          inset-0
+          bg-no-repeat
+        "
+        style={{
+          backgroundImage: "url('/background1.png')",
+          backgroundSize: "100% 100%",
+          backgroundPosition: "center",
+        }}
+      />
 
-      {/* פרחים זהב / לבן / ברונזה בצד שמאל */}
-      <div className="absolute left-0 top-0 h-full w-[440px] overflow-hidden">
-        <div className="absolute -left-20 -top-24 h-80 w-80 rounded-full bg-[#F4D6A4]/45 blur-3xl" />
-        <div className="absolute left-8 top-10 text-[94px] leading-none opacity-95 rotate-[-18deg]">❀</div>
-        <div className="absolute left-[86px] top-[26px] text-[82px] leading-none opacity-80 rotate-[20deg] text-[#C08A45]">✦</div>
-        <div className="absolute left-[148px] top-[62px] text-[66px] leading-none opacity-95 rotate-[8deg]">❁</div>
-        <div className="absolute left-[40px] bottom-[22px] text-[56px] leading-none opacity-80 rotate-[12deg] text-[#B8844F]">✧</div>
-        <div className="absolute left-[214px] bottom-[34px] text-[28px] leading-none text-[#B07A3D] opacity-80">✦</div>
-        <div className="absolute left-32 top-10 h-[1px] w-72 rotate-[-15deg] bg-gradient-to-l from-[#C08A45] via-[#E6C184] to-transparent" />
-        <div className="absolute left-24 bottom-12 h-[1px] w-80 rotate-[12deg] bg-gradient-to-l from-[#B87A3C] via-[#E6C184] to-transparent" />
-      </div>
+      {/* שכבת הגנה עדינה כדי שהכתב יישאר קריא */}
+      <div
+        className="
+          absolute
+          inset-0
+          bg-gradient-to-l
+          from-white/42
+          via-white/16
+          to-transparent
+        "
+      />
 
-      {/* עיטור צד ימין */}
-      <div className="absolute right-[-70px] top-[-80px] h-64 w-64 rounded-full border border-[#EADBC8]" />
-      <div className="absolute right-[36px] bottom-[18px] h-24 w-24 rounded-full bg-[#F1D6AD]/35 blur-2xl" />
+      {/* ניצוצות עדינים בצד ימין */}
       <div className="absolute right-[46px] top-[42px] text-[42px] text-[#B8844F] opacity-80 rotate-[-10deg]">✦</div>
+      <div className="absolute right-[145px] top-[30px] text-[22px] text-[#B8844F] opacity-60 rotate-[12deg]">✦</div>
 
       <div
+        dir="ltr"
         className="
           relative
           grid
           grid-cols-1
-          xl:grid-cols-[420px_360px_minmax(0,1fr)]
+          xl:grid-cols-[360px_minmax(0,1fr)]
           items-center
           gap-7
           px-7
           py-7
           md:px-9
+          min-h-[214px]
         "
       >
-        <div className="order-3 xl:order-1">
+        {/* צד שמאל: מצב רגיל / LIVE בלבד */}
+        <div dir="rtl" className="order-2 xl:order-1 justify-self-start self-center">
           {canViewActualArrived && (
-            <div className="flex w-fit items-center gap-2 rounded-full border border-[#E3D0B8] bg-white/85 p-1 shadow-sm">
+            <div className="flex w-fit items-center gap-2 rounded-full border border-[#E3D0B8] bg-white/85 p-1 shadow-sm backdrop-blur-[2px]">
               <button
                 onClick={() => setWorkMode("regular")}
                 className={`
@@ -1848,9 +1866,19 @@ function GoldenEventHero({
           )}
         </div>
 
-        <div className="order-2 xl:order-2 hidden xl:block" />
-
-        <div dir="rtl" className="order-1 xl:order-3 text-right justify-self-end w-full max-w-[760px]">
+        {/* צד ימין: רק שם אירוע + ספירה לאחור. בלי פרטי אירוע בכרטיסייה העליונה */}
+        <div
+          dir="rtl"
+          className="
+            order-1
+            xl:order-2
+            text-right
+            justify-self-end
+            self-center
+            w-full
+            max-w-[760px]
+          "
+        >
           <h1
             className="
               text-4xl
@@ -1865,12 +1893,6 @@ function GoldenEventHero({
           </h1>
 
           <GoldenCountdown countdown={countdown} />
-
-          <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <GoldenHeroDetail icon="◷" title="שעה" value={time} />
-            <GoldenHeroDetail icon="▦" title="תאריך" value={date} />
-            <GoldenHeroDetail icon="●" title="מיקום" value={location} />
-          </div>
         </div>
       </div>
     </div>
@@ -2258,8 +2280,16 @@ function getEventCountdown(
       hours: 0,
       seconds: 0,
       isMissing: true,
+      isEventDay: false,
+      isPast: false,
     };
   }
+
+  const current = new Date(now);
+  const sameCalendarDay =
+    current.getFullYear() === target.getFullYear() &&
+    current.getMonth() === target.getMonth() &&
+    current.getDate() === target.getDate();
 
   let diff = Math.max(0, target.getTime() - now);
 
@@ -2290,6 +2320,8 @@ function getEventCountdown(
     hours,
     seconds,
     isMissing: false,
+    isEventDay: sameCalendarDay,
+    isPast: target.getTime() < now && !sameCalendarDay,
   };
 }
 
@@ -2303,23 +2335,72 @@ function GoldenCountdown({
     hours: number;
     seconds: number;
     isMissing: boolean;
+    isEventDay: boolean;
+    isPast: boolean;
   };
 }) {
   if (countdown.isMissing) {
     return (
-      <div className="mt-4 inline-flex rounded-2xl border border-[#E3D6C3] bg-white/82 px-4 py-3 text-sm font-black text-[#8A7A68] shadow-sm backdrop-blur-[2px]">
+      <div className="mt-5 inline-flex rounded-2xl border border-[#E3D6C3] bg-white/82 px-5 py-3 text-sm font-black text-[#8A7A68] shadow-sm backdrop-blur-[2px]">
         טרם הוגדר תאריך לספירה לאחור
       </div>
     );
   }
 
+  if (countdown.isEventDay) {
+    return (
+      <div
+        className="
+          relative
+          mt-5
+          overflow-hidden
+          rounded-[26px]
+          border
+          border-[#E3D6C3]
+          bg-white/86
+          px-6
+          py-4
+          shadow-[0_14px_34px_rgba(184,132,79,0.18)]
+          backdrop-blur-[2px]
+        "
+      >
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_50%,rgba(255,186,92,0.28),transparent_24%),radial-gradient(circle_at_88%_40%,rgba(255,120,104,0.20),transparent_24%)]" />
+
+        <div className="relative flex items-center justify-between gap-4">
+          <div>
+            <div className="text-2xl md:text-3xl font-black text-[#241A14]">
+              היום הגדול הגיע
+            </div>
+            <div className="mt-1 text-sm font-bold text-[#8A7A68]">
+              מאחלים לכם אירוע מושלם ומרגש
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 text-3xl md:text-4xl leading-none">
+            <span className="animate-bounce">🎆</span>
+            <span className="animate-pulse">✨</span>
+            <span className="animate-bounce [animation-delay:180ms]">🎇</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (countdown.isPast) {
+    return (
+      <div className="mt-5 inline-flex rounded-2xl border border-[#E3D6C3] bg-white/82 px-5 py-3 text-sm font-black text-[#8A7A68] shadow-sm backdrop-blur-[2px]">
+        האירוע כבר התקיים
+      </div>
+    );
+  }
+
   return (
-    <div className="mt-4 grid grid-cols-5 gap-2 max-w-[620px]">
+    <div className="mt-5 grid grid-cols-2 sm:grid-cols-5 gap-2 max-w-[640px]">
       <CountdownUnit label="חודשים" value={countdown.months} />
       <CountdownUnit label="שבועות" value={countdown.weeks} />
       <CountdownUnit label="ימים" value={countdown.days} />
       <CountdownUnit label="שעות" value={countdown.hours} />
-      <CountdownUnit label="שניות" value={countdown.seconds} />
+      <CountdownUnit label="שניות" value={countdown.seconds} isLive />
     </div>
   );
 }
@@ -2327,34 +2408,41 @@ function GoldenCountdown({
 function CountdownUnit({
   label,
   value,
+  isLive,
 }: {
   label: string;
   value: number;
+  isLive?: boolean;
 }) {
   return (
     <div
-      className="
+      className={`
+        relative
+        overflow-hidden
         rounded-2xl
         border
         border-[#E3D6C3]
-        bg-white/82
+        bg-white/86
         px-3
-        py-2.5
+        py-3
         text-center
-        shadow-sm
+        shadow-[0_10px_22px_rgba(80,55,32,0.08)]
         backdrop-blur-[2px]
-      "
+        ${isLive ? "ring-1 ring-[#D9B46F]/40" : ""}
+      `}
     >
-      <div className="text-xl font-black text-[#241A14] leading-none">
-        {value}
+      <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-l from-[#B8844F] via-[#D9B46F] to-[#F2D9A6]" />
+
+      <div className="text-2xl font-black text-[#241A14] leading-none tabular-nums">
+        {String(value).padStart(2, "0")}
       </div>
+
       <div className="mt-1 text-[11px] font-bold text-[#8A7A68]">
         {label}
       </div>
     </div>
   );
 }
-
 
 function GoldenHeroDetail({
   icon,
@@ -2787,7 +2875,6 @@ function PremiumEventHero({
   canViewActualArrived: boolean;
   setWorkMode: (mode: "regular" | "live") => void;
 }) {
-  const safePercent = Math.max(0, Math.min(100, responsePercent));
 
   return (
     <div
