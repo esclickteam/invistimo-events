@@ -72,7 +72,7 @@ type GroupBucket = {
 };
 
 const DEFAULT_TABLE_CAPACITY = 12;
-const MIN_TABLE_OCCUPANCY_RATIO = 0.5;
+const MIN_TABLE_OCCUPANCY_RATIO = 0.6;
 
 /* ===============================
    HELPERS
