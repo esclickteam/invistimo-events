@@ -1885,13 +1885,7 @@ function GoldenActionButtons({
           }
         />
 
-        <GoldenActionButton
-          label="ייצוא אקסל"
-          icon="▣"
-          tone="light"
-          disabled={!invitation}
-          onClick={onExportExcel}
-        />
+        
       </div>
 
       <div className="flex md:hidden flex-col gap-3">
