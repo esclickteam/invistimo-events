@@ -562,7 +562,10 @@ export async function sendScheduledSms() {
       console.error("💥 SMS worker error:", err);
 
       await ScheduledMessage.updateOne(
-        { _id: msg._id },
+        {
+          _id: msg._id,
+          status: { $ne: "cancelled" },
+        },
         {
           $set: {
             status: "failed",
@@ -766,6 +769,29 @@ export async function sendScheduledWhatsapp() {
           }
         );
 
+        const freshRightBeforeSend = await ScheduledMessage.findById(
+          msg._id
+        ).lean();
+
+        if (
+          !freshRightBeforeSend ||
+          freshRightBeforeSend.status === "cancelled"
+        ) {
+          await WhatsappQueue.updateOne(
+            { idempotencyKey },
+            {
+              $set: {
+                status: "cancelled",
+                cancelledAt: new Date(),
+                lockedAt: null,
+                lockedBy: null,
+              },
+            }
+          );
+
+          break;
+        }
+
         const result = await sendWhatsappTemplate({
           phone,
           templateName,
@@ -843,7 +869,10 @@ export async function sendScheduledWhatsapp() {
       console.error("💥 WhatsApp worker error:", err);
 
       await ScheduledMessage.updateOne(
-        { _id: msg._id },
+        {
+          _id: msg._id,
+          status: { $ne: "cancelled" },
+        },
         {
           $set: {
             status: "failed",

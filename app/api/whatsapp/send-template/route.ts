@@ -466,106 +466,153 @@ export async function POST(req: NextRequest) {
     ====================================================== */
 
     if (scheduledAtRaw) {
-      const scheduledAt = new Date(scheduledAtRaw);
+  const scheduledAt = new Date(scheduledAtRaw);
 
-      if (Number.isNaN(scheduledAt.getTime())) {
-        return NextResponse.json(
-          { success: false, error: "INVALID_SCHEDULED_AT" },
-          { status: 400 }
-        );
-      }
+  if (Number.isNaN(scheduledAt.getTime())) {
+    return NextResponse.json(
+      { success: false, error: "INVALID_SCHEDULED_AT" },
+      { status: 400 }
+    );
+  }
 
-      if (scheduledAt.getTime() <= Date.now()) {
-        return NextResponse.json(
-          { success: false, error: "SCHEDULED_AT_MUST_BE_FUTURE" },
-          { status: 400 }
-        );
-      }
+  if (scheduledAt.getTime() <= Date.now()) {
+    return NextResponse.json(
+      { success: false, error: "SCHEDULED_AT_MUST_BE_FUTURE" },
+      { status: 400 }
+    );
+  }
 
-      const existingSchedule = await ScheduledMessage.findOne({
-        invitationId,
-        userId: auth.userId,
-        type,
-        channel: "whatsapp",
-        round,
-        status: "scheduled",
-      });
+  /*
+    חשוב:
+    בודקים תזמון קיים רק לפי אותו שילוב בדיוק:
+    invitationId + channel + type + round + templateName
 
-      const schedulePayload = {
-        invitationId,
-        userId: auth.userId,
+    כלומר:
+    - RSVP סבב 1 לא חוסם RSVP סבב 2
+    - RSVP לא חוסם reminder
+    - reminder לא חוסם thankyou
+    - WhatsApp לא חוסם SMS
+  */
+  const existingSchedule = await ScheduledMessage.findOne({
+    invitationId,
+    userId: auth.userId,
+    channel: "whatsapp",
+    type,
+    round,
+    templateName,
+    status: { $in: ["scheduled", "pending"] },
+  });
 
-        channel: "whatsapp",
-        type,
-        filter: type === "rsvp" ? (round === 1 ? "all" : "pending") : "all",
+  const schedulePayload = {
+    invitationId,
+    userId: auth.userId,
 
-        templateKey:
-          type === "rsvp"
-            ? "rsvp"
-            : type === "reminder" || type === "table"
-            ? "reminder"
-            : type === "thankyou"
-            ? "thankyou"
-            : "custom",
+    channel: "whatsapp",
+    type,
 
-        round,
-        roundNumber: round,
+    /*
+      לא שומרים audience סופי ל-RSVP.
+      בסבב 2/3 ה-worker יבדוק בזמן השליחה מי עדיין pending.
+    */
+    filter: type === "rsvp" ? (round === 1 ? "all" : "pending") : "all",
 
-        templateName,
-        payload,
+    templateKey:
+      type === "rsvp"
+        ? "rsvp"
+        : type === "reminder" || type === "table"
+        ? "reminder"
+        : type === "thankyou"
+        ? "thankyou"
+        : "custom",
 
-        // חובה כי ScheduledMessage דורש messageContent
-        // ב-WhatsApp מקור האמת הוא payload/templateName, לא טקסט חופשי
-        messageContent: `whatsapp:${templateName}`,
-        messageOverride: `whatsapp:${templateName}`,
-        text: `whatsapp:${templateName}`,
+    round,
+    roundNumber: round,
 
-        includeGiftLink: !!body.giftCreditUrl,
-        giftLink: body.giftCreditUrl || null,
+    templateName,
+    payload,
 
-        guestIds: type === "rsvp" ? [] : audience,
+    /*
+      חובה כי ScheduledMessage דורש messageContent.
+      ב-WhatsApp מקור האמת הוא payload/templateName,
+      לא טקסט חופשי.
+    */
+    messageContent: `whatsapp:${templateName}`,
+    messageOverride: `whatsapp:${templateName}`,
+    text: `whatsapp:${templateName}`,
 
-        scheduledAt,
-        guestsCount,
-        status: "scheduled",
+    includeGiftLink: !!body.giftCreditUrl,
+    giftLink: body.giftCreditUrl || null,
 
-        sentCount: 0,
-        lockedAt: null,
-        lockedBy: null,
-        cancelledAt: null,
-        error: "",
-      };
+    /*
+      RSVP:
+      לא שומרים guestIds עכשיו, כדי שלא יישלח למי שכבר ענה עד זמן השליחה.
 
-      let schedule;
+      reminder / table / thankyou:
+      אם בחרת קהל ידני, כן שומרים את הבחירה.
+      אם לא בחרת, ה-worker ימשוך לפי הנתונים בזמן השליחה.
+    */
+    guestIds: type === "rsvp" ? [] : audience,
 
-      if (existingSchedule) {
-        existingSchedule.set(schedulePayload);
-        schedule = await existingSchedule.save();
-      } else {
-        schedule = await ScheduledMessage.create(schedulePayload);
-      }
+    scheduledAt,
+    guestsCount,
 
-      if (type === "rsvp") {
-        const scheduledField = getRsvpScheduledField(round);
+    status: "scheduled",
 
-        await Invitation.updateOne(
-          { _id: invitation._id },
-          {
-            $set: {
-              [scheduledField]: scheduledAt,
-            },
-          }
-        );
-      }
+    sentCount: 0,
+    lockedAt: null,
+    lockedBy: null,
+    cancelledAt: null,
+    error: "",
 
-      return NextResponse.json({
-        success: true,
-        scheduled: true,
-        mode: existingSchedule ? "updated" : "created",
-        schedule,
-        guestsCount,
-      });
+    updatedAt: new Date(),
+  };
+
+  let schedule;
+
+  if (existingSchedule) {
+    existingSchedule.set(schedulePayload);
+    schedule = await existingSchedule.save();
+  } else {
+    schedule = await ScheduledMessage.create(schedulePayload);
+  }
+
+  /*
+    מעדכנים רק שדות תזמון לתצוגה.
+    לא נוגעים ב-SentAt.
+    לא נועלים messageLocks.
+  */
+  const invitationSchedulePatch: Record<string, any> = {
+    updatedAt: new Date(),
+  };
+
+  if (type === "rsvp") {
+    const scheduledField = getRsvpScheduledField(round);
+    invitationSchedulePatch[scheduledField] = scheduledAt;
+  }
+
+  if (type === "reminder" || type === "table") {
+    invitationSchedulePatch.reminderScheduledAt = scheduledAt;
+  }
+
+  if (type === "thankyou") {
+    invitationSchedulePatch.thankYouScheduledAt = scheduledAt;
+  }
+
+  await Invitation.updateOne(
+    { _id: invitation._id },
+    {
+      $set: invitationSchedulePatch,
     }
+  );
+
+  return NextResponse.json({
+    success: true,
+    scheduled: true,
+    mode: existingSchedule ? "updated" : "created",
+    schedule,
+    guestsCount,
+  });
+}
 
     /* ======================================================
        IMMEDIATE SEND
