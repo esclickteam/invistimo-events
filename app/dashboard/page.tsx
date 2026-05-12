@@ -1,6 +1,11 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import {
+  useState,
+  useEffect,
+  useMemo,
+  type ReactNode,
+} from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 
 import EditGuestModal from "../components/EditGuestModal";
@@ -19,7 +24,7 @@ import type { QuickFilter } from "@/types/quickFilter";
 
 type EventModel = {
   title?: string;
-  date?: string; // YYYY-MM-DD
+  date?: string;
   time?: string;
   location?: {
     address?: string;
@@ -40,7 +45,6 @@ type Guest = {
 
   relation?: string;
 
-  /* ⭐ קבוצות */
   groupId?: string | null;
 
   tableName?: string;
@@ -53,7 +57,6 @@ type Guest = {
   actualArrivedCount?: number;
   notes?: string;
 
-  /* 📞 סבבי שיחות */
   callRounds?: {
     roundNumber: number;
     status?: string;
@@ -70,10 +73,8 @@ function formatPhone(phone?: string) {
 
   const digits = String(phone).replace(/\D/g, "");
 
-  // אם כבר מתחיל ב־0 → לא לגעת
   if (digits.startsWith("0")) return digits;
 
-  // מספר סלולרי ישראלי בלי 0 (9 ספרות שמתחיל ב־5)
   if (digits.length === 9 && digits.startsWith("5")) {
     return "0" + digits;
   }
@@ -82,7 +83,7 @@ function formatPhone(phone?: string) {
 }
 
 /* ============================================================
-   תצוגת סטטוסים בלבד — לא משנה לוגיקה
+   תצוגת סטטוסים בלבד — הלוגיקה נשארת yes/no/pending
 ============================================================ */
 const RSVP_STATUS_LABELS: Record<Guest["rsvp"], string> = {
   yes: "מגיע",
@@ -147,16 +148,18 @@ export default function DashboardPage() {
   const seatingTables = useSeatingStore((s) => s.tables);
 
   const effectiveRole = useMemo(() => {
-    // התחזות תמיד קובעת
     if (user?.impersonationRole) {
       if (user.impersonationRole === "producer_staff") {
         return "producer";
       }
+
       return user.impersonationRole;
     }
 
-    // staff רגיל
-    if (user?.role === "staff" && user?.staffType === "producer_staff") {
+    if (
+      user?.role === "staff" &&
+      user?.staffType === "producer_staff"
+    ) {
       return "producer";
     }
 
@@ -168,7 +171,8 @@ export default function DashboardPage() {
     effectiveRole === "worker" ||
     user?.impersonated === true;
 
-  const canShowActualArrived = canViewActualArrived && workMode === "live";
+  const canShowActualArrived =
+    canViewActualArrived && workMode === "live";
 
   useEffect(() => {
     if (!canViewActualArrived) {
@@ -183,14 +187,19 @@ export default function DashboardPage() {
     if (isDemo) return;
     if (!user) return;
 
-    // ⭐️ אל תחסום producer בהתחזות
-    if (user.role === "producer" && !eventIdFromUrl && !user.impersonated) {
+    if (
+      user.role === "producer" &&
+      !eventIdFromUrl &&
+      !user.impersonated
+    ) {
       console.error("Producer dashboard loaded without eventId");
       router.replace("/events");
     }
   }, [user, eventIdFromUrl, router, isDemo]);
 
-  const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null);
+  const [selectedGuest, setSelectedGuest] =
+    useState<Guest | null>(null);
+
   const [openAddModal, setOpenAddModal] = useState(false);
   const loadGroups = useGroupStore((s) => s.loadGroups);
 
@@ -202,18 +211,18 @@ export default function DashboardPage() {
         return {
           ...g,
 
-          // שדות בסיס
           name: updatedGuest.name,
           phone: updatedGuest.phone,
           relation: updatedGuest.relation,
           rsvp: updatedGuest.rsvp,
 
-          // ⭐ הקריטי – כמות מוזמנים
           guestsCount: updatedGuest.guestsCount,
 
           arrivedCount:
             updatedGuest.arrivedCount ??
-            (updatedGuest.rsvp === "yes" ? updatedGuest.guestsCount : 0),
+            (updatedGuest.rsvp === "yes"
+              ? updatedGuest.guestsCount
+              : 0),
 
           actualArrivedCount:
             updatedGuest.actualArrivedCount ?? g.actualArrivedCount,
@@ -225,10 +234,13 @@ export default function DashboardPage() {
       })
     );
 
-    // ⭐⭐ זה מה שהיה חסר – סנכרון ההושבה
     const seating = useSeatingStore.getState();
 
-    seating.syncPlannedSeatsForGuest(updatedGuest._id, updatedGuest.guestsCount);
+    seating.syncPlannedSeatsForGuest(
+      updatedGuest._id,
+      updatedGuest.guestsCount
+    );
+
     seating.resetArrivedSeatsForGuest(updatedGuest._id);
 
     if (invitationId) {
@@ -250,15 +262,14 @@ export default function DashboardPage() {
   const [openGroupModal, setOpenGroupModal] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState("");
 
-  const [openCallsGuest, setOpenCallsGuest] = useState<Guest | null>(null);
+  const [openCallsGuest, setOpenCallsGuest] =
+    useState<Guest | null>(null);
 
-  // ✅ חיפוש
   const [search, setSearch] = useState("");
 
-  // ✅ סינון מהיר
-  const [quickFilter, setQuickFilter] = useState<QuickFilter>("all");
+  const [quickFilter, setQuickFilter] =
+    useState<QuickFilter>("all");
 
-  // ✅ מיון
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
 
@@ -307,7 +318,9 @@ export default function DashboardPage() {
   async function loadEvent() {
     if (!user) return;
 
-    const url = eventIdFromUrl ? `/api/events/${eventIdFromUrl}` : "/api/events";
+    const url = eventIdFromUrl
+      ? `/api/events/${eventIdFromUrl}`
+      : "/api/events";
 
     const res = await fetch(url, {
       credentials: "include",
@@ -329,10 +342,13 @@ export default function DashboardPage() {
   async function loadGuests() {
     if (!invitationId) return;
 
-    const res = await fetch(`/api/guests?invitation=${invitationId}`, {
-      credentials: "include",
-      cache: "no-store",
-    });
+    const res = await fetch(
+      `/api/guests?invitation=${invitationId}`,
+      {
+        credentials: "include",
+        cache: "no-store",
+      }
+    );
 
     const data = await res.json();
     setGuests(data.guests || []);
@@ -369,7 +385,9 @@ export default function DashboardPage() {
       a.href = url;
 
       a.download =
-        workMode === "live" ? "מוזמנים_הגיעו_בפועל.xlsx" : "מוזמנים.xlsx";
+        workMode === "live"
+          ? "מוזמנים_הגיעו_בפועל.xlsx"
+          : "מוזמנים.xlsx";
 
       document.body.appendChild(a);
       a.click();
@@ -391,6 +409,7 @@ export default function DashboardPage() {
     const ok = window.confirm(
       `האם למחוק את המוזמן "${guest.name}"?\nהפעולה אינה ניתנת לביטול.`
     );
+
     if (!ok) return;
 
     try {
@@ -441,7 +460,6 @@ export default function DashboardPage() {
     if (isDemo) return;
     if (!user) return;
 
-    // ⭐️ אם כבר התחזינו – לא לגעת
     if (user.impersonated) return;
 
     if (user.role !== "producer") return;
@@ -459,15 +477,16 @@ export default function DashboardPage() {
   }, [isDemo, user, invitation?._id]);
 
   useEffect(() => {
-    // ⭐️ DEMO – טעינת נתוני דמו בלבד
     if (!isDemo) return;
 
     setUser({ role: "user", plan: "premium" });
+
     setInvitation({
       _id: "demo",
       shareId: "demo",
       eventDate: new Date().toISOString(),
     });
+
     setInvitationId("demo");
 
     setGuests([
@@ -572,7 +591,6 @@ export default function DashboardPage() {
   }, [isDemo]);
 
   useEffect(() => {
-    // ⭐️ DEMO – לא טוענים אורחים מהשרת בדמו
     if (isDemo) return;
     if (!invitationId) return;
 
@@ -595,7 +613,6 @@ export default function DashboardPage() {
     if (isDemo) return;
     if (!invitationId) return;
 
-    // 🔥 תמיד טוען פעם ראשונה
     loadGuests();
 
     const interval = setInterval(() => {
@@ -624,9 +641,15 @@ export default function DashboardPage() {
      Stats
   ============================================================ */
   const stats = useMemo(() => {
-    const totalInvited = guests.reduce((s, g) => s + (g.guestsCount || 0), 0);
+    const totalInvited = guests.reduce(
+      (s, g) => s + (g.guestsCount || 0),
+      0
+    );
 
-    const totalArrived = guests.reduce((s, g) => s + (g.arrivedCount || 0), 0);
+    const totalArrived = guests.reduce(
+      (s, g) => s + (g.arrivedCount || 0),
+      0
+    );
 
     const totalActualArrived = guests.reduce(
       (s, g) => s + (g.actualArrivedCount || 0),
@@ -663,7 +686,7 @@ export default function DashboardPage() {
   }, [guests]);
 
   /* ============================================================
-     🔗 קישור אישי להזמנה
+     קישור אישי להזמנה
   ============================================================ */
   const getGuestInviteLink = (guest: Guest) => {
     if (!invitation?.shareId) return "";
@@ -671,10 +694,11 @@ export default function DashboardPage() {
   };
 
   /* ============================================================
-     WhatsApp
+     WhatsApp אישי
   ============================================================ */
   const sendWhatsApp = (guest: Guest) => {
     const inviteLink = getGuestInviteLink(guest);
+
     const message = `היי ${guest.name}! 💛\nהזמנה אישית מחכה לך 🎉\n${inviteLink}`;
 
     const cleanPhone =
@@ -718,7 +742,9 @@ export default function DashboardPage() {
       return null;
     }
 
-    const lastWithStatus = [...guest.callRounds].reverse().find((r) => r.status);
+    const lastWithStatus = [...guest.callRounds]
+      .reverse()
+      .find((r) => r.status);
 
     return normalizeCallStatus(lastWithStatus?.status);
   }
@@ -729,15 +755,18 @@ export default function DashboardPage() {
   const displayGuests = useMemo(() => {
     let list = [...guests];
 
-    // 1) Quick filter
-    if (quickFilter === "yes") list = list.filter((g) => g.rsvp === "yes");
-    if (quickFilter === "no") list = list.filter((g) => g.rsvp === "no");
+    if (quickFilter === "yes") {
+      list = list.filter((g) => g.rsvp === "yes");
+    }
+
+    if (quickFilter === "no") {
+      list = list.filter((g) => g.rsvp === "no");
+    }
 
     if (quickFilter === "noTable") {
       list = list.filter((g) => !(g.tableName && g.tableName.trim()));
     }
 
-    // 📞 Call filters
     if (quickFilter === "pending") {
       list = list.filter((g) => {
         const isReallyPending =
@@ -748,41 +777,51 @@ export default function DashboardPage() {
         if (!isReallyPending) return false;
 
         const status = getGuestCallStatus(g);
+
         return status === null || status === "will_reply";
       });
     }
 
     if (quickFilter === "call_answered") {
-      list = list.filter((g) => getGuestCallStatus(g) === "answered");
+      list = list.filter(
+        (g) => getGuestCallStatus(g) === "answered"
+      );
     }
 
     if (quickFilter === "call_no_answer") {
-      list = list.filter((g) => getGuestCallStatus(g) === "no_answer");
+      list = list.filter(
+        (g) => getGuestCallStatus(g) === "no_answer"
+      );
     }
 
     if (quickFilter === "call_will_reply") {
-      list = list.filter((g) => getGuestCallStatus(g) === "will_reply");
+      list = list.filter(
+        (g) => getGuestCallStatus(g) === "will_reply"
+      );
     }
 
-    // 2) Search
     const q = search.trim().toLowerCase();
+
     if (q) {
       const qDigits = q.replace(/\D/g, "");
+
       list = list.filter((g) => {
         const name = (g.name || "").toLowerCase();
         const phoneDigits = (g.phone || "").replace(/\D/g, "");
+
         const nameMatch = name.includes(q);
-        const phoneMatch = qDigits ? phoneDigits.includes(qDigits) : false;
+        const phoneMatch = qDigits
+          ? phoneDigits.includes(qDigits)
+          : false;
+
         return nameMatch || phoneMatch;
       });
     }
 
-    // ⭐ פילטר לפי קבוצה
     if (selectedGroupId) {
       list = list.filter((g) => g.groupId === selectedGroupId);
     }
 
-    // 3) Sort
     list.sort((a, b) => {
       let v1: any;
       let v2: any;
@@ -791,6 +830,7 @@ export default function DashboardPage() {
         case "name":
           v1 = a.name || "";
           v2 = b.name || "";
+
           return (
             v1.localeCompare(v2, "he", { sensitivity: "base" }) *
             (sortDir === "asc" ? 1 : -1)
@@ -832,7 +872,14 @@ export default function DashboardPage() {
     });
 
     return list;
-  }, [guests, quickFilter, search, selectedGroupId, sortKey, sortDir]);
+  }, [
+    guests,
+    quickFilter,
+    search,
+    selectedGroupId,
+    sortKey,
+    sortDir,
+  ]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey !== key) {
@@ -840,19 +887,19 @@ export default function DashboardPage() {
       setSortDir("asc");
       return;
     }
+
     setSortDir((d) => (d === "asc" ? "desc" : "asc"));
   };
 
   const sortArrow = (key: SortKey) =>
     sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "";
 
-  const showActionButtons = true;
-
   const updateActualArrived = async (guestId: string, next: number) => {
-    // ✅ optimistic UI
     setGuests((prev) =>
       prev.map((g) =>
-        g._id === guestId ? { ...g, actualArrivedCount: next } : g
+        g._id === guestId
+          ? { ...g, actualArrivedCount: next }
+          : g
       )
     );
 
@@ -918,8 +965,9 @@ export default function DashboardPage() {
       {isDemo && (
         <div className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 px-5 py-4 text-amber-900 shadow-sm">
           <p className="text-sm leading-relaxed">
-            🧪 <strong>מצב דמו פעיל</strong> – המערכת פתוחה לצפייה בדשבורד,
-            סידורי הושבה והודעות. רוצים גישה מלאה לכל הפונקציות?{" "}
+            🧪 <strong>מצב דמו פעיל</strong> – המערכת פתוחה לצפייה
+            בדשבורד, סידורי הושבה והודעות. רוצים גישה מלאה לכל
+            הפונקציות?{" "}
             <a
               href="https://www.invistimo.com/pricing"
               className="
@@ -937,399 +985,242 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {showActionButtons && (
-        <>
-          {/* ===================== HERO ===================== */}
-          <section className="mb-8">
-            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-5 mb-6">
-              <div>
-                <div className="inline-flex items-center gap-2 rounded-full bg-white/80 border border-[#E7DED1] px-4 py-2 text-sm font-semibold text-[#8B6A2E] shadow-sm mb-3">
-                  ✨ דשבורד אירוע חכם
-                </div>
+      {/* ===================== HERO בדיוק כמו הסקיצה ===================== */}
+      <section className="mb-5">
+        <PremiumEventHero
+          title={eventTitle}
+          date={formatEventDate(eventDate)}
+          time={eventTime}
+          location={eventLocation}
+          responsePercent={rsvpVisualStats.comingPercent}
+          workMode={workMode}
+          canViewActualArrived={canViewActualArrived}
+          setWorkMode={setWorkMode}
+        />
+      </section>
 
-                <h1 className="text-4xl md:text-5xl font-black text-[#1E1B2E] tracking-tight">
-                  ניהול האירוע
-                </h1>
+      {/* ===================== ACTION BUTTONS ===================== */}
+      <section className="mb-6">
+        <div className="hidden md:flex flex-wrap gap-3">
+          <button
+            onClick={() => {
+              if (isDemo) {
+                handleDemoBlockedAction();
+                return;
+              }
 
-                <p className="text-[#7C746C] mt-2 text-base md:text-lg">
-                  הכל במקום אחד — מוזמנים, הודעות, אישורי הגעה וסידורי הושבה
-                </p>
-              </div>
+              router.push(
+                invitation
+                  ? `/dashboard/edit-invite/${invitationId}`
+                  : "/dashboard/create-invite"
+              );
+            }}
+            className="
+              bg-[#1E1B2E]
+              text-white
+              px-6
+              py-3
+              rounded-2xl
+              font-bold
+              shadow-[0_10px_25px_rgba(30,27,46,0.18)]
+              hover:-translate-y-0.5
+              transition
+            "
+          >
+            {invitation ? "✏️ עריכת הזמנה" : "➕ יצירת הזמנה"}
+          </button>
 
-              {canViewActualArrived && (
-                <div className="flex items-center gap-2 rounded-full bg-white border border-[#E7DED1] p-1 shadow-sm">
-                  <button
-                    onClick={() => setWorkMode("regular")}
-                    className={`
-                      px-5 py-2.5 rounded-full text-sm font-bold transition
-                      ${
-                        workMode === "regular"
-                          ? "bg-[#1E1B2E] text-white shadow"
-                          : "text-[#7C746C] hover:bg-[#F7F4EF]"
-                      }
-                    `}
-                  >
-                    מצב רגיל
-                  </button>
+          <button
+            onClick={() => {
+              if (!invitation) return;
+              if (isDemo) {
+                handleDemoBlockedAction();
+                return;
+              }
 
-                  <button
-                    onClick={() => setWorkMode("live")}
-                    className={`
-                      px-5 py-2.5 rounded-full text-sm font-bold transition
-                      ${
-                        workMode === "live"
-                          ? "bg-rose-600 text-white shadow"
-                          : "text-[#7C746C] hover:bg-[#F7F4EF]"
-                      }
-                    `}
-                  >
-                    🔴 LIVE
-                  </button>
-                </div>
-              )}
-            </div>
+              router.push("/dashboard/event");
+            }}
+            disabled={!invitation}
+            className={`
+              px-6 py-3 rounded-2xl font-bold transition border shadow-sm
+              ${
+                invitation
+                  ? "bg-white border-[#E7DED1] hover:bg-[#FBFAF7] text-[#1E1B2E]"
+                  : "bg-gray-100 text-gray-400 cursor-not-allowed"
+              }
+            `}
+          >
+            🛠️ עריכת פרטי האירוע
+          </button>
 
-            <div
+          {invitation && (
+            <button
+              onClick={() =>
+                isDemo
+                  ? handleDemoBlockedAction()
+                  : window.open(
+                      `https://www.invistimo.com/invite/${invitation.shareId}`,
+                      "_blank",
+                      "noopener,noreferrer"
+                    )
+              }
               className="
-                relative
-                overflow-hidden
-                rounded-[34px]
-                border
-                border-[#E9E1D6]
                 bg-white
-                shadow-[0_18px_60px_rgba(30,27,46,0.08)]
-                p-6
-                md:p-8
+                border
+                border-[#E7DED1]
+                px-6
+                py-3
+                rounded-2xl
+                hover:bg-[#FBFAF7]
+                font-bold
+                text-[#1E1B2E]
+                shadow-sm
+                transition
               "
             >
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(20,184,166,0.14),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(251,113,133,0.13),transparent_30%)]" />
-              <div className="absolute -left-20 -top-20 h-52 w-52 rounded-full bg-emerald-100/60 blur-3xl" />
-              <div className="absolute -right-16 -bottom-20 h-56 w-56 rounded-full bg-amber-100/70 blur-3xl" />
-
-              <div className="relative grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-6 items-stretch">
-                <div>
-                  <div className="flex flex-wrap items-center gap-3 mb-6">
-                    <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-700">
-                      <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                      LIVE
-                    </span>
-
-                    <span className="inline-flex items-center gap-2 rounded-full border border-[#E7DED1] bg-white/70 px-4 py-2 text-sm font-bold text-[#5F564D]">
-                      🪑 סידורי הושבה
-                    </span>
-
-                    <span className="inline-flex items-center gap-2 rounded-full border border-[#E7DED1] bg-white/70 px-4 py-2 text-sm font-bold text-[#5F564D]">
-                      💬 הודעות מוזמנים
-                    </span>
-                  </div>
-
-                  <h2 className="text-3xl md:text-4xl font-black text-[#1E1B2E] mb-5">
-                    {eventTitle}
-                  </h2>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-7">
-                    <InfoChip icon="📅" label="תאריך" value={formatEventDate(eventDate)} />
-                    <InfoChip icon="🕒" label="שעה" value={eventTime} />
-                    <InfoChip icon="📍" label="מיקום" value={eventLocation} />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <HeroMetric
-                      title="אחוז היענות"
-                      value={`${rsvpVisualStats.comingPercent}%`}
-                      tone="green"
-                    />
-                    <HeroMetric
-                      title="בהמתנה"
-                      value={rsvpVisualStats.pending}
-                      tone="gold"
-                    />
-                    <HeroMetric
-                      title="לא מגיע"
-                      value={rsvpVisualStats.notComing}
-                      tone="rose"
-                    />
-                  </div>
-                </div>
-
-                <div
-                  className="
-                    rounded-[28px]
-                    bg-[#1E1B2E]
-                    text-white
-                    p-6
-                    shadow-[0_20px_45px_rgba(30,27,46,0.22)]
-                    flex
-                    flex-col
-                    justify-between
-                    min-h-[260px]
-                  "
-                >
-                  <div>
-                    <div className="flex items-center justify-between mb-5">
-                      <div className="h-12 w-12 rounded-2xl bg-white/12 flex items-center justify-center text-2xl">
-                        ✨
-                      </div>
-                      <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold">
-                        Invistimo
-                      </span>
-                    </div>
-
-                    <h3 className="text-2xl font-black mb-2">
-                      תמונת מצב מהירה
-                    </h3>
-
-                    <p className="text-white/65 text-sm leading-relaxed">
-                      מעקב בזמן אמת אחרי סטטוס האורחים, הושבה, הודעות ופעילות
-                      אחרונה באירוע.
-                    </p>
-                  </div>
-
-                  <div className="mt-6 grid grid-cols-3 gap-3">
-                    <MiniDarkStat label="מגיע" value={rsvpVisualStats.coming} />
-                    <MiniDarkStat label="לא מגיע" value={rsvpVisualStats.notComing} />
-                    <MiniDarkStat label="בהמתנה" value={rsvpVisualStats.pending} />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* ===================== TAGS ===================== */}
-          <div className="mb-6 flex flex-wrap gap-3">
-            {user?.includeCalls ? (
-              <div className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 px-4 py-2 rounded-full text-sm font-bold shadow-sm">
-                ☎️ כולל שירות שיחות אישורי הגעה (3 סבבים)
-              </div>
-            ) : (
-              <div className="inline-flex items-center gap-2 bg-amber-50 text-amber-700 border border-amber-200 px-4 py-2 rounded-full text-sm font-bold shadow-sm">
-                ⚠️ ללא שירות שיחות טלפוניים
-              </div>
-            )}
-
-            {user?.includeCreditGifts && (
-              <>
-                <div className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 px-4 py-2 rounded-full text-sm font-bold shadow-sm">
-                  💳 כולל מתנות באשראי לאורחים
-                </div>
-
-                <a
-                  href="https://ktzr.io/giftInvistimoSignup"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 w-fit bg-[#138b55] text-white px-5 py-2 rounded-full text-sm font-semibold hover:bg-[#0f6f45] transition"
-                >
-                  🔗 קישור הרשמה למתנות באשראי
-                </a>
-              </>
-            )}
-          </div>
-
-          {/* ===================== COUNTDOWN ===================== */}
-          {event && (
-            <div className="mb-6">
-              <div className="rounded-2xl border border-[#E7DED1] bg-white/80 px-5 py-4 shadow-sm">
-                <div className="text-lg font-semibold">
-                  {event.date ? (
-                    <EventCountdown event={event} />
-                  ) : (
-                    <span className="text-gray-500">
-                      📅 טרם הוגדר תאריך לאירוע
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
+              👁️ צפייה בהזמנה
+            </button>
           )}
 
-          {/* ===================== ACTIONS ===================== */}
-          <div className="mb-8">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-4">
-              <h2 className="text-2xl font-black text-[#1E1B2E]">
-                רשימת מוזמנים
-              </h2>
+          <button
+            onClick={() => setOpenAddModal(true)}
+            disabled={!invitation}
+            className={`
+              px-6 py-3 rounded-2xl font-bold transition border shadow-sm
+              ${
+                invitation
+                  ? "bg-white border-[#E7DED1] hover:bg-[#FBFAF7] text-[#1E1B2E]"
+                  : "bg-gray-100 text-gray-400 cursor-not-allowed"
+              }
+            `}
+          >
+            + הוספת מוזמן
+          </button>
 
-              <div className="hidden md:flex flex-wrap gap-3">
-                {/* 1️⃣ יצירת / עריכת הזמנה */}
-                <button
-                  onClick={() => {
-                    if (isDemo) {
-                      handleDemoBlockedAction();
-                      return;
-                    }
+          <button
+            onClick={() => setShowImportModal(true)}
+            disabled={!invitation}
+            className={`
+              px-6 py-3 rounded-2xl font-bold transition border shadow-sm
+              ${
+                invitation
+                  ? "bg-white border-[#E7DED1] hover:bg-[#FBFAF7] text-[#1E1B2E]"
+                  : "bg-gray-100 text-gray-400 cursor-not-allowed"
+              }
+            `}
+          >
+            📥 ייבוא מאקסל
+          </button>
 
-                    router.push(
-                      invitation
-                        ? `/dashboard/edit-invite/${invitationId}`
-                        : "/dashboard/create-invite"
-                    );
-                  }}
-                  className="
-                    bg-[#1E1B2E]
-                    text-white
-                    px-6
-                    py-3
-                    rounded-2xl
-                    font-bold
-                    shadow-[0_10px_25px_rgba(30,27,46,0.18)]
-                    hover:-translate-y-0.5
-                    transition
-                  "
-                >
-                  {invitation ? "✏️ עריכת הזמנה" : "➕ יצירת הזמנה"}
-                </button>
+          <button
+            onClick={() =>
+              router.push(
+                isDemo
+                  ? "/try/dashboard/seating"
+                  : "/dashboard/seating"
+              )
+            }
+            disabled={!invitation}
+            className={`
+              px-6 py-3 rounded-2xl font-bold transition shadow-sm
+              ${
+                invitation
+                  ? "bg-gradient-to-l from-[#C9A45C] to-[#D9BE87] text-white"
+                  : "bg-gray-200 text-gray-400 cursor-not-allowed"
+              }
+            `}
+          >
+            🪑 סידורי הושבה
+          </button>
 
-                {/* 2️⃣ עריכת פרטי האירוע */}
-                <button
-                  onClick={() => {
-                    if (!invitation) return;
-                    if (isDemo) {
-                      handleDemoBlockedAction();
-                      return;
-                    }
-                    router.push("/dashboard/event");
-                  }}
-                  disabled={!invitation}
-                  className={`
-                    px-6 py-3 rounded-2xl font-bold transition border shadow-sm
-                    ${
-                      invitation
-                        ? "bg-white border-[#E7DED1] hover:bg-[#FBFAF7] text-[#1E1B2E]"
-                        : "bg-gray-100 text-gray-400 cursor-not-allowed"
-                    }
-                  `}
-                >
-                  🛠️ עריכת פרטי האירוע
-                </button>
+          <button
+            onClick={() =>
+              router.push(
+                isDemo
+                  ? "/try/dashboard/messages/new"
+                  : "/dashboard/messages/new"
+              )
+            }
+            disabled={!invitation}
+            className={`
+              px-6 py-3 rounded-2xl font-bold transition shadow-sm
+              ${
+                invitation
+                  ? "bg-gradient-to-l from-emerald-600 to-teal-500 text-white"
+                  : "bg-gray-200 text-gray-400 cursor-not-allowed"
+              }
+            `}
+          >
+            💬 שליחת הודעות
+          </button>
+        </div>
 
-                {/* 3️⃣ צפייה בהזמנה */}
-                {invitation && (
-                  <button
-                    onClick={() =>
-                      isDemo
-                        ? handleDemoBlockedAction()
-                        : window.open(
-                            `https://www.invistimo.com/invite/${invitation.shareId}`,
-                            "_blank",
-                            "noopener,noreferrer"
-                          )
-                    }
-                    className="
-                      bg-white
-                      border
-                      border-[#E7DED1]
-                      px-6
-                      py-3
-                      rounded-2xl
-                      hover:bg-[#FBFAF7]
-                      font-bold
-                      text-[#1E1B2E]
-                      shadow-sm
-                      transition
-                    "
-                  >
-                    👁️ צפייה בהזמנה
-                  </button>
-                )}
+        <div className="flex md:hidden flex-col gap-3">
+          <button
+            onClick={() => setOpenAddModal(true)}
+            className="bg-[#1E1B2E] text-white px-6 py-3 rounded-2xl font-bold"
+          >
+            + הוספת מוזמן
+          </button>
 
-                {/* 4️⃣ הוספת מוזמן */}
-                <button
-                  onClick={() => setOpenAddModal(true)}
-                  disabled={!invitation}
-                  className={`
-                    px-6 py-3 rounded-2xl font-bold transition border shadow-sm
-                    ${
-                      invitation
-                        ? "bg-white border-[#E7DED1] hover:bg-[#FBFAF7] text-[#1E1B2E]"
-                        : "bg-gray-100 text-gray-400 cursor-not-allowed"
-                    }
-                  `}
-                >
-                  + הוספת מוזמן
-                </button>
+          <button
+            onClick={() => setShowImportModal(true)}
+            className="border border-[#E7DED1] bg-white px-6 py-3 rounded-2xl font-bold"
+          >
+            📥 ייבוא מאקסל
+          </button>
+        </div>
+      </section>
 
-                {/* 5️⃣ ייבוא מאקסל */}
-                <button
-                  onClick={() => setShowImportModal(true)}
-                  disabled={!invitation}
-                  className={`
-                    px-6 py-3 rounded-2xl font-bold transition border shadow-sm
-                    ${
-                      invitation
-                        ? "bg-white border-[#E7DED1] hover:bg-[#FBFAF7] text-[#1E1B2E]"
-                        : "bg-gray-100 text-gray-400 cursor-not-allowed"
-                    }
-                  `}
-                >
-                  📥 ייבוא מאקסל
-                </button>
+      {/* ===================== SERVICE TAGS ===================== */}
+      <section className="mb-6 flex flex-wrap gap-3">
+        {user?.includeCalls ? (
+          <div className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 px-4 py-2 rounded-full text-sm font-bold shadow-sm">
+            ☎️ כולל שירות שיחות אישורי הגעה (3 סבבים)
+          </div>
+        ) : (
+          <div className="inline-flex items-center gap-2 bg-amber-50 text-amber-700 border border-amber-200 px-4 py-2 rounded-full text-sm font-bold shadow-sm">
+            ⚠️ ללא שירות שיחות טלפוניים
+          </div>
+        )}
 
-                {/* 6️⃣ סידורי הושבה */}
-                <button
-                  onClick={() =>
-                    router.push(
-                      isDemo ? "/try/dashboard/seating" : "/dashboard/seating"
-                    )
-                  }
-                  disabled={!invitation}
-                  className={`
-                    px-6 py-3 rounded-2xl font-bold transition shadow-sm
-                    ${
-                      invitation
-                        ? "bg-gradient-to-l from-[#C9A45C] to-[#D9BE87] text-white"
-                        : "bg-gray-200 text-gray-400 cursor-not-allowed"
-                    }
-                  `}
-                >
-                  🪑 סידורי הושבה
-                </button>
+        {user?.includeCreditGifts && (
+          <>
+            <div className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 px-4 py-2 rounded-full text-sm font-bold shadow-sm">
+              💳 כולל מתנות באשראי לאורחים
+            </div>
 
-                {/* 7️⃣ שליחת הודעות */}
-                <button
-                  onClick={() =>
-                    router.push(
-                      isDemo
-                        ? "/try/dashboard/messages/new"
-                        : "/dashboard/messages/new"
-                    )
-                  }
-                  disabled={!invitation}
-                  className={`
-                    px-6 py-3 rounded-2xl font-bold transition shadow-sm
-                    ${
-                      invitation
-                        ? "bg-gradient-to-l from-emerald-600 to-teal-500 text-white"
-                        : "bg-gray-200 text-gray-400 cursor-not-allowed"
-                    }
-                  `}
-                >
-                  💬 שליחת הודעות
-                </button>
-              </div>
+            <a
+              href="https://ktzr.io/giftInvistimoSignup"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 w-fit bg-[#138b55] text-white px-5 py-2 rounded-full text-sm font-semibold hover:bg-[#0f6f45] transition"
+            >
+              🔗 קישור הרשמה למתנות באשראי
+            </a>
+          </>
+        )}
+      </section>
 
-              {/* מובייל */}
-              <div className="flex md:hidden flex-col gap-3">
-                <button
-                  onClick={() => setOpenAddModal(true)}
-                  className="bg-[#1E1B2E] text-white px-6 py-3 rounded-2xl font-bold"
-                >
-                  + הוספת מוזמן
-                </button>
-
-                <button
-                  onClick={() => setShowImportModal(true)}
-                  className="border border-[#E7DED1] bg-white px-6 py-3 rounded-2xl font-bold"
-                >
-                  📥 ייבוא מאקסל
-                </button>
-              </div>
+      {/* ===================== COUNTDOWN ===================== */}
+      {event && (
+        <section className="mb-6">
+          <div className="rounded-2xl border border-[#E7DED1] bg-white/80 px-5 py-4 shadow-sm">
+            <div className="text-lg font-semibold">
+              {event.date ? (
+                <EventCountdown event={event} />
+              ) : (
+                <span className="text-gray-500">
+                  📅 טרם הוגדר תאריך לאירוע
+                </span>
+              )}
             </div>
           </div>
-        </>
+        </section>
       )}
 
       {/* ===================== STATS ===================== */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+      <section className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
         <Box
           title="סה״כ מוזמנים"
           value={stats.totalGuests}
@@ -1370,11 +1261,31 @@ export default function DashboardPage() {
           icon="⏳"
           description="עוד לא השיבו"
         />
-      </div>
+      </section>
 
-      {/* ===================== ANALYTICS ===================== */}
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_420px] gap-5 mb-7">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      {/* ===================== ANALYTICS — כרטיסיות ימין, גרפים שמאל ===================== */}
+      <section
+        dir="ltr"
+        className="
+          grid
+          grid-cols-1
+          xl:grid-cols-[minmax(0,1fr)_340px]
+          gap-5
+          mb-7
+          items-start
+        "
+      >
+        <div
+          dir="rtl"
+          className="
+            grid
+            grid-cols-1
+            lg:grid-cols-2
+            gap-5
+            items-start
+            min-w-0
+          "
+        >
           <AnalyticsLineCard percent={rsvpVisualStats.comingPercent} />
 
           <DonutCard
@@ -1385,7 +1296,15 @@ export default function DashboardPage() {
           />
         </div>
 
-        <aside className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-1 gap-5">
+        <aside
+          dir="rtl"
+          className="
+            grid
+            grid-cols-1
+            gap-5
+            min-w-0
+          "
+        >
           <EventDetailsCard
             title={eventTitle}
             date={formatEventDate(eventDate)}
@@ -1393,20 +1312,22 @@ export default function DashboardPage() {
             location={eventLocation}
             onOpen={() => {
               if (!invitation) return;
+
               if (isDemo) {
                 handleDemoBlockedAction();
                 return;
               }
+
               router.push("/dashboard/event");
             }}
           />
 
           <RecentActivityCard />
         </aside>
-      </div>
+      </section>
 
       {/* ===================== CONTROLS ===================== */}
-      <div className="mb-5 rounded-[24px] border border-[#E7DED1] bg-white/85 p-4 shadow-sm">
+      <section className="mb-5 rounded-[24px] border border-[#E7DED1] bg-white/85 p-4 shadow-sm">
         <GuestsControls
           search={search}
           setSearch={setSearch}
@@ -1420,7 +1341,7 @@ export default function DashboardPage() {
           displayCount={displayGuests.length}
           onExportExcel={handleExportExcel}
         />
-      </div>
+      </section>
 
       {/* ===================== DESKTOP TABLE ===================== */}
       <div
@@ -1524,7 +1445,10 @@ export default function DashboardPage() {
                     <div className="h-9 w-9 rounded-full bg-gradient-to-br from-[#E9DDC8] to-[#F7F0E4] border border-[#E7DED1] flex items-center justify-center text-xs font-black text-[#8B6A2E]">
                       {g.name?.trim()?.slice(0, 1) || "?"}
                     </div>
-                    <span className="font-bold text-[#1E1B2E]">{g.name}</span>
+
+                    <span className="font-bold text-[#1E1B2E]">
+                      {g.name}
+                    </span>
                   </div>
                 </td>
 
@@ -1542,7 +1466,9 @@ export default function DashboardPage() {
                     onChange={async (groupId) => {
                       setGuests((prev) =>
                         prev.map((guest) =>
-                          guest._id === g._id ? { ...guest, groupId } : guest
+                          guest._id === g._id
+                            ? { ...guest, groupId }
+                            : guest
                         )
                       );
 
@@ -1585,6 +1511,7 @@ export default function DashboardPage() {
                         ${RSVP_STATUS_DOT[g.rsvp]}
                       `}
                     />
+
                     {RSVP_STATUS_LABELS[g.rsvp]}
                   </span>
                 </td>
@@ -1606,6 +1533,7 @@ export default function DashboardPage() {
                             0,
                             (g.actualArrivedCount || 0) - 1
                           );
+
                           updateActualArrived(g._id, next);
                         }}
                         className="h-7 w-7 rounded-full bg-[#F7F4EF] hover:bg-[#EFE8DE] font-black"
@@ -1633,15 +1561,16 @@ export default function DashboardPage() {
                 <td className="p-4 font-bold text-[#1E1B2E]">
                   {(() => {
                     const guestKey = String(g.id ?? g._id ?? "");
-                    const tableFromStore = guestTableMap.get(guestKey) || null;
+                    const tableFromStore =
+                      guestTableMap.get(guestKey) || null;
 
                     const tableLabel =
                       (tableFromStore && tableFromStore.name) ||
                       (g.tableName
                         ? g.tableName
                         : g.tableNumber
-                        ? `שולחן ${g.tableNumber}`
-                        : null);
+                          ? `שולחן ${g.tableNumber}`
+                          : null);
 
                     return tableLabel || "-";
                   })()}
@@ -1658,7 +1587,12 @@ export default function DashboardPage() {
                       onClick={() => {
                         const link = getGuestInviteLink(g);
                         if (!link) return;
-                        window.open(link, "_blank", "noopener,noreferrer");
+
+                        window.open(
+                          link,
+                          "_blank",
+                          "noopener,noreferrer"
+                        );
                       }}
                       className="hover:opacity-70 text-[#8b6a2e]"
                     >
@@ -1670,6 +1604,7 @@ export default function DashboardPage() {
                       onClick={async () => {
                         const link = getGuestInviteLink(g);
                         if (!link) return;
+
                         await navigator.clipboard.writeText(link);
                         alert("📋 הקישור הועתק");
                       }}
@@ -1703,6 +1638,13 @@ export default function DashboardPage() {
                     </IconAction>
 
                     <IconAction
+                      title="שליחת וואטסאפ אישי"
+                      onClick={() => sendWhatsApp(g)}
+                    >
+                      🟢
+                    </IconAction>
+
+                    <IconAction
                       title="סידור הושבה"
                       onClick={() =>
                         router.push(
@@ -1715,7 +1657,10 @@ export default function DashboardPage() {
                       🪑
                     </IconAction>
 
-                    <IconAction title="עריכת מוזמן" onClick={() => setSelectedGuest(g)}>
+                    <IconAction
+                      title="עריכת מוזמן"
+                      onClick={() => setSelectedGuest(g)}
+                    >
                       ✏️
                     </IconAction>
 
@@ -1768,6 +1713,7 @@ export default function DashboardPage() {
           onInviteLink={(g) => {
             const link = getGuestInviteLink(g);
             if (!link) return;
+
             window.open(link, "_blank", "noopener,noreferrer");
           }}
         />
@@ -1788,7 +1734,9 @@ export default function DashboardPage() {
           onClose={() => setOpenCallsGuest(null)}
           onUpdated={(updatedGuest: Guest) => {
             setGuests((prev) =>
-              prev.map((g) => (g._id === updatedGuest._id ? updatedGuest : g))
+              prev.map((g) =>
+                g._id === updatedGuest._id ? updatedGuest : g
+              )
             );
           }}
         />
@@ -1814,7 +1762,10 @@ export default function DashboardPage() {
           invitationId={invitationId}
           onClose={() => setShowImportModal(false)}
           onSuccess={async () => {
-            await Promise.all([loadGroups(invitationId), loadGuests()]);
+            await Promise.all([
+              loadGroups(invitationId),
+              loadGuests(),
+            ]);
           }}
         />
       )}
@@ -1834,85 +1785,233 @@ export default function DashboardPage() {
 }
 
 /* ============================================================
-   UI helpers
+   HERO בדיוק כמו הסקיצה
 ============================================================ */
-
-function InfoChip({
-  icon,
-  label,
-  value,
-}: {
-  icon: string;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-[#E7DED1] bg-white/75 px-4 py-3 shadow-sm">
-      <div className="flex items-center gap-2 text-xs font-bold text-[#8B6A2E] mb-1">
-        <span>{icon}</span>
-        <span>{label}</span>
-      </div>
-      <div className="text-sm font-black text-[#1E1B2E] truncate">
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function HeroMetric({
+function PremiumEventHero({
   title,
-  value,
-  tone,
+  date,
+  time,
+  location,
+  responsePercent,
+  workMode,
+  canViewActualArrived,
+  setWorkMode,
 }: {
   title: string;
-  value: string | number;
-  tone: "green" | "gold" | "rose";
+  date: string;
+  time: string;
+  location: string;
+  responsePercent: number;
+  workMode: "regular" | "live";
+  canViewActualArrived: boolean;
+  setWorkMode: (mode: "regular" | "live") => void;
 }) {
-  const styles = {
-    green: "from-emerald-50 to-teal-50 text-emerald-700 border-emerald-100",
-    gold: "from-amber-50 to-orange-50 text-amber-700 border-amber-100",
-    rose: "from-rose-50 to-red-50 text-rose-700 border-rose-100",
-  };
+  const safePercent = Math.max(0, Math.min(100, responsePercent));
 
   return (
     <div
-      className={`
-        rounded-3xl
+      className="
+        relative
+        overflow-hidden
+        rounded-[34px]
         border
-        bg-gradient-to-br
-        p-5
-        shadow-sm
-        ${styles[tone]}
-      `}
+        border-[#E9E1D6]
+        bg-white
+        shadow-[0_18px_55px_rgba(30,27,46,0.07)]
+        min-h-[178px]
+      "
     >
-      <div className="text-sm font-bold opacity-75 mb-2">{title}</div>
-      <div className="text-3xl font-black">{value}</div>
+      <div
+        className="
+          absolute
+          inset-0
+          bg-[linear-gradient(90deg,rgba(236,253,245,0.92)_0%,rgba(255,255,255,0.98)_39%,#fff_100%)]
+        "
+      />
+
+      <div className="absolute left-0 top-0 h-full w-[390px] overflow-hidden">
+        <div className="absolute -left-20 -top-24 h-80 w-80 rounded-full bg-emerald-200/45 blur-3xl" />
+        <div className="absolute left-8 top-5 text-[96px] opacity-85 rotate-[-17deg]">
+          🌿
+        </div>
+        <div className="absolute left-[98px] top-[56px] text-[54px] opacity-90">
+          ✿
+        </div>
+        <div className="absolute left-[32px] bottom-[26px] text-[34px] opacity-90 text-[#D9B46F]">
+          ✦
+        </div>
+        <div className="absolute left-[210px] top-[62px] text-[18px] opacity-80 text-[#D9B46F]">
+          ✦
+        </div>
+        <div className="absolute left-44 top-8 h-[1px] w-48 rotate-[-18deg] bg-gradient-to-l from-[#D9B46F] to-transparent" />
+        <div className="absolute left-36 bottom-11 h-[1px] w-56 rotate-[12deg] bg-gradient-to-l from-[#D9B46F] to-transparent" />
+      </div>
+
+      <div className="absolute -right-28 -top-32 h-72 w-72 rounded-full border border-[#E9E1D6]/70" />
+      <div className="absolute -right-32 -bottom-36 h-80 w-80 rounded-full bg-amber-50/70 blur-3xl" />
+
+      <div
+        className="
+          relative
+          grid
+          grid-cols-1
+          xl:grid-cols-[1fr_380px_520px]
+          items-center
+          gap-6
+          px-7
+          py-6
+          md:px-9
+        "
+      >
+        <div className="order-3 xl:order-1 flex items-center justify-start">
+          {canViewActualArrived && (
+            <div className="flex items-center gap-2 rounded-full bg-white/80 border border-[#E7DED1] p-1 shadow-sm">
+              <button
+                onClick={() => setWorkMode("regular")}
+                className={`
+                  px-5 py-2.5 rounded-full text-sm font-black transition
+                  ${
+                    workMode === "regular"
+                      ? "bg-[#1E1B2E] text-white shadow"
+                      : "text-[#7C746C] hover:bg-[#F7F4EF]"
+                  }
+                `}
+              >
+                מצב רגיל
+              </button>
+
+              <button
+                onClick={() => setWorkMode("live")}
+                className={`
+                  px-5 py-2.5 rounded-full text-sm font-black transition
+                  ${
+                    workMode === "live"
+                      ? "bg-rose-600 text-white shadow"
+                      : "text-[#7C746C] hover:bg-[#F7F4EF]"
+                  }
+                `}
+              >
+                🔴 LIVE
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="order-2 xl:order-2 flex items-center justify-center gap-8">
+          <div className="flex flex-col items-center gap-2">
+            <div
+              className="
+                inline-flex
+                items-center
+                gap-2
+                rounded-full
+                border
+                border-emerald-200
+                bg-emerald-50
+                px-6
+                py-2.5
+                text-sm
+                font-black
+                text-emerald-700
+              "
+            >
+              LIVE
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            </div>
+
+            <div className="text-xs font-bold text-[#8B8177]">
+              האירוע פעיל
+            </div>
+          </div>
+
+          <div className="hidden md:block h-24 w-px bg-[#E5DDD1]" />
+
+          <div className="flex flex-col items-center gap-2">
+            <div className="relative h-[94px] w-[94px] shrink-0">
+              <div
+                className="
+                  absolute
+                  inset-0
+                  rounded-full
+                  bg-[conic-gradient(#10B981_var(--p),#E9E1D6_0)]
+                "
+                style={{ ["--p" as any]: `${safePercent}%` }}
+              />
+
+              <div className="absolute inset-[8px] rounded-full bg-white flex flex-col items-center justify-center shadow-inner">
+                <div className="text-2xl font-black text-[#1E1B2E]">
+                  {safePercent}%
+                </div>
+              </div>
+            </div>
+
+            <div className="text-xs font-bold text-[#8B8177]">
+              אחוז היענות
+            </div>
+          </div>
+        </div>
+
+        <div className="order-1 xl:order-3 text-right">
+          <div className="flex items-center justify-start gap-2 mb-2">
+            <span className="text-3xl">🌿</span>
+            <span className="rounded-full bg-white/75 border border-[#E7DED1] px-3 py-1 text-xs font-black text-[#8B6A2E]">
+              פרטי האירוע
+            </span>
+          </div>
+
+          <h1 className="text-3xl md:text-4xl font-black text-[#1E1B2E] tracking-tight">
+            {title}
+          </h1>
+
+          <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <HeroDetail icon="🕒" title="שעה" value={time} />
+            <HeroDetail icon="📅" title="תאריך" value={date} />
+            <HeroDetail icon="📍" title="מיקום" value={location} />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
-function MiniDarkStat({
-  label,
+function HeroDetail({
+  icon,
+  title,
   value,
 }: {
-  label: string;
-  value: number;
+  icon: string;
+  title: string;
+  value: string;
 }) {
   return (
-    <div className="rounded-2xl bg-white/10 p-3 text-center">
-      <div className="text-xl font-black">{value}</div>
-      <div className="text-[11px] text-white/60 mt-1">{label}</div>
+    <div className="flex items-center gap-3 rounded-2xl bg-white/65 border border-[#E7DED1] px-4 py-3 shadow-sm min-w-0">
+      <div className="h-9 w-9 rounded-xl bg-[#F7F4EF] flex items-center justify-center shrink-0">
+        {icon}
+      </div>
+
+      <div className="min-w-0">
+        <div className="text-[11px] text-[#9A9085] font-bold">
+          {title}
+        </div>
+
+        <div className="text-sm font-black text-[#1E1B2E] truncate">
+          {value}
+        </div>
+      </div>
     </div>
   );
 }
 
+/* ============================================================
+   UI helpers
+============================================================ */
 function IconAction({
   children,
   title,
   onClick,
   danger,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   title: string;
   onClick: () => void;
   danger?: boolean;
@@ -1948,23 +2047,35 @@ function AnalyticsLineCard({ percent }: { percent: number }) {
   const safePercent = Math.max(0, Math.min(100, percent));
 
   return (
-    <div className="rounded-[28px] border border-[#E7DED1] bg-white p-6 shadow-[0_14px_40px_rgba(30,27,46,0.06)]">
-      <div className="flex items-center justify-between mb-6">
+    <div
+      className="
+        h-[255px]
+        rounded-[28px]
+        border
+        border-[#E7DED1]
+        bg-white
+        p-5
+        shadow-[0_14px_34px_rgba(30,27,46,0.055)]
+        overflow-hidden
+      "
+    >
+      <div className="flex items-start justify-between mb-4">
         <div>
           <h3 className="text-lg font-black text-[#1E1B2E]">
             מגמת היענות RSVP
           </h3>
-          <p className="text-sm text-[#7C746C] mt-1">
+
+          <p className="text-xs text-[#7C746C] mt-1">
             אחוז האורחים שסימנו מגיע
           </p>
         </div>
 
-        <span className="rounded-full bg-emerald-50 text-emerald-700 px-4 py-2 text-sm font-black border border-emerald-100">
+        <span className="rounded-full bg-emerald-50 text-emerald-700 px-4 py-1.5 text-sm font-black border border-emerald-100">
           {safePercent}%
         </span>
       </div>
 
-      <div className="h-40 relative">
+      <div className="h-[145px] relative">
         <div className="absolute inset-0 grid grid-rows-4">
           <div className="border-b border-[#F0ECE6]" />
           <div className="border-b border-[#F0ECE6]" />
@@ -1972,38 +2083,38 @@ function AnalyticsLineCard({ percent }: { percent: number }) {
           <div className="border-b border-[#F0ECE6]" />
         </div>
 
-        <svg viewBox="0 0 500 160" className="relative h-full w-full">
+        <svg viewBox="0 0 500 145" className="relative h-full w-full">
           <defs>
-            <linearGradient id="lineGradient" x1="0" x2="1">
+            <linearGradient id="lineGradientSmall" x1="0" x2="1">
               <stop offset="0%" stopColor="#14B8A6" />
               <stop offset="100%" stopColor="#16A34A" />
             </linearGradient>
 
-            <linearGradient id="areaGradient" x1="0" x2="0" y1="0" y2="1">
+            <linearGradient id="areaGradientSmall" x1="0" x2="0" y1="0" y2="1">
               <stop offset="0%" stopColor="#10B981" stopOpacity="0.22" />
               <stop offset="100%" stopColor="#10B981" stopOpacity="0" />
             </linearGradient>
           </defs>
 
           <path
-            d="M20 135 C80 105, 120 92, 175 98 C235 103, 260 72, 315 66 C370 60, 415 50, 480 42"
+            d="M20 118 C80 92, 118 82, 168 86 C226 90, 250 62, 305 56 C362 49, 415 42, 480 28"
             fill="none"
-            stroke="url(#lineGradient)"
+            stroke="url(#lineGradientSmall)"
             strokeWidth="6"
             strokeLinecap="round"
           />
 
           <path
-            d="M20 135 C80 105, 120 92, 175 98 C235 103, 260 72, 315 66 C370 60, 415 50, 480 42 L480 155 L20 155 Z"
-            fill="url(#areaGradient)"
+            d="M20 118 C80 92, 118 82, 168 86 C226 90, 250 62, 305 56 C362 49, 415 42, 480 28 L480 140 L20 140 Z"
+            fill="url(#areaGradientSmall)"
           />
 
-          <circle cx="480" cy="42" r="7" fill="#16A34A" />
-          <circle cx="480" cy="42" r="12" fill="#16A34A" opacity="0.15" />
+          <circle cx="480" cy="28" r="7" fill="#16A34A" />
+          <circle cx="480" cy="28" r="13" fill="#16A34A" opacity="0.14" />
         </svg>
       </div>
 
-      <div className="mt-4 flex justify-between text-xs text-[#9A9085]">
+      <div className="mt-2 flex justify-between text-[11px] text-[#9A9085]">
         <span>15/05</span>
         <span>22/05</span>
         <span>29/05</span>
@@ -2030,31 +2141,58 @@ function DonutCard({
   const pendingPercent = calcPercent(pending, total);
   const notComingPercent = calcPercent(notComing, total);
 
+  const greenEnd = comingPercent;
+  const orangeEnd = comingPercent + pendingPercent;
+
   return (
-    <div className="rounded-[28px] border border-[#E7DED1] bg-white p-6 shadow-[0_14px_40px_rgba(30,27,46,0.06)]">
-      <h3 className="text-lg font-black text-[#1E1B2E] mb-1">
-        התפלגות מוזמנים לפי סטטוס
-      </h3>
+    <div
+      className="
+        h-[255px]
+        rounded-[28px]
+        border
+        border-[#E7DED1]
+        bg-white
+        p-5
+        shadow-[0_14px_34px_rgba(30,27,46,0.055)]
+        overflow-hidden
+      "
+    >
+      <div className="mb-4">
+        <h3 className="text-lg font-black text-[#1E1B2E]">
+          התפלגות מוזמנים לפי סטטוס
+        </h3>
 
-      <p className="text-sm text-[#7C746C] mb-6">
-        מגיע / לא מגיע / בהמתנה
-      </p>
+        <p className="text-xs text-[#7C746C] mt-1">
+          מגיע / לא מגיע / בהמתנה
+        </p>
+      </div>
 
-      <div className="flex items-center justify-between gap-6">
+      <div className="flex items-center justify-between gap-5">
         <div
           className="
             relative
-            h-36
-            w-36
+            h-32
+            w-32
             rounded-full
-            bg-[conic-gradient(#10B981_0_65%,#F59E0B_65%_82%,#F43F5E_82%_100%)]
             shadow-inner
             shrink-0
           "
+          style={{
+            background: `conic-gradient(
+              #10B981 0% ${greenEnd}%,
+              #F59E0B ${greenEnd}% ${orangeEnd}%,
+              #F43F5E ${orangeEnd}% 100%
+            )`,
+          }}
         >
           <div className="absolute inset-5 rounded-full bg-white flex flex-col items-center justify-center">
-            <div className="text-2xl font-black text-[#1E1B2E]">{total}</div>
-            <div className="text-[11px] text-[#7C746C]">אורחים</div>
+            <div className="text-2xl font-black text-[#1E1B2E]">
+              {total}
+            </div>
+
+            <div className="text-[11px] text-[#7C746C]">
+              אורחים
+            </div>
           </div>
         </div>
 
@@ -2065,12 +2203,14 @@ function DonutCard({
             value={coming}
             percent={comingPercent}
           />
+
           <LegendRow
             color="bg-amber-500"
             label="בהמתנה"
             value={pending}
             percent={pendingPercent}
           />
+
           <LegendRow
             color="bg-rose-500"
             label="לא מגיע"
@@ -2098,11 +2238,16 @@ function LegendRow({
     <div className="flex items-center justify-between gap-3">
       <div className="flex items-center gap-2">
         <span className={`h-2.5 w-2.5 rounded-full ${color}`} />
-        <span className="text-sm font-bold text-[#1E1B2E]">{label}</span>
+        <span className="text-sm font-bold text-[#1E1B2E]">
+          {label}
+        </span>
       </div>
 
       <div className="text-sm font-black text-[#5F564D]">
-        {value} <span className="text-[#9A9085]">({percent}%)</span>
+        {value}{" "}
+        <span className="text-[#9A9085]">
+          ({percent}%)
+        </span>
       </div>
     </div>
   );
@@ -2122,10 +2267,21 @@ function EventDetailsCard({
   onOpen: () => void;
 }) {
   return (
-    <div className="rounded-[28px] border border-[#E7DED1] bg-white p-6 shadow-[0_14px_40px_rgba(30,27,46,0.06)]">
-      <h3 className="text-lg font-black text-[#1E1B2E] mb-5">פרטי האירוע</h3>
+    <div
+      className="
+        rounded-[28px]
+        border
+        border-[#E7DED1]
+        bg-white
+        p-5
+        shadow-[0_14px_34px_rgba(30,27,46,0.055)]
+      "
+    >
+      <h3 className="text-lg font-black text-[#1E1B2E] mb-4">
+        פרטי האירוע
+      </h3>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         <DetailRow icon="✨" label="שם האירוע" value={title} />
         <DetailRow icon="📅" label="תאריך" value={date} />
         <DetailRow icon="🕒" label="שעה" value={time} />
@@ -2135,7 +2291,7 @@ function EventDetailsCard({
       <button
         onClick={onOpen}
         className="
-          mt-6
+          mt-5
           w-full
           rounded-2xl
           border
@@ -2171,7 +2327,10 @@ function DetailRow({
       </div>
 
       <div className="min-w-0">
-        <div className="text-xs font-bold text-[#9A9085] mb-0.5">{label}</div>
+        <div className="text-xs font-bold text-[#9A9085] mb-0.5">
+          {label}
+        </div>
+
         <div className="text-sm font-black text-[#1E1B2E] truncate">
           {value}
         </div>
@@ -2182,16 +2341,48 @@ function DetailRow({
 
 function RecentActivityCard() {
   return (
-    <div className="rounded-[28px] border border-[#E7DED1] bg-white p-6 shadow-[0_14px_40px_rgba(30,27,46,0.06)]">
-      <h3 className="text-lg font-black text-[#1E1B2E] mb-5">
+    <div
+      className="
+        rounded-[28px]
+        border
+        border-[#E7DED1]
+        bg-white
+        p-5
+        shadow-[0_14px_34px_rgba(30,27,46,0.055)]
+      "
+    >
+      <h3 className="text-lg font-black text-[#1E1B2E] mb-4">
         פעילות אחרונה
       </h3>
 
-      <div className="space-y-4">
-        <ActivityRow icon="✅" tone="green" title="אורח סימן מגיע" time="לפני 12 דקות" />
-        <ActivityRow icon="💬" tone="blue" title="נשלחה הודעה למוזמנים" time="לפני 45 דקות" />
-        <ActivityRow icon="🪑" tone="gold" title="עודכן סידור הושבה" time="לפני שעה" />
-        <ActivityRow icon="⏳" tone="orange" title="מוזמנים עדיין בהמתנה" time="מתעדכן בזמן אמת" />
+      <div className="space-y-3">
+        <ActivityRow
+          icon="✅"
+          tone="green"
+          title="אורח סימן מגיע"
+          time="לפני 12 דקות"
+        />
+
+        <ActivityRow
+          icon="💬"
+          tone="blue"
+          title="נשלחה הודעה למוזמנים"
+          time="לפני 45 דקות"
+        />
+
+        <ActivityRow
+          icon="🪑"
+          tone="gold"
+          title="עודכן סידור הושבה"
+          time="לפני שעה"
+        />
+
+        <ActivityRow
+          icon="⏳"
+          tone="orange"
+          title="מוזמנים עדיין בהמתנה"
+          time="מתעדכן בזמן אמת"
+        />
       </div>
     </div>
   );
@@ -2232,45 +2423,15 @@ function ActivityRow({
       </div>
 
       <div>
-        <div className="text-sm font-black text-[#1E1B2E]">{title}</div>
-        <div className="text-xs text-[#9A9085] mt-0.5">{time}</div>
+        <div className="text-sm font-black text-[#1E1B2E]">
+          {title}
+        </div>
+
+        <div className="text-xs text-[#9A9085] mt-0.5">
+          {time}
+        </div>
       </div>
     </div>
-  );
-}
-
-/* ============================================================
-   FilterPill — נשאר למקרה שקיים שימוש עתידי
-============================================================ */
-function FilterPill({
-  active,
-  label,
-  onClick,
-}: {
-  active: boolean;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`
-        px-4 py-2 rounded-full border text-sm font-medium
-        select-none whitespace-nowrap
-        transition-all duration-150
-        active:scale-95
-        focus:outline-none focus-visible:ring-2 focus-visible:ring-[#c9b48f] focus-visible:ring-offset-2
-        ${
-          active
-            ? "bg-[#c9b48f] text-white border-[#c9b48f] shadow-sm"
-            : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400"
-        }
-      `}
-      aria-pressed={active}
-    >
-      {label}
-    </button>
   );
 }
 
@@ -2342,7 +2503,9 @@ function Box({
       tabIndex={onClick ? 0 : undefined}
       onKeyDown={(e) => {
         if (!onClick) return;
+
         if (e.key === "Enter") onClick();
+
         if (e.key === " ") {
           e.preventDefault();
           onClick();
@@ -2366,14 +2529,18 @@ function Box({
 
       <div className="relative flex items-center justify-between gap-4">
         <div>
-          <div className="text-[#7C746C] text-sm font-bold mb-1">{title}</div>
+          <div className="text-[#7C746C] text-sm font-bold mb-1">
+            {title}
+          </div>
 
           <div className={`text-4xl font-black tracking-tight ${s.value}`}>
             {value}
           </div>
 
           {description && (
-            <div className="text-xs text-[#9A9085] mt-2">{description}</div>
+            <div className="text-xs text-[#9A9085] mt-2">
+              {description}
+            </div>
           )}
         </div>
 
