@@ -351,8 +351,10 @@ export async function POST(req: Request) {
     const scheduledType = getScheduledType(templateKey);
 
     const scheduledAt = body.scheduledAt;
-    const includeGiftLink = !!body.includeGiftLink;
-    const giftLink = body.giftLink || "";
+const isScheduledRequest = Boolean(scheduledAt);
+
+const includeGiftLink = !!body.includeGiftLink;
+const giftLink = body.giftLink || "";
 
     const guestIds = Array.isArray(body.guestIds)
       ? body.guestIds
@@ -442,35 +444,41 @@ export async function POST(req: Request) {
       }
     }
 
-    if (templateKey === "table" || templateKey === "reminder") {
-      const reminderAlready =
-        inv.reminderSentAt && inv.messageLocks?.reminderSms;
+    if (
+  (templateKey === "table" || templateKey === "reminder") &&
+  !isScheduledRequest
+) {
+  const reminderAlready =
+    inv.reminderSentAt && inv.messageLocks?.reminderSms;
 
-      if (reminderAlready) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "REMINDER_ALREADY_SENT",
-          },
-          { status: 409 }
-        );
-      }
-    }
+  if (reminderAlready) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "REMINDER_ALREADY_SENT",
+      },
+      { status: 409 }
+    );
+  }
+}
 
-    if (templateKey === "custom" || templateKey === "thankyou") {
-      const thankyouAlready =
-        inv.thankYouSentAt && inv.messageLocks?.thankyouSms;
+    if (
+  (templateKey === "custom" || templateKey === "thankyou") &&
+  !isScheduledRequest
+) {
+  const thankyouAlready =
+    inv.thankYouSentAt && inv.messageLocks?.thankyouSms;
 
-      if (thankyouAlready) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "THANKYOU_ALREADY_SENT",
-          },
-          { status: 409 }
-        );
-      }
-    }
+  if (thankyouAlready) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "THANKYOU_ALREADY_SENT",
+      },
+      { status: 409 }
+    );
+  }
+}
 
     if (!usesNewLogic && remainingMessages <= 0) {
       return NextResponse.json(
