@@ -1877,26 +1877,7 @@ function GoldenEventHero({
           )}
         </div>
 
-        <div className="order-2 xl:order-2 flex items-center justify-center gap-8">
-  <div className="flex flex-col items-center gap-2">
-    <div className="relative h-[98px] w-[98px] shrink-0">
-      <div
-        className="absolute inset-0 rounded-full bg-[conic-gradient(#B8844F_var(--p),#E8DCCB_0)]"
-        style={{ ["--p" as any]: `${safePercent}%` }}
-      />
-
-      <div className="absolute inset-[8px] rounded-full bg-white flex flex-col items-center justify-center shadow-inner">
-        <div className="text-2xl font-black text-[#241A14]">
-          {safePercent}%
-        </div>
-      </div>
-    </div>
-
-    <div className="text-xs font-bold text-[#8A7A68]">
-      אחוז היענות
-    </div>
-  </div>
-</div>
+        <div className="order-2 xl:order-2 hidden xl:block" />
 
         <div dir="rtl" className="order-1 xl:order-3 text-right justify-self-end w-full max-w-[700px]">
           <div className="mb-2 flex items-center justify-start gap-2">
