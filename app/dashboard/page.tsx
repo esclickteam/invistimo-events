@@ -1792,101 +1792,201 @@ function GoldenActionButtons({
   onImport: () => void;
   onExportExcel: () => void;
 }) {
+
+    const [openInviteMenu, setOpenInviteMenu] = useState(false);
+
   return (
     <section>
-      <div className="hidden md:flex flex-wrap gap-3 items-center">
-        <GoldenActionButton
-          label={invitation ? "עריכת הזמנה" : "יצירת הזמנה"}
-          icon="✎"
-          tone="dark"
-          onClick={() => {
+  <div className="hidden md:flex flex-wrap gap-3 items-center">
+    {/* 1️⃣ הזמנה - תת תפריט עריכה / צפייה */}
+    <div className="relative">
+      <GoldenActionButton
+        label={invitation ? "הזמנה" : "יצירת הזמנה"}
+        icon="✎"
+        tone="dark"
+        withChevron={!!invitation}
+        onClick={() => {
+          if (!invitation) {
             if (isDemo) {
               onDemoBlocked();
               return;
             }
-            router.push(
-              invitation
-                ? `/dashboard/edit-invite/${invitationId}`
-                : "/dashboard/create-invite"
-            );
-          }}
-        />
 
-        <GoldenActionButton
-          label="עריכת פרטי האירוע"
-          icon="✎"
-          tone="light"
-          disabled={!invitation}
-          onClick={() => {
-            if (!invitation) return;
-            if (isDemo) {
-              onDemoBlocked();
-              return;
-            }
-            router.push("/dashboard/event");
-          }}
-        />
+            router.push("/dashboard/create-invite");
+            return;
+          }
 
-        {invitation && (
-          <GoldenActionButton
-            label="צפייה בהזמנה"
-            icon="◉"
-            tone="light"
-            onClick={() =>
-              isDemo
-                ? onDemoBlocked()
-                : window.open(
-                    `https://www.invistimo.com/invite/${invitation.shareId}`,
-                    "_blank",
-                    "noopener,noreferrer"
-                  )
-            }
+          setOpenInviteMenu((prev) => !prev);
+        }}
+      />
+
+      {invitation && openInviteMenu && (
+        <>
+          {/* שכבת סגירה בלחיצה מחוץ לתפריט */}
+          <button
+            type="button"
+            className="fixed inset-0 z-40 cursor-default bg-transparent"
+            onClick={() => setOpenInviteMenu(false)}
+            aria-label="סגירת תפריט הזמנה"
           />
-        )}
 
-        <GoldenActionButton
-          label="הוספת מוזמן"
-          icon="♙"
-          tone="light"
-          disabled={!invitation}
-          onClick={onAddGuest}
-        />
+          <div
+            className="
+              absolute
+              right-0
+              top-[calc(100%+10px)]
+              z-50
+              w-[230px]
+              overflow-hidden
+              rounded-[22px]
+              border
+              border-[#E3D6C3]
+              bg-white
+              shadow-[0_18px_45px_rgba(36,26,46,0.16)]
+            "
+          >
+            <button
+              type="button"
+              onClick={() => {
+                setOpenInviteMenu(false);
 
-        <GoldenActionButton
-          label="ייבוא מאקסל"
-          icon="▣"
-          tone="excel"
-          disabled={!invitation}
-          onClick={onImport}
-        />
+                if (isDemo) {
+                  onDemoBlocked();
+                  return;
+                }
 
-        <GoldenActionButton
-          label="סידורי הושבה"
-          icon="♜"
-          tone="gold"
-          disabled={!invitation}
-          withChevron
-          onClick={() =>
-            router.push(isDemo ? "/try/dashboard/seating" : "/dashboard/seating")
-          }
-        />
+                router.push(`/dashboard/edit-invite/${invitationId}`);
+              }}
+              className="
+                flex
+                w-full
+                items-center
+                justify-between
+                gap-3
+                px-5
+                py-4
+                text-right
+                text-sm
+                font-black
+                text-[#241A14]
+                transition
+                hover:bg-[#FBF7F0]
+              "
+            >
+              <span>עריכת הזמנה</span>
+              <span className="text-[#B8844F]">✎</span>
+            </button>
 
-        <GoldenActionButton
-          label="שליחת הודעות"
-          icon="↗"
-          tone="green"
-          disabled={!invitation}
-          onClick={() =>
-            router.push(
-              isDemo
-                ? "/try/dashboard/messages/new"
-                : "/dashboard/messages/new"
-            )
-          }
-        />
+            <div className="h-px bg-[#EFE4D6]" />
 
-        
-      </div>
+            <button
+              type="button"
+              onClick={() => {
+                setOpenInviteMenu(false);
+
+                if (isDemo) {
+                  onDemoBlocked();
+                  return;
+                }
+
+                window.open(
+                  `https://www.invistimo.com/invite/${invitation.shareId}`,
+                  "_blank",
+                  "noopener,noreferrer"
+                );
+              }}
+              className="
+                flex
+                w-full
+                items-center
+                justify-between
+                gap-3
+                px-5
+                py-4
+                text-right
+                text-sm
+                font-black
+                text-[#241A14]
+                transition
+                hover:bg-[#FBF7F0]
+              "
+            >
+              <span>צפייה בהזמנה</span>
+              <span className="text-[#241A14]">◉</span>
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+
+    {/* 2️⃣ עריכת פרטי האירוע */}
+    <GoldenActionButton
+      label="עריכת פרטי האירוע"
+      icon="✎"
+      tone="light"
+      disabled={!invitation}
+      onClick={() => {
+        if (!invitation) return;
+
+        if (isDemo) {
+          onDemoBlocked();
+          return;
+        }
+
+        router.push("/dashboard/event");
+      }}
+    />
+
+    {/* 3️⃣ הוספת מוזמן */}
+    <GoldenActionButton
+      label="הוספת מוזמן"
+      icon="♙"
+      tone="light"
+      disabled={!invitation}
+      onClick={onAddGuest}
+    />
+
+    {/* 4️⃣ ייבוא מאקסל */}
+    <GoldenActionButton
+      label="ייבוא מאקסל"
+      icon="▣"
+      tone="excel"
+      disabled={!invitation}
+      onClick={onImport}
+    />
+
+    {/* 5️⃣ סידורי הושבה */}
+    <GoldenActionButton
+      label="סידורי הושבה"
+      icon="♜"
+      tone="gold"
+      disabled={!invitation}
+      withChevron
+      onClick={() =>
+        router.push(
+          isDemo
+            ? "/try/dashboard/seating"
+            : "/dashboard/seating"
+        )
+      }
+    />
+
+    {/* 6️⃣ שליחת הודעות */}
+    <GoldenActionButton
+      label="שליחת הודעות"
+      icon="↗"
+      tone="green"
+      disabled={!invitation}
+      onClick={() =>
+        router.push(
+          isDemo
+            ? "/try/dashboard/messages/new"
+            : "/dashboard/messages/new"
+        )
+      }
+    />
+  </div>
+
 
       <div className="flex md:hidden flex-col gap-3">
         <button
