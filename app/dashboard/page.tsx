@@ -1130,6 +1130,7 @@ export default function DashboardPage() {
         <GoldenEventHero
           title={eventTitle}
           date={formatEventDate(eventDate)}
+          eventDateRaw={eventDate}
           time={eventTime}
           location={eventLocation}
           responsePercent={rsvpVisualStats.comingPercent}
@@ -1587,19 +1588,6 @@ export default function DashboardPage() {
                 <td className="p-4">
                   <div className="flex gap-2">
                     <IconAction
-                      title="שליחת הודעה"
-                      onClick={() =>
-                        router.push(
-                          isDemo
-                            ? `/try/dashboard/messages/new?guestId=${g._id}`
-                            : `/dashboard/messages/new?guestId=${g._id}`
-                        )
-                      }
-                    >
-                      💬
-                    </IconAction>
-
-                    <IconAction
                       title="מעקב סבבי שיחה"
                       onClick={() => setOpenCallsGuest(g)}
                     >
@@ -1607,23 +1595,10 @@ export default function DashboardPage() {
                     </IconAction>
 
                     <IconAction
-                      title="שליחת וואטסאפ אישי"
+                      title="שליחת הודעת וואטסאפ אישית"
                       onClick={() => sendWhatsApp(g)}
                     >
-                      🟢
-                    </IconAction>
-
-                    <IconAction
-                      title="סידור הושבה"
-                      onClick={() =>
-                        router.push(
-                          isDemo
-                            ? `/try/dashboard/seating?from=personal&guestId=${g._id}`
-                            : `/dashboard/seating?from=personal&guestId=${g._id}`
-                        )
-                      }
-                    >
-                      🪑
+                      💬
                     </IconAction>
 
                     <IconAction
@@ -1761,15 +1736,17 @@ export default function DashboardPage() {
 function GoldenEventHero({
   title,
   date,
+  eventDateRaw,
   time,
   location,
-  responsePercent,
+  responsePercent: _responsePercent,
   workMode,
   canViewActualArrived,
   setWorkMode,
 }: {
   title: string;
   date: string;
+  eventDateRaw?: string;
   time: string;
   location: string;
   responsePercent: number;
@@ -1777,7 +1754,20 @@ function GoldenEventHero({
   canViewActualArrived: boolean;
   setWorkMode: (mode: "regular" | "live") => void;
 }) {
-  const safePercent = Math.max(0, Math.min(100, responsePercent));
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const countdown = useMemo(
+    () => getEventCountdown(eventDateRaw, time, now),
+    [eventDateRaw, time, now]
+  );
 
   return (
     <div
@@ -1792,50 +1782,31 @@ function GoldenEventHero({
         shadow-[0_22px_70px_rgba(92,65,35,0.10)]
       "
     >
-      {/* רקע קבוע שלך: public/background.png */}
-<div
-  className="
-    absolute
-    inset-0
-    bg-no-repeat
-  "
-  style={{
-    backgroundImage: "url('/background1.png')",
-    backgroundSize: "100% 100%",
-    backgroundPosition: "center",
-  }}
-/>
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,#FFF7E8_0%,#FFFFFF_38%,#FFFCF7_100%)]" />
 
-{/* שכבת הגנה עדינה יותר כדי שיראו את הרקע אבל הכתב יישאר קריא */}
-<div
-  className="
-    absolute
-    inset-0
-    bg-gradient-to-l
-    from-white/78
-    via-white/52
-    to-white/20
-  "
-/>
+      {/* פרחים זהב / לבן / ברונזה בצד שמאל */}
+      <div className="absolute left-0 top-0 h-full w-[440px] overflow-hidden">
+        <div className="absolute -left-20 -top-24 h-80 w-80 rounded-full bg-[#F4D6A4]/45 blur-3xl" />
+        <div className="absolute left-8 top-10 text-[94px] leading-none opacity-95 rotate-[-18deg]">❀</div>
+        <div className="absolute left-[86px] top-[26px] text-[82px] leading-none opacity-80 rotate-[20deg] text-[#C08A45]">✦</div>
+        <div className="absolute left-[148px] top-[62px] text-[66px] leading-none opacity-95 rotate-[8deg]">❁</div>
+        <div className="absolute left-[40px] bottom-[22px] text-[56px] leading-none opacity-80 rotate-[12deg] text-[#B8844F]">✧</div>
+        <div className="absolute left-[214px] bottom-[34px] text-[28px] leading-none text-[#B07A3D] opacity-80">✦</div>
+        <div className="absolute left-32 top-10 h-[1px] w-72 rotate-[-15deg] bg-gradient-to-l from-[#C08A45] via-[#E6C184] to-transparent" />
+        <div className="absolute left-24 bottom-12 h-[1px] w-80 rotate-[12deg] bg-gradient-to-l from-[#B87A3C] via-[#E6C184] to-transparent" />
+      </div>
 
-      {/* שכבה זהובה עדינה לחיבור עם העיצוב */}
-      <div
-        className="
-          absolute
-          inset-0
-          bg-[radial-gradient(circle_at_82%_42%,rgba(255,255,255,0.72),transparent_34%),radial-gradient(circle_at_18%_50%,rgba(217,180,111,0.18),transparent_34%)]
-        "
-      />
-
-      {/* העיטורים מגיעים מהרקע הקבוע background.png */}
+      {/* עיטור צד ימין */}
+      <div className="absolute right-[-70px] top-[-80px] h-64 w-64 rounded-full border border-[#EADBC8]" />
+      <div className="absolute right-[36px] bottom-[18px] h-24 w-24 rounded-full bg-[#F1D6AD]/35 blur-2xl" />
+      <div className="absolute right-[46px] top-[42px] text-[42px] text-[#B8844F] opacity-80 rotate-[-10deg]">✦</div>
 
       <div
-        dir="ltr"
         className="
           relative
           grid
           grid-cols-1
-          xl:grid-cols-[360px_260px_minmax(0,1fr)]
+          xl:grid-cols-[420px_360px_minmax(0,1fr)]
           items-center
           gap-7
           px-7
@@ -1843,7 +1814,7 @@ function GoldenEventHero({
           md:px-9
         "
       >
-        <div dir="rtl" className="order-3 xl:order-1">
+        <div className="order-3 xl:order-1">
           {canViewActualArrived && (
             <div className="flex w-fit items-center gap-2 rounded-full border border-[#E3D0B8] bg-white/85 p-1 shadow-sm">
               <button
@@ -1879,14 +1850,7 @@ function GoldenEventHero({
 
         <div className="order-2 xl:order-2 hidden xl:block" />
 
-        <div dir="rtl" className="order-1 xl:order-3 text-right justify-self-end w-full max-w-[700px]">
-          <div className="mb-2 flex items-center justify-start gap-2">
-            <span className="rounded-full border border-[#E3D0B8] bg-white/75 px-4 py-1.5 text-xs font-black text-[#8B5E34]">
-              פרטי האירוע
-            </span>
-            <span className="text-3xl text-[#B8844F]">✦</span>
-          </div>
-
+        <div dir="rtl" className="order-1 xl:order-3 text-right justify-self-end w-full max-w-[760px]">
           <h1
             className="
               text-4xl
@@ -1900,7 +1864,9 @@ function GoldenEventHero({
             {title}
           </h1>
 
-          <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <GoldenCountdown countdown={countdown} />
+
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
             <GoldenHeroDetail icon="◷" title="שעה" value={time} />
             <GoldenHeroDetail icon="▦" title="תאריך" value={date} />
             <GoldenHeroDetail icon="●" title="מיקום" value={location} />
@@ -2243,7 +2209,7 @@ function GoldenActionButton({
       <span
         className={`text-xl leading-none ${
           tone === "dark"
-            ? "text-white"
+            ? "text-[#D8A85F]"
             : tone === "excel"
               ? "text-emerald-600"
               : "text-current"
@@ -2257,6 +2223,139 @@ function GoldenActionButton({
   );
 }
 
+
+function buildCountdownTarget(eventDateRaw?: string, time?: string) {
+  if (!eventDateRaw) return null;
+
+  const datePart = String(eventDateRaw).split("T")[0];
+  const timeMatch = String(time || "").match(/(\d{1,2}):(\d{2})/);
+
+  const hours = timeMatch ? timeMatch[1].padStart(2, "0") : "00";
+  const minutes = timeMatch ? timeMatch[2] : "00";
+
+  const candidate = new Date(`${datePart}T${hours}:${minutes}:00`);
+
+  if (Number.isNaN(candidate.getTime())) {
+    const fallback = new Date(eventDateRaw);
+    return Number.isNaN(fallback.getTime()) ? null : fallback;
+  }
+
+  return candidate;
+}
+
+function getEventCountdown(
+  eventDateRaw: string | undefined,
+  time: string,
+  now: number
+) {
+  const target = buildCountdownTarget(eventDateRaw, time);
+
+  if (!target) {
+    return {
+      months: 0,
+      weeks: 0,
+      days: 0,
+      hours: 0,
+      seconds: 0,
+      isMissing: true,
+    };
+  }
+
+  let diff = Math.max(0, target.getTime() - now);
+
+  const second = 1000;
+  const hour = 60 * 60 * second;
+  const day = 24 * hour;
+  const week = 7 * day;
+  const month = 30 * day;
+
+  const months = Math.floor(diff / month);
+  diff -= months * month;
+
+  const weeks = Math.floor(diff / week);
+  diff -= weeks * week;
+
+  const days = Math.floor(diff / day);
+  diff -= days * day;
+
+  const hours = Math.floor(diff / hour);
+  diff -= hours * hour;
+
+  const seconds = Math.floor(diff / second);
+
+  return {
+    months,
+    weeks,
+    days,
+    hours,
+    seconds,
+    isMissing: false,
+  };
+}
+
+function GoldenCountdown({
+  countdown,
+}: {
+  countdown: {
+    months: number;
+    weeks: number;
+    days: number;
+    hours: number;
+    seconds: number;
+    isMissing: boolean;
+  };
+}) {
+  if (countdown.isMissing) {
+    return (
+      <div className="mt-4 inline-flex rounded-2xl border border-[#E3D6C3] bg-white/82 px-4 py-3 text-sm font-black text-[#8A7A68] shadow-sm backdrop-blur-[2px]">
+        טרם הוגדר תאריך לספירה לאחור
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-4 grid grid-cols-5 gap-2 max-w-[620px]">
+      <CountdownUnit label="חודשים" value={countdown.months} />
+      <CountdownUnit label="שבועות" value={countdown.weeks} />
+      <CountdownUnit label="ימים" value={countdown.days} />
+      <CountdownUnit label="שעות" value={countdown.hours} />
+      <CountdownUnit label="שניות" value={countdown.seconds} />
+    </div>
+  );
+}
+
+function CountdownUnit({
+  label,
+  value,
+}: {
+  label: string;
+  value: number;
+}) {
+  return (
+    <div
+      className="
+        rounded-2xl
+        border
+        border-[#E3D6C3]
+        bg-white/82
+        px-3
+        py-2.5
+        text-center
+        shadow-sm
+        backdrop-blur-[2px]
+      "
+    >
+      <div className="text-xl font-black text-[#241A14] leading-none">
+        {value}
+      </div>
+      <div className="mt-1 text-[11px] font-bold text-[#8A7A68]">
+        {label}
+      </div>
+    </div>
+  );
+}
+
+
 function GoldenHeroDetail({
   icon,
   title,
@@ -2267,7 +2366,7 @@ function GoldenHeroDetail({
   value: string;
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-2xl bg-white/82 border border-[#E3D6C3] px-4 py-3 shadow-sm min-w-0 backdrop-blur-[2px]">
+    <div className="flex items-center gap-3 rounded-2xl bg-white/70 border border-[#E3D6C3] px-4 py-3 shadow-sm min-w-0">
       <div className="h-9 w-9 rounded-xl bg-[#F8EFE3] text-[#9B6A35] flex items-center justify-center shrink-0">
         {icon}
       </div>
@@ -2833,7 +2932,7 @@ function PremiumEventHero({
           </div>
         </div>
 
-        <div dir="rtl" className="order-1 xl:order-3 text-right justify-self-end w-full max-w-[700px]">
+        <div className="order-1 xl:order-3 text-right">
           <div className="flex items-center justify-start gap-2 mb-2">
             <span className="text-3xl">🌿</span>
             <span className="rounded-full bg-white/75 border border-[#E7DED1] px-3 py-1 text-xs font-black text-[#8B6A2E]">
