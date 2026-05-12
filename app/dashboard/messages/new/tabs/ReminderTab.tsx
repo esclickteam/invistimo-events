@@ -44,8 +44,6 @@ const REMINDER_WITH_TABLE_TEMPLATE =
 const REMINDER_ONLY_TEMPLATE =
   "היי {{name}} 🌸\n" +
   "תזכורת לקראת {{invitationTitle}} 💛\n\n" +
-  "האירוע יתקיים בתאריך {{eventDate}}\n" +
-  "במיקום: {{eventLocation}}\n\n" +
   "📍 ניווט:\n" +
   "{{navigationLink}}\n\n" +
   "מחכים לראותך!";
