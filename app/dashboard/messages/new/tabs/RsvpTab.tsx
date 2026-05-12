@@ -707,13 +707,18 @@ setRound3Locked(
           disabled: blocked,
         };
 
-  const mainButtonText = currentRoundSent
-  ? `✔ סבב ${round} כבר נשלח`
-  : currentRoundScheduled || hasExistingSchedule
-  ? `⏱️ עדכן תזמון - סבב ${round}`
-  : sendTiming === "scheduled"
-  ? `תזמן שליחה - סבב ${round}`
-  : `שלח עכשיו - סבב ${round}`;
+  const mainButtonText =
+  currentRoundSent && currentRoundLocked
+    ? `✔ סבב ${round} כבר נשלח`
+    : currentRoundSent && !currentRoundLocked
+    ? sendTiming === "scheduled"
+      ? `תזמן שליחה חוזרת - סבב ${round}`
+      : `שלח שוב - סבב ${round}`
+    : currentRoundScheduled || hasExistingSchedule
+    ? `⏱️ עדכן תזמון - סבב ${round}`
+    : sendTiming === "scheduled"
+    ? `תזמן שליחה - סבב ${round}`
+    : `שלח עכשיו - סבב ${round}`;
 
   /* ================= LOADING ================= */
 
