@@ -34,6 +34,15 @@ type GiftOptions = {
   payboxUrl: string;
 };
 
+type InvitationPreviewData = {
+  title: string;
+  eventDate: string;
+  eventTime: string;
+  eventLocation: string;
+  headerImageUrl: string;
+  shareId: string;
+};
+
 type Channel = "whatsapp" | "sms";
 type RoundNumber = 1 | 2 | 3;
 type SendTiming = "now" | "scheduled";
@@ -87,6 +96,52 @@ function ensureHttp(u: string) {
   return `https://${s}`;
 }
 
+function getInvitationLocation(inv: any, fallback = "") {
+  if (!inv) return fallback || "";
+
+  if (typeof inv.location === "string") {
+    return inv.location;
+  }
+
+  return (
+    inv.location?.address ||
+    inv.location?.name ||
+    inv.address ||
+    inv.eventLocation ||
+    fallback ||
+    ""
+  );
+}
+
+function getInvitationHeaderImage(inv: any, fallback = "") {
+  if (!inv) return fallback || "";
+
+  return (
+    inv.headerImage ||
+    inv.previewImage ||
+    inv.headerImageUrl ||
+    inv.imageUrl ||
+    inv.invitationImage ||
+    inv.design?.headerImage ||
+    inv.canvasData?.headerImage ||
+    fallback ||
+    ""
+  );
+}
+
+function normalizeEventDate(inv: any, fallback = "") {
+  return inv?.eventDate || inv?.date || fallback || "";
+}
+
+function formatDateOnly(value: any) {
+  if (!value) return "";
+
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+
+  return d.toLocaleDateString("he-IL");
+}
+
 function formatDateTime(value: any) {
   if (!value) return "";
 
@@ -120,19 +175,27 @@ function getWhatsappPreviewText({
   round,
   invitationTitle,
   eventDate,
+  eventTime,
   eventLocation,
 }: {
   round: RoundNumber;
   invitationTitle: string;
   eventDate: string;
+  eventTime?: string;
   eventLocation: string;
 }) {
+  const title = invitationTitle || "האירוע";
+  const dateText = formatDateOnly(eventDate);
+  const timeText = eventTime || "";
+  const locationText = eventLocation || "";
+
   if (round === 1) {
     return `משפחה וחברים יקרים,
-הנכם מוזמנים ל־${invitationTitle} 🤍
+הנכם מוזמנים ל־${title} 🤍
 
-📅 תאריך: ${eventDate}
-📍 מיקום: ${eventLocation}
+${dateText ? `📅 תאריך: ${dateText}` : ""}
+${timeText ? `🕘 שעה: ${timeText}` : ""}
+${locationText ? `📍 מיקום: ${locationText}` : ""}
 
 לאישור הגעה לחצו על הכפתור למטה 👇
 
@@ -142,7 +205,7 @@ function getWhatsappPreviewText({
   if (round === 2) {
     return `משפחה וחברים יקרים,
 
-תזכורת קצרה לאישור הגעה ל־${invitationTitle} 🤍
+תזכורת קצרה לאישור הגעה ל־${title} 🤍
 
 לאישור הגעה לחצו על הכפתור למטה 👇
 
@@ -151,7 +214,7 @@ function getWhatsappPreviewText({
 
   return `משפחה וחברים יקרים,
 
-תזכורת אחרונה לאישור הגעה ל־${invitationTitle} ✨
+תזכורת אחרונה לאישור הגעה ל־${title} ✨
 
 עדיין לא קיבלנו מענה.
 לאישור הגעה לחצו על הכפתור למטה 👇
@@ -173,6 +236,16 @@ export default function RsvpTab({
   const [loading, setLoading] = useState(true);
   const [sendingNow, setSendingNow] = useState(false);
   const [guests, setGuests] = useState<Guest[]>([]);
+
+  const [invitationPreview, setInvitationPreview] =
+    useState<InvitationPreviewData>({
+      title: invitationTitle || "",
+      eventDate: eventDate || "",
+      eventTime: "",
+      eventLocation: eventLocation || "",
+      headerImageUrl: headerImageUrl || "",
+      shareId: "",
+    });
 
   const [round, setRound] = useState<RoundNumber>(1);
 
@@ -376,6 +449,15 @@ export default function RsvpTab({
 
         const inv = invitationData?.invitation;
 
+        setInvitationPreview({
+          title: inv?.title || invitationTitle || "",
+          eventDate: normalizeEventDate(inv, eventDate),
+          eventTime: inv?.eventTime || "",
+          eventLocation: getInvitationLocation(inv, eventLocation),
+          headerImageUrl: getInvitationHeaderImage(inv, headerImageUrl || ""),
+          shareId: inv?.shareId || "",
+        });
+
         const r1Sent =
           inv?.rsvpRound1SentAt ||
           inv?.rsvpSmsRound1SentAt ||
@@ -412,22 +494,22 @@ export default function RsvpTab({
         setRound3Scheduled(!!r3Scheduled);
 
         setRound1Locked(
-  selectedChannel === "sms"
-    ? inv?.messageLocks?.rsvpSmsRound1 ?? false
-    : inv?.messageLocks?.rsvpWhatsappRound1 ?? false
-);
+          selectedChannel === "sms"
+            ? inv?.messageLocks?.rsvpSmsRound1 ?? false
+            : inv?.messageLocks?.rsvpWhatsappRound1 ?? false
+        );
 
-setRound2Locked(
-  selectedChannel === "sms"
-    ? inv?.messageLocks?.rsvpSmsRound2 ?? false
-    : inv?.messageLocks?.rsvpWhatsappRound2 ?? false
-);
+        setRound2Locked(
+          selectedChannel === "sms"
+            ? inv?.messageLocks?.rsvpSmsRound2 ?? false
+            : inv?.messageLocks?.rsvpWhatsappRound2 ?? false
+        );
 
-setRound3Locked(
-  selectedChannel === "sms"
-    ? inv?.messageLocks?.rsvpSmsRound3 ?? false
-    : inv?.messageLocks?.rsvpWhatsappRound3 ?? false
-);
+        setRound3Locked(
+          selectedChannel === "sms"
+            ? inv?.messageLocks?.rsvpSmsRound3 ?? false
+            : inv?.messageLocks?.rsvpWhatsappRound3 ?? false
+        );
 
         setGiftOptions(normalizeGiftOptions(inv?.giftOptions));
         didInitGift.current = true;
@@ -439,7 +521,14 @@ setRound3Locked(
     }
 
     loadData();
-  }, [invitationId, selectedChannel]);
+  }, [
+    invitationId,
+    selectedChannel,
+    invitationTitle,
+    eventDate,
+    eventLocation,
+    headerImageUrl,
+  ]);
 
   /* ================= SAVE GIFT OPTIONS ================= */
 
@@ -649,22 +738,31 @@ setRound3Locked(
   }, [round, guests, pendingGuests]);
 
   const noAudience = guestsToSend.length === 0;
-  const missingHeaderImage = selectedChannel === "whatsapp" && !headerImageUrl;
+
+  const missingHeaderImage =
+    selectedChannel === "whatsapp" && !invitationPreview.headerImageUrl;
 
   const blocked =
-  (sendTiming === "now" && noAudience) ||
-  missingHeaderImage ||
-  (sendTiming === "scheduled" && !scheduledAt) ||
-  (currentRoundSent && currentRoundLocked);
+    (sendTiming === "now" && noAudience) ||
+    missingHeaderImage ||
+    (sendTiming === "scheduled" && !scheduledAt) ||
+    (currentRoundSent && currentRoundLocked);
 
   const whatsappPreviewText = useMemo(() => {
     return getWhatsappPreviewText({
       round,
-      invitationTitle,
-      eventDate,
-      eventLocation,
+      invitationTitle: invitationPreview.title || invitationTitle,
+      eventDate: invitationPreview.eventDate || eventDate,
+      eventTime: invitationPreview.eventTime,
+      eventLocation: invitationPreview.eventLocation || eventLocation,
     });
-  }, [round, invitationTitle, eventDate, eventLocation]);
+  }, [
+    round,
+    invitationPreview,
+    invitationTitle,
+    eventDate,
+    eventLocation,
+  ]);
 
   const smsPreviewText = useMemo(() => {
     const g = guestsToSend[0];
@@ -678,9 +776,15 @@ setRound3Locked(
 
     return currentSmsMessage
       .replace(/{{name}}/g, g?.name || fallbackName)
-      .replace(/{{invitationTitle}}/g, invitationTitle || "")
+      .replace(/{{invitationTitle}}/g, invitationPreview.title || invitationTitle || "")
       .replace(/{{rsvpLink}}/g, rsvpLink);
-  }, [guestsToSend, invitationId, invitationTitle, currentSmsMessage]);
+  }, [
+    guestsToSend,
+    invitationId,
+    invitationTitle,
+    invitationPreview.title,
+    currentSmsMessage,
+  ]);
 
   const templateName = getWhatsappTemplateByRound(round);
 
@@ -708,12 +812,12 @@ setRound3Locked(
         };
 
   const mainButtonText = currentRoundSent
-  ? `✔ סבב ${round} כבר נשלח`
-  : currentRoundScheduled || hasExistingSchedule
-  ? `⏱️ עדכן תזמון - סבב ${round}`
-  : sendTiming === "scheduled"
-  ? `תזמן שליחה - סבב ${round}`
-  : `שלח עכשיו - סבב ${round}`;
+    ? `✔ סבב ${round} כבר נשלח`
+    : currentRoundScheduled || hasExistingSchedule
+    ? `⏱️ עדכן תזמון - סבב ${round}`
+    : sendTiming === "scheduled"
+    ? `תזמן שליחה - סבב ${round}`
+    : `שלח עכשיו - סבב ${round}`;
 
   /* ================= LOADING ================= */
 
@@ -829,7 +933,12 @@ setRound3Locked(
                   <WhatsappTemplatePreview
                     templateKey={templateName}
                     previewText={whatsappPreviewText}
-                    headerImageUrl={headerImageUrl}
+                    headerImageUrl={invitationPreview.headerImageUrl}
+                    invitationTitle={invitationPreview.title}
+                    eventDate={invitationPreview.eventDate}
+                    eventTime={invitationPreview.eventTime}
+                    eventLocation={invitationPreview.eventLocation}
+                    shareId={invitationPreview.shareId}
                   />
                 ) : (
                   <TextMessagePreview channel="sms" text={smsPreviewText} />
@@ -1152,33 +1261,33 @@ setRound3Locked(
               )}
 
               {sendTiming === "now" && noAudience && (
-  <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-600">
-    אין נמענים לשליחה מיידית בסבב זה.
-  </div>
-)}
+                <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-600">
+                  אין נמענים לשליחה מיידית בסבב זה.
+                </div>
+              )}
 
               <SendButton
-  key={`${invitationId}-${selectedChannel}-${round}-${templateName}-${currentRoundSent}-${currentRoundScheduled}-${hasExistingSchedule}`}
-  {...sendButtonProps}
-  disabled={blocked}
-  onAfterSend={async () => {
-    await loadScheduledMessages();
+                key={`${invitationId}-${selectedChannel}-${round}-${templateName}-${currentRoundSent}-${currentRoundScheduled}-${hasExistingSchedule}`}
+                {...sendButtonProps}
+                disabled={blocked}
+                onAfterSend={async () => {
+                  await loadScheduledMessages();
 
-    if (sendTiming === "scheduled") {
-      if (round === 1) setRound1Scheduled(true);
-      if (round === 2) setRound2Scheduled(true);
-      if (round === 3) setRound3Scheduled(true);
-    } else {
-      if (round === 1) setRound1Sent(true);
-      if (round === 2) setRound2Sent(true);
-      if (round === 3) setRound3Sent(true);
-    }
+                  if (sendTiming === "scheduled") {
+                    if (round === 1) setRound1Scheduled(true);
+                    if (round === 2) setRound2Scheduled(true);
+                    if (round === 3) setRound3Scheduled(true);
+                  } else {
+                    if (round === 1) setRound1Sent(true);
+                    if (round === 2) setRound2Sent(true);
+                    if (round === 3) setRound3Sent(true);
+                  }
 
-    unlockSendButton();
-  }}
->
-  {mainButtonText}
-</SendButton>
+                  unlockSendButton();
+                }}
+              >
+                {mainButtonText}
+              </SendButton>
 
               <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs text-[#7A5A3A]">
                 <span>נמענים לשליחה: {guestsToSend.length}</span>
