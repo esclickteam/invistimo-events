@@ -85,12 +85,22 @@ export interface ScheduledMessageDocument {
   /**
    * נוסח SMS מותאם.
    */
-  messageOverride?: string;
-
   /**
-   * מקור אמת לטקסט שנשמר לתזמון.
-   */
-  messageContent: string;
+ * נוסח SMS מותאם.
+ */
+messageOverride?: string;
+
+/**
+ * Payload לתבניות WhatsApp.
+ * נשמר עבור worker בזמן שליחה מתוזמנת.
+ */
+payload?: Record<string, any>;
+
+/**
+ * מקור אמת לטקסט שנשמר לתזמון.
+ * ב-WhatsApp נשמור ערך טכני כמו whatsapp:templateName
+ */
+messageContent: string;
 
   includeGiftLink: boolean;
   giftLink?: string | null;
@@ -238,19 +248,28 @@ const ScheduledMessageSchema = new Schema<ScheduledMessageDocument>(
     },
 
     messageOverride: {
-      type: String,
-      default: "",
-    },
+  type: String,
+  default: "",
+},
 
-    /* ======================
-       MESSAGE CONTENT
-    ====================== */
+/**
+ * Payload לתבניות WhatsApp.
+ * לדוגמה: languageCode, components, headerImageUrl וכו׳.
+ */
+payload: {
+  type: Schema.Types.Mixed,
+  default: {},
+},
 
-    messageContent: {
-      type: String,
-      required: true,
-      default: "",
-    },
+/* ======================
+   MESSAGE CONTENT
+====================== */
+
+messageContent: {
+  type: String,
+  required: true,
+  default: "",
+},
 
     /* ======================
        CREDIT GIFT

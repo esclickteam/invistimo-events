@@ -503,48 +503,49 @@ export async function POST(req: NextRequest) {
       });
 
       const schedulePayload = {
-        invitationId,
-        userId: auth.userId,
+  invitationId,
+  userId: auth.userId,
 
-        channel: "whatsapp",
-        type,
-        filter: type === "rsvp" ? (round === 1 ? "all" : "pending") : "all",
+  channel: "whatsapp",
+  type,
+  filter: type === "rsvp" ? (round === 1 ? "all" : "pending") : "all",
 
-        templateKey:
-          type === "rsvp"
-            ? "rsvp"
-            : type === "reminder" || type === "table"
-            ? "reminder"
-            : type === "thankyou"
-            ? "thankyou"
-            : "custom",
+  templateKey:
+    type === "rsvp"
+      ? "rsvp"
+      : type === "reminder" || type === "table"
+      ? "reminder"
+      : type === "thankyou"
+      ? "thankyou"
+      : "custom",
 
-        round,
-        roundNumber: round,
+  round,
+  roundNumber: round,
 
-        templateName,
-        payload,
+  templateName,
+  payload,
 
-        messageContent: "",
-        messageOverride: "",
-        text: "",
+  // ✅ חובה כי ScheduledMessage דורש messageContent
+  // ב-WhatsApp מקור האמת הוא payload/templateName, לא טקסט חופשי
+  messageContent: `whatsapp:${templateName}`,
+  messageOverride: `whatsapp:${templateName}`,
+  text: `whatsapp:${templateName}`,
 
-        includeGiftLink: !!body.giftCreditUrl,
-        giftLink: body.giftCreditUrl || null,
+  includeGiftLink: !!body.giftCreditUrl,
+  giftLink: body.giftCreditUrl || null,
 
-        guestIds: type === "rsvp" ? [] : audience,
+  guestIds: type === "rsvp" ? [] : audience,
 
-        scheduledAt,
-        guestsCount,
-        status: "scheduled",
+  scheduledAt,
+  guestsCount,
+  status: "scheduled",
 
-        sentCount: 0,
-        lockedAt: null,
-        lockedBy: null,
-        cancelledAt: null,
-        error: "",
-      };
-
+  sentCount: 0,
+  lockedAt: null,
+  lockedBy: null,
+  cancelledAt: null,
+  error: "",
+};
       let schedule;
 
       if (existingSchedule) {
