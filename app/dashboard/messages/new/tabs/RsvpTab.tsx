@@ -113,7 +113,7 @@ function getRoundAudienceLabel(round: RoundNumber) {
 function getRoundSubtitle(round: RoundNumber) {
   if (round === 1) return "לכל המוזמנים";
   if (round === 2) return "למי שטרם אישר";
-  return "תזכורת אחרונה למי שטרם אישר";
+  return "למי שטרם אישר";
 }
 
 function getWhatsappPreviewText({
@@ -171,6 +171,7 @@ export default function RsvpTab({
   const { user } = useAuth();
 
   const [loading, setLoading] = useState(true);
+  const [sendingNow, setSendingNow] = useState(false);
   const [guests, setGuests] = useState<Guest[]>([]);
 
   const [round, setRound] = useState<RoundNumber>(1);
@@ -233,6 +234,23 @@ export default function RsvpTab({
   const giftSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const didInitGift = useRef(false);
 
+  const sendingResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+
+  /* ================= CLEANUP ================= */
+
+  useEffect(() => {
+    return () => {
+      if (giftSaveTimer.current) clearTimeout(giftSaveTimer.current);
+      if (sendingResetTimerRef.current) {
+        clearTimeout(sendingResetTimerRef.current);
+      }
+    };
+  }, []);
+
+  /* ================= SCHEDULED DATE ================= */
+
   const scheduledAt = useMemo(() => {
     if (sendTiming !== "scheduled" || !scheduledDate || !scheduledTime) {
       return null;
@@ -243,6 +261,8 @@ export default function RsvpTab({
 
     return new Date(year, month - 1, day, hour, minute, 0, 0);
   }, [sendTiming, scheduledDate, scheduledTime]);
+
+  /* ================= CURRENT ROUND ================= */
 
   const currentSmsMessage = smsMessages[round];
 
@@ -268,6 +288,8 @@ export default function RsvpTab({
     existingSchedule?.scheduledAt &&
     !Number.isNaN(new Date(existingSchedule.scheduledAt).getTime());
 
+  /* ================= LOAD SCHEDULED MESSAGES ================= */
+
   async function loadScheduledMessages() {
     try {
       const res = await fetch("/api/scheduled-messages", {
@@ -290,6 +312,8 @@ export default function RsvpTab({
   useEffect(() => {
     loadScheduledMessages();
   }, []);
+
+  /* ================= LOAD EXISTING SCHEDULE ================= */
 
   useEffect(() => {
     async function loadExistingSchedule() {
@@ -326,6 +350,8 @@ export default function RsvpTab({
 
     loadExistingSchedule();
   }, [invitationId, round, selectedChannel]);
+
+  /* ================= LOAD DATA ================= */
 
   useEffect(() => {
     async function loadData() {
@@ -415,6 +441,8 @@ export default function RsvpTab({
     loadData();
   }, [invitationId, selectedChannel]);
 
+  /* ================= SAVE GIFT OPTIONS ================= */
+
   useEffect(() => {
     if (!didInitGift.current || !invitationId) return;
 
@@ -459,6 +487,8 @@ export default function RsvpTab({
     };
   }, [giftOptions, invitationId]);
 
+  /* ================= WHATSAPP STATS ================= */
+
   async function loadWhatsappStats() {
     try {
       const res = await fetch(
@@ -493,6 +523,8 @@ export default function RsvpTab({
 
     return () => clearInterval(interval);
   }, [selectedChannel, round1Sent, round2Sent, round3Sent, invitationId]);
+
+  /* ================= CANCEL SCHEDULE ================= */
 
   async function handleCancelSchedule() {
     if (!existingSchedule?._id) return;
@@ -532,6 +564,8 @@ export default function RsvpTab({
     }
   }
 
+  /* ================= ADMIN LOCK ================= */
+
   async function toggleMessageLock(key: string, current: boolean) {
     try {
       const res = await fetch("/api/admin/toggle-message-lock", {
@@ -562,6 +596,33 @@ export default function RsvpTab({
     return `${prefix}Round${round}`;
   }
 
+  /* ================= DOUBLE CLICK LOCK ================= */
+
+  function lockSendImmediately() {
+    if (sendingNow) return;
+
+    setSendingNow(true);
+
+    if (sendingResetTimerRef.current) {
+      clearTimeout(sendingResetTimerRef.current);
+    }
+
+    sendingResetTimerRef.current = setTimeout(() => {
+      setSendingNow(false);
+    }, 30000);
+  }
+
+  function unlockSendButton() {
+    if (sendingResetTimerRef.current) {
+      clearTimeout(sendingResetTimerRef.current);
+      sendingResetTimerRef.current = null;
+    }
+
+    setSendingNow(false);
+  }
+
+  /* ================= DERIVED ================= */
+
   const totalCount = guests.length;
 
   const pendingGuests = useMemo(
@@ -591,6 +652,7 @@ export default function RsvpTab({
   const missingHeaderImage = selectedChannel === "whatsapp" && !headerImageUrl;
 
   const blocked =
+    sendingNow ||
     noAudience ||
     missingHeaderImage ||
     (sendTiming === "scheduled" && !scheduledAt) ||
@@ -633,6 +695,7 @@ export default function RsvpTab({
           templateName,
           audience: guestsToSend.map((g) => g._id),
           scheduledAt,
+          round,
           disabled: blocked,
         }
       : {
@@ -646,13 +709,17 @@ export default function RsvpTab({
           disabled: blocked,
         };
 
-  const mainButtonText = currentRoundSent
+  const mainButtonText = sendingNow
+    ? "שולח..."
+    : currentRoundSent
     ? `✔ סבב ${round} כבר נשלח`
     : currentRoundScheduled || hasExistingSchedule
     ? `⏱️ סבב ${round} כבר מתוזמן`
     : sendTiming === "scheduled"
     ? `תזמן שליחה - סבב ${round}`
     : `שלח עכשיו - סבב ${round}`;
+
+  /* ================= LOADING ================= */
 
   if (loading) {
     return (
@@ -669,6 +736,8 @@ export default function RsvpTab({
       </div>
     );
   }
+
+  /* ================= UI ================= */
 
   return (
     <div dir="rtl" className="relative overflow-hidden bg-[#F6EFE6]">
@@ -706,7 +775,7 @@ export default function RsvpTab({
                 value={pendingGuests.length}
                 icon="⏳"
               />
-              <StatCard label="אישרורשומות ש" value={yesCount} icon="✓" />
+              <StatCard label="רשומות שאישרו" value={yesCount} icon="✓" />
               <StatCard label="לא מגיעים" value={noCount} icon="—" />
             </div>
           </div>
@@ -738,7 +807,10 @@ export default function RsvpTab({
                     ? round2Scheduled
                     : round3Scheduled
                 }
-                onClick={() => setRound(r as RoundNumber)}
+                onClick={() => {
+                  if (sendingNow) return;
+                  setRound(r as RoundNumber);
+                }}
               />
             ))}
           </div>
@@ -825,6 +897,7 @@ export default function RsvpTab({
                   title="WhatsApp"
                   subtitle="שליחה דרך תבנית WhatsApp Business"
                   active={selectedChannel === "whatsapp"}
+                  disabled={sendingNow}
                   onClick={() =>
                     setRoundChannels((p) => ({ ...p, [round]: "whatsapp" }))
                   }
@@ -835,6 +908,7 @@ export default function RsvpTab({
                   title="SMS"
                   subtitle="שליחת הודעת טקסט עם קישור אישי"
                   active={selectedChannel === "sms"}
+                  disabled={sendingNow}
                   onClick={() =>
                     setRoundChannels((p) => ({ ...p, [round]: "sms" }))
                   }
@@ -862,7 +936,8 @@ export default function RsvpTab({
                       שליחה לפי סבב
                     </h3>
                     <p className="mt-1 text-xs leading-6 text-[#7A5A3A]">
-                      אין בחירת פיצול. המערכת שולחת לפי הכללים של הסבב הנבחר.
+                      אין בחירת פיצול. סבב 1 נשלח לכולם. סבבים 2–3 נשלחים למי
+                      שטרם אישר.
                     </p>
                   </div>
 
@@ -881,6 +956,7 @@ export default function RsvpTab({
               >
                 <textarea
                   value={currentSmsMessage}
+                  disabled={sendingNow}
                   onChange={(e) =>
                     setSmsMessages((p) => ({
                       ...p,
@@ -888,7 +964,7 @@ export default function RsvpTab({
                     }))
                   }
                   rows={7}
-                  className="w-full rounded-3xl border border-[#E6D6BC] bg-[#FFF9F1] px-4 py-4 text-sm leading-7 text-[#3A2417] outline-none transition focus:border-[#B9894D] focus:ring-4 focus:ring-[#E9D4AC]"
+                  className="w-full rounded-3xl border border-[#E6D6BC] bg-[#FFF9F1] px-4 py-4 text-sm leading-7 text-[#3A2417] outline-none transition focus:border-[#B9894D] focus:ring-4 focus:ring-[#E9D4AC] disabled:opacity-60"
                 />
 
                 <p className="mt-3 text-xs leading-6 text-[#7A5A3A]">
@@ -935,6 +1011,7 @@ export default function RsvpTab({
                   icon="💳"
                   title="מתנה באשראי"
                   checked={giftOptions.creditEnabled}
+                  disabled={sendingNow}
                   onCheckedChange={(checked) =>
                     setGiftOptions((p) => ({
                       ...p,
@@ -946,6 +1023,7 @@ export default function RsvpTab({
                   {giftOptions.creditEnabled && (
                     <input
                       value={giftOptions.creditUrl}
+                      disabled={sendingNow}
                       onChange={(e) =>
                         setGiftOptions((p) => ({
                           ...p,
@@ -953,7 +1031,7 @@ export default function RsvpTab({
                         }))
                       }
                       placeholder="הדביקי כאן קישור לתשלום באשראי"
-                      className="w-full rounded-2xl border border-[#E6D6BC] bg-white px-4 py-3 text-sm outline-none focus:border-[#B9894D] focus:ring-4 focus:ring-[#E9D4AC]"
+                      className="w-full rounded-2xl border border-[#E6D6BC] bg-white px-4 py-3 text-sm outline-none focus:border-[#B9894D] focus:ring-4 focus:ring-[#E9D4AC] disabled:opacity-60"
                       dir="ltr"
                       inputMode="url"
                     />
@@ -964,6 +1042,7 @@ export default function RsvpTab({
                   icon="💰"
                   title="מתנה ב-PayBox"
                   checked={giftOptions.payboxEnabled}
+                  disabled={sendingNow}
                   onCheckedChange={(checked) =>
                     setGiftOptions((p) => ({
                       ...p,
@@ -975,6 +1054,7 @@ export default function RsvpTab({
                   {giftOptions.payboxEnabled && (
                     <input
                       value={giftOptions.payboxUrl}
+                      disabled={sendingNow}
                       onChange={(e) =>
                         setGiftOptions((p) => ({
                           ...p,
@@ -982,7 +1062,7 @@ export default function RsvpTab({
                         }))
                       }
                       placeholder="הדביקי כאן קישור ל-PayBox"
-                      className="w-full rounded-2xl border border-[#E6D6BC] bg-white px-4 py-3 text-sm outline-none focus:border-[#B9894D] focus:ring-4 focus:ring-[#E9D4AC]"
+                      className="w-full rounded-2xl border border-[#E6D6BC] bg-white px-4 py-3 text-sm outline-none focus:border-[#B9894D] focus:ring-4 focus:ring-[#E9D4AC] disabled:opacity-60"
                       dir="ltr"
                       inputMode="url"
                     />
@@ -1002,6 +1082,7 @@ export default function RsvpTab({
                   subtitle="ההודעה תישלח עכשיו לפי הסבב והערוץ שנבחרו"
                   icon="🚀"
                   active={sendTiming === "now"}
+                  disabled={sendingNow}
                   onClick={() => {
                     setSendTiming("now");
                     setScheduledDate("");
@@ -1014,6 +1095,7 @@ export default function RsvpTab({
                   subtitle="קבעי תאריך ושעה לשליחה אוטומטית"
                   icon="📅"
                   active={sendTiming === "scheduled"}
+                  disabled={sendingNow}
                   onClick={() => setSendTiming("scheduled")}
                 />
               </div>
@@ -1023,15 +1105,17 @@ export default function RsvpTab({
                   <input
                     type="date"
                     value={scheduledDate}
+                    disabled={sendingNow}
                     onChange={(e) => setScheduledDate(e.target.value)}
-                    className="rounded-2xl border border-[#E6D6BC] bg-white px-4 py-3.5 text-sm font-bold outline-none focus:border-[#B9894D] focus:ring-4 focus:ring-[#E9D4AC]"
+                    className="rounded-2xl border border-[#E6D6BC] bg-white px-4 py-3.5 text-sm font-bold outline-none focus:border-[#B9894D] focus:ring-4 focus:ring-[#E9D4AC] disabled:opacity-60"
                   />
 
                   <input
                     type="time"
                     value={scheduledTime}
+                    disabled={sendingNow}
                     onChange={(e) => setScheduledTime(e.target.value)}
-                    className="rounded-2xl border border-[#E6D6BC] bg-white px-4 py-3.5 text-sm font-bold outline-none focus:border-[#B9894D] focus:ring-4 focus:ring-[#E9D4AC]"
+                    className="rounded-2xl border border-[#E6D6BC] bg-white px-4 py-3.5 text-sm font-bold outline-none focus:border-[#B9894D] focus:ring-4 focus:ring-[#E9D4AC] disabled:opacity-60"
                   />
                 </div>
               )}
@@ -1054,7 +1138,7 @@ export default function RsvpTab({
                   <button
                     type="button"
                     onClick={handleCancelSchedule}
-                    disabled={cancelLoading}
+                    disabled={cancelLoading || sendingNow}
                     className="w-full rounded-2xl bg-red-500 px-5 py-3 text-sm font-black text-white shadow-[0_12px_26px_rgba(239,68,68,0.24)] transition hover:bg-red-600 disabled:opacity-60"
                   >
                     {cancelLoading ? "מבטל..." : "❌ בטל תזמון"}
@@ -1066,7 +1150,8 @@ export default function RsvpTab({
             <div className="rounded-[34px] border border-[#E6D6BC] bg-gradient-to-br from-[#FFF9F1] to-white p-4 shadow-[0_22px_65px_rgba(78,49,27,0.11)] space-y-3">
               {missingHeaderImage && (
                 <div className="rounded-2xl bg-orange-50 px-4 py-3 text-sm font-bold text-orange-700">
-                  חסרה תמונת Header להזמנת WhatsApp. צריך להעלות תמונה לפני שליחה.
+                  חסרה תמונת Header להזמנת WhatsApp. צריך להעלות תמונה לפני
+                  שליחה.
                 </div>
               )}
 
@@ -1076,25 +1161,35 @@ export default function RsvpTab({
                 </div>
               )}
 
-              <SendButton
-                key={`${invitationId}-${selectedChannel}-${round}-${templateName}-${currentRoundSent}-${currentRoundScheduled}-${hasExistingSchedule}`}
-                {...sendButtonProps}
-                onAfterSend={async () => {
-                  await loadScheduledMessages();
-
-                  if (sendTiming === "scheduled") {
-                    if (round === 1) setRound1Scheduled(true);
-                    if (round === 2) setRound2Scheduled(true);
-                    if (round === 3) setRound3Scheduled(true);
-                  } else {
-                    if (round === 1) setRound1Sent(true);
-                    if (round === 2) setRound2Sent(true);
-                    if (round === 3) setRound3Sent(true);
-                  }
+              <div
+                onClickCapture={() => {
+                  if (blocked) return;
+                  lockSendImmediately();
                 }}
               >
-                {mainButtonText}
-              </SendButton>
+                <SendButton
+                  key={`${invitationId}-${selectedChannel}-${round}-${templateName}-${currentRoundSent}-${currentRoundScheduled}-${hasExistingSchedule}`}
+                  {...sendButtonProps}
+                  disabled={blocked}
+                  onAfterSend={async () => {
+                    await loadScheduledMessages();
+
+                    if (sendTiming === "scheduled") {
+                      if (round === 1) setRound1Scheduled(true);
+                      if (round === 2) setRound2Scheduled(true);
+                      if (round === 3) setRound3Scheduled(true);
+                    } else {
+                      if (round === 1) setRound1Sent(true);
+                      if (round === 2) setRound2Sent(true);
+                      if (round === 3) setRound3Sent(true);
+                    }
+
+                    unlockSendButton();
+                  }}
+                >
+                  {mainButtonText}
+                </SendButton>
+              </div>
 
               <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs text-[#7A5A3A]">
                 <span>נמענים לשליחה: {guestsToSend.length}</span>
@@ -1109,10 +1204,11 @@ export default function RsvpTab({
               {(user?.role === "admin" || (user as any)?.impersonatedByAdmin) && (
                 <button
                   type="button"
+                  disabled={sendingNow}
                   onClick={() =>
                     toggleMessageLock(getCurrentLockKey(), currentRoundLocked)
                   }
-                  className={`w-full rounded-2xl px-5 py-3 text-sm font-black text-white transition ${
+                  className={`w-full rounded-2xl px-5 py-3 text-sm font-black text-white transition disabled:opacity-60 ${
                     currentRoundLocked
                       ? "bg-[#B9894D] hover:bg-[#9C7037]"
                       : "bg-green-600 hover:bg-green-700"
@@ -1127,11 +1223,12 @@ export default function RsvpTab({
               <div className="flex justify-center pt-2">
                 <button
                   type="button"
+                  disabled={sendingNow}
                   onClick={async () => {
                     await loadScheduledMessages();
                     setShowScheduled(true);
                   }}
-                  className="rounded-2xl border border-[#E6D6BC] bg-[#FFF9F1] px-6 py-3 text-sm font-black text-[#3A2417] shadow-sm transition hover:bg-[#FFF3DD]"
+                  className="rounded-2xl border border-[#E6D6BC] bg-[#FFF9F1] px-6 py-3 text-sm font-black text-[#3A2417] shadow-sm transition hover:bg-[#FFF3DD] disabled:opacity-60"
                 >
                   📅 צפייה בהודעות מתוזמנות
                 </button>
@@ -1321,19 +1418,22 @@ function ChannelOption({
   title,
   subtitle,
   active,
+  disabled,
   onClick,
 }: {
   icon: string;
   title: string;
   subtitle: string;
   active: boolean;
+  disabled?: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
+      disabled={disabled}
       onClick={onClick}
-      className={`rounded-3xl border p-4 text-right transition-all ${
+      className={`rounded-3xl border p-4 text-right transition-all disabled:opacity-60 ${
         active
           ? "border-[#C99A4A] bg-[#FFF3DD] shadow-[0_12px_28px_rgba(138,90,37,0.14)]"
           : "border-[#E6D6BC] bg-[#FFFDF9] hover:bg-white"
@@ -1365,12 +1465,14 @@ function GiftOptionCard({
   icon,
   title,
   checked,
+  disabled,
   onCheckedChange,
   children,
 }: {
   icon: string;
   title: string;
   checked: boolean;
+  disabled?: boolean;
   onCheckedChange: (checked: boolean) => void;
   children?: ReactNode;
 }) {
@@ -1391,8 +1493,9 @@ function GiftOptionCard({
         <input
           type="checkbox"
           checked={checked}
+          disabled={disabled}
           onChange={(e) => onCheckedChange(e.target.checked)}
-          className="h-5 w-5 accent-[#A87937]"
+          className="h-5 w-5 accent-[#A87937] disabled:opacity-60"
         />
       </label>
 
@@ -1406,19 +1509,22 @@ function TimingOption({
   subtitle,
   icon,
   active,
+  disabled,
   onClick,
 }: {
   title: string;
   subtitle: string;
   icon: string;
   active: boolean;
+  disabled?: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
+      disabled={disabled}
       onClick={onClick}
-      className={`rounded-3xl border p-4 text-right transition-all ${
+      className={`rounded-3xl border p-4 text-right transition-all disabled:opacity-60 ${
         active
           ? "border-[#C99A4A] bg-[#FFF3DD] shadow-[0_12px_28px_rgba(138,90,37,0.14)]"
           : "border-[#E6D6BC] bg-[#FFFDF9] hover:bg-white"
