@@ -241,6 +241,30 @@ const MESSAGE_TEMPLATES: Record<
 };
 
 /* ======================================================
+   REMINDER FALLBACK TEMPLATES
+   מי שיש לו שולחן יקבל תזכורת עם שולחן.
+   מי שאין לו שולחן יקבל תזכורת רגילה בלי שורת שולחן.
+====================================================== */
+
+const REMINDER_WITH_TABLE_SERVER_TEMPLATE =
+  "היי {{name}} 🌸\n" +
+  "תזכורת לקראת {{invitationTitle}} 💛\n\n" +
+  "השולחן שלך באירוע:\n" +
+  "🪑 {{tableName}}\n\n" +
+  "ניווט לאירוע:\n" +
+  "{{navigationLink}}\n\n" +
+  "מחכים לך!";
+
+const REMINDER_WITHOUT_TABLE_SERVER_TEMPLATE =
+  "היי {{name}} 🌸\n" +
+  "תזכורת לקראת {{invitationTitle}} 💛\n\n" +
+  "האירוע יתקיים בתאריך {{eventDate}}\n" +
+  "במיקום: {{eventLocation}}\n\n" +
+  "ניווט לאירוע:\n" +
+  "{{navigationLink}}\n\n" +
+  "מחכים לך!";
+
+/* ======================================================
    POST
 ====================================================== */
 
@@ -379,7 +403,23 @@ export async function POST(req: Request) {
       );
     }
 
-    const invitationTitle = invitation.title?.trim() || "האירוע שלנו";
+    const inv: any = invitation;
+
+    const invitationTitle = inv.title?.trim() || "האירוע שלנו";
+
+    const eventDateText =
+      inv.eventDate || inv.date
+        ? new Date(inv.eventDate || inv.date).toLocaleDateString("he-IL")
+        : "";
+
+    const eventLocationText =
+      typeof inv.location === "string"
+        ? inv.location
+        : inv.location?.address ||
+          inv.location?.name ||
+          inv.address ||
+          inv.eventLocation ||
+          "";
 
     /* ======================================================
        BLOCKS — RSVP לפי סבב כללי, לא לפי SMS בלבד
@@ -407,7 +447,7 @@ export async function POST(req: Request) {
 
     if (templateKey === "table" || templateKey === "reminder") {
       const reminderAlready =
-        invitation.reminderSentAt && invitation.messageLocks?.reminderSms;
+        inv.reminderSentAt && inv.messageLocks?.reminderSms;
 
       if (reminderAlready) {
         return NextResponse.json(
@@ -422,7 +462,7 @@ export async function POST(req: Request) {
 
     if (templateKey === "custom" || templateKey === "thankyou") {
       const thankyouAlready =
-        invitation.thankYouSentAt && invitation.messageLocks?.thankyouSms;
+        inv.thankYouSentAt && inv.messageLocks?.thankyouSms;
 
       if (thankyouAlready) {
         return NextResponse.json(
@@ -444,7 +484,7 @@ export async function POST(req: Request) {
 
     /* ================= LOCATION / NAVIGATION ================= */
 
-    const location = invitation.location;
+    const location = inv.location;
 
     const hasLocation =
       typeof location?.lat === "number" && typeof location?.lng === "number";
@@ -500,6 +540,8 @@ export async function POST(req: Request) {
       let previewContent = baseTemplateText
         .replace(/{{name}}/g, "שם מלא לדוגמה ארוך מאוד")
         .replace(/{{invitationTitle}}/g, invitationTitle)
+        .replace(/{{eventDate}}/g, eventDateText)
+        .replace(/{{eventLocation}}/g, eventLocationText)
         .replace(/{{rsvpLink}}/g, "https://example.com/very-long-link")
         .replace(/{{tableName}}/g, "שולחן 123")
         .replace(/{{navigationLink}}/g, navigationLink || "{{navigationLink}}");
@@ -544,6 +586,8 @@ export async function POST(req: Request) {
       let messageContent = baseTemplateText
         .replace(/{{name}}/g, "{{name}}")
         .replace(/{{invitationTitle}}/g, invitationTitle)
+        .replace(/{{eventDate}}/g, "{{eventDate}}")
+        .replace(/{{eventLocation}}/g, "{{eventLocation}}")
         .replace(/{{rsvpLink}}/g, "{{rsvpLink}}")
         .replace(/{{tableName}}/g, "{{tableName}}")
         .replace(/{{navigationLink}}/g, "{{navigationLink}}");
@@ -656,6 +700,8 @@ export async function POST(req: Request) {
     const baseMessage = baseTemplateText
       .replace(/{{name}}/g, "{{name}}")
       .replace(/{{invitationTitle}}/g, invitationTitle)
+      .replace(/{{eventDate}}/g, eventDateText)
+      .replace(/{{eventLocation}}/g, eventLocationText)
       .replace(/{{rsvpLink}}/g, "{{rsvpLink}}")
       .replace(/{{tableName}}/g, "{{tableName}}")
       .replace(/{{navigationLink}}/g, navigationLink);
@@ -677,7 +723,7 @@ export async function POST(req: Request) {
     for (let i = 0; i < guests.length; i += BATCH_SIZE) {
       const batch = guests.slice(i, i + BATCH_SIZE);
 
-      const tasks = batch.map(async (freshGuest) => {
+      const tasks = batch.map(async (freshGuest: any) => {
         if (
           template.requiresTable &&
           !freshGuest.tableName &&
@@ -687,9 +733,12 @@ export async function POST(req: Request) {
         }
 
         const tableName =
-          typeof freshGuest.tableNumber === "number"
+          freshGuest.tableName ||
+          (typeof freshGuest.tableNumber === "number"
             ? `שולחן ${freshGuest.tableNumber}`
-            : freshGuest.tableName || "";
+            : "");
+
+        const guestHasTable = !!tableName;
 
         let phone = (freshGuest.phone || "").replace(/\D/g, "");
 
@@ -701,12 +750,31 @@ export async function POST(req: Request) {
           phone = "972" + phone;
         }
 
-        const personalRsvpUrl = `https://www.invistimo.com/invite/${invitation.shareId}?token=${freshGuest.token}`;
-
+        const personalRsvpUrl = `https://www.invistimo.com/invite/${inv.shareId}?token=${freshGuest.token}`;
         const shortRsvpUrl = await shortenUrl(personalRsvpUrl);
 
-        let finalText = baseMessage
+        /**
+         * תיקון חשוב:
+         * בתזכורת/שולחן, מי שיש לו שולחן מקבל הודעה עם שולחן.
+         * מי שאין לו שולחן מקבל הודעה רגילה בלי המשפט "השולחן שלך באירוע".
+         *
+         * RSVP / תודה / custom נשארים בדיוק לפי baseMessage.
+         */
+        let messageForGuest = baseMessage;
+
+        if (templateKey === "table" || templateKey === "reminder") {
+          messageForGuest = guestHasTable
+            ? baseMessage.includes("{{tableName}}")
+              ? baseMessage
+              : REMINDER_WITH_TABLE_SERVER_TEMPLATE
+            : REMINDER_WITHOUT_TABLE_SERVER_TEMPLATE;
+        }
+
+        let finalText = messageForGuest
           .replace(/{{name}}/g, freshGuest.name || "")
+          .replace(/{{invitationTitle}}/g, invitationTitle)
+          .replace(/{{eventDate}}/g, eventDateText)
+          .replace(/{{eventLocation}}/g, eventLocationText)
           .replace(/{{rsvpLink}}/g, shortRsvpUrl)
           .replace(/{{tableName}}/g, tableName)
           .replace(/{{navigationLink}}/g, navigationLink);

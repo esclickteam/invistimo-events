@@ -25,7 +25,6 @@ type Props = {
   eventLocation: string;
   lat?: number;
   lng?: number;
-  giftCreditUrl?: string;
 };
 
 type SendTiming = "now" | "scheduled";
@@ -77,8 +76,7 @@ export default function ReminderTab({
   const [sendingTest, setSendingTest] = useState(false);
   const [testCount, setTestCount] = useState(0);
 
-  const [reminderSentAt, setReminderSentAt] =
-    useState<Date | null>(null);
+  const [reminderSentAt, setReminderSentAt] = useState<Date | null>(null);
   const [reminderLocked, setReminderLocked] = useState(true);
 
   const [scheduledMessages, setScheduledMessages] = useState<any[]>([]);
@@ -204,9 +202,14 @@ export default function ReminderTab({
     [confirmedGuests]
   );
 
+  const guestsWithoutTable = useMemo(
+    () => confirmedGuests.filter((g) => !hasTable(g)),
+    [confirmedGuests]
+  );
+
   const guestsToSend = confirmedGuests;
 
-  /* ================= AUTO MESSAGE TYPE ================= */
+  /* ================= AUTO TYPE ================= */
 
   const hasSeatingPackage = useMemo(() => {
     return detectSeatingPackage(invitation, guestsWithTable.length);
@@ -245,9 +248,16 @@ export default function ReminderTab({
 
   /* ================= BUILD MESSAGE ================= */
 
-  const buildReminderMessage = (g: Guest) =>
-    buildMessage({
-      template: message,
+  const buildReminderMessage = (g: Guest) => {
+    const guestHasTable = hasTable(g);
+
+    const effectiveTemplate =
+      guestHasTable && hasSeatingPackage
+        ? message
+        : REMINDER_ONLY_TEMPLATE;
+
+    return buildMessage({
+      template: effectiveTemplate,
       guest: {
         ...g,
         tableName:
@@ -264,6 +274,7 @@ export default function ReminderTab({
           ? `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`
           : "",
     });
+  };
 
   /* ================= PREVIEW ================= */
 
@@ -391,9 +402,7 @@ export default function ReminderTab({
         }),
       });
 
-      if (!res.ok) {
-        throw new Error("FAILED");
-      }
+      if (!res.ok) throw new Error("FAILED");
 
       setReminderLocked(!current);
     } catch (err) {
@@ -467,26 +476,10 @@ export default function ReminderTab({
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <StatCard
-                value={confirmedGuests.length}
-                label="מאשרים הגעה"
-                icon="✅"
-              />
-              <StatCard
-                value={guestsWithTable.length}
-                label="עם שולחן"
-                icon="🪑"
-              />
-              <StatCard
-                value={pendingGuests.length}
-                label="ממתינים"
-                icon="⏳"
-              />
-              <StatCard
-                value={reminderScheduledMessages.length}
-                label="מתוזמנות"
-                icon="📅"
-              />
+              <StatCard value={confirmedGuests.length} label="מאשרים הגעה" icon="✅" />
+              <StatCard value={guestsWithTable.length} label="עם שולחן" icon="🪑" />
+              <StatCard value={pendingGuests.length} label="ממתינים" icon="⏳" />
+              <StatCard value={reminderScheduledMessages.length} label="מתוזמנות" icon="📅" />
             </div>
           </div>
         </div>
@@ -496,12 +489,7 @@ export default function ReminderTab({
       <section className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
         {/* RIGHT SIDE */}
         <div className="space-y-6 xl:order-1">
-          {/* PREVIEW */}
-          <Panel
-            title="תצוגה מקדימה"
-            subtitle="כך תיראה הודעת התזכורת"
-            icon="✨"
-          >
+          <Panel title="תצוגה מקדימה" subtitle="כך תיראה הודעת התזכורת" icon="✨">
             {preview ? (
               <PhonePreview text={preview.text} />
             ) : (
@@ -520,12 +508,7 @@ export default function ReminderTab({
             )}
           </Panel>
 
-          {/* TEST */}
-          <Panel
-            title="שליחת הודעה לבדיקה"
-            subtitle="בדיקה לפני שליחה בפועל"
-            icon="🧪"
-          >
+          <Panel title="שליחת הודעה לבדיקה" subtitle="בדיקה לפני שליחה בפועל" icon="🧪">
             <div className="flex flex-col sm:flex-row gap-3">
               <input
                 type="tel"
@@ -578,12 +561,7 @@ export default function ReminderTab({
             </div>
           </Panel>
 
-          {/* TIMING */}
-          <Panel
-            title="מועד שליחה"
-            subtitle="שליחה מיידית או מתוזמנת"
-            icon="⏱️"
-          >
+          <Panel title="מועד שליחה" subtitle="שליחה מיידית או מתוזמנת" icon="⏱️">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <button
                 type="button"
@@ -592,9 +570,7 @@ export default function ReminderTab({
               >
                 <span className="text-xl">🚀</span>
                 <span className="font-black">שליחה מיידית</span>
-                <span className="text-xs text-[#7A6246]">
-                  ההודעה תישלח עכשיו.
-                </span>
+                <span className="text-xs text-[#7A6246]">ההודעה תישלח עכשיו.</span>
               </button>
 
               <button
@@ -604,9 +580,7 @@ export default function ReminderTab({
               >
                 <span className="text-xl">📅</span>
                 <span className="font-black">שליחה מתוזמנת</span>
-                <span className="text-xs text-[#7A6246]">
-                  קביעת תאריך ושעה.
-                </span>
+                <span className="text-xs text-[#7A6246]">קביעת תאריך ושעה.</span>
               </button>
             </div>
 
@@ -632,8 +606,7 @@ export default function ReminderTab({
                   <input
                     type="time"
                     min={
-                      scheduledDate ===
-                      new Date().toLocaleDateString("en-CA")
+                      scheduledDate === new Date().toLocaleDateString("en-CA")
                         ? new Date().toTimeString().slice(0, 5)
                         : undefined
                     }
@@ -649,12 +622,7 @@ export default function ReminderTab({
 
         {/* LEFT SIDE */}
         <div className="space-y-6 xl:order-2">
-          {/* CHANNEL */}
-          <Panel
-            title="ערוץ שליחה"
-            subtitle="התזכורת נשלחת בסבב אחד"
-            icon="💬"
-          >
+          <Panel title="ערוץ שליחה" subtitle="התזכורת נשלחת בסבב אחד" icon="💬">
             <div
               className="
                 rounded-[24px]
@@ -665,9 +633,7 @@ export default function ReminderTab({
               "
             >
               <div className="flex items-center justify-between gap-3">
-                <span className="text-lg font-black text-[#3E2D20]">
-                  SMS
-                </span>
+                <span className="text-lg font-black text-[#3E2D20]">SMS</span>
                 <span className="text-xl">📩</span>
               </div>
 
@@ -677,7 +643,6 @@ export default function ReminderTab({
             </div>
           </Panel>
 
-          {/* TARGET */}
           <Panel title="קהל יעד" subtitle="נקבע אוטומטית" icon="👥">
             <div
               className="
@@ -695,12 +660,7 @@ export default function ReminderTab({
             </div>
           </Panel>
 
-          {/* MESSAGE */}
-          <Panel
-            title="תוכן ההודעה"
-            subtitle={selectedTemplateLabel}
-            icon="✏️"
-          >
+          <Panel title="תוכן ההודעה" subtitle={selectedTemplateLabel} icon="✏️">
             <textarea
               value={message}
               onChange={(e) => {
@@ -750,35 +710,34 @@ export default function ReminderTab({
             </div>
           </Panel>
 
-          {/* SEND */}
+          {/* SEND AREA LIKE IMAGE */}
           <div
             className="
               rounded-[30px]
-              border border-[#D7BC8C]
-              bg-gradient-to-br from-[#CDAA55] via-[#B9822E] to-[#8D5A1C]
-              p-5
-              shadow-[0_18px_45px_rgba(120,78,24,0.22)]
+              border border-[#E7DCCB]
+              bg-[#FFF9EF]
+              p-4
+              shadow-[0_14px_40px_rgba(95,68,34,0.08)]
             "
           >
             <div
               className="
-                mb-4
-                rounded-[22px]
-                bg-white/14
-                px-5 py-4
+                rounded-[24px]
+                bg-[#D2BC96]
+                px-5 py-5
                 text-center
-                text-lg font-black
+                text-xl font-black
                 text-white
               "
             >
               {reminderAlreadySent
-                ? "תזכורת נשלחה"
+                ? "✓ תזכורת נשלחה"
                 : sendTiming === "scheduled"
-                ? `תזמן תזכורת (${guestsToSend.length})`
+                ? "תזמון תזכורת"
                 : `שלח תזכורת (${guestsToSend.length})`}
             </div>
 
-            <div className="send-button-gold">
+            <div className="mt-4 send-button-gold">
               <SendButton
                 channel="sms"
                 type="reminder"
@@ -790,7 +749,6 @@ export default function ReminderTab({
                   if (sendTiming === "now") {
                     setReminderSentAt(new Date());
                   }
-
                   await loadScheduledMessages();
                 }}
                 disabled={
@@ -802,11 +760,16 @@ export default function ReminderTab({
                 }
               >
                 {reminderAlreadySent
-                  ? "✓ תזכורת נשלחה"
+                  ? "תזכורת נשלחה"
                   : sendTiming === "scheduled"
-                  ? "⏱️ תזמן תזכורת"
-                  : "📩 שלח תזכורת"}
+                  ? "⏱️ פתח סבב"
+                  : "📩 פתח סבב"}
               </SendButton>
+            </div>
+
+            <div className="mt-3 flex items-center justify-between text-xs text-[#8A7157]">
+              <span>מועד: {sendTiming === "scheduled" ? "מתוזמן" : "מיידי"}</span>
+              <span>נמענים: {guestsToSend.length}</span>
             </div>
 
             {isAdmin && (
@@ -826,9 +789,7 @@ export default function ReminderTab({
                   hover:bg-[#9B661E]
                 "
               >
-                {reminderLocked
-                  ? "🔓 פתח תזכורת"
-                  : "🔒 סגור תזכורת"}
+                {reminderLocked ? "🔓 פתח תזכורת" : "🔒 סגור תזכורת"}
               </button>
             )}
           </div>
@@ -907,33 +868,34 @@ export default function ReminderTab({
       )}
 
       <style>{`
-  .send-button-gold button {
-    width: 100% !important;
-    border-radius: 20px !important;
-    background: linear-gradient(
-      135deg,
-      #d9b45f 0%,
-      #b9822e 48%,
-      #8d5a1c 100%
-    ) !important;
-    color: #ffffff !important;
-    font-weight: 900 !important;
-    box-shadow: 0 14px 34px rgba(120, 78, 24, 0.25) !important;
-    border: 1px solid rgba(255, 255, 255, 0.22) !important;
-  }
+        .send-button-gold button {
+          width: 100% !important;
+          border-radius: 20px !important;
+          background: linear-gradient(
+            135deg,
+            #c9964d 0%,
+            #b9822e 50%,
+            #a56d25 100%
+          ) !important;
+          color: #ffffff !important;
+          font-weight: 900 !important;
+          box-shadow: none !important;
+          border: none !important;
+          min-height: 44px !important;
+        }
 
-  .send-button-gold button:hover {
-    filter: brightness(1.04);
-  }
+        .send-button-gold button:hover {
+          filter: brightness(1.03);
+        }
 
-  .send-button-gold button:disabled {
-    background: #c9b48d !important;
-    color: rgba(255, 255, 255, 0.85) !important;
-    cursor: not-allowed !important;
-    opacity: 1 !important;
-    box-shadow: none !important;
-  }
-`}</style>
+        .send-button-gold button:disabled {
+          background: #ccb892 !important;
+          color: rgba(255, 255, 255, 0.92) !important;
+          cursor: not-allowed !important;
+          opacity: 1 !important;
+          box-shadow: none !important;
+        }
+      `}</style>
     </div>
   );
 }
@@ -1081,15 +1043,11 @@ function StatCard({
       "
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="text-2xl font-black text-[#3E2D20]">
-          {value}
-        </span>
+        <span className="text-2xl font-black text-[#3E2D20]">{value}</span>
         <span className="text-lg">{icon}</span>
       </div>
 
-      <div className="mt-2 text-xs font-bold text-[#7A6246]">
-        {label}
-      </div>
+      <div className="mt-2 text-xs font-bold text-[#7A6246]">{label}</div>
     </div>
   );
 }
@@ -1117,9 +1075,7 @@ function Panel({
     >
       <div className="mb-5 flex items-start justify-between gap-4">
         <div>
-          <h3 className="text-xl font-black text-[#3E2D20]">
-            {title}
-          </h3>
+          <h3 className="text-xl font-black text-[#3E2D20]">{title}</h3>
 
           {subtitle && (
             <p className="mt-1 text-sm leading-6 text-[#7A6246]">
@@ -1157,13 +1113,8 @@ function MiniStat({
 }) {
   return (
     <div className="rounded-[18px] bg-white/80 px-3 py-3 shadow-sm">
-      <div className="text-lg font-black text-[#3E2D20]">
-        {value}
-      </div>
-
-      <div className="mt-1 text-[11px] font-bold text-[#7A6246]">
-        {label}
-      </div>
+      <div className="text-lg font-black text-[#3E2D20]">{value}</div>
+      <div className="mt-1 text-[11px] font-bold text-[#7A6246]">{label}</div>
     </div>
   );
 }
@@ -1185,13 +1136,8 @@ function EmptyState({
         text-center
       "
     >
-      <div className="text-lg font-black text-[#3E2D20]">
-        {title}
-      </div>
-
-      <div className="mt-2 text-sm text-[#7A6246]">
-        {text}
-      </div>
+      <div className="text-lg font-black text-[#3E2D20]">{title}</div>
+      <div className="mt-2 text-sm text-[#7A6246]">{text}</div>
     </div>
   );
 }
