@@ -1045,7 +1045,7 @@ export default function DashboardPage() {
         hover:bg-[#141222]
       "
     >
-      <span className="text-lg">🖊️</span>
+      <span className="text-xl text-[#D9B46F] leading-none">✎</span>
       {invitation ? "עריכת הזמנה" : "יצירת הזמנה"}
     </button>
 
@@ -1091,7 +1091,7 @@ export default function DashboardPage() {
         }
       `}
     >
-      <span className="text-lg">✏️</span>
+      <span className="text-xl text-[#1E1B2E] leading-none">✎</span>
       עריכת פרטי האירוע
     </button>
 
@@ -1130,7 +1130,7 @@ export default function DashboardPage() {
           hover:bg-[#FBFAF7]
         "
       >
-        <span className="text-lg">👁️</span>
+        <span className="text-xl text-[#1E1B2E] leading-none">◉</span>
         צפייה בהזמנה
       </button>
     )}
@@ -1168,7 +1168,7 @@ export default function DashboardPage() {
         }
       `}
     >
-      <span className="text-lg">👤</span>
+      <span className="text-xl text-[#1E1B2E] leading-none">♙</span>
       הוספת מוזמן
     </button>
 
@@ -1205,7 +1205,7 @@ export default function DashboardPage() {
         }
       `}
     >
-      <span className="text-lg">📥</span>
+      <span className="text-xl text-emerald-600 leading-none">▣</span>
       ייבוא מאקסל
     </button>
 
@@ -1247,7 +1247,7 @@ export default function DashboardPage() {
         }
       `}
     >
-      <span className="text-lg">🪑</span>
+      <span className="text-xl text-white leading-none">♜</span>
       סידורי הושבה
       <span className="text-white/80 text-sm">⌄</span>
     </button>
@@ -1290,7 +1290,7 @@ export default function DashboardPage() {
         }
       `}
     >
-      <span className="text-lg">✈️</span>
+      <span className="text-xl text-white leading-none">↗</span>
       שליחת הודעות
     </button>
   </div>
@@ -1318,7 +1318,8 @@ export default function DashboardPage() {
         text-white
       "
     >
-      🖊️ {invitation ? "עריכת הזמנה" : "יצירת הזמנה"}
+      <span className="text-[#D9B46F]">✎</span>{" "}
+      {invitation ? "עריכת הזמנה" : "יצירת הזמנה"}
     </button>
 
     <button
@@ -1336,7 +1337,7 @@ export default function DashboardPage() {
         }
       `}
     >
-      + הוספת מוזמן
+      ♙ הוספת מוזמן
     </button>
 
     <button
@@ -1354,7 +1355,7 @@ export default function DashboardPage() {
         }
       `}
     >
-      📥 ייבוא מאקסל
+      <span className="text-emerald-600">▣</span> ייבוא מאקסל
     </button>
 
     <button
@@ -1377,7 +1378,7 @@ export default function DashboardPage() {
         }
       `}
     >
-      ✈️ שליחת הודעות
+      ↗ שליחת הודעות
     </button>
   </div>
 </section>
