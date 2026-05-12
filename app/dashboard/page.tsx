@@ -1800,7 +1800,7 @@ function GoldenEventHero({
     bg-no-repeat
   "
   style={{
-    backgroundImage: "url('/background.png')",
+    backgroundImage: "url('/background1.png')",
     backgroundSize: "100% 100%",
     backgroundPosition: "center",
   }}
