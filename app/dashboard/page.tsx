@@ -4,6 +4,7 @@ import {
   useState,
   useEffect,
   useMemo,
+  useRef,
   type ReactNode,
 } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
@@ -2388,6 +2389,144 @@ return {
 };
 }
 
+
+function CountdownFireworksCanvas() {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const intervalRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const canvasElement = canvasRef.current;
+    if (!canvasElement) return;
+
+    const context = canvasElement.getContext("2d");
+    if (!context) return;
+
+    const canvas = canvasElement;
+    const ctx = context;
+
+    let w = 0;
+    let h = 0;
+
+    const particles: {
+      x: number;
+      y: number;
+      r: number;
+      c: string;
+      vx: number;
+      vy: number;
+      g: number;
+      a: number;
+      fade: number;
+    }[] = [];
+
+    const colors = ["#ffcc70", "#ff758c", "#c9b48f", "#ffffff"];
+
+    function hexToRgb(hex: string) {
+      const bigint = parseInt(hex.slice(1), 16);
+
+      return [
+        (bigint >> 16) & 255,
+        (bigint >> 8) & 255,
+        bigint & 255,
+      ].join(",");
+    }
+
+    function resize() {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+
+      w = rect.width;
+      h = rect.height;
+
+      canvas.width = Math.max(1, Math.floor(w * dpr));
+      canvas.height = Math.max(1, Math.floor(h * dpr));
+
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    function createBurst(x: number, y: number) {
+      const count = 34;
+
+      for (let i = 0; i < count; i++) {
+        particles.push({
+          x,
+          y,
+          r: Math.random() * 2.2 + 0.9,
+          c: colors[(Math.random() * colors.length) | 0],
+          vx: (Math.random() * 2 - 1) * (2.2 + Math.random() * 2.2),
+          vy: -(2.0 + Math.random() * 3.2),
+          g: 0.06 + Math.random() * 0.04,
+          a: 1,
+          fade: 0.012 + Math.random() * 0.012,
+        });
+      }
+    }
+
+    function draw() {
+      ctx.fillStyle = "rgba(255, 253, 249, 0.12)";
+      ctx.fillRect(0, 0, w, h);
+
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+
+        p.vy += p.g;
+        p.x += p.vx;
+        p.y += p.vy;
+        p.a -= p.fade;
+
+        if (p.a <= 0) {
+          particles.splice(i, 1);
+          continue;
+        }
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${hexToRgb(p.c)},${p.a})`;
+        ctx.fill();
+      }
+
+      rafRef.current = window.requestAnimationFrame(draw);
+    }
+
+    resize();
+
+    ctx.fillStyle = "rgba(255, 253, 249, 0.08)";
+    ctx.fillRect(0, 0, w, h);
+
+    intervalRef.current = window.setInterval(() => {
+      createBurst(
+        Math.random() * w,
+        Math.random() * (h * 0.55) + h * 0.12
+      );
+    }, 520);
+
+    draw();
+
+    window.addEventListener("resize", resize);
+
+    return () => {
+      window.removeEventListener("resize", resize);
+
+      if (intervalRef.current !== null) {
+        window.clearInterval(intervalRef.current);
+      }
+
+      if (rafRef.current !== null) {
+        window.cancelAnimationFrame(rafRef.current);
+      }
+    };
+  }, []);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="pointer-events-none absolute inset-0 h-full w-full"
+      aria-hidden="true"
+    />
+  );
+}
+
 function GoldenCountdown({
   countdown,
 }: {
@@ -2417,36 +2556,30 @@ function GoldenCountdown({
         className="
           relative
           mt-5
+          min-h-[150px]
           overflow-hidden
           rounded-[26px]
           border
           border-[#E3D6C3]
-          bg-white/88
-          px-6
-          py-4
+          bg-[#FFFDF9]/92
           shadow-[0_14px_34px_rgba(184,132,79,0.18)]
           backdrop-blur-[2px]
         "
       >
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_50%,rgba(255,186,92,0.28),transparent_24%),radial-gradient(circle_at_88%_40%,rgba(255,120,104,0.20),transparent_24%)]" />
+        {/* 🎇 אפקט זיקוקים בלבד בתוך כרטיס הספירה */}
+        <CountdownFireworksCanvas />
 
-        <div className="relative flex items-center justify-between gap-4">
-          <div>
-            <div className="text-2xl md:text-3xl font-black text-[#241A14]">
-              היום הגדול הגיע
-            </div>
-
-            <div className="mt-1 text-sm font-bold text-[#8A7A68]">
-              מאחלים לכם אירוע מושלם ומרגש
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 text-3xl md:text-4xl leading-none">
-            <span className="animate-bounce">🎆</span>
-            <span className="animate-pulse">✨</span>
-            <span className="animate-bounce [animation-delay:180ms]">🎇</span>
-          </div>
-        </div>
+        <div
+          className="
+            pointer-events-none
+            absolute
+            inset-0
+            bg-gradient-to-b
+            from-white/18
+            via-white/4
+            to-white/28
+          "
+        />
       </div>
     );
   }
