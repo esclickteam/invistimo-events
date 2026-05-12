@@ -25,6 +25,7 @@ type Props = {
   eventLocation: string;
   lat?: number;
   lng?: number;
+  giftCreditUrl?: string;
 };
 
 type SendTiming = "now" | "scheduled";
@@ -202,14 +203,9 @@ export default function ReminderTab({
     [confirmedGuests]
   );
 
-  const guestsWithoutTable = useMemo(
-    () => confirmedGuests.filter((g) => !hasTable(g)),
-    [confirmedGuests]
-  );
-
   const guestsToSend = confirmedGuests;
 
-  /* ================= AUTO TYPE ================= */
+  /* ================= AUTO MESSAGE TYPE ================= */
 
   const hasSeatingPackage = useMemo(() => {
     return detectSeatingPackage(invitation, guestsWithTable.length);
@@ -249,22 +245,24 @@ export default function ReminderTab({
   /* ================= BUILD MESSAGE ================= */
 
   const buildReminderMessage = (g: Guest) => {
-    const guestHasTable = hasTable(g);
+    const tableName =
+      g.tableName ||
+      (typeof g.tableNumber === "number"
+        ? `שולחן ${g.tableNumber}`
+        : "");
 
-    const effectiveTemplate =
-      guestHasTable && hasSeatingPackage
-        ? message
+    const guestHasTable = !!tableName;
+
+    const templateForGuest =
+      hasSeatingPackage && guestHasTable
+        ? REMINDER_WITH_TABLE_TEMPLATE
         : REMINDER_ONLY_TEMPLATE;
 
     return buildMessage({
-      template: effectiveTemplate,
+      template: templateForGuest,
       guest: {
         ...g,
-        tableName:
-          g.tableName ||
-          (typeof g.tableNumber === "number"
-            ? `שולחן ${g.tableNumber}`
-            : ""),
+        tableName,
       },
       invitationTitle,
       eventDate,
@@ -560,64 +558,6 @@ export default function ReminderTab({
               נשלחו {testCount} מתוך {MAX_TEST_MESSAGES} הודעות בדיקה
             </div>
           </Panel>
-
-          <Panel title="מועד שליחה" subtitle="שליחה מיידית או מתוזמנת" icon="⏱️">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setSendTiming("now")}
-                className={optionClassName(sendTiming === "now")}
-              >
-                <span className="text-xl">🚀</span>
-                <span className="font-black">שליחה מיידית</span>
-                <span className="text-xs text-[#7A6246]">ההודעה תישלח עכשיו.</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setSendTiming("scheduled")}
-                className={optionClassName(sendTiming === "scheduled")}
-              >
-                <span className="text-xl">📅</span>
-                <span className="font-black">שליחה מתוזמנת</span>
-                <span className="text-xs text-[#7A6246]">קביעת תאריך ושעה.</span>
-              </button>
-            </div>
-
-            {sendTiming === "scheduled" && (
-              <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="mb-2 block text-sm font-bold text-[#6B5138]">
-                    תאריך שליחה
-                  </label>
-                  <input
-                    type="date"
-                    min={new Date().toLocaleDateString("en-CA")}
-                    value={scheduledDate}
-                    onChange={(e) => setScheduledDate(e.target.value)}
-                    className={inputClassName}
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-sm font-bold text-[#6B5138]">
-                    שעת שליחה
-                  </label>
-                  <input
-                    type="time"
-                    min={
-                      scheduledDate === new Date().toLocaleDateString("en-CA")
-                        ? new Date().toTimeString().slice(0, 5)
-                        : undefined
-                    }
-                    value={scheduledTime}
-                    onChange={(e) => setScheduledTime(e.target.value)}
-                    className={inputClassName}
-                  />
-                </div>
-              </div>
-            )}
-          </Panel>
         </div>
 
         {/* LEFT SIDE */}
@@ -710,34 +650,111 @@ export default function ReminderTab({
             </div>
           </Panel>
 
-          {/* SEND AREA LIKE IMAGE */}
+          {/* SEND AREA */}
           <div
             className="
               rounded-[30px]
               border border-[#E7DCCB]
               bg-[#FFF9EF]
-              p-4
+              p-5
               shadow-[0_14px_40px_rgba(95,68,34,0.08)]
+              space-y-5
             "
           >
-            <div
-              className="
-                rounded-[24px]
-                bg-[#D2BC96]
-                px-5 py-5
-                text-center
-                text-xl font-black
-                text-white
-              "
-            >
-              {reminderAlreadySent
-                ? "✓ תזכורת נשלחה"
-                : sendTiming === "scheduled"
-                ? "תזמון תזכורת"
-                : `שלח תזכורת (${guestsToSend.length})`}
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-black text-[#3E2D20]">
+                  שליחת תזכורת
+                </h3>
+                <p className="mt-1 text-sm text-[#7A6246]">
+                  SMS · {guestsToSend.length} נמענים
+                </p>
+              </div>
+
+              <div
+                className="
+                  flex h-12 w-12 shrink-0 items-center justify-center
+                  rounded-[18px]
+                  bg-gradient-to-br from-white to-[#EBD8B6]
+                  text-xl
+                  shadow-sm
+                "
+              >
+                📩
+              </div>
             </div>
 
-            <div className="mt-4 send-button-gold">
+            <div className="grid grid-cols-1 gap-3">
+              <button
+                type="button"
+                onClick={() => setSendTiming("now")}
+                className={sendTimingOptionClass(sendTiming === "now")}
+              >
+                <div>
+                  <div className="font-black text-[#3E2D20]">
+                    שליחה מיידית
+                  </div>
+                  <div className="mt-1 text-xs text-[#7A6246]">
+                    ההודעה תישלח עכשיו.
+                  </div>
+                </div>
+
+                <span className="text-xl">🚀</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSendTiming("scheduled")}
+                className={sendTimingOptionClass(sendTiming === "scheduled")}
+              >
+                <div>
+                  <div className="font-black text-[#3E2D20]">
+                    שליחה מתוזמנת
+                  </div>
+                  <div className="mt-1 text-xs text-[#7A6246]">
+                    קביעת תאריך ושעה.
+                  </div>
+                </div>
+
+                <span className="text-xl">📅</span>
+              </button>
+            </div>
+
+            {sendTiming === "scheduled" && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="mb-2 block text-sm font-bold text-[#6B5138]">
+                    תאריך שליחה
+                  </label>
+                  <input
+                    type="date"
+                    min={new Date().toLocaleDateString("en-CA")}
+                    value={scheduledDate}
+                    onChange={(e) => setScheduledDate(e.target.value)}
+                    className={inputClassName}
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-bold text-[#6B5138]">
+                    שעת שליחה
+                  </label>
+                  <input
+                    type="time"
+                    min={
+                      scheduledDate === new Date().toLocaleDateString("en-CA")
+                        ? new Date().toTimeString().slice(0, 5)
+                        : undefined
+                    }
+                    value={scheduledTime}
+                    onChange={(e) => setScheduledTime(e.target.value)}
+                    className={inputClassName}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="send-button-gold">
               <SendButton
                 channel="sms"
                 type="reminder"
@@ -749,6 +766,7 @@ export default function ReminderTab({
                   if (sendTiming === "now") {
                     setReminderSentAt(new Date());
                   }
+
                   await loadScheduledMessages();
                 }}
                 disabled={
@@ -760,16 +778,11 @@ export default function ReminderTab({
                 }
               >
                 {reminderAlreadySent
-                  ? "תזכורת נשלחה"
+                  ? "✓ תזכורת נשלחה"
                   : sendTiming === "scheduled"
-                  ? "⏱️ פתח סבב"
-                  : "📩 פתח סבב"}
+                  ? `⏱️ תזמן תזכורת (${guestsToSend.length})`
+                  : `📩 שלח תזכורת (${guestsToSend.length})`}
               </SendButton>
-            </div>
-
-            <div className="mt-3 flex items-center justify-between text-xs text-[#8A7157]">
-              <span>מועד: {sendTiming === "scheduled" ? "מתוזמן" : "מיידי"}</span>
-              <span>נמענים: {guestsToSend.length}</span>
             </div>
 
             {isAdmin && (
@@ -777,7 +790,6 @@ export default function ReminderTab({
                 type="button"
                 onClick={() => toggleMessageLock(reminderLocked)}
                 className="
-                  mt-4
                   w-full
                   rounded-[20px]
                   bg-[#B9822E]
@@ -881,7 +893,7 @@ export default function ReminderTab({
           font-weight: 900 !important;
           box-shadow: none !important;
           border: none !important;
-          min-height: 44px !important;
+          min-height: 48px !important;
         }
 
         .send-button-gold button:hover {
@@ -1142,12 +1154,12 @@ function EmptyState({
   );
 }
 
-function optionClassName(active: boolean) {
+function sendTimingOptionClass(active: boolean) {
   return `
-    flex min-h-[125px] flex-col items-start gap-2
-    rounded-[24px]
+    flex items-center justify-between gap-4
+    rounded-[22px]
     border
-    p-5
+    px-5 py-4
     text-right
     transition
     ${
