@@ -30,9 +30,8 @@ type SendTiming = "now" | "scheduled";
 const THANK_YOU_TEMPLATE =
   "היי {{name}} 🌸\n" +
   "שמחנו לראותך באירוע שלנו 💛\n\n" +
-  "תודה שהגעת ושמחת איתנו.\n" +
-
-
+  "תודה שהגעת ושמחת איתנו.";
+  
 /* ================= COMPONENT ================= */
 
 export default function ThankYouTab({
