@@ -2455,14 +2455,17 @@ function GoldenCountdown({
   }
 
   return (
-    <div className="mt-5 grid grid-cols-2 sm:grid-cols-5 gap-2 max-w-[640px]">
-      <CountdownUnit label="חודשים" value={countdown.months} />
-      <CountdownUnit label="שבועות" value={countdown.weeks} />
-      <CountdownUnit label="ימים" value={countdown.days} />
-      <CountdownUnit label="שעות" value={countdown.hours} />
-      <CountdownUnit label="שניות" value={countdown.seconds} isLive />
-    </div>
-  );
+  <div
+    dir="ltr"
+    className="mt-5 grid grid-cols-2 sm:grid-cols-5 gap-2 max-w-[640px]"
+  >
+    <CountdownUnit label="חודשים" value={countdown.months} />
+    <CountdownUnit label="שבועות" value={countdown.weeks} />
+    <CountdownUnit label="ימים" value={countdown.days} />
+    <CountdownUnit label="שעות" value={countdown.hours} />
+    <CountdownUnit label="שניות" value={countdown.seconds} isLive />
+  </div>
+);
 }
 
 function CountdownUnit({
