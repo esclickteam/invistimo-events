@@ -2069,7 +2069,8 @@ function GoldenActionButton({
   onClick: () => void;
 }) {
   const toneClass: Record<string, string> = {
-    dark: "bg-[#241A2E] text-white shadow-[0_12px_24px_rgba(36,26,46,0.22)] hover:bg-[#16101F]",
+    dark:
+  "bg-gradient-to-l from-[#8B5E34] via-[#B8844F] to-[#D9B46F] text-white shadow-[0_12px_24px_rgba(184,132,79,0.26)] hover:shadow-[0_16px_30px_rgba(184,132,79,0.34)]",
     light: "bg-white border border-[#E3D6C3] text-[#241A14] shadow-[0_8px_20px_rgba(80,55,32,0.06)] hover:bg-[#FBF7F0]",
     gold: "bg-gradient-to-l from-[#B8844F] to-[#D9B46F] text-white shadow-[0_12px_24px_rgba(184,132,79,0.24)]",
     green: "bg-gradient-to-l from-[#007A47] to-[#10A66A] text-white shadow-[0_12px_24px_rgba(16,166,106,0.22)]",
