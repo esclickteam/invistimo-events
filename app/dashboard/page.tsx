@@ -953,15 +953,17 @@ export default function DashboardPage() {
     <div
       className="
         min-h-screen
-        bg-[#F7F4EF]
+        bg-[#F6F1EA]
         px-4
         py-6
-        md:p-8
+        md:px-8
+        md:py-7
         max-w-full
         overflow-x-hidden
       "
       dir="rtl"
     >
+      <main className="mx-auto w-full max-w-[1540px]">
       {isDemo && (
         <div className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 px-5 py-4 text-amber-900 shadow-sm">
           <p className="text-sm leading-relaxed">
@@ -985,9 +987,9 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ===================== HERO בדיוק כמו הסקיצה ===================== */}
-      <section className="mb-5">
-        <PremiumEventHero
+      {/* ===================== HERO זהב / לבן / ברונזה ===================== */}
+      <section className="mb-6">
+        <GoldenEventHero
           title={eventTitle}
           date={formatEventDate(eventDate)}
           time={eventTime}
@@ -999,524 +1001,20 @@ export default function DashboardPage() {
         />
       </section>
 
-      {/* ===================== ACTION BUTTONS כמו הסקיצה - בלי AI ובלי שינוי סדר ===================== */}
-<section className="mb-6">
-  <div
-    className="
-      hidden
-      md:flex
-      flex-wrap
-      gap-3
-      items-center
-    "
-  >
-    {/* 1️⃣ עריכת / יצירת הזמנה */}
-    <button
-      onClick={() => {
-        if (isDemo) {
-          handleDemoBlockedAction();
-          return;
-        }
-
-        router.push(
-          invitation
-            ? `/dashboard/edit-invite/${invitationId}`
-            : "/dashboard/create-invite"
-        );
-      }}
-      className="
-        group
-        h-[54px]
-        min-w-[180px]
-        rounded-[16px]
-        px-6
-        font-black
-        text-sm
-        flex
-        items-center
-        justify-center
-        gap-3
-        bg-[#1E1B2E]
-        text-white
-        shadow-[0_12px_24px_rgba(30,27,46,0.22)]
-        transition-all
-        duration-200
-        hover:-translate-y-0.5
-        hover:bg-[#141222]
-      "
-    >
-      <span className="text-xl text-[#D9B46F] leading-none">✎</span>
-      {invitation ? "עריכת הזמנה" : "יצירת הזמנה"}
-    </button>
-
-    {/* 2️⃣ עריכת פרטי האירוע */}
-    <button
-      onClick={() => {
-        if (!invitation) return;
-
-        if (isDemo) {
-          handleDemoBlockedAction();
-          return;
-        }
-
-        router.push("/dashboard/event");
-      }}
-      disabled={!invitation}
-      className={`
-        group
-        h-[54px]
-        min-w-[190px]
-        rounded-[16px]
-        px-6
-        font-black
-        text-sm
-        flex
-        items-center
-        justify-center
-        gap-3
-        border
-        transition-all
-        duration-200
-        ${
-          invitation
-            ? `
-              bg-white
-              border-[#E7DED1]
-              text-[#1E1B2E]
-              shadow-[0_8px_20px_rgba(30,27,46,0.06)]
-              hover:-translate-y-0.5
-              hover:bg-[#FBFAF7]
-            `
-            : "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
-        }
-      `}
-    >
-      <span className="text-xl text-[#1E1B2E] leading-none">✎</span>
-      עריכת פרטי האירוע
-    </button>
-
-    {/* 3️⃣ צפייה בהזמנה */}
-    {invitation && (
-      <button
-        onClick={() =>
-          isDemo
-            ? handleDemoBlockedAction()
-            : window.open(
-                `https://www.invistimo.com/invite/${invitation.shareId}`,
-                "_blank",
-                "noopener,noreferrer"
-              )
-        }
-        className="
-          group
-          h-[54px]
-          min-w-[170px]
-          rounded-[16px]
-          px-6
-          font-black
-          text-sm
-          flex
-          items-center
-          justify-center
-          gap-3
-          border
-          bg-white
-          border-[#E7DED1]
-          text-[#1E1B2E]
-          shadow-[0_8px_20px_rgba(30,27,46,0.06)]
-          transition-all
-          duration-200
-          hover:-translate-y-0.5
-          hover:bg-[#FBFAF7]
-        "
-      >
-        <span className="text-xl text-[#1E1B2E] leading-none">◉</span>
-        צפייה בהזמנה
-      </button>
-    )}
-
-    {/* 4️⃣ הוספת מוזמן */}
-    <button
-      onClick={() => setOpenAddModal(true)}
-      disabled={!invitation}
-      className={`
-        group
-        h-[54px]
-        min-w-[170px]
-        rounded-[16px]
-        px-6
-        font-black
-        text-sm
-        flex
-        items-center
-        justify-center
-        gap-3
-        border
-        transition-all
-        duration-200
-        ${
-          invitation
-            ? `
-              bg-white
-              border-[#E7DED1]
-              text-[#1E1B2E]
-              shadow-[0_8px_20px_rgba(30,27,46,0.06)]
-              hover:-translate-y-0.5
-              hover:bg-[#FBFAF7]
-            `
-            : "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
-        }
-      `}
-    >
-      <span className="text-xl text-[#1E1B2E] leading-none">♙</span>
-      הוספת מוזמן
-    </button>
-
-    {/* 5️⃣ ייבוא מאקסל */}
-    <button
-      onClick={() => setShowImportModal(true)}
-      disabled={!invitation}
-      className={`
-        group
-        h-[54px]
-        min-w-[170px]
-        rounded-[16px]
-        px-6
-        font-black
-        text-sm
-        flex
-        items-center
-        justify-center
-        gap-3
-        border
-        transition-all
-        duration-200
-        ${
-          invitation
-            ? `
-              bg-white
-              border-[#E7DED1]
-              text-[#1E1B2E]
-              shadow-[0_8px_20px_rgba(30,27,46,0.06)]
-              hover:-translate-y-0.5
-              hover:bg-[#FBFAF7]
-            `
-            : "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
-        }
-      `}
-    >
-      <span className="text-xl text-emerald-600 leading-none">▣</span>
-      ייבוא מאקסל
-    </button>
-
-    {/* 6️⃣ סידורי הושבה */}
-    <button
-      onClick={() =>
-        router.push(
-          isDemo
-            ? "/try/dashboard/seating"
-            : "/dashboard/seating"
-        )
-      }
-      disabled={!invitation}
-      className={`
-        group
-        h-[54px]
-        min-w-[170px]
-        rounded-[16px]
-        px-6
-        font-black
-        text-sm
-        flex
-        items-center
-        justify-center
-        gap-3
-        transition-all
-        duration-200
-        ${
-          invitation
-            ? `
-              bg-gradient-to-l
-              from-[#C19B52]
-              to-[#D9BE7A]
-              text-white
-              shadow-[0_12px_24px_rgba(193,155,82,0.24)]
-              hover:-translate-y-0.5
-            `
-            : "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none"
-        }
-      `}
-    >
-      <span className="text-xl text-white leading-none">♜</span>
-      סידורי הושבה
-      <span className="text-white/80 text-sm">⌄</span>
-    </button>
-
-    {/* 7️⃣ שליחת הודעות */}
-    <button
-      onClick={() =>
-        router.push(
-          isDemo
-            ? "/try/dashboard/messages/new"
-            : "/dashboard/messages/new"
-        )
-      }
-      disabled={!invitation}
-      className={`
-        group
-        h-[54px]
-        min-w-[170px]
-        rounded-[16px]
-        px-6
-        font-black
-        text-sm
-        flex
-        items-center
-        justify-center
-        gap-3
-        transition-all
-        duration-200
-        ${
-          invitation
-            ? `
-              bg-gradient-to-l
-              from-[#007A47]
-              to-[#10A66A]
-              text-white
-              shadow-[0_12px_24px_rgba(16,166,106,0.22)]
-              hover:-translate-y-0.5
-            `
-            : "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none"
-        }
-      `}
-    >
-      <span className="text-xl text-white leading-none">↗</span>
-      שליחת הודעות
-    </button>
-  </div>
-
-  {/* מובייל - בלי שינוי לוגיקה */}
-  <div className="flex md:hidden flex-col gap-3">
-    <button
-      onClick={() => {
-        if (isDemo) {
-          handleDemoBlockedAction();
-          return;
-        }
-
-        router.push(
-          invitation
-            ? `/dashboard/edit-invite/${invitationId}`
-            : "/dashboard/create-invite"
-        );
-      }}
-      className="
-        h-[54px]
-        rounded-2xl
-        font-black
-        bg-[#1E1B2E]
-        text-white
-      "
-    >
-      <span className="text-[#D9B46F]">✎</span>{" "}
-      {invitation ? "עריכת הזמנה" : "יצירת הזמנה"}
-    </button>
-
-    <button
-      onClick={() => setOpenAddModal(true)}
-      disabled={!invitation}
-      className={`
-        h-[54px]
-        rounded-2xl
-        font-black
-        border
-        ${
-          invitation
-            ? "bg-white border-[#E7DED1] text-[#1E1B2E]"
-            : "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
-        }
-      `}
-    >
-      ♙ הוספת מוזמן
-    </button>
-
-    <button
-      onClick={() => setShowImportModal(true)}
-      disabled={!invitation}
-      className={`
-        h-[54px]
-        rounded-2xl
-        font-black
-        border
-        ${
-          invitation
-            ? "bg-white border-[#E7DED1] text-[#1E1B2E]"
-            : "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
-        }
-      `}
-    >
-      <span className="text-emerald-600">▣</span> ייבוא מאקסל
-    </button>
-
-    <button
-      onClick={() =>
-        router.push(
-          isDemo
-            ? "/try/dashboard/messages/new"
-            : "/dashboard/messages/new"
-        )
-      }
-      disabled={!invitation}
-      className={`
-        h-[54px]
-        rounded-2xl
-        font-black
-        ${
-          invitation
-            ? "bg-gradient-to-l from-[#007A47] to-[#10A66A] text-white"
-            : "bg-gray-200 text-gray-400 cursor-not-allowed"
-        }
-      `}
-    >
-      ↗ שליחת הודעות
-    </button>
-  </div>
-</section>
-
-      {/* ===================== SERVICE TAGS ===================== */}
-      <section className="mb-6 flex flex-wrap gap-3">
-        {user?.includeCalls ? (
-          <div className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 px-4 py-2 rounded-full text-sm font-bold shadow-sm">
-            ☎️ כולל שירות שיחות אישורי הגעה (3 סבבים)
-          </div>
-        ) : (
-          <div className="inline-flex items-center gap-2 bg-amber-50 text-amber-700 border border-amber-200 px-4 py-2 rounded-full text-sm font-bold shadow-sm">
-            ⚠️ ללא שירות שיחות טלפוניים
-          </div>
-        )}
-
-        {user?.includeCreditGifts && (
-          <>
-            <div className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 px-4 py-2 rounded-full text-sm font-bold shadow-sm">
-              💳 כולל מתנות באשראי לאורחים
-            </div>
-
-            <a
-              href="https://ktzr.io/giftInvistimoSignup"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 w-fit bg-[#138b55] text-white px-5 py-2 rounded-full text-sm font-semibold hover:bg-[#0f6f45] transition"
-            >
-              🔗 קישור הרשמה למתנות באשראי
-            </a>
-          </>
-        )}
-      </section>
-
-      {/* ===================== COUNTDOWN ===================== */}
-      {event && (
-        <section className="mb-6">
-          <div className="rounded-2xl border border-[#E7DED1] bg-white/80 px-5 py-4 shadow-sm">
-            <div className="text-lg font-semibold">
-              {event.date ? (
-                <EventCountdown event={event} />
-              ) : (
-                <span className="text-gray-500">
-                  📅 טרם הוגדר תאריך לאירוע
-                </span>
-              )}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ===================== STATS ===================== */}
-      <section className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-        <Box
-          title="סה״כ מוזמנים"
-          value={stats.totalGuests}
-          icon="👥"
-          description="כלל המוזמנים"
-        />
-
-        <Box
-          title="מגיע"
-          value={stats.comingGuests}
-          color="green"
-          icon="✅"
-          description="אישרו הגעה"
-        />
-
-        {canShowActualArrived && (
-          <Box
-            title="מגיעים בפועל"
-            value={stats.actualArrivedGuests}
-            color="blue"
-            icon="📍"
-            description="נכנסו באירוע"
-          />
-        )}
-
-        <Box
-          title="לא מגיע"
-          value={stats.notComing}
-          color="red"
-          icon="✖️"
-          description="סימנו שלא מגיעים"
-        />
-
-        <Box
-          title="בהמתנה"
-          value={stats.noResponse}
-          color="orange"
-          icon="⏳"
-          description="עוד לא השיבו"
-        />
-      </section>
-
-      {/* ===================== ANALYTICS — כרטיסיות ימין, גרפים שמאל ===================== */}
+      {/* ===================== MAIN DASHBOARD LAYOUT ===================== */}
       <section
-        dir="ltr"
         className="
           grid
           grid-cols-1
-          xl:grid-cols-[minmax(0,1fr)_340px]
+          xl:grid-cols-[340px_minmax(0,1fr)]
           gap-5
-          mb-7
           items-start
+          mb-7
         "
       >
-        <div
-          dir="rtl"
-          className="
-            grid
-            grid-cols-1
-            lg:grid-cols-2
-            gap-5
-            items-start
-            min-w-0
-          "
-        >
-          <AnalyticsLineCard percent={rsvpVisualStats.comingPercent} />
-
-          <DonutCard
-            coming={rsvpVisualStats.coming}
-            notComing={rsvpVisualStats.notComing}
-            pending={rsvpVisualStats.pending}
-            total={rsvpVisualStats.total}
-          />
-        </div>
-
-        <aside
-          dir="rtl"
-          className="
-            grid
-            grid-cols-1
-            gap-5
-            min-w-0
-          "
-        >
-          <EventDetailsCard
+        {/* צד ימין: פרטי אירוע + פעילות אחרונה */}
+        <aside className="grid grid-cols-1 gap-5 min-w-0">
+          <GoldenEventDetailsCard
             title={eventTitle}
             date={formatEventDate(eventDate)}
             time={eventTime}
@@ -1533,8 +1031,135 @@ export default function DashboardPage() {
             }}
           />
 
-          <RecentActivityCard />
+          <GoldenRecentActivityCard
+            coming={rsvpVisualStats.coming}
+            notComing={rsvpVisualStats.notComing}
+            pending={rsvpVisualStats.pending}
+            total={rsvpVisualStats.total}
+            totalGuests={stats.totalGuests}
+            displayCount={displayGuests.length}
+          />
         </aside>
+
+        {/* צד שמאל: כפתורים, אחוזים, גרפים */}
+        <section className="min-w-0">
+          <GoldenActionButtons
+            invitation={invitation}
+            invitationId={invitationId}
+            isDemo={isDemo}
+            router={router}
+            onDemoBlocked={handleDemoBlockedAction}
+            onAddGuest={() => setOpenAddModal(true)}
+            onImport={() => setShowImportModal(true)}
+            onExportExcel={handleExportExcel}
+          />
+
+          {/* תיוגים קיימים מהשרת */}
+          <div className="mt-4 flex flex-wrap gap-3">
+            {user?.includeCalls ? (
+              <div className="inline-flex items-center gap-2 rounded-full border border-[#D9B46F]/40 bg-white/80 px-4 py-2 text-sm font-black text-[#8B5E34] shadow-sm">
+                ☎️ כולל שירות שיחות אישורי הגעה (3 סבבים)
+              </div>
+            ) : (
+              <div className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-black text-amber-700 shadow-sm">
+                ⚠️ ללא שירות שיחות טלפוניים
+              </div>
+            )}
+
+            {user?.includeCreditGifts && (
+              <>
+                <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-700 shadow-sm">
+                  💳 כולל מתנות באשראי לאורחים
+                </div>
+
+                <a
+                  href="https://ktzr.io/giftInvistimoSignup"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex w-fit items-center gap-2 rounded-full bg-[#8B5E34] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#6F4726]"
+                >
+                  🔗 קישור הרשמה למתנות באשראי
+                </a>
+              </>
+            )}
+          </div>
+
+          {event && (
+            <div className="mt-4 rounded-2xl border border-[#E3D6C3] bg-white/85 px-5 py-4 shadow-sm">
+              <div className="text-lg font-semibold">
+                {event.date ? (
+                  <EventCountdown event={event} />
+                ) : (
+                  <span className="text-gray-500">
+                    📅 טרם הוגדר תאריך לאירוע
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* אחוזים / סטטיסטיקות */}
+          <section className="mt-5 grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <GoldenStatCard
+              title="סה״כ מוזמנים"
+              value={stats.totalGuests}
+              icon="👥"
+              tone="bronze"
+              description="כלל המוזמנים"
+            />
+
+            <GoldenStatCard
+              title="מגיע"
+              value={stats.comingGuests}
+              icon="✓"
+              tone="green"
+              description="אישרו הגעה"
+            />
+
+            <GoldenStatCard
+              title="לא מגיע"
+              value={stats.notComing}
+              icon="×"
+              tone="rose"
+              description="סימנו שלא מגיעים"
+            />
+
+            <GoldenStatCard
+              title="בהמתנה"
+              value={stats.noResponse}
+              icon="⌛"
+              tone="gold"
+              description="טרם השיבו"
+            />
+
+            {canShowActualArrived && (
+              <GoldenStatCard
+                title="מגיעים בפועל"
+                value={stats.actualArrivedGuests}
+                icon="●"
+                tone="blue"
+                description="נכנסו באירוע"
+              />
+            )}
+          </section>
+
+          {/* גרפים */}
+          <section className="mt-5 grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+            <GoldenStatusBarsCard
+              coming={rsvpVisualStats.coming}
+              notComing={rsvpVisualStats.notComing}
+              pending={rsvpVisualStats.pending}
+              total={rsvpVisualStats.total}
+            />
+
+            <GoldenDonutCard
+              coming={rsvpVisualStats.coming}
+              notComing={rsvpVisualStats.notComing}
+              pending={rsvpVisualStats.pending}
+              total={rsvpVisualStats.total}
+            />
+          </section>
+        </section>
       </section>
 
       {/* ===================== CONTROLS ===================== */}
@@ -1991,6 +1616,821 @@ export default function DashboardPage() {
         onClose={() => setOpenGroupModal(false)}
         invitationId={invitationId}
       />
+      </main>
+    </div>
+  );
+}
+
+
+/* ============================================================
+   New Golden Dashboard UI helpers
+============================================================ */
+function GoldenEventHero({
+  title,
+  date,
+  time,
+  location,
+  responsePercent,
+  workMode,
+  canViewActualArrived,
+  setWorkMode,
+}: {
+  title: string;
+  date: string;
+  time: string;
+  location: string;
+  responsePercent: number;
+  workMode: "regular" | "live";
+  canViewActualArrived: boolean;
+  setWorkMode: (mode: "regular" | "live") => void;
+}) {
+  const safePercent = Math.max(0, Math.min(100, responsePercent));
+
+  return (
+    <div
+      className="
+        relative
+        min-h-[214px]
+        overflow-hidden
+        rounded-[36px]
+        border
+        border-[#E3D0B8]
+        bg-[#FFFDF9]
+        shadow-[0_22px_70px_rgba(92,65,35,0.10)]
+      "
+    >
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,#FFF7E8_0%,#FFFFFF_38%,#FFFCF7_100%)]" />
+
+      {/* פרחים זהב / לבן / ברונזה בצד שמאל */}
+      <div className="absolute left-0 top-0 h-full w-[440px] overflow-hidden">
+        <div className="absolute -left-20 -top-24 h-80 w-80 rounded-full bg-[#F4D6A4]/45 blur-3xl" />
+        <div className="absolute left-8 top-10 text-[94px] leading-none opacity-95 rotate-[-18deg]">❀</div>
+        <div className="absolute left-[86px] top-[26px] text-[82px] leading-none opacity-80 rotate-[20deg] text-[#C08A45]">✦</div>
+        <div className="absolute left-[148px] top-[62px] text-[66px] leading-none opacity-95 rotate-[8deg]">❁</div>
+        <div className="absolute left-[40px] bottom-[22px] text-[56px] leading-none opacity-80 rotate-[12deg] text-[#B8844F]">✧</div>
+        <div className="absolute left-[214px] bottom-[34px] text-[28px] leading-none text-[#B07A3D] opacity-80">✦</div>
+        <div className="absolute left-32 top-10 h-[1px] w-72 rotate-[-15deg] bg-gradient-to-l from-[#C08A45] via-[#E6C184] to-transparent" />
+        <div className="absolute left-24 bottom-12 h-[1px] w-80 rotate-[12deg] bg-gradient-to-l from-[#B87A3C] via-[#E6C184] to-transparent" />
+      </div>
+
+      {/* עיטור צד ימין */}
+      <div className="absolute right-[-70px] top-[-80px] h-64 w-64 rounded-full border border-[#EADBC8]" />
+      <div className="absolute right-[36px] bottom-[18px] h-24 w-24 rounded-full bg-[#F1D6AD]/35 blur-2xl" />
+      <div className="absolute right-[46px] top-[42px] text-[42px] text-[#B8844F] opacity-80 rotate-[-10deg]">✦</div>
+
+      <div
+        className="
+          relative
+          grid
+          grid-cols-1
+          xl:grid-cols-[420px_360px_minmax(0,1fr)]
+          items-center
+          gap-7
+          px-7
+          py-7
+          md:px-9
+        "
+      >
+        <div className="order-3 xl:order-1">
+          {canViewActualArrived && (
+            <div className="flex w-fit items-center gap-2 rounded-full border border-[#E3D0B8] bg-white/85 p-1 shadow-sm">
+              <button
+                onClick={() => setWorkMode("regular")}
+                className={`
+                  px-5 py-2.5 rounded-full text-sm font-black transition
+                  ${
+                    workMode === "regular"
+                      ? "bg-[#241A2E] text-white shadow"
+                      : "text-[#7B6857] hover:bg-[#F8EFE3]"
+                  }
+                `}
+              >
+                מצב רגיל
+              </button>
+
+              <button
+                onClick={() => setWorkMode("live")}
+                className={`
+                  px-5 py-2.5 rounded-full text-sm font-black transition
+                  ${
+                    workMode === "live"
+                      ? "bg-[#B85C3A] text-white shadow"
+                      : "text-[#7B6857] hover:bg-[#F8EFE3]"
+                  }
+                `}
+              >
+                LIVE
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="order-2 xl:order-2 flex items-center justify-center gap-8">
+          <div className="flex flex-col items-center gap-2">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#D8B779] bg-[#FFF5DF] px-6 py-2.5 text-sm font-black text-[#8B5E24]">
+              LIVE
+              <span className="h-2.5 w-2.5 rounded-full bg-[#B8844F] animate-pulse" />
+            </div>
+            <div className="text-xs font-bold text-[#8A7A68]">האירוע פעיל</div>
+          </div>
+
+          <div className="hidden md:block h-24 w-px bg-[#E5D6C5]" />
+
+          <div className="flex flex-col items-center gap-2">
+            <div className="relative h-[98px] w-[98px] shrink-0">
+              <div
+                className="absolute inset-0 rounded-full bg-[conic-gradient(#B8844F_var(--p),#E8DCCB_0)]"
+                style={{ ["--p" as any]: `${safePercent}%` }}
+              />
+              <div className="absolute inset-[8px] rounded-full bg-white flex flex-col items-center justify-center shadow-inner">
+                <div className="text-2xl font-black text-[#241A14]">{safePercent}%</div>
+              </div>
+            </div>
+            <div className="text-xs font-bold text-[#8A7A68]">אחוז היענות</div>
+          </div>
+        </div>
+
+        <div className="order-1 xl:order-3 text-right">
+          <div className="mb-2 flex items-center justify-start gap-2">
+            <span className="rounded-full border border-[#E3D0B8] bg-white/75 px-4 py-1.5 text-xs font-black text-[#8B5E34]">
+              פרטי האירוע
+            </span>
+            <span className="text-3xl text-[#B8844F]">✦</span>
+          </div>
+
+          <h1 className="text-4xl md:text-5xl font-black text-[#241A14] tracking-tight">
+            {title}
+          </h1>
+
+          <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <GoldenHeroDetail icon="◷" title="שעה" value={time} />
+            <GoldenHeroDetail icon="▦" title="תאריך" value={date} />
+            <GoldenHeroDetail icon="●" title="מיקום" value={location} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GoldenActionButtons({
+  invitation,
+  invitationId,
+  isDemo,
+  router,
+  onDemoBlocked,
+  onAddGuest,
+  onImport,
+  onExportExcel,
+}: {
+  invitation: any | null;
+  invitationId: string;
+  isDemo: boolean;
+  router: any;
+  onDemoBlocked: () => void;
+  onAddGuest: () => void;
+  onImport: () => void;
+  onExportExcel: () => void;
+}) {
+  return (
+    <section>
+      <div className="hidden md:flex flex-wrap gap-3 items-center">
+        <GoldenActionButton
+          label={invitation ? "עריכת הזמנה" : "יצירת הזמנה"}
+          icon="✎"
+          tone="dark"
+          onClick={() => {
+            if (isDemo) {
+              onDemoBlocked();
+              return;
+            }
+            router.push(
+              invitation
+                ? `/dashboard/edit-invite/${invitationId}`
+                : "/dashboard/create-invite"
+            );
+          }}
+        />
+
+        <GoldenActionButton
+          label="עריכת פרטי האירוע"
+          icon="✎"
+          tone="light"
+          disabled={!invitation}
+          onClick={() => {
+            if (!invitation) return;
+            if (isDemo) {
+              onDemoBlocked();
+              return;
+            }
+            router.push("/dashboard/event");
+          }}
+        />
+
+        {invitation && (
+          <GoldenActionButton
+            label="צפייה בהזמנה"
+            icon="◉"
+            tone="light"
+            onClick={() =>
+              isDemo
+                ? onDemoBlocked()
+                : window.open(
+                    `https://www.invistimo.com/invite/${invitation.shareId}`,
+                    "_blank",
+                    "noopener,noreferrer"
+                  )
+            }
+          />
+        )}
+
+        <GoldenActionButton
+          label="הוספת מוזמן"
+          icon="♙"
+          tone="light"
+          disabled={!invitation}
+          onClick={onAddGuest}
+        />
+
+        <GoldenActionButton
+          label="ייבוא מאקסל"
+          icon="▣"
+          tone="excel"
+          disabled={!invitation}
+          onClick={onImport}
+        />
+
+        <GoldenActionButton
+          label="סידורי הושבה"
+          icon="♜"
+          tone="gold"
+          disabled={!invitation}
+          withChevron
+          onClick={() =>
+            router.push(isDemo ? "/try/dashboard/seating" : "/dashboard/seating")
+          }
+        />
+
+        <GoldenActionButton
+          label="שליחת הודעות"
+          icon="↗"
+          tone="green"
+          disabled={!invitation}
+          onClick={() =>
+            router.push(
+              isDemo
+                ? "/try/dashboard/messages/new"
+                : "/dashboard/messages/new"
+            )
+          }
+        />
+
+        <GoldenActionButton
+          label="ייצוא אקסל"
+          icon="▣"
+          tone="light"
+          disabled={!invitation}
+          onClick={onExportExcel}
+        />
+      </div>
+
+      <div className="flex md:hidden flex-col gap-3">
+        <button
+          onClick={() => {
+            if (isDemo) {
+              onDemoBlocked();
+              return;
+            }
+            router.push(
+              invitation
+                ? `/dashboard/edit-invite/${invitationId}`
+                : "/dashboard/create-invite"
+            );
+          }}
+          className="h-[54px] rounded-2xl font-black bg-[#241A2E] text-white"
+        >
+          <span className="text-[#D8A85F]">✎</span>{" "}
+          {invitation ? "עריכת הזמנה" : "יצירת הזמנה"}
+        </button>
+
+        <button
+          onClick={onAddGuest}
+          disabled={!invitation}
+          className={`h-[54px] rounded-2xl font-black border ${
+            invitation
+              ? "bg-white border-[#E3D6C3] text-[#241A14]"
+              : "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+          }`}
+        >
+          ♙ הוספת מוזמן
+        </button>
+
+        <button
+          onClick={onImport}
+          disabled={!invitation}
+          className={`h-[54px] rounded-2xl font-black border ${
+            invitation
+              ? "bg-white border-[#E3D6C3] text-[#241A14]"
+              : "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+          }`}
+        >
+          <span className="text-emerald-600">▣</span> ייבוא מאקסל
+        </button>
+
+        <button
+          onClick={() =>
+            router.push(
+              isDemo
+                ? "/try/dashboard/messages/new"
+                : "/dashboard/messages/new"
+            )
+          }
+          disabled={!invitation}
+          className={`h-[54px] rounded-2xl font-black ${
+            invitation
+              ? "bg-gradient-to-l from-[#007A47] to-[#10A66A] text-white"
+              : "bg-gray-200 text-gray-400 cursor-not-allowed"
+          }`}
+        >
+          ↗ שליחת הודעות
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function GoldenActionButton({
+  label,
+  icon,
+  tone,
+  disabled,
+  withChevron,
+  onClick,
+}: {
+  label: string;
+  icon: string;
+  tone: "dark" | "light" | "gold" | "green" | "excel";
+  disabled?: boolean;
+  withChevron?: boolean;
+  onClick: () => void;
+}) {
+  const toneClass: Record<string, string> = {
+    dark: "bg-[#241A2E] text-white shadow-[0_12px_24px_rgba(36,26,46,0.22)] hover:bg-[#16101F]",
+    light: "bg-white border border-[#E3D6C3] text-[#241A14] shadow-[0_8px_20px_rgba(80,55,32,0.06)] hover:bg-[#FBF7F0]",
+    gold: "bg-gradient-to-l from-[#B8844F] to-[#D9B46F] text-white shadow-[0_12px_24px_rgba(184,132,79,0.24)]",
+    green: "bg-gradient-to-l from-[#007A47] to-[#10A66A] text-white shadow-[0_12px_24px_rgba(16,166,106,0.22)]",
+    excel: "bg-white border border-[#E3D6C3] text-[#241A14] shadow-[0_8px_20px_rgba(80,55,32,0.06)] hover:bg-[#FBF7F0]",
+  };
+
+  const disabledClass =
+    "bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed shadow-none";
+
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`
+        group
+        h-[54px]
+        min-w-[166px]
+        rounded-[16px]
+        px-6
+        font-black
+        text-sm
+        flex
+        items-center
+        justify-center
+        gap-3
+        transition-all
+        duration-200
+        ${disabled ? disabledClass : toneClass[tone]}
+        ${disabled ? "" : "hover:-translate-y-0.5"}
+      `}
+    >
+      <span
+        className={`text-xl leading-none ${
+          tone === "dark"
+            ? "text-[#D8A85F]"
+            : tone === "excel"
+              ? "text-emerald-600"
+              : "text-current"
+        }`}
+      >
+        {icon}
+      </span>
+      {label}
+      {withChevron && <span className="text-current/80 text-sm">⌄</span>}
+    </button>
+  );
+}
+
+function GoldenHeroDetail({
+  icon,
+  title,
+  value,
+}: {
+  icon: string;
+  title: string;
+  value: string;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-2xl bg-white/70 border border-[#E3D6C3] px-4 py-3 shadow-sm min-w-0">
+      <div className="h-9 w-9 rounded-xl bg-[#F8EFE3] text-[#9B6A35] flex items-center justify-center shrink-0">
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <div className="text-[11px] text-[#9A8775] font-bold">{title}</div>
+        <div className="text-sm font-black text-[#241A14] truncate">
+          {value}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GoldenStatCard({
+  title,
+  value,
+  tone,
+  icon,
+  description,
+}: {
+  title: string;
+  value: number;
+  tone: "bronze" | "green" | "rose" | "gold" | "blue";
+  icon: string;
+  description: string;
+}) {
+  const styles = {
+    bronze: {
+      wrap: "bg-white border-[#E3D6C3]",
+      value: "text-[#241A14]",
+      icon: "bg-[#F3E6D3] text-[#8B5E34]",
+    },
+    green: {
+      wrap: "bg-emerald-50 border-emerald-100",
+      value: "text-emerald-700",
+      icon: "bg-emerald-100 text-emerald-700",
+    },
+    rose: {
+      wrap: "bg-rose-50 border-rose-100",
+      value: "text-rose-700",
+      icon: "bg-rose-100 text-rose-700",
+    },
+    gold: {
+      wrap: "bg-amber-50 border-amber-100",
+      value: "text-[#A76313]",
+      icon: "bg-amber-100 text-[#A76313]",
+    },
+    blue: {
+      wrap: "bg-sky-50 border-sky-100",
+      value: "text-sky-700",
+      icon: "bg-sky-100 text-sky-700",
+    },
+  };
+
+  const s = styles[tone];
+
+  return (
+    <div
+      className={`
+        min-h-[132px]
+        rounded-[26px]
+        border
+        ${s.wrap}
+        p-5
+        shadow-[0_14px_35px_rgba(80,55,32,0.055)]
+        flex
+        items-center
+        justify-between
+        gap-4
+      `}
+    >
+      <div>
+        <div className="text-[#7C6A58] text-sm font-black mb-2">
+          {title}
+        </div>
+        <div className={`text-4xl font-black tracking-tight ${s.value}`}>
+          {value}
+        </div>
+        <div className="text-xs text-[#9A8775] mt-2">{description}</div>
+      </div>
+
+      <div
+        className={`h-14 w-14 rounded-2xl ${s.icon} flex items-center justify-center text-2xl font-black shadow-sm shrink-0`}
+      >
+        {icon}
+      </div>
+    </div>
+  );
+}
+
+function GoldenStatusBarsCard({
+  coming,
+  notComing,
+  pending,
+  total,
+}: {
+  coming: number;
+  notComing: number;
+  pending: number;
+  total: number;
+}) {
+  const comingPercent = calcPercent(coming, total);
+  const pendingPercent = calcPercent(pending, total);
+  const notComingPercent = calcPercent(notComing, total);
+
+  return (
+    <div className="h-[285px] overflow-hidden rounded-[28px] border border-[#E3D6C3] bg-white p-5 shadow-[0_14px_34px_rgba(80,55,32,0.055)]">
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <h3 className="text-lg font-black text-[#241A14]">
+            אחוזי אישורי הגעה
+          </h3>
+          <p className="text-xs text-[#7C6A58] mt-1">
+            מחושב לפי נתוני המוזמנים בפועל
+          </p>
+        </div>
+        <span className="rounded-full bg-[#FFF5DF] text-[#8B5E24] px-4 py-1.5 text-sm font-black border border-[#E3D6C3]">
+          {comingPercent}%
+        </span>
+      </div>
+
+      <div className="space-y-5">
+        <GoldenProgressRow
+          label="מגיע"
+          value={coming}
+          percent={comingPercent}
+          bar="bg-emerald-600"
+        />
+        <GoldenProgressRow
+          label="בהמתנה"
+          value={pending}
+          percent={pendingPercent}
+          bar="bg-amber-500"
+        />
+        <GoldenProgressRow
+          label="לא מגיע"
+          value={notComing}
+          percent={notComingPercent}
+          bar="bg-rose-500"
+        />
+      </div>
+    </div>
+  );
+}
+
+function GoldenProgressRow({
+  label,
+  value,
+  percent,
+  bar,
+}: {
+  label: string;
+  value: number;
+  percent: number;
+  bar: string;
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between text-sm font-black text-[#241A14] mb-2">
+        <span>{label}</span>
+        <span>
+          {value} <span className="text-[#9A8775]">({percent}%)</span>
+        </span>
+      </div>
+      <div className="h-3 rounded-full bg-[#F1E7DA] overflow-hidden">
+        <div
+          className={`h-full rounded-full ${bar}`}
+          style={{ width: `${Math.max(0, Math.min(100, percent))}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function GoldenDonutCard({
+  coming,
+  notComing,
+  pending,
+  total,
+}: {
+  coming: number;
+  notComing: number;
+  pending: number;
+  total: number;
+}) {
+  const comingPercent = calcPercent(coming, total);
+  const pendingPercent = calcPercent(pending, total);
+  const notComingPercent = calcPercent(notComing, total);
+  const greenEnd = comingPercent;
+  const orangeEnd = comingPercent + pendingPercent;
+
+  return (
+    <div className="h-[285px] overflow-hidden rounded-[28px] border border-[#E3D6C3] bg-white p-5 shadow-[0_14px_34px_rgba(80,55,32,0.055)]">
+      <div className="mb-4">
+        <h3 className="text-lg font-black text-[#241A14]">
+          התפלגות מוזמנים לפי סטטוס
+        </h3>
+        <p className="text-xs text-[#7C6A58] mt-1">
+          מגיע / לא מגיע / בהמתנה
+        </p>
+      </div>
+
+      <div className="flex items-center justify-between gap-5">
+        <div
+          className="relative h-36 w-36 rounded-full shadow-inner shrink-0"
+          style={{
+            background: `conic-gradient(
+              #059669 0% ${greenEnd}%,
+              #F59E0B ${greenEnd}% ${orangeEnd}%,
+              #F43F5E ${orangeEnd}% 100%
+            )`,
+          }}
+        >
+          <div className="absolute inset-5 rounded-full bg-white flex flex-col items-center justify-center">
+            <div className="text-3xl font-black text-[#241A14]">{total}</div>
+            <div className="text-[11px] text-[#7C6A58]">אורחים</div>
+          </div>
+        </div>
+
+        <div className="flex-1 space-y-3">
+          <LegendRow
+            color="bg-emerald-600"
+            label="מגיע"
+            value={coming}
+            percent={comingPercent}
+          />
+          <LegendRow
+            color="bg-amber-500"
+            label="בהמתנה"
+            value={pending}
+            percent={pendingPercent}
+          />
+          <LegendRow
+            color="bg-rose-500"
+            label="לא מגיע"
+            value={notComing}
+            percent={notComingPercent}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GoldenEventDetailsCard({
+  title,
+  date,
+  time,
+  location,
+  onOpen,
+}: {
+  title: string;
+  date: string;
+  time: string;
+  location: string;
+  onOpen: () => void;
+}) {
+  return (
+    <div className="rounded-[28px] border border-[#E3D6C3] bg-white p-5 shadow-[0_14px_34px_rgba(80,55,32,0.055)]">
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <h3 className="text-lg font-black text-[#241A14]">
+          פרטי האירוע
+        </h3>
+        <span className="text-2xl text-[#B8844F]">✦</span>
+      </div>
+
+      <div className="space-y-3">
+        <GoldenDetailRow icon="✦" label="שם האירוע" value={title} />
+        <GoldenDetailRow icon="▦" label="תאריך" value={date} />
+        <GoldenDetailRow icon="◷" label="שעה" value={time} />
+        <GoldenDetailRow icon="●" label="מיקום" value={location} />
+      </div>
+
+      <button
+        onClick={onOpen}
+        className="mt-5 w-full rounded-2xl border border-[#E3D6C3] bg-[#FBF7F0] px-5 py-3 font-black text-[#241A14] transition hover:bg-[#F2E6D5]"
+      >
+        צפייה בפרטי האירוע
+      </button>
+    </div>
+  );
+}
+
+function GoldenDetailRow({
+  icon,
+  label,
+  value,
+}: {
+  icon: string;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex items-start gap-3">
+      <div className="h-10 w-10 rounded-2xl bg-[#F8EFE3] text-[#9B6A35] flex items-center justify-center shrink-0">
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <div className="text-xs font-bold text-[#9A8775] mb-0.5">
+          {label}
+        </div>
+        <div className="text-sm font-black text-[#241A14] truncate">
+          {value}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GoldenRecentActivityCard({
+  coming,
+  notComing,
+  pending,
+  total,
+  totalGuests,
+  displayCount,
+}: {
+  coming: number;
+  notComing: number;
+  pending: number;
+  total: number;
+  totalGuests: number;
+  displayCount: number;
+}) {
+  return (
+    <div className="rounded-[28px] border border-[#E3D6C3] bg-white p-5 shadow-[0_14px_34px_rgba(80,55,32,0.055)]">
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <h3 className="text-lg font-black text-[#241A14]">
+          פעילות אחרונה
+        </h3>
+        <span className="rounded-full bg-[#FFF5DF] px-3 py-1 text-xs font-black text-[#8B5E24] border border-[#E3D6C3]">
+          LIVE
+        </span>
+      </div>
+
+      <div className="space-y-3">
+        <GoldenActivityRow
+          icon="✓"
+          tone="green"
+          title={`${coming} אורחים סימנו מגיע`}
+          time={`מתוך ${total} רשומות`}
+        />
+        <GoldenActivityRow
+          icon="⌛"
+          tone="gold"
+          title={`${pending} עדיין בהמתנה`}
+          time="דורשים מעקב"
+        />
+        <GoldenActivityRow
+          icon="×"
+          tone="rose"
+          title={`${notComing} לא מגיעים`}
+          time="מעודכן לפי הרשימה"
+        />
+        <GoldenActivityRow
+          icon="▦"
+          tone="bronze"
+          title={`${totalGuests} מוזמנים בסך הכל`}
+          time={`${displayCount} מוצגים לפי הסינון הנוכחי`}
+        />
+      </div>
+    </div>
+  );
+}
+
+function GoldenActivityRow({
+  icon,
+  tone,
+  title,
+  time,
+}: {
+  icon: string;
+  tone: "green" | "gold" | "rose" | "bronze";
+  title: string;
+  time: string;
+}) {
+  const tones = {
+    green: "bg-emerald-50 text-emerald-700",
+    gold: "bg-amber-50 text-[#A76313]",
+    rose: "bg-rose-50 text-rose-700",
+    bronze: "bg-[#F8EFE3] text-[#8B5E34]",
+  };
+
+  return (
+    <div className="flex items-center gap-3">
+      <div
+        className={`h-10 w-10 rounded-2xl flex items-center justify-center font-black ${tones[tone]}`}
+      >
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <div className="text-sm font-black text-[#241A14] truncate">
+          {title}
+        </div>
+        <div className="text-xs text-[#9A8775] mt-0.5">{time}</div>
+      </div>
     </div>
   );
 }
