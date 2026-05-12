@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import AudienceFilterSelector from "../shared/AudienceFilterSelector";
 import SendButton from "../shared/SendButton";
 import WhatsappTemplatePreview from "../shared/WhatsappTemplatePreview";
@@ -36,7 +37,6 @@ type GiftOptions = {
 type Channel = "whatsapp" | "sms";
 type RoundNumber = 1 | 2 | 3;
 type SendTiming = "now" | "scheduled";
-type HalfType = "first" | "second" | null;
 
 /* ================= CONSTANTS ================= */
 
@@ -87,11 +87,33 @@ function ensureHttp(u: string) {
   return `https://${s}`;
 }
 
-function splitByHalf<T>(list: T[], half: HalfType) {
-  if (!half) return list;
+function formatDateTime(value: any) {
+  if (!value) return "";
 
-  const mid = Math.ceil(list.length / 2);
-  return half === "first" ? list.slice(0, mid) : list.slice(mid);
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+
+  return `${d.toLocaleDateString("he-IL")} בשעה ${d.toLocaleTimeString(
+    "he-IL",
+    {
+      hour: "2-digit",
+      minute: "2-digit",
+    }
+  )}`;
+}
+
+function getWhatsappTemplateByRound(round: RoundNumber) {
+  return round === 1 ? RSVP_ROUND1_TEMPLATE : RSVP_REMINDER_TEMPLATE;
+}
+
+function getRoundAudienceLabel(round: RoundNumber) {
+  return round === 1 ? "כל המוזמנים" : "מי שטרם אישר";
+}
+
+function getRoundSubtitle(round: RoundNumber) {
+  if (round === 1) return "נשלח לכל המוזמנים";
+  if (round === 2) return "נשלח רק למי שטרם אישר";
+  return "תזכורת אחרונה למי שעדיין לא אישר";
 }
 
 function getWhatsappPreviewText({
@@ -137,35 +159,6 @@ function getWhatsappPreviewText({
 נשמח לעדכון 💖`;
 }
 
-function formatDateTime(value: any) {
-  if (!value) return "";
-
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "";
-
-  return `${d.toLocaleDateString("he-IL")} בשעה ${d.toLocaleTimeString(
-    "he-IL",
-    {
-      hour: "2-digit",
-      minute: "2-digit",
-    }
-  )}`;
-}
-
-function getWhatsappTemplateByRound(round: RoundNumber) {
-  return round === 1 ? RSVP_ROUND1_TEMPLATE : RSVP_REMINDER_TEMPLATE;
-}
-
-function getRoundAudienceLabel(round: RoundNumber) {
-  return round === 1 ? "כל המוזמנים" : "מי שטרם אישר";
-}
-
-function getRoundSubtitle(round: RoundNumber) {
-  if (round === 1) return "נשלח לכל המוזמנים";
-  if (round === 2) return "נשלח רק למי שטרם אישר";
-  return "תזכורת אחרונה למי שעדיין לא אישר";
-}
-
 /* ================= COMPONENT ================= */
 
 export default function RsvpTab({
@@ -182,15 +175,15 @@ export default function RsvpTab({
 
   const [round, setRound] = useState<RoundNumber>(1);
 
-  const [roundChannels, setRoundChannels] = useState<Record<RoundNumber, Channel>>({
+  const [roundChannels, setRoundChannels] = useState<
+    Record<RoundNumber, Channel>
+  >({
     1: "whatsapp",
     2: "whatsapp",
     3: "whatsapp",
   });
 
   const selectedChannel = roundChannels[round];
-
-  const [half, setHalf] = useState<HalfType>(null);
 
   const [sendTiming, setSendTiming] = useState<SendTiming>("now");
   const [scheduledDate, setScheduledDate] = useState("");
@@ -240,9 +233,7 @@ export default function RsvpTab({
   const giftSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const didInitGift = useRef(false);
 
-  /* ================= CURRENT ROUND HELPERS ================= */
-
-  const currentSmsMessage = smsMessages[round];
+  /* ================= SCHEDULED DATE ================= */
 
   const scheduledAt = useMemo(() => {
     if (sendTiming !== "scheduled" || !scheduledDate || !scheduledTime) {
@@ -254,6 +245,10 @@ export default function RsvpTab({
 
     return new Date(year, month - 1, day, hour, minute, 0, 0);
   }, [sendTiming, scheduledDate, scheduledTime]);
+
+  /* ================= CURRENT ROUND STATE ================= */
+
+  const currentSmsMessage = smsMessages[round];
 
   const currentRoundSent =
     round === 1 ? round1Sent : round === 2 ? round2Sent : round3Sent;
@@ -302,7 +297,7 @@ export default function RsvpTab({
     loadScheduledMessages();
   }, []);
 
-  /* ================= LOAD SINGLE EXISTING SCHEDULE ================= */
+  /* ================= LOAD EXISTING SCHEDULE ================= */
 
   useEffect(() => {
     async function loadExistingSchedule() {
@@ -340,7 +335,7 @@ export default function RsvpTab({
     loadExistingSchedule();
   }, [invitationId, round, selectedChannel]);
 
-  /* ================= LOAD GUESTS + INVITATION ================= */
+  /* ================= LOAD DATA ================= */
 
   useEffect(() => {
     async function loadData() {
@@ -604,23 +599,13 @@ export default function RsvpTab({
     [guests]
   );
 
-  const baseGuests = useMemo(() => {
-    return round === 1 ? guests : pendingGuests;
-  }, [round, guests, pendingGuests]);
+  const guestsToSend = useMemo(() => {
+    const base = round === 1 ? guests : pendingGuests;
 
-  const sortedGuests = useMemo(() => {
-    return [...baseGuests].sort((a, b) =>
+    return [...base].sort((a, b) =>
       (a.name || "").localeCompare(b.name || "", "he")
     );
-  }, [baseGuests]);
-
-  const mid = Math.ceil(sortedGuests.length / 2);
-  const firstHalfCount = sortedGuests.slice(0, mid).length;
-  const secondHalfCount = sortedGuests.slice(mid).length;
-
-  const guestsToSend = useMemo(() => {
-    return splitByHalf(sortedGuests, half);
-  }, [sortedGuests, half]);
+  }, [round, guests, pendingGuests]);
 
   const noAudience = guestsToSend.length === 0;
   const missingHeaderImage = selectedChannel === "whatsapp" && !headerImageUrl;
@@ -686,8 +671,12 @@ export default function RsvpTab({
     : currentRoundScheduled || hasExistingSchedule
     ? `⏱️ סבב ${round} כבר מתוזמן`
     : sendTiming === "scheduled"
-    ? `⏱️ תזמן סבב ${round} ב-${selectedChannel === "sms" ? "SMS" : "WhatsApp"}`
-    : `🚀 שלח עכשיו סבב ${round} ב-${selectedChannel === "sms" ? "SMS" : "WhatsApp"}`;
+    ? `⏱️ תזמן סבב ${round} ב-${
+        selectedChannel === "sms" ? "SMS" : "WhatsApp"
+      }`
+    : `🚀 שלח עכשיו סבב ${round} ב-${
+        selectedChannel === "sms" ? "SMS" : "WhatsApp"
+      }`;
 
   /* ================= LOADING ================= */
 
@@ -711,12 +700,13 @@ export default function RsvpTab({
 
   return (
     <div dir="rtl" className="relative overflow-hidden bg-[#FBFAF8]">
-      <div className="pointer-events-none absolute -top-24 -right-24 h-80 w-80 rounded-full bg-blue-100/70 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-28 -left-24 h-96 w-96 rounded-full bg-[#E9D6A7]/45 blur-3xl" />
+      <div className="pointer-events-none absolute -top-28 -right-24 h-96 w-96 rounded-full bg-blue-100/70 blur-3xl" />
+      <div className="pointer-events-none absolute top-40 -left-24 h-96 w-96 rounded-full bg-[#E9D6A7]/40 blur-3xl" />
+      <div className="pointer-events-none absolute bottom-0 right-1/3 h-80 w-80 rounded-full bg-purple-100/30 blur-3xl" />
 
       <div className="relative p-5 md:p-8 space-y-7">
         {/* HERO */}
-        <section className="rounded-[34px] border border-white bg-white/90 p-5 md:p-6 shadow-[0_24px_70px_rgba(31,41,55,0.08)] backdrop-blur">
+        <section className="rounded-[38px] border border-white bg-white/90 p-5 md:p-7 shadow-[0_28px_80px_rgba(31,41,55,0.09)] backdrop-blur">
           <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-6">
             <div className="space-y-3">
               <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-sm font-black text-blue-700">
@@ -729,14 +719,18 @@ export default function RsvpTab({
               </h2>
 
               <p className="max-w-2xl text-sm md:text-base leading-7 text-gray-500">
-                בחרי סבב, ערוץ שליחה ותזמון. סבב 1 נשלח לכל המוזמנים, וסבבים
-                2–3 נשלחים רק למי שטרם אישר בזמן השליחה בפועל.
+                סבב 1 נשלח לכל המוזמנים. סבב 2 וסבב 3 נשלחים למי שטרם אישר.
+                בכל סבב אפשר לבחור מחדש WhatsApp או SMS ולתזמן מראש.
               </p>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 min-w-full xl:min-w-[560px]">
               <StatCard label="סה״כ מוזמנים" value={totalCount} icon="👥" />
-              <StatCard label="טרם אישרו" value={pendingGuests.length} icon="⏳" />
+              <StatCard
+                label="טרם אישרו"
+                value={pendingGuests.length}
+                icon="⏳"
+              />
               <StatCard label="אישרו" value={yesCount} icon="💙" />
               <StatCard label="לא מגיעים" value={noCount} icon="🤍" />
             </div>
@@ -744,7 +738,7 @@ export default function RsvpTab({
         </section>
 
         {/* ROUND SELECTOR */}
-        <section className="rounded-[30px] border border-[#EEE8DD] bg-white p-3 shadow-[0_18px_50px_rgba(31,41,55,0.06)]">
+        <section className="rounded-[34px] border border-[#EEE8DD] bg-white p-3 shadow-[0_18px_50px_rgba(31,41,55,0.06)]">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {[1, 2, 3].map((r) => (
               <RoundButton
@@ -771,15 +765,81 @@ export default function RsvpTab({
                 }
                 onClick={() => {
                   setRound(r as RoundNumber);
-                  setHalf(null);
                 }}
               />
             ))}
           </div>
         </section>
 
-        <section className="grid grid-cols-1 xl:grid-cols-[1.06fr_0.94fr] gap-7 items-start">
-          {/* RIGHT/FORM */}
+        <section className="grid grid-cols-1 xl:grid-cols-[0.94fr_1.06fr] gap-7 items-start">
+          {/* PREVIEW - now first side */}
+          <aside className="space-y-5 xl:sticky xl:top-6">
+            <PremiumCard
+              icon="✨"
+              title="תצוגה מקדימה"
+              subtitle={
+                selectedChannel === "sms"
+                  ? "כך תיראה הודעת ה-SMS"
+                  : "כך תיראה הודעת ה-WhatsApp"
+              }
+            >
+              <div className="rounded-[34px] border border-[#EEE8DD] bg-gradient-to-b from-[#F8FAFF] via-white to-[#F6F1E8] p-3 md:p-5 shadow-inner">
+                {selectedChannel === "whatsapp" ? (
+                  <WhatsappTemplatePreview
+                    templateKey={templateName}
+                    previewText={whatsappPreviewText}
+                    headerImageUrl={headerImageUrl}
+                  />
+                ) : (
+                  <TextMessagePreview channel="sms" text={smsPreviewText} />
+                )}
+              </div>
+            </PremiumCard>
+
+            <PremiumCard
+              icon="🛡️"
+              title="סיכום לפני שליחה"
+              subtitle="בדיקה מהירה לפני אישור הפעולה"
+            >
+              <div className="space-y-3 text-sm">
+                <SummaryRow label="סבב" value={`סבב ${round}`} />
+                <SummaryRow
+                  label="ערוץ"
+                  value={selectedChannel === "sms" ? "SMS" : "WhatsApp"}
+                />
+                <SummaryRow
+                  label="קהל יעד"
+                  value={getRoundAudienceLabel(round)}
+                />
+                <SummaryRow label="נמענים" value={`${guestsToSend.length}`} />
+                <SummaryRow
+                  label="מועד"
+                  value={sendTiming === "now" ? "שליחה מיידית" : "מתוזמן"}
+                />
+                <SummaryRow
+                  label="טרם אישרו"
+                  value={`${pendingGuests.length}`}
+                />
+              </div>
+            </PremiumCard>
+
+            {selectedChannel === "whatsapp" && waStats && (
+              <PremiumCard
+                icon="📡"
+                title="סטטוס WhatsApp"
+                subtitle="נתונים מתעדכנים אוטומטית"
+              >
+                <div className="grid grid-cols-2 gap-3">
+                  <MiniStat label="סה״כ" value={waStats.total} />
+                  <MiniStat label="נמסרו" value={waStats.delivered} />
+                  <MiniStat label="בתהליך" value={waStats.pending} />
+                  <MiniStat label="נכשלו" value={waStats.failed} danger />
+                </div>
+              </PremiumCard>
+            )}
+          </aside>
+
+          {/* SEND SETTINGS */}
           <div className="space-y-5">
             {/* CHANNEL */}
             <PremiumCard
@@ -824,41 +884,21 @@ export default function RsvpTab({
                 readOnly
               />
 
-              <div className="mt-4 rounded-2xl border border-[#E9EDF5] bg-[#F8FAFC] p-4">
-                <div className="flex items-center justify-between gap-3 mb-3">
+              <div className="mt-4 rounded-3xl border border-blue-100 bg-gradient-to-l from-blue-50 to-white p-4">
+                <div className="flex items-center justify-between gap-3">
                   <div>
                     <h3 className="font-black text-[#1F2937]">
-                      📊 שליחה לפי חצי רשימה
+                      🎯 שליחה אוטומטית לפי הסבב
                     </h3>
-                    <p className="text-xs text-gray-500 mt-1">
-                      לא חובה לפצל. החצי נקבע לפי סדר אלפביתי.
+                    <p className="mt-1 text-xs leading-6 text-gray-500">
+                      אין יותר פיצול רשימה. המערכת קובעת לבד את הקהל לפי הסבב.
                     </p>
                   </div>
 
-                  <span className="rounded-full border border-blue-100 bg-white px-3 py-1 text-xs font-black text-blue-700">
+                  <span className="rounded-full border border-blue-100 bg-white px-4 py-2 text-xs font-black text-blue-700">
                     {guestsToSend.length} נמענים
                   </span>
                 </div>
-
-                <select
-                  value={half ?? ""}
-                  onChange={(e) =>
-                    setHalf(
-                      e.target.value === ""
-                        ? null
-                        : (e.target.value as HalfType)
-                    )
-                  }
-                  className="w-full rounded-2xl border border-[#DDE3EE] bg-white px-4 py-3.5 text-sm font-bold text-[#1F2937] outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                >
-                  <option value="">כולם ללא פיצול – {sortedGuests.length}</option>
-                  <option value="first">
-                    חצי ראשון של הרשימה – {firstHalfCount}
-                  </option>
-                  <option value="second">
-                    חצי שני של הרשימה – {secondHalfCount}
-                  </option>
-                </select>
               </div>
             </PremiumCard>
 
@@ -1056,7 +1096,7 @@ export default function RsvpTab({
             </PremiumCard>
 
             {/* SEND */}
-            <div className="rounded-[30px] border border-[#EEE8DD] bg-white p-4 shadow-[0_20px_60px_rgba(31,41,55,0.08)] space-y-3">
+            <div className="rounded-[34px] border border-[#EEE8DD] bg-white p-4 shadow-[0_22px_65px_rgba(31,41,55,0.09)] space-y-3">
               {missingHeaderImage && (
                 <div className="rounded-2xl bg-orange-50 px-4 py-3 text-sm font-bold text-orange-700">
                   חסרה תמונת Header להזמנת WhatsApp. צריך להעלות תמונה לפני שליחה.
@@ -1131,73 +1171,6 @@ export default function RsvpTab({
               </div>
             )}
           </div>
-
-          {/* PREVIEW */}
-          <aside className="space-y-5 xl:sticky xl:top-6">
-            <PremiumCard
-              icon="✨"
-              title="תצוגה מקדימה"
-              subtitle={
-                selectedChannel === "sms"
-                  ? "כך תיראה הודעת ה-SMS"
-                  : "כך תיראה הודעת ה-WhatsApp"
-              }
-            >
-              <div className="rounded-[30px] border border-[#EEE8DD] bg-gradient-to-b from-[#F8FAFF] to-[#F6F1E8] p-3 md:p-5">
-                {selectedChannel === "whatsapp" ? (
-                  <WhatsappTemplatePreview
-                    templateKey={templateName}
-                    previewText={whatsappPreviewText}
-                    headerImageUrl={headerImageUrl}
-                  />
-                ) : (
-                  <TextMessagePreview channel="sms" text={smsPreviewText} />
-                )}
-              </div>
-            </PremiumCard>
-
-            <PremiumCard
-              icon="🛡️"
-              title="סיכום לפני שליחה"
-              subtitle="בדיקה מהירה לפני אישור הפעולה"
-            >
-              <div className="space-y-3 text-sm">
-                <SummaryRow label="סבב" value={`סבב ${round}`} />
-                <SummaryRow
-                  label="ערוץ"
-                  value={selectedChannel === "sms" ? "SMS" : "WhatsApp"}
-                />
-                <SummaryRow
-                  label="קהל יעד"
-                  value={getRoundAudienceLabel(round)}
-                />
-                <SummaryRow
-                  label="נמענים"
-                  value={`${guestsToSend.length}`}
-                />
-                <SummaryRow
-                  label="מועד"
-                  value={sendTiming === "now" ? "שליחה מיידית" : "מתוזמן"}
-                />
-                <SummaryRow label="טרם אישרו" value={`${pendingGuests.length}`} />
-              </div>
-            </PremiumCard>
-
-            {selectedChannel === "whatsapp" && waStats && (
-              <PremiumCard
-                icon="📡"
-                title="סטטוס WhatsApp"
-                subtitle="נתונים מתעדכנים אוטומטית"
-              >
-                <div className="grid grid-cols-2 gap-3">
-                  <MiniStat label="סה״כ" value={waStats.total} />
-                  <MiniStat label="נמסרו" value={waStats.delivered} />
-                  <MiniStat label="בתהליך" value={waStats.pending} />
-                  <MiniStat label="נכשלו" value={waStats.failed} danger />
-                </div>
-              </PremiumCard>
-            )}
-          </aside>
         </section>
       </div>
 
@@ -1244,14 +1217,14 @@ function PremiumCard({
   icon: string;
   title: string;
   subtitle?: string;
-  rightSlot?: React.ReactNode;
-  children: React.ReactNode;
+  rightSlot?: ReactNode;
+  children: ReactNode;
 }) {
   return (
-    <section className="rounded-[30px] border border-[#EEE8DD] bg-white p-5 shadow-[0_18px_50px_rgba(31,41,55,0.06)]">
+    <section className="rounded-[34px] border border-[#EEE8DD] bg-white/95 p-5 shadow-[0_18px_50px_rgba(31,41,55,0.06)] backdrop-blur">
       <div className="mb-4 flex items-start justify-between gap-4">
         <div className="flex items-start gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-50 to-[#F6EBC8] text-xl shadow-inner">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-50 via-white to-[#F6EBC8] text-xl shadow-inner">
             {icon}
           </div>
 
@@ -1319,13 +1292,17 @@ function RoundButton({
     <button
       type="button"
       onClick={onClick}
-      className={`relative overflow-hidden rounded-[26px] border p-5 text-right transition-all duration-200 ${
+      className={`relative overflow-hidden rounded-[28px] border p-5 text-right transition-all duration-200 ${
         active
           ? "border-blue-500 bg-gradient-to-l from-blue-600 to-blue-700 text-white shadow-[0_18px_36px_rgba(37,99,235,0.26)]"
           : "border-[#E5E7EB] bg-[#F8FAFC] text-[#1F2937] hover:bg-white hover:shadow-[0_14px_30px_rgba(31,41,55,0.08)]"
       }`}
     >
-      <div className="flex items-start justify-between gap-4">
+      {active && (
+        <div className="pointer-events-none absolute -left-10 -top-10 h-28 w-28 rounded-full bg-white/15 blur-2xl" />
+      )}
+
+      <div className="relative flex items-start justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span
@@ -1353,7 +1330,7 @@ function RoundButton({
       </div>
 
       <div
-        className={`mt-4 inline-flex rounded-full px-3 py-1 text-xs font-black ${
+        className={`relative mt-4 inline-flex rounded-full px-3 py-1 text-xs font-black ${
           active ? "bg-white/15 text-white" : "bg-white text-gray-600"
         }`}
       >
@@ -1362,7 +1339,7 @@ function RoundButton({
 
       {(sent || scheduled) && (
         <div
-          className={`mt-3 rounded-2xl px-3 py-2 text-xs font-bold ${
+          className={`relative mt-3 rounded-2xl px-3 py-2 text-xs font-bold ${
             active ? "bg-white/15 text-white" : "bg-green-50 text-green-700"
           }`}
         >
@@ -1429,7 +1406,7 @@ function GiftOptionCard({
   title: string;
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
-  children?: React.ReactNode;
+  children?: ReactNode;
 }) {
   return (
     <div
