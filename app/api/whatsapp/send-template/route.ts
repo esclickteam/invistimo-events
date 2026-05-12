@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
+
 import "@/models/Event";
 import db from "@/lib/db";
 import Invitation from "@/models/Invitation";
@@ -152,10 +153,6 @@ function getGenericRsvpSentField(round: RoundNumber) {
   return `rsvpRound${round}SentAt`;
 }
 
-function getRsvpLockField(round: RoundNumber) {
-  return `messageLocks.rsvpWhatsappRound${round}`;
-}
-
 function cleanAddress(address?: string): string {
   if (!address) return "";
 
@@ -246,12 +243,6 @@ function buildPayloadTemplate({
 
   const eventLocation = cleanAddress(invitation.location?.address);
 
-  /**
-   * חשוב:
-   * כאן שומרים placeholders.
-   * ה-worker מחליף אותם בזמן השליחה בפועל.
-   * כך RSVP / שולחן / ניווט / שם אורח נשארים עדכניים.
-   */
   const basePayload: any = {
     languageCode,
     eventTitle: invitation.title || "",
@@ -264,11 +255,6 @@ function buildPayloadTemplate({
     navigationLink: "{{navigationLink}}",
   };
 
-  /**
-   * אם ה-worker שלך שולח לפי payload.components,
-   * זה נותן לו מבנה מוכן. אם יש לך מבנה תבנית שונה במטא,
-   * נשנה את components לפי התבנית המדויקת שלך.
-   */
   if (
     templateName === "rsvp_invitation_media" ||
     templateName === "rsvp_reminder_invistimo"
@@ -353,7 +339,6 @@ export async function POST(req: NextRequest) {
     }
 
     const body = (await req.json()) as Partial<SendTemplateRequestBody>;
-
     const scheduledAtRaw = body.scheduledAt;
 
     if (!isTemplateName(body.templateName)) {
@@ -419,17 +404,18 @@ export async function POST(req: NextRequest) {
 
     /* ======================================================
        BLOCKS — רק לפי שליחה בפועל, לא לפי scheduledAt
+       אחרי שליחה בפועל, אותו סבב חסום בכל הערוצים.
     ====================================================== */
 
     if (type === "rsvp") {
       const sentField = getRsvpSentField(round);
       const genericSentField = getGenericRsvpSentField(round);
-      const lockFieldName = `rsvpWhatsappRound${round}`;
 
       const alreadySent =
         ((invitation as any)[sentField] ||
           (invitation as any)[genericSentField]) &&
-        (invitation as any).messageLocks?.[lockFieldName];
+        ((invitation as any).messageLocks?.[`rsvpWhatsappRound${round}`] ||
+          (invitation as any).messageLocks?.[`rsvpSmsRound${round}`]);
 
       if (alreadySent) {
         return NextResponse.json(
@@ -503,49 +489,48 @@ export async function POST(req: NextRequest) {
       });
 
       const schedulePayload = {
-  invitationId,
-  userId: auth.userId,
+        invitationId,
+        userId: auth.userId,
 
-  channel: "whatsapp",
-  type,
-  filter: type === "rsvp" ? (round === 1 ? "all" : "pending") : "all",
+        channel: "whatsapp",
+        type,
+        filter: type === "rsvp" ? (round === 1 ? "all" : "pending") : "all",
 
-  templateKey:
-    type === "rsvp"
-      ? "rsvp"
-      : type === "reminder" || type === "table"
-      ? "reminder"
-      : type === "thankyou"
-      ? "thankyou"
-      : "custom",
+        templateKey:
+          type === "rsvp"
+            ? "rsvp"
+            : type === "reminder" || type === "table"
+            ? "reminder"
+            : type === "thankyou"
+            ? "thankyou"
+            : "custom",
 
-  round,
-  roundNumber: round,
+        round,
+        roundNumber: round,
 
-  templateName,
-  payload,
+        templateName,
+        payload,
 
-  // ✅ חובה כי ScheduledMessage דורש messageContent
-  // ב-WhatsApp מקור האמת הוא payload/templateName, לא טקסט חופשי
-  messageContent: `whatsapp:${templateName}`,
-  messageOverride: `whatsapp:${templateName}`,
-  text: `whatsapp:${templateName}`,
+        messageContent: `whatsapp:${templateName}`,
+        messageOverride: `whatsapp:${templateName}`,
+        text: `whatsapp:${templateName}`,
 
-  includeGiftLink: !!body.giftCreditUrl,
-  giftLink: body.giftCreditUrl || null,
+        includeGiftLink: !!body.giftCreditUrl,
+        giftLink: body.giftCreditUrl || null,
 
-  guestIds: type === "rsvp" ? [] : audience,
+        guestIds: type === "rsvp" ? [] : audience,
 
-  scheduledAt,
-  guestsCount,
-  status: "scheduled",
+        scheduledAt,
+        guestsCount,
+        status: "scheduled",
 
-  sentCount: 0,
-  lockedAt: null,
-  lockedBy: null,
-  cancelledAt: null,
-  error: "",
-};
+        sentCount: 0,
+        lockedAt: null,
+        lockedBy: null,
+        cancelledAt: null,
+        error: "",
+      };
+
       let schedule;
 
       if (existingSchedule) {
@@ -664,7 +649,6 @@ export async function POST(req: NextRequest) {
       if (type === "rsvp") {
         const sentField = getRsvpSentField(round);
         const genericSentField = getGenericRsvpSentField(round);
-        const lockField = getRsvpLockField(round);
         const scheduledField = getRsvpScheduledField(round);
 
         await Invitation.updateOne(
@@ -676,7 +660,10 @@ export async function POST(req: NextRequest) {
             $set: {
               [sentField]: new Date(),
               [genericSentField]: new Date(),
-              [lockField]: true,
+
+              // ✅ אחרי שליחה בפועל — אותו סבב נחסם בכל הערוצים
+              [`messageLocks.rsvpWhatsappRound${round}`]: true,
+              [`messageLocks.rsvpSmsRound${round}`]: true,
             },
             $unset: {
               [scheduledField]: "",

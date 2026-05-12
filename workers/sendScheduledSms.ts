@@ -75,14 +75,6 @@ function getRsvpWhatsappScheduledField(round: RoundNumber) {
   return `rsvpWhatsappRound${round}ScheduledAt`;
 }
 
-function getRsvpSmsLockField(round: RoundNumber) {
-  return `messageLocks.rsvpSmsRound${round}`;
-}
-
-function getRsvpWhatsappLockField(round: RoundNumber) {
-  return `messageLocks.rsvpWhatsappRound${round}`;
-}
-
 function normalizePhone(phoneRaw: any) {
   let phone = String(phoneRaw || "").replace(/\D/g, "");
 
@@ -323,11 +315,6 @@ async function markInvitationAfterSend({
         ? getRsvpSmsScheduledField(round)
         : getRsvpWhatsappScheduledField(round);
 
-    const lockField =
-      channel === "sms"
-        ? getRsvpSmsLockField(round)
-        : getRsvpWhatsappLockField(round);
-
     await Invitation.updateOne(
       {
         _id: schedule.invitationId,
@@ -337,7 +324,10 @@ async function markInvitationAfterSend({
         $set: {
           [sentField]: new Date(),
           [getGenericRsvpSentField(round)]: new Date(),
-          [lockField]: true,
+
+          // ✅ אחרי שליחה בפועל — אותו סבב נחסם בכל הערוצים
+          [`messageLocks.rsvpSmsRound${round}`]: true,
+          [`messageLocks.rsvpWhatsappRound${round}`]: true,
         },
         $unset: {
           [scheduledField]: "",
@@ -672,20 +662,20 @@ export async function sendScheduledWhatsapp() {
         const tableName = getTableName(guest);
 
         const urlSuffix = `invite/${invitation.shareId}?token=${guest.token}`;
-const personalUrl = `https://www.invistimo.com/${urlSuffix}`;
+        const personalUrl = `https://www.invistimo.com/${urlSuffix}`;
 
-const replacements = {
-  name: guest.name || "",
-  invitationTitle: invitation.title || "האירוע שלנו",
+        const replacements = {
+          name: guest.name || "",
+          invitationTitle: invitation.title || "האירוע שלנו",
 
-  // חשוב: לא לקצר ב-WhatsApp.
-  // ה-helper צריך לזהות inviteId מתוך הקישור המקורי.
-  rsvpLink: personalUrl,
-  urlSuffix,
+          // חשוב: לא לקצר ב-WhatsApp.
+          // ה-helper צריך לזהות inviteId מתוך הקישור המקורי.
+          rsvpLink: personalUrl,
+          urlSuffix,
 
-  tableName,
-  navigationLink: navigationLink || "",
-};
+          tableName,
+          navigationLink: navigationLink || "",
+        };
 
         const payload = deepReplacePlaceholders(msg.payload || {}, replacements);
 
