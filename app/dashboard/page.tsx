@@ -113,11 +113,40 @@ const RSVP_STATUS_DOT: Record<Guest["rsvp"], string> = {
 function formatEventDate(date?: string) {
   if (!date) return "טרם הוגדר תאריך";
 
+  const target = buildCountdownTarget(date, "00:00");
+
+  if (target) {
+    return target.toLocaleDateString("he-IL");
+  }
+
   try {
     return new Date(date).toLocaleDateString("he-IL");
   } catch {
     return date;
   }
+}
+
+function resolveInvitationEventDateRaw(invitation: any) {
+  /*
+    הספירה לאחור ותאריך האירוע נלקחים אך ורק ממסמך invitations,
+    מהשדה eventDate כמו שמוגדר בשרת/DB.
+  */
+  if (!invitation?.eventDate) return "";
+
+  if (invitation.eventDate instanceof Date) {
+    return invitation.eventDate.toISOString();
+  }
+
+  return String(invitation.eventDate).trim();
+}
+
+function resolveInvitationEventTimeRaw(invitation: any) {
+  /*
+    גם השעה נלקחת ממסמך invitations.
+    השדה הראשי הוא eventTime.
+  */
+  if (!invitation?.eventTime) return "00:00";
+  return String(invitation.eventTime).trim();
 }
 
 function calcPercent(value: number, total: number) {
@@ -1065,17 +1094,9 @@ export default function DashboardPage() {
 
   const eventTitle = resolveEventTitle(invitation, event);
 
-  const eventDate =
-    event?.date ||
-    invitation?.eventDate ||
-    invitation?.date ||
-    "";
+  const eventDate = resolveInvitationEventDateRaw(invitation);
 
-  const eventTime =
-    event?.time ||
-    invitation?.eventTime ||
-    invitation?.time ||
-    "טרם הוגדרה שעה";
+  const eventTime = resolveInvitationEventTimeRaw(invitation);
 
   const eventLocation =
     event?.location?.address ||
@@ -1806,15 +1827,15 @@ function GoldenEventHero({
           absolute
           inset-0
           bg-gradient-to-l
-          from-white/42
-          via-white/16
+          from-white/46
+          via-white/18
           to-transparent
         "
       />
 
-      {/* ניצוצות עדינים בצד ימין */}
-      <div className="absolute right-[46px] top-[42px] text-[42px] text-[#B8844F] opacity-80 rotate-[-10deg]">✦</div>
-      <div className="absolute right-[145px] top-[30px] text-[22px] text-[#B8844F] opacity-60 rotate-[12deg]">✦</div>
+      <div className="absolute right-[46px] top-[42px] text-[42px] text-[#B8844F] opacity-80 rotate-[-10deg]">
+        ✦
+      </div>
 
       <div
         dir="ltr"
@@ -1832,7 +1853,10 @@ function GoldenEventHero({
         "
       >
         {/* צד שמאל: מצב רגיל / LIVE בלבד */}
-        <div dir="rtl" className="order-2 xl:order-1 justify-self-start self-center">
+        <div
+          dir="rtl"
+          className="order-2 xl:order-1 justify-self-start self-center"
+        >
           {canViewActualArrived && (
             <div className="flex w-fit items-center gap-2 rounded-full border border-[#E3D0B8] bg-white/85 p-1 shadow-sm backdrop-blur-[2px]">
               <button
@@ -1866,7 +1890,7 @@ function GoldenEventHero({
           )}
         </div>
 
-        {/* צד ימין: רק שם אירוע + ספירה לאחור. בלי פרטי אירוע בכרטיסייה העליונה */}
+        {/* צד ימין: רק שם האירוע + ספירה לאחור */}
         <div
           dir="rtl"
           className="
@@ -2249,20 +2273,53 @@ function GoldenActionButton({
 function buildCountdownTarget(eventDateRaw?: string, time?: string) {
   if (!eventDateRaw) return null;
 
-  const datePart = String(eventDateRaw).split("T")[0];
+  const raw = String(eventDateRaw).trim();
+
   const timeMatch = String(time || "").match(/(\d{1,2}):(\d{2})/);
+  const hours = timeMatch ? Number(timeMatch[1]) : 0;
+  const minutes = timeMatch ? Number(timeMatch[2]) : 0;
 
-  const hours = timeMatch ? timeMatch[1].padStart(2, "0") : "00";
-  const minutes = timeMatch ? timeMatch[2] : "00";
+  // Timestamp from DB
+  if (/^\d+$/.test(raw)) {
+    const numeric = Number(raw);
+    const date = new Date(numeric < 10_000_000_000 ? numeric * 1000 : numeric);
 
-  const candidate = new Date(`${datePart}T${hours}:${minutes}:00`);
-
-  if (Number.isNaN(candidate.getTime())) {
-    const fallback = new Date(eventDateRaw);
-    return Number.isNaN(fallback.getTime()) ? null : fallback;
+    if (!Number.isNaN(date.getTime())) {
+      date.setHours(hours, minutes, 0, 0);
+      return date;
+    }
   }
 
-  return candidate;
+  // Israeli format: 7.5.2026 / 07/05/2026 / 07-05-2026
+  const israeliDateMatch = raw.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/);
+
+  if (israeliDateMatch) {
+    const day = Number(israeliDateMatch[1]);
+    const month = Number(israeliDateMatch[2]);
+    const year = Number(israeliDateMatch[3]);
+
+    const date = new Date(year, month - 1, day, hours, minutes, 0, 0);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  // ISO / Mongo date: 2026-05-17 or 2026-05-17T...
+  const isoDatePart = raw.split("T")[0];
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(isoDatePart)) {
+    const [year, month, day] = isoDatePart.split("-").map(Number);
+    const date = new Date(year, month - 1, day, hours, minutes, 0, 0);
+
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  const fallback = new Date(raw);
+
+  if (Number.isNaN(fallback.getTime())) {
+    return null;
+  }
+
+  fallback.setHours(hours, minutes, 0, 0);
+  return fallback;
 }
 
 function getEventCountdown(
@@ -2286,6 +2343,7 @@ function getEventCountdown(
   }
 
   const current = new Date(now);
+
   const sameCalendarDay =
     current.getFullYear() === target.getFullYear() &&
     current.getMonth() === target.getMonth() &&
@@ -2357,7 +2415,7 @@ function GoldenCountdown({
           rounded-[26px]
           border
           border-[#E3D6C3]
-          bg-white/86
+          bg-white/88
           px-6
           py-4
           shadow-[0_14px_34px_rgba(184,132,79,0.18)]
@@ -2371,6 +2429,7 @@ function GoldenCountdown({
             <div className="text-2xl md:text-3xl font-black text-[#241A14]">
               היום הגדול הגיע
             </div>
+
             <div className="mt-1 text-sm font-bold text-[#8A7A68]">
               מאחלים לכם אירוע מושלם ומרגש
             </div>
@@ -2388,8 +2447,9 @@ function GoldenCountdown({
 
   if (countdown.isPast) {
     return (
-      <div className="mt-5 inline-flex rounded-2xl border border-[#E3D6C3] bg-white/82 px-5 py-3 text-sm font-black text-[#8A7A68] shadow-sm backdrop-blur-[2px]">
-        האירוע כבר התקיים
+      <div className="mt-5 inline-flex items-center gap-2 rounded-2xl border border-[#E3D6C3] bg-white/82 px-5 py-3 text-sm font-black text-[#8A7A68] shadow-sm backdrop-blur-[2px]">
+        <span>✨</span>
+        <span>האירוע הסתיים</span>
       </div>
     );
   }
