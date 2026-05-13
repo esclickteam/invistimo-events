@@ -845,54 +845,53 @@ export default function ReminderTab({
               📅 צפייה בהודעות מתוזמנות
             </button>
           )}
+
+{showScheduled && (
+  <div
+    className="
+      rounded-[30px]
+      border border-[#E7DCCB]
+      bg-[#FFF9EF]
+      p-5 sm:p-6
+      shadow-[0_14px_40px_rgba(95,68,34,0.08)]
+    "
+  >
+    <div className="mb-5 flex items-center justify-between gap-4">
+      <h2 className="text-xl font-black text-[#3E2D20]">
+        📅 הודעות מתוזמנות
+      </h2>
+
+      <button
+        type="button"
+        onClick={() => setShowScheduled(false)}
+        className="
+          flex h-10 w-10 items-center justify-center
+          rounded-full
+          bg-white
+          text-lg font-black
+          text-[#6B5138]
+          shadow-sm
+          transition
+          hover:bg-[#F6EBD9]
+        "
+      >
+        ✕
+      </button>
+    </div>
+
+    <ScheduledMessagesTable
+      messages={reminderScheduledMessages}
+      onChange={loadScheduledMessages}
+    />
+  </div>
+)}
+
+
+
         </div>
       </section>
 
-      {showScheduled && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
-          <div
-            className="
-              relative
-              max-h-[85vh]
-              w-[95%]
-              max-w-[950px]
-              overflow-y-auto
-              rounded-[30px]
-              border border-[#E7DCCB]
-              bg-[#FFF9EF]
-              p-6
-              shadow-2xl
-            "
-          >
-            <div className="mb-5 flex items-center justify-between gap-4">
-              <h2 className="text-xl font-black text-[#3E2D20]">
-                📅 הודעות מתוזמנות
-              </h2>
-
-              <button
-                type="button"
-                onClick={() => setShowScheduled(false)}
-                className="
-                  flex h-10 w-10 items-center justify-center
-                  rounded-full
-                  bg-white
-                  text-lg font-black
-                  text-[#6B5138]
-                  shadow-sm
-                  hover:bg-[#F6EBD9]
-                "
-              >
-                ✕
-              </button>
-            </div>
-
-            <ScheduledMessagesTable
-              messages={reminderScheduledMessages}
-              onChange={loadScheduledMessages}
-            />
-          </div>
-        </div>
-      )}
+      
 
       <style>{`
         .send-button-gold button {
