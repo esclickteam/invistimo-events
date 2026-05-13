@@ -245,34 +245,35 @@ export default function ReminderTab({
   /* ================= BUILD MESSAGE ================= */
 
   const buildReminderMessage = (g: Guest) => {
-    const tableName =
-      g.tableName ||
-      (typeof g.tableNumber === "number"
-        ? `שולחן ${g.tableNumber}`
-        : "");
+  const tableName =
+    g.tableName ||
+    (typeof g.tableNumber === "number"
+      ? `שולחן ${g.tableNumber}`
+      : "");
 
-    const guestHasTable = !!tableName;
+  const guestHasTable = !!tableName;
 
-    const templateForGuest =
-      hasSeatingPackage && guestHasTable
-        ? REMINDER_WITH_TABLE_TEMPLATE
-        : REMINDER_ONLY_TEMPLATE;
+  const templateForGuest = hasSeatingPackage
+    ? guestHasTable
+      ? message
+      : REMINDER_ONLY_TEMPLATE
+    : message;
 
-    return buildMessage({
-      template: templateForGuest,
-      guest: {
-        ...g,
-        tableName,
-      },
-      invitationTitle,
-      eventDate,
-      eventLocation,
-      navigationLink:
-        typeof lat === "number" && typeof lng === "number"
-          ? `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`
-          : "",
-    });
-  };
+  return buildMessage({
+    template: templateForGuest,
+    guest: {
+      ...g,
+      tableName,
+    },
+    invitationTitle,
+    eventDate,
+    eventLocation,
+    navigationLink:
+      typeof lat === "number" && typeof lng === "number"
+        ? `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`
+        : "",
+  });
+};
 
   /* ================= PREVIEW ================= */
 
