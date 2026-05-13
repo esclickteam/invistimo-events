@@ -278,7 +278,7 @@ export default function NewMessagesPage() {
               md:text-base
             "
           >
-            שליחה חכמה של אישורי הגעה, תזכורות והודעות תודה לפי סבבים,
+            שליחה חכמה של אישורי הגעה, תזכורת והודעות תודה לפי סבבים,
             סטטוסים וקהל יעד רלוונטי.
           </p>
         </header>
@@ -307,7 +307,7 @@ export default function NewMessagesPage() {
             />
 
             <TabButton
-              label="תזכורות"
+              label="תזכורת"
               description="תזכורת לפני האירוע"
               icon="🔔"
               active={activeTab === "reminder"}
