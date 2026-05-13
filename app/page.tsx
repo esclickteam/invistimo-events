@@ -8,6 +8,9 @@ import {
   MessageCircle,
   Mail,
   BarChart3,
+  CalendarDays,
+  Send,
+  ArrowLeft,
 } from "lucide-react";
 
 /* =====================================================
@@ -168,60 +171,102 @@ function HeroPhone3D() {
 }
 
 /* =====================================================
-   טלפון מצלצל – בלוק 2
+   BLOCK 2 PHONE — IMAGE MOCKUP
 ===================================================== */
-function RingingPhoneBig() {
+function BlockTwoPhone() {
   return (
     <div
       className="
-        relative flex items-center justify-center
-        min-h-0
-        md:min-h-[520px]
-        lg:min-h-[640px]
-        scale-[1.12]
-        lg:scale-[1.22]
-        mt-6 md:mt-0
+        pointer-events-none
+        relative mx-auto mt-10
+        hidden w-full max-w-[470px]
+        items-center justify-center
+        lg:flex
       "
+      style={{ perspective: "1500px" }}
     >
-      {[...Array(2)].map((_, i) => (
-        <motion.span
-          key={i}
-          className="
-            absolute hidden md:block
-            w-[520px] h-[520px]
-            rounded-full border border-[#cbb38a]/25
-          "
-          initial={{ scale: 0.85, opacity: 0 }}
-          animate={{ scale: 1.7, opacity: 0 }}
-          transition={{
-            duration: 3.4,
-            delay: i * 1.7,
-            repeat: Infinity,
-            ease: "easeOut",
-          }}
-        />
-      ))}
+      <div
+        className="
+          absolute bottom-[-22px] left-1/2
+          h-[34px] w-[280px]
+          -translate-x-1/2
+          rounded-full
+          bg-black/16
+          blur-2xl
+        "
+      />
 
-      <motion.img
-        src="/home2.png"
-        alt="RSVP system illustration"
-        animate={{
-          y: [0, -8, 0],
-          scale: [1, 1.015, 1],
-        }}
+      <motion.div
+        animate={{ y: [0, -8, 0] }}
         transition={{
-          duration: 5.5,
+          duration: 6,
           repeat: Infinity,
           ease: "easeInOut",
         }}
         className="
-          w-[380px]
-          sm:w-[420px]
-          md:w-[420px]
-          lg:w-[640px]
-          object-contain relative z-10
+          relative
+          h-[420px] w-[235px]
+          rounded-[44px]
+          bg-gradient-to-br from-[#090909] via-[#292929] to-[#050505]
+          p-[8px]
+          shadow-[32px_34px_75px_rgba(54,38,21,0.24),-12px_14px_40px_rgba(201,164,92,0.13)]
         "
-      />
+        style={{
+          transformStyle: "preserve-3d",
+          transform: "rotateY(-20deg) rotateX(7deg) rotateZ(7deg)",
+        }}
+      >
+        <div
+          className="
+            absolute -right-[12px] top-[30px]
+            h-[90%] w-[18px]
+            rounded-r-[36px]
+            bg-gradient-to-b from-[#292929] via-[#070707] to-[#181818]
+          "
+          style={{ transform: "translateZ(-10px)" }}
+        />
+
+        <div className="relative h-full w-full overflow-hidden rounded-[36px] bg-white">
+          <div
+            className="
+              absolute left-1/2 top-4 z-20
+              h-[24px] w-[92px]
+              -translate-x-1/2
+              rounded-full bg-black
+            "
+          />
+
+          <img
+            src="/homep2.png"
+            alt="Invistimo dashboard preview"
+            className="
+              h-full w-full
+              object-cover
+              brightness-105
+              contrast-105
+            "
+            draggable={false}
+          />
+
+          <div
+            className="
+              pointer-events-none absolute inset-0
+              bg-gradient-to-tr
+              from-white/0
+              via-white/12
+              to-white/0
+            "
+          />
+
+          <div
+            className="
+              pointer-events-none absolute inset-0
+              rounded-[36px]
+              border border-white/20
+            "
+          />
+        </div>
+      </motion.div>
     </div>
   );
 }
@@ -611,38 +656,231 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ================= בלוק 2 ================= */}
-      <section className="bg-[#FAF8F4] px-6 py-16 md:py-32" dir="rtl">
-        <div className="mx-auto grid max-w-7xl items-center gap-24 lg:grid-cols-2">
-          <div>
-            <p className="mb-4 text-sm font-extrabold tracking-[0.18em] text-[#B8862D]">
-              הגישה שלנו
-            </p>
+      {/* ================= בלוק 2 – HOW IT WORKS ================= */}
+      <section
+        dir="rtl"
+        className="
+          relative overflow-hidden
+          bg-[#F7F1E8]
+          px-4 py-24
+          md:px-8 md:py-32
+          lg:px-12
+        "
+      >
+        {/* רקע עדין */}
+        <div
+          className="
+            pointer-events-none absolute inset-0
+            bg-[radial-gradient(circle_at_85%_20%,rgba(201,164,92,0.16),transparent_32%),radial-gradient(circle_at_12%_80%,rgba(255,255,255,0.72),transparent_36%)]
+          "
+        />
 
-            <h2 className="mb-8 text-4xl font-black leading-tight text-[#3D3127] md:text-5xl">
-              ניהול אירועים רגוע,
-              <br />
-              מסודר ומדויק יותר
-            </h2>
+        <div
+          dir="ltr"
+          className="
+            relative z-10 mx-auto grid max-w-[1500px]
+            grid-cols-1 items-center gap-16
+            lg:grid-cols-[1.02fr_0.98fr]
+          "
+        >
+          {/* צד שמאל — שלבים */}
+          <div
+            dir="rtl"
+            className="
+              order-2
+              relative
+              space-y-5
+              lg:order-1
+            "
+          >
+            <div
+              className="
+                pointer-events-none absolute right-[83px] top-[90px]
+                hidden h-[520px] w-px
+                bg-gradient-to-b from-[#C9A45C]/0 via-[#C9A45C]/55 to-[#C9A45C]/0
+                lg:block
+              "
+            />
 
-            <p className="text-xl leading-relaxed text-[#5F554C]">
-              אישורי ההגעה מתבצעים בצורה דיגיטלית, פשוטה ואוטומטית.
-              <br />
-              האורחים מאשרים בעצמם — בלי רדיפות ובלי בזבוז זמן.
-              <br />
-              <br />
-              מי שמעדיף לאשר לבד — עושה זאת דיגיטלית.
-              <br />
-              אורחים שלא אישרו?
-              <br />
-              ניתן להוסיף שירות אישורי הגעה בטלפון.
-              <br />
-              <br />
-              הכול מתעדכן אוטומטית במערכת אחת ברורה.
-            </p>
+            {[
+              {
+                num: "01",
+                icon: CalendarDays,
+                title: "יוצרים אירוע והזמנה",
+                text: "מכניסים את פרטי האירוע, מעלים או מעצבים הזמנה דיגיטלית, ומכינים קישור אישי לכל אורח.",
+              },
+              {
+                num: "02",
+                icon: Send,
+                title: "שולחים לאורחים",
+                text: "שולחים הזמנה בוואטסאפ או SMS, וכל אורח מקבל קישור אישי לאישור הגעה.",
+              },
+              {
+                num: "03",
+                icon: Users,
+                title: "מקבלים תשובות בזמן אמת",
+                text: "כל אישור, סירוב או שינוי כמות מתעדכן אוטומטית בדשבורד — בלי אקסלים ובלי לרדוף אחרי אנשים.",
+              },
+              {
+                num: "04",
+                icon: Armchair,
+                title: "מסדרים הושבה ושולחים עדכונים",
+                text: "משייכים אורחים לשולחנות, שולחים מספר שולחן, תזכורות ועדכונים — הכל מתוך המערכת.",
+              },
+            ].map((step) => {
+              const Icon = step.icon;
+
+              return (
+                <motion.div
+                  key={step.num}
+                  initial={{ opacity: 0, y: 26 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, amount: 0.3 }}
+                  transition={{ duration: 0.65 }}
+                  className="
+                    relative grid min-h-[150px]
+                    grid-cols-[88px_1px_92px_1fr]
+                    items-center
+                    overflow-hidden
+                    rounded-[28px]
+                    border border-[#E6D7BC]/80
+                    bg-white/68
+                    px-6 py-6
+                    shadow-[0_18px_45px_rgba(95,68,34,0.08)]
+                    backdrop-blur-xl
+                    md:grid-cols-[110px_1px_120px_1fr]
+                  "
+                >
+                  <div
+                    className="
+                      text-center font-serif
+                      text-[42px] leading-none
+                      text-[#B88A2D]
+                      md:text-[52px]
+                    "
+                  >
+                    {step.num}
+                  </div>
+
+                  <div className="h-[86px] w-px bg-[#E6D7BC]" />
+
+                  <div className="flex justify-center">
+                    <div
+                      className="
+                        flex h-[76px] w-[76px]
+                        items-center justify-center
+                        rounded-full
+                        border border-[#E6D7BC]
+                        bg-[#FAF6EE]
+                        shadow-[0_10px_25px_rgba(95,68,34,0.07)]
+                      "
+                    >
+                      <Icon
+                        size={34}
+                        strokeWidth={1.55}
+                        className="text-[#B88A2D]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pr-4 text-right">
+                    <h3 className="text-[21px] font-black text-[#3D3127]">
+                      {step.title}
+                    </h3>
+
+                    <p className="mt-2 max-w-[470px] text-[15px] leading-[1.85] text-[#6B5A49]">
+                      {step.text}
+                    </p>
+                  </div>
+                </motion.div>
+              );
+            })}
           </div>
 
-          <RingingPhoneBig />
+          {/* צד ימין — כותרת + טלפון */}
+          <motion.div
+            dir="rtl"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.35 }}
+            transition={{ duration: 0.75 }}
+            className="
+              order-1
+              text-center
+              lg:order-2
+              lg:text-right
+            "
+          >
+            <h2
+              className="
+                text-[38px]
+                font-black
+                leading-[1.14]
+                tracking-[-0.035em]
+                text-[#3A3028]
+                md:text-[58px]
+                lg:text-[68px]
+              "
+            >
+              מהזמנה ועד הושבה —
+              <br />
+              הכל עובד{" "}
+              <span
+                className="
+                  bg-gradient-to-l
+                  from-[#8B642B]
+                  via-[#C69A3F]
+                  to-[#B88A2D]
+                  bg-clip-text text-transparent
+                "
+              >
+                מסודר
+              </span>
+            </h2>
+
+            <div className="mx-auto mt-6 flex max-w-[520px] items-center justify-center gap-4 lg:mx-0">
+              <span className="h-px flex-1 bg-gradient-to-l from-transparent via-[#C9A45C] to-[#C9A45C]" />
+              <span className="text-[#C59A45]">✦</span>
+              <span className="h-px flex-1 bg-gradient-to-r from-transparent via-[#C9A45C] to-[#C9A45C]" />
+            </div>
+
+            <p
+              className="
+                mx-auto mt-7 max-w-[650px]
+                text-[18px]
+                font-semibold
+                leading-[1.95]
+                text-[#4E4237]
+                md:text-[21px]
+                lg:mx-0
+              "
+            >
+              Invistimo מרכזת את כל שלבי ניהול האורחים במקום אחד:
+              מהשליחה הראשונה, דרך אישורי ההגעה, ועד סידורי ההושבה והודעות העדכון לפני האירוע.
+            </p>
+
+            <Link
+              href="/try/dashboard"
+              className="
+                mt-9 inline-flex min-w-[250px]
+                items-center justify-center gap-3
+                rounded-full
+                bg-gradient-to-l from-[#B8862D] via-[#C9A45C] to-[#8B6220]
+                px-10 py-4
+                text-[17px] font-extrabold
+                text-white
+                shadow-[0_18px_38px_rgba(184,134,45,0.28)]
+                transition
+                hover:-translate-y-0.5
+                hover:shadow-[0_22px_46px_rgba(184,134,45,0.36)]
+              "
+            >
+              לראות איך זה עובד
+              <ArrowLeft size={18} />
+            </Link>
+
+            <BlockTwoPhone />
+          </motion.div>
         </div>
       </section>
 
