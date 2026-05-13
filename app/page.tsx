@@ -2,6 +2,13 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
+import {
+  Users,
+  Armchair,
+  MessageCircle,
+  Mail,
+  BarChart3,
+} from "lucide-react";
 
 /* =====================================================
    HERO PHONE — CLEAN 3D VIDEO PHONE
@@ -12,8 +19,10 @@ function HeroPhone3D() {
       className="
         relative z-10
         flex w-full items-center justify-center
-        min-h-[500px]
-        lg:min-h-[680px]
+        min-h-[460px]
+        md:min-h-[540px]
+        lg:min-h-[600px]
+        lg:-translate-y-8
       "
       style={{ perspective: "1800px" }}
     >
@@ -21,18 +30,18 @@ function HeroPhone3D() {
       <div
         className="
           pointer-events-none absolute
-          bottom-[54px] left-1/2
-          h-[38px] w-[300px]
+          bottom-[22px] left-1/2
+          h-[36px] w-[290px]
           -translate-x-1/2
           rounded-full
-          bg-black/16
+          bg-black/14
           blur-2xl
-          md:w-[380px]
+          md:w-[360px]
         "
       />
 
       <motion.div
-        initial={{ opacity: 0, y: 24 }}
+        initial={{ opacity: 0, y: 22 }}
         animate={{
           opacity: 1,
           y: [0, -8, 0],
@@ -43,9 +52,9 @@ function HeroPhone3D() {
         }}
         className="
           relative
-          h-[500px] w-[248px]
-          md:h-[600px] md:w-[300px]
-          lg:h-[650px] lg:w-[325px]
+          h-[485px] w-[242px]
+          md:h-[570px] md:w-[285px]
+          lg:h-[610px] lg:w-[305px]
         "
         style={{
           transformStyle: "preserve-3d",
@@ -363,7 +372,7 @@ export default function HomePage() {
       <section
         className="
           relative min-h-screen overflow-hidden
-          px-4 pt-[115px] md:px-8 lg:px-12
+          px-4 pt-[105px] md:px-8 lg:px-12
         "
       >
         {/* הרקע שהעלית */}
@@ -380,15 +389,14 @@ export default function HomePage() {
           className="
             absolute inset-0 z-0
             bg-gradient-to-r
-            from-[#F8F1E6]/8
-            via-[#F8F1E6]/20
-            to-[#F8F1E6]/64
+            from-[#F8F1E6]/5
+            via-[#F8F1E6]/14
+            to-[#F8F1E6]/48
           "
         />
 
         {/*
-          חשוב:
-          dir="ltr" רק לגריד כדי שהצדדים לא יתהפכו בגלל RTL.
+          dir="ltr" רק לגריד כדי שהצדדים לא יתהפכו בגלל RTL:
           עמודה שמאלית = טלפון.
           עמודה ימנית = תוכן.
         */}
@@ -396,14 +404,14 @@ export default function HomePage() {
           dir="ltr"
           className="
             relative z-10 mx-auto grid
-            min-h-[calc(100vh-115px)]
+            min-h-[calc(100vh-105px)]
             max-w-[1500px]
             grid-cols-1 items-center gap-8
             lg:grid-cols-[0.92fr_1.08fr]
           "
         >
           {/* טלפון — צד שמאל בדסקטופ */}
-          <div className="order-2 lg:order-1 lg:col-start-1">
+          <div className="order-2 lg:order-1 lg:col-start-1 lg:-translate-y-4">
             <HeroPhone3D />
           </div>
 
@@ -415,93 +423,147 @@ export default function HomePage() {
             transition={{ duration: 0.85, ease: "easeOut" }}
             className="
               order-1
-              mx-auto max-w-[700px]
+              mx-auto max-w-[740px]
               text-center
               lg:order-2
               lg:col-start-2
               lg:mx-0
-              lg:text-right
+              lg:text-center
             "
           >
-            <div
-              className="
-                mb-6 inline-flex items-center gap-3
-                rounded-full
-                border border-[#D8BE82]/70
-                bg-white/60
-                px-5 py-2.5
-                text-[14px] font-extrabold
-                text-[#9A6B20]
-                shadow-[0_10px_28px_rgba(95,68,34,0.06)]
-                backdrop-blur-xl
-              "
-            >
-              <span className="h-px w-10 bg-gradient-to-l from-transparent via-[#C9A45C] to-transparent" />
-              ניהול אירוע יפה, פשוט וחכם
-              <span className="h-px w-10 bg-gradient-to-l from-transparent via-[#C9A45C] to-transparent" />
-            </div>
-
             <h1
               className="
-                text-[42px]
+                text-[36px]
                 font-black
-                leading-[1.08]
-                tracking-[-0.04em]
+                leading-[1.16]
+                tracking-[-0.03em]
                 text-[#3A3028]
-                md:text-[62px]
-                lg:text-[74px]
+                md:text-[54px]
+                lg:text-[64px]
               "
             >
-              כל מה שצריך
-              <br />
-              לאירוע מסודר
+              המערכת החכמה
               <br />
               <span
                 className="
                   bg-gradient-to-l
                   from-[#8B642B]
                   via-[#C69A3F]
-                  to-[#6F4B1E]
+                  to-[#B88A2D]
                   bg-clip-text
                   text-transparent
                 "
               >
-                במקום אחד.
+                לאירועים בלתי נשכחים
               </span>
             </h1>
 
+            <div className="mx-auto mt-5 flex max-w-[520px] items-center justify-center gap-4">
+              <span className="h-px flex-1 bg-gradient-to-l from-transparent via-[#C9A45C] to-[#C9A45C]" />
+              <span className="text-[#C59A45]">✦</span>
+              <span className="h-px flex-1 bg-gradient-to-r from-transparent via-[#C9A45C] to-[#C9A45C]" />
+            </div>
+
             <p
               className="
-                mt-7 max-w-[650px]
-                text-[19px]
-                font-bold
+                mx-auto mt-6 max-w-[620px]
+                text-[17px]
+                font-semibold
                 leading-[1.85]
-                text-[#715A3E]
-                md:text-[22px]
+                text-[#4E4237]
+                md:text-[19px]
               "
             >
-              הזמנה דיגיטלית, אישורי הגעה, סידורי הושבה והודעות לאורחים —
-              הכל במערכת אחת נוחה, אלגנטית ומדויקת.
+              ניהול הזמנות, אישורי הגעה, הושבה וניהול אורחים
+              <br className="hidden md:block" />
+              בקלות, בסטייל וביעילות.
             </p>
 
-            <p
-              className="
-                mt-4 max-w-[610px]
-                text-[16px]
-                leading-[1.9]
-                text-[#5F554C]
-                md:text-[18px]
-              "
-            >
-              עם Invistimo אתם שולחים, האורחים מאשרים, והדשבורד מתעדכן בזמן אמת.
-              פחות שיחות, פחות אקסלים, יותר סדר לפני האירוע.
-            </p>
-
+            {/* כרטיסיית פיצ׳רים כמו בסקיצה */}
             <div
               className="
-                mt-9 flex flex-col items-center gap-4
+                mx-auto mt-10
+                grid max-w-[760px]
+                grid-cols-2
+                overflow-hidden
+                rounded-[22px]
+                border border-[#E6D7BC]/80
+                bg-white/66
+                shadow-[0_18px_45px_rgba(95,68,34,0.10)]
+                backdrop-blur-xl
+                sm:grid-cols-5
+              "
+            >
+              {[
+                {
+                  icon: Users,
+                  title: "ניהול אורחים",
+                },
+                {
+                  icon: Armchair,
+                  title: "הושבה חכמה",
+                },
+                {
+                  icon: MessageCircle,
+                  title: "אישורי הגעה",
+                  subtitle: "בווטסאפ",
+                },
+                {
+                  icon: Mail,
+                  title: "הזמנות",
+                  subtitle: "דיגיטליות",
+                },
+                {
+                  icon: BarChart3,
+                  title: "דוחות",
+                  subtitle: "מתקדמים",
+                },
+              ].map((item, index) => {
+                const Icon = item.icon;
+
+                return (
+                  <div
+                    key={item.title}
+                    className={`
+                      flex min-h-[116px] flex-col items-center justify-center
+                      px-4 py-5 text-center
+                      ${
+                        index !== 0
+                          ? "sm:border-r sm:border-[#E6D7BC]/80"
+                          : ""
+                      }
+                      ${
+                        index > 1
+                          ? "border-t border-[#E6D7BC]/80 sm:border-t-0"
+                          : ""
+                      }
+                    `}
+                  >
+                    <Icon
+                      size={34}
+                      strokeWidth={1.55}
+                      className="mb-3 text-[#C59A45]"
+                    />
+
+                    <span className="text-[15px] font-extrabold leading-tight text-[#3D3127]">
+                      {item.title}
+                    </span>
+
+                    {item.subtitle && (
+                      <span className="mt-1 text-[13px] font-semibold text-[#6D5B4A]">
+                        {item.subtitle}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* כפתורים מתחת */}
+            <div
+              className="
+                mt-8 flex flex-col items-center justify-center gap-4
                 sm:flex-row
-                lg:justify-start
               "
             >
               <Link
@@ -512,15 +574,15 @@ export default function HomePage() {
                   rounded-full
                   bg-gradient-to-l from-[#B8862D] via-[#C9A45C] to-[#8B6220]
                   px-9 py-4
-                  text-[17px] font-extrabold
+                  text-[16px] font-extrabold
                   text-white
-                  shadow-[0_18px_38px_rgba(184,134,45,0.28)]
+                  shadow-[0_18px_38px_rgba(184,134,45,0.26)]
                   transition
                   hover:-translate-y-0.5
-                  hover:shadow-[0_22px_46px_rgba(184,134,45,0.36)]
+                  hover:shadow-[0_22px_46px_rgba(184,134,45,0.34)]
                 "
               >
-                להתחיל דמו
+                נסו דמו עכשיו
                 <span className="transition group-hover:-translate-x-1">←</span>
               </Link>
 
@@ -530,12 +592,12 @@ export default function HomePage() {
                   inline-flex min-w-[220px]
                   items-center justify-center
                   rounded-full
-                  border border-[#8B6A3E]/60
+                  border border-[#8B6A3E]/45
                   bg-white/64
                   px-9 py-4
-                  text-[17px] font-extrabold
+                  text-[16px] font-extrabold
                   text-[#4A3A2A]
-                  shadow-[0_14px_32px_rgba(95,68,34,0.08)]
+                  shadow-[0_14px_32px_rgba(95,68,34,0.07)]
                   backdrop-blur-xl
                   transition
                   hover:bg-white
@@ -544,37 +606,6 @@ export default function HomePage() {
               >
                 לראות חבילות
               </Link>
-            </div>
-
-            <div
-              className="
-                mt-8 flex max-w-[700px]
-                flex-wrap items-center justify-center gap-3
-                lg:justify-start
-              "
-            >
-              {[
-                "בלי התקנה",
-                "אישורי הגעה בוואטסאפ",
-                "סידורי הושבה",
-                "עדכונים בזמן אמת",
-              ].map((item) => (
-                <span
-                  key={item}
-                  className="
-                    rounded-full
-                    border border-[#E2D2B3]
-                    bg-white/66
-                    px-5 py-2
-                    text-[14px] font-bold
-                    text-[#735B3C]
-                    shadow-[0_10px_24px_rgba(95,68,34,0.06)]
-                    backdrop-blur-xl
-                  "
-                >
-                  {item}
-                </span>
-              ))}
             </div>
           </motion.div>
         </div>
