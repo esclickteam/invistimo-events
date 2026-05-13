@@ -10,6 +10,10 @@ import {
   CalendarDays,
   Send,
   ArrowLeft,
+  ShieldCheck,
+  Heart,
+  Clock3,
+  Sparkles,
 } from "lucide-react";
 
 /* =====================================================
@@ -214,7 +218,6 @@ function BlockTwoPhone() {
           transform: "rotateY(-22deg) rotateX(7deg) rotateZ(7deg)",
         }}
       >
-        {/* גוף אחורי עדין — בלי בליטה תקועה בצד */}
         <div
           className="
             absolute inset-0
@@ -227,7 +230,6 @@ function BlockTwoPhone() {
           }}
         />
 
-        {/* עובי צד מחובר לגוף, לא בולט כקובייה נפרדת */}
         <div
           className="
             absolute -right-[7px] top-[18px]
@@ -241,7 +243,6 @@ function BlockTwoPhone() {
           }}
         />
 
-        {/* מסגרת קדמית */}
         <div
           className="
             absolute inset-0
@@ -254,7 +255,6 @@ function BlockTwoPhone() {
             transform: "translateZ(12px)",
           }}
         >
-          {/* כפתורים עדינים */}
           <span className="absolute -left-[4px] top-[115px] h-14 w-[3px] rounded-l bg-[#111]" />
           <span className="absolute -right-[4px] top-[150px] h-20 w-[3px] rounded-r bg-[#111]" />
 
@@ -376,82 +376,390 @@ function SoftFireworks() {
 }
 
 /* =====================================================
-   בלוק 3 – קרוסלת פיצ'רים
+   BLOCK 3 — REAL TIME SHOWCASE WITH 3 IMAGES
 ===================================================== */
-const features = [
-  {
-    title: "עיצוב הזמנה",
-    text: "עורך הזמנות מובנה לעיצוב הזמנה אישית או העלאת הזמנה שכבר עיצבתם.",
-    image: "/home3.png",
-  },
-  {
-    title: "שליחת הזמנה ואישורי הגעה",
-    text: "שליחה לכל אורח עם קישור אישי, אישורי הגעה שמתעדכנים בזמן אמת בדשבורד.",
-    image: "/home4.png",
-  },
-  {
-    title: "סידורי הושבה",
-    text: "בניית סידורי הושבה, שיוך אורחים לשולחנות ושליחת מספר שולחן אוטומטית.",
-    image: "/home5.png",
-  },
-  {
-    title: "שליחת הודעות",
-    text: "הודעות לאישור הגעה, מספר שולחן והודעות אישיות – הכול מהמערכת.",
-    image: "/home6.png",
-  },
-];
-
-type FeatureItem = {
-  title: string;
-  text: string;
-  image: string;
-};
-
-function InfiniteCarousel({ items }: { items: FeatureItem[] }) {
-  const totalItems = [...items, ...items];
+function RealTimeShowcase() {
+  const showcaseItems = [
+    {
+      image: "/home2.png",
+      title: "דשבורד אירוע חי",
+      text: "רואים את כל נתוני האירוע במקום אחד: מוזמנים, אישורי הגעה, סטטוסים ועדכונים בזמן אמת.",
+    },
+    {
+      image: "/home3.png",
+      title: "ניהול הזמנה ואורחים",
+      text: "מעצבים או מעלים הזמנה, מוסיפים מוזמנים, ומנהלים את הרשימה בצורה מסודרת ונוחה.",
+    },
+    {
+      image: "/home4.png",
+      title: "הודעות ועדכונים לאורחים",
+      text: "שולחים אישורי הגעה, תזכורות, הודעות ועדכונים חשובים ישירות מהמערכת.",
+    },
+  ];
 
   return (
-    <div dir="rtl" className="relative w-full overflow-hidden">
-      <motion.div
-        className="flex gap-6 flex-nowrap"
-        animate={{ x: ["0%", "50%"] }}
-        transition={{
-          duration: 50,
-          ease: "linear",
-          repeat: Infinity,
-        }}
-        style={{ width: "max-content" }}
-      >
-        {totalItems.map((item, i) => (
-          <div
-            key={`${item.title}-${i}`}
+    <section
+      dir="rtl"
+      className="
+        relative overflow-hidden
+        bg-[#FAF8F4]
+        px-4 py-24
+        md:px-8 md:py-32
+        lg:px-12
+      "
+    >
+      <div
+        className="
+          pointer-events-none absolute inset-0
+          bg-[radial-gradient(circle_at_50%_42%,rgba(201,164,92,0.18),transparent_34%),radial-gradient(circle_at_8%_85%,rgba(255,255,255,0.75),transparent_34%),radial-gradient(circle_at_90%_78%,rgba(201,164,92,0.10),transparent_31%)]
+        "
+      />
+
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[260px] bg-gradient-to-t from-[#F1E7D8]/80 to-transparent" />
+
+      <div className="relative z-10 mx-auto max-w-[1500px]">
+        <motion.div
+          initial={{ opacity: 0, y: 26 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.35 }}
+          transition={{ duration: 0.75 }}
+          className="mx-auto mb-14 max-w-[900px] text-center"
+        >
+          <div className="mx-auto mb-6 flex max-w-[430px] items-center justify-center gap-4">
+            <span className="h-px flex-1 bg-gradient-to-l from-transparent via-[#C9A45C] to-[#C9A45C]" />
+            <span
+              className="
+                flex h-12 w-12 items-center justify-center
+                rounded-full
+                border border-[#D8BE82]/80
+                bg-white/70
+                text-[#B88A2D]
+                shadow-[0_12px_30px_rgba(95,68,34,0.08)]
+              "
+            >
+              <Sparkles size={20} />
+            </span>
+            <span className="h-px flex-1 bg-gradient-to-r from-transparent via-[#C9A45C] to-[#C9A45C]" />
+          </div>
+
+          <p className="mb-4 text-[14px] font-extrabold tracking-[0.22em] text-[#B8862D]">
+            כלים חכמים לאירוע
+          </p>
+
+          <h2
             className="
-              w-[420px] flex-shrink-0
-              rounded-[28px]
-              border border-[#E5D6B8]
-              bg-[#FFFDF8]
-              p-5
-              text-right
-              shadow-[0_18px_42px_rgba(95,68,34,0.08)]
+              text-[42px]
+              font-black
+              leading-[1.12]
+              tracking-[-0.04em]
+              text-[#3A3028]
+              md:text-[64px]
+              lg:text-[76px]
             "
           >
-            <img
-              src={item.image}
-              alt={item.title}
-              className="mb-4 h-[360px] w-full object-contain"
-            />
+            הכל קורה
+            <span
+              className="
+                bg-gradient-to-l
+                from-[#8B642B]
+                via-[#C69A3F]
+                to-[#B88A2D]
+                bg-clip-text text-transparent
+              "
+            >
+              {" "}
+              בזמן אמת
+            </span>
+          </h2>
 
-            <h3 className="mb-2 text-lg font-extrabold text-[#3D3127]">
-              {item.title}
+          <p
+            className="
+              mx-auto mt-5 max-w-[780px]
+              text-[17px]
+              font-semibold
+              leading-[1.9]
+              text-[#5F554C]
+              md:text-[20px]
+            "
+          >
+            שליטה מלאה באישורי הגעה, מוזמנים, הודעות ועדכונים —
+            במערכת אחת, יפה, ברורה ומדויקת.
+          </p>
+        </motion.div>
+
+        <div
+          className="
+            relative mx-auto
+            min-h-[760px]
+            max-w-[1280px]
+            lg:min-h-[690px]
+          "
+        >
+          {/* תמונה מרכזית גדולה */}
+          <motion.div
+            initial={{ opacity: 0, y: 34, scale: 0.96 }}
+            whileInView={{ opacity: 1, y: 0, scale: 1 }}
+            viewport={{ once: true, amount: 0.25 }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            className="
+              relative z-20 mx-auto
+              max-w-[860px]
+              rounded-[34px]
+              border border-[#E6D7BC]/90
+              bg-white/72
+              p-4
+              shadow-[0_30px_80px_rgba(95,68,34,0.13)]
+              backdrop-blur-xl
+            "
+          >
+            <div
+              className="
+                overflow-hidden
+                rounded-[26px]
+                border border-[#EFE3CF]
+                bg-[#FFFDF8]
+              "
+            >
+              <div
+                className="
+                  flex items-center justify-between
+                  border-b border-[#EFE3CF]
+                  bg-white/70
+                  px-5 py-3
+                "
+              >
+                <div className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#D9B46B]" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#E7D8BD]" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#C9A45C]" />
+                </div>
+
+                <span className="text-[13px] font-black text-[#3A3028]">
+                  Invistimo
+                </span>
+              </div>
+
+              <img
+                src={showcaseItems[0].image}
+                alt={showcaseItems[0].title}
+                className="
+                  h-[360px]
+                  w-full
+                  object-cover
+                  object-top
+                  md:h-[430px]
+                  lg:h-[470px]
+                "
+                draggable={false}
+              />
+            </div>
+          </motion.div>
+
+          {/* כרטיס שמאל */}
+          <motion.div
+            initial={{ opacity: 0, y: 28, scale: 0.96 }}
+            whileInView={{ opacity: 1, y: 0, scale: 1 }}
+            viewport={{ once: true, amount: 0.25 }}
+            transition={{ duration: 0.7, delay: 0.12, ease: "easeOut" }}
+            className="
+              z-30
+              mt-6
+              rounded-[26px]
+              border border-[#E6D7BC]/90
+              bg-white/76
+              p-4
+              shadow-[0_22px_58px_rgba(95,68,34,0.12)]
+              backdrop-blur-xl
+              lg:absolute lg:left-[2%] lg:top-[24%] lg:mt-0 lg:w-[310px]
+            "
+          >
+            <div
+              className="
+                mb-4 overflow-hidden
+                rounded-[20px]
+                border border-[#EFE3CF]
+                bg-[#FFFDF8]
+              "
+            >
+              <img
+                src={showcaseItems[1].image}
+                alt={showcaseItems[1].title}
+                className="h-[170px] w-full object-cover object-top"
+                draggable={false}
+              />
+            </div>
+
+            <h3 className="text-[17px] font-black text-[#3D3127]">
+              {showcaseItems[1].title}
             </h3>
 
-            <p className="text-sm leading-relaxed text-[#6b5f55]">
-              {item.text}
+            <p className="mt-2 text-[13px] leading-[1.75] text-[#6B5A49]">
+              {showcaseItems[1].text}
             </p>
+          </motion.div>
+
+          {/* כרטיס ימין */}
+          <motion.div
+            initial={{ opacity: 0, y: 28, scale: 0.96 }}
+            whileInView={{ opacity: 1, y: 0, scale: 1 }}
+            viewport={{ once: true, amount: 0.25 }}
+            transition={{ duration: 0.7, delay: 0.24, ease: "easeOut" }}
+            className="
+              z-30
+              mt-6
+              rounded-[26px]
+              border border-[#E6D7BC]/90
+              bg-white/76
+              p-4
+              shadow-[0_22px_58px_rgba(95,68,34,0.12)]
+              backdrop-blur-xl
+              lg:absolute lg:right-[2%] lg:bottom-[16%] lg:mt-0 lg:w-[330px]
+            "
+          >
+            <div
+              className="
+                mb-4 overflow-hidden
+                rounded-[20px]
+                border border-[#EFE3CF]
+                bg-[#FFFDF8]
+              "
+            >
+              <img
+                src={showcaseItems[2].image}
+                alt={showcaseItems[2].title}
+                className="h-[170px] w-full object-cover object-top"
+                draggable={false}
+              />
+            </div>
+
+            <h3 className="text-[17px] font-black text-[#3D3127]">
+              {showcaseItems[2].title}
+            </h3>
+
+            <p className="mt-2 text-[13px] leading-[1.75] text-[#6B5A49]">
+              {showcaseItems[2].text}
+            </p>
+          </motion.div>
+
+          {/* CTA */}
+          <motion.div
+            initial={{ opacity: 0, y: 26 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.35 }}
+            transition={{ duration: 0.7, delay: 0.25 }}
+            className="
+              relative z-30
+              mx-auto mt-10
+              flex max-w-[620px]
+              flex-col items-center justify-center gap-4
+              sm:flex-row
+              lg:mt-[34px]
+            "
+          >
+            <Link
+              href="/try/dashboard"
+              className="
+                group inline-flex min-w-[240px]
+                items-center justify-center gap-3
+                rounded-full
+                bg-gradient-to-l from-[#B8862D] via-[#C9A45C] to-[#8B6220]
+                px-10 py-4
+                text-[17px] font-extrabold
+                text-white
+                shadow-[0_18px_38px_rgba(184,134,45,0.28)]
+                transition
+                hover:-translate-y-0.5
+                hover:shadow-[0_22px_46px_rgba(184,134,45,0.36)]
+              "
+            >
+              לצפייה בדמו
+              <ArrowLeft size={18} className="transition group-hover:-translate-x-1" />
+            </Link>
+
+            <Link
+              href="/contact"
+              className="
+                inline-flex min-w-[240px]
+                items-center justify-center
+                rounded-full
+                border border-[#8B6A3E]/45
+                bg-white/64
+                px-10 py-4
+                text-[17px] font-extrabold
+                text-[#4A3A2A]
+                shadow-[0_14px_32px_rgba(95,68,34,0.07)]
+                backdrop-blur-xl
+                transition
+                hover:bg-white
+                hover:text-[#B8862D]
+              "
+            >
+              דברו איתנו
+            </Link>
+          </motion.div>
+
+          {/* יתרונות קטנים */}
+          <div
+            className="
+              relative z-30
+              mx-auto mt-10
+              grid max-w-[820px]
+              grid-cols-1
+              gap-4
+              text-center
+              sm:grid-cols-3
+            "
+          >
+            {[
+              {
+                icon: Heart,
+                title: "שקט נפשי",
+                text: "פחות שיחות ויותר שליטה",
+              },
+              {
+                icon: ShieldCheck,
+                title: "מידע מסודר",
+                text: "כל העדכונים במקום אחד",
+              },
+              {
+                icon: Clock3,
+                title: "חוסך זמן יקר",
+                text: "ניהול חכם לפני האירוע",
+              },
+            ].map((item) => {
+              const Icon = item.icon;
+
+              return (
+                <div
+                  key={item.title}
+                  className="
+                    flex items-center justify-center gap-3
+                    rounded-[20px]
+                    border border-[#E6D7BC]/80
+                    bg-white/58
+                    px-5 py-4
+                    shadow-[0_12px_30px_rgba(95,68,34,0.06)]
+                    backdrop-blur-xl
+                  "
+                >
+                  <Icon size={23} className="text-[#B88A2D]" />
+
+                  <div className="text-right">
+                    <p className="text-[15px] font-black text-[#3D3127]">
+                      {item.title}
+                    </p>
+
+                    <p className="text-[12px] font-semibold text-[#7A6A58]">
+                      {item.text}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        ))}
-      </motion.div>
-    </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -678,7 +986,7 @@ export default function HomePage() {
                   hover:text-[#B8862D]
                 "
               >
-               לצפייה בחבילות
+                לצפייה בחבילות
               </Link>
             </div>
           </motion.div>
@@ -915,20 +1223,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ================= בלוק 3 – קרוסלת פיצ'רים ================= */}
-      <section className="w-full overflow-hidden bg-white py-28" dir="rtl">
-        <div className="mx-auto mb-16 max-w-3xl px-6 text-center">
-          <p className="mb-4 text-sm font-extrabold tracking-[0.18em] text-[#B8862D]">
-            כלים חכמים לאירוע
-          </p>
-
-          <h2 className="text-4xl font-black text-[#3D3127] md:text-5xl">
-            כל האירוע במקום אחד
-          </h2>
-        </div>
-
-        <InfiniteCarousel items={features} />
-      </section>
+      {/* ================= בלוק 3 – REAL TIME SHOWCASE ================= */}
+      <RealTimeShowcase />
 
       {/* ================= בלוק 4 ================= */}
       <section
