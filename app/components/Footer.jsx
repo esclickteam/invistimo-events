@@ -1,89 +1,239 @@
 "use client";
 
 import Link from "next/link";
+import { MessageCircle, Clock3, Mail, ShieldCheck, Sparkles } from "lucide-react";
 
 export default function Footer() {
   return (
-    <footer className="mt-40 border-t border-[#e2d6c8] bg-[#f5eee7]">
-      <div className="max-w-7xl mx-auto px-6 py-12 flex flex-col items-center gap-10 text-[#6a5440]">
-        
-        {/* 🔥 בלוק WhatsApp */}
-        <div className="text-center">
-          <p className="text-[#7b6754] text-sm">
-            לכל שאלה אנחנו כאן בשבילכם
-          </p>
+    <footer
+      dir="rtl"
+      className="
+        relative overflow-hidden
+        border-t border-[#E4D2AF]
+        bg-[#F7F1E8]
+        text-[#4A3A2A]
+      "
+    >
+      {/* רקע עדין */}
+      <div
+        className="
+          pointer-events-none absolute inset-0
+          bg-[radial-gradient(circle_at_18%_18%,rgba(201,164,92,0.14),transparent_28%),radial-gradient(circle_at_86%_74%,rgba(255,255,255,0.72),transparent_34%)]
+        "
+      />
 
-          <p className="mt-2 font-semibold">שעות הפעילות שלנו:</p>
+      <div className="relative z-10 mx-auto max-w-7xl px-6 py-16">
+        {/* חלק עליון */}
+        <div
+          className="
+            grid gap-10
+            rounded-[34px]
+            border border-[#E4D2AF]
+            bg-white/58
+            p-6
+            shadow-[0_24px_70px_rgba(95,68,34,0.08)]
+            backdrop-blur-xl
+            md:p-10
+            lg:grid-cols-[1.1fr_0.9fr]
+          "
+        >
+          {/* מותג + טקסט */}
+          <div className="text-center lg:text-right">
+            <div className="mb-5 inline-flex items-center gap-3 rounded-full border border-[#E3D1AE] bg-[#FFF9EF]/80 px-5 py-2.5 text-[#B8862D]">
+              <Sparkles size={18} />
+              <span className="text-[13px] font-black tracking-[0.12em]">
+                INVISTIMO
+              </span>
+            </div>
 
-          <p className="text-sm">
-            ימים א׳–ה׳: 09:00–18:00
-          </p>
+            <h2
+              className="
+                text-[30px]
+                font-black
+                leading-[1.2]
+                tracking-[-0.03em]
+                text-[#3A3028]
+                md:text-[40px]
+              "
+            >
+              ניהול אירוע חכם,
+              <br />
+              מסודר ואלגנטי.
+            </h2>
 
-          <p className="text-sm">
-            שישי וערבי חג: 09:00–12:00
-          </p>
+            <p className="mt-4 max-w-[620px] text-[16px] font-semibold leading-[1.9] text-[#6B5A49] lg:mx-0 mx-auto">
+              Invistimo מרכזת הזמנות דיגיטליות, אישורי הגעה, הושבה והודעות
+              לאורחים — כדי שתנהלו את האירוע בראש שקט ובסטייל.
+            </p>
 
-          {/* כפתור וואטסאפ */}
-          <a
-            href="https://wa.me/972555039072"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-4 inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-full font-semibold transition"
+            <div className="mt-7 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
+              {["אישורי הגעה", "הושבה חכמה", "הודעות לאורחים"].map((item) => (
+                <span
+                  key={item}
+                  className="
+                    rounded-full
+                    border border-[#E5D5B6]
+                    bg-[#FFFDF8]/80
+                    px-4 py-2
+                    text-[13px]
+                    font-bold
+                    text-[#735B3C]
+                    shadow-[0_8px_22px_rgba(95,68,34,0.04)]
+                  "
+                >
+                  {item}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* כרטיס יצירת קשר */}
+          <div
+            className="
+              rounded-[28px]
+              border border-[#E3D1AE]
+              bg-[#FFFDF8]/78
+              p-6
+              shadow-[0_18px_44px_rgba(95,68,34,0.08)]
+              backdrop-blur-xl
+            "
           >
-            <span>לחצו לצ׳אט עם נציג ב-WhatsApp</span>
+            <div className="mb-5 flex items-center justify-center gap-3 lg:justify-start">
+              <div
+                className="
+                  flex h-12 w-12 items-center justify-center
+                  rounded-2xl
+                  bg-gradient-to-br from-[#FFF5E3] to-[#F3E1B9]
+                  text-[#B8862D]
+                  shadow-[0_12px_28px_rgba(184,134,45,0.14)]
+                "
+              >
+                <MessageCircle size={24} />
+              </div>
 
-            <img
-              src="/icons/whatsapp.png"
-              alt="WhatsApp"
-              className="w-5 h-5"
-            />
-          </a>
+              <div>
+                <h3 className="text-[20px] font-black text-[#3D3127]">
+                  צריכים עזרה?
+                </h3>
+                <p className="text-sm font-semibold text-[#7A6A58]">
+                  אנחנו כאן בשבילכם
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3 text-center lg:text-right">
+              <div className="flex items-center justify-center gap-2 text-[#6B5A49] lg:justify-start">
+                <Clock3 size={18} className="text-[#B8862D]" />
+                <span className="text-sm font-bold">שעות הפעילות שלנו</span>
+              </div>
+
+              <p className="text-sm leading-relaxed text-[#6B5A49]">
+                ימים א׳–ה׳: 09:00–18:00
+                <br />
+                שישי וערבי חג: 09:00–12:00
+              </p>
+            </div>
+
+            <a
+              href="https://wa.me/972555039072"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="
+                mt-6 inline-flex w-full items-center justify-center gap-3
+                rounded-full
+                bg-[#3F3A34]
+                px-6 py-4
+                text-[15px]
+                font-extrabold
+                text-white
+                shadow-[0_16px_34px_rgba(63,58,52,0.18)]
+                transition
+                hover:-translate-y-0.5
+                hover:bg-[#2F2B27]
+              "
+            >
+              <span>צ׳אט עם נציג ב־WhatsApp</span>
+
+              <img
+                src="/icons/whatsapp.png"
+                alt="WhatsApp"
+                className="h-5 w-5"
+              />
+            </a>
+
+            <Link
+              href="/contact"
+              className="
+                mt-3 inline-flex w-full items-center justify-center gap-2
+                rounded-full
+                border border-[#8B6A3E]/35
+                bg-white/70
+                px-6 py-3.5
+                text-[14px]
+                font-extrabold
+                text-[#4A3A2A]
+                transition
+                hover:bg-white
+                hover:text-[#B8862D]
+              "
+            >
+              <Mail size={17} />
+              יצירת קשר
+            </Link>
+          </div>
         </div>
 
-        {/* ניווט */}
-        <nav className="flex flex-wrap items-center justify-center gap-6 text-sm">
-          
-          <Link
-            href="/faq"
-            className="hover:underline hover:text-[#5c4632] transition"
-          >
-            שאלות ותשובות
-          </Link>
+        {/* ניווט תחתון */}
+        <div
+          className="
+            mt-10 flex flex-col items-center justify-between gap-7
+            border-t border-[#E4D2AF]
+            pt-8
+            lg:flex-row
+          "
+        >
+          <nav className="flex flex-wrap items-center justify-center gap-x-7 gap-y-3 text-sm font-bold text-[#6B5A49]">
+            <Link
+              href="/faq"
+              className="transition hover:text-[#B8862D]"
+            >
+              שאלות ותשובות
+            </Link>
 
-          <Link
-            href="/terms"
-            className="hover:underline hover:text-[#5c4632] transition"
-          >
-            תקנון שימוש
-          </Link>
+            <Link
+              href="/terms"
+              className="transition hover:text-[#B8862D]"
+            >
+              תקנון שימוש
+            </Link>
 
-          <Link
-            href="/privacy"
-            className="hover:underline hover:text-[#5c4632] transition"
-          >
-            מדיניות פרטיות
-          </Link>
+            <Link
+              href="/privacy"
+              className="transition hover:text-[#B8862D]"
+            >
+              מדיניות פרטיות
+            </Link>
 
-          <Link
-            href="/accessibility"
-            className="hover:underline hover:text-[#5c4632] transition"
-          >
-            הצהרת נגישות
-          </Link>
+            <Link
+              href="/accessibility"
+              className="transition hover:text-[#B8862D]"
+            >
+              הצהרת נגישות
+            </Link>
 
-          <Link
-            href="/contact"
-            className="hover:underline hover:text-[#5c4632] transition"
-          >
-            יצירת קשר
-          </Link>
+            <Link
+              href="/contact"
+              className="transition hover:text-[#B8862D]"
+            >
+              יצירת קשר
+            </Link>
+          </nav>
 
-        </nav>
-
-        {/* זכויות יוצרים */}
-        <p className="text-sm text-center">
-          © {new Date().getFullYear()} Invistimo · כל הזכויות שמורות
-        </p>
+          <div className="flex items-center gap-2 text-sm font-semibold text-[#7A6A58]">
+            <ShieldCheck size={17} className="text-[#B8862D]" />
+            <span>© {new Date().getFullYear()} Invistimo · כל הזכויות שמורות</span>
+          </div>
+        </div>
       </div>
     </footer>
   );
