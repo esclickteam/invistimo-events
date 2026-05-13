@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import PublicInviteRenderer from "@/app/components/PublicInviteRenderer";
 import EventLocationCard from "@/app/components/EventLocationCard";
@@ -34,7 +34,7 @@ type GiftOptions = {
 type PreviewImageMode = "portrait" | "square";
 
 /* ============================================================
-   Heart Burst
+   HEART BURST EFFECT
 ============================================================ */
 
 function HeartBurst({ triggerKey }: { triggerKey: number }) {
@@ -47,7 +47,7 @@ function HeartBurst({ triggerKey }: { triggerKey: number }) {
 
     const timer = window.setTimeout(() => {
       setShow(false);
-    }, 1200);
+    }, 1250);
 
     return () => window.clearTimeout(timer);
   }, [triggerKey]);
@@ -65,10 +65,14 @@ function HeartBurst({ triggerKey }: { triggerKey: number }) {
             className="heart-burst-item absolute left-1/2 top-1/2 text-4xl"
             style={
               {
-                "--x": `${Math.cos((index / items.length) * Math.PI * 2) * 120}px`,
-                "--y": `${Math.sin((index / items.length) * Math.PI * 2) * 120}px`,
+                "--x": `${
+                  Math.cos((index / items.length) * Math.PI * 2) * 125
+                }px`,
+                "--y": `${
+                  Math.sin((index / items.length) * Math.PI * 2) * 125
+                }px`,
                 "--delay": `${index * 45}ms`,
-              } as React.CSSProperties
+              } as CSSProperties
             }
           >
             {item}
@@ -84,7 +88,7 @@ function HeartBurst({ triggerKey }: { triggerKey: number }) {
 }
 
 /* ============================================================
-   Gift Section
+   GIFT SECTION
 ============================================================ */
 
 function GiftSection({ giftOptions }: { giftOptions?: GiftOptions }) {
@@ -136,7 +140,7 @@ function GiftSection({ giftOptions }: { giftOptions?: GiftOptions }) {
 }
 
 /* ============================================================
-   Invitation Image
+   INVITATION IMAGE CARD
 ============================================================ */
 
 function InvitationImageCard({
@@ -153,7 +157,7 @@ function InvitationImageCard({
       {imageUrl ? (
         <div className="relative mx-auto w-full max-w-md">
           <div className="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-[#dfc08f]/30 blur-3xl" />
-          <div className="absolute -bottom-8 -left-8 h-32 w-32 rounded-full bg-[#fff]/60 blur-3xl" />
+          <div className="absolute -bottom-8 -left-8 h-32 w-32 rounded-full bg-white/60 blur-3xl" />
 
           <div className="relative rounded-[34px] border border-white/80 bg-white/85 p-3 shadow-[0_30px_90px_rgba(92,66,38,0.16)] backdrop-blur">
             <div className="relative overflow-hidden rounded-[26px] bg-[#faf7f1]">
@@ -204,8 +208,9 @@ export default function PublicInvitePage({ params }: any) {
   const [heartTrigger, setHeartTrigger] = useState(0);
 
   /*
-    תצוגה זמנית מתוך עמוד העריכה.
-    לא נשמר בשרת ולא משנה את אישורי ההגעה.
+    תמונה זמנית מתוך עמוד העריכה.
+    זה רק לתצוגה חיה בתוך iframe.
+    זה לא שומר כלום ולא משנה RSVP.
   */
   const [previewOverrideImage, setPreviewOverrideImage] = useState("");
   const [previewOverrideMode, setPreviewOverrideMode] =
@@ -236,6 +241,7 @@ export default function PublicInvitePage({ params }: any) {
 
   /* ============================================================
      LIVE PREVIEW MESSAGE FROM EDIT PAGE
+     זה מה שמעביר את התמונה הזמנית לתצוגה שבעריכה.
   ============================================================ */
 
   useEffect(() => {
@@ -420,7 +426,7 @@ export default function PublicInvitePage({ params }: any) {
     <div dir="rtl" className="min-h-screen overflow-hidden bg-[#f7efe5]">
       <HeartBurst triggerKey={heartTrigger} />
 
-      <style jsx global>{`
+      <style>{`
         @keyframes heart-burst-fly {
           0% {
             opacity: 0;
@@ -480,11 +486,9 @@ export default function PublicInvitePage({ params }: any) {
             {invite?.title || "הזמנה לאירוע"}
           </h1>
 
-          {event?.eventDate ? (
-            <p className="mt-2 text-sm font-semibold text-[#7b6a58]">
-              נשמח לראותכם איתנו
-            </p>
-          ) : null}
+          <p className="mt-2 text-sm font-semibold text-[#7b6a58]">
+            נשמח לראותכם איתנו
+          </p>
         </section>
 
         <InvitationImageCard
