@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 
 /* =====================================================
-   HERO PHONE — REAL 3D VIDEO PHONE
+   HERO PHONE — CLEAN 3D VIDEO PHONE
 ===================================================== */
 function HeroPhone3D() {
   return (
@@ -17,25 +17,25 @@ function HeroPhone3D() {
       "
       style={{ perspective: "1800px" }}
     >
-      {/* צל רך מתחת לטלפון בלבד */}
+      {/* צל רך בלבד מתחת לטלפון */}
       <div
         className="
           pointer-events-none absolute
-          bottom-[48px] left-1/2
-          h-[42px] w-[300px]
+          bottom-[54px] left-1/2
+          h-[38px] w-[300px]
           -translate-x-1/2
           rounded-full
-          bg-black/18
+          bg-black/16
           blur-2xl
-          md:w-[390px]
+          md:w-[380px]
         "
       />
 
       <motion.div
-        initial={{ opacity: 0, y: 28 }}
+        initial={{ opacity: 0, y: 24 }}
         animate={{
           opacity: 1,
-          y: [0, -10, 0],
+          y: [0, -8, 0],
         }}
         transition={{
           opacity: { duration: 0.8 },
@@ -45,37 +45,37 @@ function HeroPhone3D() {
           relative
           h-[500px] w-[248px]
           md:h-[600px] md:w-[300px]
-          lg:h-[660px] lg:w-[330px]
+          lg:h-[650px] lg:w-[325px]
         "
         style={{
           transformStyle: "preserve-3d",
-          transform: "rotateY(18deg) rotateX(7deg) rotateZ(-7deg)",
+          transform: "rotateY(20deg) rotateX(6deg) rotateZ(-6deg)",
         }}
       >
-        {/* גוף אחורי — יוצר עומק תלת מימדי */}
+        {/* גוף אחורי — נותן עומק תלת־מימדי */}
         <div
           className="
             absolute inset-0
             rounded-[52px]
-            bg-gradient-to-br from-[#050505] via-[#1E1E1E] to-[#050505]
-            shadow-[42px_44px_90px_rgba(37,28,17,0.34),-18px_18px_50px_rgba(201,164,92,0.13)]
+            bg-gradient-to-br from-[#050505] via-[#202020] to-[#050505]
+            shadow-[38px_42px_85px_rgba(37,28,17,0.30),-16px_18px_45px_rgba(201,164,92,0.12)]
           "
           style={{
-            transform: "translateZ(-18px) translateX(-12px)",
+            transform: "translateZ(-18px) translateX(-11px)",
           }}
         />
 
-        {/* עובי צד שמאל */}
+        {/* עובי צד */}
         <div
           className="
-            absolute -left-[15px] top-[34px]
-            h-[90%] w-[22px]
+            absolute -left-[14px] top-[34px]
+            h-[90%] w-[21px]
             rounded-l-[40px]
             bg-gradient-to-b from-[#303030] via-[#080808] to-[#1A1A1A]
-            shadow-[inset_5px_0_12px_rgba(255,255,255,0.09)]
+            shadow-[inset_5px_0_12px_rgba(255,255,255,0.08)]
           "
           style={{
-            transform: "translateZ(-9px)",
+            transform: "translateZ(-8px)",
           }}
         />
 
@@ -84,7 +84,7 @@ function HeroPhone3D() {
           className="
             absolute inset-0
             rounded-[52px]
-            bg-gradient-to-br from-[#080808] via-[#2A2A2A] to-[#050505]
+            bg-gradient-to-br from-[#080808] via-[#282828] to-[#050505]
             p-[9px]
             shadow-[inset_0_0_0_1px_rgba(255,255,255,0.18)]
           "
@@ -103,7 +103,7 @@ function HeroPhone3D() {
               relative h-full w-full
               overflow-hidden
               rounded-[42px]
-              bg-black
+              bg-white
             "
           >
             {/* Dynamic Island */}
@@ -114,7 +114,7 @@ function HeroPhone3D() {
                 -translate-x-1/2
                 rounded-full
                 bg-black
-                shadow-[0_2px_8px_rgba(0,0,0,0.65)]
+                shadow-[0_2px_8px_rgba(0,0,0,0.55)]
               "
             />
 
@@ -124,17 +124,23 @@ function HeroPhone3D() {
               loop
               muted
               playsInline
-              className="h-full w-full object-cover"
+              className="
+                h-full w-full
+                object-cover
+                brightness-110
+                contrast-105
+                saturate-105
+              "
             />
 
-            {/* זכוכית/הברקה */}
+            {/* הברקת זכוכית עדינה בלבד — לא מחשיך את הסרטון */}
             <div
               className="
                 pointer-events-none absolute inset-0
-                bg-gradient-to-br
-                from-white/12
-                via-transparent
-                to-black/24
+                bg-gradient-to-tr
+                from-white/0
+                via-white/10
+                to-white/0
               "
             />
 
@@ -142,7 +148,7 @@ function HeroPhone3D() {
               className="
                 pointer-events-none absolute inset-0
                 rounded-[42px]
-                border border-white/10
+                border border-white/15
               "
             />
           </div>
@@ -369,30 +375,31 @@ export default function HomePage() {
           "
         />
 
-        {/* שכבת ריכוך עדינה בלבד */}
+        {/* שכבת קריאות עדינה בלבד */}
         <div
           className="
             absolute inset-0 z-0
             bg-gradient-to-r
-            from-[#F8F1E6]/20
-            via-[#F8F1E6]/34
-            to-[#F8F1E6]/78
+            from-[#F8F1E6]/8
+            via-[#F8F1E6]/20
+            to-[#F8F1E6]/64
           "
         />
 
-        {/* 
+        {/*
           חשוב:
-          כאן בכוונה dir="ltr" כדי למנוע היפוך צדדים בגלל RTL.
+          dir="ltr" רק לגריד כדי שהצדדים לא יתהפכו בגלל RTL.
           עמודה שמאלית = טלפון.
           עמודה ימנית = תוכן.
         */}
         <div
           dir="ltr"
           className="
-            relative z-10 mx-auto grid min-h-[calc(100vh-115px)]
+            relative z-10 mx-auto grid
+            min-h-[calc(100vh-115px)]
             max-w-[1500px]
-            grid-cols-1 items-center gap-10
-            lg:grid-cols-[0.95fr_1.05fr]
+            grid-cols-1 items-center gap-8
+            lg:grid-cols-[0.92fr_1.08fr]
           "
         >
           {/* טלפון — צד שמאל בדסקטופ */}
@@ -403,12 +410,12 @@ export default function HomePage() {
           {/* תוכן — צד ימין בדסקטופ */}
           <motion.div
             dir="rtl"
-            initial={{ opacity: 0, y: 34 }}
+            initial={{ opacity: 0, y: 28 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.85, ease: "easeOut" }}
             className="
               order-1
-              mx-auto max-w-[710px]
+              mx-auto max-w-[700px]
               text-center
               lg:order-2
               lg:col-start-2
@@ -421,7 +428,7 @@ export default function HomePage() {
                 mb-6 inline-flex items-center gap-3
                 rounded-full
                 border border-[#D8BE82]/70
-                bg-white/58
+                bg-white/60
                 px-5 py-2.5
                 text-[14px] font-extrabold
                 text-[#9A6B20]
@@ -430,62 +437,78 @@ export default function HomePage() {
               "
             >
               <span className="h-px w-10 bg-gradient-to-l from-transparent via-[#C9A45C] to-transparent" />
-              הדרך הקלה לסגור את כל פרטי האירוע
+              ניהול אירוע יפה, פשוט וחכם
               <span className="h-px w-10 bg-gradient-to-l from-transparent via-[#C9A45C] to-transparent" />
             </div>
 
             <h1
               className="
-                text-[42px] font-black leading-[1.08]
+                text-[42px]
+                font-black
+                leading-[1.08]
                 tracking-[-0.04em]
                 text-[#3A3028]
-                md:text-[64px]
-                lg:text-[76px]
+                md:text-[62px]
+                lg:text-[74px]
               "
             >
-              האירוע שלך
+              כל מה שצריך
               <br />
-              מסודר, ברור
+              לאירוע מסודר
               <br />
               <span
                 className="
-                  bg-gradient-to-l from-[#8B642B] via-[#C69A3F] to-[#6F4B1E]
-                  bg-clip-text text-transparent
+                  bg-gradient-to-l
+                  from-[#8B642B]
+                  via-[#C69A3F]
+                  to-[#6F4B1E]
+                  bg-clip-text
+                  text-transparent
                 "
               >
-                ונראה וואו.
+                במקום אחד.
               </span>
             </h1>
 
             <p
               className="
-                mt-7 max-w-[660px]
-                text-[19px] font-bold leading-[1.85]
+                mt-7 max-w-[650px]
+                text-[19px]
+                font-bold
+                leading-[1.85]
                 text-[#715A3E]
-                md:text-[23px]
+                md:text-[22px]
               "
             >
-              הזמנות דיגיטליות, אישורי הגעה, הושבה והודעות לאורחים —
-              הכל במקום אחד, בלי לרדוף אחרי אף אחד.
+              הזמנה דיגיטלית, אישורי הגעה, סידורי הושבה והודעות לאורחים —
+              הכל במערכת אחת נוחה, אלגנטית ומדויקת.
             </p>
 
             <p
               className="
-                mt-4 max-w-[620px]
-                text-[16px] leading-[1.9]
+                mt-4 max-w-[610px]
+                text-[16px]
+                leading-[1.9]
                 text-[#5F554C]
                 md:text-[18px]
               "
             >
-              Invistimo נותנת לך חוויית ניהול נקייה, יוקרתית ונוחה:
-              שולחים הזמנה, האורחים מאשרים, והמערכת מעדכנת הכל בזמן אמת.
+              עם Invistimo אתם שולחים, האורחים מאשרים, והדשבורד מתעדכן בזמן אמת.
+              פחות שיחות, פחות אקסלים, יותר סדר לפני האירוע.
             </p>
 
-            <div className="mt-9 flex flex-col items-center gap-4 sm:flex-row lg:justify-start">
+            <div
+              className="
+                mt-9 flex flex-col items-center gap-4
+                sm:flex-row
+                lg:justify-start
+              "
+            >
               <Link
                 href="/try/dashboard"
                 className="
-                  group inline-flex min-w-[220px] items-center justify-center gap-3
+                  group inline-flex min-w-[220px]
+                  items-center justify-center gap-3
                   rounded-full
                   bg-gradient-to-l from-[#B8862D] via-[#C9A45C] to-[#8B6220]
                   px-9 py-4
@@ -498,18 +521,17 @@ export default function HomePage() {
                 "
               >
                 להתחיל דמו
-                <span className="transition group-hover:-translate-x-1">
-                  ←
-                </span>
+                <span className="transition group-hover:-translate-x-1">←</span>
               </Link>
 
               <Link
                 href="/pricing"
                 className="
-                  inline-flex min-w-[220px] items-center justify-center
+                  inline-flex min-w-[220px]
+                  items-center justify-center
                   rounded-full
                   border border-[#8B6A3E]/60
-                  bg-white/60
+                  bg-white/64
                   px-9 py-4
                   text-[17px] font-extrabold
                   text-[#4A3A2A]
@@ -526,7 +548,7 @@ export default function HomePage() {
 
             <div
               className="
-                mt-8 flex max-w-[720px]
+                mt-8 flex max-w-[700px]
                 flex-wrap items-center justify-center gap-3
                 lg:justify-start
               "
@@ -534,7 +556,7 @@ export default function HomePage() {
               {[
                 "בלי התקנה",
                 "אישורי הגעה בוואטסאפ",
-                "הושבה חכמה",
+                "סידורי הושבה",
                 "עדכונים בזמן אמת",
               ].map((item) => (
                 <span
@@ -542,7 +564,7 @@ export default function HomePage() {
                   className="
                     rounded-full
                     border border-[#E2D2B3]
-                    bg-white/64
+                    bg-white/66
                     px-5 py-2
                     text-[14px] font-bold
                     text-[#735B3C]
