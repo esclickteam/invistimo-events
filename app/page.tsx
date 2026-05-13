@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 
 /* =====================================================
-   HERO PHONE — 3D VIDEO PHONE
+   HERO PHONE — REAL 3D VIDEO PHONE
 ===================================================== */
 function HeroPhone3D() {
   return (
@@ -15,141 +15,137 @@ function HeroPhone3D() {
         min-h-[500px]
         lg:min-h-[680px]
       "
-      style={{ perspective: "1700px" }}
+      style={{ perspective: "1800px" }}
     >
-      {/* Glow רך בלבד מאחורי הטלפון */}
+      {/* צל רך מתחת לטלפון בלבד */}
       <div
         className="
           pointer-events-none absolute
-          left-1/2 top-1/2
-          h-[420px] w-[300px]
-          -translate-x-1/2 -translate-y-1/2
-          rounded-full
-          bg-[#C8A45A]/18
-          blur-[85px]
-        "
-      />
-
-      {/* צל רצפה — לא עיגול */}
-      <div
-        className="
-          pointer-events-none absolute
-          bottom-[45px] left-1/2
-          h-[42px] w-[310px]
+          bottom-[48px] left-1/2
+          h-[42px] w-[300px]
           -translate-x-1/2
           rounded-full
-          bg-black/20
+          bg-black/18
           blur-2xl
           md:w-[390px]
         "
       />
 
       <motion.div
-        initial={{ opacity: 0, y: 28, rotateZ: -8 }}
+        initial={{ opacity: 0, y: 28 }}
         animate={{
           opacity: 1,
           y: [0, -10, 0],
-          rotateZ: [-8, -7, -8],
         }}
         transition={{
           opacity: { duration: 0.8 },
           y: { duration: 6, repeat: Infinity, ease: "easeInOut" },
-          rotateZ: { duration: 6, repeat: Infinity, ease: "easeInOut" },
         }}
         className="
           relative
           h-[500px] w-[248px]
-          rounded-[50px]
-          bg-gradient-to-br from-[#080808] via-[#262626] to-[#050505]
-          p-[9px]
-          shadow-[38px_42px_90px_rgba(37,28,17,0.30),-18px_18px_50px_rgba(201,164,92,0.16),inset_0_0_0_1px_rgba(255,255,255,0.18)]
           md:h-[600px] md:w-[300px]
           lg:h-[660px] lg:w-[330px]
         "
         style={{
           transformStyle: "preserve-3d",
-          transform: "rotateY(-24deg) rotateX(7deg)",
+          transform: "rotateY(18deg) rotateX(7deg) rotateZ(-7deg)",
         }}
       >
-        {/* עובי צד — נותן תחושת 3D */}
+        {/* גוף אחורי — יוצר עומק תלת מימדי */}
         <div
           className="
-            absolute -right-[15px] top-[34px]
-            h-[90%] w-[18px]
-            rounded-r-[38px]
-            bg-gradient-to-b from-[#2C2C2C] via-[#080808] to-[#1F1F1F]
-            shadow-[inset_-5px_0_10px_rgba(255,255,255,0.08)]
+            absolute inset-0
+            rounded-[52px]
+            bg-gradient-to-br from-[#050505] via-[#1E1E1E] to-[#050505]
+            shadow-[42px_44px_90px_rgba(37,28,17,0.34),-18px_18px_50px_rgba(201,164,92,0.13)]
           "
-          style={{ transform: "translateZ(-12px)" }}
+          style={{
+            transform: "translateZ(-18px) translateX(-12px)",
+          }}
         />
 
-        {/* כפתורי צד */}
-        <span className="absolute -left-[4px] top-[130px] h-16 w-[4px] rounded-l bg-[#111]" />
-        <span className="absolute -left-[4px] top-[210px] h-12 w-[4px] rounded-l bg-[#111]" />
-        <span className="absolute -right-[19px] top-[170px] h-24 w-[4px] rounded-r bg-[#111]" />
-
-        {/* מסגרת פנימית */}
+        {/* עובי צד שמאל */}
         <div
           className="
-            absolute inset-[8px]
-            rounded-[42px]
-            border border-white/10
-            pointer-events-none
-            z-20
+            absolute -left-[15px] top-[34px]
+            h-[90%] w-[22px]
+            rounded-l-[40px]
+            bg-gradient-to-b from-[#303030] via-[#080808] to-[#1A1A1A]
+            shadow-[inset_5px_0_12px_rgba(255,255,255,0.09)]
           "
+          style={{
+            transform: "translateZ(-9px)",
+          }}
         />
 
-        {/* הברקת זכוכית */}
+        {/* מסגרת קדמית */}
         <div
           className="
-            pointer-events-none absolute inset-[9px] z-30
-            rounded-[40px]
-            bg-gradient-to-tr
-            from-white/0
-            via-white/14
-            to-white/0
+            absolute inset-0
+            rounded-[52px]
+            bg-gradient-to-br from-[#080808] via-[#2A2A2A] to-[#050505]
+            p-[9px]
+            shadow-[inset_0_0_0_1px_rgba(255,255,255,0.18)]
           "
-        />
-
-        {/* Screen */}
-        <div
-          className="
-            relative h-full w-full
-            overflow-hidden
-            rounded-[40px]
-            bg-black
-          "
+          style={{
+            transform: "translateZ(18px)",
+          }}
         >
-          {/* Dynamic Island */}
+          {/* כפתורי צד */}
+          <span className="absolute -left-[5px] top-[130px] h-16 w-[4px] rounded-l bg-[#111]" />
+          <span className="absolute -left-[5px] top-[210px] h-12 w-[4px] rounded-l bg-[#111]" />
+          <span className="absolute -right-[4px] top-[170px] h-24 w-[4px] rounded-r bg-[#111]" />
+
+          {/* מסך */}
           <div
             className="
-              absolute left-1/2 top-4 z-40
-              h-[26px] w-[98px]
-              -translate-x-1/2
-              rounded-full
+              relative h-full w-full
+              overflow-hidden
+              rounded-[42px]
               bg-black
-              shadow-[0_2px_8px_rgba(0,0,0,0.65)]
             "
-          />
+          >
+            {/* Dynamic Island */}
+            <div
+              className="
+                absolute left-1/2 top-4 z-40
+                h-[26px] w-[100px]
+                -translate-x-1/2
+                rounded-full
+                bg-black
+                shadow-[0_2px_8px_rgba(0,0,0,0.65)]
+              "
+            />
 
-          <video
-            src="/videos/home1.mp4"
-            autoPlay
-            loop
-            muted
-            playsInline
-            className="h-full w-full object-cover"
-          />
+            <video
+              src="/videos/home1.mp4"
+              autoPlay
+              loop
+              muted
+              playsInline
+              className="h-full w-full object-cover"
+            />
 
-          <div
-            className="
-              pointer-events-none absolute inset-0
-              bg-gradient-to-br
-              from-white/10
-              via-transparent
-              to-black/22
-            "
-          />
+            {/* זכוכית/הברקה */}
+            <div
+              className="
+                pointer-events-none absolute inset-0
+                bg-gradient-to-br
+                from-white/12
+                via-transparent
+                to-black/24
+              "
+            />
+
+            <div
+              className="
+                pointer-events-none absolute inset-0
+                rounded-[42px]
+                border border-white/10
+              "
+            />
+          </div>
         </div>
       </motion.div>
     </div>
@@ -356,7 +352,7 @@ function InfiniteCarousel({ items }: { items: FeatureItem[] }) {
 
 export default function HomePage() {
   return (
-    <main dir="rtl" className="overflow-x-hidden bg-[#F6F2EC] text-[#3F3A34]">
+    <main className="overflow-x-hidden bg-[#F6F2EC] text-[#3F3A34]">
       {/* ================= HERO ================= */}
       <section
         className="
@@ -373,36 +369,51 @@ export default function HomePage() {
           "
         />
 
-        {/* שכבת ריכוך כדי שהתוכן יהיה קריא */}
+        {/* שכבת ריכוך עדינה בלבד */}
         <div
           className="
             absolute inset-0 z-0
-            bg-gradient-to-l
-            from-[#F8F1E6]/88
-            via-[#F8F1E6]/42
-            to-[#F8F1E6]/8
+            bg-gradient-to-r
+            from-[#F8F1E6]/20
+            via-[#F8F1E6]/34
+            to-[#F8F1E6]/78
           "
         />
 
+        {/* 
+          חשוב:
+          כאן בכוונה dir="ltr" כדי למנוע היפוך צדדים בגלל RTL.
+          עמודה שמאלית = טלפון.
+          עמודה ימנית = תוכן.
+        */}
         <div
+          dir="ltr"
           className="
             relative z-10 mx-auto grid min-h-[calc(100vh-115px)]
             max-w-[1500px]
             grid-cols-1 items-center gap-10
-            lg:grid-cols-2
+            lg:grid-cols-[0.95fr_1.05fr]
           "
         >
-          {/* תוכן בצד ימין */}
+          {/* טלפון — צד שמאל בדסקטופ */}
+          <div className="order-2 lg:order-1 lg:col-start-1">
+            <HeroPhone3D />
+          </div>
+
+          {/* תוכן — צד ימין בדסקטופ */}
           <motion.div
+            dir="rtl"
             initial={{ opacity: 0, y: 34 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.85, ease: "easeOut" }}
             className="
               order-1
-              mx-auto max-w-[720px]
+              mx-auto max-w-[710px]
               text-center
-              lg:col-start-2 lg:row-start-1
-              lg:mx-0 lg:text-right
+              lg:order-2
+              lg:col-start-2
+              lg:mx-0
+              lg:text-right
             "
           >
             <div
@@ -419,7 +430,7 @@ export default function HomePage() {
               "
             >
               <span className="h-px w-10 bg-gradient-to-l from-transparent via-[#C9A45C] to-transparent" />
-              אירוע מסודר מתחיל כאן
+              הדרך הקלה לסגור את כל פרטי האירוע
               <span className="h-px w-10 bg-gradient-to-l from-transparent via-[#C9A45C] to-transparent" />
             </div>
 
@@ -432,9 +443,9 @@ export default function HomePage() {
                 lg:text-[76px]
               "
             >
-              פחות ריצות.
+              האירוע שלך
               <br />
-              פחות טלפונים.
+              מסודר, ברור
               <br />
               <span
                 className="
@@ -442,7 +453,7 @@ export default function HomePage() {
                   bg-clip-text text-transparent
                 "
               >
-                יותר שקט באירוע.
+                ונראה וואו.
               </span>
             </h1>
 
@@ -452,11 +463,10 @@ export default function HomePage() {
                 text-[19px] font-bold leading-[1.85]
                 text-[#715A3E]
                 md:text-[23px]
-                lg:mr-0
               "
             >
-              Invistimo מרכזת את אישורי ההגעה, ההושבה וההודעות לאורחים
-              במקום אחד נוח, יפה ומדויק.
+              הזמנות דיגיטליות, אישורי הגעה, הושבה והודעות לאורחים —
+              הכל במקום אחד, בלי לרדוף אחרי אף אחד.
             </p>
 
             <p
@@ -467,8 +477,8 @@ export default function HomePage() {
                 md:text-[18px]
               "
             >
-              אתם שולחים הזמנה, האורחים מאשרים, והכול מתעדכן לכם בזמן אמת —
-              בלי לרדוף אחרי אף אחד ובלי להתעסק באקסלים.
+              Invistimo נותנת לך חוויית ניהול נקייה, יוקרתית ונוחה:
+              שולחים הזמנה, האורחים מאשרים, והמערכת מעדכנת הכל בזמן אמת.
             </p>
 
             <div className="mt-9 flex flex-col items-center gap-4 sm:flex-row lg:justify-start">
@@ -488,7 +498,9 @@ export default function HomePage() {
                 "
               >
                 להתחיל דמו
-                <span className="transition group-hover:-translate-x-1">←</span>
+                <span className="transition group-hover:-translate-x-1">
+                  ←
+                </span>
               </Link>
 
               <Link
@@ -543,16 +555,11 @@ export default function HomePage() {
               ))}
             </div>
           </motion.div>
-
-          {/* טלפון בצד שמאל */}
-          <div className="order-2 lg:col-start-1 lg:row-start-1">
-            <HeroPhone3D />
-          </div>
         </div>
       </section>
 
       {/* ================= בלוק 2 ================= */}
-      <section className="bg-[#FAF8F4] px-6 py-16 md:py-32">
+      <section className="bg-[#FAF8F4] px-6 py-16 md:py-32" dir="rtl">
         <div className="mx-auto grid max-w-7xl items-center gap-24 lg:grid-cols-2">
           <div>
             <p className="mb-4 text-sm font-extrabold tracking-[0.18em] text-[#B8862D]">
@@ -587,7 +594,7 @@ export default function HomePage() {
       </section>
 
       {/* ================= בלוק 3 – קרוסלת פיצ'רים ================= */}
-      <section className="w-full overflow-hidden bg-white py-28">
+      <section className="w-full overflow-hidden bg-white py-28" dir="rtl">
         <div className="mx-auto mb-16 max-w-3xl px-6 text-center">
           <p className="mb-4 text-sm font-extrabold tracking-[0.18em] text-[#B8862D]">
             כלים חכמים לאירוע
@@ -602,7 +609,10 @@ export default function HomePage() {
       </section>
 
       {/* ================= בלוק 4 ================= */}
-      <section className="relative overflow-hidden bg-[#FAF8F4] px-6 py-32 text-center">
+      <section
+        className="relative overflow-hidden bg-[#FAF8F4] px-6 py-32 text-center"
+        dir="rtl"
+      >
         <SoftFireworks />
 
         <div className="relative z-10 mx-auto max-w-3xl">
@@ -620,6 +630,7 @@ export default function HomePage() {
 
       {/* ================= CTA ================= */}
       <section
+        dir="rtl"
         className="
           px-6 py-32 text-center text-[#FAF8F4]
           bg-gradient-to-l from-[#8B642B] via-[#C89F77] to-[#A57535]
