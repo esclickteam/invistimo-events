@@ -156,6 +156,14 @@ function formatDateTime(value: any) {
   )}`;
 }
 
+function isActiveSchedule(schedule: any) {
+  return (
+    schedule?.status === "scheduled" &&
+    schedule?.scheduledAt &&
+    !Number.isNaN(new Date(schedule.scheduledAt).getTime())
+  );
+}
+
 function getWhatsappTemplateByRound(round: RoundNumber) {
   return round === 1 ? RSVP_ROUND1_TEMPLATE : RSVP_REMINDER_TEMPLATE;
 }
@@ -264,6 +272,14 @@ export default function RsvpTab({
   const [existingSchedule, setExistingSchedule] = useState<any | null>(null);
   const [cancelLoading, setCancelLoading] = useState(false);
 
+  const [activeSchedulesByRound, setActiveSchedulesByRound] = useState<
+    Record<RoundNumber, boolean>
+  >({
+    1: false,
+    2: false,
+    3: false,
+  });
+
   const [scheduledMessages, setScheduledMessages] = useState<any[]>([]);
   const [showScheduled, setShowScheduled] = useState(false);
 
@@ -340,12 +356,7 @@ export default function RsvpTab({
   const currentRoundSent =
     round === 1 ? round1Sent : round === 2 ? round2Sent : round3Sent;
 
-  const currentRoundScheduled =
-    round === 1
-      ? round1Scheduled
-      : round === 2
-      ? round2Scheduled
-      : round3Scheduled;
+  const currentRoundScheduled = activeSchedulesByRound[round];
 
   const currentRoundLocked =
     round === 1
@@ -354,10 +365,7 @@ export default function RsvpTab({
       ? round2Locked
       : round3Locked;
 
-  const hasExistingSchedule =
-    existingSchedule?.status === "scheduled" &&
-    existingSchedule?.scheduledAt &&
-    !Number.isNaN(new Date(existingSchedule.scheduledAt).getTime());
+  const hasExistingSchedule = isActiveSchedule(existingSchedule);
 
   /* ================= LOAD SCHEDULED MESSAGES ================= */
 
@@ -397,25 +405,41 @@ export default function RsvpTab({
         );
 
         const data = await res.json();
+        const activeSchedule = isActiveSchedule(data?.schedule);
 
-        if (data?.schedule) {
+        setActiveSchedulesByRound((prev) => ({
+          ...prev,
+          [round]: activeSchedule,
+        }));
+
+        if (activeSchedule) {
           setExistingSchedule(data.schedule);
 
-          if (data.schedule.scheduledAt) {
-            const d = new Date(data.schedule.scheduledAt);
+          const d = new Date(data.schedule.scheduledAt);
 
-            setScheduledDate(d.toISOString().slice(0, 10));
-            setScheduledTime(d.toISOString().slice(11, 16));
-            setSendTiming("scheduled");
-          }
+          setScheduledDate(d.toISOString().slice(0, 10));
+          setScheduledTime(d.toISOString().slice(11, 16));
+          setSendTiming("scheduled");
         } else {
           setExistingSchedule(null);
           setScheduledDate("");
           setScheduledTime("");
           setSendTiming("now");
+
+          if (round === 1) setRound1Scheduled(false);
+          if (round === 2) setRound2Scheduled(false);
+          if (round === 3) setRound3Scheduled(false);
         }
       } catch {
         setExistingSchedule(null);
+        setScheduledDate("");
+        setScheduledTime("");
+        setSendTiming("now");
+
+        setActiveSchedulesByRound((prev) => ({
+          ...prev,
+          [round]: false,
+        }));
       }
     }
 
@@ -563,7 +587,7 @@ export default function RsvpTab({
         }
       } catch (e) {
         console.error("❌ Failed to save giftOptions", e);
-        setGiftSaveError("לא הצלחנו לשמור את הגדרות המתנה. נסי שוב.");
+        setGiftSaveError("לא הצלחנו לשמור את הגדרות המתנה. נסו שוב.");
       } finally {
         setSavingGift(false);
       }
@@ -638,6 +662,11 @@ export default function RsvpTab({
       setScheduledDate("");
       setScheduledTime("");
       setSendTiming("now");
+
+      setActiveSchedulesByRound((prev) => ({
+        ...prev,
+        [round]: false,
+      }));
 
       if (round === 1) setRound1Scheduled(false);
       if (round === 2) setRound2Scheduled(false);
@@ -754,13 +783,7 @@ export default function RsvpTab({
       eventTime: invitationPreview.eventTime,
       eventLocation: invitationPreview.eventLocation || eventLocation,
     });
-  }, [
-    round,
-    invitationPreview,
-    invitationTitle,
-    eventDate,
-    eventLocation,
-  ]);
+  }, [round, invitationPreview, invitationTitle, eventDate, eventLocation]);
 
   const smsPreviewText = useMemo(() => {
     const g = guestsToSend[0];
@@ -774,7 +797,10 @@ export default function RsvpTab({
 
     return currentSmsMessage
       .replace(/{{name}}/g, g?.name || fallbackName)
-      .replace(/{{invitationTitle}}/g, invitationPreview.title || invitationTitle || "")
+      .replace(
+        /{{invitationTitle}}/g,
+        invitationPreview.title || invitationTitle || ""
+      )
       .replace(/{{rsvpLink}}/g, rsvpLink);
   }, [
     guestsToSend,
@@ -861,7 +887,7 @@ export default function RsvpTab({
               </h2>
 
               <p className="max-w-2xl text-sm md:text-base leading-7 text-[#7A5A3A]">
-                בחרי סבב, ערוץ שליחה ומועד. סבב 1 נשלח לכל המוזמנים,
+                בחרו סבב, ערוץ שליחה ומועד. סבב 1 נשלח לכל המוזמנים,
                 וסבבים 2–3 נשלחים למי שטרם אישר במועד השליחה.
               </p>
             </div>
@@ -898,13 +924,7 @@ export default function RsvpTab({
                     ? round2Sent
                     : round3Sent
                 }
-                scheduled={
-                  r === 1
-                    ? round1Scheduled
-                    : r === 2
-                    ? round2Scheduled
-                    : round3Scheduled
-                }
+                scheduled={activeSchedulesByRound[r as RoundNumber]}
                 onClick={() => {
                   if (sendingNow) return;
                   setRound(r as RoundNumber);
@@ -1133,7 +1153,7 @@ export default function RsvpTab({
                           creditUrl: e.target.value,
                         }))
                       }
-                      placeholder="הדביקי כאן קישור לתשלום באשראי"
+                      placeholder="הדביקו כאן קישור לתשלום באשראי"
                       className="w-full rounded-2xl border border-[#E6D6BC] bg-white px-4 py-3 text-sm outline-none focus:border-[#B9894D] focus:ring-4 focus:ring-[#E9D4AC] disabled:opacity-60"
                       dir="ltr"
                       inputMode="url"
@@ -1164,7 +1184,7 @@ export default function RsvpTab({
                           payboxUrl: e.target.value,
                         }))
                       }
-                      placeholder="הדביקי כאן קישור ל-PayBox"
+                      placeholder="הדביקו כאן קישור ל-PayBox"
                       className="w-full rounded-2xl border border-[#E6D6BC] bg-white px-4 py-3 text-sm outline-none focus:border-[#B9894D] focus:ring-4 focus:ring-[#E9D4AC] disabled:opacity-60"
                       dir="ltr"
                       inputMode="url"
@@ -1195,7 +1215,7 @@ export default function RsvpTab({
 
                 <TimingOption
                   title="שליחה מתוזמנת"
-                  subtitle="קבעי תאריך ושעה לשליחה אוטומטית"
+                  subtitle="קביעת תאריך ושעה לשליחה אוטומטית"
                   icon="📅"
                   active={sendTiming === "scheduled"}
                   disabled={sendingNow}
@@ -1272,6 +1292,11 @@ export default function RsvpTab({
                   await loadScheduledMessages();
 
                   if (sendTiming === "scheduled") {
+                    setActiveSchedulesByRound((prev) => ({
+                      ...prev,
+                      [round]: true,
+                    }));
+
                     if (round === 1) setRound1Scheduled(true);
                     if (round === 2) setRound2Scheduled(true);
                     if (round === 3) setRound3Scheduled(true);
@@ -1466,7 +1491,9 @@ function RoundButton({
           <div className="flex items-center gap-2">
             <span
               className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-black ${
-                active ? "bg-white text-[#8A5A25]" : "bg-[#FFF3DD] text-[#8A5A25]"
+                active
+                  ? "bg-white text-[#8A5A25]"
+                  : "bg-[#FFF3DD] text-[#8A5A25]"
               }`}
             >
               {roundNumber}
@@ -1475,14 +1502,22 @@ function RoundButton({
             <span className="text-lg font-black">{title}</span>
           </div>
 
-          <p className={`text-sm ${active ? "text-white/85" : "text-[#7A5A3A]"}`}>
+          <p
+            className={`text-sm ${
+              active ? "text-white/85" : "text-[#7A5A3A]"
+            }`}
+          >
             {subtitle}
           </p>
         </div>
 
         <div className="text-left">
           <div className="text-2xl font-black">{count}</div>
-          <div className={`text-xs ${active ? "text-white/80" : "text-[#7A5A3A]"}`}>
+          <div
+            className={`text-xs ${
+              active ? "text-white/80" : "text-[#7A5A3A]"
+            }`}
+          >
             נמענים
           </div>
         </div>
