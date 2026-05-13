@@ -2191,7 +2191,6 @@ function GoldenActionButtons({
       icon="♜"
       tone="gold"
       disabled={!invitation}
-      withChevron
       onClick={() =>
         router.push(
           isDemo
