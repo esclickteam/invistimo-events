@@ -6,8 +6,8 @@ import { useMemo, useState } from "react";
 
 type ScheduledMessage = {
   _id: string;
-  scheduledAt: string;     // ISO string
-  messageContent: string;  // מקור אמת
+  scheduledAt: string; // ISO string
+  messageContent: string; // מקור אמת
 };
 
 /* ================= HELPERS ================= */
@@ -34,10 +34,7 @@ function buildLocalDate(date: string, time: string) {
   const [year, month, day] = date.split("-").map(Number);
   const [hour, minute] = time.split(":").map(Number);
 
-  if (
-    !year || !month || !day ||
-    Number.isNaN(hour) || Number.isNaN(minute)
-  ) {
+  if (!year || !month || !day || Number.isNaN(hour) || Number.isNaN(minute)) {
     return null;
   }
 
@@ -99,14 +96,14 @@ export default function EditScheduledMessageModal({
 
     try {
       const res = await fetch(`/api/scheduled-messages/${message._id}`, {
-  method: "PATCH",
-  headers: { "Content-Type": "application/json" },
-  credentials: "include",
-  body: JSON.stringify({
-    scheduledAt: localDate.toISOString(),
-    text: trimmed, // ✅ במקום messageContent
-  }),
-});
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          scheduledAt: localDate.toISOString(),
+          text: trimmed, // ✅ במקום messageContent
+        }),
+      });
 
       let data: any = null;
       try {
@@ -121,10 +118,7 @@ export default function EditScheduledMessageModal({
           data,
         });
 
-        const msg =
-          data?.error ||
-          data?.message ||
-          `עדכון נכשל (${res.status})`;
+        const msg = data?.error || data?.message || `עדכון נכשל (${res.status})`;
 
         alert(`❌ ${msg}`);
         return;
@@ -142,13 +136,51 @@ export default function EditScheduledMessageModal({
   /* ================= RENDER ================= */
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-2xl w-[95%] max-w-lg p-6" dir="rtl">
-        <h2 className="text-xl font-semibold mb-4">✏️ עריכת הודעה מתוזמנת</h2>
+    <div
+      dir="rtl"
+      className="
+        mt-4
+        rounded-[26px]
+        border
+        border-[#E6D6BC]
+        bg-[#FFF9F1]
+        p-5
+        shadow-[0_18px_50px_rgba(78,49,27,0.10)]
+      "
+    >
+      <div className="space-y-5">
+        <div className="flex items-center justify-between gap-4">
+          <h2 className="text-xl font-black text-[#3A2417]">
+            ✏️ עריכת הודעה מתוזמנת
+          </h2>
+
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={loading}
+            className="
+              flex
+              h-9
+              w-9
+              items-center
+              justify-center
+              rounded-full
+              bg-[#F0E3D1]
+              text-base
+              font-black
+              text-[#3A2417]
+              transition
+              hover:bg-[#E6D6BC]
+              disabled:opacity-50
+            "
+          >
+            ✕
+          </button>
+        </div>
 
         {/* MESSAGE CONTENT */}
-        <div className="mb-5">
-          <label className="block text-sm font-medium mb-1">
+        <div>
+          <label className="mb-1 block text-sm font-bold text-[#3A2417]">
             תוכן ההודעה (יישלח כפי שהוא)
           </label>
 
@@ -156,43 +188,127 @@ export default function EditScheduledMessageModal({
             value={content}
             onChange={(e) => setContent(e.target.value)}
             rows={8}
-            className="w-full border rounded-xl p-3 text-sm whitespace-pre-wrap"
+            disabled={loading}
+            className="
+              w-full
+              rounded-xl
+              border
+              border-[#E6D6BC]
+              bg-white
+              p-3
+              text-sm
+              whitespace-pre-wrap
+              outline-none
+              transition
+              focus:border-[#B9894D]
+              focus:ring-4
+              focus:ring-[#E9D4AC]
+              disabled:opacity-60
+            "
           />
 
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="mt-1 text-xs text-[#7A5A3A]">
             ✉️ הטקסט יישלח בדיוק כפי שמופיע כאן
           </p>
         </div>
 
         {/* DATE */}
-        <label className="block text-sm font-medium mb-1">תאריך שליחה</label>
-        <input
-          type="date"
-          value={date}
-          min={minDate}
-          onChange={(e) => setDate(e.target.value)}
-          className="w-full border rounded-xl p-3 mb-4"
-        />
+        <div>
+          <label className="mb-1 block text-sm font-bold text-[#3A2417]">
+            תאריך שליחה
+          </label>
+
+          <input
+            type="date"
+            value={date}
+            min={minDate}
+            disabled={loading}
+            onChange={(e) => setDate(e.target.value)}
+            className="
+              w-full
+              rounded-xl
+              border
+              border-[#E6D6BC]
+              bg-white
+              p-3
+              outline-none
+              transition
+              focus:border-[#B9894D]
+              focus:ring-4
+              focus:ring-[#E9D4AC]
+              disabled:opacity-60
+            "
+          />
+        </div>
 
         {/* TIME */}
-        <label className="block text-sm font-medium mb-1">שעת שליחה</label>
-        <input
-          type="time"
-          value={time}
-          onChange={(e) => setTime(e.target.value)}
-          className="w-full border rounded-xl p-3 mb-6"
-        />
+        <div>
+          <label className="mb-1 block text-sm font-bold text-[#3A2417]">
+            שעת שליחה
+          </label>
+
+          <input
+            type="time"
+            value={time}
+            disabled={loading}
+            onChange={(e) => setTime(e.target.value)}
+            className="
+              w-full
+              rounded-xl
+              border
+              border-[#E6D6BC]
+              bg-white
+              p-3
+              outline-none
+              transition
+              focus:border-[#B9894D]
+              focus:ring-4
+              focus:ring-[#E9D4AC]
+              disabled:opacity-60
+            "
+          />
+        </div>
 
         {/* ACTIONS */}
-        <div className="flex gap-3 justify-end">
-          <button onClick={onClose} className="px-4 py-2 rounded-xl border">
+        <div className="flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={loading}
+            className="
+              rounded-xl
+              border
+              border-[#E6D6BC]
+              bg-white
+              px-4
+              py-2
+              text-sm
+              font-bold
+              text-[#3A2417]
+              transition
+              hover:bg-[#FFF3DD]
+              disabled:opacity-50
+            "
+          >
             ביטול
           </button>
 
           <button
+            type="button"
             onClick={save}
             disabled={loading}
-            className="px-4 py-2 rounded-xl bg-blue-600 text-white disabled:opacity-50"
+            className="
+              rounded-xl
+              bg-blue-600
+              px-4
+              py-2
+              text-sm
+              font-bold
+              text-white
+              transition
+              hover:bg-blue-700
+              disabled:opacity-50
+            "
           >
             {loading ? "שומר…" : "💾 שמירה"}
           </button>
