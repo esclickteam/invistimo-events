@@ -395,9 +395,21 @@ export default function ThankYouTab({
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <StatCard value={confirmedGuests.length} label="יקבלו הודעה" icon="✅" />
-              <StatCard value={pendingGuests.length} label="ממתינים" icon="⏳" />
-              <StatCard value={declinedGuests.length} label="לא מגיעים" icon="—" />
+              <StatCard
+                value={confirmedGuests.length}
+                label="יקבלו הודעה"
+                icon="✅"
+              />
+              <StatCard
+                value={pendingGuests.length}
+                label="ממתינים"
+                icon="⏳"
+              />
+              <StatCard
+                value={declinedGuests.length}
+                label="לא מגיעים"
+                icon="—"
+              />
               <StatCard
                 value={thankYouScheduledMessages.length}
                 label="מתוזמנות"
@@ -412,7 +424,11 @@ export default function ThankYouTab({
       <section className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
         {/* RIGHT SIDE */}
         <div className="space-y-6 xl:order-1">
-          <Panel title="תצוגה מקדימה" subtitle="כך תיראה הודעת התודה" icon="✨">
+          <Panel
+            title="תצוגה מקדימה"
+            subtitle="כך תיראה הודעת התודה"
+            icon="✨"
+          >
             {preview ? (
               <PhonePreview text={preview.text} />
             ) : (
@@ -435,7 +451,11 @@ export default function ThankYouTab({
             )}
           </Panel>
 
-          <Panel title="שליחת הודעה לבדיקה" subtitle="בדיקה לפני שליחה בפועל" icon="🧪">
+          <Panel
+            title="שליחת הודעה לבדיקה"
+            subtitle="בדיקה לפני שליחה בפועל"
+            icon="🧪"
+          >
             <div className="flex flex-col sm:flex-row gap-3">
               <input
                 type="tel"
@@ -472,8 +492,8 @@ export default function ThankYouTab({
                 {testCount >= MAX_TEST_MESSAGES
                   ? "הגעת למגבלה"
                   : sendingTest
-                  ? "שולח..."
-                  : "שלח לבדיקה"}
+                    ? "שולח..."
+                    : "שלח לבדיקה"}
               </button>
             </div>
 
@@ -491,7 +511,11 @@ export default function ThankYouTab({
 
         {/* LEFT SIDE */}
         <div className="space-y-6 xl:order-2">
-          <Panel title="ערוץ שליחה" subtitle="הודעת התודה נשלחת ב-SMS" icon="💬">
+          <Panel
+            title="ערוץ שליחה"
+            subtitle="הודעת התודה נשלחת ב-SMS"
+            icon="💬"
+          >
             <div
               className="
                 rounded-[24px]
@@ -502,7 +526,9 @@ export default function ThankYouTab({
               "
             >
               <div className="flex items-center justify-between gap-3">
-                <span className="text-lg font-black text-[#3E2D20]">SMS</span>
+                <span className="text-lg font-black text-[#3E2D20]">
+                  SMS
+                </span>
                 <span className="text-xl">📩</span>
               </div>
 
@@ -616,7 +642,9 @@ export default function ThankYouTab({
                 className={sendTimingOptionClass(sendTiming === "now")}
               >
                 <div>
-                  <div className="font-black text-[#3E2D20]">שליחה מיידית</div>
+                  <div className="font-black text-[#3E2D20]">
+                    שליחה מיידית
+                  </div>
                   <div className="mt-1 text-xs text-[#7A6246]">
                     ההודעה תישלח עכשיו.
                   </div>
@@ -631,7 +659,9 @@ export default function ThankYouTab({
                 className={sendTimingOptionClass(sendTiming === "scheduled")}
               >
                 <div>
-                  <div className="font-black text-[#3E2D20]">שליחה מתוזמנת</div>
+                  <div className="font-black text-[#3E2D20]">
+                    שליחה מתוזמנת
+                  </div>
                   <div className="mt-1 text-xs text-[#7A6246]">
                     קביעת תאריך ושעה. הקהל ייקבע בזמן השליחה.
                   </div>
@@ -699,8 +729,8 @@ export default function ThankYouTab({
                 {thankYouAlreadySent
                   ? "✓ הודעת תודה נשלחה"
                   : sendTiming === "scheduled"
-                  ? "⏱️ תזמן הודעת תודה"
-                  : `📩 שלח הודעת תודה (${guestsToSend.length})`}
+                    ? "⏱️ תזמן הודעת תודה"
+                    : `📩 שלח הודעת תודה (${guestsToSend.length})`}
               </SendButton>
             </div>
 
@@ -752,50 +782,48 @@ export default function ThankYouTab({
         </div>
       </section>
 
+      {/* SCHEDULED MESSAGES - FULL WIDTH */}
       {showScheduled && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
-          <div
-            className="
-              relative
-              max-h-[85vh]
-              w-[95%]
-              max-w-[950px]
-              overflow-y-auto
-              rounded-[30px]
-              border border-[#E7DCCB]
-              bg-[#FFF9EF]
-              p-6
-              shadow-2xl
-            "
-          >
-            <div className="mb-5 flex items-center justify-between gap-4">
-              <h2 className="text-xl font-black text-[#3E2D20]">
-                📅 הודעות מתוזמנות
-              </h2>
+        <section
+          className="
+            w-full
+            rounded-[30px]
+            border border-[#E7DCCB]
+            bg-[#FFF9EF]
+            p-5 sm:p-6
+            shadow-[0_14px_40px_rgba(95,68,34,0.08)]
+          "
+        >
+          <div className="mb-5 flex items-center justify-between gap-4">
+            <h2 className="text-xl font-black text-[#3E2D20]">
+              📅 הודעות מתוזמנות
+            </h2>
 
-              <button
-                type="button"
-                onClick={() => setShowScheduled(false)}
-                className="
-                  flex h-10 w-10 items-center justify-center
-                  rounded-full
-                  bg-white
-                  text-lg font-black
-                  text-[#6B5138]
-                  shadow-sm
-                  hover:bg-[#F6EBD9]
-                "
-              >
-                ✕
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setShowScheduled(false)}
+              className="
+                flex h-10 w-10 items-center justify-center
+                rounded-full
+                bg-white
+                text-lg font-black
+                text-[#6B5138]
+                shadow-sm
+                transition
+                hover:bg-[#F6EBD9]
+              "
+            >
+              ✕
+            </button>
+          </div>
 
+          <div className="w-full overflow-x-auto">
             <ScheduledMessagesTable
               messages={thankYouScheduledMessages}
               onChange={loadScheduledMessages}
             />
           </div>
-        </div>
+        </section>
       )}
 
       <style>{`
