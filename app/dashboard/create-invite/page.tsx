@@ -111,8 +111,8 @@ function getImageQualityStatus(info: ImageInfo | null, mode: InviteImageMode) {
 
 /* =========================================================
    Phone Preview
-   ביצירה אין עדיין shareId, לכן זו תצוגה חיה מקומית.
-   אחרי שמירה, המערכת עוברת לפריוויו האמיתי.
+   ביצירת הזמנה אין עדיין shareId, לכן זו תצוגה חיה מקומית.
+   לאחר שמירה עוברים לפריוויו האמיתי.
 ========================================================= */
 
 function CreatePhonePreview({
@@ -325,9 +325,8 @@ export default function CreateInvitePage() {
       setSaving(true);
 
       /*
-        נשאר אותו רעיון שהיה קודם:
-        קודם יוצרים הזמנה, ואז מעלים תמונת preview.
-        אין כאן קנבס פעיל, אבל משאירים canvasData מינימלי כדי לא לשבור את השרת.
+        אין כאן קנבס פעיל.
+        משאירים canvasData מינימלי כדי לא לשבור את מבנה השרת הקיים.
       */
       const canvasData = {
         objects: [],
@@ -429,7 +428,7 @@ export default function CreateInvitePage() {
               </h1>
 
               <p className="mt-1 text-xs text-[#8a7967] md:text-sm">
-                העלי את תמונת ההזמנה, בדקי איך היא נראית ושמרי את ההזמנה
+                העלאת תמונת ההזמנה, בדיקת התצוגה ושמירת ההזמנה
               </p>
             </div>
           </div>
@@ -479,7 +478,7 @@ export default function CreateInvitePage() {
                     </h2>
 
                     <p className="mt-1 text-sm text-[#7b6a58]">
-                      העלי תמונה מוכנה של ההזמנה ובדקי את התצוגה לפני שמירה.
+                      בחרו תמונה מוכנה של ההזמנה ובדקו את התצוגה לפני שמירה.
                     </p>
                   </div>
 
@@ -620,7 +619,7 @@ export default function CreateInvitePage() {
                     </h3>
 
                     <p className="mt-2 max-w-md text-sm leading-6 text-[#7b6a58]">
-                      גררי לכאן תמונה מוכנה או לחצי לבחירת קובץ מהמחשב.
+                      גררו לכאן תמונה מוכנה או לחצו לבחירת קובץ מהמחשב.
                     </p>
 
                     <div className="mt-6 rounded-full bg-gradient-to-l from-[#c79a55] to-[#8f6437] px-7 py-3 text-sm font-bold text-white shadow-lg transition group-hover:shadow-xl">

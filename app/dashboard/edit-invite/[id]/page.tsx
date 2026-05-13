@@ -301,7 +301,7 @@ export default function EditInvitePage() {
       };
 
       /*
-        שולחים תמונה חדשה רק אם המשתמש העלה קובץ חדש.
+        שולחים תמונה חדשה רק אם הועלה קובץ חדש.
         השרת ממשיך להעלות ל-Cloudinary ולעדכן previewImageUrl/headerImageUrl.
       */
       if (uploadedImage?.base64) {
@@ -397,7 +397,7 @@ export default function EditInvitePage() {
               </h1>
 
               <p className="mt-1 text-xs text-[#8a7967] md:text-sm">
-                העלי את תמונת ההזמנה, בדקי איך היא נראית ושמרי את השינויים
+                העלאת תמונת ההזמנה, בדיקת התצוגה ושמירת השינויים
               </p>
             </div>
           </div>
@@ -447,7 +447,7 @@ export default function EditInvitePage() {
                     </h2>
 
                     <p className="mt-1 text-sm text-[#7b6a58]">
-                      העלי תמונה מוכנה של ההזמנה ובדקי את התצוגה לפני שמירה.
+                      בחרו תמונה מוכנה של ההזמנה ובדקו את התצוגה לפני שמירה.
                     </p>
                   </div>
 
@@ -594,7 +594,7 @@ export default function EditInvitePage() {
                     </h3>
 
                     <p className="mt-2 max-w-md text-sm leading-6 text-[#7b6a58]">
-                      גררי לכאן תמונה מוכנה או לחצי לבחירת קובץ מהמחשב.
+                      גררו לכאן תמונה מוכנה או לחצו לבחירת קובץ מהמחשב.
                     </p>
 
                     <div className="mt-6 rounded-full bg-gradient-to-l from-[#c79a55] to-[#8f6437] px-7 py-3 text-sm font-bold text-white shadow-lg transition group-hover:shadow-xl">
