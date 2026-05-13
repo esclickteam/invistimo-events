@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import PublicInviteRenderer from "@/app/components/PublicInviteRenderer";
 
 /* -------------------------------------------------------------
    Types
@@ -12,7 +11,6 @@ interface InvitationData {
   _id: string;
   title?: string;
   shareId?: string;
-  canvasData?: any;
 }
 
 type LoadState = "loading" | "ready" | "not_found" | "unauthorized" | "error";
@@ -23,7 +21,6 @@ type LoadState = "loading" | "ready" | "not_found" | "unauthorized" | "error";
 export default function InvitationPreviewPage() {
   const params = useParams();
 
-  // ✅ useParams יכול להיות string | string[]
   const id = useMemo(() => {
     const raw = (params as any)?.id;
     if (!raw) return undefined;
@@ -47,7 +44,7 @@ export default function InvitationPreviewPage() {
     try {
       const res = await fetch(`/api/invitations/${id}`, {
         method: "GET",
-        credentials: "include", // ✅ חשוב אם ה-API מוגן/קורא cookies
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         cache: "no-store",
       });
@@ -90,57 +87,96 @@ export default function InvitationPreviewPage() {
      UI states
   ------------------------------------------------------------- */
   if (state === "loading") {
-    return <div className="p-10 text-center text-xl">טוען...</div>;
+    return (
+      <div
+        dir="rtl"
+        className="min-h-screen bg-[#F6F1EA] flex items-center justify-center px-4"
+      >
+        <div className="rounded-[28px] border border-[#E3D6C3] bg-white px-8 py-7 text-center shadow-[0_18px_50px_rgba(30,27,46,0.08)]">
+          <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-[#E3D6C3] border-t-[#B8844F]" />
+          <p className="text-lg font-black text-[#241A14]">טוען תצוגה מקדימה...</p>
+        </div>
+      </div>
+    );
   }
 
   if (state === "unauthorized") {
     return (
-      <div className="p-10 text-center text-xl">
-        🔒 אין הרשאה לצפות בהזמנה
-        <div className="mt-4 text-sm text-gray-500">
-          אם את מחוברת ועדיין רואה את זה — ייתכן שה-cookie לא נשלח.
-        </div>
+      <div
+        dir="rtl"
+        className="min-h-screen bg-[#F6F1EA] flex items-center justify-center px-4"
+      >
+        <div className="w-full max-w-[520px] rounded-[30px] border border-[#E3D6C3] bg-white px-7 py-8 text-center shadow-[0_18px_50px_rgba(30,27,46,0.08)]">
+          <h1 className="text-2xl font-black text-[#241A14]">
+            🔒 אין הרשאה לצפות בהזמנה
+          </h1>
 
-        <button
-          onClick={fetchInvitation}
-          className="mt-6 bg-blue-600 text-white px-5 py-2 rounded hover:bg-blue-700 transition"
-        >
-          נסי שוב
-        </button>
+          <p className="mt-3 text-sm font-semibold leading-relaxed text-[#8A7B69]">
+            אם את מחוברת ועדיין רואה את זה — ייתכן שה-cookie לא נשלח.
+          </p>
+
+          <button
+            type="button"
+            onClick={fetchInvitation}
+            className="mt-6 h-[46px] rounded-2xl bg-[#B8844F] px-7 text-sm font-black text-white transition hover:bg-[#9F6F3F]"
+          >
+            נסי שוב
+          </button>
+        </div>
       </div>
     );
   }
 
   if (state === "not_found" || !invitation) {
     return (
-      <div className="p-10 text-center text-xl">
-        ❌ לא נמצאה הזמנה
-        <div className="mt-3 text-sm text-gray-500">
-          בדקי שה-ID בכתובת נכון ושיש הזמנה קיימת למזהה הזה.
-        </div>
+      <div
+        dir="rtl"
+        className="min-h-screen bg-[#F6F1EA] flex items-center justify-center px-4"
+      >
+        <div className="w-full max-w-[520px] rounded-[30px] border border-[#E3D6C3] bg-white px-7 py-8 text-center shadow-[0_18px_50px_rgba(30,27,46,0.08)]">
+          <h1 className="text-2xl font-black text-[#241A14]">
+            ❌ לא נמצאה הזמנה
+          </h1>
 
-        <button
-          onClick={fetchInvitation}
-          className="mt-6 bg-blue-600 text-white px-5 py-2 rounded hover:bg-blue-700 transition"
-        >
-          נסי שוב
-        </button>
+          <p className="mt-3 text-sm font-semibold leading-relaxed text-[#8A7B69]">
+            בדקי שה-ID בכתובת נכון ושיש הזמנה קיימת למזהה הזה.
+          </p>
+
+          <button
+            type="button"
+            onClick={fetchInvitation}
+            className="mt-6 h-[46px] rounded-2xl bg-[#B8844F] px-7 text-sm font-black text-white transition hover:bg-[#9F6F3F]"
+          >
+            נסי שוב
+          </button>
+        </div>
       </div>
     );
   }
 
   if (state === "error") {
     return (
-      <div className="p-10 text-center text-xl">
-        ❌ שגיאה בטעינה
-        <div className="mt-3 text-sm text-gray-500">{errorMsg}</div>
+      <div
+        dir="rtl"
+        className="min-h-screen bg-[#F6F1EA] flex items-center justify-center px-4"
+      >
+        <div className="w-full max-w-[520px] rounded-[30px] border border-[#E3D6C3] bg-white px-7 py-8 text-center shadow-[0_18px_50px_rgba(30,27,46,0.08)]">
+          <h1 className="text-2xl font-black text-[#241A14]">
+            ❌ שגיאה בטעינה
+          </h1>
 
-        <button
-          onClick={fetchInvitation}
-          className="mt-6 bg-blue-600 text-white px-5 py-2 rounded hover:bg-blue-700 transition"
-        >
-          נסי שוב
-        </button>
+          <p className="mt-3 text-sm font-semibold leading-relaxed text-[#8A7B69]">
+            {errorMsg}
+          </p>
+
+          <button
+            type="button"
+            onClick={fetchInvitation}
+            className="mt-6 h-[46px] rounded-2xl bg-[#B8844F] px-7 text-sm font-black text-white transition hover:bg-[#9F6F3F]"
+          >
+            נסי שוב
+          </button>
+        </div>
       </div>
     );
   }
@@ -152,50 +188,69 @@ export default function InvitationPreviewPage() {
   const shareId = invitation.shareId;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center py-10 px-4">
-      <h1 className="text-3xl font-bold mb-2 text-center">{safeTitle}</h1>
-      <p className="text-gray-500 mb-8">תצוגת מקדימה</p>
+    <div
+      dir="rtl"
+      className="
+        min-h-screen
+        bg-[#F6F1EA]
+        px-4
+        py-7
+        md:px-8
+        md:py-9
+      "
+    >
+      <main className="mx-auto flex w-full max-w-[720px] flex-col items-center">
+        <header className="mb-6 text-center">
+          <h1 className="text-3xl font-black tracking-tight text-[#241A14] md:text-4xl">
+            {safeTitle}
+          </h1>
 
-      {/* ⭐ תצוגה אמיתית של הקנבס */}
-      <div className="w-full max-w-md bg-white shadow rounded-xl p-6 mb-10 flex justify-center">
-        {invitation.canvasData ? (
-          <PublicInviteRenderer canvasData={invitation.canvasData} />
-        ) : (
-          <div className="text-sm text-gray-500">
-            אין עדיין תוכן קנבס להזמנה הזו.
-          </div>
-        )}
-      </div>
-
-      {/* ⭐ תצוגת iframe של הדף הציבורי */}
-      <div className="text-center w-full flex flex-col items-center">
-        <h2 className="text-lg font-medium mb-3">כך ייראה לאורחים:</h2>
+          <p className="mt-2 text-sm font-semibold text-[#8A7B69]">
+            תצוגה מקדימה של עמוד ההזמנה כפי שיופיע לאורחים
+          </p>
+        </header>
 
         {shareId ? (
-          <iframe
-            key={shareId}
-            src={`/invite/${shareId}`}
-            className="w-[360px] sm:w-[400px] h-[560px] sm:h-[600px] border rounded-xl shadow bg-white"
-          />
+          <>
+            <section
+              className="
+                w-full
+                overflow-hidden
+                rounded-[34px]
+                border
+                border-[#E3D6C3]
+                bg-white
+                shadow-[0_22px_65px_rgba(30,27,46,0.10)]
+              "
+            >
+              <iframe
+                key={shareId}
+                src={`/invite/${shareId}`}
+                title="תצוגה מקדימה להזמנה"
+                className="
+                  block
+                  h-[780px]
+                  w-full
+                  border-0
+                  bg-white
+                  md:h-[820px]
+                "
+              />
+            </section>
+
+            
+          </>
         ) : (
-          <div className="text-red-600 font-semibold">
-            ⚠ אין shareId להזמנה (לא ניתן להציג עמוד ציבורי)
+          <div className="w-full rounded-[28px] border border-red-200 bg-red-50 px-6 py-7 text-center">
+            <p className="text-base font-black text-red-700">
+              ⚠ אין shareId להזמנה
+            </p>
+            <p className="mt-2 text-sm font-semibold text-red-600">
+              לא ניתן להציג עמוד ציבורי בלי מזהה שיתוף.
+            </p>
           </div>
         )}
-      </div>
-
-      {/* ⭐ כפתור מעבר לעמוד הציבורי */}
-      {shareId && (
-        <div className="mt-8">
-          <Link
-            href={`/invite/${shareId}`}
-            target="_blank"
-            className="bg-blue-600 text-white px-5 py-2 rounded hover:bg-blue-700 transition"
-          >
-            צפי בעמוד הציבורי
-          </Link>
-        </div>
-      )}
+      </main>
     </div>
   );
 }
