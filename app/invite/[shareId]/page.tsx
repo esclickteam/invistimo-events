@@ -3,7 +3,6 @@
 import { useState, useEffect, useMemo, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import PublicInviteRenderer from "@/app/components/PublicInviteRenderer";
-import EventLocationCard from "@/app/components/EventLocationCard";
 
 /* ============================================================
    MENU LABELS
@@ -136,6 +135,122 @@ function GiftSection({ giftOptions }: { giftOptions?: GiftOptions }) {
         )}
       </div>
     </div>
+  );
+}
+
+/* ============================================================
+   NAVIGATION CARD
+============================================================ */
+
+type NavigationCardProps = {
+  location?: string;
+  venueName?: string;
+  address?: string;
+  lat?: number | string | null;
+  lng?: number | string | null;
+};
+
+function PublicNavigationCard({
+  location,
+  venueName,
+  address,
+  lat,
+  lng,
+}: NavigationCardProps) {
+  const cleanVenueName = (venueName ?? "").trim();
+  const cleanAddress = (address ?? location ?? "").trim();
+
+  const latValue = lat !== null && lat !== undefined ? String(lat).trim() : "";
+  const lngValue = lng !== null && lng !== undefined ? String(lng).trim() : "";
+  const hasCoords = !!latValue && !!lngValue;
+
+  const navigationText = [cleanVenueName, cleanAddress]
+    .filter(Boolean)
+    .join(", ");
+
+  const encodedNavigationText = encodeURIComponent(
+    navigationText || cleanAddress || cleanVenueName
+  );
+
+  const googleMapsUrl = hasCoords
+    ? `https://www.google.com/maps/search/?api=1&query=${latValue},${lngValue}`
+    : encodedNavigationText
+    ? `https://www.google.com/maps/search/?api=1&query=${encodedNavigationText}`
+    : "#";
+
+  const wazeUrl = hasCoords
+    ? `https://waze.com/ul?ll=${latValue},${lngValue}&navigate=yes`
+    : encodedNavigationText
+    ? `https://waze.com/ul?q=${encodedNavigationText}&navigate=yes`
+    : "#";
+
+  const googleMapEmbedUrl = hasCoords
+    ? `https://www.google.com/maps?q=${latValue},${lngValue}&output=embed`
+    : encodedNavigationText
+    ? `https://www.google.com/maps?q=${encodedNavigationText}&output=embed`
+    : "";
+
+  return (
+    <section className="w-full overflow-hidden rounded-[28px] border border-[#eadfce] bg-white/92 p-4 text-center shadow-[0_18px_55px_rgba(92,66,38,0.12)] backdrop-blur">
+      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#fff7ea] text-2xl shadow-sm">
+        📍
+      </div>
+
+      <h3 className="text-lg font-black text-[#2d241c]">ניווט למקום האירוע</h3>
+
+      {navigationText ? (
+        <>
+          <div className="mt-2 text-sm font-semibold leading-7 text-[#7b6a58]">
+            {cleanVenueName && <div>{cleanVenueName}</div>}
+            {cleanAddress && <div>{cleanAddress}</div>}
+          </div>
+
+          {googleMapEmbedUrl && (
+            <a
+              href={googleMapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="פתיחת מפת מיקום האירוע"
+              className="mt-4 block overflow-hidden rounded-[24px] border border-[#eadfce] bg-[#fbf8f2] shadow-sm transition hover:scale-[1.01] active:scale-[0.99]"
+            >
+              <iframe
+                title="מפת מיקום האירוע"
+                src={googleMapEmbedUrl}
+                width="100%"
+                height="220"
+                loading="lazy"
+                className="pointer-events-none block w-full border-0"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+            </a>
+          )}
+
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <a
+              href={wazeUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center rounded-2xl bg-[#33CC66] px-5 py-3 text-sm font-black text-white shadow-[0_14px_35px_rgba(51,204,102,0.24)] transition hover:scale-[1.02] active:scale-[0.98]"
+            >
+              ניווט ב־Waze
+            </a>
+
+            <a
+              href={googleMapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center rounded-2xl bg-gradient-to-l from-[#c79a55] to-[#8f6437] px-5 py-3 text-sm font-black text-white shadow-[0_14px_35px_rgba(143,100,55,0.22)] transition hover:scale-[1.02] active:scale-[0.98]"
+            >
+              פתיחה במפות
+            </a>
+          </div>
+        </>
+      ) : (
+        <p className="mt-2 text-sm font-semibold text-[#8a7763]">
+          מיקום האירוע עדיין לא הוגדר.
+        </p>
+      )}
+    </section>
   );
 }
 
@@ -657,7 +772,40 @@ export default function PublicInvitePage({ params }: any) {
         )}
 
         <div className="mt-7 w-full max-w-md">
-          <EventLocationCard location={invite?.location} />
+          <PublicNavigationCard
+            venueName={
+              invite?.venueName ||
+              invite?.venue ||
+              event?.venueName ||
+              event?.venue ||
+              ""
+            }
+            location={
+              invite?.location ||
+              invite?.address ||
+              event?.location ||
+              event?.address ||
+              ""
+            }
+            lat={
+              invite?.lat ||
+              invite?.latitude ||
+              event?.lat ||
+              event?.latitude ||
+              event?.locationLat ||
+              invite?.locationLat ||
+              null
+            }
+            lng={
+              invite?.lng ||
+              invite?.longitude ||
+              event?.lng ||
+              event?.longitude ||
+              event?.locationLng ||
+              invite?.locationLng ||
+              null
+            }
+          />
         </div>
 
         <footer className="mt-10 flex flex-col items-center gap-2 pb-4 text-center">
