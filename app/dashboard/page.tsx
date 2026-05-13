@@ -1261,7 +1261,6 @@ const rsvpVisualStats = useMemo(() => {
             isDemo={isDemo}
             router={router}
             onDemoBlocked={handleDemoBlockedAction}
-            onAddGuest={() => setOpenAddModal(true)}
             onImport={() => setShowImportModal(true)}
             onExportExcel={handleExportExcel}
           />
@@ -1375,22 +1374,22 @@ const rsvpVisualStats = useMemo(() => {
       </section>
 
       {/* ===================== CONTROLS ===================== */}
-      <section className="mb-5 rounded-[24px] border border-[#E7DED1] bg-white/85 p-4 shadow-sm">
+      <section className="mb-5">
         <GuestsControls
-  search={search}
-  setSearch={setSearch}
-  groups={groups}
-  selectedGroupId={selectedGroupId}
-  setSelectedGroupId={setSelectedGroupId}
-  onManageGroups={() => setOpenGroupModal(true)}
-  quickFilter={quickFilter}
-  setQuickFilter={setQuickFilter}
-  totalCount={guests.length}
-  displayCount={displayGuests.length}
-  onAddGuest={() => setOpenAddModal(true)}
-  onExportExcel={handleExportExcel}
-/>
-
+          search={search}
+          setSearch={setSearch}
+          groups={groups}
+          selectedGroupId={selectedGroupId}
+          setSelectedGroupId={setSelectedGroupId}
+          onManageGroups={() => setOpenGroupModal(true)}
+          quickFilter={quickFilter}
+          setQuickFilter={setQuickFilter}
+          totalCount={guests.length}
+          displayCount={displayGuests.length}
+          onExportExcel={handleExportExcel}
+          onAddGuest={() => setOpenAddModal(true)}
+          disabledAddGuest={!invitation}
+        />
       </section>
 
       {/* ===================== DESKTOP TABLE ===================== */}
@@ -2011,7 +2010,6 @@ function GoldenActionButtons({
   isDemo,
   router,
   onDemoBlocked,
-  onAddGuest,
   onImport,
   onExportExcel,
 }: {
@@ -2020,7 +2018,6 @@ function GoldenActionButtons({
   isDemo: boolean;
   router: any;
   onDemoBlocked: () => void;
-  onAddGuest: () => void;
   onImport: () => void;
   onExportExcel: () => void;
 }) {
@@ -2160,7 +2157,7 @@ function GoldenActionButtons({
       onClick={() => {
         if (!invitation) return;
 
-         if (isDemo) {
+        if (isDemo) {
           onDemoBlocked();
           return;
         }
@@ -2168,8 +2165,6 @@ function GoldenActionButtons({
         router.push("/dashboard/event");
       }}
     />
-
-    
 
     {/* 4️⃣ ייבוא מאקסל */}
     <GoldenActionButton
@@ -2229,18 +2224,6 @@ function GoldenActionButtons({
         >
           <span className="text-[#D8A85F]">✎</span>{" "}
           {invitation ? "עריכת הזמנה" : "יצירת הזמנה"}
-        </button>
-
-        <button
-          onClick={onAddGuest}
-          disabled={!invitation}
-          className={`h-[54px] rounded-2xl font-black border ${
-            invitation
-              ? "bg-white border-[#E3D6C3] text-[#241A14]"
-              : "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
-          }`}
-        >
-          ♙ הוספת מוזמן
         </button>
 
         <button

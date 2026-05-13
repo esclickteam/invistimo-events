@@ -1,324 +1,314 @@
 "use client";
 
-import { Dispatch, SetStateAction } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import type { QuickFilter } from "@/types/quickFilter";
 
-/* ============================================================
-   Types
-============================================================ */
-
-type Group = { _id: string; name: string };
+type Group = {
+  _id: string;
+  name: string;
+};
 
 type Props = {
-  /* 🔍 Search */
   search: string;
   setSearch: Dispatch<SetStateAction<string>>;
 
-  /* 🧩 Groups */
-  groups?: Group[];
-  selectedGroupId?: string;
-  setSelectedGroupId?: Dispatch<SetStateAction<string>>;
-  onManageGroups?: () => void;
+  groups: Group[];
+  selectedGroupId: string;
+  setSelectedGroupId: Dispatch<SetStateAction<string>>;
 
-  /* ⚡ Quick filters */
+  onManageGroups: () => void;
+
   quickFilter: QuickFilter;
   setQuickFilter: Dispatch<SetStateAction<QuickFilter>>;
 
-  /* 🔢 Count */
   totalCount: number;
   displayCount: number;
 
-  /* ➕ Add guest */
-  onAddGuest?: () => void;
+  onExportExcel: () => Promise<void> | void;
 
-  /* 📤 Export */
-  onExportExcel?: () => void;
+  onAddGuest: () => void;
+  disabledAddGuest?: boolean;
 };
-
-/* ============================================================
-   Component
-============================================================ */
 
 export default function GuestsControls({
   search,
   setSearch,
-
   groups,
   selectedGroupId,
   setSelectedGroupId,
   onManageGroups,
-
   quickFilter,
   setQuickFilter,
-
   totalCount,
   displayCount,
-
-  onAddGuest,
   onExportExcel,
+  onAddGuest,
+  disabledAddGuest = false,
 }: Props) {
-  const showGroups =
-    groups &&
-    setSelectedGroupId &&
-    typeof selectedGroupId === "string" &&
-    onManageGroups;
-
-  const isPendingView =
-    quickFilter === "pending" ||
-    quickFilter === "call_answered" ||
-    quickFilter === "call_no_answer" ||
-    quickFilter === "call_will_reply";
+  const filters: {
+    key: QuickFilter;
+    label: string;
+  }[] = [
+    { key: "all", label: "הכל" },
+    { key: "yes", label: "מגיעים" },
+    { key: "no", label: "לא מגיעים" },
+    { key: "pending", label: "בהמתנה" },
+    { key: "noTable", label: "בלי שולחן" },
+  ];
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* ================= Top row: Search + Actions ================= */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        {/* חיפוש */}
-        <div className="w-full md:w-[360px] relative">
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="חיפוש לפי שם או טלפון…"
+    <section
+      dir="rtl"
+      className="
+        relative
+        overflow-hidden
+        rounded-[32px]
+        border
+        border-[#D8C4A5]
+        bg-gradient-to-br
+        from-[#FFFDF8]
+        via-[#FFF9EE]
+        to-[#F4E7D2]
+        p-5
+        shadow-[0_18px_55px_rgba(91,63,31,0.13)]
+      "
+    >
+      <div
+        className="
+          pointer-events-none
+          absolute
+          -left-20
+          -top-24
+          h-48
+          w-48
+          rounded-full
+          bg-[#D9B46F]/25
+          blur-3xl
+        "
+      />
+
+      <div
+        className="
+          pointer-events-none
+          absolute
+          -right-24
+          -bottom-24
+          h-56
+          w-56
+          rounded-full
+          bg-[#B8844F]/15
+          blur-3xl
+        "
+      />
+
+      <div className="relative z-10">
+        <div
+          className="
+            mb-5
+            flex
+            flex-col
+            gap-4
+            lg:flex-row
+            lg:items-center
+            lg:justify-between
+          "
+        >
+          <div>
+            <h2 className="text-xl font-black text-[#241A14]">
+              רשימת מוזמנים
+            </h2>
+
+            <p className="mt-1 text-sm font-semibold text-[#8A7B69]">
+              מוצגים {displayCount} מתוך {totalCount} מוזמנים
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onExportExcel}
             className="
-              w-full
-              border
-              border-gray-300
+              h-[42px]
+              w-fit
               rounded-full
+              border
+              border-[#D8C4A5]
+              bg-white/85
               px-5
-              py-3
-              outline-none
-              focus:ring-2
-              focus:ring-[#c9b48f]
-              bg-white
+              text-sm
+              font-black
+              text-[#6B5437]
+              shadow-sm
+              transition
+              hover:bg-[#FFF7EA]
+              hover:shadow-md
             "
-          />
-
-          {search.trim() && (
-            <button
-              type="button"
-              onClick={() => setSearch("")}
-              className="
-                absolute
-                left-3
-                top-1/2
-                -translate-y-1/2
-                text-gray-400
-                hover:text-gray-700
-              "
-              aria-label="נקה חיפוש"
-            >
-              ✕
-            </button>
-          )}
+          >
+            ייצוא לאקסל
+          </button>
         </div>
 
-        {/* פעולות מקבילות לחיפוש */}
-        <div className="flex flex-wrap items-center gap-2 md:justify-end">
-          {onAddGuest && (
-  <button
-    type="button"
-    onClick={onAddGuest}
-    className="
-      rounded-full
-      border
-      border-[#8B5E34]
-      bg-gradient-to-l
-      from-[#8B5E34]
-      via-[#A8753F]
-      to-[#C49A5A]
-      px-5
-      py-2.5
-      text-sm
-      font-black
-      text-white
-      shadow-[0_10px_24px_rgba(139,94,52,0.28)]
-      hover:from-[#754A25]
-      hover:via-[#93622F]
-      hover:to-[#B8844F]
-      hover:shadow-[0_14px_30px_rgba(139,94,52,0.38)]
-      transition
-      whitespace-nowrap
-    "
-  >
-    + הוספת מוזמן
-  </button>
-)}
+        <div
+          className="
+            grid
+            grid-cols-1
+            gap-3
+            xl:grid-cols-[minmax(360px,1fr)_220px_190px]
+            xl:items-center
+          "
+        >
+          <div
+            className="
+              flex
+              min-h-[58px]
+              items-center
+              gap-3
+              rounded-[22px]
+              border
+              border-[#D8C4A5]
+              bg-white
+              px-4
+              shadow-[0_10px_25px_rgba(91,63,31,0.08)]
+            "
+          >
+            <span className="text-lg text-[#B8844F]">⌕</span>
 
-          {onExportExcel && (
-            <button
-              type="button"
-              onClick={onExportExcel}
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="חיפוש לפי שם או טלפון..."
               className="
-                rounded-full
-                border
-                border-gray-300
-                px-5
-                py-2.5
+                h-full
+                min-w-0
+                flex-1
+                bg-transparent
                 text-sm
-                font-semibold
-                bg-white
-                hover:bg-gray-50
-                transition
-                whitespace-nowrap
+                font-bold
+                text-[#241A14]
+                outline-none
+                placeholder:text-[#B0A79D]
               "
-            >
-              ייצוא לאקסל
-            </button>
-          )}
-        </div>
-      </div>
+            />
 
-      {/* ================= Groups + Tabs ================= */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex flex-wrap items-center gap-2">
-          {showGroups && (
-            <>
-              <select
-                value={selectedGroupId}
-                onChange={(e) => setSelectedGroupId(e.target.value)}
-                className="
-                  rounded-full
-                  border
-                  border-gray-300
-                  px-4
-                  py-2
-                  text-sm
-                  bg-white
-                  outline-none
-                  hover:bg-gray-50
-                  focus:ring-2
-                  focus:ring-[#c9b48f]
-                "
-              >
-                <option value="">כל הקבוצות</option>
-
-                {groups.map((g) => (
-                  <option key={g._id} value={g._id}>
-                    {g.name}
-                  </option>
-                ))}
-              </select>
-
+            {search && (
               <button
                 type="button"
-                onClick={onManageGroups}
+                onClick={() => setSearch("")}
                 className="
                   rounded-full
-                  border
-                  border-gray-300
-                  px-4
-                  py-2
-                  text-sm
-                  bg-white
-                  hover:bg-gray-50
+                  bg-[#F4EEE5]
+                  px-3
+                  py-1
+                  text-xs
+                  font-black
+                  text-[#7B6857]
                   transition
-                  whitespace-nowrap
+                  hover:bg-[#E9DDC8]
                 "
               >
-                + הוספת קבוצה
+                נקה
               </button>
-            </>
-          )}
+            )}
+          </div>
 
-          <FilterPill
-            active={quickFilter === "all"}
-            onClick={() => setQuickFilter("all")}
-            label="הכל"
-          />
+          <button
+            type="button"
+            onClick={onAddGuest}
+            disabled={disabledAddGuest}
+            className={`
+              h-[58px]
+              rounded-[22px]
+              px-6
+              text-sm
+              font-black
+              shadow-[0_14px_30px_rgba(184,132,79,0.28)]
+              transition
+              ${
+                disabledAddGuest
+                  ? "cursor-not-allowed bg-gray-200 text-gray-400 shadow-none"
+                  : "bg-gradient-to-l from-[#B8844F] via-[#D4A762] to-[#E7C98D] text-white hover:-translate-y-0.5 hover:shadow-[0_18px_38px_rgba(184,132,79,0.38)]"
+              }
+            `}
+          >
+            + הוספת מוזמן
+          </button>
 
-          <FilterPill
-            active={quickFilter === "yes"}
-            onClick={() => setQuickFilter("yes")}
-            label="מגיעים"
-          />
+          <select
+            value={selectedGroupId}
+            onChange={(event) => setSelectedGroupId(event.target.value)}
+            className="
+              h-[58px]
+              rounded-[22px]
+              border
+              border-[#D8C4A5]
+              bg-white
+              px-4
+              text-sm
+              font-black
+              text-[#241A14]
+              shadow-[0_10px_25px_rgba(91,63,31,0.06)]
+              outline-none
+            "
+          >
+            <option value="">כל הקבוצות</option>
 
-          <FilterPill
-            active={quickFilter === "no"}
-            onClick={() => setQuickFilter("no")}
-            label="לא מגיעים"
-          />
-
-          <FilterPill
-            active={isPendingView}
-            onClick={() => setQuickFilter("pending")}
-            label="ממתינים"
-          />
-
-          <FilterPill
-            active={quickFilter === "noTable"}
-            onClick={() => setQuickFilter("noTable")}
-            label="בלי שולחן"
-          />
+            {groups.map((group) => (
+              <option key={group._id} value={group._id}>
+                {group.name}
+              </option>
+            ))}
+          </select>
         </div>
 
-        <div className="text-sm text-gray-500 whitespace-nowrap">
-          מציג: <span className="font-semibold">{displayCount}</span> /{" "}
-          {totalCount}
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          {filters.map((filter) => {
+            const active = quickFilter === filter.key;
+
+            return (
+              <button
+                key={filter.key}
+                type="button"
+                onClick={() => setQuickFilter(filter.key)}
+                className={`
+                  h-[40px]
+                  rounded-full
+                  border
+                  px-5
+                  text-sm
+                  font-black
+                  transition
+                  ${
+                    active
+                      ? "border-[#B8844F] bg-[#B8844F] text-white shadow-[0_10px_20px_rgba(184,132,79,0.24)]"
+                      : "border-[#E3D6C3] bg-white/80 text-[#6B5B4A] hover:bg-[#FFF7EA]"
+                  }
+                `}
+              >
+                {filter.label}
+              </button>
+            );
+          })}
+
+          <button
+            type="button"
+            onClick={onManageGroups}
+            className="
+              h-[40px]
+              rounded-full
+              border
+              border-[#D8C4A5]
+              bg-white/80
+              px-5
+              text-sm
+              font-black
+              text-[#6B5437]
+              transition
+              hover:bg-[#FFF7EA]
+            "
+          >
+            + הוספת קבוצה
+          </button>
         </div>
       </div>
-
-      {/* ================= Pending Sub Tabs ================= */}
-      {isPendingView && (
-        <div className="flex gap-2 ps-1 flex-wrap">
-          <FilterPill
-            active={quickFilter === "call_answered"}
-            onClick={() => setQuickFilter("call_answered")}
-            label="ענה לשיחה"
-          />
-
-          <FilterPill
-            active={quickFilter === "call_no_answer"}
-            onClick={() => setQuickFilter("call_no_answer")}
-            label="לא ענה"
-          />
-
-          <FilterPill
-            active={quickFilter === "call_will_reply"}
-            onClick={() => setQuickFilter("call_will_reply")}
-            label="ישיב בהודעה"
-          />
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ============================================================
-   Filter pill
-============================================================ */
-
-function FilterPill({
-  active,
-  label,
-  onClick,
-}: {
-  active: boolean;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`
-        px-4
-        py-2
-        rounded-full
-        border
-        text-sm
-        font-medium
-        select-none
-        whitespace-nowrap
-        transition-all
-        ${
-          active
-            ? "bg-[#c9b48f] text-white border-[#c9b48f] shadow-sm"
-            : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-        }
-      `}
-      aria-pressed={active}
-    >
-      {label}
-    </button>
+    </section>
   );
 }
