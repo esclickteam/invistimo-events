@@ -1360,31 +1360,29 @@ export default function RsvpTab({
       </div>
 
       {showScheduled && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="max-h-[90vh] w-full max-w-[980px] overflow-hidden rounded-[30px] bg-[#FFF9F1] shadow-2xl">
-            <div className="flex items-center justify-between border-b border-[#E6D6BC] px-6 py-5">
-              <h2 className="text-xl font-black text-[#3A2417]">
-                📅 הודעות מתוזמנות
-              </h2>
+  <div className="mt-4 rounded-[30px] border border-[#E6D6BC] bg-[#FFF9F1] shadow-[0_18px_50px_rgba(78,49,27,0.10)] overflow-hidden">
+    <div className="flex items-center justify-between border-b border-[#E6D6BC] px-5 py-4">
+      <h2 className="text-lg font-black text-[#3A2417]">
+        📅 הודעות מתוזמנות
+      </h2>
 
-              <button
-                type="button"
-                onClick={() => setShowScheduled(false)}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F0E3D1] text-lg font-black text-[#3A2417] hover:bg-[#E6D6BC]"
-              >
-                ✕
-              </button>
-            </div>
+      <button
+        type="button"
+        onClick={() => setShowScheduled(false)}
+        className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F0E3D1] text-base font-black text-[#3A2417] hover:bg-[#E6D6BC]"
+      >
+        ✕
+      </button>
+    </div>
 
-            <div className="max-h-[75vh] overflow-auto p-6">
-              <ScheduledMessagesTable
-                messages={scheduledMessages}
-                onChange={loadScheduledMessages}
-              />
-            </div>
-          </div>
-        </div>
-      )}
+    <div className="max-h-[420px] overflow-auto p-4">
+      <ScheduledMessagesTable
+        messages={scheduledMessages}
+        onChange={loadScheduledMessages}
+      />
+    </div>
+  </div>
+)}
     </div>
   );
 }
