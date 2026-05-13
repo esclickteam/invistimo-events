@@ -110,8 +110,9 @@ function getImageQualityStatus(info: ImageInfo | null, mode: InviteImageMode) {
 }
 
 /* =========================================================
-   Live phone preview
-   תצוגה בזמן אמת — בלי iframe ובלי שמירה
+   Live Phone Preview
+   מציג רק את תמונת ההזמנה בזמן אמת.
+   לא משנה את עמוד אישור ההגעה האמיתי.
 ========================================================= */
 
 function LivePhonePreview({
@@ -125,29 +126,23 @@ function LivePhonePreview({
 }) {
   return (
     <div className="h-full w-full overflow-y-auto bg-[#f7efe5]">
-      {/* Mobile hero */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-[#fff8ef] via-[#f5e7d4] to-[#ead8bd] px-4 pb-6 pt-7 text-center">
+      <section className="relative overflow-hidden bg-gradient-to-b from-[#fff8ef] via-[#f5e7d4] to-[#ead8bd] px-4 pb-5 pt-7 text-center">
         <div className="absolute -right-10 -top-10 h-28 w-28 rounded-full bg-[#d9b978]/45 blur-2xl" />
         <div className="absolute -left-12 bottom-0 h-32 w-32 rounded-full bg-[#8a5cf6]/12 blur-2xl" />
-
-        <div className="relative mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/70 text-xl shadow-lg">
-          ✨
-        </div>
 
         <p className="relative text-[10px] font-black tracking-[0.28em] text-[#b58a55]">
           INVISTIMO
         </p>
 
-        <h2 className="relative mt-2 text-xl font-black leading-tight text-[#2d241c]">
-          {invite?.title || "ההזמנה שלכם"}
+        <h2 className="relative mt-2 text-lg font-black leading-tight text-[#2d241c]">
+          {invite?.title || "תצוגת ההזמנה"}
         </h2>
 
         <p className="relative mx-auto mt-2 max-w-[240px] text-xs leading-5 text-[#7a6652]">
-          תצוגה חיה של ההזמנה כפי שהיא תיראה לאורחים בטלפון
+          תצוגה חיה של תמונת ההזמנה בלבד
         </p>
       </section>
 
-      {/* Invitation image */}
       <section className="px-4 py-5">
         {imageUrl ? (
           <div className="mx-auto rounded-[30px] bg-white p-3 shadow-[0_20px_55px_rgba(71,48,25,0.18)]">
@@ -169,9 +164,11 @@ function LivePhonePreview({
               <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#fbf4e8] text-2xl">
                 🖼️
               </div>
+
               <p className="text-sm font-black text-[#4d3b2b]">
                 כאן תופיע תמונת ההזמנה
               </p>
+
               <p className="mt-2 text-xs leading-5 text-[#8a7967]">
                 העלי תמונה מצד שמאל והתצוגה תתעדכן כאן מיד
               </p>
@@ -180,44 +177,11 @@ function LivePhonePreview({
         )}
       </section>
 
-      {/* RSVP area mock */}
       <section className="px-4 pb-8">
-        <div className="rounded-[30px] border border-[#eadfce] bg-white p-4 shadow-[0_16px_45px_rgba(71,48,25,0.12)]">
-          <div className="mb-4 flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#efe7ff] text-lg">
-              💌
-            </div>
-
-            <div>
-              <p className="text-sm font-black text-[#2d241c]">
-                אישור הגעה
-              </p>
-              <p className="text-[11px] text-[#8a7967]">
-                טופס אישי לכל אורח
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <button
-              type="button"
-              disabled
-              className="w-full rounded-2xl bg-gradient-to-l from-[#8a5cf6] to-[#6d3ee8] px-4 py-3 text-sm font-black text-white shadow-lg opacity-95"
-            >
-              מאשר/ת הגעה
-            </button>
-
-            <button
-              type="button"
-              disabled
-              className="w-full rounded-2xl border border-[#eadfce] bg-[#fbf8f2] px-4 py-3 text-sm font-bold text-[#5a4634]"
-            >
-              לא אוכל להגיע
-            </button>
-          </div>
-
-          <p className="mt-4 text-center text-[11px] leading-5 text-[#9a8771]">
-            זו תצוגה חיה בלבד. הקישור האישי האמיתי ואישורי ההגעה נשארים ללא שינוי.
+        <div className="rounded-[24px] border border-[#eadfce] bg-white/85 p-4 text-center shadow-sm">
+          <p className="text-xs leading-5 text-[#8a7967]">
+            זו תצוגה חיה של תמונת ההזמנה בלבד. עמוד אישור ההגעה האמיתי נשאר
+            כמו שהוא ולא משתנה.
           </p>
         </div>
       </section>
@@ -366,6 +330,7 @@ export default function EditInvitePage() {
 
   /* =========================================================
      Save invitation
+     לא נוגעים בקישור אישי / אורחים / RSVP / שרת של הודעות.
   ========================================================= */
 
   const handleSave = async () => {
@@ -448,6 +413,7 @@ export default function EditInvitePage() {
       >
         <div className="rounded-3xl bg-white px-8 py-7 shadow-xl border border-[#eadfce] text-center">
           <div className="mx-auto mb-4 h-10 w-10 rounded-full border-4 border-[#d7b98b] border-t-transparent animate-spin" />
+
           <p className="text-lg font-semibold text-[#3b2a1f]">
             טוען את ההזמנה...
           </p>
@@ -479,9 +445,11 @@ export default function EditInvitePage() {
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#b58a55]">
                 Invistimo
               </p>
+
               <h1 className="truncate text-xl font-bold text-[#2d241c] md:text-2xl">
                 יצירת / עריכת הזמנה
               </h1>
+
               <p className="mt-1 text-xs text-[#8a7967] md:text-sm">
                 העלאת הזמנה מוכנה באיכות גבוהה — בלי קנבס, בצורה נקייה ויוקרתית
               </p>
@@ -527,11 +495,14 @@ export default function EditInvitePage() {
                     <p className="text-sm font-semibold text-[#b58a55]">
                       תמונת ההזמנה
                     </p>
+
                     <h2 className="text-2xl font-black text-[#2d241c]">
                       העלאת הזמנה מוכנה באיכות גבוהה
                     </h2>
+
                     <p className="mt-1 text-sm text-[#7b6a58]">
-                      התמונה תוצג במלואה, תישמר לשליחה בוואטסאפ, ותתעדכן מיד בתצוגת הטלפון.
+                      התמונה תוצג במלואה, תישמר לשליחה בוואטסאפ, ותתעדכן מיד
+                      בתצוגת הטלפון.
                     </p>
                   </div>
 
@@ -575,6 +546,7 @@ export default function EditInvitePage() {
                         }`}
                       >
                         <div className="absolute inset-0 rounded-[38px] bg-gradient-to-b from-[#fff9f2] via-[#f8f0e3] to-[#f1e4d2] shadow-[0_35px_100px_rgba(80,51,25,0.15)]" />
+
                         <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-[#ead3ab]/50 blur-2xl" />
                         <div className="absolute -bottom-6 -left-6 h-28 w-28 rounded-full bg-[#8a5cf6]/10 blur-2xl" />
 
@@ -584,6 +556,7 @@ export default function EditInvitePage() {
                               <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[#b58a55]">
                                 Luxury Preview
                               </p>
+
                               <p className="text-sm font-bold text-[#3b2a1f]">
                                 תצוגת ההזמנה
                               </p>
@@ -709,6 +682,7 @@ export default function EditInvitePage() {
                   <p className="text-sm font-semibold text-[#b58a55]">
                     סוג ההזמנה
                   </p>
+
                   <h3 className="text-xl font-black text-[#2d241c]">
                     בחירת פורמט
                   </h3>
@@ -725,7 +699,9 @@ export default function EditInvitePage() {
                     }`}
                   >
                     <div className="mx-auto mb-3 h-24 w-14 rounded-xl border-2 border-current bg-white/70" />
+
                     <p className="text-center text-sm font-black">לאורך</p>
+
                     <p className="mt-1 text-center text-xs text-[#7b6a58]">
                       1080×1920
                     </p>
@@ -741,7 +717,9 @@ export default function EditInvitePage() {
                     }`}
                   >
                     <div className="mx-auto mb-3 h-20 w-20 rounded-xl border-2 border-current bg-white/70" />
+
                     <p className="text-center text-sm font-black">מרובע</p>
+
                     <p className="mt-1 text-center text-xs text-[#7b6a58]">
                       1080×1080
                     </p>
@@ -755,37 +733,37 @@ export default function EditInvitePage() {
               </div>
 
               <div className="rounded-[30px] border border-[#eadfce] bg-[#2d241c] p-5 text-white shadow-[0_18px_60px_rgba(71,48,25,0.12)]">
-                <p className="text-sm font-bold text-[#e8c995]">
-                  חשוב לדעת
-                </p>
+                <p className="text-sm font-bold text-[#e8c995]">חשוב לדעת</p>
 
                 <ul className="mt-3 space-y-2 text-sm leading-6 text-white/82">
                   <li>• ההזמנה תוצג במלואה ללא חיתוך.</li>
                   <li>• התמונה נשמרת לשליחה בוואטסאפ.</li>
                   <li>• קישורי אישור ההגעה האישיים לא משתנים.</li>
                   <li>• הזמנות קיימות ממשיכות להשתמש בתמונה שכבר נשמרה.</li>
-                  <li>• תצוגת הטלפון מתעדכנת בזמן אמת לפני שמירה.</li>
+                  <li>• תצוגת הטלפון מציגה בזמן אמת את תמונת ההזמנה בלבד.</li>
+                  <li>• עמוד אישור ההגעה האמיתי לא משתנה.</li>
                 </ul>
               </div>
             </div>
           </div>
 
-          {/* Right side - Live phone preview */}
+          {/* Right side - Live phone image preview */}
           <aside className="space-y-6">
             <div className="xl:sticky xl:top-24 space-y-6">
               <div className="rounded-[32px] border border-[#eadfce] bg-white p-5 shadow-[0_20px_70px_rgba(71,48,25,0.10)]">
-                <div className="mb-4 flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-[#b58a55]">
-                      תצוגת מובייל חיה
-                    </p>
-                    <h3 className="text-xl font-black text-[#2d241c]">
-                      כך זה נראה בטלפון
-                    </h3>
-                    <p className="mt-1 text-xs leading-5 text-[#7b6a58]">
-                      התצוגה מתעדכנת מיד כשמעלים תמונה או משנים פורמט.
-                    </p>
-                  </div>
+                <div className="mb-4">
+                  <p className="text-sm font-semibold text-[#b58a55]">
+                    תצוגת מובייל חיה
+                  </p>
+
+                  <h3 className="text-xl font-black text-[#2d241c]">
+                    כך התמונה נראית בטלפון
+                  </h3>
+
+                  <p className="mt-1 text-xs leading-5 text-[#7b6a58]">
+                    זו תצוגה חיה של תמונת ההזמנה בלבד. עמוד אישור ההגעה האמיתי
+                    נשאר כמו שהוא.
+                  </p>
                 </div>
 
                 <div className="mx-auto w-full max-w-[330px]">
@@ -828,9 +806,7 @@ export default function EditInvitePage() {
               </div>
 
               <div className="rounded-[30px] border border-[#eadfce] bg-white p-5 shadow-[0_18px_60px_rgba(71,48,25,0.08)]">
-                <p className="text-sm font-semibold text-[#b58a55]">
-                  פעולות
-                </p>
+                <p className="text-sm font-semibold text-[#b58a55]">פעולות</p>
 
                 <div className="mt-4 space-y-3">
                   <button
