@@ -523,18 +523,10 @@ export default function PublicInvitePage({ params }: any) {
 
             <div className="relative">
               <div className="mb-6 text-center">
-                <p className="text-xs font-bold tracking-[0.22em] text-[#b58a55]">
-                  RSVP
-                </p>
-
-                <h2 className="mt-2 text-2xl font-black text-[#2d241c]">
-                  האם תגיעו?
-                </h2>
-
-                <p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-[#7b6a58]">
-                  סמנו את תשובתכם כדי שנוכל להיערך בהתאם
-                </p>
-              </div>
+  <h2 className="text-2xl font-black text-[#2d241c] leading-tight">
+    נשמח לדעת אם תגיעו לחגוג איתנו
+  </h2>
+</div>
 
               {/* מגיע / לא מגיע */}
               <div className="grid grid-cols-2 gap-3">
