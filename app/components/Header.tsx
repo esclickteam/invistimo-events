@@ -104,87 +104,19 @@ export default function Header() {
             </Link>
           </div>
 
-          {/* מרכז — לוגו יוקרתי באמצע */}
-<div className="flex justify-center">
-  <Link
-    href="/"
-    aria-label="Invistimo Home"
-    className="
-      group flex items-center gap-3
-      rounded-full
-      px-4 py-2
-      transition
-      hover:bg-[#FFF8EA]
-    "
-  >
-    {/* סמל */}
-    <div
-      className="
-        relative flex h-12 w-12 items-center justify-center
-        rounded-full
-        border border-[#D8B15E]
-        bg-gradient-to-br from-[#FFF8EA] via-[#F7E3B2] to-[#C79A3B]
-        shadow-[0_10px_24px_rgba(184,134,45,0.22)]
-      "
-    >
-      <span
-        className="
-          font-serif text-[28px] font-bold
-          leading-none
-          text-[#7A551C]
-        "
-      >
-        I
-      </span>
-
-      <span
-        className="
-          absolute -left-1 top-1/2 h-[18px] w-[18px]
-          -translate-y-1/2
-          rounded-full
-          border-l border-[#B88A2D]
-          opacity-70
-        "
-      />
-
-      <span
-        className="
-          absolute -right-1 top-1/2 h-[18px] w-[18px]
-          -translate-y-1/2
-          rounded-full
-          border-r border-[#B88A2D]
-          opacity-70
-        "
-      />
-    </div>
-
-    {/* טקסט */}
-    <div className="hidden flex-col leading-none sm:flex" dir="ltr">
-      <span
-        className="
-          font-serif text-[25px] font-semibold
-          tracking-[0.22em]
-          text-[#2F261E]
-          group-hover:text-[#8B6220]
-          transition
-        "
-      >
-        INVISTIMO
-      </span>
-
-      <span
-        dir="rtl"
-        className="
-          mt-1 text-center text-[11px] font-medium
-          tracking-[0.04em]
-          text-[#7A6A58]
-        "
-      >
-        אירוע מושלם. ניהול חכם.
-      </span>
-    </div>
-  </Link>
-</div>
+          <div className="flex justify-center" dir="ltr">
+            <Link href="/" aria-label="Invistimo Home" className="block">
+              <img
+                src="/invistimo-logo.png"
+                alt="Invistimo Logo"
+                className="
+                  h-[58px] w-auto select-none
+                  drop-shadow-[0_8px_18px_rgba(158,116,42,0.18)]
+                "
+                draggable={false}
+              />
+            </Link>
+          </div>
 
           <div className="flex justify-end">
             <button
