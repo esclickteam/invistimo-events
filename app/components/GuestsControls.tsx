@@ -20,7 +20,7 @@ type Props = {
   setSelectedGroupId?: Dispatch<SetStateAction<string>>;
   onManageGroups?: () => void;
 
-  /* ⚡ Quick filters (SOURCE OF TRUTH) */
+  /* ⚡ Quick filters */
   quickFilter: QuickFilter;
   setQuickFilter: Dispatch<SetStateAction<QuickFilter>>;
 
@@ -63,7 +63,6 @@ export default function GuestsControls({
     typeof selectedGroupId === "string" &&
     onManageGroups;
 
-  // ⭐️ האם אנחנו בתוך עולם "ממתינים"
   const isPendingView =
     quickFilter === "pending" ||
     quickFilter === "call_answered" ||
@@ -71,49 +70,106 @@ export default function GuestsControls({
     quickFilter === "call_will_reply";
 
   return (
-    <div className="flex flex-col gap-3 mb-4">
-      {/* ================= Search ================= */}
-      <div className="w-full md:w-[360px] relative">
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="חיפוש לפי שם או טלפון…"
-          className="
-            w-full
-            border
-            border-gray-300
-            rounded-full
-            px-5
-            py-3
-            outline-none
-            focus:ring-2
-            focus:ring-[#c9b48f]
-            bg-white
-          "
-        />
-
-        {search.trim() && (
-          <button
-            type="button"
-            onClick={() => setSearch("")}
+    <div className="flex flex-col gap-4">
+      {/* ================= Top row: Search + Actions ================= */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        {/* חיפוש */}
+        <div className="w-full md:w-[360px] relative">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="חיפוש לפי שם או טלפון…"
             className="
-              absolute
-              left-3
-              top-1/2
-              -translate-y-1/2
-              text-gray-400
-              hover:text-gray-700
+              w-full
+              border
+              border-gray-300
+              rounded-full
+              px-5
+              py-3
+              outline-none
+              focus:ring-2
+              focus:ring-[#c9b48f]
+              bg-white
             "
-            aria-label="נקה חיפוש"
-          >
-            ✕
-          </button>
-        )}
+          />
+
+          {search.trim() && (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              className="
+                absolute
+                left-3
+                top-1/2
+                -translate-y-1/2
+                text-gray-400
+                hover:text-gray-700
+              "
+              aria-label="נקה חיפוש"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+
+        {/* פעולות מקבילות לחיפוש */}
+        <div className="flex flex-wrap items-center gap-2 md:justify-end">
+          {onAddGuest && (
+  <button
+    type="button"
+    onClick={onAddGuest}
+    className="
+      rounded-full
+      border
+      border-[#8B5E34]
+      bg-gradient-to-l
+      from-[#8B5E34]
+      via-[#A8753F]
+      to-[#C49A5A]
+      px-5
+      py-2.5
+      text-sm
+      font-black
+      text-white
+      shadow-[0_10px_24px_rgba(139,94,52,0.28)]
+      hover:from-[#754A25]
+      hover:via-[#93622F]
+      hover:to-[#B8844F]
+      hover:shadow-[0_14px_30px_rgba(139,94,52,0.38)]
+      transition
+      whitespace-nowrap
+    "
+  >
+    + הוספת מוזמן
+  </button>
+)}
+
+          {onExportExcel && (
+            <button
+              type="button"
+              onClick={onExportExcel}
+              className="
+                rounded-full
+                border
+                border-gray-300
+                px-5
+                py-2.5
+                text-sm
+                font-semibold
+                bg-white
+                hover:bg-gray-50
+                transition
+                whitespace-nowrap
+              "
+            >
+              ייצוא לאקסל
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* ================= Groups + Main Tabs + Actions ================= */}
+      {/* ================= Groups + Tabs ================= */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        {/* צד ימין – קבוצות + פילטרים */}
         <div className="flex flex-wrap items-center gap-2">
           {showGroups && (
             <>
@@ -164,31 +220,6 @@ export default function GuestsControls({
             </>
           )}
 
-          {onAddGuest && (
-            <button
-              type="button"
-              onClick={onAddGuest}
-              className="
-                rounded-full
-                border
-                border-[#c9b48f]
-                bg-[#c9b48f]
-                px-5
-                py-2
-                text-sm
-                font-semibold
-                text-white
-                shadow-sm
-                hover:bg-[#b89f78]
-                hover:border-[#b89f78]
-                transition
-                whitespace-nowrap
-              "
-            >
-              + הוספת מוזמן
-            </button>
-          )}
-
           <FilterPill
             active={quickFilter === "all"}
             onClick={() => setQuickFilter("all")}
@@ -220,29 +251,10 @@ export default function GuestsControls({
           />
         </div>
 
-        {/* צד שמאל – פעולות */}
-        {onExportExcel && (
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onExportExcel}
-              className="
-                rounded-full
-                border
-                border-gray-300
-                px-4
-                py-2
-                text-sm
-                bg-white
-                hover:bg-gray-50
-                transition
-                whitespace-nowrap
-              "
-            >
-              ייצוא לאקסל
-            </button>
-          </div>
-        )}
+        <div className="text-sm text-gray-500 whitespace-nowrap">
+          מציג: <span className="font-semibold">{displayCount}</span> /{" "}
+          {totalCount}
+        </div>
       </div>
 
       {/* ================= Pending Sub Tabs ================= */}
@@ -267,12 +279,6 @@ export default function GuestsControls({
           />
         </div>
       )}
-
-      {/* ================= Counter ================= */}
-      <div className="text-sm text-gray-500 whitespace-nowrap">
-        מציג: <span className="font-semibold">{displayCount}</span> /{" "}
-        {totalCount}
-      </div>
     </div>
   );
 }
