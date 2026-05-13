@@ -241,7 +241,6 @@ export default function PublicInvitePage({ params }: any) {
 
   /* ============================================================
      LIVE PREVIEW MESSAGE FROM EDIT PAGE
-     זה מה שמעביר את התמונה הזמנית לתצוגה שבעריכה.
   ============================================================ */
 
   useEffect(() => {
@@ -291,14 +290,21 @@ export default function PublicInvitePage({ params }: any) {
           if (data.guest) {
             setSelectedGuest(data.guest);
 
-            if (data.guest.rsvp) {
+            /*
+              לא מסמנים "מגיע" כברירת מחדל.
+              רק אם האורח כבר ענה בעבר yes/no — נטען את הבחירה הקיימת.
+            */
+            if (data.guest.rsvp === "yes" || data.guest.rsvp === "no") {
               setForm((f) => ({
                 ...f,
                 rsvp: data.guest.rsvp,
                 arrivedCount:
+                  data.guest.rsvp === "yes" &&
                   typeof data.guest.arrivedCount === "number"
                     ? data.guest.arrivedCount
-                    : 1,
+                    : data.guest.rsvp === "yes"
+                    ? 1
+                    : 0,
                 notes: Array.isArray(data.guest.notes)
                   ? data.guest.notes
                   : [],
@@ -365,6 +371,11 @@ export default function PublicInvitePage({ params }: any) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    if (form.rsvp !== "yes" && form.rsvp !== "no") {
+      alert("יש לבחור האם מגיעים או לא מגיעים");
+      return;
+    }
 
     if (!selectedGuest?.token) {
       alert("שגיאה בזיהוי האורח");
@@ -477,18 +488,23 @@ export default function PublicInvitePage({ params }: any) {
       </div>
 
       <main className="relative mx-auto flex min-h-screen w-full max-w-2xl flex-col items-center px-4 py-8 pb-28">
-        <section className="mb-5 text-center">
-          <p className="text-[11px] font-black tracking-[0.28em] text-[#b58a55]">
-            INVISTIMO
+        {/* Elegant top */}
+        <section className="mb-6 w-full max-w-md text-center">
+          <div className="mx-auto mb-4 h-px w-28 bg-gradient-to-l from-transparent via-[#c79a55] to-transparent" />
+
+          <p className="text-xs font-bold tracking-[0.24em] text-[#b58a55]">
+            הזמנה לאירוע
           </p>
 
-          <h1 className="mt-2 text-2xl font-black leading-tight text-[#2d241c]">
-            {invite?.title || "הזמנה לאירוע"}
+          <h1 className="mt-3 text-3xl font-black leading-tight text-[#2d241c]">
+            {invite?.title || "שמחים להזמינכם"}
           </h1>
 
-          <p className="mt-2 text-sm font-semibold text-[#7b6a58]">
-            נשמח לראותכם איתנו
+          <p className="mx-auto mt-3 max-w-xs text-sm font-medium leading-6 text-[#7b6a58]">
+            נשמח לראותכם איתנו ולחגוג יחד ברגעים המיוחדים
           </p>
+
+          <div className="mx-auto mt-5 h-px w-20 bg-gradient-to-l from-transparent via-[#d7b98b] to-transparent" />
         </section>
 
         <InvitationImageCard
@@ -507,16 +523,16 @@ export default function PublicInvitePage({ params }: any) {
 
             <div className="relative">
               <div className="mb-6 text-center">
-                <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#fff7e8] text-3xl shadow-sm">
-                  💌
-                </div>
+                <p className="text-xs font-bold tracking-[0.22em] text-[#b58a55]">
+                  RSVP
+                </p>
 
-                <h2 className="text-xl font-black text-[#2d241c]">
-                  אישור הגעה
+                <h2 className="mt-2 text-2xl font-black text-[#2d241c]">
+                  האם תגיעו?
                 </h2>
 
-                <p className="mt-1 text-sm text-[#7b6a58]">
-                  נשמח לדעת אם תגיעו לחגוג איתנו
+                <p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-[#7b6a58]">
+                  סמנו את תשובתכם כדי שנוכל להיערך בהתאם
                 </p>
               </div>
 
@@ -528,14 +544,13 @@ export default function PublicInvitePage({ params }: any) {
                     setForm({ ...form, rsvp: "yes", arrivedCount: 1 });
                     setHeartTrigger(Date.now());
                   }}
-                  className={`group relative overflow-hidden rounded-2xl border px-4 py-4 text-sm font-black transition ${
+                  className={`relative overflow-hidden rounded-2xl border px-4 py-4 text-sm font-black transition ${
                     form.rsvp === "yes"
                       ? "border-[#c79a55] bg-gradient-to-l from-[#c79a55] to-[#8f6437] text-white shadow-lg"
                       : "border-[#eadfce] bg-[#fbf8f2] text-[#5a4634] hover:border-[#c79a55] hover:bg-[#fff7ea]"
                   }`}
                 >
-                  <span className="relative z-10">מגיע/ה</span>
-                  <span className="relative z-10 mr-1">😍</span>
+                  מגיע/ה
                 </button>
 
                 <button
@@ -652,6 +667,18 @@ export default function PublicInvitePage({ params }: any) {
         <div className="mt-7 w-full max-w-md">
           <EventLocationCard location={invite?.location} />
         </div>
+
+        <footer className="mt-10 flex flex-col items-center gap-2 pb-4 text-center">
+          <div className="h-px w-24 bg-gradient-to-l from-transparent via-[#d7b98b] to-transparent" />
+
+          <div className="font-serif text-2xl font-black tracking-wide text-[#3a2c20]">
+            Invistimo
+          </div>
+
+          <p className="text-[11px] font-medium text-[#9a8771]">
+            Digital invitation & RSVP
+          </p>
+        </footer>
       </main>
     </div>
   );
