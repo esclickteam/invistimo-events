@@ -678,7 +678,7 @@ export default function HomePage() {
                   hover:text-[#B8862D]
                 "
               >
-                לראות חבילות
+               לצפייה בחבילות
               </Link>
             </div>
           </motion.div>
