@@ -13,50 +13,31 @@ type MenuOptions = {
   transportation: boolean;
 };
 
-type MenuOptionQuantities = Record<keyof MenuOptions, number>;
-
 type InvitationSettings = {
   showStoryAfterConfirm: boolean;
   showGiftLinkAfterConfirm: boolean;
   allowGuestNote: boolean;
   menuOptions: MenuOptions;
-
-  // כמות מנות / מספר אנשים להסעה
-  menuOptionQuantities: MenuOptionQuantities;
 };
 
 type Props = {
   invitationId: string;
 };
 
-const defaultMenuOptions: MenuOptions = {
-  vegetarian: false,
-  vegan: false,
-  glutenFree: false,
-  childrenMeal: false,
-  kosher: false,
-  kosherGlatt: false,
-  kosherMahfoud: false,
-  transportation: false,
-};
-
-const defaultMenuOptionQuantities: MenuOptionQuantities = {
-  vegetarian: 0,
-  vegan: 0,
-  glutenFree: 0,
-  childrenMeal: 0,
-  kosher: 0,
-  kosherGlatt: 0,
-  kosherMahfoud: 0,
-  transportation: 0,
-};
-
 const defaultSettings: InvitationSettings = {
   showStoryAfterConfirm: false,
   showGiftLinkAfterConfirm: false,
   allowGuestNote: false,
-  menuOptions: defaultMenuOptions,
-  menuOptionQuantities: defaultMenuOptionQuantities,
+  menuOptions: {
+    vegetarian: false,
+    vegan: false,
+    glutenFree: false,
+    childrenMeal: false,
+    kosher: false,
+    kosherGlatt: false,
+    kosherMahfoud: false,
+    transportation: false,
+  },
 };
 
 const MENU_LABELS: Record<keyof MenuOptions, string> = {
@@ -71,20 +52,19 @@ const MENU_LABELS: Record<keyof MenuOptions, string> = {
 };
 
 const MENU_DESCRIPTIONS: Record<keyof MenuOptions, string> = {
-  vegetarian: "אפשרות לאורחים לבחור מנה צמחונית",
-  vegan: "אפשרות לאורחים לבחור מנה טבעונית",
-  glutenFree: "אפשרות לאורחים לסמן צורך במנה ללא גלוטן",
-  childrenMeal: "אפשרות לסמן כמות מנות ילדים",
-  kosher: "אפשרות לסמן מנה כשרה",
-  kosherGlatt: "אפשרות לסמן מנה כשר גלאט",
-  kosherMahfoud: "אפשרות לסמן מנה כשר מחפוד",
-  transportation: "אפשרות לאורחים להצטרף להסעה",
+  vegetarian: "הצגת אפשרות למנה צמחונית בטופס אישור ההגעה",
+  vegan: "הצגת אפשרות למנה טבעונית בטופס אישור ההגעה",
+  glutenFree: "הצגת אפשרות לסימון רגישות / צורך במנה ללא גלוטן",
+  childrenMeal: "הצגת אפשרות לבחירת מנת ילדים",
+  kosher: "הצגת אפשרות לבחירת מנה כשרה",
+  kosherGlatt: "הצגת אפשרות לבחירת מנה כשר גלאט",
+  kosherMahfoud: "הצגת אפשרות לבחירת מנה כשר מחפוד",
+  transportation: "הצגת אפשרות להצטרפות להסעות",
 };
 
 export default function InvitationSettingsComponent({ invitationId }: Props) {
   const [settings, setSettings] =
     useState<InvitationSettings>(defaultSettings);
-
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -104,20 +84,12 @@ export default function InvitationSettingsComponent({ invitationId }: Props) {
         const data = await res.json();
 
         if (data?.success && data.invitation?.invitationSettings) {
-          const invitationSettings = data.invitation.invitationSettings;
-
           setSettings({
             ...defaultSettings,
-            ...invitationSettings,
-
+            ...data.invitation.invitationSettings,
             menuOptions: {
               ...defaultSettings.menuOptions,
-              ...invitationSettings.menuOptions,
-            },
-
-            menuOptionQuantities: {
-              ...defaultSettings.menuOptionQuantities,
-              ...invitationSettings.menuOptionQuantities,
+              ...data.invitation.invitationSettings.menuOptions,
             },
           });
         } else {
@@ -155,33 +127,6 @@ export default function InvitationSettingsComponent({ invitationId }: Props) {
     } finally {
       setSaving(false);
     }
-  };
-
-  const updateMenuOption = (key: keyof MenuOptions, value: boolean) => {
-    setSettings((prev) => ({
-      ...prev,
-      menuOptions: {
-        ...prev.menuOptions,
-        [key]: value,
-      },
-
-      menuOptionQuantities: {
-        ...prev.menuOptionQuantities,
-        [key]: value ? prev.menuOptionQuantities[key] || 0 : 0,
-      },
-    }));
-  };
-
-  const updateQuantity = (key: keyof MenuOptions, value: string) => {
-    const nextValue = Math.max(0, Number(value) || 0);
-
-    setSettings((prev) => ({
-      ...prev,
-      menuOptionQuantities: {
-        ...prev.menuOptionQuantities,
-        [key]: nextValue,
-      },
-    }));
   };
 
   if (loading) {
@@ -248,7 +193,6 @@ export default function InvitationSettingsComponent({ invitationId }: Props) {
         "
       />
 
-      {/* Header */}
       <div
         className="
           relative
@@ -285,31 +229,38 @@ export default function InvitationSettingsComponent({ invitationId }: Props) {
         </div>
 
         <h2 className="text-2xl font-black tracking-tight text-[#241A14]">
-          הגדרות מנות והסעות
+          הגדרות אישור הגעה
         </h2>
 
         <p className="mt-2 max-w-[720px] text-sm font-semibold leading-relaxed text-[#8A7B69]">
-          בחרי אילו אפשרויות יוצגו לאורחים בזמן אישור ההגעה, והגדירי כמות
-          מנות או מספר אנשים להסעה לפי הצורך.
+          בחרי אילו אפשרויות יוצגו לאורחים בזמן אישור ההגעה.
         </p>
       </div>
 
-      {/* Body */}
       <div className="relative z-10 px-7 py-6">
-        <div className="mb-5 rounded-[26px] border border-[#EFE4D6] bg-white/75 p-5 shadow-[0_10px_30px_rgba(91,63,31,0.06)]">
+        <div
+          className="
+            mb-5
+            rounded-[26px]
+            border
+            border-[#EFE4D6]
+            bg-white/75
+            p-5
+            shadow-[0_10px_30px_rgba(91,63,31,0.06)]
+          "
+        >
           <h3 className="text-lg font-black text-[#241A14]">
-            אפשרויות שיופיעו לאורחים
+            הגדרת הערות לאורחים
           </h3>
 
           <p className="mt-1 text-sm font-semibold text-[#8A7B69]">
-            אפשר להפעיל כל אפשרות בנפרד, וברגע שהיא פעילה ניתן להגדיר לה כמות.
+            האפשרויות הפעילות יופיעו לאורחים בטופס אישור ההגעה.
           </p>
         </div>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {Object.entries(settings.menuOptions).map(([key, value]) => {
             const typedKey = key as keyof MenuOptions;
-            const isTransportation = typedKey === "transportation";
 
             return (
               <div
@@ -326,7 +277,7 @@ export default function InvitationSettingsComponent({ invitationId }: Props) {
                   }
                 `}
               >
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center justify-between gap-4">
                   <div>
                     <h4 className="text-base font-black text-[#241A14]">
                       {MENU_LABELS[typedKey]}
@@ -340,56 +291,23 @@ export default function InvitationSettingsComponent({ invitationId }: Props) {
                   <Toggle
                     label={MENU_LABELS[typedKey]}
                     value={value}
-                    onChange={(val) => updateMenuOption(typedKey, val)}
+                    onChange={(val) =>
+                      setSettings({
+                        ...settings,
+                        menuOptions: {
+                          ...settings.menuOptions,
+                          [typedKey]: val,
+                        },
+                      })
+                    }
                   />
                 </div>
-
-                {value && (
-                  <div className="mt-5">
-                    <label className="mb-2 block px-1 text-xs font-black text-[#6B5B4A]">
-                      {isTransportation
-                        ? "מספר אנשים להסעה"
-                        : "מספר מנות"}
-                    </label>
-
-                    <input
-                      type="number"
-                      min={0}
-                      value={settings.menuOptionQuantities[typedKey] || ""}
-                      onChange={(e) =>
-                        updateQuantity(typedKey, e.target.value)
-                      }
-                      placeholder={
-                        isTransportation ? "לדוגמה: 45" : "לדוגמה: 12"
-                      }
-                      className="
-                        h-[48px]
-                        w-full
-                        rounded-2xl
-                        border
-                        border-[#E3D6C3]
-                        bg-white
-                        px-4
-                        text-sm
-                        font-bold
-                        text-[#241A14]
-                        outline-none
-                        transition
-                        placeholder:text-[#B0A79D]
-                        focus:border-[#B8844F]
-                        focus:ring-4
-                        focus:ring-[#D9B46F]/15
-                      "
-                    />
-                  </div>
-                )}
               </div>
             );
           })}
         </div>
       </div>
 
-      {/* Footer */}
       <div
         className="
           relative
@@ -408,7 +326,7 @@ export default function InvitationSettingsComponent({ invitationId }: Props) {
         "
       >
         <p className="text-sm font-bold text-[#8A7B69]">
-          השינויים יישמרו בהגדרות ההזמנה ויוכלו לשמש את טופס אישור ההגעה.
+          השינויים יישמרו בהגדרות ההזמנה הקיימות.
         </p>
 
         <button
