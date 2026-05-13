@@ -489,18 +489,45 @@ const giftLink = body.giftLink || "";
 
     /* ================= LOCATION / NAVIGATION ================= */
 
-    const location = inv.location;
+    /* ================= LOCATION / NAVIGATION ================= */
 
-    const hasLocation =
-      typeof location?.lat === "number" && typeof location?.lng === "number";
+const location =
+  inv.eventLocation && typeof inv.eventLocation === "object"
+    ? inv.eventLocation
+    : inv.location;
 
-    let navigationLink = "";
+const navigationAddress =
+  typeof inv.location === "string" && inv.location.trim()
+    ? inv.location.trim()
+    : typeof inv.location?.address === "string" && inv.location.address.trim()
+    ? inv.location.address.trim()
+    : typeof inv.location?.name === "string" && inv.location.name.trim()
+    ? inv.location.name.trim()
+    : typeof inv.address === "string" && inv.address.trim()
+    ? inv.address.trim()
+    : typeof inv.eventLocation?.address === "string" &&
+      inv.eventLocation.address.trim()
+    ? inv.eventLocation.address.trim()
+    : typeof inv.eventLocation?.name === "string" &&
+      inv.eventLocation.name.trim()
+    ? inv.eventLocation.name.trim()
+    : "";
 
-    if (hasLocation) {
-      const wazeUrl = `https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`;
-      navigationLink = await shortenUrl(wazeUrl);
-    }
+let navigationLink = "";
 
+if (
+  typeof location?.lat === "number" &&
+  typeof location?.lng === "number"
+) {
+  const wazeUrl = `https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`;
+  navigationLink = await shortenUrl(wazeUrl);
+} else if (navigationAddress) {
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+    navigationAddress
+  )}`;
+
+  navigationLink = await shortenUrl(mapsUrl);
+}
     /* ================= QUERY ================= */
 
     const guestsQuery = buildGuestQuery({

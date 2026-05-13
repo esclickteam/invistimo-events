@@ -259,15 +259,6 @@ export default function ReminderTab({
         : REMINDER_ONLY_TEMPLATE
       : message;
 
-    const navigationLink =
-      typeof lat === "number" && typeof lng === "number"
-        ? `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`
-        : typeof eventLocation === "string" && eventLocation.trim()
-          ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-              eventLocation.trim()
-            )}`
-          : "";
-
     return buildMessage({
       template: templateForGuest,
       guest: {
@@ -277,7 +268,10 @@ export default function ReminderTab({
       invitationTitle,
       eventDate,
       eventLocation,
-      navigationLink,
+      navigationLink:
+        typeof lat === "number" && typeof lng === "number"
+          ? `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`
+          : "",
     });
   };
 
