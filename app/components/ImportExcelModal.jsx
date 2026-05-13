@@ -33,10 +33,10 @@ function normalizeTableNumber(value) {
 ============================================================ */
 function normalizeText(value) {
   return String(value ?? "")
-    .normalize("NFKC") // תקן תווים
-    .replace(/[\u200B-\u200D\uFEFF]/g, "") // תווים נסתרים
-    .replace(/\u00A0/g, " ") // NBSP
-    .replace(/\s+/g, " ") // רווחים כפולים
+    .normalize("NFKC")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+    .replace(/\u00A0/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
@@ -79,7 +79,7 @@ export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
       ============================================================ */
       const rawJson = XLSX.utils.sheet_to_json(sheet, {
         defval: "",
-        raw: false, // 🔥 חשוב מאוד
+        raw: false,
       });
 
       console.log("📄 RAW JSON FULL:", rawJson);
@@ -107,9 +107,8 @@ export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
           const relationRaw = normalizeText(relationOriginal);
 
           const groupOriginal = row["קבוצה"];
-const groupRaw = normalizeText(groupOriginal);
+          const groupRaw = normalizeText(groupOriginal);
 
-          // 🔥 הלוג הכי חשוב
           console.log("➡️ RELATION RAW:", JSON.stringify(relationOriginal));
           console.log("➡️ RELATION CLEAN:", relationRaw);
 
@@ -135,7 +134,7 @@ const groupRaw = normalizeText(groupOriginal);
             phone: phoneClean || null,
 
             relation: relationRaw || null,
-              group: groupRaw || null,
+            group: groupRaw || null,
 
             // RSVP תקני
             rsvp: RSVP_MAP[rawStatus] || "pending",
@@ -212,7 +211,7 @@ const groupRaw = normalizeText(groupOriginal);
       }
 
       await onSuccess?.();
-onClose?.();
+      onClose?.();
     } catch (err) {
       console.error("❌ Excel Error:", err);
       alert("שגיאה בקריאת הקובץ");
@@ -223,77 +222,351 @@ onClose?.();
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+    <div
+      className="
+        fixed inset-0 z-50
+        flex items-center justify-center
+        bg-black/50 px-4 py-6
+        backdrop-blur-sm
+      "
+      dir="rtl"
+    >
       <div
-        className="bg-white p-8 rounded-2xl w-[520px] max-w-[95vw] shadow-xl text-right"
-        dir="rtl"
+        className="
+          relative w-full max-w-[680px]
+          overflow-hidden rounded-[34px]
+          bg-[#FFFCF7]
+          shadow-[0_30px_100px_rgba(25,18,10,0.28)]
+          border border-[#EFE2CF]
+        "
       >
-        <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">
-          ייבוא קובץ אקסל
-        </h2>
+        {/* Close */}
+        <button
+          type="button"
+          onClick={onClose}
+          disabled={loading}
+          className="
+            absolute left-5 top-5 z-20
+            flex h-10 w-10 items-center justify-center
+            rounded-full
+            bg-white/85
+            text-xl font-bold text-[#6B5138]
+            shadow-sm transition
+            hover:bg-[#F6EBD9]
+            disabled:opacity-50
+          "
+          aria-label="סגירה"
+        >
+          ×
+        </button>
 
-        <div className="mb-5">
-          <h3 className="font-semibold mb-1">שלב 1: הורדת תבנית Excel</h3>
-          <p className="text-sm text-gray-600 mb-2">
-            המערכת יודעת לעבוד עם קובץ אקסל במבנה מסוים.
-          </p>
-          <a
-            href="/Invistimo_v4.xlsx?v=4"
-            download
-            className="inline-block bg-blue-100 text-blue-700 px-4 py-2 rounded-full text-sm hover:bg-blue-200 transition"
-          >
-            📄 הורדת תבנית אקסל
-          </a>
-        </div>
+        {/* Header */}
+        <div
+          className="
+            relative overflow-hidden
+            bg-gradient-to-l from-[#F8EEDC] via-[#FFF7EA] to-[#FFFFFF]
+            px-7 pb-7 pt-8 sm:px-10
+            border-b border-[#EFE2CF]
+          "
+        >
+          <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-[#D6B16A]/20 blur-2xl" />
+          <div className="absolute -left-10 bottom-0 h-32 w-32 rounded-full bg-[#8B6A3F]/10 blur-2xl" />
 
-        <div className="mb-5">
-          <h3 className="font-semibold mb-1">שלב 2: הזנת נתוני אורחים</h3>
-          <p className="text-sm text-gray-600">
-            מלאו את נתוני האורחים בקובץ לפי הכותרות.
-          </p>
-        </div>
+          <div className="relative">
+            <div
+              className="
+                mx-auto mb-4 flex h-16 w-16 items-center justify-center
+                rounded-3xl
+                bg-white
+                text-3xl
+                shadow-[0_12px_35px_rgba(139,106,63,0.18)]
+                border border-[#EFE2CF]
+              "
+            >
+              📊
+            </div>
 
-        <div className="mb-5">
-          <h3 className="font-semibold mb-1">שלב 3: העלאת הקובץ</h3>
-          <p className="text-sm text-gray-600 mb-3">
-            בחרו את הקובץ המלא והעלו אותו למערכת.
-          </p>
+            <h2 className="text-center text-2xl sm:text-3xl font-black text-[#2F241A]">
+              ייבוא מוזמנים מאקסל
+            </h2>
 
-          <input
-            type="file"
-            accept=".xlsx,.xls"
-            onChange={handleFileChange}
-            className="w-full border rounded p-2 mb-2"
-          />
-
-          {selectedFileName ? (
-            <p className="text-xs text-gray-500 mb-3">
-              נבחר קובץ: {selectedFileName}
+            <p className="mx-auto mt-3 max-w-[460px] text-center text-sm sm:text-base leading-7 text-[#7A6A59]">
+              הורידו את התבנית, מלאו את פרטי האורחים והעלו את הקובץ למערכת.
             </p>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="px-6 py-6 sm:px-9 sm:py-8">
+          {/* Steps */}
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div
+              className="
+                rounded-[24px]
+                border border-[#EFE2CF]
+                bg-white
+                p-4
+                shadow-[0_10px_30px_rgba(95,68,34,0.06)]
+              "
+            >
+              <div className="mb-3 flex items-center gap-3">
+                <span
+                  className="
+                    flex h-9 w-9 items-center justify-center
+                    rounded-full bg-[#F4E7D1]
+                    text-sm font-black text-[#8B6A3F]
+                  "
+                >
+                  1
+                </span>
+                <h3 className="font-black text-[#3E2D20]">הורדת תבנית</h3>
+              </div>
+
+              <p className="mb-4 text-sm leading-6 text-[#7A6A59]">
+                התחילו מקובץ התבנית המוכן כדי לשמור על מבנה תקין.
+              </p>
+
+              <a
+                href="/Invistimo_v4.xlsx?v=4"
+                download
+                className="
+                  inline-flex w-full items-center justify-center gap-2
+                  rounded-full
+                  bg-[#F4E7D1]
+                  px-4 py-2.5
+                  text-sm font-bold text-[#7B5A2E]
+                  transition
+                  hover:bg-[#EAD7B8]
+                "
+              >
+                📄 הורדת תבנית
+              </a>
+            </div>
+
+            <div
+              className="
+                rounded-[24px]
+                border border-[#EFE2CF]
+                bg-white
+                p-4
+                shadow-[0_10px_30px_rgba(95,68,34,0.06)]
+              "
+            >
+              <div className="mb-3 flex items-center gap-3">
+                <span
+                  className="
+                    flex h-9 w-9 items-center justify-center
+                    rounded-full bg-[#F4E7D1]
+                    text-sm font-black text-[#8B6A3F]
+                  "
+                >
+                  2
+                </span>
+                <h3 className="font-black text-[#3E2D20]">מילוי אורחים</h3>
+              </div>
+
+              <p className="text-sm leading-6 text-[#7A6A59]">
+                מלאו שם, טלפון, סטטוס, קרבה, קבוצה, כמות מוזמנים ושולחן לפי
+                הכותרות בקובץ.
+              </p>
+            </div>
+
+            <div
+              className="
+                rounded-[24px]
+                border border-[#EFE2CF]
+                bg-white
+                p-4
+                shadow-[0_10px_30px_rgba(95,68,34,0.06)]
+              "
+            >
+              <div className="mb-3 flex items-center gap-3">
+                <span
+                  className="
+                    flex h-9 w-9 items-center justify-center
+                    rounded-full bg-[#F4E7D1]
+                    text-sm font-black text-[#8B6A3F]
+                  "
+                >
+                  3
+                </span>
+                <h3 className="font-black text-[#3E2D20]">העלאה למערכת</h3>
+              </div>
+
+              <p className="text-sm leading-6 text-[#7A6A59]">
+                בחרו את הקובץ המלא ולחצו על העלאה. המערכת תייבא את האורחים
+                אוטומטית.
+              </p>
+            </div>
+          </div>
+
+          {/* Upload box */}
+          <div
+            className="
+              mt-6 rounded-[28px]
+              border border-dashed border-[#D6B16A]
+              bg-[#FFF8ED]
+              p-5 sm:p-6
+            "
+          >
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-lg font-black text-[#3E2D20]">
+                  העלאת קובץ אקסל
+                </h3>
+                <p className="mt-1 text-sm text-[#7A6A59]">
+                  ניתן להעלות קובץ מסוג XLSX או XLS בלבד.
+                </p>
+              </div>
+
+              <div
+                className="
+                  inline-flex items-center justify-center
+                  rounded-full bg-white
+                  px-4 py-2
+                  text-xs font-bold text-[#8B6A3F]
+                  border border-[#EFE2CF]
+                "
+              >
+                Excel בלבד
+              </div>
+            </div>
+
+            <label
+              className="
+                flex cursor-pointer flex-col items-center justify-center
+                rounded-[24px]
+                border border-[#EFE2CF]
+                bg-white
+                px-4 py-6
+                text-center
+                shadow-[0_10px_30px_rgba(95,68,34,0.05)]
+                transition
+                hover:border-[#D6B16A]
+                hover:bg-[#FFFDF8]
+              "
+            >
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+
+              <div
+                className="
+                  mb-3 flex h-14 w-14 items-center justify-center
+                  rounded-2xl
+                  bg-[#F4E7D1]
+                  text-2xl
+                "
+              >
+                ⬆️
+              </div>
+
+              <p className="text-base font-black text-[#3E2D20]">
+                {selectedFileName ? "הקובץ נבחר בהצלחה" : "בחרו קובץ להעלאה"}
+              </p>
+
+              <p className="mt-1 max-w-[420px] text-sm leading-6 text-[#7A6A59]">
+                {selectedFileName
+                  ? selectedFileName
+                  : "לחצו כאן לבחירת קובץ האקסל מהמחשב או מהטלפון"}
+              </p>
+            </label>
+
+            {selectedFileName ? (
+              <div
+                className="
+                  mt-4 flex items-center justify-between gap-3
+                  rounded-2xl
+                  bg-white
+                  px-4 py-3
+                  border border-[#EFE2CF]
+                "
+              >
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-[#8B6A3F]">קובץ נבחר</p>
+                  <p className="truncate text-sm font-semibold text-[#3E2D20]">
+                    {selectedFileName}
+                  </p>
+                </div>
+
+                <span className="shrink-0 rounded-full bg-green-50 px-3 py-1 text-xs font-bold text-green-700">
+                  מוכן לייבוא
+                </span>
+              </div>
+            ) : null}
+
+            <button
+              type="button"
+              onClick={handleImport}
+              disabled={loading}
+              className="
+                mt-5 flex w-full items-center justify-center gap-2
+                rounded-full
+                bg-[#128C3A]
+                px-6 py-4
+                text-base font-black text-white
+                shadow-[0_14px_35px_rgba(18,140,58,0.24)]
+                transition
+                hover:bg-[#0F7A32]
+                disabled:cursor-not-allowed
+                disabled:opacity-60
+              "
+            >
+              {loading ? (
+                <>
+                  <span
+                    className="
+                      h-5 w-5 animate-spin rounded-full
+                      border-2 border-white/40 border-t-white
+                    "
+                  />
+                  מייבא את הקובץ...
+                </>
+              ) : (
+                <>העלאת קובץ וייבוא אורחים</>
+              )}
+            </button>
+          </div>
+
+          {summary ? (
+            <div
+              className={`
+                mt-5 rounded-[22px] border px-4 py-3 text-sm font-semibold leading-6
+                ${
+                  summary.type === "success"
+                    ? "border-green-200 bg-green-50 text-green-800"
+                    : summary.type === "partial"
+                    ? "border-yellow-200 bg-yellow-50 text-yellow-800"
+                    : "border-red-200 bg-red-50 text-red-800"
+                }
+              `}
+            >
+              {summary.text}
+            </div>
           ) : null}
 
-          <button
-            onClick={handleImport}
-            disabled={loading}
-            className="w-full bg-green-600 text-white py-3 rounded-full font-semibold hover:bg-green-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {loading ? "מייבא..." : "העלאה"}
-          </button>
-        </div>
-
-        {summary ? (
-          <div className="mt-4 rounded-xl p-3 text-sm bg-gray-100">
-            {summary.text}
+          {/* Footer */}
+          <div className="mt-6 flex items-center justify-center">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={loading}
+              className="
+                rounded-full
+                px-5 py-2.5
+                text-sm font-bold text-[#7A6A59]
+                transition
+                hover:bg-[#F6EBD9]
+                hover:text-[#3E2D20]
+                disabled:opacity-50
+              "
+            >
+              ביטול וחזרה
+            </button>
           </div>
-        ) : null}
-
-        <div className="text-center mt-6">
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 transition"
-          >
-            ביטול וחזרה
-          </button>
         </div>
       </div>
     </div>
