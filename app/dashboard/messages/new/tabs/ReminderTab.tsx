@@ -245,35 +245,35 @@ export default function ReminderTab({
   /* ================= BUILD MESSAGE ================= */
 
   const buildReminderMessage = (g: Guest) => {
-  const tableName =
-    g.tableName ||
-    (typeof g.tableNumber === "number"
-      ? `שולחן ${g.tableNumber}`
-      : "");
+    const tableName =
+      g.tableName ||
+      (typeof g.tableNumber === "number"
+        ? `שולחן ${g.tableNumber}`
+        : "");
 
-  const guestHasTable = !!tableName;
+    const guestHasTable = !!tableName;
 
-  const templateForGuest = hasSeatingPackage
-    ? guestHasTable
-      ? message
-      : REMINDER_ONLY_TEMPLATE
-    : message;
+    const templateForGuest = hasSeatingPackage
+      ? guestHasTable
+        ? message
+        : REMINDER_ONLY_TEMPLATE
+      : message;
 
-  return buildMessage({
-    template: templateForGuest,
-    guest: {
-      ...g,
-      tableName,
-    },
-    invitationTitle,
-    eventDate,
-    eventLocation,
-    navigationLink:
-      typeof lat === "number" && typeof lng === "number"
-        ? `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`
-        : "",
-  });
-};
+    return buildMessage({
+      template: templateForGuest,
+      guest: {
+        ...g,
+        tableName,
+      },
+      invitationTitle,
+      eventDate,
+      eventLocation,
+      navigationLink:
+        typeof lat === "number" && typeof lng === "number"
+          ? `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`
+          : "",
+    });
+  };
 
   /* ================= PREVIEW ================= */
 
@@ -481,10 +481,26 @@ export default function ReminderTab({
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <StatCard value={confirmedGuests.length} label="מאשרים הגעה" icon="✅" />
-              <StatCard value={guestsWithTable.length} label="עם שולחן" icon="🪑" />
-              <StatCard value={pendingGuests.length} label="ממתינים" icon="⏳" />
-              <StatCard value={reminderScheduledMessages.length} label="מתוזמנות" icon="📅" />
+              <StatCard
+                value={confirmedGuests.length}
+                label="מאשרים הגעה"
+                icon="✅"
+              />
+              <StatCard
+                value={guestsWithTable.length}
+                label="עם שולחן"
+                icon="🪑"
+              />
+              <StatCard
+                value={pendingGuests.length}
+                label="ממתינים"
+                icon="⏳"
+              />
+              <StatCard
+                value={reminderScheduledMessages.length}
+                label="מתוזמנות"
+                icon="📅"
+              />
             </div>
           </div>
         </div>
@@ -494,7 +510,11 @@ export default function ReminderTab({
       <section className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
         {/* RIGHT SIDE */}
         <div className="space-y-6 xl:order-1">
-          <Panel title="תצוגה מקדימה" subtitle="כך תיראה הודעת התזכורת" icon="✨">
+          <Panel
+            title="תצוגה מקדימה"
+            subtitle="כך תיראה הודעת התזכורת"
+            icon="✨"
+          >
             {preview ? (
               <PhonePreview text={preview.text} />
             ) : (
@@ -517,7 +537,11 @@ export default function ReminderTab({
             )}
           </Panel>
 
-          <Panel title="שליחת הודעה לבדיקה" subtitle="בדיקה לפני שליחה בפועל" icon="🧪">
+          <Panel
+            title="שליחת הודעה לבדיקה"
+            subtitle="בדיקה לפני שליחה בפועל"
+            icon="🧪"
+          >
             <div className="flex flex-col sm:flex-row gap-3">
               <input
                 type="tel"
@@ -554,8 +578,8 @@ export default function ReminderTab({
                 {testCount >= MAX_TEST_MESSAGES
                   ? "הגעת למגבלה"
                   : sendingTest
-                  ? "שולח..."
-                  : "שלח לבדיקה"}
+                    ? "שולח..."
+                    : "שלח לבדיקה"}
               </button>
             </div>
 
@@ -573,7 +597,11 @@ export default function ReminderTab({
 
         {/* LEFT SIDE */}
         <div className="space-y-6 xl:order-2">
-          <Panel title="ערוץ שליחה" subtitle="התזכורת נשלחת בסבב אחד" icon="💬">
+          <Panel
+            title="ערוץ שליחה"
+            subtitle="התזכורת נשלחת בסבב אחד"
+            icon="💬"
+          >
             <div
               className="
                 rounded-[24px]
@@ -584,7 +612,9 @@ export default function ReminderTab({
               "
             >
               <div className="flex items-center justify-between gap-3">
-                <span className="text-lg font-black text-[#3E2D20]">SMS</span>
+                <span className="text-lg font-black text-[#3E2D20]">
+                  SMS
+                </span>
                 <span className="text-xl">📩</span>
               </div>
 
@@ -795,8 +825,8 @@ export default function ReminderTab({
                 {reminderAlreadySent
                   ? "✓ תזכורת נשלחה"
                   : sendTiming === "scheduled"
-                  ? "⏱️ תזמן תזכורת"
-                  : `📩 שלח תזכורת (${guestsToSend.length})`}
+                    ? "⏱️ תזמן תזכורת"
+                    : `📩 שלח תזכורת (${guestsToSend.length})`}
               </SendButton>
             </div>
 
@@ -845,53 +875,52 @@ export default function ReminderTab({
               📅 צפייה בהודעות מתוזמנות
             </button>
           )}
-
-{showScheduled && (
-  <div
-    className="
-      rounded-[30px]
-      border border-[#E7DCCB]
-      bg-[#FFF9EF]
-      p-5 sm:p-6
-      shadow-[0_14px_40px_rgba(95,68,34,0.08)]
-    "
-  >
-    <div className="mb-5 flex items-center justify-between gap-4">
-      <h2 className="text-xl font-black text-[#3E2D20]">
-        📅 הודעות מתוזמנות
-      </h2>
-
-      <button
-        type="button"
-        onClick={() => setShowScheduled(false)}
-        className="
-          flex h-10 w-10 items-center justify-center
-          rounded-full
-          bg-white
-          text-lg font-black
-          text-[#6B5138]
-          shadow-sm
-          transition
-          hover:bg-[#F6EBD9]
-        "
-      >
-        ✕
-      </button>
-    </div>
-
-    <ScheduledMessagesTable
-      messages={reminderScheduledMessages}
-      onChange={loadScheduledMessages}
-    />
-  </div>
-)}
-
-
-
         </div>
       </section>
 
-      
+      {/* SCHEDULED MESSAGES - FULL WIDTH */}
+      {showScheduled && (
+        <section
+          className="
+            w-full
+            rounded-[30px]
+            border border-[#E7DCCB]
+            bg-[#FFF9EF]
+            p-5 sm:p-6
+            shadow-[0_14px_40px_rgba(95,68,34,0.08)]
+          "
+        >
+          <div className="mb-5 flex items-center justify-between gap-4">
+            <h2 className="text-xl font-black text-[#3E2D20]">
+              📅 הודעות מתוזמנות
+            </h2>
+
+            <button
+              type="button"
+              onClick={() => setShowScheduled(false)}
+              className="
+                flex h-10 w-10 items-center justify-center
+                rounded-full
+                bg-white
+                text-lg font-black
+                text-[#6B5138]
+                shadow-sm
+                transition
+                hover:bg-[#F6EBD9]
+              "
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="w-full overflow-x-auto">
+            <ScheduledMessagesTable
+              messages={reminderScheduledMessages}
+              onChange={loadScheduledMessages}
+            />
+          </div>
+        </section>
+      )}
 
       <style>{`
         .send-button-gold button {
