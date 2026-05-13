@@ -164,6 +164,31 @@ function isActiveSchedule(schedule: any) {
   );
 }
 
+function getScheduleChannel(schedule: any): Channel | null {
+  const channel = String(schedule?.channel ?? "").toLowerCase();
+
+  if (channel === "whatsapp") return "whatsapp";
+  if (channel === "sms") return "sms";
+
+  const templateName = String(schedule?.templateName ?? "").toLowerCase();
+  const content = String(schedule?.content ?? schedule?.message ?? "").toLowerCase();
+
+  if (
+    templateName.includes("rsvp_invitation_media") ||
+    templateName.includes("rsvp_reminder_invistimo") ||
+    templateName.includes("whatsapp") ||
+    content.includes("whatsapp:")
+  ) {
+    return "whatsapp";
+  }
+
+  if (templateName.includes("sms") || content.includes("sms:")) {
+    return "sms";
+  }
+
+  return null;
+}
+
 function getWhatsappTemplateByRound(round: RoundNumber) {
   return round === 1 ? RSVP_ROUND1_TEMPLATE : RSVP_REMINDER_TEMPLATE;
 }
@@ -280,6 +305,13 @@ export default function RsvpTab({
     3: false,
   });
 
+  const [activeScheduleChannelByRound, setActiveScheduleChannelByRound] =
+    useState<Record<RoundNumber, Channel | null>>({
+      1: null,
+      2: null,
+      3: null,
+    });
+
   const [scheduledMessages, setScheduledMessages] = useState<any[]>([]);
   const [showScheduled, setShowScheduled] = useState(false);
 
@@ -358,6 +390,13 @@ export default function RsvpTab({
 
   const currentRoundScheduled = activeSchedulesByRound[round];
 
+  const currentRoundScheduledChannel = activeScheduleChannelByRound[round];
+
+  const currentRoundScheduledInAnotherChannel =
+    currentRoundScheduled &&
+    !!currentRoundScheduledChannel &&
+    currentRoundScheduledChannel !== selectedChannel;
+
   const currentRoundLocked =
     round === 1
       ? round1Locked
@@ -366,6 +405,9 @@ export default function RsvpTab({
       : round3Locked;
 
   const hasExistingSchedule = isActiveSchedule(existingSchedule);
+
+  const existingScheduleChannelLabel =
+    currentRoundScheduledChannel === "sms" ? "SMS" : "WhatsApp";
 
   /* ================= LOAD SCHEDULED MESSAGES ================= */
 
@@ -400,16 +442,24 @@ export default function RsvpTab({
 
       try {
         const res = await fetch(
-          `/api/scheduled/by-invitation?invitationId=${invitationId}&type=rsvp&round=${round}&channel=${selectedChannel}`,
+          `/api/scheduled/by-invitation?invitationId=${invitationId}&type=rsvp&round=${round}`,
           { cache: "no-store" }
         );
 
         const data = await res.json();
         const activeSchedule = isActiveSchedule(data?.schedule);
+        const scheduleChannel = activeSchedule
+          ? getScheduleChannel(data.schedule)
+          : null;
 
         setActiveSchedulesByRound((prev) => ({
           ...prev,
           [round]: activeSchedule,
+        }));
+
+        setActiveScheduleChannelByRound((prev) => ({
+          ...prev,
+          [round]: scheduleChannel,
         }));
 
         if (activeSchedule) {
@@ -439,6 +489,11 @@ export default function RsvpTab({
         setActiveSchedulesByRound((prev) => ({
           ...prev,
           [round]: false,
+        }));
+
+        setActiveScheduleChannelByRound((prev) => ({
+          ...prev,
+          [round]: null,
         }));
       }
     }
@@ -668,6 +723,11 @@ export default function RsvpTab({
         [round]: false,
       }));
 
+      setActiveScheduleChannelByRound((prev) => ({
+        ...prev,
+        [round]: null,
+      }));
+
       if (round === 1) setRound1Scheduled(false);
       if (round === 2) setRound2Scheduled(false);
       if (round === 3) setRound3Scheduled(false);
@@ -773,7 +833,8 @@ export default function RsvpTab({
     (sendTiming === "now" && noAudience) ||
     missingHeaderImage ||
     (sendTiming === "scheduled" && !scheduledAt) ||
-    (currentRoundSent && currentRoundLocked);
+    (currentRoundSent && currentRoundLocked) ||
+    currentRoundScheduledInAnotherChannel;
 
   const whatsappPreviewText = useMemo(() => {
     return getWhatsappPreviewText({
@@ -916,7 +977,10 @@ export default function RsvpTab({
                 title={`סבב ${r}`}
                 subtitle={getRoundSubtitle(r as RoundNumber)}
                 count={r === 1 ? totalCount : pendingGuests.length}
-                channel={roundChannels[r as RoundNumber]}
+                channel={
+                  activeScheduleChannelByRound[r as RoundNumber] ??
+                  roundChannels[r as RoundNumber]
+                }
                 sent={
                   r === 1
                     ? round1Sent
@@ -1248,7 +1312,7 @@ export default function RsvpTab({
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="text-sm font-black text-[#7B4E2E]">
-                        סבב {round} מתוזמן
+                        סבב {round} מתוזמן ב־{existingScheduleChannelLabel}
                       </p>
                       <p className="mt-1 text-sm text-[#8A5A25]">
                         {formatDateTime(existingSchedule.scheduledAt)}
@@ -1284,8 +1348,15 @@ export default function RsvpTab({
                 </div>
               )}
 
+              {currentRoundScheduledInAnotherChannel && (
+                <div className="rounded-2xl bg-orange-50 px-4 py-3 text-sm font-bold leading-6 text-orange-700">
+                  סבב {round} כבר מתוזמן ב־{existingScheduleChannelLabel}. כדי
+                  לתזמן בערוץ אחר, צריך קודם לבטל את התזמון הקיים.
+                </div>
+              )}
+
               <SendButton
-                key={`${invitationId}-${selectedChannel}-${round}-${templateName}-${currentRoundSent}-${currentRoundScheduled}-${hasExistingSchedule}`}
+                key={`${invitationId}-${selectedChannel}-${round}-${templateName}-${currentRoundSent}-${currentRoundScheduled}-${hasExistingSchedule}-${currentRoundScheduledChannel}`}
                 {...sendButtonProps}
                 disabled={blocked}
                 onAfterSend={async () => {
@@ -1295,6 +1366,11 @@ export default function RsvpTab({
                     setActiveSchedulesByRound((prev) => ({
                       ...prev,
                       [round]: true,
+                    }));
+
+                    setActiveScheduleChannelByRound((prev) => ({
+                      ...prev,
+                      [round]: selectedChannel,
                     }));
 
                     if (round === 1) setRound1Scheduled(true);
@@ -1360,29 +1436,29 @@ export default function RsvpTab({
       </div>
 
       {showScheduled && (
-  <div className="mt-4 rounded-[30px] border border-[#E6D6BC] bg-[#FFF9F1] shadow-[0_18px_50px_rgba(78,49,27,0.10)] overflow-hidden">
-    <div className="flex items-center justify-between border-b border-[#E6D6BC] px-5 py-4">
-      <h2 className="text-lg font-black text-[#3A2417]">
-        📅 הודעות מתוזמנות
-      </h2>
+        <div className="mt-4 rounded-[30px] border border-[#E6D6BC] bg-[#FFF9F1] shadow-[0_18px_50px_rgba(78,49,27,0.10)] overflow-hidden">
+          <div className="flex items-center justify-between border-b border-[#E6D6BC] px-5 py-4">
+            <h2 className="text-lg font-black text-[#3A2417]">
+              📅 הודעות מתוזמנות
+            </h2>
 
-      <button
-        type="button"
-        onClick={() => setShowScheduled(false)}
-        className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F0E3D1] text-base font-black text-[#3A2417] hover:bg-[#E6D6BC]"
-      >
-        ✕
-      </button>
-    </div>
+            <button
+              type="button"
+              onClick={() => setShowScheduled(false)}
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F0E3D1] text-base font-black text-[#3A2417] hover:bg-[#E6D6BC]"
+            >
+              ✕
+            </button>
+          </div>
 
-    <div className="max-h-[420px] overflow-auto p-4">
-      <ScheduledMessagesTable
-        messages={scheduledMessages}
-        onChange={loadScheduledMessages}
-      />
-    </div>
-  </div>
-)}
+          <div className="max-h-[420px] overflow-auto p-4">
+            <ScheduledMessagesTable
+              messages={scheduledMessages}
+              onChange={loadScheduledMessages}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
