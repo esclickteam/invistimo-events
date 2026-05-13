@@ -109,6 +109,8 @@ function buildGuestsQuery({
    * RSVP:
    * סבב 1 = כל המוזמנים בזמן השליחה בפועל
    * סבב 2/3 = מי שעדיין pending בזמן השליחה בפועל
+   *
+   * לא לגעת — זה עובד תקין.
    */
   if (type === "rsvp") {
     if (round === 1) {
@@ -122,39 +124,46 @@ function buildGuestsQuery({
   }
 
   /**
-   * Reminder / Thankyou / Custom:
+   * Reminder / Table:
+   * בזמן השליחה בפועל בלבד מושכים רק מי שאישר הגעה.
+   * מי ששינה ל"לא מגיע" לפני השליחה — לא יקבל.
+   */
+  if (type === "reminder" || type === "table") {
+    return {
+      invitationId,
+      rsvp: "yes",
+    };
+  }
+
+  /**
+   * Thankyou:
+   * בזמן השליחה בפועל בלבד מושכים רק מי שאישר הגעה.
+   * מי ששינה ל"לא מגיע" לפני השליחה — לא יקבל.
+   */
+  if (type === "thankyou") {
+    return {
+      invitationId,
+      rsvp: "yes",
+    };
+  }
+
+  /**
+   * Custom:
    * אם נשמרו guestIds — מכבדים אותם.
    * אחרת משתמשים ב-filter.
    */
-  /**
- * Reminder / Table:
- * בזמן השליחה בפועל בלבד מושכים רק מי שאישר הגעה.
- * לא משתמשים בנתונים מזמן התזמון.
- */
-if (type === "reminder" || type === "table") {
-  return {
-    invitationId,
-    rsvp: "yes",
-  };
-}
+  if (Array.isArray(schedule.guestIds) && schedule.guestIds.length > 0) {
+    return {
+      _id: { $in: schedule.guestIds },
+      invitationId,
+    };
+  }
 
-/**
- * Thankyou / Custom:
- * אם נשמרו guestIds — מכבדים אותם.
- * אחרת משתמשים ב-filter.
- */
-if (Array.isArray(schedule.guestIds) && schedule.guestIds.length > 0) {
-  return {
-    _id: { $in: schedule.guestIds },
-    invitationId,
-  };
-}
+  const query: any = { invitationId };
 
-const query: any = { invitationId };
-
-if (schedule.filter === "pending") {
-  query.rsvp = "pending";
-}
+  if (schedule.filter === "pending") {
+    query.rsvp = "pending";
+  }
 
   if (schedule.filter === "withTable") {
     query.$or = [
@@ -180,10 +189,7 @@ function stripTableBlockForGuestWithoutTable(text: string) {
       /\n*השולחן שלך באירוע:\s*\n*🪑\s*{{tableName}}\s*\n*/g,
       "\n"
     )
-    .replace(
-      /\n*השולחן שלך באירוע:\s*\n*🪑\s*\n*/g,
-      "\n"
-    )
+    .replace(/\n*השולחן שלך באירוע:\s*\n*🪑\s*\n*/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
@@ -205,22 +211,25 @@ async function buildSmsText({
   const shortUrl = await shortenUrl(personalUrl);
 
   const tableName = getTableName(guest);
+  const type = normalizeType(schedule.type || schedule.templateKey);
 
-  const tableName = getTableName(guest);
-const type = normalizeType(schedule.type || schedule.templateKey);
+  let template = String(schedule.messageContent || schedule.messageOverride || "");
 
-let template = String(schedule.messageContent || schedule.messageOverride || "");
+  /**
+   * Reminder / Table:
+   * אם בזמן השליחה בפועל לאורח אין שולחן —
+   * מסירים רק את בלוק השולחן מההודעה.
+   */
+  if ((type === "reminder" || type === "table") && !tableName) {
+    template = stripTableBlockForGuestWithoutTable(template);
+  }
 
-if ((type === "reminder" || type === "table") && !tableName) {
-  template = stripTableBlockForGuestWithoutTable(template);
-}
-
-return template
-  .replace(/{{name}}/g, guest.name || "")
-  .replace(/{{invitationTitle}}/g, invitationTitle)
-  .replace(/{{rsvpLink}}/g, shortUrl)
-  .replace(/{{tableName}}/g, tableName)
-  .replace(/{{navigationLink}}/g, navigationLink || "");
+  return template
+    .replace(/{{name}}/g, guest.name || "")
+    .replace(/{{invitationTitle}}/g, invitationTitle)
+    .replace(/{{rsvpLink}}/g, shortUrl)
+    .replace(/{{tableName}}/g, tableName)
+    .replace(/{{navigationLink}}/g, navigationLink || "");
 }
 
 function deepReplacePlaceholders(
@@ -282,7 +291,6 @@ async function sendSms({ phone, text }: { phone: string; text: string }) {
 
 /* ======================================================
    WHATSAPP SEND
-   משתמש ב-helper הקיים שלך, לא ב-Meta Graph ישיר
 ====================================================== */
 
 async function sendWhatsappTemplate({
@@ -502,10 +510,9 @@ export async function sendScheduledSms() {
       }
 
       /**
-       * חשוב:
-       * תזמון לא חוסם.
-       * אבל ברגע שה-worker הגיע לשליחה בפועל,
-       * אם הסבב כבר נשלח בערוץ אחר — לא שולחים שוב.
+       * RSVP בלבד:
+       * תזמון לא חוסם, אבל בזמן השליחה בפועל אם הסבב כבר נשלח —
+       * לא שולחים שוב.
        */
       if (type === "rsvp" && isRsvpRoundAlreadySent(invitation, round)) {
         await cancelScheduledBecauseRoundAlreadySent({
@@ -709,10 +716,9 @@ export async function sendScheduledWhatsapp() {
       }
 
       /**
-       * חשוב:
-       * תזמון לא חוסם.
-       * אבל ברגע שה-worker הגיע לשליחה בפועל,
-       * אם הסבב כבר נשלח בערוץ אחר — לא שולחים שוב.
+       * RSVP בלבד:
+       * תזמון לא חוסם, אבל בזמן השליחה בפועל אם הסבב כבר נשלח —
+       * לא שולחים שוב.
        */
       if (type === "rsvp" && isRsvpRoundAlreadySent(invitation, round)) {
         await cancelScheduledBecauseRoundAlreadySent({
