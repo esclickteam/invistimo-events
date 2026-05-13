@@ -85,9 +85,7 @@ export default function NewMessagesPage() {
             eventType: event?.eventType || invitation.eventType || "",
             giftCreditUrl: event?.giftCreditUrl || invitation.giftCreditUrl || "",
             headerImageUrl:
-              invitation.previewImage ||
-              invitation.headerImageUrl ||
-              "",
+              invitation.previewImage || invitation.headerImageUrl || "",
             lat: invitation.location?.lat ?? event?.location?.lat,
             lng: invitation.location?.lng ?? event?.location?.lng,
           });
@@ -102,102 +100,207 @@ export default function NewMessagesPage() {
     loadData();
   }, []);
 
-  /* ================= RENDER ================= */
+  /* ================= LOADING ================= */
 
   if (loading) {
     return (
       <div
         dir="rtl"
-        className="min-h-[60vh] flex items-center justify-center text-gray-500"
+        className="
+          min-h-screen
+          bg-[#F8F4EE]
+          flex
+          items-center
+          justify-center
+          px-4
+        "
       >
-        טוען…
+        <div
+          className="
+            flex
+            flex-col
+            items-center
+            gap-4
+            rounded-[32px]
+            border
+            border-[#E8DED0]
+            bg-white/80
+            px-10
+            py-8
+            shadow-[0_24px_70px_rgba(80,55,35,0.10)]
+            backdrop-blur-xl
+          "
+        >
+          <div
+            className="
+              h-11
+              w-11
+              rounded-full
+              border-4
+              border-[#E7D7BE]
+              border-t-[#A77832]
+              animate-spin
+            "
+          />
+
+          <p className="text-sm font-extrabold text-[#7A6754]">
+            טוען את מרכז ההודעות…
+          </p>
+        </div>
       </div>
     );
   }
+
+  /* ================= RENDER ================= */
 
   return (
     <div
       dir="rtl"
       className="
+        relative
         min-h-screen
-        bg-[#F7F3EE]
+        overflow-hidden
+        bg-[#F8F4EE]
         px-4
-        py-8
+        pb-14
+        pt-8
+        md:px-8
+        md:pt-12
       "
     >
-      <div className="max-w-6xl mx-auto space-y-8">
+      {/* Background decoration */}
+      <div
+        className="
+          pointer-events-none
+          absolute
+          inset-0
+          bg-[radial-gradient(circle_at_top_right,rgba(183,135,62,0.18),transparent_34%),radial-gradient(circle_at_top_left,rgba(110,72,48,0.10),transparent_30%),linear-gradient(180deg,#FBF8F3_0%,#F6EFE6_100%)]
+        "
+      />
+
+      <div
+        className="
+          pointer-events-none
+          absolute
+          right-[-120px]
+          top-24
+          h-[360px]
+          w-[360px]
+          rounded-full
+          bg-[#E8D0A8]/30
+          blur-3xl
+        "
+      />
+
+      <div
+        className="
+          pointer-events-none
+          absolute
+          left-[-150px]
+          top-72
+          h-[420px]
+          w-[420px]
+          rounded-full
+          bg-[#B78A4B]/10
+          blur-3xl
+        "
+      />
+
+      <div className="relative z-10 mx-auto max-w-6xl space-y-8">
         {/* Header */}
-        <header className="relative text-center space-y-3">
+        <header className="text-center">
           <div
             className="
-              pointer-events-none
-              absolute
-              inset-x-0
-              -top-8
               mx-auto
-              h-32
-              max-w-4xl
-              rounded-full
-              bg-gradient-to-l
-              from-[#2563EB]/10
-              via-[#E6C983]/15
-              to-transparent
-              blur-3xl
+              mb-5
+              flex
+              h-16
+              w-16
+              items-center
+              justify-center
+              rounded-[24px]
+              border
+              border-white/80
+              bg-white/85
+              text-3xl
+              shadow-[0_18px_45px_rgba(89,64,38,0.13)]
+              backdrop-blur-xl
             "
-          />
-
-          <div className="relative inline-flex items-center justify-center gap-3">
-            <span
-              className="
-                flex
-                h-14
-                w-14
-                items-center
-                justify-center
-                rounded-2xl
-                bg-white
-                shadow-[0_14px_35px_rgba(31,41,55,0.10)]
-                text-3xl
-              "
-            >
-              ✉️
-            </span>
-
-            <h1
-              className="
-                text-4xl
-                md:text-5xl
-                font-black
-                text-[#1F2937]
-                tracking-tight
-              "
-            >
-              שליחת הודעות
-            </h1>
+          >
+            💌
           </div>
 
-          <p className="relative text-base md:text-lg text-[#6B7280]">
-            ניהול ושליחה חכמה של הודעות לאורחים לפי סבבים
+          <div
+            className="
+              mx-auto
+              mb-3
+              inline-flex
+              items-center
+              gap-2
+              rounded-full
+              border
+              border-[#E4D4BF]
+              bg-white/70
+              px-4
+              py-2
+              text-xs
+              font-black
+              text-[#9B6A2D]
+              shadow-sm
+            "
+          >
+            <span>ניהול הודעות לאורחים</span>
+            <span className="h-1.5 w-1.5 rounded-full bg-[#C9A25C]" />
+            <span>SMS / WhatsApp</span>
+          </div>
+
+          <h1
+            className="
+              text-4xl
+              font-black
+              tracking-tight
+              text-[#2D241D]
+              md:text-6xl
+            "
+          >
+            שליחת הודעות
+          </h1>
+
+          <p
+            className="
+              mx-auto
+              mt-4
+              max-w-2xl
+              text-sm
+              font-medium
+              leading-7
+              text-[#7B6A5B]
+              md:text-base
+            "
+          >
+            שליחה חכמה של אישורי הגעה, תזכורות והודעות תודה לפי סבבים,
+            סטטוסים וקהל יעד רלוונטי.
           </p>
         </header>
 
-        {/* Main Tabs */}
+        {/* Tabs */}
         <section
           className="
-            max-w-4xl
             mx-auto
-            rounded-[28px]
-            bg-white/85
+            max-w-5xl
+            rounded-[30px]
             border
-            border-white
-            shadow-[0_18px_60px_rgba(31,41,55,0.08)]
+            border-white/80
+            bg-white/75
             p-2
-            backdrop-blur
+            shadow-[0_22px_70px_rgba(70,48,28,0.10)]
+            backdrop-blur-xl
           "
         >
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
             <TabButton
               label="אישור הגעה"
+              description="שליחת סבבי RSVP"
               icon="✅"
               active={activeTab === "rsvp"}
               onClick={() => setActiveTab("rsvp")}
@@ -205,6 +308,7 @@ export default function NewMessagesPage() {
 
             <TabButton
               label="תזכורות"
+              description="תזכורת לפני האירוע"
               icon="🔔"
               active={activeTab === "reminder"}
               onClick={() => setActiveTab("reminder")}
@@ -212,6 +316,7 @@ export default function NewMessagesPage() {
 
             <TabButton
               label="הודעת תודה"
+              description="שליחה לאחר האירוע"
               icon="🎁"
               active={activeTab === "thankyou"}
               onClick={() => setActiveTab("thankyou")}
@@ -222,27 +327,59 @@ export default function NewMessagesPage() {
         {/* Content */}
         <main
           className="
-            max-w-6xl
+            relative
             mx-auto
-            rounded-[34px]
-            bg-white
-            border
-            border-[#ECE7DF]
-            shadow-[0_24px_80px_rgba(31,41,55,0.10)]
+            max-w-6xl
             overflow-hidden
+            rounded-[42px]
+            border
+            border-[#E6D8C5]
+            bg-white/82
+            shadow-[0_30px_90px_rgba(72,48,28,0.13)]
+            backdrop-blur-xl
           "
         >
-          {activeTab === "rsvp" && (
-            <RsvpTab invitationId={invitationId} {...meta} />
-          )}
+          <div
+            className="
+              pointer-events-none
+              absolute
+              inset-x-0
+              top-0
+              h-32
+              bg-gradient-to-b
+              from-[#F5E8D4]/80
+              to-transparent
+            "
+          />
 
-          {activeTab === "reminder" && (
-            <ReminderTab invitationId={invitationId} {...meta} />
-          )}
+          <div
+            className="
+              pointer-events-none
+              absolute
+              right-0
+              top-0
+              h-full
+              w-1
+              bg-gradient-to-b
+              from-[#C69A51]
+              via-[#E7D3AA]
+              to-transparent
+            "
+          />
 
-          {activeTab === "thankyou" && (
-            <ThankYouTab invitationId={invitationId} {...meta} />
-          )}
+          <div className="relative z-10">
+            {activeTab === "rsvp" && (
+              <RsvpTab invitationId={invitationId} {...meta} />
+            )}
+
+            {activeTab === "reminder" && (
+              <ReminderTab invitationId={invitationId} {...meta} />
+            )}
+
+            {activeTab === "thankyou" && (
+              <ThankYouTab invitationId={invitationId} {...meta} />
+            )}
+          </div>
         </main>
       </div>
     </div>
@@ -253,11 +390,13 @@ export default function NewMessagesPage() {
 
 function TabButton({
   label,
+  description,
   icon,
   active,
   onClick,
 }: {
   label: string;
+  description: string;
   icon: string;
   active: boolean;
   onClick: () => void;
@@ -267,51 +406,139 @@ function TabButton({
       type="button"
       onClick={onClick}
       className={`
+        group
         relative
-        flex
-        items-center
-        justify-center
-        gap-2
-        rounded-[22px]
+        overflow-hidden
+        rounded-[24px]
         px-5
         py-4
-        text-sm
-        md:text-base
-        font-extrabold
+        text-right
         transition-all
-        duration-200
+        duration-300
         ${
           active
             ? `
-              bg-gradient-to-l
-              from-[#2563EB]
-              to-[#1D4ED8]
+              bg-gradient-to-br
+              from-[#A36C22]
+              via-[#C5964D]
+              to-[#8B5A22]
               text-white
-              shadow-[0_14px_32px_rgba(37,99,235,0.28)]
+              shadow-[0_18px_38px_rgba(139,90,34,0.26)]
               scale-[1.01]
             `
             : `
-              bg-[#F1F2F4]
-              text-[#374151]
-              hover:bg-[#E8EAEE]
+              bg-[#F3EEE8]
+              text-[#3A3028]
+              hover:bg-[#EEE5DA]
+              hover:shadow-[0_12px_28px_rgba(82,58,34,0.08)]
             `
         }
       `}
     >
-      <span className="text-lg">{icon}</span>
-      <span>{label}</span>
+      <div
+        className="
+          relative
+          z-10
+          flex
+          items-center
+          justify-between
+          gap-4
+        "
+      >
+        <div className="flex items-center gap-3">
+          <span
+            className={`
+              flex
+              h-11
+              w-11
+              items-center
+              justify-center
+              rounded-[18px]
+              text-lg
+              shadow-sm
+              ${
+                active
+                  ? "bg-white/20 text-white"
+                  : "bg-white text-[#A36C22]"
+              }
+            `}
+          >
+            {icon}
+          </span>
+
+          <div>
+            <div
+              className={`
+                text-base
+                font-black
+                ${active ? "text-white" : "text-[#2E261F]"}
+              `}
+            >
+              {label}
+            </div>
+
+            <div
+              className={`
+                mt-0.5
+                text-xs
+                font-bold
+                ${active ? "text-white/75" : "text-[#8A7A6B]"}
+              `}
+            >
+              {description}
+            </div>
+          </div>
+        </div>
+
+        {active && (
+          <span
+            className="
+              flex
+              h-8
+              w-8
+              items-center
+              justify-center
+              rounded-full
+              bg-white
+              text-sm
+              font-black
+              text-[#9B671F]
+              shadow-sm
+            "
+          >
+            ✓
+          </span>
+        )}
+      </div>
 
       {active && (
-        <span
-          className="
-            absolute
-            inset-x-8
-            -bottom-1
-            h-1
-            rounded-full
-            bg-[#E6C983]
-          "
-        />
+        <>
+          <div
+            className="
+              pointer-events-none
+              absolute
+              -left-10
+              -top-10
+              h-28
+              w-28
+              rounded-full
+              bg-white/16
+              blur-xl
+            "
+          />
+
+          <div
+            className="
+              pointer-events-none
+              absolute
+              inset-x-10
+              bottom-0
+              h-1
+              rounded-full
+              bg-[#F1DDA9]
+            "
+          />
+        </>
       )}
     </button>
   );
