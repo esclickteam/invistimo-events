@@ -13,6 +13,11 @@ export default function Header() {
   const pathname = usePathname();
   const isDashboard = pathname.startsWith("/dashboard");
 
+  // ✅ לוגו:
+  // מחוברת -> דשבורד
+  // לא מחוברת -> ראשי
+  const logoHref = user ? "/dashboard" : "/";
+
   const isProducer =
     pathname.startsWith("/producer") ||
     pathname.startsWith("/events/production");
@@ -104,8 +109,18 @@ export default function Header() {
             </Link>
           </div>
 
+          {/* ✅ לוגו לחיץ גם באזור מפיקים */}
           <div className="flex justify-center" dir="ltr">
-            <Link href="/" aria-label="Invistimo Home" className="block">
+            <Link
+              href={logoHref}
+              aria-label="Invistimo Home"
+              className="
+                block
+                cursor-pointer
+                transition
+                hover:scale-[1.03]
+              "
+            >
               <img
                 src="/invistimo-logo.png"
                 alt="Invistimo Logo"
@@ -204,12 +219,13 @@ export default function Header() {
             {/* מרכז — לוגו באמצע */}
             <div className="flex justify-center" dir="ltr">
               <Link
-                href="/"
+                href={logoHref}
                 aria-label="Invistimo Home"
                 className="
                   flex items-center justify-center
+                  cursor-pointer
                   transition
-                  hover:scale-[1.02]
+                  hover:scale-[1.03]
                 "
               >
                 <img
@@ -244,7 +260,10 @@ export default function Header() {
                 "
                 title="דמו – צפייה בלבד"
               >
-                <Sparkles size={17} className="transition group-hover:rotate-12" />
+                <Sparkles
+                  size={17}
+                  className="transition group-hover:rotate-12"
+                />
                 נסו דמו עכשיו
               </Link>
 
@@ -313,6 +332,7 @@ export default function Header() {
         </div>
       </header>
 
+      {/* ================= MOBILE DRAWER ================= */}
       {!isDashboard && mobileOpen && (
         <div className="fixed inset-0 z-[60] md:hidden print:hidden">
           <div
@@ -332,15 +352,20 @@ export default function Header() {
           >
             <div className="mb-7 flex items-center justify-between">
               <Link
-                href="/"
+                href={logoHref}
                 onClick={() => setMobileOpen(false)}
-                className="flex items-center"
+                className="
+                  flex items-center
+                  cursor-pointer
+                  transition
+                  hover:scale-[1.03]
+                "
                 dir="ltr"
               >
                 <img
                   src="/invistimo-logo.png"
                   alt="Invistimo Logo"
-                  className="h-[56px] w-auto"
+                  className="h-[56px] w-auto select-none"
                   draggable={false}
                 />
               </Link>
