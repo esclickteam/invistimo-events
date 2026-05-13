@@ -703,6 +703,199 @@ function RealTimeShowcase() {
   );
 }
 
+/* =====================================================
+   FINAL CTA — CLEAN PREMIUM
+===================================================== */
+function FinalCTA() {
+  return (
+    <section
+      dir="rtl"
+      className="
+        relative overflow-hidden
+        bg-[#FBF8F2]
+        px-4 py-24
+        md:px-8 md:py-32
+        lg:px-12
+      "
+    >
+      <div
+        className="
+          pointer-events-none absolute inset-0
+          bg-[radial-gradient(circle_at_18%_20%,rgba(201,164,92,0.13),transparent_28%),radial-gradient(circle_at_82%_80%,rgba(201,164,92,0.10),transparent_30%),linear-gradient(to_bottom,#FBF8F2,#F3E8D7)]
+        "
+      />
+
+      <div className="relative z-10 mx-auto max-w-[1180px]">
+        <motion.div
+          initial={{ opacity: 0, y: 26 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.3 }}
+          transition={{ duration: 0.75 }}
+          className="
+            overflow-hidden
+            rounded-[42px]
+            border border-[#E4D2AF]
+            bg-white/72
+            p-6
+            text-center
+            shadow-[0_30px_90px_rgba(95,68,34,0.12)]
+            backdrop-blur-2xl
+            md:p-10
+            lg:p-14
+          "
+        >
+          <div className="mx-auto mb-7 flex max-w-[450px] items-center justify-center gap-4">
+            <span className="h-px flex-1 bg-gradient-to-l from-transparent via-[#C9A45C] to-[#C9A45C]" />
+            <span
+              className="
+                inline-flex h-12 w-12 items-center justify-center
+                rounded-full
+                border border-[#D8BE82]
+                bg-[#FFF9EF]
+                text-[#B8862D]
+                shadow-[0_12px_30px_rgba(95,68,34,0.08)]
+              "
+            >
+              <Sparkles size={20} />
+            </span>
+            <span className="h-px flex-1 bg-gradient-to-r from-transparent via-[#C9A45C] to-[#C9A45C]" />
+          </div>
+
+          <p className="mb-4 text-[14px] font-extrabold tracking-[0.22em] text-[#B8862D]">
+            INVISTIMO DEMO
+          </p>
+
+          <h2
+            className="
+              mx-auto max-w-[900px]
+              text-[38px]
+              font-black
+              leading-[1.12]
+              tracking-[-0.04em]
+              text-[#3A3028]
+              md:text-[58px]
+              lg:text-[72px]
+            "
+          >
+            מוכנים לראות איך
+            <br />
+            ניהול אירוע יכול להיראות
+            <span
+              className="
+                bg-gradient-to-l
+                from-[#8B642B]
+                via-[#C69A3F]
+                to-[#B88A2D]
+                bg-clip-text text-transparent
+              "
+            >
+              {" "}
+              באמת?
+            </span>
+          </h2>
+
+          <p
+            className="
+              mx-auto mt-6 max-w-[760px]
+              text-[17px]
+              font-semibold
+              leading-[1.95]
+              text-[#5F554C]
+              md:text-[20px]
+            "
+          >
+            היכנסו לדמו, ראו את המערכת מבפנים, בדקו איך נראה דשבורד אירוע,
+            אישורי הגעה, הושבה והודעות — והחליטו בנחת אם זה מתאים לאירוע שלכם.
+          </p>
+
+          <div
+            className="
+              mx-auto mt-9 grid max-w-[820px]
+              grid-cols-1 gap-4
+              text-right
+              md:grid-cols-3
+            "
+          >
+            {[
+              "ללא תשלום",
+              "ללא התחייבות",
+              "נתוני דוגמה בלבד",
+            ].map((item) => (
+              <div
+                key={item}
+                className="
+                  flex items-center justify-center gap-3
+                  rounded-[20px]
+                  border border-[#E6D7BC]
+                  bg-[#FFFDF8]
+                  px-5 py-4
+                  shadow-[0_12px_30px_rgba(95,68,34,0.05)]
+                "
+              >
+                <CheckCircle2 size={22} className="text-[#B8862D]" />
+                <span className="text-[15px] font-black text-[#3D3127]">
+                  {item}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div
+            className="
+              mt-10 flex flex-col items-center justify-center gap-4
+              sm:flex-row
+            "
+          >
+            <Link
+              href="/try/dashboard"
+              className="
+                group inline-flex min-w-[250px]
+                items-center justify-center gap-3
+                rounded-full
+                bg-[#3F3A34]
+                px-10 py-4
+                text-[17px] font-extrabold
+                text-white
+                shadow-[0_18px_38px_rgba(63,58,52,0.22)]
+                transition
+                hover:-translate-y-0.5
+                hover:bg-[#2F2B27]
+              "
+            >
+              להתחיל דמו
+              <ArrowLeft
+                size={18}
+                className="transition group-hover:-translate-x-1"
+              />
+            </Link>
+
+            <Link
+              href="/pricing"
+              className="
+                inline-flex min-w-[250px]
+                items-center justify-center
+                rounded-full
+                border border-[#8B6A3E]/45
+                bg-white/70
+                px-10 py-4
+                text-[17px] font-extrabold
+                text-[#4A3A2A]
+                shadow-[0_14px_32px_rgba(95,68,34,0.07)]
+                backdrop-blur-xl
+                transition
+                hover:bg-white
+                hover:text-[#B8862D]
+              "
+            >
+              לצפייה בחבילות
+            </Link>
+          </div>
+        </motion.div>
+      </div>
+    </section>
+  );
+}
+
 export default function HomePage() {
   return (
     <main className="overflow-x-hidden bg-[#F6F2EC] text-[#3F3A34]">
@@ -1166,368 +1359,8 @@ export default function HomePage() {
       {/* ================= בלוק 3 – REAL TIME SHOWCASE ================= */}
       <RealTimeShowcase />
 
-      {/* ================= בלוק 4 – VALUE / MESSAGE ================= */}
-      <section
-        dir="rtl"
-        className="
-          relative overflow-hidden
-          bg-[#FCFAF6]
-          px-4 py-24
-          md:px-8 md:py-32
-          lg:px-12
-        "
-      >
-        <div
-          className="
-            pointer-events-none absolute inset-0
-            bg-[radial-gradient(circle_at_15%_20%,rgba(201,164,92,0.10),transparent_24%),radial-gradient(circle_at_85%_78%,rgba(201,164,92,0.12),transparent_28%),linear-gradient(to_bottom,rgba(255,255,255,0.65),rgba(255,255,255,0))]
-          "
-        />
-
-        <div className="relative z-10 mx-auto max-w-[1400px]">
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.3 }}
-            transition={{ duration: 0.75 }}
-            className="mx-auto mb-14 max-w-[860px] text-center"
-          >
-            <div className="mx-auto mb-6 flex max-w-[440px] items-center justify-center gap-4">
-              <span className="h-px flex-1 bg-gradient-to-l from-transparent via-[#C9A45C] to-[#C9A45C]" />
-              <span className="rounded-full border border-[#E3C98D] bg-white/70 px-5 py-2 text-[13px] font-black tracking-[0.18em] text-[#B8862D] shadow-[0_10px_24px_rgba(95,68,34,0.06)]">
-                למה Invistimo
-              </span>
-              <span className="h-px flex-1 bg-gradient-to-r from-transparent via-[#C9A45C] to-[#C9A45C]" />
-            </div>
-
-            <h2
-              className="
-                text-[40px]
-                font-black
-                leading-[1.12]
-                tracking-[-0.04em]
-                text-[#3A3028]
-                md:text-[58px]
-                lg:text-[70px]
-              "
-            >
-              פחות בלגן,
-              <span
-                className="
-                  bg-gradient-to-l
-                  from-[#8B642B]
-                  via-[#C69A3F]
-                  to-[#B88A2D]
-                  bg-clip-text text-transparent
-                "
-              >
-                {" "}
-                יותר שליטה
-              </span>
-            </h2>
-
-            <p className="mx-auto mt-5 max-w-[760px] text-[17px] font-semibold leading-[1.95] text-[#5F554C] md:text-[20px]">
-              Invistimo לא רק עוזרת לשלוח הזמנות — היא מרכזת את כל מה שצריך
-              לניהול אירוע חכם, רגוע ומסודר, מהרגע הראשון ועד לרגע האירוע עצמו.
-            </p>
-          </motion.div>
-
-          <div className="grid items-stretch gap-8 lg:grid-cols-[1.08fr_0.92fr]">
-            {/* Main elegant card */}
-            <motion.div
-              initial={{ opacity: 0, y: 28 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, amount: 0.25 }}
-              transition={{ duration: 0.75 }}
-              className="
-                relative overflow-hidden
-                rounded-[34px]
-                border border-[#E7D8BD]
-                bg-white/72
-                p-7 shadow-[0_24px_70px_rgba(95,68,34,0.10)]
-                backdrop-blur-xl
-                md:p-10
-              "
-            >
-              <div className="pointer-events-none absolute left-0 top-0 h-44 w-44 rounded-full bg-[#EED8AE]/30 blur-3xl" />
-              <div className="pointer-events-none absolute bottom-[-40px] right-[-20px] h-56 w-56 rounded-full bg-[#F6E9D0]/55 blur-3xl" />
-
-              <div className="relative z-10">
-                <div className="mb-6 inline-flex items-center gap-3 rounded-full border border-[#E5D5B6] bg-[#FFF9EF] px-5 py-2.5 text-[#B8862D] shadow-[0_10px_24px_rgba(95,68,34,0.05)]">
-                  <Sparkles size={18} />
-                  <span className="text-[14px] font-black">
-                    מערכת אחת. סדר אחד. ראש שקט.
-                  </span>
-                </div>
-
-                <h3 className="text-[28px] font-black leading-[1.25] text-[#3D3127] md:text-[38px]">
-                  כל מה שצריך לניהול אירוע,
-                  <br />
-                  בלי לרדוף אחרי כל פרט בנפרד.
-                </h3>
-
-                <p className="mt-5 max-w-[760px] text-[16px] leading-[1.95] text-[#6B5A49] md:text-[18px]">
-                  במקום לעבוד עם כמה כלים במקביל, לרשום ידנית, לעדכן אקסלים
-                  ולענות לכל אורח בנפרד — Invistimo מאחדת את כל מה שקורה באירוע
-                  למערכת אחת ברורה, אלגנטית ונוחה לעבודה.
-                </p>
-
-                <div className="mt-8 grid gap-4 sm:grid-cols-2">
-                  {[
-                    "שליחה מסודרת של הזמנות ואישורי הגעה",
-                    "ניהול מוזמנים וקבוצות במקום אחד",
-                    "עדכונים ותזכורות לאורחים מתוך המערכת",
-                    "שליטה מהירה וברורה לפני האירוע וביום עצמו",
-                  ].map((item) => (
-                    <div
-                      key={item}
-                      className="
-                        flex items-start gap-3
-                        rounded-[20px]
-                        border border-[#E8DAC0]
-                        bg-[#FFFDF8]
-                        px-4 py-4
-                        shadow-[0_10px_24px_rgba(95,68,34,0.04)]
-                      "
-                    >
-                      <CheckCircle2
-                        size={22}
-                        className="mt-0.5 shrink-0 text-[#B8862D]"
-                      />
-                      <span className="text-[15px] font-semibold leading-[1.75] text-[#5B4D40]">
-                        {item}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Side cards */}
-            <div className="grid gap-5">
-              {[
-                {
-                  icon: ShieldCheck,
-                  title: "יותר סדר",
-                  text: "כל המידע של האירוע מרוכז במקום אחד — בלי לפזר בין הודעות, טבלאות וקבצים.",
-                },
-                {
-                  icon: Clock3,
-                  title: "יותר זמן למה שחשוב",
-                  text: "פחות התעסקות טכנית ויותר זמן להתמקד באירוע עצמו, באורחים ובחוויה.",
-                },
-                {
-                  icon: Heart,
-                  title: "יותר רוגע",
-                  text: "כשיש שליטה אמיתית על כל מה שקורה, ניהול האירוע מרגיש הרבה יותר נעים ובטוח.",
-                },
-              ].map((card, index) => {
-                const Icon = card.icon;
-
-                return (
-                  <motion.div
-                    key={card.title}
-                    initial={{ opacity: 0, y: 24 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, amount: 0.25 }}
-                    transition={{
-                      duration: 0.7,
-                      delay: index * 0.12,
-                      ease: "easeOut",
-                    }}
-                    className="
-                      rounded-[28px]
-                      border border-[#E7D8BD]
-                      bg-white/72
-                      p-6 shadow-[0_18px_50px_rgba(95,68,34,0.08)]
-                      backdrop-blur-xl
-                    "
-                  >
-                    <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#FFF5E3] to-[#F3E1B9] text-[#B8862D] shadow-[0_12px_28px_rgba(184,134,45,0.16)]">
-                      <Icon size={26} />
-                    </div>
-
-                    <h3 className="text-[24px] font-black text-[#3D3127]">
-                      {card.title}
-                    </h3>
-
-                    <p className="mt-3 text-[15px] leading-[1.85] text-[#6B5A49]">
-                      {card.text}
-                    </p>
-                  </motion.div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ================= CTA – WOW FINAL SECTION ================= */}
-      <section
-        dir="rtl"
-        className="
-          relative overflow-hidden
-          bg-[linear-gradient(135deg,#8B642B_0%,#B98643_35%,#D5AF7D_65%,#B07B33_100%)]
-          px-4 py-24
-          md:px-8 md:py-32
-          lg:px-12
-        "
-      >
-        <div className="pointer-events-none absolute -left-20 top-10 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
-        <div className="pointer-events-none absolute bottom-[-80px] right-[-40px] h-96 w-96 rounded-full bg-black/10 blur-3xl" />
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_20%,rgba(255,255,255,0.16),transparent_28%)]" />
-
-        <div className="relative z-10 mx-auto max-w-[1100px]">
-          <motion.div
-            initial={{ opacity: 0, y: 26 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.3 }}
-            transition={{ duration: 0.75 }}
-            className="
-              overflow-hidden rounded-[38px]
-              border border-white/25
-              bg-white/10
-              p-6 shadow-[0_28px_90px_rgba(0,0,0,0.18)]
-              backdrop-blur-2xl
-              md:p-10 lg:p-14
-            "
-          >
-            <div className="grid items-center gap-10 lg:grid-cols-[1.05fr_0.95fr]">
-              {/* Text */}
-              <div className="text-center lg:text-right">
-                <div className="mb-5 inline-flex items-center gap-3 rounded-full border border-white/30 bg-white/12 px-5 py-2.5 text-white/95">
-                  <Sparkles size={18} />
-                  <span className="text-[14px] font-black tracking-[0.12em]">
-                    INVISTIMO DEMO
-                  </span>
-                </div>
-
-                <h2 className="text-[38px] font-black leading-[1.12] tracking-[-0.04em] text-white md:text-[56px] lg:text-[64px]">
-                  מוכנים לראות
-                  <br />
-                  איך זה עובד
-                  <span className="text-[#FFF2D2]"> באמת?</span>
-                </h2>
-
-                <p className="mx-auto mt-6 max-w-[680px] text-[17px] font-semibold leading-[1.95] text-white/90 md:text-[20px] lg:mx-0">
-                  התחילו בדמו, היכנסו למערכת, צפו בנתוני דוגמה אמיתיים והרגישו
-                  איך ניהול אירוע יכול להיות הרבה יותר מסודר, יפה ונוח.
-                </p>
-
-                <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-center lg:justify-start">
-                  <Link
-                    href="/try/dashboard"
-                    className="
-                      group inline-flex min-w-[240px]
-                      items-center justify-center gap-3
-                      rounded-full
-                      bg-[#3F3A34]
-                      px-10 py-4
-                      text-[17px] font-extrabold
-                      text-white
-                      shadow-[0_18px_40px_rgba(0,0,0,0.18)]
-                      transition
-                      hover:-translate-y-0.5
-                      hover:bg-[#2F2B27]
-                    "
-                  >
-                    התחילו דמו
-                    <ArrowLeft
-                      size={18}
-                      className="transition group-hover:-translate-x-1"
-                    />
-                  </Link>
-
-                  <Link
-                    href="/pricing"
-                    className="
-                      inline-flex min-w-[240px]
-                      items-center justify-center
-                      rounded-full
-                      border border-white/85
-                      bg-white/10
-                      px-10 py-4
-                      text-[17px] font-extrabold
-                      text-white
-                      shadow-[0_14px_34px_rgba(255,255,255,0.08)]
-                      transition
-                      hover:bg-white hover:text-[#6C4B23]
-                    "
-                  >
-                    לצפייה בחבילות
-                  </Link>
-                </div>
-              </div>
-
-              {/* Trust card */}
-              <div
-                className="
-                  rounded-[32px]
-                  border border-white/22
-                  bg-white/12
-                  p-6
-                  shadow-[0_18px_44px_rgba(0,0,0,0.12)]
-                  backdrop-blur-xl
-                  md:p-8
-                "
-              >
-                <h3 className="text-[24px] font-black text-white md:text-[30px]">
-                  למה להתחיל עכשיו?
-                </h3>
-
-                <div className="mt-6 space-y-4">
-                  {[
-                    "לראות את המערכת מבפנים לפני החלטה",
-                    "להבין בדיוק איך ניהול האירוע נראה בפועל",
-                    "לקבל תחושה אמיתית של חוויית העבודה במערכת",
-                    "להתחיל בלי תשלום ובלי התחייבות",
-                  ].map((item) => (
-                    <div
-                      key={item}
-                      className="
-                        flex items-start gap-3
-                        rounded-[18px]
-                        border border-white/18
-                        bg-white/10
-                        px-4 py-4
-                      "
-                    >
-                      <CheckCircle2
-                        size={22}
-                        className="mt-0.5 shrink-0 text-[#FFF2D2]"
-                      />
-                      <span className="text-[15px] font-semibold leading-[1.75] text-white/92">
-                        {item}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-6 flex flex-wrap gap-3">
-                  {[
-                    "ללא תשלום",
-                    "ללא הרשמה מראש",
-                    "נתוני דוגמה בלבד",
-                  ].map((pill) => (
-                    <span
-                      key={pill}
-                      className="
-                        rounded-full
-                        border border-white/18
-                        bg-white/10
-                        px-4 py-2
-                        text-[13px] font-bold text-white/90
-                      "
-                    >
-                      {pill}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      </section>
+      {/* ================= FINAL CTA ================= */}
+      <FinalCTA />
     </main>
   );
 }
