@@ -35,10 +35,11 @@ export default function EventDetailsForm({
     date: "",
     time: "",
     location: {
-      address: "",
-      lat: null as number | null,
-      lng: null as number | null,
-    },
+  name: "",
+  address: "",
+  lat: null as number | null,
+  lng: null as number | null,
+},
   });
 
   /* ============================================================
@@ -55,10 +56,11 @@ export default function EventDetailsForm({
         : "",
       time: event.eventTime ?? "",
       location: {
-        address: event.location?.address ?? "",
-        lat: event.location?.lat ?? null,
-        lng: event.location?.lng ?? null,
-      },
+  name: event.location?.name ?? "",
+  address: event.location?.address ?? "",
+  lat: event.location?.lat ?? null,
+  lng: event.location?.lng ?? null,
+},
     });
   }, [event]);
 
@@ -77,10 +79,11 @@ export default function EventDetailsForm({
         eventDate: form.date,
         eventTime: form.time,
         location: {
-          address: form.location.address,
-          lat: form.location.lat,
-          lng: form.location.lng,
-        },
+  name: form.location.name,
+  address: form.location.address,
+  lat: form.location.lat,
+  lng: form.location.lng,
+},
       };
 
       const res = await fetch(`/api/invitations/${event._id}`, {
@@ -365,14 +368,23 @@ export default function EventDetailsForm({
               "
             >
               <LocationAutocomplete
-                value={form.location.address}
-                onSelect={({ address, lat, lng }) =>
-                  setForm((f) => ({
-                    ...f,
-                    location: { address, lat, lng },
-                  }))
-                }
-              />
+  value={
+    form.location.name && form.location.address
+      ? `${form.location.name}, ${form.location.address}`
+      : form.location.name || form.location.address
+  }
+  onSelect={({ name, address, lat, lng }) =>
+    setForm((f) => ({
+      ...f,
+      location: {
+        name: name || address,
+        address,
+        lat,
+        lng,
+      },
+    }))
+  }
+/>
             </div>
 
             <p className="mt-3 px-1 text-xs font-semibold text-[#9B8D7D]">

@@ -5,15 +5,16 @@ import { useEffect, useRef } from "react";
 type Props = {
   value: string;
   onSelect: (data: {
+    name?: string;
     address: string;
-    lat: number;
-    lng: number;
+    lat: number | null;
+    lng: number | null;
   }) => void;
 };
 
 export default function LocationAutocomplete({ value, onSelect }: Props) {
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const autocompleteRef = useRef<any>(null); // ✅ אין google כ־type
+  const autocompleteRef = useRef<any>(null);
 
   useEffect(() => {
     if (
@@ -37,12 +38,22 @@ export default function LocationAutocomplete({ value, onSelect }: Props) {
     autocompleteRef.current.addListener("place_changed", () => {
       const place = autocompleteRef.current.getPlace();
 
-      if (!place?.geometry?.location) return;
+      if (!place) return;
+
+      const name = place.name || "";
+      const address = place.formatted_address || name || "";
+
+      const lat =
+        place.geometry?.location?.lat?.() ?? null;
+
+      const lng =
+        place.geometry?.location?.lng?.() ?? null;
 
       onSelect({
-        address: place.formatted_address || place.name || "",
-        lat: place.geometry.location.lat(),
-        lng: place.geometry.location.lng(),
+        name: name || address,
+        address,
+        lat,
+        lng,
       });
     });
   }, [onSelect]);
@@ -51,8 +62,20 @@ export default function LocationAutocomplete({ value, onSelect }: Props) {
     <input
       ref={inputRef}
       defaultValue={value}
-      placeholder="כתובת האירוע"
+      placeholder="שם אולם או כתובת האירוע"
       className="border rounded-full px-4 py-3 w-full"
+      onBlur={(e) => {
+        const typedValue = e.target.value.trim();
+
+        if (!typedValue) return;
+
+        onSelect({
+          name: typedValue,
+          address: typedValue,
+          lat: null,
+          lng: null,
+        });
+      }}
     />
   );
 }

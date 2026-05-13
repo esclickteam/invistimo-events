@@ -1157,12 +1157,33 @@ const rsvpVisualStats = useMemo(() => {
 
   const eventTime = resolveInvitationEventTimeRaw(invitation);
 
-  const eventLocation =
-    event?.location?.address ||
-    invitation?.location?.address ||
-    invitation?.eventLocation ||
-    invitation?.location ||
-    "טרם הוגדר מיקום";
+  const resolveEventLocation = (invitation: any, event: any) => {
+  const name =
+    cleanText(invitation?.location?.name) ||
+    cleanText(event?.location?.name) ||
+    cleanText(invitation?.locationName) ||
+    cleanText(event?.locationName) ||
+    cleanText(invitation?.eventLocationName) ||
+    cleanText(event?.eventLocationName) ||
+    cleanText(invitation?.venueName) ||
+    cleanText(event?.venueName) ||
+    cleanText(invitation?.hallName) ||
+    cleanText(event?.hallName);
+
+  const address =
+    cleanText(invitation?.location?.address) ||
+    cleanText(event?.location?.address) ||
+    cleanText(invitation?.eventLocationAddress) ||
+    cleanText(event?.eventLocationAddress);
+
+  if (name && address && name !== address) {
+    return `${name}, ${address}`;
+  }
+
+  return name || address || "טרם הוגדר מיקום";
+};
+
+const eventLocation = resolveEventLocation(invitation, event);
 
   /* ============================================================
      Render
