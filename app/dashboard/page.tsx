@@ -1377,18 +1377,20 @@ const rsvpVisualStats = useMemo(() => {
       {/* ===================== CONTROLS ===================== */}
       <section className="mb-5 rounded-[24px] border border-[#E7DED1] bg-white/85 p-4 shadow-sm">
         <GuestsControls
-          search={search}
-          setSearch={setSearch}
-          groups={groups}
-          selectedGroupId={selectedGroupId}
-          setSelectedGroupId={setSelectedGroupId}
-          onManageGroups={() => setOpenGroupModal(true)}
-          quickFilter={quickFilter}
-          setQuickFilter={setQuickFilter}
-          totalCount={guests.length}
-          displayCount={displayGuests.length}
-          onExportExcel={handleExportExcel}
-        />
+  search={search}
+  setSearch={setSearch}
+  groups={groups}
+  selectedGroupId={selectedGroupId}
+  setSelectedGroupId={setSelectedGroupId}
+  onManageGroups={() => setOpenGroupModal(true)}
+  quickFilter={quickFilter}
+  setQuickFilter={setQuickFilter}
+  totalCount={guests.length}
+  displayCount={displayGuests.length}
+  onAddGuest={() => setOpenAddModal(true)}
+  onExportExcel={handleExportExcel}
+/>
+
       </section>
 
       {/* ===================== DESKTOP TABLE ===================== */}
@@ -2158,7 +2160,7 @@ function GoldenActionButtons({
       onClick={() => {
         if (!invitation) return;
 
-        if (isDemo) {
+         if (isDemo) {
           onDemoBlocked();
           return;
         }
@@ -2167,14 +2169,7 @@ function GoldenActionButtons({
       }}
     />
 
-    {/* 3️⃣ הוספת מוזמן */}
-    <GoldenActionButton
-      label="הוספת מוזמן"
-      icon="♙"
-      tone="light"
-      disabled={!invitation}
-      onClick={onAddGuest}
-    />
+    
 
     {/* 4️⃣ ייבוא מאקסל */}
     <GoldenActionButton

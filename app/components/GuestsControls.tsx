@@ -28,6 +28,9 @@ type Props = {
   totalCount: number;
   displayCount: number;
 
+  /* ➕ Add guest */
+  onAddGuest?: () => void;
+
   /* 📤 Export */
   onExportExcel?: () => void;
 };
@@ -51,6 +54,7 @@ export default function GuestsControls({
   totalCount,
   displayCount,
 
+  onAddGuest,
   onExportExcel,
 }: Props) {
   const showGroups =
@@ -75,16 +79,31 @@ export default function GuestsControls({
           onChange={(e) => setSearch(e.target.value)}
           placeholder="חיפוש לפי שם או טלפון…"
           className="
-            w-full border border-gray-300 rounded-full
-            px-5 py-3 outline-none
-            focus:ring-2 focus:ring-[#c9b48f]
+            w-full
+            border
+            border-gray-300
+            rounded-full
+            px-5
+            py-3
+            outline-none
+            focus:ring-2
+            focus:ring-[#c9b48f]
             bg-white
           "
         />
+
         {search.trim() && (
           <button
+            type="button"
             onClick={() => setSearch("")}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700"
+            className="
+              absolute
+              left-3
+              top-1/2
+              -translate-y-1/2
+              text-gray-400
+              hover:text-gray-700
+            "
             aria-label="נקה חיפוש"
           >
             ✕
@@ -101,9 +120,22 @@ export default function GuestsControls({
               <select
                 value={selectedGroupId}
                 onChange={(e) => setSelectedGroupId(e.target.value)}
-                className="rounded-full border px-4 py-2 text-sm bg-white"
+                className="
+                  rounded-full
+                  border
+                  border-gray-300
+                  px-4
+                  py-2
+                  text-sm
+                  bg-white
+                  outline-none
+                  hover:bg-gray-50
+                  focus:ring-2
+                  focus:ring-[#c9b48f]
+                "
               >
                 <option value="">כל הקבוצות</option>
+
                 {groups.map((g) => (
                   <option key={g._id} value={g._id}>
                     {g.name}
@@ -112,12 +144,49 @@ export default function GuestsControls({
               </select>
 
               <button
+                type="button"
                 onClick={onManageGroups}
-                className="rounded-full border px-4 py-2 text-sm bg-white hover:bg-gray-50"
+                className="
+                  rounded-full
+                  border
+                  border-gray-300
+                  px-4
+                  py-2
+                  text-sm
+                  bg-white
+                  hover:bg-gray-50
+                  transition
+                  whitespace-nowrap
+                "
               >
                 + הוספת קבוצה
               </button>
             </>
+          )}
+
+          {onAddGuest && (
+            <button
+              type="button"
+              onClick={onAddGuest}
+              className="
+                rounded-full
+                border
+                border-[#c9b48f]
+                bg-[#c9b48f]
+                px-5
+                py-2
+                text-sm
+                font-semibold
+                text-white
+                shadow-sm
+                hover:bg-[#b89f78]
+                hover:border-[#b89f78]
+                transition
+                whitespace-nowrap
+              "
+            >
+              + הוספת מוזמן
+            </button>
           )}
 
           <FilterPill
@@ -155,8 +224,20 @@ export default function GuestsControls({
         {onExportExcel && (
           <div className="flex items-center gap-2">
             <button
+              type="button"
               onClick={onExportExcel}
-              className="rounded-full border px-4 py-2 text-sm bg-white hover:bg-gray-50"
+              className="
+                rounded-full
+                border
+                border-gray-300
+                px-4
+                py-2
+                text-sm
+                bg-white
+                hover:bg-gray-50
+                transition
+                whitespace-nowrap
+              "
             >
               ייצוא לאקסל
             </button>
@@ -166,7 +247,7 @@ export default function GuestsControls({
 
       {/* ================= Pending Sub Tabs ================= */}
       {isPendingView && (
-        <div className="flex gap-2 ps-1">
+        <div className="flex gap-2 ps-1 flex-wrap">
           <FilterPill
             active={quickFilter === "call_answered"}
             onClick={() => setQuickFilter("call_answered")}
@@ -214,8 +295,15 @@ function FilterPill({
       type="button"
       onClick={onClick}
       className={`
-        px-4 py-2 rounded-full border text-sm font-medium
-        select-none whitespace-nowrap transition-all
+        px-4
+        py-2
+        rounded-full
+        border
+        text-sm
+        font-medium
+        select-none
+        whitespace-nowrap
+        transition-all
         ${
           active
             ? "bg-[#c9b48f] text-white border-[#c9b48f] shadow-sm"
