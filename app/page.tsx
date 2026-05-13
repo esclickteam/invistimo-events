@@ -4,83 +4,131 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 
 /* =====================================================
-   טלפון תלת־מימדי HERO
+   HERO PHONE — 3D VIDEO PHONE
 ===================================================== */
 function HeroPhone3D() {
   return (
     <div
       className="
-        relative z-10 flex min-h-[500px] w-full items-center justify-center
-        lg:min-h-[700px]
+        relative z-10
+        flex w-full items-center justify-center
+        min-h-[500px]
+        lg:min-h-[680px]
       "
-      style={{ perspective: "1400px" }}
+      style={{ perspective: "1700px" }}
     >
-      {/* חצי עיגול זהב מאחורי הטלפון */}
+      {/* Glow רך בלבד מאחורי הטלפון */}
       <div
         className="
-          pointer-events-none absolute left-1/2 top-1/2
-          h-[420px] w-[420px]
+          pointer-events-none absolute
+          left-1/2 top-1/2
+          h-[420px] w-[300px]
           -translate-x-1/2 -translate-y-1/2
           rounded-full
-          border border-[#C9A45C]/45
-          md:h-[560px] md:w-[560px]
-          lg:h-[640px] lg:w-[640px]
+          bg-[#C8A45A]/18
+          blur-[85px]
         "
       />
 
-      {/* אור רך מאחורי הטלפון */}
+      {/* צל רצפה — לא עיגול */}
       <div
         className="
-          pointer-events-none absolute left-1/2 top-[55%]
-          h-[330px] w-[330px]
-          -translate-x-1/2 -translate-y-1/2
+          pointer-events-none absolute
+          bottom-[45px] left-1/2
+          h-[42px] w-[310px]
+          -translate-x-1/2
           rounded-full
-          bg-[#D6B36A]/18
-          blur-[70px]
+          bg-black/20
+          blur-2xl
+          md:w-[390px]
         "
       />
 
       <motion.div
-        initial={{ opacity: 0, y: 28, rotateZ: -7 }}
-        animate={{ opacity: 1, y: 0, rotateZ: -6 }}
-        transition={{ duration: 0.9, ease: "easeOut" }}
+        initial={{ opacity: 0, y: 28, rotateZ: -8 }}
+        animate={{
+          opacity: 1,
+          y: [0, -10, 0],
+          rotateZ: [-8, -7, -8],
+        }}
+        transition={{
+          opacity: { duration: 0.8 },
+          y: { duration: 6, repeat: Infinity, ease: "easeInOut" },
+          rotateZ: { duration: 6, repeat: Infinity, ease: "easeInOut" },
+        }}
         className="
           relative
           h-[500px] w-[248px]
-          rounded-[46px]
-          bg-gradient-to-br from-[#111] via-[#2A2A2A] to-[#050505]
+          rounded-[50px]
+          bg-gradient-to-br from-[#080808] via-[#262626] to-[#050505]
           p-[9px]
-          shadow-[0_38px_90px_rgba(38,29,18,0.34),inset_0_0_0_1px_rgba(255,255,255,0.16)]
-          md:h-[610px] md:w-[305px]
-          lg:h-[650px] lg:w-[325px]
+          shadow-[38px_42px_90px_rgba(37,28,17,0.30),-18px_18px_50px_rgba(201,164,92,0.16),inset_0_0_0_1px_rgba(255,255,255,0.18)]
+          md:h-[600px] md:w-[300px]
+          lg:h-[660px] lg:w-[330px]
         "
         style={{
           transformStyle: "preserve-3d",
-          transform: "rotateY(-14deg) rotateX(5deg)",
+          transform: "rotateY(-24deg) rotateX(7deg)",
         }}
       >
-        {/* כפתורי צד */}
-        <span className="absolute -left-[4px] top-[120px] h-16 w-[4px] rounded-l bg-[#151515]" />
-        <span className="absolute -right-[4px] top-[155px] h-24 w-[4px] rounded-r bg-[#151515]" />
-
-        {/* הברקה עדינה */}
+        {/* עובי צד — נותן תחושת 3D */}
         <div
           className="
-            pointer-events-none absolute inset-[9px] z-20
-            rounded-[38px]
-            bg-gradient-to-tr from-white/0 via-white/10 to-white/0
+            absolute -right-[15px] top-[34px]
+            h-[90%] w-[18px]
+            rounded-r-[38px]
+            bg-gradient-to-b from-[#2C2C2C] via-[#080808] to-[#1F1F1F]
+            shadow-[inset_-5px_0_10px_rgba(255,255,255,0.08)]
+          "
+          style={{ transform: "translateZ(-12px)" }}
+        />
+
+        {/* כפתורי צד */}
+        <span className="absolute -left-[4px] top-[130px] h-16 w-[4px] rounded-l bg-[#111]" />
+        <span className="absolute -left-[4px] top-[210px] h-12 w-[4px] rounded-l bg-[#111]" />
+        <span className="absolute -right-[19px] top-[170px] h-24 w-[4px] rounded-r bg-[#111]" />
+
+        {/* מסגרת פנימית */}
+        <div
+          className="
+            absolute inset-[8px]
+            rounded-[42px]
+            border border-white/10
+            pointer-events-none
+            z-20
           "
         />
 
-        <div className="relative h-full w-full overflow-hidden rounded-[38px] bg-black">
+        {/* הברקת זכוכית */}
+        <div
+          className="
+            pointer-events-none absolute inset-[9px] z-30
+            rounded-[40px]
+            bg-gradient-to-tr
+            from-white/0
+            via-white/14
+            to-white/0
+          "
+        />
+
+        {/* Screen */}
+        <div
+          className="
+            relative h-full w-full
+            overflow-hidden
+            rounded-[40px]
+            bg-black
+          "
+        >
           {/* Dynamic Island */}
           <div
             className="
-              absolute left-1/2 top-4 z-30
-              h-[26px] w-[96px]
+              absolute left-1/2 top-4 z-40
+              h-[26px] w-[98px]
               -translate-x-1/2
-              rounded-full bg-black
-              shadow-[0_2px_8px_rgba(0,0,0,0.5)]
+              rounded-full
+              bg-black
+              shadow-[0_2px_8px_rgba(0,0,0,0.65)]
             "
           />
 
@@ -96,7 +144,10 @@ function HeroPhone3D() {
           <div
             className="
               pointer-events-none absolute inset-0
-              bg-gradient-to-b from-black/10 via-transparent to-black/20
+              bg-gradient-to-br
+              from-white/10
+              via-transparent
+              to-black/22
             "
           />
         </div>
