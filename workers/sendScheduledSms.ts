@@ -83,16 +83,26 @@ function normalizePhone(phoneRaw: any) {
 }
 
 async function buildNavigationLink(invitation: any) {
-  const location = invitation?.location;
+  const location = invitation?.eventLocation ?? invitation?.location;
 
-  const hasLocation =
-    typeof location?.lat === "number" && typeof location?.lng === "number";
+  if (
+    typeof location?.lat === "number" &&
+    typeof location?.lng === "number"
+  ) {
+    const wazeUrl = `https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`;
 
-  if (!hasLocation) return "";
+    return shortenUrl(wazeUrl);
+  }
 
-  const wazeUrl = `https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`;
+  if (typeof location?.address === "string" && location.address.trim()) {
+    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+      location.address.trim()
+    )}`;
 
-  return shortenUrl(wazeUrl);
+    return shortenUrl(mapsUrl);
+  }
+
+  return "";
 }
 
 function buildGuestsQuery({

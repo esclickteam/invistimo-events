@@ -17,6 +17,7 @@ type BuildSmsParams = {
     eventLocation?: {
       lat?: number;
       lng?: number;
+      address?: string;
     };
   };
 
@@ -24,6 +25,7 @@ type BuildSmsParams = {
     location?: {
       lat?: number;
       lng?: number;
+      address?: string;
     };
   };
 
@@ -61,9 +63,20 @@ export async function buildFinalSmsText({
   const location = invitation.eventLocation ?? event?.location;
   let navigationLink = "";
 
-  if (location?.lat && location?.lng) {
+  if (
+    typeof location?.lat === "number" &&
+    typeof location?.lng === "number"
+  ) {
     const wazeUrl = `https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`;
     navigationLink = await shortenUrl(wazeUrl);
+  } else if (
+    typeof location?.address === "string" &&
+    location.address.trim()
+  ) {
+    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+      location.address.trim()
+    )}`;
+    navigationLink = await shortenUrl(mapsUrl);
   }
 
   /* ================= RSVP ================= */
