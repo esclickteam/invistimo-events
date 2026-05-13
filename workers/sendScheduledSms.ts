@@ -126,18 +126,35 @@ function buildGuestsQuery({
    * אם נשמרו guestIds — מכבדים אותם.
    * אחרת משתמשים ב-filter.
    */
-  if (Array.isArray(schedule.guestIds) && schedule.guestIds.length > 0) {
-    return {
-      _id: { $in: schedule.guestIds },
-      invitationId,
-    };
-  }
+  /**
+ * Reminder / Table:
+ * בזמן השליחה בפועל בלבד מושכים רק מי שאישר הגעה.
+ * לא משתמשים בנתונים מזמן התזמון.
+ */
+if (type === "reminder" || type === "table") {
+  return {
+    invitationId,
+    rsvp: "yes",
+  };
+}
 
-  const query: any = { invitationId };
+/**
+ * Thankyou / Custom:
+ * אם נשמרו guestIds — מכבדים אותם.
+ * אחרת משתמשים ב-filter.
+ */
+if (Array.isArray(schedule.guestIds) && schedule.guestIds.length > 0) {
+  return {
+    _id: { $in: schedule.guestIds },
+    invitationId,
+  };
+}
 
-  if (schedule.filter === "pending") {
-    query.rsvp = "pending";
-  }
+const query: any = { invitationId };
+
+if (schedule.filter === "pending") {
+  query.rsvp = "pending";
+}
 
   if (schedule.filter === "withTable") {
     query.$or = [
@@ -155,6 +172,20 @@ function getTableName(guest: any) {
   }
 
   return guest.tableName || "";
+}
+
+function stripTableBlockForGuestWithoutTable(text: string) {
+  return String(text || "")
+    .replace(
+      /\n*השולחן שלך באירוע:\s*\n*🪑\s*{{tableName}}\s*\n*/g,
+      "\n"
+    )
+    .replace(
+      /\n*השולחן שלך באירוע:\s*\n*🪑\s*\n*/g,
+      "\n"
+    )
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 async function buildSmsText({
@@ -175,12 +206,21 @@ async function buildSmsText({
 
   const tableName = getTableName(guest);
 
-  return String(schedule.messageContent || schedule.messageOverride || "")
-    .replace(/{{name}}/g, guest.name || "")
-    .replace(/{{invitationTitle}}/g, invitationTitle)
-    .replace(/{{rsvpLink}}/g, shortUrl)
-    .replace(/{{tableName}}/g, tableName)
-    .replace(/{{navigationLink}}/g, navigationLink || "");
+  const tableName = getTableName(guest);
+const type = normalizeType(schedule.type || schedule.templateKey);
+
+let template = String(schedule.messageContent || schedule.messageOverride || "");
+
+if ((type === "reminder" || type === "table") && !tableName) {
+  template = stripTableBlockForGuestWithoutTable(template);
+}
+
+return template
+  .replace(/{{name}}/g, guest.name || "")
+  .replace(/{{invitationTitle}}/g, invitationTitle)
+  .replace(/{{rsvpLink}}/g, shortUrl)
+  .replace(/{{tableName}}/g, tableName)
+  .replace(/{{navigationLink}}/g, navigationLink || "");
 }
 
 function deepReplacePlaceholders(
