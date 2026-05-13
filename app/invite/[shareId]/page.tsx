@@ -21,7 +21,7 @@ const MENU_LABELS: Record<string, string> = {
 };
 
 /* ============================================================
-   Gift Section
+   TYPES
 ============================================================ */
 
 type GiftOptions = {
@@ -30,6 +30,62 @@ type GiftOptions = {
   payboxEnabled?: boolean;
   payboxUrl?: string;
 };
+
+type PreviewImageMode = "portrait" | "square";
+
+/* ============================================================
+   Heart Burst
+============================================================ */
+
+function HeartBurst({ triggerKey }: { triggerKey: number }) {
+  const [show, setShow] = useState(false);
+
+  useEffect(() => {
+    if (!triggerKey) return;
+
+    setShow(true);
+
+    const timer = window.setTimeout(() => {
+      setShow(false);
+    }, 1200);
+
+    return () => window.clearTimeout(timer);
+  }, [triggerKey]);
+
+  if (!show) return null;
+
+  const items = ["😍", "💛", "🤍", "✨", "💖", "🥰", "💫", "❤️"];
+
+  return (
+    <div className="pointer-events-none fixed inset-0 z-[9999] flex items-center justify-center overflow-hidden">
+      <div className="relative h-56 w-56">
+        {items.map((item, index) => (
+          <span
+            key={`${item}-${index}`}
+            className="heart-burst-item absolute left-1/2 top-1/2 text-4xl"
+            style={
+              {
+                "--x": `${Math.cos((index / items.length) * Math.PI * 2) * 120}px`,
+                "--y": `${Math.sin((index / items.length) * Math.PI * 2) * 120}px`,
+                "--delay": `${index * 45}ms`,
+              } as React.CSSProperties
+            }
+          >
+            {item}
+          </span>
+        ))}
+
+        <div className="heart-burst-center absolute left-1/2 top-1/2 flex h-24 w-24 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-5xl shadow-[0_25px_80px_rgba(105,70,35,0.22)]">
+          😍
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   Gift Section
+============================================================ */
 
 function GiftSection({ giftOptions }: { giftOptions?: GiftOptions }) {
   const creditUrl = (giftOptions?.creditUrl ?? "").trim();
@@ -41,9 +97,15 @@ function GiftSection({ giftOptions }: { giftOptions?: GiftOptions }) {
   if (!showCredit && !showPaybox) return null;
 
   return (
-    <div className="mt-2 rounded-2xl border border-[#e8dfcf] bg-[#faf9f6] p-4">
-      <div className="text-center font-medium text-[#6b6046] mb-3">
-        🎁 רוצים לשמח גם במתנה?
+    <div className="rounded-[28px] border border-[#eadfce] bg-[#fffaf2] p-4 shadow-sm">
+      <div className="mb-3 text-center">
+        <div className="mx-auto mb-2 flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-2xl shadow-sm">
+          🎁
+        </div>
+
+        <p className="text-sm font-black text-[#3a2c20]">
+          רוצים לשמח גם במתנה?
+        </p>
       </div>
 
       <div className="flex gap-3">
@@ -52,7 +114,7 @@ function GiftSection({ giftOptions }: { giftOptions?: GiftOptions }) {
             href={creditUrl}
             target="_blank"
             rel="noreferrer"
-            className="flex-1 text-center py-3 rounded-full font-medium border bg-white text-[#6b6046] border-[#d1c7b4]"
+            className="flex-1 rounded-2xl border border-[#d8c7ad] bg-white py-3 text-center text-sm font-bold text-[#5a4634] shadow-sm transition hover:bg-[#fbf7f0]"
           >
             מתנה באשראי
           </a>
@@ -63,12 +125,61 @@ function GiftSection({ giftOptions }: { giftOptions?: GiftOptions }) {
             href={payboxUrl}
             target="_blank"
             rel="noreferrer"
-            className="flex-1 text-center py-3 rounded-full font-medium border bg-white text-[#6b6046] border-[#d1c7b4]"
+            className="flex-1 rounded-2xl border border-[#d8c7ad] bg-white py-3 text-center text-sm font-bold text-[#5a4634] shadow-sm transition hover:bg-[#fbf7f0]"
           >
-            מתנה ב-PayBox
+            מתנה ב־PayBox
           </a>
         )}
       </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   Invitation Image
+============================================================ */
+
+function InvitationImageCard({
+  imageUrl,
+  imageMode,
+  canvasData,
+}: {
+  imageUrl: string;
+  imageMode: PreviewImageMode;
+  canvasData?: any;
+}) {
+  return (
+    <div className="w-full">
+      {imageUrl ? (
+        <div className="relative mx-auto w-full max-w-md">
+          <div className="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-[#dfc08f]/30 blur-3xl" />
+          <div className="absolute -bottom-8 -left-8 h-32 w-32 rounded-full bg-[#fff]/60 blur-3xl" />
+
+          <div className="relative rounded-[34px] border border-white/80 bg-white/85 p-3 shadow-[0_30px_90px_rgba(92,66,38,0.16)] backdrop-blur">
+            <div className="relative overflow-hidden rounded-[26px] bg-[#faf7f1]">
+              <img
+                src={imageUrl}
+                alt="תמונת ההזמנה"
+                className={`mx-auto block w-full rounded-[26px] object-contain ${
+                  imageMode === "square" ? "aspect-square" : "aspect-[9/16]"
+                }`}
+              />
+
+              <div className="pointer-events-none absolute inset-0 rounded-[26px] ring-1 ring-black/5" />
+            </div>
+          </div>
+        </div>
+      ) : canvasData ? (
+        <div className="mx-auto w-full max-w-md overflow-hidden rounded-[34px] bg-white p-3 shadow-[0_30px_90px_rgba(92,66,38,0.16)]">
+          <div className="overflow-hidden rounded-[26px]">
+            <PublicInviteRenderer canvasData={canvasData} />
+          </div>
+        </div>
+      ) : (
+        <div className="mx-auto flex min-h-[360px] w-full max-w-md items-center justify-center rounded-[30px] border border-dashed border-[#d1c7b4] bg-white/80 px-6 text-center text-sm text-[#6b6046]">
+          תמונת ההזמנה לא זמינה כרגע
+        </div>
+      )}
     </div>
   );
 }
@@ -90,6 +201,16 @@ export default function PublicInvitePage({ params }: any) {
   const [loading, setLoading] = useState(true);
   const [sent, setSent] = useState(false);
 
+  const [heartTrigger, setHeartTrigger] = useState(0);
+
+  /*
+    תצוגה זמנית מתוך עמוד העריכה.
+    לא נשמר בשרת ולא משנה את אישורי ההגעה.
+  */
+  const [previewOverrideImage, setPreviewOverrideImage] = useState("");
+  const [previewOverrideMode, setPreviewOverrideMode] =
+    useState<PreviewImageMode | null>(null);
+
   const [form, setForm] = useState({
     rsvp: "pending" as "yes" | "no" | "pending",
     arrivedCount: 1,
@@ -103,13 +224,41 @@ export default function PublicInvitePage({ params }: any) {
   useEffect(() => {
     (async () => {
       const resolved = await params;
-      setShareId(resolved.shareId);
+
+      setShareId(resolved.shareId || resolved.id);
 
       const sp = new URLSearchParams(window.location.search);
       const t = sp.get("token");
+
       if (t) setToken(t);
     })();
   }, [params]);
+
+  /* ============================================================
+     LIVE PREVIEW MESSAGE FROM EDIT PAGE
+  ============================================================ */
+
+  useEffect(() => {
+    function handlePreviewMessage(event: MessageEvent) {
+      if (event.origin !== window.location.origin) return;
+      if (event.data?.type !== "INVISTIMO_PREVIEW_IMAGE_UPDATE") return;
+
+      const nextImageUrl =
+        typeof event.data.imageUrl === "string" ? event.data.imageUrl : "";
+
+      const nextMode =
+        event.data.imageMode === "square" ? "square" : "portrait";
+
+      setPreviewOverrideImage(nextImageUrl);
+      setPreviewOverrideMode(nextMode);
+    }
+
+    window.addEventListener("message", handlePreviewMessage);
+
+    return () => {
+      window.removeEventListener("message", handlePreviewMessage);
+    };
+  }, []);
 
   /* ============================================================
      LOAD INVITATION + GUEST
@@ -121,8 +270,12 @@ export default function PublicInvitePage({ params }: any) {
     async function fetchInvite() {
       try {
         const res = await fetch(
-          `/api/invite/${shareId}${token ? `?token=${token}` : ""}`
+          `/api/invite/${shareId}${token ? `?token=${token}` : ""}`,
+          {
+            cache: "no-store",
+          }
         );
+
         const data = await res.json();
 
         if (data.success) {
@@ -132,7 +285,6 @@ export default function PublicInvitePage({ params }: any) {
           if (data.guest) {
             setSelectedGuest(data.guest);
 
-            // אם כבר יש RSVP – נטעין אותו
             if (data.guest.rsvp) {
               setForm((f) => ({
                 ...f,
@@ -161,11 +313,33 @@ export default function PublicInvitePage({ params }: any) {
   }, [shareId, token]);
 
   /* ============================================================
+     INVITATION IMAGE
+  ============================================================ */
+
+  const invitationImageUrl = useMemo(() => {
+    return (
+      previewOverrideImage ||
+      invite?.previewImageUrl ||
+      invite?.headerImageUrl ||
+      invite?.imageUrl ||
+      invite?.canvasImageUrl ||
+      ""
+    );
+  }, [previewOverrideImage, invite]);
+
+  const invitationImageMode: PreviewImageMode = useMemo(() => {
+    if (previewOverrideMode) return previewOverrideMode;
+    if (invite?.orientation === "square") return "square";
+    return "portrait";
+  }, [previewOverrideMode, invite]);
+
+  /* ============================================================
      ACTIVE MENU OPTIONS
   ============================================================ */
 
   const activeMenuOptions = useMemo(() => {
     const menu = invite?.invitationSettings?.menuOptions;
+
     if (!menu) return [];
 
     return Object.entries(menu)
@@ -215,147 +389,266 @@ export default function PublicInvitePage({ params }: any) {
      RENDER
   ============================================================ */
 
-  if (loading) return <div className="p-10 text-center">טוען הזמנה…</div>;
-  if (!invite)
-    return <div className="p-10 text-center text-red-600">❌ ההזמנה לא נמצאה</div>;
+  if (loading) {
+    return (
+      <div
+        dir="rtl"
+        className="flex min-h-screen items-center justify-center bg-[#f7efe5]"
+      >
+        <div className="rounded-[30px] border border-[#eadfce] bg-white px-8 py-7 text-center shadow-xl">
+          <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-[#d7b98b] border-t-transparent" />
+          <p className="text-lg font-bold text-[#3b2a1f]">טוען הזמנה…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!invite) {
+    return (
+      <div
+        dir="rtl"
+        className="flex min-h-screen items-center justify-center bg-[#f7efe5] p-6"
+      >
+        <div className="rounded-[30px] border border-red-100 bg-white px-8 py-7 text-center text-red-600 shadow-xl">
+          ❌ ההזמנה לא נמצאה
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-[#faf9f6]">
-      <div className="flex flex-col items-center py-10 pb-32">
+    <div dir="rtl" className="min-h-screen overflow-hidden bg-[#f7efe5]">
+      <HeartBurst triggerKey={heartTrigger} />
 
-        <div className="w-full max-w-md bg-white rounded-2xl shadow p-6 mb-8">
-          {invite.canvasData && (
-            <PublicInviteRenderer canvasData={invite.canvasData} />
-          )}
-        </div>
+      <style jsx global>{`
+        @keyframes heart-burst-fly {
+          0% {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.4);
+          }
+          18% {
+            opacity: 1;
+          }
+          100% {
+            opacity: 0;
+            transform: translate(
+                calc(-50% + var(--x)),
+                calc(-50% + var(--y))
+              )
+              scale(1.25) rotate(18deg);
+          }
+        }
+
+        @keyframes heart-burst-center {
+          0% {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.5);
+          }
+          25% {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1.08);
+          }
+          100% {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(1.35);
+          }
+        }
+
+        .heart-burst-item {
+          animation: heart-burst-fly 1.05s ease-out forwards;
+          animation-delay: var(--delay);
+        }
+
+        .heart-burst-center {
+          animation: heart-burst-center 1.15s ease-out forwards;
+        }
+      `}</style>
+
+      <div className="pointer-events-none fixed inset-0">
+        <div className="absolute -right-24 top-10 h-72 w-72 rounded-full bg-[#dfc08f]/30 blur-3xl" />
+        <div className="absolute -left-24 top-1/3 h-80 w-80 rounded-full bg-white/70 blur-3xl" />
+        <div className="absolute bottom-0 left-1/2 h-64 w-64 -translate-x-1/2 rounded-full bg-[#c79a55]/10 blur-3xl" />
+      </div>
+
+      <main className="relative mx-auto flex min-h-screen w-full max-w-2xl flex-col items-center px-4 py-8 pb-28">
+        <section className="mb-5 text-center">
+          <p className="text-[11px] font-black tracking-[0.28em] text-[#b58a55]">
+            INVISTIMO
+          </p>
+
+          <h1 className="mt-2 text-2xl font-black leading-tight text-[#2d241c]">
+            {invite?.title || "הזמנה לאירוע"}
+          </h1>
+
+          {event?.eventDate ? (
+            <p className="mt-2 text-sm font-semibold text-[#7b6a58]">
+              נשמח לראותכם איתנו
+            </p>
+          ) : null}
+        </section>
+
+        <InvitationImageCard
+          imageUrl={invitationImageUrl}
+          imageMode={invitationImageMode}
+          canvasData={invite.canvasData}
+        />
 
         {!sent ? (
           <form
             onSubmit={handleSubmit}
-            className="w-full max-w-md bg-white rounded-2xl shadow p-8 flex flex-col gap-6"
+            className="relative mt-7 w-full max-w-md overflow-hidden rounded-[34px] border border-white/80 bg-white/92 p-6 shadow-[0_28px_90px_rgba(92,66,38,0.16)] backdrop-blur"
           >
-            <div className="text-center text-lg font-medium text-[#6b6046]">
-              נשמח לראותך באירוע!
-            </div>
+            <div className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full bg-[#dfc08f]/25 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-16 -left-16 h-36 w-36 rounded-full bg-[#fff2d9]/80 blur-3xl" />
 
-            {/* מגיע / לא מגיע */}
-            <div className="flex gap-4">
-              <button
-                type="button"
-                onClick={() =>
-                  setForm({ ...form, rsvp: "yes", arrivedCount: 1 })
-                }
-                className={`flex-1 py-3 rounded-full border ${
-                  form.rsvp === "yes"
-                    ? "bg-[#c3b28b] text-white border-[#c3b28b]"
-                    : "border-[#d1c7b4] text-[#6b6046]"
-                }`}
-              >
-                מגיע
-              </button>
-
-              <button
-                type="button"
-                onClick={() =>
-                  setForm({ ...form, rsvp: "no", arrivedCount: 0 })
-                }
-                className={`flex-1 py-3 rounded-full border ${
-                  form.rsvp === "no"
-                    ? "bg-[#b88a8a] text-white border-[#b88a8a]"
-                    : "border-[#d1c7b4] text-[#6b6046]"
-                }`}
-              >
-                לא מגיע
-              </button>
-            </div>
-
-            {/* כמה מגיעים */}
-            {form.rsvp === "yes" && (
-              <div className="flex flex-col items-center gap-2">
-                <div className="text-sm font-medium text-[#6b6046]">
-                  כמה מגיעים?
+            <div className="relative">
+              <div className="mb-6 text-center">
+                <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#fff7e8] text-3xl shadow-sm">
+                  💌
                 </div>
 
-                <div className="flex items-center gap-4">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setForm((p) => ({
-                        ...p,
-                        arrivedCount: Math.max(1, p.arrivedCount - 1),
-                      }))
-                    }
-                    className="w-10 h-10 rounded-full border border-[#d1c7b4]"
-                  >
-                    −
-                  </button>
+                <h2 className="text-xl font-black text-[#2d241c]">
+                  אישור הגעה
+                </h2>
 
-                  <div className="min-w-[40px] text-center font-semibold">
-                    {form.arrivedCount}
+                <p className="mt-1 text-sm text-[#7b6a58]">
+                  נשמח לדעת אם תגיעו לחגוג איתנו
+                </p>
+              </div>
+
+              {/* מגיע / לא מגיע */}
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForm({ ...form, rsvp: "yes", arrivedCount: 1 });
+                    setHeartTrigger(Date.now());
+                  }}
+                  className={`group relative overflow-hidden rounded-2xl border px-4 py-4 text-sm font-black transition ${
+                    form.rsvp === "yes"
+                      ? "border-[#c79a55] bg-gradient-to-l from-[#c79a55] to-[#8f6437] text-white shadow-lg"
+                      : "border-[#eadfce] bg-[#fbf8f2] text-[#5a4634] hover:border-[#c79a55] hover:bg-[#fff7ea]"
+                  }`}
+                >
+                  <span className="relative z-10">מגיע/ה</span>
+                  <span className="relative z-10 mr-1">😍</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setForm({ ...form, rsvp: "no", arrivedCount: 0 })
+                  }
+                  className={`rounded-2xl border px-4 py-4 text-sm font-black transition ${
+                    form.rsvp === "no"
+                      ? "border-[#b88a8a] bg-[#b88a8a] text-white shadow-lg"
+                      : "border-[#eadfce] bg-[#fbf8f2] text-[#5a4634] hover:bg-white"
+                  }`}
+                >
+                  לא מגיע/ה
+                </button>
+              </div>
+
+              {/* כמה מגיעים */}
+              {form.rsvp === "yes" && (
+                <div className="mt-6 rounded-[28px] border border-[#eadfce] bg-[#fffaf2] p-5">
+                  <div className="mb-4 text-center text-sm font-black text-[#3a2c20]">
+                    כמה מגיעים?
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setForm((p) => ({
-                        ...p,
-                        arrivedCount: p.arrivedCount + 1,
-                      }))
-                    }
-                    className="w-10 h-10 rounded-full border border-[#d1c7b4]"
-                  >
-                    +
-                  </button>
+                  <div className="flex items-center justify-center gap-5">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setForm((p) => ({
+                          ...p,
+                          arrivedCount: Math.max(1, p.arrivedCount - 1),
+                        }))
+                      }
+                      className="flex h-11 w-11 items-center justify-center rounded-full border border-[#d8c7ad] bg-white text-xl font-bold text-[#5a4634] shadow-sm transition hover:bg-[#fbf7f0]"
+                    >
+                      −
+                    </button>
+
+                    <div className="flex h-14 min-w-[64px] items-center justify-center rounded-2xl bg-white px-5 text-2xl font-black text-[#2d241c] shadow-sm">
+                      {form.arrivedCount}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setForm((p) => ({
+                          ...p,
+                          arrivedCount: p.arrivedCount + 1,
+                        }))
+                      }
+                      className="flex h-11 w-11 items-center justify-center rounded-full border border-[#d8c7ad] bg-white text-xl font-bold text-[#5a4634] shadow-sm transition hover:bg-[#fbf7f0]"
+                    >
+                      +
+                    </button>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* הערות */}
-            {form.rsvp === "yes" && activeMenuOptions.length > 0 && (
-              <div>
-                <label className="block mb-2 text-sm font-medium">
-                  הערות:
-                </label>
+              {/* הערות */}
+              {form.rsvp === "yes" && activeMenuOptions.length > 0 && (
+                <div className="mt-6 rounded-[28px] border border-[#eadfce] bg-white p-5">
+                  <label className="mb-3 block text-sm font-black text-[#3a2c20]">
+                    בקשות מיוחדות:
+                  </label>
 
-                <div className="grid grid-cols-2 gap-3">
-                  {activeMenuOptions.map((opt) => (
-                    <label key={opt.key} className="flex gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={form.notes.includes(opt.label)}
-                        onChange={(e) =>
-                          setForm({
-                            ...form,
-                            notes: e.target.checked
-                              ? [...form.notes, opt.label]
-                              : form.notes.filter((n) => n !== opt.label),
-                          })
-                        }
-                      />
-                      {opt.label}
-                    </label>
-                  ))}
+                  <div className="grid grid-cols-2 gap-3">
+                    {activeMenuOptions.map((opt) => (
+                      <label
+                        key={opt.key}
+                        className={`flex cursor-pointer items-center gap-2 rounded-2xl border px-3 py-3 text-sm font-semibold transition ${
+                          form.notes.includes(opt.label)
+                            ? "border-[#c79a55] bg-[#fff7ea] text-[#5a4634]"
+                            : "border-[#eadfce] bg-[#fbf8f2] text-[#6b6046]"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={form.notes.includes(opt.label)}
+                          onChange={(e) =>
+                            setForm({
+                              ...form,
+                              notes: e.target.checked
+                                ? [...form.notes, opt.label]
+                                : form.notes.filter((n) => n !== opt.label),
+                            })
+                          }
+                          className="accent-[#8f6437]"
+                        />
+                        {opt.label}
+                      </label>
+                    ))}
+                  </div>
                 </div>
+              )}
+
+              <button
+                type="submit"
+                className="mt-6 w-full rounded-2xl bg-gradient-to-l from-[#c79a55] to-[#8f6437] px-5 py-4 text-lg font-black text-white shadow-[0_18px_45px_rgba(143,100,55,0.28)] transition hover:shadow-[0_22px_55px_rgba(143,100,55,0.34)]"
+              >
+                שליחת אישור הגעה
+              </button>
+
+              <div className="mt-5">
+                <GiftSection giftOptions={giftOptions} />
               </div>
-            )}
-
-            <button
-              type="submit"
-              className="w-full py-3 rounded-full bg-gradient-to-r from-[#c9b48f] to-[#bda780] text-white font-semibold text-lg"
-            >
-              שליחת אישור הגעה
-            </button>
-
-            <GiftSection giftOptions={giftOptions} />
+            </div>
           </form>
         ) : (
-          <div className="bg-white px-6 py-4 rounded-xl shadow text-green-700 font-semibold">
+          <div className="mt-7 w-full max-w-md rounded-[30px] border border-emerald-100 bg-white px-6 py-6 text-center font-black text-emerald-700 shadow-[0_20px_70px_rgba(92,66,38,0.12)]">
             ✓ תודה! תשובתך התקבלה
           </div>
         )}
 
-        <EventLocationCard location={invite?.location} />
-      </div>
+        <div className="mt-7 w-full max-w-md">
+          <EventLocationCard location={invite?.location} />
+        </div>
+      </main>
     </div>
   );
 }

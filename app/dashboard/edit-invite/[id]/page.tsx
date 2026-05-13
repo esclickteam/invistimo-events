@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 
 /* =========================================================
@@ -79,20 +79,20 @@ function getImageQualityStatus(info: ImageInfo | null, mode: InviteImageMode) {
     if (info.width >= 1080 && info.height >= 1080) {
       return {
         level: "good",
-        text: "איכות מעולה לשליחה ולתצוגה",
+        text: "איכות מצוינת לתצוגה בנייד",
       };
     }
 
     return {
       level: "warning",
-      text: "התמונה תעבוד, אבל מומלץ קובץ גדול יותר כדי שתיראה חדה יותר",
+      text: "מומלץ להעלות קובץ מרובע גדול וברור יותר",
     };
   }
 
   if (info.width >= 1080 && info.height >= 1920) {
     return {
       level: "good",
-      text: "איכות מעולה להזמנה לאורך",
+      text: "איכות מצוינת להזמנה לאורך",
     };
   }
 
@@ -110,86 +110,6 @@ function getImageQualityStatus(info: ImageInfo | null, mode: InviteImageMode) {
 }
 
 /* =========================================================
-   Live Phone Preview
-   מציג רק את תמונת ההזמנה בזמן אמת.
-   לא משנה את עמוד אישור ההגעה האמיתי.
-========================================================= */
-
-function LivePhonePreview({
-  imageUrl,
-  imageMode,
-  invite,
-}: {
-  imageUrl: string;
-  imageMode: InviteImageMode;
-  invite: any;
-}) {
-  return (
-    <div className="h-full w-full overflow-y-auto bg-[#f7efe5]">
-      <section className="relative overflow-hidden bg-gradient-to-b from-[#fff8ef] via-[#f5e7d4] to-[#ead8bd] px-4 pb-5 pt-7 text-center">
-        <div className="absolute -right-10 -top-10 h-28 w-28 rounded-full bg-[#d9b978]/45 blur-2xl" />
-        <div className="absolute -left-12 bottom-0 h-32 w-32 rounded-full bg-[#8a5cf6]/12 blur-2xl" />
-
-        <p className="relative text-[10px] font-black tracking-[0.28em] text-[#b58a55]">
-          INVISTIMO
-        </p>
-
-        <h2 className="relative mt-2 text-lg font-black leading-tight text-[#2d241c]">
-          {invite?.title || "תצוגת ההזמנה"}
-        </h2>
-
-        <p className="relative mx-auto mt-2 max-w-[240px] text-xs leading-5 text-[#7a6652]">
-          תצוגה חיה של תמונת ההזמנה בלבד
-        </p>
-      </section>
-
-      <section className="px-4 py-5">
-        {imageUrl ? (
-          <div className="mx-auto rounded-[30px] bg-white p-3 shadow-[0_20px_55px_rgba(71,48,25,0.18)]">
-            <div className="relative overflow-hidden rounded-[24px] bg-[#fbf8f2]">
-              <img
-                src={imageUrl}
-                alt="תצוגת הזמנה"
-                className={`mx-auto w-full rounded-[24px] object-contain ${
-                  imageMode === "square" ? "aspect-square" : "aspect-[9/16]"
-                }`}
-              />
-
-              <div className="pointer-events-none absolute inset-0 rounded-[24px] ring-1 ring-black/5" />
-            </div>
-          </div>
-        ) : (
-          <div className="flex h-[430px] items-center justify-center rounded-[30px] border-2 border-dashed border-[#d9c9b2] bg-white/75 px-6 text-center">
-            <div>
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#fbf4e8] text-2xl">
-                🖼️
-              </div>
-
-              <p className="text-sm font-black text-[#4d3b2b]">
-                כאן תופיע תמונת ההזמנה
-              </p>
-
-              <p className="mt-2 text-xs leading-5 text-[#8a7967]">
-                העלי תמונה מצד שמאל והתצוגה תתעדכן כאן מיד
-              </p>
-            </div>
-          </div>
-        )}
-      </section>
-
-      <section className="px-4 pb-8">
-        <div className="rounded-[24px] border border-[#eadfce] bg-white/85 p-4 text-center shadow-sm">
-          <p className="text-xs leading-5 text-[#8a7967]">
-            זו תצוגה חיה של תמונת ההזמנה בלבד. עמוד אישור ההגעה האמיתי נשאר
-            כמו שהוא ולא משתנה.
-          </p>
-        </div>
-      </section>
-    </div>
-  );
-}
-
-/* =========================================================
    Component
 ========================================================= */
 
@@ -198,6 +118,7 @@ export default function EditInvitePage() {
   const inviteId = params?.id as string | undefined;
 
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
+  const phonePreviewRef = useRef<HTMLIFrameElement | null>(null);
 
   const [invite, setInvite] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -209,6 +130,7 @@ export default function EditInvitePage() {
   );
 
   const [dragActive, setDragActive] = useState(false);
+  const [previewRefreshKey, setPreviewRefreshKey] = useState(0);
 
   /* =========================================================
      Existing / current image
@@ -235,6 +157,31 @@ export default function EditInvitePage() {
   }, [invite]);
 
   const previewUrl = previewId ? `/invite/${previewId}` : "";
+
+  /* =========================================================
+     Send live preview update into iframe
+  ========================================================= */
+
+  const sendLivePreviewToIframe = useCallback(() => {
+    if (!phonePreviewRef.current?.contentWindow) return;
+
+    phonePreviewRef.current.contentWindow.postMessage(
+      {
+        type: "INVISTIMO_PREVIEW_IMAGE_UPDATE",
+        imageUrl: displayImageUrl,
+        imageMode,
+      },
+      window.location.origin
+    );
+  }, [displayImageUrl, imageMode]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      sendLivePreviewToIframe();
+    }, 120);
+
+    return () => window.clearTimeout(timer);
+  }, [sendLivePreviewToIframe]);
 
   /* =========================================================
      Load invitation
@@ -330,7 +277,6 @@ export default function EditInvitePage() {
 
   /* =========================================================
      Save invitation
-     לא נוגעים בקישור אישי / אורחים / RSVP / שרת של הודעות.
   ========================================================= */
 
   const handleSave = async () => {
@@ -349,15 +295,14 @@ export default function EditInvitePage() {
         orientation: imageMode,
 
         /*
-          לא מוחקים canvasData קיים כדי לא לפגוע בהזמנות קיימות.
-          העמוד הזה כבר לא משתמש בקנבס, אבל השדה נשאר כמו שהוא.
+          משאירים נתונים קיימים כדי לא לפגוע בהזמנות שכבר נוצרו.
         */
         canvasData: invite.canvasData || { objects: [] },
       };
 
       /*
-        שולחים previewBase64 רק אם הועלתה תמונה חדשה.
-        השרת שלך ימשיך להעלות ל-Cloudinary ולעדכן previewImageUrl/headerImageUrl.
+        שולחים תמונה חדשה רק אם המשתמש העלה קובץ חדש.
+        השרת ממשיך להעלות ל-Cloudinary ולעדכן previewImageUrl/headerImageUrl.
       */
       if (uploadedImage?.base64) {
         body.previewBase64 = uploadedImage.base64;
@@ -379,6 +324,7 @@ export default function EditInvitePage() {
 
       setInvite(result.invitation);
       setUploadedImage(null);
+      setPreviewRefreshKey((prev) => prev + 1);
 
       alert("✅ ההזמנה עודכנה בהצלחה!");
     } catch {
@@ -447,11 +393,11 @@ export default function EditInvitePage() {
               </p>
 
               <h1 className="truncate text-xl font-bold text-[#2d241c] md:text-2xl">
-                יצירת / עריכת הזמנה
+                עריכת הזמנה
               </h1>
 
               <p className="mt-1 text-xs text-[#8a7967] md:text-sm">
-                העלאת הזמנה מוכנה באיכות גבוהה — בלי קנבס, בצורה נקייה ויוקרתית
+                העלי את תמונת ההזמנה, בדקי איך היא נראית ושמרי את השינויים
               </p>
             </div>
           </div>
@@ -462,7 +408,7 @@ export default function EditInvitePage() {
               onClick={handlePreview}
               className="rounded-full border border-[#d8c7ad] bg-white px-5 py-2.5 text-sm font-semibold text-[#5a4634] shadow-sm hover:bg-[#fbf7f0]"
             >
-              👁 פתיחה בחלון חדש
+              👁 תצוגה מקדימה
             </button>
 
             <button
@@ -472,7 +418,7 @@ export default function EditInvitePage() {
               className={`rounded-full px-6 py-2.5 text-sm font-bold text-white shadow-lg transition ${
                 saving
                   ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-gradient-to-l from-[#8a5cf6] to-[#6d3ee8] hover:shadow-xl"
+                  : "bg-gradient-to-l from-[#c79a55] to-[#8f6437] hover:shadow-xl"
               }`}
             >
               {saving ? "שומר..." : "💾 שמור"}
@@ -483,11 +429,11 @@ export default function EditInvitePage() {
 
       <main className="mx-auto max-w-7xl px-4 py-6">
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
-          {/* Left side - Main upload / editor without canvas */}
+          {/* Left side */}
           <div className="space-y-6">
             <section className="relative overflow-hidden rounded-[34px] border border-[#eadfce] bg-[#fbf8f2] shadow-[0_24px_80px_rgba(71,48,25,0.10)]">
               <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-[#d8b985]/25 blur-3xl" />
-              <div className="pointer-events-none absolute -bottom-24 -left-24 h-80 w-80 rounded-full bg-[#8a5cf6]/10 blur-3xl" />
+              <div className="pointer-events-none absolute -bottom-24 -left-24 h-80 w-80 rounded-full bg-[#c79a55]/10 blur-3xl" />
 
               <div className="relative border-b border-[#eadfce] bg-white/55 px-5 py-5 md:px-7">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -497,12 +443,11 @@ export default function EditInvitePage() {
                     </p>
 
                     <h2 className="text-2xl font-black text-[#2d241c]">
-                      העלאת הזמנה מוכנה באיכות גבוהה
+                      העלאת תמונת הזמנה
                     </h2>
 
                     <p className="mt-1 text-sm text-[#7b6a58]">
-                      התמונה תוצג במלואה, תישמר לשליחה בוואטסאפ, ותתעדכן מיד
-                      בתצוגת הטלפון.
+                      העלי תמונה מוכנה של ההזמנה ובדקי את התצוגה לפני שמירה.
                     </p>
                   </div>
 
@@ -548,17 +493,17 @@ export default function EditInvitePage() {
                         <div className="absolute inset-0 rounded-[38px] bg-gradient-to-b from-[#fff9f2] via-[#f8f0e3] to-[#f1e4d2] shadow-[0_35px_100px_rgba(80,51,25,0.15)]" />
 
                         <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-[#ead3ab]/50 blur-2xl" />
-                        <div className="absolute -bottom-6 -left-6 h-28 w-28 rounded-full bg-[#8a5cf6]/10 blur-2xl" />
+                        <div className="absolute -bottom-6 -left-6 h-28 w-28 rounded-full bg-[#c79a55]/10 blur-2xl" />
 
                         <div className="relative rounded-[38px] border border-white/80 p-4 md:p-5">
                           <div className="mb-4 flex items-center justify-between">
                             <div>
-                              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[#b58a55]">
-                                Luxury Preview
+                              <p className="text-xs font-semibold tracking-[0.12em] text-[#b58a55]">
+                                תצוגת הזמנה
                               </p>
 
                               <p className="text-sm font-bold text-[#3b2a1f]">
-                                תצוגת ההזמנה
+                                איך התמונה נראית לפני שמירה
                               </p>
                             </div>
 
@@ -590,7 +535,7 @@ export default function EditInvitePage() {
 
                     <div className="mx-auto mt-5 flex max-w-4xl flex-wrap items-center justify-center gap-3 text-center">
                       {uploadedImage?.file ? (
-                        <span className="rounded-full bg-[#efe7ff] px-4 py-2 text-sm font-semibold text-[#6d3ee8]">
+                        <span className="rounded-full bg-[#fbf0dc] px-4 py-2 text-sm font-semibold text-[#8f6437]">
                           תמונה חדשה נבחרה: {uploadedImage.file.name}
                         </span>
                       ) : (
@@ -636,7 +581,7 @@ export default function EditInvitePage() {
                     }}
                     className={`group flex min-h-[560px] w-full max-w-3xl flex-col items-center justify-center rounded-[34px] border-2 border-dashed p-8 text-center transition ${
                       dragActive
-                        ? "border-[#8a5cf6] bg-[#f2edff]"
+                        ? "border-[#c79a55] bg-[#fff7ea]"
                         : "border-[#d9c9b2] bg-white/72 hover:border-[#b58a55] hover:bg-white"
                     }`}
                   >
@@ -649,11 +594,10 @@ export default function EditInvitePage() {
                     </h3>
 
                     <p className="mt-2 max-w-md text-sm leading-6 text-[#7b6a58]">
-                      גררי לכאן תמונת הזמנה מוכנה או לחצי לבחירת קובץ מהמחשב.
-                      התמונה תוצג במלואה בלי חיתוך.
+                      גררי לכאן תמונה מוכנה או לחצי לבחירת קובץ מהמחשב.
                     </p>
 
-                    <div className="mt-6 rounded-full bg-gradient-to-l from-[#8a5cf6] to-[#6d3ee8] px-7 py-3 text-sm font-bold text-white shadow-lg transition group-hover:shadow-xl">
+                    <div className="mt-6 rounded-full bg-gradient-to-l from-[#c79a55] to-[#8f6437] px-7 py-3 text-sm font-bold text-white shadow-lg transition group-hover:shadow-xl">
                       בחירת תמונה
                     </div>
 
@@ -694,7 +638,7 @@ export default function EditInvitePage() {
                     onClick={() => setImageMode("portrait")}
                     className={`rounded-3xl border p-4 text-right transition ${
                       imageMode === "portrait"
-                        ? "border-[#8a5cf6] bg-[#f4efff] shadow-md"
+                        ? "border-[#c79a55] bg-[#fff7ea] shadow-md"
                         : "border-[#eadfce] bg-[#fbf8f2] hover:bg-white"
                     }`}
                   >
@@ -712,7 +656,7 @@ export default function EditInvitePage() {
                     onClick={() => setImageMode("square")}
                     className={`rounded-3xl border p-4 text-right transition ${
                       imageMode === "square"
-                        ? "border-[#8a5cf6] bg-[#f4efff] shadow-md"
+                        ? "border-[#c79a55] bg-[#fff7ea] shadow-md"
                         : "border-[#eadfce] bg-[#fbf8f2] hover:bg-white"
                     }`}
                   >
@@ -732,37 +676,42 @@ export default function EditInvitePage() {
                 </div>
               </div>
 
-              <div className="rounded-[30px] border border-[#eadfce] bg-[#2d241c] p-5 text-white shadow-[0_18px_60px_rgba(71,48,25,0.12)]">
-                <p className="text-sm font-bold text-[#e8c995]">חשוב לדעת</p>
+              <div className="rounded-[30px] border border-[#eadfce] bg-white p-5 shadow-[0_18px_60px_rgba(71,48,25,0.08)]">
+                <div className="mb-4">
+                  <p className="text-sm font-semibold text-[#b58a55]">
+                    טיפ קטן
+                  </p>
 
-                <ul className="mt-3 space-y-2 text-sm leading-6 text-white/82">
-                  <li>• ההזמנה תוצג במלואה ללא חיתוך.</li>
-                  <li>• התמונה נשמרת לשליחה בוואטסאפ.</li>
-                  <li>• קישורי אישור ההגעה האישיים לא משתנים.</li>
-                  <li>• הזמנות קיימות ממשיכות להשתמש בתמונה שכבר נשמרה.</li>
-                  <li>• תצוגת הטלפון מציגה בזמן אמת את תמונת ההזמנה בלבד.</li>
-                  <li>• עמוד אישור ההגעה האמיתי לא משתנה.</li>
-                </ul>
+                  <h3 className="text-xl font-black text-[#2d241c]">
+                    תמונה ברורה תיראה טוב יותר בנייד
+                  </h3>
+                </div>
+
+                <div className="rounded-3xl bg-[#fbf4e8] p-4 text-sm leading-6 text-[#6b5844]">
+                  <p>
+                    מומלץ להעלות תמונה חדה, לא מטושטשת, עם טקסט קריא ומרווחים
+                    נוחים.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Right side - Live phone image preview */}
+          {/* Right side - Real mobile invite page preview */}
           <aside className="space-y-6">
             <div className="xl:sticky xl:top-24 space-y-6">
               <div className="rounded-[32px] border border-[#eadfce] bg-white p-5 shadow-[0_20px_70px_rgba(71,48,25,0.10)]">
                 <div className="mb-4">
                   <p className="text-sm font-semibold text-[#b58a55]">
-                    תצוגת מובייל חיה
+                    תצוגה בטלפון
                   </p>
 
                   <h3 className="text-xl font-black text-[#2d241c]">
-                    כך התמונה נראית בטלפון
+                    כך העמוד נראה במובייל
                   </h3>
 
                   <p className="mt-1 text-xs leading-5 text-[#7b6a58]">
-                    זו תצוגה חיה של תמונת ההזמנה בלבד. עמוד אישור ההגעה האמיתי
-                    נשאר כמו שהוא.
+                    כאן מוצגת תצוגה של עמוד ההזמנה ואישור ההגעה.
                   </p>
                 </div>
 
@@ -776,11 +725,20 @@ export default function EditInvitePage() {
                       <div className="absolute right-4 top-5 z-20 h-2.5 w-2.5 rounded-full bg-[#1a1a1a] ring-2 ring-[#2f2f2f]" />
 
                       <div className="relative h-[690px] w-full overflow-hidden rounded-[34px] bg-[#f4efe8] pt-12">
-                        <LivePhonePreview
-                          imageUrl={displayImageUrl}
-                          imageMode={imageMode}
-                          invite={invite}
-                        />
+                        {previewUrl ? (
+                          <iframe
+                            ref={phonePreviewRef}
+                            key={`${previewUrl}-${previewRefreshKey}`}
+                            src={previewUrl}
+                            title="Mobile invitation preview"
+                            className="h-full w-full bg-white"
+                            onLoad={sendLivePreviewToIframe}
+                          />
+                        ) : (
+                          <div className="flex h-full items-center justify-center px-6 text-center text-sm text-[#6d5b49]">
+                            אין כרגע תצוגה זמינה
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -798,9 +756,9 @@ export default function EditInvitePage() {
                   <button
                     type="button"
                     onClick={handlePreview}
-                    className="rounded-2xl bg-gradient-to-l from-[#8a5cf6] to-[#6d3ee8] px-4 py-3 text-sm font-black text-white shadow-lg transition hover:shadow-xl"
+                    className="rounded-2xl bg-gradient-to-l from-[#c79a55] to-[#8f6437] px-4 py-3 text-sm font-black text-white shadow-lg transition hover:shadow-xl"
                   >
-                    פתיחה מלאה
+                    תצוגה מקדימה
                   </button>
                 </div>
               </div>
@@ -822,7 +780,7 @@ export default function EditInvitePage() {
                     onClick={handlePreview}
                     className="w-full rounded-2xl border border-[#d8c7ad] bg-white px-5 py-3 text-sm font-bold text-[#4b3828] shadow-sm transition hover:bg-[#fbf7f0]"
                   >
-                    👁 פתיחה בחלון חדש
+                    👁 תצוגה מקדימה
                   </button>
 
                   <button
@@ -832,7 +790,7 @@ export default function EditInvitePage() {
                     className={`w-full rounded-2xl px-5 py-3 text-sm font-black text-white shadow-lg transition ${
                       saving
                         ? "bg-gray-400 cursor-not-allowed"
-                        : "bg-gradient-to-l from-[#8a5cf6] to-[#6d3ee8] hover:shadow-xl"
+                        : "bg-gradient-to-l from-[#c79a55] to-[#8f6437] hover:shadow-xl"
                     }`}
                   >
                     {saving ? "שומר..." : "💾 שמירת ההזמנה"}
@@ -868,7 +826,7 @@ export default function EditInvitePage() {
             onClick={handleSave}
             disabled={saving}
             className={`rounded-2xl py-3 text-xs font-black text-white ${
-              saving ? "bg-gray-400" : "bg-[#6d3ee8]"
+              saving ? "bg-gray-400" : "bg-[#8f6437]"
             }`}
           >
             {saving ? "שומר..." : "שמור"}
