@@ -69,7 +69,7 @@ const RSVP_SMS_TEMPLATES: Record<RoundNumber, string> = {
 
   3:
     "היי {{name}},\n" +
-    "תזכורת אחרונה לאישור הגעה ל־{{invitationTitle}} 🎉\n\n" +
+    "תזכורת נוספת לאישור הגעה ל־{{invitationTitle}} 🎉\n\n" +
     "לאישור הגעה לחצו כאן:\n" +
     "{{rsvpLink}}\n\n" +
     "נשמח לעדכון 💖",
@@ -246,7 +246,7 @@ ${locationText ? `📍 מיקום: ${locationText}` : ""}
 
   return `משפחה וחברים יקרים,
 
-תזכורת אחרונה לאישור הגעה ל־${title} ✨
+תזכורת נוספת לאישור הגעה ל־${title} ✨
 
 לאישור הגעה לחצו על הכפתור למטה 👇
 
