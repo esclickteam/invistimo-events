@@ -318,24 +318,21 @@ function BlockTwoPhone() {
 }
 
 /* =====================================================
-   BLOCK 3 — REAL TIME SHOWCASE WITH 3 IMAGES
+   BLOCK 3 — REAL TIME SHOWCASE WITH 3 BIG IMAGES ONLY
 ===================================================== */
 function RealTimeShowcase() {
   const showcaseItems = [
     {
       image: "/home2.png",
       title: "דשבורד אירוע חי",
-      text: "רואים את כל נתוני האירוע במקום אחד: מוזמנים, אישורי הגעה, סטטוסים ועדכונים בזמן אמת.",
     },
     {
       image: "/home3.png",
       title: "ניהול הזמנה ואורחים",
-      text: "מעצבים או מעלים הזמנה, מוסיפים מוזמנים, ומנהלים את הרשימה בצורה מסודרת ונוחה.",
     },
     {
       image: "/home4.png",
       title: "הודעות ועדכונים לאורחים",
-      text: "שולחים אישורי הגעה, תזכורות, הודעות ועדכונים חשובים ישירות מהמערכת.",
     },
   ];
 
@@ -353,11 +350,9 @@ function RealTimeShowcase() {
       <div
         className="
           pointer-events-none absolute inset-0
-          bg-[radial-gradient(circle_at_50%_42%,rgba(201,164,92,0.18),transparent_34%),radial-gradient(circle_at_8%_85%,rgba(255,255,255,0.75),transparent_34%),radial-gradient(circle_at_90%_78%,rgba(201,164,92,0.10),transparent_31%)]
+          bg-[radial-gradient(circle_at_50%_42%,rgba(201,164,92,0.16),transparent_34%),radial-gradient(circle_at_8%_85%,rgba(255,255,255,0.75),transparent_34%),radial-gradient(circle_at_90%_78%,rgba(201,164,92,0.08),transparent_31%)]
         "
       />
-
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[260px] bg-gradient-to-t from-[#F1E7D8]/80 to-transparent" />
 
       <div className="relative z-10 mx-auto max-w-[1500px]">
         <motion.div
@@ -365,7 +360,7 @@ function RealTimeShowcase() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.35 }}
           transition={{ duration: 0.75 }}
-          className="mx-auto mb-14 max-w-[900px] text-center"
+          className="mx-auto mb-16 max-w-[900px] text-center"
         >
           <div className="mx-auto mb-6 flex max-w-[430px] items-center justify-center gap-4">
             <span className="h-px flex-1 bg-gradient-to-l from-transparent via-[#C9A45C] to-[#C9A45C]" />
@@ -432,11 +427,11 @@ function RealTimeShowcase() {
         <div
           className="
             relative mx-auto
-            min-h-[760px]
-            max-w-[1280px]
-            lg:min-h-[690px]
+            max-w-[1320px]
+            pb-6
           "
         >
+          {/* תמונה מרכזית גדולה */}
           <motion.div
             initial={{ opacity: 0, y: 34, scale: 0.96 }}
             whileInView={{ opacity: 1, y: 0, scale: 1 }}
@@ -444,19 +439,19 @@ function RealTimeShowcase() {
             transition={{ duration: 0.8, ease: "easeOut" }}
             className="
               relative z-20 mx-auto
-              max-w-[860px]
-              rounded-[34px]
+              max-w-[980px]
+              rounded-[38px]
               border border-[#E6D7BC]/90
-              bg-white/72
+              bg-white/76
               p-4
-              shadow-[0_30px_80px_rgba(95,68,34,0.13)]
+              shadow-[0_32px_90px_rgba(95,68,34,0.14)]
               backdrop-blur-xl
             "
           >
             <div
               className="
                 overflow-hidden
-                rounded-[26px]
+                rounded-[30px]
                 border border-[#EFE3CF]
                 bg-[#FFFDF8]
               "
@@ -465,7 +460,7 @@ function RealTimeShowcase() {
                 className="
                   flex items-center justify-between
                   border-b border-[#EFE3CF]
-                  bg-white/70
+                  bg-white/75
                   px-5 py-3
                 "
               >
@@ -484,18 +479,19 @@ function RealTimeShowcase() {
                 src={showcaseItems[0].image}
                 alt={showcaseItems[0].title}
                 className="
-                  h-[360px]
+                  h-[390px]
                   w-full
                   object-cover
                   object-top
-                  md:h-[430px]
-                  lg:h-[470px]
+                  md:h-[500px]
+                  lg:h-[560px]
                 "
                 draggable={false}
               />
             </div>
           </motion.div>
 
+          {/* תמונה שמאלית — רק תמונה */}
           <motion.div
             initial={{ opacity: 0, y: 28, scale: 0.96 }}
             whileInView={{ opacity: 1, y: 0, scale: 1 }}
@@ -503,20 +499,20 @@ function RealTimeShowcase() {
             transition={{ duration: 0.7, delay: 0.12, ease: "easeOut" }}
             className="
               z-30
-              mt-6
-              rounded-[26px]
+              mt-7
+              rounded-[30px]
               border border-[#E6D7BC]/90
-              bg-white/76
-              p-4
-              shadow-[0_22px_58px_rgba(95,68,34,0.12)]
+              bg-white/78
+              p-3
+              shadow-[0_24px_64px_rgba(95,68,34,0.13)]
               backdrop-blur-xl
-              lg:absolute lg:left-[2%] lg:top-[24%] lg:mt-0 lg:w-[310px]
+              lg:absolute lg:left-[-2%] lg:top-[28%] lg:mt-0 lg:w-[430px]
             "
           >
             <div
               className="
-                mb-4 overflow-hidden
-                rounded-[20px]
+                overflow-hidden
+                rounded-[24px]
                 border border-[#EFE3CF]
                 bg-[#FFFDF8]
               "
@@ -524,20 +520,20 @@ function RealTimeShowcase() {
               <img
                 src={showcaseItems[1].image}
                 alt={showcaseItems[1].title}
-                className="h-[170px] w-full object-cover object-top"
+                className="
+                  h-[280px]
+                  w-full
+                  object-cover
+                  object-top
+                  md:h-[340px]
+                  lg:h-[330px]
+                "
                 draggable={false}
               />
             </div>
-
-            <h3 className="text-[17px] font-black text-[#3D3127]">
-              {showcaseItems[1].title}
-            </h3>
-
-            <p className="mt-2 text-[13px] leading-[1.75] text-[#6B5A49]">
-              {showcaseItems[1].text}
-            </p>
           </motion.div>
 
+          {/* תמונה ימנית — רק תמונה */}
           <motion.div
             initial={{ opacity: 0, y: 28, scale: 0.96 }}
             whileInView={{ opacity: 1, y: 0, scale: 1 }}
@@ -545,20 +541,20 @@ function RealTimeShowcase() {
             transition={{ duration: 0.7, delay: 0.24, ease: "easeOut" }}
             className="
               z-30
-              mt-6
-              rounded-[26px]
+              mt-7
+              rounded-[30px]
               border border-[#E6D7BC]/90
-              bg-white/76
-              p-4
-              shadow-[0_22px_58px_rgba(95,68,34,0.12)]
+              bg-white/78
+              p-3
+              shadow-[0_24px_64px_rgba(95,68,34,0.13)]
               backdrop-blur-xl
-              lg:absolute lg:right-[2%] lg:bottom-[16%] lg:mt-0 lg:w-[330px]
+              lg:absolute lg:right-[-2%] lg:bottom-[14%] lg:mt-0 lg:w-[460px]
             "
           >
             <div
               className="
-                mb-4 overflow-hidden
-                rounded-[20px]
+                overflow-hidden
+                rounded-[24px]
                 border border-[#EFE3CF]
                 bg-[#FFFDF8]
               "
@@ -566,20 +562,20 @@ function RealTimeShowcase() {
               <img
                 src={showcaseItems[2].image}
                 alt={showcaseItems[2].title}
-                className="h-[170px] w-full object-cover object-top"
+                className="
+                  h-[280px]
+                  w-full
+                  object-cover
+                  object-top
+                  md:h-[340px]
+                  lg:h-[340px]
+                "
                 draggable={false}
               />
             </div>
-
-            <h3 className="text-[17px] font-black text-[#3D3127]">
-              {showcaseItems[2].title}
-            </h3>
-
-            <p className="mt-2 text-[13px] leading-[1.75] text-[#6B5A49]">
-              {showcaseItems[2].text}
-            </p>
           </motion.div>
 
+          {/* CTA */}
           <motion.div
             initial={{ opacity: 0, y: 26 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -587,11 +583,11 @@ function RealTimeShowcase() {
             transition={{ duration: 0.7, delay: 0.25 }}
             className="
               relative z-30
-              mx-auto mt-10
+              mx-auto mt-12
               flex max-w-[620px]
               flex-col items-center justify-center gap-4
               sm:flex-row
-              lg:mt-[34px]
+              lg:mt-[54px]
             "
           >
             <Link
@@ -639,6 +635,7 @@ function RealTimeShowcase() {
             </Link>
           </motion.div>
 
+          {/* יתרונות קטנים */}
           <div
             className="
               relative z-30
@@ -704,7 +701,7 @@ function RealTimeShowcase() {
 }
 
 /* =====================================================
-   FINAL CTA — CLEAN PREMIUM
+   FINAL CTA — ORIGINAL STYLE, LESS GOLD
 ===================================================== */
 function FinalCTA() {
   return (
@@ -712,183 +709,182 @@ function FinalCTA() {
       dir="rtl"
       className="
         relative overflow-hidden
-        bg-[#FBF8F2]
+        bg-[#F7F1E8]
         px-4 py-24
         md:px-8 md:py-32
         lg:px-12
       "
     >
-      <div
-        className="
-          pointer-events-none absolute inset-0
-          bg-[radial-gradient(circle_at_18%_20%,rgba(201,164,92,0.13),transparent_28%),radial-gradient(circle_at_82%_80%,rgba(201,164,92,0.10),transparent_30%),linear-gradient(to_bottom,#FBF8F2,#F3E8D7)]
-        "
-      />
+      <div className="pointer-events-none absolute -left-20 top-10 h-72 w-72 rounded-full bg-[#D8BE82]/18 blur-3xl" />
+      <div className="pointer-events-none absolute bottom-[-80px] right-[-40px] h-96 w-96 rounded-full bg-[#C9A45C]/14 blur-3xl" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_20%,rgba(255,255,255,0.65),transparent_30%)]" />
 
-      <div className="relative z-10 mx-auto max-w-[1180px]">
+      <div className="relative z-10 mx-auto max-w-[1100px]">
         <motion.div
           initial={{ opacity: 0, y: 26 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.3 }}
           transition={{ duration: 0.75 }}
           className="
-            overflow-hidden
-            rounded-[42px]
-            border border-[#E4D2AF]
-            bg-white/72
-            p-6
-            text-center
-            shadow-[0_30px_90px_rgba(95,68,34,0.12)]
+            overflow-hidden rounded-[38px]
+            border border-[#E3D1AE]
+            bg-white/58
+            p-6 shadow-[0_28px_90px_rgba(95,68,34,0.12)]
             backdrop-blur-2xl
-            md:p-10
-            lg:p-14
+            md:p-10 lg:p-14
           "
         >
-          <div className="mx-auto mb-7 flex max-w-[450px] items-center justify-center gap-4">
-            <span className="h-px flex-1 bg-gradient-to-l from-transparent via-[#C9A45C] to-[#C9A45C]" />
-            <span
-              className="
-                inline-flex h-12 w-12 items-center justify-center
-                rounded-full
-                border border-[#D8BE82]
-                bg-[#FFF9EF]
-                text-[#B8862D]
-                shadow-[0_12px_30px_rgba(95,68,34,0.08)]
-              "
-            >
-              <Sparkles size={20} />
-            </span>
-            <span className="h-px flex-1 bg-gradient-to-r from-transparent via-[#C9A45C] to-[#C9A45C]" />
-          </div>
-
-          <p className="mb-4 text-[14px] font-extrabold tracking-[0.22em] text-[#B8862D]">
-            INVISTIMO DEMO
-          </p>
-
-          <h2
-            className="
-              mx-auto max-w-[900px]
-              text-[38px]
-              font-black
-              leading-[1.12]
-              tracking-[-0.04em]
-              text-[#3A3028]
-              md:text-[58px]
-              lg:text-[72px]
-            "
-          >
-            מוכנים לראות איך
-            <br />
-            ניהול אירוע יכול להיראות
-            <span
-              className="
-                bg-gradient-to-l
-                from-[#8B642B]
-                via-[#C69A3F]
-                to-[#B88A2D]
-                bg-clip-text text-transparent
-              "
-            >
-              {" "}
-              באמת?
-            </span>
-          </h2>
-
-          <p
-            className="
-              mx-auto mt-6 max-w-[760px]
-              text-[17px]
-              font-semibold
-              leading-[1.95]
-              text-[#5F554C]
-              md:text-[20px]
-            "
-          >
-            היכנסו לדמו, ראו את המערכת מבפנים, בדקו איך נראה דשבורד אירוע,
-            אישורי הגעה, הושבה והודעות — והחליטו בנחת אם זה מתאים לאירוע שלכם.
-          </p>
-
-          <div
-            className="
-              mx-auto mt-9 grid max-w-[820px]
-              grid-cols-1 gap-4
-              text-right
-              md:grid-cols-3
-            "
-          >
-            {[
-              "ללא תשלום",
-              "ללא התחייבות",
-              "נתוני דוגמה בלבד",
-            ].map((item) => (
-              <div
-                key={item}
-                className="
-                  flex items-center justify-center gap-3
-                  rounded-[20px]
-                  border border-[#E6D7BC]
-                  bg-[#FFFDF8]
-                  px-5 py-4
-                  shadow-[0_12px_30px_rgba(95,68,34,0.05)]
-                "
-              >
-                <CheckCircle2 size={22} className="text-[#B8862D]" />
-                <span className="text-[15px] font-black text-[#3D3127]">
-                  {item}
+          <div className="grid items-center gap-10 lg:grid-cols-[1.05fr_0.95fr]">
+            {/* Text */}
+            <div className="text-center lg:text-right">
+              <div className="mb-5 inline-flex items-center gap-3 rounded-full border border-[#E3D1AE] bg-[#FFF9EF]/80 px-5 py-2.5 text-[#B8862D]">
+                <Sparkles size={18} />
+                <span className="text-[14px] font-black tracking-[0.12em]">
+                  INVISTIMO DEMO
                 </span>
               </div>
-            ))}
-          </div>
 
-          <div
-            className="
-              mt-10 flex flex-col items-center justify-center gap-4
-              sm:flex-row
-            "
-          >
-            <Link
-              href="/try/dashboard"
-              className="
-                group inline-flex min-w-[250px]
-                items-center justify-center gap-3
-                rounded-full
-                bg-[#3F3A34]
-                px-10 py-4
-                text-[17px] font-extrabold
-                text-white
-                shadow-[0_18px_38px_rgba(63,58,52,0.22)]
-                transition
-                hover:-translate-y-0.5
-                hover:bg-[#2F2B27]
-              "
-            >
-              להתחיל דמו
-              <ArrowLeft
-                size={18}
-                className="transition group-hover:-translate-x-1"
-              />
-            </Link>
+              <h2
+                className="
+                  text-[38px]
+                  font-black
+                  leading-[1.12]
+                  tracking-[-0.04em]
+                  text-[#3A3028]
+                  md:text-[56px]
+                  lg:text-[64px]
+                "
+              >
+                מוכנים לראות
+                <br />
+                איך זה עובד
+                <span
+                  className="
+                    bg-gradient-to-l
+                    from-[#8B642B]
+                    via-[#C69A3F]
+                    to-[#B88A2D]
+                    bg-clip-text text-transparent
+                  "
+                >
+                  {" "}
+                  באמת?
+                </span>
+              </h2>
 
-            <Link
-              href="/pricing"
+              <p className="mx-auto mt-6 max-w-[680px] text-[17px] font-semibold leading-[1.95] text-[#5F554C] md:text-[20px] lg:mx-0">
+                התחילו בדמו, היכנסו למערכת, צפו בנתוני דוגמה אמיתיים והרגישו
+                איך ניהול אירוע יכול להיות הרבה יותר מסודר, יפה ונוח.
+              </p>
+
+              <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-center lg:justify-start">
+                <Link
+                  href="/try/dashboard"
+                  className="
+                    group inline-flex min-w-[240px]
+                    items-center justify-center gap-3
+                    rounded-full
+                    bg-[#3F3A34]
+                    px-10 py-4
+                    text-[17px] font-extrabold
+                    text-white
+                    shadow-[0_18px_40px_rgba(63,58,52,0.20)]
+                    transition
+                    hover:-translate-y-0.5
+                    hover:bg-[#2F2B27]
+                  "
+                >
+                  התחילו דמו
+                  <ArrowLeft
+                    size={18}
+                    className="transition group-hover:-translate-x-1"
+                  />
+                </Link>
+
+                <Link
+                  href="/pricing"
+                  className="
+                    inline-flex min-w-[240px]
+                    items-center justify-center
+                    rounded-full
+                    border border-[#8B6A3E]/45
+                    bg-white/70
+                    px-10 py-4
+                    text-[17px] font-extrabold
+                    text-[#4A3A2A]
+                    shadow-[0_14px_34px_rgba(95,68,34,0.08)]
+                    transition
+                    hover:bg-white hover:text-[#B8862D]
+                  "
+                >
+                  לצפייה בחבילות
+                </Link>
+              </div>
+            </div>
+
+            {/* Trust card */}
+            <div
               className="
-                inline-flex min-w-[250px]
-                items-center justify-center
-                rounded-full
-                border border-[#8B6A3E]/45
-                bg-white/70
-                px-10 py-4
-                text-[17px] font-extrabold
-                text-[#4A3A2A]
-                shadow-[0_14px_32px_rgba(95,68,34,0.07)]
+                rounded-[32px]
+                border border-[#E3D1AE]
+                bg-[#FFFDF8]/78
+                p-6
+                shadow-[0_18px_44px_rgba(95,68,34,0.09)]
                 backdrop-blur-xl
-                transition
-                hover:bg-white
-                hover:text-[#B8862D]
+                md:p-8
               "
             >
-              לצפייה בחבילות
-            </Link>
+              <h3 className="text-[24px] font-black text-[#3A3028] md:text-[30px]">
+                למה להתחיל עכשיו?
+              </h3>
+
+              <div className="mt-6 space-y-4">
+                {[
+                  "לראות את המערכת מבפנים לפני החלטה",
+                  "להבין בדיוק איך ניהול האירוע נראה בפועל",
+                  "לקבל תחושה אמיתית של חוויית העבודה במערכת",
+                  "להתחיל בלי תשלום ובלי התחייבות",
+                ].map((item) => (
+                  <div
+                    key={item}
+                    className="
+                      flex items-start gap-3
+                      rounded-[18px]
+                      border border-[#E8DAC0]
+                      bg-white/75
+                      px-4 py-4
+                    "
+                  >
+                    <CheckCircle2
+                      size={22}
+                      className="mt-0.5 shrink-0 text-[#B8862D]"
+                    />
+                    <span className="text-[15px] font-semibold leading-[1.75] text-[#5B4D40]">
+                      {item}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-6 flex flex-wrap gap-3">
+                {["ללא תשלום", "ללא הרשמה מראש", "נתוני דוגמה בלבד"].map(
+                  (pill) => (
+                    <span
+                      key={pill}
+                      className="
+                        rounded-full
+                        border border-[#E5D5B6]
+                        bg-[#FFF9EF]
+                        px-4 py-2
+                        text-[13px] font-bold text-[#735B3C]
+                      "
+                    >
+                      {pill}
+                    </span>
+                  )
+                )}
+              </div>
+            </div>
           </div>
         </motion.div>
       </div>
