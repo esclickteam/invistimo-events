@@ -83,16 +83,48 @@ function normalizePhone(phoneRaw: any) {
 }
 
 async function buildNavigationLink(invitation: any) {
-  const location = invitation?.location;
+  const location =
+    invitation?.eventLocation && typeof invitation.eventLocation === "object"
+      ? invitation.eventLocation
+      : invitation?.location;
 
-  const hasLocation =
-    typeof location?.lat === "number" && typeof location?.lng === "number";
+  const navigationAddress =
+    typeof invitation?.location === "string" && invitation.location.trim()
+      ? invitation.location.trim()
+      : typeof invitation?.location?.address === "string" &&
+        invitation.location.address.trim()
+      ? invitation.location.address.trim()
+      : typeof invitation?.location?.name === "string" &&
+        invitation.location.name.trim()
+      ? invitation.location.name.trim()
+      : typeof invitation?.address === "string" && invitation.address.trim()
+      ? invitation.address.trim()
+      : typeof invitation?.eventLocation?.address === "string" &&
+        invitation.eventLocation.address.trim()
+      ? invitation.eventLocation.address.trim()
+      : typeof invitation?.eventLocation?.name === "string" &&
+        invitation.eventLocation.name.trim()
+      ? invitation.eventLocation.name.trim()
+      : "";
 
-  if (!hasLocation) return "";
+  if (
+    typeof location?.lat === "number" &&
+    typeof location?.lng === "number"
+  ) {
+    const wazeUrl = `https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`;
 
-  const wazeUrl = `https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`;
+    return shortenUrl(wazeUrl);
+  }
 
-  return shortenUrl(wazeUrl);
+  if (navigationAddress) {
+    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+      navigationAddress
+    )}`;
+
+    return shortenUrl(mapsUrl);
+  }
+
+  return "";
 }
 
 function buildGuestsQuery({
@@ -186,10 +218,13 @@ function getTableName(guest: any) {
 function stripTableBlockForGuestWithoutTable(text: string) {
   return String(text || "")
     .replace(
-      /\n*השולחן שלך באירוע:\s*\n*🪑\s*{{tableName}}\s*\n*/g,
+      /\n*(?:השולחן שלך באירוע|מספר השולחן שלך באירוע):\s*\n*🪑\s*{{tableName}}\s*\n*/g,
       "\n"
     )
-    .replace(/\n*השולחן שלך באירוע:\s*\n*🪑\s*\n*/g, "\n")
+    .replace(
+      /\n*(?:השולחן שלך באירוע|מספר השולחן שלך באירוע):\s*\n*🪑\s*\n*/g,
+      "\n"
+    )
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
