@@ -10,7 +10,6 @@ import {
   CalendarDays,
   Send,
   ArrowLeft,
-  FileUp,
 } from "lucide-react";
 
 /* =====================================================
@@ -29,7 +28,6 @@ function HeroPhone3D() {
       "
       style={{ perspective: "1800px" }}
     >
-      {/* צל רך בלבד מתחת לטלפון */}
       <div
         className="
           pointer-events-none absolute
@@ -64,7 +62,6 @@ function HeroPhone3D() {
           transform: "rotateY(20deg) rotateX(6deg) rotateZ(-6deg)",
         }}
       >
-        {/* גוף אחורי — נותן עומק תלת־מימדי */}
         <div
           className="
             absolute inset-0
@@ -77,7 +74,6 @@ function HeroPhone3D() {
           }}
         />
 
-        {/* עובי צד */}
         <div
           className="
             absolute -left-[14px] top-[34px]
@@ -91,7 +87,6 @@ function HeroPhone3D() {
           }}
         />
 
-        {/* מסגרת קדמית */}
         <div
           className="
             absolute inset-0
@@ -104,12 +99,10 @@ function HeroPhone3D() {
             transform: "translateZ(18px)",
           }}
         >
-          {/* כפתורי צד */}
           <span className="absolute -left-[5px] top-[130px] h-16 w-[4px] rounded-l bg-[#111]" />
           <span className="absolute -left-[5px] top-[210px] h-12 w-[4px] rounded-l bg-[#111]" />
           <span className="absolute -right-[4px] top-[170px] h-24 w-[4px] rounded-r bg-[#111]" />
 
-          {/* מסך */}
           <div
             className="
               relative h-full w-full
@@ -118,7 +111,6 @@ function HeroPhone3D() {
               bg-white
             "
           >
-            {/* Dynamic Island */}
             <div
               className="
                 absolute left-1/2 top-4 z-40
@@ -145,7 +137,6 @@ function HeroPhone3D() {
               "
             />
 
-            {/* הברקת זכוכית עדינה בלבד — לא מחשיך את הסרטון */}
             <div
               className="
                 pointer-events-none absolute inset-0
@@ -179,99 +170,146 @@ function BlockTwoPhone() {
       className="
         pointer-events-none
         relative mx-auto mt-10
-        hidden w-full max-w-[520px]
+        flex w-full
+        max-w-[360px]
         items-center justify-center
-        lg:flex
+        sm:max-w-[420px]
+        lg:mt-12
+        lg:max-w-[520px]
       "
-      style={{ perspective: "1600px" }}
+      style={{ perspective: "1700px" }}
     >
-      {/* צל רצפה */}
       <div
         className="
-          absolute bottom-[-28px] left-1/2
-          h-[38px] w-[310px]
+          absolute bottom-[-20px] left-1/2
+          h-[34px] w-[240px]
           -translate-x-1/2
           rounded-full
-          bg-black/18
+          bg-black/16
           blur-2xl
+          sm:w-[280px]
+          lg:w-[330px]
         "
       />
 
       <motion.div
+        initial={{ opacity: 0, y: 24 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.35 }}
         animate={{ y: [0, -8, 0] }}
         transition={{
-          duration: 6,
-          repeat: Infinity,
-          ease: "easeInOut",
+          opacity: { duration: 0.7 },
+          y: { duration: 6, repeat: Infinity, ease: "easeInOut" },
         }}
         className="
           relative
-          h-[450px] w-[250px]
-          rounded-[46px]
-          bg-gradient-to-br from-[#080808] via-[#282828] to-[#050505]
-          p-[8px]
-          shadow-[34px_36px_78px_rgba(54,38,21,0.25),-12px_14px_42px_rgba(201,164,92,0.13)]
+          h-[380px] w-[205px]
+          rounded-[42px]
+          sm:h-[430px] sm:w-[232px]
+          md:h-[470px] md:w-[252px]
+          lg:h-[500px] lg:w-[270px]
         "
         style={{
           transformStyle: "preserve-3d",
           transform: "rotateY(-22deg) rotateX(7deg) rotateZ(7deg)",
         }}
       >
-        {/* עובי צד */}
+        {/* גוף אחורי עדין — בלי בליטה תקועה בצד */}
         <div
           className="
-            absolute -right-[13px] top-[34px]
-            h-[89%] w-[18px]
-            rounded-r-[36px]
-            bg-gradient-to-b from-[#2B2B2B] via-[#070707] to-[#181818]
+            absolute inset-0
+            rounded-[42px]
+            bg-gradient-to-br from-[#070707] via-[#1D1D1D] to-[#050505]
+            shadow-[28px_30px_65px_rgba(54,38,21,0.22),-10px_12px_34px_rgba(201,164,92,0.12)]
           "
-          style={{ transform: "translateZ(-10px)" }}
+          style={{
+            transform: "translateZ(-14px) translateX(7px)",
+          }}
         />
 
-        {/* מסגרת מסך */}
-        <div className="relative h-full w-full overflow-hidden rounded-[38px] bg-[#FDFBF7]">
-          {/* Dynamic Island */}
-          <div
-            className="
-              absolute left-1/2 top-4 z-30
-              h-[24px] w-[94px]
-              -translate-x-1/2
-              rounded-full bg-black
-              shadow-[0_2px_8px_rgba(0,0,0,0.55)]
-            "
-          />
+        {/* עובי צד מחובר לגוף, לא בולט כקובייה נפרדת */}
+        <div
+          className="
+            absolute -right-[7px] top-[18px]
+            h-[92%] w-[12px]
+            rounded-r-[32px]
+            bg-gradient-to-b from-[#242424] via-[#080808] to-[#191919]
+            shadow-[inset_-3px_0_7px_rgba(255,255,255,0.08)]
+          "
+          style={{
+            transform: "translateZ(-7px)",
+          }}
+        />
 
-          <img
-            src="/homep2.png"
-            alt=""
-            className="
-              block h-full w-full
-              object-cover
-              object-top
-              brightness-105
-              contrast-105
-            "
-            draggable={false}
-          />
-
-          {/* הברקת זכוכית עדינה */}
-          <div
-            className="
-              pointer-events-none absolute inset-0
-              bg-gradient-to-tr
-              from-white/0
-              via-white/12
-              to-white/0
-            "
-          />
+        {/* מסגרת קדמית */}
+        <div
+          className="
+            absolute inset-0
+            rounded-[42px]
+            bg-gradient-to-br from-[#070707] via-[#2A2A2A] to-[#050505]
+            p-[7px]
+            shadow-[inset_0_0_0_1px_rgba(255,255,255,0.16)]
+          "
+          style={{
+            transform: "translateZ(12px)",
+          }}
+        >
+          {/* כפתורים עדינים */}
+          <span className="absolute -left-[4px] top-[115px] h-14 w-[3px] rounded-l bg-[#111]" />
+          <span className="absolute -right-[4px] top-[150px] h-20 w-[3px] rounded-r bg-[#111]" />
 
           <div
             className="
-              pointer-events-none absolute inset-0
-              rounded-[38px]
-              border border-white/20
+              relative h-full w-full
+              overflow-hidden
+              rounded-[35px]
+              bg-[#FDFBF7]
             "
-          />
+          >
+            <div
+              className="
+                absolute left-1/2 top-3 z-30
+                h-[22px] w-[88px]
+                -translate-x-1/2
+                rounded-full
+                bg-black
+                shadow-[0_2px_8px_rgba(0,0,0,0.55)]
+                sm:top-4 sm:h-[24px] sm:w-[94px]
+              "
+            />
+
+            <img
+              src="/homep2.png"
+              alt=""
+              className="
+                block h-full w-full
+                object-cover
+                object-top
+                brightness-105
+                contrast-105
+                saturate-105
+              "
+              draggable={false}
+            />
+
+            <div
+              className="
+                pointer-events-none absolute inset-0
+                bg-gradient-to-tr
+                from-white/0
+                via-white/12
+                to-white/0
+              "
+            />
+
+            <div
+              className="
+                pointer-events-none absolute inset-0
+                rounded-[35px]
+                border border-white/20
+              "
+            />
+          </div>
         </div>
       </motion.div>
     </div>
@@ -427,7 +465,6 @@ export default function HomePage() {
           px-4 pt-[105px] md:px-8 lg:px-12
         "
       >
-        {/* הרקע שהעלית */}
         <div
           className="
             absolute inset-0 z-0
@@ -436,7 +473,6 @@ export default function HomePage() {
           "
         />
 
-        {/* שכבת קריאות עדינה בלבד */}
         <div
           className="
             absolute inset-0 z-0
@@ -447,11 +483,6 @@ export default function HomePage() {
           "
         />
 
-        {/*
-          dir="ltr" רק לגריד כדי שהצדדים לא יתהפכו בגלל RTL:
-          עמודה שמאלית = טלפון.
-          עמודה ימנית = תוכן.
-        */}
         <div
           dir="ltr"
           className="
@@ -462,12 +493,10 @@ export default function HomePage() {
             lg:grid-cols-[0.92fr_1.08fr]
           "
         >
-          {/* טלפון — צד שמאל בדסקטופ */}
           <div className="order-2 lg:order-1 lg:col-start-1 lg:-translate-y-4">
             <HeroPhone3D />
           </div>
 
-          {/* תוכן — צד ימין בדסקטופ */}
           <motion.div
             dir="rtl"
             initial={{ opacity: 0, y: 28 }}
@@ -531,7 +560,6 @@ export default function HomePage() {
               בקלות, בסטייל וביעילות.
             </p>
 
-            {/* כרטיסיית פיצ׳רים כמו בסקיצה — דוחות הוסר */}
             <div
               className="
                 mx-auto mt-10
@@ -606,7 +634,6 @@ export default function HomePage() {
               })}
             </div>
 
-            {/* כפתורים מתחת */}
             <div
               className="
                 mt-8 flex flex-col items-center justify-center gap-4
@@ -651,7 +678,7 @@ export default function HomePage() {
                   hover:text-[#B8862D]
                 "
               >
-               צפייה בחבילות
+                לראות חבילות
               </Link>
             </div>
           </motion.div>
@@ -669,7 +696,6 @@ export default function HomePage() {
           lg:px-12
         "
       >
-        {/* רקע עדין */}
         <div
           className="
             pointer-events-none absolute inset-0
@@ -685,7 +711,6 @@ export default function HomePage() {
             lg:grid-cols-[1.04fr_0.96fr]
           "
         >
-          {/* צד שמאל — שלבים */}
           <div
             dir="rtl"
             className="
@@ -803,7 +828,6 @@ export default function HomePage() {
             })}
           </div>
 
-          {/* צד ימין — כותרת + טלפון */}
           <motion.div
             dir="rtl"
             initial={{ opacity: 0, y: 30 }}
