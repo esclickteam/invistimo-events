@@ -7,10 +7,10 @@ import {
   Armchair,
   MessageCircle,
   Mail,
-  BarChart3,
   CalendarDays,
   Send,
   ArrowLeft,
+  FileUp,
 } from "lucide-react";
 
 /* =====================================================
@@ -179,19 +179,20 @@ function BlockTwoPhone() {
       className="
         pointer-events-none
         relative mx-auto mt-10
-        hidden w-full max-w-[470px]
+        hidden w-full max-w-[520px]
         items-center justify-center
         lg:flex
       "
-      style={{ perspective: "1500px" }}
+      style={{ perspective: "1600px" }}
     >
+      {/* צל רצפה */}
       <div
         className="
-          absolute bottom-[-22px] left-1/2
-          h-[34px] w-[280px]
+          absolute bottom-[-28px] left-1/2
+          h-[38px] w-[310px]
           -translate-x-1/2
           rounded-full
-          bg-black/16
+          bg-black/18
           blur-2xl
         "
       />
@@ -205,49 +206,55 @@ function BlockTwoPhone() {
         }}
         className="
           relative
-          h-[420px] w-[235px]
-          rounded-[44px]
-          bg-gradient-to-br from-[#090909] via-[#292929] to-[#050505]
+          h-[450px] w-[250px]
+          rounded-[46px]
+          bg-gradient-to-br from-[#080808] via-[#282828] to-[#050505]
           p-[8px]
-          shadow-[32px_34px_75px_rgba(54,38,21,0.24),-12px_14px_40px_rgba(201,164,92,0.13)]
+          shadow-[34px_36px_78px_rgba(54,38,21,0.25),-12px_14px_42px_rgba(201,164,92,0.13)]
         "
         style={{
           transformStyle: "preserve-3d",
-          transform: "rotateY(-20deg) rotateX(7deg) rotateZ(7deg)",
+          transform: "rotateY(-22deg) rotateX(7deg) rotateZ(7deg)",
         }}
       >
+        {/* עובי צד */}
         <div
           className="
-            absolute -right-[12px] top-[30px]
-            h-[90%] w-[18px]
+            absolute -right-[13px] top-[34px]
+            h-[89%] w-[18px]
             rounded-r-[36px]
-            bg-gradient-to-b from-[#292929] via-[#070707] to-[#181818]
+            bg-gradient-to-b from-[#2B2B2B] via-[#070707] to-[#181818]
           "
           style={{ transform: "translateZ(-10px)" }}
         />
 
-        <div className="relative h-full w-full overflow-hidden rounded-[36px] bg-white">
+        {/* מסגרת מסך */}
+        <div className="relative h-full w-full overflow-hidden rounded-[38px] bg-[#FDFBF7]">
+          {/* Dynamic Island */}
           <div
             className="
-              absolute left-1/2 top-4 z-20
-              h-[24px] w-[92px]
+              absolute left-1/2 top-4 z-30
+              h-[24px] w-[94px]
               -translate-x-1/2
               rounded-full bg-black
+              shadow-[0_2px_8px_rgba(0,0,0,0.55)]
             "
           />
 
           <img
             src="/homep2.png"
-            alt="Invistimo dashboard preview"
+            alt=""
             className="
-              h-full w-full
+              block h-full w-full
               object-cover
+              object-top
               brightness-105
               contrast-105
             "
             draggable={false}
           />
 
+          {/* הברקת זכוכית עדינה */}
           <div
             className="
               pointer-events-none absolute inset-0
@@ -261,7 +268,7 @@ function BlockTwoPhone() {
           <div
             className="
               pointer-events-none absolute inset-0
-              rounded-[36px]
+              rounded-[38px]
               border border-white/20
             "
           />
@@ -524,11 +531,11 @@ export default function HomePage() {
               בקלות, בסטייל וביעילות.
             </p>
 
-            {/* כרטיסיית פיצ׳רים כמו בסקיצה */}
+            {/* כרטיסיית פיצ׳רים כמו בסקיצה — דוחות הוסר */}
             <div
               className="
                 mx-auto mt-10
-                grid max-w-[760px]
+                grid max-w-[640px]
                 grid-cols-2
                 overflow-hidden
                 rounded-[22px]
@@ -536,7 +543,7 @@ export default function HomePage() {
                 bg-white/66
                 shadow-[0_18px_45px_rgba(95,68,34,0.10)]
                 backdrop-blur-xl
-                sm:grid-cols-5
+                sm:grid-cols-4
               "
             >
               {[
@@ -557,11 +564,6 @@ export default function HomePage() {
                   icon: Mail,
                   title: "הזמנות",
                   subtitle: "דיגיטליות",
-                },
-                {
-                  icon: BarChart3,
-                  title: "דוחות",
-                  subtitle: "מתקדמים",
                 },
               ].map((item, index) => {
                 const Icon = item.icon;
@@ -649,7 +651,7 @@ export default function HomePage() {
                   hover:text-[#B8862D]
                 "
               >
-                לראות חבילות
+               צפייה בחבילות
               </Link>
             </div>
           </motion.div>
@@ -671,7 +673,7 @@ export default function HomePage() {
         <div
           className="
             pointer-events-none absolute inset-0
-            bg-[radial-gradient(circle_at_85%_20%,rgba(201,164,92,0.16),transparent_32%),radial-gradient(circle_at_12%_80%,rgba(255,255,255,0.72),transparent_36%)]
+            bg-[radial-gradient(circle_at_84%_18%,rgba(201,164,92,0.15),transparent_31%),radial-gradient(circle_at_10%_82%,rgba(255,255,255,0.70),transparent_35%)]
           "
         />
 
@@ -680,7 +682,7 @@ export default function HomePage() {
           className="
             relative z-10 mx-auto grid max-w-[1500px]
             grid-cols-1 items-center gap-16
-            lg:grid-cols-[1.02fr_0.98fr]
+            lg:grid-cols-[1.04fr_0.96fr]
           "
         >
           {/* צד שמאל — שלבים */}
@@ -705,38 +707,42 @@ export default function HomePage() {
             {[
               {
                 num: "01",
-                icon: CalendarDays,
-                title: "יוצרים אירוע והזמנה",
-                text: "מכניסים את פרטי האירוע, מעלים או מעצבים הזמנה דיגיטלית, ומכינים קישור אישי לכל אורח.",
+                icon: Mail,
+                title: "מעלים הזמנה דיגיטלית",
+                text: "מעלים את ההזמנה שכבר עיצבתם, או משתמשים בהזמנה דיגיטלית במערכת — כדי שכל אורח יקבל חוויה אישית ומסודרת.",
               },
               {
                 num: "02",
-                icon: Send,
-                title: "שולחים לאורחים",
-                text: "שולחים הזמנה בוואטסאפ או SMS, וכל אורח מקבל קישור אישי לאישור הגעה.",
+                icon: CalendarDays,
+                title: "מעדכנים את פרטי האירוע",
+                text: "מכניסים תאריך, שעה, מיקום, פרטי אולם וכל מידע חשוב שהאורחים צריכים לקבל לפני האירוע.",
               },
               {
                 num: "03",
                 icon: Users,
-                title: "מקבלים תשובות בזמן אמת",
-                text: "כל אישור, סירוב או שינוי כמות מתעדכן אוטומטית בדשבורד — בלי אקסלים ובלי לרדוף אחרי אנשים.",
+                title: "מוסיפים את רשימת המוזמנים",
+                text: "מעלים או מוסיפים מוזמנים, מסדרים קבוצות, שומרים פרטים ומכינים את הרשימה לשליחה.",
               },
               {
                 num: "04",
-                icon: Armchair,
-                title: "מסדרים הושבה ושולחים עדכונים",
-                text: "משייכים אורחים לשולחנות, שולחים מספר שולחן, תזכורות ועדכונים — הכל מתוך המערכת.",
+                icon: Send,
+                title: "שולחים, עוקבים ומעדכנים",
+                text: "שולחים הזמנה, מקבלים אישורי הגעה בזמן אמת, מסדרים הושבה ושולחים עדכונים לאורחים מתוך המערכת.",
               },
-            ].map((step) => {
+            ].map((step, index) => {
               const Icon = step.icon;
 
               return (
                 <motion.div
                   key={step.num}
-                  initial={{ opacity: 0, y: 26 }}
+                  initial={{ opacity: 0, y: 34 }}
                   whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, amount: 0.3 }}
-                  transition={{ duration: 0.65 }}
+                  viewport={{ once: true, amount: 0.25 }}
+                  transition={{
+                    duration: 0.7,
+                    delay: index * 0.18,
+                    ease: "easeOut",
+                  }}
                   className="
                     relative grid min-h-[150px]
                     grid-cols-[88px_1px_92px_1fr]
@@ -855,8 +861,9 @@ export default function HomePage() {
                 lg:mx-0
               "
             >
-              Invistimo מרכזת את כל שלבי ניהול האורחים במקום אחד:
-              מהשליחה הראשונה, דרך אישורי ההגעה, ועד סידורי ההושבה והודעות העדכון לפני האירוע.
+              Invistimo מלווה אתכם לפי הסדר האמיתי של ניהול האירוע:
+              קודם מעלים הזמנה, מעדכנים פרטים, מוסיפים מוזמנים —
+              ומשם מנהלים אישורי הגעה, הושבה והודעות במקום אחד.
             </p>
 
             <Link
