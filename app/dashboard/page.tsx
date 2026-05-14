@@ -1799,7 +1799,7 @@ const eventLocation = resolveEventLocation(invitation, event);
   onUpdated={(tableData: Partial<Guest>) =>
     updateGuestTableLocally(g._id, tableData)
   }
-  onTablesUpdated={(nextTables) => setSeatingTables(nextTables)}
+  onTablesUpdated={(nextTables: any[]) => setSeatingTables(nextTables)}
   onRefresh={async () => {
     await loadGuests();
     await loadSeatingTables();
