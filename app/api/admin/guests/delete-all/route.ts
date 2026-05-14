@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
+import jwt, { JwtPayload } from "jsonwebtoken";
 
 import { connectDB } from "@/lib/db";
 import InvitationGuest from "@/models/InvitationGuest";
@@ -8,6 +9,83 @@ import { getUserIdFromRequest } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+
+/* =====================================================
+   חילוץ userId מתוך JWT בצורה גמישה
+===================================================== */
+function extractUserIdFromPayload(payload: string | JwtPayload): string | null {
+  if (!payload || typeof payload === "string") return null;
+
+  return (
+    (payload.userId as string) ||
+    (payload.id as string) ||
+    (payload._id as string) ||
+    (payload.sub as string) ||
+    null
+  );
+}
+
+/* =====================================================
+   בדיקת הרשאת אדמין:
+   1. משתמש רגיל שהוא admin
+   2. או אדמין שנכנס בהתחזות ויש לו adminToken / adminAuthToken
+===================================================== */
+async function resolveAdminAccess(req: NextRequest, currentUserId: string) {
+  const currentUser = await User.findById(currentUserId).lean<any>();
+
+  if (currentUser?.role === "admin") {
+    return {
+      allowed: true,
+      adminUser: currentUser,
+      source: "current-user",
+    };
+  }
+
+  const jwtSecret =
+    process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET || "";
+
+  if (!jwtSecret) {
+    return {
+      allowed: false,
+      adminUser: null,
+      source: "missing-secret",
+    };
+  }
+
+  const possibleAdminTokens = [
+    req.cookies.get("adminToken")?.value,
+    req.cookies.get("adminAuthToken")?.value,
+  ].filter(Boolean) as string[];
+
+  for (const token of possibleAdminTokens) {
+    try {
+      const decoded = jwt.verify(token, jwtSecret);
+      const adminUserId = extractUserIdFromPayload(decoded);
+
+      if (!adminUserId || !mongoose.Types.ObjectId.isValid(adminUserId)) {
+        continue;
+      }
+
+      const adminUser = await User.findById(adminUserId).lean<any>();
+
+      if (adminUser?.role === "admin") {
+        return {
+          allowed: true,
+          adminUser,
+          source: "admin-token",
+        };
+      }
+    } catch (error) {
+      console.warn("⚠️ Invalid admin token while deleting guests:", error);
+    }
+  }
+
+  return {
+    allowed: false,
+    adminUser: null,
+    source: "not-admin",
+  };
+}
 
 export async function DELETE(req: NextRequest) {
   try {
@@ -29,11 +107,11 @@ export async function DELETE(req: NextRequest) {
     }
 
     /* =====================================================
-       2. בדיקת הרשאת אדמין
+       2. בדיקת הרשאת אדמין / אדמין בהתחזות
     ===================================================== */
-    const user = await User.findById(userId).lean();
+    const adminAccess = await resolveAdminAccess(req, userId);
 
-    if (!user || user.role !== "admin") {
+    if (!adminAccess.allowed) {
       return NextResponse.json(
         {
           success: false,
@@ -71,6 +149,7 @@ export async function DELETE(req: NextRequest) {
 
     /* =====================================================
        4. מחיקת כל המוזמנים של ההזמנה בלבד
+       לא מוחקים את כל הקולקשן
     ===================================================== */
     const result = await InvitationGuest.deleteMany({
       invitationId: new mongoose.Types.ObjectId(invitationId),

@@ -532,10 +532,15 @@ export default function DashboardPage() {
       return;
     }
 
-    if (user?.role !== "admin") {
-      alert("אין הרשאת אדמין למחיקת כל המוזמנים");
-      return;
-    }
+    const canDeleteAllGuests =
+  user?.role === "admin" ||
+  user?.impersonationRole === "admin" ||
+  user?.impersonatedByAdmin === true;
+
+if (!canDeleteAllGuests) {
+  alert("אין הרשאת אדמין למחיקת כל המוזמנים");
+  return;
+}
 
     if (!invitationId) {
       alert("לא נמצאה הזמנה למחיקה");
@@ -1454,22 +1459,26 @@ const eventLocation = resolveEventLocation(invitation, event);
       {/* ===================== CONTROLS ===================== */}
       <section className="mb-5">
                 <GuestsControls
-          search={search}
-          setSearch={setSearch}
-          groups={groups}
-          selectedGroupId={selectedGroupId}
-          setSelectedGroupId={setSelectedGroupId}
-          onManageGroups={() => setOpenGroupModal(true)}
-          quickFilter={quickFilter}
-          setQuickFilter={setQuickFilter}
-          totalCount={guests.length}
-          displayCount={displayGuests.length}
-          onExportExcel={handleExportExcel}
-          onAddGuest={() => setOpenAddModal(true)}
-          disabledAddGuest={!invitation}
-          isAdmin={user?.role === "admin"}
-          onDeleteAllGuests={deleteAllGuests}
-        />
+  search={search}
+  setSearch={setSearch}
+  groups={groups}
+  selectedGroupId={selectedGroupId}
+  setSelectedGroupId={setSelectedGroupId}
+  onManageGroups={() => setOpenGroupModal(true)}
+  quickFilter={quickFilter}
+  setQuickFilter={setQuickFilter}
+  totalCount={guests.length}
+  displayCount={displayGuests.length}
+  onExportExcel={handleExportExcel}
+  onAddGuest={() => setOpenAddModal(true)}
+  disabledAddGuest={!invitation}
+  isAdmin={
+    user?.role === "admin" ||
+    user?.impersonationRole === "admin" ||
+    user?.impersonatedByAdmin === true
+  }
+  onDeleteAllGuests={deleteAllGuests}
+/>
       </section>
 
       {/* ===================== DESKTOP TABLE ===================== */}
