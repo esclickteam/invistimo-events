@@ -526,6 +526,63 @@ export default function DashboardPage() {
     }
   };
 
+    async function deleteAllGuests() {
+    if (isDemo) {
+      alert("מצב דמו – הפעולה לא נשמרת");
+      return;
+    }
+
+    if (user?.role !== "admin") {
+      alert("אין הרשאת אדמין למחיקת כל המוזמנים");
+      return;
+    }
+
+    if (!invitationId) {
+      alert("לא נמצאה הזמנה למחיקה");
+      return;
+    }
+
+    const firstConfirm = window.confirm(
+      "האם למחוק את כל המוזמנים מהאירוע הזה?\nהפעולה תמחק את כל המוזמנים לצמיתות."
+    );
+
+    if (!firstConfirm) return;
+
+    const secondConfirm = window.confirm(
+      "אישור סופי: כל המוזמנים יימחקו גם ממסד הנתונים. לא ניתן לשחזר את הפעולה."
+    );
+
+    if (!secondConfirm) return;
+
+    try {
+      const res = await fetch("/api/admin/guests/delete-all", {
+        method: "DELETE",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          invitationId,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        alert(data.message || "שגיאה במחיקת כל המוזמנים");
+        return;
+      }
+
+      setGuests([]);
+      await loadGuests();
+
+      alert(data.message || "כל המוזמנים נמחקו בהצלחה");
+    } catch (err) {
+      console.error("Delete all guests error:", err);
+      alert("שגיאת שרת במחיקת כל המוזמנים");
+    }
+  }
+
   async function deleteGuest(guest: Guest) {
     if (isDemo) {
       alert("מצב דמו – הפעולה לא נשמרת");
@@ -1396,7 +1453,7 @@ const eventLocation = resolveEventLocation(invitation, event);
 
       {/* ===================== CONTROLS ===================== */}
       <section className="mb-5">
-        <GuestsControls
+                <GuestsControls
           search={search}
           setSearch={setSearch}
           groups={groups}
@@ -1410,6 +1467,8 @@ const eventLocation = resolveEventLocation(invitation, event);
           onExportExcel={handleExportExcel}
           onAddGuest={() => setOpenAddModal(true)}
           disabledAddGuest={!invitation}
+          isAdmin={user?.role === "admin"}
+          onDeleteAllGuests={deleteAllGuests}
         />
       </section>
 
