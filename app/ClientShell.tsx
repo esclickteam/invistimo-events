@@ -18,6 +18,9 @@ export default function ClientShell({ children }: { children: ReactNode }) {
     pathname.startsWith("/producer") ||
     pathname.startsWith("/events/production");
 
+  /* =====================================================
+     ❌ דפים פנימיים / אחרי התחברות – בלי SupportBot
+  ===================================================== */
   const isInternalPage =
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/try/dashboard") ||
@@ -28,41 +31,43 @@ export default function ClientShell({ children }: { children: ReactNode }) {
     pathname.startsWith("/guests") ||
     pathname.startsWith("/seating");
 
+  /* =====================================================
+     ❌ דפי התחברות / הרשמה – בלי SupportBot
+  ===================================================== */
   const isAuthPage =
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
     pathname.startsWith("/forgot-password") ||
     pathname.startsWith("/reset-password");
 
+  /* =====================================================
+     ❌ דפי הזמנות / RSVP / תודה – בלי SupportBot
+  ===================================================== */
   const isInvitationPublicPage =
     pathname === "/thank-you" ||
     pathname.startsWith("/invite/") ||
     pathname.startsWith("/rsvp/") ||
     pathname.startsWith("/invitation/");
 
-  // ✅ רק עמודי שיווק חיצוניים לפני התחברות
-  const isExternalMarketingPage =
-    pathname === "/" ||
-    pathname.startsWith("/pricing") ||
-    pathname.startsWith("/features") ||
-    pathname.startsWith("/solutions") ||
-    pathname.startsWith("/about") ||
-    pathname.startsWith("/contact") ||
-    pathname.startsWith("/seating-explained") ||
-    pathname.startsWith("/how-it-works");
-
+  /* =====================================================
+     ✅ כל דף חיצוני לפני התחברות
+     לא whitelist — כל מה שלא פנימי / לא התחברות / לא הזמנה
+  ===================================================== */
   const showSupportBot =
-    isExternalMarketingPage &&
     !isInternalPage &&
     !isAuthPage &&
     !isInvitationPublicPage;
 
-  // 🔴 Admin – בלי Header / Footer בכלל
+  /* =====================================================
+     🔴 Admin – בלי Header / Footer בכלל
+  ===================================================== */
   if (isAdmin) {
     return <>{children}</>;
   }
 
-  // 🟡 Producer – Header כן, Footer לא, בלי SupportBot
+  /* =====================================================
+     🟡 Producer – Header כן, Footer לא, בלי SupportBot
+  ===================================================== */
   if (isProducer) {
     return (
       <LayoutShell header={<Header />} footer={null}>
@@ -71,6 +76,9 @@ export default function ClientShell({ children }: { children: ReactNode }) {
     );
   }
 
+  /* =====================================================
+     🟢 אתר רגיל
+  ===================================================== */
   return (
     <>
       <LayoutShell header={<Header />} footer={<Footer />}>

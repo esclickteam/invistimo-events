@@ -43,17 +43,11 @@ export default function SupportBotButton() {
       pathname.startsWith("/invitation/");
 
     /* =====================================================
-       ✅ רק דפים חיצוניים לפני התחברות
+       ✅ דף ציבורי חיצוני
+       כל מה שלא פנימי / לא התחברות / לא הזמנה
     ===================================================== */
-    const isExternalMarketingPage =
-      pathname === "/" ||
-      pathname.startsWith("/pricing") ||
-      pathname.startsWith("/features") ||
-      pathname.startsWith("/solutions") ||
-      pathname.startsWith("/about") ||
-      pathname.startsWith("/contact") ||
-      pathname.startsWith("/seating-explained") ||
-      pathname.startsWith("/how-it-works");
+    const isPublicExternalPage =
+      !isInternalPage && !isAuthPage && !isInvitationPage;
 
     /* =====================================================
        🍪 בדיקה אם המשתמש מחובר לפי cookies
@@ -72,12 +66,7 @@ export default function SupportBotButton() {
           );
         });
 
-    const shouldShow =
-      isExternalMarketingPage &&
-      !isInternalPage &&
-      !isAuthPage &&
-      !isInvitationPage &&
-      !hasAuthCookie;
+    const shouldShow = isPublicExternalPage && !hasAuthCookie;
 
     setCanShow(shouldShow);
 
