@@ -9,6 +9,10 @@ import InvitationGuest from "@/models/InvitationGuest";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+/* ============================================================
+   Helpers
+============================================================ */
+
 function normalizeId(value: any) {
   if (!value) return "";
 
@@ -24,7 +28,8 @@ function normalizeId(value: any) {
 
 function cleanValue(value: any) {
   return String(value || "")
-    .replace("שולחן", "")
+    .replace(/שולחן/g, "")
+    .replace(/\(.+?\)/g, "")
     .trim();
 }
 
@@ -64,6 +69,17 @@ function getGuestSeatsCount(guest: any) {
   );
 }
 
+function getTableStableId(table: any) {
+  return (
+    normalizeId(table?._id) ||
+    normalizeId(table?.id) ||
+    normalizeId(table?.tableId) ||
+    normalizeId(table?.tableNumber) ||
+    normalizeId(table?.number) ||
+    ""
+  );
+}
+
 function isTargetTable(table: any, toTableId: string) {
   const selectedRaw = normalizeId(toTableId);
   const selectedClean = cleanValue(toTableId);
@@ -82,10 +98,7 @@ function isTargetTable(table: any, toTableId: string) {
     cleanValue(getTableLabel(table)),
   ].filter(Boolean);
 
-  return (
-    candidates.includes(selectedRaw) ||
-    candidates.includes(selectedClean)
-  );
+  return candidates.includes(selectedRaw) || candidates.includes(selectedClean);
 }
 
 function cleanGuestFromTable(table: any, guestId: string) {
@@ -120,31 +133,62 @@ function findFreeSeatIndexes(table: any, count: number, guestId: string) {
 function buildScopedQuery(eventId: string, guest: any) {
   const invitationId = normalizeId(guest.invitationId || guest.invitation);
 
-  const query: any[] = [
-    { eventId },
-    { eventId: String(eventId) },
-  ];
+  const query: any[] = [];
+
+  if (eventId) {
+    query.push({ eventId }, { eventId: String(eventId) });
+
+    if (mongoose.Types.ObjectId.isValid(eventId)) {
+      query.push({ eventId: new mongoose.Types.ObjectId(eventId) });
+    }
+  }
 
   if (invitationId) {
+    query.push({ invitationId }, { invitation: invitationId });
+
+    if (mongoose.Types.ObjectId.isValid(invitationId)) {
+      const invitationObjectId = new mongoose.Types.ObjectId(invitationId);
+
+      query.push(
+        { invitationId: invitationObjectId },
+        { invitation: invitationObjectId }
+      );
+    }
+  }
+
+  return query;
+}
+
+function buildDirectTableQuery(toTableId: string) {
+  const clean = cleanValue(toTableId);
+
+  const query: any[] = [
+    { id: toTableId },
+    { tableId: toTableId },
+    { name: toTableId },
+    { tableNumber: toTableId },
+    { number: toTableId },
+  ];
+
+  if (clean && clean !== toTableId) {
     query.push(
-      { invitationId },
-      { invitation: invitationId }
+      { id: clean },
+      { tableId: clean },
+      { name: clean },
+      { name: `שולחן ${clean}` },
+      { tableNumber: clean },
+      { number: clean }
     );
   }
 
-  if (mongoose.Types.ObjectId.isValid(eventId)) {
-    const eventObjectId = new mongoose.Types.ObjectId(eventId);
+  const numeric = Number(clean);
 
-    query.push({ eventId: eventObjectId });
+  if (Number.isFinite(numeric)) {
+    query.push({ tableNumber: numeric }, { number: numeric });
   }
 
-  if (invitationId && mongoose.Types.ObjectId.isValid(invitationId)) {
-    const invitationObjectId = new mongoose.Types.ObjectId(invitationId);
-
-    query.push(
-      { invitationId: invitationObjectId },
-      { invitation: invitationObjectId }
-    );
+  if (mongoose.Types.ObjectId.isValid(toTableId)) {
+    query.push({ _id: new mongoose.Types.ObjectId(toTableId) });
   }
 
   return query;
@@ -164,13 +208,53 @@ function serializeTables(tables: any[]) {
   }));
 }
 
-async function updateGuestFields(guest: any, toTableId: string, table: any) {
-  guest.tableId = toTableId || null;
+async function updateGuestFields(guest: any, table: any | null) {
+  guest.tableId = table ? getTableStableId(table) : null;
   guest.tableName = table ? getTableLabel(table) : "";
   guest.tableNumber = table ? getTableNumber(table) : undefined;
 
   await guest.save();
 }
+
+async function findTablesByDirectTable(toTableId: string) {
+  if (!toTableId) return [];
+
+  const directTable = await SeatingTable.findOne({
+    $or: buildDirectTableQuery(toTableId),
+  });
+
+  if (!directTable) return [];
+
+  const scopedByDirectTable: any[] = [];
+
+  if (directTable.eventId) {
+    scopedByDirectTable.push(
+      { eventId: directTable.eventId },
+      { eventId: normalizeId(directTable.eventId) }
+    );
+  }
+
+  if (directTable.invitationId) {
+    scopedByDirectTable.push(
+      { invitationId: directTable.invitationId },
+      { invitationId: normalizeId(directTable.invitationId) },
+      { invitation: directTable.invitationId },
+      { invitation: normalizeId(directTable.invitationId) }
+    );
+  }
+
+  if (!scopedByDirectTable.length) return [directTable];
+
+  const tables = await SeatingTable.find({
+    $or: scopedByDirectTable,
+  });
+
+  return tables.length ? tables : [directTable];
+}
+
+/* ============================================================
+   PATCH
+============================================================ */
 
 export async function PATCH(req: NextRequest) {
   try {
@@ -178,9 +262,9 @@ export async function PATCH(req: NextRequest) {
 
     const body = await req.json();
 
-    const eventId = String(body.eventId || "");
-    const guestId = String(body.guestId || "");
-    const toTableId = body.toTableId ? String(body.toTableId) : "";
+    const eventId = String(body.eventId || "").trim();
+    const guestId = String(body.guestId || "").trim();
+    const toTableId = body.toTableId ? String(body.toTableId).trim() : "";
 
     if (!guestId) {
       return NextResponse.json(
@@ -207,21 +291,43 @@ export async function PATCH(req: NextRequest) {
     const seatsCount = getGuestSeatsCount(guest);
     const scopedQuery = buildScopedQuery(eventId, guest);
 
+    if (!scopedQuery.length && toTableId) {
+      const directTables = await findTablesByDirectTable(toTableId);
+
+      if (!directTables.length) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "לא נמצאו שולחנות לאירוע",
+            debug: {
+              eventId,
+              guestId,
+              toTableId,
+              guestInvitationId: normalizeId(guest.invitationId),
+            },
+          },
+          { status: 404 }
+        );
+      }
+    }
+
     /*
-      1. ניסיון ראשון: Seating - מסמך אחד עם tables[]
+      1. ניסיון ראשון:
+      Seating - מסמך אחד עם tables[]
     */
-    const seating = await Seating.findOne({
-      $or: scopedQuery,
-    });
+    const seating = scopedQuery.length
+      ? await Seating.findOne({
+          $or: scopedQuery,
+        })
+      : null;
 
     if (seating?.tables?.length) {
       let selectedTable: any = null;
 
       if (toTableId) {
         selectedTable =
-          seating.tables.find((table: any) =>
-            isTargetTable(table, toTableId)
-          ) || null;
+          seating.tables.find((table: any) => isTargetTable(table, toTableId)) ||
+          null;
       }
 
       if (!toTableId || selectedTable) {
@@ -255,7 +361,7 @@ export async function PATCH(req: NextRequest) {
           );
         }
 
-        await updateGuestFields(guest, toTableId, selectedTable);
+        await updateGuestFields(guest, selectedTable);
         await seating.save();
 
         return NextResponse.json({
@@ -269,41 +375,37 @@ export async function PATCH(req: NextRequest) {
     }
 
     /*
-      2. ניסיון שני: SeatingTable - כל שולחן כמסמך נפרד
+      2. ניסיון שני:
+      SeatingTable - כל שולחן כמסמך נפרד
     */
-    let tables = await SeatingTable.find({
-      $or: scopedQuery,
-    });
+    let tables = scopedQuery.length
+      ? await SeatingTable.find({
+          $or: scopedQuery,
+        })
+      : [];
 
     /*
-      fallback נוסף:
-      אם eventId לא תואם אבל יש toTableId UUID,
-      נחפש שולחן לפי id/tableId/_id.
+      חשוב:
+      גם אם נמצאו שולחנות לפי eventId / invitationId,
+      עדיין יכול להיות שהשולחן שנבחר לא נמצא שם בגלל mismatch.
+      לכן עושים fallback ישיר לפי toTableId גם כש-tables לא ריק.
     */
-    if (!tables.length && toTableId) {
-      const directTableQuery: any[] = [
-        { id: toTableId },
-        { tableId: toTableId },
-      ];
+    let selectedTable: any = null;
 
-      if (mongoose.Types.ObjectId.isValid(toTableId)) {
-        directTableQuery.push({
-          _id: new mongoose.Types.ObjectId(toTableId),
-        });
-      }
+    if (toTableId && tables.length) {
+      selectedTable =
+        tables.find((table: any) => isTargetTable(table, toTableId)) || null;
+    }
 
-      const directTable = await SeatingTable.findOne({
-        $or: directTableQuery,
-      });
+    if (toTableId && !selectedTable) {
+      const directTables = await findTablesByDirectTable(toTableId);
 
-      if (directTable) {
-        tables = await SeatingTable.find({
-          $or: [
-            { eventId: directTable.eventId },
-            { invitationId: directTable.invitationId },
-            { invitation: directTable.invitationId },
-          ].filter(Boolean),
-        });
+      if (directTables.length) {
+        tables = directTables;
+        selectedTable =
+          tables.find((table: any) => isTargetTable(table, toTableId)) ||
+          directTables[0] ||
+          null;
       }
     }
 
@@ -325,44 +427,37 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    let selectedTable: any = null;
-
-    if (toTableId) {
-      selectedTable =
-        tables.find((table: any) => isTargetTable(table, toTableId)) || null;
-
-      if (!selectedTable) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: "השולחן שנבחר לא נמצא",
-            debug: {
-              eventId,
-              guestId,
-              toTableId,
-              guestInvitationId: normalizeId(guest.invitationId),
-              availableTables: serializeTables(tables),
-              seatingAvailableTables: seating?.tables
-                ? serializeTables(seating.tables)
-                : [],
-            },
+    if (toTableId && !selectedTable) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "השולחן שנבחר לא נמצא",
+          debug: {
+            eventId,
+            guestId,
+            toTableId,
+            guestInvitationId: normalizeId(guest.invitationId),
+            availableTables: serializeTables(tables),
+            seatingAvailableTables: seating?.tables
+              ? serializeTables(seating.tables)
+              : [],
           },
-          { status: 404 }
-        );
-      }
+        },
+        { status: 404 }
+      );
     }
 
+    /*
+      קודם מנקים את האורח מכל השולחנות.
+      חשוב כדי שלא יהיה כפול.
+    */
     for (const table of tables) {
       cleanGuestFromTable(table, guestId);
       await table.save();
     }
 
     if (selectedTable) {
-      const freeSeats = findFreeSeatIndexes(
-        selectedTable,
-        seatsCount,
-        guestId
-      );
+      const freeSeats = findFreeSeatIndexes(selectedTable, seatsCount, guestId);
 
       if (freeSeats.length < seatsCount) {
         return NextResponse.json(
@@ -385,11 +480,13 @@ export async function PATCH(req: NextRequest) {
       await selectedTable.save();
     }
 
-    await updateGuestFields(guest, toTableId, selectedTable);
+    await updateGuestFields(guest, selectedTable);
 
-    const nextTables = await SeatingTable.find({
-      $or: scopedQuery,
-    }).lean();
+    const nextTables = scopedQuery.length
+      ? await SeatingTable.find({
+          $or: scopedQuery,
+        }).lean()
+      : [];
 
     return NextResponse.json({
       success: true,

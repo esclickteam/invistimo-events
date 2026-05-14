@@ -67,28 +67,38 @@ function cleanTableText(value?: string | number | null) {
 
   return String(value)
     .replace("שולחן", "")
+    .replace(/\(.+?\)/g, "")
     .trim();
 }
 
 /*
-  חשוב:
-  אצלך tableId באורח הוא UUID.
-  לכן חייבים לשלוח קודם id/tableId,
-  ורק אם אין — להשתמש ב-_id.
+  חשוב מאוד:
+  בלייב שינוי שולחן דרך הרשימה חייב לשלוח לשרת את _id של השולחן.
+  אם נשלח tableNumber / name / label כמו "שולחן 11 (12/12)",
+  השרת עלול להחזיר "שולחן לא נמצא".
+*/
+function getTableMongoId(table: SeatingTable) {
+  return String(table._id || "").trim();
+}
+
+/*
+  מזהה פנימי לזיהוי בפרונט.
+  קודם _id כדי שה-select ישלח אותו לשרת.
+  ורק אם אין _id בכלל — fallback לערכים אחרים.
 */
 function getTableId(table: SeatingTable) {
   return String(
-    table.id ||
+    table._id ||
+      table.id ||
       table.tableId ||
-      table._id ||
       table.tableNumber ||
       table.number ||
       ""
-  );
+  ).trim();
 }
 
 function getGuestId(guest: Guest) {
-  return String(guest._id || guest.id || "");
+  return String(guest._id || guest.id || "").trim();
 }
 
 function getTableNumber(table: SeatingTable) {
@@ -115,6 +125,13 @@ function getSeatedGuestId(seatedGuest: SeatingGuest) {
   return normalizeId(seatedGuest.guestId);
 }
 
+function isSameTableValue(a?: string | number | null, b?: string | number | null) {
+  const cleanA = cleanTableText(a);
+  const cleanB = cleanTableText(b);
+
+  return !!cleanA && !!cleanB && cleanA === cleanB;
+}
+
 function findGuestCurrentTable(guest: Guest, tables: SeatingTable[]) {
   const guestId = getGuestId(guest);
 
@@ -123,20 +140,27 @@ function findGuestCurrentTable(guest: Guest, tables: SeatingTable[]) {
     אם guestId נמצא בתוך seatedGuests של אחד השולחנות.
   */
   const tableFromSeating = tables.find((table) =>
-    (table.seatedGuests || []).some(
-      (sg) => getSeatedGuestId(sg) === guestId
-    )
+    (table.seatedGuests || []).some((sg) => getSeatedGuestId(sg) === guestId)
   );
 
   if (tableFromSeating) return tableFromSeating;
 
   /*
     2. אם יש tableId שמור על האורח.
+    תומך גם במקרה שהאורח שמר _id וגם במקרה ישן ששמר tableId/id.
   */
   if (guest.tableId) {
+    const guestTableId = String(guest.tableId).trim();
+
     const tableById =
-      tables.find((table) => getTableId(table) === String(guest.tableId)) ||
-      null;
+      tables.find((table) => {
+        return (
+          String(table._id || "").trim() === guestTableId ||
+          String(table.id || "").trim() === guestTableId ||
+          String(table.tableId || "").trim() === guestTableId ||
+          String(getTableNumber(table) || "").trim() === guestTableId
+        );
+      }) || null;
 
     if (tableById) return tableById;
   }
@@ -152,15 +176,19 @@ function findGuestCurrentTable(guest: Guest, tables: SeatingTable[]) {
   return (
     tables.find((table) => {
       const tableId = cleanTableText(getTableId(table));
+      const tableMongoId = cleanTableText(getTableMongoId(table));
       const tableName = cleanTableText(table.name);
       const tableNumber = cleanTableText(getTableNumber(table));
       const tableLabel = cleanTableText(getTableLabel(table));
 
       return (
         tableId === guestTableText ||
+        tableMongoId === guestTableText ||
         tableName === guestTableText ||
         tableNumber === guestTableText ||
-        tableLabel === guestTableText
+        tableLabel === guestTableText ||
+        isSameTableValue(table.name, guest.tableName) ||
+        isSameTableValue(getTableNumber(table), guest.tableNumber)
       );
     }) || null
   );
@@ -197,6 +225,10 @@ export default function LiveGuestTableSelect({
     return findGuestCurrentTable(guest, sortedTables);
   }, [guest, sortedTables]);
 
+  /*
+    זה הערך שמופיע כבחירה ב-select.
+    חייב להיות אותו value כמו ב-option.
+  */
   const currentValue = currentTable ? getTableId(currentTable) : "";
 
   async function handleChange(nextTableId: string) {
@@ -207,10 +239,13 @@ export default function LiveGuestTableSelect({
       return;
     }
 
-    if (nextTableId === currentValue) return;
+    const cleanNextTableId = String(nextTableId || "").trim();
+
+    if (cleanNextTableId === currentValue) return;
 
     const selectedTable =
-      sortedTables.find((table) => getTableId(table) === nextTableId) || null;
+      sortedTables.find((table) => getTableId(table) === cleanNextTableId) ||
+      null;
 
     const fallbackTableName = selectedTable ? getTableLabel(selectedTable) : "";
     const fallbackTableNumber = selectedTable
@@ -230,7 +265,7 @@ export default function LiveGuestTableSelect({
       אם השמירה תיכשל — נחזיר אחורה.
     */
     onUpdated({
-      tableId: nextTableId || null,
+      tableId: cleanNextTableId || null,
       tableName: fallbackTableName || "",
       tableNumber: fallbackTableNumber,
     });
@@ -245,25 +280,32 @@ export default function LiveGuestTableSelect({
         body: JSON.stringify({
           eventId,
           guestId: guest._id,
-          toTableId: nextTableId || null,
+
+          /*
+            כאן התיקון החשוב:
+            נשלח לשרת את value של ה-option.
+            בגלל ש-getTableId מחזיר קודם _id,
+            השרת יקבל את מזהה השולחן האמיתי.
+          */
+          toTableId: cleanNextTableId || null,
         }),
       });
 
       const data = await res.json().catch(() => null);
 
       if (!res.ok || data?.success === false) {
-        throw new Error(data?.message || "Failed to update guest table");
+        throw new Error(data?.message || "לא הצלחנו לעדכן שולחן לאורח");
       }
 
       if (data?.guest) {
         onUpdated({
-          tableId: data.guest.tableId ?? nextTableId ?? null,
+          tableId: data.guest.tableId ?? cleanNextTableId ?? null,
           tableName: data.guest.tableName ?? fallbackTableName ?? "",
           tableNumber: data.guest.tableNumber ?? fallbackTableNumber,
         });
       } else {
         onUpdated({
-          tableId: nextTableId || null,
+          tableId: cleanNextTableId || null,
           tableName: fallbackTableName || "",
           tableNumber: fallbackTableNumber,
         });
