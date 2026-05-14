@@ -35,7 +35,7 @@ export default function SupportBotButton() {
             {/* inner ring */}
             <span className="absolute inset-[6px] rounded-full border border-white/25" />
 
-            {/* icon */}
+            {/* icon - הודעה */}
             <span className="relative z-10 flex items-center justify-center">
               <svg
                 width="34"
@@ -46,43 +46,29 @@ export default function SupportBotButton() {
                 className="drop-shadow-sm"
               >
                 <path
-                  d="M4 13.5C4 9.08172 7.58172 5.5 12 5.5C16.4183 5.5 20 9.08172 20 13.5"
+                  d="M7 18L4 20V6.8C4 5.80589 4.80589 5 5.8 5H18.2C19.1941 5 20 5.80589 20 6.8V15.2C20 16.1941 19.1941 17 18.2 17H8.5L7 18Z"
+                  stroke="white"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M8 10H16"
                   stroke="white"
                   strokeWidth="1.8"
                   strokeLinecap="round"
                 />
-
                 <path
-                  d="M6 12.5H6.5C7.60457 12.5 8.5 13.3954 8.5 14.5V17C8.5 18.1046 7.60457 19 6.5 19H6C4.89543 19 4 18.1046 4 17V14.5C4 13.3954 4.89543 12.5 6 12.5Z"
-                  stroke="white"
-                  strokeWidth="1.8"
-                />
-
-                <path
-                  d="M17.5 12.5H18C19.1046 12.5 20 13.3954 20 14.5V17C20 18.1046 19.1046 19 18 19H17.5C16.3954 19 15.5 18.1046 15.5 17V14.5C15.5 13.3954 16.3954 12.5 17.5 12.5Z"
-                  stroke="white"
-                  strokeWidth="1.8"
-                />
-
-                <path
-                  d="M8.5 19H12C13.1046 19 14 18.1046 14 17"
+                  d="M8 13H13.5"
                   stroke="white"
                   strokeWidth="1.8"
                   strokeLinecap="round"
-                />
-
-                <circle
-                  cx="12"
-                  cy="10"
-                  r="2.2"
-                  stroke="white"
-                  strokeWidth="1.8"
                 />
               </svg>
             </span>
 
             {/* נקודת אור קטנה */}
-            <span className="absolute right-4 top-4 h-2 w-2 rounded-full bg-white/80 shadow-[0_0_12px_rgba(255,255,255,0.9)]" />
+            <span className="absolute right-4 top-4 h-2.5 w-2.5 rounded-full bg-white/85 shadow-[0_0_12px_rgba(255,255,255,0.9)]" />
 
             {/* tooltip */}
             <div
@@ -96,7 +82,7 @@ export default function SupportBotButton() {
                 group-hover:opacity-100
               "
             >
-              תמיכה
+              צריכים עזרה?
             </div>
           </button>
         </div>
