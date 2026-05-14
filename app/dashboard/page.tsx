@@ -95,70 +95,46 @@ function formatPhone(phone?: string) {
 function buildLiveArrivalSuggestionMessage(suggestion: any) {
   if (!suggestion || suggestion.type === "no_action") return "";
 
-  const guestName = suggestion.guestName || "האורח";
   const tableText =
     suggestion.tableText ||
     suggestion.tableName ||
-    (suggestion.tableNumber ? `שולחן ${suggestion.tableNumber}` : "שולחן");
+    (suggestion.tableNumber ? `שולחן ${suggestion.tableNumber}` : "השולחן שנמצא");
+
+  const extra =
+    Number(suggestion.seatsToAdd || 0) > 0
+      ? Number(suggestion.seatsToAdd)
+      : Math.max(
+          0,
+          Number(suggestion.actualCount || 0) -
+            Number(suggestion.plannedCount || 0)
+        );
 
   if (suggestion.type === "less_than_planned") {
-    return (
-      `${guestName} תוכנן/ה ל־${suggestion.plannedCount} מקומות, ` +
-      `ובפועל הגיעו ${suggestion.actualCount}.\n\n` +
-      `לפנות בלייב ${suggestion.releaseCount} מקומות?\n` +
-      `המקומות לא יימחקו מההושבה הרגילה — רק יסומנו כפנויים בלייב.`
-    );
+    return `הגיעו פחות מהמתוכנן.\nלפנות ${suggestion.releaseCount || extra || ""} מקומות בלייב?`;
   }
 
   if (suggestion.type === "more_than_planned_same_table") {
-    return (
-      `${guestName} הגיע/ה עם ${suggestion.actualCount} מגיעים בפועל, ` +
-      `מעבר ל־${suggestion.plannedCount} שתוכננו.\n\n` +
-      `נמצאו ${suggestion.seatsToAdd} מקומות פנויים באותו שולחן: ${tableText}.\n` +
-      `להושיב את המקומות הנוספים שם?`
-    );
+    return `הגיעו יותר מהמתוכנן.\nיש מקום בשולחן המקורי ${tableText}.\nלהושיב שם?`;
   }
 
   if (suggestion.type === "more_than_planned_same_group") {
-    return (
-      `${guestName} הגיע/ה עם ${suggestion.actualCount} מגיעים בפועל, ` +
-      `מעבר למה שתוכנן.\n\n` +
-      `אין מספיק מקום בשולחן המקורי, אבל נמצא מקום פנוי בקבוצה שלו/שלה ב־${tableText}.\n` +
-      `להושיב שם את ${suggestion.seatsToAdd} המקומות הנוספים?`
-    );
+    return `הגיעו יותר מהמתוכנן.\nאין מקום בשולחן המקורי, אבל יש מקום בקבוצה שלו ב־${tableText}.\nלהושיב שם?`;
   }
 
   if (suggestion.type === "more_than_planned_any_table") {
-    return (
-      `${guestName} הגיע/ה עם ${suggestion.actualCount} מגיעים בפועל, ` +
-      `מעבר למה שתוכנן.\n\n` +
-      `לא נמצא מקום פנוי בקבוצה שלו/שלה, אבל נמצא מקום פנוי ב־${tableText}.\n` +
-      `להושיב שם את ${suggestion.seatsToAdd} המקומות הנוספים?`
-    );
+    return `הגיעו יותר מהמתוכנן.\nבקבוצה שלו אין מקום, יש מקום ב־${tableText}.\nלהושיב שם?`;
   }
 
   if (suggestion.type === "not_planned_same_group") {
-    return (
-      `${guestName} לא היה/הייתה מתוכנן/ת להושבה, אבל הגיע/ה עם ${suggestion.actualCount} מגיעים בפועל.\n\n` +
-      `נמצא מקום פנוי בקבוצה שלו/שלה ב־${tableText}.\n` +
-      `להושיב אותו/אותה שם?`
-    );
+    return `האורח הגיע בלי הושבה מתוכננת.\nיש מקום בקבוצה שלו ב־${tableText}.\nלהושיב שם?`;
   }
 
   if (suggestion.type === "not_planned_any_table") {
-    return (
-      `${guestName} לא היה/הייתה מתוכנן/ת להושבה, אבל הגיע/ה עם ${suggestion.actualCount} מגיעים בפועל.\n\n` +
-      `לא נמצא מקום פנוי בקבוצה שלו/שלה, אבל נמצא מקום פנוי ב־${tableText}.\n` +
-      `להושיב אותו/אותה שם?`
-    );
+    return `האורח הגיע בלי הושבה מתוכננת.\nבקבוצה שלו אין מקום, יש מקום ב־${tableText}.\nלהושיב שם?`;
   }
 
   if (suggestion.type === "no_available_table") {
-    return (
-      `${guestName} הגיע/ה עם ${suggestion.actualCount} מגיעים בפועל, ` +
-      `אבל לא נמצא שולחן פנוי שמתאים ל־${suggestion.seatsToAdd} מקומות.\n\n` +
-      `אפשר להושיב ידנית או לפתוח שולחן נוסף.`
-    );
+    return `הגיעו יותר מהמתוכנן.\nלא נמצא שולחן פנוי מתאים.`;
   }
 
   return "";
@@ -184,22 +160,6 @@ const RSVP_STATUS_DOT: Record<Guest["rsvp"], string> = {
   no: "bg-rose-500",
   pending: "bg-amber-500",
 };
-
-function buildCountdownTarget(date?: string, time?: string) {
-  if (!date) return null;
-
-  const cleanDate = String(date).trim();
-  const cleanTime = String(time || "00:00").trim();
-
-  const target = new Date(`${cleanDate.split("T")[0]}T${cleanTime}:00`);
-
-  if (Number.isNaN(target.getTime())) {
-    const fallback = new Date(cleanDate);
-    return Number.isNaN(fallback.getTime()) ? null : fallback;
-  }
-
-  return target;
-}
 
 function formatEventDate(date?: string) {
   if (!date) return "טרם הוגדר תאריך";
@@ -1317,7 +1277,7 @@ const rsvpVisualStats = useMemo(() => {
   const sortArrow = (key: SortKey) =>
     sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "";
 
- const saveLiveSeatingSnapshot = async () => {
+  const saveLiveSeatingSnapshot = async () => {
   const effectiveEventId = String(
     eventIdFromUrl ||
       invitation?.eventId ||
@@ -1345,8 +1305,8 @@ const rsvpVisualStats = useMemo(() => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-  eventId: effectiveEventId,
-  invitationId,
+        eventId: effectiveEventId,
+        invitationId,
         tables: seatingState.tables,
         guests: seatingState.guests,
         groups: seatingState.groups,
@@ -1373,18 +1333,16 @@ const rsvpVisualStats = useMemo(() => {
   const updateActualArrived = async (guestId: string, next: number) => {
   const safeNext = Math.max(0, Number(next || 0));
 
-  const previousGuests = guests;
-
-  const guest = guests.find((g) => String(g._id) === String(guestId));
-
-  if (!guest) return;
+  setGuests((prev) =>
+    prev.map((g) =>
+      g._id === guestId
+        ? { ...g, actualArrivedCount: safeNext }
+        : g
+    )
+  );
 
   let shouldSaveSeatingSnapshot = false;
 
-  /*
-    רגיל נשאר רגיל:
-    כל הלוגיקה החכמה רצה רק אם באמת נמצאים במצב לייב.
-  */
   if (canShowActualArrived) {
     const seating = useSeatingStore.getState();
 
@@ -1408,36 +1366,26 @@ const rsvpVisualStats = useMemo(() => {
       }
     }
 
-    /*
-      תמיד מעדכנים את מספר המגיעים בפועל.
-      אם המשתמש אישר — גם מיישמים הושבה/סימון כיסאות בלייב.
-      אם לא אישר — רק המספר מתעדכן, והכיסאות לא משתנים.
-    */
     seating.setLiveArrived?.(guestId, safeNext);
 
+    if (approved && shouldAsk) {
+      const applied = seating.applyLiveArrivalSuggestion?.(suggestion);
 
-if (approved && shouldAsk) {
-  const applied = seating.applyLiveArrivalSuggestion?.(suggestion);
+      if (applied) {
+        shouldSaveSeatingSnapshot = true;
+      }
+    }
 
-  if (applied) {
-    shouldSaveSeatingSnapshot = true;
+    if (!approved && shouldAsk) {
+      seating.syncArrivedSeats?.(guestId);
+      shouldSaveSeatingSnapshot = true;
+    }
+
+    if (!shouldAsk) {
+      seating.syncArrivedSeats?.(guestId);
+      shouldSaveSeatingSnapshot = true;
+    }
   }
-} else {
-  seating.syncArrivedSeats?.(guestId);
-
-  if (shouldAsk) {
-    shouldSaveSeatingSnapshot = true;
-  }
-}
-}
-
-  setGuests((prev) =>
-    prev.map((g) =>
-      String(g._id) === String(guestId)
-        ? { ...g, actualArrivedCount: safeNext }
-        : g
-    )
-  );
 
   const res = await fetch(`/api/guests/${guestId}`, {
     method: "PUT",
@@ -1448,23 +1396,20 @@ if (approved && shouldAsk) {
 
   if (!res.ok) {
     console.warn("actualArrivedCount failed – rollback");
-
-    setGuests(previousGuests);
-
-    const seating = useSeatingStore.getState();
-    seating.setLiveArrived?.(
-      guestId,
-      guest.actualArrivedCount || 0
-    );
-    seating.syncArrivedSeats?.(guestId);
-
     await loadGuests();
+    await loadSeatingTables();
+    return;
   }
 
-  if (res.ok && canShowActualArrived && shouldSaveSeatingSnapshot) {
-  await saveLiveSeatingSnapshot();
-}
+  if (canShowActualArrived && shouldSaveSeatingSnapshot) {
+    const saved = await saveLiveSeatingSnapshot();
 
+    if (!saved) {
+      console.warn("Live seating snapshot was not saved");
+    }
+
+    await loadSeatingTables();
+  }
 };
 
     const updateGuestTableLocally = (
@@ -2724,6 +2669,57 @@ function GoldenActionButton({
 }
 
 
+function buildCountdownTarget(eventDateRaw?: string, time?: string) {
+  if (!eventDateRaw) return null;
+
+  const raw = String(eventDateRaw).trim();
+
+  const timeMatch = String(time || "").match(/(\d{1,2}):(\d{2})/);
+  const hours = timeMatch ? Number(timeMatch[1]) : 0;
+  const minutes = timeMatch ? Number(timeMatch[2]) : 0;
+
+  // Timestamp from DB
+  if (/^\d+$/.test(raw)) {
+    const numeric = Number(raw);
+    const date = new Date(numeric < 10_000_000_000 ? numeric * 1000 : numeric);
+
+    if (!Number.isNaN(date.getTime())) {
+      date.setHours(hours, minutes, 0, 0);
+      return date;
+    }
+  }
+
+  // Israeli format: 7.5.2026 / 07/05/2026 / 07-05-2026
+  const israeliDateMatch = raw.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/);
+
+  if (israeliDateMatch) {
+    const day = Number(israeliDateMatch[1]);
+    const month = Number(israeliDateMatch[2]);
+    const year = Number(israeliDateMatch[3]);
+
+    const date = new Date(year, month - 1, day, hours, minutes, 0, 0);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  // ISO / Mongo date: 2026-05-17 or 2026-05-17T...
+  const isoDatePart = raw.split("T")[0];
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(isoDatePart)) {
+    const [year, month, day] = isoDatePart.split("-").map(Number);
+    const date = new Date(year, month - 1, day, hours, minutes, 0, 0);
+
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  const fallback = new Date(raw);
+
+  if (Number.isNaN(fallback.getTime())) {
+    return null;
+  }
+
+  fallback.setHours(hours, minutes, 0, 0);
+  return fallback;
+}
 
 function getEventCountdown(
   eventDateRaw: string | undefined,
