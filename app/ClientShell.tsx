@@ -20,6 +20,9 @@ export default function ClientShell({ children }: { children: ReactNode }) {
 
   /* =====================================================
      ❌ דפים פנימיים / אחרי התחברות – בלי SupportBot
+     שימי לב:
+     לא משתמשים ב-pathname.startsWith("/seating")
+     כי זה חוסם בטעות גם את /seating-explained
   ===================================================== */
   const isInternalPage =
     pathname.startsWith("/dashboard") ||
@@ -29,7 +32,8 @@ export default function ClientShell({ children }: { children: ReactNode }) {
     pathname.startsWith("/events") ||
     pathname.startsWith("/client") ||
     pathname.startsWith("/guests") ||
-    pathname.startsWith("/seating");
+    pathname === "/seating" ||
+    pathname.startsWith("/seating/");
 
   /* =====================================================
      ❌ דפי התחברות / הרשמה – בלי SupportBot
@@ -51,7 +55,7 @@ export default function ClientShell({ children }: { children: ReactNode }) {
 
   /* =====================================================
      ✅ כל דף חיצוני לפני התחברות
-     לא whitelist — כל מה שלא פנימי / לא התחברות / לא הזמנה
+     כל מה שלא פנימי / לא התחברות / לא הזמנה
   ===================================================== */
   const showSupportBot =
     !isInternalPage &&

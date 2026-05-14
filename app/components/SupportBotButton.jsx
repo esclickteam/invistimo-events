@@ -13,6 +13,8 @@ export default function SupportBotButton() {
   useEffect(() => {
     /* =====================================================
        ❌ דפים פנימיים / אחרי התחברות – לא להציג
+       חשוב:
+       /seating-explained הוא דף חיצוני ולכן לא חוסמים אותו
     ===================================================== */
     const isInternalPage =
       pathname.startsWith("/dashboard") ||
@@ -22,7 +24,8 @@ export default function SupportBotButton() {
       pathname.startsWith("/events") ||
       pathname.startsWith("/client") ||
       pathname.startsWith("/guests") ||
-      pathname.startsWith("/seating");
+      pathname === "/seating" ||
+      pathname.startsWith("/seating/");
 
     /* =====================================================
        ❌ דפי התחברות / הרשמה – לא להציג
@@ -34,7 +37,7 @@ export default function SupportBotButton() {
       pathname.startsWith("/reset-password");
 
     /* =====================================================
-       ❌ דפי הזמנות / RSVP – לא להציג
+       ❌ דפי הזמנות / RSVP / תודה – לא להציג
     ===================================================== */
     const isInvitationPage =
       pathname === "/thank-you" ||
@@ -51,20 +54,19 @@ export default function SupportBotButton() {
 
     /* =====================================================
        🍪 בדיקה אם המשתמש מחובר לפי cookies
+       אם יש קוקי התחברות — לא להציג גם בדף חיצוני
     ===================================================== */
     const hasAuthCookie =
       typeof document !== "undefined" &&
-      document.cookie
-        .split(";")
-        .some((cookie) => {
-          const cookieName = cookie.trim().split("=")[0];
+      document.cookie.split(";").some((cookie) => {
+        const cookieName = cookie.trim().split("=")[0];
 
-          return (
-            cookieName === "token" ||
-            cookieName === "authToken" ||
-            cookieName === "adminToken"
-          );
-        });
+        return (
+          cookieName === "token" ||
+          cookieName === "authToken" ||
+          cookieName === "adminToken"
+        );
+      });
 
     const shouldShow = isPublicExternalPage && !hasAuthCookie;
 
