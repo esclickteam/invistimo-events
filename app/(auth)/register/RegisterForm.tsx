@@ -1,13 +1,18 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
-import { useState, Suspense } from "react";
 import Link from "next/link";
+import { Suspense, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { motion } from "framer-motion";
 
-/* ============================================================
-   Register → Stripe
-   השרת מחשב מחיר לפי plan + guests + addons
-============================================================ */
+type FormState = {
+  name: string;
+  email: string;
+  phone: string;
+  password: string;
+};
+
+type FieldKey = keyof FormState;
 
 function RegisterFormInner() {
   const params = useSearchParams();
@@ -24,7 +29,7 @@ function RegisterFormInner() {
 
   /* ================= STATE ================= */
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<FormState>({
     name: "",
     email: "",
     phone: "",
@@ -33,14 +38,63 @@ function RegisterFormInner() {
 
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showPass, setShowPass] = useState(false);
+
+  const fields = useMemo<
+    {
+      key: FieldKey;
+      label: string;
+      type: string;
+      placeholder: string;
+      autoComplete?: string;
+    }[]
+  >(
+    () => [
+      {
+        key: "name",
+        label: "שם מלא",
+        type: "text",
+        placeholder: "הזינו את השם המלא שלכם",
+        autoComplete: "name",
+      },
+      {
+        key: "email",
+        label: "אימייל",
+        type: "email",
+        placeholder: "הזינו את כתובת האימייל שלכם",
+        autoComplete: "email",
+      },
+      {
+        key: "phone",
+        label: "טלפון",
+        type: "text",
+        placeholder: "הזינו את מספר הטלפון שלכם",
+        autoComplete: "tel",
+      },
+      {
+        key: "password",
+        label: "סיסמה",
+        type: "password",
+        placeholder: "צרו סיסמה לחשבון שלכם",
+        autoComplete: "new-password",
+      },
+    ],
+    []
+  );
 
   /* ================= HANDLERS ================= */
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    const fieldName = name as FieldKey;
+
+    setForm((prev) => ({
+      ...prev,
+      [fieldName]: value,
+    }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (!acceptedTerms) {
@@ -82,12 +136,13 @@ function RegisterFormInner() {
       }
 
       const userId = String(registerData?.userId || "").trim();
+
       if (!userId) {
         alert("Missing userId");
         return;
       }
 
-      /* 2️⃣ Stripe Checkout (השרת מחשב מחיר!) */
+      /* 2️⃣ Stripe Checkout */
       const checkoutRes = await fetch("/api/stripe/create-checkout-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -122,88 +177,210 @@ function RegisterFormInner() {
   /* ================= UI ================= */
 
   return (
-    <div className="max-w-xl mx-auto pt-20 pb-28 px-5">
-      <h1 className="text-4xl font-serif font-bold text-[#5c4632] mb-6 text-center">
-        הרשמה
-      </h1>
+    <main
+      dir="rtl"
+      className="relative min-h-screen overflow-hidden bg-[#F7EFE6]"
+    >
+      {/* רקע */}
+      <div className="absolute inset-0 -z-30 bg-[radial-gradient(circle_at_top,#fffaf4_0%,#f7efe6_42%,#efe2d2_100%)]" />
+      <div className="absolute inset-0 -z-20 opacity-[0.08] bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
 
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white rounded-[32px] border border-[#e6dccd] p-8 space-y-6 shadow"
-      >
-        {/* Inputs */}
-        {["name", "email", "phone", "password"].map((field) => (
-          <div key={field} className="flex flex-col gap-1">
-            <label className="text-sm text-[#5c4632]">
-              {field === "name"
-                ? "שם מלא"
-                : field === "email"
-                ? "אימייל"
-                : field === "phone"
-                ? "טלפון"
-                : "סיסמה"}
-            </label>
-            <input
-              name={field}
-              type={
-                field === "password"
-                  ? "password"
-                  : field === "email"
-                  ? "email"
-                  : "text"
-              }
-              value={(form as any)[field]}
-              onChange={handleChange}
-              className="w-full p-3 rounded-xl border border-[#d9c8b5]"
-              required
-            />
-          </div>
-        ))}
+      {/* כתמי אור */}
+      <div className="pointer-events-none absolute -top-20 right-[10%] h-64 w-64 rounded-full bg-[#DAB273]/20 blur-3xl" />
+      <div className="pointer-events-none absolute bottom-[-40px] left-[8%] h-72 w-72 rounded-full bg-[#CDA37D]/15 blur-3xl" />
+      <div className="pointer-events-none absolute top-1/2 left-1/2 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/20 blur-3xl" />
 
-        {/* תצוגת פרטי חבילה (בלי מחיר) */}
-        <div className="text-center text-[#5c4632] space-y-1">
-          <div className="text-sm opacity-80">
-            חבילה: {plan} | כמות רשומות: {guests}
-          </div>
-        </div>
+      {/* עיטורים */}
+      <div className="pointer-events-none absolute top-10 left-10 h-24 w-24 rounded-full border border-[#D8B98D]/25" />
+      <div className="pointer-events-none absolute bottom-10 right-10 h-20 w-20 rounded-full border border-[#D8B98D]/20" />
 
-        {/* תקנון */}
-        <div className="flex items-start gap-3 text-sm text-[#5c4632]">
-          <input
-            type="checkbox"
-            checked={acceptedTerms}
-            onChange={(e) => setAcceptedTerms(e.target.checked)}
-            className="mt-1 h-4 w-4"
-          />
-          <span>
-            הנני מאשר/ת את{" "}
-            <Link href="/terms" className="underline">
-              תקנון השימוש
-            </Link>{" "}
-            ו{" "}
-            <Link href="/privacy" className="underline">
-              מדיניות הפרטיות
-            </Link>
-          </span>
-        </div>
-
-        {/* כפתור */}
-        <button
-          type="submit"
-          disabled={loading || !acceptedTerms || !guests}
-          className="btn-primary w-full py-3 text-lg rounded-full disabled:opacity-50"
+      <section className="relative z-10 flex min-h-[calc(100vh-90px)] items-center justify-center px-4 py-6 sm:px-6 sm:py-8">
+        <motion.div
+          initial={{ opacity: 0, y: 28, scale: 0.985 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.65, ease: "easeOut" }}
+          className="
+            relative w-full max-w-[560px]
+            overflow-hidden rounded-[34px]
+            border border-[#D9C0A0]
+            bg-[#FFFDF9]/94
+            p-5 shadow-[0_24px_70px_rgba(91,64,35,0.13)]
+            backdrop-blur-xl
+            sm:p-7
+            md:max-w-[580px]
+            md:p-8
+          "
         >
-          {loading ? "מבצעת הרשמה..." : "הרשמה"}
-        </button>
+          {/* glow inner */}
+          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.72),rgba(255,255,255,0.25))]" />
+          <div className="pointer-events-none absolute -top-16 -right-16 h-44 w-44 rounded-full bg-[#F2DEC4]/30 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-16 -left-16 h-44 w-44 rounded-full bg-[#EED7BC]/25 blur-3xl" />
 
-        <div className="text-center text-sm text-[#7b6754]">
-          כבר רשום?{" "}
-          <Link href="/login" className="underline text-[#5c4632]">
-            התחברות
-          </Link>
-        </div>
-      </form>
-    </div>
+          <div className="relative z-10">
+            {/* כותרת */}
+            <div className="mb-6 text-center sm:mb-7">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-[#D8B98D] bg-[#FFF8EE] shadow-[0_8px_24px_rgba(186,140,76,0.12)]">
+                <span className="text-xl text-[#B88945]">✦</span>
+              </div>
+
+              <p className="font-serif text-[28px] tracking-[0.20em] text-[#8A6338] sm:text-[34px]">
+                INVISTIMO
+              </p>
+
+              <div className="mx-auto mt-3 h-px w-20 bg-gradient-to-l from-transparent via-[#C9A46A] to-transparent" />
+
+              <p className="mt-3 text-[11px] tracking-[0.16em] text-[#A07C52] uppercase sm:text-xs">
+                Event Management
+              </p>
+
+              <h1 className="mt-6 text-3xl font-black text-[#3E2D20] sm:text-[42px]">
+                הרשמה
+              </h1>
+
+              <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-[#7B6754] sm:text-[15px]">
+                צרו חשבון חדש והמשיכו לתשלום בצורה מסודרת, יוקרתית ומהירה.
+              </p>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {fields.map((field) => {
+                const isPassword = field.key === "password";
+
+                return (
+                  <div key={field.key} className="flex flex-col gap-2">
+                    <label className="text-sm font-bold text-[#4C3724]">
+                      {field.label}
+                    </label>
+
+                    <div className="relative">
+                      <input
+                        name={field.key}
+                        type={
+                          isPassword
+                            ? showPass
+                              ? "text"
+                              : "password"
+                            : field.type
+                        }
+                        value={form[field.key]}
+                        onChange={handleChange}
+                        placeholder={field.placeholder}
+                        autoComplete={field.autoComplete}
+                        required
+                        className="
+                          w-full rounded-[18px] border border-[#DDCBB3]
+                          bg-white/90 px-4 py-3.5
+                          text-[#3E2D20] shadow-sm outline-none transition
+                          placeholder:text-[#AF9B87]
+                          focus:border-[#C9A46A]
+                          focus:ring-4 focus:ring-[#D8B16A]/15
+                        "
+                      />
+
+                      {isPassword && (
+                        <button
+                          type="button"
+                          onClick={() => setShowPass((prev) => !prev)}
+                          className="
+                            absolute left-4 top-1/2 -translate-y-1/2
+                            text-xs font-bold text-[#9C7545]
+                            transition hover:text-[#7E5A30]
+                          "
+                        >
+                          {showPass ? "הסתר" : "הצג"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* פרטי חבילה */}
+              <div
+                className="
+                  rounded-[20px] border border-[#E5D7C5]
+                  bg-[#FFF8EE]/75 px-4 py-4 text-center
+                  text-[#6B533C]
+                "
+              >
+                <p className="text-sm">
+                  <span className="font-bold">חבילה:</span> {plan}
+                </p>
+                <p className="mt-1 text-sm">
+                  <span className="font-bold">כמות רשומות:</span> {guests}
+                </p>
+              </div>
+
+              {/* תקנון */}
+              <label className="flex cursor-pointer items-start gap-3 rounded-[18px] border border-[#E7DACB] bg-white/60 px-4 py-3 text-sm text-[#5C4632]">
+                <input
+                  type="checkbox"
+                  checked={acceptedTerms}
+                  onChange={(e) => setAcceptedTerms(e.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-[#CDB99C] accent-[#B88945]"
+                />
+                <span className="leading-6">
+                  הנני מאשר/ת את{" "}
+                  <Link
+                    href="/terms"
+                    className="font-semibold text-[#A27038] underline underline-offset-4"
+                  >
+                    תקנון השימוש
+                  </Link>{" "}
+                  ו{" "}
+                  <Link
+                    href="/privacy"
+                    className="font-semibold text-[#A27038] underline underline-offset-4"
+                  >
+                    מדיניות הפרטיות
+                  </Link>
+                </span>
+              </label>
+
+              {/* כפתור הרשמה */}
+              <button
+                type="submit"
+                disabled={loading || !acceptedTerms || !guests}
+                className="
+                  mt-2 w-full rounded-[20px]
+                  bg-gradient-to-l from-[#A86F2B] via-[#C68F46] to-[#D8A85F]
+                  px-6 py-3.5 text-base font-black text-white
+                  shadow-[0_16px_32px_rgba(168,111,43,0.24)]
+                  transition duration-200
+                  hover:-translate-y-0.5
+                  hover:shadow-[0_20px_38px_rgba(168,111,43,0.3)]
+                  disabled:cursor-not-allowed
+                  disabled:opacity-50
+                "
+              >
+                {loading ? "מבצעת הרשמה..." : "הרשמה והמשך לתשלום"}
+              </button>
+
+              {/* התחברות */}
+              <div className="text-center">
+                <p className="text-sm text-[#7B6754]">
+                  כבר רשומים?
+                  <Link
+                    href="/login"
+                    className="mr-1 font-black text-[#A86F2B] underline-offset-4 transition hover:underline"
+                  >
+                    התחברות
+                  </Link>
+                </p>
+              </div>
+            </form>
+
+            {/* טקסט תחתון */}
+            <div className="mt-6">
+              <div className="mx-auto h-px w-full max-w-[180px] bg-gradient-to-l from-transparent via-[#D8C2A6] to-transparent" />
+              <p className="mt-3 text-center text-[11px] leading-5 text-[#9C866D] sm:text-xs">
+                מערכת חכמה לניהול אירועים, אישורי הגעה, הושבה ושליחת הודעות
+              </p>
+            </div>
+          </div>
+        </motion.div>
+      </section>
+    </main>
   );
 }
 
