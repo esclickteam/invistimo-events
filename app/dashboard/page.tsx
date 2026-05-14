@@ -483,6 +483,43 @@ export default function DashboardPage() {
     setGuests(data.guests || []);
   }
 
+  async function loadSeatingTables() {
+  const eventId =
+    eventIdFromUrl ||
+    invitation?.eventId ||
+    invitation?.event ||
+    invitation?.event_id ||
+    invitation?.eventDetails?._id;
+
+  if (!eventId) {
+    console.warn("No eventId found for seating tables", {
+      eventIdFromUrl,
+      invitation,
+    });
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/seating/tables/${eventId}`, {
+      credentials: "include",
+      cache: "no-store",
+    });
+
+    const data = await res.json();
+
+    console.log("SEATING TABLES RESPONSE:", data);
+
+    if (!res.ok || !data.success) {
+      console.warn("Failed to load seating tables", data);
+      return;
+    }
+
+    setSeatingTables(data.tables || []);
+  } catch (err) {
+    console.error("Load seating tables error:", err);
+  }
+}
+
   const handleExportExcel = async () => {
     if (isDemo) {
       handleDemoBlockedAction();
@@ -782,16 +819,17 @@ if (!canDeleteAllGuests) {
   }, [isDemo]);
 
   useEffect(() => {
-    if (isDemo) return;
-    if (!invitationId) return;
+  if (isDemo) return;
+  if (!invitationId) return;
 
-    async function load() {
-      await loadGuests();
-      setLoading(false);
-    }
+  async function load() {
+    await loadGuests();
+    await loadSeatingTables();
+    setLoading(false);
+  }
 
-    load();
-  }, [invitationId, isDemo]);
+  load();
+}, [invitationId, isDemo, eventIdFromUrl, invitation]);
 
   useEffect(() => {
     if (isDemo) return;
@@ -801,18 +839,20 @@ if (!canDeleteAllGuests) {
   }, [invitationId, isDemo, loadGroups]);
 
   useEffect(() => {
-    if (isDemo) return;
-    if (!invitationId) return;
+  if (isDemo) return;
+  if (!invitationId) return;
 
+  loadGuests();
+  loadSeatingTables();
+
+  const interval = setInterval(() => {
+    console.log("🔄 polling guests + seating...");
     loadGuests();
+    loadSeatingTables();
+  }, 2000);
 
-    const interval = setInterval(() => {
-      console.log("🔄 polling guests...");
-      loadGuests();
-    }, 2000);
-
-    return () => clearInterval(interval);
-  }, [invitationId]);
+  return () => clearInterval(interval);
+}, [invitationId, eventIdFromUrl, invitation]);
 
   const guestTableMap = useMemo(() => {
     const map = new Map<string, any>();
