@@ -70,8 +70,21 @@ function cleanTableText(value?: string | number | null) {
     .trim();
 }
 
+/*
+  חשוב:
+  אצלך tableId באורח הוא UUID.
+  לכן חייבים לשלוח קודם id/tableId,
+  ורק אם אין — להשתמש ב-_id.
+*/
 function getTableId(table: SeatingTable) {
-  return String(table._id || table.id || table.tableId || "");
+  return String(
+    table.id ||
+      table.tableId ||
+      table._id ||
+      table.tableNumber ||
+      table.number ||
+      ""
+  );
 }
 
 function getGuestId(guest: Guest) {
