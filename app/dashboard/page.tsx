@@ -185,6 +185,22 @@ const RSVP_STATUS_DOT: Record<Guest["rsvp"], string> = {
   pending: "bg-amber-500",
 };
 
+function buildCountdownTarget(date?: string, time?: string) {
+  if (!date) return null;
+
+  const cleanDate = String(date).trim();
+  const cleanTime = String(time || "00:00").trim();
+
+  const target = new Date(`${cleanDate.split("T")[0]}T${cleanTime}:00`);
+
+  if (Number.isNaN(target.getTime())) {
+    const fallback = new Date(cleanDate);
+    return Number.isNaN(fallback.getTime()) ? null : fallback;
+  }
+
+  return target;
+}
+
 function formatEventDate(date?: string) {
   if (!date) return "טרם הוגדר תאריך";
 
@@ -1301,6 +1317,59 @@ const rsvpVisualStats = useMemo(() => {
   const sortArrow = (key: SortKey) =>
     sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "";
 
+ const saveLiveSeatingSnapshot = async () => {
+  const effectiveEventId = String(
+    eventIdFromUrl ||
+      invitation?.eventId ||
+      invitation?.event ||
+      invitation?.event_id ||
+      invitation?.eventDetails?._id ||
+      ""
+  );
+
+  if (!effectiveEventId || !invitationId) {
+    console.warn("❌ חסר eventId או invitationId לשמירת הושבה בלייב", {
+      effectiveEventId,
+      invitationId,
+    });
+    return false;
+  }
+
+  try {
+    const seatingState = useSeatingStore.getState();
+
+    const res = await fetch(`/api/seating/save/${effectiveEventId}`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+  eventId: effectiveEventId,
+  invitationId,
+        tables: seatingState.tables,
+        guests: seatingState.guests,
+        groups: seatingState.groups,
+        background: seatingState.background,
+        zones: [],
+        canvasView: seatingState.canvasView,
+      }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok || data?.success === false) {
+      console.error("❌ saveLiveSeatingSnapshot failed:", data);
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    console.error("❌ saveLiveSeatingSnapshot network error:", err);
+    return false;
+  }
+};
+
   const updateActualArrived = async (guestId: string, next: number) => {
   const safeNext = Math.max(0, Number(next || 0));
 
@@ -1309,6 +1378,8 @@ const rsvpVisualStats = useMemo(() => {
   const guest = guests.find((g) => String(g._id) === String(guestId));
 
   if (!guest) return;
+
+  let shouldSaveSeatingSnapshot = false;
 
   /*
     רגיל נשאר רגיל:
@@ -1344,12 +1415,21 @@ const rsvpVisualStats = useMemo(() => {
     */
     seating.setLiveArrived?.(guestId, safeNext);
 
-    if (approved && shouldAsk) {
-      seating.applyLiveArrivalSuggestion?.(suggestion);
-    } else {
-      seating.syncArrivedSeats?.(guestId);
-    }
+
+if (approved && shouldAsk) {
+  const applied = seating.applyLiveArrivalSuggestion?.(suggestion);
+
+  if (applied) {
+    shouldSaveSeatingSnapshot = true;
   }
+} else {
+  seating.syncArrivedSeats?.(guestId);
+
+  if (shouldAsk) {
+    shouldSaveSeatingSnapshot = true;
+  }
+}
+}
 
   setGuests((prev) =>
     prev.map((g) =>
@@ -1380,6 +1460,11 @@ const rsvpVisualStats = useMemo(() => {
 
     await loadGuests();
   }
+
+  if (res.ok && canShowActualArrived && shouldSaveSeatingSnapshot) {
+  await saveLiveSeatingSnapshot();
+}
+
 };
 
     const updateGuestTableLocally = (
@@ -2639,57 +2724,6 @@ function GoldenActionButton({
 }
 
 
-function buildCountdownTarget(eventDateRaw?: string, time?: string) {
-  if (!eventDateRaw) return null;
-
-  const raw = String(eventDateRaw).trim();
-
-  const timeMatch = String(time || "").match(/(\d{1,2}):(\d{2})/);
-  const hours = timeMatch ? Number(timeMatch[1]) : 0;
-  const minutes = timeMatch ? Number(timeMatch[2]) : 0;
-
-  // Timestamp from DB
-  if (/^\d+$/.test(raw)) {
-    const numeric = Number(raw);
-    const date = new Date(numeric < 10_000_000_000 ? numeric * 1000 : numeric);
-
-    if (!Number.isNaN(date.getTime())) {
-      date.setHours(hours, minutes, 0, 0);
-      return date;
-    }
-  }
-
-  // Israeli format: 7.5.2026 / 07/05/2026 / 07-05-2026
-  const israeliDateMatch = raw.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/);
-
-  if (israeliDateMatch) {
-    const day = Number(israeliDateMatch[1]);
-    const month = Number(israeliDateMatch[2]);
-    const year = Number(israeliDateMatch[3]);
-
-    const date = new Date(year, month - 1, day, hours, minutes, 0, 0);
-    return Number.isNaN(date.getTime()) ? null : date;
-  }
-
-  // ISO / Mongo date: 2026-05-17 or 2026-05-17T...
-  const isoDatePart = raw.split("T")[0];
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(isoDatePart)) {
-    const [year, month, day] = isoDatePart.split("-").map(Number);
-    const date = new Date(year, month - 1, day, hours, minutes, 0, 0);
-
-    return Number.isNaN(date.getTime()) ? null : date;
-  }
-
-  const fallback = new Date(raw);
-
-  if (Number.isNaN(fallback.getTime())) {
-    return null;
-  }
-
-  fallback.setHours(hours, minutes, 0, 0);
-  return fallback;
-}
 
 function getEventCountdown(
   eventDateRaw: string | undefined,
