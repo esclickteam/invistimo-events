@@ -15,16 +15,17 @@ const fadeIn = {
 
 const features = [
   "קישור אישי ייחודי לכל אורח",
-  "שליחה ידנית ב־WhatsApp או ב־SMS",
-  "בחירת מגיע / לא מגיע",
-  "בחירת מספר מוזמנים",
-  "הוספת הערות כמו כשרות, נגישות ואלרגיות",
+  "שליחה אוטומטית ב־WhatsApp או ב־SMS",
+  "אפשרות להוסיף קישור ל־PayBox או מתנות באשראי",
+  "בחירת מגיע / לא מגיע בצורה פשוטה",
+  "בחירת מספר המגיעים בפועל",
+  "הוספת הערות כמו כשרויות, אלרגיות, הסעות ונגישות",
 ];
 
 const dashboardFeatures = [
   "סטטוס הגעה מתעדכן אוטומטית",
-  "מספר מוזמנים מתעדכן מיידית",
-  "סיכום משתתפים תמיד מדויק",
+  "מספר המגיעים מתעדכן בזמן אמת",
+  "הערות האורחים נשמרות בצורה מסודרת",
   "מעקב אחרי מי ענה ומי עדיין לא",
 ];
 
@@ -223,8 +224,9 @@ export default function RSVPPage() {
           "
         >
           Invistimo מרכזת את כל אישורי ההגעה במקום אחד —
-          קישור אישי לכל אורח, עדכון בזמן אמת בדשבורד,
-          שליטה מלאה ונתונים מדויקים בלי לרדוף אחרי הודעות.
+          קישור אישי לכל אורח, שליחה אוטומטית ב־WhatsApp או ב־SMS,
+          בחירת מגיע / לא מגיע, כמות מגיעים, הערות מיוחדות
+          ואפשרות לצרף קישור ל־PayBox או מתנות באשראי.
         </motion.p>
 
         <motion.div
@@ -345,6 +347,8 @@ export default function RSVPPage() {
             <p className="mt-6 text-lg leading-8 text-[#6D5B4A]">
               כל אורח מקבל קישור אישי ומאשר הגעה בצורה פשוטה,
               בלי הרשמה, בלי הורדת אפליקציה ובלי הסברים מיותרים.
+              ניתן לצרף גם קישור ל־PayBox או מתנות באשראי,
+              כך שכל מה שקשור לאורח נמצא במקום אחד.
             </p>
 
             <div className="mt-8">
@@ -352,8 +356,9 @@ export default function RSVPPage() {
             </div>
 
             <p className="mt-8 rounded-[26px] border border-[#EFE3D2] bg-[#FFFAF2] p-5 text-base font-semibold leading-8 text-[#6D5B4A]">
-              האורח נכנס, בוחר סטטוס, מעדכן כמות משתתפים ומשאיר הערות —
-              ואת רואה הכל בצורה מסודרת בדשבורד.
+              האורח נכנס לקישור האישי שלו, בוחר אם הוא מגיע או לא מגיע,
+              מעדכן כמה מגיעים ומשאיר הערות חשובות כמו כשרות, אלרגיות,
+              הסעות או נגישות — והכל נכנס אוטומטית לדשבורד.
             </p>
           </motion.div>
 
@@ -388,7 +393,7 @@ export default function RSVPPage() {
             </h2>
 
             <p className="mt-6 text-lg leading-8 text-[#6D5B4A] md:text-xl">
-              ברגע שאורח מאשר, משנה כמות או משאיר הערה —
+              ברגע שאורח מאשר, משנה כמות, מסמן שלא מגיע או משאיר הערה —
               הדשבורד מתעדכן מיד ומציג תמונת מצב מדויקת של האירוע.
             </p>
           </motion.div>
@@ -402,27 +407,46 @@ export default function RSVPPage() {
                 transition={{ delay: index * 0.08, duration: 0.55 }}
                 viewport={{ once: true }}
                 className="
+                  relative overflow-hidden
                   rounded-[30px]
-                  border border-white/80
-                  bg-white/65
-                  p-6
+                  border border-[#D7B873]
+                  bg-white/75
+                  p-[1px]
                   text-center
-                  shadow-[0_20px_55px_rgba(91,63,32,0.09)]
+                  shadow-[0_24px_65px_rgba(151,108,49,0.16)]
                   backdrop-blur-xl
                 "
               >
                 <div
                   className="
-                    mx-auto mb-5 flex h-12 w-12 items-center justify-center
-                    rounded-2xl bg-[#35281F]
-                    text-lg font-black text-[#E8D1A5]
+                    pointer-events-none absolute inset-0
+                    bg-[linear-gradient(135deg,rgba(215,184,115,0.45),rgba(255,255,255,0.15),rgba(180,138,74,0.28))]
+                  "
+                />
+
+                <div
+                  className="
+                    relative h-full rounded-[29px]
+                    border border-white/80
+                    bg-white/80
+                    p-6
                   "
                 >
-                  {index + 1}
+                  <div
+                    className="
+                      mx-auto mb-5 flex h-12 w-12 items-center justify-center
+                      rounded-2xl bg-[#35281F]
+                      text-lg font-black text-[#E8D1A5]
+                      shadow-[0_12px_28px_rgba(53,40,31,0.18)]
+                    "
+                  >
+                    {index + 1}
+                  </div>
+
+                  <p className="text-base font-black leading-7 text-[#514033]">
+                    {item}
+                  </p>
                 </div>
-                <p className="text-base font-black leading-7 text-[#514033]">
-                  {item}
-                </p>
               </motion.div>
             ))}
           </div>
@@ -532,7 +556,8 @@ export default function RSVPPage() {
           </h3>
 
           <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-[#6D5B4A]">
-            מערכת אחת שמרכזת את האורחים, האישורים, הכמויות וההערות —
+            מערכת אחת שמרכזת את האורחים, האישורים, הכמויות, ההערות,
+            קישורי המתנות והעדכונים בזמן אמת —
             בצורה יוקרתית, מסודרת ומדויקת.
           </p>
 
