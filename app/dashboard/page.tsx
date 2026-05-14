@@ -1784,13 +1784,26 @@ const eventLocation = resolveEventLocation(invitation, event);
                 {canShowActualArrived && (
                   <td className="p-4">
                     <LiveGuestTableSelect
+  eventId={
+    String(
+      eventIdFromUrl ||
+        invitation?.eventId ||
+        invitation?.event ||
+        invitation?.event_id ||
+        invitation?.eventDetails?._id ||
+        ""
+    )
+  }
   guest={g}
   tables={seatingTables || []}
   onUpdated={(tableData: Partial<Guest>) =>
     updateGuestTableLocally(g._id, tableData)
   }
   onTablesUpdated={(nextTables) => setSeatingTables(nextTables)}
-  onRefresh={loadGuests}
+  onRefresh={async () => {
+    await loadGuests();
+    await loadSeatingTables();
+  }}
 />
                   </td>
                 )}
