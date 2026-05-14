@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
 
@@ -10,11 +10,20 @@ export default function LoginPage() {
   const [pass, setPass] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
 
   const { login } = useAuth();
 
-  async function handleLogin(e: React.FormEvent) {
+  useEffect(() => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("adminToken");
+
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("authToken");
+    sessionStorage.removeItem("adminToken");
+  }, []);
+
+  async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
 
@@ -90,8 +99,8 @@ export default function LoginPage() {
               </h1>
 
               <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-[#7B6754] sm:text-[15px]">
-                התחברו לחשבון שלכם והמשיכו לנהל את האירוע,
-                אישורי ההגעה, ההושבה וההודעות במקום אחד.
+                התחברו לחשבון שלכם והמשיכו לנהל את האירוע, אישורי ההגעה,
+                ההושבה וההודעות במקום אחד.
               </p>
             </div>
 
@@ -109,6 +118,7 @@ export default function LoginPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="הזינו את כתובת האימייל שלכם"
+                    autoComplete="email"
                     className="
                       w-full rounded-[18px] border border-[#DDCBB3]
                       bg-white/90 px-4 py-3.5 pl-11
@@ -119,7 +129,7 @@ export default function LoginPage() {
                     "
                   />
 
-                  <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#B18B60] text-sm">
+                  <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm text-[#B18B60]">
                     ✉
                   </span>
                 </div>
@@ -138,6 +148,7 @@ export default function LoginPage() {
                     value={pass}
                     onChange={(e) => setPass(e.target.value)}
                     placeholder="הזינו את הסיסמה שלכם"
+                    autoComplete="current-password"
                     className="
                       w-full rounded-[18px] border border-[#DDCBB3]
                       bg-white/90 px-4 py-3.5 pl-16
@@ -162,18 +173,8 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* זכור אותי / שכחתי */}
-              <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:items-center sm:justify-between">
-                <label className="flex cursor-pointer items-center gap-2 text-sm text-[#6F5338]">
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                    className="h-4 w-4 rounded border-[#CDB99C] accent-[#B88945]"
-                  />
-                  זכור אותי
-                </label>
-
+              {/* שכחתי סיסמה בלבד */}
+              <div className="flex justify-end pt-1">
                 <Link
                   href="/forgot-password"
                   className="text-sm font-semibold text-[#A27038] underline-offset-4 transition hover:underline"
