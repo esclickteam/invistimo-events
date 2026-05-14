@@ -2,14 +2,41 @@ import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 
 import { connectDB } from "@/lib/db";
+import Seating from "@/models/Seating";
 import SeatingTable from "@/models/SeatingTable";
 import InvitationGuest from "@/models/InvitationGuest";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+function normalizeId(value: any) {
+  if (!value) return "";
+
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number") return String(value);
+
+  if (typeof value === "object") {
+    return String(value._id || value.id || value.toString?.() || "").trim();
+  }
+
+  return String(value).trim();
+}
+
+function cleanValue(value: any) {
+  return String(value || "")
+    .replace("שולחן", "")
+    .trim();
+}
+
+function sameId(a: any, b: any) {
+  const left = normalizeId(a);
+  const right = normalizeId(b);
+
+  return !!left && !!right && left === right;
+}
+
 function getTableLabel(table: any) {
-  const raw = table.name || table.tableNumber || table.number;
+  const raw = table?.name || table?.tableNumber || table?.number;
 
   if (!raw) return "";
 
@@ -21,7 +48,128 @@ function getTableLabel(table: any) {
 }
 
 function getTableNumber(table: any) {
-  return table.tableNumber || table.number || undefined;
+  return table?.tableNumber || table?.number || undefined;
+}
+
+function getCapacity(table: any) {
+  return Number(table?.capacity || table?.seats || table?.seatCount || 12);
+}
+
+function getGuestSeatsCount(guest: any) {
+  return Math.max(
+    1,
+    Number(guest.actualArrivedCount || 0) ||
+      Number(guest.arrivedCount || 0) ||
+      Number(guest.guestsCount || 1)
+  );
+}
+
+function isTargetTable(table: any, toTableId: string) {
+  const selectedRaw = normalizeId(toTableId);
+  const selectedClean = cleanValue(toTableId);
+
+  const candidates = [
+    normalizeId(table?._id),
+    normalizeId(table?.id),
+    normalizeId(table?.tableId),
+
+    cleanValue(table?._id),
+    cleanValue(table?.id),
+    cleanValue(table?.tableId),
+    cleanValue(table?.name),
+    cleanValue(table?.tableNumber),
+    cleanValue(table?.number),
+    cleanValue(getTableLabel(table)),
+  ].filter(Boolean);
+
+  return (
+    candidates.includes(selectedRaw) ||
+    candidates.includes(selectedClean)
+  );
+}
+
+function cleanGuestFromTable(table: any, guestId: string) {
+  table.seatedGuests = (table.seatedGuests || []).filter(
+    (sg: any) => !sameId(sg.guestId, guestId)
+  );
+}
+
+function findFreeSeatIndexes(table: any, count: number, guestId: string) {
+  const capacity = getCapacity(table);
+
+  const occupied = new Set(
+    (table.seatedGuests || [])
+      .filter((sg: any) => !sameId(sg.guestId, guestId))
+      .map((sg: any) => Number(sg.seatIndex))
+      .filter((n: number) => Number.isFinite(n))
+  );
+
+  const free: number[] = [];
+
+  for (let i = 0; i < capacity; i++) {
+    if (!occupied.has(i)) {
+      free.push(i);
+    }
+
+    if (free.length >= count) break;
+  }
+
+  return free;
+}
+
+function buildScopedQuery(eventId: string, guest: any) {
+  const invitationId = normalizeId(guest.invitationId || guest.invitation);
+
+  const query: any[] = [
+    { eventId },
+    { eventId: String(eventId) },
+  ];
+
+  if (invitationId) {
+    query.push(
+      { invitationId },
+      { invitation: invitationId }
+    );
+  }
+
+  if (mongoose.Types.ObjectId.isValid(eventId)) {
+    const eventObjectId = new mongoose.Types.ObjectId(eventId);
+
+    query.push({ eventId: eventObjectId });
+  }
+
+  if (invitationId && mongoose.Types.ObjectId.isValid(invitationId)) {
+    const invitationObjectId = new mongoose.Types.ObjectId(invitationId);
+
+    query.push(
+      { invitationId: invitationObjectId },
+      { invitation: invitationObjectId }
+    );
+  }
+
+  return query;
+}
+
+function serializeTables(tables: any[]) {
+  return tables.map((table: any) => ({
+    _id: normalizeId(table._id),
+    id: normalizeId(table.id),
+    tableId: normalizeId(table.tableId),
+    name: table.name,
+    tableNumber: table.tableNumber,
+    number: table.number,
+    eventId: normalizeId(table.eventId),
+    invitationId: normalizeId(table.invitationId),
+    seatedGuests: table.seatedGuests || [],
+  }));
+}
+
+async function updateGuestFields(guest: any, toTableId: string, table: any) {
+  guest.tableId = toTableId || null;
+  guest.tableName = table ? getTableLabel(table) : "";
+  guest.tableNumber = table ? getTableNumber(table) : undefined;
+
+  await guest.save();
 }
 
 export async function PATCH(req: NextRequest) {
@@ -30,22 +178,21 @@ export async function PATCH(req: NextRequest) {
 
     const body = await req.json();
 
-    const { eventId, guestId, toTableId } = body;
+    const eventId = String(body.eventId || "");
+    const guestId = String(body.guestId || "");
+    const toTableId = body.toTableId ? String(body.toTableId) : "";
 
-    if (!eventId || !guestId) {
+    if (!guestId) {
       return NextResponse.json(
         {
           success: false,
-          message: "חסר eventId או guestId",
+          message: "חסר guestId",
         },
         { status: 400 }
       );
     }
 
-    const eventObjectId = new mongoose.Types.ObjectId(String(eventId));
-    const guestObjectId = new mongoose.Types.ObjectId(String(guestId));
-
-    const guest = await InvitationGuest.findById(guestObjectId);
+    const guest = await InvitationGuest.findById(guestId);
 
     if (!guest) {
       return NextResponse.json(
@@ -57,83 +204,167 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    const tables = await SeatingTable.find({ eventId: eventObjectId });
+    const seatsCount = getGuestSeatsCount(guest);
+    const scopedQuery = buildScopedQuery(eventId, guest);
+
+    /*
+      1. ניסיון ראשון: Seating - מסמך אחד עם tables[]
+    */
+    const seating = await Seating.findOne({
+      $or: scopedQuery,
+    });
+
+    if (seating?.tables?.length) {
+      let selectedTable: any = null;
+
+      if (toTableId) {
+        selectedTable =
+          seating.tables.find((table: any) =>
+            isTargetTable(table, toTableId)
+          ) || null;
+      }
+
+      if (!toTableId || selectedTable) {
+        for (const table of seating.tables) {
+          cleanGuestFromTable(table, guestId);
+        }
+
+        if (selectedTable) {
+          const freeSeats = findFreeSeatIndexes(
+            selectedTable,
+            seatsCount,
+            guestId
+          );
+
+          if (freeSeats.length < seatsCount) {
+            return NextResponse.json(
+              {
+                success: false,
+                message: "אין מספיק מקומות פנויים בשולחן הזה",
+              },
+              { status: 400 }
+            );
+          }
+
+          selectedTable.seatedGuests.push(
+            ...freeSeats.map((seatIndex) => ({
+              guestId,
+              seatIndex,
+              arrived: Number(guest.actualArrivedCount || 0) > 0,
+            }))
+          );
+        }
+
+        await updateGuestFields(guest, toTableId, selectedTable);
+        await seating.save();
+
+        return NextResponse.json({
+          success: true,
+          guest,
+          tables: seating.tables,
+          table: selectedTable || null,
+          source: "Seating",
+        });
+      }
+    }
+
+    /*
+      2. ניסיון שני: SeatingTable - כל שולחן כמסמך נפרד
+    */
+    let tables = await SeatingTable.find({
+      $or: scopedQuery,
+    });
+
+    /*
+      fallback נוסף:
+      אם eventId לא תואם אבל יש toTableId UUID,
+      נחפש שולחן לפי id/tableId/_id.
+    */
+    if (!tables.length && toTableId) {
+      const directTableQuery: any[] = [
+        { id: toTableId },
+        { tableId: toTableId },
+      ];
+
+      if (mongoose.Types.ObjectId.isValid(toTableId)) {
+        directTableQuery.push({
+          _id: new mongoose.Types.ObjectId(toTableId),
+        });
+      }
+
+      const directTable = await SeatingTable.findOne({
+        $or: directTableQuery,
+      });
+
+      if (directTable) {
+        tables = await SeatingTable.find({
+          $or: [
+            { eventId: directTable.eventId },
+            { invitationId: directTable.invitationId },
+            { invitation: directTable.invitationId },
+          ].filter(Boolean),
+        });
+      }
+    }
 
     if (!tables.length) {
       return NextResponse.json(
         {
           success: false,
           message: "לא נמצאו שולחנות לאירוע",
+          debug: {
+            eventId,
+            guestId,
+            toTableId,
+            guestInvitationId: normalizeId(guest.invitationId),
+            seatingFound: !!seating,
+            seatingTablesCount: seating?.tables?.length || 0,
+          },
         },
         { status: 404 }
       );
     }
 
-    // 1. ניקוי האורח מכל השולחנות של האירוע
-    await SeatingTable.updateMany(
-      { eventId: eventObjectId },
-      {
-        $pull: {
-          seatedGuests: {
-            guestId: String(guestId),
-          },
-        },
-      }
-    );
+    let selectedTable: any = null;
 
-    let updatedTable = null;
-
-    // 2. אם בחרו שולחן חדש — מוסיפים אותו לשולחן
     if (toTableId) {
-      updatedTable = await SeatingTable.findOne({
-        eventId: eventObjectId,
-        $or: [
-          { _id: mongoose.Types.ObjectId.isValid(String(toTableId)) ? new mongoose.Types.ObjectId(String(toTableId)) : undefined },
-          { id: String(toTableId) },
-        ].filter(Boolean),
-      });
+      selectedTable =
+        tables.find((table: any) => isTargetTable(table, toTableId)) || null;
 
-      if (!updatedTable) {
+      if (!selectedTable) {
         return NextResponse.json(
           {
             success: false,
             message: "השולחן שנבחר לא נמצא",
+            debug: {
+              eventId,
+              guestId,
+              toTableId,
+              guestInvitationId: normalizeId(guest.invitationId),
+              availableTables: serializeTables(tables),
+              seatingAvailableTables: seating?.tables
+                ? serializeTables(seating.tables)
+                : [],
+            },
           },
           { status: 404 }
         );
       }
+    }
 
-      const seatsCount = Math.max(
-        1,
-        Number(guest.actualArrivedCount || 0) ||
-          Number(guest.arrivedCount || 0) ||
-          Number(guest.guestsCount || 1)
+    for (const table of tables) {
+      cleanGuestFromTable(table, guestId);
+      await table.save();
+    }
+
+    if (selectedTable) {
+      const freeSeats = findFreeSeatIndexes(
+        selectedTable,
+        seatsCount,
+        guestId
       );
 
-      const capacity = Number(
-        updatedTable.capacity ||
-          updatedTable.seats ||
-          updatedTable.seatCount ||
-          12
-      );
-
-      const occupiedSeatIndexes = new Set(
-        (updatedTable.seatedGuests || [])
-          .map((sg: any) => Number(sg.seatIndex))
-          .filter((n: number) => Number.isFinite(n))
-      );
-
-      const freeSeatIndexes: number[] = [];
-
-      for (let i = 0; i < capacity; i++) {
-        if (!occupiedSeatIndexes.has(i)) {
-          freeSeatIndexes.push(i);
-        }
-
-        if (freeSeatIndexes.length >= seatsCount) break;
-      }
-
-      if (freeSeatIndexes.length < seatsCount) {
+      if (freeSeats.length < seatsCount) {
         return NextResponse.json(
           {
             success: false,
@@ -143,31 +374,29 @@ export async function PATCH(req: NextRequest) {
         );
       }
 
-      updatedTable.seatedGuests.push(
-        ...freeSeatIndexes.map((seatIndex) => ({
-          guestId: String(guestId),
+      selectedTable.seatedGuests.push(
+        ...freeSeats.map((seatIndex) => ({
+          guestId,
           seatIndex,
           arrived: Number(guest.actualArrivedCount || 0) > 0,
         }))
       );
 
-      await updatedTable.save();
+      await selectedTable.save();
     }
 
-    // 3. עדכון האורח עצמו כדי שגם הדשבורד יציג נכון
-    guest.tableId = toTableId || null;
-    guest.tableName = updatedTable ? getTableLabel(updatedTable) : "";
-    guest.tableNumber = updatedTable ? getTableNumber(updatedTable) : undefined;
+    await updateGuestFields(guest, toTableId, selectedTable);
 
-    await guest.save();
-
-    const nextTables = await SeatingTable.find({ eventId: eventObjectId }).lean();
+    const nextTables = await SeatingTable.find({
+      $or: scopedQuery,
+    }).lean();
 
     return NextResponse.json({
       success: true,
       guest,
-      tables: nextTables,
-      table: updatedTable,
+      tables: nextTables.length ? nextTables : tables,
+      table: selectedTable || null,
+      source: "SeatingTable",
     });
   } catch (err: any) {
     console.error("Move guest table error:", err);
