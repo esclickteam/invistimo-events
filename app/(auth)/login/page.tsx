@@ -14,13 +14,33 @@ export default function LoginPage() {
   const { login } = useAuth();
 
   useEffect(() => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("adminToken");
+    async function clearOldSession() {
+      try {
+        // ✅ מוחק cookies דרך השרת
+        await fetch("/api/auth/logout", {
+          method: "POST",
+          credentials: "include",
+          cache: "no-store",
+        });
+      } catch (err) {
+        console.error("Logout cleanup error:", err);
+      } finally {
+        // ✅ מוחק גם טוקנים ישנים אם נשמרו בצד לקוח
+        localStorage.removeItem("token");
+        localStorage.removeItem("authToken");
+        localStorage.removeItem("adminToken");
+        localStorage.removeItem("user");
+        localStorage.removeItem("hasPaid");
 
-    sessionStorage.removeItem("token");
-    sessionStorage.removeItem("authToken");
-    sessionStorage.removeItem("adminToken");
+        sessionStorage.removeItem("token");
+        sessionStorage.removeItem("authToken");
+        sessionStorage.removeItem("adminToken");
+        sessionStorage.removeItem("user");
+        sessionStorage.removeItem("hasPaid");
+      }
+    }
+
+    clearOldSession();
   }, []);
 
   async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
@@ -55,7 +75,7 @@ export default function LoginPage() {
       <div className="pointer-events-none absolute top-10 left-10 h-24 w-24 rounded-full border border-[#D8B98D]/25" />
       <div className="pointer-events-none absolute bottom-10 right-10 h-20 w-20 rounded-full border border-[#D8B98D]/20" />
 
-      <section className="relative z-10 flex min-h-[calc(100vh-90px)] items-center justify-center px-4 py-6 sm:px-6 sm:py-8">
+      <section className="relative z-10 flex min-h-screen items-center justify-center px-4 py-6 sm:px-6 sm:py-8">
         <motion.div
           initial={{ opacity: 0, y: 28, scale: 0.985 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -173,7 +193,7 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* שכחתי סיסמה בלבד */}
+              {/* שכחתי סיסמה */}
               <div className="flex justify-end pt-1">
                 <Link
                   href="/forgot-password"
