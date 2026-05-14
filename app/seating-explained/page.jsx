@@ -400,51 +400,52 @@ export default function SeatingExplainedPage() {
       />
 
       {/* ================= FINAL CTA ================= */}
-      <section className="relative overflow-hidden bg-[#2f251d] px-5 py-28 text-center text-white md:px-8">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(218,184,120,0.32),transparent_42%)]" />
-        <div className="pointer-events-none absolute -right-32 top-10 h-96 w-96 rounded-full bg-[#b98b45]/20 blur-3xl" />
-        <div className="pointer-events-none absolute -left-32 bottom-10 h-96 w-96 rounded-full bg-white/10 blur-3xl" />
+<section className="relative overflow-hidden bg-gradient-to-br from-[#f8efe0] via-[#f3e4cb] to-[#dfc190] px-5 py-28 text-center text-[#342920] md:px-8">
+  <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.65),transparent_42%)]" />
+  <div className="pointer-events-none absolute -right-32 top-10 h-96 w-96 rounded-full bg-[#d7ad63]/25 blur-3xl" />
+  <div className="pointer-events-none absolute -left-32 bottom-10 h-96 w-96 rounded-full bg-white/60 blur-3xl" />
 
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-          variants={fadeUp}
-          transition={{ duration: 0.7 }}
-          className="relative z-10 mx-auto max-w-4xl"
-        >
-          <span className="inline-flex rounded-full border border-white/20 bg-white/10 px-5 py-2 text-sm font-black text-[#f2d9aa] backdrop-blur-xl">
-            מערכת אחת. הושבה אחת מסודרת. אפס בלגן.
-          </span>
+  <motion.div
+    initial="hidden"
+    whileInView="visible"
+    viewport={{ once: true }}
+    variants={fadeUp}
+    transition={{ duration: 0.7 }}
+    className="relative z-10 mx-auto max-w-4xl"
+  >
+    <span className="inline-flex rounded-full border border-[#c9a66a]/40 bg-white/55 px-5 py-2 text-sm font-black text-[#8a672e] shadow-[0_12px_30px_rgba(118,86,45,0.10)] backdrop-blur-xl">
+      מערכת אחת. הושבה אחת מסודרת. אפס בלגן.
+    </span>
 
-          <h2 className="mt-8 text-4xl font-black leading-tight tracking-[-0.04em] md:text-6xl">
-            מוכנים לבנות הושבה ברמה של אירוע אמיתי?
-          </h2>
+    <h2 className="mt-8 text-4xl font-black leading-tight tracking-[-0.04em] text-[#342920] md:text-6xl">
+      מוכנים לבנות הושבה ברמה של אירוע אמיתי?
+    </h2>
 
-          <p className="mx-auto mt-7 max-w-2xl text-lg leading-9 text-white/75 md:text-xl">
-            סקיצת אולם, שיבוץ ידני, הושבה חכמה והודעה אישית לכל אורח —
-            הכל במקום אחד, עם חוויה נקייה שמרגישה פרימיום.
-          </p>
+    <p className="mx-auto mt-7 max-w-2xl text-lg leading-9 text-[#6b5a48] md:text-xl">
+      סקיצת אולם, שיבוץ ידני, הושבה חכמה והודעה אישית לכל אורח —
+      הכל במקום אחד, עם חוויה נקייה שמרגישה פרימיום.
+    </p>
 
-          <div className="mt-12">
-            <Link
-              href="/pricing"
-              className="
-                inline-flex items-center justify-center rounded-full
-                bg-gradient-to-l from-[#f0d6a5] via-[#d3ad6f] to-[#a87938]
-                px-12 py-6 text-xl font-black text-[#2f251d]
-                shadow-[0_28px_75px_rgba(0,0,0,0.35)]
-                transition
-                hover:-translate-y-1
-                hover:shadow-[0_38px_90px_rgba(0,0,0,0.45)]
-              "
-            >
-              התחילו לבנות הושבה
-              <span className="mr-3">←</span>
-            </Link>
-          </div>
-        </motion.div>
-      </section>
+    <div className="mt-12">
+      <Link
+        href="/pricing"
+        className="
+          inline-flex items-center justify-center rounded-full
+          bg-gradient-to-l from-[#3a2d22] via-[#6f512c] to-[#b98b45]
+          px-12 py-6 text-xl font-black text-white
+          shadow-[0_28px_75px_rgba(111,81,44,0.28)]
+          transition
+          hover:-translate-y-1
+          hover:shadow-[0_38px_90px_rgba(111,81,44,0.38)]
+        "
+      >
+        התחילו לבנות הושבה
+        <span className="mr-3">←</span>
+      </Link>
+    </div>
+  </motion.div>
+</section>
+
     </div>
   );
 }
