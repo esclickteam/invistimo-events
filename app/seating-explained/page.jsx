@@ -384,28 +384,7 @@ export default function SeatingExplainedPage() {
         </motion.div>
       </section>
 
-      {/* ================= INTRO STRIP ================= */}
-      <section id="how-it-works" className="relative bg-white px-5 py-12 md:px-8">
-        <div className="mx-auto max-w-[1450px] rounded-[36px] border border-[#eadcc5] bg-gradient-to-l from-[#fff8ec] via-white to-[#f6ead5] p-7 shadow-[0_24px_70px_rgba(84,61,37,0.09)] md:p-10">
-          <div className="grid gap-8 md:grid-cols-4">
-            {[
-              "סקיצה של האולם",
-              "שיבוץ לפי שולחנות",
-              "סידור חכם לפי קבוצות",
-              "שליחת מספר שולחן",
-            ].map((item, index) => (
-              <div key={item} className="flex items-center gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#3f342b] text-lg font-black text-white shadow-[0_14px_35px_rgba(63,52,43,0.24)]">
-                  {index + 1}
-                </div>
-                <div className="text-lg font-black text-[#3f342b]">
-                  {item}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      
 
       {/* ================= SECTION 1 ================= */}
       <SectionBlock
