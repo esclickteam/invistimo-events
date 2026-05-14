@@ -1,10 +1,92 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import SupportBot from "./SupportBot";
 
 export default function SupportBotButton() {
+  const pathname = usePathname();
+
   const [open, setOpen] = useState(false);
+  const [canShow, setCanShow] = useState(false);
+
+  useEffect(() => {
+    /* =====================================================
+       ❌ דפים פנימיים / אחרי התחברות – לא להציג
+    ===================================================== */
+    const isInternalPage =
+      pathname.startsWith("/dashboard") ||
+      pathname.startsWith("/try/dashboard") ||
+      pathname.startsWith("/admin") ||
+      pathname.startsWith("/producer") ||
+      pathname.startsWith("/events") ||
+      pathname.startsWith("/client") ||
+      pathname.startsWith("/guests") ||
+      pathname.startsWith("/seating");
+
+    /* =====================================================
+       ❌ דפי התחברות / הרשמה – לא להציג
+    ===================================================== */
+    const isAuthPage =
+      pathname.startsWith("/login") ||
+      pathname.startsWith("/register") ||
+      pathname.startsWith("/forgot-password") ||
+      pathname.startsWith("/reset-password");
+
+    /* =====================================================
+       ❌ דפי הזמנות / RSVP – לא להציג
+    ===================================================== */
+    const isInvitationPage =
+      pathname === "/thank-you" ||
+      pathname.startsWith("/invite/") ||
+      pathname.startsWith("/rsvp/") ||
+      pathname.startsWith("/invitation/");
+
+    /* =====================================================
+       ✅ רק דפים חיצוניים לפני התחברות
+    ===================================================== */
+    const isExternalMarketingPage =
+      pathname === "/" ||
+      pathname.startsWith("/pricing") ||
+      pathname.startsWith("/features") ||
+      pathname.startsWith("/solutions") ||
+      pathname.startsWith("/about") ||
+      pathname.startsWith("/contact") ||
+      pathname.startsWith("/seating-explained") ||
+      pathname.startsWith("/how-it-works");
+
+    /* =====================================================
+       🍪 בדיקה אם המשתמש מחובר לפי cookies
+    ===================================================== */
+    const hasAuthCookie =
+      typeof document !== "undefined" &&
+      document.cookie
+        .split(";")
+        .some((cookie) => {
+          const cookieName = cookie.trim().split("=")[0];
+
+          return (
+            cookieName === "token" ||
+            cookieName === "authToken" ||
+            cookieName === "adminToken"
+          );
+        });
+
+    const shouldShow =
+      isExternalMarketingPage &&
+      !isInternalPage &&
+      !isAuthPage &&
+      !isInvitationPage &&
+      !hasAuthCookie;
+
+    setCanShow(shouldShow);
+
+    if (!shouldShow) {
+      setOpen(false);
+    }
+  }, [pathname]);
+
+  if (!canShow) return null;
 
   return (
     <>

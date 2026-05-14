@@ -14,28 +14,34 @@ export default function ClientShell({ children }: { children: ReactNode }) {
 
   const isAdmin = pathname.startsWith("/admin");
 
-  // 🟢 מפיק / הפקה – בלי Footer ובלי SupportBot
   const isProducer =
     pathname.startsWith("/producer") ||
     pathname.startsWith("/events/production");
 
-  // 🔴 דפים פנימיים של המערכת – בלי SupportBot חיצוני
-  const isDashboard =
+  const isInternalPage =
     pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/try/dashboard") ||
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/producer") ||
     pathname.startsWith("/events") ||
     pathname.startsWith("/client") ||
     pathname.startsWith("/guests") ||
     pathname.startsWith("/seating");
 
-  // 🔐 דפי התחברות / הרשמה – בלי SupportBot
   const isAuthPage =
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
     pathname.startsWith("/forgot-password") ||
     pathname.startsWith("/reset-password");
 
-  // ✅ רק דפים חיצוניים לפני התחברות
-  const isExternalPublicPage =
+  const isInvitationPublicPage =
+    pathname === "/thank-you" ||
+    pathname.startsWith("/invite/") ||
+    pathname.startsWith("/rsvp/") ||
+    pathname.startsWith("/invitation/");
+
+  // ✅ רק עמודי שיווק חיצוניים לפני התחברות
+  const isExternalMarketingPage =
     pathname === "/" ||
     pathname.startsWith("/pricing") ||
     pathname.startsWith("/features") ||
@@ -46,29 +52,25 @@ export default function ClientShell({ children }: { children: ReactNode }) {
     pathname.startsWith("/how-it-works");
 
   const showSupportBot =
-    isExternalPublicPage &&
-    !isAdmin &&
-    !isProducer &&
-    !isDashboard &&
-    !isAuthPage;
+    isExternalMarketingPage &&
+    !isInternalPage &&
+    !isAuthPage &&
+    !isInvitationPublicPage;
 
   // 🔴 Admin – בלי Header / Footer בכלל
   if (isAdmin) {
     return <>{children}</>;
   }
 
-  // 🟡 Producer – Header כן, Footer לא
+  // 🟡 Producer – Header כן, Footer לא, בלי SupportBot
   if (isProducer) {
     return (
-      <>
-        <LayoutShell header={<Header />} footer={null}>
-          {children}
-        </LayoutShell>
-      </>
+      <LayoutShell header={<Header />} footer={null}>
+        {children}
+      </LayoutShell>
     );
   }
 
-  // 🟢 אתר רגיל
   return (
     <>
       <LayoutShell header={<Header />} footer={<Footer />}>
