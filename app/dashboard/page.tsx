@@ -92,6 +92,78 @@ function formatPhone(phone?: string) {
   return digits;
 }
 
+function buildLiveArrivalSuggestionMessage(suggestion: any) {
+  if (!suggestion || suggestion.type === "no_action") return "";
+
+  const guestName = suggestion.guestName || "האורח";
+  const tableText =
+    suggestion.tableText ||
+    suggestion.tableName ||
+    (suggestion.tableNumber ? `שולחן ${suggestion.tableNumber}` : "שולחן");
+
+  if (suggestion.type === "less_than_planned") {
+    return (
+      `${guestName} תוכנן/ה ל־${suggestion.plannedCount} מקומות, ` +
+      `ובפועל הגיעו ${suggestion.actualCount}.\n\n` +
+      `לפנות בלייב ${suggestion.releaseCount} מקומות?\n` +
+      `המקומות לא יימחקו מההושבה הרגילה — רק יסומנו כפנויים בלייב.`
+    );
+  }
+
+  if (suggestion.type === "more_than_planned_same_table") {
+    return (
+      `${guestName} הגיע/ה עם ${suggestion.actualCount} מגיעים בפועל, ` +
+      `מעבר ל־${suggestion.plannedCount} שתוכננו.\n\n` +
+      `נמצאו ${suggestion.seatsToAdd} מקומות פנויים באותו שולחן: ${tableText}.\n` +
+      `להושיב את המקומות הנוספים שם?`
+    );
+  }
+
+  if (suggestion.type === "more_than_planned_same_group") {
+    return (
+      `${guestName} הגיע/ה עם ${suggestion.actualCount} מגיעים בפועל, ` +
+      `מעבר למה שתוכנן.\n\n` +
+      `אין מספיק מקום בשולחן המקורי, אבל נמצא מקום פנוי בקבוצה שלו/שלה ב־${tableText}.\n` +
+      `להושיב שם את ${suggestion.seatsToAdd} המקומות הנוספים?`
+    );
+  }
+
+  if (suggestion.type === "more_than_planned_any_table") {
+    return (
+      `${guestName} הגיע/ה עם ${suggestion.actualCount} מגיעים בפועל, ` +
+      `מעבר למה שתוכנן.\n\n` +
+      `לא נמצא מקום פנוי בקבוצה שלו/שלה, אבל נמצא מקום פנוי ב־${tableText}.\n` +
+      `להושיב שם את ${suggestion.seatsToAdd} המקומות הנוספים?`
+    );
+  }
+
+  if (suggestion.type === "not_planned_same_group") {
+    return (
+      `${guestName} לא היה/הייתה מתוכנן/ת להושבה, אבל הגיע/ה עם ${suggestion.actualCount} מגיעים בפועל.\n\n` +
+      `נמצא מקום פנוי בקבוצה שלו/שלה ב־${tableText}.\n` +
+      `להושיב אותו/אותה שם?`
+    );
+  }
+
+  if (suggestion.type === "not_planned_any_table") {
+    return (
+      `${guestName} לא היה/הייתה מתוכנן/ת להושבה, אבל הגיע/ה עם ${suggestion.actualCount} מגיעים בפועל.\n\n` +
+      `לא נמצא מקום פנוי בקבוצה שלו/שלה, אבל נמצא מקום פנוי ב־${tableText}.\n` +
+      `להושיב אותו/אותה שם?`
+    );
+  }
+
+  if (suggestion.type === "no_available_table") {
+    return (
+      `${guestName} הגיע/ה עם ${suggestion.actualCount} מגיעים בפועל, ` +
+      `אבל לא נמצא שולחן פנוי שמתאים ל־${suggestion.seatsToAdd} מקומות.\n\n` +
+      `אפשר להושיב ידנית או לפתוח שולחן נוסף.`
+    );
+  }
+
+  return "";
+}
+
 /* ============================================================
    תצוגת סטטוסים בלבד — הלוגיקה נשארת yes/no/pending
 ============================================================ */
@@ -1230,26 +1302,85 @@ const rsvpVisualStats = useMemo(() => {
     sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "";
 
   const updateActualArrived = async (guestId: string, next: number) => {
-    setGuests((prev) =>
-      prev.map((g) =>
-        g._id === guestId
-          ? { ...g, actualArrivedCount: next }
-          : g
-      )
-    );
+  const safeNext = Math.max(0, Number(next || 0));
 
-    const res = await fetch(`/api/guests/${guestId}`, {
-      method: "PUT",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ actualArrivedCount: next }),
-    });
+  const previousGuests = guests;
 
-    if (!res.ok) {
-      console.warn("actualArrivedCount failed – rollback");
-      await loadGuests();
+  const guest = guests.find((g) => String(g._id) === String(guestId));
+
+  if (!guest) return;
+
+  /*
+    רגיל נשאר רגיל:
+    כל הלוגיקה החכמה רצה רק אם באמת נמצאים במצב לייב.
+  */
+  if (canShowActualArrived) {
+    const seating = useSeatingStore.getState();
+
+    const suggestion =
+      typeof seating.resolveLiveArrivalSuggestion === "function"
+        ? seating.resolveLiveArrivalSuggestion(guestId, safeNext)
+        : { type: "no_action" };
+
+    const shouldAsk =
+      suggestion &&
+      suggestion.type &&
+      suggestion.type !== "no_action";
+
+    let approved = true;
+
+    if (shouldAsk) {
+      const message = buildLiveArrivalSuggestionMessage(suggestion);
+
+      if (message) {
+        approved = window.confirm(message);
+      }
     }
-  };
+
+    /*
+      תמיד מעדכנים את מספר המגיעים בפועל.
+      אם המשתמש אישר — גם מיישמים הושבה/סימון כיסאות בלייב.
+      אם לא אישר — רק המספר מתעדכן, והכיסאות לא משתנים.
+    */
+    seating.setLiveArrived?.(guestId, safeNext);
+
+    if (approved && shouldAsk) {
+      seating.applyLiveArrivalSuggestion?.(suggestion);
+    } else {
+      seating.syncArrivedSeats?.(guestId);
+    }
+  }
+
+  setGuests((prev) =>
+    prev.map((g) =>
+      String(g._id) === String(guestId)
+        ? { ...g, actualArrivedCount: safeNext }
+        : g
+    )
+  );
+
+  const res = await fetch(`/api/guests/${guestId}`, {
+    method: "PUT",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ actualArrivedCount: safeNext }),
+  });
+
+  if (!res.ok) {
+    console.warn("actualArrivedCount failed – rollback");
+
+    setGuests(previousGuests);
+
+    const seating = useSeatingStore.getState();
+    seating.setLiveArrived?.(
+      guestId,
+      guest.actualArrivedCount || 0
+    );
+    seating.syncArrivedSeats?.(guestId);
+
+    await loadGuests();
+  }
+};
 
     const updateGuestTableLocally = (
     guestId: string,
