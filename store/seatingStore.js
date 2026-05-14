@@ -8,110 +8,6 @@ function extractNumberFromName(name) {
   return m ? Number(m[1]) : null;
 }
 
-function getGuestKey(guestOrId) {
-  if (!guestOrId) return "";
-
-  if (typeof guestOrId === "string" || typeof guestOrId === "number") {
-    return String(guestOrId);
-  }
-
-  return String(guestOrId.id ?? guestOrId._id ?? "");
-}
-
-function getTableNumberForLive(table) {
-  return (
-    table?.number ??
-    table?.tableNumber ??
-    extractNumberFromName(table?.name) ??
-    null
-  );
-}
-
-function getTableNameForLive(table) {
-  const number = getTableNumberForLive(table);
-
-  if (table?.name) return String(table.name);
-  if (number) return `שולחן ${number}`;
-
-  return "שולחן";
-}
-
-function getTableDisplayForLive(table) {
-  const number = getTableNumberForLive(table);
-  const name = getTableNameForLive(table);
-
-  return {
-    tableId: table?.id,
-    tableName: name,
-    tableNumber: number,
-    tableText: number ? `שולחן ${number}` : name,
-  };
-}
-
-function getFreeSeatIndexesForLive(table, count) {
-  const capacity = Number(table?.seats || table?.capacity || table?.seatCount || 0);
-
-  if (!table || capacity <= 0 || count <= 0) return [];
-
-  const occupied = new Set(
-    (table.seatedGuests || [])
-      .map((seat) => Number(seat.seatIndex))
-      .filter((seatIndex) => Number.isFinite(seatIndex))
-  );
-
-  const free = [];
-
-  for (let i = 0; i < capacity; i++) {
-    if (!occupied.has(i)) {
-      free.push(i);
-    }
-
-    if (free.length >= count) break;
-  }
-
-  return free;
-}
-
-function getGuestSeatsInTables(tables, guestId) {
-  const gid = String(guestId);
-  const result = [];
-
-  (tables || []).forEach((table, tableIndex) => {
-    (table.seatedGuests || []).forEach((seat) => {
-      if (String(seat.guestId) === gid) {
-        result.push({
-          table,
-          tableId: table.id,
-          tableIndex,
-          seat,
-          seatIndex: Number(seat.seatIndex),
-        });
-      }
-    });
-  });
-
-  return result.sort((a, b) => {
-    if (a.tableIndex !== b.tableIndex) return a.tableIndex - b.tableIndex;
-    return a.seatIndex - b.seatIndex;
-  });
-}
-
-function tableHasGroupGuests(table, groupId, guests) {
-  if (!groupId) return false;
-
-  const gid = String(groupId);
-
-  return (table.seatedGuests || []).some((seat) => {
-    if (seat.groupId && String(seat.groupId) === gid) return true;
-
-    const guest = (guests || []).find(
-      (g) => String(g.id ?? g._id) === String(seat.guestId)
-    );
-
-    return guest?.groupId && String(guest.groupId) === gid;
-  });
-}
-
 export const useSeatingStore = create((set, get) => ({
   /* ---------------- STATE ---------------- */
   tables: [],
@@ -257,297 +153,7 @@ setLiveArrivalsBulk: (map) =>
 resetLiveArrivals: () =>
   set({ liveArrivals: {} }),
 
-resolveLiveArrivalSuggestion: (guestId, nextActualCount) => {
-  const state = get();
 
-  // 🔒 רק בלייב. ברגיל לא עושים כלום.
-  if (state.seatingMode !== "live") {
-    return { type: "no_action" };
-  }
-
-  const gid = String(guestId);
-  const actualCount = Math.max(0, Number(nextActualCount || 0));
-
-  const guest = (state.guests || []).find(
-    (g) => String(g.id ?? g._id) === gid
-  );
-
-  if (!guest) {
-    return { type: "no_action" };
-  }
-
-  const plannedSeats = getGuestSeatsInTables(state.tables, gid);
-  const plannedCount = plannedSeats.length;
-
-  const originalTable = plannedSeats[0]?.table || null;
-  const groupId = guest.groupId ? String(guest.groupId) : null;
-
-  const base = {
-    guestId: gid,
-    guestName: guest.name || "האורח",
-    groupId,
-    plannedCount,
-    actualCount,
-    missingCount: Math.max(0, actualCount - plannedCount),
-    releaseCount: Math.max(0, plannedCount - actualCount),
-  };
-
-  // אין שינוי שדורש שאלה
-  if (actualCount === plannedCount) {
-    return { type: "no_action", ...base };
-  }
-
-  // הגיעו פחות מהמתוכנן: לא מוחקים כיסאות, רק מסמנים בלייב.
-  if (plannedCount > 0 && actualCount < plannedCount) {
-    return {
-      type: "less_than_planned",
-      ...base,
-      ...(originalTable ? getTableDisplayForLive(originalTable) : {}),
-    };
-  }
-
-  const seatsNeeded = plannedCount > 0 ? actualCount - plannedCount : actualCount;
-
-  if (seatsNeeded <= 0) {
-    return { type: "no_action", ...base };
-  }
-
-  // 1. אם יש שולחן מקורי — קודם בודקים מקום באותו שולחן.
-  if (originalTable) {
-    const freeSeats = getFreeSeatIndexesForLive(originalTable, seatsNeeded);
-
-    if (freeSeats.length >= seatsNeeded) {
-      return {
-        type: "more_than_planned_same_table",
-        ...base,
-        seatsToAdd: seatsNeeded,
-        freeSeatIndexes: freeSeats,
-        ...getTableDisplayForLive(originalTable),
-      };
-    }
-  }
-
-  // 2. עדיפות לקבוצה: שולחן שיש בו כבר אורחים מאותה קבוצה / או group.tableId.
-  const group = groupId
-    ? (state.groups || []).find((g) => String(g._id) === String(groupId))
-    : null;
-
-  const groupTables = (state.tables || []).filter((table) => {
-    if (originalTable && String(table.id) === String(originalTable.id)) {
-      return false;
-    }
-
-    if (group?.tableId && String(group.tableId) === String(table.id)) {
-      return true;
-    }
-
-    return tableHasGroupGuests(table, groupId, state.guests);
-  });
-
-  const groupTableWithRoom = groupTables.find((table) => {
-    const freeSeats = getFreeSeatIndexesForLive(table, seatsNeeded);
-    return freeSeats.length >= seatsNeeded;
-  });
-
-  if (groupTableWithRoom) {
-    const freeSeats = getFreeSeatIndexesForLive(groupTableWithRoom, seatsNeeded);
-
-    return {
-      type:
-        plannedCount > 0
-          ? "more_than_planned_same_group"
-          : "not_planned_same_group",
-      ...base,
-      seatsToAdd: seatsNeeded,
-      freeSeatIndexes: freeSeats,
-      ...getTableDisplayForLive(groupTableWithRoom),
-    };
-  }
-
-  // 3. אם אין מקום בקבוצה — כל שולחן פנוי שמתאים לכמות.
-  const anyTableWithRoom = (state.tables || []).find((table) => {
-    const freeSeats = getFreeSeatIndexesForLive(table, seatsNeeded);
-    return freeSeats.length >= seatsNeeded;
-  });
-
-  if (anyTableWithRoom) {
-    const freeSeats = getFreeSeatIndexesForLive(anyTableWithRoom, seatsNeeded);
-
-    return {
-      type:
-        plannedCount > 0
-          ? "more_than_planned_any_table"
-          : "not_planned_any_table",
-      ...base,
-      seatsToAdd: seatsNeeded,
-      freeSeatIndexes: freeSeats,
-      ...getTableDisplayForLive(anyTableWithRoom),
-    };
-  }
-
-  return {
-    type: "no_available_table",
-    ...base,
-    seatsToAdd: seatsNeeded,
-  };
-},
-
-applyLiveArrivalSuggestion: (suggestion) => {
-  const state = get();
-
-  // 🔒 רק בלייב. ברגיל לא עושים כלום.
-  if (state.seatingMode !== "live") return false;
-  if (!suggestion || suggestion.type === "no_action") return true;
-
-  const gid = String(suggestion.guestId);
-  const actualCount = Math.max(0, Number(suggestion.actualCount || 0));
-
-  const guest = (state.guests || []).find(
-    (g) => String(g.id ?? g._id) === gid
-  );
-
-  if (!guest) return false;
-
-  const markGuestSeatsByActual = (tablesToMark) => {
-    const allSeats = getGuestSeatsInTables(tablesToMark, gid);
-    const arrivedKeys = new Set(
-      allSeats.slice(0, actualCount).map((item) => {
-        return `${item.tableId}:${item.seatIndex}`;
-      })
-    );
-
-    return tablesToMark.map((table) => ({
-      ...table,
-      seatedGuests: (table.seatedGuests || []).map((seat) => {
-        if (String(seat.guestId) !== gid) return seat;
-
-        const key = `${table.id}:${Number(seat.seatIndex)}`;
-        const arrived = arrivedKeys.has(key);
-
-        return {
-          ...seat,
-          arrived,
-          liveStatus: arrived ? "arrived" : "free",
-        };
-      }),
-    }));
-  };
-
-  // הגיעו פחות מהמתוכנן:
-  // לא מוחקים כיסאות. רק מסמנים arrived/free בלייב.
-  if (suggestion.type === "less_than_planned") {
-    set((current) => ({
-      liveArrivals: {
-        ...current.liveArrivals,
-        [gid]: actualCount,
-      },
-      guests: current.guests.map((g) =>
-        String(g.id ?? g._id) === gid
-          ? {
-              ...g,
-              actualArrivedCount: actualCount,
-            }
-          : g
-      ),
-      tables: markGuestSeatsByActual(current.tables),
-    }));
-
-    return true;
-  }
-
-  // אין מקום מתאים — לא מבצעים הושבה אוטומטית.
-  if (suggestion.type === "no_available_table") {
-    set((current) => ({
-      liveArrivals: {
-        ...current.liveArrivals,
-        [gid]: actualCount,
-      },
-      guests: current.guests.map((g) =>
-        String(g.id ?? g._id) === gid
-          ? {
-              ...g,
-              actualArrivedCount: actualCount,
-            }
-          : g
-      ),
-      tables: markGuestSeatsByActual(current.tables),
-    }));
-
-    return false;
-  }
-
-  const targetTableId = String(suggestion.tableId || "");
-  const seatsToAdd = Math.max(0, Number(suggestion.seatsToAdd || 0));
-
-  if (!targetTableId || seatsToAdd <= 0) {
-    return false;
-  }
-
-  let didAddSeats = false;
-
-  const tablesWithExtraSeats = state.tables.map((table) => {
-    if (String(table.id) !== targetTableId) return table;
-
-    const freeSeats = getFreeSeatIndexesForLive(table, seatsToAdd);
-
-    if (freeSeats.length < seatsToAdd) {
-      return table;
-    }
-
-    didAddSeats = true;
-
-    return {
-      ...table,
-      seatedGuests: [
-        ...(table.seatedGuests || []),
-        ...freeSeats.slice(0, seatsToAdd).map((seatIndex) => ({
-          guestId: gid,
-          seatIndex,
-          arrived: true,
-          liveStatus: "arrived",
-          liveExtra: true,
-          groupId: guest.groupId ? String(guest.groupId) : undefined,
-        })),
-      ],
-    };
-  });
-
-  if (!didAddSeats) return false;
-
-  const targetTable = tablesWithExtraSeats.find(
-    (table) => String(table.id) === targetTableId
-  );
-
-  const resolvedTableName = String(
-    targetTable?.number ??
-      extractNumberFromName(targetTable?.name) ??
-      targetTable?.name ??
-      ""
-  ).trim();
-
-  set((current) => ({
-    liveArrivals: {
-      ...current.liveArrivals,
-      [gid]: actualCount,
-    },
-    tables: markGuestSeatsByActual(tablesWithExtraSeats),
-    guests: current.guests.map((g) => {
-      if (String(g.id ?? g._id) !== gid) return g;
-
-      return {
-        ...g,
-        actualArrivedCount: actualCount,
-
-        // אם האורח לא היה מתוכנן בכלל — נותנים לו שולחן.
-        // אם הוא כבר היה מתוכנן — משאירים את השולחן המקורי שלו.
-        tableId: g.tableId || targetTableId,
-        tableName: g.tableName || resolvedTableName || null,
-      };
-    }),
-  }));
-
-  return true;
-},
 
   setTables: (tables) =>
     set(() => ({
@@ -1751,38 +1357,41 @@ syncArrivedSeats: (guestId) => {
   if (get().seatingMode !== "live") return;
 
   set((state) => {
-    const gid = String(guestId);
-
-    const arrivedCount = Math.max(
-      0,
-      Number(state.liveArrivals[gid] ?? 0)
-    );
-
-    const allSeats = getGuestSeatsInTables(state.tables, gid);
-
-    const arrivedKeys = new Set(
-      allSeats.slice(0, arrivedCount).map((item) => {
-        return `${item.tableId}:${item.seatIndex}`;
-      })
+    const arrivedCount = Number(
+      state.liveArrivals[String(guestId)] ?? 0
     );
 
     const tables = state.tables.map((table) => {
       if (!Array.isArray(table.seatedGuests)) return table;
 
+      // כל הכיסאות של האורח, ממוינים
+      const guestSeats = table.seatedGuests
+        .filter(
+          (sg) => String(sg.guestId) === String(guestId)
+        )
+        .sort((a, b) => a.seatIndex - b.seatIndex);
+
+      if (!guestSeats.length) return table;
+
+      // סט של כיסאות שהגיעו בפועל
+      const arrivedSeatIndexes = new Set(
+        guestSeats
+          .slice(0, arrivedCount)
+          .map((s) => s.seatIndex)
+      );
+
+      const updatedSeats = table.seatedGuests.map((sg) => {
+        if (String(sg.guestId) !== String(guestId)) return sg;
+
+        return {
+          ...sg,
+          arrived: arrivedSeatIndexes.has(sg.seatIndex),
+        };
+      });
+
       return {
         ...table,
-        seatedGuests: table.seatedGuests.map((sg) => {
-          if (String(sg.guestId) !== gid) return sg;
-
-          const key = `${table.id}:${Number(sg.seatIndex)}`;
-          const arrived = arrivedKeys.has(key);
-
-          return {
-            ...sg,
-            arrived,
-            liveStatus: arrived ? "arrived" : "free",
-          };
-        }),
+        seatedGuests: updatedSeats,
       };
     });
 

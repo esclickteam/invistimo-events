@@ -92,54 +92,6 @@ function formatPhone(phone?: string) {
   return digits;
 }
 
-function buildLiveArrivalSuggestionMessage(suggestion: any) {
-  if (!suggestion || suggestion.type === "no_action") return "";
-
-  const tableText =
-    suggestion.tableText ||
-    suggestion.tableName ||
-    (suggestion.tableNumber ? `שולחן ${suggestion.tableNumber}` : "השולחן שנמצא");
-
-  const extra =
-    Number(suggestion.seatsToAdd || 0) > 0
-      ? Number(suggestion.seatsToAdd)
-      : Math.max(
-          0,
-          Number(suggestion.actualCount || 0) -
-            Number(suggestion.plannedCount || 0)
-        );
-
-  if (suggestion.type === "less_than_planned") {
-    return `הגיעו פחות מהמתוכנן.\nלפנות ${suggestion.releaseCount || extra || ""} מקומות בלייב?`;
-  }
-
-  if (suggestion.type === "more_than_planned_same_table") {
-    return `הגיעו יותר מהמתוכנן.\nיש מקום בשולחן המקורי ${tableText}.\nלהושיב שם?`;
-  }
-
-  if (suggestion.type === "more_than_planned_same_group") {
-    return `הגיעו יותר מהמתוכנן.\nאין מקום בשולחן המקורי, אבל יש מקום בקבוצה שלו ב־${tableText}.\nלהושיב שם?`;
-  }
-
-  if (suggestion.type === "more_than_planned_any_table") {
-    return `הגיעו יותר מהמתוכנן.\nבקבוצה שלו אין מקום, יש מקום ב־${tableText}.\nלהושיב שם?`;
-  }
-
-  if (suggestion.type === "not_planned_same_group") {
-    return `האורח הגיע בלי הושבה מתוכננת.\nיש מקום בקבוצה שלו ב־${tableText}.\nלהושיב שם?`;
-  }
-
-  if (suggestion.type === "not_planned_any_table") {
-    return `האורח הגיע בלי הושבה מתוכננת.\nבקבוצה שלו אין מקום, יש מקום ב־${tableText}.\nלהושיב שם?`;
-  }
-
-  if (suggestion.type === "no_available_table") {
-    return `הגיעו יותר מהמתוכנן.\nלא נמצא שולחן פנוי מתאים.`;
-  }
-
-  return "";
-}
-
 /* ============================================================
    תצוגת סטטוסים בלבד — הלוגיקה נשארת yes/no/pending
 ============================================================ */
@@ -1277,140 +1229,27 @@ const rsvpVisualStats = useMemo(() => {
   const sortArrow = (key: SortKey) =>
     sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "";
 
-  const saveLiveSeatingSnapshot = async () => {
-  const effectiveEventId = String(
-    eventIdFromUrl ||
-      invitation?.eventId ||
-      invitation?.event ||
-      invitation?.event_id ||
-      invitation?.eventDetails?._id ||
-      ""
-  );
-
-  if (!effectiveEventId || !invitationId) {
-    console.warn("❌ חסר eventId או invitationId לשמירת הושבה בלייב", {
-      effectiveEventId,
-      invitationId,
-    });
-    return false;
-  }
-
-  try {
-    const seatingState = useSeatingStore.getState();
-
-    const res = await fetch(`/api/seating/save/${effectiveEventId}`, {
-      method: "POST",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        eventId: effectiveEventId,
-        invitationId,
-        tables: seatingState.tables,
-        guests: seatingState.guests,
-        groups: seatingState.groups,
-        background: seatingState.background,
-        zones: [],
-        canvasView: seatingState.canvasView,
-      }),
-    });
-
-    const data = await res.json().catch(() => ({}));
-
-    if (!res.ok || data?.success === false) {
-      console.error("❌ saveLiveSeatingSnapshot failed:", data);
-      return false;
-    }
-
-    return true;
-  } catch (err) {
-    console.error("❌ saveLiveSeatingSnapshot network error:", err);
-    return false;
-  }
-};
-
   const updateActualArrived = async (guestId: string, next: number) => {
-  const safeNext = Math.max(0, Number(next || 0));
+    setGuests((prev) =>
+      prev.map((g) =>
+        g._id === guestId
+          ? { ...g, actualArrivedCount: next }
+          : g
+      )
+    );
 
-  setGuests((prev) =>
-    prev.map((g) =>
-      g._id === guestId
-        ? { ...g, actualArrivedCount: safeNext }
-        : g
-    )
-  );
+    const res = await fetch(`/api/guests/${guestId}`, {
+      method: "PUT",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ actualArrivedCount: next }),
+    });
 
-  let shouldSaveSeatingSnapshot = false;
-
-  if (canShowActualArrived) {
-    const seating = useSeatingStore.getState();
-
-    const suggestion =
-      typeof seating.resolveLiveArrivalSuggestion === "function"
-        ? seating.resolveLiveArrivalSuggestion(guestId, safeNext)
-        : { type: "no_action" };
-
-    const shouldAsk =
-      suggestion &&
-      suggestion.type &&
-      suggestion.type !== "no_action";
-
-    let approved = true;
-
-    if (shouldAsk) {
-      const message = buildLiveArrivalSuggestionMessage(suggestion);
-
-      if (message) {
-        approved = window.confirm(message);
-      }
+    if (!res.ok) {
+      console.warn("actualArrivedCount failed – rollback");
+      await loadGuests();
     }
-
-    seating.setLiveArrived?.(guestId, safeNext);
-
-    if (approved && shouldAsk) {
-      const applied = seating.applyLiveArrivalSuggestion?.(suggestion);
-
-      if (applied) {
-        shouldSaveSeatingSnapshot = true;
-      }
-    }
-
-    if (!approved && shouldAsk) {
-      seating.syncArrivedSeats?.(guestId);
-      shouldSaveSeatingSnapshot = true;
-    }
-
-    if (!shouldAsk) {
-      seating.syncArrivedSeats?.(guestId);
-      shouldSaveSeatingSnapshot = true;
-    }
-  }
-
-  const res = await fetch(`/api/guests/${guestId}`, {
-    method: "PUT",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ actualArrivedCount: safeNext }),
-  });
-
-  if (!res.ok) {
-    console.warn("actualArrivedCount failed – rollback");
-    await loadGuests();
-    await loadSeatingTables();
-    return;
-  }
-
-  if (canShowActualArrived && shouldSaveSeatingSnapshot) {
-    const saved = await saveLiveSeatingSnapshot();
-
-    if (!saved) {
-      console.warn("Live seating snapshot was not saved");
-    }
-
-    await loadSeatingTables();
-  }
-};
+  };
 
     const updateGuestTableLocally = (
     guestId: string,

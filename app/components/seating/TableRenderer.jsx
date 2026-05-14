@@ -246,72 +246,6 @@ function TableRenderer({ table, hideSeats = false }) {
     }, 0);
   }, [table.seatedGuests, guests, seatingMode, liveArrivals]);
 
-  const getSeatLiveVisual = (seat) => {
-  /*
-    רגיל — לא משנים שום לוגיקה.
-    אם יש כיסא משובץ הוא נשאר זהב, אם אין הוא בהיר.
-  */
-  if (seatingMode !== "live") {
-    if (seat) {
-      return {
-        top: "#D4B072",
-        body: "#B98745",
-        stroke: "#926B2E",
-      };
-    }
-
-    return {
-      top: "#F7EFE3",
-      body: "#FFFDF8",
-      stroke: "#D0B58D",
-    };
-  }
-
-  
-  /*
-  לייב בלבד:
-  כיסא ריק לגמרי = ירוק, כלומר פנוי בפועל
-*/
-if (!seat) {
-  return {
-    top: "#DCFCE7",
-    body: "#16A34A",
-    stroke: "#166534",
-  };
-}
-
-  /*
-    אדום = הגיע בפועל / תפוס בפועל
-  */
-  if (seat.liveStatus === "arrived" || seat.arrived === true) {
-    return {
-      top: "#FEE2E2",
-      body: "#DC2626",
-      stroke: "#991B1B",
-    };
-  }
-
-  /*
-    ירוק = היה מתוכנן אבל התפנה בלייב
-  */
-  if (seat.liveStatus === "free") {
-    return {
-      top: "#DCFCE7",
-      body: "#16A34A",
-      stroke: "#166534",
-    };
-  }
-
-  /*
-    זהב = כיסא שתוכנן מראש ועדיין לא שונה לפי הגעה בפועל
-  */
-  return {
-    top: "#D4B072",
-    body: "#B98745",
-    stroke: "#926B2E",
-  };
-};
-
   const seatsTotal = Number(table.seats || 0);
 
   const tableTitle = table.name || "";
@@ -470,13 +404,12 @@ if (!seat) {
           מצוירים לפני השולחן כדי שחלק מהם ייכנס מתחת לשולחן
       ============================================================ */}
       {seatsCoords.map((c, i) => {
-  const seat = table.seatedGuests.find(
-    (s) => Number(s.seatIndex) === Number(i)
-  );
+        const seat = table.seatedGuests.find((s) => s.seatIndex === i);
 
-  const seatVisual = getSeatLiveVisual(seat);
+        const isOccupied =
+          seatingMode === "live" ? arrivedSeatsSet.has(i) : !!seat;
 
-  const rotation = getSeatRotation(layout, c);
+        const rotation = getSeatRotation(layout, c);
 
 let chairX = c.x;
 let chairY = c.y;
@@ -505,10 +438,10 @@ if (layout.type === "banquet") {
   chairY = c.y - (c.y / dist) * inset;
 }
 
-const chairFill = seatVisual.body;
-const chairStroke = seatVisual.stroke;
-const chairHighlight = seatVisual.top;
-const chairDepth = seatVisual.stroke;
+const chairFill = isOccupied ? "#B98A45" : "#FFF9EF";
+const chairStroke = isOccupied ? "#8B6532" : "#D9C3A2";
+const chairHighlight = isOccupied ? "#CBA56C" : "#FFFFFF";
+const chairDepth = isOccupied ? "#9E7135" : "#E9D8BD";
 
 return (
   <Group key={i} x={chairX} y={chairY} rotation={rotation}>
