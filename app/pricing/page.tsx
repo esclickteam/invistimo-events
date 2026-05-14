@@ -1,9 +1,19 @@
 "use client";
 
 import Image from "next/image";
+import type { ElementType } from "react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Crown, Sparkles, Users, Gift, Armchair, MonitorCog, Palette } from "lucide-react";
+import {
+  Armchair,
+  Check,
+  Crown,
+  Gift,
+  MonitorCog,
+  Palette,
+  Sparkles,
+  Users,
+} from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -92,7 +102,9 @@ export default function PricingPage() {
 
   const [records, setRecords] = useState<number | null>(null);
 
-  const [addons, setAddons] = useState<Record<PlanKey, Record<AddonKey, boolean>>>({
+  const [addons, setAddons] = useState<
+    Record<PlanKey, Record<AddonKey, boolean>>
+  >({
     plan1: { credit: false, seating: false, system: false, design: false },
     plan2: { credit: false, seating: false, system: false, design: false },
     plan3: { credit: false, seating: false, system: false, design: false },
@@ -193,7 +205,7 @@ export default function PricingPage() {
     router.push(`/register?${params.toString()}`);
   };
 
-  /* ===================== תוכן משתנה לפיצ'רים ===================== */
+  /* ===================== פיצ'רים ===================== */
 
   const getPlanFeatures = (plan: PlanKey) => {
     const shared = [
@@ -221,12 +233,9 @@ export default function PricingPage() {
     return shared;
   };
 
-  /* ===================== רינדור אפסיילים ===================== */
+  /* ===================== תוספות ===================== */
 
-  const addonMeta: Record<
-    AddonKey,
-    { label: string; icon: React.ElementType }
-  > = {
+  const addonMeta: Record<AddonKey, { label: string; icon: ElementType }> = {
     credit: {
       label: "מתנות באשראי דרך ספק חיצוני",
       icon: Gift,
@@ -252,7 +261,10 @@ export default function PricingPage() {
     return (
       <div className="mt-7 border-t border-[#E9D9C4] pt-5">
         <div className="mb-4 flex items-center justify-between gap-3">
-          <p className="text-base font-black text-[#3E2D20]">תוספות אפשריות</p>
+          <p className="text-base font-black text-[#3E2D20]">
+            תוספות אפשריות
+          </p>
+
           <span className="rounded-full bg-[#FFF4E2] px-3 py-1 text-xs font-bold text-[#A86F2B]">
             לפי בחירה
           </span>
@@ -406,8 +418,8 @@ export default function PricingPage() {
       </section>
 
       {/* CARDS */}
-      <section className="relative z-10 px-5 pb-28 pt-10 sm:px-8">
-        <div className="mx-auto grid max-w-7xl grid-cols-1 gap-8 lg:grid-cols-3 lg:items-stretch">
+      <section className="relative z-10 px-5 pb-28 pt-16 sm:px-8">
+        <div className="mx-auto grid max-w-7xl grid-cols-1 gap-12 lg:grid-cols-3 lg:items-stretch">
           {(["plan1", "plan2", "plan3"] as PlanKey[]).map((plan) => {
             const features = getPlanFeatures(plan);
             const meta = planMeta[plan];
@@ -426,13 +438,13 @@ export default function PricingPage() {
                   hover:-translate-y-2 hover:shadow-[0_32px_90px_rgba(91,64,35,0.18)]
                   ${
                     meta.highlight
-                      ? "border-[#C89545] ring-4 ring-[#D8B16A]/15 lg:scale-[1.035]"
+                      ? "border-[#C89545] ring-4 ring-[#D8B16A]/15 lg:scale-[1.025]"
                       : "border-[#D9C0A0]"
                   }
                 `}
               >
                 {meta.highlight && (
-                  <div className="absolute -top-5 left-1/2 z-30 -translate-x-1/2">
+                  <div className="absolute -top-5 left-1/2 z-40 -translate-x-1/2">
                     <div className="flex items-center gap-2 rounded-full bg-gradient-to-l from-[#A86F2B] via-[#C68F46] to-[#D8A85F] px-5 py-2 text-xs font-black text-white shadow-[0_14px_28px_rgba(168,111,43,0.26)]">
                       <Sparkles size={14} />
                       הבחירה הפופולרית
@@ -440,20 +452,21 @@ export default function PricingPage() {
                   </div>
                 )}
 
-                <CardContent className="relative flex h-full flex-col overflow-hidden rounded-[36px] p-6 pt-28 sm:p-7 sm:pt-32">
-                  <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.72),rgba(255,255,255,0.24))]" />
+                <CardContent className="relative flex h-full flex-col rounded-[36px] p-6 pt-24 sm:p-7 sm:pt-28">
+                  {/* רקעים פנימיים בלי overflow-hidden כדי שהאייקון לא ייחתך */}
+                  <div className="pointer-events-none absolute inset-0 rounded-[36px] bg-[linear-gradient(135deg,rgba(255,255,255,0.72),rgba(255,255,255,0.24))]" />
                   <div className="pointer-events-none absolute -top-20 -right-20 h-48 w-48 rounded-full bg-[#F2DEC4]/36 blur-3xl" />
                   <div className="pointer-events-none absolute -bottom-20 -left-20 h-48 w-48 rounded-full bg-[#EED7BC]/28 blur-3xl" />
 
-                  {/* אייקון */}
-                  <div className="absolute left-1/2 top-0 z-20 -translate-x-1/2 -translate-y-[46%]">
-                    <div className="relative h-[210px] w-[210px] sm:h-[240px] sm:w-[240px]">
+                  {/* אייקון — לא נחתך */}
+                  <div className="absolute left-1/2 top-0 z-30 -translate-x-1/2 -translate-y-[34%]">
+                    <div className="relative h-[150px] w-[150px] sm:h-[175px] sm:w-[175px]">
                       <Image
                         src={meta.icon}
                         alt={meta.alt}
                         fill
-                        className="object-contain drop-shadow-[0_22px_28px_rgba(95,61,26,0.16)] transition duration-300 group-hover:scale-105"
-                        sizes="240px"
+                        className="object-contain drop-shadow-[0_18px_24px_rgba(95,61,26,0.16)] transition duration-300 group-hover:scale-105"
+                        sizes="175px"
                         priority={plan === "plan2"}
                       />
                     </div>
