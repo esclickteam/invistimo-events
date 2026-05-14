@@ -36,6 +36,10 @@ type Guest = {
   rsvp?: "yes" | "no" | "pending";
   tableId?: string | null;
   tableName?: string | null;
+
+  guestsCount?: number;
+  arrivedCount?: number;
+  actualArrivedCount?: number;
 };
 
 type Group = {
@@ -118,14 +122,26 @@ export default function SeatingSidebar({
   const seatGuestId = (g: Guest) => String(g.id ?? g._id);
 
   const getSeatCount = (g: any) => {
-    const store = useSeatingStore.getState();
+  const store = useSeatingStore.getState();
 
-    if (!isLiveMode) {
-      return store.getPlannedSeatCount(g);
-    }
+  if (!isLiveMode) {
+    return store.getPlannedSeatCount(g);
+  }
 
-    return Number(store.liveArrivals[String(g.id ?? g._id)] ?? 0);
-  };
+  const guestId = String(g.id ?? g._id);
+
+  const fromLiveStore = Number(store.liveArrivals?.[guestId] ?? 0);
+
+  if (fromLiveStore > 0) {
+    return fromLiveStore;
+  }
+
+  return (
+    Number(g.actualArrivedCount || 0) ||
+    Number(g.arrivedCount || 0) ||
+    0
+  );
+};
 
   const isEligibleInCurrentMode = (g: Guest) => {
     if (!isLiveMode) return g.rsvp === "yes";
