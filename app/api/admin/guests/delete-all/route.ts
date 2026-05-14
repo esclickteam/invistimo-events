@@ -19,8 +19,27 @@ function extractUserIdFromPayload(payload: string | JwtPayload): string | null {
   return (
     (payload.userId as string) ||
     (payload.id as string) ||
-    (payload._id as string) ||
     (payload.sub as string) ||
+    null
+  );
+}
+
+/* =====================================================
+   חילוץ userId מתוך getUserIdFromRequest
+   אצלך הפונקציה מחזירה AuthResult ולא string
+===================================================== */
+function extractUserIdFromAuthResult(authResult: any): string | null {
+  if (!authResult) return null;
+
+  if (typeof authResult === "string") {
+    return authResult;
+  }
+
+  return (
+    authResult.userId ||
+    authResult.id ||
+    authResult.user?._id ||
+    authResult.user?.id ||
     null
   );
 }
@@ -94,13 +113,24 @@ export async function DELETE(req: NextRequest) {
     /* =====================================================
        1. בדיקת התחברות
     ===================================================== */
-    const userId = await getUserIdFromRequest(req);
+    const authResult = await getUserIdFromRequest(req);
+    const userId = extractUserIdFromAuthResult(authResult);
 
     if (!userId) {
       return NextResponse.json(
         {
           success: false,
           message: "לא מחובר",
+        },
+        { status: 401 }
+      );
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "משתמש לא תקין",
         },
         { status: 401 }
       );
@@ -149,7 +179,6 @@ export async function DELETE(req: NextRequest) {
 
     /* =====================================================
        4. מחיקת כל המוזמנים של ההזמנה בלבד
-       לא מוחקים את כל הקולקשן
     ===================================================== */
     const result = await InvitationGuest.deleteMany({
       invitationId: new mongoose.Types.ObjectId(invitationId),
