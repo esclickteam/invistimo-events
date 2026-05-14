@@ -274,6 +274,7 @@ export default function DashboardPage() {
 
   const setSeatingMode = useSeatingStore((s) => s.setSeatingMode);
   const seatingTables = useSeatingStore((s) => s.tables);
+  const setSeatingTables = useSeatingStore((s: any) => s.setTables);
 
   const effectiveRole = useMemo(() => {
     if (user?.impersonationRole) {
@@ -1743,16 +1744,14 @@ const eventLocation = resolveEventLocation(invitation, event);
                 {canShowActualArrived && (
                   <td className="p-4">
                     <LiveGuestTableSelect
-                      guest={g}
-                      tables={seatingTables || []}
-                      currentTableFromStore={
-                        guestTableMap.get(String(g.id ?? g._id ?? "")) || null
-                      }
-                      onUpdated={(tableData: Partial<Guest>) =>
-  updateGuestTableLocally(g._id, tableData)
-}
-                      onRefresh={loadGuests}
-                    />
+  guest={g}
+  tables={seatingTables || []}
+  onUpdated={(tableData: Partial<Guest>) =>
+    updateGuestTableLocally(g._id, tableData)
+  }
+  onTablesUpdated={(nextTables) => setSeatingTables(nextTables)}
+  onRefresh={loadGuests}
+/>
                   </td>
                 )}
 

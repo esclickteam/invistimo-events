@@ -2,6 +2,12 @@
 
 import { useMemo, useState } from "react";
 
+type SeatingGuest = {
+  guestId: string;
+  seatIndex?: number;
+  arrived?: boolean;
+};
+
 type SeatingTable = {
   _id?: string;
   id?: string;
@@ -10,7 +16,7 @@ type SeatingTable = {
   tableNumber?: number;
   seats?: number;
   capacity?: number;
-  seatedGuests?: any[];
+  seatedGuests?: SeatingGuest[];
 };
 
 type Guest = {
@@ -20,83 +26,138 @@ type Guest = {
   tableId?: string | null;
   tableName?: string;
   tableNumber?: number;
+  guestsCount?: number;
+  arrivedCount?: number;
   actualArrivedCount?: number;
 };
 
 type Props = {
   guest: Guest;
   tables: SeatingTable[];
-  currentTableFromStore?: SeatingTable | null;
-  disabled?: boolean;
   onUpdated: (updatedGuest: Partial<Guest>) => void;
+  onTablesUpdated?: (tables: SeatingTable[]) => void;
   onRefresh?: () => Promise<void> | void;
 };
 
 function getTableId(table: SeatingTable) {
-  return String(table._id || table.id || "");
+  return String(table.id || table._id || "");
+}
+
+function getTableNumber(table: SeatingTable) {
+  return table.tableNumber || table.number || undefined;
 }
 
 function getTableLabel(table: SeatingTable) {
-  const rawName = table.name || table.tableNumber || table.number;
+  const raw = table.name || table.tableNumber || table.number;
 
-  if (!rawName) return "שולחן ללא שם";
+  if (!raw) return "שולחן ללא שם";
 
-  const text = String(rawName);
+  const text = String(raw).trim();
 
   if (text.includes("שולחן")) return text;
 
   return `שולחן ${text}`;
 }
 
-function getCurrentTableId(
-  guest: Guest,
-  tables: SeatingTable[],
-  currentTableFromStore?: SeatingTable | null
-) {
-  if (guest.tableId) return String(guest.tableId);
+function getGuestId(guest: Guest) {
+  return String(guest.id || guest._id || "");
+}
 
-  if (currentTableFromStore) {
-    return getTableId(currentTableFromStore);
+function findGuestCurrentTable(guest: Guest, tables: SeatingTable[]) {
+  const guestId = getGuestId(guest);
+
+  const tableFromSeating = tables.find((table) =>
+    (table.seatedGuests || []).some(
+      (sg) => String(sg.guestId) === String(guestId)
+    )
+  );
+
+  if (tableFromSeating) return tableFromSeating;
+
+  if (guest.tableId) {
+    return (
+      tables.find((table) => getTableId(table) === String(guest.tableId)) ||
+      null
+    );
   }
 
   const guestTableText =
     guest.tableName || guest.tableNumber
       ? String(guest.tableName || guest.tableNumber)
+          .replace("שולחן", "")
+          .trim()
       : "";
 
-  if (!guestTableText) return "";
+  if (!guestTableText) return null;
 
-  const normalizedGuestTable = guestTableText.replace("שולחן", "").trim();
+  return (
+    tables.find((table) => {
+      const tableNumber = String(getTableNumber(table) || "").trim();
+      const tableName = String(table.name || "")
+        .replace("שולחן", "")
+        .trim();
 
-  const matched = tables.find((table) => {
-    const label = getTableLabel(table).replace("שולחן", "").trim();
-    const name = String(table.name || "").replace("שולחן", "").trim();
-    const number = String(table.tableNumber || table.number || "").trim();
+      return tableNumber === guestTableText || tableName === guestTableText;
+    }) || null
+  );
+}
 
-    return (
-      label === normalizedGuestTable ||
-      name === normalizedGuestTable ||
-      number === normalizedGuestTable
-    );
-  });
+function getGuestSeatCount(guest: Guest) {
+  const actual = Number(guest.actualArrivedCount || 0);
+  const arrived = Number(guest.arrivedCount || 0);
+  const planned = Number(guest.guestsCount || 0);
 
-  return matched ? getTableId(matched) : "";
+  if (actual > 0) return actual;
+  if (arrived > 0) return arrived;
+  if (planned > 0) return planned;
+
+  return 1;
+}
+
+function findFreeSeatIndexes(
+  table: SeatingTable,
+  count: number,
+  guestId: string
+) {
+  const capacity = Number(table.capacity || table.seats || 12);
+
+  const occupied = new Set(
+    (table.seatedGuests || [])
+      .filter((sg) => String(sg.guestId) !== String(guestId))
+      .map((sg) => Number(sg.seatIndex))
+      .filter((n) => Number.isFinite(n))
+  );
+
+  const free: number[] = [];
+
+  for (let i = 0; i < capacity; i++) {
+    if (!occupied.has(i)) {
+      free.push(i);
+    }
+
+    if (free.length >= count) {
+      return free;
+    }
+  }
+
+  return free;
 }
 
 export default function LiveGuestTableSelect({
   guest,
   tables,
-  currentTableFromStore,
-  disabled,
   onUpdated,
+  onTablesUpdated,
   onRefresh,
 }: Props) {
   const [saving, setSaving] = useState(false);
 
+  const guestId = getGuestId(guest);
+
   const sortedTables = useMemo(() => {
     return [...(tables || [])].sort((a, b) => {
-      const aNumber = Number(a.tableNumber || a.number || 0);
-      const bNumber = Number(b.tableNumber || b.number || 0);
+      const aNumber = Number(getTableNumber(a) || 0);
+      const bNumber = Number(getTableNumber(b) || 0);
 
       if (aNumber && bNumber) return aNumber - bNumber;
 
@@ -106,35 +167,84 @@ export default function LiveGuestTableSelect({
     });
   }, [tables]);
 
-  const currentValue = getCurrentTableId(
-    guest,
-    sortedTables,
-    currentTableFromStore
-  );
+  const currentTable = useMemo(() => {
+    return findGuestCurrentTable(guest, sortedTables);
+  }, [guest, sortedTables]);
+
+  const currentValue = currentTable ? getTableId(currentTable) : "";
 
   async function handleChange(nextTableId: string) {
     if (saving) return;
 
-    const selectedTable =
+    const targetTable =
       sortedTables.find((table) => getTableId(table) === nextTableId) || null;
 
-    const nextTableName = selectedTable ? getTableLabel(selectedTable) : "";
-    const nextTableNumber =
-      selectedTable?.tableNumber || selectedTable?.number || undefined;
+    const nextTableName = targetTable ? getTableLabel(targetTable) : "";
+    const nextTableNumber = targetTable ? getTableNumber(targetTable) : undefined;
+
+    const seatsToMove = getGuestSeatCount(guest);
+
+    if (targetTable) {
+      const freeSeats = findFreeSeatIndexes(targetTable, seatsToMove, guestId);
+
+      if (freeSeats.length < seatsToMove) {
+        alert("אין מספיק מקומות פנויים בשולחן הזה");
+        return;
+      }
+    }
 
     setSaving(true);
 
+    const previousTables = tables;
     const previousGuest = {
       tableId: guest.tableId,
       tableName: guest.tableName,
       tableNumber: guest.tableNumber,
     };
 
-    onUpdated({
-      tableId: nextTableId || null,
-      tableName: nextTableName,
-      tableNumber: nextTableNumber,
+    const updatedTables = sortedTables.map((table) => {
+      const tableId = getTableId(table);
+
+      const cleanedGuests = (table.seatedGuests || []).filter(
+        (sg) => String(sg.guestId) !== String(guestId)
+      );
+
+      if (!targetTable || tableId !== nextTableId) {
+        return {
+          ...table,
+          seatedGuests: cleanedGuests,
+        };
+      }
+
+      const freeSeats = findFreeSeatIndexes(
+        {
+          ...table,
+          seatedGuests: cleanedGuests,
+        },
+        seatsToMove,
+        guestId
+      );
+
+      return {
+        ...table,
+        seatedGuests: [
+          ...cleanedGuests,
+          ...freeSeats.slice(0, seatsToMove).map((seatIndex) => ({
+            guestId,
+            seatIndex,
+            arrived: Number(guest.actualArrivedCount || 0) > 0,
+          })),
+        ],
+      };
     });
+
+    onTablesUpdated?.(updatedTables);
+
+    onUpdated({
+  tableId: nextTableId || null,
+  tableName: nextTableName || "",
+  tableNumber: nextTableNumber,
+});
 
     try {
       const res = await fetch(`/api/guests/${guest._id}`, {
@@ -156,18 +266,11 @@ export default function LiveGuestTableSelect({
         throw new Error(data?.message || "Failed to update guest table");
       }
 
-      if (data?.guest) {
-        onUpdated({
-          tableId: data.guest.tableId ?? nextTableId ?? null,
-          tableName: data.guest.tableName ?? nextTableName,
-          tableNumber: data.guest.tableNumber ?? nextTableNumber,
-        });
-      }
-
       await onRefresh?.();
     } catch (error) {
       console.error("Live table update error:", error);
 
+      onTablesUpdated?.(previousTables);
       onUpdated(previousGuest);
 
       alert("לא הצלחנו לעדכן שולחן לאורח");
@@ -177,13 +280,13 @@ export default function LiveGuestTableSelect({
   }
 
   return (
-    <div className="relative min-w-[150px]">
+    <div className="relative min-w-[170px]">
       <select
         value={currentValue}
-        disabled={disabled || saving}
+        disabled={saving}
         onChange={(e) => handleChange(e.target.value)}
-        className={`
-          h-10
+        className="
+          h-11
           w-full
           rounded-2xl
           border
@@ -203,7 +306,7 @@ export default function LiveGuestTableSelect({
           disabled:cursor-not-allowed
           disabled:bg-[#F5F1EA]
           disabled:text-[#A99B8A]
-        `}
+        "
       >
         <option value="">ללא שולחן</option>
 
@@ -211,9 +314,12 @@ export default function LiveGuestTableSelect({
           const tableId = getTableId(table);
           if (!tableId) return null;
 
+          const seatedCount = (table.seatedGuests || []).length;
+          const capacity = Number(table.capacity || table.seats || 12);
+
           return (
             <option key={tableId} value={tableId}>
-              {getTableLabel(table)}
+              {getTableLabel(table)} ({seatedCount}/{capacity})
             </option>
           );
         })}
