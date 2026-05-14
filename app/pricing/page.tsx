@@ -443,14 +443,7 @@ export default function PricingPage() {
                   }
                 `}
               >
-                {meta.highlight && (
-                  <div className="absolute -top-5 left-1/2 z-40 -translate-x-1/2">
-                    <div className="flex items-center gap-2 rounded-full bg-gradient-to-l from-[#A86F2B] via-[#C68F46] to-[#D8A85F] px-5 py-2 text-xs font-black text-white shadow-[0_14px_28px_rgba(168,111,43,0.26)]">
-                      <Sparkles size={14} />
-                      הבחירה הפופולרית
-                    </div>
-                  </div>
-                )}
+                
 
                 <CardContent className="relative flex h-full flex-col rounded-[36px] p-6 pt-32 sm:p-7 sm:pt-36">
                   {/* רקעים פנימיים בלי overflow-hidden כדי שהאייקון לא ייחתך */}
