@@ -14,29 +14,29 @@ const fadeIn = {
 };
 
 const sectionFeatures = {
-  map: [
-    "עבודה חופשית בלי סקיצה — מפת אולם נקייה ומסודרת",
-    "העלאת סקיצה כרקע לעבודה מדויקת על האולם",
-    "הוספת שולחנות לפי סוג, צורה וכמות מקומות",
-    "שליטה מלאה במבנה האולם לפני שמתחילים לשבץ",
+  eventSit: [
+    "מעלים סקיצה של האולם ועובדים עליה בצורה מדויקת",
+    "מסדרים שולחנות לפי המבנה האמיתי של האולם",
+    "ממקמים שולחנות בצורה ויזואלית, נקייה וברורה",
+    "מקבלים מפת הושבה מקצועית שמוכנה לשיבוץ אורחים",
   ],
-  realtime: [
-    "גרירת אורחים מרשימת האורחים ישירות לשולחן",
-    "אפשרות שיבוץ גם מתוך השולחן עצמו",
-    "עדכון בזמן אמת ליד שם האורח ובדשבורד",
-    "חוויית עבודה מהירה שמתאימה גם לשינויים בלחץ",
+  tableSit: [
+    "משבצים אורחים ישירות דרך השולחן",
+    "אפשר לשבץ גם דרך רשימת האורחים בצד",
+    "ניתן להוסיף אורחים כקבוצה לפי משפחות או שיוכים",
+    "כל שינוי מתעדכן בצורה מסודרת וברורה במערכת",
   ],
-  personal: [
-    "איתור אורח מתוך הדשבורד תוך שנייה",
-    "סימון ברור של השולחן והמיקום שלו",
-    "מעולה לתיקונים ושינויים של הרגע האחרון",
-    "כל שינוי נשמר ומסתנכרן במערכת",
+  smartSit: [
+    "המערכת מסדרת את האורחים בשולחנות לפי קבוצות",
+    "בלחיצת כפתור מקבלים חלוקה ראשונית חכמה",
+    "חוסך זמן משמעותי בשלב הכי עמוס של ההושבה",
+    "אפשר לעבור על הסידור, לדייק ולשנות ידנית לפי הצורך",
   ],
-  messages: [
-    "שליחת הודעה ישירות מתוך המערכת",
-    "כל אורח מקבל את מספר השולחן שלו",
-    "פחות שאלות ביום האירוע ויותר סדר",
-    "חוויה מקצועית לאורחים מההתחלה ועד הסוף",
+  tableMessage: [
+    "כל אורח מקבל הודעה אישית עם מספר השולחן שלו",
+    "ההודעה נשלחת מתוך המערכת בצורה מסודרת ומקצועית",
+    "חוסך שאלות ביום האירוע ומוריד עומס מהזוג ומהמפיקים",
+    "יוצר חוויית אורח יוקרתית וברורה מהרגע הראשון",
   ],
 };
 
@@ -99,7 +99,11 @@ function MediaShell({ children, tall = false }) {
           className={`
             relative overflow-hidden rounded-[26px]
             bg-gradient-to-br from-[#fbf7ef] via-white to-[#f4eadb]
-            ${tall ? "min-h-[760px] md:min-h-[900px]" : "min-h-[520px] md:min-h-[690px]"}
+            ${
+              tall
+                ? "min-h-[660px] md:min-h-[860px]"
+                : "min-h-[520px] md:min-h-[690px]"
+            }
           `}
         >
           {children}
@@ -169,11 +173,11 @@ function SectionBlock({
 }
 
 export default function SeatingExplainedPage() {
-  const wideMedia =
+  const videoClass =
     "relative z-20 w-full h-[560px] md:h-[760px] object-contain bg-transparent";
 
-  const tallLastMedia =
-    "relative z-20 w-full h-[760px] md:h-[980px] object-contain bg-transparent";
+  const tallVideoClass =
+    "relative z-20 w-full h-[680px] md:h-[900px] object-contain bg-transparent";
 
   return (
     <div dir="rtl" className="overflow-hidden bg-[#fbf7ef] text-[#3f342b]">
@@ -199,13 +203,13 @@ export default function SeatingExplainedPage() {
           <h1 className="mx-auto mt-8 max-w-5xl text-5xl font-black leading-[1.05] tracking-[-0.055em] text-[#2f251d] md:text-7xl">
             סידורי הושבה חכמים
             <span className="block bg-gradient-to-l from-[#b98b45] via-[#d8b878] to-[#8f6632] bg-clip-text pt-4 text-transparent">
-              שנראים כמו מערכת פרימיום אמיתית
+              שמסדרים את האירוע מהר יותר, יפה יותר ומדויק יותר
             </span>
           </h1>
 
           <p className="mx-auto mt-8 max-w-3xl text-lg leading-9 text-[#685b4f] md:text-2xl md:leading-10">
-            בונים מפת אולם, משבצים אורחים בגרירה בזמן אמת, מנהלים שינויים מהדשבורד —
-            ובסוף שולחים לכל אורח הודעה מסודרת עם מספר השולחן שלו.
+            מעלים סקיצה של האולם, מסדרים שולחנות, משבצים אורחים ידנית או חכם לפי קבוצות —
+            ובסוף שולחים לכל אורח הודעה אישית עם מספר השולחן שלו.
           </p>
 
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
@@ -222,7 +226,9 @@ export default function SeatingExplainedPage() {
               "
             >
               התחילו לבנות הושבה
-              <span className="mr-3 transition group-hover:-translate-x-1">←</span>
+              <span className="mr-3 transition group-hover:-translate-x-1">
+                ←
+              </span>
             </Link>
 
             <a
@@ -247,17 +253,18 @@ export default function SeatingExplainedPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.45, duration: 0.75 }}
           className="
-            relative z-10 mx-auto mt-16 grid max-w-5xl gap-4
+            relative z-10 mx-auto mt-16 grid max-w-6xl gap-4
             rounded-[34px] border border-white/80 bg-white/65 p-4
             shadow-[0_28px_90px_rgba(84,61,37,0.12)]
             backdrop-blur-2xl
-            md:grid-cols-3
+            md:grid-cols-4
           "
         >
           {[
-            ["01", "בונים מפה", "עם סקיצה או בלי סקיצה"],
-            ["02", "משבצים אורחים", "בגרירה ועדכון בזמן אמת"],
-            ["03", "שולחים הודעה", "עם מספר שולחן אישי"],
+            ["01", "סקיצת אולם", "מסדרים שולחנות לפי האולם"],
+            ["02", "הושבה ידנית", "דרך שולחן או רשימת אורחים"],
+            ["03", "הושבה חכמה", "סידור לפי קבוצות בלחיצה"],
+            ["04", "הודעה לאורח", "מספר שולחן אישי לכל אורח"],
           ].map(([num, title, text]) => (
             <div
               key={num}
@@ -280,16 +287,18 @@ export default function SeatingExplainedPage() {
         <div className="mx-auto max-w-[1450px] rounded-[36px] border border-[#eadcc5] bg-gradient-to-l from-[#fff8ec] via-white to-[#f6ead5] p-7 shadow-[0_24px_70px_rgba(84,61,37,0.09)] md:p-10">
           <div className="grid gap-8 md:grid-cols-4">
             {[
-              "מפת אולם חכמה",
-              "הושבה בגרירה",
-              "ניהול מהדשבורד",
-              "הודעה לאורחים",
+              "סקיצה של האולם",
+              "שיבוץ לפי שולחנות",
+              "סידור חכם לפי קבוצות",
+              "שליחת מספר שולחן",
             ].map((item, index) => (
               <div key={item} className="flex items-center gap-4">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#3f342b] text-lg font-black text-white shadow-[0_14px_35px_rgba(63,52,43,0.24)]">
                   {index + 1}
                 </div>
-                <div className="text-lg font-black text-[#3f342b]">{item}</div>
+                <div className="text-lg font-black text-[#3f342b]">
+                  {item}
+                </div>
               </div>
             ))}
           </div>
@@ -298,19 +307,22 @@ export default function SeatingExplainedPage() {
 
       {/* ================= SECTION 1 ================= */}
       <SectionBlock
-        eyebrow="שלב 01 · בניית אולם"
-        title="בונים את מפת האולם בדרך שנוחה לכם"
-        description="אפשר להתחיל לבנות הושבה גם בלי שום דבר — פשוט מוסיפים שולחנות וממקמים אותם בצורה נקייה וברורה."
-        secondDescription="ואם יש לכם סקיצה מהאולם, מעלים אותה כרקע ועובדים עליה בשביל דיוק מקסימלי."
-        features={sectionFeatures.map}
+        eyebrow="שלב 01 · סקיצת אולם"
+        title="מסדרים את השולחנות לפי הסקיצה של האולם"
+        description="מתחילים מהמבנה האמיתי של האולם: מעלים סקיצה, ממקמים שולחנות, ומקבלים מפת הושבה ברורה שמרגישה מקצועית כבר מהשלב הראשון."
+        secondDescription="כך כל שולחן נמצא במקום הנכון, וכל ההושבה נבנית על בסיס מדויק ולא על ניחושים."
+        features={sectionFeatures.eventSit}
         bg="white"
         media={
           <MediaShell>
-            <img
-              src="/sit1.png"
-              alt="בניית מפת אולם והוספת שולחנות"
-              className={wideMedia}
-              loading="lazy"
+            <video
+              src="/videos/eventsit.mp4"
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="metadata"
+              className={videoClass}
             />
           </MediaShell>
         }
@@ -318,23 +330,23 @@ export default function SeatingExplainedPage() {
 
       {/* ================= SECTION 2 ================= */}
       <SectionBlock
-        eyebrow="שלב 02 · שיבוץ בזמן אמת"
-        title="שיבוץ אורחים בגרירה — פשוט, מהיר וברור"
-        description="מתוך תפריט האורחים בצד גוררים את האורח לשולחן הרצוי, או משבצים דרך השולחן עצמו."
-        secondDescription="כל שינוי מתעדכן מיד בכל המערכת, כך שגם בזמן לחץ נשארים בשליטה מלאה."
-        features={sectionFeatures.realtime}
+        eyebrow="שלב 02 · הושבה לפי שולחנות"
+        title="משבצים אורחים דרך השולחן, מהרשימה או כקבוצה"
+        description="אפשר להושיב אורחים ישירות דרך השולחן, לגרור אותם מתוך רשימת האורחים בצד, או להוסיף קבוצה שלמה לשולחן לפי משפחה, חברים או כל שיוך אחר."
+        secondDescription="זה נותן שליטה מלאה גם בהושבה ידנית וגם כשצריך לעבוד מהר עם קבוצות גדולות."
+        features={sectionFeatures.tableSit}
         reverse
         bg="cream"
         media={
           <MediaShell>
             <video
-              src="/videos/sit2.mp4"
+              src="/videos/tablesit.mp4"
               autoPlay
               muted
               loop
               playsInline
               preload="metadata"
-              className={wideMedia}
+              className={videoClass}
             />
           </MediaShell>
         }
@@ -342,19 +354,22 @@ export default function SeatingExplainedPage() {
 
       {/* ================= SECTION 3 ================= */}
       <SectionBlock
-        eyebrow="שלב 03 · שליטה מהדשבורד"
-        title="הושבה אישית מהדשבורד — כשצריך דיוק"
-        description="בדשבורד אפשר לערוך הושבה של אורח ספציפי דרך כפתור הושבה אישית."
-        secondDescription="המערכת מסמנת את השולחן והמיקום שלו, כדי שתוכלו לתקן, להעביר או לעדכן במהירות."
-        features={sectionFeatures.personal}
+        eyebrow="שלב 03 · הושבה חכמה"
+        title="מסדרים את כל האורחים לפי קבוצות בלחיצת כפתור"
+        description="במקום לשבץ ידנית אורח אחרי אורח, המערכת יודעת לסדר את האורחים בשולחנות לפי הקבוצות שהגדרתם — בצורה חכמה, מהירה ומסודרת."
+        secondDescription="אחרי הסידור האוטומטי אפשר לעבור על המפה, להזיז, לדייק ולשנות לפי הצורך."
+        features={sectionFeatures.smartSit}
         bg="white"
         media={
           <MediaShell>
-            <img
-              src="/sit3.png"
-              alt="הושבה אישית מהדשבורד"
-              className={wideMedia}
-              loading="lazy"
+            <video
+              src="/videos/smartsit.mp4"
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="metadata"
+              className={videoClass}
             />
           </MediaShell>
         }
@@ -362,11 +377,11 @@ export default function SeatingExplainedPage() {
 
       {/* ================= SECTION 4 ================= */}
       <SectionBlock
-        eyebrow="שלב 04 · הודעות לאורחים"
-        title="שולחים לאורחים הודעה עם מספר השולחן"
-        description="אחרי שההושבה מסודרת — שולחים הודעה חכמה לכל אורח עם מספר השולחן שלו."
-        secondDescription="זה נראה מקצועי, עושה סדר, וחוסך עומס של הודעות ושאלות ביום האירוע."
-        features={sectionFeatures.messages}
+        eyebrow="שלב 04 · הודעת מספר שולחן"
+        title="שולחים לכל אורח הודעה אישית עם מספר השולחן"
+        description="אחרי שההושבה מוכנה, שולחים מתוך המערכת הודעה מסודרת לכל אורח עם מספר השולחן שלו — בלי טלפונים, בלי בלגן ובלי שאלות מיותרות ביום האירוע."
+        secondDescription="זה הופך את חוויית ההגעה לאירוע להרבה יותר מקצועית, ברורה ויוקרתית."
+        features={sectionFeatures.tableMessage}
         reverse
         bg="cream"
         media={
@@ -378,7 +393,7 @@ export default function SeatingExplainedPage() {
               loop
               playsInline
               preload="metadata"
-              className={tallLastMedia}
+              className={tallVideoClass}
             />
           </MediaShell>
         }
@@ -407,7 +422,8 @@ export default function SeatingExplainedPage() {
           </h2>
 
           <p className="mx-auto mt-7 max-w-2xl text-lg leading-9 text-white/75 md:text-xl">
-            תכנון, שיבוץ, ניהול והודעות — במקום אחד, עם חוויה נקייה שמרגישה פרימיום.
+            סקיצת אולם, שיבוץ ידני, הושבה חכמה והודעה אישית לכל אורח —
+            הכל במקום אחד, עם חוויה נקייה שמרגישה פרימיום.
           </p>
 
           <div className="mt-12">
