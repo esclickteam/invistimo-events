@@ -6,8 +6,8 @@ export default function SupportBot({ onClose }) {
   const whatsappNumber = "972555039072";
 
   const whatsappText = encodeURIComponent(
-    "היי, אני צריך/ה עזרה עם Invistimo"
-  );
+  "היי, אשמח לקבל עזרה עם Invistimo ✨\nרוצה להבין איזו חבילה מתאימה לאירוע שלי."
+);
 
   const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${whatsappText}`;
 
