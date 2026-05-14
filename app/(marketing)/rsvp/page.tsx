@@ -28,14 +28,6 @@ const dashboardFeatures = [
   "מעקב אחרי מי ענה ומי עדיין לא",
 ];
 
-const ownerFeatures = [
-  "הוספת אורחים ידנית",
-  "עריכת סטטוס הגעה",
-  "שינוי מספר מוזמנים",
-  "הוספת הערות משיחה טלפונית או וואטסאפ",
-  "כל שינוי מתעדכן מיד בדשבורד",
-];
-
 const whyItems = [
   "בלי טלפונים חוזרים",
   "בלי הודעות מפוזרות",
@@ -97,48 +89,52 @@ function VideoFrame({
   variant = "phone",
 }: {
   src: string;
-  variant?: "phone" | "wide";
+  variant?: "phone" | "wide" | "full";
 }) {
+  const isFull = variant === "full";
+  const isWide = variant === "wide" || variant === "full";
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95, y: 24 }}
       whileInView={{ opacity: 1, scale: 1, y: 0 }}
       transition={{ duration: 0.7, ease: "easeOut" }}
       viewport={{ once: true, amount: 0.25 }}
-      className="
-        relative mx-auto w-full max-w-[410px]
-      "
+      className={`
+        relative mx-auto w-full
+        ${isFull ? "max-w-7xl" : "max-w-[410px]"}
+      `}
     >
       <div
         className="
-          absolute -inset-5 rounded-[44px]
+          absolute -inset-6 rounded-[46px]
           bg-[radial-gradient(circle_at_top,#E8D4AF_0%,transparent_55%),linear-gradient(135deg,#F8EFE1,#FFFFFF)]
-          blur-xl opacity-80
+          blur-2xl opacity-90
         "
       />
 
       <div
-        className="
-          relative rounded-[38px]
-          border border-white/80
+        className={`
+          relative border border-white/80
           bg-gradient-to-br from-[#F8EFE1] via-[#FFFDF9] to-[#E7D7BF]
-          p-[10px]
-          shadow-[0_30px_80px_rgba(58,39,20,0.18)]
-        "
+          shadow-[0_35px_95px_rgba(58,39,20,0.20)]
+          ${isFull ? "rounded-[42px] p-[12px]" : "rounded-[38px] p-[10px]"}
+        `}
       >
         <div
-          className="
-            rounded-[30px]
+          className={`
             border border-[#221811]/10
             bg-[#17120E]
-            p-[8px]
             shadow-inner
-          "
+            ${isFull ? "rounded-[32px] p-[10px]" : "rounded-[30px] p-[8px]"}
+          `}
         >
           <div
             className={`
-              overflow-hidden rounded-[24px] bg-black
-              ${variant === "phone" ? "aspect-[9/16]" : "aspect-video"}
+              overflow-hidden bg-black
+              ${isFull ? "rounded-[26px] aspect-video" : "rounded-[24px]"}
+              ${!isFull && isWide ? "aspect-video" : ""}
+              ${!isFull && !isWide ? "aspect-[9/16]" : ""}
             `}
           >
             <video
@@ -448,51 +444,12 @@ export default function RSVPPage() {
         </div>
       </section>
 
-      {/* ================= BLOCK 3 ================= */}
-      <section className="bg-white px-6 py-24 md:py-32">
-        <div className="mx-auto grid max-w-7xl items-center gap-16 md:grid-cols-2">
-          <div className="order-2 md:order-1">
-            <VideoFrame src="/videos/rsvp2.mp4" variant="wide" />
-          </div>
+      {/* ================= BLOCK 3 - FULL WIDTH VIDEO ONLY ================= */}
+      <section className="relative bg-white px-4 py-20 md:px-6 md:py-28">
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-l from-transparent via-[#E7D3B3] to-transparent" />
 
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, amount: 0.25 }}
-            variants={fadeUp}
-            transition={{ duration: 0.75 }}
-            className="order-1 md:order-2"
-          >
-            <PremiumBadge>שליטה מלאה מצד בעל האירוע</PremiumBadge>
-
-            <h2
-              className="
-                mt-6 text-4xl font-black leading-tight
-                tracking-[-0.03em]
-                text-[#35281F]
-                md:text-5xl
-              "
-            >
-              גם כשאורח עונה בטלפון,
-              <span className="block text-[#B58B4F]">
-                השליטה נשארת אצלך
-              </span>
-            </h2>
-
-            <p className="mt-6 text-lg leading-8 text-[#6D5B4A]">
-              לא כל אורח עונה דרך הקישור — ולכן Invistimo מאפשרת לך
-              לנהל ולעדכן את כל הפרטים ידנית, בצורה פשוטה ומסודרת.
-            </p>
-
-            <div className="mt-8">
-              <FeatureList items={ownerFeatures} />
-            </div>
-
-            <p className="mt-8 rounded-[26px] border border-[#EFE3D2] bg-[#FFFAF2] p-5 text-base font-semibold leading-8 text-[#6D5B4A]">
-              התקשרו, שלחו הודעה, ביקשו שינוי או עדכנו דרך בן משפחה?
-              מעדכנים במקום אחד — והמערכת נשארת מסונכרנת.
-            </p>
-          </motion.div>
+        <div className="mx-auto w-full max-w-7xl">
+          <VideoFrame src="/videos/rsvp2.mp4" variant="full" />
         </div>
       </section>
 
