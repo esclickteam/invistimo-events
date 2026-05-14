@@ -452,25 +452,25 @@ export default function PricingPage() {
                   </div>
                 )}
 
-                <CardContent className="relative flex h-full flex-col rounded-[36px] p-6 pt-24 sm:p-7 sm:pt-28">
+                <CardContent className="relative flex h-full flex-col rounded-[36px] p-6 pt-32 sm:p-7 sm:pt-36">
                   {/* רקעים פנימיים בלי overflow-hidden כדי שהאייקון לא ייחתך */}
                   <div className="pointer-events-none absolute inset-0 rounded-[36px] bg-[linear-gradient(135deg,rgba(255,255,255,0.72),rgba(255,255,255,0.24))]" />
                   <div className="pointer-events-none absolute -top-20 -right-20 h-48 w-48 rounded-full bg-[#F2DEC4]/36 blur-3xl" />
                   <div className="pointer-events-none absolute -bottom-20 -left-20 h-48 w-48 rounded-full bg-[#EED7BC]/28 blur-3xl" />
 
                   {/* אייקון — לא נחתך */}
-                  <div className="absolute left-1/2 top-0 z-30 -translate-x-1/2 -translate-y-[34%]">
-                    <div className="relative h-[150px] w-[150px] sm:h-[175px] sm:w-[175px]">
-                      <Image
-                        src={meta.icon}
-                        alt={meta.alt}
-                        fill
-                        className="object-contain drop-shadow-[0_18px_24px_rgba(95,61,26,0.16)] transition duration-300 group-hover:scale-105"
-                        sizes="175px"
-                        priority={plan === "plan2"}
-                      />
-                    </div>
-                  </div>
+                  <div className="absolute left-1/2 top-0 z-30 -translate-x-1/2 -translate-y-[38%]">
+  <div className="relative h-[190px] w-[190px] sm:h-[220px] sm:w-[220px]">
+    <Image
+      src={meta.icon}
+      alt={meta.alt}
+      fill
+      className="object-contain drop-shadow-[0_20px_28px_rgba(95,61,26,0.18)] transition duration-300 group-hover:scale-105"
+      sizes="220px"
+      priority={plan === "plan2"}
+    />
+  </div>
+</div>
 
                   <div className="relative z-10 flex h-full flex-col">
                     {/* Header */}
