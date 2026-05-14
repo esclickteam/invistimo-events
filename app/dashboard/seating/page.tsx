@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 
 import SeatingEditor from "./SeatingEditor";
 import UploadBackgroundModal from "./UploadBackgroundModal";
@@ -36,14 +36,7 @@ type TableLite = {
 
 export default function SeatingPage() {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-
-  const eventIdFromQuery = searchParams.get("eventId");
-
-  const isProducer =
-    pathname.includes("/events/production") ||
-    pathname.includes("/producer/events");
-
+  const isProducer = pathname.includes("/events/production");
   const isDemo = pathname.startsWith("/try/");
 
   const didLoadRef = useRef(false);
@@ -138,15 +131,6 @@ export default function SeatingPage() {
 
     console.log("🔥 ENABLE LIVE MODE (SEATING)");
     setSeatingMode("live");
-
-    /*
-      בלייב בלבד:
-      לוודא שהסיידבר הפנימי פתוח בדסקטופ.
-      לא משפיע על הושבה רגילה.
-    */
-    if (typeof window !== "undefined" && window.innerWidth >= 768) {
-      setSidebarOpen(true);
-    }
   }, [isProducer, setSeatingMode]);
 
   /* ===============================
@@ -231,31 +215,17 @@ export default function SeatingPage() {
           useZoneStore.getState().setZones([]);
         }
 
-        /*
-          רגיל נשאר בדיוק כמו שהיה:
-          /api/invitations/my
-
-          לייב/מפיק בלבד:
-          אם יש eventId ב-URL, נטען את ההזמנה לפי האירוע,
-          כדי ש-SeatingSidebar יקבל invitationId נכון.
-        */
-        const invUrl =
-          isProducer && eventIdFromQuery
-            ? `/api/invitations/by-event/${eventIdFromQuery}`
-            : "/api/invitations/my";
-
-        const invRes = await fetch(invUrl, {
+        const invRes = await fetch("/api/invitations/my", {
           cache: "no-store",
         });
 
         const invData = await invRes.json();
 
-        const invitation = invData?.invitation || invData?.data || null;
-
-        const invitationIdFromApi: string | undefined = invitation?._id;
+        const invitationIdFromApi: string | undefined =
+          invData?.invitation?._id;
 
         const eventIdFromApi: string | undefined =
-          invitation?.eventId || (isProducer ? eventIdFromQuery || undefined : undefined);
+          invData?.invitation?.eventId;
 
         if (!invitationIdFromApi || !eventIdFromApi) {
           console.error("❌ Missing invitation/event id", invData);
@@ -274,7 +244,7 @@ export default function SeatingPage() {
     }
 
     load();
-  }, [isDemo, isProducer, eventIdFromQuery, loadSeatingData]);
+  }, [isDemo, loadSeatingData]);
 
   /* ===============================
      AUTO FIT ONE TIME
