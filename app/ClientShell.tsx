@@ -19,6 +19,39 @@ export default function ClientShell({ children }: { children: ReactNode }) {
     pathname.startsWith("/producer") ||
     pathname.startsWith("/events/production");
 
+  // 🔴 דפים פנימיים של המערכת – בלי SupportBot חיצוני
+  const isDashboard =
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/events") ||
+    pathname.startsWith("/client") ||
+    pathname.startsWith("/guests") ||
+    pathname.startsWith("/seating");
+
+  // 🔐 דפי התחברות / הרשמה – בלי SupportBot
+  const isAuthPage =
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/register") ||
+    pathname.startsWith("/forgot-password") ||
+    pathname.startsWith("/reset-password");
+
+  // ✅ רק דפים חיצוניים לפני התחברות
+  const isExternalPublicPage =
+    pathname === "/" ||
+    pathname.startsWith("/pricing") ||
+    pathname.startsWith("/features") ||
+    pathname.startsWith("/solutions") ||
+    pathname.startsWith("/about") ||
+    pathname.startsWith("/contact") ||
+    pathname.startsWith("/seating-explained") ||
+    pathname.startsWith("/how-it-works");
+
+  const showSupportBot =
+    isExternalPublicPage &&
+    !isAdmin &&
+    !isProducer &&
+    !isDashboard &&
+    !isAuthPage;
+
   // 🔴 Admin – בלי Header / Footer בכלל
   if (isAdmin) {
     return <>{children}</>;
@@ -42,9 +75,11 @@ export default function ClientShell({ children }: { children: ReactNode }) {
         {children}
       </LayoutShell>
 
-      <SupportBotGate>
-        <SupportBotButton />
-      </SupportBotGate>
+      {showSupportBot && (
+        <SupportBotGate>
+          <SupportBotButton />
+        </SupportBotGate>
+      )}
     </>
   );
 }
