@@ -12,15 +12,9 @@ export async function POST() {
     }
   );
 
-  /* =====================================================
-     🌐 Domain אחיד – מונע www / non-www באגים
-  ===================================================== */
   const cookieDomain =
     process.env.NODE_ENV === "production" ? ".invistimo.com" : undefined;
 
-  /* =====================================================
-     🍪 Base cookie config
-  ===================================================== */
   const baseCookie = {
     path: "/",
     sameSite: "lax" as const,
@@ -32,55 +26,35 @@ export async function POST() {
     ...baseCookie,
     httpOnly: true,
     maxAge: 0,
+    expires: new Date(0),
   };
 
   const delClient = {
     ...baseCookie,
     httpOnly: false,
     maxAge: 0,
+    expires: new Date(0),
   };
 
-  /* =====================================================
-     🔥 רשימת כל הקוקיז למחיקה
-  ===================================================== */
   const cookiesToDelete = [
     "authToken",
+    "adminAuthToken",
     "producerAuthToken",
     "adminToken",
     "token",
     "impersonationToken",
     "role",
+    "hasPaid",
     "isTrial",
     "trialExpiresAt",
     "smsLimit",
     "smsUsed",
   ];
 
-  /* =====================================================
-     🧹 מחיקה כפולה (קריטי!)
-  ===================================================== */
   cookiesToDelete.forEach((name) => {
-    // httpOnly
     res.cookies.set(name, "", delHttpOnly);
-
-    // client-accessible
     res.cookies.set(name, "", delClient);
   });
-
-  /* =====================================================
-     💎 ניקוי אגרסיבי (future-proof)
-     מוחק גם קוקיז שלא תכננת
-  ===================================================== */
-  try {
-    const existingCookies = res.cookies.getAll();
-
-    existingCookies.forEach((cookie) => {
-      res.cookies.set(cookie.name, "", delHttpOnly);
-      res.cookies.set(cookie.name, "", delClient);
-    });
-  } catch (e) {
-    console.log("cookie cleanup fallback", e);
-  }
 
   return res;
 }
