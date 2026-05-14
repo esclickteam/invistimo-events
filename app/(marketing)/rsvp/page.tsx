@@ -18,8 +18,8 @@ const features = [
   "שליחה אוטומטית ב־WhatsApp או ב־SMS",
   "אפשרות להוסיף קישור ל־PayBox או מתנות באשראי",
   "בחירת מגיע / לא מגיע בצורה פשוטה",
-  "בחירת מספר המגיעים בפועל",
-  "הוספת הערות כמו כשרויות, אלרגיות, הסעות ונגישות",
+  "בחירת מספר מגיעים",
+  "הוספת הערות כמו כשרויות, אלרגיות והסעות",
 ];
 
 const dashboardFeatures = [
@@ -63,11 +63,11 @@ function FeatureList({ items }: { items: string[] }) {
           key={item}
           className="
             flex items-start gap-3 rounded-2xl
-            border border-[#EFE3D2]
-            bg-[#FFFCF7]
+            border border-[#E6D2AA]
+            bg-gradient-to-l from-[#FFF8EA] via-[#FFFDF7] to-[#F7E8CA]
             px-4 py-3
             text-base font-semibold text-[#544437]
-            shadow-[0_10px_28px_rgba(88,62,38,0.05)]
+            shadow-[0_12px_30px_rgba(151,108,49,0.08)]
           "
         >
           <span
@@ -223,10 +223,8 @@ export default function RSVPPage() {
             md:text-2xl md:leading-10
           "
         >
-          Invistimo מרכזת את כל אישורי ההגעה במקום אחד —
-          קישור אישי לכל אורח, שליחה אוטומטית ב־WhatsApp או ב־SMS,
-          בחירת מגיע / לא מגיע, כמות מגיעים, הערות מיוחדות
-          ואפשרות לצרף קישור ל־PayBox או מתנות באשראי.
+          כל אורח מקבל חוויה פשוטה וברורה לאישור הגעה —
+          ואת מקבלת דשבורד מסודר שמתעדכן בזמן אמת.
         </motion.p>
 
         <motion.div
@@ -298,14 +296,14 @@ export default function RSVPPage() {
               key={title}
               className="
                 rounded-[28px]
-                border border-white/80
-                bg-white/60
+                border border-[#E3C990]
+                bg-gradient-to-br from-[#FFF8E8] via-[#FFFDF7] to-[#F4E3C3]
                 px-6 py-6
-                shadow-[0_18px_50px_rgba(91,63,32,0.08)]
+                shadow-[0_20px_55px_rgba(151,108,49,0.12)]
                 backdrop-blur-xl
               "
             >
-              <div className="text-3xl font-black text-[#B58B4F]">
+              <div className="text-3xl font-black text-[#A77A38]">
                 {title}
               </div>
               <div className="mt-2 text-sm font-bold text-[#6D5B4A]">
@@ -348,17 +346,17 @@ export default function RSVPPage() {
               כל אורח מקבל קישור אישי ומאשר הגעה בצורה פשוטה,
               בלי הרשמה, בלי הורדת אפליקציה ובלי הסברים מיותרים.
               ניתן לצרף גם קישור ל־PayBox או מתנות באשראי,
-              כך שכל מה שקשור לאורח נמצא במקום אחד.
+              כך שכל מה שקשור לאישור ההגעה מרוכז במקום אחד.
             </p>
 
             <div className="mt-8">
               <FeatureList items={features} />
             </div>
 
-            <p className="mt-8 rounded-[26px] border border-[#EFE3D2] bg-[#FFFAF2] p-5 text-base font-semibold leading-8 text-[#6D5B4A]">
+            <p className="mt-8 rounded-[26px] border border-[#E3C990] bg-gradient-to-l from-[#FFF8E8] via-[#FFFDF7] to-[#F4E3C3] p-5 text-base font-semibold leading-8 text-[#6D5B4A] shadow-[0_14px_35px_rgba(151,108,49,0.08)]">
               האורח נכנס לקישור האישי שלו, בוחר אם הוא מגיע או לא מגיע,
-              מעדכן כמה מגיעים ומשאיר הערות חשובות כמו כשרות, אלרגיות,
-              הסעות או נגישות — והכל נכנס אוטומטית לדשבורד.
+              מעדכן כמה מגיעים ומשאיר הערות חשובות כמו כשרות, אלרגיות
+              או הסעות — והכל נכנס אוטומטית לדשבורד.
             </p>
           </motion.div>
 
@@ -410,25 +408,25 @@ export default function RSVPPage() {
                   relative overflow-hidden
                   rounded-[30px]
                   border border-[#D7B873]
-                  bg-white/75
+                  bg-gradient-to-br from-[#FFF7E4] via-[#FFFCF5] to-[#EFD9AD]
                   p-[1px]
                   text-center
-                  shadow-[0_24px_65px_rgba(151,108,49,0.16)]
+                  shadow-[0_24px_65px_rgba(151,108,49,0.18)]
                   backdrop-blur-xl
                 "
               >
                 <div
                   className="
                     pointer-events-none absolute inset-0
-                    bg-[linear-gradient(135deg,rgba(215,184,115,0.45),rgba(255,255,255,0.15),rgba(180,138,74,0.28))]
+                    bg-[radial-gradient(circle_at_top,#F4D99C_0%,transparent_52%),linear-gradient(135deg,rgba(215,184,115,0.35),rgba(255,255,255,0.18),rgba(180,138,74,0.22))]
                   "
                 />
 
                 <div
                   className="
                     relative h-full rounded-[29px]
-                    border border-white/80
-                    bg-white/80
+                    border border-white/70
+                    bg-gradient-to-br from-[#FFFDF6]/90 via-[#FFF8E8]/88 to-[#F3E0BD]/82
                     p-6
                   "
                 >
@@ -521,10 +519,10 @@ export default function RSVPPage() {
               viewport={{ once: true }}
               className="
                 rounded-[28px]
-                border border-white/80
-                bg-white/65
+                border border-[#E3C990]
+                bg-gradient-to-br from-[#FFF8E8] via-[#FFFDF7] to-[#F4E3C3]
                 px-5 py-7
-                shadow-[0_20px_50px_rgba(91,63,32,0.08)]
+                shadow-[0_20px_50px_rgba(151,108,49,0.11)]
                 backdrop-blur-xl
               "
             >
@@ -544,9 +542,9 @@ export default function RSVPPage() {
           transition={{ delay: 0.25, duration: 0.75 }}
           className="
             mx-auto mt-16 max-w-4xl rounded-[38px]
-            border border-white/80
-            bg-white/70
-            p-8 shadow-[0_28px_80px_rgba(91,63,32,0.13)]
+            border border-[#E3C990]
+            bg-gradient-to-br from-[#FFF8E8] via-[#FFFDF7] to-[#F4E3C3]
+            p-8 shadow-[0_28px_80px_rgba(151,108,49,0.16)]
             backdrop-blur-xl
             md:p-12
           "
