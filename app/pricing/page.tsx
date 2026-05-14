@@ -452,8 +452,9 @@ export default function PricingPage() {
                   <div className="pointer-events-none absolute -bottom-20 -left-20 h-48 w-48 rounded-full bg-[#EED7BC]/28 blur-3xl" />
 
                   {/* אייקון — לא נחתך */}
-                  <div className="absolute left-1/2 top-0 z-30 -translate-x-1/2 -translate-y-[38%]">
-  <div className="relative h-[190px] w-[190px] sm:h-[220px] sm:w-[220px]">
+                  <div className="absolute left-1/2 top-0 z-30 -translate-x-1/2 -translate-y-[46%]">
+    <div className="relative h-[210px] w-[210px] sm:h-[240px] sm:w-[240px]">
+
     <Image
       src={meta.icon}
       alt={meta.alt}
