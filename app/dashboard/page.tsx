@@ -14,6 +14,7 @@ import AddGuestModal from "../components/AddGuestModal";
 import ImportExcelModal from "../components/ImportExcelModal";
 import EventCountdown from "../components/EventCountdown";
 import GuestsMobileList from "./components/GuestsMobileList";
+import LiveGuestTableSelect from "./LiveGuestTableSelect";
 import DemoToast from "../components/DemoToast";
 import GuestGroupSelect from "@/app/components/groups/GuestGroupSelect";
 import ManageGroupsModal from "@/app/components/groups/ManageGroupsModal";
@@ -46,8 +47,9 @@ type Guest = {
 
   relation?: string;
 
-  groupId?: string | null;
+   groupId?: string | null;
 
+  tableId?: string | null;
   tableName?: string;
   tableNumber?: number;
 
@@ -1208,6 +1210,22 @@ const rsvpVisualStats = useMemo(() => {
     }
   };
 
+    const updateGuestTableLocally = (
+    guestId: string,
+    tableData: Partial<Guest>
+  ) => {
+    setGuests((prev) =>
+      prev.map((guest) =>
+        String(guest._id) === String(guestId)
+          ? {
+              ...guest,
+              ...tableData,
+            }
+          : guest
+      )
+    );
+  };
+
   if (loading) return null;
 
   console.log("USER FROM /api/me:", user);
@@ -1553,6 +1571,12 @@ const eventLocation = resolveEventLocation(invitation, event);
                 מס׳ שולחן{sortArrow("table")}
               </th>
 
+{canShowActualArrived && (
+                <th className="p-4 text-right text-xs font-black text-[#5F564D]">
+                  שינוי שולחן
+                </th>
+              )}
+
               <th className="p-4 text-right text-xs font-black text-[#5F564D]">
                 הערות
               </th>
@@ -1716,6 +1740,22 @@ const eventLocation = resolveEventLocation(invitation, event);
   </span>
 </td>
 
+                {canShowActualArrived && (
+                  <td className="p-4">
+                    <LiveGuestTableSelect
+                      guest={g}
+                      tables={seatingTables || []}
+                      currentTableFromStore={
+                        guestTableMap.get(String(g.id ?? g._id ?? "")) || null
+                      }
+                      onUpdated={(tableData: Partial<Guest>) =>
+  updateGuestTableLocally(g._id, tableData)
+}
+                      onRefresh={loadGuests}
+                    />
+                  </td>
+                )}
+
                 <td className="p-4 text-sm text-[#5F564D]">
                   {g.notes?.trim() || "-"}
                 </td>
@@ -1793,7 +1833,7 @@ const eventLocation = resolveEventLocation(invitation, event);
             {displayGuests.length === 0 && (
               <tr>
                 <td
-                  colSpan={canShowActualArrived ? 12 : 11}
+                  colSpan={canShowActualArrived ? 13 : 11}
                   className="p-10 text-center text-gray-500"
                 >
                   לא נמצאו תוצאות.
