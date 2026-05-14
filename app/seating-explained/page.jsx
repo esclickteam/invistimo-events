@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 
@@ -67,6 +68,105 @@ function GoldBadge({ children }) {
     <span className="inline-flex items-center rounded-full border border-[#dac49f]/80 bg-white/65 px-5 py-2 text-sm font-bold text-[#8a672e] shadow-[0_12px_30px_rgba(118,86,45,0.08)] backdrop-blur-xl">
       {children}
     </span>
+  );
+}
+
+function FullscreenVideoModal({ src, onClose }) {
+  if (!src) return null;
+
+  return (
+    <div
+      className="
+        fixed inset-0 z-[99999]
+        flex items-center justify-center
+        bg-black/85
+        px-4 py-6
+        backdrop-blur-md
+      "
+      onClick={onClose}
+    >
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="סגירת וידאו"
+        className="
+          absolute right-5 top-5 z-20
+          flex h-12 w-12 items-center justify-center
+          rounded-full
+          bg-white text-2xl font-black text-[#342920]
+          shadow-[0_18px_45px_rgba(0,0,0,0.35)]
+          transition hover:scale-105
+        "
+      >
+        ×
+      </button>
+
+      <div
+        className="
+          relative w-full max-w-7xl
+          overflow-hidden rounded-[28px]
+          border border-white/20
+          bg-black
+          shadow-[0_35px_100px_rgba(0,0,0,0.65)]
+        "
+        onClick={(e) => e.stopPropagation()}
+      >
+        <video
+          src={src}
+          controls
+          autoPlay
+          playsInline
+          className="h-[82vh] w-full bg-black object-contain"
+        />
+      </div>
+    </div>
+  );
+}
+
+function ClickableVideo({ src, className, onOpen }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(src)}
+      aria-label="פתיחת הסרטון במסך מלא"
+      className="group relative z-20 block w-full cursor-pointer text-right"
+    >
+      <video
+        src={src}
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="metadata"
+        className={className}
+      />
+
+      <div
+        className="
+          pointer-events-none absolute inset-0 z-30
+          flex items-center justify-center
+          bg-black/0 transition duration-300
+          group-hover:bg-black/20
+        "
+      >
+        <div
+          className="
+            flex items-center gap-3
+            rounded-full
+            border border-white/70
+            bg-white/90 px-5 py-3
+            text-sm font-black text-[#342920]
+            opacity-0 shadow-[0_16px_45px_rgba(0,0,0,0.25)]
+            backdrop-blur-xl
+            transition duration-300
+            group-hover:opacity-100
+          "
+        >
+          <span className="text-lg">⛶</span>
+          <span>לצפייה במסך מלא</span>
+        </div>
+      </div>
+    </button>
   );
 }
 
@@ -173,6 +273,8 @@ function SectionBlock({
 }
 
 export default function SeatingExplainedPage() {
+  const [fullscreenVideo, setFullscreenVideo] = useState(null);
+
   const videoClass =
     "relative z-20 w-full h-[560px] md:h-[760px] object-contain bg-transparent";
 
@@ -315,14 +417,10 @@ export default function SeatingExplainedPage() {
         bg="white"
         media={
           <MediaShell>
-            <video
+            <ClickableVideo
               src="/videos/eventsit.mp4"
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="metadata"
               className={videoClass}
+              onOpen={setFullscreenVideo}
             />
           </MediaShell>
         }
@@ -339,14 +437,10 @@ export default function SeatingExplainedPage() {
         bg="cream"
         media={
           <MediaShell>
-            <video
+            <ClickableVideo
               src="/videos/tablesit.mp4"
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="metadata"
               className={videoClass}
+              onOpen={setFullscreenVideo}
             />
           </MediaShell>
         }
@@ -362,14 +456,10 @@ export default function SeatingExplainedPage() {
         bg="white"
         media={
           <MediaShell>
-            <video
+            <ClickableVideo
               src="/videos/smartsit.mp4"
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="metadata"
               className={videoClass}
+              onOpen={setFullscreenVideo}
             />
           </MediaShell>
         }
@@ -386,66 +476,68 @@ export default function SeatingExplainedPage() {
         bg="cream"
         media={
           <MediaShell tall>
-            <video
+            <ClickableVideo
               src="/videos/sit4.mp4"
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="metadata"
               className={tallVideoClass}
+              onOpen={setFullscreenVideo}
             />
           </MediaShell>
         }
       />
 
       {/* ================= FINAL CTA ================= */}
-<section className="relative overflow-hidden bg-gradient-to-br from-[#f8efe0] via-[#f3e4cb] to-[#dfc190] px-5 py-28 text-center text-[#342920] md:px-8">
-  <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.65),transparent_42%)]" />
-  <div className="pointer-events-none absolute -right-32 top-10 h-96 w-96 rounded-full bg-[#d7ad63]/25 blur-3xl" />
-  <div className="pointer-events-none absolute -left-32 bottom-10 h-96 w-96 rounded-full bg-white/60 blur-3xl" />
+      <section className="relative overflow-hidden bg-gradient-to-br from-[#f8efe0] via-[#f3e4cb] to-[#dfc190] px-5 py-28 text-center text-[#342920] md:px-8">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.65),transparent_42%)]" />
+        <div className="pointer-events-none absolute -right-32 top-10 h-96 w-96 rounded-full bg-[#d7ad63]/25 blur-3xl" />
+        <div className="pointer-events-none absolute -left-32 bottom-10 h-96 w-96 rounded-full bg-white/60 blur-3xl" />
 
-  <motion.div
-    initial="hidden"
-    whileInView="visible"
-    viewport={{ once: true }}
-    variants={fadeUp}
-    transition={{ duration: 0.7 }}
-    className="relative z-10 mx-auto max-w-4xl"
-  >
-    <span className="inline-flex rounded-full border border-[#c9a66a]/40 bg-white/55 px-5 py-2 text-sm font-black text-[#8a672e] shadow-[0_12px_30px_rgba(118,86,45,0.10)] backdrop-blur-xl">
-      מערכת אחת. הושבה אחת מסודרת. אפס בלגן.
-    </span>
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          variants={fadeUp}
+          transition={{ duration: 0.7 }}
+          className="relative z-10 mx-auto max-w-4xl"
+        >
+          <span className="inline-flex rounded-full border border-[#c9a66a]/40 bg-white/55 px-5 py-2 text-sm font-black text-[#8a672e] shadow-[0_12px_30px_rgba(118,86,45,0.10)] backdrop-blur-xl">
+            מערכת אחת. הושבה אחת מסודרת. אפס בלגן.
+          </span>
 
-    <h2 className="mt-8 text-4xl font-black leading-tight tracking-[-0.04em] text-[#342920] md:text-6xl">
-      מוכנים לבנות הושבה ברמה של אירוע אמיתי?
-    </h2>
+          <h2 className="mt-8 text-4xl font-black leading-tight tracking-[-0.04em] text-[#342920] md:text-6xl">
+            מוכנים לבנות הושבה ברמה של אירוע אמיתי?
+          </h2>
 
-    <p className="mx-auto mt-7 max-w-2xl text-lg leading-9 text-[#6b5a48] md:text-xl">
-      סקיצת אולם, שיבוץ ידני, הושבה חכמה והודעה אישית לכל אורח —
-      הכל במקום אחד, עם חוויה נקייה שמרגישה פרימיום.
-    </p>
+          <p className="mx-auto mt-7 max-w-2xl text-lg leading-9 text-[#6b5a48] md:text-xl">
+            סקיצת אולם, שיבוץ ידני, הושבה חכמה והודעה אישית לכל אורח —
+            הכל במקום אחד, עם חוויה נקייה שמרגישה פרימיום.
+          </p>
 
-    <div className="mt-12">
-      <Link
-        href="/pricing"
-        className="
-          inline-flex items-center justify-center rounded-full
-          bg-gradient-to-l from-[#3a2d22] via-[#6f512c] to-[#b98b45]
-          px-12 py-6 text-xl font-black text-white
-          shadow-[0_28px_75px_rgba(111,81,44,0.28)]
-          transition
-          hover:-translate-y-1
-          hover:shadow-[0_38px_90px_rgba(111,81,44,0.38)]
-        "
-      >
-        התחילו לבנות הושבה
-        <span className="mr-3">←</span>
-      </Link>
-    </div>
-  </motion.div>
-</section>
+          <div className="mt-12">
+            <Link
+              href="/pricing"
+              className="
+                inline-flex items-center justify-center rounded-full
+                bg-gradient-to-l from-[#3a2d22] via-[#6f512c] to-[#b98b45]
+                px-12 py-6 text-xl font-black text-white
+                shadow-[0_28px_75px_rgba(111,81,44,0.28)]
+                transition
+                hover:-translate-y-1
+                hover:shadow-[0_38px_90px_rgba(111,81,44,0.38)]
+              "
+            >
+              התחילו לבנות הושבה
+              <span className="mr-3">←</span>
+            </Link>
+          </div>
+        </motion.div>
+      </section>
 
+      {fullscreenVideo && (
+        <FullscreenVideoModal
+          src={fullscreenVideo}
+          onClose={() => setFullscreenVideo(null)}
+        />
+      )}
     </div>
   );
 }
