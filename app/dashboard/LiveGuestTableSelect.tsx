@@ -1,51 +1,16 @@
-"use client";
+import { NextRequest, NextResponse } from "next/server";
+import mongoose from "mongoose";
 
-import { useMemo, useState } from "react";
+import { connectDB } from "@/lib/db";
+import Seating from "@/models/Seating";
+import SeatingTable from "@/models/SeatingTable";
+import InvitationGuest from "@/models/InvitationGuest";
 
-type SeatingGuest = {
-  guestId?: string | { _id?: string; id?: string };
-  seatIndex?: number;
-  arrived?: boolean;
-};
-
-type SeatingTable = {
-  _id?: string;
-  id?: string;
-  name?: string;
-  number?: number;
-  tableNumber?: number;
-  seats?: number;
-  capacity?: number;
-  seatCount?: number;
-  seatedGuests?: SeatingGuest[];
-};
-
-type Guest = {
-  id?: string;
-  _id: string;
-  name?: string;
-
-  tableId?: string | null;
-  tableName?: string;
-  tableNumber?: number;
-
-  guestsCount?: number;
-  arrivedCount?: number;
-  actualArrivedCount?: number;
-};
-
-type Props = {
-  eventId: string;
-  guest: Guest;
-  tables: SeatingTable[];
-  onUpdated: (updatedGuest: Partial<Guest>) => void;
-  onTablesUpdated?: (tables: SeatingTable[]) => void;
-  onRefresh?: () => Promise<void> | void;
-};
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 function normalizeId(value: any) {
   if (!value) return "";
-
   if (typeof value === "string") return value;
 
   if (typeof value === "object") {
@@ -55,26 +20,14 @@ function normalizeId(value: any) {
   return String(value);
 }
 
-function getTableId(table: SeatingTable) {
-  return String(table._id || table.id || "");
+function sameId(a: any, b: any) {
+  return normalizeId(a) === normalizeId(b);
 }
 
-function getGuestId(guest: Guest) {
-  return String(guest._id || guest.id || "");
-}
+function getTableLabel(table: any) {
+  const raw = table?.name || table?.tableNumber || table?.number;
 
-function getTableNumber(table: SeatingTable) {
-  return table.tableNumber || table.number || undefined;
-}
-
-function getTableCapacity(table: SeatingTable) {
-  return Number(table.capacity || table.seats || table.seatCount || 12);
-}
-
-function getTableLabel(table: SeatingTable) {
-  const raw = table.name || table.tableNumber || table.number;
-
-  if (!raw) return "שולחן ללא שם";
+  if (!raw) return "";
 
   const text = String(raw).trim();
 
@@ -83,220 +36,309 @@ function getTableLabel(table: SeatingTable) {
   return `שולחן ${text}`;
 }
 
-function cleanTableText(value?: string | number | null) {
-  if (!value) return "";
-
-  return String(value)
-    .replace("שולחן", "")
-    .trim();
+function getTableNumber(table: any) {
+  return table?.tableNumber || table?.number || undefined;
 }
 
-function findGuestCurrentTable(guest: Guest, tables: SeatingTable[]) {
-  const guestId = getGuestId(guest);
-
-  // 1. קודם כל מזהים לפי ההושבה האמיתית: seatedGuests
-  const tableFromSeating = tables.find((table) =>
-    (table.seatedGuests || []).some((sg) => {
-      const seatedGuestId = normalizeId(sg.guestId);
-      return seatedGuestId === guestId;
-    })
-  );
-
-  if (tableFromSeating) return tableFromSeating;
-
-  // 2. אם יש tableId על האורח
-  if (guest.tableId) {
-    const tableById =
-      tables.find((table) => getTableId(table) === String(guest.tableId)) ||
-      null;
-
-    if (tableById) return tableById;
-  }
-
-  // 3. fallback לפי tableName / tableNumber
-  const guestTableText =
-    cleanTableText(guest.tableName) || cleanTableText(guest.tableNumber);
-
-  if (!guestTableText) return null;
-
-  return (
-    tables.find((table) => {
-      const tableName = cleanTableText(table.name);
-      const tableNumber = cleanTableText(getTableNumber(table));
-      const tableLabel = cleanTableText(getTableLabel(table));
-
-      return (
-        tableName === guestTableText ||
-        tableNumber === guestTableText ||
-        tableLabel === guestTableText
-      );
-    }) || null
+function getGuestSeatsCount(guest: any) {
+  return Math.max(
+    1,
+    Number(guest.actualArrivedCount || 0) ||
+      Number(guest.arrivedCount || 0) ||
+      Number(guest.guestsCount || 1)
   );
 }
 
-export default function LiveGuestTableSelect({
-  eventId,
-  guest,
-  tables,
-  onUpdated,
-  onTablesUpdated,
-  onRefresh,
-}: Props) {
-  const [saving, setSaving] = useState(false);
+function getCapacity(table: any) {
+  return Number(table?.capacity || table?.seats || table?.seatCount || 12);
+}
 
-  const sortedTables = useMemo(() => {
-    return [...(tables || [])].sort((a, b) => {
-      const aNumber = Number(getTableNumber(a) || 0);
-      const bNumber = Number(getTableNumber(b) || 0);
+function findFreeSeatIndexes(table: any, count: number, guestId: string) {
+  const capacity = getCapacity(table);
 
-      if (aNumber && bNumber) return aNumber - bNumber;
+  const occupied = new Set(
+    (table.seatedGuests || [])
+      .filter((sg: any) => !sameId(sg.guestId, guestId))
+      .map((sg: any) => Number(sg.seatIndex))
+      .filter((n: number) => Number.isFinite(n))
+  );
 
-      return getTableLabel(a).localeCompare(getTableLabel(b), "he", {
-        sensitivity: "base",
-      });
-    });
-  }, [tables]);
+  const free: number[] = [];
 
-  const currentTable = useMemo(() => {
-    return findGuestCurrentTable(guest, sortedTables);
-  }, [guest, sortedTables]);
-
-  const currentValue = currentTable ? getTableId(currentTable) : "";
-
-  async function handleChange(nextTableId: string) {
-    if (saving) return;
-
-    if (!eventId) {
-      alert("לא נמצא מזהה אירוע לעדכון ההושבה");
-      return;
+  for (let i = 0; i < capacity; i++) {
+    if (!occupied.has(i)) {
+      free.push(i);
     }
 
-    if (nextTableId === currentValue) return;
+    if (free.length >= count) {
+      break;
+    }
+  }
 
-    const selectedTable =
-      sortedTables.find((table) => getTableId(table) === nextTableId) || null;
+  return free;
+}
 
-    const fallbackTableName = selectedTable ? getTableLabel(selectedTable) : "";
-    const fallbackTableNumber = selectedTable
+function cleanGuestFromTable(table: any, guestId: string) {
+  table.seatedGuests = (table.seatedGuests || []).filter(
+    (sg: any) => !sameId(sg.guestId, guestId)
+  );
+}
+
+function isTargetTable(table: any, toTableId: string) {
+  return (
+    sameId(table._id, toTableId) ||
+    sameId(table.id, toTableId) ||
+    sameId(table.tableId, toTableId)
+  );
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    await connectDB();
+
+    const body = await req.json();
+
+    const eventId = String(body.eventId || "");
+    const guestId = String(body.guestId || "");
+    const toTableId = body.toTableId ? String(body.toTableId) : "";
+
+    if (!eventId || !guestId) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "חסר eventId או guestId",
+        },
+        { status: 400 }
+      );
+    }
+
+    const guest = await InvitationGuest.findById(guestId);
+
+    if (!guest) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "מוזמן לא נמצא",
+        },
+        { status: 404 }
+      );
+    }
+
+    const seatsCount = getGuestSeatsCount(guest);
+
+    /*
+      קודם מנסים לעדכן לפי מודל Seating:
+      מסמך אחד של אירוע שיש בתוכו tables[]
+    */
+    const seating = await Seating.findOne({
+      $or: [
+        { eventId },
+        mongoose.Types.ObjectId.isValid(eventId)
+          ? { eventId: new mongoose.Types.ObjectId(eventId) }
+          : {},
+      ],
+    });
+
+    if (seating?.tables?.length) {
+      let selectedTable: any = null;
+
+      for (const table of seating.tables) {
+        if (toTableId && isTargetTable(table, toTableId)) {
+          selectedTable = table;
+        }
+      }
+
+      if (toTableId && !selectedTable) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "השולחן שנבחר לא נמצא",
+            debug: {
+              eventId,
+              guestId,
+              toTableId,
+              source: "Seating",
+              availableTables: seating.tables.map((t: any) => ({
+                _id: normalizeId(t._id),
+                id: normalizeId(t.id),
+                name: t.name,
+                tableNumber: t.tableNumber,
+                number: t.number,
+              })),
+            },
+          },
+          { status: 404 }
+        );
+      }
+
+      for (const table of seating.tables) {
+        cleanGuestFromTable(table, guestId);
+      }
+
+      if (selectedTable) {
+        const freeSeats = findFreeSeatIndexes(
+          selectedTable,
+          seatsCount,
+          guestId
+        );
+
+        if (freeSeats.length < seatsCount) {
+          return NextResponse.json(
+            {
+              success: false,
+              message: "אין מספיק מקומות פנויים בשולחן הזה",
+            },
+            { status: 400 }
+          );
+        }
+
+        selectedTable.seatedGuests.push(
+          ...freeSeats.map((seatIndex) => ({
+            guestId,
+            seatIndex,
+            arrived: Number(guest.actualArrivedCount || 0) > 0,
+          }))
+        );
+      }
+
+      guest.tableId = toTableId || null;
+      guest.tableName = selectedTable ? getTableLabel(selectedTable) : "";
+      guest.tableNumber = selectedTable
+        ? getTableNumber(selectedTable)
+        : undefined;
+
+      await guest.save();
+      await seating.save();
+
+      return NextResponse.json({
+        success: true,
+        guest,
+        tables: seating.tables,
+        table: selectedTable || null,
+        source: "Seating",
+      });
+    }
+
+    /*
+      fallback:
+      אם אצלך האירוע כן שומר כל שולחן כ־SeatingTable נפרד
+    */
+    const eventQuery: any[] = [{ eventId }];
+
+    if (mongoose.Types.ObjectId.isValid(eventId)) {
+      eventQuery.push({ eventId: new mongoose.Types.ObjectId(eventId) });
+    }
+
+    const tables = await SeatingTable.find({
+      $or: eventQuery,
+    });
+
+    if (!tables.length) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "לא נמצאו שולחנות לאירוע",
+          debug: {
+            eventId,
+            guestId,
+            toTableId,
+          },
+        },
+        { status: 404 }
+      );
+    }
+
+    let selectedTable: any = null;
+
+    if (toTableId) {
+      selectedTable =
+        tables.find((table: any) => isTargetTable(table, toTableId)) || null;
+
+      if (!selectedTable) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "השולחן שנבחר לא נמצא",
+            debug: {
+              eventId,
+              guestId,
+              toTableId,
+              source: "SeatingTable",
+              availableTables: tables.map((t: any) => ({
+                _id: normalizeId(t._id),
+                id: normalizeId(t.id),
+                name: t.name,
+                tableNumber: t.tableNumber,
+                number: t.number,
+              })),
+            },
+          },
+          { status: 404 }
+        );
+      }
+    }
+
+    for (const table of tables) {
+      cleanGuestFromTable(table, guestId);
+      await table.save();
+    }
+
+    if (selectedTable) {
+      const freeSeats = findFreeSeatIndexes(
+        selectedTable,
+        seatsCount,
+        guestId
+      );
+
+      if (freeSeats.length < seatsCount) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "אין מספיק מקומות פנויים בשולחן הזה",
+          },
+          { status: 400 }
+        );
+      }
+
+      selectedTable.seatedGuests.push(
+        ...freeSeats.map((seatIndex) => ({
+          guestId,
+          seatIndex,
+          arrived: Number(guest.actualArrivedCount || 0) > 0,
+        }))
+      );
+
+      await selectedTable.save();
+    }
+
+    guest.tableId = toTableId || null;
+    guest.tableName = selectedTable ? getTableLabel(selectedTable) : "";
+    guest.tableNumber = selectedTable
       ? getTableNumber(selectedTable)
       : undefined;
 
-    const previousGuest = {
-      tableId: guest.tableId,
-      tableName: guest.tableName,
-      tableNumber: guest.tableNumber,
-    };
+    await guest.save();
 
-    setSaving(true);
+    const nextTables = await SeatingTable.find({
+      $or: eventQuery,
+    }).lean();
 
-    // עדכון אופטימי קטן בדשבורד כדי שהמשתמש יראה בחירה מיידית
-    onUpdated({
-      tableId: nextTableId || null,
-      tableName: fallbackTableName || "",
-      tableNumber: fallbackTableNumber,
+    return NextResponse.json({
+      success: true,
+      guest,
+      tables: nextTables,
+      table: selectedTable || null,
+      source: "SeatingTable",
     });
+  } catch (err: any) {
+    console.error("Move guest table error:", err);
 
-    try {
-      const res = await fetch("/api/seating/live/move-guest-table", {
-        method: "PATCH",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          eventId,
-          guestId: guest._id,
-          toTableId: nextTableId || null,
-        }),
-      });
-
-      const data = await res.json().catch(() => null);
-
-      if (!res.ok || data?.success === false) {
-        throw new Error(data?.message || "Failed to update guest table");
-      }
-
-      if (data?.guest) {
-        onUpdated({
-          tableId: data.guest.tableId ?? nextTableId ?? null,
-          tableName: data.guest.tableName ?? fallbackTableName ?? "",
-          tableNumber: data.guest.tableNumber ?? fallbackTableNumber,
-        });
-      } else {
-        onUpdated({
-          tableId: nextTableId || null,
-          tableName: fallbackTableName || "",
-          tableNumber: fallbackTableNumber,
-        });
-      }
-
-      if (Array.isArray(data?.tables)) {
-        onTablesUpdated?.(data.tables);
-      }
-
-      await onRefresh?.();
-    } catch (error: any) {
-      console.error("Live table update error:", error);
-
-      onUpdated(previousGuest);
-
-      alert(error?.message || "לא הצלחנו לעדכן שולחן לאורח");
-    } finally {
-      setSaving(false);
-    }
+    return NextResponse.json(
+      {
+        success: false,
+        message: err?.message || "שגיאת שרת בעדכון שולחן",
+      },
+      { status: 500 }
+    );
   }
-
-  return (
-    <div className="relative min-w-[175px]">
-      <select
-        value={currentValue}
-        disabled={saving}
-        onChange={(e) => handleChange(e.target.value)}
-        className="
-          h-11
-          w-full
-          rounded-2xl
-          border
-          border-[#D8C6A8]
-          bg-white
-          px-3
-          text-sm
-          font-black
-          text-[#4A3524]
-          shadow-sm
-          outline-none
-          transition
-          hover:border-[#C49A55]
-          focus:border-[#C49A55]
-          focus:ring-2
-          focus:ring-[#C49A55]/25
-          disabled:cursor-not-allowed
-          disabled:bg-[#F5F1EA]
-          disabled:text-[#A99B8A]
-        "
-      >
-        <option value="">ללא שולחן</option>
-
-        {sortedTables.map((table) => {
-          const tableId = getTableId(table);
-          if (!tableId) return null;
-
-          const seatedCount = (table.seatedGuests || []).length;
-          const capacity = getTableCapacity(table);
-
-          return (
-            <option key={tableId} value={tableId}>
-              {getTableLabel(table)} ({seatedCount}/{capacity})
-            </option>
-          );
-        })}
-      </select>
-
-      {saving && (
-        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-[#B8844F]">
-          שומר...
-        </span>
-      )}
-    </div>
-  );
 }
