@@ -17,7 +17,7 @@ function normalizeId(value: any) {
   if (!value) return "";
 
   if (typeof value === "string") return value.trim();
-  if (typeof value === "number") return String(value);
+  if (typeof value === "number") return String(value).trim();
 
   if (typeof value === "object") {
     return String(value._id || value.id || value.toString?.() || "").trim();
@@ -88,6 +88,8 @@ function isTargetTable(table: any, toTableId: string) {
     normalizeId(table?._id),
     normalizeId(table?.id),
     normalizeId(table?.tableId),
+    normalizeId(table?.tableNumber),
+    normalizeId(table?.number),
 
     cleanValue(table?._id),
     cleanValue(table?.id),
@@ -99,6 +101,12 @@ function isTargetTable(table: any, toTableId: string) {
   ].filter(Boolean);
 
   return candidates.includes(selectedRaw) || candidates.includes(selectedClean);
+}
+
+function tableHasGuest(table: any, guestId: string) {
+  return (table?.seatedGuests || []).some((sg: any) =>
+    sameId(sg.guestId, guestId)
+  );
 }
 
 function cleanGuestFromTable(table: any, guestId: string) {
@@ -161,6 +169,7 @@ function buildScopedQuery(eventId: string, guest: any) {
 
 function buildDirectTableQuery(toTableId: string) {
   const clean = cleanValue(toTableId);
+  const numeric = Number(clean);
 
   const query: any[] = [
     { id: toTableId },
@@ -168,6 +177,11 @@ function buildDirectTableQuery(toTableId: string) {
     { name: toTableId },
     { tableNumber: toTableId },
     { number: toTableId },
+    { "tables.id": toTableId },
+    { "tables.tableId": toTableId },
+    { "tables.name": toTableId },
+    { "tables.tableNumber": toTableId },
+    { "tables.number": toTableId },
   ];
 
   if (clean && clean !== toTableId) {
@@ -177,34 +191,47 @@ function buildDirectTableQuery(toTableId: string) {
       { name: clean },
       { name: `שולחן ${clean}` },
       { tableNumber: clean },
-      { number: clean }
+      { number: clean },
+      { "tables.id": clean },
+      { "tables.tableId": clean },
+      { "tables.name": clean },
+      { "tables.name": `שולחן ${clean}` },
+      { "tables.tableNumber": clean },
+      { "tables.number": clean }
     );
   }
 
-  const numeric = Number(clean);
-
   if (Number.isFinite(numeric)) {
-    query.push({ tableNumber: numeric }, { number: numeric });
+    query.push(
+      { tableNumber: numeric },
+      { number: numeric },
+      { "tables.tableNumber": numeric },
+      { "tables.number": numeric }
+    );
   }
 
   if (mongoose.Types.ObjectId.isValid(toTableId)) {
-    query.push({ _id: new mongoose.Types.ObjectId(toTableId) });
+    query.push(
+      { _id: new mongoose.Types.ObjectId(toTableId) },
+      { "tables._id": new mongoose.Types.ObjectId(toTableId) }
+    );
   }
 
   return query;
 }
 
 function serializeTables(tables: any[]) {
-  return tables.map((table: any) => ({
-    _id: normalizeId(table._id),
-    id: normalizeId(table.id),
-    tableId: normalizeId(table.tableId),
-    name: table.name,
-    tableNumber: table.tableNumber,
-    number: table.number,
-    eventId: normalizeId(table.eventId),
-    invitationId: normalizeId(table.invitationId),
-    seatedGuests: table.seatedGuests || [],
+  return (tables || []).map((table: any) => ({
+    _id: normalizeId(table?._id),
+    id: normalizeId(table?.id),
+    tableId: normalizeId(table?.tableId),
+    name: table?.name,
+    tableNumber: table?.tableNumber,
+    number: table?.number,
+    capacity: table?.capacity,
+    seats: table?.seats,
+    seatCount: table?.seatCount,
+    seatedGuestsCount: table?.seatedGuests?.length || 0,
   }));
 }
 
@@ -216,40 +243,231 @@ async function updateGuestFields(guest: any, table: any | null) {
   await guest.save();
 }
 
-async function findTablesByDirectTable(toTableId: string) {
-  if (!toTableId) return [];
+async function applyMoveToTablesArray({
+  ownerDoc,
+  tables,
+  guest,
+  guestId,
+  toTableId,
+  seatsCount,
+  source,
+}: {
+  ownerDoc: any;
+  tables: any[];
+  guest: any;
+  guestId: string;
+  toTableId: string;
+  seatsCount: number;
+  source: string;
+}) {
+  let selectedTable: any = null;
 
-  const directTable = await SeatingTable.findOne({
-    $or: buildDirectTableQuery(toTableId),
-  });
+  if (toTableId) {
+    selectedTable =
+      tables.find((table: any) => isTargetTable(table, toTableId)) || null;
 
-  if (!directTable) return [];
+    if (!selectedTable) {
+      return null;
+    }
+  }
 
-  const scopedByDirectTable: any[] = [];
+  for (const table of tables) {
+    cleanGuestFromTable(table, guestId);
+  }
 
-  if (directTable.eventId) {
-    scopedByDirectTable.push(
-      { eventId: directTable.eventId },
-      { eventId: normalizeId(directTable.eventId) }
+  if (selectedTable) {
+    const freeSeats = findFreeSeatIndexes(selectedTable, seatsCount, guestId);
+
+    if (freeSeats.length < seatsCount) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "אין מספיק מקומות פנויים בשולחן הזה",
+        },
+        { status: 400 }
+      );
+    }
+
+    selectedTable.seatedGuests = selectedTable.seatedGuests || [];
+
+    selectedTable.seatedGuests.push(
+      ...freeSeats.map((seatIndex) => ({
+        guestId,
+        seatIndex,
+        arrived: Number(guest.actualArrivedCount || 0) > 0,
+      }))
     );
   }
 
-  if (directTable.invitationId) {
-    scopedByDirectTable.push(
-      { invitationId: directTable.invitationId },
-      { invitationId: normalizeId(directTable.invitationId) },
-      { invitation: directTable.invitationId },
-      { invitation: normalizeId(directTable.invitationId) }
-    );
+  await updateGuestFields(guest, selectedTable);
+
+  if (typeof ownerDoc.markModified === "function") {
+    ownerDoc.markModified("tables");
   }
 
-  if (!scopedByDirectTable.length) return [directTable];
+  await ownerDoc.save();
 
-  const tables = await SeatingTable.find({
-    $or: scopedByDirectTable,
+  return NextResponse.json({
+    success: true,
+    guest,
+    tables,
+    table: selectedTable || null,
+    source,
   });
+}
 
-  return tables.length ? tables : [directTable];
+async function findSeatingTableDocByScopeOrDirect({
+  scopedQuery,
+  toTableId,
+}: {
+  scopedQuery: any[];
+  toTableId: string;
+}) {
+  let doc: any = null;
+
+  if (scopedQuery.length) {
+    doc = await SeatingTable.findOne({
+      $or: scopedQuery,
+      tables: { $exists: true },
+    });
+  }
+
+  if (!doc && toTableId) {
+    doc = await SeatingTable.findOne({
+      $or: buildDirectTableQuery(toTableId),
+      tables: { $exists: true },
+    });
+  }
+
+  return doc;
+}
+
+async function findLegacyStandaloneTables({
+  scopedQuery,
+  toTableId,
+}: {
+  scopedQuery: any[];
+  toTableId: string;
+}) {
+  let docs: any[] = [];
+
+  if (scopedQuery.length) {
+    docs = await SeatingTable.find({
+      $or: scopedQuery,
+    });
+  }
+
+  docs = docs.filter((doc: any) => !Array.isArray(doc.tables));
+
+  if (!docs.length && toTableId) {
+    const directTable = await SeatingTable.findOne({
+      $or: buildDirectTableQuery(toTableId),
+    });
+
+    if (directTable && !Array.isArray(directTable.tables)) {
+      const widerQuery: any[] = [];
+
+      if (directTable.eventId) {
+        widerQuery.push(
+          { eventId: directTable.eventId },
+          { eventId: normalizeId(directTable.eventId) }
+        );
+      }
+
+      if (directTable.invitationId) {
+        widerQuery.push(
+          { invitationId: directTable.invitationId },
+          { invitationId: normalizeId(directTable.invitationId) },
+          { invitation: directTable.invitationId },
+          { invitation: normalizeId(directTable.invitationId) }
+        );
+      }
+
+      if (widerQuery.length) {
+        docs = await SeatingTable.find({
+          $or: widerQuery,
+        });
+
+        docs = docs.filter((doc: any) => !Array.isArray(doc.tables));
+      }
+
+      if (!docs.length) {
+        docs = [directTable];
+      }
+    }
+  }
+
+  return docs;
+}
+
+async function applyMoveToLegacyStandaloneTables({
+  tables,
+  guest,
+  guestId,
+  toTableId,
+  seatsCount,
+}: {
+  tables: any[];
+  guest: any;
+  guestId: string;
+  toTableId: string;
+  seatsCount: number;
+}) {
+  let selectedTable: any = null;
+
+  if (toTableId) {
+    selectedTable =
+      tables.find((table: any) => isTargetTable(table, toTableId)) || null;
+
+    if (!selectedTable) {
+      return null;
+    }
+  }
+
+  for (const table of tables) {
+    cleanGuestFromTable(table, guestId);
+    await table.save();
+  }
+
+  if (selectedTable) {
+    const freeSeats = findFreeSeatIndexes(selectedTable, seatsCount, guestId);
+
+    if (freeSeats.length < seatsCount) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "אין מספיק מקומות פנויים בשולחן הזה",
+        },
+        { status: 400 }
+      );
+    }
+
+    selectedTable.seatedGuests = selectedTable.seatedGuests || [];
+
+    selectedTable.seatedGuests.push(
+      ...freeSeats.map((seatIndex) => ({
+        guestId,
+        seatIndex,
+        arrived: Number(guest.actualArrivedCount || 0) > 0,
+      }))
+    );
+
+    await selectedTable.save();
+  }
+
+  await updateGuestFields(guest, selectedTable);
+
+  const freshTables = await SeatingTable.find({
+    _id: { $in: tables.map((table: any) => table._id) },
+  }).lean();
+
+  return NextResponse.json({
+    success: true,
+    guest,
+    tables: freshTables.length ? freshTables : tables,
+    table: selectedTable || null,
+    source: "SeatingTableLegacy",
+  });
 }
 
 /* ============================================================
@@ -291,210 +509,125 @@ export async function PATCH(req: NextRequest) {
     const seatsCount = getGuestSeatsCount(guest);
     const scopedQuery = buildScopedQuery(eventId, guest);
 
-    if (!scopedQuery.length && toTableId) {
-      const directTables = await findTablesByDirectTable(toTableId);
+    /*
+      1. SeatingTable במבנה האמיתי שלך:
+      מסמך אחד שיש בתוכו tables[].
+      זה החלק החשוב שהיה חסר.
+    */
+    const seatingTableDoc = await findSeatingTableDocByScopeOrDirect({
+      scopedQuery,
+      toTableId,
+    });
 
-      if (!directTables.length) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: "לא נמצאו שולחנות לאירוע",
-            debug: {
-              eventId,
-              guestId,
-              toTableId,
-              guestInvitationId: normalizeId(guest.invitationId),
-            },
-          },
-          { status: 404 }
-        );
+    if (seatingTableDoc?.tables?.length) {
+      const hasTarget = toTableId
+        ? seatingTableDoc.tables.some((table: any) =>
+            isTargetTable(table, toTableId)
+          )
+        : true;
+
+      const hasGuestInside = seatingTableDoc.tables.some((table: any) =>
+        tableHasGuest(table, guestId)
+      );
+
+      if (hasTarget || !toTableId || hasGuestInside) {
+        const response = await applyMoveToTablesArray({
+          ownerDoc: seatingTableDoc,
+          tables: seatingTableDoc.tables,
+          guest,
+          guestId,
+          toTableId,
+          seatsCount,
+          source: "SeatingTable.tables",
+        });
+
+        if (response) return response;
       }
     }
 
     /*
-      1. ניסיון ראשון:
-      Seating - מסמך אחד עם tables[]
+      2. Seating במידה ויש אצלך גם מודל ישן/מקביל עם tables[].
     */
-    const seating = scopedQuery.length
+    const seatingDoc = scopedQuery.length
       ? await Seating.findOne({
           $or: scopedQuery,
         })
       : null;
 
-    if (seating?.tables?.length) {
-      let selectedTable: any = null;
+    if (seatingDoc?.tables?.length) {
+      const hasTarget = toTableId
+        ? seatingDoc.tables.some((table: any) => isTargetTable(table, toTableId))
+        : true;
 
-      if (toTableId) {
-        selectedTable =
-          seating.tables.find((table: any) => isTargetTable(table, toTableId)) ||
-          null;
-      }
+      const hasGuestInside = seatingDoc.tables.some((table: any) =>
+        tableHasGuest(table, guestId)
+      );
 
-      if (!toTableId || selectedTable) {
-        for (const table of seating.tables) {
-          cleanGuestFromTable(table, guestId);
-        }
-
-        if (selectedTable) {
-          const freeSeats = findFreeSeatIndexes(
-            selectedTable,
-            seatsCount,
-            guestId
-          );
-
-          if (freeSeats.length < seatsCount) {
-            return NextResponse.json(
-              {
-                success: false,
-                message: "אין מספיק מקומות פנויים בשולחן הזה",
-              },
-              { status: 400 }
-            );
-          }
-
-          selectedTable.seatedGuests.push(
-            ...freeSeats.map((seatIndex) => ({
-              guestId,
-              seatIndex,
-              arrived: Number(guest.actualArrivedCount || 0) > 0,
-            }))
-          );
-        }
-
-        await updateGuestFields(guest, selectedTable);
-        await seating.save();
-
-        return NextResponse.json({
-          success: true,
+      if (hasTarget || !toTableId || hasGuestInside) {
+        const response = await applyMoveToTablesArray({
+          ownerDoc: seatingDoc,
+          tables: seatingDoc.tables,
           guest,
-          tables: seating.tables,
-          table: selectedTable || null,
-          source: "Seating",
-        });
-      }
-    }
-
-    /*
-      2. ניסיון שני:
-      SeatingTable - כל שולחן כמסמך נפרד
-    */
-    let tables = scopedQuery.length
-      ? await SeatingTable.find({
-          $or: scopedQuery,
-        })
-      : [];
-
-    /*
-      חשוב:
-      גם אם נמצאו שולחנות לפי eventId / invitationId,
-      עדיין יכול להיות שהשולחן שנבחר לא נמצא שם בגלל mismatch.
-      לכן עושים fallback ישיר לפי toTableId גם כש-tables לא ריק.
-    */
-    let selectedTable: any = null;
-
-    if (toTableId && tables.length) {
-      selectedTable =
-        tables.find((table: any) => isTargetTable(table, toTableId)) || null;
-    }
-
-    if (toTableId && !selectedTable) {
-      const directTables = await findTablesByDirectTable(toTableId);
-
-      if (directTables.length) {
-        tables = directTables;
-        selectedTable =
-          tables.find((table: any) => isTargetTable(table, toTableId)) ||
-          directTables[0] ||
-          null;
-      }
-    }
-
-    if (!tables.length) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "לא נמצאו שולחנות לאירוע",
-          debug: {
-            eventId,
-            guestId,
-            toTableId,
-            guestInvitationId: normalizeId(guest.invitationId),
-            seatingFound: !!seating,
-            seatingTablesCount: seating?.tables?.length || 0,
-          },
-        },
-        { status: 404 }
-      );
-    }
-
-    if (toTableId && !selectedTable) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "השולחן שנבחר לא נמצא",
-          debug: {
-            eventId,
-            guestId,
-            toTableId,
-            guestInvitationId: normalizeId(guest.invitationId),
-            availableTables: serializeTables(tables),
-            seatingAvailableTables: seating?.tables
-              ? serializeTables(seating.tables)
-              : [],
-          },
-        },
-        { status: 404 }
-      );
-    }
-
-    /*
-      קודם מנקים את האורח מכל השולחנות.
-      חשוב כדי שלא יהיה כפול.
-    */
-    for (const table of tables) {
-      cleanGuestFromTable(table, guestId);
-      await table.save();
-    }
-
-    if (selectedTable) {
-      const freeSeats = findFreeSeatIndexes(selectedTable, seatsCount, guestId);
-
-      if (freeSeats.length < seatsCount) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: "אין מספיק מקומות פנויים בשולחן הזה",
-          },
-          { status: 400 }
-        );
-      }
-
-      selectedTable.seatedGuests.push(
-        ...freeSeats.map((seatIndex) => ({
           guestId,
-          seatIndex,
-          arrived: Number(guest.actualArrivedCount || 0) > 0,
-        }))
-      );
+          toTableId,
+          seatsCount,
+          source: "Seating.tables",
+        });
 
-      await selectedTable.save();
+        if (response) return response;
+      }
     }
 
-    await updateGuestFields(guest, selectedTable);
-
-    const nextTables = scopedQuery.length
-      ? await SeatingTable.find({
-          $or: scopedQuery,
-        }).lean()
-      : [];
-
-    return NextResponse.json({
-      success: true,
-      guest,
-      tables: nextTables.length ? nextTables : tables,
-      table: selectedTable || null,
-      source: "SeatingTable",
+    /*
+      3. fallback אחרון בלבד:
+      אם קיימים שולחנות כמסמכים נפרדים.
+      לא משתמשים בזה כברירת מחדל כדי לא לשבור את המבנה שלך.
+    */
+    const legacyTables = await findLegacyStandaloneTables({
+      scopedQuery,
+      toTableId,
     });
+
+    if (legacyTables.length) {
+      const response = await applyMoveToLegacyStandaloneTables({
+        tables: legacyTables,
+        guest,
+        guestId,
+        toTableId,
+        seatsCount,
+      });
+
+      if (response) return response;
+    }
+
+    return NextResponse.json(
+      {
+        success: false,
+        message: toTableId
+          ? "השולחן שנבחר לא נמצא"
+          : "לא נמצאו שולחנות לאירוע",
+        debug: {
+          eventId,
+          guestId,
+          toTableId,
+          guestInvitationId: normalizeId(guest.invitationId),
+          scopedQueryCount: scopedQuery.length,
+          seatingTableDocFound: !!seatingTableDoc,
+          seatingTableTablesCount: seatingTableDoc?.tables?.length || 0,
+          seatingDocFound: !!seatingDoc,
+          seatingTablesCount: seatingDoc?.tables?.length || 0,
+          seatingTableAvailableTables: seatingTableDoc?.tables
+            ? serializeTables(seatingTableDoc.tables)
+            : [],
+          seatingAvailableTables: seatingDoc?.tables
+            ? serializeTables(seatingDoc.tables)
+            : [],
+          legacyTablesCount: legacyTables.length,
+          legacyAvailableTables: serializeTables(legacyTables),
+        },
+      },
+      { status: 404 }
+    );
   } catch (err: any) {
     console.error("Move guest table error:", err);
 
