@@ -28,117 +28,178 @@ function getUnsetFieldsByRoundKey(key: string) {
     const round = key.split("_")[1];
 
     return [
-      // RSVP כללי — שתי גרסאות כי במונגו אצלך יש sentAt עם s קטנה
+      /* =====================================================
+         RSVP כללי — שתי גרסאות כי אצלך בקוד/DB יש גם SentAt וגם sentAt
+      ===================================================== */
       `rsvpRound${round}SentAt`,
       `rsvpRound${round}sentAt`,
 
-      // SMS
+      /* =====================================================
+         חשוב מאוד:
+         אובייקט פנימי שקיים אצלך במונגו:
+         rsvpRoundSentAt.round1 / round2 / round3
+      ===================================================== */
+      `rsvpRoundSentAt.round${round}`,
+      `rsvpRoundSentAt.round${round}.sentAt`,
+      `rsvpRoundSentAt.round${round}.sentAtSms`,
+      `rsvpRoundSentAt.round${round}.sentAtWhatsapp`,
+      `rsvpRoundSentAt.round${round}.smsSentAt`,
+      `rsvpRoundSentAt.round${round}.whatsappSentAt`,
+      `rsvpRoundSentAt.round${round}.scheduledAt`,
+      `rsvpRoundSentAt.round${round}.smsScheduledAt`,
+      `rsvpRoundSentAt.round${round}.whatsappScheduledAt`,
+
+      /* =====================================================
+         SMS
+      ===================================================== */
       `rsvpSmsRound${round}SentAt`,
       `rsvpSmsRound${round}sentAt`,
 
-      // WhatsApp
+      /* =====================================================
+         WhatsApp
+      ===================================================== */
       `rsvpWhatsappRound${round}SentAt`,
       `rsvpWhatsappRound${round}sentAt`,
 
-      // Scheduled כללי
+      /* =====================================================
+         Scheduled כללי
+      ===================================================== */
       `rsvpRound${round}ScheduledAt`,
       `rsvpRound${round}scheduledAt`,
 
-      // Scheduled SMS
+      /* =====================================================
+         Scheduled SMS
+      ===================================================== */
       `rsvpSmsRound${round}ScheduledAt`,
       `rsvpSmsRound${round}scheduledAt`,
 
-      // Scheduled WhatsApp
+      /* =====================================================
+         Scheduled WhatsApp
+      ===================================================== */
       `rsvpWhatsappRound${round}ScheduledAt`,
       `rsvpWhatsappRound${round}scheduledAt`,
 
-      // locks אפשריים
+      /* =====================================================
+         Locks אפשריים
+      ===================================================== */
       `messageLocks.rsvpRound${round}`,
       `messageLocks.rsvpRound${round}Sms`,
       `messageLocks.rsvpRound${round}Whatsapp`,
       `messageLocks.rsvpSmsRound${round}`,
       `messageLocks.rsvpWhatsappRound${round}`,
 
-      // חסימת אדמין
+      /* =====================================================
+         חסימת אדמין
+      ===================================================== */
       `adminMessageRoundLocks.rsvp_${round}`,
     ];
   }
 
   if (key === "reminder") {
     return [
-      // כללי
+      /* =====================================================
+         כללי
+      ===================================================== */
       "reminderSentAt",
       "remindersentAt",
 
-      // SMS
+      /* =====================================================
+         SMS
+      ===================================================== */
       "reminderSmsSentAt",
       "reminderSmssentAt",
 
-      // WhatsApp
+      /* =====================================================
+         WhatsApp
+      ===================================================== */
       "reminderWhatsappSentAt",
       "reminderWhatsappsentAt",
 
-      // Scheduled כללי
+      /* =====================================================
+         Scheduled כללי
+      ===================================================== */
       "reminderScheduledAt",
       "reminderscheduledAt",
 
-      // Scheduled SMS
+      /* =====================================================
+         Scheduled SMS
+      ===================================================== */
       "reminderSmsScheduledAt",
       "reminderSmsscheduledAt",
 
-      // Scheduled WhatsApp
+      /* =====================================================
+         Scheduled WhatsApp
+      ===================================================== */
       "reminderWhatsappScheduledAt",
       "reminderWhatsappscheduledAt",
 
-      // locks שהשליחה בודקת
+      /* =====================================================
+         Locks שהשליחה בודקת
+      ===================================================== */
       "messageLocks.reminder",
       "messageLocks.reminderSms",
       "messageLocks.reminderWhatsapp",
 
-      // חסימת אדמין
+      /* =====================================================
+         חסימת אדמין
+      ===================================================== */
       "adminMessageRoundLocks.reminder",
     ];
   }
 
   if (key === "thankyou") {
     return [
-      // כללי — שתי גרסאות
+      /* =====================================================
+         כללי — שתי גרסאות
+      ===================================================== */
       "thankYouSentAt",
       "thankYousentAt",
       "thankyouSentAt",
       "thankyousentAt",
 
-      // SMS
+      /* =====================================================
+         SMS
+      ===================================================== */
       "thankYouSmsSentAt",
       "thankYouSmssentAt",
       "thankyouSmsSentAt",
       "thankyouSmssentAt",
 
-      // WhatsApp
+      /* =====================================================
+         WhatsApp
+      ===================================================== */
       "thankYouWhatsappSentAt",
       "thankYouWhatsappsentAt",
       "thankyouWhatsappSentAt",
       "thankyouWhatsappsentAt",
 
-      // Scheduled כללי
+      /* =====================================================
+         Scheduled כללי
+      ===================================================== */
       "thankYouScheduledAt",
       "thankYouscheduledAt",
       "thankyouScheduledAt",
       "thankyouscheduledAt",
 
-      // Scheduled SMS
+      /* =====================================================
+         Scheduled SMS
+      ===================================================== */
       "thankYouSmsScheduledAt",
       "thankYouSmsscheduledAt",
       "thankyouSmsScheduledAt",
       "thankyouSmsscheduledAt",
 
-      // Scheduled WhatsApp
+      /* =====================================================
+         Scheduled WhatsApp
+      ===================================================== */
       "thankYouWhatsappScheduledAt",
       "thankYouWhatsappscheduledAt",
       "thankyouWhatsappScheduledAt",
       "thankyouWhatsappscheduledAt",
 
-      // locks שהשליחה בודקת
+      /* =====================================================
+         Locks שהשליחה בודקת
+      ===================================================== */
       "messageLocks.thankyou",
       "messageLocks.thankyouSms",
       "messageLocks.thankyouWhatsapp",
@@ -146,7 +207,9 @@ function getUnsetFieldsByRoundKey(key: string) {
       "messageLocks.thankYouSms",
       "messageLocks.thankYouWhatsapp",
 
-      // חסימת אדמין
+      /* =====================================================
+         חסימת אדמין
+      ===================================================== */
       "adminMessageRoundLocks.thankyou",
     ];
   }
@@ -161,14 +224,27 @@ function getBlockPatchByRoundKey(key: string) {
     const round = key.split("_")[1];
 
     return {
-      // לתצוגה באדמין
+      /* =====================================================
+         לתצוגה באדמין
+      ===================================================== */
       [`adminMessageRoundLocks.rsvp_${round}`]: true,
 
-      // לחסימה בפועל דרך isRsvpRoundAlreadySent
+      /* =====================================================
+         לחסימה בפועל דרך בדיקות השליחה
+      ===================================================== */
       [`rsvpRound${round}SentAt`]: now,
       [`rsvpRound${round}sentAt`]: now,
 
-      // locks אפשריים אם קיימים אצלך בקוד
+      /* =====================================================
+         אובייקט פנימי שקיים אצלך במונגו
+      ===================================================== */
+      [`rsvpRoundSentAt.round${round}.sentAt`]: now,
+      [`rsvpRoundSentAt.round${round}.blockedAt`]: now,
+      [`rsvpRoundSentAt.round${round}.blockedByAdmin`]: true,
+
+      /* =====================================================
+         Locks אפשריים אם קיימים אצלך בקוד
+      ===================================================== */
       [`messageLocks.rsvpRound${round}`]: true,
       [`messageLocks.rsvpRound${round}Sms`]: true,
       [`messageLocks.rsvpRound${round}Whatsapp`]: true,
@@ -179,10 +255,14 @@ function getBlockPatchByRoundKey(key: string) {
 
   if (key === "reminder") {
     return {
-      // לתצוגה באדמין
+      /* =====================================================
+         לתצוגה באדמין
+      ===================================================== */
       "adminMessageRoundLocks.reminder": true,
 
-      // לחסימה בפועל ב-SMS/WhatsApp
+      /* =====================================================
+         לחסימה בפועל ב-SMS/WhatsApp
+      ===================================================== */
       reminderSentAt: now,
       remindersentAt: now,
 
@@ -194,10 +274,14 @@ function getBlockPatchByRoundKey(key: string) {
 
   if (key === "thankyou") {
     return {
-      // לתצוגה באדמין
+      /* =====================================================
+         לתצוגה באדמין
+      ===================================================== */
       "adminMessageRoundLocks.thankyou": true,
 
-      // לחסימה בפועל ב-SMS/WhatsApp
+      /* =====================================================
+         לחסימה בפועל ב-SMS/WhatsApp
+      ===================================================== */
       thankYouSentAt: now,
       thankYousentAt: now,
       thankyouSentAt: now,
@@ -247,6 +331,7 @@ export async function PATCH(
 
     const action = body?.action;
     const key = body?.key;
+    const invitationId = body?.invitationId;
 
     if (!userId || !key || !["reset", "block", "unblock"].includes(action)) {
       return NextResponse.json(
@@ -264,9 +349,21 @@ export async function PATCH(
       );
     }
 
-    const invitation = await Invitation.findOne({
-      ownerId: userId,
-    })
+    /*
+      חשוב:
+      אם שלחת invitationId מהפרונט — נעדכן את ההזמנה הספציפית.
+      אם לא שלחת — נשאר fallback לפי ownerId כמו שהיה אצלך.
+    */
+    const invitationQuery = invitationId
+      ? {
+          _id: invitationId,
+          ownerId: userId,
+        }
+      : {
+          ownerId: userId,
+        };
+
+    const invitation = await Invitation.findOne(invitationQuery)
       .select("_id")
       .lean();
 
@@ -279,11 +376,19 @@ export async function PATCH(
 
     /*
       פתיחה מחדש:
-      מוחקת את כל מה שהשליחה בודקת:
+      מוחקת את כל מה שהשליחה / הפרונט בודקים:
       SentAt / sentAt / ScheduledAt / messageLocks / adminMessageRoundLocks
+      וגם rsvpRoundSentAt.roundX
     */
     if (action === "reset" || action === "unblock") {
       const fields = getUnsetFieldsByRoundKey(key);
+
+      if (!fields.length) {
+        return NextResponse.json(
+          { success: false, error: "INVALID_ROUND_KEY" },
+          { status: 400 }
+        );
+      }
 
       const unset: Record<string, ""> = {};
 
@@ -310,6 +415,13 @@ export async function PATCH(
     if (action === "block") {
       const set = getBlockPatchByRoundKey(key);
 
+      if (!Object.keys(set).length) {
+        return NextResponse.json(
+          { success: false, error: "INVALID_ROUND_KEY" },
+          { status: 400 }
+        );
+      }
+
       await Invitation.updateOne(
         { _id: invitation._id },
         {
@@ -321,9 +433,45 @@ export async function PATCH(
       );
     }
 
+    const updatedInvitation = await Invitation.findById(invitation._id)
+      .select(
+        [
+          "_id",
+          "updatedAt",
+
+          "rsvpRound1SentAt",
+          "rsvpRound2SentAt",
+          "rsvpRound3SentAt",
+
+          "rsvpRound1sentAt",
+          "rsvpRound2sentAt",
+          "rsvpRound3sentAt",
+
+          "rsvpSmsRound1SentAt",
+          "rsvpSmsRound2SentAt",
+          "rsvpSmsRound3SentAt",
+
+          "rsvpWhatsappRound1SentAt",
+          "rsvpWhatsappRound2SentAt",
+          "rsvpWhatsappRound3SentAt",
+
+          "rsvpWhatsappRound1ScheduledAt",
+          "rsvpWhatsappRound2ScheduledAt",
+          "rsvpWhatsappRound3ScheduledAt",
+
+          "rsvpRoundSentAt",
+          "reminderSentAt",
+          "thankYouSentAt",
+          "messageLocks",
+          "adminMessageRoundLocks",
+        ].join(" ")
+      )
+      .lean();
+
     return NextResponse.json(
       {
         success: true,
+        invitation: updatedInvitation,
       },
       {
         headers: {
