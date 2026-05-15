@@ -535,20 +535,9 @@ export default function RsvpTab({
           shareId: inv?.shareId || "",
         });
 
-        const r1Sent =
-          inv?.rsvpRound1SentAt ||
-          inv?.rsvpSmsRound1SentAt ||
-          inv?.rsvpWhatsappRound1SentAt;
-
-        const r2Sent =
-          inv?.rsvpRound2SentAt ||
-          inv?.rsvpSmsRound2SentAt ||
-          inv?.rsvpWhatsappRound2SentAt;
-
-        const r3Sent =
-          inv?.rsvpRound3SentAt ||
-          inv?.rsvpSmsRound3SentAt ||
-          inv?.rsvpWhatsappRound3SentAt;
+        const r1Sent = Boolean(inv?.rsvpRoundSent?.round1);
+const r2Sent = Boolean(inv?.rsvpRoundSent?.round2);
+const r3Sent = Boolean(inv?.rsvpRoundSent?.round3);
 
         const r1Scheduled =
           inv?.rsvpSmsRound1ScheduledAt ||
@@ -570,23 +559,9 @@ export default function RsvpTab({
         setRound2Scheduled(!!r2Scheduled);
         setRound3Scheduled(!!r3Scheduled);
 
-        setRound1Locked(
-          selectedChannel === "sms"
-            ? inv?.messageLocks?.rsvpSmsRound1 ?? false
-            : inv?.messageLocks?.rsvpWhatsappRound1 ?? false
-        );
-
-        setRound2Locked(
-          selectedChannel === "sms"
-            ? inv?.messageLocks?.rsvpSmsRound2 ?? false
-            : inv?.messageLocks?.rsvpWhatsappRound2 ?? false
-        );
-
-        setRound3Locked(
-          selectedChannel === "sms"
-            ? inv?.messageLocks?.rsvpSmsRound3 ?? false
-            : inv?.messageLocks?.rsvpWhatsappRound3 ?? false
-        );
+        setRound1Locked(Boolean(inv?.rsvpRoundSent?.round1));
+setRound2Locked(Boolean(inv?.rsvpRoundSent?.round2));
+setRound3Locked(Boolean(inv?.rsvpRoundSent?.round3));
 
         setGiftOptions(normalizeGiftOptions(inv?.giftOptions));
         didInitGift.current = true;
@@ -799,11 +774,11 @@ export default function RsvpTab({
     selectedChannel === "whatsapp" && !invitationPreview.headerImageUrl;
 
   const blocked =
-    (sendTiming === "now" && noAudience) ||
-    missingHeaderImage ||
-    (sendTiming === "scheduled" && !scheduledAt) ||
-    (currentRoundSent && currentRoundLocked) ||
-    currentRoundScheduledInAnotherChannel;
+  (sendTiming === "now" && noAudience) ||
+  missingHeaderImage ||
+  (sendTiming === "scheduled" && !scheduledAt) ||
+  currentRoundSent ||
+  currentRoundScheduledInAnotherChannel;
 
   const whatsappPreviewText = useMemo(() => {
     return getWhatsappPreviewText({
