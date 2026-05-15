@@ -355,15 +355,17 @@ export async function PATCH(
         };
 
     const invitation = await Invitation.findOne(invitationQuery)
-      .select("_id")
-      .lean();
+  .select("_id")
+  .lean();
 
-    if (!invitation) {
-      return NextResponse.json(
-        { success: false, error: "INVITATION_NOT_FOUND" },
-        { status: 404 }
-      );
-    }
+if (!invitation) {
+  return NextResponse.json(
+    { success: false, error: "INVITATION_NOT_FOUND" },
+    { status: 404 }
+  );
+}
+
+let updateDebug: any = null;
 
     /*
       פתיחה מחדש:
@@ -397,13 +399,18 @@ export async function PATCH(
   }
 );
 
-console.log("✅ MESSAGE ROUND RESET RESULT:", {
-  invitationId: String(invitation._id),
+updateDebug = {
+  action,
   key,
+  userId,
+  receivedInvitationId: invitationId || null,
+  updatedInvitationId: String(invitation._id),
   matchedCount: resetResult.matchedCount,
   modifiedCount: resetResult.modifiedCount,
   unsetFields: Object.keys(unset),
-});
+};
+
+console.log("✅ MESSAGE ROUND RESET RESULT:", updateDebug);
     }
 
     /*
@@ -475,10 +482,12 @@ console.log("✅ MESSAGE ROUND BLOCK RESULT:", {
       .lean();
 
     return NextResponse.json(
-      {
-        success: true,
-        invitation: updatedInvitation,
-      },
+  {
+    success: true,
+    invitation: updatedInvitation,
+    debug: updateDebug,
+  },
+      
       {
         headers: {
           "Cache-Control": "no-store",

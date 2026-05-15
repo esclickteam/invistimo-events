@@ -1379,6 +1379,17 @@ function AdminMessageRoundsPanel({
 
       const data = await res.json().catch(() => null);
 
+      console.log("message round response:", data);
+
+if (data?.debug) {
+  alert(
+    `matched: ${data.debug.matchedCount}\n` +
+      `modified: ${data.debug.modifiedCount}\n` +
+      `receivedInvitationId: ${data.debug.receivedInvitationId}\n` +
+      `updatedInvitationId: ${data.debug.updatedInvitationId}`
+  );
+}
+
       if (!res.ok || data?.success === false) {
         alert("עדכון הסבב נכשל");
         return;
