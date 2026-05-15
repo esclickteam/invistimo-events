@@ -1,439 +1,266 @@
-import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/db";
-import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
-import User from "@/models/User";
-import Payment from "@/models/Payment";
-import { sendPasswordSetupMail } from "@/lib/sendPasswordSetupMail";
-import Invitation from "@/models/Invitation";
+import mongoose, {
+  Schema,
+  Document,
+  models,
+  model,
+  HydratedDocument,
+} from "mongoose";
 
-export const dynamic = "force-dynamic";
-export const runtime = "nodejs";
+/* ============================================================
+   TYPES
+============================================================ */
 
-/* =========================================================
-   Helpers
-========================================================= */
-function isAdminContext(auth: any) {
-  return (
-    auth?.role === "admin" ||
-    auth?.impersonationRole === "admin" ||
-    !!auth?.impersonatedBy
-  );
-}
+export interface IUser extends Document {
+  name: string;
+  email: string;
+  password?: string;
+  phone?: string;
 
-function buildUsersFilter(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
+  role: "user" | "client" | "producer" | "staff" | "admin";
+  staffType?: "producer_staff" | "general_staff" | null;
 
-  // all | active
-  const scope = (searchParams.get("scope") || "all").toLowerCase();
-  const q = (searchParams.get("q") || "").trim();
+  /* 🔥 UPDATED PLAN TYPES */
+  plan: "basic" | "premium" | "plan1" | "plan2" | "plan3";
 
-  const baseFilter: any = {
-    isDemoUser: { $ne: true },
+  guests: number;
+
+  paidAmount: number;
+  hasPaid: boolean;
+  isActive: boolean;
+
+  producerId?: mongoose.Types.ObjectId | null;
+  createdByProducer?: mongoose.Types.ObjectId | null;
+  createdByAdmin?: boolean;
+
+  assignedProducerId?: mongoose.Types.ObjectId | null;
+  assignedStaffIds?: mongoose.Types.ObjectId[];
+  assignedClientIds?: mongoose.Types.ObjectId[];
+
+  billingSource?: "site" | "admin" | "producer";
+  producerPricePerRecord?: number;
+
+  includeCalls: boolean;
+  callsAddonPrice: number;
+
+  includeCreditGifts: boolean;
+  creditGiftsAddonPrice: number;
+
+  /* 🔥 NEW ADDON FLAGS */
+  selfManageEnabled: boolean;
+  customDesignEnabled: boolean;
+
+  smsPerRecord: number;
+  maxMessages: number;
+
+  planLimits: {
+    maxGuests: number;
+    smsEnabled: boolean;
+    smsLimit: number;
+    seatingEnabled: boolean;
+    remindersEnabled: boolean;
   };
 
-  const activeFilter: any = {
-    ...baseFilter,
-    $or: [
-      { hasPaid: true },
-      { plan: "premium" },
-      { createdByProducer: { $ne: null } },
-      { role: "producer" },
-      { role: "staff" },
-    ],
-  };
+  smsBalance: number;
+  smsUsed: number;
+  testSmsUsed: number;
 
-  const filter: any = scope === "active" ? activeFilter : baseFilter;
+  whatsappBalance: number;
+  whatsappUsed: number;
 
-  if (q) {
-    filter.$and = filter.$and || [];
-    filter.$and.push({
-      $or: [
-        { name: { $regex: q, $options: "i" } },
-        { email: { $regex: q, $options: "i" } },
-      ],
-    });
-  }
+  isTrial: boolean;
 
-  return { filter, scope, q };
+  isDemoUser?: boolean;
+  needsPasswordSetup?: boolean;
+
+  resetPasswordToken?: string;
+  resetPasswordExpires?: Date;
+
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-/* =========================================================
-   GET – ADMIN USERS LIST
-   /api/admin/users?scope=all|active&q=...
-========================================================= */
-export async function GET(req: NextRequest) {
-  try {
-    await connectDB();
-
-    const auth = await getUserIdFromRequest(req);
-    if (!auth?.userId) {
-      return NextResponse.json(
-        { success: false, error: "UNAUTHORIZED" },
-        { status: 401 }
-      );
-    }
-
-    if (!isAdminContext(auth)) {
-      return NextResponse.json(
-        { success: false, error: "FORBIDDEN" },
-        { status: 403 }
-      );
-    }
-
-    const { filter, scope, q } = buildUsersFilter(req);
-
-    const users = await User.find(filter)
-      .select(`
-        name
-        email
-        role
-        staffType
-        plan
-        guests
-        maxMessages
-        paidAmount
-        hasPaid
-        includeCalls
-        includeCreditGifts
-        createdByProducer
-        producerId
-        planLimits
-        smsUsed
-        createdAt
-        producerPricePerRecord
-        assignedProducerId
-        assignedStaffIds
-      `)
-      .sort({ createdAt: -1 })
-      .lean();
-
-    const userIds = users.map((u: any) => u._id);
-
-    const invitations =
-  userIds.length > 0
-    ? await Invitation.find({
-        ownerId: { $in: userIds },
-      })
-        .select("ownerId eventDate")
-        .sort({ eventDate: -1 })
-        .lean()
-    : [];
-
-    const revenueAgg = await User.aggregate([
-      {
-        $match: {
-          isDemoUser: { $ne: true },
-          hasPaid: true,
-          paidAmount: { $gt: 0 },
-        },
-      },
-      {
-        $group: {
-          _id: null,
-          totalRevenue: { $sum: { $ifNull: ["$paidAmount", 0] } },
-        },
-      },
-    ]);
-
-    const totalRevenue = revenueAgg[0]?.totalRevenue ?? 0;
-
-    const invitationByUserId = new Map<string, any>();
-
-for (const invitation of invitations) {
-  const uid = String(invitation.ownerId);
-
-  if (!invitationByUserId.has(uid)) {
-    invitationByUserId.set(uid, invitation);
-  }
-}
-
-    const today = new Date();
-
-today.setHours(0, 0, 0, 0);
-
-const usersWithEventDate = users
-  .map((u: any) => {
-    const invitation = invitationByUserId.get(String(u._id));
-
-    return {
-      ...u,
-      eventDate: invitation?.eventDate || null,
-    };
-  })
-  .sort((a: any, b: any) => {
-
-    // בלי תאריך -> לסוף
-    if (!a.eventDate) return 1;
-    if (!b.eventDate) return -1;
-
-    const dateA = new Date(a.eventDate);
-    const dateB = new Date(b.eventDate);
-
-    dateA.setHours(0, 0, 0, 0);
-    dateB.setHours(0, 0, 0, 0);
-
-    const isPastA = dateA < today;
-    const isPastB = dateB < today;
-
-    // עתידיים לפני עבר
-    if (isPastA && !isPastB) return 1;
-    if (!isPastA && isPastB) return -1;
-
-    // שניהם עתידיים -> הכי קרוב ראשון
-    if (!isPastA && !isPastB) {
-      return (
-        dateA.getTime() - dateB.getTime()
-      );
-    }
-
-    // שניהם עבר -> הכי חדש קודם
-    return (
-      dateB.getTime() - dateA.getTime()
-    );
-  });
-  
-    return NextResponse.json(
-      {
-        success: true,
-        users: usersWithEventDate,
-        totalRevenue,
-        meta: {
-          scope, // all / active
-          q,
-          count: usersWithEventDate.length,
-        },
-      },
-      { headers: { "Cache-Control": "no-store" } }
-    );
-  } catch (err) {
-    console.error("❌ ADMIN USERS GET ERROR:", err);
-    return NextResponse.json(
-      { success: false, error: "SERVER_ERROR" },
-      { status: 500 }
-    );
-  }
-}
-
-/* =========================================================
-   POST – CREATE USER (ADMIN)
-========================================================= */
-export async function POST(req: NextRequest) {
-  try {
-    await connectDB();
-
-    const auth = await getUserIdFromRequest(req);
-    if (!auth?.userId) {
-      return NextResponse.json(
-        { success: false, error: "UNAUTHORIZED" },
-        { status: 401 }
-      );
-    }
-
-    if (!isAdminContext(auth)) {
-      return NextResponse.json(
-        { success: false, error: "FORBIDDEN" },
-        { status: 403 }
-      );
-    }
-
-    const body = await req.json().catch(() => null);
-    const { name, email, role, limits, billing, addons, plan } = body || {};
-
-
-
-    if (!name || !email || !role) {
-      return NextResponse.json(
-        { success: false, error: "MISSING_REQUIRED_FIELDS" },
-        { status: 400 }
-      );
-    }
-
-    // מניעת כפילות מייל
-    const existing = await User.findOne({ email: String(email).toLowerCase() })
-      .select("_id")
-      .lean();
-
-    if (existing) {
-      return NextResponse.json(
-        { success: false, error: "EMAIL_ALREADY_EXISTS" },
-        { status: 409 }
-      );
-    }
-
-    /* ================= PRODUCER ================= */
-    if (role === "producer") {
-      const pricePerRecord = Number(billing?.pricePerRecord || 0);
-
-      const user = await User.create({
-        name,
-        email: String(email).toLowerCase(),
-        role: "producer",
-
-        producerPricePerRecord: pricePerRecord,
-
-        hasPaid: true,
-        paidAmount: 0,
-
-        needsPasswordSetup: true,
-        createdByAdmin: true,
-        billingSource: "admin",
-      });
-
-      await sendPasswordSetupMail(String(user._id));
-
-      return NextResponse.json(
-        { success: true, userId: String(user._id) },
-        { status: 201 }
-      );
-    }
-
-    /* ================= STAFF ================= */
-    if (role === "staff") {
-      const user = await User.create({
-        name,
-        email: String(email).toLowerCase(),
-        role: "staff",
-
-        hasPaid: true, 
-        paidAmount: 0,
-
-        needsPasswordSetup: true,
-        createdByAdmin: true,
-        billingSource: "admin",
-      });
-
-      await sendPasswordSetupMail(String(user._id));
-
-      return NextResponse.json(
-        { success: true, userId: String(user._id) },
-        { status: 201 }
-      );
-    }
-
-    /* ================= USER ================= */
-    /* ================= USER ================= */
-const { records, smsTotal, includeCalls } = limits || {};
-const { price, paymentStatus } = billing || {};
-
-const recordsNum = Number(records);
-const smsTotalNum = Number(smsTotal);
-const priceNum = Number(price ?? 0);
-
-if (
-  Number.isNaN(recordsNum) ||
-  Number.isNaN(smsTotalNum) ||
-  Number.isNaN(priceNum)
-) {
-  return NextResponse.json(
-    { success: false, error: "INVALID_LIMITS_OR_BILLING" },
-    { status: 400 }
-  );
-}
-
-const safePlan = String(plan || "plan1");
-
-// ✅ חישוב שרת אמיתי (לא לסמוך רק על הלקוח)
-const planIncludesCalls = safePlan === "plan2" || safePlan === "plan3";
-const planIncludesCredit = safePlan === "plan3";
-const planIncludesSeating = safePlan === "plan3";
-
-const finalIncludeCalls = planIncludesCalls || !!includeCalls;
-const finalIncludeCreditGifts =
-  planIncludesCredit || addons?.credit?.enabled === true;
-
-const finalSeatingEnabled =
-  planIncludesSeating || addons?.seating?.enabled === true;
-
-const finalSelfManageEnabled = addons?.system?.enabled === true;
-const finalCustomDesignEnabled = addons?.design?.enabled === true;
-
-const planLimits = {
-  maxGuests: recordsNum,
-  smsEnabled: true,
-  smsLimit: smsTotalNum,
-  seatingEnabled: finalSeatingEnabled, // ✅ במקום true קבוע
-  remindersEnabled: true,
-  callsEnabled: finalIncludeCalls,
-};
-
-const user = await User.create({
-  name,
-  email: String(email).toLowerCase(),
-  role: "user",
-
-  plan: safePlan,
-
-  planLimits,
-
-  guests: recordsNum,
-  maxMessages: smsTotalNum,
-
-  includeCalls: finalIncludeCalls,
-  includeCreditGifts: finalIncludeCreditGifts,
-  creditGiftsAddonPrice: Number(addons?.credit?.price || 0),
-
-  selfManageEnabled: finalSelfManageEnabled,
-  customDesignEnabled: finalCustomDesignEnabled,
-
-  hasPaid: paymentStatus === "paid",
-  paidAmount: priceNum,
-
-  needsPasswordSetup: true,
-  createdByAdmin: true,
-  billingSource: "admin",
-});
-
-if (paymentStatus === "paid") {
-  await Payment.create({
-    email: String(email).toLowerCase(),
-
-    stripeSessionId: null,
-    stripePaymentIntentId: null,
-    stripeCustomerId: null,
-    stripePriceId: null,
-
-    priceKey: `admin_manual_${recordsNum}`,
-    maxGuests: recordsNum,
-
-    includeCalls: finalIncludeCalls,
-    callsAddonPrice: 0,
-
-    includeCreditGifts: finalIncludeCreditGifts,
-    creditGiftsAddonPrice: Number(addons?.credit?.price || 0),
-
-    amount: priceNum,
-    refundAmount: 0,
-    currency: "ils",
-
-    type: "package",
-    status: "paid",
-    isTest: false,
-
-    meta: {
-      source: "admin",
-      adminId: auth.impersonatedBy
-        ? String(auth.impersonatedBy)
-        : String(auth.userId),
-      userId: String(user._id),
-      plan: safePlan,
+/* ============================================================
+   SCHEMA
+============================================================ */
+
+const UserSchema = new Schema<IUser>(
+  {
+    name: { type: String, required: true, trim: true },
+
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
     },
-  });
-}
 
-// ✅ מייל פעם אחת ביצירת המשתמש (לפני תשלום Stripe / מיד בתשלום ידני)
-await sendPasswordSetupMail(String(user._id));
+    password: {
+      type: String,
+      required: function (this: HydratedDocument<IUser>) {
+        return !this.needsPasswordSetup;
+      },
+    },
 
-return NextResponse.json(
-  { success: true, userId: String(user._id) },
-  { status: 201 }
+    phone: { type: String, trim: true, default: "" },
+
+    role: {
+      type: String,
+      enum: ["user", "client", "producer", "staff", "admin"],
+      default: "user",
+      index: true,
+    },
+
+    staffType: {
+      type: String,
+      enum: ["producer_staff", "general_staff"],
+      default: null,
+      index: true,
+    },
+
+    /* 🔥 UPDATED PLAN ENUM */
+    plan: {
+      type: String,
+      enum: ["basic", "premium", "plan1", "plan2", "plan3"],
+      default: "basic",
+    },
+
+    guests: { type: Number, default: 0 },
+
+    paidAmount: { type: Number, default: 0 },
+    hasPaid: { type: Boolean, default: false },
+
+    isActive: {
+      type: Boolean,
+      default: false,
+    },
+
+    createdByAdmin: { type: Boolean, default: false },
+
+    assignedProducerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+      index: true,
+    },
+
+    assignedStaffIds: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+
+    assignedClientIds: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+
+    billingSource: {
+  type: String,
+  enum: ["site", "admin", "producer", "pricing"],
+  default: "site",
+},
+
+    producerPricePerRecord: { type: Number, default: 0 },
+
+    includeCalls: { type: Boolean, default: false },
+    callsAddonPrice: { type: Number, default: 0 },
+
+    includeCreditGifts: { type: Boolean, default: false },
+    creditGiftsAddonPrice: { type: Number, default: 0 },
+
+    /* 🔥 NEW FIELDS */
+    selfManageEnabled: { type: Boolean, default: false },
+    customDesignEnabled: { type: Boolean, default: false },
+
+    smsPerRecord: { type: Number, default: 0 },
+    maxMessages: { type: Number, default: 0 },
+
+    planLimits: {
+      maxGuests: { type: Number, default: 0 },
+      smsEnabled: { type: Boolean, default: false },
+      smsLimit: { type: Number, default: 0 },
+      seatingEnabled: { type: Boolean, default: false },
+      remindersEnabled: { type: Boolean, default: false },
+    },
+
+    smsBalance: { type: Number, default: 0 },
+    smsUsed: { type: Number, default: 0 },
+    testSmsUsed: { type: Number, default: 0 },
+
+    whatsappBalance: { type: Number, default: 0 },
+    whatsappUsed: { type: Number, default: 0 },
+
+    isTrial: { type: Boolean, default: false },
+
+    isDemoUser: { type: Boolean, default: false },
+
+    needsPasswordSetup: {
+      type: Boolean,
+      default: true,
+    },
+
+    resetPasswordToken: { type: String },
+    resetPasswordExpires: Date,
+  },
+  { timestamps: true }
 );
 
+/* ============================================================
+   HOOKS
+============================================================ */
 
-  } catch (err) {
-    console.error("🔥 ADMIN USERS POST ERROR:", err);
-    return NextResponse.json(
-      { success: false, error: "SERVER_ERROR" },
-      { status: 500 }
+UserSchema.pre("validate", function () {
+  const doc = this as HydratedDocument<IUser>;
+
+  if (doc.includeCalls) {
+    doc.includeCreditGifts = true;
+    doc.creditGiftsAddonPrice = 0;
+  }
+
+  if (doc.role === "user" || doc.role === "admin") {
+    doc.staffType = null;
+    doc.assignedProducerId = null;
+    doc.assignedClientIds = [];
+  }
+
+  if (doc.role === "staff" && !doc.staffType) {
+  doc.staffType = "general_staff";
+}
+
+
+  if (
+    doc.role === "staff" &&
+    doc.staffType === "producer_staff" &&
+    !doc.assignedProducerId
+  ) {
+    doc.invalidate(
+      "assignedProducerId",
+      "assignedProducerId is required for producer_staff"
     );
   }
-}
+
+  if (Array.isArray(doc.assignedClientIds)) {
+    doc.assignedClientIds = Array.from(
+      new Set(doc.assignedClientIds.map(String))
+    ).map((id) => new mongoose.Types.ObjectId(id));
+  }
+});
+
+/* ============================================================
+   INDEXES
+============================================================ */
+
+UserSchema.index({ role: 1, staffType: 1 });
+UserSchema.index({ assignedProducerId: 1, role: 1 });
+UserSchema.index({ assignedProducerId: 1, assignedClientIds: 1 });
+
+/* ============================================================
+   MODEL
+============================================================ */
+
+const User = models.User || model<IUser>("User", UserSchema);
+export default User;

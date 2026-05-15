@@ -9,7 +9,6 @@ import mongoose, {
 /* ============================================================
    TYPES
 ============================================================ */
-
 export interface IUser extends Document {
   name: string;
   email: string;
@@ -19,14 +18,22 @@ export interface IUser extends Document {
   role: "user" | "client" | "producer" | "staff" | "admin";
   staffType?: "producer_staff" | "general_staff" | null;
 
-  /* 🔥 UPDATED PLAN TYPES */
   plan: "basic" | "premium" | "plan1" | "plan2" | "plan3";
+  priceKey?: string;
+  packageName?: string;
 
   guests: number;
+  maxGuests: number;
+
+  smsLimit: number;
+  maxMessages: number;
+  smsPerRecord: number;
 
   paidAmount: number;
   hasPaid: boolean;
   isActive: boolean;
+
+  eventDate?: Date | null;
 
   producerId?: mongoose.Types.ObjectId | null;
   createdByProducer?: mongoose.Types.ObjectId | null;
@@ -36,21 +43,24 @@ export interface IUser extends Document {
   assignedStaffIds?: mongoose.Types.ObjectId[];
   assignedClientIds?: mongoose.Types.ObjectId[];
 
-  billingSource?: "site" | "admin" | "producer";
+  billingSource?: "site" | "admin" | "producer" | "pricing";
   producerPricePerRecord?: number;
 
   includeCalls: boolean;
+  callsRounds: number;
   callsAddonPrice: number;
+  callsEnabledBy?: "admin" | "system" | "stripe" | null;
+  callsEnabledAt?: Date | null;
 
   includeCreditGifts: boolean;
   creditGiftsAddonPrice: number;
 
-  /* 🔥 NEW ADDON FLAGS */
+  includeDigitalSeating: boolean;
+  includeEventManagement: boolean;
+  includeCustomDesign: boolean;
+
   selfManageEnabled: boolean;
   customDesignEnabled: boolean;
-
-  smsPerRecord: number;
-  maxMessages: number;
 
   planLimits: {
     maxGuests: number;
@@ -58,6 +68,7 @@ export interface IUser extends Document {
     smsLimit: number;
     seatingEnabled: boolean;
     remindersEnabled: boolean;
+    callsEnabled?: boolean;
   };
 
   smsBalance: number;
@@ -82,7 +93,6 @@ export interface IUser extends Document {
 /* ============================================================
    SCHEMA
 ============================================================ */
-
 const UserSchema = new Schema<IUser>(
   {
     name: { type: String, required: true, trim: true },
@@ -93,6 +103,7 @@ const UserSchema = new Schema<IUser>(
       unique: true,
       lowercase: true,
       trim: true,
+      index: true,
     },
 
     password: {
@@ -118,14 +129,32 @@ const UserSchema = new Schema<IUser>(
       index: true,
     },
 
-    /* 🔥 UPDATED PLAN ENUM */
     plan: {
       type: String,
       enum: ["basic", "premium", "plan1", "plan2", "plan3"],
       default: "basic",
+      index: true,
+    },
+
+    priceKey: {
+      type: String,
+      trim: true,
+      default: "",
+      index: true,
+    },
+
+    packageName: {
+      type: String,
+      trim: true,
+      default: "",
     },
 
     guests: { type: Number, default: 0 },
+    maxGuests: { type: Number, default: 0 },
+
+    smsLimit: { type: Number, default: 0 },
+    maxMessages: { type: Number, default: 0 },
+    smsPerRecord: { type: Number, default: 0 },
 
     paidAmount: { type: Number, default: 0 },
     hasPaid: { type: Boolean, default: false },
@@ -133,9 +162,30 @@ const UserSchema = new Schema<IUser>(
     isActive: {
       type: Boolean,
       default: false,
+      index: true,
+    },
+
+    eventDate: {
+      type: Date,
+      default: null,
+      index: true,
     },
 
     createdByAdmin: { type: Boolean, default: false },
+
+    producerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+      index: true,
+    },
+
+    createdByProducer: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+      index: true,
+    },
 
     assignedProducerId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -159,25 +209,37 @@ const UserSchema = new Schema<IUser>(
     ],
 
     billingSource: {
-  type: String,
-  enum: ["site", "admin", "producer", "pricing"],
-  default: "site",
-},
+      type: String,
+      enum: ["site", "admin", "producer", "pricing"],
+      default: "site",
+    },
 
     producerPricePerRecord: { type: Number, default: 0 },
 
     includeCalls: { type: Boolean, default: false },
+    callsRounds: { type: Number, default: 0 },
     callsAddonPrice: { type: Number, default: 0 },
+
+    callsEnabledBy: {
+      type: String,
+      enum: ["admin", "system", "stripe"],
+      default: undefined,
+    },
+
+    callsEnabledAt: {
+      type: Date,
+      default: null,
+    },
 
     includeCreditGifts: { type: Boolean, default: false },
     creditGiftsAddonPrice: { type: Number, default: 0 },
 
-    /* 🔥 NEW FIELDS */
+    includeDigitalSeating: { type: Boolean, default: false },
+    includeEventManagement: { type: Boolean, default: false },
+    includeCustomDesign: { type: Boolean, default: false },
+
     selfManageEnabled: { type: Boolean, default: false },
     customDesignEnabled: { type: Boolean, default: false },
-
-    smsPerRecord: { type: Number, default: 0 },
-    maxMessages: { type: Number, default: 0 },
 
     planLimits: {
       maxGuests: { type: Number, default: 0 },
@@ -185,6 +247,7 @@ const UserSchema = new Schema<IUser>(
       smsLimit: { type: Number, default: 0 },
       seatingEnabled: { type: Boolean, default: false },
       remindersEnabled: { type: Boolean, default: false },
+      callsEnabled: { type: Boolean, default: false },
     },
 
     smsBalance: { type: Number, default: 0 },
@@ -212,25 +275,71 @@ const UserSchema = new Schema<IUser>(
 /* ============================================================
    HOOKS
 ============================================================ */
-
 UserSchema.pre("validate", function () {
   const doc = this as HydratedDocument<IUser>;
 
-  if (doc.includeCalls) {
-    doc.includeCreditGifts = true;
-    doc.creditGiftsAddonPrice = 0;
+  if (doc.email) {
+    doc.email = String(doc.email).trim().toLowerCase();
   }
 
-  if (doc.role === "user" || doc.role === "admin") {
+  if (doc.includeCalls) {
+    doc.callsRounds = doc.callsRounds || 3;
+    doc.planLimits = {
+      ...(doc.planLimits || {}),
+      callsEnabled: true,
+    };
+  } else {
+    doc.callsRounds = 0;
+    doc.planLimits = {
+      ...(doc.planLimits || {}),
+      callsEnabled: false,
+    };
+  }
+
+  if (doc.includeDigitalSeating) {
+    doc.planLimits = {
+      ...(doc.planLimits || {}),
+      seatingEnabled: true,
+    };
+  }
+
+  if (doc.includeEventManagement) {
+    doc.selfManageEnabled = true;
+  }
+
+  if (doc.includeCustomDesign) {
+    doc.customDesignEnabled = true;
+  }
+
+  if (doc.guests && !doc.maxGuests) {
+    doc.maxGuests = doc.guests;
+  }
+
+  if (doc.maxGuests && !doc.guests) {
+    doc.guests = doc.maxGuests;
+  }
+
+  if (doc.smsLimit && !doc.maxMessages) {
+    doc.maxMessages = doc.smsLimit;
+  }
+
+  if (doc.maxMessages && !doc.smsLimit) {
+    doc.smsLimit = doc.maxMessages;
+  }
+
+  if (doc.role === "admin") {
     doc.staffType = null;
     doc.assignedProducerId = null;
     doc.assignedClientIds = [];
   }
 
-  if (doc.role === "staff" && !doc.staffType) {
-  doc.staffType = "general_staff";
-}
+  if (doc.role === "user" || doc.role === "client" || doc.role === "producer") {
+    doc.staffType = null;
+  }
 
+  if (doc.role === "staff" && !doc.staffType) {
+    doc.staffType = "general_staff";
+  }
 
   if (
     doc.role === "staff" &&
@@ -248,19 +357,25 @@ UserSchema.pre("validate", function () {
       new Set(doc.assignedClientIds.map(String))
     ).map((id) => new mongoose.Types.ObjectId(id));
   }
+
+  if (Array.isArray(doc.assignedStaffIds)) {
+    doc.assignedStaffIds = Array.from(
+      new Set(doc.assignedStaffIds.map(String))
+    ).map((id) => new mongoose.Types.ObjectId(id));
+  }
 });
 
 /* ============================================================
    INDEXES
 ============================================================ */
-
 UserSchema.index({ role: 1, staffType: 1 });
 UserSchema.index({ assignedProducerId: 1, role: 1 });
 UserSchema.index({ assignedProducerId: 1, assignedClientIds: 1 });
+UserSchema.index({ email: 1, role: 1 });
+UserSchema.index({ eventDate: 1 });
 
 /* ============================================================
    MODEL
 ============================================================ */
-
 const User = models.User || model<IUser>("User", UserSchema);
 export default User;

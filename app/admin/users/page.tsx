@@ -1,32 +1,308 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState, type ReactNode } from "react";
 import CreateUserModal from "./CreateUserModal";
+import {
+  Search,
+  Users,
+  CalendarDays,
+  UserRound,
+  Mail,
+  ShieldCheck,
+  Crown,
+  Phone,
+  Pencil,
+  Trash2,
+  LogIn,
+  X,
+  Save,
+  Package,
+  Sparkles,
+  CreditCard,
+  CheckCircle2,
+  UserPlus,
+  Loader2,
+  ArrowUpCircle,
+} from "lucide-react";
 
 /* =========================
    TYPES
 ========================= */
+type AdminRole = "admin" | "user" | "producer" | "staff" | "client" | string;
+
 type AdminUser = {
   _id: string;
   name?: string;
   email: string;
-  role: "admin" | "user";
+  role: AdminRole;
+
   plan?: string;
-guests?: number;
+  packageName?: string;
+  priceKey?: string;
+
+  guests?: number;
+  maxGuests?: number;
+  smsLimit?: number;
+
   includeCalls?: boolean;
   callsRounds?: number;
+  callsAddonPrice?: number;
+
+  includeCreditGifts?: boolean;
+  creditGiftsAddonPrice?: number;
+
+  includeDigitalSeating?: boolean;
+  includeEventManagement?: boolean;
+  includeCustomDesign?: boolean;
+
+  paidAmount?: number;
+  totalPaid?: number;
   createdAt?: string;
   eventDate?: string;
 
-  // 🔽 מטפלים – IDs (לדרופדאון)
   assignedProducerId?: string | null;
   assignedStaffIds?: string[];
 
-  // 🔽 תצוגה (אם את עדיין משתמשת במיילים איפשהו)
   assignedProducerEmail?: string;
   assignedStaffEmail?: string;
 };
 
+type Assignee = {
+  _id: string;
+  name?: string;
+  email?: string;
+};
+
+type EditFormState = {
+  name: string;
+  email: string;
+  eventDate: string;
+  guests: number;
+  assignedProducerId: string | null;
+  assignedStaffIds: string[];
+};
+
+type UpgradeFormState = {
+  plan: string;
+  includeCalls: boolean;
+  includeCreditGifts: boolean;
+  includeDigitalSeating: boolean;
+  includeEventManagement: boolean;
+  includeCustomDesign: boolean;
+};
+
+/* =========================
+   CONSTS
+========================= */
+const AUTO_REFRESH_MS = 10000;
+
+const PLAN_OPTIONS = [
+  {
+    key: "plan1",
+    label: "חבילה 1",
+    guests: 100,
+    sms: 300,
+    price: 402,
+  },
+  {
+    key: "plan2",
+    label: "חבילה 2",
+    guests: 200,
+    sms: 600,
+    price: 789,
+  },
+  {
+    key: "plan3",
+    label: "חבילה 3",
+    guests: 300,
+    sms: 900,
+    price: 1171,
+  },
+];
+
+const ADDONS = [
+  {
+    key: "includeCalls",
+    label: "שירות שיחות",
+    price: 0,
+  },
+  {
+    key: "includeCreditGifts",
+    label: "מתנות באשראי",
+    price: 0,
+  },
+  {
+    key: "includeDigitalSeating",
+    label: "הושבה דיגיטלית",
+    price: 0,
+  },
+  {
+    key: "includeEventManagement",
+    label: "מערכת ניהול אירוע",
+    price: 0,
+  },
+  {
+    key: "includeCustomDesign",
+    label: "עיצוב בהתאמה אישית",
+    price: 0,
+  },
+] as const;
+
+/* =========================
+   HELPERS
+========================= */
+function formatDate(value?: string) {
+  if (!value) return "—";
+
+  try {
+    return new Date(value).toLocaleDateString("he-IL");
+  } catch {
+    return "—";
+  }
+}
+
+function formatDateInput(value?: string) {
+  if (!value) return "";
+
+  try {
+    return new Date(value).toISOString().split("T")[0];
+  } catch {
+    return "";
+  }
+}
+
+function formatMoney(value?: number) {
+  return `${Number(value || 0).toLocaleString("he-IL")} ₪`;
+}
+
+function normalizeText(value?: string) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function getPlanKey(user: AdminUser) {
+  return user.plan || user.priceKey || user.packageName || "";
+}
+
+function getPlanInfo(plan?: string) {
+  if (!plan) return null;
+
+  return (
+    PLAN_OPTIONS.find((p) => p.key === plan) ||
+    PLAN_OPTIONS.find((p) => p.label === plan) ||
+    null
+  );
+}
+
+function getPlanLabel(user: AdminUser) {
+  const planKey = getPlanKey(user);
+  const plan = getPlanInfo(planKey);
+
+  return plan?.label || user.packageName || user.plan || user.priceKey || "—";
+}
+
+function getPlanPrice(user: AdminUser) {
+  const plan = getPlanInfo(getPlanKey(user));
+
+  if (typeof user.paidAmount === "number" && user.paidAmount > 0) {
+    return user.paidAmount;
+  }
+
+  if (typeof user.totalPaid === "number" && user.totalPaid > 0) {
+    return user.totalPaid;
+  }
+
+  return plan?.price || 0;
+}
+
+function getGuestsLimit(user: AdminUser) {
+  const plan = getPlanInfo(getPlanKey(user));
+
+  return user.guests || user.maxGuests || plan?.guests || 0;
+}
+
+function getSmsLimit(user: AdminUser) {
+  const plan = getPlanInfo(getPlanKey(user));
+
+  return user.smsLimit || plan?.sms || 0;
+}
+
+function getCallsStatus(user: AdminUser) {
+  if (!user.includeCalls) return "לא פעיל";
+
+  if (
+    typeof user.callsAddonPrice === "number" &&
+    user.callsAddonPrice > 0
+  ) {
+    return `פעיל · ${formatMoney(user.callsAddonPrice)}`;
+  }
+
+  return "פעיל";
+}
+
+function getRoleLabel(role: AdminRole) {
+  const labels: Record<string, string> = {
+    admin: "אדמין",
+    user: "משתמש",
+    producer: "מפיק",
+    staff: "עובד",
+    client: "לקוח",
+  };
+
+  return labels[role] || role || "—";
+}
+
+function getAddonValue(user: AdminUser, key: (typeof ADDONS)[number]["key"]) {
+  return Boolean(user[key]);
+}
+
+function getUserTotalPaid(user: AdminUser) {
+  return Number(user.totalPaid || user.paidAmount || getPlanPrice(user) || 0);
+}
+
+function getPurchasedItems(user: AdminUser) {
+  return [
+    {
+      label: "חבילה",
+      value: getPlanLabel(user),
+      active: true,
+    },
+    {
+      label: "כמות רשומות / אורחים",
+      value: String(getGuestsLimit(user) || 0),
+      active: true,
+    },
+    {
+      label: "כמות הודעות SMS",
+      value: String(getSmsLimit(user) || 0),
+      active: true,
+    },
+    {
+      label: "שירות שיחות",
+      value: getCallsStatus(user),
+      active: Boolean(user.includeCalls),
+    },
+    {
+      label: "מתנות באשראי",
+      value: user.includeCreditGifts ? "פעיל" : "לא פעיל",
+      active: Boolean(user.includeCreditGifts),
+    },
+    {
+      label: "הושבה דיגיטלית",
+      value: user.includeDigitalSeating ? "פעיל" : "לא פעיל",
+      active: Boolean(user.includeDigitalSeating),
+    },
+    {
+      label: "מערכת ניהול אירוע",
+      value: user.includeEventManagement ? "פעיל" : "לא פעיל",
+      active: Boolean(user.includeEventManagement),
+    },
+    {
+      label: "עיצוב בהתאמה אישית",
+      value: user.includeCustomDesign ? "פעיל" : "לא פעיל",
+      active: Boolean(user.includeCustomDesign),
+    },
+  ];
+}
 
 /* =========================
    PAGE
@@ -34,558 +310,1439 @@ guests?: number;
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
+
   const [openCreate, setOpenCreate] = useState(false);
+  const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
+  const [upgradingUser, setUpgradingUser] = useState<AdminUser | null>(null);
 
-  const [producers, setProducers] = useState<any[]>([]);
-  const [staff, setStaff] = useState<any[]>([]);
-
- const [editingUserId, setEditingUserId] = useState<string | null>(null);
-
-const [editName, setEditName] = useState("");
-const [editEmail, setEditEmail] = useState("");
-const [editEventDate, setEditEventDate] = useState("");
-const [editGuests, setEditGuests] = useState<number>(0);
-
-const [assignedProducerId, setAssignedProducerId] =
-  useState<string | null>(null);
-
-const [assignedStaffIds, setAssignedStaffIds] = useState<string[]>([]);
+  const [producers, setProducers] = useState<Assignee[]>([]);
+  const [staff, setStaff] = useState<Assignee[]>([]);
 
   const [impersonating, setImpersonating] = useState<string | null>(null);
   const [hiddenUserIds, setHiddenUserIds] = useState<string[]>([]);
-  const [search, setSearch] = useState("");
-const [roleFilter, setRoleFilter] = useState("all");
-const [eventFilter, setEventFilter] = useState("future");
 
-  /* =========================
-     LOAD DATA
-  ========================= */
-  async function loadUsers() {
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [eventFilter, setEventFilter] = useState("future");
+
+  async function loadUsers(showLoader = true) {
     try {
+      if (showLoader) setLoading(true);
+
       const res = await fetch("/api/admin/users", {
         credentials: "include",
         cache: "no-store",
       });
+
       const data = await res.json();
-      if (data.success) setUsers(data.users);
+
+      if (data.success) {
+        setUsers(data.users || []);
+      }
+    } catch (err) {
+      console.error("Failed loading users:", err);
     } finally {
-      setLoading(false);
+      if (showLoader) setLoading(false);
     }
   }
 
   async function loadAssignees() {
-    const res = await fetch("/api/admin/assignees", {
-      credentials: "include",
-      cache: "no-store",
-    });
-    const data = await res.json();
-    if (data.success) {
-      setProducers(data.producers);
-      setStaff(data.staff);
-    }
-  }
+    try {
+      const res = await fetch("/api/admin/assignees", {
+        credentials: "include",
+        cache: "no-store",
+      });
 
-  /* =========================
-     ACTIONS
-  ========================= */
-  async function toggleCalls(userId: string, enable: boolean) {
-    await fetch(`/api/admin/users/${userId}/calls`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        includeCalls: enable,
-        callsRounds: enable ? 3 : 0,
-      }),
-    });
-    loadUsers();
+      const data = await res.json();
+
+      if (data.success) {
+        setProducers(data.producers || []);
+        setStaff(data.staff || []);
+      }
+    } catch (err) {
+      console.error("Failed loading assignees:", err);
+    }
   }
 
   async function impersonateUser(userId: string) {
-  setImpersonating(userId);
+    setImpersonating(userId);
 
-  const res = await fetch("/api/admin/impersonate", {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId }),
-  });
+    try {
+      const res = await fetch("/api/admin/impersonate", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
 
-  const data = await res.json();
-  if (!data.success) return;
+      const data = await res.json();
 
-  if (data.role === "producer") {
-    window.location.href = "/producer/dashboard";
-  } else if (data.role === "staff") {
-    window.location.href = "/producer-staff/dashboard";
-  } else {
-    window.location.href = "/dashboard";
+      if (!data.success) {
+        alert("כניסה בהתחזות נכשלה");
+        return;
+      }
+
+      if (data.role === "producer") {
+        window.location.href = "/producer/dashboard";
+      } else if (data.role === "staff") {
+        window.location.href = "/producer-staff/dashboard";
+      } else {
+        window.location.href = "/dashboard";
+      }
+    } finally {
+      setImpersonating(null);
+    }
   }
-}
 
   async function removeUser(userId: string) {
-  const confirmed = confirm(
-    "האם למחוק את המשתמש לצמיתות?"
-  );
+    const confirmed = confirm("האם למחוק את המשתמש לצמיתות?");
 
-  if (!confirmed) return;
+    if (!confirmed) return;
 
-  try {
-    const res = await fetch(`/api/admin/users/${userId}`, {
-      method: "DELETE",
-      credentials: "include",
-    });
+    try {
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (!data.success) {
-      alert("מחיקת המשתמש נכשלה");
-      return;
+      if (!data.success) {
+        alert("מחיקת המשתמש נכשלה");
+        return;
+      }
+
+      setUsers((prev) => prev.filter((u) => u._id !== userId));
+    } catch (error) {
+      console.error(error);
+      alert("אירעה שגיאה במחיקה");
     }
-
-    setUsers((prev) =>
-      prev.filter((u) => u._id !== userId)
-    );
-
-  } catch (error) {
-    console.error(error);
-    alert("אירעה שגיאה במחיקה");
   }
-}
 
-  /* =========================
-     EFFECTS
-  ========================= */
   useEffect(() => {
     const stored = sessionStorage.getItem("adminHiddenUsers");
-    if (stored) setHiddenUserIds(JSON.parse(stored));
-    loadUsers();
+
+    if (stored) {
+      try {
+        setHiddenUserIds(JSON.parse(stored));
+      } catch {
+        setHiddenUserIds([]);
+      }
+    }
+
+    loadUsers(true);
     loadAssignees();
+
+    const intervalId = window.setInterval(() => {
+      loadUsers(false);
+    }, AUTO_REFRESH_MS);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
   }, []);
 
-  if (loading) return <div className="text-gray-500">טוען משתמשים…</div>;
-  const today = new Date();
+  const filteredUsers = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-today.setHours(0, 0, 0, 0);
+    return users
+      .filter((u) => !hiddenUserIds.includes(u._id))
+      .filter((u) => {
+        const q = normalizeText(search);
 
-const filteredUsers = users
-  .filter((u) => !hiddenUserIds.includes(u._id))
-  .filter((u) => {
+        const matchesSearch =
+          !q ||
+          normalizeText(u.name).includes(q) ||
+          normalizeText(u.email).includes(q) ||
+          normalizeText(getPlanLabel(u)).includes(q);
 
-    /* SEARCH */
-    const matchesSearch =
-      u.name?.toLowerCase().includes(search.toLowerCase()) ||
-      u.email?.toLowerCase().includes(search.toLowerCase());
+        const matchesRole = roleFilter === "all" || u.role === roleFilter;
 
-    /* ROLE */
-    const matchesRole =
-      roleFilter === "all" || u.role === roleFilter;
+        let matchesEvent = true;
 
-    /* EVENT FILTER */
-    let matchesEvent = true;
+        if (eventFilter === "future") {
+          matchesEvent = !!u.eventDate && new Date(u.eventDate) >= today;
+        }
 
-    if (eventFilter === "future") {
-      matchesEvent =
-        !!u.eventDate &&
-        new Date(u.eventDate) >= today;
-    }
+        if (eventFilter === "past") {
+          matchesEvent = !!u.eventDate && new Date(u.eventDate) < today;
+        }
 
-    if (eventFilter === "past") {
-      matchesEvent =
-        !!u.eventDate &&
-        new Date(u.eventDate) < today;
-    }
+        if (eventFilter === "noDate") {
+          matchesEvent = !u.eventDate;
+        }
 
-    if (eventFilter === "noDate") {
-      matchesEvent = !u.eventDate;
-    }
+        return matchesSearch && matchesRole && matchesEvent;
+      });
+  }, [users, hiddenUserIds, search, roleFilter, eventFilter]);
 
+  const stats = useMemo(() => {
+    return {
+      total: filteredUsers.length,
+      calls: filteredUsers.filter((u) => u.includeCalls).length,
+      future: filteredUsers.filter(
+        (u) => u.eventDate && new Date(u.eventDate) >= new Date()
+      ).length,
+    };
+  }, [filteredUsers]);
+
+  if (loading) {
     return (
-      matchesSearch &&
-      matchesRole &&
-      matchesEvent
+      <div className="flex min-h-[50vh] items-center justify-center text-[#6B5A48]">
+        <Loader2 className="ml-2 animate-spin" size={22} />
+        טוען משתמשים…
+      </div>
     );
-  });
+  }
 
-  /* =========================
-     RENDER
-  ========================= */
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-semibold">ניהול משתמשים</h1>
-        <button
-          onClick={() => setOpenCreate(true)}
-          className="px-4 py-2 rounded-lg bg-black text-white"
+    <div dir="rtl" className="min-h-screen bg-[#F6F4F1] px-4 py-6 md:px-8">
+      <div className="mx-auto max-w-7xl space-y-6">
+        {/* HEADER */}
+        <section
+          className="
+            rounded-[32px]
+            border border-[#E7D8C6]
+            bg-gradient-to-br from-[#FFFDF8] to-[#F3E7D8]
+            p-5 md:p-7
+            shadow-[0_18px_55px_rgba(60,43,25,0.08)]
+          "
         >
-          ➕ יצירת משתמש
-        </button>
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <div
+                className="
+                  mb-3 inline-flex items-center gap-2
+                  rounded-full
+                  bg-white/70
+                  px-4 py-2
+                  text-xs font-black
+                  text-[#8A6A43]
+                  ring-1 ring-[#E7D8C6]
+                "
+              >
+                <ShieldCheck size={15} />
+                Admin Panel
+              </div>
+
+              <h1 className="text-3xl font-black text-[#352618] md:text-5xl">
+                ניהול משתמשים
+              </h1>
+
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-[#7B6754]">
+                ניהול לקוחות, חבילות, הרשאות, מטפלים, שדרוגים וכניסה בהתחזות.
+              </p>
+            </div>
+
+            <button
+              onClick={() => setOpenCreate(true)}
+              className="
+                flex h-12 items-center justify-center gap-2
+                rounded-2xl
+                bg-[#24190F]
+                px-5
+                text-sm font-black
+                text-white
+                shadow-[0_12px_30px_rgba(36,25,15,0.22)]
+                transition
+                hover:bg-black
+              "
+            >
+              <UserPlus size={18} />
+              יצירת משתמש
+            </button>
+          </div>
+        </section>
+
+        {/* FILTERS */}
+        <section
+          className="
+            rounded-[28px]
+            border border-[#E7D8C6]
+            bg-white
+            p-4 md:p-5
+            shadow-[0_14px_40px_rgba(60,43,25,0.06)]
+          "
+        >
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_220px_220px_180px]">
+            <div
+              className="
+                flex h-12 items-center gap-3
+                rounded-2xl
+                border border-[#E7D8C6]
+                bg-[#FFFDF8]
+                px-4
+              "
+            >
+              <Search size={18} className="text-[#9A7A52]" />
+              <input
+                type="text"
+                placeholder="חיפוש לפי שם, אימייל או חבילה..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="
+                  w-full bg-transparent
+                  text-sm font-semibold
+                  text-[#3A2A1C]
+                  outline-none
+                  placeholder:text-[#B6A28C]
+                "
+              />
+            </div>
+
+            <select
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
+              className="
+                h-12 rounded-2xl
+                border border-[#E7D8C6]
+                bg-[#FFFDF8]
+                px-4
+                text-sm font-bold
+                text-[#3A2A1C]
+                outline-none
+              "
+            >
+              <option value="all">כל המשתמשים</option>
+              <option value="admin">Admin</option>
+              <option value="user">User</option>
+              <option value="producer">Producer</option>
+              <option value="staff">Staff</option>
+              <option value="client">Client</option>
+            </select>
+
+            <select
+              value={eventFilter}
+              onChange={(e) => setEventFilter(e.target.value)}
+              className="
+                h-12 rounded-2xl
+                border border-[#E7D8C6]
+                bg-[#FFFDF8]
+                px-4
+                text-sm font-bold
+                text-[#3A2A1C]
+                outline-none
+              "
+            >
+              <option value="future">אירועים עתידיים</option>
+              <option value="past">אירועים שעברו</option>
+              <option value="noDate">ללא תאריך</option>
+              <option value="all">הכל</option>
+            </select>
+
+            <div
+              className="
+                flex h-12 items-center justify-center
+                rounded-2xl
+                bg-[#F6EBDD]
+                px-4
+                text-sm font-black
+                text-[#8A5A24]
+              "
+            >
+              נמצאו {stats.total} משתמשים
+            </div>
+          </div>
+        </section>
+
+        {/* SMALL STATS */}
+        <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <InfoCard
+            title="משתמשים מוצגים"
+            value={String(stats.total)}
+            icon={<Users size={22} />}
+          />
+
+          <InfoCard
+            title="שירות שיחות פעיל"
+            value={String(stats.calls)}
+            icon={<Phone size={22} />}
+          />
+
+          <InfoCard
+            title="אירועים עתידיים"
+            value={String(stats.future)}
+            icon={<CalendarDays size={22} />}
+          />
+        </section>
+
+        {/* DESKTOP TABLE */}
+        <section
+          className="
+            hidden overflow-hidden rounded-[28px]
+            border border-[#E7D8C6]
+            bg-white
+            shadow-[0_18px_55px_rgba(60,43,25,0.07)]
+            xl:block
+          "
+        >
+          <table className="min-w-full text-right">
+            <thead className="bg-[#FFF9EF] text-xs font-black text-[#7B6754]">
+              <tr>
+                <th className="p-4">שם</th>
+                <th className="p-4">אימייל</th>
+                <th className="p-4">תפקיד</th>
+                <th className="p-4">חבילה</th>
+                <th className="p-4">רשומות</th>
+                <th className="p-4">תאריך אירוע</th>
+                <th className="p-4">מפיק מטפל</th>
+                <th className="p-4">עובד מטפל</th>
+                <th className="p-4">שירות שיחות</th>
+                <th className="p-4">פעולות</th>
+              </tr>
+            </thead>
+
+            <tbody className="divide-y divide-[#EFE2D1]">
+              {filteredUsers.map((u) => (
+                <tr key={u._id} className="text-sm hover:bg-[#FFFDF8]">
+                  <td className="p-4 font-black text-[#3A2A1C]">
+                    {u.name || "—"}
+                  </td>
+
+                  <td className="p-4 text-[#6B5A48]">{u.email}</td>
+
+                  <td className="p-4">
+                    <RoleBadge role={u.role} />
+                  </td>
+
+                  <td className="p-4 font-bold text-[#6B5A48]">
+                    {getPlanLabel(u)}
+                  </td>
+
+                  <td className="p-4 font-black text-[#3A2A1C]">
+                    {getGuestsLimit(u)}
+                  </td>
+
+                  <td className="p-4 text-[#6B5A48]">
+                    {formatDate(u.eventDate)}
+                  </td>
+
+                  <td className="p-4 text-[#6B5A48]">
+                    {producers.find((p) => p._id === u.assignedProducerId)
+                      ?.name || "—"}
+                  </td>
+
+                  <td className="p-4 text-[#6B5A48]">
+                    {staff.find((s) => s._id === u.assignedStaffIds?.[0])
+                      ?.name || "—"}
+                  </td>
+
+                  <td className="p-4">
+                    <StatusBadge active={Boolean(u.includeCalls)}>
+                      {getCallsStatus(u)}
+                    </StatusBadge>
+                  </td>
+
+                  <td className="p-4">
+                    <div className="flex flex-wrap gap-2">
+                      <ActionButton
+                        onClick={() => setEditingUser(u)}
+                        icon={<Pencil size={14} />}
+                      >
+                        עריכה
+                      </ActionButton>
+
+                      <ActionButton
+                        onClick={() => setUpgradingUser(u)}
+                        icon={<ArrowUpCircle size={14} />}
+                        tone="gold"
+                      >
+                        שדרוג
+                      </ActionButton>
+
+                      {u.role !== "admin" && (
+                        <ActionButton
+                          onClick={() => impersonateUser(u._id)}
+                          icon={
+                            impersonating === u._id ? (
+                              <Loader2 className="animate-spin" size={14} />
+                            ) : (
+                              <LogIn size={14} />
+                            )
+                          }
+                          tone="blue"
+                        >
+                          התחזות
+                        </ActionButton>
+                      )}
+
+                      {u.role !== "admin" && (
+                        <ActionButton
+                          onClick={() => removeUser(u._id)}
+                          icon={<Trash2 size={14} />}
+                          tone="red"
+                        >
+                          מחק
+                        </ActionButton>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+
+              {filteredUsers.length === 0 && (
+                <tr>
+                  <td colSpan={10} className="p-8 text-center text-[#7B6754]">
+                    לא נמצאו משתמשים
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </section>
+
+        {/* MOBILE / TABLET CARDS */}
+        <section className="grid grid-cols-1 gap-4 xl:hidden">
+          {filteredUsers.map((u) => (
+            <div
+              key={u._id}
+              className="
+                rounded-[26px]
+                border border-[#E7D8C6]
+                bg-white
+                p-4
+                shadow-[0_14px_40px_rgba(60,43,25,0.06)]
+              "
+            >
+              <div className="mb-4 flex items-start justify-between gap-4">
+                <div>
+                  <div className="text-lg font-black text-[#3A2A1C]">
+                    {u.name || "—"}
+                  </div>
+
+                  <div className="mt-1 text-sm font-semibold text-[#7B6754]">
+                    {u.email}
+                  </div>
+                </div>
+
+                <RoleBadge role={u.role} />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <MiniDetail label="חבילה" value={getPlanLabel(u)} />
+                <MiniDetail label="רשומות" value={String(getGuestsLimit(u))} />
+                <MiniDetail label="תאריך אירוע" value={formatDate(u.eventDate)} />
+                <MiniDetail label="שיחות" value={getCallsStatus(u)} />
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                <ActionButton
+                  onClick={() => setEditingUser(u)}
+                  icon={<Pencil size={14} />}
+                >
+                  עריכה
+                </ActionButton>
+
+                <ActionButton
+                  onClick={() => setUpgradingUser(u)}
+                  icon={<ArrowUpCircle size={14} />}
+                  tone="gold"
+                >
+                  שדרוג
+                </ActionButton>
+
+                {u.role !== "admin" && (
+                  <ActionButton
+                    onClick={() => impersonateUser(u._id)}
+                    icon={<LogIn size={14} />}
+                    tone="blue"
+                  >
+                    התחזות
+                  </ActionButton>
+                )}
+
+                {u.role !== "admin" && (
+                  <ActionButton
+                    onClick={() => removeUser(u._id)}
+                    icon={<Trash2 size={14} />}
+                    tone="red"
+                  >
+                    מחק
+                  </ActionButton>
+                )}
+              </div>
+            </div>
+          ))}
+        </section>
       </div>
 
-<div className="flex flex-col md:flex-row gap-3 mb-6">
+      {openCreate && (
+        <CreateUserModal
+          onClose={() => {
+            setOpenCreate(false);
+            loadUsers(false);
+          }}
+        />
+      )}
 
-  {/* SEARCH */}
-  <input
-    type="text"
-    placeholder="חיפוש לפי שם או אימייל..."
-    value={search}
-    onChange={(e) => setSearch(e.target.value)}
-    className="border rounded-xl px-4 py-3 w-full md:w-80"
-  />
+      {editingUser && (
+        <EditUserModal
+          user={editingUser}
+          producers={producers}
+          staff={staff}
+          onClose={() => setEditingUser(null)}
+          onSaved={() => {
+            setEditingUser(null);
+            loadUsers(false);
+          }}
+        />
+      )}
 
-  {/* ROLE FILTER */}
-  <select
-    value={roleFilter}
-    onChange={(e) => setRoleFilter(e.target.value)}
-    className="border rounded-xl px-4 py-3 w-full md:w-52"
-  >
-    <option value="all">כל המשתמשים</option>
-    <option value="admin">Admin</option>
-    <option value="user">User</option>
-    <option value="producer">Producer</option>
-    <option value="staff">Staff</option>
-    <option value="client">Client</option>
-  </select>
+      {upgradingUser && (
+        <UpgradeUserModal
+          user={upgradingUser}
+          onClose={() => setUpgradingUser(null)}
+          onSaved={() => {
+            setUpgradingUser(null);
+            loadUsers(false);
+          }}
+        />
+      )}
+    </div>
+  );
+}
 
-{/* EVENT FILTER */}
-<select
-  value={eventFilter}
-  onChange={(e) => setEventFilter(e.target.value)}
-  className="border rounded-xl px-4 py-3 w-full md:w-52"
->
-  <option value="future">אירועים עתידיים</option>
+/* =========================
+   EDIT USER MODAL
+========================= */
+function EditUserModal({
+  user,
+  producers,
+  staff,
+  onClose,
+  onSaved,
+}: {
+  user: AdminUser;
+  producers: Assignee[];
+  staff: Assignee[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [saving, setSaving] = useState(false);
 
-  <option value="past">אירועים שעברו</option>
+  const [form, setForm] = useState<EditFormState>({
+    name: user.name || "",
+    email: user.email || "",
+    eventDate: formatDateInput(user.eventDate),
+    guests: getGuestsLimit(user),
+    assignedProducerId: user.assignedProducerId || null,
+    assignedStaffIds: user.assignedStaffIds || [],
+  });
 
-  <option value="noDate">ללא תאריך</option>
+  async function saveChanges() {
+    try {
+      setSaving(true);
 
-  <option value="all">הכל</option>
-</select>
+      await fetch(`/api/admin/users/${user._id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          eventDate: form.eventDate,
+          guests: form.guests,
+        }),
+      });
 
-  {/* COUNT */}
-  <div className="bg-gray-100 rounded-xl px-4 py-3 text-sm flex items-center">
-    נמצאו {filteredUsers.length} משתמשים
-  </div>
-</div>
+      await fetch(`/api/admin/users/${user._id}/assignees`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          assignedProducerId: form.assignedProducerId,
+          assignedStaffIds: form.assignedStaffIds,
+        }),
+      });
 
-      <div className="overflow-x-auto bg-white border rounded-xl shadow-sm">
-        <table className="min-w-full text-right">
-          <thead className="bg-gray-100 text-sm">
-            <tr>
-              <th className="p-3">שם</th>
-              <th className="p-3">אימייל</th>
-              <th className="p-3">תפקיד</th>
-              <th className="p-3">חבילה</th>
-              <th className="p-3">רשומות</th>
-              <th className="p-3">תאריך אירוע</th>
-              <th className="p-3">מפיק מטפל</th>
-              <th className="p-3">עובד מטפל</th>
-              <th className="p-3">שירות שיחות</th>
-              <th className="p-3">פעולות</th>
-            </tr>
-          </thead>
+      onSaved();
+    } catch (err) {
+      console.error(err);
+      alert("שמירת השינויים נכשלה");
+    } finally {
+      setSaving(false);
+    }
+  }
 
-          <tbody>
- {filteredUsers
-    .filter((u) => !hiddenUserIds.includes(u._id))
-    .map((u) => (
-      <React.Fragment key={u._id}>
-                
-                  {/* ROW */}
-                  <tr className="border-t text-sm hover:bg-gray-50 transition">
-                    <td className="p-3">{u.name || "-"}</td>
-                    <td className="p-3">{u.email}</td>
-                    <td className="p-3 font-semibold">{u.role}</td>
-                    <td className="p-3">{u.plan || "-"}</td>
-                    <td className="p-3 font-semibold">
-  {u.guests || 0}
-</td>
-                    <td className="p-3">
-                      {u.eventDate
-                        ? new Date(u.eventDate).toLocaleDateString("he-IL")
-                        : "—"}
-                    </td>
-
-                    <td className="p-3">
-  {producers.find((p) => p._id === u.assignedProducerId)?.name || "—"}
-</td>
-
-                    
-                    <td className="p-3">
-  {staff.find((s) => s._id === u.assignedStaffIds?.[0])?.name || "—"}
-</td>
-
-                    <td className="p-3">
-                      {u.includeCalls ? `☎️ פעיל (${u.callsRounds})` : "לא פעיל"}
-                    </td>
-                    <td className="p-3 flex gap-2 flex-wrap">
-                      <button
-  onClick={() => {
-    setEditingUserId(u._id);
-
-    setEditName(u.name || "");
-    setEditEmail(u.email || "");
-
-    setEditEventDate(
-      u.eventDate
-        ? new Date(u.eventDate).toISOString().split("T")[0]
-        : ""
-    );
-
-    setEditGuests(u.guests || 0);
-
-    setAssignedProducerId(u.assignedProducerId || null);
-
-    setAssignedStaffIds(u.assignedStaffIds || []);
-  }}
-  className="px-3 py-1 bg-gray-700 text-white rounded-full text-xs"
->
-  עריכת משתמש
-</button>
-
-                      
-
-                      {u.role !== "admin" && (
-  <button
-    onClick={() => impersonateUser(u._id)}
-    className="px-3 py-1 bg-blue-600 text-white rounded-full text-xs"
-  >
-    כניסה בהתחזות
-  </button>
-)}
-
-                      {u.role !== "admin" && (
-                        <button
-                          onClick={() => removeUser(u._id)}
-                          className="px-3 py-1 bg-red-600 text-white rounded-full text-xs"
-                        >
-                         מחק
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-
-                  {/* EDIT ROW */}
-          {/* EDIT USER ROW */}
-{editingUserId === u._id && (
-  <tr className="bg-gray-50 border-b animate-in fade-in duration-300">
-    <td colSpan={10} className="p-6">
-      <div className="bg-white border rounded-2xl p-6 shadow-sm">
-
-        {/* HEADER */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-xl font-semibold">
-              עריכת משתמש
-            </h2>
-
-            <p className="text-sm text-gray-500 mt-1">
-              עריכת פרטי משתמש, רשומות ומטפלים
-            </p>
+  return (
+    <ModalShell title="עריכת משתמש" subtitle="עריכת פרטי לקוח, הרשאות ומטפלים" onClose={onClose}>
+      <div className="space-y-7">
+        {/* Purchased Summary */}
+        <section
+          className="
+            rounded-[26px]
+            border border-[#E7D8C6]
+            bg-[#FFFDF8]
+            p-5
+          "
+        >
+          <div className="mb-4 flex items-center gap-2">
+            <CreditCard size={20} className="text-[#B97821]" />
+            <h3 className="text-lg font-black text-[#3A2A1C]">
+              מה הלקוח רכש
+            </h3>
           </div>
 
-          <button
-            onClick={() => setEditingUserId(null)}
-            className="text-sm text-gray-500 hover:text-black"
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {getPurchasedItems(user).map((item) => (
+              <div
+                key={item.label}
+                className="
+                  flex items-center justify-between gap-3
+                  rounded-2xl
+                  border border-[#EFE2D1]
+                  bg-white
+                  px-4 py-3
+                  text-sm
+                "
+              >
+                <span className="font-bold text-[#7B6754]">{item.label}</span>
+
+                <span
+                  className={`font-black ${
+                    item.active ? "text-[#3A2A1C]" : "text-[#9B9187]"
+                  }`}
+                >
+                  {item.value}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div
+            className="
+              mt-4 flex items-center justify-between
+              rounded-2xl
+              bg-[#FFF2D8]
+              px-4 py-3
+            "
           >
-            ✕ סגור
-          </button>
-        </div>
-
-        {/* USER DETAILS */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-
-          {/* NAME */}
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              שם מלא
-            </label>
-
-            <input
-              type="text"
-              value={editName}
-              onChange={(e) => setEditName(e.target.value)}
-              className="w-full border rounded-xl px-4 py-3"
-            />
+            <span className="font-black text-[#7B6754]">סה״כ ששולם</span>
+            <span className="text-2xl font-black text-[#B97821]">
+              {formatMoney(getUserTotalPaid(user))}
+            </span>
           </div>
+        </section>
 
-          {/* EMAIL */}
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              אימייל
-            </label>
+        {/* User Details */}
+        <section className="grid grid-cols-1 gap-5 md:grid-cols-2">
+          <InputField
+            label="שם מלא"
+            value={form.name}
+            onChange={(value) => setForm((p) => ({ ...p, name: value }))}
+          />
 
-            <input
-              type="email"
-              value={editEmail}
-              onChange={(e) => setEditEmail(e.target.value)}
-              className="w-full border rounded-xl px-4 py-3"
-            />
-          </div>
+          <InputField
+            label="אימייל"
+            type="email"
+            value={form.email}
+            onChange={(value) => setForm((p) => ({ ...p, email: value }))}
+          />
 
-          {/* EVENT DATE */}
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              תאריך אירוע
-            </label>
+          <InputField
+            label="תאריך אירוע"
+            type="date"
+            value={form.eventDate}
+            onChange={(value) => setForm((p) => ({ ...p, eventDate: value }))}
+          />
 
-            <input
-              type="date"
-              value={editEventDate}
-              onChange={(e) => setEditEventDate(e.target.value)}
-              className="w-full border rounded-xl px-4 py-3"
-            />
-          </div>
+          <InputField
+            label="כמות רשומות / אורחים"
+            type="number"
+            value={String(form.guests)}
+            onChange={(value) =>
+              setForm((p) => ({ ...p, guests: Number(value || 0) }))
+            }
+          />
+        </section>
 
-          {/* GUESTS */}
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              כמות רשומות / אורחים
-            </label>
+        {/* Assignees */}
+        <section className="border-t border-[#EFE2D1] pt-6">
+          <h3 className="mb-4 text-lg font-black text-[#3A2A1C]">מטפלים</h3>
 
-            <input
-              type="number"
-              value={editGuests}
-              onChange={(e) =>
-                setEditGuests(Number(e.target.value))
-              }
-              className="w-full border rounded-xl px-4 py-3"
-            />
-          </div>
-        </div>
-
-        {/* ASSIGNEES */}
-        <div className="mt-8 border-t pt-6">
-
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">
-            מטפלים
-          </h3>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-
-            {/* PRODUCER */}
-            <div>
-              <label className="block text-sm mb-2">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+            <label>
+              <span className="mb-2 block text-sm font-black text-[#6B5A48]">
                 מפיק מטפל
-              </label>
+              </span>
 
               <select
-                className="w-full border rounded-xl px-4 py-3"
-                value={assignedProducerId ?? ""}
+                className="
+                  h-12 w-full rounded-2xl
+                  border border-[#E7D8C6]
+                  bg-white px-4
+                  text-sm font-bold
+                  outline-none
+                "
+                value={form.assignedProducerId ?? ""}
                 onChange={(e) =>
-                  setAssignedProducerId(
-                    e.target.value || null
-                  )
+                  setForm((p) => ({
+                    ...p,
+                    assignedProducerId: e.target.value || null,
+                  }))
                 }
               >
                 <option value="">ללא מפיק</option>
 
                 {producers.map((p) => (
                   <option key={p._id} value={p._id}>
-                    {p.name}
+                    {p.name || p.email}
                   </option>
                 ))}
               </select>
-            </div>
+            </label>
 
-            {/* STAFF */}
-            <div>
-              <label className="block text-sm mb-2">
+            <label>
+              <span className="mb-2 block text-sm font-black text-[#6B5A48]">
                 עובדים מטפלים
-              </label>
+              </span>
 
               <select
                 multiple
-                className="w-full border rounded-xl px-4 py-3 h-36"
-                value={assignedStaffIds}
+                className="
+                  h-36 w-full rounded-2xl
+                  border border-[#E7D8C6]
+                  bg-white px-4 py-3
+                  text-sm font-bold
+                  outline-none
+                "
+                value={form.assignedStaffIds}
                 onChange={(e) =>
-                  setAssignedStaffIds(
-                    Array.from(
+                  setForm((p) => ({
+                    ...p,
+                    assignedStaffIds: Array.from(
                       e.target.selectedOptions,
                       (o) => o.value
-                    )
-                  )
+                    ),
+                  }))
                 }
               >
                 {staff.map((s) => (
                   <option key={s._id} value={s._id}>
-                    {s.name}
+                    {s.name || s.email}
                   </option>
                 ))}
               </select>
-            </div>
+            </label>
           </div>
-        </div>
+        </section>
+      </div>
 
-        {/* ACTIONS */}
-        <div className="flex gap-3 mt-8">
+      <ModalFooter>
+        <button
+          onClick={onClose}
+          className="h-12 rounded-2xl bg-[#ECE7E1] px-6 font-black text-[#6B5A48]"
+        >
+          ביטול
+        </button>
 
-          <button
-            onClick={async () => {
-              await fetch(`/api/admin/users/${u._id}`, {
-                method: "PATCH",
-                credentials: "include",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  name: editName,
-                  email: editEmail,
-                  eventDate: editEventDate,
-                  guests: editGuests,
-                }),
-              });
+        <button
+          onClick={saveChanges}
+          disabled={saving}
+          className="
+            flex h-12 items-center justify-center gap-2
+            rounded-2xl bg-black px-7
+            font-black text-white
+            disabled:opacity-50
+          "
+        >
+          {saving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+          שמור שינויים
+        </button>
+      </ModalFooter>
+    </ModalShell>
+  );
+}
 
-              await fetch(
-                `/api/admin/users/${u._id}/assignees`,
-                {
-                  method: "PATCH",
-                  credentials: "include",
-                  headers: {
-                    "Content-Type": "application/json",
-                  },
-                  body: JSON.stringify({
-                    assignedProducerId,
-                    assignedStaffIds,
-                  }),
+/* =========================
+   UPGRADE MODAL
+========================= */
+function UpgradeUserModal({
+  user,
+  onClose,
+  onSaved,
+}: {
+  user: AdminUser;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [saving, setSaving] = useState(false);
+
+  const currentPlanKey = getPlanKey(user);
+  const currentPlan = getPlanInfo(currentPlanKey);
+
+  const [form, setForm] = useState<UpgradeFormState>({
+    plan: currentPlan?.key || PLAN_OPTIONS[0].key,
+    includeCalls: Boolean(user.includeCalls),
+    includeCreditGifts: Boolean(user.includeCreditGifts),
+    includeDigitalSeating: Boolean(user.includeDigitalSeating),
+    includeEventManagement: Boolean(user.includeEventManagement),
+    includeCustomDesign: Boolean(user.includeCustomDesign),
+  });
+
+  const newPlan = getPlanInfo(form.plan);
+  const currentPlanPrice = currentPlan?.price || 0;
+  const newPlanPrice = newPlan?.price || 0;
+
+  const packageDiff = Math.max(0, newPlanPrice - currentPlanPrice);
+
+  const addonsDiff = ADDONS.reduce((sum, addon) => {
+    const isSelected = Boolean(form[addon.key]);
+    const alreadyOwned = getAddonValue(user, addon.key);
+
+    if (!isSelected || alreadyOwned) return sum;
+
+    return sum + addon.price;
+  }, 0);
+
+  const calculatedTotalToPay = packageDiff + addonsDiff;
+
+const [manualTotalToPay, setManualTotalToPay] = useState<number>(
+  calculatedTotalToPay
+);
+
+useEffect(() => {
+  setManualTotalToPay(calculatedTotalToPay);
+}, [calculatedTotalToPay]);
+
+const totalToPay = manualTotalToPay;
+
+  async function saveUpgrade() {
+    try {
+      setSaving(true);
+
+      const selectedPlan = getPlanInfo(form.plan);
+
+      const res = await fetch(`/api/admin/users/${user._id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          plan: form.plan,
+          priceKey: form.plan,
+          packageName: selectedPlan?.label,
+          guests: selectedPlan?.guests,
+          maxGuests: selectedPlan?.guests,
+          smsLimit: selectedPlan?.sms,
+
+          includeCalls: form.includeCalls,
+          includeCreditGifts: form.includeCreditGifts,
+          includeDigitalSeating: form.includeDigitalSeating,
+          includeEventManagement: form.includeEventManagement,
+          includeCustomDesign: form.includeCustomDesign,
+
+          upgradeAmount: totalToPay,
+        }),
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || data?.success === false) {
+        alert("השדרוג נכשל. צריך לוודא שה־API מאפשר עדכון חבילה ואפסיילים.");
+        return;
+      }
+
+      onSaved();
+    } catch (err) {
+      console.error(err);
+      alert("אירעה שגיאה בשדרוג");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <ModalShell title="שדרוג משתמש" subtitle="חישוב הפרש בין חבילות ואפסיילים" onClose={onClose}>
+      <div className="space-y-7">
+        <section
+          className="
+            rounded-[26px]
+            border border-[#E7D8C6]
+            bg-[#FFFDF8]
+            p-5
+          "
+        >
+          <div className="mb-4 flex items-center gap-2">
+            <Crown size={20} className="text-[#B97821]" />
+            <h3 className="text-lg font-black text-[#3A2A1C]">
+              חבילת הלקוח
+            </h3>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <SummaryBox
+              label="חבילה נוכחית"
+              value={currentPlan?.label || getPlanLabel(user)}
+            />
+
+            <SummaryBox
+              label="מחיר חבילה נוכחית"
+              value={formatMoney(currentPlanPrice)}
+            />
+
+            <label className="md:col-span-2">
+              <span className="mb-2 block text-sm font-black text-[#6B5A48]">
+                בחירת חבילה חדשה
+              </span>
+
+              <select
+                value={form.plan}
+                onChange={(e) =>
+                  setForm((p) => ({
+                    ...p,
+                    plan: e.target.value,
+                  }))
                 }
+                className="
+                  h-12 w-full rounded-2xl
+                  border border-[#E7D8C6]
+                  bg-white px-4
+                  text-sm font-black
+                  outline-none
+                "
+              >
+                {PLAN_OPTIONS.map((plan) => (
+                  <option key={plan.key} value={plan.key}>
+                    {plan.label} · {plan.guests} רשומות · {formatMoney(plan.price)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </section>
+
+        <section
+          className="
+            rounded-[26px]
+            border border-[#E7D8C6]
+            bg-white
+            p-5
+          "
+        >
+          <div className="mb-4 flex items-center gap-2">
+            <Sparkles size={20} className="text-[#B97821]" />
+            <h3 className="text-lg font-black text-[#3A2A1C]">
+              אפסיילים והרשאות
+            </h3>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {ADDONS.map((addon) => {
+              const alreadyOwned = getAddonValue(user, addon.key);
+
+              return (
+                <label
+                  key={addon.key}
+                  className="
+                    flex cursor-pointer items-center justify-between gap-3
+                    rounded-2xl
+                    border border-[#EFE2D1]
+                    bg-[#FFFDF8]
+                    px-4 py-3
+                  "
+                >
+                  <div>
+                    <div className="font-black text-[#3A2A1C]">
+                      {addon.label}
+                    </div>
+
+                    <div className="mt-1 text-xs font-bold text-[#8A7867]">
+                      {alreadyOwned
+                        ? "כבר קיים ללקוח"
+                        : addon.price > 0
+                          ? `תוספת ${formatMoney(addon.price)}`
+                          : "ללא מחיר מוגדר"}
+                    </div>
+                  </div>
+
+                  <input
+                    type="checkbox"
+                    checked={Boolean(form[addon.key])}
+                    onChange={(e) =>
+                      setForm((p) => ({
+                        ...p,
+                        [addon.key]: e.target.checked,
+                      }))
+                    }
+                    className="h-5 w-5 accent-[#B97821]"
+                  />
+                </label>
               );
+            })}
+          </div>
+        </section>
 
-              setEditingUserId(null);
+        <section
+          className="
+            rounded-[26px]
+            border border-[#E8C98D]
+            bg-[#FFF7E8]
+            p-5
+          "
+        >
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <SummaryBox
+              label="הפרש חבילות"
+              value={formatMoney(packageDiff)}
+            />
 
-              loadUsers();
-            }}
-            className="px-6 py-3 bg-black text-white rounded-xl hover:opacity-90"
-          >
-            שמור שינויים
-          </button>
+            <SummaryBox
+              label="הפרש אפסיילים"
+              value={formatMoney(addonsDiff)}
+            />
+
+           <div
+  className="
+    rounded-2xl
+    border border-[#E8C98D]
+    bg-[#FFF2D8]
+    px-4 py-3
+  "
+>
+  <div className="text-xs font-black text-[#8A7867]">
+    סה״כ לתשלום עכשיו
+  </div>
+
+  <div className="mt-2 flex items-center gap-2">
+    <input
+      type="number"
+      min={0}
+      value={manualTotalToPay}
+      onChange={(e) =>
+        setManualTotalToPay(Number(e.target.value || 0))
+      }
+      className="
+        h-11 w-full
+        rounded-xl
+        border border-[#E8C98D]
+        bg-white
+        px-3
+        text-xl font-black
+        text-[#B97821]
+        outline-none
+      "
+    />
+
+    <span className="text-lg font-black text-[#B97821]">₪</span>
+  </div>
+
+  <div className="mt-2 text-xs font-bold text-[#8A7867]">
+    חושב אוטומטית לפי הפרש חבילות, אבל ניתן לעריכה ידנית.
+  </div>
+</div>
+          </div>
+        </section>
+      </div>
+
+      <ModalFooter>
+        <button
+          onClick={onClose}
+          className="h-12 rounded-2xl bg-[#ECE7E1] px-6 font-black text-[#6B5A48]"
+        >
+          ביטול
+        </button>
+
+        <button
+          onClick={saveUpgrade}
+          disabled={saving}
+          className="
+            flex h-12 items-center justify-center gap-2
+            rounded-2xl bg-black px-7
+            font-black text-white
+            disabled:opacity-50
+          "
+        >
+          {saving ? (
+            <Loader2 className="animate-spin" size={18} />
+          ) : (
+            <ArrowUpCircle size={18} />
+          )}
+          שמור שדרוג
+        </button>
+      </ModalFooter>
+    </ModalShell>
+  );
+}
+
+/* =========================
+   UI COMPONENTS
+========================= */
+function ModalShell({
+  title,
+  subtitle,
+  children,
+  onClose,
+}: {
+  title: string;
+  subtitle: string;
+  children: ReactNode;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="
+        fixed inset-0 z-50
+        flex items-center justify-center
+        bg-black/35
+        px-4
+        backdrop-blur-sm
+      "
+      onClick={onClose}
+    >
+      <div
+        dir="rtl"
+        className="
+          flex max-h-[92vh] w-full max-w-5xl flex-col
+          overflow-hidden
+          rounded-[32px]
+          border border-[#E7D8C6]
+          bg-white
+          shadow-[0_28px_90px_rgba(0,0,0,0.24)]
+        "
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header
+          className="
+            flex items-start justify-between gap-4
+            border-b border-[#EFE2D1]
+            bg-gradient-to-br from-[#FFFDF8] to-[#F8EFE3]
+            p-5 md:p-6
+          "
+        >
+          <div>
+            <h2 className="text-2xl font-black text-[#3A2A1C]">{title}</h2>
+            <p className="mt-1 text-sm font-semibold text-[#8A7867]">
+              {subtitle}
+            </p>
+          </div>
 
           <button
-            onClick={() => setEditingUserId(null)}
-            className="px-6 py-3 bg-gray-200 rounded-xl"
+            onClick={onClose}
+            className="
+              flex h-11 w-11 shrink-0 items-center justify-center
+              rounded-full
+              bg-white
+              text-[#6B5138]
+              shadow-sm
+              transition
+              hover:bg-[#F1E5D6]
+            "
           >
-            ביטול
+            <X size={20} />
           </button>
-        </div>
-      </div>
-    </td>
-  </tr>
-)}
-                </React.Fragment>
-              ))}
+        </header>
 
-            {users.length === 0 && (
-              <tr>
-                <td colSpan={10} className="p-6 text-center text-gray-500">
-                  לא נמצאו משתמשים
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+        <main className="flex-1 overflow-y-auto p-5 md:p-6">{children}</main>
       </div>
-
-      {openCreate && <CreateUserModal onClose={() => setOpenCreate(false)} />}
     </div>
+  );
+}
+
+function ModalFooter({ children }: { children: ReactNode }) {
+  return (
+    <footer
+      className="
+        sticky bottom-0 mt-8
+        flex flex-col gap-3
+        border-t border-[#EFE2D1]
+        bg-white/95
+        pt-5
+        md:flex-row
+        md:justify-end
+      "
+    >
+      {children}
+    </footer>
+  );
+}
+
+function InputField({
+  label,
+  value,
+  onChange,
+  type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: string;
+}) {
+  return (
+    <label>
+      <span className="mb-2 block text-sm font-black text-[#6B5A48]">
+        {label}
+      </span>
+
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="
+          h-12 w-full rounded-2xl
+          border border-[#E7D8C6]
+          bg-white px-4
+          text-sm font-bold
+          text-[#3A2A1C]
+          outline-none
+          transition
+          focus:border-[#C8944E]
+        "
+      />
+    </label>
+  );
+}
+
+function InfoCard({
+  title,
+  value,
+  icon,
+}: {
+  title: string;
+  value: string;
+  icon: ReactNode;
+}) {
+  return (
+    <div
+      className="
+        rounded-[26px]
+        border border-[#E7D8C6]
+        bg-white
+        p-5
+        shadow-[0_14px_40px_rgba(60,43,25,0.06)]
+      "
+    >
+      <div className="mb-4 flex items-center justify-between">
+        <div className="text-sm font-black text-[#3A2A1C]">{title}</div>
+        <div className="text-[#B97821]">{icon}</div>
+      </div>
+
+      <div className="text-3xl font-black text-[#B97821]">{value}</div>
+    </div>
+  );
+}
+
+function MiniDetail({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl bg-[#FFF9EF] px-4 py-3">
+      <div className="text-xs font-black text-[#8A7867]">{label}</div>
+      <div className="mt-1 font-black text-[#3A2A1C]">{value}</div>
+    </div>
+  );
+}
+
+function SummaryBox({
+  label,
+  value,
+  highlight = false,
+}: {
+  label: string;
+  value: string;
+  highlight?: boolean;
+}) {
+  return (
+    <div
+      className={`
+        rounded-2xl
+        border
+        px-4 py-3
+        ${
+          highlight
+            ? "border-[#E8C98D] bg-[#FFF2D8]"
+            : "border-[#EFE2D1] bg-white"
+        }
+      `}
+    >
+      <div className="text-xs font-black text-[#8A7867]">{label}</div>
+      <div className="mt-1 text-xl font-black text-[#B97821]">{value}</div>
+    </div>
+  );
+}
+
+function RoleBadge({ role }: { role: AdminRole }) {
+  return (
+    <span
+      className="
+        inline-flex items-center gap-1
+        rounded-full
+        bg-[#F6F1EA]
+        px-3 py-1
+        text-xs font-black
+        text-[#6B5A48]
+      "
+    >
+      <UserRound size={13} />
+      {getRoleLabel(role)}
+    </span>
+  );
+}
+
+function StatusBadge({
+  active,
+  children,
+}: {
+  active: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <span
+      className={`
+        inline-flex items-center gap-1
+        rounded-full
+        px-3 py-1
+        text-xs font-black
+        ${
+          active
+            ? "bg-[#EAF8EF] text-[#1F9A55]"
+            : "bg-[#F6F1EA] text-[#7B6754]"
+        }
+      `}
+    >
+      {active && <CheckCircle2 size={13} />}
+      {children}
+    </span>
+  );
+}
+
+function ActionButton({
+  children,
+  icon,
+  tone = "dark",
+  onClick,
+}: {
+  children: ReactNode;
+  icon: ReactNode;
+  tone?: "dark" | "blue" | "red" | "gold";
+  onClick: () => void;
+}) {
+  const tones = {
+    dark: "bg-[#2F3742] text-white hover:bg-[#1F2630]",
+    blue: "bg-[#2563EB] text-white hover:bg-[#1E4FC4]",
+    red: "bg-[#E73535] text-white hover:bg-[#C62828]",
+    gold: "bg-[#B97821] text-white hover:bg-[#996016]",
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`
+        inline-flex h-9 items-center justify-center gap-1.5
+        rounded-full
+        px-3
+        text-xs font-black
+        transition
+        ${tones[tone]}
+      `}
+    >
+      {icon}
+      {children}
+    </button>
   );
 }
