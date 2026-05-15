@@ -396,15 +396,23 @@ export async function PATCH(
         unset[field] = "";
       });
 
-      await Invitation.updateOne(
-        { _id: invitation._id },
-        {
-          $unset: unset,
-          $set: {
-            updatedAt: new Date(),
-          },
-        }
-      );
+      const resetResult = await Invitation.collection.updateOne(
+  { _id: invitation._id },
+  {
+    $unset: unset,
+    $set: {
+      updatedAt: new Date(),
+    },
+  }
+);
+
+console.log("✅ MESSAGE ROUND RESET RESULT:", {
+  invitationId: String(invitation._id),
+  key,
+  matchedCount: resetResult.matchedCount,
+  modifiedCount: resetResult.modifiedCount,
+  unsetFields: Object.keys(unset),
+});
     }
 
     /*
@@ -422,15 +430,22 @@ export async function PATCH(
         );
       }
 
-      await Invitation.updateOne(
-        { _id: invitation._id },
-        {
-          $set: {
-            ...set,
-            updatedAt: new Date(),
-          },
-        }
-      );
+      const blockResult = await Invitation.collection.updateOne(
+  { _id: invitation._id },
+  {
+    $set: {
+      ...set,
+      updatedAt: new Date(),
+    },
+  }
+);
+
+console.log("✅ MESSAGE ROUND BLOCK RESULT:", {
+  invitationId: String(invitation._id),
+  key,
+  matchedCount: blockResult.matchedCount,
+  modifiedCount: blockResult.modifiedCount,
+});
     }
 
     const updatedInvitation = await Invitation.findById(invitation._id)
