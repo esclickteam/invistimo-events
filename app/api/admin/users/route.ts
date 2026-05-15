@@ -1,266 +1,755 @@
-import mongoose, {
-  Schema,
-  Document,
-  models,
-  model,
-  HydratedDocument,
-} from "mongoose";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-/* ============================================================
-   TYPES
-============================================================ */
+import { connectDB } from "@/lib/db";
+import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import User from "@/models/User";
+import Payment from "@/models/Payment";
+import Invitation from "@/models/Invitation";
+import { sendPasswordSetupMail } from "@/lib/sendPasswordSetupMail";
 
-export interface IUser extends Document {
-  name: string;
-  email: string;
-  password?: string;
-  phone?: string;
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
-  role: "user" | "client" | "producer" | "staff" | "admin";
-  staffType?: "producer_staff" | "general_staff" | null;
+/* =========================================================
+   PLAN CONFIG
+========================================================= */
+const PLAN_CONFIG: Record<
+  string,
+  {
+    label: string;
+    guests: number;
+    sms: number;
+    price: number;
+    includeCalls: boolean;
+    includeCreditGifts: boolean;
+    includeDigitalSeating: boolean;
+    includeEventManagement: boolean;
+  }
+> = {
+  plan1: {
+    label: "חבילה 1",
+    guests: 100,
+    sms: 300,
+    price: 402,
+    includeCalls: false,
+    includeCreditGifts: false,
+    includeDigitalSeating: false,
+    includeEventManagement: false,
+  },
 
-  /* 🔥 UPDATED PLAN TYPES */
-  plan: "basic" | "premium" | "plan1" | "plan2" | "plan3";
+  plan2: {
+    label: "חבילה 2",
+    guests: 200,
+    sms: 600,
+    price: 789,
+    includeCalls: true,
+    includeCreditGifts: false,
+    includeDigitalSeating: false,
+    includeEventManagement: false,
+  },
 
-  guests: number;
+  plan3: {
+    label: "חבילה 3",
+    guests: 300,
+    sms: 900,
+    price: 1171,
+    includeCalls: true,
+    includeCreditGifts: true,
+    includeDigitalSeating: true,
+    includeEventManagement: true,
+  },
+};
 
-  paidAmount: number;
-  hasPaid: boolean;
-  isActive: boolean;
+/* =========================================================
+   HELPERS
+========================================================= */
+function getPlanConfig(plan?: string) {
+  return PLAN_CONFIG[String(plan || "plan1")] || PLAN_CONFIG.plan1;
+}
 
-  producerId?: mongoose.Types.ObjectId | null;
-  createdByProducer?: mongoose.Types.ObjectId | null;
-  createdByAdmin?: boolean;
+function normalizeEmail(email?: string) {
+  return String(email || "").trim().toLowerCase();
+}
 
-  assignedProducerId?: mongoose.Types.ObjectId | null;
-  assignedStaffIds?: mongoose.Types.ObjectId[];
-  assignedClientIds?: mongoose.Types.ObjectId[];
+function isAdminContext(auth: any) {
+  return (
+    auth?.role === "admin" ||
+    auth?.impersonationRole === "admin" ||
+    !!auth?.impersonatedBy
+  );
+}
 
-  billingSource?: "site" | "admin" | "producer";
-  producerPricePerRecord?: number;
+function buildUsersFilter(req: Request) {
+  const { searchParams } = new URL(req.url);
 
-  includeCalls: boolean;
-  callsAddonPrice: number;
+  const scope = (searchParams.get("scope") || "all").toLowerCase();
+  const q = (searchParams.get("q") || "").trim();
 
-  includeCreditGifts: boolean;
-  creditGiftsAddonPrice: number;
-
-  /* 🔥 NEW ADDON FLAGS */
-  selfManageEnabled: boolean;
-  customDesignEnabled: boolean;
-
-  smsPerRecord: number;
-  maxMessages: number;
-
-  planLimits: {
-    maxGuests: number;
-    smsEnabled: boolean;
-    smsLimit: number;
-    seatingEnabled: boolean;
-    remindersEnabled: boolean;
+  const baseFilter: any = {
+    isDemoUser: { $ne: true },
   };
 
-  smsBalance: number;
-  smsUsed: number;
-  testSmsUsed: number;
-
-  whatsappBalance: number;
-  whatsappUsed: number;
-
-  isTrial: boolean;
-
-  isDemoUser?: boolean;
-  needsPasswordSetup?: boolean;
-
-  resetPasswordToken?: string;
-  resetPasswordExpires?: Date;
-
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-/* ============================================================
-   SCHEMA
-============================================================ */
-
-const UserSchema = new Schema<IUser>(
-  {
-    name: { type: String, required: true, trim: true },
-
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-      lowercase: true,
-      trim: true,
-    },
-
-    password: {
-      type: String,
-      required: function (this: HydratedDocument<IUser>) {
-        return !this.needsPasswordSetup;
-      },
-    },
-
-    phone: { type: String, trim: true, default: "" },
-
-    role: {
-      type: String,
-      enum: ["user", "client", "producer", "staff", "admin"],
-      default: "user",
-      index: true,
-    },
-
-    staffType: {
-      type: String,
-      enum: ["producer_staff", "general_staff"],
-      default: null,
-      index: true,
-    },
-
-    /* 🔥 UPDATED PLAN ENUM */
-    plan: {
-      type: String,
-      enum: ["basic", "premium", "plan1", "plan2", "plan3"],
-      default: "basic",
-    },
-
-    guests: { type: Number, default: 0 },
-
-    paidAmount: { type: Number, default: 0 },
-    hasPaid: { type: Boolean, default: false },
-
-    isActive: {
-      type: Boolean,
-      default: false,
-    },
-
-    createdByAdmin: { type: Boolean, default: false },
-
-    assignedProducerId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
-      index: true,
-    },
-
-    assignedStaffIds: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-      },
+  const activeFilter: any = {
+    ...baseFilter,
+    $or: [
+      { hasPaid: true },
+      { plan: "premium" },
+      { plan: "plan1" },
+      { plan: "plan2" },
+      { plan: "plan3" },
+      { createdByProducer: { $ne: null } },
+      { role: "producer" },
+      { role: "staff" },
     ],
+  };
 
-    assignedClientIds: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-      },
-    ],
+  const filter: any = scope === "active" ? activeFilter : baseFilter;
 
-    billingSource: {
-  type: String,
-  enum: ["site", "admin", "producer", "pricing"],
-  default: "site",
-},
+  if (q) {
+    filter.$and = filter.$and || [];
 
-    producerPricePerRecord: { type: Number, default: 0 },
-
-    includeCalls: { type: Boolean, default: false },
-    callsAddonPrice: { type: Number, default: 0 },
-
-    includeCreditGifts: { type: Boolean, default: false },
-    creditGiftsAddonPrice: { type: Number, default: 0 },
-
-    /* 🔥 NEW FIELDS */
-    selfManageEnabled: { type: Boolean, default: false },
-    customDesignEnabled: { type: Boolean, default: false },
-
-    smsPerRecord: { type: Number, default: 0 },
-    maxMessages: { type: Number, default: 0 },
-
-    planLimits: {
-      maxGuests: { type: Number, default: 0 },
-      smsEnabled: { type: Boolean, default: false },
-      smsLimit: { type: Number, default: 0 },
-      seatingEnabled: { type: Boolean, default: false },
-      remindersEnabled: { type: Boolean, default: false },
-    },
-
-    smsBalance: { type: Number, default: 0 },
-    smsUsed: { type: Number, default: 0 },
-    testSmsUsed: { type: Number, default: 0 },
-
-    whatsappBalance: { type: Number, default: 0 },
-    whatsappUsed: { type: Number, default: 0 },
-
-    isTrial: { type: Boolean, default: false },
-
-    isDemoUser: { type: Boolean, default: false },
-
-    needsPasswordSetup: {
-      type: Boolean,
-      default: true,
-    },
-
-    resetPasswordToken: { type: String },
-    resetPasswordExpires: Date,
-  },
-  { timestamps: true }
-);
-
-/* ============================================================
-   HOOKS
-============================================================ */
-
-UserSchema.pre("validate", function () {
-  const doc = this as HydratedDocument<IUser>;
-
-  if (doc.includeCalls) {
-    doc.includeCreditGifts = true;
-    doc.creditGiftsAddonPrice = 0;
+    filter.$and.push({
+      $or: [
+        { name: { $regex: q, $options: "i" } },
+        { email: { $regex: q, $options: "i" } },
+        { packageName: { $regex: q, $options: "i" } },
+        { priceKey: { $regex: q, $options: "i" } },
+      ],
+    });
   }
 
-  if (doc.role === "user" || doc.role === "admin") {
-    doc.staffType = null;
-    doc.assignedProducerId = null;
-    doc.assignedClientIds = [];
-  }
-
-  if (doc.role === "staff" && !doc.staffType) {
-  doc.staffType = "general_staff";
+  return { filter, scope, q };
 }
 
+/* =========================================================
+   GET – ADMIN USERS LIST
+   /api/admin/users?scope=all|active&q=...
+========================================================= */
+export async function GET(req: Request) {
+  try {
+    await connectDB();
 
-  if (
-    doc.role === "staff" &&
-    doc.staffType === "producer_staff" &&
-    !doc.assignedProducerId
-  ) {
-    doc.invalidate(
-      "assignedProducerId",
-      "assignedProducerId is required for producer_staff"
+    const auth = await getUserIdFromRequest(req as NextRequest);
+
+    if (!auth?.userId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "UNAUTHORIZED",
+        },
+        { status: 401 }
+      );
+    }
+
+    if (!isAdminContext(auth)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "FORBIDDEN",
+        },
+        { status: 403 }
+      );
+    }
+
+    const { filter, scope, q } = buildUsersFilter(req);
+
+    const users = await User.find(filter)
+      .select(`
+        name
+        email
+        phone
+        role
+        staffType
+
+        plan
+        priceKey
+        packageName
+
+        guests
+        maxGuests
+        maxMessages
+        smsLimit
+        smsUsed
+
+        paidAmount
+        hasPaid
+        isActive
+
+        includeCalls
+        callsRounds
+        callsAddonPrice
+
+        includeCreditGifts
+        creditGiftsAddonPrice
+
+        includeDigitalSeating
+        includeEventManagement
+        includeCustomDesign
+        selfManageEnabled
+        customDesignEnabled
+
+        createdByProducer
+        producerId
+        planLimits
+
+        createdAt
+        eventDate
+
+        producerPricePerRecord
+        assignedProducerId
+        assignedStaffIds
+      `)
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const userIds = users.map((u: any) => u._id);
+
+    const emails = users
+      .map((u: any) => normalizeEmail(u.email))
+      .filter(Boolean);
+
+    const [invitations, paymentsAgg, totalRevenueAgg] = await Promise.all([
+      userIds.length > 0
+        ? Invitation.find({
+            ownerId: { $in: userIds },
+          })
+            .select("ownerId eventDate")
+            .sort({ eventDate: -1 })
+            .lean()
+        : [],
+
+      emails.length > 0
+        ? Payment.aggregate([
+            {
+              $match: {
+                email: { $in: emails },
+                isTest: { $ne: true },
+                status: {
+                  $in: ["paid", "partially_refunded"],
+                },
+              },
+            },
+            {
+              $project: {
+                email: 1,
+                createdAt: 1,
+                priceKey: 1,
+                maxGuests: 1,
+                type: 1,
+                netAmount: {
+                  $max: [
+                    0,
+                    {
+                      $subtract: [
+                        { $ifNull: ["$amount", 0] },
+                        { $ifNull: ["$refundAmount", 0] },
+                      ],
+                    },
+                  ],
+                },
+              },
+            },
+            {
+              $sort: {
+                createdAt: -1,
+              },
+            },
+            {
+              $group: {
+                _id: "$email",
+                totalPaid: {
+                  $sum: "$netAmount",
+                },
+                paymentsCount: {
+                  $sum: 1,
+                },
+                lastPaymentAt: {
+                  $first: "$createdAt",
+                },
+                lastPriceKey: {
+                  $first: "$priceKey",
+                },
+                lastMaxGuests: {
+                  $first: "$maxGuests",
+                },
+                paymentTypes: {
+                  $addToSet: "$type",
+                },
+              },
+            },
+          ])
+        : [],
+
+      Payment.aggregate([
+        {
+          $match: {
+            isTest: { $ne: true },
+            status: {
+              $in: ["paid", "partially_refunded"],
+            },
+          },
+        },
+        {
+          $project: {
+            netAmount: {
+              $max: [
+                0,
+                {
+                  $subtract: [
+                    { $ifNull: ["$amount", 0] },
+                    { $ifNull: ["$refundAmount", 0] },
+                  ],
+                },
+              ],
+            },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            totalRevenue: {
+              $sum: "$netAmount",
+            },
+          },
+        },
+      ]),
+    ]);
+
+    const paymentByEmail = new Map<string, any>();
+
+    paymentsAgg.forEach((payment: any) => {
+      if (payment?._id) {
+        paymentByEmail.set(normalizeEmail(payment._id), payment);
+      }
+    });
+
+    const invitationByUserId = new Map<string, any>();
+
+    for (const invitation of invitations) {
+      const uid = String(invitation.ownerId);
+
+      if (!invitationByUserId.has(uid)) {
+        invitationByUserId.set(uid, invitation);
+      }
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const usersWithEventDate = users
+      .map((u: any) => {
+        const email = normalizeEmail(u.email);
+        const payment = paymentByEmail.get(email);
+        const invitation = invitationByUserId.get(String(u._id));
+
+        const planKey =
+          u.priceKey ||
+          u.plan ||
+          payment?.lastPriceKey ||
+          "plan1";
+
+        const planData = getPlanConfig(planKey);
+
+        const includeDigitalSeating =
+          Boolean(u.includeDigitalSeating) ||
+          Boolean(u.planLimits?.seatingEnabled);
+
+        const includeEventManagement =
+          Boolean(u.includeEventManagement) ||
+          Boolean(u.selfManageEnabled);
+
+        const includeCustomDesign =
+          Boolean(u.includeCustomDesign) ||
+          Boolean(u.customDesignEnabled);
+
+        const guests = Number(
+          u.guests ||
+            u.maxGuests ||
+            u.planLimits?.maxGuests ||
+            payment?.lastMaxGuests ||
+            planData.guests ||
+            0
+        );
+
+        const smsLimit = Number(
+          u.smsLimit ||
+            u.maxMessages ||
+            u.planLimits?.smsLimit ||
+            planData.sms ||
+            0
+        );
+
+        return {
+          ...u,
+
+          plan: u.plan || planKey,
+          priceKey: u.priceKey || planKey,
+          packageName: u.packageName || planData.label,
+
+          guests,
+          maxGuests: Number(u.maxGuests || guests),
+
+          smsLimit,
+          maxMessages: Number(u.maxMessages || smsLimit),
+
+          includeCalls: Boolean(u.includeCalls),
+          callsRounds: Number(u.callsRounds || 0),
+          callsAddonPrice: Number(u.callsAddonPrice || 0),
+
+          includeCreditGifts: Boolean(u.includeCreditGifts),
+          creditGiftsAddonPrice: Number(u.creditGiftsAddonPrice || 0),
+
+          includeDigitalSeating,
+          includeEventManagement,
+          includeCustomDesign,
+
+          totalPaid: Number(payment?.totalPaid || u.paidAmount || 0),
+          paymentsCount: Number(payment?.paymentsCount || 0),
+          lastPaymentAt: payment?.lastPaymentAt || null,
+          paymentTypes: payment?.paymentTypes || [],
+
+          eventDate: u.eventDate || invitation?.eventDate || null,
+        };
+      })
+      .sort((a: any, b: any) => {
+        if (!a.eventDate) return 1;
+        if (!b.eventDate) return -1;
+
+        const dateA = new Date(a.eventDate);
+        const dateB = new Date(b.eventDate);
+
+        dateA.setHours(0, 0, 0, 0);
+        dateB.setHours(0, 0, 0, 0);
+
+        const isPastA = dateA < today;
+        const isPastB = dateB < today;
+
+        if (isPastA && !isPastB) return 1;
+        if (!isPastA && isPastB) return -1;
+
+        if (!isPastA && !isPastB) {
+          return dateA.getTime() - dateB.getTime();
+        }
+
+        return dateB.getTime() - dateA.getTime();
+      });
+
+    return NextResponse.json(
+      {
+        success: true,
+        users: usersWithEventDate,
+        totalRevenue: Number(totalRevenueAgg[0]?.totalRevenue || 0),
+        meta: {
+          scope,
+          q,
+          count: usersWithEventDate.length,
+        },
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      }
+    );
+  } catch (err) {
+    console.error("❌ ADMIN USERS GET ERROR:", err);
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: "SERVER_ERROR",
+      },
+      { status: 500 }
     );
   }
+}
 
-  if (Array.isArray(doc.assignedClientIds)) {
-    doc.assignedClientIds = Array.from(
-      new Set(doc.assignedClientIds.map(String))
-    ).map((id) => new mongoose.Types.ObjectId(id));
+/* =========================================================
+   POST – CREATE USER (ADMIN)
+========================================================= */
+export async function POST(req: Request) {
+  try {
+    await connectDB();
+
+    const auth = await getUserIdFromRequest(req as NextRequest);
+
+    if (!auth?.userId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "UNAUTHORIZED",
+        },
+        { status: 401 }
+      );
+    }
+
+    if (!isAdminContext(auth)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "FORBIDDEN",
+        },
+        { status: 403 }
+      );
+    }
+
+    const body = await req.json().catch(() => null);
+
+    const {
+      name,
+      email,
+      role,
+      limits,
+      billing,
+      addons,
+      plan,
+    } = body || {};
+
+    if (!name || !email || !role) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "MISSING_REQUIRED_FIELDS",
+        },
+        { status: 400 }
+      );
+    }
+
+    const safeEmail = normalizeEmail(email);
+
+    const existing = await User.findOne({
+      email: safeEmail,
+    })
+      .select("_id")
+      .lean();
+
+    if (existing) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "EMAIL_ALREADY_EXISTS",
+        },
+        { status: 409 }
+      );
+    }
+
+    /* =========================
+       PRODUCER
+    ========================= */
+    if (role === "producer") {
+      const pricePerRecord = Number(billing?.pricePerRecord || 0);
+
+      const user = await User.create({
+        name,
+        email: safeEmail,
+        role: "producer",
+
+        producerPricePerRecord: pricePerRecord,
+
+        hasPaid: true,
+        paidAmount: 0,
+        isActive: true,
+
+        needsPasswordSetup: true,
+        createdByAdmin: true,
+        billingSource: "admin",
+      });
+
+      await sendPasswordSetupMail(String(user._id));
+
+      return NextResponse.json(
+        {
+          success: true,
+          userId: String(user._id),
+        },
+        { status: 201 }
+      );
+    }
+
+    /* =========================
+       STAFF
+    ========================= */
+    if (role === "staff") {
+      const user = await User.create({
+        name,
+        email: safeEmail,
+        role: "staff",
+
+        hasPaid: true,
+        paidAmount: 0,
+        isActive: true,
+
+        needsPasswordSetup: true,
+        createdByAdmin: true,
+        billingSource: "admin",
+      });
+
+      await sendPasswordSetupMail(String(user._id));
+
+      return NextResponse.json(
+        {
+          success: true,
+          userId: String(user._id),
+        },
+        { status: 201 }
+      );
+    }
+
+    /* =========================
+       REGULAR USER
+    ========================= */
+    const selectedPlanKey = String(plan || "plan1");
+    const planData = getPlanConfig(selectedPlanKey);
+
+    const recordsNum = Number(limits?.records || planData.guests || 0);
+    const smsTotalNum = Number(limits?.smsTotal || planData.sms || 0);
+    const priceNum = Number(billing?.price ?? planData.price ?? 0);
+
+    if (
+      Number.isNaN(recordsNum) ||
+      Number.isNaN(smsTotalNum) ||
+      Number.isNaN(priceNum)
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "INVALID_LIMITS_OR_BILLING",
+        },
+        { status: 400 }
+      );
+    }
+
+    const finalIncludeCalls =
+      Boolean(planData.includeCalls) ||
+      Boolean(limits?.includeCalls) ||
+      Boolean(addons?.calls?.enabled);
+
+    const finalIncludeCreditGifts =
+      Boolean(planData.includeCreditGifts) ||
+      Boolean(addons?.credit?.enabled);
+
+    const finalDigitalSeating =
+      Boolean(planData.includeDigitalSeating) ||
+      Boolean(addons?.seating?.enabled);
+
+    const finalEventManagement =
+      Boolean(planData.includeEventManagement) ||
+      Boolean(addons?.system?.enabled);
+
+    const finalCustomDesign = Boolean(addons?.design?.enabled);
+
+    const planLimits = {
+      maxGuests: recordsNum,
+      smsEnabled: true,
+      smsLimit: smsTotalNum,
+      seatingEnabled: finalDigitalSeating,
+      remindersEnabled: true,
+      callsEnabled: finalIncludeCalls,
+    };
+
+    const paymentStatus = billing?.paymentStatus || "paid";
+    const hasPaid = paymentStatus === "paid";
+
+    const user = await User.create({
+      name,
+      email: safeEmail,
+      role: "user",
+
+      plan: selectedPlanKey,
+      priceKey: selectedPlanKey,
+      packageName: planData.label,
+
+      planLimits,
+
+      guests: recordsNum,
+      maxGuests: recordsNum,
+
+      maxMessages: smsTotalNum,
+      smsLimit: smsTotalNum,
+
+      includeCalls: finalIncludeCalls,
+      callsRounds: finalIncludeCalls ? 3 : 0,
+      callsAddonPrice: Number(addons?.calls?.price || 0),
+
+      includeCreditGifts: finalIncludeCreditGifts,
+      creditGiftsAddonPrice: Number(addons?.credit?.price || 0),
+
+      includeDigitalSeating: finalDigitalSeating,
+      includeEventManagement: finalEventManagement,
+      includeCustomDesign: finalCustomDesign,
+
+      selfManageEnabled: finalEventManagement,
+      customDesignEnabled: finalCustomDesign,
+
+      hasPaid,
+      paidAmount: hasPaid ? priceNum : 0,
+      isActive: hasPaid,
+
+      needsPasswordSetup: true,
+      createdByAdmin: true,
+      billingSource: "admin",
+    });
+
+    if (hasPaid && priceNum > 0) {
+      await Payment.create({
+        email: safeEmail,
+
+        stripeSessionId: undefined,
+        stripePaymentIntentId: undefined,
+        stripeCustomerId: undefined,
+        stripePriceId: undefined,
+
+        priceKey: selectedPlanKey,
+        maxGuests: recordsNum,
+
+        includeCalls: finalIncludeCalls,
+        callsAddonPrice: Number(addons?.calls?.price || 0),
+
+        includeCreditGifts: finalIncludeCreditGifts,
+        creditGiftsAddonPrice: Number(addons?.credit?.price || 0),
+
+        amount: priceNum,
+        refundAmount: 0,
+        currency: "ils",
+
+        type: "package",
+        status: "paid",
+        isTest: false,
+
+        meta: {
+          source: "admin",
+          adminId: auth.impersonatedBy
+            ? String(auth.impersonatedBy)
+            : String(auth.userId),
+          userId: String(user._id),
+          plan: selectedPlanKey,
+          packageName: planData.label,
+          includeDigitalSeating: finalDigitalSeating,
+          includeEventManagement: finalEventManagement,
+          includeCustomDesign: finalCustomDesign,
+        },
+      });
+    }
+
+    await sendPasswordSetupMail(String(user._id));
+
+    return NextResponse.json(
+      {
+        success: true,
+        userId: String(user._id),
+      },
+      { status: 201 }
+    );
+  } catch (err) {
+    console.error("🔥 ADMIN USERS POST ERROR:", err);
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: "SERVER_ERROR",
+      },
+      { status: 500 }
+    );
   }
-});
-
-/* ============================================================
-   INDEXES
-============================================================ */
-
-UserSchema.index({ role: 1, staffType: 1 });
-UserSchema.index({ assignedProducerId: 1, role: 1 });
-UserSchema.index({ assignedProducerId: 1, assignedClientIds: 1 });
-
-/* ============================================================
-   MODEL
-============================================================ */
-
-const User = models.User || model<IUser>("User", UserSchema);
-export default User;
+}
