@@ -128,19 +128,27 @@ function buildPricingData() {
    * }
    */
   if (!Array.isArray(source)) {
-    const plans = Array.isArray(source?.plans)
-      ? source.plans.map(normalizePlan).filter(Boolean)
-      : [];
+    const plans: AdminPricingPlan[] = Array.isArray(source?.plans)
+  ? source.plans
+      .map(normalizePlan)
+      .filter((plan): plan is AdminPricingPlan => plan !== null)
+  : [];
 
-    const recordOptions = Array.isArray(source?.recordOptions)
-      ? source.recordOptions.map(normalizeRecordOption).filter(Boolean)
-      : [];
+const recordOptions: AdminRecordOption[] = Array.isArray(
+  source?.recordOptions
+)
+  ? source.recordOptions
+      .map(normalizeRecordOption)
+      .filter(
+        (option): option is AdminRecordOption => option !== null
+      )
+  : [];
 
-    return {
-      plans: plans.sort(sortPlans),
-      recordOptions: recordOptions.sort(sortRecordOptions),
-      packages: source?.packages || [],
-    };
+return {
+  plans: plans.sort(sortPlans),
+  recordOptions: recordOptions.sort(sortRecordOptions),
+  packages: source?.packages || [],
+};
   }
 
   /**
