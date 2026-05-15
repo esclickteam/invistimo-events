@@ -4,14 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 
-/* ============================================================
-   UI CONST
-============================================================ */
-const HEADER_UI = {
-  height: "h-16",
-  navText: "text-[20px] tracking-wide",
-};
-
 type Props = {
   homeHref?: string;
 };
@@ -25,13 +17,14 @@ export default function ProducerDashboardHeader({
 
   const handleLogout = async () => {
     if (loggingOut) return;
+
     setLoggingOut(true);
 
     try {
-      await logout(); // ה-logout ב-AuthContext כבר מבצע redirect
+      await logout();
     } catch (err) {
       console.error("Logout failed", err);
-      router.replace("/login"); // fallback בלבד
+      router.replace("/login");
     } finally {
       setLoggingOut(false);
     }
@@ -40,84 +33,184 @@ export default function ProducerDashboardHeader({
   return (
     <header
       dir="rtl"
-      className={`
-        fixed top-0 inset-x-0 z-40
-        ${HEADER_UI.height}
-        border-b border-[#e2d6c8]
-        bg-[#f5eee7]
-        bg-[url('/noise.png')] bg-repeat
-      `}
+      className="
+        fixed
+        inset-x-0
+        top-0
+        z-50
+        bg-[#F7F1EA]
+        px-4
+        py-2
+      "
     >
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center h-full px-4 md:px-10">
-        {/* =========================
-            ימין – ראשי + badge (אותו מקום כמו עובד מפיק)
-        ========================= */}
-        <div className="flex justify-start items-center gap-3">
+      <div
+        className="
+          mx-auto
+          grid
+          h-[78px]
+          w-full
+          max-w-[1760px]
+          grid-cols-[1fr_auto_1fr]
+          items-center
+          rounded-[26px]
+          border
+          border-[#D8B46A]/55
+          bg-[#F8F1E8]/95
+          bg-[url('/noise.png')]
+          bg-repeat
+          px-6
+          shadow-[0_10px_35px_rgba(86,60,34,0.08)]
+          backdrop-blur-xl
+        "
+      >
+        {/* ימין – ניווט */}
+        <nav
+          className="
+            flex
+            items-center
+            justify-start
+            gap-9
+            text-[15px]
+            font-black
+            tracking-wide
+            text-[#5A5148]
+          "
+        >
           <button
+            type="button"
             onClick={() => router.push(homeHref)}
-            className={`
-              font-medium text-[#4a413a]
-              ${HEADER_UI.navText}
-              hover:text-[var(--champagne-dark)]
-              transition
-              flex items-center gap-2
-            `}
-          >
-            🏠 ראשי
-          </button>
-
-          {/* BADGE – מפיק */}
-          <span
             className="
-              text-xs font-semibold
-              px-2 py-0.5
-              rounded-full
-              bg-[#ede3d7]
-              text-[#6b4b2a]
-              border border-[#d6c4b0]
-              whitespace-nowrap
+              flex
+              items-center
+              gap-2
+              transition
+              hover:text-[#A77A2F]
             "
           >
-            מפיק
-          </span>
-        </div>
+            <span className="text-[16px]">🏠</span>
+            ראשי
+          </button>
 
-        {/* =========================
-            מרכז – לוגו
-        ========================= */}
-        <div className="flex justify-center">
           <button
+            type="button"
+            onClick={() => router.push(homeHref)}
+            className="
+              transition
+              hover:text-[#A77A2F]
+            "
+          >
+            לקוחות
+          </button>
+
+          <button
+            type="button"
+            onClick={() => router.push(homeHref)}
+            className="
+              transition
+              hover:text-[#A77A2F]
+            "
+          >
+            יומן מפיק
+          </button>
+
+          <button
+            type="button"
+            onClick={() => router.push(homeHref)}
+            className="
+              transition
+              hover:text-[#A77A2F]
+            "
+          >
+            ניהול אירועים
+          </button>
+        </nav>
+
+        {/* מרכז – לוגו */}
+        <div className="flex items-center justify-center">
+          <button
+            type="button"
             onClick={() => router.push(homeHref)}
             aria-label="מעבר לדשבורד מפיק"
-            className="scale-[4]"
+            className="
+              flex
+              items-center
+              justify-center
+              transition
+              hover:scale-[1.02]
+            "
           >
             <img
               src="/invistimo-logo.png"
               alt="Invistimo"
-              className="h-10 w-auto select-none"
+              className="
+                h-[62px]
+                w-auto
+                select-none
+                object-contain
+              "
               draggable={false}
             />
           </button>
         </div>
 
-        {/* =========================
-            שמאל – התנתקות
-        ========================= */}
-        <div className="flex justify-end items-center gap-4">
+        {/* שמאל – פעולות */}
+        <div
+          className="
+            flex
+            items-center
+            justify-end
+            gap-3
+          "
+        >
+          <span
+            className="
+              inline-flex
+              h-[34px]
+              items-center
+              justify-center
+              rounded-full
+              border
+              border-[#D8B46A]/55
+              bg-white/45
+              px-4
+              text-xs
+              font-black
+              text-[#6B4B2A]
+              shadow-sm
+              whitespace-nowrap
+            "
+          >
+            מפיק
+          </span>
+
           <button
+            type="button"
             onClick={handleLogout}
             disabled={loggingOut}
-            className={`
-              font-medium
-              ${HEADER_UI.navText}
-              text-red-600
-              hover:text-red-700
-              transition
-              disabled:opacity-50 disabled:cursor-not-allowed
-            `}
             title="התנתקות"
+            className="
+              inline-flex
+              h-[46px]
+              items-center
+              justify-center
+              gap-2
+              rounded-[14px]
+              border
+              border-[#D8B46A]/60
+              bg-white/55
+              px-6
+              text-[15px]
+              font-black
+              text-[#5A5148]
+              transition
+              hover:bg-white
+              hover:text-[#9A2B2B]
+              disabled:cursor-not-allowed
+              disabled:opacity-50
+            "
           >
-            {loggingOut ? "מתנתק..." : "🚪 התנתקות"}
+            <span className="text-[#A67A2F]">♙</span>
+            {loggingOut ? "מתנתק..." : "התנתקות"}
           </button>
         </div>
       </div>
