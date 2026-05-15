@@ -7,7 +7,7 @@ import SendButton from "../shared/SendButton";
 import WhatsappTemplatePreview from "../shared/WhatsappTemplatePreview";
 import TextMessagePreview from "../shared/TextMessagePreview";
 import ScheduledMessagesTable from "@/app/components/ScheduledMessagesTable";
-import { useAuth } from "@/context/AuthContext";
+
 
 /* ================= TYPES ================= */
 
@@ -262,7 +262,7 @@ export default function RsvpTab({
   eventLocation,
   headerImageUrl,
 }: Props) {
-  const { user } = useAuth();
+ 
 
   const [loading, setLoading] = useState(true);
   const [sendingNow, setSendingNow] = useState(false);
@@ -740,37 +740,6 @@ export default function RsvpTab({
     }
   }
 
-  /* ================= ADMIN LOCK ================= */
-
-  async function toggleMessageLock(key: string, current: boolean) {
-    try {
-      const res = await fetch("/api/admin/toggle-message-lock", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          invitationId,
-          key,
-          value: !current,
-        }),
-      });
-
-      if (!res.ok) throw new Error("FAILED");
-
-      if (key.includes("Round1")) setRound1Locked(!current);
-      if (key.includes("Round2")) setRound2Locked(!current);
-      if (key.includes("Round3")) setRound3Locked(!current);
-    } catch (err) {
-      console.error(err);
-      alert("שגיאה בעדכון הסבב");
-    }
-  }
-
-  function getCurrentLockKey() {
-    const prefix = selectedChannel === "sms" ? "rsvpSms" : "rsvpWhatsapp";
-    return `${prefix}Round${round}`;
-  }
 
   /* ================= DOUBLE CLICK LOCK ================= */
 
@@ -1397,23 +1366,6 @@ export default function RsvpTab({
                   מועד: {sendTiming === "now" ? "מיידי" : "מתוזמן"}
                 </span>
               </div>
-
-              {(user?.role === "admin" || (user as any)?.impersonatedByAdmin) && (
-                <button
-                  type="button"
-                  disabled={sendingNow}
-                  onClick={() =>
-                    toggleMessageLock(getCurrentLockKey(), currentRoundLocked)
-                  }
-                  className={`w-full rounded-2xl px-5 py-3 text-sm font-black text-white transition disabled:opacity-60 ${
-                    currentRoundLocked
-                      ? "bg-[#B9894D] hover:bg-[#9C7037]"
-                      : "bg-green-600 hover:bg-green-700"
-                  }`}
-                >
-                  {currentRoundLocked ? "🔓 פתח סבב" : "🔒 סגור סבב"}
-                </button>
-              )}
             </div>
 
             {scheduledMessages.length > 0 && (

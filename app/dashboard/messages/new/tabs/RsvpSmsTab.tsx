@@ -7,7 +7,7 @@ import AudienceFilterSelector, {
 import SendButton from "../shared/SendButton";
 import TextMessagePreview from "../shared/TextMessagePreview";
 import ScheduledMessagesTable from "@/app/components/ScheduledMessagesTable";
-import { useAuth } from "@/context/AuthContext";
+
 
 /* ================= TYPES ================= */
 
@@ -80,7 +80,6 @@ const RSVP_SMS_TEMPLATES = {
 /* ================= COMPONENT ================= */
 
 export default function RsvpSmsTab({ invitationId, invitationTitle }: Props) {
-  const { user } = useAuth();
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -300,44 +299,6 @@ setRound2Locked(
     () => guests.filter((g) => g.rsvp === "pending"),
     [guests]
   );
-
-  async function toggleMessageLock(
-  key: string,
-  current: boolean
-) {
-  try {
-    const res = await fetch(
-      "/api/admin/toggle-message-lock",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          invitationId,
-          key,
-          value: !current,
-        }),
-      }
-    );
-
-    if (!res.ok) {
-      throw new Error("FAILED");
-    }
-
-    if (key === "rsvpSmsRound1") {
-      setRound1Locked(!current);
-    }
-
-    if (key === "rsvpSmsRound2") {
-      setRound2Locked(!current);
-    }
-
-  } catch (err) {
-    console.error(err);
-    alert("שגיאה בעדכון הסבב");
-  }
-}
 
   /* ================= FILTER ================= */
 
@@ -631,41 +592,7 @@ setRound2Locked(
   : "📩 שלח אישור הגעה SMS"}
 </SendButton>
 
-{(
-  user?.role === "admin" ||
-  (user as any)?.impersonatedByAdmin
-) && (
-  <button
-    onClick={() =>
-      toggleMessageLock(
-        round === 1
-          ? "rsvpSmsRound1"
-          : "rsvpSmsRound2",
 
-        round === 1
-          ? round1Locked
-          : round2Locked
-      )
-    }
-    className={`w-full py-3 rounded-xl text-white font-medium ${
-      (
-        round === 1
-          ? round1Locked
-          : round2Locked
-      )
-        ? "bg-orange-500"
-        : "bg-green-600"
-    }`}
-  >
-    {(
-      round === 1
-        ? round1Locked
-        : round2Locked
-    )
-      ? "🔓 פתח סבב"
-      : "🔒 סגור סבב"}
-  </button>
-)}
 
 
       {/* OPEN MODAL BUTTON */}
