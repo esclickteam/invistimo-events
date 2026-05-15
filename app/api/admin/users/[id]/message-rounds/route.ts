@@ -39,16 +39,7 @@ function getUnsetFieldsByRoundKey(key: string) {
          אובייקט פנימי שקיים אצלך במונגו:
          rsvpRoundSentAt.round1 / round2 / round3
       ===================================================== */
-      `rsvpRoundSentAt.round${round}`,
-      `rsvpRoundSentAt.round${round}.sentAt`,
-      `rsvpRoundSentAt.round${round}.sentAtSms`,
-      `rsvpRoundSentAt.round${round}.sentAtWhatsapp`,
-      `rsvpRoundSentAt.round${round}.smsSentAt`,
-      `rsvpRoundSentAt.round${round}.whatsappSentAt`,
-      `rsvpRoundSentAt.round${round}.scheduledAt`,
-      `rsvpRoundSentAt.round${round}.smsScheduledAt`,
-      `rsvpRoundSentAt.round${round}.whatsappScheduledAt`,
-
+           `rsvpRoundSentAt.round${round}`,
       /* =====================================================
          SMS
       ===================================================== */
