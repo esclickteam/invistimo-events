@@ -36,15 +36,13 @@ function getUnsetFieldsByRoundKey(key: string) {
       `rsvpSmsRound${round}ScheduledAt`,
       `rsvpWhatsappRound${round}ScheduledAt`,
 
-      /**
-       * תאימות למקרה שקיימים locks ישנים / עתידיים לפי RSVP.
-       * לא פוגע אם השדות לא קיימים.
-       */
       `messageLocks.rsvpRound${round}`,
       `messageLocks.rsvpRound${round}Sms`,
       `messageLocks.rsvpRound${round}Whatsapp`,
       `messageLocks.rsvpSmsRound${round}`,
       `messageLocks.rsvpWhatsappRound${round}`,
+
+      `adminMessageRoundLocks.rsvp_${round}`,
     ];
   }
 
@@ -58,14 +56,11 @@ function getUnsetFieldsByRoundKey(key: string) {
       "reminderSmsScheduledAt",
       "reminderWhatsappScheduledAt",
 
-      /**
-       * חשוב:
-       * קבצי השליחה חוסמים תזכורת לפי:
-       * reminderSentAt + messageLocks.reminderSms / reminderWhatsapp
-       */
+      "messageLocks.reminder",
       "messageLocks.reminderSms",
       "messageLocks.reminderWhatsapp",
-      "messageLocks.reminder",
+
+      "adminMessageRoundLocks.reminder",
     ];
   }
 
@@ -81,21 +76,73 @@ function getUnsetFieldsByRoundKey(key: string) {
       "thankYouSmsScheduledAt",
       "thankYouWhatsappScheduledAt",
 
-      /**
-       * חשוב:
-       * קבצי השליחה חוסמים תודה לפי:
-       * thankYouSentAt + messageLocks.thankyouSms / thankyouWhatsapp
-       */
+      "messageLocks.thankyou",
       "messageLocks.thankyouSms",
       "messageLocks.thankyouWhatsapp",
-      "messageLocks.thankyou",
+      "messageLocks.thankYou",
       "messageLocks.thankYouSms",
       "messageLocks.thankYouWhatsapp",
-      "messageLocks.thankYou",
+
+      "adminMessageRoundLocks.thankyou",
     ];
   }
 
   return [];
+}
+
+function getBlockPatchByRoundKey(key: string) {
+  const now = new Date();
+
+  if (key.startsWith("rsvp_")) {
+    const round = key.split("_")[1];
+
+    return {
+      [`adminMessageRoundLocks.rsvp_${round}`]: true,
+
+      /*
+        חשוב:
+        קבצי השליחה של RSVP כבר חוסמים לפי isRsvpRoundAlreadySent.
+        לכן כדי שחסימה באמת תמנע שליחה בלי לגעת בשליחה,
+        מסמנים את הסבב כנעול דרך שדה SentAt כללי.
+      */
+      [`rsvpRound${round}SentAt`]: now,
+    };
+  }
+
+  if (key === "reminder") {
+    return {
+      "adminMessageRoundLocks.reminder": true,
+
+      /*
+        קבצי השליחה חוסמים תזכורת לפי:
+        reminderSentAt + messageLocks.reminderSms / reminderWhatsapp
+      */
+      reminderSentAt: now,
+      "messageLocks.reminder": true,
+      "messageLocks.reminderSms": true,
+      "messageLocks.reminderWhatsapp": true,
+    };
+  }
+
+  if (key === "thankyou") {
+    return {
+      "adminMessageRoundLocks.thankyou": true,
+
+      /*
+        קבצי השליחה חוסמים תודה לפי:
+        thankYouSentAt + messageLocks.thankyouSms / thankyouWhatsapp
+      */
+      thankYouSentAt: now,
+      "messageLocks.thankyou": true,
+      "messageLocks.thankyouSms": true,
+      "messageLocks.thankyouWhatsapp": true,
+      "messageLocks.thankYou": true,
+      "messageLocks.thankYouSms": true,
+      "messageLocks.thankYouWhatsapp": true,
+    };
+  }
+
+  return {};
 }
 
 /* =========================================================
@@ -108,9 +155,6 @@ export async function PATCH(
   try {
     await connectDB();
 
-    /* =====================================================
-       AUTH
-    ===================================================== */
     const auth = await getUserIdFromRequest(req as NextRequest);
 
     if (!auth?.userId) {
@@ -127,9 +171,6 @@ export async function PATCH(
       );
     }
 
-    /* =====================================================
-       PARAMS + BODY
-    ===================================================== */
     const { id: userId } = await context.params;
 
     const body = await req.json().catch(() => null);
@@ -144,9 +185,6 @@ export async function PATCH(
       );
     }
 
-    /* =====================================================
-       USER
-    ===================================================== */
     const user = await User.findById(userId).select("_id").lean();
 
     if (!user) {
@@ -156,9 +194,6 @@ export async function PATCH(
       );
     }
 
-    /* =====================================================
-       INVITATION
-    ===================================================== */
     const invitation = await Invitation.findOne({
       ownerId: userId,
     })
@@ -172,11 +207,12 @@ export async function PATCH(
       );
     }
 
-    /* =====================================================
-       RESET – פתיחה מחדש
-       מוחק sent/scheduled + messageLocks + חסימת אדמין
-    ===================================================== */
-    if (action === "reset") {
+    /*
+      פתיחה מחדש:
+      מוחקת גם SentAt, גם ScheduledAt, גם messageLocks, וגם חסימת אדמין.
+      זה מה שמאפשר למשתמש לשלוח שוב בלי לגעת בקבצי השליחה.
+    */
+    if (action === "reset" || action === "unblock") {
       const fields = getUnsetFieldsByRoundKey(key);
 
       const unset: Record<string, ""> = {};
@@ -185,34 +221,21 @@ export async function PATCH(
         unset[field] = "";
       });
 
-      unset[`adminMessageRoundLocks.${key}`] = "";
-
       await Invitation.findByIdAndUpdate(invitation._id, {
         $unset: unset,
       });
     }
 
-    /* =====================================================
-       BLOCK – חסימה באדמין בלבד
-       לא נוגע בשליחה/תזמון.
-    ===================================================== */
+    /*
+      חסימה:
+      שומרת גם adminMessageRoundLocks בשביל התצוגה באדמין,
+      וגם את השדות שקבצי השליחה הקיימים כבר בודקים.
+    */
     if (action === "block") {
-      await Invitation.findByIdAndUpdate(invitation._id, {
-        $set: {
-          [`adminMessageRoundLocks.${key}`]: true,
-        },
-      });
-    }
+      const set = getBlockPatchByRoundKey(key);
 
-    /* =====================================================
-       UNBLOCK – ביטול חסימה באדמין בלבד
-       לא נוגע בשליחה/תזמון.
-    ===================================================== */
-    if (action === "unblock") {
       await Invitation.findByIdAndUpdate(invitation._id, {
-        $unset: {
-          [`adminMessageRoundLocks.${key}`]: "",
-        },
+        $set: set,
       });
     }
 
