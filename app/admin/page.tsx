@@ -11,10 +11,8 @@ import {
   Loader2,
   X,
   ReceiptText,
-  Gift,
   CreditCard,
   Mail,
-  RefreshCcw,
   ShieldCheck,
   Search,
   Package,
@@ -109,6 +107,8 @@ const DAYS = Array.from({ length: 31 }, (_, index) => ({
   value: index + 1,
   label: String(index + 1),
 }));
+
+const AUTO_REFRESH_MS = 10000;
 
 /* =====================================================
    HELPERS
@@ -238,44 +238,57 @@ const [toYear, setToYear] = useState(currentYear);
     return Math.round(revenue / monthsCount);
   }, [stats?.rangeSummary]);
 
-  async function fetchStats() {
-    try {
+  async function fetchStats(showLoader = true) {
+  try {
+    if (showLoader) {
       setLoading(true);
+    }
 
-      const params = new URLSearchParams({
-  month: String(selectedMonth),
-  year: String(selectedYear),
+    const params = new URLSearchParams({
+      month: String(selectedMonth),
+      year: String(selectedYear),
 
-  fromDay: String(fromDay),
-  fromMonth: String(fromMonth),
-  fromYear: String(fromYear),
+      fromDay: String(fromDay),
+      fromMonth: String(fromMonth),
+      fromYear: String(fromYear),
 
-  toDay: String(toDay),
-  toMonth: String(toMonth),
-  toYear: String(toYear),
-});
+      toDay: String(toDay),
+      toMonth: String(toMonth),
+      toYear: String(toYear),
+    });
 
-      const res = await fetch(`/api/admin/stats?${params.toString()}`, {
-        credentials: "include",
-        cache: "no-store",
-      });
+    const res = await fetch(`/api/admin/stats?${params.toString()}`, {
+      credentials: "include",
+      cache: "no-store",
+    });
 
-      if (!res.ok) throw new Error("Failed to fetch stats");
+    if (!res.ok) throw new Error("Failed to fetch stats");
 
-      const data = await res.json();
-      setStats(data);
-    } catch (err) {
-      console.error("❌ Failed to load admin stats:", err);
-      setStats(null);
-    } finally {
+    const data = await res.json();
+    setStats(data);
+  } catch (err) {
+    console.error("❌ Failed to load admin stats:", err);
+    setStats(null);
+  } finally {
+    if (showLoader) {
       setLoading(false);
     }
   }
+}
 
   useEffect(() => {
-    fetchStats();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
+  fetchStats(true);
+
+  const intervalId = window.setInterval(() => {
+    fetchStats(false);
+  }, AUTO_REFRESH_MS);
+
+  return () => {
+    window.clearInterval(intervalId);
+  };
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [
   selectedMonth,
   selectedYear,
   fromDay,
@@ -571,75 +584,7 @@ const [toYear, setToYear] = useState(currentYear);
           />
         </section>
 
-        {/* =====================================================
-            SECONDARY STATS
-        ====================================================== */}
-        <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <AdminWideBox
-            title="הכנסות משירותי שיחות"
-            subtitle="סך תוספות שיחות ששולמו בחודש הנבחר"
-            value={loading ? "—" : formatMoney(stats?.callsRevenue ?? 0)}
-            icon={<PhoneCall size={22} />}
-          />
-
-          <AdminWideBox
-            title="הכנסות ממתנות באשראי"
-            subtitle="סך תוספות מתנות באשראי בחודש הנבחר"
-            value={loading ? "—" : formatMoney(stats?.creditGiftsRevenue ?? 0)}
-            icon={<Gift size={22} />}
-          />
-
-          <button
-            type="button"
-            onClick={fetchStats}
-            className="
-              group
-              rounded-[28px]
-              border border-[#E7D8C6]
-              bg-[#FFFDF8]
-              p-5
-              text-right
-              shadow-[0_14px_40px_rgba(60,43,25,0.06)]
-              transition
-              hover:-translate-y-1
-              hover:bg-white
-              hover:shadow-[0_20px_55px_rgba(60,43,25,0.10)]
-            "
-          >
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <div className="text-sm font-black text-[#3A2A1C]">
-                  רענון נתונים
-                </div>
-
-                <div className="mt-1 text-xs leading-5 text-[#8A7867]">
-                  משיכת נתונים עדכניים מהשרת
-                </div>
-              </div>
-
-              <div
-                className="
-                  flex h-12 w-12 items-center justify-center
-                  rounded-2xl
-                  bg-[#F6EBDD]
-                  text-[#8A5A24]
-                  transition
-                  group-hover:rotate-180
-                "
-              >
-                {loading ? (
-                  <Loader2 className="animate-spin" size={22} />
-                ) : (
-                  <RefreshCcw size={22} />
-                )}
-              </div>
-            </div>
-
-            <div className="mt-5 text-2xl font-black text-[#8A5A24]">
-              {loading ? "טוען..." : "עדכן עכשיו"}
-            </div>
-          </button>
-        </section>
+        
 
         {/* =====================================================
             RANGE SUMMARY
@@ -1375,55 +1320,6 @@ function AdminBox({
   );
 }
 
-/* =====================================================
-   WIDE BOX
-===================================================== */
-function AdminWideBox({
-  title,
-  subtitle,
-  value,
-  icon,
-}: {
-  title: string;
-  subtitle: string;
-  value: string;
-  icon: ReactNode;
-}) {
-  return (
-    <div
-      className="
-        rounded-[28px]
-        border border-[#E7D8C6]
-        bg-white
-        p-5
-        shadow-[0_14px_40px_rgba(60,43,25,0.06)]
-      "
-    >
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <div className="text-sm font-black text-[#3A2A1C]">{title}</div>
-
-          <div className="mt-1 text-xs leading-5 text-[#8A7867]">
-            {subtitle}
-          </div>
-        </div>
-
-        <div
-          className="
-            flex h-12 w-12 items-center justify-center
-            rounded-2xl
-            bg-[#FFF2D8]
-            text-[#B97821]
-          "
-        >
-          {icon}
-        </div>
-      </div>
-
-      <div className="mt-5 text-3xl font-black text-[#B97821]">{value}</div>
-    </div>
-  );
-}
 
 /* =====================================================
    RANGE BOX
