@@ -25,10 +25,6 @@ export interface IUser extends Document {
   guests: number;
   maxGuests: number;
 
-  smsLimit: number;
-  maxMessages: number;
-  smsPerRecord: number;
-
   paidAmount: number;
   hasPaid: boolean;
   isActive: boolean;
@@ -61,6 +57,10 @@ export interface IUser extends Document {
 
   selfManageEnabled: boolean;
   customDesignEnabled: boolean;
+
+  smsPerRecord: number;
+  smsLimit: number;
+  maxMessages: number;
 
   planLimits: {
     maxGuests: number;
@@ -95,7 +95,11 @@ export interface IUser extends Document {
 ============================================================ */
 const UserSchema = new Schema<IUser>(
   {
-    name: { type: String, required: true, trim: true },
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
 
     email: {
       type: String,
@@ -113,7 +117,11 @@ const UserSchema = new Schema<IUser>(
       },
     },
 
-    phone: { type: String, trim: true, default: "" },
+    phone: {
+      type: String,
+      trim: true,
+      default: "",
+    },
 
     role: {
       type: String,
@@ -149,15 +157,25 @@ const UserSchema = new Schema<IUser>(
       default: "",
     },
 
-    guests: { type: Number, default: 0 },
-    maxGuests: { type: Number, default: 0 },
+    guests: {
+      type: Number,
+      default: 0,
+    },
 
-    smsLimit: { type: Number, default: 0 },
-    maxMessages: { type: Number, default: 0 },
-    smsPerRecord: { type: Number, default: 0 },
+    maxGuests: {
+      type: Number,
+      default: 0,
+    },
 
-    paidAmount: { type: Number, default: 0 },
-    hasPaid: { type: Boolean, default: false },
+    paidAmount: {
+      type: Number,
+      default: 0,
+    },
+
+    hasPaid: {
+      type: Boolean,
+      default: false,
+    },
 
     isActive: {
       type: Boolean,
@@ -171,8 +189,6 @@ const UserSchema = new Schema<IUser>(
       index: true,
     },
 
-    createdByAdmin: { type: Boolean, default: false },
-
     producerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -185,6 +201,11 @@ const UserSchema = new Schema<IUser>(
       ref: "User",
       default: null,
       index: true,
+    },
+
+    createdByAdmin: {
+      type: Boolean,
+      default: false,
     },
 
     assignedProducerId: {
@@ -214,11 +235,25 @@ const UserSchema = new Schema<IUser>(
       default: "site",
     },
 
-    producerPricePerRecord: { type: Number, default: 0 },
+    producerPricePerRecord: {
+      type: Number,
+      default: 0,
+    },
 
-    includeCalls: { type: Boolean, default: false },
-    callsRounds: { type: Number, default: 0 },
-    callsAddonPrice: { type: Number, default: 0 },
+    includeCalls: {
+      type: Boolean,
+      default: false,
+    },
+
+    callsRounds: {
+      type: Number,
+      default: 0,
+    },
+
+    callsAddonPrice: {
+      type: Number,
+      default: 0,
+    },
 
     callsEnabledBy: {
       type: String,
@@ -231,45 +266,141 @@ const UserSchema = new Schema<IUser>(
       default: null,
     },
 
-    includeCreditGifts: { type: Boolean, default: false },
-    creditGiftsAddonPrice: { type: Number, default: 0 },
-
-    includeDigitalSeating: { type: Boolean, default: false },
-    includeEventManagement: { type: Boolean, default: false },
-    includeCustomDesign: { type: Boolean, default: false },
-
-    selfManageEnabled: { type: Boolean, default: false },
-    customDesignEnabled: { type: Boolean, default: false },
-
-    planLimits: {
-      maxGuests: { type: Number, default: 0 },
-      smsEnabled: { type: Boolean, default: false },
-      smsLimit: { type: Number, default: 0 },
-      seatingEnabled: { type: Boolean, default: false },
-      remindersEnabled: { type: Boolean, default: false },
-      callsEnabled: { type: Boolean, default: false },
+    includeCreditGifts: {
+      type: Boolean,
+      default: false,
     },
 
-    smsBalance: { type: Number, default: 0 },
-    smsUsed: { type: Number, default: 0 },
-    testSmsUsed: { type: Number, default: 0 },
+    creditGiftsAddonPrice: {
+      type: Number,
+      default: 0,
+    },
 
-    whatsappBalance: { type: Number, default: 0 },
-    whatsappUsed: { type: Number, default: 0 },
+    includeDigitalSeating: {
+      type: Boolean,
+      default: false,
+    },
 
-    isTrial: { type: Boolean, default: false },
+    includeEventManagement: {
+      type: Boolean,
+      default: false,
+    },
 
-    isDemoUser: { type: Boolean, default: false },
+    includeCustomDesign: {
+      type: Boolean,
+      default: false,
+    },
+
+    selfManageEnabled: {
+      type: Boolean,
+      default: false,
+    },
+
+    customDesignEnabled: {
+      type: Boolean,
+      default: false,
+    },
+
+    smsPerRecord: {
+      type: Number,
+      default: 0,
+    },
+
+    smsLimit: {
+      type: Number,
+      default: 0,
+    },
+
+    maxMessages: {
+      type: Number,
+      default: 0,
+    },
+
+    planLimits: {
+      maxGuests: {
+        type: Number,
+        default: 0,
+      },
+
+      smsEnabled: {
+        type: Boolean,
+        default: false,
+      },
+
+      smsLimit: {
+        type: Number,
+        default: 0,
+      },
+
+      seatingEnabled: {
+        type: Boolean,
+        default: false,
+      },
+
+      remindersEnabled: {
+        type: Boolean,
+        default: false,
+      },
+
+      callsEnabled: {
+        type: Boolean,
+        default: false,
+      },
+    },
+
+    smsBalance: {
+      type: Number,
+      default: 0,
+    },
+
+    smsUsed: {
+      type: Number,
+      default: 0,
+    },
+
+    testSmsUsed: {
+      type: Number,
+      default: 0,
+    },
+
+    whatsappBalance: {
+      type: Number,
+      default: 0,
+    },
+
+    whatsappUsed: {
+      type: Number,
+      default: 0,
+    },
+
+    isTrial: {
+      type: Boolean,
+      default: false,
+    },
+
+    isDemoUser: {
+      type: Boolean,
+      default: false,
+    },
 
     needsPasswordSetup: {
       type: Boolean,
       default: true,
     },
 
-    resetPasswordToken: { type: String },
-    resetPasswordExpires: Date,
+    resetPasswordToken: {
+      type: String,
+      default: undefined,
+    },
+
+    resetPasswordExpires: {
+      type: Date,
+      default: undefined,
+    },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
 /* ============================================================
@@ -284,12 +415,14 @@ UserSchema.pre("validate", function () {
 
   if (doc.includeCalls) {
     doc.callsRounds = doc.callsRounds || 3;
+
     doc.planLimits = {
       ...(doc.planLimits || {}),
       callsEnabled: true,
     };
   } else {
     doc.callsRounds = 0;
+
     doc.planLimits = {
       ...(doc.planLimits || {}),
       callsEnabled: false,
@@ -325,6 +458,15 @@ UserSchema.pre("validate", function () {
 
   if (doc.maxMessages && !doc.smsLimit) {
     doc.smsLimit = doc.maxMessages;
+  }
+
+  if (doc.planLimits?.maxGuests && !doc.guests) {
+    doc.guests = doc.planLimits.maxGuests;
+  }
+
+  if (doc.planLimits?.smsLimit && !doc.smsLimit) {
+    doc.smsLimit = doc.planLimits.smsLimit;
+    doc.maxMessages = doc.planLimits.smsLimit;
   }
 
   if (doc.role === "admin") {
@@ -373,9 +515,12 @@ UserSchema.index({ assignedProducerId: 1, role: 1 });
 UserSchema.index({ assignedProducerId: 1, assignedClientIds: 1 });
 UserSchema.index({ email: 1, role: 1 });
 UserSchema.index({ eventDate: 1 });
+UserSchema.index({ plan: 1, hasPaid: 1 });
+UserSchema.index({ isDemoUser: 1 });
 
 /* ============================================================
    MODEL
 ============================================================ */
 const User = models.User || model<IUser>("User", UserSchema);
+
 export default User;
