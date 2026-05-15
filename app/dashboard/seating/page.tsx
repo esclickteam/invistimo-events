@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import SeatingEditor from "./SeatingEditor";
 import UploadBackgroundModal from "./UploadBackgroundModal";
@@ -36,6 +36,7 @@ type TableLite = {
 
 export default function SeatingPage() {
   const pathname = usePathname();
+  const router = useRouter();
   const isProducer = pathname.includes("/events/production");
   const isDemo = pathname.startsWith("/try/");
 
@@ -679,6 +680,20 @@ export default function SeatingPage() {
               whitespace-nowrap
             "
           >
+
+                        <button
+              type="button"
+              onClick={() => router.push("/dashboard")}
+              className="
+                flex h-11 shrink-0 items-center gap-2 rounded-2xl
+                border border-[#e5d2b8] bg-white/90 px-4
+                text-sm font-black text-[#6f5536]
+                shadow-sm transition hover:-translate-y-0.5 hover:bg-[#fff8ee]
+              "
+            >
+              ← חזרה לדשבורד
+            </button>
+            
             <button
               onClick={() => setShowSmartPanel(true)}
               disabled={!eventId || isSmartSeating || isClearingSmartSeating}
