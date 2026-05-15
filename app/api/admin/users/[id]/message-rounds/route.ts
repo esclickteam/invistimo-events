@@ -35,6 +35,16 @@ function getUnsetFieldsByRoundKey(key: string) {
       `rsvpRound${round}ScheduledAt`,
       `rsvpSmsRound${round}ScheduledAt`,
       `rsvpWhatsappRound${round}ScheduledAt`,
+
+      /**
+       * תאימות למקרה שקיימים locks ישנים / עתידיים לפי RSVP.
+       * לא פוגע אם השדות לא קיימים.
+       */
+      `messageLocks.rsvpRound${round}`,
+      `messageLocks.rsvpRound${round}Sms`,
+      `messageLocks.rsvpRound${round}Whatsapp`,
+      `messageLocks.rsvpSmsRound${round}`,
+      `messageLocks.rsvpWhatsappRound${round}`,
     ];
   }
 
@@ -47,6 +57,15 @@ function getUnsetFieldsByRoundKey(key: string) {
       "reminderScheduledAt",
       "reminderSmsScheduledAt",
       "reminderWhatsappScheduledAt",
+
+      /**
+       * חשוב:
+       * קבצי השליחה חוסמים תזכורת לפי:
+       * reminderSentAt + messageLocks.reminderSms / reminderWhatsapp
+       */
+      "messageLocks.reminderSms",
+      "messageLocks.reminderWhatsapp",
+      "messageLocks.reminder",
     ];
   }
 
@@ -61,6 +80,18 @@ function getUnsetFieldsByRoundKey(key: string) {
       "thankyouScheduledAt",
       "thankYouSmsScheduledAt",
       "thankYouWhatsappScheduledAt",
+
+      /**
+       * חשוב:
+       * קבצי השליחה חוסמים תודה לפי:
+       * thankYouSentAt + messageLocks.thankyouSms / thankyouWhatsapp
+       */
+      "messageLocks.thankyouSms",
+      "messageLocks.thankyouWhatsapp",
+      "messageLocks.thankyou",
+      "messageLocks.thankYouSms",
+      "messageLocks.thankYouWhatsapp",
+      "messageLocks.thankYou",
     ];
   }
 
@@ -143,7 +174,7 @@ export async function PATCH(
 
     /* =====================================================
        RESET – פתיחה מחדש
-       מוחק sent/scheduled וגם מסיר חסימה
+       מוחק sent/scheduled + messageLocks + חסימת אדמין
     ===================================================== */
     if (action === "reset") {
       const fields = getUnsetFieldsByRoundKey(key);
@@ -162,7 +193,8 @@ export async function PATCH(
     }
 
     /* =====================================================
-       BLOCK – חסימה
+       BLOCK – חסימה באדמין בלבד
+       לא נוגע בשליחה/תזמון.
     ===================================================== */
     if (action === "block") {
       await Invitation.findByIdAndUpdate(invitation._id, {
@@ -173,7 +205,8 @@ export async function PATCH(
     }
 
     /* =====================================================
-       UNBLOCK – ביטול חסימה
+       UNBLOCK – ביטול חסימה באדמין בלבד
+       לא נוגע בשליחה/תזמון.
     ===================================================== */
     if (action === "unblock") {
       await Invitation.findByIdAndUpdate(invitation._id, {
