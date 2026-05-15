@@ -911,15 +911,11 @@ const stats = useMemo(() => {
     0
   );
 
-  const totalNo = guests.reduce((sum, guest) => {
-    if (guest.rsvp !== "no") return sum;
-    return sum + getGuestAmount(guest);
-  }, 0);
+  const totalNo = guests.filter((guest) => guest.rsvp === "no").length;
 
-  const totalPending = guests.reduce((sum, guest) => {
-    if (guest.rsvp !== "pending") return sum;
-    return sum + getGuestAmount(guest);
-  }, 0);
+const totalPending = guests.filter(
+  (guest) => guest.rsvp === "pending"
+).length;
 
   return {
     totalGuests: totalInvited,
@@ -951,15 +947,11 @@ const rsvpVisualStats = useMemo(() => {
     0
   );
 
-  const notComing = guests.reduce((sum, guest) => {
-    if (guest.rsvp !== "no") return sum;
-    return sum + getGuestAmount(guest);
-  }, 0);
+  const notComing = guests.filter((guest) => guest.rsvp === "no").length;
 
-  const pending = guests.reduce((sum, guest) => {
-    if (guest.rsvp !== "pending") return sum;
-    return sum + getGuestAmount(guest);
-  }, 0);
+const pending = guests.filter(
+  (guest) => guest.rsvp === "pending"
+).length;
 
   const total = coming + notComing + pending;
 
