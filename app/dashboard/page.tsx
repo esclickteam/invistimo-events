@@ -2419,23 +2419,7 @@ function GoldenActionButtons({
           <span className="text-emerald-600">▣</span> ייבוא מאקסל
         </button>
 
-        <button
-          onClick={() =>
-            router.push(
-              isDemo
-                ? "/try/dashboard/messages/new"
-                : "/dashboard/messages/new"
-            )
-          }
-          disabled={!invitation}
-          className={`h-[54px] rounded-2xl font-black ${
-            invitation
-              ? "bg-gradient-to-l from-[#007A47] to-[#10A66A] text-white"
-              : "bg-gray-200 text-gray-400 cursor-not-allowed"
-          }`}
-        >
-          ↗ שליחת הודעות
-        </button>
+        
       </div>
     </section>
   );
