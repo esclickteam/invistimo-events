@@ -214,12 +214,21 @@ function getRecordOptionForUser(
 
   if (!recordOptions?.length) return null;
 
-  return (
-    recordOptions.find((option) => Number(option.records) === records) ||
-    recordOptions.find((option) => Number(option.records) >= records) ||
-    recordOptions[recordOptions.length - 1] ||
-    null
+  const sortedOptions = [...recordOptions].sort(
+    (a, b) => Number(a.records) - Number(b.records)
   );
+
+  const exact = sortedOptions.find(
+    (option) => Number(option.records) === records
+  );
+
+  if (exact) return exact;
+
+  const lowerOptions = sortedOptions.filter(
+    (option) => Number(option.records) < records
+  );
+
+  return lowerOptions[lowerOptions.length - 1] || sortedOptions[0];
 }
 
 function getPriceForRecordOption(
@@ -1286,7 +1295,12 @@ function UpgradeUserModal({
     currentRecordOption?.records || currentRecords || 0
   );
 
-  const [extraRecords, setExtraRecords] = useState(0);
+  const initialExtraRecords = Math.max(
+  0,
+  currentRecords - Number(currentRecordOption?.records || currentRecords || 0)
+);
+
+const [extraRecords, setExtraRecords] = useState(initialExtraRecords);
   const [extraRecordsAmount, setExtraRecordsAmount] = useState(0);
   const [manualTotalToPay, setManualTotalToPay] = useState(0);
 

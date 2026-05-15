@@ -1,15 +1,20 @@
 /* =========================================================
    ADMIN PACKAGES / PRICING SOURCE
-   מקור אחד לאדמין:
-   1. plans = סוגי חבילות
-   2. recordOptions = מדרגות רשומות כמו בעמוד החבילות באתר
+   מבוסס על עמוד החבילות האמיתי באתר:
+   - רשומות בקפיצות של 50
+   - מחיר לפי rate לכל חבילה
+   - מחיר בסיס = Math.round(records * rate)
 ========================================================= */
 
 export type AdminPackageKey = "plan1" | "plan2" | "plan3";
+export type AddonKey = "credit" | "seating" | "system" | "design";
 
 export type AdminPricingPlan = {
   key: AdminPackageKey;
   label: string;
+  title: string;
+  subtitle: string;
+  badge: string;
 
   includeCalls: boolean;
   includeCreditGifts: boolean;
@@ -21,26 +26,184 @@ export type AdminPricingPlan = {
 export type AdminRecordOption = {
   key: string;
   label: string;
-
   records: number;
   sms: number;
-
-  /**
-   * מחיר לפי חבילה.
-   * זה מה שהאדמין משתמש בו כדי לחשב הפרש:
-   * מחיר חדש פחות מחיר נוכחי.
-   */
   prices: Record<AdminPackageKey, number>;
 };
 
 export type AdminPackagesConfig = {
   plans: AdminPricingPlan[];
   recordOptions: AdminRecordOption[];
+  addonPrices: Record<AdminPackageKey, Record<AddonKey, number>>;
 };
 
 /* =========================================================
-   PRICING CONFIG
-   כאן צריך להיות בדיוק לפי עמוד החבילות באתר.
+   PRICE RATES – מתוך עמוד pricing
+========================================================= */
+
+const plan1Rates: [number, number][] = [
+  [50, 1.19],
+  [100, 1.16],
+  [150, 1.13],
+  [200, 1.1],
+  [250, 1.08],
+  [300, 1.06],
+  [350, 1.04],
+  [400, 1.02],
+  [450, 1.0],
+  [500, 0.98],
+  [550, 0.96],
+  [600, 0.94],
+  [650, 0.93],
+  [700, 0.92],
+  [750, 0.9],
+  [800, 0.88],
+];
+
+const plan2Rates: [number, number][] = [
+  [50, 2.85],
+  [100, 2.38],
+  [150, 2.35],
+  [200, 2.29],
+  [250, 2.26],
+  [300, 2.19],
+  [350, 2.15],
+  [400, 2.1],
+  [450, 2.05],
+  [500, 2.0],
+  [550, 1.96],
+  [600, 1.92],
+  [650, 1.92],
+  [700, 1.92],
+  [750, 1.92],
+  [800, 1.9],
+];
+
+const plan3Rates: [number, number][] = [
+  [50, 3.75],
+  [100, 3.22],
+  [150, 2.98],
+  [200, 2.76],
+  [250, 2.65],
+  [300, 2.52],
+  [350, 2.43],
+  [400, 2.35],
+  [450, 2.28],
+  [500, 2.21],
+  [550, 2.14],
+  [600, 2.07],
+  [650, 2.06],
+  [700, 2.05],
+  [750, 2.04],
+  [800, 2.03],
+];
+
+const PLAN_RATES: Record<AdminPackageKey, [number, number][]> = {
+  plan1: plan1Rates,
+  plan2: plan2Rates,
+  plan3: plan3Rates,
+};
+
+const RECORD_OPTIONS = Array.from({ length: 16 }, (_, index) => {
+  return (index + 1) * 50;
+});
+
+/* =========================================================
+   HELPERS
+========================================================= */
+
+export function getRate(plan: AdminPackageKey, records: number) {
+  const table = PLAN_RATES[plan];
+
+  for (const [limit, rate] of table) {
+    if (records <= limit) return rate;
+  }
+
+  return table[table.length - 1][1];
+}
+
+export function calculateBase(plan: AdminPackageKey, records: number) {
+  return Math.round(records * getRate(plan, records));
+}
+
+export function getAddonPrices(plan: AdminPackageKey) {
+  if (plan === "plan1") {
+    return {
+      credit: 150,
+      seating: 100,
+      system: 200,
+      design: 200,
+    };
+  }
+
+  if (plan === "plan2") {
+    return {
+      credit: 100,
+      seating: 80,
+      system: 150,
+      design: 150,
+    };
+  }
+
+  return {
+    credit: 0,
+    seating: 0,
+    system: 100,
+    design: 100,
+  };
+}
+
+function toPlanKey(value?: string | null): AdminPackageKey {
+  if (value === "plan2") return "plan2";
+  if (value === "plan3") return "plan3";
+  return "plan1";
+}
+
+/**
+ * חשוב:
+ * אם למשתמש יש 270 רשומות, זה לא מדרגה באתר.
+ * זה אומר שהוא היה על מדרגה רשמית, למשל 250,
+ * ועוד 20 רשומות ידניות.
+ *
+ * לכן פה מחפשים את מדרגת הבסיס הרשמית הכי קרובה כלפי מטה.
+ */
+export function getOfficialRecordOption(records?: number | null) {
+  const safeRecords = Number(records || 0);
+
+  if (!safeRecords) {
+    return RECORD_OPTIONS[0];
+  }
+
+  const exact = RECORD_OPTIONS.find((item) => item === safeRecords);
+
+  if (exact) {
+    return exact;
+  }
+
+  const lowerOptions = RECORD_OPTIONS.filter((item) => item < safeRecords);
+
+  return lowerOptions[lowerOptions.length - 1] || RECORD_OPTIONS[0];
+}
+
+export function getExtraRecords(records?: number | null) {
+  const safeRecords = Number(records || 0);
+  const officialRecords = getOfficialRecordOption(safeRecords);
+
+  return Math.max(0, safeRecords - officialRecords);
+}
+
+export function getAdminPrice(params: {
+  planKey?: string | null;
+  records?: number | null;
+}) {
+  const planKey = toPlanKey(params.planKey);
+  const officialRecords = getOfficialRecordOption(params.records);
+
+  return calculateBase(planKey, officialRecords);
+}
+
+/* =========================================================
+   CONFIG
 ========================================================= */
 
 export const ADMIN_PACKAGES: AdminPackagesConfig = {
@@ -48,6 +211,10 @@ export const ADMIN_PACKAGES: AdminPackagesConfig = {
     {
       key: "plan1",
       label: "חבילה 1",
+      title: "קל להזמין",
+      subtitle: "הבסיס המושלם להזמנה דיגיטלית ואישורי הגעה",
+      badge: "מתאים לאירוע פשוט",
+
       includeCalls: false,
       includeCreditGifts: false,
       includeDigitalSeating: false,
@@ -57,6 +224,10 @@ export const ADMIN_PACKAGES: AdminPackagesConfig = {
     {
       key: "plan2",
       label: "חבילה 2",
+      title: "מזמינים חכם",
+      subtitle: "כולל מוקד טלפוני וניהול אישורי הגעה מלא",
+      badge: "הבחירה הפופולרית",
+
       includeCalls: true,
       includeCreditGifts: false,
       includeDigitalSeating: false,
@@ -66,139 +237,70 @@ export const ADMIN_PACKAGES: AdminPackagesConfig = {
     {
       key: "plan3",
       label: "חבילה 3",
+      title: "מזמינים ומושיבים",
+      subtitle: "הפתרון המלא כולל הושבה חכמה ושולחנות",
+      badge: "הכי מקיף",
+
       includeCalls: true,
-      includeCreditGifts: true,
+      includeCreditGifts: false,
       includeDigitalSeating: true,
-      includeEventManagement: true,
+      includeEventManagement: false,
       includeCustomDesign: false,
     },
   ],
 
-  recordOptions: [
-    {
-      key: "records_100",
-      label: "עד 100 רשומות",
-      records: 100,
-      sms: 300,
-      prices: {
-        plan1: 0,
-        plan2: 0,
-        plan3: 0,
-      },
+  recordOptions: RECORD_OPTIONS.map((records) => ({
+    key: `records_${records}`,
+    label: `עד ${records} רשומות`,
+    records,
+    sms: records * 3,
+    prices: {
+      plan1: calculateBase("plan1", records),
+      plan2: calculateBase("plan2", records),
+      plan3: calculateBase("plan3", records),
     },
-    {
-      key: "records_150",
-      label: "עד 150 רשומות",
-      records: 150,
-      sms: 450,
-      prices: {
-        plan1: 0,
-        plan2: 0,
-        plan3: 0,
-      },
-    },
-    {
-      key: "records_200",
-      label: "עד 200 רשומות",
-      records: 200,
-      sms: 600,
-      prices: {
-        plan1: 0,
-        plan2: 0,
-        plan3: 0,
-      },
-    },
-    {
-      key: "records_250",
-      label: "עד 250 רשומות",
-      records: 250,
-      sms: 750,
-      prices: {
-        plan1: 0,
-        plan2: 0,
-        plan3: 0,
-      },
-    },
-    {
-      key: "records_270",
-      label: "עד 270 רשומות",
-      records: 270,
-      sms: 810,
-      prices: {
-        plan1: 0,
-        plan2: 0,
-        plan3: 1171,
-      },
-    },
-    {
-      key: "records_300",
-      label: "עד 300 רשומות",
-      records: 300,
-      sms: 900,
-      prices: {
-        plan1: 0,
-        plan2: 0,
-        plan3: 0,
-      },
-    },
-  ],
+  })),
+
+  addonPrices: {
+    plan1: getAddonPrices("plan1"),
+    plan2: getAddonPrices("plan2"),
+    plan3: getAddonPrices("plan3"),
+  },
 };
 
 /* =========================================================
-   HELPERS
+   BACKWARD COMPATIBILITY
 ========================================================= */
 
 export function getAdminPlan(key?: string | null) {
+  const planKey = toPlanKey(key);
+
   return (
-    ADMIN_PACKAGES.plans.find((item) => item.key === key) ||
+    ADMIN_PACKAGES.plans.find((item) => item.key === planKey) ||
     ADMIN_PACKAGES.plans[0]
   );
 }
 
 export function getAdminRecordOption(records?: number | null) {
-  const safeRecords = Number(records || 0);
-
-  if (!safeRecords) {
-    return ADMIN_PACKAGES.recordOptions[0];
-  }
+  const officialRecords = getOfficialRecordOption(records);
 
   return (
     ADMIN_PACKAGES.recordOptions.find(
-      (item) => item.records === safeRecords
-    ) ||
-    ADMIN_PACKAGES.recordOptions.find(
-      (item) => item.records >= safeRecords
-    ) ||
-    ADMIN_PACKAGES.recordOptions[ADMIN_PACKAGES.recordOptions.length - 1]
+      (item) => item.records === officialRecords
+    ) || ADMIN_PACKAGES.recordOptions[0]
   );
 }
 
-export function getAdminPrice(params: {
-  planKey?: string | null;
-  records?: number | null;
-}) {
-  const planKey = (params.planKey || "plan1") as AdminPackageKey;
-  const recordOption = getAdminRecordOption(params.records);
-
-  return Number(recordOption?.prices?.[planKey] || 0);
-}
-
-/* =========================================================
-   BACKWARD COMPATIBILITY
-   אם יש קוד ישן שקורא getAdminPackage
-========================================================= */
-
-export function getAdminPackage(key?: string | null) {
+export function getAdminPackage(key?: string | null, records?: number | null) {
   const plan = getAdminPlan(key);
-
-  const firstRecordOption = ADMIN_PACKAGES.recordOptions[0];
+  const recordOption = getAdminRecordOption(records);
 
   return {
     key: plan.key,
     label: plan.label,
-    records: firstRecordOption.records,
-    sms: firstRecordOption.sms,
-    price: firstRecordOption.prices[plan.key] || 0,
+    records: recordOption.records,
+    sms: recordOption.sms,
+    price: recordOption.prices[plan.key],
 
     includeCalls: plan.includeCalls,
     includeCreditGifts: plan.includeCreditGifts,
