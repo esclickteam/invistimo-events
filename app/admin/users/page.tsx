@@ -437,7 +437,29 @@ export default function AdminUsersPage() {
       const data = await res.json();
 
       if (data.success) {
-        setUsers(data.users || []);
+        const loadedUsers = data.users || [];
+
+        setUsers(loadedUsers);
+
+        // חשוב: רענון סבבי הודעות לא סוגר את מודל העריכה.
+        // אם המודל פתוח, מעדכנים את המשתמש הפתוח עם הנתונים החדשים מהשרת.
+        setEditingUser((current) => {
+          if (!current) return current;
+
+          return (
+            loadedUsers.find((item: AdminUser) => item._id === current._id) ||
+            current
+          );
+        });
+
+        setUpgradingUser((current) => {
+          if (!current) return current;
+
+          return (
+            loadedUsers.find((item: AdminUser) => item._id === current._id) ||
+            current
+          );
+        });
       }
     } catch (err) {
       console.error("Failed loading users:", err);
@@ -1027,6 +1049,9 @@ export default function AdminUsersPage() {
             setEditingUser(null);
             loadUsers(false);
           }}
+          onRoundsChanged={() => {
+            loadUsers(false);
+          }}
         />
       )}
 
@@ -1057,6 +1082,7 @@ function EditUserModal({
   staff,
   onClose,
   onSaved,
+  onRoundsChanged,
 }: {
   user: AdminUser;
   pricingPlans: AdminPricingPlan[];
@@ -1065,6 +1091,7 @@ function EditUserModal({
   staff: Assignee[];
   onClose: () => void;
   onSaved: () => void;
+  onRoundsChanged: () => void;
 }) {
   const [saving, setSaving] = useState(false);
 
@@ -1183,7 +1210,7 @@ function EditUserModal({
 
         <AdminMessageRoundsPanel
           user={user}
-          onChanged={onSaved}
+          onChanged={onRoundsChanged}
         />
 
         <section className="grid grid-cols-1 gap-5 md:grid-cols-2">

@@ -175,16 +175,26 @@ function buildMessageRounds(invitation: any) {
   return {
     rsvp: [1, 2, 3].map((round) => {
       const sentKeys = [
-        `rsvpRound${round}SentAt`,
-        `rsvpSmsRound${round}SentAt`,
-        `rsvpWhatsappRound${round}SentAt`,
-      ];
+  `rsvpRound${round}SentAt`,
+  `rsvpRound${round}sentAt`,
+
+  `rsvpSmsRound${round}SentAt`,
+  `rsvpSmsRound${round}sentAt`,
+
+  `rsvpWhatsappRound${round}SentAt`,
+  `rsvpWhatsappRound${round}sentAt`,
+];
 
       const scheduledKeys = [
-        `rsvpRound${round}ScheduledAt`,
-        `rsvpSmsRound${round}ScheduledAt`,
-        `rsvpWhatsappRound${round}ScheduledAt`,
-      ];
+  `rsvpRound${round}ScheduledAt`,
+  `rsvpRound${round}scheduledAt`,
+
+  `rsvpSmsRound${round}ScheduledAt`,
+  `rsvpSmsRound${round}scheduledAt`,
+
+  `rsvpWhatsappRound${round}ScheduledAt`,
+  `rsvpWhatsappRound${round}scheduledAt`,
+];
 
       return {
         key: `rsvp_${round}`,

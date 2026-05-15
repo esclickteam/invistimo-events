@@ -28,13 +28,28 @@ function getUnsetFieldsByRoundKey(key: string) {
     const round = key.split("_")[1];
 
     return [
+      /*
+        חשוב:
+        אצלך במונגו קיימים גם sentAt עם s קטנה,
+        לכן חייבים למחוק את שתי הגרסאות.
+      */
       `rsvpRound${round}SentAt`,
+      `rsvpRound${round}sentAt`,
+
       `rsvpSmsRound${round}SentAt`,
+      `rsvpSmsRound${round}sentAt`,
+
       `rsvpWhatsappRound${round}SentAt`,
+      `rsvpWhatsappRound${round}sentAt`,
 
       `rsvpRound${round}ScheduledAt`,
+      `rsvpRound${round}scheduledAt`,
+
       `rsvpSmsRound${round}ScheduledAt`,
+      `rsvpSmsRound${round}scheduledAt`,
+
       `rsvpWhatsappRound${round}ScheduledAt`,
+      `rsvpWhatsappRound${round}scheduledAt`,
 
       `messageLocks.rsvpRound${round}`,
       `messageLocks.rsvpRound${round}Sms`,
@@ -49,12 +64,22 @@ function getUnsetFieldsByRoundKey(key: string) {
   if (key === "reminder") {
     return [
       "reminderSentAt",
+      "remindersentAt",
+
       "reminderSmsSentAt",
+      "reminderSmssentAt",
+
       "reminderWhatsappSentAt",
+      "reminderWhatsappsentAt",
 
       "reminderScheduledAt",
+      "reminderscheduledAt",
+
       "reminderSmsScheduledAt",
+      "reminderSmsscheduledAt",
+
       "reminderWhatsappScheduledAt",
+      "reminderWhatsappscheduledAt",
 
       "messageLocks.reminder",
       "messageLocks.reminderSms",
@@ -67,14 +92,28 @@ function getUnsetFieldsByRoundKey(key: string) {
   if (key === "thankyou") {
     return [
       "thankYouSentAt",
+      "thankYousentAt",
+
       "thankyouSentAt",
+      "thankyousentAt",
+
       "thankYouSmsSentAt",
+      "thankYouSmssentAt",
+
       "thankYouWhatsappSentAt",
+      "thankYouWhatsappsentAt",
 
       "thankYouScheduledAt",
+      "thankYouscheduledAt",
+
       "thankyouScheduledAt",
+      "thankyouscheduledAt",
+
       "thankYouSmsScheduledAt",
+      "thankYouSmsscheduledAt",
+
       "thankYouWhatsappScheduledAt",
+      "thankYouWhatsappscheduledAt",
 
       "messageLocks.thankyou",
       "messageLocks.thankyouSms",
@@ -100,12 +139,10 @@ function getBlockPatchByRoundKey(key: string) {
       [`adminMessageRoundLocks.rsvp_${round}`]: true,
 
       /*
-        חשוב:
-        קבצי השליחה של RSVP כבר חוסמים לפי isRsvpRoundAlreadySent.
-        לכן כדי שחסימה באמת תמנע שליחה בלי לגעת בשליחה,
-        מסמנים את הסבב כנעול דרך שדה SentAt כללי.
+        חוסם גם לפי השם החדש וגם לפי השם שקיים אצלך בפועל במונגו.
       */
       [`rsvpRound${round}SentAt`]: now,
+      [`rsvpRound${round}sentAt`]: now,
     };
   }
 
@@ -113,11 +150,9 @@ function getBlockPatchByRoundKey(key: string) {
     return {
       "adminMessageRoundLocks.reminder": true,
 
-      /*
-        קבצי השליחה חוסמים תזכורת לפי:
-        reminderSentAt + messageLocks.reminderSms / reminderWhatsapp
-      */
       reminderSentAt: now,
+      remindersentAt: now,
+
       "messageLocks.reminder": true,
       "messageLocks.reminderSms": true,
       "messageLocks.reminderWhatsapp": true,
@@ -128,11 +163,11 @@ function getBlockPatchByRoundKey(key: string) {
     return {
       "adminMessageRoundLocks.thankyou": true,
 
-      /*
-        קבצי השליחה חוסמים תודה לפי:
-        thankYouSentAt + messageLocks.thankyouSms / thankyouWhatsapp
-      */
       thankYouSentAt: now,
+      thankYousentAt: now,
+      thankyouSentAt: now,
+      thankyousentAt: now,
+
       "messageLocks.thankyou": true,
       "messageLocks.thankyouSms": true,
       "messageLocks.thankyouWhatsapp": true,
@@ -207,11 +242,6 @@ export async function PATCH(
       );
     }
 
-    /*
-      פתיחה מחדש:
-      מוחקת גם SentAt, גם ScheduledAt, גם messageLocks, וגם חסימת אדמין.
-      זה מה שמאפשר למשתמש לשלוח שוב בלי לגעת בקבצי השליחה.
-    */
     if (action === "reset" || action === "unblock") {
       const fields = getUnsetFieldsByRoundKey(key);
 
@@ -221,22 +251,25 @@ export async function PATCH(
         unset[field] = "";
       });
 
-      await Invitation.findByIdAndUpdate(invitation._id, {
-        $unset: unset,
-      });
+      await Invitation.findByIdAndUpdate(
+        invitation._id,
+        {
+          $unset: unset,
+        },
+        { new: true }
+      );
     }
 
-    /*
-      חסימה:
-      שומרת גם adminMessageRoundLocks בשביל התצוגה באדמין,
-      וגם את השדות שקבצי השליחה הקיימים כבר בודקים.
-    */
     if (action === "block") {
       const set = getBlockPatchByRoundKey(key);
 
-      await Invitation.findByIdAndUpdate(invitation._id, {
-        $set: set,
-      });
+      await Invitation.findByIdAndUpdate(
+        invitation._id,
+        {
+          $set: set,
+        },
+        { new: true }
+      );
     }
 
     return NextResponse.json(
