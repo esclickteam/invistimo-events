@@ -160,6 +160,170 @@ export async function POST(req: Request) {
     }
 
     /* =========================================================
+   HANDLE ADMIN UPGRADE
+   תשלום הפרש שדרוג מהאדמין דרך Stripe
+============================================================ */
+
+if (session.metadata?.source === "admin_upgrade") {
+  const paymentIntentId = String(session.payment_intent);
+  const amount = toNum(session.amount_total, 0) / 100;
+
+  const existingUpgradePayment = await Payment.findOne({
+    stripePaymentIntentId: paymentIntentId,
+  }).lean();
+
+  if (existingUpgradePayment) {
+    console.log(
+      "ℹ️ Admin upgrade payment already exists:",
+      paymentIntentId
+    );
+
+    return NextResponse.json({ received: true });
+  }
+
+  const plan = String(session.metadata?.plan || "");
+  const priceKey = String(session.metadata?.priceKey || plan);
+  const packageName = String(session.metadata?.packageName || "");
+
+  const guests = toNum(session.metadata?.guests, 0);
+  const maxGuests = toNum(session.metadata?.maxGuests, guests);
+
+  const smsLimit = toNum(session.metadata?.smsLimit, 0);
+  const maxMessages = toNum(session.metadata?.maxMessages, smsLimit);
+
+  const includeCalls = toBool(session.metadata?.includeCalls);
+  const includeCreditGifts = toBool(
+    session.metadata?.includeCreditGifts
+  );
+  const includeDigitalSeating = toBool(
+    session.metadata?.includeDigitalSeating
+  );
+  const includeEventManagement = toBool(
+    session.metadata?.includeEventManagement
+  );
+  const includeCustomDesign = toBool(
+    session.metadata?.includeCustomDesign
+  );
+
+  const extraRecords = toNum(session.metadata?.extraRecords, 0);
+  const extraRecordsAmount = toNum(
+    session.metadata?.extraRecordsAmount,
+    0
+  );
+
+  await Payment.create({
+    email: (user.email || "").toLowerCase(),
+
+    stripeSessionId: session.id,
+    stripePaymentIntentId: paymentIntentId,
+    stripeCustomerId: (session.customer as string) || "",
+
+    priceKey,
+    maxGuests,
+
+    includeCalls,
+    callsAddonPrice: 0,
+
+    includeCreditGifts,
+    creditGiftsAddonPrice: 0,
+
+    amount,
+    refundAmount: 0,
+    currency: (session.currency || "ils").toLowerCase(),
+
+    type: "upgrade",
+    status: "paid",
+    isTest: !session.livemode,
+
+    meta: {
+      source: "admin_upgrade",
+      stripeEventId: stripeEvent.id,
+
+      userId: String(user._id),
+      adminId: session.metadata?.adminId || null,
+
+      previousPlan: session.metadata?.previousPlan || null,
+      plan,
+      priceKey,
+      packageName,
+
+      guests,
+      maxGuests,
+      smsLimit,
+      maxMessages,
+
+      includeCalls,
+      includeCreditGifts,
+      includeDigitalSeating,
+      includeEventManagement,
+      includeCustomDesign,
+
+      extraRecords,
+      extraRecordsAmount,
+    },
+  });
+
+  await User.findByIdAndUpdate(
+    user._id,
+    {
+      $inc: {
+        paidAmount: amount,
+      },
+
+      $set: {
+        hasPaid: true,
+        isActive: true,
+
+        plan,
+        priceKey,
+        packageName,
+
+        guests: maxGuests,
+        maxGuests,
+
+        smsLimit,
+        maxMessages,
+
+        includeCalls,
+        includeCreditGifts,
+        includeDigitalSeating,
+        includeEventManagement,
+        includeCustomDesign,
+
+        selfManageEnabled: includeEventManagement,
+        customDesignEnabled: includeCustomDesign,
+
+        "planLimits.maxGuests": maxGuests,
+        "planLimits.smsEnabled": true,
+        "planLimits.smsLimit": smsLimit,
+        "planLimits.seatingEnabled": includeDigitalSeating,
+        "planLimits.remindersEnabled": true,
+        "planLimits.callsEnabled": includeCalls,
+
+        updatedAt: new Date(),
+      },
+    },
+    { new: true }
+  );
+
+  try {
+    await notifyAdminPurchase({
+      email: user.email,
+      amount,
+      currency: "ils",
+      type: "Admin upgrade",
+      details: `plan=${plan} | guests=${maxGuests} | extraRecords=${extraRecords}`,
+    });
+  } catch (err) {
+    console.error("❌ Failed to notify admin about upgrade", err);
+  }
+
+  console.log("✅ Admin upgrade completed for user:", String(user._id));
+
+  return NextResponse.json({ received: true });
+}
+
+    /* =========================================================
        HANDLE PRICING
     ============================================================ */
 

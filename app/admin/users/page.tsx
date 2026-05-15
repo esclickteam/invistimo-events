@@ -16,13 +16,15 @@ import {
   LogIn,
   X,
   Save,
-  Package,
   Sparkles,
   CreditCard,
   CheckCircle2,
   UserPlus,
   Loader2,
   ArrowUpCircle,
+  PlusCircle,
+  Banknote,
+  ExternalLink,
 } from "lucide-react";
 
 /* =========================
@@ -43,6 +45,7 @@ type AdminUser = {
   guests?: number;
   maxGuests?: number;
   smsLimit?: number;
+  maxMessages?: number;
 
   includeCalls?: boolean;
   callsRounds?: number;
@@ -73,6 +76,19 @@ type Assignee = {
   email?: string;
 };
 
+type AdminPackage = {
+  key: string;
+  label: string;
+  records: number;
+  sms: number;
+  price: number;
+  includeCalls: boolean;
+  includeCreditGifts: boolean;
+  includeDigitalSeating: boolean;
+  includeEventManagement: boolean;
+  includeCustomDesign: boolean;
+};
+
 type EditFormState = {
   name: string;
   email: string;
@@ -91,32 +107,49 @@ type UpgradeFormState = {
   includeCustomDesign: boolean;
 };
 
+type UpgradePaymentMode = "manual_paid" | "stripe";
+
 /* =========================
    CONSTS
 ========================= */
 const AUTO_REFRESH_MS = 10000;
 
-const PLAN_OPTIONS = [
+const FALLBACK_PACKAGES: AdminPackage[] = [
   {
     key: "plan1",
     label: "חבילה 1",
-    guests: 100,
+    records: 100,
     sms: 300,
     price: 402,
+    includeCalls: false,
+    includeCreditGifts: false,
+    includeDigitalSeating: false,
+    includeEventManagement: false,
+    includeCustomDesign: false,
   },
   {
     key: "plan2",
     label: "חבילה 2",
-    guests: 200,
+    records: 200,
     sms: 600,
     price: 789,
+    includeCalls: true,
+    includeCreditGifts: false,
+    includeDigitalSeating: false,
+    includeEventManagement: false,
+    includeCustomDesign: false,
   },
   {
     key: "plan3",
     label: "חבילה 3",
-    guests: 300,
+    records: 300,
     sms: 900,
     price: 1171,
+    includeCalls: true,
+    includeCreditGifts: true,
+    includeDigitalSeating: true,
+    includeEventManagement: true,
+    includeCustomDesign: false,
   },
 ];
 
@@ -179,51 +212,49 @@ function normalizeText(value?: string) {
   return String(value || "").trim().toLowerCase();
 }
 
-function getPlanKey(user: AdminUser) {
-  return user.plan || user.priceKey || user.packageName || "";
+function getPackagesSource(packages?: AdminPackage[]) {
+  return packages?.length ? packages : FALLBACK_PACKAGES;
 }
 
-function getPlanInfo(plan?: string) {
+function getPlanKey(user: AdminUser) {
+  return user.priceKey || user.plan || user.packageName || "";
+}
+
+function getPlanInfo(plan?: string, packages?: AdminPackage[]) {
   if (!plan) return null;
 
+  const source = getPackagesSource(packages);
+
   return (
-    PLAN_OPTIONS.find((p) => p.key === plan) ||
-    PLAN_OPTIONS.find((p) => p.label === plan) ||
+    source.find((p) => p.key === plan) ||
+    source.find((p) => p.label === plan) ||
     null
   );
 }
 
-function getPlanLabel(user: AdminUser) {
+function getPlanLabel(user: AdminUser, packages?: AdminPackage[]) {
   const planKey = getPlanKey(user);
-  const plan = getPlanInfo(planKey);
+  const plan = getPlanInfo(planKey, packages);
 
   return plan?.label || user.packageName || user.plan || user.priceKey || "—";
 }
 
-function getPlanPrice(user: AdminUser) {
-  const plan = getPlanInfo(getPlanKey(user));
-
-  if (typeof user.paidAmount === "number" && user.paidAmount > 0) {
-    return user.paidAmount;
-  }
-
-  if (typeof user.totalPaid === "number" && user.totalPaid > 0) {
-    return user.totalPaid;
-  }
+function getPlanPrice(user: AdminUser, packages?: AdminPackage[]) {
+  const plan = getPlanInfo(getPlanKey(user), packages);
 
   return plan?.price || 0;
 }
 
-function getGuestsLimit(user: AdminUser) {
-  const plan = getPlanInfo(getPlanKey(user));
+function getGuestsLimit(user: AdminUser, packages?: AdminPackage[]) {
+  const plan = getPlanInfo(getPlanKey(user), packages);
 
-  return user.guests || user.maxGuests || plan?.guests || 0;
+  return user.guests || user.maxGuests || plan?.records || 0;
 }
 
-function getSmsLimit(user: AdminUser) {
-  const plan = getPlanInfo(getPlanKey(user));
+function getSmsLimit(user: AdminUser, packages?: AdminPackage[]) {
+  const plan = getPlanInfo(getPlanKey(user), packages);
 
-  return user.smsLimit || plan?.sms || 0;
+  return user.smsLimit || user.maxMessages || plan?.sms || 0;
 }
 
 function getCallsStatus(user: AdminUser) {
@@ -256,24 +287,24 @@ function getAddonValue(user: AdminUser, key: (typeof ADDONS)[number]["key"]) {
 }
 
 function getUserTotalPaid(user: AdminUser) {
-  return Number(user.totalPaid || user.paidAmount || getPlanPrice(user) || 0);
+  return Number(user.totalPaid || user.paidAmount || 0);
 }
 
-function getPurchasedItems(user: AdminUser) {
+function getPurchasedItems(user: AdminUser, packages?: AdminPackage[]) {
   return [
     {
       label: "חבילה",
-      value: getPlanLabel(user),
+      value: getPlanLabel(user, packages),
       active: true,
     },
     {
       label: "כמות רשומות / אורחים",
-      value: String(getGuestsLimit(user) || 0),
+      value: String(getGuestsLimit(user, packages) || 0),
       active: true,
     },
     {
       label: "כמות הודעות SMS",
-      value: String(getSmsLimit(user) || 0),
+      value: String(getSmsLimit(user, packages) || 0),
       active: true,
     },
     {
@@ -309,6 +340,7 @@ function getPurchasedItems(user: AdminUser) {
 ========================= */
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
+  const [packages, setPackages] = useState<AdminPackage[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [openCreate, setOpenCreate] = useState(false);
@@ -343,6 +375,24 @@ export default function AdminUsersPage() {
       console.error("Failed loading users:", err);
     } finally {
       if (showLoader) setLoading(false);
+    }
+  }
+
+  async function loadPackages() {
+    try {
+      const res = await fetch("/api/admin/packages", {
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      const data = await res.json();
+
+      if (data.success && Array.isArray(data.packages)) {
+        setPackages(data.packages);
+      }
+    } catch (err) {
+      console.error("Failed loading admin packages:", err);
+      setPackages(FALLBACK_PACKAGES);
     }
   }
 
@@ -431,10 +481,12 @@ export default function AdminUsersPage() {
     }
 
     loadUsers(true);
+    loadPackages();
     loadAssignees();
 
     const intervalId = window.setInterval(() => {
       loadUsers(false);
+      loadPackages();
     }, AUTO_REFRESH_MS);
 
     return () => {
@@ -455,7 +507,7 @@ export default function AdminUsersPage() {
           !q ||
           normalizeText(u.name).includes(q) ||
           normalizeText(u.email).includes(q) ||
-          normalizeText(getPlanLabel(u)).includes(q);
+          normalizeText(getPlanLabel(u, packages)).includes(q);
 
         const matchesRole = roleFilter === "all" || u.role === roleFilter;
 
@@ -475,7 +527,7 @@ export default function AdminUsersPage() {
 
         return matchesSearch && matchesRole && matchesEvent;
       });
-  }, [users, hiddenUserIds, search, roleFilter, eventFilter]);
+  }, [users, hiddenUserIds, search, roleFilter, eventFilter, packages]);
 
   const stats = useMemo(() => {
     return {
@@ -499,7 +551,6 @@ export default function AdminUsersPage() {
   return (
     <div dir="rtl" className="min-h-screen bg-[#F6F4F1] px-4 py-6 md:px-8">
       <div className="mx-auto max-w-7xl space-y-6">
-        {/* HEADER */}
         <section
           className="
             rounded-[32px]
@@ -555,7 +606,6 @@ export default function AdminUsersPage() {
           </div>
         </section>
 
-        {/* FILTERS */}
         <section
           className="
             rounded-[28px]
@@ -646,7 +696,6 @@ export default function AdminUsersPage() {
           </div>
         </section>
 
-        {/* SMALL STATS */}
         <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <InfoCard
             title="משתמשים מוצגים"
@@ -667,7 +716,6 @@ export default function AdminUsersPage() {
           />
         </section>
 
-        {/* DESKTOP TABLE */}
         <section
           className="
             hidden overflow-hidden rounded-[28px]
@@ -707,11 +755,11 @@ export default function AdminUsersPage() {
                   </td>
 
                   <td className="p-4 font-bold text-[#6B5A48]">
-                    {getPlanLabel(u)}
+                    {getPlanLabel(u, packages)}
                   </td>
 
                   <td className="p-4 font-black text-[#3A2A1C]">
-                    {getGuestsLimit(u)}
+                    {getGuestsLimit(u, packages)}
                   </td>
 
                   <td className="p-4 text-[#6B5A48]">
@@ -792,7 +840,6 @@ export default function AdminUsersPage() {
           </table>
         </section>
 
-        {/* MOBILE / TABLET CARDS */}
         <section className="grid grid-cols-1 gap-4 xl:hidden">
           {filteredUsers.map((u) => (
             <div
@@ -820,8 +867,11 @@ export default function AdminUsersPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-3 text-sm">
-                <MiniDetail label="חבילה" value={getPlanLabel(u)} />
-                <MiniDetail label="רשומות" value={String(getGuestsLimit(u))} />
+                <MiniDetail label="חבילה" value={getPlanLabel(u, packages)} />
+                <MiniDetail
+                  label="רשומות"
+                  value={String(getGuestsLimit(u, packages))}
+                />
                 <MiniDetail label="תאריך אירוע" value={formatDate(u.eventDate)} />
                 <MiniDetail label="שיחות" value={getCallsStatus(u)} />
               </div>
@@ -879,6 +929,7 @@ export default function AdminUsersPage() {
       {editingUser && (
         <EditUserModal
           user={editingUser}
+          packages={packages}
           producers={producers}
           staff={staff}
           onClose={() => setEditingUser(null)}
@@ -892,6 +943,7 @@ export default function AdminUsersPage() {
       {upgradingUser && (
         <UpgradeUserModal
           user={upgradingUser}
+          packages={packages}
           onClose={() => setUpgradingUser(null)}
           onSaved={() => {
             setUpgradingUser(null);
@@ -908,12 +960,14 @@ export default function AdminUsersPage() {
 ========================= */
 function EditUserModal({
   user,
+  packages,
   producers,
   staff,
   onClose,
   onSaved,
 }: {
   user: AdminUser;
+  packages: AdminPackage[];
   producers: Assignee[];
   staff: Assignee[];
   onClose: () => void;
@@ -925,7 +979,7 @@ function EditUserModal({
     name: user.name || "",
     email: user.email || "",
     eventDate: formatDateInput(user.eventDate),
-    guests: getGuestsLimit(user),
+    guests: getGuestsLimit(user, packages),
     assignedProducerId: user.assignedProducerId || null,
     assignedStaffIds: user.assignedStaffIds || [],
   });
@@ -945,6 +999,7 @@ function EditUserModal({
           email: form.email,
           eventDate: form.eventDate,
           guests: form.guests,
+          maxGuests: form.guests,
         }),
       });
 
@@ -970,9 +1025,12 @@ function EditUserModal({
   }
 
   return (
-    <ModalShell title="עריכת משתמש" subtitle="עריכת פרטי לקוח, הרשאות ומטפלים" onClose={onClose}>
+    <ModalShell
+      title="עריכת משתמש"
+      subtitle="עריכת פרטי לקוח, הרשאות ומטפלים"
+      onClose={onClose}
+    >
       <div className="space-y-7">
-        {/* Purchased Summary */}
         <section
           className="
             rounded-[26px]
@@ -989,7 +1047,7 @@ function EditUserModal({
           </div>
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            {getPurchasedItems(user).map((item) => (
+            {getPurchasedItems(user, packages).map((item) => (
               <div
                 key={item.label}
                 className="
@@ -1029,7 +1087,6 @@ function EditUserModal({
           </div>
         </section>
 
-        {/* User Details */}
         <section className="grid grid-cols-1 gap-5 md:grid-cols-2">
           <InputField
             label="שם מלא"
@@ -1061,7 +1118,6 @@ function EditUserModal({
           />
         </section>
 
-        {/* Assignees */}
         <section className="border-t border-[#EFE2D1] pt-6">
           <h3 className="mb-4 text-lg font-black text-[#3A2A1C]">מטפלים</h3>
 
@@ -1151,7 +1207,11 @@ function EditUserModal({
             disabled:opacity-50
           "
         >
-          {saving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+          {saving ? (
+            <Loader2 className="animate-spin" size={18} />
+          ) : (
+            <Save size={18} />
+          )}
           שמור שינויים
         </button>
       </ModalFooter>
@@ -1164,20 +1224,28 @@ function EditUserModal({
 ========================= */
 function UpgradeUserModal({
   user,
+  packages,
   onClose,
   onSaved,
 }: {
   user: AdminUser;
+  packages: AdminPackage[];
   onClose: () => void;
   onSaved: () => void;
 }) {
   const [saving, setSaving] = useState(false);
 
-  const currentPlanKey = getPlanKey(user);
-  const currentPlan = getPlanInfo(currentPlanKey);
+  const safePackages = getPackagesSource(packages);
+
+  const currentPlanKey =
+    user.priceKey || user.plan || safePackages[0]?.key || "";
+
+  const currentPlan =
+    safePackages.find((item) => item.key === currentPlanKey) ||
+    safePackages[0];
 
   const [form, setForm] = useState<UpgradeFormState>({
-    plan: currentPlan?.key || PLAN_OPTIONS[0].key,
+    plan: currentPlan?.key || safePackages[0]?.key || "",
     includeCalls: Boolean(user.includeCalls),
     includeCreditGifts: Boolean(user.includeCreditGifts),
     includeDigitalSeating: Boolean(user.includeDigitalSeating),
@@ -1185,11 +1253,22 @@ function UpgradeUserModal({
     includeCustomDesign: Boolean(user.includeCustomDesign),
   });
 
-  const newPlan = getPlanInfo(form.plan);
-  const currentPlanPrice = currentPlan?.price || 0;
-  const newPlanPrice = newPlan?.price || 0;
+  const [extraRecords, setExtraRecords] = useState(0);
+  const [extraRecordsAmount, setExtraRecordsAmount] = useState(0);
+  const [manualTotalToPay, setManualTotalToPay] = useState(0);
+  const [paymentMode, setPaymentMode] =
+    useState<UpgradePaymentMode>("manual_paid");
 
-  const packageDiff = Math.max(0, newPlanPrice - currentPlanPrice);
+  const selectedPlan =
+    safePackages.find((item) => item.key === form.plan) || currentPlan;
+
+  const currentPackagePrice = Number(currentPlan?.price || 0);
+  const selectedPackagePrice = Number(selectedPlan?.price || 0);
+
+  const packageDiff = Math.max(
+    0,
+    selectedPackagePrice - currentPackagePrice
+  );
 
   const addonsDiff = ADDONS.reduce((sum, addon) => {
     const isSelected = Boolean(form[addon.key]);
@@ -1200,66 +1279,135 @@ function UpgradeUserModal({
     return sum + addon.price;
   }, 0);
 
-  const calculatedTotalToPay = packageDiff + addonsDiff;
+  const calculatedTotalToPay =
+    packageDiff + addonsDiff + Number(extraRecordsAmount || 0);
 
-const [manualTotalToPay, setManualTotalToPay] = useState<number>(
-  calculatedTotalToPay
-);
+  useEffect(() => {
+    setManualTotalToPay(calculatedTotalToPay);
+  }, [calculatedTotalToPay]);
 
-useEffect(() => {
-  setManualTotalToPay(calculatedTotalToPay);
-}, [calculatedTotalToPay]);
+  const finalRecords =
+    Number(selectedPlan?.records || 0) + Number(extraRecords || 0);
 
-const totalToPay = manualTotalToPay;
+  async function saveManualPaidUpgrade() {
+    const res = await fetch(`/api/admin/users/${user._id}`, {
+      method: "PATCH",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        plan: form.plan,
+        priceKey: form.plan,
+        packageName: selectedPlan?.label,
+
+        guests: finalRecords,
+        maxGuests: finalRecords,
+        smsLimit: selectedPlan?.sms,
+        maxMessages: selectedPlan?.sms,
+
+        includeCalls: form.includeCalls,
+        includeCreditGifts: form.includeCreditGifts,
+        includeDigitalSeating: form.includeDigitalSeating,
+        includeEventManagement: form.includeEventManagement,
+        includeCustomDesign: form.includeCustomDesign,
+
+        extraRecords,
+        extraRecordsAmount,
+
+        upgradeAmount: manualTotalToPay,
+        upgradePaymentStatus: "paid",
+        upgradePaymentMethod: "manual_admin",
+      }),
+    });
+
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok || data?.success === false) {
+      throw new Error("MANUAL_UPGRADE_FAILED");
+    }
+  }
+
+  async function createStripeUpgradeCheckout() {
+    const res = await fetch(`/api/admin/users/${user._id}/upgrade-stripe`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        amount: manualTotalToPay,
+
+        plan: form.plan,
+        priceKey: form.plan,
+        packageName: selectedPlan?.label,
+
+        guests: finalRecords,
+        maxGuests: finalRecords,
+        smsLimit: selectedPlan?.sms,
+        maxMessages: selectedPlan?.sms,
+
+        includeCalls: form.includeCalls,
+        includeCreditGifts: form.includeCreditGifts,
+        includeDigitalSeating: form.includeDigitalSeating,
+        includeEventManagement: form.includeEventManagement,
+        includeCustomDesign: form.includeCustomDesign,
+
+        extraRecords,
+        extraRecordsAmount,
+      }),
+    });
+
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok || data?.success === false) {
+      throw new Error("STRIPE_CHECKOUT_FAILED");
+    }
+
+    const checkoutUrl = data?.url || data?.checkoutUrl;
+
+    if (!checkoutUrl) {
+      throw new Error("MISSING_STRIPE_URL");
+    }
+
+    window.location.href = checkoutUrl;
+  }
 
   async function saveUpgrade() {
+    if (manualTotalToPay < 0) {
+      alert("סכום לתשלום לא יכול להיות שלילי");
+      return;
+    }
+
     try {
       setSaving(true);
 
-      const selectedPlan = getPlanInfo(form.plan);
-
-      const res = await fetch(`/api/admin/users/${user._id}`, {
-        method: "PATCH",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          plan: form.plan,
-          priceKey: form.plan,
-          packageName: selectedPlan?.label,
-          guests: selectedPlan?.guests,
-          maxGuests: selectedPlan?.guests,
-          smsLimit: selectedPlan?.sms,
-
-          includeCalls: form.includeCalls,
-          includeCreditGifts: form.includeCreditGifts,
-          includeDigitalSeating: form.includeDigitalSeating,
-          includeEventManagement: form.includeEventManagement,
-          includeCustomDesign: form.includeCustomDesign,
-
-          upgradeAmount: totalToPay,
-        }),
-      });
-
-      const data = await res.json().catch(() => null);
-
-      if (!res.ok || data?.success === false) {
-        alert("השדרוג נכשל. צריך לוודא שה־API מאפשר עדכון חבילה ואפסיילים.");
+      if (paymentMode === "manual_paid") {
+        await saveManualPaidUpgrade();
+        onSaved();
         return;
       }
 
-      onSaved();
+      await createStripeUpgradeCheckout();
     } catch (err) {
       console.error(err);
-      alert("אירעה שגיאה בשדרוג");
+
+      if (paymentMode === "stripe") {
+        alert("יצירת תשלום Stripe נכשלה. צריך לוודא שקיים endpoint בשם upgrade-stripe.");
+      } else {
+        alert("שמירת השדרוג נכשלה");
+      }
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <ModalShell title="שדרוג משתמש" subtitle="חישוב הפרש בין חבילות ואפסיילים" onClose={onClose}>
+    <ModalShell
+      title="שדרוג משתמש"
+      subtitle="חישוב הפרש בין חבילות, אפסיילים ורשומות נוספות"
+      onClose={onClose}
+    >
       <div className="space-y-7">
         <section
           className="
@@ -1271,6 +1419,7 @@ const totalToPay = manualTotalToPay;
         >
           <div className="mb-4 flex items-center gap-2">
             <Crown size={20} className="text-[#B97821]" />
+
             <h3 className="text-lg font-black text-[#3A2A1C]">
               חבילת הלקוח
             </h3>
@@ -1279,12 +1428,12 @@ const totalToPay = manualTotalToPay;
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <SummaryBox
               label="חבילה נוכחית"
-              value={currentPlan?.label || getPlanLabel(user)}
+              value={currentPlan?.label || getPlanLabel(user, packages)}
             />
 
             <SummaryBox
               label="מחיר חבילה נוכחית"
-              value={formatMoney(currentPlanPrice)}
+              value={formatMoney(currentPackagePrice)}
             />
 
             <label className="md:col-span-2">
@@ -1294,12 +1443,30 @@ const totalToPay = manualTotalToPay;
 
               <select
                 value={form.plan}
-                onChange={(e) =>
-                  setForm((p) => ({
-                    ...p,
+                onChange={(e) => {
+                  const nextPlan = safePackages.find(
+                    (item) => item.key === e.target.value
+                  );
+
+                  setForm((prev) => ({
+                    ...prev,
                     plan: e.target.value,
-                  }))
-                }
+                    includeCalls:
+                      Boolean(nextPlan?.includeCalls) || prev.includeCalls,
+                    includeCreditGifts:
+                      Boolean(nextPlan?.includeCreditGifts) ||
+                      prev.includeCreditGifts,
+                    includeDigitalSeating:
+                      Boolean(nextPlan?.includeDigitalSeating) ||
+                      prev.includeDigitalSeating,
+                    includeEventManagement:
+                      Boolean(nextPlan?.includeEventManagement) ||
+                      prev.includeEventManagement,
+                    includeCustomDesign:
+                      Boolean(nextPlan?.includeCustomDesign) ||
+                      prev.includeCustomDesign,
+                  }));
+                }}
                 className="
                   h-12 w-full rounded-2xl
                   border border-[#E7D8C6]
@@ -1308,9 +1475,10 @@ const totalToPay = manualTotalToPay;
                   outline-none
                 "
               >
-                {PLAN_OPTIONS.map((plan) => (
+                {safePackages.map((plan) => (
                   <option key={plan.key} value={plan.key}>
-                    {plan.label} · {plan.guests} רשומות · {formatMoney(plan.price)}
+                    {plan.label} · {plan.records} רשומות ·{" "}
+                    {formatMoney(plan.price)}
                   </option>
                 ))}
               </select>
@@ -1328,6 +1496,7 @@ const totalToPay = manualTotalToPay;
         >
           <div className="mb-4 flex items-center gap-2">
             <Sparkles size={20} className="text-[#B97821]" />
+
             <h3 className="text-lg font-black text-[#3A2A1C]">
               אפסיילים והרשאות
             </h3>
@@ -1366,8 +1535,8 @@ const totalToPay = manualTotalToPay;
                     type="checkbox"
                     checked={Boolean(form[addon.key])}
                     onChange={(e) =>
-                      setForm((p) => ({
-                        ...p,
+                      setForm((prev) => ({
+                        ...prev,
                         [addon.key]: e.target.checked,
                       }))
                     }
@@ -1382,12 +1551,58 @@ const totalToPay = manualTotalToPay;
         <section
           className="
             rounded-[26px]
+            border border-[#E7D8C6]
+            bg-white
+            p-5
+          "
+        >
+          <div className="mb-4 flex items-center gap-2">
+            <PlusCircle size={20} className="text-[#B97821]" />
+
+            <h3 className="text-lg font-black text-[#3A2A1C]">
+              הוספת רשומות ידנית
+            </h3>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <InputField
+              label="כמות רשומות נוספות"
+              type="number"
+              value={String(extraRecords)}
+              onChange={(value) =>
+                setExtraRecords(Number(value || 0))
+              }
+            />
+
+            <InputField
+              label="מחיר לרשומות הנוספות"
+              type="number"
+              value={String(extraRecordsAmount)}
+              onChange={(value) =>
+                setExtraRecordsAmount(Number(value || 0))
+              }
+            />
+
+            <SummaryBox
+              label="סה״כ רשומות אחרי שדרוג"
+              value={String(finalRecords)}
+            />
+          </div>
+
+          <p className="mt-3 text-xs font-bold text-[#8A7867]">
+            הרשומות הנוספות מתווספות מעל החבילה שבחרת ונשמרות אוטומטית במשתמש.
+          </p>
+        </section>
+
+        <section
+          className="
+            rounded-[26px]
             border border-[#E8C98D]
             bg-[#FFF7E8]
             p-5
           "
         >
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
             <SummaryBox
               label="הפרש חבילות"
               value={formatMoney(packageDiff)}
@@ -1398,45 +1613,129 @@ const totalToPay = manualTotalToPay;
               value={formatMoney(addonsDiff)}
             />
 
-           <div
-  className="
-    rounded-2xl
-    border border-[#E8C98D]
-    bg-[#FFF2D8]
-    px-4 py-3
-  "
->
-  <div className="text-xs font-black text-[#8A7867]">
-    סה״כ לתשלום עכשיו
-  </div>
+            <SummaryBox
+              label="רשומות נוספות"
+              value={formatMoney(extraRecordsAmount)}
+            />
 
-  <div className="mt-2 flex items-center gap-2">
-    <input
-      type="number"
-      min={0}
-      value={manualTotalToPay}
-      onChange={(e) =>
-        setManualTotalToPay(Number(e.target.value || 0))
-      }
-      className="
-        h-11 w-full
-        rounded-xl
-        border border-[#E8C98D]
-        bg-white
-        px-3
-        text-xl font-black
-        text-[#B97821]
-        outline-none
-      "
-    />
+            <div
+              className="
+                rounded-2xl
+                border border-[#E8C98D]
+                bg-[#FFF2D8]
+                px-4 py-3
+              "
+            >
+              <div className="text-xs font-black text-[#8A7867]">
+                סה״כ לתשלום עכשיו
+              </div>
 
-    <span className="text-lg font-black text-[#B97821]">₪</span>
-  </div>
+              <div className="mt-2 flex items-center gap-2">
+                <input
+                  type="number"
+                  min={0}
+                  value={manualTotalToPay}
+                  onChange={(e) =>
+                    setManualTotalToPay(Number(e.target.value || 0))
+                  }
+                  className="
+                    h-11 w-full
+                    rounded-xl
+                    border border-[#E8C98D]
+                    bg-white
+                    px-3
+                    text-xl font-black
+                    text-[#B97821]
+                    outline-none
+                  "
+                />
 
-  <div className="mt-2 text-xs font-bold text-[#8A7867]">
-    חושב אוטומטית לפי הפרש חבילות, אבל ניתן לעריכה ידנית.
-  </div>
-</div>
+                <span className="text-lg font-black text-[#B97821]">
+                  ₪
+                </span>
+              </div>
+
+              <div className="mt-2 text-xs font-bold text-[#8A7867]">
+                מחושב אוטומטית, אבל ניתן לעריכה ידנית.
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section
+          className="
+            rounded-[26px]
+            border border-[#E7D8C6]
+            bg-white
+            p-5
+          "
+        >
+          <div className="mb-4 flex items-center gap-2">
+            <Banknote size={20} className="text-[#B97821]" />
+
+            <h3 className="text-lg font-black text-[#3A2A1C]">
+              אופן תשלום ההפרש
+            </h3>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <label
+              className={`
+                flex cursor-pointer items-center justify-between gap-3
+                rounded-2xl border px-4 py-4
+                ${
+                  paymentMode === "manual_paid"
+                    ? "border-[#B97821] bg-[#FFF7E8]"
+                    : "border-[#EFE2D1] bg-[#FFFDF8]"
+                }
+              `}
+            >
+              <div>
+                <div className="font-black text-[#3A2A1C]">
+                  סומן כשולם
+                </div>
+
+                <div className="mt-1 text-xs font-bold text-[#8A7867]">
+                  השדרוג יישמר מיד וייכנס להכנסות באדמין.
+                </div>
+              </div>
+
+              <input
+                type="radio"
+                checked={paymentMode === "manual_paid"}
+                onChange={() => setPaymentMode("manual_paid")}
+                className="h-5 w-5 accent-[#B97821]"
+              />
+            </label>
+
+            <label
+              className={`
+                flex cursor-pointer items-center justify-between gap-3
+                rounded-2xl border px-4 py-4
+                ${
+                  paymentMode === "stripe"
+                    ? "border-[#B97821] bg-[#FFF7E8]"
+                    : "border-[#EFE2D1] bg-[#FFFDF8]"
+                }
+              `}
+            >
+              <div>
+                <div className="font-black text-[#3A2A1C]">
+                  לשלם דרך Stripe
+                </div>
+
+                <div className="mt-1 text-xs font-bold text-[#8A7867]">
+                  יפתח Checkout עם הסכום שהגדרת.
+                </div>
+              </div>
+
+              <input
+                type="radio"
+                checked={paymentMode === "stripe"}
+                onChange={() => setPaymentMode("stripe")}
+                className="h-5 w-5 accent-[#B97821]"
+              />
+            </label>
           </div>
         </section>
       </div>
@@ -1461,10 +1760,13 @@ const totalToPay = manualTotalToPay;
         >
           {saving ? (
             <Loader2 className="animate-spin" size={18} />
+          ) : paymentMode === "stripe" ? (
+            <ExternalLink size={18} />
           ) : (
             <ArrowUpCircle size={18} />
           )}
-          שמור שדרוג
+
+          {paymentMode === "stripe" ? "מעבר לתשלום Stripe" : "שמור שדרוג"}
         </button>
       </ModalFooter>
     </ModalShell>
@@ -1539,7 +1841,9 @@ function ModalShell({
           </button>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-5 md:p-6">{children}</main>
+        <main className="flex-1 overflow-y-auto p-5 md:p-6">
+          {children}
+        </main>
       </div>
     </div>
   );
