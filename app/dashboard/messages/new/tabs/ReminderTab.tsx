@@ -830,25 +830,7 @@ export default function ReminderTab({
               </SendButton>
             </div>
 
-            {isAdmin && (
-              <button
-                type="button"
-                onClick={() => toggleMessageLock(reminderLocked)}
-                className="
-                  w-full
-                  rounded-[20px]
-                  bg-[#B9822E]
-                  px-5 py-3
-                  text-sm font-black
-                  text-white
-                  shadow-sm
-                  transition
-                  hover:bg-[#9B661E]
-                "
-              >
-                {reminderLocked ? "🔓 פתח תזכורת" : "🔒 סגור תזכורת"}
-              </button>
-            )}
+            
           </div>
 
           {reminderScheduledMessages.length > 0 && (
