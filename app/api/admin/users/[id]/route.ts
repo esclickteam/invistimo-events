@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+
 import { connectDB } from "@/lib/db";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import User from "@/models/User";
@@ -9,48 +10,12 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 /* =========================================================
-   PLAN CONFIG
+   HELPERS
 ========================================================= */
-const PLAN_CONFIG: Record<
-  string,
-  {
-    label: string;
-    guests: number;
-    sms: number;
-    price: number;
-  }
-> = {
-  plan1: {
-    label: "חבילה 1",
-    guests: 100,
-    sms: 300,
-    price: 402,
-  },
-  plan2: {
-    label: "חבילה 2",
-    guests: 200,
-    sms: 600,
-    price: 789,
-  },
-  plan3: {
-    label: "חבילה 3",
-    guests: 300,
-    sms: 900,
-    price: 1171,
-  },
-};
-
-function getPlanConfig(plan?: string) {
-  return PLAN_CONFIG[String(plan || "plan1")] || PLAN_CONFIG.plan1;
-}
-
 function normalizeEmail(email?: string) {
   return String(email || "").trim().toLowerCase();
 }
 
-/* =========================================================
-   AUTH
-========================================================= */
 function isAdminContext(auth: any) {
   return (
     auth?.role === "admin" ||
@@ -59,7 +24,7 @@ function isAdminContext(auth: any) {
   );
 }
 
-async function requireAdmin(req?: NextRequest) {
+async function requireAdmin(req: NextRequest) {
   const auth = await getUserIdFromRequest(req);
 
   if (!auth?.userId) {
@@ -81,6 +46,18 @@ function cleanUndefined(obj: Record<string, any>) {
   });
 
   return obj;
+}
+
+function hasField(body: any, key: string) {
+  return Object.prototype.hasOwnProperty.call(body || {}, key);
+}
+
+function toNumberOrUndefined(value: any) {
+  if (value === undefined || value === null || value === "") return undefined;
+
+  const num = Number(value);
+
+  return Number.isFinite(num) ? num : undefined;
 }
 
 /* =========================================================
@@ -119,7 +96,11 @@ export async function GET(
         user,
         payments,
       },
-      { headers: { "Cache-Control": "no-store" } }
+      {
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      }
     );
   } catch (err: any) {
     if (err?.message === "UNAUTHORIZED") {
@@ -147,6 +128,8 @@ export async function GET(
 
 /* =========================================================
    PATCH – UPDATE USER / UPGRADE USER
+   חשוב:
+   לא נוגעים בחבילה / רשומות / SMS אם הם לא נשלחו מהקליינט.
 ========================================================= */
 export async function PATCH(
   req: NextRequest,
@@ -154,10 +137,11 @@ export async function PATCH(
 ) {
   try {
     await connectDB();
+
     const auth = await requireAdmin(req);
 
     const { id } = await context.params;
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
 
     const currentUser: any = await User.findById(id).lean();
 
@@ -168,126 +152,188 @@ export async function PATCH(
       );
     }
 
-    const selectedPlanKey =
-      body.plan || body.priceKey || currentUser.priceKey || currentUser.plan;
+    /* =====================================================
+       BASIC FIELDS
+    ===================================================== */
+    const nextEmail = hasField(body, "email")
+      ? normalizeEmail(body.email)
+      : undefined;
 
-    const selectedPlan = getPlanConfig(selectedPlanKey);
+    const nextPlan =
+      hasField(body, "plan") || hasField(body, "priceKey")
+        ? String(body.plan || body.priceKey || "")
+        : undefined;
 
-    const finalGuests =
-      body.guests ??
-      body.maxGuests ??
-      selectedPlan.guests ??
-      currentUser.guests ??
-      0;
+    const nextPackageName = hasField(body, "packageName")
+      ? String(body.packageName || "")
+      : undefined;
 
-    const finalSmsLimit =
-      body.smsLimit ??
-      body.maxMessages ??
-      selectedPlan.sms ??
-      currentUser.smsLimit ??
-      currentUser.maxMessages ??
-      0;
+    const nextGuests =
+      hasField(body, "guests") || hasField(body, "maxGuests")
+        ? toNumberOrUndefined(body.guests ?? body.maxGuests)
+        : undefined;
 
-    const includeCalls =
-      body.includeCalls !== undefined
-        ? Boolean(body.includeCalls)
+    const nextSmsLimit =
+      hasField(body, "smsLimit") || hasField(body, "maxMessages")
+        ? toNumberOrUndefined(body.smsLimit ?? body.maxMessages)
+        : undefined;
+
+    const nextIncludeCalls = hasField(body, "includeCalls")
+      ? Boolean(body.includeCalls)
+      : undefined;
+
+    const nextIncludeCreditGifts = hasField(body, "includeCreditGifts")
+      ? Boolean(body.includeCreditGifts)
+      : undefined;
+
+    const nextIncludeDigitalSeating = hasField(body, "includeDigitalSeating")
+      ? Boolean(body.includeDigitalSeating)
+      : undefined;
+
+    const nextIncludeEventManagement = hasField(body, "includeEventManagement")
+      ? Boolean(body.includeEventManagement)
+      : undefined;
+
+    const nextIncludeCustomDesign = hasField(body, "includeCustomDesign")
+      ? Boolean(body.includeCustomDesign)
+      : undefined;
+
+    const finalIncludeCalls =
+      nextIncludeCalls !== undefined
+        ? nextIncludeCalls
         : Boolean(currentUser.includeCalls);
 
-    const includeCreditGifts =
-      body.includeCreditGifts !== undefined
-        ? Boolean(body.includeCreditGifts)
-        : Boolean(currentUser.includeCreditGifts);
-
-    const includeDigitalSeating =
-      body.includeDigitalSeating !== undefined
-        ? Boolean(body.includeDigitalSeating)
+    const finalIncludeDigitalSeating =
+      nextIncludeDigitalSeating !== undefined
+        ? nextIncludeDigitalSeating
         : Boolean(currentUser.includeDigitalSeating);
 
-    const includeEventManagement =
-      body.includeEventManagement !== undefined
-        ? Boolean(body.includeEventManagement)
+    const finalIncludeEventManagement =
+      nextIncludeEventManagement !== undefined
+        ? nextIncludeEventManagement
         : Boolean(currentUser.includeEventManagement);
 
-    const includeCustomDesign =
-      body.includeCustomDesign !== undefined
-        ? Boolean(body.includeCustomDesign)
+    const finalIncludeCustomDesign =
+      nextIncludeCustomDesign !== undefined
+        ? nextIncludeCustomDesign
         : Boolean(currentUser.includeCustomDesign);
 
-    const planLimits =
-      body.planLimits ||
-      {
-        ...(currentUser.planLimits || {}),
-        maxGuests: finalGuests,
-        smsEnabled: true,
-        smsLimit: finalSmsLimit,
-        seatingEnabled: includeDigitalSeating,
-        remindersEnabled: true,
-        callsEnabled: includeCalls,
-      };
+    const planLimitsPatch: Record<string, any> = {};
 
+    if (nextGuests !== undefined) {
+      planLimitsPatch["planLimits.maxGuests"] = nextGuests;
+    }
+
+    if (nextSmsLimit !== undefined) {
+      planLimitsPatch["planLimits.smsEnabled"] = true;
+      planLimitsPatch["planLimits.smsLimit"] = nextSmsLimit;
+    }
+
+    if (nextIncludeDigitalSeating !== undefined) {
+      planLimitsPatch["planLimits.seatingEnabled"] =
+        nextIncludeDigitalSeating;
+    }
+
+    if (nextIncludeCalls !== undefined) {
+      planLimitsPatch["planLimits.callsEnabled"] = nextIncludeCalls;
+    }
+
+    if (
+      nextGuests !== undefined ||
+      nextSmsLimit !== undefined ||
+      nextIncludeCalls !== undefined ||
+      nextIncludeDigitalSeating !== undefined
+    ) {
+      planLimitsPatch["planLimits.remindersEnabled"] = true;
+    }
+
+    /* =====================================================
+       UPDATE OBJECT
+    ===================================================== */
     const allowedUpdate: any = cleanUndefined({
-      name: body.name,
-      email: body.email ? normalizeEmail(body.email) : undefined,
-      phone: body.phone,
+      name: hasField(body, "name") ? body.name : undefined,
+      email: nextEmail || undefined,
+      phone: hasField(body, "phone") ? body.phone : undefined,
 
-      role: body.role,
-      staffType: body.staffType,
+      role: hasField(body, "role") ? body.role : undefined,
+      staffType: hasField(body, "staffType") ? body.staffType : undefined,
 
-      plan: body.plan,
-      priceKey: body.priceKey || body.plan,
-      packageName:
-        body.packageName ||
-        (body.plan || body.priceKey ? selectedPlan.label : undefined),
+      plan: nextPlan || undefined,
+      priceKey: nextPlan || undefined,
+      packageName: nextPackageName || undefined,
 
-      guests: finalGuests,
-      maxGuests: finalGuests,
-      maxMessages: finalSmsLimit,
-      smsLimit: finalSmsLimit,
+      guests: nextGuests,
+      maxGuests: nextGuests,
 
-      includeCalls,
+      smsLimit: nextSmsLimit,
+      maxMessages: nextSmsLimit,
+
+      includeCalls: nextIncludeCalls,
       callsRounds:
-        body.callsRounds !== undefined
+        hasField(body, "callsRounds")
           ? Number(body.callsRounds || 0)
-          : includeCalls
-            ? Number(currentUser.callsRounds || 3)
-            : 0,
-      callsAddonPrice:
-        body.callsAddonPrice !== undefined
-          ? Number(body.callsAddonPrice || 0)
+          : nextIncludeCalls !== undefined
+            ? nextIncludeCalls
+              ? Number(currentUser.callsRounds || 3)
+              : 0
+            : undefined,
+
+      callsAddonPrice: hasField(body, "callsAddonPrice")
+        ? Number(body.callsAddonPrice || 0)
+        : undefined,
+
+      includeCreditGifts: nextIncludeCreditGifts,
+
+      creditGiftsAddonPrice: hasField(body, "creditGiftsAddonPrice")
+        ? Number(body.creditGiftsAddonPrice || 0)
+        : undefined,
+
+      includeDigitalSeating: nextIncludeDigitalSeating,
+      includeEventManagement: nextIncludeEventManagement,
+      includeCustomDesign: nextIncludeCustomDesign,
+
+      selfManageEnabled:
+        nextIncludeEventManagement !== undefined
+          ? nextIncludeEventManagement
           : undefined,
 
-      includeCreditGifts,
-      creditGiftsAddonPrice:
-        body.creditGiftsAddonPrice !== undefined
-          ? Number(body.creditGiftsAddonPrice || 0)
+      customDesignEnabled:
+        nextIncludeCustomDesign !== undefined
+          ? nextIncludeCustomDesign
           : undefined,
 
-      includeDigitalSeating,
-      includeEventManagement,
-      includeCustomDesign,
+      paidAmount: hasField(body, "paidAmount") ? body.paidAmount : undefined,
+      hasPaid: hasField(body, "hasPaid") ? body.hasPaid : undefined,
+      isActive: hasField(body, "isActive") ? body.isActive : undefined,
 
-      selfManageEnabled: includeEventManagement,
-      customDesignEnabled: includeCustomDesign,
+      producerId: hasField(body, "producerId") ? body.producerId : undefined,
 
-      paidAmount: body.paidAmount,
-      hasPaid: body.hasPaid,
-      isActive: body.isActive,
+      createdByProducer: hasField(body, "createdByProducer")
+        ? body.createdByProducer
+        : undefined,
 
-      producerId: body.producerId,
-      createdByProducer: body.createdByProducer,
+      assignedProducerId: hasField(body, "assignedProducerId")
+        ? body.assignedProducerId
+        : undefined,
 
-      assignedProducerId: body.assignedProducerId,
-      assignedClientIds: body.assignedClientIds,
-      assignedStaffIds: body.assignedStaffIds,
+      assignedClientIds: hasField(body, "assignedClientIds")
+        ? body.assignedClientIds
+        : undefined,
 
-      producerPricePerRecord: body.producerPricePerRecord,
+      assignedStaffIds: hasField(body, "assignedStaffIds")
+        ? body.assignedStaffIds
+        : undefined,
 
-      planLimits,
+      producerPricePerRecord: hasField(body, "producerPricePerRecord")
+        ? body.producerPricePerRecord
+        : undefined,
 
-      isTrial: body.isTrial,
-      isDemoUser: body.isDemoUser,
+      isTrial: hasField(body, "isTrial") ? body.isTrial : undefined,
+      isDemoUser: hasField(body, "isDemoUser") ? body.isDemoUser : undefined,
 
-      eventDate: body.eventDate,
+      eventDate: hasField(body, "eventDate") ? body.eventDate : undefined,
+
+      ...planLimitsPatch,
     });
 
     const updatedUser: any = await User.findOneAndUpdate(
@@ -296,10 +342,23 @@ export async function PATCH(
       { new: true, runValidators: true }
     ).lean();
 
+    if (!updatedUser) {
+      return NextResponse.json(
+        { success: false, error: "USER_NOT_FOUND" },
+        { status: 404 }
+      );
+    }
+
+    /* =====================================================
+       MANUAL ADMIN UPGRADE PAYMENT
+       רק אם סימנת באדמין "שולם" ויש סכום חיובי.
+    ===================================================== */
     const upgradeAmount = Number(body.upgradeAmount || 0);
 
     if (upgradeAmount > 0) {
-      const paymentEmail = normalizeEmail(updatedUser.email || currentUser.email);
+      const paymentEmail = normalizeEmail(
+        updatedUser.email || currentUser.email
+      );
 
       await Payment.create({
         email: paymentEmail,
@@ -309,7 +368,7 @@ export async function PATCH(
         stripeCustomerId: undefined,
         stripePriceId: undefined,
 
-        priceKey: updatedUser.priceKey || updatedUser.plan || selectedPlanKey,
+        priceKey: updatedUser.priceKey || updatedUser.plan || nextPlan || "",
         maxGuests: Number(updatedUser.maxGuests || updatedUser.guests || 0),
 
         includeCalls: Boolean(updatedUser.includeCalls),
@@ -328,14 +387,38 @@ export async function PATCH(
 
         meta: {
           source: "admin_upgrade",
+          paymentMethod: body.upgradePaymentMethod || "manual_admin",
+          paymentStatus: body.upgradePaymentStatus || "paid",
+
           adminId: auth.impersonatedBy
             ? String(auth.impersonatedBy)
             : String(auth.userId),
+
           userId: String(updatedUser._id),
+
           previousPlan: currentUser.plan || currentUser.priceKey || null,
           newPlan: updatedUser.plan || updatedUser.priceKey || null,
-          packageName: updatedUser.packageName || selectedPlan.label,
+          packageName: updatedUser.packageName || null,
+
+          previousGuests: Number(
+            currentUser.maxGuests || currentUser.guests || 0
+          ),
+          newGuests: Number(updatedUser.maxGuests || updatedUser.guests || 0),
+
+          previousSmsLimit: Number(
+            currentUser.smsLimit || currentUser.maxMessages || 0
+          ),
+          newSmsLimit: Number(
+            updatedUser.smsLimit || updatedUser.maxMessages || 0
+          ),
+
+          extraRecords: Number(body.extraRecords || 0),
+          extraRecordsAmount: Number(body.extraRecordsAmount || 0),
+
           manualAmount: true,
+
+          includeCalls: Boolean(updatedUser.includeCalls),
+          includeCreditGifts: Boolean(updatedUser.includeCreditGifts),
           includeDigitalSeating: Boolean(updatedUser.includeDigitalSeating),
           includeEventManagement: Boolean(updatedUser.includeEventManagement),
           includeCustomDesign: Boolean(updatedUser.includeCustomDesign),

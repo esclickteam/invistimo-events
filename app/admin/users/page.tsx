@@ -67,6 +67,23 @@ type AdminUser = {
 
   assignedProducerEmail?: string;
   assignedStaffEmail?: string;
+
+  messageRounds?: AdminMessageRounds;
+};
+
+type MessageRoundStatus = {
+  key: string;
+  label: string;
+  done: boolean;
+  blocked: boolean;
+  sentAt?: string | null;
+  scheduledAt?: string | null;
+};
+
+type AdminMessageRounds = {
+  rsvp: MessageRoundStatus[];
+  reminder: MessageRoundStatus[];
+  thankyou: MessageRoundStatus[];
 };
 
 type Assignee = {
@@ -97,7 +114,6 @@ type EditFormState = {
   name: string;
   email: string;
   eventDate: string;
-  guests: number;
   assignedProducerId: string | null;
   assignedStaffIds: string[];
 };
@@ -338,6 +354,52 @@ function getPurchasedItems(
       active: Boolean(user.includeCustomDesign),
     },
   ];
+}
+
+function getDefaultMessageRounds(): AdminMessageRounds {
+  return {
+    rsvp: [1, 2, 3].map((round) => ({
+      key: `rsvp_${round}`,
+      label: `אישורי הגעה סבב ${round}`,
+      done: false,
+      blocked: false,
+      sentAt: null,
+      scheduledAt: null,
+    })),
+    reminder: [
+      {
+        key: "reminder",
+        label: "סבב תזכורת",
+        done: false,
+        blocked: false,
+        sentAt: null,
+        scheduledAt: null,
+      },
+    ],
+    thankyou: [
+      {
+        key: "thankyou",
+        label: "סבב תודה",
+        done: false,
+        blocked: false,
+        sentAt: null,
+        scheduledAt: null,
+      },
+    ],
+  };
+}
+
+function formatDateTime(value?: string | null) {
+  if (!value) return null;
+
+  try {
+    return new Date(value).toLocaleString("he-IL", {
+      dateStyle: "short",
+      timeStyle: "short",
+    });
+  } catch {
+    return null;
+  }
 }
 
 /* =========================
@@ -804,7 +866,7 @@ export default function AdminUsersPage() {
                   </td>
 
                   <td className="p-4">
-                    <div className="flex flex-wrap gap-2">
+                    <div className="grid w-[230px] grid-cols-2 gap-2">
                       <ActionButton
                         onClick={() => setEditingUser(u)}
                         icon={<Pencil size={14} />}
@@ -903,7 +965,7 @@ export default function AdminUsersPage() {
                 <MiniDetail label="שיחות" value={getCallsStatus(u)} />
               </div>
 
-              <div className="mt-4 flex flex-wrap gap-2">
+              <div className="mt-4 grid grid-cols-2 gap-2">
                 <ActionButton
                   onClick={() => setEditingUser(u)}
                   icon={<Pencil size={14} />}
@@ -1010,7 +1072,6 @@ function EditUserModal({
     name: user.name || "",
     email: user.email || "",
     eventDate: formatDateInput(user.eventDate),
-    guests: getUserRecords(user),
     assignedProducerId: user.assignedProducerId || null,
     assignedStaffIds: user.assignedStaffIds || [],
   });
@@ -1029,8 +1090,6 @@ function EditUserModal({
           name: form.name,
           email: form.email,
           eventDate: form.eventDate,
-          guests: form.guests,
-          maxGuests: form.guests,
         }),
       });
 
@@ -1122,6 +1181,11 @@ function EditUserModal({
           </div>
         </section>
 
+        <AdminMessageRoundsPanel
+          user={user}
+          onChanged={onSaved}
+        />
+
         <section className="grid grid-cols-1 gap-5 md:grid-cols-2">
           <InputField
             label="שם מלא"
@@ -1141,15 +1205,6 @@ function EditUserModal({
             type="date"
             value={form.eventDate}
             onChange={(value) => setForm((p) => ({ ...p, eventDate: value }))}
-          />
-
-          <InputField
-            label="כמות רשומות / אורחים"
-            type="number"
-            value={String(form.guests)}
-            onChange={(value) =>
-              setForm((p) => ({ ...p, guests: Number(value || 0) }))
-            }
           />
         </section>
 
@@ -1255,6 +1310,244 @@ function EditUserModal({
 }
 
 /* =========================
+   MESSAGE ROUNDS PANEL
+========================= */
+function AdminMessageRoundsPanel({
+  user,
+  onChanged,
+}: {
+  user: AdminUser;
+  onChanged: () => void;
+}) {
+  const [loadingKey, setLoadingKey] = useState<string | null>(null);
+
+  const rounds = user.messageRounds || getDefaultMessageRounds();
+
+  async function updateRound(action: "reset" | "block" | "unblock", key: string) {
+    const confirmText =
+      action === "reset"
+        ? "לפתוח מחדש את הסבב הזה?"
+        : action === "block"
+          ? "לחסום את הסבב הזה?"
+          : "לבטל חסימה לסבב הזה?";
+
+    if (!confirm(confirmText)) return;
+
+    try {
+      setLoadingKey(`${action}-${key}`);
+
+      const res = await fetch(`/api/admin/users/${user._id}/message-rounds`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action,
+          key,
+        }),
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || data?.success === false) {
+        alert("עדכון הסבב נכשל");
+        return;
+      }
+
+      onChanged();
+    } catch (err) {
+      console.error(err);
+      alert("שגיאה בעדכון הסבב");
+    } finally {
+      setLoadingKey(null);
+    }
+  }
+
+  const sections = [
+    {
+      title: "אישורי הגעה",
+      subtitle: "לפי סבב, בלי קשר אם נשלח ב־WhatsApp או SMS",
+      items: rounds.rsvp,
+    },
+    {
+      title: "סבב תזכורת",
+      subtitle: "תזכורת / מספר שולחן",
+      items: rounds.reminder,
+    },
+    {
+      title: "סבב תודה",
+      subtitle: "הודעת תודה לאחר האירוע",
+      items: rounds.thankyou,
+    },
+  ];
+
+  return (
+    <section
+      className="
+        rounded-[26px]
+        border border-[#E7D8C6]
+        bg-white
+        p-5
+      "
+    >
+      <div className="mb-5">
+        <h3 className="text-lg font-black text-[#3A2A1C]">
+          סבבי הודעות
+        </h3>
+
+        <p className="mt-1 text-xs font-bold text-[#8A7867]">
+          אישורי הגעה סבב 1–3, תזכורת ותודה — כולל סטטוס, פתיחה מחדש וחסימה.
+        </p>
+      </div>
+
+      <div className="space-y-5">
+        {sections.map((section) => (
+          <div
+            key={section.title}
+            className="
+              rounded-2xl
+              border border-[#EFE2D1]
+              bg-[#FFFDF8]
+              p-4
+            "
+          >
+            <div className="mb-3">
+              <div className="font-black text-[#3A2A1C]">
+                {section.title}
+              </div>
+
+              <div className="mt-1 text-xs font-bold text-[#8A7867]">
+                {section.subtitle}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {section.items.map((round) => {
+                const isLoading =
+                  loadingKey === `reset-${round.key}` ||
+                  loadingKey === `block-${round.key}` ||
+                  loadingKey === `unblock-${round.key}`;
+
+                const sentAtText = formatDateTime(round.sentAt);
+                const scheduledAtText = formatDateTime(round.scheduledAt);
+
+                return (
+                  <div
+                    key={round.key}
+                    className="
+                      flex flex-col gap-3
+                      rounded-2xl
+                      border border-[#EFE2D1]
+                      bg-white
+                      px-4 py-3
+                      md:flex-row
+                      md:items-center
+                      md:justify-between
+                    "
+                  >
+                    <div>
+                      <div className="font-black text-[#3A2A1C]">
+                        {round.label}
+                      </div>
+
+                      <div className="mt-2 flex flex-wrap gap-2 text-xs font-bold">
+                        <span
+                          className={`
+                            rounded-full px-3 py-1
+                            ${
+                              round.done
+                                ? "bg-[#EAF8EF] text-[#1F9A55]"
+                                : "bg-[#F6F1EA] text-[#7B6754]"
+                            }
+                          `}
+                        >
+                          {round.done ? "בוצע" : "טרם בוצע"}
+                        </span>
+
+                        {round.blocked && (
+                          <span className="rounded-full bg-red-50 px-3 py-1 text-red-600">
+                            חסום
+                          </span>
+                        )}
+
+                        {scheduledAtText && !round.done && (
+                          <span className="rounded-full bg-blue-50 px-3 py-1 text-blue-600">
+                            מתוזמן · {scheduledAtText}
+                          </span>
+                        )}
+
+                        {sentAtText && round.done && (
+                          <span className="rounded-full bg-[#FFF2D8] px-3 py-1 text-[#9A651B]">
+                            נשלח · {sentAtText}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 md:w-[240px]">
+                      <button
+                        type="button"
+                        disabled={isLoading}
+                        onClick={() => updateRound("reset", round.key)}
+                        className="
+                          h-9 rounded-full
+                          bg-[#B97821]
+                          px-4
+                          text-xs font-black
+                          text-white
+                          disabled:opacity-50
+                        "
+                      >
+                        פתיחה מחדש
+                      </button>
+
+                      {round.blocked ? (
+                        <button
+                          type="button"
+                          disabled={isLoading}
+                          onClick={() => updateRound("unblock", round.key)}
+                          className="
+                            h-9 rounded-full
+                            bg-[#2F3742]
+                            px-4
+                            text-xs font-black
+                            text-white
+                            disabled:opacity-50
+                          "
+                        >
+                          בטל חסימה
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={isLoading}
+                          onClick={() => updateRound("block", round.key)}
+                          className="
+                            h-9 rounded-full
+                            bg-red-600
+                            px-4
+                            text-xs font-black
+                            text-white
+                            disabled:opacity-50
+                          "
+                        >
+                          חסימה
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/* =========================
    UPGRADE MODAL
 ========================= */
 function UpgradeUserModal({
@@ -1296,11 +1589,11 @@ function UpgradeUserModal({
   );
 
   const initialExtraRecords = Math.max(
-  0,
-  currentRecords - Number(currentRecordOption?.records || currentRecords || 0)
-);
+    0,
+    currentRecords - Number(currentRecordOption?.records || currentRecords || 0)
+  );
 
-const [extraRecords, setExtraRecords] = useState(initialExtraRecords);
+  const [extraRecords, setExtraRecords] = useState(initialExtraRecords);
   const [extraRecordsAmount, setExtraRecordsAmount] = useState(0);
   const [manualTotalToPay, setManualTotalToPay] = useState(0);
 
@@ -2170,7 +2463,7 @@ function ActionButton({
       type="button"
       onClick={onClick}
       className={`
-        inline-flex h-9 items-center justify-center gap-1.5
+        inline-flex h-9 w-full items-center justify-center gap-1.5
         rounded-full
         px-3
         text-xs font-black

@@ -667,6 +667,7 @@ setRound2Locked(
   </button>
 )}
 
+
       {/* OPEN MODAL BUTTON */}
       {scheduledMessages.length > 0 && (
         <div className="flex justify-center mt-8">

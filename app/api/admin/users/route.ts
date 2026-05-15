@@ -122,6 +122,131 @@ function buildUsersFilter(req: Request) {
   return { filter, scope, q };
 }
 
+function hasAnyValue(obj: any, keys: string[]) {
+  return keys.some((key) => Boolean(obj?.[key]));
+}
+
+function firstValue(obj: any, keys: string[]) {
+  for (const key of keys) {
+    if (obj?.[key]) return obj[key];
+  }
+
+  return null;
+}
+
+function buildMessageRounds(invitation: any) {
+  const locks = invitation?.adminMessageRoundLocks || {};
+
+  if (!invitation) {
+    return {
+      rsvp: [1, 2, 3].map((round) => ({
+        key: `rsvp_${round}`,
+        label: `אישורי הגעה סבב ${round}`,
+        done: false,
+        blocked: false,
+        sentAt: null,
+        scheduledAt: null,
+      })),
+
+      reminder: [
+        {
+          key: "reminder",
+          label: "סבב תזכורת",
+          done: false,
+          blocked: false,
+          sentAt: null,
+          scheduledAt: null,
+        },
+      ],
+
+      thankyou: [
+        {
+          key: "thankyou",
+          label: "סבב תודה",
+          done: false,
+          blocked: false,
+          sentAt: null,
+          scheduledAt: null,
+        },
+      ],
+    };
+  }
+
+  return {
+    rsvp: [1, 2, 3].map((round) => {
+      const sentKeys = [
+        `rsvpRound${round}SentAt`,
+        `rsvpSmsRound${round}SentAt`,
+        `rsvpWhatsappRound${round}SentAt`,
+      ];
+
+      const scheduledKeys = [
+        `rsvpRound${round}ScheduledAt`,
+        `rsvpSmsRound${round}ScheduledAt`,
+        `rsvpWhatsappRound${round}ScheduledAt`,
+      ];
+
+      return {
+        key: `rsvp_${round}`,
+        label: `אישורי הגעה סבב ${round}`,
+        done: hasAnyValue(invitation, sentKeys),
+        sentAt: firstValue(invitation, sentKeys),
+        scheduledAt: firstValue(invitation, scheduledKeys),
+        blocked: Boolean(locks?.[`rsvp_${round}`]),
+      };
+    }),
+
+    reminder: [
+      {
+        key: "reminder",
+        label: "סבב תזכורת",
+        done: hasAnyValue(invitation, [
+          "reminderSentAt",
+          "reminderSmsSentAt",
+          "reminderWhatsappSentAt",
+        ]),
+        sentAt: firstValue(invitation, [
+          "reminderSentAt",
+          "reminderSmsSentAt",
+          "reminderWhatsappSentAt",
+        ]),
+        scheduledAt: firstValue(invitation, [
+          "reminderScheduledAt",
+          "reminderSmsScheduledAt",
+          "reminderWhatsappScheduledAt",
+        ]),
+        blocked: Boolean(locks?.reminder),
+      },
+    ],
+
+    thankyou: [
+      {
+        key: "thankyou",
+        label: "סבב תודה",
+        done: hasAnyValue(invitation, [
+          "thankYouSentAt",
+          "thankyouSentAt",
+          "thankYouSmsSentAt",
+          "thankYouWhatsappSentAt",
+        ]),
+        sentAt: firstValue(invitation, [
+          "thankYouSentAt",
+          "thankyouSentAt",
+          "thankYouSmsSentAt",
+          "thankYouWhatsappSentAt",
+        ]),
+        scheduledAt: firstValue(invitation, [
+          "thankYouScheduledAt",
+          "thankyouScheduledAt",
+          "thankYouSmsScheduledAt",
+          "thankYouWhatsappScheduledAt",
+        ]),
+        blocked: Boolean(locks?.thankyou),
+      },
+    ],
+  };
+}
+
 /* =========================================================
    GET – ADMIN USERS LIST
    /api/admin/users?scope=all|active&q=...
@@ -214,7 +339,52 @@ export async function GET(req: Request) {
         ? Invitation.find({
             ownerId: { $in: userIds },
           })
-            .select("ownerId eventDate")
+            .select(`
+              ownerId
+              eventDate
+
+              rsvpRound1SentAt
+              rsvpRound2SentAt
+              rsvpRound3SentAt
+
+              rsvpSmsRound1SentAt
+              rsvpSmsRound2SentAt
+              rsvpSmsRound3SentAt
+
+              rsvpWhatsappRound1SentAt
+              rsvpWhatsappRound2SentAt
+              rsvpWhatsappRound3SentAt
+
+              rsvpRound1ScheduledAt
+              rsvpRound2ScheduledAt
+              rsvpRound3ScheduledAt
+
+              rsvpSmsRound1ScheduledAt
+              rsvpSmsRound2ScheduledAt
+              rsvpSmsRound3ScheduledAt
+
+              rsvpWhatsappRound1ScheduledAt
+              rsvpWhatsappRound2ScheduledAt
+              rsvpWhatsappRound3ScheduledAt
+
+              reminderSentAt
+              reminderSmsSentAt
+              reminderWhatsappSentAt
+              reminderScheduledAt
+              reminderSmsScheduledAt
+              reminderWhatsappScheduledAt
+
+              thankYouSentAt
+              thankyouSentAt
+              thankYouSmsSentAt
+              thankYouWhatsappSentAt
+              thankYouScheduledAt
+              thankyouScheduledAt
+              thankYouSmsScheduledAt
+              thankYouWhatsappScheduledAt
+
+              adminMessageRoundLocks
+            `)
             .sort({ eventDate: -1 })
             .lean()
         : [],
@@ -410,6 +580,8 @@ export async function GET(req: Request) {
           paymentTypes: payment?.paymentTypes || [],
 
           eventDate: u.eventDate || invitation?.eventDate || null,
+
+          messageRounds: buildMessageRounds(invitation),
         };
       })
       .sort((a: any, b: any) => {
