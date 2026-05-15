@@ -33,6 +33,7 @@ type AdminRole = "admin" | "user" | "producer" | "staff" | "client" | string;
 
 type AdminUser = {
   _id: string;
+  invitationId?: string;
   name?: string;
   email: string;
   role: AdminRole;
@@ -1372,6 +1373,7 @@ function AdminMessageRoundsPanel({
         body: JSON.stringify({
           action,
           key,
+          invitationId: user.invitationId,
         }),
       });
 
