@@ -7,7 +7,6 @@ import {
   Users,
   CalendarDays,
   UserRound,
-  Mail,
   ShieldCheck,
   Crown,
   Phone,
@@ -76,17 +75,22 @@ type Assignee = {
   email?: string;
 };
 
-type AdminPackage = {
+type AdminPricingPlan = {
   key: string;
   label: string;
+  includeCalls?: boolean;
+  includeCreditGifts?: boolean;
+  includeDigitalSeating?: boolean;
+  includeEventManagement?: boolean;
+  includeCustomDesign?: boolean;
+};
+
+type AdminRecordOption = {
+  key?: string;
+  label: string;
   records: number;
-  sms: number;
-  price: number;
-  includeCalls: boolean;
-  includeCreditGifts: boolean;
-  includeDigitalSeating: boolean;
-  includeEventManagement: boolean;
-  includeCustomDesign: boolean;
+  sms?: number;
+  prices: Record<string, number>;
 };
 
 type EditFormState = {
@@ -113,45 +117,6 @@ type UpgradePaymentMode = "manual_paid" | "stripe";
    CONSTS
 ========================= */
 const AUTO_REFRESH_MS = 10000;
-
-const FALLBACK_PACKAGES: AdminPackage[] = [
-  {
-    key: "plan1",
-    label: "חבילה 1",
-    records: 100,
-    sms: 300,
-    price: 402,
-    includeCalls: false,
-    includeCreditGifts: false,
-    includeDigitalSeating: false,
-    includeEventManagement: false,
-    includeCustomDesign: false,
-  },
-  {
-    key: "plan2",
-    label: "חבילה 2",
-    records: 200,
-    sms: 600,
-    price: 789,
-    includeCalls: true,
-    includeCreditGifts: false,
-    includeDigitalSeating: false,
-    includeEventManagement: false,
-    includeCustomDesign: false,
-  },
-  {
-    key: "plan3",
-    label: "חבילה 3",
-    records: 300,
-    sms: 900,
-    price: 1171,
-    includeCalls: true,
-    includeCreditGifts: true,
-    includeDigitalSeating: true,
-    includeEventManagement: true,
-    includeCustomDesign: false,
-  },
-];
 
 const ADDONS = [
   {
@@ -212,49 +177,73 @@ function normalizeText(value?: string) {
   return String(value || "").trim().toLowerCase();
 }
 
-function getPackagesSource(packages?: AdminPackage[]) {
-  return packages?.length ? packages : FALLBACK_PACKAGES;
-}
-
 function getPlanKey(user: AdminUser) {
   return user.priceKey || user.plan || user.packageName || "";
 }
 
-function getPlanInfo(plan?: string, packages?: AdminPackage[]) {
-  if (!plan) return null;
-
-  const source = getPackagesSource(packages);
+function getPlanInfo(planKey?: string, pricingPlans?: AdminPricingPlan[]) {
+  if (!planKey) return null;
 
   return (
-    source.find((p) => p.key === plan) ||
-    source.find((p) => p.label === plan) ||
+    pricingPlans?.find((p) => p.key === planKey) ||
+    pricingPlans?.find((p) => p.label === planKey) ||
     null
   );
 }
 
-function getPlanLabel(user: AdminUser, packages?: AdminPackage[]) {
+function getPlanLabel(user: AdminUser, pricingPlans?: AdminPricingPlan[]) {
   const planKey = getPlanKey(user);
-  const plan = getPlanInfo(planKey, packages);
+  const plan = getPlanInfo(planKey, pricingPlans);
 
   return plan?.label || user.packageName || user.plan || user.priceKey || "—";
 }
 
-function getPlanPrice(user: AdminUser, packages?: AdminPackage[]) {
-  const plan = getPlanInfo(getPlanKey(user), packages);
-
-  return plan?.price || 0;
+function getUserRecords(user: AdminUser) {
+  return Number(user.maxGuests || user.guests || 0);
 }
 
-function getGuestsLimit(user: AdminUser, packages?: AdminPackage[]) {
-  const plan = getPlanInfo(getPlanKey(user), packages);
-
-  return user.guests || user.maxGuests || plan?.records || 0;
+function getUserSmsLimit(user: AdminUser) {
+  return Number(user.smsLimit || user.maxMessages || 0);
 }
 
-function getSmsLimit(user: AdminUser, packages?: AdminPackage[]) {
-  const plan = getPlanInfo(getPlanKey(user), packages);
+function getRecordOptionForUser(
+  user: AdminUser,
+  recordOptions?: AdminRecordOption[]
+) {
+  const records = getUserRecords(user);
 
-  return user.smsLimit || user.maxMessages || plan?.sms || 0;
+  if (!recordOptions?.length) return null;
+
+  return (
+    recordOptions.find((option) => Number(option.records) === records) ||
+    recordOptions.find((option) => Number(option.records) >= records) ||
+    recordOptions[recordOptions.length - 1] ||
+    null
+  );
+}
+
+function getPriceForRecordOption(
+  planKey: string,
+  recordOption?: AdminRecordOption | null
+) {
+  if (!planKey || !recordOption) return 0;
+
+  return Number(recordOption.prices?.[planKey] || 0);
+}
+
+function getPriceByPlanAndRecords(
+  planKey: string,
+  records: number,
+  recordOptions?: AdminRecordOption[]
+) {
+  if (!planKey || !records || !recordOptions?.length) return 0;
+
+  const option =
+    recordOptions.find((item) => Number(item.records) === Number(records)) ||
+    recordOptions.find((item) => Number(item.records) >= Number(records)) ||
+    recordOptions[recordOptions.length - 1];
+
+  return getPriceForRecordOption(planKey, option);
 }
 
 function getCallsStatus(user: AdminUser) {
@@ -290,21 +279,28 @@ function getUserTotalPaid(user: AdminUser) {
   return Number(user.totalPaid || user.paidAmount || 0);
 }
 
-function getPurchasedItems(user: AdminUser, packages?: AdminPackage[]) {
+function getPurchasedItems(
+  user: AdminUser,
+  pricingPlans?: AdminPricingPlan[],
+  recordOptions?: AdminRecordOption[]
+) {
+  const records = getUserRecords(user);
+  const recordOption = getRecordOptionForUser(user, recordOptions);
+
   return [
     {
       label: "חבילה",
-      value: getPlanLabel(user, packages),
+      value: getPlanLabel(user, pricingPlans),
       active: true,
     },
     {
       label: "כמות רשומות / אורחים",
-      value: String(getGuestsLimit(user, packages) || 0),
+      value: recordOption?.label || String(records || 0),
       active: true,
     },
     {
       label: "כמות הודעות SMS",
-      value: String(getSmsLimit(user, packages) || 0),
+      value: String(getUserSmsLimit(user) || recordOption?.sms || 0),
       active: true,
     },
     {
@@ -340,7 +336,8 @@ function getPurchasedItems(user: AdminUser, packages?: AdminPackage[]) {
 ========================= */
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
-  const [packages, setPackages] = useState<AdminPackage[]>([]);
+  const [pricingPlans, setPricingPlans] = useState<AdminPricingPlan[]>([]);
+  const [recordOptions, setRecordOptions] = useState<AdminRecordOption[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [openCreate, setOpenCreate] = useState(false);
@@ -387,12 +384,20 @@ export default function AdminUsersPage() {
 
       const data = await res.json();
 
-      if (data.success && Array.isArray(data.packages)) {
-        setPackages(data.packages);
+      if (!data.success) {
+        setPricingPlans([]);
+        setRecordOptions([]);
+        return;
       }
+
+      setPricingPlans(Array.isArray(data.plans) ? data.plans : []);
+      setRecordOptions(
+        Array.isArray(data.recordOptions) ? data.recordOptions : []
+      );
     } catch (err) {
       console.error("Failed loading admin packages:", err);
-      setPackages(FALLBACK_PACKAGES);
+      setPricingPlans([]);
+      setRecordOptions([]);
     }
   }
 
@@ -507,7 +512,7 @@ export default function AdminUsersPage() {
           !q ||
           normalizeText(u.name).includes(q) ||
           normalizeText(u.email).includes(q) ||
-          normalizeText(getPlanLabel(u, packages)).includes(q);
+          normalizeText(getPlanLabel(u, pricingPlans)).includes(q);
 
         const matchesRole = roleFilter === "all" || u.role === roleFilter;
 
@@ -527,7 +532,14 @@ export default function AdminUsersPage() {
 
         return matchesSearch && matchesRole && matchesEvent;
       });
-  }, [users, hiddenUserIds, search, roleFilter, eventFilter, packages]);
+  }, [
+    users,
+    hiddenUserIds,
+    search,
+    roleFilter,
+    eventFilter,
+    pricingPlans,
+  ]);
 
   const stats = useMemo(() => {
     return {
@@ -755,11 +767,11 @@ export default function AdminUsersPage() {
                   </td>
 
                   <td className="p-4 font-bold text-[#6B5A48]">
-                    {getPlanLabel(u, packages)}
+                    {getPlanLabel(u, pricingPlans)}
                   </td>
 
                   <td className="p-4 font-black text-[#3A2A1C]">
-                    {getGuestsLimit(u, packages)}
+                    {getUserRecords(u)}
                   </td>
 
                   <td className="p-4 text-[#6B5A48]">
@@ -867,12 +879,18 @@ export default function AdminUsersPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-3 text-sm">
-                <MiniDetail label="חבילה" value={getPlanLabel(u, packages)} />
+                <MiniDetail
+                  label="חבילה"
+                  value={getPlanLabel(u, pricingPlans)}
+                />
                 <MiniDetail
                   label="רשומות"
-                  value={String(getGuestsLimit(u, packages))}
+                  value={String(getUserRecords(u))}
                 />
-                <MiniDetail label="תאריך אירוע" value={formatDate(u.eventDate)} />
+                <MiniDetail
+                  label="תאריך אירוע"
+                  value={formatDate(u.eventDate)}
+                />
                 <MiniDetail label="שיחות" value={getCallsStatus(u)} />
               </div>
 
@@ -929,7 +947,8 @@ export default function AdminUsersPage() {
       {editingUser && (
         <EditUserModal
           user={editingUser}
-          packages={packages}
+          pricingPlans={pricingPlans}
+          recordOptions={recordOptions}
           producers={producers}
           staff={staff}
           onClose={() => setEditingUser(null)}
@@ -943,7 +962,8 @@ export default function AdminUsersPage() {
       {upgradingUser && (
         <UpgradeUserModal
           user={upgradingUser}
-          packages={packages}
+          pricingPlans={pricingPlans}
+          recordOptions={recordOptions}
           onClose={() => setUpgradingUser(null)}
           onSaved={() => {
             setUpgradingUser(null);
@@ -960,14 +980,16 @@ export default function AdminUsersPage() {
 ========================= */
 function EditUserModal({
   user,
-  packages,
+  pricingPlans,
+  recordOptions,
   producers,
   staff,
   onClose,
   onSaved,
 }: {
   user: AdminUser;
-  packages: AdminPackage[];
+  pricingPlans: AdminPricingPlan[];
+  recordOptions: AdminRecordOption[];
   producers: Assignee[];
   staff: Assignee[];
   onClose: () => void;
@@ -979,7 +1001,7 @@ function EditUserModal({
     name: user.name || "",
     email: user.email || "",
     eventDate: formatDateInput(user.eventDate),
-    guests: getGuestsLimit(user, packages),
+    guests: getUserRecords(user),
     assignedProducerId: user.assignedProducerId || null,
     assignedStaffIds: user.assignedStaffIds || [],
   });
@@ -1047,29 +1069,33 @@ function EditUserModal({
           </div>
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            {getPurchasedItems(user, packages).map((item) => (
-              <div
-                key={item.label}
-                className="
-                  flex items-center justify-between gap-3
-                  rounded-2xl
-                  border border-[#EFE2D1]
-                  bg-white
-                  px-4 py-3
-                  text-sm
-                "
-              >
-                <span className="font-bold text-[#7B6754]">{item.label}</span>
-
-                <span
-                  className={`font-black ${
-                    item.active ? "text-[#3A2A1C]" : "text-[#9B9187]"
-                  }`}
+            {getPurchasedItems(user, pricingPlans, recordOptions).map(
+              (item) => (
+                <div
+                  key={item.label}
+                  className="
+                    flex items-center justify-between gap-3
+                    rounded-2xl
+                    border border-[#EFE2D1]
+                    bg-white
+                    px-4 py-3
+                    text-sm
+                  "
                 >
-                  {item.value}
-                </span>
-              </div>
-            ))}
+                  <span className="font-bold text-[#7B6754]">
+                    {item.label}
+                  </span>
+
+                  <span
+                    className={`font-black ${
+                      item.active ? "text-[#3A2A1C]" : "text-[#9B9187]"
+                    }`}
+                  >
+                    {item.value}
+                  </span>
+                </div>
+              )
+            )}
           </div>
 
           <div
@@ -1224,28 +1250,31 @@ function EditUserModal({
 ========================= */
 function UpgradeUserModal({
   user,
-  packages,
+  pricingPlans,
+  recordOptions,
   onClose,
   onSaved,
 }: {
   user: AdminUser;
-  packages: AdminPackage[];
+  pricingPlans: AdminPricingPlan[];
+  recordOptions: AdminRecordOption[];
   onClose: () => void;
   onSaved: () => void;
 }) {
   const [saving, setSaving] = useState(false);
 
-  const safePackages = getPackagesSource(packages);
+  const [paymentMode, setPaymentMode] =
+    useState<UpgradePaymentMode>("manual_paid");
 
-  const currentPlanKey =
-    user.priceKey || user.plan || safePackages[0]?.key || "";
+  const currentPlanKey = user.priceKey || user.plan || "";
+  const currentRecords = getUserRecords(user);
+  const currentRecordOption = getRecordOptionForUser(user, recordOptions);
 
   const currentPlan =
-    safePackages.find((item) => item.key === currentPlanKey) ||
-    safePackages[0];
+    pricingPlans.find((plan) => plan.key === currentPlanKey) || null;
 
   const [form, setForm] = useState<UpgradeFormState>({
-    plan: currentPlan?.key || safePackages[0]?.key || "",
+    plan: currentPlanKey || pricingPlans[0]?.key || "",
     includeCalls: Boolean(user.includeCalls),
     includeCreditGifts: Boolean(user.includeCreditGifts),
     includeDigitalSeating: Boolean(user.includeDigitalSeating),
@@ -1253,17 +1282,31 @@ function UpgradeUserModal({
     includeCustomDesign: Boolean(user.includeCustomDesign),
   });
 
+  const [selectedRecords, setSelectedRecords] = useState<number>(
+    currentRecordOption?.records || currentRecords || 0
+  );
+
   const [extraRecords, setExtraRecords] = useState(0);
   const [extraRecordsAmount, setExtraRecordsAmount] = useState(0);
   const [manualTotalToPay, setManualTotalToPay] = useState(0);
-  const [paymentMode, setPaymentMode] =
-    useState<UpgradePaymentMode>("manual_paid");
 
   const selectedPlan =
-    safePackages.find((item) => item.key === form.plan) || currentPlan;
+    pricingPlans.find((plan) => plan.key === form.plan) || null;
 
-  const currentPackagePrice = Number(currentPlan?.price || 0);
-  const selectedPackagePrice = Number(selectedPlan?.price || 0);
+  const selectedRecordOption =
+    recordOptions.find(
+      (option) => Number(option.records) === Number(selectedRecords)
+    ) || null;
+
+  const currentPackagePrice = getPriceForRecordOption(
+    currentPlanKey,
+    currentRecordOption
+  );
+
+  const selectedPackagePrice = getPriceForRecordOption(
+    form.plan,
+    selectedRecordOption
+  );
 
   const packageDiff = Math.max(
     0,
@@ -1287,7 +1330,16 @@ function UpgradeUserModal({
   }, [calculatedTotalToPay]);
 
   const finalRecords =
-    Number(selectedPlan?.records || 0) + Number(extraRecords || 0);
+    Number(selectedRecords || 0) + Number(extraRecords || 0);
+
+  const finalSmsLimit = Number(
+    selectedRecordOption?.sms || user.smsLimit || user.maxMessages || 0
+  );
+
+  const canSubmit =
+    Boolean(form.plan) &&
+    Boolean(selectedRecords) &&
+    manualTotalToPay >= 0;
 
   async function saveManualPaidUpgrade() {
     const res = await fetch(`/api/admin/users/${user._id}`, {
@@ -1299,12 +1351,12 @@ function UpgradeUserModal({
       body: JSON.stringify({
         plan: form.plan,
         priceKey: form.plan,
-        packageName: selectedPlan?.label,
+        packageName: selectedPlan?.label || form.plan,
 
         guests: finalRecords,
         maxGuests: finalRecords,
-        smsLimit: selectedPlan?.sms,
-        maxMessages: selectedPlan?.sms,
+        smsLimit: finalSmsLimit,
+        maxMessages: finalSmsLimit,
 
         includeCalls: form.includeCalls,
         includeCreditGifts: form.includeCreditGifts,
@@ -1340,12 +1392,12 @@ function UpgradeUserModal({
 
         plan: form.plan,
         priceKey: form.plan,
-        packageName: selectedPlan?.label,
+        packageName: selectedPlan?.label || form.plan,
 
         guests: finalRecords,
         maxGuests: finalRecords,
-        smsLimit: selectedPlan?.sms,
-        maxMessages: selectedPlan?.sms,
+        smsLimit: finalSmsLimit,
+        maxMessages: finalSmsLimit,
 
         includeCalls: form.includeCalls,
         includeCreditGifts: form.includeCreditGifts,
@@ -1374,8 +1426,8 @@ function UpgradeUserModal({
   }
 
   async function saveUpgrade() {
-    if (manualTotalToPay < 0) {
-      alert("סכום לתשלום לא יכול להיות שלילי");
+    if (!canSubmit) {
+      alert("חסר מידע לשדרוג");
       return;
     }
 
@@ -1393,7 +1445,7 @@ function UpgradeUserModal({
       console.error(err);
 
       if (paymentMode === "stripe") {
-        alert("יצירת תשלום Stripe נכשלה. צריך לוודא שקיים endpoint בשם upgrade-stripe.");
+        alert("יצירת תשלום Stripe נכשלה");
       } else {
         alert("שמירת השדרוג נכשלה");
       }
@@ -1402,10 +1454,45 @@ function UpgradeUserModal({
     }
   }
 
+  if (!pricingPlans.length || !recordOptions.length) {
+    return (
+      <ModalShell
+        title="שדרוג משתמש"
+        subtitle="חסרים נתוני חבילות מהשרת"
+        onClose={onClose}
+      >
+        <div
+          className="
+            rounded-[26px]
+            border border-[#E7D8C6]
+            bg-[#FFFDF8]
+            p-6
+            text-center
+            text-sm font-bold
+            text-[#7B6754]
+          "
+        >
+          לא נמצאו חבילות או מדרגות רשומות מהשרת. צריך לוודא ש־
+          <span dir="ltr"> /api/admin/packages </span>
+          מחזיר plans ו־recordOptions.
+        </div>
+
+        <ModalFooter>
+          <button
+            onClick={onClose}
+            className="h-12 rounded-2xl bg-[#ECE7E1] px-6 font-black text-[#6B5A48]"
+          >
+            סגירה
+          </button>
+        </ModalFooter>
+      </ModalShell>
+    );
+  }
+
   return (
     <ModalShell
       title="שדרוג משתמש"
-      subtitle="חישוב הפרש בין חבילות, אפסיילים ורשומות נוספות"
+      subtitle="שינוי חבילה, שינוי כמות רשומות, אפסיילים ותשלום הפרש"
       onClose={onClose}
     >
       <div className="space-y-7">
@@ -1421,30 +1508,32 @@ function UpgradeUserModal({
             <Crown size={20} className="text-[#B97821]" />
 
             <h3 className="text-lg font-black text-[#3A2A1C]">
-              חבילת הלקוח
+              חבילה ורשומות
             </h3>
           </div>
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <SummaryBox
-              label="חבילה נוכחית"
-              value={currentPlan?.label || getPlanLabel(user, packages)}
+              label="מצב נוכחי"
+              value={`${currentPlan?.label || getPlanLabel(user, pricingPlans)} · ${
+                currentRecords || 0
+              } רשומות`}
             />
 
             <SummaryBox
-              label="מחיר חבילה נוכחית"
+              label="מחיר מצב נוכחי"
               value={formatMoney(currentPackagePrice)}
             />
 
-            <label className="md:col-span-2">
+            <label>
               <span className="mb-2 block text-sm font-black text-[#6B5A48]">
-                בחירת חבילה חדשה
+                שינוי חבילה
               </span>
 
               <select
                 value={form.plan}
                 onChange={(e) => {
-                  const nextPlan = safePackages.find(
+                  const nextPlan = pricingPlans.find(
                     (item) => item.key === e.target.value
                   );
 
@@ -1475,15 +1564,44 @@ function UpgradeUserModal({
                   outline-none
                 "
               >
-                {safePackages.map((plan) => (
+                {pricingPlans.map((plan) => (
                   <option key={plan.key} value={plan.key}>
-                    {plan.label} · {plan.records} רשומות ·{" "}
-                    {formatMoney(plan.price)}
+                    {plan.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span className="mb-2 block text-sm font-black text-[#6B5A48]">
+                שינוי כמות רשומות
+              </span>
+
+              <select
+                value={selectedRecords}
+                onChange={(e) => setSelectedRecords(Number(e.target.value))}
+                className="
+                  h-12 w-full rounded-2xl
+                  border border-[#E7D8C6]
+                  bg-white px-4
+                  text-sm font-black
+                  outline-none
+                "
+              >
+                {recordOptions.map((option) => (
+                  <option key={option.records} value={option.records}>
+                    {option.label || `עד ${option.records} רשומות`} ·{" "}
+                    {formatMoney(option.prices?.[form.plan] || 0)}
                   </option>
                 ))}
               </select>
             </label>
           </div>
+
+          <p className="mt-3 text-xs font-bold text-[#8A7867]">
+            אפשר לשדרג רק חבילה בלי להגדיל רשומות, או להגדיל רשומות בלי לשנות
+            חבילה.
+          </p>
         </section>
 
         <section
@@ -1560,7 +1678,7 @@ function UpgradeUserModal({
             <PlusCircle size={20} className="text-[#B97821]" />
 
             <h3 className="text-lg font-black text-[#3A2A1C]">
-              הוספת רשומות ידנית
+              הוספת רשומות ידנית בתשלום
             </h3>
           </div>
 
@@ -1584,13 +1702,14 @@ function UpgradeUserModal({
             />
 
             <SummaryBox
-              label="סה״כ רשומות אחרי שדרוג"
+              label="סה״כ רשומות אחרי עדכון"
               value={String(finalRecords)}
             />
           </div>
 
           <p className="mt-3 text-xs font-bold text-[#8A7867]">
-            הרשומות הנוספות מתווספות מעל החבילה שבחרת ונשמרות אוטומטית במשתמש.
+            זה מיועד למקרה שאת רוצה לתת מעבר למדרגת הרשומות הרשמית ולתמחר
+            ידנית.
           </p>
         </section>
 
@@ -1604,7 +1723,7 @@ function UpgradeUserModal({
         >
           <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
             <SummaryBox
-              label="הפרש חבילות"
+              label="הפרש חבילה/רשומות"
               value={formatMoney(packageDiff)}
             />
 
@@ -1614,7 +1733,7 @@ function UpgradeUserModal({
             />
 
             <SummaryBox
-              label="רשומות נוספות"
+              label="רשומות ידניות"
               value={formatMoney(extraRecordsAmount)}
             />
 
@@ -1656,7 +1775,7 @@ function UpgradeUserModal({
               </div>
 
               <div className="mt-2 text-xs font-bold text-[#8A7867]">
-                מחושב אוטומטית, אבל ניתן לעריכה ידנית.
+                מחושב אוטומטית לפי הבחירות, אבל ניתן לעריכה ידנית.
               </div>
             </div>
           </div>
@@ -1696,7 +1815,7 @@ function UpgradeUserModal({
                 </div>
 
                 <div className="mt-1 text-xs font-bold text-[#8A7867]">
-                  השדרוג יישמר מיד וייכנס להכנסות באדמין.
+                  יעדכן את המשתמש מיד וייצור תשלום באדמין.
                 </div>
               </div>
 
@@ -1725,7 +1844,7 @@ function UpgradeUserModal({
                 </div>
 
                 <div className="mt-1 text-xs font-bold text-[#8A7867]">
-                  יפתח Checkout עם הסכום שהגדרת.
+                  יפתח Checkout עם הסכום שהגדרת, והמשתמש יתעדכן אחרי תשלום.
                 </div>
               </div>
 
@@ -1750,7 +1869,7 @@ function UpgradeUserModal({
 
         <button
           onClick={saveUpgrade}
-          disabled={saving}
+          disabled={saving || !canSubmit}
           className="
             flex h-12 items-center justify-center gap-2
             rounded-2xl bg-black px-7
