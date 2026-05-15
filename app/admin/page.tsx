@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   ChevronRight,
   ChevronLeft,
@@ -8,7 +8,6 @@ import {
   CalendarDays,
   PhoneCall,
   Wallet,
-  TrendingUp,
   Loader2,
   X,
   ReceiptText,
@@ -18,6 +17,10 @@ import {
   RefreshCcw,
   ShieldCheck,
   Search,
+  Package,
+  CalendarRange,
+  BarChart3,
+  UserRound,
 } from "lucide-react";
 
 /* =====================================================
@@ -25,10 +28,40 @@ import {
 ===================================================== */
 interface PayingCustomer {
   email: string;
+  name?: string;
+  packageName?: string;
+  maxGuests?: number | null;
   totalPaid: number;
   paymentsCount: number;
   lastPaymentAt?: string | null;
   types?: string[];
+  hasCallsAddon?: boolean;
+  hasCreditGiftsAddon?: boolean;
+}
+
+interface RangeMonthItem {
+  year: number;
+  month: number;
+  revenue: number;
+  paymentsCount: number;
+}
+
+interface RangeTypeItem {
+  type: string;
+  revenue: number;
+  paymentsCount: number;
+}
+
+interface RangeSummary {
+  fromMonth: number;
+  fromYear: number;
+  toMonth: number;
+  toYear: number;
+  revenue: number;
+  customers: number;
+  paymentsCount: number;
+  monthlyBreakdown: RangeMonthItem[];
+  byType: RangeTypeItem[];
 }
 
 interface AdminStats {
@@ -46,8 +79,27 @@ interface AdminStats {
 
   month: number;
   year: number;
-  monthLabel?: string;
+
+  rangeSummary?: RangeSummary;
 }
+
+/* =====================================================
+   CONST
+===================================================== */
+const MONTHS = [
+  { value: 1, label: "ינואר" },
+  { value: 2, label: "פברואר" },
+  { value: 3, label: "מרץ" },
+  { value: 4, label: "אפריל" },
+  { value: 5, label: "מאי" },
+  { value: 6, label: "יוני" },
+  { value: 7, label: "יולי" },
+  { value: 8, label: "אוגוסט" },
+  { value: 9, label: "ספטמבר" },
+  { value: 10, label: "אוקטובר" },
+  { value: 11, label: "נובמבר" },
+  { value: 12, label: "דצמבר" },
+];
 
 /* =====================================================
    HELPERS
@@ -57,6 +109,10 @@ function getMonthLabel(date: Date) {
     month: "long",
     year: "numeric",
   });
+}
+
+function getMonthName(month: number) {
+  return MONTHS.find((item) => item.value === month)?.label || String(month);
 }
 
 function formatMoney(value: number) {
@@ -83,6 +139,7 @@ function getPaymentTypeLabel(type: string) {
     addon: "תוספת",
     upgrade: "שדרוג",
     "producer-client": "לקוח מפיק",
+    other: "אחר",
   };
 
   return labels[type] || type;
@@ -102,6 +159,24 @@ export default function AdminDashboardPage() {
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
 
+  const now = new Date();
+  const currentYear = now.getFullYear();
+
+  const [fromMonth, setFromMonth] = useState(5);
+  const [fromYear, setFromYear] = useState(currentYear);
+  const [toMonth, setToMonth] = useState(5);
+  const [toYear, setToYear] = useState(currentYear + 2);
+
+  const yearOptions = useMemo(() => {
+    const years: number[] = [];
+
+    for (let year = currentYear - 3; year <= currentYear + 5; year++) {
+      years.push(year);
+    }
+
+    return years;
+  }, [currentYear]);
+
   const selectedMonth = selectedDate.getMonth() + 1;
   const selectedYear = selectedDate.getFullYear();
 
@@ -110,11 +185,11 @@ export default function AdminDashboardPage() {
   }, [selectedDate]);
 
   const isCurrentMonth = useMemo(() => {
-    const now = new Date();
+    const realNow = new Date();
 
     return (
-      selectedDate.getFullYear() === now.getFullYear() &&
-      selectedDate.getMonth() === now.getMonth()
+      selectedDate.getFullYear() === realNow.getFullYear() &&
+      selectedDate.getMonth() === realNow.getMonth()
     );
   }, [selectedDate]);
 
@@ -124,9 +199,13 @@ export default function AdminDashboardPage() {
 
     if (!q) return list;
 
-    return list.filter((customer) =>
-      String(customer.email || "").toLowerCase().includes(q)
-    );
+    return list.filter((customer) => {
+      const email = String(customer.email || "").toLowerCase();
+      const name = String(customer.name || "").toLowerCase();
+      const packageName = String(customer.packageName || "").toLowerCase();
+
+      return email.includes(q) || name.includes(q) || packageName.includes(q);
+    });
   }, [stats?.payingCustomers, customerSearch]);
 
   const averagePayment = useMemo(() => {
@@ -138,17 +217,32 @@ export default function AdminDashboardPage() {
     return Math.round(revenue / paymentsCount);
   }, [stats?.paymentsCount, stats?.revenue]);
 
+  const rangeAverageMonthlyRevenue = useMemo(() => {
+    const monthsCount = stats?.rangeSummary?.monthlyBreakdown?.length || 0;
+    const revenue = Number(stats?.rangeSummary?.revenue || 0);
+
+    if (!monthsCount) return 0;
+
+    return Math.round(revenue / monthsCount);
+  }, [stats?.rangeSummary]);
+
   async function fetchStats() {
     try {
       setLoading(true);
 
-      const res = await fetch(
-        `/api/admin/stats?month=${selectedMonth}&year=${selectedYear}`,
-        {
-          credentials: "include",
-          cache: "no-store",
-        }
-      );
+      const params = new URLSearchParams({
+        month: String(selectedMonth),
+        year: String(selectedYear),
+        fromMonth: String(fromMonth),
+        fromYear: String(fromYear),
+        toMonth: String(toMonth),
+        toYear: String(toYear),
+      });
+
+      const res = await fetch(`/api/admin/stats?${params.toString()}`, {
+        credentials: "include",
+        cache: "no-store",
+      });
 
       if (!res.ok) throw new Error("Failed to fetch stats");
 
@@ -165,7 +259,7 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     fetchStats();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedMonth, selectedYear]);
+  }, [selectedMonth, selectedYear, fromMonth, fromYear, toMonth, toYear]);
 
   const goPrevMonth = () => {
     setSelectedDate((prev) => {
@@ -180,8 +274,8 @@ export default function AdminDashboardPage() {
   };
 
   const goCurrentMonth = () => {
-    const now = new Date();
-    setSelectedDate(new Date(now.getFullYear(), now.getMonth(), 1));
+    const realNow = new Date();
+    setSelectedDate(new Date(realNow.getFullYear(), realNow.getMonth(), 1));
   };
 
   return (
@@ -248,7 +342,7 @@ export default function AdminDashboardPage() {
 
               <p className="mt-4 max-w-2xl text-sm leading-7 text-[#7B6754] md:text-base">
                 דשבורד ניהול מקצועי עם הכנסות חודשיות, לקוחות משלמים,
-                תשלומים, אירועים עתידיים ושירותים פעילים.
+                חבילות, תשלומים, אירועים עתידיים וסיכום הכנסות לפי טווח.
               </p>
             </div>
 
@@ -415,7 +509,7 @@ export default function AdminDashboardPage() {
         </section>
 
         {/* =====================================================
-            STATS
+            MONTHLY STATS
         ====================================================== */}
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <AdminBox
@@ -523,6 +617,204 @@ export default function AdminDashboardPage() {
         </section>
 
         {/* =====================================================
+            RANGE SUMMARY
+        ====================================================== */}
+        <section
+          className="
+            rounded-[32px]
+            border border-[#E7D8C6]
+            bg-white
+            p-5 md:p-6
+            shadow-[0_18px_55px_rgba(60,43,25,0.07)]
+          "
+        >
+          <div className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+            <div>
+              <div
+                className="
+                  mb-3 inline-flex items-center gap-2
+                  rounded-full
+                  bg-[#FFF2D8]
+                  px-4 py-2
+                  text-xs font-black
+                  text-[#9A6A24]
+                "
+              >
+                <CalendarRange size={15} />
+                סיכום לפי טווח
+              </div>
+
+              <h3 className="text-2xl font-black text-[#3A2A1C]">
+                סיכום הכנסות בין חודשים ושנים
+              </h3>
+
+              <p className="mt-1 text-sm text-[#8A7867]">
+                לדוגמה: ממאי 2025 עד מאי 2027
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              <SelectBox
+                label="מחודש"
+                value={fromMonth}
+                onChange={(value) => setFromMonth(Number(value))}
+                options={MONTHS.map((m) => ({
+                  value: m.value,
+                  label: m.label,
+                }))}
+              />
+
+              <SelectBox
+                label="משנה"
+                value={fromYear}
+                onChange={(value) => setFromYear(Number(value))}
+                options={yearOptions.map((year) => ({
+                  value: year,
+                  label: String(year),
+                }))}
+              />
+
+              <SelectBox
+                label="עד חודש"
+                value={toMonth}
+                onChange={(value) => setToMonth(Number(value))}
+                options={MONTHS.map((m) => ({
+                  value: m.value,
+                  label: m.label,
+                }))}
+              />
+
+              <SelectBox
+                label="עד שנה"
+                value={toYear}
+                onChange={(value) => setToYear(Number(value))}
+                options={yearOptions.map((year) => ({
+                  value: year,
+                  label: String(year),
+                }))}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+            <RangeBox
+              title="סה״כ הכנסות בטווח"
+              value={
+                loading
+                  ? "—"
+                  : formatMoney(stats?.rangeSummary?.revenue ?? 0)
+              }
+              icon={<Wallet size={22} />}
+              highlight
+            />
+
+            <RangeBox
+              title="לקוחות משלמים בטווח"
+              value={
+                loading ? "—" : String(stats?.rangeSummary?.customers ?? 0)
+              }
+              icon={<Users size={22} />}
+            />
+
+            <RangeBox
+              title="תשלומים בטווח"
+              value={
+                loading
+                  ? "—"
+                  : String(stats?.rangeSummary?.paymentsCount ?? 0)
+              }
+              icon={<ReceiptText size={22} />}
+            />
+
+            <RangeBox
+              title="ממוצע חודשי"
+              value={loading ? "—" : formatMoney(rangeAverageMonthlyRevenue)}
+              icon={<BarChart3 size={22} />}
+            />
+          </div>
+
+          <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <div className="rounded-[24px] border border-[#EFE2D1] bg-[#FFFDF8] p-4">
+              <h4 className="mb-4 text-base font-black text-[#3A2A1C]">
+                פירוט לפי חודשים
+              </h4>
+
+              {!stats?.rangeSummary?.monthlyBreakdown?.length ? (
+                <EmptyBox text="אין הכנסות בטווח שנבחר." />
+              ) : (
+                <div className="space-y-2">
+                  {stats.rangeSummary.monthlyBreakdown.map((item) => (
+                    <div
+                      key={`${item.month}-${item.year}`}
+                      className="
+                        flex items-center justify-between gap-4
+                        rounded-2xl
+                        border border-[#EFE2D1]
+                        bg-white
+                        px-4 py-3
+                      "
+                    >
+                      <div>
+                        <div className="font-black text-[#3A2A1C]">
+                          {getMonthName(item.month)} {item.year}
+                        </div>
+
+                        <div className="text-xs font-bold text-[#8A7867]">
+                          {item.paymentsCount} תשלומים
+                        </div>
+                      </div>
+
+                      <div className="text-xl font-black text-[#B97821]">
+                        {formatMoney(item.revenue)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-[24px] border border-[#EFE2D1] bg-[#FFFDF8] p-4">
+              <h4 className="mb-4 text-base font-black text-[#3A2A1C]">
+                פילוח לפי סוג תשלום
+              </h4>
+
+              {!stats?.rangeSummary?.byType?.length ? (
+                <EmptyBox text="אין סוגי תשלום להצגה." />
+              ) : (
+                <div className="space-y-2">
+                  {stats.rangeSummary.byType.map((item) => (
+                    <div
+                      key={item.type}
+                      className="
+                        flex items-center justify-between gap-4
+                        rounded-2xl
+                        border border-[#EFE2D1]
+                        bg-white
+                        px-4 py-3
+                      "
+                    >
+                      <div>
+                        <div className="font-black text-[#3A2A1C]">
+                          {getPaymentTypeLabel(item.type)}
+                        </div>
+
+                        <div className="text-xs font-bold text-[#8A7867]">
+                          {item.paymentsCount} תשלומים
+                        </div>
+                      </div>
+
+                      <div className="text-xl font-black text-[#B97821]">
+                        {formatMoney(item.revenue)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* =====================================================
             MONTH CUSTOMERS TABLE PREVIEW
         ====================================================== */}
         <section
@@ -541,7 +833,7 @@ export default function AdminDashboardPage() {
               </h3>
 
               <p className="mt-1 text-sm text-[#8A7867]">
-                תצוגה מהירה של הלקוחות ששילמו בחודש הנבחר
+                שם לקוח, חבילה, אימייל, כמות תשלומים וסכום ששולם
               </p>
             </div>
 
@@ -563,50 +855,43 @@ export default function AdminDashboardPage() {
           </div>
 
           {!stats?.payingCustomers?.length ? (
-            <div
-              className="
-                rounded-2xl
-                border border-[#EFE2D1]
-                bg-[#FFF9EF]
-                p-6
-                text-center
-                text-sm font-bold
-                text-[#7B6754]
-              "
-            >
-              אין לקוחות משלמים בחודש הזה.
-            </div>
+            <EmptyBox text="אין לקוחות משלמים בחודש הזה." />
           ) : (
             <div className="overflow-hidden rounded-2xl border border-[#EFE2D1]">
-              <div className="hidden grid-cols-[1.5fr_1fr_1fr_1fr] bg-[#FFF9EF] px-4 py-3 text-xs font-black text-[#7B6754] md:grid">
+              <div className="hidden grid-cols-[1fr_1.4fr_1.1fr_0.8fr_0.8fr] bg-[#FFF9EF] px-4 py-3 text-xs font-black text-[#7B6754] md:grid">
                 <div>לקוח</div>
+                <div>אימייל</div>
+                <div>חבילה</div>
                 <div>סכום</div>
-                <div>תשלומים</div>
                 <div>תשלום אחרון</div>
               </div>
 
               <div className="divide-y divide-[#EFE2D1]">
-                {(stats.payingCustomers || []).slice(0, 5).map((customer) => (
+                {(stats.payingCustomers || []).slice(0, 6).map((customer) => (
                   <div
                     key={customer.email}
                     className="
                       grid grid-cols-1 gap-3
                       px-4 py-4
                       text-sm
-                      md:grid-cols-[1.5fr_1fr_1fr_1fr]
+                      md:grid-cols-[1fr_1.4fr_1.1fr_0.8fr_0.8fr]
                       md:items-center
                     "
                   >
                     <div className="font-black text-[#3A2A1C]">
+                      {customer.name || "לא הוגדר שם"}
+                    </div>
+
+                    <div className="truncate font-bold text-[#7B6754]">
                       {customer.email}
+                    </div>
+
+                    <div className="font-bold text-[#7B6754]">
+                      {customer.packageName || "לא הוגדרה חבילה"}
                     </div>
 
                     <div className="font-black text-[#B97821]">
                       {formatMoney(customer.totalPaid)}
-                    </div>
-
-                    <div className="text-[#7B6754]">
-                      {customer.paymentsCount} תשלומים
                     </div>
 
                     <div className="text-[#7B6754]">
@@ -637,7 +922,7 @@ export default function AdminDashboardPage() {
           <div
             dir="rtl"
             className="
-              w-full max-w-3xl
+              w-full max-w-4xl
               overflow-hidden
               rounded-[32px]
               border border-[#E7D8C6]
@@ -696,7 +981,7 @@ export default function AdminDashboardPage() {
                 <input
                   value={customerSearch}
                   onChange={(e) => setCustomerSearch(e.target.value)}
-                  placeholder="חיפוש לפי אימייל..."
+                  placeholder="חיפוש לפי שם, אימייל או חבילה..."
                   className="
                     w-full bg-transparent
                     text-sm font-semibold
@@ -708,26 +993,14 @@ export default function AdminDashboardPage() {
               </div>
             </div>
 
-            <div className="max-h-[540px] overflow-y-auto p-5 md:p-6">
+            <div className="max-h-[560px] overflow-y-auto p-5 md:p-6">
               {loading ? (
                 <div className="flex items-center justify-center gap-3 py-12 text-[#7B6754]">
                   <Loader2 className="animate-spin" size={22} />
                   <span className="font-bold">טוען לקוחות...</span>
                 </div>
               ) : !payingCustomers.length ? (
-                <div
-                  className="
-                    rounded-2xl
-                    border border-[#EFE2D1]
-                    bg-[#FFF9EF]
-                    p-6
-                    text-center
-                    text-sm font-bold
-                    text-[#7B6754]
-                  "
-                >
-                  אין לקוחות להצגה בחודש הזה.
-                </div>
+                <EmptyBox text="אין לקוחות להצגה בחודש הזה." />
               ) : (
                 <div className="space-y-3">
                   {payingCustomers.map((customer) => (
@@ -745,18 +1018,33 @@ export default function AdminDashboardPage() {
                     >
                       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                         <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <Mail
-                              size={17}
-                              className="shrink-0 text-[#9A7A52]"
-                            />
+                          <div className="flex flex-wrap items-center gap-3">
+                            <span className="inline-flex items-center gap-2 font-black text-[#3A2A1C]">
+                              <UserRound size={17} className="text-[#9A7A52]" />
+                              {customer.name || "לא הוגדר שם"}
+                            </span>
 
-                            <div className="truncate font-black text-[#3A2A1C]">
+                            <span className="inline-flex items-center gap-2 font-bold text-[#7B6754]">
+                              <Mail size={16} className="text-[#9A7A52]" />
                               {customer.email || "ללא אימייל"}
-                            </div>
+                            </span>
                           </div>
 
-                          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-[#8A7867]">
+                          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-[#8A7867]">
+                            <span
+                              className="
+                                inline-flex items-center gap-2
+                                rounded-full
+                                bg-white
+                                px-3 py-1
+                                font-bold
+                                ring-1 ring-[#EFE2D1]
+                              "
+                            >
+                              <Package size={14} />
+                              {customer.packageName || "לא הוגדרה חבילה"}
+                            </span>
+
                             <span
                               className="
                                 rounded-full
@@ -778,19 +1066,30 @@ export default function AdminDashboardPage() {
                                 ring-1 ring-[#EFE2D1]
                               "
                             >
-                              תשלום אחרון:{" "}
-                              {formatDate(customer.lastPaymentAt)}
+                              תשלום אחרון: {formatDate(customer.lastPaymentAt)}
                             </span>
+
+                            {customer.hasCallsAddon && (
+                              <span className="rounded-full bg-[#FFF2D8] px-3 py-1 font-bold text-[#9A6A24]">
+                                שירות שיחות
+                              </span>
+                            )}
+
+                            {customer.hasCreditGiftsAddon && (
+                              <span className="rounded-full bg-[#FFF2D8] px-3 py-1 font-bold text-[#9A6A24]">
+                                מתנות באשראי
+                              </span>
+                            )}
 
                             {customer.types?.map((type) => (
                               <span
                                 key={type}
                                 className="
                                   rounded-full
-                                  bg-[#FFF2D8]
+                                  bg-[#F6F1EA]
                                   px-3 py-1
                                   font-bold
-                                  text-[#9A6A24]
+                                  text-[#7B6754]
                                 "
                               >
                                 {getPaymentTypeLabel(type)}
@@ -811,11 +1110,14 @@ export default function AdminDashboardPage() {
 
             <div
               className="
-                flex items-center justify-between gap-4
+                flex flex-col gap-2
                 border-t border-[#EFE2D1]
                 bg-[#FFFDF8]
                 px-5 py-4
                 text-sm
+                md:flex-row
+                md:items-center
+                md:justify-between
               "
             >
               <span className="font-bold text-[#7B6754]">
@@ -823,7 +1125,7 @@ export default function AdminDashboardPage() {
               </span>
 
               <span className="font-black text-[#3A2A1C]">
-                סה״כ הכנסות: {formatMoney(stats?.revenue ?? 0)}
+                סה״כ הכנסות החודש: {formatMoney(stats?.revenue ?? 0)}
               </span>
             </div>
           </div>
@@ -845,38 +1147,99 @@ function MiniMetric({
 }: {
   title: string;
   value: string;
-  icon: React.ReactNode;
+  icon: ReactNode;
   clickable?: boolean;
   onClick?: () => void;
 }) {
-  const Comp = clickable ? "button" : "div";
+  if (clickable) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className="
+          rounded-2xl
+          border border-[#EFE2D1]
+          bg-[#FFF9EF]
+          p-4
+          text-right
+          transition
+          hover:bg-[#F7EBD9]
+          hover:shadow-sm
+        "
+      >
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="text-xs font-black text-[#8A7867]">{title}</div>
+          <div className="text-[#9A6A24]">{icon}</div>
+        </div>
+
+        <div className="text-2xl font-black text-[#3A2A1C]">{value}</div>
+      </button>
+    );
+  }
 
   return (
-    <Comp
-      type={clickable ? "button" : undefined}
-      onClick={onClick}
-      className={`
+    <div
+      className="
         rounded-2xl
         border border-[#EFE2D1]
         bg-[#FFF9EF]
         p-4
         text-right
-        transition
-        ${
-          clickable
-            ? "cursor-pointer hover:bg-[#F7EBD9] hover:shadow-sm"
-            : ""
-        }
-      `}
+      "
     >
       <div className="mb-3 flex items-center justify-between gap-3">
         <div className="text-xs font-black text-[#8A7867]">{title}</div>
-
         <div className="text-[#9A6A24]">{icon}</div>
       </div>
 
       <div className="text-2xl font-black text-[#3A2A1C]">{value}</div>
-    </Comp>
+    </div>
+  );
+}
+
+/* =====================================================
+   SELECT BOX
+===================================================== */
+function SelectBox({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: number;
+  onChange: (value: string) => void;
+  options: { value: number; label: string }[];
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-xs font-black text-[#8A7867]">
+        {label}
+      </span>
+
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="
+          h-11 w-full
+          rounded-2xl
+          border border-[#E7D8C6]
+          bg-white
+          px-3
+          text-sm font-black
+          text-[#3A2A1C]
+          outline-none
+          transition
+          focus:border-[#C8944E]
+        "
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 
@@ -894,7 +1257,7 @@ function AdminBox({
   title: string;
   subtitle: string;
   value: string;
-  icon: React.ReactNode;
+  icon: ReactNode;
   tone: "green" | "blue" | "orange" | "gold";
   highlight?: boolean;
 }) {
@@ -985,7 +1348,7 @@ function AdminWideBox({
   title: string;
   subtitle: string;
   value: string;
-  icon: React.ReactNode;
+  icon: ReactNode;
 }) {
   return (
     <div
@@ -1019,6 +1382,66 @@ function AdminWideBox({
       </div>
 
       <div className="mt-5 text-3xl font-black text-[#B97821]">{value}</div>
+    </div>
+  );
+}
+
+/* =====================================================
+   RANGE BOX
+===================================================== */
+function RangeBox({
+  title,
+  value,
+  icon,
+  highlight = false,
+}: {
+  title: string;
+  value: string;
+  icon: ReactNode;
+  highlight?: boolean;
+}) {
+  return (
+    <div
+      className={`
+        rounded-[24px]
+        border
+        p-5
+        shadow-[0_12px_35px_rgba(60,43,25,0.05)]
+        ${
+          highlight
+            ? "border-[#E8C98D] bg-[#FFF7E8]"
+            : "border-[#EFE2D1] bg-[#FFFDF8]"
+        }
+      `}
+    >
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <div className="text-sm font-black text-[#3A2A1C]">{title}</div>
+
+        <div className="text-[#B97821]">{icon}</div>
+      </div>
+
+      <div className="text-2xl font-black text-[#B97821]">{value}</div>
+    </div>
+  );
+}
+
+/* =====================================================
+   EMPTY BOX
+===================================================== */
+function EmptyBox({ text }: { text: string }) {
+  return (
+    <div
+      className="
+        rounded-2xl
+        border border-[#EFE2D1]
+        bg-[#FFF9EF]
+        p-6
+        text-center
+        text-sm font-bold
+        text-[#7B6754]
+      "
+    >
+      {text}
     </div>
   );
 }
