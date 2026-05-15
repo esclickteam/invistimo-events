@@ -174,37 +174,34 @@ function buildMessageRounds(invitation: any) {
 
   return {
     rsvp: [1, 2, 3].map((round) => {
-      const sentKeys = [
-  `rsvpRound${round}SentAt`,
-  `rsvpRound${round}sentAt`,
+  const roundData = invitation?.rsvpRoundSent?.[`round${round}`];
 
-  `rsvpSmsRound${round}SentAt`,
-  `rsvpSmsRound${round}sentAt`,
+  const sentAt =
+    roundData?.sentAt ||
+    roundData?.sentAtSms ||
+    roundData?.sentAtWhatsapp ||
+    roundData?.smsSentAt ||
+    roundData?.whatsappSentAt ||
+    null;
 
-  `rsvpWhatsappRound${round}SentAt`,
-  `rsvpWhatsappRound${round}sentAt`,
-];
+  const scheduledAt =
+    roundData?.scheduledAt ||
+    roundData?.smsScheduledAt ||
+    roundData?.whatsappScheduledAt ||
+    null;
 
-      const scheduledKeys = [
-  `rsvpRound${round}ScheduledAt`,
-  `rsvpRound${round}scheduledAt`,
+  return {
+    key: `rsvp_${round}`,
+    label: `אישורי הגעה סבב ${round}`,
 
-  `rsvpSmsRound${round}ScheduledAt`,
-  `rsvpSmsRound${round}scheduledAt`,
+    // עכשיו הפרונט מסתמך רק על rsvpRoundSent.roundX
+    done: Boolean(roundData),
+    sentAt,
+    scheduledAt,
 
-  `rsvpWhatsappRound${round}ScheduledAt`,
-  `rsvpWhatsappRound${round}scheduledAt`,
-];
-
-      return {
-        key: `rsvp_${round}`,
-        label: `אישורי הגעה סבב ${round}`,
-        done: hasAnyValue(invitation, sentKeys),
-        sentAt: firstValue(invitation, sentKeys),
-        scheduledAt: firstValue(invitation, scheduledKeys),
-        blocked: Boolean(locks?.[`rsvp_${round}`]),
-      };
-    }),
+    blocked: Boolean(locks?.[`rsvp_${round}`]),
+  };
+}),
 
     reminder: [
       {
@@ -372,6 +369,7 @@ export async function GET(req: Request) {
         createdByProducer
         producerId
         planLimits
+       rsvpRoundSent
 
         createdAt
         eventDate
@@ -397,6 +395,7 @@ export async function GET(req: Request) {
             .select(`
               ownerId
               eventDate
+              rsvpRoundSent
 
               rsvpRound1SentAt
               rsvpRound2SentAt
