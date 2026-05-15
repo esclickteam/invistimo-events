@@ -973,22 +973,35 @@ export default function ProducerDashboard() {
         space-y-8
       "
     >
-            {/* Header */}
+      {/* Header */}
       <section
         className="
           relative
           overflow-hidden
           rounded-[38px]
           border
-          border-[#E8DCCB]
-          bg-[linear-gradient(135deg,#FFFDF8_0%,#FBF4EA_42%,#F1E3D0_100%)]
+          border-[#ECE5DE]
+          bg-gradient-to-br
+          from-white
+          via-[#FBF7F1]
+          to-[#F4EDFF]
           px-7
           py-8
-          shadow-[0_28px_80px_rgba(103,75,42,0.12)]
+          shadow-[0_24px_70px_rgba(120,90,60,0.08)]
         "
       >
-        <div className="pointer-events-none absolute -top-24 -left-20 h-64 w-64 rounded-full bg-[#D8B46A]/20 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-28 right-10 h-72 w-72 rounded-full bg-[#F4E4C9]/70 blur-3xl" />
+        <div
+          className="
+            absolute
+            -top-20
+            -left-20
+            h-56
+            w-56
+            rounded-full
+            bg-purple-200/30
+            blur-3xl
+          "
+        />
 
         <div
           className="
@@ -999,31 +1012,29 @@ export default function ProducerDashboard() {
             lg:flex-row
             lg:items-center
             justify-between
-            gap-7
+            gap-6
           "
         >
-          <div className="max-w-3xl">
+          <div>
             <div
               className="
-                mb-5
                 inline-flex
                 items-center
                 gap-2
                 rounded-full
                 border
-                border-[#E2CDAE]
-                bg-white/72
+                border-[#E8DDD3]
+                bg-white/80
                 px-4
                 py-2
                 text-xs
                 font-black
-                text-[#8A6537]
-                shadow-sm
-                backdrop-blur-xl
+                text-[#7A4A35]
+                mb-4
               "
             >
-              <Sparkles size={15} className="text-[#B88A3B]" />
-              Invistimo Producer Suite
+              <Sparkles size={15} />
+              סביבת עבודה למפיקים
             </div>
 
             <h1
@@ -1031,112 +1042,43 @@ export default function ProducerDashboard() {
                 text-4xl
                 xl:text-5xl
                 font-black
-                tracking-tight
-                text-[#2B2118]
+                text-[#1E1B2E]
                 leading-tight
               "
             >
               דשבורד מפיק
             </h1>
 
-            <p className="mt-4 max-w-2xl text-sm md:text-base leading-8 text-[#7A6A58]">
-              ניהול לקוחות, אירועים קרובים, שיוך עובדים וכניסה מהירה לכל אירוע —
-              בסביבת עבודה יוקרתית, מסודרת וחכמה.
+            <p className="text-gray-500 mt-3 max-w-2xl leading-7">
+              ניהול לקוחות, אירועים קרובים, שיוך עובדים
+              וכניסה מהירה לכל אירוע במקום אחד.
             </p>
-
-            <div className="mt-6 flex flex-wrap items-center gap-3">
-              <div
-                className="
-                  rounded-2xl
-                  border
-                  border-[#E8DCCB]
-                  bg-white/68
-                  px-4
-                  py-3
-                  text-xs
-                  font-black
-                  text-[#6E563B]
-                  shadow-sm
-                  backdrop-blur-xl
-                "
-              >
-                {stats.activeClients} לקוחות פעילים
-              </div>
-
-              <div
-                className="
-                  rounded-2xl
-                  border
-                  border-[#E8DCCB]
-                  bg-white/68
-                  px-4
-                  py-3
-                  text-xs
-                  font-black
-                  text-[#6E563B]
-                  shadow-sm
-                  backdrop-blur-xl
-                "
-              >
-                {stats.activeEvents} אירועים פעילים
-              </div>
-
-              <div
-                className="
-                  rounded-2xl
-                  border
-                  border-[#E8DCCB]
-                  bg-white/68
-                  px-4
-                  py-3
-                  text-xs
-                  font-black
-                  text-[#6E563B]
-                  shadow-sm
-                  backdrop-blur-xl
-                "
-              >
-                {stats.upcomingWeek} בשבוע הקרוב
-              </div>
-            </div>
           </div>
 
-          <div
-            className="
-              flex
-              w-full
-              flex-col
-              gap-3
-              sm:w-auto
-              sm:flex-row
-              lg:justify-end
-            "
-          >
+          <div className="flex flex-col sm:flex-row gap-3">
             <button
               type="button"
               onClick={() => setShowProducerCalendar(true)}
               className="
+                rounded-2xl
+                border
+                border-[#E8DDD3]
+                bg-white/85
+                text-[#1E1B2E]
+                font-black
+                px-6
+                py-4
+                text-sm
                 flex
                 items-center
                 justify-center
                 gap-2
-                rounded-2xl
-                border
-                border-[#DFC9AA]
-                bg-white/82
-                px-6
-                py-4
-                text-sm
-                font-black
-                text-[#3B2C1D]
-                shadow-[0_14px_34px_rgba(103,75,42,0.08)]
-                backdrop-blur-xl
-                transition
-                hover:-translate-y-0.5
+                shadow-sm
                 hover:bg-white
+                transition
               "
             >
-              <CalendarDays className="h-4 w-4 text-[#B88A3B]" />
+              <CalendarDays className="w-4 h-4 text-[#8B5CF6]" />
               יומן מפיק
             </button>
 
@@ -1144,24 +1086,23 @@ export default function ProducerDashboard() {
               type="button"
               onClick={() => setShowCreateClient(true)}
               className="
+                rounded-2xl
+                bg-[#1E1B2E]
+                text-white
+                font-black
+                px-6
+                py-4
+                text-sm
                 flex
                 items-center
                 justify-center
                 gap-2
-                rounded-2xl
-                bg-[linear-gradient(135deg,#2B2118_0%,#7A5A2E_100%)]
-                px-6
-                py-4
-                text-sm
-                font-black
-                text-white
-                shadow-[0_18px_42px_rgba(80,56,27,0.24)]
+                shadow-[0_16px_35px_rgba(30,27,46,0.18)]
+                hover:opacity-95
                 transition
-                hover:-translate-y-0.5
-                hover:brightness-105
               "
             >
-              <UserPlus className="h-4 w-4" />
+              <UserPlus className="w-4 h-4" />
               יצירת משתמש חדש
             </button>
           </div>
