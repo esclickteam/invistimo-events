@@ -7,7 +7,6 @@ import User from "@/models/User";
 import Invitation from "@/models/Invitation";
 import Payment from "@/models/Payment";
 
-// 🔥 חובה לאדמין – בלי cache
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
@@ -39,8 +38,6 @@ export async function GET(req: NextRequest) {
 
     /* ======================================================
        MONTH / YEAR
-       example:
-       /api/admin/stats?month=5&year=2026
     ====================================================== */
     const { searchParams } = new URL(req.url);
 
@@ -62,33 +59,39 @@ export async function GET(req: NextRequest) {
     const startDate = new Date(year, month - 1, 1, 0, 0, 0, 0);
     const endDate = new Date(year, month, 1, 0, 0, 0, 0);
 
-    /* ======================================================
-       COUNTS + MONTHLY REVENUE
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-       מקור ההכנסה = Payment
-       לכן אם מוחקים User אחרי שסיים פעילות,
-       ההכנסה שכבר נרשמה ב-Payment לא יורדת.
+    /* ======================================================
+       STATS
     ====================================================== */
     const [
       usersCount,
-      invitationsCount,
+      activeInvitationsCount,
       callsCount,
       revenueAgg,
-      payingUsersAgg,
+      payingCustomersAgg,
       paymentsCount,
       callsRevenueAgg,
       creditGiftsRevenueAgg,
     ] = await Promise.all([
-      /* 👤 סה״כ משתמשים שקיימים כרגע */
+      /* משתמשים קיימים כרגע */
       User.countDocuments(),
 
-      /* ✉️ סה״כ אירועים / הזמנות */
-      Invitation.countDocuments(),
+      /* אירועים פעילים = אירועים עתידיים בלבד */
+      Invitation.countDocuments({
+        $or: [
+          { eventDate: { $gte: today } },
+          { date: { $gte: today } },
+          { "event.date": { $gte: today } },
+          { "eventDetails.date": { $gte: today } },
+        ],
+      }),
 
-      /* ☎️ משתמשים עם שירות שיחות פעיל כרגע */
+      /* שירותי שיחות פעילים */
       User.countDocuments({ includeCalls: true }),
 
-      /* 💰 הכנסה חודשית נטו לפי תשלומים */
+      /* הכנסה חודשית נטו */
       Payment.aggregate([
         {
           $match: {
@@ -120,14 +123,12 @@ export async function GET(req: NextRequest) {
         {
           $group: {
             _id: null,
-            totalRevenue: {
-              $sum: "$netAmount",
-            },
+            totalRevenue: { $sum: "$netAmount" },
           },
         },
       ]),
 
-      /* 👥 כמה לקוחות ייחודיים שילמו בחודש הזה לפי email */
+      /* לקוחות משלמים החודש + כמה כל אחד שילם */
       Payment.aggregate([
         {
           $match: {
@@ -142,16 +143,46 @@ export async function GET(req: NextRequest) {
           },
         },
         {
-          $group: {
-            _id: "$email",
+          $project: {
+            email: 1,
+            amount: 1,
+            refundAmount: 1,
+            createdAt: 1,
+            type: 1,
+            priceKey: 1,
+            includeCalls: 1,
+            includeCreditGifts: 1,
+            netAmount: {
+              $max: [
+                0,
+                {
+                  $subtract: [
+                    { $ifNull: ["$amount", 0] },
+                    { $ifNull: ["$refundAmount", 0] },
+                  ],
+                },
+              ],
+            },
           },
         },
         {
-          $count: "total",
+          $group: {
+            _id: "$email",
+            email: { $first: "$email" },
+            totalPaid: { $sum: "$netAmount" },
+            paymentsCount: { $sum: 1 },
+            lastPaymentAt: { $max: "$createdAt" },
+            types: { $addToSet: "$type" },
+          },
+        },
+        {
+          $sort: {
+            totalPaid: -1,
+          },
         },
       ]),
 
-      /* 🧾 מספר תשלומים בחודש */
+      /* מספר תשלומים בחודש */
       Payment.countDocuments({
         createdAt: {
           $gte: startDate,
@@ -163,7 +194,7 @@ export async function GET(req: NextRequest) {
         },
       }),
 
-      /* ☎️ הכנסות משירות שיחות בחודש */
+      /* הכנסות משיחות */
       Payment.aggregate([
         {
           $match: {
@@ -181,16 +212,12 @@ export async function GET(req: NextRequest) {
         {
           $group: {
             _id: null,
-            total: {
-              $sum: {
-                $ifNull: ["$callsAddonPrice", 0],
-              },
-            },
+            total: { $sum: { $ifNull: ["$callsAddonPrice", 0] } },
           },
         },
       ]),
 
-      /* 🎁 הכנסות מתוספת מתנות באשראי בחודש */
+      /* הכנסות ממתנות באשראי */
       Payment.aggregate([
         {
           $match: {
@@ -209,9 +236,7 @@ export async function GET(req: NextRequest) {
           $group: {
             _id: null,
             total: {
-              $sum: {
-                $ifNull: ["$creditGiftsAddonPrice", 0],
-              },
+              $sum: { $ifNull: ["$creditGiftsAddonPrice", 0] },
             },
           },
         },
@@ -223,10 +248,13 @@ export async function GET(req: NextRequest) {
         ? Number(revenueAgg[0].totalRevenue || 0)
         : 0;
 
-    const payingUsers =
-      payingUsersAgg.length > 0
-        ? Number(payingUsersAgg[0].total || 0)
-        : 0;
+    const payingCustomers = payingCustomersAgg.map((customer: any) => ({
+      email: customer.email || "ללא אימייל",
+      totalPaid: Number(customer.totalPaid || 0),
+      paymentsCount: Number(customer.paymentsCount || 0),
+      lastPaymentAt: customer.lastPaymentAt || null,
+      types: customer.types || [],
+    }));
 
     const callsRevenue =
       callsRevenueAgg.length > 0
@@ -238,17 +266,15 @@ export async function GET(req: NextRequest) {
         ? Number(creditGiftsRevenueAgg[0].total || 0)
         : 0;
 
-    /* ======================================================
-       RESPONSE
-    ====================================================== */
     return NextResponse.json(
       {
         users: usersCount,
-        invitations: invitationsCount,
+        invitations: activeInvitationsCount,
         calls: callsCount,
 
         revenue,
-        payingUsers,
+        payingUsers: payingCustomers.length,
+        payingCustomers,
         paymentsCount,
 
         callsRevenue,
