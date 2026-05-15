@@ -992,7 +992,7 @@ export default function HomePage() {
                 md:text-[19px]
               "
             >
-              ניהול הזמנות, אישורי הגעה, הושבה וניהול אורחים
+               ניהול הזמנות, אישורי הגעה, הושבה וניהול אורחים
               <br className="hidden md:block" />
               בקלות, בסטייל וביעילות.
             </p>
