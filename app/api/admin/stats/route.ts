@@ -22,23 +22,26 @@ function getMonthRange(year: number, month: number) {
 function getRangeDates(params: {
   fromYear: number;
   fromMonth: number;
+  fromDay: number;
   toYear: number;
   toMonth: number;
+  toDay: number;
 }) {
   const rangeStartDate = new Date(
     params.fromYear,
     params.fromMonth - 1,
-    1,
+    params.fromDay,
     0,
     0,
     0,
     0
   );
 
+  // כולל את היום האחרון שנבחר
   const rangeEndDate = new Date(
     params.toYear,
-    params.toMonth,
-    1,
+    params.toMonth - 1,
+    params.toDay + 1,
     0,
     0,
     0,
@@ -130,37 +133,50 @@ export async function GET(req: NextRequest) {
 
     const year = queryYear >= 2000 ? queryYear : now.getFullYear();
 
-    const fromMonthQuery = Number(searchParams.get("fromMonth"));
-    const fromYearQuery = Number(searchParams.get("fromYear"));
-    const toMonthQuery = Number(searchParams.get("toMonth"));
-    const toYearQuery = Number(searchParams.get("toYear"));
+    const fromDayQuery = Number(searchParams.get("fromDay"));
+const fromMonthQuery = Number(searchParams.get("fromMonth"));
+const fromYearQuery = Number(searchParams.get("fromYear"));
 
-    const fromMonth =
-      fromMonthQuery >= 1 && fromMonthQuery <= 12 ? fromMonthQuery : month;
+const toDayQuery = Number(searchParams.get("toDay"));
+const toMonthQuery = Number(searchParams.get("toMonth"));
+const toYearQuery = Number(searchParams.get("toYear"));
 
-    const fromYear = fromYearQuery >= 2000 ? fromYearQuery : year;
+    const fromDay =
+  fromDayQuery >= 1 && fromDayQuery <= 31 ? fromDayQuery : 1;
 
-    const toMonth =
-      toMonthQuery >= 1 && toMonthQuery <= 12 ? toMonthQuery : month;
+const fromMonth =
+  fromMonthQuery >= 1 && fromMonthQuery <= 12 ? fromMonthQuery : 1;
 
-    const toYear = toYearQuery >= 2000 ? toYearQuery : year;
+const fromYear = fromYearQuery >= 2000 ? fromYearQuery : now.getFullYear();
+
+const toDay =
+  toDayQuery >= 1 && toDayQuery <= 31 ? toDayQuery : 31;
+
+const toMonth =
+  toMonthQuery >= 1 && toMonthQuery <= 12 ? toMonthQuery : 12;
+
+const toYear = toYearQuery >= 2000 ? toYearQuery : now.getFullYear();
 
     const { startDate, endDate } = getMonthRange(year, month);
 
     let { rangeStartDate, rangeEndDate } = getRangeDates({
-      fromYear,
-      fromMonth,
-      toYear,
-      toMonth,
-    });
+  fromYear,
+  fromMonth,
+  fromDay,
+  toYear,
+  toMonth,
+  toDay,
+});
 
     if (rangeStartDate > rangeEndDate) {
-      const fixed = getRangeDates({
-        fromYear: toYear,
-        fromMonth: toMonth,
-        toYear: fromYear,
-        toMonth: fromMonth,
-      });
+     const fixed = getRangeDates({
+  fromYear: toYear,
+  fromMonth: toMonth,
+  fromDay: toDay,
+  toYear: fromYear,
+  toMonth: fromMonth,
+  toDay: fromDay,
+});
 
       rangeStartDate = fixed.rangeStartDate;
       rangeEndDate = fixed.rangeEndDate;
@@ -599,10 +615,12 @@ export async function GET(req: NextRequest) {
         year,
 
         rangeSummary: {
-          fromMonth,
-          fromYear,
-          toMonth,
-          toYear,
+  fromDay,
+  fromMonth,
+  fromYear,
+  toDay,
+  toMonth,
+  toYear,
           revenue: rangeRevenue,
           customers: rangeCustomers,
           paymentsCount: rangePaymentsCount,

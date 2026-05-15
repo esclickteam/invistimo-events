@@ -53,10 +53,14 @@ interface RangeTypeItem {
 }
 
 interface RangeSummary {
+  fromDay: number;
   fromMonth: number;
   fromYear: number;
+
+  toDay: number;
   toMonth: number;
   toYear: number;
+
   revenue: number;
   customers: number;
   paymentsCount: number;
@@ -100,6 +104,11 @@ const MONTHS = [
   { value: 11, label: "נובמבר" },
   { value: 12, label: "דצמבר" },
 ];
+
+const DAYS = Array.from({ length: 31 }, (_, index) => ({
+  value: index + 1,
+  label: String(index + 1),
+}));
 
 /* =====================================================
    HELPERS
@@ -162,10 +171,13 @@ export default function AdminDashboardPage() {
   const now = new Date();
   const currentYear = now.getFullYear();
 
-  const [fromMonth, setFromMonth] = useState(5);
-  const [fromYear, setFromYear] = useState(currentYear);
-  const [toMonth, setToMonth] = useState(5);
-  const [toYear, setToYear] = useState(currentYear + 2);
+  const [fromDay, setFromDay] = useState(1);
+const [fromMonth, setFromMonth] = useState(1);
+const [fromYear, setFromYear] = useState(currentYear);
+
+const [toDay, setToDay] = useState(31);
+const [toMonth, setToMonth] = useState(12);
+const [toYear, setToYear] = useState(currentYear);
 
   const yearOptions = useMemo(() => {
     const years: number[] = [];
@@ -231,13 +243,17 @@ export default function AdminDashboardPage() {
       setLoading(true);
 
       const params = new URLSearchParams({
-        month: String(selectedMonth),
-        year: String(selectedYear),
-        fromMonth: String(fromMonth),
-        fromYear: String(fromYear),
-        toMonth: String(toMonth),
-        toYear: String(toYear),
-      });
+  month: String(selectedMonth),
+  year: String(selectedYear),
+
+  fromDay: String(fromDay),
+  fromMonth: String(fromMonth),
+  fromYear: String(fromYear),
+
+  toDay: String(toDay),
+  toMonth: String(toMonth),
+  toYear: String(toYear),
+});
 
       const res = await fetch(`/api/admin/stats?${params.toString()}`, {
         credentials: "include",
@@ -259,7 +275,16 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     fetchStats();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedMonth, selectedYear, fromMonth, fromYear, toMonth, toYear]);
+  }, [
+  selectedMonth,
+  selectedYear,
+  fromDay,
+  fromMonth,
+  fromYear,
+  toDay,
+  toMonth,
+  toYear,
+]);
 
   const goPrevMonth = () => {
     setSelectedDate((prev) => {
@@ -649,51 +674,65 @@ export default function AdminDashboardPage() {
               </h3>
 
               <p className="mt-1 text-sm text-[#8A7867]">
-                לדוגמה: ממאי 2025 עד מאי 2027
+              לדוגמה: מ־01.05.2025 עד 31.05.2027
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-              <SelectBox
-                label="מחודש"
-                value={fromMonth}
-                onChange={(value) => setFromMonth(Number(value))}
-                options={MONTHS.map((m) => ({
-                  value: m.value,
-                  label: m.label,
-                }))}
-              />
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-6">
+  <SelectBox
+    label="מיום"
+    value={fromDay}
+    onChange={(value) => setFromDay(Number(value))}
+    options={DAYS}
+  />
 
-              <SelectBox
-                label="משנה"
-                value={fromYear}
-                onChange={(value) => setFromYear(Number(value))}
-                options={yearOptions.map((year) => ({
-                  value: year,
-                  label: String(year),
-                }))}
-              />
+  <SelectBox
+    label="מחודש"
+    value={fromMonth}
+    onChange={(value) => setFromMonth(Number(value))}
+    options={MONTHS.map((m) => ({
+      value: m.value,
+      label: m.label,
+    }))}
+  />
 
-              <SelectBox
-                label="עד חודש"
-                value={toMonth}
-                onChange={(value) => setToMonth(Number(value))}
-                options={MONTHS.map((m) => ({
-                  value: m.value,
-                  label: m.label,
-                }))}
-              />
+  <SelectBox
+    label="משנה"
+    value={fromYear}
+    onChange={(value) => setFromYear(Number(value))}
+    options={yearOptions.map((year) => ({
+      value: year,
+      label: String(year),
+    }))}
+  />
 
-              <SelectBox
-                label="עד שנה"
-                value={toYear}
-                onChange={(value) => setToYear(Number(value))}
-                options={yearOptions.map((year) => ({
-                  value: year,
-                  label: String(year),
-                }))}
-              />
-            </div>
+  <SelectBox
+    label="עד יום"
+    value={toDay}
+    onChange={(value) => setToDay(Number(value))}
+    options={DAYS}
+  />
+
+  <SelectBox
+    label="עד חודש"
+    value={toMonth}
+    onChange={(value) => setToMonth(Number(value))}
+    options={MONTHS.map((m) => ({
+      value: m.value,
+      label: m.label,
+    }))}
+  />
+
+  <SelectBox
+    label="עד שנה"
+    value={toYear}
+    onChange={(value) => setToYear(Number(value))}
+    options={yearOptions.map((year) => ({
+      value: year,
+      label: String(year),
+    }))}
+  />
+</div>
           </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
