@@ -11,11 +11,6 @@ import InvitationGuest from "@/models/InvitationGuest";
 import ScheduledMessage from "@/models/ScheduledMessage";
 import WhatsappQueue from "@/models/WhatsappQueue";
 
-import {
-  isRsvpRoundAlreadySent,
-  markRsvpRoundAsActuallySent,
-} from "@/lib/rsvpRoundLock";
-
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -241,12 +236,6 @@ function buildPayloadTemplate({
 
   const eventLocation = cleanAddress(invitation.location?.address);
 
-  /**
-   * חשוב:
-   * כאן שומרים placeholders.
-   * ה-worker מחליף אותם בזמן השליחה בפועל.
-   * כך RSVP / שולחן / ניווט / שם אורח נשארים עדכניים.
-   */
   const basePayload: any = {
     languageCode,
     eventTitle: invitation.title || "",
@@ -357,10 +346,7 @@ export async function POST(req: NextRequest) {
     const languageCode = safeTrim(body.languageCode) || "he";
     const type = body.type || getTypeByTemplate(templateName);
 
-    const round = normalizeRound(
-      body.round ?? body.roundNumber,
-      templateName
-    );
+    const round = normalizeRound(body.round ?? body.roundNumber, templateName);
 
     const invitationId = String(body.invitationId || "");
 
@@ -393,14 +379,17 @@ export async function POST(req: NextRequest) {
       : [];
 
     /* ======================================================
-       BLOCKS — RSVP לפי סבב כללי, לא לפי ערוץ
+       BLOCKS
+       RSVP = rsvpRoundSent.round1 / round2 / round3
+       תזכורת = reminderSentAt
+       תודה = thankYouSentAt
        תזמון לא נחשב שליחה בפועל.
-       אם SMS כבר שלח את הסבב — WhatsApp נחסם.
-       אם WhatsApp כבר שלח את הסבב — SMS נחסם.
     ====================================================== */
 
     if (type === "rsvp") {
-      const alreadySent = isRsvpRoundAlreadySent(invitation, round);
+      const alreadySent = Boolean(
+        invitation.rsvpRoundSent?.[`round${round}`]
+      );
 
       if (alreadySent) {
         return NextResponse.json(
@@ -417,9 +406,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (type === "reminder" || type === "table") {
-      const reminderAlready =
-        invitation.reminderSentAt &&
-        invitation.messageLocks?.reminderWhatsapp;
+      const reminderAlready = Boolean(invitation.reminderSentAt);
 
       if (reminderAlready) {
         return NextResponse.json(
@@ -430,9 +417,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (type === "thankyou" || type === "custom") {
-      const thankyouAlready =
-        invitation.thankYouSentAt &&
-        invitation.messageLocks?.thankyouWhatsapp;
+      const thankyouAlready = Boolean(invitation.thankYouSentAt);
 
       if (thankyouAlready) {
         return NextResponse.json(
@@ -460,163 +445,128 @@ export async function POST(req: NextRequest) {
     /* ======================================================
        SCHEDULE
        תזמון נשמר רק ב-ScheduledMessage.
-       לא יוצרים Queue מראש.
        לא מעדכנים SentAt.
        לא נועלים messageLocks.
     ====================================================== */
 
     if (scheduledAtRaw) {
-  const scheduledAt = new Date(scheduledAtRaw);
+      const scheduledAt = new Date(scheduledAtRaw);
 
-  if (Number.isNaN(scheduledAt.getTime())) {
-    return NextResponse.json(
-      { success: false, error: "INVALID_SCHEDULED_AT" },
-      { status: 400 }
-    );
-  }
+      if (Number.isNaN(scheduledAt.getTime())) {
+        return NextResponse.json(
+          { success: false, error: "INVALID_SCHEDULED_AT" },
+          { status: 400 }
+        );
+      }
 
-  if (scheduledAt.getTime() <= Date.now()) {
-    return NextResponse.json(
-      { success: false, error: "SCHEDULED_AT_MUST_BE_FUTURE" },
-      { status: 400 }
-    );
-  }
+      if (scheduledAt.getTime() <= Date.now()) {
+        return NextResponse.json(
+          { success: false, error: "SCHEDULED_AT_MUST_BE_FUTURE" },
+          { status: 400 }
+        );
+      }
 
-  /*
-    חשוב:
-    בודקים תזמון קיים רק לפי אותו שילוב בדיוק:
-    invitationId + channel + type + round + templateName
+      const existingSchedule = await ScheduledMessage.findOne({
+        invitationId,
+        userId: auth.userId,
+        channel: "whatsapp",
+        type,
+        round,
+        templateName,
+        status: { $in: ["scheduled", "pending"] },
+      });
 
-    כלומר:
-    - RSVP סבב 1 לא חוסם RSVP סבב 2
-    - RSVP לא חוסם reminder
-    - reminder לא חוסם thankyou
-    - WhatsApp לא חוסם SMS
-  */
-  const existingSchedule = await ScheduledMessage.findOne({
-    invitationId,
-    userId: auth.userId,
-    channel: "whatsapp",
-    type,
-    round,
-    templateName,
-    status: { $in: ["scheduled", "pending"] },
-  });
+      const schedulePayload = {
+        invitationId,
+        userId: auth.userId,
 
-  const schedulePayload = {
-    invitationId,
-    userId: auth.userId,
+        channel: "whatsapp",
+        type,
 
-    channel: "whatsapp",
-    type,
+        filter: type === "rsvp" ? (round === 1 ? "all" : "pending") : "all",
 
-    /*
-      לא שומרים audience סופי ל-RSVP.
-      בסבב 2/3 ה-worker יבדוק בזמן השליחה מי עדיין pending.
-    */
-    filter: type === "rsvp" ? (round === 1 ? "all" : "pending") : "all",
+        templateKey:
+          type === "rsvp"
+            ? "rsvp"
+            : type === "reminder" || type === "table"
+            ? "reminder"
+            : type === "thankyou"
+            ? "thankyou"
+            : "custom",
 
-    templateKey:
-      type === "rsvp"
-        ? "rsvp"
-        : type === "reminder" || type === "table"
-        ? "reminder"
-        : type === "thankyou"
-        ? "thankyou"
-        : "custom",
+        round,
+        roundNumber: round,
 
-    round,
-    roundNumber: round,
+        templateName,
+        payload,
 
-    templateName,
-    payload,
+        messageContent: `whatsapp:${templateName}`,
+        messageOverride: `whatsapp:${templateName}`,
+        text: `whatsapp:${templateName}`,
 
-    /*
-      חובה כי ScheduledMessage דורש messageContent.
-      ב-WhatsApp מקור האמת הוא payload/templateName,
-      לא טקסט חופשי.
-    */
-    messageContent: `whatsapp:${templateName}`,
-    messageOverride: `whatsapp:${templateName}`,
-    text: `whatsapp:${templateName}`,
+        includeGiftLink: !!body.giftCreditUrl,
+        giftLink: body.giftCreditUrl || null,
 
-    includeGiftLink: !!body.giftCreditUrl,
-    giftLink: body.giftCreditUrl || null,
+        guestIds: type === "rsvp" ? [] : audience,
 
-    /*
-      RSVP:
-      לא שומרים guestIds עכשיו, כדי שלא יישלח למי שכבר ענה עד זמן השליחה.
+        scheduledAt,
+        guestsCount,
 
-      reminder / table / thankyou:
-      אם בחרת קהל ידני, כן שומרים את הבחירה.
-      אם לא בחרת, ה-worker ימשוך לפי הנתונים בזמן השליחה.
-    */
-    guestIds: type === "rsvp" ? [] : audience,
+        status: "scheduled",
 
-    scheduledAt,
-    guestsCount,
+        sentCount: 0,
+        lockedAt: null,
+        lockedBy: null,
+        cancelledAt: null,
+        error: "",
 
-    status: "scheduled",
+        updatedAt: new Date(),
+      };
 
-    sentCount: 0,
-    lockedAt: null,
-    lockedBy: null,
-    cancelledAt: null,
-    error: "",
+      let schedule;
 
-    updatedAt: new Date(),
-  };
+      if (existingSchedule) {
+        existingSchedule.set(schedulePayload);
+        schedule = await existingSchedule.save();
+      } else {
+        schedule = await ScheduledMessage.create(schedulePayload);
+      }
 
-  let schedule;
+      const invitationSchedulePatch: Record<string, any> = {
+        updatedAt: new Date(),
+      };
 
-  if (existingSchedule) {
-    existingSchedule.set(schedulePayload);
-    schedule = await existingSchedule.save();
-  } else {
-    schedule = await ScheduledMessage.create(schedulePayload);
-  }
+      if (type === "rsvp") {
+        const scheduledField = getRsvpScheduledField(round);
+        invitationSchedulePatch[scheduledField] = scheduledAt;
+      }
 
-  /*
-    מעדכנים רק שדות תזמון לתצוגה.
-    לא נוגעים ב-SentAt.
-    לא נועלים messageLocks.
-  */
-  const invitationSchedulePatch: Record<string, any> = {
-    updatedAt: new Date(),
-  };
+      if (type === "reminder" || type === "table") {
+        invitationSchedulePatch.reminderScheduledAt = scheduledAt;
+      }
 
-  if (type === "rsvp") {
-    const scheduledField = getRsvpScheduledField(round);
-    invitationSchedulePatch[scheduledField] = scheduledAt;
-  }
+      if (type === "thankyou") {
+        invitationSchedulePatch.thankYouScheduledAt = scheduledAt;
+      }
 
-  if (type === "reminder" || type === "table") {
-    invitationSchedulePatch.reminderScheduledAt = scheduledAt;
-  }
+      await Invitation.updateOne(
+        { _id: invitation._id },
+        {
+          $set: invitationSchedulePatch,
+        }
+      );
 
-  if (type === "thankyou") {
-    invitationSchedulePatch.thankYouScheduledAt = scheduledAt;
-  }
-
-  await Invitation.updateOne(
-    { _id: invitation._id },
-    {
-      $set: invitationSchedulePatch,
+      return NextResponse.json({
+        success: true,
+        scheduled: true,
+        mode: existingSchedule ? "updated" : "created",
+        schedule,
+        guestsCount,
+      });
     }
-  );
-
-  return NextResponse.json({
-    success: true,
-    scheduled: true,
-    mode: existingSchedule ? "updated" : "created",
-    schedule,
-    guestsCount,
-  });
-}
 
     /* ======================================================
        IMMEDIATE SEND
-       כאן לא מתזמנים.
        יוצרים WhatsAppQueue לשליחה מיידית.
        אחרי זה מסמנים את הסבב כנשלח בפועל.
     ====================================================== */
@@ -698,47 +648,79 @@ export async function POST(req: NextRequest) {
     }
 
     if (queueDocs.length > 0) {
+      const now = new Date();
+
       if (type === "rsvp") {
         const scheduledField = getRsvpScheduledField(round);
 
-        await markRsvpRoundAsActuallySent({
-          invitationId: String(invitation._id),
-          round,
-          channel: "whatsapp",
-        });
-
-        await Invitation.updateOne(
+        const markResult = await Invitation.collection.updateOne(
           { _id: invitation._id },
           {
+            $set: {
+              [`rsvpRoundSent.round${round}`]: {
+                channel: "whatsapp",
+                sentAt: now,
+                sentCount: queueDocs.length,
+              },
+              updatedAt: now,
+            },
             $unset: {
               [scheduledField]: "",
             },
           }
         );
+
+        console.log("✅ RSVP WHATSAPP ROUND MARKED SENT:", {
+          invitationId: String(invitation._id),
+          round,
+          queued: queueDocs.length,
+          matchedCount: markResult.matchedCount,
+          modifiedCount: markResult.modifiedCount,
+        });
       }
 
       if (type === "reminder" || type === "table") {
-        await Invitation.updateOne(
-          { _id: invitation._id, reminderSentAt: { $in: [null, undefined] } },
+        const markResult = await Invitation.collection.updateOne(
+          { _id: invitation._id },
           {
             $set: {
-              reminderSentAt: new Date(),
-              "messageLocks.reminderWhatsapp": true,
+              reminderSentAt: now,
+              updatedAt: now,
+            },
+            $unset: {
+              reminderScheduledAt: "",
             },
           }
         );
+
+        console.log("✅ REMINDER WHATSAPP ROUND MARKED SENT:", {
+          invitationId: String(invitation._id),
+          queued: queueDocs.length,
+          matchedCount: markResult.matchedCount,
+          modifiedCount: markResult.modifiedCount,
+        });
       }
 
       if (type === "thankyou" || type === "custom") {
-        await Invitation.updateOne(
-          { _id: invitation._id, thankYouSentAt: { $in: [null, undefined] } },
+        const markResult = await Invitation.collection.updateOne(
+          { _id: invitation._id },
           {
             $set: {
-              thankYouSentAt: new Date(),
-              "messageLocks.thankyouWhatsapp": true,
+              thankYouSentAt: now,
+              updatedAt: now,
+            },
+            $unset: {
+              thankYouScheduledAt: "",
             },
           }
         );
+
+        console.log("✅ THANKYOU WHATSAPP ROUND MARKED SENT:", {
+          invitationId: String(invitation._id),
+          queued: queueDocs.length,
+          matchedCount: markResult.matchedCount,
+          modifiedCount: markResult.modifiedCount,
+        });
       }
     }
 
