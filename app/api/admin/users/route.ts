@@ -674,6 +674,8 @@ export async function GET(req: Request) {
           paymentsCount: Number(payment?.paymentsCount || 0),
           lastPaymentAt: payment?.lastPaymentAt || null,
           paymentTypes: payment?.paymentTypes || [],
+          invitationId: invitation?._id ? String(invitation._id) : null,
+
 
           eventDate: u.eventDate || invitation?.eventDate || null,
 
