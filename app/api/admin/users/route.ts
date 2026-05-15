@@ -369,7 +369,6 @@ export async function GET(req: Request) {
         createdByProducer
         producerId
         planLimits
-       rsvpRoundSent
 
         createdAt
         eventDate

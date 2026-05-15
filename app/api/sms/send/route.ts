@@ -10,11 +10,6 @@ import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import { shortenUrl } from "@/lib/shortenUrl";
 
-import {
-  isRsvpRoundAlreadySent,
-  markRsvpRoundAsActuallySent,
-} from "@/lib/rsvpRoundLock";
-
 /* ======================================================
    TYPES
 ====================================================== */
@@ -351,10 +346,10 @@ export async function POST(req: Request) {
     const scheduledType = getScheduledType(templateKey);
 
     const scheduledAt = body.scheduledAt;
-const isScheduledRequest = Boolean(scheduledAt);
+    const isScheduledRequest = Boolean(scheduledAt);
 
-const includeGiftLink = !!body.includeGiftLink;
-const giftLink = body.giftLink || "";
+    const includeGiftLink = !!body.includeGiftLink;
+    const giftLink = body.giftLink || "";
 
     const guestIds = Array.isArray(body.guestIds)
       ? body.guestIds
@@ -421,14 +416,15 @@ const giftLink = body.giftLink || "";
           "";
 
     /* ======================================================
-       BLOCKS — RSVP לפי סבב כללי, לא לפי SMS בלבד
+       BLOCKS — RSVP לפי סבב כללי בלבד
        תזמון לא נחשב שליחה בפועל.
-       אם WhatsApp כבר שלח את הסבב — SMS נחסם.
-       אם SMS כבר שלח את הסבב — WhatsApp נחסם.
+       מקור אמת חדש:
+       rsvpRoundSent.round1 / round2 / round3
     ====================================================== */
 
     if (templateKey === "rsvp") {
-      const alreadySent = isRsvpRoundAlreadySent(invitation, round);
+      const roundKey = `round${round}`;
+      const alreadySent = Boolean(inv.rsvpRoundSent?.[roundKey]);
 
       if (alreadySent) {
         return NextResponse.json(
@@ -445,40 +441,40 @@ const giftLink = body.giftLink || "";
     }
 
     if (
-  (templateKey === "table" || templateKey === "reminder") &&
-  !isScheduledRequest
-) {
-  const reminderAlready =
-    inv.reminderSentAt && inv.messageLocks?.reminderSms;
+      (templateKey === "table" || templateKey === "reminder") &&
+      !isScheduledRequest
+    ) {
+      const reminderAlready =
+        inv.reminderSentAt && inv.messageLocks?.reminderSms;
 
-  if (reminderAlready) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: "REMINDER_ALREADY_SENT",
-      },
-      { status: 409 }
-    );
-  }
-}
+      if (reminderAlready) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "REMINDER_ALREADY_SENT",
+          },
+          { status: 409 }
+        );
+      }
+    }
 
     if (
-  (templateKey === "custom" || templateKey === "thankyou") &&
-  !isScheduledRequest
-) {
-  const thankyouAlready =
-    inv.thankYouSentAt && inv.messageLocks?.thankyouSms;
+      (templateKey === "custom" || templateKey === "thankyou") &&
+      !isScheduledRequest
+    ) {
+      const thankyouAlready =
+        inv.thankYouSentAt && inv.messageLocks?.thankyouSms;
 
-  if (thankyouAlready) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: "THANKYOU_ALREADY_SENT",
-      },
-      { status: 409 }
-    );
-  }
-}
+      if (thankyouAlready) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "THANKYOU_ALREADY_SENT",
+          },
+          { status: 409 }
+        );
+      }
+    }
 
     if (!usesNewLogic && remainingMessages <= 0) {
       return NextResponse.json(
@@ -489,45 +485,44 @@ const giftLink = body.giftLink || "";
 
     /* ================= LOCATION / NAVIGATION ================= */
 
-    /* ================= LOCATION / NAVIGATION ================= */
+    const location =
+      inv.eventLocation && typeof inv.eventLocation === "object"
+        ? inv.eventLocation
+        : inv.location;
 
-const location =
-  inv.eventLocation && typeof inv.eventLocation === "object"
-    ? inv.eventLocation
-    : inv.location;
+    const navigationAddress =
+      typeof inv.location === "string" && inv.location.trim()
+        ? inv.location.trim()
+        : typeof inv.location?.address === "string" && inv.location.address.trim()
+        ? inv.location.address.trim()
+        : typeof inv.location?.name === "string" && inv.location.name.trim()
+        ? inv.location.name.trim()
+        : typeof inv.address === "string" && inv.address.trim()
+        ? inv.address.trim()
+        : typeof inv.eventLocation?.address === "string" &&
+          inv.eventLocation.address.trim()
+        ? inv.eventLocation.address.trim()
+        : typeof inv.eventLocation?.name === "string" &&
+          inv.eventLocation.name.trim()
+        ? inv.eventLocation.name.trim()
+        : "";
 
-const navigationAddress =
-  typeof inv.location === "string" && inv.location.trim()
-    ? inv.location.trim()
-    : typeof inv.location?.address === "string" && inv.location.address.trim()
-    ? inv.location.address.trim()
-    : typeof inv.location?.name === "string" && inv.location.name.trim()
-    ? inv.location.name.trim()
-    : typeof inv.address === "string" && inv.address.trim()
-    ? inv.address.trim()
-    : typeof inv.eventLocation?.address === "string" &&
-      inv.eventLocation.address.trim()
-    ? inv.eventLocation.address.trim()
-    : typeof inv.eventLocation?.name === "string" &&
-      inv.eventLocation.name.trim()
-    ? inv.eventLocation.name.trim()
-    : "";
+    let navigationLink = "";
 
-let navigationLink = "";
+    if (
+      typeof location?.lat === "number" &&
+      typeof location?.lng === "number"
+    ) {
+      const wazeUrl = `https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`;
+      navigationLink = await shortenUrl(wazeUrl);
+    } else if (navigationAddress) {
+      const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+        navigationAddress
+      )}`;
 
-if (
-  typeof location?.lat === "number" &&
-  typeof location?.lng === "number"
-) {
-  const wazeUrl = `https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`;
-  navigationLink = await shortenUrl(wazeUrl);
-} else if (navigationAddress) {
-  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-    navigationAddress
-  )}`;
+      navigationLink = await shortenUrl(mapsUrl);
+    }
 
-  navigationLink = await shortenUrl(mapsUrl);
-}
     /* ================= QUERY ================= */
 
     const guestsQuery = buildGuestQuery({
@@ -598,8 +593,8 @@ if (
 
       const totalMessagesToCharge = guestsCount * partsPerMessage;
 
-// בתזמון לא חוסמים לפי כמות הקהל הנוכחית.
-// הקהל האמיתי והחיוב בפועל צריכים להיבדק בזמן השליחה המתוזמנת.
+      // בתזמון לא חוסמים לפי כמות הקהל הנוכחית.
+      // הקהל האמיתי והחיוב בפועל צריכים להיבדק בזמן השליחה המתוזמנת.
 
       /**
        * שומרים תבנית עם placeholders.
@@ -860,16 +855,18 @@ if (
     if (sent > 0) {
       if (templateKey === "rsvp") {
         const scheduledField = getRsvpScheduledField(round);
-
-        await markRsvpRoundAsActuallySent({
-          invitationId,
-          round,
-          channel: "sms",
-        });
+        const now = new Date();
 
         await Invitation.updateOne(
           { _id: invitationId },
           {
+            $set: {
+              [`rsvpRoundSent.round${round}`]: {
+                channel: "sms",
+                sentAt: now,
+              },
+              updatedAt: now,
+            },
             $unset: {
               [scheduledField]: "",
             },
