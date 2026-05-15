@@ -212,18 +212,33 @@ function buildMessageRounds(invitation: any) {
         label: "סבב תזכורת",
         done: hasAnyValue(invitation, [
           "reminderSentAt",
+          "remindersentAt",
+
           "reminderSmsSentAt",
+          "reminderSmssentAt",
+
           "reminderWhatsappSentAt",
+          "reminderWhatsappsentAt",
         ]),
         sentAt: firstValue(invitation, [
           "reminderSentAt",
+          "remindersentAt",
+
           "reminderSmsSentAt",
+          "reminderSmssentAt",
+
           "reminderWhatsappSentAt",
+          "reminderWhatsappsentAt",
         ]),
         scheduledAt: firstValue(invitation, [
           "reminderScheduledAt",
+          "reminderscheduledAt",
+
           "reminderSmsScheduledAt",
+          "reminderSmsscheduledAt",
+
           "reminderWhatsappScheduledAt",
+          "reminderWhatsappscheduledAt",
         ]),
         blocked: Boolean(locks?.reminder),
       },
@@ -235,21 +250,51 @@ function buildMessageRounds(invitation: any) {
         label: "סבב תודה",
         done: hasAnyValue(invitation, [
           "thankYouSentAt",
+          "thankYousentAt",
           "thankyouSentAt",
+          "thankyousentAt",
+
           "thankYouSmsSentAt",
+          "thankYouSmssentAt",
+          "thankyouSmsSentAt",
+          "thankyouSmssentAt",
+
           "thankYouWhatsappSentAt",
+          "thankYouWhatsappsentAt",
+          "thankyouWhatsappSentAt",
+          "thankyouWhatsappsentAt",
         ]),
         sentAt: firstValue(invitation, [
           "thankYouSentAt",
+          "thankYousentAt",
           "thankyouSentAt",
+          "thankyousentAt",
+
           "thankYouSmsSentAt",
+          "thankYouSmssentAt",
+          "thankyouSmsSentAt",
+          "thankyouSmssentAt",
+
           "thankYouWhatsappSentAt",
+          "thankYouWhatsappsentAt",
+          "thankyouWhatsappSentAt",
+          "thankyouWhatsappsentAt",
         ]),
         scheduledAt: firstValue(invitation, [
           "thankYouScheduledAt",
+          "thankYouscheduledAt",
           "thankyouScheduledAt",
+          "thankyouscheduledAt",
+
           "thankYouSmsScheduledAt",
+          "thankYouSmsscheduledAt",
+          "thankyouSmsScheduledAt",
+          "thankyouSmsscheduledAt",
+
           "thankYouWhatsappScheduledAt",
+          "thankYouWhatsappscheduledAt",
+          "thankyouWhatsappScheduledAt",
+          "thankyouWhatsappscheduledAt",
         ]),
         blocked: Boolean(locks?.thankyou),
       },
@@ -356,43 +401,84 @@ export async function GET(req: Request) {
               rsvpRound1SentAt
               rsvpRound2SentAt
               rsvpRound3SentAt
+              rsvpRound1sentAt
+              rsvpRound2sentAt
+              rsvpRound3sentAt
 
               rsvpSmsRound1SentAt
               rsvpSmsRound2SentAt
               rsvpSmsRound3SentAt
+              rsvpSmsRound1sentAt
+              rsvpSmsRound2sentAt
+              rsvpSmsRound3sentAt
 
               rsvpWhatsappRound1SentAt
               rsvpWhatsappRound2SentAt
               rsvpWhatsappRound3SentAt
+              rsvpWhatsappRound1sentAt
+              rsvpWhatsappRound2sentAt
+              rsvpWhatsappRound3sentAt
 
               rsvpRound1ScheduledAt
               rsvpRound2ScheduledAt
               rsvpRound3ScheduledAt
+              rsvpRound1scheduledAt
+              rsvpRound2scheduledAt
+              rsvpRound3scheduledAt
 
               rsvpSmsRound1ScheduledAt
               rsvpSmsRound2ScheduledAt
               rsvpSmsRound3ScheduledAt
+              rsvpSmsRound1scheduledAt
+              rsvpSmsRound2scheduledAt
+              rsvpSmsRound3scheduledAt
 
               rsvpWhatsappRound1ScheduledAt
               rsvpWhatsappRound2ScheduledAt
               rsvpWhatsappRound3ScheduledAt
+              rsvpWhatsappRound1scheduledAt
+              rsvpWhatsappRound2scheduledAt
+              rsvpWhatsappRound3scheduledAt
 
               reminderSentAt
+              remindersentAt
               reminderSmsSentAt
+              reminderSmssentAt
               reminderWhatsappSentAt
+              reminderWhatsappsentAt
               reminderScheduledAt
+              reminderscheduledAt
               reminderSmsScheduledAt
+              reminderSmsscheduledAt
               reminderWhatsappScheduledAt
+              reminderWhatsappscheduledAt
 
               thankYouSentAt
+              thankYousentAt
               thankyouSentAt
+              thankyousentAt
               thankYouSmsSentAt
+              thankYouSmssentAt
+              thankyouSmsSentAt
+              thankyouSmssentAt
               thankYouWhatsappSentAt
+              thankYouWhatsappsentAt
+              thankyouWhatsappSentAt
+              thankyouWhatsappsentAt
               thankYouScheduledAt
+              thankYouscheduledAt
               thankyouScheduledAt
+              thankyouscheduledAt
               thankYouSmsScheduledAt
+              thankYouSmsscheduledAt
+              thankyouSmsScheduledAt
+              thankyouSmsscheduledAt
               thankYouWhatsappScheduledAt
+              thankYouWhatsappscheduledAt
+              thankyouWhatsappScheduledAt
+              thankyouWhatsappscheduledAt
 
+              messageLocks
               adminMessageRoundLocks
             `)
             .sort({ eventDate: -1 })
