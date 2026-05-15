@@ -27,7 +27,7 @@ const INPUT_CLASS = `
   rounded-2xl
   border
   border-[#E8DED1]
-  bg-white/90
+  bg-white/95
   px-4
   pr-11
   text-sm
@@ -146,14 +146,14 @@ export default function CreateClientByProducer({ onSuccess }) {
   ========================= */
   return (
     <div dir="rtl" className="w-full">
-      <form onSubmit={handleSubmit} className="w-full space-y-6 text-right">
+      <form onSubmit={handleSubmit} className="w-full space-y-5 text-right">
         {/* Header */}
-        <div className="relative overflow-hidden rounded-[30px] border border-[#E8DED1] bg-gradient-to-br from-[#FFFDF8] via-[#FBF3E8] to-[#F2E5D5] p-5 shadow-[0_20px_55px_rgba(58,43,35,0.10)]">
+        <div className="relative overflow-hidden rounded-[30px] border border-[#E8DED1] bg-gradient-to-br from-[#FFFDF8] via-[#FBF3E8] to-[#F3E6D7] p-5 shadow-[0_18px_45px_rgba(65,45,30,0.08)]">
           <div className="absolute -left-16 -top-16 h-36 w-36 rounded-full bg-[#D8B982]/25 blur-2xl" />
-          <div className="absolute -bottom-16 -right-16 h-40 w-40 rounded-full bg-[#B99563]/20 blur-2xl" />
+          <div className="absolute -bottom-16 -right-16 h-40 w-40 rounded-full bg-[#B99563]/15 blur-2xl" />
 
           <div className="relative flex items-start gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#3A2B23] text-white shadow-[0_12px_30px_rgba(58,43,35,0.22)]">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/80 text-[#8A6338] shadow-[0_12px_30px_rgba(65,45,30,0.10)] ring-1 ring-[#E6D4BD]">
               <Crown className="h-5 w-5" />
             </div>
 
@@ -165,7 +165,7 @@ export default function CreateClientByProducer({ onSuccess }) {
                 <Sparkles className="h-4 w-4 text-[#B99563]" />
               </div>
 
-              <p className="mt-1 max-w-[420px] text-sm leading-6 text-[#7A6758]">
+              <p className="mt-1 max-w-[430px] text-sm leading-6 text-[#7A6758]">
                 יצירת לקוח חדש למערכת, הגדרת כמות רשומות והמשך לתשלום מאובטח.
               </p>
             </div>
@@ -176,9 +176,9 @@ export default function CreateClientByProducer({ onSuccess }) {
         <Section
           title="פרטי לקוח"
           subtitle="הפרטים הבסיסיים לפתיחת המשתמש במערכת"
-          icon={<User />}
+          icon={<User className="h-4 w-4" />}
         >
-          <Field label="שם מלא" icon={<User />}>
+          <Field label="שם מלא" icon={<User className="h-4 w-4" />}>
             <input
               type="text"
               name="name"
@@ -190,7 +190,7 @@ export default function CreateClientByProducer({ onSuccess }) {
             />
           </Field>
 
-          <Field label="אימייל" icon={<Mail />}>
+          <Field label="אימייל" icon={<Mail className="h-4 w-4" />}>
             <input
               type="email"
               name="email"
@@ -202,7 +202,7 @@ export default function CreateClientByProducer({ onSuccess }) {
             />
           </Field>
 
-          <Field label="טלפון אופציונלי" icon={<Phone />}>
+          <Field label="טלפון אופציונלי" icon={<Phone className="h-4 w-4" />}>
             <input
               type="tel"
               name="phone"
@@ -218,10 +218,10 @@ export default function CreateClientByProducer({ onSuccess }) {
         <Section
           title="הגדרות מערכת"
           subtitle="כמות הרשומות וההודעות שייפתחו ללקוח"
-          icon={<Users />}
+          icon={<Users className="h-4 w-4" />}
         >
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="כמות רשומות" icon={<Users />}>
+            <Field label="כמות רשומות" icon={<Users className="h-4 w-4" />}>
               <input
                 type="number"
                 name="guests"
@@ -233,7 +233,10 @@ export default function CreateClientByProducer({ onSuccess }) {
               />
             </Field>
 
-            <Field label="כמות הודעות SMS" icon={<MessageSquare />}>
+            <Field
+              label="כמות הודעות SMS"
+              icon={<MessageSquare className="h-4 w-4" />}
+            >
               <input
                 type="number"
                 value={smsTotal}
@@ -249,13 +252,14 @@ export default function CreateClientByProducer({ onSuccess }) {
           </div>
 
           <label
-            className={`
+            className="
               flex cursor-pointer items-center justify-between gap-4
               rounded-2xl border border-[#E8DED1]
-              bg-white/85 px-4 py-4
+              bg-white/90 px-4 py-4
               shadow-[0_10px_28px_rgba(65,45,30,0.05)]
-              transition hover:border-[#D8B982] hover:bg-[#FFF9F0]
-            `}
+              transition
+              hover:border-[#D8B982] hover:bg-[#FFF9F0]
+            "
           >
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#F4E8D8] text-[#8A6338]">
@@ -277,35 +281,35 @@ export default function CreateClientByProducer({ onSuccess }) {
               name="includeCalls"
               checked={form.includeCalls}
               onChange={handleChange}
-              className="h-5 w-5 accent-[#3A2B23]"
+              className="h-5 w-5 accent-[#B99563]"
             />
           </label>
         </Section>
 
         {/* סיכום תשלום */}
-        <section className="overflow-hidden rounded-[28px] border border-[#DCC7A7] bg-gradient-to-br from-[#3A2B23] via-[#463226] to-[#2B201A] shadow-[0_24px_60px_rgba(58,43,35,0.20)]">
+        <section className="overflow-hidden rounded-[28px] border border-[#E8DED1] bg-gradient-to-br from-[#FFFDF8] via-[#FBF3E8] to-[#F2E5D5] shadow-[0_18px_45px_rgba(65,45,30,0.08)]">
           <div className="relative p-5">
-            <div className="absolute -left-10 -top-10 h-28 w-28 rounded-full bg-[#D8B982]/20 blur-2xl" />
-            <div className="absolute -bottom-12 -right-12 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
+            <div className="absolute -left-10 -top-10 h-28 w-28 rounded-full bg-[#D8B982]/25 blur-2xl" />
+            <div className="absolute -bottom-12 -right-12 h-32 w-32 rounded-full bg-[#B99563]/15 blur-2xl" />
 
             <div className="relative flex items-start justify-between gap-4">
               <div>
-                <div className="flex items-center gap-2 text-[#F4DFC0]">
+                <div className="flex items-center gap-2 text-[#8A6338]">
                   <CreditCard className="h-4 w-4" />
-                  <h3 className="text-sm font-bold">סיכום תשלום</h3>
+                  <h3 className="text-sm font-black">סיכום תשלום</h3>
                 </div>
 
                 {pricePerRecord > 0 ? (
                   <div className="mt-4">
-                    <div className="text-sm text-[#EBDDCB]">
+                    <div className="text-sm font-medium text-[#7A6758]">
                       {form.guests} רשומות × ₪{pricePerRecord} לרשומה
                     </div>
 
                     <div className="mt-2 flex items-end gap-2">
-                      <span className="text-4xl font-black text-white">
+                      <span className="text-4xl font-black text-[#3A2B23]">
                         ₪{totalPrice}
                       </span>
-                      <span className="pb-1 text-xs text-[#D9C6AE]">
+                      <span className="pb-1 text-xs font-bold text-[#8B7B70]">
                         לתשלום
                       </span>
                     </div>
@@ -319,9 +323,11 @@ export default function CreateClientByProducer({ onSuccess }) {
               </div>
 
               {pricePerRecord > 0 && (
-                <div className="hidden rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-center sm:block">
-                  <div className="text-xs text-[#D9C6AE]">מחיר לרשומה</div>
-                  <div className="mt-1 text-lg font-black text-white">
+                <div className="hidden rounded-2xl border border-[#E0C7A2] bg-white/70 px-4 py-3 text-center shadow-sm sm:block">
+                  <div className="text-xs font-bold text-[#8B7B70]">
+                    מחיר לרשומה
+                  </div>
+                  <div className="mt-1 text-lg font-black text-[#3A2B23]">
                     ₪{pricePerRecord}
                   </div>
                 </div>
@@ -342,17 +348,19 @@ export default function CreateClientByProducer({ onSuccess }) {
         <button
           type="submit"
           disabled={loading || pricePerRecord === 0}
-          className={`
+          className="
             group relative h-13 w-full overflow-hidden rounded-2xl
-            bg-[#3A2B23] px-5 py-4
+            border border-[#B99563]
+            bg-gradient-to-r from-[#B99563] via-[#D7B77A] to-[#B99563]
+            px-5 py-4
             text-sm font-black text-white
-            shadow-[0_18px_40px_rgba(58,43,35,0.22)]
+            shadow-[0_16px_35px_rgba(185,149,99,0.28)]
             transition
-            hover:-translate-y-0.5 hover:bg-[#2E211A]
+            hover:-translate-y-0.5 hover:shadow-[0_20px_45px_rgba(185,149,99,0.35)]
             disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0
-          `}
+          "
         >
-          <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 transition group-hover:opacity-100" />
+          <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent opacity-0 transition group-hover:opacity-100" />
 
           <span className="relative flex items-center justify-center gap-2">
             {loading ? (
@@ -375,7 +383,7 @@ export default function CreateClientByProducer({ onSuccess }) {
 ========================= */
 function Section({ title, subtitle, icon, children }) {
   return (
-    <section className="rounded-[28px] border border-[#E8DED1] bg-white/90 p-5 shadow-[0_18px_45px_rgba(65,45,30,0.07)]">
+    <section className="rounded-[28px] border border-[#E8DED1] bg-white/92 p-5 shadow-[0_18px_45px_rgba(65,45,30,0.07)]">
       <div className="mb-5 flex items-start gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#F4E8D8] text-[#8A6338]">
           {icon}
@@ -406,7 +414,7 @@ function Field({ label, icon, children }) {
       <div className="relative">
         {icon && (
           <div className="pointer-events-none absolute right-3 top-1/2 z-10 flex -translate-y-1/2 items-center text-[#A89583]">
-            <div className="h-4 w-4">{icon}</div>
+            {icon}
           </div>
         )}
 
