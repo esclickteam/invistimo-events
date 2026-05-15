@@ -11,11 +11,6 @@ import {
   type SendRsvpTemplateMediaInput,
 } from "@/lib/whatsapp/sendRsvpTemplateMedia";
 
-import {
-  isRsvpRoundAlreadySent,
-  markRsvpRoundAsActuallySent,
-} from "@/lib/rsvpRoundLock";
-
 /* ======================================================
    TYPES
 ====================================================== */
@@ -68,6 +63,18 @@ function getRsvpWhatsappScheduledField(round: RoundNumber) {
   return `rsvpWhatsappRound${round}ScheduledAt`;
 }
 
+function getReminderScheduledField(channel: Channel) {
+  return channel === "sms" ? "reminderSmsScheduledAt" : "reminderScheduledAt";
+}
+
+function getThankYouScheduledField(channel: Channel) {
+  return channel === "sms" ? "thankYouSmsScheduledAt" : "thankYouScheduledAt";
+}
+
+function isRsvpRoundSent(invitation: any, round: RoundNumber) {
+  return Boolean(invitation?.rsvpRoundSent?.[`round${round}`]);
+}
+
 function normalizePhone(phoneRaw: any) {
   let phone = String(phoneRaw || "").replace(/\D/g, "");
 
@@ -112,7 +119,6 @@ async function buildNavigationLink(invitation: any) {
     typeof location?.lng === "number"
   ) {
     const wazeUrl = `https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`;
-
     return shortenUrl(wazeUrl);
   }
 
@@ -137,13 +143,6 @@ function buildGuestsQuery({
   const type = normalizeType(schedule.type || schedule.templateKey);
   const round = normalizeRound(schedule.round ?? schedule.roundNumber);
 
-  /**
-   * RSVP:
-   * סבב 1 = כל המוזמנים בזמן השליחה בפועל
-   * סבב 2/3 = מי שעדיין pending בזמן השליחה בפועל
-   *
-   * לא לגעת — זה עובד תקין.
-   */
   if (type === "rsvp") {
     if (round === 1) {
       return { invitationId };
@@ -155,11 +154,6 @@ function buildGuestsQuery({
     };
   }
 
-  /**
-   * Reminder / Table:
-   * בזמן השליחה בפועל בלבד מושכים רק מי שאישר הגעה.
-   * מי ששינה ל"לא מגיע" לפני השליחה — לא יקבל.
-   */
   if (type === "reminder" || type === "table") {
     return {
       invitationId,
@@ -167,11 +161,6 @@ function buildGuestsQuery({
     };
   }
 
-  /**
-   * Thankyou:
-   * בזמן השליחה בפועל בלבד מושכים רק מי שאישר הגעה.
-   * מי ששינה ל"לא מגיע" לפני השליחה — לא יקבל.
-   */
   if (type === "thankyou") {
     return {
       invitationId,
@@ -179,11 +168,6 @@ function buildGuestsQuery({
     };
   }
 
-  /**
-   * Custom:
-   * אם נשמרו guestIds — מכבדים אותם.
-   * אחרת משתמשים ב-filter.
-   */
   if (Array.isArray(schedule.guestIds) && schedule.guestIds.length > 0) {
     return {
       _id: { $in: schedule.guestIds },
@@ -248,13 +232,10 @@ async function buildSmsText({
   const tableName = getTableName(guest);
   const type = normalizeType(schedule.type || schedule.templateKey);
 
-  let template = String(schedule.messageContent || schedule.messageOverride || "");
+  let template = String(
+    schedule.messageContent || schedule.messageOverride || ""
+  );
 
-  /**
-   * Reminder / Table:
-   * אם בזמן השליחה בפועל לאורח אין שולחן —
-   * מסירים רק את בלוק השולחן מההודעה.
-   */
   if ((type === "reminder" || type === "table") && !tableName) {
     template = stripTableBlockForGuestWithoutTable(template);
   }
@@ -402,6 +383,7 @@ async function markInvitationAfterSend({
 
   const type = normalizeType(schedule.type || schedule.templateKey);
   const round = normalizeRound(schedule.round ?? schedule.roundNumber);
+  const now = new Date();
 
   if (type === "rsvp") {
     const scheduledField =
@@ -409,56 +391,86 @@ async function markInvitationAfterSend({
         ? getRsvpSmsScheduledField(round)
         : getRsvpWhatsappScheduledField(round);
 
-    await markRsvpRoundAsActuallySent({
-      invitationId: String(schedule.invitationId),
-      round,
-      channel,
-    });
-
-    await Invitation.updateOne(
+    const result = await Invitation.collection.updateOne(
       { _id: schedule.invitationId },
       {
+        $set: {
+          [`rsvpRoundSent.round${round}`]: {
+            channel,
+            sentAt: now,
+            sentCount: sent,
+            source: "scheduled",
+          },
+          updatedAt: now,
+        },
         $unset: {
           [scheduledField]: "",
         },
       }
     );
 
+    console.log("✅ SCHEDULED RSVP ROUND MARKED SENT:", {
+      invitationId: String(schedule.invitationId),
+      channel,
+      round,
+      sent,
+      matchedCount: result.matchedCount,
+      modifiedCount: result.modifiedCount,
+    });
+
     return;
   }
 
   if (type === "reminder" || type === "table") {
-    await Invitation.updateOne(
-      {
-        _id: schedule.invitationId,
-        reminderSentAt: { $in: [null, undefined] },
-      },
+    const scheduledField = getReminderScheduledField(channel);
+
+    const result = await Invitation.collection.updateOne(
+      { _id: schedule.invitationId },
       {
         $set: {
-          reminderSentAt: new Date(),
-          [`messageLocks.reminder${channel === "sms" ? "Sms" : "Whatsapp"}`]:
-            true,
+          reminderSentAt: now,
+          updatedAt: now,
+        },
+        $unset: {
+          [scheduledField]: "",
         },
       }
     );
+
+    console.log("✅ SCHEDULED REMINDER MARKED SENT:", {
+      invitationId: String(schedule.invitationId),
+      channel,
+      sent,
+      matchedCount: result.matchedCount,
+      modifiedCount: result.modifiedCount,
+    });
 
     return;
   }
 
   if (type === "thankyou" || type === "custom") {
-    await Invitation.updateOne(
-      {
-        _id: schedule.invitationId,
-        thankYouSentAt: { $in: [null, undefined] },
-      },
+    const scheduledField = getThankYouScheduledField(channel);
+
+    const result = await Invitation.collection.updateOne(
+      { _id: schedule.invitationId },
       {
         $set: {
-          thankYouSentAt: new Date(),
-          [`messageLocks.thankyou${channel === "sms" ? "Sms" : "Whatsapp"}`]:
-            true,
+          thankYouSentAt: now,
+          updatedAt: now,
+        },
+        $unset: {
+          [scheduledField]: "",
         },
       }
     );
+
+    console.log("✅ SCHEDULED THANKYOU MARKED SENT:", {
+      invitationId: String(schedule.invitationId),
+      channel,
+      sent,
+      matchedCount: result.matchedCount,
+      modifiedCount: result.modifiedCount,
+    });
   }
 }
 
@@ -544,17 +556,46 @@ export async function sendScheduledSms() {
         throw new Error("INVITATION_OR_USER_NOT_FOUND");
       }
 
-      /**
-       * RSVP בלבד:
-       * תזמון לא חוסם, אבל בזמן השליחה בפועל אם הסבב כבר נשלח —
-       * לא שולחים שוב.
-       */
-      if (type === "rsvp" && isRsvpRoundAlreadySent(invitation, round)) {
+      if (type === "rsvp" && isRsvpRoundSent(invitation, round)) {
         await cancelScheduledBecauseRoundAlreadySent({
           scheduleId: msg._id,
           round,
           channel: "sms",
         });
+
+        continue;
+      }
+
+      if ((type === "reminder" || type === "table") && invitation.reminderSentAt) {
+        await ScheduledMessage.updateOne(
+          { _id: msg._id },
+          {
+            $set: {
+              status: "cancelled",
+              cancelledAt: new Date(),
+              lockedAt: null,
+              lockedBy: null,
+              error: "REMINDER_ALREADY_SENT_BEFORE_SMS_SCHEDULED_SEND",
+            },
+          }
+        );
+
+        continue;
+      }
+
+      if ((type === "thankyou" || type === "custom") && invitation.thankYouSentAt) {
+        await ScheduledMessage.updateOne(
+          { _id: msg._id },
+          {
+            $set: {
+              status: "cancelled",
+              cancelledAt: new Date(),
+              lockedAt: null,
+              lockedBy: null,
+              error: "THANKYOU_ALREADY_SENT_BEFORE_SMS_SCHEDULED_SEND",
+            },
+          }
+        );
 
         continue;
       }
@@ -750,17 +791,46 @@ export async function sendScheduledWhatsapp() {
         throw new Error("INVITATION_NOT_FOUND");
       }
 
-      /**
-       * RSVP בלבד:
-       * תזמון לא חוסם, אבל בזמן השליחה בפועל אם הסבב כבר נשלח —
-       * לא שולחים שוב.
-       */
-      if (type === "rsvp" && isRsvpRoundAlreadySent(invitation, round)) {
+      if (type === "rsvp" && isRsvpRoundSent(invitation, round)) {
         await cancelScheduledBecauseRoundAlreadySent({
           scheduleId: msg._id,
           round,
           channel: "whatsapp",
         });
+
+        continue;
+      }
+
+      if ((type === "reminder" || type === "table") && invitation.reminderSentAt) {
+        await ScheduledMessage.updateOne(
+          { _id: msg._id },
+          {
+            $set: {
+              status: "cancelled",
+              cancelledAt: new Date(),
+              lockedAt: null,
+              lockedBy: null,
+              error: "REMINDER_ALREADY_SENT_BEFORE_WHATSAPP_SCHEDULED_SEND",
+            },
+          }
+        );
+
+        continue;
+      }
+
+      if ((type === "thankyou" || type === "custom") && invitation.thankYouSentAt) {
+        await ScheduledMessage.updateOne(
+          { _id: msg._id },
+          {
+            $set: {
+              status: "cancelled",
+              cancelledAt: new Date(),
+              lockedAt: null,
+              lockedBy: null,
+              error: "THANKYOU_ALREADY_SENT_BEFORE_WHATSAPP_SCHEDULED_SEND",
+            },
+          }
+        );
 
         continue;
       }
@@ -795,12 +865,8 @@ export async function sendScheduledWhatsapp() {
         const replacements = {
           name: guest.name || "",
           invitationTitle: invitation.title || "האירוע שלנו",
-
-          // חשוב: לא לקצר ב-WhatsApp.
-          // ה-helper צריך לזהות inviteId מתוך הקישור המקורי.
           rsvpLink: personalUrl,
           urlSuffix,
-
           tableName,
           navigationLink: navigationLink || "",
         };
