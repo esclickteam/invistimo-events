@@ -853,26 +853,36 @@ export async function POST(req: Request) {
     /* ================= MARK SENT ONLY AFTER ACTUAL SEND ================= */
 
     if (sent > 0) {
-      if (templateKey === "rsvp") {
-        const scheduledField = getRsvpScheduledField(round);
-        const now = new Date();
+  if (templateKey === "rsvp") {
+    const scheduledField = getRsvpScheduledField(round);
+    const now = new Date();
 
-        await Invitation.updateOne(
-          { _id: invitationId },
-          {
-            $set: {
-              [`rsvpRoundSent.round${round}`]: {
-                channel: "sms",
-                sentAt: now,
-              },
-              updatedAt: now,
-            },
-            $unset: {
-              [scheduledField]: "",
-            },
-          }
-        );
+    const markResult = await Invitation.collection.updateOne(
+      { _id: inv._id },
+      {
+        
+        $set: {
+          [`rsvpRoundSent.round${round}`]: {
+            channel: "sms",
+            sentAt: now,
+            sentCount: sent,
+          },
+          updatedAt: now,
+        },
+        $unset: {
+          [scheduledField]: "",
+        },
       }
+    );
+
+    console.log("✅ RSVP SMS ROUND MARKED SENT:", {
+      invitationId: String(inv._id),
+      round,
+      sent,
+      matchedCount: markResult.matchedCount,
+      modifiedCount: markResult.modifiedCount,
+    });
+  }
 
       if (templateKey === "table" || templateKey === "reminder") {
         await Invitation.updateOne(
