@@ -479,10 +479,17 @@ UserSchema.pre("validate", function () {
     doc.guests = doc.planLimits.maxGuests;
   }
 
-  const normalizedAllowedMessageRounds: 2 | 3 =
-  Number(doc.allowedMessageRounds || doc.planLimits?.allowedMessageRounds) === 3
-    ? 3
-    : 2;
+  /*
+  ✅ חשוב:
+  אם אחד מהשדות הוא 3 — שומרים 3.
+  זה מונע מצב שבו default של allowedMessageRounds = 2
+  דורס את planLimits.allowedMessageRounds = 3.
+*/
+const directAllowedRounds = Number(doc.allowedMessageRounds);
+const planAllowedRounds = Number(doc.planLimits?.allowedMessageRounds);
+
+const normalizedAllowedMessageRounds: 2 | 3 =
+  directAllowedRounds === 3 || planAllowedRounds === 3 ? 3 : 2;
 
 doc.allowedMessageRounds = normalizedAllowedMessageRounds;
 
