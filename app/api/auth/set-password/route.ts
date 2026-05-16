@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
 
@@ -11,6 +12,10 @@ type SetPasswordBody = {
   token?: string;
   password?: string;
 };
+
+function normalizeAllowedMessageRounds(value: any): 2 | 3 {
+  return Number(value) === 3 ? 3 : 2;
+}
 
 export async function POST(req: Request) {
   try {
@@ -36,6 +41,7 @@ export async function POST(req: Request) {
         hasToken: !!token,
         hasPassword: !!password,
       });
+
       return NextResponse.json(
         { success: false, message: "חסרים נתונים" },
         { status: 400 }
@@ -44,6 +50,7 @@ export async function POST(req: Request) {
 
     if (password.length < 6) {
       console.log("❌ PASSWORD TOO SHORT");
+
       return NextResponse.json(
         { success: false, message: "הסיסמה חייבת להכיל לפחות 6 תווים" },
         { status: 400 }
@@ -52,6 +59,7 @@ export async function POST(req: Request) {
 
     if (!process.env.JWT_SECRET) {
       console.error("❌ JWT_SECRET IS MISSING");
+
       return NextResponse.json(
         { success: false, message: "שגיאת תצורת שרת (JWT_SECRET חסר)" },
         { status: 500 }
@@ -63,15 +71,38 @@ export async function POST(req: Request) {
 
     /* =========================
        FIND USER BY TOKEN
+       ✅ חשוב:
+       חייבים להביא גם allowedMessageRounds וגם planLimits
+       אחרת user.save() מפעיל defaults ומחזיר ל־2.
     ========================= */
     const user = await User.findOne({ resetPasswordToken: token }).select(
-      "_id name email role password resetPasswordToken resetPasswordExpires needsPasswordSetup producerPricePerRecord staffType assignedProducerId billingSource hasPaid"
+      `
+        _id
+        name
+        email
+        role
+        password
+
+        resetPasswordToken
+        resetPasswordExpires
+        needsPasswordSetup
+
+        producerPricePerRecord
+        staffType
+        assignedProducerId
+        billingSource
+        hasPaid
+
+        allowedMessageRounds
+        planLimits
+      `
     );
 
     console.log("👤 USER FOUND:", user ? user._id.toString() : null);
 
     if (!user) {
       console.log("❌ NO USER WITH TOKEN");
+
       return NextResponse.json(
         { success: false, message: "הקישור אינו תקף או שפג תוקפו" },
         { status: 400 }
@@ -80,6 +111,7 @@ export async function POST(req: Request) {
 
     if (!user.resetPasswordExpires || user.resetPasswordExpires < new Date()) {
       console.log("❌ TOKEN EXPIRED");
+
       return NextResponse.json(
         { success: false, message: "הקישור פג תוקף" },
         { status: 400 }
@@ -88,16 +120,36 @@ export async function POST(req: Request) {
 
     if (!user.needsPasswordSetup) {
       console.log("❌ PASSWORD ALREADY SET");
+
       return NextResponse.json(
         { success: false, message: "הסיסמה כבר הוגדרה עבור חשבון זה" },
         { status: 400 }
       );
     }
 
+    /*
+      ✅ שמירת הערך לפני save
+      אם אחד מהם 3 — נשאיר 3.
+    */
+    const allowedMessageRounds = normalizeAllowedMessageRounds(
+      Number((user as any).allowedMessageRounds) === 3 ||
+        Number((user as any).planLimits?.allowedMessageRounds) === 3
+        ? 3
+        : 2
+    );
+
+    (user as any).allowedMessageRounds = allowedMessageRounds;
+
+    (user as any).planLimits = {
+      ...((user as any).planLimits || {}),
+      allowedMessageRounds,
+    };
+
     /* =========================
        SET PASSWORD
     ========================= */
     console.log("🔑 HASHING PASSWORD...");
+
     user.password = await bcrypt.hash(password, 10);
 
     user.resetPasswordToken = undefined;
@@ -105,16 +157,33 @@ export async function POST(req: Request) {
     user.needsPasswordSetup = false;
 
     await user.save();
-    console.log("✅ PASSWORD SAVED");
+
+    /*
+      ✅ הגנה נוספת אחרי save:
+      מוודאים שלא נדרס חזרה ל־2 בזמן ה־hook.
+    */
+    await User.findByIdAndUpdate(user._id, {
+      $set: {
+        allowedMessageRounds,
+        "planLimits.allowedMessageRounds": allowedMessageRounds,
+      },
+    });
+
+    console.log("✅ PASSWORD SAVED", {
+      userId: user._id.toString(),
+      allowedMessageRounds,
+    });
 
     /* =========================
        NORMALIZE FIELDS
     ========================= */
     const role = String(user.role ?? "").toLowerCase().trim();
     const staffType = String(user.staffType ?? "").toLowerCase().trim();
+
     const billingSource = String((user as any).billingSource ?? "")
       .toLowerCase()
       .trim();
+
     const hasPaid = user.hasPaid === true;
 
     console.log("🔎 NORMALIZED USER FLAGS:", {
@@ -123,6 +192,7 @@ export async function POST(req: Request) {
       assignedProducerId: user.assignedProducerId?.toString?.() ?? null,
       billingSource,
       hasPaid,
+      allowedMessageRounds,
     });
 
     /* =========================
@@ -134,6 +204,7 @@ export async function POST(req: Request) {
         role,
         email: user.email,
         hasPaid,
+        allowedMessageRounds,
       },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
@@ -150,6 +221,14 @@ export async function POST(req: Request) {
       email: user.email ?? "",
       role,
       hasPaid,
+
+      allowedMessageRounds,
+
+      planLimits: {
+        ...((user as any).planLimits || {}),
+        allowedMessageRounds,
+      },
+
       staffType: user.staffType ?? null,
       assignedProducerId: user.assignedProducerId
         ? user.assignedProducerId.toString()
@@ -178,7 +257,6 @@ export async function POST(req: Request) {
       if (isProducerStaffRole && isProducerStaffByMeta) {
         redirectTo = "/producer-staff/dashboard";
       } else if (isProducerStaffRole) {
-        // עדיין staff-like => ניתוב ל-dashboard של staff
         redirectTo = "/producer-staff/dashboard";
       }
     }
@@ -190,6 +268,7 @@ export async function POST(req: Request) {
       assignedProducerId: safeUser.assignedProducerId,
       billingSource,
       hasPaid,
+      allowedMessageRounds,
       redirectTo,
     });
 
@@ -207,10 +286,9 @@ export async function POST(req: Request) {
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
-      maxAge: 60 * 60 * 24 * 7, // 7 ימים
+      maxAge: 60 * 60 * 24 * 7,
     });
 
-    // ניקוי טוקנים משניים כדי למנוע קונפליקט
     response.cookies.set({
       name: "producerAuthToken",
       value: "",
@@ -235,12 +313,14 @@ export async function POST(req: Request) {
       userId: safeUser._id,
       role: safeUser.role,
       hasPaid: safeUser.hasPaid,
+      allowedMessageRounds,
       redirectTo,
     });
 
     return response;
   } catch (error) {
     console.error("🔥 SET PASSWORD SERVER ERROR:", error);
+
     return NextResponse.json(
       { success: false, message: "שגיאה בשרת" },
       { status: 500 }
