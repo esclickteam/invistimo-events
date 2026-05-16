@@ -8,12 +8,18 @@ import ClientShell from "./ClientShell";
 import SupportBotButton from "./components/SupportBotButton";
 
 /* ======================================================
-   METADATA – Title + Description + Favicon
+   METADATA – Title + Description + Canonical + Favicon
 ====================================================== */
 export const metadata = {
+  metadataBase: new URL("https://www.invistimo.com"),
+
   title: "Invistimo – ניהול אירועים חכם",
   description:
     "Invistimo – מערכת חכמה לניהול אירועים, הזמנות דיגיטליות, אישורי הגעה והושבה במקום אחד",
+
+  alternates: {
+    canonical: "https://www.invistimo.com/",
+  },
 
   icons: {
     icon: [
