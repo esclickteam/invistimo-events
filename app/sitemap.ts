@@ -1,60 +1,82 @@
 import { MetadataRoute } from "next";
 
+const BASE_URL = "https://www.invistimo.com";
+
 export default function sitemap(): MetadataRoute.Sitemap {
+  const now = new Date();
+
   return [
     {
-      url: "https://www.invistimo.com/",
-      lastModified: new Date(),
+      url: `${BASE_URL}/`,
+      lastModified: now,
       changeFrequency: "weekly",
       priority: 1,
     },
+
+    /* עמודים שיווקיים ראשיים */
     {
-      url: "https://www.invistimo.com/rsvp",
-      lastModified: new Date(),
+      url: `${BASE_URL}/rsvp`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.95,
+    },
+    {
+      url: `${BASE_URL}/seating-explained`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.95,
+    },
+    {
+      url: `${BASE_URL}/pricing`,
+      lastModified: now,
       changeFrequency: "monthly",
       priority: 0.9,
     },
     {
-      url: "https://www.invistimo.com/seating-explained",
-      lastModified: new Date(),
+      url: `${BASE_URL}/faq`,
+      lastModified: now,
       changeFrequency: "monthly",
-      priority: 0.9,
+      priority: 0.75,
     },
     {
-      url: "https://www.invistimo.com/pricing",
-      lastModified: new Date(),
-      changeFrequency: "monthly",
-      priority: 0.9,
-    },
-    {
-      url: "https://www.invistimo.com/contact",
-      lastModified: new Date(),
-      changeFrequency: "yearly",
-      priority: 0.6,
-    },
-    {
-      url: "https://www.invistimo.com/faq",
-      lastModified: new Date(),
+      url: `${BASE_URL}/contact`,
+      lastModified: now,
       changeFrequency: "monthly",
       priority: 0.7,
     },
+
+    /* עמודי מערכת / מידע ציבוריים */
     {
-      url: "https://www.invistimo.com/terms",
-      lastModified: new Date(),
+      url: `${BASE_URL}/login`,
+      lastModified: now,
+      changeFrequency: "yearly",
+      priority: 0.35,
+    },
+    {
+      url: `${BASE_URL}/register`,
+      lastModified: now,
+      changeFrequency: "yearly",
+      priority: 0.35,
+    },
+
+    /* עמודים משפטיים */
+    {
+      url: `${BASE_URL}/terms`,
+      lastModified: now,
       changeFrequency: "yearly",
       priority: 0.4,
     },
     {
-      url: "https://www.invistimo.com/privacy",
-      lastModified: new Date(),
+      url: `${BASE_URL}/privacy`,
+      lastModified: now,
       changeFrequency: "yearly",
       priority: 0.4,
     },
     {
-      url: "https://www.invistimo.com/accessibility",
-      lastModified: new Date(),
+      url: `${BASE_URL}/accessibility`,
+      lastModified: now,
       changeFrequency: "yearly",
-      priority: 0.3,
+      priority: 0.35,
     },
   ];
 }
