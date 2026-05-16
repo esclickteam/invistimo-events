@@ -67,7 +67,10 @@ export default function CreateUserModal({ onClose }: Props) {
      SUBMIT
   ===================================================== */
   async function handleSubmit() {
-    const included = new Set(includedByPlan[plan]);
+  const included = new Set(includedByPlan[plan]);
+
+  const finalAllowedMessageRounds: AllowedMessageRounds =
+    Number(allowedMessageRounds) === 3 ? 3 : 2;
 
     const effectiveIncludeCalls =
       included.has("calls") || addons.calls.enabled;
@@ -116,7 +119,7 @@ export default function CreateUserModal({ onClose }: Props) {
                 2 = כלול כברירת מחדל
                 3 = פתוח ללקוח אם נבחר בדרופדאון החבילה
               */
-              allowedMessageRounds,
+              allowedMessageRounds: finalAllowedMessageRounds,
             },
 
             billing: {
@@ -325,11 +328,14 @@ export default function CreateUserModal({ onClose }: Props) {
 
                     <select
                       value={allowedMessageRounds}
-                      onChange={(e) =>
-                        setAllowedMessageRounds(
-                          Number(e.target.value) as AllowedMessageRounds
-                        )
-                      }
+
+                      onChange={(e) => {
+  const nextValue: AllowedMessageRounds =
+    Number(e.target.value) === 3 ? 3 : 2;
+
+  setAllowedMessageRounds(nextValue);
+}}
+
                       className="w-full h-14 rounded-2xl border border-[#eadfce] bg-white px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
                     >
                       <option value={2}>2 סבבים — כלול בחבילה</option>
