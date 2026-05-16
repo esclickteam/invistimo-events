@@ -1160,16 +1160,17 @@ function EditUserModal({
   try {
     setDeletingGuests(true);
 
-    const res = await fetch(`/api/admin/users/${user._id}/guests/delete-all`, {
-      method: "DELETE",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        invitationId: user.invitationId,
-      }),
-    });
+    const res = await fetch("/api/admin/guests/delete-all", {
+  method: "DELETE",
+  credentials: "include",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    userId: user._id,
+    invitationId: user.invitationId,
+  }),
+});
 
     const data = await res.json().catch(() => null);
 
