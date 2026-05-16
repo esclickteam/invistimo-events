@@ -414,32 +414,39 @@ export async function POST(req: Request) {
     ====================================================== */
 
     if (templateKey === "rsvp" && round === 3) {
-      const permissionUserId = inv.ownerId || user._id;
+  const permissionUser = await User.findById(user._id)
+    .select("allowedMessageRounds planLimits")
+    .lean();
 
-      const permissionUser = await User.findById(permissionUserId)
-        .select("allowedMessageRounds planLimits")
-        .lean();
+  const allowedMessageRounds = normalizeAllowedMessageRounds(
+    permissionUser?.allowedMessageRounds ||
+      permissionUser?.planLimits?.allowedMessageRounds ||
+      2
+  );
 
-      const allowedMessageRounds = normalizeAllowedMessageRounds(
-        permissionUser?.allowedMessageRounds ||
-          permissionUser?.planLimits?.allowedMessageRounds ||
-          2
-      );
+  console.log("SMS ROUND 3 PERMISSION CHECK:", {
+    authUserId: String(user._id),
+    invitationOwnerId: String(inv.ownerId),
+    allowedMessageRounds,
+    userAllowedMessageRounds: permissionUser?.allowedMessageRounds,
+    planLimitsAllowedMessageRounds:
+      permissionUser?.planLimits?.allowedMessageRounds,
+  });
 
-      if (allowedMessageRounds < 3) {
-        return NextResponse.json(
-          {
-            success: false,
-            blocked: true,
-            error: "סבב 3 לא פתוח בחבילה של הלקוח",
-            message: "סבב 3 לא פתוח בחבילה של הלקוח.",
-            round,
-            allowedMessageRounds,
-          },
-          { status: 403 }
-        );
-      }
-    }
+  if (allowedMessageRounds < 3) {
+    return NextResponse.json(
+      {
+        success: false,
+        blocked: true,
+        error: "סבב 3 לא פתוח בחבילה של הלקוח",
+        message: "סבב 3 לא פתוח בחבילה של הלקוח.",
+        round,
+        allowedMessageRounds,
+      },
+      { status: 403 }
+    );
+  }
+}
 
     const invitationTitle = inv.title?.trim() || "האירוע שלנו";
 

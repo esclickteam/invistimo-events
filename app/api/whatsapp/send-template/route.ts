@@ -387,30 +387,39 @@ export async function POST(req: NextRequest) {
     ====================================================== */
 
     if (type === "rsvp" && round === 3) {
-      const permissionUser = await User.findById(invitation.ownerId || auth.userId)
-        .select("allowedMessageRounds planLimits")
-        .lean();
+  const permissionUser = await User.findById(auth.userId)
+    .select("allowedMessageRounds planLimits")
+    .lean();
 
-      const allowedMessageRounds = normalizeAllowedMessageRounds(
-        permissionUser?.allowedMessageRounds ||
-          permissionUser?.planLimits?.allowedMessageRounds ||
-          2
-      );
+  const allowedMessageRounds = normalizeAllowedMessageRounds(
+    permissionUser?.allowedMessageRounds ||
+      permissionUser?.planLimits?.allowedMessageRounds ||
+      2
+  );
 
-      if (allowedMessageRounds < 3) {
-        return NextResponse.json(
-          {
-            success: false,
-            blocked: true,
-            error: "סבב 3 לא פתוח בחבילה של הלקוח",
-            message: "סבב 3 לא פתוח בחבילה של הלקוח.",
-            round,
-            allowedMessageRounds,
-          },
-          { status: 403 }
-        );
-      }
-    }
+  console.log("WHATSAPP ROUND 3 PERMISSION CHECK:", {
+    authUserId: String(auth.userId),
+    invitationOwnerId: String(invitation.ownerId),
+    allowedMessageRounds,
+    userAllowedMessageRounds: permissionUser?.allowedMessageRounds,
+    planLimitsAllowedMessageRounds:
+      permissionUser?.planLimits?.allowedMessageRounds,
+  });
+
+  if (allowedMessageRounds < 3) {
+    return NextResponse.json(
+      {
+        success: false,
+        blocked: true,
+        error: "סבב 3 לא פתוח בחבילה של הלקוח",
+        message: "סבב 3 לא פתוח בחבילה של הלקוח.",
+        round,
+        allowedMessageRounds,
+      },
+      { status: 403 }
+    );
+  }
+}
 
     const audience = Array.isArray(body.audience)
       ? body.audience.filter((id) => mongoose.Types.ObjectId.isValid(id))
