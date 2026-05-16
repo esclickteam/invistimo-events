@@ -41,6 +41,22 @@ function normalizeRound(value: any): RoundNumber {
   return 1;
 }
 
+function normalizeAllowedMessageRounds(value: any): 2 | 3 {
+  return Number(value) === 3 ? 3 : 2;
+}
+
+function isRoundAllowedForUser(user: any, round: RoundNumber) {
+  if (round !== 3) return true;
+
+  const allowedMessageRounds = normalizeAllowedMessageRounds(
+    user?.allowedMessageRounds ||
+      user?.planLimits?.allowedMessageRounds ||
+      2
+  );
+
+  return allowedMessageRounds >= 3;
+}
+
 function normalizeType(value: any): ScheduleType {
   if (
     value === "rsvp" ||
@@ -72,7 +88,16 @@ function getThankYouScheduledField(channel: Channel) {
 }
 
 function isRsvpRoundSent(invitation: any, round: RoundNumber) {
-  return Boolean(invitation?.rsvpRoundSent?.[`round${round}`]);
+  const roundData = invitation?.rsvpRoundSent?.[`round${round}`];
+
+  return Boolean(
+    roundData?.sentAt ||
+      roundData?.sentAtSms ||
+      roundData?.sentAtWhatsapp ||
+      roundData?.smsSentAt ||
+      roundData?.whatsappSentAt ||
+      invitation?.adminMessageRoundLocks?.[`rsvp_${round}`]
+  );
 }
 
 function normalizePhone(phoneRaw: any) {
@@ -370,6 +395,25 @@ async function cancelScheduledBecauseRoundAlreadySent({
   );
 }
 
+async function cancelScheduledBecauseRoundNotAllowed({
+  scheduleId,
+}: {
+  scheduleId: any;
+}) {
+  await ScheduledMessage.updateOne(
+    { _id: scheduleId },
+    {
+      $set: {
+        status: "cancelled",
+        cancelledAt: new Date(),
+        lockedAt: null,
+        lockedBy: null,
+        error: "סבב 3 לא פתוח בחבילה של הלקוח",
+      },
+    }
+  );
+}
+
 async function markInvitationAfterSend({
   schedule,
   channel,
@@ -554,6 +598,14 @@ export async function sendScheduledSms() {
 
       if (!invitation || !user) {
         throw new Error("INVITATION_OR_USER_NOT_FOUND");
+      }
+
+      if (type === "rsvp" && round === 3 && !isRoundAllowedForUser(user, round)) {
+        await cancelScheduledBecauseRoundNotAllowed({
+          scheduleId: msg._id,
+        });
+
+        continue;
       }
 
       if (type === "rsvp" && isRsvpRoundSent(invitation, round)) {
@@ -786,9 +838,18 @@ export async function sendScheduledWhatsapp() {
       const round = normalizeRound(msg.round ?? msg.roundNumber);
 
       const invitation: any = await Invitation.findById(msg.invitationId).lean();
+      const user: any = await User.findById(msg.userId).lean();
 
-      if (!invitation) {
-        throw new Error("INVITATION_NOT_FOUND");
+      if (!invitation || !user) {
+        throw new Error("INVITATION_OR_USER_NOT_FOUND");
+      }
+
+      if (type === "rsvp" && round === 3 && !isRoundAllowedForUser(user, round)) {
+        await cancelScheduledBecauseRoundNotAllowed({
+          scheduleId: msg._id,
+        });
+
+        continue;
       }
 
       if (type === "rsvp" && isRsvpRoundSent(invitation, round)) {
