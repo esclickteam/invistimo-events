@@ -402,7 +402,7 @@ export async function POST(req: NextRequest) {
           {
             success: false,
             blocked: true,
-            error: "ROUND_3_NOT_ALLOWED",
+            error: "סבב 3 לא פתוח בחבילה של הלקוח",
             message: "סבב 3 לא פתוח בחבילה של הלקוח.",
             round,
             allowedMessageRounds,
