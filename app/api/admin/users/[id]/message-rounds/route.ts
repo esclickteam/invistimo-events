@@ -254,7 +254,9 @@ export async function PATCH(
       );
     }
 
-    const user = await User.findById(userId).select("_id").lean();
+    const user = await User.findById(userId)
+  .select("_id allowedMessageRounds planLimits")
+  .lean();
 
     if (!user) {
       return NextResponse.json(
@@ -262,6 +264,23 @@ export async function PATCH(
         { status: 404 }
       );
     }
+
+    const isRound3 = key === "rsvp_3";
+const shouldOpenRound3Permission =
+  isRound3 && (action === "reset" || action === "unblock");
+
+if (shouldOpenRound3Permission) {
+  await User.updateOne(
+    { _id: userId },
+    {
+      $set: {
+        allowedMessageRounds: 3,
+        "planLimits.allowedMessageRounds": 3,
+        updatedAt: new Date(),
+      },
+    }
+  );
+}
 
     const invitationQuery = invitationId
       ? {

@@ -1,18 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 type UserRole = "user" | "producer" | "staff";
 type PaymentStatus = "paid" | "stripe";
 type PlanKey = "plan1" | "plan2" | "plan3";
 type AddonKey = "calls" | "credit" | "seating" | "system" | "design";
 
-
 type Props = {
   onClose: () => void;
 };
 
-const SMS_PER_RECORD = 3;
+/* כמה סבבים כלולים / נפתחים ידנית */
+type AllowedMessageRounds = 2 | 3;
 
 /* איזה אפסיילים כלולים בכל חבילה */
 const includedByPlan: Record<PlanKey, AddonKey[]> = {
@@ -21,6 +21,13 @@ const includedByPlan: Record<PlanKey, AddonKey[]> = {
   plan3: ["calls", "credit", "seating"],
 };
 
+const addonLabels: Record<AddonKey, string> = {
+  calls: "שיחות",
+  credit: "מתנות באשראי",
+  seating: "הושבה דיגיטלית",
+  system: "מערכת ניהול אירוע",
+  design: "עיצוב בהתאמה אישית",
+};
 
 export default function CreateUserModal({ onClose }: Props) {
   /* ===== USER BASIC ===== */
@@ -28,26 +35,24 @@ export default function CreateUserModal({ onClose }: Props) {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<UserRole>("user");
 
-  /* ===== PLAN (חדש) ===== */
+  /* ===== PLAN ===== */
   const [plan, setPlan] = useState<PlanKey>("plan1");
 
   /* ===== USER LIMITS ===== */
   const [records, setRecords] = useState(100);
-  const [smsTotal, setSmsTotal] = useState(records * SMS_PER_RECORD);
-  const [smsAuto, setSmsAuto] = useState(true);
+  const [allowedMessageRounds, setAllowedMessageRounds] =
+    useState<AllowedMessageRounds>(2);
 
-  /* ===== ADDONS (חדש) ===== */
-  const [addons, setAddons] = useState<Record<
-  AddonKey,
-  { enabled: boolean; price: number }
->>({
-  calls: { enabled: false, price: 0 },
-  credit: { enabled: false, price: 0 },
-  seating: { enabled: false, price: 0 },
-  system: { enabled: false, price: 0 },
-  design: { enabled: false, price: 0 },
-});
-
+  /* ===== ADDONS ===== */
+  const [addons, setAddons] = useState<
+    Record<AddonKey, { enabled: boolean; price: number }>
+  >({
+    calls: { enabled: false, price: 0 },
+    credit: { enabled: false, price: 0 },
+    seating: { enabled: false, price: 0 },
+    system: { enabled: false, price: 0 },
+    design: { enabled: false, price: 0 },
+  });
 
   /* ===== USER BILLING ===== */
   const [price, setPrice] = useState<number | "">("");
@@ -58,101 +63,95 @@ export default function CreateUserModal({ onClose }: Props) {
   const [producerPricePerRecord, setProducerPricePerRecord] =
     useState<number | "">("");
 
-  /* ===== AUTO SMS CALC ===== */
-  useEffect(() => {
-    if (smsAuto) {
-      setSmsTotal(records * SMS_PER_RECORD);
-    }
-  }, [records, smsAuto]);
-
-  
-
-  /* ===================================================== SUBMIT */
+  /* =====================================================
+     SUBMIT
+  ===================================================== */
   async function handleSubmit() {
-  // ✅ לשים כאן
-  const included = new Set(includedByPlan[plan]);
-
-  const includeCreditGifts =
-    included.has("credit") || addons.credit.enabled;
-
-  const seatingEnabled =
-    included.has("seating") || addons.seating.enabled;
-
-  const selfManageEnabled =
-    included.has("system") || addons.system.enabled;
-
-  const customDesignEnabled =
-    included.has("design") || addons.design.enabled;
+    const included = new Set(includedByPlan[plan]);
 
     const effectiveIncludeCalls =
-    included.has("calls") || addons.calls.enabled;
+      included.has("calls") || addons.calls.enabled;
 
+    const includeCreditGifts =
+      included.has("credit") || addons.credit.enabled;
 
+    const seatingEnabled =
+      included.has("seating") || addons.seating.enabled;
 
-  const payload =
-    role === "producer"
-      ? {
-          name,
-          email,
-          role,
-          billing: {
-            pricePerRecord: producerPricePerRecord,
-          },
-        }
-      : role === "staff"
-      ? {
-          name,
-          email,
-          role,
-        }
-      : {
-          name,
-          email,
-          role,
-          plan,
-          limits: {
-  records,
-  smsTotal,
-  smsPerRecord: SMS_PER_RECORD,
-  smsAuto,
-  includeCalls: effectiveIncludeCalls,
-},
-          billing: {
-            price,
-            paymentStatus,
-          },
+    const selfManageEnabled =
+      included.has("system") || addons.system.enabled;
 
-          // ✅ להוסיף כאן בתוך ה-user payload
-          includeCreditGifts,
-          seatingEnabled,
-          selfManageEnabled,
-          customDesignEnabled,
+    const customDesignEnabled =
+      included.has("design") || addons.design.enabled;
 
-          addons: {
-  calls: {
-    ...addons.calls,
-    enabled: effectiveIncludeCalls,
-  },
-  credit: {
-    ...addons.credit,
-    enabled: includeCreditGifts,
-  },
-  seating: {
-    ...addons.seating,
-    enabled: seatingEnabled,
-  },
-  system: {
-    ...addons.system,
-    enabled: selfManageEnabled,
-  },
-  design: {
-    ...addons.design,
-    enabled: customDesignEnabled,
-  },
-},
+    const payload =
+      role === "producer"
+        ? {
+            name,
+            email,
+            role,
+            billing: {
+              pricePerRecord: producerPricePerRecord,
+            },
+          }
+        : role === "staff"
+        ? {
+            name,
+            email,
+            role,
+          }
+        : {
+            name,
+            email,
+            role,
+            plan,
 
+            limits: {
+              records,
 
-        };
+              /*
+                ✅ חדש:
+                המערכת לא עובדת לפי כמות הודעות,
+                אלא לפי כמה סבבי הודעות פתוחים ללקוח.
+                2 = כלול בחבילה
+                3 = פתיחה ידנית מהאדמין
+              */
+              allowedMessageRounds,
+            },
+
+            billing: {
+              price,
+              paymentStatus,
+            },
+
+            includeCreditGifts,
+            seatingEnabled,
+            selfManageEnabled,
+            customDesignEnabled,
+
+            addons: {
+              calls: {
+                ...addons.calls,
+                enabled: effectiveIncludeCalls,
+              },
+              credit: {
+                ...addons.credit,
+                enabled: includeCreditGifts,
+              },
+              seating: {
+                ...addons.seating,
+                enabled: seatingEnabled,
+              },
+              system: {
+                ...addons.system,
+                enabled: selfManageEnabled,
+              },
+              design: {
+                ...addons.design,
+                enabled: customDesignEnabled,
+              },
+            },
+          };
 
     try {
       const res = await fetch("/api/admin/users", {
@@ -169,7 +168,6 @@ export default function CreateUserModal({ onClose }: Props) {
       }
 
       if (role === "user" && paymentStatus === "stripe" && data.userId) {
-
         const checkoutRes = await fetch(
           `/api/admin/users/${data.userId}/checkout`,
           {
@@ -193,69 +191,94 @@ export default function CreateUserModal({ onClose }: Props) {
     }
   }
 
-  /* ===================================================== UI */
+  /* =====================================================
+     UI
+  ===================================================== */
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
-      <div className="w-full max-w-2xl bg-white rounded-xl shadow-2xl border max-h-[90vh] flex flex-col">
-        <div className="px-6 py-4 border-b flex justify-between items-center">
-          <h2 className="text-xl font-semibold">יצירת משתמש חדש</h2>
+    <div
+      dir="rtl"
+      className="fixed inset-0 z-50 bg-black/55 backdrop-blur-sm flex items-center justify-center px-4"
+    >
+      <div className="w-full max-w-3xl bg-[#fffdf9] rounded-[28px] shadow-2xl border border-[#eadfce] max-h-[92vh] flex flex-col overflow-hidden">
+        {/* HEADER */}
+        <div className="px-7 py-5 border-b border-[#efe4d6] flex justify-between items-center bg-gradient-to-l from-[#fffaf2] to-white">
+          <div>
+            <h2 className="text-2xl font-bold text-[#3f3327]">
+              יצירת משתמש חדש
+            </h2>
+            <p className="text-sm text-[#8b7b68] mt-1">
+              הגדרת לקוח, חבילה, סבבי הודעות ואפסיילים
+            </p>
+          </div>
+
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-black text-xl"
+            className="w-10 h-10 rounded-full border border-[#eadfce] bg-white text-[#8b7b68] hover:text-[#3f3327] hover:bg-[#fff7ec] transition text-xl flex items-center justify-center"
           >
             ✕
           </button>
         </div>
 
-        <div className="p-6 space-y-8 overflow-y-auto">
+        {/* BODY */}
+        <div className="p-7 space-y-8 overflow-y-auto">
           {/* USER INFO */}
-          <section className="space-y-3">
-            <h3 className="text-sm font-bold text-gray-600">
-              פרטי משתמש
-            </h3>
+          <section className="space-y-4">
+            <div>
+              <h3 className="text-sm font-bold text-[#3f4856]">
+                פרטי משתמש
+              </h3>
+              <p className="text-xs text-[#8b7b68] mt-1">
+                פרטים בסיסיים והרשאת משתמש במערכת
+              </p>
+            </div>
 
-            <input
-              type="text"
-              placeholder="שם מלא"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full border rounded-lg px-4 py-2"
-            />
+            <div className="grid grid-cols-1 gap-4">
+              <input
+                type="text"
+                placeholder="שם מלא"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full h-14 rounded-2xl border border-[#eadfce] bg-white px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
+              />
 
-            <input
-              type="email"
-              placeholder="אימייל משתמש"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full border rounded-lg px-4 py-2"
-            />
+              <input
+                type="email"
+                placeholder="אימייל משתמש"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full h-14 rounded-2xl border border-[#eadfce] bg-white px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
+              />
 
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value as UserRole)}
-              className="w-full border rounded-lg px-4 py-2"
-            >
-              <option value="user">לקוח</option>
-              <option value="producer">מפיק</option>
-              <option value="staff">עובד</option>
-            </select>
+              <select
+                value={role}
+                onChange={(e) => setRole(e.target.value as UserRole)}
+                className="w-full h-14 rounded-2xl border border-[#eadfce] bg-white px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
+              >
+                <option value="user">לקוח</option>
+                <option value="producer">מפיק</option>
+                <option value="staff">עובד</option>
+              </select>
+            </div>
           </section>
 
           {/* USER */}
           {role === "user" && (
             <>
-              {/* PLAN (חדש) */}
-              <section>
-                <h3 className="text-sm font-bold text-gray-600 mb-3">
-                  חבילה
-                </h3>
+              {/* PLAN */}
+              <section className="space-y-4">
+                <div>
+                  <h3 className="text-sm font-bold text-[#3f4856]">
+                    חבילה
+                  </h3>
+                  <p className="text-xs text-[#8b7b68] mt-1">
+                    בחירת החבילה הבסיסית של הלקוח
+                  </p>
+                </div>
 
                 <select
                   value={plan}
-                  onChange={(e) =>
-                    setPlan(e.target.value as PlanKey)
-                  }
-                  className="w-full border rounded-lg px-4 py-2"
+                  onChange={(e) => setPlan(e.target.value as PlanKey)}
+                  className="w-full h-14 rounded-2xl border border-[#eadfce] bg-white px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
                 >
                   <option value="plan1">חבילה 1</option>
                   <option value="plan2">חבילה 2</option>
@@ -264,170 +287,180 @@ export default function CreateUserModal({ onClose }: Props) {
               </section>
 
               {/* LIMITS */}
-              <section>
-                <h3 className="text-sm font-bold text-gray-600 mb-3">
-                  מגבלות מערכת
-                </h3>
+              <section className="space-y-5">
+                <div>
+                  <h3 className="text-sm font-bold text-[#3f4856]">
+                    מגבלות מערכת
+                  </h3>
+                  <p className="text-xs text-[#8b7b68] mt-1">
+                    הגדרת כמות רשומות וסבבי הודעות פתוחים ללקוח
+                  </p>
+                </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* RECORDS */}
+                  <label className="space-y-2">
+                    <span className="block text-sm font-semibold text-[#6b5a45]">
                       כמות רשומות
-                    </label>
+                    </span>
+
                     <input
                       type="number"
                       min={1}
                       value={records}
+                      onChange={(e) => setRecords(Number(e.target.value))}
+                      className="w-full h-14 rounded-2xl border border-[#eadfce] bg-white px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
+                    />
+
+                    <p className="text-xs text-[#8b7b68]">
+                      מספר הרשומות שהלקוח יכול לנהל במערכת.
+                    </p>
+                  </label>
+
+                  {/* MESSAGE ROUNDS */}
+                  <label className="space-y-2">
+                    <span className="block text-sm font-semibold text-[#6b5a45]">
+                      סבבי הודעות פתוחים ללקוח
+                    </span>
+
+                    <select
+                      value={allowedMessageRounds}
                       onChange={(e) =>
-                        setRecords(Number(e.target.value))
+                        setAllowedMessageRounds(
+                          Number(e.target.value) as AllowedMessageRounds
+                        )
                       }
-                      className="w-full border rounded-lg px-4 py-2"
-                    />
-                  </div>
+                      className="w-full h-14 rounded-2xl border border-[#eadfce] bg-white px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
+                    >
+                      <option value={2}>2 סבבים — כלול בחבילה</option>
+                      <option value={3}>
+                        3 סבבים — פתיחה ידנית מהאדמין
+                      </option>
+                    </select>
 
-                  <div>
-                    <label className="block text-sm font-medium mb-1">
-                      כמות הודעות SMS
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      value={smsTotal}
-                      onChange={(e) => {
-                        setSmsAuto(false);
-                        setSmsTotal(Number(e.target.value));
-                      }}
-                      className="w-full border rounded-lg px-4 py-2"
-                    />
+                    <p className="text-xs text-[#8b7b68]">
+                      ברירת המחדל היא 2 סבבים. סבב שלישי נפתח רק לפי החלטת אדמין.
+                    </p>
+                  </label>
+                </div>
 
-                    <label className="flex items-center gap-2 mt-2 text-xs text-gray-600">
-                      <input
-                        type="checkbox"
-                        checked={smsAuto}
-                        onChange={(e) =>
-                          setSmsAuto(e.target.checked)
-                        }
-                      />
-                      חישוב אוטומטי לפי רשומות
-                    </label>
-                  </div>
+                <div className="rounded-2xl border border-[#eadfce] bg-[#fff8ed] px-4 py-3 text-sm text-[#7a5a2f]">
+                  שימי לב: המערכת לא מגבילה לפי כמות הודעות SMS, אלא לפי הרשאה
+                  לפתיחת סבבי הודעות במערכת.
                 </div>
               </section>
 
-              {/* ADDONS (חדש) */}
+              {/* ADDONS */}
               <section className="space-y-4">
-                <h3 className="text-sm font-bold text-gray-600">
-                  אפסיילים
-                </h3>
+                <div>
+                  <h3 className="text-sm font-bold text-[#3f4856]">
+                    אפסיילים
+                  </h3>
+                  <p className="text-xs text-[#8b7b68] mt-1">
+                    שירותים נוספים שאפשר לפתוח ללקוח
+                  </p>
+                </div>
 
-                {(Object.keys(addons) as AddonKey[]).map((key) => {
-                  const isIncluded =
-                    includedByPlan[plan].includes(key);
-                  const value = addons[key];
+                <div className="space-y-3">
+                  {(Object.keys(addons) as AddonKey[]).map((key) => {
+                    const isIncluded = includedByPlan[plan].includes(key);
+                    const value = addons[key];
 
-                  return (
-                    <div
-                      key={key}
-                      className="border rounded-lg p-3 space-y-2 bg-gray-50"
-                    >
-                      <div className="flex items-center justify-between">
-                        <label className="flex items-center gap-3">
+                    return (
+                      <div
+                        key={key}
+                        className="rounded-2xl border border-[#eadfce] bg-white p-4 space-y-3 shadow-sm"
+                      >
+                        <div className="flex items-center justify-between gap-4">
+                          <label className="flex items-center gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              disabled={isIncluded}
+                              checked={isIncluded ? true : value.enabled}
+                              onChange={() =>
+                                setAddons((prev) => ({
+                                  ...prev,
+                                  [key]: {
+                                    ...prev[key],
+                                    enabled: !prev[key].enabled,
+                                  },
+                                }))
+                              }
+                              className="w-4 h-4 accent-[#9b7a3c]"
+                            />
+
+                            <span className="text-[#4b3b2a] font-medium">
+                              {addonLabels[key]}
+                            </span>
+                          </label>
+
+                          {isIncluded && (
+                            <span className="rounded-full bg-[#eef8ef] text-[#258343] px-3 py-1 text-xs font-bold">
+                              כלול בחבילה
+                            </span>
+                          )}
+                        </div>
+
+                        {!isIncluded && value.enabled && (
                           <input
-                            type="checkbox"
-                            disabled={isIncluded}
-                            checked={
-                              isIncluded ? true : value.enabled
-                            }
-                            onChange={() =>
+                            type="number"
+                            placeholder="מחיר אפסייל (₪) – אפשר 0"
+                            value={value.price}
+                            onChange={(e) =>
                               setAddons((prev) => ({
                                 ...prev,
                                 [key]: {
                                   ...prev[key],
-                                  enabled: !prev[key].enabled,
+                                  price: Number(e.target.value),
                                 },
                               }))
                             }
+                            className="w-full h-12 rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
                           />
-
-                          <span>
-                            {key === "calls" && "שיחות"}
-                            {key === "credit" &&
-                              "מתנות באשראי"}
-                            {key === "seating" &&
-                              "הושבה דיגיטלית"}
-                            {key === "system" &&
-                              "מערכת ניהול אירוע"}
-                            {key === "design" &&
-                              "עיצוב בהתאמה אישית"}
-                          </span>
-                        </label>
-
-                        {isIncluded && (
-                          <span className="text-green-600 text-sm font-medium">
-                            כלול בחבילה
-                          </span>
                         )}
                       </div>
-
-                      {!isIncluded && value.enabled && (
-                        <input
-                          type="number"
-                          placeholder="מחיר אפסייל (₪) – אפשר 0"
-                          value={value.price}
-                          onChange={(e) =>
-                            setAddons((prev) => ({
-                              ...prev,
-                              [key]: {
-                                ...prev[key],
-                                price: Number(e.target.value),
-                              },
-                            }))
-                          }
-                          className="w-full border rounded-lg px-4 py-2"
-                        />
-                      )}
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </section>
 
               {/* PAYMENT */}
-              <section>
-                <h3 className="text-sm font-bold text-gray-600 mb-3">
-                  תשלום
-                </h3>
+              <section className="space-y-4">
+                <div>
+                  <h3 className="text-sm font-bold text-[#3f4856]">
+                    תשלום
+                  </h3>
+                  <p className="text-xs text-[#8b7b68] mt-1">
+                    הגדרת מחיר ואופן תשלום ללקוח
+                  </p>
+                </div>
 
-                <label className="block text-sm mb-1">
-                  מחיר כולל (₪)
+                <label className="space-y-2 block">
+                  <span className="block text-sm font-semibold text-[#6b5a45]">
+                    מחיר כולל (₪)
+                  </span>
+
+                  <input
+                    type="number"
+                    value={price}
+                    onChange={(e) =>
+                      setPrice(
+                        e.target.value === "" ? "" : Number(e.target.value)
+                      )
+                    }
+                    className="w-full h-14 rounded-2xl border border-[#eadfce] bg-white px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
+                  />
                 </label>
-                <input
-                  type="number"
-                  value={price}
-                  onChange={(e) =>
-                    setPrice(
-                      e.target.value === ""
-                        ? ""
-                        : Number(e.target.value)
-                    )
-                  }
-                  className="w-full border rounded-lg px-4 py-2 mb-3"
-                />
 
                 <select
                   value={paymentStatus}
                   onChange={(e) =>
-                    setPaymentStatus(
-                      e.target.value as PaymentStatus
-                    )
+                    setPaymentStatus(e.target.value as PaymentStatus)
                   }
-                  className="w-full border rounded-lg px-4 py-2"
+                  className="w-full h-14 rounded-2xl border border-[#eadfce] bg-white px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
                 >
-                  <option value="stripe">
-                    לתשלום דרך Stripe
-                  </option>
-                  <option value="paid">
-                    שולם ידנית
-                  </option>
+                  <option value="stripe">לתשלום דרך Stripe</option>
+                  <option value="paid">שולם ידנית</option>
                 </select>
               </section>
             </>
@@ -435,34 +468,41 @@ export default function CreateUserModal({ onClose }: Props) {
 
           {/* PRODUCER */}
           {role === "producer" && (
-            <section>
-              <h3 className="text-sm font-bold text-gray-600 mb-3">
-                תמחור למפיק
-              </h3>
+            <section className="space-y-4">
+              <div>
+                <h3 className="text-sm font-bold text-[#3f4856]">
+                  תמחור למפיק
+                </h3>
+                <p className="text-xs text-[#8b7b68] mt-1">
+                  מחיר לפי רשומה עבור משתמש מסוג מפיק
+                </p>
+              </div>
 
-              <label className="block text-sm mb-1">
-                מחיר לרשומה (₪)
+              <label className="space-y-2 block">
+                <span className="block text-sm font-semibold text-[#6b5a45]">
+                  מחיר לרשומה (₪)
+                </span>
+
+                <input
+                  type="number"
+                  value={producerPricePerRecord}
+                  onChange={(e) =>
+                    setProducerPricePerRecord(
+                      e.target.value === "" ? "" : Number(e.target.value)
+                    )
+                  }
+                  className="w-full h-14 rounded-2xl border border-[#eadfce] bg-white px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
+                />
               </label>
-              <input
-                type="number"
-                value={producerPricePerRecord}
-                onChange={(e) =>
-                  setProducerPricePerRecord(
-                    e.target.value === ""
-                      ? ""
-                      : Number(e.target.value)
-                  )
-                }
-                className="w-full border rounded-lg px-4 py-2"
-              />
             </section>
           )}
         </div>
 
-        <div className="px-6 py-4 border-t bg-gray-50 flex justify-end gap-3">
+        {/* FOOTER */}
+        <div className="px-7 py-5 border-t border-[#efe4d6] bg-[#fffaf3] flex justify-end gap-3">
           <button
             onClick={onClose}
-            className="px-4 py-2 border rounded-lg"
+            className="px-5 py-3 rounded-2xl border border-[#eadfce] bg-white text-[#5b4a3a] font-semibold hover:bg-[#fff7ec] transition"
           >
             ביטול
           </button>
@@ -472,12 +512,10 @@ export default function CreateUserModal({ onClose }: Props) {
             disabled={
               !name ||
               !email ||
-              (role === "user" && price === "")
- ||
-              (role === "producer" &&
-                !producerPricePerRecord)
+              (role === "user" && price === "") ||
+              (role === "producer" && !producerPricePerRecord)
             }
-            className="px-5 py-2 rounded-lg bg-black text-white disabled:opacity-40"
+            className="px-6 py-3 rounded-2xl bg-[#3f3327] text-white font-bold shadow-lg shadow-black/10 hover:bg-[#2f251d] disabled:opacity-40 disabled:cursor-not-allowed transition"
           >
             צור משתמש
           </button>

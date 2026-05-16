@@ -19,8 +19,8 @@ const PLAN_CONFIG: Record<
   {
     label: string;
     guests: number;
-    sms: number;
     price: number;
+    allowedMessageRounds: 2;
     includeCalls: boolean;
     includeCreditGifts: boolean;
     includeDigitalSeating: boolean;
@@ -30,8 +30,8 @@ const PLAN_CONFIG: Record<
   plan1: {
     label: "חבילה 1",
     guests: 100,
-    sms: 300,
     price: 402,
+    allowedMessageRounds: 2,
     includeCalls: false,
     includeCreditGifts: false,
     includeDigitalSeating: false,
@@ -41,8 +41,8 @@ const PLAN_CONFIG: Record<
   plan2: {
     label: "חבילה 2",
     guests: 200,
-    sms: 600,
     price: 789,
+    allowedMessageRounds: 2,
     includeCalls: true,
     includeCreditGifts: false,
     includeDigitalSeating: false,
@@ -52,8 +52,8 @@ const PLAN_CONFIG: Record<
   plan3: {
     label: "חבילה 3",
     guests: 300,
-    sms: 900,
     price: 1171,
+    allowedMessageRounds: 2,
     includeCalls: true,
     includeCreditGifts: true,
     includeDigitalSeating: true,
@@ -78,6 +78,10 @@ function isAdminContext(auth: any) {
     auth?.impersonationRole === "admin" ||
     !!auth?.impersonatedBy
   );
+}
+
+function normalizeAllowedMessageRounds(value: any): 2 | 3 {
+  return Number(value) === 3 ? 3 : 2;
 }
 
 function buildUsersFilter(req: Request) {
@@ -174,34 +178,33 @@ function buildMessageRounds(invitation: any) {
 
   return {
     rsvp: [1, 2, 3].map((round) => {
-  const roundData = invitation?.rsvpRoundSent?.[`round${round}`];
+      const roundData = invitation?.rsvpRoundSent?.[`round${round}`];
 
-  const sentAt =
-    roundData?.sentAt ||
-    roundData?.sentAtSms ||
-    roundData?.sentAtWhatsapp ||
-    roundData?.smsSentAt ||
-    roundData?.whatsappSentAt ||
-    null;
+      const sentAt =
+        roundData?.sentAt ||
+        roundData?.sentAtSms ||
+        roundData?.sentAtWhatsapp ||
+        roundData?.smsSentAt ||
+        roundData?.whatsappSentAt ||
+        null;
 
-  const scheduledAt =
-    roundData?.scheduledAt ||
-    roundData?.smsScheduledAt ||
-    roundData?.whatsappScheduledAt ||
-    null;
+      const scheduledAt =
+        roundData?.scheduledAt ||
+        roundData?.smsScheduledAt ||
+        roundData?.whatsappScheduledAt ||
+        null;
 
-  return {
-    key: `rsvp_${round}`,
-    label: `אישורי הגעה סבב ${round}`,
+      return {
+        key: `rsvp_${round}`,
+        label: `אישורי הגעה סבב ${round}`,
 
-    // עכשיו הפרונט מסתמך רק על rsvpRoundSent.roundX
-    done: Boolean(roundData),
-    sentAt,
-    scheduledAt,
+        done: Boolean(roundData),
+        sentAt,
+        scheduledAt,
 
-    blocked: Boolean(locks?.[`rsvp_${round}`]),
-  };
-}),
+        blocked: Boolean(locks?.[`rsvp_${round}`]),
+      };
+    }),
 
     reminder: [
       {
@@ -345,6 +348,9 @@ export async function GET(req: Request) {
 
         guests
         maxGuests
+
+        allowedMessageRounds
+
         maxMessages
         smsLimit
         smsUsed
@@ -636,12 +642,10 @@ export async function GET(req: Request) {
             0
         );
 
-        const smsLimit = Number(
-          u.smsLimit ||
-            u.maxMessages ||
-            u.planLimits?.smsLimit ||
-            planData.sms ||
-            0
+        const allowedMessageRounds = normalizeAllowedMessageRounds(
+          u.allowedMessageRounds ||
+            u.planLimits?.allowedMessageRounds ||
+            planData.allowedMessageRounds
         );
 
         return {
@@ -654,8 +658,7 @@ export async function GET(req: Request) {
           guests,
           maxGuests: Number(u.maxGuests || guests),
 
-          smsLimit,
-          maxMessages: Number(u.maxMessages || smsLimit),
+          allowedMessageRounds,
 
           includeCalls: Boolean(u.includeCalls),
           callsRounds: Number(u.callsRounds || 0),
@@ -673,7 +676,6 @@ export async function GET(req: Request) {
           lastPaymentAt: payment?.lastPaymentAt || null,
           paymentTypes: payment?.paymentTypes || [],
           invitationId: invitation?._id ? String(invitation._id) : null,
-
 
           eventDate: u.eventDate || invitation?.eventDate || null,
 
@@ -871,12 +873,16 @@ export async function POST(req: Request) {
     const planData = getPlanConfig(selectedPlanKey);
 
     const recordsNum = Number(limits?.records || planData.guests || 0);
-    const smsTotalNum = Number(limits?.smsTotal || planData.sms || 0);
+
+    const allowedMessageRounds = normalizeAllowedMessageRounds(
+      limits?.allowedMessageRounds || planData.allowedMessageRounds
+    );
+
     const priceNum = Number(billing?.price ?? planData.price ?? 0);
 
     if (
       Number.isNaN(recordsNum) ||
-      Number.isNaN(smsTotalNum) ||
+      recordsNum <= 0 ||
       Number.isNaN(priceNum)
     ) {
       return NextResponse.json(
@@ -909,8 +915,15 @@ export async function POST(req: Request) {
 
     const planLimits = {
       maxGuests: recordsNum,
-      smsEnabled: true,
-      smsLimit: smsTotalNum,
+
+      /*
+        ✅ חדש:
+        לא מגבילים לפי כמות הודעות.
+        2 = כלול בחבילה
+        3 = פתיחה ידנית מהאדמין
+      */
+      allowedMessageRounds,
+
       seatingEnabled: finalDigitalSeating,
       remindersEnabled: true,
       callsEnabled: finalIncludeCalls,
@@ -933,8 +946,20 @@ export async function POST(req: Request) {
       guests: recordsNum,
       maxGuests: recordsNum,
 
-      maxMessages: smsTotalNum,
-      smsLimit: smsTotalNum,
+      /*
+        ✅ חדש:
+        שמירה גם כשדה ישיר על המשתמש,
+        כדי שיהיה קל לבדוק בפרונט / API אחרים.
+      */
+      allowedMessageRounds,
+
+      /*
+        ⚠️ נשארים 0 רק כדי לא לשבור מקומות ישנים בקוד
+        אם עדיין יש select/תצוגות שמצפות לשדות האלה.
+        הלוגיקה החדשה לא משתמשת בהם.
+      */
+      maxMessages: 0,
+      smsLimit: 0,
 
       includeCalls: finalIncludeCalls,
       callsRounds: finalIncludeCalls ? 3 : 0,
@@ -993,6 +1018,10 @@ export async function POST(req: Request) {
           userId: String(user._id),
           plan: selectedPlanKey,
           packageName: planData.label,
+
+          maxGuests: recordsNum,
+          allowedMessageRounds,
+
           includeDigitalSeating: finalDigitalSeating,
           includeEventManagement: finalEventManagement,
           includeCustomDesign: finalCustomDesign,

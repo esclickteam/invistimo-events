@@ -23,7 +23,9 @@ export interface IUser extends Document {
   packageName?: string;
 
   guests: number;
-  maxGuests: number;
+maxGuests: number;
+
+allowedMessageRounds: 2 | 3;
 
   paidAmount: number;
   hasPaid: boolean;
@@ -63,13 +65,14 @@ export interface IUser extends Document {
   maxMessages: number;
 
   planLimits: {
-    maxGuests: number;
-    smsEnabled: boolean;
-    smsLimit: number;
-    seatingEnabled: boolean;
-    remindersEnabled: boolean;
-    callsEnabled?: boolean;
-  };
+  maxGuests: number;
+  allowedMessageRounds?: 2 | 3;
+  smsEnabled: boolean;
+  smsLimit: number;
+  seatingEnabled: boolean;
+  remindersEnabled: boolean;
+  callsEnabled?: boolean;
+};
 
   smsBalance: number;
   smsUsed: number;
@@ -166,6 +169,12 @@ const UserSchema = new Schema<IUser>(
       type: Number,
       default: 0,
     },
+
+    allowedMessageRounds: {
+  type: Number,
+  enum: [2, 3],
+  default: 2,
+},
 
     paidAmount: {
       type: Number,
@@ -317,15 +326,21 @@ const UserSchema = new Schema<IUser>(
     },
 
     planLimits: {
-      maxGuests: {
-        type: Number,
-        default: 0,
-      },
+  maxGuests: {
+    type: Number,
+    default: 0,
+  },
 
-      smsEnabled: {
-        type: Boolean,
-        default: false,
-      },
+  allowedMessageRounds: {
+    type: Number,
+    enum: [2, 3],
+    default: 2,
+  },
+
+  smsEnabled: {
+    type: Boolean,
+    default: false,
+  },
 
       smsLimit: {
         type: Number,
@@ -463,6 +478,22 @@ UserSchema.pre("validate", function () {
   if (doc.planLimits?.maxGuests && !doc.guests) {
     doc.guests = doc.planLimits.maxGuests;
   }
+
+  if (!doc.allowedMessageRounds) {
+  doc.allowedMessageRounds = 2;
+}
+
+if (!doc.planLimits?.allowedMessageRounds) {
+  doc.planLimits = {
+    ...(doc.planLimits || {}),
+    allowedMessageRounds: doc.allowedMessageRounds || 2,
+  };
+}
+
+if (doc.planLimits?.allowedMessageRounds) {
+  doc.allowedMessageRounds =
+    Number(doc.planLimits.allowedMessageRounds) === 3 ? 3 : 2;
+}
 
   if (doc.planLimits?.smsLimit && !doc.smsLimit) {
     doc.smsLimit = doc.planLimits.smsLimit;
