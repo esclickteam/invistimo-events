@@ -53,35 +53,24 @@ export async function POST(req: Request) {
 
     /* =========================
        Upload to Cloudinary
-       שומר תמונה חדשה באיכות גבוהה
+       חשוב:
+       - URL חדש בכל שמירה
+       - בלי transformation
+       - בלי המרה ל-JPG
     ========================= */
-    const upload = await cloudinary.uploader.upload(base64Image, {
-      folder: "invistimo/invitations",
-      resource_type: "image",
+    const publicId = `invistimo/invitations/${invitationId}_${Date.now()}`;
 
-      // לא דורס URL ישן כדי למנוע קאש/תמונה ישנה
+    const upload = await cloudinary.uploader.upload(base64Image, {
+      public_id: publicId,
+      resource_type: "image",
       overwrite: false,
       invalidate: true,
-
-      // פורמט יציב לוואטסאפ
-      format: "jpg",
-
-      // איכות גבוהה בלי להגדיל מעבר למקור
-      transformation: [
-        {
-          width: 1600,
-          crop: "limit",
-          quality: "100",
-          fetch_format: "jpg",
-        },
-      ],
     });
 
     const imageUrl = upload.secure_url;
 
     /* =========================
        Save URL in Invitation
-       בלי שדה ייעודי לוואטסאפ
     ========================= */
     await Invitation.updateOne(
       { _id: invitationId },

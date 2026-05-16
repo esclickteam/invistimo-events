@@ -193,37 +193,6 @@ function normalizePhone(phoneRaw: any) {
   return phone;
 }
 
-function resolveWhatsappImageUrl(invitation: any): string {
-  const rawUrl =
-  invitation?.headerImageUrl ||
-  invitation?.previewImage ||
-  invitation?.previewImageUrl ||
-  invitation?.imageUrl ||
-  "";
-
-  if (!rawUrl || typeof rawUrl !== "string") return "";
-
-  const cleanUrl = rawUrl.trim().split("?")[0];
-
-  if (!cleanUrl.startsWith("https://")) return "";
-  if (cleanUrl.startsWith("data:image/")) return "";
-  if (cleanUrl.startsWith("blob:")) return "";
-
-  if (
-    cleanUrl.includes("res.cloudinary.com") &&
-    cleanUrl.includes("/image/upload/")
-  ) {
-    return (
-      cleanUrl.replace(
-        "/image/upload/",
-        "/image/upload/f_jpg,q_100,w_1600,c_limit/"
-      ) + `?wa=${Date.now()}`
-    );
-  }
-
-  return cleanUrl;
-}
-
 function buildGuestQuery({
   invitationId,
   type,
@@ -271,40 +240,39 @@ function buildPayloadTemplate({
   );
 
   const eventLocation = cleanAddress(invitation.location?.address);
-const headerImageUrl = resolveWhatsappImageUrl(invitation);
 
-const basePayload: any = {
-  languageCode,
-  eventTitle: invitation.title || "",
-  eventDate,
-  eventLocation,
-  headerImageUrl,
-  rsvpLink: "{{rsvpLink}}",
-  name: "{{name}}",
-  tableName: "{{tableName}}",
-  navigationLink: "{{navigationLink}}",
-};
+  const basePayload: any = {
+    languageCode,
+    eventTitle: invitation.title || "",
+    eventDate,
+    eventLocation,
+    headerImageUrl: invitation.headerImageUrl || "",
+    rsvpLink: "{{rsvpLink}}",
+    name: "{{name}}",
+    tableName: "{{tableName}}",
+    navigationLink: "{{navigationLink}}",
+  };
 
   if (
     templateName === "rsvp_invitation_media" ||
     templateName === "rsvp_reminder_invistimo"
   ) {
     basePayload.components = [
-      ...(headerImageUrl
-  ? [
-      {
-        type: "header",
-        parameters: [
-          {
-            type: "image",
-            image: {
-              link: headerImageUrl,
+      ...(invitation.headerImageUrl
+        ? [
+            {
+              type: "header",
+              parameters: [
+                {
+                  type: "image",
+                  image: {
+                    link: invitation.headerImageUrl,
+                  },
+                },
+              ],
             },
-          },
-        ],
-      },
-    ]
-  : []),
+          ]
+        : []),
       {
         type: "body",
         parameters: [
@@ -409,106 +377,80 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    /* ======================================================
-       ROUND PERMISSION
-       2 סבבים = סבב 1 + 2 בלבד
-       3 סבבים = סבב 1 + 2 + 3
-
-       חשוב:
-       הבדיקה כאן חוסמת גם תזמון וגם שליחה מיידית.
-    ====================================================== */
-
     if (type === "rsvp" && round === 3) {
-  const authUser = await User.findById(auth.userId)
-    .select("allowedMessageRounds planLimits email name role")
-    .lean();
+      const authUser = await User.findById(auth.userId)
+        .select("allowedMessageRounds planLimits email name role")
+        .lean();
 
-  const ownerUser = await User.findById(invitation.ownerId)
-    .select("allowedMessageRounds planLimits email name role")
-    .lean();
+      const ownerUser = await User.findById(invitation.ownerId)
+        .select("allowedMessageRounds planLimits email name role")
+        .lean();
 
-  const authAllowedMessageRounds = normalizeAllowedMessageRounds(
-    authUser?.allowedMessageRounds ||
-      authUser?.planLimits?.allowedMessageRounds ||
-      2
-  );
+      const authAllowedMessageRounds = normalizeAllowedMessageRounds(
+        authUser?.allowedMessageRounds ||
+          authUser?.planLimits?.allowedMessageRounds ||
+          2
+      );
 
-  const ownerAllowedMessageRounds = normalizeAllowedMessageRounds(
-    ownerUser?.allowedMessageRounds ||
-      ownerUser?.planLimits?.allowedMessageRounds ||
-      2
-  );
+      const ownerAllowedMessageRounds = normalizeAllowedMessageRounds(
+        ownerUser?.allowedMessageRounds ||
+          ownerUser?.planLimits?.allowedMessageRounds ||
+          2
+      );
 
-  const allowedMessageRounds: 2 | 3 =
-    authAllowedMessageRounds === 3 || ownerAllowedMessageRounds === 3
-      ? 3
-      : 2;
+      const allowedMessageRounds: 2 | 3 =
+        authAllowedMessageRounds === 3 || ownerAllowedMessageRounds === 3
+          ? 3
+          : 2;
 
-  console.log("WHATSAPP ROUND 3 PERMISSION CHECK:", {
-    authUserId: String(auth.userId),
-    invitationOwnerId: String(invitation.ownerId),
+      console.log("WHATSAPP ROUND 3 PERMISSION CHECK:", {
+        authUserId: String(auth.userId),
+        invitationOwnerId: String(invitation.ownerId),
+        authUserEmail: authUser?.email || null,
+        ownerUserEmail: ownerUser?.email || null,
+        authAllowedMessageRounds: authUser?.allowedMessageRounds || null,
+        authPlanLimitsAllowedMessageRounds:
+          authUser?.planLimits?.allowedMessageRounds || null,
+        ownerAllowedMessageRounds: ownerUser?.allowedMessageRounds || null,
+        ownerPlanLimitsAllowedMessageRounds:
+          ownerUser?.planLimits?.allowedMessageRounds || null,
+        finalAllowedMessageRounds: allowedMessageRounds,
+      });
 
-    authUserEmail: authUser?.email || null,
-    ownerUserEmail: ownerUser?.email || null,
-
-    authAllowedMessageRounds: authUser?.allowedMessageRounds || null,
-    authPlanLimitsAllowedMessageRounds:
-      authUser?.planLimits?.allowedMessageRounds || null,
-
-    ownerAllowedMessageRounds: ownerUser?.allowedMessageRounds || null,
-    ownerPlanLimitsAllowedMessageRounds:
-      ownerUser?.planLimits?.allowedMessageRounds || null,
-
-    finalAllowedMessageRounds: allowedMessageRounds,
-  });
-
-  if (allowedMessageRounds < 3) {
-    return NextResponse.json(
-      {
-        success: false,
-        blocked: true,
-        error: "סבב 3 לא פתוח בחבילה של הלקוח",
-        message: "סבב 3 לא פתוח בחבילה של הלקוח.",
-        round,
-        allowedMessageRounds,
-        debug: {
-          authUserId: String(auth.userId),
-          invitationOwnerId: String(invitation.ownerId),
-
-          authUserEmail: authUser?.email || null,
-          ownerUserEmail: ownerUser?.email || null,
-
-          authAllowedMessageRounds:
-            authUser?.allowedMessageRounds || null,
-          authPlanLimitsAllowedMessageRounds:
-            authUser?.planLimits?.allowedMessageRounds || null,
-
-          ownerAllowedMessageRounds:
-            ownerUser?.allowedMessageRounds || null,
-          ownerPlanLimitsAllowedMessageRounds:
-            ownerUser?.planLimits?.allowedMessageRounds || null,
-
-          finalAllowedMessageRounds: allowedMessageRounds,
-        },
-      },
-      { status: 403 }
-    );
-  }
-}
+      if (allowedMessageRounds < 3) {
+        return NextResponse.json(
+          {
+            success: false,
+            blocked: true,
+            error: "סבב 3 לא פתוח בחבילה של הלקוח",
+            message: "סבב 3 לא פתוח בחבילה של הלקוח.",
+            round,
+            allowedMessageRounds,
+            debug: {
+              authUserId: String(auth.userId),
+              invitationOwnerId: String(invitation.ownerId),
+              authUserEmail: authUser?.email || null,
+              ownerUserEmail: ownerUser?.email || null,
+              authAllowedMessageRounds: authUser?.allowedMessageRounds || null,
+              authPlanLimitsAllowedMessageRounds:
+                authUser?.planLimits?.allowedMessageRounds || null,
+              ownerAllowedMessageRounds:
+                ownerUser?.allowedMessageRounds || null,
+              ownerPlanLimitsAllowedMessageRounds:
+                ownerUser?.planLimits?.allowedMessageRounds || null,
+              finalAllowedMessageRounds: allowedMessageRounds,
+            },
+          },
+          { status: 403 }
+        );
+      }
+    }
 
     const audience = Array.isArray(body.audience)
       ? body.audience.filter((id) => mongoose.Types.ObjectId.isValid(id))
       : Array.isArray(body.guestIds)
       ? body.guestIds.filter((id) => mongoose.Types.ObjectId.isValid(id))
       : [];
-
-    /* ======================================================
-       BLOCKS
-       RSVP = rsvpRoundSent.round1 / round2 / round3
-       תזכורת = reminderSentAt
-       תודה = thankYouSentAt
-       תזמון לא נחשב שליחה בפועל.
-    ====================================================== */
 
     if (type === "rsvp") {
       const roundKey = `round${round}`;
@@ -574,13 +516,6 @@ export async function POST(req: NextRequest) {
       invitation,
     });
 
-    /* ======================================================
-       SCHEDULE
-       תזמון נשמר רק ב-ScheduledMessage.
-       לא מעדכנים SentAt.
-       לא נועלים messageLocks.
-    ====================================================== */
-
     if (scheduledAtRaw) {
       const scheduledAt = new Date(scheduledAtRaw);
 
@@ -611,12 +546,9 @@ export async function POST(req: NextRequest) {
       const schedulePayload = {
         invitationId,
         userId: auth.userId,
-
         channel: "whatsapp",
         type,
-
         filter: type === "rsvp" ? (round === 1 ? "all" : "pending") : "all",
-
         templateKey:
           type === "rsvp"
             ? "rsvp"
@@ -625,33 +557,24 @@ export async function POST(req: NextRequest) {
             : type === "thankyou"
             ? "thankyou"
             : "custom",
-
         round,
         roundNumber: round,
-
         templateName,
         payload,
-
         messageContent: `whatsapp:${templateName}`,
         messageOverride: `whatsapp:${templateName}`,
         text: `whatsapp:${templateName}`,
-
         includeGiftLink: !!body.giftCreditUrl,
         giftLink: body.giftCreditUrl || null,
-
         guestIds: type === "rsvp" ? [] : audience,
-
         scheduledAt,
         guestsCount,
-
         status: "scheduled",
-
         sentCount: 0,
         lockedAt: null,
         lockedBy: null,
         cancelledAt: null,
         error: "",
-
         updatedAt: new Date(),
       };
 
@@ -697,12 +620,6 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    /* ======================================================
-       IMMEDIATE SEND
-       יוצרים WhatsAppQueue לשליחה מיידית.
-       אחרי זה מסמנים את הסבב כנשלח בפועל.
-    ====================================================== */
-
     const guests = await InvitationGuest.find(guestQuery);
 
     const queueDocs: any[] = [];
@@ -745,12 +662,10 @@ export async function POST(req: NextRequest) {
         invitationId: invitation._id,
         guestId: guest._id,
         scheduleId: null,
-
         channel: "whatsapp",
         type,
         round,
         roundNumber: round,
-
         phone,
         templateName,
         idempotencyKey: [
@@ -763,9 +678,7 @@ export async function POST(req: NextRequest) {
           String(batchId),
           templateName,
         ].join(":"),
-
         payload: guestPayload,
-
         status: "pending",
         scheduledAt: null,
         attempts: 0,
