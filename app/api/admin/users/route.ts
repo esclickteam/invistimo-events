@@ -876,9 +876,10 @@ export async function POST(req: Request) {
     const recordsNum = Number(limits?.records || planData.guests || 0);
 
     const allowedMessageRounds = normalizeAllowedMessageRounds(
-      limits?.allowedMessageRounds || planData.allowedMessageRounds
-    );
-
+  limits?.allowedMessageRounds ??
+    body?.allowedMessageRounds ??
+    planData.allowedMessageRounds
+);
     const priceNum = Number(billing?.price ?? planData.price ?? 0);
 
     if (
