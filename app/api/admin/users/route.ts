@@ -138,9 +138,9 @@ function firstValue(obj: any, keys: string[]) {
   return null;
 }
 
-function buildMessageRounds(invitation: any, allowedMessageRounds: 2 | 3 = 2) {
+function buildMessageRounds(invitation: any) {
   const locks = invitation?.adminMessageRoundLocks || {};
-  const rsvpRounds = allowedMessageRounds === 3 ? [1, 2, 3] : [1, 2];
+  const rsvpRounds = [1, 2, 3];
 
   if (!invitation) {
     return {
@@ -680,7 +680,7 @@ export async function GET(req: Request) {
 
           eventDate: u.eventDate || invitation?.eventDate || null,
 
-          messageRounds: buildMessageRounds(invitation, allowedMessageRounds),
+          messageRounds: buildMessageRounds(invitation),
         };
       })
       .sort((a: any, b: any) => {
