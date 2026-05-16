@@ -387,23 +387,47 @@ export async function POST(req: NextRequest) {
     ====================================================== */
 
     if (type === "rsvp" && round === 3) {
-  const permissionUser = await User.findById(auth.userId)
-    .select("allowedMessageRounds planLimits")
+  const authUser = await User.findById(auth.userId)
+    .select("allowedMessageRounds planLimits email name role")
     .lean();
 
-  const allowedMessageRounds = normalizeAllowedMessageRounds(
-    permissionUser?.allowedMessageRounds ||
-      permissionUser?.planLimits?.allowedMessageRounds ||
+  const ownerUser = await User.findById(invitation.ownerId)
+    .select("allowedMessageRounds planLimits email name role")
+    .lean();
+
+  const authAllowedMessageRounds = normalizeAllowedMessageRounds(
+    authUser?.allowedMessageRounds ||
+      authUser?.planLimits?.allowedMessageRounds ||
       2
   );
+
+  const ownerAllowedMessageRounds = normalizeAllowedMessageRounds(
+    ownerUser?.allowedMessageRounds ||
+      ownerUser?.planLimits?.allowedMessageRounds ||
+      2
+  );
+
+  const allowedMessageRounds: 2 | 3 =
+    authAllowedMessageRounds === 3 || ownerAllowedMessageRounds === 3
+      ? 3
+      : 2;
 
   console.log("WHATSAPP ROUND 3 PERMISSION CHECK:", {
     authUserId: String(auth.userId),
     invitationOwnerId: String(invitation.ownerId),
-    allowedMessageRounds,
-    userAllowedMessageRounds: permissionUser?.allowedMessageRounds,
-    planLimitsAllowedMessageRounds:
-      permissionUser?.planLimits?.allowedMessageRounds,
+
+    authUserEmail: authUser?.email || null,
+    ownerUserEmail: ownerUser?.email || null,
+
+    authAllowedMessageRounds: authUser?.allowedMessageRounds || null,
+    authPlanLimitsAllowedMessageRounds:
+      authUser?.planLimits?.allowedMessageRounds || null,
+
+    ownerAllowedMessageRounds: ownerUser?.allowedMessageRounds || null,
+    ownerPlanLimitsAllowedMessageRounds:
+      ownerUser?.planLimits?.allowedMessageRounds || null,
+
+    finalAllowedMessageRounds: allowedMessageRounds,
   });
 
   if (allowedMessageRounds < 3) {
@@ -415,6 +439,25 @@ export async function POST(req: NextRequest) {
         message: "סבב 3 לא פתוח בחבילה של הלקוח.",
         round,
         allowedMessageRounds,
+        debug: {
+          authUserId: String(auth.userId),
+          invitationOwnerId: String(invitation.ownerId),
+
+          authUserEmail: authUser?.email || null,
+          ownerUserEmail: ownerUser?.email || null,
+
+          authAllowedMessageRounds:
+            authUser?.allowedMessageRounds || null,
+          authPlanLimitsAllowedMessageRounds:
+            authUser?.planLimits?.allowedMessageRounds || null,
+
+          ownerAllowedMessageRounds:
+            ownerUser?.allowedMessageRounds || null,
+          ownerPlanLimitsAllowedMessageRounds:
+            ownerUser?.planLimits?.allowedMessageRounds || null,
+
+          finalAllowedMessageRounds: allowedMessageRounds,
+        },
       },
       { status: 403 }
     );
