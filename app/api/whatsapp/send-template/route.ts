@@ -193,6 +193,37 @@ function normalizePhone(phoneRaw: any) {
   return phone;
 }
 
+function resolveWhatsappImageUrl(invitation: any): string {
+  const rawUrl =
+  invitation?.headerImageUrl ||
+  invitation?.previewImage ||
+  invitation?.previewImageUrl ||
+  invitation?.imageUrl ||
+  "";
+
+  if (!rawUrl || typeof rawUrl !== "string") return "";
+
+  const cleanUrl = rawUrl.trim().split("?")[0];
+
+  if (!cleanUrl.startsWith("https://")) return "";
+  if (cleanUrl.startsWith("data:image/")) return "";
+  if (cleanUrl.startsWith("blob:")) return "";
+
+  if (
+    cleanUrl.includes("res.cloudinary.com") &&
+    cleanUrl.includes("/image/upload/")
+  ) {
+    return (
+      cleanUrl.replace(
+        "/image/upload/",
+        "/image/upload/f_jpg,q_100,w_1600,c_limit/"
+      ) + `?wa=${Date.now()}`
+    );
+  }
+
+  return cleanUrl;
+}
+
 function buildGuestQuery({
   invitationId,
   type,
@@ -240,39 +271,40 @@ function buildPayloadTemplate({
   );
 
   const eventLocation = cleanAddress(invitation.location?.address);
+const headerImageUrl = resolveWhatsappImageUrl(invitation);
 
-  const basePayload: any = {
-    languageCode,
-    eventTitle: invitation.title || "",
-    eventDate,
-    eventLocation,
-    headerImageUrl: invitation.headerImageUrl || "",
-    rsvpLink: "{{rsvpLink}}",
-    name: "{{name}}",
-    tableName: "{{tableName}}",
-    navigationLink: "{{navigationLink}}",
-  };
+const basePayload: any = {
+  languageCode,
+  eventTitle: invitation.title || "",
+  eventDate,
+  eventLocation,
+  headerImageUrl,
+  rsvpLink: "{{rsvpLink}}",
+  name: "{{name}}",
+  tableName: "{{tableName}}",
+  navigationLink: "{{navigationLink}}",
+};
 
   if (
     templateName === "rsvp_invitation_media" ||
     templateName === "rsvp_reminder_invistimo"
   ) {
     basePayload.components = [
-      ...(invitation.headerImageUrl
-        ? [
-            {
-              type: "header",
-              parameters: [
-                {
-                  type: "image",
-                  image: {
-                    link: invitation.headerImageUrl,
-                  },
-                },
-              ],
+      ...(headerImageUrl
+  ? [
+      {
+        type: "header",
+        parameters: [
+          {
+            type: "image",
+            image: {
+              link: headerImageUrl,
             },
-          ]
-        : []),
+          },
+        ],
+      },
+    ]
+  : []),
       {
         type: "body",
         parameters: [

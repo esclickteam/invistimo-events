@@ -57,6 +57,32 @@ function isValidHttpsUrl(url: string): boolean {
   }
 }
 
+function resolveWhatsappImageUrlFromString(url: string): string {
+  const rawUrl = String(url || "").trim();
+
+  if (!rawUrl) return "";
+
+  const cleanUrl = rawUrl.split("?")[0];
+
+  if (!cleanUrl.startsWith("https://")) return "";
+  if (cleanUrl.startsWith("data:image/")) return "";
+  if (cleanUrl.startsWith("blob:")) return "";
+
+  if (
+    cleanUrl.includes("res.cloudinary.com") &&
+    cleanUrl.includes("/image/upload/")
+  ) {
+    return (
+      cleanUrl.replace(
+        "/image/upload/",
+        "/image/upload/f_jpg,q_100,w_1600,c_limit/"
+      ) + `?wa=${Date.now()}`
+    );
+  }
+
+  return cleanUrl;
+}
+
 function normalizePhoneIL(phone: string): string {
   const p = String(phone || "").replace(/[^\d]/g, "");
   if (!p) return "";
@@ -81,17 +107,25 @@ function extractInviteSuffixForButton(rsvpLink: string): string {
 
 function assertRequiredFields(input: SendRsvpTemplateMediaInput): void {
   if (!isNonEmptyString(input.to)) throw new Error("Missing field: to");
-  if (!isNonEmptyString(input.eventTitle))
+
+  if (!isNonEmptyString(input.eventTitle)) {
     throw new Error("Missing field: eventTitle");
-  if (!isNonEmptyString(input.rsvpLink))
+  }
+
+  if (!isNonEmptyString(input.rsvpLink)) {
     throw new Error("Missing field: rsvpLink");
-  if (!isNonEmptyString(input.headerImageUrl))
+  }
+
+  if (!isNonEmptyString(input.headerImageUrl)) {
     throw new Error("Missing field: headerImageUrl");
+  }
 }
 
 async function safeParseResponse(res: Response): Promise<any> {
   const text = await res.text().catch(() => "");
+
   if (!text) return {};
+
   try {
     return JSON.parse(text);
   } catch {
@@ -101,52 +135,31 @@ async function safeParseResponse(res: Response): Promise<any> {
 
 /* ================= MAIN ================= */
 
-function forceCloudinaryWhatsappQuality(url: string): string {
-  const clean = String(url || "").trim();
-
-  if (!clean.includes("res.cloudinary.com")) {
-    return clean;
-  }
-
-  let next = clean;
-
-  // מוחק טרנספורמציות דחיסה קיימות
-  next = next.replace(/\/q_[^,/]+\//g, "/");
-  next = next.replace(/\/f_[^,/]+\//g, "/");
-  next = next.replace(/\/w_\d+[^/]*\//g, "/");
-  next = next.replace(/\/h_\d+[^/]*\//g, "/");
-  next = next.replace(/\/c_[^/]+\//g, "/");
-
-  // מוסיף איכות מקסימלית
-  next = next.replace(
-    "/upload/",
-    "/upload/fl_attachment,q_100,f_jpg/"
-  );
-
-  return next;
-}
-
 export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
   assertRequiredFields(input);
 
   const apiKey = process.env.WHATSAPP_API_KEY;
+
   if (!isNonEmptyString(apiKey)) {
     throw new Error("Missing env var: WHATSAPP_API_KEY");
   }
 
   const to = normalizePhoneIL(input.to);
+
   if (!isNonEmptyString(to) || to.length < 10) {
     throw new Error(`Invalid phone number: ${input.to}`);
   }
 
-  const headerImageUrl = forceCloudinaryWhatsappQuality(
-  String(input.headerImageUrl ?? "").trim()
-);
+  const headerImageUrl = resolveWhatsappImageUrlFromString(
+    input.headerImageUrl
+  );
+
   if (!isValidHttpsUrl(headerImageUrl)) {
     throw new Error("Invalid headerImageUrl (must be https)");
   }
 
   const rsvpLink = String(input.rsvpLink ?? "").trim();
+
   if (!isValidHttpsUrl(rsvpLink)) {
     throw new Error("Invalid rsvpLink (must be https)");
   }
@@ -164,13 +177,25 @@ export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
     // Round 1 requires 3 body params in the approved template.
     // WhatsApp rejects empty text params, so we always provide fallbacks.
     bodyParameters = [
-      { type: "text", text: safeTemplateText(input.eventTitle, "—") },
-      { type: "text", text: safeTemplateText(input.eventDate, "תאריך יעודכן בהמשך") },
-      { type: "text", text: safeTemplateText(input.eventLocation, "מיקום יישלח בהמשך") },
+      {
+        type: "text",
+        text: safeTemplateText(input.eventTitle, "—"),
+      },
+      {
+        type: "text",
+        text: safeTemplateText(input.eventDate, "תאריך יעודכן בהמשך"),
+      },
+      {
+        type: "text",
+        text: safeTemplateText(input.eventLocation, "מיקום יישלח בהמשך"),
+      },
     ];
   } else if (templateName === ROUND2_TEMPLATE) {
     bodyParameters = [
-      { type: "text", text: safeTemplateText(input.eventTitle, "—") },
+      {
+        type: "text",
+        text: safeTemplateText(input.eventTitle, "—"),
+      },
     ];
   } else {
     throw new Error(`Unsupported templateName "${templateName}"`);
@@ -191,7 +216,9 @@ export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
           parameters: [
             {
               type: "image",
-              image: { link: headerImageUrl },
+              image: {
+                link: headerImageUrl,
+              },
             },
           ],
         },
