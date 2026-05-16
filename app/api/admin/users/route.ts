@@ -20,7 +20,7 @@ const PLAN_CONFIG: Record<
     label: string;
     guests: number;
     price: number;
-    allowedMessageRounds: 2;
+    allowedMessageRounds: 2 | 3;
     includeCalls: boolean;
     includeCreditGifts: boolean;
     includeDigitalSeating: boolean;
@@ -913,22 +913,25 @@ export async function POST(req: Request) {
 
     const finalCustomDesign = Boolean(addons?.design?.enabled);
 
-    const planLimits = {
-      maxGuests: recordsNum,
+   const planLimits = {
+  maxGuests: recordsNum,
 
-      /*
-        ✅ חדש:
-        לא מגבילים לפי כמות הודעות.
-        2 = כלול בחבילה
-        3 = פתיחה ידנית מהאדמין
-      */
-      allowedMessageRounds,
+  /*
+    ✅ חדש:
+    לא מגבילים לפי כמות הודעות.
+    2 = כלול בחבילה
+    3 = פתוח ללקוח אם נבחר בדרופדאון / או נפתח ידנית באדמין
+  */
+  allowedMessageRounds,
 
-      seatingEnabled: finalDigitalSeating,
-      remindersEnabled: true,
-      callsEnabled: finalIncludeCalls,
-    };
+  // נשארים רק לתאימות עם המודל/קוד ישן
+  smsEnabled: false,
+  smsLimit: 0,
 
+  seatingEnabled: finalDigitalSeating,
+  remindersEnabled: true,
+  callsEnabled: finalIncludeCalls,
+};
     const paymentStatus = billing?.paymentStatus || "paid";
     const hasPaid = paymentStatus === "paid";
 

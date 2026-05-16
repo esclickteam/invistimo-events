@@ -479,21 +479,17 @@ UserSchema.pre("validate", function () {
     doc.guests = doc.planLimits.maxGuests;
   }
 
-  if (!doc.allowedMessageRounds) {
-  doc.allowedMessageRounds = 2;
-}
+  const normalizedAllowedMessageRounds: 2 | 3 =
+  Number(doc.allowedMessageRounds || doc.planLimits?.allowedMessageRounds) === 3
+    ? 3
+    : 2;
 
-if (!doc.planLimits?.allowedMessageRounds) {
-  doc.planLimits = {
-    ...(doc.planLimits || {}),
-    allowedMessageRounds: doc.allowedMessageRounds || 2,
-  };
-}
+doc.allowedMessageRounds = normalizedAllowedMessageRounds;
 
-if (doc.planLimits?.allowedMessageRounds) {
-  doc.allowedMessageRounds =
-    Number(doc.planLimits.allowedMessageRounds) === 3 ? 3 : 2;
-}
+doc.planLimits = {
+  ...(doc.planLimits || {}),
+  allowedMessageRounds: normalizedAllowedMessageRounds,
+};
 
   if (doc.planLimits?.smsLimit && !doc.smsLimit) {
     doc.smsLimit = doc.planLimits.smsLimit;

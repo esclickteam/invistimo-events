@@ -296,11 +296,28 @@ if (shouldOpenRound3Permission) {
       .lean();
 
     if (!invitation) {
-      return NextResponse.json(
-        { success: false, error: "INVITATION_NOT_FOUND" },
-        { status: 404 }
-      );
-    }
+  if (shouldOpenRound3Permission) {
+    return NextResponse.json(
+      {
+        success: true,
+        invitation: null,
+        userUpdated: true,
+        message:
+          "ROUND_3_PERMISSION_OPENED_WITHOUT_INVITATION",
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      }
+    );
+  }
+
+  return NextResponse.json(
+    { success: false, error: "INVITATION_NOT_FOUND" },
+    { status: 404 }
+  );
+}
 
     let updateDebug: any = null;
 

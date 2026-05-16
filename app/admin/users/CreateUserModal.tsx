@@ -11,7 +11,7 @@ type Props = {
   onClose: () => void;
 };
 
-/* כמה סבבים כלולים / נפתחים ידנית */
+/* כמה סבבי הודעות פתוחים ללקוח בחבילה */
 type AllowedMessageRounds = 2 | 3;
 
 /* איזה אפסיילים כלולים בכל חבילה */
@@ -110,11 +110,11 @@ export default function CreateUserModal({ onClose }: Props) {
               records,
 
               /*
-                ✅ חדש:
-                המערכת לא עובדת לפי כמות הודעות,
-                אלא לפי כמה סבבי הודעות פתוחים ללקוח.
-                2 = כלול בחבילה
-                3 = פתיחה ידנית מהאדמין
+                ✅ חשוב:
+                המערכת לא עובדת לפי כמות הודעות SMS,
+                אלא לפי כמות סבבי הודעות פתוחים ללקוח.
+                2 = כלול כברירת מחדל
+                3 = פתוח ללקוח אם נבחר בדרופדאון החבילה
               */
               allowedMessageRounds,
             },
@@ -293,7 +293,7 @@ export default function CreateUserModal({ onClose }: Props) {
                     מגבלות מערכת
                   </h3>
                   <p className="text-xs text-[#8b7b68] mt-1">
-                    הגדרת כמות רשומות וסבבי הודעות פתוחים ללקוח
+                    הגדרת כמות רשומות וכמות סבבי הודעות שפתוחים ללקוח
                   </p>
                 </div>
 
@@ -333,20 +333,19 @@ export default function CreateUserModal({ onClose }: Props) {
                       className="w-full h-14 rounded-2xl border border-[#eadfce] bg-white px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
                     >
                       <option value={2}>2 סבבים — כלול בחבילה</option>
-                      <option value={3}>
-                        3 סבבים — פתיחה ידנית מהאדמין
-                      </option>
+                      <option value={3}>3 סבבים — פתוח בחבילה</option>
                     </select>
 
                     <p className="text-xs text-[#8b7b68]">
-                      ברירת המחדל היא 2 סבבים. סבב שלישי נפתח רק לפי החלטת אדמין.
+                      ברירת המחדל היא 2 סבבים. בחירה ב־3 תפתח ללקוח גם את
+                      הסבב השלישי.
                     </p>
                   </label>
                 </div>
 
                 <div className="rounded-2xl border border-[#eadfce] bg-[#fff8ed] px-4 py-3 text-sm text-[#7a5a2f]">
-                  שימי לב: המערכת לא מגבילה לפי כמות הודעות SMS, אלא לפי הרשאה
-                  לפתיחת סבבי הודעות במערכת.
+                  שימי לב: המערכת לא מגבילה לפי כמות הודעות SMS, אלא לפי מספר
+                  סבבי ההודעות שפתוחים ללקוח בחבילה.
                 </div>
               </section>
 
