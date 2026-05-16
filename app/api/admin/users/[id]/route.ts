@@ -60,6 +60,10 @@ function toNumberOrUndefined(value: any) {
   return Number.isFinite(num) ? num : undefined;
 }
 
+function normalizeAllowedMessageRounds(value: any): 2 | 3 {
+  return Number(value) === 3 ? 3 : 2;
+}
+
 /* =========================================================
    GET – SINGLE USER
 ========================================================= */
@@ -129,7 +133,7 @@ export async function GET(
 /* =========================================================
    PATCH – UPDATE USER / UPGRADE USER
    חשוב:
-   לא נוגעים בחבילה / רשומות / SMS אם הם לא נשלחו מהקליינט.
+   לא נוגעים בחבילה / רשומות / SMS / סבבים אם הם לא נשלחו מהקליינט.
 ========================================================= */
 export async function PATCH(
   req: NextRequest,
@@ -178,6 +182,27 @@ export async function PATCH(
         ? toNumberOrUndefined(body.smsLimit ?? body.maxMessages)
         : undefined;
 
+    /*
+      ✅ חדש וחשוב:
+      סבבי הודעות לפי מה שהאדמין בוחר.
+      תומך גם:
+      body.allowedMessageRounds
+      וגם:
+      body.planLimits.allowedMessageRounds
+      וגם:
+      body.limits.allowedMessageRounds
+    */
+    const nextAllowedMessageRounds =
+      hasField(body, "allowedMessageRounds") ||
+      hasField(body, "planLimits") ||
+      hasField(body, "limits")
+        ? normalizeAllowedMessageRounds(
+            body.allowedMessageRounds ??
+              body.planLimits?.allowedMessageRounds ??
+              body.limits?.allowedMessageRounds
+          )
+        : undefined;
+
     const nextIncludeCalls = hasField(body, "includeCalls")
       ? Boolean(body.includeCalls)
       : undefined;
@@ -224,6 +249,11 @@ export async function PATCH(
       planLimitsPatch["planLimits.maxGuests"] = nextGuests;
     }
 
+    if (nextAllowedMessageRounds !== undefined) {
+      planLimitsPatch["planLimits.allowedMessageRounds"] =
+        nextAllowedMessageRounds;
+    }
+
     if (nextSmsLimit !== undefined) {
       planLimitsPatch["planLimits.smsEnabled"] = true;
       planLimitsPatch["planLimits.smsLimit"] = nextSmsLimit;
@@ -241,6 +271,7 @@ export async function PATCH(
     if (
       nextGuests !== undefined ||
       nextSmsLimit !== undefined ||
+      nextAllowedMessageRounds !== undefined ||
       nextIncludeCalls !== undefined ||
       nextIncludeDigitalSeating !== undefined
     ) {
@@ -264,6 +295,15 @@ export async function PATCH(
 
       guests: nextGuests,
       maxGuests: nextGuests,
+
+      /*
+        ✅ חדש:
+        שדה ישיר על המשתמש.
+        אם האדמין בחר 3 — יישמר 3.
+        אם האדמין בחר 2 — יישמר 2.
+        אם לא נשלח בכלל — לא נוגעים בערך הקיים.
+      */
+      allowedMessageRounds: nextAllowedMessageRounds,
 
       smsLimit: nextSmsLimit,
       maxMessages: nextSmsLimit,
@@ -404,6 +444,17 @@ export async function PATCH(
             currentUser.maxGuests || currentUser.guests || 0
           ),
           newGuests: Number(updatedUser.maxGuests || updatedUser.guests || 0),
+
+          previousAllowedMessageRounds: Number(
+            currentUser.allowedMessageRounds ||
+              currentUser.planLimits?.allowedMessageRounds ||
+              2
+          ),
+          newAllowedMessageRounds: Number(
+            updatedUser.allowedMessageRounds ||
+              updatedUser.planLimits?.allowedMessageRounds ||
+              2
+          ),
 
           previousSmsLimit: Number(
             currentUser.smsLimit || currentUser.maxMessages || 0
