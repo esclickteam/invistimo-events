@@ -17,28 +17,42 @@ export const metadata = {
 
   icons: {
     icon: [
-      { url: "/favicon.ico" },
       {
-        url: "/favicon-16x16-v3.png",
+        url: "/favicon-v4.ico",
+        sizes: "any",
+      },
+      {
+        url: "/favicon-16x16-v4.png",
         sizes: "16x16",
         type: "image/png",
       },
       {
-        url: "/favicon-32x32-v3.png",
+        url: "/favicon-32x32-v4.png",
         sizes: "32x32",
         type: "image/png",
       },
       {
-        url: "/favicon-96x96-v3.png",
-        sizes: "96x96",
+        url: "/android-chrome-192x192-v4.png",
+        sizes: "192x192",
+        type: "image/png",
+      },
+      {
+        url: "/android-chrome-512x512-v4.png",
+        sizes: "512x512",
         type: "image/png",
       },
     ],
-    apple: "/apple-touch-icon.png",
-    shortcut: "/favicon.ico",
+    apple: [
+      {
+        url: "/apple-touch-icon-v4.png",
+        sizes: "180x180",
+        type: "image/png",
+      },
+    ],
+    shortcut: ["/favicon-v4.ico"],
   },
 
-  manifest: "/site.webmanifest",
+  manifest: "/site-v4.webmanifest",
 };
 
 /* ======================================================
