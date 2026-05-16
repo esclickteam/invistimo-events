@@ -10,6 +10,7 @@ import Invitation from "@/models/Invitation";
 import InvitationGuest from "@/models/InvitationGuest";
 import ScheduledMessage from "@/models/ScheduledMessage";
 import WhatsappQueue from "@/models/WhatsappQueue";
+import User from "@/models/User";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -118,6 +119,10 @@ function normalizeRound(value: any, templateName?: TemplateName): RoundNumber {
   }
 
   return 1;
+}
+
+function normalizeAllowedMessageRounds(value: any): 2 | 3 {
+  return Number(value) === 3 ? 3 : 2;
 }
 
 function getTypeByTemplate(templateName: TemplateName): MessageType {
@@ -372,6 +377,41 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    /* ======================================================
+       ROUND PERMISSION
+       2 סבבים = סבב 1 + 2 בלבד
+       3 סבבים = סבב 1 + 2 + 3
+
+       חשוב:
+       הבדיקה כאן חוסמת גם תזמון וגם שליחה מיידית.
+    ====================================================== */
+
+    if (type === "rsvp" && round === 3) {
+      const permissionUser = await User.findById(invitation.ownerId || auth.userId)
+        .select("allowedMessageRounds planLimits")
+        .lean();
+
+      const allowedMessageRounds = normalizeAllowedMessageRounds(
+        permissionUser?.allowedMessageRounds ||
+          permissionUser?.planLimits?.allowedMessageRounds ||
+          2
+      );
+
+      if (allowedMessageRounds < 3) {
+        return NextResponse.json(
+          {
+            success: false,
+            blocked: true,
+            error: "ROUND_3_NOT_ALLOWED",
+            message: "סבב 3 לא פתוח בחבילה של הלקוח.",
+            round,
+            allowedMessageRounds,
+          },
+          { status: 403 }
+        );
+      }
+    }
+
     const audience = Array.isArray(body.audience)
       ? body.audience.filter((id) => mongoose.Types.ObjectId.isValid(id))
       : Array.isArray(body.guestIds)
@@ -387,8 +427,16 @@ export async function POST(req: NextRequest) {
     ====================================================== */
 
     if (type === "rsvp") {
+      const roundKey = `round${round}`;
+      const roundData = invitation.rsvpRoundSent?.[roundKey];
+
       const alreadySent = Boolean(
-        invitation.rsvpRoundSent?.[`round${round}`]
+        roundData?.sentAt ||
+          roundData?.sentAtSms ||
+          roundData?.sentAtWhatsapp ||
+          roundData?.smsSentAt ||
+          roundData?.whatsappSentAt ||
+          invitation.adminMessageRoundLocks?.[`rsvp_${round}`]
       );
 
       if (alreadySent) {

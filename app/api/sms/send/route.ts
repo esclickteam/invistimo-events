@@ -57,6 +57,10 @@ function normalizeRound(value: any): RoundNumber {
   return 1;
 }
 
+function normalizeAllowedMessageRounds(value: any): 2 | 3 {
+  return Number(value) === 3 ? 3 : 2;
+}
+
 function normalizeTemplateKey(value: any): MessageTemplateKey {
   if (
     value === "rsvp" ||
@@ -236,8 +240,6 @@ const MESSAGE_TEMPLATES: Record<
 
 /* ======================================================
    REMINDER FALLBACK TEMPLATES
-   מי שיש לו שולחן יקבל תזכורת עם שולחן.
-   מי שאין לו שולחן יקבל תזכורת רגילה בלי שורת שולחן.
 ====================================================== */
 
 const REMINDER_WITH_TABLE_SERVER_TEMPLATE =
@@ -399,6 +401,44 @@ export async function POST(req: Request) {
 
     const inv: any = invitation;
 
+    /* ======================================================
+       ROUND PERMISSION
+       2 סבבים = סבב 1 + 2 בלבד
+       3 סבבים = סבב 1 + 2 + 3
+
+       חשוב:
+       הבדיקה כאן חוסמת גם שליחה מיידית וגם תזמון,
+       כי היא מתבצעת לפני בלוק scheduling.
+    ====================================================== */
+
+    if (templateKey === "rsvp" && round === 3) {
+      const permissionUserId = inv.ownerId || user._id;
+
+      const permissionUser = await User.findById(permissionUserId)
+        .select("allowedMessageRounds planLimits")
+        .lean();
+
+      const allowedMessageRounds = normalizeAllowedMessageRounds(
+        permissionUser?.allowedMessageRounds ||
+          permissionUser?.planLimits?.allowedMessageRounds ||
+          2
+      );
+
+      if (allowedMessageRounds < 3) {
+        return NextResponse.json(
+          {
+            success: false,
+            blocked: true,
+            error: "ROUND_3_NOT_ALLOWED",
+            message: "סבב 3 לא פתוח בחבילה של הלקוח.",
+            round,
+            allowedMessageRounds,
+          },
+          { status: 403 }
+        );
+      }
+    }
+
     const invitationTitle = inv.title?.trim() || "האירוע שלנו";
 
     const eventDateText =
@@ -424,7 +464,16 @@ export async function POST(req: Request) {
 
     if (templateKey === "rsvp") {
       const roundKey = `round${round}`;
-      const alreadySent = Boolean(inv.rsvpRoundSent?.[roundKey]);
+      const roundData = inv.rsvpRoundSent?.[roundKey];
+
+      const alreadySent = Boolean(
+        roundData?.sentAt ||
+          roundData?.sentAtSms ||
+          roundData?.sentAtWhatsapp ||
+          roundData?.smsSentAt ||
+          roundData?.whatsappSentAt ||
+          inv.adminMessageRoundLocks?.[`rsvp_${round}`]
+      );
 
       if (alreadySent) {
         return NextResponse.json(
@@ -595,6 +644,7 @@ export async function POST(req: Request) {
 
       // בתזמון לא חוסמים לפי כמות הקהל הנוכחית.
       // הקהל האמיתי והחיוב בפועל צריכים להיבדק בזמן השליחה המתוזמנת.
+      void totalMessagesToCharge;
 
       /**
        * שומרים תבנית עם placeholders.
@@ -853,36 +903,35 @@ export async function POST(req: Request) {
     /* ================= MARK SENT ONLY AFTER ACTUAL SEND ================= */
 
     if (sent > 0) {
-  if (templateKey === "rsvp") {
-    const scheduledField = getRsvpScheduledField(round);
-    const now = new Date();
+      if (templateKey === "rsvp") {
+        const scheduledField = getRsvpScheduledField(round);
+        const now = new Date();
 
-    const markResult = await Invitation.collection.updateOne(
-      { _id: inv._id },
-      {
-        
-        $set: {
-          [`rsvpRoundSent.round${round}`]: {
-            channel: "sms",
-            sentAt: now,
-            sentCount: sent,
-          },
-          updatedAt: now,
-        },
-        $unset: {
-          [scheduledField]: "",
-        },
+        const markResult = await Invitation.collection.updateOne(
+          { _id: inv._id },
+          {
+            $set: {
+              [`rsvpRoundSent.round${round}`]: {
+                channel: "sms",
+                sentAt: now,
+                sentCount: sent,
+              },
+              updatedAt: now,
+            },
+            $unset: {
+              [scheduledField]: "",
+            },
+          }
+        );
+
+        console.log("✅ RSVP SMS ROUND MARKED SENT:", {
+          invitationId: String(inv._id),
+          round,
+          sent,
+          matchedCount: markResult.matchedCount,
+          modifiedCount: markResult.modifiedCount,
+        });
       }
-    );
-
-    console.log("✅ RSVP SMS ROUND MARKED SENT:", {
-      invitationId: String(inv._id),
-      round,
-      sent,
-      matchedCount: markResult.matchedCount,
-      modifiedCount: markResult.modifiedCount,
-    });
-  }
 
       if (templateKey === "table" || templateKey === "reminder") {
         await Invitation.updateOne(
