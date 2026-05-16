@@ -266,8 +266,10 @@ function buildPayloadTemplate({
                 {
                   type: "image",
                   image: {
-                    link: invitation.headerImageUrl,
-                  },
+  link: `${invitation.headerImageUrl}${
+    invitation.headerImageUrl.includes("?") ? "&" : "?"
+  }v=${Date.now()}&quality=100`,
+},
                 },
               ],
             },
