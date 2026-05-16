@@ -18,6 +18,7 @@ function extractUserIdFromPayload(payload: string | JwtPayload): string | null {
 
   return (
     (payload.userId as string) ||
+    (payload._id as string) ||
     (payload.id as string) ||
     (payload.sub as string) ||
     null
@@ -26,7 +27,7 @@ function extractUserIdFromPayload(payload: string | JwtPayload): string | null {
 
 /* =====================================================
    חילוץ userId מתוך getUserIdFromRequest
-   אצלך הפונקציה מחזירה AuthResult ולא string
+   אצלך הפונקציה יכולה להחזיר string או AuthResult
 ===================================================== */
 function extractUserIdFromAuthResult(authResult: any): string | null {
   if (!authResult) return null;
@@ -37,17 +38,51 @@ function extractUserIdFromAuthResult(authResult: any): string | null {
 
   return (
     authResult.userId ||
+    authResult._id ||
     authResult.id ||
+    authResult.sub ||
     authResult.user?._id ||
     authResult.user?.id ||
+    authResult.user?.userId ||
     null
   );
 }
 
 /* =====================================================
+   חילוץ userId ישירות מהעוגיות כ־fallback
+===================================================== */
+function extractUserIdFromCookies(req: NextRequest): string | null {
+  const jwtSecret = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET || "";
+
+  if (!jwtSecret) return null;
+
+  const possibleTokens = [
+    req.cookies.get("authToken")?.value,
+    req.cookies.get("token")?.value,
+    req.cookies.get("adminAuthToken")?.value,
+    req.cookies.get("adminToken")?.value,
+  ].filter(Boolean) as string[];
+
+  for (const token of possibleTokens) {
+    try {
+      const decoded = jwt.verify(token, jwtSecret);
+      const userId = extractUserIdFromPayload(decoded);
+
+      if (userId && mongoose.Types.ObjectId.isValid(userId)) {
+        return userId;
+      }
+    } catch {
+      // ממשיכים לטוקן הבא
+    }
+  }
+
+  return null;
+}
+
+/* =====================================================
    בדיקת הרשאת אדמין:
-   1. משתמש רגיל שהוא admin
-   2. או אדמין שנכנס בהתחזות ויש לו adminToken / adminAuthToken
+   1. המשתמש המחובר הוא admin
+   2. או אדמין שנכנס בהתחזות ויש לו adminToken/adminAuthToken
 ===================================================== */
 async function resolveAdminAccess(req: NextRequest, currentUserId: string) {
   const currentUser = await User.findById(currentUserId).lean<any>();
@@ -60,8 +95,7 @@ async function resolveAdminAccess(req: NextRequest, currentUserId: string) {
     };
   }
 
-  const jwtSecret =
-    process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET || "";
+  const jwtSecret = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET || "";
 
   if (!jwtSecret) {
     return {
@@ -114,7 +148,9 @@ export async function DELETE(req: NextRequest) {
        1. בדיקת התחברות
     ===================================================== */
     const authResult = await getUserIdFromRequest(req);
-    const userId = extractUserIdFromAuthResult(authResult);
+
+    const userId =
+      extractUserIdFromAuthResult(authResult) || extractUserIdFromCookies(req);
 
     if (!userId) {
       return NextResponse.json(
@@ -154,8 +190,10 @@ export async function DELETE(req: NextRequest) {
     /* =====================================================
        3. קבלת invitationId מהפרונט
     ===================================================== */
-    const body = await req.json();
-    const { invitationId } = body;
+    const body = await req.json().catch(() => ({}));
+
+    const invitationId =
+      typeof body?.invitationId === "string" ? body.invitationId : "";
 
     if (!invitationId) {
       return NextResponse.json(
@@ -179,9 +217,14 @@ export async function DELETE(req: NextRequest) {
 
     /* =====================================================
        4. מחיקת כל המוזמנים של ההזמנה בלבד
+       חשוב: מוחקים גם אם invitationId נשמר כסטרינג וגם אם כ־ObjectId
     ===================================================== */
+    const invitationObjectId = new mongoose.Types.ObjectId(invitationId);
+
     const result = await InvitationGuest.deleteMany({
-      invitationId: new mongoose.Types.ObjectId(invitationId),
+      invitationId: {
+        $in: [invitationObjectId, invitationId],
+      },
     });
 
     return NextResponse.json({
