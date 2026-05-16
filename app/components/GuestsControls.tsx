@@ -28,9 +28,6 @@ type Props = {
 
   onAddGuest: () => void;
   disabledAddGuest?: boolean;
-
-  isAdmin?: boolean;
-  onDeleteAllGuests?: () => void;
 };
 
 export default function GuestsControls({
@@ -47,8 +44,6 @@ export default function GuestsControls({
   onExportExcel,
   onAddGuest,
   disabledAddGuest = false,
-  isAdmin = false,
-  onDeleteAllGuests,
 }: Props) {
   const filters: {
     key: QuickFilter;
@@ -151,32 +146,6 @@ export default function GuestsControls({
             >
               ייצוא לאקסל
             </button>
-
-            {isAdmin && onDeleteAllGuests && (
-              <button
-                type="button"
-                onClick={onDeleteAllGuests}
-                className="
-                  h-[42px]
-                  w-fit
-                  rounded-full
-                  border
-                  border-red-200
-                  bg-red-50
-                  px-5
-                  text-sm
-                  font-black
-                  text-red-700
-                  shadow-sm
-                  transition
-                  hover:bg-red-100
-                  hover:border-red-300
-                  hover:shadow-md
-                "
-              >
-                🗑️ מחיקת כל המוזמנים
-              </button>
-            )}
           </div>
         </div>
 

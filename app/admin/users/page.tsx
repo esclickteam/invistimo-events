@@ -1096,6 +1096,8 @@ function EditUserModal({
 }) {
   const [saving, setSaving] = useState(false);
 
+  const [deletingGuests, setDeletingGuests] = useState(false);
+
   const [form, setForm] = useState<EditFormState>({
     name: user.name || "",
     email: user.email || "",
@@ -1121,7 +1123,7 @@ function EditUserModal({
         }),
       });
 
-      await fetch(`/api/admin/users/${user._id}/assignees`, {
+       await fetch(`/api/admin/users/${user._id}/assignees`, {
         method: "PATCH",
         credentials: "include",
         headers: {
@@ -1141,6 +1143,49 @@ function EditUserModal({
       setSaving(false);
     }
   }
+
+  async function deleteAllGuestsForUser() {
+  const confirmed = confirm(
+    `האם למחוק את כל המוזמנים של ${user.name || user.email}? פעולה זו אינה ניתנת לשחזור.`
+  );
+
+  if (!confirmed) return;
+
+  const secondConfirm = confirm(
+    "בטוחה? כל רשימת המוזמנים של המשתמש תימחק לצמיתות."
+  );
+
+  if (!secondConfirm) return;
+
+  try {
+    setDeletingGuests(true);
+
+    const res = await fetch(`/api/admin/users/${user._id}/guests/delete-all`, {
+      method: "DELETE",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        invitationId: user.invitationId,
+      }),
+    });
+
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok || data?.success === false) {
+      alert(data?.message || "מחיקת המוזמנים נכשלה");
+      return;
+    }
+
+    alert(`נמחקו ${data?.deletedCount || 0} מוזמנים בהצלחה`);
+  } catch (err) {
+    console.error(err);
+    alert("אירעה שגיאה במחיקת המוזמנים");
+  } finally {
+    setDeletingGuests(false);
+  }
+}
 
   return (
     <ModalShell
@@ -1213,6 +1258,60 @@ function EditUserModal({
           user={user}
           onChanged={onRoundsChanged}
         />
+
+        <section
+  className="
+    rounded-[26px]
+    border border-red-200
+    bg-red-50
+    p-5
+  "
+>
+  <div className="mb-4 flex items-center gap-2">
+    <Trash2 size={20} className="text-red-600" />
+
+    <h3 className="text-lg font-black text-red-700">
+      מחיקת מוזמנים
+    </h3>
+  </div>
+
+  <p className="text-sm font-bold leading-7 text-red-700">
+    פעולה זו תמחק את כל המוזמנים של המשתמש הזה בלבד. הפעולה לא מוחקת את המשתמש,
+    לא מוחקת את האירוע ולא ניתנת לשחזור.
+  </p>
+
+  <button
+    type="button"
+    onClick={deleteAllGuestsForUser}
+    disabled={deletingGuests}
+    className="
+      mt-4
+      flex h-11 items-center justify-center gap-2
+      rounded-2xl
+      bg-red-600
+      px-5
+      text-sm font-black
+      text-white
+      shadow-sm
+      transition
+      hover:bg-red-700
+      disabled:cursor-not-allowed
+      disabled:opacity-50
+    "
+  >
+    {deletingGuests ? (
+      <>
+        <Loader2 className="animate-spin" size={17} />
+        מוחק מוזמנים...
+      </>
+    ) : (
+      <>
+        <Trash2 size={17} />
+        מחיקת כל המוזמנים
+      </>
+    )}
+  </button>
+</section>
 
         <section className="grid grid-cols-1 gap-5 md:grid-cols-2">
           <InputField
