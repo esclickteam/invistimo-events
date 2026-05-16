@@ -138,12 +138,13 @@ function firstValue(obj: any, keys: string[]) {
   return null;
 }
 
-function buildMessageRounds(invitation: any) {
+function buildMessageRounds(invitation: any, allowedMessageRounds: 2 | 3 = 2) {
   const locks = invitation?.adminMessageRoundLocks || {};
+  const rsvpRounds = allowedMessageRounds === 3 ? [1, 2, 3] : [1, 2];
 
   if (!invitation) {
     return {
-      rsvp: [1, 2, 3].map((round) => ({
+      rsvp: rsvpRounds.map((round) => ({
         key: `rsvp_${round}`,
         label: `אישורי הגעה סבב ${round}`,
         done: false,
@@ -177,7 +178,7 @@ function buildMessageRounds(invitation: any) {
   }
 
   return {
-    rsvp: [1, 2, 3].map((round) => {
+    rsvp: rsvpRounds.map((round) => {
       const roundData = invitation?.rsvpRoundSent?.[`round${round}`];
 
       const sentAt =
@@ -198,7 +199,7 @@ function buildMessageRounds(invitation: any) {
         key: `rsvp_${round}`,
         label: `אישורי הגעה סבב ${round}`,
 
-        done: Boolean(roundData),
+        done: Boolean(sentAt || scheduledAt || locks?.[`rsvp_${round}`]),
         sentAt,
         scheduledAt,
 
@@ -679,7 +680,7 @@ export async function GET(req: Request) {
 
           eventDate: u.eventDate || invitation?.eventDate || null,
 
-          messageRounds: buildMessageRounds(invitation),
+          messageRounds: buildMessageRounds(invitation, allowedMessageRounds),
         };
       })
       .sort((a: any, b: any) => {
