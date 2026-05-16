@@ -101,6 +101,31 @@ async function safeParseResponse(res: Response): Promise<any> {
 
 /* ================= MAIN ================= */
 
+function forceCloudinaryWhatsappQuality(url: string): string {
+  const clean = String(url || "").trim();
+
+  if (!clean.includes("res.cloudinary.com")) {
+    return clean;
+  }
+
+  let next = clean;
+
+  // מוחק טרנספורמציות דחיסה קיימות
+  next = next.replace(/\/q_[^,/]+\//g, "/");
+  next = next.replace(/\/f_[^,/]+\//g, "/");
+  next = next.replace(/\/w_\d+[^/]*\//g, "/");
+  next = next.replace(/\/h_\d+[^/]*\//g, "/");
+  next = next.replace(/\/c_[^/]+\//g, "/");
+
+  // מוסיף איכות מקסימלית
+  next = next.replace(
+    "/upload/",
+    "/upload/fl_attachment,q_100,f_jpg/"
+  );
+
+  return next;
+}
+
 export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
   assertRequiredFields(input);
 
@@ -114,7 +139,9 @@ export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
     throw new Error(`Invalid phone number: ${input.to}`);
   }
 
-  const headerImageUrl = String(input.headerImageUrl ?? "").trim();
+  const headerImageUrl = forceCloudinaryWhatsappQuality(
+  String(input.headerImageUrl ?? "").trim()
+);
   if (!isValidHttpsUrl(headerImageUrl)) {
     throw new Error("Invalid headerImageUrl (must be https)");
   }
