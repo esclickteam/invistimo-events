@@ -24,41 +24,41 @@ export const metadata = {
   icons: {
     icon: [
       {
-        url: "/favicon-v4.ico",
+        url: "/favicon-v5.ico",
         sizes: "any",
       },
       {
-        url: "/favicon-16x16-v4.png",
+        url: "/favicon-16x16-v5.png",
         sizes: "16x16",
         type: "image/png",
       },
       {
-        url: "/favicon-32x32-v4.png",
+        url: "/favicon-32x32-v5.png",
         sizes: "32x32",
         type: "image/png",
       },
       {
-        url: "/android-chrome-192x192-v4.png",
+        url: "/android-chrome-192x192-v5.png",
         sizes: "192x192",
         type: "image/png",
       },
       {
-        url: "/android-chrome-512x512-v4.png",
+        url: "/android-chrome-512x512-v5.png",
         sizes: "512x512",
         type: "image/png",
       },
     ],
     apple: [
       {
-        url: "/apple-touch-icon-v4.png",
+        url: "/apple-touch-icon-v5.png",
         sizes: "180x180",
         type: "image/png",
       },
     ],
-    shortcut: ["/favicon-v4.ico"],
+    shortcut: ["/favicon-v5.ico"],
   },
 
-  manifest: "/site-v4.webmanifest",
+  manifest: "/site-v5.webmanifest",
 };
 
 /* ======================================================
