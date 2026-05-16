@@ -304,7 +304,9 @@ export async function POST(req: Request) {
       );
     }
 
-    const usesNewLogic = user.isActive === false;
+    const usesNewLogic =
+  Boolean(user.allowedMessageRounds) ||
+  Boolean(user.planLimits?.allowedMessageRounds);
 
     /* ================= BALANCE ================= */
 
@@ -526,11 +528,14 @@ export async function POST(req: Request) {
     }
 
     if (!usesNewLogic && remainingMessages <= 0) {
-      return NextResponse.json(
-        { success: false, error: "SMS_LIMIT_REACHED" },
-        { status: 403 }
-      );
-    }
+  return NextResponse.json(
+    {
+      success: false,
+      error: "מכסת הודעות ה-SMS נוצלה",
+    },
+    { status: 403 }
+  );
+}
 
     /* ================= LOCATION / NAVIGATION ================= */
 
