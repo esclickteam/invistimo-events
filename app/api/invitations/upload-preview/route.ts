@@ -24,6 +24,7 @@ export async function POST(req: Request) {
     await db();
 
     const auth = await getUserIdFromRequest(req);
+
     if (!auth?.userId) {
       return NextResponse.json(
         { success: false, error: "UNAUTHORIZED" },
@@ -51,46 +52,73 @@ export async function POST(req: Request) {
       );
     }
 
-    /* =========================
-       Upload to Cloudinary
-       חשוב:
-       - URL חדש בכל שמירה
-       - בלי transformation
-       - בלי המרה ל-JPG
-    ========================= */
-    const publicId = `invistimo/invitations/${invitationId}_${Date.now()}`;
-
+    /*
+      חשוב:
+      לא עושים resize ל-400/720.
+      מעלים את התמונה כמו שהיא באיכות גבוהה.
+      Cloudinary ישמור את המקור, וה-URL שישלח לוואטסאפ יהיה איכותי.
+    */
     const upload = await cloudinary.uploader.upload(base64Image, {
-      public_id: publicId,
+      folder: "invistimo/invitations",
       resource_type: "image",
-      overwrite: false,
-      invalidate: true,
+      overwrite: true,
+      quality: "auto:best",
+      fetch_format: "auto",
+      transformation: [
+        {
+          flags: "preserve_transparency",
+        },
+      ],
     });
 
     const imageUrl = upload.secure_url;
 
-    /* =========================
-       Save URL in Invitation
-    ========================= */
-    await Invitation.updateOne(
-      { _id: invitationId },
+    /*
+      חשוב מאוד:
+      שומרים גם previewImageUrl וגם headerImageUrl.
+      WhatsApp משתמש ב-headerImageUrl.
+      האתר והתצוגה משתמשים ב-previewImageUrl.
+      previewImage נשאר רק לתאימות אחורה אם יש מקומות ישנים שמשתמשים בו.
+    */
+    const updated = await Invitation.findOneAndUpdate(
+      {
+        _id: invitationId,
+        ownerId: auth.userId,
+      },
       {
         $set: {
-          previewImage: imageUrl,
+          previewImageUrl: imageUrl,
           headerImageUrl: imageUrl,
+          previewImage: imageUrl,
+          imageUrl,
           updatedAt: new Date(),
         },
+      },
+      {
+        new: true,
       }
     );
+
+    if (!updated) {
+      return NextResponse.json(
+        { success: false, error: "INVITATION_NOT_FOUND" },
+        { status: 404 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
       imageUrl,
-      previewImage: imageUrl,
+      previewImageUrl: imageUrl,
       headerImageUrl: imageUrl,
+      width: upload.width,
+      height: upload.height,
+      format: upload.format,
+      bytes: upload.bytes,
     });
   } catch (err) {
     console.error("❌ upload-preview error:", err);
+
     return NextResponse.json(
       { success: false, error: "SERVER_ERROR" },
       { status: 500 }

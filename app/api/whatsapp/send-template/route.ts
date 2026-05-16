@@ -225,6 +225,13 @@ function buildGuestQuery({
   return { invitationId };
 }
 
+/* =========================================================
+   PAYLOAD TEMPLATE
+   חשוב:
+   כאן תיקנו את התמונה שנשלחת לוואטסאפ.
+   לא משתמשים רק ב-headerImageUrl.
+========================================================= */
+
 function buildPayloadTemplate({
   templateName,
   languageCode,
@@ -241,12 +248,19 @@ function buildPayloadTemplate({
 
   const eventLocation = cleanAddress(invitation.location?.address);
 
+  const finalImageUrl =
+    invitation.headerImageUrl ||
+    invitation.previewImageUrl ||
+    invitation.imageUrl ||
+    invitation.canvasImageUrl ||
+    "";
+
   const basePayload: any = {
     languageCode,
     eventTitle: invitation.title || "",
     eventDate,
     eventLocation,
-    headerImageUrl: invitation.headerImageUrl || "",
+    headerImageUrl: finalImageUrl,
     rsvpLink: "{{rsvpLink}}",
     name: "{{name}}",
     tableName: "{{tableName}}",
@@ -258,7 +272,7 @@ function buildPayloadTemplate({
     templateName === "rsvp_reminder_invistimo"
   ) {
     basePayload.components = [
-      ...(invitation.headerImageUrl
+      ...(finalImageUrl
         ? [
             {
               type: "header",
@@ -266,7 +280,7 @@ function buildPayloadTemplate({
                 {
                   type: "image",
                   image: {
-                    link: invitation.headerImageUrl,
+                    link: finalImageUrl,
                   },
                 },
               ],
@@ -377,6 +391,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    /* ======================================================
+       ROUND PERMISSION
+       2 סבבים = סבב 1 + 2 בלבד
+       3 סבבים = סבב 1 + 2 + 3
+
+       חשוב:
+       הבדיקה כאן חוסמת גם תזמון וגם שליחה מיידית.
+    ====================================================== */
+
     if (type === "rsvp" && round === 3) {
       const authUser = await User.findById(auth.userId)
         .select("allowedMessageRounds planLimits email name role")
@@ -406,14 +429,18 @@ export async function POST(req: NextRequest) {
       console.log("WHATSAPP ROUND 3 PERMISSION CHECK:", {
         authUserId: String(auth.userId),
         invitationOwnerId: String(invitation.ownerId),
+
         authUserEmail: authUser?.email || null,
         ownerUserEmail: ownerUser?.email || null,
+
         authAllowedMessageRounds: authUser?.allowedMessageRounds || null,
         authPlanLimitsAllowedMessageRounds:
           authUser?.planLimits?.allowedMessageRounds || null,
+
         ownerAllowedMessageRounds: ownerUser?.allowedMessageRounds || null,
         ownerPlanLimitsAllowedMessageRounds:
           ownerUser?.planLimits?.allowedMessageRounds || null,
+
         finalAllowedMessageRounds: allowedMessageRounds,
       });
 
@@ -429,15 +456,20 @@ export async function POST(req: NextRequest) {
             debug: {
               authUserId: String(auth.userId),
               invitationOwnerId: String(invitation.ownerId),
+
               authUserEmail: authUser?.email || null,
               ownerUserEmail: ownerUser?.email || null,
-              authAllowedMessageRounds: authUser?.allowedMessageRounds || null,
+
+              authAllowedMessageRounds:
+                authUser?.allowedMessageRounds || null,
               authPlanLimitsAllowedMessageRounds:
                 authUser?.planLimits?.allowedMessageRounds || null,
+
               ownerAllowedMessageRounds:
                 ownerUser?.allowedMessageRounds || null,
               ownerPlanLimitsAllowedMessageRounds:
                 ownerUser?.planLimits?.allowedMessageRounds || null,
+
               finalAllowedMessageRounds: allowedMessageRounds,
             },
           },
@@ -451,6 +483,14 @@ export async function POST(req: NextRequest) {
       : Array.isArray(body.guestIds)
       ? body.guestIds.filter((id) => mongoose.Types.ObjectId.isValid(id))
       : [];
+
+    /* ======================================================
+       BLOCKS
+       RSVP = rsvpRoundSent.round1 / round2 / round3
+       תזכורת = reminderSentAt
+       תודה = thankYouSentAt
+       תזמון לא נחשב שליחה בפועל.
+    ====================================================== */
 
     if (type === "rsvp") {
       const roundKey = `round${round}`;
@@ -516,6 +556,13 @@ export async function POST(req: NextRequest) {
       invitation,
     });
 
+    /* ======================================================
+       SCHEDULE
+       תזמון נשמר רק ב-ScheduledMessage.
+       לא מעדכנים SentAt.
+       לא נועלים messageLocks.
+    ====================================================== */
+
     if (scheduledAtRaw) {
       const scheduledAt = new Date(scheduledAtRaw);
 
@@ -546,9 +593,12 @@ export async function POST(req: NextRequest) {
       const schedulePayload = {
         invitationId,
         userId: auth.userId,
+
         channel: "whatsapp",
         type,
+
         filter: type === "rsvp" ? (round === 1 ? "all" : "pending") : "all",
+
         templateKey:
           type === "rsvp"
             ? "rsvp"
@@ -557,24 +607,33 @@ export async function POST(req: NextRequest) {
             : type === "thankyou"
             ? "thankyou"
             : "custom",
+
         round,
         roundNumber: round,
+
         templateName,
         payload,
+
         messageContent: `whatsapp:${templateName}`,
         messageOverride: `whatsapp:${templateName}`,
         text: `whatsapp:${templateName}`,
+
         includeGiftLink: !!body.giftCreditUrl,
         giftLink: body.giftCreditUrl || null,
+
         guestIds: type === "rsvp" ? [] : audience,
+
         scheduledAt,
         guestsCount,
+
         status: "scheduled",
+
         sentCount: 0,
         lockedAt: null,
         lockedBy: null,
         cancelledAt: null,
         error: "",
+
         updatedAt: new Date(),
       };
 
@@ -620,6 +679,12 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    /* ======================================================
+       IMMEDIATE SEND
+       יוצרים WhatsAppQueue לשליחה מיידית.
+       אחרי זה מסמנים את הסבב כנשלח בפועל.
+    ====================================================== */
+
     const guests = await InvitationGuest.find(guestQuery);
 
     const queueDocs: any[] = [];
@@ -662,10 +727,12 @@ export async function POST(req: NextRequest) {
         invitationId: invitation._id,
         guestId: guest._id,
         scheduleId: null,
+
         channel: "whatsapp",
         type,
         round,
         roundNumber: round,
+
         phone,
         templateName,
         idempotencyKey: [
@@ -678,7 +745,9 @@ export async function POST(req: NextRequest) {
           String(batchId),
           templateName,
         ].join(":"),
+
         payload: guestPayload,
+
         status: "pending",
         scheduledAt: null,
         attempts: 0,
