@@ -1523,12 +1523,6 @@ const eventLocation = resolveEventLocation(invitation, event);
   onExportExcel={handleExportExcel}
   onAddGuest={() => setOpenAddModal(true)}
   disabledAddGuest={!invitation}
-  isAdmin={
-    user?.role === "admin" ||
-    user?.impersonationRole === "admin" ||
-    user?.impersonatedByAdmin === true
-  }
-  onDeleteAllGuests={deleteAllGuests}
 />
       </section>
 
