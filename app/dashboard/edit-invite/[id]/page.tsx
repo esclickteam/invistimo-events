@@ -291,14 +291,12 @@ export default function EditInvitePage() {
       setSaving(true);
 
       const body: any = {
-        title: invite.title,
-        orientation: imageMode,
+  title: invite.title,
+  orientation: imageMode,
+  imageMode,
 
-        /*
-          משאירים נתונים קיימים כדי לא לפגוע בהזמנות שכבר נוצרו.
-        */
-        canvasData: invite.canvasData || { objects: [] },
-      };
+  canvasData: invite.canvasData || { objects: [] },
+};
 
       /*
         שולחים תמונה חדשה רק אם הועלה קובץ חדש.

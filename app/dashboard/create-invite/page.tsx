@@ -368,9 +368,10 @@ export default function CreateInvitePage() {
         },
         credentials: "include",
         body: JSON.stringify({
-          invitationId,
-          base64Image: uploadedImage.base64,
-        }),
+  invitationId,
+  base64Image: uploadedImage.base64,
+  imageMode,
+}),
       });
 
       if (!uploadRes.ok) {

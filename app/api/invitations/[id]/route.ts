@@ -35,6 +35,10 @@ function cleanUrl(v: unknown) {
   return v.trim();
 }
 
+function normalizeImageMode(value: any): "portrait" | "square" {
+  return value === "square" ? "square" : "portrait";
+}
+
 function normalizeGiftOptions(input: any) {
   const creditEnabled = toBool(input?.creditEnabled);
   const payboxEnabled = toBool(input?.payboxEnabled);
@@ -60,7 +64,7 @@ function isValidBase64Image(v: string) {
 }
 
 /* ============================================================
-   📥 GET — שליפת הזמנה לפי invitationId או eventId
+   GET — שליפת הזמנה לפי invitationId או eventId
 ============================================================ */
 export async function GET(
   request: NextRequest,
@@ -78,7 +82,6 @@ export async function GET(
       );
     }
 
-    // 🔥 חיפוש חכם: קודם לפי _id, אם לא נמצא — לפי eventId
     const invitation =
       (await Invitation.findById(id).populate("guests").lean()) ||
       (await Invitation.findOne({ eventId: id }).populate("guests").lean());
@@ -104,8 +107,7 @@ export async function GET(
 }
 
 /* ============================================================
-   💾 PUT — עדכון הזמנה קיימת (עדכון כללי)
-   ✅ כולל העלאת preview חדש ל-Cloudinary אם הגיע previewBase64/base64Image
+   PUT — עדכון הזמנה קיימת
 ============================================================ */
 export async function PUT(
   request: NextRequest,
@@ -133,11 +135,14 @@ export async function PUT(
       canvasData,
       location,
       orientation,
+      imageMode,
     } = body;
 
     const updatePayload: any = {
       updatedAt: new Date(),
     };
+
+    const finalImageMode = normalizeImageMode(imageMode || orientation);
 
     if (typeof title === "string" && title.trim()) {
       updatePayload.title = title.trim();
@@ -155,7 +160,7 @@ export async function PUT(
       updatePayload.eventTime = eventTime;
     }
 
-    if (orientation === "portrait" || orientation === "landscape") {
+    if (orientation === "portrait" || orientation === "square") {
       updatePayload.orientation = orientation;
     }
 
@@ -178,9 +183,6 @@ export async function PUT(
       updatePayload.canvasData = canvasData;
     }
 
-    /* =========================
-       ✅ NEW: Upload preview image if provided
-    ========================= */
     const previewBase64 = pickBase64Image(body);
 
     if (isNonEmptyString(previewBase64)) {
@@ -191,20 +193,35 @@ export async function PUT(
         );
       }
 
-      // public_id חדש בכל שמירה => URL חדש תמיד
       const publicId = `invistimo/invitations/${id}_${Date.now()}`;
+
+      const targetWidth = 1080;
+      const targetHeight = finalImageMode === "square" ? 1080 : 1920;
 
       const upload = await cloudinary.uploader.upload(previewBase64, {
         public_id: publicId,
         resource_type: "image",
         overwrite: false,
         invalidate: true,
+        format: "jpg",
+        transformation: [
+          {
+            width: targetWidth,
+            height: targetHeight,
+            crop: "pad",
+            background: "#ffffff",
+            quality: "100",
+          },
+        ],
       });
 
       const imageUrl = upload.secure_url;
 
+      updatePayload.orientation = finalImageMode;
+      updatePayload.previewImageUrl = imageUrl;
+      updatePayload.headerImageUrl = imageUrl;
+      updatePayload.imageUrl = imageUrl;
       updatePayload.previewImage = imageUrl;
-      updatePayload.headerImageUrl = imageUrl; // ✅ כדי שוואטספ תמיד יקח חדש
     }
 
     const updated = await Invitation.findByIdAndUpdate(
@@ -225,9 +242,10 @@ export async function PUT(
     return NextResponse.json({
       success: true,
       invitation: updated,
-      // עוזר לדיבאג: האם באמת שמרנו לינק חדש
-      previewImage: updated.previewImage ?? null,
+      previewImageUrl: (updated as any).previewImageUrl ?? null,
       headerImageUrl: (updated as any).headerImageUrl ?? null,
+      imageUrl: (updated as any).imageUrl ?? null,
+      previewImage: (updated as any).previewImage ?? null,
     });
   } catch (err: any) {
     console.error("❌ Error in PUT /api/invitations/[id]:", err?.message || err);
@@ -239,7 +257,7 @@ export async function PUT(
 }
 
 /* ============================================================
-   🩹 PATCH — עדכון חלקי (giftOptions וכו')
+   PATCH — עדכון חלקי
 ============================================================ */
 export async function PATCH(
   request: NextRequest,
@@ -263,17 +281,14 @@ export async function PATCH(
       updatedAt: new Date(),
     };
 
-    /* ================= GIFT OPTIONS ================= */
     if (body?.giftOptions !== undefined) {
       updatePayload.giftOptions = normalizeGiftOptions(body.giftOptions);
     }
 
-    /* ================= INVITATION SETTINGS ================= */
     if (body?.invitationSettings !== undefined) {
       updatePayload.invitationSettings = body.invitationSettings;
     }
 
-    /* אם לא הגיע שום דבר לעדכון */
     if (Object.keys(updatePayload).length === 1) {
       return NextResponse.json(
         { success: false, error: "NO_FIELDS_TO_UPDATE" },
