@@ -210,6 +210,112 @@ export default function OverviewTab({ eventId, invitation }) {
       });
     }
 
+    if (budgetTotal > 0 && commitments > budgetTotal) {
+  const overBudget = commitments - budgetTotal;
+
+  alerts.push({
+    id: "budget-exceeded",
+    type: "danger",
+    icon: "₪",
+    title: "ההתחייבויות חרגו מהתקציב",
+    description: `ההתחייבויות גבוהות מהתקציב ב־₪${overBudget.toLocaleString()}. כדאי לעדכן תקציב או לבדוק צמצום עלויות.`,
+    action: "בדיקת תקציב",
+  });
+}
+
+if (budgetTotal > 0 && commitments > 0) {
+  const paidRatio = Math.round((paid / commitments) * 100);
+
+  if (paidRatio < 25) {
+    alerts.push({
+      id: "low-paid-ratio",
+      type: "warning",
+      icon: "💳",
+      title: "שולם מעט ביחס להתחייבויות",
+      description: `שולם רק ${paidRatio}% מתוך סה״כ ההתחייבויות. יש פער תשלומים של ₪${Math.max(
+        commitments - paid,
+        0
+      ).toLocaleString()}.`,
+      action: "בדיקת תשלומים",
+    });
+  }
+}
+
+if (
+  daysLeft !== null &&
+  daysLeft >= 0 &&
+  daysLeft <= 21 &&
+  budgetTotal > 0 &&
+  progress < 35
+) {
+  alerts.push({
+    id: "event-close-budget-low",
+    type: "info",
+    icon: "📊",
+    title: "האירוע מתקרב והתקציב כמעט לא נוצל",
+    description: `נוצלו רק ${progress}% מהתקציב. ייתכן שחסרים ספקים או הוצאות שעדיין לא הוזנו.`,
+    action: "השלמת נתונים",
+  });
+}
+
+if (estimatedGuests > 0 && commitments > 0 && averageCostPerGuest < 80) {
+  alerts.push({
+    id: "very-low-average-cost",
+    type: "info",
+    icon: "🧮",
+    title: "עלות ממוצעת נמוכה מאוד לאורח",
+    description: `עלות ממוצעת לאורח היא ₪${averageCostPerGuest.toLocaleString()}. ייתכן שחסרות הוצאות בתמונה הכללית.`,
+    action: "בדיקת תקציב",
+  });
+}
+
+if (hasGiftAmounts && commitments > 0) {
+  const giftCoverage = Math.round((totalGifts / commitments) * 100);
+
+  if (giftCoverage < 30) {
+    alerts.push({
+      id: "low-gift-coverage",
+      type: "warning",
+      icon: "🎁",
+      title: "המתנות מכסות אחוז נמוך מההוצאות",
+      description: `המתנות מכסות כרגע רק ${giftCoverage}% מההתחייבויות. הפער הנוכחי הוא ₪${Math.max(
+        commitments - totalGifts,
+        0
+      ).toLocaleString()}.`,
+      action: "בדיקת מתנות",
+    });
+  }
+}
+
+if (daysLeft !== null && daysLeft >= 0 && daysLeft <= 10 && activeTasks >= 5) {
+  alerts.push({
+    id: "too-many-tasks-close-event",
+    type: "danger",
+    icon: "✓",
+    title: "הרבה משימות פתוחות סמוך לאירוע",
+    description: `נותרו ${daysLeft} ימים לאירוע ויש ${activeTasks} משימות פתוחות. כדאי לצמצם משימות קריטיות השבוע.`,
+    action: "טיפול במשימות",
+  });
+}
+
+if (
+  budgetTotal > 0 &&
+  commitments === 0 &&
+  estimatedGuests > 0 &&
+  daysLeft !== null &&
+  daysLeft <= 30
+) {
+  alerts.push({
+    id: "missing-expenses-data",
+    type: "info",
+    icon: "📌",
+    title: "תמונת המצב לא מלאה",
+    description:
+      "הוזנה כמות מוזמנים ותקציב, אבל עדיין אין התחייבויות. כדי לקבל תמונת מצב אמיתית צריך להזין ספקים/הוצאות.",
+    action: "השלמת תקציב",
+  });
+}
+
     if (commitments > 0 && !estimatedGuests) {
       alerts.push({
         id: "missing-estimated-guests",
@@ -347,7 +453,7 @@ export default function OverviewTab({ eventId, invitation }) {
     }
 
     return alerts;
-  }, [
+    }, [
     progress,
     available,
     activeTasks,
@@ -358,6 +464,9 @@ export default function OverviewTab({ eventId, invitation }) {
     commitments,
     estimatedGuests,
     averageCostPerGuest,
+    budgetTotal,
+    paid,
+    totalGifts,
     giftsSummary.totalRows,
     giftsSummary.rowsWithGift,
   ]);
