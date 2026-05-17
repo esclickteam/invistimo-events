@@ -21,14 +21,14 @@ export default function EventProductionPage() {
 
   const eventIdFromUrl = searchParams.get("eventId");
 
-  const [event, setEvent] = useState<any | null>(null);
-  const [eventId, setEventId] = useState<string>("");
+  const [event, setEvent] = useState(null);
+  const [eventId, setEventId] = useState("");
 
   /*
-    invitation עכשיו אופציונלי בלבד.
+    invitation אופציונלי בלבד.
     ניהול אירוע עצמאי לא חייב הזמנה.
   */
-  const [invitation, setInvitation] = useState<any | null>(null);
+  const [invitation, setInvitation] = useState(null);
 
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
@@ -60,14 +60,19 @@ export default function EventProductionPage() {
   useEffect(() => {
     if (!user?._id) return;
 
+    let cancelled = false;
+
     async function loadProductionEvent() {
       try {
         setLoading(true);
         setErrorMessage("");
 
         if (!canUseEventProduction) {
-          setErrorMessage("אין לך גישה למערכת ניהול אירוע");
-          setLoading(false);
+          if (!cancelled) {
+            setErrorMessage("אין לך גישה למערכת ניהול אירוע");
+            setLoading(false);
+          }
+
           return;
         }
 
@@ -85,16 +90,23 @@ export default function EventProductionPage() {
 
           if (!res.ok || !data.success || !data.event) {
             console.error("Event fetch error:", data);
-            setErrorMessage("לא נמצא אירוע");
-            setEvent(null);
-            setEventId("");
-            setLoading(false);
+
+            if (!cancelled) {
+              setErrorMessage("לא נמצא אירוע");
+              setEvent(null);
+              setEventId("");
+              setLoading(false);
+            }
+
             return;
           }
 
-          setEvent(data.event);
-          setEventId(String(data.event._id || eventIdFromUrl));
-          setLoading(false);
+          if (!cancelled) {
+            setEvent(data.event);
+            setEventId(String(data.event._id || eventIdFromUrl));
+            setLoading(false);
+          }
+
           return;
         }
 
@@ -107,32 +119,47 @@ export default function EventProductionPage() {
 
         if (!res.ok || !data.success || !data.eventId) {
           console.error("My production event error:", data);
-          setErrorMessage(data.message || "לא נמצא אירוע");
-          setEvent(null);
-          setEventId("");
-          setLoading(false);
+
+          if (!cancelled) {
+            setErrorMessage(data.message || "לא נמצא אירוע");
+            setEvent(null);
+            setEventId("");
+            setLoading(false);
+          }
+
           return;
         }
 
-        setEvent(data.event || null);
-        setEventId(String(data.eventId));
+        if (!cancelled) {
+          setEvent(data.event || null);
+          setEventId(String(data.eventId));
 
-        /*
-          מעדכן URL כדי שכל הטאבים יקבלו eventId מסודר.
-        */
-        router.replace(`/events/production?eventId=${data.eventId}&tab=overview`);
+          /*
+            מעדכן URL כדי שכל הטאבים יקבלו eventId מסודר.
+          */
+          router.replace(
+            `/events/production?eventId=${data.eventId}&tab=overview`
+          );
 
-        setLoading(false);
+          setLoading(false);
+        }
       } catch (err) {
         console.error("Production event load error:", err);
-        setErrorMessage("שגיאה בטעינת ניהול האירוע");
-        setEvent(null);
-        setEventId("");
-        setLoading(false);
+
+        if (!cancelled) {
+          setErrorMessage("שגיאה בטעינת ניהול האירוע");
+          setEvent(null);
+          setEventId("");
+          setLoading(false);
+        }
       }
     }
 
     loadProductionEvent();
+
+    return () => {
+      cancelled = true;
+    };
   }, [user?._id, canUseEventProduction, eventIdFromUrl, router]);
 
   /* =========================
@@ -142,10 +169,13 @@ export default function EventProductionPage() {
   useEffect(() => {
     if (!user?._id) return;
     if (!eventId) return;
+
     if (!hasRsvpSeatingAccess) {
       setInvitation(null);
       return;
     }
+
+    let cancelled = false;
 
     async function loadOptionalInvitation() {
       try {
@@ -159,6 +189,8 @@ export default function EventProductionPage() {
 
         const data = await res.json();
 
+        if (cancelled) return;
+
         if (res.ok && data.success && data.invitation) {
           setInvitation(data.invitation);
         } else {
@@ -166,11 +198,18 @@ export default function EventProductionPage() {
         }
       } catch (err) {
         console.warn("Optional invitation fetch error:", err);
-        setInvitation(null);
+
+        if (!cancelled) {
+          setInvitation(null);
+        }
       }
     }
 
     loadOptionalInvitation();
+
+    return () => {
+      cancelled = true;
+    };
   }, [user?._id, eventId, hasRsvpSeatingAccess]);
 
   /* =========================
