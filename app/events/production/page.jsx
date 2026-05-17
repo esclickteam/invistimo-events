@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useAuth } from "@/context/AuthContext";
+
 import ProductionTabs from "./_components/ProductionTabs";
 import OverviewTab from "./_components/OverviewTab";
 import PlanningTab from "./_components/PlanningTab";
@@ -9,6 +10,8 @@ import SuppliersBudgetTab from "./_components/SuppliersBudgetTab";
 import CalendarTab from "./_components/CalendarTab";
 import LogisticsTab from "./_components/LogisticsTab";
 import AlcoholManagementTab from "./_components/AlcoholManagementTab";
+import EventGiftsTab from "./_components/EventGiftsTab";
+
 import SeatingPage from "@/app/dashboard/seating/page";
 
 export default function EventProductionPage() {
@@ -128,7 +131,7 @@ export default function EventProductionPage() {
   ========================= */
   if (loading || creatingProductionEvent) {
     return (
-      <div className="flex items-center justify-center h-[60vh]">
+      <div className="flex h-[60vh] items-center justify-center">
         טוען נתוני אירוע…
       </div>
     );
@@ -142,7 +145,7 @@ export default function EventProductionPage() {
   ========================= */
   if (!eventId) {
     return (
-      <div className="flex items-center justify-center h-[60vh] text-red-600">
+      <div className="flex h-[60vh] items-center justify-center text-red-600">
         לא נמצא אירוע
       </div>
     );
@@ -162,6 +165,12 @@ export default function EventProductionPage() {
       calendar={<CalendarTab eventId={eventId} />}
       logistics={<LogisticsTab eventId={eventId} />}
       alcohol={<AlcoholManagementTab eventId={eventId} />}
+      gifts={
+        <EventGiftsTab
+          eventId={eventId}
+          invitationId={invitation?._id || null}
+        />
+      }
       liveSeating={
         invitation ? (
           <SeatingPage />

@@ -9,6 +9,7 @@ import {
   CalendarDays,
   ListChecks,
   Wine,
+  Gift,
 } from "lucide-react";
 
 const TABS = [
@@ -42,6 +43,11 @@ const TABS = [
     label: "אלכוהול",
     icon: Wine,
   },
+  {
+    key: "gifts",
+    label: "מתנות מהאירוע",
+    icon: Gift,
+  },
 ];
 
 export default function ProductionTabs({
@@ -51,6 +57,7 @@ export default function ProductionTabs({
   calendar,
   logistics,
   alcohol,
+  gifts,
   liveGuests,
   liveSeating,
   invitation,
@@ -87,15 +94,15 @@ export default function ProductionTabs({
           backdrop-blur-xl
         "
       >
-        <div className="max-w-7xl mx-auto px-4">
+        <div className="mx-auto max-w-7xl px-4">
           <div
             className="
+              no-scrollbar
               flex
               items-center
               justify-center
               gap-3
               overflow-x-auto
-              no-scrollbar
               py-4
             "
           >
@@ -114,33 +121,33 @@ export default function ProductionTabs({
                     flex
                     items-center
                     gap-2
+                    whitespace-nowrap
                     rounded-full
+                    border
                     px-5
                     py-3
                     text-sm
                     font-black
-                    whitespace-nowrap
-                    border
                     transition-all
                     duration-300
                     ${
                       isActive
                         ? `
+                          border-[#E7D8FF]
                           bg-gradient-to-br
                           from-[#F4EDFF]
                           via-white
                           to-[#FBF7F1]
                           text-[#1E1B2E]
-                          border-[#E7D8FF]
                           shadow-[0_14px_35px_rgba(132,90,223,0.14)]
                         `
                         : `
+                          border-transparent
                           bg-white/70
                           text-[#6F6678]
-                          border-transparent
+                          hover:border-[#E8DDD3]
                           hover:bg-white
                           hover:text-[#1E1B2E]
-                          hover:border-[#E8DDD3]
                           hover:shadow-[0_10px_25px_rgba(120,90,60,0.07)]
                         `
                     }
@@ -148,12 +155,12 @@ export default function ProductionTabs({
                 >
                   <span
                     className={`
+                      flex
                       h-8
                       w-8
-                      rounded-full
-                      flex
                       items-center
                       justify-center
+                      rounded-full
                       transition
                       ${
                         isActive
@@ -181,9 +188,9 @@ export default function ProductionTabs({
                         absolute
                         -bottom-[17px]
                         left-1/2
-                        -translate-x-1/2
                         h-[3px]
                         w-10
+                        -translate-x-1/2
                         rounded-full
                         bg-[#8B5CF6]
                       "
@@ -197,13 +204,14 @@ export default function ProductionTabs({
       </div>
 
       {/* ================= CONTENT ================= */}
-      <div className="max-w-7xl mx-auto px-4 pb-12">
+      <div className="mx-auto max-w-7xl px-4 pb-12">
         {activeTab === "overview" && overview}
         {activeTab === "planning" && planning}
         {activeTab === "suppliers" && suppliers}
         {activeTab === "calendar" && calendar}
         {activeTab === "logistics" && logistics}
         {activeTab === "alcohol" && alcohol}
+        {activeTab === "gifts" && gifts}
         {activeTab === "live-guests" && liveGuests}
         {activeTab === "live-seating" && liveSeating}
       </div>
