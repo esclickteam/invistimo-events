@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+
 import ProductionTabs from "./_components/ProductionTabs";
 import OverviewTab from "./_components/OverviewTab";
 import PlanningTab from "./_components/PlanningTab";
@@ -14,58 +16,169 @@ import SeatingPage from "@/app/dashboard/seating/page";
 export default function EventProductionPage() {
   const { user } = useAuth();
 
-  const [invitation, setInvitation] = useState(null);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const eventIdFromUrl = searchParams.get("eventId");
+
+  const [event, setEvent] = useState<any | null>(null);
+  const [eventId, setEventId] = useState<string>("");
+
+  /*
+    invitation עכשיו אופציונלי בלבד.
+    ניהול אירוע עצמאי לא חייב הזמנה.
+  */
+  const [invitation, setInvitation] = useState<any | null>(null);
+
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const canUseEventProduction = useMemo(() => {
+    return (
+      user?.role === "admin" ||
+      user?.role === "producer" ||
+      user?.accessModules?.eventProduction === true ||
+      user?.includeEventManagement === true ||
+      user?.selfManageEnabled === true
+    );
+  }, [user]);
+
+  const hasRsvpSeatingAccess = useMemo(() => {
+    return (
+      user?.role === "admin" ||
+      user?.role === "producer" ||
+      user?.accessModules?.rsvpSeating === true ||
+      user?.includeDigitalSeating === true ||
+      user?.planLimits?.seatingEnabled === true
+    );
+  }, [user]);
 
   /* =========================
-     Load invitation
+     Load / create production event
+     מקור אמת: Event, לא Invitation
   ========================= */
   useEffect(() => {
     if (!user?._id) return;
 
-    fetch("/api/invitations/my", {
-      credentials: "include",
-      cache: "no-store",
-      headers: {
-        // ⭐ קריטי – מאפשר לבקאנד לדעת על מי האדמין מתחזה
-        "x-impersonate-user": user._id,
-      },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to fetch invitation");
-        return res.json();
-      })
-      .then((data) => {
-        setInvitation(data?.invitation || null);
-      })
-      .catch((err) => {
-        console.error("Invitation fetch error:", err);
-        setInvitation(null);
-      })
-      .finally(() => setLoading(false));
-  }, [user]);
+    async function loadProductionEvent() {
+      try {
+        setLoading(true);
+        setErrorMessage("");
+
+        if (!canUseEventProduction) {
+          setErrorMessage("אין לך גישה למערכת ניהול אירוע");
+          setLoading(false);
+          return;
+        }
+
+        /*
+          אם יש eventId בכתובת — משתמשים בו.
+          אם אין — מביאים/יוצרים Event עצמאי דרך my-production.
+        */
+        if (eventIdFromUrl) {
+          const res = await fetch(`/api/events/${eventIdFromUrl}`, {
+            credentials: "include",
+            cache: "no-store",
+          });
+
+          const data = await res.json();
+
+          if (!res.ok || !data.success || !data.event) {
+            console.error("Event fetch error:", data);
+            setErrorMessage("לא נמצא אירוע");
+            setEvent(null);
+            setEventId("");
+            setLoading(false);
+            return;
+          }
+
+          setEvent(data.event);
+          setEventId(String(data.event._id || eventIdFromUrl));
+          setLoading(false);
+          return;
+        }
+
+        const res = await fetch("/api/events/my-production", {
+          credentials: "include",
+          cache: "no-store",
+        });
+
+        const data = await res.json();
+
+        if (!res.ok || !data.success || !data.eventId) {
+          console.error("My production event error:", data);
+          setErrorMessage(data.message || "לא נמצא אירוע");
+          setEvent(null);
+          setEventId("");
+          setLoading(false);
+          return;
+        }
+
+        setEvent(data.event || null);
+        setEventId(String(data.eventId));
+
+        /*
+          מעדכן URL כדי שכל הטאבים יקבלו eventId מסודר.
+        */
+        router.replace(`/events/production?eventId=${data.eventId}&tab=overview`);
+
+        setLoading(false);
+      } catch (err) {
+        console.error("Production event load error:", err);
+        setErrorMessage("שגיאה בטעינת ניהול האירוע");
+        setEvent(null);
+        setEventId("");
+        setLoading(false);
+      }
+    }
+
+    loadProductionEvent();
+  }, [user?._id, canUseEventProduction, eventIdFromUrl, router]);
 
   /* =========================
-     Extract eventId (source of truth)
+     Load invitation – אופציונלי בלבד
+     רק למי שיש לו אישורי הגעה/הושבה.
   ========================= */
-  const eventId = useMemo(() => {
-    if (typeof window === "undefined") return null;
+  useEffect(() => {
+    if (!user?._id) return;
+    if (!eventId) return;
+    if (!hasRsvpSeatingAccess) {
+      setInvitation(null);
+      return;
+    }
 
-    const params = new URLSearchParams(window.location.search);
-    return (
-      params.get("eventId") ||
-      invitation?.eventId ||
-      invitation?.event?._id ||
-      null
-    );
-  }, [invitation]);
+    async function loadOptionalInvitation() {
+      try {
+        const res = await fetch(`/api/invitations/by-event/${eventId}`, {
+          credentials: "include",
+          cache: "no-store",
+          headers: {
+            "x-impersonate-user": user._id,
+          },
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.success && data.invitation) {
+          setInvitation(data.invitation);
+        } else {
+          setInvitation(null);
+        }
+      } catch (err) {
+        console.warn("Optional invitation fetch error:", err);
+        setInvitation(null);
+      }
+    }
+
+    loadOptionalInvitation();
+  }, [user?._id, eventId, hasRsvpSeatingAccess]);
 
   /* =========================
      Loading
   ========================= */
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-[60vh]">
+      <div className="flex h-[60vh] items-center justify-center">
         טוען נתוני אירוע…
       </div>
     );
@@ -73,17 +186,19 @@ export default function EventProductionPage() {
 
   /* =========================
      Safety
+     עכשיו בודקים Event בלבד.
+     לא בודקים Invitation.
   ========================= */
-  if (!invitation || !eventId) {
+  if (errorMessage || !eventId) {
     return (
-      <div className="flex items-center justify-center h-[60vh] text-red-600">
-        לא נמצא אירוע / הזמנה
+      <div className="flex h-[60vh] items-center justify-center text-red-600">
+        {errorMessage || "לא נמצא אירוע"}
       </div>
     );
   }
 
   /* =========================
-     Render – מסך הפקה בלבד
+     Render – מסך ניהול אירוע
   ========================= */
   return (
     <ProductionTabs
@@ -95,7 +210,15 @@ export default function EventProductionPage() {
       calendar={<CalendarTab eventId={eventId} />}
       logistics={<LogisticsTab eventId={eventId} />}
       alcohol={<AlcoholManagementTab eventId={eventId} />}
-      liveSeating={<SeatingPage />}
+      liveSeating={
+        invitation && hasRsvpSeatingAccess ? (
+          <SeatingPage />
+        ) : (
+          <div className="flex min-h-[360px] items-center justify-center rounded-3xl border border-[#eadfce] bg-white text-[#8b7b68]">
+            הושבה זמינה רק ללקוחות עם מודול אישורי הגעה והושבה.
+          </div>
+        )
+      }
     />
   );
 }
