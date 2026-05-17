@@ -21,7 +21,7 @@ const STATUS_STYLE = {
   done: "bg-green-50 text-green-700",
 };
 
-export default function OverviewTab({ eventId }) {
+export default function OverviewTab({ eventId, invitation }) {
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
@@ -470,27 +470,31 @@ export default function OverviewTab({ eventId }) {
     </div>
 
     {/* BUTTON */}
-    <button
-      onClick={() => router.push(`/dashboard?eventId=${eventId}`)}
-      className="
-        rounded-2xl
-        bg-white/90
-        border
-        border-white/60
-        px-5
-        py-3
-        text-sm
-        font-semibold
-        text-[#28212E]
-        shadow-[0_10px_30px_rgba(124,58,237,0.08)]
-        hover:-translate-y-1
-        hover:shadow-[0_15px_40px_rgba(124,58,237,0.14)]
-        transition-all
-        duration-300
-      "
-    >
-      👤 ניהול דשבורד לקוח
-    </button>
+    {/* BUTTON - מוצג רק אם יש הזמנה */}
+{invitation && (
+  <button
+    onClick={() => router.push(`/dashboard?eventId=${eventId}`)}
+    className="
+      rounded-2xl
+      bg-white/90
+      border
+      border-white/60
+      px-5
+      py-3
+      text-sm
+      font-semibold
+      text-[#28212E]
+      shadow-[0_10px_30px_rgba(124,58,237,0.08)]
+      hover:-translate-y-1
+      hover:shadow-[0_15px_40px_rgba(124,58,237,0.14)]
+      transition-all
+      duration-300
+    "
+  >
+    👤 ניהול דשבורד לקוח
+  </button>
+)}
+
   </div>
 </section>
 

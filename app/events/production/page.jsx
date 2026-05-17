@@ -156,7 +156,7 @@ export default function EventProductionPage() {
     <ProductionTabs
       eventId={eventId}
       invitation={invitation}
-      overview={<OverviewTab eventId={eventId} />}
+      overview={<OverviewTab eventId={eventId} invitation={invitation} />}
       planning={<PlanningTab eventId={eventId} />}
       suppliers={<SuppliersBudgetTab eventId={eventId} />}
       calendar={<CalendarTab eventId={eventId} />}
