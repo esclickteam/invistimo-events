@@ -43,6 +43,36 @@ function normalizeEmail(email?: string) {
   return String(email || "").trim().toLowerCase();
 }
 
+function normalizeAccessModules(body: any, fallback: any) {
+  const fallbackRsvpSeating =
+    Boolean(fallback?.accessModules?.rsvpSeating) ||
+    Boolean(fallback?.includeDigitalSeating) ||
+    Boolean(fallback?.planLimits?.seatingEnabled);
+
+  const fallbackEventProduction =
+    Boolean(fallback?.accessModules?.eventProduction) ||
+    Boolean(fallback?.includeEventManagement) ||
+    Boolean(fallback?.selfManageEnabled);
+
+  const bodyAccessModules = body?.accessModules;
+
+  return {
+    rsvpSeating:
+      typeof bodyAccessModules?.rsvpSeating === "boolean"
+        ? bodyAccessModules.rsvpSeating
+        : typeof body?.includeDigitalSeating !== "undefined"
+          ? safeBoolean(body.includeDigitalSeating)
+          : fallbackRsvpSeating,
+
+    eventProduction:
+      typeof bodyAccessModules?.eventProduction === "boolean"
+        ? bodyAccessModules.eventProduction
+        : typeof body?.includeEventManagement !== "undefined"
+          ? safeBoolean(body.includeEventManagement)
+          : fallbackEventProduction,
+  };
+}
+
 /* =========================================================
    POST – ADMIN UPGRADE STRIPE CHECKOUT
    Used when admin chooses:
@@ -139,6 +169,13 @@ export async function POST(
 
     const extraRecords = safeNumber(body.extraRecords);
     const extraRecordsAmount = safeNumber(body.extraRecordsAmount);
+    const extraRecordsPricePerRecord = safeNumber(
+      body.extraRecordsPricePerRecord
+    );
+
+    const venueSeatingDepositAmount = safeNumber(
+      body.venueSeatingDepositAmount
+    );
 
     /* =====================================================
        USER
@@ -166,6 +203,13 @@ export async function POST(
         { status: 400 }
       );
     }
+
+    /*
+      ✅ הרשאות מודולים:
+      rsvpSeating = אישורי הגעה / הושבה
+      eventProduction = מערכת ניהול אירוע
+    */
+    const accessModules = normalizeAccessModules(body, user);
 
     /* =====================================================
        SITE URL
@@ -195,8 +239,10 @@ export async function POST(
           price_data: {
             currency: "ils",
             product_data: {
-              name: `Invistimo – שדרוג משתמש`,
-              description: `${user.name || userEmail} · ${packageName || priceKey || plan}`,
+              name: "Invistimo – שדרוג משתמש",
+              description: `${user.name || userEmail} · ${
+                packageName || priceKey || plan
+              }`,
             },
             unit_amount: Math.round(amount * 100),
           },
@@ -232,8 +278,19 @@ export async function POST(
         includeEventManagement: String(includeEventManagement),
         includeCustomDesign: String(includeCustomDesign),
 
+        /*
+          ✅ חשוב לוובהוק:
+          שומרים גם כאובייקט JSON וגם כשדות שטוחים.
+        */
+        accessModules: JSON.stringify(accessModules),
+        accessModulesRsvpSeating: String(accessModules.rsvpSeating),
+        accessModulesEventProduction: String(accessModules.eventProduction),
+
         extraRecords: String(extraRecords || 0),
         extraRecordsAmount: String(extraRecordsAmount || 0),
+        extraRecordsPricePerRecord: String(extraRecordsPricePerRecord || 0),
+
+        venueSeatingDepositAmount: String(venueSeatingDepositAmount || 0),
       },
 
       success_url: `${cleanBaseUrl}/admin/users?upgradePaid=1&session_id={CHECKOUT_SESSION_ID}`,

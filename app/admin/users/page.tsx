@@ -2117,95 +2117,116 @@ const calculatedTotalToPay =
     manualTotalToPay >= 0;
 
   async function saveManualPaidUpgrade() {
-    const res = await fetch(`/api/admin/users/${user._id}`, {
-      method: "PATCH",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
+  const res = await fetch(`/api/admin/users/${user._id}`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      plan: form.plan,
+      priceKey: form.plan,
+      packageName: selectedPlan?.label || form.plan,
+
+      guests: finalRecords,
+      maxGuests: finalRecords,
+      smsLimit: finalSmsLimit,
+      maxMessages: finalSmsLimit,
+
+      includeCalls: form.includeCalls,
+      includeCreditGifts: form.includeCreditGifts,
+      includeDigitalSeating: form.includeDigitalSeating,
+      includeEventManagement: form.includeEventManagement,
+      includeCustomDesign: form.includeCustomDesign,
+
+      /*
+        ✅ הרשאות מודולים:
+        rsvpSeating = אישורי הגעה / הושבה
+        eventProduction = מערכת ניהול אירוע
+      */
+      accessModules: {
+        rsvpSeating: Boolean(form.includeDigitalSeating),
+        eventProduction: Boolean(form.includeEventManagement),
       },
-      body: JSON.stringify({
-        plan: form.plan,
-        priceKey: form.plan,
-        packageName: selectedPlan?.label || form.plan,
 
-        guests: finalRecords,
-        maxGuests: finalRecords,
-        smsLimit: finalSmsLimit,
-        maxMessages: finalSmsLimit,
+      extraRecords,
+      extraRecordsAmount: extraRecordsTotalAmount,
+      extraRecordsPricePerRecord: Number(extraRecordsAmount || 0),
 
-        includeCalls: form.includeCalls,
-        includeCreditGifts: form.includeCreditGifts,
-        includeDigitalSeating: form.includeDigitalSeating,
-        includeEventManagement: form.includeEventManagement,
-        includeCustomDesign: form.includeCustomDesign,
+      upgradeAmount: manualTotalToPay,
+      upgradePaymentStatus: "paid",
+      upgradePaymentMethod: "manual_admin",
 
-        extraRecords,
-extraRecordsAmount: extraRecordsTotalAmount,
-extraRecordsPricePerRecord: Number(extraRecordsAmount || 0),
+      venueSeatingService: calculateVenueSeatingService(venueSeatingService),
+      venueSeatingDepositAmount: venueSeatingDepositToPay,
+    }),
+  });
 
-        upgradeAmount: manualTotalToPay,
-        upgradePaymentStatus: "paid",
-        upgradePaymentMethod: "manual_admin",
-        venueSeatingService: calculateVenueSeatingService(venueSeatingService),
-venueSeatingDepositAmount: venueSeatingDepositToPay,
-      }),
-    });
+  const data = await res.json().catch(() => null);
 
-    const data = await res.json().catch(() => null);
-
-    if (!res.ok || data?.success === false) {
-      throw new Error("MANUAL_UPGRADE_FAILED");
-    }
+  if (!res.ok || data?.success === false) {
+    throw new Error("MANUAL_UPGRADE_FAILED");
   }
+}
 
   async function createStripeUpgradeCheckout() {
-    const res = await fetch(`/api/admin/users/${user._id}/upgrade-stripe`, {
-      method: "POST",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
+  const res = await fetch(`/api/admin/users/${user._id}/upgrade-stripe`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      amount: manualTotalToPay,
+
+      plan: form.plan,
+      priceKey: form.plan,
+      packageName: selectedPlan?.label || form.plan,
+
+      guests: finalRecords,
+      maxGuests: finalRecords,
+      smsLimit: finalSmsLimit,
+      maxMessages: finalSmsLimit,
+
+      includeCalls: form.includeCalls,
+      includeCreditGifts: form.includeCreditGifts,
+      includeDigitalSeating: form.includeDigitalSeating,
+      includeEventManagement: form.includeEventManagement,
+      includeCustomDesign: form.includeCustomDesign,
+
+      /*
+        ✅ הרשאות מודולים:
+        rsvpSeating = אישורי הגעה / הושבה
+        eventProduction = מערכת ניהול אירוע
+      */
+      accessModules: {
+        rsvpSeating: Boolean(form.includeDigitalSeating),
+        eventProduction: Boolean(form.includeEventManagement),
       },
-      body: JSON.stringify({
-        amount: manualTotalToPay,
 
-        plan: form.plan,
-        priceKey: form.plan,
-        packageName: selectedPlan?.label || form.plan,
+      extraRecords,
+      extraRecordsAmount: extraRecordsTotalAmount,
+      extraRecordsPricePerRecord: Number(extraRecordsAmount || 0),
 
-        guests: finalRecords,
-        maxGuests: finalRecords,
-        smsLimit: finalSmsLimit,
-        maxMessages: finalSmsLimit,
+      venueSeatingService: calculateVenueSeatingService(venueSeatingService),
+      venueSeatingDepositAmount: venueSeatingDepositToPay,
+    }),
+  });
 
-        includeCalls: form.includeCalls,
-        includeCreditGifts: form.includeCreditGifts,
-        includeDigitalSeating: form.includeDigitalSeating,
-        includeEventManagement: form.includeEventManagement,
-        includeCustomDesign: form.includeCustomDesign,
+  const data = await res.json().catch(() => null);
 
-        extraRecords,
-extraRecordsAmount: extraRecordsTotalAmount,
-extraRecordsPricePerRecord: Number(extraRecordsAmount || 0),
-
-        venueSeatingService: calculateVenueSeatingService(venueSeatingService),
-venueSeatingDepositAmount: venueSeatingDepositToPay,
-      }),
-    });
-
-    const data = await res.json().catch(() => null);
-
-    if (!res.ok || data?.success === false) {
-      throw new Error("STRIPE_CHECKOUT_FAILED");
-    }
-
-    const checkoutUrl = data?.url || data?.checkoutUrl;
-
-    if (!checkoutUrl) {
-      throw new Error("MISSING_STRIPE_URL");
-    }
-
-    window.location.href = checkoutUrl;
+  if (!res.ok || data?.success === false) {
+    throw new Error("STRIPE_CHECKOUT_FAILED");
   }
+
+  const checkoutUrl = data?.url || data?.checkoutUrl;
+
+  if (!checkoutUrl) {
+    throw new Error("MISSING_STRIPE_URL");
+  }
+
+  window.location.href = checkoutUrl;
+}
 
   async function saveUpgrade() {
     if (!canSubmit) {

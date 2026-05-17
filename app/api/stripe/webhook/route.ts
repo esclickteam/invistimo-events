@@ -42,27 +42,79 @@ function normalizeAllowedMessageRounds(value: unknown): 2 | 3 {
   return Number(value) === 3 ? 3 : 2;
 }
 
+function parseAccessModulesFromMetadata(
+  metadata: Stripe.Metadata | null | undefined,
+  fallback: {
+    includeDigitalSeating?: boolean;
+    includeEventManagement?: boolean;
+    existingAccessModules?: any;
+    planLimits?: any;
+    selfManageEnabled?: boolean;
+  }
+) {
+  let parsedAccessModules: any = null;
+
+  if (metadata?.accessModules) {
+    try {
+      parsedAccessModules = JSON.parse(metadata.accessModules);
+    } catch {
+      parsedAccessModules = null;
+    }
+  }
+
+  const rsvpSeating =
+    typeof parsedAccessModules?.rsvpSeating === "boolean"
+      ? parsedAccessModules.rsvpSeating
+      : metadata?.accessModulesRsvpSeating !== undefined
+        ? toBool(metadata.accessModulesRsvpSeating)
+        : metadata?.includeDigitalSeating !== undefined
+          ? toBool(metadata.includeDigitalSeating)
+          : metadata?.seatingEnabled !== undefined
+            ? toBool(metadata.seatingEnabled)
+            : Boolean(
+                fallback.existingAccessModules?.rsvpSeating ??
+                  fallback.includeDigitalSeating ??
+                  fallback.planLimits?.seatingEnabled
+              );
+
+  const eventProduction =
+    typeof parsedAccessModules?.eventProduction === "boolean"
+      ? parsedAccessModules.eventProduction
+      : metadata?.accessModulesEventProduction !== undefined
+        ? toBool(metadata.accessModulesEventProduction)
+        : metadata?.includeEventManagement !== undefined
+          ? toBool(metadata.includeEventManagement)
+          : metadata?.selfManageEnabled !== undefined
+            ? toBool(metadata.selfManageEnabled)
+            : Boolean(
+                fallback.existingAccessModules?.eventProduction ??
+                  fallback.includeEventManagement ??
+                  fallback.selfManageEnabled
+              );
+
+  return {
+    rsvpSeating,
+    eventProduction,
+  };
+}
+
 /* =========================================================
    PLAN AUTHORITY
 ============================================================ */
 
-function getPlanDefaults(plan: string, guests: number, allowedMessageRounds: 2 | 3) {
+function getPlanDefaults(
+  plan: string,
+  guests: number,
+  allowedMessageRounds: 2 | 3
+) {
   switch (plan) {
     case "plan1":
       return {
         planLimits: {
           maxGuests: guests,
-
-          /*
-            ✅ חשוב:
-            לא דורסים יותר את סבבי ההודעות.
-            הערך מגיע מהבחירה של האדמין / metadata / המשתמש.
-          */
           allowedMessageRounds,
-
           smsEnabled: true,
           smsLimit: 0,
-
           remindersEnabled: true,
           seatingEnabled: false,
           callsEnabled: false,
@@ -75,15 +127,9 @@ function getPlanDefaults(plan: string, guests: number, allowedMessageRounds: 2 |
       return {
         planLimits: {
           maxGuests: guests,
-
-          /*
-            ✅ לפי מה שנבחר לאדמין
-          */
           allowedMessageRounds,
-
           smsEnabled: true,
           smsLimit: 0,
-
           remindersEnabled: true,
           seatingEnabled: false,
           callsEnabled: true,
@@ -96,17 +142,9 @@ function getPlanDefaults(plan: string, guests: number, allowedMessageRounds: 2 |
       return {
         planLimits: {
           maxGuests: guests,
-
-          /*
-            ✅ גם בחבילה 3 לא מכריחים 3.
-            אם האדמין בחר 2 — יישמר 2.
-            אם האדמין בחר 3 — יישמר 3.
-          */
           allowedMessageRounds,
-
           smsEnabled: true,
           smsLimit: 0,
-
           remindersEnabled: true,
           seatingEnabled: true,
           callsEnabled: true,
@@ -120,10 +158,8 @@ function getPlanDefaults(plan: string, guests: number, allowedMessageRounds: 2 |
         planLimits: {
           maxGuests: guests,
           allowedMessageRounds,
-
           smsEnabled: false,
           smsLimit: 0,
-
           remindersEnabled: false,
           seatingEnabled: false,
           callsEnabled: false,
@@ -229,11 +265,6 @@ export async function POST(req: Request) {
       const smsLimit = toNum(session.metadata?.smsLimit, 0);
       const maxMessages = toNum(session.metadata?.maxMessages, smsLimit);
 
-      /*
-        ✅ חדש:
-        גם בשדרוג אדמין שומרים את סבבי ההודעות.
-        קודם metadata, ואם אין — הערך הקיים על המשתמש.
-      */
       const allowedMessageRounds = normalizeAllowedMessageRounds(
         session.metadata?.allowedMessageRounds ??
           user.allowedMessageRounds ??
@@ -257,6 +288,14 @@ export async function POST(req: Request) {
       const includeCustomDesign = toBool(
         session.metadata?.includeCustomDesign
       );
+
+      const accessModules = parseAccessModulesFromMetadata(session.metadata, {
+        includeDigitalSeating,
+        includeEventManagement,
+        existingAccessModules: user.accessModules,
+        planLimits: user.planLimits,
+        selfManageEnabled: user.selfManageEnabled,
+      });
 
       const extraRecords = toNum(session.metadata?.extraRecords, 0);
 
@@ -314,6 +353,8 @@ export async function POST(req: Request) {
           includeEventManagement,
           includeCustomDesign,
 
+          accessModules,
+
           extraRecords,
           extraRecordsAmount,
         },
@@ -340,32 +381,26 @@ export async function POST(req: Request) {
             smsLimit,
             maxMessages,
 
-            /*
-              ✅ חשוב:
-              שדה ישיר על המשתמש
-            */
             allowedMessageRounds,
 
             includeCalls,
             includeCreditGifts,
-            includeDigitalSeating,
-            includeEventManagement,
+
+            includeDigitalSeating: accessModules.rsvpSeating,
+            includeEventManagement: accessModules.eventProduction,
             includeCustomDesign,
 
-            selfManageEnabled: includeEventManagement,
+            accessModules,
+
+            selfManageEnabled: accessModules.eventProduction,
             customDesignEnabled: includeCustomDesign,
 
             "planLimits.maxGuests": maxGuests,
-
-            /*
-              ✅ חשוב:
-              גם בתוך planLimits
-            */
             "planLimits.allowedMessageRounds": allowedMessageRounds,
 
             "planLimits.smsEnabled": true,
             "planLimits.smsLimit": smsLimit,
-            "planLimits.seatingEnabled": includeDigitalSeating,
+            "planLimits.seatingEnabled": accessModules.rsvpSeating,
             "planLimits.remindersEnabled": true,
             "planLimits.callsEnabled": includeCalls,
 
@@ -381,13 +416,16 @@ export async function POST(req: Request) {
           amount,
           currency: "ils",
           type: "Admin upgrade",
-          details: `plan=${plan} | guests=${maxGuests} | rounds=${allowedMessageRounds} | extraRecords=${extraRecords}`,
+          details: `plan=${plan} | guests=${maxGuests} | rounds=${allowedMessageRounds} | eventProduction=${accessModules.eventProduction} | rsvpSeating=${accessModules.rsvpSeating} | extraRecords=${extraRecords}`,
         });
       } catch (err) {
         console.error("❌ Failed to notify admin about upgrade", err);
       }
 
-      console.log("✅ Admin upgrade completed for user:", String(user._id));
+      console.log("✅ Admin upgrade completed for user:", {
+        userId: String(user._id),
+        accessModules,
+      });
 
       return NextResponse.json({ received: true });
     }
@@ -398,10 +436,6 @@ export async function POST(req: Request) {
 
     const source = String(session.metadata?.source || "");
 
-    /*
-      ✅ תומך גם בקוד הישן שלך שהיה source: pricing
-      וגם בקוד החדש מהאדמין ששלחנו קודם source: admin_checkout
-    */
     if (source !== "pricing" && source !== "admin_checkout") {
       return NextResponse.json({ received: true });
     }
@@ -429,12 +463,6 @@ export async function POST(req: Request) {
       toNum(user.maxGuests ?? user.planLimits?.maxGuests, guests)
     );
 
-    /*
-      ✅ זה התיקון הקריטי:
-      קודם לוקחים את מה שהגיע מ־Stripe metadata.
-      אם אין — לוקחים את מה שכבר נשמר למשתמש ביצירת המשתמש.
-      רק אם אין כלום — חוזרים ל־2.
-    */
     const allowedMessageRounds = normalizeAllowedMessageRounds(
       session.metadata?.allowedMessageRounds ??
         user.allowedMessageRounds ??
@@ -463,23 +491,27 @@ export async function POST(req: Request) {
     const finalIncludeCreditGifts = base.includeCreditGifts || addonCredit;
     const finalSeatingEnabled = base.planLimits.seatingEnabled || addonSeating;
 
+    const finalAccessModules = parseAccessModulesFromMetadata(session.metadata, {
+      includeDigitalSeating: finalSeatingEnabled,
+      includeEventManagement: addonSelfManage,
+      existingAccessModules: user.accessModules,
+      planLimits: {
+        ...(user.planLimits || {}),
+        seatingEnabled: finalSeatingEnabled,
+      },
+      selfManageEnabled: addonSelfManage,
+    });
+
     const finalPlanLimits = {
       ...base.planLimits,
 
       maxGuests: maxGuests || guests,
-
-      /*
-        ✅ לא לתת לזה להיעלם בזמן דריסה של planLimits
-      */
       allowedMessageRounds,
 
-      seatingEnabled: finalSeatingEnabled,
+      seatingEnabled: finalAccessModules.rsvpSeating,
       callsEnabled: finalIncludeCalls,
       remindersEnabled: true,
 
-      /*
-        נשארים לתאימות עם קוד ישן
-      */
       smsEnabled: true,
       smsLimit: 0,
     };
@@ -530,28 +562,21 @@ export async function POST(req: Request) {
           guests,
           maxGuests: maxGuests || guests,
 
-          /*
-            ✅ חשוב לשמירה בדוחות
-          */
           allowedMessageRounds,
 
           includeCalls: finalIncludeCalls,
           includeCreditGifts: finalIncludeCreditGifts,
-          seatingEnabled: finalSeatingEnabled,
-          selfManageEnabled: addonSelfManage,
+          seatingEnabled: finalAccessModules.rsvpSeating,
+          selfManageEnabled: finalAccessModules.eventProduction,
           customDesignEnabled: addonCustomDesign,
+
+          accessModules: finalAccessModules,
         },
       });
     } else {
       console.log("ℹ️ Payment already exists for paymentIntent:", paymentIntentId);
     }
 
-    /*
-      ✅ שימי לב:
-      קודם היה פה skip אם user.hasPaid === true.
-      זה מסוכן במקרה שלך, כי המשתמש יכול להיווצר לפני התשלום עם נתונים חלקיים.
-      לכן עכשיו אנחנו עדיין מעדכנים את השדות החשובים בצורה בטוחה.
-    */
     await User.findByIdAndUpdate(
       user._id,
       {
@@ -564,10 +589,6 @@ export async function POST(req: Request) {
           isTrial: false,
           hasDashboardAccess: true,
 
-          /*
-            שמרתי כמו שהיה אצלך:
-            אם אצלך לקוח ששילם צריך להיות פעיל מיד — תשני ל־true.
-          */
           isActive: source === "admin_checkout" ? true : false,
 
           plan,
@@ -577,14 +598,8 @@ export async function POST(req: Request) {
           guests: maxGuests || guests,
           maxGuests: maxGuests || guests,
 
-          /*
-            ✅ שדה ישיר על המשתמש
-          */
           allowedMessageRounds,
 
-          /*
-            ✅ שומר את כל planLimits בלי למחוק allowedMessageRounds
-          */
           planLimits: finalPlanLimits,
 
           maxMessages: 0,
@@ -592,11 +607,13 @@ export async function POST(req: Request) {
 
           includeCalls: finalIncludeCalls,
           includeCreditGifts: finalIncludeCreditGifts,
-          includeDigitalSeating: finalSeatingEnabled,
-          includeEventManagement: addonSelfManage,
+          includeDigitalSeating: finalAccessModules.rsvpSeating,
+          includeEventManagement: finalAccessModules.eventProduction,
           includeCustomDesign: addonCustomDesign,
 
-          selfManageEnabled: addonSelfManage,
+          accessModules: finalAccessModules,
+
+          selfManageEnabled: finalAccessModules.eventProduction,
           customDesignEnabled: addonCustomDesign,
 
           updatedAt: new Date(),
@@ -611,7 +628,7 @@ export async function POST(req: Request) {
         amount,
         currency: "ils",
         type: source === "admin_checkout" ? "Admin checkout" : "New registration",
-        details: `plan=${plan} | guests=${maxGuests || guests} | rounds=${allowedMessageRounds}`,
+        details: `plan=${plan} | guests=${maxGuests || guests} | rounds=${allowedMessageRounds} | eventProduction=${finalAccessModules.eventProduction} | rsvpSeating=${finalAccessModules.rsvpSeating}`,
       });
     } catch (err) {
       console.error("❌ Failed to notify admin", err);
@@ -623,6 +640,7 @@ export async function POST(req: Request) {
       plan,
       guests: maxGuests || guests,
       allowedMessageRounds,
+      accessModules: finalAccessModules,
     });
 
     return NextResponse.json({ received: true });
