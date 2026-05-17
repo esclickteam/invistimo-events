@@ -1298,6 +1298,11 @@ const pending = guests.filter(
 
 const eventLocation = resolveEventLocation(invitation, event);
 
+const canOpenEventManagement =
+  user?.accessModules?.eventProduction === true ||
+  user?.includeEventManagement === true ||
+  user?.selfManageEnabled === true;
+
   /* ============================================================
      Render
   ============================================================ */
@@ -1390,14 +1395,16 @@ const eventLocation = resolveEventLocation(invitation, event);
         {/* צד שמאל: כפתורים, אחוזים, גרפים */}
         <section className="min-w-0">
           <GoldenActionButtons
-            invitation={invitation}
-            invitationId={invitationId}
-            isDemo={isDemo}
-            router={router}
-            onDemoBlocked={handleDemoBlockedAction}
-            onImport={() => setShowImportModal(true)}
-            onExportExcel={handleExportExcel}
-          />
+  invitation={invitation}
+  invitationId={invitationId}
+  isDemo={isDemo}
+  router={router}
+  onDemoBlocked={handleDemoBlockedAction}
+  onImport={() => setShowImportModal(true)}
+  onExportExcel={handleExportExcel}
+  canOpenEventManagement={canOpenEventManagement}
+  eventId={eventIdFromUrl || invitation?.eventId || invitation?.event || invitation?.event_id || ""}
+/>
 
           {/* תיוגים קיימים מהשרת */}
           <div className="mt-4 flex flex-wrap gap-3">
@@ -2179,6 +2186,8 @@ function GoldenActionButtons({
   onDemoBlocked,
   onImport,
   onExportExcel,
+  canOpenEventManagement,
+  eventId,
 }: {
   invitation: any | null;
   invitationId: string;
@@ -2187,6 +2196,8 @@ function GoldenActionButtons({
   onDemoBlocked: () => void;
   onImport: () => void;
   onExportExcel: () => void;
+  canOpenEventManagement: boolean;
+  eventId?: string;
 }) {
 
     const [openInviteMenu, setOpenInviteMenu] = useState(false);
@@ -2332,6 +2343,30 @@ function GoldenActionButtons({
         router.push("/dashboard/event");
       }}
     />
+
+    {/* 3️⃣ ניהול אירוע - אפסייל */}
+{canOpenEventManagement && (
+  <GoldenActionButton
+    label="ניהול אירוע"
+    icon="◆"
+    tone="gold"
+    disabled={!invitation}
+    onClick={() => {
+      if (!invitation) return;
+
+      if (isDemo) {
+        onDemoBlocked();
+        return;
+      }
+
+      const target = eventId
+        ? `/events/production?eventId=${eventId}&tab=overview`
+        : "/events/production?tab=overview";
+
+      router.push(target);
+    }}
+  />
+)}
 
     {/* 4️⃣ ייבוא מאקסל */}
     <GoldenActionButton
