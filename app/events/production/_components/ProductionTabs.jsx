@@ -74,13 +74,13 @@ export default function ProductionTabs({
   };
 
   return (
-    <div dir="rtl" className="space-y-8 pt-[102px]">
+    <div dir="rtl" className="space-y-8">
       {/* ================= TABS ================= */}
       <div
         className="
           sticky
-          top-[102px]
-          z-[60]
+          top-16
+          z-50
           border-b
           border-[#E8DDD3]
           bg-[#F8F3ED]/90
