@@ -20,19 +20,58 @@ type PlanKey = "plan1" | "plan2" | "plan3";
 
 const planRates: Record<PlanKey, [number, number][]> = {
   plan1: [
-    [50,1.19],[100,1.16],[150,1.13],[200,1.1],[250,1.08],
-    [300,1.06],[350,1.04],[400,1.02],[450,1.0],[500,0.98],
-    [550,0.96],[600,0.94],[650,0.93],[700,0.92],[750,0.9],[800,0.88],
+    [50, 1.19],
+    [100, 1.16],
+    [150, 1.13],
+    [200, 1.1],
+    [250, 1.08],
+    [300, 1.06],
+    [350, 1.04],
+    [400, 1.02],
+    [450, 1.0],
+    [500, 0.98],
+    [550, 0.96],
+    [600, 0.94],
+    [650, 0.93],
+    [700, 0.92],
+    [750, 0.9],
+    [800, 0.88],
   ],
   plan2: [
-    [50,2.85],[100,2.38],[150,2.35],[200,2.29],[250,2.26],
-    [300,2.19],[350,2.15],[400,2.1],[450,2.05],[500,2.0],
-    [550,1.96],[600,1.92],[650,1.92],[700,1.92],[750,1.92],[800,1.9],
+    [50, 2.85],
+    [100, 2.38],
+    [150, 2.35],
+    [200, 2.29],
+    [250, 2.26],
+    [300, 2.19],
+    [350, 2.15],
+    [400, 2.1],
+    [450, 2.05],
+    [500, 2.0],
+    [550, 1.96],
+    [600, 1.92],
+    [650, 1.92],
+    [700, 1.92],
+    [750, 1.92],
+    [800, 1.9],
   ],
   plan3: [
-    [50,3.75],[100,3.22],[150,2.98],[200,2.76],[250,2.65],
-    [300,2.52],[350,2.43],[400,2.35],[450,2.28],[500,2.21],
-    [550,2.14],[600,2.07],[650,2.06],[700,2.05],[750,2.04],[800,2.03],
+    [50, 3.75],
+    [100, 3.22],
+    [150, 2.98],
+    [200, 2.76],
+    [250, 2.65],
+    [300, 2.52],
+    [350, 2.43],
+    [400, 2.35],
+    [450, 2.28],
+    [500, 2.21],
+    [550, 2.14],
+    [600, 2.07],
+    [650, 2.06],
+    [700, 2.05],
+    [750, 2.04],
+    [800, 2.03],
   ],
 };
 
@@ -59,16 +98,17 @@ function isValidPlan(p: any): p is PlanKey {
 
 function getRate(plan: PlanKey, guests: number) {
   const table = planRates[plan];
+
   for (const [limit, rate] of table) {
     if (guests <= limit) return rate;
   }
+
   return table[table.length - 1][1];
 }
 
 function calculateBase(plan: PlanKey, guests: number) {
   return Math.round(guests * getRate(plan, guests));
 }
-
 
 function toBool(v: unknown) {
   return String(v ?? "").toLowerCase() === "true";
@@ -96,13 +136,30 @@ export async function POST(req: Request) {
     }
 
     if (!email || !userId) {
-      return NextResponse.json({ error: "Missing identity fields" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing identity fields" },
+        { status: 400 }
+      );
     }
 
+    /*
+      seating = הושבה דיגיטלית / אישורי הגעה והושבה
+      system = מערכת עצמאית לניהול ומעקב אירוע
+    */
     const seating = toBool(body.seating);
     const credit = toBool(body.credit);
     const system = toBool(body.system);
     const design = toBool(body.design);
+
+    /*
+      ✅ הרשאות מודולים:
+      rsvpSeating = אישורי הגעה / הושבה
+      eventProduction = מערכת ניהול אירוע
+    */
+    const accessModules = {
+      rsvpSeating: Boolean(seating),
+      eventProduction: Boolean(system),
+    };
 
     /* ================= BASE ================= */
 
@@ -134,6 +191,7 @@ export async function POST(req: Request) {
       mode: "payment",
       customer_email: email,
       payment_method_types: ["card"],
+
       line_items: [
         {
           price_data: {
@@ -147,18 +205,39 @@ export async function POST(req: Request) {
           quantity: 1,
         },
       ],
+
       success_url: `${cleanBaseUrl}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${cleanBaseUrl}/payment/cancel`,
+
       metadata: {
         source: "pricing",
+
         userId,
         plan,
         guests: String(guests),
+
+        /*
+          שדות ישנים — נשארים כדי לא לשבור את ה-webhook/קוד קיים
+        */
         seatingEnabled: String(seating),
+        includeDigitalSeating: String(seating),
+
         includeCreditGifts: String(credit),
         includeCalls: String(plan === "plan2" || plan === "plan3"),
+
         selfManageEnabled: String(system),
+        includeEventManagement: String(system),
+
         customDesignEnabled: String(design),
+        includeCustomDesign: String(design),
+
+        /*
+          ✅ שדות חדשים — ה-webhook יקרא אותם וישמור במונגו
+        */
+        accessModules: JSON.stringify(accessModules),
+        accessModulesRsvpSeating: String(accessModules.rsvpSeating),
+        accessModulesEventProduction: String(accessModules.eventProduction),
+
         calculatedTotal: String(total),
       },
     });
@@ -167,9 +246,9 @@ export async function POST(req: Request) {
       success: true,
       url: session.url,
     });
-
   } catch (err) {
     console.error("❌ create-checkout error:", err);
+
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
