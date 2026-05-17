@@ -64,6 +64,30 @@ function normalizeAllowedMessageRounds(value: any): 2 | 3 {
   return Number(value) === 3 ? 3 : 2;
 }
 
+function normalizeAccessModules(value: any, fallback: any) {
+  const fallbackRsvpSeating =
+    Boolean(fallback?.accessModules?.rsvpSeating) ||
+    Boolean(fallback?.includeDigitalSeating) ||
+    Boolean(fallback?.planLimits?.seatingEnabled);
+
+  const fallbackEventProduction =
+    Boolean(fallback?.accessModules?.eventProduction) ||
+    Boolean(fallback?.includeEventManagement) ||
+    Boolean(fallback?.selfManageEnabled);
+
+  return {
+    rsvpSeating:
+      typeof value?.rsvpSeating === "boolean"
+        ? value.rsvpSeating
+        : fallbackRsvpSeating,
+
+    eventProduction:
+      typeof value?.eventProduction === "boolean"
+        ? value.eventProduction
+        : fallbackEventProduction,
+  };
+}
+
 function normalizeVenueSeatingService(value: any) {
   if (!value || typeof value !== "object") return undefined;
 
@@ -72,13 +96,18 @@ function normalizeVenueSeatingService(value: any) {
   const venuePaymentAmount = Number(value.venuePaymentAmount || 0);
   const staffPaymentAmount = Number(value.staffPaymentAmount || 0);
 
-  const safeTotalPrice = Number.isFinite(totalPrice) ? Math.max(0, totalPrice) : 0;
+  const safeTotalPrice = Number.isFinite(totalPrice)
+    ? Math.max(0, totalPrice)
+    : 0;
+
   const safeDepositAmount = Number.isFinite(depositAmount)
     ? Math.max(0, Math.min(depositAmount, safeTotalPrice))
     : 0;
+
   const safeVenuePaymentAmount = Number.isFinite(venuePaymentAmount)
     ? Math.max(0, Math.min(venuePaymentAmount, safeTotalPrice))
     : 0;
+
   const safeStaffPaymentAmount = Number.isFinite(staffPaymentAmount)
     ? Math.max(0, Math.min(staffPaymentAmount, safeTotalPrice))
     : 0;
@@ -209,23 +238,23 @@ export async function PATCH(
     }
 
     const nextVenueSeatingService = hasField(body, "venueSeatingService")
-  ? normalizeVenueSeatingService(body.venueSeatingService)
-  : undefined;
+      ? normalizeVenueSeatingService(body.venueSeatingService)
+      : undefined;
 
-const hadVenueSeatingService = Boolean(
-  currentUser.venueSeatingService?.enabled
-);
+    const hadVenueSeatingService = Boolean(
+      currentUser.venueSeatingService?.enabled
+    );
 
-const hasNewVenueSeatingService = Boolean(
-  nextVenueSeatingService?.enabled
-);
+    const hasNewVenueSeatingService = Boolean(
+      nextVenueSeatingService?.enabled
+    );
 
-const shouldAddVenueDepositPayment =
-  !hadVenueSeatingService && hasNewVenueSeatingService;
+    const shouldAddVenueDepositPayment =
+      !hadVenueSeatingService && hasNewVenueSeatingService;
 
-const venueDepositPaymentAmount = shouldAddVenueDepositPayment
-  ? Number(nextVenueSeatingService?.depositAmount || 0)
-  : 0;
+    const venueDepositPaymentAmount = shouldAddVenueDepositPayment
+      ? Number(nextVenueSeatingService?.depositAmount || 0)
+      : 0;
 
     /* =====================================================
        BASIC FIELDS
@@ -294,20 +323,52 @@ const venueDepositPaymentAmount = shouldAddVenueDepositPayment
       ? Boolean(body.includeCustomDesign)
       : undefined;
 
+    /*
+      ✅ הרשאות מודולים:
+      אם הקליינט שלח accessModules — זה המקור החדש.
+      אם לא שלח — משתמשים בשדות הישנים כדי לא לשבור עדכונים קיימים.
+    */
+    const nextAccessModules = hasField(body, "accessModules")
+      ? normalizeAccessModules(body.accessModules, currentUser)
+      : undefined;
+
+    const finalAccessModules = normalizeAccessModules(
+      nextAccessModules,
+      {
+        ...currentUser,
+        includeDigitalSeating:
+          nextIncludeDigitalSeating !== undefined
+            ? nextIncludeDigitalSeating
+            : currentUser.includeDigitalSeating,
+        includeEventManagement:
+          nextIncludeEventManagement !== undefined
+            ? nextIncludeEventManagement
+            : currentUser.includeEventManagement,
+        selfManageEnabled:
+          nextIncludeEventManagement !== undefined
+            ? nextIncludeEventManagement
+            : currentUser.selfManageEnabled,
+      }
+    );
+
     const finalIncludeCalls =
       nextIncludeCalls !== undefined
         ? nextIncludeCalls
         : Boolean(currentUser.includeCalls);
 
     const finalIncludeDigitalSeating =
-      nextIncludeDigitalSeating !== undefined
-        ? nextIncludeDigitalSeating
-        : Boolean(currentUser.includeDigitalSeating);
+      nextAccessModules !== undefined
+        ? finalAccessModules.rsvpSeating
+        : nextIncludeDigitalSeating !== undefined
+          ? nextIncludeDigitalSeating
+          : Boolean(currentUser.includeDigitalSeating);
 
     const finalIncludeEventManagement =
-      nextIncludeEventManagement !== undefined
-        ? nextIncludeEventManagement
-        : Boolean(currentUser.includeEventManagement);
+      nextAccessModules !== undefined
+        ? finalAccessModules.eventProduction
+        : nextIncludeEventManagement !== undefined
+          ? nextIncludeEventManagement
+          : Boolean(currentUser.includeEventManagement);
 
     const finalIncludeCustomDesign =
       nextIncludeCustomDesign !== undefined
@@ -330,9 +391,12 @@ const venueDepositPaymentAmount = shouldAddVenueDepositPayment
       planLimitsPatch["planLimits.smsLimit"] = nextSmsLimit;
     }
 
-    if (nextIncludeDigitalSeating !== undefined) {
+    if (
+      nextIncludeDigitalSeating !== undefined ||
+      nextAccessModules !== undefined
+    ) {
       planLimitsPatch["planLimits.seatingEnabled"] =
-        nextIncludeDigitalSeating;
+        finalAccessModules.rsvpSeating;
     }
 
     if (nextIncludeCalls !== undefined) {
@@ -344,7 +408,8 @@ const venueDepositPaymentAmount = shouldAddVenueDepositPayment
       nextSmsLimit !== undefined ||
       nextAllowedMessageRounds !== undefined ||
       nextIncludeCalls !== undefined ||
-      nextIncludeDigitalSeating !== undefined
+      nextIncludeDigitalSeating !== undefined ||
+      nextAccessModules !== undefined
     ) {
       planLimitsPatch["planLimits.remindersEnabled"] = true;
     }
@@ -380,14 +445,13 @@ const venueDepositPaymentAmount = shouldAddVenueDepositPayment
       maxMessages: nextSmsLimit,
 
       includeCalls: nextIncludeCalls,
-      callsRounds:
-        hasField(body, "callsRounds")
-          ? Number(body.callsRounds || 0)
-          : nextIncludeCalls !== undefined
-            ? nextIncludeCalls
-              ? Number(currentUser.callsRounds || 3)
-              : 0
-            : undefined,
+      callsRounds: hasField(body, "callsRounds")
+        ? Number(body.callsRounds || 0)
+        : nextIncludeCalls !== undefined
+          ? nextIncludeCalls
+            ? Number(currentUser.callsRounds || 3)
+            : 0
+          : undefined,
 
       callsAddonPrice: hasField(body, "callsAddonPrice")
         ? Number(body.callsAddonPrice || 0)
@@ -399,13 +463,31 @@ const venueDepositPaymentAmount = shouldAddVenueDepositPayment
         ? Number(body.creditGiftsAddonPrice || 0)
         : undefined,
 
-      includeDigitalSeating: nextIncludeDigitalSeating,
-      includeEventManagement: nextIncludeEventManagement,
+      /*
+        ✅ סנכרון חדש:
+        accessModules הוא המקור החדש,
+        אבל שומרים גם את השדות הישנים כדי שכל הקוד הקיים ימשיך לעבוד.
+      */
+      accessModules:
+        nextAccessModules !== undefined ? finalAccessModules : undefined,
+
+      includeDigitalSeating:
+        nextAccessModules !== undefined || nextIncludeDigitalSeating !== undefined
+          ? finalIncludeDigitalSeating
+          : undefined,
+
+      includeEventManagement:
+        nextAccessModules !== undefined ||
+        nextIncludeEventManagement !== undefined
+          ? finalIncludeEventManagement
+          : undefined,
+
       includeCustomDesign: nextIncludeCustomDesign,
 
       selfManageEnabled:
+        nextAccessModules !== undefined ||
         nextIncludeEventManagement !== undefined
-          ? nextIncludeEventManagement
+          ? finalAccessModules.eventProduction
           : undefined,
 
       customDesignEnabled:
@@ -444,9 +526,9 @@ const venueDepositPaymentAmount = shouldAddVenueDepositPayment
 
       eventDate: hasField(body, "eventDate") ? body.eventDate : undefined,
 
-venueSeatingService: nextVenueSeatingService,
+      venueSeatingService: nextVenueSeatingService,
 
-...planLimitsPatch,
+      ...planLimitsPatch,
     });
 
     const updatedUser: any = await User.findOneAndUpdate(
@@ -467,8 +549,8 @@ venueSeatingService: nextVenueSeatingService,
        רק אם סימנת באדמין "שולם" ויש סכום חיובי.
     ===================================================== */
     const upgradeAmount = Number(body.upgradeAmount || 0);
-const venueDepositAmountFromEdit = Number(venueDepositPaymentAmount || 0);
-const totalPaymentAmount = upgradeAmount + venueDepositAmountFromEdit;
+    const venueDepositAmountFromEdit = Number(venueDepositPaymentAmount || 0);
+    const totalPaymentAmount = upgradeAmount + venueDepositAmountFromEdit;
 
     if (totalPaymentAmount > 0) {
       const paymentEmail = normalizeEmail(
@@ -544,20 +626,25 @@ const totalPaymentAmount = upgradeAmount + venueDepositAmountFromEdit;
           manualAmount: true,
 
           venueSeatingDepositAmount: venueDepositAmountFromEdit,
-venueSeatingService: nextVenueSeatingService || null,
+          venueSeatingService: nextVenueSeatingService || null,
 
           includeCalls: Boolean(updatedUser.includeCalls),
           includeCreditGifts: Boolean(updatedUser.includeCreditGifts),
           includeDigitalSeating: Boolean(updatedUser.includeDigitalSeating),
           includeEventManagement: Boolean(updatedUser.includeEventManagement),
           includeCustomDesign: Boolean(updatedUser.includeCustomDesign),
+
+          accessModules: updatedUser.accessModules || {
+            rsvpSeating: Boolean(updatedUser.includeDigitalSeating),
+            eventProduction: Boolean(updatedUser.includeEventManagement),
+          },
         },
       });
 
       await User.findByIdAndUpdate(updatedUser._id, {
         $inc: {
-  paidAmount: totalPaymentAmount,
-},
+          paidAmount: totalPaymentAmount,
+        },
         $set: {
           hasPaid: true,
           isActive: true,
