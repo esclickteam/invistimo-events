@@ -90,39 +90,6 @@ export default function ProducerDashboardHeader({
             <span className="text-[16px]">🏠</span>
             ראשי
           </button>
-
-          <button
-            type="button"
-            onClick={() => router.push(homeHref)}
-            className="
-              transition
-              hover:text-[#A77A2F]
-            "
-          >
-            לקוחות
-          </button>
-
-          <button
-            type="button"
-            onClick={() => router.push(homeHref)}
-            className="
-              transition
-              hover:text-[#A77A2F]
-            "
-          >
-            יומן מפיק
-          </button>
-
-          <button
-            type="button"
-            onClick={() => router.push(homeHref)}
-            className="
-              transition
-              hover:text-[#A77A2F]
-            "
-          >
-            ניהול אירועים
-          </button>
         </nav>
 
         {/* מרכז – לוגו */}
@@ -130,7 +97,7 @@ export default function ProducerDashboardHeader({
           <button
             type="button"
             onClick={() => router.push(homeHref)}
-            aria-label="מעבר לדשבורד מפיק"
+            aria-label="מעבר לעמוד הראשי"
             className="
               flex
               items-center
