@@ -5,7 +5,6 @@ import {
   Gift,
   Plus,
   Trash2,
-  Save,
   Loader2,
   WalletCards,
   CreditCard,
@@ -13,6 +12,7 @@ import {
   ChevronDown,
   Check,
   FileSpreadsheet,
+  Search,
 } from "lucide-react";
 
 const PAYMENT_OPTIONS = [
@@ -243,10 +243,14 @@ function PaymentDropdown({ value, onChange }) {
 export default function EventGiftsTab({ eventId, invitationId }) {
   const [gifts, setGifts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [savingId, setSavingId] = useState("");
   const [deletingId, setDeletingId] = useState("");
   const [error, setError] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
 
+  const [savingRows, setSavingRows] = useState({});
+  const [savedRows, setSavedRows] = useState({});
+
+  const saveTimersRef = useRef({});
   const canLoad = Boolean(eventId);
 
   const loadGifts = async () => {
@@ -258,15 +262,15 @@ export default function EventGiftsTab({ eventId, invitationId }) {
     try {
       const query = new URLSearchParams();
 
-query.set("eventId", eventId);
+      query.set("eventId", eventId);
 
-if (invitationId) {
-  query.set("invitationId", invitationId);
-}
+      if (invitationId) {
+        query.set("invitationId", invitationId);
+      }
 
-const res = await fetch(`/api/event-gifts?${query.toString()}`, {
-  cache: "no-store",
-});
+      const res = await fetch(`/api/event-gifts?${query.toString()}`, {
+        cache: "no-store",
+      });
 
       const data = await res.json();
 
@@ -285,7 +289,13 @@ const res = await fetch(`/api/event-gifts?${query.toString()}`, {
 
   useEffect(() => {
     loadGifts();
-  }, [eventId]);
+
+    return () => {
+      Object.values(saveTimersRef.current || {}).forEach((timer) => {
+        clearTimeout(timer);
+      });
+    };
+  }, [eventId, invitationId]);
 
   const localSummary = useMemo(() => {
     const totalGifts = gifts.reduce((sum, gift) => {
@@ -306,69 +316,186 @@ const res = await fetch(`/api/event-gifts?${query.toString()}`, {
     };
   }, [gifts]);
 
+  const filteredGifts = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+
+    if (!q) return gifts;
+
+    return gifts.filter((gift) => {
+      const name = String(gift.guestName || "").toLowerCase();
+      const phone = String(gift.phone || "").toLowerCase();
+
+      return name.includes(q) || phone.includes(q);
+    });
+  }, [gifts, searchTerm]);
+
+  const buildPayload = (gift) => {
+    return {
+      giftId: gift._id,
+      eventId,
+      invitationId,
+      guestName: gift.guestName || "",
+      phone: gift.phone || "",
+      relation: gift.relation || "",
+      arrivalStatus: gift.arrivalStatus || "",
+      confirmedCount: gift.confirmedCount ?? "",
+      giftAmount: gift.giftAmount ?? 0,
+      paymentMethod: gift.paymentMethod || "",
+      notes: gift.notes || "",
+    };
+  };
+
+  const saveGiftNow = async (gift) => {
+    const isNew = Boolean(gift.isNew);
+
+    if (isNew && !String(gift.guestName || "").trim()) {
+      return;
+    }
+
+    const rowId = gift._id;
+
+    setSavingRows((prev) => ({
+      ...prev,
+      [rowId]: true,
+    }));
+
+    setSavedRows((prev) => ({
+      ...prev,
+      [rowId]: false,
+    }));
+
+    setError("");
+
+    try {
+      const res = await fetch("/api/event-gifts", {
+        method: isNew ? "POST" : "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(buildPayload(gift)),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "שגיאה בשמירה אוטומטית");
+      }
+
+      if (isNew && data.gift?._id) {
+        setGifts((prev) =>
+          prev.map((item) =>
+            item._id === rowId
+              ? {
+                  ...data.gift,
+                  isNew: false,
+                }
+              : item
+          )
+        );
+
+        setSavingRows((prev) => {
+          const next = { ...prev };
+          delete next[rowId];
+          next[data.gift._id] = false;
+          return next;
+        });
+
+        setSavedRows((prev) => {
+          const next = { ...prev };
+          delete next[rowId];
+          next[data.gift._id] = true;
+          return next;
+        });
+
+        setTimeout(() => {
+          setSavedRows((prev) => ({
+            ...prev,
+            [data.gift._id]: false,
+          }));
+        }, 1500);
+
+        return;
+      }
+
+      if (data.gift?._id) {
+        setGifts((prev) =>
+          prev.map((item) =>
+            item._id === data.gift._id
+              ? {
+                  ...item,
+                  ...data.gift,
+                  isNew: false,
+                }
+              : item
+          )
+        );
+      }
+
+      setSavedRows((prev) => ({
+        ...prev,
+        [rowId]: true,
+      }));
+
+      setTimeout(() => {
+        setSavedRows((prev) => ({
+          ...prev,
+          [rowId]: false,
+        }));
+      }, 1500);
+    } catch (err) {
+      console.error(err);
+      setError(err.message || "שגיאה בשמירה אוטומטית");
+    } finally {
+      setSavingRows((prev) => ({
+        ...prev,
+        [rowId]: false,
+      }));
+    }
+  };
+
+  const scheduleAutoSave = (gift) => {
+    const rowId = gift._id;
+
+    if (saveTimersRef.current[rowId]) {
+      clearTimeout(saveTimersRef.current[rowId]);
+    }
+
+    saveTimersRef.current[rowId] = setTimeout(() => {
+      saveGiftNow(gift);
+    }, 650);
+  };
+
   const updateGiftField = (giftId, field, value) => {
+    let nextGift = null;
+
     setGifts((prev) =>
-      prev.map((gift) =>
-        gift._id === giftId
-          ? {
-              ...gift,
-              [field]: value,
-            }
-          : gift
-      )
+      prev.map((gift) => {
+        if (gift._id !== giftId) return gift;
+
+        nextGift = {
+          ...gift,
+          [field]: value,
+        };
+
+        return nextGift;
+      })
     );
+
+    if (nextGift) {
+      scheduleAutoSave(nextGift);
+    }
   };
 
   const addManualRow = () => {
     setGifts((prev) => [emptyManualGift(eventId, invitationId), ...prev]);
   };
 
-  const saveGift = async (gift) => {
-    setSavingId(gift._id);
-    setError("");
-
-    try {
-      const isNew = Boolean(gift.isNew);
-
-      const payload = {
-        giftId: gift._id,
-        eventId,
-        invitationId,
-        guestName: gift.guestName,
-        phone: gift.phone,
-        relation: gift.relation,
-        arrivalStatus: gift.arrivalStatus,
-        confirmedCount: gift.confirmedCount,
-        giftAmount: gift.giftAmount,
-        paymentMethod: gift.paymentMethod,
-        notes: gift.notes,
-      };
-
-      const res = await fetch("/api/event-gifts", {
-        method: isNew ? "POST" : "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        throw new Error(data.message || "שגיאה בשמירה");
-      }
-
-      await loadGifts();
-    } catch (err) {
-      console.error(err);
-      setError(err.message || "שגיאה בשמירה");
-    } finally {
-      setSavingId("");
-    }
-  };
-
   const deleteGift = async (gift) => {
     if (gift.isNew) {
+      if (saveTimersRef.current[gift._id]) {
+        clearTimeout(saveTimersRef.current[gift._id]);
+      }
+
       setGifts((prev) => prev.filter((item) => item._id !== gift._id));
       return;
     }
@@ -629,6 +756,38 @@ const res = await fetch(`/api/event-gifts?${query.toString()}`, {
         </div>
       </div>
 
+      <div className="rounded-[24px] border border-[#E8DDD3] bg-white/80 p-4 shadow-[0_12px_35px_rgba(86,60,34,0.05)]">
+        <div className="relative">
+          <Search
+            size={17}
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-[#A99483]"
+          />
+
+          <input
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="חיפוש לפי שם או טלפון..."
+            className="
+              h-12
+              w-full
+              rounded-2xl
+              border
+              border-[#E6D7C8]
+              bg-white
+              pr-11
+              pl-4
+              text-sm
+              font-bold
+              text-[#2B2118]
+              outline-none
+              transition
+              placeholder:text-[#B7A99C]
+              focus:border-[#D8B46A]
+            "
+          />
+        </div>
+      </div>
+
       {error && (
         <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
           {error}
@@ -641,15 +800,18 @@ const res = await fetch(`/api/event-gifts?${query.toString()}`, {
             <Loader2 className="animate-spin" size={18} />
             טוען מתנות...
           </div>
-        ) : gifts.length === 0 ? (
+        ) : filteredGifts.length === 0 ? (
           <div className="flex min-h-[260px] flex-col items-center justify-center p-8 text-center">
             <Gift className="mb-4 text-[#D8B46A]" size={34} />
+
             <h3 className="text-lg font-black text-[#2B2118]">
-              עדיין אין רשומות מתנה
+              {searchTerm ? "לא נמצאו תוצאות לחיפוש" : "עדיין אין רשומות מתנה"}
             </h3>
+
             <p className="mt-2 text-sm font-medium text-[#7A6A5E]">
-              אפשר להוסיף ידנית, ואם קיימים אישורי הגעה הרשימה תיטען
-              אוטומטית.
+              {searchTerm
+                ? "נסי לחפש לפי שם אחר או לפי מספר טלפון."
+                : "אפשר להוסיף ידנית, ואם קיימים אישורי הגעה הרשימה תיטען אוטומטית."}
             </p>
           </div>
         ) : (
@@ -669,132 +831,144 @@ const res = await fetch(`/api/event-gifts?${query.toString()}`, {
               </thead>
 
               <tbody className="divide-y divide-[#EFE5DC]">
-                {gifts.map((gift) => (
-                  <tr key={gift._id} className="transition hover:bg-[#FFFCF8]">
-                    <td className="px-4 py-4">
-                      <input
-                        value={gift.guestName || ""}
-                        onChange={(e) =>
-                          updateGiftField(gift._id, "guestName", e.target.value)
-                        }
-                        className="h-11 w-full rounded-2xl border border-[#E6D7C8] bg-white px-3 text-sm font-bold text-[#2B2118] outline-none focus:border-[#D8B46A]"
-                        placeholder="שם"
-                      />
-                    </td>
+                {filteredGifts.map((gift) => {
+                  const isSaving = Boolean(savingRows[gift._id]);
+                  const isSaved = Boolean(savedRows[gift._id]);
 
-                    <td className="px-4 py-4">
-                      <input
-                        value={gift.phone || ""}
-                        onChange={(e) =>
-                          updateGiftField(gift._id, "phone", e.target.value)
-                        }
-                        className="h-11 w-full rounded-2xl border border-[#E6D7C8] bg-white px-3 text-sm font-bold text-[#2B2118] outline-none focus:border-[#D8B46A]"
-                        placeholder="טלפון"
-                      />
-                    </td>
+                  return (
+                    <tr key={gift._id} className="transition hover:bg-[#FFFCF8]">
+                      <td className="px-4 py-4">
+                        <input
+                          value={gift.guestName || ""}
+                          onChange={(e) =>
+                            updateGiftField(
+                              gift._id,
+                              "guestName",
+                              e.target.value
+                            )
+                          }
+                          className="h-11 w-full rounded-2xl border border-[#E6D7C8] bg-white px-3 text-sm font-bold text-[#2B2118] outline-none focus:border-[#D8B46A]"
+                          placeholder="שם"
+                        />
+                      </td>
 
-                    <td className="px-4 py-4">
-                      <select
-                        value={gift.arrivalStatus || ""}
-                        onChange={(e) =>
-                          updateGiftField(
-                            gift._id,
-                            "arrivalStatus",
-                            e.target.value
-                          )
-                        }
-                        className="h-11 w-full rounded-2xl border border-[#E6D7C8] bg-white px-3 text-sm font-bold text-[#2B2118] outline-none focus:border-[#D8B46A]"
-                      >
-                        {STATUS_OPTIONS.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
+                      <td className="px-4 py-4">
+                        <input
+                          value={gift.phone || ""}
+                          onChange={(e) =>
+                            updateGiftField(gift._id, "phone", e.target.value)
+                          }
+                          className="h-11 w-full rounded-2xl border border-[#E6D7C8] bg-white px-3 text-sm font-bold text-[#2B2118] outline-none focus:border-[#D8B46A]"
+                          placeholder="טלפון"
+                        />
+                      </td>
 
-                    <td className="px-4 py-4">
-                      <input
-                        type="number"
-                        min="0"
-                        value={gift.confirmedCount ?? ""}
-                        onChange={(e) =>
-                          updateGiftField(
-                            gift._id,
-                            "confirmedCount",
-                            e.target.value
-                          )
-                        }
-                        className="h-11 w-full rounded-2xl border border-[#E6D7C8] bg-white px-3 text-sm font-bold text-[#2B2118] outline-none focus:border-[#D8B46A]"
-                        placeholder="לא חובה"
-                      />
-                    </td>
-
-                    <td className="px-4 py-4">
-                      <input
-                        type="number"
-                        min="0"
-                        value={gift.giftAmount ?? ""}
-                        onChange={(e) =>
-                          updateGiftField(gift._id, "giftAmount", e.target.value)
-                        }
-                        className="h-11 w-full rounded-2xl border border-[#E6D7C8] bg-white px-3 text-sm font-bold text-[#2B2118] outline-none focus:border-[#D8B46A]"
-                        placeholder="₪"
-                      />
-                    </td>
-
-                    <td className="px-4 py-4">
-                      <PaymentDropdown
-                        value={gift.paymentMethod || ""}
-                        onChange={(value) =>
-                          updateGiftField(gift._id, "paymentMethod", value)
-                        }
-                      />
-                    </td>
-
-                    <td className="px-4 py-4">
-                      <input
-                        value={gift.notes || ""}
-                        onChange={(e) =>
-                          updateGiftField(gift._id, "notes", e.target.value)
-                        }
-                        className="h-11 w-full rounded-2xl border border-[#E6D7C8] bg-white px-3 text-sm font-bold text-[#2B2118] outline-none focus:border-[#D8B46A]"
-                        placeholder="הערות"
-                      />
-                    </td>
-
-                    <td className="px-4 py-4">
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => saveGift(gift)}
-                          disabled={savingId === gift._id}
-                          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#2B2118] px-3 text-xs font-black text-white transition hover:bg-[#3A2A1E] disabled:opacity-50"
+                      <td className="px-4 py-4">
+                        <select
+                          value={gift.arrivalStatus || ""}
+                          onChange={(e) =>
+                            updateGiftField(
+                              gift._id,
+                              "arrivalStatus",
+                              e.target.value
+                            )
+                          }
+                          className="h-11 w-full rounded-2xl border border-[#E6D7C8] bg-white px-3 text-sm font-bold text-[#2B2118] outline-none focus:border-[#D8B46A]"
                         >
-                          {savingId === gift._id ? (
-                            <Loader2 className="animate-spin" size={14} />
-                          ) : (
-                            <Save size={14} />
-                          )}
-                          שמירה
-                        </button>
+                          {STATUS_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
 
-                        <button
-                          type="button"
-                          onClick={() => deleteGift(gift)}
-                          disabled={deletingId === gift._id}
-                          className="inline-flex h-10 items-center justify-center rounded-xl border border-red-200 bg-red-50 px-3 text-xs font-black text-red-600 transition hover:bg-red-100 disabled:opacity-50"
-                        >
-                          {deletingId === gift._id ? (
-                            <Loader2 className="animate-spin" size={14} />
-                          ) : (
-                            <Trash2 size={14} />
-                          )}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      <td className="px-4 py-4">
+                        <input
+                          type="number"
+                          min="0"
+                          value={gift.confirmedCount ?? ""}
+                          onChange={(e) =>
+                            updateGiftField(
+                              gift._id,
+                              "confirmedCount",
+                              e.target.value
+                            )
+                          }
+                          className="h-11 w-full rounded-2xl border border-[#E6D7C8] bg-white px-3 text-sm font-bold text-[#2B2118] outline-none focus:border-[#D8B46A]"
+                          placeholder="לא חובה"
+                        />
+                      </td>
+
+                      <td className="px-4 py-4">
+                        <input
+                          type="number"
+                          min="0"
+                          value={gift.giftAmount ?? ""}
+                          onChange={(e) =>
+                            updateGiftField(
+                              gift._id,
+                              "giftAmount",
+                              e.target.value
+                            )
+                          }
+                          className="h-11 w-full rounded-2xl border border-[#E6D7C8] bg-white px-3 text-sm font-bold text-[#2B2118] outline-none focus:border-[#D8B46A]"
+                          placeholder="₪"
+                        />
+                      </td>
+
+                      <td className="px-4 py-4">
+                        <PaymentDropdown
+                          value={gift.paymentMethod || ""}
+                          onChange={(value) =>
+                            updateGiftField(gift._id, "paymentMethod", value)
+                          }
+                        />
+                      </td>
+
+                      <td className="px-4 py-4">
+                        <input
+                          value={gift.notes || ""}
+                          onChange={(e) =>
+                            updateGiftField(gift._id, "notes", e.target.value)
+                          }
+                          className="h-11 w-full rounded-2xl border border-[#E6D7C8] bg-white px-3 text-sm font-bold text-[#2B2118] outline-none focus:border-[#D8B46A]"
+                          placeholder="הערות"
+                        />
+                      </td>
+
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => deleteGift(gift)}
+                            disabled={deletingId === gift._id}
+                            className="inline-flex h-10 items-center justify-center rounded-xl border border-red-200 bg-red-50 px-3 text-xs font-black text-red-600 transition hover:bg-red-100 disabled:opacity-50"
+                          >
+                            {deletingId === gift._id ? (
+                              <Loader2 className="animate-spin" size={14} />
+                            ) : (
+                              <Trash2 size={14} />
+                            )}
+                          </button>
+
+                          <span className="min-w-[58px] text-xs font-black text-[#8A7A6D]">
+                            {isSaving ? (
+                              <span className="inline-flex items-center gap-1">
+                                <Loader2 className="animate-spin" size={12} />
+                                שומר
+                              </span>
+                            ) : isSaved ? (
+                              "נשמר"
+                            ) : (
+                              ""
+                            )}
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

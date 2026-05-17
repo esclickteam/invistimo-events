@@ -92,18 +92,19 @@ export default function ProductionTabs({
           border-[#E8DDD3]
           bg-[#F8F3ED]/90
           backdrop-blur-xl
+          overflow-visible
         "
       >
         <div className="mx-auto max-w-7xl px-4">
           <div
             className="
-              no-scrollbar
               flex
+              flex-wrap
               items-center
               justify-center
               gap-3
-              overflow-x-auto
               py-4
+              overflow-visible
             "
           >
             {TABS.map((tab) => {

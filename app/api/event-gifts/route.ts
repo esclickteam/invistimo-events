@@ -30,9 +30,10 @@ function normalizeArrivalStatus(guest: any) {
     guest?.arrivalStatus ||
     guest?.rsvpStatus ||
     guest?.attendanceStatus ||
+    guest?.responseStatus ||
     "";
 
-  const value = String(raw).toLowerCase();
+  const value = String(raw).toLowerCase().trim();
 
   if (
     value === "coming" ||
@@ -47,6 +48,7 @@ function normalizeArrivalStatus(guest: any) {
   if (
     value === "not_coming" ||
     value === "not-coming" ||
+    value === "notcoming" ||
     value === "declined" ||
     value === "no" ||
     value === "לא מגיע"
@@ -77,6 +79,8 @@ function getConfirmedCount(guest: any) {
     guest?.arrivedCount ??
     guest?.confirmedGuests ??
     guest?.approvedGuests ??
+    guest?.numberOfGuests ??
+    guest?.amount ??
     null;
 
   const numberValue = Number(value);
@@ -97,6 +101,16 @@ function getGuestName(guest: any) {
   ).trim();
 }
 
+function getGuestPhone(guest: any) {
+  return String(
+    guest?.phone ||
+      guest?.phoneNumber ||
+      guest?.mobile ||
+      guest?.telephone ||
+      ""
+  ).trim();
+}
+
 function getGuestRelation(guest: any) {
   return String(
     guest?.relation ||
@@ -107,6 +121,15 @@ function getGuestRelation(guest: any) {
   ).trim();
 }
 
+/* ============================================================
+   SYNC RSVP GUESTS TO EVENT GIFTS
+
+   חשוב:
+   - אם יש רשומת מתנה קיימת: מסנכרנים רק פרטי מוזמן
+     שם / טלפון / קבוצה / סטטוס / כמות מגיעים.
+   - לא נוגעים בסכום מתנה / סוג תשלום / הערות.
+   - אם המשתמש מחק רשומת מתנה, היא נשארת isDeleted ולא חוזרת לתצוגה.
+============================================================ */
 async function syncGuestsToGifts(
   eventObjectId: mongoose.Types.ObjectId,
   invitationObjectId?: mongoose.Types.ObjectId | null
@@ -131,6 +154,9 @@ async function syncGuestsToGifts(
         "displayName",
         "title",
         "phone",
+        "phoneNumber",
+        "mobile",
+        "telephone",
         "relation",
         "groupName",
         "group",
@@ -139,6 +165,7 @@ async function syncGuestsToGifts(
         "arrivalStatus",
         "rsvpStatus",
         "attendanceStatus",
+        "responseStatus",
         "confirmedCount",
         "comingCount",
         "attendingCount",
@@ -148,6 +175,8 @@ async function syncGuestsToGifts(
         "arrivedCount",
         "confirmedGuests",
         "approvedGuests",
+        "numberOfGuests",
+        "amount",
         "companions",
         "tableNumber",
       ].join(" ")
@@ -162,22 +191,41 @@ async function syncGuestsToGifts(
 
       if (!guestName) return;
 
-      const existing = await EventGift.findOne({
-        eventId: eventObjectId,
-        guestId: guest._id,
-      }).lean();
-
-      if (existing) return;
-
-      await EventGift.create({
-        eventId: eventObjectId,
+      const syncedData = {
         invitationId: guest.invitationId || invitationObjectId || null,
-        guestId: guest._id,
         guestName,
-        phone: guest.phone || "",
+        phone: getGuestPhone(guest),
         relation: getGuestRelation(guest),
         arrivalStatus: normalizeArrivalStatus(guest),
         confirmedCount: getConfirmedCount(guest),
+      };
+
+      const existing = await EventGift.findOne({
+        eventId: eventObjectId,
+        guestId: guest._id,
+      });
+
+      if (existing) {
+        existing.invitationId = syncedData.invitationId;
+        existing.guestName = syncedData.guestName;
+        existing.phone = syncedData.phone;
+        existing.relation = syncedData.relation;
+        existing.arrivalStatus = syncedData.arrivalStatus;
+        existing.confirmedCount = syncedData.confirmedCount;
+
+        await existing.save();
+        return;
+      }
+
+      await EventGift.create({
+        eventId: eventObjectId,
+        invitationId: syncedData.invitationId,
+        guestId: guest._id,
+        guestName: syncedData.guestName,
+        phone: syncedData.phone,
+        relation: syncedData.relation,
+        arrivalStatus: syncedData.arrivalStatus,
+        confirmedCount: syncedData.confirmedCount,
         giftAmount: 0,
         paymentMethod: "",
         notes: "",
@@ -212,12 +260,16 @@ export async function GET(req: NextRequest) {
 
     await syncGuestsToGifts(eventObjectId, invitationObjectId);
 
-    const giftQuery: any = {
+    const gifts = await EventGift.find({
       eventId: eventObjectId,
       isDeleted: { $ne: true },
-    };
-
-    const gifts = await EventGift.find(giftQuery).sort({ createdAt: 1 }).lean();
+    })
+      .sort({
+        isManual: 1,
+        guestName: 1,
+        createdAt: 1,
+      })
+      .lean();
 
     const totalGifts = gifts.reduce((sum: number, gift: any) => {
       return sum + Number(gift.giftAmount || 0);
