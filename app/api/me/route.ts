@@ -61,6 +61,25 @@ function clearAuthCookies(res: NextResponse) {
   }
 }
 
+function normalizeAccessModules(user: any) {
+  const includeDigitalSeating =
+    Boolean(user?.includeDigitalSeating) ||
+    Boolean(user?.planLimits?.seatingEnabled);
+
+  const includeEventManagement =
+    Boolean(user?.includeEventManagement) ||
+    Boolean(user?.selfManageEnabled);
+
+  return {
+    rsvpSeating: Boolean(
+      user?.accessModules?.rsvpSeating ?? includeDigitalSeating
+    ),
+    eventProduction: Boolean(
+      user?.accessModules?.eventProduction ?? includeEventManagement
+    ),
+  };
+}
+
 /* =========================
    Types
 ========================= */
@@ -74,6 +93,11 @@ type JwtPayload = {
 
   hasPaid?: boolean;
   isTrial?: boolean;
+
+  accessModules?: {
+    rsvpSeating?: boolean;
+    eventProduction?: boolean;
+  };
 
   // impersonation flags
   impersonated?: boolean;
@@ -273,6 +297,8 @@ export async function GET() {
     const staffType = (user.staffType as string | null) ?? null;
     const impersonationRole = decoded.impersonationRole ?? null;
 
+    const accessModules = normalizeAccessModules(user);
+
     /* =========================
        Role resolution
     ========================= */
@@ -318,6 +344,8 @@ export async function GET() {
       effectiveRole,
       "| hasPaid:",
       user.hasPaid === true,
+      "| accessModules:",
+      accessModules,
       "| staffType:",
       staffType,
       "| impersonationRole:",
@@ -354,12 +382,21 @@ export async function GET() {
           trialExpiresAt: user.trialExpiresAt ?? null,
           hasDashboardAccess: user.hasDashboardAccess === true,
 
+          // הרשאות מודולים
+          accessModules,
+          includeDigitalSeating: accessModules.rsvpSeating,
+          includeEventManagement: accessModules.eventProduction,
+          selfManageEnabled: accessModules.eventProduction,
+
           // Plan/package fields
           plan: user.plan ?? "basic",
           guests: user.guests ?? 0,
           paidAmount: user.paidAmount ?? 0,
           billingSource: user.billingSource ?? null,
-          planLimits: user.planLimits ?? {},
+          planLimits: {
+            ...(user.planLimits ?? {}),
+            seatingEnabled: accessModules.rsvpSeating,
+          },
 
           includeCalls: !!user.includeCalls,
           callsAddonPrice: user.callsAddonPrice ?? 0,

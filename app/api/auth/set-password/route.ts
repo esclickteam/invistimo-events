@@ -17,6 +17,25 @@ function normalizeAllowedMessageRounds(value: any): 2 | 3 {
   return Number(value) === 3 ? 3 : 2;
 }
 
+function normalizeAccessModules(user: any) {
+  const includeDigitalSeating =
+    Boolean(user?.includeDigitalSeating) ||
+    Boolean(user?.planLimits?.seatingEnabled);
+
+  const includeEventManagement =
+    Boolean(user?.includeEventManagement) ||
+    Boolean(user?.selfManageEnabled);
+
+  return {
+    rsvpSeating: Boolean(
+      user?.accessModules?.rsvpSeating ?? includeDigitalSeating
+    ),
+    eventProduction: Boolean(
+      user?.accessModules?.eventProduction ?? includeEventManagement
+    ),
+  };
+}
+
 export async function POST(req: Request) {
   try {
     console.log("🟢 SET PASSWORD API HIT");
@@ -72,8 +91,8 @@ export async function POST(req: Request) {
     /* =========================
        FIND USER BY TOKEN
        ✅ חשוב:
-       חייבים להביא גם allowedMessageRounds וגם planLimits
-       אחרת user.save() מפעיל defaults ומחזיר ל־2.
+       חייבים להביא גם allowedMessageRounds, planLimits וגם accessModules
+       אחרת user.save() יכול להפעיל defaults לא רצויים.
     ========================= */
     const user = await User.findOne({ resetPasswordToken: token }).select(
       `
@@ -95,6 +114,11 @@ export async function POST(req: Request) {
 
         allowedMessageRounds
         planLimits
+
+        includeDigitalSeating
+        includeEventManagement
+        selfManageEnabled
+        accessModules
       `
     );
 
@@ -138,12 +162,24 @@ export async function POST(req: Request) {
         : 2
     );
 
+    /*
+      ✅ שמירת הרשאות מודולים לפני save
+      כדי שלקוח של "רק הפקת אירוע" לא יחזור בטעות לדשבורד רגיל.
+    */
+    const accessModules = normalizeAccessModules(user);
+
     (user as any).allowedMessageRounds = allowedMessageRounds;
 
     (user as any).planLimits = {
       ...((user as any).planLimits || {}),
       allowedMessageRounds,
+      seatingEnabled: accessModules.rsvpSeating,
     };
+
+    (user as any).accessModules = accessModules;
+    (user as any).includeDigitalSeating = accessModules.rsvpSeating;
+    (user as any).includeEventManagement = accessModules.eventProduction;
+    (user as any).selfManageEnabled = accessModules.eventProduction;
 
     /* =========================
        SET PASSWORD
@@ -160,18 +196,25 @@ export async function POST(req: Request) {
 
     /*
       ✅ הגנה נוספת אחרי save:
-      מוודאים שלא נדרס חזרה ל־2 בזמן ה־hook.
+      מוודאים שלא נדרסו allowedMessageRounds / accessModules בזמן ה־hook.
     */
     await User.findByIdAndUpdate(user._id, {
       $set: {
         allowedMessageRounds,
         "planLimits.allowedMessageRounds": allowedMessageRounds,
+        "planLimits.seatingEnabled": accessModules.rsvpSeating,
+
+        accessModules,
+        includeDigitalSeating: accessModules.rsvpSeating,
+        includeEventManagement: accessModules.eventProduction,
+        selfManageEnabled: accessModules.eventProduction,
       },
     });
 
     console.log("✅ PASSWORD SAVED", {
       userId: user._id.toString(),
       allowedMessageRounds,
+      accessModules,
     });
 
     /* =========================
@@ -193,6 +236,7 @@ export async function POST(req: Request) {
       billingSource,
       hasPaid,
       allowedMessageRounds,
+      accessModules,
     });
 
     /* =========================
@@ -205,6 +249,7 @@ export async function POST(req: Request) {
         email: user.email,
         hasPaid,
         allowedMessageRounds,
+        accessModules,
       },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
@@ -223,11 +268,17 @@ export async function POST(req: Request) {
       hasPaid,
 
       allowedMessageRounds,
+      accessModules,
 
       planLimits: {
         ...((user as any).planLimits || {}),
         allowedMessageRounds,
+        seatingEnabled: accessModules.rsvpSeating,
       },
+
+      includeDigitalSeating: accessModules.rsvpSeating,
+      includeEventManagement: accessModules.eventProduction,
+      selfManageEnabled: accessModules.eventProduction,
 
       staffType: user.staffType ?? null,
       assignedProducerId: user.assignedProducerId
@@ -258,6 +309,13 @@ export async function POST(req: Request) {
         redirectTo = "/producer-staff/dashboard";
       } else if (isProducerStaffRole) {
         redirectTo = "/producer-staff/dashboard";
+      } else if (
+        accessModules.eventProduction === true &&
+        accessModules.rsvpSeating === false
+      ) {
+        redirectTo = "/events/production";
+      } else {
+        redirectTo = "/dashboard";
       }
     }
 
@@ -269,6 +327,7 @@ export async function POST(req: Request) {
       billingSource,
       hasPaid,
       allowedMessageRounds,
+      accessModules,
       redirectTo,
     });
 
@@ -314,6 +373,7 @@ export async function POST(req: Request) {
       role: safeUser.role,
       hasPaid: safeUser.hasPaid,
       allowedMessageRounds,
+      accessModules,
       redirectTo,
     });
 

@@ -371,6 +371,7 @@ export async function GET(req: Request) {
         includeDigitalSeating
         includeEventManagement
         includeCustomDesign
+        accessModules
         selfManageEnabled
         customDesignEnabled
 
@@ -624,16 +625,27 @@ export async function GET(req: Request) {
         const planData = getPlanConfig(planKey);
 
         const includeDigitalSeating =
+          Boolean(u.accessModules?.rsvpSeating) ||
           Boolean(u.includeDigitalSeating) ||
           Boolean(u.planLimits?.seatingEnabled);
 
         const includeEventManagement =
+          Boolean(u.accessModules?.eventProduction) ||
           Boolean(u.includeEventManagement) ||
           Boolean(u.selfManageEnabled);
 
         const includeCustomDesign =
           Boolean(u.includeCustomDesign) ||
           Boolean(u.customDesignEnabled);
+
+        const accessModules = {
+          rsvpSeating: Boolean(
+            u.accessModules?.rsvpSeating ?? includeDigitalSeating
+          ),
+          eventProduction: Boolean(
+            u.accessModules?.eventProduction ?? includeEventManagement
+          ),
+        };
 
         const guests = Number(
           u.guests ||
@@ -672,6 +684,8 @@ export async function GET(req: Request) {
           includeDigitalSeating,
           includeEventManagement,
           includeCustomDesign,
+
+          accessModules,
 
           totalPaid: Number(payment?.totalPaid || u.paidAmount || 0),
           paymentsCount: Number(payment?.paymentsCount || 0),
@@ -776,6 +790,7 @@ export async function POST(req: Request) {
       billing,
       addons,
       plan,
+      accessModules,
     } = body || {};
 
     if (!name || !email || !role) {
@@ -877,10 +892,11 @@ export async function POST(req: Request) {
     const recordsNum = Number(limits?.records || planData.guests || 0);
 
     const allowedMessageRounds = normalizeAllowedMessageRounds(
-  limits?.allowedMessageRounds ??
-    body?.allowedMessageRounds ??
-    planData.allowedMessageRounds
-);
+      limits?.allowedMessageRounds ??
+        body?.allowedMessageRounds ??
+        planData.allowedMessageRounds
+    );
+
     const priceNum = Number(billing?.price ?? planData.price ?? 0);
 
     if (
@@ -916,25 +932,43 @@ export async function POST(req: Request) {
 
     const finalCustomDesign = Boolean(addons?.design?.enabled);
 
-   const planLimits = {
-  maxGuests: recordsNum,
+    /*
+      הרשאות מודולים:
+      rsvpSeating = אישורי הגעה / הושבה
+      eventProduction = הפקת אירוע
+    */
+    const finalAccessModules = {
+      rsvpSeating:
+        typeof accessModules?.rsvpSeating === "boolean"
+          ? accessModules.rsvpSeating
+          : finalDigitalSeating,
 
-  /*
-    ✅ חדש:
-    לא מגבילים לפי כמות הודעות.
-    2 = כלול בחבילה
-    3 = פתוח ללקוח אם נבחר בדרופדאון / או נפתח ידנית באדמין
-  */
-  allowedMessageRounds,
+      eventProduction:
+        typeof accessModules?.eventProduction === "boolean"
+          ? accessModules.eventProduction
+          : finalEventManagement,
+    };
 
-  // נשארים רק לתאימות עם המודל/קוד ישן
-  smsEnabled: false,
-  smsLimit: 0,
+    const planLimits = {
+      maxGuests: recordsNum,
 
-  seatingEnabled: finalDigitalSeating,
-  remindersEnabled: true,
-  callsEnabled: finalIncludeCalls,
-};
+      /*
+        ✅ חדש:
+        לא מגבילים לפי כמות הודעות.
+        2 = כלול בחבילה
+        3 = פתוח ללקוח אם נבחר בדרופדאון / או נפתח ידנית באדמין
+      */
+      allowedMessageRounds,
+
+      // נשארים רק לתאימות עם המודל/קוד ישן
+      smsEnabled: false,
+      smsLimit: 0,
+
+      seatingEnabled: finalAccessModules.rsvpSeating,
+      remindersEnabled: true,
+      callsEnabled: finalIncludeCalls,
+    };
+
     const paymentStatus = billing?.paymentStatus || "paid";
     const hasPaid = paymentStatus === "paid";
 
@@ -974,11 +1008,13 @@ export async function POST(req: Request) {
       includeCreditGifts: finalIncludeCreditGifts,
       creditGiftsAddonPrice: Number(addons?.credit?.price || 0),
 
-      includeDigitalSeating: finalDigitalSeating,
-      includeEventManagement: finalEventManagement,
+      includeDigitalSeating: finalAccessModules.rsvpSeating,
+      includeEventManagement: finalAccessModules.eventProduction,
       includeCustomDesign: finalCustomDesign,
 
-      selfManageEnabled: finalEventManagement,
+      accessModules: finalAccessModules,
+
+      selfManageEnabled: finalAccessModules.eventProduction,
       customDesignEnabled: finalCustomDesign,
 
       hasPaid,
@@ -1028,9 +1064,11 @@ export async function POST(req: Request) {
           maxGuests: recordsNum,
           allowedMessageRounds,
 
-          includeDigitalSeating: finalDigitalSeating,
-          includeEventManagement: finalEventManagement,
+          includeDigitalSeating: finalAccessModules.rsvpSeating,
+          includeEventManagement: finalAccessModules.eventProduction,
           includeCustomDesign: finalCustomDesign,
+
+          accessModules: finalAccessModules,
         },
       });
     }

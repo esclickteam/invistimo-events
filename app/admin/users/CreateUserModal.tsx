@@ -14,6 +14,12 @@ type Props = {
 /* כמה סבבי הודעות פתוחים ללקוח בחבילה */
 type AllowedMessageRounds = 2 | 3;
 
+/* הרשאות מודולים */
+type AccessModulesState = {
+  rsvpSeating: boolean;
+  eventProduction: boolean;
+};
+
 /* שירות הושבה באולם */
 type VenueSeatingServiceState = {
   enabled: boolean;
@@ -67,6 +73,12 @@ export default function CreateUserModal({ onClose }: Props) {
   const [records, setRecords] = useState(100);
   const [allowedMessageRounds, setAllowedMessageRounds] =
     useState<AllowedMessageRounds>(2);
+
+  /* ===== ACCESS MODULES ===== */
+  const [accessModules, setAccessModules] = useState<AccessModulesState>({
+    rsvpSeating: true,
+    eventProduction: false,
+  });
 
   /* ===== ADDONS ===== */
   const [addons, setAddons] = useState<
@@ -214,10 +226,14 @@ export default function CreateUserModal({ onClose }: Props) {
       included.has("credit") || addons.credit.enabled;
 
     const seatingEnabled =
-      included.has("seating") || addons.seating.enabled;
+      included.has("seating") ||
+      addons.seating.enabled ||
+      accessModules.rsvpSeating;
 
     const selfManageEnabled =
-      included.has("system") || addons.system.enabled;
+      included.has("system") ||
+      addons.system.enabled ||
+      accessModules.eventProduction;
 
     const customDesignEnabled =
       included.has("design") || addons.design.enabled;
@@ -260,6 +276,16 @@ export default function CreateUserModal({ onClose }: Props) {
             billing: {
               price,
               paymentStatus,
+            },
+
+            /*
+              ✅ הרשאות מודולים:
+              rsvpSeating = אישורי הגעה / הושבה
+              eventProduction = הפקת אירוע
+            */
+            accessModules: {
+              rsvpSeating: accessModules.rsvpSeating,
+              eventProduction: accessModules.eventProduction,
             },
 
             includeCreditGifts,
@@ -380,7 +406,7 @@ export default function CreateUserModal({ onClose }: Props) {
               יצירת משתמש חדש
             </h2>
             <p className="text-sm text-[#8b7b68] mt-1">
-              הגדרת לקוח, חבילה, סבבי הודעות ואפסיילים
+              הגדרת לקוח, חבילה, סבבי הודעות, מודולים ואפסיילים
             </p>
           </div>
 
@@ -457,6 +483,90 @@ export default function CreateUserModal({ onClose }: Props) {
                   <option value="plan2">חבילה 2</option>
                   <option value="plan3">חבילה 3</option>
                 </select>
+              </section>
+
+              {/* ACCESS MODULES */}
+              <section className="space-y-4">
+                <div>
+                  <h3 className="text-sm font-bold text-[#3f4856]">
+                    הרשאות מודולים
+                  </h3>
+                  <p className="text-xs text-[#8b7b68] mt-1">
+                    בחרי לאילו אזורים הלקוח יקבל גישה בפועל
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div
+                    className={`rounded-3xl border p-4 space-y-3 shadow-sm transition ${
+                      accessModules.rsvpSeating
+                        ? "border-[#c7a76c] bg-[#fff8ed]"
+                        : "border-[#eadfce] bg-white"
+                    }`}
+                  >
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={accessModules.rsvpSeating}
+                        onChange={(e) =>
+                          setAccessModules((prev) => ({
+                            ...prev,
+                            rsvpSeating: e.target.checked,
+                          }))
+                        }
+                        className="w-4 h-4 accent-[#9b7a3c]"
+                      />
+
+                      <span className="text-[#4b3b2a] font-bold">
+                        אישורי הגעה והושבה
+                      </span>
+                    </label>
+
+                    <p className="text-xs text-[#8b7b68] leading-5">
+                      פותח ללקוח את הדשבורד הרגיל: מוזמנים, אישורי הגעה,
+                      סבבי SMS/WhatsApp, הושבה וניהול יום אירוע.
+                    </p>
+                  </div>
+
+                  <div
+                    className={`rounded-3xl border p-4 space-y-3 shadow-sm transition ${
+                      accessModules.eventProduction
+                        ? "border-[#c7a76c] bg-[#fff8ed]"
+                        : "border-[#eadfce] bg-white"
+                    }`}
+                  >
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={accessModules.eventProduction}
+                        onChange={(e) =>
+                          setAccessModules((prev) => ({
+                            ...prev,
+                            eventProduction: e.target.checked,
+                          }))
+                        }
+                        className="w-4 h-4 accent-[#9b7a3c]"
+                      />
+
+                      <span className="text-[#4b3b2a] font-bold">
+                        הפקת אירוע
+                      </span>
+                    </label>
+
+                    <p className="text-xs text-[#8b7b68] leading-5">
+                      פותח ללקוח את דשבורד הפקת האירוע בלבד: תקציב, ספקים,
+                      משימות, לוגיסטיקה, לו״ז ותמונת מצב.
+                    </p>
+                  </div>
+                </div>
+
+                {!accessModules.rsvpSeating &&
+                  !accessModules.eventProduction && (
+                    <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                      שימי לב: לא נבחר אף מודול. הלקוח ייווצר בלי גישה לאזורי
+                      ניהול.
+                    </div>
+                  )}
               </section>
 
               {/* LIMITS */}

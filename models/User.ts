@@ -69,6 +69,11 @@ export interface IUser extends Document {
   includeEventManagement: boolean;
   includeCustomDesign: boolean;
 
+    accessModules?: {
+    rsvpSeating: boolean;
+    eventProduction: boolean;
+  };
+
   selfManageEnabled: boolean;
   customDesignEnabled: boolean;
 
@@ -359,6 +364,19 @@ const UserSchema = new Schema<IUser>(
       default: false,
     },
 
+        accessModules: {
+      rsvpSeating: {
+        type: Boolean,
+        default: true,
+        index: true,
+      },
+      eventProduction: {
+        type: Boolean,
+        default: false,
+        index: true,
+      },
+    },
+
     selfManageEnabled: {
       type: Boolean,
       default: false,
@@ -517,6 +535,23 @@ UserSchema.pre("validate", function () {
   if (doc.includeCustomDesign) {
     doc.customDesignEnabled = true;
   }
+
+  /*
+    הרשאות מודולים:
+    rsvpSeating = אישורי הגעה / הושבה
+    eventProduction = הפקת אירוע
+  */
+  doc.accessModules = {
+    rsvpSeating:
+      doc.accessModules?.rsvpSeating ??
+      doc.includeDigitalSeating ??
+      true,
+
+    eventProduction:
+      doc.accessModules?.eventProduction ??
+      doc.includeEventManagement ??
+      false,
+  };
 
   if (doc.guests && !doc.maxGuests) {
     doc.maxGuests = doc.guests;

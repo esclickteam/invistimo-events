@@ -21,11 +21,12 @@ type UserRole =
   | "producer_staff"
   | "staff_producer";
 
+type StaffType = "producer_staff" | "general_staff";
 
-type StaffType =
-  | "producer_staff"
-  | "general_staff";
-
+type AccessModules = {
+  rsvpSeating?: boolean;
+  eventProduction?: boolean;
+};
 
 interface User {
   _id: string;
@@ -43,13 +44,19 @@ interface User {
   guests?: number;
   plan?: string;
   planLimits?: {
-  maxGuests?: number;
-  smsEnabled?: boolean;
-  smsLimit?: number;
-  seatingEnabled?: boolean;
-  remindersEnabled?: boolean;
-  maxMessages?: number;
-};
+    maxGuests?: number;
+    smsEnabled?: boolean;
+    smsLimit?: number;
+    seatingEnabled?: boolean;
+    remindersEnabled?: boolean;
+    maxMessages?: number;
+  };
+
+  /* ===== MODULE ACCESS ===== */
+  accessModules?: AccessModules;
+  includeDigitalSeating?: boolean;
+  includeEventManagement?: boolean;
+  selfManageEnabled?: boolean;
 
   // ⭐ producer only
   producerPricePerRecord?: number;
@@ -58,9 +65,7 @@ interface User {
   impersonated?: boolean;
   impersonatedBy?: string;
   impersonationRole?: "admin" | "producer" | "producer_staff" | "staff_producer";
-
 }
-
 
 interface AuthContextType {
   user: User | null;
@@ -75,6 +80,53 @@ interface AuthContextType {
   // ⭐ חשוב כדי לעדכן מייד אחרי set-password/login
   setUser: (user: User | null) => void;
   setIsAuthenticated: (value: boolean) => void;
+}
+
+/* =====================================================
+   HELPERS
+===================================================== */
+function getUserRedirectPath(nextUser: User) {
+  const role = String(nextUser.role || "").toLowerCase().trim();
+
+  const isStaffLike =
+    role === "staff" ||
+    role === "producer_staff" ||
+    role === "staff_producer";
+
+  const rsvpSeating =
+    nextUser.accessModules?.rsvpSeating ??
+    nextUser.includeDigitalSeating ??
+    nextUser.planLimits?.seatingEnabled ??
+    true;
+
+  const eventProduction =
+    nextUser.accessModules?.eventProduction ??
+    nextUser.includeEventManagement ??
+    nextUser.selfManageEnabled ??
+    false;
+
+  // ADMIN
+  if (role === "admin") {
+    return "/admin";
+  }
+
+  // PRODUCER
+  if (role === "producer") {
+    return "/producer/dashboard";
+  }
+
+  // PRODUCER STAFF / STAFF
+  if (isStaffLike) {
+    return "/producer-staff/dashboard";
+  }
+
+  // USER / CLIENT — רק הפקת אירוע
+  if (eventProduction === true && rsvpSeating === false) {
+    return "/events/production";
+  }
+
+  // USER / CLIENT — רגיל / שניהם
+  return "/dashboard";
 }
 
 /* =====================================================
@@ -114,7 +166,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const [loading, setLoading] = useState(true);
-  const [bootstrapDone, setBootstrapDone] = useState(false);
+  const [, setBootstrapDone] = useState(false);
   const [isAuthenticated, _setIsAuthenticated] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return !!sessionStorage.getItem("auth_user");
@@ -123,6 +175,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // עטיפה כדי לשמור תמיד על sessionStorage מסונכרן
   const setUser = (next: User | null) => {
     _setUser(next);
+
     if (next) {
       sessionStorage.setItem("auth_user", JSON.stringify(next));
       _setIsAuthenticated(true);
@@ -134,6 +187,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const setIsAuthenticated = (value: boolean) => {
     _setIsAuthenticated(value);
+
     if (!value && !user) {
       sessionStorage.removeItem("auth_user");
     }
@@ -143,52 +197,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
      🔐 מקור אמת יחיד – השרת
   -------------------------------------------------- */
   const refreshUser = async (): Promise<User | null> => {
-  try {
-    const res = await fetch("/api/me", {
-      credentials: "include",
-      cache: "no-store",
-    });
+    try {
+      const res = await fetch("/api/me", {
+        credentials: "include",
+        cache: "no-store",
+      });
 
-    // ✅ מצב תקין: לא מחובר
-    if (res.status === 401) {
+      // ✅ מצב תקין: לא מחובר
+      if (res.status === 401) {
+        setUser(null);
+        return null;
+      }
+
+      if (!res.ok) {
+        console.error("❌ /api/me failed:", res.status);
+        setUser(null);
+        return null;
+      }
+
+      const data = await res.json();
+      const nextUser: User | null = data?.user ?? null;
+
+      if (!nextUser || !nextUser.role) {
+        console.error("❌ Invalid user from /api/me");
+        setUser(null);
+        return null;
+      }
+
+      setUser(nextUser);
+      return nextUser;
+    } catch (err) {
+      console.error("❌ refreshUser error:", err);
       setUser(null);
       return null;
     }
-
-    if (!res.ok) {
-      console.error("❌ /api/me failed:", res.status);
-      setUser(null);
-      return null;
-    }
-
-    const data = await res.json();
-    const nextUser: User | null = data?.user ?? null;
-
-    if (!nextUser || !nextUser.role) {
-      console.error("❌ Invalid user from /api/me");
-      setUser(null);
-      return null;
-    }
-
-    setUser(nextUser);
-    return nextUser;
-  } catch (err) {
-    console.error("❌ refreshUser error:", err);
-    setUser(null);
-    return null;
-  }
-};
-
+  };
 
   /* --------------------------------------------------
      🚀 אימות ראשוני (mount)
   -------------------------------------------------- */
   useEffect(() => {
-    refreshUser()
-      .finally(() => {
-        setBootstrapDone(true);
-        setLoading(false);
-      });
+    refreshUser().finally(() => {
+      setBootstrapDone(true);
+      setLoading(false);
+    });
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -220,48 +273,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // אימות סופי מהשרת
       const nextUser = await refreshUser();
 
-if (!nextUser) {
-  throw new Error("לא הצלחנו לטעון את המשתמש");
-}
+      if (!nextUser) {
+        throw new Error("לא הצלחנו לטעון את המשתמש");
+      }
 
-// ===== Redirect logic =====
-const role = String(nextUser.role || "").toLowerCase().trim();
+      // ⛔ אם זה משתמש בתחזות – לא לנתב אוטומטית
+      if (nextUser.impersonated) {
+        return;
+      }
 
-const isStaffLike =
-  role === "staff" ||
-  role === "producer_staff" ||
-  role === "staff_producer";
+      const redirectPath = getUserRedirectPath(nextUser);
 
-// ⛔ ADMIN
-if (role === "admin") {
-  router.replace("/admin");
-  return;
-}
-
-// ⛔ אם זה משתמש בתחזות – לא לנתב אוטומטית
-if (nextUser.impersonated) {
-  return;
-}
-
-// PRODUCER
-if (role === "producer") {
-  router.replace("/producer/dashboard");
-  return;
-}
-
-// PRODUCER STAFF (כולל general_staff)
-if (isStaffLike) {
-  router.replace("/producer-staff/dashboard");
-  return;
-}
-
-// CLIENT/USER רגיל
-router.replace("/dashboard");
-
-
-
-
-
+      router.replace(redirectPath);
     } catch (err: any) {
       console.error("❌ Login failed:", err);
       alert(err.message || "שגיאה בהתחברות");
