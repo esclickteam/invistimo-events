@@ -37,7 +37,7 @@ export default function ProducerDashboardHeader({
         fixed
         inset-x-0
         top-0
-        z-[100]
+        z-50
         bg-[#F7F1EA]
         px-4
         py-2
@@ -129,6 +129,27 @@ export default function ProducerDashboardHeader({
             gap-3
           "
         >
+          <span
+            className="
+              inline-flex
+              h-[34px]
+              items-center
+              justify-center
+              rounded-full
+              border
+              border-[#D8B46A]/55
+              bg-white/45
+              px-4
+              text-xs
+              font-black
+              text-[#6B4B2A]
+              shadow-sm
+              whitespace-nowrap
+            "
+          >
+            מפיק
+          </span>
+
           <button
             type="button"
             onClick={handleLogout}
