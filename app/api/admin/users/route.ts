@@ -351,6 +351,7 @@ export async function GET(req: Request) {
         maxGuests
 
         allowedMessageRounds
+        venueSeatingService
 
         maxMessages
         smsLimit
