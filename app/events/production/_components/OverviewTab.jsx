@@ -221,6 +221,42 @@ export default function OverviewTab({ eventId, invitation }) {
       });
     }
 
+    if (estimatedGuests > 0 && giftsSummary.totalRows > 0) {
+      const missingGiftRows = Math.max(
+        estimatedGuests - giftsSummary.totalRows,
+        0
+      );
+
+      if (missingGiftRows > 0) {
+        alerts.push({
+          id: "gifts-less-than-estimated-guests",
+          type: "info",
+          icon: "🎁",
+          title: "רשימת המתנות לא מלאה",
+          description: `הוזנו ${giftsSummary.totalRows.toLocaleString()} רשומות מתנה מתוך ${estimatedGuests.toLocaleString()} מוזמנים משוערים. חסרות בערך ${missingGiftRows.toLocaleString()} רשומות.`,
+          action: "פתח מתנות",
+        });
+      }
+    }
+
+    if (estimatedGuests > 0 && giftsSummary.rowsWithGift > 0) {
+      const guestsWithoutGiftAmount = Math.max(
+        estimatedGuests - giftsSummary.rowsWithGift,
+        0
+      );
+
+      if (guestsWithoutGiftAmount > 0) {
+        alerts.push({
+          id: "guests-without-gift-amount",
+          type: "warning",
+          icon: "₪",
+          title: "חסרים סכומי מתנות",
+          description: `יש ${guestsWithoutGiftAmount.toLocaleString()} מוזמנים משוערים שעדיין לא מופיע להם סכום מתנה. המאזן הכספי עדיין לא מלא.`,
+          action: "עדכון מתנות",
+        });
+      }
+    }
+
     if (
       commitments > 0 &&
       estimatedGuests > 0 &&
@@ -322,6 +358,8 @@ export default function OverviewTab({ eventId, invitation }) {
     commitments,
     estimatedGuests,
     averageCostPerGuest,
+    giftsSummary.totalRows,
+    giftsSummary.rowsWithGift,
   ]);
 
   const visibleAlerts = smartAlerts.filter(
