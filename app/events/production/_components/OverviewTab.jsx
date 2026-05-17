@@ -54,32 +54,15 @@ function normalizeDateInput(value) {
   return date.toISOString().slice(0, 10);
 }
 
-function getLocationAddress(source) {
-  return (
-    source?.location?.address ||
-    source?.address ||
-    source?.eventLocation ||
-    source?.venue ||
-    source?.hallName ||
-    ""
-  );
-}
-
-function getInvitationFallbackDetails(invitation) {
-  if (!invitation) {
-    return {
-      title: "",
-      date: "",
-      time: "",
-      locationAddress: "",
-    };
-  }
-
+/* ============================================================
+   פרטי אירוע — רק ממודל Event
+============================================================ */
+function getEventDetailsFromEvent(event) {
   return {
-    title: invitation.title || invitation.eventTitle || "",
-    date: normalizeDateInput(invitation.date || invitation.eventDate || ""),
-    time: invitation.time || invitation.eventTime || "",
-    locationAddress: getLocationAddress(invitation),
+    title: event?.title || "",
+    date: normalizeDateInput(event?.date || ""),
+    time: event?.time || "",
+    locationAddress: event?.location?.address || "",
   };
 }
 
@@ -579,19 +562,15 @@ export default function OverviewTab({ eventId, invitation }) {
   }
 
   function openEventDetailsModal() {
-    const invitationFallback = getInvitationFallbackDetails(invitation);
+    const eventDetails = getEventDetailsFromEvent(event);
 
     setSavedEventDetails(false);
 
     setEventDetailsDraft({
-      title: event?.title || invitationFallback.title || "",
-      date:
-        normalizeDateInput(event?.date) ||
-        invitationFallback.date ||
-        "",
-      time: event?.time || invitationFallback.time || "",
-      locationAddress:
-        event?.location?.address || invitationFallback.locationAddress || "",
+      title: eventDetails.title,
+      date: eventDetails.date,
+      time: eventDetails.time,
+      locationAddress: eventDetails.locationAddress,
     });
 
     setEventDetailsOpen(true);
@@ -653,6 +632,7 @@ export default function OverviewTab({ eventId, invitation }) {
       }));
 
       setSavedEventDetails(true);
+      setEventDetailsOpen(false);
 
       setTimeout(() => {
         setSavedEventDetails(false);
@@ -904,15 +884,17 @@ export default function OverviewTab({ eventId, invitation }) {
     );
   }
 
-  const formattedEventDate = event?.date
-    ? new Date(event.date).toLocaleDateString("he-IL", {
+  const eventDetails = getEventDetailsFromEvent(event);
+
+  const formattedEventDate = eventDetails.date
+    ? new Date(eventDetails.date).toLocaleDateString("he-IL", {
         day: "2-digit",
         month: "long",
         year: "numeric",
       })
     : "לא הוגדר תאריך";
 
-  const eventLocationAddress = event?.location?.address || "";
+  const eventLocationAddress = eventDetails.locationAddress || "";
 
   return (
     <div
@@ -969,7 +951,86 @@ export default function OverviewTab({ eventId, invitation }) {
             gap-6
           "
         >
-          <div className="flex flex-col items-center gap-3 md:items-start">
+          <div className="flex items-center gap-4">
+            <div
+              className="
+                hidden
+                md:flex
+                h-16
+                w-16
+                rounded-[24px]
+                bg-gradient-to-br
+                from-violet-500
+                to-purple-400
+                items-center
+                justify-center
+                text-white
+                text-3xl
+                shadow-[0_15px_40px_rgba(124,58,237,0.30)]
+              "
+            >
+              ✦
+            </div>
+
+            <div className="text-center md:text-right">
+              <h1
+                className="
+                  text-3xl
+                  md:text-4xl
+                  font-black
+                  text-[#1E1B2E]
+                  tracking-tight
+                "
+              >
+                {eventDetails.title || "הפקת אירוע"}
+              </h1>
+
+              <p
+                className="
+                  mt-2
+                  text-base
+                  md:text-lg
+                  text-gray-500
+                  font-medium
+                "
+              >
+                {formattedEventDate}
+                {eventDetails.time ? ` · ${eventDetails.time}` : ""}
+              </p>
+
+              {eventLocationAddress && (
+                <p className="mt-1 text-sm font-medium text-gray-400">
+                  📍 {eventLocationAddress}
+                </p>
+              )}
+
+              {daysLeft !== null && daysLeft >= 0 && (
+                <div
+                  className="
+                    inline-flex
+                    items-center
+                    gap-2
+                    mt-4
+                    px-4
+                    py-2
+                    rounded-full
+                    bg-white/80
+                    border
+                    border-purple-100
+                    shadow-sm
+                  "
+                >
+                  <span className="text-purple-500">⏳</span>
+
+                  <span className="text-sm font-medium text-[#4B4453]">
+                    נותרו {daysLeft} ימים לאירוע
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-col items-center gap-3 md:items-end">
             <button
               type="button"
               onClick={openEventDetailsModal}
@@ -1017,85 +1078,6 @@ export default function OverviewTab({ eventId, invitation }) {
                 👥 ניהול דשבורד אורחים
               </button>
             )}
-          </div>
-
-          <div className="flex items-center gap-4">
-            <div
-              className="
-                hidden
-                md:flex
-                h-16
-                w-16
-                rounded-[24px]
-                bg-gradient-to-br
-                from-violet-500
-                to-purple-400
-                items-center
-                justify-center
-                text-white
-                text-3xl
-                shadow-[0_15px_40px_rgba(124,58,237,0.30)]
-              "
-            >
-              ✦
-            </div>
-
-            <div className="text-center md:text-right">
-              <h1
-                className="
-                  text-3xl
-                  md:text-4xl
-                  font-black
-                  text-[#1E1B2E]
-                  tracking-tight
-                "
-              >
-                {event.title || "הפקת אירוע"}
-              </h1>
-
-              <p
-                className="
-                  mt-2
-                  text-base
-                  md:text-lg
-                  text-gray-500
-                  font-medium
-                "
-              >
-                {formattedEventDate}
-                {event?.time ? ` · ${event.time}` : ""}
-              </p>
-
-              {eventLocationAddress && (
-                <p className="mt-1 text-sm font-medium text-gray-400">
-                  📍 {eventLocationAddress}
-                </p>
-              )}
-
-              {daysLeft !== null && daysLeft >= 0 && (
-                <div
-                  className="
-                    inline-flex
-                    items-center
-                    gap-2
-                    mt-4
-                    px-4
-                    py-2
-                    rounded-full
-                    bg-white/80
-                    border
-                    border-purple-100
-                    shadow-sm
-                  "
-                >
-                  <span className="text-purple-500">⏳</span>
-
-                  <span className="text-sm font-medium text-[#4B4453]">
-                    נותרו {daysLeft} ימים לאירוע
-                  </span>
-                </div>
-              )}
-            </div>
           </div>
         </div>
       </section>
