@@ -2091,10 +2091,13 @@ const venueSeatingDepositToPay =
     ? venueSeatingCalculated.depositAmount
     : 0;
 
+const extraRecordsTotalAmount =
+  Number(extraRecords || 0) * Number(extraRecordsAmount || 0);
+
 const calculatedTotalToPay =
   packageDiff +
   addonsDiff +
-  Number(extraRecordsAmount || 0) +
+  extraRecordsTotalAmount +
   venueSeatingDepositToPay;
 
   useEffect(() => {
@@ -2137,7 +2140,8 @@ const calculatedTotalToPay =
         includeCustomDesign: form.includeCustomDesign,
 
         extraRecords,
-        extraRecordsAmount,
+extraRecordsAmount: extraRecordsTotalAmount,
+extraRecordsPricePerRecord: Number(extraRecordsAmount || 0),
 
         upgradeAmount: manualTotalToPay,
         upgradePaymentStatus: "paid",
@@ -2180,7 +2184,9 @@ venueSeatingDepositAmount: venueSeatingDepositToPay,
         includeCustomDesign: form.includeCustomDesign,
 
         extraRecords,
-        extraRecordsAmount,
+extraRecordsAmount: extraRecordsTotalAmount,
+extraRecordsPricePerRecord: Number(extraRecordsAmount || 0),
+
         venueSeatingService: calculateVenueSeatingService(venueSeatingService),
 venueSeatingDepositAmount: venueSeatingDepositToPay,
       }),
@@ -2481,7 +2487,8 @@ venueSeatingDepositAmount: venueSeatingDepositToPay,
             />
 
             <InputField
-              label="מחיר לרשומות הנוספות"
+                label="מחיר לרשומה נוספת"
+
               type="number"
               value={String(extraRecordsAmount)}
               onChange={(value) =>
@@ -2521,9 +2528,9 @@ venueSeatingDepositAmount: venueSeatingDepositToPay,
             />
 
             <SummaryBox
-              label="רשומות ידניות"
-              value={formatMoney(extraRecordsAmount)}
-            />
+  label="רשומות ידניות"
+  value={formatMoney(extraRecordsTotalAmount)}
+/>
 
 <SummaryBox
   label="מקדמת הושבה באולם"
