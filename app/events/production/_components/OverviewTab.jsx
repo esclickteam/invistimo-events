@@ -21,6 +21,32 @@ const STATUS_STYLE = {
   done: "bg-green-50 text-green-700",
 };
 
+function getEstimatedGuestsFromData(event, invitation) {
+  const value =
+    event?.estimatedGuests ??
+    event?.estimatedGuestCount ??
+    event?.guestEstimate ??
+    event?.expectedGuests ??
+    event?.guestsEstimate ??
+    event?.guestCount ??
+    event?.guestsCount ??
+    invitation?.estimatedGuests ??
+    invitation?.estimatedGuestCount ??
+    invitation?.guestEstimate ??
+    invitation?.expectedGuests ??
+    invitation?.guestsEstimate ??
+    invitation?.guestCount ??
+    invitation?.guestsCount ??
+    invitation?.maxGuests ??
+    0;
+
+  const numberValue = Number(value);
+
+  if (!Number.isFinite(numberValue) || numberValue < 0) return 0;
+
+  return numberValue;
+}
+
 export default function OverviewTab({ eventId, invitation }) {
   const router = useRouter();
 
@@ -39,6 +65,11 @@ export default function OverviewTab({ eventId, invitation }) {
   const [budgetDraft, setBudgetDraft] = useState(0);
   const [savingBudget, setSavingBudget] = useState(false);
   const [budget, setBudget] = useState(null);
+
+  const [isEditingEstimatedGuests, setIsEditingEstimatedGuests] =
+    useState(false);
+  const [estimatedGuestsDraft, setEstimatedGuestsDraft] = useState(0);
+  const [savingEstimatedGuests, setSavingEstimatedGuests] = useState(false);
 
   const [giftsSummary, setGiftsSummary] = useState({
     totalGifts: 0,
@@ -85,6 +116,11 @@ export default function OverviewTab({ eventId, invitation }) {
           return data.event?.budgetTotal ?? 0;
         });
 
+        setEstimatedGuestsDraft((prev) => {
+          if (prev && prev > 0) return prev;
+          return getEstimatedGuestsFromData(data.event, invitation);
+        });
+
         try {
           const giftsRes = await fetch(`/api/event-gifts?eventId=${eventId}`, {
             cache: "no-store",
@@ -111,12 +147,19 @@ export default function OverviewTab({ eventId, invitation }) {
     }
 
     load();
-  }, [eventId]);
+  }, [eventId, invitation]);
 
   const budgetTotal = budget?.total ?? event?.budgetTotal ?? 0;
   const commitments = budget?.commitments ?? 0;
   const paid = budget?.paid ?? 0;
   const available = budget?.available ?? budgetTotal;
+
+  const estimatedGuests = getEstimatedGuestsFromData(event, invitation);
+
+  const averageCostPerGuest =
+    budgetTotal > 0 && estimatedGuests > 0
+      ? Math.round(budgetTotal / estimatedGuests)
+      : null;
 
   const totalGifts = giftsSummary.totalGifts || 0;
   const hasGiftAmounts = totalGifts > 0;
@@ -166,6 +209,28 @@ export default function OverviewTab({ eventId, invitation }) {
         title: "יתרה נמוכה",
         description: `נותרו ₪${available.toLocaleString()} בלבד`,
         action: "לבדיקת תקציב",
+      });
+    }
+
+    if (budgetTotal > 0 && estimatedGuests <= 0) {
+      alerts.push({
+        id: "missing-estimated-guests",
+        type: "info",
+        icon: "👥",
+        title: "חסרה כמות מוזמנים משוערת",
+        description: "כדי לחשב עלות ממוצעת לאורח, יש להזין כמות מוזמנים.",
+        action: "עדכן כמות",
+      });
+    }
+
+    if (budgetTotal > 0 && estimatedGuests > 0 && averageCostPerGuest >= 400) {
+      alerts.push({
+        id: "high-average-cost",
+        type: "warning",
+        icon: "₪",
+        title: "עלות ממוצעת גבוהה לאורח",
+        description: `עלות ממוצעת לאורח כרגע: ₪${averageCostPerGuest.toLocaleString()}`,
+        action: "בדיקת תקציב",
       });
     }
 
@@ -252,6 +317,9 @@ export default function OverviewTab({ eventId, invitation }) {
     daysLeft,
     hasGiftAmounts,
     incomeMinusExpenses,
+    budgetTotal,
+    estimatedGuests,
+    averageCostPerGuest,
   ]);
 
   const visibleAlerts = smartAlerts.filter(
@@ -361,23 +429,87 @@ export default function OverviewTab({ eventId, invitation }) {
         throw new Error("SAVE_BUDGET_FAILED");
       }
 
-      setEvent(data.event);
+      const nextEvent = data.event || {
+        ...event,
+        budgetTotal: nextBudget,
+      };
+
+      setEvent(nextEvent);
 
       setBudget((prev) => ({
         ...prev,
-        total: data.event.budgetTotal,
-        available: Math.max(
-          data.event.budgetTotal - (prev?.commitments || 0),
-          0
-        ),
+        total: nextBudget,
+        available: Math.max(nextBudget - (prev?.commitments || 0), 0),
       }));
 
-      setBudgetDraft(data.event.budgetTotal);
+      setBudgetDraft(nextBudget);
     } catch (e) {
       setError("שגיאה בשמירת התקציב");
     } finally {
       setSavingBudget(false);
       setIsEditingBudget(false);
+    }
+  }
+
+  async function saveEstimatedGuests() {
+    if (!isEditingEstimatedGuests) return;
+
+    const nextEstimatedGuests = Number(estimatedGuestsDraft);
+
+    if (
+      Number.isNaN(nextEstimatedGuests) ||
+      nextEstimatedGuests < 0 ||
+      nextEstimatedGuests === estimatedGuests
+    ) {
+      setIsEditingEstimatedGuests(false);
+      setEstimatedGuestsDraft(estimatedGuests || 0);
+      return;
+    }
+
+    setSavingEstimatedGuests(true);
+    setError("");
+
+    try {
+      const res = await fetch(`/api/events/${eventId}/overview`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          estimatedGuests: nextEstimatedGuests,
+          estimatedGuestCount: nextEstimatedGuests,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error("SAVE_ESTIMATED_GUESTS_FAILED");
+      }
+
+      const nextEvent = data.event || {
+        ...event,
+        estimatedGuests: nextEstimatedGuests,
+        estimatedGuestCount: nextEstimatedGuests,
+      };
+
+      setEvent((prev) => ({
+        ...(prev || {}),
+        ...nextEvent,
+        estimatedGuests:
+          nextEvent.estimatedGuests ??
+          nextEvent.estimatedGuestCount ??
+          nextEstimatedGuests,
+        estimatedGuestCount:
+          nextEvent.estimatedGuestCount ??
+          nextEvent.estimatedGuests ??
+          nextEstimatedGuests,
+      }));
+
+      setEstimatedGuestsDraft(nextEstimatedGuests);
+    } catch (e) {
+      setError("שגיאה בשמירת כמות מוזמנים");
+    } finally {
+      setSavingEstimatedGuests(false);
+      setIsEditingEstimatedGuests(false);
     }
   }
 
@@ -421,7 +553,6 @@ export default function OverviewTab({ eventId, invitation }) {
           boxShadow: "0 30px 80px rgba(124,58,237,0.10)",
         }}
       >
-        {/* GLOW */}
         <div
           className="
             absolute
@@ -449,7 +580,6 @@ export default function OverviewTab({ eventId, invitation }) {
             gap-6
           "
         >
-          {/* RIGHT SIDE */}
           <div className="flex items-center gap-4">
             <div
               className="
@@ -526,7 +656,6 @@ export default function OverviewTab({ eventId, invitation }) {
             </div>
           </div>
 
-          {/* BUTTON - מוצג רק אם יש הזמנה */}
           {invitation && (
             <button
               onClick={() => router.push(`/dashboard?eventId=${eventId}`)}
@@ -602,6 +731,41 @@ export default function OverviewTab({ eventId, invitation }) {
           }}
           onChange={setBudgetDraft}
           onSave={saveBudget}
+        />
+
+        <EditableNumberCard
+          title="כמות מוזמנים משוערת"
+          value={isEditingEstimatedGuests ? estimatedGuestsDraft : estimatedGuests}
+          icon="👥"
+          suffix="מוזמנים"
+          isEditing={isEditingEstimatedGuests}
+          loading={savingEstimatedGuests}
+          onEdit={() => {
+            setEstimatedGuestsDraft(estimatedGuests || 0);
+            setIsEditingEstimatedGuests(true);
+          }}
+          onCancel={() => {
+            setEstimatedGuestsDraft(estimatedGuests || 0);
+            setIsEditingEstimatedGuests(false);
+          }}
+          onChange={setEstimatedGuestsDraft}
+          onSave={saveEstimatedGuests}
+        />
+
+        <BudgetCard
+          title="עלות ממוצעת לאורח"
+          value={averageCostPerGuest}
+          icon="🧮"
+          emptyText="העלות תופיע לאחר הזנת תקציב וכמות מוזמנים"
+          subText={
+            averageCostPerGuest
+              ? `לפי ${Number(
+                  estimatedGuests || 0
+                ).toLocaleString()} מוזמנים ותקציב ₪${Number(
+                  budgetTotal || 0
+                ).toLocaleString()}`
+              : ""
+          }
         />
 
         <BudgetCard title="סה״כ התחייבויות" value={commitments} icon="🧾" />
@@ -814,6 +978,7 @@ function BudgetCard({
   highlight = false,
   danger = false,
   emptyText = "",
+  subText = "",
 }) {
   const isEmpty = value === null || value === undefined;
 
@@ -844,17 +1009,25 @@ function BudgetCard({
           <p className="text-sm text-gray-500 mb-2">{title}</p>
 
           {isEmpty ? (
-            <p className="max-w-[190px] text-sm font-semibold leading-5 text-gray-400">
+            <p className="max-w-[210px] text-sm font-semibold leading-5 text-gray-400">
               {emptyText || "אין נתונים להצגה"}
             </p>
           ) : (
-            <p
-              className={`text-2xl font-bold ${
-                danger ? "text-rose-700" : "text-[#28212E]"
-              }`}
-            >
-              ₪{Number(value || 0).toLocaleString()}
-            </p>
+            <>
+              <p
+                className={`text-2xl font-bold ${
+                  danger ? "text-rose-700" : "text-[#28212E]"
+                }`}
+              >
+                ₪{Number(value || 0).toLocaleString()}
+              </p>
+
+              {subText && (
+                <p className="mt-1 max-w-[230px] text-xs font-medium leading-5 text-gray-400">
+                  {subText}
+                </p>
+              )}
+            </>
           )}
         </div>
 
@@ -915,9 +1088,9 @@ function EditableBudgetCard({
               <button
                 onClick={onSave}
                 disabled={loading}
-                className="px-4 py-2 rounded-xl text-white text-sm bg-purple-600"
+                className="px-4 py-2 rounded-xl text-white text-sm bg-purple-600 disabled:opacity-50"
               >
-                שמור
+                {loading ? "שומר..." : "שמור"}
               </button>
 
               <button
@@ -931,6 +1104,94 @@ function EditableBudgetCard({
             <>
               <p className="text-2xl font-bold text-[#28212E]">
                 ₪{Number(value || 0).toLocaleString()}
+              </p>
+
+              <button
+                onClick={onEdit}
+                className="text-sm text-purple-600 hover:underline mt-2"
+              >
+                עריכה
+              </button>
+            </>
+          )}
+        </div>
+
+        <div className="h-12 w-12 rounded-2xl bg-purple-100/80 flex items-center justify-center text-xl">
+          {icon}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EditableNumberCard({
+  title,
+  value,
+  icon,
+  suffix = "",
+  isEditing,
+  loading,
+  onEdit,
+  onCancel,
+  onChange,
+  onSave,
+}) {
+  return (
+    <div
+      className="
+        rounded-[26px]
+        p-5
+        border
+        border-purple-200/70
+        bg-white/75
+        backdrop-blur-xl
+        transition-all
+        duration-300
+        hover:-translate-y-1
+      "
+      style={{
+        background: "linear-gradient(135deg, #FFFFFF, #F8F3FF)",
+        boxShadow: "0 14px 40px rgba(81,55,120,0.08)",
+      }}
+    >
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex-1">
+          <p className="text-sm text-gray-500 mb-2">{title}</p>
+
+          {isEditing ? (
+            <div className="flex gap-2 items-center">
+              <input
+                type="number"
+                min="0"
+                value={value}
+                onChange={(e) => onChange(Number(e.target.value))}
+                className="w-full border rounded-xl px-3 py-2 text-lg"
+              />
+
+              <button
+                onClick={onSave}
+                disabled={loading}
+                className="px-4 py-2 rounded-xl text-white text-sm bg-purple-600 disabled:opacity-50"
+              >
+                {loading ? "שומר..." : "שמור"}
+              </button>
+
+              <button
+                onClick={onCancel}
+                className="px-3 py-2 rounded-xl text-sm border"
+              >
+                ביטול
+              </button>
+            </div>
+          ) : (
+            <>
+              <p className="text-2xl font-bold text-[#28212E]">
+                {Number(value || 0).toLocaleString()}
+                {suffix ? (
+                  <span className="mr-1 text-sm font-semibold text-gray-400">
+                    {suffix}
+                  </span>
+                ) : null}
               </p>
 
               <button

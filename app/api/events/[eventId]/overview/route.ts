@@ -48,10 +48,7 @@ export async function GET(
     console.log("🔵 GET /overview – eventId:", eventId);
 
     if (!mongoose.Types.ObjectId.isValid(eventId)) {
-      console.warn(
-        "⛔ GET /overview – INVALID_EVENT_ID:",
-        eventId
-      );
+      console.warn("⛔ GET /overview – INVALID_EVENT_ID:", eventId);
 
       return NextResponse.json(
         {
@@ -68,21 +65,15 @@ export async function GET(
     const event = await Event.findOne({
       _id: eventId,
       status: "active",
-      $or: [
-        { userId: auth.userId },
-        { producerId: auth.userId },
-      ],
+      $or: [{ userId: auth.userId }, { producerId: auth.userId }],
     })
       .select(
-        "title date budgetTotal userId producerId"
+        "title date budgetTotal estimatedGuests estimatedGuestCount userId producerId"
       )
       .lean();
 
     if (!event) {
-      console.warn(
-        "⛔ GET /overview – EVENT_NOT_FOUND:",
-        eventId
-      );
+      console.warn("⛔ GET /overview – EVENT_NOT_FOUND:", eventId);
 
       return NextResponse.json(
         {
@@ -93,9 +84,11 @@ export async function GET(
       );
     }
 
+    console.log("🟢 GET /overview – event.budgetTotal from DB:", event.budgetTotal);
     console.log(
-      "🟢 GET /overview – event.budgetTotal from DB:",
-      event.budgetTotal
+      "🟢 GET /overview – event.estimatedGuests from DB:",
+      event.estimatedGuests,
+      event.estimatedGuestCount
     );
 
     /* =========================
@@ -104,13 +97,10 @@ export async function GET(
     const invitation = await Invitation.findOne({
       eventId: event._id,
     })
-      .select("title")
+      .select("title estimatedGuests estimatedGuestCount guestEstimate expectedGuests guestsEstimate guestCount guestsCount maxGuests")
       .lean();
 
-    console.log(
-      "🟢 GET /overview – invitation title:",
-      invitation?.title
-    );
+    console.log("🟢 GET /overview – invitation title:", invitation?.title);
 
     /* =========================
        Load Tasks
@@ -126,10 +116,7 @@ export async function GET(
       })
       .lean();
 
-    console.log(
-      "🔵 GET /overview – tasks count:",
-      tasks.length
-    );
+    console.log("🔵 GET /overview – tasks count:", tasks.length);
 
     /* =========================
        Load Suppliers
@@ -140,16 +127,27 @@ export async function GET(
       .select("price advance")
       .lean();
 
-    console.log(
-      "🔵 GET /overview – suppliers count:",
-      suppliers.length
-    );
+    console.log("🔵 GET /overview – suppliers count:", suppliers.length);
 
     /* =========================
        Budget Calculations
     ========================= */
-    const budgetTotal =
-      Number(event.budgetTotal) || 0;
+    const budgetTotal = Number(event.budgetTotal) || 0;
+
+    const estimatedGuests =
+      Number(
+        event.estimatedGuests ??
+          event.estimatedGuestCount ??
+          invitation?.estimatedGuests ??
+          invitation?.estimatedGuestCount ??
+          invitation?.guestEstimate ??
+          invitation?.expectedGuests ??
+          invitation?.guestsEstimate ??
+          invitation?.guestCount ??
+          invitation?.guestsCount ??
+          invitation?.maxGuests ??
+          0
+      ) || 0;
 
     const commitments = suppliers.reduce(
       (sum, s) => sum + Number(s.price || 0),
@@ -161,20 +159,15 @@ export async function GET(
       0
     );
 
-    const available = Math.max(
-      budgetTotal - commitments,
-      0
-    );
+    const available = Math.max(budgetTotal - commitments, 0);
 
-    console.log(
-      "🟢 GET /overview – calculated budget:",
-      {
-        budgetTotal,
-        commitments,
-        paid,
-        available,
-      }
-    );
+    console.log("🟢 GET /overview – calculated budget:", {
+      budgetTotal,
+      estimatedGuests,
+      commitments,
+      paid,
+      available,
+    });
 
     return NextResponse.json({
       success: true,
@@ -182,10 +175,7 @@ export async function GET(
       event: {
         id: event._id,
 
-        title:
-          invitation?.title ||
-          event.title ||
-          "הפקת אירוע",
+        title: invitation?.title || event.title || "הפקת אירוע",
 
         date: event.date,
 
@@ -194,6 +184,10 @@ export async function GET(
         producerId: event.producerId,
 
         budgetTotal,
+
+        estimatedGuests,
+
+        estimatedGuestCount: estimatedGuests,
       },
 
       budget: {
@@ -206,10 +200,7 @@ export async function GET(
       tasks,
     });
   } catch (err) {
-    console.error(
-      "❌ GET /events/[eventId]/overview failed:",
-      err
-    );
+    console.error("❌ GET /events/[eventId]/overview failed:", err);
 
     return NextResponse.json(
       {
@@ -222,7 +213,8 @@ export async function GET(
 }
 
 /* =========================================================
-   PATCH – עדכון Overview (תקציב)
+   PATCH – עדכון Overview
+   תומך גם בתקציב וגם בכמות מוזמנים משוערת
 ========================================================= */
 export async function PATCH(
   req: NextRequest,
@@ -239,9 +231,7 @@ export async function PATCH(
     const auth = await getUserIdFromRequest();
 
     if (!auth?.userId) {
-      console.warn(
-        "⛔ PATCH /overview – UNAUTHORIZED"
-      );
+      console.warn("⛔ PATCH /overview – UNAUTHORIZED");
 
       return NextResponse.json(
         {
@@ -257,16 +247,10 @@ export async function PATCH(
     ========================= */
     const { eventId } = await context.params;
 
-    console.log(
-      "🟡 PATCH /overview – eventId:",
-      eventId
-    );
+    console.log("🟡 PATCH /overview – eventId:", eventId);
 
     if (!mongoose.Types.ObjectId.isValid(eventId)) {
-      console.warn(
-        "⛔ PATCH /overview – INVALID_EVENT_ID:",
-        eventId
-      );
+      console.warn("⛔ PATCH /overview – INVALID_EVENT_ID:", eventId);
 
       return NextResponse.json(
         {
@@ -282,49 +266,75 @@ export async function PATCH(
     ========================= */
     const body = await req.json();
 
-    console.log(
-      "🟡 PATCH /overview – body received:",
-      body
+    console.log("🟡 PATCH /overview – body received:", body);
+
+    const hasBudgetTotal = Object.prototype.hasOwnProperty.call(
+      body,
+      "budgetTotal"
     );
 
-    if (
-      !Object.prototype.hasOwnProperty.call(
-        body,
-        "budgetTotal"
-      )
-    ) {
-      console.log(
-        "🟡 PATCH /overview – no budgetTotal, skipping update"
-      );
+    const hasEstimatedGuests =
+      Object.prototype.hasOwnProperty.call(body, "estimatedGuests") ||
+      Object.prototype.hasOwnProperty.call(body, "estimatedGuestCount");
+
+    if (!hasBudgetTotal && !hasEstimatedGuests) {
+      console.log("🟡 PATCH /overview – no supported fields, skipping update");
 
       return NextResponse.json({
         success: true,
       });
     }
 
-    const budgetTotal = Number(body.budgetTotal);
+    const updateFields: Record<string, number> = {};
 
-    console.log(
-      "🟡 PATCH /overview – parsed budgetTotal:",
-      budgetTotal
-    );
+    if (hasBudgetTotal) {
+      const budgetTotal = Number(body.budgetTotal);
 
-    if (
-      !Number.isFinite(budgetTotal) ||
-      budgetTotal < 0
-    ) {
-      console.warn(
-        "⛔ PATCH /overview – INVALID_BUDGET:",
-        body.budgetTotal
+      console.log("🟡 PATCH /overview – parsed budgetTotal:", budgetTotal);
+
+      if (!Number.isFinite(budgetTotal) || budgetTotal < 0) {
+        console.warn("⛔ PATCH /overview – INVALID_BUDGET:", body.budgetTotal);
+
+        return NextResponse.json(
+          {
+            success: false,
+            error: "INVALID_BUDGET",
+          },
+          { status: 400 }
+        );
+      }
+
+      updateFields.budgetTotal = budgetTotal;
+    }
+
+    if (hasEstimatedGuests) {
+      const rawEstimatedGuests =
+        body.estimatedGuests ?? body.estimatedGuestCount ?? 0;
+
+      const estimatedGuests = Number(rawEstimatedGuests);
+
+      console.log(
+        "🟡 PATCH /overview – parsed estimatedGuests:",
+        estimatedGuests
       );
 
-      return NextResponse.json(
-        {
-          success: false,
-          error: "INVALID_BUDGET",
-        },
-        { status: 400 }
-      );
+      if (!Number.isFinite(estimatedGuests) || estimatedGuests < 0) {
+        console.warn(
+          "⛔ PATCH /overview – INVALID_ESTIMATED_GUESTS:",
+          rawEstimatedGuests
+        );
+
+        return NextResponse.json(
+          {
+            success: false,
+            error: "INVALID_ESTIMATED_GUESTS",
+          },
+          { status: 400 }
+        );
+      }
+
+      updateFields.estimatedGuests = estimatedGuests;
+      updateFields.estimatedGuestCount = estimatedGuests;
     }
 
     /* =========================
@@ -334,28 +344,20 @@ export async function PATCH(
       {
         _id: eventId,
         status: "active",
-        $or: [
-          { userId: auth.userId },
-          { producerId: auth.userId },
-        ],
+        $or: [{ userId: auth.userId }, { producerId: auth.userId }],
       },
       {
-        $set: {
-          budgetTotal,
-        },
+        $set: updateFields,
       },
       {
         new: true,
       }
     ).select(
-      "title date budgetTotal userId producerId"
+      "title date budgetTotal estimatedGuests estimatedGuestCount userId producerId"
     );
 
     if (!event) {
-      console.warn(
-        "⛔ PATCH /overview – EVENT_NOT_FOUND:",
-        eventId
-      );
+      console.warn("⛔ PATCH /overview – EVENT_NOT_FOUND:", eventId);
 
       return NextResponse.json(
         {
@@ -366,10 +368,15 @@ export async function PATCH(
       );
     }
 
-    console.log(
-      "🟢 PATCH /overview – budget saved to DB:",
-      event.budgetTotal
-    );
+    const budgetTotal = Number(event.budgetTotal) || 0;
+
+    const estimatedGuests =
+      Number(event.estimatedGuests ?? event.estimatedGuestCount ?? 0) || 0;
+
+    console.log("🟢 PATCH /overview – overview saved to DB:", {
+      budgetTotal,
+      estimatedGuests,
+    });
 
     return NextResponse.json({
       success: true,
@@ -385,15 +392,15 @@ export async function PATCH(
 
         producerId: event.producerId,
 
-        budgetTotal:
-          Number(event.budgetTotal) || 0,
+        budgetTotal,
+
+        estimatedGuests,
+
+        estimatedGuestCount: estimatedGuests,
       },
     });
   } catch (err) {
-    console.error(
-      "❌ PATCH /events/[eventId]/overview failed:",
-      err
-    );
+    console.error("❌ PATCH /events/[eventId]/overview failed:", err);
 
     return NextResponse.json(
       {
