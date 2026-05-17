@@ -121,15 +121,6 @@ function getGuestRelation(guest: any) {
   ).trim();
 }
 
-/* ============================================================
-   SYNC RSVP GUESTS TO EVENT GIFTS
-
-   חשוב:
-   - אם יש רשומת מתנה קיימת: מסנכרנים רק פרטי מוזמן
-     שם / טלפון / קבוצה / סטטוס / כמות מגיעים.
-   - לא נוגעים בסכום מתנה / סוג תשלום / הערות.
-   - אם המשתמש מחק רשומת מתנה, היא נשארת isDeleted ולא חוזרת לתצוגה.
-============================================================ */
 async function syncGuestsToGifts(
   eventObjectId: mongoose.Types.ObjectId,
   invitationObjectId?: mongoose.Types.ObjectId | null

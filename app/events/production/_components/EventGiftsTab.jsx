@@ -72,6 +72,7 @@ function emptyManualGift(eventId, invitationId) {
     _id: `new-${Date.now()}`,
     eventId,
     invitationId: invitationId || null,
+    guestId: null,
     guestName: "",
     phone: "",
     relation: "",
@@ -85,10 +86,6 @@ function emptyManualGift(eventId, invitationId) {
   };
 }
 
-/* ============================================================
-   PaymentDropdown
-   קטן, באותו עיצוב של השדות, נפתח למטה ולא נחתך
-============================================================ */
 function PaymentDropdown({ value, onChange }) {
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState(null);
@@ -251,7 +248,13 @@ export default function EventGiftsTab({ eventId, invitationId }) {
   const [savedRows, setSavedRows] = useState({});
 
   const saveTimersRef = useRef({});
+  const latestGiftsRef = useRef([]);
+
   const canLoad = Boolean(eventId);
+
+  useEffect(() => {
+    latestGiftsRef.current = gifts;
+  }, [gifts]);
 
   const loadGifts = async () => {
     if (!canLoad) return;
@@ -345,14 +348,14 @@ export default function EventGiftsTab({ eventId, invitationId }) {
     };
   };
 
-  const saveGiftNow = async (gift) => {
-    const isNew = Boolean(gift.isNew);
+  const saveGiftNow = async (giftToSave) => {
+    const isNew = Boolean(giftToSave.isNew);
 
-    if (isNew && !String(gift.guestName || "").trim()) {
+    if (isNew && !String(giftToSave.guestName || "").trim()) {
       return;
     }
 
-    const rowId = gift._id;
+    const rowId = giftToSave._id;
 
     setSavingRows((prev) => ({
       ...prev,
@@ -372,7 +375,7 @@ export default function EventGiftsTab({ eventId, invitationId }) {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(buildPayload(gift)),
+        body: JSON.stringify(buildPayload(giftToSave)),
       });
 
       const data = await res.json();
@@ -453,41 +456,59 @@ export default function EventGiftsTab({ eventId, invitationId }) {
     }
   };
 
-  const scheduleAutoSave = (gift) => {
-    const rowId = gift._id;
+  const scheduleAutoSave = (giftToSave) => {
+    const rowId = giftToSave._id;
 
     if (saveTimersRef.current[rowId]) {
       clearTimeout(saveTimersRef.current[rowId]);
     }
 
     saveTimersRef.current[rowId] = setTimeout(() => {
-      saveGiftNow(gift);
-    }, 650);
+      saveGiftNow(giftToSave);
+    }, 550);
+  };
+
+  const flushAutoSave = (giftId) => {
+    const giftToSave = latestGiftsRef.current.find((gift) => gift._id === giftId);
+
+    if (!giftToSave) return;
+
+    if (saveTimersRef.current[giftId]) {
+      clearTimeout(saveTimersRef.current[giftId]);
+    }
+
+    saveGiftNow(giftToSave);
   };
 
   const updateGiftField = (giftId, field, value) => {
-    let nextGift = null;
-
-    setGifts((prev) =>
-      prev.map((gift) => {
-        if (gift._id !== giftId) return gift;
-
-        nextGift = {
-          ...gift,
-          [field]: value,
-        };
-
-        return nextGift;
-      })
+    const currentGift = latestGiftsRef.current.find(
+      (gift) => gift._id === giftId
     );
 
-    if (nextGift) {
-      scheduleAutoSave(nextGift);
-    }
+    if (!currentGift) return;
+
+    const nextGift = {
+      ...currentGift,
+      [field]: value,
+    };
+
+    latestGiftsRef.current = latestGiftsRef.current.map((gift) =>
+      gift._id === giftId ? nextGift : gift
+    );
+
+    setGifts((prev) =>
+      prev.map((gift) => (gift._id === giftId ? nextGift : gift))
+    );
+
+    scheduleAutoSave(nextGift);
   };
 
   const addManualRow = () => {
-    setGifts((prev) => [emptyManualGift(eventId, invitationId), ...prev]);
+    const newGift = emptyManualGift(eventId, invitationId);
+
+    latestGiftsRef.current = [newGift, ...latestGiftsRef.current];
+
+    setGifts((prev) => [newGift, ...prev]);
   };
 
   const deleteGift = async (gift) => {
@@ -495,6 +516,10 @@ export default function EventGiftsTab({ eventId, invitationId }) {
       if (saveTimersRef.current[gift._id]) {
         clearTimeout(saveTimersRef.current[gift._id]);
       }
+
+      latestGiftsRef.current = latestGiftsRef.current.filter(
+        (item) => item._id !== gift._id
+      );
 
       setGifts((prev) => prev.filter((item) => item._id !== gift._id));
       return;
@@ -516,6 +541,10 @@ export default function EventGiftsTab({ eventId, invitationId }) {
       if (!res.ok || !data.success) {
         throw new Error(data.message || "שגיאה במחיקה");
       }
+
+      latestGiftsRef.current = latestGiftsRef.current.filter(
+        (item) => item._id !== gift._id
+      );
 
       setGifts((prev) => prev.filter((item) => item._id !== gift._id));
     } catch (err) {
@@ -847,6 +876,7 @@ export default function EventGiftsTab({ eventId, invitationId }) {
                               e.target.value
                             )
                           }
+                          onBlur={() => flushAutoSave(gift._id)}
                           className="h-11 w-full rounded-2xl border border-[#E6D7C8] bg-white px-3 text-sm font-bold text-[#2B2118] outline-none focus:border-[#D8B46A]"
                           placeholder="שם"
                         />
@@ -858,6 +888,7 @@ export default function EventGiftsTab({ eventId, invitationId }) {
                           onChange={(e) =>
                             updateGiftField(gift._id, "phone", e.target.value)
                           }
+                          onBlur={() => flushAutoSave(gift._id)}
                           className="h-11 w-full rounded-2xl border border-[#E6D7C8] bg-white px-3 text-sm font-bold text-[#2B2118] outline-none focus:border-[#D8B46A]"
                           placeholder="טלפון"
                         />
@@ -873,6 +904,7 @@ export default function EventGiftsTab({ eventId, invitationId }) {
                               e.target.value
                             )
                           }
+                          onBlur={() => flushAutoSave(gift._id)}
                           className="h-11 w-full rounded-2xl border border-[#E6D7C8] bg-white px-3 text-sm font-bold text-[#2B2118] outline-none focus:border-[#D8B46A]"
                         >
                           {STATUS_OPTIONS.map((option) => (
@@ -895,6 +927,7 @@ export default function EventGiftsTab({ eventId, invitationId }) {
                               e.target.value
                             )
                           }
+                          onBlur={() => flushAutoSave(gift._id)}
                           className="h-11 w-full rounded-2xl border border-[#E6D7C8] bg-white px-3 text-sm font-bold text-[#2B2118] outline-none focus:border-[#D8B46A]"
                           placeholder="לא חובה"
                         />
@@ -912,6 +945,7 @@ export default function EventGiftsTab({ eventId, invitationId }) {
                               e.target.value
                             )
                           }
+                          onBlur={() => flushAutoSave(gift._id)}
                           className="h-11 w-full rounded-2xl border border-[#E6D7C8] bg-white px-3 text-sm font-bold text-[#2B2118] outline-none focus:border-[#D8B46A]"
                           placeholder="₪"
                         />
@@ -932,6 +966,7 @@ export default function EventGiftsTab({ eventId, invitationId }) {
                           onChange={(e) =>
                             updateGiftField(gift._id, "notes", e.target.value)
                           }
+                          onBlur={() => flushAutoSave(gift._id)}
                           className="h-11 w-full rounded-2xl border border-[#E6D7C8] bg-white px-3 text-sm font-bold text-[#2B2118] outline-none focus:border-[#D8B46A]"
                           placeholder="הערות"
                         />
