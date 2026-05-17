@@ -38,6 +38,51 @@ function getEstimatedGuestsFromData(event) {
   return numberValue;
 }
 
+function normalizeDateInput(value) {
+  if (!value) return "";
+
+  const stringValue = String(value);
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(stringValue)) {
+    return stringValue;
+  }
+
+  const date = new Date(stringValue);
+
+  if (Number.isNaN(date.getTime())) return "";
+
+  return date.toISOString().slice(0, 10);
+}
+
+function getLocationAddress(source) {
+  return (
+    source?.location?.address ||
+    source?.address ||
+    source?.eventLocation ||
+    source?.venue ||
+    source?.hallName ||
+    ""
+  );
+}
+
+function getInvitationFallbackDetails(invitation) {
+  if (!invitation) {
+    return {
+      title: "",
+      date: "",
+      time: "",
+      locationAddress: "",
+    };
+  }
+
+  return {
+    title: invitation.title || invitation.eventTitle || "",
+    date: normalizeDateInput(invitation.date || invitation.eventDate || ""),
+    time: invitation.time || invitation.eventTime || "",
+    locationAddress: getLocationAddress(invitation),
+  };
+}
+
 export default function OverviewTab({ eventId, invitation }) {
   const router = useRouter();
 
@@ -60,6 +105,16 @@ export default function OverviewTab({ eventId, invitation }) {
   const [estimatedGuestsDraft, setEstimatedGuestsDraft] = useState("");
   const [savingEstimatedGuests, setSavingEstimatedGuests] = useState(false);
   const [savedEstimatedGuests, setSavedEstimatedGuests] = useState(false);
+
+  const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
+  const [eventDetailsDraft, setEventDetailsDraft] = useState({
+    title: "",
+    date: "",
+    time: "",
+    locationAddress: "",
+  });
+  const [savingEventDetails, setSavingEventDetails] = useState(false);
+  const [savedEventDetails, setSavedEventDetails] = useState(false);
 
   const estimatedGuestsTimerRef = useRef(null);
 
@@ -188,6 +243,12 @@ export default function OverviewTab({ eventId, invitation }) {
     const alerts = [];
     const today = new Date();
 
+    const isAfterEvent = daysLeft !== null && daysLeft < 0;
+    const hasStartedGiftTracking =
+      giftsSummary.totalRows > 0 ||
+      giftsSummary.rowsWithGift > 0 ||
+      totalGifts > 0;
+
     if (progress >= 90) {
       alerts.push({
         id: "budget-danger",
@@ -211,110 +272,120 @@ export default function OverviewTab({ eventId, invitation }) {
     }
 
     if (budgetTotal > 0 && commitments > budgetTotal) {
-  const overBudget = commitments - budgetTotal;
+      const overBudget = commitments - budgetTotal;
 
-  alerts.push({
-    id: "budget-exceeded",
-    type: "danger",
-    icon: "₪",
-    title: "ההתחייבויות חרגו מהתקציב",
-    description: `ההתחייבויות גבוהות מהתקציב ב־₪${overBudget.toLocaleString()}. כדאי לעדכן תקציב או לבדוק צמצום עלויות.`,
-    action: "בדיקת תקציב",
-  });
-}
+      alerts.push({
+        id: "budget-exceeded",
+        type: "danger",
+        icon: "₪",
+        title: "ההתחייבויות חרגו מהתקציב",
+        description: `ההתחייבויות גבוהות מהתקציב ב־₪${overBudget.toLocaleString()}. כדאי לעדכן תקציב או לבדוק צמצום עלויות.`,
+        action: "בדיקת תקציב",
+      });
+    }
 
-if (budgetTotal > 0 && commitments > 0) {
-  const paidRatio = Math.round((paid / commitments) * 100);
+    if (budgetTotal > 0 && commitments > 0) {
+      const paidRatio = Math.round((paid / commitments) * 100);
 
-  if (paidRatio < 25) {
-    alerts.push({
-      id: "low-paid-ratio",
-      type: "warning",
-      icon: "💳",
-      title: "שולם מעט ביחס להתחייבויות",
-      description: `שולם רק ${paidRatio}% מתוך סה״כ ההתחייבויות. יש פער תשלומים של ₪${Math.max(
-        commitments - paid,
-        0
-      ).toLocaleString()}.`,
-      action: "בדיקת תשלומים",
-    });
-  }
-}
+      if (paidRatio < 25) {
+        alerts.push({
+          id: "low-paid-ratio",
+          type: "warning",
+          icon: "💳",
+          title: "שולם מעט ביחס להתחייבויות",
+          description: `שולם רק ${paidRatio}% מתוך סה״כ ההתחייבויות. יש פער תשלומים של ₪${Math.max(
+            commitments - paid,
+            0
+          ).toLocaleString()}.`,
+          action: "בדיקת תשלומים",
+        });
+      }
+    }
 
-if (
-  daysLeft !== null &&
-  daysLeft >= 0 &&
-  daysLeft <= 21 &&
-  budgetTotal > 0 &&
-  progress < 35
-) {
-  alerts.push({
-    id: "event-close-budget-low",
-    type: "info",
-    icon: "📊",
-    title: "האירוע מתקרב והתקציב כמעט לא נוצל",
-    description: `נוצלו רק ${progress}% מהתקציב. ייתכן שחסרים ספקים או הוצאות שעדיין לא הוזנו.`,
-    action: "השלמת נתונים",
-  });
-}
+    if (
+      daysLeft !== null &&
+      daysLeft >= 0 &&
+      daysLeft <= 21 &&
+      budgetTotal > 0 &&
+      progress < 35
+    ) {
+      alerts.push({
+        id: "event-close-budget-low",
+        type: "info",
+        icon: "📊",
+        title: "האירוע מתקרב והתקציב כמעט לא נוצל",
+        description: `נוצלו רק ${progress}% מהתקציב. ייתכן שחסרים ספקים או הוצאות שעדיין לא הוזנו.`,
+        action: "השלמת נתונים",
+      });
+    }
 
-if (estimatedGuests > 0 && commitments > 0 && averageCostPerGuest < 80) {
-  alerts.push({
-    id: "very-low-average-cost",
-    type: "info",
-    icon: "🧮",
-    title: "עלות ממוצעת נמוכה מאוד לאורח",
-    description: `עלות ממוצעת לאורח היא ₪${averageCostPerGuest.toLocaleString()}. ייתכן שחסרות הוצאות בתמונה הכללית.`,
-    action: "בדיקת תקציב",
-  });
-}
+    if (estimatedGuests > 0 && commitments > 0 && averageCostPerGuest < 80) {
+      alerts.push({
+        id: "very-low-average-cost",
+        type: "info",
+        icon: "🧮",
+        title: "עלות ממוצעת נמוכה מאוד לאורח",
+        description: `עלות ממוצעת לאורח היא ₪${averageCostPerGuest.toLocaleString()}. ייתכן שחסרות הוצאות בתמונה הכללית.`,
+        action: "בדיקת תקציב",
+      });
+    }
 
-if (hasGiftAmounts && commitments > 0) {
-  const giftCoverage = Math.round((totalGifts / commitments) * 100);
+    if (
+      isAfterEvent &&
+      hasStartedGiftTracking &&
+      hasGiftAmounts &&
+      commitments > 0
+    ) {
+      const giftCoverage = Math.round((totalGifts / commitments) * 100);
 
-  if (giftCoverage < 30) {
-    alerts.push({
-      id: "low-gift-coverage",
-      type: "warning",
-      icon: "🎁",
-      title: "המתנות מכסות אחוז נמוך מההוצאות",
-      description: `המתנות מכסות כרגע רק ${giftCoverage}% מההתחייבויות. הפער הנוכחי הוא ₪${Math.max(
-        commitments - totalGifts,
-        0
-      ).toLocaleString()}.`,
-      action: "בדיקת מתנות",
-    });
-  }
-}
+      if (giftCoverage < 30) {
+        alerts.push({
+          id: "low-gift-coverage",
+          type: "warning",
+          icon: "🎁",
+          title: "המתנות מכסות אחוז נמוך מההוצאות",
+          description: `המתנות מכסות כרגע רק ${giftCoverage}% מההתחייבויות. הפער הנוכחי הוא ₪${Math.max(
+            commitments - totalGifts,
+            0
+          ).toLocaleString()}.`,
+          action: "בדיקת מתנות",
+        });
+      }
+    }
 
-if (daysLeft !== null && daysLeft >= 0 && daysLeft <= 10 && activeTasks >= 5) {
-  alerts.push({
-    id: "too-many-tasks-close-event",
-    type: "danger",
-    icon: "✓",
-    title: "הרבה משימות פתוחות סמוך לאירוע",
-    description: `נותרו ${daysLeft} ימים לאירוע ויש ${activeTasks} משימות פתוחות. כדאי לצמצם משימות קריטיות השבוע.`,
-    action: "טיפול במשימות",
-  });
-}
+    if (
+      daysLeft !== null &&
+      daysLeft >= 0 &&
+      daysLeft <= 10 &&
+      activeTasks >= 5
+    ) {
+      alerts.push({
+        id: "too-many-tasks-close-event",
+        type: "danger",
+        icon: "✓",
+        title: "הרבה משימות פתוחות סמוך לאירוע",
+        description: `נותרו ${daysLeft} ימים לאירוע ויש ${activeTasks} משימות פתוחות. כדאי לצמצם משימות קריטיות השבוע.`,
+        action: "טיפול במשימות",
+      });
+    }
 
-if (
-  budgetTotal > 0 &&
-  commitments === 0 &&
-  estimatedGuests > 0 &&
-  daysLeft !== null &&
-  daysLeft <= 30
-) {
-  alerts.push({
-    id: "missing-expenses-data",
-    type: "info",
-    icon: "📌",
-    title: "תמונת המצב לא מלאה",
-    description:
-      "הוזנה כמות מוזמנים ותקציב, אבל עדיין אין התחייבויות. כדי לקבל תמונת מצב אמיתית צריך להזין ספקים/הוצאות.",
-    action: "השלמת תקציב",
-  });
-}
+    if (
+      budgetTotal > 0 &&
+      commitments === 0 &&
+      estimatedGuests > 0 &&
+      daysLeft !== null &&
+      daysLeft <= 30
+    ) {
+      alerts.push({
+        id: "missing-expenses-data",
+        type: "info",
+        icon: "📌",
+        title: "תמונת המצב לא מלאה",
+        description:
+          "הוזנה כמות מוזמנים ותקציב, אבל עדיין אין התחייבויות. כדי לקבל תמונת מצב אמיתית צריך להזין ספקים/הוצאות.",
+        action: "השלמת תקציב",
+      });
+    }
 
     if (commitments > 0 && !estimatedGuests) {
       alerts.push({
@@ -327,7 +398,12 @@ if (
       });
     }
 
-    if (estimatedGuests > 0 && giftsSummary.totalRows > 0) {
+    if (
+      isAfterEvent &&
+      hasStartedGiftTracking &&
+      estimatedGuests > 0 &&
+      giftsSummary.totalRows > 0
+    ) {
       const missingGiftRows = Math.max(
         estimatedGuests - giftsSummary.totalRows,
         0
@@ -345,7 +421,12 @@ if (
       }
     }
 
-    if (estimatedGuests > 0 && giftsSummary.rowsWithGift > 0) {
+    if (
+      isAfterEvent &&
+      hasStartedGiftTracking &&
+      estimatedGuests > 0 &&
+      giftsSummary.rowsWithGift > 0
+    ) {
       const guestsWithoutGiftAmount = Math.max(
         estimatedGuests - giftsSummary.rowsWithGift,
         0
@@ -378,7 +459,12 @@ if (
       });
     }
 
-    if (hasGiftAmounts && incomeMinusExpenses < 0) {
+    if (
+      isAfterEvent &&
+      hasStartedGiftTracking &&
+      hasGiftAmounts &&
+      incomeMinusExpenses < 0
+    ) {
       alerts.push({
         id: "negative-after-gifts",
         type: "warning",
@@ -391,7 +477,12 @@ if (
       });
     }
 
-    if (hasGiftAmounts && incomeMinusExpenses >= 0) {
+    if (
+      isAfterEvent &&
+      hasStartedGiftTracking &&
+      hasGiftAmounts &&
+      incomeMinusExpenses >= 0
+    ) {
       alerts.push({
         id: "positive-after-gifts",
         type: "info",
@@ -453,7 +544,7 @@ if (
     }
 
     return alerts;
-    }, [
+  }, [
     progress,
     available,
     activeTasks,
@@ -485,6 +576,92 @@ if (
     const next = Array.from(new Set([...hiddenAlerts, alertId]));
     setHiddenAlerts(next);
     localStorage.setItem(`hiddenAlerts-${eventId}`, JSON.stringify(next));
+  }
+
+  function openEventDetailsModal() {
+    const invitationFallback = getInvitationFallbackDetails(invitation);
+
+    setSavedEventDetails(false);
+
+    setEventDetailsDraft({
+      title: event?.title || invitationFallback.title || "",
+      date:
+        normalizeDateInput(event?.date) ||
+        invitationFallback.date ||
+        "",
+      time: event?.time || invitationFallback.time || "",
+      locationAddress:
+        event?.location?.address || invitationFallback.locationAddress || "",
+    });
+
+    setEventDetailsOpen(true);
+  }
+
+  function updateEventDetailsDraft(field, value) {
+    setEventDetailsDraft((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  }
+
+  async function saveEventDetails() {
+    setSavingEventDetails(true);
+    setSavedEventDetails(false);
+    setError("");
+
+    try {
+      const res = await fetch(`/api/events/${eventId}/overview`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: eventDetailsDraft.title,
+          date: eventDetailsDraft.date,
+          time: eventDetailsDraft.time,
+          locationAddress: eventDetailsDraft.locationAddress,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error("SAVE_EVENT_DETAILS_FAILED");
+      }
+
+      const nextEvent = data.event || {
+        ...(event || {}),
+        title: eventDetailsDraft.title,
+        date: eventDetailsDraft.date,
+        time: eventDetailsDraft.time,
+        location: {
+          ...(event?.location || {}),
+          address: eventDetailsDraft.locationAddress,
+        },
+      };
+
+      setEvent((prev) => ({
+        ...(prev || {}),
+        ...nextEvent,
+        title: nextEvent.title ?? eventDetailsDraft.title,
+        date: nextEvent.date ?? eventDetailsDraft.date,
+        time: nextEvent.time ?? eventDetailsDraft.time,
+        location: {
+          ...(prev?.location || {}),
+          ...(nextEvent.location || {}),
+          address:
+            nextEvent.location?.address ?? eventDetailsDraft.locationAddress,
+        },
+      }));
+
+      setSavedEventDetails(true);
+
+      setTimeout(() => {
+        setSavedEventDetails(false);
+      }, 1500);
+    } catch (e) {
+      setError("שגיאה בשמירת פרטי האירוע");
+    } finally {
+      setSavingEventDetails(false);
+    }
   }
 
   async function addTask() {
@@ -727,6 +904,16 @@ if (
     );
   }
 
+  const formattedEventDate = event?.date
+    ? new Date(event.date).toLocaleDateString("he-IL", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+      })
+    : "לא הוגדר תאריך";
+
+  const eventLocationAddress = event?.location?.address || "";
+
   return (
     <div
       dir="rtl"
@@ -782,6 +969,56 @@ if (
             gap-6
           "
         >
+          <div className="flex flex-col items-center gap-3 md:items-start">
+            <button
+              type="button"
+              onClick={openEventDetailsModal}
+              className="
+                rounded-2xl
+                bg-white/90
+                border
+                border-purple-100
+                px-5
+                py-3
+                text-sm
+                font-semibold
+                text-[#28212E]
+                shadow-[0_10px_30px_rgba(124,58,237,0.08)]
+                hover:-translate-y-1
+                hover:shadow-[0_15px_40px_rgba(124,58,237,0.14)]
+                transition-all
+                duration-300
+              "
+            >
+              ✨ פרטי אירוע
+            </button>
+
+            {invitation && (
+              <button
+                type="button"
+                onClick={() => router.push(`/dashboard?eventId=${eventId}`)}
+                className="
+                  rounded-2xl
+                  bg-white/90
+                  border
+                  border-white/60
+                  px-5
+                  py-3
+                  text-sm
+                  font-semibold
+                  text-[#28212E]
+                  shadow-[0_10px_30px_rgba(124,58,237,0.08)]
+                  hover:-translate-y-1
+                  hover:shadow-[0_15px_40px_rgba(124,58,237,0.14)]
+                  transition-all
+                  duration-300
+                "
+              >
+                👥 ניהול דשבורד אורחים
+              </button>
+            )}
+          </div>
+
           <div className="flex items-center gap-4">
             <div
               className="
@@ -813,7 +1050,7 @@ if (
                   tracking-tight
                 "
               >
-                {event.title}
+                {event.title || "הפקת אירוע"}
               </h1>
 
               <p
@@ -825,12 +1062,15 @@ if (
                   font-medium
                 "
               >
-                {new Date(event.date).toLocaleDateString("he-IL", {
-                  day: "2-digit",
-                  month: "long",
-                  year: "numeric",
-                })}
+                {formattedEventDate}
+                {event?.time ? ` · ${event.time}` : ""}
               </p>
+
+              {eventLocationAddress && (
+                <p className="mt-1 text-sm font-medium text-gray-400">
+                  📍 {eventLocationAddress}
+                </p>
+              )}
 
               {daysLeft !== null && daysLeft >= 0 && (
                 <div
@@ -857,30 +1097,6 @@ if (
               )}
             </div>
           </div>
-
-          {invitation && (
-            <button
-              onClick={() => router.push(`/dashboard?eventId=${eventId}`)}
-              className="
-                rounded-2xl
-                bg-white/90
-                border
-                border-white/60
-                px-5
-                py-3
-                text-sm
-                font-semibold
-                text-[#28212E]
-                shadow-[0_10px_30px_rgba(124,58,237,0.08)]
-                hover:-translate-y-1
-                hover:shadow-[0_15px_40px_rgba(124,58,237,0.14)]
-                transition-all
-                duration-300
-              "
-            >
-              👤 ניהול דשבורד לקוח
-            </button>
-          )}
         </div>
       </section>
 
@@ -1081,6 +1297,228 @@ if (
           ))}
         </div>
       </section>
+
+      {eventDetailsOpen && (
+        <EventDetailsModal
+          draft={eventDetailsDraft}
+          saving={savingEventDetails}
+          saved={savedEventDetails}
+          onClose={() => setEventDetailsOpen(false)}
+          onChange={updateEventDetailsDraft}
+          onSave={saveEventDetails}
+        />
+      )}
+    </div>
+  );
+}
+
+function EventDetailsModal({
+  draft,
+  saving,
+  saved,
+  onClose,
+  onChange,
+  onSave,
+}) {
+  return (
+    <div
+      dir="rtl"
+      className="
+        fixed
+        inset-0
+        z-[9999]
+        flex
+        items-center
+        justify-center
+        bg-black/35
+        px-4
+        backdrop-blur-sm
+      "
+    >
+      <div
+        className="
+          w-full
+          max-w-2xl
+          rounded-[34px]
+          border
+          border-white/70
+          bg-[#FFFDF9]
+          p-6
+          shadow-[0_30px_100px_rgba(31,20,45,0.22)]
+        "
+      >
+        <div className="mb-6 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-xs font-bold text-purple-600">פרטי האירוע</p>
+            <h2 className="mt-1 text-2xl font-black text-[#28212E]">
+              יצירת / עדכון פרטי אירוע
+            </h2>
+            <p className="mt-2 text-sm text-gray-500">
+              הפרטים נשמרים על האירוע ומשפיעים על תמונת המצב וההתראות החכמות.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="
+              h-10
+              w-10
+              rounded-full
+              bg-gray-100
+              text-xl
+              font-bold
+              text-gray-500
+              hover:bg-gray-200
+            "
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <label className="space-y-2 md:col-span-2">
+            <span className="text-sm font-bold text-gray-600">שם אירוע</span>
+            <input
+              value={draft.title}
+              onChange={(e) => onChange("title", e.target.value)}
+              placeholder="לדוגמה: החתונה של שיר ואיתי"
+              className="
+                w-full
+                rounded-2xl
+                border
+                border-gray-200
+                bg-white
+                px-4
+                py-3
+                text-sm
+                font-semibold
+                text-[#28212E]
+                outline-none
+                focus:border-purple-300
+              "
+            />
+          </label>
+
+          <label className="space-y-2">
+            <span className="text-sm font-bold text-gray-600">תאריך</span>
+            <input
+              type="date"
+              value={draft.date}
+              onChange={(e) => onChange("date", e.target.value)}
+              className="
+                w-full
+                rounded-2xl
+                border
+                border-gray-200
+                bg-white
+                px-4
+                py-3
+                text-sm
+                font-semibold
+                text-[#28212E]
+                outline-none
+                focus:border-purple-300
+              "
+            />
+          </label>
+
+          <label className="space-y-2">
+            <span className="text-sm font-bold text-gray-600">שעה</span>
+            <input
+              type="time"
+              value={draft.time}
+              onChange={(e) => onChange("time", e.target.value)}
+              className="
+                w-full
+                rounded-2xl
+                border
+                border-gray-200
+                bg-white
+                px-4
+                py-3
+                text-sm
+                font-semibold
+                text-[#28212E]
+                outline-none
+                focus:border-purple-300
+              "
+            />
+          </label>
+
+          <label className="space-y-2 md:col-span-2">
+            <span className="text-sm font-bold text-gray-600">
+              מיקום האירוע
+            </span>
+            <input
+              value={draft.locationAddress}
+              onChange={(e) => onChange("locationAddress", e.target.value)}
+              placeholder="שם אולם / כתובת / מיקום"
+              className="
+                w-full
+                rounded-2xl
+                border
+                border-gray-200
+                bg-white
+                px-4
+                py-3
+                text-sm
+                font-semibold
+                text-[#28212E]
+                outline-none
+                focus:border-purple-300
+              "
+            />
+          </label>
+        </div>
+
+        <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <span className="text-xs font-bold text-gray-400">
+            {saving ? "שומר..." : saved ? "נשמר בהצלחה" : ""}
+          </span>
+
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="
+                rounded-2xl
+                border
+                border-gray-200
+                bg-white
+                px-5
+                py-3
+                text-sm
+                font-bold
+                text-gray-600
+                hover:bg-gray-50
+              "
+            >
+              ביטול
+            </button>
+
+            <button
+              type="button"
+              onClick={onSave}
+              disabled={saving}
+              className="
+                rounded-2xl
+                bg-purple-600
+                px-6
+                py-3
+                text-sm
+                font-bold
+                text-white
+                shadow-[0_12px_30px_rgba(124,58,237,0.25)]
+                hover:bg-purple-700
+                disabled:opacity-50
+              "
+            >
+              {saving ? "שומר..." : "שמירת פרטים"}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

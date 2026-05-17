@@ -4,12 +4,32 @@ import mongoose from "mongoose";
 import db from "@/lib/db";
 
 import Event from "@/models/Event";
-import Invitation from "@/models/Invitation";
-
 import EventTask from "@/models/EventTask";
 import EventSupplier from "@/models/EventSupplier";
 
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+
+/* =========================================================
+   Helpers
+========================================================= */
+function hasOwn(body: any, key: string) {
+  return Object.prototype.hasOwnProperty.call(body, key);
+}
+
+function normalizeOptionalString(value: any) {
+  if (value === null || value === undefined) return "";
+  return String(value).trim();
+}
+
+function normalizeNullableNumber(value: any) {
+  if (value === "" || value === null || value === undefined) return null;
+
+  const numberValue = Number(value);
+
+  if (!Number.isFinite(numberValue) || numberValue < 0) return "INVALID";
+
+  return numberValue;
+}
 
 /* =========================================================
    GET – Overview לאירוע
@@ -61,6 +81,7 @@ export async function GET(
 
     /* =========================
        Load Event
+       חשוב: לא מושכים שום דבר מ-Invitation
     ========================= */
     const event = await Event.findOne({
       _id: eventId,
@@ -68,7 +89,17 @@ export async function GET(
       $or: [{ userId: auth.userId }, { producerId: auth.userId }],
     })
       .select(
-        "title date budgetTotal estimatedGuests estimatedGuestCount userId producerId"
+        [
+          "title",
+          "date",
+          "time",
+          "location",
+          "budgetTotal",
+          "estimatedGuests",
+          "estimatedGuestCount",
+          "userId",
+          "producerId",
+        ].join(" ")
       )
       .lean();
 
@@ -84,23 +115,15 @@ export async function GET(
       );
     }
 
-    console.log("🟢 GET /overview – event.budgetTotal from DB:", event.budgetTotal);
-    console.log(
-      "🟢 GET /overview – event.estimatedGuests from DB:",
-      event.estimatedGuests,
-      event.estimatedGuestCount
-    );
-
-    /* =========================
-       Load Invitation
-    ========================= */
-    const invitation = await Invitation.findOne({
-      eventId: event._id,
-    })
-      .select("title estimatedGuests estimatedGuestCount guestEstimate expectedGuests guestsEstimate guestCount guestsCount maxGuests")
-      .lean();
-
-    console.log("🟢 GET /overview – invitation title:", invitation?.title);
+    console.log("🟢 GET /overview – event from DB:", {
+      title: event.title,
+      date: event.date,
+      time: event.time,
+      location: event.location,
+      budgetTotal: event.budgetTotal,
+      estimatedGuests: event.estimatedGuests,
+      estimatedGuestCount: event.estimatedGuestCount,
+    });
 
     /* =========================
        Load Tasks
@@ -135,27 +158,28 @@ export async function GET(
     const budgetTotal = Number(event.budgetTotal) || 0;
 
     const estimatedGuests =
-      Number(
-        event.estimatedGuests ??
-          event.estimatedGuestCount ??
-          invitation?.estimatedGuests ??
-          invitation?.estimatedGuestCount ??
-          invitation?.guestEstimate ??
-          invitation?.expectedGuests ??
-          invitation?.guestsEstimate ??
-          invitation?.guestCount ??
-          invitation?.guestsCount ??
-          invitation?.maxGuests ??
-          0
-      ) || 0;
+      event.estimatedGuests === null ||
+      event.estimatedGuests === undefined ||
+      event.estimatedGuests === ""
+        ? event.estimatedGuestCount === null ||
+          event.estimatedGuestCount === undefined ||
+          event.estimatedGuestCount === ""
+          ? null
+          : Number(event.estimatedGuestCount)
+        : Number(event.estimatedGuests);
+
+    const normalizedEstimatedGuests =
+      Number.isFinite(Number(estimatedGuests)) && Number(estimatedGuests) > 0
+        ? Number(estimatedGuests)
+        : null;
 
     const commitments = suppliers.reduce(
-      (sum, s) => sum + Number(s.price || 0),
+      (sum, supplier) => sum + Number(supplier.price || 0),
       0
     );
 
     const paid = suppliers.reduce(
-      (sum, s) => sum + Number(s.advance || 0),
+      (sum, supplier) => sum + Number(supplier.advance || 0),
       0
     );
 
@@ -163,7 +187,7 @@ export async function GET(
 
     console.log("🟢 GET /overview – calculated budget:", {
       budgetTotal,
-      estimatedGuests,
+      estimatedGuests: normalizedEstimatedGuests,
       commitments,
       paid,
       available,
@@ -175,9 +199,17 @@ export async function GET(
       event: {
         id: event._id,
 
-        title: invitation?.title || event.title || "הפקת אירוע",
+        title: event.title || "",
 
-        date: event.date,
+        date: event.date || "",
+
+        time: event.time || "",
+
+        location: {
+          address: event.location?.address || "",
+          lat: event.location?.lat,
+          lng: event.location?.lng,
+        },
 
         userId: event.userId,
 
@@ -185,9 +217,9 @@ export async function GET(
 
         budgetTotal,
 
-        estimatedGuests,
+        estimatedGuests: normalizedEstimatedGuests,
 
-        estimatedGuestCount: estimatedGuests,
+        estimatedGuestCount: normalizedEstimatedGuests,
       },
 
       budget: {
@@ -214,7 +246,10 @@ export async function GET(
 
 /* =========================================================
    PATCH – עדכון Overview
-   תומך גם בתקציב וגם בכמות מוזמנים משוערת
+   תומך:
+   - פרטי אירוע
+   - תקציב
+   - כמות מוזמנים משוערת ידנית
 ========================================================= */
 export async function PATCH(
   req: NextRequest,
@@ -268,16 +303,29 @@ export async function PATCH(
 
     console.log("🟡 PATCH /overview – body received:", body);
 
-    const hasBudgetTotal = Object.prototype.hasOwnProperty.call(
-      body,
-      "budgetTotal"
-    );
+    const hasBudgetTotal = hasOwn(body, "budgetTotal");
 
     const hasEstimatedGuests =
-      Object.prototype.hasOwnProperty.call(body, "estimatedGuests") ||
-      Object.prototype.hasOwnProperty.call(body, "estimatedGuestCount");
+      hasOwn(body, "estimatedGuests") || hasOwn(body, "estimatedGuestCount");
 
-    if (!hasBudgetTotal && !hasEstimatedGuests) {
+    const hasTitle = hasOwn(body, "title");
+    const hasDate = hasOwn(body, "date");
+    const hasTime = hasOwn(body, "time");
+
+    const hasLocationAddress =
+      hasOwn(body, "locationAddress") ||
+      hasOwn(body, "address") ||
+      hasOwn(body, "location");
+
+    const hasAnySupportedField =
+      hasBudgetTotal ||
+      hasEstimatedGuests ||
+      hasTitle ||
+      hasDate ||
+      hasTime ||
+      hasLocationAddress;
+
+    if (!hasAnySupportedField) {
       console.log("🟡 PATCH /overview – no supported fields, skipping update");
 
       return NextResponse.json({
@@ -285,8 +333,11 @@ export async function PATCH(
       });
     }
 
-    const updateFields: Record<string, number> = {};
+    const updateFields: Record<string, any> = {};
 
+    /* =========================
+       Budget
+    ========================= */
     if (hasBudgetTotal) {
       const budgetTotal = Number(body.budgetTotal);
 
@@ -307,18 +358,24 @@ export async function PATCH(
       updateFields.budgetTotal = budgetTotal;
     }
 
+    /* =========================
+       Estimated Guests
+       ידני בלבד — לא מ-Invitation ולא מ-maxGuests
+    ========================= */
     if (hasEstimatedGuests) {
       const rawEstimatedGuests =
-        body.estimatedGuests ?? body.estimatedGuestCount ?? 0;
+        hasOwn(body, "estimatedGuests")
+          ? body.estimatedGuests
+          : body.estimatedGuestCount;
 
-      const estimatedGuests = Number(rawEstimatedGuests);
+      const estimatedGuests = normalizeNullableNumber(rawEstimatedGuests);
 
       console.log(
         "🟡 PATCH /overview – parsed estimatedGuests:",
         estimatedGuests
       );
 
-      if (!Number.isFinite(estimatedGuests) || estimatedGuests < 0) {
+      if (estimatedGuests === "INVALID") {
         console.warn(
           "⛔ PATCH /overview – INVALID_ESTIMATED_GUESTS:",
           rawEstimatedGuests
@@ -338,6 +395,32 @@ export async function PATCH(
     }
 
     /* =========================
+       Event Details
+    ========================= */
+    if (hasTitle) {
+      updateFields.title = normalizeOptionalString(body.title);
+    }
+
+    if (hasDate) {
+      updateFields.date = normalizeOptionalString(body.date);
+    }
+
+    if (hasTime) {
+      updateFields.time = normalizeOptionalString(body.time);
+    }
+
+    if (hasLocationAddress) {
+      const locationAddress =
+        typeof body.location === "object" && body.location !== null
+          ? body.location.address
+          : body.locationAddress ?? body.address ?? "";
+
+      updateFields["location.address"] = normalizeOptionalString(
+        locationAddress
+      );
+    }
+
+    /* =========================
        Update Event
     ========================= */
     const event = await Event.findOneAndUpdate(
@@ -353,7 +436,17 @@ export async function PATCH(
         new: true,
       }
     ).select(
-      "title date budgetTotal estimatedGuests estimatedGuestCount userId producerId"
+      [
+        "title",
+        "date",
+        "time",
+        "location",
+        "budgetTotal",
+        "estimatedGuests",
+        "estimatedGuestCount",
+        "userId",
+        "producerId",
+      ].join(" ")
     );
 
     if (!event) {
@@ -371,11 +464,28 @@ export async function PATCH(
     const budgetTotal = Number(event.budgetTotal) || 0;
 
     const estimatedGuests =
-      Number(event.estimatedGuests ?? event.estimatedGuestCount ?? 0) || 0;
+      event.estimatedGuests === null ||
+      event.estimatedGuests === undefined ||
+      event.estimatedGuests === ""
+        ? event.estimatedGuestCount === null ||
+          event.estimatedGuestCount === undefined ||
+          event.estimatedGuestCount === ""
+          ? null
+          : Number(event.estimatedGuestCount)
+        : Number(event.estimatedGuests);
+
+    const normalizedEstimatedGuests =
+      Number.isFinite(Number(estimatedGuests)) && Number(estimatedGuests) > 0
+        ? Number(estimatedGuests)
+        : null;
 
     console.log("🟢 PATCH /overview – overview saved to DB:", {
+      title: event.title,
+      date: event.date,
+      time: event.time,
+      location: event.location,
       budgetTotal,
-      estimatedGuests,
+      estimatedGuests: normalizedEstimatedGuests,
     });
 
     return NextResponse.json({
@@ -384,9 +494,17 @@ export async function PATCH(
       event: {
         id: event._id,
 
-        title: event.title,
+        title: event.title || "",
 
-        date: event.date,
+        date: event.date || "",
+
+        time: event.time || "",
+
+        location: {
+          address: event.location?.address || "",
+          lat: event.location?.lat,
+          lng: event.location?.lng,
+        },
 
         userId: event.userId,
 
@@ -394,9 +512,9 @@ export async function PATCH(
 
         budgetTotal,
 
-        estimatedGuests,
+        estimatedGuests: normalizedEstimatedGuests,
 
-        estimatedGuestCount: estimatedGuests,
+        estimatedGuestCount: normalizedEstimatedGuests,
       },
     });
   } catch (err) {
