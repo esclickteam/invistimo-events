@@ -500,10 +500,6 @@ export default function PublicInvitePage({ params }: any) {
             {invite?.title || "שמחים להזמינכם"}
           </h1>
 
-          <p className="mx-auto mt-3 max-w-xs text-sm font-medium leading-6 text-[#7b6a58]">
-            נשמח לראותכם איתנו ולחגוג יחד ברגעים המיוחדים
-          </p>
-
           <div className="mx-auto mt-5 h-px w-20 bg-gradient-to-l from-transparent via-[#d7b98b] to-transparent" />
         </section>
 
