@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 const TASK_STATUS = {
@@ -21,28 +21,19 @@ const STATUS_STYLE = {
   done: "bg-green-50 text-green-700",
 };
 
-function getEstimatedGuestsFromData(event, invitation) {
-  const value =
-    event?.estimatedGuests ??
-    event?.estimatedGuestCount ??
-    event?.guestEstimate ??
-    event?.expectedGuests ??
-    event?.guestsEstimate ??
-    event?.guestCount ??
-    event?.guestsCount ??
-    invitation?.estimatedGuests ??
-    invitation?.estimatedGuestCount ??
-    invitation?.guestEstimate ??
-    invitation?.expectedGuests ??
-    invitation?.guestsEstimate ??
-    invitation?.guestCount ??
-    invitation?.guestsCount ??
-    invitation?.maxGuests ??
-    0;
+/* ============================================================
+   כמות מוזמנים משוערת — ידני בלבד
+   לא מושכים משום מקום אחר.
+   רק מהשדות שנשמרו על Event.
+============================================================ */
+function getEstimatedGuestsFromData(event) {
+  const value = event?.estimatedGuests ?? event?.estimatedGuestCount ?? null;
+
+  if (value === null || value === undefined || value === "") return null;
 
   const numberValue = Number(value);
 
-  if (!Number.isFinite(numberValue) || numberValue < 0) return 0;
+  if (!Number.isFinite(numberValue) || numberValue <= 0) return null;
 
   return numberValue;
 }
@@ -66,10 +57,11 @@ export default function OverviewTab({ eventId, invitation }) {
   const [savingBudget, setSavingBudget] = useState(false);
   const [budget, setBudget] = useState(null);
 
-  const [isEditingEstimatedGuests, setIsEditingEstimatedGuests] =
-    useState(false);
-  const [estimatedGuestsDraft, setEstimatedGuestsDraft] = useState(0);
+  const [estimatedGuestsDraft, setEstimatedGuestsDraft] = useState("");
   const [savingEstimatedGuests, setSavingEstimatedGuests] = useState(false);
+  const [savedEstimatedGuests, setSavedEstimatedGuests] = useState(false);
+
+  const estimatedGuestsTimerRef = useRef(null);
 
   const [giftsSummary, setGiftsSummary] = useState({
     totalGifts: 0,
@@ -116,10 +108,10 @@ export default function OverviewTab({ eventId, invitation }) {
           return data.event?.budgetTotal ?? 0;
         });
 
-        setEstimatedGuestsDraft((prev) => {
-          if (prev && prev > 0) return prev;
-          return getEstimatedGuestsFromData(data.event, invitation);
-        });
+        const savedEstimatedGuests = getEstimatedGuestsFromData(data.event);
+        setEstimatedGuestsDraft(
+          savedEstimatedGuests ? String(savedEstimatedGuests) : ""
+        );
 
         try {
           const giftsRes = await fetch(`/api/event-gifts?eventId=${eventId}`, {
@@ -147,18 +139,24 @@ export default function OverviewTab({ eventId, invitation }) {
     }
 
     load();
-  }, [eventId, invitation]);
+
+    return () => {
+      if (estimatedGuestsTimerRef.current) {
+        clearTimeout(estimatedGuestsTimerRef.current);
+      }
+    };
+  }, [eventId]);
 
   const budgetTotal = budget?.total ?? event?.budgetTotal ?? 0;
   const commitments = budget?.commitments ?? 0;
   const paid = budget?.paid ?? 0;
   const available = budget?.available ?? budgetTotal;
 
-  const estimatedGuests = getEstimatedGuestsFromData(event, invitation);
+  const estimatedGuests = getEstimatedGuestsFromData(event);
 
   const averageCostPerGuest =
-    budgetTotal > 0 && estimatedGuests > 0
-      ? Math.round(budgetTotal / estimatedGuests)
+    commitments > 0 && estimatedGuests > 0
+      ? Math.round(commitments / estimatedGuests)
       : null;
 
   const totalGifts = giftsSummary.totalGifts || 0;
@@ -212,7 +210,7 @@ export default function OverviewTab({ eventId, invitation }) {
       });
     }
 
-    if (budgetTotal > 0 && estimatedGuests <= 0) {
+    if (commitments > 0 && !estimatedGuests) {
       alerts.push({
         id: "missing-estimated-guests",
         type: "info",
@@ -223,7 +221,11 @@ export default function OverviewTab({ eventId, invitation }) {
       });
     }
 
-    if (budgetTotal > 0 && estimatedGuests > 0 && averageCostPerGuest >= 400) {
+    if (
+      commitments > 0 &&
+      estimatedGuests > 0 &&
+      averageCostPerGuest >= 400
+    ) {
       alerts.push({
         id: "high-average-cost",
         type: "warning",
@@ -317,7 +319,7 @@ export default function OverviewTab({ eventId, invitation }) {
     daysLeft,
     hasGiftAmounts,
     incomeMinusExpenses,
-    budgetTotal,
+    commitments,
     estimatedGuests,
     averageCostPerGuest,
   ]);
@@ -451,22 +453,31 @@ export default function OverviewTab({ eventId, invitation }) {
     }
   }
 
-  async function saveEstimatedGuests() {
-    if (!isEditingEstimatedGuests) return;
-
-    const nextEstimatedGuests = Number(estimatedGuestsDraft);
+  async function saveEstimatedGuestsNow(nextValue) {
+    const nextEstimatedGuests =
+      nextValue === "" || nextValue === null || nextValue === undefined
+        ? null
+        : Number(nextValue);
 
     if (
-      Number.isNaN(nextEstimatedGuests) ||
-      nextEstimatedGuests < 0 ||
-      nextEstimatedGuests === estimatedGuests
+      nextEstimatedGuests !== null &&
+      (!Number.isFinite(nextEstimatedGuests) || nextEstimatedGuests < 0)
     ) {
-      setIsEditingEstimatedGuests(false);
-      setEstimatedGuestsDraft(estimatedGuests || 0);
+      setError("כמות מוזמנים לא תקינה");
+      return;
+    }
+
+    const currentValue = getEstimatedGuestsFromData(event);
+
+    if (
+      (nextEstimatedGuests === null && currentValue === null) ||
+      nextEstimatedGuests === currentValue
+    ) {
       return;
     }
 
     setSavingEstimatedGuests(true);
+    setSavedEstimatedGuests(false);
     setError("");
 
     try {
@@ -504,13 +515,57 @@ export default function OverviewTab({ eventId, invitation }) {
           nextEstimatedGuests,
       }));
 
-      setEstimatedGuestsDraft(nextEstimatedGuests);
+      setSavedEstimatedGuests(true);
+
+      setTimeout(() => {
+        setSavedEstimatedGuests(false);
+      }, 1500);
     } catch (e) {
       setError("שגיאה בשמירת כמות מוזמנים");
     } finally {
       setSavingEstimatedGuests(false);
-      setIsEditingEstimatedGuests(false);
     }
+  }
+
+  function scheduleEstimatedGuestsSave(nextValue) {
+    if (estimatedGuestsTimerRef.current) {
+      clearTimeout(estimatedGuestsTimerRef.current);
+    }
+
+    estimatedGuestsTimerRef.current = setTimeout(() => {
+      saveEstimatedGuestsNow(nextValue);
+    }, 650);
+  }
+
+  function handleEstimatedGuestsChange(value) {
+    setEstimatedGuestsDraft(value);
+
+    const optimisticValue =
+      value === "" || value === null || value === undefined
+        ? null
+        : Number(value);
+
+    setEvent((prev) => ({
+      ...(prev || {}),
+      estimatedGuests:
+        optimisticValue !== null && Number.isFinite(optimisticValue)
+          ? optimisticValue
+          : null,
+      estimatedGuestCount:
+        optimisticValue !== null && Number.isFinite(optimisticValue)
+          ? optimisticValue
+          : null,
+    }));
+
+    scheduleEstimatedGuestsSave(value);
+  }
+
+  function flushEstimatedGuestsSave() {
+    if (estimatedGuestsTimerRef.current) {
+      clearTimeout(estimatedGuestsTimerRef.current);
+    }
+
+    saveEstimatedGuestsNow(estimatedGuestsDraft);
   }
 
   if (loading) return <div className="p-10">טוען…</div>;
@@ -733,36 +788,29 @@ export default function OverviewTab({ eventId, invitation }) {
           onSave={saveBudget}
         />
 
-        <EditableNumberCard
+        <AutoSaveNumberCard
           title="כמות מוזמנים משוערת"
-          value={isEditingEstimatedGuests ? estimatedGuestsDraft : estimatedGuests}
+          value={estimatedGuestsDraft}
           icon="👥"
           suffix="מוזמנים"
-          isEditing={isEditingEstimatedGuests}
-          loading={savingEstimatedGuests}
-          onEdit={() => {
-            setEstimatedGuestsDraft(estimatedGuests || 0);
-            setIsEditingEstimatedGuests(true);
-          }}
-          onCancel={() => {
-            setEstimatedGuestsDraft(estimatedGuests || 0);
-            setIsEditingEstimatedGuests(false);
-          }}
-          onChange={setEstimatedGuestsDraft}
-          onSave={saveEstimatedGuests}
+          emptyText="הזיני כמות מוזמנים"
+          saving={savingEstimatedGuests}
+          saved={savedEstimatedGuests}
+          onChange={handleEstimatedGuestsChange}
+          onBlur={flushEstimatedGuestsSave}
         />
 
         <BudgetCard
           title="עלות ממוצעת לאורח"
           value={averageCostPerGuest}
           icon="🧮"
-          emptyText="העלות תופיע לאחר הזנת תקציב וכמות מוזמנים"
+          emptyText="העלות תופיע לאחר הזנת התחייבויות וכמות מוזמנים"
           subText={
             averageCostPerGuest
               ? `לפי ${Number(
                   estimatedGuests || 0
-                ).toLocaleString()} מוזמנים ותקציב ₪${Number(
-                  budgetTotal || 0
+                ).toLocaleString()} מוזמנים וסה״כ התחייבויות ₪${Number(
+                  commitments || 0
                 ).toLocaleString()}`
               : ""
           }
@@ -1124,18 +1172,19 @@ function EditableBudgetCard({
   );
 }
 
-function EditableNumberCard({
+function AutoSaveNumberCard({
   title,
   value,
   icon,
   suffix = "",
-  isEditing,
-  loading,
-  onEdit,
-  onCancel,
+  emptyText = "אין נתונים להצגה",
+  saving = false,
+  saved = false,
   onChange,
-  onSave,
+  onBlur,
 }) {
+  const isEmpty = value === null || value === undefined || value === "";
+
   return (
     <div
       className="
@@ -1156,52 +1205,48 @@ function EditableNumberCard({
     >
       <div className="flex items-center justify-between gap-4">
         <div className="flex-1">
-          <p className="text-sm text-gray-500 mb-2">{title}</p>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <p className="text-sm text-gray-500">{title}</p>
 
-          {isEditing ? (
-            <div className="flex gap-2 items-center">
-              <input
-                type="number"
-                min="0"
-                value={value}
-                onChange={(e) => onChange(Number(e.target.value))}
-                className="w-full border rounded-xl px-3 py-2 text-lg"
-              />
+            <span className="min-w-[54px] text-xs font-bold text-gray-400">
+              {saving ? "שומר..." : saved ? "נשמר" : ""}
+            </span>
+          </div>
 
-              <button
-                onClick={onSave}
-                disabled={loading}
-                className="px-4 py-2 rounded-xl text-white text-sm bg-purple-600 disabled:opacity-50"
-              >
-                {loading ? "שומר..." : "שמור"}
-              </button>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min="0"
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              onBlur={onBlur}
+              placeholder={emptyText}
+              className="
+                w-full
+                rounded-xl
+                border
+                border-gray-200
+                bg-white/80
+                px-3
+                py-2
+                text-2xl
+                font-bold
+                text-[#28212E]
+                outline-none
+                transition
+                placeholder:text-sm
+                placeholder:font-semibold
+                placeholder:text-gray-400
+                focus:border-purple-300
+              "
+            />
 
-              <button
-                onClick={onCancel}
-                className="px-3 py-2 rounded-xl text-sm border"
-              >
-                ביטול
-              </button>
-            </div>
-          ) : (
-            <>
-              <p className="text-2xl font-bold text-[#28212E]">
-                {Number(value || 0).toLocaleString()}
-                {suffix ? (
-                  <span className="mr-1 text-sm font-semibold text-gray-400">
-                    {suffix}
-                  </span>
-                ) : null}
-              </p>
-
-              <button
-                onClick={onEdit}
-                className="text-sm text-purple-600 hover:underline mt-2"
-              >
-                עריכה
-              </button>
-            </>
-          )}
+            {suffix && !isEmpty ? (
+              <span className="text-sm font-semibold text-gray-400">
+                {suffix}
+              </span>
+            ) : null}
+          </div>
         </div>
 
         <div className="h-12 w-12 rounded-2xl bg-purple-100/80 flex items-center justify-center text-xl">

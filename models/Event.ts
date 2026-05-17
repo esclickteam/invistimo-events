@@ -140,25 +140,39 @@ const EventSchema = new mongoose.Schema(
     },
 
     /* =========================
-       תקציב הפקה (רק למפיקים)
-    ========================= */
-    budgetTotal: {
-      type: Number,
-      default: 0,
-    },
+   תקציב הפקה (רק למפיקים)
+========================= */
+budgetTotal: {
+  type: Number,
+  default: 0,
+},
 
-    /* =========================
-       תאריך ושעה
-    ========================= */
-    date: {
-      type: String, // yyyy-mm-dd
-      required: true,
-    },
+/* =========================
+   כמות מוזמנים משוערת
+   ידני בלבד — הלקוח מזין בתמונת מצב
+========================= */
+estimatedGuests: {
+  type: Number,
+  default: null,
+},
 
-    time: {
-      type: String, // HH:mm
-      default: "",
-    },
+estimatedGuestCount: {
+  type: Number,
+  default: null,
+},
+
+/* =========================
+   תאריך ושעה
+========================= */
+date: {
+  type: String, // yyyy-mm-dd
+  required: true,
+},
+
+time: {
+  type: String, // HH:mm
+  default: "",
+},
 
     /* =========================
        מיקום
