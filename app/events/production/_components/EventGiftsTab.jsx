@@ -53,14 +53,18 @@ function getPaymentLabel(value) {
 
 function getStatusLabel(value) {
   return (
-    STATUS_OPTIONS.find((option) => option.value === value)?.label ||
-    "לא חובה"
+    STATUS_OPTIONS.find((option) => option.value === value)?.label || "לא חובה"
   );
 }
 
-function cleanExcelValue(value) {
+function escapeHtml(value) {
   if (value === null || value === undefined) return "";
-  return String(value).replace(/"/g, '""');
+
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 function emptyManualGift(eventId, invitationId) {
@@ -82,60 +86,55 @@ function emptyManualGift(eventId, invitationId) {
 }
 
 /* ============================================================
-   DROPDOWN מותאם — נפתח תמיד למטה, לא native select
+   PaymentDropdown
+   קטן, באותו עיצוב של השדות, נפתח למטה ולא נחתך
 ============================================================ */
 function PaymentDropdown({ value, onChange }) {
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState(null);
+
   const buttonRef = useRef(null);
+  const menuRef = useRef(null);
 
   const selectedLabel = getPaymentLabel(value);
 
-  const openDropdown = () => {
+  const updatePosition = () => {
     if (!buttonRef.current) return;
 
     const rect = buttonRef.current.getBoundingClientRect();
 
     setCoords({
-      top: rect.bottom + 6,
+      top: rect.bottom + 4,
       right: window.innerWidth - rect.right,
       width: rect.width,
     });
+  };
 
+  const toggleDropdown = () => {
+    updatePosition();
     setOpen((prev) => !prev);
   };
 
   useEffect(() => {
     if (!open) return;
 
-    const close = (event) => {
-      if (buttonRef.current && buttonRef.current.contains(event.target)) {
-        return;
-      }
+    const closeDropdown = (event) => {
+      const target = event.target;
+
+      if (buttonRef.current && buttonRef.current.contains(target)) return;
+      if (menuRef.current && menuRef.current.contains(target)) return;
 
       setOpen(false);
     };
 
-    const reposition = () => {
-      if (!buttonRef.current) return;
-
-      const rect = buttonRef.current.getBoundingClientRect();
-
-      setCoords({
-        top: rect.bottom + 6,
-        right: window.innerWidth - rect.right,
-        width: rect.width,
-      });
-    };
-
-    document.addEventListener("mousedown", close);
-    window.addEventListener("scroll", reposition, true);
-    window.addEventListener("resize", reposition);
+    document.addEventListener("mousedown", closeDropdown);
+    window.addEventListener("scroll", updatePosition, true);
+    window.addEventListener("resize", updatePosition);
 
     return () => {
-      document.removeEventListener("mousedown", close);
-      window.removeEventListener("scroll", reposition, true);
-      window.removeEventListener("resize", reposition);
+      document.removeEventListener("mousedown", closeDropdown);
+      window.removeEventListener("scroll", updatePosition, true);
+      window.removeEventListener("resize", updatePosition);
     };
   }, [open]);
 
@@ -144,12 +143,11 @@ function PaymentDropdown({ value, onChange }) {
       <button
         ref={buttonRef}
         type="button"
-        onClick={openDropdown}
+        onClick={toggleDropdown}
         className="
           flex
           h-11
           w-full
-          min-w-[150px]
           items-center
           justify-between
           gap-2
@@ -164,32 +162,40 @@ function PaymentDropdown({ value, onChange }) {
           outline-none
           transition
           hover:border-[#D8B46A]
+          focus:border-[#D8B46A]
         "
       >
-        <span>{selectedLabel}</span>
+        <span className="truncate">{selectedLabel}</span>
+
         <ChevronDown
-          size={15}
-          className={open ? "rotate-180 transition" : "transition"}
+          size={14}
+          className={
+            open
+              ? "shrink-0 rotate-180 transition"
+              : "shrink-0 transition"
+          }
         />
       </button>
 
       {open && coords && (
         <div
+          ref={menuRef}
           dir="rtl"
           style={{
             position: "fixed",
             top: coords.top,
             right: coords.right,
-            width: Math.max(coords.width, 180),
+            width: coords.width,
             zIndex: 999999,
           }}
           className="
-            overflow-hidden
+            max-h-[260px]
+            overflow-y-auto
             rounded-2xl
             border
             border-[#E6D7C8]
             bg-white
-            shadow-[0_18px_45px_rgba(43,33,24,0.18)]
+            shadow-[0_12px_28px_rgba(43,33,24,0.14)]
           "
         >
           {PAYMENT_OPTIONS.map((option) => {
@@ -199,20 +205,22 @@ function PaymentDropdown({ value, onChange }) {
               <button
                 key={option.value}
                 type="button"
-                onClick={() => {
+                onMouseDown={(e) => {
+                  e.preventDefault();
                   onChange(option.value);
                   setOpen(false);
                 }}
                 className={`
                   flex
+                  h-10
                   w-full
                   items-center
                   justify-between
-                  px-4
-                  py-3
+                  gap-2
+                  px-3
                   text-right
                   text-sm
-                  font-black
+                  font-bold
                   transition
                   ${
                     selected
@@ -221,8 +229,8 @@ function PaymentDropdown({ value, onChange }) {
                   }
                 `}
               >
-                <span>{option.label}</span>
-                {selected && <Check size={14} />}
+                <span className="truncate">{option.label}</span>
+                {selected && <Check size={13} className="shrink-0" />}
               </button>
             );
           })}
@@ -384,38 +392,6 @@ export default function EventGiftsTab({ eventId, invitationId }) {
   };
 
   const exportToExcel = () => {
-    const rows = gifts.map((gift) => ({
-      שם: gift.guestName || "",
-      טלפון: gift.phone || "",
-      סטטוס: getStatusLabel(gift.arrivalStatus || ""),
-      "כמות מגיעים": gift.confirmedCount ?? "",
-      "סכום מתנה": Number(gift.giftAmount || 0),
-      "סוג תשלום": getPaymentLabel(gift.paymentMethod || ""),
-      הערות: gift.notes || "",
-    }));
-
-    const summaryRows = [
-      {},
-      {
-        שם: "סה״כ מתנות",
-        "סכום מתנה": localSummary.totalGifts,
-      },
-      {
-        שם: "סה״כ רשומות",
-        "סכום מתנה": localSummary.totalRows,
-      },
-      {
-        שם: "רשומות עם סכום מתנה",
-        "סכום מתנה": localSummary.rowsWithGift,
-      },
-      {
-        שם: "רשומות ללא סכום מתנה",
-        "סכום מתנה": localSummary.rowsWithoutGift,
-      },
-    ];
-
-    const finalRows = [...rows, ...summaryRows];
-
     const headers = [
       "שם",
       "טלפון",
@@ -426,27 +402,88 @@ export default function EventGiftsTab({ eventId, invitationId }) {
       "הערות",
     ];
 
-    const csvContent = [
-      headers.map((header) => `"${cleanExcelValue(header)}"`).join(","),
-      ...finalRows.map((row) =>
-        headers
-          .map((header) => `"${cleanExcelValue(row[header])}"`)
-          .join(",")
-      ),
-    ].join("\n");
+    const rows = gifts.map((gift) => [
+      gift.guestName || "",
+      gift.phone || "",
+      getStatusLabel(gift.arrivalStatus || ""),
+      gift.confirmedCount ?? "",
+      Number(gift.giftAmount || 0),
+      getPaymentLabel(gift.paymentMethod || ""),
+      gift.notes || "",
+    ]);
 
-    const blob = new Blob(["\uFEFF" + csvContent], {
-      type: "text/csv;charset=utf-8;",
+    const summaryRows = [
+      [],
+      ["סה״כ מתנות", "", "", "", localSummary.totalGifts, "", ""],
+      ["סה״כ רשומות", "", "", "", localSummary.totalRows, "", ""],
+      ["רשומות עם סכום מתנה", "", "", "", localSummary.rowsWithGift, "", ""],
+      ["רשומות ללא סכום מתנה", "", "", "", localSummary.rowsWithoutGift, "", ""],
+    ];
+
+    const tableRows = [headers, ...rows, ...summaryRows]
+      .map((row) => {
+        return `
+          <tr>
+            ${headers
+              .map((_, index) => {
+                const value = row[index] ?? "";
+                return `<td>${escapeHtml(value)}</td>`;
+              })
+              .join("")}
+          </tr>
+        `;
+      })
+      .join("");
+
+    const html = `
+      <html dir="rtl">
+        <head>
+          <meta charset="UTF-8" />
+          <style>
+            body {
+              direction: rtl;
+              font-family: Arial, sans-serif;
+            }
+
+            table {
+              border-collapse: collapse;
+              width: 100%;
+            }
+
+            th, td {
+              border: 1px solid #d9c8b8;
+              padding: 10px;
+              text-align: right;
+              font-size: 14px;
+            }
+
+            tr:first-child td {
+              background: #f8f3ed;
+              font-weight: bold;
+            }
+          </style>
+        </head>
+        <body>
+          <table>
+            ${tableRows}
+          </table>
+        </body>
+      </html>
+    `;
+
+    const blob = new Blob(["\uFEFF" + html], {
+      type: "application/vnd.ms-excel;charset=utf-8;",
     });
 
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-
     const date = new Date().toISOString().slice(0, 10);
 
     link.href = url;
-    link.download = `event-gifts-${date}.csv`;
+    link.download = `מתנות-מהאירוע-${date}.xls`;
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
 
     URL.revokeObjectURL(url);
   };
@@ -590,7 +627,7 @@ export default function EventGiftsTab({ eventId, invitationId }) {
         </div>
       )}
 
-      <div className="rounded-[28px] border border-[#E8DDD3] bg-white shadow-[0_18px_50px_rgba(86,60,34,0.07)]">
+      <div className="overflow-visible rounded-[28px] border border-[#E8DDD3] bg-white shadow-[0_18px_50px_rgba(86,60,34,0.07)]">
         {loading ? (
           <div className="flex min-h-[260px] items-center justify-center gap-3 text-sm font-black text-[#7A6A5E]">
             <Loader2 className="animate-spin" size={18} />
@@ -608,7 +645,7 @@ export default function EventGiftsTab({ eventId, invitationId }) {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto pb-32">
+          <div className="overflow-x-auto overflow-y-visible pb-32">
             <table className="min-w-[1150px] w-full text-right">
               <thead className="bg-[#F8F3ED] text-xs font-black text-[#6F5D50]">
                 <tr>
