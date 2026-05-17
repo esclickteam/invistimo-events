@@ -9,7 +9,6 @@ import {
   CalendarDays,
   ListChecks,
   Wine,
-  Sparkles,
 } from "lucide-react";
 
 const TABS = [
@@ -60,13 +59,10 @@ export default function ProductionTabs({
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const activeTab =
-    (searchParams.get("tab") || "overview").split("/")[0];
+  const activeTab = (searchParams.get("tab") || "overview").split("/")[0];
 
   const changeTab = (tabKey) => {
-    const params = new URLSearchParams(
-      searchParams.toString()
-    );
+    const params = new URLSearchParams(searchParams.toString());
 
     if (eventId && !params.get("eventId")) {
       params.set("eventId", eventId);
@@ -74,63 +70,8 @@ export default function ProductionTabs({
 
     params.set("tab", tabKey);
 
-    router.push(
-      `/events/production?${params.toString()}`
-    );
+    router.push(`/events/production?${params.toString()}`);
   };
-
-  if (!invitation && activeTab === "overview") {
-    return (
-      <div
-        dir="rtl"
-        className="
-          max-w-4xl
-          mx-auto
-          mt-10
-          rounded-[34px]
-          border
-          border-[#ECE5DE]
-          bg-white
-          p-10
-          text-center
-          shadow-sm
-        "
-      >
-        <div
-          className="
-            h-16
-            w-16
-            mx-auto
-            mb-5
-            rounded-3xl
-            bg-[#F5E7DC]
-            text-[#7A4A35]
-            flex
-            items-center
-            justify-center
-          "
-        >
-          <Sparkles size={24} />
-        </div>
-
-        <h3
-          className="
-            text-2xl
-            font-black
-            text-[#1E1B2E]
-            mb-3
-          "
-        >
-          המשתמש עדיין לא קיבל הזמנה
-        </h3>
-
-        <p className="text-gray-500 leading-7">
-          ההפקה תתאפשר לאחר יצירת הזמנה או אירוע.
-          אם זה משתמש שנוצר ע״י מפיק, ההזמנה תיווצר אוטומטית.
-        </p>
-      </div>
-    );
-  }
 
   return (
     <div dir="rtl" className="space-y-8">
@@ -159,18 +100,14 @@ export default function ProductionTabs({
             "
           >
             {TABS.map((tab) => {
-              const isActive =
-                activeTab === tab.key;
-
+              const isActive = activeTab === tab.key;
               const Icon = tab.icon;
 
               return (
                 <button
                   key={tab.key}
                   type="button"
-                  onClick={() =>
-                    changeTab(tab.key)
-                  }
+                  onClick={() => changeTab(tab.key)}
                   className={`
                     group
                     relative
