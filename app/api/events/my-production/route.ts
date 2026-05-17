@@ -39,14 +39,41 @@ function cleanUndefined(obj: Record<string, any>) {
 }
 
 function buildEventOwnerQuery(userId: string) {
+  /*
+    חשוב:
+    כדי לא לפגוע בלוגיקה קיימת של Event,
+    משתמשים קודם כל בשדה המרכזי userId.
+  */
   return {
-    $or: [
-      { userId },
-      { ownerId: userId },
-      { clientId: userId },
-      { createdByUserId: userId },
-    ],
+    userId,
     status: { $ne: "deleted" },
+  };
+}
+
+function buildMinimalProductionEvent(userId: string, user: any) {
+  /*
+    Event מינימלי ובטוח לפי המבנה הכי בסיסי:
+    לא מוסיפים כאן Invitation,
+    לא מוסיפים budget/tasks/suppliers,
+    ולא שמים date:null כדי לא להפיל validation.
+  */
+  return {
+    userId,
+
+    email: user?.email || "",
+    title: "האירוע שלך",
+
+    eventType: "wedding",
+    status: "active",
+
+    date: new Date(),
+    time: "00:00",
+
+    maxGuests: 100,
+    location: {},
+
+    productionOnly: true,
+    createdFrom: "eventProduction",
   };
 }
 
@@ -107,9 +134,8 @@ export async function GET(req: NextRequest) {
     }
 
     /*
-      חשוב:
-      מחפשים Event עצמאי, לא Invitation.
-      ניהול אירוע לא תלוי בהזמנה.
+      מחפשים Event עצמאי.
+      לא מחפשים Invitation.
     */
     let event: any = await Event.findOne(buildEventOwnerQuery(userId))
       .sort({
@@ -119,51 +145,12 @@ export async function GET(req: NextRequest) {
       .lean();
 
     /*
-      אם אין אירוע — יוצרים אירוע בסיסי אוטומטית.
-      זה מאפשר ללקוח שקנה רק ניהול אירוע להיכנס בלי הזמנה.
+      אם אין Event — יוצרים Event בסיסי בלבד.
     */
     if (!event) {
-      const createdEvent: any = await Event.create({
-        userId,
-        ownerId: userId,
-
-        email: user.email || "",
-        title: "האירוע שלך",
-        name: "האירוע שלך",
-
-        eventType: "event",
-        status: "active",
-
-        date: null,
-        eventDate: null,
-        time: "00:00",
-        eventTime: "00:00",
-
-        maxGuests: 0,
-        guests: 0,
-
-        location: {
-          name: "",
-          address: "",
-          lat: null,
-          lng: null,
-        },
-
-        budget: {
-          total: 0,
-          paid: 0,
-          remaining: 0,
-        },
-
-        suppliers: [],
-        tasks: [],
-        timeline: [],
-        logistics: [],
-        notes: "",
-
-        productionOnly: true,
-        createdFrom: "eventProduction",
-      });
+      const createdEvent: any = await Event.create(
+        buildMinimalProductionEvent(userId, user)
+      );
 
       event = createdEvent.toObject();
     }
@@ -188,6 +175,7 @@ export async function GET(req: NextRequest) {
         success: false,
         error: "SERVER_ERROR",
         message: "שגיאה בטעינת ניהול האירוע",
+        details: err instanceof Error ? err.message : String(err),
       },
       { status: 500 }
     );
@@ -219,6 +207,8 @@ export async function PATCH(req: NextRequest) {
 
     const user: any = await User.findById(userId)
       .select(`
+        name
+        email
         role
         accessModules
         includeEventManagement
@@ -258,36 +248,9 @@ export async function PATCH(req: NextRequest) {
       .lean();
 
     if (!event) {
-      const createdEvent: any = await Event.create({
-        userId,
-        ownerId: userId,
-        title: "האירוע שלך",
-        name: "האירוע שלך",
-        eventType: "event",
-        status: "active",
-        date: null,
-        eventDate: null,
-        time: "00:00",
-        eventTime: "00:00",
-        location: {
-          name: "",
-          address: "",
-          lat: null,
-          lng: null,
-        },
-        budget: {
-          total: 0,
-          paid: 0,
-          remaining: 0,
-        },
-        suppliers: [],
-        tasks: [],
-        timeline: [],
-        logistics: [],
-        notes: "",
-        productionOnly: true,
-        createdFrom: "eventProduction",
-      });
+      const createdEvent: any = await Event.create(
+        buildMinimalProductionEvent(userId, user)
+      );
 
       event = createdEvent.toObject();
     }
@@ -298,40 +261,43 @@ export async function PATCH(req: NextRequest) {
       normalizeText(body.eventName) ||
       undefined;
 
+    /*
+      עדכון זהיר בלבד:
+      לא מכניסים מערכים/אובייקטים שלא בטוח קיימים במודל.
+      אם הטאבים שלך שומרים budget/suppliers/tasks דרך API אחרים —
+      לא נוגעים בזה כאן.
+    */
     const update: any = cleanUndefined({
       title: nextTitle,
-      name: nextTitle,
 
-      eventType: body.eventType !== undefined ? body.eventType : undefined,
-      status: body.status !== undefined ? body.status : undefined,
+      eventType:
+        body.eventType !== undefined ? String(body.eventType || "wedding") : undefined,
+
+      status:
+        body.status !== undefined ? String(body.status || "active") : undefined,
 
       date: body.date !== undefined ? body.date : undefined,
-      eventDate: body.eventDate !== undefined ? body.eventDate : body.date,
 
-      time: body.time !== undefined ? body.time : undefined,
-      eventTime: body.eventTime !== undefined ? body.eventTime : body.time,
+      time:
+        body.time !== undefined
+          ? String(body.time || "00:00")
+          : body.eventTime !== undefined
+            ? String(body.eventTime || "00:00")
+            : undefined,
 
       maxGuests:
-        body.maxGuests !== undefined ? Number(body.maxGuests || 0) : undefined,
-
-      guests: body.guests !== undefined ? Number(body.guests || 0) : undefined,
+        body.maxGuests !== undefined
+          ? Number(body.maxGuests || 0)
+          : body.guests !== undefined
+            ? Number(body.guests || 0)
+            : undefined,
 
       location:
         body.location !== undefined
-          ? {
-              name: normalizeText(body.location?.name),
-              address: normalizeText(body.location?.address),
-              lat: body.location?.lat ?? null,
-              lng: body.location?.lng ?? null,
-            }
+          ? body.location && typeof body.location === "object"
+            ? body.location
+            : {}
           : undefined,
-
-      budget: body.budget !== undefined ? body.budget : undefined,
-      suppliers: Array.isArray(body.suppliers) ? body.suppliers : undefined,
-      tasks: Array.isArray(body.tasks) ? body.tasks : undefined,
-      timeline: Array.isArray(body.timeline) ? body.timeline : undefined,
-      logistics: Array.isArray(body.logistics) ? body.logistics : undefined,
-      notes: body.notes !== undefined ? String(body.notes || "") : undefined,
 
       productionOnly: true,
       updatedAt: new Date(),
@@ -368,6 +334,7 @@ export async function PATCH(req: NextRequest) {
         success: false,
         error: "SERVER_ERROR",
         message: "שגיאה בעדכון ניהול האירוע",
+        details: err instanceof Error ? err.message : String(err),
       },
       { status: 500 }
     );

@@ -16,9 +16,12 @@ export default function EventProductionPage() {
 
   const [invitation, setInvitation] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [creatingProductionEvent, setCreatingProductionEvent] = useState(false);
+  const [fallbackEventId, setFallbackEventId] = useState(null);
 
   /* =========================
      Load invitation
+     לוגיקה ישנה נשארת כמו שהיא
   ========================= */
   useEffect(() => {
     if (!user?._id) return;
@@ -46,24 +49,84 @@ export default function EventProductionPage() {
   }, [user]);
 
   /* =========================
-     Extract eventId (source of truth)
+     Extract eventId
+     קודם URL
+     אחר כך invitation
+     אחר כך fallback שנוצר אוטומטית
   ========================= */
   const eventId = useMemo(() => {
     if (typeof window === "undefined") return null;
 
     const params = new URLSearchParams(window.location.search);
+
     return (
       params.get("eventId") ||
       invitation?.eventId ||
       invitation?.event?._id ||
+      fallbackEventId ||
       null
     );
-  }, [invitation]);
+  }, [invitation, fallbackEventId]);
+
+  /* =========================
+     Fallback only:
+     אם אין eventId ואין invitation —
+     יוצרים/מביאים Event עצמאי.
+     לא נוגעים בלוגיקה הישנה אם יש eventId.
+  ========================= */
+  useEffect(() => {
+    if (!user?._id) return;
+    if (loading) return;
+
+    if (typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    const eventIdFromUrl = params.get("eventId");
+
+    // אם כבר יש eventId בכתובת — לא נוגעים בכלום
+    if (eventIdFromUrl) return;
+
+    // אם יש invitation עם eventId — לא נוגעים בכלום
+    if (invitation?.eventId || invitation?.event?._id) return;
+
+    // אם כבר יצרנו fallback — לא עושים שוב
+    if (fallbackEventId) return;
+
+    async function createOrLoadProductionEvent() {
+      try {
+        setCreatingProductionEvent(true);
+
+        const res = await fetch("/api/events/my-production", {
+          credentials: "include",
+          cache: "no-store",
+        });
+
+        const data = await res.json().catch(() => null);
+
+        if (!res.ok || !data?.success || !data?.eventId) {
+          console.error("My production event error:", data);
+          return;
+        }
+
+        const nextEventId = String(data.eventId);
+
+        setFallbackEventId(nextEventId);
+
+        window.location.href = `/events/production?eventId=${nextEventId}&tab=overview`;
+      } catch (err) {
+        console.error("Create/load production event error:", err);
+      } finally {
+        setCreatingProductionEvent(false);
+      }
+    }
+
+    createOrLoadProductionEvent();
+  }, [user?._id, loading, invitation, fallbackEventId]);
 
   /* =========================
      Loading
   ========================= */
-  if (loading) {
+  if (loading || creatingProductionEvent) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
         טוען נתוני אירוע…
@@ -73,17 +136,21 @@ export default function EventProductionPage() {
 
   /* =========================
      Safety
+     שינוי קטן:
+     כבר לא דורשים invitation.
+     דורשים רק eventId.
   ========================= */
-  if (!invitation || !eventId) {
+  if (!eventId) {
     return (
       <div className="flex items-center justify-center h-[60vh] text-red-600">
-        לא נמצא אירוע / הזמנה
+        לא נמצא אירוע
       </div>
     );
   }
 
   /* =========================
      Render – מסך הפקה בלבד
+     invitation יכול להיות null וזה בסדר
   ========================= */
   return (
     <ProductionTabs
@@ -95,7 +162,15 @@ export default function EventProductionPage() {
       calendar={<CalendarTab eventId={eventId} />}
       logistics={<LogisticsTab eventId={eventId} />}
       alcohol={<AlcoholManagementTab eventId={eventId} />}
-      liveSeating={<SeatingPage />}
+      liveSeating={
+        invitation ? (
+          <SeatingPage />
+        ) : (
+          <div className="flex min-h-[360px] items-center justify-center rounded-3xl border border-[#eadfce] bg-white text-[#8b7b68]">
+            הושבה זמינה רק ללקוחות עם מודול אישורי הגעה והושבה.
+          </div>
+        )
+      }
     />
   );
 }
