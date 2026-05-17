@@ -256,9 +256,17 @@ export default function EventGiftsTab({ eventId, invitationId }) {
     setError("");
 
     try {
-      const res = await fetch(`/api/event-gifts?eventId=${eventId}`, {
-        cache: "no-store",
-      });
+      const query = new URLSearchParams();
+
+query.set("eventId", eventId);
+
+if (invitationId) {
+  query.set("invitationId", invitationId);
+}
+
+const res = await fetch(`/api/event-gifts?${query.toString()}`, {
+  cache: "no-store",
+});
 
       const data = await res.json();
 

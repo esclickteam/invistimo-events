@@ -19,7 +19,7 @@ const PAYMENT_METHODS = [
   "",
 ];
 
-function toObjectId(value: string | null) {
+function toObjectId(value: string | null | undefined) {
   if (!value || !mongoose.Types.ObjectId.isValid(value)) return null;
   return new mongoose.Types.ObjectId(value);
 }
@@ -74,6 +74,9 @@ function getConfirmedCount(guest: any) {
     guest?.approvedCount ??
     guest?.guestsCount ??
     guest?.count ??
+    guest?.arrivedCount ??
+    guest?.confirmedGuests ??
+    guest?.approvedGuests ??
     null;
 
   const numberValue = Number(value);
@@ -83,12 +86,71 @@ function getConfirmedCount(guest: any) {
   return numberValue;
 }
 
-async function syncGuestsToGifts(eventObjectId: mongoose.Types.ObjectId) {
-  const guests = await InvitationGuest.find({
-    eventId: eventObjectId,
-  })
+function getGuestName(guest: any) {
+  return String(
+    guest?.name ||
+      guest?.fullName ||
+      guest?.guestName ||
+      guest?.displayName ||
+      guest?.title ||
+      ""
+  ).trim();
+}
+
+function getGuestRelation(guest: any) {
+  return String(
+    guest?.relation ||
+      guest?.groupName ||
+      guest?.group ||
+      guest?.category ||
+      ""
+  ).trim();
+}
+
+async function syncGuestsToGifts(
+  eventObjectId: mongoose.Types.ObjectId,
+  invitationObjectId?: mongoose.Types.ObjectId | null
+) {
+  const guestQuery: any = {
+    $or: [{ eventId: eventObjectId }],
+  };
+
+  if (invitationObjectId) {
+    guestQuery.$or.push({ invitationId: invitationObjectId });
+  }
+
+  const guests = await InvitationGuest.find(guestQuery)
     .select(
-      "_id invitationId name fullName phone relation status arrivalStatus rsvpStatus attendanceStatus confirmedCount comingCount attendingCount approvedCount guestsCount count"
+      [
+        "_id",
+        "eventId",
+        "invitationId",
+        "name",
+        "fullName",
+        "guestName",
+        "displayName",
+        "title",
+        "phone",
+        "relation",
+        "groupName",
+        "group",
+        "category",
+        "status",
+        "arrivalStatus",
+        "rsvpStatus",
+        "attendanceStatus",
+        "confirmedCount",
+        "comingCount",
+        "attendingCount",
+        "approvedCount",
+        "guestsCount",
+        "count",
+        "arrivedCount",
+        "confirmedGuests",
+        "approvedGuests",
+        "companions",
+        "tableNumber",
+      ].join(" ")
     )
     .lean();
 
@@ -96,7 +158,7 @@ async function syncGuestsToGifts(eventObjectId: mongoose.Types.ObjectId) {
 
   await Promise.all(
     guests.map(async (guest: any) => {
-      const guestName = String(guest.name || guest.fullName || "").trim();
+      const guestName = getGuestName(guest);
 
       if (!guestName) return;
 
@@ -109,11 +171,11 @@ async function syncGuestsToGifts(eventObjectId: mongoose.Types.ObjectId) {
 
       await EventGift.create({
         eventId: eventObjectId,
-        invitationId: guest.invitationId || null,
+        invitationId: guest.invitationId || invitationObjectId || null,
         guestId: guest._id,
         guestName,
         phone: guest.phone || "",
-        relation: guest.relation || "",
+        relation: getGuestRelation(guest),
         arrivalStatus: normalizeArrivalStatus(guest),
         confirmedCount: getConfirmedCount(guest),
         giftAmount: 0,
@@ -131,9 +193,12 @@ export async function GET(req: NextRequest) {
     await db();
 
     const { searchParams } = new URL(req.url);
+
     const eventId = searchParams.get("eventId");
+    const invitationId = searchParams.get("invitationId");
 
     const eventObjectId = toObjectId(eventId);
+    const invitationObjectId = toObjectId(invitationId);
 
     if (!eventObjectId) {
       return NextResponse.json(
@@ -145,14 +210,14 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    await syncGuestsToGifts(eventObjectId);
+    await syncGuestsToGifts(eventObjectId, invitationObjectId);
 
-    const gifts = await EventGift.find({
+    const giftQuery: any = {
       eventId: eventObjectId,
       isDeleted: { $ne: true },
-    })
-      .sort({ createdAt: 1 })
-      .lean();
+    };
+
+    const gifts = await EventGift.find(giftQuery).sort({ createdAt: 1 }).lean();
 
     const totalGifts = gifts.reduce((sum: number, gift: any) => {
       return sum + Number(gift.giftAmount || 0);
@@ -164,6 +229,14 @@ export async function GET(req: NextRequest) {
       return acc;
     }, {});
 
+    const rowsWithGift = gifts.filter(
+      (gift: any) => Number(gift.giftAmount || 0) > 0
+    ).length;
+
+    const rowsWithoutGift = gifts.filter(
+      (gift: any) => Number(gift.giftAmount || 0) <= 0
+    ).length;
+
     return NextResponse.json({
       success: true,
       gifts,
@@ -171,11 +244,8 @@ export async function GET(req: NextRequest) {
         totalGifts,
         totalsByPaymentMethod,
         totalRows: gifts.length,
-        rowsWithGift: gifts.filter((gift: any) => Number(gift.giftAmount || 0) > 0)
-          .length,
-        rowsWithoutGift: gifts.filter(
-          (gift: any) => Number(gift.giftAmount || 0) <= 0
-        ).length,
+        rowsWithGift,
+        rowsWithoutGift,
       },
     });
   } catch (error: any) {
@@ -235,7 +305,9 @@ export async function POST(req: NextRequest) {
       relation: body.relation || "",
       arrivalStatus: body.arrivalStatus || "",
       confirmedCount:
-        body.confirmedCount === "" || body.confirmedCount === null
+        body.confirmedCount === "" ||
+        body.confirmedCount === null ||
+        body.confirmedCount === undefined
           ? null
           : Number(body.confirmedCount),
       giftAmount: Number(body.giftAmount || 0),
@@ -282,14 +354,27 @@ export async function PATCH(req: NextRequest) {
 
     const update: any = {};
 
-    if ("guestName" in body) update.guestName = String(body.guestName || "").trim();
-    if ("phone" in body) update.phone = body.phone || "";
-    if ("relation" in body) update.relation = body.relation || "";
-    if ("arrivalStatus" in body) update.arrivalStatus = body.arrivalStatus || "";
+    if ("guestName" in body) {
+      update.guestName = String(body.guestName || "").trim();
+    }
+
+    if ("phone" in body) {
+      update.phone = body.phone || "";
+    }
+
+    if ("relation" in body) {
+      update.relation = body.relation || "";
+    }
+
+    if ("arrivalStatus" in body) {
+      update.arrivalStatus = body.arrivalStatus || "";
+    }
 
     if ("confirmedCount" in body) {
       update.confirmedCount =
-        body.confirmedCount === "" || body.confirmedCount === null
+        body.confirmedCount === "" ||
+        body.confirmedCount === null ||
+        body.confirmedCount === undefined
           ? null
           : Number(body.confirmedCount);
     }
@@ -304,7 +389,9 @@ export async function PATCH(req: NextRequest) {
         : "";
     }
 
-    if ("notes" in body) update.notes = body.notes || "";
+    if ("notes" in body) {
+      update.notes = body.notes || "";
+    }
 
     const gift = await EventGift.findByIdAndUpdate(giftObjectId, update, {
       new: true,
