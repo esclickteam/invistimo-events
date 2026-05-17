@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 
@@ -23,10 +22,16 @@ type ApiUser = {
   paidAmount?: number;
   staffType?: string | null;
   assignedProducerId?: string | null;
+  accessModules?: {
+    rsvpSeating?: boolean;
+    eventProduction?: boolean;
+  };
+  includeDigitalSeating?: boolean;
+  includeEventManagement?: boolean;
+  selfManageEnabled?: boolean;
 };
 
 export default function SetPasswordPage() {
-  const router = useRouter();
   const { setUser, setIsAuthenticated, refreshUser } = useAuth();
 
   const [token, setToken] = useState<string | null>(null);
@@ -109,12 +114,17 @@ export default function SetPasswordPage() {
         return;
       }
 
-      // עדכון auth state
+      /*
+        השרת כבר יוצר authToken ושולח redirectTo.
+        כאן אנחנו מעדכנים state מקומית, ואז עושים מעבר מלא
+        כדי שה-cookie החדש ייקלט בוודאות.
+      */
       if (data.user) {
         setUser(data.user as any);
         setIsAuthenticated(true);
       } else {
         const me = await refreshUser();
+
         if (me) {
           setUser(me as any);
           setIsAuthenticated(true);
@@ -126,8 +136,6 @@ export default function SetPasswordPage() {
       setPassword("");
       setConfirmPassword("");
 
-      router.refresh();
-
       const nextPath = data.redirectTo || "/dashboard";
 
       console.log("✅ set-password redirect", {
@@ -136,9 +144,10 @@ export default function SetPasswordPage() {
         staffType: data.user?.staffType,
         assignedProducerId: data.user?.assignedProducerId ?? null,
         hasPaid: data.user?.hasPaid,
+        accessModules: data.user?.accessModules,
       });
 
-      router.replace(nextPath);
+      window.location.href = nextPath;
     } catch (err) {
       console.error("❌ set-password frontend error:", err);
       setMessage("שגיאת רשת, נסה שוב");
@@ -183,6 +192,7 @@ export default function SetPasswordPage() {
               disabled={loading}
               className="mt-1 h-4 w-4"
             />
+
             <span>
               הנני מאשר/ת את{" "}
               <Link href="/terms" className="underline">
