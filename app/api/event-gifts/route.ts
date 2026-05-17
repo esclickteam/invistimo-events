@@ -26,6 +26,7 @@ function toObjectId(value: string | null | undefined) {
 
 function normalizeArrivalStatus(guest: any) {
   const raw =
+    guest?.rsvp ||
     guest?.status ||
     guest?.arrivalStatus ||
     guest?.rsvpStatus ||
@@ -40,7 +41,8 @@ function normalizeArrivalStatus(guest: any) {
     value === "approved" ||
     value === "confirmed" ||
     value === "yes" ||
-    value === "מגיע"
+    value === "מגיע" ||
+    value === "arriving"
   ) {
     return "coming";
   }
@@ -51,7 +53,8 @@ function normalizeArrivalStatus(guest: any) {
     value === "notcoming" ||
     value === "declined" ||
     value === "no" ||
-    value === "לא מגיע"
+    value === "לא מגיע" ||
+    value === "not_arriving"
   ) {
     return "not_coming";
   }
@@ -60,9 +63,11 @@ function normalizeArrivalStatus(guest: any) {
     value === "pending" ||
     value === "waiting" ||
     value === "maybe" ||
-    value === "בהמתנה"
+    value === "בהמתנה" ||
+    value === "unknown" ||
+    value === ""
   ) {
-    return "pending";
+    return value === "" ? "unknown" : "pending";
   }
 
   return "unknown";
@@ -75,8 +80,11 @@ function getConfirmedCount(guest: any) {
     guest?.attendingCount ??
     guest?.approvedCount ??
     guest?.guestsCount ??
+    guest?.guests ??
+    guest?.guestCount ??
     guest?.count ??
     guest?.arrivedCount ??
+    guest?.actualArrivedCount ??
     guest?.confirmedGuests ??
     guest?.approvedGuests ??
     guest?.numberOfGuests ??
@@ -139,36 +147,48 @@ async function syncGuestsToGifts(
         "_id",
         "eventId",
         "invitationId",
+
         "name",
         "fullName",
         "guestName",
         "displayName",
         "title",
+
         "phone",
         "phoneNumber",
         "mobile",
         "telephone",
+
         "relation",
         "groupName",
         "group",
         "category",
+
+        "rsvp",
         "status",
         "arrivalStatus",
         "rsvpStatus",
         "attendanceStatus",
         "responseStatus",
+
         "confirmedCount",
         "comingCount",
         "attendingCount",
         "approvedCount",
         "guestsCount",
+        "guests",
+        "guestCount",
         "count",
         "arrivedCount",
+        "actualArrivedCount",
         "confirmedGuests",
         "approvedGuests",
         "numberOfGuests",
         "amount",
+
         "companions",
+        "tableName",
+        "tableId",
         "tableNumber",
       ].join(" ")
     )
@@ -217,9 +237,11 @@ async function syncGuestsToGifts(
         relation: syncedData.relation,
         arrivalStatus: syncedData.arrivalStatus,
         confirmedCount: syncedData.confirmedCount,
+
         giftAmount: 0,
         paymentMethod: "",
         notes: "",
+
         isManual: false,
         isDeleted: false,
       });
@@ -343,6 +365,7 @@ export async function POST(req: NextRequest) {
       eventId: eventObjectId,
       invitationId: invitationObjectId,
       guestId: null,
+
       guestName,
       phone: body.phone || "",
       relation: body.relation || "",
@@ -353,9 +376,11 @@ export async function POST(req: NextRequest) {
         body.confirmedCount === undefined
           ? null
           : Number(body.confirmedCount),
+
       giftAmount: Number(body.giftAmount || 0),
       paymentMethod,
       notes: body.notes || "",
+
       isManual: true,
       isDeleted: false,
     });
