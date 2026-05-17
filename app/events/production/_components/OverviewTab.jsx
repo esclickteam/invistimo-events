@@ -40,6 +40,13 @@ export default function OverviewTab({ eventId, invitation }) {
   const [savingBudget, setSavingBudget] = useState(false);
   const [budget, setBudget] = useState(null);
 
+  const [giftsSummary, setGiftsSummary] = useState({
+    totalGifts: 0,
+    totalRows: 0,
+    rowsWithGift: 0,
+    rowsWithoutGift: 0,
+  });
+
   useEffect(() => {
     if (!eventId) {
       setLoading(false);
@@ -77,6 +84,25 @@ export default function OverviewTab({ eventId, invitation }) {
           if (prev && prev > 0) return prev;
           return data.event?.budgetTotal ?? 0;
         });
+
+        try {
+          const giftsRes = await fetch(`/api/event-gifts?eventId=${eventId}`, {
+            cache: "no-store",
+          });
+
+          const giftsData = await giftsRes.json();
+
+          if (giftsRes.ok && giftsData?.success) {
+            setGiftsSummary({
+              totalGifts: Number(giftsData.summary?.totalGifts || 0),
+              totalRows: Number(giftsData.summary?.totalRows || 0),
+              rowsWithGift: Number(giftsData.summary?.rowsWithGift || 0),
+              rowsWithoutGift: Number(giftsData.summary?.rowsWithoutGift || 0),
+            });
+          }
+        } catch (giftError) {
+          console.error("Gifts summary load error:", giftError);
+        }
       } catch (e) {
         setError("NETWORK_ERROR");
       } finally {
@@ -91,6 +117,11 @@ export default function OverviewTab({ eventId, invitation }) {
   const commitments = budget?.commitments ?? 0;
   const paid = budget?.paid ?? 0;
   const available = budget?.available ?? budgetTotal;
+
+  const totalGifts = giftsSummary.totalGifts || 0;
+  const hasGiftAmounts = totalGifts > 0;
+
+  const incomeMinusExpenses = hasGiftAmounts ? totalGifts - commitments : null;
 
   const progress = budgetTotal
     ? Math.min(Math.round((commitments / budgetTotal) * 100), 100)
@@ -138,13 +169,34 @@ export default function OverviewTab({ eventId, invitation }) {
       });
     }
 
+    if (hasGiftAmounts && incomeMinusExpenses < 0) {
+      alerts.push({
+        id: "negative-after-gifts",
+        type: "warning",
+        icon: "🎁",
+        title: "המתנות עדיין לא מכסות את ההוצאות",
+        description: `פער נוכחי: ₪${Math.abs(
+          incomeMinusExpenses
+        ).toLocaleString()}`,
+        action: "בדיקת מאזן",
+      });
+    }
+
+    if (hasGiftAmounts && incomeMinusExpenses >= 0) {
+      alerts.push({
+        id: "positive-after-gifts",
+        type: "info",
+        icon: "🎁",
+        title: "המתנות מכסות את ההוצאות",
+        description: `עודף נוכחי: ₪${incomeMinusExpenses.toLocaleString()}`,
+        action: "קראתי",
+      });
+    }
+
     const overdueTasks = tasks.filter((task) => {
       if (!task.dueDate) return false;
 
-      return (
-        task.status !== TASK_STATUS.DONE &&
-        new Date(task.dueDate) < today
-      );
+      return task.status !== TASK_STATUS.DONE && new Date(task.dueDate) < today;
     });
 
     if (overdueTasks.length > 0) {
@@ -192,7 +244,15 @@ export default function OverviewTab({ eventId, invitation }) {
     }
 
     return alerts;
-  }, [progress, available, activeTasks, tasks, daysLeft]);
+  }, [
+    progress,
+    available,
+    activeTasks,
+    tasks,
+    daysLeft,
+    hasGiftAmounts,
+    incomeMinusExpenses,
+  ]);
 
   const visibleAlerts = smartAlerts.filter(
     (alert) => !hiddenAlerts.includes(alert.id)
@@ -344,159 +404,154 @@ export default function OverviewTab({ eventId, invitation }) {
     >
       {/* HERO */}
       <section
-  className="
-    relative
-    overflow-hidden
-    rounded-[40px]
-    border
-    border-white/60
-    backdrop-blur-2xl
-    px-6
-    md:px-8
-    py-7
-  "
-  style={{
-    background:
-      "linear-gradient(135deg, rgba(255,255,255,0.94), rgba(245,236,255,0.88))",
-    boxShadow:
-      "0 30px 80px rgba(124,58,237,0.10)",
-  }}
->
-  {/* GLOW */}
-  <div
-    className="
-      absolute
-      -top-20
-      left-0
-      h-[320px]
-      w-[320px]
-      rounded-full
-      blur-3xl
-    "
-    style={{
-      background:
-        "radial-gradient(circle, rgba(168,85,247,0.18), transparent 70%)",
-    }}
-  />
-
-  <div
-    className="
-      relative
-      flex
-      flex-col
-      md:flex-row
-      items-center
-      justify-between
-      gap-6
-    "
-  >
-    {/* RIGHT SIDE */}
-    <div className="flex items-center gap-4">
-      <div
         className="
-          hidden
-          md:flex
-          h-16
-          w-16
-          rounded-[24px]
-          bg-gradient-to-br
-          from-violet-500
-          to-purple-400
-          items-center
-          justify-center
-          text-white
-          text-3xl
-          shadow-[0_15px_40px_rgba(124,58,237,0.30)]
+          relative
+          overflow-hidden
+          rounded-[40px]
+          border
+          border-white/60
+          backdrop-blur-2xl
+          px-6
+          md:px-8
+          py-7
         "
+        style={{
+          background:
+            "linear-gradient(135deg, rgba(255,255,255,0.94), rgba(245,236,255,0.88))",
+          boxShadow: "0 30px 80px rgba(124,58,237,0.10)",
+        }}
       >
-        ✦
-      </div>
-
-      <div className="text-center md:text-right">
-        <h1
+        {/* GLOW */}
+        <div
           className="
-            text-3xl
-            md:text-4xl
-            font-black
-            text-[#1E1B2E]
-            tracking-tight
+            absolute
+            -top-20
+            left-0
+            h-[320px]
+            w-[320px]
+            rounded-full
+            blur-3xl
+          "
+          style={{
+            background:
+              "radial-gradient(circle, rgba(168,85,247,0.18), transparent 70%)",
+          }}
+        />
+
+        <div
+          className="
+            relative
+            flex
+            flex-col
+            md:flex-row
+            items-center
+            justify-between
+            gap-6
           "
         >
-          {event.title}
-        </h1>
+          {/* RIGHT SIDE */}
+          <div className="flex items-center gap-4">
+            <div
+              className="
+                hidden
+                md:flex
+                h-16
+                w-16
+                rounded-[24px]
+                bg-gradient-to-br
+                from-violet-500
+                to-purple-400
+                items-center
+                justify-center
+                text-white
+                text-3xl
+                shadow-[0_15px_40px_rgba(124,58,237,0.30)]
+              "
+            >
+              ✦
+            </div>
 
-        <p
-          className="
-            mt-2
-            text-base
-            md:text-lg
-            text-gray-500
-            font-medium
-          "
-        >
-          {new Date(event.date).toLocaleDateString("he-IL", {
-            day: "2-digit",
-            month: "long",
-            year: "numeric",
-          })}
-        </p>
+            <div className="text-center md:text-right">
+              <h1
+                className="
+                  text-3xl
+                  md:text-4xl
+                  font-black
+                  text-[#1E1B2E]
+                  tracking-tight
+                "
+              >
+                {event.title}
+              </h1>
 
-        {daysLeft !== null && daysLeft >= 0 && (
-          <div
-            className="
-              inline-flex
-              items-center
-              gap-2
-              mt-4
-              px-4
-              py-2
-              rounded-full
-              bg-white/80
-              border
-              border-purple-100
-              shadow-sm
-            "
-          >
-            <span className="text-purple-500">
-              ⏳
-            </span>
+              <p
+                className="
+                  mt-2
+                  text-base
+                  md:text-lg
+                  text-gray-500
+                  font-medium
+                "
+              >
+                {new Date(event.date).toLocaleDateString("he-IL", {
+                  day: "2-digit",
+                  month: "long",
+                  year: "numeric",
+                })}
+              </p>
 
-            <span className="text-sm font-medium text-[#4B4453]">
-              נותרו {daysLeft} ימים לאירוע
-            </span>
+              {daysLeft !== null && daysLeft >= 0 && (
+                <div
+                  className="
+                    inline-flex
+                    items-center
+                    gap-2
+                    mt-4
+                    px-4
+                    py-2
+                    rounded-full
+                    bg-white/80
+                    border
+                    border-purple-100
+                    shadow-sm
+                  "
+                >
+                  <span className="text-purple-500">⏳</span>
+
+                  <span className="text-sm font-medium text-[#4B4453]">
+                    נותרו {daysLeft} ימים לאירוע
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
-        )}
-      </div>
-    </div>
 
-    {/* BUTTON */}
-    {/* BUTTON - מוצג רק אם יש הזמנה */}
-{invitation && (
-  <button
-    onClick={() => router.push(`/dashboard?eventId=${eventId}`)}
-    className="
-      rounded-2xl
-      bg-white/90
-      border
-      border-white/60
-      px-5
-      py-3
-      text-sm
-      font-semibold
-      text-[#28212E]
-      shadow-[0_10px_30px_rgba(124,58,237,0.08)]
-      hover:-translate-y-1
-      hover:shadow-[0_15px_40px_rgba(124,58,237,0.14)]
-      transition-all
-      duration-300
-    "
-  >
-    👤 ניהול דשבורד לקוח
-  </button>
-)}
-
-  </div>
-</section>
+          {/* BUTTON - מוצג רק אם יש הזמנה */}
+          {invitation && (
+            <button
+              onClick={() => router.push(`/dashboard?eventId=${eventId}`)}
+              className="
+                rounded-2xl
+                bg-white/90
+                border
+                border-white/60
+                px-5
+                py-3
+                text-sm
+                font-semibold
+                text-[#28212E]
+                shadow-[0_10px_30px_rgba(124,58,237,0.08)]
+                hover:-translate-y-1
+                hover:shadow-[0_15px_40px_rgba(124,58,237,0.14)]
+                transition-all
+                duration-300
+              "
+            >
+              👤 ניהול דשבורד לקוח
+            </button>
+          )}
+        </div>
+      </section>
 
       {/* ALERTS */}
       <section className="rounded-[30px] border border-white/60 bg-white/65 shadow-[0_16px_50px_rgba(81,55,120,0.08)] backdrop-blur-xl p-5 md:p-6">
@@ -530,7 +585,7 @@ export default function OverviewTab({ eventId, invitation }) {
       </section>
 
       {/* BUDGET CARDS */}
-      <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+      <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         <EditableBudgetCard
           title="תקציב מתוכנן"
           value={isEditingBudget ? budgetDraft : budgetTotal}
@@ -552,6 +607,22 @@ export default function OverviewTab({ eventId, invitation }) {
         <BudgetCard title="סה״כ התחייבויות" value={commitments} icon="🧾" />
         <BudgetCard title="שולם בפועל" value={paid} icon="💳" />
         <BudgetCard title="יתרה זמינה" value={available} icon="💎" highlight />
+
+        <BudgetCard
+          title="סך מתנות / הכנסות"
+          value={hasGiftAmounts ? totalGifts : null}
+          icon="🎁"
+          emptyText="הסכום יופיע לאחר עדכון מתנות"
+        />
+
+        <BudgetCard
+          title="הכנסות פחות הוצאות"
+          value={hasGiftAmounts ? incomeMinusExpenses : null}
+          icon={hasGiftAmounts && incomeMinusExpenses >= 0 ? "📈" : "📉"}
+          highlight={hasGiftAmounts && incomeMinusExpenses >= 0}
+          danger={hasGiftAmounts && incomeMinusExpenses < 0}
+          emptyText="הסכום יופיע לאחר עדכון מתנות"
+        />
       </section>
 
       {/* PROGRESS */}
@@ -713,9 +784,7 @@ function SmartAlertCard({ alert, isRead, onRead, onHide }) {
             {alert.title}
           </h3>
 
-          <p className="text-sm text-gray-600 mt-2">
-            {alert.description}
-          </p>
+          <p className="text-sm text-gray-600 mt-2">{alert.description}</p>
 
           <div className="flex gap-2 mt-4">
             <button
@@ -738,7 +807,16 @@ function SmartAlertCard({ alert, isRead, onRead, onHide }) {
   );
 }
 
-function BudgetCard({ title, value, icon, highlight = false }) {
+function BudgetCard({
+  title,
+  value,
+  icon,
+  highlight = false,
+  danger = false,
+  emptyText = "",
+}) {
+  const isEmpty = value === null || value === undefined;
+
   return (
     <div
       className="
@@ -753,21 +831,38 @@ function BudgetCard({ title, value, icon, highlight = false }) {
         hover:-translate-y-1
       "
       style={{
-        background: highlight
+        background: danger
+          ? "linear-gradient(135deg, #FFF1F2, #FFFFFF)"
+          : highlight
           ? "linear-gradient(135deg, #F4ECFF, #FFFFFF)"
           : "#FFFFFFCC",
         boxShadow: "0 14px 40px rgba(81,55,120,0.08)",
       }}
     >
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex items-center justify-between gap-4">
+        <div className="min-w-0">
           <p className="text-sm text-gray-500 mb-2">{title}</p>
-          <p className="text-2xl font-bold text-[#28212E]">
-            ₪{Number(value || 0).toLocaleString()}
-          </p>
+
+          {isEmpty ? (
+            <p className="max-w-[190px] text-sm font-semibold leading-5 text-gray-400">
+              {emptyText || "אין נתונים להצגה"}
+            </p>
+          ) : (
+            <p
+              className={`text-2xl font-bold ${
+                danger ? "text-rose-700" : "text-[#28212E]"
+              }`}
+            >
+              ₪{Number(value || 0).toLocaleString()}
+            </p>
+          )}
         </div>
 
-        <div className="h-12 w-12 rounded-2xl bg-purple-100/80 flex items-center justify-center text-xl">
+        <div
+          className={`h-12 w-12 shrink-0 rounded-2xl flex items-center justify-center text-xl ${
+            danger ? "bg-rose-100/80" : "bg-purple-100/80"
+          }`}
+        >
           {icon}
         </div>
       </div>
