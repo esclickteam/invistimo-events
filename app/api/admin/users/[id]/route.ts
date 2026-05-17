@@ -64,6 +64,58 @@ function normalizeAllowedMessageRounds(value: any): 2 | 3 {
   return Number(value) === 3 ? 3 : 2;
 }
 
+function normalizeVenueSeatingService(value: any) {
+  if (!value || typeof value !== "object") return undefined;
+
+  const totalPrice = Number(value.totalPrice || 0);
+  const depositAmount = Number(value.depositAmount || 0);
+  const venuePaymentAmount = Number(value.venuePaymentAmount || 0);
+  const staffPaymentAmount = Number(value.staffPaymentAmount || 0);
+
+  const safeTotalPrice = Number.isFinite(totalPrice) ? Math.max(0, totalPrice) : 0;
+  const safeDepositAmount = Number.isFinite(depositAmount)
+    ? Math.max(0, Math.min(depositAmount, safeTotalPrice))
+    : 0;
+  const safeVenuePaymentAmount = Number.isFinite(venuePaymentAmount)
+    ? Math.max(0, Math.min(venuePaymentAmount, safeTotalPrice))
+    : 0;
+  const safeStaffPaymentAmount = Number.isFinite(staffPaymentAmount)
+    ? Math.max(0, Math.min(staffPaymentAmount, safeTotalPrice))
+    : 0;
+
+  const staffPaidFromVenue = Math.min(
+    safeStaffPaymentAmount,
+    safeVenuePaymentAmount
+  );
+
+  const staffPaidFromFullAmount = Math.max(
+    safeStaffPaymentAmount - safeVenuePaymentAmount,
+    0
+  );
+
+  const venuePaymentAfterStaff = Math.max(
+    safeVenuePaymentAmount - safeStaffPaymentAmount,
+    0
+  );
+
+  const totalAfterStaff = Math.max(
+    safeTotalPrice - safeStaffPaymentAmount,
+    0
+  );
+
+  return {
+    enabled: Boolean(value.enabled),
+    totalPrice: safeTotalPrice,
+    depositAmount: safeDepositAmount,
+    venuePaymentAmount: safeVenuePaymentAmount,
+    staffPaymentAmount: safeStaffPaymentAmount,
+    staffPaidFromVenue,
+    staffPaidFromFullAmount,
+    venuePaymentAfterStaff,
+    totalAfterStaff,
+  };
+}
+
 /* =========================================================
    GET – SINGLE USER
 ========================================================= */
@@ -155,6 +207,25 @@ export async function PATCH(
         { status: 404 }
       );
     }
+
+    const nextVenueSeatingService = hasField(body, "venueSeatingService")
+  ? normalizeVenueSeatingService(body.venueSeatingService)
+  : undefined;
+
+const hadVenueSeatingService = Boolean(
+  currentUser.venueSeatingService?.enabled
+);
+
+const hasNewVenueSeatingService = Boolean(
+  nextVenueSeatingService?.enabled
+);
+
+const shouldAddVenueDepositPayment =
+  !hadVenueSeatingService && hasNewVenueSeatingService;
+
+const venueDepositPaymentAmount = shouldAddVenueDepositPayment
+  ? Number(nextVenueSeatingService?.depositAmount || 0)
+  : 0;
 
     /* =====================================================
        BASIC FIELDS
@@ -373,7 +444,9 @@ export async function PATCH(
 
       eventDate: hasField(body, "eventDate") ? body.eventDate : undefined,
 
-      ...planLimitsPatch,
+venueSeatingService: nextVenueSeatingService,
+
+...planLimitsPatch,
     });
 
     const updatedUser: any = await User.findOneAndUpdate(
@@ -394,8 +467,10 @@ export async function PATCH(
        רק אם סימנת באדמין "שולם" ויש סכום חיובי.
     ===================================================== */
     const upgradeAmount = Number(body.upgradeAmount || 0);
+const venueDepositAmountFromEdit = Number(venueDepositPaymentAmount || 0);
+const totalPaymentAmount = upgradeAmount + venueDepositAmountFromEdit;
 
-    if (upgradeAmount > 0) {
+    if (totalPaymentAmount > 0) {
       const paymentEmail = normalizeEmail(
         updatedUser.email || currentUser.email
       );
@@ -417,7 +492,7 @@ export async function PATCH(
         includeCreditGifts: Boolean(updatedUser.includeCreditGifts),
         creditGiftsAddonPrice: Number(updatedUser.creditGiftsAddonPrice || 0),
 
-        amount: upgradeAmount,
+        amount: totalPaymentAmount,
         refundAmount: 0,
         currency: "ils",
 
@@ -468,6 +543,9 @@ export async function PATCH(
 
           manualAmount: true,
 
+          venueSeatingDepositAmount: venueDepositAmountFromEdit,
+venueSeatingService: nextVenueSeatingService || null,
+
           includeCalls: Boolean(updatedUser.includeCalls),
           includeCreditGifts: Boolean(updatedUser.includeCreditGifts),
           includeDigitalSeating: Boolean(updatedUser.includeDigitalSeating),
@@ -478,8 +556,8 @@ export async function PATCH(
 
       await User.findByIdAndUpdate(updatedUser._id, {
         $inc: {
-          paidAmount: upgradeAmount,
-        },
+  paidAmount: totalPaymentAmount,
+},
         $set: {
           hasPaid: true,
           isActive: true,

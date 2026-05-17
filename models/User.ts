@@ -23,9 +23,21 @@ export interface IUser extends Document {
   packageName?: string;
 
   guests: number;
-maxGuests: number;
+  maxGuests: number;
 
-allowedMessageRounds: 2 | 3;
+  allowedMessageRounds: 2 | 3;
+
+  venueSeatingService?: {
+    enabled: boolean;
+    totalPrice: number;
+    depositAmount: number;
+    venuePaymentAmount: number;
+    staffPaymentAmount: number;
+    staffPaidFromVenue: number;
+    staffPaidFromFullAmount: number;
+    venuePaymentAfterStaff: number;
+    totalAfterStaff: number;
+  };
 
   paidAmount: number;
   hasPaid: boolean;
@@ -65,14 +77,14 @@ allowedMessageRounds: 2 | 3;
   maxMessages: number;
 
   planLimits: {
-  maxGuests: number;
-  allowedMessageRounds?: 2 | 3;
-  smsEnabled: boolean;
-  smsLimit: number;
-  seatingEnabled: boolean;
-  remindersEnabled: boolean;
-  callsEnabled?: boolean;
-};
+    maxGuests: number;
+    allowedMessageRounds?: 2 | 3;
+    smsEnabled: boolean;
+    smsLimit: number;
+    seatingEnabled: boolean;
+    remindersEnabled: boolean;
+    callsEnabled?: boolean;
+  };
 
   smsBalance: number;
   smsUsed: number;
@@ -171,10 +183,57 @@ const UserSchema = new Schema<IUser>(
     },
 
     allowedMessageRounds: {
-  type: Number,
-  enum: [2, 3],
-  default: 2,
-},
+      type: Number,
+      enum: [2, 3],
+      default: 2,
+    },
+
+    venueSeatingService: {
+      enabled: {
+        type: Boolean,
+        default: false,
+      },
+
+      totalPrice: {
+        type: Number,
+        default: 0,
+      },
+
+      depositAmount: {
+        type: Number,
+        default: 0,
+      },
+
+      venuePaymentAmount: {
+        type: Number,
+        default: 0,
+      },
+
+      staffPaymentAmount: {
+        type: Number,
+        default: 0,
+      },
+
+      staffPaidFromVenue: {
+        type: Number,
+        default: 0,
+      },
+
+      staffPaidFromFullAmount: {
+        type: Number,
+        default: 0,
+      },
+
+      venuePaymentAfterStaff: {
+        type: Number,
+        default: 0,
+      },
+
+      totalAfterStaff: {
+        type: Number,
+        default: 0,
+      },
+    },
 
     paidAmount: {
       type: Number,
@@ -326,21 +385,21 @@ const UserSchema = new Schema<IUser>(
     },
 
     planLimits: {
-  maxGuests: {
-    type: Number,
-    default: 0,
-  },
+      maxGuests: {
+        type: Number,
+        default: 0,
+      },
 
-  allowedMessageRounds: {
-    type: Number,
-    enum: [2, 3],
-    default: 2,
-  },
+      allowedMessageRounds: {
+        type: Number,
+        enum: [2, 3],
+        default: 2,
+      },
 
-  smsEnabled: {
-    type: Boolean,
-    default: false,
-  },
+      smsEnabled: {
+        type: Boolean,
+        default: false,
+      },
 
       smsLimit: {
         type: Number,
@@ -485,18 +544,18 @@ UserSchema.pre("validate", function () {
   זה מונע מצב שבו default של allowedMessageRounds = 2
   דורס את planLimits.allowedMessageRounds = 3.
 */
-const directAllowedRounds = Number(doc.allowedMessageRounds);
-const planAllowedRounds = Number(doc.planLimits?.allowedMessageRounds);
+  const directAllowedRounds = Number(doc.allowedMessageRounds);
+  const planAllowedRounds = Number(doc.planLimits?.allowedMessageRounds);
 
-const normalizedAllowedMessageRounds: 2 | 3 =
-  directAllowedRounds === 3 || planAllowedRounds === 3 ? 3 : 2;
+  const normalizedAllowedMessageRounds: 2 | 3 =
+    directAllowedRounds === 3 || planAllowedRounds === 3 ? 3 : 2;
 
-doc.allowedMessageRounds = normalizedAllowedMessageRounds;
+  doc.allowedMessageRounds = normalizedAllowedMessageRounds;
 
-doc.planLimits = {
-  ...(doc.planLimits || {}),
-  allowedMessageRounds: normalizedAllowedMessageRounds,
-};
+  doc.planLimits = {
+    ...(doc.planLimits || {}),
+    allowedMessageRounds: normalizedAllowedMessageRounds,
+  };
 
   if (doc.planLimits?.smsLimit && !doc.smsLimit) {
     doc.smsLimit = doc.planLimits.smsLimit;

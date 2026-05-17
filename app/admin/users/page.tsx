@@ -70,7 +70,19 @@ type AdminUser = {
   assignedStaffEmail?: string;
 
   messageRounds?: AdminMessageRounds;
+  venueSeatingService?: {
+  enabled?: boolean;
+  totalPrice?: number;
+  depositAmount?: number;
+  venuePaymentAmount?: number;
+  staffPaymentAmount?: number;
+  staffPaidFromVenue?: number;
+  staffPaidFromFullAmount?: number;
+  venuePaymentAfterStaff?: number;
+  totalAfterStaff?: number;
 };
+};
+
 
 type MessageRoundStatus = {
   key: string;
@@ -188,6 +200,72 @@ function formatDateInput(value?: string) {
 
 function formatMoney(value?: number) {
   return `${Number(value || 0).toLocaleString("he-IL")} ₪`;
+}
+
+type VenueSeatingServiceForm = {
+  enabled: boolean;
+  totalPrice: number;
+  depositAmount: number;
+  venuePaymentAmount: number;
+  staffPaymentAmount: number;
+};
+
+function roundMoney(value: number) {
+  return Math.round(Number(value || 0) * 100) / 100;
+}
+
+function safeNumber(value: unknown) {
+  const n = Number(value || 0);
+  return Number.isFinite(n) ? Math.max(0, n) : 0;
+}
+
+function getVenueSeatingServiceInitial(user?: AdminUser): VenueSeatingServiceForm {
+  return {
+    enabled: Boolean(user?.venueSeatingService?.enabled),
+    totalPrice: safeNumber(user?.venueSeatingService?.totalPrice),
+    depositAmount: safeNumber(user?.venueSeatingService?.depositAmount),
+    venuePaymentAmount: safeNumber(user?.venueSeatingService?.venuePaymentAmount),
+    staffPaymentAmount: safeNumber(user?.venueSeatingService?.staffPaymentAmount),
+  };
+}
+
+function calculateVenueSeatingService(service: VenueSeatingServiceForm) {
+  const totalPrice = safeNumber(service.totalPrice);
+  const depositAmount = Math.min(safeNumber(service.depositAmount), totalPrice);
+  const venuePaymentAmount = Math.min(
+    safeNumber(service.venuePaymentAmount),
+    totalPrice
+  );
+  const staffPaymentAmount = Math.min(
+    safeNumber(service.staffPaymentAmount),
+    totalPrice
+  );
+
+  const staffPaidFromVenue = Math.min(staffPaymentAmount, venuePaymentAmount);
+
+  const staffPaidFromFullAmount = Math.max(
+    staffPaymentAmount - venuePaymentAmount,
+    0
+  );
+
+  const venuePaymentAfterStaff = Math.max(
+    venuePaymentAmount - staffPaymentAmount,
+    0
+  );
+
+  const totalAfterStaff = Math.max(totalPrice - staffPaymentAmount, 0);
+
+  return {
+    enabled: Boolean(service.enabled),
+    totalPrice,
+    depositAmount,
+    venuePaymentAmount,
+    staffPaymentAmount,
+    staffPaidFromVenue,
+    staffPaidFromFullAmount,
+    venuePaymentAfterStaff,
+    totalAfterStaff,
+  };
 }
 
 function normalizeText(value?: string) {
@@ -354,6 +432,13 @@ function getPurchasedItems(
       value: user.includeCustomDesign ? "פעיל" : "לא פעיל",
       active: Boolean(user.includeCustomDesign),
     },
+    {
+  label: "שירות הושבה באולם",
+  value: user.venueSeatingService?.enabled
+    ? `נרכש · ${formatMoney(user.venueSeatingService.totalPrice)}`
+    : "לא נרכש",
+  active: Boolean(user.venueSeatingService?.enabled),
+},
   ];
 }
 
@@ -1054,7 +1139,9 @@ export default function AdminUsersPage() {
             loadUsers(false);
           }}
         />
+        
       )}
+
 
       {upgradingUser && (
         <UpgradeUserModal
@@ -1069,6 +1156,213 @@ export default function AdminUsersPage() {
         />
       )}
     </div>
+  );
+}
+
+function VenueSeatingServiceFields({
+  title,
+  description,
+  value,
+  onChange,
+  purchasedMode = false,
+}: {
+  title: string;
+  description: string;
+  value: VenueSeatingServiceForm;
+  onChange: (next: VenueSeatingServiceForm) => void;
+  purchasedMode?: boolean;
+}) {
+  const calculated = calculateVenueSeatingService(value);
+
+  function setTotalPrice(rawValue: string) {
+    const totalPrice = safeNumber(rawValue);
+    const depositAmount = roundMoney(totalPrice / 2);
+    const venuePaymentAmount = roundMoney(totalPrice - depositAmount);
+
+    onChange({
+      ...value,
+      totalPrice,
+      depositAmount,
+      venuePaymentAmount,
+      staffPaymentAmount: Math.min(value.staffPaymentAmount, totalPrice),
+    });
+  }
+
+  function setDepositAmount(rawValue: string) {
+    const depositAmount = Math.min(safeNumber(rawValue), value.totalPrice);
+
+    onChange({
+      ...value,
+      depositAmount,
+      venuePaymentAmount: roundMoney(value.totalPrice - depositAmount),
+    });
+  }
+
+  function setVenuePaymentAmount(rawValue: string) {
+    const venuePaymentAmount = Math.min(safeNumber(rawValue), value.totalPrice);
+
+    onChange({
+      ...value,
+      venuePaymentAmount,
+      depositAmount: roundMoney(value.totalPrice - venuePaymentAmount),
+    });
+  }
+
+  function setStaffPaymentAmount(rawValue: string) {
+    onChange({
+      ...value,
+      staffPaymentAmount: Math.min(safeNumber(rawValue), value.totalPrice),
+    });
+  }
+
+  function toggleEnabled() {
+    const nextEnabled = !value.enabled;
+
+    if (!nextEnabled) {
+      onChange({
+        enabled: false,
+        totalPrice: 0,
+        depositAmount: 0,
+        venuePaymentAmount: 0,
+        staffPaymentAmount: 0,
+      });
+      return;
+    }
+
+    const depositAmount = roundMoney(value.totalPrice / 2);
+
+    onChange({
+      ...value,
+      enabled: true,
+      depositAmount,
+      venuePaymentAmount: roundMoney(value.totalPrice - depositAmount),
+    });
+  }
+
+  return (
+    <section
+      className="
+        rounded-[26px]
+        border border-[#E7D8C6]
+        bg-white
+        p-5
+      "
+    >
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div>
+          <h3 className="text-lg font-black text-[#3A2A1C]">{title}</h3>
+          <p className="mt-1 text-xs font-bold text-[#8A7867]">
+            {description}
+          </p>
+        </div>
+
+        {purchasedMode && value.enabled && (
+          <span className="rounded-full bg-[#EAF8EF] px-3 py-1 text-xs font-black text-[#1F9A55]">
+            נרכש
+          </span>
+        )}
+      </div>
+
+      <label
+        className="
+          mb-5 flex cursor-pointer items-center justify-between gap-3
+          rounded-2xl
+          border border-[#EFE2D1]
+          bg-[#FFFDF8]
+          px-4 py-3
+        "
+      >
+        <div>
+          <div className="font-black text-[#3A2A1C]">
+            {value.enabled ? "שירות הושבה באולם פעיל" : "הוסף שירות הושבה באולם"}
+          </div>
+
+          <div className="mt-1 text-xs font-bold text-[#8A7867]">
+            אם מסמנים שירות, ברירת המחדל היא 50% מקדמה ו־50% תשלום באולם.
+          </div>
+        </div>
+
+        <input
+          type="checkbox"
+          checked={value.enabled}
+          onChange={toggleEnabled}
+          className="h-5 w-5 accent-[#B97821]"
+        />
+      </label>
+
+      {value.enabled && (
+        <div className="space-y-5">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <InputField
+              label="סך הכל שירות"
+              type="number"
+              value={String(value.totalPrice)}
+              onChange={setTotalPrice}
+            />
+
+            <InputField
+              label="תשלום לאנשי צוות"
+              type="number"
+              value={String(value.staffPaymentAmount)}
+              onChange={setStaffPaymentAmount}
+            />
+
+            <InputField
+              label="סך מקדמה"
+              type="number"
+              value={String(value.depositAmount)}
+              onChange={setDepositAmount}
+            />
+
+            <InputField
+              label="סך תשלום באולם"
+              type="number"
+              value={String(value.venuePaymentAmount)}
+              onChange={setVenuePaymentAmount}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <SummaryBox
+              label="מקדמה להכנסות החודש"
+              value={formatMoney(calculated.depositAmount)}
+            />
+
+            <SummaryBox
+              label="תשלום באולם לפני צוות"
+              value={formatMoney(calculated.venuePaymentAmount)}
+            />
+
+            <SummaryBox
+              label="ירד מתוך התשלום באולם"
+              value={formatMoney(calculated.staffPaidFromVenue)}
+            />
+
+            <SummaryBox
+              label="ירד מהסכום המלא כי לא הספיק באולם"
+              value={formatMoney(calculated.staffPaidFromFullAmount)}
+            />
+
+            <SummaryBox
+              label="נשאר מהתשלום באולם אחרי צוות"
+              value={formatMoney(calculated.venuePaymentAfterStaff)}
+            />
+
+            <SummaryBox
+              label="סך הכל אחרי תשלום צוות"
+              value={formatMoney(calculated.totalAfterStaff)}
+              highlight
+            />
+          </div>
+
+          <div className="rounded-2xl border border-[#E8C98D] bg-[#FFF7E8] px-4 py-3 text-sm font-bold leading-7 text-[#8A5A24]">
+            המקדמה נקלטת בחודש הרכישה ומתווספת להכנסות החודשיות באדמין.
+            תשלום לאנשי צוות יורד קודם מהתשלום באולם. אם אין מספיק באולם,
+            היתרה יורדת מהסכום המלא ומתעדכנת בהתאם.
+          </div>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -1098,6 +1392,9 @@ function EditUserModal({
 
   const [deletingGuests, setDeletingGuests] = useState(false);
 
+  const [venueSeatingService, setVenueSeatingService] =
+  useState<VenueSeatingServiceForm>(getVenueSeatingServiceInitial(user));
+
   const [form, setForm] = useState<EditFormState>({
     name: user.name || "",
     email: user.email || "",
@@ -1117,10 +1414,11 @@ function EditUserModal({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          name: form.name,
-          email: form.email,
-          eventDate: form.eventDate,
-        }),
+  name: form.name,
+  email: form.email,
+  eventDate: form.eventDate,
+  venueSeatingService: calculateVenueSeatingService(venueSeatingService),
+}),
       });
 
        await fetch(`/api/admin/users/${user._id}/assignees`, {
@@ -1254,6 +1552,18 @@ function EditUserModal({
             </span>
           </div>
         </section>
+
+<VenueSeatingServiceFields
+  title="שירות הושבה באולם"
+  description={
+    venueSeatingService.enabled
+      ? "הלקוח רכש שירות הושבה באולם. ניתן לערוך סכומים ותשלום צוות."
+      : "הלקוח עדיין לא רכש. ניתן להוסיף לו שירות הושבה באולם."
+  }
+  value={venueSeatingService}
+  onChange={setVenueSeatingService}
+  purchasedMode
+/>
 
         <AdminMessageRoundsPanel
           user={user}
@@ -1737,6 +2047,9 @@ function UpgradeUserModal({
   const [extraRecordsAmount, setExtraRecordsAmount] = useState(0);
   const [manualTotalToPay, setManualTotalToPay] = useState(0);
 
+  const [venueSeatingService, setVenueSeatingService] =
+  useState<VenueSeatingServiceForm>(getVenueSeatingServiceInitial(user));
+
   const selectedPlan =
     pricingPlans.find((plan) => plan.key === form.plan) || null;
 
@@ -1769,8 +2082,20 @@ function UpgradeUserModal({
     return sum + addon.price;
   }, 0);
 
-  const calculatedTotalToPay =
-    packageDiff + addonsDiff + Number(extraRecordsAmount || 0);
+ const venueSeatingCalculated =
+  calculateVenueSeatingService(venueSeatingService);
+
+const venueSeatingDepositToPay =
+  venueSeatingCalculated.enabled &&
+  !user.venueSeatingService?.enabled
+    ? venueSeatingCalculated.depositAmount
+    : 0;
+
+const calculatedTotalToPay =
+  packageDiff +
+  addonsDiff +
+  Number(extraRecordsAmount || 0) +
+  venueSeatingDepositToPay;
 
   useEffect(() => {
     setManualTotalToPay(calculatedTotalToPay);
@@ -1817,6 +2142,8 @@ function UpgradeUserModal({
         upgradeAmount: manualTotalToPay,
         upgradePaymentStatus: "paid",
         upgradePaymentMethod: "manual_admin",
+        venueSeatingService: calculateVenueSeatingService(venueSeatingService),
+venueSeatingDepositAmount: venueSeatingDepositToPay,
       }),
     });
 
@@ -1854,6 +2181,8 @@ function UpgradeUserModal({
 
         extraRecords,
         extraRecordsAmount,
+        venueSeatingService: calculateVenueSeatingService(venueSeatingService),
+venueSeatingDepositAmount: venueSeatingDepositToPay,
       }),
     });
 
@@ -2113,6 +2442,18 @@ function UpgradeUserModal({
           </div>
         </section>
 
+<VenueSeatingServiceFields
+  title="שירות הושבה באולם"
+  description={
+    user.venueSeatingService?.enabled
+      ? "הלקוח כבר רכש שירות הושבה באולם. ניתן לראות ולעדכן את הסכומים."
+      : "אפשר להוסיף ללקוח שירות הושבה באולם כחלק מהשדרוג."
+  }
+  value={venueSeatingService}
+  onChange={setVenueSeatingService}
+  purchasedMode
+/>
+
         <section
           className="
             rounded-[26px]
@@ -2183,6 +2524,11 @@ function UpgradeUserModal({
               label="רשומות ידניות"
               value={formatMoney(extraRecordsAmount)}
             />
+
+<SummaryBox
+  label="מקדמת הושבה באולם"
+  value={formatMoney(venueSeatingDepositToPay)}
+/>
 
             <div
               className="

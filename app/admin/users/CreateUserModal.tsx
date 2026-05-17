@@ -14,6 +14,15 @@ type Props = {
 /* כמה סבבי הודעות פתוחים ללקוח בחבילה */
 type AllowedMessageRounds = 2 | 3;
 
+/* שירות הושבה באולם */
+type VenueSeatingServiceState = {
+  enabled: boolean;
+  totalPrice: number;
+  depositAmount: number;
+  venuePaymentAmount: number;
+  staffPaymentAmount: number;
+};
+
 /* איזה אפסיילים כלולים בכל חבילה */
 const includedByPlan: Record<PlanKey, AddonKey[]> = {
   plan1: [],
@@ -28,6 +37,22 @@ const addonLabels: Record<AddonKey, string> = {
   system: "מערכת ניהול אירוע",
   design: "עיצוב בהתאמה אישית",
 };
+
+function toNumber(value: string) {
+  if (value === "") return 0;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+}
+
+function roundMoney(value: number) {
+  return Math.round(value * 100) / 100;
+}
+
+function formatMoney(value: number) {
+  return new Intl.NumberFormat("he-IL", {
+    maximumFractionDigits: 2,
+  }).format(value);
+}
 
 export default function CreateUserModal({ onClose }: Props) {
   /* ===== USER BASIC ===== */
@@ -54,6 +79,116 @@ export default function CreateUserModal({ onClose }: Props) {
     design: { enabled: false, price: 0 },
   });
 
+  /* ===== VENUE SEATING SERVICE ===== */
+  const [venueSeatingService, setVenueSeatingService] =
+    useState<VenueSeatingServiceState>({
+      enabled: false,
+      totalPrice: 0,
+      depositAmount: 0,
+      venuePaymentAmount: 0,
+      staffPaymentAmount: 0,
+    });
+
+  const staffPaidFromVenue = Math.min(
+    venueSeatingService.staffPaymentAmount,
+    venueSeatingService.venuePaymentAmount
+  );
+
+  const staffPaidFromFullAmount = Math.max(
+    venueSeatingService.staffPaymentAmount -
+      venueSeatingService.venuePaymentAmount,
+    0
+  );
+
+  const venuePaymentAfterStaff = Math.max(
+    venueSeatingService.venuePaymentAmount -
+      venueSeatingService.staffPaymentAmount,
+    0
+  );
+
+  const totalAfterStaff = Math.max(
+    venueSeatingService.totalPrice - venueSeatingService.staffPaymentAmount,
+    0
+  );
+
+  const handleVenueServiceToggle = () => {
+    setVenueSeatingService((prev) => {
+      const nextEnabled = !prev.enabled;
+
+      if (!nextEnabled) {
+        return {
+          enabled: false,
+          totalPrice: 0,
+          depositAmount: 0,
+          venuePaymentAmount: 0,
+          staffPaymentAmount: 0,
+        };
+      }
+
+      const half = roundMoney(prev.totalPrice / 2);
+
+      return {
+        ...prev,
+        enabled: true,
+        depositAmount: half,
+        venuePaymentAmount: roundMoney(prev.totalPrice - half),
+      };
+    });
+  };
+
+  const handleVenueTotalChange = (rawValue: string) => {
+    const totalPrice = toNumber(rawValue);
+    const depositAmount = roundMoney(totalPrice / 2);
+    const venuePaymentAmount = roundMoney(totalPrice - depositAmount);
+
+    setVenueSeatingService((prev) => ({
+      ...prev,
+      totalPrice,
+      depositAmount,
+      venuePaymentAmount,
+      staffPaymentAmount: Math.min(prev.staffPaymentAmount, totalPrice),
+    }));
+  };
+
+  const handleVenueDepositChange = (rawValue: string) => {
+    const depositAmount = toNumber(rawValue);
+
+    setVenueSeatingService((prev) => {
+      const safeDeposit = Math.min(depositAmount, prev.totalPrice);
+      const venuePaymentAmount = roundMoney(prev.totalPrice - safeDeposit);
+
+      return {
+        ...prev,
+        depositAmount: safeDeposit,
+        venuePaymentAmount,
+      };
+    });
+  };
+
+  const handleVenuePaymentChange = (rawValue: string) => {
+    const venuePaymentAmount = toNumber(rawValue);
+
+    setVenueSeatingService((prev) => {
+      const safeVenuePayment = Math.min(venuePaymentAmount, prev.totalPrice);
+      const depositAmount = roundMoney(prev.totalPrice - safeVenuePayment);
+
+      return {
+        ...prev,
+        venuePaymentAmount: safeVenuePayment,
+        depositAmount,
+      };
+    });
+  };
+
+  const handleStaffPaymentChange = (rawValue: string) => {
+    const staffPaymentAmount = toNumber(rawValue);
+
+    setVenueSeatingService((prev) => ({
+      ...prev,
+      staffPaymentAmount: Math.min(staffPaymentAmount, prev.totalPrice),
+    }));
+  };
+
   /* ===== USER BILLING ===== */
   const [price, setPrice] = useState<number | "">("");
   const [paymentStatus, setPaymentStatus] =
@@ -67,10 +202,10 @@ export default function CreateUserModal({ onClose }: Props) {
      SUBMIT
   ===================================================== */
   async function handleSubmit() {
-  const included = new Set(includedByPlan[plan]);
+    const included = new Set(includedByPlan[plan]);
 
-  const finalAllowedMessageRounds: AllowedMessageRounds =
-    Number(allowedMessageRounds) === 3 ? 3 : 2;
+    const finalAllowedMessageRounds: AllowedMessageRounds =
+      Number(allowedMessageRounds) === 3 ? 3 : 2;
 
     const effectiveIncludeCalls =
       included.has("calls") || addons.calls.enabled;
@@ -131,6 +266,41 @@ export default function CreateUserModal({ onClose }: Props) {
             seatingEnabled,
             selfManageEnabled,
             customDesignEnabled,
+
+            venueSeatingService: {
+              enabled: venueSeatingService.enabled,
+              totalPrice: venueSeatingService.enabled
+                ? venueSeatingService.totalPrice
+                : 0,
+              depositAmount: venueSeatingService.enabled
+                ? venueSeatingService.depositAmount
+                : 0,
+              venuePaymentAmount: venueSeatingService.enabled
+                ? venueSeatingService.venuePaymentAmount
+                : 0,
+              staffPaymentAmount: venueSeatingService.enabled
+                ? venueSeatingService.staffPaymentAmount
+                : 0,
+
+              /*
+                מידע מחושב לתצוגה/אדמין:
+                המקדמה נקלטת בחודש הרכישה.
+                תשלום צוות יורד קודם מהתשלום באולם.
+                אם אין מספיק בתשלום באולם — היתרה יורדת מהסכום הכולל.
+              */
+              staffPaidFromVenue: venueSeatingService.enabled
+                ? staffPaidFromVenue
+                : 0,
+              staffPaidFromFullAmount: venueSeatingService.enabled
+                ? staffPaidFromFullAmount
+                : 0,
+              venuePaymentAfterStaff: venueSeatingService.enabled
+                ? venuePaymentAfterStaff
+                : 0,
+              totalAfterStaff: venueSeatingService.enabled
+                ? totalAfterStaff
+                : 0,
+            },
 
             addons: {
               calls: {
@@ -328,14 +498,12 @@ export default function CreateUserModal({ onClose }: Props) {
 
                     <select
                       value={allowedMessageRounds}
-
                       onChange={(e) => {
-  const nextValue: AllowedMessageRounds =
-    Number(e.target.value) === 3 ? 3 : 2;
+                        const nextValue: AllowedMessageRounds =
+                          Number(e.target.value) === 3 ? 3 : 2;
 
-  setAllowedMessageRounds(nextValue);
-}}
-
+                        setAllowedMessageRounds(nextValue);
+                      }}
                       className="w-full h-14 rounded-2xl border border-[#eadfce] bg-white px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
                     >
                       <option value={2}>2 סבבים — כלול בחבילה</option>
@@ -426,6 +594,225 @@ export default function CreateUserModal({ onClose }: Props) {
                       </div>
                     );
                   })}
+                </div>
+              </section>
+
+              {/* VENUE SEATING SERVICE */}
+              <section className="space-y-4">
+                <div>
+                  <h3 className="text-sm font-bold text-[#3f4856]">
+                    שירות הושבה באולם
+                  </h3>
+                  <p className="text-xs text-[#8b7b68] mt-1">
+                    הוספת שירות נציגים ביום האירוע, כולל מקדמה, תשלום באולם
+                    ותשלום אנשי צוות
+                  </p>
+                </div>
+
+                <div className="rounded-3xl border border-[#eadfce] bg-white p-4 space-y-5 shadow-sm">
+                  <div className="flex items-center justify-between gap-4">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={venueSeatingService.enabled}
+                        onChange={handleVenueServiceToggle}
+                        className="w-4 h-4 accent-[#9b7a3c]"
+                      />
+
+                      <span className="text-[#4b3b2a] font-bold">
+                        הוסף שירות הושבה באולם
+                      </span>
+                    </label>
+
+                    {venueSeatingService.enabled && (
+                      <span className="rounded-full bg-[#fff4de] text-[#8a6330] px-3 py-1 text-xs font-bold border border-[#eadfce]">
+                        שירות פעיל
+                      </span>
+                    )}
+                  </div>
+
+                  {venueSeatingService.enabled && (
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* TOTAL */}
+                        <label className="space-y-2">
+                          <span className="block text-sm font-semibold text-[#6b5a45]">
+                            סך הכל שירות (₪)
+                          </span>
+
+                          <input
+                            type="number"
+                            min={0}
+                            value={venueSeatingService.totalPrice}
+                            onChange={(e) =>
+                              handleVenueTotalChange(e.target.value)
+                            }
+                            className="w-full h-14 rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
+                          />
+
+                          <p className="text-xs text-[#8b7b68]">
+                            הסכום הכולל שהלקוח משלם על שירות ההושבה באולם.
+                            ברירת מחדל: 50% מקדמה ו־50% תשלום באולם.
+                          </p>
+                        </label>
+
+                        {/* STAFF */}
+                        <label className="space-y-2">
+                          <span className="block text-sm font-semibold text-[#6b5a45]">
+                            תשלום לאנשי צוות (₪)
+                          </span>
+
+                          <input
+                            type="number"
+                            min={0}
+                            value={venueSeatingService.staffPaymentAmount}
+                            onChange={(e) =>
+                              handleStaffPaymentChange(e.target.value)
+                            }
+                            className="w-full h-14 rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
+                          />
+
+                          <p className="text-xs text-[#8b7b68]">
+                            יורד קודם מהתשלום באולם. אם אין מספיק באולם,
+                            היתרה יורדת מהסכום הכולל.
+                          </p>
+                        </label>
+
+                        {/* DEPOSIT */}
+                        <label className="space-y-2">
+                          <span className="block text-sm font-semibold text-[#6b5a45]">
+                            סך מקדמה (₪)
+                          </span>
+
+                          <input
+                            type="number"
+                            min={0}
+                            value={venueSeatingService.depositAmount}
+                            onChange={(e) =>
+                              handleVenueDepositChange(e.target.value)
+                            }
+                            className="w-full h-14 rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
+                          />
+
+                          <p className="text-xs text-[#8b7b68]">
+                            נקלטת בחודש הרכישה ומתווספת להכנסות החודשיות
+                            באדמין. שינוי ידני ישלים אוטומטית את התשלום
+                            באולם.
+                          </p>
+                        </label>
+
+                        {/* VENUE PAYMENT */}
+                        <label className="space-y-2">
+                          <span className="block text-sm font-semibold text-[#6b5a45]">
+                            סך תשלום באולם (₪)
+                          </span>
+
+                          <input
+                            type="number"
+                            min={0}
+                            value={venueSeatingService.venuePaymentAmount}
+                            onChange={(e) =>
+                              handleVenuePaymentChange(e.target.value)
+                            }
+                            className="w-full h-14 rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
+                          />
+
+                          <p className="text-xs text-[#8b7b68]">
+                            הסכום שישולם ביום האירוע באולם. שינוי ידני ישלים
+                            אוטומטית את המקדמה.
+                          </p>
+                        </label>
+                      </div>
+
+                      <div className="rounded-3xl border border-[#eadfce] bg-[#fff8ed] p-4 space-y-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                          <div className="rounded-2xl bg-white border border-[#eadfce] p-3">
+                            <p className="text-[#8b7b68] text-xs">
+                              סך הכל שירות
+                            </p>
+                            <p className="text-[#3f3327] font-bold mt-1">
+                              ₪{formatMoney(venueSeatingService.totalPrice)}
+                            </p>
+                          </div>
+
+                          <div className="rounded-2xl bg-white border border-[#eadfce] p-3">
+                            <p className="text-[#8b7b68] text-xs">
+                              מקדמה להכנסות החודש
+                            </p>
+                            <p className="text-[#3f3327] font-bold mt-1">
+                              ₪{formatMoney(venueSeatingService.depositAmount)}
+                            </p>
+                          </div>
+
+                          <div className="rounded-2xl bg-white border border-[#eadfce] p-3">
+                            <p className="text-[#8b7b68] text-xs">
+                              תשלום באולם לפני צוות
+                            </p>
+                            <p className="text-[#3f3327] font-bold mt-1">
+                              ₪
+                              {formatMoney(
+                                venueSeatingService.venuePaymentAmount
+                              )}
+                            </p>
+                          </div>
+
+                          <div className="rounded-2xl bg-white border border-[#eadfce] p-3">
+                            <p className="text-[#8b7b68] text-xs">
+                              תשלום לאנשי צוות
+                            </p>
+                            <p className="text-[#3f3327] font-bold mt-1">
+                              ₪
+                              {formatMoney(
+                                venueSeatingService.staffPaymentAmount
+                              )}
+                            </p>
+                          </div>
+
+                          <div className="rounded-2xl bg-white border border-[#eadfce] p-3">
+                            <p className="text-[#8b7b68] text-xs">
+                              ירד מתוך התשלום באולם
+                            </p>
+                            <p className="text-[#3f3327] font-bold mt-1">
+                              ₪{formatMoney(staffPaidFromVenue)}
+                            </p>
+                          </div>
+
+                          <div className="rounded-2xl bg-white border border-[#eadfce] p-3">
+                            <p className="text-[#8b7b68] text-xs">
+                              ירד מהסכום הכולל כי לא הספיק באולם
+                            </p>
+                            <p className="text-[#3f3327] font-bold mt-1">
+                              ₪{formatMoney(staffPaidFromFullAmount)}
+                            </p>
+                          </div>
+
+                          <div className="rounded-2xl bg-white border border-[#eadfce] p-3">
+                            <p className="text-[#8b7b68] text-xs">
+                              נשאר מהתשלום באולם אחרי צוות
+                            </p>
+                            <p className="text-[#3f3327] font-bold mt-1">
+                              ₪{formatMoney(venuePaymentAfterStaff)}
+                            </p>
+                          </div>
+
+                          <div className="rounded-2xl bg-white border border-[#eadfce] p-3">
+                            <p className="text-[#8b7b68] text-xs">
+                              סך הכל אחרי תשלום צוות
+                            </p>
+                            <p className="text-[#3f3327] font-bold mt-1">
+                              ₪{formatMoney(totalAfterStaff)}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-[#eadfce] bg-white px-4 py-3 text-sm text-[#7a5a2f] leading-6">
+                          המקדמה בלבד תתווסף להכנסות החודשיות באדמין בחודש
+                          הרכישה. התשלום באולם נשמר בנפרד כתשלום עתידי ביום
+                          האירוע.
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </section>
 
