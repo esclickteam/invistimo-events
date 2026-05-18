@@ -1957,17 +1957,19 @@ const canOpenEventManagement =
       )}
 
       {showImportModal && (
-        <ImportExcelModal
-          invitationId={invitationId}
-          onClose={() => setShowImportModal(false)}
-          onSuccess={async () => {
-            await Promise.all([
-              loadGroups(invitationId),
-              loadGuests(),
-            ]);
-          }}
-        />
-      )}
+  <ImportExcelModal
+    invitationId={invitationId}
+    guestLimit={Number(user?.guests || 0)}
+    user={user}
+    onClose={() => setShowImportModal(false)}
+    onSuccess={async () => {
+      await Promise.all([
+        loadGroups(invitationId),
+        loadGuests(),
+      ]);
+    }}
+  />
+)}
 
       <DemoToast
         open={showDemoToast}

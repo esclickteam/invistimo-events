@@ -22,14 +22,18 @@ const RSVP_MAP = {
 ============================================================ */
 function normalizeTableNumber(value) {
   if (value === null || value === undefined || value === "") return null;
+
   const onlyDigits = String(value).replace(/[^\d]/g, "").trim();
+
   if (!onlyDigits) return null;
+
   const num = Number(onlyDigits);
+
   return Number.isFinite(num) ? num : null;
 }
 
 /* ============================================================
-   🔥 עזר: ניקוי טקסט (עברית, רווחים, תווים נסתרים)
+   עזר: ניקוי טקסט (עברית, רווחים, תווים נסתרים)
 ============================================================ */
 function normalizeText(value) {
   return String(value ?? "")
@@ -40,7 +44,27 @@ function normalizeText(value) {
     .trim();
 }
 
-export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
+/* ============================================================
+   עזר: מספר תקין
+============================================================ */
+function normalizeNumber(value) {
+  const num = Number(value || 0);
+  return Number.isFinite(num) ? num : 0;
+}
+
+export default function ImportExcelModal({
+  invitationId,
+  onClose,
+  onSuccess,
+
+  // זה צריך להגיע מהשדה user.guests
+  guestLimit = 0,
+
+  // תמיכה לאחור במקרה שקראת לזה אחרת באב
+  allowedRecords = 0,
+  maxRecords = 0,
+  user = null,
+}) {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -49,9 +73,34 @@ export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
 
   const selectedFileName = useMemo(() => file?.name || "", [file]);
 
+  const recordsLimit = useMemo(() => {
+    return normalizeNumber(
+      guestLimit ||
+        allowedRecords ||
+        maxRecords ||
+        user?.guests ||
+        0
+    );
+  }, [guestLimit, allowedRecords, maxRecords, user?.guests]);
+
   const handleFileChange = (e) => {
     setSummary(null);
     setFile(e.target.files?.[0] || null);
+  };
+
+  const showLimitError = ({ limit, incomingCount }) => {
+    const msg = `לא ניתן להעלות את הקובץ. החבילה שלך מאפשרת עד ${limit} רשומות בלבד, ובקובץ נמצאו ${incomingCount} רשומות.`;
+
+    alert(msg);
+
+    setSummary({
+      type: "error",
+      text: msg,
+      usage: {
+        limit,
+        incomingCount,
+      },
+    });
   };
 
   const handleImport = async () => {
@@ -75,7 +124,7 @@ export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
 
       /* ============================================================
-         🔥 שינוי חשוב: קריאה מדויקת של האקסל
+         קריאה מדויקת של האקסל
       ============================================================ */
       const rawJson = XLSX.utils.sheet_to_json(sheet, {
         defval: "",
@@ -139,7 +188,7 @@ export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
             // RSVP תקני
             rsvp: RSVP_MAP[rawStatus] || "pending",
 
-            // כמות מוזמנים לשורה (מינימום 1)
+            // כמות מוזמנים בתוך הרשומה - לא קשור למגבלת הרשומות
             guestsCount: Math.max(
               1,
               Number(row["מוזמנים"] ?? row["כמות אורחים"] ?? 1) || 1
@@ -163,6 +212,25 @@ export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
         return;
       }
 
+      /* ============================================================
+         בדיקת מגבלת רשומות לפי user.guests לפני שליחה לשרת
+         guests.length = מספר רשומות באקסל
+      ============================================================ */
+      const incomingRecordsCount = guests.length;
+
+      console.log("📌 EXCEL RECORD LIMIT CHECK:", {
+        recordsLimit,
+        incomingRecordsCount,
+      });
+
+      if (recordsLimit > 0 && incomingRecordsCount > recordsLimit) {
+        showLimitError({
+          limit: recordsLimit,
+          incomingCount: incomingRecordsCount,
+        });
+        return;
+      }
+
       const res = await fetch("/api/guests/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -172,28 +240,69 @@ export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
       const result = await res.json();
       console.log("📦 Import result:", result);
 
-      // טיפול שגיאה מפורט לפי השרת החדש
+      /* ============================================================
+         טיפול שגיאות מהשרת
+         כולל הגבלה לפי user.guests בצד שרת
+      ============================================================ */
       if (!res.ok || !result?.success) {
-        if (res.status === 409 && result?.code === "GUEST_LIMIT_REACHED") {
+        const isLimitError =
+          result?.code === "GUEST_LIMIT_REACHED" ||
+          result?.code === "GUEST_RECORD_LIMIT_EXCEEDED" ||
+          result?.error === "GUEST_LIMIT_REACHED" ||
+          result?.error === "GUEST_RECORD_LIMIT_EXCEEDED";
+
+        if ((res.status === 409 || res.status === 403) && isLimitError) {
+          const serverLimit =
+            result?.usage?.limit ??
+            result?.allowedRecords ??
+            result?.maxRecords ??
+            recordsLimit ??
+            "-";
+
+          const serverIncoming =
+            result?.usage?.incomingCount ??
+            result?.incomingRecordsCount ??
+            result?.count ??
+            incomingRecordsCount;
+
           const limitMsg =
-            result?.error ||
-            `הגעת למכסת הרשומות (${result?.usage?.limit ?? "-"})`;
+            result?.message ||
+            result?.errorMessage ||
+            `לא ניתן להעלות את הקובץ. החבילה שלך מאפשרת עד ${serverLimit} רשומות בלבד, ובקובץ נמצאו ${serverIncoming} רשומות.`;
+
           alert(limitMsg);
+
           setSummary({
             type: "error",
             text: limitMsg,
-            usage: result?.usage || null,
+            usage: result?.usage || {
+              limit: serverLimit,
+              incomingCount: serverIncoming,
+            },
           });
+
           return;
         }
 
-        const errMsg = result?.error || "שגיאה בייבוא הקובץ";
+        const errMsg =
+          result?.message ||
+          result?.error ||
+          "שגיאה בייבוא הקובץ";
+
         alert(errMsg);
-        setSummary({ type: "error", text: errMsg, usage: result?.usage || null });
+
+        setSummary({
+          type: "error",
+          text: errMsg,
+          usage: result?.usage || null,
+        });
+
         return;
       }
 
-      // הצלחה
+      /* ============================================================
+         הצלחה
+      ============================================================ */
       const count = Number(result?.count || 0);
       const skippedByLimit = Number(result?.skippedByLimit || 0);
       const usage = result?.usage || null;
@@ -202,12 +311,24 @@ export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
         const msg =
           result?.message ||
           `יובאו ${count} מוזמנים. ${skippedByLimit} לא יובאו בגלל מגבלת מכסה.`;
+
         alert(`⚠️ ${msg}`);
-        setSummary({ type: "partial", text: msg, usage });
+
+        setSummary({
+          type: "partial",
+          text: msg,
+          usage,
+        });
       } else {
         const msg = result?.message || `✅ יובאו ${count} מוזמנים בהצלחה`;
+
         alert(msg);
-        setSummary({ type: "success", text: msg, usage });
+
+        setSummary({
+          type: "success",
+          text: msg,
+          usage,
+        });
       }
 
       await onSuccess?.();
@@ -215,7 +336,12 @@ export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
     } catch (err) {
       console.error("❌ Excel Error:", err);
       alert("שגיאה בקריאת הקובץ");
-      setSummary({ type: "error", text: "שגיאה בקריאת הקובץ", usage: null });
+
+      setSummary({
+        type: "error",
+        text: "שגיאה בקריאת הקובץ",
+        usage: null,
+      });
     } finally {
       setLoading(false);
     }
@@ -495,6 +621,24 @@ export default function ImportExcelModal({ invitationId, onClose, onSuccess }) {
                 <span className="shrink-0 rounded-full bg-green-50 px-3 py-1 text-xs font-bold text-green-700">
                   מוכן לייבוא
                 </span>
+              </div>
+            ) : null}
+
+            {recordsLimit > 0 ? (
+              <div
+                className="
+                  mt-4 rounded-2xl
+                  border border-[#EFE2CF]
+                  bg-white
+                  px-4 py-3
+                  text-sm font-semibold leading-6 text-[#7A6A59]
+                "
+              >
+                החבילה מאפשרת עד{" "}
+                <span className="font-black text-[#3E2D20]">
+                  {recordsLimit}
+                </span>{" "}
+                רשומות באקסל.
               </div>
             ) : null}
 
