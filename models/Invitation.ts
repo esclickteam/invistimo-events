@@ -238,10 +238,10 @@ const InvitationSchema = new Schema(
     },
 
     orientation: {
-      type: String,
-      enum: ["portrait", "landscape"],
-      default: "portrait",
-    },
+  type: String,
+  enum: ["portrait", "landscape", "square"],
+  default: "portrait",
+},
 
     previewImage: {
       type: String,
