@@ -1390,7 +1390,7 @@ function EditUserModal({
 }) {
   const [saving, setSaving] = useState(false);
 
-  const [deletingGuests, setDeletingGuests] = useState(false);
+  const [deletingInvitation, setDeletingInvitation] = useState(false);
 
   const [venueSeatingService, setVenueSeatingService] =
   useState<VenueSeatingServiceForm>(getVenueSeatingServiceInitial(user));
@@ -1442,47 +1442,54 @@ function EditUserModal({
     }
   }
 
-  async function deleteAllGuestsForUser() {
+  async function deleteInvitationForUser() {
+  if (!user.invitationId) {
+    alert("לא נמצאה הזמנה למחיקה למשתמש הזה");
+    return;
+  }
+
   const confirmed = confirm(
-    `האם למחוק את כל המוזמנים של ${user.name || user.email}? פעולה זו אינה ניתנת לשחזור.`
+    `האם למחוק את ההזמנה של ${user.name || user.email}?\n\nהפעולה תמחק את ההזמנה ואת כל המוזמנים והקבוצות המשויכים אליה.`
   );
 
   if (!confirmed) return;
 
   const secondConfirm = confirm(
-    "בטוחה? כל רשימת המוזמנים של המשתמש תימחק לצמיתות."
+    "אישור סופי: ההזמנה תימחק לצמיתות ולא ניתן יהיה לשחזר אותה.\n\nהמשתמש והאירוע לא יימחקו."
   );
 
   if (!secondConfirm) return;
 
   try {
-    setDeletingGuests(true);
+    setDeletingInvitation(true);
 
-    const res = await fetch("/api/admin/guests/delete-all", {
-  method: "DELETE",
-  credentials: "include",
-  headers: {
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({
-    userId: user._id,
-    invitationId: user.invitationId,
-  }),
-});
+    const res = await fetch("/api/admin/invitations/delete", {
+      method: "DELETE",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        userId: user._id,
+        invitationId: user.invitationId,
+      }),
+    });
 
     const data = await res.json().catch(() => null);
 
     if (!res.ok || data?.success === false) {
-      alert(data?.message || "מחיקת המוזמנים נכשלה");
+      alert(data?.message || "מחיקת ההזמנה נכשלה");
       return;
     }
 
-    alert(`נמחקו ${data?.deletedCount || 0} מוזמנים בהצלחה`);
+    alert(data?.message || "ההזמנה נמחקה בהצלחה");
+
+    onSaved();
   } catch (err) {
     console.error(err);
-    alert("אירעה שגיאה במחיקת המוזמנים");
+    alert("אירעה שגיאה במחיקת ההזמנה");
   } finally {
-    setDeletingGuests(false);
+    setDeletingInvitation(false);
   }
 }
 
@@ -1582,46 +1589,46 @@ function EditUserModal({
     <Trash2 size={20} className="text-red-600" />
 
     <h3 className="text-lg font-black text-red-700">
-      מחיקת מוזמנים
-    </h3>
-  </div>
+  מחיקת הזמנה
+</h3>
+</div>
 
-  <p className="text-sm font-bold leading-7 text-red-700">
-    פעולה זו תמחק את כל המוזמנים של המשתמש הזה בלבד. הפעולה לא מוחקת את המשתמש,
-    לא מוחקת את האירוע ולא ניתנת לשחזור.
-  </p>
+<p className="text-sm font-bold leading-7 text-red-700">
+  פעולה זו תמחק את ההזמנה של המשתמש ואת כל המוזמנים והקבוצות המשויכים אליה.
+  הפעולה לא מוחקת את המשתמש, לא מוחקת את האירוע ולא ניתנת לשחזור.
+</p>
 
-  <button
-    type="button"
-    onClick={deleteAllGuestsForUser}
-    disabled={deletingGuests}
-    className="
-      mt-4
-      flex h-11 items-center justify-center gap-2
-      rounded-2xl
-      bg-red-600
-      px-5
-      text-sm font-black
-      text-white
-      shadow-sm
-      transition
-      hover:bg-red-700
-      disabled:cursor-not-allowed
-      disabled:opacity-50
-    "
-  >
-    {deletingGuests ? (
-      <>
-        <Loader2 className="animate-spin" size={17} />
-        מוחק מוזמנים...
-      </>
-    ) : (
-      <>
-        <Trash2 size={17} />
-        מחיקת כל המוזמנים
-      </>
-    )}
-  </button>
+<button
+  type="button"
+  onClick={deleteInvitationForUser}
+  disabled={deletingInvitation || !user.invitationId}
+  className="
+    mt-4
+    flex h-11 items-center justify-center gap-2
+    rounded-2xl
+    bg-red-600
+    px-5
+    text-sm font-black
+    text-white
+    shadow-sm
+    transition
+    hover:bg-red-700
+    disabled:cursor-not-allowed
+    disabled:opacity-50
+  "
+>
+  {deletingInvitation ? (
+    <>
+      <Loader2 className="animate-spin" size={17} />
+      מוחק הזמנה...
+    </>
+  ) : (
+    <>
+      <Trash2 size={17} />
+      מחיקת ההזמנה
+    </>
+  )}
+</button>
 </section>
 
         <section className="grid grid-cols-1 gap-5 md:grid-cols-2">
