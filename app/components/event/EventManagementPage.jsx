@@ -42,26 +42,20 @@ export default function EventManagementPage() {
     <div dir="rtl" className="w-full overflow-hidden bg-[#F8F2E8] text-right">
       {/* HERO */}
       <section className="relative min-h-[690px] overflow-hidden bg-[#F8F2E8]">
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{
-            backgroundImage:
-              "url('https://images.unsplash.com/photo-1525268771113-32d9e9021a97?q=90&w=2400&auto=format&fit=crop')",
-          }}
-        />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#FFFDF8] via-[#F8F2E8] to-[#F8F2E8]" />
 
-        <div className="absolute inset-0 bg-gradient-to-b from-[#FFFDF8]/92 via-[#F8F2E8]/96 to-[#F8F2E8]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,#C39A3B_0%,transparent_30%)] opacity-20" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,#FFFFFF_0%,transparent_36%)] opacity-80" />
+        <div className="absolute -right-40 top-10 h-[520px] w-[520px] rounded-full border border-[#D7BB7A]/25" />
+        <div className="absolute -right-20 top-28 h-[360px] w-[360px] rounded-full border border-[#D7BB7A]/20" />
+        <div className="absolute -left-32 bottom-0 h-[520px] w-[520px] rounded-full bg-[#FFFDF8]/70 blur-3xl" />
+        <div className="absolute left-16 top-24 h-72 w-72 rounded-full bg-[#EFE2CF]/55 blur-3xl" />
+        <div className="absolute right-1/2 top-10 h-80 w-80 translate-x-1/2 rounded-full bg-[#F4E2B8]/30 blur-3xl" />
 
-        <div className="absolute -right-24 top-10 h-[420px] w-[420px] rounded-full border border-[#D7BB7A]/30" />
-        <div className="absolute -right-10 top-28 h-[280px] w-[280px] rounded-full border border-[#D7BB7A]/25" />
-        <div className="absolute bottom-0 left-0 h-96 w-96 rounded-full bg-[#E7D7B7]/40 blur-3xl" />
-        <div className="absolute top-20 left-20 h-64 w-64 rounded-full bg-[#FFF9ED]/80 blur-3xl" />
+        <div className="absolute bottom-0 left-0 right-0 h-40 bg-[linear-gradient(120deg,transparent_0%,#FFFFFF70_45%,transparent_100%)]" />
+        <div className="absolute bottom-0 left-0 right-0 h-28 bg-[linear-gradient(to_top,#FFFDF8_0%,transparent_100%)]" />
 
         <div className="relative z-10 mx-auto flex min-h-[690px] max-w-7xl items-center px-4 py-24">
           <div className="mx-auto max-w-5xl text-center">
-            <div className="mx-auto mb-7 inline-flex items-center gap-2 rounded-full border border-[#D7BB7A]/60 bg-[#FFFDF7]/80 px-5 py-2 text-sm font-bold text-[#A77A25] shadow-sm backdrop-blur">
+            <div className="mx-auto mb-7 inline-flex items-center gap-2 rounded-full border border-[#D7BB7A]/60 bg-[#FFFDF7]/85 px-5 py-2 text-sm font-bold text-[#A77A25] shadow-sm backdrop-blur">
               <Sparkles size={17} />
               ניהול אירוע חכם, מסודר ויוקרתי
             </div>
@@ -110,7 +104,7 @@ export default function EventManagementPage() {
                 onClick={scrollToContact}
                 className="
                   inline-flex min-w-[210px] items-center justify-center gap-2
-                  rounded-2xl border border-[#D8C6A0] bg-[#FFFDF8]/85
+                  rounded-2xl border border-[#D8C6A0] bg-[#FFFDF8]/90
                   px-8 py-4 text-base font-extrabold text-[#2F2F2F]
                   shadow-lg shadow-[#B8892D]/8 backdrop-blur
                   transition hover:-translate-y-0.5 hover:bg-white
@@ -139,13 +133,13 @@ export default function EventManagementPage() {
       </section>
 
       {/* INTRO */}
-      <section className="relative bg-[#F8F2E8] px-4 py-20">
+      <section className="relative bg-[#FFFDF8] px-4 py-20">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,#D7BB7A_0%,transparent_36%)] opacity-20" />
 
         <div className="relative mx-auto max-w-6xl">
           <div className="grid items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]">
             <div>
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#D7BB7A]/55 bg-[#FFFDF8]/75 px-4 py-2 text-sm font-bold text-[#A77A25] shadow-sm">
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#D7BB7A]/55 bg-[#FFFDF8]/85 px-4 py-2 text-sm font-bold text-[#A77A25] shadow-sm">
                 <Crown size={16} />
                 אירוע מסודר מתחיל בניהול נכון
               </div>
@@ -166,7 +160,7 @@ export default function EventManagementPage() {
               </p>
             </div>
 
-            <div className="rounded-[2rem] border border-[#E2D0AA] bg-[#FFFDF8]/70 p-6 shadow-2xl shadow-[#B8892D]/10 backdrop-blur">
+            <div className="rounded-[2rem] border border-[#E2D0AA] bg-[#FFFDF8]/80 p-6 shadow-2xl shadow-[#B8892D]/10 backdrop-blur">
               <div className="rounded-[1.5rem] bg-[#FFFDF8] p-6 shadow-xl shadow-[#B8892D]/5">
                 <h3 className="mb-5 text-xl font-black text-[#2F2F2F]">
                   מה אתם מקבלים?
@@ -186,7 +180,7 @@ export default function EventManagementPage() {
       </section>
 
       {/* MAIN SERVICE CARDS */}
-      <section className="bg-gradient-to-b from-[#F8F2E8] via-[#FFFDF8] to-[#EFE2CF] px-4 py-20">
+      <section className="bg-gradient-to-b from-[#FFFDF8] via-[#F8F2E8] to-[#FFFDF8] px-4 py-20">
         <div className="mx-auto max-w-6xl">
           <div className="mx-auto mb-12 max-w-3xl text-center">
             <p className="mb-3 text-sm font-black tracking-[0.25em] text-[#A77A25]">
@@ -520,7 +514,7 @@ export default function EventManagementPage() {
 function DemoChoiceModal({ onClose, onRsvpDemo, onEventManagementDemo }) {
   return (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/35 px-4 py-8 backdrop-blur-sm"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/25 px-4 py-8 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
@@ -554,7 +548,7 @@ function DemoChoiceModal({ onClose, onRsvpDemo, onEventManagementDemo }) {
 
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <DemoCard
-            icon="👥"
+            icon={<Users size={30} />}
             title="אישורי הגעה והושבה"
             text="דמו למערכת הזמנות, אישורי הגעה, מוזמנים, שולחנות וסידורי הושבה."
             buttonText="כניסה לדמו"
@@ -563,7 +557,7 @@ function DemoChoiceModal({ onClose, onRsvpDemo, onEventManagementDemo }) {
           />
 
           <DemoCard
-            icon="✨"
+            icon={<LayoutDashboard size={30} />}
             title="ניהול והפקת אירוע"
             text="דמו לניהול ספקים, תקציב, יומן, לוגיסטיקה, אלכוהול ומתנות מהאירוע."
             buttonText="כניסה לדמו"
@@ -580,11 +574,13 @@ function DemoCard({ icon, title, text, buttonText, variant, onClick }) {
   const isGold = variant === "gold";
 
   return (
-    <div className="rounded-[2rem] border border-[#E2D0AA] bg-white p-7 text-center shadow-xl shadow-[#B8892D]/8">
+    <div className="rounded-[2rem] border border-[#E2D0AA] bg-[#FFFDF8] p-7 text-center shadow-xl shadow-[#B8892D]/8">
       <div
         className={[
-          "mx-auto mb-7 flex h-14 w-full items-center justify-center rounded-full text-2xl",
-          isGold ? "bg-[#EFE2CF]" : "bg-[#F8F2E8]",
+          "mx-auto mb-7 flex h-16 w-full items-center justify-center rounded-full border text-[#A77A25]",
+          isGold
+            ? "border-[#D8C6A0] bg-[#EFE2CF]"
+            : "border-[#D8C6A0] bg-[#F8F2E8]",
         ].join(" ")}
       >
         {icon}
