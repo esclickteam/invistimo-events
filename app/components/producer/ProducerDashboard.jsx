@@ -14,7 +14,6 @@ import {
   ArrowUpRight,
   CalendarClock,
   CalendarDays,
-  CheckCircle2,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -38,7 +37,6 @@ import {
 
 import { motion } from "framer-motion";
 
-import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import CreateClientModal from "@/app/components/producer/CreateClientModal";
 
@@ -310,6 +308,26 @@ function getTotalGuests(client) {
 
 function getApprovedCount(client) {
   return getRsvpStats(client).approvedCount;
+}
+
+function getRsvpTotalCount(client) {
+  const stats =
+    client?.rsvpStats ||
+    client?.event?.rsvpStats ||
+    client?.invitation?.rsvpStats ||
+    null;
+
+  const directTotal = safeNumber(stats?.rsvpTotalCount);
+
+  if (directTotal) {
+    return directTotal;
+  }
+
+  return (
+    safeNumber(stats?.approvedCount) +
+    safeNumber(stats?.pendingRecords) +
+    safeNumber(stats?.declinedRecords)
+  );
 }
 
 function getEventStatus(client) {
@@ -840,8 +858,9 @@ export default function ProducerDashboard() {
         },
         credentials: "include",
         body: JSON.stringify({
-          phone,
-        }),
+  clientId,
+  phone,
+}),
       });
 
       const data = await res.json().catch(() => null);
@@ -1523,11 +1542,11 @@ export default function ProducerDashboard() {
                   const eventStatus =
                     getEventStatus(client);
 
-                  const totalGuests =
-                    getTotalGuests(client);
+                  const totalGuests = getTotalGuests(client);
 
-                  const approvedCount =
-                    getApprovedCount(client);
+const approvedCount = getApprovedCount(client);
+
+const rsvpTotalCount = getRsvpTotalCount(client);
 
                   return (
                     <tr
@@ -1563,10 +1582,6 @@ export default function ProducerDashboard() {
                           <div>
                             <div className="font-black text-[#1E1B2E]">
                               {client.name || "ללא שם"}
-                            </div>
-
-                            <div className="text-xs text-gray-400 mt-1">
-                              {client._id}
                             </div>
                           </div>
                         </div>
@@ -1642,41 +1657,39 @@ export default function ProducerDashboard() {
                       </td>
 
                       <td className="p-4">
-                        {totalGuests ? (
-                          <div className="min-w-[120px]">
-                            <div className="flex items-center justify-between text-xs font-black text-gray-400 mb-2">
-                              <span>
-                                {approvedCount} / {totalGuests}
-                              </span>
-                              <span>
-                                {Math.round(
-                                  (approvedCount / totalGuests) *
-                                    100
-                                )}
-                                %
-                              </span>
-                            </div>
+  {rsvpTotalCount ? (
+    <div className="min-w-[120px]">
+      <div className="flex items-center justify-between text-xs font-black text-gray-400 mb-2">
+        <span>
+          {approvedCount} / {rsvpTotalCount}
+        </span>
 
-                            <div className="h-2 rounded-full bg-[#F5E7DC] overflow-hidden">
-                              <div
-                                className="h-full rounded-full bg-[#8B5CF6]"
-                                style={{
-                                  width: `${Math.min(
-                                    100,
-                                    Math.round(
-                                      (approvedCount /
-                                        totalGuests) *
-                                        100
-                                    )
-                                  )}%`,
-                                }}
-                              />
-                            </div>
-                          </div>
-                        ) : (
-                          <span className="text-gray-400">—</span>
-                        )}
-                      </td>
+        <span>
+          {Math.round(
+            (approvedCount / rsvpTotalCount) * 100
+          )}
+          %
+        </span>
+      </div>
+
+      <div className="h-2 rounded-full bg-[#F5E7DC] overflow-hidden">
+        <div
+          className="h-full rounded-full bg-[#8B5CF6]"
+          style={{
+            width: `${Math.min(
+              100,
+              Math.round(
+                (approvedCount / rsvpTotalCount) * 100
+              )
+            )}%`,
+          }}
+        />
+      </div>
+    </div>
+  ) : (
+    <span className="text-gray-400">—</span>
+  )}
+</td>
 
                       <td className="p-4">
                         <span

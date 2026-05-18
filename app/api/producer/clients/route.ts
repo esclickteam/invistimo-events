@@ -319,8 +319,16 @@ export async function GET(req: NextRequest) {
 
     /* =========================
        Guests stats
-       totalGuests = סך מוזמנים לפי כמות בתוך כל רשומה
-       approvedCount = כמה סימנו מגיעים לפי rsvp yes
+
+       totalGuests:
+       סך מוזמנים מקורי לפי כמות הרשומה.
+
+       approvedCount:
+       כמה מגיעים בפועל לפי הכמות שהרשומה סימנה שמגיעה.
+       אם אין שדה כמות מגיעים נפרד, נופל ל-guestsCount.
+
+       pendingRecords / declinedRecords:
+       לפי מספר רשומות בלבד, לא לפי כמות מוזמנים.
     ========================= */
     const guestStats =
       invitationIds.length > 0
@@ -333,24 +341,115 @@ export async function GET(req: NextRequest) {
               },
             },
             {
+              $addFields: {
+                rsvpNormalized: {
+                  $toLower: {
+                    $trim: {
+                      input: {
+                        $toString: {
+                          $ifNull: ["$rsvp", ""],
+                        },
+                      },
+                    },
+                  },
+                },
+
+                invitedAmount: {
+                  $ifNull: [
+                    "$guestsCount",
+                    {
+                      $ifNull: [
+                        "$guestCount",
+                        {
+                          $ifNull: [
+                            "$amount",
+                            {
+                              $ifNull: ["$count", 1],
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+
+                approvedAmount: {
+                  $ifNull: [
+                    "$approvedCount",
+                    {
+                      $ifNull: [
+                        "$approvedGuests",
+                        {
+                          $ifNull: [
+                            "$comingCount",
+                            {
+                              $ifNull: [
+                                "$attendingCount",
+                                {
+                                  $ifNull: [
+                                    "$confirmedCount",
+                                    {
+                                      $ifNull: [
+                                        "$numberOfComingGuests",
+                                        {
+                                          $ifNull: [
+                                            "$numberOfApprovedGuests",
+                                            {
+                                              $ifNull: [
+                                                "$rsvpCount",
+                                                {
+                                                  $ifNull: ["$guestsCount", 1],
+                                                },
+                                              ],
+                                            },
+                                          ],
+                                        },
+                                      ],
+                                    },
+                                  ],
+                                },
+                              ],
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              },
+            },
+            {
               $group: {
                 _id: "$invitationId",
 
                 totalGuests: {
-                  $sum: {
-                    $ifNull: ["$guestsCount", 1],
-                  },
+                  $sum: "$invitedAmount",
                 },
 
                 approvedCount: {
                   $sum: {
                     $cond: [
                       {
-                        $eq: ["$rsvp", "yes"],
+                        $in: [
+                          "$rsvpNormalized",
+                          [
+                            "yes",
+                            "approved",
+                            "confirmed",
+                            "coming",
+                            "attending",
+                            "arriving",
+                            "מגיע",
+                            "מגיעה",
+                            "מאשר",
+                            "מאשרת",
+                            "אישר",
+                            "אישרה",
+                            "אישרו",
+                          ],
+                        ],
                       },
-                      {
-                        $ifNull: ["$guestsCount", 1],
-                      },
+                      "$approvedAmount",
                       0,
                     ],
                   },
@@ -360,11 +459,9 @@ export async function GET(req: NextRequest) {
                   $sum: {
                     $cond: [
                       {
-                        $or: [
-                          { $eq: ["$rsvp", null] },
-                          { $eq: ["$rsvp", ""] },
-                          { $eq: ["$rsvp", "pending"] },
-                          { $not: ["$rsvp"] },
+                        $in: [
+                          "$rsvpNormalized",
+                          ["", "pending", "waiting", "awaiting", "בהמתנה"],
                         ],
                       },
                       1,
@@ -377,7 +474,20 @@ export async function GET(req: NextRequest) {
                   $sum: {
                     $cond: [
                       {
-                        $eq: ["$rsvp", "no"],
+                        $in: [
+                          "$rsvpNormalized",
+                          [
+                            "no",
+                            "declined",
+                            "not coming",
+                            "not_attending",
+                            "not attending",
+                            "לא מגיע",
+                            "לא מגיעה",
+                            "לא יגיע",
+                            "לא יגיעו",
+                          ],
+                        ],
                       },
                       1,
                       0,
@@ -411,6 +521,10 @@ export async function GET(req: NextRequest) {
           approvedCount: guest.approvedCount || 0,
           pendingRecords: guest.pendingRecords || 0,
           declinedRecords: guest.declinedRecords || 0,
+          rsvpTotalCount:
+            (guest.approvedCount || 0) +
+            (guest.pendingRecords || 0) +
+            (guest.declinedRecords || 0),
           arrivedCount: guest.arrivedCount || 0,
           actualArrivedCount: guest.actualArrivedCount || 0,
         },
@@ -435,6 +549,7 @@ export async function GET(req: NextRequest) {
             approvedCount: 0,
             pendingRecords: 0,
             declinedRecords: 0,
+            rsvpTotalCount: 0,
             arrivedCount: 0,
             actualArrivedCount: 0,
           },
@@ -450,6 +565,7 @@ export async function GET(req: NextRequest) {
       let approvedCount = 0;
       let pendingRecords = 0;
       let declinedRecords = 0;
+      let rsvpTotalCount = 0;
       let arrivedCount = 0;
       let actualArrivedCount = 0;
 
@@ -462,6 +578,7 @@ export async function GET(req: NextRequest) {
         approvedCount += stats.approvedCount;
         pendingRecords += stats.pendingRecords;
         declinedRecords += stats.declinedRecords;
+        rsvpTotalCount += stats.rsvpTotalCount;
         arrivedCount += stats.arrivedCount;
         actualArrivedCount += stats.actualArrivedCount;
       }
@@ -530,9 +647,18 @@ export async function GET(req: NextRequest) {
 
       const rsvpStats = {
         totalGuests,
+
+        // מגיעים — לפי כמות שהרשומה סימנה שמגיעה
         approvedCount,
+
+        // לפי רשומות בלבד
         pendingRecords,
         declinedRecords,
+
+        // סך אישורי הגעה למסך המפיק:
+        // מגיעים לפי כמות + לא מגיע/בהמתנה לפי רשומות
+        rsvpTotalCount,
+
         arrivedCount,
         actualArrivedCount,
       };
@@ -559,6 +685,7 @@ export async function GET(req: NextRequest) {
           approvedCount,
           pendingRecords,
           declinedRecords,
+          rsvpTotalCount,
           arrivedCount,
           actualArrivedCount,
 
