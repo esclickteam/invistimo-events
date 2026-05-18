@@ -13,6 +13,7 @@ import {
   LockKeyhole,
   Sparkles,
   ChevronLeft,
+  ClipboardList,
 } from "lucide-react";
 
 type Props = {
@@ -114,6 +115,16 @@ export default function DashboardMobileMenu({
       badge: "Seating",
       onClick: () =>
         isDemo ? go("/try/dashboard/seating") : go("/dashboard/seating"),
+    },
+    {
+      title: "ניהול אירוע",
+      subtitle: "משימות, ספקים, לו״ז, תשלומים ומעקב מלא",
+      icon: ClipboardList,
+      badge: "Management",
+      onClick: () =>
+        isDemo
+          ? go("/try/dashboard/event-management")
+          : go("/dashboard/event-management"),
     },
     {
       title: "שליחת הודעות",
