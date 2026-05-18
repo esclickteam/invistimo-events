@@ -24,6 +24,18 @@ type Props = {
   totalCount: number;
   displayCount: number;
 
+  /**
+   * מגבלת רשומות מהחבילה.
+   * מגיע מהשדה user.guests.
+   */
+  recordsLimit?: number;
+
+  /**
+   * כמה רשומות כבר קיימות בפועל.
+   * בדרך כלל זה guests.length.
+   */
+  usedRecordsCount?: number;
+
   onExportExcel: () => Promise<void> | void;
 
   onAddGuest: () => void;
@@ -41,6 +53,8 @@ export default function GuestsControls({
   setQuickFilter,
   totalCount,
   displayCount,
+  recordsLimit = 0,
+  usedRecordsCount,
   onExportExcel,
   onAddGuest,
   disabledAddGuest = false,
@@ -55,6 +69,16 @@ export default function GuestsControls({
     { key: "pending", label: "בהמתנה" },
     { key: "noTable", label: "בלי שולחן" },
   ];
+
+  const safeRecordsLimit = Number(recordsLimit || 0);
+  const safeUsedRecordsCount = Number(
+    usedRecordsCount ?? totalCount ?? 0
+  );
+
+  const remainingRecords =
+    safeRecordsLimit > 0
+      ? Math.max(0, safeRecordsLimit - safeUsedRecordsCount)
+      : null;
 
   return (
     <section
@@ -118,12 +142,48 @@ export default function GuestsControls({
               רשימת מוזמנים
             </h2>
 
-            <p className="mt-1 text-sm font-semibold text-[#8A7B69]">
-              מוצגים {displayCount} מתוך {totalCount} מוזמנים
-            </p>
+            <div className="mt-1 flex flex-col gap-1">
+              <p className="text-sm font-semibold text-[#8A7B69]">
+                מוצגים {displayCount} מתוך {totalCount} מוזמנים
+              </p>
+
+              {safeRecordsLimit > 0 && (
+                <p className="text-sm font-black text-[#8B5E34]">
+                  יתרת רשומות להעלאה:{" "}
+                  <span className="text-[#241A14]">
+                    {remainingRecords}
+                  </span>{" "}
+                  מתוך{" "}
+                  <span className="text-[#241A14]">
+                    {safeRecordsLimit}
+                  </span>
+                </p>
+              )}
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {safeRecordsLimit > 0 && (
+              <div
+                className="
+                  inline-flex
+                  h-[42px]
+                  items-center
+                  rounded-full
+                  border
+                  border-[#D9B46F]/45
+                  bg-[#FFF8ED]
+                  px-5
+                  text-sm
+                  font-black
+                  text-[#8B5E34]
+                  shadow-sm
+                "
+              >
+                נשארו {remainingRecords} רשומות
+              </div>
+            )}
+
             <button
               type="button"
               onClick={onExportExcel}

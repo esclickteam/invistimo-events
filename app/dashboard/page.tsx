@@ -1527,6 +1527,8 @@ const canOpenEventManagement =
   setQuickFilter={setQuickFilter}
   totalCount={guests.length}
   displayCount={displayGuests.length}
+  recordsLimit={Number(user?.guests || 0)}
+  usedRecordsCount={guests.length}
   onExportExcel={handleExportExcel}
   onAddGuest={() => setOpenAddModal(true)}
   disabledAddGuest={!invitation}
