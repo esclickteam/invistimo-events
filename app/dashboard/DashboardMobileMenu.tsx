@@ -13,6 +13,7 @@ import {
   LockKeyhole,
   Sparkles,
   ChevronLeft,
+  ClipboardList,
 } from "lucide-react";
 
 type Props = {
@@ -20,6 +21,7 @@ type Props = {
   onClose: () => void;
   invitationId?: string;
   invitationShareId?: string;
+  eventId?: string;
   isDemo?: boolean;
 };
 
@@ -28,6 +30,7 @@ export default function DashboardMobileMenu({
   onClose,
   invitationId,
   invitationShareId,
+  eventId,
   isDemo = false,
 }: Props) {
   const router = useRouter();
@@ -62,6 +65,20 @@ export default function DashboardMobileMenu({
       "_blank",
       "noopener,noreferrer"
     );
+  };
+
+  const openEventManagement = () => {
+    if (isDemo) {
+      go("/try/events/production?tab=overview");
+      return;
+    }
+
+    if (eventId) {
+      go(`/events/production?eventId=${eventId}&tab=overview`);
+      return;
+    }
+
+    go("/events/production?tab=overview");
   };
 
   const menuItems = [
@@ -114,6 +131,13 @@ export default function DashboardMobileMenu({
       badge: "Seating",
       onClick: () =>
         isDemo ? go("/try/dashboard/seating") : go("/dashboard/seating"),
+    },
+    {
+      title: "ניהול אירוע",
+      subtitle: "תמונת מצב, ספקים, לוגיסטיקה, לו״ז ומתנות",
+      icon: ClipboardList,
+      badge: "ניהול",
+      onClick: openEventManagement,
     },
     {
       title: "שליחת הודעות",
