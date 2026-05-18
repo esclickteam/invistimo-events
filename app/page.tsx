@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { useState } from "react";
 import {
   Users,
   Armchair,
@@ -15,7 +16,242 @@ import {
   Clock3,
   Sparkles,
   CheckCircle2,
+  X,
 } from "lucide-react";
+
+/* =====================================================
+   DEMO CHOICE MODAL
+===================================================== */
+function DemoChoiceModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div
+      dir="rtl"
+      className="
+        fixed inset-0 z-[9999]
+        flex items-center justify-center
+        bg-black/45 px-4
+        backdrop-blur-sm
+        print:hidden
+      "
+    >
+      <div
+        className="
+          relative
+          w-full max-w-2xl
+          overflow-hidden
+          rounded-[32px]
+          border border-[#D9BE80]/70
+          bg-[#FFFDF8]
+          p-6
+          shadow-[0_30px_90px_rgba(43,33,24,0.24)]
+        "
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          className="
+            absolute left-5 top-5
+            flex h-10 w-10 items-center justify-center
+            rounded-full
+            border border-[#E7D8BD]
+            bg-white
+            text-[#4A3A2A]
+            transition
+            hover:bg-[#FAF3E7]
+          "
+          aria-label="סגור בחירת דמו"
+        >
+          <X size={20} />
+        </button>
+
+        <div className="mb-6 pl-12">
+          <div
+            className="
+              mb-3 inline-flex items-center gap-2
+              rounded-full
+              border border-[#E7D8BD]
+              bg-white/80
+              px-4 py-2
+              text-xs font-black
+              text-[#9A6E24]
+            "
+          >
+            <Sparkles size={14} />
+            בחירת דמו
+          </div>
+
+          <h2 className="text-2xl font-black text-[#2B2118]">
+            איזה דמו תרצו לראות?
+          </h2>
+
+          <p className="mt-2 max-w-xl text-sm font-semibold leading-6 text-[#7A6A5E]">
+            אפשר לבחור בין מערכת אישורי הגעה והושבה לבין מערכת ניהול והפקת אירוע.
+          </p>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <Link
+            href="/try/dashboard"
+            onClick={onClose}
+            className="
+              group
+              rounded-[28px]
+              border border-[#E8DDD3]
+              bg-white
+              p-5
+              text-right
+              shadow-[0_12px_32px_rgba(91,65,26,0.08)]
+              transition
+              hover:-translate-y-1
+              hover:border-[#C9A45C]
+              hover:shadow-[0_20px_48px_rgba(91,65,26,0.13)]
+            "
+          >
+            <div
+              className="
+                mb-4 flex h-13 w-13 items-center justify-center
+                rounded-2xl
+                bg-[#F5E7DC]
+                text-2xl
+              "
+            >
+              👥
+            </div>
+
+            <h3 className="text-lg font-black text-[#2B2118]">
+              אישורי הגעה והושבה
+            </h3>
+
+            <p className="mt-2 text-sm font-semibold leading-6 text-[#7A6A5E]">
+              דמו למערכת הזמנות, אישורי הגעה, מוזמנים, שולחנות וסידורי הושבה.
+            </p>
+
+            <div
+              className="
+                mt-5 inline-flex rounded-2xl
+                bg-gradient-to-l from-[#B8862D] via-[#C9A45C] to-[#8B6220]
+                px-4 py-2
+                text-sm font-black text-white
+                transition
+                group-hover:scale-[1.02]
+              "
+            >
+              כניסה לדמו
+            </div>
+          </Link>
+
+          <Link
+            href="/try/event-management"
+            onClick={onClose}
+            className="
+              group
+              rounded-[28px]
+              border border-[#E8DDD3]
+              bg-white
+              p-5
+              text-right
+              shadow-[0_12px_32px_rgba(91,65,26,0.08)]
+              transition
+              hover:-translate-y-1
+              hover:border-[#C9A45C]
+              hover:shadow-[0_20px_48px_rgba(91,65,26,0.13)]
+            "
+          >
+            <div
+              className="
+                mb-4 flex h-13 w-13 items-center justify-center
+                rounded-2xl
+                bg-[#F4EDFF]
+                text-2xl
+              "
+            >
+              ✨
+            </div>
+
+            <h3 className="text-lg font-black text-[#2B2118]">
+              ניהול והפקת אירוע
+            </h3>
+
+            <p className="mt-2 text-sm font-semibold leading-6 text-[#7A6A5E]">
+              דמו לניהול ספקים, תקציב, יומן, לוגיסטיקה, אלכוהול ומתנות מהאירוע.
+            </p>
+
+            <div
+              className="
+                mt-5 inline-flex rounded-2xl
+                bg-[#2B2118]
+                px-4 py-2
+                text-sm font-black text-white
+                transition
+                group-hover:scale-[1.02]
+              "
+            >
+              כניסה לדמו
+            </div>
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =====================================================
+   DEMO BUTTON
+===================================================== */
+function DemoButton({
+  children,
+  variant = "gold",
+  className = "",
+}: {
+  children: React.ReactNode;
+  variant?: "gold" | "dark";
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+
+  const baseClass =
+    variant === "dark"
+      ? `
+        group inline-flex min-w-[240px]
+        items-center justify-center gap-3
+        rounded-full
+        bg-[#3F3A34]
+        px-10 py-4
+        text-[17px] font-extrabold
+        text-white
+        shadow-[0_18px_40px_rgba(63,58,52,0.20)]
+        transition
+        hover:-translate-y-0.5
+        hover:bg-[#2F2B27]
+      `
+      : `
+        group inline-flex min-w-[220px]
+        items-center justify-center gap-3
+        rounded-full
+        bg-gradient-to-l from-[#B8862D] via-[#C9A45C] to-[#8B6220]
+        px-9 py-4
+        text-[16px] font-extrabold
+        text-white
+        shadow-[0_18px_38px_rgba(184,134,45,0.26)]
+        transition
+        hover:-translate-y-0.5
+        hover:shadow-[0_22px_46px_rgba(184,134,45,0.34)]
+      `;
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className={`${baseClass} ${className}`}
+      >
+        {children}
+      </button>
+
+      {open && <DemoChoiceModal onClose={() => setOpen(false)} />}
+    </>
+  );
+}
 
 /* =====================================================
    HERO PHONE — CLEAN 3D VIDEO PHONE
@@ -424,14 +660,7 @@ function RealTimeShowcase() {
           </p>
         </motion.div>
 
-        <div
-          className="
-            relative mx-auto
-            max-w-[1320px]
-            pb-6
-          "
-        >
-          {/* תמונה מרכזית גדולה */}
+        <div className="relative mx-auto max-w-[1320px] pb-6">
           <motion.div
             initial={{ opacity: 0, y: 34, scale: 0.96 }}
             whileInView={{ opacity: 1, y: 0, scale: 1 }}
@@ -491,7 +720,6 @@ function RealTimeShowcase() {
             </div>
           </motion.div>
 
-          {/* תמונה שמאלית — רק תמונה */}
           <motion.div
             initial={{ opacity: 0, y: 28, scale: 0.96 }}
             whileInView={{ opacity: 1, y: 0, scale: 1 }}
@@ -533,7 +761,6 @@ function RealTimeShowcase() {
             </div>
           </motion.div>
 
-          {/* תמונה ימנית — רק תמונה */}
           <motion.div
             initial={{ opacity: 0, y: 28, scale: 0.96 }}
             whileInView={{ opacity: 1, y: 0, scale: 1 }}
@@ -575,7 +802,6 @@ function RealTimeShowcase() {
             </div>
           </motion.div>
 
-          {/* CTA */}
           <motion.div
             initial={{ opacity: 0, y: 26 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -590,28 +816,13 @@ function RealTimeShowcase() {
               lg:mt-[54px]
             "
           >
-            <Link
-              href="/try/dashboard"
-              className="
-                group inline-flex min-w-[240px]
-                items-center justify-center gap-3
-                rounded-full
-                bg-gradient-to-l from-[#B8862D] via-[#C9A45C] to-[#8B6220]
-                px-10 py-4
-                text-[17px] font-extrabold
-                text-white
-                shadow-[0_18px_38px_rgba(184,134,45,0.28)]
-                transition
-                hover:-translate-y-0.5
-                hover:shadow-[0_22px_46px_rgba(184,134,45,0.36)]
-              "
-            >
+            <DemoButton className="min-w-[240px] px-10 text-[17px]">
               לצפייה בדמו
               <ArrowLeft
                 size={18}
                 className="transition group-hover:-translate-x-1"
               />
-            </Link>
+            </DemoButton>
 
             <Link
               href="/contact"
@@ -635,7 +846,6 @@ function RealTimeShowcase() {
             </Link>
           </motion.div>
 
-          {/* יתרונות קטנים */}
           <div
             className="
               relative z-30
@@ -735,7 +945,6 @@ function FinalCTA() {
           "
         >
           <div className="grid items-center gap-10 lg:grid-cols-[1.05fr_0.95fr]">
-            {/* Text */}
             <div className="text-center lg:text-right">
               <div className="mb-5 inline-flex items-center gap-3 rounded-full border border-[#E3D1AE] bg-[#FFF9EF]/80 px-5 py-2.5 text-[#B8862D]">
                 <Sparkles size={18} />
@@ -778,28 +987,13 @@ function FinalCTA() {
               </p>
 
               <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-center lg:justify-start">
-                <Link
-                  href="/try/dashboard"
-                  className="
-                    group inline-flex min-w-[240px]
-                    items-center justify-center gap-3
-                    rounded-full
-                    bg-[#3F3A34]
-                    px-10 py-4
-                    text-[17px] font-extrabold
-                    text-white
-                    shadow-[0_18px_40px_rgba(63,58,52,0.20)]
-                    transition
-                    hover:-translate-y-0.5
-                    hover:bg-[#2F2B27]
-                  "
-                >
+                <DemoButton variant="dark">
                   התחילו דמו
                   <ArrowLeft
                     size={18}
                     className="transition group-hover:-translate-x-1"
                   />
-                </Link>
+                </DemoButton>
 
                 <Link
                   href="/pricing"
@@ -822,7 +1016,6 @@ function FinalCTA() {
               </div>
             </div>
 
-            {/* Trust card */}
             <div
               className="
                 rounded-[32px]
@@ -992,7 +1185,7 @@ export default function HomePage() {
                 md:text-[19px]
               "
             >
-               ניהול הזמנות, אישורי הגעה, הושבה וניהול אורחים
+              ניהול הזמנות, אישורי הגעה, הושבה וניהול אורחים
               <br className="hidden md:block" />
               בקלות, בסטייל וביעילות.
             </p>
@@ -1077,25 +1270,10 @@ export default function HomePage() {
                 sm:flex-row
               "
             >
-              <Link
-                href="/try/dashboard"
-                className="
-                  group inline-flex min-w-[220px]
-                  items-center justify-center gap-3
-                  rounded-full
-                  bg-gradient-to-l from-[#B8862D] via-[#C9A45C] to-[#8B6220]
-                  px-9 py-4
-                  text-[16px] font-extrabold
-                  text-white
-                  shadow-[0_18px_38px_rgba(184,134,45,0.26)]
-                  transition
-                  hover:-translate-y-0.5
-                  hover:shadow-[0_22px_46px_rgba(184,134,45,0.34)]
-                "
-              >
+              <DemoButton>
                 נסו דמו עכשיו
                 <span className="transition group-hover:-translate-x-1">←</span>
-              </Link>
+              </DemoButton>
 
               <Link
                 href="/pricing"
@@ -1327,25 +1505,10 @@ export default function HomePage() {
               ומשם מנהלים אישורי הגעה, הושבה והודעות במקום אחד.
             </p>
 
-            <Link
-              href="/try/dashboard"
-              className="
-                mt-9 inline-flex min-w-[250px]
-                items-center justify-center gap-3
-                rounded-full
-                bg-gradient-to-l from-[#B8862D] via-[#C9A45C] to-[#8B6220]
-                px-10 py-4
-                text-[17px] font-extrabold
-                text-white
-                shadow-[0_18px_38px_rgba(184,134,45,0.28)]
-                transition
-                hover:-translate-y-0.5
-                hover:shadow-[0_22px_46px_rgba(184,134,45,0.36)]
-              "
-            >
+            <DemoButton className="mt-9 min-w-[250px] px-10 text-[17px]">
               לראות איך זה עובד
               <ArrowLeft size={18} />
-            </Link>
+            </DemoButton>
 
             <BlockTwoPhone />
           </motion.div>
