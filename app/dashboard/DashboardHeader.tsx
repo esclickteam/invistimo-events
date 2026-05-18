@@ -31,36 +31,11 @@ export default function DashboardHeader({
 
   /* ============================================================
      Producer Header Override
-     ✅ חשוב:
-     ProducerDashboardHeader מחליף את ההידר הרגיל,
-     לכן חייבים להוסיף כאן כפתור המבורגר בנפרד במובייל.
   ============================================================ */
   if (role === "producer") {
     return (
       <div className="print:hidden">
         <ProducerDashboardHeader />
-
-        {/* Mobile Hamburger for Producer */}
-        <button
-          type="button"
-          onClick={onOpenMenu}
-          aria-label="פתיחת תפריט ניהול"
-          className="
-            fixed right-4 top-4 z-[80]
-            flex h-12 w-12 items-center justify-center
-            rounded-full
-            border border-[#D7BE88]
-            bg-white/90
-            text-[#3F3328]
-            shadow-[0_12px_28px_rgba(75,52,31,0.16)]
-            backdrop-blur-xl
-            transition
-            active:scale-95
-            md:hidden
-          "
-        >
-          <Menu size={27} strokeWidth={2.6} />
-        </button>
       </div>
     );
   }
@@ -118,7 +93,6 @@ export default function DashboardHeader({
           ========================= */}
           <div className="flex items-center justify-start gap-4">
             <button
-              type="button"
               onClick={onOpenMenu}
               className="
                 flex h-11 w-11 items-center justify-center
@@ -129,17 +103,15 @@ export default function DashboardHeader({
                 shadow-sm
                 transition
                 hover:bg-[#F8EEDB]
-                active:scale-95
                 md:hidden
               "
               aria-label="פתח תפריט דשבורד"
             >
-              <Menu size={25} strokeWidth={2.5} />
+              <Menu size={25} />
             </button>
 
             <div className="hidden md:flex items-center gap-3">
               <button
-                type="button"
                 onClick={() => router.push("/dashboard")}
                 className="
                   inline-flex items-center gap-2
@@ -158,7 +130,6 @@ export default function DashboardHeader({
               </button>
 
               <button
-                type="button"
                 onClick={() => router.push("/dashboard/contact")}
                 className="
                   inline-flex items-center gap-2
@@ -183,7 +154,6 @@ export default function DashboardHeader({
           ========================= */}
           <div className="flex justify-center" dir="ltr">
             <button
-              type="button"
               onClick={() => router.push("/dashboard")}
               aria-label="מעבר לדשבורד הראשי"
               className="
@@ -242,7 +212,6 @@ export default function DashboardHeader({
             </div>
 
             <button
-              type="button"
               onClick={handleLogout}
               className={`
                 inline-flex items-center gap-2
