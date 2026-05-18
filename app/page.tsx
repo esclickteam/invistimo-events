@@ -2,7 +2,8 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   Users,
   Armchair,
@@ -23,11 +24,26 @@ import {
    DEMO CHOICE MODAL
 ===================================================== */
 function DemoChoiceModal({ onClose }: { onClose: () => void }) {
-  return (
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, []);
+
+  if (!mounted) return null;
+
+  return createPortal(
     <div
       dir="rtl"
       className="
-        fixed inset-0 z-[9999]
+        fixed inset-0 z-[99999]
         flex items-center justify-center
         bg-black/45 px-4
         backdrop-blur-sm
@@ -38,7 +54,8 @@ function DemoChoiceModal({ onClose }: { onClose: () => void }) {
         className="
           relative
           w-full max-w-2xl
-          overflow-hidden
+          max-h-[92vh]
+          overflow-y-auto
           rounded-[32px]
           border border-[#D9BE80]/70
           bg-[#FFFDF8]
@@ -191,7 +208,8 @@ function DemoChoiceModal({ onClose }: { onClose: () => void }) {
           </Link>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
