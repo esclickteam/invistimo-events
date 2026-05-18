@@ -33,12 +33,7 @@ function getEventTitle(event: any, invitation: any) {
 }
 
 function getEventDate(event: any, invitation: any) {
-  return (
-    invitation?.eventDate ||
-    event?.date ||
-    event?.eventDate ||
-    null
-  );
+  return invitation?.eventDate || event?.date || event?.eventDate || null;
 }
 
 function getEventLocation(event: any, invitation: any) {
@@ -74,12 +69,7 @@ function getEventLocation(event: any, invitation: any) {
 }
 
 function getCalendarType(item: any) {
-  return (
-    item?.calendarType ||
-    item?.meetingType ||
-    item?.type ||
-    "meeting"
-  );
+  return item?.calendarType || item?.meetingType || item?.type || "meeting";
 }
 
 function getCalendarTypeLabel(type: string) {
@@ -104,52 +94,23 @@ function getCalendarTypeLabel(type: string) {
 }
 
 function getCalendarTitle(item: any) {
-  return (
-    item?.title ||
-    item?.entityName ||
-    item?.name ||
-    item?.subject ||
-    "פריט ביומן"
-  );
+  return item?.title || item?.entityName || item?.name || item?.subject || "פריט ביומן";
 }
 
 function getCalendarDate(item: any) {
-  return (
-    item?.date ||
-    item?.meetingDate ||
-    item?.eventDate ||
-    item?.dueDate ||
-    null
-  );
+  return item?.date || item?.meetingDate || item?.eventDate || item?.dueDate || null;
 }
 
 function getCalendarTime(item: any) {
-  return (
-    item?.time ||
-    item?.meetingTime ||
-    item?.eventTime ||
-    item?.hour ||
-    ""
-  );
+  return item?.time || item?.meetingTime || item?.eventTime || item?.hour || "";
 }
 
 function getCalendarDescription(item: any) {
-  return (
-    item?.description ||
-    item?.notes ||
-    item?.message ||
-    item?.summary ||
-    ""
-  );
+  return item?.description || item?.notes || item?.message || item?.summary || "";
 }
 
 function getCalendarLocation(item: any) {
-  return (
-    item?.location ||
-    item?.address ||
-    item?.zoomLink ||
-    ""
-  );
+  return item?.location || item?.address || item?.zoomLink || "";
 }
 
 /* =========================================================
@@ -182,14 +143,9 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const producerObjectId = new mongoose.Types.ObjectId(
-      auth.userId
-    );
+    const producerObjectId = new mongoose.Types.ObjectId(auth.userId);
 
-    console.log(
-      "🟢 Producer ObjectId:",
-      producerObjectId.toString()
-    );
+    console.log("🟢 Producer ObjectId:", producerObjectId.toString());
 
     /* =========================
        Clients – by assignedProducerId
@@ -200,9 +156,7 @@ export async function GET(req: NextRequest) {
         $in: ["client", "user"],
       },
     })
-      .select(
-        "name email phone createdAt assignedProducerId billingSource"
-      )
+      .select("name email phone createdAt assignedProducerId billingSource")
       .sort({
         createdAt: -1,
       })
@@ -219,9 +173,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const clientIds = clients.map(
-      (client: any) => client._id
-    );
+    const clientIds = clients.map((client: any) => client._id);
 
     /* =========================
        Events
@@ -252,63 +204,53 @@ export async function GET(req: NextRequest) {
     console.log("🟢 Events found:", events.length);
 
     const eventsByUserId = Object.fromEntries(
-      events.map((event: any) => [
-        String(event.userId),
-        event,
-      ])
+      events.map((event: any) => [String(event.userId), event])
     );
 
-    const eventIds = events.map(
-      (event: any) => event._id
-    );
+    const eventIds = events.map((event: any) => event._id);
 
     /* =========================
        Invitations
     ========================= */
-    const invitations = await Invitation.find({
-      eventId: {
-        $in: eventIds,
-      },
-    })
-      .select(
-        [
-          "_id",
-          "eventId",
-          "title",
-          "eventTitle",
-          "eventName",
-          "name",
-          "invitationTitle",
-          "eventDate",
-          "eventTime",
-          "location",
-        ].join(" ")
-      )
-      .sort({
-        createdAt: -1,
-      })
-      .lean();
+    const invitations =
+      eventIds.length > 0
+        ? await Invitation.find({
+            eventId: {
+              $in: eventIds,
+            },
+          })
+            .select(
+              [
+                "_id",
+                "eventId",
+                "title",
+                "eventTitle",
+                "eventName",
+                "name",
+                "invitationTitle",
+                "eventDate",
+                "eventTime",
+                "location",
+              ].join(" ")
+            )
+            .sort({
+              createdAt: -1,
+            })
+            .lean()
+        : [];
 
-    console.log(
-      "🟢 Invitations found:",
-      invitations.length
-    );
+    console.log("🟢 Invitations found:", invitations.length);
 
-    const invitationsByEventId = invitations.reduce(
-      (acc: any, invitation: any) => {
-        const key = String(invitation.eventId);
+    const invitationsByEventId = invitations.reduce((acc: any, invitation: any) => {
+      const key = String(invitation.eventId);
 
-        acc[key] = acc[key] || [];
-        acc[key].push(invitation);
+      acc[key] = acc[key] || [];
+      acc[key].push(invitation);
 
-        return acc;
-      },
-      {}
-    );
+      return acc;
+    }, {});
 
-    const invitationIds = invitations.map(
-      (invitation: any) => invitation._id
-    );
+    const invitationIds = invitations.map((invitation: any) => invitation._id);
 
     /* =========================
        Producer calendar items
@@ -364,25 +306,21 @@ export async function GET(req: NextRequest) {
             .lean()
         : [];
 
-    console.log(
-      "🟢 Producer calendar items found:",
-      calendarItems.length
-    );
+    console.log("🟢 Producer calendar items found:", calendarItems.length);
 
-    const calendarItemsByEventId = calendarItems.reduce(
-      (acc: any, item: any) => {
-        const key = String(item.eventId);
+    const calendarItemsByEventId = calendarItems.reduce((acc: any, item: any) => {
+      const key = String(item.eventId);
 
-        acc[key] = acc[key] || [];
-        acc[key].push(item);
+      acc[key] = acc[key] || [];
+      acc[key].push(item);
 
-        return acc;
-      },
-      {}
-    );
+      return acc;
+    }, {});
 
     /* =========================
        Guests stats
+       totalGuests = סך מוזמנים לפי כמות בתוך כל רשומה
+       approvedCount = כמה סימנו מגיעים לפי rsvp yes
     ========================= */
     const guestStats =
       invitationIds.length > 0
@@ -399,7 +337,9 @@ export async function GET(req: NextRequest) {
                 _id: "$invitationId",
 
                 totalGuests: {
-                  $sum: "$guestsCount",
+                  $sum: {
+                    $ifNull: ["$guestsCount", 1],
+                  },
                 },
 
                 approvedCount: {
@@ -408,7 +348,38 @@ export async function GET(req: NextRequest) {
                       {
                         $eq: ["$rsvp", "yes"],
                       },
-                      "$guestsCount",
+                      {
+                        $ifNull: ["$guestsCount", 1],
+                      },
+                      0,
+                    ],
+                  },
+                },
+
+                pendingRecords: {
+                  $sum: {
+                    $cond: [
+                      {
+                        $or: [
+                          { $eq: ["$rsvp", null] },
+                          { $eq: ["$rsvp", ""] },
+                          { $eq: ["$rsvp", "pending"] },
+                          { $not: ["$rsvp"] },
+                        ],
+                      },
+                      1,
+                      0,
+                    ],
+                  },
+                },
+
+                declinedRecords: {
+                  $sum: {
+                    $cond: [
+                      {
+                        $eq: ["$rsvp", "no"],
+                      },
+                      1,
                       0,
                     ],
                   },
@@ -430,10 +401,7 @@ export async function GET(req: NextRequest) {
           ])
         : [];
 
-    console.log(
-      "🟢 Guest stats rows:",
-      guestStats.length
-    );
+    console.log("🟢 Guest stats rows:", guestStats.length);
 
     const statsByInvitationId = Object.fromEntries(
       guestStats.map((guest: any) => [
@@ -441,9 +409,10 @@ export async function GET(req: NextRequest) {
         {
           totalGuests: guest.totalGuests || 0,
           approvedCount: guest.approvedCount || 0,
+          pendingRecords: guest.pendingRecords || 0,
+          declinedRecords: guest.declinedRecords || 0,
           arrivedCount: guest.arrivedCount || 0,
-          actualArrivedCount:
-            guest.actualArrivedCount || 0,
+          actualArrivedCount: guest.actualArrivedCount || 0,
         },
       ])
     );
@@ -455,124 +424,123 @@ export async function GET(req: NextRequest) {
       const event = eventsByUserId[String(client._id)];
 
       if (!event) {
-        console.log(
-          "⚠️ Client has NO event:",
-          String(client._id)
-        );
+        console.log("⚠️ Client has NO event:", String(client._id));
 
         return {
           ...client,
           event: null,
           invitation: null,
+          rsvpStats: {
+            totalGuests: 0,
+            approvedCount: 0,
+            pendingRecords: 0,
+            declinedRecords: 0,
+            arrivedCount: 0,
+            actualArrivedCount: 0,
+          },
           calendarItems: [],
         };
       }
 
-      const invitationsForEvent =
-        invitationsByEventId[String(event._id)] || [];
-
-      const mainInvitation =
-        invitationsForEvent[0] || null;
-
-      const eventCalendarItems =
-        calendarItemsByEventId[String(event._id)] || [];
+      const invitationsForEvent = invitationsByEventId[String(event._id)] || [];
+      const mainInvitation = invitationsForEvent[0] || null;
+      const eventCalendarItems = calendarItemsByEventId[String(event._id)] || [];
 
       let totalGuests = 0;
       let approvedCount = 0;
+      let pendingRecords = 0;
+      let declinedRecords = 0;
       let arrivedCount = 0;
       let actualArrivedCount = 0;
 
       for (const invitation of invitationsForEvent) {
-        const stats =
-          statsByInvitationId[String(invitation._id)];
+        const stats = statsByInvitationId[String(invitation._id)];
 
         if (!stats) continue;
 
         totalGuests += stats.totalGuests;
         approvedCount += stats.approvedCount;
+        pendingRecords += stats.pendingRecords;
+        declinedRecords += stats.declinedRecords;
         arrivedCount += stats.arrivedCount;
         actualArrivedCount += stats.actualArrivedCount;
       }
 
-      const eventTitle = getEventTitle(
-        event,
-        mainInvitation
-      );
+      const eventTitle = getEventTitle(event, mainInvitation);
+      const eventDate = getEventDate(event, mainInvitation);
+      const eventLocation = getEventLocation(event, mainInvitation);
 
-      const eventDate = getEventDate(
-        event,
-        mainInvitation
-      );
+      const clientName = client.name || "לקוח ללא שם";
 
-      const eventLocation = getEventLocation(
-        event,
-        mainInvitation
-      );
+      const normalizedCalendarItems = eventCalendarItems.map((item: any) => {
+        const itemType = getCalendarType(item);
+        const itemTitle = getCalendarTitle(item);
+        const itemDate = getCalendarDate(item);
+        const itemTime = getCalendarTime(item);
+        const itemDescription = getCalendarDescription(item);
+        const itemLocation = getCalendarLocation(item);
 
-      const clientName =
-        client.name || "לקוח ללא שם";
+        return {
+          _id: item._id,
+          eventId: item.eventId,
 
-      const normalizedCalendarItems = eventCalendarItems.map(
-        (item: any) => {
-          const itemType = getCalendarType(item);
-          const itemTitle = getCalendarTitle(item);
-          const itemDate = getCalendarDate(item);
-          const itemTime = getCalendarTime(item);
-          const itemDescription = getCalendarDescription(item);
-          const itemLocation = getCalendarLocation(item);
+          clientId: client._id,
+          clientName,
 
-          return {
-            _id: item._id,
-            eventId: item.eventId,
+          eventTitle,
+          eventName: eventTitle,
 
-            clientId: client._id,
-            clientName,
+          type: itemType,
+          calendarType: itemType,
+          meetingType: itemType,
+          typeLabel: getCalendarTypeLabel(itemType),
 
-            eventTitle,
-            eventName: eventTitle,
+          title: itemTitle,
+          entityName: itemTitle,
+          name: itemTitle,
+          subject: itemTitle,
 
-            type: itemType,
-            calendarType: itemType,
-            meetingType: itemType,
-            typeLabel: getCalendarTypeLabel(itemType),
+          date: itemDate,
+          meetingDate: itemDate,
+          eventDate: itemDate,
+          dueDate: itemDate,
 
-            title: itemTitle,
-            entityName: itemTitle,
-            name: itemTitle,
-            subject: itemTitle,
+          time: itemTime,
+          meetingTime: itemTime,
+          eventTime: itemTime,
+          hour: itemTime,
 
-            date: itemDate,
-            meetingDate: itemDate,
-            eventDate: itemDate,
-            dueDate: itemDate,
+          description: itemDescription,
+          notes: itemDescription,
+          summary: itemDescription,
+          message: itemDescription,
 
-            time: itemTime,
-            meetingTime: itemTime,
-            eventTime: itemTime,
-            hour: itemTime,
+          location: itemLocation,
+          address: itemLocation,
+          zoomLink: item.zoomLink || "",
 
-            description: itemDescription,
-            notes: itemDescription,
-            summary: itemDescription,
-            message: itemDescription,
+          status: item.status || "planned",
 
-            location: itemLocation,
-            address: itemLocation,
-            zoomLink: item.zoomLink || "",
+          syncToProducerCalendar: item.syncToProducerCalendar !== false,
 
-            status: item.status || "planned",
+          createdAt: item.createdAt,
+          updatedAt: item.updatedAt,
+        };
+      });
 
-            syncToProducerCalendar:
-              item.syncToProducerCalendar !== false,
-
-            createdAt: item.createdAt,
-            updatedAt: item.updatedAt,
-          };
-        }
-      );
+      const rsvpStats = {
+        totalGuests,
+        approvedCount,
+        pendingRecords,
+        declinedRecords,
+        arrivedCount,
+        actualArrivedCount,
+      };
 
       return {
         ...client,
+
+        rsvpStats,
 
         event: {
           _id: event._id,
@@ -589,8 +557,12 @@ export async function GET(req: NextRequest) {
 
           totalGuests,
           approvedCount,
+          pendingRecords,
+          declinedRecords,
           arrivedCount,
           actualArrivedCount,
+
+          rsvpStats,
         },
 
         invitation: mainInvitation
@@ -602,11 +574,8 @@ export async function GET(req: NextRequest) {
               eventName: getEventTitle(null, mainInvitation),
               invitationTitle: getEventTitle(null, mainInvitation),
 
-              eventDate:
-                mainInvitation.eventDate || null,
-
-              eventTime:
-                mainInvitation.eventTime || null,
+              eventDate: mainInvitation.eventDate || null,
+              eventTime: mainInvitation.eventTime || null,
 
               location:
                 typeof mainInvitation.location === "object"
@@ -614,6 +583,8 @@ export async function GET(req: NextRequest) {
                     mainInvitation.location?.name ||
                     ""
                   : mainInvitation.location || "",
+
+              rsvpStats,
             }
           : null,
 
@@ -633,10 +604,7 @@ export async function GET(req: NextRequest) {
       clients: result,
     });
   } catch (error) {
-    console.error(
-      "❌ ERROR FETCHING PRODUCER CLIENTS:",
-      error
-    );
+    console.error("❌ ERROR FETCHING PRODUCER CLIENTS:", error);
 
     return NextResponse.json(
       {
@@ -660,9 +628,7 @@ export async function GET(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    console.log(
-      "🟣 [PRODUCER CLIENTS PATCH] Route called"
-    );
+    console.log("🟣 [PRODUCER CLIENTS PATCH] Route called");
 
     await dbConnect();
 
@@ -685,10 +651,7 @@ export async function PATCH(req: NextRequest) {
 
     const clientId = String(body?.clientId || "").trim();
 
-    if (
-      !clientId ||
-      !mongoose.Types.ObjectId.isValid(clientId)
-    ) {
+    if (!clientId || !mongoose.Types.ObjectId.isValid(clientId)) {
       return NextResponse.json(
         {
           success: false,
@@ -714,9 +677,7 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    const producerObjectId = new mongoose.Types.ObjectId(
-      auth.userId
-    );
+    const producerObjectId = new mongoose.Types.ObjectId(auth.userId);
 
     const updatedClient = await User.findOneAndUpdate(
       {
@@ -733,9 +694,7 @@ export async function PATCH(req: NextRequest) {
         new: true,
       }
     )
-      .select(
-        "name email phone createdAt assignedProducerId billingSource role"
-      )
+      .select("name email phone createdAt assignedProducerId billingSource role")
       .lean();
 
     if (!updatedClient) {
@@ -753,10 +712,7 @@ export async function PATCH(req: NextRequest) {
       client: updatedClient,
     });
   } catch (error) {
-    console.error(
-      "❌ ERROR UPDATING PRODUCER CLIENT:",
-      error
-    );
+    console.error("❌ ERROR UPDATING PRODUCER CLIENT:", error);
 
     return NextResponse.json(
       {

@@ -159,22 +159,157 @@ function getEventDate(client) {
   );
 }
 
-function getTotalGuests(client) {
+function safeNumber(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function getGuestRecordAmount(guest) {
   return (
-    Number(client?.event?.totalGuests) ||
-    Number(client?.event?.guestCount) ||
-    Number(client?.totalGuests) ||
-    0
+    safeNumber(guest?.totalGuests) ||
+    safeNumber(guest?.guestCount) ||
+    safeNumber(guest?.guestsCount) ||
+    safeNumber(guest?.amount) ||
+    safeNumber(guest?.quantity) ||
+    safeNumber(guest?.numberOfGuests) ||
+    safeNumber(guest?.count) ||
+    1
   );
 }
 
-function getApprovedCount(client) {
+function getGuestApprovedAmount(guest) {
   return (
-    Number(client?.event?.approvedCount) ||
-    Number(client?.event?.confirmedCount) ||
-    Number(client?.approvedCount) ||
-    0
+    safeNumber(guest?.approvedCount) ||
+    safeNumber(guest?.approvedGuests) ||
+    safeNumber(guest?.confirmedCount) ||
+    safeNumber(guest?.comingCount) ||
+    safeNumber(guest?.attendingCount) ||
+    safeNumber(guest?.attendeesCount) ||
+    safeNumber(guest?.numberOfApprovedGuests) ||
+    safeNumber(guest?.numberOfComingGuests) ||
+    safeNumber(guest?.rsvpCount) ||
+    safeNumber(guest?.count) ||
+    safeNumber(guest?.guestCount) ||
+    1
   );
+}
+
+function isGuestApproved(guest) {
+  const status = String(
+    guest?.status ||
+      guest?.rsvpStatus ||
+      guest?.attendanceStatus ||
+      guest?.response ||
+      guest?.answer ||
+      ""
+  )
+    .trim()
+    .toLowerCase();
+
+  return [
+    "yes",
+    "approved",
+    "confirmed",
+    "attending",
+    "coming",
+    "arriving",
+    "מגיע",
+    "מגיעה",
+    "מאשר",
+    "מאשרת",
+    "אישר",
+    "אישרה",
+    "אישרו",
+  ].includes(status);
+}
+
+function getRsvpSource(client) {
+  return (
+    client?.rsvpStats ||
+    client?.event?.rsvpStats ||
+    client?.invitation?.rsvpStats ||
+    client?.event?.invitation?.rsvpStats ||
+    null
+  );
+}
+
+function getGuestsSource(client) {
+  return (
+    client?.guests ||
+    client?.event?.guests ||
+    client?.invitation?.guests ||
+    client?.event?.invitation?.guests ||
+    []
+  );
+}
+
+function getRsvpStats(client) {
+  const rsvpStats = getRsvpSource(client);
+  const guests = getGuestsSource(client);
+
+  const totalGuestsFromStats =
+    safeNumber(rsvpStats?.totalGuests) ||
+    safeNumber(rsvpStats?.totalInvited) ||
+    safeNumber(rsvpStats?.invitedCount) ||
+    safeNumber(rsvpStats?.guestCount);
+
+  const approvedFromStats =
+    safeNumber(rsvpStats?.approvedCount) ||
+    safeNumber(rsvpStats?.confirmedCount) ||
+    safeNumber(rsvpStats?.comingCount) ||
+    safeNumber(rsvpStats?.attendingCount) ||
+    safeNumber(rsvpStats?.approvedGuests) ||
+    safeNumber(rsvpStats?.confirmedGuests);
+
+  if (totalGuestsFromStats || approvedFromStats) {
+    return {
+      totalGuests: totalGuestsFromStats,
+      approvedCount: approvedFromStats,
+    };
+  }
+
+  if (Array.isArray(guests) && guests.length > 0) {
+    const totalGuests = guests.reduce(
+      (sum, guest) => sum + getGuestRecordAmount(guest),
+      0
+    );
+
+    const approvedCount = guests.reduce((sum, guest) => {
+      if (!isGuestApproved(guest)) return sum;
+      return sum + getGuestApprovedAmount(guest);
+    }, 0);
+
+    return {
+      totalGuests,
+      approvedCount,
+    };
+  }
+
+  return {
+    totalGuests:
+      safeNumber(client?.event?.totalGuests) ||
+      safeNumber(client?.event?.guestCount) ||
+      safeNumber(client?.invitation?.totalGuests) ||
+      safeNumber(client?.invitation?.guestCount) ||
+      safeNumber(client?.totalGuests) ||
+      0,
+
+    approvedCount:
+      safeNumber(client?.event?.approvedCount) ||
+      safeNumber(client?.event?.confirmedCount) ||
+      safeNumber(client?.invitation?.approvedCount) ||
+      safeNumber(client?.invitation?.confirmedCount) ||
+      safeNumber(client?.approvedCount) ||
+      0,
+  };
+}
+
+function getTotalGuests(client) {
+  return getRsvpStats(client).totalGuests;
+}
+
+function getApprovedCount(client) {
+  return getRsvpStats(client).approvedCount;
 }
 
 function getEventStatus(client) {
@@ -441,35 +576,31 @@ export default function ProducerDashboard() {
   }, []);
 
   useEffect(() => {
-    if (!authResolved) return;
-    if (!user || user.role !== "producer") return;
+  if (!authResolved) return;
+  if (!user || user.role !== "producer") return;
 
-    let isMounted = true;
-    let intervalId;
+  let isMounted = true;
 
-    const run = async () => {
-      if (!isMounted) return;
+  const run = async () => {
+    if (!isMounted) return;
 
-      await Promise.all([
-        fetchClients(),
-        fetchStaff(),
-      ]);
-    };
+    await Promise.all([
+      fetchClients(),
+      fetchStaff(),
+    ]);
+  };
 
-    run();
+  run();
 
-    intervalId = setInterval(run, 30000);
-
-    return () => {
-      isMounted = false;
-      clearInterval(intervalId);
-    };
-  }, [
-    authResolved,
-    user,
-    fetchClients,
-    fetchStaff,
-  ]);
+  return () => {
+    isMounted = false;
+  };
+}, [
+  authResolved,
+  user,
+  fetchClients,
+  fetchStaff,
+]);
 
   /* =========================
      Close dropdown outside
