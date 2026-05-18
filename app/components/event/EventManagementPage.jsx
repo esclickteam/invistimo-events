@@ -18,7 +18,6 @@ import {
   Users,
   WalletCards,
 } from "lucide-react";
-import type { ReactNode } from "react";
 import ContactForm from "@/app/components/event/ContactForm";
 
 export default function EventManagementPage() {
@@ -32,16 +31,14 @@ export default function EventManagementPage() {
     <div dir="rtl" className="w-full overflow-hidden bg-[#0F2A44] text-right">
       {/* HERO */}
       <section className="relative min-h-[620px] overflow-hidden">
-        {/* Background image */}
         <div
-          className="absolute inset-0 bg-cover bg-center scale-105"
+          className="absolute inset-0 scale-105 bg-cover bg-center"
           style={{
             backgroundImage:
               "url('https://images.unsplash.com/photo-1525268771113-32d9e9021a97?q=90&w=2400&auto=format&fit=crop')",
           }}
         />
 
-        {/* Premium overlays */}
         <div className="absolute inset-0 bg-gradient-to-b from-[#0F2A44]/80 via-[#102F4D]/92 to-[#0F2A44]" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,#D4AF37_0%,transparent_28%)] opacity-[0.16]" />
         <div className="absolute -top-24 right-1/2 h-80 w-80 translate-x-1/2 rounded-full bg-[#D4AF37]/20 blur-3xl" />
@@ -61,7 +58,7 @@ export default function EventManagementPage() {
               </span>
             </h1>
 
-            <p className="mx-auto mt-6 max-w-3xl text-lg leading-9 text-white/88 md:text-xl">
+            <p className="mx-auto mt-6 max-w-3xl text-lg leading-9 text-white/90 md:text-xl">
               ב־Invistimo אנחנו משלבים בין מערכת דיגיטלית מתקדמת לניהול האירוע
               לבין עבודה עם מפיקים מהטובים בתחום — כדי לעזור לכם להגיע לאירוע
               החלומות שלכם בצורה מסודרת, רגועה ומדויקת.
@@ -69,6 +66,7 @@ export default function EventManagementPage() {
 
             <div className="mt-9 flex flex-col items-center justify-center gap-4 sm:flex-row">
               <button
+                type="button"
                 onClick={scrollToContact}
                 className="
                   group inline-flex items-center justify-center gap-2
@@ -86,6 +84,7 @@ export default function EventManagementPage() {
               </button>
 
               <button
+                type="button"
                 onClick={scrollToContact}
                 className="
                   inline-flex items-center justify-center gap-2
@@ -100,9 +99,18 @@ export default function EventManagementPage() {
             </div>
 
             <div className="mx-auto mt-12 grid max-w-4xl grid-cols-1 gap-4 sm:grid-cols-3">
-              <HeroMiniCard icon={<ShieldCheck size={22} />} text="ליווי מקצועי" />
-              <HeroMiniCard icon={<LayoutDashboard size={22} />} text="מערכת ניהול עצמאית" />
-              <HeroMiniCard icon={<Timer size={22} />} text="שליטה מלאה בזמן אמת" />
+              <HeroMiniCard
+                icon={<ShieldCheck size={22} />}
+                text="ליווי מקצועי"
+              />
+              <HeroMiniCard
+                icon={<LayoutDashboard size={22} />}
+                text="מערכת ניהול עצמאית"
+              />
+              <HeroMiniCard
+                icon={<Timer size={22} />}
+                text="שליטה מלאה בזמן אמת"
+              />
             </div>
           </div>
         </div>
@@ -123,11 +131,11 @@ export default function EventManagementPage() {
               <h2 className="text-3xl font-extrabold leading-tight text-white md:text-5xl">
                 אתם חולמים על האירוע,
                 <span className="block text-[#D4AF37]">
-                  אנחנו עוזרים להפוך אותו למסודר.
+                  אנחנו עוזרים להפוך אותו למציאות.
                 </span>
               </h2>
 
-              <p className="mt-6 text-lg leading-9 text-white/78">
+              <p className="mt-6 text-lg leading-9 text-white/80">
                 תכנון אירוע כולל עשרות החלטות, ספקים, תשלומים, משימות, אישורי
                 הגעה, הושבה ועדכונים של הרגע האחרון. בדיוק בשביל זה בנינו את
                 Invistimo — מערכת אחת שמרכזת את כל מה שצריך, עם אפשרות לליווי
@@ -166,7 +174,7 @@ export default function EventManagementPage() {
               מארגנים אירוע? ככה נוכל לעזור
             </h2>
 
-            <p className="mt-5 text-lg leading-8 text-white/72">
+            <p className="mt-5 text-lg leading-8 text-white/75">
               בין אם אתם רוצים לנהל את האירוע לבד ובין אם אתם רוצים ליווי
               מקצועי — הכל נמצא במקום אחד, בצורה ברורה, חכמה ונוחה.
             </p>
@@ -359,7 +367,9 @@ export default function EventManagementPage() {
 
                 <h2 className="text-3xl font-extrabold leading-tight text-white md:text-5xl">
                   כי אירוע מוצלח מתחיל
-                  <span className="block text-[#D4AF37]">מאחורי הקלעים.</span>
+                  <span className="block text-[#D4AF37]">
+                    מאחורי הקלעים.
+                  </span>
                 </h2>
 
                 <p className="mt-6 text-lg leading-9 text-white/75">
@@ -370,6 +380,7 @@ export default function EventManagementPage() {
                 </p>
 
                 <button
+                  type="button"
                   onClick={scrollToContact}
                   className="
                     mt-8 inline-flex items-center justify-center gap-2
@@ -428,6 +439,7 @@ export default function EventManagementPage() {
           </p>
 
           <button
+            type="button"
             onClick={scrollToContact}
             className="
               mt-8 inline-flex items-center justify-center gap-2
@@ -444,7 +456,9 @@ export default function EventManagementPage() {
       </section>
 
       {/* CONTACT */}
-      <ContactForm />
+      <section id="contact">
+        <ContactForm />
+      </section>
     </div>
   );
 }
@@ -453,24 +467,16 @@ export default function EventManagementPage() {
    COMPONENTS
 ========================= */
 
-function HeroMiniCard({ icon, text }: { icon: ReactNode; text: string }) {
+function HeroMiniCard({ icon, text }) {
   return (
-    <div className="rounded-2xl border border-white/12 bg-white/10 px-5 py-4 text-white shadow-xl shadow-black/10 backdrop-blur">
+    <div className="rounded-2xl border border-white/10 bg-white/10 px-5 py-4 text-white shadow-xl shadow-black/10 backdrop-blur">
       <div className="mb-2 flex justify-center text-[#F7E7B2]">{icon}</div>
       <p className="text-sm font-bold">{text}</p>
     </div>
   );
 }
 
-function ServiceCard({
-  icon,
-  title,
-  text,
-}: {
-  icon: ReactNode;
-  title: string;
-  text: string;
-}) {
+function ServiceCard({ icon, title, text }) {
   return (
     <div
       className="
@@ -493,7 +499,7 @@ function ServiceCard({
   );
 }
 
-function CheckLine({ text }: { text: string }) {
+function CheckLine({ text }) {
   return (
     <div className="flex items-start gap-3 text-right">
       <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#D4AF37]/15 text-[#B98A1E]">
@@ -505,7 +511,7 @@ function CheckLine({ text }: { text: string }) {
   );
 }
 
-function FeaturePill({ text }: { text: string }) {
+function FeaturePill({ text }) {
   return (
     <div className="flex items-center gap-3 rounded-2xl border border-[#D4AF37]/20 bg-white px-4 py-3 shadow-sm">
       <CheckCircle2 size={18} className="shrink-0 text-[#B98A1E]" />
@@ -514,7 +520,7 @@ function FeaturePill({ text }: { text: string }) {
   );
 }
 
-function DashboardBox({ label, value }: { label: string; value: string }) {
+function DashboardBox({ label, value }) {
   return (
     <div className="rounded-2xl bg-white/10 p-4">
       <p className="text-sm text-white/65">{label}</p>
@@ -523,18 +529,10 @@ function DashboardBox({ label, value }: { label: string; value: string }) {
   );
 }
 
-function FeatureCard({
-  icon,
-  title,
-  text,
-}: {
-  icon: ReactNode;
-  title: string;
-  text: string;
-}) {
+function FeatureCard({ icon, title, text }) {
   return (
     <div className="rounded-[1.5rem] border border-[#E8D9B5] bg-[#FFFDF8] p-6 shadow-lg shadow-[#0F2A44]/5 transition hover:-translate-y-1 hover:shadow-xl">
-      <div className="mb-5 flex h-13 w-13 items-center justify-center rounded-2xl bg-[#0F2A44] p-3 text-[#D4AF37]">
+      <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#0F2A44] p-3 text-[#D4AF37]">
         {icon}
       </div>
 
@@ -545,7 +543,7 @@ function FeatureCard({
   );
 }
 
-function PremiumPoint({ title, text }: { title: string; text: string }) {
+function PremiumPoint({ title, text }) {
   return (
     <div className="rounded-3xl border border-white/10 bg-white/10 p-5 shadow-lg shadow-black/10">
       <div className="mb-2 flex items-center gap-3">
