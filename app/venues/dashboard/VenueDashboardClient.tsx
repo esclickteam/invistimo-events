@@ -1,207 +1,302 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
 import {
-  Building2,
+  Bell,
   CalendarDays,
-  ClipboardList,
+  CheckCircle2,
   LayoutDashboard,
+  Search,
+  Users,
+  CalendarCheck,
+  Armchair,
+  MessageCircle,
+  BarChart3,
   Settings,
   ShieldCheck,
-  Users,
-  Utensils,
-  Wallet,
+  ClipboardList,
 } from "lucide-react";
 
-import VenueSidebar from "@/app/venues/dashboard/components/VenueSidebar";
-import VenueTopbar from "@/app/venues/dashboard/components/VenueTopbar";
-import VenueOverviewTab from "@/app/venues/dashboard/components/VenueOverviewTab";
-import VenueHallsTab from "@/app/venues/dashboard/components/VenueHallsTab";
-import VenueClientsTab from "@/app/venues/dashboard/components/VenueClientsTab";
-import VenueEventsTab from "@/app/venues/dashboard/components/VenueEventsTab";
-import VenueComingSoonTab from "@/app/venues/dashboard/components/VenueComingSoonTab";
-
-export type VenueTab =
-  | "overview"
-  | "halls"
-  | "clients"
-  | "events"
-  | "menus"
-  | "tasks"
-  | "finance"
-  | "staff"
-  | "settings";
-
-export type VenueTabItem = {
-  id: VenueTab;
-  label: string;
-  description: string;
-  icon: React.ElementType;
+type Hall = {
+  id: string;
+  name: string;
+  capacity: number;
+  status: "live" | "ready" | "busy" | "inactive";
+  nextEventTime?: string;
+  arrivalPercent: number;
 };
 
-export const venueTabs: VenueTabItem[] = [
-  {
-    id: "overview",
-    label: "סקירה כללית",
-    description: "נתונים, התראות ומה דורש טיפול",
-    icon: LayoutDashboard,
-  },
-  {
-    id: "halls",
-    label: "מתחם ואולמות",
-    description: "אולמות, קיבולת, מחירים וסקיצות",
-    icon: Building2,
-  },
-  {
-    id: "clients",
-    label: "לקוחות CRM",
-    description: "לידים, פגישות, הצעות מחיר וסגירות",
-    icon: Users,
-  },
-  {
-    id: "events",
-    label: "אירועים",
-    description: "אירועים לפי אולם, לקוח וסטטוס",
-    icon: CalendarDays,
-  },
-  {
-    id: "menus",
-    label: "תפריטים",
-    description: "תפריטים, טעימות ואישורי לקוח",
-    icon: Utensils,
-  },
-  {
-    id: "tasks",
-    label: "משימות",
-    description: "משימות תפעול לפני וביום האירוע",
-    icon: ClipboardList,
-  },
-  {
-    id: "finance",
-    label: "כספים",
-    description: "מקדמות, תשלומים והכנסות צפויות",
-    icon: Wallet,
-  },
-  {
-    id: "staff",
-    label: "עובדים והרשאות",
-    description: "מנהלים, מכירות, הפקה ותפעול",
-    icon: ShieldCheck,
-  },
-  {
-    id: "settings",
-    label: "הגדרות",
-    description: "פרטי אולם, שעות פעילות ותבניות",
-    icon: Settings,
-  },
+const venue = {
+  name: "מתחם גני הזהב",
+  managerName: "רוני",
+  halls: [
+    {
+      id: "1",
+      name: "אולם זהב",
+      capacity: 450,
+      status: "live",
+      nextEventTime: "19:30",
+      arrivalPercent: 81,
+    },
+    {
+      id: "2",
+      name: "אולם אור",
+      capacity: 350,
+      status: "ready",
+      nextEventTime: "20:00",
+      arrivalPercent: 72,
+    },
+    {
+      id: "3",
+      name: "אולם SKY",
+      capacity: 250,
+      status: "busy",
+      nextEventTime: "20:30",
+      arrivalPercent: 68,
+    },
+  ] satisfies Hall[],
+};
+
+const navItems = [
+  { label: "דשבורד ראשי", icon: LayoutDashboard, active: true },
+  { label: "אירועים", icon: CalendarDays },
+  { label: "יומן וניהול אירועים", icon: CalendarCheck },
+  { label: "זוגות CRM", icon: Users },
+  { label: "אישורי הגעה", icon: CheckCircle2 },
+  { label: "הושבה", icon: Armchair },
+  { label: "LIVE אירוע", icon: ShieldCheck },
+  { label: "משימות", icon: ClipboardList },
+  { label: "הודעות", icon: MessageCircle },
+  { label: "דוחות ואנליטיקס", icon: BarChart3 },
+  { label: "עובדים וצוותים", icon: Users },
+  { label: "הגדרות מתחם", icon: Settings },
 ];
 
 export default function VenueDashboardClient() {
-  const [activeTab, setActiveTab] = useState<VenueTab>("overview");
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  const activeTabData = useMemo(() => {
-    return venueTabs.find((tab) => tab.id === activeTab) || venueTabs[0];
-  }, [activeTab]);
+  const hallsCount = venue.halls.length;
 
   return (
-    <main dir="rtl" className="min-h-screen bg-[#f7f2ea] text-[#2f261d]">
-      <div className="relative flex min-h-screen overflow-hidden">
-        <div className="pointer-events-none fixed inset-0 z-0">
-          <div className="absolute right-[-120px] top-[-120px] h-80 w-80 rounded-full bg-[#e8d4ad]/40 blur-3xl" />
-          <div className="absolute bottom-[-140px] left-[-120px] h-96 w-96 rounded-full bg-[#c7a45d]/20 blur-3xl" />
-        </div>
-
-        <VenueSidebar
-          tabs={venueTabs}
-          activeTab={activeTab}
-          onChangeTab={(tab) => {
-            setActiveTab(tab);
-            setMobileMenuOpen(false);
-          }}
-          mobileMenuOpen={mobileMenuOpen}
-          onCloseMobileMenu={() => setMobileMenuOpen(false)}
-        />
-
-        <section className="relative z-10 flex min-h-screen flex-1 flex-col lg:pr-80">
-          <VenueTopbar
-            activeTabData={activeTabData}
-            onOpenMobileMenu={() => setMobileMenuOpen(true)}
-          />
-
-          <div className="mx-auto w-full max-w-7xl px-4 pb-10 pt-5 sm:px-6 lg:px-8">
-            {activeTab === "overview" && <VenueOverviewTab />}
-            {activeTab === "halls" && <VenueHallsTab />}
-            {activeTab === "clients" && <VenueClientsTab />}
-            {activeTab === "events" && <VenueEventsTab />}
-
-            {activeTab === "menus" && (
-              <VenueComingSoonTab
-                title="ניהול תפריטים"
-                subtitle="מודול לניהול תפריטי אירוע, מנות, טעימות, בחירות לקוח ואישורים."
-                items={[
-                  "בניית תפריטים לפי סוג אירוע",
-                  "סטטוס טעימות ואישור לקוח",
-                  "הערות רגישויות, צמחוני, טבעוני וילדים",
-                  "חיבור התפריט לאירוע ולאולם",
-                ]}
-              />
-            )}
-
-            {activeTab === "tasks" && (
-              <VenueComingSoonTab
-                title="משימות ותפעול"
-                subtitle="ניהול משימות פנימיות לצוות האולם לפני האירוע וביום האירוע."
-                items={[
-                  "משימות לפי מחלקה",
-                  "תאריכי יעד ואחראי משימה",
-                  "צ׳ק ליסט יום אירוע",
-                  "התראות על דברים שלא נסגרו",
-                ]}
-              />
-            )}
-
-            {activeTab === "finance" && (
-              <VenueComingSoonTab
-                title="כספים ותשלומים"
-                subtitle="מעקב אחרי מקדמות, יתרות, הכנסות צפויות ותשלומי לקוחות."
-                items={[
-                  "מקדמות ויתרות לתשלום",
-                  "סטטוס תשלום לפי אירוע",
-                  "הכנסות צפויות לפי חודש",
-                  "דו״חות לאולם ולמנהל",
-                ]}
-              />
-            )}
-
-            {activeTab === "staff" && (
-              <VenueComingSoonTab
-                title="עובדים והרשאות"
-                subtitle="ניהול צוותים, בעלי תפקידים והרשאות לפי מחלקות."
-                items={[
-                  "מנהל מתחם",
-                  "מנהל מכירות",
-                  "מפיק אירוע",
-                  "צוות תפעול וצוות יום אירוע",
-                ]}
-              />
-            )}
-
-            {activeTab === "settings" && (
-              <VenueComingSoonTab
-                title="הגדרות מערכת אולם"
-                subtitle="הגדרות כלליות של המתחם, שעות פעילות, תבניות והעדפות מערכת."
-                items={[
-                  "פרטי מתחם",
-                  "שעות פעילות",
-                  "תבניות הודעה ללקוחות",
-                  "הגדרות הרשאות ותצוגה",
-                ]}
-              />
-            )}
+    <main dir="rtl" className="min-h-screen bg-[#fbfafc] text-[#161622]">
+      <div className="flex min-h-screen">
+        <aside className="sticky top-0 h-screen w-[260px] border-l border-[#ece9f3] bg-white px-4 py-6">
+          <div className="text-center">
+            <div className="text-3xl font-black tracking-[0.22em] text-[#c89235]">
+              INVISTIMO
+            </div>
+            <div className="mt-1 text-xs font-black tracking-[0.35em] text-[#c89235]">
+              VENUES
+            </div>
           </div>
+
+          <button className="mt-7 flex w-full items-center justify-between rounded-2xl border border-[#ebe7f3] bg-white p-3 shadow-sm">
+            <span className="text-sm font-black">{venue.name}</span>
+            <span className="text-[#7d7890]">⌄</span>
+          </button>
+
+          <nav className="mt-5 space-y-1">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.label}
+                  className={[
+                    "flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-black transition",
+                    item.active
+                      ? "bg-[#fff4d9] text-[#b47a18]"
+                      : "text-[#3a3548] hover:bg-[#f7f4ff]",
+                  ].join(" ")}
+                >
+                  <Icon size={18} />
+                  {item.label}
+                </button>
+              );
+            })}
+          </nav>
+        </aside>
+
+        <section className="min-w-0 flex-1 px-6 py-5">
+          <header className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-black">שלום {venue.managerName} 👋</h1>
+              <p className="mt-1 text-sm font-bold text-[#8b8799]">
+                ברוך הבא ל{venue.name}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button className="flex h-12 items-center gap-2 rounded-2xl border border-[#ece9f3] bg-white px-5 text-sm font-black shadow-sm">
+                <CalendarDays size={18} />
+                18.05.25 - 24.05.25
+              </button>
+
+              <div className="flex h-12 w-[280px] items-center gap-2 rounded-2xl border border-[#ece9f3] bg-white px-4 shadow-sm">
+                <Search size={18} className="text-[#9b95aa]" />
+                <input
+                  className="w-full bg-transparent text-sm font-bold outline-none placeholder:text-[#aaa4b8]"
+                  placeholder="חיפוש..."
+                />
+              </div>
+
+              <button className="relative grid h-12 w-12 place-items-center rounded-2xl border border-[#ece9f3] bg-white shadow-sm">
+                <Bell size={19} />
+                <span className="absolute -right-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-red-500 text-[10px] font-black text-white">
+                  3
+                </span>
+              </button>
+            </div>
+          </header>
+
+          <section className="mt-6 grid grid-cols-5 gap-4">
+            <StatCard title="אירועים השבוע" value="28" sub="14% מהשבוע שעבר" />
+            <StatCard title="אישורי הגעה" value="4,692" sub="מתוך 6,240 מוזמנים" />
+            <StatCard title="הגיעו בפועל" value="3,842" sub="82% אישרו" />
+            <StatCard title="הכנסות החודש" value="₪1,248,000" sub="16% מהחודש הקודם" />
+            <StatCard title="אחוז סגירה CRM" value="68%" sub="8% מהחודש הקודם" />
+          </section>
+
+          <section className="mt-6 grid grid-cols-[1fr_360px] gap-5">
+            <div className="rounded-[30px] border border-[#ece9f3] bg-white p-5 shadow-[0_18px_45px_rgba(31,25,70,0.05)]">
+              <div className="mb-5 flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-black">{venue.name}</h2>
+                  <p className="text-sm font-bold text-[#8b8799]">
+                    סקירת {hallsCount === 1 ? "אולם אחד" : `${hallsCount} אולמות`} במתחם
+                  </p>
+                </div>
+
+                <div className="flex gap-2">
+                  <button className="rounded-2xl border border-[#ece9f3] px-4 py-2 text-sm font-black">
+                    תצוגת מפה
+                  </button>
+                  <button className="rounded-2xl bg-[#6d3df5] px-4 py-2 text-sm font-black text-white shadow-lg shadow-purple-100">
+                    תצוגת טבלה
+                  </button>
+                </div>
+              </div>
+
+              <div
+                className={[
+                  "grid gap-4",
+                  hallsCount === 1
+                    ? "grid-cols-1"
+                    : hallsCount === 2
+                      ? "grid-cols-2"
+                      : "grid-cols-3",
+                ].join(" ")}
+              >
+                {venue.halls.map((hall) => (
+                  <HallCard key={hall.id} hall={hall} />
+                ))}
+              </div>
+            </div>
+
+            <aside className="rounded-[30px] border border-[#ece9f3] bg-white p-5 shadow-[0_18px_45px_rgba(31,25,70,0.05)]">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-xl font-black">אירועים היום</h2>
+                <span className="rounded-full bg-red-500 px-2 py-1 text-xs font-black text-white">
+                  LIVE
+                </span>
+              </div>
+
+              <div className="space-y-4">
+                {venue.halls.map((hall, index) => (
+                  <div key={hall.id} className="rounded-2xl border border-[#f0edf8] p-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-black">
+                          {index === 0 ? "נועם & דניאל" : index === 1 ? "ליאור & מאיה" : "שיר & רון"}
+                        </p>
+                        <p className="text-xs font-bold text-[#8b8799]">{hall.name}</p>
+                      </div>
+                      <p className="font-black">{hall.nextEventTime || "—"}</p>
+                    </div>
+
+                    <div className="mt-3 flex items-center gap-2">
+                      <div className="h-2 flex-1 rounded-full bg-[#eeeaf5]">
+                        <div
+                          className="h-2 rounded-full bg-emerald-400"
+                          style={{ width: `${hall.arrivalPercent}%` }}
+                        />
+                      </div>
+                      <span className="text-xs font-black text-[#6d6a7c]">
+                        {hall.arrivalPercent}%
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </aside>
+          </section>
         </section>
       </div>
     </main>
+  );
+}
+
+function StatCard({
+  title,
+  value,
+  sub,
+}: {
+  title: string;
+  value: string;
+  sub: string;
+}) {
+  return (
+    <div className="rounded-[26px] border border-[#ece9f3] bg-white p-5 shadow-[0_18px_45px_rgba(31,25,70,0.05)]">
+      <p className="text-sm font-black text-[#625d72]">{title}</p>
+      <h3 className="mt-4 text-3xl font-black">{value}</h3>
+      <p className="mt-2 text-xs font-black text-emerald-500">{sub}</p>
+    </div>
+  );
+}
+
+function HallCard({ hall }: { hall: Hall }) {
+  const statusLabel =
+    hall.status === "live"
+      ? "LIVE"
+      : hall.status === "ready"
+        ? "מוכן"
+        : hall.status === "busy"
+          ? "עמוס"
+          : "לא פעיל";
+
+  return (
+    <article className="overflow-hidden rounded-[24px] border border-[#ece9f3] bg-white shadow-sm">
+      <div className="h-40 bg-gradient-to-br from-[#2d2140] via-[#c89235] to-[#f7e9ca]" />
+
+      <div className="p-4">
+        <div className="flex items-start justify-between">
+          <div>
+            <h3 className="text-lg font-black">{hall.name}</h3>
+            <p className="text-xs font-bold text-[#8b8799]">
+              {hall.capacity} קיבולת
+            </p>
+          </div>
+
+          <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-600">
+            {statusLabel}
+          </span>
+        </div>
+
+        <div className="mt-4 flex items-center justify-between">
+          <div>
+            <p className="text-xl font-black">{hall.arrivalPercent}%</p>
+            <p className="text-xs font-bold text-[#8b8799]">הגעה</p>
+          </div>
+
+          <div className="text-left">
+            <p className="text-xl font-black">{hall.nextEventTime || "—"}</p>
+            <p className="text-xs font-bold text-[#8b8799]">אירוע הבא</p>
+          </div>
+        </div>
+
+        <div className="mt-3 h-2 rounded-full bg-[#eeeaf5]">
+          <div
+            className="h-2 rounded-full bg-emerald-400"
+            style={{ width: `${hall.arrivalPercent}%` }}
+          />
+        </div>
+      </div>
+    </article>
   );
 }
