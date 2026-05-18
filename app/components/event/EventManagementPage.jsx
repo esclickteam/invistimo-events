@@ -23,7 +23,7 @@ import {
 import ContactForm from "@/app/components/event/ContactForm";
 
 const RSVP_DEMO_URL = "/try/dashboard";
-const EVENT_MANAGEMENT_DEMO_URL = "/demo/event-management";
+const EVENT_MANAGEMENT_DEMO_URL = "/try/event-management";
 
 export default function EventManagementPage() {
   const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
