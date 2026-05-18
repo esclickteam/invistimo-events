@@ -37,7 +37,6 @@ export default function DashboardMobileMenu({
   const [showDemoModal, setShowDemoModal] = useState(false);
 
   const hasInvitation = Boolean(invitationId);
-  const hasEvent = Boolean(eventId);
 
   if (!open && !showDemoModal) return null;
 
@@ -74,12 +73,12 @@ export default function DashboardMobileMenu({
       return;
     }
 
-    if (!hasEvent) {
-      go("/events/production?tab=overview");
+    if (eventId) {
+      go(`/events/production?eventId=${eventId}&tab=overview`);
       return;
     }
 
-    go(`/events/production?eventId=${eventId}&tab=overview`);
+    go("/events/production?tab=overview");
   };
 
   const menuItems = [
@@ -154,93 +153,98 @@ export default function DashboardMobileMenu({
 
   return (
     <>
-      {/* Drawer */}
       {open && (
-        <div className="fixed inset-0 z-50 md:hidden" dir="rtl">
-          {/* Overlay */}
+        <div className="fixed inset-0 z-[9999] md:hidden" dir="rtl">
+          {/* dark background */}
           <button
             type="button"
             aria-label="סגירת תפריט"
             onClick={onClose}
             className="
               absolute inset-0
-              bg-[#1f1710]/45
+              bg-[#1f1710]/55
               backdrop-blur-[3px]
             "
           />
 
-          <aside
+          {/* menu panel - כמו בצילום */}
+          <section
             className="
-              absolute top-0 right-0
-              h-full w-[88%] max-w-[390px]
+              absolute inset-y-0 right-0
+              flex h-[100dvh] w-[calc(100%-46px)] max-w-[760px] flex-col
               overflow-hidden
-              border-l border-[#E7D7C1]
-              bg-[#FBF6EF]
-              shadow-[0_30px_90px_rgba(39,28,17,0.35)]
+              border-l border-[#DFCFB7]
+              bg-[#FBF4EA]
+              shadow-[0_35px_120px_rgba(35,24,14,0.45)]
             "
           >
-            {/* Top luxury background */}
+            {/* top area */}
             <div
               className="
-                relative overflow-hidden
-                border-b border-[#E8D8C2]
-                bg-[radial-gradient(circle_at_top_right,#EAD8B8_0%,#FBF6EF_42%,#F7EFE5_100%)]
-                px-6 pb-7 pt-6
+                relative shrink-0 overflow-hidden
+                border-b border-[#E1D0B8]
+                bg-[radial-gradient(circle_at_top_left,#F3E2C5_0%,#FBF4EA_48%,#F8EFE4_100%)]
+                px-6 pb-8 pt-8
+                text-center
               "
             >
-              <div className="absolute -top-16 -left-14 h-36 w-36 rounded-full bg-white/45 blur-2xl" />
-              <div className="absolute -bottom-12 right-8 h-28 w-28 rounded-full bg-[#D6B678]/25 blur-2xl" />
+              <div className="absolute -top-20 -left-16 h-44 w-44 rounded-full bg-white/55 blur-3xl" />
+              <div className="absolute -bottom-16 right-8 h-40 w-40 rounded-full bg-[#D8B97A]/25 blur-3xl" />
 
-              <div className="relative flex items-start justify-between gap-4">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  aria-label="סגירה"
-                  className="
-                    flex h-11 w-11 items-center justify-center
-                    rounded-full
-                    border border-[#E4D4BF]
-                    bg-white/75
-                    text-[#5B4635]
-                    shadow-[0_10px_25px_rgba(87,63,38,0.12)]
-                    transition
-                    active:scale-95
-                  "
-                >
-                  <X size={22} strokeWidth={2.4} />
-                </button>
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="סגירה"
+                className="
+                  absolute left-6 top-7 z-10
+                  flex h-[74px] w-[74px] items-center justify-center
+                  rounded-full
+                  bg-white/90
+                  text-[#6A4B32]
+                  shadow-[0_18px_38px_rgba(75,52,31,0.16)]
+                  ring-1 ring-[#E7D5BA]
+                  transition
+                  active:scale-95
+                "
+              >
+                <X size={34} strokeWidth={2.5} />
+              </button>
 
-                <div className="text-right">
-                  <div
-                    className="
-                      inline-flex items-center gap-2
-                      rounded-full
-                      border border-[#E3CFB0]
-                      bg-white/60
-                      px-3 py-1
-                      text-[11px] font-black
-                      tracking-[0.18em]
-                      text-[#9A7444]
-                    "
-                  >
-                    <Sparkles size={13} />
-                    INVISTIMO
-                  </div>
-
-                  <h2 className="mt-4 text-[27px] font-black leading-tight text-[#3F3025]">
-                    ניהול האירוע
-                  </h2>
-
-                  <p className="mt-2 max-w-[250px] text-[13px] font-medium leading-6 text-[#7B6756]">
-                    כל הפעולות החשובות לניהול ההזמנה, ההושבה וההודעות במקום אחד.
-                  </p>
-                </div>
+              <div
+                className="
+                  relative mx-auto inline-flex items-center justify-center gap-2
+                  rounded-full
+                  border border-[#D9BB83]
+                  bg-white/75
+                  px-6 py-2.5
+                  text-[14px] font-black
+                  tracking-[0.26em]
+                  text-[#8A663D]
+                  shadow-[0_10px_25px_rgba(123,86,45,0.08)]
+                "
+              >
+                INVISTIMO
+                <Sparkles size={16} />
               </div>
+
+              <h2 className="relative mt-8 text-[40px] font-black leading-tight text-[#3F3025]">
+                ניהול האירוע
+              </h2>
+
+              <p className="relative mx-auto mt-5 max-w-[430px] text-[18px] font-bold leading-9 text-[#7B6A5B]">
+                כל הפעולות החשובות לניהול ההזמנה, ההושבה וההודעות במקום אחד.
+              </p>
             </div>
 
-            {/* Navigation */}
-            <div className="h-[calc(100%-165px)] overflow-y-auto px-4 py-5">
-              <nav className="flex flex-col gap-3">
+            {/* scroll area */}
+            <div
+              className="
+                min-h-0 flex-1 overflow-y-auto
+                overscroll-contain
+                px-7 pb-[calc(34px+env(safe-area-inset-bottom))] pt-7
+              "
+            >
+              <nav className="flex flex-col gap-5">
                 {menuItems
                   .filter((item) => !item.hidden)
                   .map((item) => {
@@ -254,61 +258,67 @@ export default function DashboardMobileMenu({
                         className="
                           group relative
                           w-full overflow-hidden
-                          rounded-[26px]
-                          border border-[#E8D8C2]
-                          bg-white/78
-                          px-4 py-4
+                          rounded-[34px]
+                          border border-[#E1CDAE]
+                          bg-[#FFFDF8]
+                          px-5 py-6
                           text-right
-                          shadow-[0_12px_34px_rgba(92,68,42,0.08)]
+                          shadow-[0_18px_45px_rgba(84,61,36,0.08)]
                           transition
                           active:scale-[0.985]
                         "
                       >
-                        <div className="absolute inset-0 bg-gradient-to-l from-[#F4E6D1]/65 via-white/20 to-transparent opacity-0 transition group-active:opacity-100" />
+                        <div
+                          className="
+                            absolute inset-0
+                            bg-[radial-gradient(circle_at_top_right,#F4E5CE_0%,transparent_45%)]
+                            opacity-70
+                          "
+                        />
 
-                        <div className="relative flex items-center gap-4">
+                        <div className="relative flex items-center gap-5">
                           <div
                             className="
-                              flex h-12 w-12 shrink-0 items-center justify-center
-                              rounded-2xl
-                              border border-[#E3CFB0]
-                              bg-gradient-to-br from-[#FFF8EC] to-[#EBD8B9]
-                              text-[#7A5731]
-                              shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_10px_22px_rgba(104,75,42,0.12)]
+                              flex h-[70px] w-[70px] shrink-0 items-center justify-center
+                              rounded-[24px]
+                              border border-[#DFC89F]
+                              bg-gradient-to-br from-[#FFF8EA] to-[#EED8B3]
+                              text-[#8A6339]
+                              shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_14px_28px_rgba(111,78,42,0.12)]
                             "
                           >
-                            <Icon size={22} strokeWidth={2.2} />
+                            <Icon size={31} strokeWidth={2.2} />
                           </div>
 
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-[17px] font-black text-[#3F3025]">
-                                {item.title}
-                              </span>
-
+                            <div className="flex items-center justify-between gap-4">
                               <span
                                 className="
                                   shrink-0 rounded-full
-                                  border border-[#E7D5B9]
-                                  bg-[#FBF3E8]
-                                  px-2.5 py-1
-                                  text-[10px] font-black
+                                  border border-[#E0C89F]
+                                  bg-[#FFF8ED]
+                                  px-4 py-1.5
+                                  text-[14px] font-black
                                   text-[#9A7444]
                                 "
                               >
                                 {item.badge}
                               </span>
+
+                              <h3 className="text-[27px] font-black leading-tight text-[#3F3025]">
+                                {item.title}
+                              </h3>
                             </div>
 
-                            <p className="mt-1.5 text-[12.5px] font-medium leading-5 text-[#7B6756]">
+                            <p className="mt-3 text-[17px] font-bold leading-8 text-[#7B6756]">
                               {item.subtitle}
                             </p>
                           </div>
 
                           <ChevronLeft
-                            size={19}
-                            className="shrink-0 text-[#B69A72]"
-                            strokeWidth={2.4}
+                            size={25}
+                            className="shrink-0 text-[#B39362]"
+                            strokeWidth={2.6}
                           />
                         </div>
                       </button>
@@ -316,30 +326,29 @@ export default function DashboardMobileMenu({
                   })}
               </nav>
 
-              {/* Bottom note */}
               <div
                 className="
-                  mt-5 rounded-[24px]
-                  border border-[#E8D8C2]
-                  bg-gradient-to-br from-[#FFF9F0] to-[#F2E4CF]
-                  p-4
+                  mt-6 rounded-[30px]
+                  border border-[#E1CDAE]
+                  bg-gradient-to-br from-[#FFF9EF] to-[#F0DEC1]
+                  p-6
                   text-center
-                  shadow-[0_12px_32px_rgba(92,68,42,0.07)]
+                  shadow-[0_18px_45px_rgba(84,61,36,0.08)]
                 "
               >
-                <p className="text-[13px] font-bold leading-6 text-[#6D5844]">
+                <p className="text-[16px] font-black leading-8 text-[#6D5844]">
                   טיפ קטן: אפשר לחזור לכאן בכל רגע כדי לערוך, לשלוח הודעות או
                   לעבור להושבה.
                 </p>
               </div>
             </div>
-          </aside>
+          </section>
         </div>
       )}
 
       {/* Demo Modal */}
       {showDemoModal && (
-        <div className="fixed inset-0 z-[9999] flex items-end justify-center px-4 pb-6">
+        <div className="fixed inset-0 z-[10000] flex items-end justify-center px-4 pb-6">
           <button
             type="button"
             aria-label="סגירת חלון"
