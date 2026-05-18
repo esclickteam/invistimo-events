@@ -9,6 +9,7 @@ import { usePathname } from "next/navigation";
 export default function Header() {
   const { user, logout, loading } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [demoChoiceOpen, setDemoChoiceOpen] = useState(false);
 
   const pathname = usePathname();
   const isDashboard = pathname.startsWith("/dashboard");
@@ -67,6 +68,11 @@ export default function Header() {
       ))}
     </>
   );
+
+  const openDemoChoice = () => {
+    setMobileOpen(false);
+    setDemoChoiceOpen(true);
+  };
 
   if (isProducer) {
     return (
@@ -243,8 +249,9 @@ export default function Header() {
 
             {/* שמאל — כפתורים */}
             <div className="hidden items-center justify-end gap-3 md:flex">
-              <Link
-                href="/try/dashboard"
+              <button
+                type="button"
+                onClick={openDemoChoice}
                 className="
                   group inline-flex items-center gap-2
                   rounded-[13px]
@@ -265,7 +272,7 @@ export default function Header() {
                   className="transition group-hover:rotate-12"
                 />
                 נסו דמו עכשיו
-              </Link>
+              </button>
 
               {!loading &&
                 (user ? (
@@ -406,9 +413,9 @@ export default function Header() {
             </nav>
 
             <div className="mt-6 flex flex-col gap-3">
-              <Link
-                href="/try/dashboard"
-                onClick={() => setMobileOpen(false)}
+              <button
+                type="button"
+                onClick={openDemoChoice}
                 className="
                   inline-flex w-full items-center justify-center gap-2
                   rounded-[16px]
@@ -422,7 +429,7 @@ export default function Header() {
               >
                 <Sparkles size={18} />
                 נסו דמו עכשיו
-              </Link>
+              </button>
 
               {!loading &&
                 (user ? (
@@ -481,6 +488,178 @@ export default function Header() {
                 ))}
             </div>
           </aside>
+        </div>
+      )}
+
+      {/* ================= DEMO CHOICE MODAL ================= */}
+      {demoChoiceOpen && (
+        <div
+          dir="rtl"
+          className="
+            fixed inset-0 z-[9999]
+            flex items-center justify-center
+            bg-black/45 px-4
+            backdrop-blur-sm
+            print:hidden
+          "
+        >
+          <div
+            className="
+              relative
+              w-full max-w-2xl
+              overflow-hidden
+              rounded-[32px]
+              border border-[#D9BE80]/70
+              bg-[#FFFDF8]
+              p-6
+              shadow-[0_30px_90px_rgba(43,33,24,0.24)]
+            "
+          >
+            <button
+              type="button"
+              onClick={() => setDemoChoiceOpen(false)}
+              className="
+                absolute left-5 top-5
+                flex h-10 w-10 items-center justify-center
+                rounded-full
+                border border-[#E7D8BD]
+                bg-white
+                text-[#4A3A2A]
+                transition
+                hover:bg-[#FAF3E7]
+              "
+              aria-label="סגור בחירת דמו"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="mb-6 pl-12">
+              <div
+                className="
+                  mb-3 inline-flex items-center gap-2
+                  rounded-full
+                  border border-[#E7D8BD]
+                  bg-white/80
+                  px-4 py-2
+                  text-xs font-black
+                  text-[#9A6E24]
+                "
+              >
+                <Sparkles size={14} />
+                בחירת דמו
+              </div>
+
+              <h2 className="text-2xl font-black text-[#2B2118]">
+                איזה דמו תרצו לראות?
+              </h2>
+
+              <p className="mt-2 max-w-xl text-sm font-semibold leading-6 text-[#7A6A5E]">
+                אפשר לבחור בין מערכת אישורי הגעה והושבה לבין מערכת ניהול והפקת אירוע.
+              </p>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <Link
+                href="/try/dashboard"
+                onClick={() => setDemoChoiceOpen(false)}
+                className="
+                  group
+                  rounded-[28px]
+                  border border-[#E8DDD3]
+                  bg-white
+                  p-5
+                  text-right
+                  shadow-[0_12px_32px_rgba(91,65,26,0.08)]
+                  transition
+                  hover:-translate-y-1
+                  hover:border-[#C9A45C]
+                  hover:shadow-[0_20px_48px_rgba(91,65,26,0.13)]
+                "
+              >
+                <div
+                  className="
+                    mb-4 flex h-13 w-13 items-center justify-center
+                    rounded-2xl
+                    bg-[#F5E7DC]
+                    text-2xl
+                  "
+                >
+                  👥
+                </div>
+
+                <h3 className="text-lg font-black text-[#2B2118]">
+                  אישורי הגעה והושבה
+                </h3>
+
+                <p className="mt-2 text-sm font-semibold leading-6 text-[#7A6A5E]">
+                  דמו למערכת הזמנות, אישורי הגעה, מוזמנים, שולחנות וסידורי הושבה.
+                </p>
+
+                <div
+                  className="
+                    mt-5 inline-flex rounded-2xl
+                    bg-gradient-to-l from-[#B8862D] via-[#C9A45C] to-[#8B6220]
+                    px-4 py-2
+                    text-sm font-black text-white
+                    transition
+                    group-hover:scale-[1.02]
+                  "
+                >
+                  כניסה לדמו
+                </div>
+              </Link>
+
+              <Link
+                href="/try/event-management"
+                onClick={() => setDemoChoiceOpen(false)}
+                className="
+                  group
+                  rounded-[28px]
+                  border border-[#E8DDD3]
+                  bg-white
+                  p-5
+                  text-right
+                  shadow-[0_12px_32px_rgba(91,65,26,0.08)]
+                  transition
+                  hover:-translate-y-1
+                  hover:border-[#C9A45C]
+                  hover:shadow-[0_20px_48px_rgba(91,65,26,0.13)]
+                "
+              >
+                <div
+                  className="
+                    mb-4 flex h-13 w-13 items-center justify-center
+                    rounded-2xl
+                    bg-[#F4EDFF]
+                    text-2xl
+                  "
+                >
+                  ✨
+                </div>
+
+                <h3 className="text-lg font-black text-[#2B2118]">
+                  ניהול והפקת אירוע
+                </h3>
+
+                <p className="mt-2 text-sm font-semibold leading-6 text-[#7A6A5E]">
+                  דמו לניהול ספקים, תקציב, יומן, לוגיסטיקה, אלכוהול ומתנות מהאירוע.
+                </p>
+
+                <div
+                  className="
+                    mt-5 inline-flex rounded-2xl
+                    bg-[#2B2118]
+                    px-4 py-2
+                    text-sm font-black text-white
+                    transition
+                    group-hover:scale-[1.02]
+                  "
+                >
+                  כניסה לדמו
+                </div>
+              </Link>
+            </div>
+          </div>
         </div>
       )}
     </>
