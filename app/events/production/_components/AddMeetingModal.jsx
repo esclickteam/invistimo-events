@@ -7,11 +7,10 @@ export default function AddMeetingModal({
   date,
   onClose,
   onSave,
+  isDemo = false,
 }) {
   // תאריך פגישה – תמיד ניתן לשינוי
-  const [meetingDate, setMeetingDate] = useState(
-    new Date(date)
-  );
+  const [meetingDate, setMeetingDate] = useState(new Date(date));
 
   const [entityName, setEntityName] = useState("");
   const [time, setTime] = useState("12:00");
@@ -41,17 +40,34 @@ export default function AddMeetingModal({
         entityType,
         entityName,
         date: `${yyyy}-${mm}-${dd}`,
+        time,
         summary,
       };
 
-      const res = await fetch(
-        `/api/events/${eventId}/conversations`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        }
-      );
+      if (isDemo) {
+        const demoConversation = {
+          _id: `demo-meeting-${Date.now()}`,
+          eventId: "demo-event",
+          type: "meeting",
+          entityType,
+          entityName,
+          date: `${yyyy}-${mm}-${dd}`,
+          time,
+          summary,
+          createdAt: new Date().toISOString(),
+          isDemo: true,
+        };
+
+        onSave(demoConversation);
+        onClose();
+        return;
+      }
+
+      const res = await fetch(`/api/events/${eventId}/conversations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
       const data = await res.json();
 
@@ -75,14 +91,18 @@ export default function AddMeetingModal({
       <div className="bg-white rounded-xl p-6 w-full max-w-md space-y-4">
         <h4 className="font-semibold text-lg">פגישה חדשה</h4>
 
+        {isDemo && (
+          <div className="rounded-lg bg-[#F4EDFF] px-3 py-2 text-sm font-bold text-[#6D45C8]">
+            מצב דמו פעיל · הפגישה תוצג במסך בלבד ולא תישמר
+          </div>
+        )}
+
         {/* תאריך */}
         <input
           type="date"
           className="border rounded p-2 w-full"
           value={meetingDate.toISOString().slice(0, 10)}
-          onChange={(e) =>
-            setMeetingDate(new Date(e.target.value))
-          }
+          onChange={(e) => setMeetingDate(new Date(e.target.value))}
         />
 
         {/* שעה (כרגע UI בלבד) */}
@@ -121,16 +141,10 @@ export default function AddMeetingModal({
           onChange={(e) => setSummary(e.target.value)}
         />
 
-        {error && (
-          <div className="text-sm text-red-600">{error}</div>
-        )}
+        {error && <div className="text-sm text-red-600">{error}</div>}
 
         <div className="flex justify-end gap-3">
-          <button
-            onClick={onClose}
-            className="text-gray-500"
-            disabled={saving}
-          >
+          <button onClick={onClose} className="text-gray-500" disabled={saving}>
             ביטול
           </button>
 
@@ -139,7 +153,7 @@ export default function AddMeetingModal({
             disabled={saving}
             className="bg-black text-white px-4 py-2 rounded disabled:opacity-50"
           >
-            {saving ? "שומר…" : "שמור"}
+            {saving ? "שומר…" : isDemo ? "הוסף בדמו" : "שמור"}
           </button>
         </div>
       </div>

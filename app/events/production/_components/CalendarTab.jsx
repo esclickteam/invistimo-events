@@ -80,6 +80,113 @@ const ITEM_TYPES = [
   },
 ];
 
+const DEMO_CALENDAR_ITEMS = [
+  {
+    _id: "demo-calendar-1",
+    type: "meeting",
+    calendarType: "meeting",
+    meetingType: "meeting",
+    entityName: "פגישה עם הזוג",
+    title: "פגישה עם הזוג",
+    name: "פגישה עם הזוג",
+    date: formatDateInput(new Date()),
+    meetingDate: formatDateInput(new Date()),
+    eventDate: formatDateInput(new Date()),
+    dueDate: formatDateInput(new Date()),
+    time: "12:00",
+    meetingTime: "12:00",
+    eventTime: "12:00",
+    hour: "12:00",
+    summary: "מעבר על לו״ז האירוע, ספקים ודגשים חשובים.",
+    description: "מעבר על לו״ז האירוע, ספקים ודגשים חשובים.",
+    notes: "מעבר על לו״ז האירוע, ספקים ודגשים חשובים.",
+    message: "מעבר על לו״ז האירוע, ספקים ודגשים חשובים.",
+    location: "שיחת זום",
+    address: "שיחת זום",
+    zoomLink: "https://zoom.us/demo",
+    status: "planned",
+    isDemo: true,
+  },
+  {
+    _id: "demo-calendar-2",
+    type: "task",
+    calendarType: "task",
+    meetingType: "task",
+    entityName: "בדיקת רשימת ספקים",
+    title: "בדיקת רשימת ספקים",
+    name: "בדיקת רשימת ספקים",
+    date: formatDateInput(new Date(Date.now() + 24 * 60 * 60 * 1000)),
+    meetingDate: formatDateInput(new Date(Date.now() + 24 * 60 * 60 * 1000)),
+    eventDate: formatDateInput(new Date(Date.now() + 24 * 60 * 60 * 1000)),
+    dueDate: formatDateInput(new Date(Date.now() + 24 * 60 * 60 * 1000)),
+    time: "10:30",
+    meetingTime: "10:30",
+    eventTime: "10:30",
+    hour: "10:30",
+    summary: "לוודא שכל הספקים אישרו הגעה וקיבלו כתובת.",
+    description: "לוודא שכל הספקים אישרו הגעה וקיבלו כתובת.",
+    notes: "לוודא שכל הספקים אישרו הגעה וקיבלו כתובת.",
+    message: "לוודא שכל הספקים אישרו הגעה וקיבלו כתובת.",
+    location: "מערכת Invistimo",
+    address: "מערכת Invistimo",
+    zoomLink: "",
+    status: "planned",
+    isDemo: true,
+  },
+  {
+    _id: "demo-calendar-3",
+    type: "reminder",
+    calendarType: "reminder",
+    meetingType: "reminder",
+    entityName: "תזכורת תשלום לאולם",
+    title: "תזכורת תשלום לאולם",
+    name: "תזכורת תשלום לאולם",
+    date: formatDateInput(new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)),
+    meetingDate: formatDateInput(new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)),
+    eventDate: formatDateInput(new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)),
+    dueDate: formatDateInput(new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)),
+    time: "09:00",
+    meetingTime: "09:00",
+    eventTime: "09:00",
+    hour: "09:00",
+    summary: "לבדוק יתרת תשלום מול האולם.",
+    description: "לבדוק יתרת תשלום מול האולם.",
+    notes: "לבדוק יתרת תשלום מול האולם.",
+    message: "לבדוק יתרת תשלום מול האולם.",
+    location: "אולם בראשית",
+    address: "אולם בראשית",
+    zoomLink: "",
+    status: "planned",
+    isDemo: true,
+  },
+  {
+    _id: "demo-calendar-4",
+    type: "call",
+    calendarType: "call",
+    meetingType: "call",
+    entityName: "שיחה עם DJ",
+    title: "שיחה עם DJ",
+    name: "שיחה עם DJ",
+    date: formatDateInput(new Date(Date.now() + 5 * 24 * 60 * 60 * 1000)),
+    meetingDate: formatDateInput(new Date(Date.now() + 5 * 24 * 60 * 60 * 1000)),
+    eventDate: formatDateInput(new Date(Date.now() + 5 * 24 * 60 * 60 * 1000)),
+    dueDate: formatDateInput(new Date(Date.now() + 5 * 24 * 60 * 60 * 1000)),
+    time: "18:00",
+    meetingTime: "18:00",
+    eventTime: "18:00",
+    hour: "18:00",
+    summary: "סגירת שיר כניסה, שיר חופה ורשימת שירים.",
+    description: "סגירת שיר כניסה, שיר חופה ורשימת שירים.",
+    notes: "סגירת שיר כניסה, שיר חופה ורשימת שירים.",
+    message: "סגירת שיר כניסה, שיר חופה ורשימת שירים.",
+    location: "טלפון",
+    address: "טלפון",
+    zoomLink: "",
+    status: "planned",
+    isDemo: true,
+  },
+];
+
 function getTypeMeta(type) {
   return (
     ITEM_TYPES.find((item) => item.key === type) ||
@@ -214,7 +321,10 @@ function mapConversationToCalendarItem(item) {
    MAIN
 ====================================================== */
 
-export default function CalendarTab({ eventId }) {
+export default function CalendarTab({
+  eventId,
+  isDemo = false,
+}) {
   const calendarRef = useRef(null);
 
   const [calendarItems, setCalendarItems] = useState([]);
@@ -235,9 +345,19 @@ export default function CalendarTab({ eventId }) {
   ====================================================== */
 
   async function loadCalendarItems() {
-    if (!eventId) return;
+    if (!eventId && !isDemo) return;
 
     setLoading(true);
+
+    if (isDemo) {
+      const calendarEvents = DEMO_CALENDAR_ITEMS
+        .map(mapConversationToCalendarItem)
+        .filter((item) => item.start);
+
+      setCalendarItems(calendarEvents);
+      setLoading(false);
+      return;
+    }
 
     try {
       const res = await fetch(
@@ -289,7 +409,7 @@ export default function CalendarTab({ eventId }) {
 
   useEffect(() => {
     loadCalendarItems();
-  }, [eventId]);
+  }, [eventId, isDemo]);
 
   /* ======================================================
      DERIVED
@@ -441,7 +561,7 @@ export default function CalendarTab({ eventId }) {
   }
 
   async function saveCalendarItem(form) {
-    if (!eventId) return;
+    if (!eventId && !isDemo) return;
 
     if (!form.title?.trim()) {
       alert("חובה להזין כותרת");
@@ -491,9 +611,41 @@ export default function CalendarTab({ eventId }) {
 
         status: form.status || "planned",
 
-        eventId,
+        eventId: isDemo ? "demo-event" : eventId,
         syncToProducerCalendar: true,
+        isDemo,
       };
+
+      if (isDemo) {
+        const saved = {
+          _id: form._id || `demo-calendar-${Date.now()}`,
+          ...payload,
+        };
+
+        const mapped = mapConversationToCalendarItem(saved);
+
+        setCalendarItems((prev) => {
+          const exists = prev.some(
+            (item) => String(item.id) === String(mapped.id)
+          );
+
+          if (exists) {
+            return prev.map((item) =>
+              String(item.id) === String(mapped.id)
+                ? mapped
+                : item
+            );
+          }
+
+          return [...prev, mapped];
+        });
+
+        setSelectedDate(form.date);
+        setModalOpen(false);
+        setSelectedItem(null);
+        setSaving(false);
+        return;
+      }
 
       let res;
 
@@ -580,7 +732,11 @@ export default function CalendarTab({ eventId }) {
       return;
     }
 
-    const ok = confirm("למחוק את הפריט מהיומן?");
+    const ok = confirm(
+      isDemo
+        ? "למחוק את הפריט מהדמו?"
+        : "למחוק את הפריט מהיומן?"
+    );
     if (!ok) return;
 
     const previousItems = calendarItems;
@@ -591,6 +747,13 @@ export default function CalendarTab({ eventId }) {
       setCalendarItems((prev) =>
         prev.filter((item) => String(item.id) !== String(id))
       );
+
+      if (isDemo) {
+        setModalOpen(false);
+        setSelectedItem(null);
+        setSaving(false);
+        return;
+      }
 
       const res = await fetch(
         `/api/events/${eventId}/conversations/${id}`,
@@ -704,6 +867,28 @@ export default function CalendarTab({ eventId }) {
               יומן עבודה להפקה
             </div>
 
+            {isDemo && (
+              <div
+                className="
+                  mb-4
+                  inline-flex
+                  items-center
+                  gap-2
+                  rounded-full
+                  border
+                  border-[#E7D8FF]
+                  bg-[#F4EDFF]
+                  px-4
+                  py-2
+                  text-xs
+                  font-black
+                  text-[#6D28D9]
+                "
+              >
+                מצב דמו פעיל · אפשר להוסיף, לערוך ולמחוק בלי שמירה לשרת
+              </div>
+            )}
+
             <h2
               className="
                 text-4xl
@@ -750,14 +935,14 @@ export default function CalendarTab({ eventId }) {
 
       {/* BODY */}
       <section
-  className="
-    grid
-    grid-cols-1
-    xl:grid-cols-[240px_minmax(820px,1fr)_240px]
-    2xl:grid-cols-[260px_minmax(980px,1fr)_260px]
-    gap-5
-    items-start
-  "
+        className="
+          grid
+          grid-cols-1
+          xl:grid-cols-[240px_minmax(820px,1fr)_240px]
+          2xl:grid-cols-[260px_minmax(980px,1fr)_260px]
+          gap-5
+          items-start
+        "
       >
         {/* RIGHT - UPCOMING WEEK */}
         <SidePanel
@@ -940,8 +1125,8 @@ export default function CalendarTab({ eventId }) {
                 height="auto"
                 events={calendarItems}
                 dateClick={(info) => {
-  setSelectedDate(info.dateStr);
-}}
+                  setSelectedDate(info.dateStr);
+                }}
                 eventClick={openEditModal}
                 datesSet={updateTitle}
                 eventTimeFormat={{
@@ -1006,6 +1191,7 @@ export default function CalendarTab({ eventId }) {
           form={selectedItem}
           setForm={setSelectedItem}
           saving={saving}
+          isDemo={isDemo}
           onClose={() => {
             setModalOpen(false);
             setSelectedItem(null);
@@ -1043,9 +1229,9 @@ export default function CalendarTab({ eventId }) {
         }
 
         .producer-calendar-shell .fc-daygrid-day {
-  min-height: 155px;
-  background: #fff;
-}
+          min-height: 155px;
+          background: #fff;
+        }
 
         .producer-calendar-shell .fc-daygrid-day-frame {
           padding: 8px;
@@ -1269,6 +1455,7 @@ function CalendarItemModal({
   form,
   setForm,
   saving,
+  isDemo = false,
   onClose,
   onSave,
   onDelete,
@@ -1347,6 +1534,12 @@ function CalendarItemModal({
               <p className="text-sm text-gray-400 mt-1">
                 אירוע / פגישה / תזכורת עם תאריך ושעה
               </p>
+
+              {isDemo && (
+                <p className="mt-2 text-xs font-black text-[#6D28D9]">
+                  מצב דמו · השינויים יוצגו במסך בלבד ולא יישמרו לשרת
+                </p>
+              )}
             </div>
           </div>
 
@@ -1634,7 +1827,7 @@ function CalendarItemModal({
                 "
               >
                 <Save size={16} />
-                {saving ? "שומר..." : "שמירה"}
+                {saving ? "שומר..." : isDemo ? "שמירה בדמו" : "שמירה"}
               </button>
             </div>
           </div>

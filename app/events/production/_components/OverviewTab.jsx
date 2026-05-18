@@ -66,8 +66,71 @@ function getEventDetailsFromEvent(event) {
   };
 }
 
-export default function OverviewTab({ eventId, invitation }) {
+/* ============================================================
+   DEMO DATA — מצב דמו בלבד
+============================================================ */
+const DEMO_EVENT = {
+  _id: "demo-event",
+  title: "החתונה של שיר ואיתי",
+  date: normalizeDateInput(new Date(Date.now() + 24 * 60 * 60 * 1000 * 28)),
+  time: "19:30",
+  location: {
+    address: "אולם בראשית, נס ציונה",
+  },
+  budgetTotal: 120000,
+  estimatedGuests: 320,
+  estimatedGuestCount: 320,
+};
+
+const DEMO_TASKS = [
+  {
+    _id: "demo-task-1",
+    title: "אישור סופי מול האולם",
+    status: TASK_STATUS.OPEN,
+    dueDate: normalizeDateInput(new Date(Date.now() + 24 * 60 * 60 * 1000 * 3)),
+  },
+  {
+    _id: "demo-task-2",
+    title: "סגירת רשימת ספקים",
+    status: TASK_STATUS.WAITING,
+    dueDate: normalizeDateInput(new Date(Date.now() + 24 * 60 * 60 * 1000 * 6)),
+  },
+  {
+    _id: "demo-task-3",
+    title: "בדיקת לו״ז יום האירוע",
+    status: TASK_STATUS.DONE,
+    dueDate: normalizeDateInput(new Date(Date.now() + 24 * 60 * 60 * 1000 * 1)),
+  },
+  {
+    _id: "demo-task-4",
+    title: "עדכון מתנות ואישורי הגעה",
+    status: TASK_STATUS.OPEN,
+    dueDate: normalizeDateInput(new Date(Date.now() - 24 * 60 * 60 * 1000 * 1)),
+  },
+];
+
+const DEMO_BUDGET = {
+  total: 120000,
+  commitments: 96500,
+  paid: 42000,
+  available: 23500,
+};
+
+const DEMO_GIFTS_SUMMARY = {
+  totalGifts: 68400,
+  totalRows: 94,
+  rowsWithGift: 76,
+  rowsWithoutGift: 18,
+};
+
+export default function OverviewTab({
+  eventId,
+  invitation,
+  isDemo = false,
+}) {
   const router = useRouter();
+
+  const eventKey = isDemo ? "demo-event" : eventId;
 
   const [loading, setLoading] = useState(true);
   const [event, setEvent] = useState(null);
@@ -109,14 +172,14 @@ export default function OverviewTab({ eventId, invitation }) {
   });
 
   useEffect(() => {
-    if (!eventId) {
+    if (!eventId && !isDemo) {
       setLoading(false);
       setError("NO_EVENT_ID");
       return;
     }
 
-    const savedRead = localStorage.getItem(`readAlerts-${eventId}`);
-    const savedHidden = localStorage.getItem(`hiddenAlerts-${eventId}`);
+    const savedRead = localStorage.getItem(`readAlerts-${eventKey}`);
+    const savedHidden = localStorage.getItem(`hiddenAlerts-${eventKey}`);
 
     setReadAlerts(savedRead ? JSON.parse(savedRead) : []);
     setHiddenAlerts(savedHidden ? JSON.parse(savedHidden) : []);
@@ -124,6 +187,22 @@ export default function OverviewTab({ eventId, invitation }) {
     async function load() {
       setLoading(true);
       setError("");
+
+      if (isDemo) {
+        setEvent(DEMO_EVENT);
+        setTasks(DEMO_TASKS);
+        setBudget(DEMO_BUDGET);
+        setBudgetDraft(DEMO_EVENT.budgetTotal || 0);
+
+        const savedEstimatedGuests = getEstimatedGuestsFromData(DEMO_EVENT);
+        setEstimatedGuestsDraft(
+          savedEstimatedGuests ? String(savedEstimatedGuests) : ""
+        );
+
+        setGiftsSummary(DEMO_GIFTS_SUMMARY);
+        setLoading(false);
+        return;
+      }
 
       try {
         const res = await fetch(`/api/events/${eventId}/overview`, {
@@ -183,7 +262,7 @@ export default function OverviewTab({ eventId, invitation }) {
         clearTimeout(estimatedGuestsTimerRef.current);
       }
     };
-  }, [eventId]);
+  }, [eventId, isDemo, eventKey]);
 
   const budgetTotal = budget?.total ?? event?.budgetTotal ?? 0;
   const commitments = budget?.commitments ?? 0;
@@ -552,13 +631,13 @@ export default function OverviewTab({ eventId, invitation }) {
   function markAlertAsRead(alertId) {
     const next = Array.from(new Set([...readAlerts, alertId]));
     setReadAlerts(next);
-    localStorage.setItem(`readAlerts-${eventId}`, JSON.stringify(next));
+    localStorage.setItem(`readAlerts-${eventKey}`, JSON.stringify(next));
   }
 
   function hideAlert(alertId) {
     const next = Array.from(new Set([...hiddenAlerts, alertId]));
     setHiddenAlerts(next);
-    localStorage.setItem(`hiddenAlerts-${eventId}`, JSON.stringify(next));
+    localStorage.setItem(`hiddenAlerts-${eventKey}`, JSON.stringify(next));
   }
 
   function openEventDetailsModal() {
@@ -587,6 +666,30 @@ export default function OverviewTab({ eventId, invitation }) {
     setSavingEventDetails(true);
     setSavedEventDetails(false);
     setError("");
+
+    if (isDemo) {
+      const nextEvent = {
+        ...(event || {}),
+        title: eventDetailsDraft.title,
+        date: eventDetailsDraft.date,
+        time: eventDetailsDraft.time,
+        location: {
+          ...(event?.location || {}),
+          address: eventDetailsDraft.locationAddress,
+        },
+      };
+
+      setEvent(nextEvent);
+      setSavedEventDetails(true);
+      setEventDetailsOpen(false);
+      setSavingEventDetails(false);
+
+      setTimeout(() => {
+        setSavedEventDetails(false);
+      }, 1500);
+
+      return;
+    }
 
     try {
       const res = await fetch(`/api/events/${eventId}/overview`, {
@@ -649,6 +752,21 @@ export default function OverviewTab({ eventId, invitation }) {
 
     setError("");
 
+    if (isDemo) {
+      const demoTask = {
+        _id: `demo-task-${Date.now()}`,
+        title: newTitle.trim(),
+        dueDate: newDate || "",
+        status: TASK_STATUS.OPEN,
+        isDemo: true,
+      };
+
+      setTasks((prev) => [...prev, demoTask]);
+      setNewTitle("");
+      setNewDate("");
+      return;
+    }
+
     try {
       const res = await fetch(`/api/events/${eventId}/tasks`, {
         method: "POST",
@@ -678,6 +796,8 @@ export default function OverviewTab({ eventId, invitation }) {
     setTasks((prev) =>
       prev.map((t) => (t._id === taskId ? { ...t, [field]: value } : t))
     );
+
+    if (isDemo) return;
 
     try {
       const res = await fetch(`/api/tasks/${taskId}`, {
@@ -719,6 +839,24 @@ export default function OverviewTab({ eventId, invitation }) {
 
     setSavingBudget(true);
     setError("");
+
+    if (isDemo) {
+      setEvent((prev) => ({
+        ...(prev || {}),
+        budgetTotal: nextBudget,
+      }));
+
+      setBudget((prev) => ({
+        ...prev,
+        total: nextBudget,
+        available: Math.max(nextBudget - (prev?.commitments || 0), 0),
+      }));
+
+      setBudgetDraft(nextBudget);
+      setSavingBudget(false);
+      setIsEditingBudget(false);
+      return;
+    }
 
     try {
       const res = await fetch(`/api/events/${eventId}/overview`, {
@@ -783,6 +921,23 @@ export default function OverviewTab({ eventId, invitation }) {
     setSavingEstimatedGuests(true);
     setSavedEstimatedGuests(false);
     setError("");
+
+    if (isDemo) {
+      setEvent((prev) => ({
+        ...(prev || {}),
+        estimatedGuests: nextEstimatedGuests,
+        estimatedGuestCount: nextEstimatedGuests,
+      }));
+
+      setSavedEstimatedGuests(true);
+      setSavingEstimatedGuests(false);
+
+      setTimeout(() => {
+        setSavedEstimatedGuests(false);
+      }, 1500);
+
+      return;
+    }
 
     try {
       const res = await fetch(`/api/events/${eventId}/overview`, {
@@ -973,6 +1128,26 @@ export default function OverviewTab({ eventId, invitation }) {
             </div>
 
             <div className="text-center md:text-right">
+              {isDemo && (
+                <div
+                  className="
+                    mb-3
+                    inline-flex
+                    rounded-full
+                    border
+                    border-purple-100
+                    bg-white/85
+                    px-4
+                    py-2
+                    text-xs
+                    font-black
+                    text-purple-700
+                  "
+                >
+                  מצב דמו פעיל · אפשר לערוך ולהתנסות בלי שמירה לשרת
+                </div>
+              )}
+
               <h1
                 className="
                   text-3xl
@@ -1285,6 +1460,7 @@ export default function OverviewTab({ eventId, invitation }) {
           draft={eventDetailsDraft}
           saving={savingEventDetails}
           saved={savedEventDetails}
+          isDemo={isDemo}
           onClose={() => setEventDetailsOpen(false)}
           onChange={updateEventDetailsDraft}
           onSave={saveEventDetails}
@@ -1298,6 +1474,7 @@ function EventDetailsModal({
   draft,
   saving,
   saved,
+  isDemo = false,
   onClose,
   onChange,
   onSave,
@@ -1338,6 +1515,12 @@ function EventDetailsModal({
             <p className="mt-2 text-sm text-gray-500">
               הפרטים נשמרים על האירוע ומשפיעים על תמונת המצב וההתראות החכמות.
             </p>
+
+            {isDemo && (
+              <p className="mt-2 text-xs font-black text-purple-600">
+                מצב דמו · השינויים יוצגו במסך בלבד ולא יישמרו לשרת
+              </p>
+            )}
           </div>
 
           <button
@@ -1496,7 +1679,7 @@ function EventDetailsModal({
                 disabled:opacity-50
               "
             >
-              {saving ? "שומר..." : "שמירת פרטים"}
+              {saving ? "שומר..." : isDemo ? "שמירה בדמו" : "שמירת פרטים"}
             </button>
           </div>
         </div>

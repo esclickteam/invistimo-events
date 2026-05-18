@@ -46,6 +46,56 @@ const STATUS_META = {
   },
 };
 
+const DEMO_LOGISTICS_STEPS = [
+  {
+    _id: "demo-logistics-1",
+    title: "לוודא סידור שולחנות מול האולם",
+    status: "done",
+  },
+  {
+    _id: "demo-logistics-2",
+    title: "אישור הגעת ספקי צילום ו-DJ",
+    status: "pending",
+  },
+  {
+    _id: "demo-logistics-3",
+    title: "בדיקת עמדת קבלת פנים ושלטי הכוונה",
+    status: "missing",
+  },
+  {
+    _id: "demo-logistics-4",
+    title: "לוודא ציוד לחופה וטבעות",
+    status: "pending",
+  },
+];
+
+const DEMO_TIMELINE_STEPS = [
+  {
+    _id: "demo-timeline-1",
+    title: "הגעת ספקים",
+    time: "17:30",
+    status: "done",
+  },
+  {
+    _id: "demo-timeline-2",
+    title: "קבלת פנים",
+    time: "19:30",
+    status: "pending",
+  },
+  {
+    _id: "demo-timeline-3",
+    title: "חופה",
+    time: "20:30",
+    status: "pending",
+  },
+  {
+    _id: "demo-timeline-4",
+    title: "פתיחת רחבה",
+    time: "21:15",
+    status: "missing",
+  },
+];
+
 function TimelineRow({ item, onUpdate, onDelete }) {
   const {
     setNodeRef,
@@ -352,7 +402,10 @@ function LogisticsRow({ item, onUpdate, onDelete }) {
   );
 }
 
-export default function LogisticsTab({ eventId }) {
+export default function LogisticsTab({
+  eventId,
+  isDemo = false,
+}) {
   const [logisticsSteps, setLogisticsSteps] = useState([]);
   const [timelineSteps, setTimelineSteps] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -369,10 +422,17 @@ export default function LogisticsTab({ eventId }) {
   });
 
   useEffect(() => {
-    if (!eventId) return;
+    if (!eventId && !isDemo) return;
 
     async function load() {
       setLoading(true);
+
+      if (isDemo) {
+        setLogisticsSteps(DEMO_LOGISTICS_STEPS);
+        setTimelineSteps(DEMO_TIMELINE_STEPS);
+        setLoading(false);
+        return;
+      }
 
       try {
         const [logisticsRes, timelineRes] = await Promise.all([
@@ -402,7 +462,7 @@ export default function LogisticsTab({ eventId }) {
     }
 
     load();
-  }, [eventId]);
+  }, [eventId, isDemo]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -413,6 +473,24 @@ export default function LogisticsTab({ eventId }) {
 
   async function addLogisticsStep() {
     if (!newLogistic.title.trim()) return;
+
+    if (isDemo) {
+      const demoStep = {
+        _id: `demo-logistics-${Date.now()}`,
+        title: newLogistic.title,
+        status: newLogistic.status,
+        isDemo: true,
+      };
+
+      setLogisticsSteps((prev) => [...prev, demoStep]);
+
+      setNewLogistic({
+        title: "",
+        status: "pending",
+      });
+
+      return;
+    }
 
     try {
       const res = await fetch(`/api/events/${eventId}/logistics`, {
@@ -445,6 +523,26 @@ export default function LogisticsTab({ eventId }) {
 
   async function addTimelineStep() {
     if (!newEvent.title.trim()) return;
+
+    if (isDemo) {
+      const demoStep = {
+        _id: `demo-timeline-${Date.now()}`,
+        title: newEvent.title,
+        time: newEvent.time,
+        status: newEvent.status,
+        isDemo: true,
+      };
+
+      setTimelineSteps((prev) => [...prev, demoStep]);
+
+      setNewEvent({
+        title: "",
+        time: "",
+        status: "pending",
+      });
+
+      return;
+    }
 
     try {
       const res = await fetch(`/api/events/${eventId}/timeline`, {
@@ -491,6 +589,8 @@ export default function LogisticsTab({ eventId }) {
       )
     );
 
+    if (isDemo) return;
+
     try {
       const res = await fetch(`/api/logistics/${id}`, {
         method: "PATCH",
@@ -526,6 +626,8 @@ export default function LogisticsTab({ eventId }) {
       )
     );
 
+    if (isDemo) return;
+
     try {
       const res = await fetch(`/api/timeline/${id}`, {
         method: "PATCH",
@@ -554,6 +656,8 @@ export default function LogisticsTab({ eventId }) {
       prev.filter((s) => s._id !== id)
     );
 
+    if (isDemo) return;
+
     try {
       const res = await fetch(`/api/logistics/${id}`, {
         method: "DELETE",
@@ -577,6 +681,8 @@ export default function LogisticsTab({ eventId }) {
     setTimelineSteps((prev) =>
       prev.filter((s) => s._id !== id)
     );
+
+    if (isDemo) return;
 
     try {
       const res = await fetch(`/api/timeline/${id}`, {
@@ -672,6 +778,29 @@ export default function LogisticsTab({ eventId }) {
           <Sparkles size={16} />
           ניהול האירוע
         </div>
+
+        {isDemo && (
+          <div
+            className="
+              mx-auto
+              mb-5
+              inline-flex
+              items-center
+              gap-2
+              rounded-full
+              border
+              border-[#E7D8FF]
+              bg-[#F4EDFF]
+              px-5
+              py-2
+              text-xs
+              font-black
+              text-[#6D28D9]
+            "
+          >
+            מצב דמו פעיל · אפשר לערוך, להוסיף, למחוק ולגרור בלי שמירה לשרת
+          </div>
+        )}
 
         <h1
           className="

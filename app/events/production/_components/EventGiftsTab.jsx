@@ -34,6 +34,73 @@ const STATUS_OPTIONS = [
   { value: "unknown", label: "לא ידוע" },
 ];
 
+const DEMO_GIFTS = [
+  {
+    _id: "demo-gift-1",
+    eventId: "demo-event",
+    invitationId: "demo-invitation",
+    guestId: "demo-guest-1",
+    guestName: "משפחת כהן",
+    phone: "050-1234567",
+    relation: "משפחה",
+    arrivalStatus: "coming",
+    confirmedCount: 4,
+    giftAmount: 1200,
+    paymentMethod: "cash",
+    notes: "מעטפה מההורים",
+    isManual: false,
+    isNew: false,
+  },
+  {
+    _id: "demo-gift-2",
+    eventId: "demo-event",
+    invitationId: "demo-invitation",
+    guestId: "demo-guest-2",
+    guestName: "דנה וליאור",
+    phone: "052-2222222",
+    relation: "חברים",
+    arrivalStatus: "coming",
+    confirmedCount: 2,
+    giftAmount: 700,
+    paymentMethod: "bit",
+    notes: "נשלח בביט",
+    isManual: false,
+    isNew: false,
+  },
+  {
+    _id: "demo-gift-3",
+    eventId: "demo-event",
+    invitationId: "demo-invitation",
+    guestId: "demo-guest-3",
+    guestName: "רועי מזרחי",
+    phone: "054-3333333",
+    relation: "עבודה",
+    arrivalStatus: "pending",
+    confirmedCount: "",
+    giftAmount: "",
+    paymentMethod: "",
+    notes: "",
+    isManual: false,
+    isNew: false,
+  },
+  {
+    _id: "demo-gift-4",
+    eventId: "demo-event",
+    invitationId: "demo-invitation",
+    guestId: "demo-guest-4",
+    guestName: "משפחת לוי",
+    phone: "053-4444444",
+    relation: "משפחה",
+    arrivalStatus: "coming",
+    confirmedCount: 3,
+    giftAmount: 1000,
+    paymentMethod: "checks",
+    notes: "צ׳ק אחד",
+    isManual: false,
+    isNew: false,
+  },
+];
+
 function formatMoney(value) {
   const num = Number(value || 0);
 
@@ -237,7 +304,11 @@ function PaymentDropdown({ value, onChange }) {
   );
 }
 
-export default function EventGiftsTab({ eventId, invitationId }) {
+export default function EventGiftsTab({
+  eventId,
+  invitationId,
+  isDemo = false,
+}) {
   const [gifts, setGifts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState("");
@@ -250,7 +321,7 @@ export default function EventGiftsTab({ eventId, invitationId }) {
   const saveTimersRef = useRef({});
   const latestGiftsRef = useRef([]);
 
-  const canLoad = Boolean(eventId);
+  const canLoad = isDemo || Boolean(eventId);
 
   useEffect(() => {
     latestGiftsRef.current = gifts;
@@ -261,6 +332,19 @@ export default function EventGiftsTab({ eventId, invitationId }) {
 
     setLoading(true);
     setError("");
+
+    if (isDemo) {
+      const demoRows = DEMO_GIFTS.map((gift) => ({
+        ...gift,
+        eventId: eventId || "demo-event",
+        invitationId: invitationId || "demo-invitation",
+      }));
+
+      latestGiftsRef.current = demoRows;
+      setGifts(demoRows);
+      setLoading(false);
+      return;
+    }
 
     try {
       const query = new URLSearchParams();
@@ -298,7 +382,7 @@ export default function EventGiftsTab({ eventId, invitationId }) {
         clearTimeout(timer);
       });
     };
-  }, [eventId, invitationId]);
+  }, [eventId, invitationId, isDemo]);
 
   const localSummary = useMemo(() => {
     const totalGifts = gifts.reduce((sum, gift) => {
@@ -368,6 +452,49 @@ export default function EventGiftsTab({ eventId, invitationId }) {
     }));
 
     setError("");
+
+    if (isDemo) {
+      const savedGift = {
+        ...giftToSave,
+        _id: isNew ? `demo-gift-${Date.now()}` : rowId,
+        eventId: eventId || "demo-event",
+        invitationId: invitationId || "demo-invitation",
+        isNew: false,
+        isManual: true,
+        isDemo: true,
+      };
+
+      setGifts((prev) =>
+        prev.map((item) => (item._id === rowId ? savedGift : item))
+      );
+
+      latestGiftsRef.current = latestGiftsRef.current.map((item) =>
+        item._id === rowId ? savedGift : item
+      );
+
+      setSavingRows((prev) => {
+        const next = { ...prev };
+        delete next[rowId];
+        next[savedGift._id] = false;
+        return next;
+      });
+
+      setSavedRows((prev) => {
+        const next = { ...prev };
+        delete next[rowId];
+        next[savedGift._id] = true;
+        return next;
+      });
+
+      setTimeout(() => {
+        setSavedRows((prev) => ({
+          ...prev,
+          [savedGift._id]: false,
+        }));
+      }, 1500);
+
+      return;
+    }
 
     try {
       const res = await fetch("/api/event-gifts", {
@@ -504,7 +631,10 @@ export default function EventGiftsTab({ eventId, invitationId }) {
   };
 
   const addManualRow = () => {
-    const newGift = emptyManualGift(eventId, invitationId);
+    const newGift = emptyManualGift(
+      isDemo ? eventId || "demo-event" : eventId,
+      isDemo ? invitationId || "demo-invitation" : invitationId
+    );
 
     latestGiftsRef.current = [newGift, ...latestGiftsRef.current];
 
@@ -525,11 +655,29 @@ export default function EventGiftsTab({ eventId, invitationId }) {
       return;
     }
 
-    const ok = window.confirm("למחוק את הרשומה מרשימת המתנות?");
+    const ok = window.confirm(
+      isDemo
+        ? "למחוק את הרשומה מהדמו?"
+        : "למחוק את הרשומה מרשימת המתנות?"
+    );
     if (!ok) return;
 
     setDeletingId(gift._id);
     setError("");
+
+    if (isDemo) {
+      if (saveTimersRef.current[gift._id]) {
+        clearTimeout(saveTimersRef.current[gift._id]);
+      }
+
+      latestGiftsRef.current = latestGiftsRef.current.filter(
+        (item) => item._id !== gift._id
+      );
+
+      setGifts((prev) => prev.filter((item) => item._id !== gift._id));
+      setDeletingId("");
+      return;
+    }
 
     try {
       const res = await fetch(`/api/event-gifts?giftId=${gift._id}`, {
@@ -644,7 +792,10 @@ export default function EventGiftsTab({ eventId, invitationId }) {
     const date = new Date().toISOString().slice(0, 10);
 
     link.href = url;
-    link.download = `מתנות-מהאירוע-${date}.xls`;
+    link.download = isDemo
+      ? `מתנות-מהאירוע-דמו-${date}.xls`
+      : `מתנות-מהאירוע-${date}.xls`;
+
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -652,7 +803,7 @@ export default function EventGiftsTab({ eventId, invitationId }) {
     URL.revokeObjectURL(url);
   };
 
-  if (!eventId) {
+  if (!eventId && !isDemo) {
     return (
       <section
         dir="rtl"
@@ -674,6 +825,12 @@ export default function EventGiftsTab({ eventId, invitationId }) {
               <Gift size={15} />
               מתנות מהאירוע
             </div>
+
+            {isDemo && (
+              <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#E7D8FF] bg-[#F4EDFF] px-4 py-2 text-xs font-black text-[#6D28D9]">
+                מצב דמו פעיל · אפשר לערוך, להוסיף ולמחוק בלי שמירה לשרת
+              </div>
+            )}
 
             <h2 className="text-2xl font-black text-[#2B2118]">
               ניהול מתנות מהאירוע
@@ -991,10 +1148,10 @@ export default function EventGiftsTab({ eventId, invitationId }) {
                             {isSaving ? (
                               <span className="inline-flex items-center gap-1">
                                 <Loader2 className="animate-spin" size={12} />
-                                שומר
+                                {isDemo ? "דמו" : "שומר"}
                               </span>
                             ) : isSaved ? (
-                              "נשמר"
+                              isDemo ? "נשמר בדמו" : "נשמר"
                             ) : (
                               ""
                             )}

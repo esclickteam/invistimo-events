@@ -62,6 +62,7 @@ export default function ProductionTabs({
   liveSeating,
   invitation,
   eventId,
+  basePath = "/events/production",
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -77,7 +78,7 @@ export default function ProductionTabs({
 
     params.set("tab", tabKey);
 
-    router.push(`/events/production?${params.toString()}`);
+    router.push(`${basePath}?${params.toString()}`);
   };
 
   return (

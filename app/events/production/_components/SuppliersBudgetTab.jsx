@@ -24,12 +24,144 @@ import {
 } from "lucide-react";
 
 const CATEGORY_ICONS = {
-  "צילום": Camera,
+  צילום: Camera,
   "מוזיקה ובידור": Music2,
   "אולם ואוכל": Building2,
 };
 
-export default function SuppliersTab({ eventId }) {
+const DEMO_CATEGORIES = [
+  {
+    _id: "demo-cat-photo",
+    name: "צילום",
+    subs: ["סטילס", "וידאו", "מגנטים", "אלבומים"],
+  },
+  {
+    _id: "demo-cat-music",
+    name: "מוזיקה ובידור",
+    subs: ["DJ", "כנרית", "זמר חופה", "אטרקציות"],
+  },
+  {
+    _id: "demo-cat-venue",
+    name: "אולם ואוכל",
+    subs: ["אולם", "קייטרינג", "בר", "עיצוב שולחנות"],
+  },
+];
+
+const DEMO_ROWS = [
+  {
+    id: "demo-row-1",
+    categoryId: "demo-cat-photo",
+    category: "צילום",
+    sub: "סטילס",
+    supplierName: "Studio Moments",
+    supplierId: "demo-supplier-1",
+    phone: "050-1234567",
+    price: 8500,
+    advance: 3000,
+    balance: 5500,
+    notes: "כולל צלם ראשי, צלם נוסף ואלבום דיגיטלי.",
+    files: [
+      {
+        name: "חוזה צילום לדוגמה.pdf",
+        type: "application/pdf",
+        url: "#",
+        isDemo: true,
+      },
+    ],
+  },
+  {
+    id: "demo-row-2",
+    categoryId: "demo-cat-music",
+    category: "מוזיקה ובידור",
+    sub: "DJ",
+    supplierName: "DJ Event Pro",
+    supplierId: "demo-supplier-2",
+    phone: "052-2222222",
+    price: 6500,
+    advance: 1500,
+    balance: 5000,
+    notes: "צריך לשלוח רשימת שירים לחופה ולסלואו.",
+    files: [],
+  },
+  {
+    id: "demo-row-3",
+    categoryId: "demo-cat-venue",
+    category: "אולם ואוכל",
+    sub: "אולם",
+    supplierName: "אולם בראשית",
+    supplierId: "demo-supplier-3",
+    phone: "03-5555555",
+    price: 82000,
+    advance: 40000,
+    balance: 42000,
+    notes: "כולל מנה, בר בסיסי, מנהל אירוע וחופה.",
+    files: [],
+  },
+];
+
+const DEMO_SUPPLIERS_BY_KEY = {
+  "demo-cat-photo|סטילס": [
+    {
+      _id: "demo-supplier-1",
+      name: "Studio Moments",
+      phone: "050-1234567",
+      basePrice: 8500,
+      advancePrice: 3000,
+      includes: ["צלם ראשי", "צלם נוסף", "אלבום דיגיטלי"],
+      notes: "ספק דמו מומלץ לצילום חתונות.",
+    },
+    {
+      _id: "demo-supplier-4",
+      name: "White Frame",
+      phone: "054-4444444",
+      basePrice: 7200,
+      advancePrice: 2000,
+      includes: ["סטילס", "גלריה אונליין"],
+      notes: "חבילת צילום בסיסית לדמו.",
+    },
+  ],
+  "demo-cat-music|DJ": [
+    {
+      _id: "demo-supplier-2",
+      name: "DJ Event Pro",
+      phone: "052-2222222",
+      basePrice: 6500,
+      advancePrice: 1500,
+      includes: ["מערכת הגברה", "תאורה", "פגישת מוזיקה"],
+      notes: "מתאים לאירועי ערב גדולים.",
+    },
+    {
+      _id: "demo-supplier-5",
+      name: "DJ Vibes",
+      phone: "053-3333333",
+      basePrice: 5900,
+      advancePrice: 1000,
+      includes: ["DJ", "עמדת קבלת פנים"],
+      notes: "ספק דמו להשוואת מחיר.",
+    },
+  ],
+  "demo-cat-venue|אולם": [
+    {
+      _id: "demo-supplier-3",
+      name: "אולם בראשית",
+      phone: "03-5555555",
+      basePrice: 82000,
+      advancePrice: 40000,
+      includes: ["אולם", "קייטרינג", "מנהל אירוע", "חופה"],
+      notes: "אולם דמו מרכזי.",
+    },
+  ],
+};
+
+function getDemoSuppliers(row) {
+  const key = `${row.categoryId}|${row.sub}`;
+  return DEMO_SUPPLIERS_BY_KEY[key] || [];
+}
+
+export default function SuppliersTab({
+  eventId,
+  isDemo = false,
+}) {
   const [categories, setCategories] = useState([]);
   const [rows, setRows] = useState([]);
 
@@ -55,6 +187,14 @@ export default function SuppliersTab({ eventId }) {
     async function load() {
       try {
         setLoading(true);
+
+        if (isDemo) {
+          setCategories(DEMO_CATEGORIES);
+          setRows(DEMO_ROWS);
+          setExpandedCategory(DEMO_ROWS[0]?.category || null);
+          setLoading(false);
+          return;
+        }
 
         const [catsRes, rowsRes] = await Promise.all([
           fetch("/api/suppliers/categories"),
@@ -93,7 +233,7 @@ export default function SuppliersTab({ eventId }) {
     }
 
     load();
-  }, [eventId]);
+  }, [eventId, isDemo]);
 
   /* ======================
      SUMMARY
@@ -145,6 +285,31 @@ export default function SuppliersTab({ eventId }) {
     categoryName,
     sub,
   }) {
+    if (isDemo) {
+      const created = {
+        id: `demo-row-${Date.now()}`,
+        categoryId,
+        category: categoryName,
+        sub,
+
+        supplierName: "",
+        supplierId: null,
+
+        price: 0,
+        advance: 0,
+        balance: 0,
+
+        notes: "",
+
+        files: [],
+        isDemo: true,
+      };
+
+      setRows((prev) => [...prev, created]);
+      setExpandedCategory(categoryName);
+      return;
+    }
+
     const res = await fetch(
       `/api/events/${eventId}/suppliers`,
       {
@@ -217,6 +382,8 @@ export default function SuppliersTab({ eventId }) {
       })
     );
 
+    if (isDemo) return;
+
     await fetch(
       `/api/events/${eventId}/suppliers/${rowId}`,
       {
@@ -240,6 +407,8 @@ export default function SuppliersTab({ eventId }) {
       prev.filter((r) => r.id !== rowId)
     );
 
+    if (isDemo) return;
+
     await fetch(
       `/api/events/${eventId}/suppliers/${rowId}`,
       {
@@ -254,6 +423,29 @@ export default function SuppliersTab({ eventId }) {
 
   async function handleFiles(rowId, fileList) {
     if (!fileList?.length) return;
+
+    if (isDemo) {
+      const demoFiles = Array.from(fileList).map((file) => ({
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        url: URL.createObjectURL(file),
+        isDemo: true,
+      }));
+
+      setRows((prev) =>
+        prev.map((r) =>
+          r.id === rowId
+            ? {
+                ...r,
+                files: [...(r.files || []), ...demoFiles],
+              }
+            : r
+        )
+      );
+
+      return;
+    }
 
     const formData = new FormData();
 
@@ -326,19 +518,21 @@ export default function SuppliersTab({ eventId }) {
     )
   );
 
-  await fetch(
-    `/api/events/${eventId}/suppliers/${row.id}`,
-    {
-      method: "PATCH",
+  if (!isDemo) {
+    await fetch(
+      `/api/events/${eventId}/suppliers/${row.id}`,
+      {
+        method: "PATCH",
 
-      headers: {
-        "Content-Type":
-          "application/json",
-      },
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
 
-      body: JSON.stringify(updated),
-    }
-  );
+        body: JSON.stringify(updated),
+      }
+    );
+  }
 
   setCompareModal(null);
 }
@@ -403,6 +597,12 @@ export default function SuppliersTab({ eventId }) {
                   </h1>
                 </div>
               </div>
+
+              {isDemo && (
+                <div className="mb-3 inline-flex rounded-full border border-purple-100 bg-purple-50 px-4 py-2 text-xs font-black text-purple-700">
+                  מצב דמו פעיל · אפשר לערוך, לבחור ספקים, להוסיף קבצים ולמחוק בלי שמירה לשרת
+                </div>
+              )}
 
               <p className="text-gray-500">
                 ניהול ספקים, תשלומים, חוזים,
@@ -650,6 +850,7 @@ export default function SuppliersTab({ eventId }) {
       {compareModal && (
         <SupplierCompareModal
           row={compareModal}
+          isDemo={isDemo}
           onClose={() =>
             setCompareModal(null)
           }
@@ -1275,6 +1476,7 @@ function AddSupplierModal({
 
 function SupplierCompareModal({
   row,
+  isDemo = false,
   onClose,
   onSelect,
 }) {
@@ -1298,6 +1500,11 @@ const [newSupplier, setNewSupplier] =
 
 useEffect(() => {
   async function loadSuppliers() {
+    if (isDemo) {
+      setSuppliers(getDemoSuppliers(row));
+      return;
+    }
+
     try {
       const res = await fetch(
   `/api/suppliers?categoryId=${row.categoryId}&sub=${row.sub}`
@@ -1321,7 +1528,7 @@ useEffect(() => {
   }
 
   loadSuppliers();
-}, [row]);
+}, [row, isDemo]);
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
@@ -1360,6 +1567,12 @@ useEffect(() => {
     <p className="text-sm text-purple-600 font-bold">
       Supplier Selection
     </p>
+
+    {isDemo && (
+      <p className="mt-1 text-xs font-black text-purple-600">
+        מצב דמו · בחירת ספק לא נשמרת לשרת
+      </p>
+    )}
 
     <h3 className="text-3xl font-black text-[#1E1B2E] mt-1">
       בחירת ספק
@@ -1494,12 +1707,14 @@ useEffect(() => {
       )
         return;
 
-      await fetch(
-        `/api/suppliers/${s._id}`,
-        {
-          method: "DELETE",
-        }
-      );
+      if (!isDemo) {
+        await fetch(
+          `/api/suppliers/${s._id}`,
+          {
+            method: "DELETE",
+          }
+        );
+      }
 
       setSuppliers((prev) =>
         prev.filter(
@@ -1689,6 +1904,12 @@ useEffect(() => {
               </button>
             </div>
 
+            {isDemo && (
+              <div className="rounded-2xl border border-purple-100 bg-purple-50 px-4 py-3 text-xs font-black text-purple-700">
+                מצב דמו · הספק יתווסף למסך בלבד ולא יישמר לשרת
+              </div>
+            )}
+
             <input
               placeholder="שם ספק"
               value={newSupplier.name}
@@ -1753,6 +1974,58 @@ useEffect(() => {
 
             <button
               onClick={async () => {
+                if (isDemo) {
+                  const created = {
+                    _id: `demo-supplier-${Date.now()}`,
+                    categoryId:
+                      row.categoryId,
+
+                    category:
+                      row.category,
+
+                    sub:
+                      row.sub,
+
+                    name:
+                      newSupplier.name,
+
+                    phone:
+                      newSupplier.phone,
+
+                    basePrice:
+                      Number(
+                        newSupplier.basePrice
+                      ),
+
+                    advancePrice:
+                      Number(
+                        newSupplier.advancePrice
+                      ),
+
+                    includes:
+                      newSupplier.includes
+                        ? [newSupplier.includes]
+                        : [],
+                  };
+
+                  setSuppliers((prev) => [
+                    ...prev,
+                    created,
+                  ]);
+
+                  setOpenCreateModal(false);
+
+                  setNewSupplier({
+                    name: "",
+                    phone: "",
+                    basePrice: "",
+                    advancePrice: "",
+                    includes: "",
+                  });
+
+                  return;
+                }
+
                 const res = await fetch(
                   "/api/suppliers",
                   {
@@ -1971,27 +2244,33 @@ console.log("URL:", file?.url);
       הקובץ הוא PDF
     </p>
 
-    <a
-     href={
-  url?.replace(
-    "/upload/",
-    "/upload/fl_attachment/"
-  )
-}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="
-        inline-block
-        rounded-2xl
-        bg-black
-        text-white
-        px-8
-        py-4
-        font-bold
-      "
-    >
-      פתח PDF
-    </a>
+    {url && url !== "#" ? (
+      <a
+       href={
+    url?.replace(
+      "/upload/",
+      "/upload/fl_attachment/"
+    )
+  }
+        target="_blank"
+        rel="noopener noreferrer"
+        className="
+          inline-block
+          rounded-2xl
+          bg-black
+          text-white
+          px-8
+          py-4
+          font-bold
+        "
+      >
+        פתח PDF
+      </a>
+    ) : (
+      <div className="rounded-2xl bg-purple-50 px-6 py-4 text-sm font-bold text-purple-700">
+        קובץ דמו בלבד · אין קובץ אמיתי לפתיחה
+      </div>
+    )}
   </div>
 ) : isImage ? (
             <img

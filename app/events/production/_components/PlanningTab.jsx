@@ -3,7 +3,52 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
-export default function PlanningTab({ eventId }) {
+const DEMO_EVENT_DEFINITION = {
+  goal: "חתונה יוקרתית ומרגשת עם חוויה מסודרת לאורחים",
+  vibe: "רומנטי, אלגנטי, חם ומשפחתי",
+  size: "320 אורחים",
+  notes:
+    "חשוב לשים דגש על כניסה מרשימה, חופה בזמן, סידורי הושבה מסודרים ושירות מדויק למשפחות.",
+};
+
+const DEMO_CONCEPT =
+  "קונספט יוקרתי בצבעי שמנת, זהב ולבן. פרחים לבנים, תאורה חמה, עיצוב נקי ואלגנטי, כניסה מרשימה וחופה רומנטית.";
+
+const DEMO_CONVERSATIONS = [
+  {
+    _id: "demo-conversation-1",
+    type: "meeting",
+    entityName: "פגישה עם הזוג",
+    entityType: "couple",
+    date: "2026-09-01",
+    summary:
+      "עברנו על לו״ז האירוע, צבעים, קונספט, דגשים למשפחות וסדר כניסה לחופה.",
+  },
+  {
+    _id: "demo-conversation-2",
+    type: "meeting",
+    entityName: "פגישה עם האולם",
+    entityType: "venue",
+    date: "2026-09-05",
+    summary:
+      "סוכם על שעת קבלת פנים, מיקום החופה, חלוקת שולחנות ועמדות בר.",
+  },
+  {
+    _id: "demo-conversation-3",
+    type: "call",
+    entityName: "שיחה עם DJ",
+    entityType: "supplier",
+    date: "2026-09-07",
+    summary:
+      "נשלחה רשימת שירים ראשונית, כולל שיר כניסה, שיר חופה ושיר סלואו.",
+  },
+];
+
+export default function PlanningTab({
+  eventId,
+  isDemo = false,
+  basePath = "/events/production",
+}) {
   const router = useRouter();
 
   const [eventDefinition, setEventDefinition] = useState({
@@ -34,8 +79,15 @@ export default function PlanningTab({ eventId }) {
   }, [eventDefinition, concept]);
 
   useEffect(() => {
-    if (!eventId) {
+    if (!eventId && !isDemo) {
       setError("NO_EVENT_ID");
+      setLoading(false);
+      return;
+    }
+
+    if (isDemo) {
+      setEventDefinition(DEMO_EVENT_DEFINITION);
+      setConcept(DEMO_CONCEPT);
       setLoading(false);
       return;
     }
@@ -74,10 +126,15 @@ export default function PlanningTab({ eventId }) {
     }
 
     loadPlanning();
-  }, [eventId]);
+  }, [eventId, isDemo]);
 
   useEffect(() => {
-    if (!eventId) return;
+    if (!eventId && !isDemo) return;
+
+    if (isDemo) {
+      setConversations(DEMO_CONVERSATIONS);
+      return;
+    }
 
     async function loadConversations() {
       try {
@@ -96,12 +153,22 @@ export default function PlanningTab({ eventId }) {
     }
 
     loadConversations();
-  }, [eventId]);
+  }, [eventId, isDemo]);
 
   useEffect(() => {
-    if (!eventId || loading) return;
+    if ((!eventId && !isDemo) || loading) return;
 
     const timeout = setTimeout(async () => {
+      if (isDemo) {
+        setSaving(true);
+
+        setTimeout(() => {
+          setSaving(false);
+        }, 350);
+
+        return;
+      }
+
       try {
         setSaving(true);
 
@@ -121,7 +188,7 @@ export default function PlanningTab({ eventId }) {
     }, 700);
 
     return () => clearTimeout(timeout);
-  }, [eventDefinition, concept, eventId, loading]);
+  }, [eventDefinition, concept, eventId, loading, isDemo]);
 
   if (loading) {
     return <div className="p-8">טוען תכנון אירוע…</div>;
@@ -166,6 +233,12 @@ export default function PlanningTab({ eventId }) {
                 Planning Workspace
               </p>
 
+              {isDemo && (
+                <div className="mb-3 inline-flex rounded-full border border-purple-100 bg-purple-50 px-4 py-2 text-xs font-black text-purple-700">
+                  מצב דמו פעיל · אפשר לערוך ולהתנסות בלי שמירה לשרת
+                </div>
+              )}
+
               <h2 className="text-2xl md:text-3xl font-black text-[#1E1B2E]">
                 תכנון וקונספט האירוע
               </h2>
@@ -188,7 +261,13 @@ export default function PlanningTab({ eventId }) {
                 shadow-sm
               "
             >
-              {saving ? "שומר…" : "✔ נשמר אוטומטית"}
+              {saving
+                ? isDemo
+                  ? "שומר בדמו…"
+                  : "שומר…"
+                : isDemo
+                ? "✔ נשמר בדמו"
+                : "✔ נשמר אוטומטית"}
             </div>
           </div>
 
@@ -312,9 +391,11 @@ export default function PlanningTab({ eventId }) {
               {conversations.map((c) => (
                 <button
                   key={c._id}
-                  onClick={() =>
-                    router.push(`/events/production/${eventId}/meeting/${c._id}`)
-                  }
+                  onClick={() => {
+                    if (isDemo) return;
+
+                    router.push(`/events/production/${eventId}/meeting/${c._id}`);
+                  }}
                   className="w-full text-right rounded-2xl border border-gray-100 bg-white/80 p-4 hover:-translate-y-0.5 hover:shadow-md transition"
                 >
                   <p className="font-bold text-[#1E1B2E]">
@@ -337,9 +418,14 @@ export default function PlanningTab({ eventId }) {
 
           <button
             onClick={() =>
-              router.replace(`/events/production/${eventId}?tab=calendar`, {
-                scroll: false,
-              })
+              router.replace(
+                isDemo
+                  ? `${basePath}?tab=calendar`
+                  : `/events/production/${eventId}?tab=calendar`,
+                {
+                  scroll: false,
+                }
+              )
             }
             className="
               mt-5

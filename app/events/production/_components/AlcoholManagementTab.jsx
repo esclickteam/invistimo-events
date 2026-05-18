@@ -81,11 +81,69 @@ const DEFAULT_BOTTLE = {
 
 const STORAGE_PREFIX = "invistimo_alcohol_logs";
 
+const DEMO_ALCOHOL_BOTTLES = [
+  {
+    _id: "demo-alcohol-1",
+    category: "וודקה",
+    brand: "Grey Goose",
+    flavor: "רגיל",
+    total: 18,
+    allocations: [
+      {
+        location: "בר ראשי",
+        qty: 10,
+        opened: 3,
+      },
+      {
+        location: "רזרבה",
+        qty: 4,
+        opened: 0,
+      },
+    ],
+  },
+  {
+    _id: "demo-alcohol-2",
+    category: "וויסקי",
+    brand: "Jameson",
+    flavor: "קלאסי",
+    total: 12,
+    allocations: [
+      {
+        location: "בר רחבה",
+        qty: 6,
+        opened: 2,
+      },
+      {
+        location: "VIP",
+        qty: 3,
+        opened: 1,
+      },
+    ],
+  },
+  {
+    _id: "demo-alcohol-3",
+    category: "יין",
+    brand: "יקב רמת הגולן",
+    flavor: "אדום",
+    total: 24,
+    allocations: [
+      {
+        location: "שולחנות",
+        qty: 18,
+        opened: 6,
+      },
+    ],
+  },
+];
+
 /* ======================================================
    MAIN
 ====================================================== */
 
-export default function AlcoholManagementSystem({ eventId }) {
+export default function AlcoholManagementSystem({
+  eventId,
+  isDemo = false,
+}) {
   const [mode, setMode] = useState("planning");
   const [bottles, setBottles] = useState([]);
   const [logs, setLogs] = useState([]);
@@ -96,7 +154,7 @@ export default function AlcoholManagementSystem({ eventId }) {
   const bottleFieldTimeout = useRef({});
   const mountedRef = useRef(true);
 
-  const storageKey = `${STORAGE_PREFIX}_${eventId || "unknown"}`;
+  const storageKey = `${STORAGE_PREFIX}_${isDemo ? "demo" : eventId || "unknown"}`;
 
   /* ======================================================
      HELPERS
@@ -208,13 +266,25 @@ export default function AlcoholManagementSystem({ eventId }) {
   ====================================================== */
 
   async function loadAlcohol({ silent = false } = {}) {
-    if (!eventId) return;
+    if (!eventId && !isDemo) return;
 
     if (!silent) {
       setLoading(true);
     }
 
     setError("");
+
+    if (isDemo) {
+      if (mountedRef.current) {
+        setBottles(DEMO_ALCOHOL_BOTTLES);
+      }
+
+      if (mountedRef.current && !silent) {
+        setLoading(false);
+      }
+
+      return;
+    }
 
     try {
       const res = await fetch(`/api/events/${eventId}/alcohol`, {
@@ -248,7 +318,7 @@ export default function AlcoholManagementSystem({ eventId }) {
   useEffect(() => {
     mountedRef.current = true;
 
-    if (!eventId) {
+    if (!eventId && !isDemo) {
       setLoading(false);
       return;
     }
@@ -269,7 +339,7 @@ export default function AlcoholManagementSystem({ eventId }) {
         clearTimeout(timeout);
       });
     };
-  }, [eventId]);
+  }, [eventId, isDemo]);
 
   /* ======================================================
      STATS
@@ -306,10 +376,22 @@ export default function AlcoholManagementSystem({ eventId }) {
   ====================================================== */
 
   async function addBottle() {
-    if (!eventId) return;
+    if (!eventId && !isDemo) return;
 
     setActionLoading("add");
     setError("");
+
+    if (isDemo) {
+      const demoBottle = {
+        ...DEFAULT_BOTTLE,
+        _id: `demo-alcohol-${Date.now()}`,
+      };
+
+      setBottles((prev) => [...prev, demoBottle].filter(Boolean));
+      addLog("נוסף סוג אלכוהול חדש למלאי בדמו", "create");
+      setActionLoading("");
+      return;
+    }
 
     try {
       const res = await fetch(`/api/events/${eventId}/alcohol`, {
@@ -361,6 +443,14 @@ export default function AlcoholManagementSystem({ eventId }) {
 
     setError("");
 
+    if (isDemo) {
+      if (logText) {
+        addLog(`${logText} · דמו`, "update");
+      }
+
+      return;
+    }
+
     try {
       const res = await fetch(`/api/events/alcohol/${id}`, {
         method: "PATCH",
@@ -405,6 +495,12 @@ export default function AlcoholManagementSystem({ eventId }) {
     setBottles((prev) => prev.filter((item) => item._id !== id));
     setActionLoading(id);
     setError("");
+
+    if (isDemo) {
+      addLog(`נמחק מהמלאי בדמו: ${bottleLabel(bottle) || "סוג אלכוהול"}`, "delete");
+      setActionLoading("");
+      return;
+    }
 
     try {
       const res = await fetch(`/api/events/alcohol/${id}`, {
@@ -585,7 +681,7 @@ export default function AlcoholManagementSystem({ eventId }) {
     const link = document.createElement("a");
 
     link.href = url;
-    link.download = `alcohol-logs-${eventId}.txt`;
+    link.download = `alcohol-logs-${isDemo ? "demo" : eventId}.txt`;
     link.click();
 
     URL.revokeObjectURL(url);
@@ -595,7 +691,7 @@ export default function AlcoholManagementSystem({ eventId }) {
      RENDER
   ====================================================== */
 
-  if (!eventId || loading) {
+  if ((!eventId && !isDemo) || loading) {
     return (
       <div
         dir="rtl"
@@ -646,6 +742,30 @@ export default function AlcoholManagementSystem({ eventId }) {
           <Sparkles size={16} />
           ניהול בר ואלכוהול
         </div>
+
+        {isDemo && (
+          <div
+            className="
+              mx-auto
+              mb-5
+              inline-flex
+              items-center
+              gap-2
+              rounded-full
+              border
+              border-[#E7D8FF]
+              bg-[#F4EDFF]
+              px-5
+              py-2
+              text-xs
+              font-black
+              text-[#6D45C8]
+              shadow-sm
+            "
+          >
+            מצב דמו פעיל · אפשר להתנסות חופשי בלי שמירה לשרת
+          </div>
+        )}
 
         <h1
           className="
@@ -762,7 +882,11 @@ export default function AlcoholManagementSystem({ eventId }) {
           <SectionHeader
             icon={ClipboardList}
             title="תכנון מלאי אלכוהול"
-            description="הגדירי קטגוריה, מותג, טעם וכמות. כל שינוי נשמר אוטומטית בשרת."
+            description={
+              isDemo
+                ? "מצב דמו: אפשר לערוך מלאי, הקצאות ופתיחת בקבוקים בלי שמירה לשרת."
+                : "הגדירי קטגוריה, מותג, טעם וכמות. כל שינוי נשמר אוטומטית בשרת."
+            }
             action={
               <button
                 type="button"
@@ -1093,7 +1217,11 @@ export default function AlcoholManagementSystem({ eventId }) {
             <SectionHeader
               icon={GlassWater}
               title="ניהול אלכוהול בלייב"
-              description="כאן מנהלים פתיחת בקבוקים בזמן אמת. כל פעולה נכנסת ללוג קבוע."
+              description={
+                isDemo
+                  ? "מצב דמו: פתיחת בקבוקים מתעדכנת במסך בלבד ולא נשמרת לשרת."
+                  : "כאן מנהלים פתיחת בקבוקים בזמן אמת. כל פעולה נכנסת ללוג קבוע."
+              }
             />
 
             {bottles.length === 0 ? (
@@ -1171,6 +1299,7 @@ export default function AlcoholManagementSystem({ eventId }) {
             logs={logs}
             onClear={clearLogs}
             onExport={exportLogs}
+            isDemo={isDemo}
           />
         </section>
       )}
@@ -1753,7 +1882,7 @@ function LiveAllocationRow({ allocation, onOpen, onClose }) {
   );
 }
 
-function ActivityLogPanel({ logs, onClear, onExport }) {
+function ActivityLogPanel({ logs, onClear, onExport, isDemo = false }) {
   return (
     <aside
       className="
@@ -1790,7 +1919,7 @@ function ActivityLogPanel({ logs, onClear, onExport }) {
             </h3>
 
             <p className="text-xs text-gray-400">
-              נשמר קבוע ומוצג בכל כניסה מאותו מחשב
+              {isDemo ? "לוג דמו מקומי בלבד" : "נשמר קבוע ומוצג בכל כניסה מאותו מחשב"}
             </p>
           </div>
         </div>
