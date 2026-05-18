@@ -21,6 +21,7 @@ type Props = {
   onClose: () => void;
   invitationId?: string;
   invitationShareId?: string;
+  eventId?: string;
   isDemo?: boolean;
 };
 
@@ -29,12 +30,14 @@ export default function DashboardMobileMenu({
   onClose,
   invitationId,
   invitationShareId,
+  eventId,
   isDemo = false,
 }: Props) {
   const router = useRouter();
   const [showDemoModal, setShowDemoModal] = useState(false);
 
   const hasInvitation = Boolean(invitationId);
+  const hasEvent = Boolean(eventId);
 
   if (!open && !showDemoModal) return null;
 
@@ -63,6 +66,20 @@ export default function DashboardMobileMenu({
       "_blank",
       "noopener,noreferrer"
     );
+  };
+
+  const openEventManagement = () => {
+    if (isDemo) {
+      go("/try/events/production?tab=overview");
+      return;
+    }
+
+    if (!hasEvent) {
+      go("/events/production?tab=overview");
+      return;
+    }
+
+    go(`/events/production?eventId=${eventId}&tab=overview`);
   };
 
   const menuItems = [
@@ -118,13 +135,10 @@ export default function DashboardMobileMenu({
     },
     {
       title: "ניהול אירוע",
-      subtitle: "משימות, ספקים, לו״ז, תשלומים ומעקב מלא",
+      subtitle: "פרטי אירוע, ניהול דשבורד אורחים, לוגיסטיקה וספקים",
       icon: ClipboardList,
-      badge: "Management",
-      onClick: () =>
-        isDemo
-          ? go("/try/dashboard/event-management")
-          : go("/dashboard/event-management"),
+      badge: "Production",
+      onClick: openEventManagement,
     },
     {
       title: "שליחת הודעות",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
 import DashboardHeader from "./DashboardHeader";
@@ -13,6 +13,7 @@ type Invitation = {
   _id: string;
   shareId: string;
   title?: string;
+  eventId?: string;
 };
 
 /* ============================================================
@@ -33,6 +34,19 @@ export default function DashboardLayout({
   const [invitation, setInvitation] = useState<Invitation | null>(null);
   const [loadingInvitation, setLoadingInvitation] = useState(true);
 
+  const eventIdFromUrl = searchParams.get("eventId");
+  const invitationIdFromUrl = searchParams.get("invitationId");
+
+  const eventIdForMenu = useMemo(() => {
+    if (isDemo) return "demo-event-001";
+
+    return (
+      eventIdFromUrl ||
+      invitation?.eventId ||
+      ""
+    );
+  }, [isDemo, eventIdFromUrl, invitation?.eventId]);
+
   /* ============================================================
      Load Invitation
      ✅ תומך:
@@ -46,6 +60,7 @@ export default function DashboardLayout({
         _id: "demo",
         shareId: "demo",
         title: "אירוע לדוגמה",
+        eventId: "demo-event-001",
       });
       setLoadingInvitation(false);
       return;
@@ -53,11 +68,7 @@ export default function DashboardLayout({
 
     async function loadInvitation() {
       try {
-        const invitationIdFromUrl =
-          searchParams.get("invitationId");
-
-        const eventIdFromUrl =
-          searchParams.get("eventId");
+        setLoadingInvitation(true);
 
         let url = "";
 
@@ -103,7 +114,7 @@ export default function DashboardLayout({
     }
 
     loadInvitation();
-  }, [isDemo, searchParams]);
+  }, [isDemo, invitationIdFromUrl, eventIdFromUrl]);
 
   /* ============================================================
      Render
@@ -123,13 +134,12 @@ export default function DashboardLayout({
         onClose={() => setMenuOpen(false)}
         invitationId={invitation?._id}
         invitationShareId={invitation?.shareId}
+        eventId={eventIdForMenu}
         isDemo={isDemo}
       />
 
       {/* ========================= Content ========================= */}
-      <main className="pt-16">
-        {!loadingInvitation && children}
-      </main>
+      <main className="pt-16">{!loadingInvitation && children}</main>
     </div>
   );
 }
