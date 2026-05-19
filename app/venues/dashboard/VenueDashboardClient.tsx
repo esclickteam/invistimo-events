@@ -6,22 +6,19 @@ import {
   Bell,
   Building2,
   CalendarDays,
-  ChevronDown,
   ChevronLeft,
   Clock3,
   CreditCard,
   DollarSign,
   DoorOpen,
   FileText,
+  ImagePlus,
   LayoutDashboard,
-  Mail,
-  MapPin,
   Menu,
-  MessageSquareText,
   MoreHorizontal,
+  Pencil,
   PieChart,
-  Plus,
-  Search,
+  Save,
   Settings,
   ShieldCheck,
   Sparkles,
@@ -71,15 +68,6 @@ type Task = {
   done: boolean;
 };
 
-type Lead = {
-  id: string;
-  name: string;
-  source: string;
-  requestedDate: string;
-  budget: string;
-  status: "new" | "followup" | "proposal";
-};
-
 type FinanceMonth = {
   label: string;
   revenue: number;
@@ -87,10 +75,10 @@ type FinanceMonth = {
 
 /* ======================================================
    MOCK DATA
-   בהמשך מחליפים לקריאה מהשרת
+   בהמשך מחליפים לקריאה מהשרת / MongoDB
 ====================================================== */
 
-const halls: Hall[] = [
+const initialHalls: Hall[] = [
   {
     id: "main-gold-hall",
     name: "אולם הזהב",
@@ -197,33 +185,6 @@ const tasks: Task[] = [
   },
 ];
 
-const leads: Lead[] = [
-  {
-    id: "l1",
-    name: "אירוע חברה 180 איש",
-    source: "אתר",
-    requestedDate: "18.06.26",
-    budget: "₪75,000",
-    status: "new",
-  },
-  {
-    id: "l2",
-    name: "בר מצווה 220 איש",
-    source: "טלפון",
-    requestedDate: "02.07.26",
-    budget: "₪62,000",
-    status: "followup",
-  },
-  {
-    id: "l3",
-    name: "חתונה 400 איש",
-    source: "אינסטגרם",
-    requestedDate: "15.08.26",
-    budget: "₪145,000",
-    status: "proposal",
-  },
-];
-
 const financeData: FinanceMonth[] = [
   { label: "ינו׳", revenue: 740000 },
   { label: "פבר׳", revenue: 680000 },
@@ -277,16 +238,9 @@ function todayEventStatusClass(status: TodayEvent["status"]) {
   return "bg-slate-100 text-slate-600";
 }
 
-function leadStatusLabel(status: Lead["status"]) {
-  if (status === "new") return "חדש";
-  if (status === "followup") return "מעקב";
-  return "הצעה נשלחה";
-}
-
-function leadStatusClass(status: Lead["status"]) {
-  if (status === "new") return "bg-emerald-50 text-emerald-700";
-  if (status === "followup") return "bg-amber-50 text-amber-700";
-  return "bg-violet-50 text-violet-700";
+function toSafeNumber(value: string, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
 }
 
 /* ======================================================
@@ -296,26 +250,25 @@ function leadStatusClass(status: Lead["status"]) {
 export default function VenueDashboardClient() {
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [selectedRange, setSelectedRange] = useState("18.05.26 - 24.05.26");
+  const [halls, setHalls] = useState<Hall[]>(initialHalls);
+  const [editingHall, setEditingHall] = useState<Hall | null>(null);
 
   const stats = useMemo(() => {
-    const totalCapacity = halls.reduce((sum, hall) => sum + hall.capacity, 0);
     const monthlyEvents = halls.reduce((sum, hall) => sum + hall.monthlyEvents, 0);
     const upcomingEvents = halls.reduce((sum, hall) => sum + hall.upcomingEvents, 0);
     const monthlyRevenue = halls.reduce((sum, hall) => sum + hall.monthlyRevenue, 0);
-    const averageOccupancy = Math.round(
-      halls.reduce((sum, hall) => sum + hall.occupancyRate, 0) / halls.length
-    );
+    const averageOccupancy = halls.length
+      ? Math.round(halls.reduce((sum, hall) => sum + hall.occupancyRate, 0) / halls.length)
+      : 0;
 
     return {
       totalHalls: halls.length,
-      totalCapacity,
       monthlyEvents,
       upcomingEvents,
       monthlyRevenue,
       averageOccupancy,
     };
-  }, []);
+  }, [halls]);
 
   const maxRevenue = Math.max(...financeData.map((item) => item.revenue));
 
@@ -323,13 +276,16 @@ export default function VenueDashboardClient() {
     router.push(`/venues/dashboard/halls/${hallId}`);
   };
 
+  const saveHall = (updatedHall: Hall) => {
+    setHalls((prev) =>
+      prev.map((hall) => (hall.id === updatedHall.id ? updatedHall : hall))
+    );
+    setEditingHall(null);
+  };
+
   return (
-    <main
-      dir="rtl"
-      className="min-h-screen bg-[#f8f6f2] text-[#1f2933]"
-    >
+    <main dir="rtl" className="min-h-screen bg-[#f8f6f2] text-[#1f2933]">
       <div className="flex min-h-screen">
-        {/* Mobile overlay */}
         {sidebarOpen && (
           <button
             type="button"
@@ -339,7 +295,6 @@ export default function VenueDashboardClient() {
           />
         )}
 
-        {/* Sidebar */}
         <aside
           className={[
             "fixed right-0 top-0 z-50 h-full w-[290px] border-l border-[#eadfce] bg-white/95 px-5 py-5 shadow-2xl shadow-black/5 backdrop-blur-xl transition-transform duration-300 lg:sticky lg:translate-x-0 lg:shadow-none",
@@ -351,9 +306,7 @@ export default function VenueDashboardClient() {
               <div className="text-[11px] font-black tracking-[0.35em] text-[#c99a3d]">
                 INVISTIMO
               </div>
-              <div className="mt-1 text-xl font-black text-[#2b241c]">
-                Venues
-              </div>
+              <div className="mt-1 text-xl font-black text-[#2b241c]">Venues</div>
             </div>
 
             <button
@@ -365,41 +318,31 @@ export default function VenueDashboardClient() {
             </button>
           </div>
 
-          <button
-            type="button"
-            className="mt-7 flex w-full items-center gap-3 rounded-3xl border border-[#eadfce] bg-[#fbfaf7] p-3 text-right transition hover:bg-[#f4ead9]"
-          >
+          <div className="mt-7 flex w-full items-center gap-3 rounded-3xl border border-[#eadfce] bg-[#fbfaf7] p-3 text-right">
             <div className="h-11 w-11 overflow-hidden rounded-2xl bg-[#ead8b8]">
               <img
-                src={halls[0].image}
+                src={halls[0]?.image || ""}
                 alt="מתחם"
                 className="h-full w-full object-cover"
               />
             </div>
 
             <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-black text-[#2b241c]">
-                מתחם בני הזהב
-              </div>
+              <div className="truncate text-sm font-black text-[#2b241c]">מתחם בני הזהב</div>
               <div className="truncate text-xs font-bold text-[#8a7b68]">
                 {stats.totalHalls} אולמות פעילים
               </div>
             </div>
-
-            <ChevronDown size={16} className="text-[#9b8a73]" />
-          </button>
+          </div>
 
           <nav className="mt-7 space-y-1">
             {[
               { label: "דשבורד ראשי", icon: LayoutDashboard, active: true },
-              { label: "אולמות במתחם", icon: Building2 },
               { label: "יומן אירועים", icon: CalendarDays },
-              { label: "לידים ומכירות", icon: UsersRound },
               { label: "הצעות מחיר", icon: FileText },
               { label: "תשלומים וחשבונות", icon: CreditCard },
               { label: "תחזוקה ותפעול", icon: Wrench },
               { label: "צוות ועובדים", icon: ShieldCheck },
-              { label: "הודעות", icon: MessageSquareText, badge: "12" },
               { label: "הגדרות מתחם", icon: Settings },
             ].map((item) => {
               const Icon = item.icon;
@@ -417,12 +360,6 @@ export default function VenueDashboardClient() {
                 >
                   <Icon size={18} />
                   <span className="flex-1 text-right">{item.label}</span>
-
-                  {item.badge && (
-                    <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-[#efe1c5] px-2 text-xs font-black text-[#b98121]">
-                      {item.badge}
-                    </span>
-                  )}
                 </button>
               );
             })}
@@ -433,21 +370,17 @@ export default function VenueDashboardClient() {
               <Sparkles size={19} />
             </div>
 
-            <div className="mt-3 text-sm font-black text-[#2b241c]">
-              ניהול מתחם חכם
-            </div>
+            <div className="mt-3 text-sm font-black text-[#2b241c]">ניהול מתחם חכם</div>
 
             <p className="mt-1 text-xs font-bold leading-5 text-[#7f705d]">
-              ריכוז אולמות, הכנסות, לידים, תפעול ויומן אירועים במקום אחד.
+              ריכוז אולמות, הכנסות, תפעול ויומן אירועים במקום אחד.
             </p>
           </div>
         </aside>
 
-        {/* Content */}
         <section className="min-w-0 flex-1">
-          {/* Header */}
-          <header className="sticky top-0 z-30 border-b border-[#eadfce]/80 bg-[#f8f6f2]/85 px-4 py-4 backdrop-blur-xl md:px-7">
-            <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div className="px-4 py-5 md:px-7">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div className="flex items-center gap-3">
                 <button
                   type="button"
@@ -458,62 +391,23 @@ export default function VenueDashboardClient() {
                 </button>
 
                 <div>
-                  <div className="text-2xl font-black text-[#2b241c] md:text-3xl">
-                    שלום רוני 👋
-                  </div>
-                  <div className="mt-1 text-sm font-bold text-[#8a7b68]">
-                    ברוך הבא לניהול מתחם בני הזהב
-                  </div>
+                  <h1 className="text-2xl font-black text-[#2b241c] md:text-3xl">
+                    דשבורד מתחם
+                  </h1>
+                  <p className="mt-1 text-sm font-bold text-[#8a7b68]">
+                    סקירה כללית של האולמות, האירועים, ההכנסות והתפעול.
+                  </p>
                 </div>
-              </div>
-
-              <div className="flex flex-col gap-3 md:flex-row md:items-center">
-                <button
-                  type="button"
-                  className="flex h-12 items-center justify-between gap-3 rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-black text-[#5f5347] shadow-sm"
-                >
-                  <CalendarDays size={17} className="text-[#b98121]" />
-                  <span>{selectedRange}</span>
-                  <ChevronDown size={16} className="text-[#9b8a73]" />
-                </button>
-
-                <div className="flex h-12 min-w-[260px] items-center gap-3 rounded-2xl border border-[#eadfce] bg-white px-4 shadow-sm">
-                  <Search size={18} className="text-[#a2937f]" />
-                  <input
-                    placeholder="חיפוש אולם, אירוע, ליד או משימה..."
-                    className="w-full bg-transparent text-sm font-bold text-[#3b332b] outline-none placeholder:text-[#ad9f8b]"
-                  />
-                </div>
-
-                <button
-                  type="button"
-                  className="relative flex h-12 w-12 items-center justify-center rounded-2xl border border-[#eadfce] bg-white text-[#5f5347] shadow-sm"
-                >
-                  <Bell size={19} />
-                  <span className="absolute -left-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[10px] font-black text-white">
-                    3
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#eadfce] bg-white text-[#5f5347] shadow-sm"
-                >
-                  <Mail size={19} />
-                </button>
               </div>
             </div>
-          </header>
 
-          <div className="px-4 py-5 md:px-7">
-            {/* Stats */}
-            <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            <section className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
               <StatCard
                 title="אולמות במתחם"
                 value={String(stats.totalHalls)}
-                subtitle="פעילים במערכת"
+                subtitle="מוגדרים במערכת"
                 icon={<Building2 size={22} />}
-                trend="+1 החודש"
+                trend="פעיל"
               />
 
               <StatCard
@@ -549,44 +443,21 @@ export default function VenueDashboardClient() {
               />
             </section>
 
-            {/* Halls overview + Today */}
             <section className="mt-5 grid gap-5 xl:grid-cols-[1fr_360px]">
               <div className="rounded-[28px] border border-[#eadfce] bg-white p-4 shadow-sm md:p-5">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
-                    <h2 className="text-lg font-black text-[#2b241c]">
-                      אולמות במתחם
-                    </h2>
+                    <h2 className="text-lg font-black text-[#2b241c]">אולמות במתחם</h2>
                     <p className="mt-1 text-sm font-bold text-[#8a7b68]">
-                      סקירה כללית של כל אולם, תפוסה, הכנסות ואירועים קרובים.
+                      עריכת פרטי אולם, תמונה, קיבולת, הכנסות ואירועים.
                     </p>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      className="flex h-10 items-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-black text-[#6f6252] transition hover:bg-[#fbf5ea]"
-                    >
-                      <MapPin size={16} />
-                      תצוגת מתחם
-                    </button>
-
-                    <button
-                      type="button"
-                      className="flex h-10 items-center gap-2 rounded-2xl bg-[#7c3aed] px-4 text-sm font-black text-white shadow-sm shadow-violet-200 transition hover:bg-[#6d28d9]"
-                    >
-                      <Plus size={16} />
-                      אולם חדש
-                    </button>
                   </div>
                 </div>
 
                 <div className="mt-5 grid gap-4 lg:grid-cols-3">
                   {halls.map((hall) => (
-                    <button
+                    <div
                       key={hall.id}
-                      type="button"
-                      onClick={() => goToHall(hall.id)}
                       className="group overflow-hidden rounded-[26px] border border-[#eadfce] bg-[#fffdf8] text-right shadow-sm transition hover:-translate-y-1 hover:border-[#d5b36d] hover:shadow-xl hover:shadow-[#b98121]/10"
                     >
                       <div className="relative h-40 overflow-hidden">
@@ -598,7 +469,7 @@ export default function VenueDashboardClient() {
 
                         <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
 
-                        <div className="absolute right-3 top-3">
+                        <div className="absolute right-3 top-3 flex items-center gap-2">
                           <span
                             className={[
                               "rounded-full border px-3 py-1 text-xs font-black",
@@ -608,6 +479,14 @@ export default function VenueDashboardClient() {
                             {statusLabel(hall.status)}
                           </span>
                         </div>
+
+                        <button
+                          type="button"
+                          aria-label="סימון אולם"
+                          className="absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-2xl bg-white/90 text-[#b98121] shadow-sm"
+                        >
+                          <Star size={17} />
+                        </button>
 
                         <div className="absolute bottom-3 right-3 text-white">
                           <div className="text-lg font-black">{hall.name}</div>
@@ -619,37 +498,21 @@ export default function VenueDashboardClient() {
 
                       <div className="p-4">
                         <div className="grid grid-cols-2 gap-3">
-                          <MiniInfo
-                            label="קיבולת"
-                            value={`${hall.capacity}`}
-                          />
-                          <MiniInfo
-                            label="אירועים החודש"
-                            value={`${hall.monthlyEvents}`}
-                          />
-                          <MiniInfo
-                            label="אירועים עתידיים"
-                            value={`${hall.upcomingEvents}`}
-                          />
-                          <MiniInfo
-                            label="הכנסות"
-                            value={formatCurrency(hall.monthlyRevenue)}
-                          />
+                          <MiniInfo label="קיבולת מקסימלית" value={`${hall.capacity} איש`} />
+                          <MiniInfo label="אירועים החודש" value={`${hall.monthlyEvents}`} />
+                          <MiniInfo label="אירועים עתידיים" value={`${hall.upcomingEvents}`} />
+                          <MiniInfo label="הכנסות החודש" value={formatCurrency(hall.monthlyRevenue)} />
                         </div>
 
                         <div className="mt-4">
                           <div className="mb-2 flex items-center justify-between">
-                            <span className="text-xs font-black text-[#8a7b68]">
-                              תפוסה חודשית
-                            </span>
-                            <span className="text-sm font-black text-[#2b241c]">
-                              {hall.occupancyRate}%
-                            </span>
+                            <span className="text-xs font-black text-[#8a7b68]">תפוסה חודשית</span>
+                            <span className="text-sm font-black text-[#2b241c]">{hall.occupancyRate}%</span>
                           </div>
 
                           <div className="h-2 overflow-hidden rounded-full bg-[#eee6d9]">
                             <div
-                              className="h-full rounded-full bg-emerald-500"
+                              className="h-full rounded-full bg-gradient-to-l from-[#b98121] to-[#ead39d]"
                               style={{ width: `${hall.occupancyRate}%` }}
                             />
                           </div>
@@ -657,20 +520,43 @@ export default function VenueDashboardClient() {
 
                         <div className="mt-4 flex items-center justify-between border-t border-[#eadfce] pt-3">
                           <div>
-                            <div className="text-xs font-bold text-[#9b8a73]">
-                              אירוע הבא
-                            </div>
+                            <div className="text-xs font-bold text-[#9b8a73]">אירוע הבא</div>
                             <div className="mt-0.5 text-sm font-black text-[#2b241c]">
                               {hall.nextEventAt}
                             </div>
                           </div>
+                        </div>
 
-                          <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#f4ead9] text-[#b98121] transition group-hover:bg-[#b98121] group-hover:text-white">
-                            <ChevronLeft size={18} />
-                          </div>
+                        <div className="mt-4 grid grid-cols-3 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => goToHall(hall.id)}
+                            className="flex h-10 items-center justify-center gap-1 rounded-2xl bg-[#b98121] px-3 text-xs font-black text-white transition hover:bg-[#9f6f1a]"
+                          >
+                            ניהול
+                            <ChevronLeft size={15} />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => router.push(`/venues/dashboard/halls/${hall.id}?tab=calendar`)}
+                            className="flex h-10 items-center justify-center gap-1 rounded-2xl border border-[#eadfce] bg-white px-3 text-xs font-black text-[#6f6252] transition hover:bg-[#fbf5ea]"
+                          >
+                            יומן
+                            <CalendarDays size={14} />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setEditingHall(hall)}
+                            className="flex h-10 items-center justify-center gap-1 rounded-2xl border border-[#eadfce] bg-white px-3 text-xs font-black text-[#6f6252] transition hover:bg-[#fbf5ea]"
+                          >
+                            עריכה
+                            <Pencil size={14} />
+                          </button>
                         </div>
                       </div>
-                    </button>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -678,12 +564,8 @@ export default function VenueDashboardClient() {
               <div className="rounded-[28px] border border-[#eadfce] bg-white p-4 shadow-sm md:p-5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-lg font-black text-[#2b241c]">
-                      אירועים היום
-                    </h2>
-                    <p className="mt-1 text-sm font-bold text-[#8a7b68]">
-                      לפי אולמות במתחם
-                    </p>
+                    <h2 className="text-lg font-black text-[#2b241c]">אירועים היום</h2>
+                    <p className="mt-1 text-sm font-bold text-[#8a7b68]">לפי אולמות במתחם</p>
                   </div>
 
                   <span className="rounded-full bg-rose-50 px-3 py-1 text-xs font-black text-rose-600">
@@ -704,18 +586,12 @@ export default function VenueDashboardClient() {
                       </div>
 
                       <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-black text-[#2b241c]">
-                          {event.hallName}
-                        </div>
-                        <div className="truncate text-xs font-bold text-[#8a7b68]">
-                          {event.eventName}
-                        </div>
+                        <div className="truncate text-sm font-black text-[#2b241c]">{event.hallName}</div>
+                        <div className="truncate text-xs font-bold text-[#8a7b68]">{event.eventName}</div>
                       </div>
 
                       <div className="text-left">
-                        <div className="text-sm font-black text-[#2b241c]">
-                          {event.time}
-                        </div>
+                        <div className="text-sm font-black text-[#2b241c]">{event.time}</div>
                         <span
                           className={[
                             "mt-1 inline-flex rounded-full px-2.5 py-1 text-[11px] font-black",
@@ -731,6 +607,7 @@ export default function VenueDashboardClient() {
 
                 <button
                   type="button"
+                  onClick={() => router.push("/venues/dashboard/events")}
                   className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-white text-sm font-black text-[#6f6252] transition hover:bg-[#fbf5ea]"
                 >
                   הצג את כל האירועים
@@ -739,74 +616,11 @@ export default function VenueDashboardClient() {
               </div>
             </section>
 
-            {/* Middle widgets */}
-            <section className="mt-5 grid gap-5 xl:grid-cols-[360px_1fr_350px]">
-              {/* Leads */}
-              <div className="rounded-[28px] border border-[#eadfce] bg-white p-4 shadow-sm md:p-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-lg font-black text-[#2b241c]">
-                      לידים חדשים
-                    </h2>
-                    <p className="mt-1 text-sm font-bold text-[#8a7b68]">
-                      פניות למתחם
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#fbf5ea] text-[#b98121]"
-                  >
-                    <MoreHorizontal size={18} />
-                  </button>
-                </div>
-
-                <div className="mt-5 space-y-3">
-                  {leads.map((lead) => (
-                    <div
-                      key={lead.id}
-                      className="rounded-3xl border border-[#eadfce] bg-[#fffdf8] p-3"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <div className="text-sm font-black text-[#2b241c]">
-                            {lead.name}
-                          </div>
-                          <div className="mt-1 text-xs font-bold text-[#8a7b68]">
-                            מקור: {lead.source}
-                          </div>
-                        </div>
-
-                        <span
-                          className={[
-                            "rounded-full px-2.5 py-1 text-[11px] font-black",
-                            leadStatusClass(lead.status),
-                          ].join(" ")}
-                        >
-                          {leadStatusLabel(lead.status)}
-                        </span>
-                      </div>
-
-                      <div className="mt-3 grid grid-cols-2 gap-2 text-xs font-bold text-[#7f705d]">
-                        <div className="rounded-2xl bg-white px-3 py-2">
-                          תאריך: {lead.requestedDate}
-                        </div>
-                        <div className="rounded-2xl bg-white px-3 py-2">
-                          תקציב: {lead.budget}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Revenue chart */}
+            <section className="mt-5 grid gap-5 xl:grid-cols-[1fr_350px]">
               <div className="rounded-[28px] border border-[#eadfce] bg-white p-4 shadow-sm md:p-5">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
-                    <h2 className="text-lg font-black text-[#2b241c]">
-                      הכנסות המתחם
-                    </h2>
+                    <h2 className="text-lg font-black text-[#2b241c]">הכנסות המתחם</h2>
                     <p className="mt-1 text-sm font-bold text-[#8a7b68]">
                       סקירת הכנסות לפי חודשים מכל האולמות
                     </p>
@@ -818,29 +632,36 @@ export default function VenueDashboardClient() {
                   </div>
                 </div>
 
-                <div className="mt-6 flex h-64 items-end gap-3 rounded-[24px] bg-[#fbfaf7] p-4">
-                  {financeData.map((item) => {
-                    const height = Math.max(
-                      18,
-                      Math.round((item.revenue / maxRevenue) * 100)
-                    );
+                <div className="mt-6 rounded-[24px] bg-[#fbfaf7] p-5">
+                  <div className="relative flex h-64 items-end justify-between gap-5 overflow-hidden rounded-[22px] border border-[#eadfce] bg-white px-5 pb-4 pt-6">
+                    <div className="pointer-events-none absolute inset-x-5 top-1/4 border-t border-dashed border-[#eadfce]" />
+                    <div className="pointer-events-none absolute inset-x-5 top-1/2 border-t border-dashed border-[#eadfce]" />
+                    <div className="pointer-events-none absolute inset-x-5 top-3/4 border-t border-dashed border-[#eadfce]" />
 
-                    return (
-                      <div
-                        key={item.label}
-                        className="flex h-full flex-1 flex-col items-center justify-end gap-2"
-                      >
+                    {financeData.map((item) => {
+                      const height = Math.max(
+                        18,
+                        Math.round((item.revenue / maxRevenue) * 100)
+                      );
+
+                      return (
                         <div
-                          className="w-full rounded-t-2xl bg-gradient-to-t from-[#7c3aed] to-[#c4a46a] transition hover:opacity-90"
-                          style={{ height: `${height}%` }}
-                          title={`${item.label}: ${formatCurrency(item.revenue)}`}
-                        />
-                        <div className="text-xs font-black text-[#8a7b68]">
-                          {item.label}
+                          key={item.label}
+                          className="relative z-10 flex h-full flex-1 flex-col items-center justify-end gap-3"
+                        >
+                          <div className="flex h-full w-full items-end justify-center">
+                            <div
+                              className="w-7 rounded-t-[18px] bg-gradient-to-t from-[#b98121] via-[#d6b56d] to-[#f6e4b8] shadow-lg shadow-[#b98121]/10 transition hover:-translate-y-1 hover:shadow-[#b98121]/20 md:w-8"
+                              style={{ height: `${height}%` }}
+                              title={`${item.label}: ${formatCurrency(item.revenue)}`}
+                            />
+                          </div>
+
+                          <div className="text-xs font-black text-[#8a7b68]">{item.label}</div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
 
                 <div className="mt-4 grid gap-3 sm:grid-cols-3">
@@ -849,11 +670,7 @@ export default function VenueDashboardClient() {
                     value={formatCurrency(stats.monthlyRevenue)}
                     icon={<DollarSign size={18} />}
                   />
-                  <SummaryBox
-                    label="אירועים שולמו"
-                    value="31"
-                    icon={<CreditCard size={18} />}
-                  />
+                  <SummaryBox label="אירועים שולמו" value="31" icon={<CreditCard size={18} />} />
                   <SummaryBox
                     label="יתרה לגבייה"
                     value={formatCurrency(186000)}
@@ -862,25 +679,12 @@ export default function VenueDashboardClient() {
                 </div>
               </div>
 
-              {/* Tasks */}
               <div className="rounded-[28px] border border-[#eadfce] bg-white p-4 shadow-sm md:p-5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-lg font-black text-[#2b241c]">
-                      משימות תפעול
-                    </h2>
-                    <p className="mt-1 text-sm font-bold text-[#8a7b68]">
-                      ניהול יומי של המתחם
-                    </p>
+                    <h2 className="text-lg font-black text-[#2b241c]">משימות תפעול</h2>
+                    <p className="mt-1 text-sm font-bold text-[#8a7b68]">ניהול יומי של המתחם</p>
                   </div>
-
-                  <button
-                    type="button"
-                    className="flex h-9 items-center gap-2 rounded-2xl bg-[#7c3aed] px-3 text-xs font-black text-white"
-                  >
-                    <Plus size={15} />
-                    משימה
-                  </button>
                 </div>
 
                 <div className="mt-5 space-y-3">
@@ -892,16 +696,14 @@ export default function VenueDashboardClient() {
                       <input
                         type="checkbox"
                         defaultChecked={task.done}
-                        className="mt-1 h-4 w-4 rounded border-[#d8c7aa] text-[#7c3aed]"
+                        className="mt-1 h-4 w-4 rounded border-[#d8c7aa] text-[#b98121]"
                       />
 
                       <div className="min-w-0 flex-1">
                         <div
                           className={[
                             "text-sm font-black",
-                            task.done
-                              ? "text-[#9b8a73] line-through"
-                              : "text-[#2b241c]",
+                            task.done ? "text-[#9b8a73] line-through" : "text-[#2b241c]",
                           ].join(" ")}
                         >
                           {task.title}
@@ -936,93 +738,37 @@ export default function VenueDashboardClient() {
               </div>
             </section>
 
-            {/* Bottom area */}
             <section className="mt-5 grid gap-5 xl:grid-cols-[1fr_430px]">
-              {/* Weekly calendar */}
               <div className="rounded-[28px] border border-[#eadfce] bg-white p-4 shadow-sm md:p-5">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
-                    <h2 className="text-lg font-black text-[#2b241c]">
-                      יומן אולמות שבועי
-                    </h2>
+                    <h2 className="text-lg font-black text-[#2b241c]">יומן אולמות שבועי</h2>
                     <p className="mt-1 text-sm font-bold text-[#8a7b68]">
                       מבט מהיר על תפוסת האולמות השבוע
                     </p>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      className="rounded-2xl border border-[#eadfce] bg-white px-4 py-2 text-sm font-black text-[#6f6252]"
-                    >
-                      שבוע
-                    </button>
-                    <button
-                      type="button"
-                      className="rounded-2xl bg-[#f4ead9] px-4 py-2 text-sm font-black text-[#b98121]"
-                    >
-                      חודש
-                    </button>
                   </div>
                 </div>
 
                 <div className="mt-5 overflow-x-auto">
                   <div className="min-w-[780px] rounded-[24px] border border-[#eadfce] bg-[#fbfaf7] p-3">
                     <div className="grid grid-cols-7 gap-2">
-                      {["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"].map(
-                        (day, index) => (
-                          <div
-                            key={day}
-                            className="rounded-2xl bg-white p-3 text-center"
-                          >
-                            <div className="text-xs font-black text-[#9b8a73]">
-                              {day}
-                            </div>
-                            <div className="mt-1 text-sm font-black text-[#2b241c]">
-                              {18 + index}/05
-                            </div>
-                          </div>
-                        )
-                      )}
+                      {["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"].map((day, index) => (
+                        <div key={day} className="rounded-2xl bg-white p-3 text-center">
+                          <div className="text-xs font-black text-[#9b8a73]">{day}</div>
+                          <div className="mt-1 text-sm font-black text-[#2b241c]">{18 + index}/05</div>
+                        </div>
+                      ))}
                     </div>
 
                     <div className="mt-3 grid grid-cols-7 gap-2">
                       {[
-                        {
-                          title: "אולם הזהב",
-                          subtitle: "19:30",
-                          tone: "bg-violet-100 text-violet-700",
-                        },
-                        {
-                          title: "גן אירועים",
-                          subtitle: "20:00",
-                          tone: "bg-amber-100 text-amber-700",
-                        },
-                        {
-                          title: "SKY Hall",
-                          subtitle: "20:30",
-                          tone: "bg-emerald-100 text-emerald-700",
-                        },
-                        {
-                          title: "פנוי",
-                          subtitle: "אין אירוע",
-                          tone: "bg-white text-[#9b8a73]",
-                        },
-                        {
-                          title: "אולם הזהב",
-                          subtitle: "20:00",
-                          tone: "bg-rose-100 text-rose-700",
-                        },
-                        {
-                          title: "גן אירועים",
-                          subtitle: "12:30",
-                          tone: "bg-violet-100 text-violet-700",
-                        },
-                        {
-                          title: "SKY Hall",
-                          subtitle: "תחזוקה",
-                          tone: "bg-slate-100 text-slate-600",
-                        },
+                        { title: "אולם הזהב", subtitle: "19:30", tone: "bg-violet-100 text-violet-700" },
+                        { title: "גן אירועים", subtitle: "20:00", tone: "bg-amber-100 text-amber-700" },
+                        { title: "SKY Hall", subtitle: "20:30", tone: "bg-emerald-100 text-emerald-700" },
+                        { title: "פנוי", subtitle: "אין אירוע", tone: "bg-white text-[#9b8a73]" },
+                        { title: "אולם הזהב", subtitle: "20:00", tone: "bg-rose-100 text-rose-700" },
+                        { title: "גן אירועים", subtitle: "12:30", tone: "bg-violet-100 text-violet-700" },
+                        { title: "SKY Hall", subtitle: "תחזוקה", tone: "bg-slate-100 text-slate-600" },
                       ].map((item, index) => (
                         <div
                           key={`${item.title}-${index}`}
@@ -1032,9 +778,7 @@ export default function VenueDashboardClient() {
                           ].join(" ")}
                         >
                           <div>{item.title}</div>
-                          <div className="mt-2 text-xs font-bold opacity-75">
-                            {item.subtitle}
-                          </div>
+                          <div className="mt-2 text-xs font-bold opacity-75">{item.subtitle}</div>
                         </div>
                       ))}
                     </div>
@@ -1042,16 +786,11 @@ export default function VenueDashboardClient() {
                 </div>
               </div>
 
-              {/* Alerts */}
               <div className="rounded-[28px] border border-[#eadfce] bg-white p-4 shadow-sm md:p-5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-lg font-black text-[#2b241c]">
-                      התראות חכמות
-                    </h2>
-                    <p className="mt-1 text-sm font-bold text-[#8a7b68]">
-                      דברים שדורשים תשומת לב
-                    </p>
+                    <h2 className="text-lg font-black text-[#2b241c]">התראות חכמות</h2>
+                    <p className="mt-1 text-sm font-bold text-[#8a7b68]">דברים שדורשים תשומת לב</p>
                   </div>
 
                   <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#fff5df] text-[#b98121]">
@@ -1076,8 +815,8 @@ export default function VenueDashboardClient() {
 
                   <AlertRow
                     icon={<UsersRound size={18} />}
-                    title="3 לידים ממתינים למעקב"
-                    description="פניות חדשות שלא קיבלו הצעת מחיר."
+                    title="בדיקת כוח אדם לאירועי סוף השבוע"
+                    description="כדאי לוודא שכל משמרות הצוות משויכות לאולמות."
                     tone="violet"
                   />
 
@@ -1093,7 +832,180 @@ export default function VenueDashboardClient() {
           </div>
         </section>
       </div>
+
+      {editingHall && (
+        <EditHallModal
+          hall={editingHall}
+          onClose={() => setEditingHall(null)}
+          onSave={saveHall}
+        />
+      )}
     </main>
+  );
+}
+
+/* ======================================================
+   EDIT HALL MODAL
+====================================================== */
+
+function EditHallModal({
+  hall,
+  onClose,
+  onSave,
+}: {
+  hall: Hall;
+  onClose: () => void;
+  onSave: (hall: Hall) => void;
+}) {
+  const [form, setForm] = useState<Hall>(hall);
+
+  const updateField = <K extends keyof Hall>(key: K, value: Hall[K]) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const previewUrl = URL.createObjectURL(file);
+    updateField("image", previewUrl);
+  };
+
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    onSave(form);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/45 p-4">
+      <div className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-[32px] border border-[#eadfce] bg-white shadow-2xl">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#eadfce] bg-white/95 p-5 backdrop-blur">
+          <div>
+            <h2 className="text-xl font-black text-[#2b241c]">עריכת פרטי אולם</h2>
+            <p className="mt-1 text-sm font-bold text-[#8a7b68]">
+              עדכון הנתונים שמופיעים בכרטיס האולם בדשבורד.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#eadfce] text-[#6f6252] transition hover:bg-[#fbf5ea]"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-5">
+          <div className="grid gap-5 lg:grid-cols-[300px_1fr]">
+            <div className="rounded-[26px] border border-[#eadfce] bg-[#fffdf8] p-4">
+              <div className="relative h-52 overflow-hidden rounded-[22px] bg-[#f4ead9]">
+                <img src={form.image} alt={form.name} className="h-full w-full object-cover" />
+              </div>
+
+              <label className="mt-4 flex h-11 cursor-pointer items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-white text-sm font-black text-[#6f6252] transition hover:bg-[#fbf5ea]">
+                <ImagePlus size={17} />
+                החלפת תמונה
+                <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
+              </label>
+
+              <p className="mt-3 text-xs font-bold leading-5 text-[#8a7b68]">
+                כרגע התמונה נשמרת כ־Preview מקומי. בהמשך נחבר את זה להעלאה ל־Cloudinary ושמירה ב־MongoDB.
+              </p>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormInput
+                label="שם אולם"
+                value={form.name}
+                onChange={(value) => updateField("name", value)}
+              />
+
+              <FormInput
+                label="תיאור קצר"
+                value={form.subtitle}
+                onChange={(value) => updateField("subtitle", value)}
+              />
+
+              <FormInput
+                label="קיבולת מקסימלית"
+                type="number"
+                value={String(form.capacity)}
+                onChange={(value) => updateField("capacity", toSafeNumber(value, form.capacity))}
+              />
+
+              <FormInput
+                label="אירועים החודש"
+                type="number"
+                value={String(form.monthlyEvents)}
+                onChange={(value) => updateField("monthlyEvents", toSafeNumber(value, form.monthlyEvents))}
+              />
+
+              <FormInput
+                label="הכנסות החודש"
+                type="number"
+                value={String(form.monthlyRevenue)}
+                onChange={(value) => updateField("monthlyRevenue", toSafeNumber(value, form.monthlyRevenue))}
+              />
+
+              <FormInput
+                label="אירועים עתידיים"
+                type="number"
+                value={String(form.upcomingEvents)}
+                onChange={(value) => updateField("upcomingEvents", toSafeNumber(value, form.upcomingEvents))}
+              />
+
+              <FormInput
+                label="תפוסה חודשית באחוזים"
+                type="number"
+                value={String(form.occupancyRate)}
+                onChange={(value) => {
+                  const nextValue = Math.min(100, Math.max(0, toSafeNumber(value, form.occupancyRate)));
+                  updateField("occupancyRate", nextValue);
+                }}
+              />
+
+              <FormInput
+                label="אירוע הבא"
+                value={form.nextEventAt}
+                onChange={(value) => updateField("nextEventAt", value)}
+              />
+
+              <label className="sm:col-span-2">
+                <span className="mb-2 block text-sm font-black text-[#6f6252]">סטטוס אולם</span>
+                <select
+                  value={form.status}
+                  onChange={(event) => updateField("status", event.target.value as HallStatus)}
+                  className="h-12 w-full rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-bold text-[#2b241c] outline-none transition focus:border-[#b98121]"
+                >
+                  <option value="active">פעיל</option>
+                  <option value="maintenance">תחזוקה</option>
+                  <option value="closed">סגור</option>
+                </select>
+              </label>
+            </div>
+          </div>
+
+          <div className="mt-6 flex flex-col-reverse gap-3 border-t border-[#eadfce] pt-5 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              className="h-12 rounded-2xl border border-[#eadfce] bg-white px-6 text-sm font-black text-[#6f6252] transition hover:bg-[#fbf5ea]"
+            >
+              ביטול
+            </button>
+
+            <button
+              type="submit"
+              className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#b98121] px-6 text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a]"
+            >
+              <Save size={17} />
+              שמירת שינויים
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }
 
@@ -1126,36 +1038,18 @@ function StatCard({
         </div>
       </div>
 
-      <div className="mt-4 text-sm font-black text-[#6f6252]">
-        {title}
-      </div>
-
-      <div className="mt-1 text-2xl font-black text-[#2b241c]">
-        {value}
-      </div>
-
-      <div className="mt-1 text-xs font-bold text-[#9b8a73]">
-        {subtitle}
-      </div>
+      <div className="mt-4 text-sm font-black text-[#6f6252]">{title}</div>
+      <div className="mt-1 text-2xl font-black text-[#2b241c]">{value}</div>
+      <div className="mt-1 text-xs font-bold text-[#9b8a73]">{subtitle}</div>
     </div>
   );
 }
 
-function MiniInfo({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function MiniInfo({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl bg-white px-3 py-2">
-      <div className="text-[11px] font-black text-[#9b8a73]">
-        {label}
-      </div>
-      <div className="mt-1 truncate text-sm font-black text-[#2b241c]">
-        {value}
-      </div>
+      <div className="text-[11px] font-black text-[#9b8a73]">{label}</div>
+      <div className="mt-1 truncate text-sm font-black text-[#2b241c]">{value}</div>
     </div>
   );
 }
@@ -1173,14 +1067,10 @@ function SummaryBox({
     <div className="rounded-3xl border border-[#eadfce] bg-[#fffdf8] p-4">
       <div className="flex items-center gap-2 text-[#b98121]">
         {icon}
-        <span className="text-xs font-black text-[#8a7b68]">
-          {label}
-        </span>
+        <span className="text-xs font-black text-[#8a7b68]">{label}</span>
       </div>
 
-      <div className="mt-2 text-lg font-black text-[#2b241c]">
-        {value}
-      </div>
+      <div className="mt-2 text-lg font-black text-[#2b241c]">{value}</div>
     </div>
   );
 }
@@ -1217,13 +1107,35 @@ function AlertRow({
       </div>
 
       <div className="min-w-0 flex-1">
-        <div className="text-sm font-black text-[#2b241c]">
-          {title}
-        </div>
+        <div className="text-sm font-black text-[#2b241c]">{title}</div>
         <div className="mt-1 text-xs font-bold leading-5 text-[#8a7b68]">
           {description}
         </div>
       </div>
     </div>
+  );
+}
+
+function FormInput({
+  label,
+  value,
+  onChange,
+  type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: "text" | "number";
+}) {
+  return (
+    <label>
+      <span className="mb-2 block text-sm font-black text-[#6f6252]">{label}</span>
+      <input
+        type={type}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="h-12 w-full rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-bold text-[#2b241c] outline-none transition focus:border-[#b98121]"
+      />
+    </label>
   );
 }
