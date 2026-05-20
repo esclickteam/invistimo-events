@@ -22,6 +22,7 @@ import {
   Plus,
   Search,
   Send,
+  Upload,
   UserRound,
   UsersRound,
   X,
@@ -267,6 +268,11 @@ export default function HallCrmPage() {
   const [proposalOpen, setProposalOpen] = useState(false);
   const [contractOpen, setContractOpen] = useState(false);
   const [closeEventOpen, setCloseEventOpen] = useState(false);
+
+  const [proposalFileName, setProposalFileName] = useState("");
+  const [contractFileName, setContractFileName] = useState("");
+  const [proposalSignature, setProposalSignature] = useState("");
+  const [contractSignature, setContractSignature] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
 
   const selectedLead = leads.find((lead) => lead.id === selectedLeadId) || leads[0];
@@ -795,51 +801,157 @@ export default function HallCrmPage() {
       )}
 
       {proposalOpen && (
-        <Modal title="שליחת הצעת מחיר" onClose={() => setProposalOpen(false)}>
-          <div className="grid gap-3">
-            <InfoLine label="לקוח" value={selectedLead.name} />
-            <InfoLine label="סוג אירוע" value={selectedLead.eventType} />
-            <InfoLine label="תקציב משוער" value={formatCurrency(selectedLead.budget)} />
-            <InputLike label="מחיר להצעה" value={`${selectedLead.budget}`} />
-            <InputLike label="מקדמה נדרשת" value="20000" />
+        <Modal title="שליחת הצעת מחיר" onClose={() => setProposalOpen(false)} wide>
+          <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
+            <section className="space-y-4">
+              <div className="grid gap-3 md:grid-cols-2">
+                <InfoLine label="לקוח" value={selectedLead.name} />
+                <InfoLine label="סוג אירוע" value={selectedLead.eventType} />
+                <InfoLine label="תאריך מבוקש" value={selectedLead.requestedDate} />
+                <InfoLine label="אולם" value={selectedLead.preferredHall} />
+                <InfoLine label="כמות אורחים" value={`${selectedLead.guests}`} />
+                <InfoLine label="תקציב משוער" value={formatCurrency(selectedLead.budget)} />
+              </div>
 
-            <a
-              href={buildSms4FreeLink(selectedLead)}
-              target="_blank"
-              rel="noreferrer"
-              className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-[#fffdf8] text-sm font-black text-[#6f6252]"
-            >
-              <Send size={16} />
-              פתח SMS4Free לשליחה ללקוח
-            </a>
+              <div className="grid gap-3 md:grid-cols-2">
+                <InputLike label="מחיר להצעה" value={`${selectedLead.budget}`} />
+                <InputLike label="מקדמה נדרשת" value="20000" />
+              </div>
 
-            <button
-              type="button"
-              onClick={sendProposal}
-              className="h-11 rounded-2xl bg-[#b98121] text-sm font-black text-white"
-            >
-              סמן כהצעה נשלחה
-            </button>
+              <FileUploadBox
+                title="העלאת קובץ הצעת מחיר"
+                description="אפשר להעלות PDF / Word / תמונה של הצעת המחיר."
+                fileName={proposalFileName}
+                onChange={(name) => setProposalFileName(name)}
+              />
+
+              <SignatureBox
+                title="שדה חתימה להצעת מחיר"
+                description="כאן מוסיפים שדה חתימה שיופיע ללקוח בעמוד החתימה באתר."
+                value={proposalSignature}
+                onChange={setProposalSignature}
+              />
+
+              <div className="rounded-2xl border border-[#eadfce] bg-[#fff8eb] p-3 text-xs font-bold leading-6 text-[#7f705d]">
+                הזרימה: מעלים קובץ ← מוסיפים שדה חתימה ← נוצר קישור חתימה באתר ← שולחים SMS ללקוח ← אחרי חתימה הקובץ החתום נשמר בתיק לקוח.
+              </div>
+            </section>
+
+            <aside className="space-y-3 rounded-[26px] border border-[#eadfce] bg-[#fffdf8] p-4">
+              <h3 className="text-lg font-black text-[#2b241c]">שליחה ללקוח</h3>
+
+              <a
+                href={buildSms4FreeLink(selectedLead)}
+                target="_blank"
+                rel="noreferrer"
+                className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-white text-sm font-black text-[#6f6252] transition hover:bg-[#fbf5ea]"
+              >
+                <Send size={16} />
+                שליחת SMS עם קישור חתימה
+              </a>
+
+              <button
+                type="button"
+                onClick={sendProposal}
+                className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#b98121] text-sm font-black text-white"
+              >
+                <CheckCircle2 size={16} />
+                סמן כהצעה נשלחה
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  sendProposal();
+                  setClientFileOpen(true);
+                }}
+                className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-[#d9bd83] bg-white text-sm font-black text-[#9f6f1a]"
+              >
+                <FileText size={16} />
+                שמור בתיק לקוח
+              </button>
+
+              <div className="rounded-2xl border border-[#eadfce] bg-white p-3 text-xs font-bold leading-6 text-[#7f705d]">
+                אחרי חתימה: ההצעה החתומה תופיע בתיק לקוח, ויהיה אפשר לשלוח ללקוח העתק חתום.
+              </div>
+            </aside>
           </div>
         </Modal>
       )}
 
       {contractOpen && (
-        <Modal title="שליחת חוזה לסגירה" onClose={() => setContractOpen(false)}>
-          <div className="grid gap-3">
-            <InfoLine label="לקוח" value={selectedLead.name} />
-            <InfoLine label="אולם" value={selectedLead.preferredHall} />
-            <InputLike label="סכום התחייבות" value={`${selectedLead.budget}`} />
-            <InputLike label="מקדמה" value="20000" />
-            <InputLike label="תאריך האירוע" value={selectedLead.requestedDate} />
+        <Modal title="שליחת חוזה לסגירה" onClose={() => setContractOpen(false)} wide>
+          <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
+            <section className="space-y-4">
+              <div className="grid gap-3 md:grid-cols-2">
+                <InfoLine label="לקוח" value={selectedLead.name} />
+                <InfoLine label="אולם" value={selectedLead.preferredHall} />
+                <InfoLine label="תאריך האירוע" value={selectedLead.requestedDate} />
+                <InfoLine label="כמות אורחים" value={`${selectedLead.guests}`} />
+              </div>
 
-            <button
-              type="button"
-              onClick={sendContract}
-              className="h-11 rounded-2xl bg-[#b98121] text-sm font-black text-white"
-            >
-              סמן כחוזה נשלח
-            </button>
+              <div className="grid gap-3 md:grid-cols-2">
+                <InputLike label="סכום התחייבות" value={`${selectedLead.budget}`} />
+                <InputLike label="מקדמה" value="20000" />
+              </div>
+
+              <FileUploadBox
+                title="העלאת חוזה / הסכם"
+                description="אפשר להעלות הסכם PDF / Word. בהמשך נשלח ללקוח קישור חתימה."
+                fileName={contractFileName}
+                onChange={(name) => setContractFileName(name)}
+              />
+
+              <SignatureBox
+                title="שדה חתימה להסכם"
+                description="כאן מגדירים את שדה החתימה שיופיע ללקוח בעמוד החתימה באתר."
+                value={contractSignature}
+                onChange={setContractSignature}
+              />
+
+              <div className="rounded-2xl border border-[#eadfce] bg-[#fff8eb] p-3 text-xs font-bold leading-6 text-[#7f705d]">
+                אחרי שהלקוח חותם, ההסכם החתום יופיע אוטומטית בתיק הלקוח, כולל תאריך חתימה וסטטוס חתום.
+              </div>
+            </section>
+
+            <aside className="space-y-3 rounded-[26px] border border-[#eadfce] bg-[#fffdf8] p-4">
+              <h3 className="text-lg font-black text-[#2b241c]">שליחת הסכם</h3>
+
+              <a
+                href={buildSms4FreeLink(selectedLead)}
+                target="_blank"
+                rel="noreferrer"
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-white text-sm font-black text-[#6f6252] transition hover:bg-[#fbf5ea]"
+              >
+                <Send size={16} />
+                שליחת SMS עם קישור חתימה
+              </a>
+
+              <button
+                type="button"
+                onClick={sendContract}
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#b98121] text-sm font-black text-white"
+              >
+                <FileSignature size={16} />
+                סמן כחוזה נשלח
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  sendContract();
+                  setCloseEventOpen(true);
+                }}
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#d9bd83] bg-white text-sm font-black text-[#9f6f1a]"
+              >
+                <CheckCircle2 size={16} />
+                שלח חוזה והמשך לסגירת אירוע
+              </button>
+
+              <div className="rounded-2xl border border-[#eadfce] bg-white p-3 text-xs font-bold leading-6 text-[#7f705d]">
+                לאחר חתימה אפשר לשלוח ללקוח העתק חתום מתוך תיק הלקוח.
+              </div>
+            </aside>
           </div>
         </Modal>
       )}
@@ -1099,6 +1211,98 @@ function ActionButton({
       {icon}
       {label}
     </button>
+  );
+}
+
+
+function FileUploadBox({
+  title,
+  description,
+  fileName,
+  onChange,
+}: {
+  title: string;
+  description: string;
+  fileName: string;
+  onChange: (name: string) => void;
+}) {
+  return (
+    <div className="rounded-[24px] border border-dashed border-[#d9bd83] bg-[#fffdf8] p-4">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <div className="text-sm font-black text-[#2b241c]">{title}</div>
+          <div className="mt-1 text-xs font-bold leading-6 text-[#7f705d]">{description}</div>
+          {fileName ? (
+            <div className="mt-2 rounded-full bg-[#f4ead9] px-3 py-1 text-xs font-black text-[#b98121]">
+              קובץ נבחר: {fileName}
+            </div>
+          ) : null}
+        </div>
+
+        <label className="flex h-12 cursor-pointer items-center justify-center gap-2 rounded-2xl bg-[#b98121] px-5 text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a]">
+          <Upload size={17} />
+          העלאת קובץ
+          <input
+            type="file"
+            accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) onChange(file.name);
+            }}
+          />
+        </label>
+      </div>
+    </div>
+  );
+}
+
+function SignatureBox({
+  title,
+  description,
+  value,
+  onChange,
+}: {
+  title: string;
+  description: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="rounded-[24px] border border-[#eadfce] bg-white p-4">
+      <div className="mb-3">
+        <div className="text-sm font-black text-[#2b241c]">{title}</div>
+        <div className="mt-1 text-xs font-bold leading-6 text-[#7f705d]">{description}</div>
+      </div>
+
+      <div className="rounded-2xl border border-dashed border-[#d9bd83] bg-[#fff8eb] p-4">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <span className="text-xs font-black text-[#8a7b68]">תצוגת שדה חתימה</span>
+          <span className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-[#b98121]">
+            חתימה דיגיטלית
+          </span>
+        </div>
+
+        <div className="flex min-h-[95px] items-center justify-center rounded-2xl border border-[#eadfce] bg-white">
+          <div className="text-center">
+            <FileSignature className="mx-auto text-[#b98121]" size={26} />
+            <div className="mt-2 text-sm font-black text-[#2b241c]">
+              {value || "חתימת לקוח כאן"}
+            </div>
+            <div className="mt-1 text-xs font-bold text-[#8a7b68]">
+              הלקוח יחתום בעמוד חתימה בתוך האתר
+            </div>
+          </div>
+        </div>
+
+        <input
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder="שם שדה החתימה, לדוגמה: חתימת הלקוח"
+          className="mt-3 h-11 w-full rounded-2xl border border-[#eadfce] bg-white px-3 text-sm font-bold text-[#2b241c] outline-none focus:border-[#b98121]"
+        />
+      </div>
+    </div>
   );
 }
 
