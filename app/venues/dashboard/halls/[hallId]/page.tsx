@@ -200,6 +200,7 @@ export default async function VenueHallPage({ params }: Props) {
   const hallCalendarHref = `/venues/dashboard/halls/${hallId}/calendar`;
   const hallCrmHref = `/venues/dashboard/halls/${hallId}/crm`;
   const hallMenusHref = `/venues/dashboard/halls/${hallId}/menus`;
+  const hallStaffHref = `/venues/dashboard/halls/${hallId}/staff`;
 
   return (
     <main dir="rtl" className="min-h-screen bg-[#f8f6f2] text-[#2b241c]">
@@ -236,6 +237,14 @@ export default async function VenueHallPage({ params }: Props) {
             >
               <Utensils size={16} />
               תפריטים
+            </Link>
+
+            <Link
+              href={hallStaffHref}
+              className="inline-flex h-11 items-center gap-2 rounded-2xl border border-[#d9bd83] bg-[#fff8eb] px-4 text-sm font-black text-[#9f6f1a] shadow-sm transition hover:bg-[#f4ead9]"
+            >
+              <UsersRound size={16} />
+              צוות ומשמרות
             </Link>
 
             <button
@@ -304,6 +313,14 @@ export default async function VenueHallPage({ params }: Props) {
                     >
                       <Utensils size={17} />
                       ניהול תפריטים
+                    </Link>
+
+                    <Link
+                      href={hallStaffHref}
+                      className="inline-flex h-11 items-center gap-2 rounded-2xl border border-[#d9bd83] bg-white/80 px-5 text-sm font-black text-[#9f6f1a] shadow-sm transition hover:bg-[#fff8eb]"
+                    >
+                      <UsersRound size={17} />
+                      צוות ומשמרות
                     </Link>
                   </div>
                 </div>
@@ -381,6 +398,18 @@ export default async function VenueHallPage({ params }: Props) {
                     <Link
                       key={tab}
                       href={hallMenusHref}
+                      className="flex h-12 flex-1 items-center justify-center border-l border-[#eadfce] bg-[#fffdf8] px-4 text-sm font-black text-[#6f6252] transition hover:bg-[#fbf5ea] hover:text-[#b98121]"
+                    >
+                      {tab}
+                    </Link>
+                  );
+                }
+
+                if (tab === "צוות ומשמרות") {
+                  return (
+                    <Link
+                      key={tab}
+                      href={hallStaffHref}
                       className="flex h-12 flex-1 items-center justify-center border-l border-[#eadfce] bg-[#fffdf8] px-4 text-sm font-black text-[#6f6252] transition hover:bg-[#fbf5ea] hover:text-[#b98121]"
                     >
                       {tab}
@@ -466,6 +495,14 @@ export default async function VenueHallPage({ params }: Props) {
                 >
                   <Utensils size={17} />
                   ניהול תפריטים
+                </Link>
+
+                <Link
+                  href={hallStaffHref}
+                  className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#d9bd83] bg-[#fff8eb] text-sm font-black text-[#9f6f1a] transition hover:bg-[#f4ead9]"
+                >
+                  <UsersRound size={17} />
+                  צוות ומשמרות
                 </Link>
 
                 <button
@@ -599,12 +636,14 @@ export default async function VenueHallPage({ params }: Props) {
                 title="צוות ומשמרות"
                 icon={<UsersRound size={20} />}
                 footer="ניהול צוות ומשמרות"
+                href={hallStaffHref}
               >
                 <div className="space-y-2">
                   {staffRows.map((staff) => (
-                    <div
+                    <Link
+                      href={hallStaffHref}
                       key={`${staff.role}-${staff.name}`}
-                      className="flex items-center gap-3 rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-3"
+                      className="flex items-center gap-3 rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-3 transition hover:bg-[#fbf5ea]"
                     >
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#f4ead9] text-xs font-black text-[#b98121]">
                         {staff.initials}
@@ -622,7 +661,7 @@ export default async function VenueHallPage({ params }: Props) {
                       <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-black text-[#8a7b68]">
                         {staff.shift}
                       </span>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               </DashboardCard>
