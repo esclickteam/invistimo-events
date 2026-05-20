@@ -197,6 +197,10 @@ export default async function VenueHallPage({ params }: Props) {
   const { hallId } = await params;
   const hallName = getHallName(hallId);
 
+  const hallCalendarHref = `/venues/dashboard/halls/${hallId}/calendar`;
+  const hallCrmHref = `/venues/dashboard/halls/${hallId}/crm`;
+  const hallMenusHref = `/venues/dashboard/halls/${hallId}/menus`;
+
   return (
     <main dir="rtl" className="min-h-screen bg-[#f8f6f2] text-[#2b241c]">
       <div className="mx-auto max-w-[1760px] px-4 py-5 md:px-7">
@@ -211,7 +215,7 @@ export default async function VenueHallPage({ params }: Props) {
 
           <div className="flex flex-wrap items-center gap-2">
             <Link
-              href={`/venues/dashboard/halls/${hallId}/calendar`}
+              href={hallCalendarHref}
               className="inline-flex h-11 items-center gap-2 rounded-2xl bg-[#b98121] px-4 text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a]"
             >
               <CalendarDays size={16} />
@@ -219,11 +223,19 @@ export default async function VenueHallPage({ params }: Props) {
             </Link>
 
             <Link
-              href={`/venues/dashboard/halls/${hallId}/crm`}
+              href={hallCrmHref}
               className="inline-flex h-11 items-center gap-2 rounded-2xl border border-[#d9bd83] bg-[#fff8eb] px-4 text-sm font-black text-[#9f6f1a] shadow-sm transition hover:bg-[#f4ead9]"
             >
               <UsersRound size={16} />
               CRM לקוחות
+            </Link>
+
+            <Link
+              href={hallMenusHref}
+              className="inline-flex h-11 items-center gap-2 rounded-2xl border border-[#d9bd83] bg-[#fff8eb] px-4 text-sm font-black text-[#9f6f1a] shadow-sm transition hover:bg-[#f4ead9]"
+            >
+              <Utensils size={16} />
+              תפריטים
             </Link>
 
             <button
@@ -271,7 +283,7 @@ export default async function VenueHallPage({ params }: Props) {
 
                   <div className="mt-5 flex flex-wrap items-center gap-2">
                     <Link
-                      href={`/venues/dashboard/halls/${hallId}/calendar`}
+                      href={hallCalendarHref}
                       className="inline-flex h-11 items-center gap-2 rounded-2xl bg-[#b98121] px-5 text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a]"
                     >
                       <CalendarDays size={17} />
@@ -279,11 +291,19 @@ export default async function VenueHallPage({ params }: Props) {
                     </Link>
 
                     <Link
-                      href={`/venues/dashboard/halls/${hallId}/crm`}
+                      href={hallCrmHref}
                       className="inline-flex h-11 items-center gap-2 rounded-2xl border border-[#d9bd83] bg-white/80 px-5 text-sm font-black text-[#9f6f1a] shadow-sm transition hover:bg-[#fff8eb]"
                     >
                       <UsersRound size={17} />
                       ניהול לקוחות CRM
+                    </Link>
+
+                    <Link
+                      href={hallMenusHref}
+                      className="inline-flex h-11 items-center gap-2 rounded-2xl border border-[#d9bd83] bg-white/80 px-5 text-sm font-black text-[#9f6f1a] shadow-sm transition hover:bg-[#fff8eb]"
+                    >
+                      <Utensils size={17} />
+                      ניהול תפריטים
                     </Link>
                   </div>
                 </div>
@@ -348,7 +368,19 @@ export default async function VenueHallPage({ params }: Props) {
                   return (
                     <Link
                       key={tab}
-                      href={`/venues/dashboard/halls/${hallId}/calendar`}
+                      href={hallCalendarHref}
+                      className="flex h-12 flex-1 items-center justify-center border-l border-[#eadfce] bg-[#fffdf8] px-4 text-sm font-black text-[#6f6252] transition hover:bg-[#fbf5ea] hover:text-[#b98121]"
+                    >
+                      {tab}
+                    </Link>
+                  );
+                }
+
+                if (tab === "תפריטים") {
+                  return (
+                    <Link
+                      key={tab}
+                      href={hallMenusHref}
                       className="flex h-12 flex-1 items-center justify-center border-l border-[#eadfce] bg-[#fffdf8] px-4 text-sm font-black text-[#6f6252] transition hover:bg-[#fbf5ea] hover:text-[#b98121]"
                     >
                       {tab}
@@ -413,7 +445,7 @@ export default async function VenueHallPage({ params }: Props) {
 
               <div className="mt-5 space-y-2">
                 <Link
-                  href={`/venues/dashboard/halls/${hallId}/calendar`}
+                  href={hallCalendarHref}
                   className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#b98121] text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a]"
                 >
                   <CalendarDays size={17} />
@@ -421,11 +453,19 @@ export default async function VenueHallPage({ params }: Props) {
                 </Link>
 
                 <Link
-                  href={`/venues/dashboard/halls/${hallId}/crm`}
+                  href={hallCrmHref}
                   className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#d9bd83] bg-[#fff8eb] text-sm font-black text-[#9f6f1a] transition hover:bg-[#f4ead9]"
                 >
                   <UsersRound size={17} />
                   ניהול לקוחות CRM
+                </Link>
+
+                <Link
+                  href={hallMenusHref}
+                  className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#d9bd83] bg-[#fff8eb] text-sm font-black text-[#9f6f1a] transition hover:bg-[#f4ead9]"
+                >
+                  <Utensils size={17} />
+                  ניהול תפריטים
                 </Link>
 
                 <button
@@ -453,7 +493,7 @@ export default async function VenueHallPage({ params }: Props) {
                 title="יומן אולם"
                 icon={<CalendarDays size={20} />}
                 footer="מעבר ליומן המלא"
-                href={`/venues/dashboard/halls/${hallId}/calendar`}
+                href={hallCalendarHref}
               >
                 <div className="space-y-2">
                   {upcomingEvents.map((event) => (
@@ -520,13 +560,15 @@ export default async function VenueHallPage({ params }: Props) {
               <DashboardCard
                 title="תפריטים וחבילות"
                 icon={<Utensils size={20} />}
-                footer="צפייה בכל התפריטים"
+                footer="ניהול כל התפריטים"
+                href={hallMenusHref}
               >
                 <div className="space-y-3">
                   {menuPackages.map((pkg) => (
-                    <div
+                    <Link
+                      href={hallMenusHref}
                       key={pkg.name}
-                      className="flex items-start gap-3 rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-3"
+                      className="flex items-start gap-3 rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-3 transition hover:bg-[#fbf5ea]"
                     >
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#f4ead9] text-[#b98121]">
                         {pkg.icon === "crown" ? (
@@ -546,7 +588,7 @@ export default async function VenueHallPage({ params }: Props) {
                           {pkg.description}
                         </div>
                       </div>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               </DashboardCard>
