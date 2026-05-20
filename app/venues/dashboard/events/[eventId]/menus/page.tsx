@@ -7,7 +7,6 @@ import {
   ArrowRight,
   BookOpen,
   CheckCircle2,
-  ChevronDown,
   Copy,
   Edit3,
   Eye,
@@ -47,61 +46,71 @@ type CoupleSelection = {
   dishIds: string[];
 };
 
+type EventMenuStatus = "draft" | "sent" | "selected" | "approved";
+
 const dishLibrary: Dish[] = [
   {
     id: "dish-1",
     name: "סלמון טריאקי",
     description: "פילה סלמון ברוטב טריאקי עדין, שומשום ובצל ירוק.",
-    image: "https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&w=220&q=80",
+    image:
+      "https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&w=260&q=80",
     tags: ["דג", "ללא גלוטן"],
   },
   {
     id: "dish-2",
     name: "פילה בקר",
     description: "פילה בקר ברוטב יין אדום, לצד ירקות שורש.",
-    image: "https://images.unsplash.com/photo-1558030006-450675393462?auto=format&fit=crop&w=220&q=80",
+    image:
+      "https://images.unsplash.com/photo-1558030006-450675393462?auto=format&fit=crop&w=260&q=80",
     tags: ["בשרי"],
   },
   {
     id: "dish-3",
     name: "סלט קיסר",
     description: "חסה פריכה, קרוטונים, פרמזן ורוטב קיסר.",
-    image: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=220&q=80",
+    image:
+      "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=260&q=80",
     tags: ["צמחוני"],
   },
   {
     id: "dish-4",
     name: "פסטה רוזה",
     description: "פסטה טרייה ברוטב עגבניות ושמנת.",
-    image: "https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?auto=format&fit=crop&w=220&q=80",
+    image:
+      "https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?auto=format&fit=crop&w=260&q=80",
     tags: ["צמחוני"],
   },
   {
     id: "dish-5",
     name: "קבבוני טלה",
     description: "קבבוני טלה על הגריל עם טחינה ירוקה.",
-    image: "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=220&q=80",
+    image:
+      "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=260&q=80",
     tags: ["בשרי"],
   },
   {
     id: "dish-6",
     name: "קרפצ׳יו סלק",
     description: "סלק צלוי, גבינת עיזים, אגוזים ורוטב בלסמי.",
-    image: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=220&q=80",
+    image:
+      "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=260&q=80",
     tags: ["צמחוני"],
   },
   {
     id: "dish-7",
     name: "מיני פבלובה",
     description: "מרנג אישי עם קרם וניל ופירות יער.",
-    image: "https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=220&q=80",
+    image:
+      "https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=260&q=80",
     tags: ["קינוח"],
   },
   {
     id: "dish-8",
     name: "מוס שוקולד",
     description: "מוס שוקולד עשיר בכוס אישית.",
-    image: "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=220&q=80",
+    image:
+      "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=260&q=80",
     tags: ["קינוח"],
   },
 ];
@@ -125,7 +134,7 @@ const initialCategories: MenuCategory[] = [
   },
   {
     id: "cat-buffet",
-    title: "בופה",
+    title: "בופה וקבלת פנים",
     subtitle: "עמדות פתיחה / קבלת פנים",
     minChoices: 3,
     maxChoices: 6,
@@ -146,8 +155,22 @@ function getEventName(eventId: string) {
   return "חתונה - משפחת לוי";
 }
 
-function makePublicLink(eventId: string) {
+function publicChooseLink(eventId: string) {
   return `https://www.invistimo.com/menus/${eventId}/choose`;
+}
+
+function statusLabel(status: EventMenuStatus) {
+  if (status === "approved") return "מאושר";
+  if (status === "selected") return "הזוג בחר";
+  if (status === "sent") return "נשלח לזוג";
+  return "טיוטה";
+}
+
+function statusClass(status: EventMenuStatus) {
+  if (status === "approved") return "bg-emerald-50 text-emerald-700";
+  if (status === "selected") return "bg-violet-50 text-violet-700";
+  if (status === "sent") return "bg-sky-50 text-sky-700";
+  return "bg-amber-50 text-amber-700";
 }
 
 export default function EventMenusPage() {
@@ -155,28 +178,37 @@ export default function EventMenusPage() {
   const eventId = params?.eventId || "evt-1001";
   const eventName = getEventName(eventId);
 
-  const [menuName, setMenuName] = useState("תפריט חתונה - פרימיום");
+  const [menuName, setMenuName] = useState("תפריט פרימיום - עותק לאירוע");
+  const [sourceMenuName] = useState("תפריט פרימיום");
+  const [status, setStatus] = useState<EventMenuStatus>("draft");
   const [categories, setCategories] = useState<MenuCategory[]>(initialCategories);
   const [selectedCategoryId, setSelectedCategoryId] = useState(initialCategories[0].id);
   const [draggedDish, setDraggedDish] = useState<Dish | null>(null);
+  const [uploadedFileName, setUploadedFileName] = useState("");
+  const [saving, setSaving] = useState(false);
+
   const [addCategoryOpen, setAddCategoryOpen] = useState(false);
   const [addDishOpen, setAddDishOpen] = useState(false);
   const [sendLinkOpen, setSendLinkOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [uploadedFileName, setUploadedFileName] = useState("");
+  const [coupleSummaryOpen, setCoupleSummaryOpen] = useState(false);
+
   const [coupleSelections, setCoupleSelections] = useState<CoupleSelection[]>([
     { categoryId: "cat-starters", dishIds: ["dish-3", "dish-6"] },
     { categoryId: "cat-main", dishIds: ["dish-2", "dish-1"] },
   ]);
 
-  const publicLink = makePublicLink(eventId);
+  const publicLink = publicChooseLink(eventId);
 
-  const selectedCategory = categories.find((category) => category.id === selectedCategoryId) || categories[0];
+  const selectedCategory =
+    categories.find((category) => category.id === selectedCategoryId) || categories[0];
 
-  const menuStats = useMemo(() => {
+  const stats = useMemo(() => {
     const dishCount = categories.reduce((sum, category) => sum + category.dishes.length, 0);
-    const selectedCount = coupleSelections.reduce((sum, selection) => sum + selection.dishIds.length, 0);
+    const selectedCount = coupleSelections.reduce(
+      (sum, selection) => sum + selection.dishIds.length,
+      0
+    );
     const completedCategories = categories.filter((category) => {
       const selection = coupleSelections.find((item) => item.categoryId === category.id);
       const count = selection?.dishIds.length || 0;
@@ -191,40 +223,48 @@ export default function EventMenusPage() {
     };
   }, [categories, coupleSelections]);
 
-  const saveMock = () => {
+  const saveMenu = () => {
     setSaving(true);
     window.setTimeout(() => setSaving(false), 700);
   };
 
   const addCategory = () => {
     const id = `cat-${Date.now()}`;
+
     setCategories((current) => [
       ...current,
       {
         id,
         title: "קטגוריה חדשה",
-        subtitle: "הגדירי כמות בחירה ומנות",
+        subtitle: "הגדרת בחירה ומנות",
         minChoices: 1,
         maxChoices: 3,
         dishes: [],
       },
     ]);
+
     setSelectedCategoryId(id);
     setAddCategoryOpen(false);
   };
 
   const removeCategory = (categoryId: string) => {
-    setCategories((current) => current.filter((category) => category.id !== categoryId));
-    setCoupleSelections((current) => current.filter((selection) => selection.categoryId !== categoryId));
-    if (selectedCategoryId === categoryId) {
-      const nextCategory = categories.find((category) => category.id !== categoryId);
-      if (nextCategory) setSelectedCategoryId(nextCategory.id);
+    const nextCategories = categories.filter((category) => category.id !== categoryId);
+
+    setCategories(nextCategories);
+    setCoupleSelections((current) =>
+      current.filter((selection) => selection.categoryId !== categoryId)
+    );
+
+    if (selectedCategoryId === categoryId && nextCategories.length > 0) {
+      setSelectedCategoryId(nextCategories[0].id);
     }
   };
 
   const updateCategory = (categoryId: string, patch: Partial<MenuCategory>) => {
     setCategories((current) =>
-      current.map((category) => (category.id === categoryId ? { ...category, ...patch } : category))
+      current.map((category) =>
+        category.id === categoryId ? { ...category, ...patch } : category
+      )
     );
   };
 
@@ -278,10 +318,21 @@ export default function EventMenusPage() {
         selection.categoryId === category.id ? nextSelection : selection
       );
     });
+
+    setStatus("selected");
   };
 
   const selectedCountForCategory = (categoryId: string) => {
-    return coupleSelections.find((selection) => selection.categoryId === categoryId)?.dishIds.length || 0;
+    return (
+      coupleSelections.find((selection) => selection.categoryId === categoryId)?.dishIds.length || 0
+    );
+  };
+
+  const selectedDishesForCategory = (category: MenuCategory) => {
+    const ids =
+      coupleSelections.find((selection) => selection.categoryId === category.id)?.dishIds || [];
+
+    return category.dishes.filter((dish) => ids.includes(dish.id));
   };
 
   const addCustomDish = () => {
@@ -289,12 +340,22 @@ export default function EventMenusPage() {
       id: `dish-${Date.now()}`,
       name: "מנה חדשה",
       description: "תיאור קצר של המנה החדשה",
-      image: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=220&q=80",
+      image:
+        "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=260&q=80",
       tags: ["חדש"],
     };
 
     addDishToCategory(selectedCategory.id, newDish);
     setAddDishOpen(false);
+  };
+
+  const markSent = () => {
+    setStatus("sent");
+    setSendLinkOpen(false);
+  };
+
+  const approveMenu = () => {
+    setStatus("approved");
   };
 
   return (
@@ -308,7 +369,7 @@ export default function EventMenusPage() {
                 <span>›</span>
                 <span>{eventName}</span>
                 <span>›</span>
-                <span>תפריטים</span>
+                <span>תפריט האירוע</span>
               </div>
 
               <div className="mt-3 flex items-center gap-4">
@@ -317,11 +378,19 @@ export default function EventMenusPage() {
                 </div>
 
                 <div>
-                  <h1 className="text-3xl font-black tracking-tight md:text-5xl">
-                    תפריטים לאירוע
-                  </h1>
-                  <p className="mt-2 text-sm font-bold text-[#7f705d]">
-                    העלאת תפריט, בניית קטגוריות, גרירת מנות ושליחת קישור לזוג לבחירת מנות.
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h1 className="text-3xl font-black tracking-tight md:text-5xl">
+                      תפריט האירוע
+                    </h1>
+
+                    <span className={`rounded-full px-3 py-1 text-xs font-black ${statusClass(status)}`}>
+                      {statusLabel(status)}
+                    </span>
+                  </div>
+
+                  <p className="mt-2 text-sm font-bold leading-7 text-[#7f705d]">
+                    זהו עותק של תפריט האולם לאירוע הזה בלבד. אפשר לערוך אותו,
+                    לשלוח לזוג קישור בחירת מנות, ולאשר את הבחירה הסופית.
                   </p>
                 </div>
               </div>
@@ -356,7 +425,7 @@ export default function EventMenusPage() {
 
               <button
                 type="button"
-                onClick={saveMock}
+                onClick={saveMenu}
                 className="inline-flex h-11 items-center gap-2 rounded-2xl bg-[#b98121] px-5 text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a]"
               >
                 {saving ? <Loader2 size={17} className="animate-spin" /> : <Save size={17} />}
@@ -367,10 +436,14 @@ export default function EventMenusPage() {
         </header>
 
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <MetricCard title="קטגוריות" value={`${menuStats.categories}`} subtitle="ראשונות / עיקריות / בופה..." />
-          <MetricCard title="מנות בתפריט" value={`${menuStats.dishCount}`} subtitle="מנות זמינות לבחירת הזוג" />
-          <MetricCard title="בחירות זוג" value={`${menuStats.selectedCount}`} subtitle="מנות שסומנו בקישור" />
-          <MetricCard title="קטגוריות תקינות" value={`${menuStats.completedCategories}/${menuStats.categories}`} subtitle="לפי כמה מתוך כמה" />
+          <MetricCard title="קטגוריות" value={`${stats.categories}`} subtitle="ראשונות / עיקריות / בופה..." />
+          <MetricCard title="מנות בתפריט" value={`${stats.dishCount}`} subtitle="מנות זמינות לזוג" />
+          <MetricCard title="בחירות זוג" value={`${stats.selectedCount}`} subtitle="מנות שסומנו בקישור" />
+          <MetricCard
+            title="קטגוריות תקינות"
+            value={`${stats.completedCategories}/${stats.categories}`}
+            subtitle="לפי מינימום ומקסימום בחירה"
+          />
         </section>
 
         <section className="mt-5 grid gap-5 xl:grid-cols-[300px_1fr_350px]">
@@ -405,14 +478,14 @@ export default function EventMenusPage() {
               </button>
             </Panel>
 
-            <Panel title="העלאת תפריט קיים" icon={<Upload size={18} />}>
+            <Panel title="העלאת תפריט / קובץ" icon={<Upload size={18} />}>
               <label className="flex cursor-pointer flex-col items-center justify-center rounded-[24px] border border-dashed border-[#d9bd83] bg-[#fff8eb] p-5 text-center transition hover:bg-[#f4ead9]">
                 <Upload size={24} className="text-[#b98121]" />
                 <div className="mt-2 text-sm font-black text-[#2b241c]">
                   העלאת PDF / תמונה
                 </div>
                 <div className="mt-1 text-xs font-bold leading-5 text-[#7f705d]">
-                  אפשר להעלות תפריט קיים ולבנות ממנו קטגוריות.
+                  קובץ פנימי לאירוע הספציפי.
                 </div>
                 <input
                   type="file"
@@ -434,9 +507,9 @@ export default function EventMenusPage() {
           </aside>
 
           <section className="rounded-[34px] border border-[#eadfce] bg-white p-5 shadow-sm">
-            <div className="mb-5 grid gap-4 xl:grid-cols-[1fr_260px]">
+            <div className="mb-5 grid gap-4 xl:grid-cols-[1fr_240px]">
               <label className="block">
-                <span className="mb-1 block text-xs font-black text-[#8a7b68]">שם התפריט</span>
+                <span className="mb-1 block text-xs font-black text-[#8a7b68]">שם תפריט האירוע</span>
                 <input
                   value={menuName}
                   onChange={(event) => setMenuName(event.target.value)}
@@ -444,14 +517,10 @@ export default function EventMenusPage() {
                 />
               </label>
 
-              <button
-                type="button"
-                onClick={() => setAddCategoryOpen(true)}
-                className="mt-auto flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#b98121] text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a]"
-              >
-                <Plus size={17} />
-                הוספת קטגוריה
-              </button>
+              <div className="rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-4 py-3">
+                <div className="text-xs font-black text-[#8a7b68]">מקור התפריט</div>
+                <div className="mt-1 text-sm font-black text-[#2b241c]">{sourceMenuName}</div>
+              </div>
             </div>
 
             <div className="mb-5 flex gap-2 overflow-x-auto pb-1">
@@ -473,98 +542,130 @@ export default function EventMenusPage() {
                   </span>
                 </button>
               ))}
+
+              <button
+                type="button"
+                onClick={() => setAddCategoryOpen(true)}
+                className="flex h-11 shrink-0 items-center gap-2 rounded-2xl border border-[#d9bd83] bg-[#fff8eb] px-4 text-sm font-black text-[#9f6f1a]"
+              >
+                <Plus size={16} />
+                קטגוריה
+              </button>
             </div>
 
-            <div
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={() => {
-                if (draggedDish) addDishToCategory(selectedCategory.id, draggedDish);
-                setDraggedDish(null);
-              }}
-              className="rounded-[28px] border border-dashed border-[#d9bd83] bg-[#fffdf8] p-4"
-            >
-              <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-2xl font-black text-[#2b241c]">{selectedCategory.title}</h2>
-                    <span className="rounded-full bg-[#f4ead9] px-3 py-1 text-xs font-black text-[#b98121]">
-                      בחירה של {selectedCategory.minChoices} מתוך {selectedCategory.maxChoices}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-sm font-bold text-[#8a7b68]">{selectedCategory.subtitle}</p>
-                </div>
+            {selectedCategory ? (
+              <div
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={() => {
+                  if (draggedDish) addDishToCategory(selectedCategory.id, draggedDish);
+                  setDraggedDish(null);
+                }}
+                className="rounded-[28px] border border-dashed border-[#d9bd83] bg-[#fffdf8] p-4"
+              >
+                <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <input
+                        value={selectedCategory.title}
+                        onChange={(event) =>
+                          updateCategory(selectedCategory.id, { title: event.target.value })
+                        }
+                        className="h-10 rounded-2xl border border-[#eadfce] bg-white px-3 text-xl font-black text-[#2b241c] outline-none focus:border-[#b98121]"
+                      />
 
-                <div className="flex flex-wrap items-center gap-2">
-                  <SmallNumberInput
-                    label="מינימום"
-                    value={selectedCategory.minChoices}
-                    onChange={(value) => updateCategory(selectedCategory.id, { minChoices: value })}
-                  />
-                  <SmallNumberInput
-                    label="מקסימום"
-                    value={selectedCategory.maxChoices}
-                    onChange={(value) => updateCategory(selectedCategory.id, { maxChoices: value })}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeCategory(selectedCategory.id)}
-                    className="flex h-10 items-center gap-2 rounded-2xl border border-rose-100 bg-rose-50 px-3 text-xs font-black text-rose-700"
-                  >
-                    <Trash2 size={15} />
-                    מחיקה
-                  </button>
-                </div>
-              </div>
-
-              <div className="mb-4 rounded-2xl border border-[#eadfce] bg-white p-3 text-center text-sm font-bold text-[#8a7b68]">
-                גררי מנה מספריית המנות לכאן, או לחצי על “הוספה” ליד מנה.
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
-                {selectedCategory.dishes.map((dish, index) => {
-                  const selected = coupleSelections
-                    .find((selection) => selection.categoryId === selectedCategory.id)
-                    ?.dishIds.includes(dish.id);
-
-                  return (
-                    <MenuDishCard
-                      key={dish.id}
-                      dish={dish}
-                      index={index + 1}
-                      selected={Boolean(selected)}
-                      onRemove={() => removeDishFromCategory(selectedCategory.id, dish.id)}
-                      onToggle={() => toggleCoupleChoice(selectedCategory, dish.id)}
-                    />
-                  );
-                })}
-
-                {selectedCategory.dishes.length === 0 ? (
-                  <div className="col-span-full rounded-[24px] border border-dashed border-[#d9bd83] bg-white p-8 text-center">
-                    <Utensils className="mx-auto text-[#b98121]" size={30} />
-                    <div className="mt-3 text-lg font-black text-[#2b241c]">
-                      אין עדיין מנות בקטגוריה
+                      <span className="rounded-full bg-[#f4ead9] px-3 py-1 text-xs font-black text-[#b98121]">
+                        בחירה של {selectedCategory.minChoices} מתוך {selectedCategory.maxChoices}
+                      </span>
                     </div>
-                    <p className="mt-1 text-sm font-bold text-[#8a7b68]">
-                      גררי מנות מהספרייה או הוסיפי מנה חדשה.
-                    </p>
+
+                    <input
+                      value={selectedCategory.subtitle}
+                      onChange={(event) =>
+                        updateCategory(selectedCategory.id, { subtitle: event.target.value })
+                      }
+                      className="mt-2 h-9 w-full rounded-2xl border border-[#eadfce] bg-white px-3 text-sm font-bold text-[#8a7b68] outline-none focus:border-[#b98121]"
+                    />
                   </div>
-                ) : null}
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <SmallNumberInput
+                      label="מינימום"
+                      value={selectedCategory.minChoices}
+                      onChange={(value) => updateCategory(selectedCategory.id, { minChoices: value })}
+                    />
+
+                    <SmallNumberInput
+                      label="מקסימום"
+                      value={selectedCategory.maxChoices}
+                      onChange={(value) => updateCategory(selectedCategory.id, { maxChoices: value })}
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => removeCategory(selectedCategory.id)}
+                      className="flex h-10 items-center gap-2 rounded-2xl border border-rose-100 bg-rose-50 px-3 text-xs font-black text-rose-700"
+                    >
+                      <Trash2 size={15} />
+                      מחיקה
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mb-4 rounded-2xl border border-[#eadfce] bg-white p-3 text-center text-sm font-bold text-[#8a7b68]">
+                  גררי מנה מספריית המנות לכאן, או לחצי על “הוספה” ליד מנה.
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
+                  {selectedCategory.dishes.map((dish, index) => {
+                    const selectedByCouple =
+                      coupleSelections
+                        .find((selection) => selection.categoryId === selectedCategory.id)
+                        ?.dishIds.includes(dish.id) || false;
+
+                    return (
+                      <MenuDishCard
+                        key={dish.id}
+                        dish={dish}
+                        index={index + 1}
+                        selectedByCouple={selectedByCouple}
+                        onRemove={() => removeDishFromCategory(selectedCategory.id, dish.id)}
+                        onToggle={() => toggleCoupleChoice(selectedCategory, dish.id)}
+                      />
+                    );
+                  })}
+
+                  {selectedCategory.dishes.length === 0 ? (
+                    <div className="col-span-full rounded-[24px] border border-dashed border-[#d9bd83] bg-white p-8 text-center">
+                      <Utensils className="mx-auto text-[#b98121]" size={30} />
+                      <div className="mt-3 text-lg font-black text-[#2b241c]">
+                        אין עדיין מנות בקטגוריה
+                      </div>
+                      <p className="mt-1 text-sm font-bold text-[#8a7b68]">
+                        גררי מנות מהספרייה או הוסיפי מנה חדשה.
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
               </div>
-            </div>
+            ) : null}
           </section>
 
           <aside className="space-y-5">
-            <Panel title="פרטי שליחה לזוג" icon={<Link2 size={18} />}>
+            <Panel title="סטטוס וקישור לזוג" icon={<Link2 size={18} />}>
               <div className="space-y-3">
                 <InfoLine label="אירוע" value={eventName} />
                 <InfoLine label="תפריט" value={menuName} />
-                <InfoLine label="סטטוס" value="ממתין לבחירת זוג" />
-                <InfoLine label="בחירות" value={`${menuStats.selectedCount} מנות סומנו`} />
+                <InfoLine label="סטטוס" value={statusLabel(status)} />
+                <InfoLine label="בחירות" value={`${stats.selectedCount} מנות סומנו`} />
               </div>
 
               <div className="mt-4 rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-3">
-                <div className="mb-2 text-xs font-black text-[#8a7b68]">קישור בחירת מנות</div>
-                <div className="break-all text-xs font-bold leading-5 text-[#2b241c]">{publicLink}</div>
+                <div className="mb-2 text-xs font-black text-[#8a7b68]">
+                  קישור בחירת מנות לזוג
+                </div>
+                <div className="break-all text-xs font-bold leading-5 text-[#2b241c]">
+                  {publicLink}
+                </div>
 
                 <button
                   type="button"
@@ -605,6 +706,7 @@ export default function EventMenusPage() {
                           {count}/{category.maxChoices}
                         </span>
                       </div>
+
                       <div className="mt-1 text-xs font-bold text-[#8a7b68]">
                         נדרש לבחור לפחות {category.minChoices} ועד {category.maxChoices}
                       </div>
@@ -612,10 +714,28 @@ export default function EventMenusPage() {
                   );
                 })}
               </div>
+
+              <button
+                type="button"
+                onClick={() => setCoupleSummaryOpen(true)}
+                className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-white text-sm font-black text-[#6f6252]"
+              >
+                <Eye size={16} />
+                צפייה בבחירות
+              </button>
             </Panel>
 
             <Panel title="פעולות מהירות" icon={<Sparkles size={18} />}>
               <div className="grid gap-2">
+                <button
+                  type="button"
+                  onClick={approveMenu}
+                  className="flex h-11 items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-sm font-black text-white"
+                >
+                  <CheckCircle2 size={16} />
+                  אישור תפריט סופי
+                </button>
+
                 <button
                   type="button"
                   onClick={() => setPreviewOpen(true)}
@@ -627,7 +747,7 @@ export default function EventMenusPage() {
 
                 <button
                   type="button"
-                  onClick={saveMock}
+                  onClick={saveMenu}
                   className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-[#fffdf8] text-sm font-black text-[#6f6252]"
                 >
                   <Save size={16} />
@@ -646,6 +766,7 @@ export default function EventMenusPage() {
             <InputLike label="תיאור קצר" value="קטגוריה לבחירת הזוג" />
             <InputLike label="כמה מינימום לבחור" value="1" />
             <InputLike label="כמה מקסימום לבחור" value="3" />
+
             <button
               type="button"
               onClick={addCategory}
@@ -663,11 +784,13 @@ export default function EventMenusPage() {
             <InputLike label="שם מנה" value="מנה חדשה" />
             <InputLike label="תיאור" value="תיאור קצר שיוצג לזוג" />
             <InputLike label="תגיות" value="צמחוני, ללא גלוטן, חריף..." />
+
             <label className="flex h-12 cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-[#d9bd83] bg-[#fff8eb] text-sm font-black text-[#9f6f1a]">
               <Upload size={17} />
               העלאת תמונת מנה
               <input type="file" accept="image/*" className="hidden" />
             </label>
+
             <button
               type="button"
               onClick={addCustomDish}
@@ -684,16 +807,18 @@ export default function EventMenusPage() {
           <div className="space-y-3">
             <InfoLine label="קישור" value={publicLink} />
             <InputLike label="טלפון לשליחה" value="050-1234567" />
+
             <textarea
               defaultValue={`שלום, מצורף קישור לבחירת מנות עבור האירוע שלכם: ${publicLink}`}
               className="min-h-[110px] w-full rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-3 text-sm font-bold text-[#2b241c] outline-none focus:border-[#b98121]"
             />
+
             <button
               type="button"
-              onClick={() => setSendLinkOpen(false)}
+              onClick={markSent}
               className="h-11 w-full rounded-2xl bg-[#b98121] text-sm font-black text-white"
             >
-              שליחת קישור
+              סמן כקישור שנשלח
             </button>
           </div>
         </Modal>
@@ -706,6 +831,35 @@ export default function EventMenusPage() {
             selections={coupleSelections}
             onToggle={toggleCoupleChoice}
           />
+        </Modal>
+      )}
+
+      {coupleSummaryOpen && (
+        <Modal title="בחירות הזוג" onClose={() => setCoupleSummaryOpen(false)}>
+          <div className="space-y-3">
+            {categories.map((category) => {
+              const selected = selectedDishesForCategory(category);
+
+              return (
+                <div key={category.id} className="rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-3">
+                  <div className="text-sm font-black text-[#2b241c]">{category.title}</div>
+                  <div className="mt-2 text-xs font-bold leading-6 text-[#7f705d]">
+                    {selected.length > 0
+                      ? selected.map((dish) => dish.name).join(" · ")
+                      : "לא נבחרו מנות"}
+                  </div>
+                </div>
+              );
+            })}
+
+            <button
+              type="button"
+              onClick={approveMenu}
+              className="mt-2 h-11 w-full rounded-2xl bg-emerald-600 text-sm font-black text-white"
+            >
+              אישור הבחירות כתפריט סופי
+            </button>
+          </div>
         </Modal>
       )}
     </main>
@@ -787,13 +941,13 @@ function DishLibraryItem({
 function MenuDishCard({
   dish,
   index,
-  selected,
+  selectedByCouple,
   onRemove,
   onToggle,
 }: {
   dish: Dish;
   index: number;
-  selected: boolean;
+  selectedByCouple: boolean;
   onRemove: () => void;
   onToggle: () => void;
 }) {
@@ -801,14 +955,16 @@ function MenuDishCard({
     <article
       className={[
         "overflow-hidden rounded-[24px] border bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-md",
-        selected ? "border-emerald-300 ring-2 ring-emerald-100" : "border-[#eadfce]",
+        selectedByCouple ? "border-emerald-300 ring-2 ring-emerald-100" : "border-[#eadfce]",
       ].join(" ")}
     >
       <div className="flex items-center gap-3 p-3">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#f4ead9] text-xs font-black text-[#b98121]">
           {index}
         </div>
+
         <img src={dish.image} alt={dish.name} className="h-16 w-16 rounded-2xl object-cover" />
+
         <div className="min-w-0 flex-1">
           <div className="truncate text-base font-black text-[#2b241c]">{dish.name}</div>
           <div className="mt-1 line-clamp-2 text-xs font-bold leading-5 text-[#8a7b68]">
@@ -819,7 +975,10 @@ function MenuDishCard({
 
       <div className="flex flex-wrap gap-1 px-3 pb-3">
         {dish.tags.map((tag) => (
-          <span key={tag} className="rounded-full bg-[#fff8eb] px-2.5 py-1 text-[11px] font-black text-[#9f6f1a]">
+          <span
+            key={tag}
+            className="rounded-full bg-[#fff8eb] px-2.5 py-1 text-[11px] font-black text-[#9f6f1a]"
+          >
             {tag}
           </span>
         ))}
@@ -831,12 +990,13 @@ function MenuDishCard({
           onClick={onToggle}
           className={[
             "flex h-11 items-center justify-center gap-2 text-sm font-black",
-            selected ? "bg-emerald-50 text-emerald-700" : "bg-[#fffdf8] text-[#6f6252]",
+            selectedByCouple ? "bg-emerald-50 text-emerald-700" : "bg-[#fffdf8] text-[#6f6252]",
           ].join(" ")}
         >
           <CheckCircle2 size={16} />
-          {selected ? "נבחר" : "סמן כבחירת זוג"}
+          {selectedByCouple ? "נבחר על ידי הזוג" : "סמן כבחירת זוג"}
         </button>
+
         <button
           type="button"
           onClick={onRemove}
@@ -908,12 +1068,13 @@ function CouplePreview({
       <div className="rounded-[26px] border border-[#eadfce] bg-[#fff8eb] p-4 text-center">
         <h2 className="text-2xl font-black text-[#2b241c]">בחירת מנות לאירוע</h2>
         <p className="mt-1 text-sm font-bold text-[#7f705d]">
-          הזוג מסמן את המנות, והבחירה מתעדכנת במערכת בתפריט האירוע.
+          כך הזוג יראה את הקישור הציבורי. הבחירה מתעדכנת בתפריט האירוע.
         </p>
       </div>
 
       {categories.map((category) => {
-        const selectedDishIds = selections.find((selection) => selection.categoryId === category.id)?.dishIds || [];
+        const selectedDishIds =
+          selections.find((selection) => selection.categoryId === category.id)?.dishIds || [];
 
         return (
           <section key={category.id} className="rounded-[26px] border border-[#eadfce] bg-white p-4">
@@ -951,10 +1112,13 @@ function CouplePreview({
                         {dish.description}
                       </div>
                     </div>
+
                     <div
                       className={[
                         "flex h-8 w-8 items-center justify-center rounded-full border",
-                        selected ? "border-emerald-300 bg-white text-emerald-700" : "border-[#eadfce] bg-white text-transparent",
+                        selected
+                          ? "border-emerald-300 bg-white text-emerald-700"
+                          : "border-[#eadfce] bg-white text-transparent",
                       ].join(" ")}
                     >
                       ✓

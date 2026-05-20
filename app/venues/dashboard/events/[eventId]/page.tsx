@@ -8,21 +8,22 @@ import {
   Bell,
   CalendarDays,
   CheckCircle2,
-  ChevronDown,
   CircleDollarSign,
   Clock3,
   CreditCard,
   Edit3,
+  Eye,
   FileText,
   FolderOpen,
+  Link2,
   Mail,
-  Menu,
   MessageCircle,
   MoreHorizontal,
   Phone,
   Plus,
   Receipt,
   Save,
+  Send,
   ShieldCheck,
   Sparkles,
   UsersRound,
@@ -31,9 +32,7 @@ import {
   X,
 } from "lucide-react";
 
-type EventStatus = "closed" | "in_production" | "ready" | "done" | "cancelled";
 type PaymentStatus = "paid" | "partial" | "unpaid";
-type InvoiceStatus = "sent" | "not_sent";
 
 type PaymentRow = {
   id: string;
@@ -64,6 +63,25 @@ type ActivityRow = {
   title: string;
   date: string;
   description: string;
+};
+
+type VenueMenuTemplate = {
+  id: string;
+  name: string;
+  type: string;
+  categories: number;
+  dishes: number;
+  status: "active" | "draft";
+  description: string;
+};
+
+type AssignedMenu = {
+  id: string;
+  templateId: string;
+  name: string;
+  sentToCouple: boolean;
+  coupleSelected: boolean;
+  approved: boolean;
 };
 
 const payments: PaymentRow[] = [
@@ -165,6 +183,36 @@ const activities: ActivityRow[] = [
   },
 ];
 
+const venueMenuTemplates: VenueMenuTemplate[] = [
+  {
+    id: "menu-premium",
+    name: "תפריט פרימיום",
+    type: "חתונות",
+    categories: 5,
+    dishes: 28,
+    status: "active",
+    description: "ראשונות, עיקריות, בופה, קינוחים ובר אפטר.",
+  },
+  {
+    id: "menu-classic",
+    name: "תפריט קלאסי",
+    type: "אירועים כלליים",
+    categories: 4,
+    dishes: 22,
+    status: "active",
+    description: "תפריט בסיס עשיר עם בחירה גמישה לזוג.",
+  },
+  {
+    id: "menu-vip",
+    name: "תפריט VIP",
+    type: "אירועי יוקרה",
+    categories: 6,
+    dishes: 34,
+    status: "active",
+    description: "תפריט מורחב עם עמדות מיוחדות וקינוחים אישיים.",
+  },
+];
+
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("he-IL", {
     style: "currency",
@@ -201,11 +249,16 @@ export default function VenueEventPage() {
   const params = useParams<{ eventId: string }>();
   const eventId = params?.eventId || "evt-1001";
 
+  const hallId = "main-gold-hall";
+
   const [activeTab, setActiveTab] = useState("overview");
   const [actionsOpen, setActionsOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
+  const [menuSelectOpen, setMenuSelectOpen] = useState(false);
+  const [sendMenuOpen, setSendMenuOpen] = useState(false);
+  const [assignedMenu, setAssignedMenu] = useState<AssignedMenu | null>(null);
 
   const financial = useMemo(() => {
     const commitment = 145000;
@@ -226,6 +279,33 @@ export default function VenueEventPage() {
       paidPercentage,
     };
   }, []);
+
+  const chooseMenuForEvent = (template: VenueMenuTemplate) => {
+    setAssignedMenu({
+      id: `event-menu-${Date.now()}`,
+      templateId: template.id,
+      name: template.name,
+      sentToCouple: false,
+      coupleSelected: false,
+      approved: false,
+    });
+
+    setMenuSelectOpen(false);
+    setActiveTab("menu");
+  };
+
+  const markMenuSent = () => {
+    setAssignedMenu((current) =>
+      current
+        ? {
+            ...current,
+            sentToCouple: true,
+          }
+        : current
+    );
+
+    setSendMenuOpen(false);
+  };
 
   return (
     <main dir="rtl" className="min-h-screen bg-[#f8f6f2] text-[#2b241c]">
@@ -276,7 +356,7 @@ export default function VenueEventPage() {
 
             <div className="flex flex-wrap items-center gap-2">
               <Link
-                href="/venues/dashboard/halls/main-gold-hall/calendar"
+                href={`/venues/dashboard/halls/${hallId}/calendar`}
                 className="inline-flex h-11 items-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-black text-[#6f6252] transition hover:bg-[#fbf5ea]"
               >
                 <ArrowRight size={17} />
@@ -347,7 +427,11 @@ export default function VenueEventPage() {
           <div className="grid gap-3 lg:grid-cols-6">
             <StatusTile label="סטטוס אירוע" value="סגור" tone="green" />
             <StatusTile label="סטטוס הושבה" value="לא הושלמה" tone="amber" />
-            <StatusTile label="סטטוס תפריט" value="חסר אישור" tone="rose" />
+            <StatusTile
+              label="סטטוס תפריט"
+              value={assignedMenu ? "תפריט נבחר" : "חסר תפריט"}
+              tone={assignedMenu ? "green" : "rose"}
+            />
             <StatusTile label="סטטוס תשלום" value="בתשלום" tone="green" />
             <StatusTile label="אישורי הגעה" value="לא הופעל" tone="gray" />
             <StatusTile label="מנהל אירוע" value="יוסי כהן" tone="gold" />
@@ -398,7 +482,11 @@ export default function VenueEventPage() {
                   { label: "פגישה ראשונה", date: "15.11.25", done: true },
                   { label: "הצעת מחיר", date: "21.11.25", done: true },
                   { label: "מקדמה שולמה", date: "25.11.25", done: true },
-                  { label: "אישור תפריט", date: "טרם בוצע", done: false },
+                  {
+                    label: "בחירת תפריט",
+                    date: assignedMenu ? assignedMenu.name : "טרם נבחר",
+                    done: Boolean(assignedMenu),
+                  },
                   { label: "סגירת הושבה", date: "טרם בוצע", done: false },
                   { label: "הפקת אירוע", date: "יום האירוע", done: false },
                 ].map((step) => (
@@ -424,10 +512,13 @@ export default function VenueEventPage() {
               <div className="mt-5">
                 <div className="mb-2 flex items-center justify-between text-xs font-black text-[#8a7b68]">
                   <span>השלמה כללית</span>
-                  <span>72%</span>
+                  <span>{assignedMenu ? "78%" : "72%"}</span>
                 </div>
                 <div className="h-2 overflow-hidden rounded-full bg-[#eee6d9]">
-                  <div className="h-full rounded-full bg-[#b98121]" style={{ width: "72%" }} />
+                  <div
+                    className="h-full rounded-full bg-[#b98121]"
+                    style={{ width: assignedMenu ? "78%" : "72%" }}
+                  />
                 </div>
               </div>
             </SideCard>
@@ -499,7 +590,10 @@ export default function VenueEventPage() {
                         <span>{financial.paidPercentage}%</span>
                       </div>
                       <div className="h-2 overflow-hidden rounded-full bg-[#eee6d9]">
-                        <div className="h-full rounded-full bg-emerald-500" style={{ width: `${financial.paidPercentage}%` }} />
+                        <div
+                          className="h-full rounded-full bg-emerald-500"
+                          style={{ width: `${financial.paidPercentage}%` }}
+                        />
                       </div>
                     </div>
                   </MainCard>
@@ -508,7 +602,7 @@ export default function VenueEventPage() {
                     <div className="space-y-3">
                       <ProgressRow label="תשלומים" value={64} />
                       <ProgressRow label="הושבה" value={32} />
-                      <ProgressRow label="תפריט" value={55} />
+                      <ProgressRow label="תפריט" value={assignedMenu ? 65 : 20} />
                       <ProgressRow label="משימות הפקה" value={72} />
                     </div>
 
@@ -580,7 +674,18 @@ export default function VenueEventPage() {
               </>
             )}
 
-            {activeTab !== "overview" && (
+            {activeTab === "menu" && (
+              <EventMenuTab
+                eventId={eventId}
+                hallId={hallId}
+                assignedMenu={assignedMenu}
+                templates={venueMenuTemplates}
+                onChooseMenu={() => setMenuSelectOpen(true)}
+                onSendToCouple={() => setSendMenuOpen(true)}
+              />
+            )}
+
+            {activeTab !== "overview" && activeTab !== "menu" && (
               <MainCard title={tabTitle(activeTab)} icon={<Sparkles size={19} />}>
                 <div className="rounded-3xl border border-dashed border-[#d9bd83] bg-[#fffaf0] p-8 text-center">
                   <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[22px] bg-white text-[#b98121]">
@@ -663,7 +768,274 @@ export default function VenueEventPage() {
           </button>
         </Modal>
       )}
+
+      {menuSelectOpen && (
+        <Modal title="בחירת תפריט לאירוע" onClose={() => setMenuSelectOpen(false)} wide>
+          <div className="mb-4 rounded-2xl border border-[#eadfce] bg-[#fff8eb] p-4 text-sm font-bold leading-7 text-[#7f705d]">
+            כאן בוחרים תפריט מתוך תפריטי האולם. לאחר הבחירה ייווצר עותק לאירוע הזה בלבד,
+            כדי ששינויים עתידיים בתפריטי האולם לא ישנו אירועים שכבר נסגרו.
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            {venueMenuTemplates.map((template) => (
+              <button
+                key={template.id}
+                type="button"
+                onClick={() => chooseMenuForEvent(template)}
+                className="rounded-[26px] border border-[#eadfce] bg-[#fffdf8] p-4 text-right transition hover:-translate-y-1 hover:border-[#d9bd83] hover:bg-[#fff8eb] hover:shadow-md"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f4ead9] text-[#b98121]">
+                    <Utensils size={23} />
+                  </div>
+
+                  <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-black text-emerald-700">
+                    פעיל
+                  </span>
+                </div>
+
+                <h3 className="mt-4 text-xl font-black text-[#2b241c]">
+                  {template.name}
+                </h3>
+                <p className="mt-2 text-sm font-bold leading-6 text-[#7f705d]">
+                  {template.description}
+                </p>
+
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <InfoPill label="קטגוריות" value={`${template.categories}`} />
+                  <InfoPill label="מנות" value={`${template.dishes}`} />
+                </div>
+
+                <div className="mt-4 rounded-2xl bg-[#b98121] px-4 py-3 text-center text-sm font-black text-white">
+                  בחירת תפריט לאירוע
+                </div>
+              </button>
+            ))}
+          </div>
+        </Modal>
+      )}
+
+      {sendMenuOpen && (
+        <Modal title="שליחת קישור בחירת מנות לזוג" onClose={() => setSendMenuOpen(false)}>
+          <div className="space-y-3">
+            <InfoLine label="תפריט" value={assignedMenu?.name || "לא נבחר תפריט"} />
+            <InfoLine
+              label="קישור לזוג"
+              value={`https://www.invistimo.com/menus/${eventId}/choose`}
+            />
+
+            <textarea
+              defaultValue={`שלום משפחת לוי, מצורף קישור לבחירת מנות לאירוע שלכם: https://www.invistimo.com/menus/${eventId}/choose`}
+              className="min-h-[115px] w-full rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-3 text-sm font-bold text-[#2b241c] outline-none focus:border-[#b98121]"
+            />
+
+            <button
+              type="button"
+              onClick={markMenuSent}
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-[#b98121] text-sm font-black text-white"
+            >
+              <Send size={17} />
+              סמן כקישור שנשלח
+            </button>
+          </div>
+        </Modal>
+      )}
     </main>
+  );
+}
+
+function EventMenuTab({
+  eventId,
+  hallId,
+  assignedMenu,
+  templates,
+  onChooseMenu,
+  onSendToCouple,
+}: {
+  eventId: string;
+  hallId: string;
+  assignedMenu: AssignedMenu | null;
+  templates: VenueMenuTemplate[];
+  onChooseMenu: () => void;
+  onSendToCouple: () => void;
+}) {
+  if (!assignedMenu) {
+    return (
+      <MainCard title="תפריט האירוע" icon={<Utensils size={19} />}>
+        <div className="rounded-[30px] border border-dashed border-[#d9bd83] bg-[#fff8eb] p-8 text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[24px] bg-white text-[#b98121]">
+            <Utensils size={32} />
+          </div>
+
+          <h2 className="mt-4 text-2xl font-black text-[#2b241c]">
+            עדיין לא נבחר תפריט לאירוע
+          </h2>
+
+          <p className="mx-auto mt-2 max-w-2xl text-sm font-bold leading-7 text-[#7f705d]">
+            קודם האולם בונה תפריטים קבועים בניהול אולם. כאן בוחרים אחד מהם לאירוע
+            הספציפי, נוצר עותק לאירוע, ואז שולחים לזוג קישור לבחירת מנות.
+          </p>
+
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={onChooseMenu}
+              className="inline-flex h-12 items-center gap-2 rounded-2xl bg-[#b98121] px-6 text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a]"
+            >
+              <Plus size={17} />
+              בחר תפריט מתוך תפריטי האולם
+            </button>
+
+            <Link
+              href={`/venues/dashboard/halls/${hallId}/menus`}
+              className="inline-flex h-12 items-center gap-2 rounded-2xl border border-[#d9bd83] bg-white px-6 text-sm font-black text-[#9f6f1a] transition hover:bg-[#fff8eb]"
+            >
+              <Utensils size={17} />
+              ניהול תפריטי אולם
+            </Link>
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-4 md:grid-cols-3">
+          {templates.map((template) => (
+            <div key={template.id} className="rounded-[24px] border border-[#eadfce] bg-[#fffdf8] p-4">
+              <div className="text-lg font-black text-[#2b241c]">{template.name}</div>
+              <p className="mt-2 text-sm font-bold leading-6 text-[#7f705d]">
+                {template.description}
+              </p>
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <InfoPill label="קטגוריות" value={`${template.categories}`} />
+                <InfoPill label="מנות" value={`${template.dishes}`} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </MainCard>
+    );
+  }
+
+  return (
+    <>
+      <section className="grid gap-5 xl:grid-cols-3">
+        <MainCard title="תפריט משויך לאירוע" icon={<Utensils size={19} />}>
+          <div className="rounded-[24px] border border-[#eadfce] bg-[#fffdf8] p-4">
+            <div className="text-xs font-black text-[#b98121]">עותק תפריט לאירוע</div>
+            <h2 className="mt-1 text-2xl font-black text-[#2b241c]">{assignedMenu.name}</h2>
+            <p className="mt-2 text-sm font-bold leading-7 text-[#7f705d]">
+              זהו עותק של תפריט האולם לאירוע הזה בלבד. אפשר לערוך אותו בלי לשנות את תפריט המקור של האולם.
+            </p>
+
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <InfoPill label="נשלח לזוג" value={assignedMenu.sentToCouple ? "כן" : "לא"} />
+              <InfoPill label="בחירת זוג" value={assignedMenu.coupleSelected ? "הושלמה" : "ממתין"} />
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-2">
+            <Link
+              href={`/venues/dashboard/events/${eventId}/menus`}
+              className="flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#b98121] text-sm font-black text-white"
+            >
+              <Edit3 size={16} />
+              עריכת תפריט האירוע
+            </Link>
+
+            <button
+              type="button"
+              onClick={onSendToCouple}
+              className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#d9bd83] bg-[#fff8eb] text-sm font-black text-[#9f6f1a]"
+            >
+              <Send size={16} />
+              שליחת קישור לבחירת מנות
+            </button>
+          </div>
+        </MainCard>
+
+        <MainCard title="קישור ציבורי לזוג" icon={<Link2 size={19} />}>
+          <div className="rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-4">
+            <div className="text-xs font-black text-[#8a7b68]">קישור בחירת מנות</div>
+            <div className="mt-2 break-all text-sm font-black leading-6 text-[#2b241c]">
+              {`https://www.invistimo.com/menus/${eventId}/choose`}
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-2">
+            <Link
+              href={`/menus/${eventId}/choose`}
+              target="_blank"
+              className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-white text-sm font-black text-[#6f6252]"
+            >
+              <Eye size={16} />
+              פתיחת תצוגת זוג
+            </Link>
+
+            <button
+              type="button"
+              onClick={onSendToCouple}
+              className="flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#b98121] text-sm font-black text-white"
+            >
+              <Send size={16} />
+              שליחה לזוג
+            </button>
+          </div>
+        </MainCard>
+
+        <MainCard title="סטטוס תפריט" icon={<CheckCircle2 size={19} />}>
+          <div className="space-y-3">
+            <StatusLine label="תפריט נבחר" done />
+            <StatusLine label="קישור נשלח לזוג" done={assignedMenu.sentToCouple} />
+            <StatusLine label="הזוג בחר מנות" done={assignedMenu.coupleSelected} />
+            <StatusLine label="האולם אישר תפריט" done={assignedMenu.approved} />
+          </div>
+        </MainCard>
+      </section>
+
+      <MainCard title="איך הזרימה עובדת" icon={<Sparkles size={19} />}>
+        <div className="grid gap-4 md:grid-cols-4">
+          <FlowStep number="1" title="תפריטי אולם" text="האולם בונה תפריטים קבועים בניהול אולם." />
+          <FlowStep number="2" title="בחירת תפריט" text="באירוע בוחרים תפריט אחד מתוך תפריטי האולם." />
+          <FlowStep number="3" title="שליחה לזוג" text="שולחים לזוג קישור בחירת מנות מתוך תפריט האירוע." />
+          <FlowStep number="4" title="עדכון האירוע" text="בחירת הזוג מתעדכנת בתפריט האירוע הספציפי." />
+        </div>
+      </MainCard>
+    </>
+  );
+}
+
+function StatusLine({ label, done }: { label: string; done?: boolean }) {
+  return (
+    <div className="flex items-center justify-between rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-3 py-3">
+      <span className="text-sm font-black text-[#2b241c]">{label}</span>
+      <span
+        className={[
+          "rounded-full px-3 py-1 text-xs font-black",
+          done ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700",
+        ].join(" ")}
+      >
+        {done ? "בוצע" : "ממתין"}
+      </span>
+    </div>
+  );
+}
+
+function FlowStep({ number, title, text }: { number: string; title: string; text: string }) {
+  return (
+    <div className="rounded-[24px] border border-[#eadfce] bg-[#fffdf8] p-4">
+      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#b98121] text-sm font-black text-white">
+        {number}
+      </div>
+      <div className="mt-4 text-base font-black text-[#2b241c]">{title}</div>
+      <p className="mt-2 text-sm font-bold leading-6 text-[#7f705d]">{text}</p>
+    </div>
+  );
+}
+
+function InfoPill({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-[#eadfce] bg-white px-3 py-2">
+      <div className="text-[11px] font-black text-[#8a7b68]">{label}</div>
+      <div className="mt-1 text-sm font-black text-[#2b241c]">{value}</div>
+    </div>
   );
 }
 
@@ -937,14 +1309,21 @@ function Modal({
   title,
   onClose,
   children,
+  wide,
 }: {
   title: string;
   onClose: () => void;
   children: React.ReactNode;
+  wide?: boolean;
 }) {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/35 p-4">
-      <div className="w-full max-w-xl rounded-[30px] border border-[#eadfce] bg-white p-5 shadow-2xl">
+      <div
+        className={[
+          "max-h-[92vh] w-full overflow-y-auto rounded-[30px] border border-[#eadfce] bg-white p-5 shadow-2xl",
+          wide ? "max-w-6xl" : "max-w-xl",
+        ].join(" ")}
+      >
         <div className="mb-4 flex items-center justify-between gap-4">
           <h2 className="text-xl font-black text-[#2b241c]">{title}</h2>
           <button
