@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
@@ -19,7 +19,6 @@ import {
   Mail,
   MessageCircle,
   MoreHorizontal,
-  Phone,
   Plus,
   Receipt,
   Save,
@@ -33,6 +32,57 @@ import {
 } from "lucide-react";
 
 type PaymentStatus = "paid" | "partial" | "unpaid";
+
+type VenueEventStatus =
+  | "lead"
+  | "proposal"
+  | "closed"
+  | "confirmed"
+  | "preparing"
+  | "live"
+  | "done"
+  | "cancelled";
+
+type VenueEvent = {
+  id: string;
+  _id?: string;
+
+  ownerId?: string;
+  hallId: string;
+  hallName?: string;
+
+  title: string;
+  eventType: string;
+
+  clientName: string;
+  clientPhone?: string;
+  clientEmail?: string;
+
+  date: string;
+  startTime: string;
+  endTime: string;
+
+  guests: number;
+  status: VenueEventStatus;
+
+  budget?: number;
+  paidAmount?: number;
+
+  notes?: string;
+  color?: string;
+
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+type VenueHall = {
+  id: string;
+  name: string;
+  subtitle?: string;
+  capacity?: number;
+  status?: string;
+  image?: string;
+};
 
 type PaymentRow = {
   id: string;
@@ -84,104 +134,21 @@ type AssignedMenu = {
   approved: boolean;
 };
 
-const payments: PaymentRow[] = [
-  {
-    id: "p1",
-    title: "מקדמה ששולמה",
-    amount: 30000,
-    dueDate: "15.11.25",
-    status: "paid",
-    note: "שולם באשראי",
-  },
-  {
-    id: "p2",
-    title: "תשלום ביניים",
-    amount: 92500,
-    dueDate: "25.11.25",
-    status: "partial",
-    note: "שולם חלקית",
-  },
-  {
-    id: "p3",
-    title: "יתרה לתשלום",
-    amount: 52500,
-    dueDate: "לאחר האירוע",
-    status: "unpaid",
-    note: "טרם שולם",
-  },
-];
-
-const tasks: TaskRow[] = [
-  {
-    id: "t1",
-    title: "אישור תפריט סופי",
-    dueDate: "17.05.26",
-    status: "urgent",
-  },
-  {
-    id: "t2",
-    title: "סגירת תכנית הושבה",
-    dueDate: "20.05.26",
-    status: "open",
-  },
-  {
-    id: "t3",
-    title: "בדיקת תאורה וסאונד",
-    dueDate: "18.05.26",
-    status: "done",
-  },
-  {
-    id: "t4",
-    title: "אישור עיצוב שולחנות",
-    dueDate: "22.05.26",
-    status: "open",
-  },
-];
-
-const files: FileRow[] = [
-  {
-    id: "f1",
-    title: "הסכם חתום.pdf",
-    type: "pdf",
-    date: "15.11.25",
-    size: "1.2MB",
-  },
-  {
-    id: "f2",
-    title: "הצעת מחיר.pdf",
-    type: "pdf",
-    date: "10.11.25",
-    size: "980KB",
-  },
-  {
-    id: "f3",
-    title: "סקיצה הושבה.xlsx",
-    type: "excel",
-    date: "21.11.25",
-    size: "250KB",
-  },
-];
-
-const activities: ActivityRow[] = [
-  {
-    id: "a1",
-    title: "התקבל תשלום 20,000 ₪",
-    date: "25.11.25 14:30",
-    description: "עודכן על ידי מנהל האירוע.",
-  },
-  {
-    id: "a2",
-    title: "נשלחה הצעת מחיר ללקוח",
-    date: "15.11.25 11:15",
-    description: "ההצעה נשלחה במייל.",
-  },
-  {
-    id: "a3",
-    title: "פגישה התקיימה",
-    date: "15.11.25 16:00",
-    description: "סוכמו תאריך, אולם וכמות מוזמנים.",
-  },
-];
+type EventEditForm = {
+  title: string;
+  eventType: string;
+  clientName: string;
+  clientPhone: string;
+  clientEmail: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  guests: string;
+  status: VenueEventStatus;
+  budget: string;
+  paidAmount: string;
+  notes: string;
+};
 
 const venueMenuTemplates: VenueMenuTemplate[] = [
   {
@@ -218,7 +185,50 @@ function formatCurrency(value: number) {
     style: "currency",
     currency: "ILS",
     maximumFractionDigits: 0,
-  }).format(value);
+  }).format(value || 0);
+}
+
+function toNumber(value: unknown, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function formatDate(value?: string) {
+  if (!value) return "לא הוגדר";
+  const [year, month, day] = value.split("-");
+  if (!year || !month || !day) return value;
+  return `${day}.${month}.${year}`;
+}
+
+function formatDateTime(value?: string) {
+  if (!value) return "לא הוגדר";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return new Intl.DateTimeFormat("he-IL", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(date);
+}
+
+function statusLabel(status?: VenueEventStatus) {
+  if (status === "lead") return "ליד";
+  if (status === "proposal") return "בהצעה";
+  if (status === "closed") return "סגור";
+  if (status === "confirmed") return "מאושר";
+  if (status === "preparing") return "בהכנות";
+  if (status === "live") return "פעיל עכשיו";
+  if (status === "done") return "הסתיים";
+  if (status === "cancelled") return "בוטל";
+  return "מאושר";
+}
+
+function statusTone(status?: VenueEventStatus): "green" | "amber" | "rose" | "gray" | "gold" {
+  if (status === "cancelled") return "rose";
+  if (status === "lead" || status === "proposal") return "amber";
+  if (status === "closed") return "gold";
+  if (status === "done") return "gray";
+  return "green";
 }
 
 function paymentStatusLabel(status: PaymentStatus) {
@@ -247,9 +257,14 @@ function taskStatusLabel(status: TaskRow["status"]) {
 
 export default function VenueEventPage() {
   const params = useParams<{ eventId: string }>();
-  const eventId = params?.eventId || "evt-1001";
+  const eventId = params?.eventId || "";
 
-  const hallId = "main-gold-hall";
+  const [eventData, setEventData] = useState<VenueEvent | null>(null);
+  const [hallData, setHallData] = useState<VenueHall | null>(null);
+
+  const [loading, setLoading] = useState(true);
+  const [savingEvent, setSavingEvent] = useState(false);
+  const [serverError, setServerError] = useState("");
 
   const [activeTab, setActiveTab] = useState("overview");
   const [actionsOpen, setActionsOpen] = useState(false);
@@ -260,14 +275,58 @@ export default function VenueEventPage() {
   const [sendMenuOpen, setSendMenuOpen] = useState(false);
   const [assignedMenu, setAssignedMenu] = useState<AssignedMenu | null>(null);
 
+  const hallId = eventData?.hallId || "";
+  const hallName = hallData?.name || eventData?.hallName || "אולם";
+  const clientName = eventData?.clientName || "לא הוגדר";
+  const eventTitle = eventData?.title || "אירוע ללא שם";
+
+  const fetchEvent = async () => {
+    if (!eventId) return;
+
+    setLoading(true);
+    setServerError("");
+
+    try {
+      const res = await fetch(`/api/venues/dashboard/events/${eventId}`, {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.message || "טעינת פרטי האירוע נכשלה");
+      }
+
+      setEventData(data.event || null);
+      setHallData(data.hall || null);
+    } catch (error) {
+      console.error("GET event details failed:", error);
+      setServerError(
+        error instanceof Error ? error.message : "טעינת פרטי האירוע נכשלה"
+      );
+      setEventData(null);
+      setHallData(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchEvent();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventId]);
+
   const financial = useMemo(() => {
-    const commitment = 145000;
-    const deposit = 30000;
-    const totalPaid = 92500;
-    const estimatedBalance = commitment - totalPaid;
-    const nextPayment = 20000;
-    const expectedAfterEvent = 52500;
-    const paidPercentage = Math.round((totalPaid / commitment) * 100);
+    const commitment = toNumber(eventData?.budget, 0);
+    const totalPaid = toNumber(eventData?.paidAmount, 0);
+    const deposit = totalPaid;
+    const estimatedBalance = Math.max(0, commitment - totalPaid);
+    const nextPayment = estimatedBalance;
+    const expectedAfterEvent = estimatedBalance;
+    const paidPercentage =
+      commitment > 0 ? Math.round((totalPaid / commitment) * 100) : 0;
 
     return {
       commitment,
@@ -278,7 +337,89 @@ export default function VenueEventPage() {
       expectedAfterEvent,
       paidPercentage,
     };
+  }, [eventData]);
+
+  const payments = useMemo<PaymentRow[]>(() => {
+    if (!eventData) return [];
+
+    const rows: PaymentRow[] = [];
+
+    if (financial.totalPaid > 0) {
+      rows.push({
+        id: "paid",
+        title: "שולם עד כה",
+        amount: financial.totalPaid,
+        dueDate: formatDate(eventData.date),
+        status: financial.estimatedBalance > 0 ? "partial" : "paid",
+        note: "עודכן מפרטי האירוע",
+      });
+    }
+
+    if (financial.estimatedBalance > 0) {
+      rows.push({
+        id: "balance",
+        title: "יתרה לתשלום",
+        amount: financial.estimatedBalance,
+        dueDate: "טרם נקבע",
+        status: "unpaid",
+        note: "לפי מחיר האירוע פחות שולם עד כה",
+      });
+    }
+
+    return rows;
+  }, [eventData, financial]);
+
+  const tasks = useMemo<TaskRow[]>(() => {
+    return [];
   }, []);
+
+  const files = useMemo<FileRow[]>(() => {
+    return [];
+  }, []);
+
+  const activities = useMemo<ActivityRow[]>(() => {
+    if (!eventData) return [];
+
+    const rows: ActivityRow[] = [];
+
+    if (eventData.createdAt) {
+      rows.push({
+        id: "created",
+        title: "אירוע נוצר במערכת",
+        date: formatDateTime(eventData.createdAt),
+        description: "האירוע נשמר ביומן האולם.",
+      });
+    }
+
+    if (eventData.updatedAt && eventData.updatedAt !== eventData.createdAt) {
+      rows.push({
+        id: "updated",
+        title: "אירוע עודכן",
+        date: formatDateTime(eventData.updatedAt),
+        description: "פרטי האירוע עודכנו לאחרונה.",
+      });
+    }
+
+    return rows;
+  }, [eventData]);
+
+  const progress = useMemo(() => {
+    const hasPayment = financial.commitment > 0;
+    const hasPaid = financial.totalPaid > 0;
+
+    return {
+      payments: hasPayment ? Math.min(100, financial.paidPercentage) : 0,
+      seating: 0,
+      menu: assignedMenu ? 65 : 0,
+      production: eventData?.status === "done" ? 100 : eventData?.status === "live" ? 85 : 35,
+      total: Math.round(
+        ((hasPayment ? Math.min(100, financial.paidPercentage) : 0) +
+          (assignedMenu ? 65 : 0) +
+          (eventData?.status === "done" ? 100 : eventData?.status === "live" ? 85 : 35)) /
+          3
+      ),
+    };
+  }, [assignedMenu, eventData, financial]);
 
   const chooseMenuForEvent = (template: VenueMenuTemplate) => {
     setAssignedMenu({
@@ -307,6 +448,89 @@ export default function VenueEventPage() {
     setSendMenuOpen(false);
   };
 
+  const updateEvent = async (form: EventEditForm) => {
+    if (!eventData) return;
+
+    setSavingEvent(true);
+    setServerError("");
+
+    try {
+      const res = await fetch(`/api/venues/dashboard/events/${eventData.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          title: form.title,
+          eventType: form.eventType,
+          clientName: form.clientName,
+          clientPhone: form.clientPhone,
+          clientEmail: form.clientEmail,
+          date: form.date,
+          startTime: form.startTime,
+          endTime: form.endTime,
+          guests: toNumber(form.guests, 0),
+          status: form.status,
+          budget: toNumber(form.budget, 0),
+          paidAmount: toNumber(form.paidAmount, 0),
+          notes: form.notes,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.message || "עדכון האירוע נכשל");
+      }
+
+      if (data.event) {
+        setEventData(data.event);
+      } else {
+        await fetchEvent();
+      }
+
+      setEditOpen(false);
+    } catch (error) {
+      console.error("PATCH event details failed:", error);
+      setServerError(error instanceof Error ? error.message : "עדכון האירוע נכשל");
+    } finally {
+      setSavingEvent(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <main dir="rtl" className="min-h-screen bg-[#f8f6f2] p-10 text-[#2b241c]">
+        <div className="mx-auto max-w-xl rounded-[28px] border border-[#eadfce] bg-white p-8 text-center shadow-sm">
+          <div className="text-lg font-black">טוען פרטי אירוע...</div>
+          <div className="mt-2 text-sm font-bold text-[#8a7b68]">
+            הנתונים נטענים מהשרת לפי מזהה האירוע.
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (serverError || !eventData) {
+    return (
+      <main dir="rtl" className="min-h-screen bg-[#f8f6f2] p-10 text-[#2b241c]">
+        <div className="mx-auto max-w-xl rounded-[28px] border border-rose-100 bg-white p-8 text-center shadow-sm">
+          <div className="text-lg font-black text-rose-700">
+            {serverError || "האירוע לא נמצא"}
+          </div>
+
+          <Link
+            href="/venues/dashboard"
+            className="mt-5 inline-flex h-11 items-center justify-center rounded-2xl bg-[#b98121] px-5 text-sm font-black text-white"
+          >
+            חזרה לדשבורד
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main dir="rtl" className="min-h-screen bg-[#f8f6f2] text-[#2b241c]">
       <div className="mx-auto max-w-[1820px] px-4 py-5 md:px-7">
@@ -316,9 +540,9 @@ export default function VenueEventPage() {
               <div className="flex flex-wrap items-center gap-2 text-xs font-black text-[#9b8a73]">
                 <span>אירועים</span>
                 <span>›</span>
-                <span>אולם הזהב</span>
+                <span>{hallName}</span>
                 <span>›</span>
-                <span>#{eventId}</span>
+                <span>#{eventData.id}</span>
               </div>
 
               <div className="mt-3 flex items-center gap-4">
@@ -329,11 +553,11 @@ export default function VenueEventPage() {
                 <div>
                   <div className="flex flex-wrap items-center gap-3">
                     <h1 className="text-3xl font-black tracking-tight md:text-5xl">
-                      חתונה - משפחת לוי
+                      {eventTitle}
                     </h1>
 
                     <span className="rounded-full bg-[#fff4dc] px-3 py-1 text-xs font-black text-[#b98121]">
-                      סגור
+                      {statusLabel(eventData.status)}
                     </span>
 
                     <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-black text-amber-700">
@@ -342,13 +566,16 @@ export default function VenueEventPage() {
                   </div>
 
                   <div className="mt-2 flex flex-wrap items-center gap-3 text-sm font-bold text-[#7f705d]">
-                    <span>19.05.2026</span>
+                    <span>{formatDate(eventData.date)}</span>
                     <span>•</span>
-                    <span>19:30 - 00:30</span>
+                    <span>
+                      {eventData.startTime || "לא הוגדר"} -{" "}
+                      {eventData.endTime || "לא הוגדר"}
+                    </span>
                     <span>•</span>
-                    <span>אולם הזהב</span>
+                    <span>{hallName}</span>
                     <span>•</span>
-                    <span>420 אורחים</span>
+                    <span>{eventData.guests || 0} אורחים</span>
                   </div>
                 </div>
               </div>
@@ -356,7 +583,11 @@ export default function VenueEventPage() {
 
             <div className="flex flex-wrap items-center gap-2">
               <Link
-                href={`/venues/dashboard/halls/${hallId}/calendar`}
+                href={
+                  hallId
+                    ? `/venues/dashboard/halls/${hallId}/calendar`
+                    : "/venues/dashboard"
+                }
                 className="inline-flex h-11 items-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-black text-[#6f6252] transition hover:bg-[#fbf5ea]"
               >
                 <ArrowRight size={17} />
@@ -388,53 +619,65 @@ export default function VenueEventPage() {
           <HeroMetric
             title="התחייבות"
             value={formatCurrency(financial.commitment)}
-            subtitle="סך ההתחייבות כולל מע״מ"
+            subtitle="סך מחיר האירוע"
             icon={<CircleDollarSign size={22} />}
-          />
-
-          <HeroMetric
-            title="מקדמה"
-            value={formatCurrency(financial.deposit)}
-            subtitle="שולמה ב־15.11.25"
-            icon={<WalletCards size={22} />}
-            success
           />
 
           <HeroMetric
             title="שולם עד כה"
             value={formatCurrency(financial.totalPaid)}
-            subtitle={`${financial.paidPercentage}% מתוך ההתחייבות`}
+            subtitle={
+              financial.totalPaid > 0
+                ? "לפי הנתון שנשמר באירוע"
+                : "לא עודכן תשלום"
+            }
+            icon={<WalletCards size={22} />}
+            success={financial.totalPaid > 0}
+          />
+
+          <HeroMetric
+            title="אחוז תשלום"
+            value={`${financial.paidPercentage}%`}
+            subtitle="מתוך ההתחייבות"
             icon={<CreditCard size={22} />}
           />
 
           <HeroMetric
             title="יתרת תשלום משוערת"
             value={formatCurrency(financial.estimatedBalance)}
-            subtitle="לפי מחיר שסוכם"
+            subtitle="לפי מחיר פחות שולם"
             icon={<Receipt size={22} />}
-            danger
+            danger={financial.estimatedBalance > 0}
           />
 
           <HeroMetric
             title="תשלום הבא"
             value={formatCurrency(financial.nextPayment)}
-            subtitle="25.11.25"
+            subtitle="טרם נקבע מועד תשלום"
             icon={<CalendarDays size={22} />}
           />
         </section>
 
         <section className="mt-5 rounded-[30px] border border-[#eadfce] bg-white p-4 shadow-sm">
           <div className="grid gap-3 lg:grid-cols-6">
-            <StatusTile label="סטטוס אירוע" value="סגור" tone="green" />
+            <StatusTile
+              label="סטטוס אירוע"
+              value={statusLabel(eventData.status)}
+              tone={statusTone(eventData.status)}
+            />
             <StatusTile label="סטטוס הושבה" value="לא הושלמה" tone="amber" />
             <StatusTile
               label="סטטוס תפריט"
               value={assignedMenu ? "תפריט נבחר" : "חסר תפריט"}
               tone={assignedMenu ? "green" : "rose"}
             />
-            <StatusTile label="סטטוס תשלום" value="בתשלום" tone="green" />
+            <StatusTile
+              label="סטטוס תשלום"
+              value={financial.estimatedBalance > 0 ? "פתוח" : "שולם"}
+              tone={financial.estimatedBalance > 0 ? "amber" : "green"}
+            />
             <StatusTile label="אישורי הגעה" value="לא הופעל" tone="gray" />
-            <StatusTile label="מנהל אירוע" value="יוסי כהן" tone="gold" />
+            <StatusTile label="מנהל אירוע" value="לא הוגדר" tone="gold" />
           </div>
         </section>
 
@@ -478,10 +721,31 @@ export default function VenueEventPage() {
             <SideCard title="התקדמות האירוע" icon={<CheckCircle2 size={18} />}>
               <div className="space-y-4">
                 {[
-                  { label: "יצירת אירוע", date: "10.11.25", done: true },
-                  { label: "פגישה ראשונה", date: "15.11.25", done: true },
-                  { label: "הצעת מחיר", date: "21.11.25", done: true },
-                  { label: "מקדמה שולמה", date: "25.11.25", done: true },
+                  {
+                    label: "יצירת אירוע",
+                    date: eventData.createdAt
+                      ? formatDateTime(eventData.createdAt)
+                      : "בוצע",
+                    done: true,
+                  },
+                  {
+                    label: "פרטי אירוע",
+                    date: eventData.title ? "הוזנו" : "חסר",
+                    done: Boolean(eventData.title),
+                  },
+                  {
+                    label: "פרטי לקוח",
+                    date: eventData.clientName ? eventData.clientName : "חסר",
+                    done: Boolean(eventData.clientName),
+                  },
+                  {
+                    label: "מחיר אירוע",
+                    date:
+                      financial.commitment > 0
+                        ? formatCurrency(financial.commitment)
+                        : "טרם הוזן",
+                    done: financial.commitment > 0,
+                  },
                   {
                     label: "בחירת תפריט",
                     date: assignedMenu ? assignedMenu.name : "טרם נבחר",
@@ -502,8 +766,12 @@ export default function VenueEventPage() {
                       {step.done ? "✓" : ""}
                     </div>
                     <div>
-                      <div className="text-sm font-black text-[#2b241c]">{step.label}</div>
-                      <div className="mt-1 text-xs font-bold text-[#8a7b68]">{step.date}</div>
+                      <div className="text-sm font-black text-[#2b241c]">
+                        {step.label}
+                      </div>
+                      <div className="mt-1 text-xs font-bold text-[#8a7b68]">
+                        {step.date}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -512,12 +780,12 @@ export default function VenueEventPage() {
               <div className="mt-5">
                 <div className="mb-2 flex items-center justify-between text-xs font-black text-[#8a7b68]">
                   <span>השלמה כללית</span>
-                  <span>{assignedMenu ? "78%" : "72%"}</span>
+                  <span>{progress.total}%</span>
                 </div>
                 <div className="h-2 overflow-hidden rounded-full bg-[#eee6d9]">
                   <div
                     className="h-full rounded-full bg-[#b98121]"
-                    style={{ width: assignedMenu ? "78%" : "72%" }}
+                    style={{ width: `${progress.total}%` }}
                   />
                 </div>
               </div>
@@ -525,10 +793,16 @@ export default function VenueEventPage() {
 
             <SideCard title="פרטי לקוח" icon={<UsersRound size={18} />}>
               <div className="space-y-3">
-                <InfoLine label="שם לקוח" value="משפחת לוי" />
-                <InfoLine label="טלפון" value="050-1234567" />
-                <InfoLine label="אימייל" value="levi.family@email.com" />
-                <InfoLine label="מקור" value="אתר" />
+                <InfoLine label="שם לקוח" value={clientName} />
+                <InfoLine
+                  label="טלפון"
+                  value={eventData.clientPhone || "לא הוגדר"}
+                />
+                <InfoLine
+                  label="אימייל"
+                  value={eventData.clientEmail || "לא הוגדר"}
+                />
+                <InfoLine label="מקור" value="יומן אולם" />
               </div>
 
               <div className="mt-4 grid grid-cols-2 gap-2">
@@ -543,10 +817,19 @@ export default function VenueEventPage() {
 
             <SideCard title="תקציר פיננסי" icon={<WalletCards size={18} />}>
               <div className="space-y-3">
-                <InfoLine label="התחייבות" value={formatCurrency(financial.commitment)} />
-                <InfoLine label="מקדמה" value={formatCurrency(financial.deposit)} />
-                <InfoLine label="שולם" value={formatCurrency(financial.totalPaid)} />
-                <InfoLine label="יתרה משוערת" value={formatCurrency(financial.estimatedBalance)} danger />
+                <InfoLine
+                  label="התחייבות"
+                  value={formatCurrency(financial.commitment)}
+                />
+                <InfoLine
+                  label="שולם"
+                  value={formatCurrency(financial.totalPaid)}
+                />
+                <InfoLine
+                  label="יתרה משוערת"
+                  value={formatCurrency(financial.estimatedBalance)}
+                  danger={financial.estimatedBalance > 0}
+                />
               </div>
 
               <button
@@ -565,23 +848,55 @@ export default function VenueEventPage() {
                 <section className="grid gap-5 xl:grid-cols-3">
                   <MainCard title="פרטי האירוע" icon={<CalendarDays size={19} />}>
                     <div className="space-y-3">
-                      <InfoLine label="סוג אירוע" value="חתונה" />
-                      <InfoLine label="אולם" value="אולם הזהב" />
-                      <InfoLine label="תאריך" value="19.05.2026" />
-                      <InfoLine label="שעה" value="19:30 - 00:30" />
-                      <InfoLine label="כמות אורחים" value="420" />
-                      <InfoLine label="מנהל אירוע" value="יוסי כהן" />
+                      <InfoLine
+                        label="סוג אירוע"
+                        value={eventData.eventType || "לא הוגדר"}
+                      />
+                      <InfoLine label="אולם" value={hallName} />
+                      <InfoLine label="תאריך" value={formatDate(eventData.date)} />
+                      <InfoLine
+                        label="שעה"
+                        value={`${eventData.startTime || "לא הוגדר"} - ${
+                          eventData.endTime || "לא הוגדר"
+                        }`}
+                      />
+                      <InfoLine
+                        label="כמות אורחים"
+                        value={`${eventData.guests || 0}`}
+                      />
+                      <InfoLine label="מנהל אירוע" value="לא הוגדר" />
                     </div>
                   </MainCard>
 
                   <MainCard title="סיכום פיננסי מורחב" icon={<Receipt size={19} />}>
                     <div className="grid grid-cols-2 gap-3">
-                      <FinanceMini label="התחייבות" value={formatCurrency(financial.commitment)} />
-                      <FinanceMini label="מקדמה" value={formatCurrency(financial.deposit)} success />
-                      <FinanceMini label="סה״כ שולם" value={formatCurrency(financial.totalPaid)} />
-                      <FinanceMini label="יתרה משוערת" value={formatCurrency(financial.estimatedBalance)} danger />
-                      <FinanceMini label="תשלום הבא" value={formatCurrency(financial.nextPayment)} />
-                      <FinanceMini label="לאחר אירוע" value={formatCurrency(financial.expectedAfterEvent)} danger />
+                      <FinanceMini
+                        label="התחייבות"
+                        value={formatCurrency(financial.commitment)}
+                      />
+                      <FinanceMini
+                        label="שולם עד כה"
+                        value={formatCurrency(financial.totalPaid)}
+                        success={financial.totalPaid > 0}
+                      />
+                      <FinanceMini
+                        label="יתרה משוערת"
+                        value={formatCurrency(financial.estimatedBalance)}
+                        danger={financial.estimatedBalance > 0}
+                      />
+                      <FinanceMini
+                        label="תשלום הבא"
+                        value={formatCurrency(financial.nextPayment)}
+                      />
+                      <FinanceMini
+                        label="לאחר אירוע"
+                        value={formatCurrency(financial.expectedAfterEvent)}
+                        danger={financial.expectedAfterEvent > 0}
+                      />
+                      <FinanceMini
+                        label="אחוז תשלום"
+                        value={`${financial.paidPercentage}%`}
+                      />
                     </div>
 
                     <div className="mt-4">
@@ -600,10 +915,10 @@ export default function VenueEventPage() {
 
                   <MainCard title="סטטוס והתקדמות" icon={<Sparkles size={19} />}>
                     <div className="space-y-3">
-                      <ProgressRow label="תשלומים" value={64} />
-                      <ProgressRow label="הושבה" value={32} />
-                      <ProgressRow label="תפריט" value={assignedMenu ? 65 : 20} />
-                      <ProgressRow label="משימות הפקה" value={72} />
+                      <ProgressRow label="תשלומים" value={progress.payments} />
+                      <ProgressRow label="הושבה" value={progress.seating} />
+                      <ProgressRow label="תפריט" value={progress.menu} />
+                      <ProgressRow label="משימות הפקה" value={progress.production} />
                     </div>
 
                     <button
@@ -619,25 +934,35 @@ export default function VenueEventPage() {
                 <section className="grid gap-5 xl:grid-cols-3">
                   <MainCard title="תשלומים אחרונים" icon={<CreditCard size={19} />}>
                     <div className="space-y-3">
-                      {payments.map((payment) => (
-                        <PaymentItem key={payment.id} payment={payment} />
-                      ))}
+                      {payments.length ? (
+                        payments.map((payment) => (
+                          <PaymentItem key={payment.id} payment={payment} />
+                        ))
+                      ) : (
+                        <EmptyBox text="עדיין לא עודכנו תשלומים לאירוע הזה." />
+                      )}
                     </div>
                   </MainCard>
 
                   <MainCard title="משימות פתוחות" icon={<CheckCircle2 size={19} />}>
                     <div className="space-y-3">
-                      {tasks.map((task) => (
-                        <TaskItem key={task.id} task={task} />
-                      ))}
+                      {tasks.length ? (
+                        tasks.map((task) => <TaskItem key={task.id} task={task} />)
+                      ) : (
+                        <EmptyBox text="עדיין אין משימות פתוחות לאירוע הזה." />
+                      )}
                     </div>
                   </MainCard>
 
                   <MainCard title="פעילות אחרונה" icon={<Clock3 size={19} />}>
                     <div className="space-y-3">
-                      {activities.map((activity) => (
-                        <ActivityItem key={activity.id} activity={activity} />
-                      ))}
+                      {activities.length ? (
+                        activities.map((activity) => (
+                          <ActivityItem key={activity.id} activity={activity} />
+                        ))
+                      ) : (
+                        <EmptyBox text="אין פעילות מתועדת עדיין." />
+                      )}
                     </div>
                   </MainCard>
                 </section>
@@ -645,22 +970,27 @@ export default function VenueEventPage() {
                 <section className="grid gap-5 xl:grid-cols-[1fr_1fr]">
                   <MainCard title="קבצים ומסמכים" icon={<FolderOpen size={19} />}>
                     <div className="space-y-3">
-                      {files.map((file) => (
-                        <FileItem key={file.id} file={file} />
-                      ))}
+                      {files.length ? (
+                        files.map((file) => <FileItem key={file.id} file={file} />)
+                      ) : (
+                        <EmptyBox text="עדיין לא הועלו קבצים לאירוע הזה." />
+                      )}
                     </div>
                   </MainCard>
 
                   <MainCard title="הערות פנימיות" icon={<MessageCircle size={19} />}>
-                    <div className="rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-4">
-                      <p className="text-sm font-bold leading-7 text-[#7f705d]">
-                        הלקוח מדגיש שחשוב לו עיצוב נקי, שולחנות בגוון שמנת וזהב,
-                        ותפריט ללא פירות ים. יש לוודא מול המטבח את המנות הצמחוניות.
-                      </p>
-                      <div className="mt-3 text-xs font-black text-[#9b8a73]">
-                        מיכל פרידמן · 15.11.25
+                    {eventData.notes ? (
+                      <div className="rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-4">
+                        <p className="text-sm font-bold leading-7 text-[#7f705d]">
+                          {eventData.notes}
+                        </p>
+                        <div className="mt-3 text-xs font-black text-[#9b8a73]">
+                          הערה מתוך פרטי האירוע
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <EmptyBox text="אין הערות פנימיות לאירוע הזה." />
+                    )}
 
                     <button
                       type="button"
@@ -717,60 +1047,71 @@ export default function VenueEventPage() {
       )}
 
       {editOpen && (
-        <Modal title="עריכת אירוע" onClose={() => setEditOpen(false)}>
-          <div className="grid gap-3">
-            <InputLike label="שם האירוע" value="חתונה - משפחת לוי" />
-            <InputLike label="תאריך" value="19.05.2026" />
-            <InputLike label="שעה" value="19:30 - 00:30" />
-            <InputLike label="כמות אורחים" value="420" />
-            <button
-              type="button"
-              onClick={() => setEditOpen(false)}
-              className="mt-2 flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#b98121] text-sm font-black text-white"
-            >
-              <Save size={17} />
-              שמירה
-            </button>
-          </div>
-        </Modal>
+        <EventEditModal
+          event={eventData}
+          saving={savingEvent}
+          onClose={() => setEditOpen(false)}
+          onSave={updateEvent}
+        />
       )}
 
       {paymentOpen && (
         <Modal title="ניהול תשלומים" onClose={() => setPaymentOpen(false)}>
           <div className="space-y-3">
-            <InfoLine label="התחייבות" value={formatCurrency(financial.commitment)} />
-            <InfoLine label="מקדמה" value={formatCurrency(financial.deposit)} />
-            <InfoLine label="שולם עד כה" value={formatCurrency(financial.totalPaid)} />
-            <InfoLine label="יתרת תשלום משוערת" value={formatCurrency(financial.estimatedBalance)} danger />
+            <InfoLine
+              label="התחייבות"
+              value={formatCurrency(financial.commitment)}
+            />
+            <InfoLine
+              label="שולם עד כה"
+              value={formatCurrency(financial.totalPaid)}
+            />
+            <InfoLine
+              label="יתרת תשלום משוערת"
+              value={formatCurrency(financial.estimatedBalance)}
+              danger={financial.estimatedBalance > 0}
+            />
             <button
               type="button"
-              onClick={() => setPaymentOpen(false)}
+              onClick={() => {
+                setPaymentOpen(false);
+                setEditOpen(true);
+              }}
               className="mt-2 h-11 w-full rounded-2xl bg-[#b98121] text-sm font-black text-white"
             >
-              הוספת תשלום
+              עדכון סכומים
             </button>
           </div>
         </Modal>
       )}
 
       {noteOpen && (
-        <Modal title="הוספת הערה" onClose={() => setNoteOpen(false)}>
+        <Modal title="הערות האירוע" onClose={() => setNoteOpen(false)}>
           <textarea
-            defaultValue="הערה פנימית חדשה..."
+            value={eventData.notes || ""}
+            readOnly
+            placeholder="אין הערות לאירוע הזה."
             className="min-h-[140px] w-full rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-3 text-sm font-bold text-[#2b241c] outline-none focus:border-[#b98121]"
           />
           <button
             type="button"
-            onClick={() => setNoteOpen(false)}
+            onClick={() => {
+              setNoteOpen(false);
+              setEditOpen(true);
+            }}
             className="mt-3 h-11 w-full rounded-2xl bg-[#b98121] text-sm font-black text-white"
           >
-            שמירת הערה
+            עריכת הערות
           </button>
         </Modal>
       )}
 
       {menuSelectOpen && (
-        <Modal title="בחירת תפריט לאירוע" onClose={() => setMenuSelectOpen(false)} wide>
+        <Modal
+          title="בחירת תפריט לאירוע"
+          onClose={() => setMenuSelectOpen(false)}
+          wide
+        >
           <div className="mb-4 rounded-2xl border border-[#eadfce] bg-[#fff8eb] p-4 text-sm font-bold leading-7 text-[#7f705d]">
             כאן בוחרים תפריט מתוך תפריטי האולם. לאחר הבחירה ייווצר עותק לאירוע הזה בלבד,
             כדי ששינויים עתידיים בתפריטי האולם לא ישנו אירועים שכבר נסגרו.
@@ -816,16 +1157,22 @@ export default function VenueEventPage() {
       )}
 
       {sendMenuOpen && (
-        <Modal title="שליחת קישור בחירת מנות לזוג" onClose={() => setSendMenuOpen(false)}>
+        <Modal
+          title="שליחת קישור בחירת מנות לזוג"
+          onClose={() => setSendMenuOpen(false)}
+        >
           <div className="space-y-3">
-            <InfoLine label="תפריט" value={assignedMenu?.name || "לא נבחר תפריט"} />
+            <InfoLine
+              label="תפריט"
+              value={assignedMenu?.name || "לא נבחר תפריט"}
+            />
             <InfoLine
               label="קישור לזוג"
               value={`https://www.invistimo.com/menus/${eventId}/choose`}
             />
 
             <textarea
-              defaultValue={`שלום משפחת לוי, מצורף קישור לבחירת מנות לאירוע שלכם: https://www.invistimo.com/menus/${eventId}/choose`}
+              defaultValue={`שלום ${clientName}, מצורף קישור לבחירת מנות לאירוע שלכם: https://www.invistimo.com/menus/${eventId}/choose`}
               className="min-h-[115px] w-full rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-3 text-sm font-bold text-[#2b241c] outline-none focus:border-[#b98121]"
             />
 
@@ -841,6 +1188,179 @@ export default function VenueEventPage() {
         </Modal>
       )}
     </main>
+  );
+}
+
+function EventEditModal({
+  event,
+  saving,
+  onClose,
+  onSave,
+}: {
+  event: VenueEvent;
+  saving: boolean;
+  onClose: () => void;
+  onSave: (form: EventEditForm) => void;
+}) {
+  const [form, setForm] = useState<EventEditForm>({
+    title: event.title || "",
+    eventType: event.eventType || "",
+    clientName: event.clientName || "",
+    clientPhone: event.clientPhone || "",
+    clientEmail: event.clientEmail || "",
+    date: event.date || "",
+    startTime: event.startTime || "",
+    endTime: event.endTime || "",
+    guests: event.guests ? String(event.guests) : "",
+    status: event.status || "confirmed",
+    budget: event.budget ? String(event.budget) : "",
+    paidAmount: event.paidAmount ? String(event.paidAmount) : "",
+    notes: event.notes || "",
+  });
+
+  const updateField = <K extends keyof EventEditForm>(
+    key: K,
+    value: EventEditForm[K]
+  ) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const submit = (submitEvent: React.FormEvent<HTMLFormElement>) => {
+    submitEvent.preventDefault();
+
+    if (!form.date) {
+      alert("חובה להזין תאריך");
+      return;
+    }
+
+    if (!form.startTime) {
+      alert("חובה להזין שעת התחלה");
+      return;
+    }
+
+    onSave(form);
+  };
+
+  return (
+    <Modal title="עריכת אירוע" onClose={onClose} wide>
+      <form onSubmit={submit}>
+        <div className="grid gap-3 md:grid-cols-2">
+          <InputEdit
+            label="שם האירוע"
+            value={form.title}
+            onChange={(value) => updateField("title", value)}
+          />
+          <InputEdit
+            label="סוג אירוע"
+            value={form.eventType}
+            onChange={(value) => updateField("eventType", value)}
+          />
+          <InputEdit
+            label="שם לקוח"
+            value={form.clientName}
+            onChange={(value) => updateField("clientName", value)}
+          />
+          <InputEdit
+            label="טלפון לקוח"
+            value={form.clientPhone}
+            onChange={(value) => updateField("clientPhone", value)}
+          />
+          <InputEdit
+            label="אימייל לקוח"
+            value={form.clientEmail}
+            onChange={(value) => updateField("clientEmail", value)}
+          />
+          <InputEdit
+            label="תאריך"
+            type="date"
+            value={form.date}
+            onChange={(value) => updateField("date", value)}
+          />
+          <InputEdit
+            label="שעת התחלה"
+            type="time"
+            value={form.startTime}
+            onChange={(value) => updateField("startTime", value)}
+          />
+          <InputEdit
+            label="שעת סיום"
+            type="time"
+            value={form.endTime}
+            onChange={(value) => updateField("endTime", value)}
+          />
+          <InputEdit
+            label="כמות אורחים"
+            type="number"
+            value={form.guests}
+            onChange={(value) => updateField("guests", value)}
+          />
+          <InputEdit
+            label="תקציב / מחיר אירוע"
+            type="number"
+            value={form.budget}
+            onChange={(value) => updateField("budget", value)}
+          />
+          <InputEdit
+            label="שולם עד כה"
+            type="number"
+            value={form.paidAmount}
+            onChange={(value) => updateField("paidAmount", value)}
+          />
+
+          <label>
+            <span className="mb-1 block text-xs font-black text-[#8a7b68]">
+              סטטוס
+            </span>
+            <select
+              value={form.status}
+              onChange={(event) =>
+                updateField("status", event.target.value as VenueEventStatus)
+              }
+              className="h-11 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-3 text-sm font-bold text-[#2b241c] outline-none focus:border-[#b98121]"
+            >
+              <option value="lead">ליד</option>
+              <option value="proposal">בהצעה</option>
+              <option value="closed">סגור</option>
+              <option value="confirmed">מאושר</option>
+              <option value="preparing">בהכנות</option>
+              <option value="live">פעיל עכשיו</option>
+              <option value="done">הסתיים</option>
+              <option value="cancelled">בוטל</option>
+            </select>
+          </label>
+
+          <label className="md:col-span-2">
+            <span className="mb-1 block text-xs font-black text-[#8a7b68]">
+              הערות
+            </span>
+            <textarea
+              value={form.notes}
+              onChange={(event) => updateField("notes", event.target.value)}
+              className="min-h-[120px] w-full rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-3 text-sm font-bold text-[#2b241c] outline-none focus:border-[#b98121]"
+            />
+          </label>
+        </div>
+
+        <div className="mt-5 flex flex-col-reverse gap-3 border-t border-[#eadfce] pt-4 sm:flex-row sm:justify-end">
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-11 rounded-2xl border border-[#eadfce] bg-white px-6 text-sm font-black text-[#6f6252]"
+          >
+            ביטול
+          </button>
+
+          <button
+            type="submit"
+            disabled={saving}
+            className="flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#b98121] px-6 text-sm font-black text-white disabled:opacity-60"
+          >
+            <Save size={17} />
+            {saving ? "שומר..." : "שמירת שינויים"}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -887,7 +1407,11 @@ function EventMenuTab({
             </button>
 
             <Link
-              href={`/venues/dashboard/halls/${hallId}/menus`}
+              href={
+                hallId
+                  ? `/venues/dashboard/halls/${hallId}/menus`
+                  : "/venues/dashboard"
+              }
               className="inline-flex h-12 items-center gap-2 rounded-2xl border border-[#d9bd83] bg-white px-6 text-sm font-black text-[#9f6f1a] transition hover:bg-[#fff8eb]"
             >
               <Utensils size={17} />
@@ -898,8 +1422,13 @@ function EventMenuTab({
 
         <div className="mt-5 grid gap-4 md:grid-cols-3">
           {templates.map((template) => (
-            <div key={template.id} className="rounded-[24px] border border-[#eadfce] bg-[#fffdf8] p-4">
-              <div className="text-lg font-black text-[#2b241c]">{template.name}</div>
+            <div
+              key={template.id}
+              className="rounded-[24px] border border-[#eadfce] bg-[#fffdf8] p-4"
+            >
+              <div className="text-lg font-black text-[#2b241c]">
+                {template.name}
+              </div>
               <p className="mt-2 text-sm font-bold leading-6 text-[#7f705d]">
                 {template.description}
               </p>
@@ -919,15 +1448,26 @@ function EventMenuTab({
       <section className="grid gap-5 xl:grid-cols-3">
         <MainCard title="תפריט משויך לאירוע" icon={<Utensils size={19} />}>
           <div className="rounded-[24px] border border-[#eadfce] bg-[#fffdf8] p-4">
-            <div className="text-xs font-black text-[#b98121]">עותק תפריט לאירוע</div>
-            <h2 className="mt-1 text-2xl font-black text-[#2b241c]">{assignedMenu.name}</h2>
+            <div className="text-xs font-black text-[#b98121]">
+              עותק תפריט לאירוע
+            </div>
+            <h2 className="mt-1 text-2xl font-black text-[#2b241c]">
+              {assignedMenu.name}
+            </h2>
             <p className="mt-2 text-sm font-bold leading-7 text-[#7f705d]">
-              זהו עותק של תפריט האולם לאירוע הזה בלבד. אפשר לערוך אותו בלי לשנות את תפריט המקור של האולם.
+              זהו עותק של תפריט האולם לאירוע הזה בלבד. אפשר לערוך אותו בלי לשנות את
+              תפריט המקור של האולם.
             </p>
 
             <div className="mt-4 grid grid-cols-2 gap-2">
-              <InfoPill label="נשלח לזוג" value={assignedMenu.sentToCouple ? "כן" : "לא"} />
-              <InfoPill label="בחירת זוג" value={assignedMenu.coupleSelected ? "הושלמה" : "ממתין"} />
+              <InfoPill
+                label="נשלח לזוג"
+                value={assignedMenu.sentToCouple ? "כן" : "לא"}
+              />
+              <InfoPill
+                label="בחירת זוג"
+                value={assignedMenu.coupleSelected ? "הושלמה" : "ממתין"}
+              />
             </div>
           </div>
 
@@ -953,7 +1493,9 @@ function EventMenuTab({
 
         <MainCard title="קישור ציבורי לזוג" icon={<Link2 size={19} />}>
           <div className="rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-4">
-            <div className="text-xs font-black text-[#8a7b68]">קישור בחירת מנות</div>
+            <div className="text-xs font-black text-[#8a7b68]">
+              קישור בחירת מנות
+            </div>
             <div className="mt-2 break-all text-sm font-black leading-6 text-[#2b241c]">
               {`https://www.invistimo.com/menus/${eventId}/choose`}
             </div>
@@ -983,8 +1525,14 @@ function EventMenuTab({
         <MainCard title="סטטוס תפריט" icon={<CheckCircle2 size={19} />}>
           <div className="space-y-3">
             <StatusLine label="תפריט נבחר" done />
-            <StatusLine label="קישור נשלח לזוג" done={assignedMenu.sentToCouple} />
-            <StatusLine label="הזוג בחר מנות" done={assignedMenu.coupleSelected} />
+            <StatusLine
+              label="קישור נשלח לזוג"
+              done={assignedMenu.sentToCouple}
+            />
+            <StatusLine
+              label="הזוג בחר מנות"
+              done={assignedMenu.coupleSelected}
+            />
             <StatusLine label="האולם אישר תפריט" done={assignedMenu.approved} />
           </div>
         </MainCard>
@@ -992,10 +1540,26 @@ function EventMenuTab({
 
       <MainCard title="איך הזרימה עובדת" icon={<Sparkles size={19} />}>
         <div className="grid gap-4 md:grid-cols-4">
-          <FlowStep number="1" title="תפריטי אולם" text="האולם בונה תפריטים קבועים בניהול אולם." />
-          <FlowStep number="2" title="בחירת תפריט" text="באירוע בוחרים תפריט אחד מתוך תפריטי האולם." />
-          <FlowStep number="3" title="שליחה לזוג" text="שולחים לזוג קישור בחירת מנות מתוך תפריט האירוע." />
-          <FlowStep number="4" title="עדכון האירוע" text="בחירת הזוג מתעדכנת בתפריט האירוע הספציפי." />
+          <FlowStep
+            number="1"
+            title="תפריטי אולם"
+            text="האולם בונה תפריטים קבועים בניהול אולם."
+          />
+          <FlowStep
+            number="2"
+            title="בחירת תפריט"
+            text="באירוע בוחרים תפריט אחד מתוך תפריטי האולם."
+          />
+          <FlowStep
+            number="3"
+            title="שליחה לזוג"
+            text="שולחים לזוג קישור בחירת מנות מתוך תפריט האירוע."
+          />
+          <FlowStep
+            number="4"
+            title="עדכון האירוע"
+            text="בחירת הזוג מתעדכנת בתפריט האירוע הספציפי."
+          />
         </div>
       </MainCard>
     </>
@@ -1018,7 +1582,15 @@ function StatusLine({ label, done }: { label: string; done?: boolean }) {
   );
 }
 
-function FlowStep({ number, title, text }: { number: string; title: string; text: string }) {
+function FlowStep({
+  number,
+  title,
+  text,
+}: {
+  number: string;
+  title: string;
+  text: string;
+}) {
   return (
     <div className="rounded-[24px] border border-[#eadfce] bg-[#fffdf8] p-4">
       <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#b98121] text-sm font-black text-white">
@@ -1111,7 +1683,9 @@ function StatusTile({
   return (
     <div className="rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-4">
       <div className="text-xs font-black text-[#8a7b68]">{label}</div>
-      <div className={`mt-2 inline-flex rounded-full px-3 py-1 text-sm font-black ${toneClass}`}>
+      <div
+        className={`mt-2 inline-flex rounded-full px-3 py-1 text-sm font-black ${toneClass}`}
+      >
         {value}
       </div>
     </div>
@@ -1174,7 +1748,12 @@ function InfoLine({
   return (
     <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-3 py-2">
       <span className="text-xs font-black text-[#8a7b68]">{label}</span>
-      <span className={["text-sm font-black", danger ? "text-rose-700" : "text-[#2b241c]"].join(" ")}>
+      <span
+        className={[
+          "text-sm font-black",
+          danger ? "text-rose-700" : "text-[#2b241c]",
+        ].join(" ")}
+      >
         {value}
       </span>
     </div>
@@ -1227,13 +1806,21 @@ function PaymentItem({ payment }: { payment: PaymentRow }) {
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="text-sm font-black text-[#2b241c]">{payment.title}</div>
-          <div className="mt-1 text-xs font-bold text-[#8a7b68]">{payment.dueDate} · {payment.note}</div>
+          <div className="mt-1 text-xs font-bold text-[#8a7b68]">
+            {payment.dueDate} · {payment.note}
+          </div>
         </div>
-        <span className={`rounded-full px-2.5 py-1 text-[11px] font-black ${paymentStatusClass(payment.status)}`}>
+        <span
+          className={`rounded-full px-2.5 py-1 text-[11px] font-black ${paymentStatusClass(
+            payment.status
+          )}`}
+        >
           {paymentStatusLabel(payment.status)}
         </span>
       </div>
-      <div className="mt-2 text-lg font-black text-[#2b241c]">{formatCurrency(payment.amount)}</div>
+      <div className="mt-2 text-lg font-black text-[#2b241c]">
+        {formatCurrency(payment.amount)}
+      </div>
     </div>
   );
 }
@@ -1245,7 +1832,11 @@ function TaskItem({ task }: { task: TaskRow }) {
         <div className="text-sm font-black text-[#2b241c]">{task.title}</div>
         <div className="mt-1 text-xs font-bold text-[#8a7b68]">{task.dueDate}</div>
       </div>
-      <span className={`rounded-full px-2.5 py-1 text-[11px] font-black ${taskStatusClass(task.status)}`}>
+      <span
+        className={`rounded-full px-2.5 py-1 text-[11px] font-black ${taskStatusClass(
+          task.status
+        )}`}
+      >
         {taskStatusLabel(task.status)}
       </span>
     </div>
@@ -1257,7 +1848,9 @@ function ActivityItem({ activity }: { activity: ActivityRow }) {
     <div className="rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-3">
       <div className="text-sm font-black text-[#2b241c]">{activity.title}</div>
       <div className="mt-1 text-xs font-bold text-[#8a7b68]">{activity.date}</div>
-      <div className="mt-2 text-xs font-bold leading-5 text-[#7f705d]">{activity.description}</div>
+      <div className="mt-2 text-xs font-bold leading-5 text-[#7f705d]">
+        {activity.description}
+      </div>
     </div>
   );
 }
@@ -1271,7 +1864,9 @@ function FileItem({ file }: { file: FileRow }) {
         </div>
         <div>
           <div className="text-sm font-black text-[#2b241c]">{file.title}</div>
-          <div className="mt-1 text-xs font-bold text-[#8a7b68]">{file.date} · {file.size}</div>
+          <div className="mt-1 text-xs font-bold text-[#8a7b68]">
+            {file.date} · {file.size}
+          </div>
         </div>
       </div>
       <button type="button" className="text-sm font-black text-[#b98121]">
@@ -1293,15 +1888,37 @@ function ActionButton({ icon, label }: { icon: React.ReactNode; label: string })
   );
 }
 
-function InputLike({ label, value }: { label: string; value: string }) {
+function InputEdit({
+  label,
+  value,
+  onChange,
+  type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: "text" | "number" | "date" | "time";
+}) {
   return (
     <label className="block">
-      <span className="mb-1 block text-xs font-black text-[#8a7b68]">{label}</span>
+      <span className="mb-1 block text-xs font-black text-[#8a7b68]">
+        {label}
+      </span>
       <input
-        defaultValue={value}
+        type={type}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
         className="h-11 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-3 text-sm font-bold text-[#2b241c] outline-none focus:border-[#b98121]"
       />
     </label>
+  );
+}
+
+function EmptyBox({ text }: { text: string }) {
+  return (
+    <div className="rounded-2xl border border-dashed border-[#d9bd83] bg-[#fffaf0] p-4 text-center text-sm font-bold leading-6 text-[#7f705d]">
+      {text}
+    </div>
   );
 }
 
