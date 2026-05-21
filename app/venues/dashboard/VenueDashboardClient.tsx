@@ -16,10 +16,10 @@ import {
   Loader2,
   LayoutDashboard,
   Menu,
-  MoreHorizontal,
-  RefreshCw,
   Pencil,
   PieChart,
+  Plus,
+  RefreshCw,
   Save,
   Settings,
   ShieldCheck,
@@ -84,156 +84,25 @@ type OwnerAlert = {
   type: "maintenance" | "payments" | "staff" | "menu";
 };
 
+type CreateHallForm = {
+  name: string;
+  subtitle: string;
+  capacity: string;
+  image: string;
+};
+
 /* ======================================================
-   MOCK DATA
-   בהמשך מחליפים לקריאה מהשרת / MongoDB
+   EMPTY INITIAL DATA
+   משתמש חדש מתחיל מאפס — אין דמו
 ====================================================== */
 
-const initialHalls: Hall[] = [
-  {
-    id: "main-gold-hall",
-    name: "אולם הזהב",
-    subtitle: "האולם המרכזי",
-    capacity: 420,
-    monthlyEvents: 18,
-    upcomingEvents: 11,
-    occupancyRate: 84,
-    monthlyRevenue: 486000,
-    nextEventAt: "היום 19:30",
-    status: "active",
-    image:
-      "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    id: "garden-hall",
-    name: "גן אירועים",
-    subtitle: "מתחם חוץ וקבלת פנים",
-    capacity: 320,
-    monthlyEvents: 12,
-    upcomingEvents: 9,
-    occupancyRate: 72,
-    monthlyRevenue: 318000,
-    nextEventAt: "מחר 20:00",
-    status: "active",
-    image:
-      "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    id: "sky-hall",
-    name: "SKY Hall",
-    subtitle: "אולם בוטיק",
-    capacity: 180,
-    monthlyEvents: 9,
-    upcomingEvents: 6,
-    occupancyRate: 61,
-    monthlyRevenue: 196000,
-    nextEventAt: "24.05 20:30",
-    status: "maintenance",
-    image:
-      "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?auto=format&fit=crop&w=1200&q=80",
-  },
-];
-
-const initialTodayEvents: TodayEvent[] = [
-  {
-    id: "e1",
-    hallId: "main-gold-hall",
-    hallName: "אולם הזהב",
-    eventName: "אירוע ערב",
-    time: "19:30",
-    status: "preparing",
-  },
-  {
-    id: "e2",
-    hallId: "garden-hall",
-    hallName: "גן אירועים",
-    eventName: "אירוע חברה",
-    time: "20:00",
-    status: "confirmed",
-  },
-  {
-    id: "e3",
-    hallId: "sky-hall",
-    hallName: "SKY Hall",
-    eventName: "כנס עסקי",
-    time: "20:30",
-    status: "confirmed",
-  },
-];
-
-const initialTasks: Task[] = [
-  {
-    id: "t1",
-    title: "בדיקת תאורה וסאונד באולם הזהב",
-    area: "תפעול",
-    due: "היום 16:00",
-    priority: "high",
-    done: false,
-  },
-  {
-    id: "t2",
-    title: "אישור סידור שולחנות מול צוות האולם",
-    area: "ניהול אולם",
-    due: "היום 18:00",
-    priority: "medium",
-    done: false,
-  },
-  {
-    id: "t3",
-    title: "בדיקת מלאי בר ומשקאות",
-    area: "מחסן",
-    due: "מחר",
-    priority: "medium",
-    done: true,
-  },
-  {
-    id: "t4",
-    title: "טיפול בתקלה במקרן SKY Hall",
-    area: "תחזוקה",
-    due: "עד 12:00",
-    priority: "high",
-    done: false,
-  },
-];
-
-const initialFinanceData: FinanceMonth[] = [
-  { label: "ינו׳", revenue: 740000 },
-  { label: "פבר׳", revenue: 680000 },
-  { label: "מרץ", revenue: 810000 },
-  { label: "אפר׳", revenue: 920000 },
-  { label: "מאי", revenue: 1248000 },
-  { label: "יוני", revenue: 980000 },
-];
-
-const initialAlerts: OwnerAlert[] = [
-  {
-    id: "a1",
-    type: "maintenance",
-    title: "SKY Hall מסומן בתחזוקה",
-    description: "מומלץ לוודא שהתקלה נסגרת לפני האירוע הבא.",
-    tone: "amber",
-  },
-  {
-    id: "a2",
-    type: "payments",
-    title: "יתרה לגבייה מ־4 אירועים",
-    description: "קיימים תשלומים פתוחים שטרם הושלמו.",
-    tone: "rose",
-  },
-  {
-    id: "a3",
-    type: "staff",
-    title: "בדיקת כוח אדם לאירועי סוף השבוע",
-    description: "כדאי לוודא שכל משמרות הצוות משויכות לאולמות.",
-    tone: "violet",
-  },
-  {
-    id: "a4",
-    type: "menu",
-    title: "בדיקת מלאי לפני סוף שבוע",
-    description: "עומס אירועים גבוה ביום חמישי ושישי.",
-    tone: "emerald",
-  },
+const emptyFinanceData: FinanceMonth[] = [
+  { label: "ינו׳", revenue: 0 },
+  { label: "פבר׳", revenue: 0 },
+  { label: "מרץ", revenue: 0 },
+  { label: "אפר׳", revenue: 0 },
+  { label: "מאי", revenue: 0 },
+  { label: "יוני", revenue: 0 },
 ];
 
 /* ======================================================
@@ -285,22 +154,32 @@ function toSafeNumber(value: string, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function defaultHallImage() {
+  return "";
+}
+
 /* ======================================================
    COMPONENT
 ====================================================== */
 
 export default function VenueDashboardClient() {
   const router = useRouter();
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [halls, setHalls] = useState<Hall[]>(initialHalls);
-  const [todayEvents, setTodayEvents] = useState<TodayEvent[]>(initialTodayEvents);
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
-  const [financeData, setFinanceData] = useState<FinanceMonth[]>(initialFinanceData);
-  const [alerts, setAlerts] = useState<OwnerAlert[]>(initialAlerts);
+
+  const [halls, setHalls] = useState<Hall[]>([]);
+  const [todayEvents, setTodayEvents] = useState<TodayEvent[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [financeData, setFinanceData] = useState<FinanceMonth[]>(emptyFinanceData);
+  const [alerts, setAlerts] = useState<OwnerAlert[]>([]);
+
   const [editingHall, setEditingHall] = useState<Hall | null>(null);
+  const [createHallOpen, setCreateHallOpen] = useState(false);
+
   const [loadingDashboard, setLoadingDashboard] = useState(true);
   const [serverError, setServerError] = useState("");
   const [savingHallId, setSavingHallId] = useState<string | null>(null);
+  const [creatingHall, setCreatingHall] = useState(false);
 
   const fetchDashboard = async () => {
     setLoadingDashboard(true);
@@ -310,6 +189,7 @@ export default function VenueDashboardClient() {
       const response = await fetch("/api/venues/dashboard", {
         method: "GET",
         cache: "no-store",
+        credentials: "include",
       });
 
       const data = await response.json();
@@ -318,33 +198,23 @@ export default function VenueDashboardClient() {
         throw new Error(data?.message || "טעינת נתוני הדשבורד נכשלה");
       }
 
-      if (Array.isArray(data.halls)) {
-        setHalls(data.halls);
-      }
-
-      if (Array.isArray(data.todayEvents)) {
-        setTodayEvents(data.todayEvents);
-      }
-
-      if (Array.isArray(data.tasks)) {
-        setTasks(data.tasks);
-      }
-
-      if (Array.isArray(data.financeData)) {
-        setFinanceData(data.financeData);
-      }
-
-      if (Array.isArray(data.alerts)) {
-        setAlerts(data.alerts);
-      }
+      setHalls(Array.isArray(data.halls) ? data.halls : []);
+      setTodayEvents(Array.isArray(data.todayEvents) ? data.todayEvents : []);
+      setTasks(Array.isArray(data.tasks) ? data.tasks : []);
+      setFinanceData(
+        Array.isArray(data.financeData) && data.financeData.length
+          ? data.financeData
+          : emptyFinanceData
+      );
+      setAlerts(Array.isArray(data.alerts) ? data.alerts : []);
     } catch (error) {
       console.error("GET /api/venues/dashboard failed:", error);
-      setServerError("לא הצלחתי לטעון נתונים מהשרת. כרגע מוצגת תצוגת דמו מקומית.");
-      setHalls(initialHalls);
-      setTodayEvents(initialTodayEvents);
-      setTasks(initialTasks);
-      setFinanceData(initialFinanceData);
-      setAlerts(initialAlerts);
+      setServerError("לא הצלחתי לטעון נתונים מהשרת. בדקי התחברות או הרשאות.");
+      setHalls([]);
+      setTodayEvents([]);
+      setTasks([]);
+      setFinanceData(emptyFinanceData);
+      setAlerts([]);
     } finally {
       setLoadingDashboard(false);
     }
@@ -358,8 +228,11 @@ export default function VenueDashboardClient() {
     const monthlyEvents = halls.reduce((sum, hall) => sum + hall.monthlyEvents, 0);
     const upcomingEvents = halls.reduce((sum, hall) => sum + hall.upcomingEvents, 0);
     const monthlyRevenue = halls.reduce((sum, hall) => sum + hall.monthlyRevenue, 0);
+
     const averageOccupancy = halls.length
-      ? Math.round(halls.reduce((sum, hall) => sum + hall.occupancyRate, 0) / halls.length)
+      ? Math.round(
+          halls.reduce((sum, hall) => sum + hall.occupancyRate, 0) / halls.length
+        )
       : 0;
 
     return {
@@ -383,6 +256,47 @@ export default function VenueDashboardClient() {
     );
   }, []);
 
+  const createHall = async (form: CreateHallForm) => {
+    setCreatingHall(true);
+    setServerError("");
+
+    try {
+      const response = await fetch("/api/venues/dashboard/halls", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          name: form.name,
+          subtitle: form.subtitle,
+          capacity: toSafeNumber(form.capacity, 0),
+          image: form.image,
+          status: "active",
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.message || "יצירת אולם נכשלה");
+      }
+
+      if (data.hall) {
+        setHalls((prev) => [...prev, data.hall]);
+      }
+
+      setCreateHallOpen(false);
+    } catch (error) {
+      console.error("POST /api/venues/dashboard/halls failed:", error);
+      setServerError(
+        error instanceof Error ? error.message : "יצירת אולם נכשלה"
+      );
+    } finally {
+      setCreatingHall(false);
+    }
+  };
+
   const saveHall = async (updatedHall: Hall) => {
     setSavingHallId(updatedHall.id);
     setServerError("");
@@ -393,6 +307,7 @@ export default function VenueDashboardClient() {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify(updatedHall),
       });
 
@@ -411,20 +326,19 @@ export default function VenueDashboardClient() {
       setEditingHall(null);
     } catch (error) {
       console.error("PUT /api/venues/dashboard/halls/[hallId] failed:", error);
-      setServerError("השמירה מול השרת נכשלה. הנתונים עודכנו זמנית במסך בלבד.");
-
-      setHalls((prev) =>
-        prev.map((hall) => (hall.id === updatedHall.id ? updatedHall : hall))
-      );
-
-      setEditingHall(null);
+      setServerError("שמירת פרטי האולם נכשלה. בדקי הרשאות או חיבור לשרת.");
     } finally {
       setSavingHallId(null);
     }
   };
 
+  const hasHalls = halls.length > 0;
+
   return (
-    <main dir="rtl" className="relative min-h-screen overflow-hidden bg-[#f6efe4] text-[#1f2933]">
+    <main
+      dir="rtl"
+      className="relative min-h-screen overflow-hidden bg-[#f6efe4] text-[#1f2933]"
+    >
       <div className="pointer-events-none fixed inset-0">
         <div className="absolute -right-32 top-0 h-[460px] w-[460px] rounded-full bg-[#e8c982]/25 blur-3xl" />
         <div className="absolute -left-40 top-40 h-[560px] w-[560px] rounded-full bg-[#b98121]/10 blur-3xl" />
@@ -452,7 +366,9 @@ export default function VenueDashboardClient() {
               <div className="text-[11px] font-black tracking-[0.35em] text-[#c99a3d]">
                 INVISTIMO
               </div>
-              <div className="mt-1 text-xl font-black text-[#2b241c]">Owner Suite</div>
+              <div className="mt-1 text-xl font-black text-[#2b241c]">
+                Owner Suite
+              </div>
             </div>
 
             <button
@@ -465,18 +381,24 @@ export default function VenueDashboardClient() {
           </div>
 
           <div className="mt-7 flex w-full items-center gap-3 rounded-3xl border border-[#eadfce] bg-[#fbfaf7] p-3 text-right">
-            <div className="h-11 w-11 overflow-hidden rounded-2xl bg-[#ead8b8]">
-              <img
-                src={halls[0]?.image || ""}
-                alt="מתחם"
-                className="h-full w-full object-cover"
-              />
+            <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl bg-[#ead8b8] text-[#b98121]">
+              {halls[0]?.image ? (
+                <img
+                  src={halls[0].image}
+                  alt="מתחם"
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <Building2 size={20} />
+              )}
             </div>
 
             <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-black text-[#2b241c]">מתחם בני הזהב</div>
+              <div className="truncate text-sm font-black text-[#2b241c]">
+                המתחם שלי
+              </div>
               <div className="truncate text-xs font-bold text-[#8a7b68]">
-                {stats.totalHalls} אולמות פעילים
+                {stats.totalHalls} אולמות מוגדרים
               </div>
             </div>
           </div>
@@ -516,10 +438,12 @@ export default function VenueDashboardClient() {
               <Sparkles size={19} />
             </div>
 
-            <div className="mt-3 text-sm font-black text-[#2b241c]">ניהול מתחם חכם</div>
+            <div className="mt-3 text-sm font-black text-[#2b241c]">
+              ניהול מתחם חכם
+            </div>
 
             <p className="mt-1 text-xs font-bold leading-5 text-[#7f705d]">
-              ריכוז אולמות, הכנסות, תפעול ויומן אירועים במקום אחד.
+              התחילי מהוספת אולם ראשון, ואז תוכלי לנהל יומן, לקוחות, תפריטים וצוות.
             </p>
           </div>
         </aside>
@@ -529,25 +453,25 @@ export default function VenueDashboardClient() {
             <div className="rounded-[34px] border border-[#eadfce] bg-white/80 p-5 shadow-xl shadow-[#b98121]/5 backdrop-blur-xl md:p-7">
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => setSidebarOpen(true)}
-                  className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#eadfce] bg-white text-[#5f5347] lg:hidden"
-                >
-                  <Menu size={20} />
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => setSidebarOpen(true)}
+                    className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#eadfce] bg-white text-[#5f5347] lg:hidden"
+                  >
+                    <Menu size={20} />
+                  </button>
 
-                <div>
-                  <div className="text-xs font-black tracking-[0.25em] text-[#b98121]">
-                    OWNER DASHBOARD
+                  <div>
+                    <div className="text-xs font-black tracking-[0.25em] text-[#b98121]">
+                      OWNER DASHBOARD
+                    </div>
+                    <h1 className="mt-1 text-3xl font-black tracking-tight text-[#2b241c] md:text-5xl">
+                      דשבורד בעלים ראשי
+                    </h1>
+                    <p className="mt-2 text-sm font-bold leading-7 text-[#8a7b68]">
+                      מרכז שליטה בכיר לכל המתחם: אולמות, הכנסות, תפוסה, אירועים, גבייה ותפעול.
+                    </p>
                   </div>
-                  <h1 className="mt-1 text-3xl font-black tracking-tight text-[#2b241c] md:text-5xl">
-                    דשבורד בעלים ראשי
-                  </h1>
-                  <p className="mt-2 text-sm font-bold leading-7 text-[#8a7b68]">
-                    מרכז שליטה בכיר לכל המתחם: אולמות, הכנסות, תפוסה, אירועים, גבייה ותפעול.
-                  </p>
-                </div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
@@ -556,14 +480,27 @@ export default function VenueDashboardClient() {
                     onClick={fetchDashboard}
                     className="inline-flex h-11 items-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-black text-[#6f6252] shadow-sm transition hover:bg-[#fbf5ea]"
                   >
-                    {loadingDashboard ? <Loader2 size={17} className="animate-spin" /> : <RefreshCw size={17} />}
+                    {loadingDashboard ? (
+                      <Loader2 size={17} className="animate-spin" />
+                    ) : (
+                      <RefreshCw size={17} />
+                    )}
                     רענון מהשרת
                   </button>
 
                   <button
                     type="button"
-                    onClick={() => router.push("/venues/dashboard/events")}
+                    onClick={() => setCreateHallOpen(true)}
                     className="inline-flex h-11 items-center gap-2 rounded-2xl bg-[#b98121] px-5 text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a]"
+                  >
+                    <Plus size={17} />
+                    הוסף אולם
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => router.push("/venues/dashboard/events")}
+                    className="inline-flex h-11 items-center gap-2 rounded-2xl border border-[#d9bd83] bg-[#fff8eb] px-5 text-sm font-black text-[#9f6f1a] shadow-sm transition hover:bg-[#f4ead9]"
                   >
                     <CalendarDays size={17} />
                     יומן כל המתחם
@@ -584,7 +521,7 @@ export default function VenueDashboardClient() {
                 value={String(stats.totalHalls)}
                 subtitle="מוגדרים במערכת"
                 icon={<Building2 size={22} />}
-                trend="פעיל"
+                trend={stats.totalHalls > 0 ? "פעיל" : "חדש"}
               />
 
               <StatCard
@@ -592,7 +529,7 @@ export default function VenueDashboardClient() {
                 value={String(stats.monthlyEvents)}
                 subtitle="בכל האולמות"
                 icon={<CalendarDays size={22} />}
-                trend="+14%"
+                trend="0%"
               />
 
               <StatCard
@@ -600,7 +537,7 @@ export default function VenueDashboardClient() {
                 value={String(stats.upcomingEvents)}
                 subtitle="מתוכננים קדימה"
                 icon={<Clock3 size={22} />}
-                trend="+8%"
+                trend="0%"
               />
 
               <StatCard
@@ -608,7 +545,7 @@ export default function VenueDashboardClient() {
                 value={formatCurrency(stats.monthlyRevenue)}
                 subtitle="מקדמות ותשלומים"
                 icon={<DollarSign size={22} />}
-                trend="+16%"
+                trend="0%"
               />
 
               <StatCard
@@ -616,7 +553,7 @@ export default function VenueDashboardClient() {
                 value={`${stats.averageOccupancy}%`}
                 subtitle="לפי אולמות פעילים"
                 icon={<PieChart size={22} />}
-                trend="+6%"
+                trend="0%"
               />
             </section>
 
@@ -624,125 +561,172 @@ export default function VenueDashboardClient() {
               <div className="rounded-[32px] border border-[#eadfce] bg-white/90 p-4 shadow-xl shadow-[#b98121]/5 backdrop-blur md:p-5">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
-                    <h2 className="text-lg font-black text-[#2b241c]">אולמות במתחם</h2>
+                    <h2 className="text-lg font-black text-[#2b241c]">
+                      אולמות במתחם
+                    </h2>
                     <p className="mt-1 text-sm font-bold text-[#8a7b68]">
-                      עריכת פרטי אולם, תמונה, קיבולת, הכנסות ואירועים.
+                      כאן יופיעו האולמות שתוסיפי למערכת.
                     </p>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setCreateHallOpen(true)}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#b98121] px-5 text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a]"
+                  >
+                    <Plus size={17} />
+                    {hasHalls ? "הוסף אולם נוסף" : "הוסף אולם ראשון"}
+                  </button>
                 </div>
 
-                <div className="mt-5 grid gap-4 lg:grid-cols-3">
-                  {halls.map((hall) => (
-                    <div
-                      key={hall.id}
-                      className="group overflow-hidden rounded-[26px] border border-[#eadfce] bg-[#fffdf8] text-right shadow-sm transition hover:-translate-y-1 hover:border-[#d5b36d] hover:shadow-xl hover:shadow-[#b98121]/10"
-                    >
-                      <div className="relative h-40 overflow-hidden">
-                        <img
-                          src={hall.image}
-                          alt={hall.name}
-                          className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                        />
-
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
-
-                        <div className="absolute right-3 top-3 flex items-center gap-2">
-                          <span
-                            className={[
-                              "rounded-full border px-3 py-1 text-xs font-black",
-                              statusClass(hall.status),
-                            ].join(" ")}
-                          >
-                            {statusLabel(hall.status)}
-                          </span>
-                        </div>
-
-                        <button
-                          type="button"
-                          aria-label="סימון אולם"
-                          className="absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-2xl bg-white/90 text-[#b98121] shadow-sm"
-                        >
-                          <Star size={17} />
-                        </button>
-
-                        <div className="absolute bottom-3 right-3 text-white">
-                          <div className="text-lg font-black">{hall.name}</div>
-                          <div className="mt-0.5 text-xs font-bold text-white/80">
-                            {hall.subtitle}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="p-4">
-                        <div className="grid grid-cols-2 gap-3">
-                          <MiniInfo label="קיבולת מקסימלית" value={`${hall.capacity} איש`} />
-                          <MiniInfo label="אירועים החודש" value={`${hall.monthlyEvents}`} />
-                          <MiniInfo label="אירועים עתידיים" value={`${hall.upcomingEvents}`} />
-                          <MiniInfo label="הכנסות החודש" value={formatCurrency(hall.monthlyRevenue)} />
-                        </div>
-
-                        <div className="mt-4">
-                          <div className="mb-2 flex items-center justify-between">
-                            <span className="text-xs font-black text-[#8a7b68]">תפוסה חודשית</span>
-                            <span className="text-sm font-black text-[#2b241c]">{hall.occupancyRate}%</span>
-                          </div>
-
-                          <div className="h-2 overflow-hidden rounded-full bg-[#eee6d9]">
-                            <div
-                              className="h-full rounded-full bg-gradient-to-l from-[#b98121] to-[#ead39d]"
-                              style={{ width: `${hall.occupancyRate}%` }}
+                {!hasHalls ? (
+                  <EmptyHallsState onCreate={() => setCreateHallOpen(true)} />
+                ) : (
+                  <div className="mt-5 grid gap-4 lg:grid-cols-3">
+                    {halls.map((hall) => (
+                      <div
+                        key={hall.id}
+                        className="group overflow-hidden rounded-[26px] border border-[#eadfce] bg-[#fffdf8] text-right shadow-sm transition hover:-translate-y-1 hover:border-[#d5b36d] hover:shadow-xl hover:shadow-[#b98121]/10"
+                      >
+                        <div className="relative h-40 overflow-hidden bg-[#f4ead9]">
+                          {hall.image ? (
+                            <img
+                              src={hall.image}
+                              alt={hall.name}
+                              className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                             />
-                          </div>
-                        </div>
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center text-[#b98121]">
+                              <Building2 size={46} />
+                            </div>
+                          )}
 
-                        <div className="mt-4 flex items-center justify-between border-t border-[#eadfce] pt-3">
-                          <div>
-                            <div className="text-xs font-bold text-[#9b8a73]">אירוע הבא</div>
-                            <div className="mt-0.5 text-sm font-black text-[#2b241c]">
-                              {hall.nextEventAt}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/5 to-transparent" />
+
+                          <div className="absolute right-3 top-3 flex items-center gap-2">
+                            <span
+                              className={[
+                                "rounded-full border px-3 py-1 text-xs font-black",
+                                statusClass(hall.status),
+                              ].join(" ")}
+                            >
+                              {statusLabel(hall.status)}
+                            </span>
+                          </div>
+
+                          <button
+                            type="button"
+                            aria-label="סימון אולם"
+                            className="absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-2xl bg-white/90 text-[#b98121] shadow-sm"
+                          >
+                            <Star size={17} />
+                          </button>
+
+                          <div className="absolute bottom-3 right-3 text-white">
+                            <div className="text-lg font-black">{hall.name}</div>
+                            <div className="mt-0.5 text-xs font-bold text-white/80">
+                              {hall.subtitle || "אולם במתחם"}
                             </div>
                           </div>
                         </div>
 
-                        <div className="mt-4 grid grid-cols-3 gap-2">
-                          <button
-                            type="button"
-                            onClick={() => goToHall(hall.id)}
-                            className="flex h-10 items-center justify-center gap-1 rounded-2xl bg-[#b98121] px-3 text-xs font-black text-white transition hover:bg-[#9f6f1a]"
-                          >
-                            ניהול
-                            <ChevronLeft size={15} />
-                          </button>
+                        <div className="p-4">
+                          <div className="grid grid-cols-2 gap-3">
+                            <MiniInfo
+                              label="קיבולת מקסימלית"
+                              value={`${hall.capacity} איש`}
+                            />
+                            <MiniInfo
+                              label="אירועים החודש"
+                              value={`${hall.monthlyEvents}`}
+                            />
+                            <MiniInfo
+                              label="אירועים עתידיים"
+                              value={`${hall.upcomingEvents}`}
+                            />
+                            <MiniInfo
+                              label="הכנסות החודש"
+                              value={formatCurrency(hall.monthlyRevenue)}
+                            />
+                          </div>
 
-                          <button
-                            type="button"
-                            onClick={() => router.push(`/venues/dashboard/halls/${hall.id}?tab=calendar`)}
-                            className="flex h-10 items-center justify-center gap-1 rounded-2xl border border-[#eadfce] bg-white px-3 text-xs font-black text-[#6f6252] transition hover:bg-[#fbf5ea]"
-                          >
-                            יומן
-                            <CalendarDays size={14} />
-                          </button>
+                          <div className="mt-4">
+                            <div className="mb-2 flex items-center justify-between">
+                              <span className="text-xs font-black text-[#8a7b68]">
+                                תפוסה חודשית
+                              </span>
+                              <span className="text-sm font-black text-[#2b241c]">
+                                {hall.occupancyRate}%
+                              </span>
+                            </div>
 
-                          <button
-                            type="button"
-                            onClick={() => setEditingHall(hall)}
-                            className="flex h-10 items-center justify-center gap-1 rounded-2xl border border-[#eadfce] bg-white px-3 text-xs font-black text-[#6f6252] transition hover:bg-[#fbf5ea]"
-                          >
-                            עריכה
-                            <Pencil size={14} />
-                          </button>
+                            <div className="h-2 overflow-hidden rounded-full bg-[#eee6d9]">
+                              <div
+                                className="h-full rounded-full bg-gradient-to-l from-[#b98121] to-[#ead39d]"
+                                style={{ width: `${hall.occupancyRate}%` }}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="mt-4 flex items-center justify-between border-t border-[#eadfce] pt-3">
+                            <div>
+                              <div className="text-xs font-bold text-[#9b8a73]">
+                                אירוע הבא
+                              </div>
+                              <div className="mt-0.5 text-sm font-black text-[#2b241c]">
+                                {hall.nextEventAt || "לא הוגדר"}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 grid grid-cols-3 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => goToHall(hall.id)}
+                              className="flex h-10 items-center justify-center gap-1 rounded-2xl bg-[#b98121] px-3 text-xs font-black text-white transition hover:bg-[#9f6f1a]"
+                            >
+                              ניהול
+                              <ChevronLeft size={15} />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                router.push(
+                                  `/venues/dashboard/halls/${hall.id}/calendar`
+                                )
+                              }
+                              className="flex h-10 items-center justify-center gap-1 rounded-2xl border border-[#eadfce] bg-white px-3 text-xs font-black text-[#6f6252] transition hover:bg-[#fbf5ea]"
+                            >
+                              יומן
+                              <CalendarDays size={14} />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setEditingHall(hall)}
+                              className="flex h-10 items-center justify-center gap-1 rounded-2xl border border-[#eadfce] bg-white px-3 text-xs font-black text-[#6f6252] transition hover:bg-[#fbf5ea]"
+                            >
+                              עריכה
+                              <Pencil size={14} />
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="rounded-[32px] border border-[#eadfce] bg-white/90 p-4 shadow-xl shadow-[#b98121]/5 backdrop-blur md:p-5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-lg font-black text-[#2b241c]">אירועים היום</h2>
-                    <p className="mt-1 text-sm font-bold text-[#8a7b68]">לפי אולמות במתחם</p>
+                    <h2 className="text-lg font-black text-[#2b241c]">
+                      אירועים היום
+                    </h2>
+                    <p className="mt-1 text-sm font-bold text-[#8a7b68]">
+                      לפי אולמות במתחם
+                    </p>
                   </div>
 
                   <span className="rounded-full bg-rose-50 px-3 py-1 text-xs font-black text-rose-600">
@@ -751,35 +735,49 @@ export default function VenueDashboardClient() {
                 </div>
 
                 <div className="mt-5 space-y-3">
-                  {todayEvents.map((event) => (
-                    <button
-                      key={event.id}
-                      type="button"
-                      onClick={() => goToHall(event.hallId)}
-                      className="flex w-full items-center gap-3 rounded-3xl border border-[#eadfce] bg-[#fffdf8] p-3 text-right transition hover:border-[#d5b36d] hover:bg-[#fff8ec]"
-                    >
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f4ead9] text-[#b98121]">
-                        <DoorOpen size={20} />
-                      </div>
+                  {todayEvents.length ? (
+                    todayEvents.map((event) => (
+                      <button
+                        key={event.id}
+                        type="button"
+                        onClick={() => goToHall(event.hallId)}
+                        className="flex w-full items-center gap-3 rounded-3xl border border-[#eadfce] bg-[#fffdf8] p-3 text-right transition hover:border-[#d5b36d] hover:bg-[#fff8ec]"
+                      >
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f4ead9] text-[#b98121]">
+                          <DoorOpen size={20} />
+                        </div>
 
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-black text-[#2b241c]">{event.hallName}</div>
-                        <div className="truncate text-xs font-bold text-[#8a7b68]">{event.eventName}</div>
-                      </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-sm font-black text-[#2b241c]">
+                            {event.hallName}
+                          </div>
+                          <div className="truncate text-xs font-bold text-[#8a7b68]">
+                            {event.eventName}
+                          </div>
+                        </div>
 
-                      <div className="text-left">
-                        <div className="text-sm font-black text-[#2b241c]">{event.time}</div>
-                        <span
-                          className={[
-                            "mt-1 inline-flex rounded-full px-2.5 py-1 text-[11px] font-black",
-                            todayEventStatusClass(event.status),
-                          ].join(" ")}
-                        >
-                          {todayEventStatusLabel(event.status)}
-                        </span>
-                      </div>
-                    </button>
-                  ))}
+                        <div className="text-left">
+                          <div className="text-sm font-black text-[#2b241c]">
+                            {event.time}
+                          </div>
+                          <span
+                            className={[
+                              "mt-1 inline-flex rounded-full px-2.5 py-1 text-[11px] font-black",
+                              todayEventStatusClass(event.status),
+                            ].join(" ")}
+                          >
+                            {todayEventStatusLabel(event.status)}
+                          </span>
+                        </div>
+                      </button>
+                    ))
+                  ) : (
+                    <EmptySmall
+                      icon={<CalendarDays size={22} />}
+                      title="אין אירועים היום"
+                      description="אחרי שתוסיפי אירועים ליומן, הם יופיעו כאן."
+                    />
+                  )}
                 </div>
 
                 <button
@@ -797,7 +795,9 @@ export default function VenueDashboardClient() {
               <div className="rounded-[32px] border border-[#eadfce] bg-white/90 p-4 shadow-xl shadow-[#b98121]/5 backdrop-blur md:p-5">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
-                    <h2 className="text-lg font-black text-[#2b241c]">הכנסות המתחם</h2>
+                    <h2 className="text-lg font-black text-[#2b241c]">
+                      הכנסות המתחם
+                    </h2>
                     <p className="mt-1 text-sm font-bold text-[#8a7b68]">
                       סקירת הכנסות לפי חודשים מכל האולמות
                     </p>
@@ -805,7 +805,7 @@ export default function VenueDashboardClient() {
 
                   <div className="flex items-center gap-2 rounded-2xl bg-emerald-50 px-3 py-2 text-sm font-black text-emerald-700">
                     <TrendingUp size={17} />
-                    עלייה של 16%
+                    נתונים יתעדכנו לאחר אירועים
                   </div>
                 </div>
 
@@ -817,7 +817,7 @@ export default function VenueDashboardClient() {
 
                     {financeData.map((item) => {
                       const height = Math.max(
-                        18,
+                        item.revenue > 0 ? 18 : 6,
                         Math.round((item.revenue / maxRevenue) * 100)
                       );
 
@@ -834,7 +834,9 @@ export default function VenueDashboardClient() {
                             />
                           </div>
 
-                          <div className="text-xs font-black text-[#8a7b68]">{item.label}</div>
+                          <div className="text-xs font-black text-[#8a7b68]">
+                            {item.label}
+                          </div>
                         </div>
                       );
                     })}
@@ -847,10 +849,14 @@ export default function VenueDashboardClient() {
                     value={formatCurrency(stats.monthlyRevenue)}
                     icon={<DollarSign size={18} />}
                   />
-                  <SummaryBox label="אירועים שולמו" value="31" icon={<CreditCard size={18} />} />
                   <SummaryBox
-                    label="יתרה לגבייה"
-                    value={formatCurrency(186000)}
+                    label="אירועים החודש"
+                    value={String(stats.monthlyEvents)}
+                    icon={<CreditCard size={18} />}
+                  />
+                  <SummaryBox
+                    label="אירועים עתידיים"
+                    value={String(stats.upcomingEvents)}
                     icon={<FileText size={18} />}
                   />
                 </div>
@@ -859,58 +865,72 @@ export default function VenueDashboardClient() {
               <div className="rounded-[32px] border border-[#eadfce] bg-white/90 p-4 shadow-xl shadow-[#b98121]/5 backdrop-blur md:p-5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-lg font-black text-[#2b241c]">משימות תפעול</h2>
-                    <p className="mt-1 text-sm font-bold text-[#8a7b68]">ניהול יומי של המתחם</p>
+                    <h2 className="text-lg font-black text-[#2b241c]">
+                      משימות תפעול
+                    </h2>
+                    <p className="mt-1 text-sm font-bold text-[#8a7b68]">
+                      ניהול יומי של המתחם
+                    </p>
                   </div>
                 </div>
 
                 <div className="mt-5 space-y-3">
-                  {tasks.map((task) => (
-                    <label
-                      key={task.id}
-                      className="flex cursor-pointer items-start gap-3 rounded-3xl border border-[#eadfce] bg-[#fffdf8] p-3 transition hover:bg-[#fff8ec]"
-                    >
-                      <input
-                        type="checkbox"
-                        defaultChecked={task.done}
-                        className="mt-1 h-4 w-4 rounded border-[#d8c7aa] text-[#b98121]"
-                      />
+                  {tasks.length ? (
+                    tasks.map((task) => (
+                      <label
+                        key={task.id}
+                        className="flex cursor-pointer items-start gap-3 rounded-3xl border border-[#eadfce] bg-[#fffdf8] p-3 transition hover:bg-[#fff8ec]"
+                      >
+                        <input
+                          type="checkbox"
+                          defaultChecked={task.done}
+                          className="mt-1 h-4 w-4 rounded border-[#d8c7aa] text-[#b98121]"
+                        />
 
-                      <div className="min-w-0 flex-1">
-                        <div
+                        <div className="min-w-0 flex-1">
+                          <div
+                            className={[
+                              "text-sm font-black",
+                              task.done
+                                ? "text-[#9b8a73] line-through"
+                                : "text-[#2b241c]",
+                            ].join(" ")}
+                          >
+                            {task.title}
+                          </div>
+
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-bold text-[#8a7b68]">
+                            <span>{task.area}</span>
+                            <span>•</span>
+                            <span>{task.due}</span>
+                          </div>
+                        </div>
+
+                        <span
                           className={[
-                            "text-sm font-black",
-                            task.done ? "text-[#9b8a73] line-through" : "text-[#2b241c]",
+                            "rounded-full px-2.5 py-1 text-[11px] font-black",
+                            task.priority === "high"
+                              ? "bg-rose-50 text-rose-600"
+                              : task.priority === "medium"
+                                ? "bg-amber-50 text-amber-700"
+                                : "bg-slate-100 text-slate-600",
                           ].join(" ")}
                         >
-                          {task.title}
-                        </div>
-
-                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-bold text-[#8a7b68]">
-                          <span>{task.area}</span>
-                          <span>•</span>
-                          <span>{task.due}</span>
-                        </div>
-                      </div>
-
-                      <span
-                        className={[
-                          "rounded-full px-2.5 py-1 text-[11px] font-black",
-                          task.priority === "high"
-                            ? "bg-rose-50 text-rose-600"
+                          {task.priority === "high"
+                            ? "דחוף"
                             : task.priority === "medium"
-                              ? "bg-amber-50 text-amber-700"
-                              : "bg-slate-100 text-slate-600",
-                        ].join(" ")}
-                      >
-                        {task.priority === "high"
-                          ? "דחוף"
-                          : task.priority === "medium"
-                            ? "בינוני"
-                            : "נמוך"}
-                      </span>
-                    </label>
-                  ))}
+                              ? "בינוני"
+                              : "נמוך"}
+                        </span>
+                      </label>
+                    ))
+                  ) : (
+                    <EmptySmall
+                      icon={<ShieldCheck size={22} />}
+                      title="אין משימות פתוחות"
+                      description="בהמשך נוסיף יצירת משימות לצוות ולתפעול."
+                    />
+                  )}
                 </div>
               </div>
             </section>
@@ -919,55 +939,71 @@ export default function VenueDashboardClient() {
               <div className="rounded-[32px] border border-[#eadfce] bg-white/90 p-4 shadow-xl shadow-[#b98121]/5 backdrop-blur md:p-5">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
-                    <h2 className="text-lg font-black text-[#2b241c]">יומן אולמות שבועי</h2>
+                    <h2 className="text-lg font-black text-[#2b241c]">
+                      יומן אולמות שבועי
+                    </h2>
                     <p className="mt-1 text-sm font-bold text-[#8a7b68]">
                       מבט מהיר על תפוסת האולמות השבוע
                     </p>
                   </div>
                 </div>
 
-                <div className="mt-5 overflow-x-auto">
-                  <div className="min-w-[780px] rounded-[24px] border border-[#eadfce] bg-[#fbfaf7] p-3">
-                    <div className="grid grid-cols-7 gap-2">
-                      {["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"].map((day, index) => (
-                        <div key={day} className="rounded-2xl bg-white p-3 text-center">
-                          <div className="text-xs font-black text-[#9b8a73]">{day}</div>
-                          <div className="mt-1 text-sm font-black text-[#2b241c]">{18 + index}/05</div>
+                <div className="mt-5">
+                  {hasHalls ? (
+                    <div className="overflow-x-auto">
+                      <div className="min-w-[780px] rounded-[24px] border border-[#eadfce] bg-[#fbfaf7] p-3">
+                        <div className="grid grid-cols-7 gap-2">
+                          {["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"].map(
+                            (day, index) => (
+                              <div
+                                key={day}
+                                className="rounded-2xl bg-white p-3 text-center"
+                              >
+                                <div className="text-xs font-black text-[#9b8a73]">
+                                  {day}
+                                </div>
+                                <div className="mt-1 text-sm font-black text-[#2b241c]">
+                                  {18 + index}/05
+                                </div>
+                              </div>
+                            )
+                          )}
                         </div>
-                      ))}
-                    </div>
 
-                    <div className="mt-3 grid grid-cols-7 gap-2">
-                      {[
-                        { title: "אולם הזהב", subtitle: "19:30", tone: "bg-violet-100 text-violet-700" },
-                        { title: "גן אירועים", subtitle: "20:00", tone: "bg-amber-100 text-amber-700" },
-                        { title: "SKY Hall", subtitle: "20:30", tone: "bg-emerald-100 text-emerald-700" },
-                        { title: "פנוי", subtitle: "אין אירוע", tone: "bg-white text-[#9b8a73]" },
-                        { title: "אולם הזהב", subtitle: "20:00", tone: "bg-rose-100 text-rose-700" },
-                        { title: "גן אירועים", subtitle: "12:30", tone: "bg-violet-100 text-violet-700" },
-                        { title: "SKY Hall", subtitle: "תחזוקה", tone: "bg-slate-100 text-slate-600" },
-                      ].map((item, index) => (
-                        <div
-                          key={`${item.title}-${index}`}
-                          className={[
-                            "min-h-[118px] rounded-2xl p-3 text-center text-sm font-black",
-                            item.tone,
-                          ].join(" ")}
-                        >
-                          <div>{item.title}</div>
-                          <div className="mt-2 text-xs font-bold opacity-75">{item.subtitle}</div>
+                        <div className="mt-3 grid grid-cols-7 gap-2">
+                          {Array.from({ length: 7 }).map((_, index) => (
+                            <div
+                              key={index}
+                              className="min-h-[118px] rounded-2xl bg-white p-3 text-center text-sm font-black text-[#9b8a73]"
+                            >
+                              <div>פנוי</div>
+                              <div className="mt-2 text-xs font-bold opacity-75">
+                                אין אירוע
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <EmptySmall
+                      icon={<CalendarDays size={22} />}
+                      title="היומן ריק"
+                      description="אחרי שתוסיפי אולם ואירועים, היומן השבועי יתמלא."
+                    />
+                  )}
                 </div>
               </div>
 
               <div className="rounded-[32px] border border-[#eadfce] bg-white/90 p-4 shadow-xl shadow-[#b98121]/5 backdrop-blur md:p-5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-lg font-black text-[#2b241c]">התראות חכמות</h2>
-                    <p className="mt-1 text-sm font-bold text-[#8a7b68]">דברים שדורשים תשומת לב</p>
+                    <h2 className="text-lg font-black text-[#2b241c]">
+                      התראות חכמות
+                    </h2>
+                    <p className="mt-1 text-sm font-bold text-[#8a7b68]">
+                      דברים שדורשים תשומת לב
+                    </p>
                   </div>
 
                   <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#fff5df] text-[#b98121]">
@@ -976,31 +1012,47 @@ export default function VenueDashboardClient() {
                 </div>
 
                 <div className="mt-5 space-y-3">
-                  {alerts.map((alert) => (
-                    <AlertRow
-                      key={alert.id}
-                      icon={
-                        alert.type === "maintenance" ? (
-                          <Wrench size={18} />
-                        ) : alert.type === "payments" ? (
-                          <CreditCard size={18} />
-                        ) : alert.type === "staff" ? (
-                          <UsersRound size={18} />
-                        ) : (
-                          <Utensils size={18} />
-                        )
-                      }
-                      title={alert.title}
-                      description={alert.description}
-                      tone={alert.tone}
+                  {alerts.length ? (
+                    alerts.map((alert) => (
+                      <AlertRow
+                        key={alert.id}
+                        icon={
+                          alert.type === "maintenance" ? (
+                            <Wrench size={18} />
+                          ) : alert.type === "payments" ? (
+                            <CreditCard size={18} />
+                          ) : alert.type === "staff" ? (
+                            <UsersRound size={18} />
+                          ) : (
+                            <Utensils size={18} />
+                          )
+                        }
+                        title={alert.title}
+                        description={alert.description}
+                        tone={alert.tone}
+                      />
+                    ))
+                  ) : (
+                    <EmptySmall
+                      icon={<Bell size={22} />}
+                      title="אין התראות כרגע"
+                      description="התראות תחזוקה, תשלומים וצוות יופיעו כאן בהמשך."
                     />
-                  ))}
+                  )}
                 </div>
               </div>
             </section>
           </div>
         </section>
       </div>
+
+      {createHallOpen && (
+        <CreateHallModal
+          saving={creatingHall}
+          onClose={() => setCreateHallOpen(false)}
+          onCreate={createHall}
+        />
+      )}
 
       {editingHall && (
         <EditHallModal
@@ -1012,6 +1064,138 @@ export default function VenueDashboardClient() {
         />
       )}
     </main>
+  );
+}
+
+/* ======================================================
+   CREATE HALL MODAL
+====================================================== */
+
+function CreateHallModal({
+  saving,
+  onClose,
+  onCreate,
+}: {
+  saving: boolean;
+  onClose: () => void;
+  onCreate: (form: CreateHallForm) => void;
+}) {
+  const [form, setForm] = useState<CreateHallForm>({
+    name: "",
+    subtitle: "",
+    capacity: "",
+    image: defaultHallImage(),
+  });
+
+  const updateField = <K extends keyof CreateHallForm>(
+    key: K,
+    value: CreateHallForm[K]
+  ) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!form.name.trim()) {
+      alert("חובה להזין שם אולם");
+      return;
+    }
+
+    onCreate(form);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/45 p-4">
+      <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-[32px] border border-[#eadfce] bg-white shadow-2xl">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#eadfce] bg-white/95 p-5 backdrop-blur">
+          <div>
+            <h2 className="text-xl font-black text-[#2b241c]">
+              הוספת אולם חדש
+            </h2>
+            <p className="mt-1 text-sm font-bold text-[#8a7b68]">
+              הזיני את פרטי האולם. אחרי השמירה הוא יופיע בדשבורד ויישמר במונגו.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#eadfce] text-[#6f6252] transition hover:bg-[#fbf5ea]"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-5">
+          <div className="grid gap-5 lg:grid-cols-[260px_1fr]">
+            <div className="rounded-[26px] border border-[#eadfce] bg-[#fffdf8] p-4">
+              <div className="flex h-48 items-center justify-center overflow-hidden rounded-[22px] bg-[#f4ead9] text-[#b98121]">
+                {form.image ? (
+                  <img
+                    src={form.image}
+                    alt="תמונת אולם"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <Building2 size={46} />
+                )}
+              </div>
+
+              <p className="mt-3 text-xs font-bold leading-5 text-[#8a7b68]">
+                כרגע ניתן להזין קישור לתמונה. בהמשך נחבר העלאה אמיתית ל־Cloudinary.
+              </p>
+            </div>
+
+            <div className="grid gap-4">
+              <FormInput
+                label="שם אולם"
+                value={form.name}
+                onChange={(value) => updateField("name", value)}
+              />
+
+              <FormInput
+                label="תיאור קצר"
+                value={form.subtitle}
+                onChange={(value) => updateField("subtitle", value)}
+              />
+
+              <FormInput
+                label="קיבולת מקסימלית"
+                type="number"
+                value={form.capacity}
+                onChange={(value) => updateField("capacity", value)}
+              />
+
+              <FormInput
+                label="קישור לתמונה"
+                value={form.image}
+                onChange={(value) => updateField("image", value)}
+              />
+            </div>
+          </div>
+
+          <div className="mt-6 flex flex-col-reverse gap-3 border-t border-[#eadfce] pt-5 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              className="h-12 rounded-2xl border border-[#eadfce] bg-white px-6 text-sm font-black text-[#6f6252] transition hover:bg-[#fbf5ea]"
+            >
+              ביטול
+            </button>
+
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#b98121] px-6 text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {saving ? <Loader2 size={17} className="animate-spin" /> : <Save size={17} />}
+              יצירת אולם
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }
 
@@ -1061,7 +1245,9 @@ function EditHallModal({
       <div className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-[32px] border border-[#eadfce] bg-white shadow-2xl">
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#eadfce] bg-white/95 p-5 backdrop-blur">
           <div>
-            <h2 className="text-xl font-black text-[#2b241c]">עריכת פרטי אולם</h2>
+            <h2 className="text-xl font-black text-[#2b241c]">
+              עריכת פרטי אולם
+            </h2>
             <p className="mt-1 text-sm font-bold text-[#8a7b68]">
               עדכון הנתונים שמופיעים בכרטיס האולם בדשבורד. כל שינוי נשמר אוטומטית.
             </p>
@@ -1090,17 +1276,33 @@ function EditHallModal({
           <div className="grid gap-5 lg:grid-cols-[300px_1fr]">
             <div className="rounded-[26px] border border-[#eadfce] bg-[#fffdf8] p-4">
               <div className="relative h-52 overflow-hidden rounded-[22px] bg-[#f4ead9]">
-                <img src={form.image} alt={form.name} className="h-full w-full object-cover" />
+                {form.image ? (
+                  <img
+                    src={form.image}
+                    alt={form.name}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-[#b98121]">
+                    <Building2 size={46} />
+                  </div>
+                )}
               </div>
 
               <label className="mt-4 flex h-11 cursor-pointer items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-white text-sm font-black text-[#6f6252] transition hover:bg-[#fbf5ea]">
                 <ImagePlus size={17} />
-                החלפת תמונה
-                <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
+                החלפת תמונה זמנית
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageChange}
+                />
               </label>
 
               <p className="mt-3 text-xs font-bold leading-5 text-[#8a7b68]">
-התמונה מתעדכנת מיידית במסך ונשלחת לשמירה אוטומטית. בהמשך אפשר לחבר העלאה אמיתית ל־Cloudinary.
+                העלאת קובץ כאן היא תצוגה זמנית בלבד. כדי שתמונה תישמר אחרי רענון,
+                הזיני קישור תמונה או נחבר בהמשך Cloudinary.
               </p>
             </div>
 
@@ -1121,28 +1323,45 @@ function EditHallModal({
                 label="קיבולת מקסימלית"
                 type="number"
                 value={String(form.capacity)}
-                onChange={(value) => updateField("capacity", toSafeNumber(value, form.capacity))}
+                onChange={(value) =>
+                  updateField("capacity", toSafeNumber(value, form.capacity))
+                }
               />
 
               <FormInput
                 label="אירועים החודש"
                 type="number"
                 value={String(form.monthlyEvents)}
-                onChange={(value) => updateField("monthlyEvents", toSafeNumber(value, form.monthlyEvents))}
+                onChange={(value) =>
+                  updateField(
+                    "monthlyEvents",
+                    toSafeNumber(value, form.monthlyEvents)
+                  )
+                }
               />
 
               <FormInput
                 label="הכנסות החודש"
                 type="number"
                 value={String(form.monthlyRevenue)}
-                onChange={(value) => updateField("monthlyRevenue", toSafeNumber(value, form.monthlyRevenue))}
+                onChange={(value) =>
+                  updateField(
+                    "monthlyRevenue",
+                    toSafeNumber(value, form.monthlyRevenue)
+                  )
+                }
               />
 
               <FormInput
                 label="אירועים עתידיים"
                 type="number"
                 value={String(form.upcomingEvents)}
-                onChange={(value) => updateField("upcomingEvents", toSafeNumber(value, form.upcomingEvents))}
+                onChange={(value) =>
+                  updateField(
+                    "upcomingEvents",
+                    toSafeNumber(value, form.upcomingEvents)
+                  )
+                }
               />
 
               <FormInput
@@ -1150,7 +1369,10 @@ function EditHallModal({
                 type="number"
                 value={String(form.occupancyRate)}
                 onChange={(value) => {
-                  const nextValue = Math.min(100, Math.max(0, toSafeNumber(value, form.occupancyRate)));
+                  const nextValue = Math.min(
+                    100,
+                    Math.max(0, toSafeNumber(value, form.occupancyRate))
+                  );
                   updateField("occupancyRate", nextValue);
                 }}
               />
@@ -1161,11 +1383,21 @@ function EditHallModal({
                 onChange={(value) => updateField("nextEventAt", value)}
               />
 
-              <label className="sm:col-span-2">
-                <span className="mb-2 block text-sm font-black text-[#6f6252]">סטטוס אולם</span>
+              <FormInput
+                label="קישור לתמונה"
+                value={form.image}
+                onChange={(value) => updateField("image", value)}
+              />
+
+              <label>
+                <span className="mb-2 block text-sm font-black text-[#6f6252]">
+                  סטטוס אולם
+                </span>
                 <select
                   value={form.status}
-                  onChange={(event) => updateField("status", event.target.value as HallStatus)}
+                  onChange={(event) =>
+                    updateField("status", event.target.value as HallStatus)
+                  }
                   className="h-12 w-full rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-bold text-[#2b241c] outline-none transition focus:border-[#b98121]"
                 >
                   <option value="active">פעיל</option>
@@ -1203,6 +1435,56 @@ function EditHallModal({
 /* ======================================================
    SMALL COMPONENTS
 ====================================================== */
+
+function EmptyHallsState({ onCreate }: { onCreate: () => void }) {
+  return (
+    <div className="mt-5 rounded-[30px] border border-dashed border-[#d8bd83] bg-gradient-to-br from-[#fffdf8] to-[#fbf2df] p-8 text-center">
+      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[24px] bg-white text-[#b98121] shadow-sm">
+        <Building2 size={30} />
+      </div>
+
+      <h3 className="mt-4 text-2xl font-black text-[#2b241c]">
+        עדיין לא הוספת אולמות
+      </h3>
+
+      <p className="mx-auto mt-2 max-w-xl text-sm font-bold leading-7 text-[#7f705d]">
+        התחילי מהוספת אולם ראשון. לאחר מכן תוכלי לנהל עבורו יומן, לקוחות,
+        תפריטים, צוות, משמרות, תשלומים ותחזוקה.
+      </p>
+
+      <button
+        type="button"
+        onClick={onCreate}
+        className="mt-5 inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#b98121] px-6 text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a]"
+      >
+        <Plus size={17} />
+        הוסף אולם ראשון
+      </button>
+    </div>
+  );
+}
+
+function EmptySmall({
+  icon,
+  title,
+  description,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="rounded-3xl border border-dashed border-[#d8bd83] bg-[#fffdf8] p-5 text-center">
+      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f4ead9] text-[#b98121]">
+        {icon}
+      </div>
+      <div className="mt-3 text-sm font-black text-[#2b241c]">{title}</div>
+      <p className="mx-auto mt-1 max-w-xs text-xs font-bold leading-5 text-[#8a7b68]">
+        {description}
+      </p>
+    </div>
+  );
+}
 
 function StatCard({
   title,
@@ -1320,7 +1602,9 @@ function FormInput({
 }) {
   return (
     <label>
-      <span className="mb-2 block text-sm font-black text-[#6f6252]">{label}</span>
+      <span className="mb-2 block text-sm font-black text-[#6f6252]">
+        {label}
+      </span>
       <input
         type={type}
         value={value}
