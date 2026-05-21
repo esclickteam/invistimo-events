@@ -247,8 +247,8 @@ export default function VenueDashboardClient() {
   const maxRevenue = Math.max(...financeData.map((item) => item.revenue), 1);
 
   const goToHall = (hallId: string) => {
-    router.push(`/venues/dashboard/halls/${hallId}`);
-  };
+  router.push(`/venues/dashboard/halls/${encodeURIComponent(hallId)}`);
+};
 
   const handleAutoSavedHall = useCallback((savedHall: Hall) => {
     setHalls((prev) =>
@@ -302,7 +302,9 @@ export default function VenueDashboardClient() {
     setServerError("");
 
     try {
-      const response = await fetch(`/api/venues/dashboard/halls/${updatedHall.id}`, {
+      const response = await fetch(
+  `/api/venues/dashboard/halls/${encodeURIComponent(updatedHall.id)}`,
+  {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -693,8 +695,8 @@ export default function VenueDashboardClient() {
                               type="button"
                               onClick={() =>
                                 router.push(
-                                  `/venues/dashboard/halls/${hall.id}/calendar`
-                                )
+  `/venues/dashboard/halls/${encodeURIComponent(hall.id)}/calendar`
+)
                               }
                               className="flex h-10 items-center justify-center gap-1 rounded-2xl border border-[#eadfce] bg-white px-3 text-xs font-black text-[#6f6252] transition hover:bg-[#fbf5ea]"
                             >

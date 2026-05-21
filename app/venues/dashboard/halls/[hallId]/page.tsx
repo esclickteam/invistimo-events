@@ -1,4 +1,5 @@
 import Link from "next/link";
+import mongoose from "mongoose";
 import { notFound, redirect } from "next/navigation";
 import {
   ArrowRight,
@@ -15,8 +16,6 @@ import {
   MapPin,
   Phone,
   Plus,
-  Sparkles,
-  Star,
   UsersRound,
   Utensils,
   WalletCards,
@@ -94,6 +93,10 @@ function formatDate(value: string) {
   return `${day}.${month}.${year}`;
 }
 
+function encodeHallPath(hallId: string) {
+  return encodeURIComponent(hallId);
+}
+
 function getCurrentMonthRange() {
   const now = new Date();
 
@@ -120,18 +123,6 @@ function statusLabel(status: HallStatus) {
   return "סגור";
 }
 
-function statusClass(status: HallStatus) {
-  if (status === "active") {
-    return "bg-emerald-50 text-emerald-700";
-  }
-
-  if (status === "maintenance") {
-    return "bg-amber-50 text-amber-700";
-  }
-
-  return "bg-rose-50 text-rose-700";
-}
-
 function eventStatusLabel(status: EventStatus) {
   if (status === "lead") return "ליד";
   if (status === "proposal") return "בהצעה";
@@ -145,7 +136,7 @@ function eventStatusLabel(status: EventStatus) {
 
 function serializeHall(hall: any): SerializedHall {
   return {
-    id: String(hall.id || ""),
+    id: String(hall.id || hall._id || ""),
     name: String(hall.name || "אולם ללא שם"),
     subtitle: String(hall.subtitle || ""),
     capacity: Number(hall.capacity || 0),
@@ -185,22 +176,41 @@ export default async function VenueHallPage({ params }: Props) {
   }
 
   const { hallId } = await params;
+  const decodedHallId = decodeURIComponent(hallId);
+
+  const hallOrConditions: any[] = [
+    { id: hallId },
+    { id: decodedHallId },
+  ];
+
+  if (mongoose.Types.ObjectId.isValid(hallId)) {
+    hallOrConditions.push({ _id: hallId });
+  }
 
   const rawHall = await VenueHall.findOne({
     ownerId: auth.userId,
-    id: hallId,
+    $or: hallOrConditions,
   }).lean();
 
   if (!rawHall) {
+    console.log("❌ Hall not found:", {
+      ownerId: auth.userId,
+      hallId,
+      decodedHallId,
+    });
+
     notFound();
   }
+
+  const hall = serializeHall(rawHall);
+  const safeHallId = hall.id || decodedHallId;
 
   const { from, to, today } = getCurrentMonthRange();
 
   const [monthEventsRaw, upcomingEventsRaw, nextEventRaw] = await Promise.all([
     VenueEvent.find({
       ownerId: auth.userId,
-      hallId,
+      hallId: safeHallId,
       date: {
         $gte: from,
         $lte: to,
@@ -211,7 +221,7 @@ export default async function VenueHallPage({ params }: Props) {
 
     VenueEvent.find({
       ownerId: auth.userId,
-      hallId,
+      hallId: safeHallId,
       date: {
         $gte: today,
       },
@@ -222,7 +232,7 @@ export default async function VenueHallPage({ params }: Props) {
 
     VenueEvent.findOne({
       ownerId: auth.userId,
-      hallId,
+      hallId: safeHallId,
       date: {
         $gte: today,
       },
@@ -231,7 +241,6 @@ export default async function VenueHallPage({ params }: Props) {
       .lean(),
   ]);
 
-  const hall = serializeHall(rawHall);
   const monthEvents = monthEventsRaw.map(serializeEvent);
   const upcomingEvents = upcomingEventsRaw.map(serializeEvent);
   const nextEvent = nextEventRaw ? serializeEvent(nextEventRaw) : null;
@@ -252,13 +261,19 @@ export default async function VenueHallPage({ params }: Props) {
 
   const occupancyRate =
     hall.capacity > 0 && monthEvents.length > 0
-      ? Math.min(100, Math.round((monthlyGuests / (hall.capacity * monthEvents.length)) * 100))
+      ? Math.min(
+          100,
+          Math.round((monthlyGuests / (hall.capacity * monthEvents.length)) * 100)
+        )
       : 0;
 
-  const hallCalendarHref = `/venues/dashboard/halls/${hallId}/calendar`;
-  const hallCrmHref = `/venues/dashboard/halls/${hallId}/crm`;
-  const hallMenusHref = `/venues/dashboard/halls/${hallId}/menus`;
-  const hallStaffHref = `/venues/dashboard/halls/${hallId}/staff`;
+  const encodedHallId = encodeHallPath(safeHallId);
+
+  const hallPageHref = `/venues/dashboard/halls/${encodedHallId}`;
+  const hallCalendarHref = `/venues/dashboard/halls/${encodedHallId}/calendar`;
+  const hallCrmHref = `/venues/dashboard/halls/${encodedHallId}/crm`;
+  const hallMenusHref = `/venues/dashboard/halls/${encodedHallId}/menus`;
+  const hallStaffHref = `/venues/dashboard/halls/${encodedHallId}/staff`;
 
   return (
     <main dir="rtl" className="min-h-screen bg-[#f8f6f2] text-[#2b241c]">
@@ -337,7 +352,8 @@ export default async function VenueHallPage({ params }: Props) {
                   </h1>
 
                   <p className="mt-2 text-base font-bold text-[#7f705d]">
-                    {hall.subtitle || "ניהול יומן, לקוחות, תפריטים, צוות, משמרות ותחזוקה"}
+                    {hall.subtitle ||
+                      "ניהול יומן, לקוחות, תפריטים, צוות, משמרות ותחזוקה"}
                   </p>
 
                   <div className="mt-5 flex flex-wrap items-center gap-2">
@@ -403,7 +419,11 @@ export default async function VenueHallPage({ params }: Props) {
               icon={<Clock3 size={22} />}
               label="האירוע הבא"
               value={nextEvent ? `${formatDate(nextEvent.date)}` : "אין"}
-              subValue={nextEvent ? `${nextEvent.title} · ${nextEvent.startTime}` : "לא הוגדר אירוע"}
+              subValue={
+                nextEvent
+                  ? `${nextEvent.title} · ${nextEvent.startTime}`
+                  : "לא הוגדר אירוע"
+              }
             />
 
             <HallKpi
@@ -429,15 +449,21 @@ export default async function VenueHallPage({ params }: Props) {
                 "הגדרות",
               ].map((tab, index) => {
                 if (tab === "יומן אולם") {
-                  return <TopNavLink key={tab} href={hallCalendarHref} label={tab} />;
+                  return (
+                    <TopNavLink key={tab} href={hallCalendarHref} label={tab} />
+                  );
                 }
 
                 if (tab === "תפריטים") {
-                  return <TopNavLink key={tab} href={hallMenusHref} label={tab} />;
+                  return (
+                    <TopNavLink key={tab} href={hallMenusHref} label={tab} />
+                  );
                 }
 
                 if (tab === "צוות ומשמרות") {
-                  return <TopNavLink key={tab} href={hallStaffHref} label={tab} />;
+                  return (
+                    <TopNavLink key={tab} href={hallStaffHref} label={tab} />
+                  );
                 }
 
                 return (
@@ -470,7 +496,10 @@ export default async function VenueHallPage({ params }: Props) {
               <div className="space-y-3 text-sm">
                 <InfoLine label="שם האולם" value={hall.name} />
                 <InfoLine label="תיאור" value={hall.subtitle || "לא הוגדר"} />
-                <InfoLine label="קיבולת ישיבה" value={`${hall.capacity} אורחים`} />
+                <InfoLine
+                  label="קיבולת ישיבה"
+                  value={`${hall.capacity} אורחים`}
+                />
                 <InfoLine label="סטטוס" value={statusLabel(hall.status)} />
                 <InfoLine label="מזהה אולם" value={hall.id} />
               </div>
@@ -496,10 +525,30 @@ export default async function VenueHallPage({ params }: Props) {
               />
 
               <div className="mt-5 space-y-2">
-                <SideLink href={hallCalendarHref} icon={<CalendarDays size={17} />} label="יומן אולם" primary />
-                <SideLink href={hallCrmHref} icon={<UsersRound size={17} />} label="ניהול לקוחות CRM" />
-                <SideLink href={hallMenusHref} icon={<Utensils size={17} />} label="ניהול תפריטים" />
-                <SideLink href={hallStaffHref} icon={<UsersRound size={17} />} label="צוות ומשמרות" />
+                <SideLink
+                  href={hallCalendarHref}
+                  icon={<CalendarDays size={17} />}
+                  label="יומן אולם"
+                  primary
+                />
+
+                <SideLink
+                  href={hallCrmHref}
+                  icon={<UsersRound size={17} />}
+                  label="ניהול לקוחות CRM"
+                />
+
+                <SideLink
+                  href={hallMenusHref}
+                  icon={<Utensils size={17} />}
+                  label="ניהול תפריטים"
+                />
+
+                <SideLink
+                  href={hallStaffHref}
+                  icon={<UsersRound size={17} />}
+                  label="צוות ומשמרות"
+                />
 
                 <Link
                   href={hallCalendarHref}
@@ -616,20 +665,20 @@ export default async function VenueHallPage({ params }: Props) {
                     value={formatCurrency(monthlyRevenue)}
                     tone="green"
                   />
+
                   <FinanceBox
                     label="שולם עד כה"
                     value={formatCurrency(
-                      monthEvents.reduce((sum, event) => sum + event.paidAmount, 0)
+                      monthEvents.reduce(
+                        (sum, event) => sum + event.paidAmount,
+                        0
+                      )
                     )}
                   />
-                  <FinanceBox
-                    label="אירועים סגורים"
-                    value={`${closedEvents}`}
-                  />
-                  <FinanceBox
-                    label="תפוסה"
-                    value={`${occupancyRate}%`}
-                  />
+
+                  <FinanceBox label="אירועים סגורים" value={`${closedEvents}`} />
+
+                  <FinanceBox label="תפוסה" value={`${occupancyRate}%`} />
                 </div>
               </DashboardCard>
 
