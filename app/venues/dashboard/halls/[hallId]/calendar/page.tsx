@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
@@ -14,147 +14,95 @@ import {
   Filter,
   Grid3X3,
   ListChecks,
+  Loader2,
   Plus,
+  Save,
   Search,
   Settings2,
   Sparkles,
   UsersRound,
   WalletCards,
+  X,
 } from "lucide-react";
 
-export const dynamic = "force-dynamic";
+/* ======================================================
+   TYPES
+====================================================== */
 
 type CalendarView = "day" | "week" | "month";
-type EventStatus = "closed" | "in_production" | "proposal" | "cancelled" | "blocked";
-type CalendarItemType = "event" | "meeting" | "maintenance" | "blocked";
 
-type HallCalendarItem = {
+type VenueEventStatus =
+  | "lead"
+  | "proposal"
+  | "closed"
+  | "confirmed"
+  | "preparing"
+  | "live"
+  | "done"
+  | "cancelled";
+
+type VenueEvent = {
   id: string;
+  _id?: string;
+
+  ownerId?: string;
+  hallId: string;
+
   title: string;
-  clientName: string;
   eventType: string;
-  dayIndex: number;
-  dateLabel: string;
-  startHour: number;
-  endHour: number;
-  guests?: number;
-  status: EventStatus;
-  type: CalendarItemType;
-  color: "gold" | "green" | "blue" | "rose" | "purple" | "gray";
+  clientName: string;
+  clientPhone?: string;
+  clientEmail?: string;
+
+  date: string;
+  startTime: string;
+  endTime: string;
+
+  guests: number;
+  status: VenueEventStatus;
+
+  budget?: number;
+  paidAmount?: number;
+
+  notes?: string;
+  color?: string;
+
+  createdAt?: string;
+  updatedAt?: string;
 };
 
-type TodayTask = {
+type VenueHall = {
   id: string;
-  time: string;
-  title: string;
-  subtitle: string;
-  done: boolean;
+  name: string;
+  subtitle?: string;
+  capacity?: number;
+  status?: "active" | "maintenance" | "closed";
+  image?: string;
 };
 
-const weekDays = [
-  { label: "ראשון", date: "18/05" },
-  { label: "שני", date: "19/05" },
-  { label: "שלישי", date: "20/05" },
-  { label: "רביעי", date: "21/05" },
-  { label: "חמישי", date: "22/05" },
-  { label: "שישי", date: "23/05" },
-  { label: "שבת", date: "24/05" },
-];
+type NewEventForm = {
+  title: string;
+  eventType: string;
+  clientName: string;
+  clientPhone: string;
+  clientEmail: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  guests: string;
+  status: VenueEventStatus;
+  budget: string;
+  paidAmount: string;
+  notes: string;
+};
 
 const hours = Array.from({ length: 18 }, (_, index) => index + 7);
 
-const calendarItems: HallCalendarItem[] = [
-  {
-    id: "evt-1001",
-    title: "חתונה - משפחת לוי",
-    clientName: "רוזן & לוי",
-    eventType: "חתונה",
-    dayIndex: 1,
-    dateLabel: "19.05.26",
-    startHour: 19,
-    endHour: 24,
-    guests: 420,
-    status: "closed",
-    type: "event",
-    color: "gold",
-  },
-  {
-    id: "evt-1002",
-    title: "בר מצווה - דניאל",
-    clientName: "משפחת כהן",
-    eventType: "בר מצווה",
-    dayIndex: 3,
-    dateLabel: "21.05.26",
-    startHour: 16,
-    endHour: 20,
-    guests: 180,
-    status: "in_production",
-    type: "event",
-    color: "blue",
-  },
-  {
-    id: "evt-1003",
-    title: "כנס עסקי",
-    clientName: "Global Solutions",
-    eventType: "כנס",
-    dayIndex: 4,
-    dateLabel: "22.05.26",
-    startHour: 11,
-    endHour: 14,
-    guests: 150,
-    status: "closed",
-    type: "event",
-    color: "green",
-  },
-  {
-    id: "evt-1004",
-    title: "אירוע חברה",
-    clientName: "Fashion Tech",
-    eventType: "אירוע חברה",
-    dayIndex: 2,
-    dateLabel: "20.05.26",
-    startHour: 19,
-    endHour: 23,
-    guests: 300,
-    status: "proposal",
-    type: "event",
-    color: "rose",
-  },
-  {
-    id: "meet-2001",
-    title: "פגישת טעימות",
-    clientName: "משפחת לוי",
-    eventType: "פגישה",
-    dayIndex: 1,
-    dateLabel: "19.05.26",
-    startHour: 10,
-    endHour: 12,
-    guests: 6,
-    status: "in_production",
-    type: "meeting",
-    color: "purple",
-  },
-  {
-    id: "block-3001",
-    title: "ניקיון עמוק",
-    clientName: "צוות תפעול",
-    eventType: "תחזוקה",
-    dayIndex: 5,
-    dateLabel: "23.05.26",
-    startHour: 8,
-    endHour: 11,
-    status: "blocked",
-    type: "maintenance",
-    color: "gray",
-  },
-];
+const dayNames = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
 
-const todayTasks: TodayTask[] = [
-  { id: "t1", time: "09:00", title: "בדיקת סאונד ותאורה", subtitle: "לפני פגישת טעימות", done: false },
-  { id: "t2", time: "11:30", title: "בדיקת סידור שולחנות", subtitle: "חתונה - משפחת לוי", done: false },
-  { id: "t3", time: "15:00", title: "תיאום ספקים", subtitle: "DJ, צילום, בר וקייטרינג", done: true },
-  { id: "t4", time: "18:00", title: "פתיחת אולם לאירוע", subtitle: "בדיקת כניסת אורחים", done: false },
-];
+/* ======================================================
+   HELPERS
+====================================================== */
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("he-IL", {
@@ -164,62 +112,274 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
-function getHallName(hallId: string) {
-  if (hallId === "garden-hall") return "גן אירועים";
-  if (hallId === "sky-hall") return "SKY Hall";
-  return "אולם הזהב";
+function toNumber(value: unknown, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function statusLabel(status: EventStatus) {
-  if (status === "closed") return "סגור";
-  if (status === "in_production") return "בהפקה";
+function pad(value: number) {
+  return String(value).padStart(2, "0");
+}
+
+function toYmd(date: Date) {
+  const year = date.getFullYear();
+  const month = pad(date.getMonth() + 1);
+  const day = pad(date.getDate());
+  return `${year}-${month}-${day}`;
+}
+
+function formatDateLabel(dateString: string) {
+  if (!dateString) return "";
+  const [year, month, day] = dateString.split("-");
+  if (!year || !month || !day) return dateString;
+  return `${day}/${month}`;
+}
+
+function getStartOfWeek(date: Date) {
+  const copy = new Date(date);
+  const day = copy.getDay();
+  copy.setDate(copy.getDate() - day);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
+}
+
+function buildWeekDays(currentDate: Date) {
+  const start = getStartOfWeek(currentDate);
+
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(start);
+    date.setDate(start.getDate() + index);
+
+    return {
+      label: dayNames[index],
+      date: toYmd(date),
+      dateLabel: formatDateLabel(toYmd(date)),
+      dayIndex: index,
+    };
+  });
+}
+
+function getHebrewMonthTitle(date: Date) {
+  return new Intl.DateTimeFormat("he-IL", {
+    month: "long",
+    year: "numeric",
+  }).format(date);
+}
+
+function getWeekRangeLabel(currentDate: Date) {
+  const days = buildWeekDays(currentDate);
+  const first = days[0]?.dateLabel || "";
+  const last = days[6]?.dateLabel || "";
+  const monthTitle = getHebrewMonthTitle(currentDate);
+  return `${first} - ${last} ${monthTitle}`;
+}
+
+function getEventHour(time: string, fallback: number) {
+  if (!time) return fallback;
+
+  const [hourRaw, minuteRaw] = time.split(":");
+  const hour = Number(hourRaw);
+  const minute = Number(minuteRaw || 0);
+
+  if (!Number.isFinite(hour)) return fallback;
+
+  return hour + minute / 60;
+}
+
+function statusLabel(status: VenueEventStatus) {
+  if (status === "lead") return "ליד";
   if (status === "proposal") return "בהצעה";
-  if (status === "blocked") return "חסום";
+  if (status === "closed") return "סגור";
+  if (status === "confirmed") return "מאושר";
+  if (status === "preparing") return "בהכנות";
+  if (status === "live") return "פעיל עכשיו";
+  if (status === "done") return "הסתיים";
   return "בוטל";
 }
 
-function itemColorClass(color: HallCalendarItem["color"]) {
-  if (color === "gold") return "border-[#d6a33a] bg-[#fff4dc] text-[#7b4e09]";
-  if (color === "green") return "border-emerald-300 bg-emerald-50 text-emerald-800";
-  if (color === "blue") return "border-sky-300 bg-sky-50 text-sky-800";
-  if (color === "rose") return "border-rose-300 bg-rose-50 text-rose-800";
-  if (color === "purple") return "border-violet-300 bg-violet-50 text-violet-800";
-  return "border-slate-300 bg-slate-50 text-slate-700";
+function itemColorClass(status: VenueEventStatus) {
+  if (status === "closed") return "border-[#d6a33a] bg-[#fff4dc] text-[#7b4e09]";
+  if (status === "confirmed") return "border-emerald-300 bg-emerald-50 text-emerald-800";
+  if (status === "preparing") return "border-sky-300 bg-sky-50 text-sky-800";
+  if (status === "proposal") return "border-rose-300 bg-rose-50 text-rose-800";
+  if (status === "lead") return "border-violet-300 bg-violet-50 text-violet-800";
+  if (status === "live") return "border-emerald-400 bg-emerald-100 text-emerald-900";
+  if (status === "done") return "border-slate-300 bg-slate-50 text-slate-700";
+  return "border-rose-300 bg-rose-50 text-rose-800";
 }
+
+function getTodayYmd() {
+  return toYmd(new Date());
+}
+
+/* ======================================================
+   PAGE
+====================================================== */
 
 export default function HallCalendarPage() {
   const params = useParams<{ hallId: string }>();
   const router = useRouter();
-  const hallId = params?.hallId || "main-gold-hall";
-  const hallName = getHallName(hallId);
+
+  const hallId = params?.hallId || "";
 
   const [view, setView] = useState<CalendarView>("week");
   const [showMeetings, setShowMeetings] = useState(true);
   const [showTasks, setShowTasks] = useState(false);
 
-  const stats = useMemo(() => {
-    const eventsOnly = calendarItems.filter((item) => item.type === "event");
-    return {
-      events: eventsOnly.length,
-      closed: eventsOnly.filter((item) => item.status === "closed").length,
-      inProduction: eventsOnly.filter((item) => item.status === "in_production").length,
-      revenue: 486000,
-      guests: eventsOnly.reduce((sum, item) => sum + (item.guests || 0), 0),
-    };
-  }, []);
+  const [currentDate, setCurrentDate] = useState(() => new Date());
+  const [hall, setHall] = useState<VenueHall | null>(null);
+  const [events, setEvents] = useState<VenueEvent[]>([]);
 
-  const visibleItems = calendarItems.filter((item) => {
-    if (!showMeetings && item.type === "meeting") return false;
-    return true;
-  });
+  const [loading, setLoading] = useState(true);
+  const [serverError, setServerError] = useState("");
 
-  const goToEvent = (item: HallCalendarItem) => {
-    if (item.type === "event") {
-      router.push(`/venues/dashboard/events/${item.id}`);
-      return;
+  const [createOpen, setCreateOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+
+  const weekDays = useMemo(() => buildWeekDays(currentDate), [currentDate]);
+  const weekFrom = weekDays[0]?.date;
+  const weekTo = weekDays[6]?.date;
+
+  const fetchCalendar = async () => {
+    if (!hallId) return;
+
+    setLoading(true);
+    setServerError("");
+
+    try {
+      const query = new URLSearchParams();
+
+      if (weekFrom) query.set("from", weekFrom);
+      if (weekTo) query.set("to", weekTo);
+
+      const res = await fetch(
+        `/api/venues/dashboard/halls/${hallId}/calendar?${query.toString()}`,
+        {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.message || "טעינת היומן נכשלה");
+      }
+
+      setHall(data.hall || null);
+      setEvents(Array.isArray(data.events) ? data.events : []);
+    } catch (error) {
+      console.error("GET hall calendar failed:", error);
+      setServerError(error instanceof Error ? error.message : "טעינת היומן נכשלה");
+      setHall(null);
+      setEvents([]);
+    } finally {
+      setLoading(false);
     }
+  };
 
-    router.push(`/venues/dashboard/halls/${hallId}/calendar?item=${item.id}`);
+  useEffect(() => {
+    fetchCalendar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hallId, weekFrom, weekTo]);
+
+  const stats = useMemo(() => {
+    return {
+      events: events.length,
+      closed: events.filter((item) => item.status === "closed").length,
+      inProduction: events.filter((item) =>
+        ["preparing", "confirmed", "live"].includes(item.status)
+      ).length,
+      revenue: events.reduce((sum, item) => sum + toNumber(item.budget, 0), 0),
+      guests: events.reduce((sum, item) => sum + toNumber(item.guests, 0), 0),
+    };
+  }, [events]);
+
+  const visibleItems = useMemo(() => {
+    return events.filter((item) => {
+      if (!showMeetings && item.eventType === "פגישה") return false;
+      return true;
+    });
+  }, [events, showMeetings]);
+
+  const todayEvents = useMemo(() => {
+    const today = getTodayYmd();
+
+    return events
+      .filter((event) => event.date === today)
+      .sort((a, b) => a.startTime.localeCompare(b.startTime));
+  }, [events]);
+
+  const goToEvent = (item: VenueEvent) => {
+    router.push(`/venues/dashboard/events/${item.id}`);
+  };
+
+  const goPrevious = () => {
+    setCurrentDate((prev) => {
+      const next = new Date(prev);
+      next.setDate(prev.getDate() - 7);
+      return next;
+    });
+  };
+
+  const goNext = () => {
+    setCurrentDate((prev) => {
+      const next = new Date(prev);
+      next.setDate(prev.getDate() + 7);
+      return next;
+    });
+  };
+
+  const goToday = () => {
+    setCurrentDate(new Date());
+  };
+
+  const createEvent = async (form: NewEventForm) => {
+    setCreating(true);
+    setServerError("");
+
+    try {
+      const res = await fetch(`/api/venues/dashboard/halls/${hallId}/calendar`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          title: form.title,
+          eventType: form.eventType,
+          clientName: form.clientName,
+          clientPhone: form.clientPhone,
+          clientEmail: form.clientEmail,
+          date: form.date,
+          startTime: form.startTime,
+          endTime: form.endTime,
+          guests: toNumber(form.guests, 0),
+          status: form.status,
+          budget: toNumber(form.budget, 0),
+          paidAmount: toNumber(form.paidAmount, 0),
+          notes: form.notes,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.message || "יצירת אירוע נכשלה");
+      }
+
+      if (data.event) {
+        setEvents((prev) => [...prev, data.event]);
+      }
+
+      setCreateOpen(false);
+    } catch (error) {
+      console.error("POST hall calendar failed:", error);
+      setServerError(error instanceof Error ? error.message : "יצירת אירוע נכשלה");
+    } finally {
+      setCreating(false);
+    }
   };
 
   return (
@@ -246,6 +406,7 @@ export default function HallCalendarPage() {
 
           <button
             type="button"
+            onClick={() => setCreateOpen(true)}
             className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#b98121] px-5 text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a]"
           >
             <Plus size={17} />
@@ -263,10 +424,10 @@ export default function HallCalendarPage() {
 
                 <div>
                   <h1 className="text-3xl font-black md:text-4xl">
-                    יומן אירועים - {hallName}
+                    יומן אירועים - {hall?.name || "אולם"}
                   </h1>
                   <p className="mt-1 text-sm font-bold text-[#8a7b68]">
-                    תצוגת זמינות, אירועים סגורים, פגישות, תחזוקה וחסימות אולם.
+                    יומן אמיתי מחובר לשרת. אירועים שתוסיפי כאן יישמרו במונגו ויישארו אחרי רענון.
                   </p>
                 </div>
               </div>
@@ -289,20 +450,44 @@ export default function HallCalendarPage() {
 
               <div className="mx-1 hidden h-8 w-px bg-[#eadfce] md:block" />
 
-              <button type="button" className="flex h-10 items-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-3 text-sm font-black text-[#6f6252]">
+              <button
+                type="button"
+                onClick={goPrevious}
+                className="flex h-10 items-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-3 text-sm font-black text-[#6f6252]"
+              >
                 <ChevronRight size={16} />
               </button>
 
-              <button type="button" className="flex h-10 items-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-black text-[#2b241c]">
-                18 - 24 מאי 2026
+              <button
+                type="button"
+                className="flex h-10 items-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-black text-[#2b241c]"
+              >
+                {getWeekRangeLabel(currentDate)}
               </button>
 
-              <button type="button" className="flex h-10 items-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-3 text-sm font-black text-[#6f6252]">
+              <button
+                type="button"
+                onClick={goNext}
+                className="flex h-10 items-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-3 text-sm font-black text-[#6f6252]"
+              >
                 <ChevronLeft size={16} />
               </button>
 
-              <button type="button" className="flex h-10 items-center gap-2 rounded-2xl bg-[#f4ead9] px-4 text-sm font-black text-[#b98121]">
+              <button
+                type="button"
+                onClick={goToday}
+                className="flex h-10 items-center gap-2 rounded-2xl bg-[#f4ead9] px-4 text-sm font-black text-[#b98121]"
+              >
                 היום
+              </button>
+
+              <button
+                type="button"
+                onClick={fetchCalendar}
+                className="flex h-10 items-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-black text-[#6f6252]"
+              >
+                {loading ? <Loader2 size={16} className="animate-spin" /> : <Clock3 size={16} />}
+                רענון
               </button>
             </div>
 
@@ -327,12 +512,21 @@ export default function HallCalendarPage() {
                 הצג משימות
               </label>
 
-              <button type="button" className="flex h-10 items-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-black text-[#6f6252]">
+              <button
+                type="button"
+                className="flex h-10 items-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-black text-[#6f6252]"
+              >
                 <Filter size={16} />
                 סינון
               </button>
             </div>
           </div>
+
+          {serverError ? (
+            <div className="mt-4 rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">
+              {serverError}
+            </div>
+          ) : null}
         </section>
 
         <section className="mt-5 grid gap-5 xl:grid-cols-[280px_1fr_330px]">
@@ -352,7 +546,10 @@ export default function HallCalendarPage() {
                 <SelectLike label="כל המקורות" />
                 <SelectLike label="כל הנציגים" />
 
-                <button type="button" className="h-11 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf8] text-sm font-black text-[#b98121]">
+                <button
+                  type="button"
+                  className="h-11 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf8] text-sm font-black text-[#b98121]"
+                >
                   איפוס סינונים
                 </button>
               </div>
@@ -360,20 +557,21 @@ export default function HallCalendarPage() {
 
             <Panel title="מקרא סטטוסים" icon={<Grid3X3 size={18} />}>
               <div className="space-y-2">
-                <Legend color="bg-[#d6a33a]" label="אירוע סגור" />
-                <Legend color="bg-sky-400" label="בהפקה" />
-                <Legend color="bg-rose-400" label="הצעת מחיר" />
-                <Legend color="bg-violet-400" label="פגישה" />
-                <Legend color="bg-slate-400" label="תחזוקה / חסימה" />
+                <Legend color="bg-violet-400" label="ליד" />
+                <Legend color="bg-rose-400" label="בהצעה" />
+                <Legend color="bg-[#d6a33a]" label="סגור" />
+                <Legend color="bg-emerald-400" label="מאושר / פעיל" />
+                <Legend color="bg-sky-400" label="בהכנות" />
+                <Legend color="bg-slate-400" label="הסתיים / בוטל" />
               </div>
             </Panel>
 
             <Panel title="זמינות מהירה" icon={<Clock3 size={18} />}>
               <div className="space-y-3">
-                <AvailabilityRow label="היום" value="תפוס בערב" />
-                <AvailabilityRow label="מחר" value="פנוי בבוקר" />
-                <AvailabilityRow label="שישי" value="אירוע סגור" />
-                <AvailabilityRow label="שבת" value="פנוי" />
+                <AvailabilityRow label="אולם" value={hall?.name || "לא נטען"} />
+                <AvailabilityRow label="קיבולת" value={`${hall?.capacity || 0} אורחים`} />
+                <AvailabilityRow label="סטטוס" value={hall?.status || "פעיל"} />
+                <AvailabilityRow label="אירועים השבוע" value={`${events.length}`} />
               </div>
             </Panel>
           </aside>
@@ -381,18 +579,20 @@ export default function HallCalendarPage() {
           <section className="overflow-x-auto rounded-[30px] border border-[#eadfce] bg-white shadow-sm">
             <div className="min-w-[1050px]">
               <div className="grid grid-cols-[70px_repeat(7,minmax(130px,1fr))] border-b border-[#eadfce] bg-[#fffdf8]">
-                <div className="border-l border-[#eadfce] p-3 text-center text-xs font-black text-[#9b8a73]">שעה</div>
+                <div className="border-l border-[#eadfce] p-3 text-center text-xs font-black text-[#9b8a73]">
+                  שעה
+                </div>
 
-                {weekDays.map((day, index) => (
+                {weekDays.map((day) => (
                   <div
                     key={day.date}
                     className={[
                       "border-l border-[#eadfce] p-3 text-center",
-                      index === 1 ? "bg-[#fff7e6]" : "",
+                      day.date === getTodayYmd() ? "bg-[#fff7e6]" : "",
                     ].join(" ")}
                   >
                     <div className="text-sm font-black text-[#2b241c]">{day.label}</div>
-                    <div className="mt-1 text-xs font-bold text-[#8a7b68]">{day.date}</div>
+                    <div className="mt-1 text-xs font-bold text-[#8a7b68]">{day.dateLabel}</div>
                   </div>
                 ))}
               </div>
@@ -402,7 +602,7 @@ export default function HallCalendarPage() {
                   {hours.map((hour) => (
                     <React.Fragment key={hour}>
                       <div className="h-16 border-b border-l border-[#eadfce] bg-[#fffdf8] px-2 py-2 text-left text-xs font-black text-[#8a7b68]">
-                        {`${String(hour).padStart(2, "0")}:00`}
+                        {`${pad(hour)}:00`}
                       </div>
 
                       {weekDays.map((day) => (
@@ -415,21 +615,33 @@ export default function HallCalendarPage() {
                   ))}
                 </div>
 
-                <div className="pointer-events-none absolute inset-y-0 right-[70px] left-0">
-                  <div
-                    className="absolute left-0 right-0 border-t-2 border-rose-400"
-                    style={{ top: `${((18.6 - 7) / hours.length) * 100}%` }}
-                  >
-                    <span className="absolute -top-3 left-3 rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-black text-white">
-                      עכשיו
-                    </span>
+                {visibleItems.length === 0 && !loading ? (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="rounded-[28px] border border-dashed border-[#d8bd83] bg-[#fffdf8]/95 p-8 text-center shadow-sm">
+                      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#f4ead9] text-[#b98121]">
+                        <CalendarDays size={26} />
+                      </div>
+                      <h3 className="mt-4 text-xl font-black text-[#2b241c]">
+                        אין אירועים בשבוע הזה
+                      </h3>
+                      <p className="mt-2 text-sm font-bold text-[#8a7b68]">
+                        לחצי על “אירוע חדש” כדי להוסיף אירוע ליומן.
+                      </p>
+                    </div>
                   </div>
-                </div>
+                ) : null}
 
                 {visibleItems.map((item) => {
-                  const top = ((item.startHour - 7) / hours.length) * 100;
-                  const height = ((item.endHour - item.startHour) / hours.length) * 100;
-                  const right = `calc(70px + ${item.dayIndex} * ((100% - 70px) / 7))`;
+                  const dayIndex = weekDays.findIndex((day) => day.date === item.date);
+                  if (dayIndex < 0) return null;
+
+                  const startHour = getEventHour(item.startTime, 9);
+                  const endHour = getEventHour(item.endTime, startHour + 2);
+
+                  const top = ((startHour - 7) / hours.length) * 100;
+                  const height = ((endHour - startHour) / hours.length) * 100;
+
+                  const right = `calc(70px + ${dayIndex} * ((100% - 70px) / 7))`;
                   const width = `calc((100% - 70px) / 7 - 12px)`;
 
                   return (
@@ -439,11 +651,11 @@ export default function HallCalendarPage() {
                       onDoubleClick={() => goToEvent(item)}
                       className={[
                         "absolute z-20 overflow-hidden rounded-2xl border p-3 text-right shadow-sm transition hover:z-30 hover:-translate-y-1 hover:shadow-xl",
-                        itemColorClass(item.color),
+                        itemColorClass(item.status),
                       ].join(" ")}
                       style={{
-                        top: `calc(${top}% + 8px)`,
-                        height: `calc(${height}% - 12px)`,
+                        top: `calc(${Math.max(0, top)}% + 8px)`,
+                        height: `calc(${Math.max(8, height)}% - 12px)`,
                         right: `calc(${right} + 6px)`,
                         width,
                       }}
@@ -451,11 +663,16 @@ export default function HallCalendarPage() {
                     >
                       <div className="text-sm font-black">{item.title}</div>
                       <div className="mt-1 text-xs font-bold opacity-80">
-                        {String(item.startHour).padStart(2, "0")}:00 -{" "}
-                        {item.endHour === 24 ? "00:00" : `${String(item.endHour).padStart(2, "0")}:00`}
+                        {item.startTime} - {item.endTime || "לא הוגדר"}
                       </div>
-                      <div className="mt-2 text-xs font-bold opacity-80">{item.clientName}</div>
-                      {item.guests && <div className="mt-1 text-xs font-bold opacity-80">{item.guests} אורחים</div>}
+                      <div className="mt-2 text-xs font-bold opacity-80">
+                        {item.clientName || "ללא שם לקוח"}
+                      </div>
+                      {item.guests ? (
+                        <div className="mt-1 text-xs font-bold opacity-80">
+                          {item.guests} אורחים
+                        </div>
+                      ) : null}
                       <span className="mt-2 inline-flex rounded-full bg-white/70 px-2 py-1 text-[10px] font-black">
                         {statusLabel(item.status)}
                       </span>
@@ -467,43 +684,38 @@ export default function HallCalendarPage() {
           </section>
 
           <aside className="space-y-5">
-            <Panel title="היום - יום ראשון 18 במאי" icon={<CalendarDays size={18} />}>
+            <Panel title={`היום - ${formatDateLabel(getTodayYmd())}`} icon={<CalendarDays size={18} />}>
               <div className="space-y-3">
-                <TodayLine time="09:00" title="פגישת טעימות" subtitle="משפחת לוי" />
-                <TodayLine time="12:00" title="בר מצווה" subtitle="משפחת כהן" />
-                <TodayLine time="19:30" title="חתונה" subtitle="רוזן & לוי" highlight />
+                {todayEvents.length ? (
+                  todayEvents.map((event) => (
+                    <TodayLine
+                      key={event.id}
+                      time={event.startTime}
+                      title={event.title}
+                      subtitle={event.clientName || event.eventType || "אירוע"}
+                      highlight={event.status === "live" || event.status === "closed"}
+                    />
+                  ))
+                ) : (
+                  <EmptySideText text="אין אירועים היום." />
+                )}
               </div>
-
-              <button type="button" className="mt-4 h-10 w-full rounded-2xl bg-[#f4ead9] text-sm font-black text-[#b98121]">
-                צפייה ביום מלא
-              </button>
             </Panel>
 
             <Panel title="משימות ותזכורות" icon={<ListChecks size={18} />}>
-              <div className="space-y-3">
-                {todayTasks.map((task) => (
-                  <label key={task.id} className="flex cursor-pointer items-start gap-3 rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-3">
-                    <input
-                      type="checkbox"
-                      defaultChecked={task.done}
-                      className="mt-1 h-4 w-4 rounded border-[#d8c7aa] text-[#b98121]"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="text-xs font-black text-[#b98121]">{task.time}</div>
-                      <div className="mt-1 text-sm font-black text-[#2b241c]">{task.title}</div>
-                      <div className="mt-1 text-xs font-bold leading-5 text-[#8a7b68]">{task.subtitle}</div>
-                    </div>
-                  </label>
-                ))}
-              </div>
+              {showTasks ? (
+                <EmptySideText text="חיבור משימות יתווסף בשלב הבא." />
+              ) : (
+                <EmptySideText text="סמני “הצג משימות” כדי להציג משימות לאחר שנחבר אותן." />
+              )}
             </Panel>
 
             <Panel title="מידע על האולם" icon={<Building2 size={18} />}>
               <div className="space-y-3">
-                <InfoLine label="קיבולת מרבית" value="420 אורחים" />
-                <InfoLine label="שטח אולם" value="650 מ״ר" />
-                <InfoLine label="סטטוס" value="פעיל" />
-                <InfoLine label="כתובת" value="דרך הכוכבים 12" />
+                <InfoLine label="שם אולם" value={hall?.name || "לא נטען"} />
+                <InfoLine label="קיבולת מרבית" value={`${hall?.capacity || 0} אורחים`} />
+                <InfoLine label="סטטוס" value={hall?.status || "פעיל"} />
+                <InfoLine label="מזהה אולם" value={hallId} />
               </div>
 
               <Link
@@ -518,12 +730,180 @@ export default function HallCalendarPage() {
         </section>
 
         <p className="mt-4 text-center text-xs font-bold text-[#9b8a73]">
-          טיפ: קליק כפול על אירוע סגור פותח את עמוד האירוע המלא. פגישות ותחזוקה נפתחות לעריכה מהירה.
+          טיפ: קליק כפול על אירוע פותח את עמוד האירוע המלא.
         </p>
       </div>
+
+      {createOpen && (
+        <CreateEventModal
+          saving={creating}
+          defaultDate={getTodayYmd()}
+          onClose={() => setCreateOpen(false)}
+          onCreate={createEvent}
+        />
+      )}
     </main>
   );
 }
+
+/* ======================================================
+   CREATE EVENT MODAL
+====================================================== */
+
+function CreateEventModal({
+  saving,
+  defaultDate,
+  onClose,
+  onCreate,
+}: {
+  saving: boolean;
+  defaultDate: string;
+  onClose: () => void;
+  onCreate: (form: NewEventForm) => void;
+}) {
+  const [form, setForm] = useState<NewEventForm>({
+    title: "",
+    eventType: "חתונה",
+    clientName: "",
+    clientPhone: "",
+    clientEmail: "",
+    date: defaultDate,
+    startTime: "19:30",
+    endTime: "00:30",
+    guests: "",
+    status: "confirmed",
+    budget: "",
+    paidAmount: "",
+    notes: "",
+  });
+
+  const updateField = <K extends keyof NewEventForm>(
+    key: K,
+    value: NewEventForm[K]
+  ) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const submit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!form.title.trim()) {
+      alert("חובה להזין שם אירוע");
+      return;
+    }
+
+    if (!form.date) {
+      alert("חובה להזין תאריך");
+      return;
+    }
+
+    if (!form.startTime) {
+      alert("חובה להזין שעת התחלה");
+      return;
+    }
+
+    onCreate(form);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 p-4">
+      <div className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-[32px] border border-[#eadfce] bg-white shadow-2xl">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#eadfce] bg-white/95 p-5 backdrop-blur">
+          <div>
+            <h2 className="text-xl font-black text-[#2b241c]">אירוע חדש ביומן</h2>
+            <p className="mt-1 text-sm font-bold text-[#8a7b68]">
+              האירוע יישמר במונגו ויופיע ביומן גם אחרי רענון.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#eadfce] text-[#6f6252] transition hover:bg-[#fbf5ea]"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <form onSubmit={submit} className="p-5">
+          <div className="grid gap-4 md:grid-cols-2">
+            <FormInput label="שם אירוע" value={form.title} onChange={(value) => updateField("title", value)} />
+
+            <FormInput label="סוג אירוע" value={form.eventType} onChange={(value) => updateField("eventType", value)} />
+
+            <FormInput label="שם לקוח" value={form.clientName} onChange={(value) => updateField("clientName", value)} />
+
+            <FormInput label="טלפון לקוח" value={form.clientPhone} onChange={(value) => updateField("clientPhone", value)} />
+
+            <FormInput label="אימייל לקוח" value={form.clientEmail} onChange={(value) => updateField("clientEmail", value)} />
+
+            <FormInput label="תאריך" type="date" value={form.date} onChange={(value) => updateField("date", value)} />
+
+            <FormInput label="שעת התחלה" type="time" value={form.startTime} onChange={(value) => updateField("startTime", value)} />
+
+            <FormInput label="שעת סיום" type="time" value={form.endTime} onChange={(value) => updateField("endTime", value)} />
+
+            <FormInput label="כמות אורחים" type="number" value={form.guests} onChange={(value) => updateField("guests", value)} />
+
+            <FormInput label="תקציב / מחיר אירוע" type="number" value={form.budget} onChange={(value) => updateField("budget", value)} />
+
+            <FormInput label="שולם עד כה" type="number" value={form.paidAmount} onChange={(value) => updateField("paidAmount", value)} />
+
+            <label>
+              <span className="mb-2 block text-sm font-black text-[#6f6252]">סטטוס</span>
+              <select
+                value={form.status}
+                onChange={(event) => updateField("status", event.target.value as VenueEventStatus)}
+                className="h-12 w-full rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-bold text-[#2b241c] outline-none transition focus:border-[#b98121]"
+              >
+                <option value="lead">ליד</option>
+                <option value="proposal">בהצעה</option>
+                <option value="closed">סגור</option>
+                <option value="confirmed">מאושר</option>
+                <option value="preparing">בהכנות</option>
+                <option value="live">פעיל עכשיו</option>
+                <option value="done">הסתיים</option>
+                <option value="cancelled">בוטל</option>
+              </select>
+            </label>
+
+            <label className="md:col-span-2">
+              <span className="mb-2 block text-sm font-black text-[#6f6252]">הערות</span>
+              <textarea
+                value={form.notes}
+                onChange={(event) => updateField("notes", event.target.value)}
+                className="min-h-[110px] w-full rounded-2xl border border-[#eadfce] bg-white px-4 py-3 text-sm font-bold text-[#2b241c] outline-none transition focus:border-[#b98121]"
+              />
+            </label>
+          </div>
+
+          <div className="mt-6 flex flex-col-reverse gap-3 border-t border-[#eadfce] pt-5 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              className="h-12 rounded-2xl border border-[#eadfce] bg-white px-6 text-sm font-black text-[#6f6252] transition hover:bg-[#fbf5ea]"
+            >
+              ביטול
+            </button>
+
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#b98121] px-6 text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {saving ? <Loader2 size={17} className="animate-spin" /> : <Save size={17} />}
+              שמירת אירוע
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+/* ======================================================
+   SMALL COMPONENTS
+====================================================== */
 
 function ViewButton({
   active,
@@ -550,7 +930,15 @@ function ViewButton({
   );
 }
 
-function TopMetric({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
+function TopMetric({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: string;
+  icon: React.ReactNode;
+}) {
   return (
     <div className="min-w-[150px] rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-3">
       <div className="flex items-center gap-2 text-[#b98121]">
@@ -562,11 +950,21 @@ function TopMetric({ label, value, icon }: { label: string; value: string; icon:
   );
 }
 
-function Panel({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
+function Panel({
+  title,
+  icon,
+  children,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
     <section className="rounded-[28px] border border-[#eadfce] bg-white p-4 shadow-sm">
       <div className="mb-4 flex items-center gap-2">
-        <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#f4ead9] text-[#b98121]">{icon}</div>
+        <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#f4ead9] text-[#b98121]">
+          {icon}
+        </div>
         <h2 className="text-base font-black text-[#2b241c]">{title}</h2>
       </div>
       {children}
@@ -604,7 +1002,17 @@ function AvailabilityRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function TodayLine({ time, title, subtitle, highlight }: { time: string; title: string; subtitle: string; highlight?: boolean }) {
+function TodayLine({
+  time,
+  title,
+  subtitle,
+  highlight,
+}: {
+  time: string;
+  title: string;
+  subtitle: string;
+  highlight?: boolean;
+}) {
   return (
     <div
       className={[
@@ -627,5 +1035,37 @@ function InfoLine({ label, value }: { label: string; value: string }) {
       <span className="text-xs font-black text-[#8a7b68]">{label}</span>
       <span className="text-sm font-black text-[#2b241c]">{value}</span>
     </div>
+  );
+}
+
+function EmptySideText({ text }: { text: string }) {
+  return (
+    <div className="rounded-2xl border border-dashed border-[#d8bd83] bg-[#fffdf8] p-4 text-center text-sm font-bold leading-6 text-[#8a7b68]">
+      {text}
+    </div>
+  );
+}
+
+function FormInput({
+  label,
+  value,
+  onChange,
+  type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: "text" | "number" | "date" | "time";
+}) {
+  return (
+    <label>
+      <span className="mb-2 block text-sm font-black text-[#6f6252]">{label}</span>
+      <input
+        type={type}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="h-12 w-full rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-bold text-[#2b241c] outline-none transition focus:border-[#b98121]"
+      />
+    </label>
   );
 }

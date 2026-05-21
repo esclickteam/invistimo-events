@@ -1,25 +1,20 @@
 import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
 import {
   ArrowRight,
   Bell,
   Building2,
   CalendarDays,
   CheckCircle2,
-  ChefHat,
   CircleDollarSign,
   Clock3,
-  CreditCard,
   Crown,
-  Edit3,
-  FileText,
   GalleryHorizontalEnd,
   Grid3X3,
-  ImageIcon,
   LayoutTemplate,
   MapPin,
   Phone,
   Plus,
-  Settings,
   Sparkles,
   Star,
   UsersRound,
@@ -28,7 +23,13 @@ import {
   Wrench,
 } from "lucide-react";
 
+import { connectDB } from "@/lib/db";
+import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import VenueHall from "@/models/VenueHall";
+import VenueEvent from "@/models/VenueEvent";
+
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 type Props = {
   params: Promise<{
@@ -36,166 +37,223 @@ type Props = {
   }>;
 };
 
-type EventRow = {
-  date: string;
-  time: string;
-  type: string;
-  client: string;
-  status: string;
-};
+type HallStatus = "active" | "maintenance" | "closed";
 
-type SeatingTemplate = {
-  title: string;
+type EventStatus =
+  | "lead"
+  | "proposal"
+  | "closed"
+  | "confirmed"
+  | "preparing"
+  | "live"
+  | "done"
+  | "cancelled";
+
+type SerializedHall = {
+  id: string;
+  name: string;
   subtitle: string;
-  seats: string;
+  capacity: number;
+  monthlyEvents: number;
+  upcomingEvents: number;
+  occupancyRate: number;
+  monthlyRevenue: number;
+  nextEventAt: string;
+  status: HallStatus;
+  image: string;
 };
 
-type MenuPackage = {
-  name: string;
-  description: string;
-  icon: "crown" | "star" | "sparkles";
+type SerializedEvent = {
+  id: string;
+  title: string;
+  eventType: string;
+  clientName: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  guests: number;
+  status: EventStatus;
+  budget: number;
+  paidAmount: number;
 };
-
-type StaffRow = {
-  role: string;
-  name: string;
-  shift: string;
-  initials: string;
-};
-
-type MaintenanceRow = {
-  label: string;
-  status: "תקין" | "דורש טיפול";
-};
-
-const hallImages = [
-  "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?auto=format&fit=crop&w=1400&q=85",
-  "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?auto=format&fit=crop&w=900&q=85",
-  "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=900&q=85",
-  "https://images.unsplash.com/photo-1527529482837-4698179dc6ce?auto=format&fit=crop&w=900&q=85",
-  "https://images.unsplash.com/photo-1505236858219-8359eb29e329?auto=format&fit=crop&w=900&q=85",
-];
-
-const upcomingEvents: EventRow[] = [
-  {
-    date: "היום",
-    time: "19:30",
-    type: "חתונה",
-    client: "משפחת לוי",
-    status: "בהכנות",
-  },
-  {
-    date: "24.05",
-    time: "20:00",
-    type: "בר מצווה",
-    client: "אורי כהן",
-    status: "מאושר",
-  },
-  {
-    date: "25.05",
-    time: "19:00",
-    type: "חתונה",
-    client: "משפחת דבוש",
-    status: "מאושר",
-  },
-  {
-    date: "26.05",
-    time: "18:30",
-    type: "כנס חברה",
-    client: "TechNova",
-    status: "בהצעה",
-  },
-];
-
-const seatingTemplates: SeatingTemplate[] = [
-  {
-    title: "חתונה",
-    subtitle: "שולחנות משפחה + חברים",
-    seats: "420",
-  },
-  {
-    title: "בר מצווה",
-    subtitle: "שולחנות ילדים ומשפחה",
-    seats: "280",
-  },
-  {
-    title: "כנס",
-    subtitle: "הושבת הרצאה ושורות",
-    seats: "180",
-  },
-];
-
-const menuPackages: MenuPackage[] = [
-  {
-    name: "פרימיום",
-    description: "7 עיקריות · 12 ראשונות · 6 קינוחים · טבעוני",
-    icon: "crown",
-  },
-  {
-    name: "קלאסי",
-    description: "5 עיקריות · 10 ראשונות · 4 קינוחים · ילדים",
-    icon: "star",
-  },
-  {
-    name: "VIP",
-    description: "8 עיקריות · 15 ראשונות · 7 קינוחים · בר שף",
-    icon: "sparkles",
-  },
-];
-
-const staffRows: StaffRow[] = [
-  {
-    role: "מנהל אולם",
-    name: "דניאל מזרחי",
-    shift: "15:00 - 01:00",
-    initials: "דמ",
-  },
-  {
-    role: "אחראית מטבח",
-    name: "מיכל אדרי",
-    shift: "16:00 - 00:30",
-    initials: "מא",
-  },
-  {
-    role: "צוות מלצרים",
-    name: "12 עובדים",
-    shift: "17:00 - 01:00",
-    initials: "12",
-  },
-  {
-    role: "ניקיון וסגירה",
-    name: "צוות לילה",
-    shift: "22:30 - 02:00",
-    initials: "צנ",
-  },
-];
-
-const maintenanceRows: MaintenanceRow[] = [
-  { label: "תאורה", status: "תקין" },
-  { label: "מערכת סאונד", status: "תקין" },
-  { label: "מקרן ומסכים", status: "תקין" },
-  { label: "מיזוג אוויר", status: "תקין" },
-  { label: "מפות ומפיות", status: "דורש טיפול" },
-  { label: "ניקיון והיגיינה", status: "תקין" },
-];
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("he-IL", {
     style: "currency",
     currency: "ILS",
     maximumFractionDigits: 0,
-  }).format(value);
+  }).format(value || 0);
 }
 
-function getHallName(hallId: string) {
-  if (hallId === "garden-hall") return "גן אירועים";
-  if (hallId === "sky-hall") return "SKY Hall";
-  return "אולם הזהב";
+function formatDate(value: string) {
+  if (!value) return "לא הוגדר";
+
+  const [year, month, day] = value.split("-");
+  if (!year || !month || !day) return value;
+
+  return `${day}.${month}.${year}`;
+}
+
+function getCurrentMonthRange() {
+  const now = new Date();
+
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+  const toYmd = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  return {
+    from: toYmd(start),
+    to: toYmd(end),
+    today: toYmd(now),
+  };
+}
+
+function statusLabel(status: HallStatus) {
+  if (status === "active") return "פעיל";
+  if (status === "maintenance") return "תחזוקה";
+  return "סגור";
+}
+
+function statusClass(status: HallStatus) {
+  if (status === "active") {
+    return "bg-emerald-50 text-emerald-700";
+  }
+
+  if (status === "maintenance") {
+    return "bg-amber-50 text-amber-700";
+  }
+
+  return "bg-rose-50 text-rose-700";
+}
+
+function eventStatusLabel(status: EventStatus) {
+  if (status === "lead") return "ליד";
+  if (status === "proposal") return "בהצעה";
+  if (status === "closed") return "סגור";
+  if (status === "confirmed") return "מאושר";
+  if (status === "preparing") return "בהכנות";
+  if (status === "live") return "פעיל עכשיו";
+  if (status === "done") return "הסתיים";
+  return "בוטל";
+}
+
+function serializeHall(hall: any): SerializedHall {
+  return {
+    id: String(hall.id || ""),
+    name: String(hall.name || "אולם ללא שם"),
+    subtitle: String(hall.subtitle || ""),
+    capacity: Number(hall.capacity || 0),
+    monthlyEvents: Number(hall.monthlyEvents || 0),
+    upcomingEvents: Number(hall.upcomingEvents || 0),
+    occupancyRate: Number(hall.occupancyRate || 0),
+    monthlyRevenue: Number(hall.monthlyRevenue || 0),
+    nextEventAt: String(hall.nextEventAt || ""),
+    status: (hall.status || "active") as HallStatus,
+    image: String(hall.image || ""),
+  };
+}
+
+function serializeEvent(event: any): SerializedEvent {
+  return {
+    id: String(event._id),
+    title: String(event.title || ""),
+    eventType: String(event.eventType || ""),
+    clientName: String(event.clientName || ""),
+    date: String(event.date || ""),
+    startTime: String(event.startTime || ""),
+    endTime: String(event.endTime || ""),
+    guests: Number(event.guests || 0),
+    status: (event.status || "confirmed") as EventStatus,
+    budget: Number(event.budget || 0),
+    paidAmount: Number(event.paidAmount || 0),
+  };
 }
 
 export default async function VenueHallPage({ params }: Props) {
+  await connectDB();
+
+  const auth = await getUserIdFromRequest();
+
+  if (!auth?.userId) {
+    redirect("/login");
+  }
+
   const { hallId } = await params;
-  const hallName = getHallName(hallId);
+
+  const rawHall = await VenueHall.findOne({
+    ownerId: auth.userId,
+    id: hallId,
+  }).lean();
+
+  if (!rawHall) {
+    notFound();
+  }
+
+  const { from, to, today } = getCurrentMonthRange();
+
+  const [monthEventsRaw, upcomingEventsRaw, nextEventRaw] = await Promise.all([
+    VenueEvent.find({
+      ownerId: auth.userId,
+      hallId,
+      date: {
+        $gte: from,
+        $lte: to,
+      },
+    })
+      .sort({ date: 1, startTime: 1 })
+      .lean(),
+
+    VenueEvent.find({
+      ownerId: auth.userId,
+      hallId,
+      date: {
+        $gte: today,
+      },
+    })
+      .sort({ date: 1, startTime: 1 })
+      .limit(6)
+      .lean(),
+
+    VenueEvent.findOne({
+      ownerId: auth.userId,
+      hallId,
+      date: {
+        $gte: today,
+      },
+    })
+      .sort({ date: 1, startTime: 1 })
+      .lean(),
+  ]);
+
+  const hall = serializeHall(rawHall);
+  const monthEvents = monthEventsRaw.map(serializeEvent);
+  const upcomingEvents = upcomingEventsRaw.map(serializeEvent);
+  const nextEvent = nextEventRaw ? serializeEvent(nextEventRaw) : null;
+
+  const monthlyRevenue = monthEvents.reduce(
+    (sum, event) => sum + event.budget,
+    0
+  );
+
+  const monthlyGuests = monthEvents.reduce(
+    (sum, event) => sum + event.guests,
+    0
+  );
+
+  const closedEvents = monthEvents.filter(
+    (event) => event.status === "closed" || event.status === "confirmed"
+  ).length;
+
+  const occupancyRate =
+    hall.capacity > 0 && monthEvents.length > 0
+      ? Math.min(100, Math.round((monthlyGuests / (hall.capacity * monthEvents.length)) * 100))
+      : 0;
 
   const hallCalendarHref = `/venues/dashboard/halls/${hallId}/calendar`;
   const hallCrmHref = `/venues/dashboard/halls/${hallId}/crm`;
@@ -246,33 +304,23 @@ export default async function VenueHallPage({ params }: Props) {
               <UsersRound size={16} />
               צוות ומשמרות
             </Link>
-
-            <button
-              type="button"
-              className="inline-flex h-11 items-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-black text-[#6f6252] shadow-sm transition hover:bg-[#fbf5ea]"
-            >
-              <Edit3 size={16} />
-              עריכת פרטי אולם
-            </button>
-
-            <button
-              type="button"
-              className="inline-flex h-11 items-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-black text-[#6f6252] shadow-sm transition hover:bg-[#fbf5ea]"
-            >
-              <ImageIcon size={16} />
-              עדכון תמונה
-            </button>
           </div>
         </div>
 
         <section className="overflow-hidden rounded-[34px] border border-[#eadfce] bg-white shadow-sm">
           <div className="relative min-h-[210px] overflow-hidden">
-            <img
-              src={hallImages[0]}
-              alt={hallName}
-              className="absolute inset-0 h-full w-full object-cover"
-            />
+            {hall.image ? (
+              <img
+                src={hall.image}
+                alt={hall.name}
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+            ) : (
+              <div className="absolute inset-0 bg-gradient-to-l from-[#fff8ec] via-white to-[#f4ead9]" />
+            )}
+
             <div className="absolute inset-0 bg-gradient-to-l from-white via-white/92 to-white/5" />
+
             <div className="relative z-10 flex min-h-[210px] flex-col justify-center px-6 py-8 md:px-10">
               <div className="flex items-center gap-4">
                 <div className="flex h-16 w-16 items-center justify-center rounded-[24px] bg-[#f4ead9] text-[#b98121] shadow-sm">
@@ -283,11 +331,13 @@ export default async function VenueHallPage({ params }: Props) {
                   <div className="text-sm font-black text-[#8a7b68]">
                     ניהול אולם
                   </div>
+
                   <h1 className="mt-1 text-4xl font-black tracking-tight text-[#2b241c] md:text-5xl">
-                    {hallName}
+                    {hall.name}
                   </h1>
+
                   <p className="mt-2 text-base font-bold text-[#7f705d]">
-                    האולם המרכזי · ניהול יומן, תבניות הושבה, תפריטים, צוות, משמרות ותחזוקה
+                    {hall.subtitle || "ניהול יומן, לקוחות, תפריטים, צוות, משמרות ותחזוקה"}
                   </p>
 
                   <div className="mt-5 flex flex-wrap items-center gap-2">
@@ -297,14 +347,6 @@ export default async function VenueHallPage({ params }: Props) {
                     >
                       <CalendarDays size={17} />
                       מעבר ליומן אולם
-                    </Link>
-
-                    <Link
-                      href={hallCrmHref}
-                      className="inline-flex h-11 items-center gap-2 rounded-2xl border border-[#d9bd83] bg-white/80 px-5 text-sm font-black text-[#9f6f1a] shadow-sm transition hover:bg-[#fff8eb]"
-                    >
-                      <UsersRound size={17} />
-                      ניהול לקוחות CRM
                     </Link>
 
                     <Link
@@ -332,39 +374,44 @@ export default async function VenueHallPage({ params }: Props) {
             <HallKpi
               icon={<UsersRound size={22} />}
               label="קיבולת מקסימלית"
-              value="420"
+              value={`${hall.capacity}`}
               subValue="אורחים"
             />
+
             <HallKpi
               icon={<CalendarDays size={22} />}
               label="אירועים החודש"
-              value="18"
-              subValue="אירועים"
+              value={`${monthEvents.length}`}
+              subValue="אירועים ביומן"
             />
+
             <HallKpi
               icon={<CircleDollarSign size={22} />}
               label="הכנסות החודש"
-              value={formatCurrency(486000)}
-              subValue="סה״כ הכנסות"
+              value={formatCurrency(monthlyRevenue)}
+              subValue="לפי מחיר אירועים"
             />
+
             <HallKpi
               icon={<Clock3 size={22} />}
               label="אירועים עתידיים"
-              value="11"
+              value={`${upcomingEvents.length}`}
               subValue="קדימה"
             />
+
             <HallKpi
               icon={<Clock3 size={22} />}
               label="האירוע הבא"
-              value="היום 19:30"
-              subValue="חתונה · משפחת לוי"
+              value={nextEvent ? `${formatDate(nextEvent.date)}` : "אין"}
+              subValue={nextEvent ? `${nextEvent.title} · ${nextEvent.startTime}` : "לא הוגדר אירוע"}
             />
+
             <HallKpi
               icon={<CheckCircle2 size={22} />}
               label="סטטוס אולם"
-              value="פעיל"
-              subValue="פתוח לאירועים"
-              success
+              value={statusLabel(hall.status)}
+              subValue="מצב אולם במערכת"
+              success={hall.status === "active"}
             />
           </div>
 
@@ -382,39 +429,15 @@ export default async function VenueHallPage({ params }: Props) {
                 "הגדרות",
               ].map((tab, index) => {
                 if (tab === "יומן אולם") {
-                  return (
-                    <Link
-                      key={tab}
-                      href={hallCalendarHref}
-                      className="flex h-12 flex-1 items-center justify-center border-l border-[#eadfce] bg-[#fffdf8] px-4 text-sm font-black text-[#6f6252] transition hover:bg-[#fbf5ea] hover:text-[#b98121]"
-                    >
-                      {tab}
-                    </Link>
-                  );
+                  return <TopNavLink key={tab} href={hallCalendarHref} label={tab} />;
                 }
 
                 if (tab === "תפריטים") {
-                  return (
-                    <Link
-                      key={tab}
-                      href={hallMenusHref}
-                      className="flex h-12 flex-1 items-center justify-center border-l border-[#eadfce] bg-[#fffdf8] px-4 text-sm font-black text-[#6f6252] transition hover:bg-[#fbf5ea] hover:text-[#b98121]"
-                    >
-                      {tab}
-                    </Link>
-                  );
+                  return <TopNavLink key={tab} href={hallMenusHref} label={tab} />;
                 }
 
                 if (tab === "צוות ומשמרות") {
-                  return (
-                    <Link
-                      key={tab}
-                      href={hallStaffHref}
-                      className="flex h-12 flex-1 items-center justify-center border-l border-[#eadfce] bg-[#fffdf8] px-4 text-sm font-black text-[#6f6252] transition hover:bg-[#fbf5ea] hover:text-[#b98121]"
-                    >
-                      {tab}
-                    </Link>
-                  );
+                  return <TopNavLink key={tab} href={hallStaffHref} label={tab} />;
                 }
 
                 return (
@@ -445,11 +468,11 @@ export default async function VenueHallPage({ params }: Props) {
               </div>
 
               <div className="space-y-3 text-sm">
-                <InfoLine label="שם האולם" value={hallName} />
-                <InfoLine label="סוג אולם" value="אולם אירועים מרכזי" />
-                <InfoLine label="קומה" value="קומת קרקע" />
-                <InfoLine label="שטח" value="1,200 מ״ר" />
-                <InfoLine label="קיבולת ישיבה" value="420 אורחים" />
+                <InfoLine label="שם האולם" value={hall.name} />
+                <InfoLine label="תיאור" value={hall.subtitle || "לא הוגדר"} />
+                <InfoLine label="קיבולת ישיבה" value={`${hall.capacity} אורחים`} />
+                <InfoLine label="סטטוס" value={statusLabel(hall.status)} />
+                <InfoLine label="מזהה אולם" value={hall.id} />
               </div>
 
               <div className="my-5 h-px bg-[#eadfce]" />
@@ -457,61 +480,34 @@ export default async function VenueHallPage({ params }: Props) {
               <InfoBlock
                 icon={<MapPin size={18} />}
                 title="מיקום במתחם"
-                description="האולם המרכזי, כניסה A"
+                description="לא הוגדר עדיין"
               />
 
               <InfoBlock
                 icon={<UsersRound size={18} />}
                 title="מנהל אולם"
-                description="דניאל מזרחי · 052-1234567"
+                description="לא הוגדר עדיין"
               />
 
               <InfoBlock
                 icon={<Phone size={18} />}
                 title="איש קשר"
-                description="רונית כהן · 050-9876543"
+                description="לא הוגדר עדיין"
               />
 
               <div className="mt-5 space-y-2">
+                <SideLink href={hallCalendarHref} icon={<CalendarDays size={17} />} label="יומן אולם" primary />
+                <SideLink href={hallCrmHref} icon={<UsersRound size={17} />} label="ניהול לקוחות CRM" />
+                <SideLink href={hallMenusHref} icon={<Utensils size={17} />} label="ניהול תפריטים" />
+                <SideLink href={hallStaffHref} icon={<UsersRound size={17} />} label="צוות ומשמרות" />
+
                 <Link
                   href={hallCalendarHref}
-                  className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#b98121] text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a]"
-                >
-                  <CalendarDays size={17} />
-                  יומן אולם
-                </Link>
-
-                <Link
-                  href={hallCrmHref}
-                  className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#d9bd83] bg-[#fff8eb] text-sm font-black text-[#9f6f1a] transition hover:bg-[#f4ead9]"
-                >
-                  <UsersRound size={17} />
-                  ניהול לקוחות CRM
-                </Link>
-
-                <Link
-                  href={hallMenusHref}
-                  className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#d9bd83] bg-[#fff8eb] text-sm font-black text-[#9f6f1a] transition hover:bg-[#f4ead9]"
-                >
-                  <Utensils size={17} />
-                  ניהול תפריטים
-                </Link>
-
-                <Link
-                  href={hallStaffHref}
-                  className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#d9bd83] bg-[#fff8eb] text-sm font-black text-[#9f6f1a] transition hover:bg-[#f4ead9]"
-                >
-                  <UsersRound size={17} />
-                  צוות ומשמרות
-                </Link>
-
-                <button
-                  type="button"
                   className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-[#fffdf8] text-sm font-black text-[#6f6252] transition hover:bg-[#fbf5ea]"
                 >
                   <Plus size={17} />
                   הוסף אירוע
-                </button>
+                </Link>
 
                 <button
                   type="button"
@@ -533,34 +529,39 @@ export default async function VenueHallPage({ params }: Props) {
                 href={hallCalendarHref}
               >
                 <div className="space-y-2">
-                  {upcomingEvents.map((event) => (
-                    <div
-                      key={`${event.date}-${event.time}-${event.client}`}
-                      className="grid grid-cols-[72px_1fr_auto] items-center gap-3 rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-3 py-2"
-                    >
-                      <div className="text-right">
-                        <div className="text-xs font-black text-[#9b8a73]">
-                          {event.date}
+                  {upcomingEvents.length ? (
+                    upcomingEvents.map((event) => (
+                      <Link
+                        href={`/venues/dashboard/events/${event.id}`}
+                        key={event.id}
+                        className="grid grid-cols-[72px_1fr_auto] items-center gap-3 rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-3 py-2 transition hover:bg-[#fbf5ea]"
+                      >
+                        <div className="text-right">
+                          <div className="text-xs font-black text-[#9b8a73]">
+                            {formatDate(event.date)}
+                          </div>
+                          <div className="text-sm font-black text-[#2b241c]">
+                            {event.startTime || "לא הוגדר"}
+                          </div>
                         </div>
-                        <div className="text-sm font-black text-[#2b241c]">
-                          {event.time}
-                        </div>
-                      </div>
 
-                      <div>
-                        <div className="text-sm font-black text-[#2b241c]">
-                          {event.type}
+                        <div>
+                          <div className="text-sm font-black text-[#2b241c]">
+                            {event.eventType || event.title}
+                          </div>
+                          <div className="text-xs font-bold text-[#8a7b68]">
+                            {event.clientName || "ללא לקוח"}
+                          </div>
                         </div>
-                        <div className="text-xs font-bold text-[#8a7b68]">
-                          {event.client}
-                        </div>
-                      </div>
 
-                      <span className="rounded-full bg-[#f4ead9] px-2.5 py-1 text-[11px] font-black text-[#b98121]">
-                        {event.status}
-                      </span>
-                    </div>
-                  ))}
+                        <span className="rounded-full bg-[#f4ead9] px-2.5 py-1 text-[11px] font-black text-[#b98121]">
+                          {eventStatusLabel(event.status)}
+                        </span>
+                      </Link>
+                    ))
+                  ) : (
+                    <EmptyCardText text="אין אירועים עתידיים לאולם הזה עדיין." />
+                  )}
                 </div>
               </DashboardCard>
 
@@ -569,29 +570,11 @@ export default async function VenueHallPage({ params }: Props) {
                 icon={<LayoutTemplate size={20} />}
                 footer="ניהול תבניות"
               >
-                <div className="grid grid-cols-3 gap-3">
-                  {seatingTemplates.map((template) => (
-                    <div
-                      key={template.title}
-                      className="rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-3 text-center"
-                    >
-                      <div className="mx-auto grid h-16 w-full grid-cols-4 gap-1 rounded-xl bg-white p-2">
-                        {Array.from({ length: 16 }).map((_, index) => (
-                          <span
-                            key={index}
-                            className="rounded-full border border-[#d9c9ad] bg-[#fbf5ea]"
-                          />
-                        ))}
-                      </div>
-                      <div className="mt-3 text-sm font-black text-[#2b241c]">
-                        {template.title}
-                      </div>
-                      <div className="mt-1 text-xs font-bold text-[#8a7b68]">
-                        {template.seats} אורחים
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <EmptyFeature
+                  title="עדיין אין תבניות הושבה"
+                  text="בהמשך נחבר כאן יצירת תבניות הושבה אמיתיות לפי אולם."
+                  icon={<LayoutTemplate size={24} />}
+                />
               </DashboardCard>
 
               <DashboardCard
@@ -600,34 +583,11 @@ export default async function VenueHallPage({ params }: Props) {
                 footer="ניהול כל התפריטים"
                 href={hallMenusHref}
               >
-                <div className="space-y-3">
-                  {menuPackages.map((pkg) => (
-                    <Link
-                      href={hallMenusHref}
-                      key={pkg.name}
-                      className="flex items-start gap-3 rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-3 transition hover:bg-[#fbf5ea]"
-                    >
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#f4ead9] text-[#b98121]">
-                        {pkg.icon === "crown" ? (
-                          <Crown size={18} />
-                        ) : pkg.icon === "star" ? (
-                          <Star size={18} />
-                        ) : (
-                          <Sparkles size={18} />
-                        )}
-                      </div>
-
-                      <div>
-                        <div className="text-sm font-black text-[#2b241c]">
-                          {pkg.name}
-                        </div>
-                        <div className="mt-1 text-xs font-bold leading-5 text-[#8a7b68]">
-                          {pkg.description}
-                        </div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
+                <EmptyFeature
+                  title="תפריטים יופיעו כאן"
+                  text="לאחר שתיצרי תפריטים לאולם, הם יוצגו כאן ויהיה ניתן לשלוח ללקוח לבחירה."
+                  icon={<Utensils size={24} />}
+                />
               </DashboardCard>
             </section>
 
@@ -638,32 +598,11 @@ export default async function VenueHallPage({ params }: Props) {
                 footer="ניהול צוות ומשמרות"
                 href={hallStaffHref}
               >
-                <div className="space-y-2">
-                  {staffRows.map((staff) => (
-                    <Link
-                      href={hallStaffHref}
-                      key={`${staff.role}-${staff.name}`}
-                      className="flex items-center gap-3 rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-3 transition hover:bg-[#fbf5ea]"
-                    >
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#f4ead9] text-xs font-black text-[#b98121]">
-                        {staff.initials}
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-                        <div className="text-sm font-black text-[#2b241c]">
-                          {staff.role}
-                        </div>
-                        <div className="truncate text-xs font-bold text-[#8a7b68]">
-                          {staff.name}
-                        </div>
-                      </div>
-
-                      <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-black text-[#8a7b68]">
-                        {staff.shift}
-                      </span>
-                    </Link>
-                  ))}
-                </div>
+                <EmptyFeature
+                  title="עדיין אין שיבוצי צוות"
+                  text="אחרי חיבור צוות ומשמרות, יוצגו כאן עובדים, משמרות, חופשות והחלפות."
+                  icon={<UsersRound size={24} />}
+                />
               </DashboardCard>
 
               <DashboardCard
@@ -672,10 +611,25 @@ export default async function VenueHallPage({ params }: Props) {
                 footer="מעבר לדוחות כספיים"
               >
                 <div className="grid grid-cols-2 gap-3">
-                  <FinanceBox label="סה״כ שולם" value="₪386,000" tone="green" />
-                  <FinanceBox label="יתרה פתוחה" value="₪100,000" tone="red" />
-                  <FinanceBox label="פיקדונות" value="₪120,000" />
-                  <FinanceBox label="תשלום צפוי" value="24.05 · ₪50,000" />
+                  <FinanceBox
+                    label="הכנסות החודש"
+                    value={formatCurrency(monthlyRevenue)}
+                    tone="green"
+                  />
+                  <FinanceBox
+                    label="שולם עד כה"
+                    value={formatCurrency(
+                      monthEvents.reduce((sum, event) => sum + event.paidAmount, 0)
+                    )}
+                  />
+                  <FinanceBox
+                    label="אירועים סגורים"
+                    value={`${closedEvents}`}
+                  />
+                  <FinanceBox
+                    label="תפוסה"
+                    value={`${occupancyRate}%`}
+                  />
                 </div>
               </DashboardCard>
 
@@ -684,37 +638,11 @@ export default async function VenueHallPage({ params }: Props) {
                 icon={<Wrench size={20} />}
                 footer="ניהול ציוד ותחזוקה"
               >
-                <div className="grid grid-cols-2 gap-2">
-                  {maintenanceRows.map((row) => (
-                    <div
-                      key={row.label}
-                      className="flex items-center justify-between rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-3 py-2"
-                    >
-                      <span className="text-xs font-black text-[#2b241c]">
-                        {row.label}
-                      </span>
-                      <span
-                        className={[
-                          "rounded-full px-2 py-1 text-[10px] font-black",
-                          row.status === "תקין"
-                            ? "bg-emerald-50 text-emerald-700"
-                            : "bg-amber-50 text-amber-700",
-                        ].join(" ")}
-                      >
-                        {row.status}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-3 rounded-2xl border border-rose-100 bg-rose-50 p-3">
-                  <div className="text-xs font-black text-rose-700">
-                    2 משימות פתוחות
-                  </div>
-                  <div className="mt-1 text-xs font-bold leading-5 text-rose-600">
-                    בדיקת מפות צד שמאל · החלפת נורה במסדרון
-                  </div>
-                </div>
+                <EmptyFeature
+                  title="אין משימות תחזוקה"
+                  text="משימות תחזוקה, ציוד ובדיקות אולם יופיעו כאן אחרי שנחבר את המודול."
+                  icon={<Wrench size={24} />}
+                />
               </DashboardCard>
             </section>
 
@@ -724,23 +652,21 @@ export default async function VenueHallPage({ params }: Props) {
                 icon={<GalleryHorizontalEnd size={20} />}
                 footer="צפייה בגלריה המלאה"
               >
-                <div className="grid grid-cols-5 gap-3">
-                  {hallImages.slice(0, 5).map((image, index) => (
-                    <div
-                      key={image}
-                      className={[
-                        "overflow-hidden rounded-2xl border border-[#eadfce] bg-[#fffdf8]",
-                        index === 0 ? "col-span-2 row-span-2" : "",
-                      ].join(" ")}
-                    >
-                      <img
-                        src={image}
-                        alt={`תמונת אולם ${index + 1}`}
-                        className="h-full min-h-[92px] w-full object-cover"
-                      />
-                    </div>
-                  ))}
-                </div>
+                {hall.image ? (
+                  <div className="overflow-hidden rounded-2xl border border-[#eadfce] bg-[#fffdf8]">
+                    <img
+                      src={hall.image}
+                      alt={hall.name}
+                      className="h-[220px] w-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <EmptyFeature
+                    title="עדיין אין תמונות"
+                    text="כשתעדכני תמונת אולם או גלריה, היא תופיע כאן."
+                    icon={<GalleryHorizontalEnd size={24} />}
+                  />
+                )}
               </DashboardCard>
 
               <DashboardCard
@@ -748,30 +674,55 @@ export default async function VenueHallPage({ params }: Props) {
                 icon={<Bell size={20} />}
                 footer="מעבר לכל ההערות"
               >
-                <div className="space-y-2">
-                  <NoteRow
-                    date="24.05"
-                    text="לבדוק סידור פרחים לכיסא חתן וכלה לפני כניסת אורחים."
-                  />
-                  <NoteRow
-                    date="24.05"
-                    text="לוודא חניה נוספת לאורחים VIP לקראת האירוע בערב."
-                  />
-                  <NoteRow
-                    date="26.05"
-                    text="לעדכן תפריט VIP ולשלוח אישור מול המטבח."
-                  />
-                  <NoteRow
-                    date="27.05"
-                    text="בדיקת סאונד ותאורה לפני כנס עסקי."
-                  />
-                </div>
+                <EmptyFeature
+                  title="אין הערות כרגע"
+                  text="הערות פנימיות ותזכורות לאולם יוצגו כאן בהמשך."
+                  icon={<Bell size={24} />}
+                />
               </DashboardCard>
             </section>
           </div>
         </section>
       </div>
     </main>
+  );
+}
+
+function TopNavLink({ href, label }: { href: string; label: string }) {
+  return (
+    <Link
+      href={href}
+      className="flex h-12 flex-1 items-center justify-center border-l border-[#eadfce] bg-[#fffdf8] px-4 text-sm font-black text-[#6f6252] transition hover:bg-[#fbf5ea] hover:text-[#b98121]"
+    >
+      {label}
+    </Link>
+  );
+}
+
+function SideLink({
+  href,
+  icon,
+  label,
+  primary,
+}: {
+  href: string;
+  icon: React.ReactNode;
+  label: string;
+  primary?: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className={[
+        "flex h-12 w-full items-center justify-center gap-2 rounded-2xl text-sm font-black shadow-sm transition",
+        primary
+          ? "bg-[#b98121] text-white hover:bg-[#9f6f1a]"
+          : "border border-[#d9bd83] bg-[#fff8eb] text-[#9f6f1a] hover:bg-[#f4ead9]",
+      ].join(" ")}
+    >
+      {icon}
+      {label}
+    </Link>
   );
 }
 
@@ -803,15 +754,9 @@ function HallKpi({
         </div>
       </div>
 
-      <div className="mt-4 text-xs font-black text-[#8a7b68]">
-        {label}
-      </div>
-      <div className="mt-1 text-xl font-black text-[#2b241c]">
-        {value}
-      </div>
-      <div className="mt-1 text-xs font-bold text-[#9b8a73]">
-        {subValue}
-      </div>
+      <div className="mt-4 text-xs font-black text-[#8a7b68]">{label}</div>
+      <div className="mt-1 text-xl font-black text-[#2b241c]">{value}</div>
+      <div className="mt-1 text-xs font-bold text-[#9b8a73]">{subValue}</div>
     </div>
   );
 }
@@ -836,9 +781,7 @@ function DashboardCard({
           <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#f4ead9] text-[#b98121]">
             {icon}
           </div>
-          <h2 className="text-base font-black text-[#2b241c]">
-            {title}
-          </h2>
+          <h2 className="text-base font-black text-[#2b241c]">{title}</h2>
         </div>
       </div>
 
@@ -926,11 +869,32 @@ function FinanceBox({
   );
 }
 
-function NoteRow({ date, text }: { date: string; text: string }) {
+function EmptyCardText({ text }: { text: string }) {
   return (
-    <div className="grid grid-cols-[62px_1fr] gap-3 rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-3 py-2">
-      <div className="text-xs font-black text-[#b98121]">{date}</div>
-      <div className="text-xs font-bold leading-5 text-[#7f705d]">{text}</div>
+    <div className="rounded-2xl border border-dashed border-[#d8bd83] bg-[#fffdf8] p-4 text-center text-sm font-bold leading-6 text-[#8a7b68]">
+      {text}
+    </div>
+  );
+}
+
+function EmptyFeature({
+  title,
+  text,
+  icon,
+}: {
+  title: string;
+  text: string;
+  icon: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-3xl border border-dashed border-[#d8bd83] bg-[#fffdf8] p-5 text-center">
+      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f4ead9] text-[#b98121]">
+        {icon}
+      </div>
+      <div className="mt-3 text-sm font-black text-[#2b241c]">{title}</div>
+      <p className="mx-auto mt-1 max-w-xs text-xs font-bold leading-5 text-[#8a7b68]">
+        {text}
+      </p>
     </div>
   );
 }
