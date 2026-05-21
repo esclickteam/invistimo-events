@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Bell,
@@ -13,9 +13,11 @@ import {
   DoorOpen,
   FileText,
   ImagePlus,
+  Loader2,
   LayoutDashboard,
   Menu,
   MoreHorizontal,
+  RefreshCw,
   Pencil,
   PieChart,
   Save,
@@ -29,6 +31,7 @@ import {
   Wrench,
   X,
 } from "lucide-react";
+import { useAutoSaveHall } from "./_hooks/useAutoSaveHall";
 
 /* ======================================================
    TYPES
@@ -71,6 +74,14 @@ type Task = {
 type FinanceMonth = {
   label: string;
   revenue: number;
+};
+
+type OwnerAlert = {
+  id: string;
+  title: string;
+  description: string;
+  tone: "amber" | "rose" | "violet" | "emerald";
+  type: "maintenance" | "payments" | "staff" | "menu";
 };
 
 /* ======================================================
@@ -123,7 +134,7 @@ const initialHalls: Hall[] = [
   },
 ];
 
-const todayEvents: TodayEvent[] = [
+const initialTodayEvents: TodayEvent[] = [
   {
     id: "e1",
     hallId: "main-gold-hall",
@@ -150,7 +161,7 @@ const todayEvents: TodayEvent[] = [
   },
 ];
 
-const tasks: Task[] = [
+const initialTasks: Task[] = [
   {
     id: "t1",
     title: "בדיקת תאורה וסאונד באולם הזהב",
@@ -185,13 +196,44 @@ const tasks: Task[] = [
   },
 ];
 
-const financeData: FinanceMonth[] = [
+const initialFinanceData: FinanceMonth[] = [
   { label: "ינו׳", revenue: 740000 },
   { label: "פבר׳", revenue: 680000 },
   { label: "מרץ", revenue: 810000 },
   { label: "אפר׳", revenue: 920000 },
   { label: "מאי", revenue: 1248000 },
   { label: "יוני", revenue: 980000 },
+];
+
+const initialAlerts: OwnerAlert[] = [
+  {
+    id: "a1",
+    type: "maintenance",
+    title: "SKY Hall מסומן בתחזוקה",
+    description: "מומלץ לוודא שהתקלה נסגרת לפני האירוע הבא.",
+    tone: "amber",
+  },
+  {
+    id: "a2",
+    type: "payments",
+    title: "יתרה לגבייה מ־4 אירועים",
+    description: "קיימים תשלומים פתוחים שטרם הושלמו.",
+    tone: "rose",
+  },
+  {
+    id: "a3",
+    type: "staff",
+    title: "בדיקת כוח אדם לאירועי סוף השבוע",
+    description: "כדאי לוודא שכל משמרות הצוות משויכות לאולמות.",
+    tone: "violet",
+  },
+  {
+    id: "a4",
+    type: "menu",
+    title: "בדיקת מלאי לפני סוף שבוע",
+    description: "עומס אירועים גבוה ביום חמישי ושישי.",
+    tone: "emerald",
+  },
 ];
 
 /* ======================================================
@@ -251,7 +293,66 @@ export default function VenueDashboardClient() {
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [halls, setHalls] = useState<Hall[]>(initialHalls);
+  const [todayEvents, setTodayEvents] = useState<TodayEvent[]>(initialTodayEvents);
+  const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  const [financeData, setFinanceData] = useState<FinanceMonth[]>(initialFinanceData);
+  const [alerts, setAlerts] = useState<OwnerAlert[]>(initialAlerts);
   const [editingHall, setEditingHall] = useState<Hall | null>(null);
+  const [loadingDashboard, setLoadingDashboard] = useState(true);
+  const [serverError, setServerError] = useState("");
+  const [savingHallId, setSavingHallId] = useState<string | null>(null);
+
+  const fetchDashboard = async () => {
+    setLoadingDashboard(true);
+    setServerError("");
+
+    try {
+      const response = await fetch("/api/venues/dashboard", {
+        method: "GET",
+        cache: "no-store",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.message || "טעינת נתוני הדשבורד נכשלה");
+      }
+
+      if (Array.isArray(data.halls)) {
+        setHalls(data.halls);
+      }
+
+      if (Array.isArray(data.todayEvents)) {
+        setTodayEvents(data.todayEvents);
+      }
+
+      if (Array.isArray(data.tasks)) {
+        setTasks(data.tasks);
+      }
+
+      if (Array.isArray(data.financeData)) {
+        setFinanceData(data.financeData);
+      }
+
+      if (Array.isArray(data.alerts)) {
+        setAlerts(data.alerts);
+      }
+    } catch (error) {
+      console.error("GET /api/venues/dashboard failed:", error);
+      setServerError("לא הצלחתי לטעון נתונים מהשרת. כרגע מוצגת תצוגת דמו מקומית.");
+      setHalls(initialHalls);
+      setTodayEvents(initialTodayEvents);
+      setTasks(initialTasks);
+      setFinanceData(initialFinanceData);
+      setAlerts(initialAlerts);
+    } finally {
+      setLoadingDashboard(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboard();
+  }, []);
 
   const stats = useMemo(() => {
     const monthlyEvents = halls.reduce((sum, hall) => sum + hall.monthlyEvents, 0);
@@ -270,22 +371,67 @@ export default function VenueDashboardClient() {
     };
   }, [halls]);
 
-  const maxRevenue = Math.max(...financeData.map((item) => item.revenue));
+  const maxRevenue = Math.max(...financeData.map((item) => item.revenue), 1);
 
   const goToHall = (hallId: string) => {
     router.push(`/venues/dashboard/halls/${hallId}`);
   };
 
-  const saveHall = (updatedHall: Hall) => {
+  const handleAutoSavedHall = useCallback((savedHall: Hall) => {
     setHalls((prev) =>
-      prev.map((hall) => (hall.id === updatedHall.id ? updatedHall : hall))
+      prev.map((hall) => (hall.id === savedHall.id ? savedHall : hall))
     );
-    setEditingHall(null);
+  }, []);
+
+  const saveHall = async (updatedHall: Hall) => {
+    setSavingHallId(updatedHall.id);
+    setServerError("");
+
+    try {
+      const response = await fetch(`/api/venues/dashboard/halls/${updatedHall.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(updatedHall),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.message || "שמירת פרטי אולם נכשלה");
+      }
+
+      const savedHall = data.hall || updatedHall;
+
+      setHalls((prev) =>
+        prev.map((hall) => (hall.id === savedHall.id ? savedHall : hall))
+      );
+
+      setEditingHall(null);
+    } catch (error) {
+      console.error("PUT /api/venues/dashboard/halls/[hallId] failed:", error);
+      setServerError("השמירה מול השרת נכשלה. הנתונים עודכנו זמנית במסך בלבד.");
+
+      setHalls((prev) =>
+        prev.map((hall) => (hall.id === updatedHall.id ? updatedHall : hall))
+      );
+
+      setEditingHall(null);
+    } finally {
+      setSavingHallId(null);
+    }
   };
 
   return (
-    <main dir="rtl" className="min-h-screen bg-[#f8f6f2] text-[#1f2933]">
-      <div className="flex min-h-screen">
+    <main dir="rtl" className="relative min-h-screen overflow-hidden bg-[#f6efe4] text-[#1f2933]">
+      <div className="pointer-events-none fixed inset-0">
+        <div className="absolute -right-32 top-0 h-[460px] w-[460px] rounded-full bg-[#e8c982]/25 blur-3xl" />
+        <div className="absolute -left-40 top-40 h-[560px] w-[560px] rounded-full bg-[#b98121]/10 blur-3xl" />
+        <div className="absolute bottom-0 right-1/3 h-[380px] w-[380px] rounded-full bg-white/70 blur-3xl" />
+      </div>
+
+      <div className="relative flex min-h-screen">
         {sidebarOpen && (
           <button
             type="button"
@@ -306,7 +452,7 @@ export default function VenueDashboardClient() {
               <div className="text-[11px] font-black tracking-[0.35em] text-[#c99a3d]">
                 INVISTIMO
               </div>
-              <div className="mt-1 text-xl font-black text-[#2b241c]">Venues</div>
+              <div className="mt-1 text-xl font-black text-[#2b241c]">Owner Suite</div>
             </div>
 
             <button
@@ -337,7 +483,7 @@ export default function VenueDashboardClient() {
 
           <nav className="mt-7 space-y-1">
             {[
-              { label: "דשבורד ראשי", icon: LayoutDashboard, active: true },
+              { label: "דשבורד בעלים", icon: LayoutDashboard, active: true },
               { label: "יומן אירועים", icon: CalendarDays },
               { label: "הצעות מחיר", icon: FileText },
               { label: "תשלומים וחשבונות", icon: CreditCard },
@@ -354,7 +500,7 @@ export default function VenueDashboardClient() {
                   className={[
                     "group flex h-12 w-full items-center gap-3 rounded-2xl px-4 text-sm font-extrabold transition",
                     item.active
-                      ? "bg-[#f4ead9] text-[#b98121]"
+                      ? "bg-gradient-to-l from-[#b98121] to-[#d5b36d] text-white shadow-lg shadow-[#b98121]/15"
                       : "text-[#736657] hover:bg-[#fbf5ea] hover:text-[#b98121]",
                   ].join(" ")}
                 >
@@ -380,8 +526,9 @@ export default function VenueDashboardClient() {
 
         <section className="min-w-0 flex-1">
           <div className="px-4 py-5 md:px-7">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div className="flex items-center gap-3">
+            <div className="rounded-[34px] border border-[#eadfce] bg-white/80 p-5 shadow-xl shadow-[#b98121]/5 backdrop-blur-xl md:p-7">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div className="flex items-center gap-3">
                 <button
                   type="button"
                   onClick={() => setSidebarOpen(true)}
@@ -391,14 +538,44 @@ export default function VenueDashboardClient() {
                 </button>
 
                 <div>
-                  <h1 className="text-2xl font-black text-[#2b241c] md:text-3xl">
-                    דשבורד מתחם
+                  <div className="text-xs font-black tracking-[0.25em] text-[#b98121]">
+                    OWNER DASHBOARD
+                  </div>
+                  <h1 className="mt-1 text-3xl font-black tracking-tight text-[#2b241c] md:text-5xl">
+                    דשבורד בעלים ראשי
                   </h1>
-                  <p className="mt-1 text-sm font-bold text-[#8a7b68]">
-                    סקירה כללית של האולמות, האירועים, ההכנסות והתפעול.
+                  <p className="mt-2 text-sm font-bold leading-7 text-[#8a7b68]">
+                    מרכז שליטה בכיר לכל המתחם: אולמות, הכנסות, תפוסה, אירועים, גבייה ותפעול.
                   </p>
                 </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={fetchDashboard}
+                    className="inline-flex h-11 items-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-black text-[#6f6252] shadow-sm transition hover:bg-[#fbf5ea]"
+                  >
+                    {loadingDashboard ? <Loader2 size={17} className="animate-spin" /> : <RefreshCw size={17} />}
+                    רענון מהשרת
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => router.push("/venues/dashboard/events")}
+                    className="inline-flex h-11 items-center gap-2 rounded-2xl bg-[#b98121] px-5 text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a]"
+                  >
+                    <CalendarDays size={17} />
+                    יומן כל המתחם
+                  </button>
+                </div>
               </div>
+
+              {serverError ? (
+                <div className="mt-4 flex items-start gap-2 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-bold leading-6 text-amber-800">
+                  {serverError}
+                </div>
+              ) : null}
             </div>
 
             <section className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
@@ -444,7 +621,7 @@ export default function VenueDashboardClient() {
             </section>
 
             <section className="mt-5 grid gap-5 xl:grid-cols-[1fr_360px]">
-              <div className="rounded-[28px] border border-[#eadfce] bg-white p-4 shadow-sm md:p-5">
+              <div className="rounded-[32px] border border-[#eadfce] bg-white/90 p-4 shadow-xl shadow-[#b98121]/5 backdrop-blur md:p-5">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
                     <h2 className="text-lg font-black text-[#2b241c]">אולמות במתחם</h2>
@@ -561,7 +738,7 @@ export default function VenueDashboardClient() {
                 </div>
               </div>
 
-              <div className="rounded-[28px] border border-[#eadfce] bg-white p-4 shadow-sm md:p-5">
+              <div className="rounded-[32px] border border-[#eadfce] bg-white/90 p-4 shadow-xl shadow-[#b98121]/5 backdrop-blur md:p-5">
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-lg font-black text-[#2b241c]">אירועים היום</h2>
@@ -617,7 +794,7 @@ export default function VenueDashboardClient() {
             </section>
 
             <section className="mt-5 grid gap-5 xl:grid-cols-[1fr_350px]">
-              <div className="rounded-[28px] border border-[#eadfce] bg-white p-4 shadow-sm md:p-5">
+              <div className="rounded-[32px] border border-[#eadfce] bg-white/90 p-4 shadow-xl shadow-[#b98121]/5 backdrop-blur md:p-5">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
                     <h2 className="text-lg font-black text-[#2b241c]">הכנסות המתחם</h2>
@@ -632,8 +809,8 @@ export default function VenueDashboardClient() {
                   </div>
                 </div>
 
-                <div className="mt-6 rounded-[24px] bg-[#fbfaf7] p-5">
-                  <div className="relative flex h-64 items-end justify-between gap-5 overflow-hidden rounded-[22px] border border-[#eadfce] bg-white px-5 pb-4 pt-6">
+                <div className="mt-6 rounded-[28px] border border-[#eadfce] bg-gradient-to-br from-[#fffdf8] to-[#f7ecd9] p-4">
+                  <div className="relative flex h-[330px] items-end justify-between gap-5 overflow-hidden rounded-[24px] border border-[#eadfce] bg-white px-5 pb-5 pt-7">
                     <div className="pointer-events-none absolute inset-x-5 top-1/4 border-t border-dashed border-[#eadfce]" />
                     <div className="pointer-events-none absolute inset-x-5 top-1/2 border-t border-dashed border-[#eadfce]" />
                     <div className="pointer-events-none absolute inset-x-5 top-3/4 border-t border-dashed border-[#eadfce]" />
@@ -651,7 +828,7 @@ export default function VenueDashboardClient() {
                         >
                           <div className="flex h-full w-full items-end justify-center">
                             <div
-                              className="w-7 rounded-t-[18px] bg-gradient-to-t from-[#b98121] via-[#d6b56d] to-[#f6e4b8] shadow-lg shadow-[#b98121]/10 transition hover:-translate-y-1 hover:shadow-[#b98121]/20 md:w-8"
+                              className="w-4 rounded-t-[18px] bg-gradient-to-t from-[#9f6f1a] via-[#d2aa58] to-[#f7e8bd] shadow-lg shadow-[#b98121]/15 transition hover:-translate-y-1 hover:shadow-[#b98121]/30 md:w-5"
                               style={{ height: `${height}%` }}
                               title={`${item.label}: ${formatCurrency(item.revenue)}`}
                             />
@@ -679,7 +856,7 @@ export default function VenueDashboardClient() {
                 </div>
               </div>
 
-              <div className="rounded-[28px] border border-[#eadfce] bg-white p-4 shadow-sm md:p-5">
+              <div className="rounded-[32px] border border-[#eadfce] bg-white/90 p-4 shadow-xl shadow-[#b98121]/5 backdrop-blur md:p-5">
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-lg font-black text-[#2b241c]">משימות תפעול</h2>
@@ -739,7 +916,7 @@ export default function VenueDashboardClient() {
             </section>
 
             <section className="mt-5 grid gap-5 xl:grid-cols-[1fr_430px]">
-              <div className="rounded-[28px] border border-[#eadfce] bg-white p-4 shadow-sm md:p-5">
+              <div className="rounded-[32px] border border-[#eadfce] bg-white/90 p-4 shadow-xl shadow-[#b98121]/5 backdrop-blur md:p-5">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
                     <h2 className="text-lg font-black text-[#2b241c]">יומן אולמות שבועי</h2>
@@ -786,7 +963,7 @@ export default function VenueDashboardClient() {
                 </div>
               </div>
 
-              <div className="rounded-[28px] border border-[#eadfce] bg-white p-4 shadow-sm md:p-5">
+              <div className="rounded-[32px] border border-[#eadfce] bg-white/90 p-4 shadow-xl shadow-[#b98121]/5 backdrop-blur md:p-5">
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-lg font-black text-[#2b241c]">התראות חכמות</h2>
@@ -799,33 +976,25 @@ export default function VenueDashboardClient() {
                 </div>
 
                 <div className="mt-5 space-y-3">
-                  <AlertRow
-                    icon={<Wrench size={18} />}
-                    title="SKY Hall מסומן בתחזוקה"
-                    description="מומלץ לוודא שהתקלה נסגרת לפני האירוע הבא."
-                    tone="amber"
-                  />
-
-                  <AlertRow
-                    icon={<CreditCard size={18} />}
-                    title="יתרה לגבייה מ־4 אירועים"
-                    description="קיימים תשלומים פתוחים שטרם הושלמו."
-                    tone="rose"
-                  />
-
-                  <AlertRow
-                    icon={<UsersRound size={18} />}
-                    title="בדיקת כוח אדם לאירועי סוף השבוע"
-                    description="כדאי לוודא שכל משמרות הצוות משויכות לאולמות."
-                    tone="violet"
-                  />
-
-                  <AlertRow
-                    icon={<Utensils size={18} />}
-                    title="בדיקת מלאי לפני סוף שבוע"
-                    description="עומס אירועים גבוה ביום חמישי ושישי."
-                    tone="emerald"
-                  />
+                  {alerts.map((alert) => (
+                    <AlertRow
+                      key={alert.id}
+                      icon={
+                        alert.type === "maintenance" ? (
+                          <Wrench size={18} />
+                        ) : alert.type === "payments" ? (
+                          <CreditCard size={18} />
+                        ) : alert.type === "staff" ? (
+                          <UsersRound size={18} />
+                        ) : (
+                          <Utensils size={18} />
+                        )
+                      }
+                      title={alert.title}
+                      description={alert.description}
+                      tone={alert.tone}
+                    />
+                  ))}
                 </div>
               </div>
             </section>
@@ -836,8 +1005,10 @@ export default function VenueDashboardClient() {
       {editingHall && (
         <EditHallModal
           hall={editingHall}
+          saving={savingHallId === editingHall.id}
           onClose={() => setEditingHall(null)}
           onSave={saveHall}
+          onAutoSaved={handleAutoSavedHall}
         />
       )}
     </main>
@@ -850,14 +1021,23 @@ export default function VenueDashboardClient() {
 
 function EditHallModal({
   hall,
+  saving,
   onClose,
   onSave,
+  onAutoSaved,
 }: {
   hall: Hall;
+  saving: boolean;
   onClose: () => void;
   onSave: (hall: Hall) => void;
+  onAutoSaved: (hall: Hall) => void;
 }) {
   const [form, setForm] = useState<Hall>(hall);
+
+  const { state: autoSaveState, error: autoSaveError } = useAutoSaveHall(
+    form,
+    onAutoSaved
+  );
 
   const updateField = <K extends keyof Hall>(key: K, value: Hall[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -883,8 +1063,18 @@ function EditHallModal({
           <div>
             <h2 className="text-xl font-black text-[#2b241c]">עריכת פרטי אולם</h2>
             <p className="mt-1 text-sm font-bold text-[#8a7b68]">
-              עדכון הנתונים שמופיעים בכרטיס האולם בדשבורד.
+              עדכון הנתונים שמופיעים בכרטיס האולם בדשבורד. כל שינוי נשמר אוטומטית.
             </p>
+
+            <div className="mt-3 inline-flex rounded-full border border-[#eadfce] bg-[#fffdf8] px-3 py-1 text-xs font-black text-[#7f705d]">
+              {autoSaveState === "saving"
+                ? "שומר אוטומטית..."
+                : autoSaveState === "saved"
+                  ? "נשמר אוטומטית"
+                  : autoSaveState === "error"
+                    ? autoSaveError || "שגיאה בשמירה"
+                    : "שמירה אוטומטית פעילה"}
+            </div>
           </div>
 
           <button
@@ -910,7 +1100,7 @@ function EditHallModal({
               </label>
 
               <p className="mt-3 text-xs font-bold leading-5 text-[#8a7b68]">
-                כרגע התמונה נשמרת כ־Preview מקומי. בהמשך נחבר את זה להעלאה ל־Cloudinary ושמירה ב־MongoDB.
+התמונה מתעדכנת מיידית במסך ונשלחת לשמירה אוטומטית. בהמשך אפשר לחבר העלאה אמיתית ל־Cloudinary.
               </p>
             </div>
 
@@ -997,10 +1187,11 @@ function EditHallModal({
 
             <button
               type="submit"
-              className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#b98121] px-6 text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a]"
+              disabled={saving}
+              className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#b98121] px-6 text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <Save size={17} />
-              שמירת שינויים
+              {saving ? <Loader2 size={17} className="animate-spin" /> : <Save size={17} />}
+              שמירה ידנית
             </button>
           </div>
         </form>
@@ -1027,7 +1218,7 @@ function StatCard({
   icon: React.ReactNode;
 }) {
   return (
-    <div className="rounded-[26px] border border-[#eadfce] bg-white p-4 shadow-sm">
+    <div className="rounded-[28px] border border-[#eadfce] bg-white/90 p-4 shadow-lg shadow-[#b98121]/5 backdrop-blur">
       <div className="flex items-start justify-between gap-3">
         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f4ead9] text-[#b98121]">
           {icon}
