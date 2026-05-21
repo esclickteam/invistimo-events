@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
@@ -8,20 +8,21 @@ import {
   CalendarDays,
   CheckCircle2,
   CircleDollarSign,
-  Clock3,
   Edit3,
   Eye,
   FileSignature,
   FileText,
   Filter,
   HeartHandshake,
-  Mail,
+  Loader2,
   MessageSquareText,
   MoreHorizontal,
   Phone,
   Plus,
+  RefreshCw,
   Search,
   Send,
+  Trash2,
   Upload,
   UserRound,
   UsersRound,
@@ -37,184 +38,158 @@ type LeadStatus =
   | "closed"
   | "lost";
 
-type ClientActivityType = "call" | "note" | "meeting" | "proposal" | "contract" | "sms";
+type ClientActivityType =
+  | "call"
+  | "note"
+  | "meeting"
+  | "proposal"
+  | "contract"
+  | "sms";
+
+type VenueLeadActivity = {
+  id: string;
+  type: ClientActivityType;
+  title: string;
+  description: string;
+  date: string;
+};
 
 type VenueLead = {
   id: string;
+  _id?: string;
+
+  name: string;
+  phone: string;
+  email: string;
+
+  eventType: string;
+  requestedDate: string;
+  preferredHall: string;
+
+  guests: number;
+  budget: number;
+
+  source: string;
+  owner: string;
+
+  status: LeadStatus;
+  lastActivity: string;
+
+  eventId?: string;
+  meetingAt?: string;
+
+  proposalFileName?: string;
+  contractFileName?: string;
+  proposalSignature?: string;
+  contractSignature?: string;
+
+  activities: VenueLeadActivity[];
+};
+
+type HallData = {
+  id: string;
+  name: string;
+  subtitle?: string;
+  capacity?: number;
+  status?: string;
+};
+
+type NewLeadForm = {
   name: string;
   phone: string;
   email: string;
   eventType: string;
   requestedDate: string;
   preferredHall: string;
-  guests: number;
-  budget: number;
+  guests: string;
+  budget: string;
   source: string;
   owner: string;
-  status: LeadStatus;
-  lastActivity: string;
-  eventId?: string;
-  meetingAt?: string;
-  activities: {
-    id: string;
-    type: ClientActivityType;
-    title: string;
-    description: string;
-    date: string;
-  }[];
 };
 
-const initialLeads: VenueLead[] = [
-  {
-    id: "lead-1",
-    name: "משפחת לוי",
-    phone: "052-1234567",
-    email: "levi.family@gmail.com",
-    eventType: "חתונה",
-    requestedDate: "19.05.26",
-    preferredHall: "אולם הזהב",
-    guests: 420,
-    budget: 145000,
-    source: "אתר",
-    owner: "יוסי כהן",
-    status: "proposal",
-    lastActivity: "הצעה נשלחה היום 15:30",
-    activities: [
-      {
-        id: "a1",
-        type: "call",
-        title: "שיחת פתיחה",
-        description: "הלקוח ביקש מחיר ל־420 מוזמנים, אולם הזהב, תאריך 19.05.",
-        date: "היום 10:15",
-      },
-      {
-        id: "a2",
-        type: "proposal",
-        title: "הצעת מחיר נשלחה",
-        description: "נשלחה הצעה ראשונית על סך 145,000 ₪.",
-        date: "היום 15:30",
-      },
-    ],
-  },
-  {
-    id: "lead-2",
-    name: "דניאל כהן",
-    phone: "050-9876543",
-    email: "daniel@example.com",
-    eventType: "בר מצווה",
-    requestedDate: "18.06.26",
-    preferredHall: "SKY Hall",
-    guests: 180,
-    budget: 62000,
-    source: "טלפון",
-    owner: "שירן לוי",
-    status: "meeting",
-    lastActivity: "נקבעה פגישה למחר",
-    meetingAt: "מחר 11:00",
-    activities: [
-      {
-        id: "a1",
-        type: "meeting",
-        title: "נקבעה פגישה",
-        description: "פגישה באולם להצגת חבילות ותפריט.",
-        date: "מחר 11:00",
-      },
-    ],
-  },
-  {
-    id: "lead-3",
-    name: "TechNova",
-    phone: "03-7654321",
-    email: "events@technova.com",
-    eventType: "כנס חברה",
-    requestedDate: "02.07.26",
-    preferredHall: "גן אירועים",
-    guests: 300,
-    budget: 120000,
-    source: "LinkedIn",
-    owner: "רועי כהן",
-    status: "negotiation",
-    lastActivity: "שיחת מחיר אתמול",
-    activities: [
-      {
-        id: "a1",
-        type: "call",
-        title: "שיחת מחיר",
-        description: "הלקוח ביקש לבדוק אפשרות לתוספת מקרן, במה ובר קפה.",
-        date: "אתמול 14:20",
-      },
-    ],
-  },
-  {
-    id: "lead-4",
-    name: "משפחת אברהם",
-    phone: "054-5554433",
-    email: "avraham.family@gmail.com",
-    eventType: "חתונה",
-    requestedDate: "15.07.26",
-    preferredHall: "אולם הזהב",
-    guests: 400,
-    budget: 150000,
-    source: "וואטסאפ",
-    owner: "יוסי כהן",
-    status: "closed",
-    lastActivity: "נסגר ונכנס ליומן",
-    eventId: "evt-1004",
-    activities: [
-      {
-        id: "a1",
-        type: "contract",
-        title: "חוזה נשלח",
-        description: "נשלח חוזה לסגירה וחתימה.",
-        date: "12.05.26 16:00",
-      },
-      {
-        id: "a2",
-        type: "note",
-        title: "אירוע נסגר",
-        description: "האירוע נסגר ונוצר ביומן האולם.",
-        date: "13.05.26 09:30",
-      },
-    ],
-  },
-  {
-    id: "lead-5",
-    name: "עדי פרץ",
-    phone: "050-3332211",
-    email: "adi@example.com",
-    eventType: "אירוע חברה",
-    requestedDate: "10.06.26",
-    preferredHall: "גן אירועים",
-    guests: 220,
-    budget: 78000,
-    source: "אורגני",
-    owner: "רועי כהן",
-    status: "new",
-    lastActivity: "ליד חדש",
-    activities: [
-      {
-        id: "a1",
-        type: "note",
-        title: "ליד חדש",
-        description: "התקבלה פנייה דרך האתר. טרם חזרו ללקוח.",
-        date: "היום 09:10",
-      },
-    ],
-  },
-];
+type MeetingForm = {
+  date: string;
+  time: string;
+  type: string;
+  owner: string;
+};
+
+type NoteForm = {
+  type: ClientActivityType;
+  title: string;
+  description: string;
+  followUpAt: string;
+};
+
+type CloseEventForm = {
+  date: string;
+  startTime: string;
+  endTime: string;
+  paidAmount: string;
+  notes: string;
+};
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("he-IL", {
     style: "currency",
     currency: "ILS",
     maximumFractionDigits: 0,
-  }).format(value);
+  }).format(value || 0);
 }
 
-function getHallName(hallId: string) {
-  if (hallId === "garden-hall") return "גן אירועים";
-  if (hallId === "sky-hall") return "SKY Hall";
-  return "אולם הזהב";
+function toNumber(value: string | number, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function safeArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
+function encodeHallPath(hallId: string) {
+  return encodeURIComponent(hallId);
+}
+
+function todayDateValue() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function nowTimeValue() {
+  return new Date().toTimeString().slice(0, 5);
+}
+
+function normalizeLead(lead: any): VenueLead {
+  return {
+    id: String(lead.id || lead._id || ""),
+    _id: lead._id ? String(lead._id) : undefined,
+
+    name: String(lead.name || ""),
+    phone: String(lead.phone || ""),
+    email: String(lead.email || ""),
+
+    eventType: String(lead.eventType || ""),
+    requestedDate: String(lead.requestedDate || ""),
+    preferredHall: String(lead.preferredHall || ""),
+
+    guests: Number(lead.guests || 0),
+    budget: Number(lead.budget || 0),
+
+    source: String(lead.source || ""),
+    owner: String(lead.owner || ""),
+
+    status: (lead.status || "new") as LeadStatus,
+    lastActivity: String(lead.lastActivity || ""),
+
+    eventId: lead.eventId ? String(lead.eventId) : "",
+    meetingAt: lead.meetingAt ? String(lead.meetingAt) : "",
+
+    proposalFileName: String(lead.proposalFileName || ""),
+    contractFileName: String(lead.contractFileName || ""),
+    proposalSignature: String(lead.proposalSignature || ""),
+    contractSignature: String(lead.contractSignature || ""),
+
+    activities: safeArray<VenueLeadActivity>(lead.activities),
+  };
 }
 
 function statusLabel(status: LeadStatus) {
@@ -247,6 +222,7 @@ function activityIcon(type: ClientActivityType) {
 
 function buildSms4FreeLink(lead: VenueLead) {
   const message = `שלום ${lead.name}, מצורפת הצעת מחיר עבור ${lead.eventType} בתאריך ${lead.requestedDate} באולם ${lead.preferredHall}. נשמח לעמוד לרשותכם.`;
+
   return `https://www.sms4free.co.il/?phone=${encodeURIComponent(
     lead.phone
   )}&msg=${encodeURIComponent(message)}`;
@@ -256,11 +232,21 @@ export default function HallCrmPage() {
   const params = useParams<{ hallId: string }>();
   const router = useRouter();
 
-  const hallId = params?.hallId || "main-gold-hall";
-  const hallName = getHallName(hallId);
+  const rawHallId = params?.hallId || "";
+  const hallId = rawHallId ? decodeURIComponent(rawHallId) : "";
+  const encodedHallId = encodeHallPath(hallId);
 
-  const [leads, setLeads] = useState<VenueLead[]>(initialLeads);
-  const [selectedLeadId, setSelectedLeadId] = useState("lead-1");
+  const [hall, setHall] = useState<HallData | null>(null);
+  const [leads, setLeads] = useState<VenueLead[]>([]);
+  const [selectedLeadId, setSelectedLeadId] = useState("");
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [serverError, setServerError] = useState("");
+
+  const [statusFilter, setStatusFilter] = useState<LeadStatus | "all">("all");
+  const [search, setSearch] = useState("");
+
   const [clientFileOpen, setClientFileOpen] = useState(false);
   const [newLeadOpen, setNewLeadOpen] = useState(false);
   const [meetingOpen, setMeetingOpen] = useState(false);
@@ -268,14 +254,50 @@ export default function HallCrmPage() {
   const [proposalOpen, setProposalOpen] = useState(false);
   const [contractOpen, setContractOpen] = useState(false);
   const [closeEventOpen, setCloseEventOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
+
+  const [newLeadForm, setNewLeadForm] = useState<NewLeadForm>({
+    name: "",
+    phone: "",
+    email: "",
+    eventType: "",
+    requestedDate: "",
+    preferredHall: "",
+    guests: "",
+    budget: "",
+    source: "ידני",
+    owner: "",
+  });
+
+  const [meetingForm, setMeetingForm] = useState<MeetingForm>({
+    date: todayDateValue(),
+    time: "11:00",
+    type: "פגישת היכרות / טעימות / הצעת מחיר",
+    owner: "",
+  });
+
+  const [noteForm, setNoteForm] = useState<NoteForm>({
+    type: "note",
+    title: "נוספה הערה לתיק לקוח",
+    description: "",
+    followUpAt: "",
+  });
+
+  const [closeEventForm, setCloseEventForm] = useState<CloseEventForm>({
+    date: todayDateValue(),
+    startTime: "19:30",
+    endTime: "00:30",
+    paidAmount: "",
+    notes: "",
+  });
 
   const [proposalFileName, setProposalFileName] = useState("");
   const [contractFileName, setContractFileName] = useState("");
   const [proposalSignature, setProposalSignature] = useState("");
   const [contractSignature, setContractSignature] = useState("");
-  const [filterOpen, setFilterOpen] = useState(false);
 
-  const selectedLead = leads.find((lead) => lead.id === selectedLeadId) || leads[0];
+  const selectedLead =
+    leads.find((lead) => lead.id === selectedLeadId) || leads[0] || null;
 
   const stats = useMemo(() => {
     return {
@@ -287,115 +309,373 @@ export default function HallCrmPage() {
     };
   }, [leads]);
 
-  const updateLead = (leadId: string, patch: Partial<VenueLead>) => {
-    setLeads((current) =>
-      current.map((lead) => (lead.id === leadId ? { ...lead, ...patch } : lead))
-    );
-  };
+  const filteredLeads = useMemo(() => {
+    return leads.filter((lead) => {
+      if (statusFilter !== "all" && lead.status !== statusFilter) {
+        return false;
+      }
 
-  const addActivity = (
-    leadId: string,
-    activity: Omit<VenueLead["activities"][number], "id">
-  ) => {
-    setLeads((current) =>
-      current.map((lead) =>
-        lead.id === leadId
-          ? {
-              ...lead,
-              lastActivity: activity.title,
-              activities: [
-                {
-                  ...activity,
-                  id: `activity-${Date.now()}`,
-                },
-                ...lead.activities,
-              ],
-            }
-          : lead
-      )
-    );
-  };
+      const q = search.trim().toLowerCase();
 
-  const scheduleMeeting = () => {
-    updateLead(selectedLead.id, {
-      status: "meeting",
-      meetingAt: "25.05.26 11:00",
-      lastActivity: "נקבעה פגישה ליומן",
+      if (!q) return true;
+
+      return [
+        lead.name,
+        lead.phone,
+        lead.email,
+        lead.eventType,
+        lead.preferredHall,
+        lead.source,
+        lead.owner,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(q);
     });
+  }, [leads, search, statusFilter]);
 
-    addActivity(selectedLead.id, {
+  const fetchCrm = async () => {
+    if (!hallId) return;
+
+    setLoading(true);
+    setServerError("");
+
+    try {
+      const query = new URLSearchParams();
+
+      if (statusFilter !== "all") {
+        query.set("status", statusFilter);
+      }
+
+      if (search.trim()) {
+        query.set("search", search.trim());
+      }
+
+      const res = await fetch(
+        `/api/venues/dashboard/halls/${encodedHallId}/crm?${query.toString()}`,
+        {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.message || "טעינת CRM נכשלה");
+      }
+
+      const nextLeads = Array.isArray(data.leads)
+        ? data.leads.map(normalizeLead)
+        : [];
+
+      setHall(data.hall || null);
+      setLeads(nextLeads);
+
+      setSelectedLeadId((current) => {
+        if (nextLeads.some((lead: VenueLead) => lead.id === current)) {
+          return current;
+        }
+
+        return nextLeads[0]?.id || "";
+      });
+    } catch (error) {
+      console.error("GET CRM failed:", error);
+      setServerError(error instanceof Error ? error.message : "טעינת CRM נכשלה");
+      setHall(null);
+      setLeads([]);
+      setSelectedLeadId("");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCrm();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hallId]);
+
+  const updateLeadInState = (lead: VenueLead) => {
+    setLeads((current) =>
+      current.map((item) => (item.id === lead.id ? lead : item))
+    );
+    setSelectedLeadId(lead.id);
+  };
+
+  const createLead = async () => {
+    if (!newLeadForm.name.trim()) {
+      alert("חובה להזין שם לקוח");
+      return;
+    }
+
+    setSaving(true);
+    setServerError("");
+
+    try {
+      const res = await fetch(`/api/venues/dashboard/halls/${encodedHallId}/crm`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          name: newLeadForm.name,
+          phone: newLeadForm.phone,
+          email: newLeadForm.email,
+          eventType: newLeadForm.eventType,
+          requestedDate: newLeadForm.requestedDate,
+          preferredHall: newLeadForm.preferredHall || hall?.name || "",
+          guests: toNumber(newLeadForm.guests, 0),
+          budget: toNumber(newLeadForm.budget, 0),
+          source: newLeadForm.source || "ידני",
+          owner: newLeadForm.owner,
+          status: "new",
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.message || "יצירת ליד נכשלה");
+      }
+
+      const lead = normalizeLead(data.lead);
+
+      setLeads((current) => [lead, ...current]);
+      setSelectedLeadId(lead.id);
+      setNewLeadOpen(false);
+
+      setNewLeadForm({
+        name: "",
+        phone: "",
+        email: "",
+        eventType: "",
+        requestedDate: "",
+        preferredHall: "",
+        guests: "",
+        budget: "",
+        source: "ידני",
+        owner: "",
+      });
+    } catch (error) {
+      console.error("POST CRM failed:", error);
+      setServerError(
+        error instanceof Error ? error.message : "יצירת ליד נכשלה"
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveLeadPatch = async (
+    leadId: string,
+    payload: Record<string, unknown>
+  ) => {
+    setSaving(true);
+    setServerError("");
+
+    try {
+      const res = await fetch(`/api/venues/dashboard/halls/${encodedHallId}/crm`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          leadId,
+          ...payload,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.message || "שמירת ליד נכשלה");
+      }
+
+      if (data.lead) {
+        updateLeadInState(normalizeLead(data.lead));
+      }
+
+      return data;
+    } catch (error) {
+      console.error("PUT CRM failed:", error);
+      setServerError(
+        error instanceof Error ? error.message : "שמירת ליד נכשלה"
+      );
+      return null;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const addActivity = async (
+    lead: VenueLead,
+    activity: {
+      type: ClientActivityType;
+      title: string;
+      description: string;
+      date?: string;
+      status?: LeadStatus;
+      meetingAt?: string;
+    }
+  ) => {
+    return saveLeadPatch(lead.id, {
+      action: "activity",
+      type: activity.type,
+      title: activity.title,
+      description: activity.description,
+      date: activity.date,
+      status: activity.status,
+      meetingAt: activity.meetingAt,
+    });
+  };
+
+  const scheduleMeeting = async () => {
+    if (!selectedLead) return;
+
+    const meetingAt = `${meetingForm.date} ${meetingForm.time}`;
+
+    const data = await addActivity(selectedLead, {
       type: "meeting",
       title: "נקבעה פגישה ליומן",
-      description:
-        "הפגישה תופיע ביומן האולם כשכבת פגישות, ולא כאירוע שתופס את האולם.",
-      date: "25.05.26 11:00",
+      description: meetingForm.type,
+      date: meetingAt,
+      status: "meeting",
+      meetingAt,
     });
 
-    setMeetingOpen(false);
+    if (data?.success) {
+      setMeetingOpen(false);
+    }
   };
 
-  const saveNote = () => {
-    addActivity(selectedLead.id, {
-      type: "note",
-      title: "נוספה הערה לתיק לקוח",
-      description: "הלקוח ביקש לחזור אליו עם אפשרות להוזלת מחיר לפי כמות מוזמנים.",
-      date: "עכשיו",
+  const saveNote = async () => {
+    if (!selectedLead) return;
+
+    const data = await addActivity(selectedLead, {
+      type: noteForm.type,
+      title: noteForm.title || "נוספה הערה לתיק לקוח",
+      description: noteForm.description,
+      date: noteForm.followUpAt || undefined,
     });
 
-    setNoteOpen(false);
+    if (data?.success) {
+      setNoteOpen(false);
+      setNoteForm({
+        type: "note",
+        title: "נוספה הערה לתיק לקוח",
+        description: "",
+        followUpAt: "",
+      });
+    }
   };
 
-  const sendProposal = () => {
-    updateLead(selectedLead.id, {
-      status: "proposal",
-      lastActivity: "הצעת מחיר נשלחה",
+  const sendProposal = async () => {
+    if (!selectedLead) return;
+
+    await saveLeadPatch(selectedLead.id, {
+      proposalFileName,
+      proposalSignature,
     });
 
-    addActivity(selectedLead.id, {
+    const data = await addActivity(selectedLead, {
       type: "proposal",
       title: "הצעת מחיר נשלחה",
       description: `נשלחה הצעת מחיר בסך ${formatCurrency(selectedLead.budget)}.`,
       date: "עכשיו",
+      status: "proposal",
     });
 
-    setProposalOpen(false);
+    if (data?.success) {
+      setProposalOpen(false);
+    }
   };
 
-  const sendContract = () => {
-    addActivity(selectedLead.id, {
+  const sendContract = async () => {
+    if (!selectedLead) return;
+
+    await saveLeadPatch(selectedLead.id, {
+      contractFileName,
+      contractSignature,
+    });
+
+    const data = await addActivity(selectedLead, {
       type: "contract",
       title: "חוזה נשלח ללקוח",
       description: "נשלח חוזה לסגירה וחתימה.",
       date: "עכשיו",
     });
 
-    setContractOpen(false);
+    if (data?.success) {
+      setContractOpen(false);
+    }
   };
 
-  const closeEvent = () => {
-    const newEventId = selectedLead.eventId || `evt-${Date.now()}`;
+  const closeEvent = async () => {
+    if (!selectedLead) return;
 
-    updateLead(selectedLead.id, {
-      status: "closed",
-      eventId: newEventId,
-      lastActivity: "נסגר אירוע ונוצר ביומן",
+    const data = await saveLeadPatch(selectedLead.id, {
+      action: "closeEvent",
+      date: closeEventForm.date || selectedLead.requestedDate,
+      startTime: closeEventForm.startTime,
+      endTime: closeEventForm.endTime,
+      paidAmount: toNumber(closeEventForm.paidAmount, 0),
+      notes: closeEventForm.notes,
     });
 
-    addActivity(selectedLead.id, {
-      type: "contract",
-      title: "אירוע נסגר ונוצר ביומן",
-      description:
-        "הלקוח עבר לסטטוס נסגר, ונוצר אירוע מרכזי שמופיע ביומן האולם.",
-      date: "עכשיו",
-    });
+    if (data?.success) {
+      setCloseEventOpen(false);
+    }
+  };
 
-    setCloseEventOpen(false);
+  const deleteLead = async (lead: VenueLead) => {
+    const ok = window.confirm(`למחוק את הליד של ${lead.name}?`);
+    if (!ok) return;
+
+    setSaving(true);
+    setServerError("");
+
+    try {
+      const res = await fetch(
+        `/api/venues/dashboard/halls/${encodedHallId}/crm?leadId=${encodeURIComponent(
+          lead.id
+        )}`,
+        {
+          method: "DELETE",
+          credentials: "include",
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.message || "מחיקת ליד נכשלה");
+      }
+
+      const nextLeads = leads.filter((item) => item.id !== lead.id);
+      setLeads(nextLeads);
+
+      if (selectedLeadId === lead.id) {
+        setSelectedLeadId(nextLeads[0]?.id || "");
+      }
+    } catch (error) {
+      console.error("DELETE CRM failed:", error);
+      setServerError(
+        error instanceof Error ? error.message : "מחיקת ליד נכשלה"
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
   const goToEvent = () => {
-    if (!selectedLead.eventId) return;
-    router.push(`/venues/dashboard/events/${selectedLead.eventId}`);
+    if (!selectedLead?.eventId) return;
+    router.push(`/venues/dashboard/events/${encodeURIComponent(selectedLead.eventId)}`);
   };
+
+  const selectedLeadForUi = selectedLead;
 
   return (
     <main dir="rtl" className="min-h-screen bg-[#f8f6f2] text-[#2b241c]">
@@ -403,7 +683,7 @@ export default function HallCrmPage() {
         <div className="mb-5 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex flex-wrap items-center gap-2">
             <Link
-              href={`/venues/dashboard/halls/${hallId}/calendar`}
+              href={`/venues/dashboard/halls/${encodedHallId}/calendar`}
               className="inline-flex h-11 items-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-black text-[#6f6252] shadow-sm transition hover:bg-[#fbf5ea]"
             >
               <ArrowRight size={17} />
@@ -411,21 +691,32 @@ export default function HallCrmPage() {
             </Link>
 
             <Link
-              href={`/venues/dashboard/halls/${hallId}`}
+              href={`/venues/dashboard/halls/${encodedHallId}`}
               className="inline-flex h-11 items-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-black text-[#6f6252] shadow-sm transition hover:bg-[#fbf5ea]"
             >
               ניהול אולם
             </Link>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setNewLeadOpen(true)}
-            className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#b98121] px-5 text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a]"
-          >
-            <Plus size={17} />
-            ליד חדש
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={fetchCrm}
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-5 text-sm font-black text-[#6f6252] shadow-sm transition hover:bg-[#fbf5ea]"
+            >
+              {loading ? <Loader2 size={17} className="animate-spin" /> : <RefreshCw size={17} />}
+              רענון
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setNewLeadOpen(true)}
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#b98121] px-5 text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a]"
+            >
+              <Plus size={17} />
+              ליד חדש
+            </button>
+          </div>
         </div>
 
         <section className="rounded-[34px] border border-[#eadfce] bg-white p-5 shadow-sm">
@@ -438,7 +729,7 @@ export default function HallCrmPage() {
 
                 <div>
                   <h1 className="text-3xl font-black md:text-4xl">
-                    CRM ניהול לקוחות - {hallName}
+                    CRM ניהול לקוחות - {hall?.name || "אולם"}
                   </h1>
                   <p className="mt-1 text-sm font-bold text-[#8a7b68]">
                     תיק לקוח, שיחות, הערות, פגישות, הצעות מחיר, חוזים וסגירת אירוע ליומן.
@@ -455,25 +746,40 @@ export default function HallCrmPage() {
               <Metric label="פוטנציאל" value={formatCurrency(stats.potentialRevenue)} icon={<CircleDollarSign size={19} />} />
             </div>
           </div>
+
+          {serverError ? (
+            <div className="mt-4 rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">
+              {serverError}
+            </div>
+          ) : null}
         </section>
 
         <section className="mt-5 grid gap-5 xl:grid-cols-[1fr_380px]">
           <div className="rounded-[30px] border border-[#eadfce] bg-white p-5 shadow-sm">
             <div className="mb-5 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
               <div className="flex flex-wrap items-center gap-2">
-                {["הכל", "ליד חדש", "נקבעה פגישה", "הצעה נשלחה", "במו״מ", "נסגר", "לא נסגר"].map((filter, index) => (
+                {[
+                  { label: "הכל", value: "all" as const },
+                  { label: "ליד חדש", value: "new" as const },
+                  { label: "נוצר קשר", value: "contacted" as const },
+                  { label: "נקבעה פגישה", value: "meeting" as const },
+                  { label: "הצעה נשלחה", value: "proposal" as const },
+                  { label: "במו״מ", value: "negotiation" as const },
+                  { label: "נסגר", value: "closed" as const },
+                  { label: "לא נסגר", value: "lost" as const },
+                ].map((filter) => (
                   <button
-                    key={filter}
+                    key={filter.value}
                     type="button"
-                    onClick={() => setFilterOpen(true)}
+                    onClick={() => setStatusFilter(filter.value)}
                     className={[
                       "h-10 rounded-2xl px-4 text-sm font-black transition",
-                      index === 0
+                      statusFilter === filter.value
                         ? "bg-[#b98121] text-white"
                         : "border border-[#eadfce] bg-white text-[#6f6252] hover:bg-[#fbf5ea]",
                     ].join(" ")}
                   >
-                    {filter}
+                    {filter.label}
                   </button>
                 ))}
               </div>
@@ -482,6 +788,8 @@ export default function HallCrmPage() {
                 <div className="flex h-10 w-[280px] items-center gap-2 rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-3">
                   <Search size={16} className="text-[#a2937f]" />
                   <input
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
                     placeholder="חיפוש לפי שם, טלפון או אירוע..."
                     className="w-full bg-transparent text-sm font-bold outline-none placeholder:text-[#b7a895]"
                   />
@@ -516,216 +824,285 @@ export default function HallCrmPage() {
                 </thead>
 
                 <tbody>
-                  {leads.map((lead) => (
-                    <tr
-                      key={lead.id}
-                      onClick={() => setSelectedLeadId(lead.id)}
-                      className={[
-                        "cursor-pointer border-b border-[#eadfce] text-sm transition last:border-b-0 hover:bg-[#fff8ec]",
-                        selectedLeadId === lead.id ? "bg-[#fff7e6]" : "bg-white",
-                      ].join(" ")}
-                    >
-                      <td className="px-4 py-4">
-                        <div className="font-black text-[#2b241c]">{lead.name}</div>
-                        <div className="mt-1 text-xs font-bold text-[#8a7b68]">{lead.phone}</div>
+                  {loading ? (
+                    <tr>
+                      <td colSpan={10} className="px-4 py-12 text-center text-sm font-black text-[#8a7b68]">
+                        <Loader2 className="mx-auto mb-3 animate-spin text-[#b98121]" size={28} />
+                        טוען לידים מהשרת...
                       </td>
-                      <td className="px-4 py-4 font-bold text-[#6f6252]">{lead.eventType}</td>
-                      <td className="px-4 py-4 font-bold text-[#6f6252]">{lead.requestedDate}</td>
-                      <td className="px-4 py-4 font-bold text-[#6f6252]">{lead.preferredHall}</td>
-                      <td className="px-4 py-4 font-bold text-[#6f6252]">{lead.guests}</td>
-                      <td className="px-4 py-4 font-black text-[#2b241c]">{formatCurrency(lead.budget)}</td>
-                      <td className="px-4 py-4 font-bold text-[#6f6252]">{lead.source}</td>
-                      <td className="px-4 py-4">
-                        <span className={`rounded-full px-3 py-1 text-xs font-black ${statusClass(lead.status)}`}>
-                          {statusLabel(lead.status)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4 font-bold text-[#6f6252]">{lead.owner}</td>
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setSelectedLeadId(lead.id);
-                              setClientFileOpen(true);
-                            }}
-                            className="flex h-9 items-center gap-1 rounded-2xl border border-[#eadfce] bg-white px-3 text-xs font-black text-[#6f6252]"
-                          >
-                            <Eye size={15} />
-                            תיק
-                          </button>
-
-                          {lead.eventId ? (
-                            <button
-                              type="button"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                router.push(`/venues/dashboard/events/${lead.eventId}`);
-                              }}
-                              className="flex h-9 items-center gap-1 rounded-2xl bg-[#b98121] px-3 text-xs font-black text-white"
-                            >
-                              <CalendarDays size={15} />
-                              אירוע
-                            </button>
-                          ) : (
+                    </tr>
+                  ) : filteredLeads.length ? (
+                    filteredLeads.map((lead) => (
+                      <tr
+                        key={lead.id}
+                        onClick={() => setSelectedLeadId(lead.id)}
+                        className={[
+                          "cursor-pointer border-b border-[#eadfce] text-sm transition last:border-b-0 hover:bg-[#fff8ec]",
+                          selectedLeadId === lead.id ? "bg-[#fff7e6]" : "bg-white",
+                        ].join(" ")}
+                      >
+                        <td className="px-4 py-4">
+                          <div className="font-black text-[#2b241c]">{lead.name}</div>
+                          <div className="mt-1 text-xs font-bold text-[#8a7b68]">{lead.phone || "אין טלפון"}</div>
+                        </td>
+                        <td className="px-4 py-4 font-bold text-[#6f6252]">{lead.eventType || "-"}</td>
+                        <td className="px-4 py-4 font-bold text-[#6f6252]">{lead.requestedDate || "-"}</td>
+                        <td className="px-4 py-4 font-bold text-[#6f6252]">{lead.preferredHall || hall?.name || "-"}</td>
+                        <td className="px-4 py-4 font-bold text-[#6f6252]">{lead.guests}</td>
+                        <td className="px-4 py-4 font-black text-[#2b241c]">{formatCurrency(lead.budget)}</td>
+                        <td className="px-4 py-4 font-bold text-[#6f6252]">{lead.source || "-"}</td>
+                        <td className="px-4 py-4">
+                          <span className={`rounded-full px-3 py-1 text-xs font-black ${statusClass(lead.status)}`}>
+                            {statusLabel(lead.status)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 font-bold text-[#6f6252]">{lead.owner || "-"}</td>
+                        <td className="px-4 py-4">
+                          <div className="flex items-center gap-2">
                             <button
                               type="button"
                               onClick={(event) => {
                                 event.stopPropagation();
                                 setSelectedLeadId(lead.id);
-                                setMeetingOpen(true);
+                                setClientFileOpen(true);
                               }}
                               className="flex h-9 items-center gap-1 rounded-2xl border border-[#eadfce] bg-white px-3 text-xs font-black text-[#6f6252]"
                             >
-                              <CalendarDays size={15} />
-                              פגישה
+                              <Eye size={15} />
+                              תיק
                             </button>
-                          )}
 
+                            {lead.eventId ? (
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  router.push(`/venues/dashboard/events/${encodeURIComponent(lead.eventId || "")}`);
+                                }}
+                                className="flex h-9 items-center gap-1 rounded-2xl bg-[#b98121] px-3 text-xs font-black text-white"
+                              >
+                                <CalendarDays size={15} />
+                                אירוע
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  setSelectedLeadId(lead.id);
+                                  setMeetingOpen(true);
+                                }}
+                                className="flex h-9 items-center gap-1 rounded-2xl border border-[#eadfce] bg-white px-3 text-xs font-black text-[#6f6252]"
+                              >
+                                <CalendarDays size={15} />
+                                פגישה
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setSelectedLeadId(lead.id);
+                                setNoteOpen(true);
+                              }}
+                              className="flex h-9 w-9 items-center justify-center rounded-2xl border border-[#eadfce] bg-white text-[#6f6252]"
+                            >
+                              <MoreHorizontal size={15} />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                deleteLead(lead);
+                              }}
+                              className="flex h-9 w-9 items-center justify-center rounded-2xl border border-rose-100 bg-rose-50 text-rose-700"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={10} className="px-4 py-12 text-center">
+                        <div className="mx-auto max-w-md rounded-[28px] border border-dashed border-[#d9bd83] bg-[#fffdf8] p-6">
+                          <UsersRound className="mx-auto text-[#b98121]" size={32} />
+                          <div className="mt-3 text-lg font-black text-[#2b241c]">
+                            אין עדיין לידים לאולם הזה
+                          </div>
+                          <p className="mt-2 text-sm font-bold leading-6 text-[#8a7b68]">
+                            לחצי על “ליד חדש” כדי להוסיף לקוח ראשון ל־CRM.
+                          </p>
                           <button
                             type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setSelectedLeadId(lead.id);
-                              setNoteOpen(true);
-                            }}
-                            className="flex h-9 w-9 items-center justify-center rounded-2xl border border-[#eadfce] bg-white text-[#6f6252]"
+                            onClick={() => setNewLeadOpen(true)}
+                            className="mt-4 inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#b98121] px-5 text-sm font-black text-white"
                           >
-                            <MoreHorizontal size={15} />
+                            <Plus size={16} />
+                            ליד חדש
                           </button>
                         </div>
                       </td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>
           </div>
 
           <aside className="space-y-5">
-            <section className="rounded-[30px] border border-[#eadfce] bg-white p-5 shadow-sm">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="text-xs font-black text-[#b98121]">תיק לקוח נבחר</div>
-                  <h2 className="mt-1 text-2xl font-black text-[#2b241c]">{selectedLead.name}</h2>
-                  <p className="mt-1 text-sm font-bold text-[#8a7b68]">
-                    {selectedLead.eventType} · {selectedLead.requestedDate}
-                  </p>
+            {selectedLeadForUi ? (
+              <>
+                <section className="rounded-[30px] border border-[#eadfce] bg-white p-5 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-xs font-black text-[#b98121]">תיק לקוח נבחר</div>
+                      <h2 className="mt-1 text-2xl font-black text-[#2b241c]">
+                        {selectedLeadForUi.name}
+                      </h2>
+                      <p className="mt-1 text-sm font-bold text-[#8a7b68]">
+                        {selectedLeadForUi.eventType || "ללא סוג אירוע"} ·{" "}
+                        {selectedLeadForUi.requestedDate || "ללא תאריך"}
+                      </p>
+                    </div>
+
+                    <span className={`rounded-full px-3 py-1 text-xs font-black ${statusClass(selectedLeadForUi.status)}`}>
+                      {statusLabel(selectedLeadForUi.status)}
+                    </span>
+                  </div>
+
+                  <div className="mt-5 space-y-3">
+                    <InfoLine label="טלפון" value={selectedLeadForUi.phone || "-"} />
+                    <InfoLine label="אימייל" value={selectedLeadForUi.email || "-"} />
+                    <InfoLine label="אולם מועדף" value={selectedLeadForUi.preferredHall || hall?.name || "-"} />
+                    <InfoLine label="כמות אורחים" value={`${selectedLeadForUi.guests}`} />
+                    <InfoLine label="תקציב" value={formatCurrency(selectedLeadForUi.budget)} />
+                    <InfoLine label="מקור פנייה" value={selectedLeadForUi.source || "-"} />
+                  </div>
+
+                  <div className="mt-5 grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setClientFileOpen(true)}
+                      className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-[#fffdf8] text-sm font-black text-[#6f6252]"
+                    >
+                      <UserRound size={16} />
+                      תיק לקוח
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setNoteOpen(true)}
+                      className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-[#fffdf8] text-sm font-black text-[#6f6252]"
+                    >
+                      <Phone size={16} />
+                      שיחה / הערה
+                    </button>
+
+                    <a
+                      href={buildSms4FreeLink(selectedLeadForUi)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-[#fffdf8] text-sm font-black text-[#6f6252]"
+                    >
+                      <Send size={16} />
+                      SMS4Free
+                    </a>
+
+                    <button
+                      type="button"
+                      onClick={() => setContractOpen(true)}
+                      className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-[#fffdf8] text-sm font-black text-[#6f6252]"
+                    >
+                      <FileSignature size={16} />
+                      חוזה
+                    </button>
+                  </div>
+
+                  {selectedLeadForUi.eventId ? (
+                    <button
+                      type="button"
+                      onClick={goToEvent}
+                      className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#b98121] text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a]"
+                    >
+                      <CalendarDays size={17} />
+                      כניסה לאירוע
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setCloseEventOpen(true)}
+                      className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#b98121] text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a]"
+                    >
+                      <CheckCircle2 size={17} />
+                      סגור אירוע והכנס ליומן
+                    </button>
+                  )}
+
+                  {!selectedLeadForUi.eventId && (
+                    <button
+                      type="button"
+                      onClick={() => setMeetingOpen(true)}
+                      className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#d9bd83] bg-[#fff8eb] text-sm font-black text-[#9f6f1a]"
+                    >
+                      <CalendarDays size={17} />
+                      קבע פגישה וסנכרן ליומן
+                    </button>
+                  )}
+                </section>
+
+                <section className="rounded-[30px] border border-[#eadfce] bg-white p-5 shadow-sm">
+                  <div className="mb-4 flex items-center justify-between">
+                    <h2 className="text-lg font-black">פעילות אחרונה</h2>
+                    <button
+                      type="button"
+                      onClick={() => setNoteOpen(true)}
+                      className="text-sm font-black text-[#b98121]"
+                    >
+                      הוסף
+                    </button>
+                  </div>
+
+                  <div className="space-y-3">
+                    {selectedLeadForUi.activities.length ? (
+                      selectedLeadForUi.activities
+                        .slice(0, 4)
+                        .map((activity) => (
+                          <ActivityRow key={activity.id} activity={activity} />
+                        ))
+                    ) : (
+                      <EmptySmall text="אין פעילות עדיין בתיק הלקוח." />
+                    )}
+                  </div>
+                </section>
+              </>
+            ) : (
+              <section className="rounded-[30px] border border-dashed border-[#d9bd83] bg-white p-5 text-center shadow-sm">
+                <UsersRound className="mx-auto text-[#b98121]" size={30} />
+                <div className="mt-3 text-lg font-black text-[#2b241c]">
+                  לא נבחר לקוח
                 </div>
-
-                <span className={`rounded-full px-3 py-1 text-xs font-black ${statusClass(selectedLead.status)}`}>
-                  {statusLabel(selectedLead.status)}
-                </span>
-              </div>
-
-              <div className="mt-5 space-y-3">
-                <InfoLine label="טלפון" value={selectedLead.phone} />
-                <InfoLine label="אימייל" value={selectedLead.email} />
-                <InfoLine label="אולם מועדף" value={selectedLead.preferredHall} />
-                <InfoLine label="כמות אורחים" value={`${selectedLead.guests}`} />
-                <InfoLine label="תקציב" value={formatCurrency(selectedLead.budget)} />
-                <InfoLine label="מקור פנייה" value={selectedLead.source} />
-              </div>
-
-              <div className="mt-5 grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setClientFileOpen(true)}
-                  className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-[#fffdf8] text-sm font-black text-[#6f6252]"
-                >
-                  <UserRound size={16} />
-                  תיק לקוח
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setNoteOpen(true)}
-                  className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-[#fffdf8] text-sm font-black text-[#6f6252]"
-                >
-                  <Phone size={16} />
-                  שיחה / הערה
-                </button>
-
-                <a
-                  href={buildSms4FreeLink(selectedLead)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-[#fffdf8] text-sm font-black text-[#6f6252]"
-                >
-                  <Send size={16} />
-                  SMS4Free
-                </a>
-
-                <button
-                  type="button"
-                  onClick={() => setContractOpen(true)}
-                  className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-[#fffdf8] text-sm font-black text-[#6f6252]"
-                >
-                  <FileSignature size={16} />
-                  חוזה
-                </button>
-              </div>
-
-              {selectedLead.eventId ? (
-                <button
-                  type="button"
-                  onClick={goToEvent}
-                  className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#b98121] text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a]"
-                >
-                  <CalendarDays size={17} />
-                  כניסה לאירוע
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setCloseEventOpen(true)}
-                  className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#b98121] text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a]"
-                >
-                  <CheckCircle2 size={17} />
-                  סגור אירוע והכנס ליומן
-                </button>
-              )}
-
-              {!selectedLead.eventId && (
-                <button
-                  type="button"
-                  onClick={() => setMeetingOpen(true)}
-                  className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#d9bd83] bg-[#fff8eb] text-sm font-black text-[#9f6f1a]"
-                >
-                  <CalendarDays size={17} />
-                  קבע פגישה וסנכרן ליומן
-                </button>
-              )}
-            </section>
-
-            <section className="rounded-[30px] border border-[#eadfce] bg-white p-5 shadow-sm">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-lg font-black">פעילות אחרונה</h2>
-                <button
-                  type="button"
-                  onClick={() => setNoteOpen(true)}
-                  className="text-sm font-black text-[#b98121]"
-                >
-                  הוסף
-                </button>
-              </div>
-
-              <div className="space-y-3">
-                {selectedLead.activities.slice(0, 4).map((activity) => (
-                  <ActivityRow key={activity.id} activity={activity} />
-                ))}
-              </div>
-            </section>
+                <p className="mt-2 text-sm font-bold leading-6 text-[#8a7b68]">
+                  הוסיפי ליד ראשון או בחרי לקוח מהטבלה.
+                </p>
+              </section>
+            )}
           </aside>
         </section>
       </div>
 
-      {clientFileOpen && (
-        <Modal title={`תיק לקוח - ${selectedLead.name}`} onClose={() => setClientFileOpen(false)} wide>
+      {selectedLeadForUi && clientFileOpen && (
+        <Modal
+          title={`תיק לקוח - ${selectedLeadForUi.name}`}
+          onClose={() => setClientFileOpen(false)}
+          wide
+        >
           <ClientFile
-            lead={selectedLead}
-            hallId={hallId}
+            lead={selectedLeadForUi}
+            hallId={encodedHallId}
             onMeeting={() => setMeetingOpen(true)}
             onNote={() => setNoteOpen(true)}
             onProposal={() => setProposalOpen(true)}
@@ -739,109 +1116,214 @@ export default function HallCrmPage() {
       {newLeadOpen && (
         <Modal title="יצירת ליד חדש" onClose={() => setNewLeadOpen(false)}>
           <div className="grid gap-3">
-            <InputLike label="שם לקוח" value="משפחת ישראלי" />
-            <InputLike label="טלפון" value="050-0000000" />
-            <InputLike label="אימייל" value="client@example.com" />
-            <InputLike label="סוג אירוע" value="חתונה" />
-            <InputLike label="תאריך מבוקש" value="25.05.26" />
+            <FormInput
+              label="שם לקוח"
+              value={newLeadForm.name}
+              onChange={(value) => setNewLeadForm((prev) => ({ ...prev, name: value }))}
+            />
+            <FormInput
+              label="טלפון"
+              value={newLeadForm.phone}
+              onChange={(value) => setNewLeadForm((prev) => ({ ...prev, phone: value }))}
+            />
+            <FormInput
+              label="אימייל"
+              value={newLeadForm.email}
+              onChange={(value) => setNewLeadForm((prev) => ({ ...prev, email: value }))}
+            />
+            <FormInput
+              label="סוג אירוע"
+              value={newLeadForm.eventType}
+              onChange={(value) => setNewLeadForm((prev) => ({ ...prev, eventType: value }))}
+            />
+            <FormInput
+              label="תאריך מבוקש"
+              value={newLeadForm.requestedDate}
+              onChange={(value) => setNewLeadForm((prev) => ({ ...prev, requestedDate: value }))}
+            />
+            <FormInput
+              label="אולם מועדף"
+              value={newLeadForm.preferredHall}
+              onChange={(value) => setNewLeadForm((prev) => ({ ...prev, preferredHall: value }))}
+            />
+            <FormInput
+              label="כמות אורחים"
+              type="number"
+              value={newLeadForm.guests}
+              onChange={(value) => setNewLeadForm((prev) => ({ ...prev, guests: value }))}
+            />
+            <FormInput
+              label="תקציב"
+              type="number"
+              value={newLeadForm.budget}
+              onChange={(value) => setNewLeadForm((prev) => ({ ...prev, budget: value }))}
+            />
+            <FormInput
+              label="מקור פנייה"
+              value={newLeadForm.source}
+              onChange={(value) => setNewLeadForm((prev) => ({ ...prev, source: value }))}
+            />
+            <FormInput
+              label="אחראי"
+              value={newLeadForm.owner}
+              onChange={(value) => setNewLeadForm((prev) => ({ ...prev, owner: value }))}
+            />
+
             <button
               type="button"
-              onClick={() => setNewLeadOpen(false)}
-              className="mt-2 h-11 rounded-2xl bg-[#b98121] text-sm font-black text-white"
+              onClick={createLead}
+              disabled={saving}
+              className="mt-2 flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#b98121] text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60"
             >
+              {saving ? <Loader2 size={16} className="animate-spin" /> : null}
               שמירת ליד
             </button>
           </div>
         </Modal>
       )}
 
-      {meetingOpen && (
+      {selectedLeadForUi && meetingOpen && (
         <Modal title="קביעת פגישה וסנכרון ליומן" onClose={() => setMeetingOpen(false)}>
           <div className="grid gap-3">
-            <InfoLine label="לקוח" value={selectedLead.name} />
-            <InputLike label="תאריך פגישה" value="25.05.26" />
-            <InputLike label="שעה" value="11:00" />
-            <InputLike label="סוג פגישה" value="פגישת היכרות / טעימות / הצעת מחיר" />
-            <InputLike label="נציג אחראי" value={selectedLead.owner} />
+            <InfoLine label="לקוח" value={selectedLeadForUi.name} />
+            <FormInput
+              label="תאריך פגישה"
+              type="date"
+              value={meetingForm.date}
+              onChange={(value) => setMeetingForm((prev) => ({ ...prev, date: value }))}
+            />
+            <FormInput
+              label="שעה"
+              type="time"
+              value={meetingForm.time}
+              onChange={(value) => setMeetingForm((prev) => ({ ...prev, time: value }))}
+            />
+            <FormInput
+              label="סוג פגישה"
+              value={meetingForm.type}
+              onChange={(value) => setMeetingForm((prev) => ({ ...prev, type: value }))}
+            />
+            <FormInput
+              label="נציג אחראי"
+              value={meetingForm.owner || selectedLeadForUi.owner}
+              onChange={(value) => setMeetingForm((prev) => ({ ...prev, owner: value }))}
+            />
 
             <div className="rounded-2xl border border-[#eadfce] bg-[#fff8eb] p-3 text-xs font-bold leading-6 text-[#7f705d]">
-              הפגישה תופיע ביומן האולם בשכבת “פגישות”, ולא תחסום את האולם כמו אירוע סגור.
+              הפגישה נשמרת בתיק הלקוח. חיבור תצוגת פגישות ביומן יהיה בשלב הבא.
             </div>
 
             <button
               type="button"
               onClick={scheduleMeeting}
-              className="mt-2 h-11 rounded-2xl bg-[#b98121] text-sm font-black text-white"
+              disabled={saving}
+              className="mt-2 flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#b98121] text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60"
             >
-              שמור וסנכרן ליומן
+              {saving ? <Loader2 size={16} className="animate-spin" /> : null}
+              שמור פגישה
             </button>
           </div>
         </Modal>
       )}
 
-      {noteOpen && (
+      {selectedLeadForUi && noteOpen && (
         <Modal title="הוספת שיחה / הערה" onClose={() => setNoteOpen(false)}>
           <div className="grid gap-3">
-            <InfoLine label="לקוח" value={selectedLead.name} />
-            <InputLike label="סוג פעולה" value="שיחה / הערה / מעקב" />
+            <InfoLine label="לקוח" value={selectedLeadForUi.name} />
+
+            <label className="block">
+              <span className="mb-1 block text-xs font-black text-[#8a7b68]">
+                סוג פעולה
+              </span>
+              <select
+                value={noteForm.type}
+                onChange={(event) =>
+                  setNoteForm((prev) => ({
+                    ...prev,
+                    type: event.target.value as ClientActivityType,
+                  }))
+                }
+                className="h-11 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-3 text-sm font-bold text-[#2b241c] outline-none focus:border-[#b98121]"
+              >
+                <option value="note">הערה</option>
+                <option value="call">שיחה</option>
+                <option value="sms">SMS</option>
+                <option value="meeting">פגישה</option>
+                <option value="proposal">הצעה</option>
+                <option value="contract">חוזה</option>
+              </select>
+            </label>
+
+            <FormInput
+              label="כותרת"
+              value={noteForm.title}
+              onChange={(value) => setNoteForm((prev) => ({ ...prev, title: value }))}
+            />
+
             <textarea
-              defaultValue="הלקוח ביקש לחזור אליו עם הצעת מחיר מעודכנת..."
+              value={noteForm.description}
+              onChange={(event) =>
+                setNoteForm((prev) => ({
+                  ...prev,
+                  description: event.target.value,
+                }))
+              }
+              placeholder="כתבי כאן את תוכן השיחה / הערה..."
               className="min-h-[140px] rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-3 text-sm font-bold text-[#2b241c] outline-none focus:border-[#b98121]"
             />
-            <InputLike label="תאריך מעקב" value="מחר 10:00" />
+
+            <FormInput
+              label="תאריך מעקב / זמן"
+              value={noteForm.followUpAt}
+              onChange={(value) => setNoteForm((prev) => ({ ...prev, followUpAt: value }))}
+            />
+
             <button
               type="button"
               onClick={saveNote}
-              className="mt-2 h-11 rounded-2xl bg-[#b98121] text-sm font-black text-white"
+              disabled={saving}
+              className="mt-2 flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#b98121] text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60"
             >
+              {saving ? <Loader2 size={16} className="animate-spin" /> : null}
               שמור לתיק לקוח
             </button>
           </div>
         </Modal>
       )}
 
-      {proposalOpen && (
+      {selectedLeadForUi && proposalOpen && (
         <Modal title="שליחת הצעת מחיר" onClose={() => setProposalOpen(false)} wide>
           <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
             <section className="space-y-4">
               <div className="grid gap-3 md:grid-cols-2">
-                <InfoLine label="לקוח" value={selectedLead.name} />
-                <InfoLine label="סוג אירוע" value={selectedLead.eventType} />
-                <InfoLine label="תאריך מבוקש" value={selectedLead.requestedDate} />
-                <InfoLine label="אולם" value={selectedLead.preferredHall} />
-                <InfoLine label="כמות אורחים" value={`${selectedLead.guests}`} />
-                <InfoLine label="תקציב משוער" value={formatCurrency(selectedLead.budget)} />
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-2">
-                <InputLike label="מחיר להצעה" value={`${selectedLead.budget}`} />
-                <InputLike label="מקדמה נדרשת" value="20000" />
+                <InfoLine label="לקוח" value={selectedLeadForUi.name} />
+                <InfoLine label="סוג אירוע" value={selectedLeadForUi.eventType || "-"} />
+                <InfoLine label="תאריך מבוקש" value={selectedLeadForUi.requestedDate || "-"} />
+                <InfoLine label="אולם" value={selectedLeadForUi.preferredHall || hall?.name || "-"} />
+                <InfoLine label="כמות אורחים" value={`${selectedLeadForUi.guests}`} />
+                <InfoLine label="תקציב משוער" value={formatCurrency(selectedLeadForUi.budget)} />
               </div>
 
               <FileUploadBox
                 title="העלאת קובץ הצעת מחיר"
-                description="אפשר להעלות PDF / Word / תמונה של הצעת המחיר."
+                description="כרגע נשמר שם הקובץ בתיק הלקוח. בהמשך נחבר העלאה אמיתית לשרת."
                 fileName={proposalFileName}
                 onChange={(name) => setProposalFileName(name)}
               />
 
               <SignatureBox
                 title="שדה חתימה להצעת מחיר"
-                description="כאן מוסיפים שדה חתימה שיופיע ללקוח בעמוד החתימה באתר."
+                description="שם שדה החתימה יישמר בתיק הלקוח."
                 value={proposalSignature}
                 onChange={setProposalSignature}
               />
-
-              <div className="rounded-2xl border border-[#eadfce] bg-[#fff8eb] p-3 text-xs font-bold leading-6 text-[#7f705d]">
-                הזרימה: מעלים קובץ ← מוסיפים שדה חתימה ← נוצר קישור חתימה באתר ← שולחים SMS ללקוח ← אחרי חתימה הקובץ החתום נשמר בתיק לקוח.
-              </div>
             </section>
 
             <aside className="space-y-3 rounded-[26px] border border-[#eadfce] bg-[#fffdf8] p-4">
               <h3 className="text-lg font-black text-[#2b241c]">שליחה ללקוח</h3>
 
               <a
-                href={buildSms4FreeLink(selectedLead)}
+                href={buildSms4FreeLink(selectedLeadForUi)}
                 target="_blank"
                 rel="noreferrer"
                 className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-white text-sm font-black text-[#6f6252] transition hover:bg-[#fbf5ea]"
@@ -853,72 +1335,48 @@ export default function HallCrmPage() {
               <button
                 type="button"
                 onClick={sendProposal}
-                className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#b98121] text-sm font-black text-white"
+                disabled={saving}
+                className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#b98121] text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <CheckCircle2 size={16} />
+                {saving ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
                 סמן כהצעה נשלחה
               </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  sendProposal();
-                  setClientFileOpen(true);
-                }}
-                className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-[#d9bd83] bg-white text-sm font-black text-[#9f6f1a]"
-              >
-                <FileText size={16} />
-                שמור בתיק לקוח
-              </button>
-
-              <div className="rounded-2xl border border-[#eadfce] bg-white p-3 text-xs font-bold leading-6 text-[#7f705d]">
-                אחרי חתימה: ההצעה החתומה תופיע בתיק לקוח, ויהיה אפשר לשלוח ללקוח העתק חתום.
-              </div>
             </aside>
           </div>
         </Modal>
       )}
 
-      {contractOpen && (
+      {selectedLeadForUi && contractOpen && (
         <Modal title="שליחת חוזה לסגירה" onClose={() => setContractOpen(false)} wide>
           <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
             <section className="space-y-4">
               <div className="grid gap-3 md:grid-cols-2">
-                <InfoLine label="לקוח" value={selectedLead.name} />
-                <InfoLine label="אולם" value={selectedLead.preferredHall} />
-                <InfoLine label="תאריך האירוע" value={selectedLead.requestedDate} />
-                <InfoLine label="כמות אורחים" value={`${selectedLead.guests}`} />
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-2">
-                <InputLike label="סכום התחייבות" value={`${selectedLead.budget}`} />
-                <InputLike label="מקדמה" value="20000" />
+                <InfoLine label="לקוח" value={selectedLeadForUi.name} />
+                <InfoLine label="אולם" value={selectedLeadForUi.preferredHall || hall?.name || "-"} />
+                <InfoLine label="תאריך האירוע" value={selectedLeadForUi.requestedDate || "-"} />
+                <InfoLine label="כמות אורחים" value={`${selectedLeadForUi.guests}`} />
               </div>
 
               <FileUploadBox
                 title="העלאת חוזה / הסכם"
-                description="אפשר להעלות הסכם PDF / Word. בהמשך נשלח ללקוח קישור חתימה."
+                description="כרגע נשמר שם הקובץ בתיק הלקוח. בהמשך נחבר העלאה אמיתית לשרת."
                 fileName={contractFileName}
                 onChange={(name) => setContractFileName(name)}
               />
 
               <SignatureBox
                 title="שדה חתימה להסכם"
-                description="כאן מגדירים את שדה החתימה שיופיע ללקוח בעמוד החתימה באתר."
+                description="שם שדה החתימה יישמר בתיק הלקוח."
                 value={contractSignature}
                 onChange={setContractSignature}
               />
-
-              <div className="rounded-2xl border border-[#eadfce] bg-[#fff8eb] p-3 text-xs font-bold leading-6 text-[#7f705d]">
-                אחרי שהלקוח חותם, ההסכם החתום יופיע אוטומטית בתיק הלקוח, כולל תאריך חתימה וסטטוס חתום.
-              </div>
             </section>
 
             <aside className="space-y-3 rounded-[26px] border border-[#eadfce] bg-[#fffdf8] p-4">
               <h3 className="text-lg font-black text-[#2b241c]">שליחת הסכם</h3>
 
               <a
-                href={buildSms4FreeLink(selectedLead)}
+                href={buildSms4FreeLink(selectedLeadForUi)}
                 target="_blank"
                 rel="noreferrer"
                 className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-white text-sm font-black text-[#6f6252] transition hover:bg-[#fbf5ea]"
@@ -930,9 +1388,10 @@ export default function HallCrmPage() {
               <button
                 type="button"
                 onClick={sendContract}
-                className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#b98121] text-sm font-black text-white"
+                disabled={saving}
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#b98121] text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <FileSignature size={16} />
+                {saving ? <Loader2 size={16} className="animate-spin" /> : <FileSignature size={16} />}
                 סמן כחוזה נשלח
               </button>
 
@@ -945,32 +1404,68 @@ export default function HallCrmPage() {
                 className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#d9bd83] bg-white text-sm font-black text-[#9f6f1a]"
               >
                 <CheckCircle2 size={16} />
-                שלח חוזה והמשך לסגירת אירוע
+                המשך לסגירת אירוע
               </button>
-
-              <div className="rounded-2xl border border-[#eadfce] bg-white p-3 text-xs font-bold leading-6 text-[#7f705d]">
-                לאחר חתימה אפשר לשלוח ללקוח העתק חתום מתוך תיק הלקוח.
-              </div>
             </aside>
           </div>
         </Modal>
       )}
 
-      {closeEventOpen && (
+      {selectedLeadForUi && closeEventOpen && (
         <Modal title="סגירת אירוע והכנסה ליומן" onClose={() => setCloseEventOpen(false)}>
           <div className="space-y-3">
-            <InfoLine label="לקוח" value={selectedLead.name} />
-            <InfoLine label="אולם" value={selectedLead.preferredHall} />
-            <InfoLine label="תאריך" value={selectedLead.requestedDate} />
-            <InfoLine label="כמות אורחים" value={`${selectedLead.guests}`} />
-            <InfoLine label="מחיר שסוכם" value={formatCurrency(selectedLead.budget)} />
-            <InfoLine label="בדיקת זמינות" value="✓ פנוי ביומן" />
+            <InfoLine label="לקוח" value={selectedLeadForUi.name} />
+            <InfoLine label="אולם" value={selectedLeadForUi.preferredHall || hall?.name || "-"} />
+            <InfoLine label="כמות אורחים" value={`${selectedLeadForUi.guests}`} />
+            <InfoLine label="מחיר שסוכם" value={formatCurrency(selectedLeadForUi.budget)} />
+
+            <FormInput
+              label="תאריך אירוע"
+              type="date"
+              value={closeEventForm.date}
+              onChange={(value) => setCloseEventForm((prev) => ({ ...prev, date: value }))}
+            />
+
+            <FormInput
+              label="שעת התחלה"
+              type="time"
+              value={closeEventForm.startTime}
+              onChange={(value) => setCloseEventForm((prev) => ({ ...prev, startTime: value }))}
+            />
+
+            <FormInput
+              label="שעת סיום"
+              type="time"
+              value={closeEventForm.endTime}
+              onChange={(value) => setCloseEventForm((prev) => ({ ...prev, endTime: value }))}
+            />
+
+            <FormInput
+              label="שולם עד כה"
+              type="number"
+              value={closeEventForm.paidAmount}
+              onChange={(value) => setCloseEventForm((prev) => ({ ...prev, paidAmount: value }))}
+            />
+
+            <textarea
+              value={closeEventForm.notes}
+              onChange={(event) =>
+                setCloseEventForm((prev) => ({
+                  ...prev,
+                  notes: event.target.value,
+                }))
+              }
+              placeholder="הערות לאירוע..."
+              className="min-h-[100px] w-full rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-3 text-sm font-bold text-[#2b241c] outline-none focus:border-[#b98121]"
+            />
 
             <button
               type="button"
               onClick={closeEvent}
-              className="h-11 w-full rounded-2xl bg-[#b98121] text-sm font-black text-white"
+              disabled={saving}
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-[#b98121] text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60"
             >
+              {saving ? <Loader2 size={16} className="animate-spin" /> : null}
               אשר וסגור אירוע
             </button>
           </div>
@@ -980,9 +1475,34 @@ export default function HallCrmPage() {
       {filterOpen && (
         <Modal title="סינון CRM" onClose={() => setFilterOpen(false)}>
           <div className="grid gap-3">
-            <InputLike label="סטטוס" value="כל הסטטוסים" />
-            <InputLike label="מקור" value="כל המקורות" />
-            <InputLike label="נציג אחראי" value="כל הנציגים" />
+            <label className="block">
+              <span className="mb-1 block text-xs font-black text-[#8a7b68]">
+                סטטוס
+              </span>
+              <select
+                value={statusFilter}
+                onChange={(event) =>
+                  setStatusFilter(event.target.value as LeadStatus | "all")
+                }
+                className="h-11 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-3 text-sm font-bold text-[#2b241c] outline-none focus:border-[#b98121]"
+              >
+                <option value="all">כל הסטטוסים</option>
+                <option value="new">ליד חדש</option>
+                <option value="contacted">נוצר קשר</option>
+                <option value="meeting">נקבעה פגישה</option>
+                <option value="proposal">הצעה נשלחה</option>
+                <option value="negotiation">במו״מ</option>
+                <option value="closed">נסגר</option>
+                <option value="lost">לא נסגר</option>
+              </select>
+            </label>
+
+            <FormInput
+              label="חיפוש"
+              value={search}
+              onChange={setSearch}
+            />
+
             <button
               type="button"
               onClick={() => setFilterOpen(false)}
@@ -1022,31 +1542,43 @@ function ClientFile({
         <div className="rounded-[26px] border border-[#eadfce] bg-[#fffdf8] p-4">
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div>
-              <div className="text-xs font-black text-[#b98121]">תיק לקוח מלא</div>
-              <h2 className="mt-1 text-3xl font-black text-[#2b241c]">{lead.name}</h2>
+              <div className="text-xs font-black text-[#b98121]">
+                תיק לקוח מלא
+              </div>
+              <h2 className="mt-1 text-3xl font-black text-[#2b241c]">
+                {lead.name}
+              </h2>
               <p className="mt-1 text-sm font-bold text-[#8a7b68]">
-                {lead.eventType} · {lead.requestedDate} · {lead.preferredHall}
+                {lead.eventType || "ללא סוג אירוע"} ·{" "}
+                {lead.requestedDate || "ללא תאריך"} ·{" "}
+                {lead.preferredHall || "ללא אולם"}
               </p>
             </div>
 
-            <span className={`w-fit rounded-full px-3 py-1 text-xs font-black ${statusClass(lead.status)}`}>
+            <span
+              className={`w-fit rounded-full px-3 py-1 text-xs font-black ${statusClass(
+                lead.status
+              )}`}
+            >
               {statusLabel(lead.status)}
             </span>
           </div>
 
           <div className="mt-5 grid gap-3 md:grid-cols-3">
-            <InfoLine label="טלפון" value={lead.phone} />
-            <InfoLine label="אימייל" value={lead.email} />
-            <InfoLine label="מקור" value={lead.source} />
+            <InfoLine label="טלפון" value={lead.phone || "-"} />
+            <InfoLine label="אימייל" value={lead.email || "-"} />
+            <InfoLine label="מקור" value={lead.source || "-"} />
             <InfoLine label="אורחים" value={`${lead.guests}`} />
             <InfoLine label="תקציב" value={formatCurrency(lead.budget)} />
-            <InfoLine label="אחראי" value={lead.owner} />
+            <InfoLine label="אחראי" value={lead.owner || "-"} />
           </div>
         </div>
 
         <div className="rounded-[26px] border border-[#eadfce] bg-white p-4">
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-lg font-black text-[#2b241c]">היסטוריית קשר ופעילות</h3>
+            <h3 className="text-lg font-black text-[#2b241c]">
+              היסטוריית קשר ופעילות
+            </h3>
             <button
               type="button"
               onClick={onNote}
@@ -1057,9 +1589,13 @@ function ClientFile({
           </div>
 
           <div className="space-y-3">
-            {lead.activities.map((activity) => (
-              <ActivityRow key={activity.id} activity={activity} />
-            ))}
+            {lead.activities.length ? (
+              lead.activities.map((activity) => (
+                <ActivityRow key={activity.id} activity={activity} />
+              ))
+            ) : (
+              <EmptySmall text="אין פעילות עדיין." />
+            )}
           </div>
         </div>
 
@@ -1067,9 +1603,21 @@ function ClientFile({
           <h3 className="text-lg font-black text-[#2b241c]">המשך טיפול</h3>
 
           <div className="mt-4 grid gap-3 md:grid-cols-2">
-            <ActionButton icon={<CalendarDays size={17} />} label="קבע פגישה וסנכרן ליומן" onClick={onMeeting} />
-            <ActionButton icon={<FileText size={17} />} label="צור / שלח הצעת מחיר" onClick={onProposal} />
-            <ActionButton icon={<FileSignature size={17} />} label="שלח חוזה לסגירה" onClick={onContract} />
+            <ActionButton
+              icon={<CalendarDays size={17} />}
+              label="קבע פגישה וסנכרן ליומן"
+              onClick={onMeeting}
+            />
+            <ActionButton
+              icon={<FileText size={17} />}
+              label="צור / שלח הצעת מחיר"
+              onClick={onProposal}
+            />
+            <ActionButton
+              icon={<FileSignature size={17} />}
+              label="שלח חוזה לסגירה"
+              onClick={onContract}
+            />
             <a
               href={buildSms4FreeLink(lead)}
               target="_blank"
@@ -1127,12 +1675,21 @@ function ClientFile({
           <h3 className="text-lg font-black text-[#2b241c]">סטטוס מכירה</h3>
 
           <div className="mt-4 space-y-3">
-            {["ליד חדש", "נוצר קשר", "נקבעה פגישה", "הצעה נשלחה", "במו״מ", "נסגר"].map((step, index) => (
+            {[
+              "ליד חדש",
+              "נוצר קשר",
+              "נקבעה פגישה",
+              "הצעה נשלחה",
+              "במו״מ",
+              "נסגר",
+            ].map((step, index) => (
               <div key={step} className="flex items-center gap-3">
                 <div
                   className={[
                     "flex h-7 w-7 items-center justify-center rounded-full text-xs font-black",
-                    index <= 3 ? "bg-[#b98121] text-white" : "bg-[#f4ead9] text-[#b98121]",
+                    index <= 3
+                      ? "bg-[#b98121] text-white"
+                      : "bg-[#f4ead9] text-[#b98121]",
                   ].join(" ")}
                 >
                   {index + 1}
@@ -1147,7 +1704,15 @@ function ClientFile({
   );
 }
 
-function Metric({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
+function Metric({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: string;
+  icon: React.ReactNode;
+}) {
   return (
     <div className="min-w-[150px] rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-3">
       <div className="flex items-center gap-2 text-[#b98121]">
@@ -1161,18 +1726,14 @@ function Metric({ label, value, icon }: { label: string; value: string; icon: Re
 
 function InfoLine({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between rounded-2xl bg-[#fffdf8] px-3 py-2">
+    <div className="flex items-center justify-between gap-3 rounded-2xl bg-[#fffdf8] px-3 py-2">
       <span className="text-xs font-black text-[#8a7b68]">{label}</span>
       <span className="text-sm font-black text-[#2b241c]">{value}</span>
     </div>
   );
 }
 
-function ActivityRow({
-  activity,
-}: {
-  activity: VenueLead["activities"][number];
-}) {
+function ActivityRow({ activity }: { activity: VenueLeadActivity }) {
   return (
     <div className="flex gap-3 rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-3">
       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-[#b98121]">
@@ -1181,8 +1742,12 @@ function ActivityRow({
 
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-3">
-          <div className="text-sm font-black text-[#2b241c]">{activity.title}</div>
-          <div className="shrink-0 text-xs font-black text-[#b98121]">{activity.date}</div>
+          <div className="text-sm font-black text-[#2b241c]">
+            {activity.title}
+          </div>
+          <div className="shrink-0 text-xs font-black text-[#b98121]">
+            {activity.date}
+          </div>
         </div>
 
         <div className="mt-1 text-xs font-bold leading-5 text-[#7f705d]">
@@ -1214,7 +1779,6 @@ function ActionButton({
   );
 }
 
-
 function FileUploadBox({
   title,
   description,
@@ -1231,7 +1795,9 @@ function FileUploadBox({
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <div className="text-sm font-black text-[#2b241c]">{title}</div>
-          <div className="mt-1 text-xs font-bold leading-6 text-[#7f705d]">{description}</div>
+          <div className="mt-1 text-xs font-bold leading-6 text-[#7f705d]">
+            {description}
+          </div>
           {fileName ? (
             <div className="mt-2 rounded-full bg-[#f4ead9] px-3 py-1 text-xs font-black text-[#b98121]">
               קובץ נבחר: {fileName}
@@ -1272,12 +1838,16 @@ function SignatureBox({
     <div className="rounded-[24px] border border-[#eadfce] bg-white p-4">
       <div className="mb-3">
         <div className="text-sm font-black text-[#2b241c]">{title}</div>
-        <div className="mt-1 text-xs font-bold leading-6 text-[#7f705d]">{description}</div>
+        <div className="mt-1 text-xs font-bold leading-6 text-[#7f705d]">
+          {description}
+        </div>
       </div>
 
       <div className="rounded-2xl border border-dashed border-[#d9bd83] bg-[#fff8eb] p-4">
         <div className="mb-3 flex items-center justify-between gap-3">
-          <span className="text-xs font-black text-[#8a7b68]">תצוגת שדה חתימה</span>
+          <span className="text-xs font-black text-[#8a7b68]">
+            תצוגת שדה חתימה
+          </span>
           <span className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-[#b98121]">
             חתימה דיגיטלית
           </span>
@@ -1306,15 +1876,37 @@ function SignatureBox({
   );
 }
 
-function InputLike({ label, value }: { label: string; value: string }) {
+function FormInput({
+  label,
+  value,
+  onChange,
+  type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: "text" | "number" | "date" | "time";
+}) {
   return (
     <label className="block">
-      <span className="mb-1 block text-xs font-black text-[#8a7b68]">{label}</span>
+      <span className="mb-1 block text-xs font-black text-[#8a7b68]">
+        {label}
+      </span>
       <input
-        defaultValue={value}
+        type={type}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
         className="h-11 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-3 text-sm font-bold text-[#2b241c] outline-none focus:border-[#b98121]"
       />
     </label>
+  );
+}
+
+function EmptySmall({ text }: { text: string }) {
+  return (
+    <div className="rounded-2xl border border-dashed border-[#d9bd83] bg-[#fffdf8] p-4 text-center text-sm font-bold leading-6 text-[#8a7b68]">
+      {text}
+    </div>
   );
 }
 
