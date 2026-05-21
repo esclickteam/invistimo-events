@@ -15,7 +15,7 @@ export interface IUser extends Document {
   password?: string;
   phone?: string;
 
-  role: "user" | "client" | "producer" | "staff" | "admin";
+  role: "user" | "client" | "producer" | "staff" | "admin" | "venue_owner";
   staffType?: "producer_staff" | "general_staff" | null;
 
   plan: "basic" | "premium" | "plan1" | "plan2" | "plan3";
@@ -69,9 +69,16 @@ export interface IUser extends Document {
   includeEventManagement: boolean;
   includeCustomDesign: boolean;
 
-    accessModules?: {
+  accessModules?: {
     rsvpSeating: boolean;
     eventProduction: boolean;
+
+    venues?: boolean;
+    venueDashboard?: boolean;
+    venueCrm?: boolean;
+    venueCalendar?: boolean;
+    venueMenus?: boolean;
+    venueStaff?: boolean;
   };
 
   selfManageEnabled: boolean;
@@ -145,7 +152,7 @@ const UserSchema = new Schema<IUser>(
 
     role: {
       type: String,
-      enum: ["user", "client", "producer", "staff", "admin"],
+      enum: ["user", "client", "producer", "staff", "admin", "venue_owner"],
       default: "user",
       index: true,
     },
@@ -364,13 +371,50 @@ const UserSchema = new Schema<IUser>(
       default: false,
     },
 
-        accessModules: {
+    accessModules: {
       rsvpSeating: {
         type: Boolean,
         default: true,
         index: true,
       },
+
       eventProduction: {
+        type: Boolean,
+        default: false,
+        index: true,
+      },
+
+      venues: {
+        type: Boolean,
+        default: false,
+        index: true,
+      },
+
+      venueDashboard: {
+        type: Boolean,
+        default: false,
+        index: true,
+      },
+
+      venueCrm: {
+        type: Boolean,
+        default: false,
+        index: true,
+      },
+
+      venueCalendar: {
+        type: Boolean,
+        default: false,
+        index: true,
+      },
+
+      venueMenus: {
+        type: Boolean,
+        default: false,
+        index: true,
+      },
+
+      venueStaff: {
         type: Boolean,
         default: false,
         index: true,
@@ -540,7 +584,10 @@ UserSchema.pre("validate", function () {
     הרשאות מודולים:
     rsvpSeating = אישורי הגעה / הושבה
     eventProduction = הפקת אירוע
+    venues = מערכת אולמות
   */
+  const isVenueOwner = doc.role === "venue_owner";
+
   doc.accessModules = {
     rsvpSeating:
       doc.accessModules?.rsvpSeating ??
@@ -551,6 +598,30 @@ UserSchema.pre("validate", function () {
       doc.accessModules?.eventProduction ??
       doc.includeEventManagement ??
       false,
+
+    venues:
+      doc.accessModules?.venues ??
+      isVenueOwner,
+
+    venueDashboard:
+      doc.accessModules?.venueDashboard ??
+      isVenueOwner,
+
+    venueCrm:
+      doc.accessModules?.venueCrm ??
+      isVenueOwner,
+
+    venueCalendar:
+      doc.accessModules?.venueCalendar ??
+      isVenueOwner,
+
+    venueMenus:
+      doc.accessModules?.venueMenus ??
+      isVenueOwner,
+
+    venueStaff:
+      doc.accessModules?.venueStaff ??
+      isVenueOwner,
   };
 
   if (doc.guests && !doc.maxGuests) {
@@ -574,11 +645,11 @@ UserSchema.pre("validate", function () {
   }
 
   /*
-  ✅ חשוב:
-  אם אחד מהשדות הוא 3 — שומרים 3.
-  זה מונע מצב שבו default של allowedMessageRounds = 2
-  דורס את planLimits.allowedMessageRounds = 3.
-*/
+    ✅ חשוב:
+    אם אחד מהשדות הוא 3 — שומרים 3.
+    זה מונע מצב שבו default של allowedMessageRounds = 2
+    דורס את planLimits.allowedMessageRounds = 3.
+  */
   const directAllowedRounds = Number(doc.allowedMessageRounds);
   const planAllowedRounds = Number(doc.planLimits?.allowedMessageRounds);
 
@@ -603,7 +674,12 @@ UserSchema.pre("validate", function () {
     doc.assignedClientIds = [];
   }
 
-  if (doc.role === "user" || doc.role === "client" || doc.role === "producer") {
+  if (
+    doc.role === "user" ||
+    doc.role === "client" ||
+    doc.role === "producer" ||
+    doc.role === "venue_owner"
+  ) {
     doc.staffType = null;
   }
 
@@ -645,6 +721,7 @@ UserSchema.index({ email: 1, role: 1 });
 UserSchema.index({ eventDate: 1 });
 UserSchema.index({ plan: 1, hasPaid: 1 });
 UserSchema.index({ isDemoUser: 1 });
+UserSchema.index({ role: 1, "accessModules.venues": 1 });
 
 /* ============================================================
    MODEL

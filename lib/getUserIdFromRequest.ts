@@ -5,7 +5,13 @@ import { cookies } from "next/headers";
    Types
 ========================= */
 
-export type AuthRole = "admin" | "user" | "producer" | "client" | "staff";
+export type AuthRole =
+  | "admin"
+  | "user"
+  | "producer"
+  | "client"
+  | "staff"
+  | "venue_owner";
 
 export type ImpersonationRole =
   | "producer"
@@ -14,7 +20,8 @@ export type ImpersonationRole =
   | "staff_producer" // backward compatibility
   | "client"
   | "user"
-  | "staff";
+  | "staff"
+  | "venue_owner";
 
 export type AuthPayload = {
   userId: string;
@@ -56,10 +63,35 @@ async function getCookieFromHeadersStore(name: string) {
 }
 
 function normalizeRole(raw: any): AuthRole {
-  if (raw === "admin" || raw === "producer" || raw === "client" || raw === "staff") {
+  if (
+    raw === "admin" ||
+    raw === "user" ||
+    raw === "producer" ||
+    raw === "client" ||
+    raw === "staff" ||
+    raw === "venue_owner"
+  ) {
     return raw;
   }
+
   return "user";
+}
+
+function normalizeImpersonationRole(raw: any): ImpersonationRole | null {
+  if (
+    raw === "producer" ||
+    raw === "admin" ||
+    raw === "producer_staff" ||
+    raw === "staff_producer" ||
+    raw === "client" ||
+    raw === "user" ||
+    raw === "staff" ||
+    raw === "venue_owner"
+  ) {
+    return raw;
+  }
+
+  return null;
 }
 
 /* =========================
@@ -91,7 +123,9 @@ export async function getUserIdFromRequest(
       (await getCookieFromHeadersStore("producerAuthToken"));
 
     // אין שום token
-    if (!authToken && !impersonationToken && !producerAuthToken) return null;
+    if (!authToken && !impersonationToken && !producerAuthToken) {
+      return null;
+    }
 
     /* ---------------------------------
        2) Choose active token
@@ -111,7 +145,7 @@ export async function getUserIdFromRequest(
 
     /* ---------------------------------
        3) Header-based impersonation
-       (אם את עדיין משתמשת בזה)
+       אם את עדיין משתמשת בזה
     ---------------------------------- */
     const impersonateUserId = req?.headers?.get("x-impersonate-user") ?? null;
 
@@ -120,10 +154,9 @@ export async function getUserIdFromRequest(
       impersonateUserId &&
       impersonateUserId !== String(userId)
     ) {
-      // שומר הרשאת על של אדמין, context של המשתמש המתחזה
       return {
         userId: String(impersonateUserId),
-        role: "user", // לא לכפות producer כדי לא לזייף role
+        role: "user",
         staffType: null,
         impersonated: true,
         impersonatedBy: String(userId),
@@ -145,8 +178,12 @@ export async function getUserIdFromRequest(
         role,
         staffType,
         impersonated: true,
-        impersonatedBy: decoded.impersonatedBy ? String(decoded.impersonatedBy) : null,
-        impersonationRole: (decoded.impersonationRole ?? null) as ImpersonationRole | null,
+        impersonatedBy: decoded.impersonatedBy
+          ? String(decoded.impersonatedBy)
+          : null,
+        impersonationRole: normalizeImpersonationRole(
+          decoded.impersonationRole
+        ),
       };
     }
 

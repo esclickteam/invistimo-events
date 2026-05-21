@@ -23,14 +23,12 @@ function expireCookie(
     maxAge: 0,
   };
 
-  // מחיקה עם domain - לפרודקשן
   res.cookies.set(name, "", {
     ...base,
     ...(opts?.domain ? { domain: opts.domain } : {}),
     httpOnly: opts?.httpOnly ?? true,
   });
 
-  // מחיקה גם בלי domain - למקרה שהקוקי נכתב בלי domain
   res.cookies.set(name, "", {
     ...base,
     httpOnly: opts?.httpOnly ?? true,
@@ -42,12 +40,9 @@ function clearAuthCookies(res: NextResponse) {
     process.env.NODE_ENV === "production" ? ".invistimo.com" : undefined;
 
   const cookieNames = [
-    // current cookies
     "authToken",
     "producerAuthToken",
     "adminAuthToken",
-
-    // legacy / old cookies
     "token",
     "adminToken",
     "impersonationToken",
@@ -70,13 +65,23 @@ function normalizeAccessModules(user: any) {
     Boolean(user?.includeEventManagement) ||
     Boolean(user?.selfManageEnabled);
 
+  const isVenueOwner = user?.role === "venue_owner" || user?.venueOwner === true;
+
   return {
     rsvpSeating: Boolean(
       user?.accessModules?.rsvpSeating ?? includeDigitalSeating
     ),
+
     eventProduction: Boolean(
       user?.accessModules?.eventProduction ?? includeEventManagement
     ),
+
+    venues: Boolean(user?.accessModules?.venues ?? isVenueOwner),
+    venueDashboard: Boolean(user?.accessModules?.venueDashboard ?? isVenueOwner),
+    venueCrm: Boolean(user?.accessModules?.venueCrm ?? isVenueOwner),
+    venueCalendar: Boolean(user?.accessModules?.venueCalendar ?? isVenueOwner),
+    venueMenus: Boolean(user?.accessModules?.venueMenus ?? isVenueOwner),
+    venueStaff: Boolean(user?.accessModules?.venueStaff ?? isVenueOwner),
   };
 }
 
@@ -84,12 +89,22 @@ function normalizeAccessModules(user: any) {
    Types
 ========================= */
 
+type UserRole = "admin" | "producer" | "client" | "user" | "staff" | "venue_owner";
+
+type EffectiveRole =
+  | "producer"
+  | "producer_staff"
+  | "client"
+  | "admin"
+  | "user"
+  | "venue_owner";
+
 type JwtPayload = {
   userId?: string;
   id?: string;
   _id?: string;
 
-  role?: "admin" | "producer" | "client" | "user" | "staff";
+  role?: UserRole;
 
   hasPaid?: boolean;
   isTrial?: boolean;
@@ -97,16 +112,26 @@ type JwtPayload = {
   accessModules?: {
     rsvpSeating?: boolean;
     eventProduction?: boolean;
+
+    venues?: boolean;
+    venueDashboard?: boolean;
+    venueCrm?: boolean;
+    venueCalendar?: boolean;
+    venueMenus?: boolean;
+    venueStaff?: boolean;
   };
 
-  // impersonation flags
   impersonated?: boolean;
   impersonatedBy?: string;
   impersonatedByAdmin?: boolean;
   adminId?: string;
 
-  // legacy/new impersonation role values
-  impersonationRole?: "admin" | "producer" | "producer_staff" | "staff_producer";
+  impersonationRole?:
+    | "admin"
+    | "producer"
+    | "producer_staff"
+    | "staff_producer"
+    | "venue_owner";
 
   iat?: number;
   exp?: number;
@@ -176,16 +201,11 @@ export async function GET() {
 
     const cookieStore = await cookies();
 
-    /* =========================
-       Read cookies
-    ========================= */
-
     const authToken = cookieStore.get("authToken")?.value ?? null;
     const producerAuthToken =
       cookieStore.get("producerAuthToken")?.value ?? null;
     const adminAuthToken = cookieStore.get("adminAuthToken")?.value ?? null;
 
-    // legacy cookies - חשוב כדי לא ליפול אם נשארו קוקיז ישנות
     const legacyToken = cookieStore.get("token")?.value ?? null;
     const legacyAdminToken = cookieStore.get("adminToken")?.value ?? null;
     const impersonationToken =
@@ -213,14 +233,6 @@ export async function GET() {
       );
     }
 
-    /*
-      סדר בדיקה:
-      1. impersonationToken - אם יש מצב התחזות נפרד
-      2. authToken - הטוקן הפעיל הרגיל
-      3. producerAuthToken - טוקן מפיק שמור בזמן התחזות
-      4. adminAuthToken - טוקן אדמין שמור
-      5. adminToken/token - תמיכה בקוקיז ישנות
-    */
     const tokenResult = verifyFirstValidToken(
       [
         { source: "impersonationToken", value: impersonationToken },
@@ -290,18 +302,17 @@ export async function GET() {
       return res;
     }
 
-    const safeRole =
-      (user.role as "admin" | "producer" | "client" | "user" | "staff") ??
-      "user";
+    const safeRole = (user.role as UserRole) ?? "user";
 
     const staffType = (user.staffType as string | null) ?? null;
     const impersonationRole = decoded.impersonationRole ?? null;
 
     const accessModules = normalizeAccessModules(user);
 
-    /* =========================
-       Role resolution
-    ========================= */
+    const isVenueOwner =
+      safeRole === "venue_owner" ||
+      user.venueOwner === true ||
+      accessModules.venues === true;
 
     const isProducer =
       safeRole === "producer" || impersonationRole === "producer";
@@ -313,12 +324,7 @@ export async function GET() {
 
     const isProducerLike = isProducer || isProducerStaff;
 
-    const effectiveRole:
-      | "producer"
-      | "producer_staff"
-      | "client"
-      | "admin"
-      | "user" = isProducer
+    const effectiveRole: EffectiveRole = isProducer
       ? "producer"
       : isProducerStaff
       ? "producer_staff"
@@ -326,6 +332,8 @@ export async function GET() {
       ? "client"
       : safeRole === "admin"
       ? "admin"
+      : isVenueOwner
+      ? "venue_owner"
       : "user";
 
     const isImpersonated =
@@ -344,6 +352,8 @@ export async function GET() {
       effectiveRole,
       "| hasPaid:",
       user.hasPaid === true,
+      "| venueOwner:",
+      isVenueOwner,
       "| accessModules:",
       accessModules,
       "| staffType:",
@@ -365,6 +375,7 @@ export async function GET() {
 
           role: safeRole,
           effectiveRole,
+          venueOwner: isVenueOwner,
 
           staffType,
           assignedProducerId: user.assignedProducerId
@@ -375,20 +386,17 @@ export async function GET() {
           isProducerLike,
           isProducerStaff,
 
-          // Access / payment status
           isActive: user.isActive === true,
           hasPaid: user.hasPaid === true,
           isTrial: user.isTrial === true,
           trialExpiresAt: user.trialExpiresAt ?? null,
           hasDashboardAccess: user.hasDashboardAccess === true,
 
-          // הרשאות מודולים
           accessModules,
           includeDigitalSeating: accessModules.rsvpSeating,
           includeEventManagement: accessModules.eventProduction,
           selfManageEnabled: accessModules.eventProduction,
 
-          // Plan/package fields
           plan: user.plan ?? "basic",
           guests: user.guests ?? 0,
           paidAmount: user.paidAmount ?? 0,
@@ -407,7 +415,6 @@ export async function GET() {
           smsPerRecord: user.smsPerRecord ?? 0,
           maxMessages: user.maxMessages ?? 0,
 
-          // usage
           smsUsed: user.smsUsed ?? 0,
           smsBalance: user.smsBalance ?? 0,
           whatsappBalance: user.whatsappBalance ?? 0,
@@ -415,14 +422,12 @@ export async function GET() {
 
           producerPricePerRecord: user.producerPricePerRecord ?? 0,
 
-          // impersonation meta
           impersonated: isImpersonated,
           impersonatedBy: decoded.impersonatedBy ?? null,
           impersonatedByAdmin: !!decoded.impersonatedByAdmin,
           adminId: decoded.adminId ?? null,
           impersonationRole,
 
-          // debug קטן, אפשר להשאיר או למחוק
           tokenSource: tokenResult.source,
 
           createdAt: user.createdAt,

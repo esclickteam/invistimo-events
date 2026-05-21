@@ -19,13 +19,21 @@ type UserRole =
   | "client"
   | "staff"
   | "producer_staff"
-  | "staff_producer";
+  | "staff_producer"
+  | "venue_owner";
 
 type StaffType = "producer_staff" | "general_staff";
 
 type AccessModules = {
   rsvpSeating?: boolean;
   eventProduction?: boolean;
+
+  venues?: boolean;
+  venueDashboard?: boolean;
+  venueCrm?: boolean;
+  venueCalendar?: boolean;
+  venueMenus?: boolean;
+  venueStaff?: boolean;
 };
 
 interface User {
@@ -34,6 +42,8 @@ interface User {
   name?: string;
 
   role: UserRole;
+  effectiveRole?: UserRole | "producer_staff";
+  venueOwner?: boolean;
 
   /* ===== STAFF ===== */
   staffType?: StaffType;
@@ -64,7 +74,12 @@ interface User {
   /* ===== IMPERSONATION ===== */
   impersonated?: boolean;
   impersonatedBy?: string;
-  impersonationRole?: "admin" | "producer" | "producer_staff" | "staff_producer";
+  impersonationRole?:
+    | "admin"
+    | "producer"
+    | "producer_staff"
+    | "staff_producer"
+    | "venue_owner";
 }
 
 interface AuthContextType {
@@ -87,11 +102,23 @@ interface AuthContextType {
 ===================================================== */
 function getUserRedirectPath(nextUser: User) {
   const role = String(nextUser.role || "").toLowerCase().trim();
+  const effectiveRole = String(nextUser.effectiveRole || "")
+    .toLowerCase()
+    .trim();
 
   const isStaffLike =
     role === "staff" ||
     role === "producer_staff" ||
-    role === "staff_producer";
+    role === "staff_producer" ||
+    effectiveRole === "producer_staff" ||
+    effectiveRole === "staff_producer";
+
+  const isVenueOwner =
+    role === "venue_owner" ||
+    effectiveRole === "venue_owner" ||
+    nextUser.venueOwner === true ||
+    nextUser.accessModules?.venues === true ||
+    nextUser.accessModules?.venueDashboard === true;
 
   const rsvpSeating =
     nextUser.accessModules?.rsvpSeating ??
@@ -106,12 +133,17 @@ function getUserRedirectPath(nextUser: User) {
     false;
 
   // ADMIN
-  if (role === "admin") {
+  if (role === "admin" || effectiveRole === "admin") {
     return "/admin";
   }
 
+  // VENUE OWNER
+  if (isVenueOwner) {
+    return "/venues/dashboard";
+  }
+
   // PRODUCER
-  if (role === "producer") {
+  if (role === "producer" || effectiveRole === "producer") {
     return "/producer/dashboard";
   }
 
@@ -167,6 +199,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const [loading, setLoading] = useState(true);
   const [, setBootstrapDone] = useState(false);
+
   const [isAuthenticated, _setIsAuthenticated] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return !!sessionStorage.getItem("auth_user");
@@ -309,6 +342,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (returnRole === "admin") {
         window.location.href = "/admin";
+      } else if (returnRole === "venue_owner") {
+        window.location.href = "/venues/dashboard";
       } else {
         window.location.href = "/producer/dashboard";
       }
