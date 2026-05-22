@@ -14,6 +14,7 @@ export const dynamic = "force-dynamic";
 /* ============================================================
    Cloudinary config
 ============================================================ */
+
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME!,
   api_key: process.env.CLOUDINARY_API_KEY!,
@@ -111,8 +112,8 @@ function normalizeEventType(value: unknown) {
   if (lower.includes("חתונה") || lower.includes("wedding")) return "wedding";
   if (lower.includes("בר מצווה")) return "bar-mitzvah";
   if (lower.includes("בת מצווה")) return "bat-mitzvah";
-  if (lower.includes("ברית")) return "brit";
   if (lower.includes("בריתה")) return "brita";
+  if (lower.includes("ברית")) return "brit";
   if (lower.includes("חינה")) return "henna";
 
   return "wedding";
@@ -220,6 +221,35 @@ function serializeEvent(event: any) {
   };
 }
 
+function getExistingEventId(invitation: any, body?: any) {
+  const candidates = [
+    body?.eventId,
+    body?.productionEventId,
+    body?.linkedEventId,
+    invitation?.eventId,
+    invitation?.productionEventId,
+    invitation?.linkedEventId,
+  ];
+
+  for (const value of candidates) {
+    const id = cleanString(value);
+
+    if (id && mongoose.Types.ObjectId.isValid(id)) {
+      return id;
+    }
+  }
+
+  return "";
+}
+
+function shouldSyncVenueLink(body: any) {
+  return (
+    body?.venueOwnerId !== undefined ||
+    body?.venueHallId !== undefined ||
+    body?.venueHallName !== undefined
+  );
+}
+
 async function findEventForInvitation(invitation: any) {
   const possibleIds = [
     invitation?.eventId,
@@ -238,6 +268,94 @@ async function findEventForInvitation(invitation: any) {
   }).lean();
 }
 
+/* ============================================================
+   שיוך אולם ל-Event קיים בלבד
+   לא יוצר Event חדש ולא דורס שם/תאריך/שעה
+============================================================ */
+
+async function linkExistingEventToVenue({
+  invitation,
+  body,
+}: {
+  invitation: any;
+  body: any;
+}) {
+  if (!shouldSyncVenueLink(body)) {
+    return null;
+  }
+
+  const existingEventId = getExistingEventId(invitation, body);
+
+  if (!existingEventId) {
+    throw new Error("MISSING_EVENT_ID_FOR_VENUE_LINK");
+  }
+
+  const venueOwnerObjectId = toObjectId(body.venueOwnerId || invitation.venueOwnerId);
+
+  if (!venueOwnerObjectId) {
+    throw new Error("MISSING_OR_INVALID_VENUE_OWNER_ID");
+  }
+
+  const venueHallId = cleanString(body.venueHallId || invitation.venueHallId);
+  const venueHallName = cleanString(body.venueHallName || invitation.venueHallName);
+
+  if (!venueHallId) {
+    throw new Error("MISSING_VENUE_HALL_ID");
+  }
+
+  const eventObjectId = new mongoose.Types.ObjectId(existingEventId);
+
+  const eventDoc = await Event.findByIdAndUpdate(
+    eventObjectId,
+    {
+      $set: {
+        venueOwnerId: venueOwnerObjectId,
+        venueHallId,
+        venueHallName,
+        venueAccessStatus: "linked",
+        updatedAt: new Date(),
+      },
+      $setOnInsert: {
+        venueLinkedAt: new Date(),
+      },
+    },
+    {
+      new: true,
+      strict: false,
+    }
+  );
+
+  if (!eventDoc) {
+    throw new Error("EVENT_NOT_FOUND_FOR_VENUE_LINK");
+  }
+
+  await Invitation.collection.updateOne(
+    {
+      _id: invitation._id,
+    },
+    {
+      $set: {
+        eventId: eventObjectId,
+        productionEventId: eventObjectId,
+        linkedEventId: eventObjectId,
+
+        venueOwnerId: venueOwnerObjectId,
+        venueHallId,
+        venueHallName,
+
+        updatedAt: new Date(),
+      },
+    }
+  );
+
+  return eventDoc.toObject ? eventDoc.toObject() : eventDoc;
+}
+
+/* ============================================================
+   יצירה/עדכון Event מלא — רק אם createEvent=true
+   נשאר לתמיכה במקומות אחרים במערכת
+============================================================ */
+
 async function createOrUpdateEventForInvitation({
   invitation,
   body,
@@ -251,26 +369,10 @@ async function createOrUpdateEventForInvitation({
 
   const invitationId = String(invitation._id);
 
-  const eventIdFromBody = cleanString(body.eventId);
-  const eventIdFromInvitation =
-    cleanString(invitation.eventId) ||
-    cleanString(invitation.productionEventId) ||
-    cleanString(invitation.linkedEventId);
-
-  const existingEventId = mongoose.Types.ObjectId.isValid(eventIdFromBody)
-    ? eventIdFromBody
-    : mongoose.Types.ObjectId.isValid(eventIdFromInvitation)
-      ? eventIdFromInvitation
-      : "";
+  const existingEventId = getExistingEventId(invitation, body);
 
   const venueOwnerObjectId = toObjectId(body.venueOwnerId);
 
-  /**
-   * חשוב:
-   * במודל Invitation שלך המשתמש נשמר כ-ownerId,
-   * לא בהכרח כ-userId.
-   * לכן ל-Event אנחנו מכניסים userId מתוך ownerId של ההזמנה.
-   */
   const customerUserObjectId = toObjectId(
     invitation.userId ||
       invitation.ownerId ||
@@ -330,9 +432,7 @@ async function createOrUpdateEventForInvitation({
   const location = normalizeLocation(body.location || invitation.location);
 
   const venueHallId = cleanString(body.venueHallId || invitation.venueHallId);
-  const venueHallName = cleanString(
-    body.venueHallName || invitation.venueHallName
-  );
+  const venueHallName = cleanString(body.venueHallName || invitation.venueHallName);
 
   if (!venueHallId) {
     throw new Error("MISSING_VENUE_HALL_ID");
@@ -383,12 +483,6 @@ async function createOrUpdateEventForInvitation({
   let eventDoc: any = null;
 
   if (existingEventId) {
-    /**
-     * לא מגבילים כאן לפי userId,
-     * כי ייתכן שה-Event הישן נוצר לפני שהוספנו את החיבור הזה
-     * או שה-userId בו לא עודכן עדיין.
-     * אנחנו כן מעדכנים עכשיו userId בצורה תקינה מתוך ownerId של ההזמנה.
-     */
     eventDoc = await Event.findOneAndUpdate(
       {
         _id: new mongoose.Types.ObjectId(existingEventId),
@@ -473,6 +567,7 @@ async function createOrUpdateEventForInvitation({
 /* ============================================================
    GET — שליפת הזמנה לפי invitationId או eventId
 ============================================================ */
+
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -523,8 +618,10 @@ export async function GET(
 }
 
 /* ============================================================
-   PUT — עדכון הזמנה קיימת + יצירה/עדכון Event
+   PUT — עדכון הזמנה קיימת
+   תמונה / הגדרות / שיוך אולם
 ============================================================ */
+
 export async function PUT(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -617,6 +714,14 @@ export async function PUT(
       updatePayload.maxGuests = updatePayload.estimatedGuests;
     }
 
+    if (body.eventId !== undefined && mongoose.Types.ObjectId.isValid(body.eventId)) {
+      const eventObjectId = new mongoose.Types.ObjectId(body.eventId);
+
+      updatePayload.eventId = eventObjectId;
+      updatePayload.productionEventId = eventObjectId;
+      updatePayload.linkedEventId = eventObjectId;
+    }
+
     if (body.venueOwnerId !== undefined) {
       const venueOwnerObjectId = toObjectId(body.venueOwnerId);
 
@@ -703,10 +808,17 @@ export async function PUT(
     let event: any = null;
 
     try {
-      event = await createOrUpdateEventForInvitation({
-        invitation: invitationAfterBasicUpdate,
-        body,
-      });
+      if (toBool(body?.createEvent)) {
+        event = await createOrUpdateEventForInvitation({
+          invitation: invitationAfterBasicUpdate,
+          body,
+        });
+      } else if (shouldSyncVenueLink(body)) {
+        event = await linkExistingEventToVenue({
+          invitation: invitationAfterBasicUpdate,
+          body,
+        });
+      }
     } catch (eventError: any) {
       console.error("❌ Event sync failed:", eventError?.message || eventError);
 
@@ -744,6 +856,7 @@ export async function PUT(
 /* ============================================================
    PATCH — עדכון חלקי
 ============================================================ */
+
 export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -823,12 +936,35 @@ export async function PATCH(
       );
     }
 
-    const event = await findEventForInvitation(updatedRaw);
+    let event: any = null;
+
+    try {
+      if (shouldSyncVenueLink(body)) {
+        event = await linkExistingEventToVenue({
+          invitation: updatedRaw,
+          body,
+        });
+      }
+    } catch (eventError: any) {
+      console.error("❌ Event patch sync failed:", eventError?.message || eventError);
+
+      return NextResponse.json(
+        {
+          success: false,
+          error: eventError?.message || "EVENT_SYNC_FAILED",
+        },
+        { status: 400 }
+      );
+    }
+
+    const finalUpdated = await Invitation.findById((updatedRaw as any)._id)
+      .populate("guests")
+      .lean();
 
     return NextResponse.json({
       success: true,
-      invitation: updatedRaw,
-      event: serializeEvent(event),
+      invitation: finalUpdated || updatedRaw,
+      event: serializeEvent(event || (await findEventForInvitation(finalUpdated || updatedRaw))),
     });
   } catch (err) {
     console.error("❌ Error in PATCH /api/invitations/[id]:", err);

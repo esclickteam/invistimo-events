@@ -144,11 +144,6 @@ function getImageQualityStatus(info: ImageInfo | null, mode: InviteImageMode) {
   };
 }
 
-function toNumber(value: string, fallback = 0) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
-
 function normalizeEventType(value: unknown): EventType {
   const raw = String(value || "").trim();
 
@@ -399,7 +394,8 @@ export default function EditInvitePage() {
             invitation.venueHallName
           ),
         });
-      } catch {
+      } catch (error) {
+        console.error("GET /api/invitations/[inviteId] failed:", error);
         alert("❌ שגיאה בטעינת ההזמנה");
       } finally {
         setLoading(false);
@@ -451,7 +447,8 @@ export default function EditInvitePage() {
           setImageMode("portrait");
         }
       }
-    } catch {
+    } catch (error) {
+      console.error("IMAGE_UPLOAD_FAILED:", error);
       alert("❌ שגיאה בקריאת התמונה");
     }
   };
@@ -482,22 +479,12 @@ export default function EditInvitePage() {
       setSaving(true);
 
       const body: any = {
-        title: eventForm.eventTitle.trim(),
         orientation: imageMode,
         imageMode,
 
         canvasData: invite.canvasData || { objects: [] },
 
-        createEvent: true,
         eventId: eventForm.eventId || undefined,
-        eventTitle: eventForm.eventTitle.trim(),
-        eventType: eventForm.eventType,
-        eventDate: eventForm.eventDate,
-        eventTime: eventForm.eventTime,
-        estimatedGuests: Math.max(0, toNumber(eventForm.estimatedGuests, 0)),
-        location: {
-          address: eventForm.locationAddress.trim(),
-        },
 
         venueOwnerId: eventForm.venueOwnerId.trim(),
         venueHallId: eventForm.venueHallId.trim(),
@@ -553,11 +540,17 @@ export default function EditInvitePage() {
         ),
         venueOwnerId: getStringValue(
           updatedEvent?.venueOwnerId,
+          updatedInvitation.venueOwnerId,
           prev.venueOwnerId
         ),
-        venueHallId: getStringValue(updatedEvent?.venueHallId, prev.venueHallId),
+        venueHallId: getStringValue(
+          updatedEvent?.venueHallId,
+          updatedInvitation.venueHallId,
+          prev.venueHallId
+        ),
         venueHallName: getStringValue(
           updatedEvent?.venueHallName,
+          updatedInvitation.venueHallName,
           prev.venueHallName
         ),
       }));
@@ -566,7 +559,8 @@ export default function EditInvitePage() {
       setPreviewRefreshKey((prev) => prev + 1);
 
       alert("✅ ההזמנה שויכה לאולם בהצלחה!");
-    } catch {
+    } catch (error) {
+      console.error("PUT /api/invitations/[inviteId] failed:", error);
       alert("❌ שגיאה בשמירה");
     } finally {
       setSaving(false);
@@ -708,7 +702,10 @@ export default function EditInvitePage() {
 
                         updateEventField("venueOwnerId", hall.venueOwnerId);
                         updateEventField("venueHallId", hall.venueHallId);
-                        updateEventField("venueHallName", hall.venueHallName);
+                        updateEventField(
+                          "venueHallName",
+                          hall.venueHallName || hall.name || ""
+                        );
                       }}
                       className="h-12 w-full rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-bold text-[#2b241c] outline-none transition focus:border-[#b98121]"
                     >
@@ -740,7 +737,8 @@ export default function EditInvitePage() {
 
                   {!loadingVenueHalls && !venueHalls.length ? (
                     <div className="mt-3 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
-                      לא נמצאו אולמות זמינים. ודאי שקיים לפחות אולם אחד במערכת בעל האולם.
+                      לא נמצאו אולמות זמינים. ודאי שקיים לפחות אולם אחד במערכת
+                      בעל האולם.
                     </div>
                   ) : null}
 
