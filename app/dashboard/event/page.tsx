@@ -1,45 +1,128 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import {
+  useParams,
+  usePathname,
+  useRouter,
+  useSearchParams,
+} from "next/navigation";
 import EventDetailsForm from "@/app/components/EventDetailsForm";
 import EventInvitationSettings from "@/app/components/EventInvitationSettings";
 
 export default function EditEventPage() {
   const router = useRouter();
+  const params = useParams();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   const [event, setEvent] = useState<any | null>(null);
   const [invitation, setInvitation] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const invitationIdFromUrl = useMemo(() => {
+    const fromQuery =
+      searchParams.get("invitationId") ||
+      searchParams.get("id") ||
+      searchParams.get("inviteId") ||
+      "";
+
+    if (fromQuery) return fromQuery;
+
+    const fromParams =
+      String(
+        params?.invitationId ||
+          params?.inviteId ||
+          params?.id ||
+          params?.eventId ||
+          ""
+      ) || "";
+
+    if (fromParams) return fromParams;
+
+    const parts = pathname.split("/").filter(Boolean);
+    const invitationsIndex = parts.findIndex((part) => part === "invitations");
+
+    if (invitationsIndex >= 0 && parts[invitationsIndex + 1]) {
+      return parts[invitationsIndex + 1];
+    }
+
+    return "";
+  }, [params, pathname, searchParams]);
+
   useEffect(() => {
+    let cancelled = false;
+
     async function loadData() {
       try {
-        /* =========================
-           1️⃣ Load Event
-        ========================= */
+        setLoading(true);
+
+        /*
+          ✅ מצב חדש ונכון:
+          העמוד נטען לפי invitationId מתוך ה-URL:
+          /dashboard/invitations/[invitationId]/edit
+        */
+        if (invitationIdFromUrl) {
+          const invitationRes = await fetch(
+            `/api/invitations/${invitationIdFromUrl}`,
+            {
+              credentials: "include",
+              cache: "no-store",
+            }
+          );
+
+          if (invitationRes.ok) {
+            const invitationData = await invitationRes.json();
+
+            if (
+              !cancelled &&
+              invitationData?.success &&
+              invitationData?.invitation
+            ) {
+              setInvitation(invitationData.invitation);
+              setEvent(invitationData.event || null);
+              setLoading(false);
+              return;
+            }
+          }
+        }
+
+        /*
+          ✅ fallback ישן:
+          אם נכנסת מנתיב ישן בלי invitationId,
+          עדיין ננסה לטעון אירוע ואז הזמנה לפי eventId.
+        */
         const eventRes = await fetch("/api/events", {
           credentials: "include",
           cache: "no-store",
         });
 
-        if (!eventRes.ok) throw new Error("Event fetch failed");
+        if (!eventRes.ok) {
+          if (!cancelled) setLoading(false);
+          return;
+        }
 
         const eventData = await eventRes.json();
 
         if (!eventData?.success || !eventData.event) {
-          setLoading(false);
+          if (!cancelled) setLoading(false);
           return;
         }
 
         const loadedEvent = eventData.event;
-        setEvent(loadedEvent);
+        const loadedEventId = loadedEvent._id || loadedEvent.id;
 
-        /* =========================
-           2️⃣ Load Invitation BY eventId
-        ========================= */
+        if (!cancelled) {
+          setEvent(loadedEvent);
+        }
+
+        if (!loadedEventId) {
+          if (!cancelled) setLoading(false);
+          return;
+        }
+
         const invitationRes = await fetch(
-          `/api/invitations/by-event/${loadedEvent._id}`,
+          `/api/invitations/by-event/${loadedEventId}`,
           {
             credentials: "include",
             cache: "no-store",
@@ -47,24 +130,30 @@ export default function EditEventPage() {
         );
 
         if (!invitationRes.ok) {
-          setLoading(false);
+          if (!cancelled) setLoading(false);
           return;
         }
 
         const invitationData = await invitationRes.json();
 
-        if (invitationData?.success) {
-          setInvitation(invitationData.invitation);
+        if (!cancelled && invitationData?.success) {
+          setInvitation(invitationData.invitation || null);
         }
       } catch (err) {
         console.error("❌ Failed to load page data:", err);
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
 
     loadData();
-  }, []);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [invitationIdFromUrl]);
 
   /* =========================
      Loading
@@ -150,7 +239,12 @@ export default function EditEventPage() {
     );
   }
 
-  if (!event || !invitation) {
+  /*
+    ✅ חשוב:
+    לא בודקים !event.
+    גם אם ה-Event בסיסי/ריק, עדיין יש הזמנה וצריך לאפשר לערוך.
+  */
+  if (!invitation) {
     return (
       <div
         dir="rtl"
@@ -220,8 +314,8 @@ export default function EditEventPage() {
               </h2>
 
               <p className="mx-auto mt-3 max-w-[480px] text-sm font-semibold leading-relaxed text-[#8A7B69]">
-                כדי לערוך פרטי אירוע והגדרות אישור הגעה, צריך קודם ליצור הזמנה
-                לאירוע.
+                לא נמצאה הזמנה מתאימה לעריכה. חזרי למסך ההזמנות ופתחי את
+                ההזמנה הרצויה.
               </p>
 
               <button
@@ -253,6 +347,12 @@ export default function EditEventPage() {
       </div>
     );
   }
+
+  const currentTitle =
+    invitation?.title ||
+    invitation?.eventTitle ||
+    event?.title ||
+    "האירוע שלך";
 
   /* =========================
      Render
@@ -324,7 +424,7 @@ export default function EditEventPage() {
             "
           />
 
-          <div className="absolute right-10 top-8 text-5xl text-[#B8844F]/45 rotate-[-10deg]">
+          <div className="absolute right-10 top-8 rotate-[-10deg] text-5xl text-[#B8844F]/45">
             ✦
           </div>
 
@@ -431,7 +531,7 @@ export default function EditEventPage() {
                 </p>
 
                 <h3 className="mt-1 line-clamp-1 text-xl font-black text-[#241A14]">
-                  {invitation?.title || event?.title || "האירוע שלך"}
+                  {currentTitle}
                 </h3>
 
                 <div className="mt-4 grid grid-cols-2 gap-3">
@@ -514,7 +614,9 @@ export default function EditEventPage() {
 
             <EventDetailsForm
               event={invitation}
-              onSaved={() => router.refresh()}
+              onSaved={() => {
+                router.refresh();
+              }}
             />
           </div>
 
