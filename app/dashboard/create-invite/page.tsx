@@ -21,24 +21,8 @@ type UploadedImageState = {
   info: ImageInfo | null;
 };
 
-type PublicVenueHall = {
-  venueOwnerId: string;
-  venueHallId: string;
-  venueHallName: string;
-  name: string;
-  subtitle: string;
-  capacity: number;
-  status: string;
-  image: string;
-  ownerName: string;
-};
-
 type EventForm = {
   eventId: string;
-
-  venueOwnerId: string;
-  venueHallId: string;
-  venueHallName: string;
 };
 
 /* =========================================================
@@ -259,10 +243,6 @@ export default function CreateInvitePage() {
   const [saving, setSaving] = useState(false);
   const [dragActive, setDragActive] = useState(false);
 
-  const [venueHalls, setVenueHalls] = useState<PublicVenueHall[]>([]);
-  const [loadingVenueHalls, setLoadingVenueHalls] = useState(false);
-  const [venueHallsError, setVenueHallsError] = useState("");
-
   const [imageMode, setImageMode] = useState<InviteImageMode>("portrait");
   const [uploadedImage, setUploadedImage] = useState<UploadedImageState | null>(
     null
@@ -270,10 +250,6 @@ export default function CreateInvitePage() {
 
   const [eventForm, setEventForm] = useState<EventForm>({
     eventId: "",
-
-    venueOwnerId: "",
-    venueHallId: "",
-    venueHallName: "",
   });
 
   const displayImageUrl = uploadedImage?.base64 || "";
@@ -284,63 +260,6 @@ export default function CreateInvitePage() {
     if (!uploadedImage?.file) return "";
     return uploadedImage.file.name;
   }, [uploadedImage]);
-
-  const selectedVenueValue =
-    eventForm.venueOwnerId && eventForm.venueHallId
-      ? `${eventForm.venueOwnerId}__${eventForm.venueHallId}`
-      : "";
-
-  const selectedHall = useMemo(() => {
-    if (!selectedVenueValue) return null;
-
-    return (
-      venueHalls.find(
-        (hall) =>
-          `${hall.venueOwnerId}__${hall.venueHallId}` === selectedVenueValue
-      ) || null
-    );
-  }, [selectedVenueValue, venueHalls]);
-
-  const updateEventField = <K extends keyof EventForm>(
-    key: K,
-    value: EventForm[K]
-  ) => {
-    setEventForm((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
-  };
-
-  const fetchVenueHalls = async () => {
-    try {
-      setLoadingVenueHalls(true);
-      setVenueHallsError("");
-
-      const res = await fetch("/api/venues/public/halls", {
-        method: "GET",
-        credentials: "include",
-        cache: "no-store",
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || !data?.success) {
-        throw new Error(data?.message || "טעינת אולמות נכשלה");
-      }
-
-      setVenueHalls(Array.isArray(data.halls) ? data.halls : []);
-    } catch (error) {
-      console.error("GET /api/venues/public/halls failed:", error);
-      setVenueHalls([]);
-      setVenueHallsError("לא הצלחתי לטעון את רשימת האולמות");
-    } finally {
-      setLoadingVenueHalls(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchVenueHalls();
-  }, []);
 
   useEffect(() => {
     if (!eventIdFromUrl) return;
@@ -419,11 +338,6 @@ export default function CreateInvitePage() {
         return;
       }
 
-      if (!eventForm.venueOwnerId.trim() || !eventForm.venueHallId.trim()) {
-        alert("חובה לבחור אולם מהרשימה");
-        return;
-      }
-
       setSaving(true);
 
       const canvasData = {
@@ -438,10 +352,6 @@ export default function CreateInvitePage() {
 
         canvasData,
         orientation: imageMode,
-
-        venueOwnerId: eventForm.venueOwnerId.trim(),
-        venueHallId: eventForm.venueHallId.trim(),
-        venueHallName: eventForm.venueHallName.trim(),
       };
 
       const res = await fetch("/api/invitations", {
@@ -531,7 +441,7 @@ export default function CreateInvitePage() {
               </h1>
 
               <p className="mt-1 text-xs text-[#8a7967] md:text-sm">
-                העלאת תמונת הזמנה ושיוך ההזמנה לאולם.
+                העלאת תמונת הזמנה וחיבור לפרטי האירוע.
               </p>
             </div>
           </div>
@@ -573,137 +483,6 @@ export default function CreateInvitePage() {
                 </span>
               </section>
             ) : null}
-
-            <section className="rounded-[34px] border border-[#eadfce] bg-white p-5 shadow-[0_24px_80px_rgba(71,48,25,0.08)] md:p-7">
-              <div>
-                <p className="text-sm font-semibold text-[#b58a55]">
-                  שיוך לאולם
-                </p>
-
-                <h2 className="text-2xl font-black text-[#2d241c]">
-                  חיבור ההזמנה לאולם
-                </h2>
-
-                <p className="mt-1 text-sm leading-6 text-[#7b6a58]">
-                  בחרי אולם מהרשימה. פרטי האירוע עצמם נמשכים מעריכת פרטי
-                  האירוע.
-                </p>
-              </div>
-
-              <div className="mt-6 rounded-[28px] border border-[#eadfce] bg-[#fff8eb] p-4">
-                <div className="text-sm font-black text-[#2d241c]">
-                  בחירת אולם
-                </div>
-
-                <p className="mt-1 text-xs font-bold leading-5 text-[#7b6a58]">
-                  לאחר בחירה, האירוע יופיע בדשבורד וביומן של בעל האולם.
-                </p>
-
-                <div className="mt-4">
-                  <label>
-                    <span className="mb-2 block text-sm font-black text-[#6f6252]">
-                      אולם
-                    </span>
-
-                    <select
-                      value={selectedVenueValue}
-                      onChange={(event) => {
-                        const selectedValue = event.target.value;
-
-                        if (!selectedValue) {
-                          updateEventField("venueOwnerId", "");
-                          updateEventField("venueHallId", "");
-                          updateEventField("venueHallName", "");
-                          return;
-                        }
-
-                        const hall = venueHalls.find(
-                          (item) =>
-                            `${item.venueOwnerId}__${item.venueHallId}` ===
-                            selectedValue
-                        );
-
-                        if (!hall) return;
-
-                        updateEventField("venueOwnerId", hall.venueOwnerId);
-                        updateEventField("venueHallId", hall.venueHallId);
-                        updateEventField(
-                          "venueHallName",
-                          hall.venueHallName || hall.name || ""
-                        );
-                      }}
-                      className="h-12 w-full rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-bold text-[#2b241c] outline-none transition focus:border-[#b98121]"
-                    >
-                      <option value="">
-                        {loadingVenueHalls ? "טוען אולמות..." : "בחרי אולם"}
-                      </option>
-
-                      {venueHalls.map((hall) => (
-                        <option
-                          key={`${hall.venueOwnerId}-${hall.venueHallId}`}
-                          value={`${hall.venueOwnerId}__${hall.venueHallId}`}
-                        >
-                          {hall.name}
-                          {hall.subtitle ? ` — ${hall.subtitle}` : ""}
-                          {hall.capacity
-                            ? ` · עד ${hall.capacity} אורחים`
-                            : ""}
-                          {hall.ownerName ? ` · ${hall.ownerName}` : ""}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
-                  {venueHallsError ? (
-                    <div className="mt-3 rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">
-                      {venueHallsError}
-                    </div>
-                  ) : null}
-
-                  {!loadingVenueHalls && !venueHalls.length ? (
-                    <div className="mt-3 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
-                      לא נמצאו אולמות זמינים. ודאי שקיים לפחות אולם אחד במערכת
-                      בעל האולם.
-                    </div>
-                  ) : null}
-
-                  {selectedHall ? (
-                    <div className="mt-4 rounded-[24px] border border-[#eadfce] bg-white p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-[#f4ead9] text-[#b98121]">
-                          {selectedHall.image ? (
-                            <img
-                              src={selectedHall.image}
-                              alt={selectedHall.name}
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <span className="text-xl">🏛️</span>
-                          )}
-                        </div>
-
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate text-sm font-black text-[#2d241c]">
-                            {selectedHall.name}
-                          </div>
-
-                          <div className="mt-1 truncate text-xs font-bold text-[#7b6a58]">
-                            {selectedHall.subtitle || "אולם אירועים"} ·{" "}
-                            {selectedHall.capacity
-                              ? `עד ${selectedHall.capacity} אורחים`
-                              : "קיבולת לא הוגדרה"}
-                          </div>
-
-                          <div className="mt-1 text-xs font-bold text-[#9a7a45]">
-                            בעלים: {selectedHall.ownerName}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            </section>
 
             <section className="relative overflow-hidden rounded-[34px] border border-[#eadfce] bg-[#fbf8f2] shadow-[0_24px_80px_rgba(71,48,25,0.10)]">
               <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-[#d8b985]/25 blur-3xl" />
@@ -1024,7 +803,7 @@ export default function CreateInvitePage() {
                         : "bg-gradient-to-l from-[#c79a55] to-[#8f6437] hover:shadow-xl"
                     }`}
                   >
-                    {saving ? "שומר..." : "💾 שמירת ההזמנה והאולם"}
+                    {saving ? "שומר..." : "💾 שמירת ההזמנה"}
                   </button>
                 </div>
               </div>
