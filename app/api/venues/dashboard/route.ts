@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import mongoose from "mongoose";
 import connectDB from "@/lib/db";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 import Event from "@/models/Event";
+import Invitation from "@/models/Invitation";
 import VenueHall from "@/models/VenueHall";
 import VenueTask from "@/models/VenueTask";
 import VenueAlert from "@/models/VenueAlert";
@@ -25,6 +27,35 @@ function toNumber(value: unknown, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function objectIdString(value: unknown) {
+  if (!value) return "";
+  return String(value);
+}
+
+function normalizeDateOnly(value: unknown) {
+  if (!value) return "";
+
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
+
+  const raw = cleanString(value);
+
+  if (!raw) return "";
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    return raw;
+  }
+
+  const parsed = new Date(raw);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return raw;
+  }
+
+  return parsed.toISOString().slice(0, 10);
+}
+
 function monthLabel(date: Date) {
   const labels = [
     "ינו׳",
@@ -45,47 +76,81 @@ function monthLabel(date: Date) {
 }
 
 function formatShortDate(value?: string) {
-  if (!value) return "";
+  const cleanValue = normalizeDateOnly(value);
 
-  const [year, month, day] = value.split("-");
+  if (!cleanValue) return "";
+
+  const [year, month, day] = cleanValue.split("-");
 
   if (!year || !month || !day) {
-    return value;
+    return cleanValue;
   }
 
   return `${day}.${month}.${year}`;
 }
 
-function getEventGuests(event: any) {
+function getInvitationIdCandidates(eventId: string) {
+  if (!eventId || !mongoose.Types.ObjectId.isValid(eventId)) {
+    return [];
+  }
+
+  const objectId = new mongoose.Types.ObjectId(eventId);
+
+  return [
+    { eventId: objectId },
+    { productionEventId: objectId },
+    { linkedEventId: objectId },
+    { eventId },
+    { productionEventId: eventId },
+    { linkedEventId: eventId },
+  ];
+}
+
+function getEventGuests(item: any) {
+  const invitation = item?.invitation || null;
+  const event = item?.event || item;
+
   return (
-    toNumber(event.estimatedGuestCount, 0) ||
-    toNumber(event.estimatedGuests, 0) ||
-    toNumber(event.maxGuests, 0) ||
+    toNumber(invitation?.estimatedGuestCount, 0) ||
+    toNumber(invitation?.estimatedGuests, 0) ||
+    toNumber(invitation?.maxGuests, 0) ||
+    toNumber(event?.estimatedGuestCount, 0) ||
+    toNumber(event?.estimatedGuests, 0) ||
+    toNumber(event?.maxGuests, 0) ||
     0
   );
 }
 
-function getEventRevenue(event: any) {
-  if (event.paymentStatus !== "paid") {
+function getEventRevenue(item: any) {
+  const invitation = item?.invitation || null;
+  const event = item?.event || item;
+
+  const paymentStatus =
+    cleanString(invitation?.paymentStatus) || cleanString(event?.paymentStatus);
+
+  if (paymentStatus && paymentStatus !== "paid") {
     return 0;
   }
 
-  return Math.max(0, toNumber(event.budgetTotal, 0));
+  return Math.max(
+    0,
+    toNumber(invitation?.budgetTotal, 0) || toNumber(event?.budgetTotal, 0)
+  );
 }
 
-function getTodayEventStatus(event: any): TodayEventStatus {
+function getTodayEventStatus(item: any): TodayEventStatus {
+  const time = cleanString(item?.time);
+
+  if (!time) {
+    return "confirmed";
+  }
+
   const now = new Date();
   const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(
     now.getMinutes()
   ).padStart(2, "0")}`;
 
-  const eventTime = cleanString(event.time);
-
-  if (!eventTime) {
-    return "confirmed";
-  }
-
-  if (eventTime <= currentTime) {
+  if (time <= currentTime) {
     return "live";
   }
 
@@ -113,6 +178,96 @@ function serializeAlert(alert: any) {
   };
 }
 
+/**
+ * Event = מקור אמת לשיוך אולם בלבד
+ * Invitation = מקור אמת לפרטי האירוע
+ */
+function mergeVenueEventWithInvitation(event: any, invitation: any) {
+  const invitationDate = normalizeDateOnly(
+    invitation?.eventDate || invitation?.date
+  );
+
+  const eventDate = normalizeDateOnly(event?.date);
+
+  const date = invitationDate || eventDate;
+
+  const time =
+    cleanString(invitation?.eventTime) ||
+    cleanString(invitation?.time) ||
+    cleanString(event?.time);
+
+  const title =
+    cleanString(invitation?.title) ||
+    cleanString(invitation?.eventTitle) ||
+    cleanString(event?.title) ||
+    "אירוע ללא שם";
+
+  const eventType =
+    cleanString(invitation?.eventType) ||
+    cleanString(event?.eventType) ||
+    "wedding";
+
+  const location = invitation?.location || event?.location || null;
+
+  const maxGuests =
+    toNumber(invitation?.maxGuests, 0) ||
+    toNumber(invitation?.estimatedGuests, 0) ||
+    toNumber(invitation?.estimatedGuestCount, 0) ||
+    toNumber(event?.maxGuests, 0) ||
+    toNumber(event?.estimatedGuests, 0) ||
+    toNumber(event?.estimatedGuestCount, 0) ||
+    0;
+
+  const budgetTotal =
+    toNumber(invitation?.budgetTotal, 0) || toNumber(event?.budgetTotal, 0) || 0;
+
+  const paymentStatus =
+    cleanString(invitation?.paymentStatus) ||
+    cleanString(event?.paymentStatus) ||
+    "paid";
+
+  return {
+    id: String(event._id),
+    _id: String(event._id),
+
+    event,
+    invitation,
+
+    invitationId: invitation?._id ? String(invitation._id) : "",
+    shareId: invitation?.shareId || "",
+
+    /**
+     * מה-Event בלבד:
+     * השיוך לאולם
+     */
+    venueOwnerId: objectIdString(event.venueOwnerId),
+    venueHallId: cleanString(event.venueHallId),
+    venueHallName: cleanString(event.venueHallName),
+    venueAccessStatus: cleanString(event.venueAccessStatus) || "none",
+
+    /**
+     * מה-Invitation קודם:
+     * פרטי האירוע האמיתיים
+     */
+    title,
+    eventName: title,
+    eventType,
+    date,
+    time,
+    location,
+    maxGuests,
+    estimatedGuests: maxGuests,
+    estimatedGuestCount: maxGuests,
+    budgetTotal,
+    paymentStatus,
+
+    status: cleanString(event.status) || "active",
+
+    createdAt: event.createdAt,
+    updatedAt: event.updatedAt,
+  };
+}
+
 function serializeHallWithStats(hall: any, hallEvents: any[]) {
   const today = new Date();
   const todayIso = toDateOnly(today);
@@ -123,13 +278,13 @@ function serializeHallWithStats(hall: any, hallEvents: any[]) {
   const monthStartIso = toDateOnly(monthStart);
   const nextMonthStartIso = toDateOnly(nextMonthStart);
 
-  const monthlyEvents = hallEvents.filter((event) => {
-    const date = cleanString(event.date);
+  const monthlyEvents = hallEvents.filter((item) => {
+    const date = cleanString(item.date);
     return date >= monthStartIso && date < nextMonthStartIso;
   });
 
-  const upcomingEvents = hallEvents.filter((event) => {
-    const date = cleanString(event.date);
+  const upcomingEvents = hallEvents.filter((item) => {
+    const date = cleanString(item.date);
     return date >= todayIso;
   });
 
@@ -139,8 +294,8 @@ function serializeHallWithStats(hall: any, hallEvents: any[]) {
     return aKey.localeCompare(bKey);
   })[0];
 
-  const monthlyRevenue = monthlyEvents.reduce((sum, event) => {
-    return sum + getEventRevenue(event);
+  const monthlyRevenue = monthlyEvents.reduce((sum, item) => {
+    return sum + getEventRevenue(item);
   }, 0);
 
   const daysInMonth = new Date(
@@ -173,6 +328,48 @@ function serializeHallWithStats(hall: any, hallEvents: any[]) {
   };
 }
 
+async function getInvitationsForEvents(events: any[]) {
+  const eventIds = events
+    .map((event) => String(event._id))
+    .filter((id) => mongoose.Types.ObjectId.isValid(id));
+
+  if (!eventIds.length) {
+    return new Map<string, any>();
+  }
+
+  const orQuery = eventIds.flatMap((eventId) => getInvitationIdCandidates(eventId));
+
+  if (!orQuery.length) {
+    return new Map<string, any>();
+  }
+
+  const invitations = await Invitation.find({
+    $or: orQuery,
+  })
+    .populate("guests")
+    .lean();
+
+  const invitationByEventId = new Map<string, any>();
+
+  for (const invitation of invitations) {
+    const candidates = [
+      invitation.eventId,
+      invitation.productionEventId,
+      invitation.linkedEventId,
+    ];
+
+    for (const candidate of candidates) {
+      const key = objectIdString(candidate);
+
+      if (key && !invitationByEventId.has(key)) {
+        invitationByEventId.set(key, invitation);
+      }
+    }
+  }
+
+  return invitationByEventId;
+}
+
 export async function GET(req: NextRequest) {
   try {
     await connectDB();
@@ -195,17 +392,35 @@ export async function GET(req: NextRequest) {
       .sort({ createdAt: 1 })
       .lean();
 
+    /**
+     * כאן Event משמש רק לאיתור אירועים ששויכו לבעל אולם.
+     * את פרטי האירוע עצמם נמשוך אחר כך מה-Invitation.
+     */
     const events = await Event.find({
       venueOwnerId: ownerId,
       venueAccessStatus: "linked",
       status: "active",
     })
-      .sort({ date: 1, time: 1, createdAt: 1 })
+      .sort({ createdAt: 1 })
       .lean();
+
+    const invitationByEventId = await getInvitationsForEvents(events);
+
+    const mergedEvents = events.map((event: any) => {
+      const invitation = invitationByEventId.get(String(event._id)) || null;
+
+      return mergeVenueEventWithInvitation(event, invitation);
+    });
+
+    mergedEvents.sort((a, b) => {
+      const aKey = `${a.date || ""} ${a.time || ""}`;
+      const bKey = `${b.date || ""} ${b.time || ""}`;
+      return aKey.localeCompare(bKey);
+    });
 
     const todayIso = toDateOnly(new Date());
 
-    const todayEventsRaw = events
+    const todayEventsRaw = mergedEvents
       .filter((event: any) => cleanString(event.date) === todayIso)
       .slice(0, 20);
 
@@ -224,13 +439,13 @@ export async function GET(req: NextRequest) {
 
     const eventsByHallId = new Map<string, any[]>();
 
-    for (const event of events) {
-      const hallId = cleanString(event.venueHallId);
+    for (const item of mergedEvents) {
+      const hallId = cleanString(item.venueHallId);
 
       if (!hallId) continue;
 
       const current = eventsByHallId.get(hallId) || [];
-      current.push(event);
+      current.push(item);
       eventsByHallId.set(hallId, current);
     }
 
@@ -248,18 +463,18 @@ export async function GET(req: NextRequest) {
       hallNameMap.set(hallId, hall.name || "");
     }
 
-    const todayEvents = todayEventsRaw.map((event: any) => {
-      const hallId = cleanString(event.venueHallId);
+    const todayEvents = todayEventsRaw.map((item: any) => {
+      const hallId = cleanString(item.venueHallId);
       const hallName =
-        cleanString(event.venueHallName) || hallNameMap.get(hallId) || "אולם";
+        cleanString(item.venueHallName) || hallNameMap.get(hallId) || "אולם";
 
       return {
-        id: String(event._id),
+        id: String(item._id || item.id),
         hallId,
         hallName,
-        eventName: event.title || "אירוע ללא שם",
-        time: event.time || "",
-        status: getTodayEventStatus(event),
+        eventName: item.title || "אירוע ללא שם",
+        time: item.time || "",
+        status: getTodayEventStatus(item),
       };
     });
 
@@ -271,9 +486,9 @@ export async function GET(req: NextRequest) {
       financeMap.set(monthLabel(date), 0);
     }
 
-    for (const event of events) {
-      const dateValue = cleanString(event.date);
-      const eventDate = dateValue ? new Date(dateValue) : new Date(event.createdAt);
+    for (const item of mergedEvents) {
+      const dateValue = cleanString(item.date);
+      const eventDate = dateValue ? new Date(dateValue) : new Date(item.createdAt);
 
       if (Number.isNaN(eventDate.getTime())) {
         continue;
@@ -282,7 +497,7 @@ export async function GET(req: NextRequest) {
       const label = monthLabel(eventDate);
 
       if (financeMap.has(label)) {
-        financeMap.set(label, (financeMap.get(label) || 0) + getEventRevenue(event));
+        financeMap.set(label, (financeMap.get(label) || 0) + getEventRevenue(item));
       }
     }
 
