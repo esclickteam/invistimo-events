@@ -775,24 +775,7 @@ export default function EditInvitePage() {
                   onChange={(value) => updateEventField("eventTime", value)}
                 />
 
-                <FormInput
-                  label="כמות מוזמנים משוערת"
-                  type="number"
-                  value={eventForm.estimatedGuests}
-                  onChange={(value) =>
-                    updateEventField("estimatedGuests", value)
-                  }
-                  placeholder="לדוגמה: 350"
-                />
-
-                <FormInput
-                  label="כתובת / שם מקום"
-                  value={eventForm.locationAddress}
-                  onChange={(value) =>
-                    updateEventField("locationAddress", value)
-                  }
-                  placeholder="לדוגמה: אולם בראשית, נס ציונה"
-                />
+                
               </div>
 
               <div className="mt-6 rounded-[28px] border border-[#eadfce] bg-[#fff8eb] p-4">
