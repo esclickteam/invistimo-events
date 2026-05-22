@@ -405,7 +405,7 @@ export default function CreateInvitePage() {
       return;
     }
 
-    router.push(`/dashboard/invitations/${invitationId}/preview`);
+    router.push(`/dashboard/invitations/${invitationId}/edit`);
   } catch (err) {
     console.error("❌ SAVE ERROR:", err);
     alert("❌ שגיאה בשמירה");
