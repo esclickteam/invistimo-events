@@ -113,7 +113,7 @@ export default function DashboardMobileMenu({
           return;
         }
 
-        go("/dashboard/event");
+        go("/dashboard/invitations");
       },
     },
     {
