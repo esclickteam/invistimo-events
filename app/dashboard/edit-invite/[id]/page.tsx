@@ -523,57 +523,8 @@ export default function EditInvitePage() {
       <main className="mx-auto max-w-7xl px-4 py-6">
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
           <div className="space-y-6">
-            <section className="rounded-[34px] border border-[#eadfce] bg-white p-5 shadow-[0_24px_80px_rgba(71,48,25,0.08)] md:p-7">
-              <div>
-                <p className="text-sm font-semibold text-[#b58a55]">
-                  פרטי האירוע
-                </p>
 
-                <h2 className="text-2xl font-black text-[#2d241c]">
-                  נתוני האירוע מחוברים להזמנה
-                </h2>
-
-                <p className="mt-1 text-sm leading-6 text-[#7b6a58]">
-                  פרטי האירוע והאולם לא נערכים כאן. הם נמשכים מעריכת פרטי
-                  האירוע ומהחיבור שבוצע באירוע עצמו.
-                </p>
-              </div>
-
-              <div className="mt-6 grid gap-3 md:grid-cols-2">
-                <div className="rounded-[24px] border border-[#eadfce] bg-[#fbf8f2] p-4">
-                  <p className="text-xs font-bold text-[#9a7a45]">שם האירוע</p>
-                  <p className="mt-1 text-sm font-black text-[#2d241c]">
-                    {eventForm.eventTitle || "לא הוגדר"}
-                  </p>
-                </div>
-
-                <div className="rounded-[24px] border border-[#eadfce] bg-[#fbf8f2] p-4">
-                  <p className="text-xs font-bold text-[#9a7a45]">
-                    תאריך ושעה
-                  </p>
-                  <p className="mt-1 text-sm font-black text-[#2d241c]">
-                    {eventForm.eventDate || "לא הוגדר"}
-                    {eventForm.eventTime ? ` · ${eventForm.eventTime}` : ""}
-                  </p>
-                </div>
-
-                <div className="rounded-[24px] border border-[#eadfce] bg-[#fbf8f2] p-4">
-                  <p className="text-xs font-bold text-[#9a7a45]">
-                    כמות משוערת
-                  </p>
-                  <p className="mt-1 text-sm font-black text-[#2d241c]">
-                    {eventForm.estimatedGuests || "לא הוגדר"}
-                  </p>
-                </div>
-
-                <div className="rounded-[24px] border border-[#eadfce] bg-[#fbf8f2] p-4">
-                  <p className="text-xs font-bold text-[#9a7a45]">כתובת</p>
-                  <p className="mt-1 text-sm font-black text-[#2d241c]">
-                    {eventForm.locationAddress || "לא הוגדרה"}
-                  </p>
-                </div>
-              </div>
-            </section>
+            
 
             <section className="relative overflow-hidden rounded-[34px] border border-[#eadfce] bg-[#fbf8f2] shadow-[0_24px_80px_rgba(71,48,25,0.10)]">
               <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-[#d8b985]/25 blur-3xl" />
