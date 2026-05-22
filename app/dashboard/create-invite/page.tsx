@@ -148,16 +148,6 @@ function toNumber(value: string, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function getEventTypeLabel(type: EventType) {
-  if (type === "wedding") return "חתונה";
-  if (type === "bar-mitzvah") return "בר מצווה";
-  if (type === "bat-mitzvah") return "בת מצווה";
-  if (type === "brit") return "ברית";
-  if (type === "brita") return "בריתה";
-  if (type === "henna") return "חינה";
-  return "אחר";
-}
-
 /* =========================================================
    Phone Preview
 ========================================================= */
@@ -435,23 +425,17 @@ export default function CreateInvitePage() {
         return;
       }
 
-      if (!eventForm.eventTitle.trim()) {
-        alert("חובה להזין שם אירוע");
-        return;
-      }
-
-      if (!eventForm.eventDate.trim()) {
-        alert("חובה להזין תאריך אירוע");
-        return;
-      }
-
-      if (!eventForm.eventTime.trim()) {
-        alert("חובה להזין שעה");
-        return;
-      }
-
       if (!eventForm.venueOwnerId.trim() || !eventForm.venueHallId.trim()) {
         alert("חובה לבחור אולם מהרשימה");
+        return;
+      }
+
+      if (
+        !eventForm.eventTitle.trim() ||
+        !eventForm.eventDate.trim() ||
+        !eventForm.eventTime.trim()
+      ) {
+        alert("חסרים פרטי אירוע. עדכני קודם את פרטי האירוע ושמרי שוב.");
         return;
       }
 
@@ -565,11 +549,11 @@ export default function CreateInvitePage() {
               </p>
 
               <h1 className="truncate text-xl font-bold text-[#2d241c] md:text-2xl">
-                יצירת הזמנה ואירוע
+                יצירת הזמנה
               </h1>
 
               <p className="mt-1 text-xs text-[#8a7967] md:text-sm">
-                יצירת הזמנה, חיבור ל־Event ושיוך לאולם כדי שבעל האולם יראה את האירוע.
+                יצירת הזמנה ושיוך ההזמנה לאולם.
               </p>
             </div>
           </div>
@@ -605,76 +589,16 @@ export default function CreateInvitePage() {
             <section className="rounded-[34px] border border-[#eadfce] bg-white p-5 shadow-[0_24px_80px_rgba(71,48,25,0.08)] md:p-7">
               <div>
                 <p className="text-sm font-semibold text-[#b58a55]">
-                  פרטי האירוע
+                  שיוך לאולם
                 </p>
 
                 <h2 className="text-2xl font-black text-[#2d241c]">
-                  יצירת Event מחובר לאולם
+                  חיבור ההזמנה לאולם
                 </h2>
 
                 <p className="mt-1 text-sm leading-6 text-[#7b6a58]">
-                  בחרי אולם מהרשימה. המערכת תשמור אוטומטית את בעל האולם, מזהה האולם ושם האולם.
+                  בחרי אולם מהרשימה. פרטי האירוע עצמם נמשכים מעריכת פרטי האירוע.
                 </p>
-              </div>
-
-              <div className="mt-5 grid gap-4 md:grid-cols-2">
-                <FormInput
-                  label="שם האירוע"
-                  value={eventForm.eventTitle}
-                  onChange={(value) => updateEventField("eventTitle", value)}
-                  placeholder="לדוגמה: החתונה של הדר ואור"
-                />
-
-                <label>
-                  <span className="mb-2 block text-sm font-black text-[#6f6252]">
-                    סוג אירוע
-                  </span>
-
-                  <select
-                    value={eventForm.eventType}
-                    onChange={(event) =>
-                      updateEventField("eventType", event.target.value as EventType)
-                    }
-                    className="h-12 w-full rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-bold text-[#2b241c] outline-none transition focus:border-[#b98121]"
-                  >
-                    <option value="wedding">חתונה</option>
-                    <option value="bar-mitzvah">בר מצווה</option>
-                    <option value="bat-mitzvah">בת מצווה</option>
-                    <option value="brit">ברית</option>
-                    <option value="brita">בריתה</option>
-                    <option value="henna">חינה</option>
-                    <option value="other">אחר</option>
-                  </select>
-                </label>
-
-                <FormInput
-                  label="תאריך"
-                  type="date"
-                  value={eventForm.eventDate}
-                  onChange={(value) => updateEventField("eventDate", value)}
-                />
-
-                <FormInput
-                  label="שעה"
-                  type="time"
-                  value={eventForm.eventTime}
-                  onChange={(value) => updateEventField("eventTime", value)}
-                />
-
-                <FormInput
-                  label="כמות מוזמנים משוערת"
-                  type="number"
-                  value={eventForm.estimatedGuests}
-                  onChange={(value) => updateEventField("estimatedGuests", value)}
-                  placeholder="לדוגמה: 350"
-                />
-
-                <FormInput
-                  label="כתובת / שם מקום"
-                  value={eventForm.locationAddress}
-                  onChange={(value) => updateEventField("locationAddress", value)}
-                  placeholder="לדוגמה: אולם בראשית, נס ציונה"
-                />
               </div>
 
               <div className="mt-6 rounded-[28px] border border-[#eadfce] bg-[#fff8eb] p-4">
@@ -729,7 +653,9 @@ export default function CreateInvitePage() {
                         >
                           {hall.name}
                           {hall.subtitle ? ` — ${hall.subtitle}` : ""}
-                          {hall.capacity ? ` · עד ${hall.capacity} אורחים` : ""}
+                          {hall.capacity
+                            ? ` · עד ${hall.capacity} אורחים`
+                            : ""}
                           {hall.ownerName ? ` · ${hall.ownerName}` : ""}
                         </option>
                       ))}
@@ -1020,42 +946,6 @@ export default function CreateInvitePage() {
                   <p>{getRecommendedText(imageMode)}</p>
                 </div>
               </div>
-
-              <div className="rounded-[30px] border border-[#eadfce] bg-white p-5 shadow-[0_18px_60px_rgba(71,48,25,0.08)]">
-                <div className="mb-4">
-                  <p className="text-sm font-semibold text-[#b58a55]">
-                    סיכום חיבור
-                  </p>
-
-                  <h3 className="text-xl font-black text-[#2d241c]">
-                    מה ייווצר בשמירה
-                  </h3>
-                </div>
-
-                <div className="rounded-3xl bg-[#fbf4e8] p-4 text-sm leading-7 text-[#6b5844]">
-                  <p>
-                    תיווצר הזמנה חדשה, ובשרת ייווצר גם Event עם שיוך לאולם.
-                  </p>
-
-                  <p className="mt-2 font-bold text-[#3c2d21]">
-                    {eventForm.eventTitle || "שם האירוע"} ·{" "}
-                    {getEventTypeLabel(eventForm.eventType)}
-                  </p>
-
-                  <p>
-                    {eventForm.eventDate || "תאריך"} ·{" "}
-                    {eventForm.eventTime || "שעה"} ·{" "}
-                    {eventForm.estimatedGuests || "0"} מוזמנים
-                  </p>
-
-                  <p className="mt-2">
-                    אולם:{" "}
-                    {eventForm.venueHallName ||
-                      selectedHall?.name ||
-                      "לא נבחר אולם"}
-                  </p>
-                </div>
-              </div>
             </div>
           </div>
 
@@ -1141,7 +1031,7 @@ export default function CreateInvitePage() {
                         : "bg-gradient-to-l from-[#c79a55] to-[#8f6437] hover:shadow-xl"
                     }`}
                   >
-                    {saving ? "שומר..." : "💾 שמירת ההזמנה והאירוע"}
+                    {saving ? "שומר..." : "💾 שמירת ההזמנה והאולם"}
                   </button>
                 </div>
               </div>
@@ -1173,39 +1063,5 @@ export default function CreateInvitePage() {
         </div>
       </div>
     </div>
-  );
-}
-
-/* =========================================================
-   Small components
-========================================================= */
-
-function FormInput({
-  label,
-  value,
-  onChange,
-  type = "text",
-  placeholder = "",
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  type?: "text" | "number" | "date" | "time";
-  placeholder?: string;
-}) {
-  return (
-    <label>
-      <span className="mb-2 block text-sm font-black text-[#6f6252]">
-        {label}
-      </span>
-
-      <input
-        type={type}
-        value={value}
-        placeholder={placeholder}
-        onChange={(event) => onChange(event.target.value)}
-        className="h-12 w-full rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-bold text-[#2b241c] outline-none transition placeholder:text-[#b7a994] focus:border-[#b98121]"
-      />
-    </label>
   );
 }
