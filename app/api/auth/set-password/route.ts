@@ -18,6 +18,16 @@ function normalizeAllowedMessageRounds(value: any): 2 | 3 {
 }
 
 function normalizeAccessModules(user: any) {
+  const role = String(user?.role || "").toLowerCase().trim();
+
+  if (role === "venue_owner") {
+    return {
+      rsvpSeating: false,
+      eventProduction: false,
+      venueDashboard: true,
+    };
+  }
+
   const includeDigitalSeating =
     Boolean(user?.includeDigitalSeating) ||
     Boolean(user?.planLimits?.seatingEnabled);
@@ -33,6 +43,7 @@ function normalizeAccessModules(user: any) {
     eventProduction: Boolean(
       user?.accessModules?.eventProduction ?? includeEventManagement
     ),
+    venueDashboard: Boolean(user?.accessModules?.venueDashboard),
   };
 }
 
@@ -90,9 +101,6 @@ export async function POST(req: Request) {
 
     /* =========================
        FIND USER BY TOKEN
-       ✅ חשוב:
-       חייבים להביא גם allowedMessageRounds, planLimits וגם accessModules
-       אחרת user.save() יכול להפעיל defaults לא רצויים.
     ========================= */
     const user = await User.findOne({ resetPasswordToken: token }).select(
       `
@@ -151,20 +159,29 @@ export async function POST(req: Request) {
       );
     }
 
-    /*
-      ✅ שמירת הערך לפני save
-      אם אחד מהם 3 — נשאיר 3.
-    */
-    const allowedMessageRounds = normalizeAllowedMessageRounds(
-      Number((user as any).allowedMessageRounds) === 3 ||
-        Number((user as any).planLimits?.allowedMessageRounds) === 3
-        ? 3
-        : 2
-    );
+    /* =========================
+       NORMALIZE ROLE
+    ========================= */
+    const role = String(user.role ?? "").toLowerCase().trim();
+    const isVenueOwner = role === "venue_owner";
 
     /*
-      ✅ שמירת הרשאות מודולים לפני save
-      כדי שלקוח של "רק הפקת אירוע" לא יחזור בטעות לדשבורד רגיל.
+      ✅ בעל אולם לא משתמש בסבבי הודעות.
+      משאירים 2 רק כדי לא לשבור שדות קיימים במודל/טוקן.
+    */
+    const allowedMessageRounds = isVenueOwner
+      ? 2
+      : normalizeAllowedMessageRounds(
+          Number((user as any).allowedMessageRounds) === 3 ||
+            Number((user as any).planLimits?.allowedMessageRounds) === 3
+            ? 3
+            : 2
+        );
+
+    /*
+      ✅ הרשאות מודולים:
+      לבעל אולם חייבים לשמור venueDashboard:true
+      ולא להדליק בטעות RSVP או הפקת אירוע.
     */
     const accessModules = normalizeAccessModules(user);
 
@@ -173,13 +190,19 @@ export async function POST(req: Request) {
     (user as any).planLimits = {
       ...((user as any).planLimits || {}),
       allowedMessageRounds,
-      seatingEnabled: accessModules.rsvpSeating,
+      seatingEnabled: isVenueOwner ? false : accessModules.rsvpSeating,
     };
 
     (user as any).accessModules = accessModules;
-    (user as any).includeDigitalSeating = accessModules.rsvpSeating;
-    (user as any).includeEventManagement = accessModules.eventProduction;
-    (user as any).selfManageEnabled = accessModules.eventProduction;
+    (user as any).includeDigitalSeating = isVenueOwner
+      ? false
+      : accessModules.rsvpSeating;
+    (user as any).includeEventManagement = isVenueOwner
+      ? false
+      : accessModules.eventProduction;
+    (user as any).selfManageEnabled = isVenueOwner
+      ? false
+      : accessModules.eventProduction;
 
     /* =========================
        SET PASSWORD
@@ -196,23 +219,35 @@ export async function POST(req: Request) {
 
     /*
       ✅ הגנה נוספת אחרי save:
-      מוודאים שלא נדרסו allowedMessageRounds / accessModules בזמן ה־hook.
+      מוודאים שלא נדרסו allowedMessageRounds / accessModules בזמן hook.
     */
     await User.findByIdAndUpdate(user._id, {
       $set: {
         allowedMessageRounds,
         "planLimits.allowedMessageRounds": allowedMessageRounds,
-        "planLimits.seatingEnabled": accessModules.rsvpSeating,
+        "planLimits.seatingEnabled": isVenueOwner
+          ? false
+          : accessModules.rsvpSeating,
 
         accessModules,
-        includeDigitalSeating: accessModules.rsvpSeating,
-        includeEventManagement: accessModules.eventProduction,
-        selfManageEnabled: accessModules.eventProduction,
+
+        includeDigitalSeating: isVenueOwner
+          ? false
+          : accessModules.rsvpSeating,
+
+        includeEventManagement: isVenueOwner
+          ? false
+          : accessModules.eventProduction,
+
+        selfManageEnabled: isVenueOwner
+          ? false
+          : accessModules.eventProduction,
       },
     });
 
     console.log("✅ PASSWORD SAVED", {
       userId: user._id.toString(),
+      role,
       allowedMessageRounds,
       accessModules,
     });
@@ -220,7 +255,6 @@ export async function POST(req: Request) {
     /* =========================
        NORMALIZE FIELDS
     ========================= */
-    const role = String(user.role ?? "").toLowerCase().trim();
     const staffType = String(user.staffType ?? "").toLowerCase().trim();
 
     const billingSource = String((user as any).billingSource ?? "")
@@ -258,7 +292,7 @@ export async function POST(req: Request) {
     console.log("Generated JWT");
 
     /* =========================
-       RESPONSE + COOKIE
+       SAFE USER
     ========================= */
     const safeUser = {
       _id: user._id.toString(),
@@ -273,12 +307,20 @@ export async function POST(req: Request) {
       planLimits: {
         ...((user as any).planLimits || {}),
         allowedMessageRounds,
-        seatingEnabled: accessModules.rsvpSeating,
+        seatingEnabled: isVenueOwner ? false : accessModules.rsvpSeating,
       },
 
-      includeDigitalSeating: accessModules.rsvpSeating,
-      includeEventManagement: accessModules.eventProduction,
-      selfManageEnabled: accessModules.eventProduction,
+      includeDigitalSeating: isVenueOwner
+        ? false
+        : accessModules.rsvpSeating,
+
+      includeEventManagement: isVenueOwner
+        ? false
+        : accessModules.eventProduction,
+
+      selfManageEnabled: isVenueOwner
+        ? false
+        : accessModules.eventProduction,
 
       staffType: user.staffType ?? null,
       assignedProducerId: user.assignedProducerId
@@ -287,10 +329,15 @@ export async function POST(req: Request) {
       producerPricePerRecord: Number(user.producerPricePerRecord ?? 0),
     };
 
+    /* =========================
+       REDIRECT
+    ========================= */
     let redirectTo = "/dashboard";
 
     if (role === "admin") {
       redirectTo = "/admin";
+    } else if (role === "venue_owner") {
+      redirectTo = "/venues/dashboard";
     } else if (role === "producer") {
       redirectTo = "/producer/dashboard";
     } else {

@@ -11,7 +11,8 @@ type ApiUserRole =
   | "client"
   | "staff"
   | "producer_staff"
-  | "staff_producer";
+  | "staff_producer"
+  | "venue_owner";
 
 type ApiUser = {
   _id: string;
@@ -25,11 +26,38 @@ type ApiUser = {
   accessModules?: {
     rsvpSeating?: boolean;
     eventProduction?: boolean;
+    venueDashboard?: boolean;
   };
   includeDigitalSeating?: boolean;
   includeEventManagement?: boolean;
   selfManageEnabled?: boolean;
 };
+
+function getRedirectPath(user?: ApiUser | null, redirectTo?: string) {
+  if (redirectTo) return redirectTo;
+
+  if (user?.role === "venue_owner") {
+    return "/venues/dashboard";
+  }
+
+  if (user?.role === "producer") {
+    return "/producer/dashboard";
+  }
+
+  if (
+    user?.role === "staff" ||
+    user?.role === "producer_staff" ||
+    user?.role === "staff_producer"
+  ) {
+    return "/producer-staff/dashboard";
+  }
+
+  if (user?.role === "admin") {
+    return "/admin";
+  }
+
+  return "/dashboard";
+}
 
 export default function SetPasswordPage() {
   const { setUser, setIsAuthenticated, refreshUser } = useAuth();
@@ -115,17 +143,20 @@ export default function SetPasswordPage() {
       }
 
       /*
-        השרת כבר יוצר authToken ושולח redirectTo.
-        כאן אנחנו מעדכנים state מקומית, ואז עושים מעבר מלא
+        השרת יוצר authToken.
+        כאן מעדכנים state מקומית, ואז עושים מעבר מלא
         כדי שה-cookie החדש ייקלט בוודאות.
       */
-      if (data.user) {
-        setUser(data.user as any);
+      let resolvedUser: ApiUser | null = data.user || null;
+
+      if (resolvedUser) {
+        setUser(resolvedUser as any);
         setIsAuthenticated(true);
       } else {
         const me = await refreshUser();
 
         if (me) {
+          resolvedUser = me as ApiUser;
           setUser(me as any);
           setIsAuthenticated(true);
         }
@@ -136,15 +167,15 @@ export default function SetPasswordPage() {
       setPassword("");
       setConfirmPassword("");
 
-      const nextPath = data.redirectTo || "/dashboard";
+      const nextPath = getRedirectPath(resolvedUser, data.redirectTo);
 
       console.log("✅ set-password redirect", {
         nextPath,
-        role: data.user?.role,
-        staffType: data.user?.staffType,
-        assignedProducerId: data.user?.assignedProducerId ?? null,
-        hasPaid: data.user?.hasPaid,
-        accessModules: data.user?.accessModules,
+        role: resolvedUser?.role,
+        staffType: resolvedUser?.staffType,
+        assignedProducerId: resolvedUser?.assignedProducerId ?? null,
+        hasPaid: resolvedUser?.hasPaid,
+        accessModules: resolvedUser?.accessModules,
       });
 
       window.location.href = nextPath;
@@ -160,9 +191,11 @@ export default function SetPasswordPage() {
      UI
   ========================= */
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gray-50 px-4">
-      <div className="bg-white shadow-lg rounded-xl p-8 w-full max-w-md text-right">
-        <h1 className="text-2xl font-bold mb-6 text-center">הגדרת סיסמה</h1>
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
+      <div className="w-full max-w-md rounded-xl border border-[#eadfce] bg-white p-8 text-right shadow-lg">
+        <h1 className="mb-6 text-center text-2xl font-bold text-[#3f3327]">
+          הגדרת סיסמה
+        </h1>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <input
@@ -171,7 +204,7 @@ export default function SetPasswordPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             disabled={loading || !token}
-            className="w-full border rounded-lg p-2"
+            className="w-full rounded-lg border p-2 text-right"
           />
 
           <input
@@ -180,7 +213,7 @@ export default function SetPasswordPage() {
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             disabled={loading || !token}
-            className="w-full border rounded-lg p-2"
+            className="w-full rounded-lg border p-2 text-right"
           />
 
           {/* תנאי שימוש */}
@@ -208,10 +241,10 @@ export default function SetPasswordPage() {
           <button
             type="submit"
             disabled={loading || !token || !acceptedTerms}
-            className={`w-full py-2 rounded-lg text-white transition ${
+            className={`w-full rounded-lg py-2 text-white transition ${
               loading || !token || !acceptedTerms
-                ? "bg-gray-400 cursor-not-allowed"
-                : "bg-purple-600 hover:bg-purple-700"
+                ? "cursor-not-allowed bg-gray-400"
+                : "bg-[#3f3327] hover:bg-[#2f251d]"
             }`}
           >
             {loading ? "שומר..." : "שמור סיסמה"}
@@ -219,7 +252,7 @@ export default function SetPasswordPage() {
         </form>
 
         {message && (
-          <p className="text-center mt-4 text-sm text-gray-700">{message}</p>
+          <p className="mt-4 text-center text-sm text-gray-700">{message}</p>
         )}
       </div>
     </div>
