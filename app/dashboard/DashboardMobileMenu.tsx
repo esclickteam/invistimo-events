@@ -102,20 +102,27 @@ export default function DashboardMobileMenu({
         );
       },
     },
-    {
-      title: "עריכת פרטי האירוע",
-      subtitle: "תאריך, שעה, אולם, מיקום ופרטים כלליים",
-      icon: Settings2,
-      badge: "אירוע",
-      onClick: () => {
-        if (isDemo) {
-          demoBlock();
-          return;
-        }
 
-        go("/dashboard/invitations");
-      },
-    },
+    {
+  title: "עריכת פרטי האירוע",
+  subtitle: "תאריך, שעה, אולם, מיקום ופרטים כלליים",
+  icon: Settings2,
+  badge: "אירוע",
+  onClick: () => {
+    if (isDemo) {
+      demoBlock();
+      return;
+    }
+
+    if (!invitationId) {
+      go("/dashboard");
+      return;
+    }
+
+    go(`/dashboard/invitations/${invitationId}/edit`);
+  },
+},
+
     {
       title: "צפייה בהזמנה",
       subtitle: "פתיחת ההזמנה כפי שהאורחים רואים אותה",

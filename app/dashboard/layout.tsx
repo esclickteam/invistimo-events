@@ -37,21 +37,46 @@ export default function DashboardLayout({
   const eventIdFromUrl = searchParams.get("eventId");
   const invitationIdFromUrl = searchParams.get("invitationId");
 
+  /*
+    ✅ תומך גם בנתיב החדש:
+    /dashboard/invitations/[id]/edit
+
+    כי בנתיב הזה ה-ID לא נמצא ב-query,
+    אלא בתוך pathname.
+  */
+  const invitationIdFromPath = useMemo(() => {
+    const parts = pathname.split("/").filter(Boolean);
+
+    const invitationsIndex = parts.findIndex(
+      (part) => part === "invitations"
+    );
+
+    if (invitationsIndex === -1) return "";
+
+    const id = parts[invitationsIndex + 1];
+
+    if (!id) return "";
+
+    // הגנה מנתיבים שלא מייצגים ID
+    if (id === "create" || id === "edit" || id === "new") return "";
+
+    return id;
+  }, [pathname]);
+
+  const resolvedInvitationId = invitationIdFromUrl || invitationIdFromPath;
+
   const eventIdForMenu = useMemo(() => {
     if (isDemo) return "demo-event-001";
 
-    return (
-      eventIdFromUrl ||
-      invitation?.eventId ||
-      ""
-    );
+    return eventIdFromUrl || invitation?.eventId || "";
   }, [isDemo, eventIdFromUrl, invitation?.eventId]);
 
   /* ============================================================
      Load Invitation
      ✅ תומך:
-     - invitationId
-     - eventId (מפיקים)
+     - invitationId מה-query
+     - invitationId מתוך pathname
+     - eventId
      - fallback ל־my
   ============================================================ */
   useEffect(() => {
@@ -66,31 +91,27 @@ export default function DashboardLayout({
       return;
     }
 
+    let cancelled = false;
+
     async function loadInvitation() {
       try {
         setLoadingInvitation(true);
 
         let url = "";
 
-        // ✅ עדיפות 1 – invitationId
-        if (invitationIdFromUrl) {
-          url = `/api/invitations/${invitationIdFromUrl}`;
+        // ✅ עדיפות 1 – invitationId מה-query או מהנתיב
+        if (resolvedInvitationId) {
+          url = `/api/invitations/${resolvedInvitationId}`;
         }
 
-        // ✅ עדיפות 2 – eventId (מפיקים)
+        // ✅ עדיפות 2 – eventId, למשל מפיקים
         else if (eventIdFromUrl) {
           url = `/api/invitations/by-event/${eventIdFromUrl}`;
         }
 
-        // ✅ fallback – המשתמש הנוכחי
+        // ✅ fallback – ההזמנה של המשתמש הנוכחי
         else {
           url = `/api/invitations/my`;
-        }
-
-        // 🔒 הגנה
-        if (!url) {
-          setInvitation(null);
-          return;
         }
 
         const res = await fetch(url, {
@@ -98,7 +119,9 @@ export default function DashboardLayout({
           cache: "no-store",
         });
 
-        const data = await res.json();
+        const data = await res.json().catch(() => null);
+
+        if (cancelled) return;
 
         if (data?.success && data.invitation) {
           setInvitation(data.invitation);
@@ -107,14 +130,23 @@ export default function DashboardLayout({
         }
       } catch (err) {
         console.error("❌ Failed to load invitation", err);
-        setInvitation(null);
+
+        if (!cancelled) {
+          setInvitation(null);
+        }
       } finally {
-        setLoadingInvitation(false);
+        if (!cancelled) {
+          setLoadingInvitation(false);
+        }
       }
     }
 
     loadInvitation();
-  }, [isDemo, invitationIdFromUrl, eventIdFromUrl]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isDemo, resolvedInvitationId, eventIdFromUrl]);
 
   /* ============================================================
      Render
@@ -132,7 +164,7 @@ export default function DashboardLayout({
       <DashboardMobileMenu
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
-        invitationId={invitation?._id}
+        invitationId={invitation?._id || resolvedInvitationId}
         invitationShareId={invitation?.shareId}
         eventId={eventIdForMenu}
         isDemo={isDemo}
