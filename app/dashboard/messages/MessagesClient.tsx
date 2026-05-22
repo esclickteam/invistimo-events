@@ -186,7 +186,7 @@ const [preview, setPreview] = useState<{
 
 type SendTiming = "now" | "scheduled";
 
-const [sendTiming, setSendTiming] = useState<SendTiming>("now");
+const [sendTiming, setSendTiming] = useState<SendTiming>("scheduled");
 const [scheduledDate, setScheduledDate] = useState<string>("");
 const [scheduledTime, setScheduledTime] = useState<string>("");
 
@@ -357,7 +357,7 @@ useEffect(() => {
 
 useEffect(() => {
   if (channel === "whatsapp") {
-    setSendTiming("now");
+    setSendTiming("scheduled");
     setScheduledDate("");
     setScheduledTime("");
   }
