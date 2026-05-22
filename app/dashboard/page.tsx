@@ -1385,7 +1385,7 @@ const canOpenEventManagement =
                 return;
               }
 
-              router.push("/dashboard/event");
+              router.push(`/dashboard/invitations/${invitationId}/edit`);
             }}
           />
 
@@ -2344,7 +2344,7 @@ function GoldenActionButtons({
           return;
         }
 
-        router.push("/dashboard/event");
+        router.push(`/dashboard/invitations/${invitationId}/edit`);
       }}
     />
 
