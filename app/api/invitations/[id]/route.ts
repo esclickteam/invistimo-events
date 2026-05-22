@@ -264,7 +264,20 @@ async function createOrUpdateEventForInvitation({
       : "";
 
   const venueOwnerObjectId = toObjectId(body.venueOwnerId);
-  const customerUserObjectId = toObjectId(invitation.userId || body.userId);
+
+  /**
+   * חשוב:
+   * במודל Invitation שלך המשתמש נשמר כ-ownerId,
+   * לא בהכרח כ-userId.
+   * לכן ל-Event אנחנו מכניסים userId מתוך ownerId של ההזמנה.
+   */
+  const customerUserObjectId = toObjectId(
+    invitation.userId ||
+      invitation.ownerId ||
+      invitation.customerUserId ||
+      body.userId ||
+      body.ownerId
+  );
 
   if (!customerUserObjectId) {
     throw new Error("MISSING_CUSTOMER_USER_ID");
@@ -277,13 +290,16 @@ async function createOrUpdateEventForInvitation({
   const eventTitle =
     cleanString(body.eventTitle) ||
     cleanString(body.title) ||
+    cleanString(invitation.eventTitle) ||
     cleanString(invitation.title) ||
     "אירוע ללא שם";
 
   const eventType = normalizeEventType(body.eventType || invitation.eventType);
+
   const eventDate = normalizeEventDate(
     body.eventDate || body.date || invitation.eventDate || invitation.date
   );
+
   const eventTime =
     cleanString(body.eventTime) ||
     cleanString(body.time) ||
@@ -314,7 +330,9 @@ async function createOrUpdateEventForInvitation({
   const location = normalizeLocation(body.location || invitation.location);
 
   const venueHallId = cleanString(body.venueHallId || invitation.venueHallId);
-  const venueHallName = cleanString(body.venueHallName || invitation.venueHallName);
+  const venueHallName = cleanString(
+    body.venueHallName || invitation.venueHallName
+  );
 
   if (!venueHallId) {
     throw new Error("MISSING_VENUE_HALL_ID");
@@ -365,10 +383,15 @@ async function createOrUpdateEventForInvitation({
   let eventDoc: any = null;
 
   if (existingEventId) {
+    /**
+     * לא מגבילים כאן לפי userId,
+     * כי ייתכן שה-Event הישן נוצר לפני שהוספנו את החיבור הזה
+     * או שה-userId בו לא עודכן עדיין.
+     * אנחנו כן מעדכנים עכשיו userId בצורה תקינה מתוך ownerId של ההזמנה.
+     */
     eventDoc = await Event.findOneAndUpdate(
       {
-        _id: existingEventId,
-        userId: customerUserObjectId,
+        _id: new mongoose.Types.ObjectId(existingEventId),
       },
       {
         $set: eventPayload,
@@ -469,8 +492,12 @@ export async function GET(
     const invitation =
       (await Invitation.findById(id).populate("guests").lean()) ||
       (await Invitation.findOne({ eventId: id }).populate("guests").lean()) ||
-      (await Invitation.findOne({ productionEventId: id }).populate("guests").lean()) ||
-      (await Invitation.findOne({ linkedEventId: id }).populate("guests").lean());
+      (await Invitation.findOne({ productionEventId: id })
+        .populate("guests")
+        .lean()) ||
+      (await Invitation.findOne({ linkedEventId: id })
+        .populate("guests")
+        .lean());
 
     if (!invitation) {
       return NextResponse.json(
@@ -582,7 +609,10 @@ export async function PUT(
     }
 
     if (body.estimatedGuests !== undefined) {
-      updatePayload.estimatedGuests = Math.max(0, toNumber(body.estimatedGuests, 0));
+      updatePayload.estimatedGuests = Math.max(
+        0,
+        toNumber(body.estimatedGuests, 0)
+      );
       updatePayload.estimatedGuestCount = updatePayload.estimatedGuests;
       updatePayload.maxGuests = updatePayload.estimatedGuests;
     }
@@ -744,7 +774,10 @@ export async function PATCH(
       updatePayload.invitationSettings = body.invitationSettings;
     }
 
-    if (body?.eventId !== undefined && mongoose.Types.ObjectId.isValid(body.eventId)) {
+    if (
+      body?.eventId !== undefined &&
+      mongoose.Types.ObjectId.isValid(body.eventId)
+    ) {
       const eventObjectId = new mongoose.Types.ObjectId(body.eventId);
 
       updatePayload.eventId = eventObjectId;
