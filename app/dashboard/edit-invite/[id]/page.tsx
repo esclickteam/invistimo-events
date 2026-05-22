@@ -727,12 +727,7 @@ export default function EditInvitePage() {
               </div>
 
               <div className="mt-5 grid gap-4 md:grid-cols-2">
-                <FormInput
-                  label="eventId"
-                  value={eventForm.eventId}
-                  onChange={(value) => updateEventField("eventId", value)}
-                  placeholder="אם כבר קיים Event — יוצג כאן"
-                />
+                
 
                 <FormInput
                   label="שם האירוע"
