@@ -183,8 +183,8 @@ async function createOrUpdateEventForInvitation({
   const shouldCreateEvent = toBool(body.createEvent);
 
   /**
-   * אם לא ביקשו ליצור Event ויש eventId קיים —
-   * משתמשים בו כמו שהיה עד היום.
+   * אם הגיע eventId קיים —
+   * משתמשים באירוע הזה.
    */
   if (!shouldCreateEvent && bodyEventId) {
     const existingEvent = await Event.findOne({
@@ -192,21 +192,20 @@ async function createOrUpdateEventForInvitation({
       userId,
     }).lean();
 
-    return existingEvent;
-  }
-
-  /**
-   * אם לא ביקשו createEvent ואין eventId —
-   * נשארים בהתנהגות הישנה: מחפשים Event ראשון של המשתמש,
-   * ואם אין — יוצרים Event בסיסי.
-   */
-  if (!shouldCreateEvent) {
-    const existingEvent = await Event.findOne({ userId }).lean();
-
     if (existingEvent) {
       return existingEvent;
     }
 
+    throw new Error("EVENT_NOT_FOUND");
+  }
+
+  /**
+   * אם לא הגיע eventId ולא ביקשו ליצור Event אמיתי —
+   * יוצרים Event בסיסי חדש.
+   * זה מחזיר את ההתנהגות הקודמת:
+   * אפשר ליצור הזמנה בלי ליצור קודם פרטי אירוע.
+   */
+  if (!shouldCreateEvent) {
     const fallbackEvent = await Event.create({
       userId: new mongoose.Types.ObjectId(userId),
       producerId:
@@ -216,24 +215,22 @@ async function createOrUpdateEventForInvitation({
 
       email: user.email || "noemail@placeholder.com",
 
-      title: "אירוע חדש",
-      eventType: "wedding",
+      title: cleanString(body.title) || "הזמנה חדשה",
+      eventType: normalizeEventType(body.eventType),
 
       budgetTotal: 0,
       estimatedGuests: null,
       estimatedGuestCount: null,
 
       status: "active",
-      date: new Date().toISOString().slice(0, 10),
-      time: "00:00",
+      date:
+        normalizeEventDate(body.eventDate || body.date) ||
+        new Date().toISOString().slice(0, 10),
+      time: cleanString(body.eventTime || body.time) || "00:00",
 
       maxGuests: 100,
 
-      location: {
-        address: "",
-        lat: undefined,
-        lng: undefined,
-      },
+      location: normalizeLocation(body.location),
 
       zones: [],
       planning: {
@@ -254,6 +251,7 @@ async function createOrUpdateEventForInvitation({
 
   /**
    * מכאן — יצירת/עדכון Event אמיתי עם שיוך לאולם.
+   * זה נשאר למסכים שבהם כן יוצרים אירוע מלא מאולם/אדמין.
    */
   const venueOwnerObjectId = toObjectId(body.venueOwnerId);
 
@@ -287,9 +285,7 @@ async function createOrUpdateEventForInvitation({
   const estimatedGuests = Math.max(
     0,
     toNumber(
-      body.estimatedGuestCount ??
-        body.estimatedGuests ??
-        body.maxGuests,
+      body.estimatedGuestCount ?? body.estimatedGuests ?? body.maxGuests,
       0
     )
   );
@@ -441,7 +437,10 @@ export async function POST(req: NextRequest) {
         producerId,
       });
     } catch (eventError: any) {
-      console.error("❌ Event creation failed:", eventError?.message || eventError);
+      console.error(
+        "❌ Event creation failed:",
+        eventError?.message || eventError
+      );
 
       return NextResponse.json(
         {
@@ -488,7 +487,9 @@ export async function POST(req: NextRequest) {
     const maxMessages = maxGuests * 3;
 
     const finalOrientation =
-      orientation === "square" || imageMode === "square" ? "square" : "portrait";
+      orientation === "square" || imageMode === "square"
+        ? "square"
+        : "portrait";
 
     const invitation = await Invitation.create({
       ownerId: userId,
@@ -589,7 +590,9 @@ export async function GET(req: NextRequest) {
           $or: [
             { ownerId: userId },
             { producerId: userId },
-            ...(createdByProducerId ? [{ producerId: createdByProducerId }] : []),
+            ...(createdByProducerId
+              ? [{ producerId: createdByProducerId }]
+              : []),
           ],
         },
       ],
