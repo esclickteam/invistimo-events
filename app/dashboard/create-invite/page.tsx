@@ -327,91 +327,92 @@ export default function CreateInvitePage() {
   ========================================================= */
 
   const handleSave = async () => {
-    try {
-      if (!eventForm.eventId.trim()) {
-        alert("חסר מזהה אירוע. צריך ליצור קודם פרטי אירוע.");
-        return;
-      }
-
-      if (!uploadedImage?.base64) {
-        alert("צריך להעלות תמונת הזמנה לפני שמירה");
-        return;
-      }
-
-      setSaving(true);
-
-      const canvasData = {
-        objects: [],
-        orientation: imageMode,
-      };
-
-      const invitationPayload = {
-        eventId: eventForm.eventId.trim(),
-        productionEventId: eventForm.eventId.trim(),
-        linkedEventId: eventForm.eventId.trim(),
-
-        canvasData,
-        orientation: imageMode,
-      };
-
-      const res = await fetch("/api/invitations", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify(invitationPayload),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        alert(data.error || data.message || "❌ שגיאה ביצירת הזמנה");
-        return;
-      }
-
-      const invitationId = data.invitation?._id;
-
-      if (!invitationId) {
-        alert("❌ ההזמנה נוצרה אבל לא חזר מזהה הזמנה");
-        return;
-      }
-
-      const uploadRes = await fetch("/api/invitations/upload-preview", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          invitationId,
-          base64Image: uploadedImage.base64,
-          imageMode,
-        }),
-      });
-
-      if (!uploadRes.ok) {
-        const text = await uploadRes.text();
-        console.error("UPLOAD ERROR:", text);
-        alert("❌ שגיאה בהעלאת תמונה");
-        return;
-      }
-
-      const uploadData = await uploadRes.json();
-
-      if (!uploadData.success) {
-        alert("❌ שגיאה בהעלאת תמונה");
-        return;
-      }
-
-      router.push(`/dashboard/invitations/${invitationId}/preview`);
-    } catch (err) {
-      console.error("❌ SAVE ERROR:", err);
-      alert("❌ שגיאה בשמירה");
-    } finally {
-      setSaving(false);
+  try {
+    if (!uploadedImage?.base64) {
+      alert("צריך להעלות תמונת הזמנה לפני שמירה");
+      return;
     }
-  };
+
+    setSaving(true);
+
+    const cleanEventId = eventForm.eventId.trim();
+
+    const canvasData = {
+      objects: [],
+      orientation: imageMode,
+    };
+
+    const invitationPayload = {
+      ...(cleanEventId
+        ? {
+            eventId: cleanEventId,
+            productionEventId: cleanEventId,
+            linkedEventId: cleanEventId,
+          }
+        : {}),
+
+      canvasData,
+      orientation: imageMode,
+    };
+
+    const res = await fetch("/api/invitations", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify(invitationPayload),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      alert(data.error || data.message || "❌ שגיאה ביצירת הזמנה");
+      return;
+    }
+
+    const invitationId = data.invitation?._id;
+
+    if (!invitationId) {
+      alert("❌ ההזמנה נוצרה אבל לא חזר מזהה הזמנה");
+      return;
+    }
+
+    const uploadRes = await fetch("/api/invitations/upload-preview", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({
+        invitationId,
+        base64Image: uploadedImage.base64,
+        imageMode,
+      }),
+    });
+
+    if (!uploadRes.ok) {
+      const text = await uploadRes.text();
+      console.error("UPLOAD ERROR:", text);
+      alert("❌ שגיאה בהעלאת תמונה");
+      return;
+    }
+
+    const uploadData = await uploadRes.json();
+
+    if (!uploadData.success) {
+      alert("❌ שגיאה בהעלאת תמונה");
+      return;
+    }
+
+    router.push(`/dashboard/invitations/${invitationId}/preview`);
+  } catch (err) {
+    console.error("❌ SAVE ERROR:", err);
+    alert("❌ שגיאה בשמירה");
+  } finally {
+    setSaving(false);
+  }
+};
 
   /* =========================================================
      Render
@@ -474,15 +475,8 @@ export default function CreateInvitePage() {
       <main className="mx-auto max-w-7xl px-4 py-6">
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
           <div className="space-y-6">
-            {!eventForm.eventId ? (
-              <section className="rounded-[30px] border border-amber-200 bg-amber-50 p-5 text-sm font-bold leading-7 text-amber-900 shadow-sm">
-                חסר מזהה אירוע. צריך להגיע לעמוד הזה אחרי יצירת פרטי אירוע,
-                לדוגמה:
-                <span dir="ltr" className="mx-1 inline-block">
-                  /dashboard/invitations/create?eventId=EVENT_ID
-                </span>
-              </section>
-            ) : null}
+
+            
 
             <section className="relative overflow-hidden rounded-[34px] border border-[#eadfce] bg-[#fbf8f2] shadow-[0_24px_80px_rgba(71,48,25,0.10)]">
               <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-[#d8b985]/25 blur-3xl" />

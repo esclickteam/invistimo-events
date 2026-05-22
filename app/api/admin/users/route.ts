@@ -72,6 +72,10 @@ function normalizeEmail(email?: string) {
   return String(email || "").trim().toLowerCase();
 }
 
+function normalizeString(value?: unknown) {
+  return String(value || "").trim();
+}
+
 function isAdminContext(auth: any) {
   return (
     auth?.role === "admin" ||
@@ -102,9 +106,11 @@ function buildUsersFilter(req: Request) {
       { plan: "plan1" },
       { plan: "plan2" },
       { plan: "plan3" },
+      { priceKey: "venue_owner_manual" },
       { createdByProducer: { $ne: null } },
       { role: "producer" },
       { role: "staff" },
+      { role: "venue_owner" },
     ],
   };
 
@@ -119,6 +125,7 @@ function buildUsersFilter(req: Request) {
         { email: { $regex: q, $options: "i" } },
         { packageName: { $regex: q, $options: "i" } },
         { priceKey: { $regex: q, $options: "i" } },
+        { role: { $regex: q, $options: "i" } },
       ],
     });
   }
@@ -198,11 +205,9 @@ function buildMessageRounds(invitation: any) {
       return {
         key: `rsvp_${round}`,
         label: `אישורי הגעה סבב ${round}`,
-
         done: Boolean(sentAt || scheduledAt || locks?.[`rsvp_${round}`]),
         sentAt,
         scheduledAt,
-
         blocked: Boolean(locks?.[`rsvp_${round}`]),
       };
     }),
@@ -214,30 +219,24 @@ function buildMessageRounds(invitation: any) {
         done: hasAnyValue(invitation, [
           "reminderSentAt",
           "remindersentAt",
-
           "reminderSmsSentAt",
           "reminderSmssentAt",
-
           "reminderWhatsappSentAt",
           "reminderWhatsappsentAt",
         ]),
         sentAt: firstValue(invitation, [
           "reminderSentAt",
           "remindersentAt",
-
           "reminderSmsSentAt",
           "reminderSmssentAt",
-
           "reminderWhatsappSentAt",
           "reminderWhatsappsentAt",
         ]),
         scheduledAt: firstValue(invitation, [
           "reminderScheduledAt",
           "reminderscheduledAt",
-
           "reminderSmsScheduledAt",
           "reminderSmsscheduledAt",
-
           "reminderWhatsappScheduledAt",
           "reminderWhatsappscheduledAt",
         ]),
@@ -254,12 +253,10 @@ function buildMessageRounds(invitation: any) {
           "thankYousentAt",
           "thankyouSentAt",
           "thankyousentAt",
-
           "thankYouSmsSentAt",
           "thankYouSmssentAt",
           "thankyouSmsSentAt",
           "thankyouSmssentAt",
-
           "thankYouWhatsappSentAt",
           "thankYouWhatsappsentAt",
           "thankyouWhatsappSentAt",
@@ -270,12 +267,10 @@ function buildMessageRounds(invitation: any) {
           "thankYousentAt",
           "thankyouSentAt",
           "thankyousentAt",
-
           "thankYouSmsSentAt",
           "thankYouSmssentAt",
           "thankyouSmsSentAt",
           "thankyouSmssentAt",
-
           "thankYouWhatsappSentAt",
           "thankYouWhatsappsentAt",
           "thankyouWhatsappSentAt",
@@ -286,12 +281,10 @@ function buildMessageRounds(invitation: any) {
           "thankYouscheduledAt",
           "thankyouScheduledAt",
           "thankyouscheduledAt",
-
           "thankYouSmsScheduledAt",
           "thankYouSmsscheduledAt",
           "thankyouSmsScheduledAt",
           "thankyouSmsscheduledAt",
-
           "thankYouWhatsappScheduledAt",
           "thankYouWhatsappscheduledAt",
           "thankyouWhatsappScheduledAt",
@@ -616,6 +609,50 @@ export async function GET(req: Request) {
         const payment = paymentByEmail.get(email);
         const invitation = invitationByUserId.get(String(u._id));
 
+        const isVenueOwner = u.role === "venue_owner";
+
+        if (isVenueOwner) {
+          return {
+            ...u,
+
+            plan: u.plan || "basic",
+            priceKey: u.priceKey || "venue_owner_manual",
+            packageName: u.packageName || "ניהול אולם",
+
+            guests: Number(u.guests || 0),
+            maxGuests: Number(u.maxGuests || 0),
+
+            allowedMessageRounds: 2,
+
+            includeCalls: false,
+            callsRounds: 0,
+            callsAddonPrice: 0,
+
+            includeCreditGifts: false,
+            creditGiftsAddonPrice: 0,
+
+            includeDigitalSeating: false,
+            includeEventManagement: false,
+            includeCustomDesign: false,
+
+            accessModules: {
+              rsvpSeating: false,
+              eventProduction: false,
+              venueDashboard: true,
+            },
+
+            totalPaid: Number(payment?.totalPaid || u.paidAmount || 0),
+            paymentsCount: Number(payment?.paymentsCount || 0),
+            lastPaymentAt: payment?.lastPaymentAt || null,
+            paymentTypes: payment?.paymentTypes || [],
+
+            invitationId: null,
+            eventDate: u.eventDate || null,
+
+            messageRounds: buildMessageRounds(null),
+          };
+        }
+
         const planKey =
           u.priceKey ||
           u.plan ||
@@ -793,7 +830,11 @@ export async function POST(req: Request) {
       accessModules,
     } = body || {};
 
-    if (!name || !email || !role) {
+    const safeName = normalizeString(name);
+    const safeEmail = normalizeEmail(email);
+    const safeRole = normalizeString(role);
+
+    if (!safeName || !safeEmail || !safeRole) {
       return NextResponse.json(
         {
           success: false,
@@ -803,7 +844,17 @@ export async function POST(req: Request) {
       );
     }
 
-    const safeEmail = normalizeEmail(email);
+    const allowedRoles = ["user", "producer", "staff", "venue_owner"];
+
+    if (!allowedRoles.includes(safeRole)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "INVALID_ROLE",
+        },
+        { status: 400 }
+      );
+    }
 
     const existing = await User.findOne({
       email: safeEmail,
@@ -822,13 +873,83 @@ export async function POST(req: Request) {
     }
 
     /* =========================
+       VENUE OWNER
+    ========================= */
+    if (safeRole === "venue_owner") {
+      const user = await User.create({
+        name: safeName,
+        email: safeEmail,
+        role: "venue_owner",
+
+        plan: "basic",
+        priceKey: "venue_owner_manual",
+        packageName: "ניהול אולם",
+
+        guests: 0,
+        maxGuests: 0,
+
+        allowedMessageRounds: 2,
+
+        maxMessages: 0,
+        smsLimit: 0,
+        smsUsed: 0,
+
+        includeCalls: false,
+        callsRounds: 0,
+        callsAddonPrice: 0,
+
+        includeCreditGifts: false,
+        creditGiftsAddonPrice: 0,
+
+        includeDigitalSeating: false,
+        includeEventManagement: false,
+        includeCustomDesign: false,
+
+        accessModules: {
+          rsvpSeating: false,
+          eventProduction: false,
+          venueDashboard: true,
+        },
+
+        planLimits: {
+          maxGuests: 0,
+          allowedMessageRounds: 2,
+          smsEnabled: false,
+          smsLimit: 0,
+          seatingEnabled: false,
+          remindersEnabled: false,
+          callsEnabled: false,
+        },
+
+        hasPaid: true,
+        paidAmount: 0,
+        isActive: true,
+
+        needsPasswordSetup: true,
+        createdByAdmin: true,
+        billingSource: "admin",
+      });
+
+      await sendPasswordSetupMail(String(user._id));
+
+      return NextResponse.json(
+        {
+          success: true,
+          userId: String(user._id),
+          role: "venue_owner",
+        },
+        { status: 201 }
+      );
+    }
+
+    /* =========================
        PRODUCER
     ========================= */
-    if (role === "producer") {
+    if (safeRole === "producer") {
       const pricePerRecord = Number(billing?.pricePerRecord || 0);
 
       const user = await User.create({
-        name,
+        name: safeName,
         email: safeEmail,
         role: "producer",
 
@@ -849,6 +970,7 @@ export async function POST(req: Request) {
         {
           success: true,
           userId: String(user._id),
+          role: "producer",
         },
         { status: 201 }
       );
@@ -857,9 +979,9 @@ export async function POST(req: Request) {
     /* =========================
        STAFF
     ========================= */
-    if (role === "staff") {
+    if (safeRole === "staff") {
       const user = await User.create({
-        name,
+        name: safeName,
         email: safeEmail,
         role: "staff",
 
@@ -878,6 +1000,7 @@ export async function POST(req: Request) {
         {
           success: true,
           userId: String(user._id),
+          role: "staff",
         },
         { status: 201 }
       );
@@ -973,7 +1096,7 @@ export async function POST(req: Request) {
     const hasPaid = paymentStatus === "paid";
 
     const user = await User.create({
-      name,
+      name: safeName,
       email: safeEmail,
       role: "user",
 
@@ -1016,6 +1139,8 @@ export async function POST(req: Request) {
 
       selfManageEnabled: finalAccessModules.eventProduction,
       customDesignEnabled: finalCustomDesign,
+
+      venueSeatingService: body?.venueSeatingService || undefined,
 
       hasPaid,
       paidAmount: hasPaid ? priceNum : 0,
@@ -1079,6 +1204,7 @@ export async function POST(req: Request) {
       {
         success: true,
         userId: String(user._id),
+        role: "user",
       },
       { status: 201 }
     );

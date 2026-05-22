@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-type UserRole = "user" | "producer" | "staff";
+type UserRole = "user" | "producer" | "staff" | "venue_owner";
 type PaymentStatus = "paid" | "stripe";
 type PlanKey = "plan1" | "plan2" | "plan3";
 type AddonKey = "calls" | "credit" | "seating" | "system" | "design";
@@ -46,7 +46,9 @@ const addonLabels: Record<AddonKey, string> = {
 
 function toNumber(value: string) {
   if (value === "") return 0;
+
   const parsed = Number(value);
+
   return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
 }
 
@@ -249,108 +251,154 @@ export default function CreateUserModal({ onClose }: Props) {
             },
           }
         : role === "staff"
-        ? {
-            name,
-            email,
-            role,
-          }
-        : {
-            name,
-            email,
-            role,
-            plan,
+          ? {
+              name,
+              email,
+              role,
+            }
+          : role === "venue_owner"
+            ? {
+                name,
+                email,
+                role: "venue_owner",
 
-            limits: {
-              records,
+                /*
+                  בעל אולם לא צריך חבילת RSVP רגילה,
+                  לא רשומות ולא סבבי הודעות.
+                  הוא נכנס לדשבורד אולמות.
+                */
+                plan: "basic",
+                priceKey: "venue_owner_manual",
+                packageName: "ניהול אולם",
 
-              /*
-                ✅ חשוב:
-                המערכת לא עובדת לפי כמות הודעות SMS,
-                אלא לפי כמות סבבי הודעות פתוחים ללקוח.
-                2 = כלול כברירת מחדל
-                3 = פתוח ללקוח אם נבחר בדרופדאון החבילה
-              */
-              allowedMessageRounds: finalAllowedMessageRounds,
-            },
+                guests: 0,
+                maxGuests: 0,
+                smsLimit: 0,
+                maxMessages: 0,
+                allowedMessageRounds: 2,
 
-            billing: {
-              price,
-              paymentStatus,
-            },
+                limits: {
+                  records: 0,
+                  allowedMessageRounds: 2,
+                },
 
-            /*
-              ✅ הרשאות מודולים:
-              rsvpSeating = אישורי הגעה / הושבה
-              eventProduction = הפקת אירוע
-            */
-            accessModules: {
-              rsvpSeating: accessModules.rsvpSeating,
-              eventProduction: accessModules.eventProduction,
-            },
+                billing: {
+                  price: 0,
+                  paymentStatus: "paid",
+                },
 
-            includeCreditGifts,
-            seatingEnabled,
-            selfManageEnabled,
-            customDesignEnabled,
+                accessModules: {
+                  rsvpSeating: false,
+                  eventProduction: false,
+                  venueDashboard: true,
+                },
 
-            venueSeatingService: {
-              enabled: venueSeatingService.enabled,
-              totalPrice: venueSeatingService.enabled
-                ? venueSeatingService.totalPrice
-                : 0,
-              depositAmount: venueSeatingService.enabled
-                ? venueSeatingService.depositAmount
-                : 0,
-              venuePaymentAmount: venueSeatingService.enabled
-                ? venueSeatingService.venuePaymentAmount
-                : 0,
-              staffPaymentAmount: venueSeatingService.enabled
-                ? venueSeatingService.staffPaymentAmount
-                : 0,
+                includeCalls: false,
+                includeCreditGifts: false,
+                includeDigitalSeating: false,
+                includeEventManagement: false,
+                includeCustomDesign: false,
 
-              /*
-                מידע מחושב לתצוגה/אדמין:
-                המקדמה נקלטת בחודש הרכישה.
-                תשלום צוות יורד קודם מהתשלום באולם.
-                אם אין מספיק בתשלום באולם — היתרה יורדת מהסכום הכולל.
-              */
-              staffPaidFromVenue: venueSeatingService.enabled
-                ? staffPaidFromVenue
-                : 0,
-              staffPaidFromFullAmount: venueSeatingService.enabled
-                ? staffPaidFromFullAmount
-                : 0,
-              venuePaymentAfterStaff: venueSeatingService.enabled
-                ? venuePaymentAfterStaff
-                : 0,
-              totalAfterStaff: venueSeatingService.enabled
-                ? totalAfterStaff
-                : 0,
-            },
+                hasPaid: true,
+                isActive: true,
+              }
+            : {
+                name,
+                email,
+                role,
+                plan,
 
-            addons: {
-              calls: {
-                ...addons.calls,
-                enabled: effectiveIncludeCalls,
-              },
-              credit: {
-                ...addons.credit,
-                enabled: includeCreditGifts,
-              },
-              seating: {
-                ...addons.seating,
-                enabled: seatingEnabled,
-              },
-              system: {
-                ...addons.system,
-                enabled: selfManageEnabled,
-              },
-              design: {
-                ...addons.design,
-                enabled: customDesignEnabled,
-              },
-            },
-          };
+                limits: {
+                  records,
+
+                  /*
+                    ✅ חשוב:
+                    המערכת לא עובדת לפי כמות הודעות SMS,
+                    אלא לפי כמות סבבי הודעות פתוחים ללקוח.
+                    2 = כלול כברירת מחדל
+                    3 = פתוח ללקוח אם נבחר בדרופדאון החבילה
+                  */
+                  allowedMessageRounds: finalAllowedMessageRounds,
+                },
+
+                billing: {
+                  price,
+                  paymentStatus,
+                },
+
+                /*
+                  ✅ הרשאות מודולים:
+                  rsvpSeating = אישורי הגעה / הושבה
+                  eventProduction = הפקת אירוע
+                */
+                accessModules: {
+                  rsvpSeating: accessModules.rsvpSeating,
+                  eventProduction: accessModules.eventProduction,
+                },
+
+                includeCreditGifts,
+                seatingEnabled,
+                selfManageEnabled,
+                customDesignEnabled,
+
+                venueSeatingService: {
+                  enabled: venueSeatingService.enabled,
+                  totalPrice: venueSeatingService.enabled
+                    ? venueSeatingService.totalPrice
+                    : 0,
+                  depositAmount: venueSeatingService.enabled
+                    ? venueSeatingService.depositAmount
+                    : 0,
+                  venuePaymentAmount: venueSeatingService.enabled
+                    ? venueSeatingService.venuePaymentAmount
+                    : 0,
+                  staffPaymentAmount: venueSeatingService.enabled
+                    ? venueSeatingService.staffPaymentAmount
+                    : 0,
+
+                  /*
+                    מידע מחושב לתצוגה/אדמין:
+                    המקדמה נקלטת בחודש הרכישה.
+                    תשלום צוות יורד קודם מהתשלום באולם.
+                    אם אין מספיק בתשלום באולם — היתרה יורדת מהסכום הכולל.
+                  */
+                  staffPaidFromVenue: venueSeatingService.enabled
+                    ? staffPaidFromVenue
+                    : 0,
+                  staffPaidFromFullAmount: venueSeatingService.enabled
+                    ? staffPaidFromFullAmount
+                    : 0,
+                  venuePaymentAfterStaff: venueSeatingService.enabled
+                    ? venuePaymentAfterStaff
+                    : 0,
+                  totalAfterStaff: venueSeatingService.enabled
+                    ? totalAfterStaff
+                    : 0,
+                },
+
+                addons: {
+                  calls: {
+                    ...addons.calls,
+                    enabled: effectiveIncludeCalls,
+                  },
+                  credit: {
+                    ...addons.credit,
+                    enabled: includeCreditGifts,
+                  },
+                  seating: {
+                    ...addons.seating,
+                    enabled: seatingEnabled,
+                  },
+                  system: {
+                    ...addons.system,
+                    enabled: selfManageEnabled,
+                  },
+                  design: {
+                    ...addons.design,
+                    enabled: customDesignEnabled,
+                  },
+                },
+              };
 
     try {
       const res = await fetch("/api/admin/users", {
@@ -390,6 +438,12 @@ export default function CreateUserModal({ onClose }: Props) {
     }
   }
 
+  const isSubmitDisabled =
+    !name ||
+    !email ||
+    (role === "user" && price === "") ||
+    (role === "producer" && !producerPricePerRecord);
+
   /* =====================================================
      UI
   ===================================================== */
@@ -405,8 +459,9 @@ export default function CreateUserModal({ onClose }: Props) {
             <h2 className="text-2xl font-bold text-[#3f3327]">
               יצירת משתמש חדש
             </h2>
+
             <p className="text-sm text-[#8b7b68] mt-1">
-              הגדרת לקוח, חבילה, סבבי הודעות, מודולים ואפסיילים
+              הגדרת לקוח, בעל אולם, חבילה, סבבי הודעות, מודולים ואפסיילים
             </p>
           </div>
 
@@ -426,6 +481,7 @@ export default function CreateUserModal({ onClose }: Props) {
               <h3 className="text-sm font-bold text-[#3f4856]">
                 פרטי משתמש
               </h3>
+
               <p className="text-xs text-[#8b7b68] mt-1">
                 פרטים בסיסיים והרשאת משתמש במערכת
               </p>
@@ -454,9 +510,18 @@ export default function CreateUserModal({ onClose }: Props) {
                 className="w-full h-14 rounded-2xl border border-[#eadfce] bg-white px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
               >
                 <option value="user">לקוח</option>
+                <option value="venue_owner">בעל אולם</option>
                 <option value="producer">מפיק</option>
                 <option value="staff">עובד</option>
               </select>
+
+              {role === "venue_owner" && (
+                <div className="rounded-2xl border border-[#eadfce] bg-[#fff8ed] px-4 py-3 text-sm text-[#7a5a2f] leading-6">
+                  משתמש מסוג בעל אולם יקבל הרשאת כניסה לדשבורד אולמות בלבד.
+                  לא נפתחת לו חבילת לקוח רגילה, לא רשומות, לא SMS ולא סבבי
+                  הודעות.
+                </div>
+              )}
             </div>
           </section>
 
@@ -469,6 +534,7 @@ export default function CreateUserModal({ onClose }: Props) {
                   <h3 className="text-sm font-bold text-[#3f4856]">
                     חבילה
                   </h3>
+
                   <p className="text-xs text-[#8b7b68] mt-1">
                     בחירת החבילה הבסיסית של הלקוח
                   </p>
@@ -491,6 +557,7 @@ export default function CreateUserModal({ onClose }: Props) {
                   <h3 className="text-sm font-bold text-[#3f4856]">
                     הרשאות מודולים
                   </h3>
+
                   <p className="text-xs text-[#8b7b68] mt-1">
                     בחרי לאילו אזורים הלקוח יקבל גישה בפועל
                   </p>
@@ -575,6 +642,7 @@ export default function CreateUserModal({ onClose }: Props) {
                   <h3 className="text-sm font-bold text-[#3f4856]">
                     מגבלות מערכת
                   </h3>
+
                   <p className="text-xs text-[#8b7b68] mt-1">
                     הגדרת כמות רשומות וכמות סבבי הודעות שפתוחים ללקוח
                   </p>
@@ -639,6 +707,7 @@ export default function CreateUserModal({ onClose }: Props) {
                   <h3 className="text-sm font-bold text-[#3f4856]">
                     אפסיילים
                   </h3>
+
                   <p className="text-xs text-[#8b7b68] mt-1">
                     שירותים נוספים שאפשר לפתוח ללקוח
                   </p>
@@ -713,6 +782,7 @@ export default function CreateUserModal({ onClose }: Props) {
                   <h3 className="text-sm font-bold text-[#3f4856]">
                     שירות הושבה באולם
                   </h3>
+
                   <p className="text-xs text-[#8b7b68] mt-1">
                     הוספת שירות נציגים ביום האירוע, כולל מקדמה, תשלום באולם
                     ותשלום אנשי צוות
@@ -840,6 +910,7 @@ export default function CreateUserModal({ onClose }: Props) {
                             <p className="text-[#8b7b68] text-xs">
                               סך הכל שירות
                             </p>
+
                             <p className="text-[#3f3327] font-bold mt-1">
                               ₪{formatMoney(venueSeatingService.totalPrice)}
                             </p>
@@ -849,6 +920,7 @@ export default function CreateUserModal({ onClose }: Props) {
                             <p className="text-[#8b7b68] text-xs">
                               מקדמה להכנסות החודש
                             </p>
+
                             <p className="text-[#3f3327] font-bold mt-1">
                               ₪{formatMoney(venueSeatingService.depositAmount)}
                             </p>
@@ -858,6 +930,7 @@ export default function CreateUserModal({ onClose }: Props) {
                             <p className="text-[#8b7b68] text-xs">
                               תשלום באולם לפני צוות
                             </p>
+
                             <p className="text-[#3f3327] font-bold mt-1">
                               ₪
                               {formatMoney(
@@ -870,6 +943,7 @@ export default function CreateUserModal({ onClose }: Props) {
                             <p className="text-[#8b7b68] text-xs">
                               תשלום לאנשי צוות
                             </p>
+
                             <p className="text-[#3f3327] font-bold mt-1">
                               ₪
                               {formatMoney(
@@ -882,6 +956,7 @@ export default function CreateUserModal({ onClose }: Props) {
                             <p className="text-[#8b7b68] text-xs">
                               ירד מתוך התשלום באולם
                             </p>
+
                             <p className="text-[#3f3327] font-bold mt-1">
                               ₪{formatMoney(staffPaidFromVenue)}
                             </p>
@@ -891,6 +966,7 @@ export default function CreateUserModal({ onClose }: Props) {
                             <p className="text-[#8b7b68] text-xs">
                               ירד מהסכום הכולל כי לא הספיק באולם
                             </p>
+
                             <p className="text-[#3f3327] font-bold mt-1">
                               ₪{formatMoney(staffPaidFromFullAmount)}
                             </p>
@@ -900,6 +976,7 @@ export default function CreateUserModal({ onClose }: Props) {
                             <p className="text-[#8b7b68] text-xs">
                               נשאר מהתשלום באולם אחרי צוות
                             </p>
+
                             <p className="text-[#3f3327] font-bold mt-1">
                               ₪{formatMoney(venuePaymentAfterStaff)}
                             </p>
@@ -909,6 +986,7 @@ export default function CreateUserModal({ onClose }: Props) {
                             <p className="text-[#8b7b68] text-xs">
                               סך הכל אחרי תשלום צוות
                             </p>
+
                             <p className="text-[#3f3327] font-bold mt-1">
                               ₪{formatMoney(totalAfterStaff)}
                             </p>
@@ -932,6 +1010,7 @@ export default function CreateUserModal({ onClose }: Props) {
                   <h3 className="text-sm font-bold text-[#3f4856]">
                     תשלום
                   </h3>
+
                   <p className="text-xs text-[#8b7b68] mt-1">
                     הגדרת מחיר ואופן תשלום ללקוח
                   </p>
@@ -975,6 +1054,7 @@ export default function CreateUserModal({ onClose }: Props) {
                 <h3 className="text-sm font-bold text-[#3f4856]">
                   תמחור למפיק
                 </h3>
+
                 <p className="text-xs text-[#8b7b68] mt-1">
                   מחיר לפי רשומה עבור משתמש מסוג מפיק
                 </p>
@@ -998,6 +1078,37 @@ export default function CreateUserModal({ onClose }: Props) {
               </label>
             </section>
           )}
+
+          {/* STAFF */}
+          {role === "staff" && (
+            <section className="rounded-2xl border border-[#eadfce] bg-[#fff8ed] px-4 py-3 text-sm text-[#7a5a2f] leading-6">
+              משתמש מסוג עובד ייווצר כעובד מערכת. לאחר מכן אפשר לשייך אותו
+              למפיק/לקוח לפי הצורך מהאדמין.
+            </section>
+          )}
+
+          {/* VENUE OWNER */}
+          {role === "venue_owner" && (
+            <section className="rounded-3xl border border-[#eadfce] bg-white p-5 space-y-3 shadow-sm">
+              <h3 className="text-sm font-bold text-[#3f4856]">
+                בעל אולם
+              </h3>
+
+              <p className="text-sm text-[#8b7b68] leading-7">
+                המשתמש ייווצר עם תפקיד:
+                <span dir="ltr" className="font-bold text-[#3f3327] mx-1">
+                  venue_owner
+                </span>
+                ויוכל להיכנס לדשבורד האולמות. את האולמות עצמם אפשר להוסיף
+                ולנהל מתוך מערכת האולמות.
+              </p>
+
+              <div className="rounded-2xl border border-[#eadfce] bg-[#fff8ed] px-4 py-3 text-sm text-[#7a5a2f] leading-6">
+                לא נדרש מחיר, לא Stripe, לא רשומות ולא סבבי הודעות עבור בעל
+                אולם.
+              </div>
+            </section>
+          )}
         </div>
 
         {/* FOOTER */}
@@ -1011,12 +1122,7 @@ export default function CreateUserModal({ onClose }: Props) {
 
           <button
             onClick={handleSubmit}
-            disabled={
-              !name ||
-              !email ||
-              (role === "user" && price === "") ||
-              (role === "producer" && !producerPricePerRecord)
-            }
+            disabled={isSubmitDisabled}
             className="px-6 py-3 rounded-2xl bg-[#3f3327] text-white font-bold shadow-lg shadow-black/10 hover:bg-[#2f251d] disabled:opacity-40 disabled:cursor-not-allowed transition"
           >
             צור משתמש
