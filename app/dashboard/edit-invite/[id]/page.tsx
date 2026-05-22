@@ -167,16 +167,6 @@ function normalizeEventType(value: unknown): EventType {
   return "wedding";
 }
 
-function getEventTypeLabel(type: EventType) {
-  if (type === "wedding") return "חתונה";
-  if (type === "bar-mitzvah") return "בר מצווה";
-  if (type === "bat-mitzvah") return "בת מצווה";
-  if (type === "brit") return "ברית";
-  if (type === "brita") return "בריתה";
-  if (type === "henna") return "חינה";
-  return "אחר";
-}
-
 function getStringValue(...values: unknown[]) {
   for (const value of values) {
     const str = String(value || "").trim();
@@ -225,10 +215,6 @@ export default function EditInvitePage() {
 
   const [dragActive, setDragActive] = useState(false);
   const [previewRefreshKey, setPreviewRefreshKey] = useState(0);
-
-  /* =========================================================
-     Existing / current image
-  ========================================================= */
 
   const existingImageUrl = useMemo(() => {
     return (
@@ -305,10 +291,6 @@ export default function EditInvitePage() {
     }
   };
 
-  /* =========================================================
-     Send live preview update into iframe
-  ========================================================= */
-
   const sendLivePreviewToIframe = useCallback(() => {
     if (!phonePreviewRef.current?.contentWindow) return;
 
@@ -333,10 +315,6 @@ export default function EditInvitePage() {
 
     return () => window.clearTimeout(timer);
   }, [sendLivePreviewToIframe]);
-
-  /* =========================================================
-     Load invitation
-  ========================================================= */
 
   useEffect(() => {
     if (!inviteId) {
@@ -431,10 +409,6 @@ export default function EditInvitePage() {
     loadInvitation();
   }, [inviteId]);
 
-  /* =========================================================
-     Upload image
-  ========================================================= */
-
   const handleImageFile = async (file?: File | null) => {
     if (!file) return;
 
@@ -482,10 +456,6 @@ export default function EditInvitePage() {
     }
   };
 
-  /* =========================================================
-     Save invitation + Event connection
-  ========================================================= */
-
   const handleSave = async () => {
     if (!inviteId || !invite) return;
 
@@ -494,23 +464,17 @@ export default function EditInvitePage() {
       return;
     }
 
-    if (!eventForm.eventTitle.trim()) {
-      alert("חובה להזין שם אירוע");
-      return;
-    }
-
-    if (!eventForm.eventDate.trim()) {
-      alert("חובה להזין תאריך אירוע");
-      return;
-    }
-
-    if (!eventForm.eventTime.trim()) {
-      alert("חובה להזין שעה");
-      return;
-    }
-
     if (!eventForm.venueOwnerId.trim() || !eventForm.venueHallId.trim()) {
       alert("חובה לבחור אולם מהרשימה");
+      return;
+    }
+
+    if (
+      !eventForm.eventTitle.trim() ||
+      !eventForm.eventDate.trim() ||
+      !eventForm.eventTime.trim()
+    ) {
+      alert("חסרים פרטי אירוע. עדכני קודם את פרטי האירוע ושמרי שוב.");
       return;
     }
 
@@ -540,10 +504,6 @@ export default function EditInvitePage() {
         venueHallName: eventForm.venueHallName.trim(),
       };
 
-      /*
-        שולחים תמונה חדשה רק אם הועלה קובץ חדש.
-        השרת ממשיך להעלות ל-Cloudinary ולעדכן previewImageUrl/headerImageUrl.
-      */
       if (uploadedImage?.base64) {
         body.previewBase64 = uploadedImage.base64;
       }
@@ -605,17 +565,13 @@ export default function EditInvitePage() {
       setUploadedImage(null);
       setPreviewRefreshKey((prev) => prev + 1);
 
-      alert("✅ ההזמנה והאירוע עודכנו בהצלחה!");
+      alert("✅ ההזמנה שויכה לאולם בהצלחה!");
     } catch {
       alert("❌ שגיאה בשמירה");
     } finally {
       setSaving(false);
     }
   };
-
-  /* =========================================================
-     Preview
-  ========================================================= */
 
   const handlePreview = () => {
     if (!previewUrl) {
@@ -625,10 +581,6 @@ export default function EditInvitePage() {
 
     window.open(previewUrl, "_blank");
   };
-
-  /* =========================================================
-     Loading
-  ========================================================= */
 
   if (loading || !invite) {
     return (
@@ -647,13 +599,8 @@ export default function EditInvitePage() {
     );
   }
 
-  /* =========================================================
-     Render
-  ========================================================= */
-
   return (
     <div dir="rtl" className="min-h-screen bg-[#f6efe6] text-[#2d241c]">
-      {/* Header */}
       <header className="sticky top-0 z-40 border-b border-[#e6d9c7] bg-white/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-4">
           <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -672,11 +619,11 @@ export default function EditInvitePage() {
               </p>
 
               <h1 className="truncate text-xl font-bold text-[#2d241c] md:text-2xl">
-                עריכת הזמנה ואירוע
+                עריכת הזמנה
               </h1>
 
               <p className="mt-1 text-xs text-[#8a7967] md:text-sm">
-                עדכון תמונת ההזמנה, פרטי ה־Event ושיוך לאולם.
+                עדכון תמונת ההזמנה ושיוך ההזמנה לאולם.
               </p>
             </div>
           </div>
@@ -708,74 +655,20 @@ export default function EditInvitePage() {
 
       <main className="mx-auto max-w-7xl px-4 py-6">
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
-          {/* Left side */}
           <div className="space-y-6">
             <section className="rounded-[34px] border border-[#eadfce] bg-white p-5 shadow-[0_24px_80px_rgba(71,48,25,0.08)] md:p-7">
               <div>
                 <p className="text-sm font-semibold text-[#b58a55]">
-                  פרטי האירוע
+                  שיוך לאולם
                 </p>
 
                 <h2 className="text-2xl font-black text-[#2d241c]">
-                  חיבור ההזמנה ל־Event ולאולם
+                  חיבור ההזמנה לאולם
                 </h2>
 
                 <p className="mt-1 text-sm leading-6 text-[#7b6a58]">
-                  בחרי אולם מהרשימה. המערכת תשמור אוטומטית את בעל האולם,
-                  מזהה האולם ושם האולם.
+                  בחרי אולם מהרשימה. פרטי האירוע עצמם נמשכים מעריכת פרטי האירוע.
                 </p>
-              </div>
-
-              <div className="mt-5 grid gap-4 md:grid-cols-2">
-                
-
-                <FormInput
-                  label="שם האירוע"
-                  value={eventForm.eventTitle}
-                  onChange={(value) => updateEventField("eventTitle", value)}
-                  placeholder="לדוגמה: החתונה של הדר ואור"
-                />
-
-                <label>
-                  <span className="mb-2 block text-sm font-black text-[#6f6252]">
-                    סוג אירוע
-                  </span>
-
-                  <select
-                    value={eventForm.eventType}
-                    onChange={(event) =>
-                      updateEventField(
-                        "eventType",
-                        event.target.value as EventType
-                      )
-                    }
-                    className="h-12 w-full rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-bold text-[#2b241c] outline-none transition focus:border-[#b98121]"
-                  >
-                    <option value="wedding">חתונה</option>
-                    <option value="bar-mitzvah">בר מצווה</option>
-                    <option value="bat-mitzvah">בת מצווה</option>
-                    <option value="brit">ברית</option>
-                    <option value="brita">בריתה</option>
-                    <option value="henna">חינה</option>
-                    <option value="other">אחר</option>
-                  </select>
-                </label>
-
-                <FormInput
-                  label="תאריך"
-                  type="date"
-                  value={eventForm.eventDate}
-                  onChange={(value) => updateEventField("eventDate", value)}
-                />
-
-                <FormInput
-                  label="שעה"
-                  type="time"
-                  value={eventForm.eventTime}
-                  onChange={(value) => updateEventField("eventTime", value)}
-                />
-
-                
               </div>
 
               <div className="mt-6 rounded-[28px] border border-[#eadfce] bg-[#fff8eb] p-4">
@@ -886,28 +779,6 @@ export default function EditInvitePage() {
                     </div>
                   ) : null}
                 </div>
-              </div>
-
-              <div className="mt-5 rounded-3xl bg-[#fbf4e8] p-4 text-sm leading-7 text-[#6b5844]">
-                <p className="font-bold text-[#3c2d21]">סיכום החיבור</p>
-
-                <p>
-                  {eventForm.eventTitle || "שם האירוע"} ·{" "}
-                  {getEventTypeLabel(eventForm.eventType)} ·{" "}
-                  {eventForm.eventDate || "תאריך"} ·{" "}
-                  {eventForm.eventTime || "שעה"}
-                </p>
-
-                <p>
-                  אולם:{" "}
-                  {eventForm.venueHallName ||
-                    selectedHall?.name ||
-                    "לא נבחר אולם"}
-                </p>
-
-                <p className="mt-2 text-xs font-black text-[#8f6437]">
-                  Event ID: {eventForm.eventId || "עדיין לא מחובר"}
-                </p>
               </div>
             </section>
 
@@ -1036,8 +907,8 @@ export default function EditInvitePage() {
                             qualityStatus.level === "good"
                               ? "bg-emerald-50 text-emerald-700"
                               : qualityStatus.level === "medium"
-                              ? "bg-amber-50 text-amber-700"
-                              : "bg-red-50 text-red-700"
+                                ? "bg-amber-50 text-amber-700"
+                                : "bg-red-50 text-red-700"
                           }`}
                         >
                           {qualityStatus.text}
@@ -1151,50 +1022,9 @@ export default function EditInvitePage() {
                   <p>{getRecommendedText(imageMode)}</p>
                 </div>
               </div>
-
-              <div className="rounded-[30px] border border-[#eadfce] bg-white p-5 shadow-[0_18px_60px_rgba(71,48,25,0.08)]">
-                <div className="mb-4">
-                  <p className="text-sm font-semibold text-[#b58a55]">
-                    סטטוס חיבור
-                  </p>
-
-                  <h3 className="text-xl font-black text-[#2d241c]">
-                    מה יתעדכן בשמירה
-                  </h3>
-                </div>
-
-                <div className="rounded-3xl bg-[#fbf4e8] p-4 text-sm leading-7 text-[#6b5844]">
-                  <p>
-                    ההזמנה תישמר, ובנוסף השרת יעדכן או ייצור Event מחובר לאולם.
-                  </p>
-
-                  <p className="mt-2 font-bold text-[#3c2d21]">
-                    {eventForm.eventTitle || "שם האירוע"} ·{" "}
-                    {getEventTypeLabel(eventForm.eventType)}
-                  </p>
-
-                  <p>
-                    {eventForm.eventDate || "תאריך"} ·{" "}
-                    {eventForm.eventTime || "שעה"} ·{" "}
-                    {eventForm.estimatedGuests || "0"} מוזמנים
-                  </p>
-
-                  <p className="mt-2">
-                    אולם:{" "}
-                    {eventForm.venueHallName ||
-                      selectedHall?.name ||
-                      "לא נבחר אולם"}
-                  </p>
-
-                  <p className="mt-2 text-xs font-black text-[#8f6437]">
-                    Event ID: {eventForm.eventId || "עדיין לא מחובר"}
-                  </p>
-                </div>
-              </div>
             </div>
           </div>
 
-          {/* Right side - Real mobile invite page preview */}
           <aside className="space-y-6">
             <div className="xl:sticky xl:top-24 space-y-6">
               <div className="rounded-[32px] border border-[#eadfce] bg-white p-5 shadow-[0_20px_70px_rgba(71,48,25,0.10)]">
@@ -1290,7 +1120,7 @@ export default function EditInvitePage() {
                         : "bg-gradient-to-l from-[#c79a55] to-[#8f6437] hover:shadow-xl"
                     }`}
                   >
-                    {saving ? "שומר..." : "💾 שמירת ההזמנה והאירוע"}
+                    {saving ? "שומר..." : "💾 שמירת ההזמנה והאולם"}
                   </button>
                 </div>
               </div>
@@ -1299,7 +1129,6 @@ export default function EditInvitePage() {
         </div>
       </main>
 
-      {/* Mobile sticky actions */}
       <div className="fixed inset-x-0 bottom-0 z-50 border-t border-[#e6d9c7] bg-white/92 p-3 backdrop-blur-xl sm:hidden">
         <div className="grid grid-cols-3 gap-2">
           <button
@@ -1331,39 +1160,5 @@ export default function EditInvitePage() {
         </div>
       </div>
     </div>
-  );
-}
-
-/* =========================================================
-   Small components
-========================================================= */
-
-function FormInput({
-  label,
-  value,
-  onChange,
-  type = "text",
-  placeholder = "",
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  type?: "text" | "number" | "date" | "time";
-  placeholder?: string;
-}) {
-  return (
-    <label>
-      <span className="mb-2 block text-sm font-black text-[#6f6252]">
-        {label}
-      </span>
-
-      <input
-        type={type}
-        value={value}
-        placeholder={placeholder}
-        onChange={(event) => onChange(event.target.value)}
-        className="h-12 w-full rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-bold text-[#2b241c] outline-none transition placeholder:text-[#b7a994] focus:border-[#b98121]"
-      />
-    </label>
   );
 }
