@@ -99,7 +99,7 @@ const EventSchema = new mongoose.Schema(
     },
 
     /* =========================
-       ✅ NEW: עובדים מוקצים לאירוע
+       עובדים מוקצים לאירוע
     ========================= */
     assignedStaffIds: [
       {
@@ -107,6 +107,42 @@ const EventSchema = new mongoose.Schema(
         ref: "User",
       },
     ],
+
+    /* =========================
+       חיבור לאולם / מתחם
+       אופציונלי כדי לא לשבור אירועים קיימים
+    ========================= */
+    venueOwnerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: undefined,
+      index: true,
+    },
+
+    venueHallId: {
+      type: String,
+      default: "",
+      index: true,
+      trim: true,
+    },
+
+    venueHallName: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    venueLinkedAt: {
+      type: Date,
+      default: undefined,
+    },
+
+    venueAccessStatus: {
+      type: String,
+      enum: ["none", "linked", "disabled"],
+      default: "none",
+      index: true,
+    },
 
     email: {
       type: String,
@@ -140,70 +176,67 @@ const EventSchema = new mongoose.Schema(
     },
 
     /* =========================
-   תקציב הפקה (רק למפיקים)
-========================= */
-budgetTotal: {
-  type: Number,
-  default: 0,
-},
+       תקציב הפקה
+    ========================= */
+    budgetTotal: {
+      type: Number,
+      default: 0,
+    },
 
-/* =========================
-   כמות מוזמנים משוערת
-   ידני בלבד — הלקוח מזין בתמונת מצב
-========================= */
-estimatedGuests: {
-  type: Number,
-  default: null,
-},
+    /* =========================
+       כמות מוזמנים משוערת
+       ידני בלבד — הלקוח מזין בתמונת מצב
+    ========================= */
+    estimatedGuests: {
+      type: Number,
+      default: null,
+    },
 
-estimatedGuestCount: {
-  type: Number,
-  default: null,
-},
+    estimatedGuestCount: {
+      type: Number,
+      default: null,
+    },
 
-/* =========================
-   תאריך ושעה
-========================= */
-date: {
-  type: String, // yyyy-mm-dd
-  required: true,
-},
+    /* =========================
+       תאריך ושעה
+    ========================= */
+    date: {
+      type: String,
+      required: true,
+    },
 
-time: {
-  type: String, // HH:mm
-  default: "",
-},
+    time: {
+      type: String,
+      default: "",
+    },
 
     /* =========================
        מיקום
     ========================= */
     location: {
-  address: {
-    type: String,
-    default: "",
-    trim: true,
-  },
-  lat: {
-    type: Number,
-    default: undefined,
-  },
-  lng: {
-    type: Number,
-    default: undefined,
-  },
-},
+      address: {
+        type: String,
+        default: "",
+        trim: true,
+      },
+      lat: {
+        type: Number,
+        default: undefined,
+      },
+      lng: {
+        type: Number,
+        default: undefined,
+      },
+    },
 
-/* =========================
-   🎁 מתנות באשראי
-========================= */
-giftCreditUrl: {
-  type: String,
-  default: "",
-  trim: true,
-},
-
-    
-
+    /* =========================
+       מתנות באשראי
+    ========================= */
+    giftCreditUrl: {
+      type: String,
+      default: "",
+      trim: true,
+    },
 
     /* =========================
        אזורים
@@ -235,7 +268,7 @@ giftCreditUrl: {
     },
 
     /* =========================
-       Stripe (חד־פעמי)
+       Stripe
     ========================= */
     stripeSessionId: {
       type: String,
@@ -272,7 +305,19 @@ giftCreditUrl: {
   }
 );
 
-/* אופציונלי, אבל מומלץ מאוד לסינון מהיר לעובדי מפיק */
+/* =========================
+   INDEXES
+========================= */
+
+/* סינון מהיר לעובדי מפיק */
 EventSchema.index({ producerId: 1, assignedStaffIds: 1, status: 1 });
+
+/* סינון אירועים לפי אולם / מתחם */
+EventSchema.index({ venueOwnerId: 1, status: 1, date: 1 });
+EventSchema.index({ venueOwnerId: 1, venueHallId: 1, status: 1, date: 1 });
+EventSchema.index({ venueOwnerId: 1, venueAccessStatus: 1, date: 1 });
+
+/* סינון רגיל של אירועי לקוח */
+EventSchema.index({ userId: 1, status: 1, date: 1 });
 
 export default mongoose.models.Event || mongoose.model("Event", EventSchema);

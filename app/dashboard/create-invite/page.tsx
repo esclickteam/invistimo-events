@@ -9,6 +9,15 @@ import { useRouter } from "next/navigation";
 
 type InviteImageMode = "portrait" | "square";
 
+type EventType =
+  | "wedding"
+  | "bar-mitzvah"
+  | "bat-mitzvah"
+  | "brit"
+  | "brita"
+  | "henna"
+  | "other";
+
 type ImageInfo = {
   width: number;
   height: number;
@@ -19,6 +28,23 @@ type UploadedImageState = {
   file: File;
   base64: string;
   info: ImageInfo | null;
+};
+
+type EventForm = {
+  eventTitle: string;
+  eventType: EventType;
+  eventDate: string;
+  eventTime: string;
+  estimatedGuests: string;
+  locationAddress: string;
+
+  /**
+   * זמני/ידני כרגע:
+   * אחרי שנחבר בחירת אולם אמיתית, השדות האלה יגיעו מדרופדאון.
+   */
+  venueOwnerId: string;
+  venueHallId: string;
+  venueHallName: string;
 };
 
 /* =========================================================
@@ -109,10 +135,23 @@ function getImageQualityStatus(info: ImageInfo | null, mode: InviteImageMode) {
   };
 }
 
+function toNumber(value: string, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function getEventTypeLabel(type: EventType) {
+  if (type === "wedding") return "חתונה";
+  if (type === "bar-mitzvah") return "בר מצווה";
+  if (type === "bat-mitzvah") return "בת מצווה";
+  if (type === "brit") return "ברית";
+  if (type === "brita") return "בריתה";
+  if (type === "henna") return "חינה";
+  return "אחר";
+}
+
 /* =========================================================
    Phone Preview
-   ביצירת הזמנה אין עדיין shareId, לכן זו תצוגה חיה מקומית.
-   לאחר שמירה עוברים לפריוויו האמיתי.
 ========================================================= */
 
 function CreatePhonePreview({
@@ -243,6 +282,19 @@ export default function CreateInvitePage() {
     null
   );
 
+  const [eventForm, setEventForm] = useState<EventForm>({
+    eventTitle: "",
+    eventType: "wedding",
+    eventDate: "",
+    eventTime: "",
+    estimatedGuests: "",
+    locationAddress: "",
+
+    venueOwnerId: "",
+    venueHallId: "",
+    venueHallName: "",
+  });
+
   const displayImageUrl = uploadedImage?.base64 || "";
   const imageInfo = uploadedImage?.info || null;
   const qualityStatus = getImageQualityStatus(imageInfo, imageMode);
@@ -251,6 +303,16 @@ export default function CreateInvitePage() {
     if (!uploadedImage?.file) return "";
     return uploadedImage.file.name;
   }, [uploadedImage]);
+
+  const updateEventField = <K extends keyof EventForm>(
+    key: K,
+    value: EventForm[K]
+  ) => {
+    setEventForm((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
 
   /* =========================================================
      Upload image
@@ -305,10 +367,6 @@ export default function CreateInvitePage() {
 
   /* =========================================================
      Save
-     לא נוגעים בשרת:
-     1. POST /api/invitations
-     2. POST /api/invitations/upload-preview
-     3. router.push לפריוויו הקיים
   ========================================================= */
 
   const handleSave = async () => {
@@ -318,19 +376,71 @@ export default function CreateInvitePage() {
         return;
       }
 
+      if (!eventForm.eventTitle.trim()) {
+        alert("חובה להזין שם אירוע");
+        return;
+      }
+
+      if (!eventForm.eventDate.trim()) {
+        alert("חובה להזין תאריך אירוע");
+        return;
+      }
+
+      if (!eventForm.eventTime.trim()) {
+        alert("חובה להזין שעה");
+        return;
+      }
+
+      /**
+       * חשוב:
+       * אם רוצים שבעל האולם יראה את האירוע,
+       * חובה שיהיו venueOwnerId + venueHallId.
+       */
+      if (!eventForm.venueOwnerId.trim()) {
+        alert("חסר מזהה בעל אולם. כרגע צריך להזין אותו ידנית או לחבר בחירת אולם.");
+        return;
+      }
+
+      if (!eventForm.venueHallId.trim()) {
+        alert("חסר מזהה אולם. כרגע צריך להזין אותו ידנית או לחבר בחירת אולם.");
+        return;
+      }
+
       setSaving(true);
 
-      /*
-        אין כאן קנבס פעיל.
-        משאירים canvasData מינימלי כדי לא לשבור את מבנה השרת הקיים.
-      */
       const canvasData = {
         objects: [],
         orientation: imageMode,
       };
 
+      const invitationPayload = {
+        title: eventForm.eventTitle.trim(),
+        canvasData,
+        orientation: imageMode,
+
+        /**
+         * שדות ליצירת/חיבור Event
+         */
+        createEvent: true,
+        eventTitle: eventForm.eventTitle.trim(),
+        eventType: eventForm.eventType,
+        eventDate: eventForm.eventDate,
+        eventTime: eventForm.eventTime,
+        estimatedGuests: Math.max(0, toNumber(eventForm.estimatedGuests, 0)),
+        location: {
+          address: eventForm.locationAddress.trim(),
+        },
+
+        /**
+         * שדות שיוך לבעל אולם
+         */
+        venueOwnerId: eventForm.venueOwnerId.trim(),
+        venueHallId: eventForm.venueHallId.trim(),
+        venueHallName: eventForm.venueHallName.trim(),
+      };
+
       /* =========================
-         1️⃣ יצירת הזמנה
+         1️⃣ יצירת הזמנה + Event
       ========================= */
       const res = await fetch("/api/invitations", {
         method: "POST",
@@ -338,21 +448,22 @@ export default function CreateInvitePage() {
           "Content-Type": "application/json",
         },
         credentials: "include",
-        body: JSON.stringify({
-          title: "ההזמנה שלי 🎉",
-          canvasData,
-          orientation: imageMode,
-        }),
+        body: JSON.stringify(invitationPayload),
       });
 
       const data = await res.json();
 
-      if (!data.success) {
-        alert(data.error || "❌ שגיאה ביצירת הזמנה");
+      if (!res.ok || !data.success) {
+        alert(data.error || data.message || "❌ שגיאה ביצירת הזמנה");
         return;
       }
 
-      const invitationId = data.invitation._id;
+      const invitationId = data.invitation?._id;
+
+      if (!invitationId) {
+        alert("❌ ההזמנה נוצרה אבל לא חזר מזהה הזמנה");
+        return;
+      }
 
       /* =========================
          2️⃣ העלאת תמונה ל־Cloudinary
@@ -364,10 +475,10 @@ export default function CreateInvitePage() {
         },
         credentials: "include",
         body: JSON.stringify({
-  invitationId,
-  base64Image: uploadedImage.base64,
-  imageMode,
-}),
+          invitationId,
+          base64Image: uploadedImage.base64,
+          imageMode,
+        }),
       });
 
       if (!uploadRes.ok) {
@@ -402,7 +513,6 @@ export default function CreateInvitePage() {
 
   return (
     <div dir="rtl" className="min-h-screen bg-[#f6efe6] text-[#2d241c]">
-      {/* Header */}
       <header className="sticky top-0 z-40 border-b border-[#e6d9c7] bg-white/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-4">
           <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -421,11 +531,11 @@ export default function CreateInvitePage() {
               </p>
 
               <h1 className="truncate text-xl font-bold text-[#2d241c] md:text-2xl">
-                יצירת הזמנה
+                יצירת הזמנה ואירוע
               </h1>
 
               <p className="mt-1 text-xs text-[#8a7967] md:text-sm">
-                העלאת תמונת ההזמנה, בדיקת התצוגה ושמירת ההזמנה
+                יצירת הזמנה, חיבור ל־Event ושיוך לאולם כדי שבעל האולם יראה את האירוע.
               </p>
             </div>
           </div>
@@ -445,7 +555,7 @@ export default function CreateInvitePage() {
               disabled={saving}
               className={`rounded-full px-6 py-2.5 text-sm font-bold text-white shadow-lg transition ${
                 saving
-                  ? "bg-gray-400 cursor-not-allowed"
+                  ? "cursor-not-allowed bg-gray-400"
                   : "bg-gradient-to-l from-[#c79a55] to-[#8f6437] hover:shadow-xl"
               }`}
             >
@@ -457,8 +567,117 @@ export default function CreateInvitePage() {
 
       <main className="mx-auto max-w-7xl px-4 py-6">
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
-          {/* Left side */}
           <div className="space-y-6">
+            <section className="rounded-[34px] border border-[#eadfce] bg-white p-5 shadow-[0_24px_80px_rgba(71,48,25,0.08)] md:p-7">
+              <div>
+                <p className="text-sm font-semibold text-[#b58a55]">
+                  פרטי האירוע
+                </p>
+
+                <h2 className="text-2xl font-black text-[#2d241c]">
+                  יצירת Event מחובר לאולם
+                </h2>
+
+                <p className="mt-1 text-sm leading-6 text-[#7b6a58]">
+                  הפרטים האלה יישלחו לשרת. השרת צריך ליצור `Event` עם
+                  `venueOwnerId`, `venueHallId`, `venueAccessStatus: "linked"`.
+                </p>
+              </div>
+
+              <div className="mt-5 grid gap-4 md:grid-cols-2">
+                <FormInput
+                  label="שם האירוע"
+                  value={eventForm.eventTitle}
+                  onChange={(value) => updateEventField("eventTitle", value)}
+                  placeholder="לדוגמה: החתונה של הדר ואור"
+                />
+
+                <label>
+                  <span className="mb-2 block text-sm font-black text-[#6f6252]">
+                    סוג אירוע
+                  </span>
+
+                  <select
+                    value={eventForm.eventType}
+                    onChange={(event) =>
+                      updateEventField("eventType", event.target.value as EventType)
+                    }
+                    className="h-12 w-full rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-bold text-[#2b241c] outline-none transition focus:border-[#b98121]"
+                  >
+                    <option value="wedding">חתונה</option>
+                    <option value="bar-mitzvah">בר מצווה</option>
+                    <option value="bat-mitzvah">בת מצווה</option>
+                    <option value="brit">ברית</option>
+                    <option value="brita">בריתה</option>
+                    <option value="henna">חינה</option>
+                    <option value="other">אחר</option>
+                  </select>
+                </label>
+
+                <FormInput
+                  label="תאריך"
+                  type="date"
+                  value={eventForm.eventDate}
+                  onChange={(value) => updateEventField("eventDate", value)}
+                />
+
+                <FormInput
+                  label="שעה"
+                  type="time"
+                  value={eventForm.eventTime}
+                  onChange={(value) => updateEventField("eventTime", value)}
+                />
+
+                <FormInput
+                  label="כמות מוזמנים משוערת"
+                  type="number"
+                  value={eventForm.estimatedGuests}
+                  onChange={(value) => updateEventField("estimatedGuests", value)}
+                  placeholder="לדוגמה: 350"
+                />
+
+                <FormInput
+                  label="כתובת / שם מקום"
+                  value={eventForm.locationAddress}
+                  onChange={(value) => updateEventField("locationAddress", value)}
+                  placeholder="לדוגמה: אולם בראשית, נס ציונה"
+                />
+              </div>
+
+              <div className="mt-6 rounded-[28px] border border-[#eadfce] bg-[#fff8eb] p-4">
+                <div className="text-sm font-black text-[#2d241c]">
+                  שיוך לאולם
+                </div>
+
+                <p className="mt-1 text-xs font-bold leading-5 text-[#7b6a58]">
+                  כרגע זה ידני. בהמשך נחבר דרופדאון שבוחר אולם מתוך `VenueHall`.
+                </p>
+
+                <div className="mt-4 grid gap-4 md:grid-cols-3">
+                  <FormInput
+                    label="venueOwnerId"
+                    value={eventForm.venueOwnerId}
+                    onChange={(value) => updateEventField("venueOwnerId", value)}
+                    placeholder="ObjectId של בעל האולם"
+                  />
+
+                  <FormInput
+                    label="venueHallId"
+                    value={eventForm.venueHallId}
+                    onChange={(value) => updateEventField("venueHallId", value)}
+                    placeholder="id של האולם"
+                  />
+
+                  <FormInput
+                    label="venueHallName"
+                    value={eventForm.venueHallName}
+                    onChange={(value) => updateEventField("venueHallName", value)}
+                    placeholder="שם האולם"
+                  />
+                </div>
+              </div>
+            </section>
+
             <section className="relative overflow-hidden rounded-[34px] border border-[#eadfce] bg-[#fbf8f2] shadow-[0_24px_80px_rgba(71,48,25,0.10)]">
               <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-[#d8b985]/25 blur-3xl" />
               <div className="pointer-events-none absolute -bottom-24 -left-24 h-80 w-80 rounded-full bg-[#c79a55]/10 blur-3xl" />
@@ -543,7 +762,7 @@ export default function CreateInvitePage() {
                           </div>
 
                           <div className="relative overflow-hidden rounded-[30px] border border-[#f1e3d0] bg-white p-3 shadow-[0_25px_70px_rgba(58,38,18,0.14)]">
-                            <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent pointer-events-none" />
+                            <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/20 to-transparent" />
 
                             <img
                               src={displayImageUrl}
@@ -578,8 +797,8 @@ export default function CreateInvitePage() {
                             qualityStatus.level === "good"
                               ? "bg-emerald-50 text-emerald-700"
                               : qualityStatus.level === "medium"
-                              ? "bg-amber-50 text-amber-700"
-                              : "bg-red-50 text-red-700"
+                                ? "bg-amber-50 text-amber-700"
+                                : "bg-red-50 text-red-700"
                           }`}
                         >
                           {qualityStatus.text}
@@ -665,9 +884,7 @@ export default function CreateInvitePage() {
                     }`}
                   >
                     <div className="mx-auto mb-3 h-24 w-14 rounded-xl border-2 border-current bg-white/70" />
-
                     <p className="text-center text-sm font-black">לאורך</p>
-
                     <p className="mt-1 text-center text-xs text-[#7b6a58]">
                       1080×1920
                     </p>
@@ -683,9 +900,7 @@ export default function CreateInvitePage() {
                     }`}
                   >
                     <div className="mx-auto mb-3 h-20 w-20 rounded-xl border-2 border-current bg-white/70" />
-
                     <p className="text-center text-sm font-black">מרובע</p>
-
                     <p className="mt-1 text-center text-xs text-[#7b6a58]">
                       1080×1080
                     </p>
@@ -701,27 +916,40 @@ export default function CreateInvitePage() {
               <div className="rounded-[30px] border border-[#eadfce] bg-white p-5 shadow-[0_18px_60px_rgba(71,48,25,0.08)]">
                 <div className="mb-4">
                   <p className="text-sm font-semibold text-[#b58a55]">
-                    טיפ קטן
+                    סיכום חיבור
                   </p>
 
                   <h3 className="text-xl font-black text-[#2d241c]">
-                    תמונה ברורה תיראה טוב יותר בנייד
+                    מה ייווצר בשמירה
                   </h3>
                 </div>
 
-                <div className="rounded-3xl bg-[#fbf4e8] p-4 text-sm leading-6 text-[#6b5844]">
+                <div className="rounded-3xl bg-[#fbf4e8] p-4 text-sm leading-7 text-[#6b5844]">
                   <p>
-                    מומלץ להעלות תמונה חדה, לא מטושטשת, עם טקסט קריא ומרווחים
-                    נוחים.
+                    תיווצר הזמנה חדשה, ובשרת צריך להיווצר גם Event עם שיוך לאולם.
+                  </p>
+
+                  <p className="mt-2 font-bold text-[#3c2d21]">
+                    {eventForm.eventTitle || "שם האירוע"} ·{" "}
+                    {getEventTypeLabel(eventForm.eventType)}
+                  </p>
+
+                  <p>
+                    {eventForm.eventDate || "תאריך"} ·{" "}
+                    {eventForm.eventTime || "שעה"} ·{" "}
+                    {eventForm.estimatedGuests || "0"} מוזמנים
+                  </p>
+
+                  <p className="mt-2">
+                    אולם: {eventForm.venueHallName || eventForm.venueHallId || "לא הוגדר"}
                   </p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Right side - Phone preview */}
           <aside className="space-y-6">
-            <div className="xl:sticky xl:top-24 space-y-6">
+            <div className="space-y-6 xl:sticky xl:top-24">
               <div className="rounded-[32px] border border-[#eadfce] bg-white p-5 shadow-[0_20px_70px_rgba(71,48,25,0.10)]">
                 <div className="mb-4">
                   <p className="text-sm font-semibold text-[#b58a55]">
@@ -771,7 +999,7 @@ export default function CreateInvitePage() {
                     disabled={saving}
                     className={`rounded-2xl px-4 py-3 text-sm font-black text-white shadow-lg transition ${
                       saving
-                        ? "bg-gray-400 cursor-not-allowed"
+                        ? "cursor-not-allowed bg-gray-400"
                         : "bg-gradient-to-l from-[#c79a55] to-[#8f6437] hover:shadow-xl"
                     }`}
                   >
@@ -798,11 +1026,11 @@ export default function CreateInvitePage() {
                     disabled={saving}
                     className={`w-full rounded-2xl px-5 py-3 text-sm font-black text-white shadow-lg transition ${
                       saving
-                        ? "bg-gray-400 cursor-not-allowed"
+                        ? "cursor-not-allowed bg-gray-400"
                         : "bg-gradient-to-l from-[#c79a55] to-[#8f6437] hover:shadow-xl"
                     }`}
                   >
-                    {saving ? "שומר..." : "💾 שמירת ההזמנה"}
+                    {saving ? "שומר..." : "💾 שמירת ההזמנה והאירוע"}
                   </button>
                 </div>
               </div>
@@ -811,7 +1039,6 @@ export default function CreateInvitePage() {
         </div>
       </main>
 
-      {/* Mobile sticky actions */}
       <div className="fixed inset-x-0 bottom-0 z-50 border-t border-[#e6d9c7] bg-white/92 p-3 backdrop-blur-xl sm:hidden">
         <div className="grid grid-cols-2 gap-2">
           <button
@@ -835,5 +1062,39 @@ export default function CreateInvitePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+/* =========================================================
+   Small components
+========================================================= */
+
+function FormInput({
+  label,
+  value,
+  onChange,
+  type = "text",
+  placeholder = "",
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: "text" | "number" | "date" | "time";
+  placeholder?: string;
+}) {
+  return (
+    <label>
+      <span className="mb-2 block text-sm font-black text-[#6f6252]">
+        {label}
+      </span>
+
+      <input
+        type={type}
+        value={value}
+        placeholder={placeholder}
+        onChange={(event) => onChange(event.target.value)}
+        className="h-12 w-full rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-bold text-[#2b241c] outline-none transition placeholder:text-[#b7a994] focus:border-[#b98121]"
+      />
+    </label>
   );
 }
