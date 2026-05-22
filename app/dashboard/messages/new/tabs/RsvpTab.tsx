@@ -290,7 +290,7 @@ export default function RsvpTab({
 
   const selectedChannel = roundChannels[round];
 
-  const [sendTiming, setSendTiming] = useState<SendTiming>("now");
+  const [sendTiming, setSendTiming] = useState<SendTiming>("scheduled");
   const [scheduledDate, setScheduledDate] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
 
@@ -471,10 +471,11 @@ export default function RsvpTab({
           setScheduledTime(d.toISOString().slice(11, 16));
           setSendTiming("scheduled");
         } else {
+
           setExistingSchedule(null);
           setScheduledDate("");
           setScheduledTime("");
-          setSendTiming("now");
+          setSendTiming("scheduled");
 
           if (round === 1) setRound1Scheduled(false);
           if (round === 2) setRound2Scheduled(false);
@@ -484,7 +485,7 @@ export default function RsvpTab({
         setExistingSchedule(null);
         setScheduledDate("");
         setScheduledTime("");
-        setSendTiming("now");
+        setSendTiming("scheduled");
 
         setActiveSchedulesByRound((prev) => ({
           ...prev,
@@ -691,7 +692,8 @@ setRound3Locked(Boolean(inv?.rsvpRoundSent?.round3));
       setExistingSchedule(null);
       setScheduledDate("");
       setScheduledTime("");
-      setSendTiming("now");
+      setSendTiming("scheduled");
+
 
       setActiveSchedulesByRound((prev) => ({
         ...prev,
