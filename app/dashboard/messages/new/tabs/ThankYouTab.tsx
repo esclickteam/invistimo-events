@@ -58,7 +58,7 @@ export default function ThankYouTab({
   const [scheduledMessages, setScheduledMessages] = useState<any[]>([]);
   const [showScheduled, setShowScheduled] = useState(false);
 
-  const [sendTiming, setSendTiming] = useState<SendTiming>("now");
+  const [sendTiming, setSendTiming] = useState<SendTiming>("scheduled");
   const [scheduledDate, setScheduledDate] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
 
