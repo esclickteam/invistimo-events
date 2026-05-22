@@ -30,6 +30,18 @@ type UploadedImageState = {
   info: ImageInfo | null;
 };
 
+type PublicVenueHall = {
+  venueOwnerId: string;
+  venueHallId: string;
+  venueHallName: string;
+  name: string;
+  subtitle: string;
+  capacity: number;
+  status: string;
+  image: string;
+  ownerName: string;
+};
+
 type EventForm = {
   eventId: string;
   eventTitle: string;
@@ -189,6 +201,10 @@ export default function EditInvitePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  const [venueHalls, setVenueHalls] = useState<PublicVenueHall[]>([]);
+  const [loadingVenueHalls, setLoadingVenueHalls] = useState(false);
+  const [venueHallsError, setVenueHallsError] = useState("");
+
   const [imageMode, setImageMode] = useState<InviteImageMode>("portrait");
   const [uploadedImage, setUploadedImage] = useState<UploadedImageState | null>(
     null
@@ -236,6 +252,22 @@ export default function EditInvitePage() {
 
   const previewUrl = previewId ? `/invite/${previewId}` : "";
 
+  const selectedVenueValue =
+    eventForm.venueOwnerId && eventForm.venueHallId
+      ? `${eventForm.venueOwnerId}__${eventForm.venueHallId}`
+      : "";
+
+  const selectedHall = useMemo(() => {
+    if (!selectedVenueValue) return null;
+
+    return (
+      venueHalls.find(
+        (hall) =>
+          `${hall.venueOwnerId}__${hall.venueHallId}` === selectedVenueValue
+      ) || null
+    );
+  }, [selectedVenueValue, venueHalls]);
+
   const updateEventField = <K extends keyof EventForm>(
     key: K,
     value: EventForm[K]
@@ -244,6 +276,33 @@ export default function EditInvitePage() {
       ...prev,
       [key]: value,
     }));
+  };
+
+  const fetchVenueHalls = async () => {
+    try {
+      setLoadingVenueHalls(true);
+      setVenueHallsError("");
+
+      const res = await fetch("/api/venues/public/halls", {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.message || "טעינת אולמות נכשלה");
+      }
+
+      setVenueHalls(Array.isArray(data.halls) ? data.halls : []);
+    } catch (error) {
+      console.error("GET /api/venues/public/halls failed:", error);
+      setVenueHalls([]);
+      setVenueHallsError("לא הצלחתי לטעון את רשימת האולמות");
+    } finally {
+      setLoadingVenueHalls(false);
+    }
   };
 
   /* =========================================================
@@ -262,6 +321,10 @@ export default function EditInvitePage() {
       window.location.origin
     );
   }, [displayImageUrl, imageMode]);
+
+  useEffect(() => {
+    fetchVenueHalls();
+  }, []);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -296,7 +359,8 @@ export default function EditInvitePage() {
         }
 
         const invitation = data.invitation;
-        const linkedEvent = data.event || invitation.event || invitation.linkedEvent || null;
+        const linkedEvent =
+          data.event || invitation.event || invitation.linkedEvent || null;
 
         setInvite(invitation);
 
@@ -445,13 +509,8 @@ export default function EditInvitePage() {
       return;
     }
 
-    if (!eventForm.venueOwnerId.trim()) {
-      alert("חסר מזהה בעל אולם. כדי שבעל האולם יראה את האירוע חובה venueOwnerId.");
-      return;
-    }
-
-    if (!eventForm.venueHallId.trim()) {
-      alert("חסר מזהה אולם. כדי שהאירוע יופיע ביומן חובה venueHallId.");
+    if (!eventForm.venueOwnerId.trim() || !eventForm.venueHallId.trim()) {
+      alert("חובה לבחור אולם מהרשימה");
       return;
     }
 
@@ -465,11 +524,6 @@ export default function EditInvitePage() {
 
         canvasData: invite.canvasData || { objects: [] },
 
-        /**
-         * שדות Event
-         * השרת של /api/invitations/[inviteId] צריך ליצור/לעדכן Event
-         * ולשמור את eventId על ההזמנה.
-         */
         createEvent: true,
         eventId: eventForm.eventId || undefined,
         eventTitle: eventForm.eventTitle.trim(),
@@ -481,9 +535,6 @@ export default function EditInvitePage() {
           address: eventForm.locationAddress.trim(),
         },
 
-        /**
-         * שיוך לאולם
-         */
         venueOwnerId: eventForm.venueOwnerId.trim(),
         venueHallId: eventForm.venueHallId.trim(),
         venueHallName: eventForm.venueHallName.trim(),
@@ -540,9 +591,15 @@ export default function EditInvitePage() {
           updatedEvent?.location?.address,
           prev.locationAddress
         ),
-        venueOwnerId: getStringValue(updatedEvent?.venueOwnerId, prev.venueOwnerId),
+        venueOwnerId: getStringValue(
+          updatedEvent?.venueOwnerId,
+          prev.venueOwnerId
+        ),
         venueHallId: getStringValue(updatedEvent?.venueHallId, prev.venueHallId),
-        venueHallName: getStringValue(updatedEvent?.venueHallName, prev.venueHallName),
+        venueHallName: getStringValue(
+          updatedEvent?.venueHallName,
+          prev.venueHallName
+        ),
       }));
 
       setUploadedImage(null);
@@ -664,7 +721,8 @@ export default function EditInvitePage() {
                 </h2>
 
                 <p className="mt-1 text-sm leading-6 text-[#7b6a58]">
-                  הנתונים כאן נשלחים לשרת כדי ליצור או לעדכן Event, ולשייך אותו לבעל אולם.
+                  בחרי אולם מהרשימה. המערכת תשמור אוטומטית את בעל האולם,
+                  מזהה האולם ושם האולם.
                 </p>
               </div>
 
@@ -691,7 +749,10 @@ export default function EditInvitePage() {
                   <select
                     value={eventForm.eventType}
                     onChange={(event) =>
-                      updateEventField("eventType", event.target.value as EventType)
+                      updateEventField(
+                        "eventType",
+                        event.target.value as EventType
+                      )
                     }
                     className="h-12 w-full rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-bold text-[#2b241c] outline-none transition focus:border-[#b98121]"
                   >
@@ -723,49 +784,129 @@ export default function EditInvitePage() {
                   label="כמות מוזמנים משוערת"
                   type="number"
                   value={eventForm.estimatedGuests}
-                  onChange={(value) => updateEventField("estimatedGuests", value)}
+                  onChange={(value) =>
+                    updateEventField("estimatedGuests", value)
+                  }
                   placeholder="לדוגמה: 350"
                 />
 
                 <FormInput
                   label="כתובת / שם מקום"
                   value={eventForm.locationAddress}
-                  onChange={(value) => updateEventField("locationAddress", value)}
+                  onChange={(value) =>
+                    updateEventField("locationAddress", value)
+                  }
                   placeholder="לדוגמה: אולם בראשית, נס ציונה"
                 />
               </div>
 
               <div className="mt-6 rounded-[28px] border border-[#eadfce] bg-[#fff8eb] p-4">
                 <div className="text-sm font-black text-[#2d241c]">
-                  שיוך לאולם
+                  בחירת אולם
                 </div>
 
                 <p className="mt-1 text-xs font-bold leading-5 text-[#7b6a58]">
-                  כדי שבעל האולם יראה את האירוע בדשבורד שלו, חובה לשמור
-                  venueOwnerId + venueHallId + venueAccessStatus linked בצד שרת.
+                  לאחר בחירה, האירוע יופיע בדשבורד וביומן של בעל האולם.
                 </p>
 
-                <div className="mt-4 grid gap-4 md:grid-cols-3">
-                  <FormInput
-                    label="venueOwnerId"
-                    value={eventForm.venueOwnerId}
-                    onChange={(value) => updateEventField("venueOwnerId", value)}
-                    placeholder="ObjectId של בעל האולם"
-                  />
+                <div className="mt-4">
+                  <label>
+                    <span className="mb-2 block text-sm font-black text-[#6f6252]">
+                      אולם
+                    </span>
 
-                  <FormInput
-                    label="venueHallId"
-                    value={eventForm.venueHallId}
-                    onChange={(value) => updateEventField("venueHallId", value)}
-                    placeholder="id של האולם"
-                  />
+                    <select
+                      value={selectedVenueValue}
+                      onChange={(event) => {
+                        const selectedValue = event.target.value;
 
-                  <FormInput
-                    label="venueHallName"
-                    value={eventForm.venueHallName}
-                    onChange={(value) => updateEventField("venueHallName", value)}
-                    placeholder="שם האולם"
-                  />
+                        if (!selectedValue) {
+                          updateEventField("venueOwnerId", "");
+                          updateEventField("venueHallId", "");
+                          updateEventField("venueHallName", "");
+                          return;
+                        }
+
+                        const hall = venueHalls.find(
+                          (item) =>
+                            `${item.venueOwnerId}__${item.venueHallId}` ===
+                            selectedValue
+                        );
+
+                        if (!hall) return;
+
+                        updateEventField("venueOwnerId", hall.venueOwnerId);
+                        updateEventField("venueHallId", hall.venueHallId);
+                        updateEventField("venueHallName", hall.venueHallName);
+                      }}
+                      className="h-12 w-full rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-bold text-[#2b241c] outline-none transition focus:border-[#b98121]"
+                    >
+                      <option value="">
+                        {loadingVenueHalls ? "טוען אולמות..." : "בחרי אולם"}
+                      </option>
+
+                      {venueHalls.map((hall) => (
+                        <option
+                          key={`${hall.venueOwnerId}-${hall.venueHallId}`}
+                          value={`${hall.venueOwnerId}__${hall.venueHallId}`}
+                        >
+                          {hall.name}
+                          {hall.subtitle ? ` — ${hall.subtitle}` : ""}
+                          {hall.capacity
+                            ? ` · עד ${hall.capacity} אורחים`
+                            : ""}
+                          {hall.ownerName ? ` · ${hall.ownerName}` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  {venueHallsError ? (
+                    <div className="mt-3 rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">
+                      {venueHallsError}
+                    </div>
+                  ) : null}
+
+                  {!loadingVenueHalls && !venueHalls.length ? (
+                    <div className="mt-3 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
+                      לא נמצאו אולמות זמינים. ודאי שקיים לפחות אולם אחד במערכת בעל האולם.
+                    </div>
+                  ) : null}
+
+                  {selectedHall ? (
+                    <div className="mt-4 rounded-[24px] border border-[#eadfce] bg-white p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-[#f4ead9] text-[#b98121]">
+                          {selectedHall.image ? (
+                            <img
+                              src={selectedHall.image}
+                              alt={selectedHall.name}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-xl">🏛️</span>
+                          )}
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-sm font-black text-[#2d241c]">
+                            {selectedHall.name}
+                          </div>
+
+                          <div className="mt-1 truncate text-xs font-bold text-[#7b6a58]">
+                            {selectedHall.subtitle || "אולם אירועים"} ·{" "}
+                            {selectedHall.capacity
+                              ? `עד ${selectedHall.capacity} אורחים`
+                              : "קיבולת לא הוגדרה"}
+                          </div>
+
+                          <div className="mt-1 text-xs font-bold text-[#9a7a45]">
+                            בעלים: {selectedHall.ownerName}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               </div>
 
@@ -780,7 +921,14 @@ export default function EditInvitePage() {
                 </p>
 
                 <p>
-                  אולם: {eventForm.venueHallName || eventForm.venueHallId || "לא הוגדר"}
+                  אולם:{" "}
+                  {eventForm.venueHallName ||
+                    selectedHall?.name ||
+                    "לא נבחר אולם"}
+                </p>
+
+                <p className="mt-2 text-xs font-black text-[#8f6437]">
+                  Event ID: {eventForm.eventId || "עדיין לא מחובר"}
                 </p>
               </div>
             </section>
@@ -1054,7 +1202,10 @@ export default function EditInvitePage() {
                   </p>
 
                   <p className="mt-2">
-                    אולם: {eventForm.venueHallName || eventForm.venueHallId || "לא הוגדר"}
+                    אולם:{" "}
+                    {eventForm.venueHallName ||
+                      selectedHall?.name ||
+                      "לא נבחר אולם"}
                   </p>
 
                   <p className="mt-2 text-xs font-black text-[#8f6437]">
