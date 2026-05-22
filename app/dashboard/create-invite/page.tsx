@@ -1,22 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 /* =========================================================
    Types
 ========================================================= */
 
 type InviteImageMode = "portrait" | "square";
-
-type EventType =
-  | "wedding"
-  | "bar-mitzvah"
-  | "bat-mitzvah"
-  | "brit"
-  | "brita"
-  | "henna"
-  | "other";
 
 type ImageInfo = {
   width: number;
@@ -43,12 +34,7 @@ type PublicVenueHall = {
 };
 
 type EventForm = {
-  eventTitle: string;
-  eventType: EventType;
-  eventDate: string;
-  eventTime: string;
-  estimatedGuests: string;
-  locationAddress: string;
+  eventId: string;
 
   venueOwnerId: string;
   venueHallId: string;
@@ -141,11 +127,6 @@ function getImageQualityStatus(info: ImageInfo | null, mode: InviteImageMode) {
     level: "warning",
     text: "התמונה קטנה יחסית. מומלץ להעלות קובץ איכותי יותר",
   };
-}
-
-function toNumber(value: string, fallback = 0) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
 }
 
 /* =========================================================
@@ -269,6 +250,9 @@ function CreatePhonePreview({
 
 export default function CreateInvitePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const eventIdFromUrl = searchParams.get("eventId") || "";
 
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -285,12 +269,7 @@ export default function CreateInvitePage() {
   );
 
   const [eventForm, setEventForm] = useState<EventForm>({
-    eventTitle: "",
-    eventType: "wedding",
-    eventDate: "",
-    eventTime: "",
-    estimatedGuests: "",
-    locationAddress: "",
+    eventId: "",
 
     venueOwnerId: "",
     venueHallId: "",
@@ -363,6 +342,15 @@ export default function CreateInvitePage() {
     fetchVenueHalls();
   }, []);
 
+  useEffect(() => {
+    if (!eventIdFromUrl) return;
+
+    setEventForm((prev) => ({
+      ...prev,
+      eventId: eventIdFromUrl,
+    }));
+  }, [eventIdFromUrl]);
+
   /* =========================================================
      Upload image
   ========================================================= */
@@ -409,7 +397,8 @@ export default function CreateInvitePage() {
           setImageMode("portrait");
         }
       }
-    } catch {
+    } catch (error) {
+      console.error("IMAGE_UPLOAD_FAILED:", error);
       alert("❌ שגיאה בקריאת התמונה");
     }
   };
@@ -420,6 +409,11 @@ export default function CreateInvitePage() {
 
   const handleSave = async () => {
     try {
+      if (!eventForm.eventId.trim()) {
+        alert("חסר מזהה אירוע. צריך ליצור קודם פרטי אירוע.");
+        return;
+      }
+
       if (!uploadedImage?.base64) {
         alert("צריך להעלות תמונת הזמנה לפני שמירה");
         return;
@@ -427,15 +421,6 @@ export default function CreateInvitePage() {
 
       if (!eventForm.venueOwnerId.trim() || !eventForm.venueHallId.trim()) {
         alert("חובה לבחור אולם מהרשימה");
-        return;
-      }
-
-      if (
-        !eventForm.eventTitle.trim() ||
-        !eventForm.eventDate.trim() ||
-        !eventForm.eventTime.trim()
-      ) {
-        alert("חסרים פרטי אירוע. עדכני קודם את פרטי האירוע ושמרי שוב.");
         return;
       }
 
@@ -447,19 +432,12 @@ export default function CreateInvitePage() {
       };
 
       const invitationPayload = {
-        title: eventForm.eventTitle.trim(),
+        eventId: eventForm.eventId.trim(),
+        productionEventId: eventForm.eventId.trim(),
+        linkedEventId: eventForm.eventId.trim(),
+
         canvasData,
         orientation: imageMode,
-
-        createEvent: true,
-        eventTitle: eventForm.eventTitle.trim(),
-        eventType: eventForm.eventType,
-        eventDate: eventForm.eventDate,
-        eventTime: eventForm.eventTime,
-        estimatedGuests: Math.max(0, toNumber(eventForm.estimatedGuests, 0)),
-        location: {
-          address: eventForm.locationAddress.trim(),
-        },
 
         venueOwnerId: eventForm.venueOwnerId.trim(),
         venueHallId: eventForm.venueHallId.trim(),
@@ -553,7 +531,7 @@ export default function CreateInvitePage() {
               </h1>
 
               <p className="mt-1 text-xs text-[#8a7967] md:text-sm">
-                יצירת הזמנה ושיוך ההזמנה לאולם.
+                העלאת תמונת הזמנה ושיוך ההזמנה לאולם.
               </p>
             </div>
           </div>
@@ -586,6 +564,16 @@ export default function CreateInvitePage() {
       <main className="mx-auto max-w-7xl px-4 py-6">
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
           <div className="space-y-6">
+            {!eventForm.eventId ? (
+              <section className="rounded-[30px] border border-amber-200 bg-amber-50 p-5 text-sm font-bold leading-7 text-amber-900 shadow-sm">
+                חסר מזהה אירוע. צריך להגיע לעמוד הזה אחרי יצירת פרטי אירוע,
+                לדוגמה:
+                <span dir="ltr" className="mx-1 inline-block">
+                  /dashboard/invitations/create?eventId=EVENT_ID
+                </span>
+              </section>
+            ) : null}
+
             <section className="rounded-[34px] border border-[#eadfce] bg-white p-5 shadow-[0_24px_80px_rgba(71,48,25,0.08)] md:p-7">
               <div>
                 <p className="text-sm font-semibold text-[#b58a55]">
@@ -597,7 +585,8 @@ export default function CreateInvitePage() {
                 </h2>
 
                 <p className="mt-1 text-sm leading-6 text-[#7b6a58]">
-                  בחרי אולם מהרשימה. פרטי האירוע עצמם נמשכים מעריכת פרטי האירוע.
+                  בחרי אולם מהרשימה. פרטי האירוע עצמם נמשכים מעריכת פרטי
+                  האירוע.
                 </p>
               </div>
 
@@ -638,7 +627,10 @@ export default function CreateInvitePage() {
 
                         updateEventField("venueOwnerId", hall.venueOwnerId);
                         updateEventField("venueHallId", hall.venueHallId);
-                        updateEventField("venueHallName", hall.venueHallName);
+                        updateEventField(
+                          "venueHallName",
+                          hall.venueHallName || hall.name || ""
+                        );
                       }}
                       className="h-12 w-full rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-bold text-[#2b241c] outline-none transition focus:border-[#b98121]"
                     >
@@ -670,7 +662,8 @@ export default function CreateInvitePage() {
 
                   {!loadingVenueHalls && !venueHalls.length ? (
                     <div className="mt-3 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
-                      לא נמצאו אולמות זמינים. ודאי שקיים לפחות אולם אחד במערכת בעל האולם.
+                      לא נמצאו אולמות זמינים. ודאי שקיים לפחות אולם אחד במערכת
+                      בעל האולם.
                     </div>
                   ) : null}
 
