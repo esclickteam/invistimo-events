@@ -3,6 +3,8 @@ import mongoose from "mongoose";
 import connectDB from "@/lib/db";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
+import "@/models/InvitationGuest";
+
 import Event from "@/models/Event";
 import Invitation from "@/models/Invitation";
 import VenueHall from "@/models/VenueHall";
@@ -100,25 +102,11 @@ function getInvitationIdCandidates(eventId: string) {
     { eventId: objectId },
     { productionEventId: objectId },
     { linkedEventId: objectId },
+
     { eventId },
     { productionEventId: eventId },
     { linkedEventId: eventId },
   ];
-}
-
-function getEventGuests(item: any) {
-  const invitation = item?.invitation || null;
-  const event = item?.event || item;
-
-  return (
-    toNumber(invitation?.estimatedGuestCount, 0) ||
-    toNumber(invitation?.estimatedGuests, 0) ||
-    toNumber(invitation?.maxGuests, 0) ||
-    toNumber(event?.estimatedGuestCount, 0) ||
-    toNumber(event?.estimatedGuests, 0) ||
-    toNumber(event?.maxGuests, 0) ||
-    0
-  );
 }
 
 function getEventRevenue(item: any) {
@@ -188,7 +176,6 @@ function mergeVenueEventWithInvitation(event: any, invitation: any) {
   );
 
   const eventDate = normalizeDateOnly(event?.date);
-
   const date = invitationDate || eventDate;
 
   const time =
@@ -337,17 +324,22 @@ async function getInvitationsForEvents(events: any[]) {
     return new Map<string, any>();
   }
 
-  const orQuery = eventIds.flatMap((eventId) => getInvitationIdCandidates(eventId));
+  const orQuery = eventIds.flatMap((eventId) =>
+    getInvitationIdCandidates(eventId)
+  );
 
   if (!orQuery.length) {
     return new Map<string, any>();
   }
 
+  /**
+   * חשוב:
+   * בדשבורד בעלים לא צריך populate guests.
+   * זה מונע נפילה של ה-API אם מודל guests לא נטען/לא תואם.
+   */
   const invitations = await Invitation.find({
     $or: orQuery,
-  })
-    .populate("guests")
-    .lean();
+  }).lean();
 
   const invitationByEventId = new Map<string, any>();
 
@@ -393,8 +385,8 @@ export async function GET(req: NextRequest) {
       .lean();
 
     /**
-     * כאן Event משמש רק לאיתור אירועים ששויכו לבעל אולם.
-     * את פרטי האירוע עצמם נמשוך אחר כך מה-Invitation.
+     * Event משמש רק לאיתור אירועים ששויכו לבעל אולם.
+     * את פרטי האירוע עצמם מושכים מה-Invitation.
      */
     const events = await Event.find({
       venueOwnerId: ownerId,
@@ -510,15 +502,10 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-
       halls: serializedHalls,
-
       todayEvents,
-
       tasks: tasks.map(serializeTask),
-
       financeData,
-
       alerts: alerts.map(serializeAlert),
     });
   } catch (error) {
