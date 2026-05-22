@@ -54,30 +54,8 @@ function objectIdOrString(value: unknown) {
   return objectIdValue ? [objectIdValue, stringValue] : [stringValue];
 }
 
-function objectIdString(value: unknown) {
-  if (!value) return "";
-  return String(value);
-}
-
 function getCollection(name: string) {
   return mongoose.connection.db?.collection(name);
-}
-
-function getFirstNumber(source: any, keys: string[], fallback = 0) {
-  for (const key of keys) {
-    const value = source?.[key];
-    const parsed = Number(value);
-
-    if (Number.isFinite(parsed)) {
-      return parsed;
-    }
-  }
-
-  return fallback;
-}
-
-function normalizeStatus(value: unknown) {
-  return cleanString(value).toLowerCase();
 }
 
 function normalizeDateOnly(value: unknown) {
@@ -104,6 +82,10 @@ function normalizeDateOnly(value: unknown) {
   return parsed.toISOString().slice(0, 10);
 }
 
+function normalizeStatus(value: unknown) {
+  return cleanString(value).toLowerCase();
+}
+
 function normalizeEventType(value: unknown) {
   const raw = cleanString(value);
 
@@ -121,109 +103,6 @@ function normalizeEventType(value: unknown) {
   if (lower.includes("חינה")) return "henna";
 
   return "other";
-}
-
-function isConfirmedGuest(row: any) {
-  const values = [
-    row?.status,
-    row?.rsvpStatus,
-    row?.response,
-    row?.attendanceStatus,
-    row?.arrivalStatus,
-    row?.answer,
-  ].map(normalizeStatus);
-
-  if (
-    values.some((value) =>
-      [
-        "confirmed",
-        "coming",
-        "arriving",
-        "arrive",
-        "yes",
-        "approved",
-        "accepted",
-        "attending",
-        "מגיע",
-        "מגיעים",
-        "אישר",
-        "אישרו",
-      ].includes(value)
-    )
-  ) {
-    return true;
-  }
-
-  if (row?.isComing === true) return true;
-  if (row?.attending === true) return true;
-  if (row?.confirmed === true) return true;
-  if (row?.arrives === true) return true;
-
-  return false;
-}
-
-function isDeclinedGuest(row: any) {
-  const values = [
-    row?.status,
-    row?.rsvpStatus,
-    row?.response,
-    row?.attendanceStatus,
-    row?.arrivalStatus,
-    row?.answer,
-  ].map(normalizeStatus);
-
-  if (
-    values.some((value) =>
-      [
-        "declined",
-        "not-coming",
-        "not_coming",
-        "not coming",
-        "no",
-        "cancelled",
-        "rejected",
-        "לא מגיע",
-        "לא מגיעים",
-        "לא",
-      ].includes(value)
-    )
-  ) {
-    return true;
-  }
-
-  if (row?.isComing === false) return true;
-  if (row?.attending === false) return true;
-  if (row?.confirmed === false) return true;
-  if (row?.arrives === false) return true;
-
-  return false;
-}
-
-function getConfirmedAmount(row: any) {
-  const amount = getFirstNumber(
-    row,
-    [
-      "confirmedGuestsAmount",
-      "confirmedAmount",
-      "arrivingCount",
-      "arriveCount",
-      "comingAmount",
-      "comingCount",
-      "guestsAmount",
-      "guestAmount",
-      "amount",
-      "quantity",
-      "count",
-      "guests",
-      "guestsCount",
-      "numberOfGuests",
-      "totalGuests",
-      "participants",
-    ],
-    1
-  );
-
-  return Math.max(1, amount);
 }
 
 function serializeHall(hall: any) {
@@ -274,13 +153,9 @@ function serializeEvent(event: any, hall?: any, invitation?: any) {
     cleanString(event.eventType) ||
     "wedding";
 
-  const date =
-    getInvitationDate(invitation) ||
-    normalizeDateOnly(event.date);
+  const date = getInvitationDate(invitation) || normalizeDateOnly(event.date);
 
-  const time =
-    getInvitationTime(invitation) ||
-    cleanString(event.time);
+  const time = getInvitationTime(invitation) || cleanString(event.time);
 
   const location = invitation?.location || event.location || {};
 
@@ -403,13 +278,19 @@ async function findInvitationForEvent(event: any) {
 
   return invitations.findOne({
     userId: { $in: userIdValues },
-    $or: [
-      { eventDate },
-      { date: eventDate },
-    ],
+    $or: [{ eventDate }, { date: eventDate }],
   });
 }
 
+/**
+ * אישורי הגעה:
+ * קורא ישירות מהקולקשן invitationguests לפי invitationId.
+ *
+ * לפי המבנה אצלך במונגו:
+ * invitationId: ObjectId(...)
+ * rsvp: "yes" | "no" | "pending"
+ * guestsCount: number
+ */
 async function buildRsvpStats(event: any, invitation: any) {
   const empty = {
     enabled: false,
@@ -420,122 +301,53 @@ async function buildRsvpStats(event: any, invitation: any) {
     confirmedGuestsAmount: 0,
   };
 
-  const guestsCollection =
-    getCollection("invitationguests") ||
-    getCollection("invitationGuests") ||
-    getCollection("guests") ||
-    getCollection("guestrecords") ||
-    getCollection("guestRecords");
+  const guestsCollection = getCollection("invitationguests");
 
-  if (!guestsCollection) {
+  if (!guestsCollection || !invitation?._id) {
     return empty;
   }
 
-  const eventIdValues = objectIdOrString(event._id);
-  const userIdValues = objectIdOrString(event.userId);
-  const invitationIdValues = invitation?._id
-    ? objectIdOrString(invitation._id)
-    : [];
+  const invitationIdValues = objectIdOrString(invitation._id);
 
-  const invitationShareId = cleanString(invitation?.shareId);
-  const invitationDate = getInvitationDate(invitation);
-  const eventDate = invitationDate || normalizeDateOnly(event.date);
-
-  const orQuery: any[] = [
-    { eventId: { $in: eventIdValues } },
-    { productionEventId: { $in: eventIdValues } },
-    { linkedEventId: { $in: eventIdValues } },
-  ];
-
-  if (invitationIdValues.length) {
-    orQuery.push({ invitationId: { $in: invitationIdValues } });
-    orQuery.push({ inviteId: { $in: invitationIdValues } });
-    orQuery.push({ invitation: { $in: invitationIdValues } });
-  }
-
-  if (invitationShareId) {
-    orQuery.push({ shareId: invitationShareId });
-    orQuery.push({ invitationShareId });
-  }
-
-  if (eventDate) {
-    orQuery.push({
-      userId: { $in: userIdValues },
-      eventDate,
-    });
-  }
-
-  const rows = await guestsCollection.find({ $or: orQuery }).toArray();
+  const rows = await guestsCollection
+    .find({
+      invitationId: { $in: invitationIdValues },
+    })
+    .toArray();
 
   if (!rows.length) {
-    const embeddedGuests = Array.isArray(invitation?.guests)
-      ? invitation.guests
-      : [];
-
-    if (!embeddedGuests.length) {
-      return {
-        ...empty,
-        enabled: Boolean(invitation),
-      };
-    }
-
-    let confirmedRecords = 0;
-    let declinedRecords = 0;
-    let confirmedGuestsAmount = 0;
-
-    for (const row of embeddedGuests) {
-      if (isConfirmedGuest(row)) {
-        confirmedRecords += 1;
-        confirmedGuestsAmount += getConfirmedAmount(row);
-        continue;
-      }
-
-      if (isDeclinedGuest(row)) {
-        declinedRecords += 1;
-      }
-    }
-
-    const recordsCount = embeddedGuests.length;
-    const pendingRecords = Math.max(
-      0,
-      recordsCount - confirmedRecords - declinedRecords
-    );
-
     return {
+      ...empty,
       enabled: true,
-      recordsCount,
-      confirmedRecords,
-      declinedRecords,
-      pendingRecords,
-      confirmedGuestsAmount,
     };
   }
 
   let confirmedRecords = 0;
   let declinedRecords = 0;
+  let pendingRecords = 0;
   let confirmedGuestsAmount = 0;
 
   for (const row of rows) {
-    if (isConfirmedGuest(row)) {
+    const rsvp = cleanString(row.rsvp).toLowerCase();
+    const guestsCount = Math.max(1, toNumber(row.guestsCount, 1));
+
+    if (rsvp === "yes") {
       confirmedRecords += 1;
-      confirmedGuestsAmount += getConfirmedAmount(row);
+      confirmedGuestsAmount += guestsCount;
       continue;
     }
 
-    if (isDeclinedGuest(row)) {
+    if (rsvp === "no") {
       declinedRecords += 1;
+      continue;
     }
-  }
 
-  const recordsCount = rows.length;
-  const pendingRecords = Math.max(
-    0,
-    recordsCount - confirmedRecords - declinedRecords
-  );
+    pendingRecords += 1;
+  }
 
   return {
     enabled: true,
-    recordsCount,
+    recordsCount: rows.length,
     confirmedRecords,
     declinedRecords,
     pendingRecords,
@@ -561,9 +373,9 @@ function countSeatedFromTable(table: any) {
       if (!item) continue;
 
       if (typeof item === "string" && item.trim()) {
-  count += 1;
-  continue;
-}
+        count += 1;
+        continue;
+      }
 
       if (
         item.guestId ||
@@ -724,11 +536,13 @@ async function buildProductionStats(event: any) {
 
 async function buildStats(event: any, invitation: any) {
   const rsvp = await buildRsvpStats(event, invitation);
+
   const seating = await buildSeatingStats(
     event,
     invitation,
     rsvp.confirmedGuestsAmount
   );
+
   const production = await buildProductionStats(event);
 
   return {
@@ -963,7 +777,8 @@ export async function PATCH(req: NextRequest, { params }: Props) {
       )
     );
 
-    existingEvent.maxGuests = existingEvent.estimatedGuestCount || existingEvent.maxGuests || 0;
+    existingEvent.maxGuests =
+      existingEvent.estimatedGuestCount || existingEvent.maxGuests || 0;
 
     existingEvent.budgetTotal = Math.max(
       0,
@@ -1029,7 +844,9 @@ export async function PATCH(req: NextRequest, { params }: Props) {
           0,
           toNumber(
             body.estimatedGuestCount ?? body.estimatedGuests,
-            existingEvent.estimatedGuestCount || existingEvent.estimatedGuests || 0
+            existingEvent.estimatedGuestCount ||
+              existingEvent.estimatedGuests ||
+              0
           )
         );
 
@@ -1063,7 +880,11 @@ export async function PATCH(req: NextRequest, { params }: Props) {
       ? await findInvitationForEvent(updatedEvent)
       : invitation;
 
-    const hall = await getVenueHallForEvent(updatedEvent || existingEvent, auth.userId);
+    const hall = await getVenueHallForEvent(
+      updatedEvent || existingEvent,
+      auth.userId
+    );
+
     const stats = await buildStats(updatedEvent || existingEvent, updatedInvitation);
 
     return NextResponse.json({
