@@ -115,7 +115,10 @@ async function createOrUpdateInvitation({
     rsvpEnabled: false,
     eventManagementEnabled: false,
 
-    paymentStatus: "included",
+    paymentStatus: "paid",
+    venueClientPaymentStatus: "paid",
+    paidAmount: 0,
+
     updatedAt: now,
   };
 
@@ -231,25 +234,65 @@ async function updateUserPermissions({
       $set: {
         email,
 
+        /*
+          חשוב:
+          הושבה בלבד דרך אולם = כלול.
+          לכן מבחינת המערכת זה חייב להיות פתוח ומשולם,
+          כדי שלא ייזרק לעמוד /pricing.
+        */
+        isActive: true,
+        hasDashboardAccess: true,
+        hasPaid: true,
+        isTrial: false,
+
         plan: "seating_only",
         packageName: "הושבה בלבד דרך אולם",
+
+        billingSource: "venue",
+        paymentStatus: "paid",
+        paidAmount: 0,
 
         venueClientSource: true,
         venueClientPackageType: "seating_only",
         venueClientRecordsCount: recordsCount,
+        venueClientPaymentStatus: "paid",
+        venueClientPaymentAmount: 0,
+
+        includeSeating: true,
+        includeSystem: false,
+        includeCalls: false,
+        includeCreditGifts: false,
+        includeDesign: false,
 
         maxGuests: recordsCount,
         guests: recordsCount,
+
         maxMessages: 0,
+        remainingMessages: 0,
+
+        smsBalance: 0,
+        smsUsed: 0,
+        smsLimit: 0,
+
+        whatsappBalance: 0,
+        whatsappUsed: 0,
+        whatsappLimit: 0,
+
+        allowedMessageRounds: 0,
 
         planLimits: {
           seatingEnabled: true,
           rsvpEnabled: false,
           eventManagementEnabled: false,
           suppliersBudgetEnabled: false,
+
           maxGuests: recordsCount,
           maxRecords: recordsCount,
+
           allowedMessageRounds: 0,
+          smsRounds: 0,
+          whatsappRounds: 0,
+          phoneCallRounds: 0,
         },
 
         updatedAt: new Date(),
@@ -396,11 +439,21 @@ export async function POST(req: NextRequest) {
         $set: {
           userId,
           venueClientUserId: userId,
+
           venueClientInviteStatus: "registered",
           venueClientRegisteredAt: new Date(),
+
           venueClientPackageType: "seating_only",
           venueClientRecordsCount: recordsCount,
-          venueClientPaymentStatus: "included",
+
+          /*
+            הושבה בלבד כלולה דרך האולם.
+            לכן מסמנים paid עם סכום 0.
+          */
+          venueClientPaymentStatus: "paid",
+          venueClientPaymentAmount: 0,
+          venueClientPaymentIncluded: true,
+
           venueClientInvitationId: invitation._id,
           updatedAt: new Date(),
         },

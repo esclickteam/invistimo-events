@@ -44,6 +44,16 @@ function isPaidPackage(value: unknown): value is PaidPackageType {
   return value === "rsvp_seating" || value === "full_event_management";
 }
 
+function calculatePaidAmount(packageType: PaidPackageType, recordsCount: number) {
+  const recordsPrice = recordsCount * 2;
+
+  if (packageType === "full_event_management") {
+    return recordsPrice + 100;
+  }
+
+  return recordsPrice;
+}
+
 function getDashboardRedirect(packageType: PaidPackageType) {
   if (packageType === "full_event_management") {
     return "/events/production";
@@ -80,12 +90,14 @@ async function createOrUpdateInvitation({
   email,
   packageType,
   recordsCount,
+  paidAmount,
 }: {
   event: any;
   userId: mongoose.Types.ObjectId;
   email: string;
   packageType: PaidPackageType;
   recordsCount: number;
+  paidAmount: number;
 }) {
   const invitations = getCollection("invitations");
 
@@ -141,6 +153,9 @@ async function createOrUpdateInvitation({
     eventManagementEnabled: packageType === "full_event_management",
 
     paymentStatus: "paid",
+    venueClientPaymentStatus: "paid",
+    paidAmount,
+
     updatedAt: now,
   };
 
@@ -238,11 +253,13 @@ async function updateUserPermissions({
   email,
   packageType,
   recordsCount,
+  paidAmount,
 }: {
   userId: mongoose.Types.ObjectId;
   email: string;
   packageType: PaidPackageType;
   recordsCount: number;
+  paidAmount: number;
 }) {
   const users = getCollection("users");
 
@@ -260,19 +277,51 @@ async function updateUserPermissions({
       $set: {
         email,
 
+        /*
+          חבילות אולם בתשלום:
+          Stripe אישר תשלום, לכן המשתמש חייב להיות פעיל ומשולם.
+        */
+        isActive: true,
+        hasDashboardAccess: true,
+        hasPaid: true,
+        isTrial: false,
+
         plan: packageType,
         packageName: getPackageName(packageType),
+
+        billingSource: "venue",
+        paymentStatus: "paid",
+        paidAmount,
 
         venueClientSource: true,
         venueClientPackageType: packageType,
         venueClientRecordsCount: recordsCount,
+        venueClientPaymentStatus: "paid",
+        venueClientPaymentAmount: paidAmount,
+
+        includeSeating: true,
+        includeSystem: eventManagementEnabled,
+        includeCalls: true,
+        includeCreditGifts: false,
+        includeDesign: false,
 
         maxGuests: recordsCount,
         guests: recordsCount,
 
+        /*
+          3 סבבי הודעות:
+          2 WhatsApp + 1 SMS
+        */
         maxMessages: recordsCount * 3,
+        remainingMessages: recordsCount * 3,
+
         smsLimit: recordsCount,
+        smsBalance: recordsCount,
+        smsUsed: 0,
+
         whatsappLimit: recordsCount * 2,
+        whatsappBalance: recordsCount * 2,
+        whatsappUsed: 0,
 
         allowedMessageRounds: 3,
 
@@ -414,6 +463,14 @@ export async function POST(req: NextRequest) {
 
     const packageType: PaidPackageType = packageTypeRaw;
 
+    const stripePaidAmount =
+      typeof session.amount_total === "number"
+        ? session.amount_total / 100
+        : 0;
+
+    const calculatedPaidAmount = calculatePaidAmount(packageType, recordsCount);
+    const paidAmount = stripePaidAmount > 0 ? stripePaidAmount : calculatedPaidAmount;
+
     const events = getCollection("events");
 
     if (!events) {
@@ -493,6 +550,7 @@ export async function POST(req: NextRequest) {
       email,
       packageType,
       recordsCount,
+      paidAmount,
     });
 
     await copySeatingTemplateToClientEvent({
@@ -507,6 +565,7 @@ export async function POST(req: NextRequest) {
       email,
       packageType,
       recordsCount,
+      paidAmount,
     });
 
     await events.updateOne(
@@ -517,6 +576,7 @@ export async function POST(req: NextRequest) {
         $set: {
           userId,
           venueClientUserId: userId,
+
           venueClientInviteStatus: "registered",
           venueClientRegisteredAt: new Date(),
 
@@ -525,10 +585,7 @@ export async function POST(req: NextRequest) {
 
           venueClientPaymentStatus: "paid",
           venueClientPaymentSessionId: sessionId,
-          venueClientPaymentAmount:
-            typeof session.amount_total === "number"
-              ? session.amount_total / 100
-              : Number(metadata.totalPrice || 0),
+          venueClientPaymentAmount: paidAmount,
 
           venueClientInvitationId: invitation._id,
           updatedAt: new Date(),
