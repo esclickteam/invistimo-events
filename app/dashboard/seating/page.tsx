@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import SeatingEditor from "./SeatingEditor";
 import UploadBackgroundModal from "./UploadBackgroundModal";
@@ -37,8 +37,14 @@ type TableLite = {
 export default function SeatingPage() {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const seatingMode = searchParams.get("mode");
+  const hallId = searchParams.get("hallId");
+
   const isProducer = pathname.includes("/events/production");
   const isDemo = pathname.startsWith("/try/");
+  const isVenueTemplateMode = seatingMode === "venue-template";
 
   const didLoadRef = useRef(false);
   const didFinishInitialLoadRef = useRef(false);
@@ -115,14 +121,23 @@ export default function SeatingPage() {
   useEffect(() => {
     if (!user) return;
 
-    if (user.role === "producer" || user.impersonated) {
+    if (isVenueTemplateMode) {
+      setBlockReason(null);
+      return;
+    }
+
+    if (
+      user.role === "producer" ||
+      user.role === "venue_owner" ||
+      user.impersonated
+    ) {
       return;
     }
 
     if (user.planLimits?.seatingEnabled !== true) {
       setBlockReason("no-plan");
     }
-  }, [user]);
+  }, [user, isVenueTemplateMode]);
 
   /* ===============================
      PRODUCER LIVE MODE
@@ -208,6 +223,17 @@ export default function SeatingPage() {
       try {
         const seatingState = useSeatingStore.getState();
 
+        if (isVenueTemplateMode) {
+          seatingState.init([], [], null, null);
+          useZoneStore.getState().setZones([]);
+
+          setInvitationId(null);
+          setEventId(null);
+
+          didFinishInitialLoadRef.current = true;
+          return;
+        }
+
         const hasTables =
           seatingState.tables && seatingState.tables.length > 0;
 
@@ -245,7 +271,7 @@ export default function SeatingPage() {
     }
 
     load();
-  }, [isDemo, loadSeatingData]);
+  }, [isDemo, isVenueTemplateMode, loadSeatingData]);
 
   /* ===============================
      AUTO FIT ONE TIME
@@ -310,7 +336,7 @@ export default function SeatingPage() {
   };
 
   /* ===============================
-     SAVE
+     SAVE EVENT SEATING
   =============================== */
   const saveSeating = useCallback(
     async (showToast = true): Promise<boolean> => {
@@ -360,6 +386,60 @@ export default function SeatingPage() {
     },
     [eventId, invitationId]
   );
+
+  /* ===============================
+     SAVE VENUE TEMPLATE
+  =============================== */
+  const saveVenueSeatingTemplate = useCallback(async () => {
+    if (!hallId) {
+      alert("לא נמצא מזהה אולם");
+      return;
+    }
+
+    const templateName = window.prompt("שם תבנית ההושבה:");
+
+    if (!templateName || templateName.trim().length < 2) {
+      alert("חובה להזין שם תבנית");
+      return;
+    }
+
+    try {
+      const zones = useZoneStore.getState().zones;
+      const seatingState = useSeatingStore.getState();
+
+      const res = await fetch("/api/venues/dashboard/seating-templates", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          hallId,
+          name: templateName.trim(),
+          tables: seatingState.tables || [],
+          canvas: {
+            background: seatingState.background || null,
+            canvasView: seatingState.canvasView || null,
+            zones,
+          },
+          settings: {
+            source: "venue-template",
+          },
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || "שגיאה בשמירת תבנית");
+      }
+
+      alert("התבנית נשמרה בהצלחה");
+      router.push(`/venues/dashboard/halls/${encodeURIComponent(hallId)}`);
+    } catch (error: any) {
+      console.error("saveVenueSeatingTemplate error:", error);
+      alert(error?.message || "שגיאה בשמירת תבנית הושבה");
+    }
+  }, [hallId, router]);
 
   /* ===============================
      SMART SEATING BY GROUPS
@@ -482,9 +562,10 @@ export default function SeatingPage() {
   ]);
 
   /* ===============================
-     AUTO SAVE TEMPLATE
+     AUTO SAVE EVENT SEATING
   =============================== */
   useEffect(() => {
+    if (isVenueTemplateMode) return;
     if (isDemo) return;
     if (blockReason === "no-plan") return;
 
@@ -521,6 +602,7 @@ export default function SeatingPage() {
     isDemo,
     blockReason,
     saveSeating,
+    isVenueTemplateMode,
   ]);
 
   /* ===============================
@@ -633,7 +715,9 @@ export default function SeatingPage() {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="whitespace-nowrap text-xl font-black tracking-tight text-[#2b2119] md:text-2xl">
-                  הושבה באולם
+                  {isVenueTemplateMode
+                    ? "יצירת תבנית הושבה לאולם"
+                    : "הושבה באולם"}
                 </h1>
 
                 {isProducer && (
@@ -647,10 +731,24 @@ export default function SeatingPage() {
                     מצב מפיק
                   </span>
                 )}
+
+                {isVenueTemplateMode && (
+                  <span
+                    className="
+                      rounded-full border border-[#d7b56d]/50
+                      bg-[#fff8e8] px-2.5 py-1
+                      text-[11px] font-bold text-[#9b7436]
+                    "
+                  >
+                    מצב תבנית אולם
+                  </span>
+                )}
               </div>
 
               <p className="mt-0.5 hidden text-xs font-medium text-[#9a8773] md:block">
-                תכנון שולחנות, אורחים, אזורים וסידור הושבה חכם
+                {isVenueTemplateMode
+                  ? "בני סקיצת שולחנות קבועה לאולם ושמרי אותה כתבנית"
+                  : "תכנון שולחנות, אורחים, אזורים וסידור הושבה חכם"}
               </p>
             </div>
           </div>
@@ -680,10 +778,18 @@ export default function SeatingPage() {
               whitespace-nowrap
             "
           >
-
-                        <button
+            <button
               type="button"
-              onClick={() => router.push("/dashboard")}
+              onClick={() => {
+                if (isVenueTemplateMode && hallId) {
+                  router.push(
+                    `/venues/dashboard/halls/${encodeURIComponent(hallId)}`
+                  );
+                  return;
+                }
+
+                router.push("/dashboard");
+              }}
               className="
                 flex h-11 shrink-0 items-center gap-2 rounded-2xl
                 border border-[#e5d2b8] bg-white/90 px-4
@@ -691,24 +797,26 @@ export default function SeatingPage() {
                 shadow-sm transition hover:-translate-y-0.5 hover:bg-[#fff8ee]
               "
             >
-              ← חזרה לדשבורד
+              {isVenueTemplateMode ? "← חזרה לאולם" : "← חזרה לדשבורד"}
             </button>
-            
-            <button
-              onClick={() => setShowSmartPanel(true)}
-              disabled={!eventId || isSmartSeating || isClearingSmartSeating}
-              className="
-                flex h-11 shrink-0 items-center gap-2 rounded-2xl
-                bg-gradient-to-l from-[#2b2119] to-[#8b6b3e]
-                px-4 text-sm font-black text-white
-                shadow-[0_12px_28px_rgba(139,107,62,0.25)]
-                transition hover:-translate-y-0.5 hover:brightness-105
-                disabled:cursor-not-allowed disabled:opacity-50
-              "
-            >
-              <span>✨</span>
-              הושבה חכמה
-            </button>
+
+            {!isVenueTemplateMode && (
+              <button
+                onClick={() => setShowSmartPanel(true)}
+                disabled={!eventId || isSmartSeating || isClearingSmartSeating}
+                className="
+                  flex h-11 shrink-0 items-center gap-2 rounded-2xl
+                  bg-gradient-to-l from-[#2b2119] to-[#8b6b3e]
+                  px-4 text-sm font-black text-white
+                  shadow-[0_12px_28px_rgba(139,107,62,0.25)]
+                  transition hover:-translate-y-0.5 hover:brightness-105
+                  disabled:cursor-not-allowed disabled:opacity-50
+                "
+              >
+                <span>✨</span>
+                הושבה חכמה
+              </button>
+            )}
 
             <button
               onClick={() => setShowAddModal(true)}
@@ -723,6 +831,21 @@ export default function SeatingPage() {
               הוסף שולחן
             </button>
 
+            {isVenueTemplateMode && (
+              <button
+                type="button"
+                onClick={saveVenueSeatingTemplate}
+                className="
+                  flex h-11 shrink-0 items-center gap-2 rounded-2xl
+                  bg-[#B8872E] px-4 text-sm font-black text-white
+                  shadow-[0_12px_28px_rgba(184,135,46,0.25)]
+                  transition hover:-translate-y-0.5 hover:bg-[#9f7427]
+                "
+              >
+                💾 שמור כתבנית אולם
+              </button>
+            )}
+
             <button
               onClick={() => setShowUpload(true)}
               className="
@@ -736,14 +859,16 @@ export default function SeatingPage() {
               העלאת תבנית אולם
             </button>
 
-            <div
-              className="
-                shrink-0 rounded-2xl border border-[#e5d2b8]
-                bg-white/85 shadow-sm
-              "
-            >
-              <ExportSeatingPdf eventId={eventId} />
-            </div>
+            {!isVenueTemplateMode && (
+              <div
+                className="
+                  shrink-0 rounded-2xl border border-[#e5d2b8]
+                  bg-white/85 shadow-sm
+                "
+              >
+                <ExportSeatingPdf eventId={eventId} />
+              </div>
+            )}
 
             <div
               className="
@@ -752,7 +877,9 @@ export default function SeatingPage() {
                 text-[#8a765f] shadow-sm md:block
               "
             >
-              {isAutoSaving ? (
+              {isVenueTemplateMode ? (
+                <span>מצב תבנית — השמירה מתבצעת ידנית</span>
+              ) : isAutoSaving ? (
                 <span>שומר אוטומטית...</span>
               ) : lastAutoSavedAt ? (
                 <span>
@@ -771,7 +898,7 @@ export default function SeatingPage() {
       </header>
 
       {/* SMART SEATING MODAL */}
-      {showSmartPanel && (
+      {!isVenueTemplateMode && showSmartPanel && (
         <div
           dir="rtl"
           className="
@@ -862,21 +989,23 @@ export default function SeatingPage() {
       )}
 
       {/* MOBILE GUESTS BUTTON */}
-      <button
-        onClick={() => setShowGuests(true)}
-        className="
-          fixed left-4 top-[92px] z-[10002]
-          flex h-11 items-center gap-2 rounded-2xl
-          border border-[#eadcca] bg-white/90 px-4
-          text-sm font-bold text-[#4c3827]
-          shadow-[0_14px_34px_rgba(80,50,20,0.13)]
-          backdrop-blur-xl md:hidden
-        "
-      >
-        👥 רשימת אורחים
-      </button>
+      {!isVenueTemplateMode && (
+        <button
+          onClick={() => setShowGuests(true)}
+          className="
+            fixed left-4 top-[92px] z-[10002]
+            flex h-11 items-center gap-2 rounded-2xl
+            border border-[#eadcca] bg-white/90 px-4
+            text-sm font-bold text-[#4c3827]
+            shadow-[0_14px_34px_rgba(80,50,20,0.13)]
+            backdrop-blur-xl md:hidden
+          "
+        >
+          👥 רשימת אורחים
+        </button>
+      )}
 
-      {showGuests && (
+      {!isVenueTemplateMode && showGuests && (
         <Suspense fallback={null}>
           <MobileGuests
             onDragStart={handleDragStart}
@@ -900,13 +1029,19 @@ export default function SeatingPage() {
           <div className="pointer-events-none absolute inset-0 z-0 bg-[linear-gradient(90deg,rgba(202,161,90,0.04)_1px,transparent_1px),linear-gradient(rgba(202,161,90,0.04)_1px,transparent_1px)] bg-[size:34px_34px]" />
 
           <div className="relative z-10 h-full w-full">
+
             <SeatingEditor
-              background={background?.url || null}
-              invitationId={invitationId}
-              onAutoSave={() => saveSeating(false)}
-              hideSeats={isProducer}
-              sidebarOpen={sidebarOpen}
-            />
+  background={background?.url || null}
+  invitationId={invitationId}
+  onAutoSave={async () => {
+    if (isVenueTemplateMode) return false;
+
+    return await saveSeating(false);
+  }}
+  hideSeats={isProducer}
+  sidebarOpen={sidebarOpen}
+/>
+
           </div>
         </section>
 

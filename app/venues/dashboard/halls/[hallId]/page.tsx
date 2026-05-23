@@ -26,6 +26,7 @@ import { connectDB } from "@/lib/db";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import VenueHall from "@/models/VenueHall";
 import VenueEvent from "@/models/VenueEvent";
+import VenueSeatingTemplate from "@/models/VenueSeatingTemplate";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -74,6 +75,14 @@ type SerializedEvent = {
   status: EventStatus;
   budget: number;
   paidAmount: number;
+};
+
+type SerializedSeatingTemplate = {
+  id: string;
+  name: string;
+  description: string;
+  tablesCount: number;
+  createdAt: string;
 };
 
 function formatCurrency(value: number) {
@@ -166,6 +175,18 @@ function serializeEvent(event: any): SerializedEvent {
   };
 }
 
+function serializeSeatingTemplate(template: any): SerializedSeatingTemplate {
+  return {
+    id: String(template._id),
+    name: String(template.name || "תבנית ללא שם"),
+    description: String(template.description || ""),
+    tablesCount: Array.isArray(template.tables) ? template.tables.length : 0,
+    createdAt: template.createdAt
+      ? new Date(template.createdAt).toISOString()
+      : "",
+  };
+}
+
 export default async function VenueHallPage({ params }: Props) {
   await connectDB();
 
@@ -178,10 +199,7 @@ export default async function VenueHallPage({ params }: Props) {
   const { hallId } = await params;
   const decodedHallId = decodeURIComponent(hallId);
 
-  const hallOrConditions: any[] = [
-    { id: hallId },
-    { id: decodedHallId },
-  ];
+  const hallOrConditions: any[] = [{ id: hallId }, { id: decodedHallId }];
 
   if (mongoose.Types.ObjectId.isValid(hallId)) {
     hallOrConditions.push({ _id: hallId });
@@ -207,7 +225,12 @@ export default async function VenueHallPage({ params }: Props) {
 
   const { from, to, today } = getCurrentMonthRange();
 
-  const [monthEventsRaw, upcomingEventsRaw, nextEventRaw] = await Promise.all([
+  const [
+    monthEventsRaw,
+    upcomingEventsRaw,
+    nextEventRaw,
+    seatingTemplatesRaw,
+  ] = await Promise.all([
     VenueEvent.find({
       ownerId: auth.userId,
       hallId: safeHallId,
@@ -239,11 +262,21 @@ export default async function VenueHallPage({ params }: Props) {
     })
       .sort({ date: 1, startTime: 1 })
       .lean(),
+
+    VenueSeatingTemplate.find({
+      ownerId: auth.userId,
+      hallId: safeHallId,
+      isActive: true,
+    })
+      .sort({ createdAt: -1 })
+      .limit(6)
+      .lean(),
   ]);
 
   const monthEvents = monthEventsRaw.map(serializeEvent);
   const upcomingEvents = upcomingEventsRaw.map(serializeEvent);
   const nextEvent = nextEventRaw ? serializeEvent(nextEventRaw) : null;
+  const seatingTemplates = seatingTemplatesRaw.map(serializeSeatingTemplate);
 
   const monthlyRevenue = monthEvents.reduce(
     (sum, event) => sum + event.budget,
@@ -263,13 +296,14 @@ export default async function VenueHallPage({ params }: Props) {
     hall.capacity > 0 && monthEvents.length > 0
       ? Math.min(
           100,
-          Math.round((monthlyGuests / (hall.capacity * monthEvents.length)) * 100)
+          Math.round(
+            (monthlyGuests / (hall.capacity * monthEvents.length)) * 100
+          )
         )
       : 0;
 
   const encodedHallId = encodeHallPath(safeHallId);
 
-  const hallPageHref = `/venues/dashboard/halls/${encodedHallId}`;
   const hallCalendarHref = `/venues/dashboard/halls/${encodedHallId}/calendar`;
   const hallCrmHref = `/venues/dashboard/halls/${encodedHallId}/crm`;
   const hallMenusHref = `/venues/dashboard/halls/${encodedHallId}/menus`;
@@ -438,47 +472,31 @@ export default async function VenueHallPage({ params }: Props) {
           <div className="overflow-x-auto border-t border-[#eadfce]">
             <div className="flex min-w-[1050px]">
               {[
-                "סקירה כללית",
-                "יומן אולם",
-                "תבניות הושבה",
-                "תפריטים",
-                "צוות ומשמרות",
-                "כספים",
-                "גלריה",
-                "ציוד ותחזוקה",
-                "הגדרות",
+                { label: "סקירה כללית", href: "#overview" },
+                { label: "יומן אולם", href: hallCalendarHref },
+                { label: "תבניות הושבה", href: "#seating-templates" },
+                { label: "תפריטים", href: hallMenusHref },
+                { label: "צוות ומשמרות", href: hallStaffHref },
+                { label: "כספים", href: "#finance" },
+                { label: "גלריה", href: "#gallery" },
+                { label: "ציוד ותחזוקה", href: "#maintenance" },
+                { label: "הגדרות", href: "#settings" },
               ].map((tab, index) => {
-                if (tab === "יומן אולם") {
-                  return (
-                    <TopNavLink key={tab} href={hallCalendarHref} label={tab} />
-                  );
-                }
-
-                if (tab === "תפריטים") {
-                  return (
-                    <TopNavLink key={tab} href={hallMenusHref} label={tab} />
-                  );
-                }
-
-                if (tab === "צוות ומשמרות") {
-                  return (
-                    <TopNavLink key={tab} href={hallStaffHref} label={tab} />
-                  );
-                }
+                const isActive = index === 0;
 
                 return (
-                  <button
-                    key={tab}
-                    type="button"
+                  <Link
+                    key={tab.label}
+                    href={tab.href}
                     className={[
-                      "h-12 flex-1 border-l border-[#eadfce] px-4 text-sm font-black transition",
-                      index === 0
+                      "flex h-12 flex-1 items-center justify-center border-l border-[#eadfce] px-4 text-sm font-black transition",
+                      isActive
                         ? "bg-[#b98121] text-white"
                         : "bg-[#fffdf8] text-[#6f6252] hover:bg-[#fbf5ea] hover:text-[#b98121]",
                     ].join(" ")}
                   >
-                    {tab}
-                  </button>
+                    {tab.label}
+                  </Link>
                 );
               })}
             </div>
@@ -558,18 +576,18 @@ export default async function VenueHallPage({ params }: Props) {
                   הוסף אירוע
                 </Link>
 
-                <button
-                  type="button"
-                  className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-[#fffdf8] text-sm font-black text-[#6f6252] transition hover:bg-[#fbf5ea]"
+                <Link
+                  href={`/dashboard/seating?mode=venue-template&hallId=${encodedHallId}`}
+                  className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#B8872E] px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-[#9f7427]"
                 >
                   <Grid3X3 size={17} />
                   הוסף תבנית הושבה
-                </button>
+                </Link>
               </div>
             </div>
           </aside>
 
-          <div className="grid gap-5 xl:order-2">
+          <div id="overview" className="grid gap-5 xl:order-2">
             <section className="grid gap-5 lg:grid-cols-3">
               <DashboardCard
                 title="יומן אולם"
@@ -614,17 +632,46 @@ export default async function VenueHallPage({ params }: Props) {
                 </div>
               </DashboardCard>
 
-              <DashboardCard
-                title="תבניות הושבה"
-                icon={<LayoutTemplate size={20} />}
-                footer="ניהול תבניות"
-              >
-                <EmptyFeature
-                  title="עדיין אין תבניות הושבה"
-                  text="בהמשך נחבר כאן יצירת תבניות הושבה אמיתיות לפי אולם."
-                  icon={<LayoutTemplate size={24} />}
-                />
-              </DashboardCard>
+              <div id="seating-templates" className="scroll-mt-28">
+                <DashboardCard
+                  title="תבניות הושבה"
+                  icon={<LayoutTemplate size={20} />}
+                  footer="ניהול תבניות"
+                >
+                  {seatingTemplates.length === 0 ? (
+                    <EmptyFeature
+                      title="עדיין אין תבניות הושבה"
+                      text="לחצי על הוסף תבנית הושבה כדי לבנות סקיצת אולם מתוך מערכת ההושבה הקיימת."
+                      icon={<LayoutTemplate size={24} />}
+                    />
+                  ) : (
+                    <div className="space-y-2">
+                      {seatingTemplates.map((template) => (
+                        <div
+                          key={template.id}
+                          className="rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-3 py-3"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <div className="text-sm font-black text-[#2b241c]">
+                                {template.name}
+                              </div>
+
+                              <div className="mt-1 text-xs font-bold text-[#8a7b68]">
+                                {template.tablesCount} שולחנות
+                              </div>
+                            </div>
+
+                            <span className="rounded-full bg-[#f4ead9] px-2.5 py-1 text-[11px] font-black text-[#b98121]">
+                              תבנית אולם
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </DashboardCard>
+              </div>
 
               <DashboardCard
                 title="תפריטים וחבילות"
@@ -654,97 +701,97 @@ export default async function VenueHallPage({ params }: Props) {
                 />
               </DashboardCard>
 
-              <DashboardCard
-                title="כספים ותשלומים"
-                icon={<WalletCards size={20} />}
-                footer="מעבר לדוחות כספיים"
-              >
-                <div className="grid grid-cols-2 gap-3">
-                  <FinanceBox
-                    label="הכנסות החודש"
-                    value={formatCurrency(monthlyRevenue)}
-                    tone="green"
+              <div id="finance" className="scroll-mt-28">
+                <DashboardCard
+                  title="כספים ותשלומים"
+                  icon={<WalletCards size={20} />}
+                  footer="מעבר לדוחות כספיים"
+                >
+                  <div className="grid grid-cols-2 gap-3">
+                    <FinanceBox
+                      label="הכנסות החודש"
+                      value={formatCurrency(monthlyRevenue)}
+                      tone="green"
+                    />
+
+                    <FinanceBox
+                      label="שולם עד כה"
+                      value={formatCurrency(
+                        monthEvents.reduce(
+                          (sum, event) => sum + event.paidAmount,
+                          0
+                        )
+                      )}
+                    />
+
+                    <FinanceBox
+                      label="אירועים סגורים"
+                      value={`${closedEvents}`}
+                    />
+
+                    <FinanceBox label="תפוסה" value={`${occupancyRate}%`} />
+                  </div>
+                </DashboardCard>
+              </div>
+
+              <div id="maintenance" className="scroll-mt-28">
+                <DashboardCard
+                  title="ציוד ותחזוקה"
+                  icon={<Wrench size={20} />}
+                  footer="ניהול ציוד ותחזוקה"
+                >
+                  <EmptyFeature
+                    title="אין משימות תחזוקה"
+                    text="משימות תחזוקה, ציוד ובדיקות אולם יופיעו כאן אחרי שנחבר את המודול."
+                    icon={<Wrench size={24} />}
                   />
-
-                  <FinanceBox
-                    label="שולם עד כה"
-                    value={formatCurrency(
-                      monthEvents.reduce(
-                        (sum, event) => sum + event.paidAmount,
-                        0
-                      )
-                    )}
-                  />
-
-                  <FinanceBox label="אירועים סגורים" value={`${closedEvents}`} />
-
-                  <FinanceBox label="תפוסה" value={`${occupancyRate}%`} />
-                </div>
-              </DashboardCard>
-
-              <DashboardCard
-                title="ציוד ותחזוקה"
-                icon={<Wrench size={20} />}
-                footer="ניהול ציוד ותחזוקה"
-              >
-                <EmptyFeature
-                  title="אין משימות תחזוקה"
-                  text="משימות תחזוקה, ציוד ובדיקות אולם יופיעו כאן אחרי שנחבר את המודול."
-                  icon={<Wrench size={24} />}
-                />
-              </DashboardCard>
+                </DashboardCard>
+              </div>
             </section>
 
             <section className="grid gap-5 lg:grid-cols-[1fr_1fr]">
-              <DashboardCard
-                title="גלריית אולם"
-                icon={<GalleryHorizontalEnd size={20} />}
-                footer="צפייה בגלריה המלאה"
-              >
-                {hall.image ? (
-                  <div className="overflow-hidden rounded-2xl border border-[#eadfce] bg-[#fffdf8]">
-                    <img
-                      src={hall.image}
-                      alt={hall.name}
-                      className="h-[220px] w-full object-cover"
+              <div id="gallery" className="scroll-mt-28">
+                <DashboardCard
+                  title="גלריית אולם"
+                  icon={<GalleryHorizontalEnd size={20} />}
+                  footer="צפייה בגלריה המלאה"
+                >
+                  {hall.image ? (
+                    <div className="overflow-hidden rounded-2xl border border-[#eadfce] bg-[#fffdf8]">
+                      <img
+                        src={hall.image}
+                        alt={hall.name}
+                        className="h-[220px] w-full object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <EmptyFeature
+                      title="עדיין אין תמונות"
+                      text="כשתעדכני תמונת אולם או גלריה, היא תופיע כאן."
+                      icon={<GalleryHorizontalEnd size={24} />}
                     />
-                  </div>
-                ) : (
-                  <EmptyFeature
-                    title="עדיין אין תמונות"
-                    text="כשתעדכני תמונת אולם או גלריה, היא תופיע כאן."
-                    icon={<GalleryHorizontalEnd size={24} />}
-                  />
-                )}
-              </DashboardCard>
+                  )}
+                </DashboardCard>
+              </div>
 
-              <DashboardCard
-                title="הערות ותזכורות"
-                icon={<Bell size={20} />}
-                footer="מעבר לכל ההערות"
-              >
-                <EmptyFeature
-                  title="אין הערות כרגע"
-                  text="הערות פנימיות ותזכורות לאולם יוצגו כאן בהמשך."
-                  icon={<Bell size={24} />}
-                />
-              </DashboardCard>
+              <div id="settings" className="scroll-mt-28">
+                <DashboardCard
+                  title="הערות ותזכורות"
+                  icon={<Bell size={20} />}
+                  footer="מעבר לכל ההערות"
+                >
+                  <EmptyFeature
+                    title="אין הערות כרגע"
+                    text="הערות פנימיות ותזכורות לאולם יוצגו כאן בהמשך."
+                    icon={<Bell size={24} />}
+                  />
+                </DashboardCard>
+              </div>
             </section>
           </div>
         </section>
       </div>
     </main>
-  );
-}
-
-function TopNavLink({ href, label }: { href: string; label: string }) {
-  return (
-    <Link
-      href={href}
-      className="flex h-12 flex-1 items-center justify-center border-l border-[#eadfce] bg-[#fffdf8] px-4 text-sm font-black text-[#6f6252] transition hover:bg-[#fbf5ea] hover:text-[#b98121]"
-    >
-      {label}
-    </Link>
   );
 }
 
