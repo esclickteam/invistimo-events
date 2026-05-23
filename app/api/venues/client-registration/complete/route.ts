@@ -215,16 +215,21 @@ async function updateUserPermissions({
   userId,
   email,
   recordsCount,
+  event,
 }: {
   userId: mongoose.Types.ObjectId;
   email: string;
   recordsCount: number;
+  event: any;
 }) {
   const users = getCollection("users");
 
   if (!users) {
     throw new Error("לא נמצאה קולקשן users");
   }
+
+  const venueHallId = cleanString(event?.venueHallId);
+  const venueHallName = cleanString(event?.venueHallName);
 
   await users.updateOne(
     {
@@ -235,7 +240,6 @@ async function updateUserPermissions({
         email,
 
         /*
-          חשוב:
           הושבה בלבד דרך אולם = כלול.
           לכן מבחינת המערכת זה חייב להיות פתוח ומשולם,
           כדי שלא ייזרק לעמוד /pricing.
@@ -258,7 +262,20 @@ async function updateUserPermissions({
         venueClientPaymentStatus: "paid",
         venueClientPaymentAmount: 0,
 
+        /*
+          זה התיקון החשוב:
+          לפי ה-hallId הזה הכפתור "תבניות הושבה"
+          יוכל לשלוף את כל התבניות של אותו אולם
+          מתוך venueseatingtemplates.
+        */
+        venueClientHallId: venueHallId,
+        venueHallId,
+        hallId: venueHallId,
+        venueClientHallName: venueHallName,
+        venueHallName,
+
         includeSeating: true,
+        includeDigitalSeating: true,
         includeSystem: false,
         includeCalls: false,
         includeCreditGifts: false,
@@ -279,6 +296,15 @@ async function updateUserPermissions({
         whatsappLimit: 0,
 
         allowedMessageRounds: 0,
+
+        accessModules: {
+          seating: true,
+          digitalSeating: true,
+          seatingTemplates: true,
+          rsvp: false,
+          messages: false,
+          eventProduction: false,
+        },
 
         planLimits: {
           seatingEnabled: true,
@@ -382,6 +408,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const venueHallId = cleanString(event.venueHallId);
+
+    if (!venueHallId) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "לא נמצא אולם משויך לאירוע. חסר venueHallId.",
+        },
+        { status: 400 }
+      );
+    }
+
     const selectedTemplateId = toObjectId(
       event.venueClientSelectedSeatingTemplateId
     );
@@ -399,7 +437,7 @@ export async function POST(req: NextRequest) {
     const template = await VenueSeatingTemplate.findOne({
       _id: selectedTemplateId,
       ownerId: event.venueOwnerId,
-      hallId: cleanString(event.venueHallId),
+      hallId: venueHallId,
       isActive: true,
     }).lean();
 
@@ -431,6 +469,7 @@ export async function POST(req: NextRequest) {
       userId,
       email,
       recordsCount,
+      event,
     });
 
     await events.updateOne(
@@ -445,6 +484,9 @@ export async function POST(req: NextRequest) {
 
           venueClientPackageType: "seating_only",
           venueClientRecordsCount: recordsCount,
+
+          venueClientHallId: venueHallId,
+          venueHallId,
 
           /*
             הושבה בלבד כלולה דרך האולם.
@@ -466,6 +508,7 @@ export async function POST(req: NextRequest) {
       redirectUrl: "/dashboard",
       invitationId: String(invitation._id),
       eventId: String(event._id),
+      venueClientHallId: venueHallId,
     });
   } catch (error: any) {
     console.error(

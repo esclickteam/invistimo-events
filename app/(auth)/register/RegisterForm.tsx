@@ -128,14 +128,17 @@ function RegisterFormInner() {
 
       /* 1️⃣ יצירת משתמש רגיל במודל User של Invistimo */
       const registerRes = await fetch("/api/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          ...form,
-          email: normalizedEmail,
-        }),
-      });
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  credentials: "include",
+  body: JSON.stringify({
+    ...form,
+    email: normalizedEmail,
+
+    registrationSource: isVenueClientRegistration ? "venue" : "site",
+    venueInviteToken: isVenueClientRegistration ? venueInviteToken : undefined,
+  }),
+});
 
       const registerData = await registerRes.json();
 

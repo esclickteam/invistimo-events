@@ -39,6 +39,29 @@ export async function POST(req: Request) {
     const phone = cleanString(body?.phone);
 
     /*
+      הרשמה דרך אולם:
+      מגיעה מעמוד הרשמה עם venueInviteToken.
+      בשלב הזה עדיין לא חייבים לפתוח חבילת הושבה,
+      כי אחרי ההרשמה המשתמש עובר לעמוד בחירת חבילה של לקוח אולם.
+    */
+    const registrationSource = cleanString(body?.registrationSource);
+    const venueInviteToken = cleanString(body?.venueInviteToken);
+
+    const isVenueClientRegistration =
+      registrationSource === "venue" || Boolean(venueInviteToken);
+
+    /*
+      אם בעתיד תשלחי כבר hallId בהרשמה — נשמור אותו.
+      אם לא, הוא יישמר בשלב הבא בעמוד /venue-client/packages
+      אחרי שהשרת יפענח את venueInviteToken.
+    */
+    const venueClientHallId =
+      cleanString(body?.venueClientHallId) ||
+      cleanString(body?.hallId) ||
+      cleanString(body?.venueHallId) ||
+      cleanString(body?.assignedHallId);
+
+    /*
       חשוב:
       createdByProducer במודל User הוא ObjectId.
       לכן אסור לשמור בו true/false.
@@ -75,6 +98,13 @@ export async function POST(req: Request) {
       );
     }
 
+    if (isVenueClientRegistration && !venueInviteToken) {
+      return NextResponse.json(
+        { success: false, error: "חסר קישור אולם / טוקן אולם" },
+        { status: 400 }
+      );
+    }
+
     const existing = await User.findOne({ email }).lean();
 
     if (existing) {
@@ -99,6 +129,10 @@ export async function POST(req: Request) {
 
       role: "user",
 
+      /*
+        בהרשמה דרך אולם לא פותחים עדיין חבילה כאן.
+        החבילה תיפתח בעמוד /venue-client/packages.
+      */
       plan: "plan1",
       hasPaid: false,
       paidAmount: 0,
@@ -121,8 +155,18 @@ export async function POST(req: Request) {
       includeCalls: false,
       includeCreditGifts: false,
       includeSeating: false,
+      includeDigitalSeating: false,
       includeSystem: false,
       includeDesign: false,
+
+      /*
+        שדות לקוח אולם:
+        אלה חשובים כדי שבשלב הבא נדע שהמשתמש הגיע מאולם,
+        ונוכל לפתוח לו חבילת הושבה/אישורי הגעה בהתאם.
+      */
+      venueClientSource: isVenueClientRegistration,
+      venueInviteToken: isVenueClientRegistration ? venueInviteToken : undefined,
+      venueClientHallId: venueClientHallId || undefined,
 
       /*
         כאן התיקון:
@@ -131,7 +175,12 @@ export async function POST(req: Request) {
       createdByProducer: producerObjectId,
 
       needsPasswordSetup: !isCreatedByProducer,
-      billingSource: isCreatedByProducer ? "producer" : "site",
+
+      billingSource: isCreatedByProducer
+        ? "producer"
+        : isVenueClientRegistration
+          ? "venue"
+          : "site",
     });
 
     const userId = String(user._id);

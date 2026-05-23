@@ -109,6 +109,20 @@ function VenueClientPackagesInner() {
   const userId = String(params.get("userId") || "").trim();
   const email = String(params.get("email") || "").trim();
 
+  /*
+    חשוב לתבניות הושבה:
+    אם הקישור של האולם כולל hallId / venueClientHallId,
+    אנחנו מעבירים אותו לשרת כדי שיישמר במשתמש.
+    לפי השדה הזה נשלוף אחר כך את כל התבניות של האולם.
+  */
+  const venueClientHallId = String(
+    params.get("venueClientHallId") ||
+      params.get("hallId") ||
+      params.get("venueHallId") ||
+      params.get("assignedHallId") ||
+      ""
+  ).trim();
+
   const [selectedPackage, setSelectedPackage] =
     useState<VenuePackageType>("seating_only");
 
@@ -164,6 +178,13 @@ function VenueClientPackagesInner() {
             email,
             packageType: selectedPackage,
             recordsCount: normalizedRecordsCount,
+
+            /*
+              השדה הזה חשוב כדי שהתבניות מהקולקשן
+              venueseatingtemplates יופיעו ללקוח לפי hallId.
+            */
+            venueClientHallId: venueClientHallId || undefined,
+            hallId: venueClientHallId || undefined,
           }),
         });
 
@@ -181,6 +202,8 @@ function VenueClientPackagesInner() {
       /*
         שאר החבילות:
         עוברות ל-Stripe.
+        גם כאן מעבירים hallId כדי שאחרי תשלום השרת יוכל לשמור
+        venueClientHallId למשתמש.
       */
       const res = await fetch("/api/venues/client-registration/checkout", {
         method: "POST",
@@ -195,6 +218,9 @@ function VenueClientPackagesInner() {
           packageType: selectedPackage,
           recordsCount: normalizedRecordsCount,
           totalPrice,
+
+          venueClientHallId: venueClientHallId || undefined,
+          hallId: venueClientHallId || undefined,
         }),
       });
 
@@ -301,7 +327,10 @@ function VenueClientPackagesInner() {
             <div className="mt-10 grid gap-5 lg:grid-cols-3">
               {VENUE_PACKAGES.map((pkg) => {
                 const active = selectedPackage === pkg.id;
-                const packagePrice = calculatePrice(pkg, normalizedRecordsCount);
+                const packagePrice = calculatePrice(
+                  pkg,
+                  normalizedRecordsCount
+                );
 
                 return (
                   <button
