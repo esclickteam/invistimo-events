@@ -1,10 +1,9 @@
- "use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import GuestAutocomplete from "../../components/GuestAutocomplete";
 import ScheduledMessagesTable from "@/app/components/ScheduledMessagesTable";
-
 
 /* ================= TYPES ================= */
 
@@ -33,7 +32,6 @@ type Balance = {
   whatsappRemaining?: number;
 };
 
-
 function formatEventDate(value: any): string {
   if (!value) return "";
 
@@ -60,7 +58,6 @@ function formatEventDate(value: any): string {
 
   return "";
 }
-
 
 function getLongestMessage(
   guests: Guest[],
@@ -92,13 +89,9 @@ const SMS_PACKAGES = [
   { count: 1000, price: 100 },
   { count: 1250, price: 125 },
   { count: 1500, price: 150 },
-  
 ];
 
 /* ================= TEMPLATES ================= */
-
-
-
 
 const MESSAGE_TEMPLATES: Record<
   MessageType,
@@ -107,38 +100,42 @@ const MESSAGE_TEMPLATES: Record<
   rsvp: {
     label: "אישור הגעה",
     content:
-    "היי {{name}},\nנשמח לדעת אם תגיעו לחגוג איתנו 🎉\n\nלאישור הגעה לחצו כאן:\n{{rsvpLink}}\n\nמחכים לכם באהבה 💖",
-
+      "הוזמנתם לאירוע {{invitationTitle}}.\n\n" +
+      "לצפייה בהזמנה ואישור הגעה לחצו כאן:\n" +
+      "{{rsvpLink}}\n\n" +
+      "מחכים לכם באהבה ❤️",
   },
+
   table: {
     label: "מספר שולחן",
     requiresTable: true,
     content:
-  "היי {{name}} 🌸 שמחים לראות אותך 💛\n" +
-  "מספר השולחן שלך באירוע:\n" +
-  "🪑 {{tableName}}\n\n" +
-  "📍 ניווט לאירוע:\n" +
-  "{{navigationLink}}\n\n" +
-  "מחכים לך!",
+      "תזכורת לאירוע {{invitationTitle}}.\n\n" +
+      "מספר השולחן שלך:\n" +
+      "{{tableName}}\n\n" +
+      "לניווט לאירוע:\n" +
+      "{{navigationLink}}\n\n" +
+      "נשמח לראותכם ❤️",
   },
+
   custom: {
-  label: "הודעת תודה",
-  content: "היי {{name}} 🌸\nשמחנו לראותכם באירוע.\nתודה שהשתתפתם בשמחתנו.",
-
-
-},
+    label: "הודעת תודה",
+    content:
+      "שמחנו לראותך באירוע {{invitationTitle}} ❤️\n\n" +
+      "תודה שהגעת לחגוג איתנו.",
+  },
 };
 
 /* ================= COMPONENT ================= */
 
-  export default function MessagesPage() {
+export default function MessagesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const isDemo =
-  searchParams.get("demo") === "1" ||
-  typeof window !== "undefined" && window.location.pathname.startsWith("/try/");
-
+    searchParams.get("demo") === "1" ||
+    (typeof window !== "undefined" &&
+      window.location.pathname.startsWith("/try/"));
 
   const [guests, setGuests] = useState<Guest[]>([]);
   const [invitation, setInvitation] = useState<any>(null);
@@ -152,7 +149,6 @@ const MESSAGE_TEMPLATES: Record<
 
   const [channel, setChannel] = useState<Channel>("sms");
 
-
   const [selectedPackage, setSelectedPackage] = useState<number | null>(null);
   const [selectedGuestId, setSelectedGuestId] = useState<string>("");
   const [scheduledMessages, setScheduledMessages] = useState<any[]>([]);
@@ -160,188 +156,171 @@ const MESSAGE_TEMPLATES: Record<
   const [includeGiftLink, setIncludeGiftLink] = useState(false);
   const [giftLink, setGiftLink] = useState("");
   const [testPhone, setTestPhone] = useState("");
-const [sendingTest, setSendingTest] = useState(false);
-const MAX_TEST_SMS = 10;
-const [testSmsUsed, setTestSmsUsed] = useState<number>(0);
-const [sendingMain, setSendingMain] = useState(false);
+  const [sendingTest, setSendingTest] = useState(false);
+  const MAX_TEST_SMS = 10;
+  const [testSmsUsed, setTestSmsUsed] = useState<number>(0);
+  const [sendingMain, setSendingMain] = useState(false);
 
-
-const [preview, setPreview] = useState<{
-  text: string;
-  totalChars: number;
-  parts: number;
-  overflow: number;
-  limit: number;
-  blocked: boolean; // ⭐ חדש
-  longestGuestName?: string | null;
-} | null>(null);
-
-
-
-
-
-
+  const [preview, setPreview] = useState<{
+    text: string;
+    totalChars: number;
+    parts: number;
+    overflow: number;
+    limit: number;
+    blocked: boolean; // ⭐ חדש
+    longestGuestName?: string | null;
+  } | null>(null);
 
   /* ================= SCHEDULING ================= */
 
-type SendTiming = "now" | "scheduled";
+  type SendTiming = "now" | "scheduled";
 
-const [sendTiming, setSendTiming] = useState<SendTiming>("scheduled");
-const [scheduledDate, setScheduledDate] = useState<string>("");
-const [scheduledTime, setScheduledTime] = useState<string>("");
+  const [sendTiming, setSendTiming] = useState<SendTiming>("scheduled");
+  const [scheduledDate, setScheduledDate] = useState<string>("");
+  const [scheduledTime, setScheduledTime] = useState<string>("");
 
-const scheduledAt = useMemo(() => {
-  if (sendTiming !== "scheduled" || !scheduledDate || !scheduledTime)
-    return null;
+  const scheduledAt = useMemo(() => {
+    if (sendTiming !== "scheduled" || !scheduledDate || !scheduledTime)
+      return null;
 
-  const [year, month, day] = scheduledDate.split("-").map(Number);
-  const [hour, minute] = scheduledTime.split(":").map(Number);
+    const [year, month, day] = scheduledDate.split("-").map(Number);
+    const [hour, minute] = scheduledTime.split(":").map(Number);
 
-  return new Date(year, month - 1, day, hour, minute, 0, 0);
-}, [sendTiming, scheduledDate, scheduledTime]);
+    return new Date(year, month - 1, day, hour, minute, 0, 0);
+  }, [sendTiming, scheduledDate, scheduledTime]);
 
- /* ================= LOAD DATA ================= */
+  /* ================= LOAD DATA ================= */
 
-useEffect(() => {
-  async function loadData() {
+  useEffect(() => {
+    async function loadData() {
+      /* ================= DEMO MODE ================= */
+      if (isDemo) {
+        setInvitation({
+          _id: "demo-invitation",
+          shareId: "demo123",
+          eventLocation: {
+            lat: 32.0853,
+            lng: 34.7818,
+          },
+        });
 
-    /* ================= DEMO MODE ================= */
-    if (isDemo) {
-      setInvitation({
-        _id: "demo-invitation",
-        shareId: "demo123",
-        eventLocation: {
-          lat: 32.0853,
-          lng: 34.7818,
-        },
-      });
+        setGuests([
+          {
+            _id: "demo-1",
+            name: "דנה לוי",
+            phone: "0501234567",
+            token: "token1",
+            rsvp: "pending",
+            tableName: "שולחן 5",
+          },
+          {
+            _id: "demo-2",
+            name: "יואב כהן",
+            phone: "0529876543",
+            token: "token2",
+            rsvp: "yes",
+            tableName: "שולחן 2",
+          },
+          {
+            _id: "demo-3",
+            name: "רוני ישראלי",
+            phone: "0543332211",
+            token: "token3",
+            rsvp: "pending",
+          },
+        ]);
 
-      setGuests([
-        {
-          _id: "demo-1",
-          name: "דנה לוי",
-          phone: "0501234567",
-          token: "token1",
-          rsvp: "pending",
-          tableName: "שולחן 5",
-        },
-        {
-          _id: "demo-2",
-          name: "יואב כהן",
-          phone: "0529876543",
-          token: "token2",
-          rsvp: "yes",
-          tableName: "שולחן 2",
-        },
-        {
-          _id: "demo-3",
-          name: "רוני ישראלי",
-          phone: "0543332211",
-          token: "token3",
-          rsvp: "pending",
-        },
-      ]);
+        setBalance({
+          maxMessages: 300,
+          remainingMessages: 300,
+        });
 
-      setBalance({
-        maxMessages: 300,
-        remainingMessages: 300,
-      });
-
-      setLoading(false);
-      return; // ⛔ חשוב: עוצר כאן ולא ממשיך לפרודקשן
-    }
-
-    /* ================= PRODUCTION ================= */
-try {
-  const invRes = await fetch("/api/invitations/my");
-  const invData = await invRes.json();
-
-  setInvitation(invData.invitation ?? null);
-
-  // 🔹 טוענים יתרת הודעות תמיד
-  const balanceRes = await fetch("/api/messages/balance", {
-  credentials: "include",
-  cache: "no-store",
-});
-
-const balanceData = await balanceRes.json();
-if (balanceData.success) {
-  setBalance(balanceData);
-}
-
-
-
-  // 🔹 אורחים – רק אם יש הזמנה
-  if (invData.invitation?._id) {
-  const guestsRes = await fetch(
-    `/api/guests?invitation=${invData.invitation._id}`
-  );
-  const guestsData = await guestsRes.json();
-  setGuests(guestsData.guests || []);
-
-  console.log("GUESTS FROM API:", guestsData.guests);
-
-}
-
-} finally {
-  setLoading(false);
-}
-
-  }
-
-  loadData();
-}, [isDemo]);
-
-
-useEffect(() => {
-  if (channel !== "sms" || isDemo) return;
-
-  async function loadTestBalance() {
-    try {
-      const res = await fetch("/api/sms/test/balance", {
-        credentials: "include",
-        cache: "no-store",
-      });
-
-      if (!res.ok) return;
-
-      const data = await res.json();
-
-      if (typeof data.used === "number") {
-        setTestSmsUsed(data.used);
+        setLoading(false);
+        return; // ⛔ חשוב: עוצר כאן ולא ממשיך לפרודקשן
       }
-    } catch (err) {
-      console.error("❌ Failed to load test SMS balance", err);
+
+      /* ================= PRODUCTION ================= */
+      try {
+        const invRes = await fetch("/api/invitations/my");
+        const invData = await invRes.json();
+
+        setInvitation(invData.invitation ?? null);
+
+        // 🔹 טוענים יתרת הודעות תמיד
+        const balanceRes = await fetch("/api/messages/balance", {
+          credentials: "include",
+          cache: "no-store",
+        });
+
+        const balanceData = await balanceRes.json();
+        if (balanceData.success) {
+          setBalance(balanceData);
+        }
+
+        // 🔹 אורחים – רק אם יש הזמנה
+        if (invData.invitation?._id) {
+          const guestsRes = await fetch(
+            `/api/guests?invitation=${invData.invitation._id}`
+          );
+          const guestsData = await guestsRes.json();
+          setGuests(guestsData.guests || []);
+
+          console.log("GUESTS FROM API:", guestsData.guests);
+        }
+      } finally {
+        setLoading(false);
+      }
     }
-  }
 
-  loadTestBalance();
-}, [channel, isDemo]);
+    loadData();
+  }, [isDemo]);
 
+  useEffect(() => {
+    if (channel !== "sms" || isDemo) return;
 
+    async function loadTestBalance() {
+      try {
+        const res = await fetch("/api/sms/test/balance", {
+          credentials: "include",
+          cache: "no-store",
+        });
+
+        if (!res.ok) return;
+
+        const data = await res.json();
+
+        if (typeof data.used === "number") {
+          setTestSmsUsed(data.used);
+        }
+      } catch (err) {
+        console.error("❌ Failed to load test SMS balance", err);
+      }
+    }
+
+    loadTestBalance();
+  }, [channel, isDemo]);
 
   /* ================= 🔄 REFRESH AFTER UPGRADE ================= */
 
   useEffect(() => {
-  const upgraded = searchParams.get("upgraded");
-  if (!upgraded) return;
+    const upgraded = searchParams.get("upgraded");
+    if (!upgraded) return;
 
-  async function refreshBalance() {
-    const balanceRes = await fetch("/api/messages/balance", {
-      credentials: "include", // ⭐️ חובה – authToken
-      cache: "no-store",      // ⭐️ בלי קאש
-    });
+    async function refreshBalance() {
+      const balanceRes = await fetch("/api/messages/balance", {
+        credentials: "include", // ⭐️ חובה – authToken
+        cache: "no-store", // ⭐️ בלי קאש
+      });
 
-    const balanceData = await balanceRes.json();
+      const balanceData = await balanceRes.json();
 
-    if (balanceData.success) {
-      setBalance(balanceData);
-    }
-  } // ✅ סוגר פונקציה
+      if (balanceData.success) {
+        setBalance(balanceData);
+      }
+    } // ✅ סוגר פונקציה
 
-  refreshBalance(); // ✅ קריאה לפונקציה
-}, [searchParams]);
-
+    refreshBalance(); // ✅ קריאה לפונקציה
+  }, [searchParams]);
 
   /* ================= PRESELECT GUEST ================= */
 
@@ -355,205 +334,186 @@ useEffect(() => {
 
   /* ================= RESET SCHEDULING WHEN WHATSAPP ================= */
 
-useEffect(() => {
-  if (channel === "whatsapp") {
-    setSendTiming("scheduled");
-    setScheduledDate("");
-    setScheduledTime("");
-  }
-}, [channel]);
+  useEffect(() => {
+    if (channel === "whatsapp") {
+      setSendTiming("scheduled");
+      setScheduledDate("");
+      setScheduledTime("");
+    }
+  }, [channel]);
 
-useEffect(() => {
-  if (channel !== "sms") {
-    setIncludeGiftLink(false);
-    setGiftLink("");
-  }
-}, [channel]);
-
-
-
-
-
+  useEffect(() => {
+    if (channel !== "sms") {
+      setIncludeGiftLink(false);
+      setGiftLink("");
+    }
+  }, [channel]);
 
   /* ================= LOGIC ================= */
-
- 
-
-
 
   const guestsToSend = useMemo(() => {
     return guests.filter((g) => {
       if (filter === "pending") return g.rsvp === "pending";
       if (filter === "withTable") return !!g.tableName || !!g.tableNumber;
 
-    
-
-
       return true;
     });
   }, [guests, filter]);
 
   const whatsappGuestsToSend = useMemo(() => {
-  return guests.filter((g) => {
-    if (filter === "pending") return g.rsvp === "pending";
-    if (filter === "withTable") return !!g.tableName || !!g.tableNumber;
-    return true;
-  });
-}, [guests, filter]);
+    return guests.filter((g) => {
+      if (filter === "pending") return g.rsvp === "pending";
+      if (filter === "withTable") return !!g.tableName || !!g.tableNumber;
+      return true;
+    });
+  }, [guests, filter]);
 
-useEffect(() => {
-  if (channel !== "whatsapp") return;
-  if (!selectedGuestId) return;
+  useEffect(() => {
+    if (channel !== "whatsapp") return;
+    if (!selectedGuestId) return;
 
-  const exists = whatsappGuestsToSend.some((g) => g._id === selectedGuestId);
-  if (!exists) setSelectedGuestId("");
-}, [channel, selectedGuestId, whatsappGuestsToSend]);
+    const exists = whatsappGuestsToSend.some((g) => g._id === selectedGuestId);
+    if (!exists) setSelectedGuestId("");
+  }, [channel, selectedGuestId, whatsappGuestsToSend]);
 
+  const hasSmsBalance = balance !== null && balance.remainingMessages > 0;
 
-
-   const hasSmsBalance =
-    balance !== null && balance.remainingMessages > 0;
-
-
-const disableSend =
-  guestsToSend.length === 0 ||
-  !!preview?.blocked ||
-  (channel === "sms" &&
-    (!balance ||
-      balance.remainingMessages < guestsToSend.length * (preview?.parts ?? 1)));
-
-
-
+  const disableSend =
+    guestsToSend.length === 0 ||
+    !!preview?.blocked ||
+    (channel === "sms" &&
+      (!balance ||
+        balance.remainingMessages <
+          guestsToSend.length * (preview?.parts ?? 1)));
 
   const buildMessage = (guest: Guest) => {
-  if (!invitation) return "";
+    if (!invitation) return "";
 
-  // ⭐ מקור אמת אחד
-  const baseTemplate = message;
+    // ⭐ מקור אמת אחד
+    const baseTemplate = message;
 
-  const location = invitation?.eventId?.location;
-  const hasLocation = !!(location?.lat && location?.lng);
+    const location = invitation?.eventId?.location;
+    const hasLocation = !!(location?.lat && location?.lng);
 
-  // 📍 ניווט – רק אם צריך ויש מיקום
-  const navigationLink =
-  templateKey === "table" && hasLocation
-    ? `https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`
-    : "";
+    // 📍 ניווט – רק אם צריך ויש מיקום
+    const navigationLink =
+      templateKey === "table" && hasLocation
+        ? `https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`
+        : "";
 
-  const rsvpLink = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
+    const rsvpLink = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
 
-  // 🪑 מספר שולחן
-  const tableName =
-     guest.tableName ||
-    (typeof guest.tableNumber === "number"
-      ? `שולחן ${guest.tableNumber}`
-      : "");
+    // 🪑 מספר שולחן
+    const tableName =
+      guest.tableName ||
+      (typeof guest.tableNumber === "number"
+        ? `שולחן ${guest.tableNumber}`
+        : "");
 
-  let finalMessage = baseTemplate
-    .replace(/{{name}}/g, guest.name || "")
-    .replace(/{{rsvpLink}}/g, rsvpLink)
-    .replace(/{{tableName}}/g, tableName)
-    .replace(/{{navigationLink}}/g, navigationLink);
+    const invitationTitle = buildEventTitle(getEventMeta(invitation));
 
-  // 🎁 מתנה באשראי
-  if (channel === "sms" && includeGiftLink && giftLink) {
-  finalMessage += `\n\n🎁 למתנה באשראי:\n${giftLink}`;
-}
+    let finalMessage = baseTemplate
+      .replace(/{{name}}/g, guest.name || "")
+      .replace(/{{invitationTitle}}/g, invitationTitle)
+      .replace(/{{rsvpLink}}/g, rsvpLink)
+      .replace(/{{tableName}}/g, tableName)
+      .replace(/{{navigationLink}}/g, navigationLink);
 
+    // 🎁 מתנה באשראי
+    if (channel === "sms" && includeGiftLink && giftLink) {
+      finalMessage += `\n\n🎁 למתנה באשראי:\n${giftLink}`;
+    }
 
-  return finalMessage.trim();
-};
-
-function buildEventTitle(meta: { title?: string; eventType?: string }) {
-  const rawTitle = (meta.title || "").trim();
-  if (rawTitle) return rawTitle;
-
-  const normalized = (meta.eventType || "")
-    .trim()
-    .toLowerCase()
-    .replace(/[_-]/g, " ")
-    .replace(/\s+/g, " ");
-
-  if (normalized === "חתונה" || normalized === "wedding") return "החתונה שלנו";
-  if (
-    normalized === "ברית" ||
-    normalized === "brit" ||
-    normalized === "ברית מילה" ||
-    normalized === "bris"
-  ) return "הברית שלנו";
-  if (normalized === "בר מצווה" || normalized === "bar mitzvah" || normalized === "bar mitzva") return "בר המצווה שלנו";
-  if (normalized === "בת מצווה" || normalized === "bat mitzvah" || normalized === "bat mitzva") return "בת המצווה שלנו";
-  if (normalized === "חינה" || normalized === "henna") return "החינה שלנו";
-
-  return "אירוע שלנו";
-}
-
-
-
-
-function getEventMeta(invitation: any) {
-  const event = invitation?.event;
-
-  const title = event?.title || "";
-  const rawDate = event?.date || "";
-  const time = event?.time || "";
-
-  const location =
-    event?.location?.address ||
-    event?.location?.name ||
-    "";
-
-  const imageUrl =
-    typeof invitation?.previewImage === "string" &&
-    invitation.previewImage.startsWith("http")
-      ? invitation.previewImage
-      : "";
-
-  const eventType =
-    event?.eventType ||
-    event?.type ||
-    "";
-
-  const giftCreditUrl =
-    typeof event?.giftCreditUrl === "string" &&
-    event.giftCreditUrl.startsWith("http")
-      ? event.giftCreditUrl
-      : "";
-
-  return {
-    title,
-    rawDate,
-    time,
-    location,
-    imageUrl,
-    eventType,
-    giftCreditUrl,
+    return finalMessage.trim();
   };
-}
 
+  function buildEventTitle(meta: { title?: string; eventType?: string }) {
+    const rawTitle = (meta.title || "").trim();
+    if (rawTitle) return rawTitle;
 
+    const normalized = (meta.eventType || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[_-]/g, " ")
+      .replace(/\s+/g, " ");
 
+    if (normalized === "חתונה" || normalized === "wedding")
+      return "החתונה שלנו";
+    if (
+      normalized === "ברית" ||
+      normalized === "brit" ||
+      normalized === "ברית מילה" ||
+      normalized === "bris"
+    )
+      return "הברית שלנו";
+    if (
+      normalized === "בר מצווה" ||
+      normalized === "bar mitzvah" ||
+      normalized === "bar mitzva"
+    )
+      return "בר המצווה שלנו";
+    if (
+      normalized === "בת מצווה" ||
+      normalized === "bat mitzvah" ||
+      normalized === "bat mitzva"
+    )
+      return "בת המצווה שלנו";
+    if (normalized === "חינה" || normalized === "henna") return "החינה שלנו";
 
+    return "אירוע שלנו";
+  }
 
-const buildWhatsappTemplatePreview = (guest: Guest | null) => {
-  const g = guest ?? guests[0];
-  if (!g || !invitation) return "";
+  function getEventMeta(invitation: any) {
+    const event = invitation?.event;
 
-  const meta = getEventMeta(invitation);
+    const title = event?.title || "";
+    const rawDate = event?.date || "";
+    const time = event?.time || "";
 
-  const eventTitle = buildEventTitle(meta);
-  const eventDate = formatEventDate(meta.rawDate);
-  const eventLocation = meta.location || "";
-  const eventType = meta.eventType || "אירוע";
+    const location = event?.location?.address || event?.location?.name || "";
 
-  const tableName =
-    g.tableName ||
-    (typeof g.tableNumber === "number"
-      ? `שולחן ${g.tableNumber}`
-      : "");
+    const imageUrl =
+      typeof invitation?.previewImage === "string" &&
+      invitation.previewImage.startsWith("http")
+        ? invitation.previewImage
+        : "";
 
-  if (templateKey === "rsvp") {
-    return `משפחה וחברים יקרים,
+    const eventType = event?.eventType || event?.type || "";
+
+    const giftCreditUrl =
+      typeof event?.giftCreditUrl === "string" &&
+      event.giftCreditUrl.startsWith("http")
+        ? event.giftCreditUrl
+        : "";
+
+    return {
+      title,
+      rawDate,
+      time,
+      location,
+      imageUrl,
+      eventType,
+      giftCreditUrl,
+    };
+  }
+
+  const buildWhatsappTemplatePreview = (guest: Guest | null) => {
+    const g = guest ?? guests[0];
+    if (!g || !invitation) return "";
+
+    const meta = getEventMeta(invitation);
+
+    const eventTitle = buildEventTitle(meta);
+    const eventDate = formatEventDate(meta.rawDate);
+    const eventLocation = meta.location || "";
+    const eventType = meta.eventType || "אירוע";
+
+    const tableName =
+      g.tableName ||
+      (typeof g.tableNumber === "number" ? `שולחן ${g.tableNumber}` : "");
+
+    if (templateKey === "rsvp") {
+      return `משפחה וחברים יקרים,
 הנכם מוזמנים ל- ${eventTitle} 🤍
 
 📅 תאריך: ${eventDate}
@@ -562,524 +522,471 @@ const buildWhatsappTemplatePreview = (guest: Guest | null) => {
 לאישור הגעה לחצו על הכפתור למטה 👇
 
 מחכים לשמוח איתכם 💖`;
-  }
+    }
 
-if (templateKey === "table") {
-  return `היי ${g.name} 🌸
-שמחים לראות אותך 💛
+    if (templateKey === "table") {
+      return `תזכורת לאירוע ${eventTitle}.
 
 מספר השולחן שלך:
-🪑 ${tableName || "—"}
+${tableName || "—"}
 
-${meta.giftCreditUrl ? "למתנה באשראי:\nלחצו על הכפתור למטה\n\n" : ""}
+לניווט לאירוע:
 
+${meta.giftCreditUrl ? "למתנה באשראי:\nלחצו על הכפתור למטה\n\n" : ""}נשמח לראותכם ❤️`;
+    }
 
-מחכים לך!`;
-}
+    return `שמחנו לראותך באירוע ${eventTitle} ❤️
 
+תודה שהגעת לחגוג איתנו.`;
+  };
 
+  const buildTestMessage = () => {
+    if (!guests[0]) return "";
 
-  return `היי ${g.name} 🌸
-שמחנו לראותכם ב${eventType}.
-תודה שהשתתפתם בשמחתנו 💖`;
-};
+    return buildMessage(guests[0])
+      // מסיר רק את השם מהפתיח, בלי לגעת בשום דבר אחר
+      .replace(/היי\s*[^,\n]+,?\s*\n?/g, "היי\n");
+  };
 
+  useEffect(() => {
+    if (channel !== "sms" || guests.length === 0) {
+      setPreview(null);
+      return;
+    }
 
+    if (!invitation) {
+      // ⛔ מחכים להזמנה – לא מוחקים preview
+      return;
+    }
 
+    async function fetchPreview() {
+      const { text, guest } = getLongestMessage(guests, buildMessage);
 
+      if (!guest) {
+        setPreview(null);
+        return;
+      }
 
+      const res = await fetch("/api/sms/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          invitationId: invitation?._id,
+          guestId: guest?._id,
+          messageOverride: message,
+          includeGiftLink,
+          giftLink,
+        }),
+      });
 
+      const data = await res.json();
 
-const buildTestMessage = () => {
-  if (!guests[0]) return "";
+      // ❗ הגנה מלאה – אם ה־API החזיר משהו לא תקין
+      if (
+        typeof data.totalChars !== "number" ||
+        typeof data.parts !== "number"
+      ) {
+        setPreview(null);
+        return;
+      }
 
-  return buildMessage(guests[0])
-    // מסיר רק את השם מהפתיח, בלי לגעת בשום דבר אחר
-    .replace(/היי\s*[^,\n]+,?\s*\n?/g, "היי\n");
-};
+      setPreview({
+        text,
+        totalChars: data.totalChars,
+        parts: data.parts,
+        blocked: !data.allowed,
+        overflow: data.overflow ?? 0,
+        limit: data.limit ?? 320,
+        longestGuestName: guest?.name || null,
+      });
+    }
 
-useEffect(() => {
- if (channel !== "sms" || guests.length === 0) {
-  setPreview(null);
-  return;
-}
-
-if (!invitation) {
-  // ⛔ מחכים להזמנה – לא מוחקים preview
-  return;
-}
-
-
-
-
-
-  async function fetchPreview() {
-    const { text, guest } = getLongestMessage(guests, buildMessage);
-
-    if (!guest) {
-  setPreview(null);
-  return;
-}
-
-
-    const res = await fetch("/api/sms/preview", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  credentials: "include",
-  body: JSON.stringify({
-    invitationId: invitation?._id,
-    guestId: guest?._id,
-    messageOverride: message,
+    fetchPreview();
+  }, [
+    message,
+    templateKey,
     includeGiftLink,
     giftLink,
-  }),
-});
+    channel,
+    guests,
+    invitation,
+  ]);
 
+  /* ================= SEND ================= */
 
-    const data = await res.json();
-
-    // ❗ הגנה מלאה – אם ה־API החזיר משהו לא תקין
-if (
-  typeof data.totalChars !== "number" ||
-  typeof data.parts !== "number"
-) {
-  setPreview(null);
-  return;
-}
-
-setPreview({
-  text,
-  totalChars: data.totalChars,
-  parts: data.parts,
-  blocked: !data.allowed,
-  overflow: data.overflow ?? 0,
-  limit: data.limit ?? 320,
-  longestGuestName: guest?.name || null,
-});
-
-  }
-
-  fetchPreview();
-}, [
-  message,
-  templateKey,
-  includeGiftLink,
-  giftLink,
-  channel,
-  guests,
-  invitation,
-]);
-
-
-
-
-/* ================= SEND ================= */
-
-const sendWhatsApp = async (guest: Guest) => {
-
-  if (balance?.whatsappRemaining !== undefined && balance.whatsappRemaining <= 0) {
-  alert("אין יתרת הודעות WhatsApp");
-  return;
-}
-
-  
-  if (!invitation) return;
-
-  const cleanPhone =
-    typeof guest.phone === "string"
-      ? guest.phone.replace(/\D/g, "").replace(/^0/, "")
-      : "";
-
-  if (!cleanPhone) {
-    alert("מספר טלפון לא תקין");
-    return;
-  }
-
-  const to = `972${cleanPhone}`;
-
- 
-
-  let selectedTemplateName = "";
-
-if (templateKey === "rsvp") {
-  selectedTemplateName = "rsvp_invitation_media";
-}
-
-if (templateKey === "table") {
-  const meta = getEventMeta(invitation);
-
-  selectedTemplateName = meta.giftCreditUrl
-    ? "table_number_update_with_gift"
-    : "table_number_update_invistimo";
-}
-
-
-if (templateKey === "custom") {
-  selectedTemplateName = "thank_you_message";
-}
-
-
-
-  const meta = getEventMeta(invitation);
-
-const eventTitle = buildEventTitle(meta);
-const rawDate = meta.rawDate;
-const eventDate = formatEventDate(rawDate);
-const eventLocation = meta.location || "";
-const headerImageUrl = meta.imageUrl || "";
-const eventType = meta.eventType || "האירוע";
-
-
-
-console.group("📅 EVENT DATE DEBUG");
-
-console.log("rawDate (source of truth):", rawDate);
-console.log("typeof rawDate:", typeof rawDate);
-
-console.log("eventDate (after format):", eventDate);
-console.log("typeof eventDate:", typeof eventDate);
-
-console.log("Boolean(rawDate):", Boolean(rawDate));
-console.log("Boolean(eventDate):", Boolean(eventDate));
-
-console.groupEnd();
-
-
-  const rsvpLink = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
-
-  const tableName =
-    guest.tableName ||
-    (typeof guest.tableNumber === "number" ? `שולחן ${guest.tableNumber}` : "");
-
-  if (templateKey === "table" && !tableName) {
-    alert("לא ניתן לשלוח הודעת שולחן לאורח בלי שולחן משויך");
-    return;
-  }
-
-  if (templateKey === "rsvp") {
-
-    if (!rawDate) {
-  alert("חסר תאריך אירוע (eventDate) בהזמנה");
-  return;
-}
-
-    if (!eventLocation) {
-      alert("חסר מיקום אירוע (eventLocation) בהזמנה");
-      return;
-    }
-    
-    if (!headerImageUrl || !headerImageUrl.startsWith("http")) {
-  alert("תמונת ההזמנה חייבת להיות URL ציבורי (לא base64)");
-  return;
-}
-  }
-
-  let eventId: string | undefined;
-
-if (templateKey === "rsvp") {
-  eventId = invitation?.eventId?._id;
-
-  if (!eventId) {
-    alert("חסר eventId לשליחת WhatsApp");
-    return;
-  }
-}
-
-
-  try {
-    let payload: any = {
-  to,
-  templateName: selectedTemplateName,
-  languageCode: "he",
-};
-
-if (templateKey === "rsvp") {
-  payload = {
-    ...payload,
-    eventId,
-    eventTitle: String(eventTitle),
-    eventDate: String(eventDate),
-    eventLocation: String(eventLocation),
-    rsvpLink: String(rsvpLink),
-    headerImageUrl: String(headerImageUrl),
-  };
-}
-
-if (templateKey === "table") {
-  const urlSuffix = `${invitation.shareId}?token=${guest.token}`;
-  const meta = getEventMeta(invitation);
-
-  payload = {
-    ...payload,
-    eventId: invitation?.eventId?._id,
-    name: guest.name || "",
-    tableName: tableName || "",
-    eventType: String(eventType),
-    urlSuffix,
-    giftCreditUrl: meta.giftCreditUrl || undefined,
-  };
-}
-
-if (templateKey === "custom") {
-  payload = {
-    ...payload,
-    name: guest.name || "",
-  };
-}
-
-const res = await fetch("/api/whatsapp/send-template", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  credentials: "include",
-  body: JSON.stringify(payload),
-});
-
-
-    const data = await res.json().catch(() => ({}));
-
-    if (!res.ok || !data?.success) {
-      console.error("❌ WhatsApp template failed:", data);
-      alert(data?.error || "שליחת WhatsApp נכשלה");
+  const sendWhatsApp = async (guest: Guest) => {
+    if (
+      balance?.whatsappRemaining !== undefined &&
+      balance.whatsappRemaining <= 0
+    ) {
+      alert("אין יתרת הודעות WhatsApp");
       return;
     }
 
-    alert("✅ הודעת WhatsApp נשלחה בהצלחה");
+    if (!invitation) return;
 
-    // 🔄 ריענון יתרה אחרי שליחת WhatsApp
-const balanceRes = await fetch("/api/messages/balance", {
-  credentials: "include",
-  cache: "no-store",
-});
+    const cleanPhone =
+      typeof guest.phone === "string"
+        ? guest.phone.replace(/\D/g, "").replace(/^0/, "")
+        : "";
 
-const balanceData = await balanceRes.json();
-if (balanceData.success) {
-  setBalance(balanceData);
-}
-
-  } catch (err) {
-    console.error("❌ sendWhatsApp error:", err);
-    alert("❌ שגיאה בשליחת WhatsApp");
-  }
-};
-
-
-
-
-  const sendSMS = async () => {
-  if (!invitation || !hasSmsBalance) {
-    console.warn("❌ No invitation or no SMS balance");
-    return;
-  }
-
-
-
-  try {
-  const res = await fetch("/api/sms/send", {
-  method: "POST",
-  credentials: "include",
-  headers: { "Content-Type": "application/json" },
-
-  body: JSON.stringify({
-  invitationId: invitation._id,
-
-  // ⛔️ filter כבר לא קריטי כשהולכים לפי IDs
-  // אפשר להשאיר או להסיר – השרת יתעלם ממנו אם יש guestIds
-  filter,
-
-  templateKey,
-  scheduledAt,
-  includeGiftLink,
-  giftLink,
-  messageOverride: message,
-
-  // ⭐️ זה החלק הקריטי
-  guestIds: guestsToSend.map((g) => g._id),
-}),
-});
-
-    console.log("📬 SMS API status:", res.status);
-
-    const data = await res.json();
-    console.log("📦 SMS API response:", data);
-
-    if (!res.ok || !data?.success) {
-  if (isDemo) {
-    alert("🟡 אתם במצב דמו\nלשליחת הודעות אמיתית – יש להצטרף ולרכוש חבילה");
-  } else {
-    alert("❌ שליחת SMS נכשלה");
-  }
-  return;
-}
-
-
-if (data.scheduled) {
-  alert(`⏱️ ההודעה תוזמנה בהצלחה\nתישלח ל־${data.guestsCount} אורחים`);
-} else {
-  alert(`✅ נשלחו ${data.sent} הודעות`);
-}
-
-    // 🔄 ריענון יתרה אחרי שליחה
-    const balanceRes = await fetch("/api/messages/balance", {
-  credentials: "include",
-  cache: "no-store",
-});
-
-const balanceData = await balanceRes.json();
-if (balanceData.success) {
-  setBalance(balanceData);
-}
-
-  } catch (err) {
-    console.error("💥 SMS SEND ERROR:", err);
-    alert("❌ שגיאה בשליחת SMS");
-  }
-};
-
-
-const sendTestMessage = async () => {
-  if (!testPhone) {
-    alert("נא להזין מספר טלפון לבדיקה");
-    return;
-  }
-
-  try {
-    setSendingTest(true);
-
-    const res = await fetch("/api/sms/test", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({
-        phone: testPhone,
-        
-        message: buildTestMessage(),
-
-
-      }),
-    });
-
-    const data = await res.json();
-
-    if (!res.ok || !data.success) {
-      alert("שליחת הודעת בדיקה נכשלה");
+    if (!cleanPhone) {
+      alert("מספר טלפון לא תקין");
       return;
     }
 
-    alert(
-  `✅ הודעת בדיקה נשלחה\nתחויב ב־${data.parts} הודעות SMS`
-);
+    const to = `972${cleanPhone}`;
 
-setTestPhone("");
+    let selectedTemplateName = "";
 
-setTestSmsUsed((prev) =>
-  typeof prev === "number" ? prev + data.parts : prev
-);
-
-
-  } catch (err) {
-    alert("❌ שגיאה בשליחת הודעת בדיקה");
-  } finally {
-    setSendingTest(false);
-  }
-};
-
-const loadScheduledMessages = async () => {
-  try {
-    const res = await fetch("/api/scheduled-messages", {
-      credentials: "include",
-      cache: "no-store",
-    });
-
-    const data = await res.json();
-
-    if (data?.success) {
-      setScheduledMessages(Array.isArray(data.messages) ? data.messages : []);
-    } else {
-      setScheduledMessages([]);
+    if (templateKey === "rsvp") {
+      selectedTemplateName = "rsvp_invitation_media";
     }
-  } catch (err) {
-    console.error("❌ Failed to load scheduled messages", err);
-    setScheduledMessages([]);
-  }
-};
 
+    if (templateKey === "table") {
+      const meta = getEventMeta(invitation);
 
+      selectedTemplateName = meta.giftCreditUrl
+        ? "table_number_update_with_gift"
+        : "table_number_update_invistimo";
+    }
 
-  const sendToAll = async () => {
-  if (sendingMain) return;
-  setSendingMain(true);
+    if (templateKey === "custom") {
+      selectedTemplateName = "thank_you_message";
+    }
 
-  try {
-    if (isDemo) {
-      alert("🟡 זהו דמו בלבד\nכדי לשלוח הודעות אמיתיות יש לפתוח אירוע");
+    const meta = getEventMeta(invitation);
+
+    const eventTitle = buildEventTitle(meta);
+    const rawDate = meta.rawDate;
+    const eventDate = formatEventDate(rawDate);
+    const eventLocation = meta.location || "";
+    const headerImageUrl = meta.imageUrl || "";
+    const eventType = meta.eventType || "האירוע";
+
+    console.group("📅 EVENT DATE DEBUG");
+
+    console.log("rawDate (source of truth):", rawDate);
+    console.log("typeof rawDate:", typeof rawDate);
+
+    console.log("eventDate (after format):", eventDate);
+    console.log("typeof eventDate:", typeof eventDate);
+
+    console.log("Boolean(rawDate):", Boolean(rawDate));
+    console.log("Boolean(eventDate):", Boolean(eventDate));
+
+    console.groupEnd();
+
+    const rsvpLink = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
+
+    const tableName =
+      guest.tableName ||
+      (typeof guest.tableNumber === "number"
+        ? `שולחן ${guest.tableNumber}`
+        : "");
+
+    if (templateKey === "table" && !tableName) {
+      alert("לא ניתן לשלוח הודעת שולחן לאורח בלי שולחן משויך");
       return;
     }
 
-     // 🎁 ולידציה – קישור מתנה באשראי
-    if (includeGiftLink && !giftLink) {
-      alert("נא להזין קישור למתנה באשראי");
-      return;
-    }
+    if (templateKey === "rsvp") {
+      if (!rawDate) {
+        alert("חסר תאריך אירוע (eventDate) בהזמנה");
+        return;
+      }
 
-    // ⏱️ ולידציה לתזמון
-    if (sendTiming === "scheduled" && !scheduledAt) {
-      alert("נא לבחור תאריך ושעה לשליחה");
-      return;
-    }
+      if (!eventLocation) {
+        alert("חסר מיקום אירוע (eventLocation) בהזמנה");
+        return;
+      }
 
-    // ❗ לחסום תזמון ל־WhatsApp
-    if (channel === "whatsapp" && sendTiming === "scheduled") {
-      alert("תזמון זמין כרגע לשליחת SMS בלבד");
-      return;
-    }
-
-    // 🔒 ולידציה לתבניות שדורשות שולחן
-    if (channel === "sms") {
-      const template = MESSAGE_TEMPLATES[templateKey];
-
-      if (template.requiresTable && filter !== "withTable") {
-        alert("הודעת מספר שולחן ניתנת לשליחה רק למוזמנים עם שולחן");
+      if (!headerImageUrl || !headerImageUrl.startsWith("http")) {
+        alert("תמונת ההזמנה חייבת להיות URL ציבורי (לא base64)");
         return;
       }
     }
 
-    // 🚀 שליחה בפועל
-    if (channel === "whatsapp") {
-  // אם נבחר אורח ספציפי
-  const guestsToSend = selectedGuestId
-    ? whatsappGuestsToSend.filter((g) => g._id === selectedGuestId)
-    : whatsappGuestsToSend;
+    let eventId: string | undefined;
 
-  if (guestsToSend.length === 0) {
-    alert("אין אורחים לשליחה");
-    return;
-  }
+    if (templateKey === "rsvp") {
+      eventId = invitation?.eventId?._id;
 
-  for (const guest of guestsToSend) {
-    await sendWhatsApp(guest);
-  }
+      if (!eventId) {
+        alert("חסר eventId לשליחת WhatsApp");
+        return;
+      }
+    }
 
-  alert(`נשלחו ${guestsToSend.length} הודעות WhatsApp`);
-} else {
-  await sendSMS();
-}
+    try {
+      let payload: any = {
+        to,
+        templateName: selectedTemplateName,
+        languageCode: "he",
+      };
 
-    
-  } finally {
-    setSendingMain(false);
-  }
-};
+      if (templateKey === "rsvp") {
+        payload = {
+          ...payload,
+          eventId,
+          eventTitle: String(eventTitle),
+          eventDate: String(eventDate),
+          eventLocation: String(eventLocation),
+          rsvpLink: String(rsvpLink),
+          headerImageUrl: String(headerImageUrl),
+        };
+      }
 
+      if (templateKey === "table") {
+        const urlSuffix = `${invitation.shareId}?token=${guest.token}`;
+        const meta = getEventMeta(invitation);
 
+        payload = {
+          ...payload,
+          eventId: invitation?.eventId?._id,
+          name: guest.name || "",
+          tableName: tableName || "",
+          eventType: String(eventType),
+          urlSuffix,
+          giftCreditUrl: meta.giftCreditUrl || undefined,
+        };
+      }
 
+      if (templateKey === "custom") {
+        payload = {
+          ...payload,
+          name: guest.name || "",
+        };
+      }
 
+      const res = await fetch("/api/whatsapp/send-template", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
 
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data?.success) {
+        console.error("❌ WhatsApp template failed:", data);
+        alert(data?.error || "שליחת WhatsApp נכשלה");
+        return;
+      }
+
+      alert("✅ הודעת WhatsApp נשלחה בהצלחה");
+
+      // 🔄 ריענון יתרה אחרי שליחת WhatsApp
+      const balanceRes = await fetch("/api/messages/balance", {
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      const balanceData = await balanceRes.json();
+      if (balanceData.success) {
+        setBalance(balanceData);
+      }
+    } catch (err) {
+      console.error("❌ sendWhatsApp error:", err);
+      alert("❌ שגיאה בשליחת WhatsApp");
+    }
+  };
+
+  const sendSMS = async () => {
+    if (!invitation || !hasSmsBalance) {
+      console.warn("❌ No invitation or no SMS balance");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/sms/send", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+
+        body: JSON.stringify({
+          invitationId: invitation._id,
+
+          // ⛔️ filter כבר לא קריטי כשהולכים לפי IDs
+          // אפשר להשאיר או להסיר – השרת יתעלם ממנו אם יש guestIds
+          filter,
+
+          templateKey,
+          scheduledAt,
+          includeGiftLink,
+          giftLink,
+          messageOverride: message,
+
+          // ⭐️ זה החלק הקריטי
+          guestIds: guestsToSend.map((g) => g._id),
+        }),
+      });
+
+      console.log("📬 SMS API status:", res.status);
+
+      const data = await res.json();
+      console.log("📦 SMS API response:", data);
+
+      if (!res.ok || !data?.success) {
+        if (isDemo) {
+          alert("🟡 אתם במצב דמו\nלשליחת הודעות אמיתית – יש להצטרף ולרכוש חבילה");
+        } else {
+          alert("❌ שליחת SMS נכשלה");
+        }
+        return;
+      }
+
+      if (data.scheduled) {
+        alert(`⏱️ ההודעה תוזמנה בהצלחה\nתישלח ל־${data.guestsCount} אורחים`);
+      } else {
+        alert(`✅ נשלחו ${data.sent} הודעות`);
+      }
+
+      // 🔄 ריענון יתרה אחרי שליחה
+      const balanceRes = await fetch("/api/messages/balance", {
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      const balanceData = await balanceRes.json();
+      if (balanceData.success) {
+        setBalance(balanceData);
+      }
+    } catch (err) {
+      console.error("💥 SMS SEND ERROR:", err);
+      alert("❌ שגיאה בשליחת SMS");
+    }
+  };
+
+  const sendTestMessage = async () => {
+    if (!testPhone) {
+      alert("נא להזין מספר טלפון לבדיקה");
+      return;
+    }
+
+    try {
+      setSendingTest(true);
+
+      const res = await fetch("/api/sms/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          phone: testPhone,
+
+          message: buildTestMessage(),
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        alert("שליחת הודעת בדיקה נכשלה");
+        return;
+      }
+
+      alert(`✅ הודעת בדיקה נשלחה\nתחויב ב־${data.parts} הודעות SMS`);
+
+      setTestPhone("");
+
+      setTestSmsUsed((prev) =>
+        typeof prev === "number" ? prev + data.parts : prev
+      );
+    } catch (err) {
+      alert("❌ שגיאה בשליחת הודעת בדיקה");
+    } finally {
+      setSendingTest(false);
+    }
+  };
+
+  const loadScheduledMessages = async () => {
+    try {
+      const res = await fetch("/api/scheduled-messages", {
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      const data = await res.json();
+
+      if (data?.success) {
+        setScheduledMessages(Array.isArray(data.messages) ? data.messages : []);
+      } else {
+        setScheduledMessages([]);
+      }
+    } catch (err) {
+      console.error("❌ Failed to load scheduled messages", err);
+      setScheduledMessages([]);
+    }
+  };
+
+  const sendToAll = async () => {
+    if (sendingMain) return;
+    setSendingMain(true);
+
+    try {
+      if (isDemo) {
+        alert("🟡 זהו דמו בלבד\nכדי לשלוח הודעות אמיתיות יש לפתוח אירוע");
+        return;
+      }
+
+      // 🎁 ולידציה – קישור מתנה באשראי
+      if (includeGiftLink && !giftLink) {
+        alert("נא להזין קישור למתנה באשראי");
+        return;
+      }
+
+      // ⏱️ ולידציה לתזמון
+      if (sendTiming === "scheduled" && !scheduledAt) {
+        alert("נא לבחור תאריך ושעה לשליחה");
+        return;
+      }
+
+      // ❗ לחסום תזמון ל־WhatsApp
+      if (channel === "whatsapp" && sendTiming === "scheduled") {
+        alert("תזמון זמין כרגע לשליחת SMS בלבד");
+        return;
+      }
+
+      // 🔒 ולידציה לתבניות שדורשות שולחן
+      if (channel === "sms") {
+        const template = MESSAGE_TEMPLATES[templateKey];
+
+        if (template.requiresTable && filter !== "withTable") {
+          alert("הודעת מספר שולחן ניתנת לשליחה רק למוזמנים עם שולחן");
+          return;
+        }
+      }
+
+      // 🚀 שליחה בפועל
+      if (channel === "whatsapp") {
+        // אם נבחר אורח ספציפי
+        const guestsToSend = selectedGuestId
+          ? whatsappGuestsToSend.filter((g) => g._id === selectedGuestId)
+          : whatsappGuestsToSend;
+
+        if (guestsToSend.length === 0) {
+          alert("אין אורחים לשליחה");
+          return;
+        }
+
+        for (const guest of guestsToSend) {
+          await sendWhatsApp(guest);
+        }
+
+        alert(`נשלחו ${guestsToSend.length} הודעות WhatsApp`);
+      } else {
+        await sendSMS();
+      }
+    } finally {
+      setSendingMain(false);
+    }
+  };
 
   const selectedGuest =
-  whatsappGuestsToSend.find((g) => g._id === selectedGuestId) || null;
+    whatsappGuestsToSend.find((g) => g._id === selectedGuestId) || null;
 
-
-      /* ================= PREVIEW HELPER ================= */
+  /* ================= PREVIEW HELPER ================= */
   const renderPreviewText = (text: string) => {
     return text.split("\n").map((line, i) => (
       <p key={i} className="leading-relaxed">
@@ -1089,811 +996,727 @@ const loadScheduledMessages = async () => {
   };
 
   const getWhatsappPreviewText = () => {
-  const guest = selectedGuest || whatsappGuestsToSend[0] || null;
-  return buildWhatsappTemplatePreview(guest);
-};
+    const guest = selectedGuest || whatsappGuestsToSend[0] || null;
+    return buildWhatsappTemplatePreview(guest);
+  };
 
-
-
-const smsPreviewText =
-  channel === "sms"
-    ? preview?.text ?? ""
-    : message;
-
-
-
-
+  const smsPreviewText = channel === "sms" ? preview?.text ?? "" : message;
 
   /* ================= RENDER ================= */
 
   if (loading) return null;
 
-// בפרודקשן – חובה הזמנה, בדמו לא חוסמים תצוגה
-const hasInvitation = !!invitation;
-
+  // בפרודקשן – חובה הזמנה, בדמו לא חוסמים תצוגה
+  const hasInvitation = !!invitation;
 
   const remaining = balance?.remainingMessages ?? 0;
-const max = balance?.maxMessages ?? 0;
-const used = max - remaining;
-const progress = max > 0 ? (used / max) * 100 : 0;
+  const max = balance?.maxMessages ?? 0;
+  const used = max - remaining;
+  const progress = max > 0 ? (used / max) * 100 : 0;
 
-const isWhatsapp = channel === "whatsapp";
+  const isWhatsapp = channel === "whatsapp";
 
-const remainingDynamic = isWhatsapp
-  ? balance?.whatsappRemaining ?? 0
-  : balance?.remainingMessages ?? 0;
+  const remainingDynamic = isWhatsapp
+    ? balance?.whatsappRemaining ?? 0
+    : balance?.remainingMessages ?? 0;
 
-const maxDynamic = isWhatsapp
-  ? balance?.whatsappBalance ?? 0
-  : balance?.maxMessages ?? 0;
+  const maxDynamic = isWhatsapp
+    ? balance?.whatsappBalance ?? 0
+    : balance?.maxMessages ?? 0;
 
-const progressDynamic =
-  maxDynamic > 0 ? (remainingDynamic / maxDynamic) * 100 : 0;
+  const progressDynamic =
+    maxDynamic > 0 ? (remainingDynamic / maxDynamic) * 100 : 0;
 
+  const balanceTitle = isWhatsapp
+    ? "💬 יתרת הודעות WhatsApp"
+    : "💬 יתרת הודעות SMS";
 
-const balanceTitle = isWhatsapp
-  ? "💬 יתרת הודעות WhatsApp"
-  : "💬 יתרת הודעות SMS";
+  const balanceSubTitle = isWhatsapp
+    ? "שליחות זמינות לאירוע"
+    : "הודעות SMS זמינות";
 
-const balanceSubTitle = isWhatsapp
-  ? "שליחות זמינות לאירוע"
-  : "הודעות SMS זמינות";
+  const gradientClasses = isWhatsapp
+    ? "from-[#eef7ff] to-[#e6f0ff] border-blue-200"
+    : "from-[#fff7f0] to-[#f7ede2] border-[#e2d6c8]";
 
-const gradientClasses = isWhatsapp
-  ? "from-[#eef7ff] to-[#e6f0ff] border-blue-200"
-  : "from-[#fff7f0] to-[#f7ede2] border-[#e2d6c8]";
+  return (
+    <div className="p-10 flex flex-col items-center" dir="rtl">
+      {isDemo && (
+        <div className="mb-4 px-4 py-2 bg-yellow-100 text-yellow-800 rounded-xl text-sm">
+          🧪 מצב הדגמה – שליחת הודעות זמינה לאחר{" "}
+          <a
+            href="https://www.invistimo.com/pricing"
+            className="
+              font-semibold
+              underline
+              underline-offset-2
+              text-amber-700
+              hover:text-amber-900
+              transition
+              whitespace-nowrap
+            "
+          >
+            הצטרפות
+          </a>
+        </div>
+      )}
 
+      <button
+        onClick={() => router.back()}
+        className="text-sm text-gray-500 mb-3 hover:underline self-start"
+      >
+        ← חזרה
+      </button>
 
- return (
-  <div className="p-10 flex flex-col items-center" dir="rtl">
-    {isDemo && (
-      <div className="mb-4 px-4 py-2 bg-yellow-100 text-yellow-800 rounded-xl text-sm">
-        🧪 מצב הדגמה – שליחת הודעות זמינה לאחר{" "}
-        <a
-          href="https://www.invistimo.com/pricing"
-          className="
-            font-semibold
-            underline
-            underline-offset-2
-            text-amber-700
-            hover:text-amber-900
-            transition
-            whitespace-nowrap
-          "
-        >
-          הצטרפות
-        </a>
+      <div className="w-full max-w-[900px] flex items-center justify-center mb-8">
+        <h1 className="text-3xl font-semibold text-[#4a413a] text-center">
+          שליחת הודעות לאורחים 💌
+        </h1>
       </div>
-    )}
 
-    <button
-  onClick={() => router.back()}
-  className="text-sm text-gray-500 mb-3 hover:underline self-start"
->
-  ← חזרה
-</button>
-
-<div className="w-full max-w-[900px] flex items-center justify-center mb-8">
-  <h1 className="text-3xl font-semibold text-[#4a413a] text-center">
-    שליחת הודעות לאורחים 💌
-  </h1>
-</div>
-
-
-
-
-
-
-
-
-
-{/* ================= BALANCE CARD (DYNAMIC) ================= */}
-{balance && typeof remainingDynamic === "number" && (
-  <div
-    className={`bg-gradient-to-r ${gradientClasses} border rounded-2xl shadow-md p-6 w-[90%] md:w-[600px] text-center mb-10`}
-  >
-    <h2 className="text-lg font-semibold text-[#4a413a] mb-2">
-      {balanceTitle}
-    </h2>
-
-    <div className="w-full bg-black/5 h-3 rounded-full overflow-hidden mb-3">
-      <div
-        className={`h-full transition-all duration-500 ${
-          remainingDynamic === 0 ? "bg-red-500" : "bg-green-500"
-        }`}
-        style={{ width: `${progressDynamic}%` }}
-      />
-    </div>
-
-    <p className="text-4xl font-bold text-[#4a413a] mb-1">
-      {remainingDynamic}
-    </p>
-
-    <p className="text-sm text-[#6b5e52] mb-1">
-      {balanceSubTitle}
-    </p>
-
-    {remainingDynamic <= 2 && remainingDynamic > 0 && (
-      <p className="text-xs text-orange-600">
-        ⚠️ נותרו מעט הודעות
-      </p>
-    )}
-
-    {remainingDynamic === 0 && (
-      <p className="text-xs text-red-600">
-        ❌ אין יתרה זמינה
-      </p>
-    )}
-
-    {/* רכישת חבילה רק ל-SMS */}
-    {!isWhatsapp && (
-      <div className="mt-5">
-        <select
-          className="w-full border rounded-xl p-3 mb-3"
-          value={selectedPackage ?? ""}
-          onChange={(e) => setSelectedPackage(Number(e.target.value))}
+      {/* ================= BALANCE CARD (DYNAMIC) ================= */}
+      {balance && typeof remainingDynamic === "number" && (
+        <div
+          className={`bg-gradient-to-r ${gradientClasses} border rounded-2xl shadow-md p-6 w-[90%] md:w-[600px] text-center mb-10`}
         >
-          <option value="">בחרו חבילת הודעות לרכישה</option>
-          {SMS_PACKAGES.map((pkg) => (
-            <option key={pkg.count} value={pkg.count}>
-              {pkg.count.toLocaleString()} הודעות ב־{pkg.price} ₪
-            </option>
-          ))}
-        </select>
+          <h2 className="text-lg font-semibold text-[#4a413a] mb-2">
+            {balanceTitle}
+          </h2>
 
-        <button
-          onClick={() =>
-            router.push(
-              `/dashboard/purchase-sms?priceKey=extra_messages_${selectedPackage}`
-            )
-          }
-          disabled={!selectedPackage}
-          className="w-full py-3 bg-[#c9a46a] text-white rounded-xl font-semibold disabled:opacity-50"
-        >
-          💳 מעבר לתשלום ורכישת הודעות
-        </button>
-      </div>
-    )}
-  </div>
-)}
+          <div className="w-full bg-black/5 h-3 rounded-full overflow-hidden mb-3">
+            <div
+              className={`h-full transition-all duration-500 ${
+                remainingDynamic === 0 ? "bg-red-500" : "bg-green-500"
+              }`}
+              style={{ width: `${progressDynamic}%` }}
+            />
+          </div>
 
+          <p className="text-4xl font-bold text-[#4a413a] mb-1">
+            {remainingDynamic}
+          </p>
+
+          <p className="text-sm text-[#6b5e52] mb-1">{balanceSubTitle}</p>
+
+          {remainingDynamic <= 2 && remainingDynamic > 0 && (
+            <p className="text-xs text-orange-600">⚠️ נותרו מעט הודעות</p>
+          )}
+
+          {remainingDynamic === 0 && (
+            <p className="text-xs text-red-600">❌ אין יתרה זמינה</p>
+          )}
+
+          {/* רכישת חבילה רק ל-SMS */}
+          {!isWhatsapp && (
+            <div className="mt-5">
+              <select
+                className="w-full border rounded-xl p-3 mb-3"
+                value={selectedPackage ?? ""}
+                onChange={(e) => setSelectedPackage(Number(e.target.value))}
+              >
+                <option value="">בחרו חבילת הודעות לרכישה</option>
+                {SMS_PACKAGES.map((pkg) => (
+                  <option key={pkg.count} value={pkg.count}>
+                    {pkg.count.toLocaleString()} הודעות ב־{pkg.price} ₪
+                  </option>
+                ))}
+              </select>
+
+              <button
+                onClick={() =>
+                  router.push(
+                    `/dashboard/purchase-sms?priceKey=extra_messages_${selectedPackage}`
+                  )
+                }
+                disabled={!selectedPackage}
+                className="w-full py-3 bg-[#c9a46a] text-white rounded-xl font-semibold disabled:opacity-50"
+              >
+                💳 מעבר לתשלום ורכישת הודעות
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* CHANNEL */}
       {/* ================= STEP 1: CHANNEL ================= */}
-{/* ================= STEP 3: MESSAGE ================= */}
-<section className="w-[90%] md:w-[600px] mb-10">
-  <div className="mb-4">
-    <h2 className="text-lg font-semibold text-[#4a413a]">
-      3️⃣ תוכן ההודעה
-    </h2>
-    <p className="text-sm text-gray-500">
-      בחרו תבנית או ערכו את ההודעה לפני השליחה
-    </p>
-  </div>
+      {/* ================= STEP 3: MESSAGE ================= */}
+      <section className="w-[90%] md:w-[600px] mb-10">
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold text-[#4a413a]">
+            3️⃣ תוכן ההודעה
+          </h2>
+          <p className="text-sm text-gray-500">
+            בחרו תבנית או ערכו את ההודעה לפני השליחה
+          </p>
+        </div>
 
+        <div className="flex gap-4">
+          <button
+            disabled={!hasInvitation && !isDemo}
+            onClick={() => setChannel("sms")}
+            className={`px-4 py-2 rounded-full border ${
+              channel === "sms" ? "bg-blue-600 text-white" : ""
+            } ${!hasInvitation && !isDemo ? "opacity-40 cursor-not-allowed" : ""}`}
+          >
+            SMS
+          </button>
+        </div>
 
-  <div className="flex gap-4">
-    
-
-    <button
-      disabled={!hasInvitation && !isDemo}
-      onClick={() => setChannel("sms")}
-      className={`px-4 py-2 rounded-full border ${
-        channel === "sms" ? "bg-blue-600 text-white" : ""
-      } ${!hasInvitation && !isDemo ? "opacity-40 cursor-not-allowed" : ""}`}
-    >
-      SMS
-    </button>
-  </div>
-
-  {/* טקסט הכוונה מקצועי */}
-  <p className="text-xs text-gray-500 mt-2">
-  </p>
-</section>
-
-
+        {/* טקסט הכוונה מקצועי */}
+        <p className="text-xs text-gray-500 mt-2"></p>
+      </section>
 
       {channel === "whatsapp" && (
-  <div className="w-[90%] md:w-[600px] mb-6 space-y-4">
-    <div>
-      <label className="block mb-2 font-semibold text-[#4a413a]">
-        קהל יעד:
-      </label>
+        <div className="w-[90%] md:w-[600px] mb-6 space-y-4">
+          <div>
+            <label className="block mb-2 font-semibold text-[#4a413a]">
+              קהל יעד:
+            </label>
 
-      <select
-        value={filter}
-        onChange={(e) => setFilter(e.target.value as FilterType)}
-        className="w-full border rounded-xl p-3"
-      >
-        <option value="all">לכל המוזמנים ({guests.length})</option>
-        <option value="pending">
-          למי שטרם ענה ({guests.filter(g => g.rsvp === "pending").length})
-        </option>
-        <option value="withTable">
-          למי שיש מספר שולחן ({guests.filter(g => g.tableName || g.tableNumber).length})
-        </option>
-      </select>
-    </div>
+            <select
+              value={filter}
+              onChange={(e) => setFilter(e.target.value as FilterType)}
+              className="w-full border rounded-xl p-3"
+            >
+              <option value="all">לכל המוזמנים ({guests.length})</option>
+              <option value="pending">
+                למי שטרם ענה (
+                {guests.filter((g) => g.rsvp === "pending").length})
+              </option>
+              <option value="withTable">
+                למי שיש מספר שולחן (
+                {guests.filter((g) => g.tableName || g.tableNumber).length})
+              </option>
+            </select>
+          </div>
 
-    <div>
-      <label className="block mb-2 font-semibold text-[#4a413a]">
-        בחר/י מוזמן לשליחה:
-      </label>
+          <div>
+            <label className="block mb-2 font-semibold text-[#4a413a]">
+              בחר/י מוזמן לשליחה:
+            </label>
 
-      <GuestAutocomplete
-        guests={whatsappGuestsToSend}
-        value={selectedGuest}
-        onSelect={(id: string) => setSelectedGuestId(id)}
-      />
-    </div>
-  </div>
-)}
-
+            <GuestAutocomplete
+              guests={whatsappGuestsToSend}
+              value={selectedGuest}
+              onSelect={(id: string) => setSelectedGuestId(id)}
+            />
+          </div>
+        </div>
+      )}
 
       {/* ================= STEP 2: AUDIENCE ================= */}
-{channel === "sms" && (
-  <section className="w-[90%] md:w-[600px] mb-10">
-    <div className="mb-4">
-      <h2 className="text-lg font-semibold text-[#4a413a]">
-        2️⃣ קהל יעד
-      </h2>
-      <p className="text-sm text-gray-500">
-        בחרו אילו אורחים יקבלו את ההודעה
-      </p>
-    </div>
+      {channel === "sms" && (
+        <section className="w-[90%] md:w-[600px] mb-10">
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold text-[#4a413a]">
+              2️⃣ קהל יעד
+            </h2>
+            <p className="text-sm text-gray-500">
+              בחרו אילו אורחים יקבלו את ההודעה
+            </p>
+          </div>
 
-    <select
-      value={filter}
-      onChange={(e) => setFilter(e.target.value as FilterType)}
-      className="w-full border rounded-xl p-3"
-    >
-      <option value="all">
-        לכל המוזמנים ({guests.length})
-      </option>
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value as FilterType)}
+            className="w-full border rounded-xl p-3"
+          >
+            <option value="all">לכל המוזמנים ({guests.length})</option>
 
-      <option value="pending">
-        למי שטרם ענה ({guests.filter(g => g.rsvp === "pending").length})
-      </option>
+            <option value="pending">
+              למי שטרם ענה (
+              {guests.filter((g) => g.rsvp === "pending").length})
+            </option>
 
-      <option value="withTable">
-        למי שיש מספר שולחן (
-        {guests.filter(g => g.tableName || g.tableNumber).length})
-      </option>
-    </select>
+            <option value="withTable">
+              למי שיש מספר שולחן (
+              {guests.filter((g) => g.tableName || g.tableNumber).length})
+            </option>
+          </select>
 
-    {/* חיווי בטחון */}
-    <div className="mt-3">
-      <p className="text-sm text-[#4a413a]">
-        יישלח ל־<strong>{guestsToSend.length}</strong> אורחים
-      </p>
+          {/* חיווי בטחון */}
+          <div className="mt-3">
+            <p className="text-sm text-[#4a413a]">
+              יישלח ל־<strong>{guestsToSend.length}</strong> אורחים
+            </p>
 
-      {filter === "pending" && (
-        <p className="text-xs text-green-600 mt-1">
-          ✔ מומלץ – מגדיל שיעור אישורי הגעה
-        </p>
+            {filter === "pending" && (
+              <p className="text-xs text-green-600 mt-1">
+                ✔ מומלץ – מגדיל שיעור אישורי הגעה
+              </p>
+            )}
+
+            {filter === "withTable" && (
+              <p className="text-xs text-blue-600 mt-1">
+                ℹ️ רק אורחים ששובצו לשולחן יקבלו הודעה
+              </p>
+            )}
+
+            {filter === "all" && (
+              <p className="text-xs text-orange-600 mt-1"></p>
+            )}
+          </div>
+
+          {isDemo && (
+            <p className="text-xs text-gray-500 mt-2">
+              🧪 בדמו ניתן לצפות בפילוחים – שליחה פעילה לאחר פתיחת אירוע
+            </p>
+          )}
+        </section>
       )}
-
-      {filter === "withTable" && (
-        <p className="text-xs text-blue-600 mt-1">
-          ℹ️ רק אורחים ששובצו לשולחן יקבלו הודעה
-        </p>
-      )}
-
-      {filter === "all" && (
-        <p className="text-xs text-orange-600 mt-1">
-        </p>
-      )}
-    </div>
-
-    {isDemo && (
-      <p className="text-xs text-gray-500 mt-2">
-        🧪 בדמו ניתן לצפות בפילוחים – שליחה פעילה לאחר פתיחת אירוע
-      </p>
-    )}
-  </section>
-)}
-
-
 
       <div className="w-[90%] md:w-[600px] mb-2">
-  <label className="block font-semibold text-[#4a413a] mb-1">
-    תוכן ההודעה:
-  </label>
-  <p className="text-sm text-gray-500">
-    בחרו הודעה מתוך מאגר התבניות או ערכו את הטקסט לפי הצורך
-  </p>
-</div>
-
+        <label className="block font-semibold text-[#4a413a] mb-1">
+          תוכן ההודעה:
+        </label>
+        <p className="text-sm text-gray-500">
+          בחרו הודעה מתוך מאגר התבניות או ערכו את הטקסט לפי הצורך
+        </p>
+      </div>
 
       <select
-  value={templateKey}
-  onChange={(e) => {
-    const key = e.target.value as MessageType;
-    setTemplateKey(key);
-    setMessage(MESSAGE_TEMPLATES[key].content);
-  }}
-  className="w-[90%] md:w-[600px] border rounded-xl p-3 mb-4"
->
+        value={templateKey}
+        onChange={(e) => {
+          const key = e.target.value as MessageType;
+          setTemplateKey(key);
+          setMessage(MESSAGE_TEMPLATES[key].content);
+        }}
+        className="w-[90%] md:w-[600px] border rounded-xl p-3 mb-4"
+      >
+        {Object.entries(MESSAGE_TEMPLATES).map(([key, t]) => (
+          <option key={key} value={key}>
+            {t.label}
+          </option>
+        ))}
+      </select>
 
-  {Object.entries(MESSAGE_TEMPLATES).map(([key, t]) => (
-    <option key={key} value={key}>
-      {t.label}
-    </option>
-  ))}
-</select>
-
-{channel === "whatsapp" && (
-  <p className="w-[90%] md:w-[600px] text-xs text-gray-500 -mt-2 mb-4">
-    ב־WhatsApp נשלחת תבנית מאושרת לפי סוג ההודעה שנבחר. ניתן לבחור אישור הגעה, מספר שולחן או הודעת תודה.
-  </p>
-)}
-
-
+      {channel === "whatsapp" && (
+        <p className="w-[90%] md:w-[600px] text-xs text-gray-500 -mt-2 mb-4">
+          ב־WhatsApp נשלחת תבנית מאושרת לפי סוג ההודעה שנבחר. ניתן לבחור אישור
+          הגעה, מספר שולחן או הודעת תודה.
+        </p>
+      )}
 
       {templateKey === "table" && filter !== "withTable" && (
-  <p className="text-xs text-red-600 mt-2">
-    ❌ הודעת מספר שולחן זמינה רק לשליחה לאורחים עם שולחן
-  </p>
-)}
+        <p className="text-xs text-red-600 mt-2">
+          ❌ הודעת מספר שולחן זמינה רק לשליחה לאורחים עם שולחן
+        </p>
+      )}
 
+      {channel === "sms" && (
+        <>
+          <textarea
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            rows={6}
+            className="w-[90%] md:w-[600px] border rounded-xl p-4 mb-6"
+          />
 
-{channel === "sms" && (
-  <>
-    <textarea
-      value={message}
-      onChange={(e) => setMessage(e.target.value)}
-      rows={6}
-      className="w-[90%] md:w-[600px] border rounded-xl p-4 mb-6"
-    />
+          <div className="w-[90%] md:w-[600px] -mt-4 mb-4">
+            {/* הערה קריטית – משתנים דינמיים */}
+            <p className="text-xs text-gray-500 leading-relaxed">
+              ℹ️ המשתנים בסוגריים מתעדכנים אוטומטית ואינם ניתנים לעריכה (
+              <span className="font-mono">{`{{name}}`}</span>,
+              <span className="font-mono">{`{{rsvpLink}}`}</span>,
+              <span className="font-mono">{`{{tableName}}`}</span>).
+            </p>
+          </div>
+        </>
+      )}
 
-    <div className="w-[90%] md:w-[600px] -mt-4 mb-4">
-      {/* הערה קריטית – משתנים דינמיים */}
-      <p className="text-xs text-gray-500 leading-relaxed">
-        ℹ️ המשתנים בסוגריים מתעדכנים אוטומטית ואינם ניתנים לעריכה (
-        <span className="font-mono">{`{{name}}`}</span>,
-        <span className="font-mono">{`{{rsvpLink}}`}</span>,
-        <span className="font-mono">{`{{tableName}}`}</span>).
-      </p>
-    </div>
-  </>
-)}
+      {preview && (
+        <p
+          className={`text-xs mt-1 text-left ${
+            preview.blocked
+              ? "text-red-600"
+              : preview.parts > 1
+                ? "text-orange-600"
+                : "text-gray-500"
+          }`}
+        >
+          {preview.blocked
+            ? `❌ חרגת מהמגבלה · ${preview.totalChars}/${preview.limit ?? 320} תווים`
+            : preview.parts === 1
+              ? `הודעה אחת · ${preview.totalChars}/200`
+              : `שתי הודעות · ${preview.totalChars} תווים (חריגה: ${preview.overflow})`}
 
+          {!preview.blocked && (
+            <span className="block text-[11px] text-gray-500">
+              ההודעה תחויב ב־
+              <strong> {preview.parts} הודעות SMS</strong>
+            </span>
+          )}
+        </p>
+      )}
 
+      {/* ================= CREDIT GIFT LINK ================= */}
+      {channel === "sms" && templateKey === "table" && (
+        <div className="w-[90%] md:w-[600px] mb-6 border rounded-xl p-4 bg-[#faf9f7]">
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={includeGiftLink}
+              onChange={(e) => setIncludeGiftLink(e.target.checked)}
+              className="mt-1"
+            />
+            <span className="text-sm text-[#4a413a]">
+              תוספת להודעה: קישור למתנות באשראי
+            </span>
+          </label>
 
-     {preview && (
-  <p
-    className={`text-xs mt-1 text-left ${
-      preview.blocked ? "text-red-600" : preview.parts > 1 ? "text-orange-600" : "text-gray-500"
-    }`}
-  >
-    {preview.blocked
-  ? `❌ חרגת מהמגבלה · ${preview.totalChars}/${preview.limit ?? 320} תווים`
-  : preview.parts === 1
-  ? `הודעה אחת · ${preview.totalChars}/200`
-  : `שתי הודעות · ${preview.totalChars} תווים (חריגה: ${preview.overflow})`}
+          {includeGiftLink && (
+            <div className="mt-4">
+              <label className="block text-sm font-semibold mb-1">
+                קישור למתנה באשראי
+              </label>
+              <input
+                type="url"
+                placeholder="https://..."
+                value={giftLink}
+                onChange={(e) => setGiftLink(e.target.value)}
+                className="w-full border rounded-xl p-3"
+              />
+            </div>
+          )}
+        </div>
+      )}
 
+      {/* PHONE PREVIEW */}
+      <div className="w-[90%] md:w-[360px] mt-4 mb-6">
+        <p className="text-sm text-gray-500 mb-2 text-center">
+          תצוגה מקדימה – כך האורח יקבל את ההודעה
+        </p>
 
-    {!preview.blocked && (
-      <span className="block text-[11px] text-gray-500">
-        ההודעה תחויב ב־
-        <strong> {preview.parts} הודעות SMS</strong>
-      </span>
-    )}
-  </p>
-)}
-
-
-
-
-{/* ================= CREDIT GIFT LINK ================= */}
-{channel === "sms" && templateKey === "table" && (
-  <div className="w-[90%] md:w-[600px] mb-6 border rounded-xl p-4 bg-[#faf9f7]">
-    <label className="flex items-start gap-2 cursor-pointer">
-      <input
-        type="checkbox"
-        checked={includeGiftLink}
-        onChange={(e) => setIncludeGiftLink(e.target.checked)}
-        className="mt-1"
-      />
-      <span className="text-sm text-[#4a413a]">
-        תוספת להודעה: קישור למתנות באשראי
-      </span>
-    </label>
-
-    {includeGiftLink && (
-      <div className="mt-4">
-        <label className="block text-sm font-semibold mb-1">
-          קישור למתנה באשראי
-        </label>
-        <input
-          type="url"
-          placeholder="https://..."
-          value={giftLink}
-          onChange={(e) => setGiftLink(e.target.value)}
-          className="w-full border rounded-xl p-3"
-        />
-      </div>
-    )}
-  </div>
-)}
-
-
-
-
-{/* PHONE PREVIEW */}
-<div className="w-[90%] md:w-[360px] mt-4 mb-6">
-  <p className="text-sm text-gray-500 mb-2 text-center">
-    תצוגה מקדימה – כך האורח יקבל את ההודעה
-  </p>
-
-  <div className="mx-auto bg-black rounded-[36px] p-3 shadow-xl">
-    <div
-      className={`rounded-[28px] overflow-hidden ${
-        channel === "sms" ? "bg-white" : ""
-      }`}
-      style={
-        channel === "whatsapp"
-          ? {
-              backgroundImage: "url('/whatsapp-bg.png')",
-              backgroundRepeat: "repeat",
-              backgroundSize: "auto",
+        <div className="mx-auto bg-black rounded-[36px] p-3 shadow-xl">
+          <div
+            className={`rounded-[28px] overflow-hidden ${
+              channel === "sms" ? "bg-white" : ""
+            }`}
+            style={
+              channel === "whatsapp"
+                ? {
+                    backgroundImage: "url('/whatsapp-bg.png')",
+                    backgroundRepeat: "repeat",
+                    backgroundSize: "auto",
+                  }
+                : undefined
             }
-          : undefined
-      }
-    >
-      {/* Header */}
-      <div className="bg-gray-100 text-center py-2 text-xs font-semibold">
-        INVISTIMO · {channel === "sms" ? "SMS" : "WhatsApp"}
-      </div>
+          >
+            {/* Header */}
+            <div className="bg-gray-100 text-center py-2 text-xs font-semibold">
+              INVISTIMO · {channel === "sms" ? "SMS" : "WhatsApp"}
+            </div>
 
-      {/* Message area */}
-      <div className="p-4">
-        {channel === "sms" ? (
-          // ✅ לא נגענו ב-SMS
-          <div className="flex justify-center">
-            <div className="rounded-2xl p-3 text-sm max-w-[90%] whitespace-pre-wrap leading-relaxed break-words bg-gray-200 text-gray-900">
-              {renderPreviewText(smsPreviewText)}
+            {/* Message area */}
+            <div className="p-4">
+              {channel === "sms" ? (
+                // ✅ לא נגענו ב-SMS
+                <div className="flex justify-center">
+                  <div className="rounded-2xl p-3 text-sm max-w-[90%] whitespace-pre-wrap leading-relaxed break-words bg-gray-200 text-gray-900">
+                    {renderPreviewText(smsPreviewText)}
+                  </div>
+                </div>
+              ) : (
+                // ✅ שינוי רק ל-WhatsApp
+                <div className="max-w-[92%] mx-auto">
+                  {/* תמונת ההזמנה (HEADER IMAGE) */}
+                  {templateKey === "rsvp" &&
+                    (getEventMeta(invitation)?.imageUrl ? (
+                      <img
+                        src={getEventMeta(invitation).imageUrl}
+                        alt="Invitation Header"
+                        className="w-full h-[170px] object-cover rounded-t-2xl border border-b-0 border-gray-200"
+                      />
+                    ) : (
+                      <div className="w-full h-[170px] rounded-t-2xl border border-b-0 border-gray-200 bg-gray-200 flex items-center justify-center text-xs text-gray-500">
+                        אין תמונת הזמנה
+                      </div>
+                    ))}
+
+                  {/* גוף ההודעה */}
+                  <div className="bg-[#dcf8c6] text-gray-900 border border-gray-200 border-t-0 rounded-b-2xl p-3 text-sm whitespace-pre-wrap leading-relaxed break-words">
+                    {getWhatsappPreviewText()
+                      .split("\n")
+                      .map((line, i) => (
+                        <p key={i}>{line || <span>&nbsp;</span>}</p>
+                      ))}
+                  </div>
+
+                  {/* כפתור CTA כמו בתבנית */}
+                  {templateKey === "rsvp" && (
+                    <button
+                      type="button"
+                      disabled
+                      className="mt-2 w-full bg-white border border-gray-200 rounded-xl py-2 text-sm font-medium text-[#1d6fb8]"
+                    >
+                      אישור הגעה
+                    </button>
+                  )}
+
+                  {templateKey === "table" && (
+                    <div className="mt-2 border-t border-gray-200 bg-white">
+                      {/* כפתור ניווט */}
+                      <div className="border-b border-gray-200">
+                        <div className="py-3 text-center text-sm font-medium text-[#1d6fb8] flex items-center justify-center gap-2">
+                          <span>🔗</span>
+                          ניווט לאירוע
+                        </div>
+                      </div>
+
+                      {/* כפתור מתנה באשראי */}
+                      {getEventMeta(invitation)?.giftCreditUrl && (
+                        <div>
+                          <div className="py-3 text-center text-sm font-medium text-[#1d6fb8] flex items-center justify-center gap-2">
+                            <span>🔗</span>
+                            מתנה באשראי
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
-        ) : (
-          // ✅ שינוי רק ל-WhatsApp
-          <div className="max-w-[92%] mx-auto">
-            {/* תמונת ההזמנה (HEADER IMAGE) */}
-            {templateKey === "rsvp" &&
-  (getEventMeta(invitation)?.imageUrl ? (
-    <img
-      src={getEventMeta(invitation).imageUrl}
-      alt="Invitation Header"
-      className="w-full h-[170px] object-cover rounded-t-2xl border border-b-0 border-gray-200"
-    />
-  ) : (
-    <div className="w-full h-[170px] rounded-t-2xl border border-b-0 border-gray-200 bg-gray-200 flex items-center justify-center text-xs text-gray-500">
-      אין תמונת הזמנה
-    </div>
-  ))}
-
-            {/* גוף ההודעה */}
-            <div className="bg-[#dcf8c6] text-gray-900 border border-gray-200 border-t-0 rounded-b-2xl p-3 text-sm whitespace-pre-wrap leading-relaxed break-words">
-              {getWhatsappPreviewText()
-                .split("\n")
-                .map((line, i) => (
-                  <p key={i}>{line || <span>&nbsp;</span>}</p>
-                ))}
-            </div>
-
-            {/* כפתור CTA כמו בתבנית */}
-            {templateKey === "rsvp" && (
-  <button
-    type="button"
-    disabled
-    className="mt-2 w-full bg-white border border-gray-200 rounded-xl py-2 text-sm font-medium text-[#1d6fb8]"
-  >
-    אישור הגעה
-  </button>
-)}
-
-{templateKey === "table" && (
-  <div className="mt-2 border-t border-gray-200 bg-white">
-
-    {/* כפתור ניווט */}
-    <div className="border-b border-gray-200">
-      <div className="py-3 text-center text-sm font-medium text-[#1d6fb8] flex items-center justify-center gap-2">
-        <span>🔗</span>
-        ניווט לאירוע
-      </div>
-    </div>
-
-    {/* כפתור מתנה באשראי */}
-    {getEventMeta(invitation)?.giftCreditUrl && (
-
-      <div>
-        <div className="py-3 text-center text-sm font-medium text-[#1d6fb8] flex items-center justify-center gap-2">
-          <span>🔗</span>
-          מתנה באשראי
         </div>
       </div>
-    )}
-  </div>
-)}
 
+      {/* ================= TEST MESSAGE ================= */}
+      {channel === "sms" && !isDemo && (
+        <div className="w-[90%] md:w-[600px] mb-6 border rounded-xl p-4 bg-[#faf9f7]">
+          <h3 className="text-sm font-semibold text-[#4a413a] mb-2">
+            🧪 שליחת הודעה לבדיקה
+          </h3>
 
+          <p className="text-xs text-gray-500 mb-3">
+            ההודעה תישלח למספר זה בלבד · החיוב לפי אורך ההודעה
+          </p>
 
+          {testSmsUsed !== null && (
+            <p
+              className={`text-xs mb-3 ${
+                MAX_TEST_SMS - testSmsUsed === 0
+                  ? "text-red-600"
+                  : "text-gray-600"
+              }`}
+            >
+              בדיקות שנשארו:{" "}
+              <strong>
+                {MAX_TEST_SMS - testSmsUsed} / {MAX_TEST_SMS}
+              </strong>
+            </p>
+          )}
 
+          <div className="flex gap-3">
+            <input
+              type="tel"
+              placeholder="05XXXXXXXX"
+              value={testPhone}
+              onChange={(e) => setTestPhone(e.target.value)}
+              className="flex-1 border rounded-xl p-3"
+            />
+
+            <button
+              onClick={sendTestMessage}
+              disabled={
+                sendingTest ||
+                preview?.blocked || // ⭐ חדש
+                (!!preview &&
+                  testSmsUsed !== null &&
+                  testSmsUsed + preview.parts > MAX_TEST_SMS)
+              }
+              className="px-4 py-3 rounded-xl bg-gray-200 text-gray-800 text-sm font-medium disabled:opacity-50"
+            >
+              {sendingTest ? "שולח..." : "שלח לבדיקה"}
+            </button>
           </div>
-        )}
-      </div>
-    </div>
-  </div>
-</div>
 
+          {preview && (
+            <p className="text-xs text-gray-600 mt-1 text-right">
+              הודעת בדיקה זו תחויב ב־
+              <strong> {preview.parts} הודעות SMS</strong>
+            </p>
+          )}
+        </div>
+      )}
 
+      {/* ================= MESSAGE TIMING ================= */}
+      {channel === "sms" && !isDemo && (
+        <div className="w-[90%] md:w-[600px] mb-6 border rounded-xl p-4 bg-[#faf9f7]">
+          <label className="block font-semibold text-[#4a413a] mb-3">
+            ⏱️ תזמון ההודעה
+          </label>
 
+          {/* בחירת סוג שליחה */}
+          <div className="flex flex-col gap-3 mb-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                checked={sendTiming === "now"}
+                onChange={() => setSendTiming("now")}
+              />
+              <span className="font-medium">שליחה מיידית</span>
+            </label>
 
-{/* ================= TEST MESSAGE ================= */}
-{channel === "sms" && !isDemo && (
-  <div className="w-[90%] md:w-[600px] mb-6 border rounded-xl p-4 bg-[#faf9f7]">
-    <h3 className="text-sm font-semibold text-[#4a413a] mb-2">
-      🧪 שליחת הודעה לבדיקה
-    </h3>
+            {sendTiming === "now" && (
+              <div className="mr-6 mt-1">
+                <p className="text-xs text-orange-600">
+                  ⚠️ ההודעה תישלח מיד ולא ניתן יהיה לבטל את השליחה
+                </p>
+                <p className="text-[11px] text-gray-500 mt-1">
+                  לאחר השליחה יש להמתין מספר שניות לקבלת אישור.
+                </p>
+              </div>
+            )}
 
+            <label className="flex items-center gap-2 cursor-pointer mt-2">
+              <input
+                type="radio"
+                checked={sendTiming === "scheduled"}
+                onChange={() => setSendTiming("scheduled")}
+              />
+              <span className="font-medium">שליחה מתוזמנת</span>
+            </label>
 
-    <p className="text-xs text-gray-500 mb-3">
-  ההודעה תישלח למספר זה בלבד · החיוב לפי אורך ההודעה
-</p>
+            {sendTiming === "scheduled" && (
+              <p className="text-xs text-green-600 mr-6">
+                ✔ ניתן לערוך או לבטל את ההודעה עד מועד השליחה
+              </p>
+            )}
+          </div>
 
+          {/* תאריך ושעה */}
+          {sendTiming === "scheduled" && (
+            <div className="flex gap-4 mb-2">
+              <div className="flex-1">
+                <label className="text-sm text-gray-600 block mb-1">
+                  תאריך שליחה
+                </label>
+                <input
+                  type="date"
+                  min={new Date().toLocaleDateString("en-CA")}
+                  value={scheduledDate}
+                  onChange={(e) => setScheduledDate(e.target.value)}
+                  className="w-full border rounded-xl p-3"
+                />
+              </div>
 
-    {testSmsUsed !== null && (
-  <p
-    className={`text-xs mb-3 ${
-      MAX_TEST_SMS - testSmsUsed === 0
-        ? "text-red-600"
-        : "text-gray-600"
-    }`}
-  >
-    בדיקות שנשארו:{" "}
-    <strong>
-      {MAX_TEST_SMS - testSmsUsed} / {MAX_TEST_SMS}
-    </strong>
-  </p>
-)}
+              <div className="flex-1">
+                <label className="text-sm text-gray-600 block mb-1">
+                  שעת שליחה
+                </label>
+                <input
+                  type="time"
+                  value={scheduledTime}
+                  onChange={(e) => setScheduledTime(e.target.value)}
+                  className="w-full border rounded-xl p-3"
+                />
+              </div>
+            </div>
+          )}
 
+          {/* סיכום קטן */}
+          {sendTiming === "scheduled" && scheduledAt && (
+            <p className="text-xs text-gray-500 mt-2">
+              📅 ההודעה תישלח ב־
+              <strong>{scheduledAt.toLocaleDateString("he-IL")}</strong>{" "}
+              בשעה{" "}
+              <strong>
+                {scheduledAt.toLocaleTimeString("he-IL", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </strong>
+            </p>
+          )}
+        </div>
+      )}
 
-    <div className="flex gap-3">
-      <input
-        type="tel"
-        placeholder="05XXXXXXXX"
-        value={testPhone}
-        onChange={(e) => setTestPhone(e.target.value)}
-        className="flex-1 border rounded-xl p-3"
-      />
-
+      {/* כפתור שליחה ראשי */}
       <button
-  onClick={sendTestMessage}
-  disabled={
-  sendingTest ||
-  preview?.blocked || // ⭐ חדש
-  (!!preview &&
-    testSmsUsed !== null &&
-    testSmsUsed + preview.parts > MAX_TEST_SMS)
-}
-  className="px-4 py-3 rounded-xl bg-gray-200 text-gray-800 text-sm font-medium disabled:opacity-50"
->
-  {sendingTest ? "שולח..." : "שלח לבדיקה"}
-</button>
+        onClick={sendToAll}
+        disabled={
+          sendingMain ||
+          isDemo ||
+          (channel === "whatsapp"
+            ? whatsappGuestsToSend.length === 0 ||
+              (!!balance && (balance.whatsappRemaining ?? 0) <= 0)
+            : disableSend)
+        }
+        title={
+          isDemo
+            ? "שליחה זמינה לאחר פתיחת אירוע"
+            : channel === "whatsapp" &&
+                !!balance &&
+                (balance.whatsappRemaining ?? 0) <= 0
+              ? "אין יתרת הודעות WhatsApp"
+              : undefined
+        }
+        className="
+          w-[90%] md:w-[600px]
+          bg-green-600 text-white
+          py-4 rounded-xl text-lg font-semibold
+          disabled:opacity-50 disabled:cursor-not-allowed
+        "
+      >
+        {sendingMain
+          ? "שולח..."
+          : isDemo
+            ? "🔒 שליחה זמינה לאחר פתיחת אירוע"
+            : channel === "whatsapp" &&
+                !!balance &&
+                (balance.whatsappRemaining ?? 0) <= 0
+              ? "❌ אין יתרת WhatsApp"
+              : channel === "whatsapp"
+                ? "💬 שלח ב־WhatsApp"
+                : `📩 שליחה (${guestsToSend.length})`}
+      </button>
 
-      
-    </div>
-
-    {preview && (
-  <p className="text-xs text-gray-600 mt-1 text-right">
-    הודעת בדיקה זו תחויב ב־
-    <strong> {preview.parts} הודעות SMS</strong>
-  </p>
-)}
-
-  </div>
-)}
-
-
- {/* ================= MESSAGE TIMING ================= */}
-{channel === "sms" && !isDemo && (
-
-  <div className="w-[90%] md:w-[600px] mb-6 border rounded-xl p-4 bg-[#faf9f7]">
-  <label className="block font-semibold text-[#4a413a] mb-3">
-    ⏱️ תזמון ההודעה
-  </label>
-
-  {/* בחירת סוג שליחה */}
-  <div className="flex flex-col gap-3 mb-4">
-    <label className="flex items-center gap-2 cursor-pointer">
-      <input
-        type="radio"
-        checked={sendTiming === "now"}
-        onChange={() => setSendTiming("now")}
-      />
-      <span className="font-medium">שליחה מיידית</span>
-    </label>
-
-    {sendTiming === "now" && (
-  <div className="mr-6 mt-1">
-    <p className="text-xs text-orange-600">
-      ⚠️ ההודעה תישלח מיד ולא ניתן יהיה לבטל את השליחה
-    </p>
-    <p className="text-[11px] text-gray-500 mt-1">
-      לאחר השליחה יש להמתין מספר שניות לקבלת אישור.
-    </p>
-  </div>
-)}
-
-    <label className="flex items-center gap-2 cursor-pointer mt-2">
-      <input
-        type="radio"
-        checked={sendTiming === "scheduled"}
-        onChange={() => setSendTiming("scheduled")}
-      />
-      <span className="font-medium">שליחה מתוזמנת</span>
-    </label>
-
-    {sendTiming === "scheduled" && (
-      <p className="text-xs text-green-600 mr-6">
-        ✔ ניתן לערוך או לבטל את ההודעה עד מועד השליחה
-      </p>
-    )}
-  </div>
-
-  {/* תאריך ושעה */}
-  {sendTiming === "scheduled" && (
-    <div className="flex gap-4 mb-2">
-      <div className="flex-1">
-        <label className="text-sm text-gray-600 block mb-1">
-          תאריך שליחה
-        </label>
-        <input
-          type="date"
-          min={new Date().toLocaleDateString("en-CA")}
-          value={scheduledDate}
-          onChange={(e) => setScheduledDate(e.target.value)}
-          className="w-full border rounded-xl p-3"
-        />
-      </div>
-
-      <div className="flex-1">
-        <label className="text-sm text-gray-600 block mb-1">
-          שעת שליחה
-        </label>
-        <input
-          type="time"
-          value={scheduledTime}
-          onChange={(e) => setScheduledTime(e.target.value)}
-          className="w-full border rounded-xl p-3"
-        />
-      </div>
-    </div>
-  )}
-
-  {/* סיכום קטן */}
-  {sendTiming === "scheduled" && scheduledAt && (
-    <p className="text-xs text-gray-500 mt-2">
-      📅 ההודעה תישלח ב־
-      <strong>{scheduledAt.toLocaleDateString("he-IL")}</strong>{" "}
-      בשעה{" "}
-      <strong>
-        {scheduledAt.toLocaleTimeString("he-IL", {
-          hour: "2-digit",
-          minute: "2-digit",
-        })}
-      </strong>
-    </p>
-  )}
-</div>
-
-)}
-
-
-
-
-
-
-{/* כפתור שליחה ראשי */}
-<button
-  onClick={sendToAll}
-  disabled={
-    sendingMain ||
-    isDemo ||
-    (channel === "whatsapp"
-      ? whatsappGuestsToSend.length === 0 ||
-        !!balance && (balance.whatsappRemaining ?? 0) <= 0
-
-
-      : disableSend)
-  }
-  title={
-    isDemo
-      ? "שליחה זמינה לאחר פתיחת אירוע"
-      : channel === "whatsapp" &&
-       !!balance && (balance.whatsappRemaining ?? 0) <= 0
-
-
-      ? "אין יתרת הודעות WhatsApp"
-      : undefined
-  }
-  className="
-    w-[90%] md:w-[600px]
-    bg-green-600 text-white
-    py-4 rounded-xl text-lg font-semibold
-    disabled:opacity-50 disabled:cursor-not-allowed
-  "
->
-  {sendingMain
-    ? "שולח..."
-    : isDemo
-    ? "🔒 שליחה זמינה לאחר פתיחת אירוע"
-    : channel === "whatsapp" &&
-      !!balance && (balance.whatsappRemaining ?? 0) <= 0
-
-
-    ? "❌ אין יתרת WhatsApp"
-    : channel === "whatsapp"
-    ? "💬 שלח ב־WhatsApp"
-    : `📩 שליחה (${guestsToSend.length})`}
-</button>
-
-
-
-{/* כפתור פתיחת מודאל הודעות מתוזמנות */}
-{channel === "sms" && !isDemo && (
-  <button
-
-    onClick={async () => {
-  await loadScheduledMessages();
-  setShowScheduled(true);
-}}
-
-
-    className="mt-4 text-sm text-[#6b5e52] underline hover:text-black"
-  >
-    📅 צפייה בהודעות מתוזמנות
-  </button>
-)}
-
-
-{/* מודאל הודעות מתוזמנות – נפתח רק בלחיצה */}
-{showScheduled && (
-  <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
-    <div
-  className="
-    bg-white rounded-2xl relative
-    w-[95%] max-w-[900px]
-
-    max-h-[85vh] overflow-y-auto
-    p-4 sm:p-6
-  "
->
-
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold">📅 הודעות מתוזמנות</h2>
-
+      {/* כפתור פתיחת מודאל הודעות מתוזמנות */}
+      {channel === "sms" && !isDemo && (
         <button
-          onClick={() => setShowScheduled(false)}
-          className="text-gray-500 hover:text-black text-xl"
+          onClick={async () => {
+            await loadScheduledMessages();
+            setShowScheduled(true);
+          }}
+          className="mt-4 text-sm text-[#6b5e52] underline hover:text-black"
         >
-          ✕
+          📅 צפייה בהודעות מתוזמנות
         </button>
-      </div>
+      )}
 
-      {/* Table */}
-      <ScheduledMessagesTable
-        messages={scheduledMessages}
-        onChange={loadScheduledMessages}
-      />
-    </div>
-  </div>
-)}
+      {/* מודאל הודעות מתוזמנות – נפתח רק בלחיצה */}
+      {showScheduled && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
+          <div
+            className="
+              bg-white rounded-2xl relative
+              w-[95%] max-w-[900px]
+              max-h-[85vh] overflow-y-auto
+              p-4 sm:p-6
+            "
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">📅 הודעות מתוזמנות</h2>
 
+              <button
+                onClick={() => setShowScheduled(false)}
+                className="text-gray-500 hover:text-black text-xl"
+              >
+                ✕
+              </button>
+            </div>
 
-
-      
+            {/* Table */}
+            <ScheduledMessagesTable
+              messages={scheduledMessages}
+              onChange={loadScheduledMessages}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

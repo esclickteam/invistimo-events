@@ -199,37 +199,36 @@ const MESSAGE_TEMPLATES: Record<
   },
 
   table: {
-  requiresTable: false,
-  content:
-    "תזכורת לאירוע {{invitationTitle}}.\n\n" +
-    "מספר השולחן שלך:\n" +
-    "{{tableName}}\n\n" +
-    "לניווט לאירוע:\n" +
-    "{{navigationLink}}\n\n" +
-    "נשמח לראותכם ❤️",
-},
+    requiresTable: false,
+    content:
+      "תזכורת לאירוע {{invitationTitle}}.\n\n" +
+      "מספר השולחן שלך:\n" +
+      "{{tableName}}\n\n" +
+      "לניווט לאירוע:\n" +
+      "{{navigationLink}}\n\n" +
+      "נשמח לראותכם ❤️",
+  },
 
-reminder: {
-  requiresTable: false,
-  content:
-    "תזכורת לאירוע {{invitationTitle}}.\n\n" +
-    "מספר השולחן שלך:\n" +
-    "{{tableName}}\n\n" +
-    "לניווט לאירוע:\n" +
-    "{{navigationLink}}\n\n" +
-    "נשמח לראותכם ❤️",
-},
+  reminder: {
+    requiresTable: false,
+    content:
+      "תזכורת לאירוע {{invitationTitle}}.\n\n" +
+      "מספר השולחן שלך:\n" +
+      "{{tableName}}\n\n" +
+      "לניווט לאירוע:\n" +
+      "{{navigationLink}}\n\n" +
+      "נשמח לראותכם ❤️",
+  },
 
   custom: {
     content:
-      "היי {{name}} 🌸\n" +
-      "שמחנו לראותכם באירוע.\n" +
-      "תודה שהשתתפתם בשמחתנו.",
+      "שמחנו לראותך באירוע {{invitationTitle}} ❤️\n\n" +
+      "תודה שהגעת לחגוג איתנו.",
   },
 
   thankyou: {
     content:
-      "שמחנו לראותך באירוע {{invitationTitle}} ❤️\n" +
+      "שמחנו לראותך באירוע {{invitationTitle}} ❤️\n\n" +
       "תודה שהגעת לחגוג איתנו.",
   },
 };
