@@ -179,27 +179,21 @@ const MESSAGE_TEMPLATES: Record<
   }
 > = {
   rsvp: {
-    round1:
-      "היי {{name}},\n" +
-      "נשמח לדעת אם תגיעו ל־{{invitationTitle}} 🎉\n\n" +
-      "לאישור הגעה לחצו כאן:\n" +
-      "{{rsvpLink}}\n\n" +
-      "מחכים לכם באהבה 💖",
+  round1:
+    "הוזמנתם לאירוע {{invitationTitle}}.\n" +
+    "לצפייה בהזמנה ואישור הגעה לחצו כאן: {{rsvpLink}}\n" +
+    "מחכים לכם באהבה ❤️",
 
-    round2:
-      "היי {{name}},\n" +
-      "תזכורת קצרה לאישור הגעה ל־{{invitationTitle}} 🎉\n\n" +
-      "לאישור לחצו כאן:\n" +
-      "{{rsvpLink}}\n\n" +
-      "מחכים לכם 💖",
+  round2:
+    "תזכורת לאישור הגעה לאירוע {{invitationTitle}}.\n" +
+    "לצפייה בהזמנה ואישור הגעה לחצו כאן: {{rsvpLink}}\n" +
+    "מחכים לעדכון ❤️",
 
-    round3:
-      "היי {{name}},\n" +
-      "תזכורת נוספת לאישור הגעה ל־{{invitationTitle}} 🎉\n\n" +
-      "לאישור הגעה לחצו כאן:\n" +
-      "{{rsvpLink}}\n\n" +
-      "נשמח לעדכון 💖",
-  },
+  round3:
+    "תזכורת לאישור הגעה לאירוע {{invitationTitle}}.\n" +
+    "לצפייה בהזמנה ואישור הגעה לחצו כאן: {{rsvpLink}}\n" +
+    "מחכים לעדכון ❤️",
+},
 
   table: {
     requiresTable: false,
@@ -304,9 +298,14 @@ export async function POST(req: Request) {
       );
     }
 
+    const isAdmin =
+      user.role === "admin" ||
+      user.role === "super_admin" ||
+      user.role === "superadmin";
+
     const usesNewLogic =
-  Boolean(user.allowedMessageRounds) ||
-  Boolean(user.planLimits?.allowedMessageRounds);
+      Boolean(user.allowedMessageRounds) ||
+      Boolean(user.planLimits?.allowedMessageRounds);
 
     /* ================= BALANCE ================= */
 
@@ -377,18 +376,24 @@ export async function POST(req: Request) {
       );
     }
 
-    const baseTemplateText =
-      body.messageOverride?.trim() ||
-      body.messageContent?.trim() ||
-      body.message?.trim() ||
-      body.text?.trim() ||
-      (templateKey === "rsvp"
+    const serverTemplateText =
+      templateKey === "rsvp"
         ? round === 3
           ? template.round3 ?? template.round2 ?? ""
           : round === 2
           ? template.round2 ?? ""
           : template.round1 ?? ""
-        : template.content ?? "");
+        : template.content ?? "";
+
+    const adminTemplateText =
+      body.messageOverride?.trim() ||
+      body.messageContent?.trim() ||
+      body.message?.trim() ||
+      body.text?.trim() ||
+      "";
+
+    const baseTemplateText =
+      isAdmin && adminTemplateText ? adminTemplateText : serverTemplateText;
 
     /* ================= INVITATION ================= */
 
@@ -414,39 +419,39 @@ export async function POST(req: Request) {
     ====================================================== */
 
     if (templateKey === "rsvp" && round === 3) {
-  const permissionUser = await User.findById(user._id)
-    .select("allowedMessageRounds planLimits")
-    .lean();
+      const permissionUser = await User.findById(user._id)
+        .select("allowedMessageRounds planLimits")
+        .lean();
 
-  const allowedMessageRounds = normalizeAllowedMessageRounds(
-    permissionUser?.allowedMessageRounds ||
-      permissionUser?.planLimits?.allowedMessageRounds ||
-      2
-  );
+      const allowedMessageRounds = normalizeAllowedMessageRounds(
+        permissionUser?.allowedMessageRounds ||
+          permissionUser?.planLimits?.allowedMessageRounds ||
+          2
+      );
 
-  console.log("SMS ROUND 3 PERMISSION CHECK:", {
-    authUserId: String(user._id),
-    invitationOwnerId: String(inv.ownerId),
-    allowedMessageRounds,
-    userAllowedMessageRounds: permissionUser?.allowedMessageRounds,
-    planLimitsAllowedMessageRounds:
-      permissionUser?.planLimits?.allowedMessageRounds,
-  });
-
-  if (allowedMessageRounds < 3) {
-    return NextResponse.json(
-      {
-        success: false,
-        blocked: true,
-        error: "סבב 3 לא פתוח בחבילה של הלקוח",
-        message: "סבב 3 לא פתוח בחבילה של הלקוח.",
-        round,
+      console.log("SMS ROUND 3 PERMISSION CHECK:", {
+        authUserId: String(user._id),
+        invitationOwnerId: String(inv.ownerId),
         allowedMessageRounds,
-      },
-      { status: 403 }
-    );
-  }
-}
+        userAllowedMessageRounds: permissionUser?.allowedMessageRounds,
+        planLimitsAllowedMessageRounds:
+          permissionUser?.planLimits?.allowedMessageRounds,
+      });
+
+      if (allowedMessageRounds < 3) {
+        return NextResponse.json(
+          {
+            success: false,
+            blocked: true,
+            error: "סבב 3 לא פתוח בחבילה של הלקוח",
+            message: "סבב 3 לא פתוח בחבילה של הלקוח.",
+            round,
+            allowedMessageRounds,
+          },
+          { status: 403 }
+        );
+      }
+    }
 
     const invitationTitle = inv.title?.trim() || "האירוע שלנו";
 
@@ -535,14 +540,14 @@ export async function POST(req: Request) {
     }
 
     if (!usesNewLogic && remainingMessages <= 0) {
-  return NextResponse.json(
-    {
-      success: false,
-      error: "מכסת הודעות ה-SMS נוצלה",
-    },
-    { status: 403 }
-  );
-}
+      return NextResponse.json(
+        {
+          success: false,
+          error: "מכסת הודעות ה-SMS נוצלה",
+        },
+        { status: 403 }
+      );
+    }
 
     /* ================= LOCATION / NAVIGATION ================= */
 

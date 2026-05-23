@@ -25,6 +25,7 @@ type Props = {
   eventDate: string;
   eventLocation: string;
   headerImageUrl?: string;
+  isAdmin?: boolean;
 };
 
 type GiftOptions = {
@@ -54,25 +55,19 @@ const RSVP_REMINDER_TEMPLATE = "rsvp_reminder_invistimo";
 
 const RSVP_SMS_TEMPLATES: Record<RoundNumber, string> = {
   1:
-    "היי {{name}},\n" +
-    "נשמח לדעת אם תגיעו ל־{{invitationTitle}} 🎉\n\n" +
-    "לאישור הגעה לחצו כאן:\n" +
-    "{{rsvpLink}}\n\n" +
-    "מחכים לכם באהבה 💖",
+    "הוזמנתם לאירוע {{invitationTitle}}.\n" +
+    "לצפייה בהזמנה ואישור הגעה לחצו כאן: {{rsvpLink}}\n" +
+    "מחכים לכם באהבה ❤️",
 
   2:
-    "היי {{name}},\n" +
-    "תזכורת קצרה לאישור הגעה ל־{{invitationTitle}} 🎉\n\n" +
-    "לאישור לחצו כאן:\n" +
-    "{{rsvpLink}}\n\n" +
-    "מחכים לכם 💖",
+    "תזכורת לאישור הגעה לאירוע {{invitationTitle}}.\n" +
+    "לצפייה בהזמנה ואישור הגעה לחצו כאן: {{rsvpLink}}\n" +
+    "מחכים לעדכון ❤️",
 
   3:
-    "היי {{name}},\n" +
-    "תזכורת נוספת לאישור הגעה ל־{{invitationTitle}} 🎉\n\n" +
-    "לאישור הגעה לחצו כאן:\n" +
-    "{{rsvpLink}}\n\n" +
-    "נשמח לעדכון 💖",
+    "תזכורת לאישור הגעה לאירוע {{invitationTitle}}.\n" +
+    "לצפייה בהזמנה ואישור הגעה לחצו כאן: {{rsvpLink}}\n" +
+    "מחכים לעדכון ❤️",
 };
 
 /* ================= HELPERS ================= */
@@ -261,6 +256,7 @@ export default function RsvpTab({
   eventDate,
   eventLocation,
   headerImageUrl,
+  isAdmin = false,
 }: Props) {
  
 
@@ -832,15 +828,15 @@ setRound3Locked(Boolean(inv?.rsvpRoundSent?.round3));
           disabled: blocked,
         }
       : {
-          channel: "sms",
-          type: "rsvp",
-          invitationId,
-          audience: guestsToSend.map((g) => g._id),
-          scheduledAt,
-          messageOverride: currentSmsMessage,
-          round,
-          disabled: blocked,
-        };
+    channel: "sms",
+    type: "rsvp",
+    invitationId,
+    audience: guestsToSend.map((g) => g._id),
+    scheduledAt,
+    ...(isAdmin ? { messageOverride: currentSmsMessage } : {}),
+    round,
+    disabled: blocked,
+  };
 
   const mainButtonText = currentRoundSent
     ? `✔ סבב ${round} כבר נשלח`
@@ -1081,39 +1077,36 @@ setRound3Locked(Boolean(inv?.rsvpRoundSent?.round3));
               </div>
             </PremiumCard>
 
-            {selectedChannel === "sms" && (
-              <PremiumCard
-                icon="✏️"
-                title={`עריכת הודעת SMS - סבב ${round}`}
-                subtitle="אפשר לערוך את נוסח ההודעה בלי לשנות את הקישור האישי"
-              >
-                <textarea
-                  value={currentSmsMessage}
-                  disabled={sendingNow}
-                  onChange={(e) =>
-                    setSmsMessages((p) => ({
-                      ...p,
-                      [round]: e.target.value,
-                    }))
-                  }
-                  rows={7}
-                  className="w-full rounded-3xl border border-[#E6D6BC] bg-[#FFF9F1] px-4 py-4 text-sm leading-7 text-[#3A2417] outline-none transition focus:border-[#B9894D] focus:ring-4 focus:ring-[#E9D4AC] disabled:opacity-60"
-                />
+            {selectedChannel === "sms" && isAdmin && (
+  <PremiumCard
+    icon="✏️"
+    title={`עריכת הודעת SMS - סבב ${round}`}
+    subtitle="רק אדמין יכול לערוך את נוסח ההודעה."
+  >
+    <textarea
+      value={currentSmsMessage}
+      disabled={sendingNow}
+      onChange={(e) => {
+        setSmsMessages((p) => ({
+          ...p,
+          [round]: e.target.value,
+        }));
+      }}
+      rows={7}
+      className="w-full rounded-3xl border border-[#E6D6BC] bg-[#FFF9F1] px-4 py-4 text-sm leading-7 text-[#3A2417] outline-none transition focus:border-[#B9894D] focus:ring-4 focus:ring-[#E9D4AC] disabled:opacity-60"
+    />
 
-                <p className="mt-3 text-xs leading-6 text-[#7A5A3A]">
-                  משתנים אוטומטיים:
-                  <span className="mx-1 rounded-lg bg-[#F0E3D1] px-2 py-1 font-mono">
-                    {"{{name}}"}
-                  </span>
-                  <span className="mx-1 rounded-lg bg-[#F0E3D1] px-2 py-1 font-mono">
-                    {"{{invitationTitle}}"}
-                  </span>
-                  <span className="mx-1 rounded-lg bg-[#F0E3D1] px-2 py-1 font-mono">
-                    {"{{rsvpLink}}"}
-                  </span>
-                </p>
-              </PremiumCard>
-            )}
+    <p className="mt-3 text-xs leading-6 text-[#7A5A3A]">
+      משתנים אוטומטיים זמינים לעריכה:
+      <span className="mx-1 rounded-lg bg-[#F0E3D1] px-2 py-1 font-mono">
+        {"{{invitationTitle}}"}
+      </span>
+      <span className="mx-1 rounded-lg bg-[#F0E3D1] px-2 py-1 font-mono">
+        {"{{rsvpLink}}"}
+      </span>
+    </p>
+  </PremiumCard>
+)}
 
             <PremiumCard
               icon="🎁"

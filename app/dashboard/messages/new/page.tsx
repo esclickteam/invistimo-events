@@ -53,6 +53,7 @@ export default function NewMessagesPage() {
   const [invitationId, setInvitationId] = useState<string>("");
 
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   /* ================= LOAD DATA ================= */
 
@@ -69,6 +70,19 @@ export default function NewMessagesPage() {
         const data = await res.json();
         const invitation = data?.invitation;
         const event = invitation?.event;
+
+        const userRole =
+          data?.user?.role ||
+          data?.currentUser?.role ||
+          data?.authUser?.role ||
+          invitation?.owner?.role ||
+          "";
+
+        setIsAdmin(
+          userRole === "admin" ||
+            userRole === "super_admin" ||
+            userRole === "superadmin"
+        );
 
         if (invitation) {
           setInvitationId(invitation._id);
@@ -369,7 +383,11 @@ export default function NewMessagesPage() {
 
           <div className="relative z-10">
             {activeTab === "rsvp" && (
-              <RsvpTab invitationId={invitationId} {...meta} />
+              <RsvpTab
+                invitationId={invitationId}
+                {...meta}
+                isAdmin={isAdmin}
+              />
             )}
 
             {activeTab === "reminder" && (
