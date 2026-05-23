@@ -151,7 +151,6 @@ export default function SeatingPage() {
 
   /* ===============================
      LOAD SEATING DATA
-     נשאר לשימוש אחרי הושבה חכמה / ניקוי הושבה.
   =============================== */
   const loadSeatingData = useCallback(
     async (eventIdToLoad: string, invitationIdToLoad: string) => {
@@ -212,100 +211,6 @@ export default function SeatingPage() {
   );
 
   /* ===============================
-     LOAD MY SEATING
-     טעינה ישירה לפי המשתמש המחובר.
-     לא תלוי ב-/api/invitations/my.
-  =============================== */
-  const loadMySeatingData = useCallback(async () => {
-    const seatingRes = await fetch("/api/seating/my", {
-      cache: "no-store",
-      credentials: "include",
-    });
-
-    if (seatingRes.status === 403) {
-      setBlockReason("no-plan");
-      return false;
-    }
-
-    const seatingData = await seatingRes.json().catch(() => ({}));
-
-    if (!seatingRes.ok || seatingData?.success === false) {
-      console.error("❌ Failed loading my seating:", seatingData);
-      return false;
-    }
-
-    const eventIdFromApi: string | null = seatingData?.eventId || null;
-    const invitationIdFromApi: string | null =
-      seatingData?.invitationId || null;
-
-    if (eventIdFromApi) {
-      setEventId(eventIdFromApi);
-    }
-
-    if (invitationIdFromApi) {
-      setInvitationId(invitationIdFromApi);
-    }
-
-    let normalizedGuests: any[] = [];
-
-    if (eventIdFromApi) {
-      const gRes = await fetch(`/api/seating/guests/${eventIdFromApi}`, {
-        cache: "no-store",
-      });
-
-      if (gRes.status === 403) {
-        setBlockReason("no-plan");
-        return false;
-      }
-
-      if (gRes.ok) {
-        const gData = await gRes.json().catch(() => ({}));
-
-        normalizedGuests = (gData.guests || []).map((g: GuestDTO) => ({
-          id: g._id,
-          name: g.name,
-          rsvp: g.rsvp,
-          guestsCount: g.guestsCount,
-          arrivedCount: g.arrivedCount,
-          actualArrivedCount: g.actualArrivedCount ?? 0,
-          groupId: g.groupId ?? null,
-          count: g.guestsCount ?? 1,
-        }));
-      }
-    }
-
-    init(
-      Array.isArray(seatingData.tables) ? seatingData.tables : [],
-      normalizedGuests,
-      seatingData.background ?? null,
-      seatingData.canvasView ?? null
-    );
-
-    setZones(Array.isArray(seatingData.zones) ? seatingData.zones : []);
-
-    if (invitationIdFromApi) {
-      const grRes = await fetch(`/api/seating/groups/${invitationIdFromApi}`, {
-        cache: "no-store",
-      });
-
-      if (grRes.ok) {
-        const grData = await grRes.json().catch(() => ({}));
-        setGroups(grData.groups || []);
-      }
-    }
-
-    console.log("✅ MY SEATING LOADED:", {
-      eventId: eventIdFromApi,
-      invitationId: invitationIdFromApi,
-      tables: Array.isArray(seatingData.tables) ? seatingData.tables.length : 0,
-      zones: Array.isArray(seatingData.zones) ? seatingData.zones.length : 0,
-      source: seatingData.source || null,
-    });
-
-    return true;
-  }, [init, setGroups, setZones]);
-
-  /* ===============================
      LOAD INITIAL DATA
   =============================== */
   useEffect(() => {
@@ -337,7 +242,27 @@ export default function SeatingPage() {
           useZoneStore.getState().setZones([]);
         }
 
-        await loadMySeatingData();
+        const invRes = await fetch("/api/invitations/my", {
+          cache: "no-store",
+        });
+
+        const invData = await invRes.json();
+
+        const invitationIdFromApi: string | undefined =
+          invData?.invitation?._id;
+
+        const eventIdFromApi: string | undefined =
+          invData?.invitation?.eventId;
+
+        if (!invitationIdFromApi || !eventIdFromApi) {
+          console.error("❌ Missing invitation/event id", invData);
+          return;
+        }
+
+        setInvitationId(invitationIdFromApi);
+        setEventId(eventIdFromApi);
+
+        await loadSeatingData(eventIdFromApi, invitationIdFromApi);
       } catch (err) {
         console.error("❌ SeatingPage load error:", err);
       } finally {
@@ -346,7 +271,7 @@ export default function SeatingPage() {
     }
 
     load();
-  }, [isDemo, isVenueTemplateMode, loadMySeatingData]);
+  }, [isDemo, isVenueTemplateMode, loadSeatingData]);
 
   /* ===============================
      AUTO FIT ONE TIME
@@ -464,7 +389,6 @@ export default function SeatingPage() {
 
   /* ===============================
      SAVE VENUE TEMPLATE
-     מיועד רק למצב יצירת תבנית אולם.
   =============================== */
   const saveVenueSeatingTemplate = useCallback(async () => {
     if (!hallId) {
@@ -797,13 +721,25 @@ export default function SeatingPage() {
                 </h1>
 
                 {isProducer && (
-                  <span className="rounded-full border border-[#d7b56d]/50 bg-[#fff8e8] px-2.5 py-1 text-[11px] font-bold text-[#9b7436]">
+                  <span
+                    className="
+                      rounded-full border border-[#d7b56d]/50
+                      bg-[#fff8e8] px-2.5 py-1
+                      text-[11px] font-bold text-[#9b7436]
+                    "
+                  >
                     מצב מפיק
                   </span>
                 )}
 
                 {isVenueTemplateMode && (
-                  <span className="rounded-full border border-[#d7b56d]/50 bg-[#fff8e8] px-2.5 py-1 text-[11px] font-bold text-[#9b7436]">
+                  <span
+                    className="
+                      rounded-full border border-[#d7b56d]/50
+                      bg-[#fff8e8] px-2.5 py-1
+                      text-[11px] font-bold text-[#9b7436]
+                    "
+                  >
                     מצב תבנית אולם
                   </span>
                 )}
@@ -819,7 +755,13 @@ export default function SeatingPage() {
 
           {/* CENTER TOOLS */}
           <div className="hidden min-w-0 flex-1 items-center justify-center md:flex">
-            <div className="max-w-full overflow-x-auto rounded-[24px] border border-[#eadcca]/80 bg-white/60 px-2 py-2 shadow-inner">
+            <div
+              className="
+                max-w-full overflow-x-auto rounded-[24px]
+                border border-[#eadcca]/80 bg-white/60
+                px-2 py-2 shadow-inner
+              "
+            >
               <ZonesToolbar />
 
               <div
@@ -830,7 +772,12 @@ export default function SeatingPage() {
           </div>
 
           {/* LEFT ACTIONS */}
-          <div className="flex shrink-0 items-center gap-2 overflow-x-auto whitespace-nowrap">
+          <div
+            className="
+              flex shrink-0 items-center gap-2 overflow-x-auto
+              whitespace-nowrap
+            "
+          >
             <button
               type="button"
               onClick={() => {
@@ -913,12 +860,23 @@ export default function SeatingPage() {
             </button>
 
             {!isVenueTemplateMode && (
-              <div className="shrink-0 rounded-2xl border border-[#e5d2b8] bg-white/85 shadow-sm">
+              <div
+                className="
+                  shrink-0 rounded-2xl border border-[#e5d2b8]
+                  bg-white/85 shadow-sm
+                "
+              >
                 <ExportSeatingPdf eventId={eventId} />
               </div>
             )}
 
-            <div className="hidden shrink-0 rounded-2xl border border-[#eadcca] bg-white/70 px-3 py-2 text-xs font-bold text-[#8a765f] shadow-sm md:block">
+            <div
+              className="
+                hidden shrink-0 rounded-2xl border border-[#eadcca]
+                bg-white/70 px-3 py-2 text-xs font-bold
+                text-[#8a765f] shadow-sm md:block
+              "
+            >
               {isVenueTemplateMode ? (
                 <span>מצב תבנית — השמירה מתבצעת ידנית</span>
               ) : isAutoSaving ? (
@@ -943,7 +901,12 @@ export default function SeatingPage() {
       {!isVenueTemplateMode && showSmartPanel && (
         <div
           dir="rtl"
-          className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/45 px-4 backdrop-blur-sm"
+          className="
+            fixed inset-0 z-[999999]
+            flex items-center justify-center
+            bg-black/45 px-4
+            backdrop-blur-sm
+          "
         >
           <button
             type="button"
@@ -952,11 +915,25 @@ export default function SeatingPage() {
             className="absolute inset-0 cursor-default"
           />
 
-          <div className="relative z-10 w-full max-w-[480px] overflow-hidden rounded-[34px] border border-[#ead8c8] bg-white p-6 text-right shadow-[0_34px_110px_rgba(0,0,0,0.32)]">
+          <div
+            className="
+              relative z-10 w-full max-w-[480px]
+              overflow-hidden rounded-[34px]
+              border border-[#ead8c8]
+              bg-white p-6 text-right
+              shadow-[0_34px_110px_rgba(0,0,0,0.32)]
+            "
+          >
             <button
               type="button"
               onClick={() => setShowSmartPanel(false)}
-              className="absolute left-5 top-5 flex h-9 w-9 items-center justify-center rounded-full bg-[#f8efe4] text-base font-black text-[#8a765f] transition hover:bg-[#f0dfca]"
+              className="
+                absolute left-5 top-5
+                flex h-9 w-9 items-center justify-center
+                rounded-full bg-[#f8efe4]
+                text-base font-black text-[#8a765f]
+                transition hover:bg-[#f0dfca]
+              "
             >
               ×
             </button>
@@ -1039,7 +1016,9 @@ export default function SeatingPage() {
 
       {/* MAIN AREA */}
       <main
-        className="absolute inset-x-0 flex min-w-0 flex-row-reverse"
+        className="
+          absolute inset-x-0 flex min-w-0 flex-row-reverse
+        "
         style={{
           top: 76,
           bottom: 0,
@@ -1050,17 +1029,19 @@ export default function SeatingPage() {
           <div className="pointer-events-none absolute inset-0 z-0 bg-[linear-gradient(90deg,rgba(202,161,90,0.04)_1px,transparent_1px),linear-gradient(rgba(202,161,90,0.04)_1px,transparent_1px)] bg-[size:34px_34px]" />
 
           <div className="relative z-10 h-full w-full">
-            <SeatingEditor
-              background={background?.url || null}
-              invitationId={invitationId}
-              onAutoSave={async () => {
-                if (isVenueTemplateMode) return false;
 
-                return await saveSeating(false);
-              }}
-              hideSeats={isProducer}
-              sidebarOpen={sidebarOpen}
-            />
+            <SeatingEditor
+  background={background?.url || null}
+  invitationId={invitationId}
+  onAutoSave={async () => {
+    if (isVenueTemplateMode) return false;
+
+    return await saveSeating(false);
+  }}
+  hideSeats={isProducer}
+  sidebarOpen={sidebarOpen}
+/>
+
           </div>
         </section>
 
@@ -1078,12 +1059,23 @@ export default function SeatingPage() {
           >
             {sidebarOpen && (
               <div className="h-full">
-                <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-[#fff8ed] to-transparent" />
+                <div
+                  className="
+                    pointer-events-none absolute inset-x-0 top-0 h-32
+                    bg-gradient-to-b from-[#fff8ed] to-transparent
+                  "
+                />
 
                 <Suspense
                   fallback={
                     <div className="flex h-full items-center justify-center">
-                      <div className="rounded-2xl border border-[#ead8c8] bg-white px-5 py-4 text-sm font-semibold text-[#9a8773] shadow-sm">
+                      <div
+                        className="
+                          rounded-2xl border border-[#ead8c8]
+                          bg-white px-5 py-4 text-sm font-semibold
+                          text-[#9a8773] shadow-sm
+                        "
+                      >
                         טוען רשימת שולחנות...
                       </div>
                     </div>
