@@ -151,8 +151,7 @@ export default function SeatingPage() {
 
   /* ===============================
      LOAD SEATING DATA
-     כאן נטענת אוטומטית ההושבה שהשרת העתיק מהתבנית
-     שנבחרה מראש ע"י האולם.
+     נשאר לשימוש אחרי הושבה חכמה / ניקוי הושבה.
   =============================== */
   const loadSeatingData = useCallback(
     async (eventIdToLoad: string, invitationIdToLoad: string) => {
@@ -213,6 +212,100 @@ export default function SeatingPage() {
   );
 
   /* ===============================
+     LOAD MY SEATING
+     טעינה ישירה לפי המשתמש המחובר.
+     לא תלוי ב-/api/invitations/my.
+  =============================== */
+  const loadMySeatingData = useCallback(async () => {
+    const seatingRes = await fetch("/api/seating/my", {
+      cache: "no-store",
+      credentials: "include",
+    });
+
+    if (seatingRes.status === 403) {
+      setBlockReason("no-plan");
+      return false;
+    }
+
+    const seatingData = await seatingRes.json().catch(() => ({}));
+
+    if (!seatingRes.ok || seatingData?.success === false) {
+      console.error("❌ Failed loading my seating:", seatingData);
+      return false;
+    }
+
+    const eventIdFromApi: string | null = seatingData?.eventId || null;
+    const invitationIdFromApi: string | null =
+      seatingData?.invitationId || null;
+
+    if (eventIdFromApi) {
+      setEventId(eventIdFromApi);
+    }
+
+    if (invitationIdFromApi) {
+      setInvitationId(invitationIdFromApi);
+    }
+
+    let normalizedGuests: any[] = [];
+
+    if (eventIdFromApi) {
+      const gRes = await fetch(`/api/seating/guests/${eventIdFromApi}`, {
+        cache: "no-store",
+      });
+
+      if (gRes.status === 403) {
+        setBlockReason("no-plan");
+        return false;
+      }
+
+      if (gRes.ok) {
+        const gData = await gRes.json().catch(() => ({}));
+
+        normalizedGuests = (gData.guests || []).map((g: GuestDTO) => ({
+          id: g._id,
+          name: g.name,
+          rsvp: g.rsvp,
+          guestsCount: g.guestsCount,
+          arrivedCount: g.arrivedCount,
+          actualArrivedCount: g.actualArrivedCount ?? 0,
+          groupId: g.groupId ?? null,
+          count: g.guestsCount ?? 1,
+        }));
+      }
+    }
+
+    init(
+      Array.isArray(seatingData.tables) ? seatingData.tables : [],
+      normalizedGuests,
+      seatingData.background ?? null,
+      seatingData.canvasView ?? null
+    );
+
+    setZones(Array.isArray(seatingData.zones) ? seatingData.zones : []);
+
+    if (invitationIdFromApi) {
+      const grRes = await fetch(`/api/seating/groups/${invitationIdFromApi}`, {
+        cache: "no-store",
+      });
+
+      if (grRes.ok) {
+        const grData = await grRes.json().catch(() => ({}));
+        setGroups(grData.groups || []);
+      }
+    }
+
+    console.log("✅ MY SEATING LOADED:", {
+      eventId: eventIdFromApi,
+      invitationId: invitationIdFromApi,
+      tables: Array.isArray(seatingData.tables) ? seatingData.tables.length : 0,
+      zones: Array.isArray(seatingData.zones) ? seatingData.zones.length : 0,
+      source: seatingData.source || null,
+    });
+
+    return true;
+  }, [init, setGroups, setZones]);
+
+  /* ===============================
      LOAD INITIAL DATA
   =============================== */
   useEffect(() => {
@@ -244,27 +337,7 @@ export default function SeatingPage() {
           useZoneStore.getState().setZones([]);
         }
 
-        const invRes = await fetch("/api/invitations/my", {
-          cache: "no-store",
-        });
-
-        const invData = await invRes.json();
-
-        const invitationIdFromApi: string | undefined =
-          invData?.invitation?._id;
-
-        const eventIdFromApi: string | undefined =
-          invData?.invitation?.eventId;
-
-        if (!invitationIdFromApi || !eventIdFromApi) {
-          console.error("❌ Missing invitation/event id", invData);
-          return;
-        }
-
-        setInvitationId(invitationIdFromApi);
-        setEventId(eventIdFromApi);
-
-        await loadSeatingData(eventIdFromApi, invitationIdFromApi);
+        await loadMySeatingData();
       } catch (err) {
         console.error("❌ SeatingPage load error:", err);
       } finally {
@@ -273,7 +346,7 @@ export default function SeatingPage() {
     }
 
     load();
-  }, [isDemo, isVenueTemplateMode, loadSeatingData]);
+  }, [isDemo, isVenueTemplateMode, loadMySeatingData]);
 
   /* ===============================
      AUTO FIT ONE TIME
