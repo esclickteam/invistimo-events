@@ -17,6 +17,24 @@ export default function LayoutShell({
   const pathname = usePathname();
 
   /* =========================================================
+     🪑 עמודי הושבה – בלי Header / Footer / LayoutShell בכלל
+     חשוב: לא משתמשים ב-startsWith("/seating")
+     כדי לא לפגוע ב-/seating-explained
+  ========================================================= */
+  const isSeatingWorkspace =
+    pathname === "/dashboard/seating" ||
+    pathname.startsWith("/dashboard/seating/") ||
+    pathname === "/try/dashboard/seating" ||
+    pathname.startsWith("/try/dashboard/seating/") ||
+    pathname === "/seating" ||
+    pathname.startsWith("/seating/") ||
+    pathname.startsWith("/venues/dashboard/seating");
+
+  if (isSeatingWorkspace) {
+    return <>{children}</>;
+  }
+
+  /* =========================================================
      זיהוי אזורים
   ========================================================= */
 
