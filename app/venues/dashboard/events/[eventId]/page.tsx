@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
@@ -359,19 +359,6 @@ export default function VenueEventPage() {
   const [clientInviteError, setClientInviteError] = useState("");
   const [clientInvite, setClientInvite] = useState<ClientInviteState | null>(null);
 
-  const [venueSeating, setVenueSeating] = useState<any | null>(null);
-const [venueSeatingStats, setVenueSeatingStats] = useState<any | null>(null);
-
-const [venueGuests, setVenueGuests] = useState<any[]>([]);
-const [venueGuestStats, setVenueGuestStats] = useState<any | null>(null);
-
-const [venueLiveMode, setVenueLiveMode] = useState(false);
-const [loadingVenueLive, setLoadingVenueLive] = useState(false);
-const [updatingGuestId, setUpdatingGuestId] = useState<string | null>(null);
-
-const lastSeatingSyncAtRef = useRef<string | null>(null);
-const lastGuestsSyncAtRef = useRef<string | null>(null);
-
   const hallId = eventData?.venueHallId || "";
   const hallName = hallData?.name || eventData?.venueHallName || "אולם";
   const clientName = eventData?.email || "לא הוגדר";
@@ -420,236 +407,11 @@ const lastGuestsSyncAtRef = useRef<string | null>(null);
     }
   };
 
-  const fetchVenueSeating = async () => {
-  if (!eventId) return;
-
-  try {
-    const res = await fetch(`/api/venues/dashboard/events/${eventId}/seating`, {
-      method: "GET",
-      credentials: "include",
-      cache: "no-store",
-    });
-
-    const data = await res.json().catch(() => ({}));
-
-    if (!res.ok || data?.success === false) {
-      throw new Error(data?.error || data?.message || "טעינת הושבה נכשלה");
-    }
-
-    setVenueSeating(data?.seating || null);
-    setVenueSeatingStats(data?.stats || null);
-
-    if (data?.stats) {
-      setEventStats((current) => ({
-        ...current,
-        seating: {
-          enabled: Boolean(data?.exists || data?.seating),
-          totalTables: Number(data.stats.totalTables || 0),
-          seatedGuests: Number(data.stats.seatedGuests || 0),
-          unseatedGuests: Number(data.stats.unseatedGuests || 0),
-          completed: Boolean(data.stats.completed),
-        },
-      }));
-    }
-  } catch (error) {
-    console.error("GET venue event seating failed:", error);
-    setVenueSeating(null);
-    setVenueSeatingStats(null);
-  }
-};
-
-const fetchVenueGuests = async () => {
-  if (!eventId) return;
-
-  try {
-    const res = await fetch(`/api/venues/dashboard/events/${eventId}/guests`, {
-      method: "GET",
-      credentials: "include",
-      cache: "no-store",
-    });
-
-    const data = await res.json().catch(() => ({}));
-
-    if (!res.ok || data?.success === false) {
-      throw new Error(data?.error || data?.message || "טעינת מוזמנים נכשלה");
-    }
-
-    const guests = Array.isArray(data?.guests) ? data.guests : [];
-    const stats = data?.stats || null;
-
-    setVenueGuests(guests);
-    setVenueGuestStats(stats);
-
-    if (stats) {
-      setEventStats((current) => ({
-        ...current,
-        rsvp: {
-          enabled: guests.length > 0,
-          recordsCount: Number(stats.totalRecords || 0),
-          confirmedRecords: Number(stats.confirmedRecords || 0),
-          declinedRecords: Number(stats.declinedRecords || 0),
-          pendingRecords: Number(stats.pendingRecords || 0),
-          confirmedGuestsAmount: Number(stats.confirmedGuestsAmount || 0),
-        },
-      }));
-    }
-  } catch (error) {
-    console.error("GET venue event guests failed:", error);
-    setVenueGuests([]);
-    setVenueGuestStats(null);
-  }
-};
-
-const fetchVenueLiveData = async () => {
-  setLoadingVenueLive(true);
-
-  try {
-    await Promise.all([fetchVenueSeating(), fetchVenueGuests()]);
-  } finally {
-    setLoadingVenueLive(false);
-  }
-};
-
-const checkVenueSyncStatus = async () => {
-  if (!eventId) return;
-
-  try {
-    const res = await fetch(
-      `/api/venues/dashboard/events/${eventId}/sync-status`,
-      {
-        method: "GET",
-        credentials: "include",
-        cache: "no-store",
-      }
-    );
-
-    const data = await res.json().catch(() => ({}));
-
-    if (!res.ok || data?.success === false) {
-      return;
-    }
-
-    const nextSeatingUpdatedAt = data?.seatingUpdatedAt
-      ? String(data.seatingUpdatedAt)
-      : null;
-
-    const nextGuestsUpdatedAt = data?.guestsUpdatedAt
-      ? String(data.guestsUpdatedAt)
-      : null;
-
-    const prevSeatingUpdatedAt = lastSeatingSyncAtRef.current;
-    const prevGuestsUpdatedAt = lastGuestsSyncAtRef.current;
-
-    if (
-      activeTab === "seating" &&
-      nextSeatingUpdatedAt &&
-      prevSeatingUpdatedAt &&
-      nextSeatingUpdatedAt !== prevSeatingUpdatedAt
-    ) {
-      await fetchVenueSeating();
-    }
-
-    if (
-      activeTab === "rsvp" &&
-      nextGuestsUpdatedAt &&
-      prevGuestsUpdatedAt &&
-      nextGuestsUpdatedAt !== prevGuestsUpdatedAt
-    ) {
-      await fetchVenueGuests();
-    }
-
-    if (nextSeatingUpdatedAt) {
-      lastSeatingSyncAtRef.current = nextSeatingUpdatedAt;
-    }
-
-    if (nextGuestsUpdatedAt) {
-      lastGuestsSyncAtRef.current = nextGuestsUpdatedAt;
-    }
-  } catch (error) {
-    console.error("CHECK venue sync status failed:", error);
-  }
-};
-
-const updateGuestArrival = async (
-  guestId: string,
-  actualArrivedCount: number
-) => {
-  if (!eventId || !guestId) return;
-
-  setUpdatingGuestId(guestId);
-
-  try {
-    const res = await fetch(`/api/venues/dashboard/events/${eventId}/guests`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      credentials: "include",
-      body: JSON.stringify({
-        guestId,
-        actualArrivedCount,
-      }),
-    });
-
-    const data = await res.json().catch(() => ({}));
-
-    if (!res.ok || data?.success === false) {
-      throw new Error(data?.error || data?.message || "עדכון הגעה בפועל נכשל");
-    }
-
-    await fetchVenueGuests();
-    await fetchVenueSeating();
-  } catch (error) {
-    console.error("PATCH guest arrival failed:", error);
-    alert(error instanceof Error ? error.message : "עדכון הגעה בפועל נכשל");
-  } finally {
-    setUpdatingGuestId(null);
-  }
-};
-
   useEffect(() => {
     fetchEvent();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId]);
 
-useEffect(() => {
-  if (!eventId) return;
-
-  let cancelled = false;
-
-  async function loadInitialTabData() {
-    if (activeTab === "seating") {
-      await fetchVenueSeating();
-    }
-
-    if (activeTab === "rsvp") {
-      await fetchVenueGuests();
-    }
-
-    if (!cancelled && (activeTab === "seating" || activeTab === "rsvp")) {
-      await checkVenueSyncStatus();
-    }
-  }
-
-  loadInitialTabData();
-
-  if (activeTab !== "seating" && activeTab !== "rsvp") {
-    return () => {
-      cancelled = true;
-    };
-  }
-
-  const interval = window.setInterval(() => {
-    checkVenueSyncStatus();
-  }, 4000);
-
-  return () => {
-    cancelled = true;
-    window.clearInterval(interval);
-  };
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [eventId, activeTab]);
 
   useEffect(() => {
     if (!hallId) {
@@ -1619,28 +1381,71 @@ useEffect(() => {
             )}
 
             {activeTab === "rsvp" && (
-  <VenueRsvpLiveTab
-    guests={venueGuests}
-    stats={venueGuestStats}
-    liveMode={venueLiveMode}
-    loading={loadingVenueLive}
-    updatingGuestId={updatingGuestId}
-    onToggleLiveMode={() => setVenueLiveMode((value) => !value)}
-    onRefresh={fetchVenueLiveData}
-    onUpdateArrival={updateGuestArrival}
-  />
-)}
+              <MainCard title="אישורי הגעה" icon={<CheckCircle2 size={19} />}>
+                <div className="grid gap-4 md:grid-cols-5">
+                  <FinanceMini
+                    label="סה״כ רשומות"
+                    value={`${eventStats.rsvp.recordsCount}`}
+                  />
+                  <FinanceMini
+                    label="אישרו"
+                    value={`${eventStats.rsvp.confirmedRecords}`}
+                    success={eventStats.rsvp.confirmedRecords > 0}
+                  />
+                  <FinanceMini
+                    label="לא מגיעים"
+                    value={`${eventStats.rsvp.declinedRecords}`}
+                    danger={eventStats.rsvp.declinedRecords > 0}
+                  />
+                  <FinanceMini
+                    label="ממתינים"
+                    value={`${eventStats.rsvp.pendingRecords}`}
+                  />
+                  <FinanceMini
+                    label="כמות מגיעים"
+                    value={`${eventStats.rsvp.confirmedGuestsAmount}`}
+                    success={eventStats.rsvp.confirmedGuestsAmount > 0}
+                  />
+                </div>
+
+                {!eventStats.rsvp.enabled && (
+                  <div className="mt-5">
+                    <EmptyBox text="אין עדיין חיבור לאישורי הגעה עבור האירוע הזה." />
+                  </div>
+                )}
+              </MainCard>
+            )}
 
             {activeTab === "seating" && (
-  <VenueSeatingLiveTab
-    seating={venueSeating}
-    stats={venueSeatingStats}
-    liveMode={venueLiveMode}
-    loading={loadingVenueLive}
-    onToggleLiveMode={() => setVenueLiveMode((value) => !value)}
-    onRefresh={fetchVenueLiveData}
-  />
-)}
+              <MainCard title="הושבה" icon={<UsersRound size={19} />}>
+                <div className="grid gap-4 md:grid-cols-4">
+                  <FinanceMini
+                    label="שולחנות"
+                    value={`${eventStats.seating.totalTables}`}
+                  />
+                  <FinanceMini
+                    label="הושבו"
+                    value={`${eventStats.seating.seatedGuests}`}
+                    success={eventStats.seating.seatedGuests > 0}
+                  />
+                  <FinanceMini
+                    label="לא הושבו"
+                    value={`${eventStats.seating.unseatedGuests}`}
+                    danger={eventStats.seating.unseatedGuests > 0}
+                  />
+                  <FinanceMini
+                    label="סטטוס"
+                    value={eventStats.seating.completed ? "הושלם" : "בתהליך"}
+                  />
+                </div>
+
+                {!eventStats.seating.enabled && (
+                  <div className="mt-5">
+                    <EmptyBox text="אין עדיין חיבור להושבה עבור האירוע הזה." />
+                  </div>
+                )}
+              </MainCard>
+            )}
 
             {activeTab === "menu" && (
               <EventMenuTab
@@ -2155,339 +1960,6 @@ function ClientInviteTab({
         </div>
       </MainCard>
     </section>
-  );
-}
-
-function VenueSeatingLiveTab({
-  seating,
-  stats,
-  liveMode,
-  loading,
-  onToggleLiveMode,
-  onRefresh,
-}: {
-  seating: any | null;
-  stats: any | null;
-  liveMode: boolean;
-  loading: boolean;
-  onToggleLiveMode: () => void;
-  onRefresh: () => void;
-}) {
-  const tables = Array.isArray(seating?.tables) ? seating.tables : [];
-
-  return (
-    <MainCard title="הושבה באולם" icon={<UsersRound size={19} />}>
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-black text-[#2b241c]">
-            סידור שולחנות בזמן אמת
-          </h2>
-          <p className="mt-1 text-sm font-bold text-[#7f705d]">
-            ההושבה מתעדכנת לפי מה שהלקוח משנה בעמוד ההושבה שלו.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={onRefresh}
-            className="h-11 rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-black text-[#6f6252]"
-          >
-            {loading ? "מרענן..." : "רענון"}
-          </button>
-
-          <button
-            type="button"
-            onClick={onToggleLiveMode}
-            className={[
-              "h-11 rounded-2xl px-5 text-sm font-black transition",
-              liveMode
-                ? "bg-emerald-600 text-white"
-                : "bg-[#2b241c] text-white",
-            ].join(" ")}
-          >
-            {liveMode ? "מצב לייב פעיל" : "הפעל מצב לייב"}
-          </button>
-        </div>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-5">
-        <FinanceMini
-          label="שולחנות"
-          value={`${stats?.totalTables || tables.length || 0}`}
-        />
-        <FinanceMini label="מקומות" value={`${stats?.totalSeats || 0}`} />
-        <FinanceMini
-          label="הושבו"
-          value={`${stats?.seatedGuests || 0}`}
-          success
-        />
-        <FinanceMini
-          label="לא הושבו"
-          value={`${stats?.unseatedGuests || 0}`}
-          danger={(stats?.unseatedGuests || 0) > 0}
-        />
-        <FinanceMini
-          label="הגיעו בפועל"
-          value={`${stats?.arrivedGuests || 0}`}
-          success={liveMode}
-        />
-      </div>
-
-      {!seating || tables.length === 0 ? (
-        <div className="mt-5">
-          <EmptyBox text="עדיין אין הושבה מחוברת לאירוע הזה." />
-        </div>
-      ) : (
-        <div className="mt-6 rounded-[28px] border border-[#eadfce] bg-[#fffdf8] p-5">
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {tables.map((table: any, index: number) => {
-              const seats = Array.isArray(table?.seats) ? table.seats : [];
-              const guests = Array.isArray(table?.guests) ? table.guests : [];
-              const assignedGuests = Array.isArray(table?.assignedGuests)
-                ? table.assignedGuests
-                : [];
-
-              const tableName =
-                table?.name ||
-                table?.label ||
-                table?.tableNumber ||
-                table?.number ||
-                `שולחן ${index + 1}`;
-
-              const capacity =
-                seats.length ||
-                Number(table?.capacity) ||
-                Number(table?.seatsCount) ||
-                Number(table?.chairs) ||
-                0;
-
-              const seated =
-                seats.filter(
-                  (seat: any) =>
-                    seat?.guestId ||
-                    seat?.guestName ||
-                    seat?.guest ||
-                    seat?.assignedGuestId
-                ).length ||
-                guests.length ||
-                assignedGuests.length ||
-                0;
-
-              return (
-                <div
-                  key={table?.id || table?._id || index}
-                  className="rounded-[24px] border border-[#eadfce] bg-white p-4 shadow-sm"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-base font-black text-[#2b241c]">
-                        {tableName}
-                      </div>
-                      <div className="mt-1 text-xs font-bold text-[#8a7b68]">
-                        {seated}/{capacity || "?"} מקומות
-                      </div>
-                    </div>
-
-                    <span
-                      className={[
-                        "rounded-full px-3 py-1 text-xs font-black",
-                        liveMode
-                          ? "bg-emerald-50 text-emerald-700"
-                          : "bg-[#fff4dc] text-[#b98121]",
-                      ].join(" ")}
-                    >
-                      {liveMode ? "לייב" : "תכנון"}
-                    </span>
-                  </div>
-
-                  <div className="mt-4 h-2 overflow-hidden rounded-full bg-[#eee6d9]">
-                    <div
-                      className="h-full rounded-full bg-[#b98121]"
-                      style={{
-                        width: capacity
-                          ? `${Math.min(
-                              100,
-                              Math.round((seated / capacity) * 100)
-                            )}%`
-                          : "0%",
-                      }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-    </MainCard>
-  );
-}
-
-function VenueRsvpLiveTab({
-  guests,
-  stats,
-  liveMode,
-  loading,
-  updatingGuestId,
-  onToggleLiveMode,
-  onRefresh,
-  onUpdateArrival,
-}: {
-  guests: any[];
-  stats: any | null;
-  liveMode: boolean;
-  loading: boolean;
-  updatingGuestId: string | null;
-  onToggleLiveMode: () => void;
-  onRefresh: () => void;
-  onUpdateArrival: (guestId: string, actualArrivedCount: number) => void;
-}) {
-  return (
-    <MainCard title="אישורי הגעה" icon={<CheckCircle2 size={19} />}>
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-black text-[#2b241c]">
-            רשימת מוזמנים ומצב הגעה בפועל
-          </h2>
-          <p className="mt-1 text-sm font-bold text-[#7f705d]">
-            הרשימה נקלטת מהמערכת של הלקוח ומתעדכנת כאן עבור האולם.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={onRefresh}
-            className="h-11 rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-black text-[#6f6252]"
-          >
-            {loading ? "מרענן..." : "רענון"}
-          </button>
-
-          <button
-            type="button"
-            onClick={onToggleLiveMode}
-            className={[
-              "h-11 rounded-2xl px-5 text-sm font-black transition",
-              liveMode
-                ? "bg-emerald-600 text-white"
-                : "bg-[#2b241c] text-white",
-            ].join(" ")}
-          >
-            {liveMode ? "מצב לייב פעיל" : "הפעל מצב לייב"}
-          </button>
-        </div>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-5">
-        <FinanceMini label="סה״כ רשומות" value={`${stats?.totalRecords || 0}`} />
-        <FinanceMini
-          label="אישרו"
-          value={`${stats?.confirmedRecords || 0}`}
-          success={(stats?.confirmedRecords || 0) > 0}
-        />
-        <FinanceMini
-          label="לא מגיעים"
-          value={`${stats?.declinedRecords || 0}`}
-          danger={(stats?.declinedRecords || 0) > 0}
-        />
-        <FinanceMini label="ממתינים" value={`${stats?.pendingRecords || 0}`} />
-        <FinanceMini
-          label="הגיעו בפועל"
-          value={`${stats?.arrivedGuestsAmount || 0}`}
-          success={liveMode}
-        />
-      </div>
-
-      {guests.length === 0 ? (
-        <div className="mt-5">
-          <EmptyBox text="עדיין אין מוזמנים מחוברים לאירוע הזה." />
-        </div>
-      ) : (
-        <div className="mt-6 overflow-hidden rounded-[28px] border border-[#eadfce] bg-white">
-          <div className="grid grid-cols-[1.2fr_0.8fr_0.7fr_0.7fr_1fr] gap-3 border-b border-[#eadfce] bg-[#fff8eb] px-4 py-3 text-xs font-black text-[#7f705d]">
-            <div>שם</div>
-            <div>סטטוס</div>
-            <div>כמות</div>
-            <div>שולחן</div>
-            <div>הגעה בפועל</div>
-          </div>
-
-          <div className="divide-y divide-[#eadfce]">
-            {guests.map((guest) => {
-              const guestId = String(guest.id || guest._id || "");
-              const guestsCount = Number(guest.guestsCount || 1);
-              const actualArrivedCount = Number(
-                guest.actualArrivedCount || guest.arrivedCount || 0
-              );
-
-              return (
-                <div
-                  key={guestId}
-                  className="grid grid-cols-[1.2fr_0.8fr_0.7fr_0.7fr_1fr] items-center gap-3 px-4 py-3 text-sm font-bold text-[#2b241c]"
-                >
-                  <div>
-                    <div className="font-black">{guest.name}</div>
-                    {guest.phone && (
-                      <div className="mt-1 text-xs text-[#8a7b68]">
-                        {guest.phone}
-                      </div>
-                    )}
-                  </div>
-
-                  <div>
-                    <span
-                      className={[
-                        "rounded-full px-3 py-1 text-xs font-black",
-                        guest.rsvp === "yes"
-                          ? "bg-emerald-50 text-emerald-700"
-                          : guest.rsvp === "no"
-                            ? "bg-rose-50 text-rose-700"
-                            : "bg-amber-50 text-amber-700",
-                      ].join(" ")}
-                    >
-                      {guest.rsvp === "yes"
-                        ? "מגיע"
-                        : guest.rsvp === "no"
-                          ? "לא מגיע"
-                          : "ממתין"}
-                    </span>
-                  </div>
-
-                  <div>{guestsCount}</div>
-
-                  <div>{guest.tableNumber || "לא שובץ"}</div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      disabled={!liveMode || updatingGuestId === guestId}
-                      onClick={() => onUpdateArrival(guestId, guestsCount)}
-                      className="h-9 rounded-xl bg-emerald-600 px-3 text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      הגיע
-                    </button>
-
-                    <button
-                      type="button"
-                      disabled={!liveMode || updatingGuestId === guestId}
-                      onClick={() => onUpdateArrival(guestId, 0)}
-                      className="h-9 rounded-xl border border-[#eadfce] bg-white px-3 text-xs font-black text-[#6f6252] disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      לא הגיע
-                    </button>
-
-                    <span className="text-xs font-black text-[#8a7b68]">
-                      {actualArrivedCount}/{guestsCount}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-    </MainCard>
   );
 }
 
