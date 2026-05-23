@@ -308,6 +308,9 @@ export default async function VenueHallPage({ params }: Props) {
   const hallCrmHref = `/venues/dashboard/halls/${encodedHallId}/crm`;
   const hallMenusHref = `/venues/dashboard/halls/${encodedHallId}/menus`;
   const hallStaffHref = `/venues/dashboard/halls/${encodedHallId}/staff`;
+  const hallSeatingTemplatesHref =
+  `/venues/dashboard/halls/${encodedHallId}/seating-templates`;
+
 
   return (
     <main dir="rtl" className="min-h-screen bg-[#f8f6f2] text-[#2b241c]">
@@ -474,7 +477,7 @@ export default async function VenueHallPage({ params }: Props) {
               {[
                 { label: "סקירה כללית", href: "#overview" },
                 { label: "יומן אולם", href: hallCalendarHref },
-                { label: "תבניות הושבה", href: "#seating-templates" },
+                { label: "תבניות הושבה", href: hallSeatingTemplatesHref },
                 { label: "תפריטים", href: hallMenusHref },
                 { label: "צוות ומשמרות", href: hallStaffHref },
                 { label: "כספים", href: "#finance" },
