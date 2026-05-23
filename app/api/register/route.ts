@@ -177,10 +177,10 @@ export async function POST(req: Request) {
       needsPasswordSetup: !isCreatedByProducer,
 
       billingSource: isCreatedByProducer
-        ? "producer"
-        : isVenueClientRegistration
-          ? "venue"
-          : "site",
+  ? "producer"
+  : isVenueClientRegistration
+    ? "pricing"
+    : "site",
     });
 
     const userId = String(user._id);
