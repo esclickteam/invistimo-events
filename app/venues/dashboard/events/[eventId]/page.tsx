@@ -175,6 +175,19 @@ type AssignedMenu = {
   approved: boolean;
 };
 
+type VenueSeatingTemplateRow = {
+  id: string;
+  name: string;
+  description?: string;
+  tablesCount: number;
+  createdAt?: string;
+};
+
+type ClientInviteState = {
+  registrationLink: string;
+  copyText: string;
+};
+
 type EventEditForm = {
   title: string;
   eventType: EventType;
@@ -340,6 +353,12 @@ export default function VenueEventPage() {
   const [sendMenuOpen, setSendMenuOpen] = useState(false);
   const [assignedMenu, setAssignedMenu] = useState<AssignedMenu | null>(null);
 
+  const [seatingTemplates, setSeatingTemplates] = useState<VenueSeatingTemplateRow[]>([]);
+  const [selectedSeatingTemplateId, setSelectedSeatingTemplateId] = useState("");
+  const [clientInviteLoading, setClientInviteLoading] = useState(false);
+  const [clientInviteError, setClientInviteError] = useState("");
+  const [clientInvite, setClientInvite] = useState<ClientInviteState | null>(null);
+
   const hallId = eventData?.venueHallId || "";
   const hallName = hallData?.name || eventData?.venueHallName || "אולם";
   const clientName = eventData?.email || "לא הוגדר";
@@ -392,6 +411,66 @@ export default function VenueEventPage() {
     fetchEvent();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId]);
+
+
+  useEffect(() => {
+    if (!hallId) {
+      setSeatingTemplates([]);
+      setSelectedSeatingTemplateId("");
+      return;
+    }
+
+    let cancelled = false;
+
+    async function fetchSeatingTemplates() {
+      try {
+        const res = await fetch(
+          `/api/venues/dashboard/seating-templates?hallId=${encodeURIComponent(hallId)}`,
+          {
+            method: "GET",
+            credentials: "include",
+            cache: "no-store",
+          }
+        );
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok || data?.success === false) {
+          throw new Error(data?.message || data?.error || "טעינת תבניות ההושבה נכשלה");
+        }
+
+        const templates = Array.isArray(data?.templates)
+          ? data.templates.map((template: any) => ({
+              id: String(template._id || template.id || ""),
+              name: String(template.name || "תבנית ללא שם"),
+              description: String(template.description || ""),
+              tablesCount: Array.isArray(template.tables) ? template.tables.length : 0,
+              createdAt: template.createdAt ? String(template.createdAt) : "",
+            }))
+          : [];
+
+        if (cancelled) return;
+
+        setSeatingTemplates(templates);
+
+        if (!selectedSeatingTemplateId && templates[0]?.id) {
+          setSelectedSeatingTemplateId(templates[0].id);
+        }
+      } catch (error) {
+        console.error("GET seating templates failed:", error);
+
+        if (!cancelled) {
+          setSeatingTemplates([]);
+        }
+      }
+    }
+
+    fetchSeatingTemplates();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hallId, selectedSeatingTemplateId]);
 
   const financial = useMemo(() => {
     const commitment = toNumber(eventData?.budgetTotal, 0);
@@ -611,6 +690,71 @@ export default function VenueEventPage() {
     }
   };
 
+  const createClientInvite = async () => {
+    if (!eventData?.id) {
+      alert("לא נמצא מזהה אירוע");
+      return;
+    }
+
+    if (!selectedSeatingTemplateId) {
+      alert("חובה לבחור תבנית הושבה לפני יצירת קישור הרשמה");
+      setActiveTab("client-invite");
+      return;
+    }
+
+    setClientInviteLoading(true);
+    setClientInviteError("");
+
+    try {
+      const res = await fetch(
+        `/api/venues/dashboard/events/${eventData.id}/client-invite`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            seatingTemplateId: selectedSeatingTemplateId,
+            packageType: "seating_only",
+          }),
+        }
+      );
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || data?.success === false) {
+        throw new Error(
+          data?.message || data?.error || "יצירת קישור הרשמה ללקוח נכשלה"
+        );
+      }
+
+      const registrationLink = String(data?.registrationLink || "");
+      const copyText = String(
+        data?.copyText ||
+          `שלום, האולם פתח עבורך גישה ל-Invistimo לניהול האירוע שלך. להרשמה: ${registrationLink}`
+      );
+
+      setClientInvite({
+        registrationLink,
+        copyText,
+      });
+
+      setActiveTab("client-invite");
+
+      if (registrationLink && navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(registrationLink).catch(() => undefined);
+      }
+    } catch (error) {
+      console.error("POST client invite failed:", error);
+      setClientInviteError(
+        error instanceof Error ? error.message : "יצירת קישור הרשמה ללקוח נכשלה"
+      );
+    } finally {
+      setClientInviteLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <main dir="rtl" className="min-h-screen bg-[#f8f6f2] p-10 text-[#2b241c]">
@@ -723,6 +867,15 @@ export default function VenueEventPage() {
               >
                 <MoreHorizontal size={17} />
                 פעולות נוספות
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab("client-invite")}
+                className="inline-flex h-11 items-center gap-2 rounded-2xl border border-[#d9bd83] bg-[#fff8eb] px-4 text-sm font-black text-[#9f6f1a] transition hover:bg-[#f4ead9]"
+              >
+                <Link2 size={17} />
+                פתיחת לקוח Invistimo
               </button>
 
               <button
@@ -848,6 +1001,7 @@ export default function VenueEventPage() {
               { id: "overview", label: "סקירה כללית", icon: Sparkles },
               { id: "details", label: "פרטי אירוע", icon: CalendarDays },
               { id: "client", label: "לקוח", icon: UsersRound },
+              { id: "client-invite", label: "פתיחת לקוח", icon: Link2 },
               { id: "payments", label: "תשלומים", icon: CreditCard },
               { id: "menu", label: "תפריט", icon: Utensils },
               { id: "seating", label: "הושבה", icon: UsersRound },
@@ -1209,6 +1363,23 @@ export default function VenueEventPage() {
               </MainCard>
             )}
 
+            {activeTab === "client-invite" && (
+              <ClientInviteTab
+                eventId={eventId}
+                hallId={hallId}
+                hallName={hallName}
+                clientName={clientName}
+                eventTitle={eventTitle}
+                seatingTemplates={seatingTemplates}
+                selectedSeatingTemplateId={selectedSeatingTemplateId}
+                onSelectSeatingTemplate={setSelectedSeatingTemplateId}
+                clientInvite={clientInvite}
+                clientInviteError={clientInviteError}
+                loading={clientInviteLoading}
+                onCreateInvite={createClientInvite}
+              />
+            )}
+
             {activeTab === "rsvp" && (
               <MainCard title="אישורי הגעה" icon={<CheckCircle2 size={19} />}>
                 <div className="grid gap-4 md:grid-cols-5">
@@ -1289,6 +1460,7 @@ export default function VenueEventPage() {
 
             {activeTab !== "overview" &&
               activeTab !== "details" &&
+              activeTab !== "client-invite" &&
               activeTab !== "rsvp" &&
               activeTab !== "seating" &&
               activeTab !== "menu" && (
@@ -1616,6 +1788,181 @@ function EventEditModal({
   );
 }
 
+function ClientInviteTab({
+  eventId,
+  hallId,
+  hallName,
+  clientName,
+  eventTitle,
+  seatingTemplates,
+  selectedSeatingTemplateId,
+  onSelectSeatingTemplate,
+  clientInvite,
+  clientInviteError,
+  loading,
+  onCreateInvite,
+}: {
+  eventId: string;
+  hallId: string;
+  hallName: string;
+  clientName: string;
+  eventTitle: string;
+  seatingTemplates: VenueSeatingTemplateRow[];
+  selectedSeatingTemplateId: string;
+  onSelectSeatingTemplate: (templateId: string) => void;
+  clientInvite: ClientInviteState | null;
+  clientInviteError: string;
+  loading: boolean;
+  onCreateInvite: () => void;
+}) {
+  const selectedTemplate = seatingTemplates.find(
+    (template) => template.id === selectedSeatingTemplateId
+  );
+
+  const copyLink = async () => {
+    if (!clientInvite?.registrationLink) return;
+
+    try {
+      await navigator.clipboard.writeText(clientInvite.registrationLink);
+      alert("הקישור הועתק");
+    } catch {
+      alert("לא הצלחתי להעתיק אוטומטית. אפשר להעתיק ידנית מהשדה.");
+    }
+  };
+
+  const copyMessage = async () => {
+    if (!clientInvite?.copyText) return;
+
+    try {
+      await navigator.clipboard.writeText(clientInvite.copyText);
+      alert("ההודעה הועתקה");
+    } catch {
+      alert("לא הצלחתי להעתיק אוטומטית. אפשר להעתיק ידנית מהשדה.");
+    }
+  };
+
+  return (
+    <section className="grid gap-5 xl:grid-cols-[1fr_420px]">
+      <MainCard title="שליחת קישור הרשמה ללקוח Invistimo" icon={<Link2 size={19} />}>
+        <div className="rounded-[28px] border border-[#eadfce] bg-[#fffdf8] p-5">
+          <div className="grid gap-3 md:grid-cols-2">
+            <InfoLine label="אירוע" value={eventTitle} />
+            <InfoLine label="אולם" value={hallName} />
+            <InfoLine label="לקוח" value={clientName} />
+            <InfoLine label="מזהה אירוע" value={eventId || "לא הוגדר"} />
+          </div>
+        </div>
+
+        <div className="mt-5 rounded-[28px] border border-[#eadfce] bg-white p-5">
+          <label className="block">
+            <span className="mb-2 block text-sm font-black text-[#4c3724]">
+              בחירת תבנית הושבה שהאולם הכין מראש
+            </span>
+
+            <select
+              value={selectedSeatingTemplateId}
+              onChange={(event) => onSelectSeatingTemplate(event.target.value)}
+              className="h-12 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-4 text-sm font-black text-[#2b241c] outline-none focus:border-[#b98121]"
+            >
+              <option value="">בחרי תבנית הושבה</option>
+              {seatingTemplates.map((template) => (
+                <option key={template.id} value={template.id}>
+                  {template.name} · {template.tablesCount} שולחנות
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {!hallId && (
+            <div className="mt-4 rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm font-bold leading-6 text-rose-700">
+              לא נמצא אולם משויך לאירוע. צריך לשייך את האירוע לאולם לפני שליחת קישור ללקוח.
+            </div>
+          )}
+
+          {hallId && seatingTemplates.length === 0 && (
+            <div className="mt-4 rounded-2xl border border-dashed border-[#d9bd83] bg-[#fff8eb] p-4 text-sm font-bold leading-6 text-[#7f705d]">
+              עדיין אין תבניות הושבה לאולם הזה. קודם צרי תבנית בדף תבניות ההושבה של האולם, ואז חזרי לכאן ושלחי קישור ללקוח.
+            </div>
+          )}
+
+          {selectedTemplate && (
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              <InfoPill label="תבנית" value={selectedTemplate.name} />
+              <InfoPill label="שולחנות" value={`${selectedTemplate.tablesCount}`} />
+              <InfoPill label="אולם" value={hallName} />
+            </div>
+          )}
+
+          <div className="mt-5 rounded-2xl bg-[#fff8eb] p-4 text-sm font-bold leading-7 text-[#7f705d]">
+            הקישור שיישלח ללקוח כולל את התבנית שבחרת כאן. לאחר הרשמה הלקוח יבחר חבילה:
+            הושבה בלבד ללא תשלום, או חבילות בתשלום דרך Stripe.
+          </div>
+
+          {clientInviteError && (
+            <div className="mt-4 rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm font-black text-rose-700">
+              {clientInviteError}
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={onCreateInvite}
+            disabled={loading || !hallId || !selectedSeatingTemplateId}
+            className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#b98121] text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Send size={17} />
+            {loading ? "יוצר קישור..." : "צור קישור הרשמה ללקוח"}
+          </button>
+        </div>
+
+        {clientInvite?.registrationLink && (
+          <div className="mt-5 rounded-[28px] border border-emerald-100 bg-emerald-50 p-5">
+            <div className="text-sm font-black text-emerald-700">
+              קישור הרשמה נוצר בהצלחה
+            </div>
+
+            <div className="mt-3 break-all rounded-2xl border border-emerald-100 bg-white p-4 text-sm font-black leading-6 text-[#2b241c]">
+              {clientInvite.registrationLink}
+            </div>
+
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={copyLink}
+                className="h-11 rounded-2xl border border-emerald-200 bg-white text-sm font-black text-emerald-700"
+              >
+                העתקת קישור
+              </button>
+
+              <button
+                type="button"
+                onClick={copyMessage}
+                className="h-11 rounded-2xl bg-emerald-700 text-sm font-black text-white"
+              >
+                העתקת הודעה מלאה
+              </button>
+            </div>
+          </div>
+        )}
+      </MainCard>
+
+      <MainCard title="מה הלקוח יקבל?" icon={<Sparkles size={19} />}>
+        <div className="space-y-3">
+          <StatusLine label="הרשמה ל-User רגיל של Invistimo" done />
+          <StatusLine label="בחירת חבילה מיוחדת ללקוחות אולם" done />
+          <StatusLine label="פתיחה עם תבנית ההושבה שבחר האולם" done={Boolean(selectedTemplate)} />
+          <StatusLine label="הושבה בלבד ללא תשלום נוסף" done />
+          <StatusLine label="חבילות בתשלום עוברות ל-Stripe" done />
+        </div>
+
+        <div className="mt-5 rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-4 text-sm font-bold leading-7 text-[#7f705d]">
+          אחרי שהלקוח יסיים הרשמה ובחירת חבילה, הוא ייכנס לדשבורד שלו. האולם יוכל לראות את ההתקדמות דרך האירוע המשויך.
+        </div>
+      </MainCard>
+    </section>
+  );
+}
+
 function EventMenuTab({
   eventId,
   hallId,
@@ -1820,6 +2167,7 @@ function InfoPill({ label, value }: { label: string; value: string }) {
 function tabTitle(tab: string) {
   if (tab === "details") return "פרטי אירוע";
   if (tab === "client") return "לקוח";
+  if (tab === "client-invite") return "פתיחת לקוח Invistimo";
   if (tab === "payments") return "תשלומים";
   if (tab === "menu") return "תפריט";
   if (tab === "seating") return "הושבה";

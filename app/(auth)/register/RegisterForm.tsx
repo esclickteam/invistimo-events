@@ -19,6 +19,9 @@ function RegisterFormInner() {
 
   /* ================= QUERY PARAM ================= */
 
+  const venueInviteToken = String(params.get("venueInviteToken") || "").trim();
+  const isVenueClientRegistration = Boolean(venueInviteToken);
+
   const guests = Number(params.get("guests") || 0);
   const plan = String(params.get("plan") || "plan1").trim();
 
@@ -102,14 +105,20 @@ function RegisterFormInner() {
       return;
     }
 
-    if (!guests || guests <= 0) {
-      alert("כמות רשומות לא תקינה, נא לבחור חבילה מחדש");
-      return;
-    }
+    /*
+      הרשמה רגילה בלבד:
+      אם אין venueInviteToken — חייבים plan + guests כמו היום.
+    */
+    if (!isVenueClientRegistration) {
+      if (!guests || guests <= 0) {
+        alert("כמות רשומות לא תקינה, נא לבחור חבילה מחדש");
+        return;
+      }
 
-    if (!plan) {
-      alert("תוכנית לא תקינה, נא לבחור חבילה מחדש");
-      return;
+      if (!plan) {
+        alert("תוכנית לא תקינה, נא לבחור חבילה מחדש");
+        return;
+      }
     }
 
     setLoading(true);
@@ -117,7 +126,7 @@ function RegisterFormInner() {
     try {
       const normalizedEmail = form.email.trim().toLowerCase();
 
-      /* 1️⃣ יצירת משתמש */
+      /* 1️⃣ יצירת משתמש רגיל במודל User של Invistimo */
       const registerRes = await fetch("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -142,7 +151,26 @@ function RegisterFormInner() {
         return;
       }
 
-      /* 2️⃣ Stripe Checkout */
+      /*
+        2️⃣ אם הגיע מקישור אולם:
+        לא ממשיכים ל-Stripe הרגיל.
+        מעבירים לעמוד חבילות מיוחד לאולם.
+      */
+      if (isVenueClientRegistration) {
+        const packageUrl = `/venue-client/packages?venueInviteToken=${encodeURIComponent(
+          venueInviteToken
+        )}&userId=${encodeURIComponent(userId)}&email=${encodeURIComponent(
+          normalizedEmail
+        )}`;
+
+        window.location.href = packageUrl;
+        return;
+      }
+
+      /*
+        3️⃣ הרשמה רגילה:
+        ממשיך ל-Stripe Checkout כמו היום.
+      */
       const checkoutRes = await fetch("/api/stripe/create-checkout-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -181,16 +209,13 @@ function RegisterFormInner() {
       dir="rtl"
       className="relative min-h-screen overflow-hidden bg-[#F7EFE6]"
     >
-      {/* רקע */}
       <div className="absolute inset-0 -z-30 bg-[radial-gradient(circle_at_top,#fffaf4_0%,#f7efe6_42%,#efe2d2_100%)]" />
       <div className="absolute inset-0 -z-20 opacity-[0.08] bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
 
-      {/* כתמי אור */}
       <div className="pointer-events-none absolute -top-20 right-[10%] h-64 w-64 rounded-full bg-[#DAB273]/20 blur-3xl" />
       <div className="pointer-events-none absolute bottom-[-40px] left-[8%] h-72 w-72 rounded-full bg-[#CDA37D]/15 blur-3xl" />
       <div className="pointer-events-none absolute top-1/2 left-1/2 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/20 blur-3xl" />
 
-      {/* עיטורים */}
       <div className="pointer-events-none absolute top-10 left-10 h-24 w-24 rounded-full border border-[#D8B98D]/25" />
       <div className="pointer-events-none absolute bottom-10 right-10 h-20 w-20 rounded-full border border-[#D8B98D]/20" />
 
@@ -211,13 +236,11 @@ function RegisterFormInner() {
             md:p-8
           "
         >
-          {/* glow inner */}
           <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.72),rgba(255,255,255,0.25))]" />
           <div className="pointer-events-none absolute -top-16 -right-16 h-44 w-44 rounded-full bg-[#F2DEC4]/30 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-16 -left-16 h-44 w-44 rounded-full bg-[#EED7BC]/25 blur-3xl" />
 
           <div className="relative z-10">
-            {/* כותרת */}
             <div className="mb-6 text-center sm:mb-7">
               <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-[#D8B98D] bg-[#FFF8EE] shadow-[0_8px_24px_rgba(186,140,76,0.12)]">
                 <span className="text-xl text-[#B88945]">✦</span>
@@ -234,11 +257,13 @@ function RegisterFormInner() {
               </p>
 
               <h1 className="mt-6 text-3xl font-black text-[#3E2D20] sm:text-[42px]">
-                הרשמה
+                {isVenueClientRegistration ? "הרשמה דרך אולם" : "הרשמה"}
               </h1>
 
               <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-[#7B6754] sm:text-[15px]">
-                צרו חשבון חדש והמשיכו לתשלום בצורה מסודרת, יוקרתית ומהירה.
+                {isVenueClientRegistration
+                  ? "האולם פתח עבורך גישה אישית ל־Invistimo. אחרי ההרשמה תועברו לבחירת חבילה מותאמת ללקוחות שמגיעים דרך אולם."
+                  : "צרו חשבון חדש והמשיכו לתשלום בצורה מסודרת, יוקרתית ומהירה."}
               </p>
             </div>
 
@@ -295,23 +320,39 @@ function RegisterFormInner() {
                 );
               })}
 
-              {/* פרטי חבילה */}
-              <div
-                className="
-                  rounded-[20px] border border-[#E5D7C5]
-                  bg-[#FFF8EE]/75 px-4 py-4 text-center
-                  text-[#6B533C]
-                "
-              >
-                <p className="text-sm">
-                  <span className="font-bold">חבילה:</span> {plan}
-                </p>
-                <p className="mt-1 text-sm">
-                  <span className="font-bold">כמות רשומות:</span> {guests}
-                </p>
-              </div>
+              {isVenueClientRegistration ? (
+                <div
+                  className="
+                    rounded-[20px] border border-[#E5D7C5]
+                    bg-[#FFF8EE]/75 px-4 py-4 text-center
+                    text-[#6B533C]
+                  "
+                >
+                  <p className="text-sm font-bold text-[#4C3724]">
+                    הרשמה דרך אולם
+                  </p>
+                  <p className="mt-1 text-sm leading-6">
+                    לאחר ההרשמה תועברו לבחירת חבילה: הושבה בלבד, הושבה +
+                    אישורי הגעה, או חבילה מלאה עם ניהול ספקים ותקציב.
+                  </p>
+                </div>
+              ) : (
+                <div
+                  className="
+                    rounded-[20px] border border-[#E5D7C5]
+                    bg-[#FFF8EE]/75 px-4 py-4 text-center
+                    text-[#6B533C]
+                  "
+                >
+                  <p className="text-sm">
+                    <span className="font-bold">חבילה:</span> {plan}
+                  </p>
+                  <p className="mt-1 text-sm">
+                    <span className="font-bold">כמות רשומות:</span> {guests}
+                  </p>
+                </div>
+              )}
 
-              {/* תקנון */}
               <label className="flex cursor-pointer items-start gap-3 rounded-[18px] border border-[#E7DACB] bg-white/60 px-4 py-3 text-sm text-[#5C4632]">
                 <input
                   type="checkbox"
@@ -337,10 +378,13 @@ function RegisterFormInner() {
                 </span>
               </label>
 
-              {/* כפתור הרשמה */}
               <button
                 type="submit"
-                disabled={loading || !acceptedTerms || !guests}
+                disabled={
+                  loading ||
+                  !acceptedTerms ||
+                  (!isVenueClientRegistration && !guests)
+                }
                 className="
                   mt-2 w-full rounded-[20px]
                   bg-gradient-to-l from-[#A86F2B] via-[#C68F46] to-[#D8A85F]
@@ -353,10 +397,13 @@ function RegisterFormInner() {
                   disabled:opacity-50
                 "
               >
-                {loading ? "מבצעת הרשמה..." : "הרשמה והמשך לתשלום"}
+                {loading
+                  ? "מבצעת הרשמה..."
+                  : isVenueClientRegistration
+                    ? "הרשמה והמשך לבחירת חבילה"
+                    : "הרשמה והמשך לתשלום"}
               </button>
 
-              {/* התחברות */}
               <div className="text-center">
                 <p className="text-sm text-[#7B6754]">
                   כבר רשומים?
@@ -370,7 +417,6 @@ function RegisterFormInner() {
               </div>
             </form>
 
-            {/* טקסט תחתון */}
             <div className="mt-6">
               <div className="mx-auto h-px w-full max-w-[180px] bg-gradient-to-l from-transparent via-[#D8C2A6] to-transparent" />
               <p className="mt-3 text-center text-[11px] leading-5 text-[#9C866D] sm:text-xs">

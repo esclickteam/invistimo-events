@@ -10,6 +10,16 @@ export type VenueEventStatus =
   | "done"
   | "cancelled";
 
+export type VenueClientPackageType =
+  | "seating_only"
+  | "rsvp_seating"
+  | "full_event_management";
+
+export type VenueClientRegistrationStatus =
+  | "not_sent"
+  | "sent"
+  | "registered";
+
 export type VenueEventDocument = {
   _id: Types.ObjectId;
   ownerId: Types.ObjectId | string;
@@ -36,6 +46,20 @@ export type VenueEventDocument = {
 
   notes?: string;
   color?: string;
+
+  /**
+   * חיבור לקוח Invistimo מהאולם
+   */
+  clientInviteToken?: string;
+  clientInviteSentAt?: Date | null;
+
+  clientUserId?: Types.ObjectId | string | null;
+
+  selectedSeatingTemplateId?: Types.ObjectId | string | null;
+
+  clientPackageType?: VenueClientPackageType;
+
+  clientRegistrationStatus?: VenueClientRegistrationStatus;
 
   createdAt: Date;
   updatedAt: Date;
@@ -158,6 +182,52 @@ const VenueEventSchema = new Schema<VenueEventDocument>(
       default: "",
       trim: true,
     },
+
+    /**
+     * ==========================================
+     * פתיחת לקוח Invistimo מתוך אולם
+     * ==========================================
+     */
+
+    clientInviteToken: {
+      type: String,
+      default: "",
+      trim: true,
+      index: true,
+    },
+
+    clientInviteSentAt: {
+      type: Date,
+      default: null,
+    },
+
+    clientUserId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+      index: true,
+    },
+
+    selectedSeatingTemplateId: {
+      type: Schema.Types.ObjectId,
+      ref: "VenueSeatingTemplate",
+      default: null,
+      index: true,
+    },
+
+    clientPackageType: {
+      type: String,
+      enum: ["seating_only", "rsvp_seating", "full_event_management"],
+      default: "seating_only",
+      index: true,
+    },
+
+    clientRegistrationStatus: {
+      type: String,
+      enum: ["not_sent", "sent", "registered"],
+      default: "not_sent",
+      index: true,
+    },
   },
   {
     timestamps: true,
@@ -167,6 +237,8 @@ const VenueEventSchema = new Schema<VenueEventDocument>(
 VenueEventSchema.index({ ownerId: 1, date: 1 });
 VenueEventSchema.index({ ownerId: 1, hallId: 1, date: 1 });
 VenueEventSchema.index({ ownerId: 1, hallId: 1, status: 1 });
+VenueEventSchema.index({ ownerId: 1, hallId: 1, clientRegistrationStatus: 1 });
+VenueEventSchema.index({ clientInviteToken: 1 });
 
 export default mongoose.models.VenueEvent ||
   mongoose.model<VenueEventDocument>("VenueEvent", VenueEventSchema);
