@@ -1,12 +1,49 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import VenueSeatingTemplate from "@/models/VenueSeatingTemplate";
+import User from "@/models/User";
 import { connectDB } from "@/lib/db";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+function cleanString(value: unknown) {
+  return String(value || "").trim();
+}
+
+function stringifyDocs<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function getUserHallIds(user: any) {
+  return [
+    cleanString(user?.venueClientHallId),
+    cleanString(user?.hallId),
+    cleanString(user?.venueHallId),
+    cleanString(user?.assignedHallId),
+    cleanString(user?.venueSeatingService?.hallId),
+  ].filter(Boolean);
+}
+
+function isVenueClientUser(user: any) {
+  return (
+    user?.venueClientSource === true ||
+    user?.venueClientPackageType === "seating_only" ||
+    user?.venueClientPackageType === "rsvp_seating" ||
+    user?.venueClientPackageType === "rsvp_and_seating" ||
+    user?.accessModules?.seatingTemplates === true ||
+    user?.accessModules?.digitalSeating === true ||
+    user?.includeSeating === true ||
+    user?.includeDigitalSeating === true
+  );
+}
+
+/* ============================================================
+   GET templates
+   בעל אולם: לפי ownerId + hallId
+   לקוח אולם: לפי hallId ששמור עליו במשתמש
+============================================================ */
 export async function GET(req: NextRequest) {
   try {
     await connectDB();
@@ -21,7 +58,7 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url);
-    const hallId = searchParams.get("hallId");
+    const hallId = cleanString(searchParams.get("hallId"));
 
     if (!hallId) {
       return NextResponse.json(
@@ -30,17 +67,63 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const templates = await VenueSeatingTemplate.find({
-      ownerId: auth.userId,
-      hallId: String(hallId),
+    const user = await User.findById(auth.userId).lean();
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: "משתמש לא נמצא" },
+        { status: 404 }
+      );
+    }
+
+    const currentUser = user as any;
+
+    const isAdmin =
+      currentUser?.role === "admin" || currentUser?.impersonated === true;
+
+    const isVenueOwner = currentUser?.role === "venue_owner";
+
+    const allowedHallIds = getUserHallIds(currentUser);
+    const isClientAllowedForHall =
+      isVenueClientUser(currentUser) && allowedHallIds.includes(hallId);
+
+    /*
+      אבטחה:
+      - אדמין יכול לראות
+      - בעל אולם יכול לראות תבניות שהוא יצר
+      - לקוח אולם יכול לראות רק hallId ששמור עליו
+    */
+    if (!isAdmin && !isVenueOwner && !isClientAllowedForHall) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "אין הרשאה לצפות בתבניות של האולם הזה",
+        },
+        { status: 403 }
+      );
+    }
+
+    const query: any = {
+      hallId,
       isActive: true,
-    })
+    };
+
+    /*
+      בעל אולם רגיל רואה רק את התבניות שהוא יצר.
+      לקוח אולם לא מסנן לפי ownerId כי ownerId הוא של בעל האולם,
+      לא של הלקוח.
+    */
+    if (isVenueOwner && !isAdmin) {
+      query.ownerId = auth.userId;
+    }
+
+    const templates = await VenueSeatingTemplate.find(query)
       .sort({ createdAt: -1 })
       .lean();
 
     return NextResponse.json({
       success: true,
-      templates,
+      templates: stringifyDocs(templates),
     });
   } catch (error: any) {
     console.error("GET venue seating templates error:", error);
@@ -55,6 +138,10 @@ export async function GET(req: NextRequest) {
   }
 }
 
+/* ============================================================
+   POST create template
+   מיועד לבעל אולם / אדמין ששומר תבנית
+============================================================ */
 export async function POST(req: NextRequest) {
   try {
     await connectDB();
@@ -68,7 +155,30 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const body = await req.json();
+    const user = await User.findById(auth.userId).lean();
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: "משתמש לא נמצא" },
+        { status: 404 }
+      );
+    }
+
+    const currentUser = user as any;
+
+    const canCreateTemplate =
+      currentUser?.role === "venue_owner" ||
+      currentUser?.role === "admin" ||
+      currentUser?.impersonated === true;
+
+    if (!canCreateTemplate) {
+      return NextResponse.json(
+        { success: false, error: "אין הרשאה לשמור תבנית אולם" },
+        { status: 403 }
+      );
+    }
+
+    const body = await req.json().catch(() => ({}));
 
     const {
       hallId,
@@ -80,14 +190,17 @@ export async function POST(req: NextRequest) {
       settings,
     } = body || {};
 
-    if (!hallId) {
+    const cleanHallId = cleanString(hallId);
+    const cleanName = cleanString(name);
+
+    if (!cleanHallId) {
       return NextResponse.json(
         { success: false, error: "חסר מזהה אולם" },
         { status: 400 }
       );
     }
 
-    if (!name || String(name).trim().length < 2) {
+    if (!cleanName || cleanName.length < 2) {
       return NextResponse.json(
         { success: false, error: "חסר שם תבנית" },
         { status: 400 }
@@ -96,9 +209,9 @@ export async function POST(req: NextRequest) {
 
     const template = await VenueSeatingTemplate.create({
       ownerId: auth.userId,
-      hallId: String(hallId),
+      hallId: cleanHallId,
       hallName: hallName ? String(hallName) : "",
-      name: String(name).trim(),
+      name: cleanName,
       description: description ? String(description) : "",
       tables: Array.isArray(tables) ? tables : [],
       canvas: canvas || {},
@@ -108,7 +221,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      template,
+      template: stringifyDocs(template),
     });
   } catch (error: any) {
     console.error("POST venue seating template error:", error);
