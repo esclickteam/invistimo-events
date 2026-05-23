@@ -1,23 +1,52 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
+
 import User from "@/models/User";
 import { connectDB } from "@/lib/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+function cleanString(value: unknown) {
+  return String(value || "").trim();
+}
+
+function getProducerObjectId(value: unknown) {
+  const producerId = cleanString(value);
+
+  if (!producerId || producerId === "true" || producerId === "false") {
+    return null;
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(producerId)) {
+    return null;
+  }
+
+  return new mongoose.Types.ObjectId(producerId);
+}
+
 export async function POST(req: Request) {
   try {
     await connectDB();
 
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
 
-    const name = String(body?.name || "").trim();
-    const email = String(body?.email || "").trim().toLowerCase();
+    const name = cleanString(body?.name);
+    const email = cleanString(body?.email).toLowerCase();
     const password = String(body?.password || "");
-    const phone = String(body?.phone || "").trim();
-    const createdByProducer = Boolean(body?.createdByProducer);
+    const phone = cleanString(body?.phone);
+
+    /*
+      חשוב:
+      createdByProducer במודל User הוא ObjectId.
+      לכן אסור לשמור בו true/false.
+      אם מגיע id תקין של מפיק — נשמור ObjectId.
+      אם לא — נשמור null.
+    */
+    const producerObjectId = getProducerObjectId(body?.createdByProducer);
+    const isCreatedByProducer = Boolean(producerObjectId);
 
     /* ============================================================
        Validation
@@ -31,6 +60,7 @@ export async function POST(req: Request) {
     }
 
     const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
     if (!emailOk) {
       return NextResponse.json(
         { success: false, error: "אימייל לא תקין" },
@@ -46,6 +76,7 @@ export async function POST(req: Request) {
     }
 
     const existing = await User.findOne({ email }).lean();
+
     if (existing) {
       return NextResponse.json(
         { success: false, error: "המייל כבר קיים במערכת" },
@@ -57,7 +88,7 @@ export async function POST(req: Request) {
 
     /* ============================================================
        Create user
-       ⛔ אין גישה לדשבורד עד Stripe webhook
+       הרשמה רגילה / הרשמה דרך אולם / יצירה עתידית ע"י מפיק
     ============================================================ */
 
     const user = await User.create({
@@ -68,7 +99,6 @@ export async function POST(req: Request) {
 
       role: "user",
 
-      // 🔒 מתחיל ללא תשלום
       plan: "plan1",
       hasPaid: false,
       paidAmount: 0,
@@ -94,9 +124,14 @@ export async function POST(req: Request) {
       includeSystem: false,
       includeDesign: false,
 
-      createdByProducer,
-      needsPasswordSetup: !createdByProducer,
-      billingSource: createdByProducer ? "producer" : "site",
+      /*
+        כאן התיקון:
+        לא שולחים false לשדה ObjectId.
+      */
+      createdByProducer: producerObjectId,
+
+      needsPasswordSetup: !isCreatedByProducer,
+      billingSource: isCreatedByProducer ? "producer" : "site",
     });
 
     const userId = String(user._id);
@@ -105,7 +140,7 @@ export async function POST(req: Request) {
        If created by producer → no login
     ============================================================ */
 
-    if (createdByProducer) {
+    if (isCreatedByProducer) {
       return NextResponse.json({
         success: true,
         userId,
@@ -113,7 +148,8 @@ export async function POST(req: Request) {
     }
 
     /* ============================================================
-       Issue JWT (temporary until payment)
+       Issue JWT
+       גם בהרשמה דרך אולם צריך cookie כדי שהמשתמש יוכל להמשיך לחבילות.
     ============================================================ */
 
     if (!process.env.JWT_SECRET) {
@@ -163,6 +199,7 @@ export async function POST(req: Request) {
     return res;
   } catch (error) {
     console.error("REGISTER ERROR:", error);
+
     return NextResponse.json(
       { success: false, error: "שגיאה בשרת" },
       { status: 500 }
