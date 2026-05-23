@@ -152,9 +152,7 @@ export default function ReminderTab({
       const data = await res.json();
 
       if (data?.success) {
-        setScheduledMessages(
-          Array.isArray(data.messages) ? data.messages : []
-        );
+        setScheduledMessages(Array.isArray(data.messages) ? data.messages : []);
       } else {
         setScheduledMessages([]);
       }
@@ -224,11 +222,7 @@ export default function ReminderTab({
   /* ================= TIMING ================= */
 
   const scheduledAt = useMemo(() => {
-    if (
-      sendTiming !== "scheduled" ||
-      !scheduledDate ||
-      !scheduledTime
-    ) {
+    if (sendTiming !== "scheduled" || !scheduledDate || !scheduledTime) {
       return null;
     }
 
@@ -245,9 +239,7 @@ export default function ReminderTab({
   const buildReminderMessage = (g: Guest) => {
     const tableName =
       g.tableName ||
-      (typeof g.tableNumber === "number"
-        ? `שולחן ${g.tableNumber}`
-        : "");
+      (typeof g.tableNumber === "number" ? `שולחן ${g.tableNumber}` : "");
 
     const guestHasTable = !!tableName;
 
@@ -412,11 +404,11 @@ export default function ReminderTab({
 
   const userRole = String((user as any)?.role || "");
 
-const isAdmin =
-  userRole === "admin" ||
-  userRole === "super_admin" ||
-  userRole === "superadmin" ||
-  Boolean((user as any)?.impersonatedByAdmin);
+  const isAdmin =
+    userRole === "admin" ||
+    userRole === "super_admin" ||
+    userRole === "superadmin" ||
+    Boolean((user as any)?.impersonatedByAdmin);
 
   const sendButtonDisabled =
     (reminderAlreadySent && reminderLocked) ||
