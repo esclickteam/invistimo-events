@@ -532,62 +532,7 @@ export default function ReminderTab({
             )}
           </Panel>
 
-          <Panel
-            title="שליחת הודעה לבדיקה"
-            subtitle="בדיקה לפני שליחה בפועל"
-            icon="🧪"
-          >
-            <div className="flex flex-col sm:flex-row gap-3">
-              <input
-                type="tel"
-                inputMode="numeric"
-                dir="ltr"
-                placeholder="05XXXXXXXX"
-                value={testPhone}
-                onChange={(e) => setTestPhone(e.target.value)}
-                className={inputClassName}
-              />
-
-              <button
-                type="button"
-                onClick={sendTestMessage}
-                disabled={
-                  !testPhone ||
-                  preview?.blocked ||
-                  sendingTest ||
-                  testCount >= MAX_TEST_MESSAGES
-                }
-                className="
-                  rounded-[20px]
-                  bg-[#3E2D20]
-                  px-6 py-3
-                  text-sm font-black
-                  text-white
-                  shadow-lg
-                  transition
-                  hover:bg-[#5A3D25]
-                  disabled:cursor-not-allowed
-                  disabled:opacity-50
-                "
-              >
-                {testCount >= MAX_TEST_MESSAGES
-                  ? "הגעת למגבלה"
-                  : sendingTest
-                    ? "שולח..."
-                    : "שלח לבדיקה"}
-              </button>
-            </div>
-
-            <div
-              className={`mt-3 text-xs ${
-                testCount >= MAX_TEST_MESSAGES
-                  ? "font-bold text-red-500"
-                  : "text-[#7A6246]"
-              }`}
-            >
-              נשלחו {testCount} מתוך {MAX_TEST_MESSAGES} הודעות בדיקה
-            </div>
-          </Panel>
+          
         </div>
 
         {/* LEFT SIDE */}
