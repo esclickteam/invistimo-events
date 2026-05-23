@@ -1,7 +1,7 @@
 "use client";
 
 import { Menu, Home, MessageCircle, LogOut, LogIn } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import ProducerDashboardHeader from "./ProducerDashboardHeader";
 
@@ -25,9 +25,24 @@ export default function DashboardHeader({
   isDemo = false,
 }: DashboardHeaderProps) {
   const router = useRouter();
+  const pathname = usePathname();
 
   const { user, logout } = useAuth();
   const role = user?.role;
+
+  /* ============================================================
+     Seating page – hide dashboard header completely
+     משאיר רק את ה-toolbar הפנימי של ההושבה
+  ============================================================ */
+  const isSeatingPage =
+    pathname === "/dashboard/seating" ||
+    pathname.startsWith("/dashboard/seating/") ||
+    pathname === "/try/dashboard/seating" ||
+    pathname.startsWith("/try/dashboard/seating/");
+
+  if (isSeatingPage) {
+    return null;
+  }
 
   /* ============================================================
      Producer Header Override
