@@ -199,26 +199,26 @@ const MESSAGE_TEMPLATES: Record<
   },
 
   table: {
-    requiresTable: false,
-    content:
-      "היי {{name}} 🌸 שמחים לראות אותך 💛\n" +
-      "מספר השולחן שלך באירוע:\n" +
-      "🪑 {{tableName}}\n" +
-      "ניווט לאירוע:\n" +
-      "{{navigationLink}}\n" +
-      "מחכים לך!",
-  },
+  requiresTable: false,
+  content:
+    "תזכורת לקראת אירוע {{invitationTitle}}.\n\n" +
+    "מספר השולחן שלך:\n" +
+    "{{tableName}}\n\n" +
+    "לניווט לאירוע לחצו כאן:\n" +
+    "{{navigationLink}}\n\n" +
+    "נשמח לראותכם ❤️",
+},
 
-  reminder: {
-    requiresTable: false,
-    content:
-      "תזכורת לקראת אירוע {{invitationTitle}}.\n" +
-      "מספר השולחן שלך:\n" +
-      "{{tableName}}\n" +
-      "לניווט לאירוע לחצו כאן:\n" +
-      "{{navigationLink}}\n" +
-      "נשמח לראותכם ❤️",
-  },
+reminder: {
+  requiresTable: false,
+  content:
+    "תזכורת לקראת אירוע {{invitationTitle}}.\n\n" +
+    "מספר השולחן שלך:\n" +
+    "{{tableName}}\n\n" +
+    "לניווט לאירוע לחצו כאן:\n" +
+    "{{navigationLink}}\n\n" +
+    "נשמח לראותכם ❤️",
+},
 
   custom: {
     content:
