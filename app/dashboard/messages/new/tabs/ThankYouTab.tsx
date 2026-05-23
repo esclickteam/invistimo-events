@@ -28,7 +28,7 @@ type SendTiming = "now" | "scheduled";
 /* ================= TEMPLATE ================= */
 
 const THANK_YOU_TEMPLATE =
-  "שמחנו לראותך באירוע {{invitationTitle}} ❤️\n\n" +
+  "שמחנו לראותך באירוע {{invitationTitle}} ❤️\n" +
   "תודה שהגעת לחגוג איתנו.";
 
 /* ================= COMPONENT ================= */

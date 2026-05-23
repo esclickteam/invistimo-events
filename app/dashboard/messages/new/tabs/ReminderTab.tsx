@@ -33,17 +33,17 @@ type SendTiming = "now" | "scheduled";
 /* ================= TEMPLATES ================= */
 
 const REMINDER_WITH_TABLE_TEMPLATE =
-  "תזכורת לקראת אירוע {{invitationTitle}}.\n\n" +
+  "תזכורת לקראת אירוע {{invitationTitle}}.\n" +
   "מספר השולחן שלך:\n" +
-  "{{tableName}}\n\n" +
+  "{{tableName}}\n" +
   "לניווט לאירוע לחצו כאן:\n" +
-  "{{navigationLink}}\n\n" +
+  "{{navigationLink}}\n" +
   "נשמח לראותכם ❤️";
 
 const REMINDER_ONLY_TEMPLATE =
-  "תזכורת לקראת אירוע {{invitationTitle}}.\n\n" +
+  "תזכורת לקראת אירוע {{invitationTitle}}.\n" +
   "לניווט לאירוע לחצו כאן:\n" +
-  "{{navigationLink}}\n\n" +
+  "{{navigationLink}}\n" +
   "נשמח לראותכם ❤️";
 
 const MAX_TEST_MESSAGES = 2;

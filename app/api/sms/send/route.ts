@@ -203,20 +203,20 @@ const MESSAGE_TEMPLATES: Record<
     content:
       "היי {{name}} 🌸 שמחים לראות אותך 💛\n" +
       "מספר השולחן שלך באירוע:\n" +
-      "🪑 {{tableName}}\n\n" +
+      "🪑 {{tableName}}\n" +
       "ניווט לאירוע:\n" +
-      "{{navigationLink}}\n\n" +
+      "{{navigationLink}}\n" +
       "מחכים לך!",
   },
 
   reminder: {
     requiresTable: false,
     content:
-      "תזכורת לקראת אירוע {{invitationTitle}}.\n\n" +
+      "תזכורת לקראת אירוע {{invitationTitle}}.\n" +
       "מספר השולחן שלך:\n" +
-      "{{tableName}}\n\n" +
+      "{{tableName}}\n" +
       "לניווט לאירוע לחצו כאן:\n" +
-      "{{navigationLink}}\n\n" +
+      "{{navigationLink}}\n" +
       "נשמח לראותכם ❤️",
   },
 
@@ -229,7 +229,7 @@ const MESSAGE_TEMPLATES: Record<
 
   thankyou: {
     content:
-      "שמחנו לראותך באירוע {{invitationTitle}} ❤️\n\n" +
+      "שמחנו לראותך באירוע {{invitationTitle}} ❤️\n" +
       "תודה שהגעת לחגוג איתנו.",
   },
 };
