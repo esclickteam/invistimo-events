@@ -19,10 +19,25 @@ export default function ClientShell({ children }: { children: ReactNode }) {
     pathname.startsWith("/events/production");
 
   /* =====================================================
+     🪑 עמודי הושבה – בלי Header/Footer של האתר
+     משאיר רק את ה-toolbar הפנימי של ההושבה
+  ===================================================== */
+  const isSeatingWorkspace =
+    pathname === "/dashboard/seating" ||
+    pathname.startsWith("/dashboard/seating/") ||
+    pathname === "/try/dashboard/seating" ||
+    pathname.startsWith("/try/dashboard/seating/") ||
+    pathname === "/venues/dashboard/seating" ||
+    pathname.startsWith("/venues/dashboard/seating/") ||
+    pathname === "/seating" ||
+    pathname.startsWith("/seating/");
+
+  if (isSeatingWorkspace) {
+    return <>{children}</>;
+  }
+
+  /* =====================================================
      ❌ דפים פנימיים / אחרי התחברות – בלי SupportBot
-     שימי לב:
-     לא משתמשים ב-pathname.startsWith("/seating")
-     כי זה חוסם בטעות גם את /seating-explained
   ===================================================== */
   const isInternalPage =
     pathname.startsWith("/dashboard") ||
@@ -31,9 +46,7 @@ export default function ClientShell({ children }: { children: ReactNode }) {
     pathname.startsWith("/producer") ||
     pathname.startsWith("/events") ||
     pathname.startsWith("/client") ||
-    pathname.startsWith("/guests") ||
-    pathname === "/seating" ||
-    pathname.startsWith("/seating/");
+    pathname.startsWith("/guests");
 
   /* =====================================================
      ❌ דפי התחברות / הרשמה – בלי SupportBot
@@ -53,10 +66,6 @@ export default function ClientShell({ children }: { children: ReactNode }) {
     pathname.startsWith("/rsvp/") ||
     pathname.startsWith("/invitation/");
 
-  /* =====================================================
-     ✅ כל דף חיצוני לפני התחברות
-     כל מה שלא פנימי / לא התחברות / לא הזמנה
-  ===================================================== */
   const showSupportBot =
     !isInternalPage &&
     !isAuthPage &&
@@ -70,7 +79,7 @@ export default function ClientShell({ children }: { children: ReactNode }) {
   }
 
   /* =====================================================
-     🟡 Producer – Header כן, Footer לא, בלי SupportBot
+     🟡 Producer – Header כן, Footer לא
   ===================================================== */
   if (isProducer) {
     return (
