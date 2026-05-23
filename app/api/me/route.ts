@@ -59,7 +59,11 @@ function clearAuthCookies(res: NextResponse) {
 function normalizeAccessModules(user: any) {
   const includeDigitalSeating =
     Boolean(user?.includeDigitalSeating) ||
-    Boolean(user?.planLimits?.seatingEnabled);
+    Boolean(user?.includeSeating) ||
+    Boolean(user?.planLimits?.seatingEnabled) ||
+    user?.plan === "seating_only" ||
+    Boolean(user?.venueClientHallId) ||
+    Boolean(user?.hallId);
 
   const includeEventManagement =
     Boolean(user?.includeEventManagement) ||
@@ -70,6 +74,16 @@ function normalizeAccessModules(user: any) {
   return {
     rsvpSeating: Boolean(
       user?.accessModules?.rsvpSeating ?? includeDigitalSeating
+    ),
+
+    seating: Boolean(user?.accessModules?.seating ?? includeDigitalSeating),
+
+    digitalSeating: Boolean(
+      user?.accessModules?.digitalSeating ?? includeDigitalSeating
+    ),
+
+    seatingTemplates: Boolean(
+      user?.accessModules?.seatingTemplates ?? includeDigitalSeating
     ),
 
     eventProduction: Boolean(
@@ -89,7 +103,13 @@ function normalizeAccessModules(user: any) {
    Types
 ========================= */
 
-type UserRole = "admin" | "producer" | "client" | "user" | "staff" | "venue_owner";
+type UserRole =
+  | "admin"
+  | "producer"
+  | "client"
+  | "user"
+  | "staff"
+  | "venue_owner";
 
 type EffectiveRole =
   | "producer"
@@ -111,6 +131,9 @@ type JwtPayload = {
 
   accessModules?: {
     rsvpSeating?: boolean;
+    seating?: boolean;
+    digitalSeating?: boolean;
+    seatingTemplates?: boolean;
     eventProduction?: boolean;
 
     venues?: boolean;
@@ -302,16 +325,18 @@ export async function GET() {
       return res;
     }
 
-    const safeRole = (user.role as UserRole) ?? "user";
+    const currentUser = user as any;
 
-    const staffType = (user.staffType as string | null) ?? null;
+    const safeRole = (currentUser.role as UserRole) ?? "user";
+
+    const staffType = (currentUser.staffType as string | null) ?? null;
     const impersonationRole = decoded.impersonationRole ?? null;
 
-    const accessModules = normalizeAccessModules(user);
+    const accessModules = normalizeAccessModules(currentUser);
 
     const isVenueOwner =
       safeRole === "venue_owner" ||
-      user.venueOwner === true ||
+      currentUser.venueOwner === true ||
       accessModules.venues === true;
 
     const isProducer =
@@ -327,23 +352,31 @@ export async function GET() {
     const effectiveRole: EffectiveRole = isProducer
       ? "producer"
       : isProducerStaff
-      ? "producer_staff"
-      : safeRole === "client"
-      ? "client"
-      : safeRole === "admin"
-      ? "admin"
-      : isVenueOwner
-      ? "venue_owner"
-      : "user";
+        ? "producer_staff"
+        : safeRole === "client"
+          ? "client"
+          : safeRole === "admin"
+            ? "admin"
+            : isVenueOwner
+              ? "venue_owner"
+              : "user";
 
     const isImpersonated =
       !!decoded.impersonated ||
       !!decoded.impersonatedByAdmin ||
       !!decoded.impersonatedBy;
 
+    const venueClientHallId =
+      currentUser.venueClientHallId ||
+      currentUser.hallId ||
+      currentUser.venueHallId ||
+      currentUser.assignedHallId ||
+      currentUser.venueSeatingService?.hallId ||
+      "";
+
     console.log(
       "✅ ME:",
-      user.email,
+      currentUser.email,
       "| tokenSource:",
       tokenResult.source,
       "| role:",
@@ -351,9 +384,11 @@ export async function GET() {
       "| effectiveRole:",
       effectiveRole,
       "| hasPaid:",
-      user.hasPaid === true,
+      currentUser.hasPaid === true,
       "| venueOwner:",
       isVenueOwner,
+      "| venueClientHallId:",
+      venueClientHallId || null,
       "| accessModules:",
       accessModules,
       "| staffType:",
@@ -369,58 +404,89 @@ export async function GET() {
       {
         success: true,
         user: {
-          _id: String(user._id),
-          name: user.name ?? "",
-          email: user.email ?? "",
+          _id: String(currentUser._id),
+          name: currentUser.name ?? "",
+          email: currentUser.email ?? "",
 
           role: safeRole,
           effectiveRole,
           venueOwner: isVenueOwner,
 
           staffType,
-          assignedProducerId: user.assignedProducerId
-            ? String(user.assignedProducerId)
+          assignedProducerId: currentUser.assignedProducerId
+            ? String(currentUser.assignedProducerId)
             : null,
-          createdByProducer: !!user.createdByProducer,
+          createdByProducer: !!currentUser.createdByProducer,
 
           isProducerLike,
           isProducerStaff,
 
-          isActive: user.isActive === true,
-          hasPaid: user.hasPaid === true,
-          isTrial: user.isTrial === true,
-          trialExpiresAt: user.trialExpiresAt ?? null,
-          hasDashboardAccess: user.hasDashboardAccess === true,
+          isActive: currentUser.isActive === true,
+          hasPaid: currentUser.hasPaid === true,
+          isTrial: currentUser.isTrial === true,
+          trialExpiresAt: currentUser.trialExpiresAt ?? null,
+          hasDashboardAccess: currentUser.hasDashboardAccess === true,
 
           accessModules,
+
+          includeSeating: currentUser.includeSeating === true,
           includeDigitalSeating: accessModules.rsvpSeating,
           includeEventManagement: accessModules.eventProduction,
           selfManageEnabled: accessModules.eventProduction,
 
-          plan: user.plan ?? "basic",
-          guests: user.guests ?? 0,
-          paidAmount: user.paidAmount ?? 0,
-          billingSource: user.billingSource ?? null,
+          plan: currentUser.plan ?? "basic",
+          packageName: currentUser.packageName ?? "",
+          guests: currentUser.guests ?? 0,
+          maxGuests: currentUser.maxGuests ?? currentUser.guests ?? 0,
+          paidAmount: currentUser.paidAmount ?? 0,
+          billingSource: currentUser.billingSource ?? null,
+          paymentStatus: currentUser.paymentStatus ?? null,
+
+          /*
+            שדות לקוח אולם — חשובים לכפתור/מודאל תבניות הושבה
+          */
+          venueClientSource: currentUser.venueClientSource === true,
+          venueClientPackageType: currentUser.venueClientPackageType ?? null,
+          venueClientRecordsCount: currentUser.venueClientRecordsCount ?? 0,
+          venueClientPaymentStatus:
+            currentUser.venueClientPaymentStatus ?? null,
+          venueClientPaymentAmount:
+            currentUser.venueClientPaymentAmount ?? 0,
+
+          venueClientHallId: venueClientHallId || null,
+          hallId: currentUser.hallId || venueClientHallId || null,
+          venueHallId: currentUser.venueHallId || venueClientHallId || null,
+          assignedHallId: currentUser.assignedHallId || null,
+          venueClientHallName:
+            currentUser.venueClientHallName ||
+            currentUser.venueHallName ||
+            null,
+          venueHallName:
+            currentUser.venueHallName ||
+            currentUser.venueClientHallName ||
+            null,
+          venueSeatingService: currentUser.venueSeatingService ?? null,
+
           planLimits: {
-            ...(user.planLimits ?? {}),
+            ...(currentUser.planLimits ?? {}),
             seatingEnabled: accessModules.rsvpSeating,
           },
 
-          includeCalls: !!user.includeCalls,
-          callsAddonPrice: user.callsAddonPrice ?? 0,
+          includeCalls: !!currentUser.includeCalls,
+          callsAddonPrice: currentUser.callsAddonPrice ?? 0,
 
-          includeCreditGifts: !!user.includeCreditGifts,
-          creditGiftsAddonPrice: user.creditGiftsAddonPrice ?? 0,
+          includeCreditGifts: !!currentUser.includeCreditGifts,
+          creditGiftsAddonPrice: currentUser.creditGiftsAddonPrice ?? 0,
 
-          smsPerRecord: user.smsPerRecord ?? 0,
-          maxMessages: user.maxMessages ?? 0,
+          smsPerRecord: currentUser.smsPerRecord ?? 0,
+          maxMessages: currentUser.maxMessages ?? 0,
 
-          smsUsed: user.smsUsed ?? 0,
-          smsBalance: user.smsBalance ?? 0,
-          whatsappBalance: user.whatsappBalance ?? 0,
-          whatsappUsed: user.whatsappUsed ?? 0,
+          smsUsed: currentUser.smsUsed ?? 0,
+          smsBalance: currentUser.smsBalance ?? 0,
+          whatsappBalance: currentUser.whatsappBalance ?? 0,
+          whatsappUsed: currentUser.whatsappUsed ?? 0,
 
-          producerPricePerRecord: user.producerPricePerRecord ?? 0,
+          producerPricePerRecord: currentUser.producerPricePerRecord ?? 0,
 
           impersonated: isImpersonated,
           impersonatedBy: decoded.impersonatedBy ?? null,
@@ -430,8 +496,8 @@ export async function GET() {
 
           tokenSource: tokenResult.source,
 
-          createdAt: user.createdAt,
-          updatedAt: user.updatedAt ?? null,
+          createdAt: currentUser.createdAt,
+          updatedAt: currentUser.updatedAt ?? null,
         },
       },
       {
