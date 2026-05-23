@@ -201,10 +201,10 @@ const MESSAGE_TEMPLATES: Record<
   table: {
   requiresTable: false,
   content:
-    "תזכורת לקראת אירוע {{invitationTitle}}.\n\n" +
+    "תזכורת לאירוע {{invitationTitle}}.\n\n" +
     "מספר השולחן שלך:\n" +
     "{{tableName}}\n\n" +
-    "לניווט לאירוע לחצו כאן:\n" +
+    "לניווט לאירוע:\n" +
     "{{navigationLink}}\n\n" +
     "נשמח לראותכם ❤️",
 },
@@ -212,10 +212,10 @@ const MESSAGE_TEMPLATES: Record<
 reminder: {
   requiresTable: false,
   content:
-    "תזכורת לקראת אירוע {{invitationTitle}}.\n\n" +
+    "תזכורת לאירוע {{invitationTitle}}.\n\n" +
     "מספר השולחן שלך:\n" +
     "{{tableName}}\n\n" +
-    "לניווט לאירוע לחצו כאן:\n" +
+    "לניווט לאירוע:\n" +
     "{{navigationLink}}\n\n" +
     "נשמח לראותכם ❤️",
 },
@@ -239,16 +239,16 @@ reminder: {
 ====================================================== */
 
 const REMINDER_WITH_TABLE_SERVER_TEMPLATE =
-  "תזכורת לקראת אירוע {{invitationTitle}}.\n\n" +
+  "תזכורת לאירוע {{invitationTitle}}.\n\n" +
   "מספר השולחן שלך:\n" +
   "{{tableName}}\n\n" +
-  "לניווט לאירוע לחצו כאן:\n" +
+  "לניווט לאירוע:\n" +
   "{{navigationLink}}\n\n" +
   "נשמח לראותכם ❤️";
 
 const REMINDER_WITHOUT_TABLE_SERVER_TEMPLATE =
-  "תזכורת לקראת אירוע {{invitationTitle}}.\n\n" +
-  "לניווט לאירוע לחצו כאן:\n" +
+  "תזכורת לאירוע {{invitationTitle}}.\n\n" +
+  "לניווט לאירוע:\n" +
   "{{navigationLink}}\n\n" +
   "נשמח לראותכם ❤️";
 
