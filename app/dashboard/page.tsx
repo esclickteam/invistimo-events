@@ -12,7 +12,6 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import EditGuestModal from "../components/EditGuestModal";
 import AddGuestModal from "../components/AddGuestModal";
 import ImportExcelModal from "../components/ImportExcelModal";
-import EventCountdown from "../components/EventCountdown";
 import GuestsMobileList from "./components/GuestsMobileList";
 import LiveGuestTableSelect from "./LiveGuestTableSelect";
 import DemoToast from "../components/DemoToast";
@@ -1436,19 +1435,7 @@ const canOpenEventManagement =
             )}
           </div>
 
-          {event && (
-            <div className="mt-4 rounded-2xl border border-[#E3D6C3] bg-white/85 px-5 py-4 shadow-sm">
-              <div className="text-lg font-semibold">
-                {event.date ? (
-                  <EventCountdown event={event} />
-                ) : (
-                  <span className="text-gray-500">
-                    📅 טרם הוגדר תאריך לאירוע
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
+          
 
           {/* אחוזים / סטטיסטיקות */}
           <section className="mt-5 grid grid-cols-2 lg:grid-cols-4 gap-4">
