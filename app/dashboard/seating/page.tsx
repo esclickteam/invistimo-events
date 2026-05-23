@@ -72,6 +72,8 @@ export default function SeatingPage() {
   const [isSmartSeating, setIsSmartSeating] = useState(false);
   const [isClearingSmartSeating, setIsClearingSmartSeating] = useState(false);
 
+  const [mobileToolbarOpen, setMobileToolbarOpen] = useState(false);
+
   /* ===============================
      STORES
   =============================== */
@@ -687,22 +689,19 @@ export default function SeatingPage() {
     >
       {/* HEADER */}
       <header
-  className="
-    fixed inset-x-0 top-0 z-[9999]
-    h-[76px] overflow-x-auto overflow-y-hidden
-    border-b border-[#eadcca]/80
-    bg-white/78 shadow-[0_10px_40px_rgba(100,70,40,0.08)]
-    backdrop-blur-2xl
-    [-ms-overflow-style:none] [scrollbar-width:none]
-    [&::-webkit-scrollbar]:hidden
-  "
->
+        className="
+          fixed inset-x-0 top-0 z-[9999]
+          h-[76px] border-b border-[#eadcca]/80
+          bg-white/78 shadow-[0_10px_40px_rgba(100,70,40,0.08)]
+          backdrop-blur-2xl
+        "
+      >
         <div
-  className="
-    flex h-full min-w-max items-center gap-2
-    px-3 md:min-w-0 md:justify-between md:gap-4 md:px-7
-  "
->
+          className="
+            flex h-full items-center justify-between gap-3
+            px-3 md:gap-4 md:px-7
+          "
+        >
           {/* RIGHT TITLE */}
           <div className="hidden shrink-0 items-center gap-4 md:flex">
             <div
@@ -774,13 +773,13 @@ export default function SeatingPage() {
             </div>
           </div>
 
-          {/* LEFT ACTIONS */}
+          {/* LEFT ACTIONS - DESKTOP */}
           <div
-  className="
-    flex shrink-0 items-center gap-2
-    whitespace-nowrap
-  "
->
+            className="
+              hidden shrink-0 items-center gap-2
+              whitespace-nowrap md:flex
+            "
+          >
             <button
               type="button"
               onClick={() => {
@@ -896,6 +895,164 @@ export default function SeatingPage() {
                 <span>שמירה אוטומטית פעילה</span>
               )}
             </div>
+          </div>
+
+          {/* LEFT ACTIONS - MOBILE */}
+          <div className="relative flex shrink-0 items-center gap-2 md:hidden">
+            <button
+              type="button"
+              onClick={() => setMobileToolbarOpen((v) => !v)}
+              className="
+                flex h-11 items-center gap-2 rounded-2xl
+                bg-[#17203a] px-4
+                text-sm font-black text-white
+                shadow-[0_12px_28px_rgba(23,32,58,0.22)]
+              "
+            >
+              ☰ פעולות
+            </button>
+
+            {mobileToolbarOpen && (
+              <div
+                className="
+                  fixed left-3 right-3 top-[84px] z-[100000]
+                  rounded-[26px] border border-[#ead8c8]
+                  bg-white/95 p-3
+                  shadow-[0_22px_70px_rgba(80,50,20,0.22)]
+                  backdrop-blur-2xl
+                "
+              >
+                <div className="grid gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileToolbarOpen(false);
+
+                      if (isVenueTemplateMode && hallId) {
+                        router.push(
+                          `/venues/dashboard/halls/${encodeURIComponent(
+                            hallId
+                          )}`
+                        );
+                        return;
+                      }
+
+                      router.push("/dashboard");
+                    }}
+                    className="
+                      flex h-12 w-full items-center justify-center rounded-2xl
+                      border border-[#e5d2b8] bg-white
+                      text-sm font-black text-[#6f5536]
+                    "
+                  >
+                    {isVenueTemplateMode ? "← חזרה לאולם" : "← חזרה לדשבורד"}
+                  </button>
+
+                  {!isVenueTemplateMode && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMobileToolbarOpen(false);
+                        setShowSmartPanel(true);
+                      }}
+                      disabled={
+                        !eventId || isSmartSeating || isClearingSmartSeating
+                      }
+                      className="
+                        flex h-12 w-full items-center justify-center gap-2
+                        rounded-2xl bg-gradient-to-l from-[#2b2119] to-[#8b6b3e]
+                        text-sm font-black text-white
+                        disabled:cursor-not-allowed disabled:opacity-50
+                      "
+                    >
+                      ✨ הושבה חכמה
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileToolbarOpen(false);
+                      setShowAddModal(true);
+                    }}
+                    className="
+                      flex h-12 w-full items-center justify-center gap-2
+                      rounded-2xl bg-[#17203a]
+                      text-sm font-black text-white
+                    "
+                  >
+                    + הוסף שולחן
+                  </button>
+
+                  {isVenueTemplateMode && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMobileToolbarOpen(false);
+                        saveVenueSeatingTemplate();
+                      }}
+                      className="
+                        flex h-12 w-full items-center justify-center gap-2
+                        rounded-2xl bg-[#B8872E]
+                        text-sm font-black text-white
+                      "
+                    >
+                      💾 שמור כתבנית אולם
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileToolbarOpen(false);
+                      setShowUpload(true);
+                    }}
+                    className="
+                      flex h-12 w-full items-center justify-center gap-2
+                      rounded-2xl border border-[#e5d2b8]
+                      bg-[#fffaf3] text-sm font-black text-[#6f5536]
+                    "
+                  >
+                    ☁️ העלאת תבנית אולם
+                  </button>
+
+                  {!isVenueTemplateMode && (
+                    <div
+                      className="
+                        flex min-h-12 w-full items-center justify-center
+                        rounded-2xl border border-[#e5d2b8] bg-white
+                      "
+                    >
+                      <ExportSeatingPdf eventId={eventId} />
+                    </div>
+                  )}
+
+                  <div
+                    className="
+                      rounded-2xl border border-[#eadcca]
+                      bg-[#fffaf3] px-3 py-3 text-center
+                      text-xs font-bold text-[#8a765f]
+                    "
+                  >
+                    {isVenueTemplateMode ? (
+                      <span>מצב תבנית — השמירה מתבצעת ידנית</span>
+                    ) : isAutoSaving ? (
+                      <span>שומר אוטומטית...</span>
+                    ) : lastAutoSavedAt ? (
+                      <span>
+                        נשמר ב־
+                        {lastAutoSavedAt.toLocaleTimeString("he-IL", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    ) : (
+                      <span>שמירה אוטומטית פעילה</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -1032,19 +1189,17 @@ export default function SeatingPage() {
           <div className="pointer-events-none absolute inset-0 z-0 bg-[linear-gradient(90deg,rgba(202,161,90,0.04)_1px,transparent_1px),linear-gradient(rgba(202,161,90,0.04)_1px,transparent_1px)] bg-[size:34px_34px]" />
 
           <div className="relative z-10 h-full w-full">
-
             <SeatingEditor
-  background={background?.url || null}
-  invitationId={invitationId}
-  onAutoSave={async () => {
-    if (isVenueTemplateMode) return false;
+              background={background?.url || null}
+              invitationId={invitationId}
+              onAutoSave={async () => {
+                if (isVenueTemplateMode) return false;
 
-    return await saveSeating(false);
-  }}
-  hideSeats={isProducer}
-  sidebarOpen={sidebarOpen}
-/>
-
+                return await saveSeating(false);
+              }}
+              hideSeats={isProducer}
+              sidebarOpen={sidebarOpen}
+            />
           </div>
         </section>
 
