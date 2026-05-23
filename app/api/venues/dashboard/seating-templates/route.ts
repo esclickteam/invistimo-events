@@ -1,50 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import mongoose from "mongoose";
+
 import VenueSeatingTemplate from "@/models/VenueSeatingTemplate";
-import { getUserIdFromRequest } from "@/lib/auth";
-import connectDB from "@/lib/db";
+import { connectDB } from "@/lib/db";
+import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-
-function extractUserId(authResult: any): string | null {
-  if (!authResult) return null;
-
-  if (typeof authResult === "string") {
-    return authResult;
-  }
-
-   if (authResult.userId) {
-    return String(authResult.userId);
-  }
-
-  if (authResult.id) {
-    return String(authResult.id);
-  }
-
-  if (authResult._id) {
-    return String(authResult._id);
-  }
-
-  if (authResult.user?._id) {
-    return String(authResult.user._id);
-  }
-
-  if (authResult.user?.id) {
-    return String(authResult.user.id);
-  }
-
-  return null;
-}
 
 export async function GET(req: NextRequest) {
   try {
     await connectDB();
 
-    const authResult = await getUserIdFromRequest(req);
-    const userId = extractUserId(authResult);
+    const auth = await getUserIdFromRequest();
 
-    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+    if (!auth?.userId) {
       return NextResponse.json(
         { success: false, error: "לא מחובר" },
         { status: 401 }
@@ -56,14 +25,14 @@ export async function GET(req: NextRequest) {
 
     if (!hallId) {
       return NextResponse.json(
-        { success: false, error: "חסר hallId" },
+        { success: false, error: "חסר מזהה אולם" },
         { status: 400 }
       );
     }
 
     const templates = await VenueSeatingTemplate.find({
-      ownerId: new mongoose.Types.ObjectId(userId),
-      hallId,
+      ownerId: auth.userId,
+      hallId: String(hallId),
       isActive: true,
     })
       .sort({ createdAt: -1 })
@@ -90,10 +59,9 @@ export async function POST(req: NextRequest) {
   try {
     await connectDB();
 
-    const authResult = await getUserIdFromRequest(req);
-    const userId = extractUserId(authResult);
+    const auth = await getUserIdFromRequest();
 
-    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+    if (!auth?.userId) {
       return NextResponse.json(
         { success: false, error: "לא מחובר" },
         { status: 401 }
@@ -114,7 +82,7 @@ export async function POST(req: NextRequest) {
 
     if (!hallId) {
       return NextResponse.json(
-        { success: false, error: "חסר hallId" },
+        { success: false, error: "חסר מזהה אולם" },
         { status: 400 }
       );
     }
@@ -127,7 +95,7 @@ export async function POST(req: NextRequest) {
     }
 
     const template = await VenueSeatingTemplate.create({
-      ownerId: new mongoose.Types.ObjectId(userId),
+      ownerId: auth.userId,
       hallId: String(hallId),
       hallName: hallName ? String(hallName) : "",
       name: String(name).trim(),
