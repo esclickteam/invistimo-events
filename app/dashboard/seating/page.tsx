@@ -34,20 +34,6 @@ type TableLite = {
   y: number;
 };
 
-type VenueTemplateItem = {
-  _id: string;
-  name: string;
-  description?: string;
-  hallId?: string;
-  hallName?: string;
-  tables?: any[];
-  canvas?: {
-    background?: any;
-    canvasView?: any;
-    zones?: any[];
-  };
-};
-
 export default function SeatingPage() {
   const pathname = usePathname();
   const router = useRouter();
@@ -70,7 +56,6 @@ export default function SeatingPage() {
   const [showUpload, setShowUpload] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [showGuests, setShowGuests] = useState(false);
-  const [showTemplatesModal, setShowTemplatesModal] = useState(false);
 
   const [eventId, setEventId] = useState<string | null>(null);
   const [invitationId, setInvitationId] = useState<string | null>(null);
@@ -91,23 +76,6 @@ export default function SeatingPage() {
      STORES
   =============================== */
   const { user } = useAuth();
-  const currentUser = user as any;
-
-  const isVenueClient =
-    currentUser?.venueClientSource === true ||
-    currentUser?.venueClientPackageType === "seating_only" ||
-    currentUser?.venueClientPackageType === "rsvp_seating" ||
-    currentUser?.venueClientPackageType === "rsvp_and_seating" ||
-    Boolean(currentUser?.venueClientHallId) ||
-    Boolean(currentUser?.hallId);
-
-  const templateHallId =
-    currentUser?.venueClientHallId ||
-    currentUser?.hallId ||
-    currentUser?.venueHallId ||
-    currentUser?.assignedHallId ||
-    currentUser?.venueSeatingService?.hallId ||
-    "";
 
   const init = useSeatingStore((s) => s.init);
   const tables = useSeatingStore((s) => s.tables);
@@ -183,6 +151,8 @@ export default function SeatingPage() {
 
   /* ===============================
      LOAD SEATING DATA
+     כאן נטענת אוטומטית ההושבה שהשרת העתיק מהתבנית
+     שנבחרה מראש ע"י האולם.
   =============================== */
   const loadSeatingData = useCallback(
     async (eventIdToLoad: string, invitationIdToLoad: string) => {
@@ -421,6 +391,7 @@ export default function SeatingPage() {
 
   /* ===============================
      SAVE VENUE TEMPLATE
+     מיועד רק למצב יצירת תבנית אולם.
   =============================== */
   const saveVenueSeatingTemplate = useCallback(async () => {
     if (!hallId) {
@@ -809,23 +780,6 @@ export default function SeatingPage() {
               {isVenueTemplateMode ? "← חזרה לאולם" : "← חזרה לדשבורד"}
             </button>
 
-            {!isVenueTemplateMode && isVenueClient && (
-              <button
-                type="button"
-                onClick={() => setShowTemplatesModal(true)}
-                className="
-                  flex h-11 shrink-0 items-center gap-2 rounded-2xl
-                  bg-gradient-to-l from-[#B8872E] to-[#D9B46F]
-                  px-4 text-sm font-black text-white
-                  shadow-[0_12px_28px_rgba(184,135,46,0.25)]
-                  transition hover:-translate-y-0.5 hover:brightness-105
-                "
-              >
-                <span>🪑</span>
-                תבניות הושבה
-              </button>
-            )}
-
             {!isVenueTemplateMode && (
               <button
                 onClick={() => setShowSmartPanel(true)}
@@ -1102,186 +1056,6 @@ export default function SeatingPage() {
           }}
         />
       )}
-
-      {showTemplatesModal && (
-        <VenueSeatingTemplatesModal
-          hallId={templateHallId}
-          onClose={() => setShowTemplatesModal(false)}
-          onApply={(template) => {
-            const canvas = template?.canvas || {};
-            const currentGuests = useSeatingStore.getState().guests || [];
-
-            init(
-              Array.isArray(template.tables) ? template.tables : [],
-              currentGuests,
-              canvas.background || null,
-              canvas.canvasView || null
-            );
-
-            setZones(Array.isArray(canvas.zones) ? canvas.zones : []);
-            setShowTemplatesModal(false);
-          }}
-        />
-      )}
-    </div>
-  );
-}
-
-/* ===============================
-   VENUE SEATING TEMPLATES MODAL
-=============================== */
-function VenueSeatingTemplatesModal({
-  hallId,
-  onClose,
-  onApply,
-}: {
-  hallId: string;
-  onClose: () => void;
-  onApply: (template: VenueTemplateItem) => void;
-}) {
-  const [templates, setTemplates] = useState<VenueTemplateItem[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function loadTemplates() {
-      if (!hallId) {
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const res = await fetch(
-          `/api/venues/dashboard/seating-templates?hallId=${encodeURIComponent(
-            hallId
-          )}`,
-          {
-            credentials: "include",
-            cache: "no-store",
-          }
-        );
-
-        const data = await res.json().catch(() => ({}));
-
-        if (!res.ok || data?.success === false) {
-          console.error("Load templates failed:", data);
-          setTemplates([]);
-          return;
-        }
-
-        setTemplates(Array.isArray(data.templates) ? data.templates : []);
-      } catch (error) {
-        console.error("Load venue seating templates error:", error);
-        setTemplates([]);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadTemplates();
-  }, [hallId]);
-
-  return (
-    <div
-      dir="rtl"
-      className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/45 px-4 backdrop-blur-sm"
-    >
-      <button
-        type="button"
-        aria-label="סגירת תבניות הושבה"
-        onClick={onClose}
-        className="absolute inset-0 cursor-default"
-      />
-
-      <div className="relative z-10 w-full max-w-[760px] overflow-hidden rounded-[34px] border border-[#ead8c8] bg-white p-6 text-right shadow-[0_34px_110px_rgba(0,0,0,0.32)]">
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute left-5 top-5 flex h-9 w-9 items-center justify-center rounded-full bg-[#f8efe4] text-base font-black text-[#8a765f] transition hover:bg-[#f0dfca]"
-        >
-          ×
-        </button>
-
-        <div className="mb-6 pl-12">
-          <div className="mb-2 flex items-center gap-2 text-xl font-black text-[#2b2119]">
-            <span>🪑</span>
-            תבניות הושבה של האולם
-          </div>
-
-          <p className="text-sm font-semibold leading-7 text-[#7a6a5a]">
-            בחרי תבנית קיימת של האולם כדי לטעון את סידור השולחנות, הרקע
-            והאזורים לעמוד ההושבה.
-          </p>
-        </div>
-
-        {!hallId ? (
-          <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm font-bold text-rose-700">
-            לא נמצא אולם משויך למשתמש.
-          </div>
-        ) : loading ? (
-          <div className="rounded-2xl border border-[#ead8c8] bg-[#fffaf3] px-5 py-5 text-center text-sm font-bold text-[#8a765f]">
-            טוען תבניות...
-          </div>
-        ) : templates.length === 0 ? (
-          <div className="rounded-2xl border border-[#ead8c8] bg-[#fffaf3] px-5 py-5 text-center text-sm font-bold text-[#8a765f]">
-            לא נמצאו תבניות הושבה לאולם הזה.
-          </div>
-        ) : (
-          <div className="grid max-h-[55vh] gap-3 overflow-y-auto pr-1">
-            {templates.map((template) => (
-              <div
-                key={template._id}
-                className="
-                  rounded-3xl border border-[#ead8c8]
-                  bg-[#fffdf8] p-5
-                  shadow-sm transition hover:border-[#d7b56d]
-                "
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h3 className="text-lg font-black text-[#2b2119]">
-                      {template.name || "תבנית ללא שם"}
-                    </h3>
-
-                    <p className="mt-1 text-xs font-bold text-[#8a765f]">
-                      {Array.isArray(template.tables)
-                        ? `${template.tables.length} שולחנות`
-                        : "0 שולחנות"}
-                    </p>
-
-                    {template.description && (
-                      <p className="mt-2 text-sm leading-6 text-[#7a6a5a]">
-                        {template.description}
-                      </p>
-                    )}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const ok = window.confirm(
-                        "לטעון את התבנית הזו לעמוד ההושבה? הפעולה תחליף את פריסת השולחנות הנוכחית."
-                      );
-
-                      if (!ok) return;
-
-                      onApply(template);
-                    }}
-                    className="
-                      h-11 shrink-0 rounded-2xl
-                      bg-gradient-to-l from-[#2b2119] to-[#8b6b3e]
-                      px-5 text-sm font-black text-white
-                      shadow-[0_12px_28px_rgba(139,107,62,0.25)]
-                      transition hover:-translate-y-0.5 hover:brightness-105
-                    "
-                  >
-                    השתמש בתבנית
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
     </div>
   );
 }
