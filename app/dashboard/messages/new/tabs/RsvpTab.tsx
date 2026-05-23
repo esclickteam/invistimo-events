@@ -55,18 +55,21 @@ const RSVP_REMINDER_TEMPLATE = "rsvp_reminder_invistimo";
 
 const RSVP_SMS_TEMPLATES: Record<RoundNumber, string> = {
   1:
-    "הוזמנתם לאירוע {{invitationTitle}}.\n" +
-    "לצפייה בהזמנה ואישור הגעה לחצו כאן: {{rsvpLink}}\n" +
+    "הוזמנתם לאירוע ה-{{invitationTitle}}.\n\n" +
+    "לצפייה בהזמנה ואישור הגעה לחצו כאן:\n" +
+    "{{rsvpLink}}\n\n" +
     "מחכים לכם באהבה ❤️",
 
   2:
-    "תזכורת לאישור הגעה לאירוע {{invitationTitle}}.\n" +
-    "לצפייה בהזמנה ואישור הגעה לחצו כאן: {{rsvpLink}}\n" +
+    "תזכורת לאישור הגעה לאירוע ה-{{invitationTitle}}.\n\n" +
+    "לצפייה בהזמנה ואישור הגעה לחצו כאן:\n" +
+    "{{rsvpLink}}\n\n" +
     "מחכים לעדכון ❤️",
 
   3:
-    "תזכורת לאישור הגעה לאירוע {{invitationTitle}}.\n" +
-    "לצפייה בהזמנה ואישור הגעה לחצו כאן: {{rsvpLink}}\n" +
+    "תזכורת לאישור הגעה לאירוע ה-{{invitationTitle}}.\n\n" +
+    "לצפייה בהזמנה ואישור הגעה לחצו כאן:\n" +
+    "{{rsvpLink}}\n\n" +
     "מחכים לעדכון ❤️",
 };
 
