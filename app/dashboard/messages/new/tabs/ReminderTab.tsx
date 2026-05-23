@@ -33,20 +33,18 @@ type SendTiming = "now" | "scheduled";
 /* ================= TEMPLATES ================= */
 
 const REMINDER_WITH_TABLE_TEMPLATE =
-  "היי {{name}} 🌸\n" +
-  "תזכורת לקראת {{invitationTitle}} 💛\n\n" +
-  "השולחן שלך באירוע:\n" +
-  "🪑 {{tableName}}\n\n" +
-  "📍 ניווט:\n" +
+  "תזכורת לקראת אירוע {{invitationTitle}}.\n\n" +
+  "מספר השולחן שלך:\n" +
+  "{{tableName}}\n\n" +
+  "לניווט לאירוע לחצו כאן:\n" +
   "{{navigationLink}}\n\n" +
-  "מחכים לראותך!";
+  "נשמח לראותכם ❤️";
 
 const REMINDER_ONLY_TEMPLATE =
-  "היי {{name}} 🌸\n" +
-  "תזכורת לקראת {{invitationTitle}} 💛\n\n" +
-  "📍 ניווט:\n" +
+  "תזכורת לקראת אירוע {{invitationTitle}}.\n\n" +
+  "לניווט לאירוע לחצו כאן:\n" +
   "{{navigationLink}}\n\n" +
-  "מחכים לראותך!";
+  "נשמח לראותכם ❤️";
 
 const MAX_TEST_MESSAGES = 2;
 
@@ -412,8 +410,13 @@ export default function ReminderTab({
 
   const reminderAlreadySent = !!reminderSentAt;
 
-  const isAdmin =
-    user?.role === "admin" || (user as any)?.impersonatedByAdmin;
+  const userRole = String((user as any)?.role || "");
+
+const isAdmin =
+  userRole === "admin" ||
+  userRole === "super_admin" ||
+  userRole === "superadmin" ||
+  Boolean((user as any)?.impersonatedByAdmin);
 
   const sendButtonDisabled =
     (reminderAlreadySent && reminderLocked) ||
@@ -641,55 +644,58 @@ export default function ReminderTab({
             </div>
           </Panel>
 
-          <Panel title="תוכן ההודעה" subtitle={selectedTemplateLabel} icon="✏️">
-            <textarea
-              value={message}
-              onChange={(e) => {
-                setMessageTouched(true);
-                setMessage(e.target.value);
-              }}
-              rows={8}
-              className="
-                w-full resize-none
-                rounded-[24px]
-                border border-[#E4D3BB]
-                bg-white/80
-                p-5
-                text-sm leading-7
-                text-[#3E2D20]
-                shadow-inner
-                outline-none
-                focus:border-[#C79B45]
-                focus:ring-4
-                focus:ring-[#E8C878]/20
-                transition
-              "
-            />
+          {isAdmin && (
+            <Panel
+              title="תוכן ההודעה"
+              subtitle={selectedTemplateLabel}
+              icon="✏️"
+            >
+              <textarea
+                value={message}
+                onChange={(e) => {
+                  setMessageTouched(true);
+                  setMessage(e.target.value);
+                }}
+                rows={8}
+                className="
+                  w-full resize-none
+                  rounded-[24px]
+                  border border-[#E4D3BB]
+                  bg-white/80
+                  p-5
+                  text-sm leading-7
+                  text-[#3E2D20]
+                  shadow-inner
+                  outline-none
+                  focus:border-[#C79B45]
+                  focus:ring-4
+                  focus:ring-[#E8C878]/20
+                  transition
+                "
+              />
 
-            <div className="mt-4 flex flex-wrap gap-2 text-xs">
-              {[
-                "{{name}}",
-                "{{invitationTitle}}",
-                "{{eventDate}}",
-                "{{eventLocation}}",
-                "{{tableName}}",
-                "{{navigationLink}}",
-              ].map((item) => (
-                <span
-                  key={item}
-                  className="
-                    rounded-full
-                    border border-[#E2CFB5]
-                    bg-[#FFF8EA]
-                    px-3 py-1
-                    font-mono text-[#8A642B]
-                  "
-                >
-                  {item}
-                </span>
-              ))}
-            </div>
-          </Panel>
+              <div className="mt-4 flex flex-wrap gap-2 text-xs">
+                {[
+                  "{{invitationTitle}}",
+                  "{{tableName}}",
+                  "{{navigationLink}}",
+                ].map((item) => (
+                  <span
+                    key={item}
+                    className="
+                      rounded-full
+                      border border-[#E2CFB5]
+                      bg-[#FFF8EA]
+                      px-3 py-1
+                      font-mono text-[#8A642B]
+                    "
+                  >
+                    {item}
+                  </span>
+                ))}
+              </div>
+            </Panel>
+          )}
 
           {/* SEND AREA */}
           <div
@@ -812,7 +818,7 @@ export default function ReminderTab({
                     : guestsToSend.map((g) => g._id)
                 }
                 scheduledAt={scheduledAt}
-                messageOverride={message}
+                {...(isAdmin ? { messageOverride: message } : {})}
                 onAfterSend={async () => {
                   if (sendTiming === "now") {
                     setReminderSentAt(new Date());
@@ -829,8 +835,6 @@ export default function ReminderTab({
                     : `📩 שלח תזכורת (${guestsToSend.length})`}
               </SendButton>
             </div>
-
-            
           </div>
 
           {reminderScheduledMessages.length > 0 && (

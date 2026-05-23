@@ -179,24 +179,24 @@ const MESSAGE_TEMPLATES: Record<
   }
 > = {
   rsvp: {
-  round1:
-    "הוזמנתם לאירוע {{invitationTitle}}.\n\n" +
-    "לצפייה בהזמנה ואישור הגעה לחצו כאן:\n" +
-    "{{rsvpLink}}\n\n" +
-    "מחכים לכם באהבה ❤️",
+    round1:
+      "הוזמנתם לאירוע {{invitationTitle}}.\n\n" +
+      "לצפייה בהזמנה ואישור הגעה לחצו כאן:\n" +
+      "{{rsvpLink}}\n\n" +
+      "מחכים לכם באהבה ❤️",
 
-  round2:
-    "תזכורת לאישור הגעה לאירוע {{invitationTitle}}.\n\n" +
-    "לצפייה בהזמנה ואישור הגעה לחצו כאן:\n" +
-    "{{rsvpLink}}\n\n" +
-    "מחכים לעדכון ❤️",
+    round2:
+      "תזכורת לאישור הגעה לאירוע {{invitationTitle}}.\n\n" +
+      "לצפייה בהזמנה ואישור הגעה לחצו כאן:\n" +
+      "{{rsvpLink}}\n\n" +
+      "מחכים לעדכון ❤️",
 
-  round3:
-    "תזכורת לאישור הגעה לאירוע {{invitationTitle}}.\n\n" +
-    "לצפייה בהזמנה ואישור הגעה לחצו כאן:\n" +
-    "{{rsvpLink}}\n\n" +
-    "מחכים לעדכון ❤️",
-},
+    round3:
+      "תזכורת לאישור הגעה לאירוע {{invitationTitle}}.\n\n" +
+      "לצפייה בהזמנה ואישור הגעה לחצו כאן:\n" +
+      "{{rsvpLink}}\n\n" +
+      "מחכים לעדכון ❤️",
+  },
 
   table: {
     requiresTable: false,
@@ -212,12 +212,12 @@ const MESSAGE_TEMPLATES: Record<
   reminder: {
     requiresTable: false,
     content:
-      "היי {{name}} 🌸 שמחים לראות אותך 💛\n" +
-      "מספר השולחן שלך באירוע:\n" +
-      "🪑 {{tableName}}\n\n" +
-      "ניווט לאירוע:\n" +
+      "תזכורת לקראת אירוע {{invitationTitle}}.\n\n" +
+      "מספר השולחן שלך:\n" +
+      "{{tableName}}\n\n" +
+      "לניווט לאירוע לחצו כאן:\n" +
       "{{navigationLink}}\n\n" +
-      "מחכים לך!",
+      "נשמח לראותכם ❤️",
   },
 
   custom: {
@@ -229,9 +229,8 @@ const MESSAGE_TEMPLATES: Record<
 
   thankyou: {
     content:
-      "היי {{name}} 🌸\n" +
-      "שמחנו לראותכם באירוע.\n" +
-      "תודה שהשתתפתם בשמחתנו.",
+      "שמחנו לראותך באירוע {{invitationTitle}} ❤️\n\n" +
+      "תודה שהגעת לחגוג איתנו.",
   },
 };
 
@@ -240,20 +239,18 @@ const MESSAGE_TEMPLATES: Record<
 ====================================================== */
 
 const REMINDER_WITH_TABLE_SERVER_TEMPLATE =
-  "היי {{name}} 🌸\n" +
-  "תזכורת לקראת {{invitationTitle}} 💛\n\n" +
-  "השולחן שלך באירוע:\n" +
-  "🪑 {{tableName}}\n\n" +
-  "ניווט לאירוע:\n" +
+  "תזכורת לקראת אירוע {{invitationTitle}}.\n\n" +
+  "מספר השולחן שלך:\n" +
+  "{{tableName}}\n\n" +
+  "לניווט לאירוע לחצו כאן:\n" +
   "{{navigationLink}}\n\n" +
-  "מחכים לך!";
+  "נשמח לראותכם ❤️";
 
 const REMINDER_WITHOUT_TABLE_SERVER_TEMPLATE =
-  "היי {{name}} 🌸\n" +
-  "תזכורת לקראת {{invitationTitle}} 💛\n\n" +
-  "ניווט לאירוע:\n" +
+  "תזכורת לקראת אירוע {{invitationTitle}}.\n\n" +
+  "לניווט לאירוע לחצו כאן:\n" +
   "{{navigationLink}}\n\n" +
-  "מחכים לך!";
+  "נשמח לראותכם ❤️";
 
 /* ======================================================
    POST
