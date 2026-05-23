@@ -687,21 +687,24 @@ export default function SeatingPage() {
     >
       {/* HEADER */}
       <header
-        className="
-          fixed inset-x-0 top-0 z-[9999]
-          h-[76px] border-b border-[#eadcca]/80
-          bg-white/78 shadow-[0_10px_40px_rgba(100,70,40,0.08)]
-          backdrop-blur-2xl
-        "
-      >
+  className="
+    fixed inset-x-0 top-0 z-[9999]
+    h-[76px] overflow-x-auto overflow-y-hidden
+    border-b border-[#eadcca]/80
+    bg-white/78 shadow-[0_10px_40px_rgba(100,70,40,0.08)]
+    backdrop-blur-2xl
+    [-ms-overflow-style:none] [scrollbar-width:none]
+    [&::-webkit-scrollbar]:hidden
+  "
+>
         <div
-          className="
-            flex h-full items-center justify-between gap-4
-            px-4 md:px-7
-          "
-        >
+  className="
+    flex h-full min-w-max items-center gap-2
+    px-3 md:min-w-0 md:justify-between md:gap-4 md:px-7
+  "
+>
           {/* RIGHT TITLE */}
-          <div className="flex shrink-0 items-center gap-4">
+          <div className="hidden shrink-0 items-center gap-4 md:flex">
             <div
               className="
                 hidden h-11 w-11 items-center justify-center rounded-2xl
@@ -773,11 +776,11 @@ export default function SeatingPage() {
 
           {/* LEFT ACTIONS */}
           <div
-            className="
-              flex shrink-0 items-center gap-2 overflow-x-auto
-              whitespace-nowrap
-            "
-          >
+  className="
+    flex shrink-0 items-center gap-2
+    whitespace-nowrap
+  "
+>
             <button
               type="button"
               onClick={() => {
