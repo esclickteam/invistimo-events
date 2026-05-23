@@ -12,11 +12,23 @@ import SupportBotGate from "./components/SupportBotGate";
 export default function ClientShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
+  const pathSegments = pathname.split("/").filter(Boolean);
+
   const isAdmin = pathname.startsWith("/admin");
 
   const isProducer =
     pathname.startsWith("/producer") ||
     pathname.startsWith("/events/production");
+
+  /* =====================================================
+     🪑 עמודי הושבה – בלי Header / Footer / LayoutShell
+     לא חוסם את /seating-explained
+     כי בודקים segment מדויק בשם seating
+  ===================================================== */
+  const isSeatingWorkspace =
+    pathSegments.includes("seating") ||
+    pathname.startsWith("/dashboard/seating") ||
+    pathname.startsWith("/venues/dashboard/seating");
 
   /* =====================================================
      ❌ דפים פנימיים / אחרי התחברות – בלי SupportBot
@@ -32,8 +44,7 @@ export default function ClientShell({ children }: { children: ReactNode }) {
     pathname.startsWith("/events") ||
     pathname.startsWith("/client") ||
     pathname.startsWith("/guests") ||
-    pathname === "/seating" ||
-    pathname.startsWith("/seating/");
+    isSeatingWorkspace;
 
   /* =====================================================
      ❌ דפי התחברות / הרשמה – בלי SupportBot
@@ -61,6 +72,13 @@ export default function ClientShell({ children }: { children: ReactNode }) {
     !isInternalPage &&
     !isAuthPage &&
     !isInvitationPublicPage;
+
+  /* =====================================================
+     🪑 Seating – בלי Header / Footer בכלל
+  ===================================================== */
+  if (isSeatingWorkspace) {
+    return <>{children}</>;
+  }
 
   /* =====================================================
      🔴 Admin – בלי Header / Footer בכלל
