@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
+
 import db from "@/lib/db";
 import Invitation from "@/models/Invitation";
 import User from "@/models/User";
@@ -7,6 +8,7 @@ import Event from "@/models/Event";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 /* ============================================================
   Helpers
@@ -20,12 +22,10 @@ function toObjectId(id?: string | null) {
 function normalizeEventId(eventId: any): string | null {
   if (!eventId) return null;
 
-  // אם זה populate → אובייקט עם _id
   if (typeof eventId === "object" && eventId !== null && "_id" in eventId) {
     return String((eventId as any)._id);
   }
 
-  // אם זה כבר ObjectId
   if (mongoose.Types.ObjectId.isValid(eventId)) {
     return String(eventId);
   }
@@ -50,10 +50,10 @@ function resolveProducerContext(auth: any, user: any) {
   const effectiveProducerId = isProducer
     ? String(auth.userId)
     : user?.assignedProducerId
-    ? String(user.assignedProducerId)
-    : user?.createdByProducer
-    ? String(user.createdByProducer)
-    : null;
+      ? String(user.assignedProducerId)
+      : user?.createdByProducer
+        ? String(user.createdByProducer)
+        : null;
 
   const assignedClientIds: string[] = Array.isArray(user?.assignedClientIds)
     ? user.assignedClientIds.map((x: any) => String(x))
@@ -79,6 +79,7 @@ export async function GET(req: Request) {
     await db();
 
     const auth = await getUserIdFromRequest(req);
+
     if (!auth?.userId) {
       return NextResponse.json(
         { success: false, error: "UNAUTHORIZED" },
@@ -87,9 +88,23 @@ export async function GET(req: Request) {
     }
 
     const userId = String(auth.userId);
+    const userObjectId = toObjectId(userId);
 
     const user = await User.findById(userId)
-      .select("createdByProducer assignedProducerId assignedClientIds role staffType")
+      .select(`
+        createdByProducer
+        assignedProducerId
+        assignedClientIds
+        role
+        staffType
+        venueClientSource
+        venueClientPackageType
+        venueClientHallId
+        hallId
+        venueHallId
+        includeSeating
+        includeDigitalSeating
+      `)
       .lean();
 
     if (!user) {
@@ -103,11 +118,23 @@ export async function GET(req: Request) {
 
     const orFilters: any[] = [];
 
-    const ownerIdObj = toObjectId(userId);
-    if (ownerIdObj) orFilters.push({ ownerId: ownerIdObj });
+    /*
+      חשוב:
+      הזמנה רגילה בדרך כלל יושבת על ownerId.
+      הזמנה של לקוח אולם אצלך נוצרה עם userId.
+      לכן חייבים לבדוק את שניהם.
+    */
+    if (userObjectId) {
+      orFilters.push({ ownerId: userObjectId });
+      orFilters.push({ userId: userObjectId });
+      orFilters.push({ venueClientUserId: userObjectId });
+    }
 
     const producerIdObj = toObjectId(ctx.effectiveProducerId);
-    if (producerIdObj) orFilters.push({ producerId: producerIdObj });
+
+    if (producerIdObj) {
+      orFilters.push({ producerId: producerIdObj });
+    }
 
     const assignedClientObjIds = ctx.assignedClientIds
       .map((id) => toObjectId(id))
@@ -115,6 +142,43 @@ export async function GET(req: Request) {
 
     if (assignedClientObjIds.length > 0) {
       orFilters.push({ ownerId: { $in: assignedClientObjIds } });
+      orFilters.push({ userId: { $in: assignedClientObjIds } });
+      orFilters.push({ venueClientUserId: { $in: assignedClientObjIds } });
+    }
+
+    /*
+      fallback ללקוח אולם:
+      אם משום מה אין userId/ownerId בהזמנה,
+      אפשר למצוא לפי hallId של הלקוח.
+    */
+    const currentUser = user as any;
+
+    const venueHallId =
+      String(
+        currentUser?.venueClientHallId ||
+          currentUser?.hallId ||
+          currentUser?.venueHallId ||
+          ""
+      ).trim();
+
+    const isVenueClient =
+      currentUser?.venueClientSource === true ||
+      currentUser?.venueClientPackageType === "seating_only" ||
+      currentUser?.venueClientPackageType === "rsvp_seating" ||
+      currentUser?.venueClientPackageType === "rsvp_and_seating" ||
+      currentUser?.includeSeating === true ||
+      currentUser?.includeDigitalSeating === true;
+
+    if (isVenueClient && venueHallId) {
+      orFilters.push({
+        venueHallId,
+        venueSource: "venue_client",
+      });
+
+      orFilters.push({
+        venueHallId,
+        venueClientPackageType: { $exists: true },
+      });
     }
 
     if (orFilters.length === 0) {
@@ -125,7 +189,7 @@ export async function GET(req: Request) {
       eventId: { $ne: null },
       $or: orFilters,
     })
-      .sort({ updatedAt: -1 })
+      .sort({ updatedAt: -1, createdAt: -1 })
       .populate({
         path: "eventId",
         select: `
@@ -140,26 +204,41 @@ export async function GET(req: Request) {
           giftCreditUrl
         `,
       })
-
       .select(`
-  _id
-  title
-  eventId
-  previewImage
-  headerImageUrl
-  maxGuests
-  maxMessages
-  remainingMessages
-  shareId
-  producerId
-  ownerId
-  location
-  eventDate
-  eventTime
-  eventType
-  giftCreditUrl
-`)
-.lean();
+        _id
+        userId
+        ownerId
+        title
+        eventId
+        productionEventId
+        linkedEventId
+        venueClientEventId
+        previewImage
+        headerImageUrl
+        maxGuests
+        maxMessages
+        remainingMessages
+        shareId
+        producerId
+        location
+        eventDate
+        eventTime
+        eventType
+        giftCreditUrl
+        venueOwnerId
+        venueHallId
+        venueHallName
+        venueAccessStatus
+        venueSource
+        venueClientPackageType
+        venueClientRecordsCount
+        seatingEnabled
+        rsvpEnabled
+        eventManagementEnabled
+        paymentStatus
+        venueClientPaymentStatus
+      `)
+      .lean();
 
     if (!invitation) {
       return NextResponse.json({ success: true, invitation: null });
@@ -167,19 +246,45 @@ export async function GET(req: Request) {
 
     const normalizedEventId = normalizeEventId(invitation.eventId);
 
+    console.log("✅ /api/invitations/my:", {
+      userId,
+      invitationId: String(invitation._id),
+      eventId: normalizedEventId,
+      venueHallId: (invitation as any)?.venueHallId || null,
+      venueSource: (invitation as any)?.venueSource || null,
+      venueClientPackageType:
+        (invitation as any)?.venueClientPackageType || null,
+    });
+
     return NextResponse.json({
       success: true,
       invitation: {
         ...invitation,
-        eventId: normalizedEventId,   // ⭐ תמיד string
+        _id: String(invitation._id),
+
+        userId: (invitation as any).userId
+          ? String((invitation as any).userId)
+          : null,
+
+        ownerId: (invitation as any).ownerId
+          ? String((invitation as any).ownerId)
+          : null,
+
+        producerId: (invitation as any).producerId
+          ? String((invitation as any).producerId)
+          : null,
+
+        eventId: normalizedEventId,
+
         event:
           typeof invitation.eventId === "object"
             ? invitation.eventId
-            : null,                    // ⭐ האירוע המלא
+            : null,
       },
     });
   } catch (err) {
     console.error("❌ Error loading my invitation:", err);
+
     return NextResponse.json(
       { success: false, error: "SERVER_ERROR" },
       { status: 500 }
@@ -195,6 +300,7 @@ export async function POST(req: Request) {
     await db();
 
     const auth = await getUserIdFromRequest(req);
+
     if (!auth?.userId) {
       return NextResponse.json(
         { success: false, error: "UNAUTHORIZED" },
@@ -205,7 +311,9 @@ export async function POST(req: Request) {
     const userId = String(auth.userId);
 
     const user = await User.findById(userId)
-      .select("email guests maxMessages createdByProducer assignedProducerId role staffType")
+      .select(
+        "email guests maxMessages createdByProducer assignedProducerId role staffType"
+      )
       .lean();
 
     if (!user) {
@@ -226,6 +334,7 @@ export async function POST(req: Request) {
     }
 
     const event = await Event.findOne({ _id: eventId, userId }).lean();
+
     if (!event) {
       return NextResponse.json(
         { success: false, error: "EVENT_NOT_FOUND" },
@@ -237,8 +346,14 @@ export async function POST(req: Request) {
     const producerId = ctx.effectiveProducerId;
     const producerIdObj = toObjectId(producerId);
 
-    const queryOr: any[] = [{ ownerId: event.userId ?? userId }];
-    if (producerIdObj) queryOr.push({ producerId: producerIdObj });
+    const queryOr: any[] = [
+      { ownerId: event.userId ?? userId },
+      { userId: event.userId ?? userId },
+    ];
+
+    if (producerIdObj) {
+      queryOr.push({ producerId: producerIdObj });
+    }
 
     let invitation: any = await Invitation.findOne({
       eventId: event._id,
@@ -248,10 +363,14 @@ export async function POST(req: Request) {
     if (!invitation) {
       invitation = await Invitation.create({
         ownerId: event.userId ?? userId,
+        userId: event.userId ?? userId,
         producerId: producerIdObj ?? null,
         eventId: event._id,
         guests: [],
-        maxGuests: Number((user as any).guests) || Number((event as any).maxGuests) || 100,
+        maxGuests:
+          Number((user as any).guests) ||
+          Number((event as any).maxGuests) ||
+          100,
         maxMessages: Number((user as any).maxMessages) || 300,
         sentSmsCount: 0,
       });
@@ -261,19 +380,22 @@ export async function POST(req: Request) {
       {
         success: true,
         invitation: {
-          _id: invitation._id,
-          eventId: String(invitation.eventId), // ⭐ תמיד string
+          _id: String(invitation._id),
+          eventId: String(invitation.eventId),
           maxGuests: invitation.maxGuests,
           maxMessages: invitation.maxMessages,
           remainingMessages: invitation.remainingMessages,
           shareId: invitation.shareId,
-          producerId: invitation.producerId ?? null,
+          producerId: invitation.producerId
+            ? String(invitation.producerId)
+            : null,
         },
       },
       { status: 201 }
     );
   } catch (err) {
     console.error("❌ Error creating invitation:", err);
+
     return NextResponse.json(
       { success: false, error: "SERVER_ERROR" },
       { status: 500 }
