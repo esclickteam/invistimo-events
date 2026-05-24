@@ -414,9 +414,16 @@ export default function VenueEventPage() {
   };
 
   useEffect(() => {
+  fetchEvent();
+
+  const interval = window.setInterval(() => {
     fetchEvent();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eventId]);
+  }, 5000);
+
+  return () => window.clearInterval(interval);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [eventId]);
 
 
   useEffect(() => {
@@ -1387,40 +1394,118 @@ export default function VenueEventPage() {
             )}
 
             {activeTab === "rsvp" && (
-              <MainCard title="אישורי הגעה" icon={<CheckCircle2 size={19} />}>
-                <div className="grid gap-4 md:grid-cols-5">
-                  <FinanceMini
-                    label="סה״כ רשומות"
-                    value={`${eventStats.rsvp.recordsCount}`}
-                  />
-                  <FinanceMini
-                    label="אישרו"
-                    value={`${eventStats.rsvp.confirmedRecords}`}
-                    success={eventStats.rsvp.confirmedRecords > 0}
-                  />
-                  <FinanceMini
-                    label="לא מגיעים"
-                    value={`${eventStats.rsvp.declinedRecords}`}
-                    danger={eventStats.rsvp.declinedRecords > 0}
-                  />
-                  <FinanceMini
-                    label="ממתינים"
-                    value={`${eventStats.rsvp.pendingRecords}`}
-                  />
-                  <FinanceMini
-                    label="כמות מגיעים"
-                    value={`${eventStats.rsvp.confirmedGuestsAmount}`}
-                    success={eventStats.rsvp.confirmedGuestsAmount > 0}
-                  />
-                </div>
+  <MainCard title="אישורי הגעה" icon={<CheckCircle2 size={19} />}>
+    <div className="grid gap-4 md:grid-cols-5">
+      <FinanceMini
+        label="סה״כ רשומות"
+        value={`${eventStats.rsvp.recordsCount}`}
+      />
+      <FinanceMini
+        label="אישרו"
+        value={`${eventStats.rsvp.confirmedRecords}`}
+        success={eventStats.rsvp.confirmedRecords > 0}
+      />
+      <FinanceMini
+        label="לא מגיעים"
+        value={`${eventStats.rsvp.declinedRecords}`}
+        danger={eventStats.rsvp.declinedRecords > 0}
+      />
+      <FinanceMini
+        label="ממתינים"
+        value={`${eventStats.rsvp.pendingRecords}`}
+      />
+      <FinanceMini
+        label="כמות מגיעים"
+        value={`${eventStats.rsvp.confirmedGuestsAmount}`}
+        success={eventStats.rsvp.confirmedGuestsAmount > 0}
+      />
+    </div>
 
-                {!eventStats.rsvp.enabled && (
-                  <div className="mt-5">
-                    <EmptyBox text="אין עדיין חיבור לאישורי הגעה עבור האירוע הזה." />
-                  </div>
-                )}
-              </MainCard>
-            )}
+    {!eventStats.rsvp.enabled && (
+      <div className="mt-5">
+        <EmptyBox text="אין עדיין חיבור לאישורי הגעה עבור האירוע הזה." />
+      </div>
+    )}
+
+    {eventData.venueClientInvitationId ? (
+      <div className="mt-5 rounded-[28px] border border-[#eadfce] bg-[#fffdf8] p-5">
+        <div className="mb-4">
+          <h3 className="text-lg font-black text-[#2b241c]">
+            ניהול רשימת המוזמנים של הלקוח
+          </h3>
+
+          <p className="mt-1 text-sm font-bold leading-6 text-[#7f705d]">
+            כאן האולם נכנס לאותה רשימת מוזמנים בדיוק שהלקוח רואה. כל אישור הגעה,
+            שינוי סטטוס, שיוך לשולחן ומצב לייב ייטען מאותה הזמנה.
+          </p>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Link
+            href={`/dashboard?eventId=${encodeURIComponent(
+              eventData.id
+            )}&invitationId=${encodeURIComponent(
+              eventData.venueClientInvitationId
+            )}&venueView=1`}
+            className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#b98121] px-5 text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a]"
+          >
+            <Eye size={17} />
+            פתיחת רשימת מוזמנים
+          </Link>
+
+          <Link
+            href={`/dashboard?eventId=${encodeURIComponent(
+              eventData.id
+            )}&invitationId=${encodeURIComponent(
+              eventData.venueClientInvitationId
+            )}&venueView=1&live=1`}
+            className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#1f1b17] px-5 text-sm font-black text-white shadow-sm transition hover:bg-black"
+          >
+            <Sparkles size={17} />
+            פתיחת מצב לייב
+          </Link>
+        </div>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <InfoPill
+            label="מזהה אירוע"
+            value={eventData.id || "לא הוגדר"}
+          />
+          <InfoPill
+            label="מזהה הזמנה"
+            value={eventData.venueClientInvitationId || "לא הוגדר"}
+          />
+          <InfoPill
+            label="רשומות לקוח"
+            value={`${eventData.venueClientRecordsCount || 0}`}
+          />
+        </div>
+      </div>
+    ) : (
+      <div className="mt-5 rounded-[28px] border border-dashed border-[#d9bd83] bg-[#fff8eb] p-5">
+        <div className="text-base font-black text-[#2b241c]">
+          עדיין אין הזמנת לקוח מחוברת לאישורי ההגעה
+        </div>
+
+        <p className="mt-2 text-sm font-bold leading-7 text-[#7f705d]">
+          כדי שהאולם יוכל לראות את רשימת המוזמנים ואישורי ההגעה, הלקוח צריך
+          להירשם מהקישור של האולם ולסיים בחירת חבילה. לאחר מכן יווצר
+          <span className="font-black"> venueClientInvitationId </span>
+          והכפתורים יופיעו כאן.
+        </p>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("client-invite")}
+          className="mt-4 inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#b98121] px-5 text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a]"
+        >
+          <Link2 size={17} />
+          מעבר לפתיחת לקוח
+        </button>
+      </div>
+    )}
+  </MainCard>
+)}
 
             {activeTab === "seating" && (
   <MainCard title="הושבה" icon={<UsersRound size={19} />}>
