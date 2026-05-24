@@ -90,7 +90,9 @@ function normalizeRound(existing, roundNumber, guest) {
           {
             text: String(existing.notes),
             createdAt:
-              existing.calledAt || existing.updatedAt || new Date().toISOString(),
+              existing.calledAt ||
+              existing.updatedAt ||
+              new Date().toISOString(),
             createdBy: "מערכת",
           },
         ]
@@ -117,7 +119,7 @@ function buildInitialRounds(guest) {
   });
 }
 
-function getLatestRsvpFromRounds(rounds, guest) {
+function getLatestRsvpFromRounds(rounds) {
   const reversedRounds = [...rounds].reverse();
 
   for (const round of reversedRounds) {
@@ -143,14 +145,14 @@ function getLatestRsvpFromRounds(rounds, guest) {
     ) {
       return {
         rsvpStatus: "pending",
-        amount: getGuestAmount(guest),
+        amount: 0,
       };
     }
   }
 
   return {
-    rsvpStatus: guest?.rsvp || guest?.rsvpStatus || "pending",
-    amount: getGuestAmount(guest),
+    rsvpStatus: "pending",
+    amount: 0,
   };
 }
 
@@ -169,6 +171,11 @@ export default function CallRoundsModal({ guest, onClose, onUpdated }) {
     2: "",
     3: "",
   });
+  const [expandedLogs, setExpandedLogs] = useState({
+    1: false,
+    2: false,
+    3: false,
+  });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -177,6 +184,11 @@ export default function CallRoundsModal({ guest, onClose, onUpdated }) {
       1: "",
       2: "",
       3: "",
+    });
+    setExpandedLogs({
+      1: false,
+      2: false,
+      3: false,
     });
   }, [guest]);
 
@@ -205,18 +217,25 @@ export default function CallRoundsModal({ guest, onClose, onUpdated }) {
       : [];
 
     const previousAnswer = currentRound.answerStatus;
-    const hasRealChange = previousAnswer && previousAnswer !== value;
+    let nextNotes = currentNotes;
 
-    const nextNotes = hasRealChange
-      ? [
-          ...currentNotes,
-          createSystemLog(
-            `שונה סטטוס שיחה: ${ANSWER_LABELS[previousAnswer] || previousAnswer} ← ${
-              ANSWER_LABELS[value] || value
-            }`
-          ),
-        ]
-      : currentNotes;
+    if (!previousAnswer) {
+      nextNotes = [
+        ...currentNotes,
+        createSystemLog(
+          `סומן סטטוס שיחה: ${ANSWER_LABELS[value] || value}`
+        ),
+      ];
+    } else if (previousAnswer !== value) {
+      nextNotes = [
+        ...currentNotes,
+        createSystemLog(
+          `שונה סטטוס שיחה: ${
+            ANSWER_LABELS[previousAnswer] || previousAnswer
+          } ← ${ANSWER_LABELS[value] || value}`
+        ),
+      ];
+    }
 
     updateRound(index, {
       answerStatus: value,
@@ -237,18 +256,25 @@ export default function CallRoundsModal({ guest, onClose, onUpdated }) {
       : [];
 
     const previousResult = currentRound.resultStatus;
-    const hasRealChange = previousResult && previousResult !== value;
+    let nextNotes = currentNotes;
 
-    const nextNotes = hasRealChange
-      ? [
-          ...currentNotes,
-          createSystemLog(
-            `שונתה תוצאת שיחה: ${RESULT_LABELS[previousResult] || previousResult} ← ${
-              RESULT_LABELS[value] || value
-            }`
-          ),
-        ]
-      : currentNotes;
+    if (!previousResult) {
+      nextNotes = [
+        ...currentNotes,
+        createSystemLog(
+          `סומנה תוצאת שיחה: ${RESULT_LABELS[value] || value}`
+        ),
+      ];
+    } else if (previousResult !== value) {
+      nextNotes = [
+        ...currentNotes,
+        createSystemLog(
+          `שונתה תוצאת שיחה: ${
+            RESULT_LABELS[previousResult] || previousResult
+          } ← ${RESULT_LABELS[value] || value}`
+        ),
+      ];
+    }
 
     updateRound(index, {
       answerStatus: "answered",
@@ -258,7 +284,7 @@ export default function CallRoundsModal({ guest, onClose, onUpdated }) {
           ? Math.max(1, Number(currentRound.amount || getGuestAmount(guest)))
           : value === "no"
             ? 0
-            : getGuestAmount(guest),
+            : 0,
       notes: nextNotes,
       calledAt: new Date().toISOString(),
     });
@@ -276,7 +302,9 @@ export default function CallRoundsModal({ guest, onClose, onUpdated }) {
       previousAmount > 0 && previousAmount !== nextAmount
         ? [
             ...currentNotes,
-            createSystemLog(`שונתה כמות מגיעים: ${previousAmount} ← ${nextAmount}`),
+            createSystemLog(
+              `שונתה כמות מגיעים: ${previousAmount} ← ${nextAmount}`
+            ),
           ]
         : currentNotes;
 
@@ -315,11 +343,18 @@ export default function CallRoundsModal({ guest, onClose, onUpdated }) {
     }));
   };
 
+  const toggleLogs = (roundNumber) => {
+    setExpandedLogs((prev) => ({
+      ...prev,
+      [roundNumber]: !prev[roundNumber],
+    }));
+  };
+
   const save = async () => {
     try {
       setSaving(true);
 
-      const rsvpUpdate = getLatestRsvpFromRounds(rounds, guest);
+      const rsvpUpdate = getLatestRsvpFromRounds(rounds);
 
       const cleanRounds = rounds.map((round) => ({
         roundNumber: round.roundNumber,
@@ -331,7 +366,7 @@ export default function CallRoundsModal({ guest, onClose, onUpdated }) {
             ? Math.max(1, Number(round.amount || 1))
             : round.resultStatus === "no"
               ? 0
-              : round.amount || getGuestAmount(guest),
+              : 0,
         notes: Array.isArray(round.notes)
           ? round.notes.map(normalizeNote).filter(Boolean)
           : [],
@@ -416,6 +451,11 @@ export default function CallRoundsModal({ guest, onClose, onUpdated }) {
                 round.answerStatus === "answered" &&
                 round.resultStatus === "yes";
               const notes = Array.isArray(round.notes) ? round.notes : [];
+              const sortedNotes = [...notes].reverse();
+              const showAllLogs = !!expandedLogs[round.roundNumber];
+              const visibleNotes = showAllLogs
+                ? sortedNotes
+                : sortedNotes.slice(0, 3);
 
               return (
                 <section
@@ -452,7 +492,9 @@ export default function CallRoundsModal({ guest, onClose, onUpdated }) {
                             <button
                               key={opt.value}
                               type="button"
-                              onClick={() => handleAnswerChange(index, opt.value)}
+                              onClick={() =>
+                                handleAnswerChange(index, opt.value)
+                              }
                               className={`
                                 h-9 rounded-full border px-5 text-xs font-black transition
                                 ${
@@ -522,9 +564,23 @@ export default function CallRoundsModal({ guest, onClose, onUpdated }) {
                     )}
 
                     <div className="rounded-[18px] border border-[#EADBC4] bg-[#FFFDF8] p-3">
-                      <p className="mb-2 text-xs font-black text-[#4F3E2F]">
-                        הערות ולוג שינויים
-                      </p>
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <p className="text-xs font-black text-[#4F3E2F]">
+                          הערות ולוג שינויים
+                        </p>
+
+                        {notes.length > 3 && (
+                          <button
+                            type="button"
+                            onClick={() => toggleLogs(round.roundNumber)}
+                            className="text-[11px] font-black text-[#B8844F] transition hover:text-[#2B2118]"
+                          >
+                            {showAllLogs
+                              ? "הצג רק 3 אחרונים"
+                              : `צפייה בכל הלוגים (${notes.length})`}
+                          </button>
+                        )}
+                      </div>
 
                       <div className="flex flex-col gap-2 sm:flex-row">
                         <textarea
@@ -562,10 +618,11 @@ export default function CallRoundsModal({ guest, onClose, onUpdated }) {
                       {notes.length > 0 && (
                         <div className="mt-3 space-y-1.5">
                           <p className="text-[11px] font-black text-[#8A7B69]">
-                            יומן הערות — לא ניתן לעריכה או מחיקה
+                            מוצגים {visibleNotes.length} מתוך {notes.length} —
+                            לא ניתן לעריכה או מחיקה
                           </p>
 
-                          {[...notes].reverse().map((note, noteIndex) => (
+                          {visibleNotes.map((note, noteIndex) => (
                             <div
                               key={`${note.createdAt}-${noteIndex}`}
                               className="rounded-[14px] border border-[#EFE5D6] bg-white px-3 py-2"
