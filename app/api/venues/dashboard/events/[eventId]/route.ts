@@ -354,15 +354,40 @@ async function buildRsvpStats(event: any, invitation: any) {
 
   const guestsCollection = getCollection("invitationguests");
 
-  if (!guestsCollection || !invitation?._id) {
+  if (!guestsCollection) {
     return empty;
   }
 
-  const invitationIdValues = objectIdOrString(invitation._id);
+  const invitationIdValues: any[] = [];
+
+  /*
+    1. ההזמנה הרגילה שנמצאה דרך findInvitationForEvent
+  */
+  if (invitation?._id) {
+    invitationIdValues.push(...objectIdOrString(invitation._id));
+  }
+
+  /*
+    2. לקוח אולם — אם ה-Event מחזיק venueClientInvitationId
+  */
+  if (event?.venueClientInvitationId) {
+    invitationIdValues.push(...objectIdOrString(event.venueClientInvitationId));
+  }
+
+  /*
+    ניקוי כפילויות
+  */
+  const uniqueInvitationIdValues = Array.from(
+    new Map(invitationIdValues.map((value) => [String(value), value])).values()
+  );
+
+  if (!uniqueInvitationIdValues.length) {
+    return empty;
+  }
 
   const rows = await guestsCollection
     .find({
-      invitationId: { $in: invitationIdValues },
+      invitationId: { $in: uniqueInvitationIdValues },
     })
     .toArray();
 
@@ -379,16 +404,56 @@ async function buildRsvpStats(event: any, invitation: any) {
   let confirmedGuestsAmount = 0;
 
   for (const row of rows) {
-    const rsvp = cleanString(row.rsvp).toLowerCase();
-    const guestsCount = Math.max(1, toNumber(row.guestsCount, 1));
+    const rawStatus = cleanString(
+      row.rsvp ||
+        row.status ||
+        row.responseStatus ||
+        row.attendanceStatus ||
+        row.confirmationStatus
+    ).toLowerCase();
 
-    if (rsvp === "yes") {
+    const guestsCount = Math.max(
+      1,
+      toNumber(
+        row.guestsCount ??
+          row.count ??
+          row.amount ??
+          row.guestsAmount ??
+          row.totalGuests,
+        1
+      )
+    );
+
+    const isConfirmed =
+      rawStatus === "yes" ||
+      rawStatus === "confirmed" ||
+      rawStatus === "arriving" ||
+      rawStatus === "arrive" ||
+      rawStatus === "attending" ||
+      rawStatus === "מגיע" ||
+      rawStatus === "מגיעים" ||
+      rawStatus === "אישר" ||
+      rawStatus === "מאשר" ||
+      rawStatus.includes("מגיע");
+
+    const isDeclined =
+      rawStatus === "no" ||
+      rawStatus === "declined" ||
+      rawStatus === "not_coming" ||
+      rawStatus === "not-coming" ||
+      rawStatus === "not coming" ||
+      rawStatus === "לא מגיע" ||
+      rawStatus === "לא מגיעים" ||
+      rawStatus === "לא מאשר" ||
+      rawStatus.includes("לא מגיע");
+
+    if (isConfirmed) {
       confirmedRecords += 1;
       confirmedGuestsAmount += guestsCount;
       continue;
     }
 
-    if (rsvp === "no") {
+    if (isDeclined) {
       declinedRecords += 1;
       continue;
     }
