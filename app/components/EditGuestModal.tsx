@@ -148,67 +148,69 @@ export default function EditGuestModal({
             via-[#FFFDF8]
             to-white
             px-5
-            py-4
+            py-5
           "
         >
-          <div className="flex items-start justify-between gap-4">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={loading}
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={loading}
+            className="
+              absolute
+              left-5
+              top-5
+              flex
+              h-9
+              w-9
+              items-center
+              justify-center
+              rounded-full
+              border
+              border-[#E2D4C3]
+              bg-white
+              text-xl
+              font-bold
+              text-[#5A4635]
+              shadow-sm
+              transition
+              hover:bg-[#FFF4E3]
+              disabled:opacity-50
+            "
+            aria-label="סגירה"
+          >
+            ×
+          </button>
+
+          <div className="flex flex-col items-center justify-center text-center">
+            <div
               className="
-                flex
-                h-9
-                w-9
+                mb-2
+                inline-flex
                 items-center
                 justify-center
+                gap-2
                 rounded-full
                 border
-                border-[#E2D4C3]
-                bg-white
-                text-xl
-                font-bold
-                text-[#5A4635]
-                shadow-sm
-                transition
-                hover:bg-[#FFF4E3]
-                disabled:opacity-50
+                border-[#E3C78D]
+                bg-[#FFF7E8]
+                px-4
+                py-1
+                text-[11px]
+                font-black
+                text-[#9A6A25]
               "
-              aria-label="סגירה"
             >
-              ×
-            </button>
-
-            <div className="text-right">
-              <div
-                className="
-                  mb-1
-                  inline-flex
-                  items-center
-                  gap-2
-                  rounded-full
-                  border
-                  border-[#E3C78D]
-                  bg-[#FFF7E8]
-                  px-3
-                  py-1
-                  text-[11px]
-                  font-black
-                  text-[#9A6A25]
-                "
-              >
-                <span>✦</span>
-                <span>עריכת אורח</span>
-              </div>
-
-              <h2 className="text-xl font-black text-[#241A14]">
-                {guest?.name || "אורח"}
-              </h2>
-
-              <p className="mt-0.5 text-xs font-bold text-[#7D6B59]">
-                עדכון פרטי מוזמן, סטטוס וכמות מגיעים
-              </p>
+              <span>✦</span>
+              <span>עריכת אורח</span>
             </div>
+
+            <h2 className="text-2xl font-black text-[#241A14]">
+              {guest?.name || "אורח"}
+            </h2>
+
+            <p className="mt-1 text-xs font-bold text-[#7D6B59]">
+              עדכון פרטי מוזמן, סטטוס וכמות מגיעים
+            </p>
           </div>
         </div>
 
