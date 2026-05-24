@@ -15,11 +15,20 @@ type RouteContext = {
 
 const RSVP_VALUES = new Set(["yes", "no", "pending"]);
 
+const CALL_ANSWER_VALUES = new Set(["answered", "no_answer"]);
+const CALL_RESULT_VALUES = new Set([
+  "yes",
+  "no",
+  "will_reply",
+  "needs_correction",
+]);
+
 /* ============================================
    Helpers
 ============================================ */
 async function getMaxGuestsForInvitationOwner(ownerId: string) {
   const owner = await User.findById(ownerId).lean();
+
   // ברירת מחדל בטוחה
   return owner?.planLimits?.maxGuests ?? 100;
 }
@@ -36,6 +45,112 @@ async function getInvitationProducerPermission(auth: any, invitation: any) {
   };
 }
 
+function toSafeNumber(value: any, fallback = 0) {
+  const num = Number(value);
+
+  if (!Number.isFinite(num)) return fallback;
+
+  return num;
+}
+
+function normalizeCallRoundNotes(notes: any) {
+  if (!Array.isArray(notes)) return [];
+
+  return notes
+    .map((note) => {
+      if (typeof note === "string") {
+        const text = note.trim();
+
+        if (!text) return null;
+
+        return {
+          text,
+          createdAt: new Date(),
+          createdBy: "מערכת",
+        };
+      }
+
+      const text = typeof note?.text === "string" ? note.text.trim() : "";
+
+      if (!text) return null;
+
+      return {
+        text,
+        createdAt: note?.createdAt ? new Date(note.createdAt) : new Date(),
+        createdBy:
+          typeof note?.createdBy === "string" && note.createdBy.trim()
+            ? note.createdBy.trim()
+            : "מערכת",
+      };
+    })
+    .filter(Boolean);
+}
+
+function normalizeCallRounds(callRounds: any[]) {
+  return callRounds.map((r: any, index: number) => {
+    const roundNumber = Number(r?.roundNumber ?? index + 1);
+
+    const answerStatus = CALL_ANSWER_VALUES.has(r?.answerStatus)
+      ? r.answerStatus
+      : CALL_ANSWER_VALUES.has(r?.status)
+        ? r.status
+        : null;
+
+    const resultStatus =
+      answerStatus === "answered" && CALL_RESULT_VALUES.has(r?.resultStatus)
+        ? r.resultStatus
+        : null;
+
+    const amount =
+      answerStatus === "answered" && resultStatus === "yes"
+        ? Math.max(1, toSafeNumber(r?.amount, 1))
+        : resultStatus === "no"
+          ? 0
+          : Math.max(0, toSafeNumber(r?.amount, 0));
+
+    return {
+      roundNumber,
+      answerStatus,
+      resultStatus,
+      amount,
+      notes: normalizeCallRoundNotes(r?.notes),
+      calledAt: r?.calledAt ? new Date(r.calledAt) : answerStatus ? new Date() : null,
+      updatedAt: r?.updatedAt ? new Date(r.updatedAt) : new Date(),
+    };
+  });
+}
+
+function getIncomingRsvp(data: any) {
+  if (typeof data?.rsvp === "string" && RSVP_VALUES.has(data.rsvp)) {
+    return data.rsvp;
+  }
+
+  if (
+    typeof data?.rsvpStatus === "string" &&
+    RSVP_VALUES.has(data.rsvpStatus)
+  ) {
+    return data.rsvpStatus;
+  }
+
+  if (typeof data?.status === "string" && RSVP_VALUES.has(data.status)) {
+    return data.status;
+  }
+
+  return null;
+}
+
+function getIncomingArrivedCount(data: any) {
+  if (typeof data?.arrivedCount === "number" && data.arrivedCount >= 0) {
+    return data.arrivedCount;
+  }
+
+  if (typeof data?.amount === "number" && data.amount >= 0) {
+    return data.amount;
+  }
+
+  return null;
+}
+
 /* ============================================
    GET — שליפת אורח יחיד
 ============================================ */
@@ -47,6 +162,7 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
     console.log("📥 GET /api/guests/[id]", id);
 
     const guest = await InvitationGuest.findById(id);
+
     if (!guest) {
       console.warn("⚠️ Guest not found", id);
       return NextResponse.json({ error: "Guest not found" }, { status: 404 });
@@ -73,15 +189,20 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     console.log("📦 Payload:", data);
 
     const guest = await InvitationGuest.findById(id);
+
     if (!guest) {
       console.warn("⚠️ Guest not found", id);
       return NextResponse.json({ error: "Guest not found" }, { status: 404 });
     }
 
     const invitation = await Invitation.findById(guest.invitationId);
+
     if (!invitation) {
       console.warn("⚠️ Invitation not found", guest.invitationId);
-      return NextResponse.json({ error: "Invitation not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Invitation not found" },
+        { status: 404 }
+      );
     }
 
     const auth: any = await getUserIdFromRequest(req);
@@ -141,59 +262,57 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     if (typeof data.notes === "string") guest.notes = data.notes;
 
     /* ===============================
-   groupId — ידני קודם
-=============================== */
-if ("groupId" in data) {
-  const raw = data.groupId;
+       groupId — ידני קודם
+    =============================== */
+    if ("groupId" in data) {
+      const raw = data.groupId;
 
-  const cleaned =
-    raw === null ||
-    raw === undefined ||
-    raw === "" ||
-    raw === "null" ||
-    raw === "undefined"
-      ? null
-      : String(raw).trim();
+      const cleaned =
+        raw === null ||
+        raw === undefined ||
+        raw === "" ||
+        raw === "null" ||
+        raw === "undefined"
+          ? null
+          : String(raw).trim();
 
-  if (cleaned) {
-    guest.groupId = cleaned;
-  } else {
-    guest.groupId = undefined;
-  }
-}
-
-/* ===============================
-   relation — שיוך אוטומטי אם אין קבוצה
-=============================== */
-if (typeof data.relation === "string") {
-  const newRelation = data.relation.trim();
-  guest.relation = newRelation;
-
-  // רק אם אחרי הטיפול הידני אין groupId
- if (!guest.groupId && newRelation) {
-  const group = await Group.findOneAndUpdate(
-    {
-      eventId: invitation.eventId,
-      name: newRelation,
-    },
-    {
-      $setOnInsert: {
-        invitationId: invitation._id,
-        eventId: invitation.eventId,
-        name: newRelation,
-      },
-    },
-    {
-      upsert: true,
-      new: true,
+      if (cleaned) {
+        guest.groupId = cleaned;
+      } else {
+        guest.groupId = undefined;
+      }
     }
-  );
 
-  guest.groupId = group._id;
-}
+    /* ===============================
+       relation — שיוך אוטומטי אם אין קבוצה
+    =============================== */
+    if (typeof data.relation === "string") {
+      const newRelation = data.relation.trim();
+      guest.relation = newRelation;
 
-}
+      // רק אם אחרי הטיפול הידני אין groupId
+      if (!guest.groupId && newRelation) {
+        const group = await Group.findOneAndUpdate(
+          {
+            eventId: invitation.eventId,
+            name: newRelation,
+          },
+          {
+            $setOnInsert: {
+              invitationId: invitation._id,
+              eventId: invitation.eventId,
+              name: newRelation,
+            },
+          },
+          {
+            upsert: true,
+            new: true,
+          }
+        );
 
+        guest.groupId = group._id;
+      }
+    }
 
     /* ===============================
        הגבלת חבילה על guestsCount
@@ -238,63 +357,102 @@ if (typeof data.relation === "string") {
       }
     }
 
-    // arrivedCount — מי אמורים להגיע (ידני מהמודאל)
-    if (typeof data.arrivedCount === "number" && data.arrivedCount >= 0) {
-      guest.arrivedCount = data.arrivedCount;
+    /* ===============================
+       RSVP — סטטוס + סנכרון מגיעים
+    =============================== */
+    const incomingRsvp = getIncomingRsvp(data);
+    const incomingArrivedCount = getIncomingArrivedCount(data);
+
+    // arrivedCount — מי אמורים להגיע
+    if (incomingArrivedCount !== null) {
+      guest.arrivedCount = incomingArrivedCount;
+
+      if ("amount" in guest) {
+        guest.amount = incomingArrivedCount;
+      }
     }
 
-    // RSVP — סטטוס + סנכרון מגיעים
-    if (typeof data.rsvp === "string" && RSVP_VALUES.has(data.rsvp)) {
-      guest.rsvp = data.rsvp as "yes" | "no" | "pending";
+    if (incomingRsvp) {
+      guest.rsvp = incomingRsvp as "yes" | "no" | "pending";
 
-      if (data.rsvp === "no") {
+      if ("status" in guest) {
+        guest.status = incomingRsvp as "yes" | "no" | "pending";
+      }
+
+      if (incomingRsvp === "no") {
         guest.arrivedCount = 0;
+
+        if ("amount" in guest) {
+          guest.amount = 0;
+        }
       }
 
-      if (data.rsvp === "yes") {
-        const incomingArrived =
-          typeof data.arrivedCount === "number" ? data.arrivedCount : undefined;
+      if (incomingRsvp === "yes") {
+        const nextArrivedCount =
+          incomingArrivedCount ??
+          guest.arrivedCount ??
+          guest.guestsCount ??
+          1;
 
-        guest.arrivedCount =
-          incomingArrived ?? guest.arrivedCount ?? guest.guestsCount ?? 1;
+        guest.arrivedCount = Math.max(1, Number(nextArrivedCount || 1));
+
+        if ("amount" in guest) {
+          guest.amount = guest.arrivedCount;
+        }
+      }
+
+      if (incomingRsvp === "pending") {
+        const nextArrivedCount =
+          incomingArrivedCount !== null
+            ? incomingArrivedCount
+            : guest.arrivedCount ?? 0;
+
+        guest.arrivedCount = Math.max(0, Number(nextArrivedCount || 0));
+
+        if ("amount" in guest) {
+          guest.amount = guest.arrivedCount;
+        }
       }
     }
 
-   /* ===============================
-   actualArrivedCount — מגיעים בפועל
-=============================== */
-if (
-  typeof data.actualArrivedCount === "number" &&
-  data.actualArrivedCount >= 0
-) {
-  const canUpdateActualArrived =
-    isAdmin || isProducerRole || isWorkerRole || isProducerByInvitation;
+    /* ===============================
+       actualArrivedCount — מגיעים בפועל
+    =============================== */
+    if (
+      typeof data.actualArrivedCount === "number" &&
+      data.actualArrivedCount >= 0
+    ) {
+      const canUpdateActualArrived =
+        isAdmin || isProducerRole || isWorkerRole || isProducerByInvitation;
 
-  if (!canUpdateActualArrived) {
-    return NextResponse.json(
-      { error: "Not authorized to update actualArrivedCount" },
-      { status: 403 }
-    );
-  }
+      if (!canUpdateActualArrived) {
+        return NextResponse.json(
+          { error: "Not authorized to update actualArrivedCount" },
+          { status: 403 }
+        );
+      }
 
-  guest.actualArrivedCount = data.actualArrivedCount;
+      guest.actualArrivedCount = data.actualArrivedCount;
 
-  // ✅ רק במצב לייב
-  const isLiveMode = invitation.seatingMode === "live";
+      // ✅ רק במצב לייב
+      const isLiveMode = invitation.seatingMode === "live";
 
-  if (
-    isLiveMode &&
-    data.actualArrivedCount > 0 &&
-    guest.rsvp !== "yes"
-  ) {
-    guest.rsvp = "yes";
+      if (isLiveMode && data.actualArrivedCount > 0 && guest.rsvp !== "yes") {
+        guest.rsvp = "yes";
 
-    if (!guest.arrivedCount || guest.arrivedCount === 0) {
-      guest.arrivedCount = guest.guestsCount ?? 1;
+        if ("status" in guest) {
+          guest.status = "yes";
+        }
+
+        if (!guest.arrivedCount || guest.arrivedCount === 0) {
+          guest.arrivedCount = guest.guestsCount ?? 1;
+
+          if ("amount" in guest) {
+            guest.amount = guest.arrivedCount;
+          }
+        }
+      }
     }
-  }
-}
-
 
     /* ===============================
        callRounds — סבבי שיחה
@@ -310,17 +468,7 @@ if (
         );
       }
 
-      guest.callRounds = data.callRounds.map((r: any, index: number) => ({
-        roundNumber: Number(r.roundNumber ?? index + 1),
-        status:
-          r.status === "answered" ||
-          r.status === "no_answer" ||
-          r.status === "will_reply"
-            ? r.status
-            : null,
-        notes: typeof r.notes === "string" ? r.notes : "",
-        calledAt: r.calledAt ? new Date(r.calledAt) : null,
-      }));
+      guest.callRounds = normalizeCallRounds(data.callRounds);
     }
 
     await guest.save();
@@ -328,6 +476,7 @@ if (
     // 🔁 סנכרון קבוצות (expectedCount)
     const afterGroupId = guest.groupId ? String(guest.groupId) : null;
     const affected = new Set<string>();
+
     if (beforeGroupId) affected.add(beforeGroupId);
     if (afterGroupId) affected.add(afterGroupId);
 
@@ -353,16 +502,22 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
     console.log("🗑️ DELETE /api/guests/[id]", id);
 
     const guest = await InvitationGuest.findById(id);
+
     if (!guest) {
       return NextResponse.json({ error: "Guest not found" }, { status: 404 });
     }
 
     const invitation = await Invitation.findById(guest.invitationId);
+
     if (!invitation) {
-      return NextResponse.json({ error: "Invitation not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Invitation not found" },
+        { status: 404 }
+      );
     }
 
     const auth: any = await getUserIdFromRequest(req);
+
     if (!auth?.userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -398,6 +553,7 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
     }
 
     const groupId = guest.groupId ? String(guest.groupId) : null;
+
     await guest.deleteOne();
 
     if (groupId) {
