@@ -56,6 +56,16 @@ function clearAuthCookies(res: NextResponse) {
   }
 }
 
+function normalizeId(value: unknown) {
+  if (!value) return null;
+
+  if (typeof value === "object" && value !== null && "_id" in value) {
+    return String((value as any)._id);
+  }
+
+  return String(value);
+}
+
 function normalizeAccessModules(user: any) {
   const includeDigitalSeating =
     Boolean(user?.includeDigitalSeating) ||
@@ -374,6 +384,20 @@ export async function GET() {
       currentUser.venueSeatingService?.hallId ||
       "";
 
+    const venueClientEventId =
+      currentUser.venueClientEventId ||
+      currentUser.eventId ||
+      currentUser.productionEventId ||
+      currentUser.linkedEventId ||
+      null;
+
+    const venueClientInvitationId =
+      currentUser.venueClientInvitationId ||
+      currentUser.invitationId ||
+      currentUser.currentInvitationId ||
+      currentUser.activeInvitationId ||
+      null;
+
     console.log(
       "✅ ME:",
       currentUser.email,
@@ -389,6 +413,10 @@ export async function GET() {
       isVenueOwner,
       "| venueClientHallId:",
       venueClientHallId || null,
+      "| venueClientEventId:",
+      venueClientEventId ? normalizeId(venueClientEventId) : null,
+      "| venueClientInvitationId:",
+      venueClientInvitationId ? normalizeId(venueClientInvitationId) : null,
       "| accessModules:",
       accessModules,
       "| staffType:",
@@ -444,6 +472,7 @@ export async function GET() {
 
           /*
             שדות לקוח אולם — חשובים לכפתור/מודאל תבניות הושבה
+            וגם לטעינת ההושבה האוטומטית ב-/dashboard/seating
           */
           venueClientSource: currentUser.venueClientSource === true,
           venueClientPackageType: currentUser.venueClientPackageType ?? null,
@@ -452,6 +481,18 @@ export async function GET() {
             currentUser.venueClientPaymentStatus ?? null,
           venueClientPaymentAmount:
             currentUser.venueClientPaymentAmount ?? 0,
+
+          venueOwnerId: currentUser.venueOwnerId
+            ? normalizeId(currentUser.venueOwnerId)
+            : null,
+
+          venueClientEventId: venueClientEventId
+            ? normalizeId(venueClientEventId)
+            : null,
+
+          venueClientInvitationId: venueClientInvitationId
+            ? normalizeId(venueClientInvitationId)
+            : null,
 
           venueClientHallId: venueClientHallId || null,
           hallId: currentUser.hallId || venueClientHallId || null,
@@ -465,6 +506,17 @@ export async function GET() {
             currentUser.venueHallName ||
             currentUser.venueClientHallName ||
             null,
+
+          venueSeatingTemplateId: currentUser.venueSeatingTemplateId
+            ? normalizeId(currentUser.venueSeatingTemplateId)
+            : null,
+
+          venueSeatingTemplateName:
+            currentUser.venueSeatingTemplateName || null,
+
+          venueSeatingTemplateImportedAt:
+            currentUser.venueSeatingTemplateImportedAt ?? null,
+
           venueSeatingService: currentUser.venueSeatingService ?? null,
 
           planLimits: {

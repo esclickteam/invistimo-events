@@ -34,6 +34,102 @@ type TableLite = {
   y: number;
 };
 
+type AnyObject = Record<string, any>;
+
+type ResolvedInvitationIds = {
+  invitationId: string;
+  eventId: string;
+};
+
+function cleanString(value: unknown) {
+  return String(value || "").trim();
+}
+
+function firstString(...values: unknown[]) {
+  for (const value of values) {
+    const clean = cleanString(value);
+
+    if (clean) {
+      return clean;
+    }
+  }
+
+  return "";
+}
+
+function resolveInvitationIdsFromData(
+  data: AnyObject,
+  fallbackEventId = ""
+): ResolvedInvitationIds | null {
+  const invitation =
+    data?.invitation ||
+    data?.venueClientInvitation ||
+    data?.currentInvitation ||
+    data?.data?.invitation ||
+    data?.data?.venueClientInvitation ||
+    null;
+
+  if (!invitation) {
+    return null;
+  }
+
+  const invitationId = firstString(
+    invitation?._id,
+    invitation?.id,
+    invitation?.invitationId,
+    invitation?.venueClientInvitationId
+  );
+
+  const eventId = firstString(
+    invitation?.eventId,
+    invitation?.venueClientEventId,
+    invitation?.productionEventId,
+    invitation?.linkedEventId,
+    invitation?.event?._id,
+    fallbackEventId
+  );
+
+  if (!invitationId || !eventId) {
+    return null;
+  }
+
+  return {
+    invitationId,
+    eventId,
+  };
+}
+
+function resolveInvitationIdsFromUser(
+  user: unknown,
+  fallbackEventId = ""
+): ResolvedInvitationIds | null {
+  const userAny = (user || {}) as AnyObject;
+
+  const invitationId = firstString(
+    userAny?.venueClientInvitationId,
+    userAny?.invitationId,
+    userAny?.currentInvitationId,
+    userAny?.activeInvitationId
+  );
+
+  const eventId = firstString(
+    userAny?.venueClientEventId,
+    userAny?.eventId,
+    userAny?.productionEventId,
+    userAny?.linkedEventId,
+    fallbackEventId
+  );
+
+  if (!invitationId || !eventId) {
+    return null;
+  }
+
+  return {
+    invitationId,
+    eventId,
+  };
+}
+
 export default function SeatingPage() {
   const pathname = usePathname();
   const router = useRouter();
@@ -41,6 +137,13 @@ export default function SeatingPage() {
 
   const seatingMode = searchParams.get("mode");
   const hallId = searchParams.get("hallId");
+
+  const eventIdFromQuery = firstString(
+    searchParams.get("eventId"),
+    searchParams.get("venueClientEventId"),
+    searchParams.get("productionEventId"),
+    searchParams.get("linkedEventId")
+  );
 
   const isProducer = pathname.includes("/events/production");
   const isDemo = pathname.startsWith("/try/");
@@ -178,9 +281,14 @@ export default function SeatingPage() {
         count: g.guestsCount ?? 1,
       }));
 
-      const tRes = await fetch(`/api/seating/tables/${eventIdToLoad}`, {
-        cache: "no-store",
-      });
+      const tRes = await fetch(
+        `/api/seating/tables/${eventIdToLoad}?invitationId=${encodeURIComponent(
+          invitationIdToLoad
+        )}`,
+        {
+          cache: "no-store",
+        }
+      );
 
       if (tRes.status === 403) {
         setBlockReason("no-plan");
@@ -244,27 +352,73 @@ export default function SeatingPage() {
           useZoneStore.getState().setZones([]);
         }
 
-        const invRes = await fetch("/api/invitations/my", {
-          cache: "no-store",
-        });
+        let resolvedIds: ResolvedInvitationIds | null = null;
+        let lastInvData: AnyObject | null = null;
 
-        const invData = await invRes.json();
+        const invitationUrls = eventIdFromQuery
+          ? [
+              `/api/invitations/my?includeVenueClient=1&eventId=${encodeURIComponent(
+                eventIdFromQuery
+              )}`,
+              "/api/invitations/my?includeVenueClient=1",
+              "/api/invitations/my",
+            ]
+          : [
+              "/api/invitations/my?includeVenueClient=1",
+              "/api/invitations/my",
+            ];
 
-        const invitationIdFromApi: string | undefined =
-          invData?.invitation?._id;
+        for (const url of invitationUrls) {
+          try {
+            const invRes = await fetch(url, {
+              credentials: "include",
+              cache: "no-store",
+            });
 
-        const eventIdFromApi: string | undefined =
-          invData?.invitation?.eventId;
+            if (!invRes.ok) {
+              continue;
+            }
 
-        if (!invitationIdFromApi || !eventIdFromApi) {
-          console.error("❌ Missing invitation/event id", invData);
+            const invData = await invRes.json().catch(() => ({}));
+            lastInvData = invData;
+
+            const ids = resolveInvitationIdsFromData(
+              invData,
+              eventIdFromQuery
+            );
+
+            if (ids?.invitationId && ids?.eventId) {
+              resolvedIds = ids;
+              break;
+            }
+          } catch (error) {
+            console.warn("⚠️ invitation fetch failed:", url, error);
+          }
+        }
+
+        /*
+          fallback ללקוח אולם:
+          אם /api/invitations/my לא מחזיר הזמנה כמו הזמנה רגילה,
+          ננסה לקחת את המזהים מה-user שהגיע דרך AuthContext.
+          זה לא נוגע בהושבה רגילה ולא בלייב.
+        */
+        if (!resolvedIds) {
+          resolvedIds = resolveInvitationIdsFromUser(user, eventIdFromQuery);
+        }
+
+        if (!resolvedIds?.invitationId || !resolvedIds?.eventId) {
+          console.error("❌ Missing invitation/event id", {
+            lastInvData,
+            user,
+            eventIdFromQuery,
+          });
           return;
         }
 
-        setInvitationId(invitationIdFromApi);
-        setEventId(eventIdFromApi);
+        setInvitationId(resolvedIds.invitationId);
+        setEventId(resolvedIds.eventId);
 
-        await loadSeatingData(eventIdFromApi, invitationIdFromApi);
+        await loadSeatingData(resolvedIds.eventId, resolvedIds.invitationId);
       } catch (err) {
         console.error("❌ SeatingPage load error:", err);
       } finally {
@@ -273,7 +427,13 @@ export default function SeatingPage() {
     }
 
     load();
-  }, [isDemo, isVenueTemplateMode, loadSeatingData]);
+  }, [
+    isDemo,
+    isVenueTemplateMode,
+    loadSeatingData,
+    user,
+    eventIdFromQuery,
+  ]);
 
   /* ===============================
      AUTO FIT ONE TIME
