@@ -145,6 +145,7 @@ export default function SeatingPage() {
     searchParams.get("linkedEventId")
   );
 
+  
   const invitationIdFromQuery = firstString(
   searchParams.get("invitationId"),
   searchParams.get("venueClientInvitationId")
@@ -240,17 +241,19 @@ const isLiveView = searchParams.get("live") === "1";
     }
 
     if (
-      user.role === "producer" ||
-      user.role === "venue_owner" ||
-      user.impersonated
-    ) {
-      return;
-    }
+  isVenueView ||
+  user.role === "producer" ||
+  user.role === "venue_owner" ||
+  user.impersonated
+) {
+  setBlockReason(null);
+  return;
+}
 
     if (user.planLimits?.seatingEnabled !== true) {
       setBlockReason("no-plan");
     }
-  }, [user, isVenueTemplateMode]);
+  }, [user, isVenueTemplateMode, isVenueView]);
 
   /* ===============================
      PRODUCER LIVE MODE
@@ -270,12 +273,13 @@ const isLiveView = searchParams.get("live") === "1";
         cache: "no-store",
       });
 
-      if (gRes.status === 403) {
-        setBlockReason("no-plan");
-        return false;
-      }
+      if (gRes.status === 403 && !isVenueView) {
+  setBlockReason("no-plan");
+  return false;
+}
 
-      const gData = await gRes.json();
+      const gData =
+  gRes.ok ? await gRes.json().catch(() => ({})) : { guests: [] };
 
       const normalizedGuests = (gData.guests || []).map((g: GuestDTO) => ({
         id: g._id,
@@ -289,18 +293,23 @@ const isLiveView = searchParams.get("live") === "1";
       }));
 
       const tRes = await fetch(
-        `/api/seating/tables/${eventIdToLoad}?invitationId=${encodeURIComponent(
-          invitationIdToLoad
-        )}`,
-        {
-          cache: "no-store",
-        }
-      );
+  `/api/seating/tables/${eventIdToLoad}?invitationId=${encodeURIComponent(
+    invitationIdToLoad
+  )}${isVenueView ? "&venueView=1" : ""}`,
+  {
+    cache: "no-store",
+  }
+);
 
-      if (tRes.status === 403) {
-        setBlockReason("no-plan");
-        return false;
-      }
+      if (tRes.status === 403 && !isVenueView) {
+  setBlockReason("no-plan");
+  return false;
+}
+
+if (tRes.status === 403 && isVenueView) {
+  console.error("❌ Venue owner cannot load seating tables. Check tables API venueOwnerId permission.");
+  return false;
+}
 
       const tData = await tRes.json();
 
@@ -324,7 +333,7 @@ const isLiveView = searchParams.get("live") === "1";
 
       return true;
     },
-    [init, setGroups, setZones]
+    [init, setGroups, setZones, isVenueView]
   );
 
   /* ===============================

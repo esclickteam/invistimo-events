@@ -180,10 +180,18 @@ export async function GET(req: NextRequest, context: RouteContext) {
   try {
     await dbConnect();
 
-    /* 🔐 Guard אחיד – הרשאת הושבה */
+    const { searchParams } = new URL(req.url);
+    const isVenueView = searchParams.get("venueView") === "1";
+
+    /*
+      הרשאת הושבה רגילה:
+      - לקוח רגיל חייב לעבור requireSeating.
+      - אולם שנכנס עם venueView=1 לא נחסם כאן,
+        כי בהמשך אנחנו מחפשים רק מסמכים שבהם הוא venueOwnerId.
+    */
     const guard = await requireSeating();
 
-    if (!guard.ok) {
+    if (!guard.ok && !isVenueView) {
       return guard.response!;
     }
 
@@ -196,6 +204,16 @@ export async function GET(req: NextRequest, context: RouteContext) {
     */
     const auth = await getUserIdFromRequest(req).catch(() => null);
     const currentUserId = cleanString((auth as any)?.userId);
+
+    if (isVenueView && !currentUserId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "UNAUTHORIZED_VENUE_VIEW",
+        },
+        { status: 401 }
+      );
+    }
 
     /* ===============================
        1️⃣ params
@@ -211,13 +229,13 @@ export async function GET(req: NextRequest, context: RouteContext) {
       );
     }
 
-    const { searchParams } = new URL(req.url);
     const invitationId = cleanString(searchParams.get("invitationId"));
 
     console.log("📤 LOAD SEATING TABLES:", {
       eventId: cleanEventId,
       invitationId: invitationId || null,
       currentUserId: currentUserId || null,
+      isVenueView,
     });
 
     /* ===============================
@@ -268,6 +286,25 @@ export async function GET(req: NextRequest, context: RouteContext) {
       }
     }
 
+    /*
+      🔒 אבטחה למצב אולם:
+      אם זה venueView=1, לא מספיק שמצאנו record לפי eventId.
+      חייבים לוודא שבעל האולם המחובר הוא באמת venueOwnerId של ההושבה.
+    */
+    if (isVenueView) {
+      const recordVenueOwnerId = cleanString((record as any)?.venueOwnerId);
+
+      if (!record || !recordVenueOwnerId || recordVenueOwnerId !== currentUserId) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "VENUE_VIEW_FORBIDDEN",
+          },
+          { status: 403 }
+        );
+      }
+    }
+
     console.log("📦 RECORD FOUND:", {
       hasRecord: !!record,
       recordId: record?._id ? String(record._id) : null,
@@ -283,6 +320,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
       zones: Array.isArray(record?.zones) ? record.zones.length : 0,
       hasBackground: !!record?.background,
       canvasView: record?.canvasView ?? null,
+      isVenueView,
     });
 
     /* ===============================
