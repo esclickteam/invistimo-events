@@ -208,6 +208,7 @@ function serializeEvent(event: any, hall?: any, invitation?: any) {
   const venueClientRecordsCount =
     toNumber(event.venueClientRecordsCount, 0) ||
     toNumber(invitation?.venueClientRecordsCount, 0) ||
+    (Array.isArray(invitation?.guests) ? invitation.guests.length : 0) ||
     maxGuests;
 
   return {
@@ -224,20 +225,12 @@ function serializeEvent(event: any, hall?: any, invitation?: any) {
       ? event.assignedStaffIds.map((id: any) => String(id))
       : [],
 
-    /**
-     * מה-Event בלבד
-     */
     venueOwnerId: event.venueOwnerId ? String(event.venueOwnerId) : "",
     venueHallId,
     venueHallName,
     venueLinkedAt: event.venueLinkedAt || null,
     venueAccessStatus: event.venueAccessStatus || "none",
 
-    /**
-     * שדות לקוח אולם
-     * חובה לטאב ההושבה באולם:
-     * /dashboard/seating?eventId=...&invitationId=...&venueView=1
-     */
     venueClientUserId: venueClientUserId ? String(venueClientUserId) : "",
     venueClientInvitationId: venueClientInvitationId
       ? String(venueClientInvitationId)
@@ -246,9 +239,6 @@ function serializeEvent(event: any, hall?: any, invitation?: any) {
     venueClientPaymentStatus,
     venueClientRecordsCount,
 
-    /**
-     * מה-Invitation קודם
-     */
     email,
     eventType,
     title,
@@ -289,11 +279,6 @@ async function findInvitationForEvent(event: any) {
 
   const venueClientInvitationId = toObjectId(event.venueClientInvitationId);
 
-  /*
-    לקוח אולם:
-    אם ה-Event כבר מחזיק venueClientInvitationId,
-    זו ההזמנה המדויקת שצריך להחזיר לאולם.
-  */
   if (venueClientInvitationId) {
     const directInvitation = await invitations.findOne({
       _id: venueClientInvitationId,
@@ -318,10 +303,6 @@ async function findInvitationForEvent(event: any) {
 
   if (invitation) return invitation;
 
-  /**
-   * fallback ישן בלבד:
-   * אם בעבר לא נשמר eventId בהזמנה.
-   */
   const userIdValues = objectIdOrString(event.userId);
   const eventDate = normalizeDateOnly(event.date);
 
@@ -335,12 +316,8 @@ async function findInvitationForEvent(event: any) {
 
 /**
  * אישורי הגעה:
- * קורא ישירות מהקולקשן invitationguests לפי invitationId.
- *
- * לפי המבנה אצלך במונגו:
- * invitationId: ObjectId(...)
- * rsvp: "yes" | "no" | "pending"
- * guestsCount: number
+ * קודם מנסה לקרוא מהקולקשן invitationguests.
+ * אם אין שם רשומות — סופר מתוך guests שבתוך מסמך ההזמנה.
  */
 async function buildRsvpStats(event: any, invitation: any) {
   const empty = {
@@ -354,47 +331,44 @@ async function buildRsvpStats(event: any, invitation: any) {
 
   const guestsCollection = getCollection("invitationguests");
 
-  if (!guestsCollection) {
-    return empty;
-  }
-
   const invitationIdValues: any[] = [];
 
-  /*
-    1. ההזמנה הרגילה שנמצאה דרך findInvitationForEvent
-  */
   if (invitation?._id) {
     invitationIdValues.push(...objectIdOrString(invitation._id));
   }
 
-  /*
-    2. לקוח אולם — אם ה-Event מחזיק venueClientInvitationId
-  */
   if (event?.venueClientInvitationId) {
     invitationIdValues.push(...objectIdOrString(event.venueClientInvitationId));
   }
 
-  /*
-    ניקוי כפילויות
-  */
   const uniqueInvitationIdValues = Array.from(
     new Map(invitationIdValues.map((value) => [String(value), value])).values()
   );
 
-  if (!uniqueInvitationIdValues.length) {
-    return empty;
+  let rows: any[] = [];
+
+  if (guestsCollection && uniqueInvitationIdValues.length) {
+    rows = await guestsCollection
+      .find({
+        $or: [
+          { invitationId: { $in: uniqueInvitationIdValues } },
+          { inviteId: { $in: uniqueInvitationIdValues } },
+          { invitation: { $in: uniqueInvitationIdValues } },
+          { invitationID: { $in: uniqueInvitationIdValues } },
+          { invitation_id: { $in: uniqueInvitationIdValues } },
+        ],
+      })
+      .toArray();
   }
 
-  const rows = await guestsCollection
-    .find({
-      invitationId: { $in: uniqueInvitationIdValues },
-    })
-    .toArray();
+  if (!rows.length && Array.isArray(invitation?.guests)) {
+    rows = invitation.guests;
+  }
 
   if (!rows.length) {
     return {
       ...empty,
-      enabled: true,
+      enabled: Boolean(invitation?._id || event?.venueClientInvitationId),
     };
   }
 
@@ -409,17 +383,21 @@ async function buildRsvpStats(event: any, invitation: any) {
         row.status ||
         row.responseStatus ||
         row.attendanceStatus ||
-        row.confirmationStatus
+        row.confirmationStatus ||
+        row.arrivalStatus ||
+        row.rsvpStatus
     ).toLowerCase();
 
     const guestsCount = Math.max(
       1,
       toNumber(
         row.guestsCount ??
+          row.guestCount ??
           row.count ??
           row.amount ??
           row.guestsAmount ??
-          row.totalGuests,
+          row.totalGuests ??
+          row.quantity,
         1
       )
     );
@@ -430,6 +408,7 @@ async function buildRsvpStats(event: any, invitation: any) {
       rawStatus === "arriving" ||
       rawStatus === "arrive" ||
       rawStatus === "attending" ||
+      rawStatus === "approved" ||
       rawStatus === "מגיע" ||
       rawStatus === "מגיעים" ||
       rawStatus === "אישר" ||
@@ -442,6 +421,7 @@ async function buildRsvpStats(event: any, invitation: any) {
       rawStatus === "not_coming" ||
       rawStatus === "not-coming" ||
       rawStatus === "not coming" ||
+      rawStatus === "cancelled" ||
       rawStatus === "לא מגיע" ||
       rawStatus === "לא מגיעים" ||
       rawStatus === "לא מאשר" ||
@@ -475,13 +455,13 @@ function countSeatedFromTable(table: any) {
   let count = 0;
 
   const arraysToCheck = [
-  table?.seatedGuests,
-  table?.seats,
-  table?.chairs,
-  table?.guests,
-  table?.assignedGuests,
-  table?.placements,
-];
+    table?.seatedGuests,
+    table?.seats,
+    table?.chairs,
+    table?.guests,
+    table?.assignedGuests,
+    table?.placements,
+  ];
 
   for (const arr of arraysToCheck) {
     if (!Array.isArray(arr)) continue;
@@ -598,6 +578,7 @@ async function buildSeatingStats(
     toNumber(invitation?.maxGuests, 0) ||
     toNumber(invitation?.estimatedGuests, 0) ||
     toNumber(invitation?.estimatedGuestCount, 0) ||
+    (Array.isArray(invitation?.guests) ? invitation.guests.length : 0) ||
     toNumber(event.estimatedGuestCount, 0) ||
     toNumber(event.estimatedGuests, 0) ||
     toNumber(event.maxGuests, 0) ||
@@ -683,8 +664,6 @@ async function getVenueHallForEvent(event: any, authUserId: string) {
 
 /* ======================================================
    GET /api/venues/dashboard/events/[eventId]
-   Event = שיוך לאולם
-   Invitation = פרטי אירוע אמיתיים
 ====================================================== */
 
 export async function GET(req: NextRequest, { params }: Props) {
@@ -764,8 +743,6 @@ export async function GET(req: NextRequest, { params }: Props) {
 
 /* ======================================================
    PATCH /api/venues/dashboard/events/[eventId]
-   בעל אולם מעדכן שיוך/נתוני אולם על Event.
-   פרטי אירוע שמקורם בהזמנה יעודכנו גם ב-Invitation אם קיימת.
 ====================================================== */
 
 export async function PATCH(req: NextRequest, { params }: Props) {
@@ -834,9 +811,6 @@ export async function PATCH(req: NextRequest, { params }: Props) {
       );
     }
 
-    /**
-     * Event נשאר מקור אמת לשיוך אולם.
-     */
     const venueHallId = cleanString(body.venueHallId);
     const venueHallName = cleanString(body.venueHallName);
 
@@ -869,10 +843,6 @@ export async function PATCH(req: NextRequest, { params }: Props) {
 
     existingEvent.notes = cleanString(body.notes);
 
-    /**
-     * כדי לשמור תאימות גם ליומנים ישנים — מעדכנים Event,
-     * אבל המסך עדיין יעדיף Invitation.
-     */
     if (requestedTitle) {
       existingEvent.title = requestedTitle;
     }
@@ -921,10 +891,6 @@ export async function PATCH(req: NextRequest, { params }: Props) {
 
     await existingEvent.save();
 
-    /**
-     * אם יש Invitation מחוברת — מעדכנים גם אותה,
-     * כדי שהפרטים האמיתיים יהיו מסונכרנים בכל המערכת.
-     */
     if (invitation?._id) {
       const invitations = getCollection("invitations");
 
@@ -1040,7 +1006,6 @@ export async function PATCH(req: NextRequest, { params }: Props) {
 
 /* ======================================================
    DELETE /api/venues/dashboard/events/[eventId]
-   ניתוק האירוע מהאולם — לא מוחק Event של הלקוח
 ====================================================== */
 
 export async function DELETE(req: NextRequest, { params }: Props) {
