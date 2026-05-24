@@ -5,7 +5,7 @@ import Invitation from "@/models/Invitation";
 import SeatingTable from "@/models/SeatingTable";
 import User from "@/models/User";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
-import { Types } from "mongoose";
+import mongoose, { Types } from "mongoose";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +33,7 @@ type InvitationDoc = {
   eventId?: Types.ObjectId;
   ownerId?: Types.ObjectId;
   producerId?: Types.ObjectId;
+  guests?: any[];
 };
 
 type GuestDoc = {
@@ -41,6 +42,166 @@ type GuestDoc = {
   actualArrivedCount?: number;
   [key: string]: any;
 };
+
+/* =========================================================
+   Helpers
+========================================================= */
+function cleanString(value: unknown) {
+  return String(value || "").trim();
+}
+
+function toObjectId(value: unknown) {
+  const id = cleanString(value);
+
+  if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+    return null;
+  }
+
+  return new mongoose.Types.ObjectId(id);
+}
+
+function objectIdOrString(value: unknown) {
+  const stringValue = cleanString(value);
+  const objectIdValue = toObjectId(stringValue);
+
+  return objectIdValue ? [objectIdValue, stringValue] : [stringValue];
+}
+
+function getCollection(name: string) {
+  return mongoose.connection.db?.collection(name);
+}
+
+async function canVenueOwnerAccessInvitation({
+  userId,
+  invitationId,
+  eventId,
+}: {
+  userId: string;
+  invitationId: string;
+  eventId?: string | null;
+}) {
+  const events = getCollection("events");
+
+  if (!events) return false;
+
+  const userValues = objectIdOrString(userId);
+  const invitationValues = objectIdOrString(invitationId);
+  const eventValues = eventId ? objectIdOrString(eventId) : [];
+
+  const query: any = {
+    venueOwnerId: { $in: userValues },
+    venueAccessStatus: "linked",
+    $or: [
+      { venueClientInvitationId: { $in: invitationValues } },
+      { invitationId: { $in: invitationValues } },
+    ],
+  };
+
+  if (eventValues.length) {
+    query.$or.push({ _id: { $in: eventValues } });
+    query.$or.push({ venueClientEventId: { $in: eventValues } });
+  }
+
+  const linkedEvent = await events.findOne(query, {
+    projection: {
+      _id: 1,
+      venueOwnerId: 1,
+      venueClientInvitationId: 1,
+      venueAccessStatus: 1,
+    },
+  });
+
+  return Boolean(linkedEvent);
+}
+
+function normalizeEmbeddedGuest(row: any, invitationId: string) {
+  const id = String(row?._id || row?.id || new mongoose.Types.ObjectId());
+
+  const rsvp =
+    row?.rsvp ||
+    row?.status ||
+    row?.rsvpStatus ||
+    row?.responseStatus ||
+    "pending";
+
+  const guestsCount =
+    Number(
+      row?.guestsCount ??
+        row?.guestCount ??
+        row?.quantity ??
+        row?.amount ??
+        row?.guestsAmount ??
+        1
+    ) || 1;
+
+  return {
+    ...row,
+    _id: id,
+    id,
+    invitationId,
+    name: cleanString(row?.name),
+    phone: cleanString(row?.phone),
+    relation: cleanString(row?.relation),
+    token: cleanString(row?.token),
+    rsvp,
+    guestsCount,
+    arrivedCount:
+      row?.arrivedCount !== undefined
+        ? Number(row.arrivedCount) || 0
+        : rsvp === "yes"
+          ? guestsCount
+          : 0,
+    actualArrivedCount: Number(row?.actualArrivedCount || 0),
+    notes: cleanString(row?.notes),
+  };
+}
+
+async function attachTableNamesToGuests({
+  guests,
+  invitation,
+}: {
+  guests: any[];
+  invitation: InvitationDoc;
+}) {
+  const eventId = invitation?.eventId;
+
+  if (!eventId) {
+    return guests.map((guest) => ({
+      ...guest,
+      actualArrivedCount: guest.actualArrivedCount ?? 0,
+      tableName: guest.tableName || null,
+    }));
+  }
+
+  const seatings = (await SeatingTable.find({
+    eventId,
+  }).lean()) as SeatingDoc[];
+
+  const guestToTableMap = new Map<string, string>();
+
+  for (const seating of seatings) {
+    for (const table of seating.tables || []) {
+      const tableName = table.name || "-";
+
+      for (const seatedGuest of table.seatedGuests || []) {
+        if (seatedGuest?.guestId) {
+          guestToTableMap.set(String(seatedGuest.guestId), tableName);
+        }
+      }
+    }
+  }
+
+  return guests.map((guest) => {
+    const guestId = String(guest._id || guest.id || "");
+    const foundTable = guestToTableMap.get(guestId);
+
+    return {
+      ...guest,
+      actualArrivedCount: guest.actualArrivedCount ?? 0,
+      tableName: foundTable || guest.tableName || null,
+    };
+  });
+}
 
 /* =========================================================
    GET /api/guests
@@ -55,40 +216,83 @@ export async function GET(req: NextRequest) {
 
     if (!auth?.userId) {
       console.log("⛔ No auth");
-      return NextResponse.json({ guests: [], usage: null });
+      return NextResponse.json({
+        success: false,
+        guests: [],
+        usage: null,
+      });
     }
 
     const userId = String(auth.userId);
 
-    /* =========================================================
-       🔹 אם יש invitation בפרמטרים — מחזיר רק אותה
-    ========================================================= */
     const invitationId = req.nextUrl.searchParams.get("invitation");
+    const eventId = req.nextUrl.searchParams.get("eventId");
+    const isVenueView = req.nextUrl.searchParams.get("venueView") === "1";
 
+    /* =========================================================
+       אם יש invitation בפרמטרים — מחזיר רק אותה
+       כולל הרשאת אולם דרך venueView=1
+    ========================================================= */
     if (invitationId) {
       console.log("📌 Filtering by invitation:", invitationId);
 
       const invitation = (await Invitation.findById(invitationId)
-        .select("_id ownerId producerId eventId")
+        .select("_id ownerId producerId eventId guests")
         .lean()) as InvitationDoc | null;
 
       if (!invitation) {
-        return NextResponse.json({ guests: [], usage: null });
+        return NextResponse.json({
+          success: false,
+          guests: [],
+          usage: null,
+        });
       }
 
       const ownerId = invitation.ownerId?.toString();
       const producerId = invitation.producerId?.toString();
 
-      if (ownerId !== userId && producerId !== userId) {
-        return NextResponse.json({ guests: [], usage: null });
+      let allowed =
+        ownerId === userId ||
+        producerId === userId;
+
+      if (!allowed && isVenueView) {
+        allowed = await canVenueOwnerAccessInvitation({
+          userId,
+          invitationId,
+          eventId,
+        });
       }
 
-      const guests = (await InvitationGuest.find({
+      if (!allowed) {
+        return NextResponse.json({
+          success: false,
+          guests: [],
+          usage: null,
+        });
+      }
+
+      let guests = (await InvitationGuest.find({
         invitationId,
       }).lean()) as GuestDoc[];
 
-      return NextResponse.json({
+      /*
+        אם אין רשומות ב־InvitationGuest,
+        לוקחים מתוך guests שבתוך מסמך ההזמנה עצמו.
+      */
+      if (!guests.length && Array.isArray(invitation.guests)) {
+        guests = invitation.guests.map((guest: any) =>
+          normalizeEmbeddedGuest(guest, invitationId)
+        ) as any[];
+      }
+
+      const guestsWithTable = await attachTableNamesToGuests({
         guests,
+        invitation,
+      });
+
+      return NextResponse.json({
+        success: true,
+        guests: guestsWithTable,
         usage: null,
       });
     }
@@ -108,6 +312,7 @@ export async function GET(req: NextRequest) {
 
     if (!invitations.length) {
       return NextResponse.json({
+        success: true,
         guests: [],
         usage: {
           current: 0,
@@ -131,6 +336,7 @@ export async function GET(req: NextRequest) {
     }).lean()) as SeatingDoc[];
 
     const invitationById = new Map<string, InvitationDoc>();
+
     for (const inv of invitations) {
       invitationById.set(inv._id.toString(), inv);
     }
@@ -139,6 +345,7 @@ export async function GET(req: NextRequest) {
 
     for (const seating of seatings) {
       const eventKey = seating.eventId?.toString();
+
       if (!eventKey) continue;
 
       if (!eventGuestToTableMap.has(eventKey)) {
@@ -148,9 +355,10 @@ export async function GET(req: NextRequest) {
       const guestToTable = eventGuestToTableMap.get(eventKey)!;
 
       for (const table of seating.tables || []) {
-        const tName = table.name || "-";
-        for (const sg of table.seatedGuests || []) {
-          guestToTable.set(sg.guestId.toString(), tName);
+        const tableName = table.name || "-";
+
+        for (const seatedGuest of table.seatedGuests || []) {
+          guestToTable.set(seatedGuest.guestId.toString(), tableName);
         }
       }
     }
@@ -159,11 +367,12 @@ export async function GET(req: NextRequest) {
       let tableName: string | null = null;
 
       const invitation = invitationById.get(guest.invitationId.toString());
-      const eventId = invitation?.eventId?.toString();
+      const currentEventId = invitation?.eventId?.toString();
 
-      if (eventId) {
-        const guestToTable = eventGuestToTableMap.get(eventId);
+      if (currentEventId) {
+        const guestToTable = eventGuestToTableMap.get(currentEventId);
         const found = guestToTable?.get(guest._id.toString());
+
         if (found) {
           tableName = found;
         }
@@ -181,6 +390,7 @@ export async function GET(req: NextRequest) {
     const remaining = Math.max(0, limit - current);
 
     return NextResponse.json({
+      success: true,
       guests: guestsWithTable,
       usage: {
         current,
@@ -190,7 +400,12 @@ export async function GET(req: NextRequest) {
     });
   } catch (err) {
     console.error("🔥 ERROR in /api/guests GET:", err);
-    return NextResponse.json({ guests: [], usage: null });
+
+    return NextResponse.json({
+      success: false,
+      guests: [],
+      usage: null,
+    });
   }
 }
 
@@ -202,9 +417,13 @@ export async function POST(req: NextRequest) {
     await db();
 
     const auth = await getUserIdFromRequest();
+
     if (!auth?.userId) {
       return NextResponse.json(
-        { success: false, error: "Unauthorized" },
+        {
+          success: false,
+          error: "Unauthorized",
+        },
         { status: 401 }
       );
     }
@@ -228,7 +447,10 @@ export async function POST(req: NextRequest) {
 
     if (!invitationId || !String(name || "").trim()) {
       return NextResponse.json(
-        { success: false, error: "Missing required fields" },
+        {
+          success: false,
+          error: "Missing required fields",
+        },
         { status: 400 }
       );
     }
@@ -239,7 +461,10 @@ export async function POST(req: NextRequest) {
 
     if (!invitation) {
       return NextResponse.json(
-        { success: false, error: "Invitation not found" },
+        {
+          success: false,
+          error: "Invitation not found",
+        },
         { status: 404 }
       );
     }
@@ -249,7 +474,10 @@ export async function POST(req: NextRequest) {
 
     if (ownerId !== userId && producerId !== userId) {
       return NextResponse.json(
-        { success: false, error: "Forbidden" },
+        {
+          success: false,
+          error: "Forbidden",
+        },
         { status: 403 }
       );
     }
@@ -289,8 +517,12 @@ export async function POST(req: NextRequest) {
     });
   } catch (err: any) {
     console.error("🔥 ERROR in /api/guests POST:", err);
+
     return NextResponse.json(
-      { success: false, error: err?.message || "Server error" },
+      {
+        success: false,
+        error: err?.message || "Server error",
+      },
       { status: 500 }
     );
   }

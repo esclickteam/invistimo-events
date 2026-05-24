@@ -505,25 +505,26 @@ const isLiveView = searchParams.get("live") === "1";
   async function loadGuests() {
   if (!invitationId) return;
 
-  /*
-    כניסה של אולם:
-    נטען את אותה רשימת אורחים של הלקוח לפי invitationId,
-    דרך API ההושבה שכבר יודע לעבוד עם venueView=1.
-  */
-  const url =
-    isVenueView && eventIdFromUrl
-      ? `/api/seating/guests/${eventIdFromUrl}?invitationId=${encodeURIComponent(
-          invitationId
-        )}&venueView=1`
-      : `/api/guests?invitation=${encodeURIComponent(invitationId)}`;
+  const url = isVenueView
+    ? `/api/guests?invitation=${encodeURIComponent(
+        invitationId
+      )}&venueView=1&eventId=${encodeURIComponent(eventIdFromUrl || "")}`
+    : `/api/guests?invitation=${encodeURIComponent(invitationId)}`;
 
   const res = await fetch(url, {
     credentials: "include",
     cache: "no-store",
   });
 
-  const data = await res.json();
-  setGuests(data.guests || []);
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok || data?.success === false) {
+    console.warn("Load guests failed:", data);
+    setGuests([]);
+    return;
+  }
+
+  setGuests(Array.isArray(data.guests) ? data.guests : []);
 }
 
   async function loadSeatingTables() {
