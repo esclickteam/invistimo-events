@@ -1160,19 +1160,19 @@ const pending = guests.filter(
     }
 
     if (quickFilter === "pending") {
-      list = list.filter((g) => {
-        const isReallyPending =
-          g.rsvp === "pending" &&
-          (g.arrivedCount ?? 0) === 0 &&
-          (g.actualArrivedCount ?? 0) === 0;
+  list = list.filter((g) => {
+    const isReallyPending =
+      g.rsvp === "pending" &&
+      (g.arrivedCount ?? 0) === 0 &&
+      (g.actualArrivedCount ?? 0) === 0;
 
-        if (!isReallyPending) return false;
+    if (!isReallyPending) return false;
 
-        const status = getGuestCallStatus(g);
+    const status = getGuestCallStatus(g);
 
-        return status === null || status === "will_reply";
-      });
-    }
+    return status === null;
+  });
+}
 
     if (quickFilter === "call_answered") {
       list = list.filter(
