@@ -68,11 +68,23 @@ export default function GuestsControls({
     { key: "no", label: "לא מגיעים" },
     { key: "pending", label: "בהמתנה" },
     { key: "noTable", label: "בלי שולחן" },
+  ];
 
+  const pendingCallFilters: {
+    key: QuickFilter;
+    label: string;
+  }[] = [
+    { key: "pending", label: "כל הממתינים" },
     { key: "call_answered", label: "ענה" },
     { key: "call_no_answer", label: "לא ענה" },
     { key: "call_will_reply", label: "ישיב בהודעה" },
   ];
+
+  const isPendingFilterOpen =
+    quickFilter === "pending" ||
+    quickFilter === "call_answered" ||
+    quickFilter === "call_no_answer" ||
+    quickFilter === "call_will_reply";
 
   const safeRecordsLimit = Number(recordsLimit || 0);
   const safeUsedRecordsCount = Number(
@@ -327,7 +339,9 @@ export default function GuestsControls({
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
           {filters.map((filter) => {
-            const active = quickFilter === filter.key;
+            const active =
+              quickFilter === filter.key ||
+              (filter.key === "pending" && isPendingFilterOpen);
 
             return (
               <button
@@ -374,6 +388,52 @@ export default function GuestsControls({
             + הוספת קבוצה
           </button>
         </div>
+
+        {isPendingFilterOpen && (
+          <div
+            className="
+              mt-3
+              flex
+              flex-wrap
+              items-center
+              gap-2
+              rounded-[24px]
+              border
+              border-[#E3D6C3]
+              bg-white/55
+              p-2
+              shadow-[0_10px_25px_rgba(91,63,31,0.06)]
+            "
+          >
+            {pendingCallFilters.map((filter) => {
+              const active = quickFilter === filter.key;
+
+              return (
+                <button
+                  key={filter.key}
+                  type="button"
+                  onClick={() => setQuickFilter(filter.key)}
+                  className={`
+                    h-[36px]
+                    rounded-full
+                    border
+                    px-4
+                    text-xs
+                    font-black
+                    transition
+                    ${
+                      active
+                        ? "border-[#B8844F] bg-[#B8844F] text-white shadow-[0_10px_20px_rgba(184,132,79,0.2)]"
+                        : "border-[#E3D6C3] bg-white text-[#6B5B4A] hover:bg-[#FFF7EA]"
+                    }
+                  `}
+                >
+                  {filter.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
     </section>
   );
