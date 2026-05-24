@@ -152,8 +152,8 @@ export async function GET(req: NextRequest, context: RouteContext) {
 
     /*
       חשוב ללקוח אולם:
-      אם החיפוש לפי eventId לא מחזיר כלום,
-      נוכל למצוא את ההושבה לפי המשתמש המחובר.
+      אם החיפוש לפי eventId מחזיר מסמך ריק,
+      נוכל למצוא את ההושבה האמיתית לפי המשתמש המחובר.
     */
     const auth = await getUserIdFromRequest(req).catch(() => null);
     const currentUserId = cleanString((auth as any)?.userId);
@@ -184,7 +184,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
     /* ===============================
        2️⃣ שליפת הושבה
        קודם לפי eventId / invitationId רגיל.
-       אם לא נמצא — fallback ללקוח אולם לפי userId.
+       אם לא נמצא, או שנמצא מסמך ריק — fallback ללקוח אולם לפי userId.
     =============================== */
 
     const idQueries = createIdQueries({
@@ -198,13 +198,15 @@ export async function GET(req: NextRequest, context: RouteContext) {
       .sort({ updatedAt: -1, createdAt: -1 })
       .lean();
 
+    const recordHasTables =
+      Array.isArray(record?.tables) && record.tables.length > 0;
+
     /*
       ✅ fallback ללקוח אולם:
-      אם ההושבה קיימת ב-seatingtables אבל המסך ריק,
-      לרוב זה כי /dashboard/seating לא הגיע עם invitationId מתאים
-      או שה-eventId לא חזר מ-/api/invitations/my כמו הזמנה רגילה.
+      אם לא נמצא record, או שנמצא record ריק בלי שולחנות,
+      נחפש לפי המשתמש המחובר את ההושבה שנוצרה מתבנית אולם.
     */
-    if (!record && currentUserId) {
+    if ((!record || !recordHasTables) && currentUserId) {
       const fallbackQueries = createUserFallbackQueries({
         userId: currentUserId,
         eventId: cleanEventId,
@@ -212,11 +214,16 @@ export async function GET(req: NextRequest, context: RouteContext) {
       });
 
       if (fallbackQueries.length) {
-        record = await SeatingTable.findOne({
+        const fallbackRecord = await SeatingTable.findOne({
           $or: fallbackQueries,
+          "tables.0": { $exists: true },
         })
           .sort({ updatedAt: -1, createdAt: -1 })
           .lean();
+
+        if (fallbackRecord) {
+          record = fallbackRecord;
+        }
       }
     }
 
@@ -249,7 +256,9 @@ export async function GET(req: NextRequest, context: RouteContext) {
         : null,
 
       eventId: record?.eventId ? String(record.eventId) : cleanEventId,
-      invitationId: record?.invitationId ? String(record.invitationId) : invitationId,
+      invitationId: record?.invitationId
+        ? String(record.invitationId)
+        : invitationId,
 
       tables: Array.isArray(record?.tables) ? record.tables : [],
       background: record?.background ?? null,
