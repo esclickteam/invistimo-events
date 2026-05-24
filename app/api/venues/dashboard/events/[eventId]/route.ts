@@ -179,14 +179,36 @@ function serializeEvent(event: any, hall?: any, invitation?: any) {
     "paid";
 
   const email =
-    cleanString(invitation?.email) ||
-    cleanString(event.email) ||
-    "";
+    cleanString(invitation?.email) || cleanString(event.email) || "";
 
   const notes =
-    cleanString(invitation?.notes) ||
-    cleanString(event.notes) ||
+    cleanString(invitation?.notes) || cleanString(event.notes) || "";
+
+  const venueClientInvitationId =
+    event.venueClientInvitationId ||
+    invitation?._id ||
+    invitation?.venueClientInvitationId ||
     "";
+
+  const venueClientUserId =
+    event.venueClientUserId ||
+    invitation?.userId ||
+    invitation?.ownerId ||
+    event.userId ||
+    "";
+
+  const venueClientPackageType =
+    cleanString(event.venueClientPackageType) ||
+    cleanString(invitation?.venueClientPackageType);
+
+  const venueClientPaymentStatus =
+    cleanString(event.venueClientPaymentStatus) ||
+    cleanString(invitation?.venueClientPaymentStatus);
+
+  const venueClientRecordsCount =
+    toNumber(event.venueClientRecordsCount, 0) ||
+    toNumber(invitation?.venueClientRecordsCount, 0) ||
+    maxGuests;
 
   return {
     id: String(event._id),
@@ -210,6 +232,19 @@ function serializeEvent(event: any, hall?: any, invitation?: any) {
     venueHallName,
     venueLinkedAt: event.venueLinkedAt || null,
     venueAccessStatus: event.venueAccessStatus || "none",
+
+    /**
+     * שדות לקוח אולם
+     * חובה לטאב ההושבה באולם:
+     * /dashboard/seating?eventId=...&invitationId=...&venueView=1
+     */
+    venueClientUserId: venueClientUserId ? String(venueClientUserId) : "",
+    venueClientInvitationId: venueClientInvitationId
+      ? String(venueClientInvitationId)
+      : "",
+    venueClientPackageType,
+    venueClientPaymentStatus,
+    venueClientRecordsCount,
 
     /**
      * מה-Invitation קודם
@@ -252,11 +287,27 @@ async function findInvitationForEvent(event: any) {
 
   if (!invitations) return null;
 
+  const venueClientInvitationId = toObjectId(event.venueClientInvitationId);
+
+  /*
+    לקוח אולם:
+    אם ה-Event כבר מחזיק venueClientInvitationId,
+    זו ההזמנה המדויקת שצריך להחזיר לאולם.
+  */
+  if (venueClientInvitationId) {
+    const directInvitation = await invitations.findOne({
+      _id: venueClientInvitationId,
+    });
+
+    if (directInvitation) return directInvitation;
+  }
+
   const eventIdValues = objectIdOrString(event._id);
 
   const query = {
     $or: [
       { eventId: { $in: eventIdValues } },
+      { venueClientEventId: { $in: eventIdValues } },
       { productionEventId: { $in: eventIdValues } },
       { linkedEventId: { $in: eventIdValues } },
       { event: { $in: eventIdValues } },
@@ -629,6 +680,7 @@ export async function GET(req: NextRequest, { params }: Props) {
             id: String(invitation._id),
             _id: String(invitation._id),
             shareId: cleanString(invitation.shareId),
+            venueClientInvitationId: String(invitation._id),
           }
         : null,
     });
@@ -735,7 +787,10 @@ export async function PATCH(req: NextRequest, { params }: Props) {
       existingEvent.venueAccessStatus = requestedVenueAccessStatus;
     }
 
-    if (!existingEvent.venueLinkedAt && existingEvent.venueAccessStatus === "linked") {
+    if (
+      !existingEvent.venueLinkedAt &&
+      existingEvent.venueAccessStatus === "linked"
+    ) {
       existingEvent.venueLinkedAt = new Date();
     }
 
@@ -885,7 +940,10 @@ export async function PATCH(req: NextRequest, { params }: Props) {
       auth.userId
     );
 
-    const stats = await buildStats(updatedEvent || existingEvent, updatedInvitation);
+    const stats = await buildStats(
+      updatedEvent || existingEvent,
+      updatedInvitation
+    );
 
     return NextResponse.json({
       success: true,
@@ -898,6 +956,7 @@ export async function PATCH(req: NextRequest, { params }: Props) {
             id: String(updatedInvitation._id),
             _id: String(updatedInvitation._id),
             shareId: cleanString(updatedInvitation.shareId),
+            venueClientInvitationId: String(updatedInvitation._id),
           }
         : null,
     });
