@@ -416,12 +416,6 @@ export default function VenueEventPage() {
   useEffect(() => {
   fetchEvent();
 
-  const interval = window.setInterval(() => {
-    fetchEvent();
-  }, 5000);
-
-  return () => window.clearInterval(interval);
-
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [eventId]);
 
