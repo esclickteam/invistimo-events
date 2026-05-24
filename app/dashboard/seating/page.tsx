@@ -269,9 +269,14 @@ const isLiveView = searchParams.get("live") === "1";
   =============================== */
   const loadSeatingData = useCallback(
     async (eventIdToLoad: string, invitationIdToLoad: string) => {
-      const gRes = await fetch(`/api/seating/guests/${eventIdToLoad}`, {
-        cache: "no-store",
-      });
+      const gRes = await fetch(
+  `/api/seating/guests/${eventIdToLoad}?invitationId=${encodeURIComponent(
+    invitationIdToLoad
+  )}${isVenueView ? "&venueView=1" : ""}`,
+  {
+    cache: "no-store",
+  }
+);
 
       if (gRes.status === 403 && !isVenueView) {
   setBlockReason("no-plan");
