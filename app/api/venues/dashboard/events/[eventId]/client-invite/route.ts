@@ -57,6 +57,13 @@ function getBaseUrl(req: NextRequest) {
   return `${url.protocol}//${url.host}`;
 }
 
+function objectIdOrString(value: unknown) {
+  const stringValue = cleanString(value);
+  const objectIdValue = toObjectId(stringValue);
+
+  return objectIdValue ? [objectIdValue, stringValue] : [stringValue];
+}
+
 function getOwnerQueryValues(userId: string) {
   const values: any[] = [userId];
 
@@ -99,13 +106,17 @@ function getEventTime(event: any) {
   return cleanString(event?.time || event?.startTime || event?.eventTime || "");
 }
 
-function getRecordsCount(event: any) {
+function getRecordsCount(source: any) {
+  if (Array.isArray(source?.guests)) {
+    return source.guests.length;
+  }
+
   const value =
-    event?.estimatedGuestCount ||
-    event?.estimatedGuests ||
-    event?.maxGuests ||
-    event?.guests ||
-    event?.recordsCount ||
+    source?.estimatedGuestCount ||
+    source?.estimatedGuests ||
+    source?.maxGuests ||
+    source?.recordsCount ||
+    source?.venueClientRecordsCount ||
     0;
 
   const count = Number(value);
@@ -137,6 +148,10 @@ function serializeInvite(event: any) {
       ? String(event.venueClientUserId)
       : "",
 
+    venueClientInvitationId: event?.venueClientInvitationId
+      ? String(event.venueClientInvitationId)
+      : "",
+
     venueClientPackageType:
       cleanString(event?.venueClientPackageType) || "seating_only",
 
@@ -162,10 +177,114 @@ function serializeInvite(event: any) {
   };
 }
 
-/**
- * GET
- * מחזיר את מצב קישור ההרשמה של האירוע.
- */
+async function findClientInvitationForVenueEvent(event: any, token?: string) {
+  const invitations = getCollection("invitations");
+
+  if (!invitations) return null;
+
+  const existingInvitationId = toObjectId(event?.venueClientInvitationId);
+
+  if (existingInvitationId) {
+    const existingInvitation = await invitations.findOne({
+      _id: existingInvitationId,
+    });
+
+    if (existingInvitation) return existingInvitation;
+  }
+
+  const cleanedToken = cleanString(token || event?.venueClientInviteToken);
+
+  if (cleanedToken) {
+    const tokenInvitation = await invitations.findOne({
+      $or: [
+        { venueClientInviteToken: cleanedToken },
+        { venueInviteToken: cleanedToken },
+        { inviteToken: cleanedToken },
+        { registrationToken: cleanedToken },
+      ],
+    });
+
+    if (tokenInvitation) return tokenInvitation;
+  }
+
+  const eventIdValues = objectIdOrString(event?._id);
+
+  const directByEventId = await invitations.findOne({
+    $or: [
+      { eventId: { $in: eventIdValues } },
+      { venueClientEventId: { $in: eventIdValues } },
+      { productionEventId: { $in: eventIdValues } },
+      { linkedEventId: { $in: eventIdValues } },
+      { event: { $in: eventIdValues } },
+    ],
+  });
+
+  if (directByEventId) return directByEventId;
+
+  const userIdValues = objectIdOrString(event?.userId);
+  const eventDate = getEventDate(event);
+  const eventTitle = getEventTitle(event);
+
+  if (userIdValues.length && eventDate) {
+    const byOwnerDateAndTitle = await invitations.findOne(
+      {
+        $and: [
+          {
+            $or: [
+              { ownerId: { $in: userIdValues } },
+              { userId: { $in: userIdValues } },
+            ],
+          },
+          {
+            $or: [{ eventDate }, { date: eventDate }],
+          },
+          {
+            $or: [
+              { title: eventTitle },
+              { eventTitle },
+              { eventName: eventTitle },
+            ],
+          },
+        ],
+      },
+      {
+        sort: {
+          updatedAt: -1,
+          createdAt: -1,
+        },
+      }
+    );
+
+    if (byOwnerDateAndTitle) return byOwnerDateAndTitle;
+
+    const byOwnerAndDate = await invitations.findOne(
+      {
+        $and: [
+          {
+            $or: [
+              { ownerId: { $in: userIdValues } },
+              { userId: { $in: userIdValues } },
+            ],
+          },
+          {
+            $or: [{ eventDate }, { date: eventDate }],
+          },
+        ],
+      },
+      {
+        sort: {
+          updatedAt: -1,
+          createdAt: -1,
+        },
+      }
+    );
+
+    if (byOwnerAndDate) return byOwnerAndDate;
+  }
+
+  return null;
+}
+
 export async function GET(req: NextRequest, { params }: Props) {
   try {
     await connectDB();
@@ -225,6 +344,51 @@ export async function GET(req: NextRequest, { params }: Props) {
       );
     }
 
+    const linkedInvitation = await findClientInvitationForVenueEvent(event);
+
+    if (
+      linkedInvitation?._id &&
+      String(event?.venueClientInvitationId || "") !== String(linkedInvitation._id)
+    ) {
+      const linkedUserId =
+        linkedInvitation.ownerId ||
+        linkedInvitation.userId ||
+        linkedInvitation.user ||
+        event.venueClientUserId ||
+        "";
+
+      const linkedRecordsCount =
+        getRecordsCount(linkedInvitation) || getRecordsCount(event);
+
+      await events.updateOne(
+        {
+          _id: eventObjectId,
+          venueOwnerId: { $in: ownerValues },
+          venueAccessStatus: "linked",
+        },
+        {
+          $set: {
+            venueClientInvitationId: linkedInvitation._id,
+            ...(linkedUserId ? { venueClientUserId: linkedUserId } : {}),
+            venueClientRecordsCount: linkedRecordsCount,
+            venueClientPaymentStatus:
+              cleanString(linkedInvitation.paymentStatus) ||
+              cleanString(event.venueClientPaymentStatus) ||
+              "pending",
+            updatedAt: new Date(),
+          },
+        }
+      );
+
+      event.venueClientInvitationId = linkedInvitation._id;
+      event.venueClientUserId = linkedUserId;
+      event.venueClientRecordsCount = linkedRecordsCount;
+      event.venueClientPaymentStatus =
+        cleanString(linkedInvitation.paymentStatus) ||
+        cleanString(event.venueClientPaymentStatus) ||
+        "pending";
+    }
+
     return NextResponse.json({
       success: true,
       invite: serializeInvite(event),
@@ -245,22 +409,6 @@ export async function GET(req: NextRequest, { params }: Props) {
   }
 }
 
-/**
- * POST
- *
- * הזרימה:
- * 1. בעל האולם נמצא בתוך אירוע משויך לאולם.
- * 2. בעל האולם בוחר תבנית הושבה מתוך VenueSeatingTemplate של האולם שלו.
- * 3. כאן נשמרת הבחירה על Event בלבד.
- * 4. נוצר קישור הרשמה ללקוח.
- * 5. בהשלמת הרשמה של הלקוח, השרת יעתיק את התבנית להושבה הרגילה של הלקוח.
- *
- * חשוב:
- * לא נוגעים כאן בהושבה הרגילה.
- * לא נוגעים כאן בהושבה לייב.
- * לא יוצרים כאן seatingtables.
- * רק שומרים על האירוע איזו תבנית האולם בחר ללקוח.
- */
 export async function POST(req: NextRequest, { params }: Props) {
   try {
     await connectDB();
@@ -392,16 +540,36 @@ export async function POST(req: NextRequest, { params }: Props) {
 
     const venueOwnerIdValue = venueOwnerObjectId || String(auth.userId);
 
-    const updatePayload = {
+    const linkedInvitation = await findClientInvitationForVenueEvent(
+      {
+        ...event,
+        venueClientInviteToken: token,
+      },
+      token
+    );
+
+    const linkedInvitationId = linkedInvitation?._id || null;
+
+    const linkedUserId =
+      linkedInvitation?.ownerId ||
+      linkedInvitation?.userId ||
+      linkedInvitation?.user ||
+      event?.venueClientUserId ||
+      "";
+
+    const linkedRecordsCount =
+      getRecordsCount(linkedInvitation) || recordsCount;
+
+    const linkedPaymentStatus =
+      cleanString(linkedInvitation?.paymentStatus) ||
+      cleanString(event?.venueClientPaymentStatus) ||
+      "pending";
+
+    const updatePayload: any = {
       venueClientInviteToken: token,
       venueClientInviteStatus: "sent",
       venueClientInviteSentAt: now,
 
-      /**
-       * זה השדה הקריטי:
-       * כאן נשמרת התבנית שבעל האולם בחר ללקוח.
-       * בהשלמת הרשמה משתמשים בזה כדי להעתיק את התבנית להושבה הרגילה של הלקוח.
-       */
       venueClientSelectedSeatingTemplateId: templateObjectId,
       venueClientSelectedSeatingTemplateName: selectedTemplateName,
 
@@ -417,11 +585,19 @@ export async function POST(req: NextRequest, { params }: Props) {
       venueClientEventTime: eventTime,
 
       venueClientPackageType: packageType,
-      venueClientRecordsCount: recordsCount,
-      venueClientPaymentStatus: "pending",
+      venueClientRecordsCount: linkedRecordsCount,
+      venueClientPaymentStatus: linkedPaymentStatus,
 
       updatedAt: now,
     };
+
+    if (linkedInvitationId) {
+      updatePayload.venueClientInvitationId = linkedInvitationId;
+    }
+
+    if (linkedUserId) {
+      updatePayload.venueClientUserId = linkedUserId;
+    }
 
     await events.updateOne(
       {
@@ -448,6 +624,11 @@ export async function POST(req: NextRequest, { params }: Props) {
 
         venueClientRegistrationLink: registrationLink,
 
+        venueClientUserId: linkedUserId ? String(linkedUserId) : "",
+        venueClientInvitationId: linkedInvitationId
+          ? String(linkedInvitationId)
+          : "",
+
         venueClientVenueOwnerId: String(venueOwnerIdValue),
         venueClientVenueHallId: venueHallId,
         venueClientVenueHallName: venueHallName,
@@ -458,8 +639,8 @@ export async function POST(req: NextRequest, { params }: Props) {
         venueClientEventTime: eventTime,
 
         venueClientPackageType: packageType,
-        venueClientRecordsCount: recordsCount,
-        venueClientPaymentStatus: "pending",
+        venueClientRecordsCount: linkedRecordsCount,
+        venueClientPaymentStatus: linkedPaymentStatus,
       },
       copyText: `שלום, האולם פתח עבורך גישה ל-Invistimo לניהול האירוע שלך. להרשמה: ${registrationLink}`,
     });
