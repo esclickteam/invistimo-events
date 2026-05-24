@@ -68,6 +68,10 @@ export default function GuestsControls({
     { key: "no", label: "לא מגיעים" },
     { key: "pending", label: "בהמתנה" },
     { key: "noTable", label: "בלי שולחן" },
+
+    { key: "call_answered", label: "ענה" },
+    { key: "call_no_answer", label: "לא ענה" },
+    { key: "call_will_reply", label: "ישיב בהודעה" },
   ];
 
   const safeRecordsLimit = Number(recordsLimit || 0);
