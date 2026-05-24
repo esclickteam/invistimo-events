@@ -67,11 +67,33 @@ type Guest = {
   lastResponseAt?: string;
 
   callRounds?: {
-    roundNumber: number;
-    status?: string;
-    notes?: string;
-    calledAt?: string;
-  }[];
+  roundNumber: number;
+
+  // ישן — נשאר לתמיכה ברשומות קיימות
+  status?: string;
+
+  // חדש — מהמודאל החדש
+  answerStatus?: "answered" | "no_answer" | null;
+  resultStatus?:
+    | "yes"
+    | "no"
+    | "will_reply"
+    | "needs_correction"
+    | null;
+
+  amount?: number;
+
+  notes?:
+    | string
+    | {
+        text: string;
+        createdAt?: string;
+        createdBy?: string;
+      }[];
+
+  calledAt?: string;
+  updatedAt?: string;
+}[];
 };
 
 type SortKey = "name" | "rsvp" | "table" | "coming" | "invited";
@@ -1108,38 +1130,95 @@ const pending = guests.filter(
     );
   };
 
-  function normalizeCallStatus(status?: string) {
-    switch (status) {
-      case "answered":
-      case "ענה":
-        return "answered";
+  type LatestCallRound = {
+  roundNumber: number;
+  answerStatus: "answered" | "no_answer" | null;
+  resultStatus:
+    | "yes"
+    | "no"
+    | "will_reply"
+    | "needs_correction"
+    | null;
+};
 
-      case "no_answer":
-      case "לא ענה":
-        return "no_answer";
+function normalizeAnswerStatus(status?: string | null) {
+  switch (status) {
+    case "answered":
+    case "ענה":
+      return "answered";
 
-      case "will_reply":
-      case "ישיב בהודעה":
-        return "will_reply";
+    case "no_answer":
+    case "לא ענה":
+      return "no_answer";
 
-      default:
-        return null;
-    }
-  }
-
-  function getGuestCallStatus(
-    guest: Guest
-  ): "answered" | "no_answer" | "will_reply" | null {
-    if (!Array.isArray(guest.callRounds) || guest.callRounds.length === 0) {
+    default:
       return null;
-    }
-
-    const lastWithStatus = [...guest.callRounds]
-      .reverse()
-      .find((r) => r.status);
-
-    return normalizeCallStatus(lastWithStatus?.status);
   }
+}
+
+function normalizeResultStatus(status?: string | null) {
+  switch (status) {
+    case "yes":
+    case "מגיע":
+      return "yes";
+
+    case "no":
+    case "לא מגיע":
+      return "no";
+
+    case "will_reply":
+    case "ישיב בהודעה":
+      return "will_reply";
+
+    case "needs_correction":
+    case "ממתין לתיקון":
+      return "needs_correction";
+
+    default:
+      return null;
+  }
+}
+
+function getLatestCallRound(guest: Guest): LatestCallRound | null {
+  if (!Array.isArray(guest.callRounds) || guest.callRounds.length === 0) {
+    return null;
+  }
+
+  const rounds = [...guest.callRounds]
+    .filter((round) => {
+      return (
+        round?.answerStatus ||
+        round?.resultStatus ||
+        round?.status
+      );
+    })
+    .sort(
+      (a, b) =>
+        Number(b.roundNumber || 0) - Number(a.roundNumber || 0)
+    );
+
+  const latest = rounds[0];
+
+  if (!latest) return null;
+
+  const answerStatus =
+    normalizeAnswerStatus(latest.answerStatus) ||
+    normalizeAnswerStatus(latest.status);
+
+  const resultStatus =
+    normalizeResultStatus(latest.resultStatus) ||
+    normalizeResultStatus(latest.status);
+
+  return {
+    roundNumber: Number(latest.roundNumber || 0),
+    answerStatus,
+    resultStatus,
+  };
+}
+
+function getGuestRsvp(guest: Guest) {
+  return guest.rsvp || "pending";
+}
 
   /* ============================================================
      פילטר + מיון + חיפוש
@@ -1148,49 +1227,89 @@ const pending = guests.filter(
     let list = [...guests];
 
     if (quickFilter === "yes") {
-      list = list.filter((g) => g.rsvp === "yes");
-    }
+  list = list.filter((g) => getGuestRsvp(g) === "yes");
+}
 
-    if (quickFilter === "no") {
-      list = list.filter((g) => g.rsvp === "no");
-    }
+if (quickFilter === "no") {
+  list = list.filter((g) => getGuestRsvp(g) === "no");
+}
 
-    if (quickFilter === "noTable") {
-      list = list.filter((g) => !(g.tableName && g.tableName.trim()));
-    }
+if (quickFilter === "noTable") {
+  list = list.filter((g) => !(g.tableName && g.tableName.trim()));
+}
 
-    if (quickFilter === "pending") {
+if (quickFilter === "pending") {
+  list = list.filter((g) => getGuestRsvp(g) === "pending");
+}
+
+if (quickFilter === "call_answered") {
   list = list.filter((g) => {
-    const isReallyPending =
-      g.rsvp === "pending" &&
-      (g.arrivedCount ?? 0) === 0 &&
-      (g.actualArrivedCount ?? 0) === 0;
+    const latestRound = getLatestCallRound(g);
 
-    if (!isReallyPending) return false;
-
-    const status = getGuestCallStatus(g);
-
-    return status === null;
+    return (
+      latestRound?.answerStatus === "answered"
+    );
   });
 }
 
-    if (quickFilter === "call_answered") {
-      list = list.filter(
-        (g) => getGuestCallStatus(g) === "answered"
-      );
-    }
+if (quickFilter === "call_no_answer") {
+  list = list.filter((g) => {
+    const latestRound = getLatestCallRound(g);
 
-    if (quickFilter === "call_no_answer") {
-      list = list.filter(
-        (g) => getGuestCallStatus(g) === "no_answer"
-      );
-    }
+    return (
+      getGuestRsvp(g) === "pending" &&
+      latestRound?.answerStatus === "no_answer"
+    );
+  });
+}
 
-    if (quickFilter === "call_will_reply") {
-      list = list.filter(
-        (g) => getGuestCallStatus(g) === "will_reply"
-      );
-    }
+if (quickFilter === "call_answered_yes") {
+  list = list.filter((g) => {
+    const latestRound = getLatestCallRound(g);
+
+    return (
+      getGuestRsvp(g) === "yes" &&
+      latestRound?.answerStatus === "answered" &&
+      latestRound?.resultStatus === "yes"
+    );
+  });
+}
+
+if (quickFilter === "call_answered_no") {
+  list = list.filter((g) => {
+    const latestRound = getLatestCallRound(g);
+
+    return (
+      getGuestRsvp(g) === "no" &&
+      latestRound?.answerStatus === "answered" &&
+      latestRound?.resultStatus === "no"
+    );
+  });
+}
+
+if (quickFilter === "call_will_reply") {
+  list = list.filter((g) => {
+    const latestRound = getLatestCallRound(g);
+
+    return (
+      getGuestRsvp(g) === "pending" &&
+      latestRound?.answerStatus === "answered" &&
+      latestRound?.resultStatus === "will_reply"
+    );
+  });
+}
+
+if (quickFilter === "call_needs_correction") {
+  list = list.filter((g) => {
+    const latestRound = getLatestCallRound(g);
+
+    return (
+      getGuestRsvp(g) === "pending" &&
+      latestRound?.answerStatus === "answered" &&
+      latestRound?.resultStatus === "needs_correction"
+    );
+  });
+}
 
     const q = search.trim().toLowerCase();
 
