@@ -13,6 +13,16 @@ function cleanString(value: unknown) {
   return String(value || "").trim();
 }
 
+function toObjectId(value: unknown) {
+  const id = cleanString(value);
+
+  if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+    return null;
+  }
+
+  return new mongoose.Types.ObjectId(id);
+}
+
 function getProducerObjectId(value: unknown) {
   const producerId = cleanString(value);
 
@@ -25,6 +35,42 @@ function getProducerObjectId(value: unknown) {
   }
 
   return new mongoose.Types.ObjectId(producerId);
+}
+
+function getCollection(name: string) {
+  return mongoose.connection.db?.collection(name);
+}
+
+function getBaseUrl(req: Request) {
+  const envUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.VERCEL_URL;
+
+  if (envUrl) {
+    if (envUrl.startsWith("http://") || envUrl.startsWith("https://")) {
+      return envUrl.replace(/\/$/, "");
+    }
+
+    return `https://${envUrl}`.replace(/\/$/, "");
+  }
+
+  const url = new URL(req.url);
+  return `${url.protocol}//${url.host}`;
+}
+
+function normalizeDateForQuery(value: unknown) {
+  const clean = cleanString(value);
+
+  if (!clean) return null;
+
+  const date = new Date(clean);
+
+  if (Number.isNaN(date.getTime())) {
+    return clean;
+  }
+
+  return date;
 }
 
 export async function POST(req: Request) {
@@ -41,8 +87,9 @@ export async function POST(req: Request) {
     /*
       הרשמה דרך אולם:
       מגיעה מעמוד הרשמה עם venueInviteToken.
-      בשלב הזה עדיין לא חייבים לפתוח חבילת הושבה,
-      כי אחרי ההרשמה המשתמש עובר לעמוד בחירת חבילה של לקוח אולם.
+      כאן לא פותחים עדיין חבילה ולא יוצרים הושבה.
+      רק מזהים את האירוע, שומרים על המשתמש את נתוני האולם,
+      ושומרים את התבנית שבעל האולם בחר מראש.
     */
     const registrationSource = cleanString(body?.registrationSource);
     const venueInviteToken = cleanString(body?.venueInviteToken);
@@ -50,12 +97,7 @@ export async function POST(req: Request) {
     const isVenueClientRegistration =
       registrationSource === "venue" || Boolean(venueInviteToken);
 
-    /*
-      אם בעתיד תשלחי כבר hallId בהרשמה — נשמור אותו.
-      אם לא, הוא יישמר בשלב הבא בעמוד /venue-client/packages
-      אחרי שהשרת יפענח את venueInviteToken.
-    */
-    const venueClientHallId =
+    const bodyVenueClientHallId =
       cleanString(body?.venueClientHallId) ||
       cleanString(body?.hallId) ||
       cleanString(body?.venueHallId) ||
@@ -114,7 +156,89 @@ export async function POST(req: Request) {
       );
     }
 
+    /* ============================================================
+       Load venue invite event
+       רק בהרשמה דרך אולם.
+    ============================================================ */
+
+    let venueEvent: any = null;
+
+    if (isVenueClientRegistration) {
+      const events = getCollection("events");
+
+      if (!events) {
+        return NextResponse.json(
+          { success: false, error: "לא נמצאה קולקשן events" },
+          { status: 500 }
+        );
+      }
+
+      venueEvent = await events.findOne({
+        venueClientInviteToken: venueInviteToken,
+        venueClientInviteStatus: { $in: ["sent", "opened", "pending"] },
+      });
+
+      if (!venueEvent) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "קישור האולם לא תקין או שכבר אינו פעיל",
+          },
+          { status: 404 }
+        );
+      }
+
+      const selectedTemplateId = toObjectId(
+        venueEvent?.venueClientSelectedSeatingTemplateId
+      );
+
+      if (!selectedTemplateId) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "לא נבחרה תבנית הושבה לאירוע הזה. יש לבקש מהאולם ליצור קישור חדש עם תבנית.",
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     const hashedPassword = await bcrypt.hash(password, 12);
+
+    const venueHallId =
+      cleanString(venueEvent?.venueClientVenueHallId) ||
+      cleanString(venueEvent?.venueHallId) ||
+      bodyVenueClientHallId;
+
+    const venueHallName =
+      cleanString(venueEvent?.venueClientVenueHallName) ||
+      cleanString(venueEvent?.venueHallName);
+
+    const venueOwnerId =
+      toObjectId(venueEvent?.venueClientVenueOwnerId) ||
+      toObjectId(venueEvent?.venueOwnerId) ||
+      null;
+
+    const venueEventId =
+      toObjectId(venueEvent?.venueClientEventId) ||
+      toObjectId(venueEvent?._id) ||
+      null;
+
+    const venueSeatingTemplateId = toObjectId(
+      venueEvent?.venueClientSelectedSeatingTemplateId
+    );
+
+    const venueSeatingTemplateName = cleanString(
+      venueEvent?.venueClientSelectedSeatingTemplateName
+    );
+
+    const venueClientRecordsCount = Number(
+      venueEvent?.venueClientRecordsCount || 0
+    );
+
+    const venueClientPackageType =
+      cleanString(venueEvent?.venueClientPackageType) || "seating_only";
 
     /* ============================================================
        Create user
@@ -132,6 +256,7 @@ export async function POST(req: Request) {
       /*
         בהרשמה דרך אולם לא פותחים עדיין חבילה כאן.
         החבילה תיפתח בעמוד /venue-client/packages.
+        לכן המשתמש עדיין לא פעיל עד בחירת החבילה.
       */
       plan: "plan1",
       hasPaid: false,
@@ -142,6 +267,7 @@ export async function POST(req: Request) {
       isTrial: false,
 
       guests: 0,
+      maxGuests: 0,
 
       maxMessages: 0,
       remainingMessages: 0,
@@ -161,12 +287,76 @@ export async function POST(req: Request) {
 
       /*
         שדות לקוח אולם:
-        אלה חשובים כדי שבשלב הבא נדע שהמשתמש הגיע מאולם,
-        ונוכל לפתוח לו חבילת הושבה/אישורי הגעה בהתאם.
+        כאן נשמר החיבור הראשוני בלבד.
+        לא יוצרים כאן הושבה ולא נוגעים בלייב.
       */
       venueClientSource: isVenueClientRegistration,
       venueInviteToken: isVenueClientRegistration ? venueInviteToken : undefined,
-      venueClientHallId: venueClientHallId || undefined,
+
+      venueOwnerId: isVenueClientRegistration ? venueOwnerId : undefined,
+
+      venueHallId: isVenueClientRegistration ? venueHallId : undefined,
+      venueHallName: isVenueClientRegistration ? venueHallName : undefined,
+
+      venueClientHallId: isVenueClientRegistration ? venueHallId : undefined,
+      venueClientHallName: isVenueClientRegistration ? venueHallName : undefined,
+
+      venueClientPackageType: isVenueClientRegistration
+        ? venueClientPackageType
+        : undefined,
+
+      venueClientPaymentStatus: isVenueClientRegistration
+        ? "pending"
+        : undefined,
+
+      venueClientPaymentAmount: isVenueClientRegistration ? 0 : undefined,
+
+      venueClientRecordsCount: isVenueClientRegistration
+        ? venueClientRecordsCount
+        : undefined,
+
+      /*
+        זה השדה הקריטי:
+        בעל האולם בחר תבנית באירוע.
+        כאן אנחנו רק שומרים אותה על המשתמש.
+        ההעתקה בפועל להושבה הרגילה תקרה בשלב /venue-client/packages.
+      */
+      venueSeatingTemplateId: isVenueClientRegistration
+        ? venueSeatingTemplateId
+        : undefined,
+
+      venueSeatingTemplateName: isVenueClientRegistration
+        ? venueSeatingTemplateName
+        : undefined,
+
+      venueSeatingTemplateImportedAt: null,
+
+      venueClientEventId: isVenueClientRegistration
+        ? venueEventId
+        : undefined,
+
+      venueClientEventTitle: isVenueClientRegistration
+        ? cleanString(venueEvent?.venueClientEventTitle) ||
+          cleanString(venueEvent?.title) ||
+          cleanString(venueEvent?.eventName) ||
+          "אירוע"
+        : undefined,
+
+      venueClientEventDate: isVenueClientRegistration
+        ? normalizeDateForQuery(
+            venueEvent?.venueClientEventDate ||
+              venueEvent?.date ||
+              venueEvent?.eventDate
+          )
+        : undefined,
+
+      venueClientEventTime: isVenueClientRegistration
+        ? cleanString(
+            venueEvent?.venueClientEventTime ||
+              venueEvent?.time ||
+              venueEvent?.startTime
+          )
+        : undefined,
 
       /*
         כאן התיקון:
@@ -177,13 +367,44 @@ export async function POST(req: Request) {
       needsPasswordSetup: !isCreatedByProducer,
 
       billingSource: isCreatedByProducer
-  ? "producer"
-  : isVenueClientRegistration
-    ? "pricing"
-    : "site",
+        ? "producer"
+        : isVenueClientRegistration
+          ? "venue"
+          : "site",
     });
 
     const userId = String(user._id);
+
+    /* ============================================================
+       Update event after venue registration
+       מסמנים שהלקוח נרשם ומחברים את המשתמש לאירוע.
+       לא יוצרים כאן seatingtables.
+    ============================================================ */
+
+    if (isVenueClientRegistration && venueEvent?._id) {
+      const events = getCollection("events");
+      const now = new Date();
+
+      await events?.updateOne(
+        {
+          _id: venueEvent._id,
+          venueClientInviteToken: venueInviteToken,
+        },
+        {
+          $set: {
+            venueClientInviteStatus: "registered",
+            venueClientRegisteredAt: now,
+
+            venueClientUserId: user._id,
+            venueClientUserEmail: email,
+            venueClientUserName: name,
+            venueClientUserPhone: phone,
+
+            updatedAt: now,
+          },
+        }
+      );
+    }
 
     /* ============================================================
        If created by producer → no login
@@ -219,9 +440,21 @@ export async function POST(req: Request) {
       { expiresIn: "7d" }
     );
 
+    const baseUrl = getBaseUrl(req);
+
+    const redirectUrl = isVenueClientRegistration
+      ? `${baseUrl}/venue-client/packages?venueInviteToken=${encodeURIComponent(
+          venueInviteToken
+        )}&userId=${encodeURIComponent(userId)}&email=${encodeURIComponent(
+          email
+        )}&venueClientHallId=${encodeURIComponent(venueHallId || "")}`
+      : "/dashboard";
+
     const res = NextResponse.json({
       success: true,
       userId,
+      redirectUrl,
+      isVenueClientRegistration,
     });
 
     const isProd = process.env.NODE_ENV === "production";

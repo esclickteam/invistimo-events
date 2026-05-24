@@ -15,6 +15,8 @@ type Props = {
   }>;
 };
 
+type VenueClientPackageType = "seating_only" | "rsvp_seating" | "full";
+
 function cleanString(value: unknown) {
   return String(value || "").trim();
 }
@@ -65,6 +67,52 @@ function getOwnerQueryValues(userId: string) {
   return values;
 }
 
+function normalizePackageType(value: unknown): VenueClientPackageType {
+  const packageType = cleanString(value);
+
+  if (
+    packageType === "seating_only" ||
+    packageType === "rsvp_seating" ||
+    packageType === "full"
+  ) {
+    return packageType;
+  }
+
+  return "seating_only";
+}
+
+function getEventTitle(event: any) {
+  return cleanString(
+    event?.title ||
+      event?.eventName ||
+      event?.eventTitle ||
+      event?.name ||
+      "אירוע"
+  );
+}
+
+function getEventDate(event: any) {
+  return cleanString(event?.date || event?.eventDate || "");
+}
+
+function getEventTime(event: any) {
+  return cleanString(event?.time || event?.startTime || event?.eventTime || "");
+}
+
+function getRecordsCount(event: any) {
+  const value =
+    event?.estimatedGuestCount ||
+    event?.estimatedGuests ||
+    event?.maxGuests ||
+    event?.guests ||
+    event?.recordsCount ||
+    0;
+
+  const count = Number(value);
+
+  return Number.isFinite(count) && count > 0 ? count : 0;
+}
+
 function serializeInvite(event: any) {
   return {
     venueClientInviteToken: cleanString(event?.venueClientInviteToken),
@@ -77,6 +125,10 @@ function serializeInvite(event: any) {
         ? String(event.venueClientSelectedSeatingTemplateId)
         : "",
 
+    venueClientSelectedSeatingTemplateName: cleanString(
+      event?.venueClientSelectedSeatingTemplateName
+    ),
+
     venueClientRegistrationLink: cleanString(
       event?.venueClientRegistrationLink
     ),
@@ -85,9 +137,28 @@ function serializeInvite(event: any) {
       ? String(event.venueClientUserId)
       : "",
 
-    venueClientPackageType: cleanString(event?.venueClientPackageType),
+    venueClientPackageType:
+      cleanString(event?.venueClientPackageType) || "seating_only",
+
     venueClientRecordsCount: Number(event?.venueClientRecordsCount || 0),
-    venueClientPaymentStatus: cleanString(event?.venueClientPaymentStatus),
+
+    venueClientPaymentStatus:
+      cleanString(event?.venueClientPaymentStatus) || "pending",
+
+    venueClientVenueOwnerId: event?.venueClientVenueOwnerId
+      ? String(event.venueClientVenueOwnerId)
+      : "",
+
+    venueClientVenueHallId: cleanString(event?.venueClientVenueHallId),
+    venueClientVenueHallName: cleanString(event?.venueClientVenueHallName),
+
+    venueClientEventId: event?.venueClientEventId
+      ? String(event.venueClientEventId)
+      : "",
+
+    venueClientEventTitle: cleanString(event?.venueClientEventTitle),
+    venueClientEventDate: cleanString(event?.venueClientEventDate),
+    venueClientEventTime: cleanString(event?.venueClientEventTime),
   };
 }
 
@@ -176,13 +247,19 @@ export async function GET(req: NextRequest, { params }: Props) {
 
 /**
  * POST
- * בעל האולם בוחר תבנית הושבה.
- * ה-API יוצר token וקישור הרשמה:
- * /register?venueInviteToken=...
  *
- * החבילה לא נבחרת כאן.
- * הלקוח בוחר חבילה אחרי ההרשמה בעמוד:
- * /venue-client/packages
+ * הזרימה:
+ * 1. בעל האולם נמצא בתוך אירוע משויך לאולם.
+ * 2. בעל האולם בוחר תבנית הושבה מתוך VenueSeatingTemplate של האולם שלו.
+ * 3. כאן נשמרת הבחירה על Event בלבד.
+ * 4. נוצר קישור הרשמה ללקוח.
+ * 5. בהשלמת הרשמה של הלקוח, השרת יעתיק את התבנית להושבה הרגילה של הלקוח.
+ *
+ * חשוב:
+ * לא נוגעים כאן בהושבה הרגילה.
+ * לא נוגעים כאן בהושבה לייב.
+ * לא יוצרים כאן seatingtables.
+ * רק שומרים על האירוע איזו תבנית האולם בחר ללקוח.
  */
 export async function POST(req: NextRequest, { params }: Props) {
   try {
@@ -214,8 +291,11 @@ export async function POST(req: NextRequest, { params }: Props) {
     }
 
     const body = await req.json().catch(() => ({}));
-    const seatingTemplateId = cleanString(body.seatingTemplateId);
+
+    const seatingTemplateId = cleanString(body?.seatingTemplateId);
     const templateObjectId = toObjectId(seatingTemplateId);
+
+    const packageType = normalizePackageType(body?.packageType);
 
     if (!templateObjectId) {
       return NextResponse.json(
@@ -257,7 +337,8 @@ export async function POST(req: NextRequest, { params }: Props) {
       );
     }
 
-    const venueHallId = cleanString(event.venueHallId);
+    const venueHallId = cleanString(event?.venueHallId);
+    const venueHallName = cleanString(event?.venueHallName);
 
     if (!venueHallId) {
       return NextResponse.json(
@@ -269,7 +350,8 @@ export async function POST(req: NextRequest, { params }: Props) {
       );
     }
 
-    const venueOwnerIdForTemplate = toObjectId(auth.userId) || auth.userId;
+    const venueOwnerObjectId = toObjectId(auth.userId);
+    const venueOwnerIdForTemplate = venueOwnerObjectId || auth.userId;
 
     const seatingTemplate = await VenueSeatingTemplate.findOne({
       _id: templateObjectId,
@@ -288,7 +370,7 @@ export async function POST(req: NextRequest, { params }: Props) {
       );
     }
 
-    const existingToken = cleanString(event.venueClientInviteToken);
+    const existingToken = cleanString(event?.venueClientInviteToken);
     const token = existingToken || createInviteToken();
 
     const baseUrl = getBaseUrl(req);
@@ -299,6 +381,48 @@ export async function POST(req: NextRequest, { params }: Props) {
 
     const now = new Date();
 
+    const eventTitle = getEventTitle(event);
+    const eventDate = getEventDate(event);
+    const eventTime = getEventTime(event);
+    const recordsCount = getRecordsCount(event);
+
+    const selectedTemplateName = cleanString(
+      (seatingTemplate as any)?.name || "תבנית הושבה"
+    );
+
+    const venueOwnerIdValue = venueOwnerObjectId || String(auth.userId);
+
+    const updatePayload = {
+      venueClientInviteToken: token,
+      venueClientInviteStatus: "sent",
+      venueClientInviteSentAt: now,
+
+      /**
+       * זה השדה הקריטי:
+       * כאן נשמרת התבנית שבעל האולם בחר ללקוח.
+       * בהשלמת הרשמה משתמשים בזה כדי להעתיק את התבנית להושבה הרגילה של הלקוח.
+       */
+      venueClientSelectedSeatingTemplateId: templateObjectId,
+      venueClientSelectedSeatingTemplateName: selectedTemplateName,
+
+      venueClientRegistrationLink: registrationLink,
+
+      venueClientVenueOwnerId: venueOwnerIdValue,
+      venueClientVenueHallId: venueHallId,
+      venueClientVenueHallName: venueHallName,
+
+      venueClientEventId: eventObjectId,
+      venueClientEventTitle: eventTitle,
+      venueClientEventDate: eventDate,
+      venueClientEventTime: eventTime,
+
+      venueClientPackageType: packageType,
+      venueClientRecordsCount: recordsCount,
+      venueClientPaymentStatus: "pending",
+
+      updatedAt: now,
+    };
+
     await events.updateOne(
       {
         _id: eventObjectId,
@@ -306,29 +430,7 @@ export async function POST(req: NextRequest, { params }: Props) {
         venueAccessStatus: "linked",
       },
       {
-        $set: {
-          venueClientInviteToken: token,
-          venueClientInviteStatus: "sent",
-          venueClientInviteSentAt: now,
-
-          venueClientSelectedSeatingTemplateId: templateObjectId,
-          venueClientRegistrationLink: registrationLink,
-
-          venueClientVenueOwnerId: toObjectId(auth.userId) || auth.userId,
-          venueClientVenueHallId: venueHallId,
-          venueClientVenueHallName: cleanString(event.venueHallName),
-
-          venueClientEventId: eventObjectId,
-          venueClientEventTitle: cleanString(
-            event.title || event.eventName || event.eventTitle || "אירוע"
-          ),
-          venueClientEventDate: cleanString(event.date || event.eventDate),
-          venueClientEventTime: cleanString(
-            event.time || event.startTime || event.eventTime
-          ),
-
-          updatedAt: now,
-        },
+        $set: updatePayload,
       }
     );
 
@@ -341,13 +443,23 @@ export async function POST(req: NextRequest, { params }: Props) {
         venueClientInviteStatus: "sent",
         venueClientInviteSentAt: now,
 
-        venueClientSelectedSeatingTemplateId: seatingTemplateId,
+        venueClientSelectedSeatingTemplateId: String(templateObjectId),
+        venueClientSelectedSeatingTemplateName: selectedTemplateName,
+
         venueClientRegistrationLink: registrationLink,
 
+        venueClientVenueOwnerId: String(venueOwnerIdValue),
         venueClientVenueHallId: venueHallId,
-        venueClientVenueHallName: cleanString(event.venueHallName),
+        venueClientVenueHallName: venueHallName,
 
         venueClientEventId: String(eventObjectId),
+        venueClientEventTitle: eventTitle,
+        venueClientEventDate: eventDate,
+        venueClientEventTime: eventTime,
+
+        venueClientPackageType: packageType,
+        venueClientRecordsCount: recordsCount,
+        venueClientPaymentStatus: "pending",
       },
       copyText: `שלום, האולם פתח עבורך גישה ל-Invistimo לניהול האירוע שלך. להרשמה: ${registrationLink}`,
     });

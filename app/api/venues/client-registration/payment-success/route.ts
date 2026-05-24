@@ -116,6 +116,9 @@ async function createOrUpdateInvitation({
   const date = getEventDate(event);
   const time = getEventTime(event);
 
+  const eventManagementEnabled = packageType === "full_event_management";
+  const shareId = existingInvitation?.shareId || createShareId();
+
   const invitationPayload = {
     userId,
     email,
@@ -149,13 +152,18 @@ async function createOrUpdateInvitation({
     venueClientRecordsCount: recordsCount,
 
     seatingEnabled: true,
+    includeSeating: true,
+    includeDigitalSeating: true,
+
     rsvpEnabled: true,
-    eventManagementEnabled: packageType === "full_event_management",
+    eventManagementEnabled,
 
     paymentStatus: "paid",
     venueClientPaymentStatus: "paid",
     paidAmount,
+    venueClientPaymentAmount: paidAmount,
 
+    shareId,
     updatedAt: now,
   };
 
@@ -171,15 +179,12 @@ async function createOrUpdateInvitation({
       ...existingInvitation,
       ...invitationPayload,
       _id: existingInvitation._id,
-      shareId: existingInvitation.shareId || createShareId(),
+      shareId,
     };
   }
 
-  const shareId = createShareId();
-
   const inserted = await invitations.insertOne({
     ...invitationPayload,
-    shareId,
     createdAt: now,
     updatedAt: now,
   });
@@ -251,12 +256,16 @@ async function copySeatingTemplateToClientEvent({
 async function updateUserPermissions({
   userId,
   email,
+  event,
+  template,
   packageType,
   recordsCount,
   paidAmount,
 }: {
   userId: mongoose.Types.ObjectId;
   email: string;
+  event: any;
+  template: any;
   packageType: PaidPackageType;
   recordsCount: number;
   paidAmount: number;
@@ -268,6 +277,8 @@ async function updateUserPermissions({
   }
 
   const eventManagementEnabled = packageType === "full_event_management";
+  const venueHallId = cleanString(event?.venueHallId);
+  const venueHallName = cleanString(event?.venueHallName);
 
   await users.updateOne(
     {
@@ -299,11 +310,35 @@ async function updateUserPermissions({
         venueClientPaymentStatus: "paid",
         venueClientPaymentAmount: paidAmount,
 
+        venueOwnerId: event.venueOwnerId,
+
+        /*
+          שדות אולם — כדי שהלקוח והאולם יישארו מחוברים לאותו אירוע/אולם.
+        */
+        venueClientHallId: venueHallId,
+        venueHallId,
+        hallId: venueHallId,
+        venueClientHallName: venueHallName,
+        venueHallName,
+
+        /*
+          תבנית ההושבה שבעל האולם בחר.
+          ההעתקה בפועל כבר נעשית ל-seatingtables.
+        */
+        venueSeatingTemplateId: template._id,
+        venueSeatingTemplateName: cleanString(template.name),
+        venueSeatingTemplateImportedAt: new Date(),
+
         includeSeating: true,
-        includeSystem: eventManagementEnabled,
+        includeDigitalSeating: true,
+
+        includeSystem: true,
         includeCalls: true,
         includeCreditGifts: false,
         includeDesign: false,
+
+        includeEventManagement: eventManagementEnabled,
+        selfManageEnabled: eventManagementEnabled,
 
         maxGuests: recordsCount,
         guests: recordsCount,
@@ -325,6 +360,17 @@ async function updateUserPermissions({
 
         allowedMessageRounds: 3,
 
+        accessModules: {
+          seating: true,
+          digitalSeating: true,
+          seatingTemplates: true,
+
+          rsvp: true,
+          messages: true,
+
+          eventProduction: eventManagementEnabled,
+        },
+
         planLimits: {
           seatingEnabled: true,
           rsvpEnabled: true,
@@ -338,6 +384,12 @@ async function updateUserPermissions({
           smsRounds: 1,
           whatsappRounds: 2,
           phoneCallRounds: 3,
+
+          smsEnabled: true,
+          smsLimit: recordsCount,
+
+          remindersEnabled: true,
+          callsEnabled: true,
         },
 
         updatedAt: new Date(),
@@ -469,7 +521,8 @@ export async function POST(req: NextRequest) {
         : 0;
 
     const calculatedPaidAmount = calculatePaidAmount(packageType, recordsCount);
-    const paidAmount = stripePaidAmount > 0 ? stripePaidAmount : calculatedPaidAmount;
+    const paidAmount =
+      stripePaidAmount > 0 ? stripePaidAmount : calculatedPaidAmount;
 
     const events = getCollection("events");
 
@@ -500,7 +553,6 @@ export async function POST(req: NextRequest) {
     }
 
     if (
-      cleanString(event.venueClientInviteStatus) === "registered" &&
       cleanString(event.venueClientPaymentStatus) === "paid" &&
       event.venueClientInvitationId
     ) {
@@ -511,6 +563,18 @@ export async function POST(req: NextRequest) {
         invitationId: String(event.venueClientInvitationId),
         eventId: String(event._id),
       });
+    }
+
+    const venueHallId = cleanString(event.venueHallId);
+
+    if (!venueHallId) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "לא נמצא אולם משויך לאירוע. חסר venueHallId.",
+        },
+        { status: 400 }
+      );
     }
 
     const selectedTemplateId = toObjectId(
@@ -530,7 +594,7 @@ export async function POST(req: NextRequest) {
     const template = await VenueSeatingTemplate.findOne({
       _id: selectedTemplateId,
       ownerId: event.venueOwnerId,
-      hallId: cleanString(event.venueHallId),
+      hallId: venueHallId,
       isActive: true,
     }).lean();
 
@@ -563,6 +627,8 @@ export async function POST(req: NextRequest) {
     await updateUserPermissions({
       userId,
       email,
+      event,
+      template,
       packageType,
       recordsCount,
       paidAmount,
@@ -577,15 +643,21 @@ export async function POST(req: NextRequest) {
           userId,
           venueClientUserId: userId,
 
-          venueClientInviteStatus: "registered",
-          venueClientRegisteredAt: new Date(),
+          venueClientInviteStatus: "paid",
+          venueClientRegisteredAt:
+            event.venueClientRegisteredAt || new Date(),
 
           venueClientPackageType: packageType,
           venueClientRecordsCount: recordsCount,
 
+          venueClientHallId: venueHallId,
+          venueHallId,
+
           venueClientPaymentStatus: "paid",
           venueClientPaymentSessionId: sessionId,
+          venueClientStripeSessionId: sessionId,
           venueClientPaymentAmount: paidAmount,
+          venueClientPaymentIncluded: false,
 
           venueClientInvitationId: invitation._id,
           updatedAt: new Date(),
@@ -599,6 +671,7 @@ export async function POST(req: NextRequest) {
       redirectUrl: getDashboardRedirect(packageType),
       invitationId: String(invitation._id),
       eventId: String(event._id),
+      venueClientHallId: venueHallId,
     });
   } catch (error: any) {
     console.error(

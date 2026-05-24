@@ -53,8 +53,29 @@ export interface IUser extends Document {
   assignedStaffIds?: mongoose.Types.ObjectId[];
   assignedClientIds?: mongoose.Types.ObjectId[];
 
-  billingSource?: "site" | "admin" | "producer" | "pricing";
+    billingSource?: "site" | "admin" | "producer" | "pricing" | "venue";
   producerPricePerRecord?: number;
+
+  // לקוח שנוצר דרך אולם
+  venueClientSource?: boolean;
+  venueOwnerId?: mongoose.Types.ObjectId | null;
+
+  venueHallId?: string;
+  venueHallName?: string;
+
+  venueClientHallId?: string;
+  venueClientHallName?: string;
+  venueClientPackageType?: "seating_only" | "rsvp_seating" | "full";
+  venueClientPaymentStatus?: "pending" | "paid" | "failed" | "free";
+  venueClientPaymentAmount?: number;
+  venueClientRecordsCount?: number;
+
+  // תבנית הושבה שהאולם בחר ללקוח
+  venueSeatingTemplateId?: mongoose.Types.ObjectId | null;
+  venueSeatingTemplateName?: string;
+
+  // מסמן שהתבנית כבר הועתקה פעם אחת להושבה של הלקוח
+  venueSeatingTemplateImportedAt?: Date | null;
 
   includeCalls: boolean;
   callsRounds: number;

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 
@@ -11,12 +11,22 @@ function PaymentSuccessInner() {
   const params = useSearchParams();
   const sessionId = String(params.get("session_id") || "").trim();
 
+  const didCompleteRef = useRef(false);
+
   const [status, setStatus] = useState<CompleteStatus>("loading");
-  const [message, setMessage] = useState("מאמתים את התשלום ופותחים את החבילה...");
+  const [message, setMessage] = useState(
+    "מאמתים את התשלום ופותחים את החבילה..."
+  );
   const [redirectUrl, setRedirectUrl] = useState("/dashboard");
 
   useEffect(() => {
     async function completePayment() {
+      if (didCompleteRef.current) {
+        return;
+      }
+
+      didCompleteRef.current = true;
+
       if (!sessionId) {
         setStatus("error");
         setMessage("חסר מזהה תשלום. לא ניתן לפתוח את החבילה.");
@@ -46,15 +56,20 @@ function PaymentSuccessInner() {
           );
         }
 
+        const nextRedirectUrl = String(data?.redirectUrl || "/dashboard");
+
         setStatus("success");
         setMessage(data?.message || "החבילה נפתחה בהצלחה");
-        setRedirectUrl(data?.redirectUrl || "/dashboard");
+        setRedirectUrl(nextRedirectUrl);
 
         window.setTimeout(() => {
-          window.location.href = data?.redirectUrl || "/dashboard";
+          window.location.href = nextRedirectUrl;
         }, 1600);
       } catch (error: any) {
         console.error("payment success complete error:", error);
+
+        didCompleteRef.current = false;
+
         setStatus("error");
         setMessage(error?.message || "שגיאה באימות התשלום");
       }

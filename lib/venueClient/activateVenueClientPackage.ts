@@ -1,18 +1,25 @@
-import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 
 import { connectDB } from "@/lib/db";
 import VenueSeatingTemplate from "@/models/VenueSeatingTemplate";
 
-export const dynamic = "force-dynamic";
-export const runtime = "nodejs";
-
-type VenueClientPackageType =
+export type VenueClientPackageType =
   | "seating_only"
   | "rsvp_seating"
   | "full_event_management";
 
-type VenueClientPaymentStatus = "paid" | "pending" | "failed";
+export type VenueClientPaymentStatus = "paid" | "pending" | "failed";
+
+type ActivateVenueClientPackageParams = {
+  venueInviteToken: string;
+  userId: string;
+  email: string;
+  packageType: VenueClientPackageType;
+  recordsCount: number;
+  paymentStatus?: VenueClientPaymentStatus;
+  paymentAmount?: number;
+  stripeSessionId?: string;
+};
 
 function cleanString(value: unknown) {
   return String(value || "").trim();
@@ -36,12 +43,12 @@ function normalizeRecords(value: unknown) {
   return Math.max(0, Math.floor(numberValue));
 }
 
-function createShareId() {
-  return `venue-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-}
-
 function getCollection(name: string) {
   return mongoose.connection.db?.collection(name);
+}
+
+function createShareId() {
+  return `venue-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
 function getEventTitle(event: any) {
@@ -58,26 +65,6 @@ function getEventTime(event: any) {
   return cleanString(event?.time || event?.startTime || event?.eventTime || "");
 }
 
-function isAllowedPackageType(value: unknown): value is VenueClientPackageType {
-  return (
-    value === "seating_only" ||
-    value === "rsvp_seating" ||
-    value === "full_event_management"
-  );
-}
-
-function isRsvpEnabled(packageType: VenueClientPackageType) {
-  return packageType === "rsvp_seating" || packageType === "full_event_management";
-}
-
-function isEventManagementEnabled(packageType: VenueClientPackageType) {
-  return packageType === "full_event_management";
-}
-
-function getAllowedMessageRounds(packageType: VenueClientPackageType): 0 | 3 {
-  return packageType === "seating_only" ? 0 : 3;
-}
-
 function getPackageName(packageType: VenueClientPackageType) {
   if (packageType === "seating_only") {
     return "הושבה בלבד דרך אולם";
@@ -90,22 +77,16 @@ function getPackageName(packageType: VenueClientPackageType) {
   return "הושבה + אישורי הגעה + ניהול אירוע דרך אולם";
 }
 
-function calculatePaymentAmount({
-  packageType,
-  recordsCount,
-}: {
-  packageType: VenueClientPackageType;
-  recordsCount: number;
-}) {
-  if (packageType === "seating_only") {
-    return 0;
-  }
+function isRsvpEnabled(packageType: VenueClientPackageType) {
+  return packageType === "rsvp_seating" || packageType === "full_event_management";
+}
 
-  if (packageType === "rsvp_seating") {
-    return recordsCount * 2;
-  }
+function isEventManagementEnabled(packageType: VenueClientPackageType) {
+  return packageType === "full_event_management";
+}
 
-  return recordsCount * 2 + 100;
+function getAllowedMessageRounds(packageType: VenueClientPackageType): 0 | 3 {
+  return packageType === "seating_only" ? 0 : 3;
 }
 
 async function createOrUpdateInvitation({
@@ -190,17 +171,28 @@ async function createOrUpdateInvitation({
   };
 
   if (existingInvitation?._id) {
-    const shareId = existingInvitation.shareId || createShareId();
-
     await invitations.updateOne(
       { _id: existingInvitation._id },
       {
-        $set: {
-          ...invitationPayload,
-          shareId,
+        $set: invitationPayload,
+        $setOnInsert: {
+          createdAt: now,
         },
       }
     );
+
+    const shareId = existingInvitation.shareId || createShareId();
+
+    if (!existingInvitation.shareId) {
+      await invitations.updateOne(
+        { _id: existingInvitation._id },
+        {
+          $set: {
+            shareId,
+          },
+        }
+      );
+    }
 
     return {
       ...existingInvitation,
@@ -246,6 +238,12 @@ async function copySeatingTemplateToClientEvent({
   const canvas = template?.canvas || {};
   const now = new Date();
 
+  /*
+    חשוב:
+    upsert לפי eventId + invitationId.
+    אם כבר קיימת הושבה לאותו אירוע/הזמנה — לא יוצרים כפילות.
+    זה עדיין לא נוגע בהושבה של משתמשים רגילים ולא בלייב.
+  */
   await seatingTables.updateOne(
     {
       eventId: event._id,
@@ -323,13 +321,8 @@ async function updateUserPermissions({
       $set: {
         email,
 
-        /*
-          לקוח שנפתח דרך אולם:
-          כל שלוש החבילות כוללות הושבה,
-          ולכן ההושבה והתבנית נפתחות תמיד.
-        */
-        isActive: paymentStatus === "paid",
-        hasDashboardAccess: paymentStatus === "paid",
+        isActive: true,
+        hasDashboardAccess: true,
         hasPaid: paymentStatus === "paid",
         isTrial: false,
 
@@ -346,24 +339,14 @@ async function updateUserPermissions({
         venueClientPaymentStatus: paymentStatus,
         venueClientPaymentAmount: paymentAmount,
 
-        /*
-          לפי ה-hallId הזה הכפתור "תבניות הושבה"
-          יוכל לשלוף את כל התבניות של אותו אולם
-          מתוך venueseatingtemplates.
-        */
+        venueOwnerId: event.venueOwnerId,
+
         venueClientHallId: venueHallId,
         venueHallId,
         hallId: venueHallId,
         venueClientHallName: venueHallName,
         venueHallName,
 
-        venueOwnerId: event.venueOwnerId,
-
-        /*
-          התבנית שהאולם בחר.
-          ההעתקה בפועל כבר נעשית ל-seatingtables.
-          השדות האלה רק מתעדים על המשתמש מאיפה התחיל.
-        */
         venueSeatingTemplateId: template._id,
         venueSeatingTemplateName: cleanString(template.name),
         venueSeatingTemplateImportedAt: new Date(),
@@ -374,10 +357,11 @@ async function updateUserPermissions({
         includeSystem: rsvpEnabled,
         includeCalls: rsvpEnabled,
         includeCreditGifts: false,
-        includeDesign: false,
 
         includeEventManagement: eventManagementEnabled,
         selfManageEnabled: eventManagementEnabled,
+
+        includeDesign: false,
 
         maxGuests: recordsCount,
         guests: recordsCount,
@@ -433,33 +417,47 @@ async function updateUserPermissions({
   );
 }
 
-async function activateVenueClientPackage({
+export async function activateVenueClientPackage({
   venueInviteToken,
   userId,
   email,
   packageType,
   recordsCount,
-  paymentStatus,
-  paymentAmount,
-  stripeSessionId,
-}: {
-  venueInviteToken: string;
-  userId: mongoose.Types.ObjectId;
-  email: string;
-  packageType: VenueClientPackageType;
-  recordsCount: number;
-  paymentStatus: VenueClientPaymentStatus;
-  paymentAmount: number;
-  stripeSessionId?: string;
-}) {
+  paymentStatus = "paid",
+  paymentAmount = 0,
+  stripeSessionId = "",
+}: ActivateVenueClientPackageParams) {
+  await connectDB();
+
   const events = getCollection("events");
 
   if (!events) {
     throw new Error("לא נמצאה קולקשן events");
   }
 
+  const cleanToken = cleanString(venueInviteToken);
+  const cleanEmail = cleanString(email).toLowerCase();
+  const normalizedRecordsCount = normalizeRecords(recordsCount);
+  const userObjectId = toObjectId(userId);
+
+  if (!cleanToken) {
+    throw new Error("חסר token של אולם");
+  }
+
+  if (!userObjectId) {
+    throw new Error("מזהה משתמש לא תקין");
+  }
+
+  if (!cleanEmail) {
+    throw new Error("חסר אימייל משתמש");
+  }
+
+  if (!normalizedRecordsCount || normalizedRecordsCount <= 0) {
+    throw new Error("חובה להזין מספר רשומות");
+  }
+
   const event = await events.findOne({
-    venueClientInviteToken: venueInviteToken,
+    venueClientInviteToken: cleanToken,
     venueAccessStatus: "linked",
     venueClientInviteStatus: {
       $in: ["sent", "registered", "payment_pending", "paid"],
@@ -497,9 +495,9 @@ async function activateVenueClientPackage({
 
   const invitation = await createOrUpdateInvitation({
     event,
-    userId,
-    email,
-    recordsCount,
+    userId: userObjectId,
+    email: cleanEmail,
+    recordsCount: normalizedRecordsCount,
     packageType,
     paymentStatus,
     paymentAmount,
@@ -508,14 +506,14 @@ async function activateVenueClientPackage({
   await copySeatingTemplateToClientEvent({
     event,
     invitation,
-    userId,
+    userId: userObjectId,
     template,
   });
 
   await updateUserPermissions({
-    userId,
-    email,
-    recordsCount,
+    userId: userObjectId,
+    email: cleanEmail,
+    recordsCount: normalizedRecordsCount,
     event,
     template,
     packageType,
@@ -523,22 +521,20 @@ async function activateVenueClientPackage({
     paymentAmount,
   });
 
-  const now = new Date();
-
   await events.updateOne(
     { _id: event._id },
     {
       $set: {
-        userId,
-        venueClientUserId: userId,
+        userId: userObjectId,
+        venueClientUserId: userObjectId,
 
         venueClientInviteStatus:
           paymentStatus === "paid" ? "paid" : "payment_pending",
 
-        venueClientRegisteredAt: event.venueClientRegisteredAt || now,
+        venueClientRegisteredAt: event.venueClientRegisteredAt || new Date(),
 
         venueClientPackageType: packageType,
-        venueClientRecordsCount: recordsCount,
+        venueClientRecordsCount: normalizedRecordsCount,
 
         venueClientHallId: venueHallId,
         venueHallId,
@@ -549,129 +545,18 @@ async function activateVenueClientPackage({
 
         venueClientInvitationId: invitation._id,
 
-        venueClientStripeSessionId: stripeSessionId || event.venueClientStripeSessionId || "",
+        venueClientStripeSessionId: stripeSessionId || undefined,
 
-        updatedAt: now,
+        updatedAt: new Date(),
       },
     }
   );
 
   return {
-    invitation,
-    event,
-    venueHallId,
+    success: true,
+    invitationId: String(invitation._id),
+    eventId: String(event._id),
+    venueClientHallId: venueHallId,
+    redirectUrl: "/dashboard",
   };
-}
-
-export async function POST(req: NextRequest) {
-  try {
-    await connectDB();
-
-    const body = await req.json().catch(() => ({}));
-
-    const venueInviteToken = cleanString(body.venueInviteToken);
-    const userIdRaw = cleanString(body.userId);
-    const email = cleanString(body.email).toLowerCase();
-    const packageTypeRaw = cleanString(body.packageType);
-    const recordsCount = normalizeRecords(body.recordsCount);
-    const stripeSessionId = cleanString(body.stripeSessionId);
-
-    if (!venueInviteToken) {
-      return NextResponse.json(
-        { success: false, message: "חסר token של אולם" },
-        { status: 400 }
-      );
-    }
-
-    const userId = toObjectId(userIdRaw);
-
-    if (!userId) {
-      return NextResponse.json(
-        { success: false, message: "מזהה משתמש לא תקין" },
-        { status: 400 }
-      );
-    }
-
-    if (!email) {
-      return NextResponse.json(
-        { success: false, message: "חסר אימייל משתמש" },
-        { status: 400 }
-      );
-    }
-
-    if (!recordsCount || recordsCount <= 0) {
-      return NextResponse.json(
-        { success: false, message: "חובה להזין מספר רשומות" },
-        { status: 400 }
-      );
-    }
-
-    if (!isAllowedPackageType(packageTypeRaw)) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "סוג חבילה לא תקין",
-        },
-        { status: 400 }
-      );
-    }
-
-    const packageType = packageTypeRaw;
-
-    /*
-      חשוב:
-      הנתיב הזה נפתח מהעמוד /venue-client/packages.
-      לכן מותר לפתוח כאן ישירות רק הושבה בלבד.
-      שתי החבילות האחרות כוללות הושבה, אבל הן חייבות לעבור Stripe.
-      אחרי Stripe צריך לקרוא לאותה לוגיקה עם paymentStatus: "paid".
-    */
-    if (packageType !== "seating_only") {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "חבילות בתשלום חייבות לעבור דרך Stripe. ההושבה שלהן תיפתח אוטומטית לאחר אישור התשלום.",
-        },
-        { status: 400 }
-      );
-    }
-
-    const paymentAmount = calculatePaymentAmount({
-      packageType,
-      recordsCount,
-    });
-
-    const result = await activateVenueClientPackage({
-      venueInviteToken,
-      userId,
-      email,
-      packageType,
-      recordsCount,
-      paymentStatus: "paid",
-      paymentAmount,
-      stripeSessionId,
-    });
-
-    return NextResponse.json({
-      success: true,
-      message: "חבילת ההושבה נפתחה בהצלחה",
-      redirectUrl: "/dashboard",
-      invitationId: String(result.invitation._id),
-      eventId: String(result.event._id),
-      venueClientHallId: result.venueHallId,
-    });
-  } catch (error: any) {
-    console.error(
-      "POST /api/venues/client-registration/complete failed:",
-      error
-    );
-
-    return NextResponse.json(
-      {
-        success: false,
-        message: error?.message || "פתיחת חבילת ההושבה נכשלה",
-      },
-      { status: 500 }
-    );
-  }
 }
