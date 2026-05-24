@@ -475,12 +475,13 @@ function countSeatedFromTable(table: any) {
   let count = 0;
 
   const arraysToCheck = [
-    table?.seats,
-    table?.chairs,
-    table?.guests,
-    table?.assignedGuests,
-    table?.placements,
-  ];
+  table?.seatedGuests,
+  table?.seats,
+  table?.chairs,
+  table?.guests,
+  table?.assignedGuests,
+  table?.placements,
+];
 
   for (const arr of arraysToCheck) {
     if (!Array.isArray(arr)) continue;
@@ -523,51 +524,53 @@ async function buildSeatingStats(
   };
 
   const eventIdValues = objectIdOrString(event._id);
-  const invitationIdValues = invitation?._id
-    ? objectIdOrString(invitation._id)
-    : [];
+
+  const invitationIdValues: any[] = [];
+
+  if (invitation?._id) {
+    invitationIdValues.push(...objectIdOrString(invitation._id));
+  }
+
+  if (event?.venueClientInvitationId) {
+    invitationIdValues.push(...objectIdOrString(event.venueClientInvitationId));
+  }
+
+  const uniqueInvitationIdValues = Array.from(
+    new Map(invitationIdValues.map((value) => [String(value), value])).values()
+  );
 
   const invitationShareId = cleanString(invitation?.shareId);
 
-  const possibleCollections = [
-    "seatingtables",
-    "seatingTables",
-    "seatings",
-    "seating",
-    "tables",
+  const collection = getCollection("seatingtables");
+
+  if (!collection) {
+    return empty;
+  }
+
+  const orQuery: any[] = [
+    { eventId: { $in: eventIdValues } },
+    { productionEventId: { $in: eventIdValues } },
+    { linkedEventId: { $in: eventIdValues } },
   ];
 
-  let docs: any[] = [];
-
-  for (const collectionName of possibleCollections) {
-    const collection = getCollection(collectionName);
-
-    if (!collection) continue;
-
-    const orQuery: any[] = [
-      { eventId: { $in: eventIdValues } },
-      { productionEventId: { $in: eventIdValues } },
-      { linkedEventId: { $in: eventIdValues } },
-    ];
-
-    if (invitationIdValues.length) {
-      orQuery.push({ invitationId: { $in: invitationIdValues } });
-      orQuery.push({ inviteId: { $in: invitationIdValues } });
-      orQuery.push({ invitation: { $in: invitationIdValues } });
-    }
-
-    if (invitationShareId) {
-      orQuery.push({ shareId: invitationShareId });
-      orQuery.push({ invitationShareId });
-    }
-
-    const found = await collection.find({ $or: orQuery }).toArray();
-
-    if (found.length) {
-      docs = found;
-      break;
-    }
+  if (uniqueInvitationIdValues.length) {
+    orQuery.push({ invitationId: { $in: uniqueInvitationIdValues } });
+    orQuery.push({ inviteId: { $in: uniqueInvitationIdValues } });
+    orQuery.push({ invitation: { $in: uniqueInvitationIdValues } });
   }
+
+  if (invitationShareId) {
+    orQuery.push({ shareId: invitationShareId });
+    orQuery.push({ invitationShareId });
+  }
+
+  const docs = await collection
+    .find({
+      $or: orQuery,
+      "tables.0": { $exists: true },
+    })
+    .sort({ updatedAt: -1, createdAt: -1 })
+    .toArray();
 
   if (!docs.length) {
     return empty;
@@ -578,14 +581,10 @@ async function buildSeatingStats(
   for (const doc of docs) {
     if (Array.isArray(doc.tables)) {
       tables = [...tables, ...doc.tables];
-    } else if (Array.isArray(doc.seatingTables)) {
-      tables = [...tables, ...doc.seatingTables];
-    } else {
-      tables.push(doc);
     }
   }
 
-  const totalTables = tables.length || docs.length;
+  const totalTables = tables.length;
 
   let seatedGuests = 0;
 
@@ -595,6 +594,7 @@ async function buildSeatingStats(
 
   const targetGuests =
     confirmedGuestsAmount ||
+    toNumber(event.venueClientRecordsCount, 0) ||
     toNumber(invitation?.maxGuests, 0) ||
     toNumber(invitation?.estimatedGuests, 0) ||
     toNumber(invitation?.estimatedGuestCount, 0) ||
