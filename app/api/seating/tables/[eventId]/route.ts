@@ -4,6 +4,7 @@ import mongoose from "mongoose";
 import dbConnect from "@/lib/db";
 import SeatingTable from "@/models/SeatingTable";
 import { requireSeating } from "@/lib/guards/requireSeating";
+import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -65,6 +66,79 @@ function createIdQueries({
   return queries;
 }
 
+function createUserFallbackQueries({
+  userId,
+  eventId,
+  invitationId,
+}: {
+  userId: string;
+  eventId: string;
+  invitationId?: string | null;
+}) {
+  const queries: any[] = [];
+
+  const userObjectId = toObjectId(userId);
+  const eventObjectId = toObjectId(eventId);
+  const invitationObjectId = toObjectId(invitationId);
+
+  const userValues = [
+    cleanString(userId),
+    ...(userObjectId ? [userObjectId] : []),
+  ].filter(Boolean);
+
+  if (!userValues.length) {
+    return queries;
+  }
+
+  /*
+    fallback ראשון:
+    לקוח אולם עם אותו userId + אותו eventId.
+  */
+  if (eventObjectId) {
+    queries.push({
+      userId: { $in: userValues },
+      eventId: eventObjectId,
+    });
+  }
+
+  if (eventId) {
+    queries.push({
+      userId: { $in: userValues },
+      eventId,
+    });
+  }
+
+  /*
+    fallback שני:
+    אם הגיע invitationId, ננסה גם לפיו.
+  */
+  if (invitationObjectId) {
+    queries.push({
+      userId: { $in: userValues },
+      invitationId: invitationObjectId,
+    });
+  }
+
+  if (invitationId) {
+    queries.push({
+      userId: { $in: userValues },
+      invitationId,
+    });
+  }
+
+  /*
+    fallback אחרון:
+    לקוח אולם שההושבה שלו נוצרה מתבנית אולם.
+    זה לא נוגע בהושבה רגילה ולא בלייב.
+  */
+  queries.push({
+    userId: { $in: userValues },
+    source: "venue_seating_template",
+  });
+
+  return queries;
+}
+
 export async function GET(req: NextRequest, context: RouteContext) {
   try {
     await dbConnect();
@@ -75,6 +149,14 @@ export async function GET(req: NextRequest, context: RouteContext) {
     if (!guard.ok) {
       return guard.response!;
     }
+
+    /*
+      חשוב ללקוח אולם:
+      אם החיפוש לפי eventId לא מחזיר כלום,
+      נוכל למצוא את ההושבה לפי המשתמש המחובר.
+    */
+    const auth = await getUserIdFromRequest(req).catch(() => null);
+    const currentUserId = cleanString((auth as any)?.userId);
 
     /* ===============================
        1️⃣ params
@@ -96,12 +178,13 @@ export async function GET(req: NextRequest, context: RouteContext) {
     console.log("📤 LOAD SEATING TABLES:", {
       eventId: cleanEventId,
       invitationId: invitationId || null,
+      currentUserId: currentUserId || null,
     });
 
     /* ===============================
        2️⃣ שליפת הושבה
-       תומך גם בהושבה שנוצרה מתבנית אולם
-       וגם בשמירה רגילה של הלקוח.
+       קודם לפי eventId / invitationId רגיל.
+       אם לא נמצא — fallback ללקוח אולם לפי userId.
     =============================== */
 
     const idQueries = createIdQueries({
@@ -109,11 +192,33 @@ export async function GET(req: NextRequest, context: RouteContext) {
       invitationId,
     });
 
-    const record = await SeatingTable.findOne({
+    let record = await SeatingTable.findOne({
       $or: idQueries,
     })
       .sort({ updatedAt: -1, createdAt: -1 })
       .lean();
+
+    /*
+      ✅ fallback ללקוח אולם:
+      אם ההושבה קיימת ב-seatingtables אבל המסך ריק,
+      לרוב זה כי /dashboard/seating לא הגיע עם invitationId מתאים
+      או שה-eventId לא חזר מ-/api/invitations/my כמו הזמנה רגילה.
+    */
+    if (!record && currentUserId) {
+      const fallbackQueries = createUserFallbackQueries({
+        userId: currentUserId,
+        eventId: cleanEventId,
+        invitationId,
+      });
+
+      if (fallbackQueries.length) {
+        record = await SeatingTable.findOne({
+          $or: fallbackQueries,
+        })
+          .sort({ updatedAt: -1, createdAt: -1 })
+          .lean();
+      }
+    }
 
     console.log("📦 RECORD FOUND:", {
       hasRecord: !!record,
@@ -124,6 +229,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
         : null,
       eventId: record?.eventId ? String(record.eventId) : null,
       invitationId: record?.invitationId ? String(record.invitationId) : null,
+      userId: record?.userId ? String(record.userId) : null,
       tables: Array.isArray(record?.tables) ? record.tables.length : 0,
       zones: Array.isArray(record?.zones) ? record.zones.length : 0,
       hasBackground: !!record?.background,
@@ -141,6 +247,9 @@ export async function GET(req: NextRequest, context: RouteContext) {
       sourceTemplateId: record?.sourceTemplateId
         ? String(record.sourceTemplateId)
         : null,
+
+      eventId: record?.eventId ? String(record.eventId) : cleanEventId,
+      invitationId: record?.invitationId ? String(record.invitationId) : invitationId,
 
       tables: Array.isArray(record?.tables) ? record.tables : [],
       background: record?.background ?? null,
