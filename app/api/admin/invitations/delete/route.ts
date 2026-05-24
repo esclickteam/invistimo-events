@@ -23,7 +23,18 @@ async function deleteFromCollectionIfExists(
   filter: Record<string, unknown>
 ) {
   try {
-    const exists = await mongoose.connection.db
+    const database = mongoose.connection.db;
+
+    if (!database) {
+      return {
+        collection: collectionName,
+        deletedCount: 0,
+        skipped: true,
+        reason: "Database connection is not ready",
+      };
+    }
+
+    const exists = await database
       .listCollections({ name: collectionName })
       .hasNext();
 
@@ -35,9 +46,7 @@ async function deleteFromCollectionIfExists(
       };
     }
 
-    const result = await mongoose.connection.db
-      .collection(collectionName)
-      .deleteMany(filter);
+    const result = await database.collection(collectionName).deleteMany(filter);
 
     return {
       collection: collectionName,
@@ -116,11 +125,6 @@ export async function DELETE(req: NextRequest) {
     const userObjectId = toObjectId(userId);
     const invitationObjectId = toObjectId(invitationId);
 
-    /*
-      חשוב:
-      לפעמים ownerId נשמר כ־ObjectId ולפעמים כ־string.
-      לכן בודקים את שתי האפשרויות.
-    */
     const invitation = await Invitation.findOne({
       _id: invitationObjectId,
       $or: [
@@ -149,63 +153,65 @@ export async function DELETE(req: NextRequest) {
     const eventObjectId =
       eventId && isValidObjectId(eventId) ? toObjectId(eventId) : null;
 
-    /*
-      פילטר רחב כדי למחוק גם רשומות שנשמרו עם invitationId כ־ObjectId
-      וגם כאלה שנשמרו כ־string.
-    */
     const relatedFilter = {
       $or: [
         { invitationId: invitationObjectId },
         { invitationId },
+
         { inviteId: invitationObjectId },
         { inviteId: invitationId },
+
         { ownerId: userObjectId },
         { ownerId: userId },
+
         ...(eventId
           ? [
               { eventId },
               ...(eventObjectId ? [{ eventId: eventObjectId }] : []),
             ]
           : []),
+
         ...(shareId ? [{ shareId }] : []),
       ],
     };
 
-    /*
-      מחיקה דרך המודלים הקיימים שלך
-    */
-    const [guestsDeleteResult, groupsDeleteResult] = await Promise.all([
-      InvitationGuest.deleteMany({
-        $or: [
-          { invitationId: invitationObjectId },
-          { invitationId },
-          ...(eventId
-            ? [
-                { eventId },
-                ...(eventObjectId ? [{ eventId: eventObjectId }] : []),
-              ]
-            : []),
-        ],
-      }),
+    const guestFilter = {
+      $or: [
+        { invitationId: invitationObjectId },
+        { invitationId },
 
-      Group.deleteMany({
-        $or: [
-          { invitationId: invitationObjectId },
-          { invitationId },
-          ...(eventId
-            ? [
-                { eventId },
-                ...(eventObjectId ? [{ eventId: eventObjectId }] : []),
-              ]
-            : []),
-        ],
-      }),
+        ...(eventId
+          ? [
+              { eventId },
+              ...(eventObjectId ? [{ eventId: eventObjectId }] : []),
+            ]
+          : []),
+
+        ...(shareId ? [{ shareId }] : []),
+      ],
+    };
+
+    const groupFilter = {
+      $or: [
+        { invitationId: invitationObjectId },
+        { invitationId },
+
+        ...(eventId
+          ? [
+              { eventId },
+              ...(eventObjectId ? [{ eventId: eventObjectId }] : []),
+            ]
+          : []),
+
+        ...(shareId ? [{ shareId }] : []),
+      ],
+    };
+
+    const [guestsDeleteResult, groupsDeleteResult] = await Promise.all([
+      InvitationGuest.deleteMany(guestFilter),
+      Group.deleteMany(groupFilter),
     ]);
 
-    /*
-      מחיקה בטוחה מאוספים נוספים שיכולים להיות קשורים להזמנה.
-      אם אוסף לא קיים — הוא פשוט ידלג.
-    */
     const extraDeletes = await Promise.all([
       deleteFromCollectionIfExists("guests", relatedFilter),
       deleteFromCollectionIfExists("invitationguests", relatedFilter),
@@ -228,9 +234,6 @@ export async function DELETE(req: NextRequest) {
       deleteFromCollectionIfExists("WhatsappQueue", relatedFilter),
     ]);
 
-    /*
-      המחיקה האמיתית של ההזמנה מתוך invitations
-    */
     const invitationDeleteResult = await Invitation.deleteOne({
       _id: invitationObjectId,
     });
@@ -245,10 +248,6 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    /*
-      לא מוחקים את המשתמש.
-      רק מנקים הפניה להזמנה אצל המשתמש אם קיימת.
-    */
     await User.updateOne(
       {
         _id: userObjectId,
