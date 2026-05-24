@@ -145,6 +145,14 @@ export default function SeatingPage() {
     searchParams.get("linkedEventId")
   );
 
+  const invitationIdFromQuery = firstString(
+  searchParams.get("invitationId"),
+  searchParams.get("venueClientInvitationId")
+);
+
+const isVenueView = searchParams.get("venueView") === "1";
+const isLiveView = searchParams.get("live") === "1";
+
   const isProducer = pathname.includes("/events/production");
   const isDemo = pathname.startsWith("/try/");
   const isVenueTemplateMode = seatingMode === "venue-template";
@@ -248,12 +256,11 @@ export default function SeatingPage() {
      PRODUCER LIVE MODE
   =============================== */
   useEffect(() => {
-    if (!isProducer) return;
+  if (!isProducer && !isLiveView) return;
 
-    console.log("🔥 ENABLE LIVE MODE (SEATING)");
-    setSeatingMode("live");
-  }, [isProducer, setSeatingMode]);
-
+  console.log("🔥 ENABLE LIVE MODE (SEATING)");
+  setSeatingMode("live");
+}, [isProducer, isLiveView, setSeatingMode]);
   /* ===============================
      LOAD SEATING DATA
   =============================== */
@@ -355,6 +362,27 @@ export default function SeatingPage() {
         let resolvedIds: ResolvedInvitationIds | null = null;
         let lastInvData: AnyObject | null = null;
 
+        /*
+  כניסה ישירה מהאולם:
+  אם האולם פותח את ההושבה עם eventId + invitationId,
+  לא מחפשים דרך /api/invitations/my של המשתמש המחובר,
+  אלא טוענים ישירות את אותה הושבה של הלקוח.
+*/
+if (eventIdFromQuery && invitationIdFromQuery) {
+  resolvedIds = {
+    eventId: eventIdFromQuery,
+    invitationId: invitationIdFromQuery,
+  };
+
+  setInvitationId(resolvedIds.invitationId);
+  setEventId(resolvedIds.eventId);
+
+  await loadSeatingData(resolvedIds.eventId, resolvedIds.invitationId);
+
+  didFinishInitialLoadRef.current = true;
+  return;
+}
+
         const invitationUrls = eventIdFromQuery
           ? [
               `/api/invitations/my?includeVenueClient=1&eventId=${encodeURIComponent(
@@ -410,7 +438,8 @@ export default function SeatingPage() {
           console.error("❌ Missing invitation/event id", {
             lastInvData,
             user,
-            eventIdFromQuery,
+  eventIdFromQuery,
+  invitationIdFromQuery,
           });
           return;
         }

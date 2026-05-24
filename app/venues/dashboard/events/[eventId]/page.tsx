@@ -60,6 +60,12 @@ type EventDashboardData = {
   venueLinkedAt?: string;
   venueAccessStatus?: VenueAccessStatus;
 
+  venueClientUserId?: string;
+venueClientInvitationId?: string;
+venueClientPackageType?: string;
+venueClientPaymentStatus?: string;
+venueClientRecordsCount?: number;
+
   email: string;
 
   eventType: EventType;
@@ -1417,35 +1423,109 @@ export default function VenueEventPage() {
             )}
 
             {activeTab === "seating" && (
-              <MainCard title="הושבה" icon={<UsersRound size={19} />}>
-                <div className="grid gap-4 md:grid-cols-4">
-                  <FinanceMini
-                    label="שולחנות"
-                    value={`${eventStats.seating.totalTables}`}
-                  />
-                  <FinanceMini
-                    label="הושבו"
-                    value={`${eventStats.seating.seatedGuests}`}
-                    success={eventStats.seating.seatedGuests > 0}
-                  />
-                  <FinanceMini
-                    label="לא הושבו"
-                    value={`${eventStats.seating.unseatedGuests}`}
-                    danger={eventStats.seating.unseatedGuests > 0}
-                  />
-                  <FinanceMini
-                    label="סטטוס"
-                    value={eventStats.seating.completed ? "הושלם" : "בתהליך"}
-                  />
-                </div>
+  <MainCard title="הושבה" icon={<UsersRound size={19} />}>
+    <div className="grid gap-4 md:grid-cols-4">
+      <FinanceMini
+        label="שולחנות"
+        value={`${eventStats.seating.totalTables}`}
+      />
+      <FinanceMini
+        label="הושבו"
+        value={`${eventStats.seating.seatedGuests}`}
+        success={eventStats.seating.seatedGuests > 0}
+      />
+      <FinanceMini
+        label="לא הושבו"
+        value={`${eventStats.seating.unseatedGuests}`}
+        danger={eventStats.seating.unseatedGuests > 0}
+      />
+      <FinanceMini
+        label="סטטוס"
+        value={eventStats.seating.completed ? "הושלם" : "בתהליך"}
+      />
+    </div>
 
-                {!eventStats.seating.enabled && (
-                  <div className="mt-5">
-                    <EmptyBox text="אין עדיין חיבור להושבה עבור האירוע הזה." />
-                  </div>
-                )}
-              </MainCard>
-            )}
+    {!eventStats.seating.enabled && (
+      <div className="mt-5">
+        <EmptyBox text="אין עדיין חיבור להושבה עבור האירוע הזה." />
+      </div>
+    )}
+
+    {eventData.venueClientInvitationId ? (
+      <div className="mt-5 rounded-[28px] border border-[#eadfce] bg-[#fffdf8] p-5">
+        <div className="mb-4">
+          <h3 className="text-lg font-black text-[#2b241c]">
+            ניהול הושבת הלקוח
+          </h3>
+          <p className="mt-1 text-sm font-bold leading-6 text-[#7f705d]">
+            כאן האולם נכנס לאותה הושבה בדיוק שהלקוח רואה ועורך. כל שינוי שהלקוח עושה נשמר באותו מסמך, והאולם יכול לראות ולנהל את זה גם בלייב ביום האירוע.
+          </p>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Link
+            href={`/dashboard/seating?eventId=${encodeURIComponent(
+              eventData.id
+            )}&invitationId=${encodeURIComponent(
+              eventData.venueClientInvitationId
+            )}&venueView=1`}
+            className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#b98121] px-5 text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a]"
+          >
+            <Eye size={17} />
+            פתיחת הושבה
+          </Link>
+
+          <Link
+            href={`/dashboard/seating?eventId=${encodeURIComponent(
+              eventData.id
+            )}&invitationId=${encodeURIComponent(
+              eventData.venueClientInvitationId
+            )}&venueView=1&live=1`}
+            className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#1f1b17] px-5 text-sm font-black text-white shadow-sm transition hover:bg-black"
+          >
+            <Sparkles size={17} />
+            ניהול הושבה בלייב
+          </Link>
+        </div>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <InfoPill
+            label="מזהה אירוע"
+            value={eventData.id || "לא הוגדר"}
+          />
+          <InfoPill
+            label="מזהה הזמנה"
+            value={eventData.venueClientInvitationId || "לא הוגדר"}
+          />
+          <InfoPill
+            label="חבילת לקוח"
+            value={eventData.venueClientPackageType || "לא הוגדר"}
+          />
+        </div>
+      </div>
+    ) : (
+      <div className="mt-5 rounded-[28px] border border-dashed border-[#d9bd83] bg-[#fff8eb] p-5">
+        <div className="text-base font-black text-[#2b241c]">
+          עדיין אין הזמנת לקוח מחוברת להושבה
+        </div>
+        <p className="mt-2 text-sm font-bold leading-7 text-[#7f705d]">
+          כדי שהאולם יוכל לראות ולנהל את ההושבה, הלקוח צריך להירשם מהקישור של האולם ולסיים בחירת חבילה. לאחר מכן יווצר 
+          <span className="font-black"> venueClientInvitationId </span>
+          והכפתורים יופיעו כאן.
+        </p>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("client-invite")}
+          className="mt-4 inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#b98121] px-5 text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a]"
+        >
+          <Link2 size={17} />
+          מעבר לפתיחת לקוח
+        </button>
+      </div>
+    )}
+  </MainCard>
+)}
 
             {activeTab === "menu" && (
               <EventMenuTab

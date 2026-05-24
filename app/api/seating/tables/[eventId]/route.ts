@@ -91,7 +91,7 @@ function createUserFallbackQueries({
   }
 
   /*
-    fallback ראשון:
+    fallback ללקוח:
     לקוח אולם עם אותו userId + אותו eventId.
   */
   if (eventObjectId) {
@@ -109,8 +109,7 @@ function createUserFallbackQueries({
   }
 
   /*
-    fallback שני:
-    אם הגיע invitationId, ננסה גם לפיו.
+    fallback ללקוח לפי invitationId.
   */
   if (invitationObjectId) {
     queries.push({
@@ -127,12 +126,50 @@ function createUserFallbackQueries({
   }
 
   /*
+    fallback לבעל אולם:
+    בעל האולם צריך לראות את אותו מסמך seatingtables
+    שנוצר ללקוח, לפי venueOwnerId.
+  */
+  if (eventObjectId) {
+    queries.push({
+      venueOwnerId: { $in: userValues },
+      eventId: eventObjectId,
+    });
+  }
+
+  if (eventId) {
+    queries.push({
+      venueOwnerId: { $in: userValues },
+      eventId,
+    });
+  }
+
+  if (invitationObjectId) {
+    queries.push({
+      venueOwnerId: { $in: userValues },
+      invitationId: invitationObjectId,
+    });
+  }
+
+  if (invitationId) {
+    queries.push({
+      venueOwnerId: { $in: userValues },
+      invitationId,
+    });
+  }
+
+  /*
     fallback אחרון:
-    לקוח אולם שההושבה שלו נוצרה מתבנית אולם.
+    לקוח אולם / בעל אולם שההושבה שלו נוצרה מתבנית אולם.
     זה לא נוגע בהושבה רגילה ולא בלייב.
   */
   queries.push({
     userId: { $in: userValues },
+    source: "venue_seating_template",
+  });
+
+  queries.push({
+    venueOwnerId: { $in: userValues },
     source: "venue_seating_template",
   });
 
@@ -151,9 +188,11 @@ export async function GET(req: NextRequest, context: RouteContext) {
     }
 
     /*
-      חשוב ללקוח אולם:
+      חשוב:
       אם החיפוש לפי eventId מחזיר מסמך ריק,
-      נוכל למצוא את ההושבה האמיתית לפי המשתמש המחובר.
+      נוכל למצוא את ההושבה האמיתית לפי המשתמש המחובר:
+      - לקוח: userId
+      - אולם: venueOwnerId
     */
     const auth = await getUserIdFromRequest(req).catch(() => null);
     const currentUserId = cleanString((auth as any)?.userId);
@@ -184,7 +223,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
     /* ===============================
        2️⃣ שליפת הושבה
        קודם לפי eventId / invitationId רגיל.
-       אם לא נמצא, או שנמצא מסמך ריק — fallback ללקוח אולם לפי userId.
+       אם לא נמצא, או שנמצא מסמך ריק — fallback לפי userId/venueOwnerId.
     =============================== */
 
     const idQueries = createIdQueries({
@@ -202,9 +241,11 @@ export async function GET(req: NextRequest, context: RouteContext) {
       Array.isArray(record?.tables) && record.tables.length > 0;
 
     /*
-      ✅ fallback ללקוח אולם:
+      ✅ fallback:
       אם לא נמצא record, או שנמצא record ריק בלי שולחנות,
-      נחפש לפי המשתמש המחובר את ההושבה שנוצרה מתבנית אולם.
+      נחפש מסמך אמיתי עם שולחנות לפי:
+      - userId של הלקוח
+      - venueOwnerId של האולם
     */
     if ((!record || !recordHasTables) && currentUserId) {
       const fallbackQueries = createUserFallbackQueries({
@@ -237,6 +278,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
       eventId: record?.eventId ? String(record.eventId) : null,
       invitationId: record?.invitationId ? String(record.invitationId) : null,
       userId: record?.userId ? String(record.userId) : null,
+      venueOwnerId: record?.venueOwnerId ? String(record.venueOwnerId) : null,
       tables: Array.isArray(record?.tables) ? record.tables.length : 0,
       zones: Array.isArray(record?.zones) ? record.zones.length : 0,
       hasBackground: !!record?.background,
@@ -259,6 +301,9 @@ export async function GET(req: NextRequest, context: RouteContext) {
       invitationId: record?.invitationId
         ? String(record.invitationId)
         : invitationId,
+
+      userId: record?.userId ? String(record.userId) : null,
+      venueOwnerId: record?.venueOwnerId ? String(record.venueOwnerId) : null,
 
       tables: Array.isArray(record?.tables) ? record.tables : [],
       background: record?.background ?? null,
