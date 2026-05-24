@@ -116,6 +116,7 @@ async function createOrUpdateInvitation({
   packageType,
   paymentStatus,
   paymentAmount,
+  venueInviteToken,
 }: {
   event: any;
   userId: mongoose.Types.ObjectId;
@@ -124,6 +125,7 @@ async function createOrUpdateInvitation({
   packageType: VenueClientPackageType;
   paymentStatus: VenueClientPaymentStatus;
   paymentAmount: number;
+  venueInviteToken: string;
 }) {
   const invitations = getCollection("invitations");
 
@@ -133,11 +135,6 @@ async function createOrUpdateInvitation({
 
   const now = new Date();
 
-  const existingInvitation = await invitations.findOne({
-    venueClientEventId: event._id,
-    userId,
-  });
-
   const title = getEventTitle(event);
   const date = getEventDate(event);
   const time = getEventTime(event);
@@ -145,8 +142,37 @@ async function createOrUpdateInvitation({
   const rsvpEnabled = isRsvpEnabled(packageType);
   const eventManagementEnabled = isEventManagementEnabled(packageType);
 
+  /*
+    חשוב:
+    מחפשים קודם הזמנה קיימת של אותו לקוח ואותו אירוע/טוקן.
+    אם יש כמה — מעדיפים את זו שכבר יש בה guests,
+    כדי שהאולם לא יתחבר להזמנה ריקה.
+  */
+  const possibleInvitations = await invitations
+    .find({
+      userId,
+      $or: [
+        { venueClientEventId: event._id },
+        { eventId: event._id },
+        { productionEventId: event._id },
+        { linkedEventId: event._id },
+        { venueInviteToken },
+        { venueClientInviteToken: venueInviteToken },
+      ],
+    })
+    .sort({ updatedAt: -1, createdAt: -1 })
+    .toArray();
+
+  const existingInvitation =
+    possibleInvitations.find(
+      (inv: any) => Array.isArray(inv.guests) && inv.guests.length > 0
+    ) ||
+    possibleInvitations[0] ||
+    null;
+
   const invitationPayload = {
     userId,
+    ownerId: userId,
     email,
 
     eventId: event._id,
@@ -159,6 +185,9 @@ async function createOrUpdateInvitation({
     venueHallName: cleanString(event.venueHallName),
     venueAccessStatus: "linked",
     venueSource: "venue_client",
+
+    venueInviteToken,
+    venueClientInviteToken: venueInviteToken,
 
     title,
     eventTitle: title,
@@ -215,6 +244,7 @@ async function createOrUpdateInvitation({
   const inserted = await invitations.insertOne({
     ...invitationPayload,
     shareId,
+    guests: [],
     createdAt: now,
     updatedAt: now,
   });
@@ -223,6 +253,7 @@ async function createOrUpdateInvitation({
     ...invitationPayload,
     _id: inserted.insertedId,
     shareId,
+    guests: [],
   };
 }
 
@@ -323,11 +354,6 @@ async function updateUserPermissions({
       $set: {
         email,
 
-        /*
-          לקוח שנפתח דרך אולם:
-          כל שלוש החבילות כוללות הושבה,
-          ולכן ההושבה והתבנית נפתחות תמיד.
-        */
         isActive: paymentStatus === "paid",
         hasDashboardAccess: paymentStatus === "paid",
         hasPaid: paymentStatus === "paid",
@@ -346,11 +372,6 @@ async function updateUserPermissions({
         venueClientPaymentStatus: paymentStatus,
         venueClientPaymentAmount: paymentAmount,
 
-        /*
-          לפי ה-hallId הזה הכפתור "תבניות הושבה"
-          יוכל לשלוף את כל התבניות של אותו אולם
-          מתוך venueseatingtemplates.
-        */
         venueClientHallId: venueHallId,
         venueHallId,
         hallId: venueHallId,
@@ -359,11 +380,6 @@ async function updateUserPermissions({
 
         venueOwnerId: event.venueOwnerId,
 
-        /*
-          התבנית שהאולם בחר.
-          ההעתקה בפועל כבר נעשית ל-seatingtables.
-          השדות האלה רק מתעדים על המשתמש מאיפה התחיל.
-        */
         venueSeatingTemplateId: template._id,
         venueSeatingTemplateName: cleanString(template.name),
         venueSeatingTemplateImportedAt: new Date(),
@@ -503,6 +519,7 @@ async function activateVenueClientPackage({
     packageType,
     paymentStatus,
     paymentAmount,
+    venueInviteToken,
   });
 
   await copySeatingTemplateToClientEvent({
@@ -548,8 +565,10 @@ async function activateVenueClientPackage({
         venueClientPaymentIncluded: packageType === "seating_only",
 
         venueClientInvitationId: invitation._id,
+        venueClientEventId: event._id,
 
-        venueClientStripeSessionId: stripeSessionId || event.venueClientStripeSessionId || "",
+        venueClientStripeSessionId:
+          stripeSessionId || event.venueClientStripeSessionId || "",
 
         updatedAt: now,
       },
@@ -618,13 +637,6 @@ export async function POST(req: NextRequest) {
 
     const packageType = packageTypeRaw;
 
-    /*
-      חשוב:
-      הנתיב הזה נפתח מהעמוד /venue-client/packages.
-      לכן מותר לפתוח כאן ישירות רק הושבה בלבד.
-      שתי החבילות האחרות כוללות הושבה, אבל הן חייבות לעבור Stripe.
-      אחרי Stripe צריך לקרוא לאותה לוגיקה עם paymentStatus: "paid".
-    */
     if (packageType !== "seating_only") {
       return NextResponse.json(
         {

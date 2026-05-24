@@ -269,14 +269,6 @@ export default function DashboardPage() {
   const searchParams = useSearchParams();
   const eventIdFromUrl = searchParams.get("eventId");
 
-  const invitationIdFromUrl =
-  searchParams.get("invitationId") ||
-  searchParams.get("venueClientInvitationId") ||
-  "";
-
-const isVenueView = searchParams.get("venueView") === "1";
-const isLiveView = searchParams.get("live") === "1";
-
   const [user, setUser] = useState<any | null>(null);
 
   const setSeatingMode = useSeatingStore((s) => s.setSeatingMode);
@@ -303,12 +295,9 @@ const isLiveView = searchParams.get("live") === "1";
   }, [user]);
 
   const canViewActualArrived =
-  isVenueView ||
-  effectiveRole === "producer" ||
-  effectiveRole === "worker" ||
-  effectiveRole === "venue_owner" ||
-  user?.role === "venue_owner" ||
-  user?.impersonated === true;
+    effectiveRole === "producer" ||
+    effectiveRole === "worker" ||
+    user?.impersonated === true;
 
   const canShowActualArrived =
     canViewActualArrived && workMode === "live";
@@ -321,13 +310,6 @@ const isLiveView = searchParams.get("live") === "1";
 
     setSeatingMode(workMode === "live" ? "live" : "regular");
   }, [canViewActualArrived, workMode, setSeatingMode]);
-
-  useEffect(() => {
-  if (!isLiveView) return;
-
-  setWorkMode("live");
-  setSeatingMode("live");
-}, [isLiveView, setSeatingMode]);
 
   useEffect(() => {
     if (isDemo) return;
@@ -439,44 +421,27 @@ const isLiveView = searchParams.get("live") === "1";
      Load invitation
   ============================================================ */
   async function loadInvitation() {
-  if (!user) return;
+    if (!user) return;
 
-  /*
-    כניסה של אולם:
-    האולם מגיע עם invitationId מהקישור של האירוע,
-    לכן לא מחפשים /api/invitations/my של בעל האולם.
-  */
-  if (isVenueView && invitationIdFromUrl) {
-    setInvitation({
-      _id: invitationIdFromUrl,
-      id: invitationIdFromUrl,
-      eventId: eventIdFromUrl || "",
-      shareId: "",
+    const url = eventIdFromUrl
+      ? `/api/invitations/by-event/${eventIdFromUrl}`
+      : "/api/invitations/my";
+
+    const res = await fetch(url, {
+      credentials: "include",
+      cache: "no-store",
     });
 
-    setInvitationId(invitationIdFromUrl);
-    return;
+    const data = await res.json();
+
+    if (data.success && data.invitation) {
+      setInvitation(data.invitation);
+      setInvitationId(data.invitation._id);
+    } else {
+      setInvitation(null);
+      setInvitationId("");
+    }
   }
-
-  const url = eventIdFromUrl
-    ? `/api/invitations/by-event/${eventIdFromUrl}`
-    : "/api/invitations/my";
-
-  const res = await fetch(url, {
-    credentials: "include",
-    cache: "no-store",
-  });
-
-  const data = await res.json();
-
-  if (data.success && data.invitation) {
-    setInvitation(data.invitation);
-    setInvitationId(data.invitation._id);
-  } else {
-    setInvitation(null);
-    setInvitationId("");
-  }
-}
 
   async function loadEvent() {
     if (!user) return;
@@ -503,29 +468,19 @@ const isLiveView = searchParams.get("live") === "1";
      Load guests
   ============================================================ */
   async function loadGuests() {
-  if (!invitationId) return;
+    if (!invitationId) return;
 
-  const url = isVenueView
-    ? `/api/guests?invitation=${encodeURIComponent(
-        invitationId
-      )}&venueView=1&eventId=${encodeURIComponent(eventIdFromUrl || "")}`
-    : `/api/guests?invitation=${encodeURIComponent(invitationId)}`;
+    const res = await fetch(
+      `/api/guests?invitation=${invitationId}`,
+      {
+        credentials: "include",
+        cache: "no-store",
+      }
+    );
 
-  const res = await fetch(url, {
-    credentials: "include",
-    cache: "no-store",
-  });
-
-  const data = await res.json().catch(() => ({}));
-
-  if (!res.ok || data?.success === false) {
-    console.warn("Load guests failed:", data);
-    setGuests([]);
-    return;
+    const data = await res.json();
+    setGuests(data.guests || []);
   }
-
-  setGuests(Array.isArray(data.guests) ? data.guests : []);
-}
 
   async function loadSeatingTables() {
   const eventId =
@@ -544,15 +499,10 @@ const isLiveView = searchParams.get("live") === "1";
   }
 
   try {
-    const res = await fetch(
-  `/api/seating/tables/${eventId}?invitationId=${encodeURIComponent(
-    invitationId
-  )}${isVenueView ? "&venueView=1" : ""}`,
-  {
-    credentials: "include",
-    cache: "no-store",
-  }
-);
+    const res = await fetch(`/api/seating/tables/${eventId}`, {
+      credentials: "include",
+      cache: "no-store",
+    });
 
     const data = await res.json();
 
@@ -731,7 +681,7 @@ if (!canDeleteAllGuests) {
     }
 
     initAfterUser();
-  }, [user, isDemo, isVenueView, invitationIdFromUrl, eventIdFromUrl]);
+  }, [user, isDemo]);
 
   useEffect(() => {
     if (isDemo) return;
@@ -901,7 +851,7 @@ if (!canDeleteAllGuests) {
   }, 2000);
 
   return () => clearInterval(interval);
-}, [invitationId, eventIdFromUrl, invitation, isVenueView]);
+}, [invitationId, eventIdFromUrl, invitation]);
 
   const guestTableMap = useMemo(() => {
     const map = new Map<string, any>();
