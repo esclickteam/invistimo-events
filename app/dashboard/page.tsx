@@ -269,6 +269,14 @@ export default function DashboardPage() {
   const searchParams = useSearchParams();
   const eventIdFromUrl = searchParams.get("eventId");
 
+  const invitationIdFromUrl =
+    searchParams.get("invitationId") ||
+    searchParams.get("venueClientInvitationId") ||
+    "";
+
+  const isVenueView = searchParams.get("venueView") === "1";
+  const isLiveView = searchParams.get("live") === "1";
+
   const [user, setUser] = useState<any | null>(null);
 
   const setSeatingMode = useSeatingStore((s) => s.setSeatingMode);
@@ -295,8 +303,11 @@ export default function DashboardPage() {
   }, [user]);
 
   const canViewActualArrived =
+    isVenueView ||
     effectiveRole === "producer" ||
     effectiveRole === "worker" ||
+    effectiveRole === "venue_owner" ||
+    user?.role === "venue_owner" ||
     user?.impersonated === true;
 
   const canShowActualArrived =
@@ -310,6 +321,13 @@ export default function DashboardPage() {
 
     setSeatingMode(workMode === "live" ? "live" : "regular");
   }, [canViewActualArrived, workMode, setSeatingMode]);
+
+  useEffect(() => {
+    if (!isLiveView) return;
+
+    setWorkMode("live");
+    setSeatingMode("live");
+  }, [isLiveView, setSeatingMode]);
 
   useEffect(() => {
     if (isDemo) return;
@@ -423,21 +441,40 @@ export default function DashboardPage() {
   async function loadInvitation() {
     if (!user) return;
 
+    if (isVenueView && invitationIdFromUrl) {
+      setInvitation({
+        _id: invitationIdFromUrl,
+        id: invitationIdFromUrl,
+        eventId: eventIdFromUrl || "",
+        shareId: "",
+      });
+
+      setInvitationId(invitationIdFromUrl);
+      return;
+    }
+
     const url = eventIdFromUrl
       ? `/api/invitations/by-event/${eventIdFromUrl}`
       : "/api/invitations/my";
 
-    const res = await fetch(url, {
-      credentials: "include",
-      cache: "no-store",
-    });
+    try {
+      const res = await fetch(url, {
+        credentials: "include",
+        cache: "no-store",
+      });
 
-    const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
-    if (data.success && data.invitation) {
+      if (!res.ok || !data?.success || !data?.invitation) {
+        setInvitation(null);
+        setInvitationId("");
+        return;
+      }
+
       setInvitation(data.invitation);
       setInvitationId(data.invitation._id);
-    } else {
+    } catch (error) {
+      console.error("loadInvitation failed:", error);
       setInvitation(null);
       setInvitationId("");
     }
@@ -446,20 +483,31 @@ export default function DashboardPage() {
   async function loadEvent() {
     if (!user) return;
 
+    if (isVenueView) {
+      setEvent(null);
+      return;
+    }
+
     const url = eventIdFromUrl
       ? `/api/events/${eventIdFromUrl}`
       : "/api/events";
 
-    const res = await fetch(url, {
-      credentials: "include",
-      cache: "no-store",
-    });
+    try {
+      const res = await fetch(url, {
+        credentials: "include",
+        cache: "no-store",
+      });
 
-    const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
-    if (data.success && data.event) {
+      if (!res.ok || !data?.success || !data?.event) {
+        setEvent(null);
+        return;
+      }
+
       setEvent(data.event);
-    } else {
+    } catch (error) {
+      console.error("loadEvent failed:", error);
       setEvent(null);
     }
   }
@@ -470,54 +518,72 @@ export default function DashboardPage() {
   async function loadGuests() {
     if (!invitationId) return;
 
-    const res = await fetch(
-      `/api/guests?invitation=${invitationId}`,
-      {
-        credentials: "include",
-        cache: "no-store",
-      }
-    );
+    const url = isVenueView
+      ? `/api/guests?invitation=${encodeURIComponent(
+          invitationId
+        )}&venueView=1&eventId=${encodeURIComponent(eventIdFromUrl || "")}`
+      : `/api/guests?invitation=${encodeURIComponent(invitationId)}`;
 
-    const data = await res.json();
-    setGuests(data.guests || []);
-  }
+    console.log("LOAD GUESTS URL:", url);
 
-  async function loadSeatingTables() {
-  const eventId =
-    eventIdFromUrl ||
-    invitation?.eventId ||
-    invitation?.event ||
-    invitation?.event_id ||
-    invitation?.eventDetails?._id;
-
-  if (!eventId) {
-    console.warn("No eventId found for seating tables", {
-      eventIdFromUrl,
-      invitation,
-    });
-    return;
-  }
-
-  try {
-    const res = await fetch(`/api/seating/tables/${eventId}`, {
+    const res = await fetch(url, {
       credentials: "include",
       cache: "no-store",
     });
 
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
 
-    console.log("SEATING TABLES RESPONSE:", data);
+    console.log("LOAD GUESTS RESPONSE:", data);
 
-    if (!res.ok || !data.success) {
-      console.warn("Failed to load seating tables", data);
+    if (!res.ok || data?.success === false) {
+      setGuests([]);
       return;
     }
 
-    setSeatingTables(data.tables || []);
-  } catch (err) {
-    console.error("Load seating tables error:", err);
+    setGuests(Array.isArray(data.guests) ? data.guests : []);
   }
-}
+
+  async function loadSeatingTables() {
+    const eventId =
+      eventIdFromUrl ||
+      invitation?.eventId ||
+      invitation?.event ||
+      invitation?.event_id ||
+      invitation?.eventDetails?._id;
+
+    if (!eventId) {
+      console.warn("No eventId found for seating tables", {
+        eventIdFromUrl,
+        invitation,
+      });
+      return;
+    }
+
+    try {
+      const res = await fetch(
+        `/api/seating/tables/${eventId}?invitationId=${encodeURIComponent(
+          invitationId
+        )}${isVenueView ? "&venueView=1" : ""}`,
+        {
+          credentials: "include",
+          cache: "no-store",
+        }
+      );
+
+      const data = await res.json().catch(() => ({}));
+
+      console.log("SEATING TABLES RESPONSE:", data);
+
+      if (!res.ok || !data.success) {
+        console.warn("Failed to load seating tables", data);
+        return;
+      }
+
+      setSeatingTables(data.tables || []);
+    } catch (err) {
+      console.error("Load seating tables error:", err);
+    }
+  }
 
   const handleExportExcel = async () => {
     if (isDemo) {
@@ -681,7 +747,7 @@ if (!canDeleteAllGuests) {
     }
 
     initAfterUser();
-  }, [user, isDemo]);
+  }, [user, isDemo, isVenueView, invitationIdFromUrl, eventIdFromUrl]);
 
   useEffect(() => {
     if (isDemo) return;
@@ -851,7 +917,7 @@ if (!canDeleteAllGuests) {
   }, 2000);
 
   return () => clearInterval(interval);
-}, [invitationId, eventIdFromUrl, invitation]);
+}, [invitationId, eventIdFromUrl, invitation, isVenueView]);
 
   const guestTableMap = useMemo(() => {
     const map = new Map<string, any>();
