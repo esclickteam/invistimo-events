@@ -287,6 +287,9 @@ export default function DashboardPage() {
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [actualArrivedMoveSuggestions, setActualArrivedMoveSuggestions] =
+  useState<Record<string, any>>({});
+  
 const actualArrivedDraftRef = useRef<Record<string, number>>({});
 const actualArrivedSaveTimersRef = useRef<
   Record<string, ReturnType<typeof setTimeout>>
@@ -389,18 +392,6 @@ const canViewActualArrived =
   setSeatingMode(workMode === "live" ? "live" : "regular");
 }, [isDemo, user, canViewActualArrived, workMode, setSeatingMode]);
 
-useEffect(() => {
-  if (!canViewActualArrived) return;
-
-  
-  const savedMode =
-    typeof window !== "undefined" ? localStorage.getItem("workMode") : null;
-
-  if (!savedMode) {
-    setWorkMode("live");
-    setSeatingMode("live");
-  }
-}, [canViewActualArrived, setSeatingMode]);
 
   useEffect(() => {
     if (!isLiveView) return;
@@ -1451,7 +1442,11 @@ if (quickFilter === "call_needs_correction") {
 const saveActualArrivedToServer = async (
   guestId: string,
   next: number,
-  requestVersion?: number
+  requestVersion?: number,
+  options?: {
+    syncSeatsToActual?: boolean;
+    checkSeatOptionsOnly?: boolean;
+  }
 ) => {
   const safeNext = Math.max(0, Number(next || 0));
 
@@ -1460,7 +1455,17 @@ const saveActualArrivedToServer = async (
       method: "PUT",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ actualArrivedCount: safeNext }),
+      body: JSON.stringify({
+        actualArrivedCount: safeNext,
+
+        // רגיל: false
+        // שחרור כיסאות: true
+        syncSeatsToActual: options?.syncSeatsToActual === true,
+        releaseSeatsToActual: options?.syncSeatsToActual === true,
+
+        // בדיקת חריגה בלבד, בלי להזיז כיסאות
+        checkSeatOptionsOnly: options?.checkSeatOptionsOnly === true,
+      }),
     });
 
     const data = await res.json().catch(() => ({}));
@@ -1477,12 +1482,46 @@ const saveActualArrivedToServer = async (
 
     if (!res.ok || data?.success === false) {
       console.warn("actualArrivedCount failed", data);
+
+      if (
+        data?.code === "TABLE_NOT_ENOUGH_FREE_SEATS" ||
+        Array.isArray(data?.suggestedTables)
+      ) {
+        setActualArrivedMoveSuggestions((prev) => ({
+          ...prev,
+          [guestId]: data,
+        }));
+        return;
+      }
+
       alert(data?.message || data?.error || "לא הצלחנו לעדכן מגיעים בפועל");
       return;
     }
 
     if (Array.isArray(data?.tables)) {
       setSeatingTables(data.tables);
+    }
+
+    if (
+      Array.isArray(data?.suggestedTables) ||
+      data?.currentTable ||
+      data?.seatStatus
+    ) {
+      setActualArrivedMoveSuggestions((prev) => ({
+        ...prev,
+        [guestId]: data,
+      }));
+    }
+
+    if (
+      options?.syncSeatsToActual === true &&
+      !data?.suggestedTables?.length
+    ) {
+      setActualArrivedMoveSuggestions((prev) => {
+        const nextState = { ...prev };
+        delete nextState[guestId];
+        return nextState;
+      });
     }
 
     if (data?.guest) {
@@ -1558,7 +1597,113 @@ const forceSyncActualArrived = (guestId: string) => {
     clearTimeout(actualArrivedSaveTimersRef.current[guestId]);
   }
 
-  saveActualArrivedToServer(guestId, Number(latest || 0), nextVersion);
+  saveActualArrivedToServer(guestId, Number(latest || 0), nextVersion, {
+    syncSeatsToActual: true,
+  });
+};
+
+const checkSeatOptionsForGuest = (guest: Guest) => {
+  const guestId = String(guest._id);
+
+  const latest =
+    actualArrivedDraftRef.current[guestId] ??
+    guest.actualArrivedCount ??
+    0;
+
+  const nextVersion =
+    (actualArrivedRequestVersionRef.current[guestId] || 0) + 1;
+
+  actualArrivedRequestVersionRef.current[guestId] = nextVersion;
+
+  if (actualArrivedSaveTimersRef.current[guestId]) {
+    clearTimeout(actualArrivedSaveTimersRef.current[guestId]);
+  }
+
+  saveActualArrivedToServer(guestId, Number(latest || 0), nextVersion, {
+    checkSeatOptionsOnly: true,
+  });
+};
+
+const approveSuggestedTableMove = async (
+  guest: Guest,
+  suggestedTable: any
+) => {
+  const guestId = String(guest._id);
+
+  const eventId = String(
+    eventIdFromUrl ||
+      invitation?.eventId ||
+      invitation?.event ||
+      invitation?.event_id ||
+      invitation?.eventDetails?._id ||
+      ""
+  );
+
+  const toTableId = String(
+    suggestedTable?.tableId ||
+      suggestedTable?._id ||
+      suggestedTable?.id ||
+      suggestedTable?.tableNumber ||
+      suggestedTable?.number ||
+      ""
+  );
+
+  if (!eventId || !guestId || !toTableId) {
+    alert("חסר נתון להעברת שולחן");
+    return;
+  }
+
+  try {
+    const res = await fetch("/api/seating/live/move-guest-table", {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        eventId,
+        guestId,
+        toTableId,
+      }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok || data?.success === false) {
+      alert(data?.message || "לא הצלחנו להעביר שולחן");
+      return;
+    }
+
+    if (Array.isArray(data?.tables)) {
+      setSeatingTables(data.tables);
+    }
+
+    if (data?.guest) {
+      setGuests((prev) =>
+        prev.map((g) =>
+          String(g._id) === String(guestId)
+            ? {
+                ...g,
+                tableId: data.guest.tableId ?? g.tableId,
+                tableName: data.guest.tableName ?? g.tableName,
+                tableNumber: data.guest.tableNumber ?? g.tableNumber,
+                actualArrivedCount:
+                  data.guest.actualArrivedCount ?? g.actualArrivedCount,
+                arrivedCount: data.guest.arrivedCount ?? g.arrivedCount,
+                rsvp: data.guest.rsvp ?? g.rsvp,
+              }
+            : g
+        )
+      );
+    }
+
+    setActualArrivedMoveSuggestions((prev) => {
+      const nextState = { ...prev };
+      delete nextState[guestId];
+      return nextState;
+    });
+  } catch (err) {
+    console.error("approveSuggestedTableMove error:", err);
+    alert("שגיאת רשת בהעברת שולחן");
+  }
 };
 
     const updateGuestTableLocally = (
@@ -2078,9 +2223,70 @@ const canOpenEventManagement =
           )}
 
           {diff > 0 && (
-  <span className="text-xs font-black text-rose-700">
-    חריגה: {diff} מעל הסימון — נדרש מקום פנוי בשולחן
-  </span>
+  <div className="flex flex-col gap-1">
+    <span className="text-xs font-black text-rose-700">
+      חריגה: {diff} מעל הסימון — צריך לבדוק מקום פנוי
+    </span>
+
+    <button
+      type="button"
+      onClick={() => checkSeatOptionsForGuest(g)}
+      className="
+        w-fit
+        rounded-full
+        border
+        border-rose-200
+        bg-rose-50
+        px-3
+        py-1
+        text-[11px]
+        font-black
+        text-rose-800
+        hover:bg-rose-100
+      "
+    >
+      בדוק מקום פנוי
+    </button>
+
+    {actualArrivedMoveSuggestions[g._id]?.suggestedTables?.length > 0 && (
+      <div className="mt-1 rounded-2xl border border-rose-100 bg-rose-50 px-3 py-2">
+        <div className="mb-1 text-[11px] font-black text-rose-800">
+          נמצא מקום פנוי:
+        </div>
+
+        {actualArrivedMoveSuggestions[g._id].suggestedTables
+          .slice(0, 2)
+          .map((table: any) => (
+            <div
+              key={String(table.tableId || table.tableName)}
+              className="mb-1 flex items-center justify-between gap-2 rounded-xl bg-white px-2 py-1"
+            >
+              <span className="text-[11px] font-bold text-[#1E1B2E]">
+                {table.tableName || `שולחן ${table.tableNumber || ""}`}
+                {table.sameGroup ? " · אותה קבוצה" : ""}
+                {" · "}
+                {table.freeSeats} פנויים
+              </span>
+
+              <button
+                type="button"
+                onClick={() => approveSuggestedTableMove(g, table)}
+                className="rounded-full bg-[#1E1B2E] px-3 py-1 text-[10px] font-black text-white hover:bg-black"
+              >
+                אשר העברה
+              </button>
+            </div>
+          ))}
+      </div>
+    )}
+
+    {actualArrivedMoveSuggestions[g._id]?.suggestedTables?.length === 0 &&
+      actualArrivedMoveSuggestions[g._id]?.seatStatus?.status === "over" && (
+        <span className="text-[11px] font-black text-rose-700">
+          לא נמצא שולחן פנוי מתאים
+        </span>
+      )}
+  </div>
 )}
 
 {diff < 0 && (

@@ -32,7 +32,6 @@ const CALL_RESULT_VALUES = new Set([
 ============================================ */
 async function getMaxGuestsForInvitationOwner(ownerId: string) {
   const owner = await User.findById(ownerId).lean();
-
   return owner?.planLimits?.maxGuests ?? 100;
 }
 
@@ -50,9 +49,7 @@ async function getInvitationProducerPermission(auth: any, invitation: any) {
 
 function toSafeNumber(value: any, fallback = 0) {
   const num = Number(value);
-
   if (!Number.isFinite(num)) return fallback;
-
   return num;
 }
 
@@ -61,7 +58,6 @@ function normalizeCallRoundNotes(notes: any) {
 
   if (typeof notes === "string") {
     const text = notes.trim();
-
     if (!text) return [];
 
     return [
@@ -97,13 +93,10 @@ function normalizeCallRoundNotes(notes: any) {
 
   return notes
     .map((note) => {
-      if (note === null || note === undefined || note === "") {
-        return null;
-      }
+      if (note === null || note === undefined || note === "") return null;
 
       if (typeof note === "string") {
         const text = note.trim();
-
         if (!text) return null;
 
         return {
@@ -221,8 +214,11 @@ function getIncomingArrivedCount(data: any) {
 }
 
 /* ============================================
-   LIVE Seating Sync Helpers
-   שחרור / תפיסת כיסאות לפי מגיעים בפועל
+   LIVE Seating Helpers
+   חשוב:
+   actualArrivedCount לבד לא משחרר כיסאות.
+   רק syncSeatsToActual=true משחרר / מסנכרן.
+   checkSeatOptionsOnly=true רק מחזיר הצעות, בלי לשנות כלום.
 ============================================ */
 
 function normalizeLiveId(value: any) {
@@ -251,6 +247,25 @@ function getLiveTableCapacity(table: any) {
 
 function getLiveTableNumber(table: any) {
   return String(table?.tableNumber || table?.number || "").trim();
+}
+
+function getLiveTableLabel(table: any) {
+  const name = String(table?.name || "").trim();
+
+  if (name) return name;
+
+  const number = getLiveTableNumber(table);
+  return number ? `שולחן ${number}` : "שולחן";
+}
+
+function getLiveTableId(table: any) {
+  return (
+    normalizeLiveId(table?._id) ||
+    normalizeLiveId(table?.id) ||
+    normalizeLiveId(table?.tableId) ||
+    normalizeLiveId(table?.tableNumber) ||
+    normalizeLiveId(table?.number)
+  );
 }
 
 function tableHasLiveGuest(table: any, guestId: string) {
@@ -372,12 +387,142 @@ function serializeLiveTables(tables: any[]) {
   });
 }
 
-async function syncActualArrivedToAllSeating({
+function getLiveGroupKey(guest: any) {
+  return String(
+    guest?.groupId ||
+      guest?.relation ||
+      guest?.groupName ||
+      guest?.group ||
+      ""
+  ).trim();
+}
+
+function getLiveTableFreeSeats(table: any, ignoredGuestId?: string) {
+  const capacity = getLiveTableCapacity(table);
+
+  const occupied = (table?.seatedGuests || []).filter((sg: any) => {
+    if (!ignoredGuestId) return true;
+    return !sameLiveId(sg?.guestId, ignoredGuestId);
+  }).length;
+
+  return Math.max(0, capacity - occupied);
+}
+
+async function buildGuestLookupForSuggestions(invitation: any, guest: any) {
+  const invitationId = normalizeLiveId(
+    guest?.invitationId || guest?.invitation || invitation?._id
+  );
+
+  const query: any = {};
+
+  if (invitationId) {
+    query.$or = [{ invitationId }, { invitation: invitationId }];
+
+    if (mongoose.Types.ObjectId.isValid(invitationId)) {
+      const invitationObjectId = new mongoose.Types.ObjectId(invitationId);
+      query.$or.push(
+        { invitationId: invitationObjectId },
+        { invitation: invitationObjectId }
+      );
+    }
+  }
+
+  if (!query.$or?.length) return new Map<string, any>();
+
+  const guests = await InvitationGuest.find(query)
+    .select("_id name groupId relation groupName group")
+    .lean();
+
+  const map = new Map<string, any>();
+
+  for (const g of guests || []) {
+    map.set(normalizeLiveId(g?._id), g);
+  }
+
+  return map;
+}
+
+function tableHasSameGroupGuest({
+  table,
+  guest,
+  guestId,
+  guestLookup,
+}: {
+  table: any;
+  guest: any;
+  guestId: string;
+  guestLookup: Map<string, any>;
+}) {
+  const guestGroupKey = getLiveGroupKey(guest);
+  if (!guestGroupKey) return false;
+
+  return (table?.seatedGuests || []).some((sg: any) => {
+    const seatedGuestId = normalizeLiveId(sg?.guestId);
+    if (!seatedGuestId || sameLiveId(seatedGuestId, guestId)) return false;
+
+    const seatedGuest = guestLookup.get(seatedGuestId);
+
+    if (!seatedGuest) return false;
+
+    return getLiveGroupKey(seatedGuest) === guestGroupKey;
+  });
+}
+
+function buildSuggestedLiveTables({
+  tables,
+  guest,
+  guestId,
+  requiredSeats,
+  currentTable,
+  guestLookup,
+}: {
+  tables: any[];
+  guest: any;
+  guestId: string;
+  requiredSeats: number;
+  currentTable?: any | null;
+  guestLookup: Map<string, any>;
+}) {
+  const currentTableId = currentTable ? getLiveTableId(currentTable) : "";
+
+  return (tables || [])
+    .map((table: any) => {
+      const tableId = getLiveTableId(table);
+      const freeSeats = getLiveTableFreeSeats(table, guestId);
+      const sameGroup = tableHasSameGroupGuest({
+        table,
+        guest,
+        guestId,
+        guestLookup,
+      });
+
+      return {
+        tableId,
+        tableName: getLiveTableLabel(table),
+        tableNumber: table?.tableNumber || table?.number || null,
+        capacity: getLiveTableCapacity(table),
+        freeSeats,
+        sameGroup,
+        canFit: freeSeats >= requiredSeats,
+        isCurrentTable: !!currentTableId && tableId === currentTableId,
+      };
+    })
+    .filter((table: any) => table.canFit && !table.isCurrentTable)
+    .sort((a: any, b: any) => {
+      if (a.sameGroup !== b.sameGroup) return a.sameGroup ? -1 : 1;
+      return b.freeSeats - a.freeSeats;
+    })
+    .slice(0, 5);
+}
+
+async function syncOrCheckActualArrivedToAllSeating({
   invitation,
   guest,
+  mode,
 }: {
   invitation: any;
   guest: any;
+  mode: "sync" | "check";
 }) {
   const guestId = normalizeLiveId(guest?._id);
   if (!guestId) return null;
@@ -391,14 +536,74 @@ async function syncActualArrivedToAllSeating({
   const scopedQuery = buildLiveSeatingScopeQuery(invitation, guest);
   if (!scopedQuery.length) return null;
 
-  const applyToTablesArray = async (ownerDoc: any, tables: any[]) => {
+  const guestLookup = await buildGuestLookupForSuggestions(invitation, guest);
+
+  const buildSeatStatus = () => ({
+    expected,
+    actual,
+    diff: actual - expected,
+    status:
+      actual > expected
+        ? "over"
+        : actual < expected
+          ? "under"
+          : actual === expected && actual > 0
+            ? "match"
+            : actual === 0 && expected > 0
+              ? "under"
+              : "none",
+  });
+
+  const handleTablesArray = async (ownerDoc: any, tables: any[]) => {
     const currentTable =
       (tables || []).find((table: any) =>
         isGuestCurrentLiveTable(table, guest, guestId)
       ) || null;
 
-    if (!currentTable) return null;
+    if (!currentTable) {
+      return {
+        tables: serializeLiveTables(tables),
+        seatStatus: buildSeatStatus(),
+        suggestedTables: buildSuggestedLiveTables({
+          tables,
+          guest,
+          guestId,
+          requiredSeats: actual,
+          currentTable: null,
+          guestLookup,
+        }),
+      };
+    }
 
+    if (mode === "check") {
+      const freeInCurrent = getLiveTableFreeSeats(currentTable, guestId);
+      const canFitCurrent = freeInCurrent >= actual;
+
+      return {
+        tables: serializeLiveTables(tables),
+        currentTable: {
+          tableId: getLiveTableId(currentTable),
+          tableName: getLiveTableLabel(currentTable),
+          freeSeats: freeInCurrent,
+          capacity: getLiveTableCapacity(currentTable),
+          canFit: canFitCurrent,
+        },
+        suggestedTables: canFitCurrent
+          ? []
+          : buildSuggestedLiveTables({
+              tables,
+              guest,
+              guestId,
+              requiredSeats: actual,
+              currentTable,
+              guestLookup,
+            }),
+        seatStatus: buildSeatStatus(),
+      };
+    }
+
+    // mode === "sync"
+    // רק כאן משחררים/מסנכרנים כיסאות בפועל.
     for (const table of tables) {
       cleanLiveGuestFromTable(table, guestId);
     }
@@ -411,29 +616,29 @@ async function syncActualArrivedToAllSeating({
       );
 
       if (freeSeats.length < actual) {
-        const capacity = getLiveTableCapacity(currentTable);
-        const occupiedWithoutGuest = (currentTable.seatedGuests || []).filter(
-          (sg: any) => !sameLiveId(sg?.guestId, guestId)
-        ).length;
-
-        const available = Math.max(0, capacity - occupiedWithoutGuest);
+        const available = getLiveTableFreeSeats(currentTable, guestId);
 
         return NextResponse.json(
           {
             success: false,
             code: "TABLE_NOT_ENOUGH_FREE_SEATS",
-            message: `אין מספיק מקום פנוי בשולחן הזה. פנויים ${available}, נדרשים ${actual}.`,
-            seatStatus: {
-              expected,
-              actual,
-              diff: actual - expected,
-              status:
-                actual > expected
-                  ? "over"
-                  : actual < expected
-                    ? "under"
-                    : "match",
+            message: `אין מספיק מקום פנוי בשולחן הנוכחי. פנויים ${available}, נדרשים ${actual}.`,
+            currentTable: {
+              tableId: getLiveTableId(currentTable),
+              tableName: getLiveTableLabel(currentTable),
+              freeSeats: available,
+              capacity: getLiveTableCapacity(currentTable),
+              canFit: false,
             },
+            suggestedTables: buildSuggestedLiveTables({
+              tables,
+              guest,
+              guestId,
+              requiredSeats: actual,
+              currentTable,
+              guestLookup,
+            }),
+            seatStatus: buildSeatStatus(),
           },
           { status: 409 }
         );
@@ -458,21 +663,8 @@ async function syncActualArrivedToAllSeating({
 
     return {
       tables: serializeLiveTables(tables),
-      seatStatus: {
-        expected,
-        actual,
-        diff: actual - expected,
-        status:
-          actual > expected
-            ? "over"
-            : actual < expected
-              ? "under"
-              : actual === expected && actual > 0
-                ? "match"
-                : actual === 0 && expected > 0
-                  ? "under"
-                  : "none",
-      },
+      seatStatus: buildSeatStatus(),
+      suggestedTables: [],
     };
   };
 
@@ -482,7 +674,7 @@ async function syncActualArrivedToAllSeating({
   });
 
   if (seatingTableDoc?.tables?.length) {
-    const result = await applyToTablesArray(
+    const result = await handleTablesArray(
       seatingTableDoc,
       seatingTableDoc.tables
     );
@@ -496,7 +688,7 @@ async function syncActualArrivedToAllSeating({
   });
 
   if (seatingDoc?.tables?.length) {
-    const result = await applyToTablesArray(seatingDoc, seatingDoc.tables);
+    const result = await handleTablesArray(seatingDoc, seatingDoc.tables);
 
     if (result instanceof NextResponse) return result;
     if (result) return result;
@@ -516,6 +708,36 @@ async function syncActualArrivedToAllSeating({
         isGuestCurrentLiveTable(table, guest, guestId)
       ) || null;
 
+    if (mode === "check") {
+      const canFitCurrent = currentTable
+        ? getLiveTableFreeSeats(currentTable, guestId) >= actual
+        : false;
+
+      return {
+        tables: serializeLiveTables(standaloneTables),
+        currentTable: currentTable
+          ? {
+              tableId: getLiveTableId(currentTable),
+              tableName: getLiveTableLabel(currentTable),
+              freeSeats: getLiveTableFreeSeats(currentTable, guestId),
+              capacity: getLiveTableCapacity(currentTable),
+              canFit: canFitCurrent,
+            }
+          : null,
+        suggestedTables: canFitCurrent
+          ? []
+          : buildSuggestedLiveTables({
+              tables: standaloneTables,
+              guest,
+              guestId,
+              requiredSeats: actual,
+              currentTable,
+              guestLookup,
+            }),
+        seatStatus: buildSeatStatus(),
+      };
+    }
+
     if (!currentTable) return null;
 
     for (const table of standaloneTables) {
@@ -531,18 +753,29 @@ async function syncActualArrivedToAllSeating({
       );
 
       if (freeSeats.length < actual) {
-        const capacity = getLiveTableCapacity(currentTable);
-        const occupiedWithoutGuest = (currentTable.seatedGuests || []).filter(
-          (sg: any) => !sameLiveId(sg?.guestId, guestId)
-        ).length;
-
-        const available = Math.max(0, capacity - occupiedWithoutGuest);
+        const available = getLiveTableFreeSeats(currentTable, guestId);
 
         return NextResponse.json(
           {
             success: false,
             code: "TABLE_NOT_ENOUGH_FREE_SEATS",
-            message: `אין מספיק מקום פנוי בשולחן הזה. פנויים ${available}, נדרשים ${actual}.`,
+            message: `אין מספיק מקום פנוי בשולחן הנוכחי. פנויים ${available}, נדרשים ${actual}.`,
+            currentTable: {
+              tableId: getLiveTableId(currentTable),
+              tableName: getLiveTableLabel(currentTable),
+              freeSeats: available,
+              capacity: getLiveTableCapacity(currentTable),
+              canFit: false,
+            },
+            suggestedTables: buildSuggestedLiveTables({
+              tables: standaloneTables,
+              guest,
+              guestId,
+              requiredSeats: actual,
+              currentTable,
+              guestLookup,
+            }),
+            seatStatus: buildSeatStatus(),
           },
           { status: 409 }
         );
@@ -569,17 +802,8 @@ async function syncActualArrivedToAllSeating({
       tables: serializeLiveTables(
         freshTables.length ? freshTables : standaloneTables
       ),
-      seatStatus: {
-        expected,
-        actual,
-        diff: actual - expected,
-        status:
-          actual > expected
-            ? "over"
-            : actual < expected
-              ? "under"
-              : "match",
-      },
+      seatStatus: buildSeatStatus(),
+      suggestedTables: [],
     };
   }
 
@@ -924,18 +1148,39 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
         }
       }
 
-      const seatingSyncResult = await syncActualArrivedToAllSeating({
-        invitation,
-        guest,
-      });
+      const shouldSyncSeatsToActual =
+        data.syncSeatsToActual === true ||
+        data.releaseSeatsToActual === true;
 
-      if (seatingSyncResult instanceof NextResponse) {
-        return seatingSyncResult;
-      }
+      const shouldCheckSeatOptionsOnly =
+        data.checkSeatOptionsOnly === true;
 
-      if (seatingSyncResult?.tables) {
-        (guest as any).__syncedTables = seatingSyncResult.tables;
-        (guest as any).__seatStatus = seatingSyncResult.seatStatus;
+      if (shouldSyncSeatsToActual || shouldCheckSeatOptionsOnly) {
+        const seatingResult = await syncOrCheckActualArrivedToAllSeating({
+          invitation,
+          guest,
+          mode: shouldCheckSeatOptionsOnly ? "check" : "sync",
+        });
+
+        if (seatingResult instanceof NextResponse) {
+          return seatingResult;
+        }
+
+        if (seatingResult?.tables) {
+          (guest as any).__syncedTables = seatingResult.tables;
+        }
+
+        if (seatingResult?.seatStatus) {
+          (guest as any).__seatStatus = seatingResult.seatStatus;
+        }
+
+        if (seatingResult?.suggestedTables) {
+          (guest as any).__suggestedTables = seatingResult.suggestedTables;
+        }
+
+        if (seatingResult?.currentTable) {
+          (guest as any).__currentTable = seatingResult.currentTable;
+        }
       }
     }
 
@@ -986,15 +1231,21 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
 
     const syncedTables = (guest as any).__syncedTables || null;
     const seatStatus = (guest as any).__seatStatus || null;
+    const suggestedTables = (guest as any).__suggestedTables || [];
+    const currentTable = (guest as any).__currentTable || null;
 
     delete (guest as any).__syncedTables;
     delete (guest as any).__seatStatus;
+    delete (guest as any).__suggestedTables;
+    delete (guest as any).__currentTable;
 
     return NextResponse.json({
       success: true,
       guest,
       tables: syncedTables,
       seatStatus,
+      suggestedTables,
+      currentTable,
     });
   } catch (error: any) {
     console.error("❌ PUT /guests/[id] error:", error);
