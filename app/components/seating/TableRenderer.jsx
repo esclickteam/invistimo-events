@@ -457,7 +457,7 @@ function TableRenderer({ table, hideSeats = false }) {
   const lineHeight =
     seatingMode === "live"
       ? compact
-        ? 17
+        ? 15
         : 22
       : compact
         ? 21
@@ -467,13 +467,13 @@ function TableRenderer({ table, hideSeats = false }) {
 
   const startY =
     seatingMode === "live" && compact
-      ? -totalHeight / 2 + 7
+      ? -totalHeight / 2 - 2
       : -totalHeight / 2 + 2;
 
   return tableLines.map((line, index) => {
     const safeFontSize =
       seatingMode === "live" && compact
-        ? Math.min(Number(line.fontSize || 13), index <= 1 ? 12 : 13)
+        ? Math.min(Number(line.fontSize || 13), index <= 1 ? 11 : 12)
         : line.fontSize;
 
     return (
