@@ -262,15 +262,6 @@ function TableRenderer({ table, hideSeats = false }) {
 
   const liveArrivedCount = occupiedSeatsCount;
 
-  const tableLabel =
-    seatingMode === "live"
-      ? groupForTable
-        ? `${groupForTable.name}\n${tableTitle}\nהושבה: ${plannedSeatsCount}/${seatsTotal}\nבפועל: ${liveArrivedCount}/${seatsTotal}`
-        : `${tableTitle}\nהושבה: ${plannedSeatsCount}/${seatsTotal}\nבפועל: ${liveArrivedCount}/${seatsTotal}`
-      : groupForTable
-        ? `${groupForTable.name}\n${tableTitle}\n${plannedSeatsCount}/${seatsTotal}`
-        : `${tableTitle}\n${plannedSeatsCount}/${seatsTotal}`;
-
   const isHighlighted =
     highlightedTable === table.id ||
     assigned.some((s) => String(s.guestId) === String(selectedGuestId)) ||
@@ -292,6 +283,59 @@ function TableRenderer({ table, hideSeats = false }) {
       : "#D9C4A4";
 
   const tableText = isHighlighted ? "#6A4300" : "#3D3025";
+
+  const tableLines = useMemo(() => {
+    const lines = [];
+
+    if (groupForTable?.name) {
+      lines.push({
+        text: groupForTable.name,
+        fill: tableText,
+        fontSize: seatingMode === "live" ? 13 : 14,
+        fontStyle: "bold",
+      });
+    }
+
+    lines.push({
+      text: tableTitle,
+      fill: tableText,
+      fontSize: seatingMode === "live" ? 14 : 16,
+      fontStyle: "bold",
+    });
+
+    if (seatingMode === "live") {
+      lines.push({
+        text: `הושבה: ${plannedSeatsCount}/${seatsTotal}`,
+        fill: "#B98A45",
+        fontSize: 15,
+        fontStyle: "bold",
+      });
+
+      lines.push({
+        text: `בפועל: ${liveArrivedCount}/${seatsTotal}`,
+        fill: "#DC2626",
+        fontSize: 15,
+        fontStyle: "bold",
+      });
+    } else {
+      lines.push({
+        text: `${plannedSeatsCount}/${seatsTotal}`,
+        fill: tableText,
+        fontSize: 15,
+        fontStyle: "bold",
+      });
+    }
+
+    return lines;
+  }, [
+    groupForTable,
+    tableTitle,
+    tableText,
+    seatingMode,
+    plannedSeatsCount,
+    liveArrivedCount,
+    seatsTotal,
+  ]);
 
   const layout = useMemo(() => getTableLayout(table), [table.type, table.seats]);
 
@@ -400,7 +444,6 @@ function TableRenderer({ table, hideSeats = false }) {
     /*
       יש שיבוץ רגיל אבל עדיין לא הגיע בפועל =
       זהב, בדיוק כמו ההושבה הרגילה.
-      לא הופכים לירוק רק בגלל actualArrivedCount או liveArrivals.
     */
     return {
       chairFill: "#B98A45",
@@ -408,6 +451,29 @@ function TableRenderer({ table, hideSeats = false }) {
       chairHighlight: "#CBA56C",
       chairDepth: "#9E7135",
     };
+  };
+
+  const renderTableCenterLines = (boxWidth) => {
+    const lineHeight = seatingMode === "live" ? 22 : 26;
+    const totalHeight = tableLines.length * lineHeight;
+    const startY = -totalHeight / 2 + 2;
+
+    return tableLines.map((line, index) => (
+      <Text
+        key={`table-line-${index}`}
+        text={line.text}
+        width={boxWidth}
+        x={-boxWidth / 2}
+        y={startY + index * lineHeight}
+        align="center"
+        verticalAlign="middle"
+        fill={line.fill}
+        fontSize={line.fontSize}
+        fontStyle={line.fontStyle}
+        listening={false}
+        perfectDrawEnabled={false}
+      />
+    ));
   };
 
   const handleDrop = (e) => {
@@ -613,20 +679,7 @@ function TableRenderer({ table, hideSeats = false }) {
             perfectDrawEnabled={false}
           />
 
-          <Text
-            text={tableLabel}
-            width={radius * 2}
-            height={radius * 2 + 42}
-            offsetX={radius}
-            offsetY={(radius * 2 + 42) / 2}
-            align="center"
-            verticalAlign="middle"
-            fill={tableText}
-            fontSize={seatingMode === "live" ? 12 : 14}
-            lineHeight={1.25}
-            listening={false}
-            perfectDrawEnabled={false}
-          />
+          {renderTableCenterLines(radius * 2)}
         </>
       )}
 
@@ -645,20 +698,7 @@ function TableRenderer({ table, hideSeats = false }) {
             perfectDrawEnabled={false}
           />
 
-          <Text
-            text={tableLabel}
-            width={size}
-            height={size + 42}
-            offsetX={size / 2}
-            offsetY={(size + 42) / 2}
-            align="center"
-            verticalAlign="middle"
-            fill={tableText}
-            fontSize={seatingMode === "live" ? 12 : 14}
-            lineHeight={1.25}
-            listening={false}
-            perfectDrawEnabled={false}
-          />
+          {renderTableCenterLines(size)}
         </>
       )}
 
@@ -677,20 +717,7 @@ function TableRenderer({ table, hideSeats = false }) {
             perfectDrawEnabled={false}
           />
 
-          <Text
-            text={tableLabel}
-            width={width}
-            height={height + 42}
-            offsetX={width / 2}
-            offsetY={(height + 42) / 2}
-            align="center"
-            verticalAlign="middle"
-            fill={tableText}
-            fontSize={seatingMode === "live" ? 12 : 14}
-            lineHeight={1.25}
-            listening={false}
-            perfectDrawEnabled={false}
-          />
+          {renderTableCenterLines(width)}
         </>
       )}
 
