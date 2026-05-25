@@ -256,9 +256,20 @@ function TableRenderer({ table, hideSeats = false }) {
 
   const tableTitle = table.name || "";
 
-  const tableLabel = groupForTable
-    ? `${groupForTable.name}\n${tableTitle}\n${occupiedSeatsCount}/${seatsTotal}`
-    : `${tableTitle}\n${occupiedSeatsCount}/${seatsTotal}`;
+  const plannedSeatsCount = useMemo(() => {
+    return Number(table.seatedGuests?.length || 0);
+  }, [table.seatedGuests]);
+
+  const liveArrivedCount = occupiedSeatsCount;
+
+  const tableLabel =
+    seatingMode === "live"
+      ? groupForTable
+        ? `${groupForTable.name}\n${tableTitle}\nהושבה: ${plannedSeatsCount}/${seatsTotal}\nבפועל: ${liveArrivedCount}/${seatsTotal}`
+        : `${tableTitle}\nהושבה: ${plannedSeatsCount}/${seatsTotal}\nבפועל: ${liveArrivedCount}/${seatsTotal}`
+      : groupForTable
+        ? `${groupForTable.name}\n${tableTitle}\n${plannedSeatsCount}/${seatsTotal}`
+        : `${tableTitle}\n${plannedSeatsCount}/${seatsTotal}`;
 
   const isHighlighted =
     highlightedTable === table.id ||
@@ -277,8 +288,8 @@ function TableRenderer({ table, hideSeats = false }) {
   const tableStroke = isHighlighted
     ? "#D7A63F"
     : hasArrived
-    ? "#CBA56C"
-    : "#D9C4A4";
+      ? "#CBA56C"
+      : "#D9C4A4";
 
   const tableText = isHighlighted ? "#6A4300" : "#3D3025";
 
@@ -605,13 +616,13 @@ function TableRenderer({ table, hideSeats = false }) {
           <Text
             text={tableLabel}
             width={radius * 2}
-            height={radius * 2 + 30}
+            height={radius * 2 + 42}
             offsetX={radius}
-            offsetY={(radius * 2 + 30) / 2}
+            offsetY={(radius * 2 + 42) / 2}
             align="center"
             verticalAlign="middle"
             fill={tableText}
-            fontSize={14}
+            fontSize={seatingMode === "live" ? 12 : 14}
             lineHeight={1.25}
             listening={false}
             perfectDrawEnabled={false}
@@ -637,13 +648,13 @@ function TableRenderer({ table, hideSeats = false }) {
           <Text
             text={tableLabel}
             width={size}
-            height={size + 30}
+            height={size + 42}
             offsetX={size / 2}
-            offsetY={(size + 30) / 2}
+            offsetY={(size + 42) / 2}
             align="center"
             verticalAlign="middle"
             fill={tableText}
-            fontSize={14}
+            fontSize={seatingMode === "live" ? 12 : 14}
             lineHeight={1.25}
             listening={false}
             perfectDrawEnabled={false}
@@ -669,13 +680,13 @@ function TableRenderer({ table, hideSeats = false }) {
           <Text
             text={tableLabel}
             width={width}
-            height={height + 30}
+            height={height + 42}
             offsetX={width / 2}
-            offsetY={(height + 30) / 2}
+            offsetY={(height + 42) / 2}
             align="center"
             verticalAlign="middle"
             fill={tableText}
-            fontSize={14}
+            fontSize={seatingMode === "live" ? 12 : 14}
             lineHeight={1.25}
             listening={false}
             perfectDrawEnabled={false}
