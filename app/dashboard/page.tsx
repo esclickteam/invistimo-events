@@ -2280,12 +2280,76 @@ const canOpenEventManagement =
       </div>
     )}
 
-    {actualArrivedMoveSuggestions[g._id]?.suggestedTables?.length === 0 &&
-      actualArrivedMoveSuggestions[g._id]?.seatStatus?.status === "over" && (
-        <span className="text-[11px] font-black text-rose-700">
-          לא נמצא שולחן פנוי מתאים
-        </span>
-      )}
+    {actualArrivedMoveSuggestions[g._id]?.currentTable?.canFit === true && (
+  <div className="mt-1 rounded-2xl border border-emerald-100 bg-emerald-50 px-3 py-2">
+    <div className="text-[11px] font-black text-emerald-800">
+      יש מקום בשולחן הנוכחי ·{" "}
+      {actualArrivedMoveSuggestions[g._id]?.currentTable?.freeSeats} פנויים
+    </div>
+
+    <button
+      type="button"
+      onClick={() => forceSyncActualArrived(g._id)}
+      className="
+        mt-1
+        w-fit
+        rounded-full
+        border
+        border-emerald-200
+        bg-white
+        px-3
+        py-1
+        text-[11px]
+        font-black
+        text-emerald-800
+        hover:bg-emerald-100
+      "
+    >
+      אשר תפיסת כיסאות בשולחן הנוכחי
+    </button>
+  </div>
+)}
+
+{actualArrivedMoveSuggestions[g._id]?.suggestedTables?.length > 0 && (
+  <div className="mt-1 rounded-2xl border border-rose-100 bg-rose-50 px-3 py-2">
+    <div className="mb-1 text-[11px] font-black text-rose-800">
+      שולחנות נוספים עם מקום פנוי:
+    </div>
+
+    {actualArrivedMoveSuggestions[g._id].suggestedTables
+      .slice(0, 3)
+      .map((table: any) => (
+        <div
+          key={String(table.tableId || table.tableName)}
+          className="mb-1 flex items-center justify-between gap-2 rounded-xl bg-white px-2 py-1"
+        >
+          <span className="text-[11px] font-bold text-[#1E1B2E]">
+            {table.tableName || `שולחן ${table.tableNumber || ""}`}
+            {table.sameGroup ? " · אותה קבוצה" : ""}
+            {" · "}
+            {table.freeSeats} פנויים
+          </span>
+
+          <button
+            type="button"
+            onClick={() => approveSuggestedTableMove(g, table)}
+            className="rounded-full bg-[#1E1B2E] px-3 py-1 text-[10px] font-black text-white hover:bg-black"
+          >
+            אשר העברה
+          </button>
+        </div>
+      ))}
+  </div>
+)}
+
+{actualArrivedMoveSuggestions[g._id]?.currentTable?.canFit !== true &&
+  actualArrivedMoveSuggestions[g._id]?.suggestedTables?.length === 0 &&
+  actualArrivedMoveSuggestions[g._id]?.seatStatus?.status === "over" && (
+    <span className="text-[11px] font-black text-rose-700">
+      לא נמצא שולחן פנוי מתאים
+    </span>
+  )}
+
   </div>
 )}
 

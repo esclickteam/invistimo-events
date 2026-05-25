@@ -588,16 +588,16 @@ async function syncOrCheckActualArrivedToAllSeating({
           capacity: getLiveTableCapacity(currentTable),
           canFit: canFitCurrent,
         },
-        suggestedTables: canFitCurrent
-          ? []
-          : buildSuggestedLiveTables({
-              tables,
-              guest,
-              guestId,
-              requiredSeats: actual,
-              currentTable,
-              guestLookup,
-            }),
+
+        suggestedTables: buildSuggestedLiveTables({
+  tables,
+  guest,
+  guestId,
+  requiredSeats: actual,
+  currentTable,
+  guestLookup,
+}),
+
         seatStatus: buildSeatStatus(),
       };
     }
@@ -724,16 +724,16 @@ async function syncOrCheckActualArrivedToAllSeating({
               canFit: canFitCurrent,
             }
           : null,
-        suggestedTables: canFitCurrent
-          ? []
-          : buildSuggestedLiveTables({
-              tables: standaloneTables,
-              guest,
-              guestId,
-              requiredSeats: actual,
-              currentTable,
-              guestLookup,
-            }),
+
+        suggestedTables: buildSuggestedLiveTables({
+  tables: standaloneTables,
+  guest,
+  guestId,
+  requiredSeats: actual,
+  currentTable,
+  guestLookup,
+}),
+
         seatStatus: buildSeatStatus(),
       };
     }
