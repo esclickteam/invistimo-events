@@ -239,7 +239,13 @@ function TableRenderer({ table, hideSeats = false }) {
 
       if (seatingMode === "live") {
         const key = String(g.id ?? g._id);
-        return sum + Number(liveArrivals?.[key] ?? 0);
+
+        const liveValue =
+          liveArrivals && Object.prototype.hasOwnProperty.call(liveArrivals, key)
+            ? Number(liveArrivals[key] || 0)
+            : Number(g.actualArrivedCount || 0);
+
+        return sum + liveValue;
       }
 
       return sum + Number(g.arrivedCount ?? 0);
@@ -280,22 +286,156 @@ function TableRenderer({ table, hideSeats = false }) {
 
   const seatsCoords = layout.coords;
 
+  /* ============================================================
+     מצב לייב:
+     seatedGuests נשאר הבסיס של ההושבה הרגילה.
+     כיסאות שהגיעו בפועל = אדום.
+     כיסאות שהיו שמורים אבל לא הגיעו = ירוק.
+     כיסאות שמורים שעדיין לא טופלו = זהב.
+     כיסאות ריקים לגמרי = ירוק פנוי.
+  ============================================================ */
   const arrivedSeatsSet = useMemo(() => {
     const arrived = new Set();
-    let remaining = occupiedSeatsCount;
+
+    if (!table.seatedGuests?.length) return arrived;
+
+    const guestActualMap = new Map();
+
+    for (const seated of table.seatedGuests || []) {
+      const guestId = String(seated.guestId);
+      if (guestActualMap.has(guestId)) continue;
+
+      const guest = guests.find((g) => String(g._id || g.id) === guestId);
+      if (!guest) {
+        guestActualMap.set(guestId, 0);
+        continue;
+      }
+
+      if (seatingMode === "live") {
+        const key = String(guest.id ?? guest._id);
+
+        const liveValue =
+          liveArrivals && Object.prototype.hasOwnProperty.call(liveArrivals, key)
+            ? Number(liveArrivals[key] || 0)
+            : Number(guest.actualArrivedCount || 0);
+
+        guestActualMap.set(guestId, Math.max(0, liveValue));
+      } else {
+        guestActualMap.set(guestId, Math.max(0, Number(guest.arrivedCount || 0)));
+      }
+    }
 
     const sorted = [...(table.seatedGuests || [])].sort(
-      (a, b) => (a.seatIndex ?? 0) - (b.seatIndex ?? 0)
+      (a, b) => Number(a.seatIndex ?? 0) - Number(b.seatIndex ?? 0)
     );
 
-    for (const s of sorted) {
-      if (remaining <= 0) break;
-      arrived.add(s.seatIndex);
-      remaining--;
+    for (const seated of sorted) {
+      const guestId = String(seated.guestId);
+      const remaining = Number(guestActualMap.get(guestId) || 0);
+
+      if (remaining <= 0) continue;
+
+      arrived.add(Number(seated.seatIndex));
+      guestActualMap.set(guestId, remaining - 1);
     }
 
     return arrived;
-  }, [table.seatedGuests, occupiedSeatsCount]);
+  }, [table.seatedGuests, guests, seatingMode, liveArrivals]);
+
+  const getGuestForSeat = (seat) => {
+    if (!seat?.guestId) return null;
+
+    return (
+      guests.find(
+        (g) => String(g._id || g.id) === String(seat.guestId)
+      ) || null
+    );
+  };
+
+  const wasGuestHandledInLive = (seat) => {
+    const guest = getGuestForSeat(seat);
+    if (!guest) return false;
+
+    const key = String(guest.id ?? guest._id);
+
+    return (
+      seatingMode === "live" &&
+      (
+        (liveArrivals &&
+          Object.prototype.hasOwnProperty.call(liveArrivals, key)) ||
+        guest.actualArrivedCount !== undefined ||
+        guest.actualArrivedCount !== null
+      )
+    );
+  };
+
+  const getSeatVisual = (seat, seatIndex) => {
+    /*
+      מצב רגיל נשאר בדיוק כמו שהיה:
+      משובץ = זהב
+      פנוי = לבן/שמנת
+    */
+    if (seatingMode !== "live") {
+      const isOccupied = !!seat;
+
+      return {
+        chairFill: isOccupied ? "#B98A45" : "#FFF9EF",
+        chairStroke: isOccupied ? "#8B6532" : "#D9C3A2",
+        chairHighlight: isOccupied ? "#CBA56C" : "#FFFFFF",
+        chairDepth: isOccupied ? "#9E7135" : "#E9D8BD",
+      };
+    }
+
+    /*
+      מצב לייב:
+      כיסא בלי שיבוץ רגיל בכלל = ירוק פנוי.
+    */
+    if (!seat) {
+      return {
+        chairFill: "#16A34A",
+        chairStroke: "#166534",
+        chairHighlight: "#DCFCE7",
+        chairDepth: "#15803D",
+      };
+    }
+
+    /*
+      כיסא של אורח שהגיע בפועל = אדום.
+    */
+    if (arrivedSeatsSet.has(Number(seatIndex))) {
+      return {
+        chairFill: "#DC2626",
+        chairStroke: "#991B1B",
+        chairHighlight: "#FEE2E2",
+        chairDepth: "#B91C1C",
+      };
+    }
+
+    /*
+      כיסא היה שמור בהושבה הרגילה,
+      אבל אותו אורח כבר טופל בלייב ופחות אנשים הגיעו בפועל =
+      ירוק משוחרר.
+    */
+    if (wasGuestHandledInLive(seat)) {
+      return {
+        chairFill: "#16A34A",
+        chairStroke: "#166534",
+        chairHighlight: "#DCFCE7",
+        chairDepth: "#15803D",
+      };
+    }
+
+    /*
+      כיסא שמור מההושבה הרגילה, אבל עדיין לא נבדק בלייב =
+      זהב.
+    */
+    return {
+      chairFill: "#B98A45",
+      chairStroke: "#8B6532",
+      chairHighlight: "#CBA56C",
+      chairDepth: "#9E7135",
+    };
+  };
 
   const handleDrop = (e) => {
     e.cancelBubble = true;
@@ -404,100 +544,99 @@ function TableRenderer({ table, hideSeats = false }) {
           מצוירים לפני השולחן כדי שחלק מהם ייכנס מתחת לשולחן
       ============================================================ */}
       {seatsCoords.map((c, i) => {
-        const seat = table.seatedGuests.find((s) => s.seatIndex === i);
-
-        const isOccupied =
-          seatingMode === "live" ? arrivedSeatsSet.has(i) : !!seat;
+        const seat = table.seatedGuests?.find((s) => Number(s.seatIndex) === i);
 
         const rotation = getSeatRotation(layout, c);
 
-let chairX = c.x;
-let chairY = c.y;
+        let chairX = c.x;
+        let chairY = c.y;
 
-if (layout.type === "banquet") {
-  /*
-    שולחן אבירים:
-    הכיסאות צריכים להיות צמודים לקצה האמיתי של השולחן,
-    עם חפיפה קטנה בלבד כדי שייראו מחוברים לשולחן
-    אבל לא ייעלמו מתחתיו.
-    בגלל שהשולחן עצמו מסתובב כ-Group,
-    לא צריך להחסיר כאן את table.rotation מהכיסא.
-  */
-  const tableEdgeY = layout.height / 2;
-  const outsideOffset = 2;
+        if (layout.type === "banquet") {
+          /*
+            שולחן אבירים:
+            הכיסאות צריכים להיות צמודים לקצה האמיתי של השולחן,
+            עם חפיפה קטנה בלבד כדי שייראו מחוברים לשולחן
+            אבל לא ייעלמו מתחתיו.
+            בגלל שהשולחן עצמו מסתובב כ-Group,
+            לא צריך להחסיר כאן את table.rotation מהכיסא.
+          */
+          const tableEdgeY = layout.height / 2;
+          const outsideOffset = 2;
 
-  chairY =
-    c.y > 0
-      ? tableEdgeY + outsideOffset
-      : -tableEdgeY - outsideOffset;
-} else {
-  const dist = Math.hypot(c.x, c.y) || 1;
-  const inset = 7;
+          chairY =
+            c.y > 0
+              ? tableEdgeY + outsideOffset
+              : -tableEdgeY - outsideOffset;
+        } else {
+          const dist = Math.hypot(c.x, c.y) || 1;
+          const inset = 7;
 
-  chairX = c.x - (c.x / dist) * inset;
-  chairY = c.y - (c.y / dist) * inset;
-}
+          chairX = c.x - (c.x / dist) * inset;
+          chairY = c.y - (c.y / dist) * inset;
+        }
 
-const chairFill = isOccupied ? "#B98A45" : "#FFF9EF";
-const chairStroke = isOccupied ? "#8B6532" : "#D9C3A2";
-const chairHighlight = isOccupied ? "#CBA56C" : "#FFFFFF";
-const chairDepth = isOccupied ? "#9E7135" : "#E9D8BD";
+        const {
+          chairFill,
+          chairStroke,
+          chairHighlight,
+          chairDepth,
+        } = getSeatVisual(seat, i);
 
-return (
-  <Group key={i} x={chairX} y={chairY} rotation={rotation}>
-    {/* גב הכיסא */}
-    <Rect
-      x={-7}
-      y={-14}
-      width={14}
-      height={6}
-      cornerRadius={2.5}
-      fill={chairFill}
-      stroke={chairStroke}
-      strokeWidth={0.8}
-      perfectDrawEnabled={false}
-    />
+        return (
+          <Group key={i} x={chairX} y={chairY} rotation={rotation}>
+            {/* גב הכיסא */}
+            <Rect
+              x={-7}
+              y={-14}
+              width={14}
+              height={6}
+              cornerRadius={2.5}
+              fill={chairFill}
+              stroke={chairStroke}
+              strokeWidth={0.8}
+              perfectDrawEnabled={false}
+            />
 
-    {/* רווח קטן בין הגב למושב */}
-    <Rect
-      x={-5}
-      y={-8}
-      width={10}
-      height={2}
-      cornerRadius={1}
-      fill={chairDepth}
-      opacity={0.55}
-      listening={false}
-      perfectDrawEnabled={false}
-    />
+            {/* רווח קטן בין הגב למושב */}
+            <Rect
+              x={-5}
+              y={-8}
+              width={10}
+              height={2}
+              cornerRadius={1}
+              fill={chairDepth}
+              opacity={0.55}
+              listening={false}
+              perfectDrawEnabled={false}
+            />
 
-    {/* מושב הכיסא */}
-    <Rect
-      x={-7}
-      y={-6}
-      width={14}
-      height={11}
-      cornerRadius={3}
-      fill={chairFill}
-      stroke={chairStroke}
-      strokeWidth={0.9}
-      perfectDrawEnabled={false}
-    />
+            {/* מושב הכיסא */}
+            <Rect
+              x={-7}
+              y={-6}
+              width={14}
+              height={11}
+              cornerRadius={3}
+              fill={chairFill}
+              stroke={chairStroke}
+              strokeWidth={0.9}
+              perfectDrawEnabled={false}
+            />
 
-    {/* הברקה פנימית עדינה */}
-    <Rect
-      x={-5}
-      y={-4}
-      width={10}
-      height={3}
-      cornerRadius={1.5}
-      fill={chairHighlight}
-      opacity={0.28}
-      listening={false}
-      perfectDrawEnabled={false}
-    />
-  </Group>
-);
+            {/* הברקה פנימית עדינה */}
+            <Rect
+              x={-5}
+              y={-4}
+              width={10}
+              height={3}
+              cornerRadius={1.5}
+              fill={chairHighlight}
+              opacity={0.28}
+              listening={false}
+              perfectDrawEnabled={false}
+            />
+          </Group>
+        );
       })}
 
       {/* שולחן עגול */}
