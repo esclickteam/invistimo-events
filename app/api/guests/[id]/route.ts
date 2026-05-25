@@ -222,10 +222,6 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     const isProducerRole = effectiveRole === "producer";
     const isWorkerRole = effectiveRole === "worker";
 
-    // ✅ חדש: בעל אולם יכול לעדכן אורחים באירוע המשויך אליו,
-    // כולל עדכון "מגיעים בפועל" במצב לייב.
-    const isVenueOwnerRole = effectiveRole === "venue_owner";
-
     const { producerIdStr, isProducerByInvitation } =
       await getInvitationProducerPermission(auth, invitation);
 
@@ -234,12 +230,10 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       isAdmin,
       isProducerRole,
       isWorkerRole,
-      isVenueOwnerRole,
       isProducerByInvitation,
       producerIdStr,
       userId: auth.userId?.toString?.(),
       impersonatedBy: auth.impersonatedBy?.toString?.(),
-      effectiveRole,
     });
 
     // הרשאה כללית לעדכן אורח
@@ -248,7 +242,6 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       !isAdmin &&
       !isProducerRole &&
       !isWorkerRole &&
-      !isVenueOwnerRole &&
       !isProducerByInvitation
     ) {
       console.warn("⛔ Not authorized to update guest");
@@ -430,11 +423,7 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       data.actualArrivedCount >= 0
     ) {
       const canUpdateActualArrived =
-        isAdmin ||
-        isProducerRole ||
-        isWorkerRole ||
-        isVenueOwnerRole ||
-        isProducerByInvitation;
+        isAdmin || isProducerRole || isWorkerRole || isProducerByInvitation;
 
       if (!canUpdateActualArrived) {
         return NextResponse.json(
@@ -543,10 +532,6 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
     const isProducerRole = effectiveRole === "producer";
     const isWorkerRole = effectiveRole === "worker";
 
-    // ✅ חדש גם כאן: אם תרצי בהמשך שבעל אולם יוכל למחוק אורחים מהאירוע שלו.
-    // כרגע זה כלול כדי לשמור על אותה מדיניות כמו PUT.
-    const isVenueOwnerRole = effectiveRole === "venue_owner";
-
     const producerIdStr = invitation.producerId?.toString?.() || null;
     const isProducerByInvitation =
       !!producerIdStr &&
@@ -559,7 +544,6 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
       !isAdmin &&
       !isProducerRole &&
       !isWorkerRole &&
-      !isVenueOwnerRole &&
       !isProducerByInvitation
     ) {
       return NextResponse.json(
