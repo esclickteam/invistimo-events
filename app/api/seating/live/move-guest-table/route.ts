@@ -71,6 +71,14 @@ function getTableStableId(table: any) {
   );
 }
 
+function hasActualArrivedValue(guest: any) {
+  return (
+    guest?.actualArrivedCount !== undefined &&
+    guest?.actualArrivedCount !== null &&
+    guest?.actualArrivedCount !== ""
+  );
+}
+
 function getActualArrivedCount(guest: any) {
   return Math.max(0, Number(guest?.actualArrivedCount || 0));
 }
@@ -83,14 +91,14 @@ function getExpectedArrivedCount(guest: any) {
 }
 
 /*
-  בלייב:
-  אם יש actualArrivedCount — הוא קובע כמה כיסאות תופסים בפועל.
-  אם אין actualArrivedCount — fallback למגיעים שסומנו / מוזמנים.
+  מצב לייב:
+  אם actualArrivedCount קיים — הוא הקובע, גם אם הוא 0.
+  אם actualArrivedCount לא קיים בכלל — fallback למגיעים שסומנו / מוזמנים.
 */
 function getGuestSeatsCountForLive(guest: any) {
-  const actual = getActualArrivedCount(guest);
-
-  if (actual > 0) return actual;
+  if (hasActualArrivedValue(guest)) {
+    return getActualArrivedCount(guest);
+  }
 
   return Math.max(
     1,
@@ -103,13 +111,26 @@ function getGuestSeatStatus(guest: any) {
   const actual = getActualArrivedCount(guest);
   const diff = actual - expected;
 
+  if (!hasActualArrivedValue(guest)) {
+    return {
+      expected,
+      actual,
+      diff: 0,
+      status: "not_set" as const,
+      label: "טרם סומן בפועל",
+    };
+  }
+
   if (actual === 0) {
     return {
       expected,
       actual,
       diff,
-      status: "none" as const,
-      label: "טרם סומן בפועל",
+      status: expected > 0 ? ("under" as const) : ("none" as const),
+      label:
+        expected > 0
+          ? `חסרים ${expected} — כל הכיסאות שוחררו`
+          : "לא הגיעו בפועל",
     };
   }
 
@@ -119,7 +140,7 @@ function getGuestSeatStatus(guest: any) {
       actual,
       diff,
       status: "over" as const,
-      label: `חורג ב-${diff}`,
+      label: `חריגה ${diff} מעל הסימון`,
     };
   }
 
@@ -185,7 +206,10 @@ function getOccupiedSeatsCount(table: any, ignoredGuestId?: string) {
 }
 
 function getFreeSeatsCount(table: any, ignoredGuestId?: string) {
-  return Math.max(0, getCapacity(table) - getOccupiedSeatsCount(table, ignoredGuestId));
+  return Math.max(
+    0,
+    getCapacity(table) - getOccupiedSeatsCount(table, ignoredGuestId)
+  );
 }
 
 function findFreeSeatIndexes(table: any, count: number, guestId: string) {
@@ -476,7 +500,9 @@ function placeGuestInTable({
     ...freeSeats.map((seatIndex) => ({
       guestId,
       seatIndex,
-      arrived: Number(guest.actualArrivedCount || 0) > 0,
+      arrived: hasActualArrivedValue(guest)
+        ? getActualArrivedCount(guest) > 0
+        : false,
     }))
   );
 
@@ -845,6 +871,7 @@ export async function PATCH(req: NextRequest) {
           toTableId,
           actualArrivedCount,
           seatsCount,
+          hasActualArrivedValue: hasActualArrivedValue(guest),
           guestInvitationId: normalizeId(guest.invitationId),
           scopedQueryCount: scopedQuery.length,
           seatingTableDocFound: !!seatingTableDoc,

@@ -44,6 +44,7 @@ export default function AddGuestToTableModal({
   const [openSeat, setOpenSeat] = useState(null);
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [syncingGuestId, setSyncingGuestId] = useState(null);
 
   /* ================= EDIT TABLE NAME ================= */
 
@@ -69,10 +70,25 @@ export default function AddGuestToTableModal({
 
   const getGuestId = (g) => String(g?._id ?? g?.id ?? "");
 
+  const getExpectedCount = (g) => {
+    const arrived = Number(g?.arrivedCount ?? 0);
+    if (arrived > 0) return Math.floor(arrived);
+
+    const guestsCount = Number(g?.guestsCount ?? 0);
+    if (guestsCount > 0) return Math.floor(guestsCount);
+
+    return 0;
+  };
+
+  const getActualCount = (g) => {
+    const actual = Number(g?.actualArrivedCount ?? 0);
+    return actual > 0 ? Math.floor(actual) : 0;
+  };
+
   const getPartySize = (g) => {
     if (isLiveMode) {
-      const actual = Number(g?.actualArrivedCount ?? 0);
-      return actual > 0 ? Math.floor(actual) : 0;
+      const actual = getActualCount(g);
+      return actual > 0 ? actual : 0;
     }
 
     const arrived = Number(g?.arrivedCount ?? 0);
@@ -82,6 +98,113 @@ export default function AddGuestToTableModal({
     if (guestsCount > 0) return Math.floor(guestsCount);
 
     return 1;
+  };
+
+  const getLiveDiff = (g) => {
+    const expected = getExpectedCount(g);
+    const actual = getActualCount(g);
+
+    return {
+      expected,
+      actual,
+      diff: actual - expected,
+    };
+  };
+
+  const getGuestSeatIndexesInCurrentTable = (guestId) => {
+    return (tableData?.seatedGuests || [])
+      .filter((sg) => String(sg?.guestId) === String(guestId))
+      .map((sg) => Number(sg?.seatIndex))
+      .filter((n) => Number.isFinite(n))
+      .sort((a, b) => a - b);
+  };
+
+  const syncGuestSeatsToActual = async (guest) => {
+    if (!tableData || !guest) return;
+
+    const guestId = getGuestId(guest);
+    const actual = getActualCount(guest);
+    const currentIndexes = getGuestSeatIndexesInCurrentTable(guestId);
+    const previousIndexes = [...currentIndexes];
+
+    setSyncingGuestId(guestId);
+    setError("");
+
+    /*
+      במצב לייב:
+      - אם actual = 0: משחררים את כל הכיסאות.
+      - אם actual קטן מהכמות הנוכחית: משאירים רק actual כיסאות.
+      - אם actual גדול מהכמות הנוכחית: מנסים להוסיף כיסאות לפי מקום פנוי.
+    */
+    removeGuestFromTable(tableData.id, guestId);
+
+    if (actual > 0) {
+      const firstSeat = previousIndexes[0] ?? 0;
+
+      const localRes = assignGuestsToTable(
+        tableData.id,
+        guestId,
+        actual,
+        firstSeat
+      );
+
+      if (!localRes?.ok) {
+        // rollback מקומי
+        if (previousIndexes.length > 0) {
+          assignGuestsToTable(
+            tableData.id,
+            guestId,
+            previousIndexes.length,
+            previousIndexes[0]
+          );
+        }
+
+        setError(localRes?.message || "לא ניתן לעדכן את הכיסאות לפי מגיעים בפועל");
+        setSyncingGuestId(null);
+        return;
+      }
+    }
+
+    try {
+      if (onAutoSave) {
+        const ok = await onAutoSave();
+
+        if (!ok) {
+          // rollback מקומי
+          removeGuestFromTable(tableData.id, guestId);
+
+          if (previousIndexes.length > 0) {
+            assignGuestsToTable(
+              tableData.id,
+              guestId,
+              previousIndexes.length,
+              previousIndexes[0]
+            );
+          }
+
+          setError("שמירה נכשלה, הכיסאות הוחזרו למצב הקודם");
+          return;
+        }
+      }
+
+      setError("");
+    } catch {
+      // rollback מקומי
+      removeGuestFromTable(tableData.id, guestId);
+
+      if (previousIndexes.length > 0) {
+        assignGuestsToTable(
+          tableData.id,
+          guestId,
+          previousIndexes.length,
+          previousIndexes[0]
+        );
+      }
+
+      setError("שגיאת רשת בשחרור הכיסאות");
+    } finally {
+      setSyncingGuestId(null);
+    }
   };
 
   const extractNumberFromName = (name) => {
@@ -273,7 +396,7 @@ export default function AddGuestToTableModal({
         matchesSearch
       );
     });
-  }, [tableGuests, searchTerm, remainingSeats, tables]);
+  }, [tableGuests, searchTerm, remainingSeats, tables, isLiveMode]);
 
   /* ================= SEAT GUEST ================= */
 
@@ -282,6 +405,11 @@ export default function AddGuestToTableModal({
 
     const guestId = getGuestId(guest);
     const count = getPartySize(guest);
+
+    if (isLiveMode && count <= 0) {
+      setError("אי אפשר להושיב אורח שלא סומן לו מספר מגיעים בפועל");
+      return;
+    }
 
     const localRes = assignGuestsToTable(
       tableData.id,
@@ -321,6 +449,7 @@ export default function AddGuestToTableModal({
     if (!tableData || !guest) return;
 
     const guestId = getGuestId(guest);
+    const previousIndexes = getGuestSeatIndexesInCurrentTable(guestId);
 
     removeGuestFromTable(tableData.id, guestId);
 
@@ -329,8 +458,15 @@ export default function AddGuestToTableModal({
         const ok = await onAutoSave();
 
         if (!ok) {
-          const count = getPartySize(guest);
-          assignGuestsToTable(tableData.id, guestId, count, 0);
+          if (previousIndexes.length > 0) {
+            assignGuestsToTable(
+              tableData.id,
+              guestId,
+              previousIndexes.length,
+              previousIndexes[0]
+            );
+          }
+
           setError("שמירה נכשלה, ההסרה בוטלה");
           return;
         }
@@ -338,6 +474,15 @@ export default function AddGuestToTableModal({
 
       setError("");
     } catch {
+      if (previousIndexes.length > 0) {
+        assignGuestsToTable(
+          tableData.id,
+          guestId,
+          previousIndexes.length,
+          previousIndexes[0]
+        );
+      }
+
       setError("שגיאת רשת בשמירה");
     }
   };
@@ -521,6 +666,12 @@ export default function AddGuestToTableModal({
               <span className="rounded-full bg-[#FFF1E4] px-3 py-1 text-xs font-bold text-[#A65E27]">
                 {occupancyPercent}% תפוסה
               </span>
+
+              {isLiveMode && (
+                <span className="rounded-full bg-[#FFF8E8] px-3 py-1 text-xs font-bold text-[#9A5A26]">
+                  מצב לייב · הכיסאות לפי מגיעים בפועל
+                </span>
+              )}
             </div>
 
             {/* עדכון מספר מקומות בשולחן */}
@@ -738,14 +889,72 @@ export default function AddGuestToTableModal({
                           {g.name}
                         </div>
 
-                        <div className="flex items-center gap-1 text-[11px] font-black text-[#5A3C1C]">
-                          <CheckCircle2 size={12} />
-                          {getPartySize(g)} מגיעים
-                        </div>
+                        {(() => {
+                          const live = getLiveDiff(g);
+                          const isSyncing = syncingGuestId === getGuestId(g);
 
-                        <div className="mt-0.5 text-[10px] font-bold text-[#6D4A24] opacity-0 transition group-hover:opacity-100">
-                          לחץ להסרה
-                        </div>
+                          return (
+                            <>
+                              <div className="flex items-center gap-1 text-[11px] font-black text-[#5A3C1C]">
+                                <CheckCircle2 size={12} />
+                                {getPartySize(g)} מגיעים
+                              </div>
+
+                              {isLiveMode && live.actual > 0 && live.diff === 0 && (
+                                <div className="text-[10px] font-black text-emerald-700">
+                                  תואם לסימון
+                                </div>
+                              )}
+
+                              {isLiveMode && live.diff < 0 && (
+                                <div className="flex flex-col items-center gap-1">
+                                  <div className="text-[10px] font-black text-amber-700">
+                                    חסרים {Math.abs(live.diff)}
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    disabled={isSyncing}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      syncGuestSeatsToActual(g);
+                                    }}
+                                    className="
+                                      rounded-full
+                                      border border-amber-200
+                                      bg-amber-50
+                                      px-2 py-0.5
+                                      text-[9px]
+                                      font-black
+                                      text-amber-800
+                                      hover:bg-amber-100
+                                      disabled:cursor-not-allowed
+                                      disabled:opacity-60
+                                    "
+                                  >
+                                    {isSyncing ? "משחרר..." : "שחרר כיסאות"}
+                                  </button>
+                                </div>
+                              )}
+
+                              {isLiveMode && live.diff > 0 && (
+                                <div className="text-[10px] font-black text-rose-700">
+                                  חריגה {live.diff}
+                                </div>
+                              )}
+
+                              {isLiveMode && live.actual === 0 && (
+                                <div className="text-[10px] font-black text-[#8B6F5A]">
+                                  לא סומן בפועל
+                                </div>
+                              )}
+
+                              <div className="mt-0.5 text-[10px] font-bold text-[#6D4A24] opacity-0 transition group-hover:opacity-100">
+                                לחץ להסרה
+                              </div>
+                            </>
+                          );
+                        })()}
                       </div>
                     ) : (
                       <div className="flex h-full flex-col items-center justify-center gap-1 pt-3">

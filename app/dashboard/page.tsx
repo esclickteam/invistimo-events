@@ -287,8 +287,12 @@ export default function DashboardPage() {
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const actualArrivedDraftRef = useRef<Record<string, number>>({});
-const actualArrivedSaveTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+const actualArrivedDraftRef = useRef<Record<string, number>>({});
+const actualArrivedSaveTimersRef = useRef<
+  Record<string, ReturnType<typeof setTimeout>>
+>({});
+const actualArrivedRequestVersionRef = useRef<Record<string, number>>({});
+
 
   const groups = useGroupStore((s) => s.groups);
   const searchParams = useSearchParams();
@@ -327,25 +331,69 @@ const actualArrivedSaveTimersRef = useRef<Record<string, ReturnType<typeof setTi
     return user?.role;
   }, [user]);
 
-  const canViewActualArrived =
-    isVenueView ||
+  function hasLiveDashboardAccess(user: any, effectiveRole?: string) {
+  if (!user) return false;
+
+  /*
+    הרשאות חדשות ומקצועיות:
+    בעתיד עדיף לפתוח לייב דרך אחד מהשדות האלה מהשרת / DB.
+  */
+  const hasFeaturePermission =
+    user.canUseLiveDashboard === true ||
+    user.canManageActualArrivals === true ||
+    user.accessModules?.liveDashboard === true ||
+    user.accessModules?.actualArrivals === true ||
+    user.permissions?.liveDashboard === true ||
+    user.permissions?.actualArrivals === true ||
+    user.planLimits?.liveDashboard === true ||
+    user.features?.liveDashboard === true;
+
+  /*
+    fallback כדי לא לשבור את הקיים:
+    מפיק / עובד / בעל אולם / אדמין / התחזות קיימים ממשיכים לעבוד.
+  */
+  const hasLegacyRolePermission =
+    effectiveRole === "admin" ||
     effectiveRole === "producer" ||
     effectiveRole === "worker" ||
     effectiveRole === "venue_owner" ||
-    user?.role === "venue_owner" ||
-    user?.impersonated === true;
+    user.role === "admin" ||
+    user.role === "producer" ||
+    user.role === "worker" ||
+    user.role === "venue_owner" ||
+    user.impersonated === true ||
+    user.impersonatedByAdmin === true;
+
+  return hasFeaturePermission || hasLegacyRolePermission;
+}
+
+const canViewActualArrived =
+  isVenueView || hasLiveDashboardAccess(user, effectiveRole);
 
   const canShowActualArrived =
     canViewActualArrived && workMode === "live";
 
   useEffect(() => {
-    if (!canViewActualArrived) {
-      setSeatingMode("regular");
-      return;
-    }
+  if (!canViewActualArrived) {
+    setWorkMode("regular");
+    setSeatingMode("regular");
+    return;
+  }
 
-    setSeatingMode(workMode === "live" ? "live" : "regular");
-  }, [canViewActualArrived, workMode, setSeatingMode]);
+  setSeatingMode(workMode === "live" ? "live" : "regular");
+}, [canViewActualArrived, workMode, setSeatingMode]);
+
+useEffect(() => {
+  if (!canViewActualArrived) return;
+
+  const savedMode =
+    typeof window !== "undefined" ? localStorage.getItem("workMode") : null;
+
+  if (!savedMode) {
+    setWorkMode("live");
+    setSeatingMode("live");
+  }
+}, [canViewActualArrived, setSeatingMode]);
 
   useEffect(() => {
     if (!isLiveView) return;
@@ -928,13 +976,6 @@ if (!canDeleteAllGuests) {
     loadGroups(invitationId);
   }, [invitationId, isDemo, loadGroups]);
 
-  useEffect(() => {
-  if (isDemo) return;
-  if (!invitationId) return;
-
-  loadGuests();
-  loadSeatingTables();
-}, [invitationId, eventIdFromUrl, invitation, isVenueView]);
 
   const guestTableMap = useMemo(() => {
     const map = new Map<string, any>();
@@ -1400,7 +1441,11 @@ if (quickFilter === "call_needs_correction") {
   const sortArrow = (key: SortKey) =>
     sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "";
 
-  const saveActualArrivedToServer = async (guestId: string, next: number) => {
+const saveActualArrivedToServer = async (
+  guestId: string,
+  next: number,
+  requestVersion?: number
+) => {
   const safeNext = Math.max(0, Number(next || 0));
 
   try {
@@ -1413,35 +1458,50 @@ if (quickFilter === "call_needs_correction") {
 
     const data = await res.json().catch(() => ({}));
 
-    if (!res.ok || data?.success === false) {
-      console.warn("actualArrivedCount failed – rollback", data);
-      await loadGuests();
+    const latestVersion = actualArrivedRequestVersionRef.current[guestId];
+
+    if (
+      requestVersion !== undefined &&
+      latestVersion !== undefined &&
+      requestVersion !== latestVersion
+    ) {
       return;
     }
 
+    if (!res.ok || data?.success === false) {
+      console.warn("actualArrivedCount failed", data);
+      alert(data?.message || data?.error || "לא הצלחנו לעדכן מגיעים בפועל");
+      return;
+    }
+
+    if (Array.isArray(data?.tables)) {
+      setSeatingTables(data.tables);
+    }
+
     if (data?.guest) {
+      const serverActual = data.guest.actualArrivedCount ?? safeNext;
+
       setGuests((prev) =>
         prev.map((g) =>
           String(g._id) === String(guestId)
             ? {
                 ...g,
-                actualArrivedCount:
-                  data.guest.actualArrivedCount ?? safeNext,
+                actualArrivedCount: serverActual,
                 arrivedCount: data.guest.arrivedCount ?? g.arrivedCount,
                 rsvp: data.guest.rsvp ?? g.rsvp,
                 tableName: data.guest.tableName ?? g.tableName,
                 tableId: data.guest.tableId ?? g.tableId,
+                tableNumber: data.guest.tableNumber ?? g.tableNumber,
               }
             : g
         )
       );
 
-      actualArrivedDraftRef.current[guestId] =
-        data.guest.actualArrivedCount ?? safeNext;
+      actualArrivedDraftRef.current[guestId] = serverActual;
     }
   } catch (err) {
     console.error("actualArrivedCount error:", err);
-    await loadGuests();
+    alert("שגיאת רשת בעדכון מגיעים בפועל");
   }
 };
 
@@ -1450,7 +1510,6 @@ const updateActualArrived = (guestId: string, next: number) => {
 
   actualArrivedDraftRef.current[guestId] = safeNext;
 
-  // עדכון מיידי במסך — בלי לחכות לשרת
   setGuests((prev) =>
     prev.map((g) =>
       String(g._id) === String(guestId)
@@ -1462,16 +1521,37 @@ const updateActualArrived = (guestId: string, next: number) => {
     )
   );
 
-  // אם לוחצים מהר — לא שולחים 10 בקשות.
-  // מחכים רגע ושומרים רק את המספר האחרון.
+  const nextVersion =
+    (actualArrivedRequestVersionRef.current[guestId] || 0) + 1;
+
+  actualArrivedRequestVersionRef.current[guestId] = nextVersion;
+
   if (actualArrivedSaveTimersRef.current[guestId]) {
     clearTimeout(actualArrivedSaveTimersRef.current[guestId]);
   }
 
   actualArrivedSaveTimersRef.current[guestId] = setTimeout(() => {
     const latest = actualArrivedDraftRef.current[guestId] ?? safeNext;
-    saveActualArrivedToServer(guestId, latest);
-  }, 250);
+    saveActualArrivedToServer(guestId, latest, nextVersion);
+  }, 60);
+};
+
+const forceSyncActualArrived = (guestId: string) => {
+  const latest =
+    actualArrivedDraftRef.current[guestId] ??
+    guests.find((g) => String(g._id) === String(guestId))?.actualArrivedCount ??
+    0;
+
+  const nextVersion =
+    (actualArrivedRequestVersionRef.current[guestId] || 0) + 1;
+
+  actualArrivedRequestVersionRef.current[guestId] = nextVersion;
+
+  if (actualArrivedSaveTimersRef.current[guestId]) {
+    clearTimeout(actualArrivedSaveTimersRef.current[guestId]);
+  }
+
+  saveActualArrivedToServer(guestId, Number(latest || 0), nextVersion);
 };
 
     const updateGuestTableLocally = (
@@ -1991,16 +2071,38 @@ const canOpenEventManagement =
           )}
 
           {diff > 0 && (
-            <span className="text-xs font-black text-rose-700">
-              חורג ב־{diff}
-            </span>
-          )}
+  <span className="text-xs font-black text-rose-700">
+    חריגה: {diff} מעל הסימון — נדרש מקום פנוי בשולחן
+  </span>
+)}
 
-          {diff < 0 && (
-            <span className="text-xs font-black text-amber-700">
-              חסרים {Math.abs(diff)}
-            </span>
-          )}
+{diff < 0 && (
+  <div className="flex flex-col gap-1">
+    <span className="text-xs font-black text-amber-700">
+      חסרים {Math.abs(diff)} — יש לשחרר כיסאות עודפים
+    </span>
+
+    <button
+      type="button"
+      onClick={() => forceSyncActualArrived(g._id)}
+      className="
+        w-fit
+        rounded-full
+        border
+        border-amber-200
+        bg-amber-50
+        px-3
+        py-1
+        text-[11px]
+        font-black
+        text-amber-800
+        hover:bg-amber-100
+      "
+    >
+      שחרור כיסאות
+    </button>
+  </div>
+)}
         </div>
       );
     })()}
@@ -2046,10 +2148,6 @@ const canOpenEventManagement =
     updateGuestTableLocally(g._id, tableData)
   }
   onTablesUpdated={(nextTables: any[]) => setSeatingTables(nextTables)}
-  onRefresh={async () => {
-    await loadGuests();
-    await loadSeatingTables();
-  }}
 />
                   </td>
                 )}
