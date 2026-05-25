@@ -287,12 +287,10 @@ function TableRenderer({ table, hideSeats = false }) {
   const seatsCoords = layout.coords;
 
   /* ============================================================
-     מצב לייב:
-     seatedGuests נשאר הבסיס של ההושבה הרגילה.
-     כיסאות שהגיעו בפועל = אדום.
-     כיסאות שהיו שמורים אבל לא הגיעו = ירוק.
-     כיסאות שמורים שעדיין לא טופלו = זהב.
-     כיסאות ריקים לגמרי = ירוק פנוי.
+     חישוב כיסאות שהגיעו בפועל
+     חשוב:
+     ההושבה הרגילה נשארת בסיס בלייב.
+     רק כמות actualArrivedCount / liveArrivals צובעת אדום.
   ============================================================ */
   const arrivedSeatsSet = useMemo(() => {
     const arrived = new Set();
@@ -306,6 +304,7 @@ function TableRenderer({ table, hideSeats = false }) {
       if (guestActualMap.has(guestId)) continue;
 
       const guest = guests.find((g) => String(g._id || g.id) === guestId);
+
       if (!guest) {
         guestActualMap.set(guestId, 0);
         continue;
@@ -321,7 +320,10 @@ function TableRenderer({ table, hideSeats = false }) {
 
         guestActualMap.set(guestId, Math.max(0, liveValue));
       } else {
-        guestActualMap.set(guestId, Math.max(0, Number(guest.arrivedCount || 0)));
+        guestActualMap.set(
+          guestId,
+          Math.max(0, Number(guest.arrivedCount || 0))
+        );
       }
     }
 
@@ -342,40 +344,11 @@ function TableRenderer({ table, hideSeats = false }) {
     return arrived;
   }, [table.seatedGuests, guests, seatingMode, liveArrivals]);
 
-  const getGuestForSeat = (seat) => {
-    if (!seat?.guestId) return null;
-
-    return (
-      guests.find(
-        (g) => String(g._id || g.id) === String(seat.guestId)
-      ) || null
-    );
-  };
-
-  const wasGuestHandledInLive = (seat) => {
-  const guest = getGuestForSeat(seat);
-  if (!guest) return false;
-
-  const key = String(guest.id ?? guest._id);
-
-  /*
-    חשוב:
-    לא כל מי שיש לו actualArrivedCount נחשב "טופל בלייב",
-    כי לפעמים השדה קיים כ-0 כברירת מחדל.
-    טופל בלייב רק אם יש לו ערך מפורש בתוך liveArrivals.
-  */
-  return (
-    seatingMode === "live" &&
-    liveArrivals &&
-    Object.prototype.hasOwnProperty.call(liveArrivals, key)
-  );
-};
-
   const getSeatVisual = (seat, seatIndex) => {
     /*
-      מצב רגיל נשאר בדיוק כמו שהיה:
+      מצב רגיל:
       משובץ = זהב
-      פנוי = לבן/שמנת
+      פנוי = שמנת
     */
     if (seatingMode !== "live") {
       const isOccupied = !!seat;
@@ -390,7 +363,7 @@ function TableRenderer({ table, hideSeats = false }) {
 
     /*
       מצב לייב:
-      כיסא בלי שיבוץ רגיל בכלל = ירוק פנוי.
+      אין שיבוץ רגיל בכיסא = ירוק פנוי.
     */
     if (!seat) {
       return {
@@ -402,7 +375,7 @@ function TableRenderer({ table, hideSeats = false }) {
     }
 
     /*
-      כיסא של אורח שהגיע בפועל = אדום.
+      יש שיבוץ רגיל והכיסא נספר כמי שהגיע בפועל = אדום.
     */
     if (arrivedSeatsSet.has(Number(seatIndex))) {
       return {
@@ -414,22 +387,9 @@ function TableRenderer({ table, hideSeats = false }) {
     }
 
     /*
-      כיסא היה שמור בהושבה הרגילה,
-      אבל אותו אורח כבר טופל בלייב ופחות אנשים הגיעו בפועל =
-      ירוק משוחרר.
-    */
-    if (wasGuestHandledInLive(seat)) {
-      return {
-        chairFill: "#16A34A",
-        chairStroke: "#166534",
-        chairHighlight: "#DCFCE7",
-        chairDepth: "#15803D",
-      };
-    }
-
-    /*
-      כיסא שמור מההושבה הרגילה, אבל עדיין לא נבדק בלייב =
-      זהב.
+      יש שיבוץ רגיל אבל עדיין לא הגיע בפועל =
+      זהב, בדיוק כמו ההושבה הרגילה.
+      לא הופכים לירוק רק בגלל actualArrivedCount או liveArrivals.
     */
     return {
       chairFill: "#B98A45",
@@ -546,7 +506,9 @@ function TableRenderer({ table, hideSeats = false }) {
           מצוירים לפני השולחן כדי שחלק מהם ייכנס מתחת לשולחן
       ============================================================ */}
       {seatsCoords.map((c, i) => {
-        const seat = table.seatedGuests?.find((s) => Number(s.seatIndex) === i);
+        const seat = table.seatedGuests?.find(
+          (s) => Number(s.seatIndex) === i
+        );
 
         const rotation = getSeatRotation(layout, c);
 
@@ -554,14 +516,6 @@ function TableRenderer({ table, hideSeats = false }) {
         let chairY = c.y;
 
         if (layout.type === "banquet") {
-          /*
-            שולחן אבירים:
-            הכיסאות צריכים להיות צמודים לקצה האמיתי של השולחן,
-            עם חפיפה קטנה בלבד כדי שייראו מחוברים לשולחן
-            אבל לא ייעלמו מתחתיו.
-            בגלל שהשולחן עצמו מסתובב כ-Group,
-            לא צריך להחסיר כאן את table.rotation מהכיסא.
-          */
           const tableEdgeY = layout.height / 2;
           const outsideOffset = 2;
 
@@ -577,12 +531,8 @@ function TableRenderer({ table, hideSeats = false }) {
           chairY = c.y - (c.y / dist) * inset;
         }
 
-        const {
-          chairFill,
-          chairStroke,
-          chairHighlight,
-          chairDepth,
-        } = getSeatVisual(seat, i);
+        const { chairFill, chairStroke, chairHighlight, chairDepth } =
+          getSeatVisual(seat, i);
 
         return (
           <Group key={i} x={chairX} y={chairY} rotation={rotation}>
@@ -740,8 +690,8 @@ function TableRenderer({ table, hideSeats = false }) {
             layout.type === "round"
               ? -radius - 35
               : layout.type === "square"
-              ? -size / 2 - 35
-              : -height / 2 - 35
+                ? -size / 2 - 35
+                : -height / 2 - 35
           }
           onMouseDown={startRotate}
         >
