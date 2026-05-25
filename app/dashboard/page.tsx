@@ -289,6 +289,9 @@ export default function DashboardPage() {
 
   const [actualArrivedMoveSuggestions, setActualArrivedMoveSuggestions] =
   useState<Record<string, any>>({});
+
+  const [openFreeTablesGuestId, setOpenFreeTablesGuestId] =
+    useState<string | null>(null);
   
 const actualArrivedDraftRef = useRef<Record<string, number>>({});
 const actualArrivedSaveTimersRef = useRef<
@@ -1700,6 +1703,8 @@ const approveSuggestedTableMove = async (
       delete nextState[guestId];
       return nextState;
     });
+
+    setOpenFreeTablesGuestId(null);
   } catch (err) {
     console.error("approveSuggestedTableMove error:", err);
     alert("שגיאת רשת בהעברת שולחן");
@@ -2248,107 +2253,34 @@ const canOpenEventManagement =
       בדוק מקום פנוי
     </button>
 
-    {actualArrivedMoveSuggestions[g._id]?.suggestedTables?.length > 0 && (
-      <div className="mt-1 rounded-2xl border border-rose-100 bg-rose-50 px-3 py-2">
-        <div className="mb-1 text-[11px] font-black text-rose-800">
-          נמצא מקום פנוי:
-        </div>
-
-        {actualArrivedMoveSuggestions[g._id].suggestedTables
-          .slice(0, 2)
-          .map((table: any) => (
-            <div
-              key={String(table.tableId || table.tableName)}
-              className="mb-1 flex items-center justify-between gap-2 rounded-xl bg-white px-2 py-1"
-            >
-              <span className="text-[11px] font-bold text-[#1E1B2E]">
-                {table.tableName || `שולחן ${table.tableNumber || ""}`}
-                {table.sameGroup ? " · אותה קבוצה" : ""}
-                {" · "}
-                {table.freeSeats} פנויים
-              </span>
-
-              <button
-                type="button"
-                onClick={() => approveSuggestedTableMove(g, table)}
-                className="rounded-full bg-[#1E1B2E] px-3 py-1 text-[10px] font-black text-white hover:bg-black"
-              >
-                אשר העברה
-              </button>
-            </div>
-          ))}
-      </div>
-    )}
-
-    {actualArrivedMoveSuggestions[g._id]?.currentTable?.canFit === true && (
-  <div className="mt-1 rounded-2xl border border-emerald-100 bg-emerald-50 px-3 py-2">
-    <div className="text-[11px] font-black text-emerald-800">
-      יש מקום בשולחן הנוכחי ·{" "}
-      {actualArrivedMoveSuggestions[g._id]?.currentTable?.freeSeats} פנויים
-    </div>
-
     <button
       type="button"
-      onClick={() => forceSyncActualArrived(g._id)}
+      onClick={() => {
+        setOpenFreeTablesGuestId(String(g._id));
+        checkSeatOptionsForGuest(g);
+      }}
       className="
-        mt-1
         w-fit
         rounded-full
         border
-        border-emerald-200
-        bg-white
-        px-3
-        py-1
+        border-[#D9B46F]/60
+        bg-gradient-to-l
+        from-[#F6D88A]
+        via-[#FFF7E2]
+        to-white
+        px-4
+        py-1.5
         text-[11px]
         font-black
-        text-emerald-800
-        hover:bg-emerald-100
+        text-[#6B451E]
+        shadow-sm
+        transition
+        hover:-translate-y-0.5
+        hover:shadow-md
       "
     >
-      אשר תפיסת כיסאות בשולחן הנוכחי
+      {actualArrivedMoveSuggestions[g._id] ? "פתח שולחנות פנויים" : "בדוק מקום פנוי"}
     </button>
-  </div>
-)}
-
-{actualArrivedMoveSuggestions[g._id]?.suggestedTables?.length > 0 && (
-  <div className="mt-1 rounded-2xl border border-rose-100 bg-rose-50 px-3 py-2">
-    <div className="mb-1 text-[11px] font-black text-rose-800">
-      שולחנות נוספים עם מקום פנוי:
-    </div>
-
-    {actualArrivedMoveSuggestions[g._id].suggestedTables
-      .slice(0, 3)
-      .map((table: any) => (
-        <div
-          key={String(table.tableId || table.tableName)}
-          className="mb-1 flex items-center justify-between gap-2 rounded-xl bg-white px-2 py-1"
-        >
-          <span className="text-[11px] font-bold text-[#1E1B2E]">
-            {table.tableName || `שולחן ${table.tableNumber || ""}`}
-            {table.sameGroup ? " · אותה קבוצה" : ""}
-            {" · "}
-            {table.freeSeats} פנויים
-          </span>
-
-          <button
-            type="button"
-            onClick={() => approveSuggestedTableMove(g, table)}
-            className="rounded-full bg-[#1E1B2E] px-3 py-1 text-[10px] font-black text-white hover:bg-black"
-          >
-            אשר העברה
-          </button>
-        </div>
-      ))}
-  </div>
-)}
-
-{actualArrivedMoveSuggestions[g._id]?.currentTable?.canFit !== true &&
-  actualArrivedMoveSuggestions[g._id]?.suggestedTables?.length === 0 &&
-  actualArrivedMoveSuggestions[g._id]?.seatStatus?.status === "over" && (
-    <span className="text-[11px] font-black text-rose-700">
-      לא נמצא שולחן פנוי מתאים
-    </span>
-  )}
 
   </div>
 )}
@@ -2545,6 +2477,249 @@ const canOpenEventManagement =
           }}
         />
       </div>
+
+      {openFreeTablesGuestId && (() => {
+        const guest = guests.find(
+          (item) => String(item._id) === String(openFreeTablesGuestId)
+        );
+
+        const suggestion = actualArrivedMoveSuggestions[openFreeTablesGuestId] || {};
+        const currentTable = suggestion?.currentTable || null;
+        const suggestedTables = Array.isArray(suggestion?.suggestedTables)
+          ? suggestion.suggestedTables
+          : [];
+
+        const actual = Number(
+          actualArrivedDraftRef.current[openFreeTablesGuestId] ??
+            guest?.actualArrivedCount ??
+            0
+        );
+
+        const expected = Number(guest?.arrivedCount || 0);
+        const diff = actual - expected;
+        const hasCurrentTableFit = currentTable?.canFit === true;
+        const hasSuggestedTables = suggestedTables.length > 0;
+        const hasAnyFreeOption = hasCurrentTableFit || hasSuggestedTables;
+
+        return (
+          <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#1E1B2E]/55 px-4 py-6 backdrop-blur-sm"
+            onClick={() => setOpenFreeTablesGuestId(null)}
+          >
+            <div
+              dir="rtl"
+              onClick={(e) => e.stopPropagation()}
+              className="relative max-h-[88vh] w-full max-w-4xl overflow-hidden rounded-[34px] border border-[#E4C987] bg-[#FFF9EF] shadow-[0_30px_90px_rgba(30,27,46,0.32)]"
+            >
+              <div className="absolute inset-x-0 top-0 h-44 bg-gradient-to-l from-[#E8C36B]/75 via-[#FFF1C9]/80 to-white" />
+              <div className="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-[#E6B85C]/25 blur-3xl" />
+              <div className="absolute -left-20 top-20 h-52 w-52 rounded-full bg-[#B85C3A]/10 blur-3xl" />
+
+              <div className="relative flex max-h-[88vh] flex-col">
+                <div className="border-b border-[#EADDC7]/80 px-5 pb-5 pt-6 sm:px-8 sm:pt-8">
+                  <button
+                    type="button"
+                    onClick={() => setOpenFreeTablesGuestId(null)}
+                    className="absolute left-5 top-5 flex h-10 w-10 items-center justify-center rounded-full border border-[#D9B46F]/50 bg-white/85 text-xl font-black text-[#4B3A2A] shadow-sm transition hover:bg-white hover:shadow-md"
+                    aria-label="סגירת חלון"
+                  >
+                    ×
+                  </button>
+
+                  <div className="mx-auto flex max-w-2xl flex-col items-center text-center">
+                    <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-[24px] border border-[#E9C979] bg-gradient-to-br from-[#F2D27C] via-[#FFF1BC] to-[#C99142] text-2xl shadow-[0_14px_34px_rgba(139,94,52,0.22)]">
+                      ✨
+                    </div>
+
+                    <div className="text-xs font-black tracking-[0.28em] text-[#B8844F]">
+                      LIVE SEATING
+                    </div>
+
+                    <h3 className="mt-2 text-2xl font-black text-[#1E1B2E] sm:text-3xl">
+                      שולחנות פנויים למוזמן
+                    </h3>
+
+                    <p className="mt-2 text-sm font-bold text-[#7C746C]">
+                      {guest?.name || "מוזמן"} · הגיעו בפועל {actual} מתוך סימון {expected}
+                      {diff > 0 ? ` · חריגה של ${diff}` : ""}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="overflow-y-auto px-5 py-5 sm:px-8 sm:py-6">
+                  {hasCurrentTableFit && (
+                    <div className="mb-5 rounded-[28px] border border-emerald-200 bg-gradient-to-l from-emerald-50 via-white to-white p-5 shadow-sm">
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <div className="text-xs font-black text-emerald-700">
+                            אפשר להשאיר בשולחן הנוכחי
+                          </div>
+
+                          <div className="mt-1 text-xl font-black text-[#1E1B2E]">
+                            {currentTable?.tableName ||
+                              currentTable?.name ||
+                              `שולחן ${currentTable?.tableNumber || ""}`}
+                          </div>
+
+                          <div className="mt-1 text-sm font-bold text-[#6D6258]">
+                            {currentTable?.freeSeats ?? "-"} מקומות פנויים
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => forceSyncActualArrived(openFreeTablesGuestId)}
+                          className="rounded-full bg-gradient-to-l from-emerald-700 to-emerald-600 px-6 py-3 text-sm font-black text-white shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl"
+                        >
+                          אשר תפיסת כיסאות בשולחן הנוכחי
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {hasSuggestedTables && (
+                    <>
+                      <div className="mb-3 flex items-center justify-between gap-3">
+                        <div>
+                          <h4 className="text-lg font-black text-[#1E1B2E]">
+                            כל השולחנות הפנויים שנמצאו
+                          </h4>
+
+                          <p className="text-sm font-bold text-[#8A7A68]">
+                            מוצגים כל השולחנות שהשרת החזיר כרגע
+                          </p>
+                        </div>
+
+                        <div className="rounded-full border border-[#D9B46F]/50 bg-white px-4 py-2 text-xs font-black text-[#8B5E34] shadow-sm">
+                          {suggestedTables.length} אפשרויות
+                        </div>
+                      </div>
+
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {suggestedTables.map((table: any, index: number) => {
+                          const tableName =
+                            table?.tableName ||
+                            table?.name ||
+                            `שולחן ${table?.tableNumber || index + 1}`;
+
+                          const freeSeats =
+                            table?.freeSeats ??
+                            table?.availableSeats ??
+                            table?.remainingSeats ??
+                            "-";
+
+                          return (
+                            <div
+                              key={String(
+                                table?.tableId ||
+                                  table?._id ||
+                                  table?.id ||
+                                  tableName ||
+                                  index
+                              )}
+                              className="group overflow-hidden rounded-[26px] border border-[#E8D8BE] bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-[#D9B46F] hover:shadow-lg"
+                            >
+                              <div className="h-1.5 bg-gradient-to-l from-[#C99142] via-[#F2D27C] to-[#FFF4CD]" />
+
+                              <div className="p-4">
+                                <div className="mb-4 flex items-start justify-between gap-3">
+                                  <div>
+                                    <div className="text-[11px] font-black text-[#B8844F]">
+                                      אפשרות {index + 1}
+                                    </div>
+
+                                    <h5 className="mt-1 text-lg font-black text-[#1E1B2E]">
+                                      {tableName}
+                                    </h5>
+                                  </div>
+
+                                  <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-center">
+                                    <div className="text-[10px] font-black text-emerald-600">
+                                      פנויים
+                                    </div>
+
+                                    <div className="text-lg font-black text-emerald-800">
+                                      {freeSeats}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="mb-4 flex flex-wrap gap-2">
+                                  {table?.sameGroup && (
+                                    <span className="rounded-full border border-[#D9B46F]/50 bg-[#FFF8E6] px-3 py-1 text-[11px] font-black text-[#8B5E34]">
+                                      אותה קבוצה
+                                    </span>
+                                  )}
+
+                                  {table?.reason && (
+                                    <span className="rounded-full border border-[#E7DED1] bg-[#F7F4EF] px-3 py-1 text-[11px] font-bold text-[#6D6258]">
+                                      {table.reason}
+                                    </span>
+                                  )}
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => approveSuggestedTableMove(guest as Guest, table)}
+                                  disabled={!guest}
+                                  className="w-full rounded-full bg-[#1E1B2E] px-5 py-3 text-sm font-black text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-black hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  אשר העברה לשולחן הזה
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+
+                  {!hasAnyFreeOption && (
+                    <div className="rounded-[30px] border border-rose-200 bg-gradient-to-l from-rose-50 via-white to-white p-8 text-center shadow-sm">
+                      <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[24px] bg-white text-3xl shadow-sm">
+                        ⚠️
+                      </div>
+
+                      <h4 className="text-xl font-black text-rose-800">
+                        לא נמצא שולחן פנוי מתאים
+                      </h4>
+
+                      <p className="mx-auto mt-2 max-w-xl text-sm font-semibold leading-6 text-rose-700">
+                        כרגע אין שולחן שהשרת החזיר עם מספיק מקום פנוי לכמות המגיעים בפועל.
+                        אם את רואה שיש שולחנות פנויים במסך, צריך לעדכן את חישוב השרת שיחזיר את כל השולחנות הפנויים ולא רק התאמה מלאה.
+                      </p>
+
+                      <button
+                        type="button"
+                        onClick={() => guest && checkSeatOptionsForGuest(guest)}
+                        className="mt-5 rounded-full border border-rose-200 bg-white px-6 py-3 text-sm font-black text-rose-800 shadow-sm transition hover:bg-rose-50"
+                      >
+                        בדוק שוב
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="border-t border-[#EADDC7]/80 bg-white/55 px-5 py-4 sm:px-8">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-xs font-bold text-[#8A7A68]">
+                      ההצעות מחושבות לפי כמות המגיעים בפועל ולפי מצב ההושבה העדכני.
+                    </p>
+
+                    <button
+                      type="button"
+                      onClick={() => setOpenFreeTablesGuestId(null)}
+                      className="rounded-full border border-[#D9B46F]/50 bg-white px-7 py-2.5 text-sm font-black text-[#6B451E] shadow-sm transition hover:bg-[#FFF8E6]"
+                    >
+                      סגור
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {selectedGuest && (
         <EditGuestModal
