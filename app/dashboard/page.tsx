@@ -1585,7 +1585,7 @@ const updateActualArrived = (guestId: string, next: number) => {
   }, 60);
 };
 
-const forceSyncActualArrived = async (guestId: string) => {
+const forceSyncActualArrived = (guestId: string) => {
   const latest =
     actualArrivedDraftRef.current[guestId] ??
     guests.find((g) => String(g._id) === String(guestId))?.actualArrivedCount ??
@@ -1600,9 +1600,7 @@ const forceSyncActualArrived = async (guestId: string) => {
     clearTimeout(actualArrivedSaveTimersRef.current[guestId]);
   }
 
-  setOpenFreeTablesGuestId(null);
-
-  await saveActualArrivedToServer(guestId, Number(latest || 0), nextVersion, {
+  saveActualArrivedToServer(guestId, Number(latest || 0), nextVersion, {
     syncSeatsToActual: true,
   });
 };
@@ -2295,9 +2293,7 @@ const canOpenEventManagement =
 
     <button
       type="button"
-      onClick={() => {
-  forceSyncActualArrived(g._id);
-}}
+      onClick={() => forceSyncActualArrived(g._id)}
       className="
         w-fit
         rounded-full
