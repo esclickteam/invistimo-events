@@ -931,14 +931,6 @@ if (!canDeleteAllGuests) {
 
   loadGuests();
   loadSeatingTables();
-
-  const interval = setInterval(() => {
-    console.log("🔄 polling guests + seating...");
-    loadGuests();
-    loadSeatingTables();
-  }, 2000);
-
-  return () => clearInterval(interval);
 }, [invitationId, eventIdFromUrl, invitation, isVenueView]);
 
   const guestTableMap = useMemo(() => {
@@ -1406,26 +1398,58 @@ if (quickFilter === "call_needs_correction") {
     sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "";
 
   const updateActualArrived = async (guestId: string, next: number) => {
-    setGuests((prev) =>
-      prev.map((g) =>
-        g._id === guestId
-          ? { ...g, actualArrivedCount: next }
-          : g
-      )
-    );
+  const safeNext = Math.max(0, Number(next || 0));
 
+  // עדכון מיידי במסך
+  setGuests((prev) =>
+    prev.map((g) =>
+      String(g._id) === String(guestId)
+        ? {
+            ...g,
+            actualArrivedCount: safeNext,
+          }
+        : g
+    )
+  );
+
+  try {
     const res = await fetch(`/api/guests/${guestId}`, {
       method: "PUT",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ actualArrivedCount: next }),
+      body: JSON.stringify({ actualArrivedCount: safeNext }),
     });
 
-    if (!res.ok) {
-      console.warn("actualArrivedCount failed – rollback");
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok || data?.success === false) {
+      console.warn("actualArrivedCount failed – rollback", data);
       await loadGuests();
+      return;
     }
-  };
+
+    if (data?.guest) {
+      setGuests((prev) =>
+        prev.map((g) =>
+          String(g._id) === String(guestId)
+            ? {
+                ...g,
+                actualArrivedCount:
+                  data.guest.actualArrivedCount ?? safeNext,
+                arrivedCount: data.guest.arrivedCount ?? g.arrivedCount,
+                rsvp: data.guest.rsvp ?? g.rsvp,
+                tableName: data.guest.tableName ?? g.tableName,
+                tableId: data.guest.tableId ?? g.tableId,
+              }
+            : g
+        )
+      );
+    }
+  } catch (err) {
+    console.error("actualArrivedCount error:", err);
+    await loadGuests();
+  }
+};
 
     const updateGuestTableLocally = (
     guestId: string,
@@ -1895,38 +1919,64 @@ const canOpenEventManagement =
                 </td>
 
                 {canShowActualArrived && (
-                  <td className="p-4">
-                    <div className="inline-flex items-center gap-2 rounded-full border border-[#E7DED1] bg-white px-2 py-1">
-                      <button
-                        onClick={() => {
-                          const next = Math.max(
-                            0,
-                            (g.actualArrivedCount || 0) - 1
-                          );
+  <td className="p-4">
+    {(() => {
+      const expected = Number(g.arrivedCount || 0);
+      const actual = Number(g.actualArrivedCount || 0);
+      const diff = actual - expected;
 
-                          updateActualArrived(g._id, next);
-                        }}
-                        className="h-7 w-7 rounded-full bg-[#F7F4EF] hover:bg-[#EFE8DE] font-black"
-                      >
-                        −
-                      </button>
+      return (
+        <div className="flex flex-col gap-1">
+          <div className="inline-flex w-fit items-center gap-2 rounded-full border border-[#E7DED1] bg-white px-2 py-1">
+            <button
+              type="button"
+              onClick={() => {
+                const current = Number(g.actualArrivedCount || 0);
+                updateActualArrived(g._id, Math.max(0, current - 1));
+              }}
+              className="h-7 w-7 rounded-full bg-[#F7F4EF] hover:bg-[#EFE8DE] font-black"
+            >
+              −
+            </button>
 
-                      <span className="min-w-[22px] text-center font-black text-[#1E1B2E]">
-                        {g.actualArrivedCount || 0}
-                      </span>
+            <span className="min-w-[26px] text-center font-black text-[#1E1B2E]">
+              {actual}
+            </span>
 
-                      <button
-                        onClick={() => {
-                          const next = (g.actualArrivedCount || 0) + 1;
-                          updateActualArrived(g._id, next);
-                        }}
-                        className="h-7 w-7 rounded-full bg-[#F7F4EF] hover:bg-[#EFE8DE] font-black"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </td>
-                )}
+            <button
+              type="button"
+              onClick={() => {
+                const current = Number(g.actualArrivedCount || 0);
+                updateActualArrived(g._id, current + 1);
+              }}
+              className="h-7 w-7 rounded-full bg-[#F7F4EF] hover:bg-[#EFE8DE] font-black"
+            >
+              +
+            </button>
+          </div>
+
+          {actual > 0 && diff === 0 && (
+            <span className="text-xs font-black text-emerald-700">
+              תואם לסימון
+            </span>
+          )}
+
+          {diff > 0 && (
+            <span className="text-xs font-black text-rose-700">
+              חורג ב־{diff}
+            </span>
+          )}
+
+          {diff < 0 && (
+            <span className="text-xs font-black text-amber-700">
+              חסרים {Math.abs(diff)}
+            </span>
+          )}
+        </div>
+      );
+    })()}
+  </td>
+)}
 
                 <td className="p-4 font-bold text-[#1E1B2E] whitespace-nowrap min-w-[120px]">
   <span className="inline-flex items-center whitespace-nowrap">
