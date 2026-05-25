@@ -60,15 +60,6 @@ function getCapacity(table: any) {
   return Number(table?.capacity || table?.seats || table?.seatCount || 12);
 }
 
-function getGuestSeatsCount(guest: any) {
-  return Math.max(
-    1,
-    Number(guest.actualArrivedCount || 0) ||
-      Number(guest.arrivedCount || 0) ||
-      Number(guest.guestsCount || 1)
-  );
-}
-
 function getTableStableId(table: any) {
   return (
     normalizeId(table?._id) ||
@@ -78,6 +69,77 @@ function getTableStableId(table: any) {
     normalizeId(table?.number) ||
     ""
   );
+}
+
+function getActualArrivedCount(guest: any) {
+  return Math.max(0, Number(guest?.actualArrivedCount || 0));
+}
+
+function getExpectedArrivedCount(guest: any) {
+  return Math.max(
+    0,
+    Number(guest?.arrivedCount || 0) || Number(guest?.guestsCount || 0)
+  );
+}
+
+/*
+  בלייב:
+  אם יש actualArrivedCount — הוא קובע כמה כיסאות תופסים בפועל.
+  אם אין actualArrivedCount — fallback למגיעים שסומנו / מוזמנים.
+*/
+function getGuestSeatsCountForLive(guest: any) {
+  const actual = getActualArrivedCount(guest);
+
+  if (actual > 0) return actual;
+
+  return Math.max(
+    1,
+    Number(guest?.arrivedCount || 0) || Number(guest?.guestsCount || 1)
+  );
+}
+
+function getGuestSeatStatus(guest: any) {
+  const expected = getExpectedArrivedCount(guest);
+  const actual = getActualArrivedCount(guest);
+  const diff = actual - expected;
+
+  if (actual === 0) {
+    return {
+      expected,
+      actual,
+      diff,
+      status: "none" as const,
+      label: "טרם סומן בפועל",
+    };
+  }
+
+  if (diff > 0) {
+    return {
+      expected,
+      actual,
+      diff,
+      status: "over" as const,
+      label: `חורג ב-${diff}`,
+    };
+  }
+
+  if (diff < 0) {
+    return {
+      expected,
+      actual,
+      diff,
+      status: "under" as const,
+      label: `חסרים ${Math.abs(diff)} — שוחררו כיסאות בהתאם`,
+    };
+  }
+
+  return {
+    expected,
+    actual,
+    diff,
+    status: "match" as const,
+    label: "תואם לסימון",
+  };
 }
 
 function isTargetTable(table: any, toTableId: string) {
@@ -113,6 +175,17 @@ function cleanGuestFromTable(table: any, guestId: string) {
   table.seatedGuests = (table.seatedGuests || []).filter(
     (sg: any) => !sameId(sg.guestId, guestId)
   );
+}
+
+function getOccupiedSeatsCount(table: any, ignoredGuestId?: string) {
+  return (table?.seatedGuests || []).filter((sg: any) => {
+    if (!ignoredGuestId) return true;
+    return !sameId(sg.guestId, ignoredGuestId);
+  }).length;
+}
+
+function getFreeSeatsCount(table: any, ignoredGuestId?: string) {
+  return Math.max(0, getCapacity(table) - getOccupiedSeatsCount(table, ignoredGuestId));
 }
 
 function findFreeSeatIndexes(table: any, count: number, guestId: string) {
@@ -234,11 +307,6 @@ function sanitizeExistingRounds(rounds: any) {
 }
 
 function sanitizeGuestBeforeSave(guest: any) {
-  /*
-    ✅ תיקון קריטי:
-    ברשומות ישנות callRounds/allRounds.notes יכול להיות "" או string.
-    כל guest.save() נופל בוולידציה גם אם משנים רק שולחן.
-  */
   if (Array.isArray(guest?.callRounds)) {
     guest.callRounds = sanitizeExistingRounds(guest.callRounds);
   }
@@ -331,19 +399,27 @@ function buildDirectTableQuery(toTableId: string) {
 }
 
 function serializeTables(tables: any[]) {
-  return (tables || []).map((table: any) => ({
-    _id: normalizeId(table?._id),
-    id: normalizeId(table?.id),
-    tableId: normalizeId(table?.tableId),
-    name: table?.name,
-    tableNumber: table?.tableNumber,
-    number: table?.number,
-    capacity: table?.capacity,
-    seats: table?.seats,
-    seatCount: table?.seatCount,
-    seatedGuests: table?.seatedGuests || [],
-    seatedGuestsCount: table?.seatedGuests?.length || 0,
-  }));
+  return (tables || []).map((table: any) => {
+    const capacity = getCapacity(table);
+    const seatedGuests = table?.seatedGuests || [];
+    const seatedGuestsCount = seatedGuests.length;
+
+    return {
+      _id: normalizeId(table?._id),
+      id: normalizeId(table?.id),
+      tableId: normalizeId(table?.tableId),
+      name: table?.name,
+      tableNumber: table?.tableNumber,
+      number: table?.number,
+      capacity,
+      seats: table?.seats,
+      seatCount: table?.seatCount,
+      seatedGuests,
+      seatedGuestsCount,
+      freeSeatsCount: Math.max(0, capacity - seatedGuestsCount),
+      isFull: seatedGuestsCount >= capacity,
+    };
+  });
 }
 
 async function updateGuestFields(guest: any, table: any | null) {
@@ -354,6 +430,61 @@ async function updateGuestFields(guest: any, table: any | null) {
   sanitizeGuestBeforeSave(guest);
 
   await guest.save();
+}
+
+function placeGuestInTable({
+  table,
+  guest,
+  guestId,
+  seatsCount,
+}: {
+  table: any;
+  guest: any;
+  guestId: string;
+  seatsCount: number;
+}) {
+  cleanGuestFromTable(table, guestId);
+
+  if (seatsCount <= 0) {
+    return {
+      success: true,
+      released: true,
+      freeSeats: getFreeSeatsCount(table),
+    };
+  }
+
+  const freeSeats = findFreeSeatIndexes(table, seatsCount, guestId);
+
+  if (freeSeats.length < seatsCount) {
+    const capacity = getCapacity(table);
+    const occupiedWithoutGuest = getOccupiedSeatsCount(table, guestId);
+    const available = Math.max(0, capacity - occupiedWithoutGuest);
+
+    return {
+      success: false,
+      message: `אין מספיק מקומות פנויים בשולחן הזה. יש ${available} מקומות פנויים ונדרשים ${seatsCount}.`,
+      capacity,
+      occupiedWithoutGuest,
+      available,
+      required: seatsCount,
+    };
+  }
+
+  table.seatedGuests = table.seatedGuests || [];
+
+  table.seatedGuests.push(
+    ...freeSeats.map((seatIndex) => ({
+      guestId,
+      seatIndex,
+      arrived: Number(guest.actualArrivedCount || 0) > 0,
+    }))
+  );
+
+  return {
+    success: true,
+    released: false,
+    freeSeats: getFreeSeatsCount(table),
+  };
 }
 
 async function applyMoveToTablesArray({
@@ -389,27 +520,24 @@ async function applyMoveToTablesArray({
   }
 
   if (selectedTable) {
-    const freeSeats = findFreeSeatIndexes(selectedTable, seatsCount, guestId);
+    const placement = placeGuestInTable({
+      table: selectedTable,
+      guest,
+      guestId,
+      seatsCount,
+    });
 
-    if (freeSeats.length < seatsCount) {
+    if (!placement.success) {
       return NextResponse.json(
         {
           success: false,
-          message: "אין מספיק מקומות פנויים בשולחן הזה",
+          code: "TABLE_NOT_ENOUGH_FREE_SEATS",
+          message: placement.message || "אין מספיק מקומות פנויים בשולחן הזה",
+          details: placement,
         },
-        { status: 400 }
+        { status: 409 }
       );
     }
-
-    selectedTable.seatedGuests = selectedTable.seatedGuests || [];
-
-    selectedTable.seatedGuests.push(
-      ...freeSeats.map((seatIndex) => ({
-        guestId,
-        seatIndex,
-        arrived: Number(guest.actualArrivedCount || 0) > 0,
-      }))
-    );
   }
 
   await updateGuestFields(guest, selectedTable);
@@ -420,11 +548,14 @@ async function applyMoveToTablesArray({
 
   await ownerDoc.save();
 
+  const seatStatus = getGuestSeatStatus(guest);
+
   return NextResponse.json({
     success: true,
     guest,
     tables: serializeTables(tables),
     table: selectedTable || null,
+    seatStatus,
     source,
   });
 }
@@ -543,27 +674,24 @@ async function applyMoveToLegacyStandaloneTables({
   }
 
   if (selectedTable) {
-    const freeSeats = findFreeSeatIndexes(selectedTable, seatsCount, guestId);
+    const placement = placeGuestInTable({
+      table: selectedTable,
+      guest,
+      guestId,
+      seatsCount,
+    });
 
-    if (freeSeats.length < seatsCount) {
+    if (!placement.success) {
       return NextResponse.json(
         {
           success: false,
-          message: "אין מספיק מקומות פנויים בשולחן הזה",
+          code: "TABLE_NOT_ENOUGH_FREE_SEATS",
+          message: placement.message || "אין מספיק מקומות פנויים בשולחן הזה",
+          details: placement,
         },
-        { status: 400 }
+        { status: 409 }
       );
     }
-
-    selectedTable.seatedGuests = selectedTable.seatedGuests || [];
-
-    selectedTable.seatedGuests.push(
-      ...freeSeats.map((seatIndex) => ({
-        guestId,
-        seatIndex,
-        arrived: Number(guest.actualArrivedCount || 0) > 0,
-      }))
-    );
 
     await selectedTable.save();
   }
@@ -574,11 +702,15 @@ async function applyMoveToLegacyStandaloneTables({
     _id: { $in: tables.map((table: any) => table._id) },
   }).lean();
 
+  const nextTables = freshTables.length ? freshTables : tables;
+  const seatStatus = getGuestSeatStatus(guest);
+
   return NextResponse.json({
     success: true,
     guest,
-    tables: serializeTables(freshTables.length ? freshTables : tables),
+    tables: serializeTables(nextTables),
     table: selectedTable || null,
+    seatStatus,
     source: "SeatingTableLegacy",
   });
 }
@@ -619,13 +751,10 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    const seatsCount = getGuestSeatsCount(guest);
+    const actualArrivedCount = getActualArrivedCount(guest);
+    const seatsCount = getGuestSeatsCountForLive(guest);
     const scopedQuery = buildScopedQuery(eventId, guest);
 
-    /*
-      1. SeatingTable במבנה:
-      מסמך אחד שיש בתוכו tables[].
-    */
     const seatingTableDoc = await findSeatingTableDocByScopeOrDirect({
       scopedQuery,
       toTableId,
@@ -657,9 +786,6 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
-    /*
-      2. Seating במידה ויש אצלך גם מודל ישן/מקביל עם tables[].
-    */
     const seatingDoc = scopedQuery.length
       ? await Seating.findOne({
           $or: scopedQuery,
@@ -690,10 +816,6 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
-    /*
-      3. fallback אחרון:
-      אם קיימים שולחנות כמסמכים נפרדים.
-    */
     const legacyTables = await findLegacyStandaloneTables({
       scopedQuery,
       toTableId,
@@ -721,6 +843,8 @@ export async function PATCH(req: NextRequest) {
           eventId,
           guestId,
           toTableId,
+          actualArrivedCount,
+          seatsCount,
           guestInvitationId: normalizeId(guest.invitationId),
           scopedQueryCount: scopedQuery.length,
           seatingTableDocFound: !!seatingTableDoc,
