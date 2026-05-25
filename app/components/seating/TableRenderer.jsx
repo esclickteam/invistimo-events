@@ -353,21 +353,23 @@ function TableRenderer({ table, hideSeats = false }) {
   };
 
   const wasGuestHandledInLive = (seat) => {
-    const guest = getGuestForSeat(seat);
-    if (!guest) return false;
+  const guest = getGuestForSeat(seat);
+  if (!guest) return false;
 
-    const key = String(guest.id ?? guest._id);
+  const key = String(guest.id ?? guest._id);
 
-    return (
-      seatingMode === "live" &&
-      (
-        (liveArrivals &&
-          Object.prototype.hasOwnProperty.call(liveArrivals, key)) ||
-        guest.actualArrivedCount !== undefined ||
-        guest.actualArrivedCount !== null
-      )
-    );
-  };
+  /*
+    חשוב:
+    לא כל מי שיש לו actualArrivedCount נחשב "טופל בלייב",
+    כי לפעמים השדה קיים כ-0 כברירת מחדל.
+    טופל בלייב רק אם יש לו ערך מפורש בתוך liveArrivals.
+  */
+  return (
+    seatingMode === "live" &&
+    liveArrivals &&
+    Object.prototype.hasOwnProperty.call(liveArrivals, key)
+  );
+};
 
   const getSeatVisual = (seat, seatIndex) => {
     /*
