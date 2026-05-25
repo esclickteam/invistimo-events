@@ -292,6 +292,9 @@ export default function DashboardPage() {
 
   const [openFreeTablesGuestId, setOpenFreeTablesGuestId] =
     useState<string | null>(null);
+
+  const [freeTablesCheckingGuestId, setFreeTablesCheckingGuestId] =
+    useState<string | null>(null);
   
 const actualArrivedDraftRef = useRef<Record<string, number>>({});
 const actualArrivedSaveTimersRef = useRef<
@@ -1608,7 +1611,7 @@ const forceSyncActualArrived = async (guestId: string) => {
   });
 };
 
-const checkSeatOptionsForGuest = (guest: Guest) => {
+const checkSeatOptionsForGuest = async (guest: Guest) => {
   const guestId = String(guest._id);
 
   const latest =
@@ -1625,9 +1628,23 @@ const checkSeatOptionsForGuest = (guest: Guest) => {
     clearTimeout(actualArrivedSaveTimersRef.current[guestId]);
   }
 
-  saveActualArrivedToServer(guestId, Number(latest || 0), nextVersion, {
-    checkSeatOptionsOnly: true,
+  setFreeTablesCheckingGuestId(guestId);
+
+  setActualArrivedMoveSuggestions((prev) => {
+    const nextState = { ...prev };
+    delete nextState[guestId];
+    return nextState;
   });
+
+  try {
+    await saveActualArrivedToServer(guestId, Number(latest || 0), nextVersion, {
+      checkSeatOptionsOnly: true,
+    });
+  } finally {
+    setFreeTablesCheckingGuestId((current) =>
+      current === guestId ? null : current
+    );
+  }
 };
 
 const approveSuggestedTableMove = async (
@@ -2463,7 +2480,8 @@ const canOpenEventManagement =
           (item) => String(item._id) === String(openFreeTablesGuestId)
         );
 
-        const suggestion = actualArrivedMoveSuggestions[openFreeTablesGuestId] || {};
+        const suggestion = actualArrivedMoveSuggestions[openFreeTablesGuestId];
+        const hasServerAnswer = Boolean(suggestion);
         const currentTable = suggestion?.currentTable || null;
         const suggestedTables = Array.isArray(suggestion?.suggestedTables)
           ? suggestion.suggestedTables
@@ -2480,6 +2498,10 @@ const canOpenEventManagement =
         const hasCurrentTableFit = currentTable?.canFit === true;
         const hasSuggestedTables = suggestedTables.length > 0;
         const hasAnyFreeOption = hasCurrentTableFit || hasSuggestedTables;
+        const isCheckingFreeTables =
+          freeTablesCheckingGuestId === openFreeTablesGuestId;
+        const shouldShowCheckingFreeTables =
+          !hasServerAnswer || (isCheckingFreeTables && !hasAnyFreeOption);
 
         return (
           <div
@@ -2654,7 +2676,21 @@ const canOpenEventManagement =
                     </>
                   )}
 
-                  {!hasAnyFreeOption && (
+                  {shouldShowCheckingFreeTables && (
+                    <div className="rounded-[30px] border border-[#E4C987] bg-gradient-to-l from-[#FFF8E6] via-white to-white p-8 text-center shadow-sm">
+                      <div className="mx-auto mb-4 h-11 w-11 animate-spin rounded-full border-4 border-[#F1D796] border-t-[#9C6B2F]" />
+
+                      <h4 className="text-xl font-black text-[#6B451E]">
+                        בודק שולחנות פנויים...
+                      </h4>
+
+                      <p className="mx-auto mt-2 max-w-xl text-sm font-semibold leading-6 text-[#8A6B3E]">
+                        המערכת מחשבת בזמן אמת איפה יש מקום פנוי לפי כמות המגיעים בפועל.
+                      </p>
+                    </div>
+                  )}
+
+                  {!shouldShowCheckingFreeTables && hasServerAnswer && !hasAnyFreeOption && (
                     <div className="rounded-[30px] border border-rose-200 bg-gradient-to-l from-rose-50 via-white to-white p-8 text-center shadow-sm">
                       <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[24px] bg-white text-3xl shadow-sm">
                         ⚠️
