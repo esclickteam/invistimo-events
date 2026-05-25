@@ -1585,7 +1585,7 @@ const updateActualArrived = (guestId: string, next: number) => {
   }, 60);
 };
 
-const forceSyncActualArrived = (guestId: string) => {
+const forceSyncActualArrived = async (guestId: string) => {
   const latest =
     actualArrivedDraftRef.current[guestId] ??
     guests.find((g) => String(g._id) === String(guestId))?.actualArrivedCount ??
@@ -1600,7 +1600,10 @@ const forceSyncActualArrived = (guestId: string) => {
     clearTimeout(actualArrivedSaveTimersRef.current[guestId]);
   }
 
-  saveActualArrivedToServer(guestId, Number(latest || 0), nextVersion, {
+  // סוגר את המודאל מיד אחרי אישור תפיסת הכיסאות
+  setOpenFreeTablesGuestId(null);
+
+  await saveActualArrivedToServer(guestId, Number(latest || 0), nextVersion, {
     syncSeatsToActual: true,
   });
 };
@@ -2229,29 +2232,6 @@ const canOpenEventManagement =
 
           {diff > 0 && (
   <div className="flex flex-col gap-1">
-    <span className="text-xs font-black text-rose-700">
-      חריגה: {diff} מעל הסימון — צריך לבדוק מקום פנוי
-    </span>
-
-    <button
-      type="button"
-      onClick={() => checkSeatOptionsForGuest(g)}
-      className="
-        w-fit
-        rounded-full
-        border
-        border-rose-200
-        bg-rose-50
-        px-3
-        py-1
-        text-[11px]
-        font-black
-        text-rose-800
-        hover:bg-rose-100
-      "
-    >
-      בדוק מקום פנוי
-    </button>
 
     <button
       type="button"
