@@ -453,12 +453,30 @@ function TableRenderer({ table, hideSeats = false }) {
     };
   };
 
-  const renderTableCenterLines = (boxWidth) => {
-    const lineHeight = seatingMode === "live" ? 22 : 26;
-    const totalHeight = tableLines.length * lineHeight;
-    const startY = -totalHeight / 2 + 2;
+  const renderTableCenterLines = (boxWidth, compact = false) => {
+  const lineHeight =
+    seatingMode === "live"
+      ? compact
+        ? 17
+        : 22
+      : compact
+        ? 21
+        : 26;
 
-    return tableLines.map((line, index) => (
+  const totalHeight = tableLines.length * lineHeight;
+
+  const startY =
+    seatingMode === "live" && compact
+      ? -totalHeight / 2 + 7
+      : -totalHeight / 2 + 2;
+
+  return tableLines.map((line, index) => {
+    const safeFontSize =
+      seatingMode === "live" && compact
+        ? Math.min(Number(line.fontSize || 13), index <= 1 ? 12 : 13)
+        : line.fontSize;
+
+    return (
       <Text
         key={`table-line-${index}`}
         text={line.text}
@@ -468,13 +486,14 @@ function TableRenderer({ table, hideSeats = false }) {
         align="center"
         verticalAlign="middle"
         fill={line.fill}
-        fontSize={line.fontSize}
+        fontSize={safeFontSize}
         fontStyle={line.fontStyle}
         listening={false}
         perfectDrawEnabled={false}
       />
-    ));
-  };
+    );
+  });
+};
 
   const handleDrop = (e) => {
     e.cancelBubble = true;
@@ -717,7 +736,7 @@ function TableRenderer({ table, hideSeats = false }) {
             perfectDrawEnabled={false}
           />
 
-          {renderTableCenterLines(width)}
+          {renderTableCenterLines(width, true)}
         </>
       )}
 
