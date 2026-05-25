@@ -374,14 +374,20 @@ const canViewActualArrived =
     canViewActualArrived && workMode === "live";
 
   useEffect(() => {
+  // לא לשנות מצב לפני שהמשתמש נטען,
+  // אחרת ברענון זה עלול להחזיר בטעות ל-regular.
+  if (!isDemo && !user) return;
+
   if (!canViewActualArrived) {
     setWorkMode("regular");
     setSeatingMode("regular");
     return;
   }
 
+  // שומר בדיוק את מה שבחרת:
+  // LIVE נשאר LIVE, רגיל נשאר רגיל.
   setSeatingMode(workMode === "live" ? "live" : "regular");
-}, [canViewActualArrived, workMode, setSeatingMode]);
+}, [isDemo, user, canViewActualArrived, workMode, setSeatingMode]);
 
 useEffect(() => {
   if (!canViewActualArrived) return;
