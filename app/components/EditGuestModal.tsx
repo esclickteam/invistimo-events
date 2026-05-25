@@ -44,32 +44,56 @@ export default function EditGuestModal({
     setLoading(true);
 
     try {
+      const safeGuestsCount = Math.max(1, Number(guestsCount || 1));
+
+      const safeArrivedCount =
+        rsvp === "no"
+          ? 0
+          : rsvp === "pending"
+            ? 0
+            : Math.max(1, Number(arrivedCount || 1));
+
       const payload = {
         name,
         phone,
         relation,
         rsvp,
-        guestsCount: Number(guestsCount),
-        arrivedCount: Number(arrivedCount),
+        status: rsvp,
+        guestsCount: safeGuestsCount,
+        arrivedCount: safeArrivedCount,
+        amount: safeArrivedCount,
         notes,
       };
 
       const res = await fetch(`/api/guests/${guest._id}`, {
         method: "PUT",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) {
-        alert("❌ שגיאה בעדכון אורח");
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || data?.success === false) {
+        console.error("❌ Update guest failed:", {
+          status: res.status,
+          data,
+          payload,
+        });
+
+        alert(
+          data?.message ||
+            data?.error ||
+            `❌ שגיאה בעדכון אורח. קוד שגיאה: ${res.status}`
+        );
+
         return;
       }
 
-      const data = await res.json();
       onSuccess(data.guest ?? data);
       onClose();
     } catch (err) {
-      console.error(err);
+      console.error("❌ EditGuestModal save error:", err);
       alert("❌ שגיאת שרת");
     } finally {
       setLoading(false);
@@ -248,7 +272,18 @@ export default function EditGuestModal({
               <select
                 className={inputClass}
                 value={rsvp}
-                onChange={(e) => setRsvp(e.target.value as any)}
+                onChange={(e) => {
+                  const nextRsvp = e.target.value as "pending" | "yes" | "no";
+                  setRsvp(nextRsvp);
+
+                  if (nextRsvp === "no" || nextRsvp === "pending") {
+                    setArrivedCount(0);
+                  }
+
+                  if (nextRsvp === "yes" && arrivedCount <= 0) {
+                    setArrivedCount(guestsCount || 1);
+                  }
+                }}
               >
                 <option value="pending">בהמתנה</option>
                 <option value="yes">מגיע</option>
@@ -262,7 +297,18 @@ export default function EditGuestModal({
                 min={1}
                 className={inputClass}
                 value={guestsCount}
-                onChange={(e) => setGuestsCount(Number(e.target.value))}
+                onChange={(e) => {
+                  const nextGuestsCount = Math.max(
+                    1,
+                    Number(e.target.value || 1)
+                  );
+
+                  setGuestsCount(nextGuestsCount);
+
+                  if (rsvp === "yes" && arrivedCount <= 0) {
+                    setArrivedCount(nextGuestsCount);
+                  }
+                }}
               />
             </Field>
 
@@ -312,8 +358,8 @@ export default function EditGuestModal({
               text-[#7A6046]
             "
           >
-           שימו לב: שינוי סטטוס ל״מגיע״ יעדכן את כמות המגיעים לפי השדה
-            “מגיעים”. שינוי ל״לא מגיע״ אמור לאפס את כמות המגיעים לפי השרת.
+            שימו לב: שינוי סטטוס ל״מגיע״ יעדכן את כמות המגיעים לפי השדה
+            “מגיעים”. שינוי ל״לא מגיע״ או ״בהמתנה״ יאפס את כמות המגיעים.
           </div>
         </div>
 
