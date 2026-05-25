@@ -138,6 +138,116 @@ function findFreeSeatIndexes(table: any, count: number, guestId: string) {
   return free;
 }
 
+function normalizeRoundNotes(notes: any) {
+  if (notes === null || notes === undefined || notes === "") return [];
+
+  if (typeof notes === "string") {
+    const text = notes.trim();
+
+    if (!text) return [];
+
+    return [
+      {
+        text,
+        createdAt: new Date(),
+        createdBy: "מערכת",
+      },
+    ];
+  }
+
+  if (!Array.isArray(notes)) {
+    const text =
+      typeof notes?.text === "string"
+        ? notes.text.trim()
+        : typeof notes?.note === "string"
+          ? notes.note.trim()
+          : "";
+
+    if (!text) return [];
+
+    return [
+      {
+        text,
+        createdAt: notes?.createdAt ? new Date(notes.createdAt) : new Date(),
+        createdBy:
+          typeof notes?.createdBy === "string" && notes.createdBy.trim()
+            ? notes.createdBy.trim()
+            : "מערכת",
+      },
+    ];
+  }
+
+  return notes
+    .map((note) => {
+      if (note === null || note === undefined || note === "") {
+        return null;
+      }
+
+      if (typeof note === "string") {
+        const text = note.trim();
+
+        if (!text) return null;
+
+        return {
+          text,
+          createdAt: new Date(),
+          createdBy: "מערכת",
+        };
+      }
+
+      const text =
+        typeof note?.text === "string"
+          ? note.text.trim()
+          : typeof note?.note === "string"
+            ? note.note.trim()
+            : "";
+
+      if (!text) return null;
+
+      return {
+        text,
+        createdAt: note?.createdAt ? new Date(note.createdAt) : new Date(),
+        createdBy:
+          typeof note?.createdBy === "string" && note.createdBy.trim()
+            ? note.createdBy.trim()
+            : "מערכת",
+      };
+    })
+    .filter(Boolean);
+}
+
+function sanitizeExistingRounds(rounds: any) {
+  if (!Array.isArray(rounds)) return rounds;
+
+  return rounds.map((round: any, index: number) => {
+    const raw =
+      round && typeof round.toObject === "function"
+        ? round.toObject()
+        : round || {};
+
+    return {
+      ...raw,
+      roundNumber: Number(raw?.roundNumber ?? index + 1),
+      notes: normalizeRoundNotes(raw?.notes),
+    };
+  });
+}
+
+function sanitizeGuestBeforeSave(guest: any) {
+  /*
+    ✅ תיקון קריטי:
+    ברשומות ישנות callRounds/allRounds.notes יכול להיות "" או string.
+    כל guest.save() נופל בוולידציה גם אם משנים רק שולחן.
+  */
+  if (Array.isArray(guest?.callRounds)) {
+    guest.callRounds = sanitizeExistingRounds(guest.callRounds);
+  }
+
+  if (Array.isArray(guest?.allRounds)) {
+    guest.allRounds = sanitizeExistingRounds(guest.allRounds);
+  }
+}
+
 function buildScopedQuery(eventId: string, guest: any) {
   const invitationId = normalizeId(guest.invitationId || guest.invitation);
 
@@ -231,6 +341,7 @@ function serializeTables(tables: any[]) {
     capacity: table?.capacity,
     seats: table?.seats,
     seatCount: table?.seatCount,
+    seatedGuests: table?.seatedGuests || [],
     seatedGuestsCount: table?.seatedGuests?.length || 0,
   }));
 }
@@ -239,6 +350,8 @@ async function updateGuestFields(guest: any, table: any | null) {
   guest.tableId = table ? getTableStableId(table) : null;
   guest.tableName = table ? getTableLabel(table) : "";
   guest.tableNumber = table ? getTableNumber(table) : undefined;
+
+  sanitizeGuestBeforeSave(guest);
 
   await guest.save();
 }
@@ -310,7 +423,7 @@ async function applyMoveToTablesArray({
   return NextResponse.json({
     success: true,
     guest,
-    tables,
+    tables: serializeTables(tables),
     table: selectedTable || null,
     source,
   });
@@ -464,7 +577,7 @@ async function applyMoveToLegacyStandaloneTables({
   return NextResponse.json({
     success: true,
     guest,
-    tables: freshTables.length ? freshTables : tables,
+    tables: serializeTables(freshTables.length ? freshTables : tables),
     table: selectedTable || null,
     source: "SeatingTableLegacy",
   });
@@ -510,9 +623,8 @@ export async function PATCH(req: NextRequest) {
     const scopedQuery = buildScopedQuery(eventId, guest);
 
     /*
-      1. SeatingTable במבנה האמיתי שלך:
+      1. SeatingTable במבנה:
       מסמך אחד שיש בתוכו tables[].
-      זה החלק החשוב שהיה חסר.
     */
     const seatingTableDoc = await findSeatingTableDocByScopeOrDirect({
       scopedQuery,
@@ -579,9 +691,8 @@ export async function PATCH(req: NextRequest) {
     }
 
     /*
-      3. fallback אחרון בלבד:
+      3. fallback אחרון:
       אם קיימים שולחנות כמסמכים נפרדים.
-      לא משתמשים בזה כברירת מחדל כדי לא לשבור את המבנה שלך.
     */
     const legacyTables = await findLegacyStandaloneTables({
       scopedQuery,

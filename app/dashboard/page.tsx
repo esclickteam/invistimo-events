@@ -287,6 +287,9 @@ export default function DashboardPage() {
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const actualArrivedDraftRef = useRef<Record<string, number>>({});
+const actualArrivedSaveTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
   const groups = useGroupStore((s) => s.groups);
   const searchParams = useSearchParams();
   const eventIdFromUrl = searchParams.get("eventId");
@@ -1397,20 +1400,8 @@ if (quickFilter === "call_needs_correction") {
   const sortArrow = (key: SortKey) =>
     sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "";
 
-  const updateActualArrived = async (guestId: string, next: number) => {
+  const saveActualArrivedToServer = async (guestId: string, next: number) => {
   const safeNext = Math.max(0, Number(next || 0));
-
-  // עדכון מיידי במסך
-  setGuests((prev) =>
-    prev.map((g) =>
-      String(g._id) === String(guestId)
-        ? {
-            ...g,
-            actualArrivedCount: safeNext,
-          }
-        : g
-    )
-  );
 
   try {
     const res = await fetch(`/api/guests/${guestId}`, {
@@ -1444,11 +1435,43 @@ if (quickFilter === "call_needs_correction") {
             : g
         )
       );
+
+      actualArrivedDraftRef.current[guestId] =
+        data.guest.actualArrivedCount ?? safeNext;
     }
   } catch (err) {
     console.error("actualArrivedCount error:", err);
     await loadGuests();
   }
+};
+
+const updateActualArrived = (guestId: string, next: number) => {
+  const safeNext = Math.max(0, Number(next || 0));
+
+  actualArrivedDraftRef.current[guestId] = safeNext;
+
+  // עדכון מיידי במסך — בלי לחכות לשרת
+  setGuests((prev) =>
+    prev.map((g) =>
+      String(g._id) === String(guestId)
+        ? {
+            ...g,
+            actualArrivedCount: safeNext,
+          }
+        : g
+    )
+  );
+
+  // אם לוחצים מהר — לא שולחים 10 בקשות.
+  // מחכים רגע ושומרים רק את המספר האחרון.
+  if (actualArrivedSaveTimersRef.current[guestId]) {
+    clearTimeout(actualArrivedSaveTimersRef.current[guestId]);
+  }
+
+  actualArrivedSaveTimersRef.current[guestId] = setTimeout(() => {
+    const latest = actualArrivedDraftRef.current[guestId] ?? safeNext;
+    saveActualArrivedToServer(guestId, latest);
+  }, 250);
 };
 
     const updateGuestTableLocally = (
@@ -1931,9 +1954,12 @@ const canOpenEventManagement =
             <button
               type="button"
               onClick={() => {
-                const current = Number(g.actualArrivedCount || 0);
-                updateActualArrived(g._id, Math.max(0, current - 1));
-              }}
+  const current =
+    actualArrivedDraftRef.current[g._id] ??
+    Number(g.actualArrivedCount || 0);
+
+  updateActualArrived(g._id, Math.max(0, current - 1));
+}}
               className="h-7 w-7 rounded-full bg-[#F7F4EF] hover:bg-[#EFE8DE] font-black"
             >
               −
@@ -1946,9 +1972,12 @@ const canOpenEventManagement =
             <button
               type="button"
               onClick={() => {
-                const current = Number(g.actualArrivedCount || 0);
-                updateActualArrived(g._id, current + 1);
-              }}
+  const current =
+    actualArrivedDraftRef.current[g._id] ??
+    Number(g.actualArrivedCount || 0);
+
+  updateActualArrived(g._id, current + 1);
+}}
               className="h-7 w-7 rounded-full bg-[#F7F4EF] hover:bg-[#EFE8DE] font-black"
             >
               +

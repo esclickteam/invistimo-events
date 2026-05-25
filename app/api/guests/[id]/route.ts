@@ -54,10 +54,60 @@ function toSafeNumber(value: any, fallback = 0) {
 }
 
 function normalizeCallRoundNotes(notes: any) {
-  if (!Array.isArray(notes)) return [];
+  /*
+    ✅ תיקון חשוב:
+    ברשומות ישנות notes יכול להיות:
+    - string
+    - ""
+    - object
+    - array
+    המודל מצפה לאובייקטים/מערך תקין, ולכן מנקים הכל לפורמט אחיד.
+  */
+
+  if (notes === null || notes === undefined || notes === "") return [];
+
+  if (typeof notes === "string") {
+    const text = notes.trim();
+
+    if (!text) return [];
+
+    return [
+      {
+        text,
+        createdAt: new Date(),
+        createdBy: "מערכת",
+      },
+    ];
+  }
+
+  if (!Array.isArray(notes)) {
+    const text =
+      typeof notes?.text === "string"
+        ? notes.text.trim()
+        : typeof notes?.note === "string"
+          ? notes.note.trim()
+          : "";
+
+    if (!text) return [];
+
+    return [
+      {
+        text,
+        createdAt: notes?.createdAt ? new Date(notes.createdAt) : new Date(),
+        createdBy:
+          typeof notes?.createdBy === "string" && notes.createdBy.trim()
+            ? notes.createdBy.trim()
+            : "מערכת",
+      },
+    ];
+  }
 
   return notes
     .map((note) => {
+      if (note === null || note === undefined || note === "") {
+        return null;
+      }
+
       if (typeof note === "string") {
         const text = note.trim();
 
@@ -70,7 +120,12 @@ function normalizeCallRoundNotes(notes: any) {
         };
       }
 
-      const text = typeof note?.text === "string" ? note.text.trim() : "";
+      const text =
+        typeof note?.text === "string"
+          ? note.text.trim()
+          : typeof note?.note === "string"
+            ? note.note.trim()
+            : "";
 
       if (!text) return null;
 
@@ -84,6 +139,23 @@ function normalizeCallRoundNotes(notes: any) {
       };
     })
     .filter(Boolean);
+}
+
+function sanitizeExistingRoundNotes(rounds: any) {
+  if (!Array.isArray(rounds)) return rounds;
+
+  return rounds.map((round: any, index: number) => {
+    const raw =
+      round && typeof round.toObject === "function"
+        ? round.toObject()
+        : round || {};
+
+    return {
+      ...raw,
+      roundNumber: Number(raw?.roundNumber ?? index + 1),
+      notes: normalizeCallRoundNotes(raw?.notes),
+    };
+  });
 }
 
 function normalizeCallRounds(callRounds: any[]) {
@@ -114,7 +186,11 @@ function normalizeCallRounds(callRounds: any[]) {
       resultStatus,
       amount,
       notes: normalizeCallRoundNotes(r?.notes),
-      calledAt: r?.calledAt ? new Date(r.calledAt) : answerStatus ? new Date() : null,
+      calledAt: r?.calledAt
+        ? new Date(r.calledAt)
+        : answerStatus
+          ? new Date()
+          : null,
       updatedAt: r?.updatedAt ? new Date(r.updatedAt) : new Date(),
     };
   });
@@ -221,6 +297,7 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     const isAdmin = effectiveRole === "admin";
     const isProducerRole = effectiveRole === "producer";
     const isWorkerRole = effectiveRole === "worker";
+    const isVenueOwnerRole = effectiveRole === "venue_owner";
 
     const { producerIdStr, isProducerByInvitation } =
       await getInvitationProducerPermission(auth, invitation);
@@ -230,10 +307,12 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       isAdmin,
       isProducerRole,
       isWorkerRole,
+      isVenueOwnerRole,
       isProducerByInvitation,
       producerIdStr,
       userId: auth.userId?.toString?.(),
       impersonatedBy: auth.impersonatedBy?.toString?.(),
+      effectiveRole,
     });
 
     // הרשאה כללית לעדכן אורח
@@ -242,6 +321,7 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       !isAdmin &&
       !isProducerRole &&
       !isWorkerRole &&
+      !isVenueOwnerRole &&
       !isProducerByInvitation
     ) {
       console.warn("⛔ Not authorized to update guest");
@@ -260,6 +340,47 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     if (typeof data.name === "string") guest.name = data.name;
     if (typeof data.phone === "string") guest.phone = data.phone;
     if (typeof data.notes === "string") guest.notes = data.notes;
+
+    /*
+      ✅ עדכון שולחן ישיר אם מגיע דרך /api/guests/[id]
+      שינוי השולחן הראשי עדיין אמור להתבצע דרך:
+      /api/seating/live/move-guest-table
+      אבל זה מאפשר סנכרון בטוח אם מגיע רק tableId/tableName.
+    */
+    if ("tableId" in data) {
+      const tableId =
+        data.tableId === null ||
+        data.tableId === undefined ||
+        data.tableId === "" ||
+        data.tableId === "null" ||
+        data.tableId === "undefined"
+          ? null
+          : String(data.tableId).trim();
+
+      (guest as any).tableId = tableId || undefined;
+    }
+
+    if ("tableName" in data) {
+      const tableName =
+        data.tableName === null ||
+        data.tableName === undefined ||
+        data.tableName === "null" ||
+        data.tableName === "undefined"
+          ? ""
+          : String(data.tableName).trim();
+
+      (guest as any).tableName = tableName;
+    }
+
+    if ("tableNumber" in data) {
+      const tableNumber = Number(data.tableNumber);
+
+      if (Number.isFinite(tableNumber) && tableNumber > 0) {
+        (guest as any).tableNumber = tableNumber;
+      } else {
+        (guest as any).tableNumber = undefined;
+      }
+    }
 
     /* ===============================
        groupId — ידני קודם
@@ -423,7 +544,11 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       data.actualArrivedCount >= 0
     ) {
       const canUpdateActualArrived =
-        isAdmin || isProducerRole || isWorkerRole || isProducerByInvitation;
+        isAdmin ||
+        isProducerRole ||
+        isWorkerRole ||
+        isVenueOwnerRole ||
+        isProducerByInvitation;
 
       if (!canUpdateActualArrived) {
         return NextResponse.json(
@@ -432,12 +557,15 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
         );
       }
 
-      guest.actualArrivedCount = data.actualArrivedCount;
+      guest.actualArrivedCount = Math.max(
+        0,
+        Number(data.actualArrivedCount || 0)
+      );
 
       // ✅ רק במצב לייב
       const isLiveMode = invitation.seatingMode === "live";
 
-      if (isLiveMode && data.actualArrivedCount > 0 && guest.rsvp !== "yes") {
+      if (isLiveMode && guest.actualArrivedCount > 0 && guest.rsvp !== "yes") {
         guest.rsvp = "yes";
 
         if ("status" in guest) {
@@ -459,7 +587,7 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     =============================== */
     if (Array.isArray(data.callRounds)) {
       const canUpdateCallRounds =
-        isOwner || isAdmin || isProducerRole || isProducerByInvitation;
+        isOwner || isAdmin || isProducerRole || isVenueOwnerRole || isProducerByInvitation;
 
       if (!canUpdateCallRounds) {
         return NextResponse.json(
@@ -469,6 +597,24 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       }
 
       guest.callRounds = normalizeCallRounds(data.callRounds);
+    }
+
+    /*
+      ✅ תיקון קריטי לפני כל save:
+      מנקה שדות ישנים/שבורים של callRounds/allRounds.
+      אחרת כל שמירה יכולה ליפול עם:
+      Parameter "obj" to Document() must be an object, got "".
+    */
+    if (Array.isArray((guest as any).callRounds)) {
+      (guest as any).callRounds = sanitizeExistingRoundNotes(
+        (guest as any).callRounds
+      );
+    }
+
+    if (Array.isArray((guest as any).allRounds)) {
+      (guest as any).allRounds = sanitizeExistingRoundNotes(
+        (guest as any).allRounds
+      );
     }
 
     await guest.save();
@@ -485,9 +631,16 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     }
 
     return NextResponse.json({ success: true, guest });
-  } catch (error) {
+  } catch (error: any) {
     console.error("❌ PUT /guests/[id] error:", error);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: error?.message || "Server error",
+      },
+      { status: 500 }
+    );
   }
 }
 
@@ -538,7 +691,7 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
       (auth.userId.toString() === producerIdStr ||
         auth.impersonatedBy?.toString?.() === producerIdStr);
 
-    // אותה מדיניות כמו PUT
+    // אותה מדיניות כמו קודם — בעל אולם לא מקבל מחיקה מכאן
     if (
       !isOwner &&
       !isAdmin &&
@@ -561,8 +714,15 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
     }
 
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch (error: any) {
     console.error("❌ DELETE /guests/[id] error:", error);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: error?.message || "Server error",
+      },
+      { status: 500 }
+    );
   }
 }
