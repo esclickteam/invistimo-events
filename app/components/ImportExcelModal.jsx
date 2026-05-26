@@ -9,10 +9,8 @@ import * as XLSX from "xlsx";
 const RSVP_MAP = {
   בהמתנה: "pending",
   ממתין: "pending",
-
   מגיע: "yes",
   כן: "yes",
-
   "לא מגיע": "no",
   לא: "no",
 };
@@ -33,11 +31,9 @@ function normalizeTableNumber(value) {
   if (value === null || value === undefined || value === "") return null;
 
   const onlyDigits = String(value).replace(/[^\d]/g, "").trim();
-
   if (!onlyDigits) return null;
 
   const num = Number(onlyDigits);
-
   return Number.isFinite(num) ? num : null;
 }
 
@@ -97,16 +93,13 @@ function normalizeSmartPhone(value) {
 
   phone = phone.replace(/\D/g, "");
 
-  // אם OCR קלט ישראלי בלי 0 בהתחלה
   if (phone.length === 9 && phone.startsWith("5")) {
     phone = `0${phone}`;
   }
 
-  // אם יש בתוך הטקסט מספר ישראלי תקין
   const localMatch = phone.match(/05\d{8}/);
   if (localMatch?.[0]) return localMatch[0];
 
-  // אם נשאר 972 באמצע
   const intlMatch = phone.match(/972(5\d{8})/);
   if (intlMatch?.[1]) return `0${intlMatch[1]}`;
 
@@ -115,12 +108,6 @@ function normalizeSmartPhone(value) {
 
 /* ============================================================
    עזר: חילוץ טלפון משורה
-   תומך:
-   +972 50-910-0321
-   +97250-910-0321
-   972 50 910 0321
-   050-910-0321
-   0509100321
 ============================================================ */
 function extractPhoneFromLine(line) {
   const text = normalizePhoneOcrChars(line)
@@ -136,7 +123,6 @@ function extractPhoneFromLine(line) {
 
   for (const pattern of patterns) {
     const match = text.match(pattern);
-
     if (!match) continue;
 
     let raw = match[0];
@@ -152,25 +138,17 @@ function extractPhoneFromLine(line) {
     }
   }
 
-  // fallback: לפי רצף ספרות מלא מתוך השורה
   const digits = text.replace(/\D/g, "");
-
   if (!digits) return "";
 
   const intl = digits.match(/972(5\d{8})/);
-  if (intl?.[1]) {
-    return `0${intl[1]}`;
-  }
+  if (intl?.[1]) return `0${intl[1]}`;
 
   const local = digits.match(/05\d{8}/);
-  if (local?.[0]) {
-    return local[0];
-  }
+  if (local?.[0]) return local[0];
 
   const localNoZero = digits.match(/5\d{8}/);
-  if (localNoZero?.[0]) {
-    return `0${localNoZero[0]}`;
-  }
+  if (localNoZero?.[0]) return `0${localNoZero[0]}`;
 
   return "";
 }
@@ -188,23 +166,42 @@ function extractGuestsCountFromLine(line) {
   if (!explicitMatch?.[1]) return 1;
 
   const count = Number(explicitMatch[1]);
-
   if (!Number.isFinite(count) || count < 1) return 1;
 
-  return count;
+  return Math.min(Math.floor(count), 99);
 }
 
 /* ============================================================
    עזר: ניקוי שם
 ============================================================ */
 function cleanNameText(value) {
-  return normalizeText(value)
-    .replace(/(?:שליחת פרטי אנשי הקשר|שליחה|נייד|טלפון|שם החברה|שם מלא|שם)/g, " ")
+  let text = normalizeText(value);
+
+  text = text
+    .replace(
+      /(?:שליחת פרטי אנשי הקשר|שליחה|נייד|טלפון|שם החברה|שם מלא|שם)/g,
+      " "
+    )
     .replace(/[✓✔●•@]+/g, " ")
     .replace(/[|,;]+/g, " ")
+    .replace(/\b\d+\b/g, " ")
     .replace(/\s*[-–—]\s*/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+
+  text = text
+    .split(" ")
+    .filter((word) => {
+      const clean = word.trim();
+      if (!clean) return false;
+      if (clean.length === 1) return false;
+      if (/^[םסמ]{1,2}$/.test(clean)) return false;
+      return true;
+    })
+    .join(" ")
+    .trim();
+
+  return text;
 }
 
 /* ============================================================
@@ -213,7 +210,6 @@ function cleanNameText(value) {
 function extractNameFromLine(line, phone) {
   let name = normalizeText(line);
 
-  // הסרת מספרים בינלאומיים/ישראליים בכל צורה נפוצה
   name = name.replace(
     /(?:\+|00)?\s*972\s*[-–]?\s*5\d\s*[-–]?\s*\d{3}\s*[-–]?\s*\d{4}/g,
     " "
@@ -272,7 +268,6 @@ function isNoiseLine(line) {
   ];
 
   if (exactNoise.includes(text)) return true;
-
   if (/^[✓✔●•@+\-\s\d]+$/.test(text)) return true;
 
   return false;
@@ -288,10 +283,23 @@ function looksLikeNameLine(line) {
   if (isNoiseLine(text)) return false;
   if (extractPhoneFromLine(text)) return false;
 
-  // חייב להכיל אותיות
   if (!/[א-תA-Za-z]/.test(text)) return false;
-
   if (text.length < 2) return false;
+
+  const badWords = [
+    "נייד",
+    "טלפון",
+    "שם",
+    "שם מלא",
+    "שם החברה",
+    "שליחה",
+    "שליחת",
+    "פרטי",
+    "אנשי",
+    "הקשר",
+  ];
+
+  if (badWords.includes(text)) return false;
 
   return true;
 }
@@ -304,7 +312,6 @@ function splitSmartLines(text) {
     .split(/\r?\n/)
     .map((line) => normalizeText(line))
     .flatMap((line) => {
-      // לפעמים OCR מחבר שם ו"נייד" באותה שורה
       return line
         .replace(/\s+(נייד)\s+/g, "\n$1\n")
         .split("\n")
@@ -315,10 +322,6 @@ function splitSmartLines(text) {
 
 /* ============================================================
    עזר: שורות OCR / הדבקה → קבוצות של שם + טלפון
-   מתאים לצילום מסך אנשי קשר:
-   שם
-   נייד
-   +972 50-910-0321
 ============================================================ */
 function buildGuestLinesFromText(text) {
   const lines = splitSmartLines(text);
@@ -331,7 +334,7 @@ function buildGuestLinesFromText(text) {
     const phone = extractPhoneFromLine(line);
 
     if (phone) {
-      const nameFromSameLine = extractNameFromLine(line, phone);
+      const nameFromSameLine = cleanNameText(extractNameFromLine(line, phone));
 
       if (nameFromSameLine && looksLikeNameLine(nameFromSameLine)) {
         guestLines.push(`${nameFromSameLine} ${phone}`);
@@ -345,8 +348,21 @@ function buildGuestLinesFromText(text) {
       continue;
     }
 
-    if (looksLikeNameLine(line)) {
-      lastNameCandidate = cleanNameText(line);
+    if (isNoiseLine(line)) continue;
+
+    const cleanedName = cleanNameText(line);
+
+    if (looksLikeNameLine(cleanedName)) {
+      if (
+        cleanedName.includes("חברה") ||
+        cleanedName.includes("אקדמיה") ||
+        cleanedName.includes("סטודיו") ||
+        cleanedName.includes("עסק")
+      ) {
+        continue;
+      }
+
+      lastNameCandidate = cleanedName;
     }
   }
 
@@ -361,7 +377,6 @@ function uniqueGuestsByPhone(guests) {
 
   return guests.filter((guest) => {
     if (!guest?.phone) return true;
-
     if (seen.has(guest.phone)) return false;
 
     seen.add(guest.phone);
@@ -381,7 +396,6 @@ function parseGuestsFromText(text) {
       const name = extractNameFromLine(line, phone);
       const guestsCount = extractGuestsCountFromLine(line);
 
-      // בתמונה/הדבקה אנחנו רוצים לקלוט רק אם יש שם או טלפון
       if (!name && !phone) return null;
 
       return {
@@ -403,8 +417,57 @@ function parseGuestsFromText(text) {
 }
 
 /* ============================================================
-   שיפור תמונה לפני OCR
-   מגדיל, הופך לגווני אפור ומחזק קונטרסט
+   עזר: הכנה לתצוגה מקדימה
+============================================================ */
+function preparePreviewGuests(guests) {
+  return guests.map((guest, index) => ({
+    ...guest,
+    _previewId: `${Date.now()}-${index}-${Math.random()
+      .toString(16)
+      .slice(2)}`,
+    name: normalizeText(guest?.name || "") || "ללא שם",
+    phone: normalizeText(guest?.phone || "") || "",
+    guestsCount: Math.max(1, Number(guest?.guestsCount || 1) || 1),
+    relation: guest?.relation || null,
+    group: guest?.group || null,
+    rsvp: guest?.rsvp || "pending",
+    arrivedCount: Number(guest?.arrivedCount || 0),
+    notes: guest?.notes || null,
+    tableNumber: guest?.tableNumber ?? null,
+    tableName: guest?.tableName ?? null,
+  }));
+}
+
+/* ============================================================
+   עזר: ניקוי לפני שליחה לשרת
+============================================================ */
+function cleanGuestsForServer(guests) {
+  return guests
+    .map((guest) => {
+      const name = normalizeText(guest?.name || "");
+      const phone = normalizeText(guest?.phone || "").replace(/\D/g, "");
+      const guestsCount = Math.max(1, Number(guest?.guestsCount || 1) || 1);
+
+      if (!name && !phone) return null;
+
+      return {
+        name: name || "ללא שם",
+        phone: phone || null,
+        relation: guest?.relation || null,
+        group: guest?.group || null,
+        rsvp: guest?.rsvp || "pending",
+        guestsCount,
+        arrivedCount: Number(guest?.arrivedCount || 0),
+        notes: guest?.notes || null,
+        tableNumber: guest?.tableNumber ?? null,
+        tableName: guest?.tableName ?? null,
+      };
+    })
+    .filter(Boolean);
+}
+
+/* ============================================================
+   שיפור תמונה לפני OCR - עדין יותר כדי לא להרוס עברית
 ============================================================ */
 async function preprocessImageForOcr(file) {
   if (typeof window === "undefined") return file;
@@ -431,24 +494,6 @@ async function preprocessImageForOcr(file) {
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const data = imageData.data;
-
-    for (let i = 0; i < data.length; i += 4) {
-      const gray = Math.round(
-        data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114
-      );
-
-      // קונטרסט עדין בלי להרוס טקסטים בהירים
-      const boosted = gray > 170 ? 255 : gray < 90 ? 0 : gray;
-
-      data[i] = boosted;
-      data[i + 1] = boosted;
-      data[i + 2] = boosted;
-    }
-
-    ctx.putImageData(imageData, 0, 0);
 
     const blob = await new Promise((resolve) => {
       canvas.toBlob(resolve, "image/png", 1);
@@ -488,6 +533,9 @@ export default function ImportExcelModal({
   const [ocrText, setOcrText] = useState("");
   const [ocrProgress, setOcrProgress] = useState(0);
 
+  const [previewGuests, setPreviewGuests] = useState([]);
+  const [previewSource, setPreviewSource] = useState("");
+
   const selectedFileName = useMemo(() => file?.name || "", [file]);
   const selectedImageName = useMemo(() => imageFile?.name || "", [imageFile]);
 
@@ -497,17 +545,69 @@ export default function ImportExcelModal({
     );
   }, [guestLimit, allowedRecords, maxRecords, user?.guests]);
 
+  const hasPreview = previewGuests.length > 0;
+
   const resetMessages = () => {
     setSummary(null);
   };
 
+  const clearPreview = () => {
+    setPreviewGuests([]);
+    setPreviewSource("");
+  };
+
+  const openPreview = (guests, sourceLabel) => {
+    const prepared = preparePreviewGuests(guests);
+
+    if (!prepared.length) {
+      alert("לא נמצאו מוזמנים תקינים להצגה");
+      return;
+    }
+
+    setPreviewGuests(prepared);
+    setPreviewSource(sourceLabel);
+    setSummary({
+      type: "success",
+      text: `נמצאו ${prepared.length} מוזמנים לבדיקה. אפשר לערוך לפני שמירה.`,
+      usage: null,
+    });
+  };
+
+  const updatePreviewGuest = (previewId, field, value) => {
+    setPreviewGuests((prev) =>
+      prev.map((guest) => {
+        if (guest._previewId !== previewId) return guest;
+
+        if (field === "guestsCount") {
+          return {
+            ...guest,
+            guestsCount: Math.max(1, Number(value || 1) || 1),
+          };
+        }
+
+        return {
+          ...guest,
+          [field]: value,
+        };
+      })
+    );
+  };
+
+  const removePreviewGuest = (previewId) => {
+    setPreviewGuests((prev) =>
+      prev.filter((guest) => guest._previewId !== previewId)
+    );
+  };
+
   const handleFileChange = (e) => {
     resetMessages();
+    clearPreview();
     setFile(e.target.files?.[0] || null);
   };
 
   const handleImageChange = (e) => {
     resetMessages();
+    clearPreview();
     setOcrText("");
     setOcrProgress(0);
     setImageFile(e.target.files?.[0] || null);
@@ -541,7 +641,13 @@ export default function ImportExcelModal({
   };
 
   const sendGuestsToServer = async (guests, successPrefix = "יובאו") => {
-    const incomingRecordsCount = guests.length;
+    const cleanedGuests = cleanGuestsForServer(guests);
+    const incomingRecordsCount = cleanedGuests.length;
+
+    if (!incomingRecordsCount) {
+      alert("אין מוזמנים תקינים לשמירה");
+      return;
+    }
 
     if (!checkRecordsLimit(incomingRecordsCount)) {
       return;
@@ -550,7 +656,7 @@ export default function ImportExcelModal({
     const res = await fetch("/api/guests/import", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ invitationId, guests }),
+      body: JSON.stringify({ invitationId, guests: cleanedGuests }),
     });
 
     const result = await res.json();
@@ -639,8 +745,34 @@ export default function ImportExcelModal({
       });
     }
 
+    clearPreview();
     await onSuccess?.();
     onClose?.();
+  };
+
+  const handleConfirmPreview = async () => {
+    if (!previewGuests.length) {
+      alert("אין מוזמנים לשמירה");
+      return;
+    }
+
+    setLoading(true);
+    setSummary(null);
+
+    try {
+      await sendGuestsToServer(previewGuests, "יובאו");
+    } catch (err) {
+      console.error("❌ Confirm Preview Error:", err);
+      alert("שגיאה בשמירת המוזמנים");
+
+      setSummary({
+        type: "error",
+        text: "שגיאה בשמירת המוזמנים",
+        usage: null,
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleImportExcel = async () => {
@@ -651,6 +783,7 @@ export default function ImportExcelModal({
 
     setLoading(true);
     setSummary(null);
+    clearPreview();
 
     try {
       const data = await file.arrayBuffer();
@@ -734,12 +867,9 @@ export default function ImportExcelModal({
         return;
       }
 
-      console.log("📌 EXCEL RECORD LIMIT CHECK:", {
-        recordsLimit,
-        incomingRecordsCount: guests.length,
-      });
+      if (!checkRecordsLimit(guests.length)) return;
 
-      await sendGuestsToServer(guests, "יובאו");
+      openPreview(guests, "Excel");
     } catch (err) {
       console.error("❌ Excel Error:", err);
       alert("שגיאה בקריאת הקובץ");
@@ -762,24 +892,13 @@ export default function ImportExcelModal({
       return;
     }
 
-    setLoading(true);
+    if (!checkRecordsLimit(guests.length)) return;
+
     setSummary(null);
+    clearPreview();
 
-    try {
-      console.log("📋 PASTED GUESTS:", guests);
-      await sendGuestsToServer(guests, "יובאו מהרשימה");
-    } catch (err) {
-      console.error("❌ Paste Import Error:", err);
-      alert("שגיאה בייבוא מהרשימה");
-
-      setSummary({
-        type: "error",
-        text: "שגיאה בייבוא מהרשימה",
-        usage: null,
-      });
-    } finally {
-      setLoading(false);
-    }
+    console.log("📋 PASTED GUESTS:", guests);
+    openPreview(guests, "הדבקת רשימה");
   };
 
   const handleImportImage = async () => {
@@ -790,6 +909,7 @@ export default function ImportExcelModal({
 
     setLoading(true);
     setSummary(null);
+    clearPreview();
     setOcrText("");
     setOcrProgress(0);
 
@@ -797,7 +917,9 @@ export default function ImportExcelModal({
       const Tesseract = await import("tesseract.js");
       const processedImage = await preprocessImageForOcr(imageFile);
 
-      const result = await Tesseract.recognize(processedImage, "eng+heb", {
+      const result = await Tesseract.recognize(processedImage, "heb+eng", {
+        tessedit_pageseg_mode: "11",
+        preserve_interword_spaces: "1",
         logger: (m) => {
           if (m?.status === "recognizing text") {
             setOcrProgress(Math.round((m.progress || 0) * 100));
@@ -841,7 +963,9 @@ export default function ImportExcelModal({
         return;
       }
 
-      await sendGuestsToServer(guests, "יובאו מהתמונה");
+      if (!checkRecordsLimit(guests.length)) return;
+
+      openPreview(guests, "תמונה / צילום מסך");
     } catch (err) {
       console.error("❌ Image OCR Error:", err);
       alert("שגיאה בסריקת התמונה");
@@ -858,6 +982,10 @@ export default function ImportExcelModal({
   };
 
   const renderActiveImportButton = () => {
+    if (hasPreview) {
+      return null;
+    }
+
     if (activeTab === "excel") {
       return (
         <button
@@ -876,10 +1004,10 @@ export default function ImportExcelModal({
           {loading ? (
             <>
               <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-              מייבא את הקובץ...
+              קורא את הקובץ...
             </>
           ) : (
-            <>העלאת קובץ וייבוא אורחים</>
+            <>בדיקת קובץ והצגת מוזמנים</>
           )}
         </button>
       );
@@ -900,14 +1028,7 @@ export default function ImportExcelModal({
             disabled:cursor-not-allowed disabled:opacity-60
           "
         >
-          {loading ? (
-            <>
-              <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-              מייבא מהרשימה...
-            </>
-          ) : (
-            <>זיהוי מהרשימה וייבוא אורחים</>
-          )}
+          זיהוי מהרשימה והצגה לבדיקה
         </button>
       );
     }
@@ -934,7 +1055,7 @@ export default function ImportExcelModal({
               : "מכין סריקה..."}
           </>
         ) : (
-          <>סריקת תמונה וייבוא אורחים</>
+          <>סריקת תמונה והצגה לבדיקה</>
         )}
       </button>
     );
@@ -950,7 +1071,7 @@ export default function ImportExcelModal({
     >
       <div
         className="
-          relative flex max-h-[92vh] w-full max-w-[760px] flex-col
+          relative flex max-h-[92vh] w-full max-w-[860px] flex-col
           overflow-hidden rounded-[34px]
           border border-[#EFE2CF] bg-[#FFFCF7]
           shadow-[0_30px_100px_rgba(25,18,10,0.28)]
@@ -1000,9 +1121,9 @@ export default function ImportExcelModal({
               ייבוא מוזמנים
             </h2>
 
-            <p className="mx-auto mt-3 max-w-[520px] text-center text-sm leading-7 text-[#7A6A59] sm:text-base">
-              בחרו דרך ייבוא: קובץ Excel, הדבקת רשימה או העלאה מתמונה / צילום
-              מסך.
+            <p className="mx-auto mt-3 max-w-[560px] text-center text-sm leading-7 text-[#7A6A59] sm:text-base">
+              בחרו דרך ייבוא, בדקו את הרשימה, ערכו במידת הצורך ורק אז שמרו
+              למערכת.
             </p>
           </div>
         </div>
@@ -1020,6 +1141,7 @@ export default function ImportExcelModal({
                     if (loading) return;
                     setActiveTab(tab.id);
                     setSummary(null);
+                    clearPreview();
                   }}
                   className={`
                     rounded-[22px] border px-4 py-4 text-center transition
@@ -1043,72 +1165,6 @@ export default function ImportExcelModal({
             })}
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="rounded-[24px] border border-[#EFE2CF] bg-white p-4 shadow-[0_10px_30px_rgba(95,68,34,0.06)]">
-              <div className="mb-3 flex items-center gap-3">
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F4E7D1] text-sm font-black text-[#8B6A3F]">
-                  1
-                </span>
-                <h3 className="font-black text-[#3E2D20]">
-                  {activeTab === "excel"
-                    ? "הורדת תבנית"
-                    : activeTab === "paste"
-                    ? "הדבקת רשימה"
-                    : "העלאת תמונה"}
-                </h3>
-              </div>
-
-              <p className="text-sm leading-6 text-[#7A6A59]">
-                {activeTab === "excel"
-                  ? "התחילו מקובץ התבנית המוכן כדי לשמור על מבנה תקין."
-                  : activeTab === "paste"
-                  ? "הדביקו רשימה מוואטסאפ, פתקים, מייל או כל מקור אחר."
-                  : "העלו צילום מסך ברור. התמיכה היא בטקסט מודפס בלבד."}
-              </p>
-
-              {activeTab === "excel" ? (
-                <a
-                  href="/Invistimo_v4.xlsx?v=4"
-                  download
-                  className="
-                    mt-4 inline-flex w-full items-center justify-center gap-2
-                    rounded-full bg-[#F4E7D1] px-4 py-2.5
-                    text-sm font-bold text-[#7B5A2E]
-                    transition hover:bg-[#EAD7B8]
-                  "
-                >
-                  📄 הורדת תבנית
-                </a>
-              ) : null}
-            </div>
-
-            <div className="rounded-[24px] border border-[#EFE2CF] bg-white p-4 shadow-[0_10px_30px_rgba(95,68,34,0.06)]">
-              <div className="mb-3 flex items-center gap-3">
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F4E7D1] text-sm font-black text-[#8B6A3F]">
-                  2
-                </span>
-                <h3 className="font-black text-[#3E2D20]">זיהוי פרטים</h3>
-              </div>
-
-              <p className="text-sm leading-6 text-[#7A6A59]">
-                המערכת תזהה שם וטלפון. מספרי +972 יומרו לפורמט ישראלי רגיל.
-              </p>
-            </div>
-
-            <div className="rounded-[24px] border border-[#EFE2CF] bg-white p-4 shadow-[0_10px_30px_rgba(95,68,34,0.06)]">
-              <div className="mb-3 flex items-center gap-3">
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F4E7D1] text-sm font-black text-[#8B6A3F]">
-                  3
-                </span>
-                <h3 className="font-black text-[#3E2D20]">ייבוא למערכת</h3>
-              </div>
-
-              <p className="text-sm leading-6 text-[#7A6A59]">
-                לאחר הזיהוי, המוזמנים יתווספו לרשימת המוזמנים של האירוע.
-              </p>
-            </div>
-          </div>
-
           <div className="mt-6 rounded-[28px] border border-dashed border-[#D6B16A] bg-[#FFF8ED] p-5 sm:p-6">
             {activeTab === "excel" ? (
               <>
@@ -1122,9 +1178,18 @@ export default function ImportExcelModal({
                     </p>
                   </div>
 
-                  <div className="inline-flex items-center justify-center rounded-full border border-[#EFE2CF] bg-white px-4 py-2 text-xs font-bold text-[#8B6A3F]">
-                    Excel בלבד
-                  </div>
+                  <a
+                    href="/Invistimo_v4.xlsx?v=4"
+                    download
+                    className="
+                      inline-flex items-center justify-center gap-2
+                      rounded-full bg-white px-4 py-2
+                      text-xs font-bold text-[#8B6A3F]
+                      border border-[#EFE2CF]
+                    "
+                  >
+                    📄 הורדת תבנית
+                  </a>
                 </div>
 
                 <label className="flex cursor-pointer flex-col items-center justify-center rounded-[24px] border border-[#EFE2CF] bg-white px-4 py-6 text-center shadow-[0_10px_30px_rgba(95,68,34,0.05)] transition hover:border-[#D6B16A] hover:bg-[#FFFDF8]">
@@ -1151,23 +1216,6 @@ export default function ImportExcelModal({
                       : "לחצו כאן לבחירת קובץ האקסל מהמחשב או מהטלפון"}
                   </p>
                 </label>
-
-                {selectedFileName ? (
-                  <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-[#EFE2CF] bg-white px-4 py-3">
-                    <div className="min-w-0">
-                      <p className="text-xs font-bold text-[#8B6A3F]">
-                        קובץ נבחר
-                      </p>
-                      <p className="truncate text-sm font-semibold text-[#3E2D20]">
-                        {selectedFileName}
-                      </p>
-                    </div>
-
-                    <span className="shrink-0 rounded-full bg-green-50 px-3 py-1 text-xs font-bold text-green-700">
-                      מוכן לייבוא
-                    </span>
-                  </div>
-                ) : null}
               </>
             ) : null}
 
@@ -1193,6 +1241,7 @@ export default function ImportExcelModal({
                   value={pastedText}
                   onChange={(e) => {
                     setSummary(null);
+                    clearPreview();
                     setPastedText(e.target.value);
                   }}
                   placeholder={`לדוגמה:
@@ -1227,8 +1276,8 @@ export default function ImportExcelModal({
                       העלאת תמונה / צילום מסך
                     </h3>
                     <p className="mt-1 text-sm text-[#7A6A59]">
-                      עובד ללא OpenAI וללא טוקנים. מתאים לצילום מסך ברור עם טקסט
-                      מודפס.
+                      עובד ללא OpenAI וללא טוקנים. אחרי הסריקה תוצג טבלה לעריכה
+                      לפני שמירה.
                     </p>
                   </div>
 
@@ -1262,37 +1311,20 @@ export default function ImportExcelModal({
                   </p>
                 </label>
 
-                {selectedImageName ? (
-                  <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-[#EFE2CF] bg-white px-4 py-3">
-                    <div className="min-w-0">
-                      <p className="text-xs font-bold text-[#8B6A3F]">
-                        תמונה נבחרה
-                      </p>
-                      <p className="truncate text-sm font-semibold text-[#3E2D20]">
-                        {selectedImageName}
-                      </p>
-                    </div>
-
-                    <span className="shrink-0 rounded-full bg-green-50 px-3 py-1 text-xs font-bold text-green-700">
-                      מוכנה לסריקה
-                    </span>
-                  </div>
-                ) : null}
-
                 {ocrText ? (
                   <div className="mt-4 rounded-2xl border border-[#EFE2CF] bg-white px-4 py-3">
                     <p className="mb-2 text-xs font-black text-[#8B6A3F]">
                       טקסט שזוהה מהתמונה
                     </p>
-                    <pre className="max-h-[160px] overflow-auto whitespace-pre-wrap text-xs leading-6 text-[#3E2D20]">
+                    <pre className="max-h-[140px] overflow-auto whitespace-pre-wrap text-xs leading-6 text-[#3E2D20]">
                       {ocrText}
                     </pre>
                   </div>
                 ) : null}
 
                 <div className="mt-4 rounded-2xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm font-semibold leading-6 text-yellow-800">
-                  מומלץ להעלות צילום מסך ברור שבו כל מוזמן מופיע עם שם וטלפון.
-                  אין תמיכה בכתב יד.
+                  מומלץ להעלות צילום מסך ברור. אם שם זוהה לא מדויק, ניתן לתקן
+                  אותו בטבלת הבדיקה לפני השמירה.
                 </div>
               </>
             ) : null}
@@ -1309,6 +1341,222 @@ export default function ImportExcelModal({
 
             {renderActiveImportButton()}
           </div>
+
+          {hasPreview ? (
+            <div className="mt-6 rounded-[28px] border border-[#EFE2CF] bg-white p-4 shadow-[0_12px_34px_rgba(95,68,34,0.08)]">
+              <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="text-lg font-black text-[#2F241A]">
+                    בדיקת מוזמנים לפני שמירה
+                  </h3>
+                  <p className="mt-1 text-sm text-[#7A6A59]">
+                    מקור: {previewSource || "ייבוא"} · נמצאו{" "}
+                    <span className="font-black text-[#2F241A]">
+                      {previewGuests.length}
+                    </span>{" "}
+                    מוזמנים. ניתן לערוך שם, טלפון וכמות לפני השמירה.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={clearPreview}
+                  disabled={loading}
+                  className="
+                    rounded-full border border-[#EFE2CF] bg-[#FFFCF7]
+                    px-4 py-2 text-xs font-black text-[#7A6A59]
+                    transition hover:bg-[#F6EBD9]
+                    disabled:opacity-50
+                  "
+                >
+                  ניקוי תצוגה
+                </button>
+              </div>
+
+              <div className="overflow-x-auto rounded-[22px] border border-[#EFE2CF]">
+                <table className="min-w-[720px] w-full text-right text-sm">
+                  <thead className="bg-[#F8F1E6] text-[#6B5138]">
+                    <tr>
+                      <th className="px-4 py-3 font-black">#</th>
+                      <th className="px-4 py-3 font-black">שם מלא</th>
+                      <th className="px-4 py-3 font-black">טלפון</th>
+                      <th className="px-4 py-3 font-black">כמות</th>
+                      <th className="px-4 py-3 font-black">סטטוס</th>
+                      <th className="px-4 py-3 font-black">פעולה</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {previewGuests.map((guest, index) => {
+                      const phoneValid =
+                        !guest.phone || /^05\d{8}$/.test(guest.phone);
+
+                      return (
+                        <tr
+                          key={guest._previewId}
+                          className="border-t border-[#EFE2CF] bg-white"
+                        >
+                          <td className="px-4 py-3 font-black text-[#8B6A3F]">
+                            {index + 1}
+                          </td>
+
+                          <td className="px-4 py-3">
+                            <input
+                              value={guest.name || ""}
+                              onChange={(e) =>
+                                updatePreviewGuest(
+                                  guest._previewId,
+                                  "name",
+                                  e.target.value
+                                )
+                              }
+                              className="
+                                w-full rounded-2xl border border-[#EFE2CF]
+                                bg-[#FFFCF7] px-3 py-2
+                                font-bold text-[#2F241A]
+                                outline-none transition
+                                focus:border-[#D6B16A]
+                                focus:ring-4 focus:ring-[#D6B16A]/15
+                              "
+                            />
+                          </td>
+
+                          <td className="px-4 py-3">
+                            <input
+                              value={guest.phone || ""}
+                              onChange={(e) =>
+                                updatePreviewGuest(
+                                  guest._previewId,
+                                  "phone",
+                                  normalizeSmartPhone(e.target.value)
+                                )
+                              }
+                              className={`
+                                w-full rounded-2xl border px-3 py-2
+                                bg-[#FFFCF7]
+                                font-semibold text-[#2F241A]
+                                outline-none transition
+                                focus:ring-4 focus:ring-[#D6B16A]/15
+                                ${
+                                  phoneValid
+                                    ? "border-[#EFE2CF] focus:border-[#D6B16A]"
+                                    : "border-red-300 focus:border-red-400"
+                                }
+                              `}
+                            />
+                            {!phoneValid ? (
+                              <p className="mt-1 text-xs font-bold text-red-600">
+                                מספר לא נראה תקין
+                              </p>
+                            ) : null}
+                          </td>
+
+                          <td className="px-4 py-3">
+                            <input
+                              type="number"
+                              min="1"
+                              max="99"
+                              value={guest.guestsCount || 1}
+                              onChange={(e) =>
+                                updatePreviewGuest(
+                                  guest._previewId,
+                                  "guestsCount",
+                                  e.target.value
+                                )
+                              }
+                              className="
+                                w-20 rounded-2xl border border-[#EFE2CF]
+                                bg-[#FFFCF7] px-3 py-2
+                                text-center font-black text-[#2F241A]
+                                outline-none transition
+                                focus:border-[#D6B16A]
+                                focus:ring-4 focus:ring-[#D6B16A]/15
+                              "
+                            />
+                          </td>
+
+                          <td className="px-4 py-3">
+                            <span
+                              className={`
+                                inline-flex rounded-full px-3 py-1 text-xs font-black
+                                ${
+                                  guest.name && phoneValid
+                                    ? "bg-green-50 text-green-700"
+                                    : "bg-yellow-50 text-yellow-700"
+                                }
+                              `}
+                            >
+                              {guest.name && phoneValid
+                                ? "תקין"
+                                : "דורש בדיקה"}
+                            </span>
+                          </td>
+
+                          <td className="px-4 py-3">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                removePreviewGuest(guest._previewId)
+                              }
+                              disabled={loading}
+                              className="
+                                rounded-full bg-red-50 px-3 py-2
+                                text-xs font-black text-red-600
+                                transition hover:bg-red-100
+                                disabled:opacity-50
+                              "
+                            >
+                              מחיקה
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={handleConfirmPreview}
+                  disabled={loading || !previewGuests.length}
+                  className="
+                    flex flex-1 items-center justify-center gap-2
+                    rounded-full bg-[#128C3A] px-6 py-4
+                    text-base font-black text-white
+                    shadow-[0_14px_35px_rgba(18,140,58,0.24)]
+                    transition hover:bg-[#0F7A32]
+                    disabled:cursor-not-allowed disabled:opacity-60
+                  "
+                >
+                  {loading ? (
+                    <>
+                      <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                      שומר מוזמנים...
+                    </>
+                  ) : (
+                    <>אישור ושמירת המוזמנים</>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={clearPreview}
+                  disabled={loading}
+                  className="
+                    rounded-full border border-[#EFE2CF]
+                    bg-white px-6 py-4
+                    text-sm font-black text-[#7A6A59]
+                    transition hover:bg-[#F6EBD9]
+                    disabled:opacity-50
+                  "
+                >
+                  ביטול בדיקה
+                </button>
+              </div>
+            </div>
+          ) : null}
 
           {summary ? (
             <div
