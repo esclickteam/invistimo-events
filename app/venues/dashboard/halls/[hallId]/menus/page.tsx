@@ -88,7 +88,7 @@ const DEFAULT_CATEGORIES: MenuCategory[] = [
     title: "ראשונות",
     subtitle: "מנות פתיחה לבחירת הלקוח",
     minChoices: 1,
-    maxChoices: 2,
+    maxChoices: 1,
     dishes: [],
   },
   {
@@ -96,7 +96,7 @@ const DEFAULT_CATEGORIES: MenuCategory[] = [
     title: "עיקריות",
     subtitle: "מנות עיקריות לבחירה",
     minChoices: 1,
-    maxChoices: 2,
+    maxChoices: 1,
     dishes: [],
   },
   {
@@ -104,7 +104,7 @@ const DEFAULT_CATEGORIES: MenuCategory[] = [
     title: "סלטים",
     subtitle: "סלטים ותוספות לשולחן",
     minChoices: 3,
-    maxChoices: 6,
+    maxChoices: 3,
     dishes: [],
   },
 ];
@@ -630,11 +630,7 @@ export default function HallMenusPage() {
     const title = newCategoryForm.title.trim() || "קטגוריה חדשה";
     const subtitle = newCategoryForm.subtitle.trim() || "מנות לבחירה";
 
-    const minChoices = Math.max(0, toNumber(newCategoryForm.minChoices, 1));
-    const maxChoices = Math.max(
-      minChoices,
-      toNumber(newCategoryForm.maxChoices, minChoices || 1)
-    );
+    const choicesCount = Math.max(0, toNumber(newCategoryForm.maxChoices, 1));
 
     const id = makeLocalId("cat");
 
@@ -642,8 +638,8 @@ export default function HallMenusPage() {
       id,
       title,
       subtitle,
-      minChoices,
-      maxChoices,
+      minChoices: choicesCount,
+      maxChoices: choicesCount,
       dishes: [],
     };
 
@@ -1210,8 +1206,7 @@ export default function HallMenusPage() {
                           />
 
                           <span className="rounded-full border border-[#e2c485] bg-[#fff3d8] px-3 py-1 text-xs font-black text-[#8c5f19]">
-                            לבחור בין {selectedCategory.minChoices} ל־
-                            {selectedCategory.maxChoices} מתוך {selectedCategory.dishes.length} מנות
+                            לבחור {selectedCategory.maxChoices} מתוך {selectedCategory.dishes.length} מנות
                           </span>
                         </div>
 
@@ -1227,27 +1222,15 @@ export default function HallMenusPage() {
                         />
                       </div>
 
-                      <div className="grid gap-2 rounded-[24px] border border-[#ead7ad] bg-white p-3 shadow-sm md:grid-cols-2">
+                      <div className="grid gap-3 rounded-[24px] border border-[#ead7ad] bg-white p-3 shadow-sm">
                         <ChoiceNumberInput
-                          label="מינימום בחירה"
-                          helper="כמה הלקוח חייב לבחור"
-                          value={selectedCategory.minChoices}
-                          onChange={(value) =>
-                            updateCategoryDraft(selectedCategory.id, {
-                              minChoices: value,
-                              maxChoices: Math.max(value, selectedCategory.maxChoices),
-                            })
-                          }
-                          onBlur={() => saveCategoryChoiceRules(selectedCategory.id)}
-                        />
-
-                        <ChoiceNumberInput
-                          label="מקסימום בחירה"
-                          helper={`עד כמה לבחור מתוך ${selectedCategory.dishes.length} מנות`}
+                          label="מספר מנות לבחירה"
+                          helper={`כמה מנות הלקוח צריך לבחור מתוך ${selectedCategory.dishes.length} מנות`}
                           value={selectedCategory.maxChoices}
                           onChange={(value) =>
                             updateCategoryDraft(selectedCategory.id, {
-                              maxChoices: Math.max(value, selectedCategory.minChoices),
+                              minChoices: value,
+                              maxChoices: value,
                             })
                           }
                           onBlur={() => saveCategoryChoiceRules(selectedCategory.id)}
@@ -1256,7 +1239,7 @@ export default function HallMenusPage() {
                         <button
                           type="button"
                           onClick={() => deleteCategory(selectedCategory.id)}
-                          className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-3 text-xs font-black text-rose-700 transition hover:bg-rose-100 md:col-span-2"
+                          className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-3 text-xs font-black text-rose-700 transition hover:bg-rose-100"
                         >
                           <Trash2 size={15} />
                           מחיקת קטגוריה
@@ -1552,31 +1535,20 @@ export default function HallMenusPage() {
               }
             />
             <FormInput
-              label="מינימום בחירה"
-              type="number"
-              value={newCategoryForm.minChoices}
-              onChange={(value) =>
-                setNewCategoryForm((prev) => ({
-                  ...prev,
-                  minChoices: value,
-                }))
-              }
-            />
-            <FormInput
-              label="מקסימום בחירה"
+              label="כמה מנות לבחור"
               type="number"
               value={newCategoryForm.maxChoices}
               onChange={(value) =>
                 setNewCategoryForm((prev) => ({
                   ...prev,
+                  minChoices: value,
                   maxChoices: value,
                 }))
               }
             />
 
             <div className="rounded-2xl border border-[#ead7ad] bg-[#fff9ee] p-3 text-xs font-bold leading-6 text-[#806945]">
-              לדוגמה: מינימום 1 ומקסימום 2 = הלקוח חייב לבחור לפחות מנה אחת,
-              ויכול לבחור עד שתי מנות מתוך כל המנות שיהיו בקטגוריה.
+              לדוגמה: אם רשמת 3, הלקוח יצטרך לבחור 3 מנות מתוך כל המנות שיהיו בקטגוריה.
             </div>
 
             <button
@@ -1725,8 +1697,7 @@ export default function HallMenusPage() {
                     </div>
 
                     <span className="w-fit rounded-full border border-[#d7b06a] bg-[#fff3d8] px-3 py-1 text-xs font-black text-[#8c5f19]">
-                      לבחור בין {category.minChoices} ל־{category.maxChoices} מתוך{" "}
-                      {category.dishes.length} מנות
+                      לבחור {category.maxChoices} מתוך {category.dishes.length} מנות
                     </span>
                   </div>
 
