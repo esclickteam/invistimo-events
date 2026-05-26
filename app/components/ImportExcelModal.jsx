@@ -179,13 +179,17 @@ function cleanNameText(value) {
 
   text = text
     .replace(
-      /(?:שליחת פרטי אנשי הקשר|שליחה|נייד|טלפון|שם החברה|שם מלא|שם)/g,
+      /(?:שליחת פרטי אנשי הקשר|שליחה|נייד|טלפון|שם החברה|שם מלא|שם|ביטול|פרטים|איש קשר|אנשי קשר)/g,
       " "
     )
-    .replace(/[✓✔●•@]+/g, " ")
-    .replace(/[|,;]+/g, " ")
+    // חשוב: שמות נשמרים רק בעברית. כל אנגלית/ג׳יבריש מה-OCR נמחקת.
+    .replace(/[A-Za-z]+/g, " ")
+    .replace(/[✓✔●•@#]+/g, " ")
+    .replace(/[|,;:]+/g, " ")
     .replace(/\b\d+\b/g, " ")
     .replace(/\s*[-–—]\s*/g, " ")
+    // משאיר רק אותיות עבריות ורווחים בשם
+    .replace(/[^\u0590-\u05FF\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 
@@ -193,9 +197,32 @@ function cleanNameText(value) {
     .split(" ")
     .filter((word) => {
       const clean = word.trim();
+
       if (!clean) return false;
       if (clean.length === 1) return false;
-      if (/^[םסמ]{1,2}$/.test(clean)) return false;
+
+      const badWords = [
+        "נייד",
+        "טלפון",
+        "שליחה",
+        "פרטי",
+        "אנשי",
+        "הקשר",
+        "שם",
+        "מלא",
+        "החברה",
+        "חברה",
+        "ביטול",
+        "פרטים",
+        "איש",
+        "קשר",
+      ];
+
+      if (badWords.includes(clean)) return false;
+
+      // רעשי OCR קצרים בעברית
+      if (/^[םסמנוז]{1,2}$/.test(clean)) return false;
+
       return true;
     })
     .join(" ")
@@ -283,7 +310,10 @@ function looksLikeNameLine(line) {
   if (isNoiseLine(text)) return false;
   if (extractPhoneFromLine(text)) return false;
 
-  if (!/[א-תA-Za-z]/.test(text)) return false;
+  // שם חייב להיות בעברית בלבד
+  if (!/[א-ת]/.test(text)) return false;
+  if (/[A-Za-z]/.test(text)) return false;
+
   if (text.length < 2) return false;
 
   const badWords = [
@@ -297,9 +327,12 @@ function looksLikeNameLine(line) {
     "פרטי",
     "אנשי",
     "הקשר",
+    "ביטול",
   ];
 
-  if (badWords.includes(text)) return false;
+  if (badWords.some((word) => text === word || text.includes(word))) {
+    return false;
+  }
 
   return true;
 }
@@ -1316,9 +1349,9 @@ export default function ImportExcelModal({
                 ) : null}
 
                 <div className="mt-4 rounded-2xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm font-semibold leading-6 text-yellow-800">
-                  זו סריקה חכמה מתוך תמונה. האחריות היא שלכם לעבור על התצוגה
-                  המקדימה, לבדוק שכל שם וכל מספר נקלטו נכון, ולערוך במידת הצורך
-                  לפני שמירה.
+                  זו סריקה חכמה מתוך תמונה. שמות נשמרים בעברית בלבד, ללא אנגלית או
+                  ג׳יבריש מה-OCR. האחריות היא שלכם לעבור על התצוגה המקדימה,
+                  לבדוק שכל שם וכל מספר נקלטו נכון, ולערוך במידת הצורך לפני שמירה.
                 </div>
               </>
             ) : null}
