@@ -353,15 +353,7 @@ function buildGuestLinesFromText(text) {
     const cleanedName = cleanNameText(line);
 
     if (looksLikeNameLine(cleanedName)) {
-      if (
-        cleanedName.includes("חברה") ||
-        cleanedName.includes("אקדמיה") ||
-        cleanedName.includes("סטודיו") ||
-        cleanedName.includes("עסק")
-      ) {
-        continue;
-      }
-
+      // לא מדלגים על "אקדמיה/סטודיו/חברה" כי זה יכול להיות חלק משם איש קשר אמיתי.
       lastNameCandidate = cleanedName;
     }
   }
@@ -414,6 +406,45 @@ function parseGuestsFromText(text) {
     .filter(Boolean);
 
   return uniqueGuestsByPhone(guests);
+}
+
+/* ============================================================
+   עזר: מיזוג תוצאות OCR מכמה סריקות
+   אם אותה רשומה זוהתה בכמה צורות, שומרים לפי טלפון.
+============================================================ */
+function mergeGuestsFromOcrTexts(texts = []) {
+  const allGuests = texts.flatMap((text) => parseGuestsFromText(text));
+
+  const byPhone = new Map();
+  const withoutPhone = [];
+
+  allGuests.forEach((guest) => {
+    if (!guest?.phone) {
+      withoutPhone.push(guest);
+      return;
+    }
+
+    const existing = byPhone.get(guest.phone);
+
+    if (!existing) {
+      byPhone.set(guest.phone, guest);
+      return;
+    }
+
+    const existingName = normalizeText(existing.name || "");
+    const newName = normalizeText(guest.name || "");
+
+    // מעדיף שם ארוך/מלא יותר, כי OCR לפעמים קולט רק חלק מהשם.
+    if (newName.length > existingName.length) {
+      byPhone.set(guest.phone, {
+        ...existing,
+        ...guest,
+        name: newName,
+      });
+    }
+  });
+
+  return uniqueGuestsByPhone([...byPhone.values(), ...withoutPhone]);
 }
 
 /* ============================================================
@@ -917,24 +948,49 @@ export default function ImportExcelModal({
       const Tesseract = await import("tesseract.js");
       const processedImage = await preprocessImageForOcr(imageFile);
 
-      const result = await Tesseract.recognize(processedImage, "heb+eng", {
-        tessedit_pageseg_mode: "11",
+      const scanOptionsBase = {
         preserve_interword_spaces: "1",
+      };
+
+      // סריקה 1: התמונה המקורית - לפעמים מדויקת יותר במספרים.
+      const originalResult = await Tesseract.recognize(imageFile, "heb+eng", {
+        ...scanOptionsBase,
+        tessedit_pageseg_mode: "6",
         logger: (m) => {
           if (m?.status === "recognizing text") {
-            setOcrProgress(Math.round((m.progress || 0) * 100));
+            setOcrProgress(Math.round((m.progress || 0) * 45));
           }
         },
       });
 
-      const text = result?.data?.text || "";
-      const cleanText = String(text || "").trim();
+      // סריקה 2: תמונה מוגדלת/מעובדת - לפעמים מדויקת יותר בשמות.
+      const processedResult = await Tesseract.recognize(processedImage, "heb+eng", {
+        ...scanOptionsBase,
+        tessedit_pageseg_mode: "11",
+        logger: (m) => {
+          if (m?.status === "recognizing text") {
+            setOcrProgress(45 + Math.round((m.progress || 0) * 55));
+          }
+        },
+      });
 
-      console.log("📷 OCR TEXT:", cleanText);
+      const originalText = String(originalResult?.data?.text || "").trim();
+      const processedText = String(processedResult?.data?.text || "").trim();
 
-      setOcrText(cleanText);
+      const combinedText = [
+        "===== סריקה מקורית =====",
+        originalText || "לא זוהה טקסט בסריקה המקורית",
+        "",
+        "===== סריקה חכמה =====",
+        processedText || "לא זוהה טקסט בסריקה החכמה",
+      ].join("\\n");
 
-      if (!cleanText) {
+      console.log("📷 OCR ORIGINAL TEXT:", originalText);
+      console.log("📷 OCR PROCESSED TEXT:", processedText);
+
+      setOcrText(combinedText);
+
+      if (!originalText && !processedText) {
         alert("לא זוהה טקסט בתמונה");
 
         setSummary({
@@ -946,9 +1002,9 @@ export default function ImportExcelModal({
         return;
       }
 
-      const guests = parseGuestsFromText(cleanText);
+      const guests = mergeGuestsFromOcrTexts([originalText, processedText]);
 
-      console.log("📷 OCR GUESTS:", guests);
+      console.log("📷 OCR MERGED GUESTS:", guests);
 
       if (!guests.length) {
         alert("זוהה טקסט, אבל לא נמצאו שמות וטלפונים תקינים");
@@ -1276,7 +1332,7 @@ export default function ImportExcelModal({
                       העלאת תמונה / צילום מסך
                     </h3>
                     <p className="mt-1 text-sm text-[#7A6A59]">
-                      עובד ללא OpenAI וללא טוקנים. אחרי הסריקה תוצג טבלה לעריכה
+                      סריקה חכמה ללא OpenAI וללא טוקנים. אחרי הסריקה תוצג טבלה לעריכה
                       לפני שמירה.
                     </p>
                   </div>
@@ -1323,8 +1379,8 @@ export default function ImportExcelModal({
                 ) : null}
 
                 <div className="mt-4 rounded-2xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm font-semibold leading-6 text-yellow-800">
-                  מומלץ להעלות צילום מסך ברור. אם שם זוהה לא מדויק, ניתן לתקן
-                  אותו בטבלת הבדיקה לפני השמירה.
+                  זו סריקה חכמה מתוך תמונה, אך האחריות היא שלכם לעבור על התצוגה המקדימה,
+                  לבדוק שמות ומספרים ולערוך במידת הצורך לפני שמירה.
                 </div>
               </>
             ) : null}
@@ -1372,6 +1428,13 @@ export default function ImportExcelModal({
                   ניקוי תצוגה
                 </button>
               </div>
+
+              {previewSource === "תמונה / צילום מסך" ? (
+                <div className="mb-4 rounded-2xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm font-bold leading-6 text-yellow-800">
+                  זו סריקה חכמה מתוך תמונה. האחריות היא שלכם לעבור על התצוגה המקדימה,
+                  לבדוק שכל שם וכל מספר נקלטו נכון, ולערוך במידת הצורך לפני שמירה.
+                </div>
+              ) : null}
 
               <div className="overflow-x-auto rounded-[22px] border border-[#EFE2CF]">
                 <table className="min-w-[720px] w-full text-right text-sm">
@@ -1480,13 +1543,17 @@ export default function ImportExcelModal({
                               className={`
                                 inline-flex rounded-full px-3 py-1 text-xs font-black
                                 ${
-                                  guest.name && phoneValid
+                                  previewSource === "תמונה / צילום מסך"
+                                    ? "bg-yellow-50 text-yellow-700"
+                                    : guest.name && phoneValid
                                     ? "bg-green-50 text-green-700"
                                     : "bg-yellow-50 text-yellow-700"
                                 }
                               `}
                             >
-                              {guest.name && phoneValid
+                              {previewSource === "תמונה / צילום מסך"
+                                ? "לבדיקה"
+                                : guest.name && phoneValid
                                 ? "תקין"
                                 : "דורש בדיקה"}
                             </span>
