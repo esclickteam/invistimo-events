@@ -48,9 +48,11 @@ function normalizeText(value) {
   return String(value ?? "")
     .normalize("NFKC")
     .replace(/[\u200B-\u200D\uFEFF]/g, "")
+    .replace(/[\u200E\u200F]/g, " ")
     .replace(/\u00A0/g, " ")
     .replace(/[׳']/g, "'")
     .replace(/[״"]/g, '"')
+    .replace(/[־]/g, "-")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -64,13 +66,28 @@ function normalizeNumber(value) {
 }
 
 /* ============================================================
+   עזר: ניקוי OCR נפוץ במספרים
+============================================================ */
+function normalizePhoneOcrChars(value) {
+  return String(value || "")
+    .replace(/[Oo]/g, "0")
+    .replace(/[Il|]/g, "1")
+    .replace(/[S]/g, "5")
+    .replace(/[B]/g, "8")
+    .replace(/[–—־]/g, "-")
+    .replace(/[()]/g, " ")
+    .replace(/[\u200E\u200F]/g, " ");
+}
+
+/* ============================================================
    עזר: נרמול טלפון רק להדבקה/תמונה
    לא משתמשים בזה באקסל כדי לא לשנות את הייבוא התקין שלך
 ============================================================ */
 function normalizeSmartPhone(value) {
-  let phone = String(value || "").trim();
+  let phone = normalizePhoneOcrChars(value).trim();
 
-  phone = phone.replace(/[^\d+]/g, "").replace(/^00/, "+");
+  phone = phone.replace(/^00\s*972/, "+972");
+  phone = phone.replace(/[^\d+]/g, "");
 
   if (phone.startsWith("+972")) {
     phone = "0" + phone.slice(4);
@@ -80,20 +97,82 @@ function normalizeSmartPhone(value) {
 
   phone = phone.replace(/\D/g, "");
 
+  // אם OCR קלט ישראלי בלי 0 בהתחלה
+  if (phone.length === 9 && phone.startsWith("5")) {
+    phone = `0${phone}`;
+  }
+
+  // אם יש בתוך הטקסט מספר ישראלי תקין
+  const localMatch = phone.match(/05\d{8}/);
+  if (localMatch?.[0]) return localMatch[0];
+
+  // אם נשאר 972 באמצע
+  const intlMatch = phone.match(/972(5\d{8})/);
+  if (intlMatch?.[1]) return `0${intlMatch[1]}`;
+
   return phone || "";
 }
 
 /* ============================================================
-   עזר: האם יש טלפון בשורה
+   עזר: חילוץ טלפון משורה
+   תומך:
+   +972 50-910-0321
+   +97250-910-0321
+   972 50 910 0321
+   050-910-0321
+   0509100321
 ============================================================ */
 function extractPhoneFromLine(line) {
-  const match = String(line || "").match(
-    /(?:\+972|972|0)?5\d[\s\-().]*\d{3}[\s\-().]*\d{4}/
-  );
+  const text = normalizePhoneOcrChars(line)
+    .replace(/[\u200E\u200F]/g, " ")
+    .trim();
 
-  if (!match?.[0]) return "";
+  const patterns = [
+    /(?:\+|00)?\s*972\s*[-–]?\s*(5\d)\s*[-–]?\s*(\d{3})\s*[-–]?\s*(\d{4})/,
+    /0?\s*(5\d)\s*[-–]?\s*(\d{3})\s*[-–]?\s*(\d{4})/,
+    /(?:\+|00)?\s*972[\s\-–]*(5\d[\d\s\-–]{7,12})/,
+    /0?\s*(5\d[\d\s\-–]{7,12})/,
+  ];
 
-  return normalizeSmartPhone(match[0]);
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+
+    if (!match) continue;
+
+    let raw = match[0];
+
+    if (match[1] && match[2] && match[3]) {
+      raw = `${match[1]}${match[2]}${match[3]}`;
+    }
+
+    const phone = normalizeSmartPhone(raw);
+
+    if (/^05\d{8}$/.test(phone)) {
+      return phone;
+    }
+  }
+
+  // fallback: לפי רצף ספרות מלא מתוך השורה
+  const digits = text.replace(/\D/g, "");
+
+  if (!digits) return "";
+
+  const intl = digits.match(/972(5\d{8})/);
+  if (intl?.[1]) {
+    return `0${intl[1]}`;
+  }
+
+  const local = digits.match(/05\d{8}/);
+  if (local?.[0]) {
+    return local[0];
+  }
+
+  const localNoZero = digits.match(/5\d{8}/);
+  if (localNoZero?.[0]) {
+    return `0${localNoZero[0]}`;
+  }
+
+  return "";
 }
 
 /* ============================================================
@@ -116,93 +195,178 @@ function extractGuestsCountFromLine(line) {
 }
 
 /* ============================================================
+   עזר: ניקוי שם
+============================================================ */
+function cleanNameText(value) {
+  return normalizeText(value)
+    .replace(/(?:שליחת פרטי אנשי הקשר|שליחה|נייד|טלפון|שם החברה|שם מלא|שם)/g, " ")
+    .replace(/[✓✔●•@]+/g, " ")
+    .replace(/[|,;]+/g, " ")
+    .replace(/\s*[-–—]\s*/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/* ============================================================
    עזר: חילוץ שם מתוך שורת טקסט
 ============================================================ */
 function extractNameFromLine(line, phone) {
   let name = normalizeText(line);
 
+  // הסרת מספרים בינלאומיים/ישראליים בכל צורה נפוצה
+  name = name.replace(
+    /(?:\+|00)?\s*972\s*[-–]?\s*5\d\s*[-–]?\s*\d{3}\s*[-–]?\s*\d{4}/g,
+    " "
+  );
+
+  name = name.replace(
+    /0?\s*5\d\s*[-–]?\s*\d{3}\s*[-–]?\s*\d{4}/g,
+    " "
+  );
+
   if (phone) {
     const digits = String(phone).replace(/\D/g, "");
+    const noZero = digits.replace(/^0/, "");
 
     const possibleFormats = [
       digits,
-      digits.replace(/^0/, "+972"),
-      digits.replace(/^0/, "972"),
+      noZero,
+      `+972${noZero}`,
+      `972${noZero}`,
+      `+972 ${noZero}`,
+      `972 ${noZero}`,
     ];
 
     possibleFormats.forEach((format) => {
       name = name.replace(format, " ");
     });
-
-    name = name.replace(
-      /(?:\+972|972|0)?5\d[\s\-().]*\d{3}[\s\-().]*\d{4}/g,
-      " "
-    );
   }
 
   name = name
     .replace(/(?:כמות|מוזמנים|אורחים|נפשות)\s*[:\-]?\s*\d{1,2}/g, " ")
-    .replace(/\d{1,2}\s*(?:מוזמנים|אורחים|נפשות)/g, " ")
-    .replace(/[|,;]+/g, " ")
-    .replace(/\s*[-–—]\s*/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+    .replace(/\d{1,2}\s*(?:מוזמנים|אורחים|נפשות)/g, " ");
 
-  return name;
+  return cleanNameText(name);
+}
+
+/* ============================================================
+   עזר: שורת רעש
+============================================================ */
+function isNoiseLine(line) {
+  const text = normalizeText(line);
+
+  if (!text) return true;
+
+  const exactNoise = [
+    "שליחה",
+    "שליחת פרטי אנשי הקשר",
+    "נייד",
+    "טלפון",
+    "שם",
+    "שם מלא",
+    "שם החברה",
+    "חברה",
+    "רשימת מוזמנים",
+    "מוזמנים",
+    "אורחים",
+  ];
+
+  if (exactNoise.includes(text)) return true;
+
+  if (/^[✓✔●•@+\-\s\d]+$/.test(text)) return true;
+
+  return false;
+}
+
+/* ============================================================
+   עזר: האם שורה נראית כמו שם
+============================================================ */
+function looksLikeNameLine(line) {
+  const text = cleanNameText(line);
+
+  if (!text) return false;
+  if (isNoiseLine(text)) return false;
+  if (extractPhoneFromLine(text)) return false;
+
+  // חייב להכיל אותיות
+  if (!/[א-תA-Za-z]/.test(text)) return false;
+
+  if (text.length < 2) return false;
+
+  return true;
+}
+
+/* ============================================================
+   עזר: פירוק טקסט OCR לשורות נקיות
+============================================================ */
+function splitSmartLines(text) {
+  return String(text || "")
+    .split(/\r?\n/)
+    .map((line) => normalizeText(line))
+    .flatMap((line) => {
+      // לפעמים OCR מחבר שם ו"נייד" באותה שורה
+      return line
+        .replace(/\s+(נייד)\s+/g, "\n$1\n")
+        .split("\n")
+        .map((x) => normalizeText(x));
+    })
+    .filter(Boolean);
 }
 
 /* ============================================================
    עזר: שורות OCR / הדבקה → קבוצות של שם + טלפון
-   תומך גם במבנה:
-   דנה כהן
-   0521234567
+   מתאים לצילום מסך אנשי קשר:
+   שם
+   נייד
+   +972 50-910-0321
 ============================================================ */
 function buildGuestLinesFromText(text) {
-  const lines = String(text || "")
-    .split(/\r?\n/)
-    .map((line) => normalizeText(line))
-    .filter(Boolean);
+  const lines = splitSmartLines(text);
 
   const guestLines = [];
-  let pendingNameLine = "";
+  let lastNameCandidate = "";
 
-  for (const line of lines) {
+  for (const originalLine of lines) {
+    const line = normalizeText(originalLine);
     const phone = extractPhoneFromLine(line);
 
     if (phone) {
       const nameFromSameLine = extractNameFromLine(line, phone);
 
-      if (nameFromSameLine) {
-        guestLines.push(line);
-        pendingNameLine = "";
-      } else if (pendingNameLine) {
-        guestLines.push(`${pendingNameLine} ${phone}`);
-        pendingNameLine = "";
+      if (nameFromSameLine && looksLikeNameLine(nameFromSameLine)) {
+        guestLines.push(`${nameFromSameLine} ${phone}`);
+      } else if (lastNameCandidate) {
+        guestLines.push(`${lastNameCandidate} ${phone}`);
       } else {
-        guestLines.push(line);
+        guestLines.push(`ללא שם ${phone}`);
       }
 
+      lastNameCandidate = "";
       continue;
     }
 
-    const looksLikeNoise =
-      line.length <= 1 ||
-      /^(שם|טלפון|נייד|מוזמנים|רשימת מוזמנים|אורחים)$/i.test(line);
-
-    if (looksLikeNoise) continue;
-
-    if (pendingNameLine) {
-      guestLines.push(pendingNameLine);
+    if (looksLikeNameLine(line)) {
+      lastNameCandidate = cleanNameText(line);
     }
-
-    pendingNameLine = line;
-  }
-
-  if (pendingNameLine) {
-    guestLines.push(pendingNameLine);
   }
 
   return guestLines;
+}
+
+/* ============================================================
+   עזר: הסרת כפילויות לפי טלפון
+============================================================ */
+function uniqueGuestsByPhone(guests) {
+  const seen = new Set();
+
+  return guests.filter((guest) => {
+    if (!guest?.phone) return true;
+
+    if (seen.has(guest.phone)) return false;
+
+    seen.add(guest.phone);
+    return true;
+  });
 }
 
 /* ============================================================
@@ -211,12 +375,13 @@ function buildGuestLinesFromText(text) {
 function parseGuestsFromText(text) {
   const guestLines = buildGuestLinesFromText(text);
 
-  return guestLines
+  const guests = guestLines
     .map((line) => {
       const phone = extractPhoneFromLine(line);
       const name = extractNameFromLine(line, phone);
       const guestsCount = extractGuestsCountFromLine(line);
 
+      // בתמונה/הדבקה אנחנו רוצים לקלוט רק אם יש שם או טלפון
       if (!name && !phone) return null;
 
       return {
@@ -233,6 +398,69 @@ function parseGuestsFromText(text) {
       };
     })
     .filter(Boolean);
+
+  return uniqueGuestsByPhone(guests);
+}
+
+/* ============================================================
+   שיפור תמונה לפני OCR
+   מגדיל, הופך לגווני אפור ומחזק קונטרסט
+============================================================ */
+async function preprocessImageForOcr(file) {
+  if (typeof window === "undefined") return file;
+
+  const imageUrl = URL.createObjectURL(file);
+
+  try {
+    const img = await new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = reject;
+      image.src = imageUrl;
+    });
+
+    const scale = 2;
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+    if (!ctx) return file;
+
+    canvas.width = img.width * scale;
+    canvas.height = img.height * scale;
+
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+
+    for (let i = 0; i < data.length; i += 4) {
+      const gray = Math.round(
+        data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114
+      );
+
+      // קונטרסט עדין בלי להרוס טקסטים בהירים
+      const boosted = gray > 170 ? 255 : gray < 90 ? 0 : gray;
+
+      data[i] = boosted;
+      data[i + 1] = boosted;
+      data[i + 2] = boosted;
+    }
+
+    ctx.putImageData(imageData, 0, 0);
+
+    const blob = await new Promise((resolve) => {
+      canvas.toBlob(resolve, "image/png", 1);
+    });
+
+    return blob || file;
+  } catch (error) {
+    console.warn("OCR preprocess failed, using original image", error);
+    return file;
+  } finally {
+    URL.revokeObjectURL(imageUrl);
+  }
 }
 
 export default function ImportExcelModal({
@@ -567,8 +795,9 @@ export default function ImportExcelModal({
 
     try {
       const Tesseract = await import("tesseract.js");
+      const processedImage = await preprocessImageForOcr(imageFile);
 
-      const result = await Tesseract.recognize(imageFile, "heb+eng", {
+      const result = await Tesseract.recognize(processedImage, "eng+heb", {
         logger: (m) => {
           if (m?.status === "recognizing text") {
             setOcrProgress(Math.round((m.progress || 0) * 100));
@@ -604,7 +833,8 @@ export default function ImportExcelModal({
 
         setSummary({
           type: "error",
-          text: "זוהה טקסט, אבל לא נמצאו שמות וטלפונים תקינים. מומלץ שהתמונה תכלול כל מוזמן בשורה עם שם וטלפון.",
+          text:
+            "זוהה טקסט, אבל לא נמצאו שמות וטלפונים תקינים. מומלץ שהתמונה תהיה צילום מסך ברור מתוך אנשי קשר/וואטסאפ.",
           usage: null,
         });
 
@@ -699,7 +929,9 @@ export default function ImportExcelModal({
         {loading ? (
           <>
             <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-            {ocrProgress > 0 ? `סורק תמונה... ${ocrProgress}%` : "מכין סריקה..."}
+            {ocrProgress > 0
+              ? `סורק תמונה... ${ocrProgress}%`
+              : "מכין סריקה..."}
           </>
         ) : (
           <>סריקת תמונה וייבוא אורחים</>
@@ -757,7 +989,11 @@ export default function ImportExcelModal({
                 shadow-[0_12px_35px_rgba(139,106,63,0.18)]
               "
             >
-              {activeTab === "excel" ? "📊" : activeTab === "paste" ? "📋" : "📷"}
+              {activeTab === "excel"
+                ? "📊"
+                : activeTab === "paste"
+                ? "📋"
+                : "📷"}
             </div>
 
             <h2 className="text-center text-2xl font-black text-[#2F241A] sm:text-3xl">
@@ -904,7 +1140,9 @@ export default function ImportExcelModal({
                   </div>
 
                   <p className="text-base font-black text-[#3E2D20]">
-                    {selectedFileName ? "הקובץ נבחר בהצלחה" : "בחרו קובץ להעלאה"}
+                    {selectedFileName
+                      ? "הקובץ נבחר בהצלחה"
+                      : "בחרו קובץ להעלאה"}
                   </p>
 
                   <p className="mt-1 max-w-[420px] text-sm leading-6 text-[#7A6A59]">
@@ -917,7 +1155,9 @@ export default function ImportExcelModal({
                 {selectedFileName ? (
                   <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-[#EFE2CF] bg-white px-4 py-3">
                     <div className="min-w-0">
-                      <p className="text-xs font-bold text-[#8B6A3F]">קובץ נבחר</p>
+                      <p className="text-xs font-bold text-[#8B6A3F]">
+                        קובץ נבחר
+                      </p>
                       <p className="truncate text-sm font-semibold text-[#3E2D20]">
                         {selectedFileName}
                       </p>
@@ -1060,7 +1300,9 @@ export default function ImportExcelModal({
             {recordsLimit > 0 ? (
               <div className="mt-4 rounded-2xl border border-[#EFE2CF] bg-white px-4 py-3 text-sm font-semibold leading-6 text-[#7A6A59]">
                 החבילה מאפשרת עד{" "}
-                <span className="font-black text-[#3E2D20]">{recordsLimit}</span>{" "}
+                <span className="font-black text-[#3E2D20]">
+                  {recordsLimit}
+                </span>{" "}
                 רשומות.
               </div>
             ) : null}
