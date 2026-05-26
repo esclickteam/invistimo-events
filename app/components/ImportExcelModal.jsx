@@ -18,7 +18,16 @@ const RSVP_MAP = {
 };
 
 /* ============================================================
-   עזר: המרת מספר שולחן (גם אם הגיע כטקסט)
+   טאבים
+============================================================ */
+const IMPORT_TABS = [
+  { id: "excel", label: "Excel", icon: "📊" },
+  { id: "paste", label: "הדבקת רשימה", icon: "📋" },
+  { id: "image", label: "תמונה / צילום מסך", icon: "📷" },
+];
+
+/* ============================================================
+   עזר: המרת מספר שולחן
 ============================================================ */
 function normalizeTableNumber(value) {
   if (value === null || value === undefined || value === "") return null;
@@ -33,13 +42,15 @@ function normalizeTableNumber(value) {
 }
 
 /* ============================================================
-   עזר: ניקוי טקסט (עברית, רווחים, תווים נסתרים)
+   עזר: ניקוי טקסט
 ============================================================ */
 function normalizeText(value) {
   return String(value ?? "")
     .normalize("NFKC")
     .replace(/[\u200B-\u200D\uFEFF]/g, "")
     .replace(/\u00A0/g, " ")
+    .replace(/[׳']/g, "'")
+    .replace(/[״"]/g, '"')
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -50,6 +61,178 @@ function normalizeText(value) {
 function normalizeNumber(value) {
   const num = Number(value || 0);
   return Number.isFinite(num) ? num : 0;
+}
+
+/* ============================================================
+   עזר: נרמול טלפון רק להדבקה/תמונה
+   לא משתמשים בזה באקסל כדי לא לשנות את הייבוא התקין שלך
+============================================================ */
+function normalizeSmartPhone(value) {
+  let phone = String(value || "").trim();
+
+  phone = phone.replace(/[^\d+]/g, "").replace(/^00/, "+");
+
+  if (phone.startsWith("+972")) {
+    phone = "0" + phone.slice(4);
+  } else if (phone.startsWith("972")) {
+    phone = "0" + phone.slice(3);
+  }
+
+  phone = phone.replace(/\D/g, "");
+
+  return phone || "";
+}
+
+/* ============================================================
+   עזר: האם יש טלפון בשורה
+============================================================ */
+function extractPhoneFromLine(line) {
+  const match = String(line || "").match(
+    /(?:\+972|972|0)?5\d[\s\-().]*\d{3}[\s\-().]*\d{4}/
+  );
+
+  if (!match?.[0]) return "";
+
+  return normalizeSmartPhone(match[0]);
+}
+
+/* ============================================================
+   עזר: חילוץ כמות מתוך טקסט
+============================================================ */
+function extractGuestsCountFromLine(line) {
+  const text = normalizeText(line);
+
+  const explicitMatch =
+    text.match(/(?:כמות|מוזמנים|אורחים|נפשות)\s*[:\-]?\s*(\d{1,2})/) ||
+    text.match(/(\d{1,2})\s*(?:מוזמנים|אורחים|נפשות)/);
+
+  if (!explicitMatch?.[1]) return 1;
+
+  const count = Number(explicitMatch[1]);
+
+  if (!Number.isFinite(count) || count < 1) return 1;
+
+  return count;
+}
+
+/* ============================================================
+   עזר: חילוץ שם מתוך שורת טקסט
+============================================================ */
+function extractNameFromLine(line, phone) {
+  let name = normalizeText(line);
+
+  if (phone) {
+    const digits = String(phone).replace(/\D/g, "");
+
+    const possibleFormats = [
+      digits,
+      digits.replace(/^0/, "+972"),
+      digits.replace(/^0/, "972"),
+    ];
+
+    possibleFormats.forEach((format) => {
+      name = name.replace(format, " ");
+    });
+
+    name = name.replace(
+      /(?:\+972|972|0)?5\d[\s\-().]*\d{3}[\s\-().]*\d{4}/g,
+      " "
+    );
+  }
+
+  name = name
+    .replace(/(?:כמות|מוזמנים|אורחים|נפשות)\s*[:\-]?\s*\d{1,2}/g, " ")
+    .replace(/\d{1,2}\s*(?:מוזמנים|אורחים|נפשות)/g, " ")
+    .replace(/[|,;]+/g, " ")
+    .replace(/\s*[-–—]\s*/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return name;
+}
+
+/* ============================================================
+   עזר: שורות OCR / הדבקה → קבוצות של שם + טלפון
+   תומך גם במבנה:
+   דנה כהן
+   0521234567
+============================================================ */
+function buildGuestLinesFromText(text) {
+  const lines = String(text || "")
+    .split(/\r?\n/)
+    .map((line) => normalizeText(line))
+    .filter(Boolean);
+
+  const guestLines = [];
+  let pendingNameLine = "";
+
+  for (const line of lines) {
+    const phone = extractPhoneFromLine(line);
+
+    if (phone) {
+      const nameFromSameLine = extractNameFromLine(line, phone);
+
+      if (nameFromSameLine) {
+        guestLines.push(line);
+        pendingNameLine = "";
+      } else if (pendingNameLine) {
+        guestLines.push(`${pendingNameLine} ${phone}`);
+        pendingNameLine = "";
+      } else {
+        guestLines.push(line);
+      }
+
+      continue;
+    }
+
+    const looksLikeNoise =
+      line.length <= 1 ||
+      /^(שם|טלפון|נייד|מוזמנים|רשימת מוזמנים|אורחים)$/i.test(line);
+
+    if (looksLikeNoise) continue;
+
+    if (pendingNameLine) {
+      guestLines.push(pendingNameLine);
+    }
+
+    pendingNameLine = line;
+  }
+
+  if (pendingNameLine) {
+    guestLines.push(pendingNameLine);
+  }
+
+  return guestLines;
+}
+
+/* ============================================================
+   עזר: הפיכת טקסט חופשי לרשימת מוזמנים
+============================================================ */
+function parseGuestsFromText(text) {
+  const guestLines = buildGuestLinesFromText(text);
+
+  return guestLines
+    .map((line) => {
+      const phone = extractPhoneFromLine(line);
+      const name = extractNameFromLine(line, phone);
+      const guestsCount = extractGuestsCountFromLine(line);
+
+      if (!name && !phone) return null;
+
+      return {
+        name: name || "ללא שם",
+        phone: phone || null,
+        relation: null,
+        group: null,
+        rsvp: "pending",
+        guestsCount,
+        arrivedCount: 0,
+        notes: null,
+        tableNumber: null,
+        tableName: null,
+      };
+    })
+    .filter(Boolean);
 }
 
 export default function ImportExcelModal({
@@ -65,31 +248,45 @@ export default function ImportExcelModal({
   maxRecords = 0,
   user = null,
 }) {
-  const [file, setFile] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("excel");
 
-  // לשיפור UX - הודעה אחרונה מהייבוא
+  const [file, setFile] = useState(null);
+  const [imageFile, setImageFile] = useState(null);
+  const [pastedText, setPastedText] = useState("");
+
+  const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState(null);
 
+  const [ocrText, setOcrText] = useState("");
+  const [ocrProgress, setOcrProgress] = useState(0);
+
   const selectedFileName = useMemo(() => file?.name || "", [file]);
+  const selectedImageName = useMemo(() => imageFile?.name || "", [imageFile]);
 
   const recordsLimit = useMemo(() => {
     return normalizeNumber(
-      guestLimit ||
-        allowedRecords ||
-        maxRecords ||
-        user?.guests ||
-        0
+      guestLimit || allowedRecords || maxRecords || user?.guests || 0
     );
   }, [guestLimit, allowedRecords, maxRecords, user?.guests]);
 
-  const handleFileChange = (e) => {
+  const resetMessages = () => {
     setSummary(null);
+  };
+
+  const handleFileChange = (e) => {
+    resetMessages();
     setFile(e.target.files?.[0] || null);
   };
 
+  const handleImageChange = (e) => {
+    resetMessages();
+    setOcrText("");
+    setOcrProgress(0);
+    setImageFile(e.target.files?.[0] || null);
+  };
+
   const showLimitError = ({ limit, incomingCount }) => {
-    const msg = `לא ניתן להעלות את הקובץ. החבילה שלך מאפשרת עד ${limit} רשומות בלבד, ובקובץ נמצאו ${incomingCount} רשומות.`;
+    const msg = `לא ניתן להעלות. החבילה שלך מאפשרת עד ${limit} רשומות בלבד, ובייבוא נמצאו ${incomingCount} רשומות.`;
 
     alert(msg);
 
@@ -103,7 +300,122 @@ export default function ImportExcelModal({
     });
   };
 
-  const handleImport = async () => {
+  const checkRecordsLimit = (incomingRecordsCount) => {
+    if (recordsLimit > 0 && incomingRecordsCount > recordsLimit) {
+      showLimitError({
+        limit: recordsLimit,
+        incomingCount: incomingRecordsCount,
+      });
+      return false;
+    }
+
+    return true;
+  };
+
+  const sendGuestsToServer = async (guests, successPrefix = "יובאו") => {
+    const incomingRecordsCount = guests.length;
+
+    if (!checkRecordsLimit(incomingRecordsCount)) {
+      return;
+    }
+
+    const res = await fetch("/api/guests/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ invitationId, guests }),
+    });
+
+    const result = await res.json();
+    console.log("📦 Import result:", result);
+
+    if (!res.ok || !result?.success) {
+      const isLimitError =
+        result?.code === "GUEST_LIMIT_REACHED" ||
+        result?.code === "GUEST_RECORD_LIMIT_EXCEEDED" ||
+        result?.error === "GUEST_LIMIT_REACHED" ||
+        result?.error === "GUEST_RECORD_LIMIT_EXCEEDED";
+
+      if ((res.status === 409 || res.status === 403) && isLimitError) {
+        const serverLimit =
+          result?.usage?.limit ??
+          result?.allowedRecords ??
+          result?.maxRecords ??
+          recordsLimit ??
+          "-";
+
+        const serverIncoming =
+          result?.usage?.incomingCount ??
+          result?.incomingRecordsCount ??
+          result?.count ??
+          incomingRecordsCount;
+
+        const limitMsg =
+          result?.message ||
+          result?.errorMessage ||
+          `לא ניתן להעלות. החבילה שלך מאפשרת עד ${serverLimit} רשומות בלבד, ובייבוא נמצאו ${serverIncoming} רשומות.`;
+
+        alert(limitMsg);
+
+        setSummary({
+          type: "error",
+          text: limitMsg,
+          usage: result?.usage || {
+            limit: serverLimit,
+            incomingCount: serverIncoming,
+          },
+        });
+
+        return;
+      }
+
+      const errMsg =
+        result?.message || result?.error || "שגיאה בייבוא המוזמנים";
+
+      alert(errMsg);
+
+      setSummary({
+        type: "error",
+        text: errMsg,
+        usage: result?.usage || null,
+      });
+
+      return;
+    }
+
+    const count = Number(result?.count || 0);
+    const skippedByLimit = Number(result?.skippedByLimit || 0);
+    const usage = result?.usage || null;
+
+    if (skippedByLimit > 0) {
+      const msg =
+        result?.message ||
+        `${successPrefix} ${count} מוזמנים. ${skippedByLimit} לא יובאו בגלל מגבלת מכסה.`;
+
+      alert(`⚠️ ${msg}`);
+
+      setSummary({
+        type: "partial",
+        text: msg,
+        usage,
+      });
+    } else {
+      const msg =
+        result?.message || `✅ ${successPrefix} ${count} מוזמנים בהצלחה`;
+
+      alert(msg);
+
+      setSummary({
+        type: "success",
+        text: msg,
+        usage,
+      });
+    }
+
+    await onSuccess?.();
+    onClose?.();
+  };
+
+  const handleImportExcel = async () => {
     if (!file) {
       alert("יש לבחור קובץ אקסל תחילה");
       return;
@@ -123,9 +435,6 @@ export default function ImportExcelModal({
 
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
 
-      /* ============================================================
-         קריאה מדויקת של האקסל
-      ============================================================ */
       const rawJson = XLSX.utils.sheet_to_json(sheet, {
         defval: "",
         raw: false,
@@ -133,9 +442,6 @@ export default function ImportExcelModal({
 
       console.log("📄 RAW JSON FULL:", rawJson);
 
-      /* ============================================================
-         ניקוי + נרמול נתונים לפני שליחה לשרת
-      ============================================================ */
       const guests = rawJson
         .map((row, index) => {
           console.log("=================================");
@@ -162,43 +468,31 @@ export default function ImportExcelModal({
           console.log("➡️ RELATION CLEAN:", relationRaw);
 
           const phoneRaw = row["טלפון"];
+
+          // לא לגעת: זה בדיוק כמו שהיה אצלך באקסל
           const phoneClean = normalizeText(phoneRaw).replace(/\D/g, "");
 
           console.log("➡️ PHONE RAW:", phoneRaw);
           console.log("➡️ PHONE CLEAN:", phoneClean);
 
           const tableNumber = normalizeTableNumber(
-            row["מס' שולחן"] ??
-              row["מספר שולחן"] ??
-              row["שולחן"] ??
-              ""
+            row["מס' שולחן"] ?? row["מספר שולחן"] ?? row["שולחן"] ?? ""
           );
 
           console.log("➡️ TABLE:", tableNumber);
 
           return {
             name,
-
-            // טלפון אופציונלי
             phone: phoneClean || null,
-
             relation: relationRaw || null,
             group: groupRaw || null,
-
-            // RSVP תקני
             rsvp: RSVP_MAP[rawStatus] || "pending",
-
-            // כמות מוזמנים בתוך הרשומה - לא קשור למגבלת הרשומות
             guestsCount: Math.max(
               1,
               Number(row["מוזמנים"] ?? row["כמות אורחים"] ?? 1) || 1
             ),
-
-            // מתחיל תמיד מ-0
             arrivedCount: 0,
-
             notes: normalizeText(row["הערות"]) || null,
-
             tableNumber,
             tableName: tableNumber !== null ? `שולחן ${tableNumber}` : null,
           };
@@ -212,127 +506,12 @@ export default function ImportExcelModal({
         return;
       }
 
-      /* ============================================================
-         בדיקת מגבלת רשומות לפי user.guests לפני שליחה לשרת
-         guests.length = מספר רשומות באקסל
-      ============================================================ */
-      const incomingRecordsCount = guests.length;
-
       console.log("📌 EXCEL RECORD LIMIT CHECK:", {
         recordsLimit,
-        incomingRecordsCount,
+        incomingRecordsCount: guests.length,
       });
 
-      if (recordsLimit > 0 && incomingRecordsCount > recordsLimit) {
-        showLimitError({
-          limit: recordsLimit,
-          incomingCount: incomingRecordsCount,
-        });
-        return;
-      }
-
-      const res = await fetch("/api/guests/import", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ invitationId, guests }),
-      });
-
-      const result = await res.json();
-      console.log("📦 Import result:", result);
-
-      /* ============================================================
-         טיפול שגיאות מהשרת
-         כולל הגבלה לפי user.guests בצד שרת
-      ============================================================ */
-      if (!res.ok || !result?.success) {
-        const isLimitError =
-          result?.code === "GUEST_LIMIT_REACHED" ||
-          result?.code === "GUEST_RECORD_LIMIT_EXCEEDED" ||
-          result?.error === "GUEST_LIMIT_REACHED" ||
-          result?.error === "GUEST_RECORD_LIMIT_EXCEEDED";
-
-        if ((res.status === 409 || res.status === 403) && isLimitError) {
-          const serverLimit =
-            result?.usage?.limit ??
-            result?.allowedRecords ??
-            result?.maxRecords ??
-            recordsLimit ??
-            "-";
-
-          const serverIncoming =
-            result?.usage?.incomingCount ??
-            result?.incomingRecordsCount ??
-            result?.count ??
-            incomingRecordsCount;
-
-          const limitMsg =
-            result?.message ||
-            result?.errorMessage ||
-            `לא ניתן להעלות את הקובץ. החבילה שלך מאפשרת עד ${serverLimit} רשומות בלבד, ובקובץ נמצאו ${serverIncoming} רשומות.`;
-
-          alert(limitMsg);
-
-          setSummary({
-            type: "error",
-            text: limitMsg,
-            usage: result?.usage || {
-              limit: serverLimit,
-              incomingCount: serverIncoming,
-            },
-          });
-
-          return;
-        }
-
-        const errMsg =
-          result?.message ||
-          result?.error ||
-          "שגיאה בייבוא הקובץ";
-
-        alert(errMsg);
-
-        setSummary({
-          type: "error",
-          text: errMsg,
-          usage: result?.usage || null,
-        });
-
-        return;
-      }
-
-      /* ============================================================
-         הצלחה
-      ============================================================ */
-      const count = Number(result?.count || 0);
-      const skippedByLimit = Number(result?.skippedByLimit || 0);
-      const usage = result?.usage || null;
-
-      if (skippedByLimit > 0) {
-        const msg =
-          result?.message ||
-          `יובאו ${count} מוזמנים. ${skippedByLimit} לא יובאו בגלל מגבלת מכסה.`;
-
-        alert(`⚠️ ${msg}`);
-
-        setSummary({
-          type: "partial",
-          text: msg,
-          usage,
-        });
-      } else {
-        const msg = result?.message || `✅ יובאו ${count} מוזמנים בהצלחה`;
-
-        alert(msg);
-
-        setSummary({
-          type: "success",
-          text: msg,
-          usage,
-        });
-      }
-
-      await onSuccess?.();
-      onClose?.();
+      await sendGuestsToServer(guests, "יובאו");
     } catch (err) {
       console.error("❌ Excel Error:", err);
       alert("שגיאה בקריאת הקובץ");
@@ -347,52 +526,224 @@ export default function ImportExcelModal({
     }
   };
 
+  const handleImportPastedList = async () => {
+    const guests = parseGuestsFromText(pastedText);
+
+    if (!guests.length) {
+      alert("לא נמצאו מוזמנים תקינים בטקסט שהודבק");
+      return;
+    }
+
+    setLoading(true);
+    setSummary(null);
+
+    try {
+      console.log("📋 PASTED GUESTS:", guests);
+      await sendGuestsToServer(guests, "יובאו מהרשימה");
+    } catch (err) {
+      console.error("❌ Paste Import Error:", err);
+      alert("שגיאה בייבוא מהרשימה");
+
+      setSummary({
+        type: "error",
+        text: "שגיאה בייבוא מהרשימה",
+        usage: null,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleImportImage = async () => {
+    if (!imageFile) {
+      alert("יש לבחור תמונה או צילום מסך תחילה");
+      return;
+    }
+
+    setLoading(true);
+    setSummary(null);
+    setOcrText("");
+    setOcrProgress(0);
+
+    try {
+      const Tesseract = await import("tesseract.js");
+
+      const result = await Tesseract.recognize(imageFile, "heb+eng", {
+        logger: (m) => {
+          if (m?.status === "recognizing text") {
+            setOcrProgress(Math.round((m.progress || 0) * 100));
+          }
+        },
+      });
+
+      const text = result?.data?.text || "";
+      const cleanText = String(text || "").trim();
+
+      console.log("📷 OCR TEXT:", cleanText);
+
+      setOcrText(cleanText);
+
+      if (!cleanText) {
+        alert("לא זוהה טקסט בתמונה");
+
+        setSummary({
+          type: "error",
+          text: "לא זוהה טקסט בתמונה. נסי להעלות צילום מסך ברור יותר.",
+          usage: null,
+        });
+
+        return;
+      }
+
+      const guests = parseGuestsFromText(cleanText);
+
+      console.log("📷 OCR GUESTS:", guests);
+
+      if (!guests.length) {
+        alert("זוהה טקסט, אבל לא נמצאו שמות וטלפונים תקינים");
+
+        setSummary({
+          type: "error",
+          text: "זוהה טקסט, אבל לא נמצאו שמות וטלפונים תקינים. מומלץ שהתמונה תכלול כל מוזמן בשורה עם שם וטלפון.",
+          usage: null,
+        });
+
+        return;
+      }
+
+      await sendGuestsToServer(guests, "יובאו מהתמונה");
+    } catch (err) {
+      console.error("❌ Image OCR Error:", err);
+      alert("שגיאה בסריקת התמונה");
+
+      setSummary({
+        type: "error",
+        text: "שגיאה בסריקת התמונה. ודאי שהותקנה החבילה tesseract.js.",
+        usage: null,
+      });
+    } finally {
+      setLoading(false);
+      setOcrProgress(0);
+    }
+  };
+
+  const renderActiveImportButton = () => {
+    if (activeTab === "excel") {
+      return (
+        <button
+          type="button"
+          onClick={handleImportExcel}
+          disabled={loading}
+          className="
+            mt-5 flex w-full items-center justify-center gap-2
+            rounded-full bg-[#128C3A] px-6 py-4
+            text-base font-black text-white
+            shadow-[0_14px_35px_rgba(18,140,58,0.24)]
+            transition hover:bg-[#0F7A32]
+            disabled:cursor-not-allowed disabled:opacity-60
+          "
+        >
+          {loading ? (
+            <>
+              <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+              מייבא את הקובץ...
+            </>
+          ) : (
+            <>העלאת קובץ וייבוא אורחים</>
+          )}
+        </button>
+      );
+    }
+
+    if (activeTab === "paste") {
+      return (
+        <button
+          type="button"
+          onClick={handleImportPastedList}
+          disabled={loading}
+          className="
+            mt-5 flex w-full items-center justify-center gap-2
+            rounded-full bg-[#128C3A] px-6 py-4
+            text-base font-black text-white
+            shadow-[0_14px_35px_rgba(18,140,58,0.24)]
+            transition hover:bg-[#0F7A32]
+            disabled:cursor-not-allowed disabled:opacity-60
+          "
+        >
+          {loading ? (
+            <>
+              <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+              מייבא מהרשימה...
+            </>
+          ) : (
+            <>זיהוי מהרשימה וייבוא אורחים</>
+          )}
+        </button>
+      );
+    }
+
+    return (
+      <button
+        type="button"
+        onClick={handleImportImage}
+        disabled={loading}
+        className="
+          mt-5 flex w-full items-center justify-center gap-2
+          rounded-full bg-[#128C3A] px-6 py-4
+          text-base font-black text-white
+          shadow-[0_14px_35px_rgba(18,140,58,0.24)]
+          transition hover:bg-[#0F7A32]
+          disabled:cursor-not-allowed disabled:opacity-60
+        "
+      >
+        {loading ? (
+          <>
+            <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+            {ocrProgress > 0 ? `סורק תמונה... ${ocrProgress}%` : "מכין סריקה..."}
+          </>
+        ) : (
+          <>סריקת תמונה וייבוא אורחים</>
+        )}
+      </button>
+    );
+  };
+
   return (
     <div
       className="
-        fixed inset-0 z-50
-        flex items-center justify-center
-        bg-black/50 px-4 py-6
-        backdrop-blur-sm
+        fixed inset-0 z-50 flex items-center justify-center
+        bg-black/50 px-4 py-6 backdrop-blur-sm
       "
       dir="rtl"
     >
       <div
         className="
-          relative w-full max-w-[680px]
+          relative flex max-h-[92vh] w-full max-w-[760px] flex-col
           overflow-hidden rounded-[34px]
-          bg-[#FFFCF7]
+          border border-[#EFE2CF] bg-[#FFFCF7]
           shadow-[0_30px_100px_rgba(25,18,10,0.28)]
-          border border-[#EFE2CF]
         "
       >
-        {/* Close */}
         <button
           type="button"
           onClick={onClose}
           disabled={loading}
           className="
-            absolute left-5 top-5 z-20
-            flex h-10 w-10 items-center justify-center
-            rounded-full
-            bg-white/85
-            text-xl font-bold text-[#6B5138]
-            shadow-sm transition
-            hover:bg-[#F6EBD9]
-            disabled:opacity-50
+            absolute left-5 top-5 z-20 flex h-10 w-10 items-center justify-center
+            rounded-full bg-white/85 text-xl font-bold text-[#6B5138]
+            shadow-sm transition hover:bg-[#F6EBD9] disabled:opacity-50
           "
           aria-label="סגירה"
         >
           ×
         </button>
 
-        {/* Header */}
         <div
           className="
             relative overflow-hidden
+            border-b border-[#EFE2CF]
             bg-gradient-to-l from-[#F8EEDC] via-[#FFF7EA] to-[#FFFFFF]
             px-7 pb-7 pt-8 sm:px-10
-            border-b border-[#EFE2CF]
           "
         >
           <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-[#D6B16A]/20 blur-2xl" />
@@ -402,277 +753,319 @@ export default function ImportExcelModal({
             <div
               className="
                 mx-auto mb-4 flex h-16 w-16 items-center justify-center
-                rounded-3xl
-                bg-white
-                text-3xl
+                rounded-3xl border border-[#EFE2CF] bg-white text-3xl
                 shadow-[0_12px_35px_rgba(139,106,63,0.18)]
-                border border-[#EFE2CF]
               "
             >
-              📊
+              {activeTab === "excel" ? "📊" : activeTab === "paste" ? "📋" : "📷"}
             </div>
 
-            <h2 className="text-center text-2xl sm:text-3xl font-black text-[#2F241A]">
-              ייבוא מוזמנים מאקסל
+            <h2 className="text-center text-2xl font-black text-[#2F241A] sm:text-3xl">
+              ייבוא מוזמנים
             </h2>
 
-            <p className="mx-auto mt-3 max-w-[460px] text-center text-sm sm:text-base leading-7 text-[#7A6A59]">
-              הורידו את התבנית, מלאו את פרטי האורחים והעלו את הקובץ למערכת.
+            <p className="mx-auto mt-3 max-w-[520px] text-center text-sm leading-7 text-[#7A6A59] sm:text-base">
+              בחרו דרך ייבוא: קובץ Excel, הדבקת רשימה או העלאה מתמונה / צילום
+              מסך.
             </p>
           </div>
         </div>
 
-        {/* Body */}
-        <div className="px-6 py-6 sm:px-9 sm:py-8">
-          {/* Steps */}
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div
-              className="
-                rounded-[24px]
-                border border-[#EFE2CF]
-                bg-white
-                p-4
-                shadow-[0_10px_30px_rgba(95,68,34,0.06)]
-              "
-            >
-              <div className="mb-3 flex items-center gap-3">
-                <span
-                  className="
-                    flex h-9 w-9 items-center justify-center
-                    rounded-full bg-[#F4E7D1]
-                    text-sm font-black text-[#8B6A3F]
-                  "
+        <div className="overflow-y-auto px-6 py-6 sm:px-9 sm:py-8">
+          <div className="mb-6 grid gap-3 sm:grid-cols-3">
+            {IMPORT_TABS.map((tab) => {
+              const isActive = activeTab === tab.id;
+
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => {
+                    if (loading) return;
+                    setActiveTab(tab.id);
+                    setSummary(null);
+                  }}
+                  className={`
+                    rounded-[22px] border px-4 py-4 text-center transition
+                    ${
+                      isActive
+                        ? "border-[#C89A46] bg-[#F7E7C7] shadow-[0_12px_28px_rgba(139,106,63,0.16)]"
+                        : "border-[#EFE2CF] bg-white hover:border-[#D6B16A] hover:bg-[#FFF8ED]"
+                    }
+                  `}
                 >
+                  <div className="text-2xl">{tab.icon}</div>
+                  <div
+                    className={`mt-2 text-sm font-black ${
+                      isActive ? "text-[#5A3D18]" : "text-[#3E2D20]"
+                    }`}
+                  >
+                    {tab.label}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="rounded-[24px] border border-[#EFE2CF] bg-white p-4 shadow-[0_10px_30px_rgba(95,68,34,0.06)]">
+              <div className="mb-3 flex items-center gap-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F4E7D1] text-sm font-black text-[#8B6A3F]">
                   1
                 </span>
-                <h3 className="font-black text-[#3E2D20]">הורדת תבנית</h3>
+                <h3 className="font-black text-[#3E2D20]">
+                  {activeTab === "excel"
+                    ? "הורדת תבנית"
+                    : activeTab === "paste"
+                    ? "הדבקת רשימה"
+                    : "העלאת תמונה"}
+                </h3>
               </div>
 
-              <p className="mb-4 text-sm leading-6 text-[#7A6A59]">
-                התחילו מקובץ התבנית המוכן כדי לשמור על מבנה תקין.
+              <p className="text-sm leading-6 text-[#7A6A59]">
+                {activeTab === "excel"
+                  ? "התחילו מקובץ התבנית המוכן כדי לשמור על מבנה תקין."
+                  : activeTab === "paste"
+                  ? "הדביקו רשימה מוואטסאפ, פתקים, מייל או כל מקור אחר."
+                  : "העלו צילום מסך ברור. התמיכה היא בטקסט מודפס בלבד."}
               </p>
 
-              <a
-                href="/Invistimo_v4.xlsx?v=4"
-                download
-                className="
-                  inline-flex w-full items-center justify-center gap-2
-                  rounded-full
-                  bg-[#F4E7D1]
-                  px-4 py-2.5
-                  text-sm font-bold text-[#7B5A2E]
-                  transition
-                  hover:bg-[#EAD7B8]
-                "
-              >
-                📄 הורדת תבנית
-              </a>
-            </div>
-
-            <div
-              className="
-                rounded-[24px]
-                border border-[#EFE2CF]
-                bg-white
-                p-4
-                shadow-[0_10px_30px_rgba(95,68,34,0.06)]
-              "
-            >
-              <div className="mb-3 flex items-center gap-3">
-                <span
+              {activeTab === "excel" ? (
+                <a
+                  href="/Invistimo_v4.xlsx?v=4"
+                  download
                   className="
-                    flex h-9 w-9 items-center justify-center
-                    rounded-full bg-[#F4E7D1]
-                    text-sm font-black text-[#8B6A3F]
+                    mt-4 inline-flex w-full items-center justify-center gap-2
+                    rounded-full bg-[#F4E7D1] px-4 py-2.5
+                    text-sm font-bold text-[#7B5A2E]
+                    transition hover:bg-[#EAD7B8]
                   "
                 >
+                  📄 הורדת תבנית
+                </a>
+              ) : null}
+            </div>
+
+            <div className="rounded-[24px] border border-[#EFE2CF] bg-white p-4 shadow-[0_10px_30px_rgba(95,68,34,0.06)]">
+              <div className="mb-3 flex items-center gap-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F4E7D1] text-sm font-black text-[#8B6A3F]">
                   2
                 </span>
-                <h3 className="font-black text-[#3E2D20]">מילוי אורחים</h3>
+                <h3 className="font-black text-[#3E2D20]">זיהוי פרטים</h3>
               </div>
 
               <p className="text-sm leading-6 text-[#7A6A59]">
-                מלאו שם, טלפון, סטטוס, קרבה, קבוצה, כמות מוזמנים ושולחן לפי
-                הכותרות בקובץ.
+                המערכת תזהה שם וטלפון. מספרי +972 יומרו לפורמט ישראלי רגיל.
               </p>
             </div>
 
-            <div
-              className="
-                rounded-[24px]
-                border border-[#EFE2CF]
-                bg-white
-                p-4
-                shadow-[0_10px_30px_rgba(95,68,34,0.06)]
-              "
-            >
+            <div className="rounded-[24px] border border-[#EFE2CF] bg-white p-4 shadow-[0_10px_30px_rgba(95,68,34,0.06)]">
               <div className="mb-3 flex items-center gap-3">
-                <span
-                  className="
-                    flex h-9 w-9 items-center justify-center
-                    rounded-full bg-[#F4E7D1]
-                    text-sm font-black text-[#8B6A3F]
-                  "
-                >
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F4E7D1] text-sm font-black text-[#8B6A3F]">
                   3
                 </span>
-                <h3 className="font-black text-[#3E2D20]">העלאה למערכת</h3>
+                <h3 className="font-black text-[#3E2D20]">ייבוא למערכת</h3>
               </div>
 
               <p className="text-sm leading-6 text-[#7A6A59]">
-                בחרו את הקובץ המלא ולחצו על העלאה. המערכת תייבא את האורחים
-                אוטומטית.
+                לאחר הזיהוי, המוזמנים יתווספו לרשימת המוזמנים של האירוע.
               </p>
             </div>
           </div>
 
-          {/* Upload box */}
-          <div
-            className="
-              mt-6 rounded-[28px]
-              border border-dashed border-[#D6B16A]
-              bg-[#FFF8ED]
-              p-5 sm:p-6
-            "
-          >
-            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h3 className="text-lg font-black text-[#3E2D20]">
-                  העלאת קובץ אקסל
-                </h3>
-                <p className="mt-1 text-sm text-[#7A6A59]">
-                  ניתן להעלות קובץ מסוג XLSX או XLS בלבד.
-                </p>
-              </div>
+          <div className="mt-6 rounded-[28px] border border-dashed border-[#D6B16A] bg-[#FFF8ED] p-5 sm:p-6">
+            {activeTab === "excel" ? (
+              <>
+                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h3 className="text-lg font-black text-[#3E2D20]">
+                      העלאת קובץ אקסל
+                    </h3>
+                    <p className="mt-1 text-sm text-[#7A6A59]">
+                      ניתן להעלות קובץ מסוג XLSX או XLS בלבד.
+                    </p>
+                  </div>
 
-              <div
-                className="
-                  inline-flex items-center justify-center
-                  rounded-full bg-white
-                  px-4 py-2
-                  text-xs font-bold text-[#8B6A3F]
-                  border border-[#EFE2CF]
-                "
-              >
-                Excel בלבד
-              </div>
-            </div>
-
-            <label
-              className="
-                flex cursor-pointer flex-col items-center justify-center
-                rounded-[24px]
-                border border-[#EFE2CF]
-                bg-white
-                px-4 py-6
-                text-center
-                shadow-[0_10px_30px_rgba(95,68,34,0.05)]
-                transition
-                hover:border-[#D6B16A]
-                hover:bg-[#FFFDF8]
-              "
-            >
-              <input
-                type="file"
-                accept=".xlsx,.xls"
-                onChange={handleFileChange}
-                className="hidden"
-              />
-
-              <div
-                className="
-                  mb-3 flex h-14 w-14 items-center justify-center
-                  rounded-2xl
-                  bg-[#F4E7D1]
-                  text-2xl
-                "
-              >
-                ⬆️
-              </div>
-
-              <p className="text-base font-black text-[#3E2D20]">
-                {selectedFileName ? "הקובץ נבחר בהצלחה" : "בחרו קובץ להעלאה"}
-              </p>
-
-              <p className="mt-1 max-w-[420px] text-sm leading-6 text-[#7A6A59]">
-                {selectedFileName
-                  ? selectedFileName
-                  : "לחצו כאן לבחירת קובץ האקסל מהמחשב או מהטלפון"}
-              </p>
-            </label>
-
-            {selectedFileName ? (
-              <div
-                className="
-                  mt-4 flex items-center justify-between gap-3
-                  rounded-2xl
-                  bg-white
-                  px-4 py-3
-                  border border-[#EFE2CF]
-                "
-              >
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-[#8B6A3F]">קובץ נבחר</p>
-                  <p className="truncate text-sm font-semibold text-[#3E2D20]">
-                    {selectedFileName}
-                  </p>
+                  <div className="inline-flex items-center justify-center rounded-full border border-[#EFE2CF] bg-white px-4 py-2 text-xs font-bold text-[#8B6A3F]">
+                    Excel בלבד
+                  </div>
                 </div>
 
-                <span className="shrink-0 rounded-full bg-green-50 px-3 py-1 text-xs font-bold text-green-700">
-                  מוכן לייבוא
-                </span>
-              </div>
+                <label className="flex cursor-pointer flex-col items-center justify-center rounded-[24px] border border-[#EFE2CF] bg-white px-4 py-6 text-center shadow-[0_10px_30px_rgba(95,68,34,0.05)] transition hover:border-[#D6B16A] hover:bg-[#FFFDF8]">
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+
+                  <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#F4E7D1] text-2xl">
+                    ⬆️
+                  </div>
+
+                  <p className="text-base font-black text-[#3E2D20]">
+                    {selectedFileName ? "הקובץ נבחר בהצלחה" : "בחרו קובץ להעלאה"}
+                  </p>
+
+                  <p className="mt-1 max-w-[420px] text-sm leading-6 text-[#7A6A59]">
+                    {selectedFileName
+                      ? selectedFileName
+                      : "לחצו כאן לבחירת קובץ האקסל מהמחשב או מהטלפון"}
+                  </p>
+                </label>
+
+                {selectedFileName ? (
+                  <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-[#EFE2CF] bg-white px-4 py-3">
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-[#8B6A3F]">קובץ נבחר</p>
+                      <p className="truncate text-sm font-semibold text-[#3E2D20]">
+                        {selectedFileName}
+                      </p>
+                    </div>
+
+                    <span className="shrink-0 rounded-full bg-green-50 px-3 py-1 text-xs font-bold text-green-700">
+                      מוכן לייבוא
+                    </span>
+                  </div>
+                ) : null}
+              </>
+            ) : null}
+
+            {activeTab === "paste" ? (
+              <>
+                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h3 className="text-lg font-black text-[#3E2D20]">
+                      הדבקת רשימת מוזמנים
+                    </h3>
+                    <p className="mt-1 text-sm text-[#7A6A59]">
+                      הדביקו כל מוזמן בשורה נפרדת. אפשר גם שם וטלפון בשורות
+                      נפרדות.
+                    </p>
+                  </div>
+
+                  <div className="inline-flex items-center justify-center rounded-full border border-[#EFE2CF] bg-white px-4 py-2 text-xs font-bold text-[#8B6A3F]">
+                    זיהוי אוטומטי
+                  </div>
+                </div>
+
+                <textarea
+                  value={pastedText}
+                  onChange={(e) => {
+                    setSummary(null);
+                    setPastedText(e.target.value);
+                  }}
+                  placeholder={`לדוגמה:
+דנה כהן 0521234567
+יוסי לוי - 0549876543
+משפחת אברהם
++972555039072`}
+                  className="
+                    min-h-[220px] w-full resize-none rounded-[24px]
+                    border border-[#EFE2CF] bg-white px-4 py-4
+                    text-sm leading-7 text-[#3E2D20]
+                    shadow-[0_10px_30px_rgba(95,68,34,0.05)]
+                    outline-none transition
+                    placeholder:text-[#B7A893]
+                    focus:border-[#D6B16A] focus:ring-4 focus:ring-[#D6B16A]/15
+                  "
+                />
+
+                <div className="mt-4 rounded-2xl border border-[#EFE2CF] bg-white px-4 py-3 text-sm leading-6 text-[#7A6A59]">
+                  המערכת תזהה גם מספרים בפורמט{" "}
+                  <span className="font-black text-[#3E2D20]">+972</span>{" "}
+                  ותמיר אותם לפורמט ישראלי רגיל.
+                </div>
+              </>
+            ) : null}
+
+            {activeTab === "image" ? (
+              <>
+                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h3 className="text-lg font-black text-[#3E2D20]">
+                      העלאת תמונה / צילום מסך
+                    </h3>
+                    <p className="mt-1 text-sm text-[#7A6A59]">
+                      עובד ללא OpenAI וללא טוקנים. מתאים לצילום מסך ברור עם טקסט
+                      מודפס.
+                    </p>
+                  </div>
+
+                  <div className="inline-flex items-center justify-center rounded-full border border-[#EFE2CF] bg-white px-4 py-2 text-xs font-bold text-[#8B6A3F]">
+                    OCR מקומי
+                  </div>
+                </div>
+
+                <label className="flex cursor-pointer flex-col items-center justify-center rounded-[24px] border border-[#EFE2CF] bg-white px-4 py-6 text-center shadow-[0_10px_30px_rgba(95,68,34,0.05)] transition hover:border-[#D6B16A] hover:bg-[#FFFDF8]">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="hidden"
+                  />
+
+                  <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#F4E7D1] text-2xl">
+                    📷
+                  </div>
+
+                  <p className="text-base font-black text-[#3E2D20]">
+                    {selectedImageName
+                      ? "התמונה נבחרה בהצלחה"
+                      : "בחרו תמונה לסריקה"}
+                  </p>
+
+                  <p className="mt-1 max-w-[460px] text-sm leading-6 text-[#7A6A59]">
+                    {selectedImageName
+                      ? selectedImageName
+                      : "לחצו כאן לבחירת צילום מסך מהמחשב / מהטלפון"}
+                  </p>
+                </label>
+
+                {selectedImageName ? (
+                  <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-[#EFE2CF] bg-white px-4 py-3">
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-[#8B6A3F]">
+                        תמונה נבחרה
+                      </p>
+                      <p className="truncate text-sm font-semibold text-[#3E2D20]">
+                        {selectedImageName}
+                      </p>
+                    </div>
+
+                    <span className="shrink-0 rounded-full bg-green-50 px-3 py-1 text-xs font-bold text-green-700">
+                      מוכנה לסריקה
+                    </span>
+                  </div>
+                ) : null}
+
+                {ocrText ? (
+                  <div className="mt-4 rounded-2xl border border-[#EFE2CF] bg-white px-4 py-3">
+                    <p className="mb-2 text-xs font-black text-[#8B6A3F]">
+                      טקסט שזוהה מהתמונה
+                    </p>
+                    <pre className="max-h-[160px] overflow-auto whitespace-pre-wrap text-xs leading-6 text-[#3E2D20]">
+                      {ocrText}
+                    </pre>
+                  </div>
+                ) : null}
+
+                <div className="mt-4 rounded-2xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm font-semibold leading-6 text-yellow-800">
+                  מומלץ להעלות צילום מסך ברור שבו כל מוזמן מופיע עם שם וטלפון.
+                  אין תמיכה בכתב יד.
+                </div>
+              </>
             ) : null}
 
             {recordsLimit > 0 ? (
-              <div
-                className="
-                  mt-4 rounded-2xl
-                  border border-[#EFE2CF]
-                  bg-white
-                  px-4 py-3
-                  text-sm font-semibold leading-6 text-[#7A6A59]
-                "
-              >
+              <div className="mt-4 rounded-2xl border border-[#EFE2CF] bg-white px-4 py-3 text-sm font-semibold leading-6 text-[#7A6A59]">
                 החבילה מאפשרת עד{" "}
-                <span className="font-black text-[#3E2D20]">
-                  {recordsLimit}
-                </span>{" "}
-                רשומות באקסל.
+                <span className="font-black text-[#3E2D20]">{recordsLimit}</span>{" "}
+                רשומות.
               </div>
             ) : null}
 
-            <button
-              type="button"
-              onClick={handleImport}
-              disabled={loading}
-              className="
-                mt-5 flex w-full items-center justify-center gap-2
-                rounded-full
-                bg-[#128C3A]
-                px-6 py-4
-                text-base font-black text-white
-                shadow-[0_14px_35px_rgba(18,140,58,0.24)]
-                transition
-                hover:bg-[#0F7A32]
-                disabled:cursor-not-allowed
-                disabled:opacity-60
-              "
-            >
-              {loading ? (
-                <>
-                  <span
-                    className="
-                      h-5 w-5 animate-spin rounded-full
-                      border-2 border-white/40 border-t-white
-                    "
-                  />
-                  מייבא את הקובץ...
-                </>
-              ) : (
-                <>העלאת קובץ וייבוא אורחים</>
-              )}
-            </button>
+            {renderActiveImportButton()}
           </div>
 
           {summary ? (
@@ -692,19 +1085,15 @@ export default function ImportExcelModal({
             </div>
           ) : null}
 
-          {/* Footer */}
           <div className="mt-6 flex items-center justify-center">
             <button
               type="button"
               onClick={onClose}
               disabled={loading}
               className="
-                rounded-full
-                px-5 py-2.5
+                rounded-full px-5 py-2.5
                 text-sm font-bold text-[#7A6A59]
-                transition
-                hover:bg-[#F6EBD9]
-                hover:text-[#3E2D20]
+                transition hover:bg-[#F6EBD9] hover:text-[#3E2D20]
                 disabled:opacity-50
               "
             >
