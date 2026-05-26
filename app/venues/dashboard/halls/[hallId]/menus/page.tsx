@@ -104,15 +104,23 @@ function normalizeMenu(menu: any): HallMenuTemplate {
   };
 }
 
-function createEmptyCategory(): MenuCategory {
+function createEmptyCategory(title = "קטגוריה חדשה", subtitle = "מנות לבחירה"): MenuCategory {
   return {
     id: makeLocalId("cat"),
-    title: "ראשונות",
-    subtitle: "מנות לבחירה",
+    title,
+    subtitle,
     minChoices: 1,
     maxChoices: 3,
     dishes: [],
   };
+}
+
+function createDefaultCategories(): MenuCategory[] {
+  return [
+    createEmptyCategory("ראשונות", "מנות פתיחה לבחירה"),
+    createEmptyCategory("עיקריות", "מנות עיקריות לבחירה"),
+    createEmptyCategory("סלטים", "סלטי שולחן / מזנון לבחירה"),
+  ];
 }
 
 export default function HallMenusPage() {
@@ -326,7 +334,7 @@ export default function HallMenusPage() {
           description: newMenuForm.description,
           type: newMenuForm.type,
           status: newMenuForm.status,
-          categories: [createEmptyCategory()],
+          categories: createDefaultCategories(),
         }),
       });
 
@@ -491,7 +499,7 @@ export default function HallMenusPage() {
     if (!selectedTemplate) return;
 
     const title = newCategoryForm.title.trim() || "קטגוריה חדשה";
-    const subtitle = newCategoryForm.subtitle.trim();
+    const subtitle = newCategoryForm.subtitle.trim() || "מנות לבחירה";
 
     const minChoices = Math.max(0, toNumber(newCategoryForm.minChoices, 1));
     const maxChoices = Math.max(
@@ -510,9 +518,17 @@ export default function HallMenusPage() {
       dishes: [],
     };
 
-    updateTemplate(selectedTemplate.id, {
+    const nextTemplate: HallMenuTemplate = {
+      ...selectedTemplate,
+      updatedAt: "עודכן עכשיו",
       categories: [...selectedTemplate.categories, nextCategory],
-    });
+    };
+
+    setTemplates((current) =>
+      current.map((template) =>
+        template.id === selectedTemplate.id ? nextTemplate : template
+      )
+    );
 
     setSelectedCategoryId(id);
     setNewCategoryOpen(false);
@@ -522,6 +538,8 @@ export default function HallMenusPage() {
       minChoices: "1",
       maxChoices: "3",
     });
+
+    saveMenuToServer(nextTemplate);
   };
 
   const deleteCategory = (categoryId: string) => {
@@ -531,32 +549,76 @@ export default function HallMenusPage() {
       (category) => category.id !== categoryId
     );
 
-    updateTemplate(selectedTemplate.id, {
+    const nextTemplate: HallMenuTemplate = {
+      ...selectedTemplate,
+      updatedAt: "עודכן עכשיו",
       categories: nextCategories,
-    });
+    };
+
+    setTemplates((current) =>
+      current.map((template) =>
+        template.id === selectedTemplate.id ? nextTemplate : template
+      )
+    );
 
     if (selectedCategoryId === categoryId) {
       setSelectedCategoryId(nextCategories[0]?.id || "");
     }
+
+    saveMenuToServer(nextTemplate);
   };
 
   const addDishToCategory = (dish: Dish) => {
-    if (!selectedCategory) return;
+    if (!selectedTemplate || !selectedCategory) return;
 
     const exists = selectedCategory.dishes.some((item) => item.id === dish.id);
     if (exists) return;
 
-    updateCategory(selectedCategory.id, {
-      dishes: [...selectedCategory.dishes, dish],
-    });
+    const nextTemplate: HallMenuTemplate = {
+      ...selectedTemplate,
+      updatedAt: "עודכן עכשיו",
+      categories: selectedTemplate.categories.map((category) =>
+        category.id === selectedCategory.id
+          ? {
+              ...category,
+              dishes: [...category.dishes, dish],
+            }
+          : category
+      ),
+    };
+
+    setTemplates((current) =>
+      current.map((template) =>
+        template.id === selectedTemplate.id ? nextTemplate : template
+      )
+    );
+
+    saveMenuToServer(nextTemplate);
   };
 
   const removeDishFromCategory = (dishId: string) => {
-    if (!selectedCategory) return;
+    if (!selectedTemplate || !selectedCategory) return;
 
-    updateCategory(selectedCategory.id, {
-      dishes: selectedCategory.dishes.filter((dish) => dish.id !== dishId),
-    });
+    const nextTemplate: HallMenuTemplate = {
+      ...selectedTemplate,
+      updatedAt: "עודכן עכשיו",
+      categories: selectedTemplate.categories.map((category) =>
+        category.id === selectedCategory.id
+          ? {
+              ...category,
+              dishes: category.dishes.filter((dish) => dish.id !== dishId),
+            }
+          : category
+      ),
+    };
+
+    setTemplates((current) =>
+      current.map((template) =>
+        template.id === selectedTemplate.id ? nextTemplate : template
+      )
+    );
+
+    saveMenuToServer(nextTemplate);
   };
 
   const addCustomDish = () => {
@@ -1389,9 +1451,10 @@ export default function HallMenusPage() {
             <button
               type="button"
               onClick={addCustomDish}
-              className="mt-2 h-12 rounded-2xl bg-[linear-gradient(135deg,#d8a241,#b67b1d)] text-sm font-black text-white shadow-[0_10px_22px_rgba(156,101,23,0.18)]"
+              disabled={saving}
+              className="mt-2 h-12 rounded-2xl bg-[linear-gradient(135deg,#d8a241,#b67b1d)] text-sm font-black text-white shadow-[0_10px_22px_rgba(156,101,23,0.18)] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              הוספת מנה לקטגוריה
+              {saving ? "שומר..." : "הוספת מנה לקטגוריה"}
             </button>
           </div>
         </Modal>
@@ -1498,19 +1561,23 @@ function MetricCard({
   subtitle: string;
 }) {
   return (
-    <div className="group overflow-hidden rounded-[30px] border border-[#e3d1ae] bg-[#fbf7ef]/96 p-5 shadow-[0_12px_34px_rgba(43,31,16,0.07)] backdrop-blur-xl transition hover:-translate-y-0.5 hover:shadow-[0_16px_40px_rgba(43,31,16,0.10)]">
-      <div className="flex items-start justify-between gap-4">
+    <div className="group relative overflow-hidden rounded-[30px] border border-[#e3d1ae] bg-[#fbf7ef]/96 p-5 shadow-[0_12px_34px_rgba(43,31,16,0.07)] backdrop-blur-xl transition hover:-translate-y-0.5 hover:border-[#d7b06a] hover:shadow-[0_16px_40px_rgba(43,31,16,0.10)]">
+      <div className="absolute inset-x-0 top-0 h-1 bg-[linear-gradient(90deg,transparent,#d8a241,transparent)] opacity-70" />
+
+      <div className="flex items-end justify-between gap-4">
         <div>
           <div className="text-sm font-black text-[#8d7654]">{title}</div>
-          <div className="mt-2 text-4xl font-black text-[#2d2419]">
+          <div className="mt-2 text-4xl font-black leading-none text-[#2d2419]">
             {value}
           </div>
-          <div className="mt-1 text-xs font-bold text-[#9a7040]">
+          <div className="mt-2 text-xs font-bold text-[#9a7040]">
             {subtitle}
           </div>
         </div>
 
-        <div className="h-12 w-12 rounded-2xl bg-[linear-gradient(135deg,#fff2d5,#d9a94b)] shadow-inner" />
+        <div className="rounded-full border border-[#ead7ad] bg-[#fff8ec] px-3 py-1 text-[11px] font-black text-[#9a6b24]">
+          Invistimo
+        </div>
       </div>
     </div>
   );
@@ -1572,7 +1639,7 @@ function DishLibraryItem({
           {dish.name}
         </div>
         <div className="truncate text-xs font-bold text-[#806945]">
-          {dish.description || "מנה מותאמת אישית"}
+          {dish.description || "מנה מתוך ספריית האולם"}
         </div>
       </div>
 
