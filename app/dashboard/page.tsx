@@ -3199,7 +3199,7 @@ function GoldenActionButtons({
 
     {/* 4️⃣ ייבוא מאקסל */}
     <GoldenActionButton
-      label="ייבוא מוזמנים"
+      label="ייבוא מאקסל"
       icon="▣"
       tone="excel"
       disabled={!invitation}

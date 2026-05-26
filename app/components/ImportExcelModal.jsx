@@ -9,46 +9,37 @@ import * as XLSX from "xlsx";
 const RSVP_MAP = {
   בהמתנה: "pending",
   ממתין: "pending",
+
   מגיע: "yes",
   כן: "yes",
+
   "לא מגיע": "no",
   לא: "no",
 };
 
 /* ============================================================
-   טאבים
-============================================================ */
-const IMPORT_TABS = [
-  { id: "excel", label: "Excel", icon: "📊" },
-  { id: "paste", label: "הדבקת רשימה", icon: "📋" },
-  { id: "contacts", label: "אנשי קשר", icon: "👥" },
-];
-
-/* ============================================================
-   עזר: המרת מספר שולחן
+   עזר: המרת מספר שולחן (גם אם הגיע כטקסט)
 ============================================================ */
 function normalizeTableNumber(value) {
   if (value === null || value === undefined || value === "") return null;
 
   const onlyDigits = String(value).replace(/[^\d]/g, "").trim();
+
   if (!onlyDigits) return null;
 
   const num = Number(onlyDigits);
+
   return Number.isFinite(num) ? num : null;
 }
 
 /* ============================================================
-   עזר: ניקוי טקסט
+   עזר: ניקוי טקסט (עברית, רווחים, תווים נסתרים)
 ============================================================ */
 function normalizeText(value) {
   return String(value ?? "")
     .normalize("NFKC")
     .replace(/[\u200B-\u200D\uFEFF]/g, "")
-    .replace(/[\u200E\u200F]/g, " ")
     .replace(/\u00A0/g, " ")
-    .replace(/[׳']/g, "'")
-    .replace(/[״"]/g, '"')
-    .replace(/[־]/g, "-")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -59,492 +50,6 @@ function normalizeText(value) {
 function normalizeNumber(value) {
   const num = Number(value || 0);
   return Number.isFinite(num) ? num : 0;
-}
-
-/* ============================================================
-   עזר: ניקוי תווי טלפון נפוצים
-============================================================ */
-function normalizePhoneChars(value) {
-  return String(value || "")
-    .replace(/[Oo]/g, "0")
-    .replace(/[Il|]/g, "1")
-    .replace(/[S]/g, "5")
-    .replace(/[B]/g, "8")
-    .replace(/[–—־]/g, "-")
-    .replace(/[()]/g, " ")
-    .replace(/[\u200E\u200F]/g, " ");
-}
-
-/* ============================================================
-   עזר: נרמול טלפון להדבקה / אנשי קשר
-   לא משתמשים בזה באקסל כדי לא לשנות את הייבוא התקין שלך
-============================================================ */
-function normalizeSmartPhone(value) {
-  let phone = normalizePhoneChars(value).trim();
-
-  phone = phone.replace(/^00\s*972/, "+972");
-  phone = phone.replace(/[^\d+]/g, "");
-
-  if (phone.startsWith("+972")) {
-    phone = "0" + phone.slice(4);
-  } else if (phone.startsWith("972")) {
-    phone = "0" + phone.slice(3);
-  }
-
-  phone = phone.replace(/\D/g, "");
-
-  if (phone.length === 9 && phone.startsWith("5")) {
-    phone = `0${phone}`;
-  }
-
-  const localMatch = phone.match(/05\d{8}/);
-  if (localMatch?.[0]) return localMatch[0];
-
-  const intlMatch = phone.match(/972(5\d{8})/);
-  if (intlMatch?.[1]) return `0${intlMatch[1]}`;
-
-  return phone || "";
-}
-
-/* ============================================================
-   עזר: חילוץ טלפון משורה
-============================================================ */
-function extractPhoneFromLine(line) {
-  const text = normalizePhoneChars(line)
-    .replace(/[\u200E\u200F]/g, " ")
-    .trim();
-
-  const patterns = [
-    /(?:\+|00)?\s*972\s*[-–]?\s*(5\d)\s*[-–]?\s*(\d{3})\s*[-–]?\s*(\d{4})/,
-    /0?\s*(5\d)\s*[-–]?\s*(\d{3})\s*[-–]?\s*(\d{4})/,
-    /(?:\+|00)?\s*972[\s\-–]*(5\d[\d\s\-–]{7,12})/,
-    /0?\s*(5\d[\d\s\-–]{7,12})/,
-  ];
-
-  for (const pattern of patterns) {
-    const match = text.match(pattern);
-    if (!match) continue;
-
-    let raw = match[0];
-
-    if (match[1] && match[2] && match[3]) {
-      raw = `${match[1]}${match[2]}${match[3]}`;
-    }
-
-    const phone = normalizeSmartPhone(raw);
-
-    if (/^05\d{8}$/.test(phone)) {
-      return phone;
-    }
-  }
-
-  const digits = text.replace(/\D/g, "");
-  if (!digits) return "";
-
-  const intl = digits.match(/972(5\d{8})/);
-  if (intl?.[1]) return `0${intl[1]}`;
-
-  const local = digits.match(/05\d{8}/);
-  if (local?.[0]) return local[0];
-
-  const localNoZero = digits.match(/5\d{8}/);
-  if (localNoZero?.[0]) return `0${localNoZero[0]}`;
-
-  return "";
-}
-
-/* ============================================================
-   עזר: חילוץ כמות מתוך טקסט
-============================================================ */
-function extractGuestsCountFromLine(line) {
-  const text = normalizeText(line);
-
-  const explicitMatch =
-    text.match(/(?:כמות|מוזמנים|אורחים|נפשות)\s*[:\-]?\s*(\d{1,2})/) ||
-    text.match(/(\d{1,2})\s*(?:מוזמנים|אורחים|נפשות)/);
-
-  if (!explicitMatch?.[1]) return 1;
-
-  const count = Number(explicitMatch[1]);
-  if (!Number.isFinite(count) || count < 1) return 1;
-
-  return Math.min(Math.floor(count), 99);
-}
-
-/* ============================================================
-   עזר: ניקוי שם לטקסט מודבק
-============================================================ */
-function cleanNameText(value) {
-  let text = normalizeText(value);
-
-  text = text
-    .replace(
-      /(?:שליחת פרטי אנשי הקשר|שליחה|נייד|טלפון|שם החברה|שם מלא|שם|ביטול|פרטים|איש קשר|אנשי קשר)/g,
-      " "
-    )
-    .replace(/[✓✔●•@#]+/g, " ")
-    .replace(/[|,;:]+/g, " ")
-    .replace(/\b\d+\b/g, " ")
-    .replace(/\s*[-–—]\s*/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  text = text
-    .split(" ")
-    .filter((word) => {
-      const clean = word.trim();
-
-      if (!clean) return false;
-      if (clean.length === 1) return false;
-
-      const badWords = [
-        "נייד",
-        "טלפון",
-        "שליחה",
-        "פרטי",
-        "אנשי",
-        "הקשר",
-        "שם",
-        "מלא",
-        "החברה",
-        "חברה",
-        "ביטול",
-        "פרטים",
-        "איש",
-        "קשר",
-      ];
-
-      if (badWords.includes(clean)) return false;
-      if (/^[םסמנוז]{1,2}$/.test(clean)) return false;
-
-      return true;
-    })
-    .join(" ")
-    .trim();
-
-  return text;
-}
-
-/* ============================================================
-   עזר: חילוץ שם מתוך שורת טקסט
-============================================================ */
-function extractNameFromLine(line, phone) {
-  let name = normalizeText(line);
-
-  name = name.replace(
-    /(?:\+|00)?\s*972\s*[-–]?\s*5\d\s*[-–]?\s*\d{3}\s*[-–]?\s*\d{4}/g,
-    " "
-  );
-
-  name = name.replace(
-    /0?\s*5\d\s*[-–]?\s*\d{3}\s*[-–]?\s*\d{4}/g,
-    " "
-  );
-
-  if (phone) {
-    const digits = String(phone).replace(/\D/g, "");
-    const noZero = digits.replace(/^0/, "");
-
-    const possibleFormats = [
-      digits,
-      noZero,
-      `+972${noZero}`,
-      `972${noZero}`,
-      `+972 ${noZero}`,
-      `972 ${noZero}`,
-    ];
-
-    possibleFormats.forEach((format) => {
-      name = name.replace(format, " ");
-    });
-  }
-
-  name = name
-    .replace(/(?:כמות|מוזמנים|אורחים|נפשות)\s*[:\-]?\s*\d{1,2}/g, " ")
-    .replace(/\d{1,2}\s*(?:מוזמנים|אורחים|נפשות)/g, " ");
-
-  return cleanNameText(name);
-}
-
-/* ============================================================
-   עזר: שורת רעש
-============================================================ */
-function isNoiseLine(line) {
-  const text = normalizeText(line);
-
-  if (!text) return true;
-
-  const exactNoise = [
-    "שליחה",
-    "שליחת פרטי אנשי הקשר",
-    "נייד",
-    "טלפון",
-    "שם",
-    "שם מלא",
-    "שם החברה",
-    "חברה",
-    "רשימת מוזמנים",
-    "מוזמנים",
-    "אורחים",
-  ];
-
-  if (exactNoise.includes(text)) return true;
-  if (/^[✓✔●•@+\-\s\d]+$/.test(text)) return true;
-
-  return false;
-}
-
-/* ============================================================
-   עזר: האם שורה נראית כמו שם
-============================================================ */
-function looksLikeNameLine(line) {
-  const text = cleanNameText(line);
-
-  if (!text) return false;
-  if (isNoiseLine(text)) return false;
-  if (extractPhoneFromLine(text)) return false;
-
-  if (!/[א-תA-Za-z]/.test(text)) return false;
-  if (text.length < 2) return false;
-
-  const badWords = [
-    "נייד",
-    "טלפון",
-    "שם",
-    "שם מלא",
-    "שם החברה",
-    "שליחה",
-    "שליחת",
-    "פרטי",
-    "אנשי",
-    "הקשר",
-    "ביטול",
-  ];
-
-  if (badWords.some((word) => text === word || text.includes(word))) {
-    return false;
-  }
-
-  return true;
-}
-
-/* ============================================================
-   עזר: פירוק טקסט לשורות נקיות
-============================================================ */
-function splitSmartLines(text) {
-  return String(text || "")
-    .split(/\r?\n/)
-    .map((line) => normalizeText(line))
-    .flatMap((line) => {
-      return line
-        .replace(/\s+(נייד)\s+/g, "\n$1\n")
-        .split("\n")
-        .map((x) => normalizeText(x));
-    })
-    .filter(Boolean);
-}
-
-/* ============================================================
-   עזר: שורות הדבקה → קבוצות של שם + טלפון
-============================================================ */
-function buildGuestLinesFromText(text) {
-  const lines = splitSmartLines(text);
-
-  const guestLines = [];
-  let lastNameCandidate = "";
-
-  for (const originalLine of lines) {
-    const line = normalizeText(originalLine);
-    const phone = extractPhoneFromLine(line);
-
-    if (phone) {
-      const nameFromSameLine = cleanNameText(extractNameFromLine(line, phone));
-
-      if (nameFromSameLine && looksLikeNameLine(nameFromSameLine)) {
-        guestLines.push(`${nameFromSameLine} ${phone}`);
-      } else if (lastNameCandidate) {
-        guestLines.push(`${lastNameCandidate} ${phone}`);
-      } else {
-        guestLines.push(`ללא שם ${phone}`);
-      }
-
-      lastNameCandidate = "";
-      continue;
-    }
-
-    if (isNoiseLine(line)) continue;
-
-    const cleanedName = cleanNameText(line);
-
-    if (looksLikeNameLine(cleanedName)) {
-      lastNameCandidate = cleanedName;
-    }
-  }
-
-  return guestLines;
-}
-
-/* ============================================================
-   עזר: הסרת כפילויות לפי טלפון
-============================================================ */
-function uniqueGuestsByPhone(guests) {
-  const seen = new Set();
-
-  return guests.filter((guest) => {
-    if (!guest?.phone) return true;
-
-    if (seen.has(guest.phone)) return false;
-
-    seen.add(guest.phone);
-    return true;
-  });
-}
-
-/* ============================================================
-   עזר: הפיכת טקסט חופשי לרשימת מוזמנים
-============================================================ */
-function parseGuestsFromText(text) {
-  const guestLines = buildGuestLinesFromText(text);
-
-  const guests = guestLines
-    .map((line) => {
-      const phone = extractPhoneFromLine(line);
-      const name = extractNameFromLine(line, phone);
-      const guestsCount = extractGuestsCountFromLine(line);
-
-      if (!name && !phone) return null;
-
-      return {
-        name: name || "ללא שם",
-        phone: phone || null,
-        relation: null,
-        group: null,
-        rsvp: "pending",
-        guestsCount,
-        arrivedCount: 0,
-        notes: null,
-        tableNumber: null,
-        tableName: null,
-      };
-    })
-    .filter(Boolean);
-
-  return uniqueGuestsByPhone(guests);
-}
-
-/* ============================================================
-   עזר: שם מאנשי קשר
-============================================================ */
-function normalizeContactName(contact) {
-  const rawName =
-    Array.isArray(contact?.name) && contact.name.length
-      ? contact.name.join(" ")
-      : typeof contact?.name === "string"
-      ? contact.name
-      : "";
-
-  return normalizeText(rawName) || "ללא שם";
-}
-
-/* ============================================================
-   עזר: הפיכת אנשי קשר לרשימת מוזמנים
-============================================================ */
-function contactsToGuests(contacts = []) {
-  const guests = [];
-
-  contacts.forEach((contact) => {
-    const name = normalizeContactName(contact);
-    const telList = Array.isArray(contact?.tel)
-      ? contact.tel
-      : contact?.tel
-      ? [contact.tel]
-      : [];
-
-    if (!telList.length) {
-      guests.push({
-        name,
-        phone: null,
-        relation: null,
-        group: null,
-        rsvp: "pending",
-        guestsCount: 1,
-        arrivedCount: 0,
-        notes: null,
-        tableNumber: null,
-        tableName: null,
-      });
-      return;
-    }
-
-    telList.forEach((tel) => {
-      const phone = normalizeSmartPhone(tel);
-
-      guests.push({
-        name,
-        phone: phone || null,
-        relation: null,
-        group: null,
-        rsvp: "pending",
-        guestsCount: 1,
-        arrivedCount: 0,
-        notes: null,
-        tableNumber: null,
-        tableName: null,
-      });
-    });
-  });
-
-  return uniqueGuestsByPhone(guests).filter((guest) => guest.name || guest.phone);
-}
-
-/* ============================================================
-   עזר: הכנה לתצוגה מקדימה
-============================================================ */
-function preparePreviewGuests(guests) {
-  return guests.map((guest, index) => ({
-    ...guest,
-    _previewId: `${Date.now()}-${index}-${Math.random()
-      .toString(16)
-      .slice(2)}`,
-    name: normalizeText(guest?.name || "") || "ללא שם",
-    phone: normalizeText(guest?.phone || "") || "",
-    guestsCount: Math.max(1, Number(guest?.guestsCount || 1) || 1),
-    relation: guest?.relation || null,
-    group: guest?.group || null,
-    rsvp: guest?.rsvp || "pending",
-    arrivedCount: Number(guest?.arrivedCount || 0),
-    notes: guest?.notes || null,
-    tableNumber: guest?.tableNumber ?? null,
-    tableName: guest?.tableName ?? null,
-  }));
-}
-
-/* ============================================================
-   עזר: ניקוי לפני שליחה לשרת
-============================================================ */
-function cleanGuestsForServer(guests) {
-  return guests
-    .map((guest) => {
-      const name = normalizeText(guest?.name || "");
-      const phone = normalizeText(guest?.phone || "").replace(/\D/g, "");
-      const guestsCount = Math.max(1, Number(guest?.guestsCount || 1) || 1);
-
-      if (!name && !phone) return null;
-
-      return {
-        name: name || "ללא שם",
-        phone: phone || null,
-        relation: guest?.relation || null,
-        group: guest?.group || null,
-        rsvp: guest?.rsvp || "pending",
-        guestsCount,
-        arrivedCount: Number(guest?.arrivedCount || 0),
-        notes: guest?.notes || null,
-        tableNumber: guest?.tableNumber ?? null,
-        tableName: guest?.tableName ?? null,
-      };
-    })
-    .filter(Boolean);
 }
 
 export default function ImportExcelModal({
@@ -560,87 +65,31 @@ export default function ImportExcelModal({
   maxRecords = 0,
   user = null,
 }) {
-  const [activeTab, setActiveTab] = useState("excel");
-
   const [file, setFile] = useState(null);
-  const [pastedText, setPastedText] = useState("");
-
   const [loading, setLoading] = useState(false);
-  const [summary, setSummary] = useState(null);
 
-  const [previewGuests, setPreviewGuests] = useState([]);
-  const [previewSource, setPreviewSource] = useState("");
+  // לשיפור UX - הודעה אחרונה מהייבוא
+  const [summary, setSummary] = useState(null);
 
   const selectedFileName = useMemo(() => file?.name || "", [file]);
 
   const recordsLimit = useMemo(() => {
     return normalizeNumber(
-      guestLimit || allowedRecords || maxRecords || user?.guests || 0
+      guestLimit ||
+        allowedRecords ||
+        maxRecords ||
+        user?.guests ||
+        0
     );
   }, [guestLimit, allowedRecords, maxRecords, user?.guests]);
 
-  const hasPreview = previewGuests.length > 0;
-
-  const resetMessages = () => {
-    setSummary(null);
-  };
-
-  const clearPreview = () => {
-    setPreviewGuests([]);
-    setPreviewSource("");
-  };
-
-  const openPreview = (guests, sourceLabel) => {
-    const prepared = preparePreviewGuests(guests);
-
-    if (!prepared.length) {
-      alert("לא נמצאו מוזמנים תקינים להצגה");
-      return;
-    }
-
-    setPreviewGuests(prepared);
-    setPreviewSource(sourceLabel);
-    setSummary({
-      type: "success",
-      text: `נמצאו ${prepared.length} מוזמנים לבדיקה. אפשר לערוך לפני שמירה.`,
-      usage: null,
-    });
-  };
-
-  const updatePreviewGuest = (previewId, field, value) => {
-    setPreviewGuests((prev) =>
-      prev.map((guest) => {
-        if (guest._previewId !== previewId) return guest;
-
-        if (field === "guestsCount") {
-          return {
-            ...guest,
-            guestsCount: Math.max(1, Number(value || 1) || 1),
-          };
-        }
-
-        return {
-          ...guest,
-          [field]: value,
-        };
-      })
-    );
-  };
-
-  const removePreviewGuest = (previewId) => {
-    setPreviewGuests((prev) =>
-      prev.filter((guest) => guest._previewId !== previewId)
-    );
-  };
-
   const handleFileChange = (e) => {
-    resetMessages();
-    clearPreview();
+    setSummary(null);
     setFile(e.target.files?.[0] || null);
   };
 
   const showLimitError = ({ limit, incomingCount }) => {
-    const msg = `לא ניתן להעלות. החבילה שלך מאפשרת עד ${limit} רשומות בלבד, ובייבוא נמצאו ${incomingCount} רשומות.`;
+    const msg = `לא ניתן להעלות את הקובץ. החבילה שלך מאפשרת עד ${limit} רשומות בלבד, ובקובץ נמצאו ${incomingCount} רשומות.`;
 
     alert(msg);
 
@@ -654,154 +103,7 @@ export default function ImportExcelModal({
     });
   };
 
-  const checkRecordsLimit = (incomingRecordsCount) => {
-    if (recordsLimit > 0 && incomingRecordsCount > recordsLimit) {
-      showLimitError({
-        limit: recordsLimit,
-        incomingCount: incomingRecordsCount,
-      });
-      return false;
-    }
-
-    return true;
-  };
-
-  const sendGuestsToServer = async (guests, successPrefix = "יובאו") => {
-    const cleanedGuests = cleanGuestsForServer(guests);
-    const incomingRecordsCount = cleanedGuests.length;
-
-    if (!incomingRecordsCount) {
-      alert("אין מוזמנים תקינים לשמירה");
-      return;
-    }
-
-    if (!checkRecordsLimit(incomingRecordsCount)) {
-      return;
-    }
-
-    const res = await fetch("/api/guests/import", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ invitationId, guests: cleanedGuests }),
-    });
-
-    const result = await res.json();
-    console.log("📦 Import result:", result);
-
-    if (!res.ok || !result?.success) {
-      const isLimitError =
-        result?.code === "GUEST_LIMIT_REACHED" ||
-        result?.code === "GUEST_RECORD_LIMIT_EXCEEDED" ||
-        result?.error === "GUEST_LIMIT_REACHED" ||
-        result?.error === "GUEST_RECORD_LIMIT_EXCEEDED";
-
-      if ((res.status === 409 || res.status === 403) && isLimitError) {
-        const serverLimit =
-          result?.usage?.limit ??
-          result?.allowedRecords ??
-          result?.maxRecords ??
-          recordsLimit ??
-          "-";
-
-        const serverIncoming =
-          result?.usage?.incomingCount ??
-          result?.incomingRecordsCount ??
-          result?.count ??
-          incomingRecordsCount;
-
-        const limitMsg =
-          result?.message ||
-          result?.errorMessage ||
-          `לא ניתן להעלות. החבילה שלך מאפשרת עד ${serverLimit} רשומות בלבד, ובייבוא נמצאו ${serverIncoming} רשומות.`;
-
-        alert(limitMsg);
-
-        setSummary({
-          type: "error",
-          text: limitMsg,
-          usage: result?.usage || {
-            limit: serverLimit,
-            incomingCount: serverIncoming,
-          },
-        });
-
-        return;
-      }
-
-      const errMsg =
-        result?.message || result?.error || "שגיאה בייבוא המוזמנים";
-
-      alert(errMsg);
-
-      setSummary({
-        type: "error",
-        text: errMsg,
-        usage: result?.usage || null,
-      });
-
-      return;
-    }
-
-    const count = Number(result?.count || 0);
-    const skippedByLimit = Number(result?.skippedByLimit || 0);
-    const usage = result?.usage || null;
-
-    if (skippedByLimit > 0) {
-      const msg =
-        result?.message ||
-        `${successPrefix} ${count} מוזמנים. ${skippedByLimit} לא יובאו בגלל מגבלת מכסה.`;
-
-      alert(`⚠️ ${msg}`);
-
-      setSummary({
-        type: "partial",
-        text: msg,
-        usage,
-      });
-    } else {
-      const msg =
-        result?.message || `✅ ${successPrefix} ${count} מוזמנים בהצלחה`;
-
-      alert(msg);
-
-      setSummary({
-        type: "success",
-        text: msg,
-        usage,
-      });
-    }
-
-    clearPreview();
-    await onSuccess?.();
-    onClose?.();
-  };
-
-  const handleConfirmPreview = async () => {
-    if (!previewGuests.length) {
-      alert("אין מוזמנים לשמירה");
-      return;
-    }
-
-    setLoading(true);
-    setSummary(null);
-
-    try {
-      await sendGuestsToServer(previewGuests, "יובאו");
-    } catch (err) {
-      console.error("❌ Confirm Preview Error:", err);
-      alert("שגיאה בשמירת המוזמנים");
-
-      setSummary({
-        type: "error",
-        text: "שגיאה בשמירת המוזמנים",
-        usage: null,
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleImportExcel = async () => {
+  const handleImport = async () => {
     if (!file) {
       alert("יש לבחור קובץ אקסל תחילה");
       return;
@@ -809,7 +111,6 @@ export default function ImportExcelModal({
 
     setLoading(true);
     setSummary(null);
-    clearPreview();
 
     try {
       const data = await file.arrayBuffer();
@@ -822,6 +123,9 @@ export default function ImportExcelModal({
 
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
 
+      /* ============================================================
+         קריאה מדויקת של האקסל
+      ============================================================ */
       const rawJson = XLSX.utils.sheet_to_json(sheet, {
         defval: "",
         raw: false,
@@ -829,6 +133,9 @@ export default function ImportExcelModal({
 
       console.log("📄 RAW JSON FULL:", rawJson);
 
+      /* ============================================================
+         ניקוי + נרמול נתונים לפני שליחה לשרת
+      ============================================================ */
       const guests = rawJson
         .map((row, index) => {
           console.log("=================================");
@@ -855,31 +162,43 @@ export default function ImportExcelModal({
           console.log("➡️ RELATION CLEAN:", relationRaw);
 
           const phoneRaw = row["טלפון"];
-
-          // לא לגעת: זה בדיוק כמו שהיה אצלך באקסל
           const phoneClean = normalizeText(phoneRaw).replace(/\D/g, "");
 
           console.log("➡️ PHONE RAW:", phoneRaw);
           console.log("➡️ PHONE CLEAN:", phoneClean);
 
           const tableNumber = normalizeTableNumber(
-            row["מס' שולחן"] ?? row["מספר שולחן"] ?? row["שולחן"] ?? ""
+            row["מס' שולחן"] ??
+              row["מספר שולחן"] ??
+              row["שולחן"] ??
+              ""
           );
 
           console.log("➡️ TABLE:", tableNumber);
 
           return {
             name,
+
+            // טלפון אופציונלי
             phone: phoneClean || null,
+
             relation: relationRaw || null,
             group: groupRaw || null,
+
+            // RSVP תקני
             rsvp: RSVP_MAP[rawStatus] || "pending",
+
+            // כמות מוזמנים בתוך הרשומה - לא קשור למגבלת הרשומות
             guestsCount: Math.max(
               1,
               Number(row["מוזמנים"] ?? row["כמות אורחים"] ?? 1) || 1
             ),
+
+            // מתחיל תמיד מ-0
             arrivedCount: 0,
+
             notes: normalizeText(row["הערות"]) || null,
+
             tableNumber,
             tableName: tableNumber !== null ? `שולחן ${tableNumber}` : null,
           };
@@ -893,9 +212,127 @@ export default function ImportExcelModal({
         return;
       }
 
-      if (!checkRecordsLimit(guests.length)) return;
+      /* ============================================================
+         בדיקת מגבלת רשומות לפי user.guests לפני שליחה לשרת
+         guests.length = מספר רשומות באקסל
+      ============================================================ */
+      const incomingRecordsCount = guests.length;
 
-      openPreview(guests, "Excel");
+      console.log("📌 EXCEL RECORD LIMIT CHECK:", {
+        recordsLimit,
+        incomingRecordsCount,
+      });
+
+      if (recordsLimit > 0 && incomingRecordsCount > recordsLimit) {
+        showLimitError({
+          limit: recordsLimit,
+          incomingCount: incomingRecordsCount,
+        });
+        return;
+      }
+
+      const res = await fetch("/api/guests/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invitationId, guests }),
+      });
+
+      const result = await res.json();
+      console.log("📦 Import result:", result);
+
+      /* ============================================================
+         טיפול שגיאות מהשרת
+         כולל הגבלה לפי user.guests בצד שרת
+      ============================================================ */
+      if (!res.ok || !result?.success) {
+        const isLimitError =
+          result?.code === "GUEST_LIMIT_REACHED" ||
+          result?.code === "GUEST_RECORD_LIMIT_EXCEEDED" ||
+          result?.error === "GUEST_LIMIT_REACHED" ||
+          result?.error === "GUEST_RECORD_LIMIT_EXCEEDED";
+
+        if ((res.status === 409 || res.status === 403) && isLimitError) {
+          const serverLimit =
+            result?.usage?.limit ??
+            result?.allowedRecords ??
+            result?.maxRecords ??
+            recordsLimit ??
+            "-";
+
+          const serverIncoming =
+            result?.usage?.incomingCount ??
+            result?.incomingRecordsCount ??
+            result?.count ??
+            incomingRecordsCount;
+
+          const limitMsg =
+            result?.message ||
+            result?.errorMessage ||
+            `לא ניתן להעלות את הקובץ. החבילה שלך מאפשרת עד ${serverLimit} רשומות בלבד, ובקובץ נמצאו ${serverIncoming} רשומות.`;
+
+          alert(limitMsg);
+
+          setSummary({
+            type: "error",
+            text: limitMsg,
+            usage: result?.usage || {
+              limit: serverLimit,
+              incomingCount: serverIncoming,
+            },
+          });
+
+          return;
+        }
+
+        const errMsg =
+          result?.message ||
+          result?.error ||
+          "שגיאה בייבוא הקובץ";
+
+        alert(errMsg);
+
+        setSummary({
+          type: "error",
+          text: errMsg,
+          usage: result?.usage || null,
+        });
+
+        return;
+      }
+
+      /* ============================================================
+         הצלחה
+      ============================================================ */
+      const count = Number(result?.count || 0);
+      const skippedByLimit = Number(result?.skippedByLimit || 0);
+      const usage = result?.usage || null;
+
+      if (skippedByLimit > 0) {
+        const msg =
+          result?.message ||
+          `יובאו ${count} מוזמנים. ${skippedByLimit} לא יובאו בגלל מגבלת מכסה.`;
+
+        alert(`⚠️ ${msg}`);
+
+        setSummary({
+          type: "partial",
+          text: msg,
+          usage,
+        });
+      } else {
+        const msg = result?.message || `✅ יובאו ${count} מוזמנים בהצלחה`;
+
+        alert(msg);
+
+        setSummary({
+          type: "success",
+          text: msg,
+          usage,
+        });
+      }
+
+      await onSuccess?.();
+      onClose?.();
     } catch (err) {
       console.error("❌ Excel Error:", err);
       alert("שגיאה בקריאת הקובץ");
@@ -910,197 +347,52 @@ export default function ImportExcelModal({
     }
   };
 
-  const handleImportPastedList = async () => {
-    const guests = parseGuestsFromText(pastedText);
-
-    if (!guests.length) {
-      alert("לא נמצאו מוזמנים תקינים בטקסט שהודבק");
-      return;
-    }
-
-    if (!checkRecordsLimit(guests.length)) return;
-
-    setSummary(null);
-    clearPreview();
-
-    console.log("📋 PASTED GUESTS:", guests);
-    openPreview(guests, "הדבקת רשימה");
-  };
-
-  const handleImportContacts = async () => {
-    setSummary(null);
-    clearPreview();
-
-    if (typeof window === "undefined" || !navigator?.contacts?.select) {
-      alert(
-        "הדפדפן או המכשיר לא תומכים כרגע בייבוא ישיר מאנשי קשר. אפשר להשתמש ב-Excel או בהדבקת רשימה."
-      );
-
-      setSummary({
-        type: "error",
-        text:
-          "הדפדפן או המכשיר לא תומכים כרגע בייבוא ישיר מאנשי קשר. נסי לפתוח מכרום במובייל, או להשתמש ב-Excel / הדבקת רשימה.",
-        usage: null,
-      });
-
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const contacts = await navigator.contacts.select(["name", "tel"], {
-        multiple: true,
-      });
-
-      const guests = contactsToGuests(contacts);
-
-      if (!guests.length) {
-        alert("לא נבחרו אנשי קשר תקינים");
-        setSummary({
-          type: "error",
-          text: "לא נבחרו אנשי קשר תקינים",
-          usage: null,
-        });
-        return;
-      }
-
-      if (!checkRecordsLimit(guests.length)) return;
-
-      console.log("👥 CONTACTS GUESTS:", guests);
-      openPreview(guests, "אנשי קשר");
-    } catch (err) {
-      console.error("❌ Contacts Import Error:", err);
-
-      const message =
-        err?.name === "AbortError"
-          ? "בחירת אנשי הקשר בוטלה"
-          : "שגיאה בייבוא מאנשי קשר";
-
-      setSummary({
-        type: err?.name === "AbortError" ? "partial" : "error",
-        text: message,
-        usage: null,
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const renderActiveImportButton = () => {
-    if (hasPreview) {
-      return null;
-    }
-
-    if (activeTab === "excel") {
-      return (
-        <button
-          type="button"
-          onClick={handleImportExcel}
-          disabled={loading}
-          className="
-            mt-5 flex w-full items-center justify-center gap-2
-            rounded-full bg-[#128C3A] px-6 py-4
-            text-base font-black text-white
-            shadow-[0_14px_35px_rgba(18,140,58,0.24)]
-            transition hover:bg-[#0F7A32]
-            disabled:cursor-not-allowed disabled:opacity-60
-          "
-        >
-          {loading ? (
-            <>
-              <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-              קורא את הקובץ...
-            </>
-          ) : (
-            <>בדיקת קובץ והצגת מוזמנים</>
-          )}
-        </button>
-      );
-    }
-
-    if (activeTab === "paste") {
-      return (
-        <button
-          type="button"
-          onClick={handleImportPastedList}
-          disabled={loading}
-          className="
-            mt-5 flex w-full items-center justify-center gap-2
-            rounded-full bg-[#128C3A] px-6 py-4
-            text-base font-black text-white
-            shadow-[0_14px_35px_rgba(18,140,58,0.24)]
-            transition hover:bg-[#0F7A32]
-            disabled:cursor-not-allowed disabled:opacity-60
-          "
-        >
-          זיהוי מהרשימה והצגה לבדיקה
-        </button>
-      );
-    }
-
-    return (
-      <button
-        type="button"
-        onClick={handleImportContacts}
-        disabled={loading}
-        className="
-          mt-5 flex w-full items-center justify-center gap-2
-          rounded-full bg-[#128C3A] px-6 py-4
-          text-base font-black text-white
-          shadow-[0_14px_35px_rgba(18,140,58,0.24)]
-          transition hover:bg-[#0F7A32]
-          disabled:cursor-not-allowed disabled:opacity-60
-        "
-      >
-        {loading ? (
-          <>
-            <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-            פותח אנשי קשר...
-          </>
-        ) : (
-          <>בחירת אנשי קשר והצגה לבדיקה</>
-        )}
-      </button>
-    );
-  };
-
   return (
     <div
       className="
-        fixed inset-0 z-50 flex items-center justify-center
-        bg-black/50 px-4 py-6 backdrop-blur-sm
+        fixed inset-0 z-50
+        flex items-center justify-center
+        bg-black/50 px-4 py-6
+        backdrop-blur-sm
       "
       dir="rtl"
     >
       <div
         className="
-          relative flex max-h-[92vh] w-full max-w-[860px] flex-col
+          relative w-full max-w-[680px]
           overflow-hidden rounded-[34px]
-          border border-[#EFE2CF] bg-[#FFFCF7]
+          bg-[#FFFCF7]
           shadow-[0_30px_100px_rgba(25,18,10,0.28)]
+          border border-[#EFE2CF]
         "
       >
+        {/* Close */}
         <button
           type="button"
           onClick={onClose}
           disabled={loading}
           className="
-            absolute left-5 top-5 z-20 flex h-10 w-10 items-center justify-center
-            rounded-full bg-white/85 text-xl font-bold text-[#6B5138]
-            shadow-sm transition hover:bg-[#F6EBD9] disabled:opacity-50
+            absolute left-5 top-5 z-20
+            flex h-10 w-10 items-center justify-center
+            rounded-full
+            bg-white/85
+            text-xl font-bold text-[#6B5138]
+            shadow-sm transition
+            hover:bg-[#F6EBD9]
+            disabled:opacity-50
           "
           aria-label="סגירה"
         >
           ×
         </button>
 
+        {/* Header */}
         <div
           className="
             relative overflow-hidden
-            border-b border-[#EFE2CF]
             bg-gradient-to-l from-[#F8EEDC] via-[#FFF7EA] to-[#FFFFFF]
             px-7 pb-7 pt-8 sm:px-10
+            border-b border-[#EFE2CF]
           "
         >
           <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-[#D6B16A]/20 blur-2xl" />
@@ -1110,438 +402,278 @@ export default function ImportExcelModal({
             <div
               className="
                 mx-auto mb-4 flex h-16 w-16 items-center justify-center
-                rounded-3xl border border-[#EFE2CF] bg-white text-3xl
+                rounded-3xl
+                bg-white
+                text-3xl
                 shadow-[0_12px_35px_rgba(139,106,63,0.18)]
+                border border-[#EFE2CF]
               "
             >
-              {activeTab === "excel"
-                ? "📊"
-                : activeTab === "paste"
-                ? "📋"
-                : "👥"}
+              📊
             </div>
 
-            <h2 className="text-center text-2xl font-black text-[#2F241A] sm:text-3xl">
-              ייבוא מוזמנים
+            <h2 className="text-center text-2xl sm:text-3xl font-black text-[#2F241A]">
+              ייבוא מוזמנים מאקסל
             </h2>
 
-            <p className="mx-auto mt-3 max-w-[560px] text-center text-sm leading-7 text-[#7A6A59] sm:text-base">
-              בחרו דרך ייבוא, בדקו את הרשימה, ערכו במידת הצורך ורק אז שמרו
-              למערכת.
+            <p className="mx-auto mt-3 max-w-[460px] text-center text-sm sm:text-base leading-7 text-[#7A6A59]">
+              הורידו את התבנית, מלאו את פרטי האורחים והעלו את הקובץ למערכת.
             </p>
           </div>
         </div>
 
-        <div className="overflow-y-auto px-6 py-6 sm:px-9 sm:py-8">
-          <div className="mb-6 grid gap-3 sm:grid-cols-3">
-            {IMPORT_TABS.map((tab) => {
-              const isActive = activeTab === tab.id;
-
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => {
-                    if (loading) return;
-                    setActiveTab(tab.id);
-                    setSummary(null);
-                    clearPreview();
-                  }}
-                  className={`
-                    rounded-[22px] border px-4 py-4 text-center transition
-                    ${
-                      isActive
-                        ? "border-[#C89A46] bg-[#F7E7C7] shadow-[0_12px_28px_rgba(139,106,63,0.16)]"
-                        : "border-[#EFE2CF] bg-white hover:border-[#D6B16A] hover:bg-[#FFF8ED]"
-                    }
-                  `}
+        {/* Body */}
+        <div className="px-6 py-6 sm:px-9 sm:py-8">
+          {/* Steps */}
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div
+              className="
+                rounded-[24px]
+                border border-[#EFE2CF]
+                bg-white
+                p-4
+                shadow-[0_10px_30px_rgba(95,68,34,0.06)]
+              "
+            >
+              <div className="mb-3 flex items-center gap-3">
+                <span
+                  className="
+                    flex h-9 w-9 items-center justify-center
+                    rounded-full bg-[#F4E7D1]
+                    text-sm font-black text-[#8B6A3F]
+                  "
                 >
-                  <div className="text-2xl">{tab.icon}</div>
-                  <div
-                    className={`mt-2 text-sm font-black ${
-                      isActive ? "text-[#5A3D18]" : "text-[#3E2D20]"
-                    }`}
-                  >
-                    {tab.label}
-                  </div>
-                </button>
-              );
-            })}
+                  1
+                </span>
+                <h3 className="font-black text-[#3E2D20]">הורדת תבנית</h3>
+              </div>
+
+              <p className="mb-4 text-sm leading-6 text-[#7A6A59]">
+                התחילו מקובץ התבנית המוכן כדי לשמור על מבנה תקין.
+              </p>
+
+              <a
+                href="/Invistimo_v4.xlsx?v=4"
+                download
+                className="
+                  inline-flex w-full items-center justify-center gap-2
+                  rounded-full
+                  bg-[#F4E7D1]
+                  px-4 py-2.5
+                  text-sm font-bold text-[#7B5A2E]
+                  transition
+                  hover:bg-[#EAD7B8]
+                "
+              >
+                📄 הורדת תבנית
+              </a>
+            </div>
+
+            <div
+              className="
+                rounded-[24px]
+                border border-[#EFE2CF]
+                bg-white
+                p-4
+                shadow-[0_10px_30px_rgba(95,68,34,0.06)]
+              "
+            >
+              <div className="mb-3 flex items-center gap-3">
+                <span
+                  className="
+                    flex h-9 w-9 items-center justify-center
+                    rounded-full bg-[#F4E7D1]
+                    text-sm font-black text-[#8B6A3F]
+                  "
+                >
+                  2
+                </span>
+                <h3 className="font-black text-[#3E2D20]">מילוי אורחים</h3>
+              </div>
+
+              <p className="text-sm leading-6 text-[#7A6A59]">
+                מלאו שם, טלפון, סטטוס, קרבה, קבוצה, כמות מוזמנים ושולחן לפי
+                הכותרות בקובץ.
+              </p>
+            </div>
+
+            <div
+              className="
+                rounded-[24px]
+                border border-[#EFE2CF]
+                bg-white
+                p-4
+                shadow-[0_10px_30px_rgba(95,68,34,0.06)]
+              "
+            >
+              <div className="mb-3 flex items-center gap-3">
+                <span
+                  className="
+                    flex h-9 w-9 items-center justify-center
+                    rounded-full bg-[#F4E7D1]
+                    text-sm font-black text-[#8B6A3F]
+                  "
+                >
+                  3
+                </span>
+                <h3 className="font-black text-[#3E2D20]">העלאה למערכת</h3>
+              </div>
+
+              <p className="text-sm leading-6 text-[#7A6A59]">
+                בחרו את הקובץ המלא ולחצו על העלאה. המערכת תייבא את האורחים
+                אוטומטית.
+              </p>
+            </div>
           </div>
 
-          <div className="mt-6 rounded-[28px] border border-dashed border-[#D6B16A] bg-[#FFF8ED] p-5 sm:p-6">
-            {activeTab === "excel" ? (
-              <>
-                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <h3 className="text-lg font-black text-[#3E2D20]">
-                      העלאת קובץ אקסל
-                    </h3>
-                    <p className="mt-1 text-sm text-[#7A6A59]">
-                      ניתן להעלות קובץ מסוג XLSX או XLS בלבד.
-                    </p>
-                  </div>
+          {/* Upload box */}
+          <div
+            className="
+              mt-6 rounded-[28px]
+              border border-dashed border-[#D6B16A]
+              bg-[#FFF8ED]
+              p-5 sm:p-6
+            "
+          >
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-lg font-black text-[#3E2D20]">
+                  העלאת קובץ אקסל
+                </h3>
+                <p className="mt-1 text-sm text-[#7A6A59]">
+                  ניתן להעלות קובץ מסוג XLSX או XLS בלבד.
+                </p>
+              </div>
 
-                  <a
-                    href="/Invistimo_v4.xlsx?v=4"
-                    download
-                    className="
-                      inline-flex items-center justify-center gap-2
-                      rounded-full bg-white px-4 py-2
-                      text-xs font-bold text-[#8B6A3F]
-                      border border-[#EFE2CF]
-                    "
-                  >
-                    📄 הורדת תבנית
-                  </a>
-                </div>
+              <div
+                className="
+                  inline-flex items-center justify-center
+                  rounded-full bg-white
+                  px-4 py-2
+                  text-xs font-bold text-[#8B6A3F]
+                  border border-[#EFE2CF]
+                "
+              >
+                Excel בלבד
+              </div>
+            </div>
 
-                <label className="flex cursor-pointer flex-col items-center justify-center rounded-[24px] border border-[#EFE2CF] bg-white px-4 py-6 text-center shadow-[0_10px_30px_rgba(95,68,34,0.05)] transition hover:border-[#D6B16A] hover:bg-[#FFFDF8]">
-                  <input
-                    type="file"
-                    accept=".xlsx,.xls"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
+            <label
+              className="
+                flex cursor-pointer flex-col items-center justify-center
+                rounded-[24px]
+                border border-[#EFE2CF]
+                bg-white
+                px-4 py-6
+                text-center
+                shadow-[0_10px_30px_rgba(95,68,34,0.05)]
+                transition
+                hover:border-[#D6B16A]
+                hover:bg-[#FFFDF8]
+              "
+            >
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleFileChange}
+                className="hidden"
+              />
 
-                  <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#F4E7D1] text-2xl">
-                    ⬆️
-                  </div>
+              <div
+                className="
+                  mb-3 flex h-14 w-14 items-center justify-center
+                  rounded-2xl
+                  bg-[#F4E7D1]
+                  text-2xl
+                "
+              >
+                ⬆️
+              </div>
 
-                  <p className="text-base font-black text-[#3E2D20]">
-                    {selectedFileName
-                      ? "הקובץ נבחר בהצלחה"
-                      : "בחרו קובץ להעלאה"}
+              <p className="text-base font-black text-[#3E2D20]">
+                {selectedFileName ? "הקובץ נבחר בהצלחה" : "בחרו קובץ להעלאה"}
+              </p>
+
+              <p className="mt-1 max-w-[420px] text-sm leading-6 text-[#7A6A59]">
+                {selectedFileName
+                  ? selectedFileName
+                  : "לחצו כאן לבחירת קובץ האקסל מהמחשב או מהטלפון"}
+              </p>
+            </label>
+
+            {selectedFileName ? (
+              <div
+                className="
+                  mt-4 flex items-center justify-between gap-3
+                  rounded-2xl
+                  bg-white
+                  px-4 py-3
+                  border border-[#EFE2CF]
+                "
+              >
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-[#8B6A3F]">קובץ נבחר</p>
+                  <p className="truncate text-sm font-semibold text-[#3E2D20]">
+                    {selectedFileName}
                   </p>
-
-                  <p className="mt-1 max-w-[420px] text-sm leading-6 text-[#7A6A59]">
-                    {selectedFileName
-                      ? selectedFileName
-                      : "לחצו כאן לבחירת קובץ האקסל מהמחשב או מהטלפון"}
-                  </p>
-                </label>
-              </>
-            ) : null}
-
-            {activeTab === "paste" ? (
-              <>
-                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <h3 className="text-lg font-black text-[#3E2D20]">
-                      הדבקת רשימת מוזמנים
-                    </h3>
-                    <p className="mt-1 text-sm text-[#7A6A59]">
-                      הדביקו כל מוזמן בשורה נפרדת. אפשר גם שם וטלפון בשורות
-                      נפרדות.
-                    </p>
-                  </div>
-
-                  <div className="inline-flex items-center justify-center rounded-full border border-[#EFE2CF] bg-white px-4 py-2 text-xs font-bold text-[#8B6A3F]">
-                    זיהוי אוטומטי
-                  </div>
                 </div>
 
-                <textarea
-                  value={pastedText}
-                  onChange={(e) => {
-                    setSummary(null);
-                    clearPreview();
-                    setPastedText(e.target.value);
-                  }}
-                  placeholder={`לדוגמה:
-דנה כהן 0521234567
-יוסי לוי - 0549876543
-משפחת אברהם
-+972555039072`}
-                  className="
-                    min-h-[220px] w-full resize-none rounded-[24px]
-                    border border-[#EFE2CF] bg-white px-4 py-4
-                    text-sm leading-7 text-[#3E2D20]
-                    shadow-[0_10px_30px_rgba(95,68,34,0.05)]
-                    outline-none transition
-                    placeholder:text-[#B7A893]
-                    focus:border-[#D6B16A] focus:ring-4 focus:ring-[#D6B16A]/15
-                  "
-                />
-
-                <div className="mt-4 rounded-2xl border border-[#EFE2CF] bg-white px-4 py-3 text-sm leading-6 text-[#7A6A59]">
-                  המערכת תזהה גם מספרים בפורמט{" "}
-                  <span className="font-black text-[#3E2D20]">+972</span>{" "}
-                  ותמיר אותם לפורמט ישראלי רגיל.
-                </div>
-              </>
-            ) : null}
-
-            {activeTab === "contacts" ? (
-              <>
-                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <h3 className="text-lg font-black text-[#3E2D20]">
-                      ייבוא מאנשי קשר
-                    </h3>
-                    <p className="mt-1 text-sm text-[#7A6A59]">
-                      בחרו אנשי קשר מהמכשיר. המערכת תייבא שם וטלפון ותציג אותם
-                      לבדיקה לפני שמירה.
-                    </p>
-                  </div>
-
-                  <div className="inline-flex items-center justify-center rounded-full border border-[#EFE2CF] bg-white px-4 py-2 text-xs font-bold text-[#8B6A3F]">
-                    ללא OCR
-                  </div>
-                </div>
-
-                <div className="rounded-[24px] border border-[#EFE2CF] bg-white px-5 py-5 text-sm leading-7 text-[#7A6A59]">
-                  האתר לא קורא את כל אנשי הקשר לבד. אתם בוחרים ידנית אילו אנשי
-                  קשר לשתף, ורק הם יופיעו בתצוגה המקדימה.
-                </div>
-
-                <div className="mt-4 rounded-2xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm font-semibold leading-6 text-yellow-800">
-                  ייבוא מאנשי קשר תלוי בתמיכת הדפדפן והמכשיר. אם האפשרות לא
-                  נתמכת, אפשר לייבא דרך Excel או הדבקת רשימה.
-                </div>
-              </>
+                <span className="shrink-0 rounded-full bg-green-50 px-3 py-1 text-xs font-bold text-green-700">
+                  מוכן לייבוא
+                </span>
+              </div>
             ) : null}
 
             {recordsLimit > 0 ? (
-              <div className="mt-4 rounded-2xl border border-[#EFE2CF] bg-white px-4 py-3 text-sm font-semibold leading-6 text-[#7A6A59]">
+              <div
+                className="
+                  mt-4 rounded-2xl
+                  border border-[#EFE2CF]
+                  bg-white
+                  px-4 py-3
+                  text-sm font-semibold leading-6 text-[#7A6A59]
+                "
+              >
                 החבילה מאפשרת עד{" "}
                 <span className="font-black text-[#3E2D20]">
                   {recordsLimit}
                 </span>{" "}
-                רשומות.
+                רשומות באקסל.
               </div>
             ) : null}
 
-            {renderActiveImportButton()}
+            <button
+              type="button"
+              onClick={handleImport}
+              disabled={loading}
+              className="
+                mt-5 flex w-full items-center justify-center gap-2
+                rounded-full
+                bg-[#128C3A]
+                px-6 py-4
+                text-base font-black text-white
+                shadow-[0_14px_35px_rgba(18,140,58,0.24)]
+                transition
+                hover:bg-[#0F7A32]
+                disabled:cursor-not-allowed
+                disabled:opacity-60
+              "
+            >
+              {loading ? (
+                <>
+                  <span
+                    className="
+                      h-5 w-5 animate-spin rounded-full
+                      border-2 border-white/40 border-t-white
+                    "
+                  />
+                  מייבא את הקובץ...
+                </>
+              ) : (
+                <>העלאת קובץ וייבוא אורחים</>
+              )}
+            </button>
           </div>
-
-          {hasPreview ? (
-            <div className="mt-6 rounded-[28px] border border-[#EFE2CF] bg-white p-4 shadow-[0_12px_34px_rgba(95,68,34,0.08)]">
-              <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h3 className="text-lg font-black text-[#2F241A]">
-                    בדיקת מוזמנים לפני שמירה
-                  </h3>
-                  <p className="mt-1 text-sm text-[#7A6A59]">
-                    מקור: {previewSource || "ייבוא"} · נמצאו{" "}
-                    <span className="font-black text-[#2F241A]">
-                      {previewGuests.length}
-                    </span>{" "}
-                    מוזמנים. ניתן לערוך שם, טלפון וכמות לפני השמירה.
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={clearPreview}
-                  disabled={loading}
-                  className="
-                    rounded-full border border-[#EFE2CF] bg-[#FFFCF7]
-                    px-4 py-2 text-xs font-black text-[#7A6A59]
-                    transition hover:bg-[#F6EBD9]
-                    disabled:opacity-50
-                  "
-                >
-                  ניקוי תצוגה
-                </button>
-              </div>
-
-              {previewSource === "אנשי קשר" ? (
-                <div className="mb-4 rounded-2xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm font-bold leading-6 text-yellow-800">
-                  חובה לעבור על התצוגה המקדימה לפני שמירה: ודאו שכל שם וכל מספר
-                  נכונים, ובחרו אם למחוק אנשי קשר שלא אמורים להיכנס לרשימה.
-                </div>
-              ) : null}
-
-              <div className="overflow-x-auto rounded-[22px] border border-[#EFE2CF]">
-                <table className="min-w-[720px] w-full text-right text-sm">
-                  <thead className="bg-[#F8F1E6] text-[#6B5138]">
-                    <tr>
-                      <th className="px-4 py-3 font-black">#</th>
-                      <th className="px-4 py-3 font-black">שם מלא</th>
-                      <th className="px-4 py-3 font-black">טלפון</th>
-                      <th className="px-4 py-3 font-black">כמות</th>
-                      <th className="px-4 py-3 font-black">סטטוס</th>
-                      <th className="px-4 py-3 font-black">פעולה</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {previewGuests.map((guest, index) => {
-                      const phoneValid =
-                        !guest.phone || /^05\d{8}$/.test(guest.phone);
-                      const isContactsSource = previewSource === "אנשי קשר";
-
-                      return (
-                        <tr
-                          key={guest._previewId}
-                          className="border-t border-[#EFE2CF] bg-white"
-                        >
-                          <td className="px-4 py-3 font-black text-[#8B6A3F]">
-                            {index + 1}
-                          </td>
-
-                          <td className="px-4 py-3">
-                            <input
-                              value={guest.name || ""}
-                              onChange={(e) =>
-                                updatePreviewGuest(
-                                  guest._previewId,
-                                  "name",
-                                  e.target.value
-                                )
-                              }
-                              className="
-                                w-full rounded-2xl border border-[#EFE2CF]
-                                bg-[#FFFCF7] px-3 py-2
-                                font-bold text-[#2F241A]
-                                outline-none transition
-                                focus:border-[#D6B16A]
-                                focus:ring-4 focus:ring-[#D6B16A]/15
-                              "
-                            />
-                          </td>
-
-                          <td className="px-4 py-3">
-                            <input
-                              value={guest.phone || ""}
-                              onChange={(e) =>
-                                updatePreviewGuest(
-                                  guest._previewId,
-                                  "phone",
-                                  normalizeSmartPhone(e.target.value)
-                                )
-                              }
-                              className={`
-                                w-full rounded-2xl border px-3 py-2
-                                bg-[#FFFCF7]
-                                font-semibold text-[#2F241A]
-                                outline-none transition
-                                focus:ring-4 focus:ring-[#D6B16A]/15
-                                ${
-                                  phoneValid
-                                    ? "border-[#EFE2CF] focus:border-[#D6B16A]"
-                                    : "border-red-300 focus:border-red-400"
-                                }
-                              `}
-                            />
-                            {!phoneValid ? (
-                              <p className="mt-1 text-xs font-bold text-red-600">
-                                מספר לא נראה תקין
-                              </p>
-                            ) : null}
-                          </td>
-
-                          <td className="px-4 py-3">
-                            <input
-                              type="number"
-                              min="1"
-                              max="99"
-                              value={guest.guestsCount || 1}
-                              onChange={(e) =>
-                                updatePreviewGuest(
-                                  guest._previewId,
-                                  "guestsCount",
-                                  e.target.value
-                                )
-                              }
-                              className="
-                                w-20 rounded-2xl border border-[#EFE2CF]
-                                bg-[#FFFCF7] px-3 py-2
-                                text-center font-black text-[#2F241A]
-                                outline-none transition
-                                focus:border-[#D6B16A]
-                                focus:ring-4 focus:ring-[#D6B16A]/15
-                              "
-                            />
-                          </td>
-
-                          <td className="px-4 py-3">
-                            <span
-                              className={`
-                                inline-flex rounded-full px-3 py-1 text-xs font-black
-                                ${
-                                  isContactsSource
-                                    ? "bg-yellow-50 text-yellow-700"
-                                    : guest.name && phoneValid
-                                    ? "bg-green-50 text-green-700"
-                                    : "bg-yellow-50 text-yellow-700"
-                                }
-                              `}
-                            >
-                              {isContactsSource
-                                ? "לבדיקה"
-                                : guest.name && phoneValid
-                                ? "תקין"
-                                : "דורש בדיקה"}
-                            </span>
-                          </td>
-
-                          <td className="px-4 py-3">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                removePreviewGuest(guest._previewId)
-                              }
-                              disabled={loading}
-                              className="
-                                rounded-full bg-red-50 px-3 py-2
-                                text-xs font-black text-red-600
-                                transition hover:bg-red-100
-                                disabled:opacity-50
-                              "
-                            >
-                              מחיקה
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-                <button
-                  type="button"
-                  onClick={handleConfirmPreview}
-                  disabled={loading || !previewGuests.length}
-                  className="
-                    flex flex-1 items-center justify-center gap-2
-                    rounded-full bg-[#128C3A] px-6 py-4
-                    text-base font-black text-white
-                    shadow-[0_14px_35px_rgba(18,140,58,0.24)]
-                    transition hover:bg-[#0F7A32]
-                    disabled:cursor-not-allowed disabled:opacity-60
-                  "
-                >
-                  {loading ? (
-                    <>
-                      <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                      שומר מוזמנים...
-                    </>
-                  ) : (
-                    <>אישור ושמירת המוזמנים</>
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={clearPreview}
-                  disabled={loading}
-                  className="
-                    rounded-full border border-[#EFE2CF]
-                    bg-white px-6 py-4
-                    text-sm font-black text-[#7A6A59]
-                    transition hover:bg-[#F6EBD9]
-                    disabled:opacity-50
-                  "
-                >
-                  ביטול בדיקה
-                </button>
-              </div>
-            </div>
-          ) : null}
 
           {summary ? (
             <div
@@ -1560,15 +692,19 @@ export default function ImportExcelModal({
             </div>
           ) : null}
 
+          {/* Footer */}
           <div className="mt-6 flex items-center justify-center">
             <button
               type="button"
               onClick={onClose}
               disabled={loading}
               className="
-                rounded-full px-5 py-2.5
+                rounded-full
+                px-5 py-2.5
                 text-sm font-bold text-[#7A6A59]
-                transition hover:bg-[#F6EBD9] hover:text-[#3E2D20]
+                transition
+                hover:bg-[#F6EBD9]
+                hover:text-[#3E2D20]
                 disabled:opacity-50
               "
             >
