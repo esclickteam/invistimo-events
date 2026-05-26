@@ -21,7 +21,7 @@ const RSVP_MAP = {
 const IMPORT_TABS = [
   { id: "excel", label: "Excel", icon: "📊" },
   { id: "paste", label: "הדבקת רשימה", icon: "📋" },
-  { id: "image", label: "תמונה / צילום מסך", icon: "📷" },
+  { id: "contacts", label: "אנשי קשר", icon: "👥" },
 ];
 
 /* ============================================================
@@ -62,9 +62,9 @@ function normalizeNumber(value) {
 }
 
 /* ============================================================
-   עזר: ניקוי OCR נפוץ במספרים
+   עזר: ניקוי תווי טלפון נפוצים
 ============================================================ */
-function normalizePhoneOcrChars(value) {
+function normalizePhoneChars(value) {
   return String(value || "")
     .replace(/[Oo]/g, "0")
     .replace(/[Il|]/g, "1")
@@ -76,11 +76,11 @@ function normalizePhoneOcrChars(value) {
 }
 
 /* ============================================================
-   עזר: נרמול טלפון רק להדבקה/תמונה
+   עזר: נרמול טלפון להדבקה / אנשי קשר
    לא משתמשים בזה באקסל כדי לא לשנות את הייבוא התקין שלך
 ============================================================ */
 function normalizeSmartPhone(value) {
-  let phone = normalizePhoneOcrChars(value).trim();
+  let phone = normalizePhoneChars(value).trim();
 
   phone = phone.replace(/^00\s*972/, "+972");
   phone = phone.replace(/[^\d+]/g, "");
@@ -110,7 +110,7 @@ function normalizeSmartPhone(value) {
    עזר: חילוץ טלפון משורה
 ============================================================ */
 function extractPhoneFromLine(line) {
-  const text = normalizePhoneOcrChars(line)
+  const text = normalizePhoneChars(line)
     .replace(/[\u200E\u200F]/g, " ")
     .trim();
 
@@ -172,7 +172,7 @@ function extractGuestsCountFromLine(line) {
 }
 
 /* ============================================================
-   עזר: ניקוי שם
+   עזר: ניקוי שם לטקסט מודבק
 ============================================================ */
 function cleanNameText(value) {
   let text = normalizeText(value);
@@ -182,14 +182,10 @@ function cleanNameText(value) {
       /(?:שליחת פרטי אנשי הקשר|שליחה|נייד|טלפון|שם החברה|שם מלא|שם|ביטול|פרטים|איש קשר|אנשי קשר)/g,
       " "
     )
-    // חשוב: שמות נשמרים רק בעברית. כל אנגלית/ג׳יבריש מה-OCR נמחקת.
-    .replace(/[A-Za-z]+/g, " ")
     .replace(/[✓✔●•@#]+/g, " ")
     .replace(/[|,;:]+/g, " ")
     .replace(/\b\d+\b/g, " ")
     .replace(/\s*[-–—]\s*/g, " ")
-    // משאיר רק אותיות עבריות ורווחים בשם
-    .replace(/[^\u0590-\u05FF\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 
@@ -219,8 +215,6 @@ function cleanNameText(value) {
       ];
 
       if (badWords.includes(clean)) return false;
-
-      // רעשי OCR קצרים בעברית
       if (/^[םסמנוז]{1,2}$/.test(clean)) return false;
 
       return true;
@@ -310,10 +304,7 @@ function looksLikeNameLine(line) {
   if (isNoiseLine(text)) return false;
   if (extractPhoneFromLine(text)) return false;
 
-  // שם חייב להיות בעברית בלבד
-  if (!/[א-ת]/.test(text)) return false;
-  if (/[A-Za-z]/.test(text)) return false;
-
+  if (!/[א-תA-Za-z]/.test(text)) return false;
   if (text.length < 2) return false;
 
   const badWords = [
@@ -338,7 +329,7 @@ function looksLikeNameLine(line) {
 }
 
 /* ============================================================
-   עזר: פירוק טקסט OCR לשורות נקיות
+   עזר: פירוק טקסט לשורות נקיות
 ============================================================ */
 function splitSmartLines(text) {
   return String(text || "")
@@ -354,7 +345,7 @@ function splitSmartLines(text) {
 }
 
 /* ============================================================
-   עזר: שורות OCR / הדבקה → קבוצות של שם + טלפון
+   עזר: שורות הדבקה → קבוצות של שם + טלפון
 ============================================================ */
 function buildGuestLinesFromText(text) {
   const lines = splitSmartLines(text);
@@ -401,6 +392,7 @@ function uniqueGuestsByPhone(guests) {
 
   return guests.filter((guest) => {
     if (!guest?.phone) return true;
+
     if (seen.has(guest.phone)) return false;
 
     seen.add(guest.phone);
@@ -438,6 +430,71 @@ function parseGuestsFromText(text) {
     .filter(Boolean);
 
   return uniqueGuestsByPhone(guests);
+}
+
+/* ============================================================
+   עזר: שם מאנשי קשר
+============================================================ */
+function normalizeContactName(contact) {
+  const rawName =
+    Array.isArray(contact?.name) && contact.name.length
+      ? contact.name.join(" ")
+      : typeof contact?.name === "string"
+      ? contact.name
+      : "";
+
+  return normalizeText(rawName) || "ללא שם";
+}
+
+/* ============================================================
+   עזר: הפיכת אנשי קשר לרשימת מוזמנים
+============================================================ */
+function contactsToGuests(contacts = []) {
+  const guests = [];
+
+  contacts.forEach((contact) => {
+    const name = normalizeContactName(contact);
+    const telList = Array.isArray(contact?.tel)
+      ? contact.tel
+      : contact?.tel
+      ? [contact.tel]
+      : [];
+
+    if (!telList.length) {
+      guests.push({
+        name,
+        phone: null,
+        relation: null,
+        group: null,
+        rsvp: "pending",
+        guestsCount: 1,
+        arrivedCount: 0,
+        notes: null,
+        tableNumber: null,
+        tableName: null,
+      });
+      return;
+    }
+
+    telList.forEach((tel) => {
+      const phone = normalizeSmartPhone(tel);
+
+      guests.push({
+        name,
+        phone: phone || null,
+        relation: null,
+        group: null,
+        rsvp: "pending",
+        guestsCount: 1,
+        arrivedCount: 0,
+        notes: null,
+        tableNumber: null,
+        tableName: null,
+      });
+    });
+  });
+
+  return uniqueGuestsByPhone(guests).filter((guest) => guest.name || guest.phone);
 }
 
 /* ============================================================
@@ -490,48 +547,6 @@ function cleanGuestsForServer(guests) {
     .filter(Boolean);
 }
 
-/* ============================================================
-   שיפור תמונה לפני OCR - עדין יותר כדי לא להרוס עברית
-============================================================ */
-async function preprocessImageForOcr(file) {
-  if (typeof window === "undefined") return file;
-
-  const imageUrl = URL.createObjectURL(file);
-
-  try {
-    const img = await new Promise((resolve, reject) => {
-      const image = new Image();
-      image.onload = () => resolve(image);
-      image.onerror = reject;
-      image.src = imageUrl;
-    });
-
-    const scale = 2;
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
-
-    if (!ctx) return file;
-
-    canvas.width = img.width * scale;
-    canvas.height = img.height * scale;
-
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-    const blob = await new Promise((resolve) => {
-      canvas.toBlob(resolve, "image/png", 1);
-    });
-
-    return blob || file;
-  } catch (error) {
-    console.warn("OCR preprocess failed, using original image", error);
-    return file;
-  } finally {
-    URL.revokeObjectURL(imageUrl);
-  }
-}
-
 export default function ImportExcelModal({
   invitationId,
   onClose,
@@ -548,20 +563,15 @@ export default function ImportExcelModal({
   const [activeTab, setActiveTab] = useState("excel");
 
   const [file, setFile] = useState(null);
-  const [imageFile, setImageFile] = useState(null);
   const [pastedText, setPastedText] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState(null);
 
-  const [ocrText, setOcrText] = useState("");
-  const [ocrProgress, setOcrProgress] = useState(0);
-
   const [previewGuests, setPreviewGuests] = useState([]);
   const [previewSource, setPreviewSource] = useState("");
 
   const selectedFileName = useMemo(() => file?.name || "", [file]);
-  const selectedImageName = useMemo(() => imageFile?.name || "", [imageFile]);
 
   const recordsLimit = useMemo(() => {
     return normalizeNumber(
@@ -627,14 +637,6 @@ export default function ImportExcelModal({
     resetMessages();
     clearPreview();
     setFile(e.target.files?.[0] || null);
-  };
-
-  const handleImageChange = (e) => {
-    resetMessages();
-    clearPreview();
-    setOcrText("");
-    setOcrProgress(0);
-    setImageFile(e.target.files?.[0] || null);
   };
 
   const showLimitError = ({ limit, incomingCount }) => {
@@ -925,85 +927,63 @@ export default function ImportExcelModal({
     openPreview(guests, "הדבקת רשימה");
   };
 
-  const handleImportImage = async () => {
-    if (!imageFile) {
-      alert("יש לבחור תמונה או צילום מסך תחילה");
+  const handleImportContacts = async () => {
+    setSummary(null);
+    clearPreview();
+
+    if (typeof window === "undefined" || !navigator?.contacts?.select) {
+      alert(
+        "הדפדפן או המכשיר לא תומכים כרגע בייבוא ישיר מאנשי קשר. אפשר להשתמש ב-Excel או בהדבקת רשימה."
+      );
+
+      setSummary({
+        type: "error",
+        text:
+          "הדפדפן או המכשיר לא תומכים כרגע בייבוא ישיר מאנשי קשר. נסי לפתוח מכרום במובייל, או להשתמש ב-Excel / הדבקת רשימה.",
+        usage: null,
+      });
+
       return;
     }
 
     setLoading(true);
-    setSummary(null);
-    clearPreview();
-    setOcrText("");
-    setOcrProgress(0);
 
     try {
-      const Tesseract = await import("tesseract.js");
-
-      /*
-        חשוב:
-        חוזרים לסריקה אחת על התמונה המקורית, כמו בגרסה הראשונה שקלטה אצלך
-        את המספרים הכי טוב. בלי סריקה כפולה ובלי עיבוד שמבלבל ספרות.
-      */
-      const result = await Tesseract.recognize(imageFile, "heb+eng", {
-        logger: (m) => {
-          if (m?.status === "recognizing text") {
-            setOcrProgress(Math.round((m.progress || 0) * 100));
-          }
-        },
+      const contacts = await navigator.contacts.select(["name", "tel"], {
+        multiple: true,
       });
 
-      const text = result?.data?.text || "";
-      const cleanText = String(text || "").trim();
-
-      console.log("📷 OCR TEXT:", cleanText);
-
-      setOcrText(cleanText);
-
-      if (!cleanText) {
-        alert("לא זוהה טקסט בתמונה");
-
-        setSummary({
-          type: "error",
-          text: "לא זוהה טקסט בתמונה. נסי להעלות צילום מסך ברור יותר.",
-          usage: null,
-        });
-
-        return;
-      }
-
-      const guests = parseGuestsFromText(cleanText);
-
-      console.log("📷 OCR GUESTS:", guests);
+      const guests = contactsToGuests(contacts);
 
       if (!guests.length) {
-        alert("זוהה טקסט, אבל לא נמצאו שמות וטלפונים תקינים");
-
+        alert("לא נבחרו אנשי קשר תקינים");
         setSummary({
           type: "error",
-          text:
-            "זוהה טקסט, אבל לא נמצאו שמות וטלפונים תקינים. מומלץ שהתמונה תהיה צילום מסך ברור מתוך אנשי קשר/וואטסאפ.",
+          text: "לא נבחרו אנשי קשר תקינים",
           usage: null,
         });
-
         return;
       }
 
       if (!checkRecordsLimit(guests.length)) return;
 
-      openPreview(guests, "תמונה / צילום מסך");
+      console.log("👥 CONTACTS GUESTS:", guests);
+      openPreview(guests, "אנשי קשר");
     } catch (err) {
-      console.error("❌ Image OCR Error:", err);
-      alert("שגיאה בסריקת התמונה");
+      console.error("❌ Contacts Import Error:", err);
+
+      const message =
+        err?.name === "AbortError"
+          ? "בחירת אנשי הקשר בוטלה"
+          : "שגיאה בייבוא מאנשי קשר";
 
       setSummary({
-        type: "error",
-        text: "שגיאה בסריקת התמונה. ודאי שהותקנה החבילה tesseract.js.",
+        type: err?.name === "AbortError" ? "partial" : "error",
+        text: message,
         usage: null,
       });
     } finally {
       setLoading(false);
-      setOcrProgress(0);
     }
   };
 
@@ -1062,7 +1042,7 @@ export default function ImportExcelModal({
     return (
       <button
         type="button"
-        onClick={handleImportImage}
+        onClick={handleImportContacts}
         disabled={loading}
         className="
           mt-5 flex w-full items-center justify-center gap-2
@@ -1076,12 +1056,10 @@ export default function ImportExcelModal({
         {loading ? (
           <>
             <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-            {ocrProgress > 0
-              ? `סורק תמונה... ${ocrProgress}%`
-              : "מכין סריקה..."}
+            פותח אנשי קשר...
           </>
         ) : (
-          <>סריקת תמונה והצגה לבדיקה</>
+          <>בחירת אנשי קשר והצגה לבדיקה</>
         )}
       </button>
     );
@@ -1140,7 +1118,7 @@ export default function ImportExcelModal({
                 ? "📊"
                 : activeTab === "paste"
                 ? "📋"
-                : "📷"}
+                : "👥"}
             </div>
 
             <h2 className="text-center text-2xl font-black text-[#2F241A] sm:text-3xl">
@@ -1294,64 +1272,32 @@ export default function ImportExcelModal({
               </>
             ) : null}
 
-            {activeTab === "image" ? (
+            {activeTab === "contacts" ? (
               <>
                 <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <h3 className="text-lg font-black text-[#3E2D20]">
-                      העלאת תמונה / צילום מסך
+                      ייבוא מאנשי קשר
                     </h3>
                     <p className="mt-1 text-sm text-[#7A6A59]">
-                      עובד ללא OpenAI וללא טוקנים. אחרי הסריקה תוצג טבלה לעריכה
-                      לפני שמירה.
+                      בחרו אנשי קשר מהמכשיר. המערכת תייבא שם וטלפון ותציג אותם
+                      לבדיקה לפני שמירה.
                     </p>
                   </div>
 
                   <div className="inline-flex items-center justify-center rounded-full border border-[#EFE2CF] bg-white px-4 py-2 text-xs font-bold text-[#8B6A3F]">
-                    OCR מקומי
+                    ללא OCR
                   </div>
                 </div>
 
-                <label className="flex cursor-pointer flex-col items-center justify-center rounded-[24px] border border-[#EFE2CF] bg-white px-4 py-6 text-center shadow-[0_10px_30px_rgba(95,68,34,0.05)] transition hover:border-[#D6B16A] hover:bg-[#FFFDF8]">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    className="hidden"
-                  />
-
-                  <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#F4E7D1] text-2xl">
-                    📷
-                  </div>
-
-                  <p className="text-base font-black text-[#3E2D20]">
-                    {selectedImageName
-                      ? "התמונה נבחרה בהצלחה"
-                      : "בחרו תמונה לסריקה"}
-                  </p>
-
-                  <p className="mt-1 max-w-[460px] text-sm leading-6 text-[#7A6A59]">
-                    {selectedImageName
-                      ? selectedImageName
-                      : "לחצו כאן לבחירת צילום מסך מהמחשב / מהטלפון"}
-                  </p>
-                </label>
-
-                {ocrText ? (
-                  <div className="mt-4 rounded-2xl border border-[#EFE2CF] bg-white px-4 py-3">
-                    <p className="mb-2 text-xs font-black text-[#8B6A3F]">
-                      טקסט שזוהה מהתמונה
-                    </p>
-                    <pre className="max-h-[140px] overflow-auto whitespace-pre-wrap text-xs leading-6 text-[#3E2D20]">
-                      {ocrText}
-                    </pre>
-                  </div>
-                ) : null}
+                <div className="rounded-[24px] border border-[#EFE2CF] bg-white px-5 py-5 text-sm leading-7 text-[#7A6A59]">
+                  האתר לא קורא את כל אנשי הקשר לבד. אתם בוחרים ידנית אילו אנשי
+                  קשר לשתף, ורק הם יופיעו בתצוגה המקדימה.
+                </div>
 
                 <div className="mt-4 rounded-2xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm font-semibold leading-6 text-yellow-800">
-                  זו סריקה חכמה מתוך תמונה. שמות נשמרים בעברית בלבד, ללא אנגלית או
-                  ג׳יבריש מה-OCR. האחריות היא שלכם לעבור על התצוגה המקדימה,
-                  לבדוק שכל שם וכל מספר נקלטו נכון, ולערוך במידת הצורך לפני שמירה.
+                  ייבוא מאנשי קשר תלוי בתמיכת הדפדפן והמכשיר. אם האפשרות לא
+                  נתמכת, אפשר לייבא דרך Excel או הדבקת רשימה.
                 </div>
               </>
             ) : null}
@@ -1400,10 +1346,10 @@ export default function ImportExcelModal({
                 </button>
               </div>
 
-              {previewSource === "תמונה / צילום מסך" ? (
+              {previewSource === "אנשי קשר" ? (
                 <div className="mb-4 rounded-2xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm font-bold leading-6 text-yellow-800">
-                  זו סריקה חכמה, אבל תמונה יכולה להיקרא לא נכון. חובה לבדוק את
-                  כל השמות והמספרים בתצוגה המקדימה ולערוך במידת הצורך לפני שמירה.
+                  חובה לעבור על התצוגה המקדימה לפני שמירה: ודאו שכל שם וכל מספר
+                  נכונים, ובחרו אם למחוק אנשי קשר שלא אמורים להיכנס לרשימה.
                 </div>
               ) : null}
 
@@ -1424,7 +1370,7 @@ export default function ImportExcelModal({
                     {previewGuests.map((guest, index) => {
                       const phoneValid =
                         !guest.phone || /^05\d{8}$/.test(guest.phone);
-                      const isImageSource = previewSource === "תמונה / צילום מסך";
+                      const isContactsSource = previewSource === "אנשי קשר";
 
                       return (
                         <tr
@@ -1515,7 +1461,7 @@ export default function ImportExcelModal({
                               className={`
                                 inline-flex rounded-full px-3 py-1 text-xs font-black
                                 ${
-                                  isImageSource
+                                  isContactsSource
                                     ? "bg-yellow-50 text-yellow-700"
                                     : guest.name && phoneValid
                                     ? "bg-green-50 text-green-700"
@@ -1523,7 +1469,7 @@ export default function ImportExcelModal({
                                 }
                               `}
                             >
-                              {isImageSource
+                              {isContactsSource
                                 ? "לבדיקה"
                                 : guest.name && phoneValid
                                 ? "תקין"
