@@ -24,6 +24,7 @@ import {
 
 type Dish = {
   id: string;
+  _id?: string;
   name: string;
   description: string;
   image: string;
@@ -81,13 +82,76 @@ type NewDishForm = {
   tags: string;
 };
 
+const DEFAULT_CATEGORIES: MenuCategory[] = [
+  {
+    id: makeLocalId("cat"),
+    title: "ראשונות",
+    subtitle: "מנות פתיחה לבחירת הלקוח",
+    minChoices: 1,
+    maxChoices: 2,
+    dishes: [],
+  },
+  {
+    id: makeLocalId("cat"),
+    title: "עיקריות",
+    subtitle: "מנות עיקריות לבחירה",
+    minChoices: 1,
+    maxChoices: 2,
+    dishes: [],
+  },
+  {
+    id: makeLocalId("cat"),
+    title: "סלטים",
+    subtitle: "סלטים ותוספות לשולחן",
+    minChoices: 3,
+    maxChoices: 6,
+    dishes: [],
+  },
+];
+
 function makeLocalId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function cloneDefaultCategories(): MenuCategory[] {
+  return DEFAULT_CATEGORIES.map((category) => ({
+    ...category,
+    id: makeLocalId("cat"),
+    dishes: [],
+  }));
 }
 
 function toNumber(value: string | number, fallback = 0) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function normalizeDish(dish: any): Dish {
+  return {
+    id: String(dish.id || dish._id || makeLocalId("dish")),
+    _id: dish._id ? String(dish._id) : undefined,
+    name: String(dish.name || "מנה ללא שם"),
+    description: String(dish.description || ""),
+    image: String(dish.image || ""),
+    tags: Array.isArray(dish.tags) ? dish.tags.map(String) : [],
+  };
+}
+
+function normalizeCategory(category: any): MenuCategory {
+  return {
+    id: String(category.id || category._id || makeLocalId("cat")),
+    title: String(category.title || "קטגוריה"),
+    subtitle: String(category.subtitle || ""),
+    minChoices: Number.isFinite(Number(category.minChoices))
+      ? Number(category.minChoices)
+      : 0,
+    maxChoices: Number.isFinite(Number(category.maxChoices))
+      ? Number(category.maxChoices)
+      : 1,
+    dishes: Array.isArray(category.dishes)
+      ? category.dishes.map(normalizeDish)
+      : [],
+  };
 }
 
 function normalizeMenu(menu: any): HallMenuTemplate {
@@ -98,29 +162,23 @@ function normalizeMenu(menu: any): HallMenuTemplate {
     description: String(menu.description || ""),
     type: String(menu.type || ""),
     status: menu.status === "active" ? "active" : "draft",
-    categories: Array.isArray(menu.categories) ? menu.categories : [],
+    categories: Array.isArray(menu.categories)
+      ? menu.categories.map(normalizeCategory)
+      : [],
     updatedAt: String(menu.updatedAt || ""),
     createdAt: menu.createdAt,
   };
 }
 
-function createEmptyCategory(title = "קטגוריה חדשה", subtitle = "מנות לבחירה"): MenuCategory {
+function createEmptyCategory(): MenuCategory {
   return {
     id: makeLocalId("cat"),
-    title,
-    subtitle,
+    title: "קטגוריה חדשה",
+    subtitle: "מנות לבחירה",
     minChoices: 1,
-    maxChoices: 3,
+    maxChoices: 1,
     dishes: [],
   };
-}
-
-function createDefaultCategories(): MenuCategory[] {
-  return [
-    createEmptyCategory("ראשונות", "מנות פתיחה לבחירה"),
-    createEmptyCategory("עיקריות", "מנות עיקריות לבחירה"),
-    createEmptyCategory("סלטים", "סלטי שולחן / מזנון לבחירה"),
-  ];
 }
 
 export default function HallMenusPage() {
@@ -134,10 +192,13 @@ export default function HallMenusPage() {
 
   const [dishLibrary, setDishLibrary] = useState<Dish[]>([]);
   const [draggedDish, setDraggedDish] = useState<Dish | null>(null);
+  const [dishSearch, setDishSearch] = useState("");
 
   const [loading, setLoading] = useState(true);
+  const [libraryLoading, setLibraryLoading] = useState(true);
   const [serverError, setServerError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [librarySaving, setLibrarySaving] = useState(false);
 
   const [newMenuOpen, setNewMenuOpen] = useState(false);
   const [newCategoryOpen, setNewCategoryOpen] = useState(false);
@@ -156,7 +217,7 @@ export default function HallMenusPage() {
     title: "",
     subtitle: "",
     minChoices: "1",
-    maxChoices: "3",
+    maxChoices: "1",
   });
 
   const [newDishForm, setNewDishForm] = useState<NewDishForm>({
@@ -178,6 +239,18 @@ export default function HallMenusPage() {
     selectedTemplate?.categories[0] ||
     null;
 
+  const filteredDishLibrary = useMemo(() => {
+    const query = dishSearch.trim().toLowerCase();
+    if (!query) return dishLibrary;
+
+    return dishLibrary.filter((dish) => {
+      return (
+        dish.name.toLowerCase().includes(query) ||
+        dish.description.toLowerCase().includes(query)
+      );
+    });
+  }, [dishLibrary, dishSearch]);
+
   const stats = useMemo(() => {
     const categoriesCount = selectedTemplate?.categories.length || 0;
     const dishesCount =
@@ -193,8 +266,9 @@ export default function HallMenusPage() {
       ).length,
       categoriesCount,
       dishesCount,
+      libraryDishes: dishLibrary.length,
     };
-  }, [selectedTemplate, templates]);
+  }, [selectedTemplate, templates, dishLibrary]);
 
   const fetchMenus = async () => {
     if (!hallId) return;
@@ -259,8 +333,42 @@ export default function HallMenusPage() {
     }
   };
 
+  const fetchDishLibrary = async () => {
+    if (!hallId) return;
+
+    setLibraryLoading(true);
+
+    try {
+      const res = await fetch(
+        `/api/venues/dashboard/halls/${hallId}/menu-dishes`,
+        {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.message || "טעינת ספריית המנות נכשלה");
+      }
+
+      setDishLibrary(Array.isArray(data.dishes) ? data.dishes.map(normalizeDish) : []);
+    } catch (error) {
+      console.error("GET menu-dishes failed:", error);
+      setServerError(
+        error instanceof Error ? error.message : "טעינת ספריית המנות נכשלה"
+      );
+      setDishLibrary([]);
+    } finally {
+      setLibraryLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchMenus();
+    fetchDishLibrary();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hallId]);
 
@@ -303,14 +411,29 @@ export default function HallMenusPage() {
       setSelectedCategoryId(
         (current) => current || savedMenu.categories[0]?.id || ""
       );
+
+      return savedMenu;
     } catch (error) {
       console.error("PUT menu failed:", error);
       setServerError(
         error instanceof Error ? error.message : "שמירת התפריט נכשלה"
       );
+      return null;
     } finally {
       setSaving(false);
     }
+  };
+
+  const persistTemplate = async (nextTemplate: HallMenuTemplate) => {
+    setTemplates((current) =>
+      current.map((template) =>
+        template.id === nextTemplate.id
+          ? { ...nextTemplate, updatedAt: "עודכן עכשיו" }
+          : template
+      )
+    );
+
+    return saveMenuToServer({ ...nextTemplate, updatedAt: "עודכן עכשיו" });
   };
 
   const createMenu = async () => {
@@ -334,7 +457,7 @@ export default function HallMenusPage() {
           description: newMenuForm.description,
           type: newMenuForm.type,
           status: newMenuForm.status,
-          categories: createDefaultCategories(),
+          categories: cloneDefaultCategories(),
         }),
       });
 
@@ -475,7 +598,7 @@ export default function HallMenusPage() {
     );
   };
 
-  const updateCategory = (categoryId: string, patch: Partial<MenuCategory>) => {
+  const updateCategoryDraft = (categoryId: string, patch: Partial<MenuCategory>) => {
     if (!selectedTemplate) return;
 
     setTemplates((current) =>
@@ -495,7 +618,13 @@ export default function HallMenusPage() {
     );
   };
 
-  const addCategory = () => {
+  const saveCategoryChoiceRules = async (categoryId: string) => {
+    const template = templates.find((item) => item.id === selectedTemplate?.id);
+    if (!template) return;
+    await persistTemplate(template);
+  };
+
+  const addCategory = async () => {
     if (!selectedTemplate) return;
 
     const title = newCategoryForm.title.trim() || "קטגוריה חדשה";
@@ -520,15 +649,9 @@ export default function HallMenusPage() {
 
     const nextTemplate: HallMenuTemplate = {
       ...selectedTemplate,
-      updatedAt: "עודכן עכשיו",
       categories: [...selectedTemplate.categories, nextCategory],
+      updatedAt: "עודכן עכשיו",
     };
-
-    setTemplates((current) =>
-      current.map((template) =>
-        template.id === selectedTemplate.id ? nextTemplate : template
-      )
-    );
 
     setSelectedCategoryId(id);
     setNewCategoryOpen(false);
@@ -536,14 +659,17 @@ export default function HallMenusPage() {
       title: "",
       subtitle: "",
       minChoices: "1",
-      maxChoices: "3",
+      maxChoices: "1",
     });
 
-    saveMenuToServer(nextTemplate);
+    await persistTemplate(nextTemplate);
   };
 
-  const deleteCategory = (categoryId: string) => {
+  const deleteCategory = async (categoryId: string) => {
     if (!selectedTemplate) return;
+
+    const ok = window.confirm("למחוק את הקטגוריה הזאת מהתפריט?");
+    if (!ok) return;
 
     const nextCategories = selectedTemplate.categories.filter(
       (category) => category.id !== categoryId
@@ -551,77 +677,66 @@ export default function HallMenusPage() {
 
     const nextTemplate: HallMenuTemplate = {
       ...selectedTemplate,
-      updatedAt: "עודכן עכשיו",
       categories: nextCategories,
+      updatedAt: "עודכן עכשיו",
     };
-
-    setTemplates((current) =>
-      current.map((template) =>
-        template.id === selectedTemplate.id ? nextTemplate : template
-      )
-    );
 
     if (selectedCategoryId === categoryId) {
       setSelectedCategoryId(nextCategories[0]?.id || "");
     }
 
-    saveMenuToServer(nextTemplate);
+    await persistTemplate(nextTemplate);
   };
 
-  const addDishToCategory = (dish: Dish) => {
+  const addDishToCategory = async (dish: Dish) => {
     if (!selectedTemplate || !selectedCategory) return;
 
     const exists = selectedCategory.dishes.some((item) => item.id === dish.id);
     if (exists) return;
 
-    const nextTemplate: HallMenuTemplate = {
-      ...selectedTemplate,
-      updatedAt: "עודכן עכשיו",
-      categories: selectedTemplate.categories.map((category) =>
-        category.id === selectedCategory.id
-          ? {
-              ...category,
-              dishes: [...category.dishes, dish],
-            }
-          : category
-      ),
+    const nextDish: Dish = {
+      ...dish,
+      id: dish.id || dish._id || makeLocalId("dish"),
+      tags: [],
     };
 
-    setTemplates((current) =>
-      current.map((template) =>
-        template.id === selectedTemplate.id ? nextTemplate : template
-      )
+    const nextCategories = selectedTemplate.categories.map((category) =>
+      category.id === selectedCategory.id
+        ? { ...category, dishes: [...category.dishes, nextDish] }
+        : category
     );
 
-    saveMenuToServer(nextTemplate);
+    const nextTemplate: HallMenuTemplate = {
+      ...selectedTemplate,
+      categories: nextCategories,
+      updatedAt: "עודכן עכשיו",
+    };
+
+    await persistTemplate(nextTemplate);
   };
 
-  const removeDishFromCategory = (dishId: string) => {
+  const removeDishFromCategory = async (dishId: string) => {
     if (!selectedTemplate || !selectedCategory) return;
 
-    const nextTemplate: HallMenuTemplate = {
-      ...selectedTemplate,
-      updatedAt: "עודכן עכשיו",
-      categories: selectedTemplate.categories.map((category) =>
-        category.id === selectedCategory.id
-          ? {
-              ...category,
-              dishes: category.dishes.filter((dish) => dish.id !== dishId),
-            }
-          : category
-      ),
-    };
-
-    setTemplates((current) =>
-      current.map((template) =>
-        template.id === selectedTemplate.id ? nextTemplate : template
-      )
+    const nextCategories = selectedTemplate.categories.map((category) =>
+      category.id === selectedCategory.id
+        ? {
+            ...category,
+            dishes: category.dishes.filter((dish) => dish.id !== dishId),
+          }
+        : category
     );
 
-    saveMenuToServer(nextTemplate);
+    const nextTemplate: HallMenuTemplate = {
+      ...selectedTemplate,
+      categories: nextCategories,
+      updatedAt: "עודכן עכשיו",
+    };
+
+    await persistTemplate(nextTemplate);
   };
 
-  const addCustomDish = () => {
+  const addCustomDish = async () => {
     const name = newDishForm.name.trim();
 
     if (!name) {
@@ -629,24 +744,94 @@ export default function HallMenusPage() {
       return;
     }
 
-    const newDish: Dish = {
-      id: makeLocalId("dish"),
-      name,
-      description: newDishForm.description.trim(),
-      image: newDishForm.image.trim(),
-      tags: [],
-    };
+    setLibrarySaving(true);
+    setServerError("");
 
-    setDishLibrary((current) => [newDish, ...current]);
-    addDishToCategory(newDish);
+    try {
+      const res = await fetch(
+        `/api/venues/dashboard/halls/${hallId}/menu-dishes`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            name,
+            description: newDishForm.description.trim(),
+            image: newDishForm.image.trim(),
+          }),
+        }
+      );
 
-    setNewDishOpen(false);
-    setNewDishForm({
-      name: "",
-      description: "",
-      image: "",
-      tags: "",
-    });
+      const data = await res.json();
+
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.message || "שמירת המנה בספרייה נכשלה");
+      }
+
+      const savedDish = normalizeDish(data.dish);
+
+      setDishLibrary((current) => [savedDish, ...current]);
+      setNewDishOpen(false);
+      setNewDishForm({
+        name: "",
+        description: "",
+        image: "",
+        tags: "",
+      });
+
+      if (selectedCategory) {
+        await addDishToCategory(savedDish);
+      }
+    } catch (error) {
+      console.error("POST menu-dishes failed:", error);
+      setServerError(
+        error instanceof Error ? error.message : "שמירת המנה בספרייה נכשלה"
+      );
+    } finally {
+      setLibrarySaving(false);
+    }
+  };
+
+  const deleteDishFromLibrary = async (dish: Dish) => {
+    const ok = window.confirm(
+      "למחוק את המנה מספריית המנות הקבועה? זה לא מוחק אותה מתפריטים שכבר השתמשו בה."
+    );
+    if (!ok) return;
+
+    setLibrarySaving(true);
+    setServerError("");
+
+    try {
+      const dishId = dish._id || dish.id;
+      const res = await fetch(
+        `/api/venues/dashboard/halls/${hallId}/menu-dishes?dishId=${encodeURIComponent(
+          dishId
+        )}`,
+        {
+          method: "DELETE",
+          credentials: "include",
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.message || "מחיקת המנה נכשלה");
+      }
+
+      setDishLibrary((current) =>
+        current.filter((item) => (item._id || item.id) !== dishId)
+      );
+    } catch (error) {
+      console.error("DELETE menu-dishes failed:", error);
+      setServerError(
+        error instanceof Error ? error.message : "מחיקת המנה נכשלה"
+      );
+    } finally {
+      setLibrarySaving(false);
+    }
   };
 
   const handleDishImageUpload = (file?: File) => {
@@ -684,7 +869,6 @@ export default function HallMenusPage() {
       <div className="pointer-events-none fixed inset-0">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_0%,rgba(205,154,62,0.18),transparent_28%),radial-gradient(circle_at_10%_22%,rgba(255,255,255,0.75),transparent_32%),linear-gradient(180deg,#fbf7f0_0%,#f7f0e3_42%,#f6efe3_100%)]" />
         <div className="absolute inset-x-0 top-0 h-[240px] bg-[linear-gradient(180deg,rgba(111,74,21,0.08)_0%,rgba(205,154,62,0.06)_35%,transparent_100%)]" />
-        <div className="absolute inset-x-0 bottom-0 h-[220px] bg-[radial-gradient(circle_at_50%_100%,rgba(201,159,79,0.08),transparent_60%)]" />
       </div>
 
       <div className="relative mx-auto max-w-[1840px] px-4 py-5 md:px-7">
@@ -718,9 +902,8 @@ export default function HallMenusPage() {
                   </h1>
 
                   <p className="mt-2 max-w-4xl text-sm font-bold leading-7 text-[#7c694f]">
-                    בונים תפריטי בסיס יוקרתיים לאולם, מחלקים לקטגוריות,
-                    מוסיפים מנות, שומרים במערכת ומשייכים בהמשך לאירועים
-                    ולבחירת מנות של הלקוח.
+                    האולם מעלה ספריית מנות קבועה, ובכל תפריט בוחר מתוך הספרייה
+                    אילו מנות להכניס לקטגוריות כמו ראשונות, עיקריות וסלטים.
                   </p>
                 </div>
               </div>
@@ -777,7 +960,7 @@ export default function HallMenusPage() {
           ) : null}
         </header>
 
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <MetricCard
             title="תפריטים באולם"
             value={loading ? "..." : `${stats.templates}`}
@@ -791,12 +974,17 @@ export default function HallMenusPage() {
           <MetricCard
             title="קטגוריות בתפריט"
             value={loading ? "..." : `${stats.categoriesCount}`}
-            subtitle="ראשונות / עיקריות / בופה"
+            subtitle="ראשונות / עיקריות / סלטים"
           />
           <MetricCard
             title="מנות בתפריט"
             value={loading ? "..." : `${stats.dishesCount}`}
-            subtitle="סה״כ מנות בתפריט הנבחר"
+            subtitle="מנות ששויכו לתפריט הנבחר"
+          />
+          <MetricCard
+            title="ספריית מנות"
+            value={libraryLoading ? "..." : `${stats.libraryDishes}`}
+            subtitle="מנות קבועות של האולם"
           />
         </section>
 
@@ -811,8 +999,8 @@ export default function HallMenusPage() {
             </h2>
 
             <p className="mx-auto mt-3 max-w-2xl text-sm font-bold leading-7 text-[#7c694f]">
-              צרי תפריט בסיס ראשון, הוסיפי קטגוריות ומנות, ושמרי. אחרי רענון
-              התפריט יישאר כי הוא נשמר במונגו.
+              צרי תפריט בסיס ראשון. הוא ייפתח עם ראשונות, עיקריות וסלטים,
+              ואפשר יהיה לגרור אליו מנות מתוך ספריית המנות הקבועה.
             </p>
 
             <button
@@ -827,7 +1015,7 @@ export default function HallMenusPage() {
         ) : null}
 
         {hasTemplates ? (
-          <section className="mt-5 grid gap-5 xl:grid-cols-[330px_1fr_365px]">
+          <section className="mt-5 grid gap-5 xl:grid-cols-[330px_1fr_390px]">
             <aside className="space-y-5">
               <Panel title="תפריטי האולם" icon={<Layers3 size={18} />}>
                 <div className="space-y-3">
@@ -893,43 +1081,6 @@ export default function HallMenusPage() {
                 >
                   <Plus size={16} />
                   הוספת תפריט
-                </button>
-              </Panel>
-
-              <Panel title="ספריית מנות זמנית" icon={<BookOpen size={18} />}>
-                <div className="mb-3 flex h-12 items-center gap-2 rounded-2xl border border-[#e8d7b6] bg-white px-3 shadow-inner">
-                  <Search size={16} className="text-[#b68a40]" />
-                  <input
-                    placeholder="חיפוש מנה..."
-                    className="w-full bg-transparent text-sm font-bold text-[#2d2419] outline-none placeholder:text-[#b59f7a]"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  {dishLibrary.length ? (
-                    dishLibrary.map((dish) => (
-                      <DishLibraryItem
-                        key={dish.id}
-                        dish={dish}
-                        onDragStart={() => setDraggedDish(dish)}
-                        onAdd={() => addDishToCategory(dish)}
-                      />
-                    ))
-                  ) : (
-                    <div className="rounded-2xl border border-dashed border-[#d7b06a] bg-[#fff8ec] p-4 text-center text-sm font-bold leading-6 text-[#806945]">
-                      אין עדיין מנות בספרייה. הוסיפי מנה חדשה והיא תישמר בתוך
-                      התפריט בעת שמירה.
-                    </div>
-                  )}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setNewDishOpen(true)}
-                  className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#d7b06a] bg-[#fff4dc] text-sm font-black text-[#8c5f19] transition hover:bg-[#ffedc9]"
-                >
-                  <Plus size={16} />
-                  הוספת מנה חדשה
                 </button>
               </Panel>
             </aside>
@@ -1020,7 +1171,7 @@ export default function HallMenusPage() {
                     >
                       {category.title}
                       <span className="rounded-full bg-white/25 px-2 py-0.5 text-[11px]">
-                        {category.minChoices}/{category.maxChoices}
+                        {category.dishes.length} מנות
                       </span>
                     </button>
                   ))}
@@ -1044,70 +1195,78 @@ export default function HallMenusPage() {
                     }}
                     className="rounded-[32px] border border-dashed border-[#d4ab5b] bg-[linear-gradient(180deg,#fffaf1,#fffdfa)] p-4 shadow-inner"
                   >
-                    <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-                      <div>
+                    <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+                      <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <input
                             value={selectedCategory.title}
                             onChange={(event) =>
-                              updateCategory(selectedCategory.id, {
+                              updateCategoryDraft(selectedCategory.id, {
                                 title: event.target.value,
                               })
                             }
+                            onBlur={() => saveCategoryChoiceRules(selectedCategory.id)}
                             className="h-11 rounded-2xl border border-[#e2cfac] bg-white px-4 text-xl font-black text-[#2d2419] outline-none transition focus:border-[#b98121] focus:ring-4 focus:ring-[#d5a046]/10"
                           />
 
                           <span className="rounded-full border border-[#e2c485] bg-[#fff3d8] px-3 py-1 text-xs font-black text-[#8c5f19]">
-                            בחירה של {selectedCategory.minChoices} מתוך{" "}
-                            {selectedCategory.maxChoices}
+                            לבחור בין {selectedCategory.minChoices} ל־
+                            {selectedCategory.maxChoices} מתוך {selectedCategory.dishes.length} מנות
                           </span>
                         </div>
 
                         <input
                           value={selectedCategory.subtitle}
                           onChange={(event) =>
-                            updateCategory(selectedCategory.id, {
+                            updateCategoryDraft(selectedCategory.id, {
                               subtitle: event.target.value,
                             })
                           }
+                          onBlur={() => saveCategoryChoiceRules(selectedCategory.id)}
                           className="mt-2 h-10 w-full rounded-2xl border border-[#e2cfac] bg-white px-4 text-sm font-bold text-[#806945] outline-none transition focus:border-[#b98121] focus:ring-4 focus:ring-[#d5a046]/10"
                         />
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-2">
-                        <SmallNumberInput
-                          label="מינימום"
+                      <div className="grid gap-2 rounded-[24px] border border-[#ead7ad] bg-white p-3 shadow-sm md:grid-cols-2">
+                        <ChoiceNumberInput
+                          label="מינימום בחירה"
+                          helper="כמה הלקוח חייב לבחור"
                           value={selectedCategory.minChoices}
                           onChange={(value) =>
-                            updateCategory(selectedCategory.id, {
+                            updateCategoryDraft(selectedCategory.id, {
                               minChoices: value,
+                              maxChoices: Math.max(value, selectedCategory.maxChoices),
                             })
                           }
+                          onBlur={() => saveCategoryChoiceRules(selectedCategory.id)}
                         />
 
-                        <SmallNumberInput
-                          label="מקסימום"
+                        <ChoiceNumberInput
+                          label="מקסימום בחירה"
+                          helper={`עד כמה לבחור מתוך ${selectedCategory.dishes.length} מנות`}
                           value={selectedCategory.maxChoices}
                           onChange={(value) =>
-                            updateCategory(selectedCategory.id, {
-                              maxChoices: value,
+                            updateCategoryDraft(selectedCategory.id, {
+                              maxChoices: Math.max(value, selectedCategory.minChoices),
                             })
                           }
+                          onBlur={() => saveCategoryChoiceRules(selectedCategory.id)}
                         />
 
                         <button
                           type="button"
                           onClick={() => deleteCategory(selectedCategory.id)}
-                          className="flex h-11 items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-3 text-xs font-black text-rose-700 transition hover:bg-rose-100"
+                          className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-3 text-xs font-black text-rose-700 transition hover:bg-rose-100 md:col-span-2"
                         >
                           <Trash2 size={15} />
-                          מחיקה
+                          מחיקת קטגוריה
                         </button>
                       </div>
                     </div>
 
                     <div className="mb-4 rounded-2xl border border-[#ead7ad] bg-white p-3 text-center text-sm font-bold text-[#806945]">
-                      גררי מנה מספריית המנות לכאן, או לחצי על “הוספה” ליד מנה.
+                      גררי מנה מתוך ספריית המנות הקבועה בצד שמאל אל הקטגוריה הזאת.
+                      כל שינוי נשמר אוטומטית בשרת.
                     </div>
 
                     <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
@@ -1130,7 +1289,7 @@ export default function HallMenusPage() {
                             אין עדיין מנות בקטגוריה
                           </div>
                           <p className="mt-1 text-sm font-bold text-[#806945]">
-                            הוסיפי מנה חדשה או גררי מנה מהספרייה.
+                            הוסיפי מנות מהספרייה הקבועה של האולם.
                           </p>
                         </div>
                       ) : null}
@@ -1154,6 +1313,56 @@ export default function HallMenusPage() {
             ) : null}
 
             <aside className="space-y-5">
+              <Panel title="ספריית מנות קבועה" icon={<BookOpen size={18} />}>
+                <div className="mb-3 rounded-2xl border border-[#ead7ad] bg-[#fff9ee] p-3 text-xs font-bold leading-6 text-[#806945]">
+                  כאן האולם מעלה את כל המנות שלו פעם אחת. בכל תפריט גוררים רק
+                  את המנות שרוצים להשתמש בהן.
+                </div>
+
+                <div className="mb-3 flex h-12 items-center gap-2 rounded-2xl border border-[#e8d7b6] bg-white px-3 shadow-inner">
+                  <Search size={16} className="text-[#b68a40]" />
+                  <input
+                    value={dishSearch}
+                    onChange={(event) => setDishSearch(event.target.value)}
+                    placeholder="חיפוש מנה בספרייה..."
+                    className="w-full bg-transparent text-sm font-bold text-[#2d2419] outline-none placeholder:text-[#b59f7a]"
+                  />
+                </div>
+
+                <div className="max-h-[470px] space-y-2 overflow-y-auto pr-1">
+                  {libraryLoading ? (
+                    <div className="flex items-center justify-center gap-2 rounded-2xl border border-[#ead7ad] bg-white p-4 text-sm font-black text-[#806945]">
+                      <Loader2 size={16} className="animate-spin" />
+                      טוען ספריית מנות...
+                    </div>
+                  ) : filteredDishLibrary.length ? (
+                    filteredDishLibrary.map((dish) => (
+                      <DishLibraryItem
+                        key={dish.id}
+                        dish={dish}
+                        saving={saving || librarySaving}
+                        onDragStart={() => setDraggedDish(dish)}
+                        onAdd={() => addDishToCategory(dish)}
+                        onDelete={() => deleteDishFromLibrary(dish)}
+                      />
+                    ))
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-[#d7b06a] bg-[#fff8ec] p-4 text-center text-sm font-bold leading-6 text-[#806945]">
+                      אין עדיין מנות קבועות בספרייה.
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setNewDishOpen(true)}
+                  className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#d7b06a] bg-[#fff4dc] text-sm font-black text-[#8c5f19] transition hover:bg-[#ffedc9]"
+                >
+                  <Plus size={16} />
+                  הוספת מנה לספרייה
+                </button>
+              </Panel>
+
               <Panel title="פעולות תפריט" icon={<Sparkles size={18} />}>
                 <div className="grid gap-2">
                   <button
@@ -1308,6 +1517,10 @@ export default function HallMenusPage() {
               </select>
             </label>
 
+            <div className="rounded-2xl border border-[#ead7ad] bg-[#fff9ee] p-3 text-xs font-bold leading-6 text-[#806945]">
+              התפריט ייפתח אוטומטית עם הקטגוריות: ראשונות, עיקריות וסלטים.
+            </div>
+
             <button
               type="button"
               onClick={createMenu}
@@ -1339,7 +1552,7 @@ export default function HallMenusPage() {
               }
             />
             <FormInput
-              label="כמה מינימום לבחור"
+              label="מינימום בחירה"
               type="number"
               value={newCategoryForm.minChoices}
               onChange={(value) =>
@@ -1350,7 +1563,7 @@ export default function HallMenusPage() {
               }
             />
             <FormInput
-              label="כמה מקסימום לבחור"
+              label="מקסימום בחירה"
               type="number"
               value={newCategoryForm.maxChoices}
               onChange={(value) =>
@@ -1361,10 +1574,16 @@ export default function HallMenusPage() {
               }
             />
 
+            <div className="rounded-2xl border border-[#ead7ad] bg-[#fff9ee] p-3 text-xs font-bold leading-6 text-[#806945]">
+              לדוגמה: מינימום 1 ומקסימום 2 = הלקוח חייב לבחור לפחות מנה אחת,
+              ויכול לבחור עד שתי מנות מתוך כל המנות שיהיו בקטגוריה.
+            </div>
+
             <button
               type="button"
               onClick={addCategory}
-              className="mt-2 h-12 rounded-2xl bg-[linear-gradient(135deg,#d8a241,#b67b1d)] text-sm font-black text-white shadow-[0_10px_22px_rgba(156,101,23,0.18)]"
+              disabled={saving}
+              className="mt-2 h-12 rounded-2xl bg-[linear-gradient(135deg,#d8a241,#b67b1d)] text-sm font-black text-white shadow-[0_10px_22px_rgba(156,101,23,0.18)] disabled:cursor-not-allowed disabled:opacity-60"
             >
               הוספת קטגוריה
             </button>
@@ -1373,7 +1592,7 @@ export default function HallMenusPage() {
       )}
 
       {newDishOpen && (
-        <Modal title="הוספת מנה חדשה" onClose={() => setNewDishOpen(false)}>
+        <Modal title="הוספת מנה לספרייה" onClose={() => setNewDishOpen(false)}>
           <div className="grid gap-4">
             <FormInput
               label="שם מנה"
@@ -1448,13 +1667,21 @@ export default function HallMenusPage() {
               </div>
             </label>
 
+            <div className="rounded-2xl border border-[#ead7ad] bg-[#fff9ee] p-3 text-xs font-bold leading-6 text-[#806945]">
+              המנה תישמר בספריית המנות הקבועה של האולם. אם יש קטגוריה פתוחה,
+              היא תתווסף גם אליה ותישמר בתפריט.
+            </div>
+
             <button
               type="button"
               onClick={addCustomDish}
-              disabled={saving}
-              className="mt-2 h-12 rounded-2xl bg-[linear-gradient(135deg,#d8a241,#b67b1d)] text-sm font-black text-white shadow-[0_10px_22px_rgba(156,101,23,0.18)] disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={librarySaving || saving}
+              className="mt-2 flex h-12 items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#d8a241,#b67b1d)] text-sm font-black text-white shadow-[0_10px_22px_rgba(156,101,23,0.18)] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {saving ? "שומר..." : "הוספת מנה לקטגוריה"}
+              {librarySaving ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : null}
+              שמירת מנה בספרייה
             </button>
           </div>
         </Modal>
@@ -1498,7 +1725,8 @@ export default function HallMenusPage() {
                     </div>
 
                     <span className="w-fit rounded-full border border-[#d7b06a] bg-[#fff3d8] px-3 py-1 text-xs font-black text-[#8c5f19]">
-                      בחירה של {category.minChoices} מתוך {category.maxChoices}
+                      לבחור בין {category.minChoices} ל־{category.maxChoices} מתוך{" "}
+                      {category.dishes.length} מנות
                     </span>
                   </div>
 
@@ -1561,23 +1789,21 @@ function MetricCard({
   subtitle: string;
 }) {
   return (
-    <div className="group relative overflow-hidden rounded-[30px] border border-[#e3d1ae] bg-[#fbf7ef]/96 p-5 shadow-[0_12px_34px_rgba(43,31,16,0.07)] backdrop-blur-xl transition hover:-translate-y-0.5 hover:border-[#d7b06a] hover:shadow-[0_16px_40px_rgba(43,31,16,0.10)]">
-      <div className="absolute inset-x-0 top-0 h-1 bg-[linear-gradient(90deg,transparent,#d8a241,transparent)] opacity-70" />
-
-      <div className="flex items-end justify-between gap-4">
-        <div>
+    <div className="group overflow-hidden rounded-[30px] border border-[#e3d1ae] bg-[#fffdf8] p-5 shadow-[0_12px_34px_rgba(43,31,16,0.07)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_40px_rgba(43,31,16,0.10)]">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
           <div className="text-sm font-black text-[#8d7654]">{title}</div>
           <div className="mt-2 text-4xl font-black leading-none text-[#2d2419]">
             {value}
           </div>
-          <div className="mt-2 text-xs font-bold text-[#9a7040]">
+          <div className="mt-2 text-xs font-bold leading-5 text-[#9a7040]">
             {subtitle}
           </div>
         </div>
+      </div>
 
-        <div className="rounded-full border border-[#ead7ad] bg-[#fff8ec] px-3 py-1 text-[11px] font-black text-[#9a6b24]">
-          Invistimo
-        </div>
+      <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-[#f1e3c8]">
+        <div className="h-full w-2/3 rounded-full bg-[linear-gradient(90deg,#d8a241,#b67b1d)]" />
       </div>
     </div>
   );
@@ -1607,12 +1833,16 @@ function Panel({
 
 function DishLibraryItem({
   dish,
+  saving,
   onDragStart,
   onAdd,
+  onDelete,
 }: {
   dish: Dish;
+  saving: boolean;
   onDragStart: () => void;
   onAdd: () => void;
+  onDelete: () => void;
 }) {
   return (
     <div
@@ -1639,17 +1869,28 @@ function DishLibraryItem({
           {dish.name}
         </div>
         <div className="truncate text-xs font-bold text-[#806945]">
-          {dish.description || "מנה מתוך ספריית האולם"}
+          {dish.description || "ללא תיאור"}
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={onAdd}
-        className="rounded-xl bg-[#fff0cd] px-2 py-1 text-xs font-black text-[#8c5f19] transition hover:bg-[#ffe3aa]"
-      >
-        הוספה
-      </button>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={onAdd}
+          disabled={saving}
+          className="rounded-xl bg-[#fff0cd] px-2 py-1 text-xs font-black text-[#8c5f19] transition hover:bg-[#ffe3aa] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          הוספה
+        </button>
+        <button
+          type="button"
+          onClick={onDelete}
+          disabled={saving}
+          className="flex h-7 w-7 items-center justify-center rounded-xl bg-rose-50 text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <Trash2 size={14} />
+        </button>
+      </div>
     </div>
   );
 }
@@ -1692,50 +1933,45 @@ function MenuDishCard({
         </div>
       </div>
 
-      {dish.tags.length > 0 ? (
-        <div className="flex flex-wrap gap-1 px-3 pb-3">
-          {dish.tags.map((tag) => (
-            <span
-              key={tag}
-              className="rounded-full border border-[#ead7ad] bg-[#fff8ec] px-2.5 py-1 text-[11px] font-black text-[#8c5f19]"
-            >
-              {tag}
-            </span>
-          ))}
-        </div>
-      ) : null}
-
       <button
         type="button"
         onClick={onRemove}
         className="flex h-11 w-full items-center justify-center gap-2 border-t border-[#ead7ad] bg-white text-sm font-black text-rose-700 transition hover:bg-rose-50"
       >
         <Trash2 size={16} />
-        הסרה
+        הסרה מהתפריט
       </button>
     </article>
   );
 }
 
-function SmallNumberInput({
+function ChoiceNumberInput({
   label,
+  helper,
   value,
   onChange,
+  onBlur,
 }: {
   label: string;
+  helper: string;
   value: number;
   onChange: (value: number) => void;
+  onBlur: () => void;
 }) {
   return (
-    <label className="flex h-11 items-center gap-2 rounded-2xl border border-[#e2cfac] bg-white px-3 shadow-sm">
-      <span className="text-xs font-black text-[#8d7654]">{label}</span>
+    <label className="block rounded-2xl border border-[#e2cfac] bg-[#fffdf9] p-3">
+      <span className="block text-xs font-black text-[#8d7654]">{label}</span>
       <input
         type="number"
         min={0}
         value={value}
         onChange={(event) => onChange(Number(event.target.value || 0))}
-        className="w-12 bg-transparent text-center text-sm font-black text-[#2d2419] outline-none"
+        onBlur={onBlur}
+        className="mt-1 h-9 w-full rounded-xl border border-[#ead7ad] bg-white px-3 text-center text-sm font-black text-[#2d2419] outline-none transition focus:border-[#b98121]"
       />
+      <span className="mt-1 block text-[11px] font-bold leading-4 text-[#9a7040]">
+        {helper}
+      </span>
     </label>
   );
 }
