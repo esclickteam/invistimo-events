@@ -1279,7 +1279,15 @@ if (quickFilter === "noTable") {
 }
 
 if (quickFilter === "pending") {
-  list = list.filter((g) => getGuestRsvp(g) === "pending");
+  list = list.filter((g) => {
+    const latestRound = getLatestCallRound(g);
+
+    return (
+      getGuestRsvp(g) === "pending" &&
+      latestRound?.answerStatus !== "answered" &&
+      latestRound?.answerStatus !== "no_answer"
+    );
+  });
 }
 
 if (quickFilter === "call_answered") {
