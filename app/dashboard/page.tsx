@@ -3266,7 +3266,7 @@ function GoldenActionButtons({
               : "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
           }`}
         >
-          <span className="text-emerald-600">▣</span> ייבוא מאקסל
+          <span className="text-emerald-600">▣</span> ייבוא מוזמנים
         </button>
 
         
