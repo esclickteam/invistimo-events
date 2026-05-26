@@ -567,17 +567,12 @@ export default function HallMenusPage() {
       return;
     }
 
-    const tags = newDishForm.tags
-      .split(",")
-      .map((tag) => tag.trim())
-      .filter(Boolean);
-
     const newDish: Dish = {
       id: makeLocalId("dish"),
       name,
       description: newDishForm.description.trim(),
       image: newDishForm.image.trim(),
-      tags,
+      tags: [],
     };
 
     setDishLibrary((current) => [newDish, ...current]);
@@ -592,6 +587,26 @@ export default function HallMenusPage() {
     });
   };
 
+  const handleDishImageUpload = (file?: File) => {
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert("אפשר להעלות רק קובץ תמונה");
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      setNewDishForm((prev) => ({
+        ...prev,
+        image: String(reader.result || ""),
+      }));
+    };
+
+    reader.readAsDataURL(file);
+  };
+
   const saveSelectedMenu = () => {
     if (!selectedTemplate) return;
     saveMenuToServer(selectedTemplate);
@@ -602,16 +617,17 @@ export default function HallMenusPage() {
   return (
     <main
       dir="rtl"
-      className="min-h-screen overflow-hidden bg-[#17110b] text-[#2d2419]"
+      className="min-h-screen overflow-hidden bg-[#f7f0e3] text-[#2d2419]"
     >
-      <div className="pointer-events-none fixed inset-0 opacity-100">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_0%,rgba(205,154,62,0.28),transparent_34%),radial-gradient(circle_at_8%_18%,rgba(255,244,220,0.15),transparent_34%),linear-gradient(180deg,#25180d_0%,#fbf4e8_34%,#f7efe2_100%)]" />
-        <div className="absolute inset-x-0 top-0 h-[360px] bg-[linear-gradient(135deg,rgba(255,255,255,0.08)_0%,transparent_45%,rgba(191,130,31,0.16)_100%)]" />
+      <div className="pointer-events-none fixed inset-0">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_0%,rgba(205,154,62,0.18),transparent_28%),radial-gradient(circle_at_10%_22%,rgba(255,255,255,0.75),transparent_32%),linear-gradient(180deg,#fbf7f0_0%,#f7f0e3_42%,#f6efe3_100%)]" />
+        <div className="absolute inset-x-0 top-0 h-[240px] bg-[linear-gradient(180deg,rgba(111,74,21,0.08)_0%,rgba(205,154,62,0.06)_35%,transparent_100%)]" />
+        <div className="absolute inset-x-0 bottom-0 h-[220px] bg-[radial-gradient(circle_at_50%_100%,rgba(201,159,79,0.08),transparent_60%)]" />
       </div>
 
       <div className="relative mx-auto max-w-[1840px] px-4 py-5 md:px-7">
-        <header className="mb-5 overflow-hidden rounded-[38px] border border-[#d8b874]/40 bg-[#fffaf1]/92 p-5 shadow-[0_24px_70px_rgba(43,31,16,0.18)] backdrop-blur-xl">
-          <div className="absolute left-0 top-0 h-28 w-72 rounded-br-[80px] bg-[#c8912e]/10 blur-2xl" />
+        <header className="mb-5 overflow-hidden rounded-[38px] border border-[#e5d2ad] bg-[#faf5ea]/96 p-5 shadow-[0_18px_50px_rgba(76,52,21,0.10)] backdrop-blur-xl">
+          <div className="absolute left-0 top-0 h-24 w-64 rounded-br-[70px] bg-[#d5a046]/8 blur-2xl" />
 
           <div className="relative flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
             <div>
@@ -624,13 +640,13 @@ export default function HallMenusPage() {
               </div>
 
               <div className="mt-4 flex items-center gap-4">
-                <div className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-[28px] border border-[#e6cf9d] bg-[linear-gradient(145deg,#fff2d5,#c38b2b)] text-[#4a3217] shadow-[0_16px_35px_rgba(183,128,31,0.28)]">
+                <div className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-[28px] border border-[#ead7ad] bg-[linear-gradient(145deg,#fff3d7,#d8a241)] text-[#4a3217] shadow-[0_10px_26px_rgba(183,128,31,0.16)]">
                   <div className="absolute inset-2 rounded-[22px] border border-white/45" />
                   <Utensils size={36} />
                 </div>
 
                 <div>
-                  <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[#ead7ad] bg-[#fff6e5] px-3 py-1 text-xs font-black text-[#9a6b24]">
+                  <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[#ead7ad] bg-[#fff8ea] px-3 py-1 text-xs font-black text-[#9a6b24]">
                     <Sparkles size={14} />
                     מערכת תפריטים מקצועית לאולמות
                   </div>
@@ -651,7 +667,7 @@ export default function HallMenusPage() {
             <div className="flex flex-wrap items-center gap-2">
               <Link
                 href={`/venues/dashboard/halls/${hallId}`}
-                className="inline-flex h-12 items-center gap-2 rounded-2xl border border-[#ddc89f] bg-white/80 px-4 text-sm font-black text-[#6f5736] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#fff7e8] hover:shadow-md"
+                className="inline-flex h-12 items-center gap-2 rounded-2xl border border-[#e2cfac] bg-white px-4 text-sm font-black text-[#6f5736] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#fff9ee] hover:shadow-md"
               >
                 <ArrowRight size={17} />
                 חזרה לאולם
@@ -661,7 +677,7 @@ export default function HallMenusPage() {
                 type="button"
                 onClick={() => setPreviewOpen(true)}
                 disabled={!selectedTemplate}
-                className="inline-flex h-12 items-center gap-2 rounded-2xl border border-[#ddc89f] bg-white/80 px-4 text-sm font-black text-[#6f5736] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#fff7e8] hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex h-12 items-center gap-2 rounded-2xl border border-[#e2cfac] bg-white px-4 text-sm font-black text-[#6f5736] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#fff9ee] hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Eye size={17} />
                 תצוגה מקדימה
@@ -670,7 +686,7 @@ export default function HallMenusPage() {
               <button
                 type="button"
                 onClick={() => setNewMenuOpen(true)}
-                className="inline-flex h-12 items-center gap-2 rounded-2xl border border-[#d2a554] bg-[#fff3d9] px-4 text-sm font-black text-[#8c5f19] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#ffe9bd] hover:shadow-md"
+                className="inline-flex h-12 items-center gap-2 rounded-2xl border border-[#d7b06a] bg-[#fff4dc] px-4 text-sm font-black text-[#8c5f19] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#ffedc9] hover:shadow-md"
               >
                 <Plus size={17} />
                 תפריט חדש
@@ -680,7 +696,7 @@ export default function HallMenusPage() {
                 type="button"
                 onClick={saveSelectedMenu}
                 disabled={!selectedTemplate || saving}
-                className="inline-flex h-12 items-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#d5a046,#9f6817)] px-6 text-sm font-black text-white shadow-[0_14px_28px_rgba(156,101,23,0.28)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_34px_rgba(156,101,23,0.36)] disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex h-12 items-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#d8a241,#b67b1d)] px-6 text-sm font-black text-white shadow-[0_10px_24px_rgba(156,101,23,0.20)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_rgba(156,101,23,0.28)] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {saving ? (
                   <Loader2 size={17} className="animate-spin" />
@@ -723,8 +739,8 @@ export default function HallMenusPage() {
         </section>
 
         {!hasTemplates && !loading ? (
-          <section className="mt-5 overflow-hidden rounded-[38px] border border-dashed border-[#d4a85b] bg-[#fffaf1]/90 p-12 text-center shadow-[0_24px_70px_rgba(43,31,16,0.14)] backdrop-blur-xl">
-            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-[28px] border border-[#e7ca8f] bg-[linear-gradient(145deg,#fff2d5,#c38b2b)] text-[#4a3217] shadow-[0_16px_35px_rgba(183,128,31,0.24)]">
+          <section className="mt-5 overflow-hidden rounded-[38px] border border-dashed border-[#ddb96f] bg-[#fbf7ef]/96 p-12 text-center shadow-[0_18px_50px_rgba(76,52,21,0.08)] backdrop-blur-xl">
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-[28px] border border-[#ead7ad] bg-[linear-gradient(145deg,#fff3d7,#d8a241)] text-[#4a3217] shadow-[0_10px_24px_rgba(183,128,31,0.15)]">
               <Utensils size={36} />
             </div>
 
@@ -740,7 +756,7 @@ export default function HallMenusPage() {
             <button
               type="button"
               onClick={() => setNewMenuOpen(true)}
-              className="mt-6 inline-flex h-13 items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#d5a046,#9f6817)] px-7 py-4 text-sm font-black text-white shadow-[0_14px_28px_rgba(156,101,23,0.28)] transition hover:-translate-y-0.5"
+              className="mt-6 inline-flex h-13 items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#d8a241,#b67b1d)] px-7 py-4 text-sm font-black text-white shadow-[0_10px_24px_rgba(156,101,23,0.18)] transition hover:-translate-y-0.5"
             >
               <Plus size={17} />
               צור תפריט ראשון
@@ -762,10 +778,10 @@ export default function HallMenusPage() {
                         setSelectedCategoryId(template.categories[0]?.id || "");
                       }}
                       className={[
-                        "group w-full rounded-[26px] border p-4 text-right transition hover:-translate-y-0.5 hover:shadow-[0_14px_34px_rgba(43,31,16,0.12)]",
+                        "group w-full rounded-[26px] border p-4 text-right transition hover:-translate-y-0.5 hover:shadow-[0_10px_28px_rgba(43,31,16,0.08)]",
                         selectedTemplateId === template.id
-                          ? "border-[#c89437] bg-[linear-gradient(135deg,#fff4dd,#f5dfad)] shadow-[0_14px_34px_rgba(183,128,31,0.18)]"
-                          : "border-[#ead8b7] bg-[#fffaf1] hover:border-[#d2a554]",
+                          ? "border-[#d4ab5b] bg-[linear-gradient(135deg,#fff8ea,#f8e7be)] shadow-[0_10px_28px_rgba(183,128,31,0.12)]"
+                          : "border-[#eadcc0] bg-[#fffdf9] hover:border-[#d6b26a]",
                       ].join(" ")}
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -811,7 +827,7 @@ export default function HallMenusPage() {
                 <button
                   type="button"
                   onClick={() => setNewMenuOpen(true)}
-                  className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#d5a046,#9f6817)] text-sm font-black text-white shadow-[0_12px_25px_rgba(156,101,23,0.24)] transition hover:-translate-y-0.5"
+                  className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#d8a241,#b67b1d)] text-sm font-black text-white shadow-[0_10px_22px_rgba(156,101,23,0.18)] transition hover:-translate-y-0.5"
                 >
                   <Plus size={16} />
                   הוספת תפריט
@@ -819,7 +835,7 @@ export default function HallMenusPage() {
               </Panel>
 
               <Panel title="ספריית מנות זמנית" icon={<BookOpen size={18} />}>
-                <div className="mb-3 flex h-12 items-center gap-2 rounded-2xl border border-[#e3cfaa] bg-[#fffaf1] px-3 shadow-inner">
+                <div className="mb-3 flex h-12 items-center gap-2 rounded-2xl border border-[#e8d7b6] bg-white px-3 shadow-inner">
                   <Search size={16} className="text-[#b68a40]" />
                   <input
                     placeholder="חיפוש מנה..."
@@ -838,7 +854,7 @@ export default function HallMenusPage() {
                       />
                     ))
                   ) : (
-                    <div className="rounded-2xl border border-dashed border-[#d2a554] bg-[#fff7e8] p-4 text-center text-sm font-bold leading-6 text-[#806945]">
+                    <div className="rounded-2xl border border-dashed border-[#d7b06a] bg-[#fff8ec] p-4 text-center text-sm font-bold leading-6 text-[#806945]">
                       אין עדיין מנות בספרייה. הוסיפי מנה חדשה והיא תישמר בתוך
                       התפריט בעת שמירה.
                     </div>
@@ -848,7 +864,7 @@ export default function HallMenusPage() {
                 <button
                   type="button"
                   onClick={() => setNewDishOpen(true)}
-                  className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#d2a554] bg-[#fff0cd] text-sm font-black text-[#8c5f19] transition hover:bg-[#ffe7b5]"
+                  className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#d7b06a] bg-[#fff4dc] text-sm font-black text-[#8c5f19] transition hover:bg-[#ffedc9]"
                 >
                   <Plus size={16} />
                   הוספת מנה חדשה
@@ -857,8 +873,8 @@ export default function HallMenusPage() {
             </aside>
 
             {selectedTemplate ? (
-              <section className="overflow-hidden rounded-[38px] border border-[#e1c99d] bg-[#fffaf1]/94 p-5 shadow-[0_24px_70px_rgba(43,31,16,0.14)] backdrop-blur-xl">
-                <div className="mb-5 rounded-[30px] border border-[#ead7ad] bg-[linear-gradient(135deg,#fff8e9,#f8e5bd)] p-4">
+              <section className="overflow-hidden rounded-[38px] border border-[#e7d5b2] bg-[#fbf7ef]/96 p-5 shadow-[0_18px_50px_rgba(76,52,21,0.08)] backdrop-blur-xl">
+                <div className="mb-5 rounded-[30px] border border-[#ead7ad] bg-[linear-gradient(135deg,#fff9ee,#f8ead0)] p-4">
                   <div className="grid gap-4 xl:grid-cols-[1fr_220px_160px]">
                     <label className="block">
                       <span className="mb-1 block text-xs font-black text-[#8d7654]">
@@ -871,7 +887,7 @@ export default function HallMenusPage() {
                             name: event.target.value,
                           })
                         }
-                        className="h-12 w-full rounded-2xl border border-[#dfc79b] bg-white/80 px-4 text-sm font-black text-[#2d2419] outline-none transition focus:border-[#b98121] focus:ring-4 focus:ring-[#d5a046]/15"
+                        className="h-12 w-full rounded-2xl border border-[#e2cfac] bg-white px-4 text-sm font-black text-[#2d2419] outline-none transition focus:border-[#b98121] focus:ring-4 focus:ring-[#d5a046]/10"
                       />
                     </label>
 
@@ -886,7 +902,7 @@ export default function HallMenusPage() {
                             type: event.target.value,
                           })
                         }
-                        className="h-12 w-full rounded-2xl border border-[#dfc79b] bg-white/80 px-4 text-sm font-black text-[#2d2419] outline-none transition focus:border-[#b98121] focus:ring-4 focus:ring-[#d5a046]/15"
+                        className="h-12 w-full rounded-2xl border border-[#e2cfac] bg-white px-4 text-sm font-black text-[#2d2419] outline-none transition focus:border-[#b98121] focus:ring-4 focus:ring-[#d5a046]/10"
                       />
                     </label>
 
@@ -922,7 +938,7 @@ export default function HallMenusPage() {
                           description: event.target.value,
                         })
                       }
-                      className="min-h-[90px] w-full rounded-2xl border border-[#dfc79b] bg-white/80 p-4 text-sm font-bold leading-7 text-[#2d2419] outline-none transition focus:border-[#b98121] focus:ring-4 focus:ring-[#d5a046]/15"
+                      className="min-h-[90px] w-full rounded-2xl border border-[#e2cfac] bg-white p-4 text-sm font-bold leading-7 text-[#2d2419] outline-none transition focus:border-[#b98121] focus:ring-4 focus:ring-[#d5a046]/10"
                     />
                   </label>
                 </div>
@@ -936,8 +952,8 @@ export default function HallMenusPage() {
                       className={[
                         "flex h-12 shrink-0 items-center gap-2 rounded-2xl border px-4 text-sm font-black shadow-sm transition hover:-translate-y-0.5",
                         selectedCategoryId === category.id
-                          ? "border-[#a86f18] bg-[linear-gradient(135deg,#d5a046,#9f6817)] text-white"
-                          : "border-[#dfc79b] bg-white/75 text-[#6f5736] hover:bg-[#fff3d9]",
+                          ? "border-[#b67b1d] bg-[linear-gradient(135deg,#d8a241,#b67b1d)] text-white"
+                          : "border-[#e2cfac] bg-white text-[#6f5736] hover:bg-[#fff7e8]",
                       ].join(" ")}
                     >
                       {category.title}
@@ -950,7 +966,7 @@ export default function HallMenusPage() {
                   <button
                     type="button"
                     onClick={() => setNewCategoryOpen(true)}
-                    className="flex h-12 shrink-0 items-center gap-2 rounded-2xl border border-[#d2a554] bg-[#fff0cd] px-4 text-sm font-black text-[#8c5f19] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#ffe7b5]"
+                    className="flex h-12 shrink-0 items-center gap-2 rounded-2xl border border-[#d7b06a] bg-[#fff4dc] px-4 text-sm font-black text-[#8c5f19] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#ffedc9]"
                   >
                     <Plus size={16} />
                     קטגוריה
@@ -964,7 +980,7 @@ export default function HallMenusPage() {
                       if (draggedDish) addDishToCategory(draggedDish);
                       setDraggedDish(null);
                     }}
-                    className="rounded-[32px] border border-dashed border-[#c89437] bg-[linear-gradient(180deg,#fff8ea,#fffdf8)] p-4 shadow-inner"
+                    className="rounded-[32px] border border-dashed border-[#d4ab5b] bg-[linear-gradient(180deg,#fffaf1,#fffdfa)] p-4 shadow-inner"
                   >
                     <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                       <div>
@@ -976,10 +992,10 @@ export default function HallMenusPage() {
                                 title: event.target.value,
                               })
                             }
-                            className="h-11 rounded-2xl border border-[#dfc79b] bg-white px-4 text-xl font-black text-[#2d2419] outline-none transition focus:border-[#b98121] focus:ring-4 focus:ring-[#d5a046]/15"
+                            className="h-11 rounded-2xl border border-[#e2cfac] bg-white px-4 text-xl font-black text-[#2d2419] outline-none transition focus:border-[#b98121] focus:ring-4 focus:ring-[#d5a046]/10"
                           />
 
-                          <span className="rounded-full border border-[#e0c189] bg-[#fff0cd] px-3 py-1 text-xs font-black text-[#8c5f19]">
+                          <span className="rounded-full border border-[#e2c485] bg-[#fff3d8] px-3 py-1 text-xs font-black text-[#8c5f19]">
                             בחירה של {selectedCategory.minChoices} מתוך{" "}
                             {selectedCategory.maxChoices}
                           </span>
@@ -992,7 +1008,7 @@ export default function HallMenusPage() {
                               subtitle: event.target.value,
                             })
                           }
-                          className="mt-2 h-10 w-full rounded-2xl border border-[#dfc79b] bg-white px-4 text-sm font-bold text-[#806945] outline-none transition focus:border-[#b98121] focus:ring-4 focus:ring-[#d5a046]/15"
+                          className="mt-2 h-10 w-full rounded-2xl border border-[#e2cfac] bg-white px-4 text-sm font-bold text-[#806945] outline-none transition focus:border-[#b98121] focus:ring-4 focus:ring-[#d5a046]/10"
                         />
                       </div>
 
@@ -1028,7 +1044,7 @@ export default function HallMenusPage() {
                       </div>
                     </div>
 
-                    <div className="mb-4 rounded-2xl border border-[#ead7ad] bg-white/85 p-3 text-center text-sm font-bold text-[#806945]">
+                    <div className="mb-4 rounded-2xl border border-[#ead7ad] bg-white p-3 text-center text-sm font-bold text-[#806945]">
                       גררי מנה מספריית המנות לכאן, או לחצי על “הוספה” ליד מנה.
                     </div>
 
@@ -1043,7 +1059,7 @@ export default function HallMenusPage() {
                       ))}
 
                       {selectedCategory.dishes.length === 0 ? (
-                        <div className="col-span-full rounded-[28px] border border-dashed border-[#d2a554] bg-white/88 p-9 text-center shadow-sm">
+                        <div className="col-span-full rounded-[28px] border border-dashed border-[#d7b06a] bg-white p-9 text-center shadow-sm">
                           <Utensils
                             className="mx-auto text-[#b98121]"
                             size={32}
@@ -1059,14 +1075,14 @@ export default function HallMenusPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="rounded-[32px] border border-dashed border-[#d2a554] bg-[#fff3d9] p-8 text-center">
+                  <div className="rounded-[32px] border border-dashed border-[#d7b06a] bg-[#fff7e7] p-8 text-center">
                     <div className="text-xl font-black text-[#2d2419]">
                       אין קטגוריות בתפריט
                     </div>
                     <button
                       type="button"
                       onClick={() => setNewCategoryOpen(true)}
-                      className="mt-4 rounded-2xl bg-[linear-gradient(135deg,#d5a046,#9f6817)] px-5 py-3 text-sm font-black text-white"
+                      className="mt-4 rounded-2xl bg-[linear-gradient(135deg,#d8a241,#b67b1d)] px-5 py-3 text-sm font-black text-white"
                     >
                       הוספת קטגוריה
                     </button>
@@ -1082,7 +1098,7 @@ export default function HallMenusPage() {
                     type="button"
                     onClick={saveSelectedMenu}
                     disabled={!selectedTemplate || saving}
-                    className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#d5a046,#9f6817)] text-sm font-black text-white shadow-[0_12px_25px_rgba(156,101,23,0.24)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#d8a241,#b67b1d)] text-sm font-black text-white shadow-[0_10px_22px_rgba(156,101,23,0.18)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {saving ? (
                       <Loader2 size={16} className="animate-spin" />
@@ -1098,7 +1114,7 @@ export default function HallMenusPage() {
                       selectedTemplate && duplicateMenu(selectedTemplate)
                     }
                     disabled={!selectedTemplate || saving}
-                    className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-[#dfc79b] bg-[#fffaf1] text-sm font-black text-[#6f5736] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#fff3d9] disabled:cursor-not-allowed disabled:opacity-60"
+                    className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-[#e2cfac] bg-white text-sm font-black text-[#6f5736] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#fff7e8] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <Copy size={16} />
                     שכפול תפריט
@@ -1108,7 +1124,7 @@ export default function HallMenusPage() {
                     type="button"
                     onClick={() => setPreviewOpen(true)}
                     disabled={!selectedTemplate}
-                    className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-[#dfc79b] bg-[#fffaf1] text-sm font-black text-[#6f5736] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#fff3d9] disabled:cursor-not-allowed disabled:opacity-60"
+                    className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-[#e2cfac] bg-white text-sm font-black text-[#6f5736] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#fff7e8] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <Eye size={16} />
                     תצוגה מקדימה
@@ -1129,7 +1145,7 @@ export default function HallMenusPage() {
               </Panel>
 
               <Panel title="שימוש באירועים" icon={<CheckCircle2 size={18} />}>
-                <div className="rounded-2xl border border-[#ead7ad] bg-[linear-gradient(135deg,#fff8e9,#f5dfad)] p-4">
+                <div className="rounded-2xl border border-[#ead7ad] bg-[linear-gradient(135deg,#fff9ee,#f8ead0)] p-4">
                   <div className="text-sm font-black text-[#2d2419]">
                     התפריט הזה הוא תפריט בסיס של האולם
                   </div>
@@ -1155,7 +1171,7 @@ export default function HallMenusPage() {
               </Panel>
 
               <Panel title="העלאת תפריט קיים" icon={<Upload size={18} />}>
-                <label className="flex cursor-pointer flex-col items-center justify-center rounded-[26px] border border-dashed border-[#c89437] bg-[#fff3d9] p-5 text-center transition hover:-translate-y-0.5 hover:bg-[#ffe9bd]">
+                <label className="flex cursor-pointer flex-col items-center justify-center rounded-[26px] border border-dashed border-[#d4ab5b] bg-[#fff7e8] p-5 text-center transition hover:-translate-y-0.5 hover:bg-[#fff0d3]">
                   <Upload size={26} className="text-[#a66b18]" />
                   <div className="mt-2 text-sm font-black text-[#2d2419]">
                     העלאת PDF / תמונה
@@ -1176,7 +1192,7 @@ export default function HallMenusPage() {
                 </label>
 
                 {uploadedFileName ? (
-                  <div className="mt-3 rounded-2xl border border-[#d2a554] bg-[#fff0cd] px-3 py-2 text-xs font-black text-[#8c5f19]">
+                  <div className="mt-3 rounded-2xl border border-[#d7b06a] bg-[#fff3d8] px-3 py-2 text-xs font-black text-[#8c5f19]">
                     קובץ נבחר: {uploadedFileName}
                   </div>
                 ) : null}
@@ -1223,7 +1239,7 @@ export default function HallMenusPage() {
                     status: event.target.value as "active" | "draft",
                   }))
                 }
-                className="h-12 w-full rounded-2xl border border-[#dfc79b] bg-[#fffaf1] px-3 text-sm font-bold text-[#2d2419] outline-none transition focus:border-[#b98121] focus:ring-4 focus:ring-[#d5a046]/15"
+                className="h-12 w-full rounded-2xl border border-[#e2cfac] bg-white px-3 text-sm font-bold text-[#2d2419] outline-none transition focus:border-[#b98121] focus:ring-4 focus:ring-[#d5a046]/10"
               >
                 <option value="draft">טיוטה</option>
                 <option value="active">פעיל</option>
@@ -1234,7 +1250,7 @@ export default function HallMenusPage() {
               type="button"
               onClick={createMenu}
               disabled={saving}
-              className="mt-2 flex h-12 items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#d5a046,#9f6817)] text-sm font-black text-white shadow-[0_12px_25px_rgba(156,101,23,0.24)] disabled:cursor-not-allowed disabled:opacity-60"
+              className="mt-2 flex h-12 items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#d8a241,#b67b1d)] text-sm font-black text-white shadow-[0_10px_22px_rgba(156,101,23,0.18)] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {saving ? <Loader2 size={16} className="animate-spin" /> : null}
               יצירת תפריט
@@ -1286,7 +1302,7 @@ export default function HallMenusPage() {
             <button
               type="button"
               onClick={addCategory}
-              className="mt-2 h-12 rounded-2xl bg-[linear-gradient(135deg,#d5a046,#9f6817)] text-sm font-black text-white shadow-[0_12px_25px_rgba(156,101,23,0.24)]"
+              className="mt-2 h-12 rounded-2xl bg-[linear-gradient(135deg,#d8a241,#b67b1d)] text-sm font-black text-white shadow-[0_10px_22px_rgba(156,101,23,0.18)]"
             >
               הוספת קטגוריה
             </button>
@@ -1296,7 +1312,7 @@ export default function HallMenusPage() {
 
       {newDishOpen && (
         <Modal title="הוספת מנה חדשה" onClose={() => setNewDishOpen(false)}>
-          <div className="grid gap-3">
+          <div className="grid gap-4">
             <FormInput
               label="שם מנה"
               value={newDishForm.name}
@@ -1304,32 +1320,76 @@ export default function HallMenusPage() {
                 setNewDishForm((prev) => ({ ...prev, name: value }))
               }
             />
-            <FormInput
-              label="תיאור"
-              value={newDishForm.description}
-              onChange={(value) =>
-                setNewDishForm((prev) => ({ ...prev, description: value }))
-              }
-            />
-            <FormInput
-              label="קישור תמונה"
-              value={newDishForm.image}
-              onChange={(value) =>
-                setNewDishForm((prev) => ({ ...prev, image: value }))
-              }
-            />
-            <FormInput
-              label="תגיות מופרדות בפסיקים"
-              value={newDishForm.tags}
-              onChange={(value) =>
-                setNewDishForm((prev) => ({ ...prev, tags: value }))
-              }
-            />
+
+            <label className="block">
+              <span className="mb-1 block text-xs font-black text-[#8d7654]">
+                תיאור
+              </span>
+              <textarea
+                value={newDishForm.description}
+                onChange={(event) =>
+                  setNewDishForm((prev) => ({
+                    ...prev,
+                    description: event.target.value,
+                  }))
+                }
+                className="min-h-[92px] w-full rounded-2xl border border-[#e2cfac] bg-white px-4 py-3 text-sm font-bold leading-7 text-[#2d2419] outline-none transition focus:border-[#b98121] focus:ring-4 focus:ring-[#d5a046]/10"
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-2 block text-xs font-black text-[#8d7654]">
+                תמונת מנה
+              </span>
+
+              <div className="rounded-[24px] border border-dashed border-[#d4ab5b] bg-[#fff8ec] p-4 text-center transition hover:bg-[#fff0d3]">
+                {newDishForm.image ? (
+                  <div className="space-y-3">
+                    <img
+                      src={newDishForm.image}
+                      alt="תמונת מנה"
+                      className="mx-auto h-36 w-full max-w-[260px] rounded-[22px] object-cover shadow-sm"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setNewDishForm((prev) => ({ ...prev, image: "" }))
+                      }
+                      className="text-xs font-black text-rose-700"
+                    >
+                      הסרת תמונה
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-4">
+                    <Upload size={28} className="text-[#a66b18]" />
+
+                    <div className="mt-2 text-sm font-black text-[#2d2419]">
+                      העלאת תמונה מהמחשב
+                    </div>
+
+                    <div className="mt-1 text-xs font-bold text-[#806945]">
+                      JPG / PNG / WEBP
+                    </div>
+                  </div>
+                )}
+
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="mt-4 block w-full cursor-pointer rounded-2xl border border-[#e2cfac] bg-white px-3 py-2 text-xs font-bold text-[#6f5736] file:ml-3 file:cursor-pointer file:rounded-xl file:border-0 file:bg-[#d8a241] file:px-3 file:py-2 file:text-xs file:font-black file:text-white"
+                  onChange={(event) =>
+                    handleDishImageUpload(event.target.files?.[0])
+                  }
+                />
+              </div>
+            </label>
 
             <button
               type="button"
               onClick={addCustomDish}
-              className="mt-2 h-12 rounded-2xl bg-[linear-gradient(135deg,#d5a046,#9f6817)] text-sm font-black text-white shadow-[0_12px_25px_rgba(156,101,23,0.24)]"
+              className="mt-2 h-12 rounded-2xl bg-[linear-gradient(135deg,#d8a241,#b67b1d)] text-sm font-black text-white shadow-[0_10px_22px_rgba(156,101,23,0.18)]"
             >
               הוספת מנה לקטגוריה
             </button>
@@ -1344,8 +1404,8 @@ export default function HallMenusPage() {
           wide
         >
           <div className="space-y-5">
-            <div className="rounded-[30px] border border-[#d8b874] bg-[linear-gradient(135deg,#fff8e9,#f5dfad)] p-6 text-center shadow-sm">
-              <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#d5a046,#9f6817)] text-white shadow-lg">
+            <div className="rounded-[30px] border border-[#d8b874] bg-[linear-gradient(135deg,#fff9ee,#f7e6bf)] p-6 text-center shadow-sm">
+              <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#d8a241,#b67b1d)] text-white shadow-lg">
                 <Utensils size={24} />
               </div>
 
@@ -1362,7 +1422,7 @@ export default function HallMenusPage() {
               selectedTemplate.categories.map((category) => (
                 <section
                   key={category.id}
-                  className="rounded-[30px] border border-[#ead7ad] bg-[#fffaf1] p-4 shadow-sm"
+                  className="rounded-[30px] border border-[#ead7ad] bg-[#fffdf9] p-4 shadow-sm"
                 >
                   <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                     <div>
@@ -1374,7 +1434,7 @@ export default function HallMenusPage() {
                       </p>
                     </div>
 
-                    <span className="w-fit rounded-full border border-[#d2a554] bg-[#fff0cd] px-3 py-1 text-xs font-black text-[#8c5f19]">
+                    <span className="w-fit rounded-full border border-[#d7b06a] bg-[#fff3d8] px-3 py-1 text-xs font-black text-[#8c5f19]">
                       בחירה של {category.minChoices} מתוך {category.maxChoices}
                     </span>
                   </div>
@@ -1384,7 +1444,7 @@ export default function HallMenusPage() {
                       category.dishes.map((dish) => (
                         <div
                           key={dish.id}
-                          className="flex items-center gap-3 rounded-2xl border border-[#ead7ad] bg-white/85 p-3 shadow-sm"
+                          className="flex items-center gap-3 rounded-2xl border border-[#ead7ad] bg-white p-3 shadow-sm"
                         >
                           {dish.image ? (
                             <img
@@ -1409,7 +1469,7 @@ export default function HallMenusPage() {
                         </div>
                       ))
                     ) : (
-                      <div className="rounded-2xl border border-dashed border-[#d2a554] bg-[#fff7e8] p-4 text-center text-sm font-bold text-[#806945]">
+                      <div className="rounded-2xl border border-dashed border-[#d7b06a] bg-[#fff8ec] p-4 text-center text-sm font-bold text-[#806945]">
                         אין מנות בקטגוריה הזאת
                       </div>
                     )}
@@ -1417,7 +1477,7 @@ export default function HallMenusPage() {
                 </section>
               ))
             ) : (
-              <div className="rounded-2xl border border-dashed border-[#d2a554] bg-[#fff7e8] p-4 text-center text-sm font-bold text-[#806945]">
+              <div className="rounded-2xl border border-dashed border-[#d7b06a] bg-[#fff8ec] p-4 text-center text-sm font-bold text-[#806945]">
                 אין קטגוריות בתפריט הזה
               </div>
             )}
@@ -1438,7 +1498,7 @@ function MetricCard({
   subtitle: string;
 }) {
   return (
-    <div className="group overflow-hidden rounded-[30px] border border-[#d8b874]/55 bg-[#fffaf1]/92 p-5 shadow-[0_18px_46px_rgba(43,31,16,0.12)] backdrop-blur-xl transition hover:-translate-y-0.5 hover:shadow-[0_24px_60px_rgba(43,31,16,0.16)]">
+    <div className="group overflow-hidden rounded-[30px] border border-[#e3d1ae] bg-[#fbf7ef]/96 p-5 shadow-[0_12px_34px_rgba(43,31,16,0.07)] backdrop-blur-xl transition hover:-translate-y-0.5 hover:shadow-[0_16px_40px_rgba(43,31,16,0.10)]">
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="text-sm font-black text-[#8d7654]">{title}</div>
@@ -1450,7 +1510,7 @@ function MetricCard({
           </div>
         </div>
 
-        <div className="h-12 w-12 rounded-2xl bg-[linear-gradient(135deg,#fff2d5,#d19a38)] shadow-inner" />
+        <div className="h-12 w-12 rounded-2xl bg-[linear-gradient(135deg,#fff2d5,#d9a94b)] shadow-inner" />
       </div>
     </div>
   );
@@ -1466,9 +1526,9 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-[32px] border border-[#d8b874]/55 bg-[#fffaf1]/92 p-4 shadow-[0_18px_46px_rgba(43,31,16,0.12)] backdrop-blur-xl">
+    <section className="rounded-[32px] border border-[#e3d1ae] bg-[#fbf7ef]/96 p-4 shadow-[0_12px_34px_rgba(43,31,16,0.07)] backdrop-blur-xl">
       <div className="mb-4 flex items-center gap-2">
-        <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#e5c98f] bg-[linear-gradient(145deg,#fff2d5,#c38b2b)] text-[#4a3217] shadow-sm">
+        <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#ead7ad] bg-[linear-gradient(145deg,#fff3d7,#d8a241)] text-[#4a3217] shadow-sm">
           {icon}
         </div>
         <h2 className="text-base font-black text-[#2d2419]">{title}</h2>
@@ -1491,7 +1551,7 @@ function DishLibraryItem({
     <div
       draggable
       onDragStart={onDragStart}
-      className="flex cursor-grab items-center gap-3 rounded-2xl border border-[#ead7ad] bg-[#fffaf1] p-2 shadow-sm transition hover:-translate-y-0.5 hover:border-[#d2a554] hover:shadow-md active:cursor-grabbing"
+      className="flex cursor-grab items-center gap-3 rounded-2xl border border-[#ead7ad] bg-white p-2 shadow-sm transition hover:-translate-y-0.5 hover:border-[#d7b06a] hover:shadow-md active:cursor-grabbing"
     >
       <GripVertical size={17} className="text-[#b68a40]" />
 
@@ -1512,7 +1572,7 @@ function DishLibraryItem({
           {dish.name}
         </div>
         <div className="truncate text-xs font-bold text-[#806945]">
-          {dish.tags.length ? dish.tags.join(" · ") : "ללא תגיות"}
+          {dish.description || "מנה מותאמת אישית"}
         </div>
       </div>
 
@@ -1537,9 +1597,9 @@ function MenuDishCard({
   onRemove: () => void;
 }) {
   return (
-    <article className="overflow-hidden rounded-[26px] border border-[#ead7ad] bg-white/92 shadow-sm transition hover:-translate-y-1 hover:border-[#d2a554] hover:shadow-[0_18px_42px_rgba(43,31,16,0.13)]">
+    <article className="overflow-hidden rounded-[26px] border border-[#ead7ad] bg-white shadow-sm transition hover:-translate-y-1 hover:border-[#d7b06a] hover:shadow-[0_14px_36px_rgba(43,31,16,0.10)]">
       <div className="flex items-center gap-3 p-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#fff2d5,#d19a38)] text-xs font-black text-[#4a3217]">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#fff2d5,#d9a94b)] text-xs font-black text-[#4a3217]">
           {index}
         </div>
 
@@ -1565,21 +1625,23 @@ function MenuDishCard({
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-1 px-3 pb-3">
-        {dish.tags.map((tag) => (
-          <span
-            key={tag}
-            className="rounded-full border border-[#ead7ad] bg-[#fff7e8] px-2.5 py-1 text-[11px] font-black text-[#8c5f19]"
-          >
-            {tag}
-          </span>
-        ))}
-      </div>
+      {dish.tags.length > 0 ? (
+        <div className="flex flex-wrap gap-1 px-3 pb-3">
+          {dish.tags.map((tag) => (
+            <span
+              key={tag}
+              className="rounded-full border border-[#ead7ad] bg-[#fff8ec] px-2.5 py-1 text-[11px] font-black text-[#8c5f19]"
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
+      ) : null}
 
       <button
         type="button"
         onClick={onRemove}
-        className="flex h-11 w-full items-center justify-center gap-2 border-t border-[#ead7ad] bg-white/80 text-sm font-black text-rose-700 transition hover:bg-rose-50"
+        className="flex h-11 w-full items-center justify-center gap-2 border-t border-[#ead7ad] bg-white text-sm font-black text-rose-700 transition hover:bg-rose-50"
       >
         <Trash2 size={16} />
         הסרה
@@ -1598,7 +1660,7 @@ function SmallNumberInput({
   onChange: (value: number) => void;
 }) {
   return (
-    <label className="flex h-11 items-center gap-2 rounded-2xl border border-[#dfc79b] bg-white px-3 shadow-sm">
+    <label className="flex h-11 items-center gap-2 rounded-2xl border border-[#e2cfac] bg-white px-3 shadow-sm">
       <span className="text-xs font-black text-[#8d7654]">{label}</span>
       <input
         type="number"
@@ -1613,7 +1675,7 @@ function SmallNumberInput({
 
 function InfoLine({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#ead7ad] bg-[#fffaf1] px-3 py-2 shadow-sm">
+    <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#ead7ad] bg-white px-3 py-2 shadow-sm">
       <span className="text-xs font-black text-[#806945]">{label}</span>
       <span className="text-sm font-black text-[#2d2419]">{value}</span>
     </div>
@@ -1622,7 +1684,7 @@ function InfoLine({ label, value }: { label: string; value: string }) {
 
 function InfoPill({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-[#e5cfaa] bg-white/78 px-3 py-2 shadow-sm">
+    <div className="rounded-2xl border border-[#e5cfaa] bg-white px-3 py-2 shadow-sm">
       <div className="text-[11px] font-black text-[#806945]">{label}</div>
       <div className="mt-1 text-sm font-black text-[#2d2419]">{value}</div>
     </div>
@@ -1649,7 +1711,7 @@ function FormInput({
         type={type}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="h-12 w-full rounded-2xl border border-[#dfc79b] bg-[#fffaf1] px-3 text-sm font-bold text-[#2d2419] outline-none transition focus:border-[#b98121] focus:ring-4 focus:ring-[#d5a046]/15"
+        className="h-12 w-full rounded-2xl border border-[#e2cfac] bg-white px-3 text-sm font-bold text-[#2d2419] outline-none transition focus:border-[#b98121] focus:ring-4 focus:ring-[#d5a046]/10"
       />
     </label>
   );
@@ -1667,10 +1729,10 @@ function Modal({
   wide?: boolean;
 }) {
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#120c06]/55 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#120c06]/28 p-4 backdrop-blur-[4px]">
       <div
         className={[
-          "max-h-[92vh] w-full overflow-y-auto rounded-[34px] border border-[#d8b874] bg-[#fffaf1] p-5 shadow-[0_30px_90px_rgba(0,0,0,0.28)]",
+          "max-h-[92vh] w-full overflow-y-auto rounded-[34px] border border-[#e2cfac] bg-[#fbf7ef] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.18)]",
           wide ? "max-w-6xl" : "max-w-xl",
         ].join(" ")}
       >
@@ -1679,7 +1741,7 @@ function Modal({
           <button
             type="button"
             onClick={onClose}
-            className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#dfc79b] bg-white/85 text-[#6f5736] transition hover:bg-[#fff3d9]"
+            className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#e2cfac] bg-white text-[#6f5736] transition hover:bg-[#fff7e8]"
           >
             <X size={18} />
           </button>
