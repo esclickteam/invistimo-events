@@ -1,4 +1,4 @@
-import mongoose, { Schema, models, model } from "mongoose";
+import mongoose, { Schema, model, models } from "mongoose";
 
 const VenueMenuDishSchema = new Schema(
   {
@@ -8,35 +8,43 @@ const VenueMenuDishSchema = new Schema(
       required: true,
       index: true,
     },
+
+    // חשוב מאוד:
+    // אצלך hallId הוא string, לא ObjectId
     hallId: {
-      type: Schema.Types.ObjectId,
-      ref: "VenueHall",
+      type: String,
       required: true,
       index: true,
+      trim: true,
     },
+
     name: {
       type: String,
       required: true,
       trim: true,
     },
+
     description: {
       type: String,
       default: "",
     },
+
     image: {
       type: String,
       default: "",
     },
-    isActive: {
-      type: Boolean,
-      default: true,
-      index: true,
+
+    tags: {
+      type: [String],
+      default: [],
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
-VenueMenuDishSchema.index({ hallId: 1, name: 1 });
+VenueMenuDishSchema.index({ ownerId: 1, hallId: 1, createdAt: -1 });
 
 const VenueMenuDish =
   models.VenueMenuDish || model("VenueMenuDish", VenueMenuDishSchema);
