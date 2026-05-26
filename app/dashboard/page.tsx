@@ -3199,7 +3199,7 @@ function GoldenActionButtons({
 
     {/* 4️⃣ ייבוא מאקסל */}
     <GoldenActionButton
-      label="ייבוא מאקסל"
+      label="ייבוא מוזמנים"
       icon="▣"
       tone="excel"
       disabled={!invitation}
@@ -3266,7 +3266,7 @@ function GoldenActionButtons({
               : "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
           }`}
         >
-          <span className="text-emerald-600">▣</span> ייבוא מוזמנים
+          <span className="text-emerald-600">▣</span> ייבוא מאקסל
         </button>
 
         
