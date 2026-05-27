@@ -3280,43 +3280,58 @@ function ModalShell({
 }) {
   return (
     <div
+      dir="rtl"
       className="
-        fixed inset-0 z-50
-        flex items-center justify-center
-        bg-black/35
-        px-4
+        fixed inset-0 z-[9999]
+        flex items-start justify-center
+        overflow-y-auto
+        bg-black/45
+        px-3 py-4
         backdrop-blur-sm
+        md:px-6 md:py-8
       "
       onClick={onClose}
     >
       <div
-        dir="rtl"
         className="
-          flex max-h-[92vh] w-full max-w-5xl flex-col
+          relative
+          flex
+          max-h-[calc(100dvh-32px)]
+          w-full
+          max-w-5xl
+          flex-col
           overflow-hidden
-          rounded-[32px]
+          rounded-[28px]
           border border-[#E7D8C6]
           bg-white
           shadow-[0_28px_90px_rgba(0,0,0,0.24)]
+          md:max-h-[calc(100dvh-64px)]
+          md:rounded-[36px]
         "
         onClick={(e) => e.stopPropagation()}
       >
         <header
           className="
-            flex items-start justify-between gap-4
+            sticky top-0 z-20
+            flex shrink-0 items-start justify-between gap-4
             border-b border-[#EFE2D1]
-            bg-gradient-to-br from-[#FFFDF8] to-[#F8EFE3]
-            p-5 md:p-6
+            bg-gradient-to-br from-[#FFFDF8]/95 to-[#F8EFE3]/95
+            p-4
+            backdrop-blur
+            md:p-6
           "
         >
-          <div>
-            <h2 className="text-2xl font-black text-[#3A2A1C]">{title}</h2>
-            <p className="mt-1 text-sm font-semibold text-[#8A7867]">
+          <div className="min-w-0 flex-1 text-right">
+            <h2 className="break-words text-2xl font-black text-[#3A2A1C] md:text-3xl">
+              {title}
+            </h2>
+            <p className="mt-1 text-sm font-semibold leading-6 text-[#8A7867]">
               {subtitle}
             </p>
           </div>
 
           <button
+            type="button"
             onClick={onClose}
             className="
               flex h-11 w-11 shrink-0 items-center justify-center
@@ -3332,7 +3347,15 @@ function ModalShell({
           </button>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-5 md:p-6">
+        <main
+          className="
+            flex-1
+            overflow-y-auto
+            overscroll-contain
+            px-4 py-5
+            md:px-6 md:py-6
+          "
+        >
           {children}
         </main>
       </div>
@@ -3344,13 +3367,14 @@ function ModalFooter({ children }: { children: ReactNode }) {
   return (
     <footer
       className="
-        sticky bottom-0 mt-8
-        flex flex-col gap-3
+        sticky bottom-0 z-20 mt-8
+        -mx-4
+        flex flex-col-reverse gap-3
         border-t border-[#EFE2D1]
         bg-white/95
-        pt-5
-        md:flex-row
-        md:justify-end
+        px-4 py-4
+        backdrop-blur
+        md:-mx-6 md:flex-row md:justify-end md:px-6
       "
     >
       {children}
@@ -3537,7 +3561,11 @@ function UserActionsDropdown({
   }
 
   return (
-    <div className={`relative z-[9999] ${fullWidth ? "w-full" : "w-[190px]"}`}>
+    <div
+      className={`relative z-30 ${
+        fullWidth ? "w-full" : "w-full sm:w-[190px]"
+      }`}
+    >
       <button
         type="button"
         onClick={onToggle}
@@ -3563,14 +3591,15 @@ function UserActionsDropdown({
       {open && (
         <div
           className="
-            absolute left-0 top-[calc(100%+8px)]
-            z-[9999]
-            w-full min-w-[210px]
+            mt-2
+            w-full
+            min-w-0
             overflow-hidden
             rounded-2xl
             border border-[#E7D8C6]
             bg-white
             shadow-[0_18px_45px_rgba(36,25,15,0.16)]
+            sm:absolute sm:left-0 sm:top-[calc(100%+8px)] sm:z-50 sm:mt-0 sm:min-w-[210px]
           "
         >
           <DropdownAction
