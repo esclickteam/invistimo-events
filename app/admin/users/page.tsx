@@ -926,7 +926,7 @@ export default function AdminUsersPage() {
 
         <section
           className="
-            hidden overflow-hidden rounded-[28px]
+            hidden overflow-visible rounded-[28px]
             border border-[#E7D8C6]
             bg-white
             shadow-[0_18px_55px_rgba(60,43,25,0.07)]
@@ -990,7 +990,8 @@ export default function AdminUsersPage() {
                     </StatusBadge>
                   </td>
 
-                  <td className="p-4">
+                  <td className="relative z-50 overflow-visible p-4">
+
                     <UserActionsDropdown
                       user={u}
                       open={openActionsId === u._id}
@@ -3178,7 +3179,7 @@ function UserActionsDropdown({
   }
 
   return (
-    <div className={`relative ${fullWidth ? "w-full" : "w-[190px]"}`}>
+    <div className={`relative z-[9999] ${fullWidth ? "w-full" : "w-[190px]"}`}>
       <button
         type="button"
         onClick={onToggle}
@@ -3205,7 +3206,7 @@ function UserActionsDropdown({
         <div
           className="
             absolute left-0 top-[calc(100%+8px)]
-            z-[80]
+            z-[9999]
             w-full min-w-[210px]
             overflow-hidden
             rounded-2xl
