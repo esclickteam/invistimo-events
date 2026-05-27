@@ -27,6 +27,8 @@ type CategoryOverrideInput = {
   eventNote?: string;
 };
 
+type SelectionEditMode = "untilDate" | "lockAfterSubmit";
+
 function createSelectionToken() {
   return crypto.randomBytes(24).toString("hex");
 }
@@ -49,6 +51,20 @@ function getBaseUrl(req: NextRequest) {
 function toNumber(value: unknown, fallback = 0) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function normalizeSelectionEditMode(value: unknown): SelectionEditMode {
+  return value === "lockAfterSubmit" ? "lockAfterSubmit" : "untilDate";
+}
+
+function normalizeEditableUntil(value: unknown) {
+  if (!value) return null;
+
+  const date = new Date(String(value));
+
+  if (Number.isNaN(date.getTime())) return null;
+
+  return date;
 }
 
 function createOverrideMap(overrides: CategoryOverrideInput[] = []) {
@@ -146,6 +162,20 @@ function buildMenuResponse(menu: any, selectionLink: string) {
     publicToken: menuObject.selectionToken,
     publicLink: selectionLink,
     selectionLink,
+
+    selectionEditMode: menuObject.selectionEditMode || "untilDate",
+    selectionEditableUntil: menuObject.selectionEditableUntil || null,
+    lockedAt: menuObject.lockedAt || null,
+    lockedReason: menuObject.lockedReason || "",
+
+    selectedDishes: Array.isArray(menuObject.selectedDishes)
+      ? menuObject.selectedDishes
+      : [],
+
+    customerNote: String(menuObject.customerNote || ""),
+    submittedByName: String(menuObject.submittedByName || ""),
+    submittedByPhone: String(menuObject.submittedByPhone || ""),
+    submittedAt: menuObject.submittedAt || null,
 
     categoryOverrides: categories.map((category: any, index: number) => {
       const categoryId = String(
@@ -283,29 +313,29 @@ export async function POST(req: NextRequest, context: RouteContext) {
     }
 
     const menuTemplate = await VenueMenu.findOne({
-  _id: templateId,
-  $or: [
-    { ownerId: auth.userId },
-    { venueOwnerId: auth.userId },
-    { userId: auth.userId },
-    { createdBy: auth.userId },
-    { hallId: (event as any).venueHallId },
-    { hallId: String((event as any).venueHallId || "") },
-  ],
-}).lean();
+      _id: templateId,
+      $or: [
+        { ownerId: auth.userId },
+        { venueOwnerId: auth.userId },
+        { userId: auth.userId },
+        { createdBy: auth.userId },
+        { hallId: (event as any).venueHallId },
+        { hallId: String((event as any).venueHallId || "") },
+      ],
+    }).lean();
 
-if (!menuTemplate) {
-  console.error("Venue menu template not found", {
-    templateId,
-    authUserId: auth.userId,
-    eventHallId: (event as any).venueHallId,
-  });
+    if (!menuTemplate) {
+      console.error("Venue menu template not found", {
+        templateId,
+        authUserId: auth.userId,
+        eventHallId: (event as any).venueHallId,
+      });
 
-  return NextResponse.json(
-    { success: false, message: "התפריט לא נמצא או שאין הרשאה" },
-    { status: 404 }
-  );
-}
+      return NextResponse.json(
+        { success: false, message: "התפריט לא נמצא או שאין הרשאה" },
+        { status: 404 }
+      );
+    }
 
     const existing = await VenueEventMenu.findOne({
       eventId,
@@ -322,6 +352,13 @@ if (!menuTemplate) {
       (menuTemplate as any).categories || [],
       categoryOverrides
     );
+
+    const selectionEditMode = normalizeSelectionEditMode(body?.selectionEditMode);
+
+    const selectionEditableUntil =
+      selectionEditMode === "untilDate"
+        ? normalizeEditableUntil(body?.selectionEditableUntil)
+        : null;
 
     const eventMenuPayload = {
       eventId,
@@ -342,9 +379,25 @@ if (!menuTemplate) {
       selectionToken,
       eventNote: String(body?.eventNote || ""),
 
+      selectionEditMode,
+      selectionEditableUntil,
+
+      /*
+        חשוב:
+        האולם יכול תמיד לערוך.
+        לכן לא נועלים את הרשומה כאן עבור האולם.
+        lockedAt מיועד רק לבדיקה בדף בעל האירוע.
+      */
+      lockedAt: existing?.lockedAt || null,
+      lockedReason: existing?.lockedReason || "",
+
       categories,
       selectedDishes: existing?.selectedDishes || [],
+      customerNote: existing?.customerNote || "",
+      submittedByName: existing?.submittedByName || "",
+      submittedByPhone: existing?.submittedByPhone || "",
       submittedAt: existing?.submittedAt || null,
+      approvedAt: existing?.approvedAt || null,
     };
 
     const savedMenu = existing
@@ -366,6 +419,8 @@ if (!menuTemplate) {
       venueEventMenuStatus: savedMenu.status || "pending",
       venueEventMenuTemplateId: (menuTemplate as any)._id,
       venueEventMenuSelectionToken: selectionToken,
+      venueEventMenuSelectionEditMode: savedMenu.selectionEditMode,
+      venueEventMenuSelectionEditableUntil: savedMenu.selectionEditableUntil,
     });
 
     const baseUrl = getBaseUrl(req);
@@ -430,6 +485,32 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 
     existing.eventNote = String(body?.eventNote || "");
 
+    /*
+      האולם יכול תמיד לשנות את תנאי העריכה לבעל האירוע.
+      זה לא חוסם את האולם עצמו.
+    */
+    existing.selectionEditMode = normalizeSelectionEditMode(body?.selectionEditMode);
+
+    existing.selectionEditableUntil =
+      existing.selectionEditMode === "untilDate"
+        ? normalizeEditableUntil(body?.selectionEditableUntil)
+        : null;
+
+    /*
+      אם האולם עבר מ-lockAfterSubmit ל-untilDate,
+      אפשר לשחרר את הנעילה לבעל האירוע.
+      אבל רק אם הפרונט שלח releaseLock=true.
+    */
+    if (body?.releaseLock === true) {
+      existing.lockedAt = null;
+      existing.lockedReason = "";
+    }
+
+    if (body?.forceLock === true) {
+      existing.lockedAt = new Date();
+      existing.lockedReason = String(body?.lockedReason || "האולם נעל את הבחירה");
+    }
+
     existing.categories = existing.categories.map((category: any) => {
       const categoryId = String(category?.id || "");
       const override = overrideMap.get(categoryId);
@@ -452,6 +533,11 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       };
     });
 
+    /*
+      חשוב:
+      אם בעל האירוע כבר שלח בחירה והאולם משנה משהו,
+      הסטטוס נהיה updated, אבל זה לא נועל את האולם.
+    */
     existing.status = existing.status === "submitted" ? "updated" : existing.status;
 
     const savedMenu = await existing.save();
@@ -462,6 +548,8 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 
     await Event.findByIdAndUpdate(eventId, {
       venueEventMenuStatus: savedMenu.status || "pending",
+      venueEventMenuSelectionEditMode: savedMenu.selectionEditMode,
+      venueEventMenuSelectionEditableUntil: savedMenu.selectionEditableUntil,
     });
 
     return NextResponse.json({

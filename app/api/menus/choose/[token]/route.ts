@@ -11,6 +11,11 @@ type RouteContext = {
   }>;
 };
 
+type EditState = {
+  canEdit: boolean;
+  lockReason: string;
+};
+
 function normalizePhone(value: unknown) {
   return String(value || "").replace(/\D/g, "");
 }
@@ -18,6 +23,74 @@ function normalizePhone(value: unknown) {
 function toNumber(value: unknown, fallback = 0) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function formatDateTimeForReason(value: unknown) {
+  if (!value) return "";
+
+  const date = new Date(String(value));
+  if (Number.isNaN(date.getTime())) return "";
+
+  return new Intl.DateTimeFormat("he-IL", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(date);
+}
+
+/*
+  חשוב:
+  זה API של בעל האירוע דרך הקישור האישי.
+  לכן כאן כן בודקים אם מותר לו לערוך.
+  האולם עצמו ממשיך לערוך דרך:
+  /api/venues/dashboard/events/[eventId]/menu
+*/
+function getMenuEditState(menu: any): EditState {
+  const now = new Date();
+
+  if (menu?.lockedAt) {
+    return {
+      canEdit: false,
+      lockReason:
+        String(menu?.lockedReason || "").trim() ||
+        "התפריט נעול לצפייה בלבד.",
+    };
+  }
+
+  const selectionEditMode =
+    menu?.selectionEditMode === "lockAfterSubmit"
+      ? "lockAfterSubmit"
+      : "untilDate";
+
+  if (selectionEditMode === "lockAfterSubmit" && menu?.submittedAt) {
+    return {
+      canEdit: false,
+      lockReason:
+        "התפריט כבר נשמר וננעל לאחר הבחירה הראשונה. ניתן לצפות בבחירה בלבד.",
+    };
+  }
+
+  if (selectionEditMode === "untilDate" && menu?.selectionEditableUntil) {
+    const editableUntil = new Date(menu.selectionEditableUntil);
+
+    if (
+      !Number.isNaN(editableUntil.getTime()) &&
+      editableUntil.getTime() < now.getTime()
+    ) {
+      const formatted = formatDateTimeForReason(menu.selectionEditableUntil);
+
+      return {
+        canEdit: false,
+        lockReason: formatted
+          ? `עבר מועד העדכון שהוגדר על ידי האולם (${formatted}). התפריט זמין לצפייה בלבד.`
+          : "עבר מועד העדכון שהוגדר על ידי האולם. התפריט זמין לצפייה בלבד.",
+      };
+    }
+  }
+
+  return {
+    canEdit: true,
+    lockReason: "",
+  };
 }
 
 function buildPublicMenu(menu: any) {
@@ -28,6 +101,8 @@ function buildPublicMenu(menu: any) {
     ? menuObject.categories
     : [];
 
+  const editState = getMenuEditState(menuObject);
+
   return {
     id: String(menuObject._id || menuObject.id || ""),
     name: String(menuObject.name || "תפריט אירוע"),
@@ -35,6 +110,18 @@ function buildPublicMenu(menu: any) {
     type: String(menuObject.type || ""),
     eventNote: String(menuObject.eventNote || ""),
     status: String(menuObject.status || "pending"),
+
+    selectionEditMode:
+      menuObject.selectionEditMode === "lockAfterSubmit"
+        ? "lockAfterSubmit"
+        : "untilDate",
+    selectionEditableUntil: menuObject.selectionEditableUntil || null,
+    lockedAt: menuObject.lockedAt || null,
+    lockedReason: String(menuObject.lockedReason || ""),
+
+    canEdit: editState.canEdit,
+    lockReason: editState.lockReason,
+
     submittedAt: menuObject.submittedAt || null,
     customerNote: String(menuObject.customerNote || ""),
     submittedByName: String(menuObject.submittedByName || ""),
@@ -45,7 +132,9 @@ function buildPublicMenu(menu: any) {
 
       return {
         id: String(category?.id || `category-${index + 1}`),
-        title: String(category?.title || category?.name || `קטגוריה ${index + 1}`),
+        title: String(
+          category?.title || category?.name || `קטגוריה ${index + 1}`
+        ),
         subtitle: String(category?.subtitle || ""),
         eventNote: String(category?.eventNote || ""),
         chooseCount: toNumber(
@@ -101,7 +190,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
       menu: buildPublicMenu(menu),
     });
   } catch (error) {
-    console.error("GET public menu failed:", error);
+    console.error("GET event personal menu failed:", error);
 
     return NextResponse.json(
       {
@@ -144,6 +233,24 @@ export async function POST(req: NextRequest, context: RouteContext) {
       return NextResponse.json(
         { success: false, message: "התפריט לא נמצא או שהקישור לא תקין" },
         { status: 404 }
+      );
+    }
+
+    /*
+      כאן חוסמים רק את בעל האירוע.
+      האולם יכול לערוך ולעדכן תמיד דרך API הדשבורד של האולם.
+    */
+    const editState = getMenuEditState(menu);
+
+    if (!editState.canEdit) {
+      return NextResponse.json(
+        {
+          success: false,
+          locked: true,
+          canEdit: false,
+          message: editState.lockReason || "התפריט נעול לצפייה בלבד.",
+        },
+        { status: 423 }
       );
     }
 
@@ -198,12 +305,24 @@ export async function POST(req: NextRequest, context: RouteContext) {
       dishName: String(item.dishName || ""),
     }));
 
+    const now = new Date();
+
     menu.selectedDishes = normalizedSelectedDishes;
     menu.customerNote = customerNote;
     menu.submittedByName = submittedByName;
     menu.submittedByPhone = submittedByPhone;
-    menu.submittedAt = new Date();
+    menu.submittedAt = now;
     menu.status = menu.status === "approved" ? "updated" : "submitted";
+
+    /*
+      אם האולם הגדיר "ננעל לאחר בחירה ראשונה",
+      הנעילה תופעל רק אחרי שמירה מוצלחת של בעל האירוע.
+    */
+    if (menu.selectionEditMode === "lockAfterSubmit") {
+      menu.lockedAt = now;
+      menu.lockedReason =
+        "התפריט ננעל לאחר שמירת הבחירה הראשונה של בעל האירוע.";
+    }
 
     await menu.save();
 
@@ -213,7 +332,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
       menu: buildPublicMenu(menu),
     });
   } catch (error) {
-    console.error("POST public menu failed:", error);
+    console.error("POST event personal menu failed:", error);
 
     return NextResponse.json(
       {

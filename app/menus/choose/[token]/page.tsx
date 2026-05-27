@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   ChevronRight,
   Loader2,
+  Lock,
   Save,
   Sparkles,
   Utensils,
@@ -37,6 +38,12 @@ type PublicMenu = {
   type: string;
   eventNote: string;
   status: string;
+  selectionEditMode: "untilDate" | "lockAfterSubmit";
+  selectionEditableUntil?: string | null;
+  lockedAt?: string | null;
+  lockedReason?: string;
+  canEdit: boolean;
+  lockReason: string;
   submittedAt?: string | null;
   customerNote: string;
   submittedByName: string;
@@ -95,6 +102,13 @@ export default function PublicMenuChoosePage() {
       ? Math.round((completedCategories / totalCategories) * 100)
       : 0;
 
+  const canEdit = Boolean(menu?.canEdit);
+  const lockReason =
+    menu?.lockReason ||
+    menu?.lockedReason ||
+    "התפריט נעול לצפייה בלבד.";
+  const editableUntilText = formatDateTime(menu?.selectionEditableUntil || null);
+
   useEffect(() => {
     if (!token) return;
 
@@ -152,6 +166,8 @@ export default function PublicMenuChoosePage() {
   }, [token]);
 
   const toggleDish = (category: PublicCategory, dish: PublicDish) => {
+    if (!canEdit) return;
+
     setSuccessMessage("");
     setError("");
 
@@ -182,6 +198,10 @@ export default function PublicMenuChoosePage() {
 
   const validateBeforeSave = () => {
     if (!menu) return "התפריט לא נטען";
+
+    if (!menu.canEdit) {
+      return menu.lockReason || "התפריט נעול לצפייה בלבד.";
+    }
 
     for (const category of menu.categories) {
       const selectedCount = selected[category.id]?.length || 0;
@@ -319,6 +339,31 @@ export default function PublicMenuChoosePage() {
                   {menu.eventNote}
                 </div>
               ) : null}
+
+              {!menu.canEdit ? (
+                <div className="mt-4 rounded-[24px] border border-amber-200 bg-amber-50 p-4 text-sm font-bold leading-7 text-amber-800">
+                  <div className="flex items-start gap-2">
+                    <Lock className="mt-0.5 shrink-0" size={18} />
+                    <div>
+                      <div className="font-black text-[#2d2419]">
+                        התפריט נעול לצפייה בלבד
+                      </div>
+                      <div className="mt-1">{lockReason}</div>
+                    </div>
+                  </div>
+                </div>
+              ) : menu.selectionEditMode === "untilDate" && editableUntilText ? (
+                <div className="mt-4 rounded-[24px] border border-[#dfc28a] bg-white/70 p-4 text-sm font-bold leading-7 text-[#72552c]">
+                  ניתן לעדכן את הבחירה עד:{" "}
+                  <span className="font-black text-[#2d2419]">
+                    {editableUntilText}
+                  </span>
+                </div>
+              ) : menu.selectionEditMode === "lockAfterSubmit" ? (
+                <div className="mt-4 rounded-[24px] border border-[#dfc28a] bg-white/70 p-4 text-sm font-bold leading-7 text-[#72552c]">
+                  שימו לב: לאחר שמירת הבחירה הראשונה, התפריט יינעל לצפייה בלבד.
+                </div>
+              ) : null}
             </div>
 
             <div className="rounded-[30px] border border-[#e4cfaa] bg-white p-4 shadow-sm md:w-[260px]">
@@ -361,7 +406,8 @@ export default function PublicMenuChoosePage() {
                 value={submittedByName}
                 onChange={(event) => setSubmittedByName(event.target.value)}
                 placeholder="לדוגמה: הדר"
-                className="h-12 w-full rounded-2xl border border-[#e4cfaa] bg-[#fffdf8] px-4 text-sm font-bold outline-none transition focus:border-[#b98121] focus:ring-4 focus:ring-[#d8a241]/10"
+                disabled={!menu.canEdit}
+                className="h-12 w-full rounded-2xl border border-[#e4cfaa] bg-[#fffdf8] px-4 text-sm font-bold outline-none transition focus:border-[#b98121] focus:ring-4 focus:ring-[#d8a241]/10 disabled:cursor-not-allowed disabled:bg-[#f3eadb] disabled:text-[#9c8b73]"
               />
             </label>
 
@@ -373,7 +419,8 @@ export default function PublicMenuChoosePage() {
                 value={submittedByPhone}
                 onChange={(event) => setSubmittedByPhone(event.target.value)}
                 placeholder="0500000000"
-                className="h-12 w-full rounded-2xl border border-[#e4cfaa] bg-[#fffdf8] px-4 text-sm font-bold outline-none transition focus:border-[#b98121] focus:ring-4 focus:ring-[#d8a241]/10"
+                disabled={!menu.canEdit}
+                className="h-12 w-full rounded-2xl border border-[#e4cfaa] bg-[#fffdf8] px-4 text-sm font-bold outline-none transition focus:border-[#b98121] focus:ring-4 focus:ring-[#d8a241]/10 disabled:cursor-not-allowed disabled:bg-[#f3eadb] disabled:text-[#9c8b73]"
               />
             </label>
           </div>
@@ -386,7 +433,8 @@ export default function PublicMenuChoosePage() {
               value={customerNote}
               onChange={(event) => setCustomerNote(event.target.value)}
               placeholder="לדוגמה: נשמח לשים לב לרגישויות, טבעונים או בקשות מיוחדות..."
-              className="min-h-[90px] w-full rounded-2xl border border-[#e4cfaa] bg-[#fffdf8] p-4 text-sm font-bold leading-7 outline-none transition focus:border-[#b98121] focus:ring-4 focus:ring-[#d8a241]/10"
+              disabled={!menu.canEdit}
+              className="min-h-[90px] w-full rounded-2xl border border-[#e4cfaa] bg-[#fffdf8] p-4 text-sm font-bold leading-7 outline-none transition focus:border-[#b98121] focus:ring-4 focus:ring-[#d8a241]/10 disabled:cursor-not-allowed disabled:bg-[#f3eadb] disabled:text-[#9c8b73]"
             />
           </label>
         </section>
@@ -469,8 +517,12 @@ export default function PublicMenuChoosePage() {
                           key={dish.id}
                           type="button"
                           onClick={() => toggleDish(category, dish)}
+                          disabled={!menu.canEdit}
                           className={[
-                            "group overflow-hidden rounded-[30px] border bg-white text-right shadow-sm transition hover:-translate-y-1 hover:shadow-[0_18px_45px_rgba(76,52,21,0.13)]",
+                            "group overflow-hidden rounded-[30px] border bg-white text-right shadow-sm transition disabled:cursor-not-allowed disabled:opacity-80",
+                            menu.canEdit
+                              ? "hover:-translate-y-1 hover:shadow-[0_18px_45px_rgba(76,52,21,0.13)]"
+                              : "",
                             checked
                               ? "border-[#b98121] ring-4 ring-[#d8a241]/15"
                               : "border-[#ead8b5] hover:border-[#d8a241]",
@@ -559,20 +611,29 @@ export default function PublicMenuChoosePage() {
                 {completedCategories} מתוך {totalCategories} קטגוריות הושלמו
               </div>
               <div className="mt-1 text-xs font-bold text-[#806945]">
-                יש להשלים את כל הבחירות לפני שמירה.
+                {menu.canEdit
+                  ? "יש להשלים את כל הבחירות לפני שמירה."
+                  : "התפריט מוצג לצפייה בלבד. לא ניתן לבצע שינויים מהקישור הזה."}
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={saveSelection}
-              disabled={saving}
-              className="flex h-13 items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#d8a241,#b67b1d)] px-7 py-4 text-sm font-black text-white shadow-[0_12px_28px_rgba(156,101,23,0.22)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-              {saving ? "שומר..." : "שמירת בחירת המנות"}
-              <ChevronRight size={18} />
-            </button>
+            {menu.canEdit ? (
+              <button
+                type="button"
+                onClick={saveSelection}
+                disabled={saving}
+                className="flex h-13 items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#d8a241,#b67b1d)] px-7 py-4 text-sm font-black text-white shadow-[0_12px_28px_rgba(156,101,23,0.22)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                {saving ? "שומר..." : "שמירת בחירת המנות"}
+                <ChevronRight size={18} />
+              </button>
+            ) : (
+              <div className="flex h-13 items-center justify-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-7 py-4 text-sm font-black text-amber-800">
+                <Lock size={18} />
+                צפייה בלבד
+              </div>
+            )}
           </div>
         </div>
       </div>

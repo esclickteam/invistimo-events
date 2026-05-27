@@ -36,6 +36,7 @@ type PaymentRowStatus = "paid" | "partial" | "unpaid";
 type EventStatus = "active" | "archived";
 type EventPaymentStatus = "paid" | "refunded";
 type VenueAccessStatus = "none" | "linked" | "disabled";
+type SelectionEditMode = "untilDate" | "lockAfterSubmit";
 
 type EventType =
   | "wedding"
@@ -197,12 +198,34 @@ type AssignedMenu = {
   publicToken?: string;
   publicLink?: string;
   eventNote?: string;
+
+  /*
+    הגדרת עריכה לבעל האירוע בלבד.
+    האולם עצמו תמיד יכול לערוך ולעדכן מתוך הדשבורד.
+  */
+  selectionEditMode?: SelectionEditMode;
+  selectionEditableUntil?: string | null;
+  lockedAt?: string | null;
+  lockedReason?: string;
+
   sentToCouple: boolean;
   coupleSelected: boolean;
   approved: boolean;
   selectedAt?: string;
   submittedAt?: string;
   updatedAt?: string;
+
+  selectedDishes?: {
+    categoryId: string;
+    categoryTitle: string;
+    dishId: string;
+    dishName: string;
+  }[];
+
+  customerNote?: string;
+  submittedByName?: string;
+  submittedByPhone?: string;
+
   categoryOverrides: AssignedMenuCategoryOverride[];
 };
 
@@ -316,15 +339,49 @@ function normalizeAssignedMenu(raw: any): AssignedMenu | null {
     id: String(raw?._id || raw?.id || ""),
     templateId: String(raw?.templateId || raw?.menuTemplateId || raw?.sourceMenuId || ""),
     name: String(raw?.name || raw?.menuName || "תפריט אירוע"),
-    publicToken: raw?.publicToken ? String(raw.publicToken) : raw?.token ? String(raw.token) : undefined,
+    publicToken: raw?.publicToken
+      ? String(raw.publicToken)
+      : raw?.token
+        ? String(raw.token)
+        : raw?.selectionToken
+          ? String(raw.selectionToken)
+          : undefined,
     publicLink: raw?.publicLink ? String(raw.publicLink) : raw?.selectionLink ? String(raw.selectionLink) : undefined,
     eventNote: String(raw?.eventNote || raw?.note || ""),
+
+    selectionEditMode:
+      raw?.selectionEditMode === "lockAfterSubmit" ? "lockAfterSubmit" : "untilDate",
+    selectionEditableUntil: raw?.selectionEditableUntil
+      ? String(raw.selectionEditableUntil)
+      : null,
+    lockedAt: raw?.lockedAt ? String(raw.lockedAt) : null,
+    lockedReason: String(raw?.lockedReason || ""),
+
     sentToCouple: Boolean(raw?.sentToCouple || raw?.smsSentAt || raw?.sentAt),
-    coupleSelected: Boolean(raw?.coupleSelected || raw?.submittedAt || raw?.selectedAt),
+    coupleSelected: Boolean(
+      raw?.coupleSelected ||
+        raw?.submittedAt ||
+        raw?.selectedAt ||
+        (Array.isArray(raw?.selectedDishes) && raw.selectedDishes.length > 0)
+    ),
     approved: Boolean(raw?.approved || raw?.approvedAt),
     selectedAt: raw?.selectedAt ? String(raw.selectedAt) : undefined,
     submittedAt: raw?.submittedAt ? String(raw.submittedAt) : undefined,
     updatedAt: raw?.updatedAt ? String(raw.updatedAt) : undefined,
+
+    selectedDishes: Array.isArray(raw?.selectedDishes)
+      ? raw.selectedDishes.map((item: any) => ({
+          categoryId: String(item?.categoryId || ""),
+          categoryTitle: String(item?.categoryTitle || ""),
+          dishId: String(item?.dishId || ""),
+          dishName: String(item?.dishName || ""),
+        }))
+      : [],
+
+    customerNote: String(raw?.customerNote || ""),
+    submittedByName: String(raw?.submittedByName || ""),
+    submittedByPhone: String(raw?.submittedByPhone || ""),
+
     categoryOverrides: rawOverrides.map((category: any, index: number) => ({
       id: String(category?._id || category?.id || `category-${index + 1}`),
       name: String(category?.name || category?.title || `קטגוריה ${index + 1}`),
@@ -349,9 +406,17 @@ function buildAssignedMenuFromTemplate(
     templateId: template.id,
     name: template.name,
     eventNote,
+    selectionEditMode: "untilDate",
+    selectionEditableUntil: null,
+    lockedAt: null,
+    lockedReason: "",
     sentToCouple: false,
     coupleSelected: false,
     approved: false,
+    selectedDishes: [],
+    customerNote: "",
+    submittedByName: "",
+    submittedByPhone: "",
     categoryOverrides: template.categoryRules.map((category) => ({
       ...category,
       originalMinChoices: category.minChoices,
@@ -872,6 +937,29 @@ export default function VenueEventPage() {
     });
   };
 
+  const updateSelectedMenuDraftPolicy = (
+    patch: Partial<Pick<AssignedMenu, "selectionEditMode" | "selectionEditableUntil">>
+  ) => {
+    setSelectedMenuDraft((current) => {
+      if (!current) return current;
+
+      const nextSelectionEditMode =
+        patch.selectionEditMode || current.selectionEditMode || "untilDate";
+
+      return {
+        ...current,
+        ...patch,
+        selectionEditMode: nextSelectionEditMode,
+        selectionEditableUntil:
+          nextSelectionEditMode === "lockAfterSubmit"
+            ? null
+            : patch.selectionEditableUntil !== undefined
+              ? patch.selectionEditableUntil
+              : current.selectionEditableUntil || null,
+      };
+    });
+  };
+
   const saveSelectedMenuForEvent = async () => {
     if (!eventId || !selectedMenuDraft) return;
 
@@ -899,6 +987,8 @@ export default function VenueEventPage() {
             hallId,
             templateId: selectedMenuDraft.templateId,
             eventNote: selectedMenuDraft.eventNote || "",
+            selectionEditMode: selectedMenuDraft.selectionEditMode || "untilDate",
+            selectionEditableUntil: selectedMenuDraft.selectionEditableUntil || null,
             categoryOverrides: selectedMenuDraft.categoryOverrides.map((category) => ({
               categoryId: category.id,
               name: category.name,
@@ -963,6 +1053,29 @@ export default function VenueEventPage() {
     });
   };
 
+  const updateAssignedMenuPolicy = (
+    patch: Partial<Pick<AssignedMenu, "selectionEditMode" | "selectionEditableUntil">>
+  ) => {
+    setAssignedMenu((current) => {
+      if (!current) return current;
+
+      const nextSelectionEditMode =
+        patch.selectionEditMode || current.selectionEditMode || "untilDate";
+
+      return {
+        ...current,
+        ...patch,
+        selectionEditMode: nextSelectionEditMode,
+        selectionEditableUntil:
+          nextSelectionEditMode === "lockAfterSubmit"
+            ? null
+            : patch.selectionEditableUntil !== undefined
+              ? patch.selectionEditableUntil
+              : current.selectionEditableUntil || null,
+      };
+    });
+  };
+
   const saveAssignedMenuChanges = async () => {
     if (!eventId || !assignedMenu) return;
 
@@ -988,6 +1101,8 @@ export default function VenueEventPage() {
           credentials: "include",
           body: JSON.stringify({
             eventNote: assignedMenu.eventNote || "",
+            selectionEditMode: assignedMenu.selectionEditMode || "untilDate",
+            selectionEditableUntil: assignedMenu.selectionEditableUntil || null,
             categoryOverrides: assignedMenu.categoryOverrides.map((category) => ({
               categoryId: category.id,
               name: category.name,
@@ -2090,6 +2205,7 @@ const sendMenuSmsToCouple = async () => {
                   )
                 }
                 onUpdateCategory={updateAssignedMenuCategory}
+                onUpdateSelectionPolicy={updateAssignedMenuPolicy}
                 onSaveChanges={saveAssignedMenuChanges}
               />
             )}
@@ -2292,6 +2408,19 @@ const sendMenuSmsToCouple = async () => {
                     className="min-h-[92px] w-full rounded-2xl border border-[#eadfce] bg-white p-3 text-sm font-bold text-[#2b241c] outline-none focus:border-[#b98121]"
                   />
                 </label>
+
+                <MenuEditPolicyBox
+                  selectionEditMode={selectedMenuDraft.selectionEditMode || "untilDate"}
+                  selectionEditableUntil={selectedMenuDraft.selectionEditableUntil || ""}
+                  lockedAt={selectedMenuDraft.lockedAt || null}
+                  lockedReason={selectedMenuDraft.lockedReason || ""}
+                  onChangeMode={(value) =>
+                    updateSelectedMenuDraftPolicy({ selectionEditMode: value })
+                  }
+                  onChangeEditableUntil={(value) =>
+                    updateSelectedMenuDraftPolicy({ selectionEditableUntil: value })
+                  }
+                />
               </div>
 
               <div className="rounded-[26px] border border-[#eadfce] bg-white p-5">
@@ -2404,7 +2533,7 @@ const sendMenuSmsToCouple = async () => {
               label="קישור אישי"
               value={
                 assignedMenu?.publicLink ||
-                `${typeof window !== "undefined" ? window.location.origin : "https://www.invistimo.com"}/menus/${assignedMenu?.publicToken || eventId}/choose`
+                `${typeof window !== "undefined" ? window.location.origin : "https://www.invistimo.com"}/menus/choose/${assignedMenu?.publicToken || eventId}`
               }
             />
 
@@ -2774,6 +2903,103 @@ function ClientInviteTab({
   );
 }
 
+
+function formatDateTimeInputValue(value?: string | null) {
+  if (!value) return "";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  const offset = date.getTimezoneOffset();
+  const localDate = new Date(date.getTime() - offset * 60 * 1000);
+
+  return localDate.toISOString().slice(0, 16);
+}
+
+function MenuEditPolicyBox({
+  selectionEditMode,
+  selectionEditableUntil,
+  lockedAt,
+  lockedReason,
+  onChangeMode,
+  onChangeEditableUntil,
+}: {
+  selectionEditMode: SelectionEditMode;
+  selectionEditableUntil?: string | null;
+  lockedAt?: string | null;
+  lockedReason?: string;
+  onChangeMode: (value: SelectionEditMode) => void;
+  onChangeEditableUntil: (value: string) => void;
+}) {
+  const isUntilDate = selectionEditMode === "untilDate";
+
+  return (
+    <div className="mt-4 rounded-[24px] border border-[#eadfce] bg-white p-4">
+      <div className="text-sm font-black text-[#2b241c]">
+        אפשרות עריכה לבעל האירוע
+      </div>
+      <p className="mt-1 text-xs font-bold leading-5 text-[#7f705d]">
+        ההגבלה הזאת חלה רק על בעל האירוע בקישור האישי. האולם יכול לערוך ולעדכן תמיד מתוך הדשבורד.
+      </p>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-2">
+        <button
+          type="button"
+          onClick={() => onChangeMode("untilDate")}
+          className={[
+            "rounded-2xl border p-4 text-right transition",
+            isUntilDate
+              ? "border-[#b98121] bg-[#fff8eb] text-[#8c5f19]"
+              : "border-[#eadfce] bg-[#fffdf8] text-[#6f6252] hover:bg-[#fff8eb]",
+          ].join(" ")}
+        >
+          <div className="text-sm font-black">ניתן לעדכן עד תאריך</div>
+          <div className="mt-1 text-xs font-bold leading-5">
+            אחרי התאריך שהאולם הגדיר, בעל האירוע יראה את התפריט לצפייה בלבד.
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onChangeMode("lockAfterSubmit")}
+          className={[
+            "rounded-2xl border p-4 text-right transition",
+            !isUntilDate
+              ? "border-[#b98121] bg-[#fff8eb] text-[#8c5f19]"
+              : "border-[#eadfce] bg-[#fffdf8] text-[#6f6252] hover:bg-[#fff8eb]",
+          ].join(" ")}
+        >
+          <div className="text-sm font-black">ננעל לאחר בחירה ראשונה</div>
+          <div className="mt-1 text-xs font-bold leading-5">
+            אחרי שבעל האירוע שומר פעם אחת, הוא יוכל לראות את התפריט בלבד.
+          </div>
+        </button>
+      </div>
+
+      {isUntilDate ? (
+        <label className="mt-4 block">
+          <span className="mb-1 block text-xs font-black text-[#8a7b68]">
+            ניתן לעדכן עד תאריך ושעה
+          </span>
+          <input
+            type="datetime-local"
+            value={formatDateTimeInputValue(selectionEditableUntil)}
+            onChange={(event) => onChangeEditableUntil(event.target.value)}
+            className="h-11 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-3 text-sm font-bold text-[#2b241c] outline-none focus:border-[#b98121]"
+          />
+        </label>
+      ) : null}
+
+      {lockedAt ? (
+        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs font-black leading-5 text-amber-700">
+          התפריט נעול לבעל האירוע לצפייה בלבד.
+          {lockedReason ? ` סיבה: ${lockedReason}` : ""}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function EventMenuTab({
   eventId,
   hallId,
@@ -2786,6 +3012,7 @@ function EventMenuTab({
   onSendToCouple,
   onUpdateEventNote,
   onUpdateCategory,
+  onUpdateSelectionPolicy,
   onSaveChanges,
 }: {
   eventId: string;
@@ -2803,10 +3030,23 @@ function EventMenuTab({
     field: "eventChoices" | "eventNote",
     value: string
   ) => void;
+  onUpdateSelectionPolicy: (
+    patch: Partial<Pick<AssignedMenu, "selectionEditMode" | "selectionEditableUntil">>
+  ) => void;
   onSaveChanges: () => void;
 }) {
   const publicLink = assignedMenu?.publicLink ||
-    `https://www.invistimo.com/menus/${assignedMenu?.publicToken || eventId}/choose`;
+    `https://www.invistimo.com/menus/choose/${assignedMenu?.publicToken || eventId}`;
+
+  const selectedDishGroups = (assignedMenu?.selectedDishes || []).reduce(
+    (groups, item) => {
+      const key = item.categoryTitle || "קטגוריה";
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(item);
+      return groups;
+    },
+    {} as Record<string, NonNullable<AssignedMenu["selectedDishes"]>>
+  );
 
   if (!assignedMenu) {
     return (
@@ -2940,6 +3180,19 @@ function EventMenuTab({
             />
           </label>
 
+          <MenuEditPolicyBox
+            selectionEditMode={assignedMenu.selectionEditMode || "untilDate"}
+            selectionEditableUntil={assignedMenu.selectionEditableUntil || ""}
+            lockedAt={assignedMenu.lockedAt || null}
+            lockedReason={assignedMenu.lockedReason || ""}
+            onChangeMode={(value) =>
+              onUpdateSelectionPolicy({ selectionEditMode: value })
+            }
+            onChangeEditableUntil={(value) =>
+              onUpdateSelectionPolicy({ selectionEditableUntil: value })
+            }
+          />
+
           <div className="mt-4 grid gap-2">
             <button
               type="button"
@@ -2974,7 +3227,7 @@ function EventMenuTab({
 
           <div className="mt-4 grid gap-2">
             <Link
-              href={assignedMenu.publicLink || `/menus/${assignedMenu.publicToken || eventId}/choose`}
+              href={assignedMenu.publicLink || `/menus/choose/${assignedMenu.publicToken || eventId}`}
               target="_blank"
               className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-white text-sm font-black text-[#6f6252]"
             >
@@ -3024,6 +3277,79 @@ function EventMenuTab({
           </div>
         </MainCard>
       </section>
+
+      <MainCard title="בחירות בעל האירוע" icon={<CheckCircle2 size={19} />}>
+        {(assignedMenu.selectedDishes || []).length ? (
+          <div className="space-y-4">
+            <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-4">
+              <div className="text-base font-black text-emerald-800">
+                בעל האירוע שמר בחירת מנות
+              </div>
+              <div className="mt-2 grid gap-3 md:grid-cols-3">
+                <InfoPill
+                  label="שם ממלא"
+                  value={assignedMenu.submittedByName || "לא הוזן"}
+                />
+                <InfoPill
+                  label="טלפון"
+                  value={assignedMenu.submittedByPhone || "לא הוזן"}
+                />
+                <InfoPill
+                  label="נשמר בתאריך"
+                  value={
+                    assignedMenu.submittedAt
+                      ? formatDateTime(assignedMenu.submittedAt)
+                      : "לא הוגדר"
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {Object.entries(selectedDishGroups).map(([categoryTitle, dishes]) => (
+                <div
+                  key={categoryTitle}
+                  className="rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-4"
+                >
+                  <div className="mb-3 text-sm font-black text-[#2b241c]">
+                    {categoryTitle}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {dishes.map((dish) => (
+                      <span
+                        key={`${dish.categoryId}-${dish.dishId}`}
+                        className="rounded-full bg-[#fff4dc] px-3 py-1 text-xs font-black text-[#8c5f19]"
+                      >
+                        {dish.dishName}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {assignedMenu.customerNote ? (
+              <div className="rounded-2xl border border-[#eadfce] bg-white p-4">
+                <div className="text-xs font-black text-[#8a7b68]">
+                  הערות בעל האירוע
+                </div>
+                <p className="mt-2 text-sm font-bold leading-7 text-[#2b241c]">
+                  {assignedMenu.customerNote}
+                </p>
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <div className="rounded-[28px] border border-dashed border-[#d9bd83] bg-[#fff8eb] p-5">
+            <div className="text-base font-black text-[#2b241c]">
+              עדיין לא נבחרו מנות
+            </div>
+            <p className="mt-2 text-sm font-bold leading-7 text-[#7f705d]">
+              אחרי שבעל האירוע יפתח את הקישור האישי וישמור בחירה, המנות יופיעו כאן אוטומטית.
+            </p>
+          </div>
+        )}
+      </MainCard>
 
       <MainCard title="התאמות בחירה לאירוע הזה" icon={<Edit3 size={19} />}>
         <div className="rounded-2xl border border-[#eadfce] bg-[#fff8eb] p-4 text-sm font-bold leading-7 text-[#7f705d]">

@@ -131,11 +131,13 @@ const VenueEventMenuSelectedDishSchema = new Schema(
     dishName: {
       type: String,
       default: "",
+      trim: true,
     },
 
     categoryTitle: {
       type: String,
       default: "",
+      trim: true,
     },
   },
   {
@@ -209,6 +211,45 @@ const VenueEventMenuSchema = new Schema(
     },
 
     /*
+      מצב עריכה לבעל האירוע:
+      untilDate = אפשר לערוך עד תאריך שהאולם הגדיר.
+      lockAfterSubmit = אחרי שמירה ראשונה התפריט ננעל לצפייה בלבד.
+    */
+    selectionEditMode: {
+      type: String,
+      enum: ["untilDate", "lockAfterSubmit"],
+      default: "untilDate",
+      index: true,
+    },
+
+    /*
+      עד מתי בעל האירוע יכול לערוך.
+      אם התאריך עבר — הדף נפתח לצפייה בלבד.
+    */
+    selectionEditableUntil: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+
+    /*
+      מתי התפריט ננעל בפועל.
+      למשל אחרי שמירה ראשונה במצב lockAfterSubmit,
+      או בעתיד אם האולם ינעל ידנית.
+    */
+    lockedAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+
+    lockedReason: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    /*
       הערה כללית של האולם לאירוע הספציפי.
       לדוגמה: "באירוע הזה לאפשר בחירה מורחבת בעיקריות".
     */
@@ -223,6 +264,10 @@ const VenueEventMenuSchema = new Schema(
       default: [],
     },
 
+    /*
+      הבחירות שבעל האירוע שמר.
+      זה מה שהאולם יראה אצלו אחרי שבעל האירוע בחר.
+    */
     selectedDishes: {
       type: [VenueEventMenuSelectedDishSchema],
       default: [],
@@ -249,6 +294,7 @@ const VenueEventMenuSchema = new Schema(
     submittedAt: {
       type: Date,
       default: null,
+      index: true,
     },
 
     approvedAt: {
@@ -279,6 +325,11 @@ VenueEventMenuSchema.index({
 VenueEventMenuSchema.index({
   templateId: 1,
   createdAt: -1,
+});
+
+VenueEventMenuSchema.index({
+  selectionEditMode: 1,
+  selectionEditableUntil: 1,
 });
 
 export default models.VenueEventMenu ||
