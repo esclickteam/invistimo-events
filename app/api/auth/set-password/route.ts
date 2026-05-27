@@ -103,32 +103,36 @@ export async function POST(req: Request) {
        FIND USER BY TOKEN
     ========================= */
     const user = await User.findOne({ resetPasswordToken: token }).select(
-      `
-        _id
-        name
-        email
-        role
-        password
+  `
+    _id
+    name
+    email
+    role
+    password
 
-        resetPasswordToken
-        resetPasswordExpires
-        needsPasswordSetup
+    resetPasswordToken
+    resetPasswordExpires
+    needsPasswordSetup
 
-        producerPricePerRecord
-        staffType
-        assignedProducerId
-        billingSource
-        hasPaid
+    producerPricePerRecord
+    staffType
+    assignedProducerId
+    billingSource
+    hasPaid
 
-        allowedMessageRounds
-        planLimits
+    allowedMessageRounds
+    planLimits
 
-        includeDigitalSeating
-        includeEventManagement
-        selfManageEnabled
-        accessModules
-      `
-    );
+    includeCalls
+    callsRounds
+    callRoundsSchedule
+
+    includeDigitalSeating
+    includeEventManagement
+    selfManageEnabled
+    accessModules
+  `
+);
 
     console.log("👤 USER FOUND:", user ? user._id.toString() : null);
 

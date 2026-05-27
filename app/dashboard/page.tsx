@@ -488,6 +488,8 @@ const canViewActualArrived =
   const [openCallsGuest, setOpenCallsGuest] =
     useState<Guest | null>(null);
 
+  const [openRsvpSchedule, setOpenRsvpSchedule] = useState(false);
+
   const [search, setSearch] = useState("");
 
   const [quickFilter, setQuickFilter] =
@@ -1883,6 +1885,14 @@ const canOpenEventManagement =
 
               router.push(`/dashboard/invitations/${invitationId}/edit`);
             }}
+            onOpenRsvpSchedule={() => {
+              if (isDemo) {
+                handleDemoBlockedAction();
+                return;
+              }
+
+              setOpenRsvpSchedule(true);
+            }}
           />
 
           <GoldenRecentActivityCard logs={recentActivityLogs} />
@@ -2765,6 +2775,13 @@ const canOpenEventManagement =
               )
             );
           }}
+        />
+      )}
+
+      {openRsvpSchedule && (
+        <UserRsvpScheduleModal
+          invitationId={invitationId}
+          onClose={() => setOpenRsvpSchedule(false)}
         />
       )}
 
@@ -3951,18 +3968,262 @@ function GoldenDonutCard({
   );
 }
 
+
+type UserRsvpScheduleItem = {
+  _id?: string;
+  title?: string;
+  label?: string;
+  group?: string;
+  icon?: string;
+  channel?: string | null;
+  channelLabel?: string;
+  scheduledAt?: string | null;
+  sentAt?: string | null;
+  status?: string;
+  roundNumber?: number | string | null;
+};
+
+function UserRsvpScheduleModal({
+  invitationId,
+  onClose,
+}: {
+  invitationId?: string;
+  onClose: () => void;
+}) {
+  const [loading, setLoading] = useState(true);
+  const [items, setItems] = useState<UserRsvpScheduleItem[]>([]);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadSchedule() {
+      try {
+        setLoading(true);
+        setError("");
+
+        const query = invitationId
+          ? `?invitationId=${encodeURIComponent(invitationId)}`
+          : "";
+
+        const res = await fetch(`/api/event-schedule${query}`, {
+          credentials: "include",
+          cache: "no-store",
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!active) return;
+
+        if (!res.ok || data?.success === false) {
+          setItems([]);
+          setError(data?.message || "לא הצלחנו לטעון את לו״ז אישורי ההגעה");
+          return;
+        }
+
+        const rawItems = Array.isArray(data?.items) ? data.items : [];
+
+        const visibleItems = rawItems.filter((item: any) => {
+          const type = String(item?.type || item?.group || item?.title || "").toLowerCase();
+          const channel = String(item?.channel || "").toLowerCase();
+
+          return (
+            type.includes("rsvp") ||
+            type.includes("אישורי") ||
+            type.includes("תזכורת") ||
+            type.includes("תודה") ||
+            type.includes("שיחות") ||
+            channel === "calls"
+          );
+        });
+
+        setItems(visibleItems);
+      } catch (err) {
+        console.error("load RSVP schedule failed:", err);
+
+        if (active) {
+          setItems([]);
+          setError("שגיאה בטעינת לו״ז אישורי ההגעה");
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    loadSchedule();
+
+    return () => {
+      active = false;
+    };
+  }, [invitationId]);
+
+  const sortedItems = useMemo(() => {
+    return [...items].sort((a, b) => {
+      const aDate = a.scheduledAt || a.sentAt || "";
+      const bDate = b.scheduledAt || b.sentAt || "";
+
+      if (!aDate && !bDate) return 0;
+      if (!aDate) return 1;
+      if (!bDate) return -1;
+
+      return new Date(aDate).getTime() - new Date(bDate).getTime();
+    });
+  }, [items]);
+
+  return (
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#1E1B2E]/55 px-4 py-6 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        dir="rtl"
+        onClick={(e) => e.stopPropagation()}
+        className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[34px] border border-[#E3D6C3] bg-[#FFFDF8] shadow-2xl"
+      >
+        <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-[#E9DDC8] bg-[#FFFDF8]/95 px-6 py-5 backdrop-blur">
+          <div>
+            <h2 className="text-2xl font-black text-[#241A14]">
+              לו״ז אישורי הגעה
+            </h2>
+            <p className="mt-1 text-sm font-bold text-[#8A7A68]">
+              כל הסבבים המתוזמנים: WhatsApp, SMS ושיחות.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#E3D6C3] bg-white text-xl font-black text-[#6B5A48] shadow-sm transition hover:bg-[#F8EFE3]"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="space-y-3 p-6">
+          {loading ? (
+            <div className="rounded-3xl border border-[#E9DDC8] bg-white p-8 text-center text-sm font-black text-[#8A7A68]">
+              טוען לו״ז...
+            </div>
+          ) : error ? (
+            <div className="rounded-3xl border border-rose-200 bg-rose-50 p-8 text-center text-sm font-black text-rose-700">
+              {error}
+            </div>
+          ) : sortedItems.length === 0 ? (
+            <div className="rounded-3xl border border-[#E9DDC8] bg-white p-8 text-center">
+              <div className="text-lg font-black text-[#241A14]">
+                אין עדיין סבבים מתוזמנים
+              </div>
+              <p className="mt-2 text-sm font-bold text-[#8A7A68]">
+                לאחר תזמון אישורי הגעה, תזכורות, תודה או סבבי שיחות — הם יופיעו כאן.
+              </p>
+            </div>
+          ) : (
+            sortedItems.map((item, index) => {
+              const scheduledText = formatActivityDateTime(item.scheduledAt || "");
+              const sentText = formatActivityDateTime(item.sentAt || "");
+              const channelText = item.channelLabel || getScheduleChannelLabel(item.channel);
+              const title = item.title || item.label || "סבב מתוזמן";
+              const group = item.group || getScheduleGroupLabel(item);
+              const icon = item.icon || getScheduleIcon(item);
+              const isSent = item.status === "sent" || Boolean(item.sentAt);
+
+              return (
+                <div
+                  key={`${item._id || item.title || item.label || "schedule"}-${index}`}
+                  className="flex flex-col gap-3 rounded-[26px] border border-[#E9DDC8] bg-white p-4 md:flex-row md:items-center md:justify-between"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#FFF2D8] text-xl">
+                      {icon}
+                    </div>
+
+                    <div>
+                      <div className="text-xs font-black text-[#B8844F]">
+                        {group}
+                      </div>
+
+                      <div className="mt-1 text-base font-black text-[#241A14]">
+                        {title}
+                      </div>
+
+                      <div className="mt-2 inline-flex rounded-full bg-[#F6F1EA] px-3 py-1 text-xs font-black text-[#7B6754]">
+                        {isSent ? "בוצע" : "מתוזמן"}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl bg-[#FFFDF8] px-4 py-3 text-sm font-black text-[#6B5A48] md:min-w-[260px]">
+                    {isSent ? (
+                      <span>
+                        נשלח{channelText ? ` · ${channelText}` : ""} · {sentText}
+                      </span>
+                    ) : item.scheduledAt ? (
+                      <span>
+                        מתוזמן{channelText ? ` · ${channelText}` : ""} · {scheduledText}
+                      </span>
+                    ) : (
+                      <span>אין תזמון</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        <div className="border-t border-[#E9DDC8] bg-white/70 px-6 py-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-12 rounded-2xl bg-[#24190F] px-7 font-black text-white transition hover:bg-black"
+          >
+            סגירה
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function getScheduleChannelLabel(channel?: string | null) {
+  if (channel === "whatsapp") return "WhatsApp";
+  if (channel === "sms") return "SMS";
+  if (channel === "calls") return "שיחות";
+  return "";
+}
+
+function getScheduleGroupLabel(item: UserRsvpScheduleItem) {
+  const text = String(item.title || item.label || "").toLowerCase();
+
+  if (item.channel === "calls" || text.includes("שיחות")) return "סבבי שיחות";
+  if (text.includes("תזכורת")) return "תזכורות";
+  if (text.includes("תודה")) return "תודה";
+  return "אישורי הגעה";
+}
+
+function getScheduleIcon(item: UserRsvpScheduleItem) {
+  const group = getScheduleGroupLabel(item);
+
+  if (group === "סבבי שיחות") return "📞";
+  if (group === "תזכורות") return "🔔";
+  if (group === "תודה") return "💛";
+  return "💬";
+}
+
 function GoldenEventDetailsCard({
   title,
   date,
   time,
   location,
   onOpen,
+  onOpenRsvpSchedule,
 }: {
   title: string;
   date: string;
   time: string;
   location: string;
   onOpen: () => void;
+  onOpenRsvpSchedule: () => void;
 }) {
   return (
     <div className="rounded-[28px] border border-[#E3D6C3] bg-white p-5 shadow-[0_14px_34px_rgba(80,55,32,0.055)]">
@@ -3981,10 +4242,19 @@ function GoldenEventDetailsCard({
       </div>
 
       <button
+        type="button"
         onClick={onOpen}
         className="mt-5 w-full rounded-2xl border border-[#E3D6C3] bg-[#FBF7F0] px-5 py-3 font-black text-[#241A14] transition hover:bg-[#F2E6D5]"
       >
         צפייה בפרטי האירוע
+      </button>
+
+      <button
+        type="button"
+        onClick={onOpenRsvpSchedule}
+        className="mt-3 w-full rounded-2xl border border-[#D9B46F]/50 bg-gradient-to-l from-[#FFF7E8] via-white to-[#FFFDF8] px-5 py-3 font-black text-[#8B5E24] shadow-sm transition hover:bg-[#FFF4E4]"
+      >
+        צפייה בלו״ז אישורי הגעה
       </button>
     </div>
   );
