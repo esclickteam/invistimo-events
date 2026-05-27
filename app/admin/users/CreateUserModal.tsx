@@ -29,6 +29,17 @@ type VenueSeatingServiceState = {
   staffPaymentAmount: number;
 };
 
+/* לו״ז סבבי שיחות שנשמר על המשתמש */
+type CallRoundScheduleState = {
+  enabled: boolean;
+  rounds: {
+    roundNumber: 1 | 2 | 3;
+    title: string;
+    scheduledAt: string;
+    notes: string;
+  }[];
+};
+
 /* איזה אפסיילים כלולים בכל חבילה */
 const includedByPlan: Record<PlanKey, AddonKey[]> = {
   plan1: [],
@@ -92,6 +103,50 @@ export default function CreateUserModal({ onClose }: Props) {
     system: { enabled: false, price: 0 },
     design: { enabled: false, price: 0 },
   });
+
+  /* ===== CALL ROUNDS SCHEDULE ===== */
+  const [callRoundsSchedule, setCallRoundsSchedule] =
+    useState<CallRoundScheduleState>({
+      enabled: true,
+      rounds: [
+        {
+          roundNumber: 1,
+          title: "סבב שיחות 1",
+          scheduledAt: "",
+          notes: "",
+        },
+        {
+          roundNumber: 2,
+          title: "סבב שיחות 2",
+          scheduledAt: "",
+          notes: "",
+        },
+        {
+          roundNumber: 3,
+          title: "סבב שיחות 3",
+          scheduledAt: "",
+          notes: "",
+        },
+      ],
+    });
+
+  const handleCallRoundChange = (
+    roundNumber: 1 | 2 | 3,
+    field: "scheduledAt" | "notes",
+    value: string
+  ) => {
+    setCallRoundsSchedule((prev) => ({
+      ...prev,
+      rounds: prev.rounds.map((round) =>
+        round.roundNumber === roundNumber
+          ? {
+              ...round,
+              [field]: value,
+            }
+          : round
+      ),
+    }));
+  };
 
   /* ===== VENUE SEATING SERVICE ===== */
   const [venueSeatingService, setVenueSeatingService] =
@@ -211,6 +266,26 @@ export default function CreateUserModal({ onClose }: Props) {
   /* ===== PRODUCER BILLING ===== */
   const [producerPricePerRecord, setProducerPricePerRecord] =
     useState<number | "">("");
+
+  const callsIncludedInPlan = includedByPlan[plan].includes("calls");
+  const callsEnabledForUser =
+    role === "user" && (callsIncludedInPlan || addons.calls.enabled);
+
+  const normalizedCallRoundsSchedule = {
+    enabled: Boolean(callsEnabledForUser && callRoundsSchedule.enabled),
+    rounds:
+      callsEnabledForUser && callRoundsSchedule.enabled
+        ? callRoundsSchedule.rounds
+            .filter((round) => Boolean(round.scheduledAt))
+            .map((round) => ({
+              roundNumber: round.roundNumber,
+              title: round.title || `סבב שיחות ${round.roundNumber}`,
+              scheduledAt: round.scheduledAt,
+              status: "scheduled",
+              notes: round.notes || "",
+            }))
+        : [],
+  };
 
   /* =====================================================
      SUBMIT
@@ -340,6 +415,8 @@ export default function CreateUserModal({ onClose }: Props) {
                 seatingEnabled,
                 selfManageEnabled,
                 customDesignEnabled,
+
+                callRoundsSchedule: normalizedCallRoundsSchedule,
 
                 venueSeatingService: {
                   enabled: venueSeatingService.enabled,
@@ -773,6 +850,137 @@ export default function CreateUserModal({ onClose }: Props) {
                       </div>
                     );
                   })}
+                </div>
+              </section>
+
+              {/* CALL ROUNDS SCHEDULE */}
+              <section className="space-y-4">
+                <div>
+                  <h3 className="text-sm font-bold text-[#3f4856]">
+                    לו״ז סבבי שיחות
+                  </h3>
+
+                  <p className="text-xs text-[#8b7b68] mt-1">
+                    אפשר להגדיר כבר בזמן הקמת המשתמש תאריך ושעה לכל סבב
+                    שיחות. הנתונים נשמרים על מודל המשתמש.
+                  </p>
+                </div>
+
+                <div
+                  className={`rounded-3xl border p-4 space-y-5 shadow-sm transition ${
+                    callsEnabledForUser
+                      ? "border-[#eadfce] bg-white"
+                      : "border-[#eadfce] bg-[#f4f1ed] opacity-75"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-4">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        disabled={!callsEnabledForUser}
+                        checked={Boolean(
+                          callsEnabledForUser && callRoundsSchedule.enabled
+                        )}
+                        onChange={(e) =>
+                          setCallRoundsSchedule((prev) => ({
+                            ...prev,
+                            enabled: e.target.checked,
+                          }))
+                        }
+                        className="w-4 h-4 accent-[#9b7a3c] disabled:cursor-not-allowed"
+                      />
+
+                      <span className="text-[#4b3b2a] font-bold">
+                        הגדרת תאריכים לסבבי שיחות
+                      </span>
+                    </label>
+
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-bold border ${
+                        callsEnabledForUser
+                          ? "bg-[#eef8ef] text-[#258343] border-[#d7eadb]"
+                          : "bg-white text-[#8b7b68] border-[#eadfce]"
+                      }`}
+                    >
+                      {callsEnabledForUser ? "שיחות פעילות" : "שיחות לא פעילות"}
+                    </span>
+                  </div>
+
+                  {!callsEnabledForUser ? (
+                    <div className="rounded-2xl border border-[#eadfce] bg-[#fff8ed] px-4 py-3 text-sm text-[#7a5a2f] leading-6">
+                      כדי להגדיר לו״ז שיחות צריך לבחור חבילה שכוללת שיחות או
+                      לסמן את האפסייל “שיחות”.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {callRoundsSchedule.rounds.map((round) => (
+                        <div
+                          key={round.roundNumber}
+                          className="rounded-2xl border border-[#eadfce] bg-[#fffdf9] p-4 space-y-3"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-bold text-[#3f3327]">
+                                {round.title}
+                              </p>
+
+                              <p className="text-xs text-[#8b7b68] mt-1">
+                                בחירה אופציונלית. אם לא יוגדר תאריך — הסבב
+                                יישמר ללא תזמון.
+                              </p>
+                            </div>
+
+                            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#b47a3b] text-sm font-bold text-white">
+                              {round.roundNumber}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-[1fr_1.2fr] gap-3">
+                            <label className="space-y-2">
+                              <span className="block text-xs font-bold text-[#6b5a45]">
+                                תאריך ושעה
+                              </span>
+
+                              <input
+                                type="datetime-local"
+                                value={round.scheduledAt}
+                                onChange={(e) =>
+                                  handleCallRoundChange(
+                                    round.roundNumber,
+                                    "scheduledAt",
+                                    e.target.value
+                                  )
+                                }
+                                disabled={!callRoundsSchedule.enabled}
+                                className="w-full h-12 rounded-2xl border border-[#eadfce] bg-white px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15 disabled:opacity-50"
+                              />
+                            </label>
+
+                            <label className="space-y-2">
+                              <span className="block text-xs font-bold text-[#6b5a45]">
+                                הערה פנימית
+                              </span>
+
+                              <input
+                                type="text"
+                                placeholder="לדוגמה: להתחיל ממשפחה קרובה..."
+                                value={round.notes}
+                                onChange={(e) =>
+                                  handleCallRoundChange(
+                                    round.roundNumber,
+                                    "notes",
+                                    e.target.value
+                                  )
+                                }
+                                disabled={!callRoundsSchedule.enabled}
+                                className="w-full h-12 rounded-2xl border border-[#eadfce] bg-white px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15 disabled:opacity-50"
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </section>
 

@@ -88,6 +88,47 @@ function normalizeAccessModules(value: any, fallback: any) {
   };
 }
 
+
+function normalizeCallRoundsSchedule(value: any) {
+  if (!value || typeof value !== "object") return undefined;
+
+  const rounds = Array.isArray(value.rounds)
+    ? value.rounds
+        .map((round: any) => {
+          const roundNumber = Number(round?.roundNumber || 0);
+
+          if (![1, 2, 3].includes(roundNumber)) {
+            return null;
+          }
+
+          const scheduledAt = round?.scheduledAt
+            ? new Date(round.scheduledAt)
+            : null;
+
+          const hasValidScheduledAt =
+            scheduledAt instanceof Date && !Number.isNaN(scheduledAt.getTime());
+
+          return {
+            roundNumber,
+            title: String(round?.title || `סבב שיחות ${roundNumber}`).trim(),
+            scheduledAt: hasValidScheduledAt ? scheduledAt : null,
+            status: hasValidScheduledAt
+              ? String(round?.status || "scheduled")
+              : String(round?.status || "draft"),
+            notes: String(round?.notes || "").trim(),
+            updatedAt: new Date(),
+            createdAt: round?.createdAt ? new Date(round.createdAt) : new Date(),
+          };
+        })
+        .filter(Boolean)
+    : [];
+
+  return {
+    enabled: Boolean(value.enabled),
+    rounds: Boolean(value.enabled) ? rounds : [],
+  };
+}
+
 function normalizeVenueSeatingService(value: any) {
   if (!value || typeof value !== "object") return undefined;
 
@@ -239,6 +280,10 @@ export async function PATCH(
 
     const nextVenueSeatingService = hasField(body, "venueSeatingService")
       ? normalizeVenueSeatingService(body.venueSeatingService)
+      : undefined;
+
+    const nextCallRoundsSchedule = hasField(body, "callRoundsSchedule")
+      ? normalizeCallRoundsSchedule(body.callRoundsSchedule)
       : undefined;
 
     const hadVenueSeatingService = Boolean(
@@ -527,6 +572,7 @@ export async function PATCH(
       eventDate: hasField(body, "eventDate") ? body.eventDate : undefined,
 
       venueSeatingService: nextVenueSeatingService,
+      callRoundsSchedule: nextCallRoundsSchedule,
 
       ...planLimitsPatch,
     });

@@ -202,9 +202,43 @@ function findScheduledMessage(
   });
 }
 
-function buildMessageRounds(invitation: any, scheduledMessages: any[] = []) {
+
+function normalizeCallRoundsSchedule(rawSchedule: any, enabled: boolean) {
+  const now = new Date();
+
+  const rounds = Array.isArray(rawSchedule?.rounds)
+    ? rawSchedule.rounds
+        .filter((round: any) => round?.scheduledAt)
+        .map((round: any) => {
+          const roundNumber = Number(round.roundNumber);
+
+          return {
+            roundNumber,
+            title: round.title || `סבב שיחות ${roundNumber}`,
+            scheduledAt: new Date(round.scheduledAt),
+            status: round.status || "scheduled",
+            notes: round.notes || "",
+            createdAt: round.createdAt ? new Date(round.createdAt) : now,
+            updatedAt: now,
+          };
+        })
+        .filter((round: any) => round.roundNumber >= 1 && round.roundNumber <= 3)
+    : [];
+
+  return {
+    enabled: Boolean(enabled && (rawSchedule?.enabled || rounds.length > 0)),
+    rounds,
+  };
+}
+
+function buildMessageRounds(
+  invitation: any,
+  scheduledMessages: any[] = [],
+  user: any = null
+) {
   const locks = invitation?.adminMessageRoundLocks || {};
   const rsvpRounds = [1, 2, 3];
+  const callRounds = [1, 2, 3];
 
   if (!invitation) {
     return {
@@ -238,6 +272,22 @@ function buildMessageRounds(invitation: any, scheduledMessages: any[] = []) {
           scheduledAt: null,
         },
       ],
+
+      calls: callRounds.map((round) => {
+        const userRound = user?.callRoundsSchedule?.rounds?.find(
+          (item: any) => Number(item.roundNumber) === Number(round)
+        );
+
+        return {
+          key: `call_round_${round}`,
+          label: `סבב שיחות ${round}`,
+          done: userRound?.status === "done",
+          blocked: false,
+          sentAt: null,
+          scheduledAt: userRound?.scheduledAt || null,
+          channel: "calls",
+        };
+      }),
     };
   }
 
@@ -391,6 +441,35 @@ function buildMessageRounds(invitation: any, scheduledMessages: any[] = []) {
 
       })(),
     ],
+
+    calls: callRounds.map((round) => {
+      const userRound = user?.callRoundsSchedule?.rounds?.find(
+        (item: any) => Number(item.roundNumber) === Number(round)
+      );
+
+      const scheduledMessage = findScheduledMessage(scheduledMessages, {
+        invitationId,
+        userId,
+        type: "call_round",
+        templateKeys: ["call_round", "calls", "phone_calls"],
+        roundNumber: round,
+      });
+
+      const scheduledAt =
+        userRound?.scheduledAt ||
+        scheduledMessage?.scheduledAt ||
+        null;
+
+      return {
+        key: `call_round_${round}`,
+        label: `סבב שיחות ${round}`,
+        done: userRound?.status === "done",
+        sentAt: null,
+        scheduledAt,
+        channel: "calls",
+        blocked: Boolean(locks?.[`call_round_${round}`]),
+      };
+    }),
   };
 }
 
@@ -455,6 +534,7 @@ export async function GET(req: Request) {
         includeCalls
         callsRounds
         callsAddonPrice
+        callRoundsSchedule
 
         includeCreditGifts
         creditGiftsAddonPrice
@@ -769,7 +849,7 @@ export async function GET(req: Request) {
             invitationId: null,
             eventDate: u.eventDate || null,
 
-            messageRounds: buildMessageRounds(null, []),
+            messageRounds: buildMessageRounds(null, [], u),
           };
         }
 
@@ -852,7 +932,7 @@ export async function GET(req: Request) {
 
           eventDate: u.eventDate || invitation?.eventDate || null,
 
-          messageRounds: buildMessageRounds(invitation, scheduledMessages),
+          messageRounds: buildMessageRounds(invitation, scheduledMessages, u),
         };
       })
       .sort((a: any, b: any) => {
@@ -948,6 +1028,7 @@ export async function POST(req: Request) {
       addons,
       plan,
       accessModules,
+      callRoundsSchedule,
     } = body || {};
 
     const safeName = normalizeString(name);
@@ -1247,6 +1328,10 @@ export async function POST(req: Request) {
       includeCalls: finalIncludeCalls,
       callsRounds: finalIncludeCalls ? 3 : 0,
       callsAddonPrice: Number(addons?.calls?.price || 0),
+      callRoundsSchedule: normalizeCallRoundsSchedule(
+        callRoundsSchedule,
+        finalIncludeCalls
+      ),
 
       includeCreditGifts: finalIncludeCreditGifts,
       creditGiftsAddonPrice: Number(addons?.credit?.price || 0),

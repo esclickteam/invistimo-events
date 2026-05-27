@@ -70,6 +70,8 @@ type AdminUser = {
   assignedProducerEmail?: string;
   assignedStaffEmail?: string;
 
+  callRoundsSchedule?: CallRoundsScheduleState;
+
   messageRounds?: AdminMessageRounds;
   venueSeatingService?: {
   enabled?: boolean;
@@ -99,6 +101,7 @@ type AdminMessageRounds = {
   rsvp: MessageRoundStatus[];
   reminder: MessageRoundStatus[];
   thankyou: MessageRoundStatus[];
+  calls?: MessageRoundStatus[];
 };
 
 type Assignee = {
@@ -210,6 +213,19 @@ type VenueSeatingServiceForm = {
   depositAmount: number;
   venuePaymentAmount: number;
   staffPaymentAmount: number;
+};
+
+type CallRoundScheduleItem = {
+  roundNumber: number;
+  title: string;
+  scheduledAt: string;
+  status: "draft" | "scheduled" | "done" | "cancelled" | string;
+  notes: string;
+};
+
+type CallRoundsScheduleState = {
+  enabled: boolean;
+  rounds: CallRoundScheduleItem[];
 };
 
 function roundMoney(value: number) {
@@ -474,6 +490,48 @@ function getDefaultMessageRounds(): AdminMessageRounds {
         scheduledAt: null,
       },
     ],
+    calls: [1, 2, 3].map((round) => ({
+      key: `call_round_${round}`,
+      label: `סבב שיחות ${round}`,
+      done: false,
+      blocked: false,
+      sentAt: null,
+      scheduledAt: null,
+      channel: "calls",
+    })),
+  };
+}
+
+function formatDateTimeInput(value?: string | null) {
+  if (!value) return "";
+
+  try {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+
+    const offsetMs = date.getTimezoneOffset() * 60 * 1000;
+    return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
+  } catch {
+    return "";
+  }
+}
+
+function getInitialCallRoundsSchedule(user?: AdminUser): CallRoundsScheduleState {
+  return {
+    enabled: Boolean(user?.callRoundsSchedule?.enabled || user?.includeCalls),
+    rounds: [1, 2, 3].map((roundNumber) => {
+      const existing = user?.callRoundsSchedule?.rounds?.find(
+        (item) => Number(item.roundNumber) === roundNumber
+      );
+
+      return {
+        roundNumber,
+        title: existing?.title || `סבב שיחות ${roundNumber}`,
+        scheduledAt: formatDateTimeInput(existing?.scheduledAt || ""),
+        status: existing?.status || (existing?.scheduledAt ? "scheduled" : "draft"),
+        notes: existing?.notes || "",
+      };
+    }),
   };
 }
 
@@ -1384,6 +1442,163 @@ function VenueSeatingServiceFields({
   );
 }
 
+function CallRoundsScheduleFields({
+  value,
+  onChange,
+}: {
+  value: CallRoundsScheduleState;
+  onChange: (next: CallRoundsScheduleState) => void;
+}) {
+  function updateEnabled(enabled: boolean) {
+    onChange({
+      ...value,
+      enabled,
+      rounds: value.rounds.map((round) => ({
+        ...round,
+        status: enabled && round.scheduledAt ? "scheduled" : round.status,
+      })),
+    });
+  }
+
+  function updateRound(
+    roundNumber: number,
+    field: "scheduledAt" | "notes",
+    fieldValue: string
+  ) {
+    onChange({
+      ...value,
+      rounds: value.rounds.map((round) =>
+        round.roundNumber === roundNumber
+          ? {
+              ...round,
+              [field]: fieldValue,
+              status:
+                field === "scheduledAt" && fieldValue
+                  ? "scheduled"
+                  : field === "scheduledAt" && !fieldValue
+                    ? "draft"
+                    : round.status,
+            }
+          : round
+      ),
+    });
+  }
+
+  return (
+    <section
+      className="
+        rounded-[26px]
+        border border-[#E7D8C6]
+        bg-white
+        p-5
+      "
+    >
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div>
+          <h3 className="text-lg font-black text-[#3A2A1C]">
+            לו״ז סבבי שיחות
+          </h3>
+
+          <p className="mt-1 text-xs font-bold text-[#8A7867]">
+            כאן מגדירים תאריך ושעה לסבבי השיחות של הלקוח. השמירה מתבצעת על המשתמש.
+          </p>
+        </div>
+
+        {value.enabled && (
+          <span className="rounded-full bg-[#FFF2D8] px-3 py-1 text-xs font-black text-[#9A651B]">
+            פעיל
+          </span>
+        )}
+      </div>
+
+      <label
+        className="
+          mb-5 flex cursor-pointer items-center justify-between gap-3
+          rounded-2xl
+          border border-[#EFE2D1]
+          bg-[#FFFDF8]
+          px-4 py-3
+        "
+      >
+        <div>
+          <div className="font-black text-[#3A2A1C]">
+            {value.enabled ? "לו״ז סבבי שיחות פעיל" : "הפעל לו״ז סבבי שיחות"}
+          </div>
+
+          <div className="mt-1 text-xs font-bold text-[#8A7867]">
+            ניתן להשאיר סבב ריק אם עדיין אין תאריך סופי.
+          </div>
+        </div>
+
+        <input
+          type="checkbox"
+          checked={value.enabled}
+          onChange={(e) => updateEnabled(e.target.checked)}
+          className="h-5 w-5 accent-[#B97821]"
+        />
+      </label>
+
+      {value.enabled && (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          {value.rounds.map((round) => (
+            <div
+              key={round.roundNumber}
+              className="rounded-2xl border border-[#EFE2D1] bg-[#FFFDF8] p-4"
+            >
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <div className="font-black text-[#3A2A1C]">
+                  סבב שיחות {round.roundNumber}
+                </div>
+
+                <span
+                  className={`rounded-full px-3 py-1 text-[11px] font-black ${
+                    round.scheduledAt
+                      ? "bg-[#EAF8EF] text-[#1F9A55]"
+                      : "bg-[#F6F1EA] text-[#7B6754]"
+                  }`}
+                >
+                  {round.scheduledAt ? "מתוזמן" : "לא נקבע"}
+                </span>
+              </div>
+
+              <input
+                type="datetime-local"
+                value={round.scheduledAt}
+                onChange={(e) =>
+                  updateRound(round.roundNumber, "scheduledAt", e.target.value)
+                }
+                className="
+                  h-12 w-full rounded-2xl
+                  border border-[#E7D8C6]
+                  bg-white px-4
+                  text-sm font-bold
+                  text-[#3A2A1C]
+                  outline-none
+                "
+              />
+
+              <textarea
+                value={round.notes}
+                onChange={(e) => updateRound(round.roundNumber, "notes", e.target.value)}
+                placeholder="הערות לסבב..."
+                className="
+                  mt-3 min-h-[82px] w-full resize-none rounded-2xl
+                  border border-[#E7D8C6]
+                  bg-white px-4 py-3
+                  text-sm font-bold
+                  text-[#3A2A1C]
+                  outline-none
+                  placeholder:text-[#B6A28C]
+                "
+              />
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 /* =========================
    EDIT USER MODAL
 ========================= */
@@ -1413,6 +1628,9 @@ function EditUserModal({
   const [venueSeatingService, setVenueSeatingService] =
   useState<VenueSeatingServiceForm>(getVenueSeatingServiceInitial(user));
 
+  const [callRoundsSchedule, setCallRoundsSchedule] =
+    useState<CallRoundsScheduleState>(getInitialCallRoundsSchedule(user));
+
   const [form, setForm] = useState<EditFormState>({
     name: user.name || "",
     email: user.email || "",
@@ -1436,6 +1654,7 @@ function EditUserModal({
   email: form.email,
   eventDate: form.eventDate,
   venueSeatingService: calculateVenueSeatingService(venueSeatingService),
+  callRoundsSchedule,
 }),
       });
 
@@ -1588,6 +1807,11 @@ function EditUserModal({
   value={venueSeatingService}
   onChange={setVenueSeatingService}
   purchasedMode
+/>
+
+<CallRoundsScheduleFields
+  value={callRoundsSchedule}
+  onChange={setCallRoundsSchedule}
 />
 
         <AdminMessageRoundsPanel
@@ -1790,6 +2014,11 @@ function EventScheduleModal({
       ...round,
       group: "אישורי הגעה",
       icon: "💬",
+    })),
+    ...(rounds.calls || []).map((round) => ({
+      ...round,
+      group: "סבבי שיחות",
+      icon: "📞",
     })),
     ...rounds.reminder.map((round) => ({
       ...round,
@@ -2295,6 +2524,9 @@ function UpgradeUserModal({
   const [venueSeatingService, setVenueSeatingService] =
   useState<VenueSeatingServiceForm>(getVenueSeatingServiceInitial(user));
 
+  const [callRoundsSchedule, setCallRoundsSchedule] =
+    useState<CallRoundsScheduleState>(getInitialCallRoundsSchedule(user));
+
   const selectedPlan =
     pricingPlans.find((plan) => plan.key === form.plan) || null;
 
@@ -2404,6 +2636,7 @@ const calculatedTotalToPay =
 
       venueSeatingService: calculateVenueSeatingService(venueSeatingService),
       venueSeatingDepositAmount: venueSeatingDepositToPay,
+      callRoundsSchedule,
     }),
   });
 
@@ -2455,6 +2688,7 @@ const calculatedTotalToPay =
 
       venueSeatingService: calculateVenueSeatingService(venueSeatingService),
       venueSeatingDepositAmount: venueSeatingDepositToPay,
+      callRoundsSchedule,
     }),
   });
 
@@ -2724,6 +2958,11 @@ const calculatedTotalToPay =
   value={venueSeatingService}
   onChange={setVenueSeatingService}
   purchasedMode
+/>
+
+<CallRoundsScheduleFields
+  value={callRoundsSchedule}
+  onChange={setCallRoundsSchedule}
 />
 
         <section
