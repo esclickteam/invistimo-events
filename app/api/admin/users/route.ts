@@ -197,18 +197,28 @@ function findScheduledMessage(
       msg?.templateKey || msg?.templateName || ""
     ).toLowerCase();
 
-    const matchesType =
-      wantedTypes.length === 0 || wantedTypes.includes(msgType);
+    const hasTypeFilter = wantedTypes.length > 0;
+const hasTemplateFilter = wantedTemplateKeys.length > 0;
 
-    const matchesTemplate =
-      wantedTemplateKeys.length === 0 ||
-      wantedTemplateKeys.includes(msgTemplateKey);
+const matchesType = hasTypeFilter && wantedTypes.includes(msgType);
 
-    const matchesRound =
-      typeof params.roundNumber !== "number" ||
-      Number(msg?.roundNumber || msg?.round || 0) === Number(params.roundNumber);
+const matchesTemplate =
+  hasTemplateFilter && wantedTemplateKeys.includes(msgTemplateKey);
 
-    return matchesType && matchesTemplate && matchesRound;
+const matchesKind =
+  hasTypeFilter && hasTemplateFilter
+    ? matchesType || matchesTemplate
+    : hasTypeFilter
+      ? matchesType
+      : hasTemplateFilter
+        ? matchesTemplate
+        : true;
+
+const matchesRound =
+  typeof params.roundNumber !== "number" ||
+  Number(msg?.roundNumber || msg?.round || 0) === Number(params.roundNumber);
+
+return matchesKind && matchesRound;
   });
 }
 
@@ -403,26 +413,27 @@ function buildMessageRounds(
     thankyou: [
       (() => {
         const scheduledMessage = findScheduledMessage(scheduledMessages, {
-          invitationId,
-          userId,
-          types: [
-            "thankyou",
-            "thank_you",
-            "thank-you",
-            "thanks",
-            "thankyou_message",
-            "thank_you_message",
-          ],
-          templateKeys: [
-            "thankyou",
-            "thank_you",
-            "thank-you",
-            "thanks",
-            "thankyou_message",
-            "thank_you_message",
-            "thanks_message",
-          ],
-        });
+  invitationId,
+  userId,
+  types: [
+    "thankyou",
+    "thank_you",
+    "thank-you",
+    "thanks",
+    "thankyou_message",
+    "thank_you_message",
+  ],
+  templateKeys: [
+    "custom",
+    "thankyou",
+    "thank_you",
+    "thank-you",
+    "thanks",
+    "thankyou_message",
+    "thank_you_message",
+    "thanks_message",
+  ],
+});
 
         const sentAt = firstValue(invitation, [
           "thankYouSentAt",
