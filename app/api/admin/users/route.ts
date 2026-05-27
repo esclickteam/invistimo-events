@@ -284,13 +284,14 @@ function buildMessageRounds(invitation: any, scheduledMessages: any[] = []) {
         null;
 
       return {
-        key: `rsvp_${round}`,
-        label: `אישורי הגעה סבב ${round}`,
-        done: Boolean(sentAt),
-        sentAt,
-        scheduledAt,
-        blocked: Boolean(locks?.[`rsvp_${round}`]),
-      };
+  key: `rsvp_${round}`,
+  label: `אישורי הגעה סבב ${round}`,
+  done: Boolean(sentAt),
+  sentAt,
+  scheduledAt,
+  channel: scheduledMessage?.channel || null,
+  blocked: Boolean(locks?.[`rsvp_${round}`]),
+};
     }),
 
     reminder: [
@@ -324,13 +325,15 @@ function buildMessageRounds(invitation: any, scheduledMessages: any[] = []) {
           null;
 
         return {
-          key: "reminder",
-          label: "סבב תזכורת",
-          done: Boolean(sentAt),
-          sentAt,
-          scheduledAt,
-          blocked: Boolean(locks?.reminder),
-        };
+  key: "reminder",
+  label: "סבב תזכורת",
+  done: Boolean(sentAt),
+  sentAt,
+  scheduledAt,
+  channel: scheduledMessage?.channel || null,
+  blocked: Boolean(locks?.reminder),
+};
+
       })(),
     ],
 
@@ -377,13 +380,15 @@ function buildMessageRounds(invitation: any, scheduledMessages: any[] = []) {
           null;
 
         return {
-          key: "thankyou",
-          label: "סבב תודה",
-          done: Boolean(sentAt),
-          sentAt,
-          scheduledAt,
-          blocked: Boolean(locks?.thankyou),
-        };
+  key: "thankyou",
+  label: "סבב תודה",
+  done: Boolean(sentAt),
+  sentAt,
+  scheduledAt,
+  channel: scheduledMessage?.channel || null,
+  blocked: Boolean(locks?.thankyou),
+};
+
       })(),
     ],
   };

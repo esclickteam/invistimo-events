@@ -92,6 +92,7 @@ type MessageRoundStatus = {
   blocked: boolean;
   sentAt?: string | null;
   scheduledAt?: string | null;
+  channel?: "sms" | "whatsapp" | "calls" | string | null;
 };
 
 type AdminMessageRounds = {
@@ -487,6 +488,13 @@ function formatDateTime(value?: string | null) {
   } catch {
     return null;
   }
+}
+
+function getChannelLabel(channel?: string | null) {
+  if (channel === "whatsapp") return "WhatsApp";
+  if (channel === "sms") return "SMS";
+  if (channel === "calls") return "שיחות";
+  return "";
 }
 
 /* =========================
@@ -1899,13 +1907,25 @@ function EventScheduleModal({
                   </div>
 
                   <div className="min-w-[190px] rounded-2xl bg-white px-4 py-3 text-sm font-black text-[#6B5A48]">
+
                     {sentAtText ? (
-                      <span>נשלח · {sentAtText}</span>
-                    ) : scheduledAtText ? (
-                      <span>מתוזמן · {scheduledAtText}</span>
-                    ) : (
-                      <span>אין תזמון</span>
-                    )}
+  <span>
+    נשלח
+    {getChannelLabel(item.channel) ? ` · ${getChannelLabel(item.channel)}` : ""}
+    {" · "}
+    {sentAtText}
+  </span>
+) : scheduledAtText ? (
+  <span>
+    מתוזמן
+    {getChannelLabel(item.channel) ? ` · ${getChannelLabel(item.channel)}` : ""}
+    {" · "}
+    {scheduledAtText}
+  </span>
+) : (
+  <span>אין תזמון</span>
+)}
+
                   </div>
                 </div>
               );
