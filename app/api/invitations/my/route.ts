@@ -4,6 +4,7 @@ import db from "@/lib/db";
 import Invitation from "@/models/Invitation";
 import User from "@/models/User";
 import Event from "@/models/Event";
+import ScheduledMessage from "@/models/ScheduledMessage";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 export const dynamic = "force-dynamic";
@@ -462,9 +463,56 @@ export async function GET(req: Request) {
       return NextResponse.json({ success: true, invitation: null });
     }
 
+    const finalInvitationId = normalizeId(finalInvitation._id);
+    const finalInvitationObjectId = toObjectId(finalInvitationId);
+
+    const scheduledMessageOrFilters: any[] = [
+      { invitationId: finalInvitationId },
+    ];
+
+    if (finalInvitationObjectId) {
+      scheduledMessageOrFilters.push({
+        invitationId: finalInvitationObjectId,
+      });
+    }
+
+    const scheduledMessages = await ScheduledMessage.find({
+      status: { $in: ["scheduled", "sent"] },
+      $or: scheduledMessageOrFilters,
+    })
+      .select(`
+        _id
+        userId
+        invitationId
+        channel
+        type
+        filter
+        templateKey
+        templateName
+        round
+        roundNumber
+        scheduledAt
+        sentAt
+        status
+      `)
+      .sort({ scheduledAt: 1, sentAt: 1 })
+      .lean();
+
+    const normalizedScheduledMessages = scheduledMessages.map((message: any) => ({
+      ...message,
+      _id: normalizeId(message._id),
+      userId: message.userId ? normalizeId(message.userId) : null,
+      invitationId: message.invitationId
+        ? normalizeId(message.invitationId)
+        : null,
+    }));
+
     return NextResponse.json({
       success: true,
-      invitation: buildInvitationResponse(finalInvitation),
+      invitation: {
+        ...buildInvitationResponse(finalInvitation),
+        scheduledMessages: normalizedScheduledMessages,
+      },
     });
   } catch (err) {
     console.error("❌ Error loading my invitation:", err);

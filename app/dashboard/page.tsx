@@ -4194,6 +4194,52 @@ function getFirstExistingValue(source: any, keys: string[]) {
   return null;
 }
 
+function findExistingScheduledMessage(
+  invitation: any,
+  options: {
+    type?: string;
+    templateKeys?: string[];
+    roundNumber?: number;
+  }
+) {
+  const messages = Array.isArray(invitation?.scheduledMessages)
+    ? invitation.scheduledMessages
+    : [];
+
+  return messages.find((msg: any) => {
+    const msgType = String(msg?.type || "").toLowerCase();
+    const templateKey = String(msg?.templateKey || "").toLowerCase();
+    const templateName = String(msg?.templateName || "").toLowerCase();
+    const messageContent = String(msg?.messageContent || "").toLowerCase();
+
+    const typeOk = options.type
+      ? msgType === options.type.toLowerCase()
+      : true;
+
+    const roundOk =
+      options.roundNumber == null
+        ? true
+        : Number(msg?.roundNumber || msg?.round || 0) ===
+          Number(options.roundNumber);
+
+    const templateOk =
+      !options.templateKeys?.length ||
+      options.templateKeys.some((key) => {
+        const normalized = String(key).toLowerCase();
+
+        return (
+          templateKey === normalized ||
+          templateName === normalized ||
+          templateKey.includes(normalized) ||
+          templateName.includes(normalized) ||
+          messageContent.includes(normalized)
+        );
+      });
+
+    return typeOk && roundOk && templateOk;
+  });
+}
+
 function getRsvpRoundChannel(invitation: any, round: number) {
   if (
     invitation?.rsvpRoundSent?.[`round${round}`]?.whatsappScheduledAt ||
@@ -4245,6 +4291,12 @@ function buildExistingRsvpSchedule(user: any, invitation: any): UserRsvpSchedule
   const rsvpItems: UserRsvpScheduleItem[] = [1, 2, 3].map((round) => {
     const roundData = invitation?.rsvpRoundSent?.[`round${round}`];
 
+    const scheduledMessage = findExistingScheduledMessage(invitation, {
+      type: "rsvp",
+      templateKeys: ["rsvp", "rsvp_invitation_media"],
+      roundNumber: round,
+    });
+
     const sentAt =
       roundData?.sentAt ||
       roundData?.sentAtSms ||
@@ -4257,6 +4309,7 @@ function buildExistingRsvpSchedule(user: any, invitation: any): UserRsvpSchedule
       invitation?.[`rsvpSmsRound${round}sentAt`] ||
       invitation?.[`rsvpWhatsappRound${round}SentAt`] ||
       invitation?.[`rsvpWhatsappRound${round}sentAt`] ||
+      scheduledMessage?.sentAt ||
       null;
 
     const scheduledAt =
@@ -4269,9 +4322,10 @@ function buildExistingRsvpSchedule(user: any, invitation: any): UserRsvpSchedule
       invitation?.[`rsvpSmsRound${round}scheduledAt`] ||
       invitation?.[`rsvpWhatsappRound${round}ScheduledAt`] ||
       invitation?.[`rsvpWhatsappRound${round}scheduledAt`] ||
+      scheduledMessage?.scheduledAt ||
       null;
 
-    const channel = getRsvpRoundChannel(invitation, round);
+    const channel = scheduledMessage?.channel || getRsvpRoundChannel(invitation, round);
 
     return {
       key: `rsvp_${round}`,
@@ -4287,73 +4341,111 @@ function buildExistingRsvpSchedule(user: any, invitation: any): UserRsvpSchedule
     };
   });
 
-  const reminderSentAt = getFirstExistingValue(invitation, [
-    "reminderSentAt",
-    "remindersentAt",
-    "reminderSmsSentAt",
-    "reminderSmssentAt",
-    "reminderWhatsappSentAt",
-    "reminderWhatsappsentAt",
-  ]);
+  const reminderScheduledMessage = findExistingScheduledMessage(invitation, {
+    type: "reminder",
+    templateKeys: ["reminder", "table", "rsvp_reminder_invistimo"],
+  });
 
-  const reminderScheduledAt = getFirstExistingValue(invitation, [
-    "reminderScheduledAt",
-    "reminderscheduledAt",
-    "reminderSmsScheduledAt",
-    "reminderSmsscheduledAt",
-    "reminderWhatsappScheduledAt",
-    "reminderWhatsappscheduledAt",
-  ]);
+  const reminderSentAt =
+    getFirstExistingValue(invitation, [
+      "reminderSentAt",
+      "remindersentAt",
+      "reminderSmsSentAt",
+      "reminderSmssentAt",
+      "reminderWhatsappSentAt",
+      "reminderWhatsappsentAt",
+    ]) ||
+    reminderScheduledMessage?.sentAt ||
+    null;
+
+  const reminderScheduledAt =
+    getFirstExistingValue(invitation, [
+      "reminderScheduledAt",
+      "reminderscheduledAt",
+      "reminderSmsScheduledAt",
+      "reminderSmsscheduledAt",
+      "reminderWhatsappScheduledAt",
+      "reminderWhatsappscheduledAt",
+    ]) ||
+    reminderScheduledMessage?.scheduledAt ||
+    null;
 
   const reminderChannel =
-    invitation?.reminderWhatsappScheduledAt || invitation?.reminderWhatsappSentAt
+    reminderScheduledMessage?.channel ||
+    (invitation?.reminderWhatsappScheduledAt ||
+    invitation?.reminderWhatsappscheduledAt ||
+    invitation?.reminderWhatsappSentAt ||
+    invitation?.reminderWhatsappsentAt
       ? "whatsapp"
-      : invitation?.reminderSmsScheduledAt || invitation?.reminderSmsSentAt
+      : invitation?.reminderSmsScheduledAt ||
+          invitation?.reminderSmsscheduledAt ||
+          invitation?.reminderSmsSentAt ||
+          invitation?.reminderSmssentAt
         ? "sms"
-        : null;
+        : null);
 
-  const thankyouSentAt = getFirstExistingValue(invitation, [
-    "thankYouSentAt",
-    "thankYousentAt",
-    "thankyouSentAt",
-    "thankyousentAt",
-    "thankYouSmsSentAt",
-    "thankYouSmssentAt",
-    "thankyouSmsSentAt",
-    "thankyouSmssentAt",
-    "thankYouWhatsappSentAt",
-    "thankYouWhatsappsentAt",
-    "thankyouWhatsappSentAt",
-    "thankyouWhatsappsentAt",
-  ]);
+  const thankyouScheduledMessage = findExistingScheduledMessage(invitation, {
+    type: "thankyou",
+    templateKeys: ["thankyou", "thank_you", "thank_you_message"],
+  });
 
-  const thankyouScheduledAt = getFirstExistingValue(invitation, [
-    "thankYouScheduledAt",
-    "thankYouscheduledAt",
-    "thankyouScheduledAt",
-    "thankyouscheduledAt",
-    "thankYouSmsScheduledAt",
-    "thankYouSmsscheduledAt",
-    "thankyouSmsScheduledAt",
-    "thankyouSmsscheduledAt",
-    "thankYouWhatsappScheduledAt",
-    "thankYouWhatsappscheduledAt",
-    "thankyouWhatsappScheduledAt",
-    "thankyouWhatsappscheduledAt",
-  ]);
+  const thankyouSentAt =
+    getFirstExistingValue(invitation, [
+      "thankYouSentAt",
+      "thankYousentAt",
+      "thankyouSentAt",
+      "thankyousentAt",
+      "thankYouSmsSentAt",
+      "thankYouSmssentAt",
+      "thankyouSmsSentAt",
+      "thankyouSmssentAt",
+      "thankYouWhatsappSentAt",
+      "thankYouWhatsappsentAt",
+      "thankyouWhatsappSentAt",
+      "thankyouWhatsappsentAt",
+    ]) ||
+    thankyouScheduledMessage?.sentAt ||
+    null;
+
+  const thankyouScheduledAt =
+    getFirstExistingValue(invitation, [
+      "thankYouScheduledAt",
+      "thankYouscheduledAt",
+      "thankyouScheduledAt",
+      "thankyouscheduledAt",
+      "thankYouSmsScheduledAt",
+      "thankYouSmsscheduledAt",
+      "thankyouSmsScheduledAt",
+      "thankyouSmsscheduledAt",
+      "thankYouWhatsappScheduledAt",
+      "thankYouWhatsappscheduledAt",
+      "thankyouWhatsappScheduledAt",
+      "thankyouWhatsappscheduledAt",
+    ]) ||
+    thankyouScheduledMessage?.scheduledAt ||
+    null;
 
   const thankyouChannel =
-    invitation?.thankYouWhatsappScheduledAt ||
+    thankyouScheduledMessage?.channel ||
+    (invitation?.thankYouWhatsappScheduledAt ||
+    invitation?.thankYouWhatsappscheduledAt ||
     invitation?.thankyouWhatsappScheduledAt ||
+    invitation?.thankyouWhatsappscheduledAt ||
     invitation?.thankYouWhatsappSentAt ||
-    invitation?.thankyouWhatsappSentAt
+    invitation?.thankYouWhatsappsentAt ||
+    invitation?.thankyouWhatsappSentAt ||
+    invitation?.thankyouWhatsappsentAt
       ? "whatsapp"
       : invitation?.thankYouSmsScheduledAt ||
+          invitation?.thankYouSmsscheduledAt ||
           invitation?.thankyouSmsScheduledAt ||
+          invitation?.thankyouSmsscheduledAt ||
           invitation?.thankYouSmsSentAt ||
-          invitation?.thankyouSmsSentAt
+          invitation?.thankYouSmssentAt ||
+          invitation?.thankyouSmsSentAt ||
+          invitation?.thankyouSmssentAt
         ? "sms"
-        : null;
+        : null);
 
   return [
     ...callItems,
