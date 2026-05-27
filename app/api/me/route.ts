@@ -525,10 +525,16 @@ export async function GET() {
           },
 
           includeCalls: !!currentUser.includeCalls,
-          callsAddonPrice: currentUser.callsAddonPrice ?? 0,
+callsRounds: currentUser.callsRounds ?? 0,
+callsAddonPrice: currentUser.callsAddonPrice ?? 0,
 
-          includeCreditGifts: !!currentUser.includeCreditGifts,
-          creditGiftsAddonPrice: currentUser.creditGiftsAddonPrice ?? 0,
+callRoundsSchedule: currentUser.callRoundsSchedule ?? {
+  enabled: false,
+  rounds: [],
+},
+
+includeCreditGifts: !!currentUser.includeCreditGifts,
+creditGiftsAddonPrice: currentUser.creditGiftsAddonPrice ?? 0,
 
           smsPerRecord: currentUser.smsPerRecord ?? 0,
           maxMessages: currentUser.maxMessages ?? 0,
