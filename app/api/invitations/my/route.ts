@@ -274,50 +274,139 @@ export async function GET(req: Request) {
           giftCreditUrl
         `,
       })
+
       .select(`
-        _id
-        title
+  _id
+  title
 
-        eventId
-        productionEventId
-        linkedEventId
-        venueClientEventId
+  eventId
+  productionEventId
+  linkedEventId
+  venueClientEventId
 
-        previewImage
-        headerImageUrl
+  previewImage
+  headerImageUrl
 
-        maxGuests
-        maxMessages
-        remainingMessages
-        shareId
+  maxGuests
+  maxMessages
+  remainingMessages
+  shareId
 
-        producerId
-        ownerId
-        userId
+  producerId
+  ownerId
+  userId
 
-        location
-        eventDate
-        eventTime
-        eventType
-        giftCreditUrl
+  location
+  eventDate
+  eventTime
+  eventType
+  giftCreditUrl
 
-        venueSource
-        venueOwnerId
-        venueHallId
-        venueHallName
-        venueAccessStatus
+  venueSource
+  venueOwnerId
+  venueHallId
+  venueHallName
+  venueAccessStatus
 
-        venueClientPackageType
-        venueClientRecordsCount
-        venueClientPaymentStatus
+  venueClientPackageType
+  venueClientRecordsCount
+  venueClientPaymentStatus
 
-        seatingEnabled
-        rsvpEnabled
-        eventManagementEnabled
+  seatingEnabled
+  rsvpEnabled
+  eventManagementEnabled
 
-        updatedAt
-        createdAt
-      `)
+  rsvpRoundSent
+
+  rsvpRound1SentAt
+  rsvpRound2SentAt
+  rsvpRound3SentAt
+  rsvpRound1sentAt
+  rsvpRound2sentAt
+  rsvpRound3sentAt
+
+  rsvpSmsRound1SentAt
+  rsvpSmsRound2SentAt
+  rsvpSmsRound3SentAt
+  rsvpSmsRound1sentAt
+  rsvpSmsRound2sentAt
+  rsvpSmsRound3sentAt
+
+  rsvpWhatsappRound1SentAt
+  rsvpWhatsappRound2SentAt
+  rsvpWhatsappRound3SentAt
+  rsvpWhatsappRound1sentAt
+  rsvpWhatsappRound2sentAt
+  rsvpWhatsappRound3sentAt
+
+  rsvpRound1ScheduledAt
+  rsvpRound2ScheduledAt
+  rsvpRound3ScheduledAt
+  rsvpRound1scheduledAt
+  rsvpRound2scheduledAt
+  rsvpRound3scheduledAt
+
+  rsvpSmsRound1ScheduledAt
+  rsvpSmsRound2ScheduledAt
+  rsvpSmsRound3ScheduledAt
+  rsvpSmsRound1scheduledAt
+  rsvpSmsRound2scheduledAt
+  rsvpSmsRound3scheduledAt
+
+  rsvpWhatsappRound1ScheduledAt
+  rsvpWhatsappRound2ScheduledAt
+  rsvpWhatsappRound3ScheduledAt
+  rsvpWhatsappRound1scheduledAt
+  rsvpWhatsappRound2scheduledAt
+  rsvpWhatsappRound3scheduledAt
+
+  reminderSentAt
+  remindersentAt
+  reminderSmsSentAt
+  reminderSmssentAt
+  reminderWhatsappSentAt
+  reminderWhatsappsentAt
+
+  reminderScheduledAt
+  reminderscheduledAt
+  reminderSmsScheduledAt
+  reminderSmsscheduledAt
+  reminderWhatsappScheduledAt
+  reminderWhatsappscheduledAt
+
+  thankYouSentAt
+  thankYousentAt
+  thankyouSentAt
+  thankyousentAt
+  thankYouSmsSentAt
+  thankYouSmssentAt
+  thankyouSmsSentAt
+  thankyouSmssentAt
+  thankYouWhatsappSentAt
+  thankYouWhatsappsentAt
+  thankyouWhatsappSentAt
+  thankyouWhatsappsentAt
+
+  thankYouScheduledAt
+  thankYouscheduledAt
+  thankyouScheduledAt
+  thankyouscheduledAt
+  thankYouSmsScheduledAt
+  thankYouSmsscheduledAt
+  thankyouSmsScheduledAt
+  thankyouSmsscheduledAt
+  thankYouWhatsappScheduledAt
+  thankYouWhatsappscheduledAt
+  thankyouWhatsappScheduledAt
+  thankyouWhatsappscheduledAt
+
+  messageLocks
+  adminMessageRoundLocks
+
+  updatedAt
+  createdAt
+`)
+
       .lean();
 
     /*
