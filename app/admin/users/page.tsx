@@ -1843,7 +1843,6 @@ function EventScheduleModal({
                 לו״ז סבבים
               </h3>
               <p className="mt-1 text-xs font-bold text-[#8A7867]">
-                הנתונים מגיעים מתוך messageRounds של המשתמש כפי שחוזרים מ־/api/admin/users.
               </p>
             </div>
           </div>
