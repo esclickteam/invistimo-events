@@ -77,15 +77,15 @@ export default function DashboardHeader({
 
   return (
     <header
-      dir="rtl"
-      className="
-        sticky top-0 z-40
-        w-full
-        bg-[#F8F5EE]
-        px-3 py-3
-        print:hidden
-      "
-    >
+  dir="rtl"
+  className="
+    relative z-20
+    w-full
+    bg-[#F8F5EE]
+    px-3 py-3
+    print:hidden
+  "
+>
       <div
         className="
           mx-auto max-w-[1500px]
