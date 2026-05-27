@@ -490,6 +490,33 @@ function formatDateTime(value?: string | null) {
   }
 }
 
+function formatDateTimeWithWeekday(value?: string | null) {
+  if (!value) return null;
+
+  try {
+    const date = new Date(value);
+
+    const weekday = date.toLocaleDateString("he-IL", {
+      weekday: "long",
+    });
+
+    const dateText = date.toLocaleDateString("he-IL", {
+      day: "numeric",
+      month: "numeric",
+      year: "numeric",
+    });
+
+    const timeText = date.toLocaleTimeString("he-IL", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    return `${weekday} · ${dateText}, ${timeText}`;
+  } catch {
+    return null;
+  }
+}
+
 function getChannelLabel(channel?: string | null) {
   if (channel === "whatsapp") return "WhatsApp";
   if (channel === "sms") return "SMS";
@@ -1849,8 +1876,9 @@ function EventScheduleModal({
 
           <div className="space-y-3">
             {sortedItems.map((item) => {
-              const scheduledAtText = formatDateTime(item.scheduledAt);
-              const sentAtText = formatDateTime(item.sentAt);
+
+              const scheduledAtText = formatDateTimeWithWeekday(item.scheduledAt);
+const sentAtText = formatDateTimeWithWeekday(item.sentAt);
 
               return (
                 <div
