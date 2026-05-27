@@ -6,6 +6,7 @@ import {
   Search,
   Users,
   CalendarDays,
+  ChevronDown,
   UserRound,
   ShieldCheck,
   Crown,
@@ -500,6 +501,7 @@ export default function AdminUsersPage() {
   const [openCreate, setOpenCreate] = useState(false);
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
   const [upgradingUser, setUpgradingUser] = useState<AdminUser | null>(null);
+  const [eventScheduleUser, setEventScheduleUser] = useState<AdminUser | null>(null);
 
   const [producers, setProducers] = useState<Assignee[]>([]);
   const [staff, setStaff] = useState<Assignee[]>([]);
@@ -510,6 +512,7 @@ export default function AdminUsersPage() {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [eventFilter, setEventFilter] = useState("future");
+  const [openActionsId, setOpenActionsId] = useState<string | null>(null);
 
   async function loadUsers(showLoader = true) {
     try {
@@ -539,6 +542,15 @@ export default function AdminUsersPage() {
         });
 
         setUpgradingUser((current) => {
+          if (!current) return current;
+
+          return (
+            loadedUsers.find((item: AdminUser) => item._id === current._id) ||
+            current
+          );
+        });
+
+        setEventScheduleUser((current) => {
           if (!current) return current;
 
           return (
@@ -652,6 +664,11 @@ export default function AdminUsersPage() {
       alert("אירעה שגיאה במחיקה");
     }
   }
+
+  function openEventSchedule(user: AdminUser) {
+    setEventScheduleUser(user);
+  }
+
 
   useEffect(() => {
     const stored = sessionStorage.getItem("adminHiddenUsers");
@@ -974,48 +991,20 @@ export default function AdminUsersPage() {
                   </td>
 
                   <td className="p-4">
-                    <div className="grid w-[230px] grid-cols-2 gap-2">
-                      <ActionButton
-                        onClick={() => setEditingUser(u)}
-                        icon={<Pencil size={14} />}
-                      >
-                        עריכה
-                      </ActionButton>
-
-                      <ActionButton
-                        onClick={() => setUpgradingUser(u)}
-                        icon={<ArrowUpCircle size={14} />}
-                        tone="gold"
-                      >
-                        שדרוג
-                      </ActionButton>
-
-                      {u.role !== "admin" && (
-                        <ActionButton
-                          onClick={() => impersonateUser(u._id)}
-                          icon={
-                            impersonating === u._id ? (
-                              <Loader2 className="animate-spin" size={14} />
-                            ) : (
-                              <LogIn size={14} />
-                            )
-                          }
-                          tone="blue"
-                        >
-                          התחזות
-                        </ActionButton>
-                      )}
-
-                      {u.role !== "admin" && (
-                        <ActionButton
-                          onClick={() => removeUser(u._id)}
-                          icon={<Trash2 size={14} />}
-                          tone="red"
-                        >
-                          מחק
-                        </ActionButton>
-                      )}
-                    </div>
+                    <UserActionsDropdown
+                      user={u}
+                      open={openActionsId === u._id}
+                      onToggle={() =>
+                        setOpenActionsId(openActionsId === u._id ? null : u._id)
+                      }
+                      onClose={() => setOpenActionsId(null)}
+                      onEventSchedule={() => openEventSchedule(u)}
+                      onEdit={() => setEditingUser(u)}
+                      onUpgrade={() => setUpgradingUser(u)}
+                      onImpersonate={() => impersonateUser(u._id)}
+                      onDelete={() => removeUser(u._id)}
+                      isImpersonating={impersonating === u._id}
+                    />
                   </td>
                 </tr>
               ))}
@@ -1073,41 +1062,22 @@ export default function AdminUsersPage() {
                 <MiniDetail label="שיחות" value={getCallsStatus(u)} />
               </div>
 
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                <ActionButton
-                  onClick={() => setEditingUser(u)}
-                  icon={<Pencil size={14} />}
-                >
-                  עריכה
-                </ActionButton>
-
-                <ActionButton
-                  onClick={() => setUpgradingUser(u)}
-                  icon={<ArrowUpCircle size={14} />}
-                  tone="gold"
-                >
-                  שדרוג
-                </ActionButton>
-
-                {u.role !== "admin" && (
-                  <ActionButton
-                    onClick={() => impersonateUser(u._id)}
-                    icon={<LogIn size={14} />}
-                    tone="blue"
-                  >
-                    התחזות
-                  </ActionButton>
-                )}
-
-                {u.role !== "admin" && (
-                  <ActionButton
-                    onClick={() => removeUser(u._id)}
-                    icon={<Trash2 size={14} />}
-                    tone="red"
-                  >
-                    מחק
-                  </ActionButton>
-                )}
+              <div className="mt-4">
+                <UserActionsDropdown
+                  user={u}
+                  open={openActionsId === u._id}
+                  onToggle={() =>
+                    setOpenActionsId(openActionsId === u._id ? null : u._id)
+                  }
+                  onClose={() => setOpenActionsId(null)}
+                  onEventSchedule={() => openEventSchedule(u)}
+                  onEdit={() => setEditingUser(u)}
+                  onUpgrade={() => setUpgradingUser(u)}
+                  onImpersonate={() => impersonateUser(u._id)}
+                  onDelete={() => removeUser(u._id)}
+                  isImpersonating={impersonating === u._id}
+                  fullWidth
+                />
               </div>
             </div>
           ))}
@@ -1142,6 +1112,13 @@ export default function AdminUsersPage() {
         
       )}
 
+
+      {eventScheduleUser && (
+        <EventScheduleModal
+          user={eventScheduleUser}
+          onClose={() => setEventScheduleUser(null)}
+        />
+      )}
 
       {upgradingUser && (
         <UpgradeUserModal
@@ -1751,6 +1728,214 @@ function EditUserModal({
         </button>
       </ModalFooter>
     </ModalShell>
+  );
+}
+
+
+/* =========================
+   EVENT SCHEDULE MODAL
+========================= */
+function EventScheduleModal({
+  user,
+  onClose,
+}: {
+  user: AdminUser;
+  onClose: () => void;
+}) {
+  const rounds = user.messageRounds || getDefaultMessageRounds();
+
+  const scheduleItems = [
+    ...rounds.rsvp.map((round) => ({
+      ...round,
+      group: "אישורי הגעה",
+      icon: "💬",
+    })),
+    ...rounds.reminder.map((round) => ({
+      ...round,
+      group: "תזכורות",
+      icon: "🔔",
+    })),
+    ...rounds.thankyou.map((round) => ({
+      ...round,
+      group: "תודה",
+      icon: "💛",
+    })),
+  ];
+
+  const sortedItems = [...scheduleItems].sort((a, b) => {
+    const aDate = a.scheduledAt || a.sentAt || "";
+    const bDate = b.scheduledAt || b.sentAt || "";
+
+    if (!aDate && !bDate) return 0;
+    if (!aDate) return 1;
+    if (!bDate) return -1;
+
+    return new Date(aDate).getTime() - new Date(bDate).getTime();
+  });
+
+  const plannedCount = scheduleItems.filter((item) => item.scheduledAt && !item.done).length;
+  const sentCount = scheduleItems.filter((item) => item.done).length;
+  const blockedCount = scheduleItems.filter((item) => item.blocked).length;
+
+  return (
+    <ModalShell
+      title='לו"ז אירוע'
+      subtitle="צפייה מהירה בלו״ז הסבבים של הלקוח בלי לצאת מניהול המשתמשים"
+      onClose={onClose}
+    >
+      <div className="space-y-6">
+        <section
+          className="
+            rounded-[26px]
+            border border-[#E7D8C6]
+            bg-[#FFFDF8]
+            p-5
+          "
+        >
+          <div className="mb-4 flex items-center gap-2">
+            <CalendarDays size={20} className="text-[#B97821]" />
+            <h3 className="text-lg font-black text-[#3A2A1C]">
+              פרטי האירוע
+            </h3>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <ScheduleInfoBox label="לקוח" value={user.name || user.email || "—"} />
+            <ScheduleInfoBox label="אימייל" value={user.email || "—"} />
+            <ScheduleInfoBox label="תאריך אירוע" value={formatDate(user.eventDate)} />
+            <ScheduleInfoBox label="חבילה" value={user.packageName || user.plan || user.priceKey || "—"} />
+            <ScheduleInfoBox label="רשומות / אורחים" value={String(getUserRecords(user) || "—")} />
+            <ScheduleInfoBox label="שירות שיחות" value={getCallsStatus(user)} />
+          </div>
+        </section>
+
+        <section className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <ScheduleStatCard label="מתוזמנים" value={String(plannedCount)} />
+          <ScheduleStatCard label="בוצעו" value={String(sentCount)} />
+          <ScheduleStatCard label="חסומים" value={String(blockedCount)} />
+        </section>
+
+        <section
+          className="
+            rounded-[26px]
+            border border-[#E7D8C6]
+            bg-white
+            p-5
+          "
+        >
+          <div className="mb-5 flex items-center justify-between gap-3">
+            <div>
+              <h3 className="text-lg font-black text-[#3A2A1C]">
+                לו״ז סבבים
+              </h3>
+              <p className="mt-1 text-xs font-bold text-[#8A7867]">
+                הנתונים מגיעים מתוך messageRounds של המשתמש כפי שחוזרים מ־/api/admin/users.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {sortedItems.map((item) => {
+              const scheduledAtText = formatDateTime(item.scheduledAt);
+              const sentAtText = formatDateTime(item.sentAt);
+
+              return (
+                <div
+                  key={`${item.group}-${item.key}`}
+                  className="
+                    flex flex-col gap-3
+                    rounded-2xl
+                    border border-[#EFE2D1]
+                    bg-[#FFFDF8]
+                    px-4 py-3
+                    md:flex-row
+                    md:items-center
+                    md:justify-between
+                  "
+                >
+                  <div className="flex items-start gap-3">
+                    <div
+                      className="
+                        flex h-10 w-10 shrink-0 items-center justify-center
+                        rounded-2xl
+                        bg-[#FFF2D8]
+                        text-lg
+                      "
+                    >
+                      {item.icon}
+                    </div>
+
+                    <div>
+                      <div className="text-xs font-black text-[#B97821]">
+                        {item.group}
+                      </div>
+                      <div className="mt-1 font-black text-[#3A2A1C]">
+                        {item.label}
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-2 text-xs font-bold">
+                        <span
+                          className={`rounded-full px-3 py-1 ${
+                            item.done
+                              ? "bg-[#EAF8EF] text-[#1F9A55]"
+                              : "bg-[#F6F1EA] text-[#7B6754]"
+                          }`}
+                        >
+                          {item.done ? "בוצע" : "טרם בוצע"}
+                        </span>
+
+                        {item.blocked && (
+                          <span className="rounded-full bg-red-50 px-3 py-1 text-red-600">
+                            חסום
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="min-w-[190px] rounded-2xl bg-white px-4 py-3 text-sm font-black text-[#6B5A48]">
+                    {sentAtText ? (
+                      <span>נשלח · {sentAtText}</span>
+                    ) : scheduledAtText ? (
+                      <span>מתוזמן · {scheduledAtText}</span>
+                    ) : (
+                      <span>אין תזמון</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      </div>
+
+      <ModalFooter>
+        <button
+          type="button"
+          onClick={onClose}
+          className="h-12 rounded-2xl bg-[#24190F] px-7 font-black text-white"
+        >
+          סגירה
+        </button>
+      </ModalFooter>
+    </ModalShell>
+  );
+}
+
+function ScheduleInfoBox({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-[#EFE2D1] bg-white px-4 py-3">
+      <div className="text-xs font-black text-[#8A7867]">{label}</div>
+      <div className="mt-1 text-sm font-black text-[#3A2A1C]">{value}</div>
+    </div>
+  );
+}
+
+function ScheduleStatCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-[22px] border border-[#E7D8C6] bg-[#FFF7E8] p-4">
+      <div className="text-xs font-black text-[#8A5A24]">{label}</div>
+      <div className="mt-1 text-2xl font-black text-[#B97821]">{value}</div>
+    </div>
   );
 }
 
@@ -2958,6 +3143,159 @@ function StatusBadge({
       {active && <CheckCircle2 size={13} />}
       {children}
     </span>
+  );
+}
+
+
+function UserActionsDropdown({
+  user,
+  open,
+  onToggle,
+  onClose,
+  onEventSchedule,
+  onEdit,
+  onUpgrade,
+  onImpersonate,
+  onDelete,
+  isImpersonating,
+  fullWidth = false,
+}: {
+  user: AdminUser;
+  open: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+  onEventSchedule: () => void;
+  onEdit: () => void;
+  onUpgrade: () => void;
+  onImpersonate: () => void;
+  onDelete: () => void;
+  isImpersonating?: boolean;
+  fullWidth?: boolean;
+}) {
+  function runAction(action: () => void) {
+    onClose();
+    action();
+  }
+
+  return (
+    <div className={`relative ${fullWidth ? "w-full" : "w-[190px]"}`}>
+      <button
+        type="button"
+        onClick={onToggle}
+        className="
+          inline-flex h-10 w-full items-center justify-center gap-2
+          rounded-full
+          bg-[#24190F]
+          px-4
+          text-sm font-black
+          text-white
+          shadow-[0_10px_24px_rgba(36,25,15,0.18)]
+          transition
+          hover:bg-black
+        "
+      >
+        פעולות
+        <ChevronDown
+          size={16}
+          className={`transition ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {open && (
+        <div
+          className="
+            absolute left-0 top-[calc(100%+8px)]
+            z-[80]
+            w-full min-w-[210px]
+            overflow-hidden
+            rounded-2xl
+            border border-[#E7D8C6]
+            bg-white
+            shadow-[0_18px_45px_rgba(36,25,15,0.16)]
+          "
+        >
+          <DropdownAction
+            icon={<CalendarDays size={16} />}
+            label='לו"ז אירוע'
+            onClick={() => runAction(onEventSchedule)}
+          />
+
+          <DropdownAction
+            icon={<Pencil size={16} />}
+            label="עריכה"
+            onClick={() => runAction(onEdit)}
+          />
+
+          <DropdownAction
+            icon={<ArrowUpCircle size={16} />}
+            label="שדרוג"
+            tone="gold"
+            onClick={() => runAction(onUpgrade)}
+          />
+
+          {user.role !== "admin" && (
+            <DropdownAction
+              icon={
+                isImpersonating ? (
+                  <Loader2 className="animate-spin" size={16} />
+                ) : (
+                  <LogIn size={16} />
+                )
+              }
+              label="התחזות"
+              tone="blue"
+              onClick={() => runAction(onImpersonate)}
+            />
+          )}
+
+          {user.role !== "admin" && (
+            <DropdownAction
+              icon={<Trash2 size={16} />}
+              label="מחק"
+              tone="red"
+              onClick={() => runAction(onDelete)}
+            />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DropdownAction({
+  icon,
+  label,
+  onClick,
+  tone = "dark",
+}: {
+  icon: ReactNode;
+  label: string;
+  onClick: () => void;
+  tone?: "dark" | "blue" | "red" | "gold";
+}) {
+  const tones = {
+    dark: "text-[#2F3742] hover:bg-[#FFF9EF]",
+    blue: "text-[#2563EB] hover:bg-blue-50",
+    red: "text-red-600 hover:bg-red-50",
+    gold: "text-[#B97821] hover:bg-[#FFF7E8]",
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`
+        flex w-full items-center justify-between gap-3
+        px-4 py-3
+        text-right
+        text-sm font-black
+        transition
+        ${tones[tone]}
+      `}
+    >
+      <span>{label}</span>
+      {icon}
+    </button>
   );
 }
 
