@@ -83,6 +83,19 @@ export interface IUser extends Document {
   callsEnabledBy?: "admin" | "system" | "stripe" | null;
   callsEnabledAt?: Date | null;
 
+    callRoundsSchedule?: {
+    enabled: boolean;
+    rounds: {
+      roundNumber: number;
+      title?: string;
+      scheduledAt?: Date | null;
+      status: "draft" | "scheduled" | "done" | "cancelled";
+      notes?: string;
+      createdAt?: Date;
+      updatedAt?: Date;
+    }[];
+  };
+
   includeCreditGifts: boolean;
   creditGiftsAddonPrice: number;
 
@@ -367,6 +380,57 @@ const UserSchema = new Schema<IUser>(
       default: null,
     },
 
+        callRoundsSchedule: {
+      enabled: {
+        type: Boolean,
+        default: false,
+      },
+
+      rounds: [
+        {
+          roundNumber: {
+            type: Number,
+            required: true,
+            min: 1,
+            max: 3,
+          },
+
+          title: {
+            type: String,
+            trim: true,
+            default: "",
+          },
+
+          scheduledAt: {
+            type: Date,
+            default: null,
+          },
+
+          status: {
+            type: String,
+            enum: ["draft", "scheduled", "done", "cancelled"],
+            default: "draft",
+          },
+
+          notes: {
+            type: String,
+            trim: true,
+            default: "",
+          },
+
+          createdAt: {
+            type: Date,
+            default: Date.now,
+          },
+
+          updatedAt: {
+            type: Date,
+            default: Date.now,
+          },
+        },
+      ],
+    },
+
     includeCreditGifts: {
       type: Boolean,
       default: false,
@@ -570,12 +634,17 @@ UserSchema.pre("validate", function () {
     doc.email = String(doc.email).trim().toLowerCase();
   }
 
-  if (doc.includeCalls) {
+    if (doc.includeCalls) {
     doc.callsRounds = doc.callsRounds || 3;
 
     doc.planLimits = {
       ...(doc.planLimits || {}),
       callsEnabled: true,
+    };
+
+    doc.callRoundsSchedule = {
+      enabled: doc.callRoundsSchedule?.enabled ?? true,
+      rounds: doc.callRoundsSchedule?.rounds || [],
     };
   } else {
     doc.callsRounds = 0;
@@ -583,6 +652,11 @@ UserSchema.pre("validate", function () {
     doc.planLimits = {
       ...(doc.planLimits || {}),
       callsEnabled: false,
+    };
+
+    doc.callRoundsSchedule = {
+      enabled: false,
+      rounds: [],
     };
   }
 
@@ -743,6 +817,9 @@ UserSchema.index({ eventDate: 1 });
 UserSchema.index({ plan: 1, hasPaid: 1 });
 UserSchema.index({ isDemoUser: 1 });
 UserSchema.index({ role: 1, "accessModules.venues": 1 });
+UserSchema.index({ "callRoundsSchedule.enabled": 1 });
+UserSchema.index({ "callRoundsSchedule.rounds.scheduledAt": 1 });
+UserSchema.index({ "callRoundsSchedule.rounds.status": 1 });
 
 /* ============================================================
    MODEL
