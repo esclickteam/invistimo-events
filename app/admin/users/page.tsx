@@ -582,6 +582,73 @@ function getChannelLabel(channel?: string | null) {
   return "";
 }
 
+function mergeRoundStatus(
+  base: MessageRoundStatus,
+  incoming?: Partial<MessageRoundStatus> | null
+): MessageRoundStatus {
+  return {
+    ...base,
+    ...(incoming || {}),
+    done: Boolean(incoming?.done || incoming?.sentAt || base.done),
+    blocked: Boolean(incoming?.blocked || base.blocked),
+    sentAt: incoming?.sentAt || base.sentAt || null,
+    scheduledAt: incoming?.scheduledAt || base.scheduledAt || null,
+    channel: incoming?.channel || base.channel || null,
+  };
+}
+
+function normalizeAdminMessageRounds(user: AdminUser): AdminMessageRounds {
+  const defaults = getDefaultMessageRounds();
+  const incoming = user.messageRounds;
+
+  if (!incoming) return defaults;
+
+  const rsvp = defaults.rsvp.map((baseRound) => {
+    const found =
+      incoming.rsvp?.find((item) => item.key === baseRound.key) ||
+      incoming.rsvp?.find((item) => item.label === baseRound.label);
+
+    return mergeRoundStatus(baseRound, found);
+  });
+
+  const reminder = defaults.reminder.map((baseRound) => {
+    const found =
+      incoming.reminder?.find((item) => item.key === baseRound.key) ||
+      incoming.reminder?.find((item) => item.key === "reminder") ||
+      incoming.reminder?.[0];
+
+    return mergeRoundStatus(baseRound, found);
+  });
+
+  const thankyou = defaults.thankyou.map((baseRound) => {
+    const found =
+      incoming.thankyou?.find((item) => item.key === baseRound.key) ||
+      incoming.thankyou?.find((item) => item.key === "thankyou") ||
+      incoming.thankyou?.find((item) => item.key === "thank_you") ||
+      incoming.thankyou?.find((item) => item.key === "thankYou") ||
+      incoming.thankyou?.find((item) => item.key === "thanks") ||
+      incoming.thankyou?.find((item) => item.key === "thank-you") ||
+      incoming.thankyou?.[0];
+
+    return mergeRoundStatus(baseRound, found);
+  });
+
+  const calls = defaults.calls?.map((baseRound) => {
+    const found =
+      incoming.calls?.find((item) => item.key === baseRound.key) ||
+      incoming.calls?.find((item) => item.label === baseRound.label);
+
+    return mergeRoundStatus(baseRound, found);
+  });
+
+  return {
+    rsvp,
+    reminder,
+    thankyou,
+    calls,
+  };
+}
+
 /* =========================
    PAGE
 ========================= */
@@ -2007,7 +2074,7 @@ function EventScheduleModal({
   user: AdminUser;
   onClose: () => void;
 }) {
-  const rounds = user.messageRounds || getDefaultMessageRounds();
+  const rounds = normalizeAdminMessageRounds(user);
 
   const scheduleItems = [
     ...rounds.rsvp.map((round) => ({
@@ -2233,7 +2300,7 @@ function AdminMessageRoundsPanel({
 }) {
   const [loadingKey, setLoadingKey] = useState<string | null>(null);
 
-  const rounds = user.messageRounds || getDefaultMessageRounds();
+  const rounds = normalizeAdminMessageRounds(user);
 
   async function updateRound(action: "reset" | "block" | "unblock", key: string) {
     const confirmText =
