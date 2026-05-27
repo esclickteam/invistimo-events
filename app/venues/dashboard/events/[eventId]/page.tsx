@@ -845,7 +845,7 @@ export default function VenueEventPage() {
 
   const updateSelectedMenuDraftCategory = (
     categoryId: string,
-    field: "eventMinChoices" | "eventMaxChoices" | "eventNote",
+    field: "eventChoices" | "eventNote",
     value: string
   ) => {
     setSelectedMenuDraft((current) => {
@@ -862,7 +862,11 @@ export default function VenueEventPage() {
 
           const parsed = Math.max(0, toNumber(value, 0));
 
-          return { ...category, [field]: parsed };
+          return {
+            ...category,
+            eventMinChoices: parsed,
+            eventMaxChoices: parsed,
+          };
         }),
       };
     });
@@ -880,7 +884,7 @@ export default function VenueEventPage() {
       );
 
       if (invalidCategory) {
-        throw new Error(`בקטגוריה ${invalidCategory.name} כמות מקסימלית לא יכולה להיות קטנה מהמינימום`);
+        throw new Error(`בקטגוריה ${invalidCategory.name} כמות הבחירה לא תקינה`);
       }
 
       const res = await fetch(
@@ -932,7 +936,7 @@ export default function VenueEventPage() {
 
   const updateAssignedMenuCategory = (
     categoryId: string,
-    field: "eventMinChoices" | "eventMaxChoices" | "eventNote",
+    field: "eventChoices" | "eventNote",
     value: string
   ) => {
     setAssignedMenu((current) => {
@@ -947,7 +951,13 @@ export default function VenueEventPage() {
             return { ...category, eventNote: value };
           }
 
-          return { ...category, [field]: Math.max(0, toNumber(value, 0)) };
+          const parsed = Math.max(0, toNumber(value, 0));
+
+          return {
+            ...category,
+            eventMinChoices: parsed,
+            eventMaxChoices: parsed,
+          };
         }),
       };
     });
@@ -965,7 +975,7 @@ export default function VenueEventPage() {
       );
 
       if (invalidCategory) {
-        throw new Error(`בקטגוריה ${invalidCategory.name} כמות מקסימלית לא יכולה להיות קטנה מהמינימום`);
+        throw new Error(`בקטגוריה ${invalidCategory.name} כמות הבחירה לא תקינה`);
       }
 
       const res = await fetch(
@@ -2299,31 +2309,19 @@ export default function VenueEventPage() {
                             {category.name}
                           </div>
                           <div className="mt-1 text-xs font-bold text-[#8a7b68]">
-                            במקור: בחירה {category.originalMinChoices} עד {category.originalMaxChoices} מתוך {category.dishesCount || "המוגדרות"}
+                            במקור: בחירה {category.originalMaxChoices} מתוך {category.dishesCount || "המוגדרות"}
                           </div>
                         </div>
 
-                        <div className="grid gap-2 sm:grid-cols-2">
+                        <div className="w-full sm:w-[220px]">
                           <InputEdit
-                            label="מינימום בחירה"
-                            type="number"
-                            value={String(category.eventMinChoices)}
-                            onChange={(value) =>
-                              updateSelectedMenuDraftCategory(
-                                category.id,
-                                "eventMinChoices",
-                                value
-                              )
-                            }
-                          />
-                          <InputEdit
-                            label="מקסימום בחירה"
+                            label="כמה לבחירה"
                             type="number"
                             value={String(category.eventMaxChoices)}
                             onChange={(value) =>
                               updateSelectedMenuDraftCategory(
                                 category.id,
-                                "eventMaxChoices",
+                                "eventChoices",
                                 value
                               )
                             }
@@ -2793,7 +2791,7 @@ function EventMenuTab({
   onUpdateEventNote: (value: string) => void;
   onUpdateCategory: (
     categoryId: string,
-    field: "eventMinChoices" | "eventMaxChoices" | "eventNote",
+    field: "eventChoices" | "eventNote",
     value: string
   ) => void;
   onSaveChanges: () => void;
@@ -3037,25 +3035,17 @@ function EventMenuTab({
                       {category.name}
                     </div>
                     <div className="mt-1 text-xs font-bold text-[#8a7b68]">
-                      במקור: {category.originalMinChoices} עד {category.originalMaxChoices} בחירות
+                      במקור: בחירה {category.originalMaxChoices} מתוך {category.dishesCount || "המוגדרות"}
                     </div>
                   </div>
 
-                  <div className="grid gap-2 sm:grid-cols-2">
+                  <div className="w-full sm:w-[220px]">
                     <InputEdit
-                      label="מינימום בחירה"
-                      type="number"
-                      value={String(category.eventMinChoices)}
-                      onChange={(value) =>
-                        onUpdateCategory(category.id, "eventMinChoices", value)
-                      }
-                    />
-                    <InputEdit
-                      label="מקסימום בחירה"
+                      label="כמה לבחירה"
                       type="number"
                       value={String(category.eventMaxChoices)}
                       onChange={(value) =>
-                        onUpdateCategory(category.id, "eventMaxChoices", value)
+                        onUpdateCategory(category.id, "eventChoices", value)
                       }
                     />
                   </div>
