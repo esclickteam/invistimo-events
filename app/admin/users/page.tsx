@@ -1113,9 +1113,10 @@ export default function AdminUsersPage() {
               {filteredUsers.map((u) => (
                 <tr
   key={u._id}
+
   className={`relative text-sm hover:bg-[#FFFDF8] ${
-    openActionsId === u._id ? "z-[999]" : "z-0"
-  }`}
+  openActionsId === u._id ? "z-10" : "z-0"
+}`}
 >
                   <td className="p-4 font-black text-[#3A2A1C]">
                     {u.name || "—"}
@@ -1155,7 +1156,7 @@ export default function AdminUsersPage() {
                     </StatusBadge>
                   </td>
 
-                  <td className="relative z-50 overflow-visible p-4">
+                  <td className="relative overflow-visible p-4">
 
                     <UserActionsDropdown
                       user={u}
@@ -3562,9 +3563,9 @@ function UserActionsDropdown({
 
   return (
     <div
-      className={`relative z-30 ${
-        fullWidth ? "w-full" : "w-full sm:w-[190px]"
-      }`}
+      className={`relative ${
+  fullWidth ? "w-full" : "w-full sm:w-[190px]"
+}`}
     >
       <button
         type="button"
