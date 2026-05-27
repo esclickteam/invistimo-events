@@ -4198,6 +4198,7 @@ function findExistingScheduledMessage(
   invitation: any,
   options: {
     type?: string;
+    types?: string[];
     templateKeys?: string[];
     roundNumber?: number;
   }
@@ -4206,15 +4207,24 @@ function findExistingScheduledMessage(
     ? invitation.scheduledMessages
     : [];
 
-  return messages.find((msg: any) => {
-    const msgType = String(msg?.type || "").toLowerCase();
-    const templateKey = String(msg?.templateKey || "").toLowerCase();
-    const templateName = String(msg?.templateName || "").toLowerCase();
-    const messageContent = String(msg?.messageContent || "").toLowerCase();
+  const wantedTypes = [
+    ...(options.type ? [options.type] : []),
+    ...(options.types || []),
+  ]
+    .map((item) => String(item || "").toLowerCase().trim())
+    .filter(Boolean);
 
-    const typeOk = options.type
-      ? msgType === options.type.toLowerCase()
-      : true;
+  const wantedTemplateKeys = (options.templateKeys || [])
+    .map((item) => String(item || "").toLowerCase().trim())
+    .filter(Boolean);
+
+  return messages.find((msg: any) => {
+    const msgType = String(msg?.type || "").toLowerCase().trim();
+    const templateKey = String(msg?.templateKey || "").toLowerCase().trim();
+    const templateName = String(msg?.templateName || "").toLowerCase().trim();
+    const messageContent = String(msg?.messageContent || "").toLowerCase();
+    const messageOverride = String(msg?.messageOverride || "").toLowerCase();
+    const text = String(msg?.text || "").toLowerCase();
 
     const roundOk =
       options.roundNumber == null
@@ -4222,21 +4232,34 @@ function findExistingScheduledMessage(
         : Number(msg?.roundNumber || msg?.round || 0) ===
           Number(options.roundNumber);
 
-    const templateOk =
-      !options.templateKeys?.length ||
-      options.templateKeys.some((key) => {
-        const normalized = String(key).toLowerCase();
+    if (!roundOk) return false;
 
+    const typeMatched =
+      wantedTypes.length > 0 &&
+      wantedTypes.some((type) => msgType === type || msgType.includes(type));
+
+    const templateMatched =
+      wantedTemplateKeys.length > 0 &&
+      wantedTemplateKeys.some((key) => {
         return (
-          templateKey === normalized ||
-          templateName === normalized ||
-          templateKey.includes(normalized) ||
-          templateName.includes(normalized) ||
-          messageContent.includes(normalized)
+          templateKey === key ||
+          templateName === key ||
+          templateKey.includes(key) ||
+          templateName.includes(key) ||
+          messageContent.includes(key) ||
+          messageOverride.includes(key) ||
+          text.includes(key)
         );
       });
 
-    return typeOk && roundOk && templateOk;
+    if (wantedTypes.length > 0 && wantedTemplateKeys.length > 0) {
+      return typeMatched || templateMatched;
+    }
+
+    if (wantedTypes.length > 0) return typeMatched;
+    if (wantedTemplateKeys.length > 0) return templateMatched;
+
+    return true;
   });
 }
 
@@ -4281,7 +4304,7 @@ function buildExistingRsvpSchedule(user: any, invitation: any): UserRsvpSchedule
       icon: "📞",
       done: userRound?.status === "done",
       blocked: false,
-      sentAt: null,
+      sentAt: userRound?.sentAt || null,
       scheduledAt: userRound?.scheduledAt || null,
       channel: "calls",
       channelLabel: "שיחות",
@@ -4293,7 +4316,12 @@ function buildExistingRsvpSchedule(user: any, invitation: any): UserRsvpSchedule
 
     const scheduledMessage = findExistingScheduledMessage(invitation, {
       type: "rsvp",
-      templateKeys: ["rsvp", "rsvp_invitation_media"],
+      templateKeys: [
+        "rsvp",
+        "rsvp_invitation_media",
+        "whatsapp:rsvp_invitation_media",
+        "sms:rsvp",
+      ],
       roundNumber: round,
     });
 
@@ -4342,8 +4370,13 @@ function buildExistingRsvpSchedule(user: any, invitation: any): UserRsvpSchedule
   });
 
   const reminderScheduledMessage = findExistingScheduledMessage(invitation, {
-    type: "reminder",
-    templateKeys: ["reminder", "table", "rsvp_reminder_invistimo"],
+    types: ["reminder", "rsvp_reminder", "rsvp_reminder_invistimo"],
+    templateKeys: [
+      "reminder",
+      "table",
+      "rsvp_reminder",
+      "rsvp_reminder_invistimo",
+    ],
   });
 
   const reminderSentAt =
@@ -4372,21 +4405,32 @@ function buildExistingRsvpSchedule(user: any, invitation: any): UserRsvpSchedule
 
   const reminderChannel =
     reminderScheduledMessage?.channel ||
-    (invitation?.reminderWhatsappScheduledAt ||
-    invitation?.reminderWhatsappscheduledAt ||
-    invitation?.reminderWhatsappSentAt ||
-    invitation?.reminderWhatsappsentAt
+    (invitation?.reminderWhatsappScheduledAt || invitation?.reminderWhatsappSentAt
       ? "whatsapp"
-      : invitation?.reminderSmsScheduledAt ||
-          invitation?.reminderSmsscheduledAt ||
-          invitation?.reminderSmsSentAt ||
-          invitation?.reminderSmssentAt
+      : invitation?.reminderSmsScheduledAt || invitation?.reminderSmsSentAt
         ? "sms"
         : null);
 
   const thankyouScheduledMessage = findExistingScheduledMessage(invitation, {
-    type: "thankyou",
-    templateKeys: ["thankyou", "thank_you", "thank_you_message"],
+    types: [
+      "thankyou",
+      "thank_you",
+      "thanks",
+      "thank",
+      "thankyou_message",
+      "thank_you_message",
+      "thankyoumessage",
+    ],
+    templateKeys: [
+      "thankyou",
+      "thank_you",
+      "thanks",
+      "thank",
+      "thankyou_message",
+      "thank_you_message",
+      "thank_you_invistimo",
+      "תודה",
+    ],
   });
 
   const thankyouSentAt =
@@ -4428,22 +4472,14 @@ function buildExistingRsvpSchedule(user: any, invitation: any): UserRsvpSchedule
   const thankyouChannel =
     thankyouScheduledMessage?.channel ||
     (invitation?.thankYouWhatsappScheduledAt ||
-    invitation?.thankYouWhatsappscheduledAt ||
     invitation?.thankyouWhatsappScheduledAt ||
-    invitation?.thankyouWhatsappscheduledAt ||
     invitation?.thankYouWhatsappSentAt ||
-    invitation?.thankYouWhatsappsentAt ||
-    invitation?.thankyouWhatsappSentAt ||
-    invitation?.thankyouWhatsappsentAt
+    invitation?.thankyouWhatsappSentAt
       ? "whatsapp"
       : invitation?.thankYouSmsScheduledAt ||
-          invitation?.thankYouSmsscheduledAt ||
           invitation?.thankyouSmsScheduledAt ||
-          invitation?.thankyouSmsscheduledAt ||
           invitation?.thankYouSmsSentAt ||
-          invitation?.thankYouSmssentAt ||
-          invitation?.thankyouSmsSentAt ||
-          invitation?.thankyouSmssentAt
+          invitation?.thankyouSmsSentAt
         ? "sms"
         : null);
 
