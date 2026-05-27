@@ -301,6 +301,7 @@ const actualArrivedSaveTimersRef = useRef<
   Record<string, ReturnType<typeof setTimeout>>
 >({});
 const actualArrivedRequestVersionRef = useRef<Record<string, number>>({});
+const guestsAutoRefreshRef = useRef(false);
 
 
   const groups = useGroupStore((s) => s.groups);
@@ -427,44 +428,42 @@ const canViewActualArrived =
   const loadGroups = useGroupStore((s) => s.loadGroups);
 
   const handleGuestUpdated = async (updatedGuest: Guest) => {
+    const normalizedUpdatedGuest = normalizeGuestForDashboard(updatedGuest);
+
     setGuests((prev) =>
       prev.map((g) => {
-        if (String(g._id) !== String(updatedGuest._id)) return g;
+        if (String(g._id) !== String(normalizedUpdatedGuest._id)) return g;
 
-        return {
+        return normalizeGuestForDashboard({
           ...g,
 
-          name: updatedGuest.name,
-          phone: updatedGuest.phone,
-          relation: updatedGuest.relation,
-          rsvp: updatedGuest.rsvp,
+          name: normalizedUpdatedGuest.name,
+          phone: normalizedUpdatedGuest.phone,
+          relation: normalizedUpdatedGuest.relation,
+          rsvp: normalizedUpdatedGuest.rsvp,
 
-          guestsCount: updatedGuest.guestsCount,
+          guestsCount: normalizedUpdatedGuest.guestsCount,
 
-          arrivedCount:
-            updatedGuest.arrivedCount ??
-            (updatedGuest.rsvp === "yes"
-              ? updatedGuest.guestsCount
-              : 0),
+          arrivedCount: normalizedUpdatedGuest.arrivedCount,
 
           actualArrivedCount:
-            updatedGuest.actualArrivedCount ?? g.actualArrivedCount,
+            normalizedUpdatedGuest.actualArrivedCount ?? g.actualArrivedCount,
 
-          notes: updatedGuest.notes,
-          groupId: updatedGuest.groupId,
-          tableName: updatedGuest.tableName,
-        };
+          notes: normalizedUpdatedGuest.notes,
+          groupId: normalizedUpdatedGuest.groupId,
+          tableName: normalizedUpdatedGuest.tableName,
+        });
       })
     );
 
     const seating = useSeatingStore.getState();
 
     seating.syncPlannedSeatsForGuest(
-      updatedGuest._id,
-      updatedGuest.guestsCount
+      normalizedUpdatedGuest._id,
+      normalizedUpdatedGuest.guestsCount
     );
 
-    seating.resetArrivedSeatsForGuest(updatedGuest._id);
+    seating.resetArrivedSeatsForGuest(normalizedUpdatedGuest._id);
 
     if (invitationId) {
       await loadGroups(invitationId);
@@ -619,7 +618,11 @@ const canViewActualArrived =
       return;
     }
 
-    setGuests(Array.isArray(data.guests) ? data.guests : []);
+    setGuests(
+      Array.isArray(data.guests)
+        ? data.guests.map((guest: Guest) => normalizeGuestForDashboard(guest))
+        : []
+    );
   }
 
   async function loadSeatingTables() {
@@ -979,6 +982,47 @@ if (!canDeleteAllGuests) {
     if (isDemo) return;
     if (!invitationId) return;
 
+    const refreshGuests = async () => {
+      if (guestsAutoRefreshRef.current) return;
+
+      guestsAutoRefreshRef.current = true;
+
+      try {
+        await loadGuests();
+      } finally {
+        guestsAutoRefreshRef.current = false;
+      }
+    };
+
+    const interval = window.setInterval(refreshGuests, 3000);
+
+    const refreshOnFocus = () => {
+      refreshGuests();
+    };
+
+    const refreshOnVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshGuests();
+      }
+    };
+
+    window.addEventListener("focus", refreshOnFocus);
+    document.addEventListener("visibilitychange", refreshOnVisibilityChange);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshOnFocus);
+      document.removeEventListener(
+        "visibilitychange",
+        refreshOnVisibilityChange
+      );
+    };
+  }, [invitationId, isDemo, isVenueView, eventIdFromUrl]);
+
+  useEffect(() => {
+    if (isDemo) return;
+    if (!invitationId) return;
+
     loadGroups(invitationId);
   }, [invitationId, isDemo, loadGroups]);
 
@@ -1260,6 +1304,24 @@ function getLatestCallRound(guest: Guest): LatestCallRound | null {
 
 function getGuestRsvp(guest: Guest) {
   return guest.rsvp || "pending";
+}
+
+function normalizeGuestForDashboard(guest: Guest): Guest {
+  const rsvp = guest.rsvp || "pending";
+  const guestsCount = Number(guest.guestsCount || 0);
+  const arrivedFromServer = Number(guest.arrivedCount ?? 0);
+
+  return {
+    ...guest,
+    rsvp,
+    guestsCount,
+    arrivedCount:
+      rsvp === "yes"
+        ? arrivedFromServer > 0
+          ? arrivedFromServer
+          : guestsCount
+        : 0,
+  };
 }
 
   /* ============================================================
@@ -2768,11 +2830,20 @@ const canOpenEventManagement =
         <CallRoundsModal
           guest={openCallsGuest}
           onClose={() => setOpenCallsGuest(null)}
-          onUpdated={(updatedGuest: Guest) => {
-            setGuests((prev) =>
-              prev.map((g) =>
-                g._id === updatedGuest._id ? updatedGuest : g
-              )
+          onUpdated={async (updatedGuest: Guest) => {
+            const normalizedUpdatedGuest =
+              normalizeGuestForDashboard(updatedGuest);
+
+            await handleGuestUpdated(normalizedUpdatedGuest);
+
+            setOpenCallsGuest((current) =>
+              current &&
+              String(current._id) === String(normalizedUpdatedGuest._id)
+                ? normalizeGuestForDashboard({
+                    ...current,
+                    ...normalizedUpdatedGuest,
+                  })
+                : current
             );
           }}
         />
