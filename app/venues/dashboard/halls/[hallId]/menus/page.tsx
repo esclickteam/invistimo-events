@@ -776,10 +776,6 @@ export default function HallMenusPage() {
         image: "",
         tags: "",
       });
-
-      if (selectedCategory) {
-        await addDishToCategory(savedDish);
-      }
     } catch (error) {
       console.error("POST menu-dishes failed:", error);
       setServerError(
@@ -1325,7 +1321,6 @@ export default function HallMenusPage() {
                         dish={dish}
                         saving={saving || librarySaving}
                         onDragStart={() => setDraggedDish(dish)}
-                        onAdd={() => addDishToCategory(dish)}
                         onDelete={() => deleteDishFromLibrary(dish)}
                       />
                     ))
@@ -1640,8 +1635,8 @@ export default function HallMenusPage() {
             </label>
 
             <div className="rounded-2xl border border-[#ead7ad] bg-[#fff9ee] p-3 text-xs font-bold leading-6 text-[#806945]">
-              המנה תישמר בספריית המנות הקבועה של האולם. אם יש קטגוריה פתוחה,
-              היא תתווסף גם אליה ותישמר בתפריט.
+              המנה תישמר רק בספריית המנות הקבועה של האולם.
+              כדי לשייך אותה לתפריט, יש לגרור אותה ידנית לקטגוריה הרצויה.
             </div>
 
             <button
@@ -1806,13 +1801,11 @@ function DishLibraryItem({
   dish,
   saving,
   onDragStart,
-  onAdd,
   onDelete,
 }: {
   dish: Dish;
   saving: boolean;
   onDragStart: () => void;
-  onAdd: () => void;
   onDelete: () => void;
 }) {
   return (
@@ -1845,14 +1838,6 @@ function DishLibraryItem({
       </div>
 
       <div className="flex items-center gap-1">
-        <button
-          type="button"
-          onClick={onAdd}
-          disabled={saving}
-          className="rounded-xl bg-[#fff0cd] px-2 py-1 text-xs font-black text-[#8c5f19] transition hover:bg-[#ffe3aa] disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          הוספה
-        </button>
         <button
           type="button"
           onClick={onDelete}
