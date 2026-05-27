@@ -1022,79 +1022,88 @@ export default function VenueEventPage() {
   };
 
   const openSendMenuSms = () => {
-    if (!assignedMenu) return;
+  if (!assignedMenu) return;
 
+  const link =
+    assignedMenu.publicLink ||
+    `${window.location.origin}/menus/choose/${assignedMenu.publicToken || eventId}`;
+
+  setMenuSms({
+    phone: "",
+    message: `שלום, מצורף קישור לבחירת מנות לאירוע שלכם ב-Invistimo: ${link}`,
+  });
+
+  setSendMenuOpen(true);
+};
+
+const sendMenuSmsToCouple = async () => {
+  if (!assignedMenu) return;
+
+  if (!menuSms.phone.trim()) {
+    alert("חובה להזין מספר טלפון לשליחת SMS");
+    return;
+  }
+
+  setMenuSendingSms(true);
+  setMenuError("");
+
+  try {
     const link =
       assignedMenu.publicLink ||
-      `${window.location.origin}/menus/${assignedMenu.publicToken || eventId}/choose`;
+      `${window.location.origin}/menus/choose/${assignedMenu.publicToken || eventId}`;
 
-    setMenuSms({
-      phone: "",
-      message: `שלום, מצורף קישור לבחירת מנות לאירוע שלכם ב-Invistimo: ${link}`,
+    const cleanPhone = menuSms.phone.trim();
+    const cleanMessage = menuSms.message.trim();
+
+    const res = await fetch("/api/sms/send", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({
+        phone: cleanPhone,
+        to: cleanPhone,
+        recipient: cleanPhone,
+        recipients: [cleanPhone],
+        phones: [cleanPhone],
+
+        message: cleanMessage,
+        text: cleanMessage,
+        content: cleanMessage,
+
+        eventId,
+        hallId,
+        type: "event_menu_selection",
+        selectionLink: link,
+        provider: "4free",
+      }),
     });
 
-    setSendMenuOpen(true);
-  };
+    const data = await res.json().catch(() => ({}));
 
-  const sendMenuSmsToCouple = async () => {
-    if (!assignedMenu) return;
-
-    if (!menuSms.phone.trim()) {
-      alert("חובה להזין מספר טלפון לשליחת SMS");
-      return;
+    if (!res.ok || data?.success === false) {
+      throw new Error(data?.message || data?.error || "שליחת ה-SMS נכשלה");
     }
 
-    setMenuSendingSms(true);
-    setMenuError("");
+    setAssignedMenu((current) =>
+      current
+        ? {
+            ...current,
+            sentToCouple: true,
+          }
+        : current
+    );
 
-    try {
-      const link =
-        assignedMenu.publicLink ||
-        `${window.location.origin}/menus/${assignedMenu.publicToken || eventId}/choose`;
-
-      const res = await fetch("/api/sms/send", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          to: menuSms.phone.trim(),
-          phone: menuSms.phone.trim(),
-          message: menuSms.message,
-          text: menuSms.message,
-          eventId,
-          hallId,
-          type: "event_menu_selection",
-          selectionLink: link,
-          provider: "4free",
-        }),
-      });
-
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok || data?.success === false) {
-        throw new Error(data?.message || data?.error || "שליחת ה-SMS נכשלה");
-      }
-
-      setAssignedMenu((current) =>
-        current
-          ? {
-              ...current,
-              sentToCouple: true,
-            }
-          : current
-      );
-
-      setSendMenuOpen(false);
-      alert("הקישור לבחירת מנות נשלח ב-SMS");
-    } catch (error) {
-      console.error("POST send menu sms failed:", error);
-      setMenuError(error instanceof Error ? error.message : "שליחת ה-SMS נכשלה");
-    } finally {
-      setMenuSendingSms(false);
-    }
-  };
+    setSendMenuOpen(false);
+    alert("הקישור לבחירת מנות נשלח ב-SMS");
+  } catch (error) {
+    console.error("POST send menu sms failed:", error);
+    setMenuError(error instanceof Error ? error.message : "שליחת ה-SMS נכשלה");
+  } finally {
+    setMenuSendingSms(false);
+  }
+};
 
   const updateEvent = async (form: EventEditForm) => {
     if (!eventData) return;

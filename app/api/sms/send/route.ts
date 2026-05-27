@@ -317,26 +317,145 @@ export async function POST(req: Request) {
     /* ================= BODY ================= */
 
     const body = (await req.json()) as {
-      invitationId?: string;
-      filter?: FilterType;
-      templateKey?: MessageTemplateKey;
-      type?: ScheduledType;
-      scheduledAt?: string;
-      includeGiftLink?: boolean;
-      giftLink?: string;
-      messageOverride?: string;
-      messageContent?: string;
-      message?: string;
-      text?: string;
-      guestIds?: string[];
-      audience?: string[];
-      round?: RoundNumber;
-      roundNumber?: RoundNumber;
-    };
+  invitationId?: string;
+  filter?: FilterType;
+  templateKey?: MessageTemplateKey;
+  type?: ScheduledType | "event_menu_selection";
+  scheduledAt?: string;
+  includeGiftLink?: boolean;
+  giftLink?: string;
+  messageOverride?: string;
+  messageContent?: string;
+  message?: string;
+  text?: string;
+  content?: string;
+  body?: string;
+  phone?: string;
+  to?: string;
+  recipient?: string;
+  recipients?: string[];
+  phones?: string[];
+  guestIds?: string[];
+  audience?: string[];
+  round?: RoundNumber;
+  roundNumber?: RoundNumber;
+  eventId?: string;
+  hallId?: string;
+  selectionLink?: string;
+  provider?: string;
+};
 
     const invitationId = body.invitationId;
     const templateKey = normalizeTemplateKey(body.templateKey || body.type);
     const round = normalizeRound(body.round ?? body.roundNumber);
+
+    /* ======================================================
+   DIRECT SMS — בלי invitationId
+   לשימוש בקישור בחירת מנות / הודעה חד-פעמית לטלפון
+====================================================== */
+
+const directPhone =
+  body.phone ||
+  body.to ||
+  body.recipient ||
+  body.recipients?.[0] ||
+  body.phones?.[0] ||
+  "";
+
+const directMessage =
+  body.message?.trim() ||
+  body.text?.trim() ||
+  body.content?.trim() ||
+  body.body?.trim() ||
+  "";
+
+const isDirectSmsRequest =
+  body.type === "event_menu_selection" ||
+  Boolean(directPhone && directMessage && !invitationId);
+
+if (isDirectSmsRequest) {
+  if (!directPhone || !directMessage) {
+    return NextResponse.json(
+      { success: false, error: "MISSING_PARAMS" },
+      { status: 400 }
+    );
+  }
+
+  let phone = String(directPhone).replace(/\D/g, "");
+
+  if (!phone) {
+    return NextResponse.json(
+      { success: false, error: "INVALID_PHONE" },
+      { status: 400 }
+    );
+  }
+
+  if (phone.startsWith("0")) {
+    phone = "972" + phone.slice(1);
+  } else if (!phone.startsWith("972")) {
+    phone = "972" + phone;
+  }
+
+  const parts = countBusinessSms(directMessage);
+
+  if (parts === -1) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "MESSAGE_TOO_LONG",
+        maxParts: 2,
+        totalChars: [...directMessage].length,
+      },
+      { status: 400 }
+    );
+  }
+
+  const smsRes = await fetch("https://api.sms4free.co.il/ApiSMS/v2/SendSMS", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      key: process.env.SMS4FREE_KEY,
+      user: process.env.SMS4FREE_USER,
+      pass: process.env.SMS4FREE_PASS,
+      sender: process.env.SMS4FREE_SENDER,
+      recipient: phone,
+      msg: directMessage,
+    }),
+  });
+
+  const smsText = await smsRes.text().catch(() => "");
+
+  if (!smsRes.ok) {
+    console.error("❌ DIRECT SMS4FREE ERROR:", {
+      status: smsRes.status,
+      response: smsText,
+      phone,
+      type: body.type,
+    });
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: "SMS4FREE_SEND_FAILED",
+        details: smsText,
+      },
+      { status: 500 }
+    );
+  }
+
+  if (!usesNewLogic && parts > 0) {
+    await User.updateOne({ _id: user._id }, { $inc: { smsUsed: parts } });
+  }
+
+  return NextResponse.json({
+    success: true,
+    direct: true,
+    sent: 1,
+    charged: parts,
+    phone,
+    type: body.type || "direct_sms",
+  });
+}
 
     const rawFilter = body.filter || "all";
     const filter = getFilterForSend({
