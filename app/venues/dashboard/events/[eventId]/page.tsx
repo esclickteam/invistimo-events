@@ -162,23 +162,53 @@ type ActivityRow = {
   description: string;
 };
 
-type VenueMenuTemplate = {
+type VenueMenuCategoryRule = {
   id: string;
   name: string;
-  type: string;
+  minChoices: number;
+  maxChoices: number;
+  dishesCount: number;
+};
+
+type VenueMenuTemplate = {
+  id: string;
+  _id?: string;
+  name: string;
+  type?: string;
   categories: number;
   dishes: number;
   status: "active" | "draft";
   description: string;
+  categoryRules: VenueMenuCategoryRule[];
+};
+
+type AssignedMenuCategoryOverride = VenueMenuCategoryRule & {
+  originalMinChoices: number;
+  originalMaxChoices: number;
+  eventMinChoices: number;
+  eventMaxChoices: number;
+  eventNote: string;
 };
 
 type AssignedMenu = {
   id: string;
   templateId: string;
   name: string;
+  publicToken?: string;
+  publicLink?: string;
+  eventNote?: string;
   sentToCouple: boolean;
   coupleSelected: boolean;
   approved: boolean;
+  selectedAt?: string;
+  submittedAt?: string;
+  updatedAt?: string;
+  categoryOverrides: AssignedMenuCategoryOverride[];
+};
+
+type MenuSmsState = {
+  phone: string;
+  message: string;
 };
 
 type VenueSeatingTemplateRow = {
@@ -229,35 +259,110 @@ const emptyStats: EventStats = {
   },
 };
 
-const venueMenuTemplates: VenueMenuTemplate[] = [
-  {
-    id: "menu-premium",
-    name: "תפריט פרימיום",
-    type: "חתונות",
-    categories: 5,
-    dishes: 28,
-    status: "active",
-    description: "ראשונות, עיקריות, בופה, קינוחים ובר אפטר.",
-  },
-  {
-    id: "menu-classic",
-    name: "תפריט קלאסי",
-    type: "אירועים כלליים",
-    categories: 4,
-    dishes: 22,
-    status: "active",
-    description: "תפריט בסיס עשיר עם בחירה גמישה לזוג.",
-  },
-  {
-    id: "menu-vip",
-    name: "תפריט VIP",
-    type: "אירועי יוקרה",
-    categories: 6,
-    dishes: 34,
-    status: "active",
-    description: "תפריט מורחב עם עמדות מיוחדות וקינוחים אישיים.",
-  },
-];
+const fallbackVenueMenuTemplates: VenueMenuTemplate[] = [];
+
+function normalizeMenuTemplate(raw: any): VenueMenuTemplate {
+  const rawCategories = Array.isArray(raw?.categories)
+    ? raw.categories
+    : Array.isArray(raw?.sections)
+      ? raw.sections
+      : [];
+
+  const categoryRules = rawCategories.map((category: any, index: number) => {
+    const dishes = Array.isArray(category?.dishes)
+      ? category.dishes
+      : Array.isArray(category?.items)
+        ? category.items
+        : [];
+
+    return {
+      id: String(category?._id || category?.id || `category-${index + 1}`),
+      name: String(category?.name || category?.title || `קטגוריה ${index + 1}`),
+      minChoices: toNumber(category?.minChoices ?? category?.minSelection ?? category?.requiredChoices, 1),
+      maxChoices: toNumber(category?.maxChoices ?? category?.maxSelection ?? category?.chooseCount, 1),
+      dishesCount: dishes.length || toNumber(category?.dishesCount, 0),
+    };
+  });
+
+  const dishesCountFromCategories = categoryRules.reduce(
+  (sum: number, category: VenueMenuCategoryRule) =>
+    sum + toNumber(category.dishesCount, 0),
+  0
+);
+
+  return {
+    id: String(raw?._id || raw?.id || ""),
+    _id: raw?._id ? String(raw._id) : undefined,
+    name: String(raw?.name || raw?.title || "תפריט ללא שם"),
+    type: raw?.type ? String(raw.type) : raw?.eventType ? String(raw.eventType) : "",
+    categories: categoryRules.length || toNumber(raw?.categoriesCount, 0),
+    dishes: dishesCountFromCategories || toNumber(raw?.dishesCount ?? raw?.dishes, 0),
+    status: raw?.status === "draft" ? "draft" : "active",
+    description: String(raw?.description || raw?.notes || ""),
+    categoryRules,
+  };
+}
+
+function normalizeAssignedMenu(raw: any): AssignedMenu | null {
+  if (!raw) return null;
+
+  const rawOverrides = Array.isArray(raw?.categoryOverrides)
+    ? raw.categoryOverrides
+    : Array.isArray(raw?.selectionRules)
+      ? raw.selectionRules
+      : [];
+
+  return {
+    id: String(raw?._id || raw?.id || ""),
+    templateId: String(raw?.templateId || raw?.menuTemplateId || raw?.sourceMenuId || ""),
+    name: String(raw?.name || raw?.menuName || "תפריט אירוע"),
+    publicToken: raw?.publicToken ? String(raw.publicToken) : raw?.token ? String(raw.token) : undefined,
+    publicLink: raw?.publicLink ? String(raw.publicLink) : raw?.selectionLink ? String(raw.selectionLink) : undefined,
+    eventNote: String(raw?.eventNote || raw?.note || ""),
+    sentToCouple: Boolean(raw?.sentToCouple || raw?.smsSentAt || raw?.sentAt),
+    coupleSelected: Boolean(raw?.coupleSelected || raw?.submittedAt || raw?.selectedAt),
+    approved: Boolean(raw?.approved || raw?.approvedAt),
+    selectedAt: raw?.selectedAt ? String(raw.selectedAt) : undefined,
+    submittedAt: raw?.submittedAt ? String(raw.submittedAt) : undefined,
+    updatedAt: raw?.updatedAt ? String(raw.updatedAt) : undefined,
+    categoryOverrides: rawOverrides.map((category: any, index: number) => ({
+      id: String(category?._id || category?.id || `category-${index + 1}`),
+      name: String(category?.name || category?.title || `קטגוריה ${index + 1}`),
+      minChoices: toNumber(category?.minChoices ?? category?.originalMinChoices, 1),
+      maxChoices: toNumber(category?.maxChoices ?? category?.originalMaxChoices, 1),
+      dishesCount: toNumber(category?.dishesCount, 0),
+      originalMinChoices: toNumber(category?.originalMinChoices ?? category?.minChoices, 1),
+      originalMaxChoices: toNumber(category?.originalMaxChoices ?? category?.maxChoices, 1),
+      eventMinChoices: toNumber(category?.eventMinChoices ?? category?.minChoices, 1),
+      eventMaxChoices: toNumber(category?.eventMaxChoices ?? category?.maxChoices, 1),
+      eventNote: String(category?.eventNote || ""),
+    })),
+  };
+}
+
+function buildAssignedMenuFromTemplate(
+  template: VenueMenuTemplate,
+  eventNote = ""
+): AssignedMenu {
+  return {
+    id: `event-menu-${Date.now()}`,
+    templateId: template.id,
+    name: template.name,
+    eventNote,
+    sentToCouple: false,
+    coupleSelected: false,
+    approved: false,
+    categoryOverrides: template.categoryRules.map((category) => ({
+      ...category,
+      originalMinChoices: category.minChoices,
+      originalMaxChoices: category.maxChoices,
+      eventMinChoices: category.minChoices,
+      eventMaxChoices: category.maxChoices,
+      eventNote: "",
+    })),
+  };
+}
+
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("he-IL", {
@@ -358,6 +463,18 @@ export default function VenueEventPage() {
   const [menuSelectOpen, setMenuSelectOpen] = useState(false);
   const [sendMenuOpen, setSendMenuOpen] = useState(false);
   const [assignedMenu, setAssignedMenu] = useState<AssignedMenu | null>(null);
+  const [venueMenuTemplates, setVenueMenuTemplates] =
+    useState<VenueMenuTemplate[]>(fallbackVenueMenuTemplates);
+  const [menusLoading, setMenusLoading] = useState(false);
+  const [menuSaving, setMenuSaving] = useState(false);
+  const [menuSendingSms, setMenuSendingSms] = useState(false);
+  const [menuError, setMenuError] = useState("");
+  const [selectedMenuDraft, setSelectedMenuDraft] =
+    useState<AssignedMenu | null>(null);
+  const [menuSms, setMenuSms] = useState<MenuSmsState>({
+    phone: "",
+    message: "",
+  });
 
   const [seatingTemplates, setSeatingTemplates] = useState<VenueSeatingTemplateRow[]>([]);
   const [selectedSeatingTemplateId, setSelectedSeatingTemplateId] = useState("");
@@ -478,6 +595,114 @@ export default function VenueEventPage() {
       cancelled = true;
     };
   }, [hallId, selectedSeatingTemplateId]);
+
+  useEffect(() => {
+    if (!hallId) {
+      setVenueMenuTemplates([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function fetchVenueMenus() {
+      setMenusLoading(true);
+      setMenuError("");
+
+      try {
+        const res = await fetch(
+          `/api/venues/dashboard/halls/${encodeURIComponent(hallId)}/menus`,
+          {
+            method: "GET",
+            credentials: "include",
+            cache: "no-store",
+          }
+        );
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok || data?.success === false) {
+          throw new Error(data?.message || data?.error || "טעינת תפריטי האולם נכשלה");
+        }
+
+        const rawMenus = Array.isArray(data?.menus)
+          ? data.menus
+          : Array.isArray(data?.templates)
+            ? data.templates
+            : Array.isArray(data)
+              ? data
+              : [];
+
+        const activeMenus = rawMenus
+          .map(normalizeMenuTemplate)
+          .filter((menu: VenueMenuTemplate) => menu.id && menu.status === "active");
+
+        if (!cancelled) {
+          setVenueMenuTemplates(activeMenus);
+        }
+      } catch (error) {
+        console.error("GET venue menus failed:", error);
+
+        if (!cancelled) {
+          setVenueMenuTemplates([]);
+          setMenuError(error instanceof Error ? error.message : "טעינת תפריטי האולם נכשלה");
+        }
+      } finally {
+        if (!cancelled) {
+          setMenusLoading(false);
+        }
+      }
+    }
+
+    fetchVenueMenus();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hallId]);
+
+  useEffect(() => {
+    if (!eventId) return;
+
+    let cancelled = false;
+
+    async function fetchAssignedEventMenu() {
+      try {
+        const res = await fetch(
+          `/api/venues/dashboard/events/${encodeURIComponent(eventId)}/menu`,
+          {
+            method: "GET",
+            credentials: "include",
+            cache: "no-store",
+          }
+        );
+
+        const data = await res.json().catch(() => ({}));
+
+        if (res.status === 404) {
+          if (!cancelled) setAssignedMenu(null);
+          return;
+        }
+
+        if (!res.ok || data?.success === false) {
+          throw new Error(data?.message || data?.error || "טעינת תפריט האירוע נכשלה");
+        }
+
+        const menu = normalizeAssignedMenu(data?.eventMenu || data?.menu || data?.assignedMenu);
+
+        if (!cancelled) {
+          setAssignedMenu(menu);
+        }
+      } catch (error) {
+        console.error("GET assigned event menu failed:", error);
+      }
+    }
+
+    fetchAssignedEventMenu();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [eventId]);
 
   const financial = useMemo(() => {
     const commitment = toNumber(eventData?.budgetTotal, 0);
@@ -615,30 +840,250 @@ export default function VenueEventPage() {
   }, [assignedMenu, eventData, eventStats, financial, guestsCount]);
 
   const chooseMenuForEvent = (template: VenueMenuTemplate) => {
-    setAssignedMenu({
-      id: `event-menu-${Date.now()}`,
-      templateId: template.id,
-      name: template.name,
-      sentToCouple: false,
-      coupleSelected: false,
-      approved: false,
-    });
-
-    setMenuSelectOpen(false);
-    setActiveTab("menu");
+    setSelectedMenuDraft(buildAssignedMenuFromTemplate(template));
   };
 
-  const markMenuSent = () => {
-    setAssignedMenu((current) =>
-      current
-        ? {
-            ...current,
-            sentToCouple: true,
-          }
-        : current
-    );
+  const updateSelectedMenuDraftCategory = (
+    categoryId: string,
+    field: "eventMinChoices" | "eventMaxChoices" | "eventNote",
+    value: string
+  ) => {
+    setSelectedMenuDraft((current) => {
+      if (!current) return current;
 
-    setSendMenuOpen(false);
+      return {
+        ...current,
+        categoryOverrides: current.categoryOverrides.map((category) => {
+          if (category.id !== categoryId) return category;
+
+          if (field === "eventNote") {
+            return { ...category, eventNote: value };
+          }
+
+          const parsed = Math.max(0, toNumber(value, 0));
+
+          return { ...category, [field]: parsed };
+        }),
+      };
+    });
+  };
+
+  const saveSelectedMenuForEvent = async () => {
+    if (!eventId || !selectedMenuDraft) return;
+
+    setMenuSaving(true);
+    setMenuError("");
+
+    try {
+      const invalidCategory = selectedMenuDraft.categoryOverrides.find(
+        (category) => category.eventMaxChoices < category.eventMinChoices
+      );
+
+      if (invalidCategory) {
+        throw new Error(`בקטגוריה ${invalidCategory.name} כמות מקסימלית לא יכולה להיות קטנה מהמינימום`);
+      }
+
+      const res = await fetch(
+        `/api/venues/dashboard/events/${encodeURIComponent(eventId)}/menu`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            hallId,
+            templateId: selectedMenuDraft.templateId,
+            eventNote: selectedMenuDraft.eventNote || "",
+            categoryOverrides: selectedMenuDraft.categoryOverrides.map((category) => ({
+              categoryId: category.id,
+              name: category.name,
+              originalMinChoices: category.originalMinChoices,
+              originalMaxChoices: category.originalMaxChoices,
+              eventMinChoices: category.eventMinChoices,
+              eventMaxChoices: category.eventMaxChoices,
+              eventNote: category.eventNote,
+            })),
+          }),
+        }
+      );
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || data?.success === false) {
+        throw new Error(data?.message || data?.error || "שמירת התפריט לאירוע נכשלה");
+      }
+
+      const savedMenu =
+        normalizeAssignedMenu(data?.eventMenu || data?.menu || data?.assignedMenu) ||
+        selectedMenuDraft;
+
+      setAssignedMenu(savedMenu);
+      setSelectedMenuDraft(null);
+      setMenuSelectOpen(false);
+      setActiveTab("menu");
+    } catch (error) {
+      console.error("POST event menu failed:", error);
+      setMenuError(error instanceof Error ? error.message : "שמירת התפריט לאירוע נכשלה");
+    } finally {
+      setMenuSaving(false);
+    }
+  };
+
+  const updateAssignedMenuCategory = (
+    categoryId: string,
+    field: "eventMinChoices" | "eventMaxChoices" | "eventNote",
+    value: string
+  ) => {
+    setAssignedMenu((current) => {
+      if (!current) return current;
+
+      return {
+        ...current,
+        categoryOverrides: current.categoryOverrides.map((category) => {
+          if (category.id !== categoryId) return category;
+
+          if (field === "eventNote") {
+            return { ...category, eventNote: value };
+          }
+
+          return { ...category, [field]: Math.max(0, toNumber(value, 0)) };
+        }),
+      };
+    });
+  };
+
+  const saveAssignedMenuChanges = async () => {
+    if (!eventId || !assignedMenu) return;
+
+    setMenuSaving(true);
+    setMenuError("");
+
+    try {
+      const invalidCategory = assignedMenu.categoryOverrides.find(
+        (category) => category.eventMaxChoices < category.eventMinChoices
+      );
+
+      if (invalidCategory) {
+        throw new Error(`בקטגוריה ${invalidCategory.name} כמות מקסימלית לא יכולה להיות קטנה מהמינימום`);
+      }
+
+      const res = await fetch(
+        `/api/venues/dashboard/events/${encodeURIComponent(eventId)}/menu`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            eventNote: assignedMenu.eventNote || "",
+            categoryOverrides: assignedMenu.categoryOverrides.map((category) => ({
+              categoryId: category.id,
+              name: category.name,
+              originalMinChoices: category.originalMinChoices,
+              originalMaxChoices: category.originalMaxChoices,
+              eventMinChoices: category.eventMinChoices,
+              eventMaxChoices: category.eventMaxChoices,
+              eventNote: category.eventNote,
+            })),
+          }),
+        }
+      );
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || data?.success === false) {
+        throw new Error(data?.message || data?.error || "עדכון תפריט האירוע נכשל");
+      }
+
+      const updatedMenu =
+        normalizeAssignedMenu(data?.eventMenu || data?.menu || data?.assignedMenu) ||
+        assignedMenu;
+
+      setAssignedMenu(updatedMenu);
+      alert("תפריט האירוע עודכן");
+    } catch (error) {
+      console.error("PATCH event menu failed:", error);
+      setMenuError(error instanceof Error ? error.message : "עדכון תפריט האירוע נכשל");
+    } finally {
+      setMenuSaving(false);
+    }
+  };
+
+  const openSendMenuSms = () => {
+    if (!assignedMenu) return;
+
+    const link =
+      assignedMenu.publicLink ||
+      `${window.location.origin}/menus/${assignedMenu.publicToken || eventId}/choose`;
+
+    setMenuSms({
+      phone: "",
+      message: `שלום, מצורף קישור לבחירת מנות לאירוע שלכם ב-Invistimo: ${link}`,
+    });
+
+    setSendMenuOpen(true);
+  };
+
+  const sendMenuSmsToCouple = async () => {
+    if (!assignedMenu) return;
+
+    if (!menuSms.phone.trim()) {
+      alert("חובה להזין מספר טלפון לשליחת SMS");
+      return;
+    }
+
+    setMenuSendingSms(true);
+    setMenuError("");
+
+    try {
+      const link =
+        assignedMenu.publicLink ||
+        `${window.location.origin}/menus/${assignedMenu.publicToken || eventId}/choose`;
+
+      const res = await fetch("/api/sms/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          to: menuSms.phone.trim(),
+          phone: menuSms.phone.trim(),
+          message: menuSms.message,
+          text: menuSms.message,
+          eventId,
+          hallId,
+          type: "event_menu_selection",
+          selectionLink: link,
+          provider: "4free",
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || data?.success === false) {
+        throw new Error(data?.message || data?.error || "שליחת ה-SMS נכשלה");
+      }
+
+      setAssignedMenu((current) =>
+        current
+          ? {
+              ...current,
+              sentToCouple: true,
+            }
+          : current
+      );
+
+      setSendMenuOpen(false);
+      alert("הקישור לבחירת מנות נשלח ב-SMS");
+    } catch (error) {
+      console.error("POST send menu sms failed:", error);
+      setMenuError(error instanceof Error ? error.message : "שליחת ה-SMS נכשלה");
+    } finally {
+      setMenuSendingSms(false);
+    }
   };
 
   const updateEvent = async (form: EventEditForm) => {
@@ -1612,8 +2057,21 @@ export default function VenueEventPage() {
                 hallId={hallId}
                 assignedMenu={assignedMenu}
                 templates={venueMenuTemplates}
-                onChooseMenu={() => setMenuSelectOpen(true)}
-                onSendToCouple={() => setSendMenuOpen(true)}
+                menusLoading={menusLoading}
+                menuError={menuError}
+                menuSaving={menuSaving}
+                onChooseMenu={() => {
+                  setSelectedMenuDraft(null);
+                  setMenuSelectOpen(true);
+                }}
+                onSendToCouple={openSendMenuSms}
+                onUpdateEventNote={(value) =>
+                  setAssignedMenu((current) =>
+                    current ? { ...current, eventNote: value } : current
+                  )
+                }
+                onUpdateCategory={updateAssignedMenuCategory}
+                onSaveChanges={saveAssignedMenuChanges}
               />
             )}
 
@@ -1716,79 +2174,266 @@ export default function VenueEventPage() {
       {menuSelectOpen && (
         <Modal
           title="בחירת תפריט לאירוע"
-          onClose={() => setMenuSelectOpen(false)}
+          onClose={() => {
+            setMenuSelectOpen(false);
+            setSelectedMenuDraft(null);
+          }}
           wide
         >
           <div className="mb-4 rounded-2xl border border-[#eadfce] bg-[#fff8eb] p-4 text-sm font-bold leading-7 text-[#7f705d]">
-            כאן בוחרים תפריט מתוך תפריטי האולם. לאחר הבחירה ייווצר עותק לאירוע הזה בלבד.
+            התפריטים נטענים מתוך התפריטים המעודכנים שהאולם הגדיר. אחרי בחירת תפריט אפשר לשנות רק לאירוע הזה את כמות הבחירות בכל קטגוריה ולהוסיף הערות ספציפיות לאירוע, בלי לשנות את תפריט המקור של האולם.
           </div>
 
-          <div className="grid gap-4 md:grid-cols-3">
-            {venueMenuTemplates.map((template) => (
-              <button
-                key={template.id}
-                type="button"
-                onClick={() => chooseMenuForEvent(template)}
-                className="rounded-[26px] border border-[#eadfce] bg-[#fffdf8] p-4 text-right transition hover:-translate-y-1 hover:border-[#d9bd83] hover:bg-[#fff8eb] hover:shadow-md"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f4ead9] text-[#b98121]">
-                    <Utensils size={23} />
+          {menuError && (
+            <div className="mb-4 rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm font-black text-rose-700">
+              {menuError}
+            </div>
+          )}
+
+          {!selectedMenuDraft ? (
+            <>
+              {menusLoading && (
+                <div className="rounded-[24px] border border-[#eadfce] bg-white p-6 text-center text-sm font-black text-[#8a7b68]">
+                  טוען תפריטים מעודכנים של האולם...
+                </div>
+              )}
+
+              {!menusLoading && venueMenuTemplates.length === 0 && (
+                <div className="rounded-[24px] border border-dashed border-[#d9bd83] bg-[#fff8eb] p-6 text-center">
+                  <div className="text-lg font-black text-[#2b241c]">
+                    לא נמצאו תפריטים פעילים לאולם הזה
                   </div>
-
-                  <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-black text-emerald-700">
-                    פעיל
-                  </span>
+                  <p className="mt-2 text-sm font-bold text-[#7f705d]">
+                    צריך להגדיר קודם תפריט פעיל בניהול תפריטי האולם.
+                  </p>
                 </div>
+              )}
 
-                <h3 className="mt-4 text-xl font-black text-[#2b241c]">
-                  {template.name}
+              <div className="grid gap-4 md:grid-cols-3">
+                {venueMenuTemplates.map((template) => (
+                  <button
+                    key={template.id}
+                    type="button"
+                    onClick={() => chooseMenuForEvent(template)}
+                    className="rounded-[26px] border border-[#eadfce] bg-[#fffdf8] p-4 text-right transition hover:-translate-y-1 hover:border-[#d9bd83] hover:bg-[#fff8eb] hover:shadow-md"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f4ead9] text-[#b98121]">
+                        <Utensils size={23} />
+                      </div>
+
+                      <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-black text-emerald-700">
+                        פעיל
+                      </span>
+                    </div>
+
+                    <h3 className="mt-4 text-xl font-black text-[#2b241c]">
+                      {template.name}
+                    </h3>
+                    <p className="mt-2 text-sm font-bold leading-6 text-[#7f705d]">
+                      {template.description || "תפריט אולם מעודכן"}
+                    </p>
+
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                      <InfoPill label="קטגוריות" value={`${template.categories}`} />
+                      <InfoPill label="מנות" value={`${template.dishes}`} />
+                    </div>
+
+                    <div className="mt-4 rounded-2xl bg-[#b98121] px-4 py-3 text-center text-sm font-black text-white">
+                      בחירה והתאמה לאירוע
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="space-y-5">
+              <div className="rounded-[26px] border border-[#eadfce] bg-[#fffdf8] p-5">
+                <div className="text-xs font-black text-[#b98121]">
+                  תפריט שנבחר מהאולם
+                </div>
+                <h3 className="mt-1 text-2xl font-black text-[#2b241c]">
+                  {selectedMenuDraft.name}
                 </h3>
-                <p className="mt-2 text-sm font-bold leading-6 text-[#7f705d]">
-                  {template.description}
-                </p>
 
-                <div className="mt-4 grid grid-cols-2 gap-2">
-                  <InfoPill label="קטגוריות" value={`${template.categories}`} />
-                  <InfoPill label="מנות" value={`${template.dishes}`} />
+                <label className="mt-4 block">
+                  <span className="mb-2 block text-xs font-black text-[#8a7b68]">
+                    הערה לאירוע הספציפי הזה
+                  </span>
+                  <textarea
+                    value={selectedMenuDraft.eventNote || ""}
+                    onChange={(event) =>
+                      setSelectedMenuDraft((current) =>
+                        current
+                          ? { ...current, eventNote: event.target.value }
+                          : current
+                      )
+                    }
+                    placeholder="לדוגמה: לזוג הזה לאפשר 2 עיקריות במקום 1 / לא להציג מנה מסוימת / הערת אלרגנים"
+                    className="min-h-[92px] w-full rounded-2xl border border-[#eadfce] bg-white p-3 text-sm font-bold text-[#2b241c] outline-none focus:border-[#b98121]"
+                  />
+                </label>
+              </div>
+
+              <div className="rounded-[26px] border border-[#eadfce] bg-white p-5">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-lg font-black text-[#2b241c]">
+                      התאמת כמויות בחירה לאירוע הזה בלבד
+                    </h3>
+                    <p className="mt-1 text-sm font-bold text-[#7f705d]">
+                      אם בתפריט המקור מוגדר 1 מתוך 3, כאן אפשר לשנות ל-2 מתוך 3 רק לאירוע הזה.
+                    </p>
+                  </div>
                 </div>
 
-                <div className="mt-4 rounded-2xl bg-[#b98121] px-4 py-3 text-center text-sm font-black text-white">
-                  בחירת תפריט לאירוע
+                <div className="space-y-3">
+                  {selectedMenuDraft.categoryOverrides.map((category) => (
+                    <div
+                      key={category.id}
+                      className="rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-4"
+                    >
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div>
+                          <div className="text-base font-black text-[#2b241c]">
+                            {category.name}
+                          </div>
+                          <div className="mt-1 text-xs font-bold text-[#8a7b68]">
+                            במקור: בחירה {category.originalMinChoices} עד {category.originalMaxChoices} מתוך {category.dishesCount || "המוגדרות"}
+                          </div>
+                        </div>
+
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <InputEdit
+                            label="מינימום בחירה"
+                            type="number"
+                            value={String(category.eventMinChoices)}
+                            onChange={(value) =>
+                              updateSelectedMenuDraftCategory(
+                                category.id,
+                                "eventMinChoices",
+                                value
+                              )
+                            }
+                          />
+                          <InputEdit
+                            label="מקסימום בחירה"
+                            type="number"
+                            value={String(category.eventMaxChoices)}
+                            onChange={(value) =>
+                              updateSelectedMenuDraftCategory(
+                                category.id,
+                                "eventMaxChoices",
+                                value
+                              )
+                            }
+                          />
+                        </div>
+                      </div>
+
+                      <label className="mt-3 block">
+                        <span className="mb-1 block text-xs font-black text-[#8a7b68]">
+                          הערה לקטגוריה באירוע הזה
+                        </span>
+                        <input
+                          value={category.eventNote}
+                          onChange={(event) =>
+                            updateSelectedMenuDraftCategory(
+                              category.id,
+                              "eventNote",
+                              event.target.value
+                            )
+                          }
+                          placeholder="הערה פנימית/הנחיה לבעל האירוע"
+                          className="h-11 w-full rounded-2xl border border-[#eadfce] bg-white px-3 text-sm font-bold text-[#2b241c] outline-none focus:border-[#b98121]"
+                        />
+                      </label>
+                    </div>
+                  ))}
                 </div>
-              </button>
-            ))}
-          </div>
+              </div>
+
+              <div className="flex flex-col-reverse gap-3 border-t border-[#eadfce] pt-4 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => setSelectedMenuDraft(null)}
+                  className="h-11 rounded-2xl border border-[#eadfce] bg-white px-6 text-sm font-black text-[#6f6252]"
+                >
+                  חזרה לבחירת תפריט
+                </button>
+
+                <button
+                  type="button"
+                  disabled={menuSaving}
+                  onClick={saveSelectedMenuForEvent}
+                  className="flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#b98121] px-6 text-sm font-black text-white disabled:opacity-60"
+                >
+                  <Save size={17} />
+                  {menuSaving ? "שומר..." : "שמירה והפקת קישור אישי"}
+                </button>
+              </div>
+            </div>
+          )}
         </Modal>
       )}
 
       {sendMenuOpen && (
         <Modal
-          title="שליחת קישור בחירת מנות לזוג"
+          title="שליחת SMS עם קישור בחירת מנות"
           onClose={() => setSendMenuOpen(false)}
         >
           <div className="space-y-3">
+            {menuError && (
+              <div className="rounded-2xl border border-rose-100 bg-rose-50 p-3 text-sm font-black text-rose-700">
+                {menuError}
+              </div>
+            )}
+
             <InfoLine
               label="תפריט"
               value={assignedMenu?.name || "לא נבחר תפריט"}
             />
             <InfoLine
-              label="קישור לזוג"
-              value={`https://www.invistimo.com/menus/${eventId}/choose`}
+              label="קישור אישי"
+              value={
+                assignedMenu?.publicLink ||
+                `${typeof window !== "undefined" ? window.location.origin : "https://www.invistimo.com"}/menus/${assignedMenu?.publicToken || eventId}/choose`
+              }
             />
 
-            <textarea
-              defaultValue={`שלום, מצורף קישור לבחירת מנות לאירוע שלכם: https://www.invistimo.com/menus/${eventId}/choose`}
-              className="min-h-[115px] w-full rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-3 text-sm font-bold text-[#2b241c] outline-none focus:border-[#b98121]"
+            <InputEdit
+              label="מספר טלפון לשליחת SMS"
+              value={menuSms.phone}
+              onChange={(value) =>
+                setMenuSms((current) => ({ ...current, phone: value }))
+              }
+              placeholder="לדוגמה: 0501234567"
             />
+
+            <label className="block">
+              <span className="mb-1 block text-xs font-black text-[#8a7b68]">
+                הודעת SMS
+              </span>
+              <textarea
+                value={menuSms.message}
+                onChange={(event) =>
+                  setMenuSms((current) => ({
+                    ...current,
+                    message: event.target.value,
+                  }))
+                }
+                className="min-h-[115px] w-full rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-3 text-sm font-bold text-[#2b241c] outline-none focus:border-[#b98121]"
+              />
+            </label>
 
             <button
               type="button"
-              onClick={markMenuSent}
-              className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-[#b98121] text-sm font-black text-white"
+              disabled={menuSendingSms}
+              onClick={sendMenuSmsToCouple}
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-[#b98121] text-sm font-black text-white disabled:opacity-60"
             >
               <Send size={17} />
-              סמן כקישור שנשלח
+              {menuSendingSms ? "שולח דרך 4free..." : "שליחת SMS דרך 4free"}
             </button>
           </div>
         </Modal>
@@ -2127,19 +2772,44 @@ function EventMenuTab({
   hallId,
   assignedMenu,
   templates,
+  menusLoading,
+  menuError,
+  menuSaving,
   onChooseMenu,
   onSendToCouple,
+  onUpdateEventNote,
+  onUpdateCategory,
+  onSaveChanges,
 }: {
   eventId: string;
   hallId: string;
   assignedMenu: AssignedMenu | null;
   templates: VenueMenuTemplate[];
+  menusLoading: boolean;
+  menuError: string;
+  menuSaving: boolean;
   onChooseMenu: () => void;
   onSendToCouple: () => void;
+  onUpdateEventNote: (value: string) => void;
+  onUpdateCategory: (
+    categoryId: string,
+    field: "eventMinChoices" | "eventMaxChoices" | "eventNote",
+    value: string
+  ) => void;
+  onSaveChanges: () => void;
 }) {
+  const publicLink = assignedMenu?.publicLink ||
+    `https://www.invistimo.com/menus/${assignedMenu?.publicToken || eventId}/choose`;
+
   if (!assignedMenu) {
     return (
       <MainCard title="תפריט האירוע" icon={<Utensils size={19} />}>
+        {menuError && (
+          <div className="mb-4 rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm font-black text-rose-700">
+            {menuError}
+          </div>
+        )}
+
         <div className="rounded-[30px] border border-dashed border-[#d9bd83] bg-[#fff8eb] p-8 text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[24px] bg-white text-[#b98121]">
             <Utensils size={32} />
@@ -2150,8 +2820,9 @@ function EventMenuTab({
           </h2>
 
           <p className="mx-auto mt-2 max-w-2xl text-sm font-bold leading-7 text-[#7f705d]">
-            קודם האולם בונה תפריטים קבועים בניהול אולם. כאן בוחרים אחד מהם לאירוע
-            הספציפי, נוצר עותק לאירוע, ואז שולחים קישור לבחירת מנות.
+            בוחרים מתוך התפריטים המעודכנים שהאולם הגדיר מראש. אחרי הבחירה נוצר
+            עותק לאירוע הזה בלבד, שבו אפשר לשנות כמות בחירות והערות בלי לפגוע
+            בתפריט המקורי של האולם.
           </p>
 
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
@@ -2178,24 +2849,39 @@ function EventMenuTab({
           </div>
         </div>
 
-        <div className="mt-5 grid gap-4 md:grid-cols-3">
-          {templates.map((template) => (
-            <div
-              key={template.id}
-              className="rounded-[24px] border border-[#eadfce] bg-[#fffdf8] p-4"
-            >
-              <div className="text-lg font-black text-[#2b241c]">
-                {template.name}
-              </div>
-              <p className="mt-2 text-sm font-bold leading-6 text-[#7f705d]">
-                {template.description}
-              </p>
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                <InfoPill label="קטגוריות" value={`${template.categories}`} />
-                <InfoPill label="מנות" value={`${template.dishes}`} />
-              </div>
+        <div className="mt-5">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h3 className="text-lg font-black text-[#2b241c]">
+              תפריטים פעילים של האולם
+            </h3>
+            <span className="rounded-full bg-[#fff4dc] px-3 py-1 text-xs font-black text-[#b98121]">
+              {menusLoading ? "טוען..." : `${templates.length} תפריטים`}
+            </span>
+          </div>
+
+          {templates.length ? (
+            <div className="grid gap-4 md:grid-cols-3">
+              {templates.map((template) => (
+                <div
+                  key={template.id}
+                  className="rounded-[24px] border border-[#eadfce] bg-[#fffdf8] p-4"
+                >
+                  <div className="text-lg font-black text-[#2b241c]">
+                    {template.name}
+                  </div>
+                  <p className="mt-2 text-sm font-bold leading-6 text-[#7f705d]">
+                    {template.description || "תפריט אולם מעודכן"}
+                  </p>
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <InfoPill label="קטגוריות" value={`${template.categories}`} />
+                    <InfoPill label="מנות" value={`${template.dishes}`} />
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
+          ) : (
+            <EmptyBox text="לא נמצאו תפריטים פעילים לאולם הזה." />
+          )}
         </div>
       </MainCard>
     );
@@ -2203,6 +2889,12 @@ function EventMenuTab({
 
   return (
     <>
+      {menuError && (
+        <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm font-black text-rose-700">
+          {menuError}
+        </div>
+      )}
+
       <section className="grid gap-5 xl:grid-cols-3">
         <MainCard title="תפריט משויך לאירוע" icon={<Utensils size={19} />}>
           <div className="rounded-[24px] border border-[#eadfce] bg-[#fffdf8] p-4">
@@ -2213,7 +2905,8 @@ function EventMenuTab({
               {assignedMenu.name}
             </h2>
             <p className="mt-2 text-sm font-bold leading-7 text-[#7f705d]">
-              זהו עותק של תפריט האולם לאירוע הזה בלבד.
+              זהו עותק של תפריט האולם לאירוע הזה בלבד. שינוי כמויות והערות כאן
+              לא משנה את תפריט המקור של האולם.
             </p>
 
             <div className="mt-4 grid grid-cols-2 gap-2">
@@ -2228,14 +2921,28 @@ function EventMenuTab({
             </div>
           </div>
 
+          <label className="mt-4 block">
+            <span className="mb-2 block text-xs font-black text-[#8a7b68]">
+              הערה לאירוע הספציפי הזה
+            </span>
+            <textarea
+              value={assignedMenu.eventNote || ""}
+              onChange={(event) => onUpdateEventNote(event.target.value)}
+              placeholder="לדוגמה: לאפשר 2 עיקריות במקום 1 רק לאירוע הזה"
+              className="min-h-[100px] w-full rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-3 text-sm font-bold text-[#2b241c] outline-none focus:border-[#b98121]"
+            />
+          </label>
+
           <div className="mt-4 grid gap-2">
-            <Link
-              href={`/venues/dashboard/events/${eventId}/menus`}
-              className="flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#b98121] text-sm font-black text-white"
+            <button
+              type="button"
+              disabled={menuSaving}
+              onClick={onSaveChanges}
+              className="flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#b98121] text-sm font-black text-white disabled:opacity-60"
             >
-              <Edit3 size={16} />
-              עריכת תפריט האירוע
-            </Link>
+              <Save size={16} />
+              {menuSaving ? "שומר..." : "שמירת התאמות לאירוע"}
+            </button>
 
             <button
               type="button"
@@ -2243,7 +2950,7 @@ function EventMenuTab({
               className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#d9bd83] bg-[#fff8eb] text-sm font-black text-[#9f6f1a]"
             >
               <Send size={16} />
-              שליחת קישור לבחירת מנות
+              שליחת SMS לבחירת מנות
             </button>
           </div>
         </MainCard>
@@ -2251,16 +2958,16 @@ function EventMenuTab({
         <MainCard title="קישור ציבורי" icon={<Link2 size={19} />}>
           <div className="rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-4">
             <div className="text-xs font-black text-[#8a7b68]">
-              קישור בחירת מנות
+              קישור אישי לבחירת מנות
             </div>
             <div className="mt-2 break-all text-sm font-black leading-6 text-[#2b241c]">
-              {`https://www.invistimo.com/menus/${eventId}/choose`}
+              {publicLink}
             </div>
           </div>
 
           <div className="mt-4 grid gap-2">
             <Link
-              href={`/menus/${eventId}/choose`}
+              href={assignedMenu.publicLink || `/menus/${assignedMenu.publicToken || eventId}/choose`}
               target="_blank"
               className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-white text-sm font-black text-[#6f6252]"
             >
@@ -2270,11 +2977,27 @@ function EventMenuTab({
 
             <button
               type="button"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(publicLink);
+                  alert("הקישור הועתק");
+                } catch {
+                  alert("לא הצלחתי להעתיק אוטומטית");
+                }
+              }}
+              className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#d9bd83] bg-[#fff8eb] text-sm font-black text-[#9f6f1a]"
+            >
+              <Link2 size={16} />
+              העתקת קישור
+            </button>
+
+            <button
+              type="button"
               onClick={onSendToCouple}
               className="flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#b98121] text-sm font-black text-white"
             >
               <Send size={16} />
-              שליחה
+              שליחת SMS
             </button>
           </div>
         </MainCard>
@@ -2294,6 +3017,70 @@ function EventMenuTab({
           </div>
         </MainCard>
       </section>
+
+      <MainCard title="התאמות בחירה לאירוע הזה" icon={<Edit3 size={19} />}>
+        <div className="rounded-2xl border border-[#eadfce] bg-[#fff8eb] p-4 text-sm font-bold leading-7 text-[#7f705d]">
+          כאן האולם משנה את כמות הבחירות רק עבור האירוע הזה. לדוגמה: אם בתפריט
+          המקור מוגדר בחירה 1 מתוך 3, אפשר להגדיר כאן בחירה 2 מתוך 3 לאירוע הספציפי.
+        </div>
+
+        <div className="mt-4 space-y-3">
+          {assignedMenu.categoryOverrides.length ? (
+            assignedMenu.categoryOverrides.map((category) => (
+              <div
+                key={category.id}
+                className="rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-4"
+              >
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <div className="text-base font-black text-[#2b241c]">
+                      {category.name}
+                    </div>
+                    <div className="mt-1 text-xs font-bold text-[#8a7b68]">
+                      במקור: {category.originalMinChoices} עד {category.originalMaxChoices} בחירות
+                    </div>
+                  </div>
+
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <InputEdit
+                      label="מינימום בחירה"
+                      type="number"
+                      value={String(category.eventMinChoices)}
+                      onChange={(value) =>
+                        onUpdateCategory(category.id, "eventMinChoices", value)
+                      }
+                    />
+                    <InputEdit
+                      label="מקסימום בחירה"
+                      type="number"
+                      value={String(category.eventMaxChoices)}
+                      onChange={(value) =>
+                        onUpdateCategory(category.id, "eventMaxChoices", value)
+                      }
+                    />
+                  </div>
+                </div>
+
+                <label className="mt-3 block">
+                  <span className="mb-1 block text-xs font-black text-[#8a7b68]">
+                    הערה לקטגוריה באירוע הזה
+                  </span>
+                  <input
+                    value={category.eventNote}
+                    onChange={(event) =>
+                      onUpdateCategory(category.id, "eventNote", event.target.value)
+                    }
+                    placeholder="הערה שתישמר רק לאירוע הזה"
+                    className="h-11 w-full rounded-2xl border border-[#eadfce] bg-white px-3 text-sm font-bold text-[#2b241c] outline-none focus:border-[#b98121]"
+                  />
+                </label>
+              </div>
+            ))
+          ) : (
+            <EmptyBox text="לתפריט הזה אין קטגוריות עם חוקי בחירה." />
+          )}
+        </div>
+      </MainCard>
     </>
   );
 }
@@ -2607,11 +3394,13 @@ function InputEdit({
   value,
   onChange,
   type = "text",
+  placeholder = "",
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   type?: "text" | "number" | "date" | "time";
+  placeholder?: string;
 }) {
   return (
     <label className="block">
@@ -2621,6 +3410,7 @@ function InputEdit({
       <input
         type={type}
         value={value}
+        placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
         className="h-11 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-3 text-sm font-bold text-[#2b241c] outline-none focus:border-[#b98121]"
       />
