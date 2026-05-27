@@ -283,16 +283,29 @@ export async function POST(req: NextRequest, context: RouteContext) {
     }
 
     const menuTemplate = await VenueMenu.findOne({
-      _id: templateId,
-      venueOwnerId: auth.userId,
-    }).lean();
+  _id: templateId,
+  $or: [
+    { ownerId: auth.userId },
+    { venueOwnerId: auth.userId },
+    { userId: auth.userId },
+    { createdBy: auth.userId },
+    { hallId: (event as any).venueHallId },
+    { hallId: String((event as any).venueHallId || "") },
+  ],
+}).lean();
 
-    if (!menuTemplate) {
-      return NextResponse.json(
-        { success: false, message: "התפריט לא נמצא או שאין הרשאה" },
-        { status: 404 }
-      );
-    }
+if (!menuTemplate) {
+  console.error("Venue menu template not found", {
+    templateId,
+    authUserId: auth.userId,
+    eventHallId: (event as any).venueHallId,
+  });
+
+  return NextResponse.json(
+    { success: false, message: "התפריט לא נמצא או שאין הרשאה" },
+    { status: 404 }
+  );
+}
 
     const existing = await VenueEventMenu.findOne({
       eventId,
