@@ -2962,7 +2962,7 @@ function EventMenuTab({
           </div>
         </MainCard>
 
-        <MainCard title="קישור ציבורי" icon={<Link2 size={19} />}>
+        <MainCard title="קישור אישי" icon={<Link2 size={19} />}>
           <div className="rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-4">
             <div className="text-xs font-black text-[#8a7b68]">
               קישור אישי לבחירת מנות
