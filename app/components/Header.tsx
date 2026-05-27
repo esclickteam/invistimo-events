@@ -14,9 +14,6 @@ export default function Header() {
   const pathname = usePathname();
   const isDashboard = pathname.startsWith("/dashboard");
 
-  // ✅ לוגו:
-  // מחוברת -> דשבורד
-  // לא מחוברת -> ראשי
   const logoHref = user ? "/dashboard" : "/";
 
   const isProducer =
@@ -79,8 +76,10 @@ export default function Header() {
       <header
         dir="rtl"
         className="
-          fixed top-0 inset-x-0 z-50
-          px-3 pt-3
+          sticky top-0 z-50
+          w-full
+          bg-[#F8F5EE]
+          px-3 py-3
           print:hidden
         "
       >
@@ -90,10 +89,9 @@ export default function Header() {
             items-center
             rounded-[24px]
             border border-[#D9BE80]/70
-            bg-[#FFFDF8]/90
+            bg-[#FFFDF8]
             px-5 md:px-9
-            shadow-[0_18px_50px_rgba(91,65,26,0.12)]
-            backdrop-blur-2xl
+            shadow-[0_8px_24px_rgba(91,65,26,0.08)]
           "
         >
           <div className="flex justify-start">
@@ -115,7 +113,6 @@ export default function Header() {
             </Link>
           </div>
 
-          {/* ✅ לוגו לחיץ גם באזור מפיקים */}
           <div className="flex justify-center" dir="ltr">
             <Link
               href={logoHref}
@@ -131,8 +128,8 @@ export default function Header() {
                 src="/invistimo-logo.png"
                 alt="Invistimo Logo"
                 className="
-                  h-[58px] w-auto select-none
-                  drop-shadow-[0_8px_18px_rgba(158,116,42,0.18)]
+                  h-[54px] w-auto select-none
+                  drop-shadow-[0_6px_14px_rgba(158,116,42,0.14)]
                 "
                 draggable={false}
               />
@@ -145,7 +142,7 @@ export default function Header() {
               className="
                 rounded-full
                 border border-[#C9A45C]/70
-                bg-white/70
+                bg-white
                 px-5 py-2.5
                 text-[15px] font-bold
                 text-red-600
@@ -166,8 +163,10 @@ export default function Header() {
     <>
       <header
         className="
-          fixed top-0 inset-x-0 z-50
-          px-3 pt-3
+          sticky top-0 z-50
+          w-full
+          bg-[#F8F5EE]
+          px-3 py-3
           print:hidden
         "
       >
@@ -176,9 +175,8 @@ export default function Header() {
             mx-auto max-w-[1500px]
             rounded-[24px]
             border border-[#D9BE80]/70
-            bg-[#FFFDF8]/92
-            shadow-[0_18px_55px_rgba(91,65,26,0.13)]
-            backdrop-blur-2xl
+            bg-[#FFFDF8]
+            shadow-[0_8px_24px_rgba(91,65,26,0.08)]
           "
           dir="rtl"
         >
@@ -191,13 +189,12 @@ export default function Header() {
               md:px-8
             "
           >
-            {/* ימין במובייל / ניווט בדסקטופ */}
             <div className="flex items-center justify-start">
               <nav
                 className="
                   hidden items-center gap-6
-                  md:flex
                   whitespace-nowrap
+                  md:flex
                 "
               >
                 <NavLinks />
@@ -207,13 +204,13 @@ export default function Header() {
                 <button
                   onClick={() => setMobileOpen(true)}
                   className="
-                    md:hidden
                     flex h-11 w-11 items-center justify-center
                     rounded-full
                     border border-[#D7BE88]
-                    bg-white/80
+                    bg-white
                     text-[#3F3328]
                     shadow-sm
+                    md:hidden
                   "
                   aria-label="פתח תפריט"
                 >
@@ -222,7 +219,6 @@ export default function Header() {
               )}
             </div>
 
-            {/* מרכז — לוגו באמצע */}
             <div className="flex justify-center" dir="ltr">
               <Link
                 href={logoHref}
@@ -238,32 +234,31 @@ export default function Header() {
                   src="/invistimo-logo.png"
                   alt="Invistimo Logo"
                   className="
-                    h-[58px] w-auto select-none
-                    md:h-[64px]
-                    drop-shadow-[0_8px_18px_rgba(158,116,42,0.18)]
+                    h-[52px] w-auto select-none
+                    drop-shadow-[0_6px_14px_rgba(158,116,42,0.14)]
+                    md:h-[60px]
                   "
                   draggable={false}
                 />
               </Link>
             </div>
 
-            {/* שמאל — כפתורים */}
             <div className="hidden items-center justify-end gap-3 md:flex">
               <button
                 type="button"
                 onClick={openDemoChoice}
                 className="
                   group inline-flex items-center gap-2
+                  whitespace-nowrap
                   rounded-[13px]
                   bg-gradient-to-l from-[#B8862D] via-[#C9A45C] to-[#8B6220]
                   px-6 py-3
                   text-[15px] font-extrabold
                   text-white
-                  shadow-[0_12px_28px_rgba(184,134,45,0.28)]
+                  shadow-[0_12px_28px_rgba(184,134,45,0.22)]
                   transition
                   hover:-translate-y-0.5
-                  hover:shadow-[0_16px_34px_rgba(184,134,45,0.34)]
-                  whitespace-nowrap
+                  hover:shadow-[0_16px_34px_rgba(184,134,45,0.30)]
                 "
                 title="דמו – צפייה בלבד"
               >
@@ -280,16 +275,16 @@ export default function Header() {
                     <Link
                       href="/dashboard"
                       className="
+                        whitespace-nowrap
                         rounded-[13px]
                         border border-[#C9A45C]/70
-                        bg-white/65
+                        bg-white
                         px-5 py-3
                         text-[15px] font-bold
                         text-[#4A3A2A]
                         transition
                         hover:bg-[#F8EEDB]
                         hover:text-[#B88A2D]
-                        whitespace-nowrap
                       "
                     >
                       לוח בקרה
@@ -298,16 +293,16 @@ export default function Header() {
                     <button
                       onClick={logout}
                       className="
+                        whitespace-nowrap
                         rounded-[13px]
                         border border-[#D8C5A7]
-                        bg-white/60
+                        bg-white
                         px-5 py-3
                         text-[15px] font-bold
                         text-[#4A3A2A]
                         transition
                         hover:bg-red-50
                         hover:text-red-600
-                        whitespace-nowrap
                       "
                     >
                       התנתקות
@@ -318,16 +313,16 @@ export default function Header() {
                     href="/login"
                     className="
                       inline-flex items-center gap-2
+                      whitespace-nowrap
                       rounded-[13px]
                       border border-[#C9A45C]/75
-                      bg-white/70
+                      bg-white
                       px-6 py-3
                       text-[15px] font-bold
                       text-[#4A3A2A]
                       transition
                       hover:bg-[#F8EEDB]
                       hover:text-[#B88A2D]
-                      whitespace-nowrap
                     "
                   >
                     התחברות
@@ -339,9 +334,8 @@ export default function Header() {
         </div>
       </header>
 
-      {/* ================= MOBILE DRAWER ================= */}
       {!isDashboard && mobileOpen && (
-        <div className="fixed inset-0 z-[60] md:hidden print:hidden">
+        <div className="fixed inset-0 z-[60] print:hidden md:hidden">
           <div
             className="absolute inset-0 bg-black/45 backdrop-blur-[2px]"
             onClick={() => setMobileOpen(false)}
@@ -349,7 +343,7 @@ export default function Header() {
 
           <aside
             className="
-              absolute top-0 right-0 h-full w-[84%] max-w-sm
+              absolute right-0 top-0 h-full w-[84%] max-w-sm
               border-l border-[#D9BE80]/70
               bg-[#FFFDF8]
               p-5
@@ -491,7 +485,6 @@ export default function Header() {
         </div>
       )}
 
-      {/* ================= DEMO CHOICE MODAL ================= */}
       {demoChoiceOpen && (
         <div
           dir="rtl"

@@ -79,8 +79,10 @@ export default function DashboardHeader({
     <header
       dir="rtl"
       className="
-        fixed top-0 inset-x-0 z-40
-        px-3 pt-3
+        sticky top-0 z-40
+        w-full
+        bg-[#F8F5EE]
+        px-3 py-3
         print:hidden
       "
     >
@@ -89,9 +91,8 @@ export default function DashboardHeader({
           mx-auto max-w-[1500px]
           rounded-[24px]
           border border-[#D9BE80]/70
-          bg-[#FFFDF8]/92
-          shadow-[0_18px_55px_rgba(91,65,26,0.13)]
-          backdrop-blur-2xl
+          bg-[#FFFDF8]
+          shadow-[0_8px_24px_rgba(91,65,26,0.08)]
         "
       >
         <div
@@ -113,7 +114,7 @@ export default function DashboardHeader({
                 flex h-11 w-11 items-center justify-center
                 rounded-full
                 border border-[#D7BE88]
-                bg-white/80
+                bg-white
                 text-[#3F3328]
                 shadow-sm
                 transition
@@ -125,11 +126,12 @@ export default function DashboardHeader({
               <Menu size={25} />
             </button>
 
-            <div className="hidden md:flex items-center gap-3">
+            <div className="hidden items-center gap-3 md:flex">
               <button
                 onClick={() => router.push("/dashboard")}
                 className="
                   inline-flex items-center gap-2
+                  whitespace-nowrap
                   rounded-[13px]
                   px-4 py-2.5
                   text-[15px] font-bold
@@ -137,7 +139,6 @@ export default function DashboardHeader({
                   transition
                   hover:bg-[#F8EEDB]
                   hover:text-[#B88A2D]
-                  whitespace-nowrap
                 "
               >
                 <Home size={17} className="text-[#B88A2D]" />
@@ -148,6 +149,7 @@ export default function DashboardHeader({
                 onClick={() => router.push("/dashboard/contact")}
                 className="
                   inline-flex items-center gap-2
+                  whitespace-nowrap
                   rounded-[13px]
                   px-4 py-2.5
                   text-[15px] font-bold
@@ -155,7 +157,6 @@ export default function DashboardHeader({
                   transition
                   hover:bg-[#F8EEDB]
                   hover:text-[#B88A2D]
-                  whitespace-nowrap
                 "
               >
                 <MessageCircle size={17} className="text-[#B88A2D]" />
@@ -165,7 +166,7 @@ export default function DashboardHeader({
           </div>
 
           {/* =========================
-              מרכז – לוגו כמו ההידר הראשי
+              מרכז – לוגו
           ========================= */}
           <div className="flex justify-center" dir="ltr">
             <button
@@ -182,14 +183,14 @@ export default function DashboardHeader({
                 src="/invistimo-logo.png"
                 alt="Invistimo"
                 className="
-                  h-[44px]
+                  h-[42px]
                   w-auto
-                  max-w-[260px]
-                  object-contain
+                  max-w-[210px]
                   select-none
+                  object-contain
+                  drop-shadow-[0_6px_14px_rgba(158,116,42,0.12)]
                   md:h-[48px]
                   md:max-w-[330px]
-                  drop-shadow-[0_6px_14px_rgba(158,116,42,0.14)]
                 "
                 draggable={false}
               />
@@ -202,11 +203,12 @@ export default function DashboardHeader({
           <div className="flex items-center justify-end gap-3">
             <div
               className="
-                hidden lg:flex
+                hidden
                 max-w-[260px]
                 flex-col
                 items-end
                 leading-tight
+                lg:flex
               "
             >
               <span className="text-[11px] font-bold text-[#B88A2D]">
@@ -230,16 +232,17 @@ export default function DashboardHeader({
               onClick={handleLogout}
               className={`
                 inline-flex items-center gap-2
+                whitespace-nowrap
                 rounded-[13px]
                 border
-                px-5 py-3
-                text-[15px] font-bold
+                px-4 py-3
+                text-[14px] font-bold
                 transition
-                whitespace-nowrap
+                md:px-5 md:text-[15px]
                 ${
                   isDemo
-                    ? "border-[#C9A45C]/75 bg-white/70 text-[#4A3A2A] hover:bg-[#F8EEDB] hover:text-[#B88A2D]"
-                    : "border-[#D8C5A7] bg-white/60 text-red-600 hover:bg-red-50 hover:text-red-700"
+                    ? "border-[#C9A45C]/75 bg-white text-[#4A3A2A] hover:bg-[#F8EEDB] hover:text-[#B88A2D]"
+                    : "border-[#D8C5A7] bg-white text-red-600 hover:bg-red-50 hover:text-red-700"
                 }
               `}
               title={isDemo ? "מעבר להתחברות" : "התנתקות מהחשבון"}
