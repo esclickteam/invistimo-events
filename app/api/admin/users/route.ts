@@ -6,6 +6,7 @@ import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import User from "@/models/User";
 import Payment from "@/models/Payment";
 import Invitation from "@/models/Invitation";
+import ScheduledMessage from "@/models/ScheduledMessage";
 import { sendPasswordSetupMail } from "@/lib/sendPasswordSetupMail";
 
 export const dynamic = "force-dynamic";
@@ -145,7 +146,63 @@ function firstValue(obj: any, keys: string[]) {
   return null;
 }
 
-function buildMessageRounds(invitation: any) {
+function sameId(a: any, b: any) {
+  if (!a || !b) return false;
+  return String(a) === String(b);
+}
+
+function isScheduledStatus(msg: any) {
+  return String(msg?.status || "").toLowerCase() === "scheduled";
+}
+
+function findScheduledMessage(
+  scheduledMessages: any[],
+  params: {
+    invitationId?: any;
+    userId?: any;
+    type?: string;
+    templateKeys?: string[];
+    roundNumber?: number;
+  }
+) {
+  const wantedType = String(params.type || "").toLowerCase();
+  const wantedTemplateKeys = (params.templateKeys || []).map((key) =>
+    String(key || "").toLowerCase()
+  );
+
+  return scheduledMessages.find((msg) => {
+    if (!isScheduledStatus(msg)) return false;
+
+    const sameInvitation =
+      params.invitationId && msg?.invitationId
+        ? sameId(msg.invitationId, params.invitationId)
+        : true;
+
+    const sameUser =
+      params.userId && msg?.userId ? sameId(msg.userId, params.userId) : true;
+
+    if (!sameInvitation || !sameUser) return false;
+
+    const msgType = String(msg?.type || "").toLowerCase();
+    const msgTemplateKey = String(
+      msg?.templateKey || msg?.templateName || ""
+    ).toLowerCase();
+
+    const matchesType = wantedType ? msgType === wantedType : true;
+
+    const matchesTemplate =
+      wantedTemplateKeys.length === 0 ||
+      wantedTemplateKeys.includes(msgTemplateKey);
+
+    const matchesRound =
+      typeof params.roundNumber !== "number" ||
+      Number(msg?.roundNumber || msg?.round || 0) === Number(params.roundNumber);
+
+    return matchesType && matchesTemplate && matchesRound;
+  });
+}
+
+function buildMessageRounds(invitation: any, scheduledMessages: any[] = []) {
   const locks = invitation?.adminMessageRoundLocks || {};
   const rsvpRounds = [1, 2, 3];
 
@@ -184,9 +241,20 @@ function buildMessageRounds(invitation: any) {
     };
   }
 
+  const invitationId = invitation?._id;
+  const userId = invitation?.ownerId;
+
   return {
     rsvp: rsvpRounds.map((round) => {
       const roundData = invitation?.rsvpRoundSent?.[`round${round}`];
+
+      const scheduledMessage = findScheduledMessage(scheduledMessages, {
+        invitationId,
+        userId,
+        type: "rsvp",
+        templateKeys: ["rsvp", "rsvp_invitation_media"],
+        roundNumber: round,
+      });
 
       const sentAt =
         roundData?.sentAt ||
@@ -194,18 +262,31 @@ function buildMessageRounds(invitation: any) {
         roundData?.sentAtWhatsapp ||
         roundData?.smsSentAt ||
         roundData?.whatsappSentAt ||
+        invitation?.[`rsvpRound${round}SentAt`] ||
+        invitation?.[`rsvpRound${round}sentAt`] ||
+        invitation?.[`rsvpSmsRound${round}SentAt`] ||
+        invitation?.[`rsvpSmsRound${round}sentAt`] ||
+        invitation?.[`rsvpWhatsappRound${round}SentAt`] ||
+        invitation?.[`rsvpWhatsappRound${round}sentAt`] ||
         null;
 
       const scheduledAt =
         roundData?.scheduledAt ||
         roundData?.smsScheduledAt ||
         roundData?.whatsappScheduledAt ||
+        invitation?.[`rsvpRound${round}ScheduledAt`] ||
+        invitation?.[`rsvpRound${round}scheduledAt`] ||
+        invitation?.[`rsvpSmsRound${round}ScheduledAt`] ||
+        invitation?.[`rsvpSmsRound${round}scheduledAt`] ||
+        invitation?.[`rsvpWhatsappRound${round}ScheduledAt`] ||
+        invitation?.[`rsvpWhatsappRound${round}scheduledAt`] ||
+        scheduledMessage?.scheduledAt ||
         null;
 
       return {
         key: `rsvp_${round}`,
         label: `אישורי הגעה סבב ${round}`,
-        done: Boolean(sentAt || scheduledAt || locks?.[`rsvp_${round}`]),
+        done: Boolean(sentAt),
         sentAt,
         scheduledAt,
         blocked: Boolean(locks?.[`rsvp_${round}`]),
@@ -213,42 +294,56 @@ function buildMessageRounds(invitation: any) {
     }),
 
     reminder: [
-      {
-        key: "reminder",
-        label: "סבב תזכורת",
-        done: hasAnyValue(invitation, [
+      (() => {
+        const scheduledMessage = findScheduledMessage(scheduledMessages, {
+          invitationId,
+          userId,
+          type: "reminder",
+          templateKeys: ["reminder", "table", "rsvp_reminder_invistimo"],
+        });
+
+        const sentAt = firstValue(invitation, [
           "reminderSentAt",
           "remindersentAt",
           "reminderSmsSentAt",
           "reminderSmssentAt",
           "reminderWhatsappSentAt",
           "reminderWhatsappsentAt",
-        ]),
-        sentAt: firstValue(invitation, [
-          "reminderSentAt",
-          "remindersentAt",
-          "reminderSmsSentAt",
-          "reminderSmssentAt",
-          "reminderWhatsappSentAt",
-          "reminderWhatsappsentAt",
-        ]),
-        scheduledAt: firstValue(invitation, [
-          "reminderScheduledAt",
-          "reminderscheduledAt",
-          "reminderSmsScheduledAt",
-          "reminderSmsscheduledAt",
-          "reminderWhatsappScheduledAt",
-          "reminderWhatsappscheduledAt",
-        ]),
-        blocked: Boolean(locks?.reminder),
-      },
+        ]);
+
+        const scheduledAt =
+          firstValue(invitation, [
+            "reminderScheduledAt",
+            "reminderscheduledAt",
+            "reminderSmsScheduledAt",
+            "reminderSmsscheduledAt",
+            "reminderWhatsappScheduledAt",
+            "reminderWhatsappscheduledAt",
+          ]) ||
+          scheduledMessage?.scheduledAt ||
+          null;
+
+        return {
+          key: "reminder",
+          label: "סבב תזכורת",
+          done: Boolean(sentAt),
+          sentAt,
+          scheduledAt,
+          blocked: Boolean(locks?.reminder),
+        };
+      })(),
     ],
 
     thankyou: [
-      {
-        key: "thankyou",
-        label: "סבב תודה",
-        done: hasAnyValue(invitation, [
+      (() => {
+        const scheduledMessage = findScheduledMessage(scheduledMessages, {
+          invitationId,
+          userId,
+          type: "thankyou",
+          templateKeys: ["thankyou", "thank_you", "thank_you_message"],
+        });
+
+        const sentAt = firstValue(invitation, [
           "thankYouSentAt",
           "thankYousentAt",
           "thankyouSentAt",
@@ -261,37 +356,35 @@ function buildMessageRounds(invitation: any) {
           "thankYouWhatsappsentAt",
           "thankyouWhatsappSentAt",
           "thankyouWhatsappsentAt",
-        ]),
-        sentAt: firstValue(invitation, [
-          "thankYouSentAt",
-          "thankYousentAt",
-          "thankyouSentAt",
-          "thankyousentAt",
-          "thankYouSmsSentAt",
-          "thankYouSmssentAt",
-          "thankyouSmsSentAt",
-          "thankyouSmssentAt",
-          "thankYouWhatsappSentAt",
-          "thankYouWhatsappsentAt",
-          "thankyouWhatsappSentAt",
-          "thankyouWhatsappsentAt",
-        ]),
-        scheduledAt: firstValue(invitation, [
-          "thankYouScheduledAt",
-          "thankYouscheduledAt",
-          "thankyouScheduledAt",
-          "thankyouscheduledAt",
-          "thankYouSmsScheduledAt",
-          "thankYouSmsscheduledAt",
-          "thankyouSmsScheduledAt",
-          "thankyouSmsscheduledAt",
-          "thankYouWhatsappScheduledAt",
-          "thankYouWhatsappscheduledAt",
-          "thankyouWhatsappScheduledAt",
-          "thankyouWhatsappscheduledAt",
-        ]),
-        blocked: Boolean(locks?.thankyou),
-      },
+        ]);
+
+        const scheduledAt =
+          firstValue(invitation, [
+            "thankYouScheduledAt",
+            "thankYouscheduledAt",
+            "thankyouScheduledAt",
+            "thankyouscheduledAt",
+            "thankYouSmsScheduledAt",
+            "thankYouSmsscheduledAt",
+            "thankyouSmsScheduledAt",
+            "thankyouSmsscheduledAt",
+            "thankYouWhatsappScheduledAt",
+            "thankYouWhatsappscheduledAt",
+            "thankyouWhatsappScheduledAt",
+            "thankyouWhatsappscheduledAt",
+          ]) ||
+          scheduledMessage?.scheduledAt ||
+          null;
+
+        return {
+          key: "thankyou",
+          label: "סבב תודה",
+          done: Boolean(sentAt),
+          sentAt,
+          scheduledAt,
+          blocked: Boolean(locks?.thankyou),
+        };
+      })(),
     ],
   };
 }
@@ -388,7 +481,7 @@ export async function GET(req: Request) {
       .map((u: any) => normalizeEmail(u.email))
       .filter(Boolean);
 
-    const [invitations, paymentsAgg, totalRevenueAgg] = await Promise.all([
+    const [invitations, scheduledMessages, paymentsAgg, totalRevenueAgg] = await Promise.all([
       userIds.length > 0
         ? Invitation.find({
             ownerId: { $in: userIds },
@@ -482,6 +575,28 @@ export async function GET(req: Request) {
               adminMessageRoundLocks
             `)
             .sort({ eventDate: -1 })
+            .lean()
+        : [],
+
+      userIds.length > 0
+        ? ScheduledMessage.find({
+            userId: { $in: userIds },
+            status: "scheduled",
+          })
+            .select(`
+              userId
+              invitationId
+              channel
+              type
+              filter
+              templateKey
+              templateName
+              round
+              roundNumber
+              scheduledAt
+              status
+            `)
+            .sort({ scheduledAt: 1 })
             .lean()
         : [],
 
@@ -649,7 +764,7 @@ export async function GET(req: Request) {
             invitationId: null,
             eventDate: u.eventDate || null,
 
-            messageRounds: buildMessageRounds(null),
+            messageRounds: buildMessageRounds(null, []),
           };
         }
 
@@ -732,7 +847,7 @@ export async function GET(req: Request) {
 
           eventDate: u.eventDate || invitation?.eventDate || null,
 
-          messageRounds: buildMessageRounds(invitation),
+          messageRounds: buildMessageRounds(invitation, scheduledMessages),
         };
       })
       .sort((a: any, b: any) => {
