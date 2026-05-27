@@ -951,7 +951,12 @@ export default function AdminUsersPage() {
 
             <tbody className="divide-y divide-[#EFE2D1]">
               {filteredUsers.map((u) => (
-                <tr key={u._id} className="text-sm hover:bg-[#FFFDF8]">
+                <tr
+  key={u._id}
+  className={`relative text-sm hover:bg-[#FFFDF8] ${
+    openActionsId === u._id ? "z-[999]" : "z-0"
+  }`}
+>
                   <td className="p-4 font-black text-[#3A2A1C]">
                     {u.name || "—"}
                   </td>
