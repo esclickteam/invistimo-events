@@ -216,12 +216,34 @@ function buildGuestsQuery({
   return query;
 }
 
+const AUTO_REMINDER_BY_TABLE = "__AUTO_REMINDER_BY_TABLE__";
+
+const REMINDER_WITH_TABLE_SERVER_TEMPLATE =
+  "תזכורת לאירוע {{invitationTitle}}.\n\n" +
+  "מספר השולחן שלך:\n" +
+  "{{tableName}}\n\n" +
+  "לניווט לאירוע:\n" +
+  "{{navigationLink}}\n\n" +
+  "נשמח לראותכם ❤️";
+
+const REMINDER_WITHOUT_TABLE_SERVER_TEMPLATE =
+  "תזכורת לאירוע {{invitationTitle}}.\n\n" +
+  "לניווט לאירוע:\n" +
+  "{{navigationLink}}\n\n" +
+  "נשמח לראותכם ❤️";
+
 function getTableName(guest: any) {
-  if (typeof guest.tableNumber === "number") {
+  const tableName = String(guest?.tableName || "").trim();
+
+  if (tableName) {
+    return tableName;
+  }
+
+  if (typeof guest?.tableNumber === "number") {
     return `שולחן ${guest.tableNumber}`;
   }
 
-  return guest.tableName || "";
+  return "";
 }
 
 function stripTableBlockForGuestWithoutTable(text: string) {
@@ -255,14 +277,27 @@ async function buildSmsText({
   const shortUrl = await shortenUrl(personalUrl);
 
   const tableName = getTableName(guest);
+  const guestHasTable = !!tableName;
+
   const type = normalizeType(schedule.type || schedule.templateKey);
 
   let template = String(
     schedule.messageContent || schedule.messageOverride || ""
   );
 
-  if ((type === "reminder" || type === "table") && !tableName) {
-    template = stripTableBlockForGuestWithoutTable(template);
+  if (type === "reminder" || type === "table") {
+    const isAutoReminder =
+      template === AUTO_REMINDER_BY_TABLE ||
+      schedule.messageOverride === AUTO_REMINDER_BY_TABLE ||
+      schedule.text === AUTO_REMINDER_BY_TABLE;
+
+    if (isAutoReminder) {
+      template = guestHasTable
+        ? REMINDER_WITH_TABLE_SERVER_TEMPLATE
+        : REMINDER_WITHOUT_TABLE_SERVER_TEMPLATE;
+    } else if (!guestHasTable) {
+      template = stripTableBlockForGuestWithoutTable(template);
+    }
   }
 
   return template
