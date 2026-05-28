@@ -24,7 +24,7 @@ type ScheduleType = "rsvp" | "reminder" | "thankyou" | "table" | "custom";
 ====================================================== */
 
 function countBusinessSms(text: string) {
-  const length = [...String(text || "")].length;
+  const length = [...text].length;
 
   if (length <= 200) return 1;
   if (length <= 320) return 2;
@@ -114,29 +114,6 @@ function normalizePhone(phoneRaw: any) {
   return phone;
 }
 
-function getScheduledGuestIds(schedule: any) {
-  if (Array.isArray(schedule?.guestIds) && schedule.guestIds.length > 0) {
-    return schedule.guestIds;
-  }
-
-  if (Array.isArray(schedule?.guests) && schedule.guests.length > 0) {
-    return schedule.guests;
-  }
-
-  return [];
-}
-
-function getWithTableCondition() {
-  return {
-    $or: [
-      { tableName: { $exists: true, $nin: ["", null] } },
-      { tableNumber: { $exists: true, $nin: ["", null] } },
-      { "seating.tableName": { $exists: true, $nin: ["", null] } },
-      { "seating.tableNumber": { $exists: true, $nin: ["", null] } },
-    ],
-  };
-}
-
 async function buildNavigationLink(invitation: any) {
   const location =
     invitation?.eventLocation && typeof invitation.eventLocation === "object"
@@ -191,56 +168,21 @@ function buildGuestsQuery({
   const type = normalizeType(schedule.type || schedule.templateKey);
   const round = normalizeRound(schedule.round ?? schedule.roundNumber);
 
-  const scheduledGuestIds = getScheduledGuestIds(schedule);
-  const selectedGuestsCondition =
-    scheduledGuestIds.length > 0 ? { _id: { $in: scheduledGuestIds } } : {};
-
-  const withTableCondition = getWithTableCondition();
-
   if (type === "rsvp") {
     if (round === 1) {
-      return {
-        invitationId,
-        ...selectedGuestsCondition,
-      };
+      return { invitationId };
     }
 
     return {
       invitationId,
       rsvp: "pending",
-      ...selectedGuestsCondition,
     };
   }
 
-  /*
-    תזכורת:
-    ברירת מחדל — נשלחת לכל מי שאישר הגעה.
-    אם filter === withTable — נשלחת רק למי שיש לו שולחן.
-  */
-  if (type === "reminder") {
-    const query: any = {
-      invitationId,
-      rsvp: "yes",
-      ...selectedGuestsCondition,
-    };
-
-    if (schedule.filter === "withTable") {
-      query.$or = withTableCondition.$or;
-    }
-
-    return query;
-  }
-
-  /*
-    הודעת שולחן:
-    תמיד רק למי שאישר הגעה ויש לו שולחן.
-  */
-  if (type === "table") {
+  if (type === "reminder" || type === "table") {
     return {
       invitationId,
       rsvp: "yes",
-      ...selectedGuestsCondition,
-      ...withTableCondition,
     };
   }
 
@@ -248,73 +190,50 @@ function buildGuestsQuery({
     return {
       invitationId,
       rsvp: "yes",
-      ...selectedGuestsCondition,
     };
   }
 
-  const query: any = {
-    invitationId,
-    ...selectedGuestsCondition,
-  };
+  if (Array.isArray(schedule.guestIds) && schedule.guestIds.length > 0) {
+    return {
+      _id: { $in: schedule.guestIds },
+      invitationId,
+    };
+  }
+
+  const query: any = { invitationId };
 
   if (schedule.filter === "pending") {
     query.rsvp = "pending";
   }
 
   if (schedule.filter === "withTable") {
-    query.$or = withTableCondition.$or;
+    query.$or = [
+      { tableName: { $exists: true, $ne: "" } },
+      { tableNumber: { $ne: null } },
+    ];
   }
 
   return query;
 }
 
 function getTableName(guest: any) {
-  const tableName = String(guest?.tableName || "").trim();
-
-  if (tableName) {
-    return tableName;
+  if (typeof guest.tableNumber === "number") {
+    return `שולחן ${guest.tableNumber}`;
   }
 
-  const tableNumberRaw = guest?.tableNumber;
-
-  if (
-    tableNumberRaw !== null &&
-    tableNumberRaw !== undefined &&
-    String(tableNumberRaw).trim() !== ""
-  ) {
-    return `שולחן ${String(tableNumberRaw).trim()}`;
-  }
-
-  const seatingTableName = String(guest?.seating?.tableName || "").trim();
-
-  if (seatingTableName) {
-    return seatingTableName;
-  }
-
-  const seatingTableNumber = guest?.seating?.tableNumber;
-
-  if (
-    seatingTableNumber !== null &&
-    seatingTableNumber !== undefined &&
-    String(seatingTableNumber).trim() !== ""
-  ) {
-    return `שולחן ${String(seatingTableNumber).trim()}`;
-  }
-
-  return "";
+  return guest.tableName || "";
 }
 
 function stripTableBlockForGuestWithoutTable(text: string) {
   return String(text || "")
     .replace(
-      /\n*(?:השולחן שלך באירוע|מספר השולחן שלך באירוע|מספר השולחן שלך):\s*\n*\s*🪑?\s*\{\{tableName\}\}\s*\n*/g,
+      /\n*(?:השולחן שלך באירוע|מספר השולחן שלך באירוע):\s*\n*🪑\s*{{tableName}}\s*\n*/g,
       "\n"
     )
     .replace(
-      /\n*(?:השולחן שלך באירוע|מספר השולחן שלך באירוע|מספר השולחן שלך):\s*\n*\s*🪑?\s*(?:—|-)?\s*\n*/g,
+      /\n*(?:השולחן שלך באירוע|מספר השולחן שלך באירוע):\s*\n*🪑\s*\n*/g,
       "\n"
     )
-    .replace(/\{\{tableName\}\}/g, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
@@ -346,24 +265,12 @@ async function buildSmsText({
     template = stripTableBlockForGuestWithoutTable(template);
   }
 
-  let finalText = template
+  return template
     .replace(/{{name}}/g, guest.name || "")
     .replace(/{{invitationTitle}}/g, invitationTitle)
     .replace(/{{rsvpLink}}/g, shortUrl)
     .replace(/{{tableName}}/g, tableName)
-    .replace(/{{navigationLink}}/g, navigationLink || "")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-
-  /*
-    הגנה כפולה:
-    גם אחרי שה-placeholder הוחלף לריק, מוחקים שורת שולחן שנשארה.
-  */
-  if ((type === "reminder" || type === "table") && !tableName) {
-    finalText = stripTableBlockForGuestWithoutTable(finalText);
-  }
-
-  return finalText;
+    .replace(/{{navigationLink}}/g, navigationLink || "");
 }
 
 function deepReplacePlaceholders(
@@ -574,10 +481,9 @@ async function markInvitationAfterSend({
       }
     );
 
-    console.log("✅ SCHEDULED REMINDER/TABLE MARKED SENT:", {
+    console.log("✅ SCHEDULED REMINDER MARKED SENT:", {
       invitationId: String(schedule.invitationId),
       channel,
-      type,
       sent,
       matchedCount: result.matchedCount,
       modifiedCount: result.modifiedCount,
@@ -721,7 +627,7 @@ export async function sendScheduledSms() {
               cancelledAt: new Date(),
               lockedAt: null,
               lockedBy: null,
-              error: "REMINDER_OR_TABLE_ALREADY_SENT_BEFORE_SMS_SCHEDULED_SEND",
+              error: "REMINDER_ALREADY_SENT_BEFORE_SMS_SCHEDULED_SEND",
             },
           }
         );
@@ -769,25 +675,12 @@ export async function sendScheduledSms() {
         const phone = normalizePhone(guest.phone);
         if (!phone) continue;
 
-        const tableName = getTableName(guest);
-
-        /*
-          הגנה קריטית:
-          אם זו הודעת שולחן או פילטר withTable,
-          אורח בלי שולחן לא יקבל הודעה בכלל.
-        */
-        if ((type === "table" || msg.filter === "withTable") && !tableName) {
-          continue;
-        }
-
         const text = await buildSmsText({
           schedule: msg,
           invitation,
           guest,
           navigationLink,
         });
-
-        if (!text.trim()) continue;
 
         const parts = countBusinessSms(text);
         if (parts === -1) continue;
@@ -978,7 +871,7 @@ export async function sendScheduledWhatsapp() {
               cancelledAt: new Date(),
               lockedAt: null,
               lockedBy: null,
-              error: "REMINDER_OR_TABLE_ALREADY_SENT_BEFORE_WHATSAPP_SCHEDULED_SEND",
+              error: "REMINDER_ALREADY_SENT_BEFORE_WHATSAPP_SCHEDULED_SEND",
             },
           }
         );
@@ -1026,15 +919,6 @@ export async function sendScheduledWhatsapp() {
         if (!phone) continue;
 
         const tableName = getTableName(guest);
-
-        /*
-          הגנה קריטית:
-          אם זו הודעת שולחן או פילטר withTable,
-          אורח בלי שולחן לא יקבל הודעה בכלל.
-        */
-        if ((type === "table" || msg.filter === "withTable") && !tableName) {
-          continue;
-        }
 
         const urlSuffix = `invite/${invitation.shareId}?token=${guest.token}`;
         const personalUrl = `https://www.invistimo.com/${urlSuffix}`;

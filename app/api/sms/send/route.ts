@@ -77,7 +77,7 @@ function normalizeTemplateKey(value: any): MessageTemplateKey {
 
 function getScheduledType(templateKey: MessageTemplateKey): ScheduledType {
   if (templateKey === "rsvp") return "rsvp";
-  if (templateKey === "table") return "table";
+  if (templateKey === "table") return "reminder";
   if (templateKey === "reminder") return "reminder";
   if (templateKey === "thankyou") return "thankyou";
   if (templateKey === "custom") return "thankyou";
@@ -199,7 +199,7 @@ const MESSAGE_TEMPLATES: Record<
   },
 
   table: {
-      requiresTable: true,
+    requiresTable: false,
     content:
       "תזכורת לאירוע {{invitationTitle}}.\n\n" +
       "מספר השולחן שלך:\n" +
