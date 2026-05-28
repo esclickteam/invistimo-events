@@ -34,6 +34,32 @@ const VenueEventMenuDishSchema = new Schema(
       type: [String],
       default: [],
     },
+
+    /*
+      תגיות מקצועיות למטבח.
+      לדוגמה: ללא גלוטן, טבעוני, צמחוני, ילדים, בד"צ וכו'.
+      זה מיועד למנה עצמה מתוך תפריט האירוע.
+    */
+    sensitivityTags: {
+      type: [String],
+      default: [],
+    },
+
+    kosherTags: {
+      type: [String],
+      default: [],
+    },
+
+    specialTags: {
+      type: [String],
+      default: [],
+    },
+
+    kitchenNote: {
+      type: String,
+      default: "",
+      trim: true,
+    },
   },
   {
     _id: false,
@@ -135,6 +161,122 @@ const VenueEventMenuSelectedDishSchema = new Schema(
     },
 
     categoryTitle: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+  },
+  {
+    _id: false,
+  }
+);
+
+/*
+  דוח מטבח — כמה מנות תוכננו וכמה יצאו בפועל.
+  כאן האולם יכול לעדכן בזמן אמת:
+  סלמון 50, פרגית 40 וכו'.
+*/
+const VenueEventKitchenReportDishSchema = new Schema(
+  {
+    id: {
+      type: String,
+      default: "",
+      index: true,
+    },
+
+    dishId: {
+      type: String,
+      default: "",
+      index: true,
+    },
+
+    categoryId: {
+      type: String,
+      default: "",
+      index: true,
+    },
+
+    categoryTitle: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    dishName: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    plannedQuantity: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    actualServedQuantity: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    notes: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    updatedAt: {
+      type: Date,
+      default: null,
+    },
+  },
+  {
+    _id: false,
+  }
+);
+
+/*
+  רגישויות / כשרויות / מנות מיוחדות לאירוע.
+  לדוגמה:
+  3 ללא גלוטן, 2 טבעוני, 1 אלרגיה לאגוזים, 10 ילדים וכו'.
+*/
+const VenueEventKitchenSpecialNoteSchema = new Schema(
+  {
+    id: {
+      type: String,
+      default: "",
+      index: true,
+    },
+
+    type: {
+      type: String,
+      enum: [
+        "allergy",
+        "kosher",
+        "vegetarian",
+        "vegan",
+        "gluten_free",
+        "kids",
+        "other",
+      ],
+      default: "other",
+      index: true,
+    },
+
+    title: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    quantity: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    notes: {
       type: String,
       default: "",
       trim: true,
@@ -301,6 +443,54 @@ const VenueEventMenuSchema = new Schema(
       type: Date,
       default: null,
     },
+
+    /*
+      ============================================================
+      דוח מטבח / כמויות שיצאו בפועל
+      ============================================================
+    */
+
+    kitchenReportStatus: {
+      type: String,
+      enum: ["draft", "submitted"],
+      default: "draft",
+      index: true,
+    },
+
+    kitchenReportUpdatedAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+
+    kitchenReportSubmittedAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+
+    kitchenReportSubmittedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+      index: true,
+    },
+
+    kitchenGeneralNotes: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    kitchenDishes: {
+      type: [VenueEventKitchenReportDishSchema],
+      default: [],
+    },
+
+    kitchenSpecialNotes: {
+      type: [VenueEventKitchenSpecialNoteSchema],
+      default: [],
+    },
   },
   {
     timestamps: true,
@@ -330,6 +520,11 @@ VenueEventMenuSchema.index({
 VenueEventMenuSchema.index({
   selectionEditMode: 1,
   selectionEditableUntil: 1,
+});
+
+VenueEventMenuSchema.index({
+  kitchenReportStatus: 1,
+  kitchenReportUpdatedAt: -1,
 });
 
 export default models.VenueEventMenu ||

@@ -28,6 +28,17 @@ type CategoryOverrideInput = {
 };
 
 type SelectionEditMode = "untilDate" | "lockAfterSubmit";
+type KitchenReportStatus = "draft" | "submitted";
+
+const allowedSpecialNoteTypes = [
+  "allergy",
+  "kosher",
+  "vegetarian",
+  "vegan",
+  "gluten_free",
+  "kids",
+  "other",
+];
 
 function createSelectionToken() {
   return crypto.randomBytes(24).toString("hex");
@@ -48,6 +59,10 @@ function getBaseUrl(req: NextRequest) {
   return `${proto}://${host}`;
 }
 
+function cleanString(value: unknown) {
+  return String(value || "").trim();
+}
+
 function toNumber(value: unknown, fallback = 0) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -57,7 +72,21 @@ function normalizeSelectionEditMode(value: unknown): SelectionEditMode {
   return value === "lockAfterSubmit" ? "lockAfterSubmit" : "untilDate";
 }
 
+function normalizeKitchenReportStatus(value: unknown): KitchenReportStatus {
+  return value === "submitted" ? "submitted" : "draft";
+}
+
 function normalizeEditableUntil(value: unknown) {
+  if (!value) return null;
+
+  const date = new Date(String(value));
+
+  if (Number.isNaN(date.getTime())) return null;
+
+  return date;
+}
+
+function normalizeDateOrNull(value: unknown) {
   if (!value) return null;
 
   const date = new Date(String(value));
@@ -77,6 +106,38 @@ function createOverrideMap(overrides: CategoryOverrideInput[] = []) {
   });
 
   return map;
+}
+
+function normalizeKitchenDishes(rows: any[] = []) {
+  if (!Array.isArray(rows)) return [];
+
+  return rows.map((item: any, index: number) => ({
+    id: cleanString(item?.id || item?._id || item?.dishId || `kitchen-dish-${index + 1}`),
+    dishId: cleanString(item?.dishId || ""),
+    categoryId: cleanString(item?.categoryId || ""),
+    categoryTitle: cleanString(item?.categoryTitle || item?.categoryName || "כללי"),
+    dishName: cleanString(item?.dishName || item?.name || "מנה ללא שם"),
+    plannedQuantity: Math.max(0, toNumber(item?.plannedQuantity, 0)),
+    actualServedQuantity: Math.max(0, toNumber(item?.actualServedQuantity, 0)),
+    notes: cleanString(item?.notes || ""),
+    updatedAt: new Date(),
+  }));
+}
+
+function normalizeKitchenSpecialNotes(rows: any[] = []) {
+  if (!Array.isArray(rows)) return [];
+
+  return rows.map((item: any, index: number) => {
+    const type = cleanString(item?.type);
+
+    return {
+      id: cleanString(item?.id || item?._id || `special-note-${index + 1}`),
+      type: allowedSpecialNoteTypes.includes(type) ? type : "other",
+      title: cleanString(item?.title || ""),
+      quantity: Math.max(0, toNumber(item?.quantity, 0)),
+      notes: cleanString(item?.notes || ""),
+    };
+  });
 }
 
 function normalizeCategories(
@@ -137,11 +198,25 @@ function normalizeCategories(
 
         return {
           id: dishId,
-          originalDishId: dishId,
-          name: String(dish?.name || "מנה ללא שם"),
-          description: String(dish?.description || ""),
-          image: String(dish?.image || ""),
-          tags: Array.isArray(dish?.tags) ? dish.tags.map(String) : [],
+          originalDishId: String(dish?.originalDishId || dishId),
+          name: String(dish?.name || dish?.title || "מנה ללא שם"),
+          description: String(dish?.description || dish?.subtitle || ""),
+          image: String(dish?.image || dish?.imageUrl || ""),
+          tags: Array.isArray(dish?.tags) ? dish.tags.map(String).filter(Boolean) : [],
+
+          sensitivityTags: Array.isArray(dish?.sensitivityTags)
+            ? dish.sensitivityTags.map(String).filter(Boolean)
+            : [],
+
+          kosherTags: Array.isArray(dish?.kosherTags)
+            ? dish.kosherTags.map(String).filter(Boolean)
+            : [],
+
+          specialTags: Array.isArray(dish?.specialTags)
+            ? dish.specialTags.map(String).filter(Boolean)
+            : [],
+
+          kitchenNote: String(dish?.kitchenNote || ""),
         };
       }),
     };
@@ -176,6 +251,19 @@ function buildMenuResponse(menu: any, selectionLink: string) {
     submittedByName: String(menuObject.submittedByName || ""),
     submittedByPhone: String(menuObject.submittedByPhone || ""),
     submittedAt: menuObject.submittedAt || null,
+
+    kitchenReportStatus:
+      menuObject.kitchenReportStatus === "submitted" ? "submitted" : "draft",
+    kitchenReportUpdatedAt: menuObject.kitchenReportUpdatedAt || null,
+    kitchenReportSubmittedAt: menuObject.kitchenReportSubmittedAt || null,
+    kitchenReportSubmittedBy: menuObject.kitchenReportSubmittedBy || null,
+    kitchenGeneralNotes: String(menuObject.kitchenGeneralNotes || ""),
+    kitchenDishes: Array.isArray(menuObject.kitchenDishes)
+      ? menuObject.kitchenDishes
+      : [],
+    kitchenSpecialNotes: Array.isArray(menuObject.kitchenSpecialNotes)
+      ? menuObject.kitchenSpecialNotes
+      : [],
 
     categoryOverrides: categories.map((category: any, index: number) => {
       const categoryId = String(
@@ -382,12 +470,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
       selectionEditMode,
       selectionEditableUntil,
 
-      /*
-        חשוב:
-        האולם יכול תמיד לערוך.
-        לכן לא נועלים את הרשומה כאן עבור האולם.
-        lockedAt מיועד רק לבדיקה בדף בעל האירוע.
-      */
       lockedAt: existing?.lockedAt || null,
       lockedReason: existing?.lockedReason || "",
 
@@ -398,6 +480,14 @@ export async function POST(req: NextRequest, context: RouteContext) {
       submittedByPhone: existing?.submittedByPhone || "",
       submittedAt: existing?.submittedAt || null,
       approvedAt: existing?.approvedAt || null,
+
+      kitchenReportStatus: existing?.kitchenReportStatus || "draft",
+      kitchenReportUpdatedAt: existing?.kitchenReportUpdatedAt || null,
+      kitchenReportSubmittedAt: existing?.kitchenReportSubmittedAt || null,
+      kitchenReportSubmittedBy: existing?.kitchenReportSubmittedBy || null,
+      kitchenGeneralNotes: existing?.kitchenGeneralNotes || "",
+      kitchenDishes: existing?.kitchenDishes || [],
+      kitchenSpecialNotes: existing?.kitchenSpecialNotes || [],
     };
 
     const savedMenu = existing
@@ -421,6 +511,10 @@ export async function POST(req: NextRequest, context: RouteContext) {
       venueEventMenuSelectionToken: selectionToken,
       venueEventMenuSelectionEditMode: savedMenu.selectionEditMode,
       venueEventMenuSelectionEditableUntil: savedMenu.selectionEditableUntil,
+
+      venueEventKitchenReportStatus: savedMenu.kitchenReportStatus || "draft",
+      venueEventKitchenReportUpdatedAt: savedMenu.kitchenReportUpdatedAt || null,
+      venueEventKitchenReportSubmittedAt: savedMenu.kitchenReportSubmittedAt || null,
     });
 
     const baseUrl = getBaseUrl(req);
@@ -485,10 +579,6 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 
     existing.eventNote = String(body?.eventNote || "");
 
-    /*
-      האולם יכול תמיד לשנות את תנאי העריכה לבעל האירוע.
-      זה לא חוסם את האולם עצמו.
-    */
     existing.selectionEditMode = normalizeSelectionEditMode(body?.selectionEditMode);
 
     existing.selectionEditableUntil =
@@ -496,11 +586,6 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         ? normalizeEditableUntil(body?.selectionEditableUntil)
         : null;
 
-    /*
-      אם האולם עבר מ-lockAfterSubmit ל-untilDate,
-      אפשר לשחרר את הנעילה לבעל האירוע.
-      אבל רק אם הפרונט שלח releaseLock=true.
-    */
     if (body?.releaseLock === true) {
       existing.lockedAt = null;
       existing.lockedReason = "";
@@ -534,7 +619,50 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     });
 
     /*
-      חשוב:
+      דוח מטבח / כמויות שיצאו בפועל
+      נשמר רק אם הפרונט שלח את השדות האלה.
+      כך עדכון רגיל של תפריט לא מוחק בטעות את דוח המטבח.
+    */
+    const shouldUpdateKitchenReport =
+      body?.kitchenReportStatus !== undefined ||
+      body?.kitchenGeneralNotes !== undefined ||
+      body?.kitchenDishes !== undefined ||
+      body?.kitchenSpecialNotes !== undefined ||
+      body?.kitchenReportUpdatedAt !== undefined ||
+      body?.kitchenReportSubmittedAt !== undefined;
+
+    if (shouldUpdateKitchenReport) {
+      const nextKitchenStatus = normalizeKitchenReportStatus(body?.kitchenReportStatus);
+
+      existing.kitchenReportStatus = nextKitchenStatus;
+      existing.kitchenGeneralNotes = String(body?.kitchenGeneralNotes || "");
+
+      if (Array.isArray(body?.kitchenDishes)) {
+        existing.kitchenDishes = normalizeKitchenDishes(body.kitchenDishes);
+      }
+
+      if (Array.isArray(body?.kitchenSpecialNotes)) {
+        existing.kitchenSpecialNotes = normalizeKitchenSpecialNotes(
+          body.kitchenSpecialNotes
+        );
+      }
+
+      existing.kitchenReportUpdatedAt =
+        normalizeDateOrNull(body?.kitchenReportUpdatedAt) || new Date();
+
+      if (nextKitchenStatus === "submitted") {
+        existing.kitchenReportSubmittedAt =
+          normalizeDateOrNull(body?.kitchenReportSubmittedAt) || new Date();
+
+        existing.kitchenReportSubmittedBy = auth.userId;
+      } else if (body?.kitchenReportSubmittedAt !== undefined) {
+        existing.kitchenReportSubmittedAt = normalizeDateOrNull(
+          body?.kitchenReportSubmittedAt
+        );
+      }
+    }
+
+    /*
       אם בעל האירוע כבר שלח בחירה והאולם משנה משהו,
       הסטטוס נהיה updated, אבל זה לא נועל את האולם.
     */
@@ -550,11 +678,17 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       venueEventMenuStatus: savedMenu.status || "pending",
       venueEventMenuSelectionEditMode: savedMenu.selectionEditMode,
       venueEventMenuSelectionEditableUntil: savedMenu.selectionEditableUntil,
+
+      venueEventKitchenReportStatus: savedMenu.kitchenReportStatus || "draft",
+      venueEventKitchenReportUpdatedAt: savedMenu.kitchenReportUpdatedAt || null,
+      venueEventKitchenReportSubmittedAt: savedMenu.kitchenReportSubmittedAt || null,
     });
 
     return NextResponse.json({
       success: true,
-      message: "תפריט האירוע עודכן",
+      message: shouldUpdateKitchenReport
+        ? "דוח המטבח נשמר בהצלחה"
+        : "תפריט האירוע עודכן",
       menu: normalizedMenu,
       eventMenu: normalizedMenu,
       assignedMenu: normalizedMenu,
