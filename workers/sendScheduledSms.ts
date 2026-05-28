@@ -114,6 +114,29 @@ function normalizePhone(phoneRaw: any) {
   return phone;
 }
 
+function getScheduledGuestIds(schedule: any) {
+  if (Array.isArray(schedule?.guestIds) && schedule.guestIds.length > 0) {
+    return schedule.guestIds;
+  }
+
+  if (Array.isArray(schedule?.guests) && schedule.guests.length > 0) {
+    return schedule.guests;
+  }
+
+  return [];
+}
+
+function getWithTableCondition() {
+  return {
+    $or: [
+      { tableName: { $exists: true, $nin: ["", null] } },
+      { tableNumber: { $exists: true, $nin: ["", null] } },
+      { "seating.tableName": { $exists: true, $nin: ["", null] } },
+      { "seating.tableNumber": { $exists: true, $nin: ["", null] } },
+    ],
+  };
+}
+
 async function buildNavigationLink(invitation: any) {
   const location =
     invitation?.eventLocation && typeof invitation.eventLocation === "object"
@@ -168,44 +191,56 @@ function buildGuestsQuery({
   const type = normalizeType(schedule.type || schedule.templateKey);
   const round = normalizeRound(schedule.round ?? schedule.roundNumber);
 
+  const scheduledGuestIds = getScheduledGuestIds(schedule);
+  const selectedGuestsCondition =
+    scheduledGuestIds.length > 0 ? { _id: { $in: scheduledGuestIds } } : {};
+
+  const withTableCondition = getWithTableCondition();
+
   if (type === "rsvp") {
     if (round === 1) {
-      return { invitationId };
+      return {
+        invitationId,
+        ...selectedGuestsCondition,
+      };
     }
 
     return {
       invitationId,
       rsvp: "pending",
+      ...selectedGuestsCondition,
     };
   }
 
   /*
     תזכורת:
-    נשלחת לכל מי שמגיע.
-    אם יש לו שולחן — יקבל עם שולחן.
-    אם אין לו שולחן — שורת השולחן נמחקת מהטקסט.
+    ברירת מחדל — נשלחת לכל מי שאישר הגעה.
+    אם filter === withTable — נשלחת רק למי שיש לו שולחן.
   */
   if (type === "reminder") {
-    return {
+    const query: any = {
       invitationId,
       rsvp: "yes",
+      ...selectedGuestsCondition,
     };
+
+    if (schedule.filter === "withTable") {
+      query.$or = withTableCondition.$or;
+    }
+
+    return query;
   }
 
   /*
-    הודעת שולחן בלבד:
-    נשלחת רק למי שיש לו שולחן בפועל.
+    הודעת שולחן:
+    תמיד רק למי שאישר הגעה ויש לו שולחן.
   */
   if (type === "table") {
     return {
       invitationId,
       rsvp: "yes",
-      $or: [
-        { tableName: { $exists: true, $nin: ["", null] } },
-        { tableNumber: { $exists: true, $nin: ["", null] } },
-        { "seating.tableName": { $exists: true, $nin: ["", null] } },
-        { "seating.tableNumber": { $exists: true, $nin: ["", null] } },
-      ],
+      ...selectedGuestsCondition,
+      ...withTableCondition,
     };
   }
 
@@ -213,29 +248,21 @@ function buildGuestsQuery({
     return {
       invitationId,
       rsvp: "yes",
+      ...selectedGuestsCondition,
     };
   }
 
-  if (Array.isArray(schedule.guestIds) && schedule.guestIds.length > 0) {
-    return {
-      _id: { $in: schedule.guestIds },
-      invitationId,
-    };
-  }
-
-  const query: any = { invitationId };
+  const query: any = {
+    invitationId,
+    ...selectedGuestsCondition,
+  };
 
   if (schedule.filter === "pending") {
     query.rsvp = "pending";
   }
 
   if (schedule.filter === "withTable") {
-    query.$or = [
-      { tableName: { $exists: true, $nin: ["", null] } },
-      { tableNumber: { $exists: true, $nin: ["", null] } },
-      { "seating.tableName": { $exists: true, $nin: ["", null] } },
-      { "seating.tableNumber": { $exists: true, $nin: ["", null] } },
-    ];
+    query.$or = withTableCondition.$or;
   }
 
   return query;
@@ -319,7 +346,7 @@ async function buildSmsText({
     template = stripTableBlockForGuestWithoutTable(template);
   }
 
-  return template
+  let finalText = template
     .replace(/{{name}}/g, guest.name || "")
     .replace(/{{invitationTitle}}/g, invitationTitle)
     .replace(/{{rsvpLink}}/g, shortUrl)
@@ -327,6 +354,16 @@ async function buildSmsText({
     .replace(/{{navigationLink}}/g, navigationLink || "")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+
+  /*
+    הגנה כפולה:
+    גם אחרי שה-placeholder הוחלף לריק, מוחקים שורת שולחן שנשארה.
+  */
+  if ((type === "reminder" || type === "table") && !tableName) {
+    finalText = stripTableBlockForGuestWithoutTable(finalText);
+  }
+
+  return finalText;
 }
 
 function deepReplacePlaceholders(
@@ -732,6 +769,17 @@ export async function sendScheduledSms() {
         const phone = normalizePhone(guest.phone);
         if (!phone) continue;
 
+        const tableName = getTableName(guest);
+
+        /*
+          הגנה קריטית:
+          אם זו הודעת שולחן או פילטר withTable,
+          אורח בלי שולחן לא יקבל הודעה בכלל.
+        */
+        if ((type === "table" || msg.filter === "withTable") && !tableName) {
+          continue;
+        }
+
         const text = await buildSmsText({
           schedule: msg,
           invitation,
@@ -980,10 +1028,11 @@ export async function sendScheduledWhatsapp() {
         const tableName = getTableName(guest);
 
         /*
-          בהודעת שולחן בלבד בווטסאפ:
-          אם איכשהו הגיע אורח בלי שולחן למרות הסינון — לא שולחים לו.
+          הגנה קריטית:
+          אם זו הודעת שולחן או פילטר withTable,
+          אורח בלי שולחן לא יקבל הודעה בכלל.
         */
-        if (type === "table" && !tableName) {
+        if ((type === "table" || msg.filter === "withTable") && !tableName) {
           continue;
         }
 
