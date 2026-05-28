@@ -19,6 +19,8 @@ import {
   CalendarRange,
   BarChart3,
   UserRound,
+  AlertTriangle,
+  ExternalLink,
 } from "lucide-react";
 
 /* =====================================================
@@ -64,6 +66,31 @@ interface RangeSummary {
   paymentsCount: number;
   monthlyBreakdown: RangeMonthItem[];
   byType: RangeTypeItem[];
+}
+
+
+interface UpcomingCallRound {
+  id: string;
+  userId: string;
+  invitationId: string;
+  clientName: string;
+  clientEmail: string;
+  eventName: string;
+  eventDate?: string | null;
+  roundNumber: number;
+  scheduledAt: string;
+  status: string;
+  guestsWaiting: number;
+  guestsDone: number;
+}
+
+interface UpcomingCallRoundsResponse {
+  success: boolean;
+  total: number;
+  today: number;
+  tomorrow: number;
+  week: number;
+  rounds: UpcomingCallRound[];
 }
 
 interface AdminStats {
@@ -142,6 +169,66 @@ function formatDate(value?: string | null) {
   }
 }
 
+
+function formatDateTime(value?: string | null) {
+  if (!value) return "—";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+
+  return new Intl.DateTimeFormat("he-IL", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function getDateOnly(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function isSameDate(a: Date, b: Date) {
+  return getDateOnly(a).getTime() === getDateOnly(b).getTime();
+}
+
+function getRelativeDayLabel(value?: string | null) {
+  if (!value) return "לא הוגדר";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "לא הוגדר";
+
+  const today = getDateOnly(new Date());
+  const target = getDateOnly(date);
+
+  const diffDays = Math.round(
+    (target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+  );
+
+  if (diffDays === 0) return "היום";
+  if (diffDays === 1) return "מחר";
+  if (diffDays === 2) return "מחרתיים";
+
+  return date.toLocaleDateString("he-IL", {
+    weekday: "long",
+    day: "2-digit",
+    month: "2-digit",
+  });
+}
+
+function getHourLabel(value?: string | null) {
+  if (!value) return "—";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+
+  return date.toLocaleTimeString("he-IL", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 function getPaymentTypeLabel(type: string) {
   const labels: Record<string, string> = {
     package: "חבילה",
@@ -161,7 +248,11 @@ export default function AdminDashboardPage() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [showPayingCustomers, setShowPayingCustomers] = useState(false);
+  const [showUpcomingCalls, setShowUpcomingCalls] = useState(false);
   const [customerSearch, setCustomerSearch] = useState("");
+  const [upcomingCalls, setUpcomingCalls] =
+    useState<UpcomingCallRoundsResponse | null>(null);
+  const [loadingUpcomingCalls, setLoadingUpcomingCalls] = useState(true);
 
   const [selectedDate, setSelectedDate] = useState(() => {
     const now = new Date();
@@ -238,6 +329,22 @@ const [toYear, setToYear] = useState(currentYear);
     return Math.round(revenue / monthsCount);
   }, [stats?.rangeSummary]);
 
+
+  const upcomingCallRounds = useMemo(() => {
+    return upcomingCalls?.rounds || [];
+  }, [upcomingCalls?.rounds]);
+
+  const nearestCallRound = useMemo(() => {
+    if (!upcomingCallRounds.length) return null;
+
+    return [...upcomingCallRounds].sort((a, b) => {
+      return (
+        new Date(a.scheduledAt).getTime() -
+        new Date(b.scheduledAt).getTime()
+      );
+    })[0];
+  }, [upcomingCallRounds]);
+
   async function fetchStats(showLoader = true) {
   try {
     if (showLoader) {
@@ -276,11 +383,49 @@ const [toYear, setToYear] = useState(currentYear);
   }
 }
 
+
+  async function fetchUpcomingCallRounds(showLoader = true) {
+    try {
+      if (showLoader) {
+        setLoadingUpcomingCalls(true);
+      }
+
+      const res = await fetch("/api/admin/call-rounds/upcoming?days=7", {
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || data?.success === false) {
+        throw new Error(data?.message || "Failed to fetch upcoming call rounds");
+      }
+
+      setUpcomingCalls(data);
+    } catch (err) {
+      console.error("❌ Failed to load upcoming call rounds:", err);
+      setUpcomingCalls({
+        success: false,
+        total: 0,
+        today: 0,
+        tomorrow: 0,
+        week: 0,
+        rounds: [],
+      });
+    } finally {
+      if (showLoader) {
+        setLoadingUpcomingCalls(false);
+      }
+    }
+  }
+
   useEffect(() => {
   fetchStats(true);
+  fetchUpcomingCallRounds(true);
 
   const intervalId = window.setInterval(() => {
     fetchStats(false);
+    fetchUpcomingCallRounds(false);
   }, AUTO_REFRESH_MS);
 
   return () => {
@@ -481,6 +626,13 @@ const [toYear, setToYear] = useState(currentYear);
           </div>
         </section>
 
+        <AdminCallRoundsAlert
+          loading={loadingUpcomingCalls}
+          data={upcomingCalls}
+          nearestRound={nearestCallRound}
+          onOpen={() => setShowUpcomingCalls(true)}
+        />
+
         {/* =====================================================
             MAIN REVENUE
         ====================================================== */}
@@ -549,7 +701,7 @@ const [toYear, setToYear] = useState(currentYear);
         {/* =====================================================
             MONTHLY STATS
         ====================================================== */}
-        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <AdminBox
             title="משתמשים פעילים"
             subtitle="משתמשים שקיימים כרגע במערכת"
@@ -572,6 +724,18 @@ const [toYear, setToYear] = useState(currentYear);
             value={loading ? "—" : String(stats?.calls ?? 0)}
             icon={<PhoneCall size={24} />}
             tone="orange"
+          />
+
+          <AdminBox
+            title="סבבים קרובים"
+            subtitle="סבבי שיחות ל־7 ימים הקרובים"
+            value={
+              loadingUpcomingCalls ? "—" : String(upcomingCalls?.total ?? 0)
+            }
+            icon={<PhoneCall size={24} />}
+            tone="orange"
+            onClick={() => setShowUpcomingCalls(true)}
+            clickable
           />
 
           <AdminBox
@@ -1115,9 +1279,388 @@ const [toYear, setToYear] = useState(currentYear);
           </div>
         </div>
       )}
+
+      {showUpcomingCalls && (
+        <UpcomingCallRoundsModal
+          loading={loadingUpcomingCalls}
+          rounds={upcomingCallRounds}
+          data={upcomingCalls}
+          onClose={() => setShowUpcomingCalls(false)}
+        />
+      )}
     </div>
   );
 }
+
+
+/* =====================================================
+   UPCOMING CALL ROUNDS ALERT
+===================================================== */
+function AdminCallRoundsAlert({
+  loading,
+  data,
+  nearestRound,
+  onOpen,
+}: {
+  loading: boolean;
+  data: UpcomingCallRoundsResponse | null;
+  nearestRound: UpcomingCallRound | null;
+  onOpen: () => void;
+}) {
+  const total = Number(data?.total || 0);
+
+  if (loading) {
+    return (
+      <section className="rounded-[28px] border border-[#E7D8C6] bg-white p-5 shadow-[0_14px_40px_rgba(60,43,25,0.06)]">
+        <div className="flex items-center gap-3 text-sm font-black text-[#8A7867]">
+          <Loader2 className="animate-spin" size={18} />
+          בודק סבבי שיחות קרובים...
+        </div>
+      </section>
+    );
+  }
+
+  if (!total || !nearestRound) return null;
+
+  return (
+    <section
+      className="
+        rounded-[32px]
+        border border-[#E6C079]
+        bg-gradient-to-br from-[#FFF9ED] via-white to-[#F7E7CB]
+        p-5 md:p-6
+        shadow-[0_18px_55px_rgba(158,103,33,0.12)]
+      "
+    >
+      <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex items-start gap-4">
+          <div
+            className="
+              flex h-14 w-14 shrink-0 items-center justify-center
+              rounded-[22px]
+              bg-[#FFF2D8]
+              text-[#B97821]
+              shadow-sm
+            "
+          >
+            <AlertTriangle size={26} />
+          </div>
+
+          <div>
+            <div className="text-xs font-black uppercase tracking-wide text-[#B97821]">
+              התראת תפעול
+            </div>
+
+            <h2 className="mt-1 text-2xl font-black text-[#3A2A1C]">
+              יש {total} סבבי שיחות קרובים
+            </h2>
+
+            <p className="mt-2 text-sm font-bold leading-6 text-[#7B6754]">
+              הקרוב ביותר: {nearestRound.clientName || "לקוח ללא שם"} ·{" "}
+              {nearestRound.eventName || "אירוע ללא שם"} · סבב שיחות{" "}
+              {nearestRound.roundNumber} ·{" "}
+              {getRelativeDayLabel(nearestRound.scheduledAt)} בשעה{" "}
+              {getHourLabel(nearestRound.scheduledAt)}
+            </p>
+
+            <div className="mt-3 flex flex-wrap gap-2 text-xs font-black">
+              <span className="rounded-full bg-white px-3 py-1 text-[#8A6A43] ring-1 ring-[#E7D8C6]">
+                היום: {data?.today || 0}
+              </span>
+
+              <span className="rounded-full bg-white px-3 py-1 text-[#8A6A43] ring-1 ring-[#E7D8C6]">
+                מחר: {data?.tomorrow || 0}
+              </span>
+
+              <span className="rounded-full bg-white px-3 py-1 text-[#8A6A43] ring-1 ring-[#E7D8C6]">
+                השבוע: {data?.week || 0}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={onOpen}
+          className="
+            flex h-12 items-center justify-center gap-2
+            rounded-2xl
+            bg-[#3A2A1C]
+            px-6
+            text-sm font-black
+            text-white
+            transition
+            hover:bg-[#24190F]
+          "
+        >
+          פתח לוח שיחות
+          <PhoneCall size={18} />
+        </button>
+      </div>
+    </section>
+  );
+}
+
+/* =====================================================
+   UPCOMING CALL ROUNDS MODAL
+===================================================== */
+function UpcomingCallRoundsModal({
+  loading,
+  rounds,
+  data,
+  onClose,
+}: {
+  loading: boolean;
+  rounds: UpcomingCallRound[];
+  data: UpcomingCallRoundsResponse | null;
+  onClose: () => void;
+}) {
+  const groupedRounds = useMemo(() => {
+    const groups: Record<string, UpcomingCallRound[]> = {
+      today: [],
+      tomorrow: [],
+      week: [],
+    };
+
+    rounds.forEach((round) => {
+      const date = new Date(round.scheduledAt);
+      const today = new Date();
+      const tomorrow = new Date();
+      tomorrow.setDate(today.getDate() + 1);
+
+      if (isSameDate(date, today)) {
+        groups.today.push(round);
+      } else if (isSameDate(date, tomorrow)) {
+        groups.tomorrow.push(round);
+      } else {
+        groups.week.push(round);
+      }
+    });
+
+    return groups;
+  }, [rounds]);
+
+  return (
+    <div
+      className="
+        fixed inset-0 z-50
+        flex items-center justify-center
+        bg-black/35
+        px-4
+        backdrop-blur-sm
+      "
+      onClick={onClose}
+    >
+      <div
+        dir="rtl"
+        className="
+          w-full max-w-5xl
+          overflow-hidden
+          rounded-[32px]
+          border border-[#E7D8C6]
+          bg-white
+          shadow-[0_28px_90px_rgba(0,0,0,0.22)]
+        "
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          className="
+            border-b border-[#EFE2D1]
+            bg-gradient-to-br from-[#FFFDF8] to-[#F8EFE3]
+            p-5 md:p-6
+          "
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div
+                className="
+                  mb-3 inline-flex items-center gap-2
+                  rounded-full
+                  bg-[#FFF2D8]
+                  px-4 py-2
+                  text-xs font-black
+                  text-[#9A6A24]
+                "
+              >
+                <PhoneCall size={15} />
+                לו״ז שיחות מכל המשתמשים
+              </div>
+
+              <h3 className="text-2xl font-black text-[#3A2A1C]">
+                סבבי שיחות לביצוע
+              </h3>
+
+              <p className="mt-1 text-sm text-[#8A7867]">
+                היום: {data?.today || 0} · מחר: {data?.tomorrow || 0} · השבוע:{" "}
+                {data?.week || 0}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="
+                flex h-11 w-11 shrink-0 items-center justify-center
+                rounded-full
+                bg-white
+                text-[#6B5138]
+                shadow-sm
+                transition
+                hover:bg-[#F1E5D6]
+              "
+              aria-label="סגירה"
+            >
+              <X size={20} />
+            </button>
+          </div>
+        </div>
+
+        <div className="max-h-[620px] overflow-y-auto p-5 md:p-6">
+          {loading ? (
+            <div className="flex items-center justify-center gap-3 py-12 text-[#7B6754]">
+              <Loader2 className="animate-spin" size={22} />
+              <span className="font-bold">טוען לו״ז שיחות...</span>
+            </div>
+          ) : !rounds.length ? (
+            <EmptyBox text="אין סבבי שיחות קרובים לביצוע." />
+          ) : (
+            <div className="space-y-6">
+              <CallRoundsGroup
+                title="היום"
+                rounds={groupedRounds.today}
+              />
+
+              <CallRoundsGroup
+                title="מחר"
+                rounds={groupedRounds.tomorrow}
+              />
+
+              <CallRoundsGroup
+                title="השבוע"
+                rounds={groupedRounds.week}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CallRoundsGroup({
+  title,
+  rounds,
+}: {
+  title: string;
+  rounds: UpcomingCallRound[];
+}) {
+  if (!rounds.length) return null;
+
+  return (
+    <section>
+      <h4 className="mb-3 text-lg font-black text-[#3A2A1C]">{title}</h4>
+
+      <div className="space-y-3">
+        {rounds.map((round) => (
+          <div
+            key={round.id}
+            className="
+              rounded-[24px]
+              border border-[#EFE2D1]
+              bg-[#FFFDF8]
+              p-4
+              transition
+              hover:bg-white
+              hover:shadow-sm
+            "
+          >
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="inline-flex items-center gap-2 text-base font-black text-[#3A2A1C]">
+                    <PhoneCall size={18} className="text-[#B97821]" />
+                    סבב שיחות {round.roundNumber}
+                  </span>
+
+                  <span className="rounded-full bg-[#FFF2D8] px-3 py-1 text-xs font-black text-[#9A6A24]">
+                    {getRelativeDayLabel(round.scheduledAt)} ·{" "}
+                    {getHourLabel(round.scheduledAt)}
+                  </span>
+                </div>
+
+                <div className="mt-3 grid grid-cols-1 gap-2 text-sm md:grid-cols-2">
+                  <div className="rounded-2xl bg-white px-4 py-3 ring-1 ring-[#EFE2D1]">
+                    <div className="text-xs font-black text-[#8A7867]">
+                      לקוח
+                    </div>
+                    <div className="mt-1 truncate font-black text-[#3A2A1C]">
+                      {round.clientName || "לא הוגדר שם"}
+                    </div>
+                    <div className="mt-1 truncate text-xs font-bold text-[#8A7867]">
+                      {round.clientEmail || "ללא אימייל"}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl bg-white px-4 py-3 ring-1 ring-[#EFE2D1]">
+                    <div className="text-xs font-black text-[#8A7867]">
+                      אירוע
+                    </div>
+                    <div className="mt-1 truncate font-black text-[#3A2A1C]">
+                      {round.eventName || "אירוע ללא שם"}
+                    </div>
+                    <div className="mt-1 text-xs font-bold text-[#8A7867]">
+                      תאריך אירוע: {formatDate(round.eventDate)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 xl:min-w-[270px]">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-2xl bg-white px-4 py-3 text-center ring-1 ring-[#EFE2D1]">
+                    <div className="text-xs font-black text-[#8A7867]">
+                      ממתינים
+                    </div>
+                    <div className="mt-1 text-2xl font-black text-[#B97821]">
+                      {round.guestsWaiting}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl bg-white px-4 py-3 text-center ring-1 ring-[#EFE2D1]">
+                    <div className="text-xs font-black text-[#8A7867]">
+                      בוצעו
+                    </div>
+                    <div className="mt-1 text-2xl font-black text-[#1F9A55]">
+                      {round.guestsDone}
+                    </div>
+                  </div>
+                </div>
+
+                <a
+                  href={`/admin/users/${round.userId}`}
+                  className="
+                    flex h-11 items-center justify-center gap-2
+                    rounded-2xl
+                    bg-[#3A2A1C]
+                    px-4
+                    text-sm font-black
+                    text-white
+                    transition
+                    hover:bg-[#24190F]
+                  "
+                >
+                  פתח לקוח
+                  <ExternalLink size={16} />
+                </a>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 
 /* =====================================================
    MINI METRIC
@@ -1237,6 +1780,8 @@ function AdminBox({
   icon,
   tone,
   highlight = false,
+  clickable = false,
+  onClick,
 }: {
   title: string;
   subtitle: string;
@@ -1244,6 +1789,8 @@ function AdminBox({
   icon: ReactNode;
   tone: "green" | "blue" | "orange" | "gold";
   highlight?: boolean;
+  clickable?: boolean;
+  onClick?: () => void;
 }) {
   const styles = {
     green: {
@@ -1268,22 +1815,24 @@ function AdminBox({
     },
   }[tone];
 
-  return (
-    <div
-      className={`
-        relative overflow-hidden
-        rounded-[28px]
-        border
-        bg-gradient-to-br
-        p-5
-        shadow-[0_16px_45px_rgba(60,43,25,0.07)]
-        transition
-        hover:-translate-y-1
-        hover:shadow-[0_22px_60px_rgba(60,43,25,0.12)]
-        ${styles.box}
-        ${highlight ? "ring-1 ring-[#E2B96E]" : ""}
-      `}
-    >
+  const className = `
+    relative overflow-hidden
+    rounded-[28px]
+    border
+    bg-gradient-to-br
+    p-5
+    text-right
+    shadow-[0_16px_45px_rgba(60,43,25,0.07)]
+    transition
+    hover:-translate-y-1
+    hover:shadow-[0_22px_60px_rgba(60,43,25,0.12)]
+    ${clickable ? "cursor-pointer" : ""}
+    ${styles.box}
+    ${highlight ? "ring-1 ring-[#E2B96E]" : ""}
+  `;
+
+  const content = (
+    <>
       <div
         className="
           pointer-events-none absolute -left-10 -top-10
@@ -1316,8 +1865,18 @@ function AdminBox({
           {value}
         </div>
       </div>
-    </div>
+    </>
   );
+
+  if (clickable) {
+    return (
+      <button type="button" onClick={onClick} className={className}>
+        {content}
+      </button>
+    );
+  }
+
+  return <div className={className}>{content}</div>;
 }
 
 
