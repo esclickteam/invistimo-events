@@ -26,6 +26,16 @@ type LeanUser = {
   };
 };
 
+type LeanGuest = {
+  _id: any;
+  invitationId?: any;
+  invitation?: any;
+  rsvp?: string | null;
+  status?: string | null;
+  callRounds?: any[];
+  allRounds?: any[];
+};
+
 function toDate(value: any) {
   if (!value) return null;
 
@@ -59,17 +69,14 @@ function normalizeStatus(status: any) {
   return String(status || "").trim().toLowerCase();
 }
 
-function isRoundDoneOrCancelled(round: any) {
+function isRoundCancelled(round: any) {
   const status = normalizeStatus(round?.status);
 
   return (
-    Boolean(round?.sentAt) ||
-    status === "done" ||
-    status === "sent" ||
-    status === "בוצע" ||
     status === "cancelled" ||
     status === "canceled" ||
-    status === "בוטל"
+    status === "בוטל" ||
+    status === "מבוטל"
   );
 }
 
@@ -105,6 +112,76 @@ function buildObjectIdOrString(value: any) {
   }
 
   return values;
+}
+
+function getGuestInvitationKey(guest: LeanGuest) {
+  return String(guest?.invitationId || guest?.invitation || "");
+}
+
+function normalizeAnswerStatus(value: any) {
+  const status = String(value || "").trim().toLowerCase();
+
+  if (status === "answered" || status === "ענה") return "answered";
+  if (status === "no_answer" || status === "לא ענה") return "no_answer";
+
+  return "";
+}
+
+function getGuestRoundResult(guest: LeanGuest, roundNumber: number) {
+  const rounds = [
+    ...(Array.isArray(guest?.callRounds) ? guest.callRounds : []),
+    ...(Array.isArray(guest?.allRounds) ? guest.allRounds : []),
+  ];
+
+  const matchingRounds = rounds
+    .filter((round: any) => Number(round?.roundNumber || 0) === roundNumber)
+    .sort((a: any, b: any) => {
+      const aTime = toDate(a?.updatedAt || a?.calledAt)?.getTime() || 0;
+      const bTime = toDate(b?.updatedAt || b?.calledAt)?.getTime() || 0;
+      return bTime - aTime;
+    });
+
+  const latest = matchingRounds[0];
+
+  if (!latest) return "";
+
+  return (
+    normalizeAnswerStatus(latest?.answerStatus) ||
+    normalizeAnswerStatus(latest?.status)
+  );
+}
+
+function getCallRoundStats(guests: LeanGuest[], roundNumber: number) {
+  let guestsDone = 0;
+  let guestsWaiting = 0;
+
+  for (const guest of guests || []) {
+    const roundResult = getGuestRoundResult(guest, roundNumber);
+    const rsvp = normalizeStatus(guest?.rsvp || guest?.status || "pending");
+
+    /*
+      בוצע = רק אם במעקב הטלפוני של אותו סבב סימנו:
+      answerStatus/status = answered או no_answer.
+      אישור הגעה רגיל / RSVP לבד לא נחשב "בוצע" בסבב שיחות.
+    */
+    if (roundResult === "answered" || roundResult === "no_answer") {
+      guestsDone += 1;
+      continue;
+    }
+
+    /*
+      ממתינים = מי שעדיין צריך טיפול טלפוני בסבב הזה.
+      מי שכבר אישר/סירב בערוץ אחר ולא סומן בסבב — לא נספר כממתין.
+    */
+    if (rsvp === "pending" || rsvp === "בהמתנה" || !rsvp) {
+      guestsWaiting += 1;
+    }
+  }
+
+  return {
+    guestsWaiting,
+    guestsDone,
+  };
 }
 
 export async function GET(req: NextRequest) {
@@ -148,10 +225,6 @@ export async function GET(req: NextRequest) {
     const afterTomorrowStart = addDays(todayStart, 2);
     const rangeEnd = addDays(todayStart, days + 1);
 
-    /*
-      מחפשים את כל המשתמשים שיש להם שירות שיחות פעיל
-      או שיש להם לוח סבבי שיחות שמור.
-    */
     const users = (await User.find({
       $or: [
         { includeCalls: true },
@@ -169,7 +242,7 @@ export async function GET(req: NextRequest) {
       return rounds.some((round) => {
         const scheduledAt = toDate(round?.scheduledAt);
         if (!scheduledAt) return false;
-        if (isRoundDoneOrCancelled(round)) return false;
+        if (isRoundCancelled(round)) return false;
 
         return scheduledAt >= todayStart && scheduledAt < rangeEnd;
       });
@@ -188,16 +261,11 @@ export async function GET(req: NextRequest) {
 
     const userIds = usersWithRelevantRounds.map((user) => user._id);
 
-    /*
-      לכל לקוח נשלוף הזמנה פעילה/אחרונה.
-      אם יש כמה הזמנות — ניקח את הקרובה ביותר לפי תאריך אירוע,
-      כדי שההתראה תיפתח על האירוע הרלוונטי.
-    */
     const invitations = await Invitation.find({
       ownerId: { $in: userIds },
     })
       .select(
-        "_id ownerId eventName eventTitle invitationTitle title name coupleName eventDate date"
+        "_id ownerId eventName eventTitle invitationTitle title name coupleName eventDate date createdAt"
       )
       .sort({ eventDate: 1, createdAt: -1 })
       .lean();
@@ -213,11 +281,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const guestStatsByInvitation = new Map<
-      string,
-      { guestsWaiting: number; guestsDone: number }
-    >();
-
+    const guestsByInvitation = new Map<string, LeanGuest[]>();
     const invitationIds = invitations.map((invitation) => invitation._id);
 
     if (invitationIds.length) {
@@ -225,34 +289,22 @@ export async function GET(req: NextRequest) {
         buildObjectIdOrString(id)
       );
 
-      const guestStats = await InvitationGuest.aggregate([
-        {
-          $match: {
-            invitationId: { $in: invitationMatchValues },
-          },
-        },
-        {
-          $group: {
-            _id: "$invitationId",
-            guestsWaiting: {
-              $sum: {
-                $cond: [{ $eq: ["$rsvp", "pending"] }, 1, 0],
-              },
-            },
-            guestsDone: {
-              $sum: {
-                $cond: [{ $ne: ["$rsvp", "pending"] }, 1, 0],
-              },
-            },
-          },
-        },
-      ]);
+      const guests = (await InvitationGuest.find({
+        $or: [
+          { invitationId: { $in: invitationMatchValues } },
+          { invitation: { $in: invitationMatchValues } },
+        ],
+      })
+        .select("_id invitationId invitation rsvp status callRounds allRounds")
+        .lean()) as LeanGuest[];
 
-      for (const item of guestStats || []) {
-        guestStatsByInvitation.set(String(item._id), {
-          guestsWaiting: Number(item.guestsWaiting || 0),
-          guestsDone: Number(item.guestsDone || 0),
-        });
+      for (const guest of guests || []) {
+        const invitationKey = getGuestInvitationKey(guest);
+        if (!invitationKey) continue;
+
+        const current = guestsByInvitation.get(invitationKey) || [];
+        current.push(guest);
+        guestsByInvitation.set(invitationKey, current);
       }
     }
 
@@ -261,30 +313,31 @@ export async function GET(req: NextRequest) {
     for (const user of usersWithRelevantRounds) {
       const ownerId = String(user._id);
       const invitation = invitationByOwner.get(ownerId);
+      const invitationId = invitation?._id ? String(invitation._id) : "";
+      const invitationGuests = invitationId
+        ? guestsByInvitation.get(invitationId) || []
+        : [];
 
       const userRounds = user?.callRoundsSchedule?.rounds || [];
 
       for (const round of userRounds) {
         const scheduledAt = toDate(round?.scheduledAt);
         if (!scheduledAt) continue;
-        if (isRoundDoneOrCancelled(round)) continue;
+        if (isRoundCancelled(round)) continue;
         if (scheduledAt < todayStart || scheduledAt >= rangeEnd) continue;
 
-        const invitationId = invitation?._id ? String(invitation._id) : "";
-        const stats = guestStatsByInvitation.get(invitationId) || {
-          guestsWaiting: 0,
-          guestsDone: 0,
-        };
+        const roundNumber = Number(round?.roundNumber || 0);
+        const stats = getCallRoundStats(invitationGuests, roundNumber);
 
         rounds.push({
-          id: `${ownerId}_${Number(round?.roundNumber || 0)}_${scheduledAt.getTime()}`,
+          id: `${ownerId}_${roundNumber}_${scheduledAt.getTime()}`,
           userId: ownerId,
           invitationId,
           clientName: user.name || user.email || "לקוח ללא שם",
           clientEmail: user.email || "",
           eventName: getEventTitle(invitation),
           eventDate: getEventDate(invitation),
-          roundNumber: Number(round?.roundNumber || 0),
+          roundNumber,
           scheduledAt: scheduledAt.toISOString(),
           status: normalizeStatus(round?.status) || "scheduled",
           guestsWaiting: stats.guestsWaiting,

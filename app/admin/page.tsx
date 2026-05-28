@@ -20,7 +20,6 @@ import {
   BarChart3,
   UserRound,
   AlertTriangle,
-  ExternalLink,
 } from "lucide-react";
 
 /* =====================================================
@@ -1636,22 +1635,7 @@ function CallRoundsGroup({
                   </div>
                 </div>
 
-                <a
-                  href={`/admin/users/${round.userId}`}
-                  className="
-                    flex h-11 items-center justify-center gap-2
-                    rounded-2xl
-                    bg-[#3A2A1C]
-                    px-4
-                    text-sm font-black
-                    text-white
-                    transition
-                    hover:bg-[#24190F]
-                  "
-                >
-                  פתח לקוח
-                  <ExternalLink size={16} />
-                </a>
+                
               </div>
             </div>
           </div>
