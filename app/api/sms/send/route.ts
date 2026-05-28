@@ -820,6 +820,9 @@ if (isDirectSmsRequest) {
         status: "scheduled",
       });
 
+            const isReminderSms =
+        templateKey === "reminder" || templateKey === "table";
+
       const payload = {
         invitationId,
         userId: user._id,
@@ -842,9 +845,32 @@ if (isDirectSmsRequest) {
         includeGiftLink,
         giftLink: giftLink || null,
 
-        messageContent,
-        messageOverride: baseTemplateText,
-        text: messageContent,
+        /**
+         * חשוב:
+         * בתזכורת מתוזמנת לא שומרים הודעה אחת סופית עם שולחן.
+         * ה-worker חייב לבנות הודעה לכל אורח בזמן השליחה בפועל:
+         * אורח עם שולחן יקבל הודעה עם מספר שולחן.
+         * אורח בלי שולחן יקבל תזכורת רגילה בלי המשפט "מספר השולחן שלך".
+         */
+        messageContent: isReminderSms
+          ? "__AUTO_REMINDER_BY_TABLE__"
+          : messageContent,
+
+        messageOverride: isReminderSms
+          ? "__AUTO_REMINDER_BY_TABLE__"
+          : baseTemplateText,
+
+        text: isReminderSms
+          ? "__AUTO_REMINDER_BY_TABLE__"
+          : messageContent,
+
+        reminderWithTableTemplate: isReminderSms
+          ? REMINDER_WITH_TABLE_SERVER_TEMPLATE
+          : null,
+
+        reminderWithoutTableTemplate: isReminderSms
+          ? REMINDER_WITHOUT_TABLE_SERVER_TEMPLATE
+          : null,
 
         /**
          * RSVP לא שומר guestIds כמקור אמת.

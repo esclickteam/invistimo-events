@@ -227,11 +227,11 @@ function getTableName(guest: any) {
 function stripTableBlockForGuestWithoutTable(text: string) {
   return String(text || "")
     .replace(
-      /\n*(?:השולחן שלך באירוע|מספר השולחן שלך באירוע):\s*\n*🪑\s*{{tableName}}\s*\n*/g,
+      /\n*(?:השולחן שלך באירוע|מספר השולחן שלך באירוע|מספר השולחן שלך):\s*\n*(?:🪑\s*)?{{tableName}}\s*\n*/g,
       "\n"
     )
     .replace(
-      /\n*(?:השולחן שלך באירוע|מספר השולחן שלך באירוע):\s*\n*🪑\s*\n*/g,
+      /\n*(?:השולחן שלך באירוע|מספר השולחן שלך באירוע|מספר השולחן שלך):\s*\n*(?:🪑\s*)?\n*/g,
       "\n"
     )
     .replace(/\n{3,}/g, "\n\n")
