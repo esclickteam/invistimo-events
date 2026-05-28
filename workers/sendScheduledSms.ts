@@ -24,7 +24,7 @@ type ScheduleType = "rsvp" | "reminder" | "thankyou" | "table" | "custom";
 ====================================================== */
 
 function countBusinessSms(text: string) {
-  const length = [...text].length;
+  const length = [...String(text || "")].length;
 
   if (length <= 200) return 1;
   if (length <= 320) return 2;
@@ -179,10 +179,33 @@ function buildGuestsQuery({
     };
   }
 
-  if (type === "reminder" || type === "table") {
+  /*
+    תזכורת:
+    נשלחת לכל מי שמגיע.
+    אם יש לו שולחן — יקבל עם שולחן.
+    אם אין לו שולחן — שורת השולחן נמחקת מהטקסט.
+  */
+  if (type === "reminder") {
     return {
       invitationId,
       rsvp: "yes",
+    };
+  }
+
+  /*
+    הודעת שולחן בלבד:
+    נשלחת רק למי שיש לו שולחן בפועל.
+  */
+  if (type === "table") {
+    return {
+      invitationId,
+      rsvp: "yes",
+      $or: [
+        { tableName: { $exists: true, $nin: ["", null] } },
+        { tableNumber: { $exists: true, $nin: ["", null] } },
+        { "seating.tableName": { $exists: true, $nin: ["", null] } },
+        { "seating.tableNumber": { $exists: true, $nin: ["", null] } },
+      ],
     };
   }
 
@@ -208,8 +231,10 @@ function buildGuestsQuery({
 
   if (schedule.filter === "withTable") {
     query.$or = [
-      { tableName: { $exists: true, $ne: "" } },
-      { tableNumber: { $ne: null } },
+      { tableName: { $exists: true, $nin: ["", null] } },
+      { tableNumber: { $exists: true, $nin: ["", null] } },
+      { "seating.tableName": { $exists: true, $nin: ["", null] } },
+      { "seating.tableNumber": { $exists: true, $nin: ["", null] } },
     ];
   }
 
@@ -217,23 +242,52 @@ function buildGuestsQuery({
 }
 
 function getTableName(guest: any) {
-  if (typeof guest.tableNumber === "number") {
-    return `שולחן ${guest.tableNumber}`;
+  const tableName = String(guest?.tableName || "").trim();
+
+  if (tableName) {
+    return tableName;
   }
 
-  return guest.tableName || "";
+  const tableNumberRaw = guest?.tableNumber;
+
+  if (
+    tableNumberRaw !== null &&
+    tableNumberRaw !== undefined &&
+    String(tableNumberRaw).trim() !== ""
+  ) {
+    return `שולחן ${String(tableNumberRaw).trim()}`;
+  }
+
+  const seatingTableName = String(guest?.seating?.tableName || "").trim();
+
+  if (seatingTableName) {
+    return seatingTableName;
+  }
+
+  const seatingTableNumber = guest?.seating?.tableNumber;
+
+  if (
+    seatingTableNumber !== null &&
+    seatingTableNumber !== undefined &&
+    String(seatingTableNumber).trim() !== ""
+  ) {
+    return `שולחן ${String(seatingTableNumber).trim()}`;
+  }
+
+  return "";
 }
 
 function stripTableBlockForGuestWithoutTable(text: string) {
   return String(text || "")
     .replace(
-      /\n*(?:השולחן שלך באירוע|מספר השולחן שלך באירוע):\s*\n*🪑\s*{{tableName}}\s*\n*/g,
+      /\n*(?:השולחן שלך באירוע|מספר השולחן שלך באירוע|מספר השולחן שלך):\s*\n*\s*🪑?\s*\{\{tableName\}\}\s*\n*/g,
       "\n"
     )
     .replace(
-      /\n*(?:השולחן שלך באירוע|מספר השולחן שלך באירוע):\s*\n*🪑\s*\n*/g,
+      /\n*(?:השולחן שלך באירוע|מספר השולחן שלך באירוע|מספר השולחן שלך):\s*\n*\s*🪑?\s*(?:—|-)?\s*\n*/g,
       "\n"
     )
+    .replace(/\{\{tableName\}\}/g, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
@@ -270,7 +324,9 @@ async function buildSmsText({
     .replace(/{{invitationTitle}}/g, invitationTitle)
     .replace(/{{rsvpLink}}/g, shortUrl)
     .replace(/{{tableName}}/g, tableName)
-    .replace(/{{navigationLink}}/g, navigationLink || "");
+    .replace(/{{navigationLink}}/g, navigationLink || "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 function deepReplacePlaceholders(
@@ -481,9 +537,10 @@ async function markInvitationAfterSend({
       }
     );
 
-    console.log("✅ SCHEDULED REMINDER MARKED SENT:", {
+    console.log("✅ SCHEDULED REMINDER/TABLE MARKED SENT:", {
       invitationId: String(schedule.invitationId),
       channel,
+      type,
       sent,
       matchedCount: result.matchedCount,
       modifiedCount: result.modifiedCount,
@@ -627,7 +684,7 @@ export async function sendScheduledSms() {
               cancelledAt: new Date(),
               lockedAt: null,
               lockedBy: null,
-              error: "REMINDER_ALREADY_SENT_BEFORE_SMS_SCHEDULED_SEND",
+              error: "REMINDER_OR_TABLE_ALREADY_SENT_BEFORE_SMS_SCHEDULED_SEND",
             },
           }
         );
@@ -681,6 +738,8 @@ export async function sendScheduledSms() {
           guest,
           navigationLink,
         });
+
+        if (!text.trim()) continue;
 
         const parts = countBusinessSms(text);
         if (parts === -1) continue;
@@ -871,7 +930,7 @@ export async function sendScheduledWhatsapp() {
               cancelledAt: new Date(),
               lockedAt: null,
               lockedBy: null,
-              error: "REMINDER_ALREADY_SENT_BEFORE_WHATSAPP_SCHEDULED_SEND",
+              error: "REMINDER_OR_TABLE_ALREADY_SENT_BEFORE_WHATSAPP_SCHEDULED_SEND",
             },
           }
         );
@@ -919,6 +978,14 @@ export async function sendScheduledWhatsapp() {
         if (!phone) continue;
 
         const tableName = getTableName(guest);
+
+        /*
+          בהודעת שולחן בלבד בווטסאפ:
+          אם איכשהו הגיע אורח בלי שולחן למרות הסינון — לא שולחים לו.
+        */
+        if (type === "table" && !tableName) {
+          continue;
+        }
 
         const urlSuffix = `invite/${invitation.shareId}?token=${guest.token}`;
         const personalUrl = `https://www.invistimo.com/${urlSuffix}`;

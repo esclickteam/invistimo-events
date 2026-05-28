@@ -504,47 +504,7 @@ export default function ThankYouTab({
             </div>
           </Panel>
 
-          {isAdmin && (
-            <Panel title="תוכן ההודעה" subtitle="הודעת תודה" icon="✏️">
-              <textarea
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                rows={8}
-                className="
-                  w-full resize-none
-                  rounded-[24px]
-                  border border-[#E4D3BB]
-                  bg-white/80
-                  p-5
-                  text-sm leading-7
-                  text-[#3E2D20]
-                  shadow-inner
-                  outline-none
-                  focus:border-[#C79B45]
-                  focus:ring-4
-                  focus:ring-[#E8C878]/20
-                  transition
-                "
-              />
-
-              <div className="mt-4 flex flex-wrap gap-2 text-xs">
-                {["{{invitationTitle}}"].map((item) => (
-                  <span
-                    key={item}
-                    className="
-                      rounded-full
-                      border border-[#E2CFB5]
-                      bg-[#FFF8EA]
-                      px-3 py-1
-                      font-mono text-[#8A642B]
-                    "
-                  >
-                    {item}
-                  </span>
-                ))}
-              </div>
-            </Panel>
-          )}
+          
 
           {/* SEND AREA */}
           <div
