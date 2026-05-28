@@ -852,8 +852,8 @@ if (isDirectSmsRequest) {
          * אורח עם שולחן יקבל הודעה עם מספר שולחן.
          * אורח בלי שולחן יקבל תזכורת רגילה בלי המשפט "מספר השולחן שלך".
          */
-        messageContent: isReminderSms
-          ? "__AUTO_REMINDER_BY_TABLE__"
+                messageContent: isReminderSms
+          ? REMINDER_WITHOUT_TABLE_SERVER_TEMPLATE
           : messageContent,
 
         messageOverride: isReminderSms
@@ -861,7 +861,7 @@ if (isDirectSmsRequest) {
           : baseTemplateText,
 
         text: isReminderSms
-          ? "__AUTO_REMINDER_BY_TABLE__"
+          ? REMINDER_WITHOUT_TABLE_SERVER_TEMPLATE
           : messageContent,
 
         reminderWithTableTemplate: isReminderSms
