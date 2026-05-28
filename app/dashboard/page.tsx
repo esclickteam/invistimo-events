@@ -619,10 +619,18 @@ const canViewActualArrived =
     }
 
     setGuests(
-      Array.isArray(data.guests)
-        ? data.guests.map((guest: Guest) => normalizeGuestForDashboard(guest))
-        : []
-    );
+  Array.isArray(data.guests)
+    ? data.guests
+        .filter((guest: Guest) => {
+          const hasId = Boolean(guest?._id || guest?.id);
+          const hasName = Boolean(String(guest?.name || "").trim());
+          const hasPhone = Boolean(String(guest?.phone || "").trim());
+
+          return hasId && (hasName || hasPhone);
+        })
+        .map((guest: Guest) => normalizeGuestForDashboard(guest))
+    : []
+);
   }
 
   async function loadSeatingTables() {
@@ -776,35 +784,63 @@ if (!canDeleteAllGuests) {
   }
 
   async function deleteGuest(guest: Guest) {
-    if (isDemo) {
-      alert("מצב דמו – הפעולה לא נשמרת");
+  if (isDemo) {
+    alert("מצב דמו – הפעולה לא נשמרת");
+    return;
+  }
+
+  const guestId = String(guest._id || guest.id || "");
+
+  if (!guestId) {
+    alert("לא נמצא מזהה מוזמן למחיקה");
+    return;
+  }
+
+  const ok = window.confirm(
+    `האם למחוק את המוזמן "${guest.name || "ללא שם"}"?\nהפעולה אינה ניתנת לביטול.`
+  );
+
+  if (!ok) return;
+
+  // מסיר מיידית מהמסך כדי שלא יישאר כאילו הוא עדיין קיים
+  setGuests((prev) =>
+    prev.filter((g) => String(g._id || g.id) !== guestId)
+  );
+
+  try {
+    const res = await fetch(`/api/guests/${guestId}`, {
+      method: "DELETE",
+      credentials: "include",
+      cache: "no-store",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok || data?.success === false) {
+      alert(data?.message || "❌ שגיאה במחיקת המוזמן");
+
+      // אם המחיקה נכשלה — מחזירים את הרשימה האמיתית מהשרת
+      await loadGuests();
       return;
     }
 
-    const ok = window.confirm(
-      `האם למחוק את המוזמן "${guest.name}"?\nהפעולה אינה ניתנת לביטול.`
-    );
+    // מסנכרן מחדש מול MongoDB
+    await loadGuests();
 
-    if (!ok) return;
-
-    try {
-      const res = await fetch(`/api/guests/${guest._id}`, {
-        method: "DELETE",
-      });
-
-      const data = await res.json();
-
-      if (!data.success) {
-        alert("❌ שגיאה במחיקת המוזמן");
-        return;
-      }
-
-      await loadGuests();
-    } catch (err) {
-      console.error("Delete guest error:", err);
-      alert("❌ שגיאת שרת");
+    if (invitationId) {
+      await loadGroups(invitationId);
     }
+  } catch (err) {
+    console.error("Delete guest error:", err);
+    alert("❌ שגיאת שרת");
+
+    // במקרה של שגיאה — מחזירים מצב אמיתי מהשרת
+    await loadGuests();
   }
+}
 
   useEffect(() => {
     if (isDemo) return;
