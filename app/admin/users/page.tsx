@@ -1726,53 +1726,72 @@ function EditUserModal({
   });
 
   async function saveChanges() {
-    try {
-      setSaving(true);
+  try {
+    setSaving(true);
 
-      await fetch(`/api/admin/users/${user._id}`, {
-        method: "PATCH",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        
-        body: JSON.stringify({
-  name: form.name,
-  email: form.email,
-  eventDate: form.eventDate,
-  venueSeatingService: calculateVenueSeatingService(venueSeatingService),
-  callRoundsSchedule: {
-    ...callRoundsSchedule,
-    rounds: callRoundsSchedule.rounds.map((round) => ({
-      ...round,
-      scheduledAt: round.scheduledAt
-        ? normalizeDateTimeLocalForSave(round.scheduledAt)
-        : "",
-    })),
-  },
-}),
-      });
+    const payload = {
+      name: form.name,
+      email: form.email,
+      eventDate: form.eventDate,
+      venueSeatingService: calculateVenueSeatingService(venueSeatingService),
+      callRoundsSchedule: {
+        ...callRoundsSchedule,
+        rounds: callRoundsSchedule.rounds.map((round) => ({
+          ...round,
+          scheduledAt: round.scheduledAt
+            ? normalizeDateTimeLocalForSave(round.scheduledAt)
+            : "",
+        })),
+      },
+    };
 
-       await fetch(`/api/admin/users/${user._id}/assignees`, {
-        method: "PATCH",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          assignedProducerId: form.assignedProducerId,
-          assignedStaffIds: form.assignedStaffIds,
-        }),
-      });
+    console.log("SAVE USER PAYLOAD:", payload);
 
-      onSaved();
-    } catch (err) {
-      console.error(err);
-      alert("שמירת השינויים נכשלה");
-    } finally {
-      setSaving(false);
+    const userRes = await fetch(`/api/admin/users/${user._id}`, {
+      method: "PATCH",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const userData = await userRes.json().catch(() => null);
+
+    console.log("SAVE USER RESPONSE:", userData);
+
+    if (!userRes.ok || userData?.success === false) {
+      alert(userData?.error || "שמירת פרטי המשתמש נכשלה");
+      return;
     }
+
+    const assigneesRes = await fetch(`/api/admin/users/${user._id}/assignees`, {
+      method: "PATCH",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        assignedProducerId: form.assignedProducerId,
+        assignedStaffIds: form.assignedStaffIds,
+      }),
+    });
+
+    const assigneesData = await assigneesRes.json().catch(() => null);
+
+    if (!assigneesRes.ok || assigneesData?.success === false) {
+      alert(assigneesData?.error || "שמירת המטפלים נכשלה");
+      return;
+    }
+
+    onSaved();
+  } catch (err) {
+    console.error(err);
+    alert("שמירת השינויים נכשלה");
+  } finally {
+    setSaving(false);
   }
+}
 
   async function deleteInvitationForUser() {
   if (!user.invitationId) {
