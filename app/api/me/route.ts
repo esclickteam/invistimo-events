@@ -3,6 +3,8 @@ import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
+import Invitation from "@/models/Invitation";
+import ScheduledMessage from "@/models/ScheduledMessage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -106,6 +108,359 @@ function normalizeAccessModules(user: any) {
     venueCalendar: Boolean(user?.accessModules?.venueCalendar ?? isVenueOwner),
     venueMenus: Boolean(user?.accessModules?.venueMenus ?? isVenueOwner),
     venueStaff: Boolean(user?.accessModules?.venueStaff ?? isVenueOwner),
+  };
+}
+
+function firstValue(obj: any, keys: string[]) {
+  for (const key of keys) {
+    if (obj?.[key]) return obj[key];
+  }
+
+  return null;
+}
+
+function sameId(a: any, b: any) {
+  if (!a || !b) return false;
+  return String(a) === String(b);
+}
+
+function isScheduledStatus(msg: any) {
+  return String(msg?.status || "").toLowerCase() === "scheduled";
+}
+
+function findScheduledMessage(
+  scheduledMessages: any[],
+  params: {
+    invitationId?: any;
+    userId?: any;
+    type?: string;
+    types?: string[];
+    templateKeys?: string[];
+    roundNumber?: number;
+  }
+) {
+  const wantedTypes = [
+    ...(params.type ? [params.type] : []),
+    ...(params.types || []),
+  ]
+    .map((key) => String(key || "").toLowerCase())
+    .filter(Boolean);
+
+  const wantedTemplateKeys = (params.templateKeys || []).map((key) =>
+    String(key || "").toLowerCase()
+  );
+
+  return scheduledMessages.find((msg) => {
+    if (!isScheduledStatus(msg)) return false;
+
+    const hasInvitationFilter = Boolean(params.invitationId);
+    const hasUserFilter = Boolean(params.userId);
+
+    const sameInvitation =
+      hasInvitationFilter && msg?.invitationId
+        ? sameId(msg.invitationId, params.invitationId)
+        : false;
+
+    const sameUser =
+      hasUserFilter && msg?.userId ? sameId(msg.userId, params.userId) : false;
+
+    if (hasInvitationFilter || hasUserFilter) {
+      if (!sameInvitation && !sameUser) return false;
+    }
+
+    const msgType = String(msg?.type || "").toLowerCase();
+
+    const msgTemplateKey = String(
+      msg?.templateKey || msg?.templateName || ""
+    ).toLowerCase();
+
+    const hasTypeFilter = wantedTypes.length > 0;
+    const hasTemplateFilter = wantedTemplateKeys.length > 0;
+
+    const matchesType = hasTypeFilter && wantedTypes.includes(msgType);
+
+    const matchesTemplate =
+      hasTemplateFilter && wantedTemplateKeys.includes(msgTemplateKey);
+
+    const matchesKind =
+      hasTypeFilter && hasTemplateFilter
+        ? matchesType || matchesTemplate
+        : hasTypeFilter
+          ? matchesType
+          : hasTemplateFilter
+            ? matchesTemplate
+            : true;
+
+    const matchesRound =
+      typeof params.roundNumber !== "number" ||
+      Number(msg?.roundNumber || msg?.round || 0) ===
+        Number(params.roundNumber);
+
+    return matchesKind && matchesRound;
+  });
+}
+
+function buildMessageRounds(
+  invitation: any,
+  scheduledMessages: any[] = [],
+  user: any = null
+) {
+  const locks = invitation?.adminMessageRoundLocks || {};
+  const rsvpRounds = [1, 2, 3];
+  const callRounds = [1, 2, 3];
+
+  if (!invitation) {
+    return {
+      rsvp: rsvpRounds.map((round) => ({
+        key: `rsvp_${round}`,
+        label: `אישורי הגעה סבב ${round}`,
+        done: false,
+        blocked: false,
+        sentAt: null,
+        scheduledAt: null,
+        channel: null,
+      })),
+
+      reminder: [
+        {
+          key: "reminder",
+          label: "סבב תזכורת",
+          done: false,
+          blocked: false,
+          sentAt: null,
+          scheduledAt: null,
+          channel: null,
+        },
+      ],
+
+      thankyou: [
+        {
+          key: "thankyou",
+          label: "סבב תודה",
+          done: false,
+          blocked: false,
+          sentAt: null,
+          scheduledAt: null,
+          channel: null,
+        },
+      ],
+
+      calls: callRounds.map((round) => {
+        const userRound = user?.callRoundsSchedule?.rounds?.find(
+          (item: any) => Number(item.roundNumber) === Number(round)
+        );
+
+        return {
+          key: `call_round_${round}`,
+          label: `סבב שיחות ${round}`,
+          done: userRound?.status === "done",
+          blocked: false,
+          sentAt: null,
+          scheduledAt: userRound?.scheduledAt || null,
+          channel: "calls",
+        };
+      }),
+    };
+  }
+
+  const invitationId = invitation?._id;
+  const userId = invitation?.ownerId;
+
+  return {
+    rsvp: rsvpRounds.map((round) => {
+      const roundData = invitation?.rsvpRoundSent?.[`round${round}`];
+
+      const scheduledMessage = findScheduledMessage(scheduledMessages, {
+        invitationId,
+        userId,
+        types: ["rsvp"],
+        templateKeys: ["rsvp", "rsvp_invitation_media"],
+        roundNumber: round,
+      });
+
+      const sentAt =
+        roundData?.sentAt ||
+        roundData?.sentAtSms ||
+        roundData?.sentAtWhatsapp ||
+        roundData?.smsSentAt ||
+        roundData?.whatsappSentAt ||
+        invitation?.[`rsvpRound${round}SentAt`] ||
+        invitation?.[`rsvpRound${round}sentAt`] ||
+        invitation?.[`rsvpSmsRound${round}SentAt`] ||
+        invitation?.[`rsvpSmsRound${round}sentAt`] ||
+        invitation?.[`rsvpWhatsappRound${round}SentAt`] ||
+        invitation?.[`rsvpWhatsappRound${round}sentAt`] ||
+        null;
+
+      const scheduledAt =
+        roundData?.scheduledAt ||
+        roundData?.smsScheduledAt ||
+        roundData?.whatsappScheduledAt ||
+        invitation?.[`rsvpRound${round}ScheduledAt`] ||
+        invitation?.[`rsvpRound${round}scheduledAt`] ||
+        invitation?.[`rsvpSmsRound${round}ScheduledAt`] ||
+        invitation?.[`rsvpSmsRound${round}scheduledAt`] ||
+        invitation?.[`rsvpWhatsappRound${round}ScheduledAt`] ||
+        invitation?.[`rsvpWhatsappRound${round}scheduledAt`] ||
+        scheduledMessage?.scheduledAt ||
+        null;
+
+      return {
+        key: `rsvp_${round}`,
+        label: `אישורי הגעה סבב ${round}`,
+        done: Boolean(sentAt),
+        sentAt,
+        scheduledAt,
+        channel: scheduledMessage?.channel || null,
+        blocked: Boolean(locks?.[`rsvp_${round}`]),
+      };
+    }),
+
+    reminder: [
+      (() => {
+        const scheduledMessage = findScheduledMessage(scheduledMessages, {
+          invitationId,
+          userId,
+          types: ["reminder", "table", "rsvp_reminder"],
+          templateKeys: [
+            "reminder",
+            "table",
+            "rsvp_reminder_invistimo",
+            "rsvp_reminder",
+          ],
+        });
+
+        const sentAt = firstValue(invitation, [
+          "reminderSentAt",
+          "remindersentAt",
+          "reminderSmsSentAt",
+          "reminderSmssentAt",
+          "reminderWhatsappSentAt",
+          "reminderWhatsappsentAt",
+        ]);
+
+        const scheduledAt =
+          firstValue(invitation, [
+            "reminderScheduledAt",
+            "reminderscheduledAt",
+            "reminderSmsScheduledAt",
+            "reminderSmsscheduledAt",
+            "reminderWhatsappScheduledAt",
+            "reminderWhatsappscheduledAt",
+          ]) ||
+          scheduledMessage?.scheduledAt ||
+          null;
+
+        return {
+          key: "reminder",
+          label: "סבב תזכורת",
+          done: Boolean(sentAt),
+          sentAt,
+          scheduledAt,
+          channel: scheduledMessage?.channel || null,
+          blocked: Boolean(locks?.reminder),
+        };
+      })(),
+    ],
+
+    thankyou: [
+      (() => {
+        const scheduledMessage = findScheduledMessage(scheduledMessages, {
+          invitationId,
+          userId,
+          types: [
+            "thankyou",
+            "thank_you",
+            "thank-you",
+            "thanks",
+            "thankyou_message",
+            "thank_you_message",
+          ],
+          templateKeys: [
+            "custom",
+            "thankyou",
+            "thank_you",
+            "thank-you",
+            "thanks",
+            "thankyou_message",
+            "thank_you_message",
+            "thanks_message",
+          ],
+        });
+
+        const sentAt = firstValue(invitation, [
+          "thankYouSentAt",
+          "thankYousentAt",
+          "thankyouSentAt",
+          "thankyousentAt",
+          "thankYouSmsSentAt",
+          "thankYouSmssentAt",
+          "thankyouSmsSentAt",
+          "thankyouSmssentAt",
+          "thankYouWhatsappSentAt",
+          "thankYouWhatsappsentAt",
+          "thankyouWhatsappSentAt",
+          "thankyouWhatsappsentAt",
+        ]);
+
+        const scheduledAt =
+          firstValue(invitation, [
+            "thankYouScheduledAt",
+            "thankYouscheduledAt",
+            "thankyouScheduledAt",
+            "thankyouscheduledAt",
+            "thankYouSmsScheduledAt",
+            "thankYouSmsscheduledAt",
+            "thankyouSmsScheduledAt",
+            "thankyouSmsscheduledAt",
+            "thankYouWhatsappScheduledAt",
+            "thankYouWhatsappscheduledAt",
+            "thankyouWhatsappScheduledAt",
+            "thankyouWhatsappscheduledAt",
+          ]) ||
+          scheduledMessage?.scheduledAt ||
+          null;
+
+        return {
+          key: "thankyou",
+          label: "סבב תודה",
+          done: Boolean(sentAt),
+          sentAt,
+          scheduledAt,
+          channel: scheduledMessage?.channel || null,
+          blocked: Boolean(locks?.thankyou),
+        };
+      })(),
+    ],
+
+    calls: callRounds.map((round) => {
+      const userRound = user?.callRoundsSchedule?.rounds?.find(
+        (item: any) => Number(item.roundNumber) === Number(round)
+      );
+
+      const scheduledMessage = findScheduledMessage(scheduledMessages, {
+        invitationId,
+        userId,
+        types: ["call_round", "calls", "phone_calls"],
+        templateKeys: ["call_round", "calls", "phone_calls"],
+        roundNumber: round,
+      });
+
+      const scheduledAt =
+        userRound?.scheduledAt ||
+        scheduledMessage?.scheduledAt ||
+        null;
+
+      return {
+        key: `call_round_${round}`,
+        label: `סבב שיחות ${round}`,
+        done: userRound?.status === "done",
+        sentAt: null,
+        scheduledAt,
+        channel: "calls",
+        blocked: Boolean(locks?.[`call_round_${round}`]),
+      };
+    }),
   };
 }
 
@@ -344,6 +699,134 @@ export async function GET() {
 
     const accessModules = normalizeAccessModules(currentUser);
 
+    const invitationForMessageRounds = await Invitation.findOne({
+      ownerId: currentUser._id,
+    })
+      .select(`
+        ownerId
+        eventDate
+        rsvpRoundSent
+
+        rsvpRound1SentAt
+        rsvpRound2SentAt
+        rsvpRound3SentAt
+        rsvpRound1sentAt
+        rsvpRound2sentAt
+        rsvpRound3sentAt
+
+        rsvpSmsRound1SentAt
+        rsvpSmsRound2SentAt
+        rsvpSmsRound3SentAt
+        rsvpSmsRound1sentAt
+        rsvpSmsRound2sentAt
+        rsvpSmsRound3sentAt
+
+        rsvpWhatsappRound1SentAt
+        rsvpWhatsappRound2SentAt
+        rsvpWhatsappRound3SentAt
+        rsvpWhatsappRound1sentAt
+        rsvpWhatsappRound2sentAt
+        rsvpWhatsappRound3sentAt
+
+        rsvpRound1ScheduledAt
+        rsvpRound2ScheduledAt
+        rsvpRound3ScheduledAt
+        rsvpRound1scheduledAt
+        rsvpRound2scheduledAt
+        rsvpRound3scheduledAt
+
+        rsvpSmsRound1ScheduledAt
+        rsvpSmsRound2ScheduledAt
+        rsvpSmsRound3ScheduledAt
+        rsvpSmsRound1scheduledAt
+        rsvpSmsRound2scheduledAt
+        rsvpSmsRound3scheduledAt
+
+        rsvpWhatsappRound1ScheduledAt
+        rsvpWhatsappRound2ScheduledAt
+        rsvpWhatsappRound3ScheduledAt
+        rsvpWhatsappRound1scheduledAt
+        rsvpWhatsappRound2scheduledAt
+        rsvpWhatsappRound3scheduledAt
+
+        reminderSentAt
+        remindersentAt
+        reminderSmsSentAt
+        reminderSmssentAt
+        reminderWhatsappSentAt
+        reminderWhatsappsentAt
+        reminderScheduledAt
+        reminderscheduledAt
+        reminderSmsScheduledAt
+        reminderSmsscheduledAt
+        reminderWhatsappScheduledAt
+        reminderWhatsappscheduledAt
+
+        thankYouSentAt
+        thankYousentAt
+        thankyouSentAt
+        thankyousentAt
+        thankYouSmsSentAt
+        thankYouSmssentAt
+        thankyouSmsSentAt
+        thankyouSmssentAt
+        thankYouWhatsappSentAt
+        thankYouWhatsappsentAt
+        thankyouWhatsappSentAt
+        thankyouWhatsappsentAt
+        thankYouScheduledAt
+        thankYouscheduledAt
+        thankyouScheduledAt
+        thankyouscheduledAt
+        thankYouSmsScheduledAt
+        thankYouSmsscheduledAt
+        thankyouSmsScheduledAt
+        thankyouSmsscheduledAt
+        thankYouWhatsappScheduledAt
+        thankYouWhatsappscheduledAt
+        thankyouWhatsappScheduledAt
+        thankyouWhatsappscheduledAt
+
+        messageLocks
+        adminMessageRoundLocks
+      `)
+      .sort({ eventDate: -1 })
+      .lean();
+
+    const scheduledMessagesForMessageRounds =
+      invitationForMessageRounds?._id || currentUser?._id
+        ? await ScheduledMessage.find({
+            status: "scheduled",
+            $or: [
+              { userId: currentUser._id },
+              ...(invitationForMessageRounds?._id
+                ? [{ invitationId: invitationForMessageRounds._id }]
+                : []),
+            ],
+          })
+            .select(`
+              userId
+              invitationId
+              channel
+              type
+              filter
+              templateKey
+              templateName
+              round
+              roundNumber
+              scheduledAt
+              status
+            `)
+            .sort({ scheduledAt: 1 })
+            .lean()
+        : [];
+
+    const messageRounds = buildMessageRounds(
+      invitationForMessageRounds,
+      scheduledMessagesForMessageRounds,
+      currentUser
+    );
+
     const isVenueOwner =
       safeRole === "venue_owner" ||
       currentUser.venueOwner === true ||
@@ -425,6 +908,8 @@ export async function GET() {
       impersonationRole,
       "| producerLike:",
       isProducerLike,
+      "| messageRounds:",
+      Boolean(messageRounds),
       isImpersonated ? "| impersonated" : ""
     );
 
@@ -525,18 +1010,22 @@ export async function GET() {
           },
 
           includeCalls: !!currentUser.includeCalls,
-callsRounds: currentUser.callsRounds ?? 0,
-callsAddonPrice: currentUser.callsAddonPrice ?? 0,
+          callsRounds: currentUser.callsRounds ?? 0,
+          callsAddonPrice: currentUser.callsAddonPrice ?? 0,
 
-callRoundsSchedule: currentUser.callRoundsSchedule ?? {
-  enabled: false,
-  rounds: [],
-},
+          callRoundsSchedule: currentUser.callRoundsSchedule ?? {
+            enabled: false,
+            rounds: [],
+          },
 
-messageRounds: currentUser.messageRounds ?? null,
+          /*
+            מחושב בזמן אמת כמו באדמין:
+            לא נשמר במודל User, אלא נבנה מתוך Invitation + ScheduledMessage.
+          */
+          messageRounds,
 
-includeCreditGifts: !!currentUser.includeCreditGifts,
-creditGiftsAddonPrice: currentUser.creditGiftsAddonPrice ?? 0,
+          includeCreditGifts: !!currentUser.includeCreditGifts,
+          creditGiftsAddonPrice: currentUser.creditGiftsAddonPrice ?? 0,
 
           smsPerRecord: currentUser.smsPerRecord ?? 0,
           maxMessages: currentUser.maxMessages ?? 0,
