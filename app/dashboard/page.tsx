@@ -4486,37 +4486,50 @@ function buildExistingRsvpSchedule(user: any, invitation: any): UserRsvpSchedule
     ],
   });
 
-  const reminderSentAt =
-    getFirstExistingValue(invitation, [
-      "reminderSentAt",
-      "remindersentAt",
-      "reminderSmsSentAt",
-      "reminderSmssentAt",
-      "reminderWhatsappSentAt",
-      "reminderWhatsappsentAt",
-    ]) ||
-    reminderScheduledMessage?.sentAt ||
-    null;
+  const reminderScheduledMessageStatus = String(
+  reminderScheduledMessage?.status || ""
+)
+  .toLowerCase()
+  .trim();
 
-  const reminderScheduledAt =
-    getFirstExistingValue(invitation, [
-      "reminderScheduledAt",
-      "reminderscheduledAt",
-      "reminderSmsScheduledAt",
-      "reminderSmsscheduledAt",
-      "reminderWhatsappScheduledAt",
-      "reminderWhatsappscheduledAt",
-    ]) ||
-    reminderScheduledMessage?.scheduledAt ||
-    null;
+const hasReminderScheduledMessage = Boolean(reminderScheduledMessage);
 
-  const reminderChannel =
-    reminderScheduledMessage?.channel ||
-    (invitation?.reminderWhatsappScheduledAt || invitation?.reminderWhatsappSentAt
-      ? "whatsapp"
-      : invitation?.reminderSmsScheduledAt || invitation?.reminderSmsSentAt
-        ? "sms"
-        : null);
+const reminderIsSentFromScheduledMessage =
+  hasReminderScheduledMessage &&
+  ["sent", "done", "completed"].includes(reminderScheduledMessageStatus);
+
+const reminderSentAt = reminderIsSentFromScheduledMessage
+  ? reminderScheduledMessage?.sentAt || null
+  : !hasReminderScheduledMessage
+    ? getFirstExistingValue(invitation, [
+        "reminderSentAt",
+        "remindersentAt",
+        "reminderSmsSentAt",
+        "reminderSmssentAt",
+        "reminderWhatsappSentAt",
+        "reminderWhatsappsentAt",
+      ]) || null
+    : null;
+
+const reminderScheduledAt =
+  reminderScheduledMessage?.scheduledAt ||
+  getFirstExistingValue(invitation, [
+    "reminderScheduledAt",
+    "reminderscheduledAt",
+    "reminderSmsScheduledAt",
+    "reminderSmsscheduledAt",
+    "reminderWhatsappScheduledAt",
+    "reminderWhatsappscheduledAt",
+  ]) ||
+  null;
+
+const reminderChannel =
+  reminderScheduledMessage?.channel ||
+  (invitation?.reminderWhatsappScheduledAt
+    ? "whatsapp"
+    : invitation?.reminderSmsScheduledAt
+      ? "sms"
+      : null);
 
   const thankyouScheduledMessage = findExistingScheduledMessage(invitation, {
     types: [
