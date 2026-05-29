@@ -533,6 +533,8 @@ callRoundsSchedule: currentUser.callRoundsSchedule ?? {
   rounds: [],
 },
 
+messageRounds: currentUser.messageRounds ?? null,
+
 includeCreditGifts: !!currentUser.includeCreditGifts,
 creditGiftsAddonPrice: currentUser.creditGiftsAddonPrice ?? 0,
 
