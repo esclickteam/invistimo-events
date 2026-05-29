@@ -1374,8 +1374,8 @@ export default function HallMenusPage() {
         ) : null}
 
         {hasTemplates ? (
-          <section className="mt-5 grid gap-5 xl:grid-cols-[330px_1fr_390px]">
-            <aside className="space-y-5">
+          <section className="mt-5 grid gap-5 xl:grid-cols-[390px_1fr_330px]">
+            <aside className="space-y-5 xl:order-3">
               <Panel title="תפריטי האולם" icon={<Layers3 size={18} />}>
                 <div className="space-y-3">
                   {templates.map((template) => (
@@ -1447,7 +1447,7 @@ export default function HallMenusPage() {
             </aside>
 
             {selectedTemplate ? (
-              <section className="overflow-hidden rounded-[38px] border border-[#e7d5b2] bg-[#fbf7ef]/96 p-5 shadow-[0_18px_50px_rgba(76,52,21,0.08)] backdrop-blur-xl">
+              <section className="overflow-hidden rounded-[38px] xl:order-2 border border-[#e7d5b2] bg-[#fbf7ef]/96 p-5 shadow-[0_18px_50px_rgba(76,52,21,0.08)] backdrop-blur-xl">
                 <div className="mb-5 rounded-[30px] border border-[#ead7ad] bg-[linear-gradient(135deg,#fff9ee,#f8ead0)] p-4">
                   <div className="grid gap-4 xl:grid-cols-[1fr_220px_160px]">
                     <label className="block">
@@ -1660,7 +1660,7 @@ export default function HallMenusPage() {
               </section>
             ) : null}
 
-            <aside className="space-y-5">
+            <aside className="space-y-5 xl:order-1">
               <Panel title="ספריית מנות קבועה" icon={<BookOpen size={18} />}>
                 <div className="mb-3 rounded-2xl border border-[#ead7ad] bg-[#fff9ee] p-3 text-xs font-bold leading-6 text-[#806945]">
                   קודם מוסיפים קטגוריות קבועות של האולם, ואז כל מנה שנשמרת
