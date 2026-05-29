@@ -9,7 +9,7 @@ const VenueMenuDishSchema = new Schema(
       index: true,
     },
 
-    // חשוב מאוד:
+    // חשוב:
     // אצלך hallId הוא string, לא ObjectId
     hallId: {
       type: String,
@@ -27,6 +27,7 @@ const VenueMenuDishSchema = new Schema(
     description: {
       type: String,
       default: "",
+      trim: true,
     },
 
     image: {
@@ -38,13 +39,38 @@ const VenueMenuDishSchema = new Schema(
       type: [String],
       default: [],
     },
+
+    // חדש:
+    // קטגוריית המנה בספריית המנות הקבועה
+    categoryId: {
+      type: String,
+      default: "",
+      index: true,
+    },
+
+    categoryName: {
+      type: String,
+      default: "",
+      trim: true,
+    },
   },
   {
     timestamps: true,
   }
 );
 
-VenueMenuDishSchema.index({ ownerId: 1, hallId: 1, createdAt: -1 });
+VenueMenuDishSchema.index({
+  ownerId: 1,
+  hallId: 1,
+  createdAt: -1,
+});
+
+VenueMenuDishSchema.index({
+  ownerId: 1,
+  hallId: 1,
+  categoryId: 1,
+  createdAt: -1,
+});
 
 const VenueMenuDish =
   models.VenueMenuDish || model("VenueMenuDish", VenueMenuDishSchema);

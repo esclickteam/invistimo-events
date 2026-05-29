@@ -16,6 +16,21 @@ function cleanString(value: unknown) {
   return String(value || "").trim();
 }
 
+function mapDishResponse(dish: any) {
+  return {
+    id: String(dish._id),
+    _id: String(dish._id),
+    name: dish.name || "",
+    description: dish.description || "",
+    image: dish.image || "",
+    tags: Array.isArray(dish.tags) ? dish.tags : [],
+    categoryId: dish.categoryId || "",
+    categoryName: dish.categoryName || "",
+    createdAt: dish.createdAt,
+    updatedAt: dish.updatedAt,
+  };
+}
+
 export async function GET(req: NextRequest, context: RouteParams) {
   try {
     await db();
@@ -48,21 +63,7 @@ export async function GET(req: NextRequest, context: RouteParams) {
 
     return NextResponse.json({
       success: true,
-      dishes: dishes.map((dish: any) => ({
-        id: String(dish._id),
-        _id: String(dish._id),
-        name: dish.name || "",
-        description: dish.description || "",
-        image: dish.image || "",
-        tags: Array.isArray(dish.tags) ? dish.tags : [],
-
-        // חדש — קטגוריית המנה בספריית המנות הקבועה
-        categoryId: dish.categoryId || "",
-        categoryName: dish.categoryName || "",
-
-        createdAt: dish.createdAt,
-        updatedAt: dish.updatedAt,
-      })),
+      dishes: dishes.map(mapDishResponse),
     });
   } catch (error) {
     console.error("GET menu-dishes failed:", error);
@@ -105,8 +106,6 @@ export async function POST(req: NextRequest, context: RouteParams) {
     const name = cleanString(body?.name);
     const description = cleanString(body?.description);
     const image = cleanString(body?.image);
-
-    // חדש — מגיע מה-dropdown בפרונט
     const categoryId = cleanString(body?.categoryId);
     const categoryName = cleanString(body?.categoryName);
 
@@ -148,29 +147,13 @@ export async function POST(req: NextRequest, context: RouteParams) {
       description,
       image,
       tags: [],
-
-      // חדש — שמירת קטגוריה על המנה
       categoryId,
       categoryName,
     });
 
     return NextResponse.json({
       success: true,
-      dish: {
-        id: String(dish._id),
-        _id: String(dish._id),
-        name: dish.name,
-        description: dish.description,
-        image: dish.image,
-        tags: Array.isArray(dish.tags) ? dish.tags : [],
-
-        // חדש — מחזירים לפרונט כדי שהסינון יעבוד מיד
-        categoryId: dish.categoryId || "",
-        categoryName: dish.categoryName || "",
-
-        createdAt: dish.createdAt,
-        updatedAt: dish.updatedAt,
-      },
+      dish: mapDishResponse(dish),
     });
   } catch (error) {
     console.error("POST menu-dishes failed:", error);
@@ -179,6 +162,121 @@ export async function POST(req: NextRequest, context: RouteParams) {
       {
         success: false,
         message: "שמירת המנה נכשלה",
+      },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(req: NextRequest, context: RouteParams) {
+  try {
+    await db();
+
+    const auth = await getUserIdFromRequest(req);
+
+    if (!auth?.userId) {
+      return NextResponse.json(
+        { success: false, message: "לא מחובר" },
+        { status: 401 }
+      );
+    }
+
+    const { hallId } = await context.params;
+    const cleanHallId = cleanString(hallId);
+
+    if (!cleanHallId) {
+      return NextResponse.json(
+        { success: false, message: "חסר מזהה אולם" },
+        { status: 400 }
+      );
+    }
+
+    const body = await req.json();
+
+    const dishId = cleanString(body?.dishId);
+    const name = cleanString(body?.name);
+    const description = cleanString(body?.description);
+    const image = cleanString(body?.image);
+    const categoryId = cleanString(body?.categoryId);
+    const categoryName = cleanString(body?.categoryName);
+
+    if (!dishId) {
+      return NextResponse.json(
+        { success: false, message: "חסר מזהה מנה" },
+        { status: 400 }
+      );
+    }
+
+    if (!name) {
+      return NextResponse.json(
+        { success: false, message: "חובה להזין שם מנה" },
+        { status: 400 }
+      );
+    }
+
+    if (!categoryId) {
+      return NextResponse.json(
+        { success: false, message: "חובה לבחור קטגוריה למנה" },
+        { status: 400 }
+      );
+    }
+
+    if (!categoryName) {
+      return NextResponse.json(
+        { success: false, message: "חסר שם קטגוריה למנה" },
+        { status: 400 }
+      );
+    }
+
+    if (image && image.length > 8_000_000) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "התמונה גדולה מדי. העלי תמונה קלה יותר.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const dish = await VenueMenuDish.findOneAndUpdate(
+      {
+        _id: dishId,
+        ownerId: auth.userId,
+        hallId: cleanHallId,
+      },
+      {
+        $set: {
+          name,
+          description,
+          image,
+          categoryId,
+          categoryName,
+        },
+      },
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
+
+    if (!dish) {
+      return NextResponse.json(
+        { success: false, message: "המנה לא נמצאה" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      dish: mapDishResponse(dish),
+    });
+  } catch (error) {
+    console.error("PATCH menu-dishes failed:", error);
+
+    return NextResponse.json(
+      {
+        success: false,
+        message: "עדכון המנה נכשל",
       },
       { status: 500 }
     );
