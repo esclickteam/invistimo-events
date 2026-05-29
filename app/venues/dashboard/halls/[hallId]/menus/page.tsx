@@ -29,6 +29,15 @@ type Dish = {
   description: string;
   image: string;
   tags: string[];
+  categoryId: string;
+  categoryName: string;
+};
+
+type DishLibraryCategory = {
+  id: string;
+  _id?: string;
+  name: string;
+  sortOrder: number;
 };
 
 type MenuCategory = {
@@ -80,6 +89,7 @@ type NewDishForm = {
   description: string;
   image: string;
   tags: string;
+  categoryId: string;
 };
 
 const DEFAULT_CATEGORIES: MenuCategory[] = [
@@ -134,6 +144,19 @@ function normalizeDish(dish: any): Dish {
     description: String(dish.description || ""),
     image: String(dish.image || ""),
     tags: Array.isArray(dish.tags) ? dish.tags.map(String) : [],
+    categoryId: String(dish.categoryId || ""),
+    categoryName: String(dish.categoryName || ""),
+  };
+}
+
+function normalizeDishLibraryCategory(category: any): DishLibraryCategory {
+  return {
+    id: String(category.id || category._id || makeLocalId("dish-cat")),
+    _id: category._id ? String(category._id) : undefined,
+    name: String(category.name || "קטגוריה ללא שם"),
+    sortOrder: Number.isFinite(Number(category.sortOrder))
+      ? Number(category.sortOrder)
+      : 0,
   };
 }
 
@@ -191,8 +214,13 @@ export default function HallMenusPage() {
   const [selectedCategoryId, setSelectedCategoryId] = useState("");
 
   const [dishLibrary, setDishLibrary] = useState<Dish[]>([]);
+  const [dishLibraryCategories, setDishLibraryCategories] = useState<
+    DishLibraryCategory[]
+  >([]);
   const [draggedDish, setDraggedDish] = useState<Dish | null>(null);
   const [dishSearch, setDishSearch] = useState("");
+  const [selectedDishLibraryCategoryId, setSelectedDishLibraryCategoryId] =
+    useState("all");
 
   const [loading, setLoading] = useState(true);
   const [libraryLoading, setLibraryLoading] = useState(true);
@@ -203,6 +231,10 @@ export default function HallMenusPage() {
   const [newMenuOpen, setNewMenuOpen] = useState(false);
   const [newCategoryOpen, setNewCategoryOpen] = useState(false);
   const [newDishOpen, setNewDishOpen] = useState(false);
+  const [newDishLibraryCategoryOpen, setNewDishLibraryCategoryOpen] =
+    useState(false);
+  const [newDishLibraryCategoryName, setNewDishLibraryCategoryName] =
+    useState("");
   const [previewOpen, setPreviewOpen] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState("");
 
@@ -225,6 +257,7 @@ export default function HallMenusPage() {
     description: "",
     image: "",
     tags: "",
+    categoryId: "",
   });
 
   const selectedTemplate =
@@ -241,15 +274,21 @@ export default function HallMenusPage() {
 
   const filteredDishLibrary = useMemo(() => {
     const query = dishSearch.trim().toLowerCase();
-    if (!query) return dishLibrary;
 
     return dishLibrary.filter((dish) => {
-      return (
+      const matchesSearch =
+        !query ||
         dish.name.toLowerCase().includes(query) ||
-        dish.description.toLowerCase().includes(query)
-      );
+        dish.description.toLowerCase().includes(query) ||
+        dish.categoryName.toLowerCase().includes(query);
+
+      const matchesCategory =
+        selectedDishLibraryCategoryId === "all" ||
+        dish.categoryId === selectedDishLibraryCategoryId;
+
+      return matchesSearch && matchesCategory;
     });
-  }, [dishLibrary, dishSearch]);
+  }, [dishLibrary, dishSearch, selectedDishLibraryCategoryId]);
 
   const stats = useMemo(() => {
     const categoriesCount = selectedTemplate?.categories.length || 0;
@@ -267,8 +306,9 @@ export default function HallMenusPage() {
       categoriesCount,
       dishesCount,
       libraryDishes: dishLibrary.length,
+      libraryCategories: dishLibraryCategories.length,
     };
-  }, [selectedTemplate, templates, dishLibrary]);
+  }, [selectedTemplate, templates, dishLibrary, dishLibraryCategories]);
 
   const fetchMenus = async () => {
     if (!hallId) return;
@@ -354,7 +394,9 @@ export default function HallMenusPage() {
         throw new Error(data?.message || "טעינת ספריית המנות נכשלה");
       }
 
-      setDishLibrary(Array.isArray(data.dishes) ? data.dishes.map(normalizeDish) : []);
+      setDishLibrary(
+        Array.isArray(data.dishes) ? data.dishes.map(normalizeDish) : []
+      );
     } catch (error) {
       console.error("GET menu-dishes failed:", error);
       setServerError(
@@ -366,8 +408,138 @@ export default function HallMenusPage() {
     }
   };
 
+  const fetchDishLibraryCategories = async () => {
+    if (!hallId) return;
+
+    try {
+      const res = await fetch(
+        `/api/venues/dashboard/halls/${hallId}/menu-dish-categories`,
+        {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.message || "טעינת קטגוריות המנות נכשלה");
+      }
+
+      setDishLibraryCategories(
+        Array.isArray(data.categories)
+          ? data.categories.map(normalizeDishLibraryCategory)
+          : []
+      );
+    } catch (error) {
+      console.error("GET menu-dish-categories failed:", error);
+      setServerError(
+        error instanceof Error ? error.message : "טעינת קטגוריות המנות נכשלה"
+      );
+      setDishLibraryCategories([]);
+    }
+  };
+
+  const createDishLibraryCategory = async () => {
+    const name = newDishLibraryCategoryName.trim();
+
+    if (!name) {
+      alert("חובה להזין שם קטגוריה");
+      return;
+    }
+
+    setLibrarySaving(true);
+    setServerError("");
+
+    try {
+      const res = await fetch(
+        `/api/venues/dashboard/halls/${hallId}/menu-dish-categories`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({ name }),
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.message || "שמירת הקטגוריה נכשלה");
+      }
+
+      const savedCategory = normalizeDishLibraryCategory(data.category);
+
+      setDishLibraryCategories((current) => [...current, savedCategory]);
+      setSelectedDishLibraryCategoryId(savedCategory.id);
+      setNewDishForm((prev) => ({ ...prev, categoryId: savedCategory.id }));
+      setNewDishLibraryCategoryOpen(false);
+      setNewDishLibraryCategoryName("");
+    } catch (error) {
+      console.error("POST menu-dish-categories failed:", error);
+      setServerError(
+        error instanceof Error ? error.message : "שמירת הקטגוריה נכשלה"
+      );
+    } finally {
+      setLibrarySaving(false);
+    }
+  };
+
+  const deleteDishLibraryCategory = async (category: DishLibraryCategory) => {
+    const usedByDishes = dishLibrary.some((dish) => dish.categoryId === category.id);
+
+    if (usedByDishes) {
+      alert("אי אפשר למחוק קטגוריה שיש בה מנות. קודם מחקי/עדכני את המנות שלה.");
+      return;
+    }
+
+    const ok = window.confirm("למחוק את הקטגוריה הזאת מספריית המנות?");
+    if (!ok) return;
+
+    setLibrarySaving(true);
+    setServerError("");
+
+    try {
+      const categoryId = category._id || category.id;
+      const res = await fetch(
+        `/api/venues/dashboard/halls/${hallId}/menu-dish-categories?categoryId=${encodeURIComponent(
+          categoryId
+        )}`,
+        {
+          method: "DELETE",
+          credentials: "include",
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.message || "מחיקת הקטגוריה נכשלה");
+      }
+
+      setDishLibraryCategories((current) =>
+        current.filter((item) => (item._id || item.id) !== categoryId)
+      );
+
+      if (selectedDishLibraryCategoryId === category.id) {
+        setSelectedDishLibraryCategoryId("all");
+      }
+    } catch (error) {
+      console.error("DELETE menu-dish-categories failed:", error);
+      setServerError(
+        error instanceof Error ? error.message : "מחיקת הקטגוריה נכשלה"
+      );
+    } finally {
+      setLibrarySaving(false);
+    }
+  };
+
   useEffect(() => {
     fetchMenus();
+    fetchDishLibraryCategories();
     fetchDishLibrary();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hallId]);
@@ -740,6 +912,15 @@ export default function HallMenusPage() {
       return;
     }
 
+    const selectedDishCategory = dishLibraryCategories.find(
+      (category) => category.id === newDishForm.categoryId
+    );
+
+    if (!selectedDishCategory) {
+      alert("חובה לבחור קטגוריה למנה");
+      return;
+    }
+
     setLibrarySaving(true);
     setServerError("");
 
@@ -756,6 +937,8 @@ export default function HallMenusPage() {
             name,
             description: newDishForm.description.trim(),
             image: newDishForm.image.trim(),
+            categoryId: selectedDishCategory.id,
+            categoryName: selectedDishCategory.name,
           }),
         }
       );
@@ -775,6 +958,7 @@ export default function HallMenusPage() {
         description: "",
         image: "",
         tags: "",
+        categoryId: "",
       });
     } catch (error) {
       console.error("POST menu-dishes failed:", error);
@@ -1294,8 +1478,67 @@ export default function HallMenusPage() {
             <aside className="space-y-5">
               <Panel title="ספריית מנות קבועה" icon={<BookOpen size={18} />}>
                 <div className="mb-3 rounded-2xl border border-[#ead7ad] bg-[#fff9ee] p-3 text-xs font-bold leading-6 text-[#806945]">
-                  כאן האולם מעלה את כל המנות שלו פעם אחת. בכל תפריט גוררים רק
-                  את המנות שרוצים להשתמש בהן.
+                  קודם מוסיפים קטגוריות קבועות של האולם, ואז כל מנה שנשמרת
+                  בספרייה משויכת לקטגוריה. לאחר מכן אפשר לסנן ולגרור מנות לתפריט.
+                </div>
+
+                <div className="mb-3 rounded-[24px] border border-[#ead7ad] bg-white p-3 shadow-sm">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <div className="text-xs font-black text-[#8d7654]">
+                      קטגוריות ספריית מנות
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setNewDishLibraryCategoryOpen(true)}
+                      className="inline-flex h-8 items-center gap-1 rounded-xl border border-[#d7b06a] bg-[#fff4dc] px-2 text-[11px] font-black text-[#8c5f19] transition hover:bg-[#ffedc9]"
+                    >
+                      <Plus size={13} />
+                      הוסף קטגוריה
+                    </button>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedDishLibraryCategoryId("all")}
+                      className={[
+                        "rounded-xl border px-3 py-2 text-[11px] font-black transition",
+                        selectedDishLibraryCategoryId === "all"
+                          ? "border-[#b67b1d] bg-[#d8a241] text-white"
+                          : "border-[#ead7ad] bg-[#fffaf1] text-[#806945] hover:bg-[#fff3d8]",
+                      ].join(" ")}
+                    >
+                      כל המנות
+                    </button>
+
+                    {dishLibraryCategories.map((category) => (
+                      <div key={category.id} className="flex overflow-hidden rounded-xl border border-[#ead7ad] bg-[#fffaf1]">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedDishLibraryCategoryId(category.id)}
+                          className={[
+                            "px-3 py-2 text-[11px] font-black transition",
+                            selectedDishLibraryCategoryId === category.id
+                              ? "bg-[#d8a241] text-white"
+                              : "text-[#806945] hover:bg-[#fff3d8]",
+                          ].join(" ")}
+                        >
+                          {category.name}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => deleteDishLibraryCategory(category)}
+                          disabled={librarySaving}
+                          className="flex w-8 items-center justify-center border-r border-[#ead7ad] text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          title="מחיקת קטגוריה"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="mb-3 flex h-12 items-center gap-2 rounded-2xl border border-[#e8d7b6] bg-white px-3 shadow-inner">
@@ -1326,14 +1569,20 @@ export default function HallMenusPage() {
                     ))
                   ) : (
                     <div className="rounded-2xl border border-dashed border-[#d7b06a] bg-[#fff8ec] p-4 text-center text-sm font-bold leading-6 text-[#806945]">
-                      אין עדיין מנות קבועות בספרייה.
+                      אין מנות להצגה בסינון הזה.
                     </div>
                   )}
                 </div>
 
                 <button
                   type="button"
-                  onClick={() => setNewDishOpen(true)}
+                  onClick={() => {
+                    if (!dishLibraryCategories.length) {
+                      setNewDishLibraryCategoryOpen(true);
+                      return;
+                    }
+                    setNewDishOpen(true);
+                  }}
                   className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#d7b06a] bg-[#fff4dc] text-sm font-black text-[#8c5f19] transition hover:bg-[#ffedc9]"
                 >
                   <Plus size={16} />
@@ -1558,6 +1807,36 @@ export default function HallMenusPage() {
         </Modal>
       )}
 
+      {newDishLibraryCategoryOpen && (
+        <Modal
+          title="הוספת קטגוריה לספריית המנות"
+          onClose={() => setNewDishLibraryCategoryOpen(false)}
+        >
+          <div className="grid gap-3">
+            <FormInput
+              label="שם קטגוריה"
+              value={newDishLibraryCategoryName}
+              onChange={setNewDishLibraryCategoryName}
+            />
+
+            <div className="rounded-2xl border border-[#ead7ad] bg-[#fff9ee] p-3 text-xs font-bold leading-6 text-[#806945]">
+              דוגמאות: חומוס, טחינה, חצילים, סלטים, ראשונות, עיקריות, קינוחים.
+              אחרי שתיצרי קטגוריה תוכלי לבחור אותה בדרופדאון של הוספת מנה.
+            </div>
+
+            <button
+              type="button"
+              onClick={createDishLibraryCategory}
+              disabled={librarySaving}
+              className="mt-2 flex h-12 items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#d8a241,#b67b1d)] text-sm font-black text-white shadow-[0_10px_22px_rgba(156,101,23,0.18)] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {librarySaving ? <Loader2 size={16} className="animate-spin" /> : null}
+              שמירת קטגוריה
+            </button>
+          </div>
+        </Modal>
+      )}
+
       {newDishOpen && (
         <Modal title="הוספת מנה לספרייה" onClose={() => setNewDishOpen(false)}>
           <div className="grid gap-4">
@@ -1568,6 +1847,39 @@ export default function HallMenusPage() {
                 setNewDishForm((prev) => ({ ...prev, name: value }))
               }
             />
+
+            <label className="block">
+              <span className="mb-1 block text-xs font-black text-[#8d7654]">
+                קטגוריה
+              </span>
+              <select
+                value={newDishForm.categoryId}
+                onChange={(event) =>
+                  setNewDishForm((prev) => ({
+                    ...prev,
+                    categoryId: event.target.value,
+                  }))
+                }
+                className="h-12 w-full rounded-2xl border border-[#e2cfac] bg-white px-3 text-sm font-bold text-[#2d2419] outline-none transition focus:border-[#b98121] focus:ring-4 focus:ring-[#d5a046]/10"
+              >
+                <option value="">בחר קטגוריה</option>
+                {dishLibraryCategories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+
+              {!dishLibraryCategories.length ? (
+                <button
+                  type="button"
+                  onClick={() => setNewDishLibraryCategoryOpen(true)}
+                  className="mt-2 text-xs font-black text-[#8c5f19] underline"
+                >
+                  אין קטגוריות עדיין — הוספת קטגוריה חדשה
+                </button>
+              ) : null}
+            </label>
 
             <label className="block">
               <span className="mb-1 block text-xs font-black text-[#8d7654]">
@@ -1635,8 +1947,8 @@ export default function HallMenusPage() {
             </label>
 
             <div className="rounded-2xl border border-[#ead7ad] bg-[#fff9ee] p-3 text-xs font-bold leading-6 text-[#806945]">
-              המנה תישמר רק בספריית המנות הקבועה של האולם.
-              כדי לשייך אותה לתפריט, יש לגרור אותה ידנית לקטגוריה הרצויה.
+              המנה תישמר בספריית המנות הקבועה תחת הקטגוריה שבחרת.
+              לאחר מכן אפשר לסנן לפי קטגוריה ולגרור אותה לתפריט הרצוי.
             </div>
 
             <button
@@ -1834,6 +2146,9 @@ function DishLibraryItem({
         </div>
         <div className="truncate text-xs font-bold text-[#806945]">
           {dish.description || "ללא תיאור"}
+        </div>
+        <div className="mt-1 w-fit rounded-full bg-[#fff3d8] px-2 py-0.5 text-[10px] font-black text-[#8c5f19]">
+          {dish.categoryName || "ללא קטגוריה"}
         </div>
       </div>
 

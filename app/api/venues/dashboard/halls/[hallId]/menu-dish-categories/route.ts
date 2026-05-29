@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
-import VenueMenuDish from "@/models/VenueMenuDish";
+import VenueMenuDishCategory from "@/models/VenueMenuDishCategory";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 export const runtime = "nodejs";
@@ -39,38 +39,33 @@ export async function GET(req: NextRequest, context: RouteParams) {
       );
     }
 
-    const dishes = await VenueMenuDish.find({
+    const categories = await VenueMenuDishCategory.find({
       ownerId: auth.userId,
       hallId: cleanHallId,
     })
-      .sort({ createdAt: -1 })
+      .sort({ sortOrder: 1, createdAt: 1 })
       .lean();
 
     return NextResponse.json({
       success: true,
-      dishes: dishes.map((dish: any) => ({
-        id: String(dish._id),
-        _id: String(dish._id),
-        name: dish.name || "",
-        description: dish.description || "",
-        image: dish.image || "",
-        tags: Array.isArray(dish.tags) ? dish.tags : [],
-
-        // חדש — קטגוריית המנה בספריית המנות הקבועה
-        categoryId: dish.categoryId || "",
-        categoryName: dish.categoryName || "",
-
-        createdAt: dish.createdAt,
-        updatedAt: dish.updatedAt,
+      categories: categories.map((category: any) => ({
+        id: String(category._id),
+        _id: String(category._id),
+        name: category.name || "",
+        sortOrder: Number.isFinite(Number(category.sortOrder))
+          ? Number(category.sortOrder)
+          : 0,
+        createdAt: category.createdAt,
+        updatedAt: category.updatedAt,
       })),
     });
   } catch (error) {
-    console.error("GET menu-dishes failed:", error);
+    console.error("GET menu-dish-categories failed:", error);
 
     return NextResponse.json(
       {
         success: false,
-        message: "טעינת ספריית המנות נכשלה",
+        message: "טעינת קטגוריות המנות נכשלה",
       },
       { status: 500 }
     );
@@ -101,84 +96,66 @@ export async function POST(req: NextRequest, context: RouteParams) {
     }
 
     const body = await req.json();
-
     const name = cleanString(body?.name);
-    const description = cleanString(body?.description);
-    const image = cleanString(body?.image);
-
-    // חדש — מגיע מה-dropdown בפרונט
-    const categoryId = cleanString(body?.categoryId);
-    const categoryName = cleanString(body?.categoryName);
 
     if (!name) {
       return NextResponse.json(
-        { success: false, message: "חובה להזין שם מנה" },
-        { status: 400 }
-      );
-    }
-
-    if (!categoryId) {
-      return NextResponse.json(
-        { success: false, message: "חובה לבחור קטגוריה למנה" },
-        { status: 400 }
-      );
-    }
-
-    if (!categoryName) {
-      return NextResponse.json(
-        { success: false, message: "חסר שם קטגוריה למנה" },
-        { status: 400 }
-      );
-    }
-
-    if (image && image.length > 8_000_000) {
-      return NextResponse.json(
         {
           success: false,
-          message: "התמונה גדולה מדי. העלי תמונה קלה יותר.",
+          message: "חובה להזין שם קטגוריה",
         },
         { status: 400 }
       );
     }
 
-    const dish = await VenueMenuDish.create({
+    const exists = await VenueMenuDishCategory.findOne({
       ownerId: auth.userId,
       hallId: cleanHallId,
       name,
-      description,
-      image,
-      tags: [],
+    }).lean();
 
-      // חדש — שמירת קטגוריה על המנה
-      categoryId,
-      categoryName,
+    if (exists) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "קטגוריה בשם הזה כבר קיימת",
+        },
+        { status: 409 }
+      );
+    }
+
+    const count = await VenueMenuDishCategory.countDocuments({
+      ownerId: auth.userId,
+      hallId: cleanHallId,
+    });
+
+    const category = await VenueMenuDishCategory.create({
+      ownerId: auth.userId,
+      hallId: cleanHallId,
+      name,
+      sortOrder: count,
     });
 
     return NextResponse.json({
       success: true,
-      dish: {
-        id: String(dish._id),
-        _id: String(dish._id),
-        name: dish.name,
-        description: dish.description,
-        image: dish.image,
-        tags: Array.isArray(dish.tags) ? dish.tags : [],
-
-        // חדש — מחזירים לפרונט כדי שהסינון יעבוד מיד
-        categoryId: dish.categoryId || "",
-        categoryName: dish.categoryName || "",
-
-        createdAt: dish.createdAt,
-        updatedAt: dish.updatedAt,
+      category: {
+        id: String(category._id),
+        _id: String(category._id),
+        name: category.name || "",
+        sortOrder: Number.isFinite(Number(category.sortOrder))
+          ? Number(category.sortOrder)
+          : 0,
+        createdAt: category.createdAt,
+        updatedAt: category.updatedAt,
       },
     });
   } catch (error) {
-    console.error("POST menu-dishes failed:", error);
+    console.error("POST menu-dish-categories failed:", error);
 
     return NextResponse.json(
       {
         success: false,
-        message: "שמירת המנה נכשלה",
+        message: "שמירת הקטגוריה נכשלה",
       },
       { status: 500 }
     );
@@ -202,17 +179,20 @@ export async function DELETE(req: NextRequest, context: RouteParams) {
     const cleanHallId = cleanString(hallId);
 
     const { searchParams } = new URL(req.url);
-    const dishId = cleanString(searchParams.get("dishId"));
+    const categoryId = cleanString(searchParams.get("categoryId"));
 
-    if (!cleanHallId || !dishId) {
+    if (!cleanHallId || !categoryId) {
       return NextResponse.json(
-        { success: false, message: "חסר מזהה אולם או מנה" },
+        {
+          success: false,
+          message: "חסר מזהה אולם או קטגוריה",
+        },
         { status: 400 }
       );
     }
 
-    await VenueMenuDish.deleteOne({
-      _id: dishId,
+    await VenueMenuDishCategory.deleteOne({
+      _id: categoryId,
       ownerId: auth.userId,
       hallId: cleanHallId,
     });
@@ -221,12 +201,12 @@ export async function DELETE(req: NextRequest, context: RouteParams) {
       success: true,
     });
   } catch (error) {
-    console.error("DELETE menu-dishes failed:", error);
+    console.error("DELETE menu-dish-categories failed:", error);
 
     return NextResponse.json(
       {
         success: false,
-        message: "מחיקת המנה נכשלה",
+        message: "מחיקת הקטגוריה נכשלה",
       },
       { status: 500 }
     );
