@@ -3649,48 +3649,49 @@ function UserActionsDropdown({
             sm:absolute sm:left-0 sm:top-[calc(100%+8px)] sm:z-50 sm:mt-0 sm:min-w-[210px]
           "
         >
-          <DropdownAction
-            icon={<CalendarDays size={16} />}
-            label='לו"ז אירוע'
-            onClick={() => runAction(onEventSchedule)}
-          />
-
-          <DropdownAction
-            icon={<Pencil size={16} />}
-            label="עריכה"
-            onClick={() => runAction(onEdit)}
-          />
-
-          <DropdownAction
-            icon={<ArrowUpCircle size={16} />}
-            label="שדרוג"
-            tone="gold"
-            onClick={() => runAction(onUpgrade)}
-          />
-
           {user.role !== "admin" && (
-            <DropdownAction
-              icon={
-                isImpersonating ? (
-                  <Loader2 className="animate-spin" size={16} />
-                ) : (
-                  <LogIn size={16} />
-                )
-              }
-              label="התחזות"
-              tone="blue"
-              onClick={() => runAction(onImpersonate)}
-            />
-          )}
+  <DropdownAction
+    icon={
+      isImpersonating ? (
+        <Loader2 className="animate-spin" size={16} />
+      ) : (
+        <LogIn size={16} />
+      )
+    }
+    label="התחזות"
+    tone="blue"
+    onClick={() => runAction(onImpersonate)}
+  />
+)}
 
-          {user.role !== "admin" && (
-            <DropdownAction
-              icon={<Trash2 size={16} />}
-              label="מחק"
-              tone="red"
-              onClick={() => runAction(onDelete)}
-            />
-          )}
+<DropdownAction
+  icon={<Pencil size={16} />}
+  label="עריכה"
+  onClick={() => runAction(onEdit)}
+/>
+
+<DropdownAction
+  icon={<ArrowUpCircle size={16} />}
+  label="שדרוג"
+  tone="gold"
+  onClick={() => runAction(onUpgrade)}
+/>
+
+<DropdownAction
+  icon={<CalendarDays size={16} />}
+  label='לו"ז אירוע'
+  onClick={() => runAction(onEventSchedule)}
+/>
+
+{user.role !== "admin" && (
+  <DropdownAction
+    icon={<Trash2 size={16} />}
+    label="מחק"
+    tone="red"
+    onClick={() => runAction(onDelete)}
+  />
+)}
+
         </div>
       )}
     </div>
