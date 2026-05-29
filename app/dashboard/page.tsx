@@ -4396,7 +4396,71 @@ function getRsvpRoundChannel(invitation: any, round: number) {
   return null;
 }
 
+function buildScheduleFromUserMessageRounds(
+  user: any
+): UserRsvpScheduleItem[] | null {
+  const messageRounds = user?.messageRounds;
+
+  if (!messageRounds) return null;
+
+  const normalizeItem = (
+    item: any,
+    group: string,
+    icon: string,
+    fallbackChannel?: string | null
+  ): UserRsvpScheduleItem => {
+    const channel = item?.channel || fallbackChannel || null;
+
+    return {
+      key: String(item?.key || ""),
+      label: String(item?.label || ""),
+      group,
+      icon,
+      done: Boolean(item?.done || item?.sentAt),
+      blocked: Boolean(item?.blocked),
+      sentAt: item?.sentAt || null,
+      scheduledAt: item?.scheduledAt || null,
+      channel,
+      channelLabel: getScheduleChannelLabel(channel),
+    };
+  };
+
+  const items: UserRsvpScheduleItem[] = [
+    ...(Array.isArray(messageRounds.rsvp)
+      ? messageRounds.rsvp.map((item: any) =>
+          normalizeItem(item, "אישורי הגעה", "💬")
+        )
+      : []),
+
+    ...(Array.isArray(messageRounds.calls)
+      ? messageRounds.calls.map((item: any) =>
+          normalizeItem(item, "סבבי שיחות", "📞", "calls")
+        )
+      : []),
+
+    ...(Array.isArray(messageRounds.reminder)
+      ? messageRounds.reminder.map((item: any) =>
+          normalizeItem(item, "תזכורות", "🔔")
+        )
+      : []),
+
+    ...(Array.isArray(messageRounds.thankyou)
+      ? messageRounds.thankyou.map((item: any) =>
+          normalizeItem(item, "תודה", "💛")
+        )
+      : []),
+  ].filter((item) => item.key && item.label);
+
+  return items.length > 0 ? items : null;
+}
+
 function buildExistingRsvpSchedule(user: any, invitation: any): UserRsvpScheduleItem[] {
+  const scheduleFromMessageRounds = buildScheduleFromUserMessageRounds(user);
+
+  if (scheduleFromMessageRounds) {
+    return scheduleFromMessageRounds;
+  }
+
   const locks = invitation?.adminMessageRoundLocks || invitation?.messageLocks || {};
 
   const callItems: UserRsvpScheduleItem[] = [1, 2, 3].map((round) => {
