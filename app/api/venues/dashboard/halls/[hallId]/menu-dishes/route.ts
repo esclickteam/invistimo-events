@@ -192,8 +192,9 @@ export async function PATCH(req: NextRequest, context: RouteParams) {
     }
 
     const body = await req.json();
+    const { searchParams } = new URL(req.url);
 
-    const dishId = cleanString(body?.dishId);
+    const dishId = cleanString(body?.dishId || searchParams.get("dishId"));
     const name = cleanString(body?.name);
     const description = cleanString(body?.description);
     const image = cleanString(body?.image);

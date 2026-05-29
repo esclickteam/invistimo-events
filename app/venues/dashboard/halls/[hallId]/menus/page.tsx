@@ -253,6 +253,9 @@ export default function HallMenusPage() {
     maxChoices: "1",
   });
 
+  const [newTemplateCategoryLibraryId, setNewTemplateCategoryLibraryId] =
+    useState("");
+
   const [newDishForm, setNewDishForm] = useState<NewDishForm>({
     name: "",
     description: "",
@@ -280,6 +283,19 @@ export default function HallMenusPage() {
     ) ||
     selectedTemplate?.categories[0] ||
     null;
+
+  const getLibraryCategoryById = (categoryId: string) =>
+    dishLibraryCategories.find(
+      (category) => category.id === categoryId || category._id === categoryId
+    ) || null;
+
+  const setActiveMenuCategory = (categoryId: string) => {
+    setSelectedCategoryId(categoryId);
+
+    if (getLibraryCategoryById(categoryId)) {
+      setSelectedDishLibraryCategoryId(categoryId);
+    }
+  };
 
   const filteredDishLibrary = useMemo(() => {
     const query = dishSearch.trim().toLowerCase();
@@ -484,7 +500,14 @@ export default function HallMenusPage() {
 
       setDishLibraryCategories((current) => [...current, savedCategory]);
       setSelectedDishLibraryCategoryId(savedCategory.id);
-      setNewDishForm((prev) => ({ ...prev, categoryId: savedCategory.id }));
+      setNewTemplateCategoryLibraryId(savedCategory.id);
+
+      if (editDishOpen) {
+        setEditDishForm((prev) => ({ ...prev, categoryId: savedCategory.id }));
+      } else {
+        setNewDishForm((prev) => ({ ...prev, categoryId: savedCategory.id }));
+      }
+
       setNewDishLibraryCategoryOpen(false);
       setNewDishLibraryCategoryName("");
     } catch (error) {
@@ -638,7 +661,7 @@ export default function HallMenusPage() {
           description: newMenuForm.description,
           type: newMenuForm.type,
           status: newMenuForm.status,
-          categories: cloneDefaultCategories(),
+          categories: [],
         }),
       });
 
@@ -653,6 +676,7 @@ export default function HallMenusPage() {
       setTemplates((current) => [menu, ...current]);
       setSelectedTemplateId(menu.id);
       setSelectedCategoryId(menu.categories[0]?.id || "");
+      setSelectedDishLibraryCategoryId(menu.categories[0]?.id || "all");
 
       setNewMenuOpen(false);
       setNewMenuForm({
@@ -689,7 +713,6 @@ export default function HallMenusPage() {
           status: "draft",
           categories: template.categories.map((category) => ({
             ...category,
-            id: makeLocalId("cat"),
             dishes: category.dishes.map((dish) => ({
               ...dish,
               id: makeLocalId("dish"),
@@ -709,6 +732,7 @@ export default function HallMenusPage() {
       setTemplates((current) => [menu, ...current]);
       setSelectedTemplateId(menu.id);
       setSelectedCategoryId(menu.categories[0]?.id || "");
+      setSelectedDishLibraryCategoryId(menu.categories[0]?.id || "all");
     } catch (error) {
       console.error("duplicate menu failed:", error);
       setServerError(
@@ -808,16 +832,32 @@ export default function HallMenusPage() {
   const addCategory = async () => {
     if (!selectedTemplate) return;
 
-    const title = newCategoryForm.title.trim() || "קטגוריה חדשה";
-    const subtitle = newCategoryForm.subtitle.trim() || "מנות לבחירה";
+    const selectedLibraryCategory = getLibraryCategoryById(
+      newTemplateCategoryLibraryId
+    );
 
+    if (!selectedLibraryCategory) {
+      alert("חובה לבחור קטגוריה מתוך הדרופדאון");
+      return;
+    }
+
+    const alreadyExists = selectedTemplate.categories.some(
+      (category) =>
+        category.id === selectedLibraryCategory.id ||
+        category.title.trim() === selectedLibraryCategory.name.trim()
+    );
+
+    if (alreadyExists) {
+      alert("הקטגוריה הזאת כבר קיימת בתפריט");
+      return;
+    }
+
+    const subtitle = newCategoryForm.subtitle.trim() || "מנות לבחירה";
     const choicesCount = Math.max(0, toNumber(newCategoryForm.maxChoices, 1));
 
-    const id = makeLocalId("cat");
-
     const nextCategory: MenuCategory = {
-      id,
-      title,
+      id: selectedLibraryCategory.id,
+      title: selectedLibraryCategory.name,
       subtitle,
       minChoices: choicesCount,
       maxChoices: choicesCount,
@@ -830,8 +870,10 @@ export default function HallMenusPage() {
       updatedAt: "עודכן עכשיו",
     };
 
-    setSelectedCategoryId(id);
+    setSelectedCategoryId(selectedLibraryCategory.id);
+    setSelectedDishLibraryCategoryId(selectedLibraryCategory.id);
     setNewCategoryOpen(false);
+    setNewTemplateCategoryLibraryId("");
     setNewCategoryForm({
       title: "",
       subtitle: "",
@@ -1039,6 +1081,7 @@ export default function HallMenusPage() {
           },
           credentials: "include",
           body: JSON.stringify({
+            dishId,
             name,
             description: editDishForm.description.trim(),
             image: editDishForm.image.trim(),
@@ -1060,6 +1103,23 @@ export default function HallMenusPage() {
         current.map((dish) =>
           (dish._id || dish.id) === dishId ? updatedDish : dish
         )
+      );
+
+      setTemplates((current) =>
+        current.map((template) => ({
+          ...template,
+          categories: template.categories.map((category) => ({
+            ...category,
+            dishes: category.dishes.map((dish) =>
+              dish._id === updatedDish._id ||
+              dish.id === updatedDish.id ||
+              dish.id === dishId ||
+              dish._id === dishId
+                ? { ...dish, ...updatedDish }
+                : dish
+            ),
+          })),
+        }))
       );
 
       closeEditDish();
@@ -1323,8 +1383,10 @@ export default function HallMenusPage() {
                       key={template.id}
                       type="button"
                       onClick={() => {
+                        const firstCategoryId = template.categories[0]?.id || "";
                         setSelectedTemplateId(template.id);
-                        setSelectedCategoryId(template.categories[0]?.id || "");
+                        setSelectedCategoryId(firstCategoryId);
+                        setSelectedDishLibraryCategoryId(firstCategoryId || "all");
                       }}
                       className={[
                         "group w-full rounded-[26px] border p-4 text-right transition hover:-translate-y-0.5 hover:shadow-[0_10px_28px_rgba(43,31,16,0.08)]",
@@ -1460,7 +1522,7 @@ export default function HallMenusPage() {
                     <button
                       key={category.id}
                       type="button"
-                      onClick={() => setSelectedCategoryId(category.id)}
+                      onClick={() => setActiveMenuCategory(category.id)}
                       className={[
                         "flex h-12 shrink-0 items-center gap-2 rounded-2xl border px-4 text-sm font-black shadow-sm transition hover:-translate-y-0.5",
                         selectedCategoryId === category.id
@@ -1816,7 +1878,7 @@ export default function HallMenusPage() {
             </label>
 
             <div className="rounded-2xl border border-[#ead7ad] bg-[#fff9ee] p-3 text-xs font-bold leading-6 text-[#806945]">
-              התפריט ייפתח אוטומטית עם הקטגוריות: ראשונות, עיקריות וסלטים.
+              לאחר יצירת התפריט תוכלי להוסיף אליו קטגוריות מתוך הדרופדאון של ספריית המנות.
             </div>
 
             <button
@@ -1833,17 +1895,50 @@ export default function HallMenusPage() {
       )}
 
       {newCategoryOpen && (
-        <Modal title="הוספת קטגוריה" onClose={() => setNewCategoryOpen(false)}>
+        <Modal
+          title="הוספת קטגוריה לתפריט"
+          onClose={() => setNewCategoryOpen(false)}
+        >
           <div className="grid gap-3">
+            <label className="block">
+              <span className="mb-1 block text-xs font-black text-[#8d7654]">
+                בחירת קטגוריה מתוך ספריית המנות
+              </span>
+              <select
+                value={newTemplateCategoryLibraryId}
+                onChange={(event) =>
+                  setNewTemplateCategoryLibraryId(event.target.value)
+                }
+                className="h-12 w-full rounded-2xl border border-[#e2cfac] bg-white px-3 text-sm font-bold text-[#2d2419] outline-none transition focus:border-[#b98121] focus:ring-4 focus:ring-[#d5a046]/10"
+              >
+                <option value="">בחר קטגוריה</option>
+                {dishLibraryCategories
+                  .filter(
+                    (libraryCategory) =>
+                      !selectedTemplate?.categories.some(
+                        (category) =>
+                          category.id === libraryCategory.id ||
+                          category.title.trim() === libraryCategory.name.trim()
+                      )
+                  )
+                  .map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+              </select>
+            </label>
+
+            <button
+              type="button"
+              onClick={() => setNewDishLibraryCategoryOpen(true)}
+              className="w-fit text-xs font-black text-[#8c5f19] underline"
+            >
+              חסרה קטגוריה? הוספת קטגוריה חדשה לספרייה
+            </button>
+
             <FormInput
-              label="שם קטגוריה"
-              value={newCategoryForm.title}
-              onChange={(value) =>
-                setNewCategoryForm((prev) => ({ ...prev, title: value }))
-              }
-            />
-            <FormInput
-              label="תיאור קצר"
+              label="תיאור קצר לקטגוריה בתפריט"
               value={newCategoryForm.subtitle}
               onChange={(value) =>
                 setNewCategoryForm((prev) => ({ ...prev, subtitle: value }))
@@ -1863,7 +1958,8 @@ export default function HallMenusPage() {
             />
 
             <div className="rounded-2xl border border-[#ead7ad] bg-[#fff9ee] p-3 text-xs font-bold leading-6 text-[#806945]">
-              לדוגמה: אם רשמת 3, הלקוח יצטרך לבחור 3 מנות מתוך כל המנות שיהיו בקטגוריה.
+              הקטגוריה תתווסף לתפריט הנוכחי בלבד. לאחר מכן אפשר לגרור אליה מנות
+              מתוך ספריית המנות הקבועה, בדיוק כמו עכשיו.
             </div>
 
             <button
@@ -1872,7 +1968,7 @@ export default function HallMenusPage() {
               disabled={saving}
               className="mt-2 h-12 rounded-2xl bg-[linear-gradient(135deg,#d8a241,#b67b1d)] text-sm font-black text-white shadow-[0_10px_22px_rgba(156,101,23,0.18)] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              הוספת קטגוריה
+              הוספת קטגוריה לתפריט
             </button>
           </div>
         </Modal>
@@ -1882,6 +1978,7 @@ export default function HallMenusPage() {
         <Modal
           title="הוספת קטגוריה לספריית המנות"
           onClose={() => setNewDishLibraryCategoryOpen(false)}
+          zIndexClass="z-[140]"
         >
           <div className="grid gap-3">
             <FormInput
@@ -1941,15 +2038,13 @@ export default function HallMenusPage() {
                 ))}
               </select>
 
-              {!dishLibraryCategories.length ? (
-                <button
-                  type="button"
-                  onClick={() => setNewDishLibraryCategoryOpen(true)}
-                  className="mt-2 text-xs font-black text-[#8c5f19] underline"
-                >
-                  אין קטגוריות עדיין — הוספת קטגוריה חדשה
-                </button>
-              ) : null}
+              <button
+                type="button"
+                onClick={() => setNewDishLibraryCategoryOpen(true)}
+                className="mt-2 text-xs font-black text-[#8c5f19] underline"
+              >
+                הוספת קטגוריה חדשה
+              </button>
             </label>
 
             <label className="block">
@@ -2070,15 +2165,13 @@ export default function HallMenusPage() {
                 ))}
               </select>
 
-              {!dishLibraryCategories.length ? (
-                <button
-                  type="button"
-                  onClick={() => setNewDishLibraryCategoryOpen(true)}
-                  className="mt-2 text-xs font-black text-[#8c5f19] underline"
-                >
-                  אין קטגוריות עדיין — הוספת קטגוריה חדשה
-                </button>
-              ) : null}
+              <button
+                type="button"
+                onClick={() => setNewDishLibraryCategoryOpen(true)}
+                className="mt-2 text-xs font-black text-[#8c5f19] underline"
+              >
+                הוספת קטגוריה חדשה
+              </button>
             </label>
 
             <label className="block">
@@ -2502,14 +2595,16 @@ function Modal({
   onClose,
   children,
   wide,
+  zIndexClass = "z-[100]",
 }: {
   title: string;
   onClose: () => void;
   children: React.ReactNode;
   wide?: boolean;
+  zIndexClass?: string;
 }) {
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#120c06]/28 p-4 backdrop-blur-[4px]">
+    <div className={`${zIndexClass} fixed inset-0 flex items-center justify-center bg-[#120c06]/28 p-4 backdrop-blur-[4px]`}>
       <div
         className={[
           "max-h-[92vh] w-full overflow-y-auto rounded-[34px] border border-[#e2cfac] bg-[#fbf7ef] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.18)]",
