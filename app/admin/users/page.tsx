@@ -509,8 +509,26 @@ function formatDateTimeInput(value?: string | null) {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return "";
 
-    const offsetMs = date.getTimezoneOffset() * 60 * 1000;
-    return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  } catch {
+    return "";
+  }
+}
+
+function normalizeDateTimeLocalForSave(value?: string | null) {
+  if (!value) return "";
+
+  try {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+
+    return date.toISOString();
   } catch {
     return "";
   }
@@ -1717,12 +1735,21 @@ function EditUserModal({
         headers: {
           "Content-Type": "application/json",
         },
+        
         body: JSON.stringify({
   name: form.name,
   email: form.email,
   eventDate: form.eventDate,
   venueSeatingService: calculateVenueSeatingService(venueSeatingService),
-  callRoundsSchedule,
+  callRoundsSchedule: {
+    ...callRoundsSchedule,
+    rounds: callRoundsSchedule.rounds.map((round) => ({
+      ...round,
+      scheduledAt: round.scheduledAt
+        ? normalizeDateTimeLocalForSave(round.scheduledAt)
+        : "",
+    })),
+  },
 }),
       });
 
