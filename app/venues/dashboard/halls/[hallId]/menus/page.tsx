@@ -11,6 +11,7 @@ import {
   GripVertical,
   Layers3,
   Loader2,
+  Pencil,
   Plus,
   Save,
   Search,
@@ -230,6 +231,8 @@ export default function HallMenusPage() {
   const [newMenuOpen, setNewMenuOpen] = useState(false);
   const [newCategoryOpen, setNewCategoryOpen] = useState(false);
   const [newDishOpen, setNewDishOpen] = useState(false);
+  const [editDishOpen, setEditDishOpen] = useState(false);
+  const [editingDish, setEditingDish] = useState<Dish | null>(null);
   const [newDishLibraryCategoryOpen, setNewDishLibraryCategoryOpen] =
     useState(false);
   const [newDishLibraryCategoryName, setNewDishLibraryCategoryName] =
@@ -251,6 +254,14 @@ export default function HallMenusPage() {
   });
 
   const [newDishForm, setNewDishForm] = useState<NewDishForm>({
+    name: "",
+    description: "",
+    image: "",
+    tags: "",
+    categoryId: "",
+  });
+
+  const [editDishForm, setEditDishForm] = useState<NewDishForm>({
     name: "",
     description: "",
     image: "",
@@ -968,6 +979,100 @@ export default function HallMenusPage() {
     }
   };
 
+  const openEditDish = (dish: Dish) => {
+    setEditingDish(dish);
+    setEditDishForm({
+      name: dish.name || "",
+      description: dish.description || "",
+      image: dish.image || "",
+      tags: Array.isArray(dish.tags) ? dish.tags.join(", ") : "",
+      categoryId: dish.categoryId || "",
+    });
+    setEditDishOpen(true);
+  };
+
+  const closeEditDish = () => {
+    setEditDishOpen(false);
+    setEditingDish(null);
+    setEditDishForm({
+      name: "",
+      description: "",
+      image: "",
+      tags: "",
+      categoryId: "",
+    });
+  };
+
+  const updateDishInLibrary = async () => {
+    if (!editingDish) return;
+
+    const name = editDishForm.name.trim();
+
+    if (!name) {
+      alert("חובה להזין שם מנה");
+      return;
+    }
+
+    const selectedDishCategory = dishLibraryCategories.find(
+      (category) => category.id === editDishForm.categoryId
+    );
+
+    if (!selectedDishCategory) {
+      alert("חובה לבחור קטגוריה למנה");
+      return;
+    }
+
+    setLibrarySaving(true);
+    setServerError("");
+
+    try {
+      const dishId = editingDish._id || editingDish.id;
+
+      const res = await fetch(
+        `/api/venues/dashboard/halls/${hallId}/menu-dishes?dishId=${encodeURIComponent(
+          dishId
+        )}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            name,
+            description: editDishForm.description.trim(),
+            image: editDishForm.image.trim(),
+            categoryId: selectedDishCategory.id,
+            categoryName: selectedDishCategory.name,
+          }),
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.message || "עדכון המנה נכשל");
+      }
+
+      const updatedDish = normalizeDish(data.dish);
+
+      setDishLibrary((current) =>
+        current.map((dish) =>
+          (dish._id || dish.id) === dishId ? updatedDish : dish
+        )
+      );
+
+      closeEditDish();
+    } catch (error) {
+      console.error("PATCH menu-dishes failed:", error);
+      setServerError(
+        error instanceof Error ? error.message : "עדכון המנה נכשל"
+      );
+    } finally {
+      setLibrarySaving(false);
+    }
+  };
+
   const deleteDishFromLibrary = async (dish: Dish) => {
     const ok = window.confirm(
       "למחוק את המנה מספריית המנות הקבועה? זה לא מוחק אותה מתפריטים שכבר השתמשו בה."
@@ -1020,6 +1125,26 @@ export default function HallMenusPage() {
 
     reader.onload = () => {
       setNewDishForm((prev) => ({
+        ...prev,
+        image: String(reader.result || ""),
+      }));
+    };
+
+    reader.readAsDataURL(file);
+  };
+
+  const handleEditDishImageUpload = (file?: File) => {
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert("אפשר להעלות רק קובץ תמונה");
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      setEditDishForm((prev) => ({
         ...prev,
         image: String(reader.result || ""),
       }));
@@ -1562,6 +1687,7 @@ export default function HallMenusPage() {
                         dish={dish}
                         saving={saving || librarySaving}
                         onDragStart={() => setDraggedDish(dish)}
+                        onEdit={() => openEditDish(dish)}
                         onDelete={() => deleteDishFromLibrary(dish)}
                       />
                     ))
@@ -1911,6 +2037,137 @@ export default function HallMenusPage() {
         </Modal>
       )}
 
+      {editDishOpen && editingDish && (
+        <Modal title={`עריכת מנה - ${editingDish.name}`} onClose={closeEditDish}>
+          <div className="grid gap-4">
+            <FormInput
+              label="שם מנה"
+              value={editDishForm.name}
+              onChange={(value) =>
+                setEditDishForm((prev) => ({ ...prev, name: value }))
+              }
+            />
+
+            <label className="block">
+              <span className="mb-1 block text-xs font-black text-[#8d7654]">
+                קטגוריה
+              </span>
+              <select
+                value={editDishForm.categoryId}
+                onChange={(event) =>
+                  setEditDishForm((prev) => ({
+                    ...prev,
+                    categoryId: event.target.value,
+                  }))
+                }
+                className="h-12 w-full rounded-2xl border border-[#e2cfac] bg-white px-3 text-sm font-bold text-[#2d2419] outline-none transition focus:border-[#b98121] focus:ring-4 focus:ring-[#d5a046]/10"
+              >
+                <option value="">בחר קטגוריה</option>
+                {dishLibraryCategories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+
+              {!dishLibraryCategories.length ? (
+                <button
+                  type="button"
+                  onClick={() => setNewDishLibraryCategoryOpen(true)}
+                  className="mt-2 text-xs font-black text-[#8c5f19] underline"
+                >
+                  אין קטגוריות עדיין — הוספת קטגוריה חדשה
+                </button>
+              ) : null}
+            </label>
+
+            <label className="block">
+              <span className="mb-1 block text-xs font-black text-[#8d7654]">
+                תיאור
+              </span>
+              <textarea
+                value={editDishForm.description}
+                onChange={(event) =>
+                  setEditDishForm((prev) => ({
+                    ...prev,
+                    description: event.target.value,
+                  }))
+                }
+                className="min-h-[92px] w-full rounded-2xl border border-[#e2cfac] bg-white px-4 py-3 text-sm font-bold leading-7 text-[#2d2419] outline-none transition focus:border-[#b98121] focus:ring-4 focus:ring-[#d5a046]/10"
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-2 block text-xs font-black text-[#8d7654]">
+                תמונת מנה
+              </span>
+
+              <div className="rounded-[24px] border border-dashed border-[#d4ab5b] bg-[#fff8ec] p-4 text-center transition hover:bg-[#fff0d3]">
+                {editDishForm.image ? (
+                  <div className="space-y-3">
+                    <img
+                      src={editDishForm.image}
+                      alt="תמונת מנה"
+                      className="mx-auto h-36 w-full max-w-[260px] rounded-[22px] object-cover shadow-sm"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setEditDishForm((prev) => ({ ...prev, image: "" }))
+                      }
+                      className="text-xs font-black text-rose-700"
+                    >
+                      הסרת תמונה
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-4">
+                    <Upload size={28} className="text-[#a66b18]" />
+
+                    <div className="mt-2 text-sm font-black text-[#2d2419]">
+                      העלאת תמונה מהמחשב
+                    </div>
+
+                    <div className="mt-1 text-xs font-bold text-[#806945]">
+                      JPG / PNG / WEBP
+                    </div>
+                  </div>
+                )}
+
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="mt-4 block w-full cursor-pointer rounded-2xl border border-[#e2cfac] bg-white px-3 py-2 text-xs font-bold text-[#6f5736] file:ml-3 file:cursor-pointer file:rounded-xl file:border-0 file:bg-[#d8a241] file:px-3 file:py-2 file:text-xs file:font-black file:text-white"
+                  onChange={(event) =>
+                    handleEditDishImageUpload(event.target.files?.[0])
+                  }
+                />
+              </div>
+            </label>
+
+            <div className="rounded-2xl border border-[#ead7ad] bg-[#fff9ee] p-3 text-xs font-bold leading-6 text-[#806945]">
+              השינוי יתעדכן בספריית המנות הקבועה. מנות שכבר נגררו לתפריטים קיימים
+              לא מתעדכנות אוטומטית.
+            </div>
+
+            <button
+              type="button"
+              onClick={updateDishInLibrary}
+              disabled={librarySaving || saving}
+              className="mt-2 flex h-12 items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#d8a241,#b67b1d)] text-sm font-black text-white shadow-[0_10px_22px_rgba(156,101,23,0.18)] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {librarySaving ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <Save size={16} />
+              )}
+              שמירת שינויים
+            </button>
+          </div>
+        </Modal>
+      )}
+
       {previewOpen && selectedTemplate && (
         <Modal
           title={`תצוגה מקדימה - ${selectedTemplate.name}`}
@@ -2058,11 +2315,13 @@ function DishLibraryItem({
   dish,
   saving,
   onDragStart,
+  onEdit,
   onDelete,
 }: {
   dish: Dish;
   saving: boolean;
   onDragStart: () => void;
+  onEdit: () => void;
   onDelete: () => void;
 }) {
   return (
@@ -2100,9 +2359,20 @@ function DishLibraryItem({
       <div className="flex items-center gap-1">
         <button
           type="button"
+          onClick={onEdit}
+          disabled={saving}
+          className="flex h-7 w-7 items-center justify-center rounded-xl bg-[#fff4dc] text-[#8c5f19] transition hover:bg-[#ffedc9] disabled:cursor-not-allowed disabled:opacity-50"
+          title="עריכת מנה"
+        >
+          <Pencil size={14} />
+        </button>
+
+        <button
+          type="button"
           onClick={onDelete}
           disabled={saving}
           className="flex h-7 w-7 items-center justify-center rounded-xl bg-rose-50 text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
+          title="מחיקת מנה"
         >
           <Trash2 size={14} />
         </button>
