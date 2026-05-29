@@ -6,7 +6,6 @@ import { useParams } from "next/navigation";
 import {
   ArrowRight,
   BookOpen,
-  CheckCircle2,
   Copy,
   Eye,
   GripVertical,
@@ -236,7 +235,6 @@ export default function HallMenusPage() {
   const [newDishLibraryCategoryName, setNewDishLibraryCategoryName] =
     useState("");
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [uploadedFileName, setUploadedFileName] = useState("");
 
   const [newMenuForm, setNewMenuForm] = useState<NewMenuForm>({
     name: "",
@@ -1642,59 +1640,6 @@ export default function HallMenusPage() {
                 </div>
               </Panel>
 
-              <Panel title="שימוש באירועים" icon={<CheckCircle2 size={18} />}>
-                <div className="rounded-2xl border border-[#ead7ad] bg-[linear-gradient(135deg,#fff9ee,#f8ead0)] p-4">
-                  <div className="text-sm font-black text-[#2d2419]">
-                    התפריט הזה הוא תפריט בסיס של האולם
-                  </div>
-                  <p className="mt-2 text-xs font-bold leading-6 text-[#7c694f]">
-                    מתוך עמוד אירוע נבחר תפריט, ואז המערכת תיצור עותק לאירוע
-                    הספציפי. הבחירות של הלקוח יתעדכנו רק בעותק של האירוע.
-                  </p>
-                </div>
-
-                <div className="mt-3 space-y-2">
-                  <InfoLine label="אירועים שמשתמשים בו" value="0" />
-                  <InfoLine
-                    label="עודכן לאחרונה"
-                    value={selectedTemplate?.updatedAt || "לא עודכן"}
-                  />
-                  <InfoLine
-                    label="סטטוס"
-                    value={
-                      selectedTemplate?.status === "active" ? "פעיל" : "טיוטה"
-                    }
-                  />
-                </div>
-              </Panel>
-
-              <Panel title="העלאת תפריט קיים" icon={<Upload size={18} />}>
-                <label className="flex cursor-pointer flex-col items-center justify-center rounded-[26px] border border-dashed border-[#d4ab5b] bg-[#fff7e8] p-5 text-center transition hover:-translate-y-0.5 hover:bg-[#fff0d3]">
-                  <Upload size={26} className="text-[#a66b18]" />
-                  <div className="mt-2 text-sm font-black text-[#2d2419]">
-                    העלאת PDF / תמונה
-                  </div>
-                  <div className="mt-1 text-xs font-bold leading-5 text-[#7c694f]">
-                    כרגע זה רק בחירת קובץ מקומית. בהמשך נחבר העלאה אמיתית
-                    לשרת/Cloudinary.
-                  </div>
-                  <input
-                    type="file"
-                    accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
-                    className="hidden"
-                    onChange={(event) => {
-                      const file = event.target.files?.[0];
-                      if (file) setUploadedFileName(file.name);
-                    }}
-                  />
-                </label>
-
-                {uploadedFileName ? (
-                  <div className="mt-3 rounded-2xl border border-[#d7b06a] bg-[#fff3d8] px-3 py-2 text-xs font-black text-[#8c5f19]">
-                    קובץ נבחר: {uploadedFileName}
-                  </div>
-                ) : null}
-              </Panel>
             </aside>
           </section>
         ) : null}
@@ -2244,15 +2189,6 @@ function ChoiceNumberInput({
         {helper}
       </span>
     </label>
-  );
-}
-
-function InfoLine({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#ead7ad] bg-white px-3 py-2 shadow-sm">
-      <span className="text-xs font-black text-[#806945]">{label}</span>
-      <span className="text-sm font-black text-[#2d2419]">{value}</span>
-    </div>
   );
 }
 
