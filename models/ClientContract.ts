@@ -18,6 +18,7 @@ const ClientContractFieldSchema = new Schema(
         "email",
         "idNumber",
         "checkbox",
+        "venueNote",
       ],
       required: true,
     },

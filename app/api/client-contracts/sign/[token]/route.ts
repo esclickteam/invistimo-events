@@ -4,81 +4,105 @@ import connectDB from "@/lib/mongodb";
 
 export const runtime = "nodejs";
 
+function normalizeFieldType(value: unknown) {
+  const type = String(value || "text");
+
+  const allowedTypes = [
+    "signature",
+    "date",
+    "text",
+    "fullName",
+    "phone",
+    "email",
+    "idNumber",
+    "checkbox",
+    "venueNote",
+  ];
+
+  return allowedTypes.includes(type) ? type : "text";
+}
+
 function normalizeFields(rawFields: any[]) {
-  return rawFields.map((field) => ({
-    id: String(field.id || ""),
-    type: String(field.type || "text"),
-    label: String(field.label || ""),
-    required: Boolean(field.required),
+  const rows = Array.isArray(rawFields) ? rawFields : [];
 
-    pageNumber: Math.max(1, Number(field.pageNumber || 1)),
+  return rows.map((field, index) => ({
+    id: String(field?.id || `field-${index + 1}`),
+    type: normalizeFieldType(field?.type),
+    label: String(field?.label || ""),
+    required: Boolean(field?.required),
 
-    x: Number(field.x || 0),
-    y: Number(field.y || 0),
-    width: Number(field.width || 20),
-    height: Number(field.height || 6),
+    pageNumber: Math.max(1, Number(field?.pageNumber || 1)),
 
-    value: String(field.value || ""),
-    signatureDataUrl: String(field.signatureDataUrl || ""),
-    signedAt: field.signedAt || null,
+    x: Number(field?.x || 0),
+    y: Number(field?.y || 0),
+    width: Number(field?.width || 20),
+    height: Number(field?.height || 6),
+
+    value: String(field?.value || ""),
+    signatureDataUrl: String(field?.signatureDataUrl || ""),
+    signedAt: field?.signedAt || null,
   }));
 }
 
 function normalizePages(contract: any) {
-  const rawPages = Array.isArray(contract.pages) ? contract.pages : [];
+  const rawPages = Array.isArray(contract?.pages) ? contract.pages : [];
 
   if (rawPages.length > 0) {
     return rawPages.map((page: any, index: number) => ({
-      pageNumber: Math.max(1, Number(page.pageNumber || index + 1)),
-      url: String(page.url || page.imageUrl || contract.originalFileUrl || ""),
-      name: String(page.name || page.fileName || `עמוד ${index + 1}`),
-      type: String(page.type || contract.originalFileType || "pdf").includes("image")
+      pageNumber: Math.max(1, Number(page?.pageNumber || index + 1)),
+      url: String(page?.url || page?.imageUrl || contract?.originalFileUrl || ""),
+      name: String(page?.name || page?.fileName || `עמוד ${index + 1}`),
+      type: String(page?.type || contract?.originalFileType || "pdf").includes("image")
         ? "image"
         : "pdf",
     }));
   }
 
-  const pageCount = Math.max(1, Number(contract.pageCount || 1));
+  const pageCount = Math.max(1, Number(contract?.pageCount || 1));
 
   return Array.from({ length: pageCount }).map((_, index) => ({
     pageNumber: index + 1,
-    url: String(contract.originalFileUrl || ""),
-    name: `${contract.originalFileName || "הסכם"} - עמוד ${index + 1}`,
-    type: String(contract.originalFileType || "pdf").includes("image")
+    url: String(contract?.originalFileUrl || ""),
+    name: `${contract?.originalFileName || "הסכם"} - עמוד ${index + 1}`,
+    type: String(contract?.originalFileType || "pdf").includes("image")
       ? "image"
       : "pdf",
   }));
 }
 
 function serializePublicContract(contract: any) {
+  const object =
+    typeof contract?.toObject === "function" ? contract.toObject() : contract;
+
   return {
-    id: String(contract._id || contract.id || ""),
-    eventId: String(contract.eventId || ""),
-    hallId: String(contract.hallId || ""),
-    hallName: String(contract.hallName || ""),
-    eventTitle: String(contract.eventTitle || ""),
-    title: String(contract.title || "הסכם לקוח"),
+    id: String(object?._id || object?.id || ""),
 
-    clientName: String(contract.clientName || ""),
-    clientPhone: String(contract.clientPhone || ""),
-    clientEmail: String(contract.clientEmail || ""),
+    eventId: String(object?.eventId || ""),
+    hallId: String(object?.hallId || ""),
+    hallName: String(object?.hallName || ""),
+    eventTitle: String(object?.eventTitle || ""),
+    title: String(object?.title || "הסכם לקוח"),
 
-    originalFileUrl: String(contract.originalFileUrl || ""),
-    originalFileName: String(contract.originalFileName || ""),
-    originalFileType: String(contract.originalFileType || "pdf").includes("image")
+    clientName: String(object?.clientName || ""),
+    clientPhone: String(object?.clientPhone || ""),
+    clientEmail: String(object?.clientEmail || ""),
+
+    originalFileUrl: String(object?.originalFileUrl || ""),
+    originalFileName: String(object?.originalFileName || ""),
+    originalFileType: String(object?.originalFileType || "pdf").includes("image")
       ? "image"
       : "pdf",
 
-    pageCount: Math.max(1, Number(contract.pageCount || 1)),
-    pages: normalizePages(contract),
+    pageCount: Math.max(1, Number(object?.pageCount || 1)),
+    pages: normalizePages(object),
 
-    fields: normalizeFields(Array.isArray(contract.fields) ? contract.fields : []),
+    fields: normalizeFields(Array.isArray(object?.fields) ? object.fields : []),
 
-    status: String(contract.status || "draft"),
-    locked: Boolean(contract.locked),
+    status: String(object?.status || "draft"),
+    locked: Boolean(object?.locked),
 
-    signedAt: contract.signedAt || null,
-    digitalSignatureText: String(contract.digitalSignatureText || ""),
+    signedAt: object?.signedAt || null,
+    digitalSignatureText: String(object?.digitalSignatureText || ""),
   };
 }
 
@@ -224,8 +248,14 @@ export async function POST(
     const nextFields = contract.fields.map((field: any) => {
       const fieldObject = field.toObject?.() || field;
 
+      // הערת אולם היא טקסט קבוע של האולם.
+      // הלקוח לא משנה אותה בחתימה.
+      if (fieldObject.type === "venueNote") {
+        return fieldObject;
+      }
+
       const submitted = submittedFields.find(
-        (item: any) => String(item.id) === String(fieldObject.id)
+        (item: any) => String(item?.id) === String(fieldObject.id)
       );
 
       if (!submitted) return fieldObject;
@@ -239,6 +269,8 @@ export async function POST(
     });
 
     const missingRequiredField = nextFields.find((field: any) => {
+      if (field.type === "venueNote") return false;
+
       if (!field.required) return false;
 
       if (field.type === "signature") {

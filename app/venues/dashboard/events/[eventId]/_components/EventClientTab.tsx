@@ -10,10 +10,10 @@ import {
   FileText,
   GripVertical,
   IdCard,
-  Layers,
   Link2,
   Lock,
   Mail,
+  MessageSquareText,
   PenLine,
   Phone,
   Plus,
@@ -34,7 +34,8 @@ type ContractFieldType =
   | "phone"
   | "email"
   | "idNumber"
-  | "checkbox";
+  | "checkbox"
+  | "venueNote";
 
 type ContractStatus =
   | "empty"
@@ -105,6 +106,7 @@ const FIELD_LABELS: Record<ContractFieldType, string> = {
   email: "אימייל",
   idNumber: "תעודת זהות",
   checkbox: "אישור",
+  venueNote: "הערת אולם",
 };
 
 const FIELD_ICONS: Record<ContractFieldType, React.ReactNode> = {
@@ -116,6 +118,7 @@ const FIELD_ICONS: Record<ContractFieldType, React.ReactNode> = {
   email: <Mail size={15} />,
   idNumber: <IdCard size={15} />,
   checkbox: <CheckSquare size={15} />,
+  venueNote: <MessageSquareText size={15} />,
 };
 
 function uid(prefix = "field") {
@@ -189,8 +192,8 @@ export default function EventClientTab({
   clientEmail = "",
   eventTitle = "אירוע",
 }: EventClientTabProps) {
-  const editorRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const pageEditorRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
   const [contracts, setContracts] = useState<ContractListItem[]>([]);
   const [contractId, setContractId] = useState("");
@@ -219,21 +222,6 @@ export default function EventClientTab({
   );
 
   const isLocked = status === "signed" || status === "locked";
-
-  const activePageData = useMemo(() => {
-    if (!contractFile) return null;
-
-    return (
-      contractFile.pages.find((page) => page.pageNumber === activePage) ||
-      contractFile.pages[0] ||
-      null
-    );
-  }, [contractFile, activePage]);
-
-  const activePageFields = useMemo(
-    () => fields.filter((field) => field.pageNumber === activePage),
-    [fields, activePage]
-  );
 
   useEffect(() => {
     if (!eventId) return;
@@ -495,7 +483,6 @@ export default function EventClientTab({
       };
     });
 
-    setActivePage((current) => clamp(current, 1, safeCount));
     setFields((prev) => prev.filter((field) => field.pageNumber <= safeCount));
   }
 
@@ -510,25 +497,34 @@ export default function EventClientTab({
     const width =
       type === "signature"
         ? 24
-        : type === "checkbox"
-          ? 8
-          : type === "date"
-            ? 15
-            : 22;
+        : type === "venueNote"
+          ? 28
+          : type === "checkbox"
+            ? 8
+            : type === "date"
+              ? 15
+              : 22;
 
-    const height = type === "signature" ? 8 : type === "checkbox" ? 6 : 6;
+    const height =
+      type === "signature"
+        ? 8
+        : type === "venueNote"
+          ? 10
+          : type === "checkbox"
+            ? 6
+            : 6;
 
     const nextField: ContractField = {
       id: uid(),
       type,
       label: FIELD_LABELS[type],
-      required: type !== "text",
+      required: type !== "text" && type !== "venueNote",
       pageNumber: activePage,
       x: 38,
       y: 35,
       width,
       height,
-      value: "",
+      value: type === "venueNote" ? "הערת אולם" : "",
     };
 
     setFields((prev) => [...prev, nextField]);
@@ -559,10 +555,11 @@ export default function EventClientTab({
     event.preventDefault();
     event.stopPropagation();
 
-    const editor = editorRef.current;
+    const editor = pageEditorRefs.current[field.pageNumber];
     if (!editor) return;
 
     setSelectedFieldId(field.id);
+    setActivePage(field.pageNumber);
 
     const rect = editor.getBoundingClientRect();
 
@@ -606,10 +603,11 @@ export default function EventClientTab({
     event.preventDefault();
     event.stopPropagation();
 
-    const editor = editorRef.current;
+    const editor = pageEditorRefs.current[field.pageNumber];
     if (!editor) return;
 
     setSelectedFieldId(field.id);
+    setActivePage(field.pageNumber);
 
     const rect = editor.getBoundingClientRect();
 
@@ -659,11 +657,24 @@ export default function EventClientTab({
     if (field.type === "signature") return "חתימת הלקוח";
     if (field.type === "date") return "dd/mm/yyyy";
     if (field.type === "checkbox") return "✓";
+    if (field.type === "venueNote") return field.value || field.label || "הערת אולם";
     if (field.type === "fullName") return clientName || "שם מלא";
     if (field.type === "phone") return clientPhone || "טלפון";
     if (field.type === "email") return clientEmail || "אימייל";
     if (field.type === "idNumber") return "ת.ז";
     return field.label || "טקסט";
+  }
+
+  function scrollToPage(pageNumber: number) {
+    setActivePage(pageNumber);
+    setSelectedFieldId(null);
+
+    requestAnimationFrame(() => {
+      pageEditorRefs.current[pageNumber]?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
   }
 
   async function saveContract() {
@@ -843,7 +854,7 @@ export default function EventClientTab({
               </h2>
 
               <p className="mt-1 text-sm font-bold leading-6 text-[#7f705d]">
-                העלאת הסכמים, מיקום שדות לפי עמוד, שליחה ללקוח ב-SMS ונעילה לאחר חתימה.
+                העלאת הסכמים, מיקום שדות והערות לפי עמוד, שליחה ללקוח ב-SMS ונעילה לאחר חתימה.
               </p>
             </div>
           </div>
@@ -887,7 +898,7 @@ export default function EventClientTab({
                     עורך הסכם
                   </h3>
                   <p className="mt-1 text-xs font-bold text-[#8a7b68]">
-                    אפשר להעלות PDF רב-עמודים, או כמה תמונות שכל אחת היא עמוד.
+                    כל העמודים מוצגים ברצף עם סקרול. אפשר להוסיף שדות והערות לכל עמוד.
                   </p>
                 </div>
 
@@ -987,8 +998,7 @@ export default function EventClientTab({
                   </h3>
 
                   <p className="mt-2 max-w-xl text-sm font-bold leading-7 text-[#7f705d]">
-                    אפשר להעלות PDF אחד, גם אם יש בו כמה עמודים, או להעלות כמה תמונות יחד.
-                    לאחר מכן בוחרים עמוד וממקמים עליו שדות.
+                    אפשר להעלות PDF אחד או כמה תמונות יחד. לאחר מכן כל העמודים יוצגו ברצף עם סקרול.
                   </p>
 
                   <button
@@ -1044,10 +1054,7 @@ export default function EventClientTab({
                           <button
                             key={page.pageNumber}
                             type="button"
-                            onClick={() => {
-                              setActivePage(page.pageNumber);
-                              setSelectedFieldId(null);
-                            }}
+                            onClick={() => scrollToPage(page.pageNumber)}
                             className={[
                               "inline-flex h-10 items-center gap-2 rounded-2xl border px-4 text-xs font-black transition",
                               activePage === page.pageNumber
@@ -1055,7 +1062,6 @@ export default function EventClientTab({
                                 : "border-[#eadfce] bg-[#fffdf8] text-[#6f6252] hover:bg-[#fbf5ea]",
                             ].join(" ")}
                           >
-                            <Layers size={14} />
                             עמוד {page.pageNumber}
                             <span className="opacity-80">({pageFieldsCount})</span>
                           </button>
@@ -1064,105 +1070,135 @@ export default function EventClientTab({
                     </div>
                   </div>
 
-                  <div className="max-h-[820px] overflow-auto bg-[#f3eee5] p-4">
-                    <div
-                      ref={editorRef}
-                      onClick={() => setSelectedFieldId(null)}
-                      className="relative mx-auto min-h-[760px] w-full max-w-[880px] overflow-hidden rounded-[22px] border border-[#dbcbb3] bg-white shadow-sm"
-                    >
-                      {activePageData?.type === "image" ? (
-                        <img
-                          src={activePageData.url}
-                          alt={`עמוד ${activePage}`}
-                          draggable={false}
-                          className="block h-auto w-full select-none"
-                        />
-                      ) : (
-                        <iframe
-                          src={activePageData ? buildPdfPageUrl(activePageData.url, activePage) : ""}
-                          title={`contract-pdf-page-${activePage}`}
-                          className="h-[760px] w-full bg-white"
-                        />
-                      )}
+                  <div className="max-h-[calc(100vh-230px)] overflow-y-auto overflow-x-hidden bg-[#f3eee5] p-4">
+                    <div className="mx-auto flex w-full max-w-[920px] flex-col gap-7">
+                      {contractFile.pages.map((page) => {
+                        const pageFields = fields.filter(
+                          (field) => field.pageNumber === page.pageNumber
+                        );
 
-                      {isLocked && signedAt && (
-                        <div className="absolute bottom-4 left-4 z-20 rounded-2xl border border-emerald-200 bg-white/95 px-4 py-3 text-xs font-black leading-5 text-emerald-700 shadow-sm">
-                          <div className="flex items-center gap-2">
-                            <CheckCircle2 size={15} />
-                            נחתם דיגיטלית
-                          </div>
-                          <div>{formatSignedDate(signedAt)}</div>
-                        </div>
-                      )}
-
-                      <div className="absolute inset-0 z-10">
-                        {activePageFields.map((field) => {
-                          const selected = selectedFieldId === field.id;
-
-                          return (
-                            <div
-                              key={field.id}
-                              onMouseDown={(event) => startDrag(event, field)}
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                setSelectedFieldId(field.id);
-                              }}
-                              className={[
-                                "group absolute flex items-center justify-center overflow-visible rounded-xl border-2 bg-white/85 text-center text-xs font-black shadow-sm backdrop-blur-sm transition",
-                                isLocked ? "cursor-default" : "cursor-move",
-                                selected
-                                  ? "border-[#b98121] ring-4 ring-[#b98121]/15"
-                                  : "border-[#d9bd83] hover:border-[#b98121]",
-                              ].join(" ")}
-                              style={{
-                                left: `${field.x}%`,
-                                top: `${field.y}%`,
-                                width: `${field.width}%`,
-                                height: `${field.height}%`,
-                              }}
-                            >
-                              <span className="absolute right-1 top-1 text-[#b98121]/70">
-                                <GripVertical size={13} />
-                              </span>
-
-                              <div className="flex max-w-full items-center gap-1 truncate px-2 text-[#2b241c]">
-                                <span className="text-[#b98121]">
-                                  {FIELD_ICONS[field.type]}
-                                </span>
-                                <span className="truncate">
-                                  {getFieldPreview(field)}
-                                </span>
+                        return (
+                          <div key={page.pageNumber} className="space-y-2">
+                            <div className="flex items-center justify-between px-1">
+                              <div className="text-sm font-black text-[#6f6252]">
+                                עמוד {page.pageNumber}
                               </div>
-
-                              {!isLocked && (
-                                <>
-                                  <button
-                                    type="button"
-                                    onMouseDown={(event) => event.stopPropagation()}
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      removeField(field.id);
-                                    }}
-                                    className="absolute -left-2 -top-2 hidden h-7 w-7 items-center justify-center rounded-full bg-rose-500 text-white shadow-md group-hover:flex"
-                                    title="מחיקת שדה"
-                                  >
-                                    <Trash2 size={14} />
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    onMouseDown={(event) => startResize(event, field)}
-                                    className="absolute -bottom-2 -right-2 hidden h-7 w-7 cursor-se-resize items-center justify-center rounded-full border border-[#d9bd83] bg-white text-[#b98121] shadow-md group-hover:flex"
-                                    title="הגדלה / הקטנה"
-                                  >
-                                    ↘
-                                  </button>
-                                </>
-                              )}
+                              <div className="text-xs font-black text-[#9b8a73]">
+                                {pageFields.length} שדות
+                              </div>
                             </div>
-                          );
-                        })}
-                      </div>
+
+                            <div
+                              ref={(node) => {
+                                pageEditorRefs.current[page.pageNumber] = node;
+                              }}
+                              onClick={() => {
+                                setActivePage(page.pageNumber);
+                                setSelectedFieldId(null);
+                              }}
+                              className="relative min-h-[760px] w-full overflow-visible rounded-[22px] border border-[#dbcbb3] bg-white shadow-sm"
+                            >
+                              {page.type === "image" ? (
+                                <img
+                                  src={page.url}
+                                  alt={`עמוד ${page.pageNumber}`}
+                                  draggable={false}
+                                  className="block h-auto w-full select-none rounded-[22px]"
+                                />
+                              ) : (
+                                <iframe
+                                  src={buildPdfPageUrl(page.url, page.pageNumber)}
+                                  title={`contract-pdf-page-${page.pageNumber}`}
+                                  className="h-[760px] w-full rounded-[22px] bg-white"
+                                />
+                              )}
+
+                              {isLocked && signedAt && page.pageNumber === contractFile.pageCount && (
+                                <div className="absolute bottom-4 left-4 z-20 rounded-2xl border border-emerald-200 bg-white/95 px-4 py-3 text-xs font-black leading-5 text-emerald-700 shadow-sm">
+                                  <div className="flex items-center gap-2">
+                                    <CheckCircle2 size={15} />
+                                    נחתם דיגיטלית
+                                  </div>
+                                  <div>{formatSignedDate(signedAt)}</div>
+                                </div>
+                              )}
+
+                              <div className="absolute inset-0 z-10">
+                                {pageFields.map((field) => {
+                                  const selected = selectedFieldId === field.id;
+
+                                  return (
+                                    <div
+                                      key={field.id}
+                                      onMouseDown={(event) => startDrag(event, field)}
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        setSelectedFieldId(field.id);
+                                        setActivePage(field.pageNumber);
+                                      }}
+                                      className={[
+                                        "group absolute flex items-center justify-center overflow-visible rounded-xl border-2 bg-white/85 text-center text-xs font-black shadow-sm backdrop-blur-sm transition",
+                                        field.type === "venueNote"
+                                          ? "bg-amber-50/95 text-[#5a3f12]"
+                                          : "bg-white/85 text-[#2b241c]",
+                                        isLocked ? "cursor-default" : "cursor-move",
+                                        selected
+                                          ? "border-[#b98121] ring-4 ring-[#b98121]/15"
+                                          : "border-[#d9bd83] hover:border-[#b98121]",
+                                      ].join(" ")}
+                                      style={{
+                                        left: `${field.x}%`,
+                                        top: `${field.y}%`,
+                                        width: `${field.width}%`,
+                                        height: `${field.height}%`,
+                                      }}
+                                    >
+                                      <span className="absolute right-1 top-1 text-[#b98121]/70">
+                                        <GripVertical size={13} />
+                                      </span>
+
+                                      <div className="flex max-w-full items-center gap-1 truncate px-2 text-current">
+                                        <span className="text-[#b98121]">
+                                          {FIELD_ICONS[field.type]}
+                                        </span>
+                                        <span className={field.type === "venueNote" ? "whitespace-pre-wrap text-right leading-5" : "truncate"}>
+                                          {getFieldPreview(field)}
+                                        </span>
+                                      </div>
+
+                                      {!isLocked && (
+                                        <>
+                                          <button
+                                            type="button"
+                                            onMouseDown={(event) => event.stopPropagation()}
+                                            onClick={(event) => {
+                                              event.stopPropagation();
+                                              removeField(field.id);
+                                            }}
+                                            className="absolute -left-2 -top-2 hidden h-7 w-7 items-center justify-center rounded-full bg-rose-500 text-white shadow-md group-hover:flex"
+                                            title="מחיקת שדה"
+                                          >
+                                            <Trash2 size={14} />
+                                          </button>
+
+                                          <button
+                                            type="button"
+                                            onMouseDown={(event) => startResize(event, field)}
+                                            className="absolute -bottom-2 -right-2 hidden h-7 w-7 cursor-se-resize items-center justify-center rounded-full border border-[#d9bd83] bg-white text-[#b98121] shadow-md group-hover:flex"
+                                            title="הגדלה / הקטנה"
+                                          >
+                                            ↘
+                                          </button>
+                                        </>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -1184,7 +1220,7 @@ export default function EventClientTab({
               </SideBox>
 
               <SideBox
-                title="הוספת שדות"
+                title="הוספת שדות והערות"
                 icon={<PenLine size={18} />}
                 subtitle={`השדה יתווסף לעמוד ${activePage}`}
               >
@@ -1199,6 +1235,7 @@ export default function EventClientTab({
                       "email",
                       "idNumber",
                       "checkbox",
+                      "venueNote",
                     ] as ContractFieldType[]
                   ).map((type) => (
                     <button
@@ -1206,7 +1243,12 @@ export default function EventClientTab({
                       type="button"
                       onClick={() => addField(type)}
                       disabled={!contractFile || isLocked}
-                      className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-3 text-sm font-black text-[#6f6252] transition hover:border-[#d9bd83] hover:bg-[#fbf5ea] disabled:cursor-not-allowed disabled:opacity-50"
+                      className={[
+                        "flex h-12 items-center justify-center gap-2 rounded-2xl border px-3 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-50",
+                        type === "venueNote"
+                          ? "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100"
+                          : "border-[#eadfce] bg-[#fffdf8] text-[#6f6252] hover:border-[#d9bd83] hover:bg-[#fbf5ea]",
+                      ].join(" ")}
                     >
                       <span className="text-[#b98121]">{FIELD_ICONS[type]}</span>
                       {FIELD_LABELS[type]}
@@ -1242,12 +1284,32 @@ export default function EventClientTab({
                       />
                     </div>
 
+                    {selectedField.type === "venueNote" && (
+                      <div>
+                        <label className="mb-1 block text-xs font-black text-[#8a7b68]">
+                          תוכן הערת אולם
+                        </label>
+                        <textarea
+                          value={selectedField.value || ""}
+                          disabled={isLocked}
+                          onChange={(event) =>
+                            updateField(selectedField.id, {
+                              value: event.target.value,
+                            })
+                          }
+                          rows={4}
+                          className="w-full resize-none rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm font-black leading-6 text-[#2b241c] outline-none transition focus:border-[#b98121] disabled:opacity-60"
+                          placeholder="לדוגמה: הלקוח מאשר תוספת תאורה והגברה..."
+                        />
+                      </div>
+                    )}
+
                     <label className="flex h-12 cursor-pointer items-center justify-between rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-3 text-sm font-black text-[#2b241c]">
                       <span>שדה חובה</span>
                       <input
                         type="checkbox"
                         checked={selectedField.required}
-                        disabled={isLocked}
+                        disabled={isLocked || selectedField.type === "venueNote"}
                         onChange={(event) =>
                           updateField(selectedField.id, {
                             required: event.target.checked,
@@ -1404,6 +1466,7 @@ function NumberInput({
       <label className="mb-1 block text-xs font-black text-[#8a7b68]">
         {label}
       </label>
+
       <input
         type="number"
         value={value}
@@ -1435,6 +1498,7 @@ function SideBox({
 
         <div>
           <h3 className="font-black text-[#2b241c]">{title}</h3>
+
           {subtitle && (
             <p className="mt-1 text-xs font-bold leading-5 text-[#8a7b68]">
               {subtitle}
