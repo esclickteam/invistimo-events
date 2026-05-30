@@ -126,13 +126,11 @@ export async function POST(req: NextRequest, context: RouteParams) {
     }).lean();
 
     if (existingCategory) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "קטגוריה בשם הזה כבר קיימת",
-        },
-        { status: 409 }
-      );
+      return NextResponse.json({
+        success: true,
+        alreadyExists: true,
+        category: formatCategory(existingCategory),
+      });
     }
 
     const count = await VenueMenuDishCategory.countDocuments({
@@ -149,16 +147,39 @@ export async function POST(req: NextRequest, context: RouteParams) {
 
     return NextResponse.json({
       success: true,
+      alreadyExists: false,
       category: formatCategory(category),
     });
   } catch (error: any) {
     console.error("POST menu-dish-categories failed:", error);
 
     if (error?.code === 11000) {
+      const auth = await getUserIdFromRequest(req);
+      const { hallId } = await context.params;
+      const cleanHallId = cleanString(hallId);
+
+      const body = await req.json().catch(() => null);
+      const name = cleanString(body?.name);
+
+      const existingCategory = await VenueMenuDishCategory.findOne({
+        ownerId: auth?.userId,
+        hallId: cleanHallId,
+        name,
+      }).lean();
+
+      if (existingCategory) {
+        return NextResponse.json({
+          success: true,
+          alreadyExists: true,
+          category: formatCategory(existingCategory),
+        });
+      }
+
       return NextResponse.json(
         {
           success: false,
-          message: "קטגוריה בשם הזה כבר קיימת",
+          message:
+            "קטגוריה בשם הזה כבר קיימת באינדקס ישן. צריך למחוק אינדקס ישן במונגו.",
         },
         { status: 409 }
       );
