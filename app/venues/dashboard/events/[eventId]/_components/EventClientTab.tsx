@@ -3,17 +3,20 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   CalendarDays,
+  CheckCircle2,
   CheckSquare,
   Copy,
   Eye,
   FileText,
   GripVertical,
   IdCard,
+  Layers,
   Link2,
   Lock,
   Mail,
   PenLine,
   Phone,
+  Plus,
   Save,
   Send,
   ShieldCheck,
@@ -46,23 +49,41 @@ type ContractField = {
   type: ContractFieldType;
   label: string;
   required: boolean;
-
-  /**
-   * שומרים באחוזים כדי שהמיקום יישאר נכון גם במסכים שונים.
-   */
+  pageNumber: number;
   x: number;
   y: number;
   width: number;
   height: number;
-
   value?: string;
+  signatureDataUrl?: string;
+};
+
+type ContractPage = {
+  pageNumber: number;
+  url: string;
+  name: string;
+  type: "pdf" | "image";
 };
 
 type UploadedContractFile = {
   file?: File;
+  files?: File[];
   url: string;
   name: string;
   type: "pdf" | "image";
+  pageCount: number;
+  pages: ContractPage[];
+};
+
+type ContractListItem = {
+  id: string;
+  title: string;
+  status: ContractStatus;
+  originalFileName?: string;
+  pageCount?: number;
+  signingLink?: string;
+  viewLink?: string;
+  signedAt?: string;
 };
 
 type EventClientTabProps = {
@@ -105,6 +126,23 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
+function normalizeStatus(value: unknown): ContractStatus {
+  const status = String(value || "draft");
+
+  if (
+    status === "empty" ||
+    status === "draft" ||
+    status === "sent" ||
+    status === "viewed" ||
+    status === "signed" ||
+    status === "locked"
+  ) {
+    return status;
+  }
+
+  return "draft";
+}
+
 function statusLabel(status: ContractStatus) {
   if (status === "empty") return "לא הועלה הסכם";
   if (status === "draft") return "טיוטה";
@@ -125,6 +163,23 @@ function statusClass(status: ContractStatus) {
   return "bg-slate-100 text-slate-600 border-slate-200";
 }
 
+function buildPdfPageUrl(url: string, pageNumber: number) {
+  return `${url}#page=${pageNumber}&toolbar=0&navpanes=0&scrollbar=0`;
+}
+
+function formatSignedDate(value?: string) {
+  if (!value) return "";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return value;
+
+  return new Intl.DateTimeFormat("he-IL", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(date);
+}
+
 export default function EventClientTab({
   eventId,
   hallId = "",
@@ -137,14 +192,19 @@ export default function EventClientTab({
   const editorRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  const [contracts, setContracts] = useState<ContractListItem[]>([]);
+  const [contractId, setContractId] = useState("");
+  const [contractTitle, setContractTitle] = useState("הסכם לקוח");
+
   const [contractFile, setContractFile] =
     useState<UploadedContractFile | null>(null);
 
-  const [contractId, setContractId] = useState("");
   const [fields, setFields] = useState<ContractField[]>([]);
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
+  const [activePage, setActivePage] = useState(1);
 
   const [status, setStatus] = useState<ContractStatus>("empty");
+  const [signedAt, setSignedAt] = useState("");
   const [signingLink, setSigningLink] = useState("");
   const [viewLink, setViewLink] = useState("");
 
@@ -160,123 +220,283 @@ export default function EventClientTab({
 
   const isLocked = status === "signed" || status === "locked";
 
+  const activePageData = useMemo(() => {
+    if (!contractFile) return null;
+
+    return (
+      contractFile.pages.find((page) => page.pageNumber === activePage) ||
+      contractFile.pages[0] ||
+      null
+    );
+  }, [contractFile, activePage]);
+
+  const activePageFields = useMemo(
+    () => fields.filter((field) => field.pageNumber === activePage),
+    [fields, activePage]
+  );
+
   useEffect(() => {
     if (!eventId) return;
 
-    let cancelled = false;
+    fetchExistingContracts();
 
-    async function fetchExistingContract() {
-      setLoadingExisting(true);
-      setError("");
-
-      try {
-        const res = await fetch(
-          `/api/venues/dashboard/events/${encodeURIComponent(eventId)}/client-contract`,
-          {
-            method: "GET",
-            credentials: "include",
-            cache: "no-store",
-          }
-        );
-
-        if (res.status === 404) {
-          if (!cancelled) {
-            setStatus("empty");
-          }
-          return;
-        }
-
-        const data = await res.json().catch(() => ({}));
-
-        if (!res.ok || data?.success === false) {
-          throw new Error(data?.message || data?.error || "טעינת ההסכם נכשלה");
-        }
-
-        const contract = data?.contract || data?.clientContract || null;
-
-        if (!contract || cancelled) return;
-
-        setContractId(String(contract._id || contract.id || ""));
-        setStatus((contract.status || "draft") as ContractStatus);
-
-        setSigningLink(String(contract.signingLink || ""));
-        setViewLink(String(contract.viewLink || contract.signedViewLink || ""));
-
-        setFields(
-          Array.isArray(contract.fields)
-            ? contract.fields.map((field: any) => ({
-                id: String(field.id || uid()),
-                type: String(field.type || "text") as ContractFieldType,
-                label: String(field.label || FIELD_LABELS.text),
-                required: Boolean(field.required),
-                x: Number(field.x || 0),
-                y: Number(field.y || 0),
-                width: Number(field.width || 20),
-                height: Number(field.height || 6),
-                value: String(field.value || ""),
-              }))
-            : []
-        );
-
-        if (contract.originalFileUrl) {
-          const fileType = String(contract.originalFileType || "").includes("pdf")
-            ? "pdf"
-            : "image";
-
-          setContractFile({
-            url: String(contract.originalFileUrl),
-            name: String(contract.originalFileName || "הסכם לקוח"),
-            type: fileType,
-          });
-        }
-      } catch (err) {
-        console.error("GET client contract failed:", err);
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "טעינת ההסכם נכשלה");
-        }
-      } finally {
-        if (!cancelled) {
-          setLoadingExisting(false);
-        }
-      }
-    }
-
-    fetchExistingContract();
-
-    return () => {
-      cancelled = true;
-    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId]);
 
+  async function fetchExistingContracts(nextContractId?: string) {
+    setLoadingExisting(true);
+    setError("");
+
+    try {
+      const res = await fetch(
+        `/api/venues/dashboard/events/${encodeURIComponent(eventId)}/client-contract`,
+        {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        }
+      );
+
+      if (res.status === 404) {
+        resetToEmpty();
+        return;
+      }
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || data?.success === false) {
+        throw new Error(data?.message || data?.error || "טעינת ההסכמים נכשלה");
+      }
+
+      const rawContracts = Array.isArray(data?.contracts)
+        ? data.contracts
+        : data?.contract
+          ? [data.contract]
+          : [];
+
+      const nextContracts: ContractListItem[] = rawContracts.map((contract: any) => ({
+        id: String(contract._id || contract.id || ""),
+        title: String(contract.title || contract.contractTitle || "הסכם לקוח"),
+        status: normalizeStatus(contract.status),
+        originalFileName: String(contract.originalFileName || ""),
+        pageCount: Number(contract.pageCount || 1),
+        signingLink: String(contract.signingLink || ""),
+        viewLink: String(contract.viewLink || contract.signedViewLink || ""),
+        signedAt: contract.signedAt ? String(contract.signedAt) : "",
+      }));
+
+      setContracts(nextContracts);
+
+      const selectedId = nextContractId || contractId || nextContracts[0]?.id || "";
+
+      const selectedRaw =
+        rawContracts.find(
+          (contract: any) => String(contract._id || contract.id) === selectedId
+        ) || rawContracts[0];
+
+      if (selectedRaw) {
+        loadContractToState(selectedRaw);
+      } else {
+        resetToEmpty();
+      }
+    } catch (err) {
+      console.error("GET client contracts failed:", err);
+      setError(err instanceof Error ? err.message : "טעינת ההסכמים נכשלה");
+    } finally {
+      setLoadingExisting(false);
+    }
+  }
+
+  function loadContractToState(contract: any) {
+    const nextId = String(contract._id || contract.id || "");
+    const nextStatus = normalizeStatus(contract.status);
+
+    const fileType = String(contract.originalFileType || "").includes("pdf")
+      ? "pdf"
+      : "image";
+
+    const pageCount = Math.max(1, Number(contract.pageCount || 1));
+
+    const pagesFromServer = Array.isArray(contract.pages) ? contract.pages : [];
+
+    const pages: ContractPage[] =
+      pagesFromServer.length > 0
+        ? pagesFromServer.map((page: any, index: number) => ({
+            pageNumber: Number(page.pageNumber || index + 1),
+            url: String(page.url || page.imageUrl || contract.originalFileUrl || ""),
+            name: String(page.name || page.fileName || `עמוד ${index + 1}`),
+            type: String(page.type || fileType).includes("pdf") ? "pdf" : "image",
+          }))
+        : Array.from({ length: pageCount }).map((_, index) => ({
+            pageNumber: index + 1,
+            url: String(contract.originalFileUrl || ""),
+            name: `${contract.originalFileName || "הסכם"} - עמוד ${index + 1}`,
+            type: fileType,
+          }));
+
+    setContractId(nextId);
+    setContractTitle(String(contract.title || contract.contractTitle || "הסכם לקוח"));
+    setStatus(nextStatus);
+    setSignedAt(contract.signedAt ? String(contract.signedAt) : "");
+    setSigningLink(String(contract.signingLink || ""));
+    setViewLink(String(contract.viewLink || contract.signedViewLink || ""));
+    setActivePage(1);
+    setSelectedFieldId(null);
+
+    setFields(
+      Array.isArray(contract.fields)
+        ? contract.fields.map((field: any) => ({
+            id: String(field.id || uid()),
+            type: String(field.type || "text") as ContractFieldType,
+            label: String(field.label || FIELD_LABELS.text),
+            required: Boolean(field.required),
+            pageNumber: Math.max(1, Number(field.pageNumber || 1)),
+            x: Number(field.x || 0),
+            y: Number(field.y || 0),
+            width: Number(field.width || 20),
+            height: Number(field.height || 6),
+            value: String(field.value || ""),
+            signatureDataUrl: String(field.signatureDataUrl || ""),
+          }))
+        : []
+    );
+
+    if (contract.originalFileUrl) {
+      setContractFile({
+        url: String(contract.originalFileUrl),
+        name: String(contract.originalFileName || "הסכם לקוח"),
+        type: fileType,
+        pageCount,
+        pages,
+      });
+    } else {
+      setContractFile(null);
+    }
+  }
+
+  function resetToEmpty() {
+    setContractId("");
+    setContractTitle("הסכם לקוח");
+    setContractFile(null);
+    setFields([]);
+    setSelectedFieldId(null);
+    setActivePage(1);
+    setStatus("empty");
+    setSignedAt("");
+    setSigningLink("");
+    setViewLink("");
+  }
+
+  function createNewContract() {
+    resetToEmpty();
+    setContractTitle(`הסכם נוסף ${contracts.length + 1}`);
+    setStatus("empty");
+  }
+
+  function handleSelectContract(nextId: string) {
+    if (!nextId) {
+      createNewContract();
+      return;
+    }
+
+    const selected = contracts.find((contract) => contract.id === nextId);
+    if (!selected) return;
+
+    fetchExistingContracts(selected.id);
+  }
+
   function handleUploadFile(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
+    const selectedFiles = Array.from(event.target.files || []);
+    if (!selectedFiles.length) return;
 
-    const isPdf = file.type === "application/pdf";
-    const isImage = file.type.startsWith("image/");
+    const pdfFiles = selectedFiles.filter((file) => file.type === "application/pdf");
+    const imageFiles = selectedFiles.filter((file) => file.type.startsWith("image/"));
 
-    if (!isPdf && !isImage) {
-      alert("ניתן להעלות רק PDF או תמונה");
+    if (pdfFiles.length > 1 || (pdfFiles.length && selectedFiles.length > 1)) {
+      alert("ניתן להעלות PDF אחד בלבד, או כמה תמונות כעמודים");
       event.target.value = "";
       return;
     }
 
-    const url = URL.createObjectURL(file);
+    if (!pdfFiles.length && imageFiles.length !== selectedFiles.length) {
+      alert("ניתן להעלות רק PDF או תמונות");
+      event.target.value = "";
+      return;
+    }
 
-    setContractFile({
-      file,
-      url,
-      name: file.name,
-      type: isPdf ? "pdf" : "image",
-    });
+    if (pdfFiles.length === 1) {
+      const file = pdfFiles[0];
+      const url = URL.createObjectURL(file);
+
+      setContractFile({
+        file,
+        url,
+        name: file.name,
+        type: "pdf",
+        pageCount: 1,
+        pages: [
+          {
+            pageNumber: 1,
+            url,
+            name: file.name,
+            type: "pdf",
+          },
+        ],
+      });
+    } else {
+      const pages = imageFiles.map((file, index) => ({
+        pageNumber: index + 1,
+        url: URL.createObjectURL(file),
+        name: file.name,
+        type: "image" as const,
+      }));
+
+      setContractFile({
+        files: imageFiles,
+        url: pages[0]?.url || "",
+        name:
+          imageFiles.length === 1
+            ? imageFiles[0].name
+            : `${imageFiles.length} עמודים בתמונות`,
+        type: "image",
+        pageCount: pages.length,
+        pages,
+      });
+    }
 
     setContractId("");
     setFields([]);
     setSelectedFieldId(null);
     setSigningLink("");
     setViewLink("");
+    setSignedAt("");
+    setActivePage(1);
     setStatus("draft");
     setError("");
+  }
+
+  function updatePdfPageCount(nextCount: number) {
+    if (!contractFile || contractFile.type !== "pdf" || isLocked) return;
+
+    const safeCount = clamp(Math.round(nextCount || 1), 1, 50);
+
+    setContractFile((current) => {
+      if (!current) return current;
+
+      return {
+        ...current,
+        pageCount: safeCount,
+        pages: Array.from({ length: safeCount }).map((_, index) => ({
+          pageNumber: index + 1,
+          url: current.url,
+          name: `${current.name} - עמוד ${index + 1}`,
+          type: "pdf",
+        })),
+      };
+    });
+
+    setActivePage((current) => clamp(current, 1, safeCount));
+    setFields((prev) => prev.filter((field) => field.pageNumber <= safeCount));
   }
 
   function addField(type: ContractFieldType) {
@@ -303,6 +523,7 @@ export default function EventClientTab({
       type,
       label: FIELD_LABELS[type],
       required: type !== "text",
+      pageNumber: activePage,
       x: 38,
       y: 35,
       width,
@@ -379,6 +600,61 @@ export default function EventClientTab({
     window.addEventListener("mouseup", onMouseUp);
   }
 
+  function startResize(event: React.MouseEvent<HTMLButtonElement>, field: ContractField) {
+    if (isLocked) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    setSelectedFieldId(field.id);
+
+    const rect = editor.getBoundingClientRect();
+
+    const startClientX = event.clientX;
+    const startClientY = event.clientY;
+    const startWidth = field.width;
+    const startHeight = field.height;
+
+    function onMouseMove(moveEvent: MouseEvent) {
+      const dx = ((moveEvent.clientX - startClientX) / rect.width) * 100;
+      const dy = ((moveEvent.clientY - startClientY) / rect.height) * 100;
+
+      const maxWidth = 100 - field.x;
+      const maxHeight = 100 - field.y;
+
+      const nextWidth = clamp(startWidth + dx, 4, maxWidth);
+      const nextHeight = clamp(startHeight + dy, 3, maxHeight);
+
+      setFields((prev) =>
+        prev.map((item) =>
+          item.id === field.id
+            ? {
+                ...item,
+                width: Number(nextWidth.toFixed(2)),
+                height: Number(nextHeight.toFixed(2)),
+              }
+            : item
+        )
+      );
+    }
+
+    function onMouseUp() {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    }
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+  }
+
+  function moveFieldToPage(fieldId: string, pageNumber: number) {
+    updateField(fieldId, { pageNumber });
+    setActivePage(pageNumber);
+  }
+
   function getFieldPreview(field: ContractField) {
     if (field.type === "signature") return "חתימת הלקוח";
     if (field.type === "date") return "dd/mm/yyyy";
@@ -407,11 +683,18 @@ export default function EventClientTab({
     try {
       const formData = new FormData();
 
-      if (contractFile.file) {
+      if (contractFile.type === "pdf" && contractFile.file) {
         formData.append("file", contractFile.file);
       }
 
+      if (contractFile.type === "image" && contractFile.files?.length) {
+        contractFile.files.forEach((file) => {
+          formData.append("files", file);
+        });
+      }
+
       formData.append("contractId", contractId);
+      formData.append("title", contractTitle);
       formData.append("eventId", eventId);
       formData.append("hallId", hallId);
       formData.append("hallName", hallName);
@@ -419,6 +702,8 @@ export default function EventClientTab({
       formData.append("clientName", clientName);
       formData.append("clientPhone", clientPhone);
       formData.append("clientEmail", clientEmail);
+      formData.append("pageCount", String(contractFile.pageCount));
+      formData.append("pages", JSON.stringify(contractFile.pages));
       formData.append("fields", JSON.stringify(fields));
 
       const res = await fetch(
@@ -437,11 +722,17 @@ export default function EventClientTab({
       }
 
       const contract = data?.contract || data?.clientContract || null;
+      const nextContractId = String(
+        contract?._id || contract?.id || data?.contractId || contractId
+      );
 
-      setContractId(String(contract?._id || contract?.id || data?.contractId || contractId));
+      setContractId(nextContractId);
       setSigningLink(String(data?.signingLink || contract?.signingLink || signingLink));
       setViewLink(String(data?.viewLink || contract?.viewLink || viewLink));
-      setStatus((contract?.status || "draft") as ContractStatus);
+      setSignedAt(contract?.signedAt ? String(contract.signedAt) : signedAt);
+      setStatus(normalizeStatus(contract?.status || "draft"));
+
+      await fetchExistingContracts(nextContractId);
 
       alert("ההסכם נשמר בהצלחה");
     } catch (err) {
@@ -455,6 +746,11 @@ export default function EventClientTab({
   async function sendSmsToClient() {
     if (!eventId) {
       alert("לא נמצא מזהה אירוע");
+      return;
+    }
+
+    if (!contractId) {
+      alert("צריך לשמור את ההסכם לפני שליחה");
       return;
     }
 
@@ -510,6 +806,8 @@ export default function EventClientTab({
       setViewLink(String(data?.viewLink || data?.contract?.viewLink || viewLink));
       setStatus("sent");
 
+      await fetchExistingContracts(contractId);
+
       alert("ההסכם נשלח ללקוח ב-SMS");
     } catch (err) {
       console.error("POST send contract sms failed:", err);
@@ -541,23 +839,32 @@ export default function EventClientTab({
 
             <div>
               <h2 className="text-2xl font-black text-[#2b241c]">
-                לקוח והסכם חתימה
+                לקוח והסכמי חתימה
               </h2>
 
               <p className="mt-1 text-sm font-bold leading-6 text-[#7f705d]">
-                העלאת הסכם, מיקום שדות חתימה, שליחה ללקוח ב-SMS ונעילה לאחר חתימה.
+                העלאת הסכמים, מיקום שדות לפי עמוד, שליחה ללקוח ב-SMS ונעילה לאחר חתימה.
               </p>
             </div>
           </div>
 
-          <div
-            className={[
-              "inline-flex h-10 w-fit items-center gap-2 rounded-full border px-4 text-sm font-black",
-              statusClass(status),
-            ].join(" ")}
-          >
-            {isLocked ? <Lock size={16} /> : <ShieldCheck size={16} />}
-            {statusLabel(status)}
+          <div className="flex flex-col items-start gap-2 xl:items-end">
+            <div
+              className={[
+                "inline-flex h-10 w-fit items-center gap-2 rounded-full border px-4 text-sm font-black",
+                statusClass(status),
+              ].join(" ")}
+            >
+              {isLocked ? <Lock size={16} /> : <ShieldCheck size={16} />}
+              {statusLabel(status)}
+            </div>
+
+            {isLocked && signedAt && (
+              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-4 py-2 text-xs font-black text-emerald-700">
+                <CheckCircle2 size={14} />
+                נחתם דיגיטלית · {formatSignedDate(signedAt)}
+              </div>
+            )}
           </div>
         </div>
 
@@ -569,10 +876,10 @@ export default function EventClientTab({
 
         {loadingExisting ? (
           <div className="rounded-[28px] border border-[#eadfce] bg-[#fffdf8] p-8 text-center text-sm font-black text-[#7f705d]">
-            טוען הסכם לקוח...
+            טוען הסכמי לקוח...
           </div>
         ) : (
-          <div className="grid gap-5 xl:grid-cols-[1fr_380px]">
+          <div className="grid gap-5 xl:grid-cols-[1fr_390px]">
             <div className="rounded-[28px] border border-[#eadfce] bg-[#fffdf8] p-4">
               <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div>
@@ -580,7 +887,7 @@ export default function EventClientTab({
                     עורך הסכם
                   </h3>
                   <p className="mt-1 text-xs font-bold text-[#8a7b68]">
-                    העלי PDF או תמונה, ואז מקמי שדות על ההסכם.
+                    אפשר להעלות PDF רב-עמודים, או כמה תמונות שכל אחת היא עמוד.
                   </p>
                 </div>
 
@@ -588,6 +895,7 @@ export default function EventClientTab({
                   <input
                     ref={fileInputRef}
                     type="file"
+                    multiple
                     accept="application/pdf,image/png,image/jpeg,image/jpg"
                     className="hidden"
                     onChange={handleUploadFile}
@@ -596,12 +904,21 @@ export default function EventClientTab({
 
                   <button
                     type="button"
+                    onClick={createNewContract}
+                    className="inline-flex h-11 items-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-black text-[#6f6252] transition hover:bg-[#fbf5ea]"
+                  >
+                    <Plus size={17} />
+                    הסכם חדש
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isLocked}
                     className="inline-flex h-11 items-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-black text-[#6f6252] transition hover:bg-[#fbf5ea] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Upload size={17} />
-                    העלאת הסכם
+                    העלאת קובץ
                   </button>
 
                   <button
@@ -617,12 +934,45 @@ export default function EventClientTab({
                   <button
                     type="button"
                     onClick={sendSmsToClient}
-                    disabled={!contractFile || sendingSms || isLocked}
+                    disabled={!contractFile || !contractId || sendingSms || isLocked}
                     className="inline-flex h-11 items-center gap-2 rounded-2xl bg-[#b98121] px-5 text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Send size={17} />
                     {sendingSms ? "שולח..." : "שלח SMS"}
                   </button>
+                </div>
+              </div>
+
+              <div className="mb-4 grid gap-3 lg:grid-cols-[1fr_250px]">
+                <div>
+                  <label className="mb-1 block text-xs font-black text-[#8a7b68]">
+                    שם ההסכם
+                  </label>
+                  <input
+                    value={contractTitle}
+                    disabled={isLocked}
+                    onChange={(event) => setContractTitle(event.target.value)}
+                    className="h-11 w-full rounded-2xl border border-[#eadfce] bg-white px-3 text-sm font-black text-[#2b241c] outline-none transition focus:border-[#b98121] disabled:opacity-60"
+                    placeholder="לדוגמה: הסכם אולם / הסכם תוספות / נספח עיצוב"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-black text-[#8a7b68]">
+                    הסכמים קיימים
+                  </label>
+                  <select
+                    value={contractId}
+                    onChange={(event) => handleSelectContract(event.target.value)}
+                    className="h-11 w-full rounded-2xl border border-[#eadfce] bg-white px-3 text-sm font-black text-[#2b241c] outline-none transition focus:border-[#b98121]"
+                  >
+                    <option value="">הסכם חדש / לא נשמר</option>
+                    {contracts.map((contract) => (
+                      <option key={contract.id} value={contract.id}>
+                        {contract.title} · {statusLabel(contract.status)}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
@@ -637,8 +987,8 @@ export default function EventClientTab({
                   </h3>
 
                   <p className="mt-2 max-w-xl text-sm font-bold leading-7 text-[#7f705d]">
-                    האולם יכול להעלות כאן הסכם PDF או תמונה, למקם עליו שדות
-                    חתימה, תאריך וטקסט חופשי, ואז לשלוח ללקוח קישור אישי לחתימה.
+                    אפשר להעלות PDF אחד, גם אם יש בו כמה עמודים, או להעלות כמה תמונות יחד.
+                    לאחר מכן בוחרים עמוד וממקמים עליו שדות.
                   </p>
 
                   <button
@@ -652,7 +1002,7 @@ export default function EventClientTab({
                 </div>
               ) : (
                 <div className="overflow-hidden rounded-[28px] border border-[#eadfce] bg-white">
-                  <div className="flex flex-col gap-2 border-b border-[#eadfce] bg-[#fbf5ea] px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex flex-col gap-3 border-b border-[#eadfce] bg-[#fbf5ea] px-4 py-3 xl:flex-row xl:items-center xl:justify-between">
                     <div className="flex min-w-0 items-center gap-2">
                       <FileText size={17} className="shrink-0 text-[#b98121]" />
                       <span className="truncate text-sm font-black text-[#2b241c]">
@@ -660,9 +1010,57 @@ export default function EventClientTab({
                       </span>
                     </div>
 
-                    <div className="text-xs font-black text-[#8a7b68]">
-                      {contractFile.type === "pdf" ? "PDF" : "תמונה"} ·{" "}
-                      {fields.length} שדות
+                    <div className="flex flex-wrap items-center gap-2">
+                      {contractFile.type === "pdf" && (
+                        <label className="flex h-9 items-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-3 text-xs font-black text-[#6f6252]">
+                          מספר עמודים:
+                          <input
+                            type="number"
+                            min={1}
+                            max={50}
+                            disabled={isLocked}
+                            value={contractFile.pageCount}
+                            onChange={(event) => updatePdfPageCount(Number(event.target.value))}
+                            className="w-16 bg-transparent text-center outline-none"
+                          />
+                        </label>
+                      )}
+
+                      <span className="rounded-full bg-white px-3 py-2 text-xs font-black text-[#8a7b68]">
+                        {contractFile.type === "pdf" ? "PDF" : "תמונות"} ·{" "}
+                        {contractFile.pageCount} עמודים · {fields.length} שדות
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="border-b border-[#eadfce] bg-white px-4 py-3">
+                    <div className="flex flex-wrap gap-2">
+                      {contractFile.pages.map((page) => {
+                        const pageFieldsCount = fields.filter(
+                          (field) => field.pageNumber === page.pageNumber
+                        ).length;
+
+                        return (
+                          <button
+                            key={page.pageNumber}
+                            type="button"
+                            onClick={() => {
+                              setActivePage(page.pageNumber);
+                              setSelectedFieldId(null);
+                            }}
+                            className={[
+                              "inline-flex h-10 items-center gap-2 rounded-2xl border px-4 text-xs font-black transition",
+                              activePage === page.pageNumber
+                                ? "border-[#b98121] bg-[#b98121] text-white"
+                                : "border-[#eadfce] bg-[#fffdf8] text-[#6f6252] hover:bg-[#fbf5ea]",
+                            ].join(" ")}
+                          >
+                            <Layers size={14} />
+                            עמוד {page.pageNumber}
+                            <span className="opacity-80">({pageFieldsCount})</span>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -672,23 +1070,33 @@ export default function EventClientTab({
                       onClick={() => setSelectedFieldId(null)}
                       className="relative mx-auto min-h-[760px] w-full max-w-[880px] overflow-hidden rounded-[22px] border border-[#dbcbb3] bg-white shadow-sm"
                     >
-                      {contractFile.type === "image" ? (
+                      {activePageData?.type === "image" ? (
                         <img
-                          src={contractFile.url}
-                          alt="הסכם"
+                          src={activePageData.url}
+                          alt={`עמוד ${activePage}`}
                           draggable={false}
                           className="block h-auto w-full select-none"
                         />
                       ) : (
                         <iframe
-                          src={contractFile.url}
-                          title="contract-pdf"
+                          src={activePageData ? buildPdfPageUrl(activePageData.url, activePage) : ""}
+                          title={`contract-pdf-page-${activePage}`}
                           className="h-[760px] w-full bg-white"
                         />
                       )}
 
+                      {isLocked && signedAt && (
+                        <div className="absolute bottom-4 left-4 z-20 rounded-2xl border border-emerald-200 bg-white/95 px-4 py-3 text-xs font-black leading-5 text-emerald-700 shadow-sm">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 size={15} />
+                            נחתם דיגיטלית
+                          </div>
+                          <div>{formatSignedDate(signedAt)}</div>
+                        </div>
+                      )}
+
                       <div className="absolute inset-0 z-10">
-                        {fields.map((field) => {
+                        {activePageFields.map((field) => {
                           const selected = selectedFieldId === field.id;
 
                           return (
@@ -700,14 +1108,14 @@ export default function EventClientTab({
                                 setSelectedFieldId(field.id);
                               }}
                               className={[
-                                "group absolute flex items-center justify-center overflow-hidden rounded-xl border-2 bg-white/85 text-center text-xs font-black shadow-sm backdrop-blur-sm transition",
+                                "group absolute flex items-center justify-center overflow-visible rounded-xl border-2 bg-white/85 text-center text-xs font-black shadow-sm backdrop-blur-sm transition",
                                 isLocked ? "cursor-default" : "cursor-move",
                                 selected
                                   ? "border-[#b98121] ring-4 ring-[#b98121]/15"
                                   : "border-[#d9bd83] hover:border-[#b98121]",
                               ].join(" ")}
                               style={{
-                                right: `${field.x}%`,
+                                left: `${field.x}%`,
                                 top: `${field.y}%`,
                                 width: `${field.width}%`,
                                 height: `${field.height}%`,
@@ -727,18 +1135,29 @@ export default function EventClientTab({
                               </div>
 
                               {!isLocked && (
-                                <button
-                                  type="button"
-                                  onMouseDown={(event) => event.stopPropagation()}
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    removeField(field.id);
-                                  }}
-                                  className="absolute -left-2 -top-2 hidden h-7 w-7 items-center justify-center rounded-full bg-rose-500 text-white shadow-md group-hover:flex"
-                                  title="מחיקת שדה"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
+                                <>
+                                  <button
+                                    type="button"
+                                    onMouseDown={(event) => event.stopPropagation()}
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      removeField(field.id);
+                                    }}
+                                    className="absolute -left-2 -top-2 hidden h-7 w-7 items-center justify-center rounded-full bg-rose-500 text-white shadow-md group-hover:flex"
+                                    title="מחיקת שדה"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onMouseDown={(event) => startResize(event, field)}
+                                    className="absolute -bottom-2 -right-2 hidden h-7 w-7 cursor-se-resize items-center justify-center rounded-full border border-[#d9bd83] bg-white text-[#b98121] shadow-md group-hover:flex"
+                                    title="הגדלה / הקטנה"
+                                  >
+                                    ↘
+                                  </button>
+                                </>
                               )}
                             </div>
                           );
@@ -767,7 +1186,7 @@ export default function EventClientTab({
               <SideBox
                 title="הוספת שדות"
                 icon={<PenLine size={18} />}
-                subtitle="לחיצה מוסיפה שדה למסמך"
+                subtitle={`השדה יתווסף לעמוד ${activePage}`}
               >
                 <div className="grid grid-cols-2 gap-2">
                   {(
@@ -838,40 +1257,72 @@ export default function EventClientTab({
                       />
                     </label>
 
-                    <div className="grid grid-cols-2 gap-2">
+                    {contractFile && (
                       <div>
                         <label className="mb-1 block text-xs font-black text-[#8a7b68]">
-                          רוחב %
+                          עמוד השדה
                         </label>
-                        <input
-                          type="number"
-                          value={selectedField.width}
+                        <select
+                          value={selectedField.pageNumber}
                           disabled={isLocked}
                           onChange={(event) =>
-                            updateField(selectedField.id, {
-                              width: clamp(Number(event.target.value), 4, 85),
-                            })
+                            moveFieldToPage(selectedField.id, Number(event.target.value))
                           }
                           className="h-11 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-3 text-sm font-black text-[#2b241c] outline-none transition focus:border-[#b98121] disabled:opacity-60"
-                        />
+                        >
+                          {contractFile.pages.map((page) => (
+                            <option key={page.pageNumber} value={page.pageNumber}>
+                              עמוד {page.pageNumber}
+                            </option>
+                          ))}
+                        </select>
                       </div>
+                    )}
 
-                      <div>
-                        <label className="mb-1 block text-xs font-black text-[#8a7b68]">
-                          גובה %
-                        </label>
-                        <input
-                          type="number"
-                          value={selectedField.height}
-                          disabled={isLocked}
-                          onChange={(event) =>
-                            updateField(selectedField.id, {
-                              height: clamp(Number(event.target.value), 3, 35),
-                            })
-                          }
-                          className="h-11 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-3 text-sm font-black text-[#2b241c] outline-none transition focus:border-[#b98121] disabled:opacity-60"
-                        />
-                      </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <NumberInput
+                        label="מיקום X %"
+                        value={selectedField.x}
+                        disabled={isLocked}
+                        onChange={(value) =>
+                          updateField(selectedField.id, {
+                            x: clamp(value, 0, 100 - selectedField.width),
+                          })
+                        }
+                      />
+
+                      <NumberInput
+                        label="מיקום Y %"
+                        value={selectedField.y}
+                        disabled={isLocked}
+                        onChange={(value) =>
+                          updateField(selectedField.id, {
+                            y: clamp(value, 0, 100 - selectedField.height),
+                          })
+                        }
+                      />
+
+                      <NumberInput
+                        label="רוחב %"
+                        value={selectedField.width}
+                        disabled={isLocked}
+                        onChange={(value) =>
+                          updateField(selectedField.id, {
+                            width: clamp(value, 4, 85),
+                          })
+                        }
+                      />
+
+                      <NumberInput
+                        label="גובה %"
+                        value={selectedField.height}
+                        disabled={isLocked}
+                        onChange={(value) =>
+                          updateField(selectedField.id, {
+                            height: clamp(value, 3, 35),
+                          })
+                        }
+                      />
                     </div>
 
                     {!isLocked && (
@@ -921,9 +1372,11 @@ export default function EventClientTab({
                   </button>
                 </div>
 
-                {isLocked && (
+                {isLocked && signedAt && (
                   <div className="mt-3 rounded-2xl border border-emerald-100 bg-emerald-50 p-3 text-xs font-black leading-6 text-emerald-700">
-                    ההסכם ננעל לאחר חתימה. הלקוח והאולם יכולים לצפות בלבד.
+                    <div>נחתם דיגיטלית</div>
+                    <div>{formatSignedDate(signedAt)}</div>
+                    <div>ההסכם נעול לצפייה בלבד.</div>
                   </div>
                 )}
               </SideBox>
@@ -932,6 +1385,33 @@ export default function EventClientTab({
         )}
       </div>
     </section>
+  );
+}
+
+function NumberInput({
+  label,
+  value,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  disabled?: boolean;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <div>
+      <label className="mb-1 block text-xs font-black text-[#8a7b68]">
+        {label}
+      </label>
+      <input
+        type="number"
+        value={value}
+        disabled={disabled}
+        onChange={(event) => onChange(Number(event.target.value))}
+        className="h-11 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-3 text-sm font-black text-[#2b241c] outline-none transition focus:border-[#b98121] disabled:opacity-60"
+      />
+    </div>
   );
 }
 
