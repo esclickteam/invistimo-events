@@ -487,20 +487,37 @@ async function buildRsvpStats(event: any, invitation: any) {
   let confirmedGuestsAmount = 0;
 
   for (const row of rows) {
+    /*
+      חשוב:
+      נותנים עדיפות לשדות המעודכנים מהטבלה/דשבורד.
+      אם status/rsvp ישנים נשארים pending, הם לא ידרסו rsvpStatus/responseStatus.
+    */
     const rawStatus = cleanString(
-      row.rsvp ||
-        row.status ||
-        row.responseStatus ||
-        row.attendanceStatus ||
-        row.confirmationStatus ||
-        row.arrivalStatus ||
-        row.rsvpStatus
+      row.rsvpStatus ??
+        row.responseStatus ??
+        row.attendanceStatus ??
+        row.confirmationStatus ??
+        row.arrivalStatus ??
+        row.status ??
+        row.rsvp ??
+        "pending"
     ).toLowerCase();
 
+    /*
+      כמות מגיעים בפועל:
+      קודם arrivedCount, כי זה השדה שמתעדכן כשמשנים "מגיעים" בטבלה.
+      guestsCount הוא רק כמות הרשומה המקורית.
+    */
     const guestsCount = Math.max(
       1,
       toNumber(
-        row.guestsCount ??
+        row.arrivedCount ??
+          row.actualArrivedCount ??
+          row.confirmedGuestsAmount ??
+          row.confirmedGuestsCount ??
+          row.guestsComing ??
+          row.attendingCount ??
+          row.guestsCount ??
           row.guestCount ??
           row.count ??
           row.amount ??
@@ -511,19 +528,11 @@ async function buildRsvpStats(event: any, invitation: any) {
       )
     );
 
-    const isConfirmed =
-      rawStatus === "yes" ||
-      rawStatus === "confirmed" ||
-      rawStatus === "arriving" ||
-      rawStatus === "arrive" ||
-      rawStatus === "attending" ||
-      rawStatus === "approved" ||
-      rawStatus === "מגיע" ||
-      rawStatus === "מגיעים" ||
-      rawStatus === "אישר" ||
-      rawStatus === "מאשר" ||
-      rawStatus.includes("מגיע");
-
+    /*
+      חשוב:
+      בודקים "לא מגיע" לפני "מגיע",
+      אחרת "לא מגיע" ייספר בטעות כמגיע בגלל includes("מגיע").
+    */
     const isDeclined =
       rawStatus === "no" ||
       rawStatus === "declined" ||
@@ -535,6 +544,20 @@ async function buildRsvpStats(event: any, invitation: any) {
       rawStatus === "לא מגיעים" ||
       rawStatus === "לא מאשר" ||
       rawStatus.includes("לא מגיע");
+
+    const isConfirmed =
+      !isDeclined &&
+      (rawStatus === "yes" ||
+        rawStatus === "confirmed" ||
+        rawStatus === "arriving" ||
+        rawStatus === "arrive" ||
+        rawStatus === "attending" ||
+        rawStatus === "approved" ||
+        rawStatus === "מגיע" ||
+        rawStatus === "מגיעים" ||
+        rawStatus === "אישר" ||
+        rawStatus === "מאשר" ||
+        rawStatus.includes("מגיע"));
 
     if (isConfirmed) {
       confirmedRecords += 1;
