@@ -964,6 +964,8 @@ function PdfPageCanvas({
   pageNumber: number;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [height, setHeight] = useState(760);
 
@@ -973,7 +975,9 @@ function PdfPageCanvas({
 
     async function renderPage() {
       const canvas = canvasRef.current;
-      if (!canvas || !url) return;
+      const wrapper = wrapperRef.current;
+
+      if (!canvas || !wrapper || !url) return;
 
       setLoading(true);
 
@@ -982,6 +986,8 @@ function PdfPageCanvas({
 
         const loadingTask = pdfjsLib.getDocument({
           url,
+          useSystemFonts: true,
+          disableFontFace: false,
         });
 
         const pdf = await loadingTask.promise;
@@ -997,19 +1003,33 @@ function PdfPageCanvas({
 
         if (cancelled) return;
 
-        const containerWidth = canvas.parentElement?.clientWidth || 900;
+        const containerWidth = wrapper.clientWidth || 900;
         const originalViewport = page.getViewport({ scale: 1 });
-        const scale = containerWidth / originalViewport.width;
-        const viewport = page.getViewport({ scale });
 
-        const context = canvas.getContext("2d");
+        const cssScale = containerWidth / originalViewport.width;
+        const viewport = page.getViewport({ scale: cssScale });
+
+        const ratio = Math.min(window.devicePixelRatio || 1, 3);
+
+        const canvasWidth = Math.floor(viewport.width * ratio);
+        const canvasHeight = Math.floor(viewport.height * ratio);
+
+        const context = canvas.getContext("2d", {
+          alpha: false,
+        });
+
         if (!context) return;
 
-        canvas.width = Math.floor(viewport.width);
-        canvas.height = Math.floor(viewport.height);
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
+
+        canvas.style.width = `${Math.floor(viewport.width)}px`;
+        canvas.style.height = `${Math.floor(viewport.height)}px`;
+
         setHeight(Math.floor(viewport.height));
 
-        context.clearRect(0, 0, canvas.width, canvas.height);
+        context.setTransform(ratio, 0, 0, ratio, 0, 0);
+        context.clearRect(0, 0, viewport.width, viewport.height);
 
         renderTask = page.render({
           canvas,
@@ -1040,8 +1060,17 @@ function PdfPageCanvas({
 
     renderPage();
 
+    const resizeObserver = new ResizeObserver(() => {
+      renderPage();
+    });
+
+    if (wrapperRef.current) {
+      resizeObserver.observe(wrapperRef.current);
+    }
+
     return () => {
       cancelled = true;
+      resizeObserver.disconnect();
 
       try {
         renderTask?.cancel?.();
@@ -1052,7 +1081,11 @@ function PdfPageCanvas({
   }, [url, pageNumber]);
 
   return (
-    <div className="relative w-full bg-white" style={{ minHeight: height }}>
+    <div
+      ref={wrapperRef}
+      className="relative flex w-full justify-center bg-white"
+      style={{ minHeight: height }}
+    >
       {loading && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-white text-sm font-black text-[#8a7b68]">
           טוען עמוד...
@@ -1061,7 +1094,7 @@ function PdfPageCanvas({
 
       <canvas
         ref={canvasRef}
-        className="block h-auto w-full select-none rounded-[22px] bg-white"
+        className="block max-w-full select-none rounded-[22px] bg-white"
       />
     </div>
   );
