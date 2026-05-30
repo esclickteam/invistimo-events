@@ -235,16 +235,17 @@ export default function EventClientTab({
 
   const [status, setStatus] = useState<ContractStatus>("empty");
   const [signedAt, setSignedAt] = useState("");
-const [signingLink, setSigningLink] = useState("");
-const [viewLink, setViewLink] = useState("");
+  const [signingLink, setSigningLink] = useState("");
+  const [viewLink, setViewLink] = useState("");
 
-const [smsPhone, setSmsPhone] = useState(clientPhone || "");
+  const [smsPhone, setSmsPhone] = useState(clientPhone || "");
 
   const [loadingExisting, setLoadingExisting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [sendingSms, setSendingSms] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
   const selectedField = useMemo(
     () => fields.find((field) => field.id === selectedFieldId) || null,
@@ -262,8 +263,8 @@ const [smsPhone, setSmsPhone] = useState(clientPhone || "");
   }, [eventId]);
 
   useEffect(() => {
-  setSmsPhone(clientPhone || "");
-}, [clientPhone]);
+    setSmsPhone(clientPhone || "");
+  }, [clientPhone]);
 
   async function fetchExistingContracts(nextContractId?: string) {
     setLoadingExisting(true);
@@ -816,6 +817,13 @@ const [smsPhone, setSmsPhone] = useState(clientPhone || "");
     }
   }
 
+  function buildContractSmsMessage(link: string) {
+    const cleanHallName = hallName || "האולם";
+    const cleanEventTitle = eventTitle || "האירוע";
+
+    return `${cleanHallName}: הסכם לחתימה עבור ${cleanEventTitle}. לחתימה: ${link}`;
+  }
+
   async function sendSmsToClient() {
     if (!eventId) {
       alert("לא נמצא מזהה אירוע");
@@ -837,56 +845,64 @@ const [smsPhone, setSmsPhone] = useState(clientPhone || "");
       return;
     }
 
-    const cleanSmsPhone = smsPhone.trim();
+    const cleanSmsPhone = smsPhone.trim().replace(/\s+/g, "").replace(/-/g, "");
 
-if (!cleanSmsPhone) {
-  alert("יש להזין מספר טלפון לשליחת קישור החתימה");
-  return;
-}
+    if (!cleanSmsPhone) {
+      alert("יש להזין מספר טלפון לשליחת קישור החתימה");
+      return;
+    }
+
+    if (!signingLink) {
+      alert("לא נמצא קישור חתימה. שמרי את ההסכם שוב ואז שלחי SMS.");
+      return;
+    }
+
+    const smsMessage = buildContractSmsMessage(signingLink);
 
     setSendingSms(true);
     setError("");
+    setSuccessMessage("");
 
     try {
-      const res = await fetch(
-        `/api/venues/dashboard/events/${encodeURIComponent(eventId)}/client-contract/send`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          credentials: "include",
-          body: JSON.stringify({
-            contractId,
-            eventId,
-            hallId,
-            hallName,
-            eventTitle,
-            clientName,
-            clientPhone: cleanSmsPhone,
-            clientEmail,
-            fields,
-          }),
-        }
-      );
+      const res = await fetch("/api/sms/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          phone: cleanSmsPhone,
+          to: cleanSmsPhone,
+          recipient: cleanSmsPhone,
+          recipients: [cleanSmsPhone],
+          phones: [cleanSmsPhone],
+
+          message: smsMessage,
+          text: smsMessage,
+          content: smsMessage,
+
+          eventId,
+          hallId,
+          contractId,
+          type: "client_contract_signature",
+          signingLink,
+          contractSigningLink: signingLink,
+          provider: "4free",
+        }),
+      });
 
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok || data?.success === false) {
-        throw new Error(data?.message || data?.error || "שליחת ההסכם נכשלה");
+        throw new Error(data?.message || data?.error || "שליחת ה-SMS נכשלה");
       }
 
-      setContractId(String(data?.contractId || data?.contract?._id || contractId));
-      setSigningLink(String(data?.signingLink || data?.contract?.signingLink || ""));
-      setViewLink(String(data?.viewLink || data?.contract?.viewLink || viewLink));
       setStatus("sent");
-
-      await fetchExistingContracts(contractId);
-
-      alert("ההסכם נשלח ללקוח ב-SMS");
+      setSuccessMessage("קישור החתימה נשלח ללקוח ב-SMS");
+      alert("קישור החתימה נשלח ללקוח ב-SMS");
     } catch (err) {
       console.error("POST send contract sms failed:", err);
-      setError(err instanceof Error ? err.message : "שליחת ההסכם נכשלה");
+      setError(err instanceof Error ? err.message : "שליחת ה-SMS נכשלה");
     } finally {
       setSendingSms(false);
     }
@@ -949,6 +965,12 @@ if (!cleanSmsPhone) {
           </div>
         )}
 
+        {successMessage && (
+          <div className="mb-4 rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm font-black text-emerald-700">
+            {successMessage}
+          </div>
+        )}
+
         {loadingExisting ? (
           <div className="rounded-[28px] border border-[#eadfce] bg-[#fffdf8] p-8 text-center text-sm font-black text-[#7f705d]">
             טוען הסכמי לקוח...
@@ -1004,16 +1026,6 @@ if (!cleanSmsPhone) {
                   >
                     <Save size={17} />
                     {saving ? "שומר..." : "שמור"}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={sendSmsToClient}
-                    disabled={!contractFile || !contractId || sendingSms || isLocked}
-                    className="inline-flex h-11 items-center gap-2 rounded-2xl bg-[#b98121] px-5 text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a] disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <Send size={17} />
-                    {sendingSms ? "שולח..." : "שלח קישור חתימה ב-SMS"}
                   </button>
                 </div>
               </div>
@@ -1498,21 +1510,11 @@ if (!cleanSmsPhone) {
     />
   </div>
 </div>
-
-<button
-  type="button"
-  onClick={sendSmsToClient}
-  disabled={!contractFile || !contractId || sendingSms || isLocked || !smsPhone.trim()}
-  className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#b98121] px-3 text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a] disabled:cursor-not-allowed disabled:opacity-50"
->
-  <Send size={16} />
-  {sendingSms ? "שולח קישור..." : "שלח קישור חתימה ב-SMS"}
-</button>
                   
                   <button
                     type="button"
                     onClick={sendSmsToClient}
-                    disabled={!contractFile || !contractId || sendingSms || isLocked}
+                    disabled={!contractFile || !contractId || sendingSms || isLocked || !smsPhone.trim()}
                     className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#b98121] px-4 text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Send size={16} />
@@ -1591,12 +1593,12 @@ function PdfPageCanvas({
         const pdfjsLib = await loadPdfJs();
 
         const loadingTask = file
-  ? pdfjsLib.getDocument({
-      data: new Uint8Array(await file.arrayBuffer()),
-    })
-  : pdfjsLib.getDocument({
-      url,
-    });
+          ? pdfjsLib.getDocument({
+              data: new Uint8Array(await file.arrayBuffer()),
+            })
+          : pdfjsLib.getDocument({
+              url,
+            });
 
         const pdf = await loadingTask.promise;
 
