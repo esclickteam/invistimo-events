@@ -331,6 +331,19 @@ type VenueGuestRow = {
   attendanceStatus?: string;
   confirmationStatus?: string;
   arrivalStatus?: string;
+
+  /*
+    כמות מגיעים בפועל.
+    arrivedCount הוא השדה שמתעדכן כשמשנים בטבלה "מגיעים".
+  */
+  arrivedCount?: number;
+  actualArrivedCount?: number;
+  actualArrived?: number;
+  confirmedGuestsAmount?: number;
+  confirmedGuestsCount?: number;
+  guestsComing?: number;
+  attendingCount?: number;
+
   guestsCount?: number;
   guestCount?: number;
   count?: number;
@@ -356,8 +369,21 @@ function normalizeRsvpStatusFromGuest(row: VenueGuestRow) {
 }
 
 function getGuestAmountFromRow(row: VenueGuestRow) {
+  /*
+    חשוב:
+    במסך בעל האולם אנחנו מחשבים מתוך /api/guests.
+    אם בעל האירוע עדכן "מגיעים" ל-2, השדה המעודכן הוא arrivedCount.
+    לכן arrivedCount חייב להיות ראשון, ורק אם אין אותו ניפול ל-guestsCount.
+  */
   const parsed = Number(
-    row?.guestsCount ??
+    row?.arrivedCount ??
+      row?.actualArrivedCount ??
+      row?.actualArrived ??
+      row?.confirmedGuestsAmount ??
+      row?.confirmedGuestsCount ??
+      row?.guestsComing ??
+      row?.attendingCount ??
+      row?.guestsCount ??
       row?.guestCount ??
       row?.count ??
       row?.amount ??
