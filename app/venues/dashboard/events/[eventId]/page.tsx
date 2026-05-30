@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import EventMenuTab from "./_components/EventMenuTab";
 import EventHallPaymentsTab from "./_components/EventHallPaymentsTab";
+import EventClientTab from "./_components/EventClientTab";
 import {
   ArrowRight,
   Bell,
@@ -70,6 +71,13 @@ venueClientPaymentStatus?: string;
 venueClientRecordsCount?: number;
 
   email: string;
+
+  phone?: string;
+clientPhone?: string;
+customerPhone?: string;
+clientName?: string;
+customerName?: string;
+fullName?: string;
 
   eventType: EventType;
   title: string;
@@ -844,9 +852,24 @@ export default function VenueEventPage() {
   const [clientInvite, setClientInvite] = useState<ClientInviteState | null>(null);
 
   const hallId = eventData?.venueHallId || "";
-  const hallName = hallData?.name || eventData?.venueHallName || "אולם";
-  const clientName = eventData?.email || "לא הוגדר";
-  const eventTitle = eventData?.title || "אירוע ללא שם";
+const hallName = hallData?.name || eventData?.venueHallName || "אולם";
+
+const clientName =
+  eventData?.clientName ||
+  eventData?.customerName ||
+  eventData?.fullName ||
+  eventData?.email ||
+  "לא הוגדר";
+
+const clientPhone =
+  eventData?.clientPhone ||
+  eventData?.customerPhone ||
+  eventData?.phone ||
+  "";
+
+const clientEmail = eventData?.email || "";
+
+const eventTitle = eventData?.title || "אירוע ללא שם";
 
   const guestsCount =
     eventStats.rsvp.enabled && eventStats.rsvp.confirmedGuestsAmount > 0
@@ -2634,6 +2657,20 @@ const sendMenuSmsToCouple = async () => {
   </MainCard>
 )}
 
+{activeTab === "client" && (
+  <EventClientTab
+    eventId={eventId}
+    hallId={hallId}
+    hallName={hallName}
+    clientName={clientName}
+    clientPhone={clientPhone}
+    clientEmail={clientEmail}
+    eventTitle={eventTitle}
+  />
+)}
+
+
+
             {activeTab === "payments" && (
               <EventHallPaymentsTab eventId={eventId} hallId={hallId} />
             )}
@@ -2668,6 +2705,7 @@ const sendMenuSmsToCouple = async () => {
               activeTab !== "details" &&
               activeTab !== "client-invite" &&
               activeTab !== "payments" &&
+                activeTab !== "client" &&
               activeTab !== "rsvp" &&
               activeTab !== "seating" &&
               activeTab !== "menu" && (
