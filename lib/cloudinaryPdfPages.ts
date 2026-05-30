@@ -11,10 +11,14 @@ export function buildCloudinaryPdfPageImageUrl(
     return pdfUrl;
   }
 
-  const [beforeUpload, afterUpload] = pdfUrl.split(uploadMarker);
-  const cleanAfterUpload = afterUpload.split("?")[0];
+  const [beforeUpload, afterUploadRaw] = pdfUrl.split(uploadMarker);
 
-  const imagePath = cleanAfterUpload.replace(/\.pdf$/i, ".png");
+  const cleanAfterUpload = afterUploadRaw.split("?")[0];
 
-  return `${beforeUpload}${uploadMarker}pg_${safePage},w_1800,q_auto:best,f_png/${imagePath}`;
+  const pathWithoutExtension = cleanAfterUpload.replace(
+    /\.(pdf|png|jpg|jpeg|webp)$/i,
+    ""
+  );
+
+  return `${beforeUpload}${uploadMarker}pg_${safePage},w_1800,c_limit,q_auto:best,f_jpg/${pathWithoutExtension}.jpg`;
 }
