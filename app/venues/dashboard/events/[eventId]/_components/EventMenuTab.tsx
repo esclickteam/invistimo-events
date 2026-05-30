@@ -464,6 +464,25 @@ export default function EventMenuTab({
 
   const selectedDishKey = useMemo(() => selectedSignature(assignedMenu), [assignedMenu]);
 
+  const [initialAssignedMenuResolved, setInitialAssignedMenuResolved] = useState(
+    Boolean(assignedMenu)
+  );
+
+  useEffect(() => {
+    if (assignedMenu) {
+      setInitialAssignedMenuResolved(true);
+      return;
+    }
+
+    setInitialAssignedMenuResolved(false);
+
+    const timer = window.setTimeout(() => {
+      setInitialAssignedMenuResolved(true);
+    }, 700);
+
+    return () => window.clearTimeout(timer);
+  }, [eventId, assignedMenu?.id]);
+
   useEffect(() => {
     if (!eventId || typeof window === "undefined") return;
     sessionStorage.setItem(`event-menu-view-${eventId}`, menuView);
@@ -783,6 +802,28 @@ export default function EventMenuTab({
     setKitchenReportStatus("submitted");
     void saveLiveNow(currentKitchenPayload({ kitchenReportStatus: "submitted" }));
   };
+
+  if (!assignedMenu && !initialAssignedMenuResolved) {
+    return (
+      <MainCard title="תפריט האירוע" icon={<Utensils size={19} />}>
+        {menuError && <ErrorBox text={menuError} />}
+
+        <div className="overflow-hidden rounded-[30px] border border-[#eadfce] bg-[linear-gradient(135deg,#fffdf8,#fbf3e8,#f4eadc)] p-8 text-center shadow-sm">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[22px] border border-[#eadfce] bg-white text-[#8b6334] shadow-sm">
+            <Utensils size={28} />
+          </div>
+
+          <h2 className="mt-4 text-xl font-black text-[#2b241c]">
+            טוען תפריט אירוע...
+          </h2>
+
+          <p className="mx-auto mt-2 max-w-2xl text-sm font-bold leading-7 text-[#7f705d]">
+            בודקים אם כבר קיים תפריט משויך לאירוע.
+          </p>
+        </div>
+      </MainCard>
+    );
+  }
 
   if (!assignedMenu) {
     return (
