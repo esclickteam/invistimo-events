@@ -469,6 +469,11 @@ export default function HallMenusPage() {
   const createDishLibraryCategory = async () => {
     const name = newDishLibraryCategoryName.trim();
 
+    if (!hallId) {
+      alert("חסר מזהה אולם");
+      return;
+    }
+
     if (!name) {
       alert("חובה להזין שם קטגוריה");
       return;
@@ -486,19 +491,23 @@ export default function HallMenusPage() {
             "Content-Type": "application/json",
           },
           credentials: "include",
+          cache: "no-store",
           body: JSON.stringify({ name }),
         }
       );
 
       const data = await res.json();
 
-      if (!res.ok || !data?.success) {
+      if (!res.ok || !data?.success || !data?.category) {
         throw new Error(data?.message || "שמירת הקטגוריה נכשלה");
       }
 
       const savedCategory = normalizeDishLibraryCategory(data.category);
 
-      setDishLibraryCategories((current) => [...current, savedCategory]);
+      // חשוב: לא להסתפק ב-state מקומי. מושכים שוב מהשרת כדי לוודא
+      // שהקטגוריה באמת נשמרה ב-Mongo ותישאר גם אחרי רענון.
+      await fetchDishLibraryCategories();
+
       setSelectedDishLibraryCategoryId(savedCategory.id);
       setNewTemplateCategoryLibraryId(savedCategory.id);
 
@@ -1762,13 +1771,7 @@ export default function HallMenusPage() {
 
                 <button
                   type="button"
-                  onClick={() => {
-                    if (!dishLibraryCategories.length) {
-                      setNewDishLibraryCategoryOpen(true);
-                      return;
-                    }
-                    setNewDishOpen(true);
-                  }}
+                  onClick={() => setNewDishOpen(true)}
                   className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#d7b06a] bg-[#fff4dc] text-sm font-black text-[#8c5f19] transition hover:bg-[#ffedc9]"
                 >
                   <Plus size={16} />
@@ -2008,6 +2011,12 @@ export default function HallMenusPage() {
       {newDishOpen && (
         <Modal title="הוספת מנה לספרייה" onClose={() => setNewDishOpen(false)}>
           <div className="grid gap-4">
+            {!dishLibraryCategories.length ? (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs font-bold leading-6 text-amber-800">
+                אין עדיין קטגוריות בספריית המנות. לחצי על "הוספת קטגוריה", שמרי אותה, ואז בחרי אותה למנה.
+              </div>
+            ) : null}
+
             <FormInput
               label="שם מנה"
               value={newDishForm.name}

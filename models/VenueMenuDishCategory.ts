@@ -2,10 +2,18 @@ import mongoose, { Schema, models, model } from "mongoose";
 
 const VenueMenuDishCategorySchema = new Schema(
   {
+    ownerId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
+
     hallId: {
       type: String,
       required: true,
       index: true,
+      trim: true,
     },
 
     name: {
@@ -23,7 +31,7 @@ const VenueMenuDishCategorySchema = new Schema(
 );
 
 VenueMenuDishCategorySchema.index(
-  { hallId: 1, name: 1 },
+  { ownerId: 1, hallId: 1, name: 1 },
   { unique: true }
 );
 

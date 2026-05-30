@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import mongoose from "mongoose";
 import db from "@/lib/db";
 import VenueMenuDishCategory from "@/models/VenueMenuDishCategory";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
@@ -14,6 +15,25 @@ type RouteParams = {
 
 function cleanString(value: unknown) {
   return String(value || "").trim();
+}
+
+function isValidMongoId(value: string) {
+  return mongoose.Types.ObjectId.isValid(value);
+}
+
+function formatCategory(category: any) {
+  return {
+    id: String(category._id),
+    _id: String(category._id),
+    ownerId: category.ownerId ? String(category.ownerId) : "",
+    hallId: String(category.hallId || ""),
+    name: String(category.name || ""),
+    sortOrder: Number.isFinite(Number(category.sortOrder))
+      ? Number(category.sortOrder)
+      : 0,
+    createdAt: category.createdAt,
+    updatedAt: category.updatedAt,
+  };
 }
 
 export async function GET(req: NextRequest, context: RouteParams) {
@@ -48,16 +68,7 @@ export async function GET(req: NextRequest, context: RouteParams) {
 
     return NextResponse.json({
       success: true,
-      categories: categories.map((category: any) => ({
-        id: String(category._id),
-        _id: String(category._id),
-        name: category.name || "",
-        sortOrder: Number.isFinite(Number(category.sortOrder))
-          ? Number(category.sortOrder)
-          : 0,
-        createdAt: category.createdAt,
-        updatedAt: category.updatedAt,
-      })),
+      categories: categories.map(formatCategory),
     });
   } catch (error) {
     console.error("GET menu-dish-categories failed:", error);
@@ -108,13 +119,13 @@ export async function POST(req: NextRequest, context: RouteParams) {
       );
     }
 
-    const exists = await VenueMenuDishCategory.findOne({
+    const existingCategory = await VenueMenuDishCategory.findOne({
       ownerId: auth.userId,
       hallId: cleanHallId,
       name,
     }).lean();
 
-    if (exists) {
+    if (existingCategory) {
       return NextResponse.json(
         {
           success: false,
@@ -138,19 +149,20 @@ export async function POST(req: NextRequest, context: RouteParams) {
 
     return NextResponse.json({
       success: true,
-      category: {
-        id: String(category._id),
-        _id: String(category._id),
-        name: category.name || "",
-        sortOrder: Number.isFinite(Number(category.sortOrder))
-          ? Number(category.sortOrder)
-          : 0,
-        createdAt: category.createdAt,
-        updatedAt: category.updatedAt,
-      },
+      category: formatCategory(category),
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("POST menu-dish-categories failed:", error);
+
+    if (error?.code === 11000) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "קטגוריה בשם הזה כבר קיימת",
+        },
+        { status: 409 }
+      );
+    }
 
     return NextResponse.json(
       {
@@ -191,14 +203,35 @@ export async function DELETE(req: NextRequest, context: RouteParams) {
       );
     }
 
-    await VenueMenuDishCategory.deleteOne({
+    if (!isValidMongoId(categoryId)) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "מזהה קטגוריה לא תקין",
+        },
+        { status: 400 }
+      );
+    }
+
+    const deleted = await VenueMenuDishCategory.findOneAndDelete({
       _id: categoryId,
       ownerId: auth.userId,
       hallId: cleanHallId,
-    });
+    }).lean();
+
+    if (!deleted) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "הקטגוריה לא נמצאה או שאין הרשאה למחוק אותה",
+        },
+        { status: 404 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
+      deletedCategoryId: categoryId,
     });
   } catch (error) {
     console.error("DELETE menu-dish-categories failed:", error);
