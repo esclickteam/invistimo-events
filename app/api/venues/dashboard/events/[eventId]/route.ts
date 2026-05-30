@@ -185,9 +185,9 @@ function serializeEvent(event: any, hall?: any, invitation?: any) {
     cleanString(invitation?.notes) || cleanString(event.notes) || "";
 
   const venueClientInvitationId =
-    event.venueClientInvitationId ||
     invitation?._id ||
     invitation?.venueClientInvitationId ||
+    event.venueClientInvitationId ||
     "";
 
   const venueClientUserId =
@@ -272,11 +272,69 @@ function serializeEvent(event: any, hall?: any, invitation?: any) {
   };
 }
 
+async function countGuestsForInvitationId(invitationId: any) {
+  const guestsCollection = getCollection("invitationguests");
+
+  if (!guestsCollection || !invitationId) return 0;
+
+  const invitationIdValues = objectIdOrString(invitationId);
+
+  return guestsCollection.countDocuments({
+    $or: [
+      { invitationId: { $in: invitationIdValues } },
+      { inviteId: { $in: invitationIdValues } },
+      { invitation: { $in: invitationIdValues } },
+      { invitationID: { $in: invitationIdValues } },
+      { invitation_id: { $in: invitationIdValues } },
+    ],
+  });
+}
+
+async function findBestInvitationByGuests(candidates: any[]) {
+  const filtered = candidates.filter(Boolean);
+
+  if (!filtered.length) return null;
+
+  let best = filtered[0];
+  let bestGuestCount = -1;
+
+  for (const candidate of filtered) {
+    const embeddedGuestsCount = Array.isArray(candidate?.guests)
+      ? candidate.guests.length
+      : 0;
+
+    const collectionGuestsCount = await countGuestsForInvitationId(candidate?._id);
+    const totalGuestsCount = collectionGuestsCount || embeddedGuestsCount;
+
+    if (totalGuestsCount > bestGuestCount) {
+      best = candidate;
+      bestGuestCount = totalGuestsCount;
+    }
+  }
+
+  return best;
+}
+
 async function findInvitationForEvent(event: any) {
   const invitations = getCollection("invitations");
 
   if (!invitations) return null;
 
+  const candidates: any[] = [];
+
+  const eventIdValues = objectIdOrString(event._id);
+  const clientUserValues = event?.venueClientUserId
+    ? objectIdOrString(event.venueClientUserId)
+    : event?.userId
+      ? objectIdOrString(event.userId)
+      : [];
+
+  /*
+    חשוב:
+    לא מחזירים אוטומטית את event.venueClientInvitationId,
+    כי אם נוצר בעבר קישור שגוי להזמנה ריקה — אישורי ההגעה יראו 0.
+    לכן אוספים מועמדים ואז בוחרים את ההזמנה שיש עליה מוזמנים בפועל.
+  */
   const venueClientInvitationId = toObjectId(event.venueClientInvitationId);
 
   if (venueClientInvitationId) {
@@ -284,34 +342,85 @@ async function findInvitationForEvent(event: any) {
       _id: venueClientInvitationId,
     });
 
-    if (directInvitation) return directInvitation;
+    if (directInvitation) {
+      candidates.push(directInvitation);
+    }
   }
 
-  const eventIdValues = objectIdOrString(event._id);
+  const linkedInvitations = await invitations
+    .find({
+      $or: [
+        { eventId: { $in: eventIdValues } },
+        { venueClientEventId: { $in: eventIdValues } },
+        { productionEventId: { $in: eventIdValues } },
+        { linkedEventId: { $in: eventIdValues } },
+        { event: { $in: eventIdValues } },
+      ],
+    })
+    .sort({ updatedAt: -1, createdAt: -1 })
+    .toArray();
 
-  const query = {
-    $or: [
-      { eventId: { $in: eventIdValues } },
-      { venueClientEventId: { $in: eventIdValues } },
-      { productionEventId: { $in: eventIdValues } },
-      { linkedEventId: { $in: eventIdValues } },
-      { event: { $in: eventIdValues } },
-    ],
-  };
+  candidates.push(...linkedInvitations);
 
-  const invitation = await invitations.findOne(query);
+  if (clientUserValues.length) {
+    const userLinkedInvitations = await invitations
+      .find({
+        $and: [
+          {
+            $or: [
+              { userId: { $in: clientUserValues } },
+              { ownerId: { $in: clientUserValues } },
+              { clientId: { $in: clientUserValues } },
+            ],
+          },
+          {
+            $or: [
+              { eventId: { $in: eventIdValues } },
+              { venueClientEventId: { $in: eventIdValues } },
+              { productionEventId: { $in: eventIdValues } },
+              { linkedEventId: { $in: eventIdValues } },
+              { event: { $in: eventIdValues } },
+            ],
+          },
+        ],
+      })
+      .sort({ updatedAt: -1, createdAt: -1 })
+      .toArray();
 
-  if (invitation) return invitation;
+    candidates.push(...userLinkedInvitations);
+  }
 
-  const userIdValues = objectIdOrString(event.userId);
+  const uniqueCandidates = Array.from(
+    new Map(candidates.map((candidate) => [String(candidate?._id), candidate])).values()
+  );
+
+  const bestByGuests = await findBestInvitationByGuests(uniqueCandidates);
+
+  if (bestByGuests) return bestByGuests;
+
   const eventDate = normalizeDateOnly(event.date);
 
-  if (!eventDate) return null;
+  if (!eventDate || !clientUserValues.length) return null;
 
-  return invitations.findOne({
-    userId: { $in: userIdValues },
-    $or: [{ eventDate }, { date: eventDate }],
-  });
+  const dateFallbackInvitations = await invitations
+    .find({
+      $and: [
+        {
+          $or: [
+            { userId: { $in: clientUserValues } },
+            { ownerId: { $in: clientUserValues } },
+            { clientId: { $in: clientUserValues } },
+          ],
+        },
+        {
+          $or: [{ eventDate }, { date: eventDate }],
+        },
+      ],
+    })
+    .sort({ updatedAt: -1, createdAt: -1 })
+    .toArray();
+
+  return findBestInvitationByGuests(dateFallbackInvitations);
 }
 
 /**
