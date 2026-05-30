@@ -235,8 +235,10 @@ export default function EventClientTab({
 
   const [status, setStatus] = useState<ContractStatus>("empty");
   const [signedAt, setSignedAt] = useState("");
-  const [signingLink, setSigningLink] = useState("");
-  const [viewLink, setViewLink] = useState("");
+const [signingLink, setSigningLink] = useState("");
+const [viewLink, setViewLink] = useState("");
+
+const [smsPhone, setSmsPhone] = useState(clientPhone || "");
 
   const [loadingExisting, setLoadingExisting] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -258,6 +260,10 @@ export default function EventClientTab({
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId]);
+
+  useEffect(() => {
+  setSmsPhone(clientPhone || "");
+}, [clientPhone]);
 
   async function fetchExistingContracts(nextContractId?: string) {
     setLoadingExisting(true);
@@ -831,10 +837,12 @@ export default function EventClientTab({
       return;
     }
 
-    if (!clientPhone.trim()) {
-      alert("אין מספר טלפון ללקוח");
-      return;
-    }
+    const cleanSmsPhone = smsPhone.trim();
+
+if (!cleanSmsPhone) {
+  alert("יש להזין מספר טלפון לשליחת קישור החתימה");
+  return;
+}
 
     setSendingSms(true);
     setError("");
@@ -855,7 +863,7 @@ export default function EventClientTab({
             hallName,
             eventTitle,
             clientName,
-            clientPhone,
+            clientPhone: cleanSmsPhone,
             clientEmail,
             fields,
           }),
@@ -1470,6 +1478,37 @@ export default function EventClientTab({
                 subtitle="לאחר שמירה/שליחה יוצגו הקישורים"
               >
                 <div className="space-y-2">
+
+<div className="rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-3">
+  <label className="mb-2 block text-xs font-black text-[#8a7b68]">
+    מספר טלפון לשליחת קישור חתימה
+  </label>
+
+  <div className="flex h-12 items-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-3">
+    <Phone size={16} className="text-[#b98121]" />
+
+    <input
+      value={smsPhone}
+      onChange={(event) => setSmsPhone(event.target.value)}
+      placeholder="לדוגמה: 0521234567"
+      inputMode="tel"
+      autoComplete="tel"
+      disabled={sendingSms || isLocked}
+      className="h-full w-full bg-transparent text-sm font-black text-[#2b241c] outline-none placeholder:text-[#b8aa96] disabled:opacity-60"
+    />
+  </div>
+</div>
+
+<button
+  type="button"
+  onClick={sendSmsToClient}
+  disabled={!contractFile || !contractId || sendingSms || isLocked || !smsPhone.trim()}
+  className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#b98121] px-3 text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a] disabled:cursor-not-allowed disabled:opacity-50"
+>
+  <Send size={16} />
+  {sendingSms ? "שולח קישור..." : "שלח קישור חתימה ב-SMS"}
+</button>
+                  
                   <button
                     type="button"
                     onClick={sendSmsToClient}
