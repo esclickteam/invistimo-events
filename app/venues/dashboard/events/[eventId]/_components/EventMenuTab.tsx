@@ -7,14 +7,17 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronLeft,
+  ClipboardList,
   Edit3,
   Eye,
+  Layers3,
   Link2,
   Plus,
   Save,
   Send,
   ShieldCheck,
   Sparkles,
+  Trash2,
   Utensils,
   X,
 } from "lucide-react";
@@ -120,54 +123,30 @@ type AssignedMenu = {
   categoryOverrides: AssignedMenuCategoryOverride[];
 };
 
-type EventMenuTabProps = {
-  eventId: string;
-  hallId: string;
-  assignedMenu: AssignedMenu | null;
-  templates: VenueMenuTemplate[];
-  menusLoading: boolean;
-  menuError: string;
-  menuSaving: boolean;
-  onChooseMenu: () => void;
-  onSendToCouple: () => void;
-  onUpdateEventNote: (value: string) => void;
-  onUpdateCategory: (
-    categoryId: string,
-    field: "eventChoices" | "eventNote",
-    value: string
-  ) => void;
-  onUpdateSelectionPolicy: (
-    patch: Partial<Pick<AssignedMenu, "selectionEditMode" | "selectionEditableUntil">>
-  ) => void;
-  onSaveChanges: () => void;
-  onSaveKitchenReport: (
-    payload: Pick<
-      AssignedMenu,
-      | "kitchenReportStatus"
-      | "kitchenGeneralNotes"
-      | "kitchenDishes"
-      | "kitchenSpecialNotes"
-    >
-  ) => void | Promise<void>;
+type LiveCategory = {
+  id: string;
+  title: string;
+  subtitle: string;
+  directSummary: KitchenReportDish;
+  dishes: KitchenReportDish[];
 };
 
-type KitchenCategoryGroup = {
-  key: string;
-  categoryId: string;
-  categoryTitle: string;
-  rows: KitchenReportDish[];
-  plannedTotal: number;
-  actualTotal: number;
-};
+type SaveKitchenPayload = Pick<
+  AssignedMenu,
+  | "kitchenReportStatus"
+  | "kitchenGeneralNotes"
+  | "kitchenDishes"
+  | "kitchenSpecialNotes"
+>;
 
-const CATEGORY_GENERAL_DISH_ID = "__category_general__";
+const CATEGORY_SUMMARY_DISH_ID = "__category_summary__";
 
 function toNumber(value: unknown, fallback = 0) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function normalizeQuantity(value: unknown) {
+function clampNumber(value: unknown) {
   return Math.max(0, toNumber(value, 0));
 }
 
@@ -175,7 +154,6 @@ function formatDateTime(value?: string) {
   if (!value) return "לא הוגדר";
 
   const date = new Date(value);
-
   if (Number.isNaN(date.getTime())) return value;
 
   return new Intl.DateTimeFormat("he-IL", {
@@ -196,21 +174,6 @@ function formatDateTimeInputValue(value?: string | null) {
   return localDate.toISOString().slice(0, 16);
 }
 
-function normalizeKitchenDishes(raw: any): KitchenReportDish[] {
-  const rows = Array.isArray(raw) ? raw : [];
-
-  return rows.map((item: any, index: number) => ({
-    id: String(item?.id || item?._id || item?.dishId || `kitchen-dish-${index + 1}`),
-    dishId: item?.dishId ? String(item.dishId) : "",
-    categoryId: item?.categoryId ? String(item.categoryId) : "",
-    categoryTitle: String(item?.categoryTitle || item?.categoryName || "כללי"),
-    dishName: String(item?.dishName || item?.name || "מנה ללא שם"),
-    plannedQuantity: normalizeQuantity(item?.plannedQuantity),
-    actualServedQuantity: normalizeQuantity(item?.actualServedQuantity),
-    notes: String(item?.notes || ""),
-  }));
-}
-
 function kitchenSpecialTypeLabel(type: KitchenSpecialNoteType) {
   if (type === "allergy") return "אלרגיה / רגישות";
   if (type === "kosher") return "כשרות";
@@ -221,104 +184,219 @@ function kitchenSpecialTypeLabel(type: KitchenSpecialNoteType) {
   return "אחר";
 }
 
-function getDishMatchKey(categoryId?: string, dishId?: string) {
-  return `${categoryId || "category"}::${dishId || "dish"}`;
+function normalizeKitchenDishes(raw: any): KitchenReportDish[] {
+  const rows = Array.isArray(raw) ? raw : [];
+
+  return rows.map((item: any, index: number) => ({
+    id: String(item?.id || item?._id || item?.dishId || `kitchen-dish-${index + 1}`),
+    dishId: item?.dishId ? String(item.dishId) : "",
+    categoryId: item?.categoryId ? String(item.categoryId) : "",
+    categoryTitle: String(item?.categoryTitle || item?.categoryName || "כללי"),
+    dishName: String(item?.dishName || item?.name || "מנה ללא שם"),
+    plannedQuantity: clampNumber(item?.plannedQuantity),
+    actualServedQuantity: clampNumber(item?.actualServedQuantity),
+    notes: String(item?.notes || ""),
+  }));
 }
 
-function getCategoryGeneralRowId(categoryId: string, index = 0) {
-  return `category-general-${categoryId || index}`;
+function normalizeKitchenSpecialNotes(raw: any): KitchenSpecialNote[] {
+  const rows = Array.isArray(raw) ? raw : [];
+
+  return rows.map((item: any, index: number) => {
+    const type = String(item?.type || "other");
+    const validType: KitchenSpecialNoteType = [
+      "allergy",
+      "kosher",
+      "vegetarian",
+      "vegan",
+      "gluten_free",
+      "kids",
+      "other",
+    ].includes(type)
+      ? (type as KitchenSpecialNoteType)
+      : "other";
+
+    return {
+      id: String(item?.id || item?._id || `special-note-${index + 1}`),
+      type: validType,
+      title: String(item?.title || ""),
+      quantity: clampNumber(item?.quantity),
+      notes: String(item?.notes || ""),
+    };
+  });
+}
+
+function isCategorySummaryRow(row: KitchenReportDish) {
+  return row.dishId === CATEGORY_SUMMARY_DISH_ID || row.id.startsWith("category-summary:");
+}
+
+function categorySummaryId(categoryId: string) {
+  return `category-summary:${categoryId || "general"}`;
+}
+
+function makeCategorySummaryRow(categoryId: string, categoryTitle: string): KitchenReportDish {
+  return {
+    id: categorySummaryId(categoryId),
+    dishId: CATEGORY_SUMMARY_DISH_ID,
+    categoryId,
+    categoryTitle,
+    dishName: categoryTitle,
+    plannedQuantity: 0,
+    actualServedQuantity: 0,
+    notes: "",
+  };
+}
+
+function selectedSignature(menu: AssignedMenu | null) {
+  const selected = Array.isArray(menu?.selectedDishes) ? menu?.selectedDishes || [] : [];
+  return selected
+    .map((dish) => `${dish.categoryId}|${dish.dishId}|${dish.categoryTitle}|${dish.dishName}`)
+    .join(";;");
 }
 
 function buildKitchenDishesFromSelectedMenu(menu: AssignedMenu | null): KitchenReportDish[] {
   if (!menu) return [];
 
   const existingRows = normalizeKitchenDishes(menu.kitchenDishes);
-  const existingByDish = new Map<string, KitchenReportDish>();
+  const existingByKey = new Map<string, KitchenReportDish>();
 
   existingRows.forEach((row) => {
-    if (!row.dishId || row.dishId === CATEGORY_GENERAL_DISH_ID) return;
-    existingByDish.set(getDishMatchKey(row.categoryId, row.dishId), row);
+    const key = `${row.categoryId || ""}|${row.dishId || ""}`;
+    existingByKey.set(key, row);
   });
 
   const selectedDishes = Array.isArray(menu.selectedDishes) ? menu.selectedDishes : [];
+  const selectedRows: KitchenReportDish[] = [];
+  const categoryMap = new Map<string, string>();
 
-  if (selectedDishes.length) {
-    const selectedKeys = new Set<string>();
+  selectedDishes.forEach((dish, index) => {
+    const categoryId = String(dish.categoryId || "general");
+    const categoryTitle = String(dish.categoryTitle || "כללי");
+    const dishId = String(dish.dishId || `selected-${index + 1}`);
+    const key = `${categoryId}|${dishId}`;
+    const existing = existingByKey.get(key);
 
-    const rowsFromSelection = selectedDishes.map((dish, index) => {
-      const key = getDishMatchKey(dish.categoryId, dish.dishId);
-      selectedKeys.add(key);
+    categoryMap.set(categoryId, categoryTitle);
 
-      const existing = existingByDish.get(key);
+    selectedRows.push({
+      id: existing?.id || `${categoryId}-${dishId}`,
+      dishId,
+      categoryId,
+      categoryTitle,
+      dishName: dish.dishName || existing?.dishName || "מנה ללא שם",
+      plannedQuantity: existing?.plannedQuantity || 0,
+      actualServedQuantity: existing?.actualServedQuantity || 0,
+      notes: existing?.notes || "",
+    });
+  });
 
-      return {
-        id: existing?.id || `${dish.categoryId || "category"}-${dish.dishId || index}`,
-        dishId: dish.dishId,
-        categoryId: dish.categoryId,
-        categoryTitle: dish.categoryTitle || "כללי",
-        dishName: dish.dishName || "מנה ללא שם",
-        plannedQuantity: existing?.plannedQuantity || 0,
-        actualServedQuantity: existing?.actualServedQuantity || 0,
-        notes: existing?.notes || "",
-      };
+  if (selectedRows.length) {
+    const summaryRows = Array.from(categoryMap.entries()).map(([categoryId, title]) => {
+      const existing = existingByKey.get(`${categoryId}|${CATEGORY_SUMMARY_DISH_ID}`);
+      return existing || makeCategorySummaryRow(categoryId, title);
     });
 
-    const extraRowsToKeep = existingRows.filter((row) => {
-      const isCategoryGeneral = row.dishId === CATEGORY_GENERAL_DISH_ID;
-      const isManual = !row.dishId;
-      const isNotSelectedDish = row.dishId
-        ? !selectedKeys.has(getDishMatchKey(row.categoryId, row.dishId))
-        : true;
-
-      return isCategoryGeneral || isManual || isNotSelectedDish;
-    });
-
-    return [...extraRowsToKeep, ...rowsFromSelection];
+    return [...summaryRows, ...selectedRows];
   }
 
-  if (existingRows.length) return existingRows;
+  const nonSummaryExisting = existingRows.filter((row) => !isCategorySummaryRow(row));
+  if (nonSummaryExisting.length) return existingRows;
 
-  return menu.categoryOverrides.map((category, index) => ({
-    id: getCategoryGeneralRowId(category.id, index),
-    dishId: CATEGORY_GENERAL_DISH_ID,
-    categoryId: category.id,
-    categoryTitle: category.name,
-    dishName: "סימון כללי לקטגוריה",
-    plannedQuantity: 0,
-    actualServedQuantity: 0,
-    notes: "",
-  }));
+  return menu.categoryOverrides.flatMap((category, index) => {
+    const categoryId = category.id || `category-${index + 1}`;
+    const categoryTitle = category.name || `קטגוריה ${index + 1}`;
+    return [makeCategorySummaryRow(categoryId, categoryTitle)];
+  });
 }
 
-function groupKitchenDishes(rows: KitchenReportDish[]): KitchenCategoryGroup[] {
-  const map = new Map<string, KitchenCategoryGroup>();
+function groupKitchenRows(rows: KitchenReportDish[]): LiveCategory[] {
+  const groups = new Map<string, LiveCategory>();
 
   rows.forEach((row) => {
     const categoryId = row.categoryId || "general";
     const categoryTitle = row.categoryTitle || "כללי";
-    const key = `${categoryId}::${categoryTitle}`;
 
-    if (!map.has(key)) {
-      map.set(key, {
-        key,
-        categoryId,
-        categoryTitle,
-        rows: [],
-        plannedTotal: 0,
-        actualTotal: 0,
+    if (!groups.has(categoryId)) {
+      groups.set(categoryId, {
+        id: categoryId,
+        title: categoryTitle,
+        subtitle: "",
+        directSummary: makeCategorySummaryRow(categoryId, categoryTitle),
+        dishes: [],
       });
     }
 
-    const group = map.get(key)!;
-    group.rows.push(row);
-    group.plannedTotal += normalizeQuantity(row.plannedQuantity);
-    group.actualTotal += normalizeQuantity(row.actualServedQuantity);
+    const group = groups.get(categoryId)!;
+
+    if (isCategorySummaryRow(row)) {
+      group.directSummary = {
+        ...row,
+        dishId: CATEGORY_SUMMARY_DISH_ID,
+        dishName: categoryTitle,
+        categoryTitle,
+      };
+    } else {
+      group.dishes.push(row);
+    }
   });
 
-  return Array.from(map.values()).sort((a, b) => {
-    if (a.categoryTitle === "כללי") return 1;
-    if (b.categoryTitle === "כללי") return -1;
-    return a.categoryTitle.localeCompare(b.categoryTitle, "he");
+  return Array.from(groups.values()).map((group) => {
+    const plannedChildren = group.dishes.reduce(
+      (sum, row) => sum + clampNumber(row.plannedQuantity),
+      0
+    );
+    const actualChildren = group.dishes.reduce(
+      (sum, row) => sum + clampNumber(row.actualServedQuantity),
+      0
+    );
+
+    return {
+      ...group,
+      subtitle: group.dishes.length
+        ? `${group.dishes.length} מנות תחת הקטגוריה · אפשר לעדכן כל מנה בנפרד או לפתוח/לסגור את הרשימה`
+        : "אין מנות שנבחרו תחת הקטגוריה · אפשר לסמן כמות כללית לקטגוריה",
+      directSummary: {
+        ...group.directSummary,
+        plannedQuantity: plannedChildren > 0 ? plannedChildren : group.directSummary.plannedQuantity,
+        actualServedQuantity: actualChildren > 0 ? actualChildren : group.directSummary.actualServedQuantity,
+      },
+    };
+  });
+}
+
+function totalsFromGroups(groups: LiveCategory[]) {
+  return groups.reduce(
+    (acc, group) => {
+      acc.estimated += clampNumber(group.directSummary.plannedQuantity);
+      acc.actual += clampNumber(group.directSummary.actualServedQuantity);
+      return acc;
+    },
+    { estimated: 0, actual: 0 }
+  );
+}
+
+function payloadRowsFromGroups(groups: LiveCategory[]) {
+  return groups.flatMap((group) => {
+    const childrenHaveValues = group.dishes.some(
+      (row) => clampNumber(row.plannedQuantity) > 0 || clampNumber(row.actualServedQuantity) > 0
+    );
+
+    const summaryRow: KitchenReportDish = {
+      ...group.directSummary,
+      id: categorySummaryId(group.id),
+      dishId: CATEGORY_SUMMARY_DISH_ID,
+      categoryId: group.id,
+      categoryTitle: group.title,
+      dishName: group.title,
+      plannedQuantity: childrenHaveValues
+        ? group.dishes.reduce((sum, row) => sum + clampNumber(row.plannedQuantity), 0)
+        : clampNumber(group.directSummary.plannedQuantity),
+      actualServedQuantity: childrenHaveValues
+        ? group.dishes.reduce((sum, row) => sum + clampNumber(row.actualServedQuantity), 0)
+        : clampNumber(group.directSummary.actualServedQuantity),
+    };
+
+    return [summaryRow, ...group.dishes];
   });
 }
 
@@ -337,57 +415,54 @@ export default function EventMenuTab({
   onUpdateSelectionPolicy,
   onSaveChanges,
   onSaveKitchenReport,
-}: EventMenuTabProps) {
+}: {
+  eventId: string;
+  hallId: string;
+  assignedMenu: AssignedMenu | null;
+  templates: VenueMenuTemplate[];
+  menusLoading: boolean;
+  menuError: string;
+  menuSaving: boolean;
+  onChooseMenu: () => void;
+  onSendToCouple: () => void;
+  onUpdateEventNote: (value: string) => void;
+  onUpdateCategory: (
+    categoryId: string,
+    field: "eventChoices" | "eventNote",
+    value: string
+  ) => void;
+  onUpdateSelectionPolicy: (
+    patch: Partial<Pick<AssignedMenu, "selectionEditMode" | "selectionEditableUntil">>
+  ) => void;
+  onSaveChanges: () => void;
+  onSaveKitchenReport: (payload: SaveKitchenPayload) => void | Promise<void>;
+}) {
   const [menuView, setMenuView] = useState<"overview" | "live">(() => {
     if (typeof window === "undefined") return "overview";
-
     const saved = sessionStorage.getItem(`event-menu-view-${eventId}`);
     return saved === "live" || saved === "overview" ? saved : "overview";
   });
 
+  const [liveSaving, setLiveSaving] = useState(false);
   const savingRef = useRef(false);
-  const pendingSaveRef = useRef<Pick<
-    AssignedMenu,
-    | "kitchenReportStatus"
-    | "kitchenGeneralNotes"
-    | "kitchenDishes"
-    | "kitchenSpecialNotes"
-  > | null>(null);
+  const pendingPayloadRef = useRef<SaveKitchenPayload | null>(null);
 
-  const publicLink =
-    assignedMenu?.publicLink ||
-    `https://www.invistimo.com/menus/choose/${assignedMenu?.publicToken || eventId}`;
-
-  const selectedDishGroups = (assignedMenu?.selectedDishes || []).reduce(
-    (groups, item) => {
-      const key = item.categoryTitle || "קטגוריה";
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(item);
-      return groups;
-    },
-    {} as Record<string, NonNullable<AssignedMenu["selectedDishes"]>>
+  const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({});
+  const [liveGroups, setLiveGroups] = useState<LiveCategory[]>(() =>
+    groupKitchenRows(buildKitchenDishesFromSelectedMenu(assignedMenu))
   );
-
-  const initialKitchenDishes = useMemo(
-    () => buildKitchenDishesFromSelectedMenu(assignedMenu),
-    [assignedMenu?.id, assignedMenu?.updatedAt, assignedMenu?.submittedAt]
-  );
-
-  const [kitchenDishes, setKitchenDishes] =
-    useState<KitchenReportDish[]>(initialKitchenDishes);
 
   const [kitchenSpecialNotes, setKitchenSpecialNotes] = useState<KitchenSpecialNote[]>(
-    assignedMenu?.kitchenSpecialNotes || []
+    normalizeKitchenSpecialNotes(assignedMenu?.kitchenSpecialNotes)
   );
-
   const [kitchenGeneralNotes, setKitchenGeneralNotes] = useState(
     assignedMenu?.kitchenGeneralNotes || ""
   );
+  const [kitchenReportStatus, setKitchenReportStatus] = useState<KitchenReportStatus>(
+    assignedMenu?.kitchenReportStatus || "draft"
+  );
 
-  const [kitchenReportStatus, setKitchenReportStatus] =
-    useState<KitchenReportStatus>(assignedMenu?.kitchenReportStatus || "draft");
-
-  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+  const selectedDishKey = useMemo(() => selectedSignature(assignedMenu), [assignedMenu]);
 
   useEffect(() => {
     if (!eventId || typeof window === "undefined") return;
@@ -395,256 +470,264 @@ export default function EventMenuTab({
   }, [eventId, menuView]);
 
   useEffect(() => {
-    const nextRows = buildKitchenDishesFromSelectedMenu(assignedMenu);
-    setKitchenDishes(nextRows);
-    setKitchenSpecialNotes(assignedMenu?.kitchenSpecialNotes || []);
+    const nextGroups = groupKitchenRows(buildKitchenDishesFromSelectedMenu(assignedMenu));
+    setLiveGroups(nextGroups);
+    setKitchenSpecialNotes(normalizeKitchenSpecialNotes(assignedMenu?.kitchenSpecialNotes));
     setKitchenGeneralNotes(assignedMenu?.kitchenGeneralNotes || "");
     setKitchenReportStatus(assignedMenu?.kitchenReportStatus || "draft");
 
-    const groups = groupKitchenDishes(nextRows);
-    setExpandedCategories((current) => {
-      const next = { ...current };
-      groups.forEach((group) => {
-        if (next[group.key] === undefined) next[group.key] = true;
+    setOpenCategories((current) => {
+      const next: Record<string, boolean> = {};
+      nextGroups.forEach((group) => {
+        next[group.id] = current[group.id] ?? true;
       });
       return next;
     });
-  }, [assignedMenu?.id, assignedMenu?.updatedAt, assignedMenu?.submittedAt]);
+  }, [assignedMenu?.id, selectedDishKey]);
 
-  const categoryGroups = useMemo(
-    () => groupKitchenDishes(kitchenDishes),
-    [kitchenDishes]
-  );
+  const publicLink =
+    assignedMenu?.publicLink ||
+    `https://www.invistimo.com/menus/choose/${assignedMenu?.publicToken || eventId}`;
 
-  const totalEstimated = kitchenDishes.reduce(
-    (sum, item) => sum + normalizeQuantity(item.plannedQuantity),
-    0
-  );
-
-  const totalActual = kitchenDishes.reduce(
-    (sum, item) => sum + normalizeQuantity(item.actualServedQuantity),
-    0
-  );
+  const selectedDishGroups = useMemo(() => {
+    return (assignedMenu?.selectedDishes || []).reduce(
+      (groups, item) => {
+        const key = item.categoryTitle || "קטגוריה";
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(item);
+        return groups;
+      },
+      {} as Record<string, NonNullable<AssignedMenu["selectedDishes"]>>
+    );
+  }, [assignedMenu?.selectedDishes]);
 
   const totalSpecial = kitchenSpecialNotes.reduce(
-    (sum, item) => sum + normalizeQuantity(item.quantity),
+    (sum, item) => sum + clampNumber(item.quantity),
     0
   );
 
-  const saveLiveKitchenNow = async (
-    payload: Pick<
-      AssignedMenu,
-      | "kitchenReportStatus"
-      | "kitchenGeneralNotes"
-      | "kitchenDishes"
-      | "kitchenSpecialNotes"
-    >
-  ) => {
+  const totals = useMemo(() => totalsFromGroups(liveGroups), [liveGroups]);
+  const totalGap = totals.actual - totals.estimated;
+
+  const currentKitchenPayload = (
+    patch?: Partial<SaveKitchenPayload>,
+    groupsOverride?: LiveCategory[]
+  ): SaveKitchenPayload => ({
+    kitchenReportStatus: patch?.kitchenReportStatus || kitchenReportStatus || "draft",
+    kitchenGeneralNotes:
+      patch?.kitchenGeneralNotes !== undefined
+        ? patch.kitchenGeneralNotes
+        : kitchenGeneralNotes,
+    kitchenDishes:
+      patch?.kitchenDishes || payloadRowsFromGroups(groupsOverride || liveGroups),
+    kitchenSpecialNotes:
+      patch?.kitchenSpecialNotes !== undefined
+        ? patch.kitchenSpecialNotes
+        : kitchenSpecialNotes,
+  });
+
+  const saveLiveNow = async (payload: SaveKitchenPayload) => {
+    if (!assignedMenu) return;
+
     if (savingRef.current) {
-      pendingSaveRef.current = payload;
+      pendingPayloadRef.current = payload;
       return;
     }
 
     savingRef.current = true;
+    setLiveSaving(true);
 
     try {
-      await onSaveKitchenReport(payload);
+      await Promise.resolve(onSaveKitchenReport(payload));
     } finally {
       savingRef.current = false;
+      setLiveSaving(false);
 
-      const pending = pendingSaveRef.current;
-      pendingSaveRef.current = null;
+      const pending = pendingPayloadRef.current;
+      pendingPayloadRef.current = null;
 
       if (pending) {
-        await saveLiveKitchenNow(pending);
+        await saveLiveNow(pending);
       }
     }
   };
 
-  const saveWithNextRows = (nextRows: KitchenReportDish[]) => {
-    setKitchenReportStatus("draft");
-    setKitchenDishes(nextRows);
-
-    void saveLiveKitchenNow({
-      kitchenReportStatus: "draft",
-      kitchenGeneralNotes,
-      kitchenDishes: nextRows,
-      kitchenSpecialNotes,
-    });
-  };
-
-  const saveWithNextSpecialNotes = (nextNotes: KitchenSpecialNote[]) => {
-    setKitchenReportStatus("draft");
-    setKitchenSpecialNotes(nextNotes);
-
-    void saveLiveKitchenNow({
-      kitchenReportStatus: "draft",
-      kitchenGeneralNotes,
-      kitchenDishes,
-      kitchenSpecialNotes: nextNotes,
-    });
-  };
-
-  const ensureCategoryGeneralRow = (
-    rows: KitchenReportDish[],
-    group: KitchenCategoryGroup
+  const updateLiveGroupsAndSave = (
+    updater: (current: LiveCategory[]) => LiveCategory[],
+    patch?: Partial<SaveKitchenPayload>
   ) => {
-    const existing = rows.find(
-      (row) =>
-        (row.categoryId || "general") === group.categoryId &&
-        row.dishId === CATEGORY_GENERAL_DISH_ID
-    );
+    setKitchenReportStatus("draft");
 
-    if (existing) return rows;
-
-    return [
-      ...rows,
-      {
-        id: getCategoryGeneralRowId(group.categoryId),
-        dishId: CATEGORY_GENERAL_DISH_ID,
-        categoryId: group.categoryId,
-        categoryTitle: group.categoryTitle,
-        dishName: "סימון כללי לקטגוריה",
-        plannedQuantity: 0,
-        actualServedQuantity: 0,
-        notes: "",
-      },
-    ];
-  };
-
-  const updateKitchenDish = (
-    rowId: string,
-    field: keyof Pick<
-      KitchenReportDish,
-      "plannedQuantity" | "actualServedQuantity" | "notes" | "dishName"
-    >,
-    value: string | number,
-    shouldSave = true
-  ) => {
-    const nextRows = kitchenDishes.map((row) => {
-      if (row.id !== rowId) return row;
-
-      if (field === "notes" || field === "dishName") {
-        return {
-          ...row,
-          [field]: String(value),
-        };
-      }
-
-      return {
-        ...row,
-        [field]: normalizeQuantity(value),
-      };
+    setLiveGroups((current) => {
+      const nextGroups = updater(current);
+      const payload = currentKitchenPayload(
+        { kitchenReportStatus: "draft", ...patch },
+        nextGroups
+      );
+      void saveLiveNow(payload);
+      return nextGroups;
     });
-
-    if (shouldSave) {
-      saveWithNextRows(nextRows);
-    } else {
-      setKitchenReportStatus("draft");
-      setKitchenDishes(nextRows);
-    }
   };
 
-  const quickUpdateActualServed = (rowId: string, diff: number) => {
-    const nextRows = kitchenDishes.map((row) => {
-      if (row.id !== rowId) return row;
-
-      return {
-        ...row,
-        actualServedQuantity: Math.max(
-          0,
-          normalizeQuantity(row.actualServedQuantity) + diff
-        ),
-      };
-    });
-
-    saveWithNextRows(nextRows);
-  };
-
-  const quickUpdateCategoryActual = (group: KitchenCategoryGroup, diff: number) => {
-    let rowsWithCategory = ensureCategoryGeneralRow(kitchenDishes, group);
-
-    rowsWithCategory = rowsWithCategory.map((row) => {
-      const isTarget =
-        (row.categoryId || "general") === group.categoryId &&
-        row.dishId === CATEGORY_GENERAL_DISH_ID;
-
-      if (!isTarget) return row;
-
-      return {
-        ...row,
-        actualServedQuantity: Math.max(
-          0,
-          normalizeQuantity(row.actualServedQuantity) + diff
-        ),
-      };
-    });
-
-    saveWithNextRows(rowsWithCategory);
-  };
-
-  const setCategoryTotal = (
-    group: KitchenCategoryGroup,
+  const updateCategoryQuantity = (
+    categoryId: string,
     field: "plannedQuantity" | "actualServedQuantity",
     value: string | number
   ) => {
-    const targetTotal = normalizeQuantity(value);
-    let rowsWithCategory = ensureCategoryGeneralRow(kitchenDishes, group);
+    updateLiveGroupsAndSave((current) =>
+      current.map((group) => {
+        if (group.id !== categoryId) return group;
 
-    const otherRowsTotal = rowsWithCategory.reduce((sum, row) => {
-      const isSameCategory = (row.categoryId || "general") === group.categoryId;
-      const isCategoryGeneral = row.dishId === CATEGORY_GENERAL_DISH_ID;
-
-      if (!isSameCategory || isCategoryGeneral) return sum;
-      return sum + normalizeQuantity(row[field]);
-    }, 0);
-
-    const categoryGeneralValue = Math.max(0, targetTotal - otherRowsTotal);
-
-    rowsWithCategory = rowsWithCategory.map((row) => {
-      const isTarget =
-        (row.categoryId || "general") === group.categoryId &&
-        row.dishId === CATEGORY_GENERAL_DISH_ID;
-
-      if (!isTarget) return row;
-
-      return {
-        ...row,
-        [field]: categoryGeneralValue,
-      };
-    });
-
-    saveWithNextRows(rowsWithCategory);
+        return {
+          ...group,
+          directSummary: {
+            ...group.directSummary,
+            [field]: clampNumber(value),
+          },
+          dishes: group.dishes.map((dish) => ({
+            ...dish,
+            [field]: 0,
+          })),
+        };
+      })
+    );
   };
 
-  const addKitchenDish = (group?: KitchenCategoryGroup) => {
-    const categoryId = group?.categoryId || "manual";
-    const categoryTitle = group?.categoryTitle || "מנה ידנית";
+  const quickUpdateCategoryActual = (categoryId: string, diff: number) => {
+    updateLiveGroupsAndSave((current) =>
+      current.map((group) => {
+        if (group.id !== categoryId) return group;
 
-    const nextRows = [
-      ...kitchenDishes,
-      {
-        id: `manual-dish-${Date.now()}`,
-        dishId: "",
-        categoryId,
-        categoryTitle,
-        dishName: "",
-        plannedQuantity: 0,
-        actualServedQuantity: 0,
-        notes: "",
-      },
-    ];
-
-    saveWithNextRows(nextRows);
+        return {
+          ...group,
+          directSummary: {
+            ...group.directSummary,
+            actualServedQuantity: clampNumber(group.directSummary.actualServedQuantity + diff),
+          },
+          dishes: group.dishes.map((dish) => ({ ...dish, actualServedQuantity: 0 })),
+        };
+      })
+    );
   };
 
-  const removeKitchenDish = (rowId: string) => {
-    const nextRows = kitchenDishes.filter((row) => row.id !== rowId);
-    saveWithNextRows(nextRows);
+  const updateDishRow = (
+    categoryId: string,
+    rowId: string,
+    field: keyof Pick<KitchenReportDish, "plannedQuantity" | "actualServedQuantity" | "notes" | "dishName">,
+    value: string | number
+  ) => {
+    updateLiveGroupsAndSave((current) =>
+      current.map((group) => {
+        if (group.id !== categoryId) return group;
+
+        const nextDishes = group.dishes.map((row) => {
+          if (row.id !== rowId) return row;
+
+          if (field === "notes" || field === "dishName") {
+            return { ...row, [field]: String(value) };
+          }
+
+          return { ...row, [field]: clampNumber(value) };
+        });
+
+        const planned = nextDishes.reduce((sum, row) => sum + clampNumber(row.plannedQuantity), 0);
+        const actual = nextDishes.reduce((sum, row) => sum + clampNumber(row.actualServedQuantity), 0);
+
+        return {
+          ...group,
+          directSummary: {
+            ...group.directSummary,
+            plannedQuantity: planned,
+            actualServedQuantity: actual,
+          },
+          dishes: nextDishes,
+        };
+      })
+    );
+  };
+
+  const quickUpdateDishActual = (categoryId: string, rowId: string, diff: number) => {
+    updateLiveGroupsAndSave((current) =>
+      current.map((group) => {
+        if (group.id !== categoryId) return group;
+
+        const nextDishes = group.dishes.map((row) =>
+          row.id === rowId
+            ? {
+                ...row,
+                actualServedQuantity: clampNumber(row.actualServedQuantity + diff),
+              }
+            : row
+        );
+
+        return {
+          ...group,
+          directSummary: {
+            ...group.directSummary,
+            actualServedQuantity: nextDishes.reduce(
+              (sum, row) => sum + clampNumber(row.actualServedQuantity),
+              0
+            ),
+            plannedQuantity: nextDishes.reduce(
+              (sum, row) => sum + clampNumber(row.plannedQuantity),
+              0
+            ),
+          },
+          dishes: nextDishes,
+        };
+      })
+    );
+  };
+
+  const addManualDishToCategory = (categoryId: string) => {
+    updateLiveGroupsAndSave((current) =>
+      current.map((group) => {
+        if (group.id !== categoryId) return group;
+
+        return {
+          ...group,
+          dishes: [
+            ...group.dishes,
+            {
+              id: `manual-dish-${Date.now()}`,
+              dishId: `manual-${Date.now()}`,
+              categoryId: group.id,
+              categoryTitle: group.title,
+              dishName: "",
+              plannedQuantity: 0,
+              actualServedQuantity: 0,
+              notes: "",
+            },
+          ],
+        };
+      })
+    );
+  };
+
+  const removeDishFromCategory = (categoryId: string, rowId: string) => {
+    updateLiveGroupsAndSave((current) =>
+      current.map((group) => {
+        if (group.id !== categoryId) return group;
+
+        const nextDishes = group.dishes.filter((row) => row.id !== rowId);
+        return {
+          ...group,
+          directSummary: {
+            ...group.directSummary,
+            plannedQuantity: nextDishes.reduce((sum, row) => sum + clampNumber(row.plannedQuantity), 0),
+            actualServedQuantity: nextDishes.reduce(
+              (sum, row) => sum + clampNumber(row.actualServedQuantity),
+              0
+            ),
+          },
+          dishes: nextDishes,
+        };
+      })
+    );
   };
 
   const addSpecialNote = (type: KitchenSpecialNoteType) => {
-    const nextNotes = [
+    const nextSpecialNotes = [
       ...kitchenSpecialNotes,
       {
         id: `special-${Date.now()}`,
@@ -655,78 +738,59 @@ export default function EventMenuTab({
       },
     ];
 
-    saveWithNextSpecialNotes(nextNotes);
+    setKitchenReportStatus("draft");
+    setKitchenSpecialNotes(nextSpecialNotes);
+    void saveLiveNow(currentKitchenPayload({
+      kitchenReportStatus: "draft",
+      kitchenSpecialNotes: nextSpecialNotes,
+    }));
   };
 
   const updateSpecialNote = (
     rowId: string,
     field: keyof KitchenSpecialNote,
-    value: string | number,
-    shouldSave = true
+    value: string | number
   ) => {
-    const nextNotes = kitchenSpecialNotes.map((row) => {
+    const nextSpecialNotes = kitchenSpecialNotes.map((row) => {
       if (row.id !== rowId) return row;
 
       if (field === "quantity") {
-        return {
-          ...row,
-          quantity: normalizeQuantity(value),
-        };
+        return { ...row, quantity: clampNumber(value) };
       }
 
-      return {
-        ...row,
-        [field]: value,
-      };
+      return { ...row, [field]: value };
     });
 
-    if (shouldSave) {
-      saveWithNextSpecialNotes(nextNotes);
-    } else {
-      setKitchenReportStatus("draft");
-      setKitchenSpecialNotes(nextNotes);
-    }
+    setKitchenReportStatus("draft");
+    setKitchenSpecialNotes(nextSpecialNotes);
+    void saveLiveNow(currentKitchenPayload({
+      kitchenReportStatus: "draft",
+      kitchenSpecialNotes: nextSpecialNotes,
+    }));
   };
 
   const removeSpecialNote = (rowId: string) => {
-    const nextNotes = kitchenSpecialNotes.filter((row) => row.id !== rowId);
-    saveWithNextSpecialNotes(nextNotes);
-  };
-
-  const saveGeneralNotes = (value: string) => {
+    const nextSpecialNotes = kitchenSpecialNotes.filter((row) => row.id !== rowId);
     setKitchenReportStatus("draft");
-    setKitchenGeneralNotes(value);
-
-    void saveLiveKitchenNow({
+    setKitchenSpecialNotes(nextSpecialNotes);
+    void saveLiveNow(currentKitchenPayload({
       kitchenReportStatus: "draft",
-      kitchenGeneralNotes: value,
-      kitchenDishes,
-      kitchenSpecialNotes,
-    });
+      kitchenSpecialNotes: nextSpecialNotes,
+    }));
   };
 
   const markKitchenReportSubmitted = () => {
     setKitchenReportStatus("submitted");
-
-    void saveLiveKitchenNow({
-      kitchenReportStatus: "submitted",
-      kitchenGeneralNotes,
-      kitchenDishes,
-      kitchenSpecialNotes,
-    });
+    void saveLiveNow(currentKitchenPayload({ kitchenReportStatus: "submitted" }));
   };
 
   if (!assignedMenu) {
     return (
       <MainCard title="תפריט האירוע" icon={<Utensils size={19} />}>
-        {menuError && (
-          <div className="mb-4 rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm font-black text-rose-700">
-            {menuError}
-          </div>
-        )}
+        {menuError && <ErrorBox text={menuError} />}
 
-        <div className="rounded-[34px] border border-dashed border-[#d9bd83] bg-gradient-to-br from-[#fffaf0] via-white to-[#f6ead7] p-8 text-center shadow-sm">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[24px] bg-white text-[#b98121] shadow-sm">
+        <div className="overflow-hidden rounded-[38px] border border-dashed border-[#d9bd83] bg-[radial-gradient(circle_at_top_right,#fff3d5,transparent_34%),linear-gradient(135deg,#fffdf8,#fff7e7,#f6ead7)] p-8 text-center shadow-[0_18px_45px_rgba(92,60,20,0.08)]">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[26px] border border-[#eadfce] bg-white text-[#b98121] shadow-sm">
             <Utensils size={32} />
           </div>
 
@@ -735,8 +799,7 @@ export default function EventMenuTab({
           </h2>
 
           <p className="mx-auto mt-2 max-w-2xl text-sm font-bold leading-7 text-[#7f705d]">
-            בוחרים מתוך התפריטים שהאולם הגדיר מראש. אחרי הבחירה נוצר עותק
-            לאירוע הזה בלבד, כולל התאמות, הערות, רגישויות וניהול לייב של כמויות.
+            בוחרים תפריט בסיס של האולם, ולאחר מכן נוצר עותק מקצועי לאירוע — כולל בחירת מנות, התאמות בחירה וניהול לייב בזמן אמת.
           </p>
 
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
@@ -750,11 +813,7 @@ export default function EventMenuTab({
             </button>
 
             <Link
-              href={
-                hallId
-                  ? `/venues/dashboard/halls/${hallId}/menus`
-                  : "/venues/dashboard"
-              }
+              href={hallId ? `/venues/dashboard/halls/${hallId}/menus` : "/venues/dashboard"}
               className="inline-flex h-12 items-center gap-2 rounded-2xl border border-[#d9bd83] bg-white px-6 text-sm font-black text-[#9f6f1a] transition hover:bg-[#fff8eb]"
             >
               <Utensils size={17} />
@@ -765,9 +824,7 @@ export default function EventMenuTab({
 
         <div className="mt-5">
           <div className="mb-3 flex items-center justify-between gap-3">
-            <h3 className="text-lg font-black text-[#2b241c]">
-              תפריטים פעילים של האולם
-            </h3>
+            <h3 className="text-lg font-black text-[#2b241c]">תפריטים פעילים של האולם</h3>
             <span className="rounded-full bg-[#fff4dc] px-3 py-1 text-xs font-black text-[#b98121]">
               {menusLoading ? "טוען..." : `${templates.length} תפריטים`}
             </span>
@@ -776,13 +833,8 @@ export default function EventMenuTab({
           {templates.length ? (
             <div className="grid gap-4 md:grid-cols-3">
               {templates.map((template) => (
-                <div
-                  key={template.id}
-                  className="rounded-[24px] border border-[#eadfce] bg-[#fffdf8] p-4"
-                >
-                  <div className="text-lg font-black text-[#2b241c]">
-                    {template.name}
-                  </div>
+                <div key={template.id} className="rounded-[26px] border border-[#eadfce] bg-[#fffdf8] p-4 shadow-sm">
+                  <div className="text-lg font-black text-[#2b241c]">{template.name}</div>
                   <p className="mt-2 text-sm font-bold leading-6 text-[#7f705d]">
                     {template.description || "תפריט אולם מעודכן"}
                   </p>
@@ -803,61 +855,45 @@ export default function EventMenuTab({
 
   if (menuView === "live") {
     return (
-      <>
-        {menuError && (
-          <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm font-black text-rose-700">
-            {menuError}
-          </div>
-        )}
+      <div className="space-y-5">
+        {menuError && <ErrorBox text={menuError} />}
 
-        <MainCard title="ניהול לייב באירוע" icon={<Sparkles size={19} />}>
-          <div className="rounded-[30px] border border-[#eadfce] bg-gradient-to-br from-[#fffaf0] via-white to-[#f7ead6] p-5">
-            <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+        <section className="overflow-hidden rounded-[34px] border border-[#eadfce] bg-white shadow-sm">
+          <div className="border-b border-[#eadfce] bg-[radial-gradient(circle_at_top_left,#fff3d5,transparent_33%),linear-gradient(135deg,#fffdf8,#fff7e7,#f6ead7)] p-5">
+            <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
               <div>
-                <div className="text-xs font-black text-[#b98121]">
-                  דוח מטבח בזמן אמת · לפי קטגוריות ומנות שנבחרו
+                <div className="inline-flex items-center gap-2 rounded-full border border-[#e4c98f] bg-white/80 px-3 py-1 text-xs font-black text-[#9f6f1a] shadow-sm">
+                  <Sparkles size={14} />
+                  ניהול לייב לפי קטגוריות ומנות שנבחרו
                 </div>
-                <h3 className="mt-1 text-2xl font-black text-[#2b241c]">
-                  סימון כמויות לפי קטגוריה או לפי תת־מנה
-                </h3>
-                <p className="mt-2 max-w-3xl text-sm font-bold leading-7 text-[#7f705d]">
-                  קודם רואים את הקטגוריות שבעל האירוע בחר מתוכן. לחיצה על החץ פותחת את כל המנות שנבחרו תחת אותה קטגוריה. אפשר לעדכן כמות כללית לקטגוריה או כמות מדויקת למנה מסוימת; עדכון תת־מנה נספר אוטומטית בסיכום הקטגוריה.
+                <h2 className="mt-3 text-3xl font-black tracking-tight text-[#2b241c]">
+                  ניהול כמויות בזמן האירוע
+                </h2>
+                <p className="mt-2 max-w-4xl text-sm font-bold leading-7 text-[#7f705d]">
+                  כל קטגוריה מוצגת פעם אחת בלבד. בלחיצה על החץ נפתחות המנות שנבחרו תחתיה. עדכון מנה מעדכן אוטומטית את סיכום הקטגוריה.
                 </p>
               </div>
 
               <div className="grid min-w-full gap-3 sm:grid-cols-3 xl:min-w-[560px]">
-                <div className="rounded-2xl border border-[#eadfce] bg-white p-4 text-center">
-                  <div className="text-xs font-black text-[#8a7b68]">כמות מוערכת</div>
-                  <div className="mt-1 text-2xl font-black text-[#2b241c]">{totalEstimated}</div>
-                </div>
-                <div className="rounded-2xl border border-[#d9bd83] bg-[#fff8eb] p-4 text-center">
-                  <div className="text-xs font-black text-[#8a7b68]">כמות בפועל</div>
-                  <div className="mt-1 text-2xl font-black text-[#b98121]">{totalActual}</div>
-                </div>
-                <div className="rounded-2xl border border-[#eadfce] bg-white p-4 text-center">
-                  <div className="text-xs font-black text-[#8a7b68]">פער</div>
-                  <div
-                    className={[
-                      "mt-1 text-2xl font-black",
-                      totalActual - totalEstimated > 0
-                        ? "text-emerald-700"
-                        : totalActual - totalEstimated < 0
-                          ? "text-rose-700"
-                          : "text-[#2b241c]",
-                    ].join(" ")}
-                  >
-                    {totalActual - totalEstimated > 0 ? "+" : ""}
-                    {totalActual - totalEstimated}
-                  </div>
-                </div>
+                <MetricBox label="כמות מוערכת" value={`${totals.estimated}`} />
+                <MetricBox label="כמות בפועל" value={`${totals.actual}`} highlighted />
+                <MetricBox
+                  label="פער"
+                  value={`${totalGap > 0 ? "+" : ""}${totalGap}`}
+                  danger={totalGap < 0}
+                  success={totalGap > 0}
+                />
               </div>
             </div>
 
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-[#8a7b68] shadow-sm">
+                  {liveSaving || menuSaving ? "שומר שינוי..." : "נשמר אחרי כל שינוי"}
+                </span>
                 <span
                   className={[
-                    "rounded-full px-3 py-1 text-xs font-black",
+                    "rounded-full px-3 py-1 text-xs font-black shadow-sm",
                     kitchenReportStatus === "submitted"
                       ? "bg-emerald-50 text-emerald-700"
                       : "bg-amber-50 text-amber-700",
@@ -865,11 +901,8 @@ export default function EventMenuTab({
                 >
                   {kitchenReportStatus === "submitted" ? "דוח נסגר" : "טיוטה פעילה"}
                 </span>
-                <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-[#8a7b68]">
-                  {menuSaving ? "שומר..." : "נשמר אחרי כל שינוי"}
-                </span>
                 {assignedMenu.kitchenReportUpdatedAt ? (
-                  <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-[#8a7b68]">
+                  <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-[#8a7b68] shadow-sm">
                     עודכן: {formatDateTime(assignedMenu.kitchenReportUpdatedAt)}
                   </span>
                 ) : null}
@@ -878,7 +911,7 @@ export default function EventMenuTab({
               <button
                 type="button"
                 onClick={() => setMenuView("overview")}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-5 text-sm font-black text-[#6f6252]"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-5 text-sm font-black text-[#6f6252] transition hover:bg-[#fff8eb]"
               >
                 <ArrowRight size={16} />
                 חזרה לתפריט האירוע
@@ -886,309 +919,52 @@ export default function EventMenuTab({
             </div>
           </div>
 
-          <div className="mt-5 space-y-4">
-            {categoryGroups.length ? (
-              categoryGroups.map((group) => {
-                const isOpen = expandedCategories[group.key] !== false;
-                const diff = group.actualTotal - group.plannedTotal;
-
-                return (
-                  <div
-                    key={group.key}
-                    className="overflow-hidden rounded-[28px] border border-[#eadfce] bg-white shadow-sm"
-                  >
-                    <div className="grid gap-3 border-b border-[#eadfce] bg-[#fff8eb] p-4 xl:grid-cols-[1.4fr_170px_170px_210px_90px_44px] xl:items-center">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setExpandedCategories((current) => ({
-                            ...current,
-                            [group.key]: !isOpen,
-                          }))
-                        }
-                        className="flex items-center gap-3 text-right"
-                      >
-                        <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-[#b98121]">
-                          {isOpen ? <ChevronDown size={18} /> : <ChevronLeft size={18} />}
-                        </span>
-                        <span>
-                          <span className="block text-lg font-black text-[#2b241c]">
-                            {group.categoryTitle}
-                          </span>
-                          <span className="mt-1 block text-xs font-bold text-[#8a7b68]">
-                            {group.rows.length} מנות תחת הקטגוריה · אפשר לסמן כאן כללי או לפתוח לתת־מנות
-                          </span>
-                        </span>
-                      </button>
-
-                      <label className="block">
-                        <span className="mb-1 block text-[11px] font-black text-[#8a7b68]">
-                          כמות מוערכת בקטגוריה
-                        </span>
-                        <input
-                          type="number"
-                          min={0}
-                          value={group.plannedTotal}
-                          onChange={(event) =>
-                            setCategoryTotal(group, "plannedQuantity", event.target.value)
-                          }
-                          className="h-11 w-full rounded-2xl border border-[#eadfce] bg-white px-3 text-center text-sm font-black text-[#2b241c] outline-none focus:border-[#b98121]"
-                        />
-                      </label>
-
-                      <label className="block">
-                        <span className="mb-1 block text-[11px] font-black text-[#8a7b68]">
-                          כמות בפועל בקטגוריה
-                        </span>
-                        <input
-                          type="number"
-                          min={0}
-                          value={group.actualTotal}
-                          onChange={(event) =>
-                            setCategoryTotal(group, "actualServedQuantity", event.target.value)
-                          }
-                          className="h-11 w-full rounded-2xl border border-[#d9bd83] bg-white px-3 text-center text-lg font-black text-[#b98121] outline-none focus:border-[#b98121]"
-                        />
-                      </label>
-
-                      <div>
-                        <span className="mb-1 block text-[11px] font-black text-[#8a7b68]">
-                          עדכון מהיר לקטגוריה
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => quickUpdateCategoryActual(group, -1)}
-                            className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#eadfce] bg-white text-lg font-black text-[#6f6252]"
-                          >
-                            −
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => quickUpdateCategoryActual(group, 1)}
-                            className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#b98121] text-lg font-black text-white"
-                          >
-                            +
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => quickUpdateCategoryActual(group, 10)}
-                            className="h-10 rounded-2xl border border-[#d9bd83] bg-white px-3 text-xs font-black text-[#9f6f1a]"
-                          >
-                            +10
-                          </button>
-                        </div>
-                      </div>
-
-                      <div>
-                        <span className="mb-1 block text-[11px] font-black text-[#8a7b68]">
-                          פער
-                        </span>
-                        <span
-                          className={[
-                            "inline-flex h-10 items-center rounded-full px-3 text-xs font-black",
-                            diff > 0
-                              ? "bg-emerald-50 text-emerald-700"
-                              : diff < 0
-                                ? "bg-rose-50 text-rose-700"
-                                : "bg-slate-100 text-slate-600",
-                          ].join(" ")}
-                        >
-                          {diff > 0 ? "+" : ""}
-                          {diff}
-                        </span>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => addKitchenDish(group)}
-                        className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#d9bd83] bg-white text-[#9f6f1a]"
-                        title="הוספת מנה ידנית לקטגוריה"
-                      >
-                        <Plus size={16} />
-                      </button>
-                    </div>
-
-                    {isOpen ? (
-                      <div className="divide-y divide-[#f0e6d8]">
-                        {group.rows.map((row) => {
-                          const rowDiff =
-                            normalizeQuantity(row.actualServedQuantity) -
-                            normalizeQuantity(row.plannedQuantity);
-                          const isCategoryGeneral = row.dishId === CATEGORY_GENERAL_DISH_ID;
-
-                          return (
-                            <div
-                              key={row.id}
-                              className="grid gap-3 p-4 xl:grid-cols-[1.4fr_140px_140px_200px_90px_1.1fr_44px] xl:items-center"
-                            >
-                              <div>
-                                <div className="mb-1 text-[11px] font-black text-[#8a7b68]">
-                                  {isCategoryGeneral ? "סימון לפי קטגוריה" : "תת־מנה"}
-                                </div>
-                                <input
-                                  value={row.dishName}
-                                  disabled={isCategoryGeneral}
-                                  onChange={(event) =>
-                                    updateKitchenDish(row.id, "dishName", event.target.value, false)
-                                  }
-                                  onBlur={(event) =>
-                                    updateKitchenDish(row.id, "dishName", event.target.value, true)
-                                  }
-                                  placeholder="שם מנה"
-                                  className={[
-                                    "h-11 w-full rounded-2xl border border-[#eadfce] px-3 text-sm font-black text-[#2b241c] outline-none focus:border-[#b98121]",
-                                    isCategoryGeneral ? "bg-[#fff8eb]" : "bg-[#fffdf8]",
-                                  ].join(" ")}
-                                />
-                              </div>
-
-                              <label className="block">
-                                <span className="mb-1 block text-[11px] font-black text-[#8a7b68]">
-                                  כמות מוערכת
-                                </span>
-                                <input
-                                  type="number"
-                                  min={0}
-                                  value={row.plannedQuantity}
-                                  onChange={(event) =>
-                                    updateKitchenDish(row.id, "plannedQuantity", event.target.value)
-                                  }
-                                  className="h-11 w-full rounded-2xl border border-[#eadfce] bg-white px-3 text-center text-sm font-black text-[#2b241c] outline-none focus:border-[#b98121]"
-                                />
-                              </label>
-
-                              <label className="block">
-                                <span className="mb-1 block text-[11px] font-black text-[#8a7b68]">
-                                  כמות בפועל
-                                </span>
-                                <input
-                                  type="number"
-                                  min={0}
-                                  value={row.actualServedQuantity}
-                                  onChange={(event) =>
-                                    updateKitchenDish(row.id, "actualServedQuantity", event.target.value)
-                                  }
-                                  className="h-11 w-full rounded-2xl border border-[#d9bd83] bg-[#fff8eb] px-3 text-center text-lg font-black text-[#b98121] outline-none focus:border-[#b98121]"
-                                />
-                              </label>
-
-                              <div>
-                                <span className="mb-1 block text-[11px] font-black text-[#8a7b68]">
-                                  עדכון מהיר
-                                </span>
-                                <div className="flex items-center gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => quickUpdateActualServed(row.id, -1)}
-                                    className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#eadfce] bg-white text-lg font-black text-[#6f6252]"
-                                  >
-                                    −
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => quickUpdateActualServed(row.id, 1)}
-                                    className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#b98121] text-lg font-black text-white"
-                                  >
-                                    +
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => quickUpdateActualServed(row.id, 10)}
-                                    className="h-10 rounded-2xl border border-[#d9bd83] bg-[#fff8eb] px-3 text-xs font-black text-[#9f6f1a]"
-                                  >
-                                    +10
-                                  </button>
-                                </div>
-                              </div>
-
-                              <div>
-                                <span className="mb-1 block text-[11px] font-black text-[#8a7b68]">
-                                  פער
-                                </span>
-                                <span
-                                  className={[
-                                    "inline-flex h-10 items-center rounded-full px-3 text-xs font-black",
-                                    rowDiff > 0
-                                      ? "bg-emerald-50 text-emerald-700"
-                                      : rowDiff < 0
-                                        ? "bg-rose-50 text-rose-700"
-                                        : "bg-slate-100 text-slate-600",
-                                  ].join(" ")}
-                                >
-                                  {rowDiff > 0 ? "+" : ""}
-                                  {rowDiff}
-                                </span>
-                              </div>
-
-                              <label className="block">
-                                <span className="mb-1 block text-[11px] font-black text-[#8a7b68]">
-                                  הערות
-                                </span>
-                                <input
-                                  value={row.notes}
-                                  onChange={(event) =>
-                                    updateKitchenDish(row.id, "notes", event.target.value, false)
-                                  }
-                                  onBlur={(event) =>
-                                    updateKitchenDish(row.id, "notes", event.target.value, true)
-                                  }
-                                  placeholder="לדוגמה: יצאו עוד 5 בגלל בקשות במקום"
-                                  className="h-11 w-full rounded-2xl border border-[#eadfce] bg-white px-3 text-sm font-bold text-[#2b241c] outline-none focus:border-[#b98121]"
-                                />
-                              </label>
-
-                              <button
-                                type="button"
-                                onClick={() => removeKitchenDish(row.id)}
-                                className="flex h-10 w-10 items-center justify-center rounded-2xl border border-rose-100 bg-rose-50 text-rose-700"
-                              >
-                                <X size={16} />
-                              </button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : null}
-                  </div>
-                );
-              })
+          <div className="space-y-4 bg-[#fffdf8] p-4">
+            {liveGroups.length ? (
+              liveGroups.map((group) => (
+                <LiveCategoryCard
+                  key={group.id}
+                  group={group}
+                  isOpen={openCategories[group.id] ?? true}
+                  onToggle={() =>
+                    setOpenCategories((current) => ({
+                      ...current,
+                      [group.id]: !(current[group.id] ?? true),
+                    }))
+                  }
+                  onCategoryQuantityChange={updateCategoryQuantity}
+                  onCategoryActualQuick={quickUpdateCategoryActual}
+                  onDishChange={updateDishRow}
+                  onDishActualQuick={quickUpdateDishActual}
+                  onAddDish={addManualDishToCategory}
+                  onRemoveDish={removeDishFromCategory}
+                />
+              ))
             ) : (
-              <EmptyBox text="אין עדיין מנות לניהול לייב. אפשר להוסיף מנה ידנית." />
+              <EmptyBox text="אין עדיין קטגוריות לניהול לייב. אחרי שבעל האירוע יבחר מנות, הן יופיעו כאן לפי קטגוריות." />
             )}
-          </div>
 
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={() => addKitchenDish()}
-              className="inline-flex h-11 items-center gap-2 rounded-2xl border border-[#d9bd83] bg-[#fff8eb] px-5 text-sm font-black text-[#9f6f1a]"
-            >
-              <Plus size={16} />
-              הוספת מנה ידנית ללייב
-            </button>
-
-            <button
-              type="button"
-              disabled={menuSaving}
-              onClick={markKitchenReportSubmitted}
-              className="inline-flex h-11 items-center gap-2 rounded-2xl bg-[#b98121] px-5 text-sm font-black text-white disabled:opacity-60"
-            >
-              <CheckCircle2 size={16} />
-              סגירת דוח לייב
-            </button>
+            <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                disabled={liveSaving || menuSaving}
+                onClick={markKitchenReportSubmitted}
+                className="inline-flex h-12 items-center gap-2 rounded-2xl bg-[#b98121] px-6 text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a] disabled:opacity-60"
+              >
+                <CheckCircle2 size={17} />
+                סגירת דוח לייב
+              </button>
+            </div>
           </div>
-        </MainCard>
+        </section>
 
         <MainCard title="רגישויות / כשרויות / מנות מיוחדות" icon={<ShieldCheck size={19} />}>
-          <div className="rounded-[28px] border border-[#eadfce] bg-[#fffdf8] p-5">
+          <div className="rounded-[28px] border border-[#eadfce] bg-[linear-gradient(135deg,#fffdf8,#fff8eb)] p-5">
             <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
               <div>
-                <h3 className="text-xl font-black text-[#2b241c]">
-                  הערות מיוחדות למטבח
-                </h3>
+                <h3 className="text-xl font-black text-[#2b241c]">הערות מיוחדות למטבח</h3>
                 <p className="mt-1 text-sm font-bold leading-7 text-[#7f705d]">
-                  גם כאן כל שינוי נשמר אחרי שינוי אמיתי: רגישויות, כשרויות, טבעוני/צמחוני וכל דרישה מיוחדת.
+                  רגישויות, כשרויות, טבעוני/צמחוני, ילדים וכל דרישה מיוחדת. כל שינוי נשמר אחרי פעולה.
                 </p>
               </div>
               <InfoPill label="סה״כ מנות מיוחדות" value={`${totalSpecial}`} />
@@ -1219,7 +995,7 @@ export default function EventMenuTab({
           <div className="mt-4 space-y-3">
             {kitchenSpecialNotes.length ? (
               kitchenSpecialNotes.map((row) => (
-                <div key={row.id} className="rounded-[24px] border border-[#eadfce] bg-white p-4">
+                <div key={row.id} className="rounded-[24px] border border-[#eadfce] bg-white p-4 shadow-sm">
                   <div className="grid gap-3 lg:grid-cols-[190px_1fr_120px_1.4fr_44px] lg:items-end">
                     <label className="block">
                       <span className="mb-1 block text-xs font-black text-[#8a7b68]">סוג</span>
@@ -1241,8 +1017,7 @@ export default function EventMenuTab({
                     <InputEdit
                       label="כותרת"
                       value={row.title}
-                      onChange={(value) => updateSpecialNote(row.id, "title", value, false)}
-                      onBlur={(value) => updateSpecialNote(row.id, "title", value, true)}
+                      onChange={(value) => updateSpecialNote(row.id, "title", value)}
                       placeholder="לדוגמה: אלרגיה לאגוזים"
                     />
 
@@ -1256,9 +1031,8 @@ export default function EventMenuTab({
                     <InputEdit
                       label="הערה למטבח"
                       value={row.notes}
-                      onChange={(value) => updateSpecialNote(row.id, "notes", value, false)}
-                      onBlur={(value) => updateSpecialNote(row.id, "notes", value, true)}
-                      placeholder="לדוגמה: להכין בנפרד, לא לערבב עם גלוטן"
+                      onChange={(value) => updateSpecialNote(row.id, "notes", value)}
+                      placeholder="לדוגמה: להכין בנפרד"
                     />
 
                     <button
@@ -1272,55 +1046,49 @@ export default function EventMenuTab({
                 </div>
               ))
             ) : (
-              <EmptyBox text="אין עדיין רגישויות, כשרויות או מנות מיוחדות. אפשר להוסיף לפי צורך." />
+              <EmptyBox text="אין עדיין רגישויות, כשרויות או מנות מיוחדות." />
             )}
           </div>
 
           <label className="mt-4 block">
-            <span className="mb-2 block text-xs font-black text-[#8a7b68]">
-              הערה כללית למטבח
-            </span>
+            <span className="mb-2 block text-xs font-black text-[#8a7b68]">הערה כללית למטבח</span>
             <textarea
               value={kitchenGeneralNotes}
-              onChange={(event) => {
+              onChange={(event) => setKitchenGeneralNotes(event.target.value)}
+              onBlur={() => {
                 setKitchenReportStatus("draft");
-                setKitchenGeneralNotes(event.target.value);
+                void saveLiveNow(currentKitchenPayload({
+                  kitchenReportStatus: "draft",
+                  kitchenGeneralNotes,
+                }));
               }}
-              onBlur={(event) => saveGeneralNotes(event.target.value)}
               placeholder="לדוגמה: לפתוח טבעוני ראשון, לשים לב למנות ילדים בשולחנות 3 ו-8"
               className="min-h-[110px] w-full rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-3 text-sm font-bold text-[#2b241c] outline-none focus:border-[#b98121]"
             />
           </label>
         </MainCard>
-      </>
+      </div>
     );
   }
 
   return (
-    <>
-      {menuError && (
-        <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm font-black text-rose-700">
-          {menuError}
-        </div>
-      )}
+    <div className="space-y-5">
+      {menuError && <ErrorBox text={menuError} />}
 
       <section className="grid gap-5 xl:grid-cols-[1.2fr_0.9fr_0.9fr]">
         <MainCard title="תפריט משויך לאירוע" icon={<Utensils size={19} />}>
-          <div className="rounded-[28px] border border-[#eadfce] bg-gradient-to-br from-[#fffaf0] via-white to-[#f8eddb] p-5 shadow-sm">
-            <div className="text-xs font-black text-[#b98121]">
+          <div className="rounded-[30px] border border-[#eadfce] bg-[radial-gradient(circle_at_top_right,#fff1cb,transparent_32%),linear-gradient(135deg,#fffdf8,#fff8eb,#f8eddb)] p-5 shadow-sm">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#e4c98f] bg-white/80 px-3 py-1 text-xs font-black text-[#9f6f1a]">
+              <Layers3 size={14} />
               עותק תפריט לאירוע
             </div>
-            <h2 className="mt-1 text-2xl font-black text-[#2b241c]">
-              {assignedMenu.name}
-            </h2>
+            <h2 className="mt-3 text-2xl font-black text-[#2b241c]">{assignedMenu.name}</h2>
             <p className="mt-2 text-sm font-bold leading-7 text-[#7f705d]">
-              כאן מנהלים את התפריט שנשלח לבעל האירוע. ניהול כמויות בזמן אמת עבר למסך נפרד ומסודר.
+              כאן מנהלים את התפריט שנשלח לבעל האירוע. ניהול הלייב נמצא במסך ייעודי, לפי קטגוריות ומנות שנבחרו בפועל.
             </p>
 
             <label className="mt-4 block">
-              <span className="mb-2 block text-xs font-black text-[#8a7b68]">
-                הערה לאירוע הספציפי הזה
-              </span>
+              <span className="mb-2 block text-xs font-black text-[#8a7b68]">הערה לאירוע הספציפי הזה</span>
               <textarea
                 value={assignedMenu.eventNote || ""}
                 onChange={(event) => onUpdateEventNote(event.target.value)}
@@ -1335,12 +1103,8 @@ export default function EventMenuTab({
             selectionEditableUntil={assignedMenu.selectionEditableUntil || ""}
             lockedAt={assignedMenu.lockedAt || null}
             lockedReason={assignedMenu.lockedReason || ""}
-            onChangeMode={(value) =>
-              onUpdateSelectionPolicy({ selectionEditMode: value })
-            }
-            onChangeEditableUntil={(value) =>
-              onUpdateSelectionPolicy({ selectionEditableUntil: value })
-            }
+            onChangeMode={(value) => onUpdateSelectionPolicy({ selectionEditMode: value })}
+            onChangeEditableUntil={(value) => onUpdateSelectionPolicy({ selectionEditableUntil: value })}
           />
 
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
@@ -1376,12 +1140,8 @@ export default function EventMenuTab({
 
         <MainCard title="קישור אישי" icon={<Link2 size={19} />}>
           <div className="rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-4">
-            <div className="text-xs font-black text-[#8a7b68]">
-              קישור אישי לבחירת מנות
-            </div>
-            <div className="mt-2 break-all text-sm font-black leading-6 text-[#2b241c]">
-              {publicLink}
-            </div>
+            <div className="text-xs font-black text-[#8a7b68]">קישור אישי לבחירת מנות</div>
+            <div className="mt-2 break-all text-sm font-black leading-6 text-[#2b241c]">{publicLink}</div>
           </div>
 
           <div className="mt-4 grid gap-2">
@@ -1417,19 +1177,17 @@ export default function EventMenuTab({
             <StatusLine label="תפריט נבחר" done />
             <StatusLine label="קישור נשלח" done={assignedMenu.sentToCouple} />
             <StatusLine label="בחירת מנות הושלמה" done={assignedMenu.coupleSelected} />
-            <StatusLine label="ניהול לייב פעיל" done={kitchenDishes.length > 0} />
+            <StatusLine label="ניהול לייב פעיל" done={liveGroups.length > 0} />
           </div>
         </MainCard>
       </section>
 
       <section className="grid gap-5 xl:grid-cols-[1fr_1.3fr]">
-        <MainCard title="בחירות בעל האירוע" icon={<CheckCircle2 size={19} />}>
+        <MainCard title="בחירות בעל האירוע" icon={<ClipboardList size={19} />}>
           {(assignedMenu.selectedDishes || []).length ? (
             <div className="space-y-4">
               <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-4">
-                <div className="text-base font-black text-emerald-800">
-                  בעל האירוע שמר בחירת מנות
-                </div>
+                <div className="text-base font-black text-emerald-800">בעל האירוע שמר בחירת מנות</div>
                 <div className="mt-2 grid gap-3 md:grid-cols-3">
                   <InfoPill label="שם ממלא" value={assignedMenu.submittedByName || "לא הוזן"} />
                   <InfoPill label="טלפון" value={assignedMenu.submittedByPhone || "לא הוזן"} />
@@ -1442,13 +1200,8 @@ export default function EventMenuTab({
 
               <div className="space-y-3">
                 {Object.entries(selectedDishGroups).map(([categoryTitle, dishes]) => (
-                  <div
-                    key={categoryTitle}
-                    className="rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-4"
-                  >
-                    <div className="mb-3 text-sm font-black text-[#2b241c]">
-                      {categoryTitle}
-                    </div>
+                  <div key={categoryTitle} className="rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-4">
+                    <div className="mb-3 text-sm font-black text-[#2b241c]">{categoryTitle}</div>
                     <div className="flex flex-wrap gap-2">
                       {dishes.map((dish) => (
                         <span
@@ -1465,20 +1218,14 @@ export default function EventMenuTab({
 
               {assignedMenu.customerNote ? (
                 <div className="rounded-2xl border border-[#eadfce] bg-white p-4">
-                  <div className="text-xs font-black text-[#8a7b68]">
-                    הערות בעל האירוע
-                  </div>
-                  <p className="mt-2 text-sm font-bold leading-7 text-[#2b241c]">
-                    {assignedMenu.customerNote}
-                  </p>
+                  <div className="text-xs font-black text-[#8a7b68]">הערות בעל האירוע</div>
+                  <p className="mt-2 text-sm font-bold leading-7 text-[#2b241c]">{assignedMenu.customerNote}</p>
                 </div>
               ) : null}
             </div>
           ) : (
             <div className="rounded-[28px] border border-dashed border-[#d9bd83] bg-[#fff8eb] p-5">
-              <div className="text-base font-black text-[#2b241c]">
-                עדיין לא נבחרו מנות
-              </div>
+              <div className="text-base font-black text-[#2b241c]">עדיין לא נבחרו מנות</div>
               <p className="mt-2 text-sm font-bold leading-7 text-[#7f705d]">
                 אחרי שבעל האירוע יפתח את הקישור האישי וישמור בחירה, המנות יופיעו כאן אוטומטית.
               </p>
@@ -1497,9 +1244,7 @@ export default function EventMenuTab({
                 <div key={category.id} className="rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-4">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div>
-                      <div className="text-base font-black text-[#2b241c]">
-                        {category.name}
-                      </div>
+                      <div className="text-base font-black text-[#2b241c]">{category.name}</div>
                       <div className="mt-1 text-xs font-bold text-[#8a7b68]">
                         במקור: בחירה {category.originalMaxChoices} מתוך {category.dishesCount || "המוגדרות"}
                       </div>
@@ -1516,9 +1261,7 @@ export default function EventMenuTab({
                   </div>
 
                   <label className="mt-3 block">
-                    <span className="mb-1 block text-xs font-black text-[#8a7b68]">
-                      הערה לקטגוריה באירוע הזה
-                    </span>
+                    <span className="mb-1 block text-xs font-black text-[#8a7b68]">הערה לקטגוריה באירוע הזה</span>
                     <input
                       value={category.eventNote}
                       onChange={(event) => onUpdateCategory(category.id, "eventNote", event.target.value)}
@@ -1534,7 +1277,155 @@ export default function EventMenuTab({
           </div>
         </MainCard>
       </section>
-    </>
+    </div>
+  );
+}
+
+function LiveCategoryCard({
+  group,
+  isOpen,
+  onToggle,
+  onCategoryQuantityChange,
+  onCategoryActualQuick,
+  onDishChange,
+  onDishActualQuick,
+  onAddDish,
+  onRemoveDish,
+}: {
+  group: LiveCategory;
+  isOpen: boolean;
+  onToggle: () => void;
+  onCategoryQuantityChange: (
+    categoryId: string,
+    field: "plannedQuantity" | "actualServedQuantity",
+    value: string | number
+  ) => void;
+  onCategoryActualQuick: (categoryId: string, diff: number) => void;
+  onDishChange: (
+    categoryId: string,
+    rowId: string,
+    field: keyof Pick<KitchenReportDish, "plannedQuantity" | "actualServedQuantity" | "notes" | "dishName">,
+    value: string | number
+  ) => void;
+  onDishActualQuick: (categoryId: string, rowId: string, diff: number) => void;
+  onAddDish: (categoryId: string) => void;
+  onRemoveDish: (categoryId: string, rowId: string) => void;
+}) {
+  const diff = clampNumber(group.directSummary.actualServedQuantity) - clampNumber(group.directSummary.plannedQuantity);
+
+  return (
+    <div className="overflow-hidden rounded-[30px] border border-[#eadfce] bg-white shadow-[0_12px_30px_rgba(76,52,21,0.06)]">
+      <div className="bg-[linear-gradient(135deg,#fff8eb,#fffdf8)] p-4">
+        <div className="grid gap-4 xl:grid-cols-[minmax(260px,1fr)_160px_160px_210px_90px_54px] xl:items-center">
+          <button type="button" onClick={onToggle} className="flex items-center gap-3 text-right">
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-[#b98121] shadow-sm">
+              {isOpen ? <ChevronDown size={20} /> : <ChevronLeft size={20} />}
+            </span>
+            <span>
+              <span className="block text-xl font-black text-[#2b241c]">{group.title}</span>
+              <span className="mt-1 block text-xs font-bold leading-5 text-[#7f705d]">{group.subtitle}</span>
+            </span>
+          </button>
+
+          <LiveNumberInput
+            label="כמות מוערכת בקטגוריה"
+            value={group.directSummary.plannedQuantity}
+            onChange={(value) => onCategoryQuantityChange(group.id, "plannedQuantity", value)}
+          />
+
+          <LiveNumberInput
+            label="כמות בפועל בקטגוריה"
+            value={group.directSummary.actualServedQuantity}
+            onChange={(value) => onCategoryQuantityChange(group.id, "actualServedQuantity", value)}
+            highlighted
+          />
+
+          <div>
+            <div className="mb-1 text-center text-[11px] font-black text-[#8a7b68]">עדכון מהיר לקטגוריה</div>
+            <div className="flex items-center justify-center gap-2">
+              <QuickButton onClick={() => onCategoryActualQuick(group.id, -1)} label="−" />
+              <QuickButton onClick={() => onCategoryActualQuick(group.id, 1)} label="+" primary />
+              <QuickButton onClick={() => onCategoryActualQuick(group.id, 10)} label="10+" />
+            </div>
+          </div>
+
+          <GapBadge value={diff} />
+
+          <button
+            type="button"
+            onClick={() => onAddDish(group.id)}
+            className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#d9bd83] bg-white text-[#9f6f1a] transition hover:bg-[#fff8eb]"
+            title="הוספת מנה ידנית תחת הקטגוריה"
+          >
+            <Plus size={18} />
+          </button>
+        </div>
+      </div>
+
+      {isOpen ? (
+        <div className="divide-y divide-[#f0e6d8] bg-white">
+          {group.dishes.length ? (
+            group.dishes.map((dish) => {
+              const dishDiff = clampNumber(dish.actualServedQuantity) - clampNumber(dish.plannedQuantity);
+
+              return (
+                <div key={dish.id} className="grid gap-3 p-4 xl:grid-cols-[minmax(260px,1fr)_160px_160px_210px_90px_minmax(240px,1fr)_54px] xl:items-center">
+                  <InputEdit
+                    label="מנה"
+                    value={dish.dishName}
+                    onChange={(value) => onDishChange(group.id, dish.id, "dishName", value)}
+                    placeholder="שם מנה"
+                  />
+
+                  <LiveNumberInput
+                    label="כמות מוערכת"
+                    value={dish.plannedQuantity}
+                    onChange={(value) => onDishChange(group.id, dish.id, "plannedQuantity", value)}
+                  />
+
+                  <LiveNumberInput
+                    label="כמות בפועל"
+                    value={dish.actualServedQuantity}
+                    onChange={(value) => onDishChange(group.id, dish.id, "actualServedQuantity", value)}
+                    highlighted
+                  />
+
+                  <div>
+                    <div className="mb-1 text-center text-[11px] font-black text-[#8a7b68]">עדכון מהיר</div>
+                    <div className="flex items-center justify-center gap-2">
+                      <QuickButton onClick={() => onDishActualQuick(group.id, dish.id, -1)} label="−" />
+                      <QuickButton onClick={() => onDishActualQuick(group.id, dish.id, 1)} label="+" primary />
+                      <QuickButton onClick={() => onDishActualQuick(group.id, dish.id, 10)} label="10+" />
+                    </div>
+                  </div>
+
+                  <GapBadge value={dishDiff} />
+
+                  <InputEdit
+                    label="הערות"
+                    value={dish.notes}
+                    onChange={(value) => onDishChange(group.id, dish.id, "notes", value)}
+                    placeholder="לדוגמה: יצאו עוד 5 בגלל בקשות במקום"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => onRemoveDish(group.id, dish.id)}
+                    className="flex h-11 w-11 items-center justify-center rounded-2xl border border-rose-100 bg-rose-50 text-rose-700"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              );
+            })
+          ) : (
+            <div className="p-4">
+              <EmptyBox text="אין מנות תחת הקטגוריה הזאת. אפשר להשאיר כמות כללית או להוסיף מנה ידנית." />
+            </div>
+          )}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -1557,9 +1448,7 @@ function MenuEditPolicyBox({
 
   return (
     <div className="mt-4 rounded-[24px] border border-[#eadfce] bg-white p-4">
-      <div className="text-sm font-black text-[#2b241c]">
-        אפשרות עריכה לבעל האירוע
-      </div>
+      <div className="text-sm font-black text-[#2b241c]">אפשרות עריכה לבעל האירוע</div>
       <p className="mt-1 text-xs font-bold leading-5 text-[#7f705d]">
         ההגבלה הזאת חלה רק על בעל האירוע בקישור האישי. האולם יכול לערוך ולעדכן תמיד מתוך הדשבורד.
       </p>
@@ -1576,9 +1465,7 @@ function MenuEditPolicyBox({
           ].join(" ")}
         >
           <div className="text-sm font-black">ניתן לעדכן עד תאריך</div>
-          <div className="mt-1 text-xs font-bold leading-5">
-            אחרי התאריך שהאולם הגדיר, בעל האירוע יראה את התפריט לצפייה בלבד.
-          </div>
+          <div className="mt-1 text-xs font-bold leading-5">אחרי התאריך שהאולם הגדיר, בעל האירוע יראה את התפריט לצפייה בלבד.</div>
         </button>
 
         <button
@@ -1592,17 +1479,13 @@ function MenuEditPolicyBox({
           ].join(" ")}
         >
           <div className="text-sm font-black">ננעל לאחר בחירה ראשונה</div>
-          <div className="mt-1 text-xs font-bold leading-5">
-            אחרי שבעל האירוע שומר פעם אחת, הוא יוכל לראות את התפריט בלבד.
-          </div>
+          <div className="mt-1 text-xs font-bold leading-5">אחרי שבעל האירוע שומר פעם אחת, הוא יוכל לראות את התפריט בלבד.</div>
         </button>
       </div>
 
       {isUntilDate ? (
         <label className="mt-4 block">
-          <span className="mb-1 block text-xs font-black text-[#8a7b68]">
-            ניתן לעדכן עד תאריך ושעה
-          </span>
+          <span className="mb-1 block text-xs font-black text-[#8a7b68]">ניתן לעדכן עד תאריך ושעה</span>
           <input
             type="datetime-local"
             value={formatDateTimeInputValue(selectionEditableUntil)}
@@ -1638,6 +1521,117 @@ function StatusLine({ label, done }: { label: string; done?: boolean }) {
   );
 }
 
+function MetricBox({
+  label,
+  value,
+  highlighted,
+  danger,
+  success,
+}: {
+  label: string;
+  value: string;
+  highlighted?: boolean;
+  danger?: boolean;
+  success?: boolean;
+}) {
+  return (
+    <div
+      className={[
+        "rounded-2xl border p-4 text-center shadow-sm",
+        highlighted
+          ? "border-[#d9bd83] bg-[#fff8eb]"
+          : "border-[#eadfce] bg-white",
+      ].join(" ")}
+    >
+      <div className="text-xs font-black text-[#8a7b68]">{label}</div>
+      <div
+        className={[
+          "mt-1 text-2xl font-black",
+          danger ? "text-rose-700" : success ? "text-emerald-700" : highlighted ? "text-[#b98121]" : "text-[#2b241c]",
+        ].join(" ")}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function LiveNumberInput({
+  label,
+  value,
+  onChange,
+  highlighted,
+}: {
+  label: string;
+  value: number;
+  onChange: (value: string) => void;
+  highlighted?: boolean;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-center text-[11px] font-black text-[#8a7b68]">{label}</span>
+      <input
+        type="number"
+        min={0}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className={[
+          "h-12 w-full rounded-2xl border px-3 text-center text-lg font-black outline-none transition focus:border-[#b98121] focus:ring-4 focus:ring-[#d5a046]/10",
+          highlighted
+            ? "border-[#d9bd83] bg-[#fff8eb] text-[#b98121]"
+            : "border-[#eadfce] bg-white text-[#2b241c]",
+        ].join(" ")}
+      />
+    </label>
+  );
+}
+
+function QuickButton({
+  label,
+  onClick,
+  primary,
+}: {
+  label: string;
+  onClick: () => void;
+  primary?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={[
+        "flex h-10 min-w-10 items-center justify-center rounded-2xl px-3 text-sm font-black transition",
+        primary
+          ? "bg-[#b98121] text-white hover:bg-[#9f6f1a]"
+          : "border border-[#d9bd83] bg-white text-[#9f6f1a] hover:bg-[#fff8eb]",
+      ].join(" ")}
+    >
+      {label}
+    </button>
+  );
+}
+
+function GapBadge({ value }: { value: number }) {
+  return (
+    <div className="text-center">
+      <div className="mb-1 text-[11px] font-black text-[#8a7b68]">פער</div>
+      <span
+        className={[
+          "inline-flex min-w-[58px] justify-center rounded-full px-3 py-2 text-xs font-black",
+          value > 0
+            ? "bg-emerald-50 text-emerald-700"
+            : value < 0
+              ? "bg-rose-50 text-rose-700"
+              : "bg-slate-100 text-slate-600",
+        ].join(" ")}
+      >
+        {value > 0 ? "+" : ""}
+        {value}
+      </span>
+    </div>
+  );
+}
+
 function InfoPill({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-[#eadfce] bg-white px-3 py-2">
@@ -1657,7 +1651,7 @@ function MainCard({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-[28px] border border-[#eadfce] bg-white p-5 shadow-sm">
+    <section className="rounded-[30px] border border-[#eadfce] bg-white p-5 shadow-sm">
       <div className="mb-4 flex items-center gap-2">
         <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#f4ead9] text-[#b98121]">
           {icon}
@@ -1673,29 +1667,24 @@ function InputEdit({
   label,
   value,
   onChange,
-  onBlur,
   type = "text",
   placeholder = "",
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
-  onBlur?: (value: string) => void;
   type?: "text" | "number" | "date" | "time";
   placeholder?: string;
 }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-xs font-black text-[#8a7b68]">
-        {label}
-      </span>
+      <span className="mb-1 block text-xs font-black text-[#8a7b68]">{label}</span>
       <input
         type={type}
         value={value}
         placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
-        onBlur={(event) => onBlur?.(event.target.value)}
-        className="h-11 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-3 text-sm font-bold text-[#2b241c] outline-none focus:border-[#b98121]"
+        className="h-11 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-3 text-sm font-bold text-[#2b241c] outline-none transition focus:border-[#b98121] focus:ring-4 focus:ring-[#d5a046]/10"
       />
     </label>
   );
@@ -1704,6 +1693,14 @@ function InputEdit({
 function EmptyBox({ text }: { text: string }) {
   return (
     <div className="rounded-2xl border border-dashed border-[#d9bd83] bg-[#fffaf0] p-4 text-center text-sm font-bold leading-6 text-[#7f705d]">
+      {text}
+    </div>
+  );
+}
+
+function ErrorBox({ text }: { text: string }) {
+  return (
+    <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm font-black text-rose-700">
       {text}
     </div>
   );
