@@ -1184,10 +1184,53 @@ export default function EventMenuTab({
 
       <section className="grid gap-5 xl:grid-cols-[1fr_1.3fr]">
         <MainCard title="בחירות בעל האירוע" icon={<ClipboardList size={19} />}>
-          <SelectedChoicesPanel
-            assignedMenu={assignedMenu}
-            selectedDishGroups={selectedDishGroups}
-          />
+          {(assignedMenu.selectedDishes || []).length ? (
+            <div className="space-y-4">
+              <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-4">
+                <div className="text-base font-black text-emerald-800">בעל האירוע שמר בחירת מנות</div>
+                <div className="mt-2 grid gap-3 md:grid-cols-3">
+                  <InfoPill label="שם ממלא" value={assignedMenu.submittedByName || "לא הוזן"} />
+                  <InfoPill label="טלפון" value={assignedMenu.submittedByPhone || "לא הוזן"} />
+                  <InfoPill
+                    label="נשמר בתאריך"
+                    value={assignedMenu.submittedAt ? formatDateTime(assignedMenu.submittedAt) : "לא הוגדר"}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {Object.entries(selectedDishGroups).map(([categoryTitle, dishes]) => (
+                  <div key={categoryTitle} className="rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-4">
+                    <div className="mb-3 text-sm font-black text-[#2b241c]">{categoryTitle}</div>
+                    <div className="flex flex-wrap gap-2">
+                      {dishes.map((dish) => (
+                        <span
+                          key={`${dish.categoryId}-${dish.dishId}`}
+                          className="rounded-full bg-[#fff4dc] px-3 py-1 text-xs font-black text-[#8c5f19]"
+                        >
+                          {dish.dishName}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {assignedMenu.customerNote ? (
+                <div className="rounded-2xl border border-[#eadfce] bg-white p-4">
+                  <div className="text-xs font-black text-[#8a7b68]">הערות בעל האירוע</div>
+                  <p className="mt-2 text-sm font-bold leading-7 text-[#2b241c]">{assignedMenu.customerNote}</p>
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <div className="rounded-[28px] border border-dashed border-[#d9bd83] bg-[#fff8eb] p-5">
+              <div className="text-base font-black text-[#2b241c]">עדיין לא נבחרו מנות</div>
+              <p className="mt-2 text-sm font-bold leading-7 text-[#7f705d]">
+                אחרי שבעל האירוע יפתח את הקישור האישי וישמור בחירה, המנות יופיעו כאן אוטומטית.
+              </p>
+            </div>
+          )}
         </MainCard>
 
         <MainCard title="התאמות בחירה לאירוע הזה" icon={<Edit3 size={19} />}>
@@ -1273,67 +1316,90 @@ function LiveCategoryCard({
     clampNumber(group.directSummary.plannedQuantity);
 
   return (
-    <article className="overflow-hidden rounded-[26px] border border-[#e3d7c5] bg-[#f7efe3] shadow-[0_14px_34px_rgba(48,36,24,0.075)]">
-      <div className="relative overflow-hidden border-b border-[#e6dac7] bg-[linear-gradient(135deg,#f7efe3_0%,#efe3d1_100%)] px-4 py-3">
-        <div className="pointer-events-none absolute -left-12 -top-16 h-36 w-36 rounded-full bg-white/45 blur-3xl" />
-
-        <div className="relative grid gap-3 xl:grid-cols-[minmax(260px,1fr)_420px] xl:items-center">
-          <button type="button" onClick={onToggle} className="group flex min-w-0 items-center gap-3 text-right">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] border border-white/80 bg-[#fffaf3]/90 text-[#7b5d37] shadow-sm transition group-hover:scale-[1.03]">
-              {isOpen ? <ChevronDown size={19} /> : <ChevronLeft size={19} />}
+    <article className="overflow-hidden rounded-[24px] border border-[#e2d5c2] bg-[#fffaf3] shadow-[0_10px_28px_rgba(47,35,20,0.055)]">
+      <div className="border-b border-[#e7dccb] bg-[linear-gradient(135deg,#f4eadc,#eadcca)] px-3 py-3 md:px-4">
+        <div className="grid gap-3 xl:grid-cols-[minmax(220px,1fr)_108px_108px_70px_156px_42px] xl:items-center">
+          <button
+            type="button"
+            onClick={onToggle}
+            className="group flex min-w-0 items-center gap-3 text-right"
+          >
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] border border-white/70 bg-[#fffdf8]/90 text-[#6f5a42] shadow-sm transition group-hover:bg-white">
+              {isOpen ? <ChevronDown size={18} /> : <ChevronLeft size={18} />}
             </span>
             <span className="min-w-0">
-              <span className="block text-xl font-black tracking-tight text-[#2d251d]">{group.title}</span>
-              <span className="mt-0.5 block text-[11px] font-bold leading-5 text-[#7a6b58]">
+              <span className="block truncate text-xl font-black text-[#2b241c]">
+                {group.title}
+              </span>
+              <span className="mt-0.5 block text-[11px] font-bold text-[#7a6b58]">
                 {group.dishes.length
-                  ? `${group.dishes.length} מנות שנבחרו · אפשר לעדכן קטגוריה או מנה ספציפית`
-                  : "אין מנות שנבחרו · אפשר לעדכן כמות כללית"}
+                  ? `${group.dishes.length} מנות · עדכון מנה מסכם אוטומטית קטגוריה`
+                  : "ללא מנות — ניתן לעדכן כמות כללית"}
               </span>
             </span>
           </button>
 
-          <div className="grid gap-2 sm:grid-cols-[1fr_1fr_72px_152px_44px] sm:items-end">
-            <LiveNumberInput
-              label="מוערך"
+          <label className="block">
+            <span className="mb-1 block text-center text-[10px] font-black text-[#766754]">
+              מוערך
+            </span>
+            <input
+              type="number"
+              min={0}
               value={group.directSummary.plannedQuantity}
-              onChange={(value) => onCategoryQuantityChange(group.id, "plannedQuantity", value)}
-              compact
+              onChange={(event) =>
+                onCategoryQuantityChange(
+                  group.id,
+                  "plannedQuantity",
+                  event.target.value
+                )
+              }
+              className="h-10 w-full rounded-[16px] border border-[#d9c8ad] bg-[#fffdf8] px-2 text-center text-base font-black text-[#2b241c] outline-none focus:border-[#8b6334] focus:ring-4 focus:ring-[#8b6334]/10"
             />
+          </label>
 
-            <LiveNumberInput
-              label="בפועל"
+          <label className="block">
+            <span className="mb-1 block text-center text-[10px] font-black text-[#766754]">
+              בפועל
+            </span>
+            <input
+              type="number"
+              min={0}
               value={group.directSummary.actualServedQuantity}
-              onChange={(value) => onCategoryQuantityChange(group.id, "actualServedQuantity", value)}
-              highlighted
-              compact
+              onChange={(event) =>
+                onCategoryQuantityChange(
+                  group.id,
+                  "actualServedQuantity",
+                  event.target.value
+                )
+              }
+              className="h-10 w-full rounded-[16px] border border-[#cbb89b] bg-[#f7eddf] px-2 text-center text-base font-black text-[#7b5d37] outline-none focus:border-[#8b6334] focus:ring-4 focus:ring-[#8b6334]/10"
             />
+          </label>
 
-            <GapBadge value={diff} compact />
+          <GapBadge value={diff} />
 
-            <div className="rounded-[18px] border border-[#dfd2bd] bg-[#fffaf2]/75 p-1.5 shadow-inner">
-              <div className="flex items-center justify-center gap-1.5">
-                <QuickButton onClick={() => onCategoryActualQuick(group.id, -1)} label="−" compact />
-                <QuickButton onClick={() => onCategoryActualQuick(group.id, 1)} label="+" primary compact />
-                <QuickButton onClick={() => onCategoryActualQuick(group.id, 10)} label="10+" compact />
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => onAddDish(group.id)}
-              className="flex h-10 w-10 items-center justify-center rounded-[16px] border border-[#d8c6aa] bg-[#fffdf8] text-[#7b5d37] shadow-sm transition hover:bg-[#f3e7d7]"
-              title="הוספת מנה ידנית תחת הקטגוריה"
-            >
-              <Plus size={16} />
-            </button>
+          <div className="flex items-center justify-center gap-1.5 rounded-[16px] border border-[#ded0ba] bg-[#fff8eb]/80 px-2 py-1.5">
+            <QuickButton onClick={() => onCategoryActualQuick(group.id, -1)} label="−" />
+            <QuickButton onClick={() => onCategoryActualQuick(group.id, 1)} label="+" primary />
+            <QuickButton onClick={() => onCategoryActualQuick(group.id, 10)} label="10+" />
           </div>
+
+          <button
+            type="button"
+            onClick={() => onAddDish(group.id)}
+            className="flex h-10 w-10 items-center justify-center rounded-[16px] border border-[#d8c6aa] bg-[#fffdf8] text-[#7b5d37] shadow-sm transition hover:bg-[#f7efe3]"
+            title="הוספת מנה ידנית תחת הקטגוריה"
+          >
+            <Plus size={17} />
+          </button>
         </div>
       </div>
 
       {isOpen ? (
-        <div className="bg-[#fbf6ed] p-3">
+        <div className="bg-[#fffaf3] p-2.5 md:p-3">
           {group.dishes.length ? (
-            <div className="grid gap-2 md:grid-cols-2 2xl:grid-cols-3">
+            <div className="space-y-2">
               {group.dishes.map((dish) => {
                 const dishDiff =
                   clampNumber(dish.actualServedQuantity) -
@@ -1342,61 +1408,82 @@ function LiveCategoryCard({
                 return (
                   <div
                     key={dish.id}
-                    className="rounded-[20px] border border-[#e4d8c5] bg-[#fffdf8] p-3 shadow-[0_8px_20px_rgba(62,45,25,0.045)]"
+                    className="grid gap-2 rounded-[18px] border border-[#eadfce] bg-[#fffdf8] p-2.5 shadow-[0_6px_18px_rgba(62,45,25,0.035)] xl:grid-cols-[minmax(190px,1.3fr)_88px_88px_64px_142px_minmax(180px,1fr)_38px] xl:items-center"
                   >
-                    <div className="flex items-start gap-2">
-                      <div className="min-w-0 flex-1">
-                        <input
-                          value={dish.dishName}
-                          onChange={(event) => onDishChange(group.id, dish.id, "dishName", event.target.value)}
-                          placeholder="שם מנה"
-                          className="h-10 w-full rounded-[16px] border border-[#e5dac8] bg-[#fbf6ed] px-3 text-sm font-black text-[#2b241c] outline-none transition placeholder:text-[#a79a8a] focus:border-[#9d7b4e] focus:ring-4 focus:ring-[#9d7b4e]/10"
-                        />
-                      </div>
+                    <label className="block">
+                      <span className="mb-1 block text-[10px] font-black text-[#766754]">
+                        מנה
+                      </span>
+                      <input
+                        value={dish.dishName}
+                        onChange={(event) =>
+                          onDishChange(group.id, dish.id, "dishName", event.target.value)
+                        }
+                        placeholder="שם מנה"
+                        className="h-9 w-full rounded-[14px] border border-[#e5dac8] bg-white px-2.5 text-sm font-black text-[#2b241c] outline-none placeholder:text-[#a79a8a] focus:border-[#8b6334] focus:ring-4 focus:ring-[#8b6334]/10"
+                      />
+                    </label>
 
-                      <button
-                        type="button"
-                        onClick={() => onRemoveDish(group.id, dish.id)}
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] border border-rose-100 bg-rose-50 text-rose-700 transition hover:bg-rose-100"
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
-
-                    <div className="mt-2 grid grid-cols-[1fr_1fr_64px] gap-2 items-end">
-                      <LiveNumberInput
-                        label="מוערך"
+                    <label className="block">
+                      <span className="mb-1 block text-center text-[10px] font-black text-[#766754]">
+                        מוערך
+                      </span>
+                      <input
+                        type="number"
+                        min={0}
                         value={dish.plannedQuantity}
-                        onChange={(value) => onDishChange(group.id, dish.id, "plannedQuantity", value)}
-                        compact
+                        onChange={(event) =>
+                          onDishChange(group.id, dish.id, "plannedQuantity", event.target.value)
+                        }
+                        className="h-9 w-full rounded-[14px] border border-[#e5dac8] bg-white px-2 text-center text-sm font-black text-[#2b241c] outline-none focus:border-[#8b6334] focus:ring-4 focus:ring-[#8b6334]/10"
                       />
+                    </label>
 
-                      <LiveNumberInput
-                        label="בפועל"
+                    <label className="block">
+                      <span className="mb-1 block text-center text-[10px] font-black text-[#766754]">
+                        בפועל
+                      </span>
+                      <input
+                        type="number"
+                        min={0}
                         value={dish.actualServedQuantity}
-                        onChange={(value) => onDishChange(group.id, dish.id, "actualServedQuantity", value)}
-                        highlighted
-                        compact
+                        onChange={(event) =>
+                          onDishChange(group.id, dish.id, "actualServedQuantity", event.target.value)
+                        }
+                        className="h-9 w-full rounded-[14px] border border-[#cbb89b] bg-[#f7eddf] px-2 text-center text-sm font-black text-[#7b5d37] outline-none focus:border-[#8b6334] focus:ring-4 focus:ring-[#8b6334]/10"
                       />
+                    </label>
 
-                      <GapBadge value={dishDiff} compact />
+                    <GapBadge value={dishDiff} />
+
+                    <div className="flex items-center justify-center gap-1.5 rounded-[14px] border border-[#e7dbc8] bg-[#f8f0e4] px-2 py-1.5">
+                      <QuickButton onClick={() => onDishActualQuick(group.id, dish.id, -1)} label="−" />
+                      <QuickButton onClick={() => onDishActualQuick(group.id, dish.id, 1)} label="+" primary />
+                      <QuickButton onClick={() => onDishActualQuick(group.id, dish.id, 10)} label="10+" />
                     </div>
 
-                    <div className="mt-2 flex items-center justify-between gap-2 rounded-[16px] border border-[#e7dbc8] bg-[#f7efe3] px-2 py-1.5">
-                      <span className="text-[10px] font-black text-[#796752]">מהיר</span>
-                      <div className="flex items-center gap-1.5">
-                        <QuickButton onClick={() => onDishActualQuick(group.id, dish.id, -1)} label="−" compact />
-                        <QuickButton onClick={() => onDishActualQuick(group.id, dish.id, 1)} label="+" primary compact />
-                        <QuickButton onClick={() => onDishActualQuick(group.id, dish.id, 10)} label="10+" compact />
-                      </div>
-                    </div>
+                    <label className="block">
+                      <span className="mb-1 block text-[10px] font-black text-[#766754]">
+                        הערה
+                      </span>
+                      <input
+                        value={dish.notes}
+                        onChange={(event) =>
+                          onDishChange(group.id, dish.id, "notes", event.target.value)
+                        }
+                        placeholder="הערה קצרה למטבח"
+                        className="h-9 w-full rounded-[14px] border border-[#e5dac8] bg-white px-2.5 text-xs font-bold text-[#2b241c] outline-none placeholder:text-[#a79a8a] focus:border-[#8b6334] focus:ring-4 focus:ring-[#8b6334]/10"
+                      />
+                    </label>
 
-                    <input
-                      value={dish.notes}
-                      onChange={(event) => onDishChange(group.id, dish.id, "notes", event.target.value)}
-                      placeholder="הערה למטבח"
-                      className="mt-2 h-9 w-full rounded-[15px] border border-[#e5dac8] bg-[#fffaf3] px-3 text-xs font-bold text-[#2b241c] outline-none transition placeholder:text-[#a79a8a] focus:border-[#9d7b4e] focus:ring-4 focus:ring-[#9d7b4e]/10"
-                    />
+                    <button
+                      type="button"
+                      onClick={() => onRemoveDish(group.id, dish.id)}
+                      className="flex h-9 w-9 items-center justify-center rounded-[14px] border border-rose-100 bg-rose-50 text-rose-700 transition hover:bg-rose-100"
+                      title="מחיקת מנה מהלייב"
+                    >
+                      <Trash2 size={15} />
+                    </button>
                   </div>
                 );
               })}
@@ -1486,97 +1573,6 @@ function MenuEditPolicyBox({
   );
 }
 
-function SelectedChoicesPanel({
-  assignedMenu,
-  selectedDishGroups,
-}: {
-  assignedMenu: AssignedMenu;
-  selectedDishGroups: Record<string, NonNullable<AssignedMenu["selectedDishes"]>>;
-}) {
-  const selectedCount = (assignedMenu.selectedDishes || []).length;
-  const categoriesCount = Object.keys(selectedDishGroups).length;
-
-  if (!selectedCount) {
-    return (
-      <div className="overflow-hidden rounded-[28px] border border-dashed border-[#cdbb9f] bg-[linear-gradient(135deg,#fbf6ed,#f3e7d8)] p-6">
-        <div className="flex items-start gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[20px] border border-white/70 bg-[#fffdf8] text-[#7b5d37] shadow-sm">
-            <ClipboardList size={20} />
-          </div>
-          <div>
-            <div className="text-lg font-black text-[#2b241c]">עדיין לא נבחרו מנות</div>
-            <p className="mt-2 max-w-2xl text-sm font-bold leading-7 text-[#766754]">
-              אחרי שבעל האירוע יפתח את הקישור האישי וישמור בחירה, המנות יופיעו כאן בצורה מסודרת לפי קטגוריות.
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="overflow-hidden rounded-[28px] border border-[#d7eadf] bg-[linear-gradient(135deg,#eaf8ef,#f8fbf7)] shadow-[0_14px_34px_rgba(43,75,55,0.07)]">
-        <div className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-start gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[20px] border border-emerald-100 bg-white text-emerald-700 shadow-sm">
-              <CheckCircle2 size={22} />
-            </div>
-            <div>
-              <div className="text-xl font-black text-[#234332]">בעל האירוע שמר בחירת מנות</div>
-              <div className="mt-1 text-xs font-black text-[#5f7f6c]">
-                {selectedCount} מנות · {categoriesCount} קטגוריות
-              </div>
-            </div>
-          </div>
-
-          <div className="grid gap-2 sm:grid-cols-3 lg:min-w-[520px]">
-            <InfoPill label="שם ממלא" value={assignedMenu.submittedByName || "לא הוזן"} />
-            <InfoPill label="טלפון" value={assignedMenu.submittedByPhone || "לא הוזן"} />
-            <InfoPill
-              label="נשמר בתאריך"
-              value={assignedMenu.submittedAt ? formatDateTime(assignedMenu.submittedAt) : "לא הוגדר"}
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
-        {Object.entries(selectedDishGroups).map(([categoryTitle, dishes]) => (
-          <div
-            key={categoryTitle}
-            className="rounded-[24px] border border-[#e2d6c4] bg-[linear-gradient(135deg,#fffdf8,#f7efe3)] p-4 shadow-[0_10px_26px_rgba(62,45,25,0.055)]"
-          >
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div className="text-base font-black text-[#2b241c]">{categoryTitle}</div>
-              <span className="rounded-full border border-[#e1d1b7] bg-[#fffaf3] px-3 py-1 text-[11px] font-black text-[#7b5d37]">
-                {dishes.length} מנות
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {dishes.map((dish) => (
-                <span
-                  key={`${dish.categoryId}-${dish.dishId}`}
-                  className="rounded-full border border-[#e6d8bf] bg-[#f8f0e4] px-3 py-1.5 text-xs font-black text-[#6f5434]"
-                >
-                  {dish.dishName}
-                </span>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {assignedMenu.customerNote ? (
-        <div className="rounded-[24px] border border-[#e2d6c4] bg-[#fffdf8] p-4 shadow-sm">
-          <div className="text-xs font-black text-[#7f705d]">הערות בעל האירוע</div>
-          <p className="mt-2 text-sm font-bold leading-7 text-[#2b241c]">{assignedMenu.customerNote}</p>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 function StatusLine({ label, done }: { label: string; done?: boolean }) {
   return (
     <div className="flex items-center justify-between rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-3 py-3">
@@ -1634,13 +1630,11 @@ function LiveNumberInput({
   value,
   onChange,
   highlighted,
-  compact,
 }: {
   label: string;
   value: number;
   onChange: (value: string) => void;
   highlighted?: boolean;
-  compact?: boolean;
 }) {
   return (
     <label className="block">
@@ -1651,7 +1645,7 @@ function LiveNumberInput({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         className={[
-          (compact ? "h-10 rounded-[16px] text-base" : "h-12 rounded-[20px] text-lg") + " w-full border px-3 text-center font-black outline-none transition focus:border-[#9d7b4e] focus:ring-4 focus:ring-[#9d7b4e]/10",
+          "h-12 w-full rounded-[20px] border px-3 text-center text-lg font-black outline-none transition focus:border-[#9d7b4e] focus:ring-4 focus:ring-[#9d7b4e]/10",
           highlighted
             ? "border-[#cbb89b] bg-[#f6ead9] text-[#8b6334]"
             : "border-[#e5dac8] bg-[#fffdf8] text-[#2b241c]",
@@ -1665,19 +1659,17 @@ function QuickButton({
   label,
   onClick,
   primary,
-  compact,
 }: {
   label: string;
   onClick: () => void;
   primary?: boolean;
-  compact?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={[
-        (compact ? "h-8 min-w-8 rounded-[14px] px-2 text-xs" : "h-9 min-w-9 rounded-[16px] px-3 text-sm") + " flex items-center justify-center font-black shadow-sm transition hover:-translate-y-0.5",
+        "flex h-9 min-w-9 items-center justify-center rounded-[16px] px-3 text-sm font-black shadow-sm transition hover:-translate-y-0.5",
         primary
           ? "bg-[#6f5a42] text-white hover:bg-[#574633]"
           : "border border-[#d8c6aa] bg-[#fffdf8] text-[#7b5d37] hover:bg-[#f6ead9]",
@@ -1688,13 +1680,13 @@ function QuickButton({
   );
 }
 
-function GapBadge({ value, compact }: { value: number; compact?: boolean }) {
+function GapBadge({ value }: { value: number }) {
   return (
     <div className="text-center">
       <div className="mb-1 text-[11px] font-black text-[#766754]">פער</div>
       <span
         className={[
-          (compact ? "min-w-[48px] px-2 py-1.5 text-[11px]" : "min-w-[62px] px-3 py-2 text-xs") + " inline-flex justify-center rounded-full font-black shadow-sm",
+          "inline-flex min-w-[62px] justify-center rounded-full px-3 py-2 text-xs font-black shadow-sm",
           value > 0
             ? "bg-emerald-50 text-emerald-700"
             : value < 0
