@@ -25,6 +25,13 @@ function toObjectId(value: unknown) {
   return new mongoose.Types.ObjectId(id);
 }
 
+function objectIdOrString(value: unknown) {
+  const stringValue = cleanString(value);
+  const objectIdValue = toObjectId(stringValue);
+
+  return objectIdValue ? [objectIdValue, stringValue] : [stringValue];
+}
+
 function normalizeRecords(value: unknown) {
   const numberValue = Number(value);
 
@@ -160,9 +167,52 @@ async function createOrUpdateInvitation({
 
   const now = new Date();
 
+  const eventIdValues = Array.from(
+    new Map(
+      [
+        ...objectIdOrString(event._id),
+        event?.id ? cleanString(event.id) : "",
+        event?.venueClientEventId ? cleanString(event.venueClientEventId) : "",
+        event?.linkedEventId ? cleanString(event.linkedEventId) : "",
+        event?.productionEventId ? cleanString(event.productionEventId) : "",
+      ]
+        .filter(Boolean)
+        .map((value) => [String(value), value])
+    ).values()
+  );
+
+  const userIdValues = Array.from(
+    new Map(
+      [
+        ...objectIdOrString(userId),
+        event?.venueClientUserId ? cleanString(event.venueClientUserId) : "",
+        event?.userId ? cleanString(event.userId) : "",
+      ]
+        .filter(Boolean)
+        .map((value) => [String(value), value])
+    ).values()
+  );
+
   const existingInvitation = await invitations.findOne({
-    venueClientEventId: event._id,
-    userId,
+    $and: [
+      {
+        $or: [
+          { venueClientEventId: { $in: eventIdValues } },
+          { eventId: { $in: eventIdValues } },
+          { productionEventId: { $in: eventIdValues } },
+          { linkedEventId: { $in: eventIdValues } },
+          { event: { $in: eventIdValues } },
+          { event_id: { $in: eventIdValues } },
+        ],
+      },
+      {
+        $or: [
+          { userId: { $in: userIdValues } },
+          { ownerId: { $in: userIdValues } },
+          { clientId: { $in: userIdValues } },
+        ],
+      },
+    ],
   });
 
   const title = getEventTitle(event);
@@ -174,6 +224,7 @@ async function createOrUpdateInvitation({
 
   const invitationPayload = {
     userId,
+    ownerId: userId,
     email,
 
     eventId: event._id,
