@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   BadgeDollarSign,
   CalendarCheck2,
@@ -8,6 +8,7 @@ import {
   Plus,
   Receipt,
   Save,
+  Send,
   Sparkles,
   Trash2,
   Users,
@@ -21,7 +22,7 @@ type ExtraCharge = {
   notes: string;
 };
 
-type PaymentStatus = "draft" | "closed";
+type PaymentStatus = "open" | "closed";
 
 type HallPaymentData = {
   eventId: string;
@@ -33,6 +34,9 @@ type HallPaymentData = {
   advancePayment: number;
   paidAmount: number;
   extras: ExtraCharge[];
+  bankTransferDetails: string;
+  paymentSmsPhone: string;
+  paymentSmsMessage: string;
   notes: string;
   status: PaymentStatus;
   closedAt?: string | null;
@@ -84,6 +88,10 @@ function formatDateTime(value?: string | null) {
   }).format(d);
 }
 
+function normalizeStatus(value: unknown): PaymentStatus {
+  return value === "closed" ? "closed" : "open";
+}
+
 function buildDefaultState(eventId: string, hallId = ""): HallPaymentData {
   return {
     eventId,
@@ -95,8 +103,11 @@ function buildDefaultState(eventId: string, hallId = ""): HallPaymentData {
     advancePayment: 0,
     paidAmount: 0,
     extras: [],
+    bankTransferDetails: "",
+    paymentSmsPhone: "",
+    paymentSmsMessage: "",
     notes: "",
-    status: "draft",
+    status: "open",
     closedAt: null,
     updatedAt: null,
   };
@@ -127,6 +138,42 @@ function calculateSummary(data: HallPaymentData): Summary {
   };
 }
 
+function buildDefaultSmsMessage(data: HallPaymentData, summary: Summary) {
+  const transferDetails = data.bankTransferDetails?.trim()
+    ? `\nפרטי חשבון להעברה:\n${data.bankTransferDetails.trim()}`
+    : "";
+
+  return [
+    "שלום, מצורף סיכום תשלום לאירוע מטעם האולם:",
+    `סה״כ הגיעו בפועל: ${n(data.actualGuests)} אורחים`,
+    `מחיר למנה: ${money(n(data.pricePerGuest))}`,
+    `חיוב מנות בפועל: ${money(summary.actualMealTotal)}`,
+    `תשלומים נוספים: ${money(summary.extrasTotal)}`,
+    `סה״כ חיוב סופי: ${money(summary.finalTotal)}`,
+    `סה״כ שולם: ${money(summary.totalPaid)}`,
+    `יתרה לתשלום: ${money(summary.remainingToPay)}`,
+    transferDetails,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+async function readJsonSafely(res: Response) {
+  const text = await res.text();
+
+  if (!text) return {};
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(
+      res.status === 404
+        ? "נתיב השרת של התשלומים לא נמצא. ודאי שהקובץ נמצא ב־app/api/events/[eventId]/hall-payments/route.ts"
+        : "השרת החזיר HTML במקום JSON. בדרך כלל זה אומר שה־API Route לא נמצא, נפל בשגיאה, או שהניתוב לא נכון."
+    );
+  }
+}
+
 export default function EventHallPaymentsTab({
   eventId,
   hallId,
@@ -139,7 +186,14 @@ export default function EventHallPaymentsTab({
   );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [sendingSms, setSendingSms] = useState(false);
   const [message, setMessage] = useState("");
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+
+  const didLoadRef = useRef(false);
+  const skipNextAutoSaveRef = useRef(true);
+  const saveAbortRef = useRef<AbortController | null>(null);
+
   const summary = useMemo(() => calculateSummary(data), [data]);
 
   useEffect(() => {
@@ -152,85 +206,214 @@ export default function EventHallPaymentsTab({
 
         const res = await fetch(`/api/events/${eventId}/hall-payments`, {
           method: "GET",
+          credentials: "include",
           cache: "no-store",
         });
 
-        const json = await res.json();
+        const json = await readJsonSafely(res);
         if (!active) return;
 
         if (!res.ok) {
-          throw new Error(json?.error || "שגיאה בטעינת נתוני תשלומים");
+          throw new Error(json?.error || json?.message || "שגיאה בטעינת נתוני תשלומים");
         }
 
-        setData({
+        const nextData = {
           ...buildDefaultState(eventId, hallId || ""),
           ...json.data,
           eventId,
           hallId: json?.data?.hallId || hallId || "",
+          status: normalizeStatus(json?.data?.status),
           extras: Array.isArray(json?.data?.extras) ? json.data.extras : [],
-        });
+          bankTransferDetails: String(json?.data?.bankTransferDetails || ""),
+          paymentSmsPhone: String(json?.data?.paymentSmsPhone || ""),
+          paymentSmsMessage: String(json?.data?.paymentSmsMessage || ""),
+        };
+
+        if (!nextData.paymentSmsMessage) {
+          nextData.paymentSmsMessage = buildDefaultSmsMessage(nextData, calculateSummary(nextData));
+        }
+
+        skipNextAutoSaveRef.current = true;
+        setData(nextData);
+        setLastSavedAt(nextData.updatedAt || null);
       } catch (error: any) {
         if (!active) return;
         setMessage(error?.message || "שגיאה בטעינת נתוני תשלומים");
+        skipNextAutoSaveRef.current = true;
         setData(buildDefaultState(eventId, hallId || ""));
       } finally {
-        if (active) setLoading(false);
+        if (active) {
+          didLoadRef.current = true;
+          setLoading(false);
+        }
       }
     }
 
+    didLoadRef.current = false;
+    skipNextAutoSaveRef.current = true;
     load();
+
     return () => {
       active = false;
+      saveAbortRef.current?.abort();
     };
   }, [eventId, hallId]);
 
-  const setField = (field: keyof HallPaymentData, value: any) => {
-    setData((current) => ({ ...current, [field]: value }));
-  };
+  async function savePayload(payload: HallPaymentData, nextStatus?: PaymentStatus) {
+    saveAbortRef.current?.abort();
+    const controller = new AbortController();
+    saveAbortRef.current = controller;
 
-  const setNumberField = (field: keyof HallPaymentData, value: string) => {
-    setData((current) => ({ ...current, [field]: n(value) }));
-  };
-
-  const saveData = async (nextStatus?: PaymentStatus) => {
     try {
       setSaving(true);
       setMessage("");
 
-      const payload = {
-        ...data,
-        hallId: data.hallId || hallId || "",
-        status: nextStatus || data.status,
+      const payloadToSave = {
+        ...payload,
+        hallId: payload.hallId || hallId || "",
+        status: nextStatus || payload.status || "open",
       };
 
       const res = await fetch(`/api/events/${eventId}/hall-payments`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        credentials: "include",
+        body: JSON.stringify(payloadToSave),
+        signal: controller.signal,
       });
 
-      const json = await res.json();
+      const json = await readJsonSafely(res);
 
       if (!res.ok) {
-        throw new Error(json?.error || "שגיאה בשמירת התשלומים");
+        throw new Error(json?.error || json?.message || "שגיאה בשמירת התשלומים");
       }
 
-      setData((current) => ({
-        ...current,
+      const saved = {
+        ...payloadToSave,
         ...json.data,
-        extras: Array.isArray(json?.data?.extras) ? json.data.extras : [],
-      }));
-      setMessage(nextStatus === "closed" ? "האירוע נסגר והתשלום נשמר" : "השינויים נשמרו");
+        status: normalizeStatus(json?.data?.status),
+        extras: Array.isArray(json?.data?.extras) ? json.data.extras : payloadToSave.extras,
+        bankTransferDetails: String(json?.data?.bankTransferDetails || payloadToSave.bankTransferDetails || ""),
+        paymentSmsPhone: String(json?.data?.paymentSmsPhone || payloadToSave.paymentSmsPhone || ""),
+        paymentSmsMessage: String(json?.data?.paymentSmsMessage || payloadToSave.paymentSmsMessage || ""),
+      };
+
+      skipNextAutoSaveRef.current = true;
+      setData(saved);
+      setLastSavedAt(saved.updatedAt || new Date().toISOString());
+      setMessage(nextStatus === "closed" ? "האירוע נסגר והתשלום נשמר" : "נשמר אוטומטית");
     } catch (error: any) {
+      if (error?.name === "AbortError") return;
       setMessage(error?.message || "שגיאה בשמירת התשלומים");
     } finally {
       setSaving(false);
+    }
+  }
+
+  useEffect(() => {
+    if (loading || !didLoadRef.current) return;
+
+    if (skipNextAutoSaveRef.current) {
+      skipNextAutoSaveRef.current = false;
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      void savePayload(data);
+    }, 700);
+
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
+
+  const updateSmsMessageFromCurrentSummary = () => {
+    setData((current) => ({
+      ...current,
+      paymentSmsMessage: buildDefaultSmsMessage(current, calculateSummary(current)),
+    }));
+  };
+
+  const setField = (field: keyof HallPaymentData, value: any) => {
+    setData((current) => ({ ...current, [field]: value, status: "open" }));
+  };
+
+  const setNumberField = (field: keyof HallPaymentData, value: string) => {
+    setData((current) => ({ ...current, [field]: n(value), status: "open" }));
+  };
+
+  const closeEvent = () => {
+    const nextData: HallPaymentData = {
+      ...data,
+      status: "closed",
+      closedAt: new Date().toISOString(),
+      paymentSmsMessage: data.paymentSmsMessage || buildDefaultSmsMessage(data, summary),
+    };
+    skipNextAutoSaveRef.current = true;
+    setData(nextData);
+    void savePayload(nextData, "closed");
+  };
+
+  const sendPaymentSms = async () => {
+    if (!data.paymentSmsPhone.trim()) {
+      alert("חובה להזין מספר טלפון לשליחת SMS");
+      return;
+    }
+
+    const text = data.paymentSmsMessage.trim() || buildDefaultSmsMessage(data, summary);
+
+    if (!text.trim()) {
+      alert("חובה להזין תוכן הודעה");
+      return;
+    }
+
+    try {
+      setSendingSms(true);
+      setMessage("");
+
+      await savePayload({ ...data, paymentSmsMessage: text });
+
+      const cleanPhone = data.paymentSmsPhone.trim();
+
+      const res = await fetch("/api/sms/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          phone: cleanPhone,
+          to: cleanPhone,
+          recipient: cleanPhone,
+          recipients: [cleanPhone],
+          phones: [cleanPhone],
+          message: text,
+          text,
+          content: text,
+          eventId,
+          hallId: data.hallId || hallId || "",
+          type: "hall_payment_summary",
+          provider: "4free",
+        }),
+      });
+
+      const json = await readJsonSafely(res);
+
+      if (!res.ok || json?.success === false) {
+        throw new Error(json?.message || json?.error || "שליחת ה-SMS נכשלה");
+      }
+
+      setMessage("סיכום התשלום נשלח ללקוח ב-SMS");
+    } catch (error: any) {
+      setMessage(error?.message || "שליחת ה-SMS נכשלה");
+    } finally {
+      setSendingSms(false);
     }
   };
 
   const addExtra = (title = "") => {
     setData((current) => ({
       ...current,
+      status: "open",
       extras: [
         ...current.extras,
         {
@@ -247,6 +430,7 @@ export default function EventHallPaymentsTab({
   const updateExtra = (id: string, field: keyof ExtraCharge, value: string) => {
     setData((current) => ({
       ...current,
+      status: "open",
       extras: current.extras.map((item) => {
         if (item.id !== id) return item;
 
@@ -262,6 +446,7 @@ export default function EventHallPaymentsTab({
   const removeExtra = (id: string) => {
     setData((current) => ({
       ...current,
+      status: "open",
       extras: current.extras.filter((item) => item.id !== id),
     }));
   };
@@ -290,14 +475,17 @@ export default function EventHallPaymentsTab({
 
             <h1 className="mt-4 text-3xl font-black text-[#2b241c]">ניהול תשלומי אירוע</h1>
             <p className="mt-2 max-w-3xl text-sm font-bold leading-7 text-[#7f705d]">
-              בדיוק מה שהאולם צריך: מספר מנות, רזרבה, מחיר למנה, הגעה בפועל,
+              בדיקת מה שהאולם צריך: מספר מנות, רזרבה, מחיר למנה, הגעה בפועל,
               סגירת אירוע וחישוב סופי כולל תשלומים נוספים כמו עיצוב, תאורה,
               הגברה, הושבה ודיילות.
             </p>
 
             <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              <TopStat label="סטטוס" value={data.status === "closed" ? "סגור" : "טיוטה"} />
-              <TopStat label="עודכן לאחרונה" value={formatDateTime(data.updatedAt)} />
+              <TopStat label="סטטוס" value={data.status === "closed" ? "סגור" : "פתוח"} />
+              <TopStat
+                label="שמירה"
+                value={saving ? "שומר..." : lastSavedAt ? `נשמר ${formatDateTime(lastSavedAt)}` : "שמירה אוטומטית"}
+              />
               <TopStat label="נסגר בתאריך" value={formatDateTime(data.closedAt)} />
             </div>
           </div>
@@ -321,22 +509,9 @@ export default function EventHallPaymentsTab({
         <div className="space-y-5">
           <Card title="פרטי חיוב בסיסיים" icon={<Users size={19} />}>
             <div className="grid gap-4 md:grid-cols-3">
-              <NumberField
-                label="מספר מנות"
-                value={data.estimatedGuests}
-                onChange={(value) => setNumberField("estimatedGuests", value)}
-              />
-              <NumberField
-                label="כמות רזרבה"
-                value={data.reserveGuests}
-                onChange={(value) => setNumberField("reserveGuests", value)}
-              />
-              <NumberField
-                label="מחיר למנה"
-                value={data.pricePerGuest}
-                onChange={(value) => setNumberField("pricePerGuest", value)}
-                prefix="₪"
-              />
+              <NumberField label="מספר מנות" value={data.estimatedGuests} onChange={(value) => setNumberField("estimatedGuests", value)} />
+              <NumberField label="כמות רזרבה" value={data.reserveGuests} onChange={(value) => setNumberField("reserveGuests", value)} />
+              <NumberField label="מחיר למנה" value={data.pricePerGuest} onChange={(value) => setNumberField("pricePerGuest", value)} prefix="₪" />
             </div>
 
             <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -347,33 +522,29 @@ export default function EventHallPaymentsTab({
 
           <Card title="הגעה בפועל וסגירת אירוע" icon={<ClipboardCheck size={19} />}>
             <div className="grid gap-4 md:grid-cols-2">
-              <NumberField
-                label="הגיעו בפועל"
-                value={data.actualGuests}
-                onChange={(value) => setNumberField("actualGuests", value)}
-              />
+              <NumberField label="הגיעו בפועל" value={data.actualGuests} onChange={(value) => setNumberField("actualGuests", value)} />
               <ReadonlyField label="חיוב לפי הגעה בפועל" value={money(summary.actualMealTotal)} />
             </div>
 
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               <InlineInfo label="חריגה מעל הרזרבה" value={`${summary.reserveOverflow}`} warn={summary.reserveOverflow > 0} />
-              <InlineInfo label="מצב אירוע" value={data.status === "closed" ? "האירוע סגור" : "האירוע עדיין פתוח"} />
+              <InlineInfo label="מצב אירוע" value={data.status === "closed" ? "האירוע סגור" : "האירוע פתוח"} />
             </div>
 
             <div className="mt-5 flex flex-wrap items-center gap-3">
               <button
                 type="button"
-                onClick={() => saveData()}
+                onClick={() => void savePayload(data)}
                 disabled={saving}
                 className="inline-flex h-11 items-center gap-2 rounded-2xl bg-[#b98121] px-5 text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a] disabled:opacity-60"
               >
                 <Save size={16} />
-                {saving ? "שומר..." : "שמירת תשלומים"}
+                {saving ? "שומר..." : "שמירה עכשיו"}
               </button>
 
               <button
                 type="button"
-                onClick={() => saveData("closed")}
+                onClick={closeEvent}
                 disabled={saving}
                 className="inline-flex h-11 items-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-5 text-sm font-black text-[#6f6252] shadow-sm transition hover:bg-[#fff8eb] disabled:opacity-60"
               >
@@ -385,29 +556,73 @@ export default function EventHallPaymentsTab({
 
           <Card title="מקדמה ושולם בפועל" icon={<BadgeDollarSign size={19} />}>
             <div className="grid gap-4 md:grid-cols-2">
-              <NumberField
-                label="מקדמה"
-                value={data.advancePayment}
-                onChange={(value) => setNumberField("advancePayment", value)}
-                prefix="₪"
-              />
-              <NumberField
-                label="שולם בפועל בנוסף למקדמה"
-                value={data.paidAmount}
-                onChange={(value) => setNumberField("paidAmount", value)}
-                prefix="₪"
-              />
+              <NumberField label="מקדמה" value={data.advancePayment} onChange={(value) => setNumberField("advancePayment", value)} prefix="₪" />
+              <NumberField label="שולם בפועל בנוסף למקדמה" value={data.paidAmount} onChange={(value) => setNumberField("paidAmount", value)} prefix="₪" />
             </div>
 
             <div className="mt-4 grid gap-3 md:grid-cols-3">
               <InlineInfo label="סה״כ שולם" value={money(summary.totalPaid)} />
               <InlineInfo label="יתרה לתשלום" value={money(summary.remainingToPay)} strong />
-              <InlineInfo
-                label="מצב תשלום"
-                value={summary.remainingToPay <= 0 && summary.finalTotal > 0 ? "שולם במלואו" : "נותרה יתרה"}
-                warn={summary.remainingToPay > 0}
-              />
+              <InlineInfo label="מצב תשלום" value={summary.remainingToPay <= 0 && summary.finalTotal > 0 ? "שולם במלואו" : "נותרה יתרה"} warn={summary.remainingToPay > 0} />
             </div>
+          </Card>
+
+          <Card title="שליחת סיכום תשלום ללקוח" icon={<Send size={19} />}>
+            <div className="grid gap-4 md:grid-cols-2">
+              <TextField
+                label="טלפון לקוח לשליחת SMS"
+                value={data.paymentSmsPhone}
+                onChange={(value) => setField("paymentSmsPhone", value)}
+                placeholder="לדוגמה: 0521234567"
+              />
+              <div>
+                <span className="mb-1 block text-xs font-black text-[#8a7b68]">סיכום מהיר להודעה</span>
+                <div className="rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-3 py-3 text-xs font-black leading-6 text-[#6f6252]">
+                  הגיעו בפועל: {n(data.actualGuests)} · סה״כ חיוב: {money(summary.finalTotal)} · נשאר: {money(summary.remainingToPay)}
+                </div>
+              </div>
+            </div>
+
+            <label className="mt-4 block">
+              <span className="mb-2 block text-xs font-black text-[#8a7b68]">פרטי חשבון להעברה</span>
+              <textarea
+                value={data.bankTransferDetails}
+                onChange={(e) => setField("bankTransferDetails", e.target.value)}
+                placeholder="לדוגמה: בנק / סניף / חשבון / שם מוטב"
+                className="min-h-[90px] w-full rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-3 text-sm font-bold text-[#2b241c] outline-none focus:border-[#b98121]"
+              />
+            </label>
+
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={updateSmsMessageFromCurrentSummary}
+                className="inline-flex h-10 items-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-4 text-xs font-black text-[#6f6252] transition hover:bg-[#fff8eb]"
+              >
+                <Sparkles size={14} />
+                עדכון נוסח לפי הסיכום
+              </button>
+            </div>
+
+            <label className="mt-4 block">
+              <span className="mb-2 block text-xs font-black text-[#8a7b68]">נוסח הודעת SMS</span>
+              <textarea
+                value={data.paymentSmsMessage}
+                onChange={(e) => setField("paymentSmsMessage", e.target.value)}
+                placeholder="נוסח ההודעה ללקוח"
+                className="min-h-[180px] w-full rounded-2xl border border-[#eadfce] bg-white p-3 text-sm font-bold leading-7 text-[#2b241c] outline-none focus:border-[#b98121]"
+              />
+            </label>
+
+            <button
+              type="button"
+              onClick={sendPaymentSms}
+              disabled={sendingSms || saving}
+              className="mt-4 inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#6f5a42] px-5 text-sm font-black text-white shadow-sm transition hover:bg-[#574633] disabled:opacity-60"
+            >
+              <Send size={17} />
+              {sendingSms ? "שולח..." : "שליחת SMS ללקוח"}
+            </button>
           </Card>
 
           <Card title="הערות תשלום" icon={<Receipt size={19} />}>
@@ -453,25 +668,9 @@ export default function EventHallPaymentsTab({
                   return (
                     <div key={item.id} className="rounded-[24px] border border-[#eadfce] bg-[#fffdf8] p-4 shadow-sm">
                       <div className="grid gap-3 lg:grid-cols-[1.1fr_110px_140px_1fr_44px] lg:items-end">
-                        <TextField
-                          label="סוג תשלום"
-                          value={item.title}
-                          onChange={(value) => updateExtra(item.id, "title", value)}
-                          placeholder="לדוגמה: עיצוב"
-                        />
-
-                        <NumberField
-                          label="כמות"
-                          value={item.quantity}
-                          onChange={(value) => updateExtra(item.id, "quantity", value)}
-                        />
-
-                        <NumberField
-                          label="מחיר יחידה"
-                          value={item.unitPrice}
-                          onChange={(value) => updateExtra(item.id, "unitPrice", value)}
-                          prefix="₪"
-                        />
+                        <TextField label="סוג תשלום" value={item.title} onChange={(value) => updateExtra(item.id, "title", value)} placeholder="לדוגמה: עיצוב" />
+                        <NumberField label="כמות" value={item.quantity} onChange={(value) => updateExtra(item.id, "quantity", value)} />
+                        <NumberField label="מחיר יחידה" value={item.unitPrice} onChange={(value) => updateExtra(item.id, "unitPrice", value)} prefix="₪" />
 
                         <div>
                           <span className="mb-1 block text-xs font-black text-[#8a7b68]">סה״כ</span>
@@ -490,12 +689,7 @@ export default function EventHallPaymentsTab({
                       </div>
 
                       <div className="mt-3">
-                        <TextField
-                          label="הערה"
-                          value={item.notes}
-                          onChange={(value) => updateExtra(item.id, "notes", value)}
-                          placeholder="הערה פנימית / פירוט השירות"
-                        />
+                        <TextField label="הערה" value={item.notes} onChange={(value) => updateExtra(item.id, "notes", value)} placeholder="הערה פנימית / פירוט השירות" />
                       </div>
                     </div>
                   );
@@ -687,8 +881,8 @@ function InlineInfo({
         warn
           ? "border-amber-200 bg-amber-50"
           : strong
-          ? "border-[#d9bd83] bg-[#fff8eb]"
-          : "border-[#eadfce] bg-[#fffdf8]",
+            ? "border-[#d9bd83] bg-[#fff8eb]"
+            : "border-[#eadfce] bg-[#fffdf8]",
       ].join(" ")}
     >
       <div className="text-[11px] font-black text-[#8a7b68]">{label}</div>

@@ -19,6 +19,10 @@ function normalizeExtras(raw: any) {
   }));
 }
 
+function normalizeStatus(value: unknown) {
+  return value === "closed" ? "closed" : "open";
+}
+
 function calculateSummary(data: any) {
   const estimatedGuests = n(data?.estimatedGuests);
   const reserveGuests = n(data?.reserveGuests);
@@ -63,23 +67,30 @@ export async function GET(
     const doc = await VenueEventPayment.findOne({ eventId }).lean();
 
     if (!doc) {
+      const empty = {
+        eventId,
+        hallId: "",
+        estimatedGuests: 0,
+        reserveGuests: 0,
+        pricePerGuest: 0,
+        actualGuests: 0,
+        advancePayment: 0,
+        paidAmount: 0,
+        extras: [],
+        bankTransferDetails: "",
+        paymentSmsPhone: "",
+        paymentSmsMessage: "",
+        notes: "",
+        status: "open",
+        closedAt: null,
+        updatedAt: null,
+      };
+
       return NextResponse.json({
         success: true,
         data: {
-          eventId,
-          hallId: "",
-          estimatedGuests: 0,
-          reserveGuests: 0,
-          pricePerGuest: 0,
-          actualGuests: 0,
-          advancePayment: 0,
-          paidAmount: 0,
-          extras: [],
-          notes: "",
-          status: "draft",
-          closedAt: null,
-          updatedAt: null,
-          summary: calculateSummary({}),
+          ...empty,
+          summary: calculateSummary(empty),
         },
       });
     }
@@ -88,6 +99,7 @@ export async function GET(
       success: true,
       data: {
         ...doc,
+        status: normalizeStatus(doc.status),
         summary: calculateSummary(doc),
       },
     });
@@ -109,6 +121,8 @@ export async function PUT(
     const { eventId } = await params;
     const body = await request.json();
 
+    const status = normalizeStatus(body?.status);
+
     const payload = {
       eventId,
       hallId: String(body?.hallId || "").trim(),
@@ -119,9 +133,12 @@ export async function PUT(
       advancePayment: n(body?.advancePayment),
       paidAmount: n(body?.paidAmount),
       extras: normalizeExtras(body?.extras),
+      bankTransferDetails: String(body?.bankTransferDetails || "").trim(),
+      paymentSmsPhone: String(body?.paymentSmsPhone || "").trim(),
+      paymentSmsMessage: String(body?.paymentSmsMessage || "").trim(),
       notes: String(body?.notes || "").trim(),
-      status: body?.status === "closed" ? "closed" : "draft",
-      closedAt: body?.status === "closed" ? new Date() : null,
+      status,
+      closedAt: status === "closed" ? new Date() : null,
     };
 
     const doc = await VenueEventPayment.findOneAndUpdate(
@@ -138,6 +155,7 @@ export async function PUT(
       success: true,
       data: {
         ...doc,
+        status: normalizeStatus(doc?.status),
         summary: calculateSummary(doc),
       },
     });

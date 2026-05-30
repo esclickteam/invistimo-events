@@ -60,6 +60,21 @@ const VenueEventPaymentSchema = new Schema(
       type: [ExtraChargeSchema],
       default: [],
     },
+    bankTransferDetails: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    paymentSmsPhone: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    paymentSmsMessage: {
+      type: String,
+      default: "",
+      trim: true,
+    },
     notes: {
       type: String,
       default: "",
@@ -67,8 +82,8 @@ const VenueEventPaymentSchema = new Schema(
     },
     status: {
       type: String,
-      enum: ["draft", "closed"],
-      default: "draft",
+      enum: ["open", "closed"],
+      default: "open",
       index: true,
     },
     closedAt: {
