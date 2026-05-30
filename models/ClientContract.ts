@@ -84,7 +84,16 @@ const ClientContractPageSchema = new Schema(
       required: true,
     },
 
+    // הקובץ המקורי / כתובת מקור
     url: {
+      type: String,
+      default: "",
+    },
+
+    // חדש:
+    // תמונת עמוד מוכנה להצגה בפרונט
+    // למשל עמוד PDF שהומר דרך Cloudinary ל-PNG/WebP
+    imageUrl: {
       type: String,
       default: "",
     },
@@ -94,10 +103,12 @@ const ClientContractPageSchema = new Schema(
       default: "",
     },
 
+    // משאירים enum כדי לא לשבור קיים,
+    // אבל ברירת המחדל עכשיו image כי נציג עמודים כתמונות
     type: {
       type: String,
       enum: ["pdf", "image"],
-      default: "pdf",
+      default: "image",
     },
   },
   { _id: false }

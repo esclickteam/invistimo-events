@@ -43,6 +43,7 @@ type ContractField = {
 type ContractPage = {
   pageNumber: number;
   url: string;
+  imageUrl?: string;
   name: string;
   type: "pdf" | "image";
 };
@@ -103,19 +104,6 @@ function getFieldDefaultValue(field: ContractField) {
   if (field.type === "idNumber") return "";
 
   return "";
-}
-
-async function loadPdfJs() {
-  const pdfjsLib = await import("pdfjs-dist");
-
-  if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-      "pdfjs-dist/build/pdf.worker.min.mjs",
-      import.meta.url
-    ).toString();
-  }
-
-  return pdfjsLib;
 }
 
 export default function ClientContractSignPage() {
@@ -201,15 +189,26 @@ export default function ClientContractSignPage() {
 
         const nextContract: PublicContract = data.contract;
 
-        const normalizedPages =
+        const normalizedPages: ContractPage[] =
           Array.isArray(nextContract.pages) && nextContract.pages.length
-            ? nextContract.pages
+            ? nextContract.pages.map((page: any, index: number) => ({
+                pageNumber: Math.max(1, Number(page?.pageNumber || index + 1)),
+                url: String(page?.url || nextContract.originalFileUrl || ""),
+                imageUrl: String(
+                  page?.imageUrl || page?.url || nextContract.originalFileUrl || ""
+                ),
+                name: String(
+                  page?.name || page?.fileName || `עמוד ${index + 1}`
+                ),
+                type: "image",
+              }))
             : [
                 {
                   pageNumber: 1,
                   url: nextContract.originalFileUrl,
+                  imageUrl: nextContract.originalFileUrl,
                   name: nextContract.originalFileName || "הסכם",
-                  type: nextContract.originalFileType,
+                  type: "image",
                 },
               ];
 
@@ -487,19 +486,7 @@ export default function ClientContractSignPage() {
 
             <div className="max-h-[850px] overflow-auto bg-[#f3eee5] p-4">
               <div className="relative mx-auto w-full max-w-[900px] overflow-visible rounded-[22px] border border-[#dbcbb3] bg-white shadow-sm">
-                {activePageData?.type === "image" ? (
-                  <img
-                    src={activePageData.url}
-                    alt={`עמוד ${activePage}`}
-                    draggable={false}
-                    className="block h-auto w-full select-none rounded-[22px]"
-                  />
-                ) : (
-                  <PdfPageCanvas
-                    url={activePageData?.url || ""}
-                    pageNumber={activePage}
-                  />
-                )}
+                <ContractPageImage page={activePageData} activePage={activePage} />
 
                 {isViewOnly && contract.signedAt && (
                   <div className="absolute bottom-4 left-4 z-20 rounded-2xl border border-emerald-200 bg-white/95 px-4 py-3 text-xs font-black leading-5 text-emerald-700 shadow-sm">
@@ -519,7 +506,7 @@ export default function ClientContractSignPage() {
                         fieldRefs.current[field.id] = node;
                       }}
                       className={[
-                        "pointer-events-auto absolute overflow-hidden rounded-xl border-2 bg-white/90 p-1 shadow-sm backdrop-blur-sm transition",
+                        "pointer-events-auto absolute overflow-visible rounded-xl border-2 bg-white/90 p-0 shadow-sm backdrop-blur-sm transition",
                         field.type === "venueNote"
                           ? "border-amber-300 bg-amber-50/95 text-[#5a3f12]"
                           : isMobileFieldActive(field.id)
@@ -709,6 +696,33 @@ export default function ClientContractSignPage() {
   );
 }
 
+function ContractPageImage({
+  page,
+  activePage,
+}: {
+  page: ContractPage | null;
+  activePage: number;
+}) {
+  const src = page?.imageUrl || page?.url || "";
+
+  if (!src) {
+    return (
+      <div className="flex min-h-[760px] items-center justify-center rounded-[22px] bg-white p-8 text-center text-sm font-black leading-6 text-[#8a7b68]">
+        לא נמצא קובץ להצגה
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt={`עמוד ${activePage}`}
+      draggable={false}
+      className="block h-auto w-full select-none rounded-[22px] bg-white"
+    />
+  );
+}
+
 function ContractFieldInput({
   field,
   viewOnly,
@@ -745,7 +759,7 @@ function ContractFieldInput({
           value={field.value || todayForInput()}
           disabled={viewOnly}
           onChange={(event) => onChange({ value: event.target.value })}
-          className="h-full w-full bg-transparent text-xs font-black outline-none disabled:text-[#2b241c]"
+          className="h-full w-full min-w-0 bg-transparent px-1 text-[11px] font-black leading-none outline-none disabled:text-[#2b241c]"
         />
       </div>
     );
@@ -793,7 +807,7 @@ function ContractFieldInput({
         }
         type={field.type === "email" ? "email" : "text"}
         onChange={(event) => onChange({ value: event.target.value })}
-        className="h-full w-full bg-transparent text-xs font-black outline-none placeholder:text-[#9b8a73] disabled:text-[#2b241c]"
+        className="h-full w-full min-w-0 bg-transparent px-2 text-[11px] font-black leading-none outline-none placeholder:text-[#9b8a73] disabled:text-[#2b241c]"
       />
     </div>
   );
@@ -952,150 +966,6 @@ function SignatureBox({
           נקה
         </button>
       )}
-    </div>
-  );
-}
-
-function PdfPageCanvas({
-  url,
-  pageNumber,
-}: {
-  url: string;
-  pageNumber: number;
-}) {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const wrapperRef = useRef<HTMLDivElement | null>(null);
-
-  const [loading, setLoading] = useState(true);
-  const [height, setHeight] = useState(760);
-
-  useEffect(() => {
-    let cancelled = false;
-    let renderTask: { promise: Promise<unknown>; cancel: () => void } | null = null;
-
-    async function renderPage() {
-      const canvas = canvasRef.current;
-      const wrapper = wrapperRef.current;
-
-      if (!canvas || !wrapper || !url) return;
-
-      setLoading(true);
-
-      try {
-        const pdfjsLib = await loadPdfJs();
-
-        const loadingTask = pdfjsLib.getDocument({
-          url,
-          useSystemFonts: true,
-          disableFontFace: false,
-        });
-
-        const pdf = await loadingTask.promise;
-
-        if (cancelled) return;
-
-        if (pageNumber > pdf.numPages) {
-          setLoading(false);
-          return;
-        }
-
-        const page = await pdf.getPage(pageNumber);
-
-        if (cancelled) return;
-
-        const containerWidth = wrapper.clientWidth || 900;
-        const originalViewport = page.getViewport({ scale: 1 });
-
-        const cssScale = containerWidth / originalViewport.width;
-        const viewport = page.getViewport({ scale: cssScale });
-
-        const ratio = Math.min(window.devicePixelRatio || 1, 3);
-
-        const canvasWidth = Math.floor(viewport.width * ratio);
-        const canvasHeight = Math.floor(viewport.height * ratio);
-
-        const context = canvas.getContext("2d", {
-          alpha: false,
-        });
-
-        if (!context) return;
-
-        canvas.width = canvasWidth;
-        canvas.height = canvasHeight;
-
-        canvas.style.width = `${Math.floor(viewport.width)}px`;
-        canvas.style.height = `${Math.floor(viewport.height)}px`;
-
-        setHeight(Math.floor(viewport.height));
-
-        context.setTransform(ratio, 0, 0, ratio, 0, 0);
-        context.clearRect(0, 0, viewport.width, viewport.height);
-
-        renderTask = page.render({
-          canvas,
-          canvasContext: context,
-          viewport,
-        });
-
-        await renderTask.promise;
-
-        if (!cancelled) {
-          setLoading(false);
-        }
-      } catch (error: unknown) {
-        const errorName =
-          typeof error === "object" && error && "name" in error
-            ? String((error as { name?: unknown }).name)
-            : "";
-
-        if (errorName !== "RenderingCancelledException") {
-          console.error("PDF page render failed:", error);
-        }
-
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    }
-
-    renderPage();
-
-    const resizeObserver = new ResizeObserver(() => {
-      renderPage();
-    });
-
-    if (wrapperRef.current) {
-      resizeObserver.observe(wrapperRef.current);
-    }
-
-    return () => {
-      cancelled = true;
-      resizeObserver.disconnect();
-
-      try {
-        renderTask?.cancel?.();
-      } catch {
-        // ignore
-      }
-    };
-  }, [url, pageNumber]);
-
-  return (
-    <div
-      ref={wrapperRef}
-      className="relative flex w-full justify-center bg-white"
-      style={{ minHeight: height }}
-    >
-      {loading && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-white text-sm font-black text-[#8a7b68]">
-          טוען עמוד...
-        </div>
-      )}
-
-      <canvas
-        ref={canvasRef}
-        className="block max-w-full select-none rounded-[22px] bg-white"
-      />
     </div>
   );
 }

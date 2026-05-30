@@ -62,6 +62,7 @@ type ContractField = {
 type ContractPage = {
   pageNumber: number;
   url: string;
+  imageUrl?: string;
   name: string;
   type: "pdf" | "image";
 };
@@ -70,6 +71,7 @@ type UploadedContractFile = {
   file?: File;
   files?: File[];
   url: string;
+  imageUrl?: string;
   name: string;
   type: "pdf" | "image";
   pageCount: number;
@@ -334,9 +336,9 @@ export default function EventClientTab({
     const nextId = String(contract._id || contract.id || "");
     const nextStatus = normalizeStatus(contract.status);
 
-    const fileType = String(contract.originalFileType || "").includes("pdf")
-      ? "pdf"
-      : "image";
+    const fileType = String(contract.originalFileType || "").includes("image")
+      ? "image"
+      : "pdf";
 
     const pageCount = Math.max(1, Number(contract.pageCount || 1));
     const pagesFromServer = Array.isArray(contract.pages) ? contract.pages : [];
@@ -345,15 +347,15 @@ export default function EventClientTab({
       pagesFromServer.length > 0
         ? pagesFromServer.map((page: any, index: number) => ({
             pageNumber: Number(page.pageNumber || index + 1),
-            url: String(page.url || page.imageUrl || contract.originalFileUrl || ""),
+            url: String(page.url || contract.originalFileUrl || ""),
+            imageUrl: String(page.imageUrl || page.url || contract.originalFileUrl || ""),
             name: String(page.name || page.fileName || `עמוד ${index + 1}`),
-            type: String(page.type || fileType).includes("image")
-              ? "image"
-              : "pdf",
+            type: String(page.type || "image").includes("image") ? "image" : "pdf",
           }))
         : Array.from({ length: pageCount }).map((_, index) => ({
             pageNumber: index + 1,
             url: String(contract.originalFileUrl || ""),
+            imageUrl: String(contract.originalFileUrl || ""),
             name: `${contract.originalFileName || "הסכם"} - עמוד ${index + 1}`,
             type: fileType,
           }));
@@ -388,6 +390,7 @@ export default function EventClientTab({
     if (contract.originalFileUrl) {
       setContractFile({
         url: String(contract.originalFileUrl),
+        imageUrl: String(pages[0]?.imageUrl || contract.originalFileUrl || ""),
         name: String(contract.originalFileName || "הסכם לקוח"),
         type: fileType,
         pageCount,
@@ -464,27 +467,35 @@ export default function EventClientTab({
         setContractFile({
           file,
           url,
+          imageUrl: "",
           name: file.name,
           type: "pdf",
           pageCount,
           pages: Array.from({ length: pageCount }).map((_, index) => ({
             pageNumber: index + 1,
             url,
+            imageUrl: "",
             name: `${file.name} - עמוד ${index + 1}`,
             type: "pdf",
           })),
         });
       } else {
-        const pages = imageFiles.map((file, index) => ({
-          pageNumber: index + 1,
-          url: URL.createObjectURL(file),
-          name: file.name,
-          type: "image" as const,
-        }));
+        const pages = imageFiles.map((file, index) => {
+          const url = URL.createObjectURL(file);
+
+          return {
+            pageNumber: index + 1,
+            url,
+            imageUrl: url,
+            name: file.name,
+            type: "image" as const,
+          };
+        });
 
         setContractFile({
           files: imageFiles,
           url: pages[0]?.url || "",
+          imageUrl: pages[0]?.imageUrl || "",
           name:
             imageFiles.length === 1
               ? imageFiles[0].name
@@ -525,6 +536,7 @@ export default function EventClientTab({
         pages: Array.from({ length: safeCount }).map((_, index) => ({
           pageNumber: index + 1,
           url: current.url,
+          imageUrl: current.pages[index]?.imageUrl || "",
           name: `${current.name} - עמוד ${index + 1}`,
           type: "pdf",
         })),
@@ -984,7 +996,7 @@ export default function EventClientTab({
                     עורך הסכם
                   </h3>
                   <p className="mt-1 text-xs font-bold text-[#8a7b68]">
-                    PDF מוצג כעמודים רגילים עם סקרול אמיתי, לא בתוך iframe.
+                    לאחר שמירת PDF, העמודים יוצגו כתמונות איכותיות מ-Cloudinary ללא קנבס.
                   </p>
                 </div>
 
@@ -1074,7 +1086,7 @@ export default function EventClientTab({
                   </h3>
 
                   <p className="mt-2 max-w-xl text-sm font-bold leading-7 text-[#7f705d]">
-                    אפשר להעלות PDF אחד או כמה תמונות יחד. לאחר מכן כל העמודים יוצגו ברצף עם סקרול.
+                    אפשר להעלות PDF אחד או כמה תמונות יחד. PDF חדש יוצג כתמונה איכותית לאחר שמירה.
                   </p>
 
                   <button
@@ -1175,20 +1187,7 @@ export default function EventClientTab({
                               }}
                               className="relative w-full overflow-visible rounded-[22px] border border-[#dbcbb3] bg-white shadow-sm"
                             >
-                              {page.type === "image" ? (
-                                <img
-                                  src={page.url}
-                                  alt={`עמוד ${page.pageNumber}`}
-                                  draggable={false}
-                                  className="block h-auto w-full select-none rounded-[22px]"
-                                />
-                              ) : (
-                                <PdfPageCanvas
-                                  url={page.url}
-                                  pageNumber={page.pageNumber}
-                                  file={contractFile.file}
-                                />
-                              )}
+                              <ContractPageImage page={page} />
 
                               {isLocked && signedAt && page.pageNumber === contractFile.pageCount && (
                                 <div className="absolute bottom-4 left-4 z-20 rounded-2xl border border-emerald-200 bg-white/95 px-4 py-3 text-xs font-black leading-5 text-emerald-700 shadow-sm">
@@ -1490,27 +1489,26 @@ export default function EventClientTab({
                 subtitle="לאחר שמירה/שליחה יוצגו הקישורים"
               >
                 <div className="space-y-2">
+                  <div className="rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-3">
+                    <label className="mb-2 block text-xs font-black text-[#8a7b68]">
+                      מספר טלפון לשליחת קישור חתימה
+                    </label>
 
-<div className="rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-3">
-  <label className="mb-2 block text-xs font-black text-[#8a7b68]">
-    מספר טלפון לשליחת קישור חתימה
-  </label>
+                    <div className="flex h-12 items-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-3">
+                      <Phone size={16} className="text-[#b98121]" />
 
-  <div className="flex h-12 items-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-3">
-    <Phone size={16} className="text-[#b98121]" />
+                      <input
+                        value={smsPhone}
+                        onChange={(event) => setSmsPhone(event.target.value)}
+                        placeholder="לדוגמה: 0521234567"
+                        inputMode="tel"
+                        autoComplete="tel"
+                        disabled={sendingSms || isLocked}
+                        className="h-full w-full bg-transparent text-sm font-black text-[#2b241c] outline-none placeholder:text-[#b8aa96] disabled:opacity-60"
+                      />
+                    </div>
+                  </div>
 
-    <input
-      value={smsPhone}
-      onChange={(event) => setSmsPhone(event.target.value)}
-      placeholder="לדוגמה: 0521234567"
-      inputMode="tel"
-      autoComplete="tel"
-      disabled={sendingSms || isLocked}
-      className="h-full w-full bg-transparent text-sm font-black text-[#2b241c] outline-none placeholder:text-[#b8aa96] disabled:opacity-60"
-    />
-  </div>
-</div>
-                  
                   <button
                     type="button"
                     onClick={sendSmsToClient}
@@ -1564,154 +1562,34 @@ export default function EventClientTab({
   );
 }
 
-function PdfPageCanvas({
-  url,
-  pageNumber,
-  file,
-}: {
-  url: string;
-  pageNumber: number;
-  file?: File;
-}) {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const wrapperRef = useRef<HTMLDivElement | null>(null);
+function ContractPageImage({ page }: { page: ContractPage }) {
+  const src = page.imageUrl || (page.type === "image" ? page.url : "");
 
-  const [loading, setLoading] = useState(true);
-  const [height, setHeight] = useState(760);
+  if (!src) {
+    return (
+      <div className="flex min-h-[760px] flex-col items-center justify-center rounded-[22px] bg-white p-8 text-center">
+        <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-[22px] bg-[#f4ead9] text-[#b98121]">
+          <Save size={26} />
+        </div>
 
-  useEffect(() => {
-    let cancelled = false;
-    let renderTask: { promise: Promise<unknown>; cancel: () => void } | null = null;
+        <div className="text-base font-black text-[#2b241c]">
+          שמרי את ההסכם כדי להציג את עמוד ה-PDF באיכות גבוהה
+        </div>
 
-    async function renderPage() {
-      const canvas = canvasRef.current;
-      const wrapper = wrapperRef.current;
-
-      if (!canvas || !wrapper) return;
-      if (!url && !file) return;
-
-      setLoading(true);
-
-      try {
-        const pdfjsLib = await loadPdfJs();
-
-        const loadingTask = file
-          ? pdfjsLib.getDocument({
-              data: new Uint8Array(await file.arrayBuffer()),
-              useSystemFonts: true,
-            })
-          : pdfjsLib.getDocument({
-              url,
-              useSystemFonts: true,
-            });
-
-        const pdf = await loadingTask.promise;
-
-        if (cancelled) return;
-
-        if (pageNumber > pdf.numPages) {
-          setLoading(false);
-          return;
-        }
-
-        const page = await pdf.getPage(pageNumber);
-
-        if (cancelled) return;
-
-        const containerWidth = wrapper.clientWidth || 900;
-        const originalViewport = page.getViewport({ scale: 1 });
-
-        const cssScale = containerWidth / originalViewport.width;
-        const viewport = page.getViewport({ scale: cssScale });
-
-        const ratio = Math.min(window.devicePixelRatio || 1, 3);
-
-        const canvasWidth = Math.floor(viewport.width * ratio);
-        const canvasHeight = Math.floor(viewport.height * ratio);
-
-        const context = canvas.getContext("2d", {
-          alpha: false,
-        });
-
-        if (!context) return;
-
-        canvas.width = canvasWidth;
-        canvas.height = canvasHeight;
-
-        canvas.style.width = `${Math.floor(viewport.width)}px`;
-        canvas.style.height = `${Math.floor(viewport.height)}px`;
-
-        setHeight(Math.floor(viewport.height));
-
-        context.setTransform(ratio, 0, 0, ratio, 0, 0);
-        context.clearRect(0, 0, viewport.width, viewport.height);
-
-        renderTask = page.render({
-          canvas,
-          canvasContext: context,
-          viewport,
-        });
-
-        await renderTask.promise;
-
-        if (!cancelled) {
-          setLoading(false);
-        }
-      } catch (error: unknown) {
-        const errorName =
-          typeof error === "object" && error && "name" in error
-            ? String((error as { name?: unknown }).name)
-            : "";
-
-        if (errorName !== "RenderingCancelledException") {
-          console.error("PDF page render failed:", error);
-        }
-
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    }
-
-    renderPage();
-
-    const resizeObserver = new ResizeObserver(() => {
-      renderPage();
-    });
-
-    if (wrapperRef.current) {
-      resizeObserver.observe(wrapperRef.current);
-    }
-
-    return () => {
-      cancelled = true;
-      resizeObserver.disconnect();
-
-      try {
-        renderTask?.cancel?.();
-      } catch {
-        // ignore
-      }
-    };
-  }, [url, pageNumber, file]);
+        <div className="mt-2 max-w-md text-sm font-bold leading-6 text-[#8a7b68]">
+          לאחר שמירה, השרת ייצור תמונת עמוד מ-Cloudinary והעמוד יוצג כאן ללא קנבס.
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div
-      ref={wrapperRef}
-      className="relative flex w-full justify-center bg-white"
-      style={{ minHeight: height }}
-    >
-      {loading && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-white text-sm font-black text-[#8a7b68]">
-          טוען עמוד...
-        </div>
-      )}
-
-      <canvas
-        ref={canvasRef}
-        className="block max-w-full select-none rounded-[22px] bg-white"
-      />
-    </div>
+    <img
+      src={src}
+      alt={`עמוד ${page.pageNumber}`}
+      draggable={false}
+      className="block h-auto w-full select-none rounded-[22px] bg-white"
+    />
   );
 }
 

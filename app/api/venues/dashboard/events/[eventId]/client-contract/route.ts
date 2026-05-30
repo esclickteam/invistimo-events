@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { v2 as cloudinary } from "cloudinary";
 import connectDB from "@/lib/mongodb";
 import ClientContract from "@/models/ClientContract";
+import { buildCloudinaryPdfPageImageUrl } from "@/lib/cloudinaryPdfPages";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -42,6 +43,7 @@ type ContractField = {
 type ContractPage = {
   pageNumber: number;
   url: string;
+  imageUrl: string;
   name: string;
   type: "pdf" | "image";
 };
@@ -131,12 +133,23 @@ function normalizeFields(rawFields: unknown): ContractField[] {
 function normalizePages(rawPages: unknown, fallbackUrl = ""): ContractPage[] {
   if (!Array.isArray(rawPages)) return [];
 
-  return rawPages.map((page: any, index: number) => ({
-    pageNumber: Math.max(1, Number(page?.pageNumber || index + 1)),
-    url: String(page?.url || fallbackUrl || ""),
-    name: String(page?.name || `עמוד ${index + 1}`),
-    type: String(page?.type || "pdf").includes("image") ? "image" : "pdf",
-  }));
+  return rawPages.map((page: any, index: number) => {
+    const pageNumber = Math.max(1, Number(page?.pageNumber || index + 1));
+    const pageUrl = String(page?.url || fallbackUrl || "");
+
+    const pageImageUrl =
+      String(page?.imageUrl || "") ||
+      buildCloudinaryPdfPageImageUrl(pageUrl, pageNumber) ||
+      pageUrl;
+
+    return {
+      pageNumber,
+      url: pageUrl,
+      imageUrl: pageImageUrl,
+      name: String(page?.name || `עמוד ${pageNumber}`),
+      type: "image",
+    };
+  });
 }
 
 async function fileToBuffer(file: File) {
@@ -146,6 +159,11 @@ async function fileToBuffer(file: File) {
 
 function getCloudinaryResourceType(file: File): "image" | "raw" {
   if (file.type.startsWith("image/")) return "image";
+
+  if (file.type === "application/pdf") {
+    return "image";
+  }
+
   return "raw";
 }
 
@@ -227,6 +245,42 @@ function serializeContract(contract: any, req: NextRequest) {
     viewLink,
     signedViewLink: viewLink,
   };
+}
+
+function buildPdfPages({
+  originalFileUrl,
+  originalFileName,
+  pageCount,
+}: {
+  originalFileUrl: string;
+  originalFileName: string;
+  pageCount: number;
+}): ContractPage[] {
+  return Array.from({ length: pageCount }).map((_, index) => {
+    const pageNumber = index + 1;
+
+    return {
+      pageNumber,
+      url: originalFileUrl,
+      imageUrl: buildCloudinaryPdfPageImageUrl(originalFileUrl, pageNumber),
+      name: `${originalFileName || "הסכם"} - עמוד ${pageNumber}`,
+      type: "image",
+    };
+  });
+}
+
+function buildImagePages(uploadedImages: Array<{ url: string; fileName: string }>) {
+  return uploadedImages.map((uploaded, index) => {
+    const pageNumber = index + 1;
+
+    return {
+      pageNumber,
+      url: uploaded.url,
+      imageUrl: uploaded.url,
+      name: uploaded.fileName || `עמוד ${pageNumber}`,
+      type: "image" as const,
+    };
+  });
 }
 
 export async function GET(
@@ -345,7 +399,7 @@ export async function POST(
     );
 
     let pages: ContractPage[] = Array.isArray(existingContract?.pages)
-      ? existingContract.pages
+      ? normalizePages(existingContract.pages, originalFileUrl)
       : [];
 
     if (singleFile) {
@@ -360,12 +414,11 @@ export async function POST(
       originalFileType = "pdf";
       pageCount = requestedPageCount;
 
-      pages = Array.from({ length: pageCount }).map((_, index) => ({
-        pageNumber: index + 1,
-        url: uploaded.url,
-        name: `${uploaded.fileName} - עמוד ${index + 1}`,
-        type: "pdf",
-      }));
+      pages = buildPdfPages({
+        originalFileUrl: uploaded.url,
+        originalFileName: uploaded.fileName,
+        pageCount,
+      });
     } else if (multiFiles.length > 0) {
       const uploadedImages = await Promise.all(
         multiFiles.map((file, index) =>
@@ -386,31 +439,38 @@ export async function POST(
       originalFileType = "image";
       pageCount = uploadedImages.length;
 
-      pages = uploadedImages.map((uploaded, index) => ({
-        pageNumber: index + 1,
-        url: uploaded.url,
-        name: uploaded.fileName || `עמוד ${index + 1}`,
-        type: "image",
-      }));
+      pages = buildImagePages(uploadedImages);
     } else if (existingContract) {
       pageCount = requestedPageCount || pageCount;
 
       if (sentPages.length > 0) {
         const existingUrl = String(existingContract.originalFileUrl || "");
 
-        pages = sentPages.map((page, index) => ({
-          pageNumber: Number(page.pageNumber || index + 1),
-          url:
+        pages = sentPages.map((page, index) => {
+          const pageNumber = Number(page.pageNumber || index + 1);
+
+          const cleanUrl =
             page.url && !page.url.startsWith("blob:")
               ? page.url
-              : existingUrl,
-          name:
-            page.name ||
-            `${existingContract.originalFileName || "הסכם"} - עמוד ${
-              index + 1
-            }`,
-          type: page.type || originalFileType,
-        }));
+              : existingUrl;
+
+          const cleanImageUrl =
+            page.imageUrl && !page.imageUrl.startsWith("blob:")
+              ? page.imageUrl
+              : originalFileType === "pdf"
+                ? buildCloudinaryPdfPageImageUrl(existingUrl, pageNumber)
+                : cleanUrl;
+
+          return {
+            pageNumber,
+            url: cleanUrl,
+            imageUrl: cleanImageUrl,
+            name:
+              page.name ||
+              `${existingContract.originalFileName || "הסכם"} - עמוד ${pageNumber}`,
+            type: "image" as const,
+          };
+        });
       }
     }
 
@@ -422,12 +482,25 @@ export async function POST(
     }
 
     if (!pages.length) {
-      pages = Array.from({ length: pageCount }).map((_, index) => ({
-        pageNumber: index + 1,
-        url: originalFileUrl,
-        name: `${originalFileName || "הסכם"} - עמוד ${index + 1}`,
-        type: originalFileType,
-      }));
+      if (originalFileType === "pdf") {
+        pages = buildPdfPages({
+          originalFileUrl,
+          originalFileName,
+          pageCount,
+        });
+      } else {
+        pages = Array.from({ length: pageCount }).map((_, index) => {
+          const pageNumber = index + 1;
+
+          return {
+            pageNumber,
+            url: originalFileUrl,
+            imageUrl: originalFileUrl,
+            name: `${originalFileName || "הסכם"} - עמוד ${pageNumber}`,
+            type: "image" as const,
+          };
+        });
+      }
     }
 
     const signingToken = existingContract?.signingToken || makeToken();
