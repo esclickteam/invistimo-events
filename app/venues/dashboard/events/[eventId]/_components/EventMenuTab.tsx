@@ -1213,24 +1213,24 @@ export default function EventMenuTab({
         <div className="pointer-events-none absolute -bottom-24 right-20 h-72 w-72 rounded-full bg-[#d8b46f]/10 blur-3xl" />
 
         <div className="relative grid gap-5 xl:grid-cols-[1.05fr_0.95fr] xl:items-stretch">
-          <div className="flex min-h-[240px] flex-col justify-between overflow-hidden rounded-[32px] border border-white/70 bg-[linear-gradient(135deg,rgba(48,38,29,0.76),rgba(82,62,44,0.42)),radial-gradient(circle_at_15%_20%,rgba(255,255,255,0.34),transparent_32%),linear-gradient(135deg,#d7b98e,#efe3d0)] p-7 text-white shadow-[0_22px_55px_rgba(47,35,20,0.16)]">
+          <div className="flex min-h-[240px] flex-col justify-between overflow-hidden rounded-[32px] border border-[#eadfce] bg-[radial-gradient(circle_at_16%_18%,rgba(255,255,255,0.96),transparent_36%),radial-gradient(circle_at_86%_18%,rgba(245,226,192,0.58),transparent_32%),linear-gradient(135deg,#fffdf8_0%,#f8efe3_52%,#eadbc7_100%)] p-7 text-[#2b241c] shadow-[0_22px_55px_rgba(47,35,20,0.08)]">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/35 bg-white/18 px-4 py-2 text-xs font-black backdrop-blur">
+              <span className="inline-flex items-center gap-2 rounded-full border border-[#e1cda9] bg-white/78 px-4 py-2 text-xs font-black text-[#8c5f19] shadow-sm backdrop-blur">
                 <Sparkles size={14} />
                 תפריט אירוע פעיל
               </span>
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/12 px-4 py-2 text-xs font-black backdrop-blur">
+              <span className="inline-flex items-center gap-2 rounded-full border border-[#eadfce] bg-white/72 px-4 py-2 text-xs font-black text-[#6f6252] shadow-sm backdrop-blur">
                 <CalendarDays size={14} />
                 {assignedMenu.updatedAt ? formatDateTime(assignedMenu.updatedAt) : "עודכן לאחרונה"}
               </span>
             </div>
 
             <div className="mt-10 max-w-2xl">
-              <p className="text-sm font-black text-white/75">ניהול תפריט לאירוע</p>
-              <h1 className="mt-2 text-4xl font-black tracking-tight md:text-5xl">
+              <p className="text-sm font-black text-[#8c5f19]">ניהול תפריט לאירוע</p>
+              <h1 className="mt-2 text-4xl font-black tracking-tight text-[#3a3027] md:text-5xl">
                 {assignedMenu.name}
               </h1>
-              <p className="mt-4 max-w-xl text-sm font-bold leading-7 text-white/82">
+              <p className="mt-4 max-w-xl text-sm font-bold leading-7 text-[#6f6252]">
                 מסך נקי וממוקד: קטגוריות התפריט, המנות שנבחרו וכמויות — בלי עומס של פיננסים, פרטי לקוח או תפריט צד.
               </p>
             </div>
@@ -1634,9 +1634,9 @@ function getCategoryIcon(name: string, index = 0) {
 
 function PremiumHeroStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[22px] border border-white/25 bg-white/14 p-4 text-right backdrop-blur">
-      <div className="text-[11px] font-black text-white/70">{label}</div>
-      <div className="mt-1 text-2xl font-black text-white">{value}</div>
+    <div className="rounded-[22px] border border-[#eadfce] bg-white/74 p-4 text-right shadow-[0_12px_28px_rgba(47,35,20,0.06)] backdrop-blur">
+      <div className="text-[11px] font-black text-[#8a7b68]">{label}</div>
+      <div className="mt-1 text-2xl font-black text-[#3a3027]">{value}</div>
     </div>
   );
 }
