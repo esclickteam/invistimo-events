@@ -1538,14 +1538,17 @@ export default function EventClientTab({
                   <button
                     type="button"
                     disabled={!viewLink}
-                    onClick={() => copyText(viewLink)}
+                    onClick={() => {
+                      if (!viewLink) return;
+                      window.open(viewLink, "_blank", "noopener,noreferrer");
+                    }}
                     className="flex h-12 w-full items-center justify-between gap-3 rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-3 text-sm font-black text-[#6f6252] transition hover:bg-[#fbf5ea] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <span className="flex items-center gap-2">
                       <Eye size={16} className="text-[#b98121]" />
                       צפייה בהסכם חתום
                     </span>
-                    <Copy size={15} />
+                    <Eye size={15} />
                   </button>
 
                   <button
