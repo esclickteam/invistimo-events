@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import EventMenuTab from "./_components/EventMenuTab";
+import EventHallPaymentsTab from "./_components/EventHallPaymentsTab";
 import {
   ArrowRight,
   Bell,
@@ -2461,6 +2462,10 @@ const sendMenuSmsToCouple = async () => {
   </MainCard>
 )}
 
+            {activeTab === "payments" && (
+              <EventHallPaymentsTab eventId={eventId} hallId={hallId} />
+            )}
+
             {activeTab === "menu" && (
               <EventMenuTab
                 eventId={eventId}
@@ -2490,6 +2495,7 @@ const sendMenuSmsToCouple = async () => {
             {activeTab !== "overview" &&
               activeTab !== "details" &&
               activeTab !== "client-invite" &&
+              activeTab !== "payments" &&
               activeTab !== "rsvp" &&
               activeTab !== "seating" &&
               activeTab !== "menu" && (
