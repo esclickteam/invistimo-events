@@ -1525,6 +1525,19 @@ export default function EventClientTab({
                   <button
                     type="button"
                     disabled={!signingLink}
+                    onClick={() => setMobilePreviewOpen(true)}
+                    className="flex h-12 w-full items-center justify-between gap-3 rounded-2xl border border-[#d9bd83] bg-[#fff8eb] px-3 text-sm font-black text-[#9f6f1a] transition hover:bg-[#f4ead9] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Smartphone size={16} className="text-[#b98121]" />
+                      תצוגה מקדימה במובייל
+                    </span>
+                    <Eye size={15} />
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={!signingLink}
                     onClick={() => copyText(signingLink)}
                     className="flex h-12 w-full items-center justify-between gap-3 rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-3 text-sm font-black text-[#6f6252] transition hover:bg-[#fbf5ea] disabled:cursor-not-allowed disabled:opacity-50"
                   >
@@ -1551,18 +1564,6 @@ export default function EventClientTab({
                     <Eye size={15} />
                   </button>
 
-                  <button
-                    type="button"
-                    disabled={!signingLink}
-                    onClick={() => setMobilePreviewOpen(true)}
-                    className="flex h-12 w-full items-center justify-between gap-3 rounded-2xl border border-[#d9bd83] bg-[#fff8eb] px-3 text-sm font-black text-[#9f6f1a] transition hover:bg-[#f4ead9] disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <span className="flex items-center gap-2">
-                      <Smartphone size={16} className="text-[#b98121]" />
-                      תצוגה מקדימה במובייל
-                    </span>
-                    <Eye size={15} />
-                  </button>
                 </div>
 
                 {isLocked && signedAt && (
