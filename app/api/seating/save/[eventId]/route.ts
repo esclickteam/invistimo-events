@@ -390,21 +390,22 @@ export async function POST(req: NextRequest, context: RouteContext) {
       invitationId,
     });
 
+    /*
+      חשוב:
+      במודל SeatingTable הקיים אין invitationId/shareId,
+      ולכן לא שומרים אותם כאן כדי לא לקבל StrictModeError.
+      השמירה עצמה נשארת לפי eventId כמו שהיה אצלך קודם.
+      invitationId משמש רק להרשאות ולעדכון InvitationGuest.
+    */
     const saved = await SeatingTable.findOneAndUpdate(
       {
-        $or: [
-          { eventId: eventIdForDb, invitationId },
-          { eventId: eventIdForDb },
-          { invitationId },
-        ],
+        eventId: eventIdForDb,
       },
       {
         $set: {
           userId: invitation.userId || invitation.ownerId || userId,
 
           eventId: eventIdForDb,
-          invitationId,
-          shareId: cleanString((invitation as any).shareId),
 
           tables,
           zones,
