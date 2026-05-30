@@ -117,6 +117,18 @@ function isSameLockedUser(event: any, userId: string, email: string) {
   );
 }
 
+function isSameRegisteredUser(event: any, userId: string, email: string) {
+  const registeredUserId = cleanString(event?.venueClientUserId);
+  const registeredEmail = cleanString(
+    event?.venueClientUserEmail || event?.venueClientInviteLockedEmail
+  ).toLowerCase();
+
+  return (
+    (!!registeredUserId && registeredUserId === userId) ||
+    (!!registeredEmail && registeredEmail === email.toLowerCase())
+  );
+}
+
 function getFindOneAndUpdateDoc(result: any) {
   /*
     חשוב:
@@ -128,11 +140,13 @@ function getFindOneAndUpdateDoc(result: any) {
   return result?.value || result || null;
 }
 
-async function getExistingStripeSessionState({
+async function tryReturnExistingStripeSession({
   stripe,
+  events,
   event,
 }: {
   stripe: Stripe;
+  events: any;
   event: any;
 }) {
   const sessionId = cleanString(
@@ -140,39 +154,42 @@ async function getExistingStripeSessionState({
   );
 
   if (!sessionId) {
-    return {
-      hasSession: false,
-      isPaid: false,
-      isOpen: false,
-      url: "",
-      sessionId: "",
-    };
+    return null;
   }
 
   try {
     const session = await stripe.checkout.sessions.retrieve(sessionId);
 
-    return {
-      hasSession: true,
-      isPaid: session?.payment_status === "paid",
-      isOpen: session?.status === "open" && !!session?.url,
-      url: String(session?.url || ""),
-      sessionId: String(session?.id || sessionId),
-    };
+    if (session?.payment_status === "paid") {
+      return {
+        status: 409,
+        body: {
+          success: false,
+          message: "התשלום כבר בוצע עבור הקישור הזה.",
+        },
+      };
+    }
+
+    if (session?.url && session?.status === "open") {
+      return {
+        status: 200,
+        body: {
+          success: true,
+          url: session.url,
+          sessionId: session.id,
+          totalPrice: Number(event?.venueClientPaymentAmount || 0),
+          resumed: true,
+        },
+      };
+    }
   } catch (error) {
     console.warn("Failed to retrieve existing Stripe session:", error);
-
-    return {
-      hasSession: false,
-      isPaid: false,
-      isOpen: false,
-      url: "",
-      sessionId: "",
-    };
   }
-}
 
-async function releasePendingPaymentLock(events: any, event: any) {
+  /*
+    אם היה pending_payment אבל אין session פעיל,
+    משחררים את הקישור לאותו משתמש כדי שאפשר יהיה ליצור session חדש.
+  */
   await events.updateOne(
     { _id: event._id },
     {
@@ -188,6 +205,8 @@ async function releasePendingPaymentLock(events: any, event: any) {
       },
     }
   );
+
+  return null;
 }
 
 export async function POST(req: NextRequest) {
@@ -336,41 +355,29 @@ export async function POST(req: NextRequest) {
     }
 
     /*
-      אם הקישור כבר ב-pending_payment:
-      - אם יש Stripe session פתוח ושייך לאותו משתמש — מחזירים אותו.
-      - אם יש Stripe session פתוח אבל הוא של משתמש אחר — חוסמים.
-      - אם אין session פעיל / session פג / session לא נשמר — משחררים את הנעילה וממשיכים ליצור session חדש.
-      זה פותר מצב שבו הקישור החדש תקין, אבל נשארה נעילה ישנה על אותו אירוע.
+      מצב registered נוצר אחרי הרשמה דרך קישור אולם.
+      זה עדיין לא "נוצל" — הלקוח רק נרשם, ועכשיו מותר לו לבחור חבילה ולהמשיך לתשלום.
+      אבל רק אותו userId / email שנרשם רשאי להמשיך.
     */
-    if (currentStatus === "pending_payment") {
-      const sameLockedUser = isSameLockedUser(existingEvent, userId, email);
-
-      const existingSessionState = await getExistingStripeSessionState({
-        stripe,
-        event: existingEvent,
-      });
-
-      if (existingSessionState.isPaid) {
+    if (currentStatus === "registered") {
+      if (!isSameRegisteredUser(existingEvent, userId, email)) {
         return NextResponse.json(
           {
             success: false,
-            message: "התשלום כבר בוצע עבור הקישור הזה.",
+            message:
+              "קישור ההרשמה כבר שויך למשתמש אחר. צריך ליצור קישור חדש.",
           },
           { status: 409 }
         );
       }
+    }
 
-      if (existingSessionState.isOpen) {
-        if (sameLockedUser) {
-          return NextResponse.json({
-            success: true,
-            url: existingSessionState.url,
-            sessionId: existingSessionState.sessionId,
-            totalPrice: Number(existingEvent?.venueClientPaymentAmount || 0),
-            resumed: true,
-          });
-        }
-
+    /*
+      אם המשתמש כבר לחץ המשך לתשלום והקישור ננעל עליו,
+      לא חוסמים אותו. מחזירים את Stripe session הקיים או יוצרים חדש.
+    */
+    if (currentStatus === "pending_payment") {
+      if (!isSameLockedUser(existingEvent, userId, email)) {
         return NextResponse.json(
           {
             success: false,
@@ -381,7 +388,17 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      await releasePendingPaymentLock(events, existingEvent);
+      const existingSessionResponse = await tryReturnExistingStripeSession({
+        stripe,
+        events,
+        event: existingEvent,
+      });
+
+      if (existingSessionResponse) {
+        return NextResponse.json(existingSessionResponse.body, {
+          status: existingSessionResponse.status,
+        });
+      }
     }
 
     if (
@@ -407,6 +424,7 @@ export async function POST(req: NextRequest) {
         _id: existingEvent._id,
         $or: [
           { venueClientInviteStatus: "sent" },
+          { venueClientInviteStatus: "registered" },
           { venueClientInviteStatus: "" },
           { venueClientInviteStatus: { $exists: false } },
           { venueClientInviteStatus: null },

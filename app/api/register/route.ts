@@ -240,6 +240,10 @@ export async function POST(req: Request) {
     const venueClientPackageType =
       cleanString(venueEvent?.venueClientPackageType) || "seating_only";
 
+    const canonicalVenueInviteToken = isVenueClientRegistration
+      ? cleanString(venueEvent?.venueClientInviteToken) || venueInviteToken
+      : "";
+
     /* ============================================================
        Create user
        הרשמה רגילה / הרשמה דרך אולם / יצירה עתידית ע"י מפיק
@@ -291,7 +295,9 @@ export async function POST(req: Request) {
         לא יוצרים כאן הושבה ולא נוגעים בלייב.
       */
       venueClientSource: isVenueClientRegistration,
-      venueInviteToken: isVenueClientRegistration ? venueInviteToken : undefined,
+      venueInviteToken: isVenueClientRegistration
+        ? canonicalVenueInviteToken
+        : undefined,
 
       venueOwnerId: isVenueClientRegistration ? venueOwnerId : undefined,
 
@@ -388,7 +394,7 @@ export async function POST(req: Request) {
       await events?.updateOne(
         {
           _id: venueEvent._id,
-          venueClientInviteToken: venueInviteToken,
+          venueClientInviteToken: canonicalVenueInviteToken,
         },
         {
           $set: {
@@ -444,7 +450,7 @@ export async function POST(req: Request) {
 
     const redirectUrl = isVenueClientRegistration
       ? `${baseUrl}/venue-client/packages?venueInviteToken=${encodeURIComponent(
-          venueInviteToken
+          canonicalVenueInviteToken
         )}&userId=${encodeURIComponent(userId)}&email=${encodeURIComponent(
           email
         )}&venueClientHallId=${encodeURIComponent(venueHallId || "")}`
