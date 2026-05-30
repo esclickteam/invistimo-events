@@ -166,10 +166,6 @@ function statusClass(status: ContractStatus) {
   return "bg-slate-100 text-slate-600 border-slate-200";
 }
 
-function buildPdfPageUrl(url: string, pageNumber: number) {
-  return `${url}#page=${pageNumber}&toolbar=0&navpanes=0&scrollbar=0`;
-}
-
 function formatSignedDate(value?: string) {
   if (!value) return "";
 
@@ -181,6 +177,29 @@ function formatSignedDate(value?: string) {
     dateStyle: "short",
     timeStyle: "short",
   }).format(date);
+}
+
+async function loadPdfJs() {
+  const pdfjsLib = await import("pdfjs-dist");
+
+  if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+  }
+
+  return pdfjsLib;
+}
+
+async function getPdfPageCount(url: string) {
+  try {
+    const pdfjsLib = await loadPdfJs();
+    const loadingTask = pdfjsLib.getDocument(url);
+    const pdf = await loadingTask.promise;
+
+    return Math.max(1, Number(pdf.numPages || 1));
+  } catch (error) {
+    console.error("PDF page count failed:", error);
+    return 1;
+  }
 }
 
 export default function EventClientTab({
@@ -214,6 +233,7 @@ export default function EventClientTab({
   const [loadingExisting, setLoadingExisting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [sendingSms, setSendingSms] = useState(false);
+  const [uploadingFile, setUploadingFile] = useState(false);
   const [error, setError] = useState("");
 
   const selectedField = useMemo(
@@ -304,7 +324,6 @@ export default function EventClientTab({
       : "image";
 
     const pageCount = Math.max(1, Number(contract.pageCount || 1));
-
     const pagesFromServer = Array.isArray(contract.pages) ? contract.pages : [];
 
     const pages: ContractPage[] =
@@ -313,7 +332,9 @@ export default function EventClientTab({
             pageNumber: Number(page.pageNumber || index + 1),
             url: String(page.url || page.imageUrl || contract.originalFileUrl || ""),
             name: String(page.name || page.fileName || `עמוד ${index + 1}`),
-            type: String(page.type || fileType).includes("pdf") ? "pdf" : "image",
+            type: String(page.type || fileType).includes("image")
+              ? "image"
+              : "pdf",
           }))
         : Array.from({ length: pageCount }).map((_, index) => ({
             pageNumber: index + 1,
@@ -379,6 +400,10 @@ export default function EventClientTab({
     resetToEmpty();
     setContractTitle(`הסכם נוסף ${contracts.length + 1}`);
     setStatus("empty");
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   }
 
   function handleSelectContract(nextId: string) {
@@ -393,7 +418,7 @@ export default function EventClientTab({
     fetchExistingContracts(selected.id);
   }
 
-  function handleUploadFile(event: React.ChangeEvent<HTMLInputElement>) {
+  async function handleUploadFile(event: React.ChangeEvent<HTMLInputElement>) {
     const selectedFiles = Array.from(event.target.files || []);
     if (!selectedFiles.length) return;
 
@@ -412,55 +437,63 @@ export default function EventClientTab({
       return;
     }
 
-    if (pdfFiles.length === 1) {
-      const file = pdfFiles[0];
-      const url = URL.createObjectURL(file);
-
-      setContractFile({
-        file,
-        url,
-        name: file.name,
-        type: "pdf",
-        pageCount: 1,
-        pages: [
-          {
-            pageNumber: 1,
-            url,
-            name: file.name,
-            type: "pdf",
-          },
-        ],
-      });
-    } else {
-      const pages = imageFiles.map((file, index) => ({
-        pageNumber: index + 1,
-        url: URL.createObjectURL(file),
-        name: file.name,
-        type: "image" as const,
-      }));
-
-      setContractFile({
-        files: imageFiles,
-        url: pages[0]?.url || "",
-        name:
-          imageFiles.length === 1
-            ? imageFiles[0].name
-            : `${imageFiles.length} עמודים בתמונות`,
-        type: "image",
-        pageCount: pages.length,
-        pages,
-      });
-    }
-
-    setContractId("");
-    setFields([]);
-    setSelectedFieldId(null);
-    setSigningLink("");
-    setViewLink("");
-    setSignedAt("");
-    setActivePage(1);
-    setStatus("draft");
+    setUploadingFile(true);
     setError("");
+
+    try {
+      if (pdfFiles.length === 1) {
+        const file = pdfFiles[0];
+        const url = URL.createObjectURL(file);
+        const pageCount = await getPdfPageCount(url);
+
+        setContractFile({
+          file,
+          url,
+          name: file.name,
+          type: "pdf",
+          pageCount,
+          pages: Array.from({ length: pageCount }).map((_, index) => ({
+            pageNumber: index + 1,
+            url,
+            name: `${file.name} - עמוד ${index + 1}`,
+            type: "pdf",
+          })),
+        });
+      } else {
+        const pages = imageFiles.map((file, index) => ({
+          pageNumber: index + 1,
+          url: URL.createObjectURL(file),
+          name: file.name,
+          type: "image" as const,
+        }));
+
+        setContractFile({
+          files: imageFiles,
+          url: pages[0]?.url || "",
+          name:
+            imageFiles.length === 1
+              ? imageFiles[0].name
+              : `${imageFiles.length} עמודים בתמונות`,
+          type: "image",
+          pageCount: pages.length,
+          pages,
+        });
+      }
+
+      setContractId("");
+      setFields([]);
+      setSelectedFieldId(null);
+      setSigningLink("");
+      setViewLink("");
+      setSignedAt("");
+      setActivePage(1);
+      setStatus("draft");
+    } catch (err) {
+      console.error("Upload contract file failed:", err);
+      setError(err instanceof Error ? err.message : "טעינת הקובץ נכשלה");
+    } finally {
+      setUploadingFile(false);
+    }
   }
 
   function updatePdfPageCount(nextCount: number) {
@@ -484,6 +517,7 @@ export default function EventClientTab({
     });
 
     setFields((prev) => prev.filter((field) => field.pageNumber <= safeCount));
+    setActivePage((current) => clamp(current, 1, safeCount));
   }
 
   function addField(type: ContractFieldType) {
@@ -529,6 +563,13 @@ export default function EventClientTab({
 
     setFields((prev) => [...prev, nextField]);
     setSelectedFieldId(nextField.id);
+
+    requestAnimationFrame(() => {
+      pageEditorRefs.current[activePage]?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    });
   }
 
   function updateField(fieldId: string, patch: Partial<ContractField>) {
@@ -651,6 +692,13 @@ export default function EventClientTab({
   function moveFieldToPage(fieldId: string, pageNumber: number) {
     updateField(fieldId, { pageNumber });
     setActivePage(pageNumber);
+
+    requestAnimationFrame(() => {
+      pageEditorRefs.current[pageNumber]?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    });
   }
 
   function getFieldPreview(field: ContractField) {
@@ -658,9 +706,9 @@ export default function EventClientTab({
     if (field.type === "date") return "dd/mm/yyyy";
     if (field.type === "checkbox") return "✓";
     if (field.type === "venueNote") return field.value || field.label || "הערת אולם";
-    if (field.type === "fullName") return clientName || "שם מלא";
-    if (field.type === "phone") return clientPhone || "טלפון";
-    if (field.type === "email") return clientEmail || "אימייל";
+    if (field.type === "fullName") return "שם מלא";
+    if (field.type === "phone") return "טלפון";
+    if (field.type === "email") return "אימייל";
     if (field.type === "idNumber") return "ת.ז";
     return field.label || "טקסט";
   }
@@ -890,15 +938,15 @@ export default function EventClientTab({
             טוען הסכמי לקוח...
           </div>
         ) : (
-          <div className="grid gap-5 xl:grid-cols-[1fr_390px]">
-            <div className="rounded-[28px] border border-[#eadfce] bg-[#fffdf8] p-4">
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_390px]">
+            <div className="min-w-0 rounded-[28px] border border-[#eadfce] bg-[#fffdf8] p-4">
               <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                   <h3 className="text-lg font-black text-[#2b241c]">
                     עורך הסכם
                   </h3>
                   <p className="mt-1 text-xs font-bold text-[#8a7b68]">
-                    כל העמודים מוצגים ברצף עם סקרול. אפשר להוסיף שדות והערות לכל עמוד.
+                    PDF מוצג כעמודים רגילים עם סקרול אמיתי, לא בתוך iframe.
                   </p>
                 </div>
 
@@ -910,7 +958,7 @@ export default function EventClientTab({
                     accept="application/pdf,image/png,image/jpeg,image/jpg"
                     className="hidden"
                     onChange={handleUploadFile}
-                    disabled={isLocked}
+                    disabled={isLocked || uploadingFile}
                   />
 
                   <button
@@ -925,17 +973,17 @@ export default function EventClientTab({
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    disabled={isLocked}
+                    disabled={isLocked || uploadingFile}
                     className="inline-flex h-11 items-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-black text-[#6f6252] transition hover:bg-[#fbf5ea] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Upload size={17} />
-                    העלאת קובץ
+                    {uploadingFile ? "טוען קובץ..." : "העלאת קובץ"}
                   </button>
 
                   <button
                     type="button"
                     onClick={saveContract}
-                    disabled={!contractFile || saving || isLocked}
+                    disabled={!contractFile || saving || isLocked || uploadingFile}
                     className="inline-flex h-11 items-center gap-2 rounded-2xl border border-[#d9bd83] bg-[#fff8eb] px-4 text-sm font-black text-[#9f6f1a] transition hover:bg-[#f4ead9] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Save size={17} />
@@ -954,7 +1002,7 @@ export default function EventClientTab({
                 </div>
               </div>
 
-              <div className="mb-4 grid gap-3 lg:grid-cols-[1fr_250px]">
+              <div className="mb-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_250px]">
                 <div>
                   <label className="mb-1 block text-xs font-black text-[#8a7b68]">
                     שם ההסכם
@@ -1004,10 +1052,11 @@ export default function EventClientTab({
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="mt-5 inline-flex h-12 items-center gap-2 rounded-2xl bg-[#b98121] px-5 text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a]"
+                    disabled={uploadingFile}
+                    className="mt-5 inline-flex h-12 items-center gap-2 rounded-2xl bg-[#b98121] px-5 text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Upload size={18} />
-                    בחר קובץ הסכם
+                    {uploadingFile ? "טוען קובץ..." : "בחר קובץ הסכם"}
                   </button>
                 </div>
               ) : (
@@ -1070,7 +1119,7 @@ export default function EventClientTab({
                     </div>
                   </div>
 
-                  <div className="max-h-[calc(100vh-230px)] overflow-y-auto overflow-x-hidden bg-[#f3eee5] p-4">
+                  <div className="h-[calc(100vh-230px)] overflow-y-auto overflow-x-hidden bg-[#f3eee5] p-4">
                     <div className="mx-auto flex w-full max-w-[920px] flex-col gap-7">
                       {contractFile.pages.map((page) => {
                         const pageFields = fields.filter(
@@ -1096,7 +1145,7 @@ export default function EventClientTab({
                                 setActivePage(page.pageNumber);
                                 setSelectedFieldId(null);
                               }}
-                              className="relative min-h-[760px] w-full overflow-visible rounded-[22px] border border-[#dbcbb3] bg-white shadow-sm"
+                              className="relative w-full overflow-visible rounded-[22px] border border-[#dbcbb3] bg-white shadow-sm"
                             >
                               {page.type === "image" ? (
                                 <img
@@ -1106,10 +1155,9 @@ export default function EventClientTab({
                                   className="block h-auto w-full select-none rounded-[22px]"
                                 />
                               ) : (
-                                <iframe
-                                  src={buildPdfPageUrl(page.url, page.pageNumber)}
-                                  title={`contract-pdf-page-${page.pageNumber}`}
-                                  className="h-[760px] w-full rounded-[22px] bg-white"
+                                <PdfPageCanvas
+                                  url={page.url}
+                                  pageNumber={page.pageNumber}
                                 />
                               )}
 
@@ -1123,7 +1171,7 @@ export default function EventClientTab({
                                 </div>
                               )}
 
-                              <div className="absolute inset-0 z-10">
+                              <div className="pointer-events-none absolute inset-0 z-10">
                                 {pageFields.map((field) => {
                                   const selected = selectedFieldId === field.id;
 
@@ -1137,7 +1185,7 @@ export default function EventClientTab({
                                         setActivePage(field.pageNumber);
                                       }}
                                       className={[
-                                        "group absolute flex items-center justify-center overflow-visible rounded-xl border-2 bg-white/85 text-center text-xs font-black shadow-sm backdrop-blur-sm transition",
+                                        "group pointer-events-auto absolute flex items-center justify-center overflow-visible rounded-xl border-2 text-center text-xs font-black shadow-sm backdrop-blur-sm transition",
                                         field.type === "venueNote"
                                           ? "bg-amber-50/95 text-[#5a3f12]"
                                           : "bg-white/85 text-[#2b241c]",
@@ -1161,7 +1209,13 @@ export default function EventClientTab({
                                         <span className="text-[#b98121]">
                                           {FIELD_ICONS[field.type]}
                                         </span>
-                                        <span className={field.type === "venueNote" ? "whitespace-pre-wrap text-right leading-5" : "truncate"}>
+                                        <span
+                                          className={
+                                            field.type === "venueNote"
+                                              ? "whitespace-pre-wrap text-right leading-5"
+                                              : "truncate"
+                                          }
+                                        >
                                           {getFieldPreview(field)}
                                         </span>
                                       </div>
@@ -1447,6 +1501,109 @@ export default function EventClientTab({
         )}
       </div>
     </section>
+  );
+}
+
+function PdfPageCanvas({
+  url,
+  pageNumber,
+}: {
+  url: string;
+  pageNumber: number;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [height, setHeight] = useState(760);
+
+  useEffect(() => {
+    let cancelled = false;
+    let renderTask: any = null;
+
+    async function renderPage() {
+      const canvas = canvasRef.current;
+      if (!canvas || !url) return;
+
+      setLoading(true);
+
+      try {
+        const pdfjsLib = await loadPdfJs();
+
+        const loadingTask = pdfjsLib.getDocument(url);
+        const pdf = await loadingTask.promise;
+
+        if (cancelled) return;
+
+        if (pageNumber > pdf.numPages) {
+          setLoading(false);
+          return;
+        }
+
+        const page = await pdf.getPage(pageNumber);
+
+        if (cancelled) return;
+
+        const containerWidth = canvas.parentElement?.clientWidth || 900;
+        const originalViewport = page.getViewport({ scale: 1 });
+        const scale = containerWidth / originalViewport.width;
+        const viewport = page.getViewport({ scale });
+
+        const context = canvas.getContext("2d");
+        if (!context) return;
+
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        setHeight(viewport.height);
+
+        context.clearRect(0, 0, canvas.width, canvas.height);
+
+        renderTask = page.render({
+  canvas,
+  canvasContext: context,
+  viewport,
+});
+
+        await renderTask.promise;
+
+        if (!cancelled) {
+          setLoading(false);
+        }
+      } catch (error: any) {
+        if (error?.name !== "RenderingCancelledException") {
+          console.error("PDF page render failed:", error);
+        }
+
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    renderPage();
+
+    return () => {
+      cancelled = true;
+
+      try {
+        renderTask?.cancel?.();
+      } catch {
+        // ignore
+      }
+    };
+  }, [url, pageNumber]);
+
+  return (
+    <div className="relative w-full bg-white" style={{ minHeight: height }}>
+      {loading && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-white text-sm font-black text-[#8a7b68]">
+          טוען עמוד...
+        </div>
+      )}
+
+      <canvas
+        ref={canvasRef}
+        className="block h-auto w-full select-none rounded-[22px] bg-white"
+      />
+    </div>
   );
 }
 

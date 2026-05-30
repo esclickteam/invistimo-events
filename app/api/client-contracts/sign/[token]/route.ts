@@ -248,8 +248,6 @@ export async function POST(
     const nextFields = contract.fields.map((field: any) => {
       const fieldObject = field.toObject?.() || field;
 
-      // הערת אולם היא טקסט קבוע של האולם.
-      // הלקוח לא משנה אותה בחתימה.
       if (fieldObject.type === "venueNote") {
         return fieldObject;
       }
@@ -270,7 +268,6 @@ export async function POST(
 
     const missingRequiredField = nextFields.find((field: any) => {
       if (field.type === "venueNote") return false;
-
       if (!field.required) return false;
 
       if (field.type === "signature") {
