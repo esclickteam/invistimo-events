@@ -649,6 +649,30 @@ function taskStatusLabel(status: TaskRow["status"]) {
   return "פתוח";
 }
 
+const EVENT_TAB_IDS = [
+  "overview",
+  "details",
+  "client",
+  "client-invite",
+  "payments",
+  "menu",
+  "seating",
+  "rsvp",
+  "staff",
+  "tasks",
+  "files",
+] as const;
+
+type EventActiveTab = (typeof EVENT_TAB_IDS)[number];
+
+function isEventActiveTab(value: string | null): value is EventActiveTab {
+  return Boolean(value && EVENT_TAB_IDS.includes(value as EventActiveTab));
+}
+
+function getEventActiveTabStorageKey(eventId: string) {
+  return `venue-event-active-tab-${eventId}`;
+}
+
 export default function VenueEventPage() {
   const params = useParams<{ eventId: string }>();
   const eventId = params?.eventId || "";
@@ -661,7 +685,8 @@ export default function VenueEventPage() {
   const [savingEvent, setSavingEvent] = useState(false);
   const [serverError, setServerError] = useState("");
 
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState<EventActiveTab>("overview");
+
   const [actionsOpen, setActionsOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
@@ -737,10 +762,26 @@ export default function VenueEventPage() {
   };
 
   useEffect(() => {
-  fetchEvent();
+    if (!eventId || typeof window === "undefined") return;
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [eventId]);
+    const storedTab = sessionStorage.getItem(getEventActiveTabStorageKey(eventId));
+
+    if (isEventActiveTab(storedTab)) {
+      setActiveTab(storedTab);
+    }
+  }, [eventId]);
+
+  useEffect(() => {
+    if (!eventId || typeof window === "undefined") return;
+
+    sessionStorage.setItem(getEventActiveTabStorageKey(eventId), activeTab);
+  }, [eventId, activeTab]);
+
+  useEffect(() => {
+    fetchEvent();
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventId]);
 
 
   useEffect(() => {
@@ -1837,7 +1878,7 @@ const sendMenuSmsToCouple = async () => {
                 <button
                   key={tab.id}
                   type="button"
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={() => setActiveTab(tab.id as EventActiveTab)}
                   className={[
                     "flex h-14 flex-1 items-center justify-center gap-2 border-l border-[#eadfce] px-4 text-sm font-black transition",
                     activeTab === tab.id

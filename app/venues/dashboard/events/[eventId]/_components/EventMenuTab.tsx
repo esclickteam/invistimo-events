@@ -277,7 +277,23 @@ export default function EventMenuTab({
     >
   ) => void;
 }) {
-  const [menuView, setMenuView] = useState<"overview" | "live">("overview");
+  const [menuView, setMenuView] = useState<"overview" | "live">(() => {
+  if (typeof window === "undefined") return "overview";
+
+  return (
+    (sessionStorage.getItem(`event-menu-view-${eventId}`) as
+      | "overview"
+      | "live"
+      | null) || "overview"
+  );
+});
+
+useEffect(() => {
+  if (!eventId) return;
+
+  sessionStorage.setItem(`event-menu-view-${eventId}`, menuView);
+}, [eventId, menuView]);
+
   const [liveSaving, setLiveSaving] = useState(false);
   const liveSaveInProgressRef = useRef(false);
   const pendingLiveSaveRef = useRef<Pick<
