@@ -20,10 +20,12 @@ import {
   Save,
   Send,
   ShieldCheck,
+  Smartphone,
   Trash2,
   Type,
   Upload,
   UserRound,
+  X,
 } from "lucide-react";
 
 type ContractFieldType =
@@ -248,6 +250,7 @@ export default function EventClientTab({
   const [uploadingFile, setUploadingFile] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
 
   const selectedField = useMemo(
     () => fields.find((field) => field.id === selectedFieldId) || null,
@@ -1544,6 +1547,19 @@ export default function EventClientTab({
                     </span>
                     <Copy size={15} />
                   </button>
+
+                  <button
+                    type="button"
+                    disabled={!signingLink}
+                    onClick={() => setMobilePreviewOpen(true)}
+                    className="flex h-12 w-full items-center justify-between gap-3 rounded-2xl border border-[#d9bd83] bg-[#fff8eb] px-3 text-sm font-black text-[#9f6f1a] transition hover:bg-[#f4ead9] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Smartphone size={16} className="text-[#b98121]" />
+                      תצוגה מקדימה במובייל
+                    </span>
+                    <Eye size={15} />
+                  </button>
                 </div>
 
                 {isLocked && signedAt && (
@@ -1558,6 +1574,46 @@ export default function EventClientTab({
           </div>
         )}
       </div>
+
+      {mobilePreviewOpen && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/55 p-3">
+          <div className="relative flex h-[92vh] w-full max-w-[430px] flex-col overflow-hidden rounded-[34px] border border-[#eadfce] bg-[#f8f6f2] shadow-2xl">
+            <div className="flex h-16 items-center justify-between border-b border-[#eadfce] bg-white px-4">
+              <div className="flex items-center gap-2">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#f4ead9] text-[#b98121]">
+                  <Smartphone size={19} />
+                </div>
+
+                <div>
+                  <div className="text-sm font-black text-[#2b241c]">
+                    תצוגה מקדימה במובייל
+                  </div>
+                  <div className="text-[11px] font-bold text-[#8a7b68]">
+                    כך הלקוח יראה את קישור החתימה
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setMobilePreviewOpen(false)}
+                className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#eadfce] bg-[#fffdf8] text-[#6f6252] transition hover:bg-[#fbf5ea]"
+                aria-label="סגירת תצוגה מקדימה"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-hidden bg-[#f3eee5]">
+              <iframe
+                src={signingLink}
+                title="תצוגה מקדימה במובייל"
+                className="h-full w-full border-0 bg-white"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
