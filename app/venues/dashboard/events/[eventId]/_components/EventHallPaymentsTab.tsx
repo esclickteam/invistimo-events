@@ -204,7 +204,7 @@ export default function EventHallPaymentsTab({
         setLoading(true);
         setMessage("");
 
-        const res = await fetch(`/api/events/${eventId}/hall-payments`, {
+        const res = await fetch(`/api/venues/dashboard/events/${eventId}/hall-payments`, {
           method: "GET",
           credentials: "include",
           cache: "no-store",
@@ -274,7 +274,7 @@ export default function EventHallPaymentsTab({
         status: nextStatus || payload.status || "open",
       };
 
-      const res = await fetch(`/api/events/${eventId}/hall-payments`, {
+      const res = await fetch(`/api/venues/dashboard/events/${eventId}/hall-payments`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
