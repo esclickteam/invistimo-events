@@ -183,7 +183,10 @@ async function loadPdfJs() {
   const pdfjsLib = await import("pdfjs-dist");
 
   if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+    pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+      "pdfjs-dist/build/pdf.worker.min.mjs",
+      import.meta.url
+    ).toString();
   }
 
   return pdfjsLib;
@@ -1539,12 +1542,12 @@ function PdfPageCanvas({
         const pdfjsLib = await loadPdfJs();
 
         const loadingTask = file
-          ? pdfjsLib.getDocument({
-              data: new Uint8Array(await file.arrayBuffer()),
-            })
-          : pdfjsLib.getDocument({
-              url,
-            });
+  ? pdfjsLib.getDocument({
+      data: new Uint8Array(await file.arrayBuffer()),
+    })
+  : pdfjsLib.getDocument({
+      url,
+    });
 
         const pdf = await loadingTask.promise;
 
