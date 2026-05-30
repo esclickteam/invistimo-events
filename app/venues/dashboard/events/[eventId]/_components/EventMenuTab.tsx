@@ -4,21 +4,34 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
+  Bell,
+  Building2,
+  Check,
   CheckCircle2,
   ChevronDown,
   ChevronLeft,
   ClipboardList,
+  Copy,
   Edit3,
-  Eye,
-  Layers3,
+  FileText,
+  Folder,
+  Home,
   Link2,
+  Mail,
+  MessageCircle,
+  Phone,
   Plus,
   Save,
   Send,
+  Settings,
+  Share2,
   ShieldCheck,
   Sparkles,
   Trash2,
+  User,
+  Users,
   Utensils,
+  Wallet,
   X,
 } from "lucide-react";
 
@@ -1113,211 +1126,749 @@ export default function EventMenuTab({
   }
 
   return (
-    <div className="space-y-5">
+    <PremiumEventMenuOverview
+      menuError={menuError}
+      assignedMenu={assignedMenu}
+      eventId={eventId}
+      hallId={hallId}
+      publicLink={publicLink}
+      selectedDishGroups={selectedDishGroups}
+      liveGroups={liveGroups}
+      totals={totals}
+      totalGap={totalGap}
+      totalSpecial={totalSpecial}
+      kitchenReportStatus={kitchenReportStatus}
+      menuSaving={menuSaving}
+      onGoLive={() => setMenuView("live")}
+      onSendToCouple={onSendToCouple}
+      onSaveChanges={onSaveChanges}
+      onUpdateEventNote={onUpdateEventNote}
+      onUpdateCategory={onUpdateCategory}
+      onUpdateSelectionPolicy={onUpdateSelectionPolicy}
+    />
+  );
+}
+
+function PremiumEventMenuOverview({
+  menuError,
+  assignedMenu,
+  eventId,
+  hallId,
+  publicLink,
+  selectedDishGroups,
+  liveGroups,
+  totals,
+  totalGap,
+  totalSpecial,
+  kitchenReportStatus,
+  menuSaving,
+  onGoLive,
+  onSendToCouple,
+  onSaveChanges,
+  onUpdateEventNote,
+  onUpdateCategory,
+  onUpdateSelectionPolicy,
+}: {
+  menuError: string;
+  assignedMenu: AssignedMenu;
+  eventId: string;
+  hallId: string;
+  publicLink: string;
+  selectedDishGroups: Record<string, NonNullable<AssignedMenu["selectedDishes"]>>;
+  liveGroups: LiveCategory[];
+  totals: { estimated: number; actual: number };
+  totalGap: number;
+  totalSpecial: number;
+  kitchenReportStatus: KitchenReportStatus;
+  menuSaving: boolean;
+  onGoLive: () => void;
+  onSendToCouple: () => void;
+  onSaveChanges: () => void;
+  onUpdateEventNote: (value: string) => void;
+  onUpdateCategory: (
+    categoryId: string,
+    field: "eventChoices" | "eventNote",
+    value: string
+  ) => void;
+  onUpdateSelectionPolicy: (
+    patch: Partial<Pick<AssignedMenu, "selectionEditMode" | "selectionEditableUntil">>
+  ) => void;
+}) {
+  const selectedDishes = assignedMenu.selectedDishes || [];
+  const selectedCategories = Object.keys(selectedDishGroups);
+  const categoriesCount =
+    assignedMenu.categoryOverrides.length || selectedCategories.length || liveGroups.length;
+  const totalChoicesAllowed = assignedMenu.categoryOverrides.reduce(
+    (sum, category) => sum + clampNumber(category.eventMaxChoices),
+    0
+  );
+
+  const statusItems = [
+    { label: "תפריט נבחר", helper: assignedMenu.name, done: true },
+    { label: "קישור נשלח", helper: "SMS / קישור אישי", done: assignedMenu.sentToCouple },
+    { label: "בחירת מנות", helper: "בחירת בעל האירוע", done: assignedMenu.coupleSelected },
+    { label: "לייב מטבח", helper: "כמויות בפועל", done: liveGroups.length > 0 },
+    { label: "דוח מטבח", helper: "סגירה בסוף אירוע", done: kitchenReportStatus === "submitted" },
+  ];
+
+  const completedTasks = statusItems.filter((item) => item.done).length;
+  const progress = Math.round((completedTasks / statusItems.length) * 100);
+  const selectedDate = assignedMenu.submittedAt || assignedMenu.selectedAt || assignedMenu.updatedAt;
+  const customerName = assignedMenu.submittedByName || "לא הוזן";
+  const customerPhone = assignedMenu.submittedByPhone || "לא הוזן";
+  const firstLetter = customerName !== "לא הוזן" ? customerName.charAt(0) : "I";
+
+  const visibleDishes = selectedDishes.length
+    ? selectedDishes.slice(0, 6)
+    : assignedMenu.categoryOverrides.slice(0, 6).map((category) => ({
+        categoryId: category.id,
+        categoryTitle: category.name,
+        dishId: category.id,
+        dishName: `${category.eventMaxChoices || category.originalMaxChoices || 0} בחירות מתוך ${
+          category.dishesCount || 0
+        } מנות`,
+      }));
+
+  const visibleQuantityGroups = liveGroups.length
+    ? liveGroups.slice(0, 4)
+    : assignedMenu.categoryOverrides.slice(0, 4).map((category) => ({
+        id: category.id,
+        title: category.name,
+        subtitle: "ממתין לבחירת מנות",
+        directSummary: {
+          id: categorySummaryId(category.id),
+          dishId: CATEGORY_SUMMARY_DISH_ID,
+          categoryId: category.id,
+          categoryTitle: category.name,
+          dishName: category.name,
+          plannedQuantity: 0,
+          actualServedQuantity: 0,
+          notes: "",
+        },
+        dishes: [],
+      }));
+
+  const copyPublicLink = async () => {
+    try {
+      await navigator.clipboard.writeText(publicLink);
+      alert("הקישור הועתק");
+    } catch {
+      alert("לא הצלחתי להעתיק אוטומטית");
+    }
+  };
+
+  return (
+    <div dir="rtl" className="space-y-5">
       {menuError && <ErrorBox text={menuError} />}
 
-      <section className="grid gap-5 xl:grid-cols-[1.35fr_0.85fr_0.8fr]">
-        <MainCard title="תפריט משויך לאירוע" icon={<Utensils size={19} />}>
-          <div className="relative overflow-hidden rounded-[30px] border border-[#e0d2bd] bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.75),transparent_30%),linear-gradient(135deg,#f8f0e4,#eadbc7)] p-5 shadow-[0_16px_38px_rgba(47,35,20,0.08)]">
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#e4c98f] bg-white/80 px-3 py-1 text-xs font-black text-[#9f6f1a]">
-              <Layers3 size={14} />
-              עותק תפריט לאירוע
-            </div>
-            <h2 className="mt-3 text-2xl font-black text-[#2b241c]">{assignedMenu.name}</h2>
-            <p className="mt-2 text-sm font-bold leading-7 text-[#7f705d]">
-              כאן מנהלים את התפריט שנשלח לבעל האירוע. ניהול הלייב נמצא במסך ייעודי, לפי קטגוריות ומנות שנבחרו בפועל.
-            </p>
+      <section className="relative overflow-hidden rounded-[42px] border border-[#e8ddcd] bg-[#f8f4ed] p-4 shadow-[0_24px_70px_rgba(51,39,26,0.08)] lg:p-6">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-36 bg-[radial-gradient(circle_at_18%_0%,rgba(218,193,156,0.26),transparent_34%),radial-gradient(circle_at_82%_0%,rgba(255,255,255,0.9),transparent_32%)]" />
 
-            <label className="mt-4 block">
-              <span className="mb-2 block text-xs font-black text-[#8a7b68]">הערה לאירוע הספציפי הזה</span>
+        <div className="relative mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[#e1cfb2] bg-white/80 px-3 py-1 text-xs font-black text-[#9a7245] shadow-sm backdrop-blur">
+              <Sparkles size={14} />
+              סקירת אירוע · Invistimo
+            </div>
+            <h1 className="text-3xl font-black tracking-tight text-[#221b15] lg:text-4xl">
+              ניהול תפריט אירוע
+            </h1>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-sm font-bold text-[#857665]">
+              <span>{assignedMenu.name}</span>
+              <span className="h-1 w-1 rounded-full bg-[#c7b69f]" />
+              <span>{selectedDate ? formatDateTime(selectedDate) : "טרם נשמרה בחירת מנות"}</span>
+              <span className="h-1 w-1 rounded-full bg-[#c7b69f]" />
+              <span>{eventId}</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onGoLive}
+              className="inline-flex h-12 items-center gap-2 rounded-full border border-[#d6bc91] bg-white px-5 text-sm font-black text-[#9a7245] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#fff8eb]"
+            >
+              <Plus size={17} />
+              פעולה מהירה
+            </button>
+            <button
+              type="button"
+              className="relative flex h-12 w-12 items-center justify-center rounded-full border border-[#e5dac8] bg-white text-[#6f6252] shadow-sm"
+              aria-label="התראות"
+            >
+              <Bell size={18} />
+              <span className="absolute right-3 top-3 h-2 w-2 rounded-full bg-[#b98121]" />
+            </button>
+            <div className="flex h-12 w-12 items-center justify-center rounded-full border border-[#eadfce] bg-[linear-gradient(135deg,#fff,#eadbc7)] text-sm font-black text-[#6f4d2d] shadow-sm">
+              {firstLetter}
+            </div>
+          </div>
+        </div>
+
+        <div className="relative grid gap-3 rounded-[26px] border border-[#e4d8c6] bg-white/88 p-3 shadow-[0_18px_45px_rgba(61,47,31,0.07)] backdrop-blur md:grid-cols-2 xl:grid-cols-[1.25fr_repeat(4,1fr)]">
+          <div className="flex items-center gap-4 rounded-[22px] bg-[#fbf6ed] p-4">
+            <PremiumProgressCircle value={progress} />
+            <div>
+              <div className="text-sm font-black text-[#2b241c]">התקדמות כללית</div>
+              <div className="mt-1 text-xs font-bold leading-5 text-[#857665]">
+                {completedTasks} מתוך {statusItems.length} שלבים הושלמו
+              </div>
+              <button type="button" className="mt-2 text-xs font-black text-[#a47738]">
+                צפייה בפרטי ההתקדמות
+              </button>
+            </div>
+          </div>
+
+          <PremiumKpi icon={<Utensils size={17} />} value={`${categoriesCount}`} label="קטגוריות תפריט" />
+          <PremiumKpi icon={<ClipboardList size={17} />} value={`${selectedDishes.length}`} label="מנות שנבחרו" />
+          <PremiumKpi icon={<Users size={17} />} value={`${totalChoicesAllowed || "—"}`} label="בחירות מותרות" />
+          <PremiumKpi icon={<ShieldCheck size={17} />} value={`${totalSpecial}`} label="מנות מיוחדות" />
+        </div>
+      </section>
+
+      <section className="grid gap-5 xl:grid-cols-[270px_minmax(0,1fr)_335px]" dir="rtl">
+        <aside className="space-y-5">
+          <PremiumPanel className="sticky top-4" bodyClassName="p-4">
+            <div className="mb-5 text-center">
+              <div className="text-4xl font-serif text-[#33251c]">Invistimo</div>
+              <div className="mt-1 text-[11px] font-black tracking-[0.24em] text-[#b18a57]">
+                EVENT SUITE
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <PremiumNavItem icon={<Home size={16} />} label="סקירת אירוע" active />
+              <PremiumNavItem icon={<FileText size={16} />} label="פרטי האירוע" />
+              <PremiumNavItem icon={<Utensils size={16} />} label="תפריט & הגשה" active />
+              <PremiumNavItem icon={<Users size={16} />} label="האורחים שלי" />
+              <PremiumNavItem icon={<Wallet size={16} />} label="תשלומים" />
+              <PremiumNavItem icon={<MessageCircle size={16} />} label="הודעות & עדכונים" />
+              <PremiumNavItem icon={<Folder size={16} />} label="קבצים" />
+              <PremiumNavItem icon={<Settings size={16} />} label="הגדרות" />
+            </div>
+          </PremiumPanel>
+
+          <PremiumPanel title="משימות אחרונות" icon={<CheckCircle2 size={18} />} bodyClassName="p-4">
+            <div className="space-y-3">
+              {statusItems.map((item) => (
+                <PremiumStatusMini key={item.label} label={item.label} helper={item.helper} done={item.done} />
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={onSaveChanges}
+              disabled={menuSaving}
+              className="mt-4 h-11 w-full rounded-[18px] border border-[#d8c2a0] bg-[#fffaf3] text-sm font-black text-[#9a7245] transition hover:bg-[#fff4dc] disabled:opacity-60"
+            >
+              {menuSaving ? "שומר..." : "שמירת כל השינויים"}
+            </button>
+          </PremiumPanel>
+        </aside>
+
+        <main className="space-y-5">
+          <div className="grid gap-5 lg:grid-cols-[0.95fr_1.55fr]">
+            <PremiumPanel title="קישור אישי לאירוע" icon={<Link2 size={18} />}>
+              <p className="text-sm font-bold leading-7 text-[#857665]">
+                שתפו את עמוד בחירת המנות עם בעל האירוע בצורה נקייה ומקצועית.
+              </p>
+
+              <div className="mt-4 flex items-center gap-2 rounded-[18px] border border-[#eadfce] bg-[#fffdf8] p-2">
+                <button
+                  type="button"
+                  onClick={copyPublicLink}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-[#f3eadc] text-[#7b5d37]"
+                  aria-label="העתקת קישור"
+                >
+                  <Copy size={16} />
+                </button>
+                <div className="min-w-0 flex-1 break-all text-left text-xs font-black leading-5 text-[#2b241c]" dir="ltr">
+                  {publicLink}
+                </div>
+              </div>
+
+              <div className="mt-4 grid grid-cols-4 gap-2">
+                <a
+                  href={`https://wa.me/?text=${encodeURIComponent(publicLink)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="group rounded-[18px] border border-[#e7dccb] bg-white p-3 text-center shadow-sm transition hover:-translate-y-0.5"
+                >
+                  <MessageCircle className="mx-auto text-emerald-600" size={18} />
+                  <span className="mt-2 block text-[11px] font-black text-[#6f6252]">וואטסאפ</span>
+                </a>
+                <button
+                  type="button"
+                  onClick={copyPublicLink}
+                  className="group rounded-[18px] border border-[#e7dccb] bg-white p-3 text-center shadow-sm transition hover:-translate-y-0.5"
+                >
+                  <Link2 className="mx-auto text-[#7b5d37]" size={18} />
+                  <span className="mt-2 block text-[11px] font-black text-[#6f6252]">העתק</span>
+                </button>
+                <a
+                  href={`mailto:?subject=${encodeURIComponent("בחירת מנות לאירוע")}&body=${encodeURIComponent(publicLink)}`}
+                  className="group rounded-[18px] border border-[#e7dccb] bg-white p-3 text-center shadow-sm transition hover:-translate-y-0.5"
+                >
+                  <Mail className="mx-auto text-[#7b5d37]" size={18} />
+                  <span className="mt-2 block text-[11px] font-black text-[#6f6252]">אימייל</span>
+                </a>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (navigator.share) {
+                      await navigator.share({ title: "בחירת מנות", url: publicLink });
+                      return;
+                    }
+                    await copyPublicLink();
+                  }}
+                  className="group rounded-[18px] border border-[#e7dccb] bg-white p-3 text-center shadow-sm transition hover:-translate-y-0.5"
+                >
+                  <Share2 className="mx-auto text-[#7b5d37]" size={18} />
+                  <span className="mt-2 block text-[11px] font-black text-[#6f6252]">שיתוף</span>
+                </button>
+              </div>
+            </PremiumPanel>
+
+            <div className="relative min-h-[260px] overflow-hidden rounded-[30px] border border-[#ddcfbc] bg-[linear-gradient(135deg,rgba(51,37,28,0.92),rgba(111,86,61,0.48)),radial-gradient(circle_at_25%_25%,rgba(255,255,255,0.34),transparent_18%),linear-gradient(135deg,#d6c0a2,#866b4d)] p-6 text-white shadow-[0_22px_55px_rgba(51,39,26,0.16)]">
+              <div className="absolute inset-0 opacity-40 [background-image:linear-gradient(90deg,rgba(255,255,255,0.18)_1px,transparent_1px),linear-gradient(rgba(255,255,255,0.14)_1px,transparent_1px)] [background-size:42px_42px]" />
+              <div className="relative flex h-full flex-col justify-between">
+                <div className="inline-flex w-fit items-center gap-2 rounded-full bg-white/86 px-3 py-1 text-xs font-black text-[#6f4d2d]">
+                  <Sparkles size={14} />
+                  אירוע פעיל
+                </div>
+
+                <div className="mt-10 max-w-xl">
+                  <h2 className="text-4xl font-black tracking-tight">{assignedMenu.name}</h2>
+                  <p className="mt-3 text-base font-bold leading-8 text-white/86">
+                    מרכז ניהול אלגנטי לבחירת מנות, התאמות לאולם, הערות מטבח וניהול לייב בזמן אמת.
+                  </p>
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={onGoLive}
+                      className="h-11 rounded-full border border-white/40 bg-white/14 px-5 text-sm font-black text-white backdrop-blur transition hover:bg-white/24"
+                    >
+                      ניהול לייב באירוע
+                    </button>
+                    <Link
+                      href={assignedMenu.publicLink || `/menus/choose/${assignedMenu.publicToken || eventId}`}
+                      target="_blank"
+                      className="h-11 rounded-full bg-white px-5 py-3 text-sm font-black text-[#4d3b2b] transition hover:bg-[#fff8eb]"
+                    >
+                      צפייה בפרטי האירוע
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-5 lg:grid-cols-2">
+            <PremiumPanel title="הערות לאירוע" icon={<ClipboardList size={18} />} badge="פנימי">
               <textarea
                 value={assignedMenu.eventNote || ""}
                 onChange={(event) => onUpdateEventNote(event.target.value)}
                 placeholder="לדוגמה: לזוג הזה לאפשר 2 עיקריות במקום 1 / לא להציג מנה מסוימת / הערת אלרגנים"
-                className="min-h-[92px] w-full rounded-2xl border border-[#eadfce] bg-white p-3 text-sm font-bold text-[#2b241c] outline-none focus:border-[#b98121]"
+                className="min-h-[130px] w-full resize-none rounded-[22px] border border-[#eadfce] bg-[#fffdf8] p-4 text-sm font-bold leading-7 text-[#2b241c] outline-none transition placeholder:text-[#a99b87] focus:border-[#b98121] focus:ring-4 focus:ring-[#b98121]/10"
               />
-            </label>
-          </div>
+              <button
+                type="button"
+                onClick={onSaveChanges}
+                disabled={menuSaving}
+                className="mt-3 h-10 rounded-full border border-[#d8c2a0] bg-white px-5 text-xs font-black text-[#9a7245] disabled:opacity-60"
+              >
+                {menuSaving ? "שומר..." : "שמור הערה"}
+              </button>
+            </PremiumPanel>
 
-          <MenuEditPolicyBox
-            selectionEditMode={assignedMenu.selectionEditMode || "untilDate"}
-            selectionEditableUntil={assignedMenu.selectionEditableUntil || ""}
-            lockedAt={assignedMenu.lockedAt || null}
-            lockedReason={assignedMenu.lockedReason || ""}
-            onChangeMode={(value) => onUpdateSelectionPolicy({ selectionEditMode: value })}
-            onChangeEditableUntil={(value) => onUpdateSelectionPolicy({ selectionEditableUntil: value })}
-          />
-
-          <div className="mt-4 grid gap-2 sm:grid-cols-2">
-            <button
-              type="button"
-              onClick={() => setMenuView("live")}
-              className="flex h-12 items-center justify-center gap-2 rounded-[20px] bg-[#5c4936] text-sm font-black text-white shadow-sm transition hover:bg-[#473829]"
-            >
-              <Sparkles size={16} />
-              ניהול לייב באירוע
-            </button>
-
-            <button
-              type="button"
-              onClick={onSendToCouple}
-              className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-[#d9bd83] bg-[#fff8eb] text-sm font-black text-[#9f6f1a]"
-            >
-              <Send size={16} />
-              שליחת SMS לבחירת מנות
-            </button>
-          </div>
-
-          <button
-            type="button"
-            disabled={menuSaving}
-            onClick={onSaveChanges}
-            className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-white text-sm font-black text-[#6f6252] disabled:opacity-60"
-          >
-            <Save size={16} />
-            {menuSaving ? "שומר..." : "שמירת התאמות תפריט"}
-          </button>
-        </MainCard>
-
-        <MainCard title="קישור אישי" icon={<Link2 size={19} />}>
-          <div className="rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-4">
-            <div className="text-xs font-black text-[#8a7b68]">קישור אישי לבחירת מנות</div>
-            <div className="mt-2 break-all text-sm font-black leading-6 text-[#2b241c]">{publicLink}</div>
-          </div>
-
-          <div className="mt-4 grid gap-2">
-            <Link
-              href={assignedMenu.publicLink || `/menus/choose/${assignedMenu.publicToken || eventId}`}
-              target="_blank"
-              className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-white text-sm font-black text-[#6f6252]"
-            >
-              <Eye size={16} />
-              פתיחת תצוגה
-            </Link>
-
-            <button
-              type="button"
-              onClick={async () => {
-                try {
-                  await navigator.clipboard.writeText(publicLink);
-                  alert("הקישור הועתק");
-                } catch {
-                  alert("לא הצלחתי להעתיק אוטומטית");
-                }
-              }}
-              className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#d9bd83] bg-[#fff8eb] text-sm font-black text-[#9f6f1a]"
-            >
-              <Link2 size={16} />
-              העתקת קישור
-            </button>
-          </div>
-        </MainCard>
-
-        <MainCard title="סטטוס תפריט" icon={<CheckCircle2 size={19} />}>
-          <div className="space-y-3">
-            <StatusLine label="תפריט נבחר" done />
-            <StatusLine label="קישור נשלח" done={assignedMenu.sentToCouple} />
-            <StatusLine label="בחירת מנות הושלמה" done={assignedMenu.coupleSelected} />
-            <StatusLine label="ניהול לייב פעיל" done={liveGroups.length > 0} />
-          </div>
-        </MainCard>
-      </section>
-
-      <section className="grid gap-5 xl:grid-cols-[1fr_1.3fr]">
-        <MainCard title="בחירות בעל האירוע" icon={<ClipboardList size={19} />}>
-          {(assignedMenu.selectedDishes || []).length ? (
-            <div className="space-y-4">
-              <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-4">
-                <div className="text-base font-black text-emerald-800">בעל האירוע שמר בחירת מנות</div>
-                <div className="mt-2 grid gap-3 md:grid-cols-3">
-                  <InfoPill label="שם ממלא" value={assignedMenu.submittedByName || "לא הוזן"} />
-                  <InfoPill label="טלפון" value={assignedMenu.submittedByPhone || "לא הוזן"} />
-                  <InfoPill
-                    label="נשמר בתאריך"
-                    value={assignedMenu.submittedAt ? formatDateTime(assignedMenu.submittedAt) : "לא הוגדר"}
-                  />
+            <PremiumPanel title="הערות בעל האירוע" icon={<Building2 size={18} />} badge="לקוח">
+              {assignedMenu.customerNote ? (
+                <p className="min-h-[130px] rounded-[22px] border border-[#eadfce] bg-[#fffdf8] p-4 text-sm font-bold leading-7 text-[#2b241c]">
+                  {assignedMenu.customerNote}
+                </p>
+              ) : (
+                <div className="min-h-[130px] rounded-[22px] border border-dashed border-[#dac8ad] bg-[#fffaf3] p-4 text-sm font-bold leading-7 text-[#857665]">
+                  עדיין אין הערות מבעל האירוע. כשהוא ישמור בחירת מנות, ההערות יופיעו כאן.
                 </div>
+              )}
+              <div className="mt-3 text-xs font-bold text-[#9a8a78]">
+                עודכן לאחרונה: {assignedMenu.updatedAt ? formatDateTime(assignedMenu.updatedAt) : "לא הוגדר"}
               </div>
+            </PremiumPanel>
+          </div>
 
-              <div className="space-y-3">
-                {Object.entries(selectedDishGroups).map(([categoryTitle, dishes]) => (
-                  <div key={categoryTitle} className="rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-4">
-                    <div className="mb-3 text-sm font-black text-[#2b241c]">{categoryTitle}</div>
-                    <div className="flex flex-wrap gap-2">
-                      {dishes.map((dish) => (
-                        <span
-                          key={`${dish.categoryId}-${dish.dishId}`}
-                          className="rounded-full bg-[#fff4dc] px-3 py-1 text-xs font-black text-[#8c5f19]"
-                        >
-                          {dish.dishName}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
+          <PremiumPanel
+            title="תפריט נבחר"
+            icon={<Utensils size={18} />}
+            action={
+              <button
+                type="button"
+                onClick={onGoLive}
+                className="rounded-full border border-[#d8c2a0] bg-[#fff8eb] px-4 py-2 text-xs font-black text-[#9a7245]"
+              >
+                צפייה מלאה בתפריט
+              </button>
+            }
+          >
+            <div className="mb-4 flex flex-wrap gap-2">
+              {(assignedMenu.categoryOverrides.length
+                ? assignedMenu.categoryOverrides.slice(0, 5)
+                : selectedCategories.slice(0, 5).map((name, index) => ({ id: name, name, eventMaxChoices: index + 1 }))
+              ).map((category, index) => (
+                <span
+                  key={category.id || category.name}
+                  className={[
+                    "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-black",
+                    index === 0
+                      ? "border-[#ead7ba] bg-[#f4eadc] text-[#7b5d37]"
+                      : "border-[#eadfce] bg-white text-[#857665]",
+                  ].join(" ")}
+                >
+                  <Utensils size={13} />
+                  {category.name}
+                </span>
+              ))}
+            </div>
+
+            {visibleDishes.length ? (
+              <div className="grid gap-3 md:grid-cols-3">
+                {visibleDishes.map((dish, index) => (
+                  <PremiumDishCard
+                    key={`${dish.categoryId}-${dish.dishId}-${index}`}
+                    title={dish.dishName}
+                    subtitle={dish.categoryTitle}
+                    index={index}
+                  />
                 ))}
               </div>
+            ) : (
+              <EmptyBox text="עדיין אין מנות להצגה בתפריט הזה." />
+            )}
 
-              {assignedMenu.customerNote ? (
-                <div className="rounded-2xl border border-[#eadfce] bg-white p-4">
-                  <div className="text-xs font-black text-[#8a7b68]">הערות בעל האירוע</div>
-                  <p className="mt-2 text-sm font-bold leading-7 text-[#2b241c]">{assignedMenu.customerNote}</p>
-                </div>
-              ) : null}
+            {selectedDishes.length > 6 ? (
+              <button type="button" onClick={onGoLive} className="mt-4 w-full text-center text-xs font-black text-[#a47738]">
+                הצג עוד {selectedDishes.length - 6} מנות
+              </button>
+            ) : null}
+          </PremiumPanel>
+
+          <PremiumPanel title="בחירות וכמויות" icon={<Utensils size={18} />}>
+            {visibleQuantityGroups.length ? (
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                {visibleQuantityGroups.map((group) => (
+                  <PremiumQuantityTile key={group.id} group={group} />
+                ))}
+              </div>
+            ) : (
+              <EmptyBox text="אין עדיין קטגוריות לניהול כמויות." />
+            )}
+
+            <button
+              type="button"
+              onClick={onGoLive}
+              className="mt-5 h-12 w-full rounded-[20px] bg-[linear-gradient(135deg,#f3eadc,#fff8eb)] text-sm font-black text-[#8b6334] shadow-inner transition hover:bg-[#fff4dc]"
+            >
+              עדכון כמויות בלייב
+            </button>
+          </PremiumPanel>
+
+          <PremiumPanel title="התאמות בחירה לאירוע הזה" icon={<Edit3 size={18} />}>
+            <div className="mb-4 rounded-[22px] border border-[#eadfce] bg-[#fffaf3] p-4 text-sm font-bold leading-7 text-[#7f705d]">
+              כאן האולם משנה את כמות הבחירות רק עבור האירוע הזה. בעל האירוע מוגבל לפי מה שהוגדר כאן, אבל האולם יכול לערוך תמיד מהדשבורד.
             </div>
-          ) : (
-            <div className="rounded-[28px] border border-dashed border-[#d9bd83] bg-[#fff8eb] p-5">
-              <div className="text-base font-black text-[#2b241c]">עדיין לא נבחרו מנות</div>
-              <p className="mt-2 text-sm font-bold leading-7 text-[#7f705d]">
-                אחרי שבעל האירוע יפתח את הקישור האישי וישמור בחירה, המנות יופיעו כאן אוטומטית.
-              </p>
-            </div>
-          )}
-        </MainCard>
 
-        <MainCard title="התאמות בחירה לאירוע הזה" icon={<Edit3 size={19} />}>
-          <div className="rounded-2xl border border-[#eadfce] bg-[#fff8eb] p-4 text-sm font-bold leading-7 text-[#7f705d]">
-            כאן האולם משנה את כמות הבחירות רק עבור האירוע הזה. ניהול לייב נמצא בכפתור נפרד למעלה.
-          </div>
-
-          <div className="mt-4 space-y-3">
             {assignedMenu.categoryOverrides.length ? (
-              assignedMenu.categoryOverrides.map((category) => (
-                <div key={category.id} className="rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-4">
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                      <div className="text-base font-black text-[#2b241c]">{category.name}</div>
-                      <div className="mt-1 text-xs font-bold text-[#8a7b68]">
-                        במקור: בחירה {category.originalMaxChoices} מתוך {category.dishesCount || "המוגדרות"}
+              <div className="grid gap-3 md:grid-cols-2">
+                {assignedMenu.categoryOverrides.map((category) => (
+                  <div key={category.id} className="rounded-[24px] border border-[#eadfce] bg-[#fffdf8] p-4 shadow-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-base font-black text-[#2b241c]">{category.name}</div>
+                        <div className="mt-1 text-xs font-bold text-[#8a7b68]">
+                          במקור: בחירה {category.originalMaxChoices} מתוך {category.dishesCount || "המוגדרות"}
+                        </div>
+                      </div>
+                      <div className="w-24">
+                        <InputEdit
+                          label="כמה"
+                          type="number"
+                          value={String(category.eventMaxChoices)}
+                          onChange={(value) => onUpdateCategory(category.id, "eventChoices", value)}
+                        />
                       </div>
                     </div>
 
-                    <div className="w-full sm:w-[220px]">
-                      <InputEdit
-                        label="כמה לבחירה"
-                        type="number"
-                        value={String(category.eventMaxChoices)}
-                        onChange={(value) => onUpdateCategory(category.id, "eventChoices", value)}
+                    <label className="mt-3 block">
+                      <span className="mb-1 block text-xs font-black text-[#8a7b68]">הערה לקטגוריה</span>
+                      <input
+                        value={category.eventNote}
+                        onChange={(event) => onUpdateCategory(category.id, "eventNote", event.target.value)}
+                        placeholder="הערה שתישמר רק לאירוע הזה"
+                        className="h-11 w-full rounded-[18px] border border-[#eadfce] bg-white px-3 text-sm font-bold text-[#2b241c] outline-none focus:border-[#b98121]"
                       />
-                    </div>
+                    </label>
                   </div>
-
-                  <label className="mt-3 block">
-                    <span className="mb-1 block text-xs font-black text-[#8a7b68]">הערה לקטגוריה באירוע הזה</span>
-                    <input
-                      value={category.eventNote}
-                      onChange={(event) => onUpdateCategory(category.id, "eventNote", event.target.value)}
-                      placeholder="הערה שתישמר רק לאירוע הזה"
-                      className="h-11 w-full rounded-2xl border border-[#eadfce] bg-white px-3 text-sm font-bold text-[#2b241c] outline-none focus:border-[#b98121]"
-                    />
-                  </label>
-                </div>
-              ))
+                ))}
+              </div>
             ) : (
               <EmptyBox text="לתפריט הזה אין קטגוריות עם חוקי בחירה." />
             )}
+
+            <button
+              type="button"
+              onClick={onSaveChanges}
+              disabled={menuSaving}
+              className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-[18px] bg-[#5c4936] text-sm font-black text-white transition hover:bg-[#473829] disabled:opacity-60"
+            >
+              <Save size={16} />
+              {menuSaving ? "שומר..." : "שמירת התאמות תפריט"}
+            </button>
+          </PremiumPanel>
+        </main>
+
+        <aside className="space-y-5">
+          <PremiumPanel title="סטטוס תפריט" icon={<CheckCircle2 size={18} />}>
+            <div className="space-y-3">
+              {statusItems.map((item) => (
+                <StatusLine key={item.label} label={item.label} done={item.done} />
+              ))}
+            </div>
+          </PremiumPanel>
+
+          <PremiumPanel title="פרטי לקוח" icon={<User size={18} />}>
+            <div className="rounded-[22px] border border-[#eadfce] bg-[#fffdf8] p-4">
+              <PremiumField icon={<User size={14} />} label="שם ממלא" value={customerName} />
+              <PremiumField icon={<Phone size={14} />} label="טלפון" value={customerPhone} />
+              <PremiumField icon={<Mail size={14} />} label="אימייל" value="לא הוזן" />
+              <PremiumField icon={<Building2 size={14} />} label="מקור" value="Event" />
+            </div>
+          </PremiumPanel>
+
+          <PremiumPanel title="סיכום תפעולי" icon={<Wallet size={18} />}>
+            <div className="space-y-2">
+              <PremiumFinanceRow label="כמות מוערכת" value={`${totals.estimated} מנות`} />
+              <PremiumFinanceRow label="כמות בפועל" value={`${totals.actual} מנות`} />
+              <PremiumFinanceRow label="פער" value={`${totalGap > 0 ? "+" : ""}${totalGap}`} emphasized />
+              <PremiumFinanceRow label="סטטוס דוח" value={kitchenReportStatus === "submitted" ? "נסגר" : "טיוטה"} />
+            </div>
+            <button
+              type="button"
+              onClick={onGoLive}
+              className="mt-4 h-11 w-full rounded-[18px] bg-[#b98121] text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a]"
+            >
+              צפייה בדוח לייב
+            </button>
+          </PremiumPanel>
+
+          <PremiumPanel title="מדיניות עריכה" icon={<ShieldCheck size={18} />} bodyClassName="p-0">
+            <div className="p-4">
+              <MenuEditPolicyBox
+                selectionEditMode={assignedMenu.selectionEditMode || "untilDate"}
+                selectionEditableUntil={assignedMenu.selectionEditableUntil || ""}
+                lockedAt={assignedMenu.lockedAt || null}
+                lockedReason={assignedMenu.lockedReason || ""}
+                onChangeMode={(value) => onUpdateSelectionPolicy({ selectionEditMode: value })}
+                onChangeEditableUntil={(value) => onUpdateSelectionPolicy({ selectionEditableUntil: value })}
+              />
+            </div>
+          </PremiumPanel>
+
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={onSendToCouple}
+              className="flex h-12 items-center justify-center gap-2 rounded-[18px] border border-[#d9bd83] bg-[#fff8eb] text-xs font-black text-[#9f6f1a]"
+            >
+              <Send size={15} />
+              שליחה
+            </button>
+            <Link
+              href={hallId ? `/venues/dashboard/halls/${hallId}/menus` : "/venues/dashboard"}
+              className="flex h-12 items-center justify-center gap-2 rounded-[18px] border border-[#eadfce] bg-white text-xs font-black text-[#6f6252]"
+            >
+              <Utensils size={15} />
+              תפריטי אולם
+            </Link>
           </div>
-        </MainCard>
+        </aside>
       </section>
+    </div>
+  );
+}
+
+function PremiumPanel({
+  title,
+  icon,
+  badge,
+  action,
+  children,
+  className = "",
+  bodyClassName = "p-5",
+}: {
+  title?: string;
+  icon?: React.ReactNode;
+  badge?: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+  bodyClassName?: string;
+}) {
+  return (
+    <section
+      className={[
+        "overflow-hidden rounded-[30px] border border-[#e6dccb] bg-white/86 shadow-[0_18px_45px_rgba(47,35,20,0.065)] backdrop-blur",
+        className,
+      ].join(" ")}
+    >
+      {title ? (
+        <div className="flex items-center justify-between gap-3 border-b border-[#eee4d7] bg-[linear-gradient(135deg,#fffdf8,#f7efe3)] px-5 py-4">
+          <div className="flex items-center gap-3">
+            {icon ? (
+              <div className="flex h-10 w-10 items-center justify-center rounded-[18px] border border-[#eadfce] bg-white text-[#8b6334] shadow-sm">
+                {icon}
+              </div>
+            ) : null}
+            <h2 className="text-lg font-black text-[#2b241c]">{title}</h2>
+            {badge ? (
+              <span className="rounded-full bg-[#fff4dc] px-3 py-1 text-[11px] font-black text-[#a47738]">
+                {badge}
+              </span>
+            ) : null}
+          </div>
+          {action}
+        </div>
+      ) : null}
+      <div className={bodyClassName}>{children}</div>
+    </section>
+  );
+}
+
+function PremiumProgressCircle({ value }: { value: number }) {
+  return (
+    <div
+      className="grid h-20 w-20 shrink-0 place-items-center rounded-full p-2 shadow-inner"
+      style={{ background: `conic-gradient(#b58a52 ${value * 3.6}deg, #eee4d7 0deg)` }}
+    >
+      <div className="grid h-full w-full place-items-center rounded-full bg-white text-lg font-black text-[#2b241c]">
+        {value}%
+      </div>
+    </div>
+  );
+}
+
+function PremiumKpi({ icon, value, label }: { icon: React.ReactNode; value: string; label: string }) {
+  return (
+    <div className="flex min-h-[94px] items-center justify-between gap-3 rounded-[22px] border border-[#eee4d7] bg-white px-4 shadow-sm">
+      <div>
+        <div className="text-2xl font-black tracking-tight text-[#2b241c]">{value}</div>
+        <div className="mt-1 text-xs font-black text-[#857665]">{label}</div>
+      </div>
+      <div className="grid h-11 w-11 place-items-center rounded-[18px] bg-[#f4eadc] text-[#8b6334]">
+        {icon}
+      </div>
+    </div>
+  );
+}
+
+function PremiumNavItem({ icon, label, active }: { icon: React.ReactNode; label: string; active?: boolean }) {
+  return (
+    <div
+      className={[
+        "flex h-12 items-center justify-between rounded-[18px] px-4 text-sm font-black transition",
+        active ? "bg-[#f1e5d4] text-[#9a7245]" : "text-[#6f6252] hover:bg-[#fff8eb]",
+      ].join(" ")}
+    >
+      <span>{label}</span>
+      <span className="text-[#9a7245]">{icon}</span>
+    </div>
+  );
+}
+
+function PremiumStatusMini({ label, helper, done }: { label: string; helper: string; done?: boolean }) {
+  return (
+    <div className="flex items-center gap-3 rounded-[18px] bg-[#fffdf8] p-3">
+      <span
+        className={[
+          "grid h-8 w-8 shrink-0 place-items-center rounded-full border",
+          done ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-[#eadfce] bg-white text-[#c4aa80]",
+        ].join(" ")}
+      >
+        {done ? <Check size={15} /> : <span className="h-2.5 w-2.5 rounded-full bg-current opacity-50" />}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-black text-[#2b241c]">{label}</span>
+        <span className="block truncate text-[11px] font-bold text-[#857665]">{helper}</span>
+      </span>
+    </div>
+  );
+}
+
+function PremiumDishCard({ title, subtitle, index }: { title: string; subtitle: string; index: number }) {
+  const gradients = [
+    "from-[#7b5d37] via-[#c3a171] to-[#fff0c9]",
+    "from-[#dec7a7] via-[#fff6df] to-[#b98121]",
+    "from-[#f5d45b] via-[#fff7c6] to-[#c69b43]",
+    "from-[#4f6345] via-[#c7d5bd] to-[#f7efe3]",
+    "from-[#8b5e4d] via-[#e5c7b8] to-[#fff6ef]",
+    "from-[#4d5664] via-[#bbc3cf] to-[#fff]",
+  ];
+
+  return (
+    <article className="overflow-hidden rounded-[24px] border border-[#eadfce] bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(47,35,20,0.09)]">
+      <div className={`h-24 bg-gradient-to-br ${gradients[index % gradients.length]} p-3`}>
+        <div className="grid h-10 w-10 place-items-center rounded-[16px] bg-white/72 text-[#6f4d2d] shadow-sm backdrop-blur">
+          <Utensils size={18} />
+        </div>
+      </div>
+      <div className="p-4">
+        <div className="line-clamp-1 text-sm font-black text-[#2b241c]">{title}</div>
+        <div className="mt-1 text-xs font-bold text-[#857665]">{subtitle}</div>
+      </div>
+    </article>
+  );
+}
+
+function PremiumQuantityTile({ group }: { group: LiveCategory }) {
+  const planned = clampNumber(group.directSummary.plannedQuantity);
+  const actual = clampNumber(group.directSummary.actualServedQuantity);
+
+  return (
+    <div className="rounded-[24px] border border-[#eadfce] bg-[#fffdf8] p-4 text-center shadow-sm">
+      <div className="mx-auto grid h-11 w-11 place-items-center rounded-[18px] bg-[#f4eadc] text-[#8b6334]">
+        <Utensils size={18} />
+      </div>
+      <div className="mt-3 text-base font-black text-[#2b241c]">{group.title}</div>
+      <div className="mt-2 text-xs font-bold text-[#857665]">{group.dishes.length || "—"} מנות</div>
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <div className="rounded-[16px] bg-white p-2">
+          <div className="text-[10px] font-black text-[#857665]">מתוכנן</div>
+          <div className="text-sm font-black text-[#2b241c]">{planned}</div>
+        </div>
+        <div className="rounded-[16px] bg-[#f4eadc] p-2">
+          <div className="text-[10px] font-black text-[#857665]">בפועל</div>
+          <div className="text-sm font-black text-[#8b6334]">{actual}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PremiumField({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-b border-[#eee4d7] py-3 last:border-b-0">
+      <div className="flex items-center gap-2 text-xs font-black text-[#857665]">
+        <span className="text-[#9a7245]">{icon}</span>
+        {label}
+      </div>
+      <div className="max-w-[170px] truncate text-sm font-black text-[#2b241c]">{value}</div>
+    </div>
+  );
+}
+
+function PremiumFinanceRow({ label, value, emphasized }: { label: string; value: string; emphasized?: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-[16px] border border-[#eee4d7] bg-[#fffdf8] px-3 py-3">
+      <span className="text-xs font-black text-[#857665]">{label}</span>
+      <span className={["text-sm font-black", emphasized ? "text-[#b98121]" : "text-[#2b241c]"].join(" ")}>{value}</span>
     </div>
   );
 }
