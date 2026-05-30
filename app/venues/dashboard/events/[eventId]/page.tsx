@@ -323,6 +323,109 @@ const emptyStats: EventStats = {
 
 const fallbackVenueMenuTemplates: VenueMenuTemplate[] = [];
 
+type VenueGuestRow = {
+  status?: string;
+  rsvp?: string;
+  rsvpStatus?: string;
+  responseStatus?: string;
+  attendanceStatus?: string;
+  confirmationStatus?: string;
+  arrivalStatus?: string;
+  guestsCount?: number;
+  guestCount?: number;
+  count?: number;
+  amount?: number;
+  guestsAmount?: number;
+  totalGuests?: number;
+  quantity?: number;
+};
+
+function normalizeRsvpStatusFromGuest(row: VenueGuestRow) {
+  return String(
+    row?.rsvpStatus ??
+      row?.responseStatus ??
+      row?.attendanceStatus ??
+      row?.confirmationStatus ??
+      row?.arrivalStatus ??
+      row?.status ??
+      row?.rsvp ??
+      "pending"
+  )
+    .trim()
+    .toLowerCase();
+}
+
+function getGuestAmountFromRow(row: VenueGuestRow) {
+  const parsed = Number(
+    row?.guestsCount ??
+      row?.guestCount ??
+      row?.count ??
+      row?.amount ??
+      row?.guestsAmount ??
+      row?.totalGuests ??
+      row?.quantity ??
+      1
+  );
+
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+}
+
+function buildRsvpStatsFromGuestRows(rows: VenueGuestRow[]) {
+  let confirmedRecords = 0;
+  let declinedRecords = 0;
+  let pendingRecords = 0;
+  let confirmedGuestsAmount = 0;
+
+  for (const row of rows) {
+    const status = normalizeRsvpStatusFromGuest(row);
+
+    const isDeclined =
+      status === "no" ||
+      status === "declined" ||
+      status === "not_coming" ||
+      status === "not-coming" ||
+      status === "not coming" ||
+      status === "cancelled" ||
+      status === "לא מגיע" ||
+      status === "לא מגיעים" ||
+      status === "לא מאשר" ||
+      status.includes("לא מגיע");
+
+    const isConfirmed =
+      !isDeclined &&
+      (status === "yes" ||
+        status === "confirmed" ||
+        status === "arriving" ||
+        status === "arrive" ||
+        status === "attending" ||
+        status === "approved" ||
+        status === "מגיע" ||
+        status === "מגיעים" ||
+        status === "אישר" ||
+        status === "מאשר" ||
+        status.includes("מגיע"));
+
+    if (isConfirmed) {
+      confirmedRecords += 1;
+      confirmedGuestsAmount += getGuestAmountFromRow(row);
+    } else if (isDeclined) {
+      declinedRecords += 1;
+    } else {
+      pendingRecords += 1;
+    }
+  }
+
+  return {
+    enabled: rows.length > 0,
+    recordsCount: rows.length,
+    confirmedRecords,
+    declinedRecords,
+    pendingRecords,
+    confirmedGuestsAmount,
+  };
+}
+
+
 function normalizeMenuTemplate(raw: any): VenueMenuTemplate {
   const rawCategories = Array.isArray(raw?.categories)
     ? raw.categories
@@ -746,9 +849,52 @@ export default function VenueEventPage() {
         throw new Error(data?.message || "טעינת פרטי האירוע נכשלה");
       }
 
-      setEventData(data.event || null);
+      const nextEvent = data.event || null;
+      const nextStats: EventStats = data.stats || emptyStats;
+
+      /*
+        סנכרון אישורי הגעה לפי ההזמנה האמיתית של הלקוח.
+        השרת כבר מחזיר stats, אבל כאן אנחנו מוודאים שהפרונט מציג את אותו מצב
+        כמו רשימת המוזמנים של הלקוח לפי invitationId, ולא לפי eventId בלבד.
+      */
+      const activeInvitationId = String(
+        nextEvent?.venueClientInvitationId || data?.invitation?._id || data?.invitation?.id || ""
+      );
+
+      if (activeInvitationId) {
+        try {
+          const guestsRes = await fetch(
+            `/api/guests?invitation=${encodeURIComponent(
+              activeInvitationId
+            )}&venueView=1&eventId=${encodeURIComponent(nextEvent?.id || eventId)}`,
+            {
+              method: "GET",
+              credentials: "include",
+              cache: "no-store",
+            }
+          );
+
+          const guestsData = await guestsRes.json().catch(() => ({}));
+
+          const guestRows = Array.isArray(guestsData?.guests)
+            ? guestsData.guests
+            : Array.isArray(guestsData?.records)
+              ? guestsData.records
+              : Array.isArray(guestsData?.data)
+                ? guestsData.data
+                : [];
+
+          if (guestsRes.ok && guestRows.length) {
+            nextStats.rsvp = buildRsvpStatsFromGuestRows(guestRows);
+          }
+        } catch (guestsError) {
+          console.error("GET venue synced guests failed:", guestsError);
+        }
+      }
+
+      setEventData(nextEvent);
       setHallData(data.hall || null);
-      setEventStats(data.stats || emptyStats);
+      setEventStats(nextStats);
     } catch (error) {
       console.error("GET event details failed:", error);
       setServerError(
