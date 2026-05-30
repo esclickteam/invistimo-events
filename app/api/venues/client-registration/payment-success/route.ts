@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 import Stripe from "stripe";
+import jwt from "jsonwebtoken";
 
 import { connectDB } from "@/lib/db";
 import VenueSeatingTemplate from "@/models/VenueSeatingTemplate";
@@ -64,6 +65,62 @@ function getPackageName(packageType: PaidPackageType) {
   }
 
   return "הושבה + אישורי הגעה + ניהול אירוע דרך אולם";
+}
+
+function createPaidAuthResponse({
+  userId,
+  email,
+  body,
+}: {
+  userId: mongoose.Types.ObjectId;
+  email: string;
+  body: Record<string, any>;
+}) {
+  if (!process.env.JWT_SECRET) {
+    return NextResponse.json(
+      {
+        success: false,
+        message: "JWT secret missing",
+      },
+      { status: 500 }
+    );
+  }
+
+  const authToken = jwt.sign(
+    {
+      userId: String(userId),
+      role: "user",
+      hasPaid: true,
+      email,
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: "7d" }
+  );
+
+  const response = NextResponse.json(body);
+
+  const isProd = process.env.NODE_ENV === "production";
+  const cookieDomain = isProd ? ".invistimo.com" : undefined;
+
+  response.cookies.set("authToken", authToken, {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: "lax",
+    ...(cookieDomain ? { domain: cookieDomain } : {}),
+    path: "/",
+    maxAge: 60 * 60 * 24 * 7,
+  });
+
+  response.cookies.set("role", "user", {
+    httpOnly: false,
+    secure: isProd,
+    sameSite: "lax",
+    ...(cookieDomain ? { domain: cookieDomain } : {}),
+    path: "/",
+    maxAge: 60 * 60 * 24 * 7,
+  });
+
+  return response;
 }
 
 function getEventTitle(event: any) {
@@ -547,12 +604,16 @@ export async function POST(req: NextRequest) {
       cleanString(event.venueClientPaymentStatus) === "paid" &&
       event.venueClientInvitationId
     ) {
-      return NextResponse.json({
-        success: true,
-        message: "החבילה כבר פתוחה",
-        redirectUrl: getDashboardRedirect(packageType),
-        invitationId: String(event.venueClientInvitationId),
-        eventId: String(event._id),
+      return createPaidAuthResponse({
+        userId,
+        email,
+        body: {
+          success: true,
+          message: "החבילה כבר פתוחה",
+          redirectUrl: getDashboardRedirect(packageType),
+          invitationId: String(event.venueClientInvitationId),
+          eventId: String(event._id),
+        },
       });
     }
 
@@ -663,13 +724,17 @@ export async function POST(req: NextRequest) {
       }
     );
 
-    return NextResponse.json({
-      success: true,
-      message: "התשלום אושר והחבילה נפתחה בהצלחה",
-      redirectUrl: getDashboardRedirect(packageType),
-      invitationId: String(invitation._id),
-      eventId: String(event._id),
-      venueClientHallId: venueHallId,
+    return createPaidAuthResponse({
+      userId,
+      email,
+      body: {
+        success: true,
+        message: "התשלום אושר והחבילה נפתחה בהצלחה",
+        redirectUrl: getDashboardRedirect(packageType),
+        invitationId: String(invitation._id),
+        eventId: String(event._id),
+        venueClientHallId: venueHallId,
+      },
     });
   } catch (error: any) {
     console.error(
