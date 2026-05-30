@@ -73,6 +73,28 @@ function getCollection(name: string) {
   return mongoose.connection.db?.collection(name);
 }
 
+function buildInviteTokenQuery(token: string) {
+  return {
+    $or: [
+      { venueClientInviteToken: token },
+      { venueInviteToken: token },
+      { clientInviteToken: token },
+      { registrationToken: token },
+      { inviteToken: token },
+    ],
+  };
+}
+
+function normalizeHallId(body: any) {
+  return cleanString(
+    body?.venueClientHallId ||
+      body?.hallId ||
+      body?.venueHallId ||
+      body?.assignedHallId ||
+      ""
+  );
+}
+
 export async function POST(req: NextRequest) {
   try {
     await connectDB();
@@ -105,11 +127,22 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json().catch(() => ({}));
 
-    const venueInviteToken = cleanString(body.venueInviteToken);
-    const userId = cleanString(body.userId);
-    const email = cleanString(body.email).toLowerCase();
+    const venueInviteToken = cleanString(
+      body.venueInviteToken ||
+        body.inviteToken ||
+        body.registrationToken ||
+        body.clientInviteToken ||
+        body.token
+    );
+
+    const userId = cleanString(
+      body.userId || body.clientUserId || body.venueClientUserId
+    );
+
+    const email = cleanString(body.email || body.clientEmail).toLowerCase();
     const packageTypeRaw = cleanString(body.packageType);
     const recordsCount = normalizeRecords(body.recordsCount);
+    const venueClientHallId = normalizeHallId(body);
 
     if (!venueInviteToken) {
       return NextResponse.json(
@@ -163,19 +196,51 @@ export async function POST(req: NextRequest) {
 
     const packageType: PackageType = packageTypeRaw;
 
-    const event = await events.findOne({
-      venueClientInviteToken: venueInviteToken,
-      venueClientInviteStatus: "sent",
-      venueAccessStatus: "linked",
-    });
+    /*
+      חשוב:
+      קודם מחפשים לפי הטוקן בלבד.
+      קודם הקוד חיפש גם:
+      venueClientInviteStatus: "sent"
+      venueAccessStatus: "linked"
+      ולכן אם אחד השדות לא נשמר בדיוק כך — השרת החזיר 404 למרות שהקישור כן קיים.
+    */
+    const event = await events.findOne(buildInviteTokenQuery(venueInviteToken));
 
     if (!event) {
       return NextResponse.json(
         {
           success: false,
-          message: "קישור ההרשמה לא נמצא או שאינו פעיל",
+          message:
+            "לא נמצא אירוע לפי קישור ההרשמה. צריך ליצור קישור חדש מהאולם.",
         },
         { status: 404 }
+      );
+    }
+
+    if (event.venueClientInviteStatus === "disabled") {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "קישור ההרשמה בוטל ואינו פעיל",
+        },
+        { status: 403 }
+      );
+    }
+
+    /*
+      אם אצלך יש אירועים ישנים בלי venueAccessStatus,
+      לא מחזירים 404. רק אם השדה קיים במפורש והוא לא linked — נחסום.
+    */
+    if (
+      event.venueAccessStatus &&
+      event.venueAccessStatus !== "linked"
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "האירוע לא משויך לאולם ולכן לא ניתן לפתוח תשלום",
+        },
+        { status: 409 }
       );
     }
 
@@ -194,18 +259,33 @@ export async function POST(req: NextRequest) {
           venueClientRecordsCount: recordsCount,
           venueClientPaymentStatus: "pending",
           venueClientPaymentAmount: totalPrice,
+          venueClientHallId:
+            venueClientHallId ||
+            cleanString(event.venueClientHallId) ||
+            cleanString(event.venueHallId) ||
+            cleanString(event.venueHallId),
+          venueClientInviteStatus: event.venueClientInviteStatus || "sent",
+          venueAccessStatus: event.venueAccessStatus || "linked",
           updatedAt: new Date(),
         },
       }
     );
 
+    const cancelUrl = new URL(`${baseUrl}/venue-client/packages`);
+    cancelUrl.searchParams.set("venueInviteToken", venueInviteToken);
+    cancelUrl.searchParams.set("userId", userId);
+    cancelUrl.searchParams.set("email", email);
+
+    if (venueClientHallId) {
+      cancelUrl.searchParams.set("venueClientHallId", venueClientHallId);
+      cancelUrl.searchParams.set("hallId", venueClientHallId);
+    }
+
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       customer_email: email,
       success_url: `${baseUrl}/venue-client/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/venue-client/packages?venueInviteToken=${encodeURIComponent(
-        venueInviteToken
-      )}&userId=${encodeURIComponent(userId)}&email=${encodeURIComponent(email)}`,
+      cancel_url: cancelUrl.toString(),
       line_items: [
         {
           quantity: 1,
@@ -228,6 +308,7 @@ export async function POST(req: NextRequest) {
         packageType,
         recordsCount: String(recordsCount),
         totalPrice: String(totalPrice),
+        venueClientHallId,
       },
     });
 
