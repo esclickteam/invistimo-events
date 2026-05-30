@@ -11,7 +11,6 @@ import {
   Lock,
   PenLine,
   Send,
-  Type,
   UserRound,
 } from "lucide-react";
 
@@ -114,11 +113,13 @@ export default function ClientContractSignPage() {
   const forceViewOnly = searchParams?.get("view") === "1";
 
   const fieldRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const pageRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
   const [contract, setContract] = useState<PublicContract | null>(null);
   const [fields, setFields] = useState<ContractField[]>([]);
   const [activePage, setActivePage] = useState(1);
   const [mobileStepIndex, setMobileStepIndex] = useState(0);
+  const [modalFieldId, setModalFieldId] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [signing, setSigning] = useState(false);
@@ -148,6 +149,11 @@ export default function ClientContractSignPage() {
   }, [fields]);
 
   const currentMobileField = fillableFields[mobileStepIndex] || null;
+
+  const modalField = useMemo(
+    () => fields.find((field) => field.id === modalFieldId) || null,
+    [fields, modalFieldId]
+  );
 
   const mobileProgressText =
     fillableFields.length > 0
@@ -252,12 +258,7 @@ export default function ClientContractSignPage() {
     if (!fillableFields.length || isViewOnly) return;
 
     setMobileStepIndex(0);
-
-    requestAnimationFrame(() => {
-      scrollToField(fillableFields[0]);
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [contract?.id, fillableFields.length]);
+  }, [contract?.id, fillableFields.length, isViewOnly]);
 
   function updateField(fieldId: string, patch: Partial<ContractField>) {
     if (isViewOnly) return;
@@ -277,6 +278,18 @@ export default function ClientContractSignPage() {
         behavior: "smooth",
         block: "center",
         inline: "center",
+      });
+    });
+  }
+
+  function scrollToPage(pageNumber: number) {
+    setActivePage(pageNumber);
+
+    requestAnimationFrame(() => {
+      pageRefs.current[pageNumber]?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+        inline: "nearest",
       });
     });
   }
@@ -306,6 +319,13 @@ export default function ClientContractSignPage() {
 
   function isMobileFieldActive(fieldId: string) {
     return currentMobileField?.id === fieldId;
+  }
+
+  function openFieldModal(field: ContractField) {
+    if (field.type === "venueNote") return;
+
+    setModalFieldId(field.id);
+    setActivePage(field.pageNumber);
   }
 
   async function submitSignature() {
@@ -463,7 +483,7 @@ export default function ClientContractSignPage() {
                     <button
                       key={page.pageNumber}
                       type="button"
-                      onClick={() => setActivePage(page.pageNumber)}
+                      onClick={() => scrollToPage(page.pageNumber)}
                       className={[
                         "inline-flex h-9 items-center gap-2 rounded-2xl border px-3 text-xs font-black transition",
                         activePage === page.pageNumber
@@ -487,7 +507,13 @@ export default function ClientContractSignPage() {
                   );
 
                   return (
-                    <div key={page.pageNumber} className="space-y-2">
+                    <div
+                      key={page.pageNumber}
+                      ref={(node) => {
+                        pageRefs.current[page.pageNumber] = node;
+                      }}
+                      className="space-y-2 scroll-mt-24"
+                    >
                       <div className="flex items-center justify-between px-1 text-xs font-black text-[#8a7b68]">
                         <span>
                           עמוד {page.pageNumber} מתוך {contract.pages.length}
@@ -502,7 +528,7 @@ export default function ClientContractSignPage() {
 
                       <div
                         className="relative mx-auto w-full overflow-visible rounded-[18px] border border-[#dbcbb3] bg-white shadow-sm md:rounded-[22px]"
-                        onClick={() => setActivePage(page.pageNumber)}
+                        onClick={() => scrollToPage(page.pageNumber)}
                       >
                         <ContractPageImage
                           page={page}
@@ -543,10 +569,11 @@ export default function ClientContractSignPage() {
                                 height: `${field.height}%`,
                               }}
                             >
-                              <ContractFieldInput
+                              <ContractFieldPreviewButton
                                 field={field}
                                 viewOnly={isViewOnly}
-                                onChange={(patch) => updateField(field.id, patch)}
+                                active={isMobileFieldActive(field.id)}
+                                onClick={() => openFieldModal(field)}
                               />
                             </div>
                           ))}
@@ -602,7 +629,7 @@ export default function ClientContractSignPage() {
                     onClick={() => {
                       const index = fillableFields.findIndex((item) => item.id === field.id);
                       if (index >= 0) goToMobileStep(index);
-                      setActivePage(field.pageNumber);
+                      openFieldModal(field);
                     }}
                     className={[
                       "flex w-full items-center justify-between rounded-2xl border p-3 text-sm font-black transition",
@@ -719,6 +746,17 @@ export default function ClientContractSignPage() {
           </aside>
         </section>
       </div>
+
+      <FieldFillModal
+        field={modalField}
+        open={Boolean(modalField)}
+        viewOnly={isViewOnly}
+        onClose={() => setModalFieldId(null)}
+        onChange={(patch) => {
+          if (!modalField) return;
+          updateField(modalField.id, patch);
+        }}
+      />
     </main>
   );
 }
@@ -750,100 +788,228 @@ function ContractPageImage({
   );
 }
 
-function ContractFieldInput({
+function getModalFieldTitle(type: ContractFieldType) {
+  if (type === "signature") return "חתימה";
+  if (type === "date") return "תאריך";
+  if (type === "fullName") return "שם מלא";
+  if (type === "phone") return "טלפון";
+  if (type === "email") return "אימייל";
+  if (type === "idNumber") return "תעודת זהות";
+  if (type === "checkbox") return "אישור";
+  if (type === "venueNote") return "הערת אולם";
+  return "טקסט";
+}
+
+function getFieldDisplayValue(field: ContractField) {
+  if (field.type === "signature") {
+    return field.signatureDataUrl ? "✓ נחתם" : field.label || "חתימה";
+  }
+
+  if (field.type === "checkbox") {
+    return field.value === "true" ? "✓ אושר" : field.label || "אישור";
+  }
+
+  if (field.type === "date") {
+    return field.value || "תאריך";
+  }
+
+  return String(field.value || "").trim() || field.label || getModalFieldTitle(field.type);
+}
+
+function ContractFieldPreviewButton({
   field,
   viewOnly,
-  onChange,
+  active,
+  onClick,
 }: {
   field: ContractField;
   viewOnly: boolean;
-  onChange: (patch: Partial<ContractField>) => void;
+  active: boolean;
+  onClick: () => void;
 }) {
+  const hasValue =
+    field.type === "signature"
+      ? Boolean(field.signatureDataUrl)
+      : field.type === "checkbox"
+        ? field.value === "true"
+        : Boolean(String(field.value || "").trim());
+
   if (field.type === "venueNote") {
     return (
-      <div className="flex h-full w-full items-center justify-center whitespace-pre-wrap px-1 text-center text-[8px] font-black leading-[1.05] text-[#5a3f12] sm:text-[10px] md:text-[11px]">
+      <div className="flex h-full w-full items-center justify-center overflow-hidden whitespace-pre-wrap px-1 text-center text-[7px] font-black leading-[1.05] text-[#5a3f12] sm:text-[9px] md:text-[11px]">
         {field.value || field.label || "הערת אולם"}
       </div>
     );
   }
 
-  if (field.type === "signature") {
-    return (
-      <SignatureBox
-        value={field.signatureDataUrl || ""}
-        viewOnly={viewOnly}
-        onChange={(signatureDataUrl) => onChange({ signatureDataUrl })}
-      />
-    );
-  }
-
-  if (field.type === "date") {
-    return (
-      <div className="flex h-full w-full items-center gap-0.5 px-1 md:gap-1">
-        <CalendarDays
-          size={11}
-          className="hidden shrink-0 text-[#b98121] sm:block md:size-[14px]"
+  return (
+    <button
+      type="button"
+      disabled={viewOnly}
+      onClick={(event) => {
+        event.stopPropagation();
+        onClick();
+      }}
+      className={[
+        "flex h-full w-full items-center justify-center overflow-hidden rounded-md px-1 text-center font-black transition",
+        active ? "bg-[#fff8eb]" : "bg-white/80",
+        viewOnly ? "cursor-default" : "cursor-pointer hover:bg-[#fff8eb]",
+      ].join(" ")}
+    >
+      {field.type === "signature" && field.signatureDataUrl ? (
+        <img
+          src={field.signatureDataUrl}
+          alt="חתימה"
+          className="h-full max-h-full w-full object-contain"
         />
+      ) : (
+        <span
+          className={[
+            "block max-w-full truncate leading-none",
+            hasValue
+              ? "text-[7px] text-[#2b241c] sm:text-[9px] md:text-[11px]"
+              : "text-[7px] text-[#9f6f1a] sm:text-[9px] md:text-[11px]",
+          ].join(" ")}
+        >
+          {getFieldDisplayValue(field)}
+        </span>
+      )}
+    </button>
+  );
+}
 
-        <input
-          type="date"
-          value={field.value || todayForInput()}
-          disabled={viewOnly}
-          onChange={(event) => onChange({ value: event.target.value })}
-          className="h-full w-full min-w-0 bg-transparent text-center text-[8px] font-black leading-none outline-none disabled:text-[#2b241c] sm:text-[10px] md:text-[11px]"
-        />
-      </div>
-    );
-  }
+function FieldFillModal({
+  field,
+  open,
+  viewOnly,
+  onClose,
+  onChange,
+}: {
+  field: ContractField | null;
+  open: boolean;
+  viewOnly: boolean;
+  onClose: () => void;
+  onChange: (patch: Partial<ContractField>) => void;
+}) {
+  if (!open || !field) return null;
 
-  if (field.type === "checkbox") {
-    return (
-      <label className="flex h-full w-full cursor-pointer items-center justify-center gap-1 px-1 text-center text-[8px] font-black leading-none sm:text-[10px] md:text-xs">
-        <input
-          type="checkbox"
-          disabled={viewOnly}
-          checked={field.value === "true"}
-          onChange={(event) =>
-            onChange({ value: event.target.checked ? "true" : "false" })
-          }
-          className="h-3 w-3 shrink-0 accent-[#b98121] md:h-4 md:w-4"
-        />
-        <span className="truncate">{field.label}</span>
-      </label>
-    );
-  }
+  const title = field.label || getModalFieldTitle(field.type);
 
   return (
-    <div className="flex h-full w-full items-center gap-0.5 px-1 md:gap-1 md:px-2">
-      <Type
-        size={11}
-        className="hidden shrink-0 text-[#b98121] sm:block md:size-[14px]"
-      />
+    <div className="fixed inset-0 z-[99999] flex items-end justify-center bg-black/55 p-3 md:items-center">
+      <div
+        dir="rtl"
+        className="w-full max-w-[520px] overflow-hidden rounded-[30px] border border-[#eadfce] bg-white shadow-2xl"
+      >
+        <div className="flex items-center justify-between border-b border-[#eadfce] bg-[#fbf5ea] px-5 py-4">
+          <div>
+            <div className="text-xs font-black text-[#9b8a73]">מילוי שדה</div>
+            <h3 className="text-xl font-black text-[#2b241c]">{title}</h3>
+          </div>
 
-      <input
-        value={field.value || ""}
-        disabled={viewOnly}
-        placeholder={field.label}
-        autoComplete={
-          field.type === "fullName"
-            ? "name"
-            : field.type === "email"
-              ? "email"
-              : field.type === "phone"
-                ? "tel"
-                : "off"
-        }
-        inputMode={
-          field.type === "email"
-            ? "email"
-            : field.type === "phone"
-              ? "tel"
-              : "text"
-        }
-        type={field.type === "email" ? "email" : "text"}
-        onChange={(event) => onChange({ value: event.target.value })}
-        className="h-full w-full min-w-0 bg-transparent text-center text-[8px] font-black leading-none outline-none placeholder:text-[#9b8a73] disabled:text-[#2b241c] sm:text-[10px] md:text-[11px]"
-      />
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#eadfce] bg-white text-xl font-black text-[#6f6252]"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="space-y-4 p-5">
+          {field.type === "signature" && (
+            <div className="space-y-3">
+              <div className="h-[220px] overflow-hidden rounded-2xl border-2 border-[#d9bd83] bg-white">
+                <SignatureBox
+                  value={field.signatureDataUrl || ""}
+                  viewOnly={viewOnly}
+                  onChange={(signatureDataUrl) => onChange({ signatureDataUrl })}
+                />
+              </div>
+
+              <p className="text-center text-xs font-bold leading-5 text-[#8a7b68]">
+                חתמי בתוך המסגרת הגדולה. החתימה תופיע אוטומטית במקום המתאים במסמך.
+              </p>
+            </div>
+          )}
+
+          {field.type === "date" && (
+            <input
+              type="date"
+              value={field.value || todayForInput()}
+              disabled={viewOnly}
+              onChange={(event) => onChange({ value: event.target.value })}
+              className="h-14 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-4 text-base font-black text-[#2b241c] outline-none focus:border-[#b98121] disabled:opacity-60"
+            />
+          )}
+
+          {field.type === "checkbox" && (
+            <label className="flex min-h-16 cursor-pointer items-center gap-3 rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-4 text-base font-black text-[#2b241c]">
+              <input
+                type="checkbox"
+                disabled={viewOnly}
+                checked={field.value === "true"}
+                onChange={(event) =>
+                  onChange({ value: event.target.checked ? "true" : "false" })
+                }
+                className="h-5 w-5 accent-[#b98121]"
+              />
+              <span>{field.label || "אני מאשר/ת"}</span>
+            </label>
+          )}
+
+          {field.type !== "signature" &&
+            field.type !== "date" &&
+            field.type !== "checkbox" &&
+            field.type !== "venueNote" && (
+              <input
+                value={field.value || ""}
+                disabled={viewOnly}
+                placeholder={title}
+                autoFocus
+                autoComplete={
+                  field.type === "fullName"
+                    ? "name"
+                    : field.type === "email"
+                      ? "email"
+                      : field.type === "phone"
+                        ? "tel"
+                        : "off"
+                }
+                inputMode={
+                  field.type === "email"
+                    ? "email"
+                    : field.type === "phone"
+                      ? "tel"
+                      : field.type === "idNumber"
+                        ? "numeric"
+                        : "text"
+                }
+                type={field.type === "email" ? "email" : "text"}
+                onChange={(event) => onChange({ value: event.target.value })}
+                className="h-14 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-4 text-base font-black text-[#2b241c] outline-none placeholder:text-[#9b8a73] focus:border-[#b98121] disabled:opacity-60"
+              />
+            )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 border-t border-[#eadfce] bg-[#fbf5ea] p-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-12 rounded-2xl border border-[#eadfce] bg-white text-sm font-black text-[#6f6252]"
+          >
+            סגור
+          </button>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-12 rounded-2xl bg-[#b98121] text-sm font-black text-white shadow-sm"
+          >
+            שמור שדה
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
