@@ -131,6 +131,20 @@ function serializeInvite(event: any) {
       cleanString(event?.venueClientInviteStatus) || "not_sent",
     venueClientInviteSentAt: event?.venueClientInviteSentAt || null,
 
+    venueClientInviteUsedAt: event?.venueClientInviteUsedAt || null,
+    venueClientInviteUsedByUserId: event?.venueClientInviteUsedByUserId
+      ? String(event.venueClientInviteUsedByUserId)
+      : "",
+    venueClientInviteUsedEmail: cleanString(event?.venueClientInviteUsedEmail),
+
+    venueClientInviteLockedAt: event?.venueClientInviteLockedAt || null,
+    venueClientInviteLockedByUserId: event?.venueClientInviteLockedByUserId
+      ? String(event.venueClientInviteLockedByUserId)
+      : "",
+    venueClientInviteLockedEmail: cleanString(event?.venueClientInviteLockedEmail),
+
+    venueClientInviteExpiresAt: event?.venueClientInviteExpiresAt || null,
+
     venueClientSelectedSeatingTemplateId:
       event?.venueClientSelectedSeatingTemplateId
         ? String(event.venueClientSelectedSeatingTemplateId)
@@ -518,8 +532,12 @@ export async function POST(req: NextRequest, { params }: Props) {
       );
     }
 
-    const existingToken = cleanString(event?.venueClientInviteToken);
-    const token = existingToken || createInviteToken();
+    /*
+      קישור חד פעמי:
+      בכל יצירת קישור מהאולם מייצרים token חדש.
+      לא משתמשים שוב בטוקן ישן, כדי שקישור שכבר נשלח/נוצל לא ימשיך לעבוד.
+    */
+    const token = createInviteToken();
 
     const baseUrl = getBaseUrl(req);
 
@@ -528,6 +546,7 @@ export async function POST(req: NextRequest, { params }: Props) {
     )}`;
 
     const now = new Date();
+    const expiresAt = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
 
     const eventTitle = getEventTitle(event);
     const eventDate = getEventDate(event);
@@ -540,35 +559,32 @@ export async function POST(req: NextRequest, { params }: Props) {
 
     const venueOwnerIdValue = venueOwnerObjectId || String(auth.userId);
 
-    const linkedInvitation = await findClientInvitationForVenueEvent(
-      {
-        ...event,
-        venueClientInviteToken: token,
-      },
-      token
-    );
-
-    const linkedInvitationId = linkedInvitation?._id || null;
-
-    const linkedUserId =
-      linkedInvitation?.ownerId ||
-      linkedInvitation?.userId ||
-      linkedInvitation?.user ||
-      event?.venueClientUserId ||
-      "";
-
-    const linkedRecordsCount =
-      getRecordsCount(linkedInvitation) || recordsCount;
-
-    const linkedPaymentStatus =
-      cleanString(linkedInvitation?.paymentStatus) ||
-      cleanString(event?.venueClientPaymentStatus) ||
-      "pending";
+    /*
+      מאחר שזה קישור חדש וחד פעמי, לא מחברים אותו אוטומטית להזמנה ישנה.
+      מי שיפתח את הקישור ויבחר חבילה הוא המשתמש שהקישור יינעל אליו.
+    */
+    const linkedInvitationId = null;
+    const linkedUserId = "";
+    const linkedRecordsCount = recordsCount;
+    const linkedPaymentStatus = "pending";
 
     const updatePayload: any = {
       venueClientInviteToken: token,
       venueClientInviteStatus: "sent",
       venueClientInviteSentAt: now,
+
+      /*
+        שדות חד-פעמיים:
+        הקישור החדש מתחיל נקי. ברגע שהלקוח יתחיל תשלום הוא יינעל,
+        ואחרי הצלחה או פתיחת הושבה בלבד הוא יסומן כ-used.
+      */
+      venueClientInviteUsedAt: null,
+      venueClientInviteUsedByUserId: null,
+      venueClientInviteUsedEmail: "",
+      venueClientInviteLockedAt: null,
+      venueClientInviteLockedByUserId: null,
+      venueClientInviteLockedEmail: "",
+      venueClientInviteExpiresAt: expiresAt,
 
       venueClientSelectedSeatingTemplateId: templateObjectId,
       venueClientSelectedSeatingTemplateName: selectedTemplateName,
@@ -587,17 +603,14 @@ export async function POST(req: NextRequest, { params }: Props) {
       venueClientPackageType: packageType,
       venueClientRecordsCount: linkedRecordsCount,
       venueClientPaymentStatus: linkedPaymentStatus,
+      venueClientPaymentSessionId: "",
+      venueClientStripeSessionId: "",
+      venueClientPaymentAmount: 0,
+      venueClientInvitationId: null,
+      venueClientUserId: null,
 
       updatedAt: now,
     };
-
-    if (linkedInvitationId) {
-      updatePayload.venueClientInvitationId = linkedInvitationId;
-    }
-
-    if (linkedUserId) {
-      updatePayload.venueClientUserId = linkedUserId;
-    }
 
     await events.updateOne(
       {
@@ -618,6 +631,13 @@ export async function POST(req: NextRequest, { params }: Props) {
         venueClientInviteToken: token,
         venueClientInviteStatus: "sent",
         venueClientInviteSentAt: now,
+        venueClientInviteUsedAt: null,
+        venueClientInviteUsedByUserId: "",
+        venueClientInviteUsedEmail: "",
+        venueClientInviteLockedAt: null,
+        venueClientInviteLockedByUserId: "",
+        venueClientInviteLockedEmail: "",
+        venueClientInviteExpiresAt: expiresAt,
 
         venueClientSelectedSeatingTemplateId: String(templateObjectId),
         venueClientSelectedSeatingTemplateName: selectedTemplateName,

@@ -95,6 +95,27 @@ function normalizeHallId(body: any) {
   );
 }
 
+function isInviteUsedOrLocked(event: any) {
+  const status = cleanString(event?.venueClientInviteStatus);
+
+  return Boolean(
+    event?.venueClientInviteUsedAt ||
+      status === "used" ||
+      status === "paid" ||
+      status === "pending_payment"
+  );
+}
+
+function isInviteExpired(event: any) {
+  if (!event?.venueClientInviteExpiresAt) return false;
+
+  const expiresAt = new Date(event.venueClientInviteExpiresAt);
+
+  if (Number.isNaN(expiresAt.getTime())) return false;
+
+  return expiresAt.getTime() < Date.now();
+}
+
 export async function POST(req: NextRequest) {
   try {
     await connectDB();
@@ -195,46 +216,45 @@ export async function POST(req: NextRequest) {
     }
 
     const packageType: PackageType = packageTypeRaw;
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+    const totalPrice = calculateTotal(packageType, recordsCount);
+    const amountInAgorot = totalPrice * 100;
+    const baseUrl = getBaseUrl(req);
 
-    /*
-      חשוב:
-      קודם מחפשים לפי הטוקן בלבד.
-      קודם הקוד חיפש גם:
-      venueClientInviteStatus: "sent"
-      venueAccessStatus: "linked"
-      ולכן אם אחד השדות לא נשמר בדיוק כך — השרת החזיר 404 למרות שהקישור כן קיים.
-    */
-    const event = await events.findOne(buildInviteTokenQuery(venueInviteToken));
+    const existingEvent = await events.findOne(buildInviteTokenQuery(venueInviteToken));
 
-    if (!event) {
+    if (!existingEvent) {
       return NextResponse.json(
         {
           success: false,
-          message:
-            "לא נמצא אירוע לפי קישור ההרשמה. צריך ליצור קישור חדש מהאולם.",
+          message: "קישור ההרשמה לא נמצא או שאינו פעיל",
         },
         { status: 404 }
       );
     }
 
-    if (event.venueClientInviteStatus === "disabled") {
+    if (isInviteExpired(existingEvent)) {
       return NextResponse.json(
         {
           success: false,
-          message: "קישור ההרשמה בוטל ואינו פעיל",
+          message: "קישור ההרשמה פג תוקף. צריך ליצור קישור חדש מהאולם.",
         },
-        { status: 403 }
+        { status: 410 }
       );
     }
 
-    /*
-      אם אצלך יש אירועים ישנים בלי venueAccessStatus,
-      לא מחזירים 404. רק אם השדה קיים במפורש והוא לא linked — נחסום.
-    */
-    if (
-      event.venueAccessStatus &&
-      event.venueAccessStatus !== "linked"
-    ) {
+    if (isInviteUsedOrLocked(existingEvent)) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "קישור ההרשמה כבר נוצל או נמצא בתהליך תשלום. צריך ליצור קישור חדש מהאולם.",
+        },
+        { status: 409 }
+      );
+    }
+
+    if (existingEvent.venueAccessStatus && existingEvent.venueAccessStatus !== "linked") {
       return NextResponse.json(
         {
           success: false,
@@ -244,32 +264,57 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const totalPrice = calculateTotal(packageType, recordsCount);
-    const amountInAgorot = totalPrice * 100;
-    const baseUrl = getBaseUrl(req);
-
-    await events.updateOne(
+    /*
+      נעילה אטומית של הקישור:
+      רק מי שתופס את הקישור כשהוא sent ולא נוצל יכול ליצור Stripe session.
+      אם שני אנשים לוחצים במקביל — רק אחד מצליח.
+    */
+    const locked = await events.findOneAndUpdate(
       {
-        _id: event._id,
+        _id: existingEvent._id,
+        venueClientInviteStatus: "sent",
+        $or: [
+          { venueClientInviteUsedAt: { $exists: false } },
+          { venueClientInviteUsedAt: null },
+        ],
       },
       {
         $set: {
-          venueClientUserId: new mongoose.Types.ObjectId(userId),
+          venueClientInviteStatus: "pending_payment",
+          venueClientInviteLockedAt: new Date(),
+          venueClientInviteLockedByUserId: userObjectId,
+          venueClientInviteLockedEmail: email,
+
+          venueClientUserId: userObjectId,
           venueClientPackageType: packageType,
           venueClientRecordsCount: recordsCount,
           venueClientPaymentStatus: "pending",
           venueClientPaymentAmount: totalPrice,
           venueClientHallId:
             venueClientHallId ||
-            cleanString(event.venueClientHallId) ||
-            cleanString(event.venueHallId) ||
-            cleanString(event.venueHallId),
-          venueClientInviteStatus: event.venueClientInviteStatus || "sent",
-          venueAccessStatus: event.venueAccessStatus || "linked",
+            cleanString(existingEvent.venueClientHallId) ||
+            cleanString(existingEvent.venueHallId),
+          venueAccessStatus: existingEvent.venueAccessStatus || "linked",
           updatedAt: new Date(),
         },
+      },
+      {
+        returnDocument: "after",
       }
     );
+
+    if (!locked?.value) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "קישור ההרשמה כבר נוצל או ננעל לתהליך תשלום. צריך ליצור קישור חדש מהאולם.",
+        },
+        { status: 409 }
+      );
+    }
+
+    const event = locked.value;
 
     const cancelUrl = new URL(`${baseUrl}/venue-client/packages`);
     cancelUrl.searchParams.set("venueInviteToken", venueInviteToken);
@@ -284,7 +329,9 @@ export async function POST(req: NextRequest) {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       customer_email: email,
-      success_url: `${baseUrl}/venue-client/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${baseUrl}/venue-client/payment-success?session_id={CHECKOUT_SESSION_ID}&redirectTo=${encodeURIComponent(
+        "/dashboard"
+      )}`,
       cancel_url: cancelUrl.toString(),
       line_items: [
         {
@@ -313,6 +360,20 @@ export async function POST(req: NextRequest) {
     });
 
     if (!session.url) {
+      await events.updateOne(
+        { _id: event._id },
+        {
+          $set: {
+            venueClientInviteStatus: "sent",
+            venueClientInviteLockedAt: null,
+            venueClientInviteLockedByUserId: null,
+            venueClientInviteLockedEmail: "",
+            venueClientPaymentStatus: "failed",
+            updatedAt: new Date(),
+          },
+        }
+      );
+
       return NextResponse.json(
         {
           success: false,
@@ -321,6 +382,17 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
+
+    await events.updateOne(
+      { _id: event._id },
+      {
+        $set: {
+          venueClientStripeSessionId: session.id,
+          venueClientPaymentSessionId: session.id,
+          updatedAt: new Date(),
+        },
+      }
+    );
 
     return NextResponse.json({
       success: true,

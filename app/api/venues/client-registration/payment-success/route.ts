@@ -55,10 +55,6 @@ function calculatePaidAmount(packageType: PaidPackageType, recordsCount: number)
 }
 
 function getDashboardRedirect(_packageType: PaidPackageType) {
-  /*
-    אחרי תשלום תמיד מנתבים לדשבורד.
-    לא משאירים את הלקוח בעמוד חבילות ולא מנתבים למסך אחר.
-  */
   return "/dashboard";
 }
 
@@ -288,10 +284,6 @@ async function updateUserPermissions({
       $set: {
         email,
 
-        /*
-          חבילות אולם בתשלום:
-          Stripe אישר תשלום, לכן המשתמש חייב להיות פעיל ומשולם.
-        */
         isActive: true,
         hasDashboardAccess: true,
         hasPaid: true,
@@ -312,19 +304,12 @@ async function updateUserPermissions({
 
         venueOwnerId: event.venueOwnerId,
 
-        /*
-          שדות אולם — כדי שהלקוח והאולם יישארו מחוברים לאותו אירוע/אולם.
-        */
         venueClientHallId: venueHallId,
         venueHallId,
         hallId: venueHallId,
         venueClientHallName: venueHallName,
         venueHallName,
 
-        /*
-          תבנית ההושבה שבעל האולם בחר.
-          ההעתקה בפועל כבר נעשית ל-seatingtables.
-        */
         venueSeatingTemplateId: template._id,
         venueSeatingTemplateName: cleanString(template.name),
         venueSeatingTemplateImportedAt: new Date(),
@@ -343,10 +328,6 @@ async function updateUserPermissions({
         maxGuests: recordsCount,
         guests: recordsCount,
 
-        /*
-          3 סבבי הודעות:
-          2 WhatsApp + 1 SMS
-        */
         maxMessages: recordsCount * 3,
         remainingMessages: recordsCount * 3,
 
@@ -364,10 +345,8 @@ async function updateUserPermissions({
           seating: true,
           digitalSeating: true,
           seatingTemplates: true,
-
           rsvp: true,
           messages: true,
-
           eventProduction: eventManagementEnabled,
         },
 
@@ -540,6 +519,7 @@ export async function POST(req: NextRequest) {
       _id: eventId,
       venueClientInviteToken: venueInviteToken,
       venueAccessStatus: "linked",
+      venueClientInviteStatus: { $in: ["pending_payment", "used", "paid"] },
     });
 
     if (!event) {
@@ -643,7 +623,10 @@ export async function POST(req: NextRequest) {
           userId,
           venueClientUserId: userId,
 
-          venueClientInviteStatus: "paid",
+          venueClientInviteStatus: "used",
+          venueClientInviteUsedAt: event.venueClientInviteUsedAt || new Date(),
+          venueClientInviteUsedByUserId: userId,
+          venueClientInviteUsedEmail: email,
           venueClientRegisteredAt:
             event.venueClientRegisteredAt || new Date(),
 
