@@ -33,6 +33,11 @@ const ClientContractFieldSchema = new Schema(
       default: false,
     },
 
+    pageNumber: {
+      type: Number,
+      default: 1,
+    },
+
     x: {
       type: Number,
       default: 0,
@@ -71,6 +76,32 @@ const ClientContractFieldSchema = new Schema(
   { _id: false }
 );
 
+const ClientContractPageSchema = new Schema(
+  {
+    pageNumber: {
+      type: Number,
+      required: true,
+    },
+
+    url: {
+      type: String,
+      default: "",
+    },
+
+    name: {
+      type: String,
+      default: "",
+    },
+
+    type: {
+      type: String,
+      enum: ["pdf", "image"],
+      default: "pdf",
+    },
+  },
+  { _id: false }
+);
+
 const ClientContractAuditLogSchema = new Schema(
   {
     action: {
@@ -102,6 +133,12 @@ const ClientContractSchema = new Schema(
       type: String,
       required: true,
       index: true,
+    },
+
+    title: {
+      type: String,
+      default: "הסכם לקוח",
+      trim: true,
     },
 
     hallId: {
@@ -152,6 +189,16 @@ const ClientContractSchema = new Schema(
       default: "pdf",
     },
 
+    pageCount: {
+      type: Number,
+      default: 1,
+    },
+
+    pages: {
+      type: [ClientContractPageSchema],
+      default: [],
+    },
+
     fields: {
       type: [ClientContractFieldSchema],
       default: [],
@@ -195,6 +242,11 @@ const ClientContractSchema = new Schema(
       default: null,
     },
 
+    digitalSignatureText: {
+      type: String,
+      default: "",
+    },
+
     auditLog: {
       type: [ClientContractAuditLogSchema],
       default: [],
@@ -206,6 +258,7 @@ const ClientContractSchema = new Schema(
 );
 
 ClientContractSchema.index({ eventId: 1, hallId: 1 });
+ClientContractSchema.index({ eventId: 1, createdAt: -1 });
 ClientContractSchema.index({ signingToken: 1, status: 1 });
 
 const ClientContract =

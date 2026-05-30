@@ -10,13 +10,83 @@ function normalizeFields(rawFields: any[]) {
     type: String(field.type || "text"),
     label: String(field.label || ""),
     required: Boolean(field.required),
+
+    pageNumber: Math.max(1, Number(field.pageNumber || 1)),
+
     x: Number(field.x || 0),
     y: Number(field.y || 0),
     width: Number(field.width || 20),
     height: Number(field.height || 6),
+
     value: String(field.value || ""),
     signatureDataUrl: String(field.signatureDataUrl || ""),
+    signedAt: field.signedAt || null,
   }));
+}
+
+function normalizePages(contract: any) {
+  const rawPages = Array.isArray(contract.pages) ? contract.pages : [];
+
+  if (rawPages.length > 0) {
+    return rawPages.map((page: any, index: number) => ({
+      pageNumber: Math.max(1, Number(page.pageNumber || index + 1)),
+      url: String(page.url || page.imageUrl || contract.originalFileUrl || ""),
+      name: String(page.name || page.fileName || `עמוד ${index + 1}`),
+      type: String(page.type || contract.originalFileType || "pdf").includes("image")
+        ? "image"
+        : "pdf",
+    }));
+  }
+
+  const pageCount = Math.max(1, Number(contract.pageCount || 1));
+
+  return Array.from({ length: pageCount }).map((_, index) => ({
+    pageNumber: index + 1,
+    url: String(contract.originalFileUrl || ""),
+    name: `${contract.originalFileName || "הסכם"} - עמוד ${index + 1}`,
+    type: String(contract.originalFileType || "pdf").includes("image")
+      ? "image"
+      : "pdf",
+  }));
+}
+
+function serializePublicContract(contract: any) {
+  return {
+    id: String(contract._id || contract.id || ""),
+    eventId: String(contract.eventId || ""),
+    hallId: String(contract.hallId || ""),
+    hallName: String(contract.hallName || ""),
+    eventTitle: String(contract.eventTitle || ""),
+    title: String(contract.title || "הסכם לקוח"),
+
+    clientName: String(contract.clientName || ""),
+    clientPhone: String(contract.clientPhone || ""),
+    clientEmail: String(contract.clientEmail || ""),
+
+    originalFileUrl: String(contract.originalFileUrl || ""),
+    originalFileName: String(contract.originalFileName || ""),
+    originalFileType: String(contract.originalFileType || "pdf").includes("image")
+      ? "image"
+      : "pdf",
+
+    pageCount: Math.max(1, Number(contract.pageCount || 1)),
+    pages: normalizePages(contract),
+
+    fields: normalizeFields(Array.isArray(contract.fields) ? contract.fields : []),
+
+    status: String(contract.status || "draft"),
+    locked: Boolean(contract.locked),
+
+    signedAt: contract.signedAt || null,
+    digitalSignatureText: String(contract.digitalSignatureText || ""),
+  };
+}
+
+function getRequestMeta(req: NextRequest) {
+  return {
+    ip: req.headers.get("x-forwarded-for") || "",
+    userAgent: req.headers.get("user-agent") || "",
+  };
 }
 
 export async function GET(
@@ -50,6 +120,13 @@ export async function GET(
       !contract.locked
     ) {
       contract.status = "expired";
+
+      contract.auditLog.push({
+        action: "contract_expired",
+        at: new Date(),
+        ...getRequestMeta(req),
+      });
+
       await contract.save();
 
       return NextResponse.json(
@@ -68,8 +145,7 @@ export async function GET(
       contract.auditLog.push({
         action: "contract_viewed",
         at: new Date(),
-        ip: req.headers.get("x-forwarded-for") || "",
-        userAgent: req.headers.get("user-agent") || "",
+        ...getRequestMeta(req),
       });
 
       await contract.save();
@@ -77,23 +153,7 @@ export async function GET(
 
     return NextResponse.json({
       success: true,
-      contract: {
-        id: String(contract._id),
-        eventId: contract.eventId,
-        hallId: contract.hallId,
-        hallName: contract.hallName,
-        eventTitle: contract.eventTitle,
-        clientName: contract.clientName,
-        clientPhone: contract.clientPhone,
-        clientEmail: contract.clientEmail,
-        originalFileUrl: contract.originalFileUrl,
-        originalFileName: contract.originalFileName,
-        originalFileType: contract.originalFileType,
-        fields: normalizeFields(contract.fields || []),
-        status: contract.status,
-        locked: contract.locked,
-        signedAt: contract.signedAt,
-      },
+      contract: serializePublicContract(contract),
     });
   } catch (error) {
     console.error("GET public contract failed:", error);
@@ -143,6 +203,13 @@ export async function POST(
       new Date(contract.signingTokenExpiresAt).getTime() < Date.now()
     ) {
       contract.status = "expired";
+
+      contract.auditLog.push({
+        action: "contract_expired_before_sign",
+        at: new Date(),
+        ...getRequestMeta(req),
+      });
+
       await contract.save();
 
       return NextResponse.json(
@@ -152,19 +219,22 @@ export async function POST(
     }
 
     const submittedFields = Array.isArray(body.fields) ? body.fields : [];
+    const now = new Date();
 
     const nextFields = contract.fields.map((field: any) => {
+      const fieldObject = field.toObject?.() || field;
+
       const submitted = submittedFields.find(
-        (item: any) => String(item.id) === String(field.id)
+        (item: any) => String(item.id) === String(fieldObject.id)
       );
 
-      if (!submitted) return field;
+      if (!submitted) return fieldObject;
 
       return {
-        ...field.toObject?.() || field,
+        ...fieldObject,
         value: String(submitted.value || ""),
         signatureDataUrl: String(submitted.signatureDataUrl || ""),
-        signedAt: new Date(),
+        signedAt: now,
       };
     });
 
@@ -172,11 +242,11 @@ export async function POST(
       if (!field.required) return false;
 
       if (field.type === "signature") {
-        return !field.signatureDataUrl;
+        return !String(field.signatureDataUrl || "").trim();
       }
 
       if (field.type === "checkbox") {
-        return field.value !== "true";
+        return String(field.value || "") !== "true";
       }
 
       return !String(field.value || "").trim();
@@ -186,22 +256,28 @@ export async function POST(
       return NextResponse.json(
         {
           success: false,
-          message: `חובה למלא את השדה: ${missingRequiredField.label || "שדה חובה"}`,
+          message: `חובה למלא את השדה: ${
+            missingRequiredField.label || "שדה חובה"
+          }`,
         },
         { status: 400 }
       );
     }
 
+    const digitalSignatureText = `נחתם דיגיטלית בתאריך ${now.toLocaleString(
+      "he-IL"
+    )}`;
+
     contract.fields = nextFields;
     contract.status = "signed";
     contract.locked = true;
-    contract.signedAt = new Date();
+    contract.signedAt = now;
+    contract.digitalSignatureText = digitalSignatureText;
 
     contract.auditLog.push({
       action: "contract_signed",
-      at: new Date(),
-      ip: req.headers.get("x-forwarded-for") || "",
-      userAgent: req.headers.get("user-agent") || "",
+      at: now,
+      ...getRequestMeta(req),
     });
 
     await contract.save();
@@ -210,10 +286,11 @@ export async function POST(
       success: true,
       message: "ההסכם נחתם וננעל לצפייה בלבד",
       contract: {
-        id: String(contract._id),
-        status: contract.status,
-        locked: contract.locked,
+        ...serializePublicContract(contract),
+        status: "signed",
+        locked: true,
         signedAt: contract.signedAt,
+        digitalSignatureText,
       },
     });
   } catch (error) {

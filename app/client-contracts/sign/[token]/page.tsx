@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   CheckSquare,
   FileText,
+  Layers,
   Loader2,
   Lock,
   PenLine,
@@ -30,12 +31,23 @@ type ContractField = {
   type: ContractFieldType;
   label: string;
   required: boolean;
+
+  pageNumber: number;
+
   x: number;
   y: number;
   width: number;
   height: number;
+
   value: string;
   signatureDataUrl?: string;
+};
+
+type ContractPage = {
+  pageNumber: number;
+  url: string;
+  name: string;
+  type: "pdf" | "image";
 };
 
 type PublicContract = {
@@ -44,20 +56,30 @@ type PublicContract = {
   hallId: string;
   hallName: string;
   eventTitle: string;
+  title: string;
+
   clientName: string;
   clientPhone: string;
   clientEmail: string;
+
   originalFileUrl: string;
   originalFileName: string;
   originalFileType: "pdf" | "image";
+
+  pageCount: number;
+  pages: ContractPage[];
+
   fields: ContractField[];
+
   status: string;
   locked: boolean;
-  signedAt?: string;
+  signedAt?: string | null;
+  digitalSignatureText?: string;
 };
 
 function todayForInput() {
   const date = new Date();
+
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
@@ -65,17 +87,33 @@ function todayForInput() {
   return `${year}-${month}-${day}`;
 }
 
-function formatDateTime(value?: string) {
+function formatDateTime(value?: string | null) {
   if (!value) return "";
 
   const date = new Date(value);
 
-  if (Number.isNaN(date.getTime())) return value;
+  if (Number.isNaN(date.getTime())) return String(value);
 
   return new Intl.DateTimeFormat("he-IL", {
     dateStyle: "short",
     timeStyle: "short",
   }).format(date);
+}
+
+function buildPdfPageUrl(url: string, pageNumber: number) {
+  return `${url}#page=${pageNumber}&toolbar=0&navpanes=0&scrollbar=0`;
+}
+
+function getFieldDefaultValue(field: ContractField, contract: PublicContract) {
+  if (field.value) return field.value;
+
+  if (field.type === "date") return todayForInput();
+  if (field.type === "fullName") return contract.clientName || "";
+  if (field.type === "phone") return contract.clientPhone || "";
+  if (field.type === "email") return contract.clientEmail || "";
+  if (field.type === "checkbox") return "false";
+
+  return "";
 }
 
 export default function ClientContractSignPage() {
@@ -87,6 +125,7 @@ export default function ClientContractSignPage() {
 
   const [contract, setContract] = useState<PublicContract | null>(null);
   const [fields, setFields] = useState<ContractField[]>([]);
+  const [activePage, setActivePage] = useState(1);
 
   const [loading, setLoading] = useState(true);
   const [signing, setSigning] = useState(false);
@@ -94,6 +133,21 @@ export default function ClientContractSignPage() {
   const [successMessage, setSuccessMessage] = useState("");
 
   const isViewOnly = forceViewOnly || Boolean(contract?.locked);
+
+  const activePageData = useMemo(() => {
+    if (!contract?.pages?.length) return null;
+
+    return (
+      contract.pages.find((page) => page.pageNumber === activePage) ||
+      contract.pages[0] ||
+      null
+    );
+  }, [contract, activePage]);
+
+  const activePageFields = useMemo(
+    () => fields.filter((field) => field.pageNumber === activePage),
+    [fields, activePage]
+  );
 
   useEffect(() => {
     if (!token) return;
@@ -105,10 +159,13 @@ export default function ClientContractSignPage() {
       setError("");
 
       try {
-        const res = await fetch(`/api/client-contracts/sign/${encodeURIComponent(token)}`, {
-          method: "GET",
-          cache: "no-store",
-        });
+        const res = await fetch(
+          `/api/client-contracts/sign/${encodeURIComponent(token)}`,
+          {
+            method: "GET",
+            cache: "no-store",
+          }
+        );
 
         const data = await res.json().catch(() => ({}));
 
@@ -118,17 +175,40 @@ export default function ClientContractSignPage() {
 
         if (cancelled) return;
 
-        setContract(data.contract);
+        const nextContract: PublicContract = data.contract;
+
+        const normalizedPages =
+          Array.isArray(nextContract.pages) && nextContract.pages.length
+            ? nextContract.pages
+            : [
+                {
+                  pageNumber: 1,
+                  url: nextContract.originalFileUrl,
+                  name: nextContract.originalFileName || "הסכם",
+                  type: nextContract.originalFileType,
+                },
+              ];
+
+        const finalContract = {
+          ...nextContract,
+          pages: normalizedPages,
+          pageCount: normalizedPages.length,
+        };
+
+        setContract(finalContract);
+
         setFields(
-          Array.isArray(data.contract?.fields)
-            ? data.contract.fields.map((field: ContractField) => ({
+          Array.isArray(finalContract.fields)
+            ? finalContract.fields.map((field) => ({
                 ...field,
-                value:
-                  field.value ||
-                  (field.type === "date" ? todayForInput() : ""),
+                pageNumber: Math.max(1, Number(field.pageNumber || 1)),
+                value: getFieldDefaultValue(field, finalContract),
+                signatureDataUrl: field.signatureDataUrl || "",
               }))
             : []
         );
+
+        setActivePage(1);
       } catch (err) {
         console.error("GET contract page failed:", err);
 
@@ -165,15 +245,18 @@ export default function ClientContractSignPage() {
     setSuccessMessage("");
 
     try {
-      const res = await fetch(`/api/client-contracts/sign/${encodeURIComponent(token)}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          fields,
-        }),
-      });
+      const res = await fetch(
+        `/api/client-contracts/sign/${encodeURIComponent(token)}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            fields,
+          }),
+        }
+      );
 
       const data = await res.json().catch(() => ({}));
 
@@ -181,13 +264,19 @@ export default function ClientContractSignPage() {
         throw new Error(data?.message || "חתימת ההסכם נכשלה");
       }
 
+      const signedAt = data?.contract?.signedAt || new Date().toISOString();
+      const digitalSignatureText =
+        data?.contract?.digitalSignatureText ||
+        `נחתם דיגיטלית בתאריך ${formatDateTime(signedAt)}`;
+
       setContract((current) =>
         current
           ? {
               ...current,
               locked: true,
               status: "signed",
-              signedAt: new Date().toISOString(),
+              signedAt,
+              digitalSignatureText,
             }
           : current
       );
@@ -219,6 +308,7 @@ export default function ClientContractSignPage() {
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[22px] bg-rose-50 text-rose-600">
             <Lock size={28} />
           </div>
+
           <h1 className="mt-4 text-xl font-black text-rose-700">{error}</h1>
         </div>
       </main>
@@ -243,25 +333,37 @@ export default function ClientContractSignPage() {
                 </div>
 
                 <h1 className="mt-1 text-2xl font-black md:text-4xl">
-                  הסכם לחתימה
+                  {contract.title || "הסכם לחתימה"}
                 </h1>
 
                 <p className="mt-2 text-sm font-bold text-[#7f705d]">
-                  {contract.clientName || "לקוח"} — יש למלא את השדות המסומנים ולחתום.
+                  {contract.clientName || "לקוח"} —{" "}
+                  {isViewOnly
+                    ? "ההסכם נחתם ונעול לצפייה בלבד."
+                    : "יש למלא את השדות המסומנים ולחתום."}
                 </p>
               </div>
             </div>
 
-            <div
-              className={[
-                "inline-flex h-11 w-fit items-center gap-2 rounded-full border px-4 text-sm font-black",
-                isViewOnly
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                  : "border-amber-200 bg-amber-50 text-amber-700",
-              ].join(" ")}
-            >
-              {isViewOnly ? <Lock size={16} /> : <PenLine size={16} />}
-              {isViewOnly ? "צפייה בלבד" : "ממתין לחתימה"}
+            <div className="flex flex-col items-start gap-2 lg:items-end">
+              <div
+                className={[
+                  "inline-flex h-11 w-fit items-center gap-2 rounded-full border px-4 text-sm font-black",
+                  isViewOnly
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                    : "border-amber-200 bg-amber-50 text-amber-700",
+                ].join(" ")}
+              >
+                {isViewOnly ? <Lock size={16} /> : <PenLine size={16} />}
+                {isViewOnly ? "צפייה בלבד" : "ממתין לחתימה"}
+              </div>
+
+              {isViewOnly && contract.signedAt && (
+                <div className="inline-flex w-fit items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-4 py-2 text-xs font-black text-emerald-700">
+                  <CheckCircle2 size={14} />
+                  נחתם דיגיטלית · {formatDateTime(contract.signedAt)}
+                </div>
+              )}
             </div>
           </div>
         </header>
@@ -278,42 +380,73 @@ export default function ClientContractSignPage() {
           </div>
         )}
 
-        {contract.signedAt && (
-          <div className="mb-4 rounded-2xl border border-emerald-100 bg-white p-4 text-sm font-black text-emerald-700">
-            ההסכם נחתם בתאריך {formatDateTime(contract.signedAt)}
-          </div>
-        )}
-
         <section className="grid gap-5 xl:grid-cols-[1fr_330px]">
           <div className="overflow-hidden rounded-[30px] border border-[#eadfce] bg-white shadow-sm">
-            <div className="border-b border-[#eadfce] bg-[#fbf5ea] px-4 py-3 text-sm font-black text-[#2b241c]">
-              {contract.originalFileName || "הסכם"}
+            <div className="flex flex-col gap-3 border-b border-[#eadfce] bg-[#fbf5ea] px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="text-sm font-black text-[#2b241c]">
+                {activePageData?.name || contract.originalFileName || "הסכם"}
+              </div>
+
+              {contract.pages.length > 1 && (
+                <div className="flex flex-wrap gap-2">
+                  {contract.pages.map((page) => (
+                    <button
+                      key={page.pageNumber}
+                      type="button"
+                      onClick={() => setActivePage(page.pageNumber)}
+                      className={[
+                        "inline-flex h-9 items-center gap-2 rounded-2xl border px-3 text-xs font-black transition",
+                        activePage === page.pageNumber
+                          ? "border-[#b98121] bg-[#b98121] text-white"
+                          : "border-[#eadfce] bg-white text-[#6f6252] hover:bg-[#fffdf8]",
+                      ].join(" ")}
+                    >
+                      <Layers size={13} />
+                      עמוד {page.pageNumber}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="max-h-[850px] overflow-auto bg-[#f3eee5] p-4">
               <div className="relative mx-auto min-h-[760px] w-full max-w-[900px] overflow-hidden rounded-[22px] border border-[#dbcbb3] bg-white shadow-sm">
-                {contract.originalFileType === "image" ? (
+                {activePageData?.type === "image" ? (
                   <img
-                    src={contract.originalFileUrl}
-                    alt="הסכם"
+                    src={activePageData.url}
+                    alt={`עמוד ${activePage}`}
                     draggable={false}
                     className="block h-auto w-full select-none"
                   />
                 ) : (
                   <iframe
-                    src={contract.originalFileUrl}
-                    title="contract-pdf"
+                    src={
+                      activePageData
+                        ? buildPdfPageUrl(activePageData.url, activePage)
+                        : ""
+                    }
+                    title={`contract-pdf-page-${activePage}`}
                     className="h-[760px] w-full bg-white"
                   />
                 )}
 
+                {isViewOnly && contract.signedAt && (
+                  <div className="absolute bottom-4 left-4 z-20 rounded-2xl border border-emerald-200 bg-white/95 px-4 py-3 text-xs font-black leading-5 text-emerald-700 shadow-sm">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 size={15} />
+                      נחתם דיגיטלית
+                    </div>
+                    <div>{formatDateTime(contract.signedAt)}</div>
+                  </div>
+                )}
+
                 <div className="absolute inset-0 z-10">
-                  {fields.map((field) => (
+                  {activePageFields.map((field) => (
                     <div
                       key={field.id}
                       className="absolute overflow-hidden rounded-xl border-2 border-[#b98121] bg-white/90 p-1 shadow-sm backdrop-blur-sm"
                       style={{
-                        right: `${field.x}%`,
+                        left: `${field.x}%`,
                         top: `${field.y}%`,
                         width: `${field.width}%`,
                         height: `${field.height}%`,
@@ -350,6 +483,17 @@ export default function ClientContractSignPage() {
                 <InfoBox label="לקוח" value={contract.clientName || "לא הוגדר"} />
                 <InfoBox label="אולם" value={contract.hallName || "לא הוגדר"} />
                 <InfoBox label="אירוע" value={contract.eventTitle || "לא הוגדר"} />
+                <InfoBox
+                  label="סטטוס"
+                  value={isViewOnly ? "נחתם ונעול לצפייה" : "ממתין לחתימה"}
+                />
+
+                {contract.signedAt && (
+                  <InfoBox
+                    label="חתימה דיגיטלית"
+                    value={`נחתם דיגיטלית · ${formatDateTime(contract.signedAt)}`}
+                  />
+                )}
               </div>
             </div>
 
@@ -364,7 +508,7 @@ export default function ClientContractSignPage() {
                   >
                     <span>{field.label}</span>
                     <span className="text-xs text-[#9b8a73]">
-                      {field.required ? "חובה" : "רשות"}
+                      עמוד {field.pageNumber} · {field.required ? "חובה" : "רשות"}
                     </span>
                   </div>
                 ))}
@@ -378,7 +522,11 @@ export default function ClientContractSignPage() {
                 disabled={signing}
                 className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#b98121] text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {signing ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
+                {signing ? (
+                  <Loader2 className="animate-spin" size={18} />
+                ) : (
+                  <Send size={18} />
+                )}
                 {signing ? "שולח חתימה..." : "חתום ושלח"}
               </button>
             )}
@@ -389,6 +537,13 @@ export default function ClientContractSignPage() {
                   <CheckCircle2 size={18} />
                   ההסכם נחתם וננעל.
                 </div>
+
+                {contract.signedAt && (
+                  <div className="mt-1">
+                    נחתם דיגיטלית · {formatDateTime(contract.signedAt)}
+                  </div>
+                )}
+
                 <div className="mt-1">ניתן לצפות בו בלבד.</div>
               </div>
             )}
@@ -484,14 +639,16 @@ function SignatureBox({
     if (!ctx) return;
 
     const image = new Image();
+
     image.onload = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
     };
+
     image.src = value;
   }, [value]);
 
-  function getPos(event: React.MouseEvent<HTMLCanvasElement>) {
+  function getMousePos(event: React.MouseEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
 
@@ -503,7 +660,21 @@ function SignatureBox({
     };
   }
 
-  function start(event: React.MouseEvent<HTMLCanvasElement>) {
+  function getTouchPos(event: React.TouchEvent<HTMLCanvasElement>) {
+    const canvas = canvasRef.current;
+    const touch = event.touches[0];
+
+    if (!canvas || !touch) return { x: 0, y: 0 };
+
+    const rect = canvas.getBoundingClientRect();
+
+    return {
+      x: ((touch.clientX - rect.left) / rect.width) * canvas.width,
+      y: ((touch.clientY - rect.top) / rect.height) * canvas.height,
+    };
+  }
+
+  function beginPath(x: number, y: number) {
     if (viewOnly) return;
 
     const canvas = canvasRef.current;
@@ -513,16 +684,14 @@ function SignatureBox({
 
     drawingRef.current = true;
 
-    const pos = getPos(event);
-
     ctx.beginPath();
-    ctx.moveTo(pos.x, pos.y);
+    ctx.moveTo(x, y);
     ctx.lineWidth = 2;
     ctx.lineCap = "round";
     ctx.strokeStyle = "#2b241c";
   }
 
-  function draw(event: React.MouseEvent<HTMLCanvasElement>) {
+  function continuePath(x: number, y: number) {
     if (viewOnly || !drawingRef.current) return;
 
     const canvas = canvasRef.current;
@@ -530,13 +699,11 @@ function SignatureBox({
 
     if (!canvas || !ctx) return;
 
-    const pos = getPos(event);
-
-    ctx.lineTo(pos.x, pos.y);
+    ctx.lineTo(x, y);
     ctx.stroke();
   }
 
-  function end() {
+  function finishPath() {
     if (viewOnly) return;
 
     const canvas = canvasRef.current;
@@ -546,6 +713,28 @@ function SignatureBox({
     if (canvas) {
       onChange(canvas.toDataURL("image/png"));
     }
+  }
+
+  function startMouse(event: React.MouseEvent<HTMLCanvasElement>) {
+    const pos = getMousePos(event);
+    beginPath(pos.x, pos.y);
+  }
+
+  function drawMouse(event: React.MouseEvent<HTMLCanvasElement>) {
+    const pos = getMousePos(event);
+    continuePath(pos.x, pos.y);
+  }
+
+  function startTouch(event: React.TouchEvent<HTMLCanvasElement>) {
+    event.preventDefault();
+    const pos = getTouchPos(event);
+    beginPath(pos.x, pos.y);
+  }
+
+  function drawTouch(event: React.TouchEvent<HTMLCanvasElement>) {
+    event.preventDefault();
+    const pos = getTouchPos(event);
+    continuePath(pos.x, pos.y);
   }
 
   function clearSignature() {
@@ -566,11 +755,14 @@ function SignatureBox({
         ref={canvasRef}
         width={500}
         height={160}
-        onMouseDown={start}
-        onMouseMove={draw}
-        onMouseUp={end}
-        onMouseLeave={end}
-        className="h-full w-full cursor-crosshair rounded-lg bg-white"
+        onMouseDown={startMouse}
+        onMouseMove={drawMouse}
+        onMouseUp={finishPath}
+        onMouseLeave={finishPath}
+        onTouchStart={startTouch}
+        onTouchMove={drawTouch}
+        onTouchEnd={finishPath}
+        className="h-full w-full cursor-crosshair touch-none rounded-lg bg-white"
       />
 
       {!value && (
