@@ -60,11 +60,28 @@ const VenueEventPaymentSchema = new Schema(
       type: [ExtraChargeSchema],
       default: [],
     },
-    bankTransferDetails: {
+
+    bankName: {
       type: String,
       default: "",
       trim: true,
     },
+    bankBranch: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    bankAccountNumber: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    bankAccountHolder: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
     paymentSmsPhone: {
       type: String,
       default: "",

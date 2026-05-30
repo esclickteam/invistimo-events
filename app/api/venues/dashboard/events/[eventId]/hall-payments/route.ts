@@ -77,7 +77,12 @@ export async function GET(
         advancePayment: 0,
         paidAmount: 0,
         extras: [],
-        bankTransferDetails: "",
+
+        bankName: "",
+        bankBranch: "",
+        bankAccountNumber: "",
+        bankAccountHolder: "",
+
         paymentSmsPhone: "",
         paymentSmsMessage: "",
         notes: "",
@@ -133,7 +138,12 @@ export async function PUT(
       advancePayment: n(body?.advancePayment),
       paidAmount: n(body?.paidAmount),
       extras: normalizeExtras(body?.extras),
-      bankTransferDetails: String(body?.bankTransferDetails || "").trim(),
+
+      bankName: String(body?.bankName || "").trim(),
+      bankBranch: String(body?.bankBranch || "").trim(),
+      bankAccountNumber: String(body?.bankAccountNumber || "").trim(),
+      bankAccountHolder: String(body?.bankAccountHolder || "").trim(),
+
       paymentSmsPhone: String(body?.paymentSmsPhone || "").trim(),
       paymentSmsMessage: String(body?.paymentSmsMessage || "").trim(),
       notes: String(body?.notes || "").trim(),

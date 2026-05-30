@@ -34,7 +34,12 @@ type HallPaymentData = {
   advancePayment: number;
   paidAmount: number;
   extras: ExtraCharge[];
-  bankTransferDetails: string;
+
+  bankName: string;
+  bankBranch: string;
+  bankAccountNumber: string;
+  bankAccountHolder: string;
+
   paymentSmsPhone: string;
   paymentSmsMessage: string;
   notes: string;
@@ -103,7 +108,12 @@ function buildDefaultState(eventId: string, hallId = ""): HallPaymentData {
     advancePayment: 0,
     paidAmount: 0,
     extras: [],
-    bankTransferDetails: "",
+
+    bankName: "",
+    bankBranch: "",
+    bankAccountNumber: "",
+    bankAccountHolder: "",
+
     paymentSmsPhone: "",
     paymentSmsMessage: "",
     notes: "",
@@ -138,10 +148,20 @@ function calculateSummary(data: HallPaymentData): Summary {
   };
 }
 
+function buildBankDetailsText(data: HallPaymentData) {
+  const rows = [
+    data.bankName?.trim() ? `בנק: ${data.bankName.trim()}` : "",
+    data.bankBranch?.trim() ? `סניף: ${data.bankBranch.trim()}` : "",
+    data.bankAccountNumber?.trim() ? `מספר חשבון: ${data.bankAccountNumber.trim()}` : "",
+    data.bankAccountHolder?.trim() ? `על שם: ${data.bankAccountHolder.trim()}` : "",
+  ].filter(Boolean);
+
+  return rows.length ? rows.join("\n") : "";
+}
+
 function buildDefaultSmsMessage(data: HallPaymentData, summary: Summary) {
-  const transferDetails = data.bankTransferDetails?.trim()
-    ? `\nפרטי חשבון להעברה:\n${data.bankTransferDetails.trim()}`
-    : "";
+  const bankDetails = buildBankDetailsText(data);
+  const transferSection = bankDetails ? `\nפרטי חשבון להעברה:\n${bankDetails}` : "";
 
   return [
     "שלום, מצורף סיכום תשלום לאירוע מטעם האולם:",
@@ -152,7 +172,7 @@ function buildDefaultSmsMessage(data: HallPaymentData, summary: Summary) {
     `סה״כ חיוב סופי: ${money(summary.finalTotal)}`,
     `סה״כ שולם: ${money(summary.totalPaid)}`,
     `יתרה לתשלום: ${money(summary.remainingToPay)}`,
-    transferDetails,
+    transferSection,
   ]
     .filter(Boolean)
     .join("\n");
@@ -168,7 +188,7 @@ async function readJsonSafely(res: Response) {
   } catch {
     throw new Error(
       res.status === 404
-        ? "נתיב השרת של התשלומים לא נמצא. ודאי שהקובץ נמצא ב־app/api/events/[eventId]/hall-payments/route.ts"
+        ? "נתיב השרת של התשלומים לא נמצא. ודאי שהקובץ נמצא ב־app/api/venues/dashboard/events/[eventId]/hall-payments/route.ts"
         : "השרת החזיר HTML במקום JSON. בדרך כלל זה אומר שה־API Route לא נמצא, נפל בשגיאה, או שהניתוב לא נכון."
     );
   }
@@ -207,7 +227,10 @@ export default function EventHallPaymentsTab({
         advancePayment: data.advancePayment,
         paidAmount: data.paidAmount,
         extras: data.extras,
-        bankTransferDetails: data.bankTransferDetails,
+        bankName: data.bankName,
+        bankBranch: data.bankBranch,
+        bankAccountNumber: data.bankAccountNumber,
+        bankAccountHolder: data.bankAccountHolder,
         paymentSmsPhone: data.paymentSmsPhone,
         paymentSmsMessage: data.paymentSmsMessage,
         notes: data.notes,
@@ -222,13 +245,18 @@ export default function EventHallPaymentsTab({
       data.advancePayment,
       data.paidAmount,
       data.extras,
-      data.bankTransferDetails,
+      data.bankName,
+      data.bankBranch,
+      data.bankAccountNumber,
+      data.bankAccountHolder,
       data.paymentSmsPhone,
       data.paymentSmsMessage,
       data.notes,
       data.status,
     ]
   );
+
+  const apiPath = `/api/venues/dashboard/events/${eventId}/hall-payments`;
 
   useEffect(() => {
     let active = true;
@@ -238,7 +266,7 @@ export default function EventHallPaymentsTab({
         setLoading(true);
         setMessage("");
 
-        const res = await fetch(`/api/events/${eventId}/hall-payments`, {
+        const res = await fetch(apiPath, {
           method: "GET",
           credentials: "include",
           cache: "no-store",
@@ -258,7 +286,12 @@ export default function EventHallPaymentsTab({
           hallId: json?.data?.hallId || hallId || "",
           status: normalizeStatus(json?.data?.status),
           extras: Array.isArray(json?.data?.extras) ? json.data.extras : [],
-          bankTransferDetails: String(json?.data?.bankTransferDetails || ""),
+
+          bankName: String(json?.data?.bankName || ""),
+          bankBranch: String(json?.data?.bankBranch || ""),
+          bankAccountNumber: String(json?.data?.bankAccountNumber || ""),
+          bankAccountHolder: String(json?.data?.bankAccountHolder || ""),
+
           paymentSmsPhone: String(json?.data?.paymentSmsPhone || ""),
           paymentSmsMessage: String(json?.data?.paymentSmsMessage || ""),
         };
@@ -291,7 +324,7 @@ export default function EventHallPaymentsTab({
       active = false;
       saveAbortRef.current?.abort();
     };
-  }, [eventId, hallId]);
+  }, [eventId, hallId, apiPath]);
 
   async function savePayload(payload: HallPaymentData, nextStatus?: PaymentStatus) {
     saveAbortRef.current?.abort();
@@ -308,7 +341,7 @@ export default function EventHallPaymentsTab({
         status: nextStatus || payload.status || "open",
       };
 
-      const res = await fetch(`/api/events/${eventId}/hall-payments`, {
+      const res = await fetch(apiPath, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -327,7 +360,12 @@ export default function EventHallPaymentsTab({
         ...json.data,
         status: normalizeStatus(json?.data?.status),
         extras: Array.isArray(json?.data?.extras) ? json.data.extras : payloadToSave.extras,
-        bankTransferDetails: String(json?.data?.bankTransferDetails || payloadToSave.bankTransferDetails || ""),
+
+        bankName: String(json?.data?.bankName || payloadToSave.bankName || ""),
+        bankBranch: String(json?.data?.bankBranch || payloadToSave.bankBranch || ""),
+        bankAccountNumber: String(json?.data?.bankAccountNumber || payloadToSave.bankAccountNumber || ""),
+        bankAccountHolder: String(json?.data?.bankAccountHolder || payloadToSave.bankAccountHolder || ""),
+
         paymentSmsPhone: String(json?.data?.paymentSmsPhone || payloadToSave.paymentSmsPhone || ""),
         paymentSmsMessage: String(json?.data?.paymentSmsMessage || payloadToSave.paymentSmsMessage || ""),
       };
@@ -617,15 +655,35 @@ export default function EventHallPaymentsTab({
               </div>
             </div>
 
-            <label className="mt-4 block">
-              <span className="mb-2 block text-xs font-black text-[#8a7b68]">פרטי חשבון להעברה</span>
-              <textarea
-                value={data.bankTransferDetails}
-                onChange={(e) => setField("bankTransferDetails", e.target.value)}
-                placeholder="לדוגמה: בנק / סניף / חשבון / שם מוטב"
-                className="min-h-[90px] w-full rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-3 text-sm font-bold text-[#2b241c] outline-none focus:border-[#b98121]"
-              />
-            </label>
+            <div className="mt-4">
+              <div className="mb-2 text-xs font-black text-[#8a7b68]">פרטי חשבון בנק להעברה</div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <TextField
+                  label="בנק"
+                  value={data.bankName}
+                  onChange={(value) => setField("bankName", value)}
+                  placeholder="לדוגמה: מזרחי / לאומי / הפועלים"
+                />
+                <TextField
+                  label="סניף"
+                  value={data.bankBranch}
+                  onChange={(value) => setField("bankBranch", value)}
+                  placeholder="לדוגמה: 123"
+                />
+                <TextField
+                  label="מספר חשבון"
+                  value={data.bankAccountNumber}
+                  onChange={(value) => setField("bankAccountNumber", value)}
+                  placeholder="לדוגמה: 123456789"
+                />
+                <TextField
+                  label="על שם"
+                  value={data.bankAccountHolder}
+                  onChange={(value) => setField("bankAccountHolder", value)}
+                  placeholder="שם בעל החשבון / שם האולם"
+                />
+              </div>
+            </div>
 
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <button
