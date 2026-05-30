@@ -95,17 +95,6 @@ function normalizeHallId(body: any) {
   );
 }
 
-function isInviteUsedOrLocked(event: any) {
-  const status = cleanString(event?.venueClientInviteStatus);
-
-  return Boolean(
-    event?.venueClientInviteUsedAt ||
-      status === "used" ||
-      status === "paid" ||
-      status === "pending_payment"
-  );
-}
-
 function isInviteExpired(event: any) {
   if (!event?.venueClientInviteExpiresAt) return false;
 
@@ -114,6 +103,98 @@ function isInviteExpired(event: any) {
   if (Number.isNaN(expiresAt.getTime())) return false;
 
   return expiresAt.getTime() < Date.now();
+}
+
+function isSameLockedUser(event: any, userId: string, email: string) {
+  const lockedUserId = cleanString(event?.venueClientInviteLockedByUserId);
+  const lockedEmail = cleanString(
+    event?.venueClientInviteLockedEmail
+  ).toLowerCase();
+
+  return (
+    (!!lockedUserId && lockedUserId === userId) ||
+    (!!lockedEmail && lockedEmail === email.toLowerCase())
+  );
+}
+
+function getFindOneAndUpdateDoc(result: any) {
+  /*
+    חשוב:
+    בגרסאות שונות של MongoDB driver:
+    - לפעמים findOneAndUpdate מחזיר document ישיר
+    - לפעמים הוא מחזיר { value: document }
+    לכן לא בודקים רק result.value.
+  */
+  return result?.value || result || null;
+}
+
+async function tryReturnExistingStripeSession({
+  stripe,
+  events,
+  event,
+}: {
+  stripe: Stripe;
+  events: any;
+  event: any;
+}) {
+  const sessionId = cleanString(
+    event?.venueClientStripeSessionId || event?.venueClientPaymentSessionId
+  );
+
+  if (!sessionId) {
+    return null;
+  }
+
+  try {
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+    if (session?.payment_status === "paid") {
+      return {
+        status: 409,
+        body: {
+          success: false,
+          message: "התשלום כבר בוצע עבור הקישור הזה.",
+        },
+      };
+    }
+
+    if (session?.url && session?.status === "open") {
+      return {
+        status: 200,
+        body: {
+          success: true,
+          url: session.url,
+          sessionId: session.id,
+          totalPrice: Number(event?.venueClientPaymentAmount || 0),
+          resumed: true,
+        },
+      };
+    }
+  } catch (error) {
+    console.warn("Failed to retrieve existing Stripe session:", error);
+  }
+
+  /*
+    אם היה pending_payment אבל אין session פעיל,
+    משחררים את הקישור לאותו משתמש כדי שאפשר יהיה ליצור session חדש.
+  */
+  await events.updateOne(
+    { _id: event._id },
+    {
+      $set: {
+        venueClientInviteStatus: "sent",
+        venueClientInviteLockedAt: null,
+        venueClientInviteLockedByUserId: null,
+        venueClientInviteLockedEmail: "",
+        venueClientPaymentStatus: "pending",
+        venueClientPaymentSessionId: "",
+        venueClientStripeSessionId: "",
+        updatedAt: new Date(),
+      },
+    }
+  );
+
+  return null;
 }
 
 export async function POST(req: NextRequest) {
@@ -221,7 +302,9 @@ export async function POST(req: NextRequest) {
     const amountInAgorot = totalPrice * 100;
     const baseUrl = getBaseUrl(req);
 
-    const existingEvent = await events.findOne(buildInviteTokenQuery(venueInviteToken));
+    const existingEvent = await events.findOne(
+      buildInviteTokenQuery(venueInviteToken)
+    );
 
     if (!existingEvent) {
       return NextResponse.json(
@@ -237,24 +320,61 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          message: "קישור ההרשמה פג תוקף. צריך ליצור קישור חדש מהאולם.",
+          message: "קישור ההרשמה פג תוקף. צריך ליצור קישור חדש.",
         },
         { status: 410 }
       );
     }
 
-    if (isInviteUsedOrLocked(existingEvent)) {
+    const currentStatus = cleanString(existingEvent?.venueClientInviteStatus);
+
+    if (
+      existingEvent?.venueClientInviteUsedAt ||
+      currentStatus === "used" ||
+      currentStatus === "paid"
+    ) {
       return NextResponse.json(
         {
           success: false,
-          message:
-            "קישור ההרשמה כבר נוצל או נמצא בתהליך תשלום. צריך ליצור קישור חדש מהאולם.",
+          message: "קישור ההרשמה כבר נוצל. צריך ליצור קישור חדש.",
         },
         { status: 409 }
       );
     }
 
-    if (existingEvent.venueAccessStatus && existingEvent.venueAccessStatus !== "linked") {
+    /*
+      אם המשתמש כבר לחץ המשך לתשלום והקישור ננעל עליו,
+      לא חוסמים אותו. מחזירים את Stripe session הקיים או יוצרים חדש.
+    */
+    if (currentStatus === "pending_payment") {
+      if (!isSameLockedUser(existingEvent, userId, email)) {
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              "קישור ההרשמה כבר נמצא בתהליך תשלום. צריך ליצור קישור חדש.",
+          },
+          { status: 409 }
+        );
+      }
+
+      const existingSessionResponse = await tryReturnExistingStripeSession({
+        stripe,
+        events,
+        event: existingEvent,
+      });
+
+      if (existingSessionResponse) {
+        return NextResponse.json(existingSessionResponse.body, {
+          status: existingSessionResponse.status,
+        });
+      }
+    }
+
+    if (
+      existingEvent.venueAccessStatus &&
+      existingEvent.venueAccessStatus !== "linked"
+    ) {
       return NextResponse.json(
         {
           success: false,
@@ -265,17 +385,26 @@ export async function POST(req: NextRequest) {
     }
 
     /*
-      נעילה אטומית של הקישור:
-      רק מי שתופס את הקישור כשהוא sent ולא נוצל יכול ליצור Stripe session.
-      אם שני אנשים לוחצים במקביל — רק אחד מצליח.
+      נעילה אטומית:
+      מאפשרים נעילה רק אם הקישור לא נוצל.
+      תומך גם באירועים ישנים שאין להם status.
     */
-    const locked = await events.findOneAndUpdate(
+    const lockedResult = await events.findOneAndUpdate(
       {
         _id: existingEvent._id,
-        venueClientInviteStatus: "sent",
         $or: [
-          { venueClientInviteUsedAt: { $exists: false } },
-          { venueClientInviteUsedAt: null },
+          { venueClientInviteStatus: "sent" },
+          { venueClientInviteStatus: "" },
+          { venueClientInviteStatus: { $exists: false } },
+          { venueClientInviteStatus: null },
+        ],
+        $and: [
+          {
+            $or: [
+              { venueClientInviteUsedAt: { $exists: false } },
+              { venueClientInviteUsedAt: null },
+            ],
+          },
         ],
       },
       {
@@ -303,18 +432,18 @@ export async function POST(req: NextRequest) {
       }
     );
 
-    if (!locked?.value) {
+    const event = getFindOneAndUpdateDoc(lockedResult);
+
+    if (!event) {
       return NextResponse.json(
         {
           success: false,
           message:
-            "קישור ההרשמה כבר נוצל או ננעל לתהליך תשלום. צריך ליצור קישור חדש מהאולם.",
+            "קישור ההרשמה כבר נוצל או ננעל לתהליך תשלום. צריך ליצור קישור חדש.",
         },
         { status: 409 }
       );
     }
-
-    const event = locked.value;
 
     const cancelUrl = new URL(`${baseUrl}/venue-client/packages`);
     cancelUrl.searchParams.set("venueInviteToken", venueInviteToken);
