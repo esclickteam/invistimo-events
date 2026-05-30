@@ -154,6 +154,10 @@ async function createOrUpdateInvitation({
     rsvpEnabled: true,
     eventManagementEnabled,
 
+    includeCreditGifts: true,
+    creditGiftsEnabled: true,
+    externalCreditGiftProvider: true,
+
     paymentStatus: "paid",
     venueClientPaymentStatus: "paid",
     paidAmount,
@@ -319,7 +323,9 @@ async function updateUserPermissions({
 
         includeSystem: true,
         includeCalls: true,
-        includeCreditGifts: false,
+        includeCreditGifts: true,
+        creditGiftsEnabled: true,
+        externalCreditGiftProvider: true,
         includeDesign: false,
 
         includeEventManagement: eventManagementEnabled,
@@ -347,6 +353,8 @@ async function updateUserPermissions({
           seatingTemplates: true,
           rsvp: true,
           messages: true,
+          creditGifts: true,
+          externalCreditGiftProvider: true,
           eventProduction: eventManagementEnabled,
         },
 
@@ -355,6 +363,9 @@ async function updateUserPermissions({
           rsvpEnabled: true,
           eventManagementEnabled,
           suppliersBudgetEnabled: eventManagementEnabled,
+
+          creditGiftsEnabled: true,
+          externalCreditGiftProvider: true,
 
           maxGuests: recordsCount,
           maxRecords: recordsCount,
@@ -641,6 +652,10 @@ export async function POST(req: NextRequest) {
           venueClientStripeSessionId: sessionId,
           venueClientPaymentAmount: paidAmount,
           venueClientPaymentIncluded: false,
+
+          includeCreditGifts: true,
+          creditGiftsEnabled: true,
+          externalCreditGiftProvider: true,
 
           venueClientInvitationId: invitation._id,
           updatedAt: new Date(),

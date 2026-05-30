@@ -3117,9 +3117,10 @@ function ClientInviteTab({
           )}
 
           <div className="mt-5 rounded-2xl bg-[#fff8eb] p-4 text-sm font-bold leading-7 text-[#7f705d]">
-            הקישור שיישלח ללקוח כולל את התבנית שבחרת כאן. לאחר הרשמה הלקוח יבחר חבילה:
-            הושבה בלבד ללא תשלום, או חבילות בתשלום דרך Stripe.
-          </div>
+  הקישור שיישלח ללקוח כולל את תבנית ההושבה שבחרת והוא חד־פעמי.
+  לאחר שהלקוח פותח את החבילה או מתחיל תהליך תשלום, הקישור ננעל ולא ניתן
+  להשתמש בו שוב. אם יש צורך בשליחה נוספת, יש ליצור קישור חדש.
+</div>
 
           {clientInviteError && (
             <div className="mt-4 rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm font-black text-rose-700">
