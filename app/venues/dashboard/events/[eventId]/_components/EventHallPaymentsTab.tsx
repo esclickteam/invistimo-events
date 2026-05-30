@@ -196,6 +196,40 @@ export default function EventHallPaymentsTab({
 
   const summary = useMemo(() => calculateSummary(data), [data]);
 
+  const autoSaveKey = useMemo(
+    () =>
+      JSON.stringify({
+        hallId: data.hallId,
+        estimatedGuests: data.estimatedGuests,
+        reserveGuests: data.reserveGuests,
+        pricePerGuest: data.pricePerGuest,
+        actualGuests: data.actualGuests,
+        advancePayment: data.advancePayment,
+        paidAmount: data.paidAmount,
+        extras: data.extras,
+        bankTransferDetails: data.bankTransferDetails,
+        paymentSmsPhone: data.paymentSmsPhone,
+        paymentSmsMessage: data.paymentSmsMessage,
+        notes: data.notes,
+        status: data.status,
+      }),
+    [
+      data.hallId,
+      data.estimatedGuests,
+      data.reserveGuests,
+      data.pricePerGuest,
+      data.actualGuests,
+      data.advancePayment,
+      data.paidAmount,
+      data.extras,
+      data.bankTransferDetails,
+      data.paymentSmsPhone,
+      data.paymentSmsMessage,
+      data.notes,
+      data.status,
+    ]
+  );
+
   useEffect(() => {
     let active = true;
 
@@ -204,7 +238,7 @@ export default function EventHallPaymentsTab({
         setLoading(true);
         setMessage("");
 
-        const res = await fetch(`/api/venues/dashboard/events/${eventId}/hall-payments`, {
+        const res = await fetch(`/api/events/${eventId}/hall-payments`, {
           method: "GET",
           credentials: "include",
           cache: "no-store",
@@ -274,7 +308,7 @@ export default function EventHallPaymentsTab({
         status: nextStatus || payload.status || "open",
       };
 
-      const res = await fetch(`/api/venues/dashboard/events/${eventId}/hall-payments`, {
+      const res = await fetch(`/api/events/${eventId}/hall-payments`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -301,7 +335,7 @@ export default function EventHallPaymentsTab({
       skipNextAutoSaveRef.current = true;
       setData(saved);
       setLastSavedAt(saved.updatedAt || new Date().toISOString());
-      setMessage(nextStatus === "closed" ? "האירוע נסגר והתשלום נשמר" : "נשמר אוטומטית");
+      setMessage(nextStatus === "closed" ? "האירוע נסגר והתשלום נשמר" : "נשמר אוטומטית אחרי כמה שניות");
     } catch (error: any) {
       if (error?.name === "AbortError") return;
       setMessage(error?.message || "שגיאה בשמירת התשלומים");
@@ -320,11 +354,11 @@ export default function EventHallPaymentsTab({
 
     const timer = window.setTimeout(() => {
       void savePayload(data);
-    }, 700);
+    }, 3500);
 
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data]);
+  }, [autoSaveKey]);
 
   const updateSmsMessageFromCurrentSummary = () => {
     setData((current) => ({
