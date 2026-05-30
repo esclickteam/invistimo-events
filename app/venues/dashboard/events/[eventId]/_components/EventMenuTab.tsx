@@ -171,22 +171,44 @@ function buildKitchenDishesFromSelectedMenu(menu: AssignedMenu | null): KitchenR
   if (!menu) return [];
 
   const existing = normalizeKitchenDishes(menu.kitchenDishes);
-  if (existing.length) return existing;
-
   const selectedDishes = Array.isArray(menu.selectedDishes) ? menu.selectedDishes : [];
 
+  /*
+    חשוב:
+    אם בעל האירוע כבר בחר מנות — הלייב חייב להיבנות לפי המנות שנבחרו בפועל,
+    ולא לפי קטגוריות התפריט. לכן selectedDishes מקבל עדיפות על kitchenDishes ישן.
+    כדי לא לאבד כמויות שכבר עודכנו, אנחנו ממזגים לפי dishId + categoryId.
+  */
   if (selectedDishes.length) {
-    return selectedDishes.map((dish, index) => ({
-      id: `${dish.categoryId || "category"}-${dish.dishId || index}`,
-      dishId: dish.dishId,
-      categoryId: dish.categoryId,
-      categoryTitle: dish.categoryTitle || "כללי",
-      dishName: dish.dishName || "מנה ללא שם",
-      plannedQuantity: 0,
-      actualServedQuantity: 0,
-      notes: "",
-    }));
+    const selectedRows = selectedDishes.map((dish, index) => {
+      const rowId = `${dish.categoryId || "category"}-${dish.dishId || index}`;
+
+      const existingRow = existing.find((row) => {
+        const sameDish = row.dishId && row.dishId === dish.dishId;
+        const sameCategory = row.categoryId && row.categoryId === dish.categoryId;
+        return row.id === rowId || Boolean(sameDish && sameCategory);
+      });
+
+      return {
+        id: rowId,
+        dishId: dish.dishId,
+        categoryId: dish.categoryId,
+        categoryTitle: dish.categoryTitle || existingRow?.categoryTitle || "כללי",
+        dishName: dish.dishName || existingRow?.dishName || "מנה ללא שם",
+        plannedQuantity: existingRow?.plannedQuantity ?? 0,
+        actualServedQuantity: existingRow?.actualServedQuantity ?? 0,
+        notes: existingRow?.notes || "",
+      };
+    });
+
+    const manualRows = existing.filter(
+      (row) => !row.dishId || row.id.startsWith("manual-dish-")
+    );
+
+    return [...selectedRows, ...manualRows];
   }
+
+  if (existing.length) return existing;
 
   return menu.categoryOverrides.map((category, index) => ({
     id: `category-report-${category.id || index}`,
@@ -253,13 +275,11 @@ export default function EventMenuTab({
       | "kitchenDishes"
       | "kitchenSpecialNotes"
     >
-  ) => void | Promise<void>;
+  ) => void;
 }) {
   const [menuView, setMenuView] = useState<"overview" | "live">("overview");
-  const [liveCategoryFilter, setLiveCategoryFilter] = useState("all");
   const [liveSaving, setLiveSaving] = useState(false);
-
-  const liveSavingRef = useRef(false);
+  const liveSaveInProgressRef = useRef(false);
   const pendingLiveSaveRef = useRef<Pick<
     AssignedMenu,
     | "kitchenReportStatus"
@@ -271,6 +291,19 @@ export default function EventMenuTab({
   const publicLink =
     assignedMenu?.publicLink ||
     `https://www.invistimo.com/menus/choose/${assignedMenu?.publicToken || eventId}`;
+
+  const selectedDishesSignature = useMemo(
+    () =>
+      JSON.stringify(
+        (assignedMenu?.selectedDishes || []).map((dish) => ({
+          categoryId: dish.categoryId,
+          categoryTitle: dish.categoryTitle,
+          dishId: dish.dishId,
+          dishName: dish.dishName,
+        }))
+      ),
+    [assignedMenu?.selectedDishes]
+  );
 
   const selectedDishGroups = (assignedMenu?.selectedDishes || []).reduce(
     (groups, item) => {
@@ -284,7 +317,7 @@ export default function EventMenuTab({
 
   const initialKitchenDishes = useMemo(
     () => buildKitchenDishesFromSelectedMenu(assignedMenu),
-    [assignedMenu?.id]
+    [assignedMenu?.id, selectedDishesSignature, assignedMenu?.kitchenReportUpdatedAt]
   );
 
   const [kitchenDishes, setKitchenDishes] =
@@ -306,11 +339,7 @@ export default function EventMenuTab({
     setKitchenSpecialNotes(assignedMenu?.kitchenSpecialNotes || []);
     setKitchenGeneralNotes(assignedMenu?.kitchenGeneralNotes || "");
     setKitchenReportStatus(assignedMenu?.kitchenReportStatus || "draft");
-    setLiveCategoryFilter("all");
-    pendingLiveSaveRef.current = null;
-    liveSavingRef.current = false;
-    setLiveSaving(false);
-  }, [assignedMenu?.id]);
+  }, [assignedMenu?.id, selectedDishesSignature, assignedMenu?.kitchenReportUpdatedAt]);
 
   const totalEstimated = kitchenDishes.reduce(
     (sum, item) => sum + toNumber(item.plannedQuantity, 0),
@@ -327,25 +356,33 @@ export default function EventMenuTab({
     0
   );
 
-  const liveCategoryOptions = useMemo(() => {
-    const fromKitchenRows = kitchenDishes
-      .map((row) => row.categoryTitle || "כללי")
-      .filter(Boolean);
+  const liveCategoryGroups = useMemo(() => {
+    const groups = new Map<string, { id: string; title: string; count: number }>();
 
-    const fromSelectedDishes = (assignedMenu?.selectedDishes || [])
-      .map((dish) => dish.categoryTitle || "כללי")
-      .filter(Boolean);
+    kitchenDishes.forEach((row) => {
+      const id = row.categoryId || row.categoryTitle || "manual";
+      const title = row.categoryTitle || "כללי";
+      const current = groups.get(id);
 
-    return Array.from(new Set([...fromSelectedDishes, ...fromKitchenRows]));
-  }, [assignedMenu?.selectedDishes, kitchenDishes]);
+      if (current) {
+        current.count += 1;
+      } else {
+        groups.set(id, { id, title, count: 1 });
+      }
+    });
+
+    return Array.from(groups.values());
+  }, [kitchenDishes]);
+
+  const [activeLiveCategoryId, setActiveLiveCategoryId] = useState("all");
 
   const filteredKitchenDishes = useMemo(() => {
-    if (liveCategoryFilter === "all") return kitchenDishes;
+    if (activeLiveCategoryId === "all") return kitchenDishes;
 
     return kitchenDishes.filter(
-      (row) => (row.categoryTitle || "כללי") === liveCategoryFilter
+      (row) => (row.categoryId || row.categoryTitle || "manual") === activeLiveCategoryId
     );
-  }, [kitchenDishes, liveCategoryFilter]);
+  }, [activeLiveCategoryId, kitchenDishes]);
 
   const saveLiveKitchenNow = async (
     payload: Partial<
@@ -358,71 +395,42 @@ export default function EventMenuTab({
       >
     >
   ) => {
-    if (!assignedMenu) return;
-
-    const nextPayload: Pick<
-      AssignedMenu,
-      | "kitchenReportStatus"
-      | "kitchenGeneralNotes"
-      | "kitchenDishes"
-      | "kitchenSpecialNotes"
-    > = {
+    const nextPayload = {
       kitchenReportStatus: payload.kitchenReportStatus || "draft",
       kitchenGeneralNotes: payload.kitchenGeneralNotes ?? kitchenGeneralNotes,
       kitchenDishes: payload.kitchenDishes ?? kitchenDishes,
       kitchenSpecialNotes: payload.kitchenSpecialNotes ?? kitchenSpecialNotes,
     };
 
-    if (liveSavingRef.current) {
+    if (liveSaveInProgressRef.current) {
       pendingLiveSaveRef.current = nextPayload;
       return;
     }
 
-    liveSavingRef.current = true;
+    liveSaveInProgressRef.current = true;
     setLiveSaving(true);
 
     try {
       await Promise.resolve(onSaveKitchenReport(nextPayload));
     } finally {
-      liveSavingRef.current = false;
+      liveSaveInProgressRef.current = false;
       setLiveSaving(false);
 
-      const pendingPayload = pendingLiveSaveRef.current;
+      const pending = pendingLiveSaveRef.current;
       pendingLiveSaveRef.current = null;
 
-      if (pendingPayload) {
-        await saveLiveKitchenNow(pendingPayload);
+      if (pending) {
+        await saveLiveKitchenNow(pending);
       }
     }
   };
 
-  const saveDraftWithDishes = (nextDishes: KitchenReportDish[]) => {
-    setKitchenReportStatus("draft");
-    setKitchenDishes(nextDishes);
-
-    void saveLiveKitchenNow({
+  const saveCurrentKitchenState = () => {
+    saveLiveKitchenNow({
       kitchenReportStatus: "draft",
-      kitchenDishes: nextDishes,
-    });
-  };
-
-  const saveDraftWithSpecialNotes = (nextSpecialNotes: KitchenSpecialNote[]) => {
-    setKitchenReportStatus("draft");
-    setKitchenSpecialNotes(nextSpecialNotes);
-
-    void saveLiveKitchenNow({
-      kitchenReportStatus: "draft",
-      kitchenSpecialNotes: nextSpecialNotes,
-    });
-  };
-
-  const saveDraftWithGeneralNotes = (nextNotes: string) => {
-    setKitchenReportStatus("draft");
-    setKitchenGeneralNotes(nextNotes);
-
-    void saveLiveKitchenNow({
-      kitchenReportStatus: "draft",
-      kitchenGeneralNotes: nextNotes,
+      kitchenGeneralNotes,
+      kitchenDishes,
+      kitchenSpecialNotes,
     });
   };
 
@@ -432,8 +440,11 @@ export default function EventMenuTab({
       KitchenReportDish,
       "plannedQuantity" | "actualServedQuantity" | "notes" | "dishName"
     >,
-    value: string | number
+    value: string | number,
+    shouldSave = true
   ) => {
+    const nextStatus: KitchenReportStatus = "draft";
+
     const nextDishes = kitchenDishes.map((row) => {
       if (row.id !== rowId) return row;
 
@@ -450,10 +461,20 @@ export default function EventMenuTab({
       };
     });
 
-    saveDraftWithDishes(nextDishes);
+    setKitchenReportStatus(nextStatus);
+    setKitchenDishes(nextDishes);
+
+    if (shouldSave) {
+      saveLiveKitchenNow({
+        kitchenReportStatus: nextStatus,
+        kitchenDishes: nextDishes,
+      });
+    }
   };
 
   const quickUpdateActualServed = (rowId: string, diff: number) => {
+    const nextStatus: KitchenReportStatus = "draft";
+
     const nextDishes = kitchenDishes.map((row) => {
       if (row.id !== rowId) return row;
 
@@ -466,18 +487,24 @@ export default function EventMenuTab({
       };
     });
 
-    saveDraftWithDishes(nextDishes);
+    setKitchenReportStatus(nextStatus);
+    setKitchenDishes(nextDishes);
+
+    saveLiveKitchenNow({
+      kitchenReportStatus: nextStatus,
+      kitchenDishes: nextDishes,
+    });
   };
 
   const addKitchenDish = () => {
+    const nextStatus: KitchenReportStatus = "draft";
     const nextDishes = [
       ...kitchenDishes,
       {
         id: `manual-dish-${Date.now()}`,
         dishId: "",
-        categoryId: "",
-        categoryTitle:
-          liveCategoryFilter !== "all" ? liveCategoryFilter : "מנה ידנית",
+        categoryId: "manual",
+        categoryTitle: "מנה ידנית",
         dishName: "",
         plannedQuantity: 0,
         actualServedQuantity: 0,
@@ -485,15 +512,31 @@ export default function EventMenuTab({
       },
     ];
 
-    saveDraftWithDishes(nextDishes);
+    setKitchenReportStatus(nextStatus);
+    setKitchenDishes(nextDishes);
+    setActiveLiveCategoryId("all");
+
+    saveLiveKitchenNow({
+      kitchenReportStatus: nextStatus,
+      kitchenDishes: nextDishes,
+    });
   };
 
   const removeKitchenDish = (rowId: string) => {
+    const nextStatus: KitchenReportStatus = "draft";
     const nextDishes = kitchenDishes.filter((row) => row.id !== rowId);
-    saveDraftWithDishes(nextDishes);
+
+    setKitchenReportStatus(nextStatus);
+    setKitchenDishes(nextDishes);
+
+    saveLiveKitchenNow({
+      kitchenReportStatus: nextStatus,
+      kitchenDishes: nextDishes,
+    });
   };
 
   const addSpecialNote = (type: KitchenSpecialNoteType) => {
+    const nextStatus: KitchenReportStatus = "draft";
     const nextSpecialNotes = [
       ...kitchenSpecialNotes,
       {
@@ -505,14 +548,23 @@ export default function EventMenuTab({
       },
     ];
 
-    saveDraftWithSpecialNotes(nextSpecialNotes);
+    setKitchenReportStatus(nextStatus);
+    setKitchenSpecialNotes(nextSpecialNotes);
+
+    saveLiveKitchenNow({
+      kitchenReportStatus: nextStatus,
+      kitchenSpecialNotes: nextSpecialNotes,
+    });
   };
 
   const updateSpecialNote = (
     rowId: string,
     field: keyof KitchenSpecialNote,
-    value: string | number
+    value: string | number,
+    shouldSave = true
   ) => {
+    const nextStatus: KitchenReportStatus = "draft";
+
     const nextSpecialNotes = kitchenSpecialNotes.map((row) => {
       if (row.id !== rowId) return row;
 
@@ -529,18 +581,33 @@ export default function EventMenuTab({
       };
     });
 
-    saveDraftWithSpecialNotes(nextSpecialNotes);
+    setKitchenReportStatus(nextStatus);
+    setKitchenSpecialNotes(nextSpecialNotes);
+
+    if (shouldSave) {
+      saveLiveKitchenNow({
+        kitchenReportStatus: nextStatus,
+        kitchenSpecialNotes: nextSpecialNotes,
+      });
+    }
   };
 
   const removeSpecialNote = (rowId: string) => {
+    const nextStatus: KitchenReportStatus = "draft";
     const nextSpecialNotes = kitchenSpecialNotes.filter((row) => row.id !== rowId);
-    saveDraftWithSpecialNotes(nextSpecialNotes);
+
+    setKitchenReportStatus(nextStatus);
+    setKitchenSpecialNotes(nextSpecialNotes);
+
+    saveLiveKitchenNow({
+      kitchenReportStatus: nextStatus,
+      kitchenSpecialNotes: nextSpecialNotes,
+    });
   };
 
   const markKitchenReportSubmitted = () => {
     setKitchenReportStatus("submitted");
-
-    void saveLiveKitchenNow({
+    saveLiveKitchenNow({
       kitchenReportStatus: "submitted",
       kitchenGeneralNotes,
       kitchenDishes,
@@ -647,14 +714,14 @@ export default function EventMenuTab({
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <div>
                 <div className="text-xs font-black text-[#b98121]">
-                  דוח מטבח בזמן אמת · לפי סוגי המנות שנבחרו
+                  דוח מטבח בזמן אמת · שמירה אוטומטית
                 </div>
                 <h3 className="mt-1 text-2xl font-black text-[#2b241c]">
-                  עדכון כמויות לפי סוגי מנות באירוע
+                  עדכון כמויות מנה-מנה בזמן האירוע
                 </h3>
                 <p className="mt-2 max-w-3xl text-sm font-bold leading-7 text-[#7f705d]">
-                  אחרי שבעל האירוע בוחר מנות, הלייב נפתח לפי אותן קטגוריות וסוגי מנות שנבחרו.
-                  קודם מעדכנים כמות מוערכת, ואז בזמן האירוע כמות בפועל. השמירה מתבצעת רק אחרי שינוי אמיתי.
+                  קודם מעדכנים כמות מוערכת לכל מנה, ואז בזמן האירוע מעדכנים כמות בפועל.
+                  כל שינוי נשמר מיד אחרי פעולה אמיתית: שינוי כמות, פלוס/מינוס, הוספה או מחיקה. הטבלה נבנית לפי המנות שבעל האירוע בחר בפועל.
                 </p>
               </div>
 
@@ -720,56 +787,48 @@ export default function EventMenuTab({
           </div>
 
           <div className="mt-5 rounded-[26px] border border-[#eadfce] bg-white p-4">
-            <div className="mb-3 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
               <div>
-                <div className="text-sm font-black text-[#2b241c]">
-                  סינון לייב לפי סוגי מנות
-                </div>
+                <h3 className="text-lg font-black text-[#2b241c]">
+                  סינון לייב לפי סוג מנות
+                </h3>
                 <p className="mt-1 text-xs font-bold leading-5 text-[#7f705d]">
                   הסוגים כאן נבנים מהמנות שבעל האירוע בחר בפועל. כך המטבח יכול לעדכן כמויות לפי ראשונות, עיקריות, סלטים וכל קטגוריה שנבחרה.
                 </p>
               </div>
-              <InfoPill
-                label="מנות שנבחרו"
-                value={`${assignedMenu.selectedDishes?.length || 0}`}
-              />
+
+              <InfoPill label="מנות שנבחרו" value={`${kitchenDishes.length}`} />
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="mt-4 flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={() => setLiveCategoryFilter("all")}
+                onClick={() => setActiveLiveCategoryId("all")}
                 className={[
                   "rounded-full border px-4 py-2 text-xs font-black transition",
-                  liveCategoryFilter === "all"
+                  activeLiveCategoryId === "all"
                     ? "border-[#b98121] bg-[#b98121] text-white"
-                    : "border-[#d9bd83] bg-[#fff8eb] text-[#9f6f1a] hover:bg-[#f4ead9]",
+                    : "border-[#d9bd83] bg-white text-[#9f6f1a] hover:bg-[#fff8eb]",
                 ].join(" ")}
               >
                 כל המנות · {kitchenDishes.length}
               </button>
 
-              {liveCategoryOptions.map((categoryTitle) => {
-                const count = kitchenDishes.filter(
-                  (row) => (row.categoryTitle || "כללי") === categoryTitle
-                ).length;
-
-                return (
-                  <button
-                    key={categoryTitle}
-                    type="button"
-                    onClick={() => setLiveCategoryFilter(categoryTitle)}
-                    className={[
-                      "rounded-full border px-4 py-2 text-xs font-black transition",
-                      liveCategoryFilter === categoryTitle
-                        ? "border-[#b98121] bg-[#b98121] text-white"
-                        : "border-[#d9bd83] bg-white text-[#9f6f1a] hover:bg-[#fff8eb]",
-                    ].join(" ")}
-                  >
-                    {categoryTitle} · {count}
-                  </button>
-                );
-              })}
+              {liveCategoryGroups.map((group) => (
+                <button
+                  key={group.id}
+                  type="button"
+                  onClick={() => setActiveLiveCategoryId(group.id)}
+                  className={[
+                    "rounded-full border px-4 py-2 text-xs font-black transition",
+                    activeLiveCategoryId === group.id
+                      ? "border-[#b98121] bg-[#b98121] text-white"
+                      : "border-[#d9bd83] bg-white text-[#9f6f1a] hover:bg-[#fff8eb]",
+                  ].join(" ")}
+                >
+                  {group.title} · {group.count}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -797,7 +856,8 @@ export default function EventMenuTab({
                         <td className="p-3">
                           <input
                             value={row.dishName}
-                            onChange={(event) => updateKitchenDish(row.id, "dishName", event.target.value)}
+                            onChange={(event) => updateKitchenDish(row.id, "dishName", event.target.value, false)}
+                            onBlur={saveCurrentKitchenState}
                             placeholder="שם מנה"
                             className="h-11 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf8] px-3 text-sm font-black text-[#2b241c] outline-none focus:border-[#b98121]"
                           />
@@ -868,7 +928,8 @@ export default function EventMenuTab({
                         <td className="p-3">
                           <input
                             value={row.notes}
-                            onChange={(event) => updateKitchenDish(row.id, "notes", event.target.value)}
+                            onChange={(event) => updateKitchenDish(row.id, "notes", event.target.value, false)}
+                            onBlur={saveCurrentKitchenState}
                             placeholder="לדוגמה: יצאו עוד 5 בגלל בקשות במקום"
                             className="h-11 w-full rounded-2xl border border-[#eadfce] bg-white px-3 text-sm font-bold text-[#2b241c] outline-none focus:border-[#b98121]"
                           />
@@ -888,7 +949,7 @@ export default function EventMenuTab({
                 ) : (
                   <tr>
                     <td colSpan={8} className="p-6">
-                      <EmptyBox text="אין מנות להצגה בסוג המנות הזה. אפשר לבחור סוג אחר או להוסיף מנה ידנית." />
+                      <EmptyBox text="אין עדיין מנות לניהול לייב. אפשר להוסיף מנה ידנית." />
                     </td>
                   </tr>
                 )}
@@ -908,7 +969,7 @@ export default function EventMenuTab({
 
             <button
               type="button"
-              disabled={menuSaving || liveSaving}
+              disabled={menuSaving}
               onClick={markKitchenReportSubmitted}
               className="inline-flex h-11 items-center gap-2 rounded-2xl bg-[#b98121] px-5 text-sm font-black text-white disabled:opacity-60"
             >
@@ -926,7 +987,7 @@ export default function EventMenuTab({
                   הערות מיוחדות למטבח
                 </h3>
                 <p className="mt-1 text-sm font-bold leading-7 text-[#7f705d]">
-                  גם כאן נשמר אחרי כל שינוי אמיתי: רגישויות, כשרויות, טבעוני/צמחוני וכל דרישה מיוחדת.
+                  גם כאן כל שינוי נשמר אוטומטית: רגישויות, כשרויות, טבעוני/צמחוני וכל דרישה מיוחדת.
                 </p>
               </div>
               <InfoPill label="סה״כ מנות מיוחדות" value={`${totalSpecial}`} />
@@ -1022,7 +1083,12 @@ export default function EventMenuTab({
                 setKitchenReportStatus("draft");
                 setKitchenGeneralNotes(event.target.value);
               }}
-              onBlur={(event) => saveDraftWithGeneralNotes(event.target.value)}
+              onBlur={() =>
+                saveLiveKitchenNow({
+                  kitchenReportStatus: "draft",
+                  kitchenGeneralNotes,
+                })
+              }
               placeholder="לדוגמה: לפתוח טבעוני ראשון, לשים לב למנות ילדים בשולחנות 3 ו-8"
               className="min-h-[110px] w-full rounded-2xl border border-[#eadfce] bg-[#fffdf8] p-3 text-sm font-bold text-[#2b241c] outline-none focus:border-[#b98121]"
             />
