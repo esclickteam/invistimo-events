@@ -97,7 +97,6 @@ function getFieldDefaultValue(field: ContractField) {
   if (field.type === "date") return todayForInput();
   if (field.type === "checkbox") return "false";
 
-  // הלקוח ממלא לבד — לא מושכים אוטומטית שם/מייל/טלפון
   if (field.type === "fullName") return "";
   if (field.type === "email") return "";
   if (field.type === "phone") return "";
@@ -978,7 +977,10 @@ function PdfPageCanvas({
       try {
         const pdfjsLib = await loadPdfJs();
 
-        const loadingTask = pdfjsLib.getDocument(url);
+        const loadingTask = pdfjsLib.getDocument({
+  url,
+});
+
         const pdf = await loadingTask.promise;
 
         if (cancelled) return;
@@ -1000,9 +1002,9 @@ function PdfPageCanvas({
         const context = canvas.getContext("2d");
         if (!context) return;
 
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        setHeight(viewport.height);
+        canvas.width = Math.floor(viewport.width);
+        canvas.height = Math.floor(viewport.height);
+        setHeight(Math.floor(viewport.height));
 
         context.clearRect(0, 0, canvas.width, canvas.height);
 

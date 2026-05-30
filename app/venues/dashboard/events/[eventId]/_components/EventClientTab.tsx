@@ -189,10 +189,15 @@ async function loadPdfJs() {
   return pdfjsLib;
 }
 
-async function getPdfPageCount(url: string) {
+async function getPdfPageCount(file: File) {
   try {
     const pdfjsLib = await loadPdfJs();
-    const loadingTask = pdfjsLib.getDocument(url);
+    const arrayBuffer = await file.arrayBuffer();
+
+    const loadingTask = pdfjsLib.getDocument({
+      data: new Uint8Array(arrayBuffer),
+    });
+
     const pdf = await loadingTask.promise;
 
     return Math.max(1, Number(pdf.numPages || 1));
@@ -444,7 +449,7 @@ export default function EventClientTab({
       if (pdfFiles.length === 1) {
         const file = pdfFiles[0];
         const url = URL.createObjectURL(file);
-        const pageCount = await getPdfPageCount(url);
+        const pageCount = await getPdfPageCount(file);
 
         setContractFile({
           file,
@@ -1158,6 +1163,7 @@ export default function EventClientTab({
                                 <PdfPageCanvas
                                   url={page.url}
                                   pageNumber={page.pageNumber}
+                                  file={contractFile.file}
                                 />
                               )}
 
@@ -1507,9 +1513,11 @@ export default function EventClientTab({
 function PdfPageCanvas({
   url,
   pageNumber,
+  file,
 }: {
   url: string;
   pageNumber: number;
+  file?: File;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1517,18 +1525,27 @@ function PdfPageCanvas({
 
   useEffect(() => {
     let cancelled = false;
-    let renderTask: any = null;
+    let renderTask: { promise: Promise<unknown>; cancel: () => void } | null = null;
 
     async function renderPage() {
       const canvas = canvasRef.current;
-      if (!canvas || !url) return;
+
+      if (!canvas) return;
+      if (!url && !file) return;
 
       setLoading(true);
 
       try {
         const pdfjsLib = await loadPdfJs();
 
-        const loadingTask = pdfjsLib.getDocument(url);
+        const loadingTask = file
+          ? pdfjsLib.getDocument({
+              data: new Uint8Array(await file.arrayBuffer()),
+            })
+          : pdfjsLib.getDocument({
+              url,
+            });
+
         const pdf = await loadingTask.promise;
 
         if (cancelled) return;
@@ -1550,25 +1567,30 @@ function PdfPageCanvas({
         const context = canvas.getContext("2d");
         if (!context) return;
 
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        setHeight(viewport.height);
+        canvas.width = Math.floor(viewport.width);
+        canvas.height = Math.floor(viewport.height);
+        setHeight(Math.floor(viewport.height));
 
         context.clearRect(0, 0, canvas.width, canvas.height);
 
         renderTask = page.render({
-  canvas,
-  canvasContext: context,
-  viewport,
-});
+          canvas,
+          canvasContext: context,
+          viewport,
+        });
 
         await renderTask.promise;
 
         if (!cancelled) {
           setLoading(false);
         }
-      } catch (error: any) {
-        if (error?.name !== "RenderingCancelledException") {
+      } catch (error: unknown) {
+        const errorName =
+          typeof error === "object" && error && "name" in error
+            ? String((error as { name?: unknown }).name)
+            : "";
+
+        if (errorName !== "RenderingCancelledException") {
           console.error("PDF page render failed:", error);
         }
 
@@ -1589,7 +1611,7 @@ function PdfPageCanvas({
         // ignore
       }
     };
-  }, [url, pageNumber]);
+  }, [url, pageNumber, file]);
 
   return (
     <div className="relative w-full bg-white" style={{ minHeight: height }}>
