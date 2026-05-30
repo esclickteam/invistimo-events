@@ -34,6 +34,7 @@ type PublicContractField = {
 type PublicContractPage = {
   pageNumber: number;
   url: string;
+  imageUrl: string;
   name: string;
   type: "pdf" | "image";
 };
@@ -89,23 +90,39 @@ function normalizePages(contract: any): PublicContractPage[] {
   const rawPages = Array.isArray(object?.pages) ? object.pages : [];
 
   if (rawPages.length > 0) {
-    return rawPages.map((page: any, index: number) => ({
-      pageNumber: Math.max(1, Number(page?.pageNumber || index + 1)),
-      url: String(page?.url || object?.originalFileUrl || ""),
-      name: String(page?.name || page?.fileName || `עמוד ${index + 1}`),
-      type: normalizeFileType(page?.type || object?.originalFileType),
-    }));
+    return rawPages.map((page: any, index: number) => {
+      const pageNumber = Math.max(1, Number(page?.pageNumber || index + 1));
+
+      const pageUrl = String(page?.url || object?.originalFileUrl || "");
+
+      const pageImageUrl = String(
+        page?.imageUrl || page?.url || object?.originalFileUrl || ""
+      );
+
+      return {
+        pageNumber,
+        url: pageUrl,
+        imageUrl: pageImageUrl,
+        name: String(page?.name || page?.fileName || `עמוד ${pageNumber}`),
+        type: "image",
+      };
+    });
   }
 
   const pageCount = Math.max(1, Number(object?.pageCount || 1));
-  const originalFileType = normalizeFileType(object?.originalFileType);
 
-  return Array.from({ length: pageCount }).map((_, index) => ({
-    pageNumber: index + 1,
-    url: String(object?.originalFileUrl || ""),
-    name: `${object?.originalFileName || "הסכם"} - עמוד ${index + 1}`,
-    type: originalFileType,
-  }));
+  return Array.from({ length: pageCount }).map((_, index) => {
+    const pageNumber = index + 1;
+    const fileUrl = String(object?.originalFileUrl || "");
+
+    return {
+      pageNumber,
+      url: fileUrl,
+      imageUrl: fileUrl,
+      name: `${object?.originalFileName || "הסכם"} - עמוד ${pageNumber}`,
+      type: normalizeFileType(object?.originalFileType),
+    };
+  });
 }
 
 function serializePublicContract(contract: any) {
@@ -113,6 +130,7 @@ function serializePublicContract(contract: any) {
     typeof contract?.toObject === "function" ? contract.toObject() : contract;
 
   const originalFileType = normalizeFileType(object?.originalFileType);
+  const pages = normalizePages(object);
 
   return {
     id: String(object?._id || object?.id || ""),
@@ -131,8 +149,8 @@ function serializePublicContract(contract: any) {
     originalFileName: String(object?.originalFileName || ""),
     originalFileType,
 
-    pageCount: Math.max(1, Number(object?.pageCount || 1)),
-    pages: normalizePages(object),
+    pageCount: pages.length || Math.max(1, Number(object?.pageCount || 1)),
+    pages,
 
     fields: normalizeFields(Array.isArray(object?.fields) ? object.fields : []),
 
@@ -164,7 +182,12 @@ function isExpired(contract: any) {
   return expiresAt < Date.now();
 }
 
-function addAuditLog(contract: any, action: string, req: NextRequest, at = new Date()) {
+function addAuditLog(
+  contract: any,
+  action: string,
+  req: NextRequest,
+  at = new Date()
+) {
   const currentLog = Array.isArray(contract.auditLog) ? contract.auditLog : [];
 
   contract.auditLog = [
