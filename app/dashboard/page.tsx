@@ -520,6 +520,19 @@ const canViewActualArrived =
     if (!user) return;
 
     if (isVenueView && invitationIdFromUrl) {
+  const url = `/api/invitations/by-id/${encodeURIComponent(
+    invitationIdFromUrl
+  )}?venueView=1&eventId=${encodeURIComponent(eventIdFromUrl || "")}`;
+
+  try {
+    const res = await fetch(url, {
+      credentials: "include",
+      cache: "no-store",
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok || data?.success === false || !data?.invitation) {
       setInvitation({
         _id: invitationIdFromUrl,
         id: invitationIdFromUrl,
@@ -530,6 +543,29 @@ const canViewActualArrived =
       setInvitationId(invitationIdFromUrl);
       return;
     }
+
+    setInvitation(data.invitation);
+    setInvitationId(String(data.invitation._id || data.invitation.id || invitationIdFromUrl));
+
+    if (data.event) {
+      setEvent(data.event);
+    }
+
+    return;
+  } catch (error) {
+    console.error("load venue view invitation failed:", error);
+
+    setInvitation({
+      _id: invitationIdFromUrl,
+      id: invitationIdFromUrl,
+      eventId: eventIdFromUrl || "",
+      shareId: "",
+    });
+
+    setInvitationId(invitationIdFromUrl);
+    return;
+  }
+}
 
     const url = eventIdFromUrl
       ? `/api/invitations/by-event/${eventIdFromUrl}`
