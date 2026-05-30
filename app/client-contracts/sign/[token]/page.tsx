@@ -137,11 +137,6 @@ export default function ClientContractSignPage() {
     );
   }, [contract, activePage]);
 
-  const activePageFields = useMemo(
-    () => fields.filter((field) => field.pageNumber === activePage),
-    [fields, activePage]
-  );
-
   const fillableFields = useMemo(() => {
     return fields
       .filter((field) => field.type !== "venueNote")
@@ -484,50 +479,82 @@ export default function ClientContractSignPage() {
               )}
             </div>
 
-            <div className="max-h-[850px] overflow-auto bg-[#f3eee5] p-4">
-              <div className="relative mx-auto w-full max-w-[900px] overflow-visible rounded-[22px] border border-[#dbcbb3] bg-white shadow-sm">
-                <ContractPageImage page={activePageData} activePage={activePage} />
+            <div className="max-h-[850px] overflow-auto bg-[#f3eee5] p-3 md:p-4">
+              <div className="mx-auto flex w-full max-w-[900px] flex-col gap-6">
+                {contract.pages.map((page) => {
+                  const pageFields = fields.filter(
+                    (field) => field.pageNumber === page.pageNumber
+                  );
 
-                {isViewOnly && contract.signedAt && (
-                  <div className="absolute bottom-4 left-4 z-20 rounded-2xl border border-emerald-200 bg-white/95 px-4 py-3 text-xs font-black leading-5 text-emerald-700 shadow-sm">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 size={15} />
-                      נחתם דיגיטלית
-                    </div>
-                    <div>{formatDateTime(contract.signedAt)}</div>
-                  </div>
-                )}
+                  return (
+                    <div key={page.pageNumber} className="space-y-2">
+                      <div className="flex items-center justify-between px-1 text-xs font-black text-[#8a7b68]">
+                        <span>
+                          עמוד {page.pageNumber} מתוך {contract.pages.length}
+                        </span>
 
-                <div className="pointer-events-none absolute inset-0 z-10">
-                  {activePageFields.map((field) => (
-                    <div
-                      key={field.id}
-                      ref={(node) => {
-                        fieldRefs.current[field.id] = node;
-                      }}
-                      className={[
-                        "pointer-events-auto absolute overflow-visible rounded-xl border-2 bg-white/90 p-0 shadow-sm backdrop-blur-sm transition",
-                        field.type === "venueNote"
-                          ? "border-amber-300 bg-amber-50/95 text-[#5a3f12]"
-                          : isMobileFieldActive(field.id)
-                            ? "border-[#b98121] ring-4 ring-[#b98121]/25"
-                            : "border-[#b98121]",
-                      ].join(" ")}
-                      style={{
-                        left: `${field.x}%`,
-                        top: `${field.y}%`,
-                        width: `${field.width}%`,
-                        height: `${field.height}%`,
-                      }}
-                    >
-                      <ContractFieldInput
-                        field={field}
-                        viewOnly={isViewOnly}
-                        onChange={(patch) => updateField(field.id, patch)}
-                      />
+                        {page.pageNumber === activePage && (
+                          <span className="rounded-full bg-[#b98121] px-3 py-1 text-white">
+                            עמוד נוכחי
+                          </span>
+                        )}
+                      </div>
+
+                      <div
+                        className="relative mx-auto w-full overflow-visible rounded-[18px] border border-[#dbcbb3] bg-white shadow-sm md:rounded-[22px]"
+                        onClick={() => setActivePage(page.pageNumber)}
+                      >
+                        <ContractPageImage
+                          page={page}
+                          activePage={page.pageNumber}
+                        />
+
+                        {isViewOnly &&
+                          contract.signedAt &&
+                          page.pageNumber === contract.pages.length && (
+                            <div className="absolute bottom-4 left-4 z-20 rounded-2xl border border-emerald-200 bg-white/95 px-4 py-3 text-xs font-black leading-5 text-emerald-700 shadow-sm">
+                              <div className="flex items-center gap-2">
+                                <CheckCircle2 size={15} />
+                                נחתם דיגיטלית
+                              </div>
+                              <div>{formatDateTime(contract.signedAt)}</div>
+                            </div>
+                          )}
+
+                        <div className="pointer-events-none absolute inset-0 z-10">
+                          {pageFields.map((field) => (
+                            <div
+                              key={field.id}
+                              ref={(node) => {
+                                fieldRefs.current[field.id] = node;
+                              }}
+                              className={[
+                                "pointer-events-auto absolute overflow-visible rounded-lg border-2 bg-white/90 p-0 shadow-sm backdrop-blur-sm transition md:rounded-xl",
+                                field.type === "venueNote"
+                                  ? "border-amber-300 bg-amber-50/95 text-[#5a3f12]"
+                                  : isMobileFieldActive(field.id)
+                                    ? "border-[#b98121] ring-2 ring-[#b98121]/25 md:ring-4"
+                                    : "border-[#b98121]",
+                              ].join(" ")}
+                              style={{
+                                left: `${field.x}%`,
+                                top: `${field.y}%`,
+                                width: `${field.width}%`,
+                                height: `${field.height}%`,
+                              }}
+                            >
+                              <ContractFieldInput
+                                field={field}
+                                viewOnly={isViewOnly}
+                                onChange={(patch) => updateField(field.id, patch)}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -734,7 +761,7 @@ function ContractFieldInput({
 }) {
   if (field.type === "venueNote") {
     return (
-      <div className="flex h-full w-full items-center justify-center whitespace-pre-wrap p-1 text-center text-[11px] font-black leading-4 text-[#5a3f12]">
+      <div className="flex h-full w-full items-center justify-center whitespace-pre-wrap px-1 text-center text-[8px] font-black leading-[1.05] text-[#5a3f12] sm:text-[10px] md:text-[11px]">
         {field.value || field.label || "הערת אולם"}
       </div>
     );
@@ -752,14 +779,18 @@ function ContractFieldInput({
 
   if (field.type === "date") {
     return (
-      <div className="flex h-full items-center gap-1">
-        <CalendarDays size={14} className="text-[#b98121]" />
+      <div className="flex h-full w-full items-center gap-0.5 px-1 md:gap-1">
+        <CalendarDays
+          size={11}
+          className="hidden shrink-0 text-[#b98121] sm:block md:size-[14px]"
+        />
+
         <input
           type="date"
           value={field.value || todayForInput()}
           disabled={viewOnly}
           onChange={(event) => onChange({ value: event.target.value })}
-          className="h-full w-full min-w-0 bg-transparent px-1 text-[11px] font-black leading-none outline-none disabled:text-[#2b241c]"
+          className="h-full w-full min-w-0 bg-transparent text-center text-[8px] font-black leading-none outline-none disabled:text-[#2b241c] sm:text-[10px] md:text-[11px]"
         />
       </div>
     );
@@ -767,7 +798,7 @@ function ContractFieldInput({
 
   if (field.type === "checkbox") {
     return (
-      <label className="flex h-full cursor-pointer items-center justify-center gap-2 text-xs font-black">
+      <label className="flex h-full w-full cursor-pointer items-center justify-center gap-1 px-1 text-center text-[8px] font-black leading-none sm:text-[10px] md:text-xs">
         <input
           type="checkbox"
           disabled={viewOnly}
@@ -775,16 +806,20 @@ function ContractFieldInput({
           onChange={(event) =>
             onChange({ value: event.target.checked ? "true" : "false" })
           }
-          className="h-4 w-4 accent-[#b98121]"
+          className="h-3 w-3 shrink-0 accent-[#b98121] md:h-4 md:w-4"
         />
-        {field.label}
+        <span className="truncate">{field.label}</span>
       </label>
     );
   }
 
   return (
-    <div className="flex h-full items-center gap-1">
-      <Type size={14} className="text-[#b98121]" />
+    <div className="flex h-full w-full items-center gap-0.5 px-1 md:gap-1 md:px-2">
+      <Type
+        size={11}
+        className="hidden shrink-0 text-[#b98121] sm:block md:size-[14px]"
+      />
+
       <input
         value={field.value || ""}
         disabled={viewOnly}
@@ -807,7 +842,7 @@ function ContractFieldInput({
         }
         type={field.type === "email" ? "email" : "text"}
         onChange={(event) => onChange({ value: event.target.value })}
-        className="h-full w-full min-w-0 bg-transparent px-2 text-[11px] font-black leading-none outline-none placeholder:text-[#9b8a73] disabled:text-[#2b241c]"
+        className="h-full w-full min-w-0 bg-transparent text-center text-[8px] font-black leading-none outline-none placeholder:text-[#9b8a73] disabled:text-[#2b241c] sm:text-[10px] md:text-[11px]"
       />
     </div>
   );
@@ -948,7 +983,7 @@ function SignatureBox({
           continuePath(pos.x, pos.y);
         }}
         onTouchEnd={finishPath}
-        className="h-full w-full cursor-crosshair touch-none rounded-lg bg-white"
+        className="h-full w-full cursor-crosshair touch-none rounded-md bg-white"
       />
 
       {!value && (
@@ -961,7 +996,7 @@ function SignatureBox({
         <button
           type="button"
           onClick={clearSignature}
-          className="absolute left-1 top-1 rounded-full bg-white/90 px-2 py-1 text-[10px] font-black text-rose-600 shadow-sm"
+          className="absolute left-0.5 top-0.5 rounded-full bg-white/90 px-1.5 py-0.5 text-[9px] font-black text-rose-600 shadow-sm md:left-1 md:top-1 md:px-2 md:py-1 md:text-[10px]"
         >
           נקה
         </button>
