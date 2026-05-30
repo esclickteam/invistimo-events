@@ -54,11 +54,11 @@ function calculatePaidAmount(packageType: PaidPackageType, recordsCount: number)
   return recordsPrice;
 }
 
-function getDashboardRedirect(packageType: PaidPackageType) {
-  if (packageType === "full_event_management") {
-    return "/events/production";
-  }
-
+function getDashboardRedirect(_packageType: PaidPackageType) {
+  /*
+    אחרי תשלום תמיד מנתבים לדשבורד.
+    לא משאירים את הלקוח בעמוד חבילות ולא מנתבים למסך אחר.
+  */
   return "/dashboard";
 }
 

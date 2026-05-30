@@ -10,6 +10,7 @@ type CompleteStatus = "loading" | "success" | "error";
 function PaymentSuccessInner() {
   const params = useSearchParams();
   const sessionId = String(params.get("session_id") || "").trim();
+  const redirectTo = String(params.get("redirectTo") || "/dashboard").trim() || "/dashboard";
 
   const didCompleteRef = useRef(false);
 
@@ -56,15 +57,13 @@ function PaymentSuccessInner() {
           );
         }
 
-        const nextRedirectUrl = String(data?.redirectUrl || "/dashboard");
+        const nextRedirectUrl = redirectTo || String(data?.redirectUrl || "/dashboard");
 
         setStatus("success");
-        setMessage(data?.message || "החבילה נפתחה בהצלחה");
+        setMessage(data?.message || "החבילה נפתחה בהצלחה. מעבירים אותך לדשבורד...");
         setRedirectUrl(nextRedirectUrl);
 
-        window.setTimeout(() => {
-          window.location.href = nextRedirectUrl;
-        }, 1600);
+        window.location.replace(nextRedirectUrl);
       } catch (error: any) {
         console.error("payment success complete error:", error);
 
@@ -76,7 +75,7 @@ function PaymentSuccessInner() {
     }
 
     completePayment();
-  }, [sessionId]);
+  }, [sessionId, redirectTo]);
 
   return (
     <main
