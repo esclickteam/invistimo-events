@@ -798,7 +798,7 @@ export default function EventMenuTab({
             עדיין לא נבחר תפריט לאירוע
           </h2>
 
-          <p className="mx-auto mt-2 max-w-2xl text-sm font-bold leading-7 text-[#7f725f]">
+          <p className="mx-auto mt-2 max-w-2xl text-sm font-bold leading-7 text-[#7f705d]">
             בוחרים תפריט בסיס של האולם, ולאחר מכן נוצר עותק מקצועי לאירוע — כולל בחירת מנות, התאמות בחירה וניהול לייב בזמן אמת.
           </p>
 
@@ -814,7 +814,7 @@ export default function EventMenuTab({
 
             <Link
               href={hallId ? `/venues/dashboard/halls/${hallId}/menus` : "/venues/dashboard"}
-              className="inline-flex h-12 items-center gap-2 rounded-2xl border border-[#d9bd83] bg-white px-6 text-sm font-black text-[#8b6b43] transition hover:bg-[#fff8eb]"
+              className="inline-flex h-12 items-center gap-2 rounded-2xl border border-[#d9bd83] bg-white px-6 text-sm font-black text-[#9f6f1a] transition hover:bg-[#fff8eb]"
             >
               <Utensils size={17} />
               ניהול תפריטי אולם
@@ -835,7 +835,7 @@ export default function EventMenuTab({
               {templates.map((template) => (
                 <div key={template.id} className="rounded-[26px] border border-[#eadfce] bg-[#fffdf8] p-4 shadow-sm">
                   <div className="text-lg font-black text-[#2b241c]">{template.name}</div>
-                  <p className="mt-2 text-sm font-bold leading-6 text-[#7f725f]">
+                  <p className="mt-2 text-sm font-bold leading-6 text-[#7f705d]">
                     {template.description || "תפריט אולם מעודכן"}
                   </p>
                   <div className="mt-4 grid grid-cols-2 gap-2">
@@ -858,18 +858,18 @@ export default function EventMenuTab({
       <div className="space-y-5">
         {menuError && <ErrorBox text={menuError} />}
 
-        <section className="overflow-hidden rounded-[38px] border border-[#eadfce] bg-[#fbf7ef] shadow-[0_18px_42px_rgba(96,72,42,0.08)]">
-          <div className="relative overflow-hidden border-b border-[#eadfce] bg-[radial-gradient(circle_at_15%_15%,rgba(255,255,255,0.95),transparent_30%),linear-gradient(135deg,#fffaf2_0%,#f6efe4_52%,#efe3d2_100%)] p-6">
+        <section className="overflow-hidden rounded-[38px] border border-[#e0d2bd] bg-[#f3eadc] shadow-[0_22px_55px_rgba(47,35,20,0.10)]">
+          <div className="relative overflow-hidden border-b border-[#dfd2bd] bg-[radial-gradient(circle_at_15%_15%,rgba(255,255,255,0.9),transparent_28%),linear-gradient(135deg,#f8f0e4_0%,#eadbc7_48%,#d9c5aa_100%)] p-6">
             <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
               <div>
-                <div className="inline-flex items-center gap-2 rounded-full border border-[#e4c98f] bg-white/80 px-3 py-1 text-xs font-black text-[#8b6b43] shadow-sm">
+                <div className="inline-flex items-center gap-2 rounded-full border border-[#e4c98f] bg-white/80 px-3 py-1 text-xs font-black text-[#9f6f1a] shadow-sm">
                   <Sparkles size={14} />
                   ניהול לייב לפי קטגוריות ומנות שנבחרו
                 </div>
                 <h2 className="mt-3 text-3xl font-black tracking-tight text-[#2b241c]">
                   ניהול כמויות בזמן האירוע
                 </h2>
-                <p className="mt-2 max-w-4xl text-sm font-bold leading-7 text-[#7f725f]">
+                <p className="mt-2 max-w-4xl text-sm font-bold leading-7 text-[#7f705d]">
                   כל קטגוריה מוצגת פעם אחת בלבד. בלחיצה על החץ נפתחות המנות שנבחרו תחתיה. עדכון מנה מעדכן אוטומטית את סיכום הקטגוריה.
                 </p>
               </div>
@@ -911,7 +911,7 @@ export default function EventMenuTab({
               <button
                 type="button"
                 onClick={() => setMenuView("overview")}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-5 text-sm font-black text-[#746758] transition hover:bg-[#fff8eb]"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-5 text-sm font-black text-[#6f6252] transition hover:bg-[#fff8eb]"
               >
                 <ArrowRight size={16} />
                 חזרה לתפריט האירוע
@@ -919,7 +919,7 @@ export default function EventMenuTab({
             </div>
           </div>
 
-          <div className="space-y-4 bg-[#fbf7ef] p-4">
+          <div className="space-y-4 bg-[#f4eadc] p-4">
             {liveGroups.length ? (
               liveGroups.map((group) => (
                 <LiveCategoryCard
@@ -949,7 +949,7 @@ export default function EventMenuTab({
                 type="button"
                 disabled={liveSaving || menuSaving}
                 onClick={markKitchenReportSubmitted}
-                className="inline-flex h-12 items-center gap-2 rounded-[20px] bg-[#9a7a54] px-6 text-sm font-black text-white shadow-sm transition hover:bg-[#856744] disabled:opacity-60"
+                className="inline-flex h-12 items-center gap-2 rounded-[20px] bg-[#6f5a42] px-6 text-sm font-black text-white shadow-sm transition hover:bg-[#574633] disabled:opacity-60"
               >
                 <CheckCircle2 size={17} />
                 סגירת דוח לייב
@@ -963,7 +963,7 @@ export default function EventMenuTab({
             <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
               <div>
                 <h3 className="text-xl font-black text-[#2b241c]">הערות מיוחדות למטבח</h3>
-                <p className="mt-1 text-sm font-bold leading-7 text-[#7f725f]">
+                <p className="mt-1 text-sm font-bold leading-7 text-[#7f705d]">
                   רגישויות, כשרויות, טבעוני/צמחוני, ילדים וכל דרישה מיוחדת. כל שינוי נשמר אחרי פעולה.
                 </p>
               </div>
@@ -984,7 +984,7 @@ export default function EventMenuTab({
                   key={type}
                   type="button"
                   onClick={() => addSpecialNote(type)}
-                  className="rounded-full border border-[#d9bd83] bg-white px-4 py-2 text-xs font-black text-[#8b6b43] transition hover:bg-[#fff8eb]"
+                  className="rounded-full border border-[#d9bd83] bg-white px-4 py-2 text-xs font-black text-[#9f6f1a] transition hover:bg-[#fff8eb]"
                 >
                   + {kitchenSpecialTypeLabel(type)}
                 </button>
@@ -1077,13 +1077,13 @@ export default function EventMenuTab({
 
       <section className="grid gap-5 xl:grid-cols-[1.35fr_0.85fr_0.8fr]">
         <MainCard title="תפריט משויך לאירוע" icon={<Utensils size={19} />}>
-          <div className="relative overflow-hidden rounded-[30px] border border-[#eadfce] bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.75),transparent_30%),linear-gradient(135deg,#f8f0e4,#eadbc7)] p-5 shadow-[0_16px_38px_rgba(47,35,20,0.08)]">
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#e4c98f] bg-white/80 px-3 py-1 text-xs font-black text-[#8b6b43]">
+          <div className="relative overflow-hidden rounded-[30px] border border-[#e0d2bd] bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.75),transparent_30%),linear-gradient(135deg,#f8f0e4,#eadbc7)] p-5 shadow-[0_16px_38px_rgba(47,35,20,0.08)]">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#e4c98f] bg-white/80 px-3 py-1 text-xs font-black text-[#9f6f1a]">
               <Layers3 size={14} />
               עותק תפריט לאירוע
             </div>
             <h2 className="mt-3 text-2xl font-black text-[#2b241c]">{assignedMenu.name}</h2>
-            <p className="mt-2 text-sm font-bold leading-7 text-[#7f725f]">
+            <p className="mt-2 text-sm font-bold leading-7 text-[#7f705d]">
               כאן מנהלים את התפריט שנשלח לבעל האירוע. ניהול הלייב נמצא במסך ייעודי, לפי קטגוריות ומנות שנבחרו בפועל.
             </p>
 
@@ -1111,7 +1111,7 @@ export default function EventMenuTab({
             <button
               type="button"
               onClick={() => setMenuView("live")}
-              className="flex h-12 items-center justify-center gap-2 rounded-[20px] bg-[#8b6b43] text-sm font-black text-white shadow-sm transition hover:bg-[#755736]"
+              className="flex h-12 items-center justify-center gap-2 rounded-[20px] bg-[#5c4936] text-sm font-black text-white shadow-sm transition hover:bg-[#473829]"
             >
               <Sparkles size={16} />
               ניהול לייב באירוע
@@ -1120,7 +1120,7 @@ export default function EventMenuTab({
             <button
               type="button"
               onClick={onSendToCouple}
-              className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-[#d9bd83] bg-[#fff8eb] text-sm font-black text-[#8b6b43]"
+              className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-[#d9bd83] bg-[#fff8eb] text-sm font-black text-[#9f6f1a]"
             >
               <Send size={16} />
               שליחת SMS לבחירת מנות
@@ -1131,7 +1131,7 @@ export default function EventMenuTab({
             type="button"
             disabled={menuSaving}
             onClick={onSaveChanges}
-            className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-white text-sm font-black text-[#746758] disabled:opacity-60"
+            className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-white text-sm font-black text-[#6f6252] disabled:opacity-60"
           >
             <Save size={16} />
             {menuSaving ? "שומר..." : "שמירת התאמות תפריט"}
@@ -1148,7 +1148,7 @@ export default function EventMenuTab({
             <Link
               href={assignedMenu.publicLink || `/menus/choose/${assignedMenu.publicToken || eventId}`}
               target="_blank"
-              className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-white text-sm font-black text-[#746758]"
+              className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-white text-sm font-black text-[#6f6252]"
             >
               <Eye size={16} />
               פתיחת תצוגה
@@ -1164,7 +1164,7 @@ export default function EventMenuTab({
                   alert("לא הצלחתי להעתיק אוטומטית");
                 }
               }}
-              className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#d9bd83] bg-[#fff8eb] text-sm font-black text-[#8b6b43]"
+              className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#d9bd83] bg-[#fff8eb] text-sm font-black text-[#9f6f1a]"
             >
               <Link2 size={16} />
               העתקת קישור
@@ -1226,7 +1226,7 @@ export default function EventMenuTab({
           ) : (
             <div className="rounded-[28px] border border-dashed border-[#d9bd83] bg-[#fff8eb] p-5">
               <div className="text-base font-black text-[#2b241c]">עדיין לא נבחרו מנות</div>
-              <p className="mt-2 text-sm font-bold leading-7 text-[#7f725f]">
+              <p className="mt-2 text-sm font-bold leading-7 text-[#7f705d]">
                 אחרי שבעל האירוע יפתח את הקישור האישי וישמור בחירה, המנות יופיעו כאן אוטומטית.
               </p>
             </div>
@@ -1234,7 +1234,7 @@ export default function EventMenuTab({
         </MainCard>
 
         <MainCard title="התאמות בחירה לאירוע הזה" icon={<Edit3 size={19} />}>
-          <div className="rounded-2xl border border-[#eadfce] bg-[#fff8eb] p-4 text-sm font-bold leading-7 text-[#7f725f]">
+          <div className="rounded-2xl border border-[#eadfce] bg-[#fff8eb] p-4 text-sm font-bold leading-7 text-[#7f705d]">
             כאן האולם משנה את כמות הבחירות רק עבור האירוע הזה. ניהול לייב נמצא בכפתור נפרד למעלה.
           </div>
 
@@ -1316,132 +1316,160 @@ function LiveCategoryCard({
     clampNumber(group.directSummary.plannedQuantity);
 
   return (
-    <article className="overflow-hidden rounded-[34px] border border-[#eadfce] bg-[#fffaf4] shadow-[0_14px_34px_rgba(96,72,42,0.07)]">
-      <div className="relative overflow-hidden border-b border-[#eadfce] bg-[linear-gradient(135deg,#fffaf3_0%,#f7efe5_50%,#efe4d3_100%)] p-5">
-        <div className="pointer-events-none absolute -left-16 -top-20 h-44 w-44 rounded-full bg-white/35 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-24 right-24 h-52 w-52 rounded-full bg-[#c5a36f]/10 blur-3xl" />
-
-        <div className="relative flex flex-col gap-5 2xl:flex-row 2xl:items-center 2xl:justify-between">
-          <button type="button" onClick={onToggle} className="group flex min-w-[260px] flex-1 items-center gap-4 text-right">
-            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[22px] border border-white/70 bg-[#fffdf8]/85 text-[#8b6b43] shadow-[0_10px_24px_rgba(80,55,25,0.10)] transition group-hover:scale-[1.03]">
-              {isOpen ? <ChevronDown size={21} /> : <ChevronLeft size={21} />}
+    <article className="overflow-hidden rounded-[24px] border border-[#e5dac8] bg-[#fffaf3] shadow-[0_10px_26px_rgba(47,35,20,0.055)]">
+      <div className="border-b border-[#e8decd] bg-[linear-gradient(135deg,#fbf6ed,#f4eadc)] px-3 py-3">
+        <div className="grid gap-3 xl:grid-cols-[minmax(260px,1fr)_110px_110px_70px_145px_44px] xl:items-end">
+          <button
+            type="button"
+            onClick={onToggle}
+            className="group flex min-w-0 items-center gap-3 text-right"
+          >
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] border border-[#e2d5c2] bg-[#fffdf8] text-[#7b5d37] shadow-sm transition group-hover:bg-[#f8f0e4]">
+              {isOpen ? <ChevronDown size={18} /> : <ChevronLeft size={18} />}
             </span>
             <span className="min-w-0">
-              <span className="block text-[26px] font-black tracking-tight text-[#2d251d]">{group.title}</span>
-              <span className="mt-1 block max-w-2xl text-xs font-bold leading-6 text-[#7b6d5e]">
+              <span className="block truncate text-xl font-black tracking-tight text-[#2d251d]">
+                {group.title}
+              </span>
+              <span className="mt-0.5 block text-[11px] font-bold leading-5 text-[#766754]">
                 {group.dishes.length
-                  ? `${group.dishes.length} מנות שנבחרו בקטגוריה · אפשר לעדכן סיכום או כל מנה בנפרד`
-                  : "אין מנות שנבחרו תחת הקטגוריה · אפשר לעדכן כמות כללית"}
+                  ? `${group.dishes.length} מנות · עדכון מנה מסכם אוטומטית את הקטגוריה`
+                  : "אין מנות שנבחרו · אפשר לעדכן כמות כללית"}
               </span>
             </span>
           </button>
 
-          <div className="grid gap-3 md:grid-cols-[150px_150px_110px_190px_52px] md:items-end">
-            <LiveNumberInput
-              label="מוערך"
-              value={group.directSummary.plannedQuantity}
-              onChange={(value) => onCategoryQuantityChange(group.id, "plannedQuantity", value)}
-            />
+          <LiveNumberInput
+            label="מוערך"
+            value={group.directSummary.plannedQuantity}
+            onChange={(value) => onCategoryQuantityChange(group.id, "plannedQuantity", value)}
+          />
 
-            <LiveNumberInput
-              label="בפועל"
-              value={group.directSummary.actualServedQuantity}
-              onChange={(value) => onCategoryQuantityChange(group.id, "actualServedQuantity", value)}
-              highlighted
-            />
+          <LiveNumberInput
+            label="בפועל"
+            value={group.directSummary.actualServedQuantity}
+            onChange={(value) => onCategoryQuantityChange(group.id, "actualServedQuantity", value)}
+            highlighted
+          />
 
-            <GapBadge value={diff} />
+          <GapBadge value={diff} />
 
-            <div className="rounded-[22px] border border-[#eadfce] bg-[#fffaf2]/80 p-2 shadow-inner">
-              <div className="mb-2 text-center text-[11px] font-black text-[#7a6b58]">עדכון מהיר</div>
-              <div className="flex items-center justify-center gap-2">
-                <QuickButton onClick={() => onCategoryActualQuick(group.id, -1)} label="−" />
-                <QuickButton onClick={() => onCategoryActualQuick(group.id, 1)} label="+" primary />
-                <QuickButton onClick={() => onCategoryActualQuick(group.id, 10)} label="10+" />
-              </div>
+          <div>
+            <div className="mb-1 text-center text-[10px] font-black text-[#766754]">מהיר</div>
+            <div className="flex items-center justify-center gap-1.5">
+              <QuickButton onClick={() => onCategoryActualQuick(group.id, -1)} label="−" />
+              <QuickButton onClick={() => onCategoryActualQuick(group.id, 1)} label="+" primary />
+              <QuickButton onClick={() => onCategoryActualQuick(group.id, 10)} label="10+" />
             </div>
-
-            <button
-              type="button"
-              onClick={() => onAddDish(group.id)}
-              className="flex h-12 w-12 items-center justify-center rounded-[20px] border border-[#dfcfb9] bg-[#fffdf8] text-[#8b6b43] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#f7efe3]"
-              title="הוספת מנה ידנית תחת הקטגוריה"
-            >
-              <Plus size={18} />
-            </button>
           </div>
+
+          <button
+            type="button"
+            onClick={() => onAddDish(group.id)}
+            className="flex h-10 w-10 items-center justify-center rounded-[16px] border border-[#d8c6aa] bg-[#fffdf8] text-[#7b5d37] shadow-sm transition hover:bg-[#f7efe3]"
+            title="הוספת מנה ידנית תחת הקטגוריה"
+          >
+            <Plus size={16} />
+          </button>
         </div>
       </div>
 
       {isOpen ? (
-        <div className="bg-[#fffaf4] p-4">
+        <div className="bg-[#fffdf8] p-2">
           {group.dishes.length ? (
-            <div className="grid gap-3 xl:grid-cols-2">
-              {group.dishes.map((dish) => {
-                const dishDiff =
-                  clampNumber(dish.actualServedQuantity) -
-                  clampNumber(dish.plannedQuantity);
+            <div className="overflow-x-auto rounded-[18px] border border-[#eadfce] bg-white">
+              <table className="w-full min-w-[1120px] border-collapse text-right">
+                <thead className="bg-[#fbf6ed] text-[11px] font-black text-[#766754]">
+                  <tr>
+                    <th className="border-b border-[#eadfce] px-3 py-2">מנה</th>
+                    <th className="border-b border-[#eadfce] px-2 py-2">מוערך</th>
+                    <th className="border-b border-[#eadfce] px-2 py-2">בפועל</th>
+                    <th className="border-b border-[#eadfce] px-2 py-2">פער</th>
+                    <th className="border-b border-[#eadfce] px-2 py-2">עדכון מהיר</th>
+                    <th className="border-b border-[#eadfce] px-3 py-2">הערה</th>
+                    <th className="border-b border-[#eadfce] px-2 py-2">מחיקה</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#f1e8dc]">
+                  {group.dishes.map((dish) => {
+                    const dishDiff =
+                      clampNumber(dish.actualServedQuantity) -
+                      clampNumber(dish.plannedQuantity);
 
-                return (
-                  <div
-                    key={dish.id}
-                    className="rounded-[28px] border border-[#eadfce] bg-[#fffdf8] p-4 shadow-[0_10px_28px_rgba(62,45,25,0.055)]"
-                  >
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                      <div className="min-w-0 flex-1">
-                        <InputEdit
-                          label="שם מנה"
-                          value={dish.dishName}
-                          onChange={(value) => onDishChange(group.id, dish.id, "dishName", value)}
-                          placeholder="שם מנה"
-                        />
-                        <div className="mt-3">
-                          <InputEdit
-                            label="הערות מטבח"
-                            value={dish.notes}
-                            onChange={(value) => onDishChange(group.id, dish.id, "notes", value)}
-                            placeholder="לדוגמה: יצאו עוד 5 בגלל בקשות במקום"
+                    return (
+                      <tr key={dish.id} className="align-middle hover:bg-[#fffaf3]">
+                        <td className="w-[280px] px-3 py-2">
+                          <input
+                            value={dish.dishName}
+                            onChange={(event) =>
+                              onDishChange(group.id, dish.id, "dishName", event.target.value)
+                            }
+                            placeholder="שם מנה"
+                            className="h-9 w-full rounded-[14px] border border-[#e5dac8] bg-[#fffdf8] px-3 text-sm font-black text-[#2b241c] outline-none transition focus:border-[#9d7b4e] focus:ring-2 focus:ring-[#9d7b4e]/10"
                           />
-                        </div>
-                      </div>
+                        </td>
 
-                      <button
-                        type="button"
-                        onClick={() => onRemoveDish(group.id, dish.id)}
-                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] border border-rose-100 bg-rose-50 text-rose-700 transition hover:bg-rose-100"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
+                        <td className="w-[105px] px-2 py-2">
+                          <input
+                            type="number"
+                            min={0}
+                            value={dish.plannedQuantity}
+                            onChange={(event) =>
+                              onDishChange(group.id, dish.id, "plannedQuantity", event.target.value)
+                            }
+                            className="h-9 w-full rounded-[14px] border border-[#e5dac8] bg-[#fffdf8] px-2 text-center text-sm font-black text-[#2b241c] outline-none transition focus:border-[#9d7b4e] focus:ring-2 focus:ring-[#9d7b4e]/10"
+                          />
+                        </td>
 
-                    <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_80px] sm:items-end">
-                      <LiveNumberInput
-                        label="כמות מוערכת"
-                        value={dish.plannedQuantity}
-                        onChange={(value) => onDishChange(group.id, dish.id, "plannedQuantity", value)}
-                      />
+                        <td className="w-[105px] px-2 py-2">
+                          <input
+                            type="number"
+                            min={0}
+                            value={dish.actualServedQuantity}
+                            onChange={(event) =>
+                              onDishChange(group.id, dish.id, "actualServedQuantity", event.target.value)
+                            }
+                            className="h-9 w-full rounded-[14px] border border-[#d6c4a8] bg-[#f8f0e4] px-2 text-center text-sm font-black text-[#7b5d37] outline-none transition focus:border-[#9d7b4e] focus:ring-2 focus:ring-[#9d7b4e]/10"
+                          />
+                        </td>
 
-                      <LiveNumberInput
-                        label="כמות בפועל"
-                        value={dish.actualServedQuantity}
-                        onChange={(value) => onDishChange(group.id, dish.id, "actualServedQuantity", value)}
-                        highlighted
-                      />
+                        <td className="w-[74px] px-2 py-2">
+                          <GapBadge value={dishDiff} />
+                        </td>
 
-                      <GapBadge value={dishDiff} />
-                    </div>
+                        <td className="w-[155px] px-2 py-2">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <QuickButton onClick={() => onDishActualQuick(group.id, dish.id, -1)} label="−" />
+                            <QuickButton onClick={() => onDishActualQuick(group.id, dish.id, 1)} label="+" primary />
+                            <QuickButton onClick={() => onDishActualQuick(group.id, dish.id, 10)} label="10+" />
+                          </div>
+                        </td>
 
-                    <div className="mt-4 flex items-center justify-between rounded-[22px] border border-[#eadfce] bg-[#f7efe5] px-3 py-2">
-                      <span className="text-xs font-black text-[#7b6d5e]">עדכון מהיר לכמות בפועל</span>
-                      <div className="flex items-center gap-2">
-                        <QuickButton onClick={() => onDishActualQuick(group.id, dish.id, -1)} label="−" />
-                        <QuickButton onClick={() => onDishActualQuick(group.id, dish.id, 1)} label="+" primary />
-                        <QuickButton onClick={() => onDishActualQuick(group.id, dish.id, 10)} label="10+" />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+                        <td className="px-3 py-2">
+                          <input
+                            value={dish.notes}
+                            onChange={(event) =>
+                              onDishChange(group.id, dish.id, "notes", event.target.value)
+                            }
+                            placeholder="הערה קצרה למטבח"
+                            className="h-9 w-full rounded-[14px] border border-[#e5dac8] bg-[#fffdf8] px-3 text-xs font-bold text-[#2b241c] outline-none transition focus:border-[#9d7b4e] focus:ring-2 focus:ring-[#9d7b4e]/10"
+                          />
+                        </td>
+
+                        <td className="w-[58px] px-2 py-2">
+                          <button
+                            type="button"
+                            onClick={() => onRemoveDish(group.id, dish.id)}
+                            className="flex h-9 w-9 items-center justify-center rounded-[14px] border border-rose-100 bg-rose-50 text-rose-700 transition hover:bg-rose-100"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           ) : (
             <EmptyBox text="אין מנות תחת הקטגוריה הזאת. אפשר להשאיר כמות כללית או להוסיף מנה ידנית." />
@@ -1472,7 +1500,7 @@ function MenuEditPolicyBox({
   return (
     <div className="mt-4 rounded-[24px] border border-[#eadfce] bg-white p-4">
       <div className="text-sm font-black text-[#2b241c]">אפשרות עריכה לבעל האירוע</div>
-      <p className="mt-1 text-xs font-bold leading-5 text-[#7f725f]">
+      <p className="mt-1 text-xs font-bold leading-5 text-[#7f705d]">
         ההגבלה הזאת חלה רק על בעל האירוע בקישור האישי. האולם יכול לערוך ולעדכן תמיד מתוך הדשבורד.
       </p>
 
@@ -1484,7 +1512,7 @@ function MenuEditPolicyBox({
             "rounded-2xl border p-4 text-right transition",
             isUntilDate
               ? "border-[#b98121] bg-[#fff8eb] text-[#8c5f19]"
-              : "border-[#eadfce] bg-[#fffdf8] text-[#746758] hover:bg-[#fff8eb]",
+              : "border-[#eadfce] bg-[#fffdf8] text-[#6f6252] hover:bg-[#fff8eb]",
           ].join(" ")}
         >
           <div className="text-sm font-black">ניתן לעדכן עד תאריך</div>
@@ -1498,7 +1526,7 @@ function MenuEditPolicyBox({
             "rounded-2xl border p-4 text-right transition",
             !isUntilDate
               ? "border-[#b98121] bg-[#fff8eb] text-[#8c5f19]"
-              : "border-[#eadfce] bg-[#fffdf8] text-[#746758] hover:bg-[#fff8eb]",
+              : "border-[#eadfce] bg-[#fffdf8] text-[#6f6252] hover:bg-[#fff8eb]",
           ].join(" ")}
         >
           <div className="text-sm font-black">ננעל לאחר בחירה ראשונה</div>
@@ -1562,16 +1590,16 @@ function MetricBox({
       className={[
         "relative overflow-hidden rounded-[26px] border p-4 text-center shadow-[0_12px_30px_rgba(46,34,21,0.08)]",
         highlighted
-          ? "border-[#dfcfb9] bg-[linear-gradient(145deg,#f6ead9,#fffaf2)]"
-          : "border-[#eadfce] bg-[#fffdf8]",
+          ? "border-[#cbb89b] bg-[linear-gradient(145deg,#f6ead9,#fffaf2)]"
+          : "border-[#e5dac8] bg-[#fffdf8]",
       ].join(" ")}
     >
       <div className="pointer-events-none absolute -left-8 -top-8 h-20 w-20 rounded-full bg-white/55 blur-2xl" />
-      <div className="relative text-[11px] font-black tracking-wide text-[#7f725f]">{label}</div>
+      <div className="relative text-[11px] font-black tracking-wide text-[#7f705d]">{label}</div>
       <div
         className={[
           "relative mt-1 text-3xl font-black tracking-tight",
-          danger ? "text-rose-700" : success ? "text-emerald-700" : highlighted ? "text-[#8b6b43]" : "text-[#2b241c]",
+          danger ? "text-rose-700" : success ? "text-emerald-700" : highlighted ? "text-[#8b6334]" : "text-[#2b241c]",
         ].join(" ")}
       >
         {value}
@@ -1593,17 +1621,17 @@ function LiveNumberInput({
 }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-center text-[11px] font-black text-[#7b6d5e]">{label}</span>
+      <span className="mb-1 block text-center text-[11px] font-black text-[#766754]">{label}</span>
       <input
         type="number"
         min={0}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         className={[
-          "h-12 w-full rounded-[20px] border px-3 text-center text-lg font-black outline-none transition focus:border-[#a8895f] focus:ring-4 focus:ring-[#a8895f]/10",
+          "h-12 w-full rounded-[20px] border px-3 text-center text-lg font-black outline-none transition focus:border-[#9d7b4e] focus:ring-4 focus:ring-[#9d7b4e]/10",
           highlighted
-            ? "border-[#dfcfb9] bg-[#f8efe2] text-[#8b6b43]"
-            : "border-[#eadfce] bg-[#fffdf8] text-[#2b241c]",
+            ? "border-[#cbb89b] bg-[#f6ead9] text-[#8b6334]"
+            : "border-[#e5dac8] bg-[#fffdf8] text-[#2b241c]",
         ].join(" ")}
       />
     </label>
@@ -1626,8 +1654,8 @@ function QuickButton({
       className={[
         "flex h-9 min-w-9 items-center justify-center rounded-[16px] px-3 text-sm font-black shadow-sm transition hover:-translate-y-0.5",
         primary
-          ? "bg-[#9a7a54] text-white hover:bg-[#856744]"
-          : "border border-[#dfcfb9] bg-[#fffdf8] text-[#8b6b43] hover:bg-[#f8efe2]",
+          ? "bg-[#6f5a42] text-white hover:bg-[#574633]"
+          : "border border-[#d8c6aa] bg-[#fffdf8] text-[#7b5d37] hover:bg-[#f6ead9]",
       ].join(" ")}
     >
       {label}
@@ -1638,7 +1666,7 @@ function QuickButton({
 function GapBadge({ value }: { value: number }) {
   return (
     <div className="text-center">
-      <div className="mb-1 text-[11px] font-black text-[#7b6d5e]">פער</div>
+      <div className="mb-1 text-[11px] font-black text-[#766754]">פער</div>
       <span
         className={[
           "inline-flex min-w-[62px] justify-center rounded-full px-3 py-2 text-xs font-black shadow-sm",
@@ -1646,7 +1674,7 @@ function GapBadge({ value }: { value: number }) {
             ? "bg-emerald-50 text-emerald-700"
             : value < 0
               ? "bg-rose-50 text-rose-700"
-              : "bg-[#ece4d8] text-[#746758]",
+              : "bg-[#ece4d8] text-[#6f6252]",
         ].join(" ")}
       >
         {value > 0 ? "+" : ""}
@@ -1658,8 +1686,8 @@ function GapBadge({ value }: { value: number }) {
 
 function InfoPill({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[22px] border border-[#eadfce] bg-[#fffaf4] px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
-      <div className="text-[11px] font-black text-[#7f725f]">{label}</div>
+    <div className="rounded-[22px] border border-[#e6dccb] bg-[#fffaf3] px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
+      <div className="text-[11px] font-black text-[#7f705d]">{label}</div>
       <div className="mt-1 text-sm font-black text-[#2b241c]">{value}</div>
     </div>
   );
@@ -1675,10 +1703,10 @@ function MainCard({
   children: React.ReactNode;
 }) {
   return (
-    <section className="overflow-hidden rounded-[34px] border border-[#eadfce] bg-[#fbf6ed] p-0 shadow-[0_18px_45px_rgba(47,35,20,0.075)]">
-      <div className="border-b border-[#eadfce] bg-[linear-gradient(135deg,#f7efe3,#efe2d0)] px-5 py-4">
+    <section className="overflow-hidden rounded-[34px] border border-[#e6dccb] bg-[#fbf6ed] p-0 shadow-[0_18px_45px_rgba(47,35,20,0.075)]">
+      <div className="border-b border-[#e7dccb] bg-[linear-gradient(135deg,#f7efe3,#efe2d0)] px-5 py-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-[20px] border border-white/70 bg-[#fffdf8]/90 text-[#8b6b43] shadow-sm">
+          <div className="flex h-11 w-11 items-center justify-center rounded-[20px] border border-white/70 bg-[#fffdf8]/90 text-[#7b5d37] shadow-sm">
             {icon}
           </div>
           <h2 className="text-lg font-black text-[#2b241c]">{title}</h2>
@@ -1704,13 +1732,13 @@ function InputEdit({
 }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-xs font-black text-[#7b6d5e]">{label}</span>
+      <span className="mb-1 block text-xs font-black text-[#766754]">{label}</span>
       <input
         type={type}
         value={value}
         placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
-        className="h-11 w-full rounded-[18px] border border-[#eadfce] bg-[#fffdf8] px-3 text-sm font-bold text-[#2b241c] outline-none transition placeholder:text-[#a79a8a] focus:border-[#a8895f] focus:ring-4 focus:ring-[#a8895f]/10"
+        className="h-11 w-full rounded-[18px] border border-[#e5dac8] bg-[#fffdf8] px-3 text-sm font-bold text-[#2b241c] outline-none transition placeholder:text-[#a79a8a] focus:border-[#9d7b4e] focus:ring-4 focus:ring-[#9d7b4e]/10"
       />
     </label>
   );
@@ -1718,7 +1746,7 @@ function InputEdit({
 
 function EmptyBox({ text }: { text: string }) {
   return (
-    <div className="rounded-[24px] border border-dashed border-[#d8c8b0] bg-[#f7efe5] p-5 text-center text-sm font-bold leading-6 text-[#7b6d5e]">
+    <div className="rounded-[24px] border border-dashed border-[#cab99e] bg-[#f8f0e4] p-5 text-center text-sm font-bold leading-6 text-[#766754]">
       {text}
     </div>
   );
