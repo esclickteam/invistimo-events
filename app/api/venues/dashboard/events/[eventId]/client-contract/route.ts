@@ -1,137 +1,231 @@
 import { NextRequest, NextResponse } from "next/server";
-import { randomBytes } from "crypto";
-import { mkdir, writeFile } from "fs/promises";
-import path from "path";
-import ClientContract from "@/models/ClientContract";
+import crypto from "crypto";
+import { v2 as cloudinary } from "cloudinary";
 import connectDB from "@/lib/mongodb";
+import ClientContract from "@/models/ClientContract";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-type ContractFileType = "pdf" | "image";
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+  secure: true,
+});
+
+type ContractFieldType =
+  | "signature"
+  | "date"
+  | "text"
+  | "fullName"
+  | "phone"
+  | "email"
+  | "idNumber"
+  | "checkbox"
+  | "venueNote";
+
+type ContractField = {
+  id: string;
+  type: ContractFieldType;
+  label: string;
+  required: boolean;
+  pageNumber: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  value?: string;
+  signatureDataUrl?: string;
+};
+
+type ContractPage = {
+  pageNumber: number;
+  url: string;
+  name: string;
+  type: "pdf" | "image";
+};
+
+function safeJsonParse<T>(value: FormDataEntryValue | null, fallback: T): T {
+  if (typeof value !== "string") return fallback;
+
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+function safeString(value: FormDataEntryValue | null, fallback = "") {
+  if (typeof value !== "string") return fallback;
+  return value;
+}
+
+function safeNumber(value: FormDataEntryValue | null, fallback = 1) {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) && numberValue > 0
+    ? numberValue
+    : fallback;
+}
+
+function isRealFile(value: FormDataEntryValue | null): value is File {
+  return value instanceof File && value.size > 0;
+}
 
 function getBaseUrl(req: NextRequest) {
   const envUrl =
     process.env.NEXT_PUBLIC_APP_URL ||
     process.env.NEXT_PUBLIC_SITE_URL ||
-    "";
+    process.env.APP_URL;
 
   if (envUrl) return envUrl.replace(/\/$/, "");
 
-  const proto = req.headers.get("x-forwarded-proto") || "http";
-  const host = req.headers.get("host") || "localhost:3000";
+  const host = req.headers.get("host") || "";
+  const proto = req.headers.get("x-forwarded-proto") || "https";
 
-  return `${proto}://${host}`;
+  return `${proto}://${host}`.replace(/\/$/, "");
 }
 
-function normalizeFileType(file: File): ContractFileType | "" {
-  if (file.type === "application/pdf") return "pdf";
-  if (file.type.startsWith("image/")) return "image";
-  return "";
+function makeToken() {
+  return crypto.randomBytes(32).toString("hex");
 }
 
-function safeFileName(fileName: string) {
-  const ext = path.extname(fileName || "").toLowerCase() || ".file";
-  return `${Date.now()}-${randomBytes(8).toString("hex")}${ext}`;
+function normalizeFieldType(value: unknown): ContractFieldType {
+  const type = String(value || "text");
+
+  const allowedTypes: ContractFieldType[] = [
+    "signature",
+    "date",
+    "text",
+    "fullName",
+    "phone",
+    "email",
+    "idNumber",
+    "checkbox",
+    "venueNote",
+  ];
+
+  return allowedTypes.includes(type as ContractFieldType)
+    ? (type as ContractFieldType)
+    : "text";
 }
 
-async function saveFileToPublicUploads(file: File) {
-  const bytes = await file.arrayBuffer();
-  const buffer = Buffer.from(bytes);
-
-  const uploadDir = path.join(
-    process.cwd(),
-    "public",
-    "uploads",
-    "client-contracts"
-  );
-
-  await mkdir(uploadDir, { recursive: true });
-
-  const fileName = safeFileName(file.name);
-  const filePath = path.join(uploadDir, fileName);
-
-  await writeFile(filePath, buffer);
-
-  return `/uploads/client-contracts/${fileName}`;
-}
-
-function buildLinks(req: NextRequest, token: string) {
-  const baseUrl = getBaseUrl(req);
-
-  return {
-    signingLink: `${baseUrl}/client-contracts/sign/${token}`,
-    viewLink: `${baseUrl}/client-contracts/sign/${token}?view=1`,
-  };
-}
-
-function getRequestMeta(req: NextRequest) {
-  return {
-    ip: req.headers.get("x-forwarded-for") || "",
-    userAgent: req.headers.get("user-agent") || "",
-  };
-}
-
-function normalizeFields(rawFields: any[]) {
+function normalizeFields(rawFields: unknown): ContractField[] {
   if (!Array.isArray(rawFields)) return [];
 
-  return rawFields.map((field, index) => ({
+  return rawFields.map((field: any, index: number) => ({
     id: String(field?.id || `field-${index + 1}`),
-    type: String(field?.type || "text"),
+    type: normalizeFieldType(field?.type),
     label: String(field?.label || ""),
     required: Boolean(field?.required),
-
     pageNumber: Math.max(1, Number(field?.pageNumber || 1)),
-
     x: Number(field?.x || 0),
     y: Number(field?.y || 0),
     width: Number(field?.width || 20),
     height: Number(field?.height || 6),
-
     value: String(field?.value || ""),
     signatureDataUrl: String(field?.signatureDataUrl || ""),
-    signedAt: field?.signedAt || null,
   }));
 }
 
-function normalizePages(rawPages: any[]) {
+function normalizePages(rawPages: unknown, fallbackUrl = ""): ContractPage[] {
   if (!Array.isArray(rawPages)) return [];
 
-  return rawPages.map((page, index) => ({
+  return rawPages.map((page: any, index: number) => ({
     pageNumber: Math.max(1, Number(page?.pageNumber || index + 1)),
-    url: String(page?.url || page?.imageUrl || ""),
-    name: String(page?.name || page?.fileName || `עמוד ${index + 1}`),
+    url: String(page?.url || fallbackUrl || ""),
+    name: String(page?.name || `עמוד ${index + 1}`),
     type: String(page?.type || "pdf").includes("image") ? "image" : "pdf",
   }));
 }
 
-function buildPdfPages(fileUrl: string, fileName: string, pageCount: number) {
-  const safePageCount = Math.max(1, Math.min(50, Number(pageCount || 1)));
-
-  return Array.from({ length: safePageCount }).map((_, index) => ({
-    pageNumber: index + 1,
-    url: fileUrl,
-    name: `${fileName || "הסכם"} - עמוד ${index + 1}`,
-    type: "pdf",
-  }));
+async function fileToBuffer(file: File) {
+  const arrayBuffer = await file.arrayBuffer();
+  return Buffer.from(arrayBuffer);
 }
 
-function serializeContract(req: NextRequest, contract: any) {
+function getCloudinaryResourceType(file: File): "image" | "raw" {
+  if (file.type.startsWith("image/")) return "image";
+  return "raw";
+}
+
+async function uploadFileToCloudinary({
+  eventId,
+  file,
+  prefix,
+}: {
+  eventId: string;
+  file: File;
+  prefix: string;
+}) {
+  const buffer = await fileToBuffer(file);
+  const resourceType = getCloudinaryResourceType(file);
+
+  const cleanOriginalName =
+    file.name
+      ?.replace(/\.[^/.]+$/, "")
+      .replace(/[^\w\u0590-\u05FF.-]+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 80) || "client-contract";
+
+  const publicId = `${prefix}-${Date.now()}-${crypto
+    .randomBytes(6)
+    .toString("hex")}-${cleanOriginalName}`;
+
+  const folder = `invistimo/client-contracts/${eventId}`;
+
+  const result = await new Promise<any>((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder,
+        public_id: publicId,
+        resource_type: resourceType,
+        overwrite: false,
+      },
+      (error, uploadResult) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+
+        resolve(uploadResult);
+      }
+    );
+
+    uploadStream.end(buffer);
+  });
+
+  return {
+    url: String(result.secure_url || result.url || ""),
+    publicId: String(result.public_id || ""),
+    fileName: file.name || cleanOriginalName,
+    resourceType,
+  };
+}
+
+function serializeContract(contract: any, req: NextRequest) {
   const object =
     typeof contract?.toObject === "function" ? contract.toObject() : contract;
 
-  const links = object?.signingToken
-    ? buildLinks(req, String(object.signingToken))
-    : { signingLink: "", viewLink: "" };
+  const baseUrl = getBaseUrl(req);
+  const token = String(object?.signingToken || "");
+
+  const signingLink = token
+    ? `${baseUrl}/client-contracts/sign/${encodeURIComponent(token)}`
+    : "";
+
+  const viewLink = token
+    ? `${baseUrl}/client-contracts/sign/${encodeURIComponent(token)}?view=1`
+    : "";
 
   return {
     ...object,
-    signingLink: links.signingLink,
-    viewLink: links.viewLink,
-    signedAt: object?.signedAt || null,
-    digitalSignatureText: object?.digitalSignatureText || "",
-    pageCount: Math.max(1, Number(object?.pageCount || 1)),
-    pages: normalizePages(object?.pages || []),
-    fields: normalizeFields(object?.fields || []),
+    _id: String(object?._id || object?.id || ""),
+    id: String(object?._id || object?.id || ""),
+    signingLink,
+    viewLink,
+    signedViewLink: viewLink,
   };
 }
 
@@ -155,17 +249,11 @@ export async function GET(
       .sort({ createdAt: -1 })
       .lean();
 
-    if (!contracts.length) {
-      return NextResponse.json(
-        { success: false, message: "לא נמצאו הסכמים" },
-        { status: 404 }
-      );
-    }
-
     return NextResponse.json({
       success: true,
-      contracts: contracts.map((contract) => serializeContract(req, contract)),
-      contract: serializeContract(req, contracts[0]),
+      contracts: contracts.map((contract: any) =>
+        serializeContract(contract, req)
+      ),
     });
   } catch (error) {
     console.error("GET client contracts failed:", error);
@@ -195,156 +283,158 @@ export async function POST(
 
     const formData = await req.formData();
 
-    const contractId = String(formData.get("contractId") || "");
-    const title = String(formData.get("title") || "הסכם לקוח").trim();
-    const hallId = String(formData.get("hallId") || "");
-    const hallName = String(formData.get("hallName") || "");
-    const eventTitle = String(formData.get("eventTitle") || "");
-    const clientName = String(formData.get("clientName") || "");
-    const clientPhone = String(formData.get("clientPhone") || "");
-    const clientEmail = String(formData.get("clientEmail") || "");
+    const contractId = safeString(formData.get("contractId"), "");
+    const title = safeString(formData.get("title"), "הסכם לקוח");
+
+    const hallId = safeString(formData.get("hallId"), "");
+    const hallName = safeString(formData.get("hallName"), "");
+    const eventTitle = safeString(formData.get("eventTitle"), "");
+
+    const clientName = safeString(formData.get("clientName"), "");
+    const clientPhone = safeString(formData.get("clientPhone"), "");
+    const clientEmail = safeString(formData.get("clientEmail"), "");
 
     const requestedPageCount = Math.max(
       1,
-      Math.min(50, Number(formData.get("pageCount") || 1))
+      safeNumber(formData.get("pageCount"), 1)
     );
 
-    const rawFields = String(formData.get("fields") || "[]");
-    const rawPages = String(formData.get("pages") || "[]");
+    const fields = normalizeFields(safeJsonParse(formData.get("fields"), []));
+    const sentPages = normalizePages(safeJsonParse(formData.get("pages"), []));
 
-    let parsedFields: any[] = [];
-    let parsedPages: any[] = [];
-
-    try {
-      parsedFields = JSON.parse(rawFields);
-    } catch {
-      parsedFields = [];
-    }
-
-    try {
-      parsedPages = JSON.parse(rawPages);
-    } catch {
-      parsedPages = [];
-    }
-
-    const fields = normalizeFields(parsedFields);
-
-    const existingContract = contractId
-      ? await ClientContract.findOne({ _id: contractId, eventId })
+    const singleFile = isRealFile(formData.get("file"))
+      ? (formData.get("file") as File)
       : null;
 
-    if (existingContract?.locked || existingContract?.status === "signed") {
+    const multiFiles = formData
+      .getAll("files")
+      .filter((item): item is File => item instanceof File && item.size > 0);
+
+    let existingContract: any = null;
+
+    if (contractId) {
+      existingContract = await ClientContract.findOne({
+        _id: contractId,
+        eventId,
+      });
+    }
+
+    if (
+      existingContract &&
+      (existingContract.locked ||
+        existingContract.status === "signed" ||
+        existingContract.status === "locked")
+    ) {
       return NextResponse.json(
-        { success: false, message: "ההסכם כבר נחתם וננעל לעריכה" },
+        {
+          success: false,
+          message: "ההסכם כבר נחתם וננעל לצפייה בלבד",
+        },
         { status: 423 }
       );
     }
 
-    const pdfFileValue = formData.get("file");
-    const pdfFile =
-      pdfFileValue instanceof File && pdfFileValue.size > 0
-        ? pdfFileValue
-        : null;
+    let originalFileUrl = existingContract?.originalFileUrl || "";
+    let originalFileName = existingContract?.originalFileName || "";
+    let originalFileType: "pdf" | "image" =
+      existingContract?.originalFileType === "image" ? "image" : "pdf";
 
-    const imageFiles = formData
-      .getAll("files")
-      .filter((item): item is File => item instanceof File && item.size > 0);
+    let pageCount = Math.max(
+      1,
+      Number(existingContract?.pageCount || requestedPageCount)
+    );
 
-    let originalFileUrl = "";
-    let originalFileName = "";
-    let originalFileType: ContractFileType = "pdf";
-    let nextPages: any[] = [];
-    let finalPageCount = requestedPageCount;
+    let pages: ContractPage[] = Array.isArray(existingContract?.pages)
+      ? existingContract.pages
+      : [];
 
-    if (pdfFile) {
-      const fileType = normalizeFileType(pdfFile);
+    if (singleFile) {
+      const uploaded = await uploadFileToCloudinary({
+        eventId,
+        file: singleFile,
+        prefix: "pdf",
+      });
 
-      if (fileType !== "pdf") {
-        return NextResponse.json(
-          { success: false, message: "קובץ PDF לא תקין" },
-          { status: 400 }
-        );
-      }
-
-      originalFileUrl = await saveFileToPublicUploads(pdfFile);
-      originalFileName = pdfFile.name;
+      originalFileUrl = uploaded.url;
+      originalFileName = uploaded.fileName;
       originalFileType = "pdf";
-      finalPageCount = requestedPageCount;
-      nextPages = buildPdfPages(originalFileUrl, originalFileName, finalPageCount);
-    } else if (imageFiles.length > 0) {
-      const savedImages: { url: string; name: string }[] = [];
+      pageCount = requestedPageCount;
 
-      for (const imageFile of imageFiles) {
-        const fileType = normalizeFileType(imageFile);
-
-        if (fileType !== "image") {
-          return NextResponse.json(
-            { success: false, message: "אחד מקבצי התמונה אינו תקין" },
-            { status: 400 }
-          );
-        }
-
-        const url = await saveFileToPublicUploads(imageFile);
-
-        savedImages.push({
-          url,
-          name: imageFile.name,
-        });
-      }
-
-      originalFileUrl = savedImages[0]?.url || "";
-      originalFileName =
-        savedImages.length === 1
-          ? savedImages[0].name
-          : `${savedImages.length} עמודים בתמונות`;
-      originalFileType = "image";
-      finalPageCount = Math.max(1, savedImages.length);
-
-      nextPages = savedImages.map((image, index) => ({
+      pages = Array.from({ length: pageCount }).map((_, index) => ({
         pageNumber: index + 1,
-        url: image.url,
-        name: image.name,
+        url: uploaded.url,
+        name: `${uploaded.fileName} - עמוד ${index + 1}`,
+        type: "pdf",
+      }));
+    } else if (multiFiles.length > 0) {
+      const uploadedImages = await Promise.all(
+        multiFiles.map((file, index) =>
+          uploadFileToCloudinary({
+            eventId,
+            file,
+            prefix: `image-${index + 1}`,
+          })
+        )
+      );
+
+      originalFileUrl = uploadedImages[0]?.url || "";
+      originalFileName =
+        multiFiles.length === 1
+          ? uploadedImages[0]?.fileName || "הסכם לקוח"
+          : `${multiFiles.length} עמודים בתמונות`;
+
+      originalFileType = "image";
+      pageCount = uploadedImages.length;
+
+      pages = uploadedImages.map((uploaded, index) => ({
+        pageNumber: index + 1,
+        url: uploaded.url,
+        name: uploaded.fileName || `עמוד ${index + 1}`,
         type: "image",
       }));
-    } else if (existingContract?.originalFileUrl) {
-      originalFileUrl = existingContract.originalFileUrl;
-      originalFileName = existingContract.originalFileName || "";
-      originalFileType = existingContract.originalFileType || "pdf";
+    } else if (existingContract) {
+      pageCount = requestedPageCount || pageCount;
 
-      if (originalFileType === "pdf") {
-        finalPageCount = requestedPageCount;
-        nextPages = buildPdfPages(originalFileUrl, originalFileName, finalPageCount);
-      } else {
-        const existingPages = normalizePages(existingContract.pages || []);
-        const incomingPages = normalizePages(parsedPages);
+      if (sentPages.length > 0) {
+        const existingUrl = String(existingContract.originalFileUrl || "");
 
-        nextPages = existingPages.length ? existingPages : incomingPages;
-        finalPageCount = Math.max(1, nextPages.length);
+        pages = sentPages.map((page, index) => ({
+          pageNumber: Number(page.pageNumber || index + 1),
+          url:
+            page.url && !page.url.startsWith("blob:")
+              ? page.url
+              : existingUrl,
+          name:
+            page.name ||
+            `${existingContract.originalFileName || "הסכם"} - עמוד ${
+              index + 1
+            }`,
+          type: page.type || originalFileType,
+        }));
       }
-    } else {
-      return NextResponse.json(
-        { success: false, message: "חובה להעלות קובץ הסכם" },
-        { status: 400 }
-      );
     }
 
     if (!originalFileUrl) {
       return NextResponse.json(
-        { success: false, message: "שמירת קובץ ההסכם נכשלה" },
+        { success: false, message: "צריך להעלות קובץ הסכם לפני שמירה" },
         { status: 400 }
       );
     }
 
-    const signingToken =
-      existingContract?.signingToken || randomBytes(24).toString("hex");
+    if (!pages.length) {
+      pages = Array.from({ length: pageCount }).map((_, index) => ({
+        pageNumber: index + 1,
+        url: originalFileUrl,
+        name: `${originalFileName || "הסכם"} - עמוד ${index + 1}`,
+        type: originalFileType,
+      }));
+    }
 
-    const signingTokenExpiresAt =
-      existingContract?.signingTokenExpiresAt ||
-      new Date(Date.now() + 1000 * 60 * 60 * 24 * 30);
+    const signingToken = existingContract?.signingToken || makeToken();
 
-    const basePayload = {
+    const payload = {
       eventId,
-      title: title || "הסכם לקוח",
+      title,
       hallId,
       hallName,
       eventTitle,
@@ -355,66 +445,46 @@ export async function POST(
       originalFileUrl,
       originalFileName,
       originalFileType,
-
-      pageCount: finalPageCount,
-      pages: nextPages,
-
+      pageCount,
+      pages,
       fields,
 
       signingToken,
-      signingTokenExpiresAt,
-
-      status: existingContract?.status === "sent" ? "sent" : "draft",
-      locked: false,
+      status: existingContract?.status || "draft",
+      locked: Boolean(existingContract?.locked || false),
     };
 
-    const auditEntry = {
-      action: existingContract ? "contract_updated" : "contract_created",
-      at: new Date(),
-      ...getRequestMeta(req),
-    };
+    let savedContract: any;
 
-    const contract = existingContract
-      ? await ClientContract.findByIdAndUpdate(
-          existingContract._id,
-          {
-            ...basePayload,
-            $push: {
-              auditLog: auditEntry,
-            },
-          },
-          { new: true }
-        )
-      : await ClientContract.create({
-          ...basePayload,
-          auditLog: [auditEntry],
-        });
-
-    if (!contract) {
-      return NextResponse.json(
-        { success: false, message: "שמירת ההסכם נכשלה" },
-        { status: 500 }
-      );
+    if (existingContract) {
+      existingContract.set(payload);
+      savedContract = await existingContract.save();
+    } else {
+      savedContract = await ClientContract.create(payload);
     }
 
-    const links = buildLinks(req, contract.signingToken);
+    const serialized = serializeContract(savedContract, req);
 
     return NextResponse.json({
       success: true,
-      contract: {
-        ...contract.toObject(),
-        signingLink: links.signingLink,
-        viewLink: links.viewLink,
-      },
-      signingLink: links.signingLink,
-      viewLink: links.viewLink,
-      contractId: String(contract._id),
+      message: "ההסכם נשמר בהצלחה",
+      contract: serialized,
+      clientContract: serialized,
+      contractId: serialized.id,
+      signingLink: serialized.signingLink,
+      viewLink: serialized.viewLink,
     });
   } catch (error) {
     console.error("POST client contract failed:", error);
 
     return NextResponse.json(
-      { success: false, message: "שמירת ההסכם נכשלה" },
+      {
+        success: false,
+        message:
+          error instanceof Error
+            ? `שמירת ההסכם נכשלה: ${error.message}`
+            : "שמירת ההסכם נכשלה",
+      },
       { status: 500 }
     );
   }
