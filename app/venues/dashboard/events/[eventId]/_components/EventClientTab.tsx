@@ -1005,7 +1005,7 @@ export default function EventClientTab({
                     className="inline-flex h-11 items-center gap-2 rounded-2xl bg-[#b98121] px-5 text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Send size={17} />
-                    {sendingSms ? "שולח..." : "שלח SMS"}
+                    {sendingSms ? "שולח..." : "שלח קישור חתימה ב-SMS"}
                   </button>
                 </div>
               </div>
@@ -1470,6 +1470,16 @@ export default function EventClientTab({
                 subtitle="לאחר שמירה/שליחה יוצגו הקישורים"
               >
                 <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={sendSmsToClient}
+                    disabled={!contractFile || !contractId || sendingSms || isLocked}
+                    className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#b98121] px-4 text-sm font-black text-white shadow-sm transition hover:bg-[#9f6f1a] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Send size={16} />
+                    {sendingSms ? "שולח קישור..." : "שלח קישור חתימה ב-SMS"}
+                  </button>
+
                   <button
                     type="button"
                     disabled={!signingLink}

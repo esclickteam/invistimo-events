@@ -1,31 +1,132 @@
 import { NextRequest, NextResponse } from "next/server";
-import { randomBytes } from "crypto";
-import ClientContract from "@/models/ClientContract";
+import crypto from "crypto";
 import connectDB from "@/lib/mongodb";
+import ClientContract from "@/models/ClientContract";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 function getBaseUrl(req: NextRequest) {
   const envUrl =
     process.env.NEXT_PUBLIC_APP_URL ||
     process.env.NEXT_PUBLIC_SITE_URL ||
-    "";
+    process.env.APP_URL;
 
   if (envUrl) return envUrl.replace(/\/$/, "");
 
-  const proto = req.headers.get("x-forwarded-proto") || "http";
-  const host = req.headers.get("host") || "localhost:3000";
+  const host = req.headers.get("host") || "";
+  const proto = req.headers.get("x-forwarded-proto") || "https";
 
-  return `${proto}://${host}`;
+  return `${proto}://${host}`.replace(/\/$/, "");
 }
 
-function buildLinks(req: NextRequest, token: string) {
+function makeToken() {
+  return crypto.randomBytes(32).toString("hex");
+}
+
+function normalizePhone(value: unknown) {
+  return String(value || "")
+    .trim()
+    .replace(/\s+/g, "")
+    .replace(/-/g, "");
+}
+
+function buildSmsMessage({
+  hallName,
+  eventTitle,
+  signingLink,
+}: {
+  hallName: string;
+  eventTitle: string;
+  signingLink: string;
+}) {
+  const cleanHallName = hallName || "האולם";
+  const cleanEventTitle = eventTitle || "האירוע";
+
+  return (
+    `שלום, ${cleanHallName} שלח אליכם הסכם לחתימה עבור ${cleanEventTitle}.\n` +
+    `לחתימה על ההסכם היכנסו לקישור:\n${signingLink}`
+  );
+}
+
+function serializeContract(contract: any, req: NextRequest) {
+  const object =
+    typeof contract?.toObject === "function" ? contract.toObject() : contract;
+
   const baseUrl = getBaseUrl(req);
+  const token = String(object?.signingToken || "");
+
+  const signingLink = token
+    ? `${baseUrl}/client-contracts/sign/${encodeURIComponent(token)}`
+    : "";
+
+  const viewLink = token
+    ? `${baseUrl}/client-contracts/sign/${encodeURIComponent(token)}?view=1`
+    : "";
 
   return {
-    signingLink: `${baseUrl}/client-contracts/sign/${token}`,
-    viewLink: `${baseUrl}/client-contracts/sign/${token}?view=1`,
+    ...object,
+    _id: String(object?._id || object?.id || ""),
+    id: String(object?._id || object?.id || ""),
+    signingLink,
+    viewLink,
+    signedViewLink: viewLink,
   };
+}
+
+async function sendSmsThroughExistingApi({
+  req,
+  phone,
+  message,
+  eventId,
+  hallId,
+  signingLink,
+  contractId,
+}: {
+  req: NextRequest;
+  phone: string;
+  message: string;
+  eventId: string;
+  hallId: string;
+  signingLink: string;
+  contractId: string;
+}) {
+  const baseUrl = getBaseUrl(req);
+
+  const res = await fetch(`${baseUrl}/api/sms/send`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      cookie: req.headers.get("cookie") || "",
+    },
+    body: JSON.stringify({
+      phone,
+      to: phone,
+      recipient: phone,
+      recipients: [phone],
+      phones: [phone],
+
+      message,
+      text: message,
+      content: message,
+
+      eventId,
+      hallId,
+      contractId,
+      type: "client_contract_signature",
+      signingLink,
+      contractSigningLink: signingLink,
+      provider: "4free",
+    }),
+  });
+
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok || data?.success === false) {
+    throw new Error(data?.message || data?.error || "שליחת ה-SMS נכשלה");
+  }
+
+  return data;
 }
 
 export async function POST(
@@ -36,7 +137,6 @@ export async function POST(
     await connectDB();
 
     const { eventId } = await context.params;
-    const body = await req.json().catch(() => ({}));
 
     if (!eventId) {
       return NextResponse.json(
@@ -45,140 +145,110 @@ export async function POST(
       );
     }
 
-    const clientPhone = String(body.clientPhone || "").trim();
+    const body = await req.json().catch(() => ({}));
 
-    if (!clientPhone) {
+    const contractId = String(body?.contractId || "").trim();
+    const hallId = String(body?.hallId || "").trim();
+    const hallName = String(body?.hallName || "").trim();
+    const eventTitle = String(body?.eventTitle || "").trim();
+    const clientPhone = normalizePhone(body?.clientPhone);
+
+    if (!contractId) {
       return NextResponse.json(
-        { success: false, message: "חסר מספר טלפון ללקוח" },
+        { success: false, message: "חסר מזהה הסכם" },
         { status: 400 }
       );
     }
 
-    let contract = null;
-
-    if (body.contractId) {
-      contract = await ClientContract.findOne({
-        _id: String(body.contractId),
-        eventId,
-      });
+    if (!clientPhone) {
+      return NextResponse.json(
+        { success: false, message: "אין מספר טלפון לשליחת SMS" },
+        { status: 400 }
+      );
     }
 
-    if (!contract) {
-      contract = await ClientContract.findOne({ eventId }).sort({ createdAt: -1 });
-    }
+    const contract = await ClientContract.findOne({
+      _id: contractId,
+      eventId,
+    });
 
     if (!contract) {
       return NextResponse.json(
-        { success: false, message: "לא נמצא הסכם לשליחה. קודם צריך לשמור הסכם" },
+        { success: false, message: "ההסכם לא נמצא" },
         { status: 404 }
       );
     }
 
-    if (contract.locked || contract.status === "signed") {
+    if (contract.locked || contract.status === "signed" || contract.status === "locked") {
       return NextResponse.json(
-        { success: false, message: "ההסכם כבר נחתם וננעל" },
+        { success: false, message: "ההסכם כבר נחתם ונעול לצפייה בלבד" },
         { status: 423 }
       );
     }
 
-    if (!Array.isArray(contract.fields) || contract.fields.length === 0) {
-      return NextResponse.json(
-        { success: false, message: "צריך להוסיף לפחות שדה אחד להסכם" },
-        { status: 400 }
-      );
-    }
-
     if (!contract.signingToken) {
-      contract.signingToken = randomBytes(24).toString("hex");
+      contract.signingToken = makeToken();
     }
-
-    if (!contract.signingTokenExpiresAt) {
-      contract.signingTokenExpiresAt = new Date(
-        Date.now() + 1000 * 60 * 60 * 24 * 30
-      );
-    }
-
-    contract.clientPhone = clientPhone;
-    contract.clientName = String(body.clientName || contract.clientName || "");
-    contract.clientEmail = String(body.clientEmail || contract.clientEmail || "");
-    contract.hallName = String(body.hallName || contract.hallName || "");
-    contract.eventTitle = String(body.eventTitle || contract.eventTitle || "");
 
     contract.status = "sent";
     contract.sentAt = new Date();
 
-    contract.auditLog.push({
-      action: "contract_sent_sms",
-      at: new Date(),
-      ip: req.headers.get("x-forwarded-for") || "",
-      userAgent: req.headers.get("user-agent") || "",
-    });
+    if (hallId && !contract.hallId) contract.hallId = hallId;
+    if (hallName) contract.hallName = hallName;
+    if (eventTitle) contract.eventTitle = eventTitle;
+    if (clientPhone) contract.clientPhone = clientPhone;
 
     await contract.save();
 
-    const links = buildLinks(req, contract.signingToken);
+    const serialized = serializeContract(contract, req);
+    const signingLink = serialized.signingLink;
 
-    const message = `שלום ${contract.clientName || ""}, נשלח אליך הסכם לחתימה עבור ${contract.eventTitle || "האירוע"} ב-${contract.hallName || "האולם"}: ${links.signingLink}`;
-
-    /**
-     * משתמש ב-API SMS הקיים שלך.
-     * אם אצלך הנתיב שונה — תשני רק את ה-fetch הזה.
-     */
-    const smsRes = await fetch(`${getBaseUrl(req)}/api/sms/send`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        cookie: req.headers.get("cookie") || "",
-      },
-      body: JSON.stringify({
-        phone: clientPhone,
-        to: clientPhone,
-        recipient: clientPhone,
-        recipients: [clientPhone],
-        phones: [clientPhone],
-
-        message,
-        text: message,
-        content: message,
-
-        eventId,
-        hallId: contract.hallId,
-        type: "client_contract_signature",
-        signingLink: links.signingLink,
-        provider: "4free",
-      }),
-    });
-
-    const smsData = await smsRes.json().catch(() => ({}));
-
-    if (!smsRes.ok || smsData?.success === false) {
-      console.error("SMS send contract failed:", smsData);
-
+    if (!signingLink) {
       return NextResponse.json(
-        {
-          success: false,
-          message: smsData?.message || smsData?.error || "שליחת ה-SMS נכשלה",
-        },
+        { success: false, message: "לא נוצר קישור חתימה" },
         { status: 500 }
       );
     }
 
+    const smsMessage =
+      String(body?.message || "").trim() ||
+      buildSmsMessage({
+        hallName: String(contract.hallName || hallName || ""),
+        eventTitle: String(contract.eventTitle || eventTitle || ""),
+        signingLink,
+      });
+
+    const smsResult = await sendSmsThroughExistingApi({
+      req,
+      phone: clientPhone,
+      message: smsMessage,
+      eventId,
+      hallId: String(contract.hallId || hallId || ""),
+      signingLink,
+      contractId: serialized.id,
+    });
+
     return NextResponse.json({
       success: true,
-      contractId: String(contract._id),
-      signingLink: links.signingLink,
-      viewLink: links.viewLink,
-      contract: {
-        ...contract.toObject(),
-        signingLink: links.signingLink,
-        viewLink: links.viewLink,
-      },
+      message: "קישור החתימה נשלח ללקוח ב-SMS",
+      smsResult,
+      contract: serialized,
+      clientContract: serialized,
+      contractId: serialized.id,
+      signingLink: serialized.signingLink,
+      viewLink: serialized.viewLink,
     });
   } catch (error) {
-    console.error("POST send client contract failed:", error);
+    console.error("POST send client contract sms failed:", error);
 
     return NextResponse.json(
-      { success: false, message: "שליחת ההסכם נכשלה" },
+      {
+        success: false,
+        message:
+          error instanceof Error
+            ? `שליחת ההסכם נכשלה: ${error.message}`
+            : "שליחת ההסכם נכשלה",
+      },
       { status: 500 }
     );
   }

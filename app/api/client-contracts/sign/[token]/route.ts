@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { put } from "@vercel/blob";
 import crypto from "crypto";
+import { v2 as cloudinary } from "cloudinary";
 import connectDB from "@/lib/mongodb";
 import ClientContract from "@/models/ClientContract";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+  secure: true,
+});
 
 type ContractFieldType =
   | "signature"
@@ -61,21 +68,6 @@ function safeNumber(value: FormDataEntryValue | null, fallback = 1) {
 
 function isRealFile(value: FormDataEntryValue | null): value is File {
   return value instanceof File && value.size > 0;
-}
-
-function sanitizeFileName(fileName: string) {
-  const ext = fileName.includes(".") ? fileName.split(".").pop() || "" : "";
-  const baseName = fileName
-    .replace(/\.[^/.]+$/, "")
-    .replace(/[^\w.-]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 80);
-
-  const cleanBase = baseName || "client-contract";
-  const cleanExt = ext ? `.${ext.replace(/[^\w]+/g, "").slice(0, 10)}` : "";
-
-  return `${cleanBase}${cleanExt}`;
 }
 
 function getBaseUrl(req: NextRequest) {
@@ -145,7 +137,17 @@ function normalizePages(rawPages: unknown, fallbackUrl = ""): ContractPage[] {
   }));
 }
 
-async function uploadFileToBlob({
+async function fileToBuffer(file: File) {
+  const arrayBuffer = await file.arrayBuffer();
+  return Buffer.from(arrayBuffer);
+}
+
+function getCloudinaryResourceType(file: File): "image" | "raw" {
+  if (file.type.startsWith("image/")) return "image";
+  return "raw";
+}
+
+async function uploadFileToCloudinary({
   eventId,
   file,
   prefix,
@@ -154,19 +156,49 @@ async function uploadFileToBlob({
   file: File;
   prefix: string;
 }) {
-  const cleanName = sanitizeFileName(file.name || "client-contract");
-  const randomPart = crypto.randomBytes(8).toString("hex");
+  const buffer = await fileToBuffer(file);
+  const resourceType = getCloudinaryResourceType(file);
 
-  const blobPath = `client-contracts/${eventId}/${prefix}-${Date.now()}-${randomPart}-${cleanName}`;
+  const cleanOriginalName =
+    file.name
+      ?.replace(/\.[^/.]+$/, "")
+      .replace(/[^\w\u0590-\u05FF.-]+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 80) || "client-contract";
 
-  const blob = await put(blobPath, file, {
-    access: "public",
-    addRandomSuffix: false,
+  const publicId = `${prefix}-${Date.now()}-${crypto
+    .randomBytes(6)
+    .toString("hex")}-${cleanOriginalName}`;
+
+  const folder = `invistimo/client-contracts/${eventId}`;
+
+  const result = await new Promise<any>((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder,
+        public_id: publicId,
+        resource_type: resourceType,
+        overwrite: false,
+      },
+      (error, uploadResult) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+
+        resolve(uploadResult);
+      }
+    );
+
+    uploadStream.end(buffer);
   });
 
   return {
-    url: blob.url,
-    fileName: file.name || cleanName,
+    url: String(result.secure_url || result.url || ""),
+    publicId: String(result.public_id || ""),
+    fileName: file.name || cleanOriginalName,
+    resourceType,
   };
 }
 
@@ -217,7 +249,9 @@ export async function GET(
 
     return NextResponse.json({
       success: true,
-      contracts: contracts.map((contract: any) => serializeContract(contract, req)),
+      contracts: contracts.map((contract: any) =>
+        serializeContract(contract, req)
+      ),
     });
   } catch (error) {
     console.error("GET client contracts failed:", error);
@@ -258,7 +292,10 @@ export async function POST(
     const clientPhone = safeString(formData.get("clientPhone"), "");
     const clientEmail = safeString(formData.get("clientEmail"), "");
 
-    const requestedPageCount = Math.max(1, safeNumber(formData.get("pageCount"), 1));
+    const requestedPageCount = Math.max(
+      1,
+      safeNumber(formData.get("pageCount"), 1)
+    );
 
     const fields = normalizeFields(safeJsonParse(formData.get("fields"), []));
     const sentPages = normalizePages(safeJsonParse(formData.get("pages"), []));
@@ -299,13 +336,17 @@ export async function POST(
     let originalFileName = existingContract?.originalFileName || "";
     let originalFileType: "pdf" | "image" =
       existingContract?.originalFileType === "image" ? "image" : "pdf";
-    let pageCount = Math.max(1, Number(existingContract?.pageCount || requestedPageCount));
+    let pageCount = Math.max(
+      1,
+      Number(existingContract?.pageCount || requestedPageCount)
+    );
+
     let pages: ContractPage[] = Array.isArray(existingContract?.pages)
       ? existingContract.pages
       : [];
 
     if (singleFile) {
-      const uploaded = await uploadFileToBlob({
+      const uploaded = await uploadFileToCloudinary({
         eventId,
         file: singleFile,
         prefix: "pdf",
@@ -325,7 +366,7 @@ export async function POST(
     } else if (multiFiles.length > 0) {
       const uploadedImages = await Promise.all(
         multiFiles.map((file, index) =>
-          uploadFileToBlob({
+          uploadFileToCloudinary({
             eventId,
             file,
             prefix: `image-${index + 1}`,
@@ -360,7 +401,11 @@ export async function POST(
             page.url && !page.url.startsWith("blob:")
               ? page.url
               : existingUrl,
-          name: page.name || `${existingContract.originalFileName || "הסכם"} - עמוד ${index + 1}`,
+          name:
+            page.name ||
+            `${existingContract.originalFileName || "הסכם"} - עמוד ${
+              index + 1
+            }`,
           type: page.type || originalFileType,
         }));
       }
