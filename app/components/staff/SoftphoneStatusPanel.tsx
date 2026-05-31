@@ -30,6 +30,7 @@ type RecentCall = {
   label?: string;
   direction: "outbound" | "inbound";
   time: string;
+  duration?: number;
 };
 
 type AgentState = {
@@ -72,19 +73,73 @@ const STATUS_LABELS: Record<AgentStatus, string> = {
 const BUSY_REASONS: {
   value: BusyReason;
   label: string;
+  shortLabel: string;
   targetStatus: AgentStatus;
 }[] = [
-  { value: "outbound_call", label: "הוצאת שיחה", targetStatus: "unavailable" },
-  { value: "after_call", label: "טיפול בלקוח", targetStatus: "after_call" },
-  { value: "back_office", label: "בק אופיס", targetStatus: "unavailable" },
-  { value: "manager_approval", label: "אישור מנהל", targetStatus: "unavailable" },
-  { value: "break", label: "הפסקה", targetStatus: "break" },
-  { value: "personal", label: "אישי", targetStatus: "unavailable" },
-  { value: "technical", label: "תקלה טכנית", targetStatus: "unavailable" },
-  { value: "unavailable", label: "לא זמין", targetStatus: "unavailable" },
+  {
+    value: "outbound_call",
+    label: "הוצאת שיחה",
+    shortLabel: "הוצאת שיחה",
+    targetStatus: "unavailable",
+  },
+  {
+    value: "after_call",
+    label: "טיפול אחרי שיחה",
+    shortLabel: "טיפול אחרי שיחה",
+    targetStatus: "after_call",
+  },
+  {
+    value: "back_office",
+    label: "בק אופיס",
+    shortLabel: "בק אופיס",
+    targetStatus: "unavailable",
+  },
+  {
+    value: "manager_approval",
+    label: "אישור מנהל",
+    shortLabel: "אישור מנהל",
+    targetStatus: "unavailable",
+  },
+  {
+    value: "break",
+    label: "הפסקה",
+    shortLabel: "הפסקה",
+    targetStatus: "break",
+  },
+  {
+    value: "personal",
+    label: "אישי",
+    shortLabel: "אישי",
+    targetStatus: "unavailable",
+  },
+  {
+    value: "technical",
+    label: "תקלה טכנית",
+    shortLabel: "תקלה",
+    targetStatus: "unavailable",
+  },
+  {
+    value: "unavailable",
+    label: "לא זמין",
+    shortLabel: "לא זמין",
+    targetStatus: "unavailable",
+  },
 ];
 
-const DIAL_KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"];
+const DIAL_KEYS = [
+  { key: "1", letters: "" },
+  { key: "2", letters: "ABC" },
+  { key: "3", letters: "DEF" },
+  { key: "4", letters: "GHI" },
+  { key: "5", letters: "JKL" },
+  { key: "6", letters: "MNO" },
+  { key: "7", letters: "PQRS" },
+  { key: "8", letters: "TUV" },
+  { key: "9", letters: "WXYZ" },
+  { key: "*", letters: "" },
+  { key: "0", letters: "+" },
+  { key: "#", letters: "" },
+];
 
 const DEFAULT_RECENT_CALLS: RecentCall[] = [
   {
@@ -93,6 +148,7 @@ const DEFAULT_RECENT_CALLS: RecentCall[] = [
     label: "לקוח אחרון",
     direction: "outbound",
     time: "12:44",
+    duration: 218,
   },
   {
     id: "2",
@@ -100,6 +156,7 @@ const DEFAULT_RECENT_CALLS: RecentCall[] = [
     label: "שיחה נכנסת",
     direction: "inbound",
     time: "11:20",
+    duration: 184,
   },
   {
     id: "3",
@@ -107,6 +164,7 @@ const DEFAULT_RECENT_CALLS: RecentCall[] = [
     label: "לקוח חוזר",
     direction: "outbound",
     time: "10:08",
+    duration: 96,
   },
 ];
 
@@ -119,6 +177,16 @@ function formatDuration(totalSeconds: number) {
   return [hours, minutes, seconds]
     .map((unit) => String(unit).padStart(2, "0"))
     .join(":");
+}
+
+function formatShortDuration(totalSeconds?: number) {
+  if (!totalSeconds) return "00:00";
+
+  const safeSeconds = Math.max(0, Math.floor(totalSeconds));
+  const minutes = Math.floor(safeSeconds / 60);
+  const seconds = safeSeconds % 60;
+
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
 function secondsSince(value?: string | null) {
@@ -144,15 +212,31 @@ function getBusyReasonLabel(reason?: BusyReason | null) {
   return BUSY_REASONS.find((item) => item.value === reason)?.label || "";
 }
 
+function getBusyReasonShortLabel(reason?: BusyReason | null) {
+  if (!reason) return "";
+  return BUSY_REASONS.find((item) => item.value === reason)?.shortLabel || "";
+}
+
 function getCallLabel(direction: CallDirection, status: AgentStatus) {
-  if (status === "dialing") return "מחייג";
+  if (status === "dialing") return "זמן חיוג";
   if (status === "ringing") return "שיחה נכנסת";
-  if (status === "in_call") return "בשיחה";
+  if (status === "in_call") return "זמן שיחה";
 
   if (direction === "outbound") return "שיחה יוצאת";
   if (direction === "inbound") return "שיחה נכנסת";
 
   return "אין שיחה פעילה";
+}
+
+function getStatusTimerLabel(status: AgentStatus, reason?: BusyReason | null) {
+  if (status === "dialing") return "זמן חיוג";
+  if (status === "ringing") return "זמן צלצול";
+  if (status === "in_call") return "זמן שיחה";
+  if (status === "break" || reason === "break") return "משך הפסקה";
+  if (status === "after_call" || reason === "after_call") return "טיפול אחרי שיחה";
+  if (status === "available") return "זמן פנוי";
+  if (status === "offline") return "מחוץ למשמרת";
+  return getBusyReasonShortLabel(reason) || "זמן לא פנוי";
 }
 
 function statusDotClass(status: AgentStatus) {
@@ -179,7 +263,7 @@ function statusTextClass(status: AgentStatus) {
 
 function recentCallBadgeClass(direction: RecentCall["direction"]) {
   if (direction === "outbound") {
-    return "border-[#ead8b8] bg-[#fff7ea] text-[#8a642b]";
+    return "border-blue-200 bg-blue-50 text-blue-700";
   }
 
   return "border-emerald-200 bg-emerald-50 text-emerald-700";
@@ -188,6 +272,262 @@ function recentCallBadgeClass(direction: RecentCall["direction"]) {
 function recentCallDirectionLabel(direction: RecentCall["direction"]) {
   if (direction === "outbound") return "יוצאת";
   return "נכנסת";
+}
+
+function Icon({
+  name,
+  className = "h-4 w-4",
+}: {
+  name:
+    | "play"
+    | "stop"
+    | "phone"
+    | "phonePlus"
+    | "headset"
+    | "keypad"
+    | "clock"
+    | "mic"
+    | "volume"
+    | "pause"
+    | "transfer"
+    | "user"
+    | "x"
+    | "delete"
+    | "check"
+    | "minus"
+    | "coffee"
+    | "briefcase"
+    | "shield"
+    | "spark"
+    | "arrowOut"
+    | "arrowIn";
+  className?: string;
+}) {
+  const common = {
+    className,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+  };
+
+  if (name === "play") {
+    return (
+      <svg {...common}>
+        <path d="M8 5v14l11-7z" />
+      </svg>
+    );
+  }
+
+  if (name === "stop") {
+    return (
+      <svg {...common}>
+        <rect x="7" y="7" width="10" height="10" rx="2" />
+      </svg>
+    );
+  }
+
+  if (name === "phone") {
+    return (
+      <svg {...common}>
+        <path d="M22 16.92v3a2 2 0 0 1-2.18 2A19.8 19.8 0 0 1 3.1 5.18 2 2 0 0 1 5.11 3h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.62a2 2 0 0 1-.45 2.11L9 10.7a16 16 0 0 0 4.3 4.3l1.25-1.25a2 2 0 0 1 2.11-.45c.84.29 1.72.5 2.62.62A2 2 0 0 1 22 16.92z" />
+      </svg>
+    );
+  }
+
+  if (name === "phonePlus") {
+    return (
+      <svg {...common}>
+        <path d="M15 5h6" />
+        <path d="M18 2v6" />
+        <path d="M22 16.92v3a2 2 0 0 1-2.18 2A19.8 19.8 0 0 1 3.1 5.18 2 2 0 0 1 5.11 3h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.62a2 2 0 0 1-.45 2.11L9 10.7a16 16 0 0 0 4.3 4.3l1.25-1.25a2 2 0 0 1 2.11-.45c.84.29 1.72.5 2.62.62A2 2 0 0 1 22 16.92z" />
+      </svg>
+    );
+  }
+
+  if (name === "headset") {
+    return (
+      <svg {...common}>
+        <path d="M4 13a8 8 0 0 1 16 0" />
+        <path d="M4 13v4a2 2 0 0 0 2 2h2v-8H6a2 2 0 0 0-2 2z" />
+        <path d="M20 13v4a2 2 0 0 1-2 2h-2v-8h2a2 2 0 0 1 2 2z" />
+        <path d="M13 21h3" />
+      </svg>
+    );
+  }
+
+  if (name === "keypad") {
+    return (
+      <svg {...common}>
+        <circle cx="6" cy="6" r="1" />
+        <circle cx="12" cy="6" r="1" />
+        <circle cx="18" cy="6" r="1" />
+        <circle cx="6" cy="12" r="1" />
+        <circle cx="12" cy="12" r="1" />
+        <circle cx="18" cy="12" r="1" />
+        <circle cx="6" cy="18" r="1" />
+        <circle cx="12" cy="18" r="1" />
+        <circle cx="18" cy="18" r="1" />
+      </svg>
+    );
+  }
+
+  if (name === "clock") {
+    return (
+      <svg {...common}>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7v5l3 2" />
+      </svg>
+    );
+  }
+
+  if (name === "mic") {
+    return (
+      <svg {...common}>
+        <rect x="9" y="3" width="6" height="11" rx="3" />
+        <path d="M5 11a7 7 0 0 0 14 0" />
+        <path d="M12 18v3" />
+      </svg>
+    );
+  }
+
+  if (name === "volume") {
+    return (
+      <svg {...common}>
+        <path d="M11 5 6 9H3v6h3l5 4V5z" />
+        <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+      </svg>
+    );
+  }
+
+  if (name === "pause") {
+    return (
+      <svg {...common}>
+        <path d="M9 5v14" />
+        <path d="M15 5v14" />
+      </svg>
+    );
+  }
+
+  if (name === "transfer") {
+    return (
+      <svg {...common}>
+        <path d="M7 7h11l-3-3" />
+        <path d="m18 7-3 3" />
+        <path d="M17 17H6l3 3" />
+        <path d="m6 17 3-3" />
+      </svg>
+    );
+  }
+
+  if (name === "user") {
+    return (
+      <svg {...common}>
+        <path d="M20 21a8 8 0 0 0-16 0" />
+        <circle cx="12" cy="7" r="4" />
+      </svg>
+    );
+  }
+
+  if (name === "x") {
+    return (
+      <svg {...common}>
+        <path d="M18 6 6 18" />
+        <path d="m6 6 12 12" />
+      </svg>
+    );
+  }
+
+  if (name === "delete") {
+    return (
+      <svg {...common}>
+        <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z" />
+        <path d="m18 9-6 6" />
+        <path d="m12 9 6 6" />
+      </svg>
+    );
+  }
+
+  if (name === "check") {
+    return (
+      <svg {...common}>
+        <path d="m20 6-11 11-5-5" />
+      </svg>
+    );
+  }
+
+  if (name === "minus") {
+    return (
+      <svg {...common}>
+        <path d="M5 12h14" />
+      </svg>
+    );
+  }
+
+  if (name === "coffee") {
+    return (
+      <svg {...common}>
+        <path d="M5 8h10v5a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4V8z" />
+        <path d="M15 9h2a2 2 0 1 1 0 4h-2" />
+        <path d="M6 21h10" />
+      </svg>
+    );
+  }
+
+  if (name === "briefcase") {
+    return (
+      <svg {...common}>
+        <rect x="3" y="7" width="18" height="13" rx="2" />
+        <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+        <path d="M3 12h18" />
+      </svg>
+    );
+  }
+
+  if (name === "shield") {
+    return (
+      <svg {...common}>
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        <path d="m9 12 2 2 4-4" />
+      </svg>
+    );
+  }
+
+  if (name === "spark") {
+    return (
+      <svg {...common}>
+        <path d="M12 3l1.7 5.3L19 10l-5.3 1.7L12 17l-1.7-5.3L5 10l5.3-1.7L12 3z" />
+        <path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z" />
+      </svg>
+    );
+  }
+
+  if (name === "arrowOut") {
+    return (
+      <svg {...common}>
+        <path d="M7 17 17 7" />
+        <path d="M8 7h9v9" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg {...common}>
+      <path d="M17 7 7 17" />
+      <path d="M16 17H7V8" />
+    </svg>
+  );
+}
+
+function ReasonIcon({ reason }: { reason: BusyReason }) {
+  if (reason === "break") return <Icon name="coffee" className="h-4 w-4" />;
+  if (reason === "back_office") return <Icon name="briefcase" className="h-4 w-4" />;
+  if (reason === "manager_approval") return <Icon name="shield" className="h-4 w-4" />;
+  if (reason === "outbound_call") return <Icon name="phonePlus" className="h-4 w-4" />;
+  if (reason === "after_call") return <Icon name="headset" className="h-4 w-4" />;
+  return <Icon name="minus" className="h-4 w-4" />;
 }
 
 export default function SoftphoneStatusPanel() {
@@ -209,6 +549,7 @@ export default function SoftphoneStatusPanel() {
   const [activeBusyReason, setActiveBusyReason] = useState<BusyReason | null>(null);
 
   const [showDialer, setShowDialer] = useState(false);
+  const [showBusyMenu, setShowBusyMenu] = useState(false);
   const [recentCalls, setRecentCalls] = useState<RecentCall[]>(DEFAULT_RECENT_CALLS);
 
   useEffect(() => {
@@ -327,6 +668,7 @@ export default function SoftphoneStatusPanel() {
     setActiveBusyReason(null);
     setBusyReason("");
     setShowDialer(false);
+    setShowBusyMenu(false);
 
     await changeStatus("available", {
       direction: "none",
@@ -340,6 +682,7 @@ export default function SoftphoneStatusPanel() {
     if (!shiftStarted || savingStatus) return;
     setShowEndShiftConfirm(true);
     setShowDialer(false);
+    setShowBusyMenu(false);
   }
 
   async function confirmEndShift() {
@@ -353,6 +696,7 @@ export default function SoftphoneStatusPanel() {
     setActiveBusyReason(null);
     setBusyReason("");
     setShowDialer(false);
+    setShowBusyMenu(false);
     setPhoneNumber("");
 
     await changeStatus("offline", {
@@ -373,6 +717,7 @@ export default function SoftphoneStatusPanel() {
     setActiveBusyReason(null);
     setBusyReason("");
     setShowDialer(false);
+    setShowBusyMenu(false);
 
     await changeStatus("available", {
       direction: "none",
@@ -391,6 +736,7 @@ export default function SoftphoneStatusPanel() {
 
     setBusyReason(value);
     setActiveBusyReason(value);
+    setShowBusyMenu(false);
 
     if (value === "outbound_call") {
       setCallDirection("outbound");
@@ -416,6 +762,20 @@ export default function SoftphoneStatusPanel() {
     });
   }
 
+  function openAddCall() {
+    if (!shiftStarted) {
+      startShift();
+      return;
+    }
+
+    setActiveBusyReason("outbound_call");
+    setBusyReason("outbound_call");
+    setCallDirection("outbound");
+    setShowEndShiftConfirm(false);
+    setShowBusyMenu(false);
+    setShowDialer(true);
+  }
+
   function toggleDialer() {
     if (!shiftStarted) return;
 
@@ -423,6 +783,7 @@ export default function SoftphoneStatusPanel() {
     setBusyReason("outbound_call");
     setCallDirection("outbound");
     setShowEndShiftConfirm(false);
+    setShowBusyMenu(false);
     setShowDialer((prev) => !prev);
   }
 
@@ -431,7 +792,8 @@ export default function SoftphoneStatusPanel() {
     setActiveBusyReason("outbound_call");
     setBusyReason("outbound_call");
     setCallDirection("outbound");
-    setShowDialer(false);
+    setShowDialer(true);
+    setShowBusyMenu(false);
   }
 
   function addRecentCall(number: string, direction: RecentCall["direction"]) {
@@ -454,9 +816,10 @@ export default function SoftphoneStatusPanel() {
           label: direction === "outbound" ? "חיוג אחרון" : "שיחה נכנסת",
           direction,
           time,
+          duration: 0,
         },
         ...withoutDuplicate,
-      ].slice(0, 5);
+      ].slice(0, 6);
     });
   }
 
@@ -478,6 +841,7 @@ export default function SoftphoneStatusPanel() {
     setPhoneNumber(cleanNumber);
     setCallDirection("outbound");
     setShowDialer(false);
+    setShowBusyMenu(false);
 
     addRecentCall(cleanNumber, "outbound");
 
@@ -506,6 +870,7 @@ export default function SoftphoneStatusPanel() {
     setPhoneNumber(cleanNumber);
     setCallDirection("inbound");
     setShowDialer(false);
+    setShowBusyMenu(false);
 
     addRecentCall(cleanNumber, "inbound");
 
@@ -531,6 +896,7 @@ export default function SoftphoneStatusPanel() {
     setActiveCallNumber(cleanNumber);
     setPhoneNumber(cleanNumber);
     setShowDialer(false);
+    setShowBusyMenu(false);
 
     await changeStatus("in_call", {
       number: cleanNumber,
@@ -556,6 +922,7 @@ export default function SoftphoneStatusPanel() {
     setActiveCallNumber("");
     setPhoneNumber("");
     setShowDialer(false);
+    setShowBusyMenu(false);
   }
 
   function appendDigit(digit: string) {
@@ -595,6 +962,8 @@ export default function SoftphoneStatusPanel() {
     currentStatus === "ringing" ||
     currentStatus === "in_call";
 
+  const timerLabel = getStatusTimerLabel(currentStatus, activeBusyReason);
+
   if (loading) {
     return (
       <section
@@ -608,94 +977,142 @@ export default function SoftphoneStatusPanel() {
 
   return (
     <section dir="rtl" className="relative w-full">
-      <div className="w-full rounded-[24px] border border-[#e9ddca] bg-[#fffdf9] p-2 shadow-[0_16px_45px_rgba(34,27,20,0.08)]">
-        <div className="flex min-h-[62px] w-full flex-wrap items-center gap-2 rounded-[20px] border border-[#f0e7d8] bg-white px-3 py-2">
+      <div className="relative w-full rounded-[26px] border border-[#e8dcc9] bg-[#fffdf9]/95 p-2 shadow-[0_18px_55px_rgba(22,28,45,0.11)] backdrop-blur-xl">
+        <div className="flex min-h-[58px] w-full items-center gap-2 overflow-x-auto rounded-[22px] border border-[#f0e7d8] bg-white/95 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
           <button
             type="button"
             onClick={shiftStarted ? requestEndShift : startShift}
             disabled={!!savingStatus}
-            className={`h-10 rounded-xl px-4 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-60 ${
+            className={`flex h-11 shrink-0 items-center gap-2 rounded-2xl px-4 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-60 ${
               shiftStarted
-                ? "border border-[#b9945a] bg-white text-[#8a642b] hover:bg-[#fff8ed]"
-                : "bg-[#221b14] text-white hover:bg-black"
+                ? "border border-[#d9c29d] bg-white text-[#7d5b25] hover:bg-[#fff8ed]"
+                : "bg-[#111827] text-white shadow-[0_10px_25px_rgba(17,24,39,0.18)] hover:bg-black"
             }`}
           >
+            <Icon name={shiftStarted ? "stop" : "play"} className="h-4 w-4" />
             {shiftStarted ? "סיום משמרת" : "תחילת משמרת"}
           </button>
 
-          <div className="flex h-10 items-center gap-2 rounded-xl border border-[#eadfce] bg-[#fbf8f3] px-3">
-            <span className="text-xs font-bold text-[#8b7b68]">משמרת</span>
-            <span dir="ltr" className="font-mono text-sm font-black text-[#221b14]">
-              {shiftStarted ? formatDuration(shiftSeconds) : "00:00:00"}
-            </span>
+          <div className="flex h-11 shrink-0 items-center gap-2 rounded-2xl border border-[#eadfce] bg-[#fbf8f3] px-3">
+            <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.12)]" />
+            <div className="leading-4">
+              <p className="text-[11px] font-black text-[#8b7b68]">משמרת</p>
+              <p dir="ltr" className="font-mono text-sm font-black text-[#111827]">
+                {shiftStarted ? formatDuration(shiftSeconds) : "00:00:00"}
+              </p>
+            </div>
           </div>
 
           <button
             type="button"
             onClick={setAvailable}
             disabled={!!savingStatus || !shiftStarted}
-            className={`h-10 rounded-xl px-5 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-50 ${
+            className={`flex h-11 shrink-0 items-center gap-2 rounded-2xl px-4 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-50 ${
               currentStatus === "available"
-                ? "bg-emerald-600 text-white shadow-sm"
+                ? "bg-emerald-600 text-white shadow-[0_10px_22px_rgba(16,185,129,0.22)]"
                 : "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
             }`}
           >
+            <Icon name="check" className="h-4 w-4" />
             פנוי
           </button>
 
-          <select
-            value={busyReason}
-            onChange={(event) => handleBusyReasonChange(event.target.value as BusyReason)}
-            disabled={!!savingStatus || !shiftStarted}
-            className={`h-10 min-w-[172px] rounded-xl border px-3 text-sm font-black outline-none transition disabled:cursor-not-allowed disabled:opacity-50 ${
-              currentStatus !== "available" && currentStatus !== "offline"
-                ? "border-red-200 bg-red-50 text-red-700"
-                : "border-[#e7dac8] bg-white text-[#221b14] focus:border-[#b9945a]"
-            }`}
-          >
-            <option value="">לא פנוי</option>
-            {BUSY_REASONS.map((reason) => (
-              <option key={reason.value} value={reason.value}>
-                {reason.label}
-              </option>
-            ))}
-          </select>
+          <div className="relative shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                if (!shiftStarted || savingStatus) return;
+                setShowBusyMenu((prev) => !prev);
+                setShowDialer(false);
+                setShowEndShiftConfirm(false);
+              }}
+              disabled={!!savingStatus || !shiftStarted}
+              className={`flex h-11 min-w-[142px] items-center justify-between gap-2 rounded-2xl border px-4 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                currentStatus !== "available" && currentStatus !== "offline"
+                  ? "border-red-200 bg-red-50 text-red-700"
+                  : "border-[#e7dac8] bg-white text-[#111827] hover:bg-[#fff8ed]"
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <Icon name="minus" className="h-4 w-4" />
+                לא פנוי
+              </span>
+              <span className="text-xs">▾</span>
+            </button>
 
-          <div className="flex h-10 min-w-[195px] items-center gap-2 rounded-xl border border-[#eadfce] bg-[#fbf8f3] px-3">
+            {showBusyMenu && (
+              <div className="absolute right-0 top-[50px] z-50 w-[245px] overflow-hidden rounded-[22px] border border-[#eadfce] bg-white p-2 shadow-[0_24px_70px_rgba(22,28,45,0.18)]">
+                {BUSY_REASONS.map((reason) => (
+                  <button
+                    key={reason.value}
+                    type="button"
+                    onClick={() => handleBusyReasonChange(reason.value)}
+                    className={`flex h-11 w-full items-center gap-3 rounded-2xl px-3 text-right text-sm font-black transition hover:bg-[#fff8ed] ${
+                      busyReason === reason.value
+                        ? "bg-red-50 text-red-700"
+                        : "text-[#3f3428]"
+                    }`}
+                  >
+                    <span className="flex h-8 w-8 items-center justify-center rounded-xl border border-[#eadfce] bg-[#fbf8f3]">
+                      <ReasonIcon reason={reason.value} />
+                    </span>
+                    {reason.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="flex h-11 min-w-[210px] shrink-0 items-center gap-2 rounded-2xl border border-[#eadfce] bg-[#fbf8f3] px-3">
             <span
               className={`h-2.5 w-2.5 rounded-full shadow-[0_0_0_4px] ${statusDotClass(
                 currentStatus
               )}`}
             />
-            <span className={`text-sm font-black ${statusTextClass(currentStatus)}`}>
-              {statusLabel}
-            </span>
-            <span dir="ltr" className="mr-auto font-mono text-sm font-black text-[#221b14]">
+            <div className="min-w-0 leading-4">
+              <p className={`truncate text-xs font-black ${statusTextClass(currentStatus)}`}>
+                {statusLabel}
+              </p>
+              <p className="text-[10px] font-bold text-[#8b7b68]">{timerLabel}</p>
+            </div>
+            <span dir="ltr" className="mr-auto font-mono text-sm font-black text-[#111827]">
               {formatDuration(liveStatusSeconds)}
             </span>
           </div>
 
           <div
-            className={`flex h-10 items-center rounded-xl px-3 text-xs font-black ${
+            className={`flex h-11 shrink-0 items-center gap-2 rounded-2xl px-3 text-xs font-black ${
               canReceiveInbound
                 ? "bg-emerald-50 text-emerald-700"
                 : "bg-red-50 text-red-700"
             }`}
           >
-            {canReceiveInbound ? "מקבל נכנסות" : "לא מקבל נכנסות"}
+            <Icon name="phone" className="h-4 w-4" />
+            {canReceiveInbound ? "מקבל שיחות נכנסות" : "לא מקבל נכנסות"}
           </div>
 
-          <div className="relative flex h-10 min-w-[330px] flex-1 items-center overflow-visible rounded-xl border border-[#e7dac8] bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+          <button
+            type="button"
+            onClick={openAddCall}
+            disabled={!!savingStatus}
+            className="flex h-11 shrink-0 items-center gap-2 rounded-2xl bg-[#b9945a] px-4 text-sm font-black text-white shadow-[0_10px_24px_rgba(185,148,90,0.24)] transition hover:bg-[#9f7a3f] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Icon name="phonePlus" className="h-4 w-4" />
+            הוספת שיחה
+          </button>
+
+          <div className="relative flex h-11 min-w-[300px] flex-1 shrink-0 items-center overflow-visible rounded-2xl border border-[#e7dac8] bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
             <button
               type="button"
               onClick={toggleDialer}
               disabled={!!savingStatus || !shiftStarted}
-              className={`h-full rounded-r-xl border-l border-[#e7dac8] px-3 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-50 ${
+              className={`flex h-full items-center gap-2 rounded-r-2xl border-l border-[#e7dac8] px-3 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-50 ${
                 showDialer
-                  ? "bg-[#221b14] text-white"
-                  : "bg-[#fbf8f3] text-[#221b14] hover:bg-[#fff8ed]"
+                  ? "bg-[#111827] text-white"
+                  : "bg-[#fbf8f3] text-[#111827] hover:bg-[#fff8ed]"
               }`}
             >
+              <Icon name="keypad" className="h-4 w-4" />
               מקשים
             </button>
 
@@ -711,85 +1128,192 @@ export default function SoftphoneStatusPanel() {
               }}
               placeholder="מספר לחיוג"
               disabled={!shiftStarted}
-              className="h-full min-w-0 flex-1 bg-white px-3 text-left font-mono text-sm font-black tracking-wide text-[#221b14] outline-none disabled:cursor-not-allowed disabled:bg-zinc-50"
+              className="h-full min-w-0 flex-1 bg-white px-3 text-left font-mono text-sm font-black tracking-wide text-[#111827] outline-none disabled:cursor-not-allowed disabled:bg-zinc-50"
             />
+
+            {phoneNumber && (
+              <button
+                type="button"
+                onClick={clearNumber}
+                className="flex h-8 w-8 items-center justify-center rounded-xl text-[#9b8b78] transition hover:bg-[#fbf8f3] hover:text-[#111827]"
+              >
+                <Icon name="x" className="h-4 w-4" />
+              </button>
+            )}
 
             <button
               type="button"
               onClick={startOutboundCall}
               disabled={!!savingStatus || !shiftStarted}
-              className="h-full rounded-l-xl bg-[#b9945a] px-5 text-sm font-black text-white transition hover:bg-[#9f7a3f] disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex h-full items-center gap-2 rounded-l-2xl bg-emerald-600 px-4 text-sm font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
+              <Icon name="phone" className="h-4 w-4" />
               חיוג
             </button>
 
             {showDialer && (
-              <div className="absolute left-0 top-[50px] z-50 w-[280px] rounded-[26px] border border-[#e8dcc9] bg-white p-4 shadow-[0_24px_70px_rgba(34,27,20,0.2)]">
-                <div className="mb-3 rounded-2xl border border-[#eadfce] bg-[#fbf8f3] px-3 py-3">
-                  <p className="text-center text-[11px] font-black text-[#8b7b68]">
-                    לוח חיוג
-                  </p>
-                  <p
-                    dir="ltr"
-                    className="mt-1 truncate text-center font-mono text-xl font-black tracking-wide text-[#221b14]"
-                  >
-                    {phoneNumber || "—"}
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-3 gap-2">
-                  {DIAL_KEYS.map((digit) => (
+              <div className="absolute left-0 top-[54px] z-50 grid w-[560px] grid-cols-[260px_1fr] overflow-hidden rounded-[28px] border border-[#e8dcc9] bg-white shadow-[0_28px_80px_rgba(22,28,45,0.2)]">
+                <div className="border-l border-[#f0e7d8] p-4">
+                  <div className="mb-3 flex items-center justify-between">
                     <button
-                      key={digit}
                       type="button"
-                      onClick={() => appendDigit(digit)}
-                      className="flex h-14 items-center justify-center rounded-2xl border border-[#e7dac8] bg-white text-xl font-black text-[#221b14] transition hover:border-[#b9945a] hover:bg-[#fff8ed] active:scale-95"
+                      onClick={() => setShowDialer(false)}
+                      className="flex h-8 w-8 items-center justify-center rounded-xl text-[#8b7b68] transition hover:bg-[#fbf8f3] hover:text-[#111827]"
                     >
-                      {digit}
+                      <Icon name="x" className="h-4 w-4" />
                     </button>
-                  ))}
+
+                    <div className="text-right">
+                      <p className="text-sm font-black text-[#111827]">חייגן</p>
+                      <p className="text-[11px] font-bold text-[#8b7b68]">
+                        חיוג יוצא גם במצב לא פנוי
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mb-3 rounded-2xl border border-[#eadfce] bg-[#fbf8f3] px-3 py-3">
+                    <p
+                      dir="ltr"
+                      className="truncate text-center font-mono text-xl font-black tracking-wide text-[#111827]"
+                    >
+                      {phoneNumber || "—"}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    {DIAL_KEYS.map((digit) => (
+                      <button
+                        key={digit.key}
+                        type="button"
+                        onClick={() => appendDigit(digit.key)}
+                        className="flex h-[54px] flex-col items-center justify-center rounded-2xl border border-[#e7dac8] bg-white text-[#111827] transition hover:border-[#b9945a] hover:bg-[#fff8ed] active:scale-95"
+                      >
+                        <span className="text-xl font-black leading-5">{digit.key}</span>
+                        {digit.letters && (
+                          <span className="mt-0.5 text-[9px] font-black text-[#9b8b78]">
+                            {digit.letters}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={removeLastDigit}
+                      className="flex h-11 items-center justify-center gap-1 rounded-2xl border border-[#e7dac8] bg-white text-xs font-black text-[#6b5a45] transition hover:bg-[#fff8ed]"
+                    >
+                      <Icon name="delete" className="h-4 w-4" />
+                      מחק
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={clearNumber}
+                      className="h-11 rounded-2xl border border-[#e7dac8] bg-white text-xs font-black text-[#6b5a45] transition hover:bg-[#fff8ed]"
+                    >
+                      נקה
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={startOutboundCall}
+                      className="flex h-11 items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-xs font-black text-white transition hover:bg-emerald-700"
+                    >
+                      <Icon name="phone" className="h-4 w-4" />
+                      חייג
+                    </button>
+                  </div>
                 </div>
 
-                <div className="mt-3 grid grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={removeLastDigit}
-                    className="h-11 rounded-2xl border border-[#e7dac8] bg-white text-xs font-black text-[#6b5a45] transition hover:bg-[#fff8ed]"
-                  >
-                    מחק
-                  </button>
+                <div className="p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <div className="flex h-9 items-center gap-2 rounded-2xl bg-blue-50 px-3 text-xs font-black text-blue-700">
+                      <Icon name="spark" className="h-4 w-4" />
+                      פעולות מהירות
+                    </div>
 
-                  <button
-                    type="button"
-                    onClick={clearNumber}
-                    className="h-11 rounded-2xl border border-[#e7dac8] bg-white text-xs font-black text-[#6b5a45] transition hover:bg-[#fff8ed]"
-                  >
-                    נקה
-                  </button>
+                    <div className="text-right">
+                      <p className="text-sm font-black text-[#111827]">שיחות אחרונות</p>
+                      <p className="text-[11px] font-bold text-[#8b7b68]">
+                        לחיצה על שיחה תכניס את המספר לחייגן
+                      </p>
+                    </div>
+                  </div>
 
-                  <button
-                    type="button"
-                    onClick={startOutboundCall}
-                    className="h-11 rounded-2xl bg-[#221b14] text-xs font-black text-white transition hover:bg-black"
-                  >
-                    חייג
-                  </button>
+                  <div className="space-y-2">
+                    {recentCalls.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-[#eadfce] bg-[#fbf8f3] p-4 text-center text-xs font-bold text-[#9b8b78]">
+                        אין שיחות אחרונות
+                      </div>
+                    ) : (
+                      recentCalls.map((call) => (
+                        <button
+                          key={call.id}
+                          type="button"
+                          onClick={() => selectRecentCall(call)}
+                          className="group flex h-[52px] w-full items-center gap-3 rounded-2xl border border-[#eadfce] bg-white px-3 text-right shadow-sm transition hover:-translate-y-[1px] hover:border-[#b9945a] hover:bg-[#fffaf2] hover:shadow-md"
+                        >
+                          <span
+                            className={`flex h-9 w-9 items-center justify-center rounded-xl border ${recentCallBadgeClass(
+                              call.direction
+                            )}`}
+                          >
+                            <Icon
+                              name={call.direction === "outbound" ? "arrowOut" : "arrowIn"}
+                              className="h-4 w-4"
+                            />
+                          </span>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span
+                                dir="ltr"
+                                className="font-mono text-sm font-black text-[#111827]"
+                              >
+                                {call.number}
+                              </span>
+                              <span className="rounded-full bg-[#fbf8f3] px-2 py-0.5 text-[10px] font-black text-[#7a6a58]">
+                                {recentCallDirectionLabel(call.direction)}
+                              </span>
+                            </div>
+                            <p className="truncate text-xs font-bold text-[#8b7b68]">
+                              {call.label || "שיחה"} · משך {formatShortDuration(call.duration)}
+                            </p>
+                          </div>
+
+                          <span className="text-xs font-black text-[#b0a08d]">
+                            {call.time}
+                          </span>
+                        </button>
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
             )}
           </div>
 
-          <div className="flex h-10 min-w-[252px] items-center gap-2 rounded-xl border border-[#eadfce] bg-[#fbf8f3] px-3">
-            <span className="text-xs font-bold text-[#8b7b68]">
-              {getCallLabel(callDirection, currentStatus)}
-            </span>
+          <div className="flex h-11 min-w-[245px] shrink-0 items-center gap-2 rounded-2xl border border-[#eadfce] bg-[#fbf8f3] px-3">
+            <Icon
+              name={callDirection === "inbound" ? "arrowIn" : "arrowOut"}
+              className={`h-4 w-4 ${
+                callDirection === "inbound" ? "text-emerald-700" : "text-blue-700"
+              }`}
+            />
 
-            <span
-              dir="ltr"
-              className="max-w-[115px] truncate font-mono text-sm font-black text-[#221b14]"
-            >
-              {activeDisplayNumber}
-            </span>
+            <div className="min-w-0 leading-4">
+              <p className="text-[11px] font-black text-[#8b7b68]">
+                {getCallLabel(callDirection, currentStatus)}
+              </p>
+              <p
+                dir="ltr"
+                className="max-w-[105px] truncate font-mono text-sm font-black text-[#111827]"
+              >
+                {activeDisplayNumber}
+              </p>
+            </div>
 
             {isCallActive && (
               <span dir="ltr" className="mr-auto font-mono text-sm font-black text-[#b42318]">
@@ -798,13 +1322,74 @@ export default function SoftphoneStatusPanel() {
             )}
           </div>
 
+          <div className="flex h-11 shrink-0 items-center gap-1 rounded-2xl border border-[#e7dac8] bg-white px-1">
+            <button
+              type="button"
+              title="אוזניות"
+              className="flex h-9 w-9 items-center justify-center rounded-xl text-[#111827] transition hover:bg-[#fbf8f3]"
+            >
+              <Icon name="headset" />
+            </button>
+
+            <button
+              type="button"
+              title="שיחות אחרונות"
+              onClick={() => setShowDialer(true)}
+              disabled={!shiftStarted}
+              className="flex h-9 w-9 items-center justify-center rounded-xl text-[#111827] transition hover:bg-[#fbf8f3] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <Icon name="clock" />
+            </button>
+
+            <button
+              type="button"
+              title="השתק"
+              className="flex h-9 w-9 items-center justify-center rounded-xl text-[#111827] transition hover:bg-[#fbf8f3]"
+            >
+              <Icon name="mic" />
+            </button>
+
+            <button
+              type="button"
+              title="רמקול"
+              className="flex h-9 w-9 items-center justify-center rounded-xl text-[#111827] transition hover:bg-[#fbf8f3]"
+            >
+              <Icon name="volume" />
+            </button>
+
+            <button
+              type="button"
+              title="המתנה"
+              className="flex h-9 w-9 items-center justify-center rounded-xl text-[#111827] transition hover:bg-[#fbf8f3]"
+            >
+              <Icon name="pause" />
+            </button>
+
+            <button
+              type="button"
+              title="העברה"
+              className="flex h-9 w-9 items-center justify-center rounded-xl text-[#111827] transition hover:bg-[#fbf8f3]"
+            >
+              <Icon name="transfer" />
+            </button>
+
+            <button
+              type="button"
+              title="איש קשר"
+              className="flex h-9 w-9 items-center justify-center rounded-xl text-[#111827] transition hover:bg-[#fbf8f3]"
+            >
+              <Icon name="user" />
+            </button>
+          </div>
+
           {(currentStatus === "dialing" || currentStatus === "ringing") && (
             <button
               type="button"
               onClick={markAnswered}
               disabled={!!savingStatus}
-              className="h-10 rounded-xl border border-emerald-200 bg-emerald-50 px-4 text-sm font-black text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex h-11 shrink-0 items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 text-sm font-black text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
             >
+              <Icon name="check" className="h-4 w-4" />
               ענה
             </button>
           )}
@@ -814,94 +1399,61 @@ export default function SoftphoneStatusPanel() {
               type="button"
               onClick={finishCall}
               disabled={!!savingStatus}
-              className="h-10 rounded-xl border border-red-200 bg-red-50 px-4 text-sm font-black text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex h-11 shrink-0 items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 text-sm font-black text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              סיים
+              <Icon name="phone" className="h-4 w-4" />
+              סיים שיחה
             </button>
           )}
-        </div>
-
-        <div className="mt-2 flex w-full flex-wrap items-center gap-2 rounded-[20px] border border-[#f0e7d8] bg-gradient-to-l from-[#fbf8f3] to-white px-3 py-2">
-          <div className="ml-2 flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-[#b9945a]" />
-            <span className="text-xs font-black text-[#7a6a58]">שיחות אחרונות</span>
-          </div>
-
-          {recentCalls.length === 0 ? (
-            <div className="text-xs font-bold text-[#9b8b78]">אין שיחות אחרונות</div>
-          ) : (
-            recentCalls.map((call) => (
-              <button
-                key={call.id}
-                type="button"
-                onClick={() => selectRecentCall(call)}
-                className="group flex h-10 items-center gap-2 rounded-xl border border-[#eadfce] bg-white px-3 text-right shadow-sm transition hover:-translate-y-[1px] hover:border-[#b9945a] hover:bg-[#fffaf2] hover:shadow-md"
-              >
-                <span
-                  className={`rounded-full border px-2 py-1 text-[10px] font-black ${recentCallBadgeClass(
-                    call.direction
-                  )}`}
-                >
-                  {recentCallDirectionLabel(call.direction)}
-                </span>
-
-                <span dir="ltr" className="font-mono text-sm font-black text-[#221b14]">
-                  {call.number}
-                </span>
-
-                <span className="max-w-[95px] truncate text-xs font-bold text-[#8b7b68]">
-                  {call.label}
-                </span>
-
-                <span className="text-xs font-bold text-[#b0a08d]">{call.time}</span>
-              </button>
-            ))
-          )}
-
-          <div className="mr-auto flex items-center gap-3 text-xs font-bold text-[#7a6a58]">
-            <span>שיחות: {agent?.totalCallsToday || 0}</span>
-            <span>נענו: {agent?.answeredCallsToday || 0}</span>
-          </div>
 
           <button
             type="button"
             onClick={simulateIncomingCall}
             disabled={!!savingStatus || !shiftStarted}
-            className="h-10 rounded-xl border border-blue-200 bg-blue-50 px-4 text-xs font-black text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex h-11 shrink-0 items-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 px-4 text-xs font-black text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            סימולציית נכנסת
+            <Icon name="phone" className="h-4 w-4" />
+            שיחה נכנסת
           </button>
         </div>
       </div>
 
       {showEndShiftConfirm && (
-        <div className="absolute right-0 top-[68px] z-50 w-[340px] rounded-2xl border border-[#e7dac8] bg-white p-4 shadow-[0_22px_60px_rgba(34,27,20,0.18)]">
-          <p className="text-sm font-black text-[#221b14]">לסיים משמרת?</p>
+        <div className="absolute right-0 top-[68px] z-50 w-[365px] rounded-[24px] border border-[#e7dac8] bg-white p-4 shadow-[0_24px_70px_rgba(22,28,45,0.18)]">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-red-50 text-red-700">
+              <Icon name="stop" className="h-5 w-5" />
+            </div>
 
-          <p className="mt-2 text-sm font-bold leading-6 text-[#6b5a45]">
-            האם את/ה בטוח/ה שברצונך לסיים משמרת?
-            <br />
-            סה״כ זמן עבודה:{" "}
-            <span dir="ltr" className="font-mono font-black text-[#221b14]">
-              {formatDuration(shiftSeconds)}
-            </span>
-          </p>
+            <div>
+              <p className="text-sm font-black text-[#111827]">לסיים משמרת?</p>
+
+              <p className="mt-2 text-sm font-bold leading-6 text-[#6b5a45]">
+                האם את/ה בטוח/ה שברצונך לסיים משמרת?
+                <br />
+                סה״כ זמן עבודה:{" "}
+                <span dir="ltr" className="font-mono font-black text-[#111827]">
+                  {formatDuration(shiftSeconds)}
+                </span>
+              </p>
+            </div>
+          </div>
 
           <div className="mt-4 flex items-center gap-2">
             <button
               type="button"
               onClick={confirmEndShift}
               disabled={!!savingStatus}
-              className="h-10 flex-1 rounded-xl bg-[#b9945a] text-sm font-black text-white transition hover:bg-[#9f7a3f] disabled:cursor-not-allowed disabled:opacity-50"
+              className="h-11 flex-1 rounded-2xl bg-[#111827] text-sm font-black text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
             >
-              סיום משמרת
+              כן, סיום משמרת
             </button>
 
             <button
               type="button"
               onClick={() => setShowEndShiftConfirm(false)}
               disabled={!!savingStatus}
-              className="h-10 flex-1 rounded-xl border border-[#e7dac8] bg-white text-sm font-black text-[#6b5a45] transition hover:bg-[#fff8ed] disabled:cursor-not-allowed disabled:opacity-50"
+              className="h-11 flex-1 rounded-2xl border border-[#e7dac8] bg-white text-sm font-black text-[#6b5a45] transition hover:bg-[#fff8ed] disabled:cursor-not-allowed disabled:opacity-50"
             >
               ביטול
             </button>
