@@ -30,7 +30,10 @@ export default function StaffDashboardPage() {
 
   if (authLoading) {
     return (
-      <main dir="rtl" className="min-h-screen bg-[#f7f8fb] px-4 py-4">
+      <main
+        dir="rtl"
+        className="min-h-screen overflow-x-hidden bg-[#f7f8fb] px-4 py-4"
+      >
         <div className="flex min-h-[65vh] items-center justify-center">
           <div className="rounded-2xl border border-slate-200 bg-white px-7 py-6 text-center shadow-sm">
             <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-slate-900" />
@@ -46,7 +49,10 @@ export default function StaffDashboardPage() {
 
   if (error) {
     return (
-      <main dir="rtl" className="min-h-screen bg-[#f7f8fb] px-4 py-4">
+      <main
+        dir="rtl"
+        className="min-h-screen overflow-x-hidden bg-[#f7f8fb] px-4 py-4"
+      >
         <div className="flex min-h-[65vh] items-center justify-center">
           <div className="max-w-md rounded-2xl border border-red-200 bg-white p-7 text-center shadow-sm">
             <p className="text-3xl">⚠️</p>
@@ -63,8 +69,11 @@ export default function StaffDashboardPage() {
   }
 
   return (
-    <main dir="rtl" className="min-h-screen bg-[#f7f8fb] px-4 py-4">
-      <div className="w-full">
+    <main
+      dir="rtl"
+      className="min-h-screen overflow-x-hidden bg-[#f7f8fb] px-4 py-4"
+    >
+      <div className="w-full max-w-full overflow-visible">
         <SoftphoneStatusPanel />
       </div>
     </main>

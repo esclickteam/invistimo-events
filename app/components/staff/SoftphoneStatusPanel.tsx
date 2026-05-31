@@ -383,6 +383,15 @@ function Icon({
     );
   }
 
+  if (name === "arrowIn") {
+    return (
+      <svg {...common}>
+        <path d="M17 7 7 17" />
+        <path d="M16 17H7V8" />
+      </svg>
+    );
+  }
+
   if (name === "coffee") {
     return (
       <svg {...common}>
@@ -403,19 +412,10 @@ function Icon({
     );
   }
 
-  if (name === "shield") {
-    return (
-      <svg {...common}>
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-        <path d="m9 12 2 2 4-4" />
-      </svg>
-    );
-  }
-
   return (
     <svg {...common}>
-      <path d="M17 7 7 17" />
-      <path d="M16 17H7V8" />
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      <path d="m9 12 2 2 4-4" />
     </svg>
   );
 }
@@ -826,11 +826,6 @@ export default function SoftphoneStatusPanel() {
 
   const canReceiveInbound = shiftStarted && currentStatus === "available";
 
-  const statusLabel =
-    activeBusyReason && currentStatus !== "available" && currentStatus !== "offline"
-      ? getBusyReasonLabel(activeBusyReason) || STATUS_LABELS[currentStatus]
-      : STATUS_LABELS[currentStatus];
-
   const isCallActive =
     currentStatus === "dialing" ||
     currentStatus === "ringing" ||
@@ -842,28 +837,28 @@ export default function SoftphoneStatusPanel() {
   if (loading) {
     return (
       <section dir="rtl" className="w-full">
-        <div className="h-[64px] w-full rounded-[22px] border border-[#e8dcc9] bg-white px-4 py-3 shadow-sm">
-          <p className="text-sm font-bold text-[#6b5a45]">טוען סופטפון...</p>
+        <div className="flex h-[68px] w-full items-center rounded-[24px] border border-slate-200 bg-white px-4 shadow-sm">
+          <p className="text-sm font-bold text-slate-600">טוען סופטפון...</p>
         </div>
       </section>
     );
   }
 
   return (
-    <section dir="rtl" className="relative w-full">
+    <section dir="rtl" className="relative w-full max-w-full">
       <div
         dir="ltr"
-        className="relative flex h-[70px] w-full items-center gap-2 rounded-[24px] border border-[#e8dcc9] bg-white px-4 shadow-[0_18px_55px_rgba(20,20,20,0.10)]"
+        className="relative flex h-[72px] w-full max-w-full items-center gap-2 overflow-visible rounded-[26px] border border-slate-200 bg-white px-3 shadow-[0_18px_55px_rgba(15,23,42,0.12)]"
       >
         <button
           type="button"
           onClick={shiftStarted ? requestEndShift : startShift}
           disabled={!!savingStatus}
           dir="rtl"
-          className={`flex h-[46px] shrink-0 items-center gap-2 rounded-[14px] px-5 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-60 ${
+          className={`flex h-12 w-[150px] items-center justify-center gap-2 rounded-2xl text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-60 ${
             shiftStarted
-              ? "border border-[#d8c2a1] bg-white text-[#7d5b25] hover:bg-[#fff8ed]"
-              : "bg-[#111827] text-white shadow-[0_12px_25px_rgba(17,24,39,0.18)] hover:bg-black"
+              ? "border border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
+              : "bg-[#111827] text-white shadow-[0_12px_28px_rgba(17,24,39,0.22)] hover:bg-black"
           }`}
         >
           <Icon name={shiftStarted ? "stop" : "play"} className="h-4 w-4" />
@@ -872,25 +867,25 @@ export default function SoftphoneStatusPanel() {
 
         <div
           dir="rtl"
-          className="flex h-[46px] shrink-0 items-center gap-3 rounded-[14px] px-3"
+          className="flex h-12 w-[128px] items-center justify-center gap-2 rounded-2xl"
         >
-          <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-[0_0_0_5px_rgba(16,185,129,0.12)]" />
+          <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-[0_0_0_5px_rgba(16,185,129,0.13)]" />
           <div className="leading-4">
-            <p className="text-[11px] font-black text-[#6b7280]">משמרת פעילה</p>
-            <p dir="ltr" className="font-mono text-sm font-black text-[#111827]">
+            <p className="text-[11px] font-black text-slate-500">משמרת פעילה</p>
+            <p dir="ltr" className="font-mono text-sm font-black text-slate-950">
               {shiftStarted ? formatDuration(shiftSeconds) : "00:00:00"}
             </p>
           </div>
         </div>
 
-        <span className="shrink-0 text-lg font-light text-[#b8b8b8]">→</span>
+        <span className="hidden text-lg text-slate-300 xl:block">←</span>
 
         <button
           type="button"
           onClick={requestEndShift}
           disabled={!!savingStatus || !shiftStarted}
           dir="rtl"
-          className="flex h-[46px] shrink-0 items-center gap-2 rounded-[14px] border border-[#e4e4e7] bg-white px-5 text-sm font-black text-[#374151] transition hover:bg-[#f9fafb] disabled:cursor-not-allowed disabled:opacity-45"
+          className="hidden h-12 w-[132px] items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45 xl:flex"
         >
           סיום משמרת
           <Icon name="stop" className="h-4 w-4" />
@@ -901,9 +896,9 @@ export default function SoftphoneStatusPanel() {
           onClick={setAvailable}
           disabled={!!savingStatus || !shiftStarted}
           dir="rtl"
-          className={`flex h-[46px] shrink-0 items-center gap-2 rounded-[14px] px-5 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-50 ${
+          className={`flex h-12 w-[92px] items-center justify-center gap-2 rounded-2xl text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-50 ${
             currentStatus === "available"
-              ? "bg-emerald-600 text-white shadow-[0_12px_24px_rgba(16,185,129,0.22)]"
+              ? "bg-emerald-600 text-white shadow-[0_10px_24px_rgba(16,185,129,0.22)]"
               : "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
           }`}
         >
@@ -911,7 +906,7 @@ export default function SoftphoneStatusPanel() {
           <Icon name="check" className="h-4 w-4" />
         </button>
 
-        <div className="relative shrink-0" dir="rtl">
+        <div className="relative" dir="rtl">
           <button
             type="button"
             onClick={() => {
@@ -921,30 +916,26 @@ export default function SoftphoneStatusPanel() {
               setShowEndShiftConfirm(false);
             }}
             disabled={!!savingStatus || !shiftStarted}
-            className={`flex h-[46px] min-w-[132px] items-center justify-center gap-2 rounded-[14px] border px-4 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-50 ${
-              currentStatus !== "available" && currentStatus !== "offline"
-                ? "border-red-200 bg-red-50 text-red-700"
-                : "border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
-            }`}
+            className="flex h-12 w-[110px] items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 text-sm font-black text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
           >
             לא פנוי
             <Icon name="minus" className="h-4 w-4" />
           </button>
 
           {showBusyMenu && (
-            <div className="absolute right-0 top-[54px] z-50 w-[245px] overflow-hidden rounded-[22px] border border-[#eadfce] bg-white p-2 shadow-[0_24px_70px_rgba(22,28,45,0.18)]">
+            <div className="absolute right-0 top-[58px] z-50 w-[245px] overflow-hidden rounded-[22px] border border-slate-200 bg-white p-2 shadow-[0_24px_70px_rgba(15,23,42,0.18)]">
               {BUSY_REASONS.map((reason) => (
                 <button
                   key={reason.value}
                   type="button"
                   onClick={() => handleBusyReasonChange(reason.value)}
-                  className={`flex h-11 w-full items-center gap-3 rounded-2xl px-3 text-right text-sm font-black transition hover:bg-[#fff8ed] ${
+                  className={`flex h-11 w-full items-center gap-3 rounded-2xl px-3 text-right text-sm font-black transition hover:bg-slate-50 ${
                     busyReason === reason.value
                       ? "bg-red-50 text-red-700"
-                      : "text-[#3f3428]"
+                      : "text-slate-700"
                   }`}
                 >
-                  <span className="flex h-8 w-8 items-center justify-center rounded-xl border border-[#eadfce] bg-[#fbf8f3]">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-slate-50">
                     <ReasonIcon reason={reason.value} />
                   </span>
                   {reason.label}
@@ -956,7 +947,15 @@ export default function SoftphoneStatusPanel() {
 
         <div
           dir="rtl"
-          className="flex h-[46px] min-w-[190px] shrink-0 items-center gap-3 rounded-[14px] border border-[#eadfce] bg-[#fbf8f3] px-3"
+          className={`flex h-12 w-[178px] items-center gap-3 rounded-2xl border px-3 ${
+            currentStatus === "available"
+              ? "border-emerald-200 bg-emerald-50"
+              : currentStatus === "dialing"
+              ? "border-blue-200 bg-blue-50"
+              : currentStatus === "in_call"
+              ? "border-red-200 bg-red-50"
+              : "border-orange-200 bg-orange-50"
+          }`}
         >
           <span
             className={`h-2.5 w-2.5 rounded-full shadow-[0_0_0_5px] ${
@@ -966,14 +965,14 @@ export default function SoftphoneStatusPanel() {
                 ? "bg-blue-500 shadow-blue-100"
                 : currentStatus === "in_call"
                 ? "bg-red-500 shadow-red-100"
-                : currentStatus === "break"
-                ? "bg-amber-500 shadow-amber-100"
                 : "bg-orange-500 shadow-orange-100"
             }`}
           />
-          <div className="leading-4">
-            <p className="text-[11px] font-black text-[#8b7b68]">{timerLabel}</p>
-            <p dir="ltr" className="font-mono text-sm font-black text-[#111827]">
+          <div className="min-w-0 leading-4">
+            <p className="truncate text-[11px] font-black text-slate-600">
+              {timerLabel}
+            </p>
+            <p dir="ltr" className="font-mono text-sm font-black text-slate-950">
               {formatDuration(liveStatusSeconds)}
             </p>
           </div>
@@ -984,7 +983,7 @@ export default function SoftphoneStatusPanel() {
           onClick={openAddCall}
           disabled={!!savingStatus}
           dir="rtl"
-          className="flex h-[46px] shrink-0 items-center gap-2 rounded-[14px] bg-[#b9945a] px-5 text-sm font-black text-white shadow-[0_12px_24px_rgba(185,148,90,0.25)] transition hover:bg-[#9f7a3f] disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex h-12 w-[124px] items-center justify-center gap-2 rounded-2xl bg-[#b9945a] text-sm font-black text-white shadow-[0_10px_24px_rgba(185,148,90,0.25)] transition hover:bg-[#9f7a3f] disabled:cursor-not-allowed disabled:opacity-50"
         >
           הוספת שיחה
           <Icon name="phonePlus" className="h-4 w-4" />
@@ -992,7 +991,7 @@ export default function SoftphoneStatusPanel() {
 
         <div
           dir="rtl"
-          className={`flex h-[46px] shrink-0 items-center gap-2 rounded-[14px] px-3 text-xs font-black ${
+          className={`hidden h-12 w-[122px] items-center justify-center gap-2 rounded-2xl px-3 text-xs font-black 2xl:flex ${
             canReceiveInbound
               ? "bg-emerald-50 text-emerald-700"
               : "bg-red-50 text-red-700"
@@ -1004,16 +1003,16 @@ export default function SoftphoneStatusPanel() {
 
         <div
           dir="rtl"
-          className="relative flex h-[46px] min-w-[260px] flex-1 items-center rounded-[14px] border border-[#e5e7eb] bg-white"
+          className="relative flex h-12 min-w-[220px] flex-1 items-center rounded-2xl border border-slate-200 bg-white"
         >
           <button
             type="button"
             onClick={toggleDialer}
             disabled={!!savingStatus || !shiftStarted}
-            className={`flex h-full items-center gap-2 rounded-r-[14px] border-l border-[#e5e7eb] px-3 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-50 ${
+            className={`flex h-full w-[92px] items-center justify-center gap-2 rounded-r-2xl border-l border-slate-200 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-50 ${
               showDialer
-                ? "bg-[#111827] text-white"
-                : "bg-[#f9fafb] text-[#111827] hover:bg-[#f3f4f6]"
+                ? "bg-slate-950 text-white"
+                : "bg-slate-50 text-slate-950 hover:bg-slate-100"
             }`}
           >
             <Icon name="keypad" className="h-4 w-4" />
@@ -1026,42 +1025,42 @@ export default function SoftphoneStatusPanel() {
             onChange={(event) => setPhoneNumber(onlyDialChars(event.target.value))}
             placeholder="מספר נוכחי / יעד חיוג"
             disabled={!shiftStarted}
-            className="h-full min-w-0 flex-1 bg-white px-3 text-left font-mono text-sm font-black tracking-wide text-[#111827] outline-none disabled:cursor-not-allowed disabled:bg-zinc-50"
+            className="h-full min-w-0 flex-1 bg-white px-3 text-left font-mono text-sm font-black tracking-wide text-slate-950 outline-none disabled:cursor-not-allowed disabled:bg-slate-50"
           />
 
           <button
             type="button"
             onClick={startOutboundCall}
             disabled={!!savingStatus || !shiftStarted}
-            className="flex h-full items-center gap-2 rounded-l-[14px] px-4 text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex h-full w-12 items-center justify-center rounded-l-2xl text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Icon name="phone" className="h-5 w-5" />
           </button>
 
           {showDialer && (
-            <div className="absolute left-0 top-[58px] z-50 grid w-[590px] grid-cols-[260px_1fr] overflow-hidden rounded-[24px] border border-[#e5e7eb] bg-white shadow-[0_28px_80px_rgba(22,28,45,0.20)]">
-              <div className="border-l border-[#eef0f3] p-4">
+            <div className="absolute left-0 top-[60px] z-50 grid w-[590px] grid-cols-[260px_1fr] overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_28px_80px_rgba(15,23,42,0.22)]">
+              <div className="border-l border-slate-100 p-4">
                 <div className="mb-3 flex items-center justify-between">
                   <button
                     type="button"
                     onClick={() => setShowDialer(false)}
-                    className="flex h-8 w-8 items-center justify-center rounded-xl text-[#9ca3af] transition hover:bg-[#f3f4f6] hover:text-[#111827]"
+                    className="flex h-8 w-8 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-950"
                   >
                     <Icon name="x" className="h-4 w-4" />
                   </button>
 
                   <div className="text-right">
-                    <p className="text-sm font-black text-[#111827]">חייגן</p>
-                    <p className="text-[11px] font-bold text-[#8b7b68]">
+                    <p className="text-sm font-black text-slate-950">חייגן</p>
+                    <p className="text-[11px] font-bold text-slate-500">
                       חיוג יוצא גם במצב לא פנוי
                     </p>
                   </div>
                 </div>
 
-                <div className="mb-3 rounded-2xl border border-[#e5e7eb] bg-[#f9fafb] px-3 py-3">
+                <div className="mb-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
                   <p
                     dir="ltr"
-                    className="truncate text-center font-mono text-xl font-black tracking-wide text-[#111827]"
+                    className="truncate text-center font-mono text-xl font-black tracking-wide text-slate-950"
                   >
                     {phoneNumber || "—"}
                   </p>
@@ -1073,11 +1072,11 @@ export default function SoftphoneStatusPanel() {
                       key={digit.key}
                       type="button"
                       onClick={() => appendDigit(digit.key)}
-                      className="flex h-[54px] flex-col items-center justify-center rounded-2xl border border-[#e5e7eb] bg-white text-[#111827] transition hover:border-[#b9945a] hover:bg-[#fff8ed] active:scale-95"
+                      className="flex h-[54px] flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-950 transition hover:border-[#b9945a] hover:bg-[#fff8ed] active:scale-95"
                     >
                       <span className="text-xl font-black leading-5">{digit.key}</span>
                       {digit.letters && (
-                        <span className="mt-0.5 text-[9px] font-black text-[#9ca3af]">
+                        <span className="mt-0.5 text-[9px] font-black text-slate-400">
                           {digit.letters}
                         </span>
                       )}
@@ -1089,7 +1088,7 @@ export default function SoftphoneStatusPanel() {
                   <button
                     type="button"
                     onClick={removeLastDigit}
-                    className="flex h-11 items-center justify-center gap-1 rounded-2xl border border-[#e5e7eb] bg-white text-xs font-black text-[#6b7280] transition hover:bg-[#f9fafb]"
+                    className="flex h-11 items-center justify-center gap-1 rounded-2xl border border-slate-200 bg-white text-xs font-black text-slate-600 transition hover:bg-slate-50"
                   >
                     <Icon name="delete" className="h-4 w-4" />
                     מחק
@@ -1098,7 +1097,7 @@ export default function SoftphoneStatusPanel() {
                   <button
                     type="button"
                     onClick={clearNumber}
-                    className="h-11 rounded-2xl border border-[#e5e7eb] bg-white text-xs font-black text-[#6b7280] transition hover:bg-[#f9fafb]"
+                    className="h-11 rounded-2xl border border-slate-200 bg-white text-xs font-black text-slate-600 transition hover:bg-slate-50"
                   >
                     נקה
                   </button>
@@ -1116,8 +1115,8 @@ export default function SoftphoneStatusPanel() {
 
               <div className="p-4">
                 <div className="mb-3 text-right">
-                  <p className="text-sm font-black text-[#111827]">שיחות אחרונות</p>
-                  <p className="text-[11px] font-bold text-[#8b7b68]">
+                  <p className="text-sm font-black text-slate-950">שיחות אחרונות</p>
+                  <p className="text-[11px] font-bold text-slate-500">
                     לחיצה על שיחה תכניס את המספר לחייגן
                   </p>
                 </div>
@@ -1128,7 +1127,7 @@ export default function SoftphoneStatusPanel() {
                       key={call.id}
                       type="button"
                       onClick={() => selectRecentCall(call)}
-                      className="flex h-[52px] w-full items-center gap-3 rounded-2xl border border-[#e5e7eb] bg-white px-3 text-right shadow-sm transition hover:-translate-y-[1px] hover:border-[#b9945a] hover:bg-[#fffaf2] hover:shadow-md"
+                      className="flex h-[52px] w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 text-right shadow-sm transition hover:-translate-y-[1px] hover:border-[#b9945a] hover:bg-[#fffaf2] hover:shadow-md"
                     >
                       <span
                         className={`flex h-9 w-9 items-center justify-center rounded-xl border ${
@@ -1147,20 +1146,20 @@ export default function SoftphoneStatusPanel() {
                         <div className="flex items-center justify-end gap-2">
                           <span
                             dir="ltr"
-                            className="font-mono text-sm font-black text-[#111827]"
+                            className="font-mono text-sm font-black text-slate-950"
                           >
                             {call.number}
                           </span>
-                          <span className="rounded-full bg-[#f9fafb] px-2 py-0.5 text-[10px] font-black text-[#6b7280]">
+                          <span className="rounded-full bg-slate-50 px-2 py-0.5 text-[10px] font-black text-slate-600">
                             {call.label}
                           </span>
                         </div>
-                        <p className="truncate text-xs font-bold text-[#8b7b68]">
+                        <p className="truncate text-xs font-bold text-slate-500">
                           משך שיחה {formatShortDuration(call.duration)}
                         </p>
                       </div>
 
-                      <span className="text-xs font-black text-[#9ca3af]">
+                      <span className="text-xs font-black text-slate-400">
                         {call.time}
                       </span>
                     </button>
@@ -1173,12 +1172,15 @@ export default function SoftphoneStatusPanel() {
 
         <div
           dir="rtl"
-          className="flex h-[46px] shrink-0 items-center gap-2 rounded-[14px] border border-[#e5e7eb] bg-[#f9fafb] px-3"
+          className="hidden h-12 w-[175px] items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 xl:flex"
         >
-          <span className="text-[11px] font-black text-[#6b7280]">
+          <span className="text-[11px] font-black text-slate-500">
             {isCallActive ? timerLabel : "אין שיחה פעילה"}
           </span>
-          <span dir="ltr" className="font-mono text-sm font-black text-[#111827]">
+          <span
+            dir="ltr"
+            className="min-w-0 truncate font-mono text-sm font-black text-slate-950"
+          >
             {activeDisplayNumber}
           </span>
           {isCallActive && (
@@ -1188,7 +1190,7 @@ export default function SoftphoneStatusPanel() {
           )}
         </div>
 
-        <div className="flex h-[46px] shrink-0 items-center gap-1 rounded-[14px] border border-[#e5e7eb] bg-white px-1">
+        <div className="hidden h-12 items-center gap-1 rounded-2xl border border-slate-200 bg-white px-1 lg:flex">
           {[
             ["headset", "אוזניות"],
             ["keypad", "מקשים"],
@@ -1204,9 +1206,9 @@ export default function SoftphoneStatusPanel() {
               type="button"
               title={title}
               onClick={icon === "keypad" || icon === "clock" ? toggleDialer : undefined}
-              className="flex h-9 w-9 items-center justify-center rounded-xl text-[#111827] transition hover:bg-[#f3f4f6]"
+              className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-950 transition hover:bg-slate-100"
             >
-              <Icon name={icon as any} className="h-4 w-4" />
+              <Icon name={icon as "headset"} className="h-4 w-4" />
             </button>
           ))}
         </div>
@@ -1217,7 +1219,7 @@ export default function SoftphoneStatusPanel() {
             onClick={markAnswered}
             disabled={!!savingStatus}
             dir="rtl"
-            className="flex h-[46px] shrink-0 items-center gap-2 rounded-[14px] border border-emerald-200 bg-emerald-50 px-4 text-sm font-black text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex h-12 w-[82px] items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 text-sm font-black text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
           >
             ענה
             <Icon name="check" className="h-4 w-4" />
@@ -1230,37 +1232,26 @@ export default function SoftphoneStatusPanel() {
             onClick={finishCall}
             disabled={!!savingStatus}
             dir="rtl"
-            className="flex h-[46px] shrink-0 items-center gap-2 rounded-[14px] border border-red-200 bg-red-50 px-4 text-sm font-black text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex h-12 w-[82px] items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 text-sm font-black text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
           >
             סיים
             <Icon name="phone" className="h-4 w-4" />
           </button>
         )}
-
-        <button
-          type="button"
-          onClick={simulateIncomingCall}
-          disabled={!!savingStatus || !shiftStarted}
-          dir="rtl"
-          className="hidden h-[46px] shrink-0 items-center gap-2 rounded-[14px] border border-blue-200 bg-blue-50 px-4 text-xs font-black text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50 xl:flex"
-        >
-          שיחה נכנסת
-          <Icon name="phone" className="h-4 w-4" />
-        </button>
       </div>
 
       {showEndShiftConfirm && (
         <div
           dir="rtl"
-          className="absolute left-0 top-[82px] z-50 w-[365px] rounded-[24px] border border-[#e7dac8] bg-white p-4 shadow-[0_24px_70px_rgba(22,28,45,0.18)]"
+          className="absolute left-0 top-[84px] z-50 w-[365px] rounded-[24px] border border-slate-200 bg-white p-4 shadow-[0_24px_70px_rgba(15,23,42,0.18)]"
         >
-          <p className="text-sm font-black text-[#111827]">לסיים משמרת?</p>
+          <p className="text-sm font-black text-slate-950">לסיים משמרת?</p>
 
-          <p className="mt-2 text-sm font-bold leading-6 text-[#6b5a45]">
+          <p className="mt-2 text-sm font-bold leading-6 text-slate-600">
             האם את/ה בטוח/ה שברצונך לסיים משמרת?
             <br />
             סה״כ זמן עבודה:{" "}
-            <span dir="ltr" className="font-mono font-black text-[#111827]">
+            <span dir="ltr" className="font-mono font-black text-slate-950">
               {formatDuration(shiftSeconds)}
             </span>
           </p>
@@ -1270,7 +1261,7 @@ export default function SoftphoneStatusPanel() {
               type="button"
               onClick={confirmEndShift}
               disabled={!!savingStatus}
-              className="h-11 flex-1 rounded-2xl bg-[#111827] text-sm font-black text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
+              className="h-11 flex-1 rounded-2xl bg-slate-950 text-sm font-black text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
             >
               כן, סיום משמרת
             </button>
@@ -1279,7 +1270,7 @@ export default function SoftphoneStatusPanel() {
               type="button"
               onClick={() => setShowEndShiftConfirm(false)}
               disabled={!!savingStatus}
-              className="h-11 flex-1 rounded-2xl border border-[#e7dac8] bg-white text-sm font-black text-[#6b5a45] transition hover:bg-[#fff8ed] disabled:cursor-not-allowed disabled:opacity-50"
+              className="h-11 flex-1 rounded-2xl border border-slate-200 bg-white text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               ביטול
             </button>
