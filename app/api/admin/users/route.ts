@@ -81,7 +81,12 @@ function isAdminContext(auth: any) {
   return (
     auth?.role === "admin" ||
     auth?.impersonationRole === "admin" ||
-    !!auth?.impersonatedBy
+    !!auth?.impersonatedBy ||
+    (
+      auth?.role === "staff" &&
+      auth?.staffType === "general_staff" &&
+      auth?.employeeScope === "system"
+    )
   );
 }
 
