@@ -16,7 +16,10 @@ export interface IUser extends Document {
   phone?: string;
 
   role: "user" | "client" | "producer" | "staff" | "admin" | "venue_owner";
-  staffType?: "producer_staff" | "general_staff" | null;
+
+staffType?: "producer_staff" | "general_staff" | null;
+
+employeeScope?: "system" | "producer" | "venue" | "client" | null;
 
   plan: "basic" | "premium" | "plan1" | "plan2" | "plan3";
   priceKey?: string;
@@ -204,6 +207,13 @@ const UserSchema = new Schema<IUser>(
       default: "basic",
       index: true,
     },
+
+    employeeScope: {
+  type: String,
+  enum: ["system", "producer", "venue", "client"],
+  default: null,
+  index: true,
+},
 
     priceKey: {
       type: String,
@@ -763,36 +773,57 @@ UserSchema.pre("validate", function () {
     doc.maxMessages = doc.planLimits.smsLimit;
   }
 
-  if (doc.role === "admin") {
-    doc.staffType = null;
-    doc.assignedProducerId = null;
-    doc.assignedClientIds = [];
-  }
+ if (doc.role === "admin") {
+  doc.staffType = null;
+  doc.employeeScope = null;
+  doc.assignedProducerId = null;
+  doc.assignedClientIds = [];
+}
 
-  if (
-    doc.role === "user" ||
-    doc.role === "client" ||
-    doc.role === "producer" ||
-    doc.role === "venue_owner"
-  ) {
-    doc.staffType = null;
-  }
+if (
+  doc.role === "user" ||
+  doc.role === "client" ||
+  doc.role === "producer" ||
+  doc.role === "venue_owner"
+) {
+  doc.staffType = null;
+  doc.employeeScope = null;
+}
 
-  if (doc.role === "staff" && !doc.staffType) {
-    doc.staffType = "general_staff";
-  }
+/*
+  עובד כללי של Invistimo:
+  role = staff
+  staffType = general_staff
+  employeeScope = system
+*/
+if (doc.role === "staff" && !doc.staffType) {
+  doc.staffType = "general_staff";
+}
 
-  if (
-    doc.role === "staff" &&
-    doc.staffType === "producer_staff" &&
-    !doc.assignedProducerId
-  ) {
+if (
+  doc.role === "staff" &&
+  doc.staffType === "general_staff" &&
+  !doc.employeeScope
+) {
+  doc.employeeScope = "system";
+}
+
+/*
+  עובד של מפיק:
+  role = staff
+  staffType = producer_staff
+  employeeScope = producer
+*/
+if (doc.role === "staff" && doc.staffType === "producer_staff") {
+  doc.employeeScope = "producer";
+
+  if (!doc.assignedProducerId) {
     doc.invalidate(
       "assignedProducerId",
       "assignedProducerId is required for producer_staff"
     );
   }
-
+}
   if (Array.isArray(doc.assignedClientIds)) {
     doc.assignedClientIds = Array.from(
       new Set(doc.assignedClientIds.map(String))
@@ -810,6 +841,7 @@ UserSchema.pre("validate", function () {
    INDEXES
 ============================================================ */
 UserSchema.index({ role: 1, staffType: 1 });
+UserSchema.index({ role: 1, staffType: 1, employeeScope: 1 });
 UserSchema.index({ assignedProducerId: 1, role: 1 });
 UserSchema.index({ assignedProducerId: 1, assignedClientIds: 1 });
 UserSchema.index({ email: 1, role: 1 });

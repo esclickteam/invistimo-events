@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 type UserRole = "user" | "producer" | "staff" | "venue_owner";
+type StaffCreateType = "system" | "producer";
 type PaymentStatus = "paid" | "stripe";
 type PlanKey = "plan1" | "plan2" | "plan3";
 type AddonKey = "calls" | "credit" | "seating" | "system" | "design";
@@ -78,6 +79,12 @@ export default function CreateUserModal({ onClose }: Props) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<UserRole>("user");
+
+  const [staffCreateType, setStaffCreateType] =
+  useState<StaffCreateType>("system");
+
+const [assignedProducerId, setAssignedProducerId] = useState("");
+
 
   /* ===== PLAN ===== */
   const [plan, setPlan] = useState<PlanKey>("plan1");
@@ -326,11 +333,102 @@ export default function CreateUserModal({ onClose }: Props) {
             },
           }
         : role === "staff"
-          ? {
-              name,
-              email,
-              role,
-            }
+  ? staffCreateType === "producer"
+    ? {
+        name,
+        email,
+        role: "staff",
+
+        // עובד של מפיק
+        staffType: "producer_staff",
+        employeeScope: "producer",
+
+        assignedProducerId,
+        createdByAdmin: true,
+        billingSource: "admin",
+
+        producerId: null,
+        createdByProducer: null,
+        assignedStaffIds: [],
+        assignedClientIds: [],
+
+        plan: "basic",
+        priceKey: "producer_staff_manual",
+        packageName: "עובד מפיק",
+
+        guests: 0,
+        maxGuests: 0,
+        smsLimit: 0,
+        maxMessages: 0,
+        allowedMessageRounds: 2,
+
+        limits: {
+          records: 0,
+          allowedMessageRounds: 2,
+        },
+
+        billing: {
+          price: 0,
+          paymentStatus: "paid",
+        },
+
+        includeCalls: false,
+        includeCreditGifts: false,
+        includeDigitalSeating: false,
+        includeEventManagement: false,
+        includeCustomDesign: false,
+
+        hasPaid: true,
+        isActive: true,
+      }
+    : {
+        name,
+        email,
+        role: "staff",
+
+        // עובד פנימי של Invistimo
+        staffType: "general_staff",
+        employeeScope: "system",
+
+        createdByAdmin: true,
+        billingSource: "admin",
+
+        producerId: null,
+        createdByProducer: null,
+        assignedProducerId: null,
+        assignedStaffIds: [],
+        assignedClientIds: [],
+
+        plan: "basic",
+        priceKey: "staff_manual",
+        packageName: "עובד מערכת",
+
+        guests: 0,
+        maxGuests: 0,
+        smsLimit: 0,
+        maxMessages: 0,
+        allowedMessageRounds: 2,
+
+        limits: {
+          records: 0,
+          allowedMessageRounds: 2,
+        },
+
+        billing: {
+          price: 0,
+          paymentStatus: "paid",
+        },
+
+        includeCalls: false,
+        includeCreditGifts: false,
+        includeDigitalSeating: false,
+        includeEventManagement: false,
+        includeCustomDesign: false,
+
+        hasPaid: true,
+        isActive: true,
+      }
+
           : role === "venue_owner"
             ? {
                 name,
@@ -516,10 +614,13 @@ export default function CreateUserModal({ onClose }: Props) {
   }
 
   const isSubmitDisabled =
-    !name ||
-    !email ||
-    (role === "user" && price === "") ||
-    (role === "producer" && !producerPricePerRecord);
+  !name ||
+  !email ||
+  (role === "user" && price === "") ||
+  (role === "producer" && !producerPricePerRecord) ||
+  (role === "staff" &&
+    staffCreateType === "producer" &&
+    !assignedProducerId);
 
   /* =====================================================
      UI
@@ -1288,12 +1389,56 @@ export default function CreateUserModal({ onClose }: Props) {
           )}
 
           {/* STAFF */}
-          {role === "staff" && (
-            <section className="rounded-2xl border border-[#eadfce] bg-[#fff8ed] px-4 py-3 text-sm text-[#7a5a2f] leading-6">
-              משתמש מסוג עובד ייווצר כעובד מערכת. לאחר מכן אפשר לשייך אותו
-              למפיק/לקוח לפי הצורך מהאדמין.
-            </section>
-          )}
+{role === "staff" && (
+  <section className="space-y-4 rounded-3xl border border-[#eadfce] bg-white p-5 shadow-sm">
+    <div>
+      <h3 className="text-sm font-bold text-[#3f4856]">
+        סוג עובד
+      </h3>
+
+      <p className="text-xs text-[#8b7b68] mt-1">
+        בחרי האם זה עובד פנימי של Invistimo או עובד ששייך למפיק.
+      </p>
+    </div>
+
+    <select
+      value={staffCreateType}
+      onChange={(e) =>
+        setStaffCreateType(e.target.value as StaffCreateType)
+      }
+      className="w-full h-14 rounded-2xl border border-[#eadfce] bg-white px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
+    >
+      <option value="system">עובד מערכת Invistimo</option>
+      <option value="producer">עובד של מפיק</option>
+    </select>
+
+    {staffCreateType === "producer" && (
+      <label className="space-y-2 block">
+        <span className="block text-sm font-semibold text-[#6b5a45]">
+          ID של המפיק
+        </span>
+
+        <input
+          type="text"
+          placeholder="הדביקי כאן את ה־ObjectId של המפיק"
+          value={assignedProducerId}
+          onChange={(e) => setAssignedProducerId(e.target.value)}
+          className="w-full h-14 rounded-2xl border border-[#eadfce] bg-white px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
+        />
+
+        <p className="text-xs text-[#8b7b68]">
+          זמנית אפשר להכניס ID ידני. בשלב הבא עדיף להפוך את זה לבחירת מפיק מרשימה.
+        </p>
+      </label>
+    )}
+
+    <div className="rounded-2xl border border-[#eadfce] bg-[#fff8ed] px-4 py-3 text-sm text-[#7a5a2f] leading-6">
+      {staffCreateType === "system"
+        ? "העובד ייווצר כעובד כללי של Invistimo."
+        : "העובד ייווצר כעובד של מפיק ויחובר למפיק שבחרת."}
+    </div>
+  </section>
+)}
 
           {/* VENUE OWNER */}
           {role === "venue_owner" && (

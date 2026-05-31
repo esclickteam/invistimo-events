@@ -546,14 +546,15 @@ export async function GET(req: Request) {
     const users = await User.find(filter)
       .select(`
         name
-        email
-        phone
-        role
-        staffType
+email
+phone
+role
+staffType
+employeeScope
 
-        plan
-        priceKey
-        packageName
+plan
+priceKey
+packageName
 
         guests
         maxGuests
@@ -1068,16 +1069,21 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => null);
 
     const {
-      name,
-      email,
-      role,
-      limits,
-      billing,
-      addons,
-      plan,
-      accessModules,
-      callRoundsSchedule,
-    } = body || {};
+  name,
+  email,
+  role,
+  limits,
+  billing,
+  addons,
+  plan,
+  accessModules,
+  callRoundsSchedule,
+
+  // staff fields
+  staffType,
+  employeeScope,
+  assignedProducerId,
+} = body || {};
 
     const safeName = normalizeString(name);
     const safeEmail = normalizeEmail(email);
@@ -1226,34 +1232,105 @@ export async function POST(req: Request) {
     }
 
     /* =========================
-       STAFF
-    ========================= */
-    if (safeRole === "staff") {
-      const user = await User.create({
-        name: safeName,
-        email: safeEmail,
-        role: "staff",
+   STAFF
+========================= */
+if (safeRole === "staff") {
+  const safeStaffType =
+    staffType === "producer_staff" ? "producer_staff" : "general_staff";
 
-        hasPaid: true,
-        paidAmount: 0,
-        isActive: true,
+  const safeEmployeeScope =
+    safeStaffType === "producer_staff" ? "producer" : "system";
 
-        needsPasswordSetup: true,
-        createdByAdmin: true,
-        billingSource: "admin",
-      });
+  if (safeStaffType === "producer_staff" && !assignedProducerId) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "ASSIGNED_PRODUCER_REQUIRED",
+      },
+      { status: 400 }
+    );
+  }
 
-      await sendPasswordSetupMail(String(user._id));
+  const user = await User.create({
+    name: safeName,
+    email: safeEmail,
+    role: "staff",
 
-      return NextResponse.json(
-        {
-          success: true,
-          userId: String(user._id),
-          role: "staff",
-        },
-        { status: 201 }
-      );
-    }
+    staffType: safeStaffType,
+    employeeScope: safeEmployeeScope,
+
+    assignedProducerId:
+      safeStaffType === "producer_staff" ? assignedProducerId : null,
+
+    producerId: null,
+    createdByProducer: null,
+    assignedStaffIds: [],
+    assignedClientIds: [],
+
+    plan: "basic",
+    priceKey:
+      safeStaffType === "producer_staff"
+        ? "producer_staff_manual"
+        : "staff_manual",
+    packageName:
+      safeStaffType === "producer_staff" ? "עובד מפיק" : "עובד מערכת",
+
+    guests: 0,
+    maxGuests: 0,
+    allowedMessageRounds: 2,
+
+    maxMessages: 0,
+    smsLimit: 0,
+    smsUsed: 0,
+
+    includeCalls: false,
+    callsRounds: 0,
+    callsAddonPrice: 0,
+
+    includeCreditGifts: false,
+    creditGiftsAddonPrice: 0,
+
+    includeDigitalSeating: false,
+    includeEventManagement: false,
+    includeCustomDesign: false,
+
+    accessModules: {
+      rsvpSeating: false,
+      eventProduction: false,
+    },
+
+    planLimits: {
+      maxGuests: 0,
+      allowedMessageRounds: 2,
+      smsEnabled: false,
+      smsLimit: 0,
+      seatingEnabled: false,
+      remindersEnabled: false,
+      callsEnabled: false,
+    },
+
+    hasPaid: true,
+    paidAmount: 0,
+    isActive: true,
+
+    needsPasswordSetup: true,
+    createdByAdmin: true,
+    billingSource: "admin",
+  });
+
+  await sendPasswordSetupMail(String(user._id));
+
+  return NextResponse.json(
+    {
+      success: true,
+      userId: String(user._id),
+      role: "staff",
+      staffType: safeStaffType,
+      employeeScope: safeEmployeeScope,
+    },
+    { status: 201 }
+  );
+}
 
     /* =========================
        REGULAR USER

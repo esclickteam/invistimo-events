@@ -20,9 +20,12 @@ type UserRole =
   | "staff"
   | "producer_staff"
   | "staff_producer"
+  | "system_staff"
   | "venue_owner";
 
 type StaffType = "producer_staff" | "general_staff";
+
+type EmployeeScope = "system" | "producer" | "venue" | "client";
 
 type AccessModules = {
   rsvpSeating?: boolean;
@@ -42,12 +45,15 @@ interface User {
   name?: string;
 
   role: UserRole;
-  effectiveRole?: UserRole | "producer_staff";
+  effectiveRole?: UserRole | "producer_staff" | "system_staff";
   venueOwner?: boolean;
 
   /* ===== STAFF ===== */
-  staffType?: StaffType;
-  assignedProducerId?: string;
+  staffType?: StaffType | null;
+  employeeScope?: EmployeeScope | null;
+  assignedProducerId?: string | null;
+  isProducerStaff?: boolean;
+  isSystemStaff?: boolean;
 
   /* ===== BUSINESS ===== */
   paidAmount: number;
@@ -106,12 +112,27 @@ function getUserRedirectPath(nextUser: User) {
     .toLowerCase()
     .trim();
 
-  const isStaffLike =
-    role === "staff" ||
+  const staffType = String(nextUser.staffType || "").toLowerCase().trim();
+  const employeeScope = String(nextUser.employeeScope || "")
+    .toLowerCase()
+    .trim();
+
+  const isSystemStaff =
+    effectiveRole === "system_staff" ||
+    nextUser.isSystemStaff === true ||
+    (role === "staff" &&
+      staffType === "general_staff" &&
+      employeeScope === "system");
+
+  const isProducerStaff =
+    effectiveRole === "producer_staff" ||
+    effectiveRole === "staff_producer" ||
+    nextUser.isProducerStaff === true ||
     role === "producer_staff" ||
     role === "staff_producer" ||
-    effectiveRole === "producer_staff" ||
-    effectiveRole === "staff_producer";
+    (role === "staff" &&
+      staffType === "producer_staff" &&
+      employeeScope === "producer");
 
   const isVenueOwner =
     role === "venue_owner" ||
@@ -137,6 +158,11 @@ function getUserRedirectPath(nextUser: User) {
     return "/admin";
   }
 
+  // SYSTEM STAFF — עובד כללי של Invistimo
+  if (isSystemStaff) {
+    return "/staff/dashboard";
+  }
+
   // VENUE OWNER
   if (isVenueOwner) {
     return "/venues/dashboard";
@@ -147,8 +173,8 @@ function getUserRedirectPath(nextUser: User) {
     return "/producer/dashboard";
   }
 
-  // PRODUCER STAFF / STAFF
-  if (isStaffLike) {
+  // PRODUCER STAFF
+  if (isProducerStaff) {
     return "/producer-staff/dashboard";
   }
 

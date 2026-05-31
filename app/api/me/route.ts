@@ -479,6 +479,7 @@ type UserRole =
 type EffectiveRole =
   | "producer"
   | "producer_staff"
+  | "system_staff"
   | "client"
   | "admin"
   | "user"
@@ -695,6 +696,15 @@ export async function GET() {
     const safeRole = (currentUser.role as UserRole) ?? "user";
 
     const staffType = (currentUser.staffType as string | null) ?? null;
+
+    const employeeScope =
+      (currentUser.employeeScope as
+        | "system"
+        | "producer"
+        | "venue"
+        | "client"
+        | null) ?? null;
+
     const impersonationRole = decoded.impersonationRole ?? null;
 
     const accessModules = normalizeAccessModules(currentUser);
@@ -836,9 +846,16 @@ export async function GET() {
       safeRole === "producer" || impersonationRole === "producer";
 
     const isProducerStaff =
-      (safeRole === "staff" && staffType === "producer_staff") ||
+      (safeRole === "staff" &&
+        staffType === "producer_staff" &&
+        employeeScope === "producer") ||
       impersonationRole === "producer_staff" ||
       impersonationRole === "staff_producer";
+
+    const isSystemStaff =
+      safeRole === "staff" &&
+      staffType === "general_staff" &&
+      employeeScope === "system";
 
     const isProducerLike = isProducer || isProducerStaff;
 
@@ -846,13 +863,15 @@ export async function GET() {
       ? "producer"
       : isProducerStaff
         ? "producer_staff"
-        : safeRole === "client"
-          ? "client"
-          : safeRole === "admin"
-            ? "admin"
-            : isVenueOwner
-              ? "venue_owner"
-              : "user";
+        : isSystemStaff
+          ? "system_staff"
+          : safeRole === "client"
+            ? "client"
+            : safeRole === "admin"
+              ? "admin"
+              : isVenueOwner
+                ? "venue_owner"
+                : "user";
 
     const isImpersonated =
       !!decoded.impersonated ||
@@ -904,6 +923,8 @@ export async function GET() {
       accessModules,
       "| staffType:",
       staffType,
+      "| employeeScope:",
+      employeeScope,
       "| impersonationRole:",
       impersonationRole,
       "| producerLike:",
@@ -926,6 +947,8 @@ export async function GET() {
           venueOwner: isVenueOwner,
 
           staffType,
+          employeeScope,
+
           assignedProducerId: currentUser.assignedProducerId
             ? String(currentUser.assignedProducerId)
             : null,
@@ -933,6 +956,7 @@ export async function GET() {
 
           isProducerLike,
           isProducerStaff,
+          isSystemStaff,
 
           isActive: currentUser.isActive === true,
           hasPaid: currentUser.hasPaid === true,
