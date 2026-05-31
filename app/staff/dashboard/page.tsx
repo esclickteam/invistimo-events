@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
+import SoftphoneStatusPanel from "@/components/staff/SoftphoneStatusPanel";
+import SoftphoneAgentsMonitor from "@/components/staff/SoftphoneAgentsMonitor";
 
 type StaffDashboardUser = {
   _id: string;
@@ -55,15 +57,11 @@ function getRoleLabel(user: StaffDashboardUser) {
     return "עובד Invistimo";
   }
 
-  if (
-    user.role === "staff" &&
-    user.staffType === "producer_staff"
-  ) {
+  if (user.role === "staff" && user.staffType === "producer_staff") {
     return "עובד מפיק";
   }
 
   if (user.role === "staff") return "עובד";
-
   if (user.role === "admin") return "אדמין";
 
   return user.role || "לא ידוע";
@@ -140,6 +138,7 @@ export default function StaffDashboardPage() {
     }
 
     loadUsers();
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, user?._id]);
 
@@ -166,6 +165,7 @@ export default function StaffDashboardPage() {
       setUsers(Array.isArray(data.users) ? data.users : []);
     } catch (err: any) {
       console.error("LOAD STAFF DASHBOARD USERS FAILED:", err);
+
       setError(
         err?.message === "FORBIDDEN"
           ? "אין הרשאה לטעון את רשימת המשתמשים. צריך לאפשר לעובד מערכת גישה ל־/api/admin/users."
@@ -247,9 +247,11 @@ export default function StaffDashboardPage() {
         <div className="mx-auto flex min-h-[70vh] max-w-4xl items-center justify-center">
           <div className="rounded-[28px] border border-red-200 bg-white p-8 text-center shadow-sm">
             <p className="text-3xl">⚠️</p>
+
             <h1 className="mt-4 text-2xl font-black text-[#2f251d]">
               לא ניתן להציג את הדשבורד
             </h1>
+
             <p className="mt-3 text-sm leading-7 text-red-700">{error}</p>
 
             <button
@@ -283,15 +285,13 @@ export default function StaffDashboardPage() {
                 </h1>
 
                 <p className="mt-3 max-w-2xl text-sm leading-7 text-[#7a6a58]">
-                  אזור עבודה פנימי לעובדי המערכת: צפייה בכל המשתמשים,
-                  לקוחות, מפיקים, בעלי אולם ועובדים.
+                  אזור עבודה פנימי לעובדי המערכת: סטטוס סופטפון, זמן בשיחה,
+                  זמן פנוי, זמן הפסקה, וצפייה בכל המשתמשים במערכת.
                 </p>
               </div>
 
               <div className="rounded-3xl border border-[#eadfce] bg-[#fff8ed] px-5 py-4">
-                <p className="text-xs font-bold text-[#8b7b68]">
-                  מחובר כעובד
-                </p>
+                <p className="text-xs font-bold text-[#8b7b68]">מחובר כעובד</p>
                 <p className="mt-1 text-sm font-black text-[#2f251d]">
                   {user?.name || user?.email || "עובד מערכת"}
                 </p>
@@ -299,6 +299,10 @@ export default function StaffDashboardPage() {
             </div>
           </div>
         </header>
+
+        <SoftphoneStatusPanel />
+
+        <SoftphoneAgentsMonitor />
 
         <section className="grid grid-cols-2 gap-3 md:grid-cols-6">
           <StatCard label="סה״כ משתמשים" value={stats.total} />
@@ -315,6 +319,7 @@ export default function StaffDashboardPage() {
               <h2 className="text-2xl font-black text-[#2f251d]">
                 כל המשתמשים
               </h2>
+
               <p className="mt-1 text-sm text-[#8b7b68]">
                 רשימת משתמשים מלאה מתוך המערכת.
               </p>
@@ -401,19 +406,19 @@ export default function StaffDashboardPage() {
                     className="border-b border-[#f0e5d6] text-sm transition last:border-b-0 hover:bg-[#fffaf3]"
                   >
                     <td className="p-4">
-                      <div>
-                        <p className="font-black text-[#2f251d]">
-                          {item.name || "ללא שם"}
-                        </p>
+                      <p className="font-black text-[#2f251d]">
+                        {item.name || "ללא שם"}
+                      </p>
+
+                      <p className="mt-1 text-xs text-[#8b7b68]">
+                        {item.email || "-"}
+                      </p>
+
+                      {item.phone && (
                         <p className="mt-1 text-xs text-[#8b7b68]">
-                          {item.email || "-"}
+                          {item.phone}
                         </p>
-                        {item.phone && (
-                          <p className="mt-1 text-xs text-[#8b7b68]">
-                            {item.phone}
-                          </p>
-                        )}
-                      </div>
+                      )}
                     </td>
 
                     <td className="p-4">
@@ -439,6 +444,7 @@ export default function StaffDashboardPage() {
                         {item.includeCalls && <MiniTag>שיחות</MiniTag>}
                         {item.includeDigitalSeating && <MiniTag>הושבה</MiniTag>}
                         {item.includeEventManagement && <MiniTag>הפקה</MiniTag>}
+
                         {!item.includeCalls &&
                           !item.includeDigitalSeating &&
                           !item.includeEventManagement && (
@@ -483,6 +489,7 @@ export default function StaffDashboardPage() {
                     <p className="font-black text-[#2f251d]">
                       {item.name || "ללא שם"}
                     </p>
+
                     <p className="mt-1 text-xs text-[#8b7b68]">
                       {item.email || "-"}
                     </p>
@@ -513,9 +520,11 @@ export default function StaffDashboardPage() {
           {filteredUsers.length === 0 && (
             <div className="rounded-3xl border border-dashed border-[#eadfce] bg-[#fffdf9] p-8 text-center">
               <p className="text-2xl">🔎</p>
+
               <h3 className="mt-3 text-lg font-black text-[#2f251d]">
                 לא נמצאו משתמשים
               </h3>
+
               <p className="mt-1 text-sm text-[#8b7b68]">
                 נסי לשנות חיפוש או סינון.
               </p>
