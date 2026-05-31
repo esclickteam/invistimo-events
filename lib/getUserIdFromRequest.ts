@@ -1,5 +1,7 @@
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
+import { connectDB } from "@/lib/db";
+import User from "@/models/User";
 
 /* =========================
    Types
@@ -23,10 +25,13 @@ export type ImpersonationRole =
   | "staff"
   | "venue_owner";
 
+export type EmployeeScope = "system" | "producer" | "venue" | "client";
+
 export type AuthPayload = {
   userId: string;
   role: AuthRole;
   staffType?: string | null;
+  employeeScope?: EmployeeScope | null;
 
   impersonated: boolean;
   impersonatedBy?: string | null;
@@ -77,6 +82,19 @@ function normalizeRole(raw: any): AuthRole {
   return "user";
 }
 
+function normalizeEmployeeScope(raw: any): EmployeeScope | null {
+  if (
+    raw === "system" ||
+    raw === "producer" ||
+    raw === "venue" ||
+    raw === "client"
+  ) {
+    return raw;
+  }
+
+  return null;
+}
+
 function normalizeImpersonationRole(raw: any): ImpersonationRole | null {
   if (
     raw === "producer" ||
@@ -92,6 +110,27 @@ function normalizeImpersonationRole(raw: any): ImpersonationRole | null {
   }
 
   return null;
+}
+
+async function getFreshUserAuthFields(userId: string) {
+  try {
+    await connectDB();
+
+    const user = await User.findById(userId)
+      .select("role staffType employeeScope")
+      .lean();
+
+    if (!user) return null;
+
+    return {
+      role: normalizeRole((user as any).role),
+      staffType: (user as any).staffType ?? null,
+      employeeScope: normalizeEmployeeScope((user as any).employeeScope),
+    };
+  } catch (err) {
+    console.error("❌ getFreshUserAuthFields error:", err);
+    return null;
+  }
 }
 
 /* =========================
@@ -140,8 +179,21 @@ export async function getUserIdFromRequest(
     const userId = decoded.userId || decoded.id || decoded._id || null;
     if (!userId) return null;
 
-    const role = normalizeRole(decoded.role);
-    const staffType = decoded.staffType ?? null;
+    /*
+      חשוב:
+      לא מסתמכים רק על JWT, כי ייתכן שהוא נוצר לפני שהוספנו employeeScope.
+      לכן מושכים role/staffType/employeeScope מעודכן מה־DB.
+    */
+    const freshUserAuthFields = await getFreshUserAuthFields(String(userId));
+
+    const role = freshUserAuthFields?.role ?? normalizeRole(decoded.role);
+
+    const staffType =
+      freshUserAuthFields?.staffType ?? decoded.staffType ?? null;
+
+    const employeeScope =
+      freshUserAuthFields?.employeeScope ??
+      normalizeEmployeeScope(decoded.employeeScope);
 
     /* ---------------------------------
        3) Header-based impersonation
@@ -158,6 +210,7 @@ export async function getUserIdFromRequest(
         userId: String(impersonateUserId),
         role: "user",
         staffType: null,
+        employeeScope: null,
         impersonated: true,
         impersonatedBy: String(userId),
         impersonationRole: "admin",
@@ -177,6 +230,7 @@ export async function getUserIdFromRequest(
         userId: String(userId),
         role,
         staffType,
+        employeeScope,
         impersonated: true,
         impersonatedBy: decoded.impersonatedBy
           ? String(decoded.impersonatedBy)
@@ -194,6 +248,7 @@ export async function getUserIdFromRequest(
       userId: String(userId),
       role,
       staffType,
+      employeeScope,
       impersonated: false,
       impersonatedBy: null,
       impersonationRole: null,
