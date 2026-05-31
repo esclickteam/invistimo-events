@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import SoftphoneStatusPanel from "@/components/staff/SoftphoneStatusPanel";
-import SoftphoneAgentsMonitor from "@/components/staff/SoftphoneAgentsMonitor";
+import SoftphoneStatusPanel from "@/app/components/staff/SoftphoneStatusPanel";
+import SoftphoneAgentsMonitor from "@/app/components/staff/SoftphoneAgentsMonitor";
 
 type StaffDashboardUser = {
   _id: string;
@@ -163,11 +163,13 @@ export default function StaffDashboardPage() {
       }
 
       setUsers(Array.isArray(data.users) ? data.users : []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("LOAD STAFF DASHBOARD USERS FAILED:", err);
 
+      const message = err instanceof Error ? err.message : "";
+
       setError(
-        err?.message === "FORBIDDEN"
+        message === "FORBIDDEN"
           ? "אין הרשאה לטעון את רשימת המשתמשים. צריך לאפשר לעובד מערכת גישה ל־/api/admin/users."
           : "שגיאה בטעינת המשתמשים"
       );
@@ -291,7 +293,10 @@ export default function StaffDashboardPage() {
               </div>
 
               <div className="rounded-3xl border border-[#eadfce] bg-[#fff8ed] px-5 py-4">
-                <p className="text-xs font-bold text-[#8b7b68]">מחובר כעובד</p>
+                <p className="text-xs font-bold text-[#8b7b68]">
+                  מחובר כעובד
+                </p>
+
                 <p className="mt-1 text-sm font-black text-[#2f251d]">
                   {user?.name || user?.email || "עובד מערכת"}
                 </p>
