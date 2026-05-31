@@ -14,6 +14,16 @@ type AgentStatus =
 
 type CallDirection = "none" | "outbound" | "inbound";
 
+type BusyReason =
+  | "after_call"
+  | "back_office"
+  | "manager_approval"
+  | "break"
+  | "personal"
+  | "technical"
+  | "unavailable"
+  | "offline";
+
 type AgentState = {
   agentId: string;
   name?: string;
@@ -46,27 +56,20 @@ const STATUS_LABELS: Record<AgentStatus, string> = {
   ringing: "מצלצל",
   in_call: "בשיחה",
   after_call: "טיפול אחרי שיחה",
-  break: "בהפסקה",
-  unavailable: "לא זמין",
+  break: "הפסקה",
+  unavailable: "לא פנוי",
   offline: "מנותק",
 };
 
-const STATUS_STYLES: Record<AgentStatus, string> = {
-  available: "border-green-200 bg-green-50 text-green-700",
-  dialing: "border-blue-200 bg-blue-50 text-blue-700",
-  ringing: "border-indigo-200 bg-indigo-50 text-indigo-700",
-  in_call: "border-red-200 bg-red-50 text-red-700",
-  after_call: "border-orange-200 bg-orange-50 text-orange-700",
-  break: "border-yellow-200 bg-yellow-50 text-yellow-700",
-  unavailable: "border-gray-200 bg-gray-100 text-gray-700",
-  offline: "border-[#eadfce] bg-[#f4eee7] text-[#6b5a45]",
-};
-
-const NOT_AVAILABLE_OPTIONS: { value: AgentStatus; label: string }[] = [
-  { value: "break", label: "הפסקה" },
-  { value: "after_call", label: "טיפול אחרי שיחה" },
-  { value: "unavailable", label: "לא זמין" },
-  { value: "offline", label: "מנותק" },
+const BUSY_REASONS: { value: BusyReason; label: string; targetStatus: AgentStatus }[] = [
+  { value: "after_call", label: "טיפול אחרי שיחה", targetStatus: "after_call" },
+  { value: "back_office", label: "בק אופיס", targetStatus: "unavailable" },
+  { value: "manager_approval", label: "אישור מנהל", targetStatus: "unavailable" },
+  { value: "break", label: "הפסקה", targetStatus: "break" },
+  { value: "personal", label: "אישי", targetStatus: "unavailable" },
+  { value: "technical", label: "תקלה טכנית", targetStatus: "unavailable" },
+  { value: "unavailable", label: "לא זמין", targetStatus: "unavailable" },
+  { value: "offline", label: "מנותק", targetStatus: "offline" },
 ];
 
 const DIAL_KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"];
@@ -93,13 +96,23 @@ function secondsSince(value?: string | null) {
 }
 
 function onlyDialChars(value: string) {
-  return value.replace(/[^\d*#]/g, "");
+  return value.replace(/[^\d*#+]/g, "");
 }
 
-function getDirectionLabel(direction: CallDirection) {
+function getCallDirectionLabel(direction: CallDirection) {
   if (direction === "outbound") return "שיחה יוצאת";
   if (direction === "inbound") return "שיחה נכנסת";
-  return "אין שיחה פעילה";
+  return "אין שיחה";
+}
+
+function getStatusColor(status: AgentStatus) {
+  if (status === "available") return "bg-emerald-600 text-white";
+  if (status === "in_call") return "bg-red-600 text-white";
+  if (status === "dialing" || status === "ringing") return "bg-blue-600 text-white";
+  if (status === "after_call") return "bg-orange-500 text-white";
+  if (status === "break") return "bg-amber-500 text-white";
+  if (status === "offline") return "bg-zinc-700 text-white";
+  return "bg-red-500 text-white";
 }
 
 export default function SoftphoneStatusPanel() {
@@ -114,8 +127,7 @@ export default function SoftphoneStatusPanel() {
   const [callDirection, setCallDirection] = useState<CallDirection>("none");
 
   const [showDialPad, setShowDialPad] = useState(false);
-  const [notAvailableReason, setNotAvailableReason] =
-    useState<AgentStatus>("break");
+  const [busyReason, setBusyReason] = useState<BusyReason>("break");
 
   useEffect(() => {
     loadMyStatus();
@@ -153,7 +165,7 @@ export default function SoftphoneStatusPanel() {
     }
   }
 
-  async function changeStatus(nextStatus: AgentStatus) {
+  async function changeStatus(nextStatus: AgentStatus, reason?: BusyReason) {
     try {
       setSavingStatus(nextStatus);
 
@@ -165,6 +177,9 @@ export default function SoftphoneStatusPanel() {
         credentials: "include",
         body: JSON.stringify({
           status: nextStatus,
+          reason: reason || null,
+          phoneNumber: activeCallNumber || phoneNumber || null,
+          direction: callDirection,
         }),
       });
 
@@ -192,10 +207,13 @@ export default function SoftphoneStatusPanel() {
     await changeStatus("available");
   }
 
-  async function setNotAvailable() {
+  async function setBusy() {
+    const selectedReason = BUSY_REASONS.find((item) => item.value === busyReason);
+    const targetStatus = selectedReason?.targetStatus || "unavailable";
+
     setCallDirection("none");
     setActiveCallNumber("");
-    await changeStatus(notAvailableReason);
+    await changeStatus(targetStatus, busyReason);
   }
 
   async function startOutboundCall() {
@@ -233,7 +251,7 @@ export default function SoftphoneStatusPanel() {
   }
 
   async function finishCall() {
-    await changeStatus("after_call");
+    await changeStatus("after_call", "after_call");
   }
 
   function appendDigit(digit: string) {
@@ -255,199 +273,206 @@ export default function SoftphoneStatusPanel() {
     return secondsSince(agent?.statusStartedAt);
   }, [agent?.statusStartedAt, tick]);
 
-  const activeDisplayNumber =
-    activeCallNumber || phoneNumber || "לא נבחר מספר";
+  const activeDisplayNumber = activeCallNumber || phoneNumber || "—";
 
-  const isCallFlow =
-    currentStatus === "dialing" ||
-    currentStatus === "ringing" ||
-    currentStatus === "in_call" ||
-    currentStatus === "after_call";
+  const activeBusyReasonLabel =
+    BUSY_REASONS.find((item) => item.value === busyReason)?.label || "לא פנוי";
 
   if (loading) {
     return (
-      <section className="rounded-[28px] border border-[#eadfce] bg-white p-6 shadow-sm">
+      <section className="rounded-[26px] border border-[#e5d8c6] bg-white p-6 shadow-sm">
         <p className="text-sm font-bold text-[#6b5a45]">טוען סופטפון...</p>
       </section>
     );
   }
 
   return (
-    <section className="rounded-[30px] border border-[#eadfce] bg-white p-4 shadow-sm">
+    <section className="rounded-[28px] border border-[#e5d8c6] bg-white p-4 shadow-sm">
       <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="text-xs font-black tracking-[0.18em] text-[#9b7a3c]">
+          <p className="text-xs font-black tracking-[0.2em] text-[#9b7a3c]">
             LIVE SOFTPHONE
           </p>
-
-          <h2 className="mt-1 text-xl font-black text-[#2f251d]">
+          <h2 className="mt-1 text-xl font-black text-[#221b14]">
             סופטפון אישי
           </h2>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-[#7a6a58]">
-          <span>זמן פנוי היום: {formatDuration(agent?.todayAvailableSeconds || 0)}</span>
-          <span className="text-[#d5c3ad]">|</span>
-          <span>זמן שיחה היום: {formatDuration(agent?.todayTalkSeconds || 0)}</span>
-          <span className="text-[#d5c3ad]">|</span>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-bold text-[#7a6a58]">
+          <span>פנוי היום: {formatDuration(agent?.todayAvailableSeconds || 0)}</span>
+          <span>שיחה היום: {formatDuration(agent?.todayTalkSeconds || 0)}</span>
           <span>הפסקה: {formatDuration(agent?.todayBreakSeconds || 0)}</span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[145px_220px_250px_1fr_190px_170px]">
-        <div
-          className={`flex min-h-[86px] flex-col justify-center rounded-2xl border px-4 py-3 ${STATUS_STYLES[currentStatus]}`}
-        >
-          <p className="text-xs font-black">סטטוס</p>
-          <p className="mt-1 text-lg font-black">{STATUS_LABELS[currentStatus]}</p>
-          <p className="mt-1 font-mono text-2xl font-black">
-            {formatDuration(liveStatusSeconds)}
-          </p>
-        </div>
-
-        <div className="flex min-h-[86px] flex-col justify-center rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 py-3">
-          <p className="text-xs font-bold text-[#8b7b68]">שיחה</p>
-
-          <p className="mt-1 text-sm font-black text-[#2f251d]">
-            {getDirectionLabel(callDirection)}
-          </p>
-
-          <p dir="ltr" className="mt-1 truncate text-left font-mono text-lg font-black text-[#2f251d]">
-            {activeDisplayNumber}
-          </p>
-        </div>
-
-        <div className="flex min-h-[86px] flex-col justify-center rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 py-3">
-          <p className="text-xs font-bold text-[#8b7b68]">מספר לחיוג / נכנסת</p>
-
-          <input
-            dir="ltr"
-            value={phoneNumber}
-            onChange={(event) => setPhoneNumber(onlyDialChars(event.target.value))}
-            placeholder="0500000000"
-            className="mt-2 h-10 rounded-xl border border-[#eadfce] bg-white px-3 text-left font-mono text-base font-black text-[#2f251d] outline-none focus:border-[#c7a76c]"
-          />
-        </div>
-
-        <div className="flex min-h-[86px] flex-col justify-center rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 py-3">
-          <p className="text-xs font-bold text-[#8b7b68]">פעולות שיחה</p>
-
-          <div className="mt-2 flex flex-wrap gap-2">
-            <button
-              onClick={startOutboundCall}
-              disabled={savingStatus === "dialing"}
-              className="h-10 rounded-xl bg-green-600 px-4 text-xs font-black text-white transition hover:bg-green-700 disabled:opacity-60"
+      <div className="overflow-x-auto">
+        <div className="flex min-w-[1240px] items-stretch gap-3">
+          <div className="flex w-[150px] flex-col justify-center rounded-2xl border border-[#e5d8c6] bg-[#fbf8f3] px-4 py-3">
+            <p className="text-xs font-bold text-[#8b7b68]">סטטוס</p>
+            <div
+              className={`mt-2 rounded-xl px-3 py-2 text-center text-sm font-black ${getStatusColor(
+                currentStatus
+              )}`}
             >
-              {savingStatus === "dialing" ? "מחייג..." : "הוצא שיחה"}
-            </button>
-
-            <button
-              onClick={simulateIncomingCall}
-              disabled={savingStatus === "ringing"}
-              className="h-10 rounded-xl border border-indigo-200 bg-indigo-50 px-4 text-xs font-black text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-60"
-            >
-              שיחה נכנסת
-            </button>
-
-            <button
-              onClick={markRinging}
-              disabled={savingStatus === "ringing"}
-              className="h-10 rounded-xl border border-blue-200 bg-blue-50 px-4 text-xs font-black text-blue-700 transition hover:bg-blue-100 disabled:opacity-60"
-            >
-              מצלצל
-            </button>
-
-            <button
-              onClick={markAnswered}
-              disabled={savingStatus === "in_call"}
-              className="h-10 rounded-xl border border-red-200 bg-red-50 px-4 text-xs font-black text-red-700 transition hover:bg-red-100 disabled:opacity-60"
-            >
-              ענה
-            </button>
-
-            <button
-              onClick={finishCall}
-              disabled={savingStatus === "after_call"}
-              className="h-10 rounded-xl border border-orange-200 bg-orange-50 px-4 text-xs font-black text-orange-700 transition hover:bg-orange-100 disabled:opacity-60"
-            >
-              סיום → טיפול
-            </button>
-          </div>
-        </div>
-
-        <div className="flex min-h-[86px] flex-col justify-center rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 py-3">
-          <p className="text-xs font-bold text-[#8b7b68]">זמינות</p>
-
-          <div className="mt-2 grid grid-cols-2 gap-2">
-            <button
-              onClick={setAvailable}
-              disabled={savingStatus === "available"}
-              className="h-10 rounded-xl bg-green-600 px-3 text-xs font-black text-white transition hover:bg-green-700 disabled:opacity-60"
-            >
-              פנוי
-            </button>
-
-            <button
-              onClick={setNotAvailable}
-              disabled={savingStatus === notAvailableReason}
-              className="h-10 rounded-xl bg-[#2f251d] px-3 text-xs font-black text-white transition hover:bg-[#1f1812] disabled:opacity-60"
-            >
-              לא פנוי
-            </button>
+              {STATUS_LABELS[currentStatus]}
+            </div>
+            <p className="mt-2 text-center font-mono text-2xl font-black text-[#221b14]">
+              {formatDuration(liveStatusSeconds)}
+            </p>
           </div>
 
-          <select
-            value={notAvailableReason}
-            onChange={(event) =>
-              setNotAvailableReason(event.target.value as AgentStatus)
-            }
-            className="mt-2 h-9 rounded-xl border border-[#eadfce] bg-white px-3 text-xs font-bold text-[#4b3b2a] outline-none focus:border-[#c7a76c]"
-          >
-            {NOT_AVAILABLE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="flex min-h-[86px] flex-col justify-center rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 py-3">
-          <p className="text-xs font-bold text-[#8b7b68]">כלים</p>
-
-          <button
-            onClick={() => setShowDialPad((prev) => !prev)}
-            className="mt-2 h-10 rounded-xl border border-[#eadfce] bg-white px-3 text-xs font-black text-[#6b5a45] transition hover:bg-[#fff8ed]"
-          >
-            {showDialPad ? "סגור לוח מקשים" : "פתח לוח מקשים"}
-          </button>
-
-          {isCallFlow && (
-            <button
-              onClick={setAvailable}
-              className="mt-2 h-10 rounded-xl border border-[#eadfce] bg-white px-3 text-xs font-black text-[#6b5a45] transition hover:bg-[#fff8ed]"
+          <div className="flex w-[210px] flex-col justify-center rounded-2xl border border-[#e5d8c6] bg-[#fbf8f3] px-4 py-3">
+            <p className="text-xs font-bold text-[#8b7b68]">שיחה פעילה</p>
+            <p className="mt-2 text-sm font-black text-[#221b14]">
+              {getCallDirectionLabel(callDirection)}
+            </p>
+            <p
+              dir="ltr"
+              className="mt-1 truncate text-left font-mono text-xl font-black text-[#221b14]"
             >
-              חזור לפנוי
-            </button>
-          )}
+              {activeDisplayNumber}
+            </p>
+          </div>
+
+          <div className="flex w-[235px] flex-col justify-center rounded-2xl border border-[#e5d8c6] bg-[#fbf8f3] px-4 py-3">
+            <label className="text-xs font-bold text-[#8b7b68]">
+              מספר לחיוג / מספר נכנס
+            </label>
+
+            <input
+              dir="ltr"
+              value={phoneNumber}
+              onChange={(event) => setPhoneNumber(onlyDialChars(event.target.value))}
+              placeholder="0500000000"
+              className="mt-2 h-11 rounded-xl border border-[#e5d8c6] bg-white px-3 text-left font-mono text-lg font-black text-[#221b14] outline-none transition focus:border-[#b9945a] focus:ring-4 focus:ring-[#b9945a]/10"
+            />
+          </div>
+
+          <div className="flex w-[300px] flex-col justify-center rounded-2xl border border-[#e5d8c6] bg-[#fbf8f3] px-4 py-3">
+            <p className="text-xs font-bold text-[#8b7b68]">זמינות עובד</p>
+
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <button
+                onClick={setAvailable}
+                disabled={savingStatus === "available"}
+                className="h-12 rounded-xl bg-emerald-600 text-sm font-black text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60"
+              >
+                {savingStatus === "available" ? "מעדכן..." : "פנוי"}
+              </button>
+
+              <button
+                onClick={setBusy}
+                disabled={savingStatus !== null}
+                className="h-12 rounded-xl bg-red-600 text-sm font-black text-white shadow-sm transition hover:bg-red-700 active:scale-[0.98] disabled:opacity-60"
+              >
+                לא פנוי
+              </button>
+            </div>
+
+            <select
+              value={busyReason}
+              onChange={(event) => setBusyReason(event.target.value as BusyReason)}
+              className="mt-2 h-10 rounded-xl border border-[#e5d8c6] bg-white px-3 text-sm font-bold text-[#221b14] outline-none transition focus:border-[#b9945a]"
+            >
+              {BUSY_REASONS.map((reason) => (
+                <option key={reason.value} value={reason.value}>
+                  {reason.label}
+                </option>
+              ))}
+            </select>
+
+            <p className="mt-1 text-xs font-bold text-[#8b7b68]">
+              סיבה נבחרת: {activeBusyReasonLabel}
+            </p>
+          </div>
+
+          <div className="flex w-[340px] flex-col justify-center rounded-2xl border border-[#e5d8c6] bg-[#fbf8f3] px-4 py-3">
+            <p className="text-xs font-bold text-[#8b7b68]">פעולות שיחה</p>
+
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              <button
+                onClick={startOutboundCall}
+                disabled={savingStatus === "dialing"}
+                className="h-11 rounded-xl bg-[#221b14] text-xs font-black text-white transition hover:bg-black active:scale-[0.98] disabled:opacity-60"
+              >
+                {savingStatus === "dialing" ? "מחייג..." : "חיוג"}
+              </button>
+
+              <button
+                onClick={simulateIncomingCall}
+                disabled={savingStatus === "ringing"}
+                className="h-11 rounded-xl border border-blue-200 bg-blue-50 text-xs font-black text-blue-700 transition hover:bg-blue-100 active:scale-[0.98] disabled:opacity-60"
+              >
+                נכנסת
+              </button>
+
+              <button
+                onClick={markRinging}
+                disabled={savingStatus === "ringing"}
+                className="h-11 rounded-xl border border-indigo-200 bg-indigo-50 text-xs font-black text-indigo-700 transition hover:bg-indigo-100 active:scale-[0.98] disabled:opacity-60"
+              >
+                מצלצל
+              </button>
+
+              <button
+                onClick={markAnswered}
+                disabled={savingStatus === "in_call"}
+                className="h-11 rounded-xl border border-emerald-200 bg-emerald-50 text-xs font-black text-emerald-700 transition hover:bg-emerald-100 active:scale-[0.98] disabled:opacity-60"
+              >
+                ענה
+              </button>
+
+              <button
+                onClick={finishCall}
+                disabled={savingStatus === "after_call"}
+                className="h-11 rounded-xl border border-orange-200 bg-orange-50 text-xs font-black text-orange-700 transition hover:bg-orange-100 active:scale-[0.98] disabled:opacity-60"
+              >
+                סיים
+              </button>
+
+              <button
+                onClick={() => setShowDialPad((prev) => !prev)}
+                className="h-11 rounded-xl border border-[#e5d8c6] bg-white text-xs font-black text-[#221b14] transition hover:bg-[#fff8ed] active:scale-[0.98]"
+              >
+                מקשים
+              </button>
+            </div>
+          </div>
+
+          <div className="flex w-[180px] flex-col justify-center rounded-2xl border border-[#e5d8c6] bg-[#fbf8f3] px-4 py-3">
+            <p className="text-xs font-bold text-[#8b7b68]">שיחות היום</p>
+
+            <div className="mt-2 grid grid-cols-2 gap-2 text-center">
+              <MiniCounter label="סה״כ" value={agent?.totalCallsToday || 0} />
+              <MiniCounter label="נענו" value={agent?.answeredCallsToday || 0} />
+              <MiniCounter label="לא נענו" value={agent?.missedCallsToday || 0} />
+              <MiniCounter label="נכשלו" value={agent?.failedCallsToday || 0} />
+            </div>
+          </div>
         </div>
       </div>
 
       {showDialPad && (
-        <div className="mt-3 rounded-2xl border border-[#eadfce] bg-[#fffdf9] p-4">
+        <div className="mt-4 rounded-2xl border border-[#e5d8c6] bg-[#fbf8f3] p-4">
           <div className="mb-3 flex items-center justify-between">
-            <p className="text-sm font-black text-[#2f251d]">לוח מקשים</p>
+            <div>
+              <p className="text-sm font-black text-[#221b14]">לוח מקשים</p>
+              <p dir="ltr" className="mt-1 text-left font-mono text-lg font-black text-[#221b14]">
+                {phoneNumber || "—"}
+              </p>
+            </div>
 
             <div className="flex gap-2">
               <button
                 onClick={removeLastDigit}
-                className="rounded-xl border border-[#eadfce] bg-white px-4 py-2 text-xs font-black text-[#6b5a45] hover:bg-[#fff8ed]"
+                className="rounded-xl border border-[#e5d8c6] bg-white px-4 py-2 text-xs font-black text-[#6b5a45] transition hover:bg-[#fff8ed]"
               >
                 מחק
               </button>
 
               <button
                 onClick={clearNumber}
-                className="rounded-xl border border-[#eadfce] bg-white px-4 py-2 text-xs font-black text-[#6b5a45] hover:bg-[#fff8ed]"
+                className="rounded-xl border border-[#e5d8c6] bg-white px-4 py-2 text-xs font-black text-[#6b5a45] transition hover:bg-[#fff8ed]"
               >
                 נקה
               </button>
@@ -459,7 +484,7 @@ export default function SoftphoneStatusPanel() {
               <button
                 key={digit}
                 onClick={() => appendDigit(digit)}
-                className="h-14 rounded-2xl border border-[#eadfce] bg-white text-xl font-black text-[#2f251d] transition hover:bg-[#fff8ed]"
+                className="h-14 rounded-2xl border border-[#e5d8c6] bg-white text-xl font-black text-[#221b14] transition hover:bg-[#fff8ed] active:scale-[0.98]"
               >
                 {digit}
               </button>
@@ -467,34 +492,15 @@ export default function SoftphoneStatusPanel() {
           </div>
         </div>
       )}
-
-      <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
-        <MiniMetric
-          label="שיחות היום"
-          value={String(agent?.totalCallsToday || 0)}
-        />
-        <MiniMetric
-          label="נענו"
-          value={String(agent?.answeredCallsToday || 0)}
-        />
-        <MiniMetric
-          label="לא נענו"
-          value={String(agent?.missedCallsToday || 0)}
-        />
-        <MiniMetric
-          label="נכשלו"
-          value={String(agent?.failedCallsToday || 0)}
-        />
-      </div>
     </section>
   );
 }
 
-function MiniMetric({ label, value }: { label: string; value: string }) {
+function MiniCounter({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 py-3">
-      <p className="text-xs font-bold text-[#8b7b68]">{label}</p>
-      <p className="mt-1 font-mono text-xl font-black text-[#2f251d]">
+    <div className="rounded-xl border border-[#e5d8c6] bg-white px-2 py-2">
+      <p className="text-[10px] font-bold text-[#8b7b68]">{label}</p>
+      <p className="mt-1 font-mono text-base font-black text-[#221b14]">
         {value}
       </p>
     </div>
