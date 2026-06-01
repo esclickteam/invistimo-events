@@ -28,6 +28,7 @@
     "@radix-ui/react-slot": "^1.2.4",
     "@stripe/stripe-js": "^8.5.3",
     "@tanstack/react-query": "^5.90.12",
+    "@telnyx/webrtc": "^2.27.1",
     "@vercel/blob": "^2.4.0",
     "animejs": "^4.2.2",
     "axios": "^1.13.2",

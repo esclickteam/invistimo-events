@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type AgentStatus =
   | "available"
@@ -54,6 +54,41 @@ type AgentState = {
   failedCallsToday: number;
   lastSeenAt?: string;
 };
+
+type WebrtcAuthResponse = {
+  success?: boolean;
+  authType?: "credentials" | "token";
+  login?: string;
+  username?: string;
+  password?: string;
+  loginToken?: string;
+  token?: string;
+  connectionId?: string;
+  callerNumber?: string;
+  fromNumber?: string;
+  error?: string;
+};
+
+type TelnyxRtcClient = {
+  connect?: () => void;
+  disconnect?: () => void;
+  newCall?: (options: Record<string, unknown>) => TelnyxRtcCall;
+  on?: (eventName: string, handler: (...args: any[]) => void) => void;
+  off?: (eventName: string, handler: (...args: any[]) => void) => void;
+};
+
+type TelnyxRtcCall = {
+  id?: string;
+  state?: string;
+  direction?: string;
+  options?: Record<string, any>;
+  answer?: () => void;
+  hangup?: () => void;
+  muteAudio?: () => void;
+  unmuteAudio?: () => void;
+};
+
+const TELNYX_DEFAULT_CALLER_NUMBER = "+97283761556";
 
 const STATUS_LABELS: Record<AgentStatus, string> = {
   available: "פנוי",
@@ -433,6 +468,14 @@ export default function SoftphoneStatusPanel() {
   const [loading, setLoading] = useState(true);
   const [savingStatus, setSavingStatus] = useState<AgentStatus | null>(null);
   const [creatingCall, setCreatingCall] = useState(false);
+  const [webrtcReady, setWebrtcReady] = useState(false);
+  const [webrtcConnecting, setWebrtcConnecting] = useState(false);
+  const [webrtcError, setWebrtcError] = useState("");
+  const [muted, setMuted] = useState(false);
+  const [speakerEnabled, setSpeakerEnabled] = useState(false);
+
+  const telnyxClientRef = useRef<TelnyxRtcClient | null>(null);
+  const activeCallRef = useRef<TelnyxRtcCall | null>(null);
 
   const [tick, setTick] = useState(0);
 
@@ -461,6 +504,22 @@ export default function SoftphoneStatusPanel() {
     }, 1000);
 
     return () => window.clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      try {
+        activeCallRef.current?.hangup?.();
+      } catch {
+        // ignore cleanup hangup errors
+      }
+
+      try {
+        telnyxClientRef.current?.disconnect?.();
+      } catch {
+        // ignore cleanup disconnect errors
+      }
+    };
   }, []);
 
   async function loadMyStatus() {
@@ -553,23 +612,29 @@ export default function SoftphoneStatusPanel() {
   }
 
   async function startShift() {
-    if (savingStatus) return;
+    if (savingStatus || webrtcConnecting) return;
 
-    setShiftStarted(true);
-    setShiftStartedAt(new Date().toISOString());
-    setCallDirection("none");
-    setActiveCallNumber("");
-    setActiveBusyReason(null);
-    setBusyReason("");
-    setShowDialer(false);
-    setShowBusyMenu(false);
+    try {
+      await connectWebrtc();
 
-    await changeStatus("available", {
-      direction: "none",
-      number: null,
-      reason: null,
-      autoStartShift: false,
-    });
+      setShiftStarted(true);
+      setShiftStartedAt(new Date().toISOString());
+      setCallDirection("none");
+      setActiveCallNumber("");
+      setActiveBusyReason(null);
+      setBusyReason("");
+      setShowDialer(false);
+      setShowBusyMenu(false);
+
+      await changeStatus("available", {
+        direction: "none",
+        number: null,
+        reason: null,
+        autoStartShift: false,
+      });
+    } catch {
+      alert("לא הצלחנו לחבר את הסופטפון בדפדפן. בדקי הרשאת מיקרופון ו־ENV של Telnyx.");
+    }
   }
 
   function requestEndShift() {
@@ -581,6 +646,8 @@ export default function SoftphoneStatusPanel() {
 
   async function confirmEndShift() {
     if (savingStatus) return;
+
+    disconnectWebrtc();
 
     setShowEndShiftConfirm(false);
     setShiftStarted(false);
@@ -701,6 +768,234 @@ export default function SoftphoneStatusPanel() {
     });
   }
 
+  function getCallNumber(call?: TelnyxRtcCall | null, fallback = "") {
+    const options = call?.options || {};
+
+    return (
+      String(options.remoteCallerNumber || "") ||
+      String(options.callerNumber || "") ||
+      String(options.destinationNumber || "") ||
+      fallback ||
+      ""
+    );
+  }
+
+  function isInboundWebrtcCall(call?: TelnyxRtcCall | null, notification?: any) {
+    const direction =
+      String(call?.direction || "") ||
+      String(call?.options?.direction || "") ||
+      String(notification?.direction || "") ||
+      String(notification?.call?.direction || "");
+
+    return direction.toLowerCase().includes("inbound");
+  }
+
+  function handleWebrtcNotification(notification: any) {
+    const call = (notification?.call || notification) as TelnyxRtcCall | null;
+    const callState = String(call?.state || notification?.state || "");
+
+    if (!call) return;
+
+    const inbound = isInboundWebrtcCall(call, notification);
+    const number = getCallNumber(call, activeCallNumber || phoneNumber || "");
+
+    console.log("TELNYX WEBRTC NOTIFICATION:", {
+      type: notification?.type,
+      state: callState,
+      direction: call?.direction || call?.options?.direction,
+      inbound,
+      number,
+    });
+
+    if (callState === "ringing" || callState === "new") {
+      activeCallRef.current = call;
+
+      if (inbound) {
+        const displayNumber = number || "שיחה נכנסת";
+
+        setActiveBusyReason(null);
+        setActiveCallNumber(displayNumber);
+        setPhoneNumber(displayNumber);
+        setCallDirection("inbound");
+        setShowDialer(false);
+        setShowBusyMenu(false);
+        addRecentCall(displayNumber, "inbound");
+
+        void changeStatus("ringing", {
+          number: displayNumber,
+          direction: "inbound",
+          reason: null,
+        });
+      }
+    }
+
+    if (callState === "active" || callState === "answered") {
+      activeCallRef.current = call;
+
+      void changeStatus("in_call", {
+        number: number || activeCallNumber || phoneNumber,
+        direction: inbound ? "inbound" : "outbound",
+        reason: inbound ? null : "outbound_call",
+      });
+    }
+
+    if (
+      callState === "hangup" ||
+      callState === "destroy" ||
+      callState === "purge" ||
+      callState === "done"
+    ) {
+      activeCallRef.current = null;
+      setMuted(false);
+      setSpeakerEnabled(false);
+
+      void changeStatus("after_call", {
+        reason: "after_call",
+        number: number || activeCallNumber || phoneNumber,
+        direction: inbound ? "inbound" : callDirection,
+      });
+
+      setActiveBusyReason("after_call");
+      setBusyReason("after_call");
+      setCallDirection("none");
+      setActiveCallNumber("");
+      setPhoneNumber("");
+      setShowDialer(false);
+      setShowBusyMenu(false);
+    }
+  }
+
+  async function getWebrtcAuth() {
+    const res = await fetch("/api/telnyx/webrtc-token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      cache: "no-store",
+      body: JSON.stringify({
+        agentId: agent?.agentId || null,
+      }),
+    });
+
+    const data = (await res.json().catch(() => null)) as WebrtcAuthResponse | null;
+
+    if (!res.ok || !data?.success) {
+      throw new Error(data?.error || "TELNYX_WEBRTC_AUTH_FAILED");
+    }
+
+    return data;
+  }
+
+  async function connectWebrtc() {
+    if (telnyxClientRef.current && webrtcReady) return telnyxClientRef.current;
+    if (webrtcConnecting) return telnyxClientRef.current;
+
+    try {
+      setWebrtcConnecting(true);
+      setWebrtcError("");
+
+      const auth = await getWebrtcAuth();
+      const telnyxModule = await import("@telnyx/webrtc");
+      const TelnyxRTC =
+        (telnyxModule as any).TelnyxRTC || (telnyxModule as any).default;
+
+      if (!TelnyxRTC) {
+        throw new Error("TELNYX_RTC_SDK_NOT_FOUND");
+      }
+
+      const clientOptions =
+        auth.authType === "token" && (auth.loginToken || auth.token)
+          ? { login_token: auth.loginToken || auth.token }
+          : {
+              login: auth.login || auth.username,
+              password: auth.password,
+            };
+
+      if (!(clientOptions as any).login_token && !(clientOptions as any).login) {
+        throw new Error("TELNYX_WEBRTC_LOGIN_MISSING");
+      }
+
+      const client = new TelnyxRTC(clientOptions) as TelnyxRtcClient;
+
+      client.on?.("telnyx.ready", () => {
+        console.log("TELNYX WEBRTC READY");
+        setWebrtcReady(true);
+        setWebrtcConnecting(false);
+        setWebrtcError("");
+      });
+
+      client.on?.("telnyx.error", (...args: any[]) => {
+        console.error("TELNYX WEBRTC ERROR:", args);
+        setWebrtcReady(false);
+        setWebrtcConnecting(false);
+        setWebrtcError("שגיאת חיבור ל־WebRTC");
+      });
+
+      client.on?.("telnyx.socket.close", (...args: any[]) => {
+        console.warn("TELNYX WEBRTC SOCKET CLOSED:", args);
+        setWebrtcReady(false);
+      });
+
+      client.on?.("telnyx.notification", (notification: any) => {
+        handleWebrtcNotification(notification);
+      });
+
+      telnyxClientRef.current = client;
+      client.connect?.();
+
+      return client;
+    } catch (err) {
+      console.error("CONNECT TELNYX WEBRTC FAILED:", err);
+      setWebrtcReady(false);
+      setWebrtcError("לא הצלחנו להתחבר לסופטפון בדפדפן");
+      throw err;
+    } finally {
+      setWebrtcConnecting(false);
+    }
+  }
+
+  function disconnectWebrtc() {
+    try {
+      activeCallRef.current?.hangup?.();
+    } catch {
+      // ignore hangup errors
+    }
+
+    try {
+      telnyxClientRef.current?.disconnect?.();
+    } catch {
+      // ignore disconnect errors
+    }
+
+    activeCallRef.current = null;
+    telnyxClientRef.current = null;
+    setWebrtcReady(false);
+    setWebrtcConnecting(false);
+    setWebrtcError("");
+    setMuted(false);
+    setSpeakerEnabled(false);
+  }
+
+  function toggleMute() {
+    const call = activeCallRef.current;
+    if (!call) return;
+
+    try {
+      if (muted) {
+        call.unmuteAudio?.();
+        setMuted(false);
+      } else {
+        call.muteAudio?.();
+        setMuted(true);
+      }
+    } catch (err) {
+      console.error("TOGGLE MUTE FAILED:", err);
+    }
+  }
+
+  function toggleSpeaker() {
+    setSpeakerEnabled((prev) => !prev);
+  }
+
   async function startOutboundCall() {
     if (savingStatus || creatingCall) return;
 
@@ -715,60 +1010,48 @@ export default function SoftphoneStatusPanel() {
 
     try {
       setCreatingCall(true);
+      setWebrtcError("");
 
-      const callRes = await fetch("/api/telnyx/calls", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          to: cleanNumber,
-          agentId: agent?.agentId || null,
-          clientState: {
-            sourceUi: "SoftphoneStatusPanel",
-          },
-        }),
-      });
+      const client = telnyxClientRef.current || (await connectWebrtc());
 
-      const callData = await callRes.json().catch(() => null);
-
-      if (!callRes.ok || !callData?.success) {
-        console.error("CREATE TELNYX OUTBOUND CALL FAILED:", callData);
-
-        const serverError =
-          callData?.details?.telnyx?.errors?.[0]?.detail ||
-          callData?.details?.telnyx?.errors?.[0]?.title ||
-          callData?.error ||
-          "לא הצלחנו להוציא את השיחה דרך Telnyx";
-
-        alert(`שגיאה בהוצאת שיחה: ${serverError}`);
-        return;
+      if (!client?.newCall) {
+        throw new Error("TELNYX_WEBRTC_CLIENT_NOT_READY");
       }
 
-      const finalNumber = callData?.call?.to || cleanNumber;
-      const callControlId = callData?.call?.callControlId || null;
+      const auth = await getWebrtcAuth().catch(() => null);
+      const callerNumber =
+        auth?.callerNumber || auth?.fromNumber || TELNYX_DEFAULT_CALLER_NUMBER;
+
+      const call = client.newCall({
+        destinationNumber: cleanNumber,
+        callerNumber,
+      });
+
+      activeCallRef.current = call;
 
       setActiveBusyReason("outbound_call");
-      setActiveCallNumber(finalNumber);
-      setPhoneNumber(finalNumber);
+      setActiveCallNumber(cleanNumber);
+      setPhoneNumber(cleanNumber);
       setCallDirection("outbound");
       setShowDialer(false);
       setShowBusyMenu(false);
 
-      addRecentCall(finalNumber, "outbound");
+      addRecentCall(cleanNumber, "outbound");
 
       await changeStatus("dialing", {
-        number: finalNumber,
+        number: cleanNumber,
         direction: "outbound",
         reason: "outbound_call",
       });
 
-      console.log("OUTBOUND CALL CREATED:", {
-        callControlId,
-        to: finalNumber,
+      console.log("TELNYX WEBRTC OUTBOUND CALL STARTED:", {
+        to: cleanNumber,
+        callerNumber,
       });
     } catch (err) {
-      console.error("START OUTBOUND CALL FAILED:", err);
-      alert("שגיאה בהוצאת שיחה");
+      console.error("START WEBRTC OUTBOUND CALL FAILED:", err);
+      setWebrtcError("שגיאה בהוצאת שיחה מהדפדפן");
+      alert("שגיאה בהוצאת שיחה מהדפדפן. בדקי שהסופטפון מחובר ושהמיקרופון מאושר.");
     } finally {
       setCreatingCall(false);
     }
@@ -806,30 +1089,55 @@ export default function SoftphoneStatusPanel() {
     if (savingStatus) return;
 
     const cleanNumber = activeCallNumber || normalizeDialNumber(phoneNumber);
+    const call = activeCallRef.current;
 
     if (!cleanNumber) {
       alert("אין מספר פעיל לשיחה");
       return;
     }
 
+    if (!call?.answer && callDirection === "inbound") {
+      alert("אין שיחה נכנסת פעילה לענות לה");
+      return;
+    }
+
     ensureShiftStarted();
 
-    setActiveCallNumber(cleanNumber);
-    setPhoneNumber(cleanNumber);
-    setShowDialer(false);
-    setShowBusyMenu(false);
+    try {
+      if (callDirection === "inbound") {
+        call?.answer?.();
+      }
 
-    await changeStatus("in_call", {
-      number: cleanNumber,
-      direction: callDirection === "none" ? "outbound" : callDirection,
-      reason: activeBusyReason,
-    });
+      setActiveCallNumber(cleanNumber);
+      setPhoneNumber(cleanNumber);
+      setShowDialer(false);
+      setShowBusyMenu(false);
+
+      await changeStatus("in_call", {
+        number: cleanNumber,
+        direction: callDirection === "none" ? "outbound" : callDirection,
+        reason: activeBusyReason,
+      });
+    } catch (err) {
+      console.error("ANSWER WEBRTC CALL FAILED:", err);
+      alert("שגיאה במענה לשיחה");
+    }
   }
 
   async function finishCall() {
     if (savingStatus) return;
 
     ensureShiftStarted();
+
+    try {
+      activeCallRef.current?.hangup?.();
+    } catch (err) {
+      console.error("HANGUP WEBRTC CALL FAILED:", err);
+    }
+
+    activeCallRef.current = null;
+    setMuted(false);
+    setSpeakerEnabled(false);
 
     await changeStatus("after_call", {
       reason: "after_call",
@@ -870,7 +1178,7 @@ export default function SoftphoneStatusPanel() {
     return secondsSince(shiftStartedAt);
   }, [shiftStartedAt, tick]);
 
-  const canReceiveInbound = shiftStarted && currentStatus === "available";
+  const canReceiveInbound = shiftStarted && webrtcReady && currentStatus === "available";
 
   const isCallActive =
     currentStatus === "dialing" ||
@@ -899,7 +1207,7 @@ export default function SoftphoneStatusPanel() {
         <button
           type="button"
           onClick={shiftStarted ? requestEndShift : startShift}
-          disabled={!!savingStatus || creatingCall}
+          disabled={!!savingStatus || creatingCall || webrtcConnecting}
           dir="rtl"
           className={`flex h-12 w-[150px] items-center justify-center gap-2 rounded-2xl text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-60 ${
             shiftStarted
@@ -922,6 +1230,21 @@ export default function SoftphoneStatusPanel() {
               {shiftStarted ? formatDuration(shiftSeconds) : "00:00:00"}
             </p>
           </div>
+        </div>
+
+        <div
+          dir="rtl"
+          className={`hidden h-12 w-[132px] items-center justify-center gap-2 rounded-2xl px-3 text-xs font-black xl:flex ${
+            webrtcReady
+              ? "bg-emerald-50 text-emerald-700"
+              : webrtcConnecting
+              ? "bg-blue-50 text-blue-700"
+              : "bg-red-50 text-red-700"
+          }`}
+          title={webrtcError || undefined}
+        >
+          <Icon name="headset" className="h-4 w-4" />
+          {webrtcReady ? "WebRTC מחובר" : webrtcConnecting ? "מתחבר..." : "WebRTC מנותק"}
         </div>
 
         <span className="hidden text-lg text-slate-300 xl:block">←</span>
@@ -1241,22 +1564,37 @@ export default function SoftphoneStatusPanel() {
             ["headset", "אוזניות"],
             ["keypad", "מקשים"],
             ["clock", "היסטוריה"],
-            ["mic", "השתק"],
-            ["speaker", "רמקול"],
+            ["mic", muted ? "בטל השתקה" : "השתק"],
+            ["speaker", speakerEnabled ? "כבה רמקול" : "רמקול"],
             ["pause", "המתנה"],
             ["transfer", "העברה"],
             ["user", "איש קשר"],
-          ].map(([icon, title]) => (
-            <button
-              key={icon}
-              type="button"
-              title={title}
-              onClick={icon === "keypad" || icon === "clock" ? toggleDialer : undefined}
-              className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-950 transition hover:bg-slate-100"
-            >
-              <Icon name={icon as "headset"} className="h-4 w-4" />
-            </button>
-          ))}
+          ].map(([icon, title]) => {
+            const isActiveButton =
+              (icon === "mic" && muted) || (icon === "speaker" && speakerEnabled);
+
+            return (
+              <button
+                key={icon}
+                type="button"
+                title={title}
+                onClick={
+                  icon === "keypad" || icon === "clock"
+                    ? toggleDialer
+                    : icon === "mic"
+                    ? toggleMute
+                    : icon === "speaker"
+                    ? toggleSpeaker
+                    : undefined
+                }
+                className={`flex h-9 w-9 items-center justify-center rounded-xl transition hover:bg-slate-100 ${
+                  isActiveButton ? "bg-slate-950 text-white" : "text-slate-950"
+                }`}
+              >
+                <Icon name={icon as "headset"} className="h-4 w-4" />
+              </button>
+            );
+          })}
         </div>
 
         {(currentStatus === "dialing" || currentStatus === "ringing") && (
