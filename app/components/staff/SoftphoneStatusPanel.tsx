@@ -497,6 +497,9 @@ export default function SoftphoneStatusPanel() {
   const [showBusyMenu, setShowBusyMenu] = useState(false);
   const [recentCalls, setRecentCalls] = useState<RecentCall[]>(DEFAULT_RECENT_CALLS);
 
+  const [showIncomingCallModal, setShowIncomingCallModal] = useState(false);
+  const [incomingCallNumber, setIncomingCallNumber] = useState("");
+
   useEffect(() => {
     loadMyStatus();
   }, []);
@@ -738,6 +741,8 @@ export default function SoftphoneStatusPanel() {
     setShowDialer(false);
     setShowBusyMenu(false);
     setPhoneNumber("");
+    setShowIncomingCallModal(false);
+    setIncomingCallNumber("");
 
     await changeStatus("offline", {
       direction: "none",
@@ -758,6 +763,8 @@ export default function SoftphoneStatusPanel() {
     setBusyReason("");
     setShowDialer(false);
     setShowBusyMenu(false);
+    setShowIncomingCallModal(false);
+    setIncomingCallNumber("");
 
     await changeStatus("available", {
       direction: "none",
@@ -780,6 +787,8 @@ export default function SoftphoneStatusPanel() {
     setShowDialer(false);
     setCallDirection("none");
     setActiveCallNumber("");
+    setShowIncomingCallModal(false);
+    setIncomingCallNumber("");
 
     await changeStatus(selected.targetStatus, {
       reason: value,
@@ -799,6 +808,8 @@ export default function SoftphoneStatusPanel() {
     setCallDirection("outbound");
     setShowEndShiftConfirm(false);
     setShowBusyMenu(false);
+    setShowIncomingCallModal(false);
+    setIncomingCallNumber("");
     setShowDialer(true);
   }
 
@@ -809,6 +820,8 @@ export default function SoftphoneStatusPanel() {
     setCallDirection("outbound");
     setShowEndShiftConfirm(false);
     setShowBusyMenu(false);
+    setShowIncomingCallModal(false);
+    setIncomingCallNumber("");
     setShowDialer((prev) => !prev);
   }
 
@@ -921,9 +934,12 @@ export default function SoftphoneStatusPanel() {
         setActiveBusyReason(null);
         setActiveCallNumber(displayNumber);
         setPhoneNumber(displayNumber);
+        setIncomingCallNumber(displayNumber);
         setCallDirection("inbound");
         setShowDialer(false);
         setShowBusyMenu(false);
+        setShowEndShiftConfirm(false);
+        setShowIncomingCallModal(true);
         addRecentCall(displayNumber, "inbound");
 
         void changeStatus("ringing", {
@@ -937,6 +953,7 @@ export default function SoftphoneStatusPanel() {
     if (callState === "active" || callState === "answered") {
       activeCallRef.current = call;
       void attachRemoteAudio(call);
+      setShowIncomingCallModal(false);
 
       void changeStatus("in_call", {
         number: number || activeCallNumber || phoneNumber,
@@ -954,6 +971,8 @@ export default function SoftphoneStatusPanel() {
       activeCallRef.current = null;
       setMuted(false);
       setSpeakerEnabled(false);
+      setShowIncomingCallModal(false);
+      setIncomingCallNumber("");
 
       void changeStatus("after_call", {
         reason: "after_call",
@@ -1074,6 +1093,8 @@ export default function SoftphoneStatusPanel() {
     }
 
     activeCallRef.current = null;
+    setShowIncomingCallModal(false);
+    setIncomingCallNumber("");
 
     if (remoteAudioRef.current) {
       remoteAudioRef.current.pause();
@@ -1234,6 +1255,42 @@ export default function SoftphoneStatusPanel() {
     });
   }
 
+  async function rejectIncomingCall() {
+    if (savingStatus) return;
+
+    try {
+      activeCallRef.current?.hangup?.();
+    } catch (err) {
+      console.error("REJECT WEBRTC INCOMING CALL FAILED:", err);
+    }
+
+    activeCallRef.current = null;
+
+    setShowIncomingCallModal(false);
+    setIncomingCallNumber("");
+    setMuted(false);
+    setSpeakerEnabled(false);
+
+    if (remoteAudioRef.current) {
+      remoteAudioRef.current.pause();
+      remoteAudioRef.current.srcObject = null;
+    }
+
+    await changeStatus("after_call", {
+      reason: "after_call",
+      number: activeCallNumber || incomingCallNumber || phoneNumber,
+      direction: "inbound",
+    });
+
+    setActiveBusyReason("after_call");
+    setBusyReason("after_call");
+    setCallDirection("none");
+    setActiveCallNumber("");
+    setPhoneNumber("");
+    setShowDialer(false);
+    setShowBusyMenu(false);
+  }
+
   async function markAnswered() {
     if (savingStatus) return;
 
@@ -1260,6 +1317,8 @@ export default function SoftphoneStatusPanel() {
 
       setActiveCallNumber(cleanNumber);
       setPhoneNumber(cleanNumber);
+      setShowIncomingCallModal(false);
+      setIncomingCallNumber("");
       setShowDialer(false);
       setShowBusyMenu(false);
 
@@ -1286,6 +1345,8 @@ export default function SoftphoneStatusPanel() {
     }
 
     activeCallRef.current = null;
+    setShowIncomingCallModal(false);
+    setIncomingCallNumber("");
 
     if (remoteAudioRef.current) {
       remoteAudioRef.current.pause();
@@ -1362,6 +1423,52 @@ export default function SoftphoneStatusPanel() {
         className="hidden"
         aria-hidden="true"
       />
+
+      {showIncomingCallModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/30 px-4 backdrop-blur-sm">
+          <div
+            dir="rtl"
+            className="w-full max-w-[560px] rounded-[34px] border border-white/70 bg-white p-6 text-center shadow-[0_30px_100px_rgba(15,23,42,0.28)]"
+          >
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-emerald-700 shadow-[0_0_0_10px_rgba(16,185,129,0.08)]">
+              <Icon name="phone" className="h-7 w-7" />
+            </div>
+
+            <p className="text-2xl font-black text-slate-950">שיחה נכנסת</p>
+
+            <p className="mt-3 text-sm font-black text-slate-500">
+              מתקשר/ת אליך עכשיו
+            </p>
+
+            <p
+              dir="ltr"
+              className="mt-2 truncate font-mono text-3xl font-black tracking-wide text-slate-950"
+            >
+              {incomingCallNumber || activeCallNumber || phoneNumber || "מספר לא מזוהה"}
+            </p>
+
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={rejectIncomingCall}
+                disabled={!!savingStatus}
+                className="h-16 rounded-[22px] border border-slate-200 bg-white text-lg font-black text-slate-600 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                דחה
+              </button>
+
+              <button
+                type="button"
+                onClick={markAnswered}
+                disabled={!!savingStatus || creatingCall}
+                className="h-16 rounded-[22px] bg-slate-950 text-lg font-black text-white shadow-[0_18px_40px_rgba(15,23,42,0.24)] transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                ענה
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div
         dir="ltr"
