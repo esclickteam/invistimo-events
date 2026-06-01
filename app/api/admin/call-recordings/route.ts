@@ -37,10 +37,11 @@ const cached: MongoCache =
 async function connectMongo() {
   if (cached.conn) return cached.conn;
 
-  const uri = process.env.MONGODB_URI;
+  // ✅ תומך גם בשם שיש לך עכשיו ב-Vercel וגם בשם הסטנדרטי
+  const uri = process.env.MONGODB_URI || process.env.MONGO_URI;
 
   if (!uri) {
-    throw new Error("MONGODB_URI is missing");
+    throw new Error("Mongo connection string is missing. Please set MONGODB_URI or MONGO_URI.");
   }
 
   if (!cached.promise) {
@@ -94,10 +95,6 @@ function getTokenFromCookies(req: NextRequest) {
 }
 
 async function verifyAdmin(req: NextRequest) {
-  /**
-   * אם אצלך יש middleware אחר לאדמין,
-   * אפשר להחליף את הפונקציה הזאת ב-requireAdmin שלך.
-   */
   const token = getBearerToken(req) || getTokenFromCookies(req);
 
   if (!token) {
@@ -205,7 +202,11 @@ export async function GET(req: NextRequest) {
     const admin = await verifyAdmin(req);
 
     if (!admin.ok) {
-      return jsonError(admin.error || "UNAUTHORIZED", admin.status || 401, admin.details);
+      return jsonError(
+        admin.error || "UNAUTHORIZED",
+        admin.status || 401,
+        admin.details
+      );
     }
 
     await connectMongo();
@@ -213,7 +214,10 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
 
     const page = Math.max(1, toNumber(searchParams.get("page"), 1));
-    const limit = Math.min(100, Math.max(1, toNumber(searchParams.get("limit"), 25)));
+    const limit = Math.min(
+      100,
+      Math.max(1, toNumber(searchParams.get("limit"), 25))
+    );
     const skip = (page - 1) * limit;
 
     const search = (searchParams.get("search") || "").trim();
