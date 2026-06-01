@@ -82,7 +82,8 @@ type TelnyxRtcCall = {
   state?: string;
   direction?: string;
   options?: Record<string, any>;
-  answer?: () => void;
+  remoteStream?: MediaStream;
+  answer?: (options?: Record<string, unknown>) => void;
   hangup?: () => void;
   muteAudio?: () => void;
   unmuteAudio?: () => void;
@@ -476,6 +477,7 @@ export default function SoftphoneStatusPanel() {
 
   const telnyxClientRef = useRef<TelnyxRtcClient | null>(null);
   const activeCallRef = useRef<TelnyxRtcCall | null>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const [tick, setTick] = useState(0);
 
@@ -809,6 +811,7 @@ export default function SoftphoneStatusPanel() {
 
     if (callState === "ringing" || callState === "new") {
       activeCallRef.current = call;
+      void attachRemoteAudio(call);
 
       if (inbound) {
         const displayNumber = number || "שיחה נכנסת";
@@ -831,6 +834,7 @@ export default function SoftphoneStatusPanel() {
 
     if (callState === "active" || callState === "answered") {
       activeCallRef.current = call;
+      void attachRemoteAudio(call);
 
       void changeStatus("in_call", {
         number: number || activeCallNumber || phoneNumber,
@@ -967,6 +971,12 @@ export default function SoftphoneStatusPanel() {
     }
 
     activeCallRef.current = null;
+
+    if (remoteAudioRef.current) {
+      remoteAudioRef.current.pause();
+      remoteAudioRef.current.srcObject = null;
+    }
+
     telnyxClientRef.current = null;
     setWebrtcReady(false);
     setWebrtcConnecting(false);
@@ -995,6 +1005,40 @@ export default function SoftphoneStatusPanel() {
   function toggleSpeaker() {
     setSpeakerEnabled((prev) => !prev);
   }
+
+  async function attachRemoteAudio(call?: TelnyxRtcCall | null) {
+    const audioElement = remoteAudioRef.current;
+
+    if (!audioElement || !call) return;
+
+    try {
+      if (call.remoteStream instanceof MediaStream) {
+        audioElement.srcObject = call.remoteStream;
+      }
+
+      audioElement.autoplay = true;
+      audioElement.setAttribute("playsinline", "true");
+      audioElement.muted = false;
+      audioElement.volume = 1;
+
+      await audioElement.play().catch((error) => {
+        console.warn("REMOTE AUDIO PLAY WAS BLOCKED OR FAILED:", error);
+      });
+    } catch (error) {
+      console.error("ATTACH REMOTE AUDIO FAILED:", error);
+    }
+  }
+
+  function getCallMediaOptions() {
+    const remoteElement = remoteAudioRef.current;
+
+    return {
+      audio: true,
+      video: false,
+      remoteElement: remoteElement || undefined,
+    };
+  }
+
 
   async function startOutboundCall() {
     if (savingStatus || creatingCall) return;
@@ -1025,9 +1069,11 @@ export default function SoftphoneStatusPanel() {
       const call = client.newCall({
         destinationNumber: cleanNumber,
         callerNumber,
+        ...getCallMediaOptions(),
       });
 
       activeCallRef.current = call;
+      void attachRemoteAudio(call);
 
       setActiveBusyReason("outbound_call");
       setActiveCallNumber(cleanNumber);
@@ -1105,7 +1151,8 @@ export default function SoftphoneStatusPanel() {
 
     try {
       if (callDirection === "inbound") {
-        call?.answer?.();
+        call?.answer?.(getCallMediaOptions());
+        void attachRemoteAudio(call);
       }
 
       setActiveCallNumber(cleanNumber);
@@ -1136,6 +1183,12 @@ export default function SoftphoneStatusPanel() {
     }
 
     activeCallRef.current = null;
+
+    if (remoteAudioRef.current) {
+      remoteAudioRef.current.pause();
+      remoteAudioRef.current.srcObject = null;
+    }
+
     setMuted(false);
     setSpeakerEnabled(false);
 
@@ -1200,6 +1253,13 @@ export default function SoftphoneStatusPanel() {
 
   return (
     <section dir="rtl" className="relative w-full max-w-full">
+      <audio
+        ref={remoteAudioRef}
+        autoPlay
+        className="hidden"
+        aria-hidden="true"
+      />
+
       <div
         dir="ltr"
         className="relative flex h-[72px] w-full max-w-full items-center gap-2 overflow-visible rounded-[26px] border border-slate-200 bg-white px-3 shadow-[0_18px_55px_rgba(15,23,42,0.12)]"
