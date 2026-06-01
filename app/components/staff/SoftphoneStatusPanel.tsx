@@ -606,9 +606,22 @@ export default function SoftphoneStatusPanel() {
 
       setAgent(data.agent);
 
-      if (data.agent?.status && data.agent.status !== "offline") {
+      const savedStatus = data.agent?.status as AgentStatus | undefined;
+      const shouldRestoreShift = savedStatus && savedStatus !== "offline";
+
+      if (shouldRestoreShift) {
         setShiftStarted(true);
         setShiftStartedAt(data.agent.statusStartedAt || new Date().toISOString());
+
+        // ✅ חשוב:
+        // אחרי רענון עמוד הסטטוס יכול להישאר "פנוי",
+        // אבל חיבור WebRTC לא נשמר אוטומטית בדפדפן.
+        // לכן מחברים מחדש כדי שהדפדפן באמת יקבל שיחות נכנסות.
+        window.setTimeout(() => {
+          void connectWebrtc().catch((error) => {
+            console.error("AUTO CONNECT WEBRTC AFTER STATUS LOAD FAILED:", error);
+          });
+        }, 100);
       } else {
         setShiftStarted(false);
         setShiftStartedAt(null);
@@ -847,20 +860,39 @@ export default function SoftphoneStatusPanel() {
   }
 
   function isInboundWebrtcCall(call?: TelnyxRtcCall | null, notification?: any) {
-    const direction =
-      String(call?.direction || "") ||
-      String(call?.options?.direction || "") ||
-      String(notification?.direction || "") ||
-      String(notification?.call?.direction || "");
+    const direction = [
+      call?.direction,
+      call?.options?.direction,
+      notification?.direction,
+      notification?.call?.direction,
+      notification?.params?.direction,
+      notification?.data?.direction,
+    ]
+      .map((value) => String(value || "").toLowerCase())
+      .find(Boolean);
 
-    return direction.toLowerCase().includes("inbound");
+    return direction === "inbound" || direction === "incoming";
   }
 
   function handleWebrtcNotification(notification: any) {
-    const call = (notification?.call || notification) as TelnyxRtcCall | null;
-    const callState = String(call?.state || notification?.state || "");
+    // ✅ לוג מלא כדי להבין אם ה-SDK באמת מקבל שיחה נכנסת
+    console.log("RAW TELNYX NOTIFICATION:", notification);
 
-    if (!call) return;
+    const call = (notification?.call || notification) as TelnyxRtcCall | null;
+
+    const callState = String(
+      call?.state ||
+        notification?.state ||
+        notification?.call?.state ||
+        notification?.params?.state ||
+        notification?.data?.state ||
+        ""
+    ).toLowerCase();
+
+    if (!call) {
+      console.warn("TELNYX NOTIFICATION WITHOUT CALL OBJECT:", notification);
+      return;
+    }
 
     const inbound = isInboundWebrtcCall(call, notification);
     const number = getCallNumber(call, activeCallNumber || phoneNumber || "");
@@ -868,7 +900,13 @@ export default function SoftphoneStatusPanel() {
     console.log("TELNYX WEBRTC NOTIFICATION:", {
       type: notification?.type,
       state: callState,
-      direction: call?.direction || call?.options?.direction,
+      direction:
+        call?.direction ||
+        call?.options?.direction ||
+        notification?.direction ||
+        notification?.call?.direction ||
+        notification?.params?.direction ||
+        notification?.data?.direction,
       inbound,
       number,
     });
@@ -1004,6 +1042,7 @@ export default function SoftphoneStatusPanel() {
       });
 
       client.on?.("telnyx.notification", (notification: any) => {
+        console.log("TELNYX NOTIFICATION EVENT RECEIVED");
         handleWebrtcNotification(notification);
       });
 
