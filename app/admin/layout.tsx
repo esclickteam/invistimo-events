@@ -26,6 +26,9 @@ export default function AdminLayout({
   const nav = [
     { href: "/admin", label: "סקירה" },
     { href: "/admin/users", label: "משתמשים" },
+
+    // ✅ חדש: טאב הקלטות שיחות מתחת למשתמשים
+    { href: "/admin/call-recordings", label: "הקלטות שיחות" },
   ];
 
   /* --------------------------------------------------
@@ -36,14 +39,20 @@ export default function AdminLayout({
     setOpen(false);
   };
 
+  const isActivePath = (href: string) => {
+    if (href === "/admin") return pathname === "/admin";
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
+
   return (
-    <div className="min-h-screen bg-gray-100 flex" dir="rtl">
+    <div className="flex min-h-screen bg-gray-100" dir="rtl">
       {/* ================= Mobile Header ================= */}
-      <header className="fixed top-0 right-0 left-0 z-40 h-14 bg-white border-b flex items-center justify-between px-4 md:hidden">
+      <header className="fixed left-0 right-0 top-0 z-40 flex h-14 items-center justify-between border-b bg-white px-4 md:hidden">
         <button
           onClick={() => setOpen(true)}
           className="text-2xl"
           aria-label="Open menu"
+          type="button"
         >
           ☰
         </button>
@@ -54,7 +63,7 @@ export default function AdminLayout({
       {/* ================= Overlay (Mobile) ================= */}
       {open && (
         <div
-          className="fixed inset-0 bg-black/40 z-40 md:hidden"
+          className="fixed inset-0 z-40 bg-black/40 md:hidden"
           onClick={() => setOpen(false)}
         />
       )}
@@ -62,19 +71,21 @@ export default function AdminLayout({
       {/* ================= Sidebar ================= */}
       <aside
         className={`
-          fixed top-0 right-0 z-50 h-full w-64 bg-white border-l p-6
+          fixed right-0 top-0 z-50 h-full w-64 border-l bg-white p-6
           transform transition-transform duration-300
           md:static md:translate-x-0
           ${open ? "translate-x-0" : "translate-x-full"}
         `}
       >
         {/* Header */}
-        <div className="flex items-center justify-between mb-8 md:block">
+        <div className="mb-8 flex items-center justify-between md:block">
           <h2 className="text-xl font-bold">🛡️ Admin Panel</h2>
+
           <button
-            className="md:hidden text-xl"
+            className="text-xl md:hidden"
             onClick={() => setOpen(false)}
             aria-label="Close menu"
+            type="button"
           >
             ✕
           </button>
@@ -83,7 +94,7 @@ export default function AdminLayout({
         {/* Nav */}
         <nav className="flex flex-col gap-2">
           {nav.map((item) => {
-            const isActive = pathname === item.href;
+            const isActive = isActivePath(item.href);
 
             return (
               <Link
@@ -91,7 +102,7 @@ export default function AdminLayout({
                 href={item.href}
                 onClick={() => setOpen(false)}
                 className={`
-                  px-4 py-2 rounded-lg transition
+                  rounded-lg px-4 py-2 transition
                   ${
                     isActive
                       ? "bg-gray-100 font-semibold text-gray-900"
@@ -111,10 +122,11 @@ export default function AdminLayout({
         {/* Logout */}
         <button
           onClick={handleLogout}
+          type="button"
           className="
-            w-full px-4 py-2 rounded-lg
-            text-red-600 font-medium
-            hover:bg-red-50 transition
+            w-full rounded-lg px-4 py-2
+            font-medium text-red-600
+            transition hover:bg-red-50
           "
         >
           התנתקות
@@ -122,7 +134,7 @@ export default function AdminLayout({
       </aside>
 
       {/* ================= Content ================= */}
-      <main className="flex-1 w-full pt-16 md:pt-0 p-4 md:p-10">
+      <main className="w-full flex-1 p-4 pt-16 md:p-10 md:pt-0">
         {children}
       </main>
     </div>
