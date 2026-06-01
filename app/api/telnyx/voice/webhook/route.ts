@@ -255,17 +255,17 @@ async function telnyxCallAction(
   const data = (await res.json().catch(() => null)) as TelnyxActionResponse | null;
 
   if (!res.ok) {
-    console.error(`TELNYX ${action.toUpperCase()} FAILED:`, {
-      status: res.status,
-      data,
-    });
+  console.error(`TELNYX ${action.toUpperCase()} FAILED:`, {
+    status: res.status,
+    data: JSON.stringify(data, null, 2),
+  });
 
-    return {
-      ok: false,
-      status: res.status,
-      data,
-    };
-  }
+  return {
+    ok: false,
+    status: res.status,
+    data,
+  };
+}
 
   console.log(`TELNYX ${action.toUpperCase()} SUCCESS:`, data);
 
