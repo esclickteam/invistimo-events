@@ -432,6 +432,7 @@ export default function SoftphoneStatusPanel() {
   const [agent, setAgent] = useState<AgentState | null>(null);
   const [loading, setLoading] = useState(true);
   const [savingStatus, setSavingStatus] = useState<AgentStatus | null>(null);
+  const [creatingCall, setCreatingCall] = useState(false);
 
   const [tick, setTick] = useState(0);
 
@@ -701,7 +702,7 @@ export default function SoftphoneStatusPanel() {
   }
 
   async function startOutboundCall() {
-    if (savingStatus) return;
+    if (savingStatus || creatingCall) return;
 
     const cleanNumber = normalizeDialNumber(phoneNumber);
 
@@ -712,20 +713,65 @@ export default function SoftphoneStatusPanel() {
 
     ensureShiftStarted();
 
-    setActiveBusyReason("outbound_call");
-    setActiveCallNumber(cleanNumber);
-    setPhoneNumber(cleanNumber);
-    setCallDirection("outbound");
-    setShowDialer(false);
-    setShowBusyMenu(false);
+    try {
+      setCreatingCall(true);
 
-    addRecentCall(cleanNumber, "outbound");
+      const callRes = await fetch("/api/telnyx/calls", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          to: cleanNumber,
+          agentId: agent?.agentId || null,
+          clientState: {
+            sourceUi: "SoftphoneStatusPanel",
+          },
+        }),
+      });
 
-    await changeStatus("dialing", {
-      number: cleanNumber,
-      direction: "outbound",
-      reason: "outbound_call",
-    });
+      const callData = await callRes.json().catch(() => null);
+
+      if (!callRes.ok || !callData?.success) {
+        console.error("CREATE TELNYX OUTBOUND CALL FAILED:", callData);
+
+        const serverError =
+          callData?.details?.telnyx?.errors?.[0]?.detail ||
+          callData?.details?.telnyx?.errors?.[0]?.title ||
+          callData?.error ||
+          "לא הצלחנו להוציא את השיחה דרך Telnyx";
+
+        alert(`שגיאה בהוצאת שיחה: ${serverError}`);
+        return;
+      }
+
+      const finalNumber = callData?.call?.to || cleanNumber;
+      const callControlId = callData?.call?.callControlId || null;
+
+      setActiveBusyReason("outbound_call");
+      setActiveCallNumber(finalNumber);
+      setPhoneNumber(finalNumber);
+      setCallDirection("outbound");
+      setShowDialer(false);
+      setShowBusyMenu(false);
+
+      addRecentCall(finalNumber, "outbound");
+
+      await changeStatus("dialing", {
+        number: finalNumber,
+        direction: "outbound",
+        reason: "outbound_call",
+      });
+
+      console.log("OUTBOUND CALL CREATED:", {
+        callControlId,
+        to: finalNumber,
+      });
+    } catch (err) {
+      console.error("START OUTBOUND CALL FAILED:", err);
+      alert("שגיאה בהוצאת שיחה");
+    } finally {
+      setCreatingCall(false);
+    }
   }
 
   async function simulateIncomingCall() {
@@ -853,7 +899,7 @@ export default function SoftphoneStatusPanel() {
         <button
           type="button"
           onClick={shiftStarted ? requestEndShift : startShift}
-          disabled={!!savingStatus}
+          disabled={!!savingStatus || creatingCall}
           dir="rtl"
           className={`flex h-12 w-[150px] items-center justify-center gap-2 rounded-2xl text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-60 ${
             shiftStarted
@@ -883,7 +929,7 @@ export default function SoftphoneStatusPanel() {
         <button
           type="button"
           onClick={requestEndShift}
-          disabled={!!savingStatus || !shiftStarted}
+          disabled={!!savingStatus || creatingCall || !shiftStarted}
           dir="rtl"
           className="hidden h-12 w-[132px] items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45 xl:flex"
         >
@@ -894,7 +940,7 @@ export default function SoftphoneStatusPanel() {
         <button
           type="button"
           onClick={setAvailable}
-          disabled={!!savingStatus || !shiftStarted}
+          disabled={!!savingStatus || creatingCall || !shiftStarted}
           dir="rtl"
           className={`flex h-12 w-[92px] items-center justify-center gap-2 rounded-2xl text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-50 ${
             currentStatus === "available"
@@ -915,7 +961,7 @@ export default function SoftphoneStatusPanel() {
               setShowDialer(false);
               setShowEndShiftConfirm(false);
             }}
-            disabled={!!savingStatus || !shiftStarted}
+            disabled={!!savingStatus || creatingCall || !shiftStarted}
             className="flex h-12 w-[110px] items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 text-sm font-black text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
           >
             לא פנוי
@@ -981,7 +1027,7 @@ export default function SoftphoneStatusPanel() {
         <button
           type="button"
           onClick={openAddCall}
-          disabled={!!savingStatus}
+          disabled={!!savingStatus || creatingCall}
           dir="rtl"
           className="flex h-12 w-[124px] items-center justify-center gap-2 rounded-2xl bg-[#b9945a] text-sm font-black text-white shadow-[0_10px_24px_rgba(185,148,90,0.25)] transition hover:bg-[#9f7a3f] disabled:cursor-not-allowed disabled:opacity-50"
         >
@@ -1008,7 +1054,7 @@ export default function SoftphoneStatusPanel() {
           <button
             type="button"
             onClick={toggleDialer}
-            disabled={!!savingStatus || !shiftStarted}
+            disabled={!!savingStatus || creatingCall || !shiftStarted}
             className={`flex h-full w-[92px] items-center justify-center gap-2 rounded-r-2xl border-l border-slate-200 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-50 ${
               showDialer
                 ? "bg-slate-950 text-white"
@@ -1031,7 +1077,7 @@ export default function SoftphoneStatusPanel() {
           <button
             type="button"
             onClick={startOutboundCall}
-            disabled={!!savingStatus || !shiftStarted}
+            disabled={!!savingStatus || creatingCall || !shiftStarted}
             className="flex h-full w-12 items-center justify-center rounded-l-2xl text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Icon name="phone" className="h-5 w-5" />
@@ -1108,7 +1154,7 @@ export default function SoftphoneStatusPanel() {
                     className="flex h-11 items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-xs font-black text-white transition hover:bg-emerald-700"
                   >
                     <Icon name="phone" className="h-4 w-4" />
-                    חייג
+                    {creatingCall ? "מחייג..." : "חייג"}
                   </button>
                 </div>
               </div>
@@ -1217,7 +1263,7 @@ export default function SoftphoneStatusPanel() {
           <button
             type="button"
             onClick={markAnswered}
-            disabled={!!savingStatus}
+            disabled={!!savingStatus || creatingCall}
             dir="rtl"
             className="flex h-12 w-[82px] items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 text-sm font-black text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
           >
@@ -1230,7 +1276,7 @@ export default function SoftphoneStatusPanel() {
           <button
             type="button"
             onClick={finishCall}
-            disabled={!!savingStatus}
+            disabled={!!savingStatus || creatingCall}
             dir="rtl"
             className="flex h-12 w-[82px] items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 text-sm font-black text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
           >
@@ -1260,7 +1306,7 @@ export default function SoftphoneStatusPanel() {
             <button
               type="button"
               onClick={confirmEndShift}
-              disabled={!!savingStatus}
+              disabled={!!savingStatus || creatingCall}
               className="h-11 flex-1 rounded-2xl bg-slate-950 text-sm font-black text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
             >
               כן, סיום משמרת
@@ -1269,7 +1315,7 @@ export default function SoftphoneStatusPanel() {
             <button
               type="button"
               onClick={() => setShowEndShiftConfirm(false)}
-              disabled={!!savingStatus}
+              disabled={!!savingStatus || creatingCall}
               className="h-11 flex-1 rounded-2xl border border-slate-200 bg-white text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               ביטול
