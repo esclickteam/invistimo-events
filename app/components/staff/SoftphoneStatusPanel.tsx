@@ -478,6 +478,7 @@ export default function SoftphoneStatusPanel() {
   const telnyxClientRef = useRef<TelnyxRtcClient | null>(null);
   const activeCallRef = useRef<TelnyxRtcCall | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
+  const phoneInputRef = useRef<HTMLInputElement | null>(null);
 
   const [tick, setTick] = useState(0);
 
@@ -507,6 +508,69 @@ export default function SoftphoneStatusPanel() {
 
     return () => window.clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (!showDialer || !shiftStarted) return;
+
+    const timeout = window.setTimeout(() => {
+      phoneInputRef.current?.focus();
+    }, 50);
+
+    return () => window.clearTimeout(timeout);
+  }, [showDialer, shiftStarted]);
+
+  useEffect(() => {
+    if (!showDialer || !shiftStarted) return;
+
+    function handlePhysicalKeyboard(event: KeyboardEvent) {
+      if (savingStatus || creatingCall) return;
+
+      const key = event.key;
+      const activeElement = document.activeElement;
+      const isTypingInPhoneInput = activeElement === phoneInputRef.current;
+      const isTypingInOtherInput =
+        activeElement instanceof HTMLInputElement ||
+        activeElement instanceof HTMLTextAreaElement ||
+        activeElement instanceof HTMLSelectElement;
+
+      if (key === "Enter") {
+        event.preventDefault();
+        void startOutboundCall();
+        return;
+      }
+
+      if (key === "Escape") {
+        event.preventDefault();
+        setShowDialer(false);
+        return;
+      }
+
+      if (isTypingInPhoneInput) {
+        return;
+      }
+
+      if (isTypingInOtherInput) {
+        return;
+      }
+
+      if (/^\d$/.test(key) || key === "*" || key === "#" || key === "+") {
+        event.preventDefault();
+        appendDigit(key);
+        return;
+      }
+
+      if (key === "Backspace") {
+        event.preventDefault();
+        removeLastDigit();
+      }
+    }
+
+    window.addEventListener("keydown", handlePhysicalKeyboard);
+
+    return () => {
+      window.removeEventListener("keydown", handlePhysicalKeyboard);
+    };
+  }, [showDialer, shiftStarted, savingStatus, creatingCall, phoneNumber]);
 
   useEffect(() => {
     return () => {
@@ -1449,9 +1513,21 @@ export default function SoftphoneStatusPanel() {
           </button>
 
           <input
+            ref={phoneInputRef}
             dir="ltr"
             value={phoneNumber}
             onChange={(event) => setPhoneNumber(onlyDialChars(event.target.value))}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                void startOutboundCall();
+              }
+
+              if (event.key === "Escape") {
+                event.preventDefault();
+                setShowDialer(false);
+              }
+            }}
             placeholder="מספר נוכחי / יעד חיוג"
             disabled={!shiftStarted}
             className="h-full min-w-0 flex-1 bg-white px-3 text-left font-mono text-sm font-black tracking-wide text-slate-950 outline-none disabled:cursor-not-allowed disabled:bg-slate-50"
