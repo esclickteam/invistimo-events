@@ -1322,7 +1322,48 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
 
     const groupId = guest.groupId ? String(guest.groupId) : null;
 
-    await guest.deleteOne();
+const guestId = String(guest._id);
+
+const seatingScopeQuery = buildLiveSeatingScopeQuery(invitation, guest);
+
+if (seatingScopeQuery.length) {
+  await Promise.all([
+    Seating.updateMany(
+      { $or: seatingScopeQuery },
+      {
+        $pull: {
+          "tables.$[].seatedGuests": {
+            guestId,
+          },
+        },
+      }
+    ),
+
+    SeatingTable.updateMany(
+      { $or: seatingScopeQuery },
+      {
+        $pull: {
+          "tables.$[].seatedGuests": {
+            guestId,
+          },
+        },
+      }
+    ),
+
+    SeatingTable.updateMany(
+      { $or: seatingScopeQuery },
+      {
+        $pull: {
+          seatedGuests: {
+            guestId,
+          },
+        },
+      }
+    ),
+  ]);
+}
+
+await guest.deleteOne();
 
     if (groupId) {
       await recalcGroupExpectedCount(groupId);
