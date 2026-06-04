@@ -289,13 +289,10 @@ async function countGuestsForInvitationId(invitationId: any) {
 /**
  * מחפש את ההזמנה העדכנית ביותר של אירוע אולם.
  *
- * סדר עדיפויות:
- * 1. הזמנות שמחוברות ישירות ל-eventId של האולם.
- * 2. ההזמנה שכבר שמורה על ה-Event.
- * 3. ההזמנה החדשה ביותר של אותו משתמש / לקוח.
- *
- * זה פותר מצב שבו הלקוח מחק הזמנה ויצר חדשה,
- * אבל החדשה לא נשמרה עם אותו eventId של האולם.
+ * התיקון החשוב:
+ * אם ה-Event עדיין מחזיק הזמנה ישנה, אנחנו שולפים את ההזמנה הישנה,
+ * לוקחים ממנה ownerId/userId/clientId, ואז מחפשים את ההזמנה החדשה ביותר
+ * של אותו משתמש.
  */
 async function findLatestInvitationForEvent(event: any) {
   const invitations = getCollection("invitations");
@@ -305,7 +302,39 @@ async function findLatestInvitationForEvent(event: any) {
   const eventIdValues = objectIdOrString(event._id);
 
   const ownerValues: any[] = [];
+  const candidates: any[] = [];
 
+  /**
+   * 1. קודם מביאים את ההזמנה הישנה שמחוברת לאירוע.
+   * ממנה נוציא ownerId כדי לדעת מי הלקוח האמיתי.
+   */
+  const currentInvitationObjectId = toObjectId(event.venueClientInvitationId);
+
+  if (currentInvitationObjectId) {
+    const currentInvitation = await invitations.findOne({
+      _id: currentInvitationObjectId,
+    });
+
+    if (currentInvitation) {
+      candidates.push(currentInvitation);
+
+      if (currentInvitation.ownerId) {
+        ownerValues.push(...objectIdOrString(currentInvitation.ownerId));
+      }
+
+      if (currentInvitation.userId) {
+        ownerValues.push(...objectIdOrString(currentInvitation.userId));
+      }
+
+      if (currentInvitation.clientId) {
+        ownerValues.push(...objectIdOrString(currentInvitation.clientId));
+      }
+    }
+  }
+
+  /**
+   * 2. מוסיפים גם userId/venueClientUserId מהאירוע.
+   */
   if (event?.venueClientUserId) {
     ownerValues.push(...objectIdOrString(event.venueClientUserId));
   }
@@ -318,8 +347,28 @@ async function findLatestInvitationForEvent(event: any) {
     new Map(ownerValues.map((value) => [String(value), value])).values()
   );
 
-  const candidates: any[] = [];
+  /**
+   * 3. אם מצאנו את הלקוח — מחפשים את ההזמנות האחרונות שלו.
+   */
+  if (uniqueOwnerValues.length) {
+    const latestUserInvitations = await invitations
+      .find({
+        $or: [
+          { ownerId: { $in: uniqueOwnerValues } },
+          { userId: { $in: uniqueOwnerValues } },
+          { clientId: { $in: uniqueOwnerValues } },
+        ],
+      })
+      .sort({ createdAt: -1, updatedAt: -1, _id: -1 })
+      .limit(20)
+      .toArray();
 
+    candidates.push(...latestUserInvitations);
+  }
+
+  /**
+   * 4. בנוסף מחפשים לפי eventId של האולם.
+   */
   const eventLinkedInvitations = await invitations
     .find({
       $or: [
@@ -331,38 +380,10 @@ async function findLatestInvitationForEvent(event: any) {
       ],
     })
     .sort({ createdAt: -1, updatedAt: -1, _id: -1 })
-    .limit(10)
+    .limit(20)
     .toArray();
 
   candidates.push(...eventLinkedInvitations);
-
-  const currentInvitationObjectId = toObjectId(event.venueClientInvitationId);
-
-  if (currentInvitationObjectId) {
-    const currentInvitation = await invitations.findOne({
-      _id: currentInvitationObjectId,
-    });
-
-    if (currentInvitation) {
-      candidates.push(currentInvitation);
-    }
-  }
-
-  if (uniqueOwnerValues.length) {
-    const latestUserInvitations = await invitations
-      .find({
-        $or: [
-          { ownerId: { $in: uniqueOwnerValues } },
-          { userId: { $in: uniqueOwnerValues } },
-          { clientId: { $in: uniqueOwnerValues } },
-        ],
-      })
-      .sort({ createdAt: -1, updatedAt: -1, _id: -1 })
-      .limit(10)
-      .toArray();
-
-    candidates.push(...latestUserInvitations);
-  }
 
   const uniqueCandidates = Array.from(
     new Map(
@@ -372,8 +393,32 @@ async function findLatestInvitationForEvent(event: any) {
     ).values()
   );
 
+  console.log("VENUE INVITATION CANDIDATES:", {
+    eventId: String(event._id),
+    oldVenueClientInvitationId: event.venueClientInvitationId
+      ? String(event.venueClientInvitationId)
+      : "",
+    ownerValues: uniqueOwnerValues.map((value) => String(value)),
+    candidates: uniqueCandidates.map((candidate: any) => ({
+      id: String(candidate._id),
+      ownerId: candidate.ownerId ? String(candidate.ownerId) : "",
+      userId: candidate.userId ? String(candidate.userId) : "",
+      clientId: candidate.clientId ? String(candidate.clientId) : "",
+      eventId: candidate.eventId ? String(candidate.eventId) : "",
+      productionEventId: candidate.productionEventId
+        ? String(candidate.productionEventId)
+        : "",
+      linkedEventId: candidate.linkedEventId ? String(candidate.linkedEventId) : "",
+      createdAt: candidate.createdAt,
+      updatedAt: candidate.updatedAt,
+    })),
+  });
+
   if (!uniqueCandidates.length) return null;
 
+  /**
+   * 5. בוחרים את ההזמנה הכי חדשה באמת.
+   */
   uniqueCandidates.sort((a: any, b: any) => {
     const aDate =
       new Date(a?.createdAt || a?.updatedAt || 0).getTime() ||
@@ -419,6 +464,7 @@ async function syncEventToLatestInvitation(event: any) {
             venueClientUserId:
               latestInvitation.ownerId ||
               latestInvitation.userId ||
+              latestInvitation.clientId ||
               event.venueClientUserId ||
               event.userId ||
               null,
@@ -434,6 +480,7 @@ async function syncEventToLatestInvitation(event: any) {
     event.venueClientUserId =
       latestInvitation.ownerId ||
       latestInvitation.userId ||
+      latestInvitation.clientId ||
       event.venueClientUserId ||
       event.userId ||
       null;
