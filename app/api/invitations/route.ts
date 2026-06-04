@@ -136,6 +136,17 @@ function serializeEvent(event: any) {
     venueLinkedAt: event.venueLinkedAt || null,
     venueAccessStatus: event.venueAccessStatus || "none",
 
+    venueClientUserId: event.venueClientUserId
+      ? String(event.venueClientUserId)
+      : "",
+    venueClientInvitationId: event.venueClientInvitationId
+      ? String(event.venueClientInvitationId)
+      : "",
+    venueClientEventId: event.venueClientEventId
+      ? String(event.venueClientEventId)
+      : "",
+    venueClientRecordsCount: event.venueClientRecordsCount || 0,
+
     email: event.email || "",
 
     eventType: event.eventType || "wedding",
@@ -168,6 +179,60 @@ function serializeEvent(event: any) {
   };
 }
 
+/* ============================================================
+   Sync Venue Event
+============================================================ */
+
+async function syncVenueEventWithInvitation({
+  eventId,
+  invitationId,
+  userId,
+}: {
+  eventId: any;
+  invitationId: any;
+  userId: string;
+}) {
+  if (!eventId || !invitationId) return null;
+
+  const eventObjectId = toObjectId(eventId);
+  const invitationObjectId = toObjectId(invitationId);
+
+  if (!eventObjectId || !invitationObjectId) return null;
+
+  const updatedEvent = await Event.findByIdAndUpdate(
+    eventObjectId,
+    {
+      $set: {
+        venueClientInvitationId: invitationObjectId,
+        venueClientEventId: eventObjectId,
+        venueClientUserId: new mongoose.Types.ObjectId(userId),
+        venueClientRecordsCount: 0,
+        venueAccessStatus: "linked",
+        venueLinkedAt: new Date(),
+        updatedAt: new Date(),
+      },
+    },
+    {
+      new: true,
+    }
+  ).lean();
+
+  await User.updateOne(
+    { _id: new mongoose.Types.ObjectId(userId) },
+    {
+      $set: {
+        invitationId: invitationObjectId,
+        venueClientInvitationId: invitationObjectId,
+        venueClientEventId: eventObjectId,
+      },
+    }
+  ).catch((err) => {
+    console.warn("User venue invitation sync skipped:", err);
+  });
+
+  return updatedEvent;
+}
+
 async function createOrUpdateEventForInvitation({
   body,
   user,
@@ -179,17 +244,34 @@ async function createOrUpdateEventForInvitation({
   userId: string;
   producerId: string | null;
 }) {
-  const bodyEventId = cleanString(body.eventId);
+  const bodyEventId = cleanString(
+    body.eventId ||
+      body.venueClientEventId ||
+      body.productionEventId ||
+      body.linkedEventId
+  );
+
   const shouldCreateEvent = toBool(body.createEvent);
 
   /**
    * אם הגיע eventId קיים —
    * משתמשים באירוע הזה.
+   * חשוב:
+   * באולם האירוע יכול להיות מקושר ללקוח דרך venueClientUserId,
+   * ולכן לא ננעל רק על userId.
    */
   if (!shouldCreateEvent && bodyEventId) {
+    const eventObjectId = toObjectId(bodyEventId);
+
     const existingEvent = await Event.findOne({
-      _id: bodyEventId,
-      userId,
+      _id: eventObjectId || bodyEventId,
+      $or: [
+        { userId },
+        { userId: new mongoose.Types.ObjectId(userId) },
+        { venueClientUserId: userId },
+        { venueClientUserId: new mongoose.Types.ObjectId(userId) },
+        { venueAccessStatus: "linked" },
+      ],
     }).lean();
 
     if (existingEvent) {
@@ -202,8 +284,6 @@ async function createOrUpdateEventForInvitation({
   /**
    * אם לא הגיע eventId ולא ביקשו ליצור Event אמיתי —
    * יוצרים Event בסיסי חדש.
-   * זה מחזיר את ההתנהגות הקודמת:
-   * אפשר ליצור הזמנה בלי ליצור קודם פרטי אירוע.
    */
   if (!shouldCreateEvent) {
     const fallbackEvent = await Event.create({
@@ -250,8 +330,7 @@ async function createOrUpdateEventForInvitation({
   }
 
   /**
-   * מכאן — יצירת/עדכון Event אמיתי עם שיוך לאולם.
-   * זה נשאר למסכים שבהם כן יוצרים אירוע מלא מאולם/אדמין.
+   * יצירת/עדכון Event אמיתי עם שיוך לאולם.
    */
   const venueOwnerObjectId = toObjectId(body.venueOwnerId);
 
@@ -306,6 +385,7 @@ async function createOrUpdateEventForInvitation({
     venueHallId,
     venueHallName,
     venueAccessStatus: "linked",
+    venueClientUserId: new mongoose.Types.ObjectId(userId),
 
     email: user.email || cleanString(body.email) || "noemail@placeholder.com",
 
@@ -338,7 +418,6 @@ async function createOrUpdateEventForInvitation({
     eventDoc = await Event.findOneAndUpdate(
       {
         _id: bodyEventId,
-        userId: new mongoose.Types.ObjectId(userId),
       },
       {
         $set: eventPayload,
@@ -382,8 +461,9 @@ async function createOrUpdateEventForInvitation({
 }
 
 /* ============================================================
-   POST — יצירת הזמנה + אופציונלית יצירת Event מחובר לאולם
+   POST — יצירת הזמנה + סנכרון לאירוע אולם
 ============================================================ */
+
 export async function POST(req: NextRequest) {
   try {
     await db();
@@ -466,11 +546,18 @@ export async function POST(req: NextRequest) {
     }).lean();
 
     if (existing) {
+      const syncedEvent =
+        (await syncVenueEventWithInvitation({
+          eventId: event._id,
+          invitationId: existing._id,
+          userId,
+        })) || event;
+
       return NextResponse.json(
         {
           success: true,
           invitation: existing,
-          event: serializeEvent(event),
+          event: serializeEvent(syncedEvent),
           created: false,
         },
         { status: 200 }
@@ -526,11 +613,18 @@ export async function POST(req: NextRequest) {
       maxMessages,
     });
 
+    const syncedEvent =
+      (await syncVenueEventWithInvitation({
+        eventId: event._id,
+        invitationId: invitation._id,
+        userId,
+      })) || event;
+
     return NextResponse.json(
       {
         success: true,
         invitation,
-        event: serializeEvent(event),
+        event: serializeEvent(syncedEvent),
         created: true,
       },
       { status: 201 }
@@ -548,6 +642,7 @@ export async function POST(req: NextRequest) {
 /* ============================================================
    GET — קבלת הזמנה לפי eventId
 ============================================================ */
+
 export async function GET(req: NextRequest) {
   try {
     await db();
@@ -605,12 +700,17 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const event = await Event.findById(eventId).lean();
+    const syncedEvent =
+      (await syncVenueEventWithInvitation({
+        eventId,
+        invitationId: invitation._id,
+        userId,
+      })) || (await Event.findById(eventId).lean());
 
     return NextResponse.json({
       success: true,
       invitation,
-      event: serializeEvent(event),
+      event: serializeEvent(syncedEvent),
     });
   } catch (err) {
     console.error("❌ Error fetching invitation:", err);
