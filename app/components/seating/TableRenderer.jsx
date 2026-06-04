@@ -176,13 +176,11 @@ function TableRenderer({ table, hideSeats = false }) {
   const startAngleRef = useRef(0);
   const startRotationRadRef = useRef(0);
 
-  const demoMode = useSeatingStore((s) => s.demoMode);
   const highlightedTable = useSeatingStore((s) => s.highlightedTable);
   const selectedGuestId = useSeatingStore((s) => s.selectedGuestId);
   const draggingGuest = useSeatingStore((s) => s.draggingGuest);
   const guests = useSeatingStore((s) => s.guests);
   const assignGuestBlock = useSeatingStore((s) => s.assignGuestBlock);
-  const selectedTableId = useSeatingStore((s) => s.selectedTableId);
   const liveArrivals = useSeatingStore((s) => s.liveArrivals);
   const seatingMode = useSeatingStore((s) => s.seatingMode);
 
@@ -195,11 +193,6 @@ function TableRenderer({ table, hideSeats = false }) {
   useEffect(() => {
     console.log("🟢 seatingMode in TableRenderer:", seatingMode);
   }, [seatingMode]);
-
-  const deleteTable =
-    useSeatingStore((s) => s.deleteTable) ||
-    useSeatingStore((s) => s.removeTable) ||
-    (() => {});
 
   const tableId = String(table.id || table._id || "");
 
@@ -349,7 +342,7 @@ function TableRenderer({ table, hideSeats = false }) {
       guestIdFromUrl &&
       assigned.some((s) => String(s.guestId) === String(guestIdFromUrl)));
 
-  const hasArrived = occupiedSeatsCount > 0;
+  const hasArrived = liveArrivedCount > 0;
 
   /* ============================================================
      עיצוב בלבד
@@ -421,62 +414,56 @@ function TableRenderer({ table, hideSeats = false }) {
 
   const seatsCoords = layout.coords;
 
-  /* ============================================================
-     חישוב כיסאות שהגיעו בפועל
-     ההושבה הרגילה נשארת בסיס בלייב.
-     רק actualArrivedCount / liveArrivals צובע כיסאות אדום.
-  ============================================================ */
+  /*
+    חישוב כיסאות שהגיעו בפועל:
+    חשוב מאוד:
+    אם בפועל הגיעו יותר ממספר ההושבה המקורית,
+    לדוגמה הושבה 5 אבל בפועל 6 —
+    עדיין נצבע 6 כיסאות אדומים.
+  */
   const arrivedSeatsSet = useMemo(() => {
     const arrived = new Set();
 
-    if (!plannedSeatedGuests.length) return arrived;
+    const totalSeats = Number(table.seats || 0);
+    const totalArrived = Math.min(
+      totalSeats,
+      Math.max(0, Number(liveArrivedCount || 0))
+    );
 
-    const guestActualMap = new Map();
+    if (!totalSeats || !totalArrived) return arrived;
 
-    for (const seated of plannedSeatedGuests) {
-      const guestId = String(seated.guestId);
-      if (guestActualMap.has(guestId)) continue;
-
-      const guest = guests.find((g) => String(g._id || g.id) === guestId);
-
-      if (!guest) {
-        guestActualMap.set(guestId, 0);
-        continue;
-      }
-
-      if (seatingMode === "live") {
-        const key = String(guest.id ?? guest._id);
-
-        const liveValue =
-          liveArrivals && Object.prototype.hasOwnProperty.call(liveArrivals, key)
-            ? Number(liveArrivals[key] || 0)
-            : Number(guest.actualArrivedCount || 0);
-
-        guestActualMap.set(guestId, Math.max(0, liveValue));
-      } else {
-        guestActualMap.set(
-          guestId,
-          Math.max(0, Number(guest.arrivedCount || 0))
-        );
-      }
-    }
-
-    const sorted = [...plannedSeatedGuests].sort(
+    /*
+      קודם צובעים את הכיסאות שהיו בהושבה המקורית,
+      לפי הסדר שלהם.
+    */
+    const plannedSorted = [...plannedSeatedGuests].sort(
       (a, b) => Number(a.seatIndex ?? 0) - Number(b.seatIndex ?? 0)
     );
 
-    for (const seated of sorted) {
-      const guestId = String(seated.guestId);
-      const remaining = Number(guestActualMap.get(guestId) || 0);
+    for (const seated of plannedSorted) {
+      if (arrived.size >= totalArrived) break;
 
-      if (remaining <= 0) continue;
+      const index = Number(seated.seatIndex);
+      if (!Number.isFinite(index)) continue;
+      if (index < 0 || index >= totalSeats) continue;
 
-      arrived.add(Number(seated.seatIndex));
-      guestActualMap.set(guestId, remaining - 1);
+      arrived.add(index);
+    }
+
+    /*
+      אם הגיעו יותר ממה שהושב,
+      משלימים אדום על כיסאות פנויים.
+      לדוגמה: הושבה 5, בפועל 6 => עוד כיסא ירוק אחד יהפוך לאדום.
+    */
+    for (let i = 0; i < totalSeats; i++) {
+      if (arrived.size >= totalArrived) break;
+      if (arrived.has(i)) continue;
+
+      arrived.add(i);
     }
 
     return arrived;
-  }, [plannedSeatedGuests, guests, seatingMode, liveArrivals]);
+  }, [table.seats, plannedSeatedGuests, liveArrivedCount]);
 
   const getSeatVisual = (seat, seatIndex) => {
     /*
@@ -498,21 +485,10 @@ function TableRenderer({ table, hideSeats = false }) {
 
     /*
       מצב לייב:
-      אין שיבוץ רגיל בכיסא = ירוק פנוי.
-    */
-    if (!seat) {
-      return {
-        chairFill: "#16A34A",
-        chairStroke: "#166534",
-        chairHighlight: "#DCFCE7",
-        chairDepth: "#15803D",
-        chairShadow: "#14532D",
-      };
-    }
-
-    /*
-      מצב לייב:
-      יש שיבוץ רגיל והכיסא נספר כמי שהגיע בפועל = אדום.
+      אדום קודם כל לפי מספר שהגיעו בפועל.
+      זה חייב להיות לפני בדיקת seat,
+      כדי שגם אם הגיעו יותר מההושבה המקורית,
+      כיסא פנוי יוכל להפוך לאדום.
     */
     if (arrivedSeatsSet.has(Number(seatIndex))) {
       return {
@@ -525,9 +501,8 @@ function TableRenderer({ table, hideSeats = false }) {
     }
 
     /*
-      מצב לייב:
-      יש שיבוץ רגיל, אבל האורח לא הגיע בפועל =
-      ירוק, כי הכיסא פנוי בפועל.
+      כל כיסא שלא נספר בפועל בלייב = ירוק.
+      גם אם היה משובץ בהושבה המקורית אבל לא הגיע.
     */
     return {
       chairFill: "#16A34A",
@@ -623,7 +598,6 @@ function TableRenderer({ table, hideSeats = false }) {
     }));
   };
 
-  /* ====== סיבוב ====== */
   const startRotate = (e) => {
     e.cancelBubble = true;
     if (!tableRef.current) return;
