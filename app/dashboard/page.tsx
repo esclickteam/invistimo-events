@@ -1952,7 +1952,7 @@ const canOpenEventManagement =
       "
       dir="rtl"
     >
-      <main className="mx-auto w-full max-w-[1540px]">
+      <main className="mx-auto w-full max-w-none">
       {isDemo && (
         <div className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 px-5 py-4 text-amber-900 shadow-sm">
           <p className="text-sm leading-relaxed">
@@ -2165,21 +2165,22 @@ const canOpenEventManagement =
 
       {/* ===================== DESKTOP TABLE ===================== */}
       <div
-        className="
-          hidden
-          md:block
-          w-full
-          overflow-x-auto
-          max-h-[70vh]
-          overflow-y-auto
-          rounded-[28px]
-          border
-          border-[#E7DED1]
-          bg-white
-          shadow-[0_18px_50px_rgba(30,27,46,0.07)]
-        "
-      >
-        <table className="min-w-[1450px] w-full table-auto">
+  className="
+    hidden
+    md:block
+    w-full
+    max-w-full
+    overflow-x-auto
+    max-h-[70vh]
+    overflow-y-auto
+    rounded-[28px]
+    border
+    border-[#E7DED1]
+    bg-white
+    shadow-[0_18px_50px_rgba(30,27,46,0.07)]
+  "
+>
+        <table className="w-full min-w-[1900px] table-auto">
           <thead className="bg-[#F2EEE8] sticky top-0 z-10 whitespace-nowrap">
             <tr>
               <th
@@ -2193,9 +2194,9 @@ const canOpenEventManagement =
                 טלפון
               </th>
 
-              <th className="p-4 text-right text-xs font-black text-[#5F564D]">
-                קרבה
-              </th>
+              <th className="p-4 text-right text-xs font-black text-[#5F564D] min-w-[180px]">
+  קרבה
+</th>
 
               <th className="p-4 text-right text-xs font-black text-[#5F564D]">
                 קבוצה
@@ -2241,9 +2242,9 @@ const canOpenEventManagement =
                 </th>
               )}
 
-              <th className="p-4 text-right text-xs font-black text-[#5F564D]">
-                הערות
-              </th>
+              <th className="p-4 text-right text-xs font-black text-[#5F564D] min-w-[220px]">
+  הערות
+</th>
 
               <th className="p-4 text-right text-xs font-black text-[#5F564D]">
                 הזמנת אורח
@@ -2282,9 +2283,9 @@ const canOpenEventManagement =
                   {formatPhone(g.phone)}
                 </td>
 
-                <td className="p-4 text-sm text-[#5F564D]">
-                  {g.relation?.trim() || "-"}
-                </td>
+                <td className="p-4 text-sm text-[#5F564D] min-w-[180px] whitespace-normal break-words leading-6">
+  {g.relation?.trim() || "-"}
+</td>
 
                 <td className="p-4">
                   <GuestGroupSelect
@@ -2510,9 +2511,9 @@ const canOpenEventManagement =
                   </td>
                 )}
 
-                <td className="p-4 text-sm text-[#5F564D]">
-                  {g.notes?.trim() || "-"}
-                </td>
+                <td className="p-4 text-sm text-[#5F564D] min-w-[220px] max-w-[340px] whitespace-normal break-words leading-6">
+  {g.notes?.trim() || "-"}
+</td>
 
                 <td className="p-4">
                   <div className="flex items-center gap-3">
