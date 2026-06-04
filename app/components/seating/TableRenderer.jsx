@@ -511,6 +511,7 @@ function TableRenderer({ table, hideSeats = false }) {
     }
 
     /*
+      מצב לייב:
       יש שיבוץ רגיל והכיסא נספר כמי שהגיע בפועל = אדום.
     */
     if (arrivedSeatsSet.has(Number(seatIndex))) {
@@ -524,14 +525,16 @@ function TableRenderer({ table, hideSeats = false }) {
     }
 
     /*
-      יש שיבוץ רגיל אבל עדיין לא הגיע בפועל = זהב.
+      מצב לייב:
+      יש שיבוץ רגיל, אבל האורח לא הגיע בפועל =
+      ירוק, כי הכיסא פנוי בפועל.
     */
     return {
-      chairFill: "#B98A45",
-      chairStroke: "#8B6532",
-      chairHighlight: "#E3BD63",
-      chairDepth: "#8D642C",
-      chairShadow: "#6F4A19",
+      chairFill: "#16A34A",
+      chairStroke: "#166534",
+      chairHighlight: "#DCFCE7",
+      chairDepth: "#15803D",
+      chairShadow: "#14532D",
     };
   };
 
@@ -679,10 +682,6 @@ function TableRenderer({ table, hideSeats = false }) {
       onClick={handleClick}
       onTap={handleClick}
     >
-      {/* ============================================================
-          כסאות בסגנון הסקיצה:
-          גב עליון רחב + מושב גדול + עומק תחתון + הצללה.
-      ============================================================ */}
       {seatsCoords.map((c, i) => {
         const seat = plannedSeatedGuests.find(
           (s) => Number(s.seatIndex) === i
@@ -790,7 +789,6 @@ function TableRenderer({ table, hideSeats = false }) {
         );
       })}
 
-      {/* שולחן עגול */}
       {layout.type === "round" && (
         <>
           <Circle
@@ -805,7 +803,6 @@ function TableRenderer({ table, hideSeats = false }) {
         </>
       )}
 
-      {/* שולחן מרובע */}
       {layout.type === "square" && (
         <>
           <Rect
@@ -824,7 +821,6 @@ function TableRenderer({ table, hideSeats = false }) {
         </>
       )}
 
-      {/* שולחן אבירים / מלבני */}
       {layout.type === "banquet" && (
         <>
           <Rect
@@ -843,7 +839,6 @@ function TableRenderer({ table, hideSeats = false }) {
         </>
       )}
 
-      {/* כפתור סיבוב */}
       {!hideSeats && (
         <Group
           y={
