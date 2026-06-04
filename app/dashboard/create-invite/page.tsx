@@ -343,17 +343,23 @@ export default function CreateInvitePage() {
     };
 
     const invitationPayload = {
-      ...(cleanEventId
-        ? {
-            eventId: cleanEventId,
-            productionEventId: cleanEventId,
-            linkedEventId: cleanEventId,
-          }
-        : {}),
+  ...(cleanEventId
+    ? {
+        eventId: cleanEventId,
+        productionEventId: cleanEventId,
+        linkedEventId: cleanEventId,
 
-      canvasData,
-      orientation: imageMode,
-    };
+        // ✅ חשוב לאולם — מחבר את ההזמנה החדשה לאירוע האולם
+        venueClientEventId: cleanEventId,
+        venueLinkedEventId: cleanEventId,
+        syncVenueEvent: true,
+        source: "venue_client_create_invitation",
+      }
+    : {}),
+
+  canvasData,
+  orientation: imageMode,
+};
 
     const res = await fetch("/api/invitations", {
       method: "POST",
