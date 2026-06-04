@@ -155,10 +155,25 @@ const isVenueView = searchParams.get("venueView") === "1";
 const isLiveView = searchParams.get("live") === "1";
 
   const isProducer = pathname.includes("/events/production");
-  const isLiveSeatingView =
-    isProducer || isLiveView || seatingMode === "live";
   const isDemo = pathname.startsWith("/try/");
   const isVenueTemplateMode = seatingMode === "venue-template";
+
+  const [storedWorkMode, setStoredWorkMode] = useState<"regular" | "live">(
+    () => {
+      if (typeof window === "undefined") return "regular";
+
+      return localStorage.getItem("workMode") === "live"
+        ? "live"
+        : "regular";
+    }
+  );
+
+  const isLiveSeatingView =
+    !isVenueTemplateMode &&
+    (isProducer ||
+      isLiveView ||
+      seatingMode === "live" ||
+      storedWorkMode === "live");
 
   const didLoadRef = useRef(false);
   const didFinishInitialLoadRef = useRef(false);
@@ -259,19 +274,70 @@ const isLiveView = searchParams.get("live") === "1";
   }, [user, isVenueTemplateMode, isVenueView]);
 
   /* ===============================
+     SYNC LIVE MODE FROM DASHBOARD
+     הדשבורד שומר localStorage.workMode = live/regular.
+     עמוד ההושבה חייב לקרוא את זה, אחרת הוא נשאר regular
+     למרות שבדשבורד מופיע LIVE.
+  =============================== */
+  useEffect(() => {
+    const syncStoredWorkMode = () => {
+      if (typeof window === "undefined") return;
+
+      setStoredWorkMode(
+        localStorage.getItem("workMode") === "live" ? "live" : "regular"
+      );
+    };
+
+    syncStoredWorkMode();
+
+    const refreshOnVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        syncStoredWorkMode();
+      }
+    };
+
+    window.addEventListener("storage", syncStoredWorkMode);
+    window.addEventListener("focus", syncStoredWorkMode);
+    document.addEventListener("visibilitychange", refreshOnVisibilityChange);
+
+    return () => {
+      window.removeEventListener("storage", syncStoredWorkMode);
+      window.removeEventListener("focus", syncStoredWorkMode);
+      document.removeEventListener(
+        "visibilitychange",
+        refreshOnVisibilityChange
+      );
+    };
+  }, []);
+
+  /* ===============================
      SEATING MODE
-     live=1 / producer / mode=live => מצב לייב
+     live=1 / mode=live / producer / localStorage.workMode=live => מצב לייב
      אחרת מחזירים ל-regular כדי שלא יישאר מצב ישן מה-store
   =============================== */
   useEffect(() => {
-    if (isLiveSeatingView) {
-      console.log("🔥 ENABLE LIVE MODE (SEATING)");
-      setSeatingMode("live");
-      return;
-    }
+    const nextMode = isLiveSeatingView ? "live" : "regular";
 
-    setSeatingMode("regular");
-  }, [isLiveSeatingView, setSeatingMode]);
+    console.log("🔥 SEATING MODE RESOLVED:", {
+      nextMode,
+      isProducer,
+      isLiveView,
+      seatingMode,
+      storedWorkMode,
+      pathname,
+    });
+
+    setSeatingMode(nextMode);
+  }, [
+    isLiveSeatingView,
+    isProducer,
+    isLiveView,
+    seatingMode,
+    storedWorkMode,
+    pathname,
+    setSeatingMode,
+  ]);
+  
   /* ===============================
      LOAD SEATING DATA
   =============================== */
@@ -335,6 +401,9 @@ if (tRes.status === 403 && isVenueView) {
         tData.canvasView ?? null
       );
 
+      // חשוב: init עלול לאפס state פנימי. מחזירים את מצב ההושבה הנכון מיד אחרי טעינה.
+      setSeatingMode(isLiveSeatingView ? "live" : "regular");
+
       setZones(tData.zones || []);
 
       const grRes = await fetch(`/api/seating/groups/${invitationIdToLoad}`, {
@@ -348,7 +417,14 @@ if (tRes.status === 403 && isVenueView) {
 
       return true;
     },
-    [init, setGroups, setZones, isVenueView]
+    [
+      init,
+      setGroups,
+      setZones,
+      setSeatingMode,
+      isVenueView,
+      isLiveSeatingView,
+    ]
   );
 
   /* ===============================
@@ -486,6 +562,7 @@ if (eventIdFromQuery && invitationIdFromQuery) {
     loadSeatingData,
     user,
     eventIdFromQuery,
+    invitationIdFromQuery,
   ]);
 
   /* ===============================
@@ -1167,6 +1244,8 @@ if (eventIdFromQuery && invitationIdFromQuery) {
             >
               {isVenueTemplateMode ? (
                 <span>מצב תבנית — השמירה מתבצעת ידנית</span>
+              ) : isLiveSeatingView ? (
+                <span>מצב לייב — ריענון אוטומטי פעיל</span>
               ) : isAutoSaving ? (
                 <span>שומר אוטומטית...</span>
               ) : lastAutoSavedAt ? (
