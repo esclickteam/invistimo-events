@@ -147,11 +147,8 @@ export default function SeatingPage() {
 
   
   const invitationIdFromQuery = firstString(
-  searchParams.get("invitation"),
   searchParams.get("invitationId"),
-  searchParams.get("inviteId"),
-  searchParams.get("venueClientInvitationId"),
-  searchParams.get("venueClientInviteId")
+  searchParams.get("venueClientInvitationId")
 );
 
 const isVenueView = searchParams.get("venueView") === "1";
@@ -474,14 +471,12 @@ if (eventIdFromQuery && invitationIdFromQuery) {
 
     load();
   }, [
-  isDemo,
-  isVenueTemplateMode,
-  loadSeatingData,
-  user,
-  eventIdFromQuery,
-  invitationIdFromQuery,
-  isVenueView,
-]);
+    isDemo,
+    isVenueTemplateMode,
+    loadSeatingData,
+    user,
+    eventIdFromQuery,
+  ]);
 
   /* ===============================
      AUTO FIT ONE TIME
