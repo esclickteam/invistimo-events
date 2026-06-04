@@ -320,14 +320,16 @@ function TableRenderer({ table, hideSeats = false }) {
   }, [assigned, guestById, liveArrivals]);
 
   const plannedSeatsCount = Math.max(
-    0,
-    toSafeNumber(table.seatedCount, computedCounts.planned)
-  );
+  0,
+  toSafeNumber(table.seatedCount, 0),
+  computedCounts.planned
+);
 
-  const liveArrivedCount = Math.max(
-    0,
-    toSafeNumber(table.actualArrivedCount, computedCounts.actual)
-  );
+const liveArrivedCount = Math.max(
+  0,
+  toSafeNumber(table.actualArrivedCount, 0),
+  computedCounts.actual
+);
 
   const isHighlighted =
     highlightedTable === table.id ||
