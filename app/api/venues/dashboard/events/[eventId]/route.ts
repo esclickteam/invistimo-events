@@ -287,8 +287,15 @@ async function countGuestsForInvitationId(invitationId: any) {
 }
 
 /**
- * מחפש את ההזמנה החדשה ביותר לפי מזהה האירוע.
- * זה מה שגורם לאולם לקלוט הזמנה חדשה שנוצרה ללקוח על אותו eventId.
+ * מחפש את ההזמנה העדכנית ביותר של אירוע אולם.
+ *
+ * סדר עדיפויות:
+ * 1. הזמנות שמחוברות ישירות ל-eventId של האולם.
+ * 2. ההזמנה שכבר שמורה על ה-Event.
+ * 3. ההזמנה החדשה ביותר של אותו משתמש / לקוח.
+ *
+ * זה פותר מצב שבו הלקוח מחק הזמנה ויצר חדשה,
+ * אבל החדשה לא נשמרה עם אותו eventId של האולם.
  */
 async function findLatestInvitationForEvent(event: any) {
   const invitations = getCollection("invitations");
@@ -307,49 +314,83 @@ async function findLatestInvitationForEvent(event: any) {
     ownerValues.push(...objectIdOrString(event.userId));
   }
 
-  const eventMatch = {
-    $or: [
-      { eventId: { $in: eventIdValues } },
-      { venueClientEventId: { $in: eventIdValues } },
-      { productionEventId: { $in: eventIdValues } },
-      { linkedEventId: { $in: eventIdValues } },
-      { event: { $in: eventIdValues } },
-    ],
-  };
+  const uniqueOwnerValues = Array.from(
+    new Map(ownerValues.map((value) => [String(value), value])).values()
+  );
 
-  const query =
-    ownerValues.length > 0
-      ? {
-          $and: [
-            eventMatch,
-            {
-              $or: [
-                { ownerId: { $in: ownerValues } },
-                { userId: { $in: ownerValues } },
-                { clientId: { $in: ownerValues } },
-              ],
-            },
-          ],
-        }
-      : eventMatch;
+  const candidates: any[] = [];
 
-  const latest = await invitations
-    .find(query)
+  const eventLinkedInvitations = await invitations
+    .find({
+      $or: [
+        { eventId: { $in: eventIdValues } },
+        { venueClientEventId: { $in: eventIdValues } },
+        { productionEventId: { $in: eventIdValues } },
+        { linkedEventId: { $in: eventIdValues } },
+        { event: { $in: eventIdValues } },
+      ],
+    })
     .sort({ createdAt: -1, updatedAt: -1, _id: -1 })
-    .limit(1)
+    .limit(10)
     .toArray();
 
-  if (latest[0]) return latest[0];
+  candidates.push(...eventLinkedInvitations);
 
-  /*
-    fallback:
-    אם אין התאמה לפי eventId, לא מחפשים סתם לפי לקוח כדי לא לחבר אירוע רגיל לאולם בטעות.
-  */
-  return null;
+  const currentInvitationObjectId = toObjectId(event.venueClientInvitationId);
+
+  if (currentInvitationObjectId) {
+    const currentInvitation = await invitations.findOne({
+      _id: currentInvitationObjectId,
+    });
+
+    if (currentInvitation) {
+      candidates.push(currentInvitation);
+    }
+  }
+
+  if (uniqueOwnerValues.length) {
+    const latestUserInvitations = await invitations
+      .find({
+        $or: [
+          { ownerId: { $in: uniqueOwnerValues } },
+          { userId: { $in: uniqueOwnerValues } },
+          { clientId: { $in: uniqueOwnerValues } },
+        ],
+      })
+      .sort({ createdAt: -1, updatedAt: -1, _id: -1 })
+      .limit(10)
+      .toArray();
+
+    candidates.push(...latestUserInvitations);
+  }
+
+  const uniqueCandidates = Array.from(
+    new Map(
+      candidates
+        .filter(Boolean)
+        .map((candidate) => [String(candidate?._id), candidate])
+    ).values()
+  );
+
+  if (!uniqueCandidates.length) return null;
+
+  uniqueCandidates.sort((a: any, b: any) => {
+    const aDate =
+      new Date(a?.createdAt || a?.updatedAt || 0).getTime() ||
+      (a?._id?.getTimestamp ? a._id.getTimestamp().getTime() : 0);
+
+    const bDate =
+      new Date(b?.createdAt || b?.updatedAt || 0).getTime() ||
+      (b?._id?.getTimestamp ? b._id.getTimestamp().getTime() : 0);
+
+    return bDate - aDate;
+  });
+
+  return uniqueCandidates[0] || null;
 }
 
 /**
- * מסנכרן את Event של האולם להזמנה החדשה ביותר לפי eventId.
+ * מסנכרן את Event של האולם להזמנה העדכנית ביותר.
  */
 async function syncEventToLatestInvitation(event: any) {
   const latestInvitation = await findLatestInvitationForEvent(event);
@@ -469,11 +510,6 @@ async function buildRsvpStats(event: any, invitation: any) {
     invitationIdValues.push(...objectIdOrString(invitation._id));
   }
 
-  /*
-    חשוב:
-    לא מוסיפים כאן invitationId ישן מה-event אם כבר נמצאה invitation חדשה.
-    אחרת האולם יספור גם ישן וגם חדש.
-  */
   if (!invitation?._id && event?.venueClientInvitationId) {
     invitationIdValues.push(...objectIdOrString(event.venueClientInvitationId));
   }
