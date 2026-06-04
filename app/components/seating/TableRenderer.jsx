@@ -266,6 +266,19 @@ function TableRenderer({ table, hideSeats = false }) {
     liveSnapshotKey,
   ]);
 
+
+  /*
+    שיבוץ נוכחי מהשרת:
+    בלייב זה המקור לצביעת הכיסאות אחרי "שחרור כיסאות".
+    plannedSeatedGuests נשאר רק בשביל הכיתוב "הושבה" והסנאפשוט המקורי.
+  */
+  const currentSeatedGuests = useMemo(() => {
+    return normalizeSeatedGuests(table.seatedGuests || []);
+  }, [table.seatedGuests]);
+
+  const visualSeatedGuests =
+    seatingMode === "live" ? currentSeatedGuests : plannedSeatedGuests;
+
   /*
     שומר snapshot רק במצב רגיל.
     בלייב לא שומרים, כדי לא לדרוס את ההושבה המקורית לפי מי שהגיע בפועל.
@@ -481,19 +494,32 @@ function TableRenderer({ table, hideSeats = false }) {
 
   /* ============================================================
      חישוב כיסאות שהגיעו בפועל
-     ההושבה הרגילה נשארת בסיס בלייב.
-     רק actualArrivedCount / liveArrivals צובע כיסאות אדום.
+     בלייב:
+     - האדום לפי actualArrivedCount / liveArrivals
+     - הזהב לפי השיבוץ הנוכחי מהשרת
+     - ירוק אם הכיסא שוחרר ואינו קיים ב-table.seatedGuests
   ============================================================ */
   const arrivedSeatsSet = useMemo(() => {
     const arrived = new Set();
 
-    if (!plannedSeatedGuests.length) return arrived;
+    const maxSeats = Math.max(0, Number(seatsTotal || 0));
+
+    const sourceSeatedGuests =
+      seatingMode === "live"
+        ? currentSeatedGuests.length
+          ? currentSeatedGuests
+          : plannedSeatedGuests
+        : plannedSeatedGuests;
+
+    if (!sourceSeatedGuests.length && seatingMode !== "live") {
+      return arrived;
+    }
 
     const guestActualMap = new Map();
 
-    for (const seated of plannedSeatedGuests) {
-      const guestId = String(seated.guestId);
-      if (guestActualMap.has(guestId)) continue;
+    for (const seated of sourceSeatedGuests) {
+      const guestId = String(seated.guestId || "");
+      if (!guestId || guestActualMap.has(guestId)) continue;
 
       const guest = guests.find((g) => String(g._id || g.id) === guestId);
 
@@ -519,22 +545,63 @@ function TableRenderer({ table, hideSeats = false }) {
       }
     }
 
-    const sorted = [...plannedSeatedGuests].sort(
+    const sorted = [...sourceSeatedGuests].sort(
       (a, b) => Number(a.seatIndex ?? 0) - Number(b.seatIndex ?? 0)
     );
 
     for (const seated of sorted) {
-      const guestId = String(seated.guestId);
+      const guestId = String(seated.guestId || "");
       const remaining = Number(guestActualMap.get(guestId) || 0);
 
       if (remaining <= 0) continue;
 
-      arrived.add(Number(seated.seatIndex));
-      guestActualMap.set(guestId, remaining - 1);
+      const seatIndex = Number(seated.seatIndex);
+
+      if (Number.isFinite(seatIndex) && seatIndex >= 0 && seatIndex < maxSeats) {
+        arrived.add(seatIndex);
+        guestActualMap.set(guestId, remaining - 1);
+      }
+    }
+
+    /*
+      הגנה ללייב:
+      אם actualArrivedCount גדול ממספר הכיסאות המשויכים,
+      עדיין נצבע את מספר הכיסאות הנכון באדום.
+      זה פותר מצב של 5 בפועל אבל רק 4 שיבוצים קיימים.
+    */
+    if (seatingMode === "live") {
+      const target = Math.min(
+        maxSeats,
+        Math.max(0, Number(displayActualCount || 0))
+      );
+
+      if (arrived.size < target) {
+        const occupiedIndexes = sorted
+          .map((s) => Number(s.seatIndex ?? 0))
+          .filter((idx) => Number.isFinite(idx) && idx >= 0 && idx < maxSeats);
+
+        const preferredIndexes = [
+          ...occupiedIndexes,
+          ...Array.from({ length: maxSeats }, (_, idx) => idx),
+        ];
+
+        for (const idx of preferredIndexes) {
+          if (arrived.size >= target) break;
+          arrived.add(idx);
+        }
+      }
     }
 
     return arrived;
-  }, [plannedSeatedGuests, guests, seatingMode, liveArrivals]);
+  }, [
+    plannedSeatedGuests,
+    currentSeatedGuests,
+    guests,
+    seatingMode,
+    liveArrivals,
+    seatsTotal,
+    displayActualCount,
+  ]);
 
   const getSeatVisual = (seat, seatIndex) => {
     /*
@@ -556,20 +623,9 @@ function TableRenderer({ table, hideSeats = false }) {
 
     /*
       מצב לייב:
-      אין שיבוץ רגיל בכיסא = ירוק פנוי.
-    */
-    if (!seat) {
-      return {
-        chairFill: "#16A34A",
-        chairStroke: "#166534",
-        chairHighlight: "#DCFCE7",
-        chairDepth: "#15803D",
-        chairShadow: "#14532D",
-      };
-    }
-
-    /*
-      יש שיבוץ רגיל והכיסא נספר כמי שהגיע בפועל = אדום.
+      אדום קודם לפי בפועל.
+      חשוב לבדוק אדום לפני ירוק, כי לפעמים actualArrivedCount גדול
+      ממספר הכיסאות המשויכים.
     */
     if (arrivedSeatsSet.has(Number(seatIndex))) {
       return {
@@ -582,7 +638,20 @@ function TableRenderer({ table, hideSeats = false }) {
     }
 
     /*
-      יש שיבוץ רגיל אבל עדיין לא הגיע בפועל = זהב.
+      אין שיבוץ נוכחי בכיסא אחרי שחרור = ירוק פנוי.
+    */
+    if (!seat) {
+      return {
+        chairFill: "#16A34A",
+        chairStroke: "#166534",
+        chairHighlight: "#DCFCE7",
+        chairDepth: "#15803D",
+        chairShadow: "#14532D",
+      };
+    }
+
+    /*
+      יש שיבוץ נוכחי אבל עדיין לא הגיע בפועל = זהב.
     */
     return {
       chairFill: "#B98A45",
@@ -742,7 +811,7 @@ function TableRenderer({ table, hideSeats = false }) {
           גב עליון רחב + מושב גדול + עומק תחתון + הצללה.
       ============================================================ */}
       {seatsCoords.map((c, i) => {
-        const seat = plannedSeatedGuests.find(
+        const seat = visualSeatedGuests.find(
           (s) => Number(s.seatIndex) === i
         );
 
