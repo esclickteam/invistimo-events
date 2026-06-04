@@ -933,9 +933,15 @@ const eventTitle = eventData?.title || "אירוע ללא שם";
                 ? guestsData.data
                 : [];
 
-          if (guestsRes.ok && guestRows.length) {
-            nextStats.rsvp = buildRsvpStatsFromGuestRows(guestRows);
-          }
+          if (guestsRes.ok) {
+  const syncedRsvpStats = buildRsvpStatsFromGuestRows(guestRows);
+
+  nextStats.rsvp = syncedRsvpStats;
+
+  if (nextEvent) {
+    nextEvent.venueClientRecordsCount = syncedRsvpStats.recordsCount;
+  }
+}
         } catch (guestsError) {
           console.error("GET venue synced guests failed:", guestsError);
         }
