@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
+
 import db from "@/lib/db";
 import User from "@/models/User";
 import Invitation from "@/models/Invitation";
@@ -10,12 +11,62 @@ import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function isValidObjectId(value: string) {
-  return mongoose.Types.ObjectId.isValid(value);
+/* =====================================================
+   HELPERS
+===================================================== */
+
+function isValidObjectId(value?: string | null) {
+  return Boolean(value && mongoose.Types.ObjectId.isValid(value));
 }
 
 function toObjectId(value: string) {
   return new mongoose.Types.ObjectId(value);
+}
+
+function buildIdValues(value?: string | null) {
+  const clean = String(value || "").trim();
+  if (!clean) return [];
+
+  const values: any[] = [clean];
+
+  if (mongoose.Types.ObjectId.isValid(clean)) {
+    values.push(new mongoose.Types.ObjectId(clean));
+  }
+
+  return values;
+}
+
+function buildRelatedOrFilter({
+  invitationId,
+  eventId,
+  shareId,
+}: {
+  invitationId: string;
+  eventId?: string;
+  shareId?: string;
+}) {
+  const invitationValues = buildIdValues(invitationId);
+  const eventValues = buildIdValues(eventId || "");
+  const shareValue = String(shareId || "").trim();
+
+  const or: any[] = [];
+
+  for (const value of invitationValues) {
+    or.push({ invitationId: value });
+    or.push({ invitation: value });
+    or.push({ inviteId: value });
+  }
+
+  for (const value of eventValues) {
+    or.push({ eventId: value });
+    or.push({ event: value });
+  }
+
+  if (shareValue) {
+    or.push({ shareId: shareValue });
+  }
+
+  return or.length ? { $or: or } : null;
 }
 
 async function deleteFromCollectionIfExists(
@@ -65,11 +116,81 @@ async function deleteFromCollectionIfExists(
   }
 }
 
+async function pullGuestsFromSeatingCollections(guestIds: string[], relatedFilter: any) {
+  if (!guestIds.length || !relatedFilter) {
+    return [];
+  }
+
+  const guestIdValues: any[] = [];
+
+  for (const id of guestIds) {
+    guestIdValues.push(id);
+
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      guestIdValues.push(new mongoose.Types.ObjectId(id));
+    }
+  }
+
+  const pullFilter = {
+    guestId: { $in: guestIdValues },
+  };
+
+  const updates = [];
+
+  const database = mongoose.connection.db;
+  if (!database) return updates;
+
+  const collections = ["seatings", "seatingtables", "seatingTables"];
+
+  for (const collectionName of collections) {
+    try {
+      const exists = await database
+        .listCollections({ name: collectionName })
+        .hasNext();
+
+      if (!exists) continue;
+
+      const collection = database.collection(collectionName);
+
+      const nested = await collection.updateMany(relatedFilter, {
+        $pull: {
+          "tables.$[].seatedGuests": pullFilter,
+        },
+      });
+
+      const flat = await collection.updateMany(relatedFilter, {
+        $pull: {
+          seatedGuests: pullFilter,
+        },
+      });
+
+      updates.push({
+        collection: collectionName,
+        nestedModified: nested.modifiedCount || 0,
+        flatModified: flat.modifiedCount || 0,
+      });
+    } catch (err) {
+      console.warn(`Seating cleanup skipped for ${collectionName}:`, err);
+
+      updates.push({
+        collection: collectionName,
+        error: true,
+      });
+    }
+  }
+
+  return updates;
+}
+
+/* =====================================================
+   DELETE — מחיקת הזמנה של משתמש
+===================================================== */
+
 export async function DELETE(req: NextRequest) {
   try {
     await db();
 
-    const auth = await getUserIdFromRequest();
+    const auth: any = await getUserIdFromRequest(req);
 
     if (!auth?.userId) {
       return NextResponse.json(
@@ -78,20 +199,6 @@ export async function DELETE(req: NextRequest) {
           message: "לא מחובר",
         },
         { status: 401 }
-      );
-    }
-
-    const adminUser = await User.findById(auth.userId)
-      .select("_id role")
-      .lean();
-
-    if (!adminUser || adminUser.role !== "admin") {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "אין הרשאת אדמין לביצוע הפעולה",
-        },
-        { status: 403 }
       );
     }
 
@@ -112,29 +219,74 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    if (!isValidObjectId(userId) || !isValidObjectId(invitationId)) {
+    if (!isValidObjectId(userId)) {
       return NextResponse.json(
         {
           success: false,
-          message: "מזהה משתמש או מזהה הזמנה לא תקין",
+          message: "מזהה משתמש לא תקין",
         },
         { status: 400 }
       );
     }
 
-    const userObjectId = toObjectId(userId);
-    const invitationObjectId = toObjectId(invitationId);
+    const authUser = await User.findById(auth.userId).select("_id role").lean();
 
-    const invitation = await Invitation.findOne({
-      _id: invitationObjectId,
-      $or: [
-        { ownerId: userObjectId },
-        { ownerId: userId },
-        { userId: userObjectId },
-        { userId },
+    if (!authUser) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "משתמש מחובר לא נמצא",
+        },
+        { status: 401 }
+      );
+    }
+
+    const effectiveRole =
+      auth?.impersonationRole === "producer_staff"
+        ? "producer"
+        : auth?.impersonationRole || authUser.role || auth?.role;
+
+    const isAdmin = effectiveRole === "admin";
+    const isVenueOwner = effectiveRole === "venue_owner";
+
+    if (!isAdmin && !isVenueOwner) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "אין הרשאה לביצוע הפעולה",
+        },
+        { status: 403 }
+      );
+    }
+
+    const userObjectId = toObjectId(userId);
+
+    const invitationIdValues = buildIdValues(invitationId);
+
+    const invitationQuery: any = {
+      $and: [
+        {
+          $or: [
+            ...invitationIdValues.map((value) => ({ _id: value })),
+            ...invitationIdValues.map((value) => ({ invitationId: value })),
+            ...invitationIdValues.map((value) => ({ id: value })),
+          ],
+        },
+        {
+          $or: [
+            { ownerId: userObjectId },
+            { ownerId: userId },
+            { userId: userObjectId },
+            { userId },
+          ],
+        },
       ],
-    })
-      .select("_id ownerId userId eventId shareId")
+    };
+
+    const invitation: any = await Invitation.findOne(invitationQuery)
+      .select(
+        "_id ownerId userId eventId shareId venueOwnerId venueHallId hallId venueHallName"
+      )
       .lean();
 
     if (!invitation) {
@@ -147,95 +299,99 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
+    if (isVenueOwner) {
+      const authUserId = String(auth.userId);
+
+      const invitationVenueOwnerId = invitation.venueOwnerId
+        ? String(invitation.venueOwnerId)
+        : "";
+
+      if (invitationVenueOwnerId && invitationVenueOwnerId !== authUserId) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "אין הרשאה של בעל אולם למחיקת ההזמנה הזו",
+          },
+          { status: 403 }
+        );
+      }
+    }
+
     const eventId = invitation.eventId ? String(invitation.eventId) : "";
     const shareId = invitation.shareId ? String(invitation.shareId) : "";
 
-    const eventObjectId =
-      eventId && isValidObjectId(eventId) ? toObjectId(eventId) : null;
+    const relatedFilter = buildRelatedOrFilter({
+      invitationId: String(invitation._id || invitationId),
+      eventId,
+      shareId,
+    });
 
-    const relatedFilter = {
-      $or: [
-        { invitationId: invitationObjectId },
-        { invitationId },
+    const directInvitationFilter = buildRelatedOrFilter({
+      invitationId,
+      eventId,
+      shareId,
+    });
 
-        { inviteId: invitationObjectId },
-        { inviteId: invitationId },
+    const finalRelatedFilter =
+      relatedFilter && directInvitationFilter
+        ? {
+            $or: [
+              ...(Array.isArray((relatedFilter as any).$or)
+                ? (relatedFilter as any).$or
+                : []),
+              ...(Array.isArray((directInvitationFilter as any).$or)
+                ? (directInvitationFilter as any).$or
+                : []),
+            ],
+          }
+        : relatedFilter || directInvitationFilter;
 
-        { ownerId: userObjectId },
-        { ownerId: userId },
+    if (!finalRelatedFilter) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "לא ניתן לבנות פילטר מחיקה",
+        },
+        { status: 400 }
+      );
+    }
 
-        ...(eventId
-          ? [
-              { eventId },
-              ...(eventObjectId ? [{ eventId: eventObjectId }] : []),
-            ]
-          : []),
+    const guestsBeforeDelete = await InvitationGuest.find(finalRelatedFilter)
+      .select("_id groupId")
+      .lean();
 
-        ...(shareId ? [{ shareId }] : []),
-      ],
-    };
+    const guestIds = guestsBeforeDelete.map((guest: any) => String(guest._id));
 
-    const guestFilter = {
-      $or: [
-        { invitationId: invitationObjectId },
-        { invitationId },
-
-        ...(eventId
-          ? [
-              { eventId },
-              ...(eventObjectId ? [{ eventId: eventObjectId }] : []),
-            ]
-          : []),
-
-        ...(shareId ? [{ shareId }] : []),
-      ],
-    };
-
-    const groupFilter = {
-      $or: [
-        { invitationId: invitationObjectId },
-        { invitationId },
-
-        ...(eventId
-          ? [
-              { eventId },
-              ...(eventObjectId ? [{ eventId: eventObjectId }] : []),
-            ]
-          : []),
-
-        ...(shareId ? [{ shareId }] : []),
-      ],
-    };
+    const seatingPullResults = await pullGuestsFromSeatingCollections(
+      guestIds,
+      finalRelatedFilter
+    );
 
     const [guestsDeleteResult, groupsDeleteResult] = await Promise.all([
-      InvitationGuest.deleteMany(guestFilter),
-      Group.deleteMany(groupFilter),
+      InvitationGuest.deleteMany(finalRelatedFilter),
+      Group.deleteMany(finalRelatedFilter),
     ]);
 
     const extraDeletes = await Promise.all([
-      deleteFromCollectionIfExists("guests", relatedFilter),
-      deleteFromCollectionIfExists("invitationguests", relatedFilter),
-      deleteFromCollectionIfExists("invitationGuests", relatedFilter),
+      deleteFromCollectionIfExists("guests", finalRelatedFilter),
+      deleteFromCollectionIfExists("invitationguests", finalRelatedFilter),
+      deleteFromCollectionIfExists("invitationGuests", finalRelatedFilter),
 
-      deleteFromCollectionIfExists("groups", relatedFilter),
-      deleteFromCollectionIfExists("guestgroups", relatedFilter),
-      deleteFromCollectionIfExists("guestGroups", relatedFilter),
+      deleteFromCollectionIfExists("groups", finalRelatedFilter),
+      deleteFromCollectionIfExists("guestgroups", finalRelatedFilter),
+      deleteFromCollectionIfExists("guestGroups", finalRelatedFilter),
 
-      deleteFromCollectionIfExists("seatingtables", relatedFilter),
-      deleteFromCollectionIfExists("seatingTables", relatedFilter),
-      deleteFromCollectionIfExists("seatings", relatedFilter),
+      deleteFromCollectionIfExists("scheduledmessages", finalRelatedFilter),
+      deleteFromCollectionIfExists("scheduledMessages", finalRelatedFilter),
 
-      deleteFromCollectionIfExists("scheduledmessages", relatedFilter),
-      deleteFromCollectionIfExists("scheduledMessages", relatedFilter),
-
-      deleteFromCollectionIfExists("whatsappqueues", relatedFilter),
-      deleteFromCollectionIfExists("whatsappQueues", relatedFilter),
-      deleteFromCollectionIfExists("whatsappqueue", relatedFilter),
-      deleteFromCollectionIfExists("WhatsappQueue", relatedFilter),
+      deleteFromCollectionIfExists("whatsappqueues", finalRelatedFilter),
+      deleteFromCollectionIfExists("whatsappQueues", finalRelatedFilter),
+      deleteFromCollectionIfExists("whatsappqueue", finalRelatedFilter),
+      deleteFromCollectionIfExists("WhatsappQueue", finalRelatedFilter),
     ]);
 
     const invitationDeleteResult = await Invitation.deleteOne({
-      _id: invitationObjectId,
+      _id: invitation._id,
     });
 
     if (!invitationDeleteResult.deletedCount) {
@@ -268,11 +424,12 @@ export async function DELETE(req: NextRequest) {
         invitations: invitationDeleteResult.deletedCount || 0,
         guests: guestsDeleteResult.deletedCount || 0,
         groups: groupsDeleteResult.deletedCount || 0,
+        seatingPullResults,
         extraCollections: extraDeletes,
       },
     });
   } catch (err) {
-    console.error("❌ Delete invitation admin error:", err);
+    console.error("❌ Delete invitation error:", err);
 
     return NextResponse.json(
       {
