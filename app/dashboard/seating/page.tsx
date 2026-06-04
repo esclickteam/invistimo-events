@@ -155,12 +155,15 @@ const isVenueView = searchParams.get("venueView") === "1";
 const isLiveView = searchParams.get("live") === "1";
 
   const isProducer = pathname.includes("/events/production");
+  const isLiveSeatingView =
+    isProducer || isLiveView || seatingMode === "live";
   const isDemo = pathname.startsWith("/try/");
   const isVenueTemplateMode = seatingMode === "venue-template";
 
   const didLoadRef = useRef(false);
   const didFinishInitialLoadRef = useRef(false);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const liveRefreshInFlightRef = useRef(false);
 
   /* ===============================
      LOCAL STATE
@@ -256,14 +259,19 @@ const isLiveView = searchParams.get("live") === "1";
   }, [user, isVenueTemplateMode, isVenueView]);
 
   /* ===============================
-     PRODUCER LIVE MODE
+     SEATING MODE
+     live=1 / producer / mode=live => מצב לייב
+     אחרת מחזירים ל-regular כדי שלא יישאר מצב ישן מה-store
   =============================== */
   useEffect(() => {
-  if (!isProducer && !isLiveView) return;
+    if (isLiveSeatingView) {
+      console.log("🔥 ENABLE LIVE MODE (SEATING)");
+      setSeatingMode("live");
+      return;
+    }
 
-  console.log("🔥 ENABLE LIVE MODE (SEATING)");
-  setSeatingMode("live");
-}, [isProducer, isLiveView, setSeatingMode]);
+    setSeatingMode("regular");
+  }, [isLiveSeatingView, setSeatingMode]);
   /* ===============================
      LOAD SEATING DATA
   =============================== */
@@ -274,6 +282,7 @@ const isLiveView = searchParams.get("live") === "1";
     invitationIdToLoad
   )}${isVenueView ? "&venueView=1" : ""}`,
   {
+    credentials: "include",
     cache: "no-store",
   }
 );
@@ -302,6 +311,7 @@ const isLiveView = searchParams.get("live") === "1";
     invitationIdToLoad
   )}${isVenueView ? "&venueView=1" : ""}`,
   {
+    credentials: "include",
     cache: "no-store",
   }
 );
@@ -476,6 +486,77 @@ if (eventIdFromQuery && invitationIdFromQuery) {
     loadSeatingData,
     user,
     eventIdFromQuery,
+  ]);
+
+  /* ===============================
+     LIVE REFRESH
+     כשנכנסים לטאב / מסך לייב לא מחכים לריענון דף:
+     מושכים מחדש גם אורחים וגם שולחנות, כי הצביעה בקנבס תלויה בנתונים האלה.
+  =============================== */
+  const refreshLiveSeatingData = useCallback(async () => {
+    if (isDemo) return;
+    if (isVenueTemplateMode) return;
+    if (!isLiveSeatingView) return;
+    if (!eventId || !invitationId) return;
+    if (liveRefreshInFlightRef.current) return;
+
+    liveRefreshInFlightRef.current = true;
+
+    try {
+      await loadSeatingData(eventId, invitationId);
+    } finally {
+      liveRefreshInFlightRef.current = false;
+    }
+  }, [
+    isDemo,
+    isVenueTemplateMode,
+    isLiveSeatingView,
+    eventId,
+    invitationId,
+    loadSeatingData,
+  ]);
+
+  useEffect(() => {
+    if (isDemo) return;
+    if (isVenueTemplateMode) return;
+    if (!isLiveSeatingView) return;
+    if (!eventId || !invitationId) return;
+
+    // ריענון מיידי בכניסה ללייב / לטאב
+    refreshLiveSeatingData();
+
+    const interval = window.setInterval(() => {
+      refreshLiveSeatingData();
+    }, 3000);
+
+    const refreshOnFocus = () => {
+      refreshLiveSeatingData();
+    };
+
+    const refreshOnVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshLiveSeatingData();
+      }
+    };
+
+    window.addEventListener("focus", refreshOnFocus);
+    document.addEventListener("visibilitychange", refreshOnVisibilityChange);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshOnFocus);
+      document.removeEventListener(
+        "visibilitychange",
+        refreshOnVisibilityChange
+      );
+    };
+  }, [
+    isDemo,
+    isVenueTemplateMode,
+    isLiveSeatingView,
+    eventId,
+    invitationId,
+    refreshLiveSeatingData,
   ]);
 
   /* ===============================
@@ -772,6 +853,7 @@ if (eventIdFromQuery && invitationIdFromQuery) {
   useEffect(() => {
     if (isVenueTemplateMode) return;
     if (isDemo) return;
+    if (isLiveSeatingView) return;
     if (blockReason === "no-plan") return;
 
     if (!eventId || !invitationId) return;
@@ -808,6 +890,7 @@ if (eventIdFromQuery && invitationIdFromQuery) {
     blockReason,
     saveSeating,
     isVenueTemplateMode,
+    isLiveSeatingView,
   ]);
 
   /* ===============================
