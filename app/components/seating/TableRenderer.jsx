@@ -176,11 +176,13 @@ function TableRenderer({ table, hideSeats = false }) {
   const startAngleRef = useRef(0);
   const startRotationRadRef = useRef(0);
 
+  const demoMode = useSeatingStore((s) => s.demoMode);
   const highlightedTable = useSeatingStore((s) => s.highlightedTable);
   const selectedGuestId = useSeatingStore((s) => s.selectedGuestId);
   const draggingGuest = useSeatingStore((s) => s.draggingGuest);
   const guests = useSeatingStore((s) => s.guests);
   const assignGuestBlock = useSeatingStore((s) => s.assignGuestBlock);
+  const selectedTableId = useSeatingStore((s) => s.selectedTableId);
   const liveArrivals = useSeatingStore((s) => s.liveArrivals);
   const seatingMode = useSeatingStore((s) => s.seatingMode);
 
@@ -193,6 +195,11 @@ function TableRenderer({ table, hideSeats = false }) {
   useEffect(() => {
     console.log("🟢 seatingMode in TableRenderer:", seatingMode);
   }, [seatingMode]);
+
+  const deleteTable =
+    useSeatingStore((s) => s.deleteTable) ||
+    useSeatingStore((s) => s.removeTable) ||
+    (() => {});
 
   const tableId = String(table.id || table._id || "");
 
@@ -300,98 +307,40 @@ function TableRenderer({ table, hideSeats = false }) {
     );
   }, [plannedSeatedGuests, table.seatedGuests, guests, groups]);
 
-  const getTableNumberFromValue = (value) => {
-    const match = String(value || "").match(/\d+/);
-    return match ? String(match[0]) : "";
-  };
+  const occupiedSeatsCount = useMemo(() => {
+    if (!plannedSeatedGuests.length) return 0;
 
-  const normalizeTableName = (value) => {
-    return String(value || "")
-      .replace(/\s+/g, " ")
-      .replace("שולחן", "")
-      .trim();
-  };
+    const counted = new Set();
 
-  const tableGuestRows = useMemo(() => {
-    const currentTableId = String(table.id || table._id || "").trim();
+    return plannedSeatedGuests.reduce((sum, s) => {
+      const guestId = String(s.guestId);
+      if (counted.has(guestId)) return sum;
 
-    const currentTableNumber = String(
-      table.tableNumber ||
-        table.number ||
-        getTableNumberFromValue(table.name)
-    ).trim();
+      counted.add(guestId);
 
-    const currentTableName = String(table.name || "").trim();
-    const currentTableNameNumber = normalizeTableName(currentTableName);
+      const g = guests.find((g) => String(g._id || g.id) === guestId);
+      if (!g) return sum;
 
-    return (guests || []).filter((guest) => {
-      const guestTableId = String(guest.tableId || "").trim();
+      if (seatingMode === "live") {
+        const key = String(g.id ?? g._id);
 
-      const guestTableNumber = String(
-        guest.tableNumber ||
-          getTableNumberFromValue(guest.tableName)
-      ).trim();
+        const liveValue =
+          liveArrivals && Object.prototype.hasOwnProperty.call(liveArrivals, key)
+            ? Number(liveArrivals[key] || 0)
+            : Number(g.actualArrivedCount || 0);
 
-      const guestTableName = String(guest.tableName || "").trim();
-      const guestTableNameNumber = normalizeTableName(guestTableName);
+        return sum + Math.max(0, liveValue);
+      }
 
-      return (
-        (currentTableId && guestTableId === currentTableId) ||
-        (currentTableNumber && guestTableNumber === currentTableNumber) ||
-        (currentTableName && guestTableName === currentTableName) ||
-        (currentTableNameNumber &&
-          guestTableNameNumber &&
-          currentTableNameNumber === guestTableNameNumber)
-      );
-    });
-  }, [guests, table.id, table._id, table.tableNumber, table.number, table.name]);
+      return sum + Math.max(0, Number(g.arrivedCount ?? 0));
+    }, 0);
+  }, [plannedSeatedGuests, guests, seatingMode, liveArrivals]);
 
   const seatsTotal = Number(table.seats || 0);
   const tableTitle = table.name || "";
 
-  /*
-    הושבה / מגיעים:
-    רק arrivedCount.
-    אם אין התאמה לאורחים — fallback ל-snapshot של ההושבה הרגילה.
-  */
-  const plannedSeatsCount = useMemo(() => {
-    const total = tableGuestRows.reduce((sum, guest) => {
-      return sum + Math.max(0, Number(guest.arrivedCount || 0));
-    }, 0);
-
-    if (total > 0) return Math.min(seatsTotal, total);
-
-    return Math.min(seatsTotal, plannedSeatedGuests.length);
-  }, [tableGuestRows, plannedSeatedGuests.length, seatsTotal]);
-
-  /*
-    בפועל / מגיעים בפועל:
-    רק actualArrivedCount.
-    liveArrivals משמש רק אם המשתמש שינה ערך בלייב ועדיין לא נשמר לשרת.
-  */
-  const liveArrivedCount = useMemo(() => {
-    const total = tableGuestRows.reduce((sum, guest) => {
-      const key = String(guest.id ?? guest._id ?? "");
-
-      const actualValue = Number(guest.actualArrivedCount || 0);
-
-      const liveValue =
-        key &&
-        liveArrivals &&
-        Object.prototype.hasOwnProperty.call(liveArrivals, key)
-          ? Number(liveArrivals[key] || 0)
-          : null;
-
-      const value =
-        liveValue !== null && Number.isFinite(liveValue)
-          ? liveValue
-          : actualValue;
-
-      return sum + Math.max(0, Number(value || 0));
-    }, 0);
-
-    return Math.min(seatsTotal, total);
-  }, [tableGuestRows, liveArrivals, seatsTotal]);
+  const plannedSeatsCount = plannedSeatedGuests.length;
+  const liveArrivedCount = occupiedSeatsCount;
 
   const isHighlighted =
     highlightedTable === table.id ||
@@ -400,7 +349,7 @@ function TableRenderer({ table, hideSeats = false }) {
       guestIdFromUrl &&
       assigned.some((s) => String(s.guestId) === String(guestIdFromUrl)));
 
-  const hasArrived = liveArrivedCount > 0;
+  const hasArrived = occupiedSeatsCount > 0;
 
   /* ============================================================
      עיצוב בלבד
@@ -472,56 +421,62 @@ function TableRenderer({ table, hideSeats = false }) {
 
   const seatsCoords = layout.coords;
 
-  /*
-    חישוב כיסאות שהגיעו בפועל:
-    חשוב מאוד:
-    אם בפועל הגיעו יותר ממספר ההושבה המקורית,
-    לדוגמה הושבה 5 אבל בפועל 6 —
-    עדיין נצבע 6 כיסאות אדומים.
-  */
+  /* ============================================================
+     חישוב כיסאות שהגיעו בפועל
+     ההושבה הרגילה נשארת בסיס בלייב.
+     רק actualArrivedCount / liveArrivals צובע כיסאות אדום.
+  ============================================================ */
   const arrivedSeatsSet = useMemo(() => {
     const arrived = new Set();
 
-    const totalSeats = Number(table.seats || 0);
-    const totalArrived = Math.min(
-      totalSeats,
-      Math.max(0, Number(liveArrivedCount || 0))
-    );
+    if (!plannedSeatedGuests.length) return arrived;
 
-    if (!totalSeats || !totalArrived) return arrived;
+    const guestActualMap = new Map();
 
-    /*
-      קודם צובעים את הכיסאות שהיו בהושבה המקורית,
-      לפי הסדר שלהם.
-    */
-    const plannedSorted = [...plannedSeatedGuests].sort(
+    for (const seated of plannedSeatedGuests) {
+      const guestId = String(seated.guestId);
+      if (guestActualMap.has(guestId)) continue;
+
+      const guest = guests.find((g) => String(g._id || g.id) === guestId);
+
+      if (!guest) {
+        guestActualMap.set(guestId, 0);
+        continue;
+      }
+
+      if (seatingMode === "live") {
+        const key = String(guest.id ?? guest._id);
+
+        const liveValue =
+          liveArrivals && Object.prototype.hasOwnProperty.call(liveArrivals, key)
+            ? Number(liveArrivals[key] || 0)
+            : Number(guest.actualArrivedCount || 0);
+
+        guestActualMap.set(guestId, Math.max(0, liveValue));
+      } else {
+        guestActualMap.set(
+          guestId,
+          Math.max(0, Number(guest.arrivedCount || 0))
+        );
+      }
+    }
+
+    const sorted = [...plannedSeatedGuests].sort(
       (a, b) => Number(a.seatIndex ?? 0) - Number(b.seatIndex ?? 0)
     );
 
-    for (const seated of plannedSorted) {
-      if (arrived.size >= totalArrived) break;
+    for (const seated of sorted) {
+      const guestId = String(seated.guestId);
+      const remaining = Number(guestActualMap.get(guestId) || 0);
 
-      const index = Number(seated.seatIndex);
-      if (!Number.isFinite(index)) continue;
-      if (index < 0 || index >= totalSeats) continue;
+      if (remaining <= 0) continue;
 
-      arrived.add(index);
-    }
-
-    /*
-      אם הגיעו יותר ממה שהושב,
-      משלימים אדום על כיסאות פנויים.
-      לדוגמה: הושבה 5, בפועל 6 => עוד כיסא ירוק אחד יהפוך לאדום.
-    */
-    for (let i = 0; i < totalSeats; i++) {
-      if (arrived.size >= totalArrived) break;
-      if (arrived.has(i)) continue;
-
-      arrived.add(i);
+      arrived.add(Number(seated.seatIndex));
+      guestActualMap.set(guestId, remaining - 1);
     }
 
     return arrived;
-  }, [table.seats, plannedSeatedGuests, liveArrivedCount]);
+  }, [plannedSeatedGuests, guests, seatingMode, liveArrivals]);
 
   const getSeatVisual = (seat, seatIndex) => {
     /*
@@ -543,10 +498,20 @@ function TableRenderer({ table, hideSeats = false }) {
 
     /*
       מצב לייב:
-      אדום קודם כל לפי מספר שהגיעו בפועל.
-      זה חייב להיות לפני בדיקת seat,
-      כדי שגם אם הגיעו יותר מההושבה המקורית,
-      כיסא פנוי יוכל להפוך לאדום.
+      אין שיבוץ רגיל בכיסא = ירוק פנוי.
+    */
+    if (!seat) {
+      return {
+        chairFill: "#16A34A",
+        chairStroke: "#166534",
+        chairHighlight: "#DCFCE7",
+        chairDepth: "#15803D",
+        chairShadow: "#14532D",
+      };
+    }
+
+    /*
+      יש שיבוץ רגיל והכיסא נספר כמי שהגיע בפועל = אדום.
     */
     if (arrivedSeatsSet.has(Number(seatIndex))) {
       return {
@@ -559,15 +524,14 @@ function TableRenderer({ table, hideSeats = false }) {
     }
 
     /*
-      כל כיסא שלא נספר בפועל בלייב = ירוק.
-      גם אם היה משובץ בהושבה המקורית אבל לא הגיע.
+      יש שיבוץ רגיל אבל עדיין לא הגיע בפועל = זהב.
     */
     return {
-      chairFill: "#16A34A",
-      chairStroke: "#166534",
-      chairHighlight: "#DCFCE7",
-      chairDepth: "#15803D",
-      chairShadow: "#14532D",
+      chairFill: "#B98A45",
+      chairStroke: "#8B6532",
+      chairHighlight: "#E3BD63",
+      chairDepth: "#8D642C",
+      chairShadow: "#6F4A19",
     };
   };
 
@@ -656,6 +620,7 @@ function TableRenderer({ table, hideSeats = false }) {
     }));
   };
 
+  /* ====== סיבוב ====== */
   const startRotate = (e) => {
     e.cancelBubble = true;
     if (!tableRef.current) return;
@@ -714,6 +679,10 @@ function TableRenderer({ table, hideSeats = false }) {
       onClick={handleClick}
       onTap={handleClick}
     >
+      {/* ============================================================
+          כסאות בסגנון הסקיצה:
+          גב עליון רחב + מושב גדול + עומק תחתון + הצללה.
+      ============================================================ */}
       {seatsCoords.map((c, i) => {
         const seat = plannedSeatedGuests.find(
           (s) => Number(s.seatIndex) === i
@@ -821,6 +790,7 @@ function TableRenderer({ table, hideSeats = false }) {
         );
       })}
 
+      {/* שולחן עגול */}
       {layout.type === "round" && (
         <>
           <Circle
@@ -835,6 +805,7 @@ function TableRenderer({ table, hideSeats = false }) {
         </>
       )}
 
+      {/* שולחן מרובע */}
       {layout.type === "square" && (
         <>
           <Rect
@@ -853,6 +824,7 @@ function TableRenderer({ table, hideSeats = false }) {
         </>
       )}
 
+      {/* שולחן אבירים / מלבני */}
       {layout.type === "banquet" && (
         <>
           <Rect
@@ -871,6 +843,7 @@ function TableRenderer({ table, hideSeats = false }) {
         </>
       )}
 
+      {/* כפתור סיבוב */}
       {!hideSeats && (
         <Group
           y={
