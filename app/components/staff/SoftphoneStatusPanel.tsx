@@ -1010,7 +1010,7 @@ export default function SoftphoneStatusPanel() {
     return data;
   }
 
-  async function connectWebrtc() {
+   async function connectWebrtc() {
     if (telnyxClientRef.current && webrtcReady) return telnyxClientRef.current;
     if (webrtcConnecting) return telnyxClientRef.current;
 
