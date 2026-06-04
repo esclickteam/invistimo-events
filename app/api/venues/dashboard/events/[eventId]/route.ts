@@ -135,8 +135,8 @@ function getInvitationTitle(invitation: any) {
 }
 
 /**
- * Event = מקור אמת לשיוך אולם בלבד
- * Invitation = מקור אמת לפרטי האירוע
+ * Event = מקור אמת לשיוך אולם.
+ * Invitation = מקור אמת לפרטי ההזמנה והמוזמנים.
  */
 function serializeEvent(event: any, hall?: any, invitation?: any) {
   const venueHallId = cleanString(event.venueHallId);
@@ -154,7 +154,6 @@ function serializeEvent(event: any, hall?: any, invitation?: any) {
     "wedding";
 
   const date = getInvitationDate(invitation) || normalizeDateOnly(event.date);
-
   const time = getInvitationTime(invitation) || cleanString(event.time);
 
   const location = invitation?.location || event.location || {};
@@ -178,11 +177,8 @@ function serializeEvent(event: any, hall?: any, invitation?: any) {
     cleanString(event.paymentStatus) ||
     "paid";
 
-  const email =
-    cleanString(invitation?.email) || cleanString(event.email) || "";
-
-  const notes =
-    cleanString(invitation?.notes) || cleanString(event.notes) || "";
+  const email = cleanString(invitation?.email) || cleanString(event.email) || "";
+  const notes = cleanString(invitation?.notes) || cleanString(event.notes) || "";
 
   const venueClientInvitationId =
     invitation?._id ||
@@ -209,7 +205,7 @@ function serializeEvent(event: any, hall?: any, invitation?: any) {
     toNumber(event.venueClientRecordsCount, 0) ||
     toNumber(invitation?.venueClientRecordsCount, 0) ||
     (Array.isArray(invitation?.guests) ? invitation.guests.length : 0) ||
-    maxGuests;
+    0;
 
   return {
     id: String(event._id),
@@ -290,51 +286,153 @@ async function countGuestsForInvitationId(invitationId: any) {
   });
 }
 
-async function findBestInvitationByGuests(candidates: any[]) {
-  const filtered = candidates.filter(Boolean);
+/**
+ * מחפש את ההזמנה החדשה ביותר לפי מזהה האירוע.
+ * זה מה שגורם לאולם לקלוט הזמנה חדשה שנוצרה ללקוח על אותו eventId.
+ */
+async function findLatestInvitationForEvent(event: any) {
+  const invitations = getCollection("invitations");
 
-  if (!filtered.length) return null;
+  if (!invitations || !event?._id) return null;
 
-  let best = filtered[0];
-  let bestGuestCount = -1;
+  const eventIdValues = objectIdOrString(event._id);
 
-  for (const candidate of filtered) {
-    const embeddedGuestsCount = Array.isArray(candidate?.guests)
-      ? candidate.guests.length
-      : 0;
+  const ownerValues: any[] = [];
 
-    const collectionGuestsCount = await countGuestsForInvitationId(candidate?._id);
-    const totalGuestsCount = collectionGuestsCount || embeddedGuestsCount;
-
-    if (totalGuestsCount > bestGuestCount) {
-      best = candidate;
-      bestGuestCount = totalGuestsCount;
-    }
+  if (event?.venueClientUserId) {
+    ownerValues.push(...objectIdOrString(event.venueClientUserId));
   }
 
-  return best;
+  if (event?.userId) {
+    ownerValues.push(...objectIdOrString(event.userId));
+  }
+
+  const eventMatch = {
+    $or: [
+      { eventId: { $in: eventIdValues } },
+      { venueClientEventId: { $in: eventIdValues } },
+      { productionEventId: { $in: eventIdValues } },
+      { linkedEventId: { $in: eventIdValues } },
+      { event: { $in: eventIdValues } },
+    ],
+  };
+
+  const query =
+    ownerValues.length > 0
+      ? {
+          $and: [
+            eventMatch,
+            {
+              $or: [
+                { ownerId: { $in: ownerValues } },
+                { userId: { $in: ownerValues } },
+                { clientId: { $in: ownerValues } },
+              ],
+            },
+          ],
+        }
+      : eventMatch;
+
+  const latest = await invitations
+    .find(query)
+    .sort({ createdAt: -1, updatedAt: -1, _id: -1 })
+    .limit(1)
+    .toArray();
+
+  if (latest[0]) return latest[0];
+
+  /*
+    fallback:
+    אם אין התאמה לפי eventId, לא מחפשים סתם לפי לקוח כדי לא לחבר אירוע רגיל לאולם בטעות.
+  */
+  return null;
+}
+
+/**
+ * מסנכרן את Event של האולם להזמנה החדשה ביותר לפי eventId.
+ */
+async function syncEventToLatestInvitation(event: any) {
+  const latestInvitation = await findLatestInvitationForEvent(event);
+
+  if (!latestInvitation?._id) {
+    return {
+      event,
+      invitation: null,
+    };
+  }
+
+  const latestInvitationId = String(latestInvitation._id);
+  const currentInvitationId = String(event.venueClientInvitationId || "");
+
+  const recordsCount = await countGuestsForInvitationId(latestInvitation._id);
+
+  if (currentInvitationId !== latestInvitationId) {
+    const eventsCollection = getCollection("events");
+
+    if (eventsCollection) {
+      await eventsCollection.updateOne(
+        { _id: event._id },
+        {
+          $set: {
+            venueClientInvitationId: latestInvitation._id,
+            venueClientUserId:
+              latestInvitation.ownerId ||
+              latestInvitation.userId ||
+              event.venueClientUserId ||
+              event.userId ||
+              null,
+            venueClientRecordsCount: recordsCount,
+            venueAccessStatus: "linked",
+            updatedAt: new Date(),
+          },
+        }
+      );
+    }
+
+    event.venueClientInvitationId = latestInvitation._id;
+    event.venueClientUserId =
+      latestInvitation.ownerId ||
+      latestInvitation.userId ||
+      event.venueClientUserId ||
+      event.userId ||
+      null;
+    event.venueClientRecordsCount = recordsCount;
+    event.venueAccessStatus = "linked";
+    event.updatedAt = new Date();
+  } else if (toNumber(event.venueClientRecordsCount, 0) !== recordsCount) {
+    const eventsCollection = getCollection("events");
+
+    if (eventsCollection) {
+      await eventsCollection.updateOne(
+        { _id: event._id },
+        {
+          $set: {
+            venueClientRecordsCount: recordsCount,
+            updatedAt: new Date(),
+          },
+        }
+      );
+    }
+
+    event.venueClientRecordsCount = recordsCount;
+    event.updatedAt = new Date();
+  }
+
+  return {
+    event,
+    invitation: latestInvitation,
+  };
 }
 
 async function findInvitationForEvent(event: any) {
+  const synced = await syncEventToLatestInvitation(event);
+
+  if (synced.invitation) return synced.invitation;
+
   const invitations = getCollection("invitations");
 
   if (!invitations) return null;
 
-  const candidates: any[] = [];
-
-  const eventIdValues = objectIdOrString(event._id);
-  const clientUserValues = event?.venueClientUserId
-    ? objectIdOrString(event.venueClientUserId)
-    : event?.userId
-      ? objectIdOrString(event.userId)
-      : [];
-
-  /*
-    חשוב:
-    לא מחזירים אוטומטית את event.venueClientInvitationId,
-    כי אם נוצר בעבר קישור שגוי להזמנה ריקה — אישורי ההגעה יראו 0.
-    לכן אוספים מועמדים ואז בוחרים את ההזמנה שיש עליה מוזמנים בפועל.
-  */
   const venueClientInvitationId = toObjectId(event.venueClientInvitationId);
 
   if (venueClientInvitationId) {
@@ -342,85 +440,10 @@ async function findInvitationForEvent(event: any) {
       _id: venueClientInvitationId,
     });
 
-    if (directInvitation) {
-      candidates.push(directInvitation);
-    }
+    if (directInvitation) return directInvitation;
   }
 
-  const linkedInvitations = await invitations
-    .find({
-      $or: [
-        { eventId: { $in: eventIdValues } },
-        { venueClientEventId: { $in: eventIdValues } },
-        { productionEventId: { $in: eventIdValues } },
-        { linkedEventId: { $in: eventIdValues } },
-        { event: { $in: eventIdValues } },
-      ],
-    })
-    .sort({ updatedAt: -1, createdAt: -1 })
-    .toArray();
-
-  candidates.push(...linkedInvitations);
-
-  if (clientUserValues.length) {
-    const userLinkedInvitations = await invitations
-      .find({
-        $and: [
-          {
-            $or: [
-              { userId: { $in: clientUserValues } },
-              { ownerId: { $in: clientUserValues } },
-              { clientId: { $in: clientUserValues } },
-            ],
-          },
-          {
-            $or: [
-              { eventId: { $in: eventIdValues } },
-              { venueClientEventId: { $in: eventIdValues } },
-              { productionEventId: { $in: eventIdValues } },
-              { linkedEventId: { $in: eventIdValues } },
-              { event: { $in: eventIdValues } },
-            ],
-          },
-        ],
-      })
-      .sort({ updatedAt: -1, createdAt: -1 })
-      .toArray();
-
-    candidates.push(...userLinkedInvitations);
-  }
-
-  const uniqueCandidates = Array.from(
-    new Map(candidates.map((candidate) => [String(candidate?._id), candidate])).values()
-  );
-
-  const bestByGuests = await findBestInvitationByGuests(uniqueCandidates);
-
-  if (bestByGuests) return bestByGuests;
-
-  const eventDate = normalizeDateOnly(event.date);
-
-  if (!eventDate || !clientUserValues.length) return null;
-
-  const dateFallbackInvitations = await invitations
-    .find({
-      $and: [
-        {
-          $or: [
-            { userId: { $in: clientUserValues } },
-            { ownerId: { $in: clientUserValues } },
-            { clientId: { $in: clientUserValues } },
-          ],
-        },
-        {
-          $or: [{ eventDate }, { date: eventDate }],
-        },
-      ],
-    })
-    .sort({ updatedAt: -1, createdAt: -1 })
-    .toArray();
-
-  return findBestInvitationByGuests(dateFallbackInvitations);
+  return null;
 }
 
 /**
@@ -446,7 +469,12 @@ async function buildRsvpStats(event: any, invitation: any) {
     invitationIdValues.push(...objectIdOrString(invitation._id));
   }
 
-  if (event?.venueClientInvitationId) {
+  /*
+    חשוב:
+    לא מוסיפים כאן invitationId ישן מה-event אם כבר נמצאה invitation חדשה.
+    אחרת האולם יספור גם ישן וגם חדש.
+  */
+  if (!invitation?._id && event?.venueClientInvitationId) {
     invitationIdValues.push(...objectIdOrString(event.venueClientInvitationId));
   }
 
@@ -487,11 +515,6 @@ async function buildRsvpStats(event: any, invitation: any) {
   let confirmedGuestsAmount = 0;
 
   for (const row of rows) {
-    /*
-      חשוב:
-      נותנים עדיפות לשדות המעודכנים מהטבלה/דשבורד.
-      אם status/rsvp ישנים נשארים pending, הם לא ידרסו rsvpStatus/responseStatus.
-    */
     const rawStatus = cleanString(
       row.rsvpStatus ??
         row.responseStatus ??
@@ -503,11 +526,6 @@ async function buildRsvpStats(event: any, invitation: any) {
         "pending"
     ).toLowerCase();
 
-    /*
-      כמות מגיעים בפועל:
-      קודם arrivedCount, כי זה השדה שמתעדכן כשמשנים "מגיעים" בטבלה.
-      guestsCount הוא רק כמות הרשומה המקורית.
-    */
     const guestsCount = Math.max(
       1,
       toNumber(
@@ -528,11 +546,6 @@ async function buildRsvpStats(event: any, invitation: any) {
       )
     );
 
-    /*
-      חשוב:
-      בודקים "לא מגיע" לפני "מגיע",
-      אחרת "לא מגיע" ייספר בטעות כמגיע בגלל includes("מגיע").
-    */
     const isDeclined =
       rawStatus === "no" ||
       rawStatus === "declined" ||
@@ -643,7 +656,7 @@ async function buildSeatingStats(
     invitationIdValues.push(...objectIdOrString(invitation._id));
   }
 
-  if (event?.venueClientInvitationId) {
+  if (!invitation?._id && event?.venueClientInvitationId) {
     invitationIdValues.push(...objectIdOrString(event.venueClientInvitationId));
   }
 
@@ -826,7 +839,7 @@ export async function GET(req: NextRequest, { params }: Props) {
       );
     }
 
-    const event = await Event.findOne({
+    let event: any = await Event.findOne({
       _id: eventId,
       venueOwnerId: auth.userId,
       venueAccessStatus: "linked",
@@ -842,7 +855,10 @@ export async function GET(req: NextRequest, { params }: Props) {
       );
     }
 
-    const invitation = await findInvitationForEvent(event);
+    const synced = await syncEventToLatestInvitation(event);
+    event = synced.event;
+
+    const invitation = synced.invitation || (await findInvitationForEvent(event));
     const hall = await getVenueHallForEvent(event, auth.userId);
     const stats = await buildStats(event, invitation);
 
@@ -923,7 +939,11 @@ export async function PATCH(req: NextRequest, { params }: Props) {
 
     const body = await req.json();
 
-    const invitation = await findInvitationForEvent(existingEvent);
+    const syncedBeforePatch = await syncEventToLatestInvitation(
+      existingEvent.toObject ? existingEvent.toObject() : existingEvent
+    );
+
+    const invitation = syncedBeforePatch.invitation;
 
     const requestedTitle = cleanString(body.title);
     const requestedDate = normalizeDateOnly(body.date);
@@ -1033,6 +1053,7 @@ export async function PATCH(req: NextRequest, { params }: Props) {
           eventId: existingEvent._id,
           productionEventId: existingEvent._id,
           linkedEventId: existingEvent._id,
+          venueClientEventId: existingEvent._id,
 
           venueOwnerId: existingEvent.venueOwnerId,
           venueHallId: existingEvent.venueHallId,
@@ -1094,32 +1115,28 @@ export async function PATCH(req: NextRequest, { params }: Props) {
     }
 
     const updatedEvent = await Event.findById(existingEvent._id).lean();
-    const updatedInvitation = updatedEvent
-      ? await findInvitationForEvent(updatedEvent)
-      : invitation;
+    const syncedAfterPatch = updatedEvent
+      ? await syncEventToLatestInvitation(updatedEvent)
+      : { event: existingEvent, invitation };
 
-    const hall = await getVenueHallForEvent(
-      updatedEvent || existingEvent,
-      auth.userId
-    );
+    const finalEvent = syncedAfterPatch.event || updatedEvent || existingEvent;
+    const finalInvitation = syncedAfterPatch.invitation || invitation;
 
-    const stats = await buildStats(
-      updatedEvent || existingEvent,
-      updatedInvitation
-    );
+    const hall = await getVenueHallForEvent(finalEvent, auth.userId);
+    const stats = await buildStats(finalEvent, finalInvitation);
 
     return NextResponse.json({
       success: true,
       message: "האירוע עודכן בהצלחה",
-      event: serializeEvent(updatedEvent || existingEvent, hall, updatedInvitation),
+      event: serializeEvent(finalEvent, hall, finalInvitation),
       hall: serializeHall(hall),
       stats,
-      invitation: updatedInvitation
+      invitation: finalInvitation
         ? {
-            id: String(updatedInvitation._id),
-            _id: String(updatedInvitation._id),
-            shareId: cleanString(updatedInvitation.shareId),
-            venueClientInvitationId: String(updatedInvitation._id),
+            id: String(finalInvitation._id),
+            _id: String(finalInvitation._id),
+            shareId: cleanString(finalInvitation.shareId),
+            venueClientInvitationId: String(finalInvitation._id),
           }
         : null,
     });
