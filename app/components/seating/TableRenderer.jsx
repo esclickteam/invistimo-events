@@ -300,40 +300,70 @@ function TableRenderer({ table, hideSeats = false }) {
     );
   }, [plannedSeatedGuests, table.seatedGuests, guests, groups]);
 
-  const occupiedSeatsCount = useMemo(() => {
-    if (!plannedSeatedGuests.length) return 0;
+  const tableGuestRows = useMemo(() => {
+  const currentTableId = String(table.id || table._id || "");
+  const currentTableNumber = String(table.tableNumber || table.number || "");
+  const currentTableName = String(table.name || "").trim();
 
-    const counted = new Set();
+  return (guests || []).filter((guest) => {
+    const guestTableId = String(guest.tableId || "");
+    const guestTableNumber = String(guest.tableNumber || "");
+    const guestTableName = String(guest.tableName || "").trim();
 
-    return plannedSeatedGuests.reduce((sum, s) => {
-      const guestId = String(s.guestId);
-      if (counted.has(guestId)) return sum;
+    return (
+      (currentTableId && guestTableId === currentTableId) ||
+      (currentTableNumber && guestTableNumber === currentTableNumber) ||
+      (currentTableName && guestTableName === currentTableName)
+    );
+  });
+}, [guests, table.id, table._id, table.tableNumber, table.number, table.name]);
 
-      counted.add(guestId);
+const seatsTotal = Number(table.seats || 0);
+const tableTitle = table.name || "";
 
-      const g = guests.find((g) => String(g._id || g.id) === guestId);
-      if (!g) return sum;
+/*
+  הושבה רגילה:
+  לפי הנתון המקורי של כמה הושבו / כמה אמורים להגיע.
+  אצלך במונגו זה arrivedCount או amount.
+*/
+const plannedSeatsCount = useMemo(() => {
+  const fromGuests = tableGuestRows.reduce((sum, guest) => {
+    const value =
+      guest.arrivedCount ??
+      guest.amount ??
+      guest.plannedArrivedCount ??
+      guest.expectedArrivedCount ??
+      0;
 
-      if (seatingMode === "live") {
-        const key = String(g.id ?? g._id);
+    return sum + Math.max(0, Number(value || 0));
+  }, 0);
 
-        const liveValue =
-          liveArrivals && Object.prototype.hasOwnProperty.call(liveArrivals, key)
-            ? Number(liveArrivals[key] || 0)
-            : Number(g.actualArrivedCount || 0);
+  if (fromGuests > 0) return fromGuests;
 
-        return sum + Math.max(0, liveValue);
-      }
+  return plannedSeatedGuests.length;
+}, [tableGuestRows, plannedSeatedGuests.length]);
 
-      return sum + Math.max(0, Number(g.arrivedCount ?? 0));
-    }, 0);
-  }, [plannedSeatedGuests, guests, seatingMode, liveArrivals]);
+/*
+  מגיעים בפועל:
+  לפי actualArrivedCount בלבד.
+  אצלך במונגו זה actualArrivedCount.
+*/
+const liveArrivedCount = useMemo(() => {
+  const fromGuests = tableGuestRows.reduce((sum, guest) => {
+    const key = String(guest.id ?? guest._id ?? "");
 
-  const seatsTotal = Number(table.seats || 0);
-  const tableTitle = table.name || "";
+    const liveValue =
+      key &&
+      liveArrivals &&
+      Object.prototype.hasOwnProperty.call(liveArrivals, key)
+        ? Number(liveArrivals[key] || 0)
+        : Number(guest.actualArrivedCount || 0);
 
-  const plannedSeatsCount = plannedSeatedGuests.length;
-  const liveArrivedCount = occupiedSeatsCount;
+    return sum + Math.max(0, liveValue);
+  }, 0);
+
+  return Math.min(seatsTotal, fromGuests);
+}, [tableGuestRows, liveArrivals, seatsTotal]);
 
   const isHighlighted =
     highlightedTable === table.id ||
