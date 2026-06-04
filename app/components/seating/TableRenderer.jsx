@@ -17,10 +17,6 @@ function getTableLayout(rawTable) {
       ? "banquet"
       : rawTable.type;
 
-  /*
-    מידות הכיסאות עודכנו כדי שייראו כמו בסקיצה:
-    רחבים יותר, עבים יותר, עם מרווח נכון מסביב לשולחן.
-  */
   const SEAT_R = 13;
   const SEAT_GAP = 12;
   const OUTSIDE = 10;
@@ -187,34 +183,14 @@ function TableRenderer({ table, hideSeats = false }) {
   const guests = useSeatingStore((s) => s.guests);
   const assignGuestBlock = useSeatingStore((s) => s.assignGuestBlock);
   const selectedTableId = useSeatingStore((s) => s.selectedTableId);
-
   const liveArrivals = useSeatingStore((s) => s.liveArrivals);
+  const seatingMode = useSeatingStore((s) => s.seatingMode);
 
   const groups = useGroupStore((s) => s.groups);
-
-  const groupForTable = useMemo(() => {
-    if (!table.seatedGuests?.length) return null;
-
-    const guestWithGroup = guests.find(
-      (g) =>
-        g.groupId &&
-        table.seatedGuests.some(
-          (s) => String(s.guestId) === String(g._id || g.id)
-        )
-    );
-
-    if (!guestWithGroup?.groupId) return null;
-
-    return groups.find(
-      (gr) => String(gr._id) === String(guestWithGroup.groupId)
-    );
-  }, [table.seatedGuests, guests, groups]);
 
   const searchParams = useSearchParams();
   const from = searchParams.get("from");
   const guestIdFromUrl = searchParams.get("guestId");
-
-  const seatingMode = useSeatingStore((s) => s.seatingMode);
 
   useEffect(() => {
     console.log("🟢 seatingMode in TableRenderer:", seatingMode);
@@ -225,14 +201,118 @@ function TableRenderer({ table, hideSeats = false }) {
     useSeatingStore((s) => s.removeTable) ||
     (() => {});
 
-  const assigned = table.seatedGuests || [];
+  const tableId = String(table.id || table._id || "");
+
+  const normalizeSeatedGuests = (value) => {
+    if (!Array.isArray(value)) return [];
+
+    return value
+      .map((seat) => ({
+        ...seat,
+        guestId: String(seat.guestId || seat._id || seat.id || ""),
+        seatIndex: Number(seat.seatIndex ?? 0),
+      }))
+      .filter((seat) => seat.guestId);
+  };
+
+  const liveSnapshotKey = tableId ? `invistimo:planned-seating:${tableId}` : "";
+
+  /*
+    מקור אמת להושבה המקורית:
+    - אם יש snapshot מהשרת, משתמשים בו.
+    - במצב רגיל שומרים את ההושבה הקיימת.
+    - בלייב קוראים את ההושבה המקורית מה־localStorage.
+    - fallback אחרון: table.seatedGuests.
+  */
+  const plannedSeatedGuests = useMemo(() => {
+    const serverSnapshot =
+      table.plannedSeatedGuests ||
+      table.originalSeatedGuests ||
+      table.seatingSnapshot ||
+      table.snapshotSeatedGuests ||
+      null;
+
+    if (Array.isArray(serverSnapshot) && serverSnapshot.length) {
+      return normalizeSeatedGuests(serverSnapshot);
+    }
+
+    if (seatingMode !== "live") {
+      return normalizeSeatedGuests(table.seatedGuests || []);
+    }
+
+    if (typeof window !== "undefined" && liveSnapshotKey) {
+      try {
+        const raw = window.localStorage.getItem(liveSnapshotKey);
+        const parsed = raw ? JSON.parse(raw) : null;
+
+        if (Array.isArray(parsed) && parsed.length) {
+          return normalizeSeatedGuests(parsed);
+        }
+      } catch (err) {
+        console.warn("Failed to read planned seating snapshot", err);
+      }
+    }
+
+    return normalizeSeatedGuests(table.seatedGuests || []);
+  }, [
+    table.id,
+    table._id,
+    table.seatedGuests,
+    table.plannedSeatedGuests,
+    table.originalSeatedGuests,
+    table.seatingSnapshot,
+    table.snapshotSeatedGuests,
+    seatingMode,
+    liveSnapshotKey,
+  ]);
+
+  /*
+    שומר snapshot רק במצב רגיל.
+    בלייב לא שומרים, כדי לא לדרוס את ההושבה המקורית לפי מי שהגיע בפועל.
+  */
+  useEffect(() => {
+    if (seatingMode === "live") return;
+    if (!liveSnapshotKey) return;
+
+    const current = normalizeSeatedGuests(table.seatedGuests || []);
+
+    try {
+      window.localStorage.setItem(liveSnapshotKey, JSON.stringify(current));
+    } catch (err) {
+      console.warn("Failed to save planned seating snapshot", err);
+    }
+  }, [seatingMode, liveSnapshotKey, table.seatedGuests]);
+
+  const assigned = plannedSeatedGuests;
+
+  const groupForTable = useMemo(() => {
+    const seatedGuestsForGroup = plannedSeatedGuests?.length
+      ? plannedSeatedGuests
+      : table.seatedGuests || [];
+
+    if (!seatedGuestsForGroup.length) return null;
+
+    const guestWithGroup = guests.find(
+      (g) =>
+        g.groupId &&
+        seatedGuestsForGroup.some(
+          (s) => String(s.guestId) === String(g._id || g.id)
+        )
+    );
+
+    if (!guestWithGroup?.groupId) return null;
+
+    return groups.find(
+      (gr) => String(gr._id) === String(guestWithGroup.groupId)
+    );
+  }, [plannedSeatedGuests, table.seatedGuests, guests, groups]);
 
   const occupiedSeatsCount = useMemo(() => {
-    if (!table.seatedGuests?.length) return 0;
+    if (!plannedSeatedGuests.length) return 0;
 
     const counted = new Set();
 
-    return table.seatedGuests.reduce((sum, s) => {
+    return plannedSeatedGuests.reduce((sum, s) => {
       const guestId = String(s.guestId);
       if (counted.has(guestId)) return sum;
 
@@ -249,21 +329,17 @@ function TableRenderer({ table, hideSeats = false }) {
             ? Number(liveArrivals[key] || 0)
             : Number(g.actualArrivedCount || 0);
 
-        return sum + liveValue;
+        return sum + Math.max(0, liveValue);
       }
 
-      return sum + Number(g.arrivedCount ?? 0);
+      return sum + Math.max(0, Number(g.arrivedCount ?? 0));
     }, 0);
-  }, [table.seatedGuests, guests, seatingMode, liveArrivals]);
+  }, [plannedSeatedGuests, guests, seatingMode, liveArrivals]);
 
   const seatsTotal = Number(table.seats || 0);
-
   const tableTitle = table.name || "";
 
-  const plannedSeatsCount = useMemo(() => {
-    return Number(table.seatedGuests?.length || 0);
-  }, [table.seatedGuests]);
-
+  const plannedSeatsCount = plannedSeatedGuests.length;
   const liveArrivedCount = occupiedSeatsCount;
 
   const isHighlighted =
@@ -347,18 +423,17 @@ function TableRenderer({ table, hideSeats = false }) {
 
   /* ============================================================
      חישוב כיסאות שהגיעו בפועל
-     חשוב:
      ההושבה הרגילה נשארת בסיס בלייב.
-     רק כמות actualArrivedCount / liveArrivals צובעת אדום.
+     רק actualArrivedCount / liveArrivals צובע כיסאות אדום.
   ============================================================ */
   const arrivedSeatsSet = useMemo(() => {
     const arrived = new Set();
 
-    if (!table.seatedGuests?.length) return arrived;
+    if (!plannedSeatedGuests.length) return arrived;
 
     const guestActualMap = new Map();
 
-    for (const seated of table.seatedGuests || []) {
+    for (const seated of plannedSeatedGuests) {
       const guestId = String(seated.guestId);
       if (guestActualMap.has(guestId)) continue;
 
@@ -386,7 +461,7 @@ function TableRenderer({ table, hideSeats = false }) {
       }
     }
 
-    const sorted = [...(table.seatedGuests || [])].sort(
+    const sorted = [...plannedSeatedGuests].sort(
       (a, b) => Number(a.seatIndex ?? 0) - Number(b.seatIndex ?? 0)
     );
 
@@ -401,7 +476,7 @@ function TableRenderer({ table, hideSeats = false }) {
     }
 
     return arrived;
-  }, [table.seatedGuests, guests, seatingMode, liveArrivals]);
+  }, [plannedSeatedGuests, guests, seatingMode, liveArrivals]);
 
   const getSeatVisual = (seat, seatIndex) => {
     /*
@@ -449,8 +524,7 @@ function TableRenderer({ table, hideSeats = false }) {
     }
 
     /*
-      יש שיבוץ רגיל אבל עדיין לא הגיע בפועל =
-      זהב, בדיוק כמו ההושבה הרגילה.
+      יש שיבוץ רגיל אבל עדיין לא הגיע בפועל = זהב.
     */
     return {
       chairFill: "#B98A45",
@@ -610,7 +684,7 @@ function TableRenderer({ table, hideSeats = false }) {
           גב עליון רחב + מושב גדול + עומק תחתון + הצללה.
       ============================================================ */}
       {seatsCoords.map((c, i) => {
-        const seat = table.seatedGuests?.find(
+        const seat = plannedSeatedGuests.find(
           (s) => Number(s.seatIndex) === i
         );
 
@@ -645,7 +719,6 @@ function TableRenderer({ table, hideSeats = false }) {
 
         return (
           <Group key={i} x={chairX} y={chairY} rotation={rotation}>
-            {/* עומק/צל אחורי קטן כמו בסקיצה */}
             <Rect
               x={-17}
               y={-13}
@@ -658,7 +731,6 @@ function TableRenderer({ table, hideSeats = false }) {
               perfectDrawEnabled={false}
             />
 
-            {/* גב הכיסא העליון */}
             <Rect
               x={-15}
               y={-20}
@@ -675,7 +747,6 @@ function TableRenderer({ table, hideSeats = false }) {
               perfectDrawEnabled={false}
             />
 
-            {/* מושב הכיסא המרכזי */}
             <Rect
               x={-17}
               y={-11}
@@ -692,7 +763,6 @@ function TableRenderer({ table, hideSeats = false }) {
               perfectDrawEnabled={false}
             />
 
-            {/* הברקה פנימית */}
             <Rect
               x={-13}
               y={-8}
@@ -705,7 +775,6 @@ function TableRenderer({ table, hideSeats = false }) {
               perfectDrawEnabled={false}
             />
 
-            {/* קו עומק תחתון */}
             <Rect
               x={-14}
               y={9}
