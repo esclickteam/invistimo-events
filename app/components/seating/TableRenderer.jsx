@@ -339,8 +339,66 @@ function TableRenderer({ table, hideSeats = false }) {
   const seatsTotal = Number(table.seats || 0);
   const tableTitle = table.name || "";
 
-  const plannedSeatsCount = plannedSeatedGuests.length;
-  const liveArrivedCount = occupiedSeatsCount;
+  /*
+    הפרדה מלאה בין:
+    1. הושבה רגילה / מגיעים מתוכננים = arrivedCount
+    2. מגיעים בפועל בלייב = actualArrivedCount / liveArrivals
+    חשוב: לא משתמשים ב-plannedSeatedGuests.length לתצוגת "הושבה",
+    כי זה מספר הכיסאות/שיבוצים ולא מספר המגיעים שהוגדר בקבוצה/אורח.
+  */
+  const plannedArrivedCount = useMemo(() => {
+    if (!plannedSeatedGuests.length) {
+      return Math.max(0, Number(table.arrivedCount ?? 0));
+    }
+
+    const counted = new Set();
+
+    return plannedSeatedGuests.reduce((sum, s) => {
+      const guestId = String(s.guestId);
+      if (!guestId || counted.has(guestId)) return sum;
+
+      counted.add(guestId);
+
+      const g = guests.find((guest) => String(guest._id || guest.id) === guestId);
+
+      if (!g) return sum;
+
+      return sum + Math.max(0, Number(g.arrivedCount ?? 0));
+    }, 0);
+  }, [plannedSeatedGuests, guests, table.arrivedCount]);
+
+  const actualArrivedCount = useMemo(() => {
+    if (!plannedSeatedGuests.length) {
+      return Math.max(0, Number(table.actualArrivedCount ?? 0));
+    }
+
+    const counted = new Set();
+
+    return plannedSeatedGuests.reduce((sum, s) => {
+      const guestId = String(s.guestId);
+      if (!guestId || counted.has(guestId)) return sum;
+
+      counted.add(guestId);
+
+      const g = guests.find((guest) => String(guest._id || guest.id) === guestId);
+
+      if (!g) return sum;
+
+      const key = String(g.id ?? g._id);
+
+      const liveValue =
+        liveArrivals && Object.prototype.hasOwnProperty.call(liveArrivals, key)
+          ? Number(liveArrivals[key] || 0)
+          : Number(g.actualArrivedCount ?? 0);
+
+      return sum + Math.max(0, liveValue);
+    }, 0);
+  }, [plannedSeatedGuests, guests, liveArrivals, table.actualArrivedCount]);
+
+  const displayPlannedCount =
+    seatingMode === "live" ? plannedArrivedCount : plannedArrivedCount;
+
+  const displayActualCount = actualArrivedCount;
 
   const isHighlighted =
     highlightedTable === table.id ||
@@ -349,7 +407,7 @@ function TableRenderer({ table, hideSeats = false }) {
       guestIdFromUrl &&
       assigned.some((s) => String(s.guestId) === String(guestIdFromUrl)));
 
-  const hasArrived = occupiedSeatsCount > 0;
+  const hasArrived = seatingMode === "live" ? displayActualCount > 0 : displayPlannedCount > 0;
 
   /* ============================================================
      עיצוב בלבד
@@ -385,21 +443,21 @@ function TableRenderer({ table, hideSeats = false }) {
 
     if (seatingMode === "live") {
       lines.push({
-        text: `הושבה: ${plannedSeatsCount}/${seatsTotal}`,
+        text: `הושבה: ${displayPlannedCount}/${seatsTotal}`,
         fill: "#B98A45",
         fontSize: 15,
         fontStyle: "bold",
       });
 
       lines.push({
-        text: `בפועל: ${liveArrivedCount}/${seatsTotal}`,
+        text: `בפועל: ${displayActualCount}/${seatsTotal}`,
         fill: "#DC2626",
         fontSize: 15,
         fontStyle: "bold",
       });
     } else {
       lines.push({
-        text: `${plannedSeatsCount}/${seatsTotal}`,
+        text: `${displayPlannedCount}/${seatsTotal}`,
         fill: tableText,
         fontSize: 15,
         fontStyle: "bold",
@@ -412,8 +470,8 @@ function TableRenderer({ table, hideSeats = false }) {
     tableTitle,
     tableText,
     seatingMode,
-    plannedSeatsCount,
-    liveArrivedCount,
+    displayPlannedCount,
+    displayActualCount,
     seatsTotal,
   ]);
 
