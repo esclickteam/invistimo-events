@@ -116,7 +116,10 @@ async function deleteFromCollectionIfExists(
   }
 }
 
-async function pullGuestsFromSeatingCollections(guestIds: string[], relatedFilter: any) {
+async function pullGuestsFromSeatingCollections(
+  guestIds: string[],
+  relatedFilter: any
+) {
   if (!guestIds.length || !relatedFilter) {
     return [];
   }
@@ -135,7 +138,7 @@ async function pullGuestsFromSeatingCollections(guestIds: string[], relatedFilte
     guestId: { $in: guestIdValues },
   };
 
-  const updates = [];
+  const updates: any[] = [];
 
   const database = mongoose.connection.db;
   if (!database) return updates;
@@ -152,17 +155,23 @@ async function pullGuestsFromSeatingCollections(guestIds: string[], relatedFilte
 
       const collection = database.collection(collectionName);
 
-      const nested = await collection.updateMany(relatedFilter, {
-        $pull: {
-          "tables.$[].seatedGuests": pullFilter,
-        },
-      });
+      const nested = await collection.updateMany(
+        relatedFilter as any,
+        {
+          $pull: {
+            "tables.$[].seatedGuests": pullFilter,
+          },
+        } as any
+      );
 
-      const flat = await collection.updateMany(relatedFilter, {
-        $pull: {
-          seatedGuests: pullFilter,
-        },
-      });
+      const flat = await collection.updateMany(
+        relatedFilter as any,
+        {
+          $pull: {
+            seatedGuests: pullFilter,
+          },
+        } as any
+      );
 
       updates.push({
         collection: collectionName,
