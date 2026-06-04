@@ -933,6 +933,14 @@ const eventTitle = eventData?.title || "אירוע ללא שם";
                 ? guestsData.data
                 : [];
 
+                console.log("VENUE RSVP CHECK:", {
+  activeInvitationId,
+  eventId,
+  guestRowsLength: guestRows.length,
+  guestRows,
+  guestsData,
+});
+
           if (guestsRes.ok) {
   const syncedRsvpStats = buildRsvpStatsFromGuestRows(guestRows);
 
