@@ -162,7 +162,13 @@ resetLiveArrivals: () =>
 
     setGuests: (guests) =>
   set(() => ({
-    guests: guests || [],
+    guests: (guests || []).map((g) => ({
+      ...g,
+      tableNumber:
+        g.tableNumber ??
+        extractNumberFromName(g.tableName) ??
+        null,
+    })),
   })),
 
   /* ================= ⭐ GROUP UTILS ================= */
@@ -517,6 +523,7 @@ seatGroup: (groupId, tableId) => {
           ...guest,
           tableId,
           tableName: resolvedTableName || null,
+          tableNumber: Number(resolvedTableName) || null,
         }
       : guest
   );
@@ -650,6 +657,7 @@ moveGuestsToTable: ({ guestIds, tableId }) => {
             ...g,
             tableId,
             tableName: resolvedTableName || null,
+            tableNumber: Number(resolvedTableName) || null,
           }
         : g
     ),
@@ -670,7 +678,7 @@ unseatGroup: (groupId) => {
     })),
     guests: guests.map((g) =>
       String(g.groupId) === String(groupId)
-        ? { ...g, tableId: null, tableName: null }
+        ? { ...g, tableId: null, tableName: null, tableNumber: null }
         : g
     ),
     groups: groups.map((g) =>
@@ -711,7 +719,13 @@ init: (tables, guests, background = null, canvasView = null) => {
 })),
 
 
-    guests: guests || [],
+    guests: (guests || []).map((g) => ({
+      ...g,
+      tableNumber:
+        g.tableNumber ??
+        extractNumberFromName(g.tableName) ??
+        null,
+    })),
 
     liveArrivals:
       seatingMode === "live"
@@ -881,7 +895,7 @@ initDemo: () => {
 
     const guests = state.guests.map((g) =>
       String(g.tableId) === String(tableId)
-        ? { ...g, tableName: `שולחן ${n}` }
+        ? { ...g, tableName: `שולחן ${n}`, tableNumber: n }
         : g
     );
 
@@ -898,7 +912,7 @@ initDemo: () => {
       tables: state.tables.filter((t) => t.id !== tableId),
       guests: state.guests.map((g) =>
         g.tableId === tableId
-          ? { ...g, tableId: null, tableName: null }
+          ? { ...g, tableId: null, tableName: null, tableNumber: null }
           : g
       ),
       highlightedTable: null,
@@ -1056,6 +1070,7 @@ const resolvedTableName = String(
           ...g,
           tableId: highlightedTable,
           tableName: resolvedTableName || null,
+          tableNumber: Number(resolvedTableName) || null,
         }
       : g
   ),
@@ -1135,6 +1150,7 @@ set({
           ...g,
           tableId: tableId,
           tableName: resolvedTableName || null,
+          tableNumber: Number(resolvedTableName) || null,
         }
       : g
   ),
@@ -1196,6 +1212,7 @@ assignGuestToSeat: ({ guestId, tableId, seatIndex }) => {
             ...g,
             tableId: tableId,
             tableName: resolvedTableName || null,
+            tableNumber: Number(resolvedTableName) || null,
           }
         : g
     ),
@@ -1220,7 +1237,7 @@ assignGuestToSeat: ({ guestId, tableId, seatIndex }) => {
       guests: guests.map((g) =>
         String(g.id ?? g._id) === String(guestId)
 
-          ? { ...g, tableId: null, tableName: null }
+          ? { ...g, tableId: null, tableName: null, tableNumber: null }
           : g
       ),
     });
@@ -1316,7 +1333,12 @@ if (realCount <= 0) {
     ),
     guests: guests.map((g) =>
       String(g.id ?? g._id) === String(guestId)
-        ? { ...g, tableId, tableName: resolvedTableName || null }
+        ? {
+            ...g,
+            tableId,
+            tableName: resolvedTableName || null,
+            tableNumber: Number(resolvedTableName) || null,
+          }
         : g
     ),
   });
@@ -1341,7 +1363,7 @@ if (realCount <= 0) {
 
   const updatedGuests = guests.map((g) =>
     String(g.id ?? g._id) === String(guestId)
-      ? { ...g, tableId: null, tableName: null }
+      ? { ...g, tableId: null, tableName: null, tableNumber: null }
       : g
   );
 

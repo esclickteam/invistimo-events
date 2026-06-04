@@ -300,70 +300,98 @@ function TableRenderer({ table, hideSeats = false }) {
     );
   }, [plannedSeatedGuests, table.seatedGuests, guests, groups]);
 
+  const getTableNumberFromValue = (value) => {
+    const match = String(value || "").match(/\d+/);
+    return match ? String(match[0]) : "";
+  };
+
+  const normalizeTableName = (value) => {
+    return String(value || "")
+      .replace(/\s+/g, " ")
+      .replace("שולחן", "")
+      .trim();
+  };
+
   const tableGuestRows = useMemo(() => {
-  const currentTableId = String(table.id || table._id || "");
-  const currentTableNumber = String(table.tableNumber || table.number || "");
-  const currentTableName = String(table.name || "").trim();
+    const currentTableId = String(table.id || table._id || "").trim();
 
-  return (guests || []).filter((guest) => {
-    const guestTableId = String(guest.tableId || "");
-    const guestTableNumber = String(guest.tableNumber || "");
-    const guestTableName = String(guest.tableName || "").trim();
+    const currentTableNumber = String(
+      table.tableNumber ||
+        table.number ||
+        getTableNumberFromValue(table.name)
+    ).trim();
 
-    return (
-      (currentTableId && guestTableId === currentTableId) ||
-      (currentTableNumber && guestTableNumber === currentTableNumber) ||
-      (currentTableName && guestTableName === currentTableName)
-    );
-  });
-}, [guests, table.id, table._id, table.tableNumber, table.number, table.name]);
+    const currentTableName = String(table.name || "").trim();
+    const currentTableNameNumber = normalizeTableName(currentTableName);
 
-const seatsTotal = Number(table.seats || 0);
-const tableTitle = table.name || "";
+    return (guests || []).filter((guest) => {
+      const guestTableId = String(guest.tableId || "").trim();
 
-/*
-  הושבה רגילה:
-  לפי הנתון המקורי של כמה הושבו / כמה אמורים להגיע.
-  אצלך במונגו זה arrivedCount או amount.
-*/
-const plannedSeatsCount = useMemo(() => {
-  const fromGuests = tableGuestRows.reduce((sum, guest) => {
-    const value =
-      guest.arrivedCount ??
-      guest.amount ??
-      guest.plannedArrivedCount ??
-      guest.expectedArrivedCount ??
-      0;
+      const guestTableNumber = String(
+        guest.tableNumber ||
+          getTableNumberFromValue(guest.tableName)
+      ).trim();
 
-    return sum + Math.max(0, Number(value || 0));
-  }, 0);
+      const guestTableName = String(guest.tableName || "").trim();
+      const guestTableNameNumber = normalizeTableName(guestTableName);
 
-  if (fromGuests > 0) return fromGuests;
+      return (
+        (currentTableId && guestTableId === currentTableId) ||
+        (currentTableNumber && guestTableNumber === currentTableNumber) ||
+        (currentTableName && guestTableName === currentTableName) ||
+        (currentTableNameNumber &&
+          guestTableNameNumber &&
+          currentTableNameNumber === guestTableNameNumber)
+      );
+    });
+  }, [guests, table.id, table._id, table.tableNumber, table.number, table.name]);
 
-  return plannedSeatedGuests.length;
-}, [tableGuestRows, plannedSeatedGuests.length]);
+  const seatsTotal = Number(table.seats || 0);
+  const tableTitle = table.name || "";
 
-/*
-  מגיעים בפועל:
-  לפי actualArrivedCount בלבד.
-  אצלך במונגו זה actualArrivedCount.
-*/
-const liveArrivedCount = useMemo(() => {
-  const fromGuests = tableGuestRows.reduce((sum, guest) => {
-    const key = String(guest.id ?? guest._id ?? "");
+  /*
+    הושבה / מגיעים:
+    רק arrivedCount.
+    אם אין התאמה לאורחים — fallback ל-snapshot של ההושבה הרגילה.
+  */
+  const plannedSeatsCount = useMemo(() => {
+    const total = tableGuestRows.reduce((sum, guest) => {
+      return sum + Math.max(0, Number(guest.arrivedCount || 0));
+    }, 0);
 
-    const liveValue =
-      key &&
-      liveArrivals &&
-      Object.prototype.hasOwnProperty.call(liveArrivals, key)
-        ? Number(liveArrivals[key] || 0)
-        : Number(guest.actualArrivedCount || 0);
+    if (total > 0) return Math.min(seatsTotal, total);
 
-    return sum + Math.max(0, liveValue);
-  }, 0);
+    return Math.min(seatsTotal, plannedSeatedGuests.length);
+  }, [tableGuestRows, plannedSeatedGuests.length, seatsTotal]);
 
-  return Math.min(seatsTotal, fromGuests);
-}, [tableGuestRows, liveArrivals, seatsTotal]);
+  /*
+    בפועל / מגיעים בפועל:
+    רק actualArrivedCount.
+    liveArrivals משמש רק אם המשתמש שינה ערך בלייב ועדיין לא נשמר לשרת.
+  */
+  const liveArrivedCount = useMemo(() => {
+    const total = tableGuestRows.reduce((sum, guest) => {
+      const key = String(guest.id ?? guest._id ?? "");
+
+      const actualValue = Number(guest.actualArrivedCount || 0);
+
+      const liveValue =
+        key &&
+        liveArrivals &&
+        Object.prototype.hasOwnProperty.call(liveArrivals, key)
+          ? Number(liveArrivals[key] || 0)
+          : null;
+
+      const value =
+        liveValue !== null && Number.isFinite(liveValue)
+          ? liveValue
+          : actualValue;
+
+      return sum + Math.max(0, Number(value || 0));
+    }, 0);
+
+    return Math.min(seatsTotal, total);
+  }, [tableGuestRows, liveArrivals, seatsTotal]);
 
   const isHighlighted =
     highlightedTable === table.id ||
