@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import SoftphoneStatusPanel from "@/app/components/staff/SoftphoneStatusPanel";
 
 const SUPPORT_COOKIE_NAME = "staffImpersonationActive";
 const STAFF_ID_COOKIE_NAME = "staffOriginalUserId";
@@ -33,14 +32,14 @@ function deleteCookie(name: string) {
 
 export default function StaffSoftphoneWhenImpersonating() {
   const [isMounted, setIsMounted] = useState(false);
-  const [showSoftphone, setShowSoftphone] = useState(false);
+  const [showSupportBar, setShowSupportBar] = useState(false);
   const [staffOriginalUserId, setStaffOriginalUserId] = useState("");
   const [endingSupportMode, setEndingSupportMode] = useState(false);
 
   const refreshSupportModeState = useCallback(() => {
     const isActive = hasCookie(SUPPORT_COOKIE_NAME);
 
-    setShowSoftphone(isActive);
+    setShowSupportBar(isActive);
     setStaffOriginalUserId(getCookieValue(STAFF_ID_COOKIE_NAME));
   }, []);
 
@@ -49,6 +48,7 @@ export default function StaffSoftphoneWhenImpersonating() {
     refreshSupportModeState();
 
     const handleFocus = () => refreshSupportModeState();
+
     const handleVisibilityChange = () => {
       if (!document.hidden) refreshSupportModeState();
     };
@@ -86,7 +86,7 @@ export default function StaffSoftphoneWhenImpersonating() {
       deleteCookie(SUPPORT_COOKIE_NAME);
       deleteCookie(STAFF_ID_COOKIE_NAME);
 
-      setShowSoftphone(false);
+      setShowSupportBar(false);
       setStaffOriginalUserId("");
 
       window.location.href = "/staff/dashboard";
@@ -95,57 +95,109 @@ export default function StaffSoftphoneWhenImpersonating() {
     }
   }
 
-  if (!isMounted || !showSoftphone) return null;
+  if (!isMounted || !showSupportBar) return null;
 
   return (
-    <>
-      <SoftphoneStatusPanel />
+    <div
+      dir="rtl"
+      className="
+        sticky
+        top-0
+        z-[70]
+        mb-5
+        rounded-[28px]
+        border
+        border-[#E7D4AE]
+        bg-white/95
+        px-4
+        py-3
+        shadow-[0_18px_55px_rgba(30,27,46,0.08)]
+        backdrop-blur-xl
+      "
+    >
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#F7EEDB] text-xl">
+            🎧
+          </div>
 
-      <div
-        dir="rtl"
-        className="fixed right-4 top-4 z-[90] hidden max-w-[calc(100vw-410px)] items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50/95 px-4 py-3 text-amber-950 shadow-[0_18px_50px_rgba(120,53,15,0.14)] backdrop-blur-xl lg:flex"
-      >
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-100 text-lg">
-          🛟
+          <div className="min-w-0">
+            <p className="truncate text-sm font-black text-[#1E1B2E]">
+              {supportLabel}
+            </p>
+
+            <p className="mt-0.5 truncate text-xs font-bold text-[#8B6A2E]">
+              את/ה צופה בדשבורד לקוח כנציג/ת שירות. כל פעולה צריכה להירשם כלוג תמיכה.
+            </p>
+          </div>
         </div>
 
-        <div className="min-w-0">
-          <p className="truncate text-sm font-black">{supportLabel}</p>
-          <p className="text-xs font-bold text-amber-700">
-            את/ה צופה בדשבורד לקוח כנציג/ת שירות. כל פעולה צריכה להירשם כלוג תמיכה.
-          </p>
-        </div>
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+          <div className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 text-xs font-black text-emerald-700">
+            <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+            סופטפון פעיל
+          </div>
 
-        <button
-          type="button"
-          onClick={endSupportMode}
-          disabled={endingSupportMode}
-          className="mr-2 h-9 shrink-0 rounded-xl bg-slate-950 px-4 text-xs font-black text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {endingSupportMode ? "יוצא..." : "יציאה"}
-        </button>
+          <button
+            type="button"
+            className="
+              h-11
+              rounded-2xl
+              border
+              border-[#E7D4AE]
+              bg-[#F8F2E7]
+              px-4
+              text-xs
+              font-black
+              text-[#6F4726]
+              transition
+              hover:bg-[#F1E4CF]
+            "
+          >
+            שיחה חדשה
+          </button>
+
+          <button
+            type="button"
+            className="
+              h-11
+              rounded-2xl
+              border
+              border-slate-200
+              bg-white
+              px-4
+              text-xs
+              font-black
+              text-slate-700
+              transition
+              hover:bg-slate-50
+            "
+          >
+            היסטוריית שיחות
+          </button>
+
+          <button
+            type="button"
+            onClick={endSupportMode}
+            disabled={endingSupportMode}
+            className="
+              h-11
+              rounded-2xl
+              bg-slate-950
+              px-5
+              text-xs
+              font-black
+              text-white
+              transition
+              hover:bg-black
+              disabled:cursor-not-allowed
+              disabled:opacity-50
+            "
+          >
+            {endingSupportMode ? "יוצא..." : "יציאה"}
+          </button>
+        </div>
       </div>
-
-      <div
-        dir="rtl"
-        className="fixed left-4 right-4 top-4 z-[90] flex items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50/95 px-4 py-3 text-amber-950 shadow-[0_18px_50px_rgba(120,53,15,0.14)] backdrop-blur-xl lg:hidden"
-      >
-        <div className="min-w-0">
-          <p className="truncate text-sm font-black">מצב תמיכה פעיל</p>
-          <p className="truncate text-xs font-bold text-amber-700">
-            המסופון פעיל בתחתית המסך
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={endSupportMode}
-          disabled={endingSupportMode}
-          className="h-9 shrink-0 rounded-xl bg-slate-950 px-4 text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {endingSupportMode ? "יוצא..." : "יציאה"}
-        </button>
-      </div>
-    </>
+    </div>
   );
 }
