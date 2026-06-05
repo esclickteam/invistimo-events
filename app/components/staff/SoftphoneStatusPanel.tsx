@@ -2078,15 +2078,31 @@ export default function SoftphoneStatusPanel() {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={isCallActive ? finishCall : openAddCall}
-            className={`h-11 rounded-[16px] px-4 text-sm font-black ${
-              isCallActive ? "bg-rose-500 text-white" : "bg-emerald-400 text-slate-950"
-            }`}
-          >
-            {isCallActive ? "סיים" : "שיחה"}
-          </button>
+          <div className="grid shrink-0 grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={openAddCall}
+              disabled={!!savingStatus || creatingCall}
+              className="h-11 rounded-[16px] bg-emerald-400 px-4 text-sm font-black text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-50"
+              title="שיחה חדשה"
+            >
+              שיחה
+            </button>
+
+            <button
+              type="button"
+              onClick={finishCall}
+              disabled={!isCallActive || !!savingStatus || creatingCall}
+              className={`h-11 rounded-[16px] px-4 text-sm font-black transition disabled:cursor-not-allowed ${
+                isCallActive
+                  ? "bg-rose-500 text-white hover:bg-rose-400"
+                  : "bg-rose-500/15 text-rose-200 opacity-70"
+              }`}
+              title={isCallActive ? "נתק שיחה פעילה" : "אין שיחה פעילה לניתוק"}
+            >
+              נתק
+            </button>
+          </div>
         </div>
       </div>
 
