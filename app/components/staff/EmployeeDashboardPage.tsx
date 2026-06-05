@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import SoftphoneStatusPanel from "@/app/components/staff/SoftphoneStatusPanel";
 
@@ -54,6 +55,11 @@ type ApiEvent = {
   clientName?: string;
   customerName?: string;
   ownerName?: string;
+  ownerId?: string;
+  userId?: string;
+  clientId?: string;
+  customerId?: string;
+  createdBy?: string;
   clientPhone?: string;
   customerPhone?: string;
   phone?: string;
@@ -203,6 +209,17 @@ function formatDateTimeAgo(value?: string) {
 
 function normalizeId(item: { _id?: string; id?: string }) {
   return String(item.id || item._id || "");
+}
+
+function normalizeEventClientId(event: ApiEvent) {
+  return String(
+    event.clientId ||
+      event.customerId ||
+      event.userId ||
+      event.ownerId ||
+      event.createdBy ||
+      ""
+  );
 }
 
 function normalizeUserName(user: ApiUser) {
@@ -671,6 +688,7 @@ function LoadingPanel() {
 }
 
 export default function EmployeeDashboardPage() {
+  const router = useRouter();
   const { user } = useAuth();
 
   const [users, setUsers] = useState<ApiUser[]>([]);
@@ -682,6 +700,7 @@ export default function EmployeeDashboardPage() {
   const [eventSearch, setEventSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [enteringUserId, setEnteringUserId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
   const loadDashboard = useCallback(async () => {
@@ -771,6 +790,43 @@ export default function EmployeeDashboardPage() {
     }
   }, []);
 
+  const enterClientDashboard = useCallback(
+    async (targetUserId: string) => {
+      if (!targetUserId || enteringUserId) return;
+
+      try {
+        setEnteringUserId(targetUserId);
+
+        const response = await fetch("/api/staff/impersonate", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          cache: "no-store",
+          body: JSON.stringify({
+            targetUserId,
+          }),
+        });
+
+        const data = await response.json().catch(() => null);
+
+        if (!response.ok || !data?.success) {
+          throw new Error(data?.error || "IMPERSONATION_FAILED");
+        }
+
+        router.push(data.redirectTo || "/dashboard");
+        router.refresh();
+      } catch (error) {
+        console.error("ENTER CLIENT DASHBOARD FAILED:", error);
+        alert("לא הצלחנו להיכנס לדשבורד של הלקוח");
+      } finally {
+        setEnteringUserId(null);
+      }
+    },
+    [enteringUserId, router]
+  );
+
   useEffect(() => {
     void loadDashboard();
   }, [loadDashboard]);
@@ -851,7 +907,7 @@ export default function EmployeeDashboardPage() {
   };
 
   const displayName =
-  user?.name || user?.email?.split("@")[0] || "עובד";
+    user?.name || user?.email?.split("@")[0] || "עובד";
 
   return (
     <div
@@ -1120,8 +1176,18 @@ export default function EmployeeDashboardPage() {
                             </div>
 
                             <div className="grid shrink-0 grid-cols-2 gap-2 lg:w-[172px] lg:grid-cols-1">
-                              <button className="h-11 rounded-2xl bg-slate-950 px-4 text-sm font-black text-white transition hover:bg-black">
-                                כניסה ללקוח
+                              <button
+                                type="button"
+                                onClick={() => enterClientDashboard(normalizeEventClientId(event))}
+                                disabled={
+                                  !normalizeEventClientId(event) ||
+                                  enteringUserId === normalizeEventClientId(event)
+                                }
+                                className="h-11 rounded-2xl bg-slate-950 px-4 text-sm font-black text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                {enteringUserId === normalizeEventClientId(event)
+                                  ? "נכנס..."
+                                  : "כניסה ללקוח"}
                               </button>
 
                               <button className="h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 transition hover:bg-slate-50">
@@ -1362,8 +1428,18 @@ export default function EmployeeDashboardPage() {
 
                             <td className="px-5 py-4">
                               <div className="flex items-center gap-2">
-                                <button className="rounded-2xl bg-slate-950 px-4 py-2 text-xs font-black text-white transition hover:bg-black">
-                                  כניסה
+                                <button
+                                  type="button"
+                                  onClick={() => enterClientDashboard(normalizeId(currentUser))}
+                                  disabled={
+                                    !normalizeId(currentUser) ||
+                                    enteringUserId === normalizeId(currentUser)
+                                  }
+                                  className="rounded-2xl bg-slate-950 px-4 py-2 text-xs font-black text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  {enteringUserId === normalizeId(currentUser)
+                                    ? "נכנס..."
+                                    : "כניסה"}
                                 </button>
                                 <button className="rounded-2xl border border-slate-200 px-4 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-100">
                                   שיחה
@@ -1426,8 +1502,18 @@ export default function EmployeeDashboardPage() {
                         </div>
 
                         <div className="mt-4 grid grid-cols-2 gap-2">
-                          <button className="h-11 rounded-2xl bg-slate-950 text-sm font-black text-white">
-                            כניסה
+                          <button
+                            type="button"
+                            onClick={() => enterClientDashboard(normalizeId(currentUser))}
+                            disabled={
+                              !normalizeId(currentUser) ||
+                              enteringUserId === normalizeId(currentUser)
+                            }
+                            className="h-11 rounded-2xl bg-slate-950 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {enteringUserId === normalizeId(currentUser)
+                              ? "נכנס..."
+                              : "כניסה"}
                           </button>
                           <button className="h-11 rounded-2xl border border-slate-200 text-sm font-black text-slate-700">
                             שיחה
