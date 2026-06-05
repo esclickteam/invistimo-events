@@ -1950,7 +1950,6 @@ const canOpenEventManagement =
       md:py-7
       max-w-full
       overflow-x-hidden
-      lg:pl-[var(--staff-softphone-offset,0px)]
     "
     dir="rtl"
   >
