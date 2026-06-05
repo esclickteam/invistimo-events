@@ -726,44 +726,32 @@ export default function SoftphoneStatusPanel() {
   }, []);
 
   async function loadMyStatus() {
-    try {
-      setLoading(true);
+    const now = new Date().toISOString();
 
-      const res = await fetch("/api/staff/softphone/status", {
-        method: "GET",
-        credentials: "include",
-        cache: "no-store",
-      });
+    setLoading(true);
 
-      const data = await res.json();
+    setAgent({
+      agentId: "local-softphone",
+      status: "offline",
+      statusStartedAt: now,
+      todayAvailableSeconds: 0,
+      todayDialingSeconds: 0,
+      todayRingingSeconds: 0,
+      todayTalkSeconds: 0,
+      todayAfterCallSeconds: 0,
+      todayBreakSeconds: 0,
+      todayUnavailableSeconds: 0,
+      todayOfflineSeconds: 0,
+      totalCallsToday: 0,
+      answeredCallsToday: 0,
+      missedCallsToday: 0,
+      failedCallsToday: 0,
+      lastSeenAt: now,
+    });
 
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "LOAD_STATUS_FAILED");
-      }
-
-      setAgent(data.agent);
-
-      const savedStatus = data.agent?.status as AgentStatus | undefined;
-      const shouldRestoreShift = savedStatus && savedStatus !== "offline";
-
-      if (shouldRestoreShift) {
-        setShiftStarted(true);
-        setShiftStartedAt(data.agent.statusStartedAt || new Date().toISOString());
-
-        window.setTimeout(() => {
-          void connectWebrtc().catch((error) => {
-            console.error("AUTO CONNECT WEBRTC AFTER STATUS LOAD FAILED:", error);
-          });
-        }, 100);
-      } else {
-        setShiftStarted(false);
-        setShiftStartedAt(null);
-      }
-    } catch (err) {
-      console.error("LOAD SOFTPHONE STATUS FAILED:", err);
-    } finally {
-      setLoading(false);
-    }
+    setShiftStarted(false);
+    setShiftStartedAt(null);
+    setLoading(false);
   }
 
   function ensureShiftStarted() {
@@ -785,42 +773,45 @@ export default function SoftphoneStatusPanel() {
     if (savingStatus) return;
 
     const shouldAutoStartShift = options?.autoStartShift !== false;
+    const now = new Date().toISOString();
 
-    try {
-      if (nextStatus !== "offline" && shouldAutoStartShift) {
-        ensureShiftStarted();
-      }
-
-      setSavingStatus(nextStatus);
-
-      const res = await fetch("/api/staff/softphone/status", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          status: nextStatus,
-          reason: options?.reason || null,
-          phoneNumber: options?.number || activeCallNumber || phoneNumber || null,
-          direction: options?.direction || callDirection,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "CHANGE_STATUS_FAILED");
-      }
-
-      setAgent((prev) => {
-        if (data.agent) return data.agent as AgentState;
-        return prev;
-      });
-    } catch (err) {
-      console.error("CHANGE SOFTPHONE STATUS FAILED:", err);
-      alert("שגיאה בעדכון סטטוס");
-    } finally {
-      setSavingStatus(null);
+    if (nextStatus !== "offline" && shouldAutoStartShift) {
+      ensureShiftStarted();
     }
+
+    setSavingStatus(nextStatus);
+
+    setAgent((prev) => ({
+      agentId: prev?.agentId || "local-softphone",
+      name: prev?.name,
+      email: prev?.email,
+      status: nextStatus,
+      statusStartedAt: now,
+      currentCallId: prev?.currentCallId || null,
+      todayAvailableSeconds: prev?.todayAvailableSeconds || 0,
+      todayDialingSeconds: prev?.todayDialingSeconds || 0,
+      todayRingingSeconds: prev?.todayRingingSeconds || 0,
+      todayTalkSeconds: prev?.todayTalkSeconds || 0,
+      todayAfterCallSeconds: prev?.todayAfterCallSeconds || 0,
+      todayBreakSeconds: prev?.todayBreakSeconds || 0,
+      todayUnavailableSeconds: prev?.todayUnavailableSeconds || 0,
+      todayOfflineSeconds: prev?.todayOfflineSeconds || 0,
+      totalCallsToday:
+        nextStatus === "dialing" && prev?.status !== "dialing"
+          ? (prev?.totalCallsToday || 0) + 1
+          : prev?.totalCallsToday || 0,
+      answeredCallsToday:
+        nextStatus === "in_call" && prev?.status !== "in_call"
+          ? (prev?.answeredCallsToday || 0) + 1
+          : prev?.answeredCallsToday || 0,
+      missedCallsToday: prev?.missedCallsToday || 0,
+      failedCallsToday: prev?.failedCallsToday || 0,
+      lastSeenAt: now,
+    }));
+
+    window.setTimeout(() => {
+      setSavingStatus(null);
+    }, 80);
   }
 
   async function startShift() {
