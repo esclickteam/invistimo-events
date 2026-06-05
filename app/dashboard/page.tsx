@@ -1940,28 +1940,29 @@ const canOpenEventManagement =
      Render
   ============================================================ */
   return (
-  <div
-    className="
-      min-h-screen
-      bg-[#F6F1EA]
-      max-w-full
-      overflow-x-hidden
-    "
-    dir="rtl"
-  >
+  <>
     <StaffSoftphoneWhenImpersonating />
 
-    <main
+    <div
       className="
-        mx-auto
-        w-full
-        max-w-none
-        px-4
-        py-6
-        md:px-8
-        md:py-7
+        min-h-screen
+        bg-[#F6F1EA]
+        max-w-full
+        overflow-x-clip
       "
+      dir="rtl"
     >
+      <main
+        className="
+          mx-auto
+          w-full
+          max-w-none
+          px-4
+          py-6
+          md:px-8
+          md:py-7
+        "
+      >
 
       {isDemo && (
         <div className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 px-5 py-4 text-amber-900 shadow-sm">
@@ -3000,9 +3001,10 @@ const canOpenEventManagement =
         onClose={() => setOpenGroupModal(false)}
         invitationId={invitationId}
       />
-      </main>
+            </main>
     </div>
-  );
+  </>
+);
 }
 
 
