@@ -394,11 +394,22 @@ if (tRes.status === 403 && isVenueView) {
 
       const tData = await tRes.json();
 
+      const currentCanvasView = useSeatingStore.getState().canvasView;
+
+      /*
+        בלייב לא מאפסים את מיקום הקנבס בכל ריענון.
+        אחרת כשגוררים/גוללים למטה — הריענון מחזיר למיקום הקודם.
+      */
+      const nextCanvasView =
+        isLiveSeatingView && currentCanvasView
+          ? currentCanvasView
+          : tData.canvasView ?? null;
+
       init(
         tData.tables || [],
         normalizedGuests,
         tData.background ?? null,
-        tData.canvasView ?? null
+        nextCanvasView
       );
 
       // חשוב: init עלול לאפס state פנימי. מחזירים את מצב ההושבה הנכון מיד אחרי טעינה.
@@ -1045,7 +1056,7 @@ if (eventIdFromQuery && invitationIdFromQuery) {
     <div
       dir="rtl"
       className="
-        h-screen w-screen overflow-hidden
+        min-h-screen w-full overflow-x-auto overflow-y-auto
         bg-[radial-gradient(circle_at_top_left,#fff8ec_0%,#faf6ef_34%,#f3efe8_100%)]
         text-[#2a2119]
       "
@@ -1542,18 +1553,16 @@ if (eventIdFromQuery && invitationIdFromQuery) {
       {/* MAIN AREA */}
       <main
         className="
-          absolute inset-x-0 flex min-w-0 flex-row-reverse
+          fixed inset-x-0 bottom-0 top-[76px]
+          flex min-w-0 flex-row-reverse
+          overflow-hidden
         "
-        style={{
-          top: 76,
-          bottom: 0,
-        }}
       >
         {/* CANVAS AREA */}
-        <section className="relative min-w-0 flex-1 overflow-hidden">
+        <section className="relative min-w-0 flex-1 overflow-auto overscroll-contain">
           <div className="pointer-events-none absolute inset-0 z-0 bg-[linear-gradient(90deg,rgba(202,161,90,0.04)_1px,transparent_1px),linear-gradient(rgba(202,161,90,0.04)_1px,transparent_1px)] bg-[size:34px_34px]" />
 
-          <div className="relative z-10 h-full w-full">
+          <div className="relative z-10 h-full min-h-[2200px] min-w-[2600px]">
             <SeatingEditor
               background={background?.url || null}
               invitationId={invitationId}
