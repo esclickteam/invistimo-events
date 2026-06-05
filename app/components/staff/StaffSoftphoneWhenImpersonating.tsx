@@ -62,12 +62,6 @@ function hasCookie(name: string) {
   return Boolean(getCookieValue(name));
 }
 
-function deleteCookie(name: string) {
-  if (typeof document === "undefined") return;
-
-  document.cookie = `${name}=; Max-Age=0; path=/; SameSite=Lax`;
-}
-
 export default function StaffSoftphoneWhenImpersonating() {
   const [isMounted, setIsMounted] = useState(false);
 
@@ -75,15 +69,12 @@ export default function StaffSoftphoneWhenImpersonating() {
   const [loadingUser, setLoadingUser] = useState(true);
 
   const [supportModeActive, setSupportModeActive] = useState(false);
-  const [staffOriginalUserId, setStaffOriginalUserId] = useState("");
-  const [endingSupportMode, setEndingSupportMode] = useState(false);
 
   const refreshSupportModeState = useCallback(() => {
     const active =
       hasCookie(SUPPORT_COOKIE_NAME) || hasCookie(STAFF_ID_COOKIE_NAME);
 
     setSupportModeActive(active);
-    setStaffOriginalUserId(getCookieValue(STAFF_ID_COOKIE_NAME));
   }, []);
 
   const loadCurrentUser = useCallback(async () => {
@@ -162,38 +153,8 @@ export default function StaffSoftphoneWhenImpersonating() {
     return isRegularWorker(currentUser);
   }, [isMounted, supportModeActive, loadingUser, currentUser]);
 
-  const supportLabel = useMemo(() => {
-    if (!staffOriginalUserId) return "מצב תמיכה פעיל";
-
-    return `מצב תמיכה פעיל · עובד ${staffOriginalUserId.slice(-6)}`;
-  }, [staffOriginalUserId]);
-
-  async function endSupportMode() {
-    if (endingSupportMode) return;
-
-    try {
-      setEndingSupportMode(true);
-
-      await fetch("/api/staff/impersonate/end", {
-        method: "POST",
-        credentials: "include",
-        cache: "no-store",
-      }).catch(() => null);
-
-      deleteCookie(SUPPORT_COOKIE_NAME);
-      deleteCookie(STAFF_ID_COOKIE_NAME);
-
-      setSupportModeActive(false);
-      setStaffOriginalUserId("");
-
-      window.location.href = "/staff/dashboard";
-    } finally {
-      setEndingSupportMode(false);
-    }
-  }
-
   if (!isMounted) return null;
-  if (!shouldShowSoftphone && !supportModeActive) return null;
+  if (!shouldShowSoftphone) return null;
 
   return (
     <div
@@ -201,65 +162,14 @@ export default function StaffSoftphoneWhenImpersonating() {
       className="
         sticky top-0 z-[80]
         w-full
-        border-b border-[#E8DCCB]
-        bg-[#F8F2E7]/95
-        shadow-[0_14px_38px_rgba(15,23,42,0.08)]
-        backdrop-blur-xl
+        bg-[#070B18]
+        px-4 py-4
+        shadow-[0_14px_38px_rgba(15,23,42,0.18)]
       "
     >
-      {shouldShowSoftphone && (
-        <div className="w-full bg-[#070B18] px-4 py-4">
-          <div className="mx-auto w-full max-w-[1480px]">
-            <SoftphoneStatusPanel />
-          </div>
-        </div>
-      )}
-
-      {supportModeActive && (
-        <div
-          className="
-            border-t border-amber-200
-            bg-amber-50/95
-            px-4 py-3
-            text-amber-950
-          "
-        >
-          <div className="mx-auto flex w-full max-w-[1480px] items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-lg">
-                🛟
-              </div>
-
-              <div className="min-w-0">
-                <p className="truncate text-sm font-black">{supportLabel}</p>
-                <p className="truncate text-xs font-bold text-amber-700">
-                  את/ה צופה בדשבורד לקוח כנציג/ת שירות
-                </p>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={endSupportMode}
-              disabled={endingSupportMode}
-              className="
-                h-9 shrink-0
-                rounded-xl
-                bg-slate-950
-                px-4
-                text-xs font-black
-                text-white
-                transition
-                hover:bg-black
-                disabled:cursor-not-allowed
-                disabled:opacity-50
-              "
-            >
-              {endingSupportMode ? "יוצא..." : "יציאה מהלקוח"}
-            </button>
-          </div>
-        </div>
-      )}
+      <div className="mx-auto w-full max-w-[1480px]">
+        <SoftphoneStatusPanel />
+      </div>
     </div>
   );
 }
