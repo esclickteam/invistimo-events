@@ -57,6 +57,12 @@ function firstString(...values: unknown[]) {
   return "";
 }
 
+function getIsMobileViewport() {
+  if (typeof window === "undefined") return false;
+
+  return window.innerWidth < 768;
+}
+
 function resolveInvitationIdsFromData(
   data: AnyObject,
   fallbackEventId = ""
@@ -145,14 +151,13 @@ export default function SeatingPage() {
     searchParams.get("linkedEventId")
   );
 
-  
   const invitationIdFromQuery = firstString(
-  searchParams.get("invitationId"),
-  searchParams.get("venueClientInvitationId")
-);
+    searchParams.get("invitationId"),
+    searchParams.get("venueClientInvitationId")
+  );
 
-const isVenueView = searchParams.get("venueView") === "1";
-const isLiveView = searchParams.get("live") === "1";
+  const isVenueView = searchParams.get("venueView") === "1";
+  const isLiveView = searchParams.get("live") === "1";
 
   const isProducer = pathname.includes("/events/production");
   const isDemo = pathname.startsWith("/try/");
@@ -177,6 +182,7 @@ const isLiveView = searchParams.get("live") === "1";
 
   const didLoadRef = useRef(false);
   const didFinishInitialLoadRef = useRef(false);
+  const didResetMobileCanvasViewRef = useRef(false);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const liveRefreshInFlightRef = useRef(false);
 
@@ -244,7 +250,12 @@ const isLiveView = searchParams.get("live") === "1";
     update();
 
     window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
+    window.addEventListener("orientationchange", update);
+
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("orientationchange", update);
+    };
   }, []);
 
   /* ===============================
@@ -259,14 +270,14 @@ const isLiveView = searchParams.get("live") === "1";
     }
 
     if (
-  isVenueView ||
-  user.role === "producer" ||
-  user.role === "venue_owner" ||
-  user.impersonated
-) {
-  setBlockReason(null);
-  return;
-}
+      isVenueView ||
+      user.role === "producer" ||
+      user.role === "venue_owner" ||
+      user.impersonated
+    ) {
+      setBlockReason(null);
+      return;
+    }
 
     if (user.planLimits?.seatingEnabled !== true) {
       setBlockReason("no-plan");
@@ -275,9 +286,6 @@ const isLiveView = searchParams.get("live") === "1";
 
   /* ===============================
      SYNC LIVE MODE FROM DASHBOARD
-     הדשבורד שומר localStorage.workMode = live/regular.
-     עמוד ההושבה חייב לקרוא את זה, אחרת הוא נשאר regular
-     למרות שבדשבורד מופיע LIVE.
   =============================== */
   useEffect(() => {
     const syncStoredWorkMode = () => {
@@ -312,8 +320,6 @@ const isLiveView = searchParams.get("live") === "1";
 
   /* ===============================
      SEATING MODE
-     live=1 / mode=live / producer / localStorage.workMode=live => מצב לייב
-     אחרת מחזירים ל-regular כדי שלא יישאר מצב ישן מה-store
   =============================== */
   useEffect(() => {
     const nextMode = isLiveSeatingView ? "live" : "regular";
@@ -337,29 +343,30 @@ const isLiveView = searchParams.get("live") === "1";
     pathname,
     setSeatingMode,
   ]);
-  
+
   /* ===============================
      LOAD SEATING DATA
   =============================== */
   const loadSeatingData = useCallback(
     async (eventIdToLoad: string, invitationIdToLoad: string) => {
       const gRes = await fetch(
-  `/api/seating/guests/${eventIdToLoad}?invitationId=${encodeURIComponent(
-    invitationIdToLoad
-  )}${isVenueView ? "&venueView=1" : ""}`,
-  {
-    credentials: "include",
-    cache: "no-store",
-  }
-);
+        `/api/seating/guests/${eventIdToLoad}?invitationId=${encodeURIComponent(
+          invitationIdToLoad
+        )}${isVenueView ? "&venueView=1" : ""}`,
+        {
+          credentials: "include",
+          cache: "no-store",
+        }
+      );
 
       if (gRes.status === 403 && !isVenueView) {
-  setBlockReason("no-plan");
-  return false;
-}
+        setBlockReason("no-plan");
+        return false;
+      }
 
-      const gData =
-  gRes.ok ? await gRes.json().catch(() => ({})) : { guests: [] };
+      const gData = gRes.ok
+        ? await gRes.json().catch(() => ({}))
+        : { guests: [] };
 
       const normalizedGuests = (gData.guests || []).map((g: GuestDTO) => ({
         id: g._id,
@@ -373,37 +380,46 @@ const isLiveView = searchParams.get("live") === "1";
       }));
 
       const tRes = await fetch(
-  `/api/seating/tables/${eventIdToLoad}?invitationId=${encodeURIComponent(
-    invitationIdToLoad
-  )}${isVenueView ? "&venueView=1" : ""}`,
-  {
-    credentials: "include",
-    cache: "no-store",
-  }
-);
+        `/api/seating/tables/${eventIdToLoad}?invitationId=${encodeURIComponent(
+          invitationIdToLoad
+        )}${isVenueView ? "&venueView=1" : ""}`,
+        {
+          credentials: "include",
+          cache: "no-store",
+        }
+      );
 
       if (tRes.status === 403 && !isVenueView) {
-  setBlockReason("no-plan");
-  return false;
-}
+        setBlockReason("no-plan");
+        return false;
+      }
 
-if (tRes.status === 403 && isVenueView) {
-  console.error("❌ Venue owner cannot load seating tables. Check tables API venueOwnerId permission.");
-  return false;
-}
+      if (tRes.status === 403 && isVenueView) {
+        console.error(
+          "❌ Venue owner cannot load seating tables. Check tables API venueOwnerId permission."
+        );
+        return false;
+      }
 
       const tData = await tRes.json();
 
       const currentCanvasView = useSeatingStore.getState().canvasView;
+      const isMobileNow = getIsMobileViewport();
 
       /*
-        בלייב לא מאפסים את מיקום הקנבס בכל ריענון.
-        אחרת כשגוררים/גוללים למטה — הריענון מחזיר למיקום הקודם.
+        במובייל לא טוענים canvasView שנשמר מדסקטופ בפעם הראשונה.
+        אחרת ההושבה נפתחת מחוץ למסך ורואים רק רקע.
+        אחרי הטעינה הראשונה כן שומרים את המיקום הנוכחי כדי לא לקפוץ כל 3 שניות בלייב.
       */
-      const nextCanvasView =
+      let nextCanvasView =
         isLiveSeatingView && currentCanvasView
           ? currentCanvasView
           : tData.canvasView ?? null;
+
+      if (isMobileNow && !didResetMobileCanvasViewRef.current) {
+        nextCanvasView = null;
+        didResetMobileCanvasViewRef.current = true;
+      }
 
       init(
         tData.tables || [],
@@ -412,7 +428,6 @@ if (tRes.status === 403 && isVenueView) {
         nextCanvasView
       );
 
-      // חשוב: init עלול לאפס state פנימי. מחזירים את מצב ההושבה הנכון מיד אחרי טעינה.
       setSeatingMode(isLiveSeatingView ? "live" : "regular");
 
       setZones(tData.zones || []);
@@ -473,26 +488,20 @@ if (tRes.status === 403 && isVenueView) {
         let resolvedIds: ResolvedInvitationIds | null = null;
         let lastInvData: AnyObject | null = null;
 
-        /*
-  כניסה ישירה מהאולם:
-  אם האולם פותח את ההושבה עם eventId + invitationId,
-  לא מחפשים דרך /api/invitations/my של המשתמש המחובר,
-  אלא טוענים ישירות את אותה הושבה של הלקוח.
-*/
-if (eventIdFromQuery && invitationIdFromQuery) {
-  resolvedIds = {
-    eventId: eventIdFromQuery,
-    invitationId: invitationIdFromQuery,
-  };
+        if (eventIdFromQuery && invitationIdFromQuery) {
+          resolvedIds = {
+            eventId: eventIdFromQuery,
+            invitationId: invitationIdFromQuery,
+          };
 
-  setInvitationId(resolvedIds.invitationId);
-  setEventId(resolvedIds.eventId);
+          setInvitationId(resolvedIds.invitationId);
+          setEventId(resolvedIds.eventId);
 
-  await loadSeatingData(resolvedIds.eventId, resolvedIds.invitationId);
+          await loadSeatingData(resolvedIds.eventId, resolvedIds.invitationId);
 
-  didFinishInitialLoadRef.current = true;
-  return;
-}
+          didFinishInitialLoadRef.current = true;
+          return;
+        }
 
         const invitationUrls = eventIdFromQuery
           ? [
@@ -535,12 +544,6 @@ if (eventIdFromQuery && invitationIdFromQuery) {
           }
         }
 
-        /*
-          fallback ללקוח אולם:
-          אם /api/invitations/my לא מחזיר הזמנה כמו הזמנה רגילה,
-          ננסה לקחת את המזהים מה-user שהגיע דרך AuthContext.
-          זה לא נוגע בהושבה רגילה ולא בלייב.
-        */
         if (!resolvedIds) {
           resolvedIds = resolveInvitationIdsFromUser(user, eventIdFromQuery);
         }
@@ -549,8 +552,8 @@ if (eventIdFromQuery && invitationIdFromQuery) {
           console.error("❌ Missing invitation/event id", {
             lastInvData,
             user,
-  eventIdFromQuery,
-  invitationIdFromQuery,
+            eventIdFromQuery,
+            invitationIdFromQuery,
           });
           return;
         }
@@ -578,8 +581,6 @@ if (eventIdFromQuery && invitationIdFromQuery) {
 
   /* ===============================
      LIVE REFRESH
-     כשנכנסים לטאב / מסך לייב לא מחכים לריענון דף:
-     מושכים מחדש גם אורחים וגם שולחנות, כי הצביעה בקנבס תלויה בנתונים האלה.
   =============================== */
   const refreshLiveSeatingData = useCallback(async () => {
     if (isDemo) return;
@@ -610,7 +611,6 @@ if (eventIdFromQuery && invitationIdFromQuery) {
     if (!isLiveSeatingView) return;
     if (!eventId || !invitationId) return;
 
-    // ריענון מיידי בכניסה ללייב / לטאב
     refreshLiveSeatingData();
 
     const interval = window.setInterval(() => {
@@ -667,12 +667,23 @@ if (eventIdFromQuery && invitationIdFromQuery) {
     const contentW = Math.max(1, maxX - minX);
     const contentH = Math.max(1, maxY - minY);
 
-    const PAD = 420;
-    const VIEW_W = 1200;
-    const VIEW_H = 700;
+    const PAD = isMobile ? 260 : 420;
+
+    const VIEW_W =
+      typeof window !== "undefined"
+        ? Math.max(
+            360,
+            window.innerWidth - (isMobile ? 0 : sidebarOpen ? 430 : 0)
+          )
+        : 1200;
+
+    const VIEW_H =
+      typeof window !== "undefined"
+        ? Math.max(520, window.innerHeight - 76)
+        : 700;
 
     const scale = Math.max(
-      0.4,
+      isMobile ? 0.25 : 0.4,
       Math.min(
         3,
         Math.min(VIEW_W / (contentW + PAD), VIEW_H / (contentH + PAD))
@@ -685,10 +696,17 @@ if (eventIdFromQuery && invitationIdFromQuery) {
     const x = VIEW_W / 2 - centerX * scale;
     const y = VIEW_H / 2 - centerY * scale;
 
-    console.log("🟣 AutoFit canvasView:", { x, y, scale });
+    console.log("🟣 AutoFit canvasView:", {
+      x,
+      y,
+      scale,
+      VIEW_W,
+      VIEW_H,
+      isMobile,
+    });
 
     setCanvasView({ x, y, scale });
-  }, [tablesLite, canvasView, setCanvasView]);
+  }, [tablesLite, canvasView, setCanvasView, isMobile, sidebarOpen]);
 
   /* ===============================
      BACKGROUND
@@ -1056,7 +1074,7 @@ if (eventIdFromQuery && invitationIdFromQuery) {
     <div
       dir="rtl"
       className="
-        min-h-screen w-full overflow-x-auto overflow-y-auto
+        min-h-screen w-full overflow-hidden
         bg-[radial-gradient(circle_at_top_left,#fff8ec_0%,#faf6ef_34%,#f3efe8_100%)]
         text-[#2a2119]
       "
@@ -1412,6 +1430,8 @@ if (eventIdFromQuery && invitationIdFromQuery) {
                   >
                     {isVenueTemplateMode ? (
                       <span>מצב תבנית — השמירה מתבצעת ידנית</span>
+                    ) : isLiveSeatingView ? (
+                      <span>מצב לייב — ריענון אוטומטי פעיל</span>
                     ) : isAutoSaving ? (
                       <span>שומר אוטומטית...</span>
                     ) : lastAutoSavedAt ? (
@@ -1559,10 +1579,24 @@ if (eventIdFromQuery && invitationIdFromQuery) {
         "
       >
         {/* CANVAS AREA */}
-        <section className="relative min-w-0 flex-1 overflow-auto overscroll-contain">
-          <div className="pointer-events-none absolute inset-0 z-0 bg-[linear-gradient(90deg,rgba(202,161,90,0.04)_1px,transparent_1px),linear-gradient(rgba(202,161,90,0.04)_1px,transparent_1px)] bg-[size:34px_34px]" />
+        <section
+          className="
+            relative min-w-0 flex-1
+            overflow-auto overscroll-contain
+            touch-pan-x touch-pan-y
+            [-webkit-overflow-scrolling:touch]
+          "
+        >
+          <div className="pointer-events-none fixed inset-0 z-0 bg-[linear-gradient(90deg,rgba(202,161,90,0.04)_1px,transparent_1px),linear-gradient(rgba(202,161,90,0.04)_1px,transparent_1px)] bg-[size:34px_34px]" />
 
-          <div className="relative z-10 h-full min-h-[2200px] min-w-[2600px]">
+          <div
+            className="
+              relative z-10
+              h-[2200px] w-[2600px]
+              min-h-[2200px] min-w-[2600px]
+              shrink-0
+            "
+          >
             <SeatingEditor
               background={background?.url || null}
               invitationId={invitationId}
