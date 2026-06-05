@@ -2180,8 +2180,28 @@ const canOpenEventManagement =
     shadow-[0_18px_50px_rgba(30,27,46,0.07)]
   "
 >
-        <table className="w-full min-w-[1900px] table-auto">
-          <thead className="bg-[#F2EEE8] sticky top-0 z-10 whitespace-nowrap">
+        <table className="w-full min-w-[1180px] table-fixed">
+  <colgroup>
+    <col className="w-[210px]" /> {/* שם מלא */}
+    <col className="w-[115px]" /> {/* טלפון */}
+    <col className="w-[130px]" /> {/* קרבה */}
+    <col className="w-[180px]" /> {/* קבוצה */}
+    <col className="w-[105px]" /> {/* סטטוס */}
+    <col className="w-[75px]" /> {/* מוזמנים */}
+    <col className="w-[75px]" /> {/* מגיעים */}
+
+    {canShowActualArrived && <col className="w-[145px]" />}
+
+    <col className="w-[105px]" /> {/* מס׳ שולחן */}
+
+    {canShowActualArrived && <col className="w-[150px]" />}
+
+    <col className="w-[150px]" /> {/* הערות */}
+    <col className="w-[95px]" /> {/* הזמנת אורח */}
+    <col className="w-[135px]" /> {/* פעולות */}
+  </colgroup>
+
+  <thead className="bg-[#F2EEE8] sticky top-0 z-10 whitespace-nowrap">
             <tr>
               <th
                 className="p-4 text-right cursor-pointer select-none text-xs font-black text-[#5F564D]"
