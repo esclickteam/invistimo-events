@@ -2045,37 +2045,37 @@ function EditUserModal({
             </label>
 
             <label>
-              <span className="mb-2 block text-sm font-black text-[#6B5A48]">
-                עובדים מטפלים
-              </span>
+  <span className="mb-2 block text-sm font-black text-[#6B5A48]">
+    עובד מטפל
+  </span>
 
-              <select
-                multiple
-                className="
-                  h-36 w-full rounded-2xl
-                  border border-[#E7D8C6]
-                  bg-white px-4 py-3
-                  text-sm font-bold
-                  outline-none
-                "
-                value={form.assignedStaffIds}
-                onChange={(e) =>
-                  setForm((p) => ({
-                    ...p,
-                    assignedStaffIds: Array.from(
-                      e.target.selectedOptions,
-                      (o) => o.value
-                    ),
-                  }))
-                }
-              >
-                {staff.map((s) => (
-                  <option key={s._id} value={s._id}>
-                    {s.name || s.email}
-                  </option>
-                ))}
-              </select>
-            </label>
+  <select
+    className="
+      h-12 w-full rounded-2xl
+      border border-[#E7D8C6]
+      bg-white px-4
+      text-sm font-bold
+      text-[#3A2A1C]
+      outline-none
+    "
+    value={form.assignedStaffIds?.[0] || ""}
+    onChange={(e) =>
+      setForm((p) => ({
+        ...p,
+        assignedStaffIds: e.target.value ? [e.target.value] : [],
+      }))
+    }
+  >
+    <option value="">ללא עובד מטפל</option>
+
+    {staff.map((s) => (
+      <option key={s._id} value={s._id}>
+        {s.name || s.email}
+      </option>
+    ))}
+  </select>
+</label>
+
           </div>
         </section>
       </div>
