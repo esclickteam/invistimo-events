@@ -2,44 +2,60 @@ import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 
 import dbConnect from "@/lib/db";
+import Invitation from "@/models/Invitation";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-function objectIdOrString(value: string) {
+function toObjectId(value: string) {
   if (mongoose.Types.ObjectId.isValid(value)) {
     return new mongoose.Types.ObjectId(value);
   }
 
-  return value;
+  return null;
+}
+
+function buildUserLookupQuery(userId: string) {
+  const objectId = toObjectId(userId);
+
+  const orQuery: any[] = [
+    { userId },
+    { id: userId },
+    { uid: userId },
+    { sub: userId },
+  ];
+
+  if (objectId) {
+    orQuery.unshift({ _id: objectId });
+  }
+
+  return { $or: orQuery };
 }
 
 function normalizeStaffIdQuery(userId: string) {
-  const id = objectIdOrString(userId);
+  const objectId = toObjectId(userId);
+  const ids: any[] = [userId];
+
+  if (objectId) {
+    ids.push(objectId);
+  }
 
   const query: any = {
     $or: [
-      { assignedEmployeeId: id },
-      { assignedEmployeeId: userId },
+      { assignedEmployeeId: { $in: ids } },
+      { assignedStaffId: { $in: ids } },
+      { assignedTo: { $in: ids } },
+      { staffId: { $in: ids } },
+      { supportAgentId: { $in: ids } },
 
-      { assignedStaffId: id },
-      { assignedStaffId: userId },
+      { assignedStaffIds: { $in: ids } },
+      { assignedEmployeeIds: { $in: ids } },
 
-      { assignedTo: id },
-      { assignedTo: userId },
-
-      { assignedStaffIds: id },
-      { assignedStaffIds: userId },
-
-      { assignedEmployeeIds: id },
-      { assignedEmployeeIds: userId },
-
-      { staffId: id },
-      { staffId: userId },
-
-      { supportAgentId: id },
-      { supportAgentId: userId },
+      // אם אצלך יש עובד שאחראי על לקוח/אירוע בשמות אחרים
+      { staffOwnerId: { $in: ids } },
+      { employeeId: { $in: ids } },
+      { managerId: { $in: ids } },
     ],
   };
 
@@ -73,13 +89,116 @@ function isEventNeedsCheck(event: any) {
   return unread > 0;
 }
 
+function getEventTitle(invitation: any) {
+  return (
+    invitation.title ||
+    invitation.eventName ||
+    invitation.name ||
+    invitation.clientName ||
+    "אירוע ללא שם"
+  );
+}
+
+function getClientName(invitation: any) {
+  return (
+    invitation.clientName ||
+    invitation.customerName ||
+    invitation.ownerName ||
+    invitation.name ||
+    "לקוח ללא שם"
+  );
+}
+
+function getClientPhone(invitation: any) {
+  return (
+    invitation.clientPhone ||
+    invitation.customerPhone ||
+    invitation.phone ||
+    invitation.ownerPhone ||
+    ""
+  );
+}
+
+function getLocation(invitation: any) {
+  if (!invitation.location) return "";
+
+  if (typeof invitation.location === "string") {
+    return invitation.location;
+  }
+
+  return invitation.location.name || invitation.location.address || "";
+}
+
+function mapInvitationToDashboardEvent(invitation: any) {
+  return {
+    _id: invitation._id,
+    id: String(invitation._id),
+
+    title: getEventTitle(invitation),
+    eventName: invitation.eventName || invitation.title || "",
+    name: invitation.name || "",
+
+    clientName: getClientName(invitation),
+    customerName: invitation.customerName || "",
+    ownerName: invitation.ownerName || "",
+    clientPhone: getClientPhone(invitation),
+
+    eventType: invitation.eventType || invitation.type || "",
+    type: invitation.type || invitation.eventType || "",
+
+    eventDate: invitation.eventDate || invitation.date || "",
+    date: invitation.date || invitation.eventDate || "",
+
+    location: getLocation(invitation),
+
+    guestsCount:
+      Number(invitation.guestsCount) ||
+      Number(invitation.maxGuests) ||
+      Number(invitation.guests) ||
+      0,
+
+    assignedEmployeeId: invitation.assignedEmployeeId,
+    assignedStaffId: invitation.assignedStaffId,
+    assignedTo: invitation.assignedTo,
+    assignedStaffIds: invitation.assignedStaffIds,
+    assignedEmployeeIds: invitation.assignedEmployeeIds,
+
+    progress: invitation.progress || invitation.status || "new",
+    status: invitation.status || invitation.progress || "new",
+
+    careStatus:
+      invitation.careStatus ||
+      invitation.supportStatus ||
+      invitation.staffStatus ||
+      "ok",
+
+    supportStatus: invitation.supportStatus || invitation.careStatus || "ok",
+
+    unreadMessages: Number(
+      invitation.unreadMessages || invitation.unreadCount || 0
+    ),
+    unreadCount: Number(
+      invitation.unreadCount || invitation.unreadMessages || 0
+    ),
+
+    lastMessage: invitation.lastMessage || "",
+    lastMessageAt: invitation.lastMessageAt || invitation.updatedAt || "",
+
+    notes: invitation.notes || invitation.supportNote || "",
+    supportNote: invitation.supportNote || invitation.notes || "",
+
+    createdAt: invitation.createdAt,
+    updatedAt: invitation.updatedAt,
+  };
+}
+
 export async function GET(request: NextRequest) {
   try {
     await dbConnect();
 
-    const userId = await getUserIdFromRequest(request);
+    const auth = await getUserIdFromRequest(request);
 
-    if (!userId) {
+    if (!auth?.userId) {
       return NextResponse.json(
         {
           success: false,
@@ -89,38 +208,62 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const userIdString = String(userId);
-    const userObjectId = objectIdOrString(userIdString);
+    const userId = String(auth.userId);
 
     const usersCollection = mongoose.connection.collection("users");
-    const eventsCollection = mongoose.connection.collection("events");
     const tasksCollection = mongoose.connection.collection("tasks");
 
-    const currentUserQuery: any = {
-      $or: [{ _id: userObjectId }, { _id: userIdString }],
-    };
-
-    const currentUser = await usersCollection.findOne(currentUserQuery);
+    const currentUser = await usersCollection.findOne(
+      buildUserLookupQuery(userId)
+    );
 
     if (!currentUser) {
+      console.log("STAFF DASHBOARD USER_NOT_FOUND:", {
+        userId,
+        auth,
+        query: buildUserLookupQuery(userId),
+      });
+
       return NextResponse.json(
         {
           success: false,
           error: "USER_NOT_FOUND",
+          debug:
+            process.env.NODE_ENV === "development"
+              ? {
+                  userId,
+                  role: auth.role,
+                  staffType: auth.staffType,
+                  employeeScope: auth.employeeScope,
+                }
+              : undefined,
         },
         { status: 404 }
       );
     }
 
-    const isSystemStaff =
-      currentUser.role === "staff" ||
-      currentUser.role === "admin" ||
-      currentUser.effectiveRole === "system_staff" ||
-      currentUser.isSystemStaff === true ||
-      (currentUser.role === "staff" &&
-        currentUser.staffType === "general_staff" &&
-        currentUser.employeeScope === "system");
+    const authRole = String(auth.role || "");
+const authStaffType = String(auth.staffType || "");
+const authEmployeeScope = String(auth.employeeScope || "");
 
+const currentRole = String(currentUser.role || "");
+const currentStaffType = String(currentUser.staffType || "");
+const currentEmployeeScope = String(currentUser.employeeScope || "");
+const currentEffectiveRole = String(currentUser.effectiveRole || "");
+
+const isSystemStaff =
+  authRole === "admin" ||
+  authRole === "staff" ||
+  currentRole === "admin" ||
+  currentRole === "staff" ||
+  currentEffectiveRole === "system_staff" ||
+  currentUser.isSystemStaff === true ||
+  (currentRole === "staff" &&
+    currentStaffType === "general_staff" &&
+    currentEmployeeScope === "system") ||
+  (authRole === "staff" &&
+    authStaffType === "general_staff" &&
+    authEmployeeScope === "system");
     if (!isSystemStaff) {
       return NextResponse.json(
         {
@@ -131,9 +274,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const staffQuery = normalizeStaffIdQuery(userIdString);
+    const staffQuery = normalizeStaffIdQuery(userId);
 
-    const [users, events, tasks] = await Promise.all([
+    const [users, invitations, tasks] = await Promise.all([
       usersCollection
         .find({})
         .project({
@@ -149,11 +292,10 @@ export async function GET(request: NextRequest) {
         .limit(300)
         .toArray(),
 
-      eventsCollection
-        .find(staffQuery)
+      Invitation.find(staffQuery)
         .sort({ updatedAt: -1, createdAt: -1 })
         .limit(200)
-        .toArray(),
+        .lean(),
 
       tasksCollection
         .find(staffQuery)
@@ -162,6 +304,10 @@ export async function GET(request: NextRequest) {
         .toArray()
         .catch(() => []),
     ]);
+
+    const events = invitations.map((invitation: any) =>
+      mapInvitationToDashboardEvent(invitation)
+    );
 
     const needCheck = events.filter(isEventNeedsCheck).length;
 
@@ -180,6 +326,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       user: currentUser,
+      auth,
       users,
       events,
       tasks,
