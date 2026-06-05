@@ -1,18 +1,84 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Menu, X, UserRound, Sparkles, Home } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { usePathname } from "next/navigation";
+
+const SUPPORT_COOKIE_NAME = "staffImpersonationActive";
+const STAFF_ID_COOKIE_NAME = "staffOriginalUserId";
+
+function getCookieValue(name: string) {
+  if (typeof document === "undefined") return "";
+
+  const cookies = document.cookie
+    .split(";")
+    .map((cookie) => cookie.trim())
+    .filter(Boolean);
+
+  const found = cookies.find((cookie) => cookie.startsWith(`${name}=`));
+
+  if (!found) return "";
+
+  return decodeURIComponent(found.split("=").slice(1).join("="));
+}
+
+function hasCookie(name: string) {
+  return Boolean(getCookieValue(name));
+}
 
 export default function Header() {
   const { user, logout, loading } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [demoChoiceOpen, setDemoChoiceOpen] = useState(false);
+  const [supportModeActive, setSupportModeActive] = useState(false);
 
   const pathname = usePathname();
   const isDashboard = pathname.startsWith("/dashboard");
+
+  const isStaffPage =
+    pathname === "/staff" ||
+    pathname.startsWith("/staff/");
+
+  useEffect(() => {
+    const checkSupportMode = () => {
+      setSupportModeActive(
+        hasCookie(SUPPORT_COOKIE_NAME) || hasCookie(STAFF_ID_COOKIE_NAME)
+      );
+    };
+
+    checkSupportMode();
+
+    const handleFocus = () => checkSupportMode();
+    const handleVisibilityChange = () => {
+      if (!document.hidden) checkSupportMode();
+    };
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    const interval = window.setInterval(checkSupportMode, 1000);
+
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.clearInterval(interval);
+    };
+  }, []);
+
+  const isImpersonatingFromUser = useMemo(() => {
+  const authUser = user as any;
+
+  return (
+    authUser?.impersonated === true ||
+    authUser?.impersonatedBy === true ||
+    authUser?.impersonatedByAdmin === true ||
+    Boolean(authUser?.impersonationRole)
+  );
+}, [user]);
+
+  const shouldHideHeader = isStaffPage || supportModeActive || isImpersonatingFromUser;
 
   const logoHref = user ? "/dashboard" : "/";
 
@@ -70,6 +136,10 @@ export default function Header() {
     setMobileOpen(false);
     setDemoChoiceOpen(true);
   };
+
+  if (shouldHideHeader) {
+    return null;
+  }
 
   if (isProducer) {
     return (
