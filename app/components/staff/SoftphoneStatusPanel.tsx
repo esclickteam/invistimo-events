@@ -89,6 +89,35 @@ type TelnyxRtcCall = {
   unmuteAudio?: () => void;
 };
 
+type IconName =
+  | "play"
+  | "stop"
+  | "phone"
+  | "phonePlus"
+  | "headset"
+  | "keypad"
+  | "clock"
+  | "mic"
+  | "speaker"
+  | "pause"
+  | "transfer"
+  | "user"
+  | "x"
+  | "delete"
+  | "check"
+  | "minus"
+  | "arrowOut"
+  | "arrowIn"
+  | "coffee"
+  | "briefcase"
+  | "shield"
+  | "dotGrid"
+  | "search"
+  | "wave"
+  | "chevronLeft"
+  | "message"
+  | "activity";
+
 const TELNYX_DEFAULT_CALLER_NUMBER = "+97283761556";
 
 const STATUS_LABELS: Record<AgentStatus, string> = {
@@ -166,6 +195,21 @@ const DEFAULT_RECENT_CALLS: RecentCall[] = [
   },
 ];
 
+const quickActions: {
+  icon: IconName;
+  title: string;
+  type?: "mute" | "speaker" | "dialer";
+}[] = [
+  { icon: "headset", title: "אוזניות" },
+  { icon: "keypad", title: "מקשים", type: "dialer" },
+  { icon: "clock", title: "היסטוריה", type: "dialer" },
+  { icon: "mic", title: "השתק", type: "mute" },
+  { icon: "speaker", title: "רמקול", type: "speaker" },
+  { icon: "pause", title: "המתנה" },
+  { icon: "transfer", title: "העברה" },
+  { icon: "user", title: "איש קשר" },
+];
+
 function formatDuration(totalSeconds: number) {
   const safeSeconds = Math.max(0, Math.floor(totalSeconds || 0));
   const hours = Math.floor(safeSeconds / 3600);
@@ -219,32 +263,65 @@ function getTimerLabel(status: AgentStatus, reason?: BusyReason | null) {
   return getBusyReasonLabel(reason) || "זמן לא פנוי";
 }
 
+function getStatusStyles(status: AgentStatus) {
+  if (status === "available") {
+    return {
+      dot: "bg-emerald-400 shadow-emerald-400/30",
+      pill: "border-emerald-400/20 bg-emerald-400/10 text-emerald-100",
+      glow: "from-emerald-500/25 via-emerald-400/5 to-transparent",
+      icon: "bg-emerald-400 text-slate-950",
+    };
+  }
+
+  if (status === "dialing") {
+    return {
+      dot: "bg-sky-400 shadow-sky-400/30",
+      pill: "border-sky-400/20 bg-sky-400/10 text-sky-100",
+      glow: "from-sky-500/25 via-sky-400/5 to-transparent",
+      icon: "bg-sky-400 text-slate-950",
+    };
+  }
+
+  if (status === "ringing") {
+    return {
+      dot: "bg-violet-400 shadow-violet-400/30",
+      pill: "border-violet-400/20 bg-violet-400/10 text-violet-100",
+      glow: "from-violet-500/25 via-violet-400/5 to-transparent",
+      icon: "bg-violet-400 text-slate-950",
+    };
+  }
+
+  if (status === "in_call") {
+    return {
+      dot: "bg-rose-400 shadow-rose-400/30",
+      pill: "border-rose-400/20 bg-rose-400/10 text-rose-100",
+      glow: "from-rose-500/25 via-rose-400/5 to-transparent",
+      icon: "bg-rose-400 text-slate-950",
+    };
+  }
+
+  if (status === "after_call" || status === "break" || status === "unavailable") {
+    return {
+      dot: "bg-amber-400 shadow-amber-400/30",
+      pill: "border-amber-400/20 bg-amber-400/10 text-amber-100",
+      glow: "from-amber-500/25 via-amber-400/5 to-transparent",
+      icon: "bg-amber-400 text-slate-950",
+    };
+  }
+
+  return {
+    dot: "bg-slate-500 shadow-slate-500/30",
+    pill: "border-white/10 bg-white/5 text-slate-300",
+    glow: "from-slate-500/20 via-white/5 to-transparent",
+    icon: "bg-slate-700 text-slate-200",
+  };
+}
+
 function Icon({
   name,
   className = "h-4 w-4",
 }: {
-  name:
-    | "play"
-    | "stop"
-    | "phone"
-    | "phonePlus"
-    | "headset"
-    | "keypad"
-    | "clock"
-    | "mic"
-    | "speaker"
-    | "pause"
-    | "transfer"
-    | "user"
-    | "x"
-    | "delete"
-    | "check"
-    | "minus"
-    | "arrowOut"
-    | "arrowIn"
-    | "coffee"
-    | "briefcase"
-    | "shield";
+  name: IconName;
   className?: string;
 }) {
   const common = {
@@ -302,7 +379,7 @@ function Icon({
     );
   }
 
-  if (name === "keypad") {
+  if (name === "keypad" || name === "dotGrid") {
     return (
       <svg {...common}>
         <circle cx="6" cy="6" r="1" />
@@ -448,6 +525,47 @@ function Icon({
     );
   }
 
+  if (name === "search") {
+    return (
+      <svg {...common}>
+        <circle cx="11" cy="11" r="7" />
+        <path d="m20 20-3.5-3.5" />
+      </svg>
+    );
+  }
+
+  if (name === "wave") {
+    return (
+      <svg {...common}>
+        <path d="M4 12h2l2-7 4 14 3-9 2 2h3" />
+      </svg>
+    );
+  }
+
+  if (name === "chevronLeft") {
+    return (
+      <svg {...common}>
+        <path d="m15 18-6-6 6-6" />
+      </svg>
+    );
+  }
+
+  if (name === "message") {
+    return (
+      <svg {...common}>
+        <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+      </svg>
+    );
+  }
+
+  if (name === "activity") {
+    return (
+      <svg {...common}>
+        <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+      </svg>
+    );
+  }
+
   return (
     <svg {...common}>
       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
@@ -458,10 +576,31 @@ function Icon({
 
 function ReasonIcon({ reason }: { reason: BusyReason }) {
   if (reason === "break") return <Icon name="coffee" className="h-4 w-4" />;
-  if (reason === "back_office") return <Icon name="briefcase" className="h-4 w-4" />;
-  if (reason === "manager_approval") return <Icon name="shield" className="h-4 w-4" />;
+  if (reason === "back_office") {
+    return <Icon name="briefcase" className="h-4 w-4" />;
+  }
+  if (reason === "manager_approval") {
+    return <Icon name="shield" className="h-4 w-4" />;
+  }
   if (reason === "after_call") return <Icon name="headset" className="h-4 w-4" />;
   return <Icon name="minus" className="h-4 w-4" />;
+}
+
+function MiniMetric({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | number;
+}) {
+  return (
+    <div className="rounded-[20px] border border-white/10 bg-white/[0.055] px-3 py-3">
+      <p className="text-[11px] font-black text-slate-400">{label}</p>
+      <p className="mt-1 font-mono text-lg font-black tracking-tight text-white">
+        {value}
+      </p>
+    </div>
+  );
 }
 
 export default function SoftphoneStatusPanel() {
@@ -548,13 +687,8 @@ export default function SoftphoneStatusPanel() {
         return;
       }
 
-      if (isTypingInPhoneInput) {
-        return;
-      }
-
-      if (isTypingInOtherInput) {
-        return;
-      }
+      if (isTypingInPhoneInput) return;
+      if (isTypingInOtherInput) return;
 
       if (/^\d$/.test(key) || key === "*" || key === "#" || key === "+") {
         event.preventDefault();
@@ -616,10 +750,6 @@ export default function SoftphoneStatusPanel() {
         setShiftStarted(true);
         setShiftStartedAt(data.agent.statusStartedAt || new Date().toISOString());
 
-        // ✅ חשוב:
-        // אחרי רענון עמוד הסטטוס יכול להישאר "פנוי",
-        // אבל חיבור WebRTC לא נשמר אוטומטית בדפדפן.
-        // לכן מחברים מחדש כדי שהדפדפן באמת יקבל שיחות נכנסות.
         window.setTimeout(() => {
           void connectWebrtc().catch((error) => {
             console.error("AUTO CONNECT WEBRTC AFTER STATUS LOAD FAILED:", error);
@@ -681,10 +811,10 @@ export default function SoftphoneStatusPanel() {
         throw new Error(data.error || "CHANGE_STATUS_FAILED");
       }
 
-      setAgent((prev) => ({
-        ...(prev || {}),
-        ...data.agent,
-      }));
+      setAgent((prev) => {
+        if (data.agent) return data.agent as AgentState;
+        return prev;
+      });
     } catch (err) {
       console.error("CHANGE SOFTPHONE STATUS FAILED:", err);
       alert("שגיאה בעדכון סטטוס");
@@ -799,7 +929,7 @@ export default function SoftphoneStatusPanel() {
 
   function openAddCall() {
     if (!shiftStarted) {
-      startShift();
+      void startShift();
       return;
     }
 
@@ -888,7 +1018,6 @@ export default function SoftphoneStatusPanel() {
   }
 
   function handleWebrtcNotification(notification: any) {
-    // ✅ לוג מלא כדי להבין אם ה-SDK באמת מקבל שיחה נכנסת
     console.log("RAW TELNYX NOTIFICATION:", notification);
 
     const call = (notification?.call || notification) as TelnyxRtcCall | null;
@@ -1010,7 +1139,7 @@ export default function SoftphoneStatusPanel() {
     return data;
   }
 
-   async function connectWebrtc() {
+  async function connectWebrtc() {
     if (telnyxClientRef.current && webrtcReady) return telnyxClientRef.current;
     if (webrtcConnecting) return telnyxClientRef.current;
 
@@ -1163,7 +1292,6 @@ export default function SoftphoneStatusPanel() {
     };
   }
 
-
   async function startOutboundCall() {
     if (savingStatus || creatingCall) return;
 
@@ -1225,34 +1353,6 @@ export default function SoftphoneStatusPanel() {
     } finally {
       setCreatingCall(false);
     }
-  }
-
-  async function simulateIncomingCall() {
-    if (savingStatus) return;
-
-    const cleanNumber = normalizeDialNumber(phoneNumber);
-
-    if (!cleanNumber) {
-      setShowDialer(true);
-      return;
-    }
-
-    ensureShiftStarted();
-
-    setActiveBusyReason(null);
-    setActiveCallNumber(cleanNumber);
-    setPhoneNumber(cleanNumber);
-    setCallDirection("inbound");
-    setShowDialer(false);
-    setShowBusyMenu(false);
-
-    addRecentCall(cleanNumber, "inbound");
-
-    await changeStatus("ringing", {
-      number: cleanNumber,
-      direction: "inbound",
-      reason: null,
-    });
   }
 
   async function rejectIncomingCall() {
@@ -1384,6 +1484,7 @@ export default function SoftphoneStatusPanel() {
   }
 
   const currentStatus: AgentStatus = agent?.status || "offline";
+  const statusStyles = getStatusStyles(currentStatus);
 
   const liveStatusSeconds = useMemo(() => {
     tick;
@@ -1407,384 +1508,369 @@ export default function SoftphoneStatusPanel() {
 
   if (loading) {
     return (
-      <section dir="rtl" className="w-full">
-        <div className="flex h-[68px] w-full items-center rounded-[24px] border border-slate-200 bg-white px-4 shadow-sm">
-          <p className="text-sm font-bold text-slate-600">טוען סופטפון...</p>
+      <aside
+        dir="rtl"
+        className="fixed bottom-4 left-4 top-4 z-[80] hidden w-[340px] lg:block"
+      >
+        <div className="flex h-full items-center justify-center rounded-[34px] border border-slate-800 bg-slate-950 text-white shadow-[0_28px_80px_rgba(15,23,42,0.42)]">
+          <div className="text-center">
+            <div className="mx-auto mb-4 h-10 w-10 animate-pulse rounded-2xl bg-white/10" />
+            <p className="text-sm font-black text-slate-300">טוען סופטפון...</p>
+          </div>
         </div>
-      </section>
+      </aside>
     );
   }
 
   return (
-    <section dir="rtl" className="relative w-full max-w-full">
-      <audio
-        ref={remoteAudioRef}
-        autoPlay
-        className="hidden"
-        aria-hidden="true"
-      />
-
-      {showIncomingCallModal && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/30 px-4 backdrop-blur-sm">
-          <div
-            dir="rtl"
-            className="w-full max-w-[560px] rounded-[34px] border border-white/70 bg-white p-6 text-center shadow-[0_30px_100px_rgba(15,23,42,0.28)]"
-          >
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-emerald-700 shadow-[0_0_0_10px_rgba(16,185,129,0.08)]">
-              <Icon name="phone" className="h-7 w-7" />
-            </div>
-
-            <p className="text-2xl font-black text-slate-950">שיחה נכנסת</p>
-
-            <p className="mt-3 text-sm font-black text-slate-500">
-              מתקשר/ת אליך עכשיו
-            </p>
-
-            <p
-              dir="ltr"
-              className="mt-2 truncate font-mono text-3xl font-black tracking-wide text-slate-950"
-            >
-              {incomingCallNumber || activeCallNumber || phoneNumber || "מספר לא מזוהה"}
-            </p>
-
-            <div className="mt-6 grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={rejectIncomingCall}
-                disabled={!!savingStatus}
-                className="h-16 rounded-[22px] border border-slate-200 bg-white text-lg font-black text-slate-600 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                דחה
-              </button>
-
-              <button
-                type="button"
-                onClick={markAnswered}
-                disabled={!!savingStatus || creatingCall}
-                className="h-16 rounded-[22px] bg-slate-950 text-lg font-black text-white shadow-[0_18px_40px_rgba(15,23,42,0.24)] transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                ענה
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div
-        dir="ltr"
-        className="relative flex h-[72px] w-full max-w-full items-center gap-2 overflow-visible rounded-[26px] border border-slate-200 bg-white px-3 shadow-[0_18px_55px_rgba(15,23,42,0.12)]"
+    <>
+      <aside
+        dir="rtl"
+        className="fixed bottom-4 left-4 top-4 z-[80] hidden w-[340px] max-w-[calc(100vw-2rem)] lg:block"
       >
-        <button
-          type="button"
-          onClick={shiftStarted ? requestEndShift : startShift}
-          disabled={!!savingStatus || creatingCall || webrtcConnecting}
-          dir="rtl"
-          className={`flex h-12 w-[150px] items-center justify-center gap-2 rounded-2xl text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-60 ${
-            shiftStarted
-              ? "border border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
-              : "bg-[#111827] text-white shadow-[0_12px_28px_rgba(17,24,39,0.22)] hover:bg-black"
-          }`}
-        >
-          <Icon name={shiftStarted ? "stop" : "play"} className="h-4 w-4" />
-          {shiftStarted ? "סיום משמרת" : "התחלת משמרת"}
-        </button>
+        <audio ref={remoteAudioRef} autoPlay className="hidden" aria-hidden="true" />
 
-        <div
-          dir="rtl"
-          className="flex h-12 w-[128px] items-center justify-center gap-2 rounded-2xl"
-        >
-          <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-[0_0_0_5px_rgba(16,185,129,0.13)]" />
-          <div className="leading-4">
-            <p className="text-[11px] font-black text-slate-500">משמרת פעילה</p>
-            <p dir="ltr" className="font-mono text-sm font-black text-slate-950">
-              {shiftStarted ? formatDuration(shiftSeconds) : "00:00:00"}
-            </p>
-          </div>
-        </div>
+        <div className="relative flex h-full overflow-hidden rounded-[34px] border border-white/10 bg-[#070B16] text-white shadow-[0_32px_95px_rgba(2,6,23,0.52)]">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_15%,rgba(124,58,237,0.28),transparent_30%),radial-gradient(circle_at_90%_8%,rgba(16,185,129,0.17),transparent_24%),linear-gradient(180deg,rgba(255,255,255,0.07),transparent_28%)]" />
+          <div className="pointer-events-none absolute bottom-0 left-0 h-52 w-full bg-[radial-gradient(circle_at_50%_100%,rgba(124,58,237,0.22),transparent_55%)]" />
 
-        <div
-          dir="rtl"
-          className={`hidden h-12 w-[132px] items-center justify-center gap-2 rounded-2xl px-3 text-xs font-black xl:flex ${
-            webrtcReady
-              ? "bg-emerald-50 text-emerald-700"
-              : webrtcConnecting
-              ? "bg-blue-50 text-blue-700"
-              : "bg-red-50 text-red-700"
-          }`}
-          title={webrtcError || undefined}
-        >
-          <Icon name="headset" className="h-4 w-4" />
-          {webrtcReady ? "WebRTC מחובר" : webrtcConnecting ? "מתחבר..." : "WebRTC מנותק"}
-        </div>
-
-        <span className="hidden text-lg text-slate-300 xl:block">←</span>
-
-        <button
-          type="button"
-          onClick={requestEndShift}
-          disabled={!!savingStatus || creatingCall || !shiftStarted}
-          dir="rtl"
-          className="hidden h-12 w-[132px] items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45 xl:flex"
-        >
-          סיום משמרת
-          <Icon name="stop" className="h-4 w-4" />
-        </button>
-
-        <button
-          type="button"
-          onClick={setAvailable}
-          disabled={!!savingStatus || creatingCall || !shiftStarted}
-          dir="rtl"
-          className={`flex h-12 w-[92px] items-center justify-center gap-2 rounded-2xl text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-50 ${
-            currentStatus === "available"
-              ? "bg-emerald-600 text-white shadow-[0_10px_24px_rgba(16,185,129,0.22)]"
-              : "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-          }`}
-        >
-          פנוי
-          <Icon name="check" className="h-4 w-4" />
-        </button>
-
-        <div className="relative" dir="rtl">
-          <button
-            type="button"
-            onClick={() => {
-              if (!shiftStarted || savingStatus) return;
-              setShowBusyMenu((prev) => !prev);
-              setShowDialer(false);
-              setShowEndShiftConfirm(false);
-            }}
-            disabled={!!savingStatus || creatingCall || !shiftStarted}
-            className="flex h-12 w-[110px] items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 text-sm font-black text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            לא פנוי
-            <Icon name="minus" className="h-4 w-4" />
-          </button>
-
-          {showBusyMenu && (
-            <div className="absolute right-0 top-[58px] z-50 w-[245px] overflow-hidden rounded-[22px] border border-slate-200 bg-white p-2 shadow-[0_24px_70px_rgba(15,23,42,0.18)]">
-              {BUSY_REASONS.map((reason) => (
-                <button
-                  key={reason.value}
-                  type="button"
-                  onClick={() => handleBusyReasonChange(reason.value)}
-                  className={`flex h-11 w-full items-center gap-3 rounded-2xl px-3 text-right text-sm font-black transition hover:bg-slate-50 ${
-                    busyReason === reason.value
-                      ? "bg-red-50 text-red-700"
-                      : "text-slate-700"
-                  }`}
-                >
-                  <span className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-slate-50">
-                    <ReasonIcon reason={reason.value} />
-                  </span>
-                  {reason.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div
-          dir="rtl"
-          className={`flex h-12 w-[178px] items-center gap-3 rounded-2xl border px-3 ${
-            currentStatus === "available"
-              ? "border-emerald-200 bg-emerald-50"
-              : currentStatus === "dialing"
-              ? "border-blue-200 bg-blue-50"
-              : currentStatus === "in_call"
-              ? "border-red-200 bg-red-50"
-              : "border-orange-200 bg-orange-50"
-          }`}
-        >
-          <span
-            className={`h-2.5 w-2.5 rounded-full shadow-[0_0_0_5px] ${
-              currentStatus === "available"
-                ? "bg-emerald-500 shadow-emerald-100"
-                : currentStatus === "dialing"
-                ? "bg-blue-500 shadow-blue-100"
-                : currentStatus === "in_call"
-                ? "bg-red-500 shadow-red-100"
-                : "bg-orange-500 shadow-orange-100"
-            }`}
-          />
-          <div className="min-w-0 leading-4">
-            <p className="truncate text-[11px] font-black text-slate-600">
-              {timerLabel}
-            </p>
-            <p dir="ltr" className="font-mono text-sm font-black text-slate-950">
-              {formatDuration(liveStatusSeconds)}
-            </p>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={openAddCall}
-          disabled={!!savingStatus || creatingCall}
-          dir="rtl"
-          className="flex h-12 w-[124px] items-center justify-center gap-2 rounded-2xl bg-[#b9945a] text-sm font-black text-white shadow-[0_10px_24px_rgba(185,148,90,0.25)] transition hover:bg-[#9f7a3f] disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          הוספת שיחה
-          <Icon name="phonePlus" className="h-4 w-4" />
-        </button>
-
-        <div
-          dir="rtl"
-          className={`hidden h-12 w-[122px] items-center justify-center gap-2 rounded-2xl px-3 text-xs font-black 2xl:flex ${
-            canReceiveInbound
-              ? "bg-emerald-50 text-emerald-700"
-              : "bg-red-50 text-red-700"
-          }`}
-        >
-          <Icon name="phone" className="h-4 w-4" />
-          {canReceiveInbound ? "מקבל נכנסות" : "לא מקבל נכנסות"}
-        </div>
-
-        <div
-          dir="rtl"
-          className="relative flex h-12 min-w-[220px] flex-1 items-center rounded-2xl border border-slate-200 bg-white"
-        >
-          <button
-            type="button"
-            onClick={toggleDialer}
-            disabled={!!savingStatus || creatingCall || !shiftStarted}
-            className={`flex h-full w-[92px] items-center justify-center gap-2 rounded-r-2xl border-l border-slate-200 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-50 ${
-              showDialer
-                ? "bg-slate-950 text-white"
-                : "bg-slate-50 text-slate-950 hover:bg-slate-100"
-            }`}
-          >
-            <Icon name="keypad" className="h-4 w-4" />
-            מקשים
-          </button>
-
-          <input
-            ref={phoneInputRef}
-            dir="ltr"
-            value={phoneNumber}
-            onChange={(event) => setPhoneNumber(onlyDialChars(event.target.value))}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                void startOutboundCall();
-              }
-
-              if (event.key === "Escape") {
-                event.preventDefault();
-                setShowDialer(false);
-              }
-            }}
-            placeholder="מספר נוכחי / יעד חיוג"
-            disabled={!shiftStarted}
-            className="h-full min-w-0 flex-1 bg-white px-3 text-left font-mono text-sm font-black tracking-wide text-slate-950 outline-none disabled:cursor-not-allowed disabled:bg-slate-50"
-          />
-
-          <button
-            type="button"
-            onClick={startOutboundCall}
-            disabled={!!savingStatus || creatingCall || !shiftStarted}
-            className="flex h-full w-12 items-center justify-center rounded-l-2xl text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <Icon name="phone" className="h-5 w-5" />
-          </button>
-
-          {showDialer && (
-            <div className="absolute left-0 top-[60px] z-50 grid w-[590px] grid-cols-[260px_1fr] overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_28px_80px_rgba(15,23,42,0.22)]">
-              <div className="border-l border-slate-100 p-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <button
-                    type="button"
-                    onClick={() => setShowDialer(false)}
-                    className="flex h-8 w-8 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-950"
-                  >
-                    <Icon name="x" className="h-4 w-4" />
-                  </button>
-
-                  <div className="text-right">
-                    <p className="text-sm font-black text-slate-950">חייגן</p>
-                    <p className="text-[11px] font-bold text-slate-500">
-                      חיוג יוצא גם במצב לא פנוי
-                    </p>
+          <div className="relative flex min-h-0 w-full flex-col">
+            <header className="shrink-0 px-5 pb-3 pt-5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-[18px] bg-white/10 text-violet-200 ring-1 ring-white/10">
+                      <Icon name="headset" className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <p className="text-lg font-black tracking-tight">סופטפון</p>
+                      <p className="mt-0.5 text-[11px] font-bold text-slate-400">
+                        זמין בכל עמוד במערכת
+                      </p>
+                    </div>
                   </div>
                 </div>
 
-                <div className="mb-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
-                  <p
-                    dir="ltr"
-                    className="truncate text-center font-mono text-xl font-black tracking-wide text-slate-950"
-                  >
-                    {phoneNumber || "—"}
-                  </p>
+                <div
+                  className={`flex items-center gap-2 rounded-full border px-3 py-2 text-[11px] font-black ${statusStyles.pill}`}
+                >
+                  <span
+                    className={`h-2.5 w-2.5 rounded-full shadow-[0_0_0_5px] ${statusStyles.dot}`}
+                  />
+                  {STATUS_LABELS[currentStatus]}
                 </div>
+              </div>
 
-                <div className="grid grid-cols-3 gap-2">
-                  {DIAL_KEYS.map((digit) => (
-                    <button
-                      key={digit.key}
-                      type="button"
-                      onClick={() => appendDigit(digit.key)}
-                      className="flex h-[54px] flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-950 transition hover:border-[#b9945a] hover:bg-[#fff8ed] active:scale-95"
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={shiftStarted ? requestEndShift : startShift}
+                  disabled={!!savingStatus || creatingCall || webrtcConnecting}
+                  className={`h-12 rounded-[18px] text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-55 ${
+                    shiftStarted
+                      ? "border border-white/10 bg-white/8 text-white hover:bg-white/12"
+                      : "bg-white text-slate-950 shadow-[0_15px_35px_rgba(255,255,255,0.16)] hover:bg-slate-100"
+                  }`}
+                >
+                  <span className="inline-flex items-center justify-center gap-2">
+                    <Icon name={shiftStarted ? "stop" : "play"} className="h-4 w-4" />
+                    {shiftStarted ? "סיום משמרת" : "התחלת משמרת"}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={openAddCall}
+                  disabled={!!savingStatus || creatingCall}
+                  className="h-12 rounded-[18px] bg-gradient-to-l from-amber-400 to-[#b9945a] text-sm font-black text-slate-950 shadow-[0_16px_35px_rgba(185,148,90,0.25)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-55"
+                >
+                  <span className="inline-flex items-center justify-center gap-2">
+                    <Icon name="phonePlus" className="h-4 w-4" />
+                    שיחה חדשה
+                  </span>
+                </button>
+              </div>
+            </header>
+
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <section className="relative overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.055] p-4">
+                <div
+                  className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${statusStyles.glow}`}
+                />
+
+                <div className="relative flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-black text-slate-400">
+                      {timerLabel}
+                    </p>
+                    <p
+                      dir="ltr"
+                      className="mt-1 font-mono text-3xl font-black tracking-tight text-white"
                     >
-                      <span className="text-xl font-black leading-5">{digit.key}</span>
-                      {digit.letters && (
-                        <span className="mt-0.5 text-[9px] font-black text-slate-400">
-                          {digit.letters}
-                        </span>
-                      )}
-                    </button>
-                  ))}
+                      {formatDuration(liveStatusSeconds)}
+                    </p>
+                  </div>
+
+                  <div
+                    className={`flex h-12 w-12 items-center justify-center rounded-[20px] ${statusStyles.icon}`}
+                  >
+                    <Icon
+                      name={
+                        currentStatus === "in_call"
+                          ? "wave"
+                          : currentStatus === "ringing"
+                          ? "phone"
+                          : currentStatus === "available"
+                          ? "check"
+                          : "headset"
+                      }
+                      className="h-5 w-5"
+                    />
+                  </div>
                 </div>
 
-                <div className="mt-3 grid grid-cols-3 gap-2">
+                <div className="relative mt-4 grid grid-cols-2 gap-2">
+                  <MiniMetric
+                    label="משמרת"
+                    value={shiftStarted ? formatDuration(shiftSeconds) : "00:00:00"}
+                  />
+                  <MiniMetric
+                    label="שיחות היום"
+                    value={agent?.totalCallsToday ?? 0}
+                  />
+                </div>
+              </section>
+
+              <section className="mt-3 rounded-[28px] border border-white/10 bg-white/[0.055] p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-black text-slate-400">
+                      שיחה פעילה / יעד חיוג
+                    </p>
+                    <p
+                      dir="ltr"
+                      className="mt-1 max-w-[190px] truncate font-mono text-xl font-black tracking-wide text-white"
+                    >
+                      {activeDisplayNumber}
+                    </p>
+                  </div>
+
+                  <div
+                    className={`rounded-full px-3 py-1.5 text-[11px] font-black ${
+                      canReceiveInbound
+                        ? "bg-emerald-400/12 text-emerald-200 ring-1 ring-emerald-400/20"
+                        : "bg-rose-400/12 text-rose-200 ring-1 ring-rose-400/20"
+                    }`}
+                  >
+                    {canReceiveInbound ? "מקבל נכנסות" : "לא מקבל נכנסות"}
+                  </div>
+                </div>
+
+                <div className="mt-4 flex h-12 items-center overflow-hidden rounded-[18px] border border-white/10 bg-black/20">
                   <button
                     type="button"
-                    onClick={removeLastDigit}
-                    className="flex h-11 items-center justify-center gap-1 rounded-2xl border border-slate-200 bg-white text-xs font-black text-slate-600 transition hover:bg-slate-50"
+                    onClick={toggleDialer}
+                    disabled={!!savingStatus || creatingCall || !shiftStarted}
+                    className={`flex h-full w-12 shrink-0 items-center justify-center border-l border-white/10 transition disabled:cursor-not-allowed disabled:opacity-45 ${
+                      showDialer ? "bg-white text-slate-950" : "text-white hover:bg-white/10"
+                    }`}
+                    title="חייגן"
                   >
-                    <Icon name="delete" className="h-4 w-4" />
-                    מחק
+                    <Icon name="keypad" className="h-5 w-5" />
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={clearNumber}
-                    className="h-11 rounded-2xl border border-slate-200 bg-white text-xs font-black text-slate-600 transition hover:bg-slate-50"
-                  >
-                    נקה
-                  </button>
+                  <input
+                    ref={phoneInputRef}
+                    dir="ltr"
+                    value={phoneNumber}
+                    onChange={(event) => setPhoneNumber(onlyDialChars(event.target.value))}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        void startOutboundCall();
+                      }
+
+                      if (event.key === "Escape") {
+                        event.preventDefault();
+                        setShowDialer(false);
+                      }
+                    }}
+                    placeholder="הקלד מספר"
+                    disabled={!shiftStarted}
+                    className="h-full min-w-0 flex-1 bg-transparent px-3 text-left font-mono text-sm font-black tracking-wide text-white outline-none placeholder:text-slate-500 disabled:cursor-not-allowed"
+                  />
 
                   <button
                     type="button"
                     onClick={startOutboundCall}
-                    className="flex h-11 items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-xs font-black text-white transition hover:bg-emerald-700"
+                    disabled={!!savingStatus || creatingCall || !shiftStarted}
+                    className="flex h-full w-12 shrink-0 items-center justify-center text-emerald-300 transition hover:bg-emerald-400/10 disabled:cursor-not-allowed disabled:opacity-45"
+                    title="חייג"
                   >
-                    <Icon name="phone" className="h-4 w-4" />
-                    {creatingCall ? "מחייג..." : "חייג"}
+                    <Icon name="phone" className="h-5 w-5" />
                   </button>
                 </div>
-              </div>
 
-              <div className="p-4">
-                <div className="mb-3 text-right">
-                  <p className="text-sm font-black text-slate-950">שיחות אחרונות</p>
-                  <p className="text-[11px] font-bold text-slate-500">
-                    לחיצה על שיחה תכניס את המספר לחייגן
-                  </p>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={setAvailable}
+                    disabled={!!savingStatus || creatingCall || !shiftStarted}
+                    className={`h-11 rounded-[16px] text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-45 ${
+                      currentStatus === "available"
+                        ? "bg-emerald-400 text-slate-950"
+                        : "border border-emerald-400/20 bg-emerald-400/10 text-emerald-200 hover:bg-emerald-400/15"
+                    }`}
+                  >
+                    פנוי
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!shiftStarted || savingStatus) return;
+                      setShowBusyMenu((prev) => !prev);
+                      setShowDialer(false);
+                      setShowEndShiftConfirm(false);
+                    }}
+                    disabled={!!savingStatus || creatingCall || !shiftStarted}
+                    className="h-11 rounded-[16px] border border-rose-400/20 bg-rose-400/10 text-sm font-black text-rose-200 transition hover:bg-rose-400/15 disabled:cursor-not-allowed disabled:opacity-45"
+                  >
+                    לא פנוי
+                  </button>
+                </div>
+
+                {showBusyMenu && (
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    {BUSY_REASONS.map((reason) => (
+                      <button
+                        key={reason.value}
+                        type="button"
+                        onClick={() => handleBusyReasonChange(reason.value)}
+                        className={`flex h-12 items-center gap-2 rounded-[16px] px-3 text-right text-[12px] font-black transition ${
+                          busyReason === reason.value
+                            ? "bg-amber-400 text-slate-950"
+                            : "border border-white/10 bg-white/[0.055] text-slate-300 hover:bg-white/10"
+                        }`}
+                      >
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[12px] bg-black/15">
+                          <ReasonIcon reason={reason.value} />
+                        </span>
+                        <span className="truncate">{reason.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              {showDialer && (
+                <section className="mt-3 overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.055] p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => setShowDialer(false)}
+                      className="flex h-9 w-9 items-center justify-center rounded-[14px] text-slate-400 transition hover:bg-white/10 hover:text-white"
+                    >
+                      <Icon name="x" className="h-4 w-4" />
+                    </button>
+
+                    <div className="text-right">
+                      <p className="text-sm font-black text-white">חייגן מהיר</p>
+                      <p className="text-[11px] font-bold text-slate-500">
+                        Enter לחיוג, Esc לסגירה
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mb-3 rounded-[20px] border border-white/10 bg-black/20 px-3 py-3">
+                    <p
+                      dir="ltr"
+                      className="truncate text-center font-mono text-2xl font-black tracking-wide text-white"
+                    >
+                      {phoneNumber || "—"}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    {DIAL_KEYS.map((digit) => (
+                      <button
+                        key={digit.key}
+                        type="button"
+                        onClick={() => appendDigit(digit.key)}
+                        className="flex h-[54px] flex-col items-center justify-center rounded-[18px] border border-white/10 bg-white/[0.06] text-white transition hover:border-amber-300/40 hover:bg-amber-300/10 active:scale-95"
+                      >
+                        <span className="text-xl font-black leading-5">{digit.key}</span>
+                        {digit.letters && (
+                          <span className="mt-0.5 text-[9px] font-black text-slate-500">
+                            {digit.letters}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={removeLastDigit}
+                      className="flex h-11 items-center justify-center gap-1 rounded-[16px] border border-white/10 bg-white/[0.055] text-xs font-black text-slate-300 transition hover:bg-white/10"
+                    >
+                      <Icon name="delete" className="h-4 w-4" />
+                      מחק
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={clearNumber}
+                      className="h-11 rounded-[16px] border border-white/10 bg-white/[0.055] text-xs font-black text-slate-300 transition hover:bg-white/10"
+                    >
+                      נקה
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={startOutboundCall}
+                      disabled={creatingCall}
+                      className="flex h-11 items-center justify-center gap-2 rounded-[16px] bg-emerald-400 text-xs font-black text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-55"
+                    >
+                      <Icon name="phone" className="h-4 w-4" />
+                      {creatingCall ? "מחייג..." : "חייג"}
+                    </button>
+                  </div>
+                </section>
+              )}
+
+              <section className="mt-3 rounded-[28px] border border-white/10 bg-white/[0.055] p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={toggleDialer}
+                    className="text-xs font-black text-violet-200 hover:text-white"
+                  >
+                    חייגן
+                  </button>
+
+                  <div>
+                    <p className="text-sm font-black text-white">שיחות אחרונות</p>
+                    <p className="mt-0.5 text-[11px] font-bold text-slate-500">
+                      לחיצה מכניסה מספר לחייגן
+                    </p>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
-                  {recentCalls.map((call) => (
+                  {recentCalls.slice(0, 4).map((call) => (
                     <button
                       key={call.id}
                       type="button"
                       onClick={() => selectRecentCall(call)}
-                      className="flex h-[52px] w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 text-right shadow-sm transition hover:-translate-y-[1px] hover:border-[#b9945a] hover:bg-[#fffaf2] hover:shadow-md"
+                      className="group flex min-h-[58px] w-full items-center gap-3 rounded-[18px] border border-white/10 bg-black/15 px-3 text-right transition hover:border-violet-300/30 hover:bg-white/10"
                     >
                       <span
-                        className={`flex h-9 w-9 items-center justify-center rounded-xl border ${
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[15px] ${
                           call.direction === "outbound"
-                            ? "border-blue-200 bg-blue-50 text-blue-700"
-                            : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                            ? "bg-sky-400/12 text-sky-200"
+                            : "bg-emerald-400/12 text-emerald-200"
                         }`}
                       >
                         <Icon
@@ -1794,155 +1880,235 @@ export default function SoftphoneStatusPanel() {
                       </span>
 
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex min-w-0 items-center justify-between gap-2">
+                          <span className="text-[11px] font-black text-slate-500">
+                            {call.time}
+                          </span>
                           <span
                             dir="ltr"
-                            className="font-mono text-sm font-black text-slate-950"
+                            className="truncate font-mono text-sm font-black text-white"
                           >
                             {call.number}
                           </span>
-                          <span className="rounded-full bg-slate-50 px-2 py-0.5 text-[10px] font-black text-slate-600">
-                            {call.label}
-                          </span>
                         </div>
-                        <p className="truncate text-xs font-bold text-slate-500">
-                          משך שיחה {formatShortDuration(call.duration)}
+                        <p className="mt-1 truncate text-xs font-bold text-slate-500">
+                          {call.label} · {formatShortDuration(call.duration)}
                         </p>
                       </div>
-
-                      <span className="text-xs font-black text-slate-400">
-                        {call.time}
-                      </span>
                     </button>
                   ))}
                 </div>
-              </div>
+              </section>
+
+              <section className="mt-3 rounded-[28px] border border-white/10 bg-white/[0.055] p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="rounded-full bg-white/8 px-3 py-1 text-[11px] font-black text-slate-300">
+                    {webrtcReady
+                      ? "WebRTC מחובר"
+                      : webrtcConnecting
+                      ? "WebRTC מתחבר"
+                      : "WebRTC מנותק"}
+                  </span>
+
+                  <div>
+                    <p className="text-sm font-black text-white">כלי שיחה</p>
+                    <p className="mt-0.5 text-[11px] font-bold text-slate-500">
+                      פעולות מהירות בזמן טיפול
+                    </p>
+                  </div>
+                </div>
+
+                {webrtcError && (
+                  <div className="mb-3 rounded-[16px] border border-rose-400/20 bg-rose-400/10 px-3 py-2 text-xs font-bold leading-5 text-rose-100">
+                    {webrtcError}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-4 gap-2">
+                  {quickActions.map((action) => {
+                    const isActiveButton =
+                      (action.type === "mute" && muted) ||
+                      (action.type === "speaker" && speakerEnabled);
+
+                    return (
+                      <button
+                        key={action.icon}
+                        type="button"
+                        title={action.title}
+                        onClick={
+                          action.type === "dialer"
+                            ? toggleDialer
+                            : action.type === "mute"
+                            ? toggleMute
+                            : action.type === "speaker"
+                            ? toggleSpeaker
+                            : undefined
+                        }
+                        className={`flex h-12 items-center justify-center rounded-[16px] border text-sm transition ${
+                          isActiveButton
+                            ? "border-white bg-white text-slate-950"
+                            : "border-white/10 bg-white/[0.055] text-slate-300 hover:bg-white/10 hover:text-white"
+                        }`}
+                      >
+                        <Icon name={action.icon} className="h-4 w-4" />
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  {(currentStatus === "dialing" || currentStatus === "ringing") && (
+                    <button
+                      type="button"
+                      onClick={markAnswered}
+                      disabled={!!savingStatus || creatingCall}
+                      className="h-12 rounded-[18px] bg-emerald-400 text-sm font-black text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-55"
+                    >
+                      ענה
+                    </button>
+                  )}
+
+                  {isCallActive && (
+                    <button
+                      type="button"
+                      onClick={finishCall}
+                      disabled={!!savingStatus || creatingCall}
+                      className={`h-12 rounded-[18px] bg-rose-500 text-sm font-black text-white transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-55 ${
+                        currentStatus === "dialing" || currentStatus === "ringing"
+                          ? ""
+                          : "col-span-2"
+                      }`}
+                    >
+                      סיים שיחה
+                    </button>
+                  )}
+
+                  {!isCallActive && (
+                    <button
+                      type="button"
+                      onClick={openAddCall}
+                      disabled={!!savingStatus || creatingCall}
+                      className="col-span-2 h-12 rounded-[18px] bg-white text-sm font-black text-slate-950 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-55"
+                    >
+                      פתח חייגן לשיחה חדשה
+                    </button>
+                  )}
+                </div>
+              </section>
             </div>
-          )}
+
+            {showEndShiftConfirm && (
+              <div className="absolute inset-x-4 bottom-4 z-40 rounded-[28px] border border-white/10 bg-[#101626]/95 p-4 shadow-[0_24px_70px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+                <p className="text-sm font-black text-white">לסיים משמרת?</p>
+
+                <p className="mt-2 text-sm font-bold leading-6 text-slate-300">
+                  סה״כ זמן עבודה:{" "}
+                  <span dir="ltr" className="font-mono font-black text-white">
+                    {formatDuration(shiftSeconds)}
+                  </span>
+                </p>
+
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={confirmEndShift}
+                    disabled={!!savingStatus || creatingCall}
+                    className="h-11 rounded-[16px] bg-rose-500 text-sm font-black text-white transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    כן, לסיים
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowEndShiftConfirm(false)}
+                    disabled={!!savingStatus || creatingCall}
+                    className="h-11 rounded-[16px] border border-white/10 bg-white/[0.055] text-sm font-black text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    ביטול
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
+      </aside>
 
-        <div
-          dir="rtl"
-          className="hidden h-12 w-[175px] items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 xl:flex"
-        >
-          <span className="text-[11px] font-black text-slate-500">
-            {isCallActive ? timerLabel : "אין שיחה פעילה"}
-          </span>
-          <span
-            dir="ltr"
-            className="min-w-0 truncate font-mono text-sm font-black text-slate-950"
-          >
-            {activeDisplayNumber}
-          </span>
-          {isCallActive && (
-            <span dir="ltr" className="font-mono text-sm font-black text-red-700">
-              {formatDuration(liveStatusSeconds)}
-            </span>
-          )}
-        </div>
+      <div
+        dir="rtl"
+        className="fixed bottom-4 left-4 right-4 z-[80] rounded-[28px] border border-white/10 bg-[#070B16] p-3 text-white shadow-[0_25px_80px_rgba(2,6,23,0.45)] lg:hidden"
+      >
+        <audio ref={remoteAudioRef} autoPlay className="hidden" aria-hidden="true" />
 
-        <div className="hidden h-12 items-center gap-1 rounded-2xl border border-slate-200 bg-white px-1 lg:flex">
-          {[
-            ["headset", "אוזניות"],
-            ["keypad", "מקשים"],
-            ["clock", "היסטוריה"],
-            ["mic", muted ? "בטל השתקה" : "השתק"],
-            ["speaker", speakerEnabled ? "כבה רמקול" : "רמקול"],
-            ["pause", "המתנה"],
-            ["transfer", "העברה"],
-            ["user", "איש קשר"],
-          ].map(([icon, title]) => {
-            const isActiveButton =
-              (icon === "mic" && muted) || (icon === "speaker" && speakerEnabled);
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className={`h-3 w-3 shrink-0 rounded-full ${statusStyles.dot}`} />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-black">
+                סופטפון · {STATUS_LABELS[currentStatus]}
+              </p>
+              <p dir="ltr" className="font-mono text-xs font-black text-slate-400">
+                {formatDuration(liveStatusSeconds)}
+              </p>
+            </div>
+          </div>
 
-            return (
-              <button
-                key={icon}
-                type="button"
-                title={title}
-                onClick={
-                  icon === "keypad" || icon === "clock"
-                    ? toggleDialer
-                    : icon === "mic"
-                    ? toggleMute
-                    : icon === "speaker"
-                    ? toggleSpeaker
-                    : undefined
-                }
-                className={`flex h-9 w-9 items-center justify-center rounded-xl transition hover:bg-slate-100 ${
-                  isActiveButton ? "bg-slate-950 text-white" : "text-slate-950"
-                }`}
-              >
-                <Icon name={icon as "headset"} className="h-4 w-4" />
-              </button>
-            );
-          })}
-        </div>
-
-        {(currentStatus === "dialing" || currentStatus === "ringing") && (
           <button
             type="button"
-            onClick={markAnswered}
-            disabled={!!savingStatus || creatingCall}
-            dir="rtl"
-            className="flex h-12 w-[82px] items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 text-sm font-black text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={isCallActive ? finishCall : openAddCall}
+            className={`h-11 rounded-[16px] px-4 text-sm font-black ${
+              isCallActive ? "bg-rose-500 text-white" : "bg-emerald-400 text-slate-950"
+            }`}
           >
-            ענה
-            <Icon name="check" className="h-4 w-4" />
+            {isCallActive ? "סיים" : "שיחה"}
           </button>
-        )}
-
-        {isCallActive && (
-          <button
-            type="button"
-            onClick={finishCall}
-            disabled={!!savingStatus || creatingCall}
-            dir="rtl"
-            className="flex h-12 w-[82px] items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 text-sm font-black text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            סיים
-            <Icon name="phone" className="h-4 w-4" />
-          </button>
-        )}
+        </div>
       </div>
 
-      {showEndShiftConfirm && (
-        <div
-          dir="rtl"
-          className="absolute left-0 top-[84px] z-50 w-[365px] rounded-[24px] border border-slate-200 bg-white p-4 shadow-[0_24px_70px_rgba(15,23,42,0.18)]"
-        >
-          <p className="text-sm font-black text-slate-950">לסיים משמרת?</p>
+      {showIncomingCallModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/55 px-4 backdrop-blur-sm">
+          <div
+            dir="rtl"
+            className="w-full max-w-[440px] overflow-hidden rounded-[34px] border border-white/10 bg-[#070B16] p-6 text-center text-white shadow-[0_35px_120px_rgba(0,0,0,0.5)]"
+          >
+            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-400 text-slate-950 shadow-[0_0_0_12px_rgba(52,211,153,0.1)]">
+              <Icon name="phone" className="h-8 w-8" />
+            </div>
 
-          <p className="mt-2 text-sm font-bold leading-6 text-slate-600">
-            האם את/ה בטוח/ה שברצונך לסיים משמרת?
-            <br />
-            סה״כ זמן עבודה:{" "}
-            <span dir="ltr" className="font-mono font-black text-slate-950">
-              {formatDuration(shiftSeconds)}
-            </span>
-          </p>
+            <p className="text-2xl font-black">שיחה נכנסת</p>
 
-          <div className="mt-4 flex items-center gap-2">
-            <button
-              type="button"
-              onClick={confirmEndShift}
-              disabled={!!savingStatus || creatingCall}
-              className="h-11 flex-1 rounded-2xl bg-slate-950 text-sm font-black text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
+            <p className="mt-3 text-sm font-black text-slate-400">
+              מתקשר/ת אליך עכשיו
+            </p>
+
+            <p
+              dir="ltr"
+              className="mt-2 truncate font-mono text-3xl font-black tracking-wide text-white"
             >
-              כן, סיום משמרת
-            </button>
+              {incomingCallNumber || activeCallNumber || phoneNumber || "מספר לא מזוהה"}
+            </p>
 
-            <button
-              type="button"
-              onClick={() => setShowEndShiftConfirm(false)}
-              disabled={!!savingStatus || creatingCall}
-              className="h-11 flex-1 rounded-2xl border border-slate-200 bg-white text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              ביטול
-            </button>
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={rejectIncomingCall}
+                disabled={!!savingStatus}
+                className="h-16 rounded-[22px] border border-white/10 bg-white/[0.055] text-lg font-black text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                דחה
+              </button>
+
+              <button
+                type="button"
+                onClick={markAnswered}
+                disabled={!!savingStatus || creatingCall}
+                className="h-16 rounded-[22px] bg-emerald-400 text-lg font-black text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                ענה
+              </button>
+            </div>
           </div>
         </div>
       )}
-    </section>
+    </>
   );
 }
