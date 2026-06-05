@@ -2,8 +2,53 @@
 
 import Link from "next/link";
 import { MessageCircle, Clock3, Mail, ShieldCheck, Sparkles } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
+
+const SUPPORT_COOKIE_NAME = "staffImpersonationActive";
+const STAFF_ID_COOKIE_NAME = "staffOriginalUserId";
+
+function getCookieValue(name: string) {
+  if (typeof document === "undefined") return "";
+
+  const cookies = document.cookie
+    .split(";")
+    .map((cookie) => cookie.trim())
+    .filter(Boolean);
+
+  const found = cookies.find((cookie) => cookie.startsWith(`${name}=`));
+
+  if (!found) return "";
+
+  return decodeURIComponent(found.split("=").slice(1).join("="));
+}
+
+function hasCookie(name: string) {
+  return Boolean(getCookieValue(name));
+}
 
 export default function Footer() {
+  const pathname = usePathname();
+  const { user } = useAuth();
+
+  const authUser = user as any;
+
+  const isStaffPage =
+    pathname === "/staff" ||
+    pathname.startsWith("/staff/");
+
+  const isStaffImpersonating =
+    hasCookie(SUPPORT_COOKIE_NAME) ||
+    hasCookie(STAFF_ID_COOKIE_NAME) ||
+    authUser?.impersonated === true ||
+    authUser?.impersonatedBy === true ||
+    authUser?.impersonatedByAdmin === true ||
+    Boolean(authUser?.impersonationRole);
+
+  if (isStaffPage || isStaffImpersonating) {
+    return null;
+  }
+
   return (
     <footer
       dir="rtl"
@@ -14,7 +59,6 @@ export default function Footer() {
         text-[#4A3A2A]
       "
     >
-      {/* רקע עדין */}
       <div
         className="
           pointer-events-none absolute inset-0
@@ -23,7 +67,6 @@ export default function Footer() {
       />
 
       <div className="relative z-10 mx-auto max-w-7xl px-6 py-16">
-        {/* חלק עליון */}
         <div
           className="
             grid gap-10
@@ -37,7 +80,6 @@ export default function Footer() {
             lg:grid-cols-[1.1fr_0.9fr]
           "
         >
-          {/* מותג + טקסט */}
           <div className="text-center lg:text-right">
             <div className="mb-5 inline-flex items-center gap-3 rounded-full border border-[#E3D1AE] bg-[#FFF9EF]/80 px-5 py-2.5 text-[#B8862D]">
               <Sparkles size={18} />
@@ -87,7 +129,6 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* כרטיס יצירת קשר */}
           <div
             className="
               rounded-[28px]
@@ -183,7 +224,6 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* ניווט תחתון */}
         <div
           className="
             mt-10 flex flex-col items-center justify-between gap-7
@@ -193,24 +233,15 @@ export default function Footer() {
           "
         >
           <nav className="flex flex-wrap items-center justify-center gap-x-7 gap-y-3 text-sm font-bold text-[#6B5A49]">
-            <Link
-              href="/faq"
-              className="transition hover:text-[#B8862D]"
-            >
+            <Link href="/faq" className="transition hover:text-[#B8862D]">
               שאלות ותשובות
             </Link>
 
-            <Link
-              href="/terms"
-              className="transition hover:text-[#B8862D]"
-            >
+            <Link href="/terms" className="transition hover:text-[#B8862D]">
               תקנון שימוש
             </Link>
 
-            <Link
-              href="/privacy"
-              className="transition hover:text-[#B8862D]"
-            >
+            <Link href="/privacy" className="transition hover:text-[#B8862D]">
               מדיניות פרטיות
             </Link>
 
@@ -221,17 +252,16 @@ export default function Footer() {
               הצהרת נגישות
             </Link>
 
-            <Link
-              href="/contact"
-              className="transition hover:text-[#B8862D]"
-            >
+            <Link href="/contact" className="transition hover:text-[#B8862D]">
               יצירת קשר
             </Link>
           </nav>
 
           <div className="flex items-center gap-2 text-sm font-semibold text-[#7A6A58]">
             <ShieldCheck size={17} className="text-[#B8862D]" />
-            <span>© {new Date().getFullYear()} Invistimo · כל הזכויות שמורות</span>
+            <span>
+              © {new Date().getFullYear()} Invistimo · כל הזכויות שמורות
+            </span>
           </div>
         </div>
       </div>
