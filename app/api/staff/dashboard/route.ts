@@ -41,7 +41,7 @@ function normalizeStaffIdQuery(userId: string) {
     ids.push(objectId);
   }
 
-  const query: any = {
+  return {
     $or: [
       { assignedEmployeeId: { $in: ids } },
       { assignedStaffId: { $in: ids } },
@@ -52,14 +52,24 @@ function normalizeStaffIdQuery(userId: string) {
       { assignedStaffIds: { $in: ids } },
       { assignedEmployeeIds: { $in: ids } },
 
-      // אם אצלך יש עובד שאחראי על לקוח/אירוע בשמות אחרים
       { staffOwnerId: { $in: ids } },
       { employeeId: { $in: ids } },
       { managerId: { $in: ids } },
     ],
   };
+}
 
-  return query;
+function buildAssignedClientsQuery(userId: string) {
+  return {
+    $and: [
+      {
+        role: {
+          $in: ["client", "customer", "user"],
+        },
+      },
+      normalizeStaffIdQuery(userId),
+    ],
+  };
 }
 
 function isEventNeedsCheck(event: any) {
@@ -142,6 +152,12 @@ function mapInvitationToDashboardEvent(invitation: any) {
     customerName: invitation.customerName || "",
     ownerName: invitation.ownerName || "",
     clientPhone: getClientPhone(invitation),
+
+    ownerId: invitation.ownerId ? String(invitation.ownerId) : "",
+    userId: invitation.userId ? String(invitation.userId) : "",
+    clientId: invitation.clientId ? String(invitation.clientId) : "",
+    customerId: invitation.customerId ? String(invitation.customerId) : "",
+    createdBy: invitation.createdBy ? String(invitation.createdBy) : "",
 
     eventType: invitation.eventType || invitation.type || "",
     type: invitation.type || invitation.eventType || "",
@@ -242,28 +258,35 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const authRole = String(auth.role || "");
-const authStaffType = String(auth.staffType || "");
-const authEmployeeScope = String(auth.employeeScope || "");
+    const authRole = String(auth.role || "").toLowerCase();
+    const authStaffType = String(auth.staffType || "").toLowerCase();
+    const authEmployeeScope = String(auth.employeeScope || "").toLowerCase();
 
-const currentRole = String(currentUser.role || "");
-const currentStaffType = String(currentUser.staffType || "");
-const currentEmployeeScope = String(currentUser.employeeScope || "");
-const currentEffectiveRole = String(currentUser.effectiveRole || "");
+    const currentRole = String(currentUser.role || "").toLowerCase();
+    const currentStaffType = String(currentUser.staffType || "").toLowerCase();
+    const currentEmployeeScope = String(
+      currentUser.employeeScope || ""
+    ).toLowerCase();
+    const currentEffectiveRole = String(
+      currentUser.effectiveRole || ""
+    ).toLowerCase();
 
-const isSystemStaff =
-  authRole === "admin" ||
-  authRole === "staff" ||
-  currentRole === "admin" ||
-  currentRole === "staff" ||
-  currentEffectiveRole === "system_staff" ||
-  currentUser.isSystemStaff === true ||
-  (currentRole === "staff" &&
-    currentStaffType === "general_staff" &&
-    currentEmployeeScope === "system") ||
-  (authRole === "staff" &&
-    authStaffType === "general_staff" &&
-    authEmployeeScope === "system");
+    const isSystemStaff =
+      authRole === "admin" ||
+      authRole === "staff" ||
+      authRole === "employee" ||
+      currentRole === "admin" ||
+      currentRole === "staff" ||
+      currentRole === "employee" ||
+      currentEffectiveRole === "system_staff" ||
+      currentUser.isSystemStaff === true ||
+      (currentRole === "staff" &&
+        currentStaffType === "general_staff" &&
+        currentEmployeeScope === "system") ||
+      (authRole === "staff" &&
+        authStaffType === "general_staff" &&
+        authEmployeeScope === "system");
+
     if (!isSystemStaff) {
       return NextResponse.json(
         {
@@ -275,10 +298,11 @@ const isSystemStaff =
     }
 
     const staffQuery = normalizeStaffIdQuery(userId);
+    const assignedClientsQuery = buildAssignedClientsQuery(userId);
 
     const [users, invitations, tasks] = await Promise.all([
       usersCollection
-        .find({})
+        .find(assignedClientsQuery)
         .project({
           password: 0,
           refreshTokens: 0,
