@@ -18,6 +18,7 @@ import DemoToast from "../components/DemoToast";
 import GuestGroupSelect from "@/app/components/groups/GuestGroupSelect";
 import ManageGroupsModal from "@/app/components/groups/ManageGroupsModal";
 import GuestsControls from "@/app/components/GuestsControls";
+import StaffSoftphoneWhenImpersonating from "@/app/components/staff/StaffSoftphoneWhenImpersonating";
 import { useGroupStore } from "@/store/groupStore";
 import { useSeatingStore } from "@/store/seatingStore";
 import CallRoundsModal from "../components/CallRoundsModal";
@@ -1939,20 +1940,24 @@ const canOpenEventManagement =
      Render
   ============================================================ */
   return (
-    <div
-      className="
-        min-h-screen
-        bg-[#F6F1EA]
-        px-4
-        py-6
-        md:px-8
-        md:py-7
-        max-w-full
-        overflow-x-hidden
-      "
-      dir="rtl"
-    >
-      <main className="mx-auto w-full max-w-none">
+  <div
+    className="
+      min-h-screen
+      bg-[#F6F1EA]
+      px-4
+      py-6
+      md:px-8
+      md:py-7
+      max-w-full
+      overflow-x-hidden
+      lg:pl-[var(--staff-softphone-offset,0px)]
+    "
+    dir="rtl"
+  >
+    <StaffSoftphoneWhenImpersonating />
+
+    <main className="mx-auto w-full max-w-none">
+
       {isDemo && (
         <div className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 px-5 py-4 text-amber-900 shadow-sm">
           <p className="text-sm leading-relaxed">
