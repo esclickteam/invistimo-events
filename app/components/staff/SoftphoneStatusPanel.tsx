@@ -1704,12 +1704,38 @@ export default function SoftphoneStatusPanel() {
                     type="button"
                     onClick={startOutboundCall}
                     disabled={!!savingStatus || creatingCall || !shiftStarted}
-                    className="flex h-full w-12 shrink-0 items-center justify-center text-emerald-300 transition hover:bg-emerald-400/10 disabled:cursor-not-allowed disabled:opacity-45"
+                    className="flex h-full w-12 shrink-0 items-center justify-center border-r border-white/10 text-emerald-300 transition hover:bg-emerald-400/10 disabled:cursor-not-allowed disabled:opacity-45"
                     title="חייג"
                   >
                     <Icon name="phone" className="h-5 w-5" />
                   </button>
+
+                  <button
+                    type="button"
+                    onClick={finishCall}
+                    disabled={!isCallActive || !!savingStatus || creatingCall}
+                    className="flex h-full w-12 shrink-0 items-center justify-center text-rose-300 transition hover:bg-rose-500/15 disabled:cursor-not-allowed disabled:opacity-35"
+                    title="נתק שיחה"
+                    aria-label="נתק שיחה"
+                  >
+                    <Icon name="x" className="h-5 w-5" />
+                  </button>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={finishCall}
+                  disabled={!isCallActive || !!savingStatus || creatingCall}
+                  className={`mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-[16px] border text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                    isCallActive
+                      ? "border-rose-400/25 bg-rose-500 text-white shadow-[0_14px_30px_rgba(244,63,94,0.18)] hover:bg-rose-400"
+                      : "border-rose-400/15 bg-rose-400/8 text-rose-200"
+                  }`}
+                  title={isCallActive ? "נתק שיחה פעילה" : "אין שיחה פעילה לניתוק"}
+                >
+                  <Icon name="x" className="h-4 w-4" />
+                  נתק שיחה
+                </button>
 
                 <div className="mt-3 grid grid-cols-2 gap-2">
                   <button
