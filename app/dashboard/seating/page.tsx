@@ -180,12 +180,13 @@ export default function SeatingPage() {
   const liveRefreshInFlightRef = useRef(false);
 
   /*
-    MOBILE ONLY:
-    פותר מצב שבמובייל הקנבס נטען אבל נפתח מחוץ למסך בגלל RTL + overflow.
-    לא משפיע על דסקטופ ולא מתערב בשמירה/טעינה/לייב.
+    FIT VIEWPORT ONLY:
+    ממקד את כל השולחנות למסך בכניסה לעמוד.
+    רץ פעם אחת בלבד לכל טעינת אירוע/הזמנה כדי שלא יקפוץ בלייב,
+    ולא משנה לוגיקות של אורחים / שולחנות / שמירה / צבעים.
   */
-  const mobileCanvasScrollRef = useRef<HTMLElement | null>(null);
-  const didPositionMobileCanvasRef = useRef(false);
+  const canvasViewportRef = useRef<HTMLElement | null>(null);
+  const didFitCanvasOnEntryRef = useRef(false);
 
   /* ===============================
      LOCAL STATE
@@ -260,15 +261,13 @@ export default function SeatingPage() {
   }, []);
 
   /*
-    MOBILE ONLY:
-    כשעוברים אירוע/הזמנה — מאפשרים מיקום ראשוני מחדש.
-    לא קורה כל 3 שניות בלייב ולכן אין קפיצות.
+    כשעוברים אירוע/הזמנה מאפשרים Fit מחדש.
+    בריענון לייב כל 3 שניות eventId/invitationId לא משתנים,
+    לכן אין קפיצה חוזרת.
   */
   useEffect(() => {
-    if (!isMobile) return;
-
-    didPositionMobileCanvasRef.current = false;
-  }, [isMobile, eventId, invitationId]);
+    didFitCanvasOnEntryRef.current = false;
+  }, [eventId, invitationId]);
 
   /* ===============================
      PLAN BLOCK
@@ -652,103 +651,87 @@ export default function SeatingPage() {
     refreshLiveSeatingData,
   ]);
 
-  /* ===============================
-     AUTO FIT ONE TIME
-  =============================== */
-  useEffect(() => {
-    if (!tablesLite?.length) return;
+  const fitAllTablesIntoViewport = useCallback(() => {
+    const viewport = canvasViewportRef.current;
 
-    const isDefault =
-      !canvasView ||
-      (canvasView.scale === 1 && canvasView.x === 0 && canvasView.y === 0);
+    if (!viewport) return;
 
-    if (!isDefault) return;
+    const currentTables = useSeatingStore.getState().tables as TableLite[];
 
-    const minX = Math.min(...tablesLite.map((t) => t.x));
-    const maxX = Math.max(...tablesLite.map((t) => t.x));
-    const minY = Math.min(...tablesLite.map((t) => t.y));
-    const maxY = Math.max(...tablesLite.map((t) => t.y));
-
-    const contentW = Math.max(1, maxX - minX);
-    const contentH = Math.max(1, maxY - minY);
-
-    const PAD = 420;
-    const VIEW_W = 1200;
-    const VIEW_H = 700;
-
-    const scale = Math.max(
-      0.4,
-      Math.min(
-        3,
-        Math.min(VIEW_W / (contentW + PAD), VIEW_H / (contentH + PAD))
-      )
+    const validTables = currentTables.filter(
+      (table) => Number.isFinite(table.x) && Number.isFinite(table.y)
     );
+
+    if (!validTables.length) return;
+
+    const minX = Math.min(...validTables.map((table) => table.x));
+    const maxX = Math.max(...validTables.map((table) => table.x));
+    const minY = Math.min(...validTables.map((table) => table.y));
+    const maxY = Math.max(...validTables.map((table) => table.y));
 
     const centerX = (minX + maxX) / 2;
     const centerY = (minY + maxY) / 2;
 
-    const x = VIEW_W / 2 - centerX * scale;
-    const y = VIEW_H / 2 - centerY * scale;
+    const contentW = Math.max(1, maxX - minX);
+    const contentH = Math.max(1, maxY - minY);
 
-    console.log("🟣 AutoFit canvasView:", { x, y, scale });
+    const viewportW = Math.max(320, viewport.clientWidth);
+    const viewportH = Math.max(420, viewport.clientHeight);
 
-    setCanvasView({ x, y, scale });
-  }, [tablesLite, canvasView, setCanvasView]);
+    /*
+      מרווח ביטחון עבור הכיסאות שמסביב לשולחן + כפתורים/טקסטים.
+      במובייל נותנים יותר מרווח כדי שכל השולחנות ייכנסו למסך בלי חיתוך.
+    */
+    const PAD_X = isMobile ? 560 : 460;
+    const PAD_Y = isMobile ? 680 : 460;
 
-  /*
-    MOBILE ONLY:
-    מיקום ראשוני של אזור הגלילה למרכז ההושבה.
-    רץ פעם אחת בלבד לכל אירוע/הזמנה כדי שלא יקפוץ בלייב.
-  */
+    const nextScale = Math.max(
+      isMobile ? 0.16 : 0.28,
+      Math.min(
+        isMobile ? 0.9 : 1.25,
+        Math.min(
+          viewportW / (contentW + PAD_X),
+          viewportH / (contentH + PAD_Y)
+        )
+      )
+    );
+
+    const nextX = viewportW / 2 - centerX * nextScale;
+    const nextY = viewportH / 2 - centerY * nextScale;
+
+    console.log("🟣 Fit all tables into viewport:", {
+      x: nextX,
+      y: nextY,
+      scale: nextScale,
+      isMobile,
+      tables: validTables.length,
+    });
+
+    setCanvasView({
+      x: nextX,
+      y: nextY,
+      scale: nextScale,
+    });
+  }, [isMobile, setCanvasView]);
+
+  /* ===============================
+     FIT ALL TABLES ON PAGE ENTRY
+     ממקד את כל השולחנות למסך בכל כניסה לעמוד.
+     רץ פעם אחת בלבד לכל אירוע/הזמנה,
+     ולכן לא קופץ בלייב ולא מתערב בריענון כל 3 שניות.
+  =============================== */
   useEffect(() => {
-    if (!isMobile) return;
     if (!tablesLite?.length) return;
-    if (didPositionMobileCanvasRef.current) return;
+    if (didFitCanvasOnEntryRef.current) return;
 
-    const el = mobileCanvasScrollRef.current;
-    if (!el) return;
-
-    didPositionMobileCanvasRef.current = true;
+    didFitCanvasOnEntryRef.current = true;
 
     const timer = window.setTimeout(() => {
-      const validTables = tablesLite.filter(
-        (table) =>
-          Number.isFinite(table.x) &&
-          Number.isFinite(table.y)
-      );
-
-      if (!validTables.length) return;
-
-      const minX = Math.min(...validTables.map((table) => table.x));
-      const maxX = Math.max(...validTables.map((table) => table.x));
-      const minY = Math.min(...validTables.map((table) => table.y));
-      const maxY = Math.max(...validTables.map((table) => table.y));
-
-      const centerX = (minX + maxX) / 2;
-      const centerY = (minY + maxY) / 2;
-
-      const maxScrollLeft = Math.max(0, el.scrollWidth - el.clientWidth);
-      const maxScrollTop = Math.max(0, el.scrollHeight - el.clientHeight);
-
-      const targetLeft = Math.min(
-        Math.max(0, centerX - el.clientWidth / 2),
-        maxScrollLeft
-      );
-
-      const targetTop = Math.min(
-        Math.max(0, centerY - el.clientHeight / 2),
-        maxScrollTop
-      );
-
-      el.scrollTo({
-        left: targetLeft,
-        top: targetTop,
-        behavior: "auto",
-      });
-    }, 180);
+      fitAllTablesIntoViewport();
+    }, 140);
 
     return () => window.clearTimeout(timer);
-  }, [isMobile, tablesLite, eventId, invitationId]);
+  }, [tablesLite?.length, fitAllTablesIntoViewport]);
 
   /* ===============================
      BACKGROUND
@@ -1620,24 +1603,20 @@ export default function SeatingPage() {
       >
         {/* CANVAS AREA */}
         <section
-          ref={mobileCanvasScrollRef}
-          dir={isMobile ? "ltr" : "rtl"}
+          ref={canvasViewportRef}
           className="
-            relative min-w-0 flex-1 overflow-auto overscroll-contain
-            touch-pan-x touch-pan-y
-            [-webkit-overflow-scrolling:touch]
+            relative min-w-0 flex-1
+            overflow-hidden overscroll-contain
           "
         >
           <div className="pointer-events-none absolute inset-0 z-0 bg-[linear-gradient(90deg,rgba(202,161,90,0.04)_1px,transparent_1px),linear-gradient(rgba(202,161,90,0.04)_1px,transparent_1px)] bg-[size:34px_34px]" />
 
           <div
-            dir="rtl"
             className="
               relative z-10
               h-[2200px] w-[2600px]
               min-h-[2200px] min-w-[2600px]
               shrink-0
-              md:h-full md:w-auto md:min-h-[2200px] md:min-w-[2600px]
             "
           >
             <SeatingEditor
