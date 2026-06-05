@@ -1709,33 +1709,7 @@ export default function SoftphoneStatusPanel() {
                   >
                     <Icon name="phone" className="h-5 w-5" />
                   </button>
-
-                  <button
-                    type="button"
-                    onClick={finishCall}
-                    disabled={!isCallActive || !!savingStatus || creatingCall}
-                    className="flex h-full w-12 shrink-0 items-center justify-center text-rose-300 transition hover:bg-rose-500/15 disabled:cursor-not-allowed disabled:opacity-35"
-                    title="נתק שיחה"
-                    aria-label="נתק שיחה"
-                  >
-                    <Icon name="x" className="h-5 w-5" />
-                  </button>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={finishCall}
-                  disabled={!isCallActive || !!savingStatus || creatingCall}
-                  className={`mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-[16px] border text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-40 ${
-                    isCallActive
-                      ? "border-rose-400/25 bg-rose-500 text-white shadow-[0_14px_30px_rgba(244,63,94,0.18)] hover:bg-rose-400"
-                      : "border-rose-400/15 bg-rose-400/8 text-rose-200"
-                  }`}
-                  title={isCallActive ? "נתק שיחה פעילה" : "אין שיחה פעילה לניתוק"}
-                >
-                  <Icon name="x" className="h-4 w-4" />
-                  נתק שיחה
-                </button>
 
                 <div className="mt-3 grid grid-cols-2 gap-2">
                   <button
@@ -1983,42 +1957,35 @@ export default function SoftphoneStatusPanel() {
                 </div>
 
                 <div className="mt-3 grid grid-cols-2 gap-2">
-                  {(currentStatus === "dialing" || currentStatus === "ringing") && (
-                    <button
-                      type="button"
-                      onClick={markAnswered}
-                      disabled={!!savingStatus || creatingCall}
-                      className="h-12 rounded-[18px] bg-emerald-400 text-sm font-black text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-55"
-                    >
-                      ענה
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={markAnswered}
+                    disabled={
+                      !!savingStatus ||
+                      creatingCall ||
+                      !(currentStatus === "dialing" || currentStatus === "ringing")
+                    }
+                    className={`h-12 rounded-[18px] text-sm font-black transition disabled:cursor-not-allowed ${
+                      currentStatus === "dialing" || currentStatus === "ringing"
+                        ? "bg-emerald-400 text-slate-950 hover:bg-emerald-300 disabled:opacity-55"
+                        : "bg-emerald-400/15 text-emerald-200 opacity-70"
+                    }`}
+                  >
+                    ענה
+                  </button>
 
-                  {isCallActive && (
-                    <button
-                      type="button"
-                      onClick={finishCall}
-                      disabled={!!savingStatus || creatingCall}
-                      className={`h-12 rounded-[18px] bg-rose-500 text-sm font-black text-white transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-55 ${
-                        currentStatus === "dialing" || currentStatus === "ringing"
-                          ? ""
-                          : "col-span-2"
-                      }`}
-                    >
-                      סיים שיחה
-                    </button>
-                  )}
-
-                  {!isCallActive && (
-                    <button
-                      type="button"
-                      onClick={openAddCall}
-                      disabled={!!savingStatus || creatingCall}
-                      className="col-span-2 h-12 rounded-[18px] bg-white text-sm font-black text-slate-950 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-55"
-                    >
-                      פתח חייגן לשיחה חדשה
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={finishCall}
+                    disabled={!isCallActive || !!savingStatus || creatingCall}
+                    className={`h-12 rounded-[18px] text-sm font-black transition disabled:cursor-not-allowed ${
+                      isCallActive
+                        ? "bg-rose-500 text-white hover:bg-rose-400 disabled:opacity-55"
+                        : "bg-rose-500/15 text-rose-200 opacity-70"
+                    }`}
+                  >
+                    סיים שיחה
+                  </button>
                 </div>
               </section>
             </div>
@@ -2078,31 +2045,47 @@ export default function SoftphoneStatusPanel() {
             </div>
           </div>
 
-          <div className="grid shrink-0 grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={openAddCall}
-              disabled={!!savingStatus || creatingCall}
-              className="h-11 rounded-[16px] bg-emerald-400 px-4 text-sm font-black text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-50"
-              title="שיחה חדשה"
-            >
-              שיחה
-            </button>
+          <button
+            type="button"
+            onClick={openAddCall}
+            disabled={!!savingStatus || creatingCall}
+            className="h-11 shrink-0 rounded-[16px] bg-gradient-to-l from-amber-400 to-[#b9945a] px-4 text-sm font-black text-slate-950 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
+            title="שיחה חדשה"
+          >
+            שיחה חדשה
+          </button>
+        </div>
 
-            <button
-              type="button"
-              onClick={finishCall}
-              disabled={!isCallActive || !!savingStatus || creatingCall}
-              className={`h-11 rounded-[16px] px-4 text-sm font-black transition disabled:cursor-not-allowed ${
-                isCallActive
-                  ? "bg-rose-500 text-white hover:bg-rose-400"
-                  : "bg-rose-500/15 text-rose-200 opacity-70"
-              }`}
-              title={isCallActive ? "נתק שיחה פעילה" : "אין שיחה פעילה לניתוק"}
-            >
-              נתק
-            </button>
-          </div>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={markAnswered}
+            disabled={
+              !!savingStatus ||
+              creatingCall ||
+              !(currentStatus === "dialing" || currentStatus === "ringing")
+            }
+            className={`h-12 rounded-[18px] text-sm font-black transition disabled:cursor-not-allowed ${
+              currentStatus === "dialing" || currentStatus === "ringing"
+                ? "bg-emerald-400 text-slate-950 hover:bg-emerald-300 disabled:opacity-55"
+                : "bg-emerald-400/15 text-emerald-200 opacity-70"
+            }`}
+          >
+            ענה
+          </button>
+
+          <button
+            type="button"
+            onClick={finishCall}
+            disabled={!isCallActive || !!savingStatus || creatingCall}
+            className={`h-12 rounded-[18px] text-sm font-black transition disabled:cursor-not-allowed ${
+              isCallActive
+                ? "bg-rose-500 text-white hover:bg-rose-400 disabled:opacity-55"
+                : "bg-rose-500/15 text-rose-200 opacity-70"
+            }`}
+          >
+            סיים שיחה
+          </button>
         </div>
       </div>
 
