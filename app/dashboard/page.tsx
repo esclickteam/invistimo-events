@@ -1944,10 +1944,6 @@ const canOpenEventManagement =
     className="
       min-h-screen
       bg-[#F6F1EA]
-      px-4
-      py-6
-      md:px-8
-      md:py-7
       max-w-full
       overflow-x-hidden
     "
@@ -1955,7 +1951,17 @@ const canOpenEventManagement =
   >
     <StaffSoftphoneWhenImpersonating />
 
-    <main className="mx-auto w-full max-w-none">
+    <main
+      className="
+        mx-auto
+        w-full
+        max-w-none
+        px-4
+        py-6
+        md:px-8
+        md:py-7
+      "
+    >
 
       {isDemo && (
         <div className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 px-5 py-4 text-amber-900 shadow-sm">
