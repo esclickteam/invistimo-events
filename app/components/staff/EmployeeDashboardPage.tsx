@@ -912,12 +912,12 @@ export default function EmployeeDashboardPage() {
   return (
     <div
       dir="rtl"
-      className="min-h-screen bg-[#F5F7FB] text-slate-950 lg:pl-[380px]"
+      className="min-h-screen bg-[#F5F7FB] text-slate-950"
     >
       <SoftphoneStatusPanel />
 
-      <main className="min-h-screen">
-        <section className="mx-auto w-full max-w-[1480px] px-4 py-5 sm:px-6 lg:px-8">
+      <main className="min-h-screen pb-10">
+        <section className="mx-auto w-full max-w-[1480px] px-4 py-6 sm:px-6 lg:px-8">
           <div className="relative overflow-hidden rounded-[36px] bg-slate-950 p-6 text-white shadow-[0_30px_90px_rgba(15,23,42,0.18)] sm:p-8">
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_20%,rgba(139,92,246,0.35),transparent_30%),radial-gradient(circle_at_90%_10%,rgba(16,185,129,0.22),transparent_24%),linear-gradient(135deg,rgba(255,255,255,0.08),transparent_35%)]" />
 
@@ -928,6 +928,7 @@ export default function EmployeeDashboardPage() {
                   דשבורד עובדים
                 </span>
 
+               
                 <h1 className="mt-5 text-4xl font-black tracking-tight sm:text-5xl">
                   היי {displayName}, בוקר טוב 👋
                 </h1>

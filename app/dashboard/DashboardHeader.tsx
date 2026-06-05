@@ -31,8 +31,9 @@ export default function DashboardHeader({
   const role = user?.role;
 
   /* ============================================================
-     Seating page – hide dashboard header completely
-     משאיר רק את ה-toolbar הפנימי של ההושבה
+     Pages without regular dashboard header
+     - Seating page keeps only internal seating toolbar
+     - Staff dashboard uses horizontal softphone instead of header
   ============================================================ */
   const isSeatingPage =
     pathname === "/dashboard/seating" ||
@@ -40,7 +41,11 @@ export default function DashboardHeader({
     pathname === "/try/dashboard/seating" ||
     pathname.startsWith("/try/dashboard/seating/");
 
-  if (isSeatingPage) {
+  const isStaffPage =
+    pathname === "/staff" ||
+    pathname.startsWith("/staff/");
+
+  if (isSeatingPage || isStaffPage) {
     return null;
   }
 
@@ -77,15 +82,15 @@ export default function DashboardHeader({
 
   return (
     <header
-  dir="rtl"
-  className="
-    relative z-20
-    w-full
-    bg-[#F8F5EE]
-    px-3 py-3
-    print:hidden
-  "
->
+      dir="rtl"
+      className="
+        relative z-20
+        w-full
+        bg-[#F8F5EE]
+        px-3 py-3
+        print:hidden
+      "
+    >
       <div
         className="
           mx-auto max-w-[1500px]
@@ -104,9 +109,7 @@ export default function DashboardHeader({
             px-4 md:px-8
           "
         >
-          {/* =========================
-              ימין – תפריט / ניווט
-          ========================= */}
+          {/* ימין – תפריט / ניווט */}
           <div className="flex items-center justify-start gap-4">
             <button
               onClick={onOpenMenu}
@@ -165,9 +168,7 @@ export default function DashboardHeader({
             </div>
           </div>
 
-          {/* =========================
-              מרכז – לוגו
-          ========================= */}
+          {/* מרכז – לוגו */}
           <div className="flex justify-center" dir="ltr">
             <button
               onClick={() => router.push("/dashboard")}
@@ -197,9 +198,7 @@ export default function DashboardHeader({
             </button>
           </div>
 
-          {/* =========================
-              שמאל – מצב אירוע + יציאה
-          ========================= */}
+          {/* שמאל – מצב אירוע + יציאה */}
           <div className="flex items-center justify-end gap-3">
             <div
               className="
