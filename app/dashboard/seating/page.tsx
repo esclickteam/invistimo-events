@@ -57,12 +57,6 @@ function firstString(...values: unknown[]) {
   return "";
 }
 
-function getIsMobileViewport() {
-  if (typeof window === "undefined") return false;
-
-  return window.innerWidth < 768;
-}
-
 function resolveInvitationIdsFromData(
   data: AnyObject,
   fallbackEventId = ""
@@ -182,9 +176,16 @@ export default function SeatingPage() {
 
   const didLoadRef = useRef(false);
   const didFinishInitialLoadRef = useRef(false);
-  const didResetMobileCanvasViewRef = useRef(false);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const liveRefreshInFlightRef = useRef(false);
+
+  /*
+    MOBILE ONLY:
+    פותר מצב שבמובייל הקנבס נטען אבל נפתח מחוץ למסך בגלל RTL + overflow.
+    לא משפיע על דסקטופ ולא מתערב בשמירה/טעינה/לייב.
+  */
+  const mobileCanvasScrollRef = useRef<HTMLElement | null>(null);
+  const didPositionMobileCanvasRef = useRef(false);
 
   /* ===============================
      LOCAL STATE
@@ -257,6 +258,17 @@ export default function SeatingPage() {
       window.removeEventListener("orientationchange", update);
     };
   }, []);
+
+  /*
+    MOBILE ONLY:
+    כשעוברים אירוע/הזמנה — מאפשרים מיקום ראשוני מחדש.
+    לא קורה כל 3 שניות בלייב ולכן אין קפיצות.
+  */
+  useEffect(() => {
+    if (!isMobile) return;
+
+    didPositionMobileCanvasRef.current = false;
+  }, [isMobile, eventId, invitationId]);
 
   /* ===============================
      PLAN BLOCK
@@ -404,22 +416,15 @@ export default function SeatingPage() {
       const tData = await tRes.json();
 
       const currentCanvasView = useSeatingStore.getState().canvasView;
-      const isMobileNow = getIsMobileViewport();
 
       /*
-        במובייל לא טוענים canvasView שנשמר מדסקטופ בפעם הראשונה.
-        אחרת ההושבה נפתחת מחוץ למסך ורואים רק רקע.
-        אחרי הטעינה הראשונה כן שומרים את המיקום הנוכחי כדי לא לקפוץ כל 3 שניות בלייב.
+        בלייב לא מאפסים את מיקום הקנבס בכל ריענון.
+        אחרת כשגוררים/גוללים למטה — הריענון מחזיר למיקום הקודם.
       */
-      let nextCanvasView =
+      const nextCanvasView =
         isLiveSeatingView && currentCanvasView
           ? currentCanvasView
           : tData.canvasView ?? null;
-
-      if (isMobileNow && !didResetMobileCanvasViewRef.current) {
-        nextCanvasView = null;
-        didResetMobileCanvasViewRef.current = true;
-      }
 
       init(
         tData.tables || [],
@@ -667,23 +672,12 @@ export default function SeatingPage() {
     const contentW = Math.max(1, maxX - minX);
     const contentH = Math.max(1, maxY - minY);
 
-    const PAD = isMobile ? 260 : 420;
-
-    const VIEW_W =
-      typeof window !== "undefined"
-        ? Math.max(
-            360,
-            window.innerWidth - (isMobile ? 0 : sidebarOpen ? 430 : 0)
-          )
-        : 1200;
-
-    const VIEW_H =
-      typeof window !== "undefined"
-        ? Math.max(520, window.innerHeight - 76)
-        : 700;
+    const PAD = 420;
+    const VIEW_W = 1200;
+    const VIEW_H = 700;
 
     const scale = Math.max(
-      isMobile ? 0.25 : 0.4,
+      0.4,
       Math.min(
         3,
         Math.min(VIEW_W / (contentW + PAD), VIEW_H / (contentH + PAD))
@@ -696,17 +690,65 @@ export default function SeatingPage() {
     const x = VIEW_W / 2 - centerX * scale;
     const y = VIEW_H / 2 - centerY * scale;
 
-    console.log("🟣 AutoFit canvasView:", {
-      x,
-      y,
-      scale,
-      VIEW_W,
-      VIEW_H,
-      isMobile,
-    });
+    console.log("🟣 AutoFit canvasView:", { x, y, scale });
 
     setCanvasView({ x, y, scale });
-  }, [tablesLite, canvasView, setCanvasView, isMobile, sidebarOpen]);
+  }, [tablesLite, canvasView, setCanvasView]);
+
+  /*
+    MOBILE ONLY:
+    מיקום ראשוני של אזור הגלילה למרכז ההושבה.
+    רץ פעם אחת בלבד לכל אירוע/הזמנה כדי שלא יקפוץ בלייב.
+  */
+  useEffect(() => {
+    if (!isMobile) return;
+    if (!tablesLite?.length) return;
+    if (didPositionMobileCanvasRef.current) return;
+
+    const el = mobileCanvasScrollRef.current;
+    if (!el) return;
+
+    didPositionMobileCanvasRef.current = true;
+
+    const timer = window.setTimeout(() => {
+      const validTables = tablesLite.filter(
+        (table) =>
+          Number.isFinite(table.x) &&
+          Number.isFinite(table.y)
+      );
+
+      if (!validTables.length) return;
+
+      const minX = Math.min(...validTables.map((table) => table.x));
+      const maxX = Math.max(...validTables.map((table) => table.x));
+      const minY = Math.min(...validTables.map((table) => table.y));
+      const maxY = Math.max(...validTables.map((table) => table.y));
+
+      const centerX = (minX + maxX) / 2;
+      const centerY = (minY + maxY) / 2;
+
+      const maxScrollLeft = Math.max(0, el.scrollWidth - el.clientWidth);
+      const maxScrollTop = Math.max(0, el.scrollHeight - el.clientHeight);
+
+      const targetLeft = Math.min(
+        Math.max(0, centerX - el.clientWidth / 2),
+        maxScrollLeft
+      );
+
+      const targetTop = Math.min(
+        Math.max(0, centerY - el.clientHeight / 2),
+        maxScrollTop
+      );
+
+      el.scrollTo({
+        left: targetLeft,
+        top: targetTop,
+        behavior: "auto",
+      });
+    }, 180);
+
+    return () => window.clearTimeout(timer);
+  }, [isMobile, tablesLite, eventId, invitationId]);
 
   /* ===============================
      BACKGROUND
@@ -1074,7 +1116,7 @@ export default function SeatingPage() {
     <div
       dir="rtl"
       className="
-        min-h-screen w-full overflow-hidden
+        min-h-screen w-full overflow-x-auto overflow-y-auto
         bg-[radial-gradient(circle_at_top_left,#fff8ec_0%,#faf6ef_34%,#f3efe8_100%)]
         text-[#2a2119]
       "
@@ -1430,8 +1472,6 @@ export default function SeatingPage() {
                   >
                     {isVenueTemplateMode ? (
                       <span>מצב תבנית — השמירה מתבצעת ידנית</span>
-                    ) : isLiveSeatingView ? (
-                      <span>מצב לייב — ריענון אוטומטי פעיל</span>
                     ) : isAutoSaving ? (
                       <span>שומר אוטומטית...</span>
                     ) : lastAutoSavedAt ? (
@@ -1580,21 +1620,24 @@ export default function SeatingPage() {
       >
         {/* CANVAS AREA */}
         <section
+          ref={mobileCanvasScrollRef}
+          dir={isMobile ? "ltr" : "rtl"}
           className="
-            relative min-w-0 flex-1
-            overflow-auto overscroll-contain
+            relative min-w-0 flex-1 overflow-auto overscroll-contain
             touch-pan-x touch-pan-y
             [-webkit-overflow-scrolling:touch]
           "
         >
-          <div className="pointer-events-none fixed inset-0 z-0 bg-[linear-gradient(90deg,rgba(202,161,90,0.04)_1px,transparent_1px),linear-gradient(rgba(202,161,90,0.04)_1px,transparent_1px)] bg-[size:34px_34px]" />
+          <div className="pointer-events-none absolute inset-0 z-0 bg-[linear-gradient(90deg,rgba(202,161,90,0.04)_1px,transparent_1px),linear-gradient(rgba(202,161,90,0.04)_1px,transparent_1px)] bg-[size:34px_34px]" />
 
           <div
+            dir="rtl"
             className="
               relative z-10
               h-[2200px] w-[2600px]
               min-h-[2200px] min-w-[2600px]
               shrink-0
+              md:h-full md:w-auto md:min-h-[2200px] md:min-w-[2600px]
             "
           >
             <SeatingEditor
