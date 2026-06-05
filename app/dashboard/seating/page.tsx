@@ -29,11 +29,6 @@ type GuestDTO = {
   groupId?: string | null;
 };
 
-type TableLite = {
-  x: number;
-  y: number;
-};
-
 type AnyObject = Record<string, any>;
 
 type ResolvedInvitationIds = {
@@ -179,15 +174,6 @@ export default function SeatingPage() {
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const liveRefreshInFlightRef = useRef(false);
 
-  /*
-    FIT VIEWPORT ONLY:
-    ממקד את כל השולחנות למסך בכניסה לעמוד.
-    רץ פעם אחת בלבד לכל טעינת אירוע/הזמנה כדי שלא יקפוץ בלייב,
-    ולא משנה לוגיקות של אורחים / שולחנות / שמירה / צבעים.
-  */
-  const canvasViewportRef = useRef<HTMLElement | null>(null);
-  const didFitCanvasOnEntryRef = useRef(false);
-
   /* ===============================
      LOCAL STATE
   =============================== */
@@ -233,7 +219,6 @@ export default function SeatingPage() {
 
   const setZones = useZoneStore((s) => s.setZones);
 
-  const tablesLite = tables as unknown as TableLite[];
 
   /* ===============================
      RESPONSIVE SIDEBAR
@@ -259,15 +244,6 @@ export default function SeatingPage() {
       window.removeEventListener("orientationchange", update);
     };
   }, []);
-
-  /*
-    כשעוברים אירוע/הזמנה מאפשרים Fit מחדש.
-    בריענון לייב כל 3 שניות eventId/invitationId לא משתנים,
-    לכן אין קפיצה חוזרת.
-  */
-  useEffect(() => {
-    didFitCanvasOnEntryRef.current = false;
-  }, [eventId, invitationId]);
 
   /* ===============================
      PLAN BLOCK
@@ -650,88 +626,6 @@ export default function SeatingPage() {
     invitationId,
     refreshLiveSeatingData,
   ]);
-
-  const fitAllTablesIntoViewport = useCallback(() => {
-    const viewport = canvasViewportRef.current;
-
-    if (!viewport) return;
-
-    const currentTables = useSeatingStore.getState().tables as TableLite[];
-
-    const validTables = currentTables.filter(
-      (table) => Number.isFinite(table.x) && Number.isFinite(table.y)
-    );
-
-    if (!validTables.length) return;
-
-    const minX = Math.min(...validTables.map((table) => table.x));
-    const maxX = Math.max(...validTables.map((table) => table.x));
-    const minY = Math.min(...validTables.map((table) => table.y));
-    const maxY = Math.max(...validTables.map((table) => table.y));
-
-    const centerX = (minX + maxX) / 2;
-    const centerY = (minY + maxY) / 2;
-
-    const contentW = Math.max(1, maxX - minX);
-    const contentH = Math.max(1, maxY - minY);
-
-    const viewportW = Math.max(320, viewport.clientWidth);
-    const viewportH = Math.max(420, viewport.clientHeight);
-
-    /*
-      מרווח ביטחון עבור הכיסאות שמסביב לשולחן + כפתורים/טקסטים.
-      במובייל נותנים יותר מרווח כדי שכל השולחנות ייכנסו למסך בלי חיתוך.
-    */
-    const PAD_X = isMobile ? 560 : 460;
-    const PAD_Y = isMobile ? 680 : 460;
-
-    const nextScale = Math.max(
-      isMobile ? 0.16 : 0.28,
-      Math.min(
-        isMobile ? 0.9 : 1.25,
-        Math.min(
-          viewportW / (contentW + PAD_X),
-          viewportH / (contentH + PAD_Y)
-        )
-      )
-    );
-
-    const nextX = viewportW / 2 - centerX * nextScale;
-    const nextY = viewportH / 2 - centerY * nextScale;
-
-    console.log("🟣 Fit all tables into viewport:", {
-      x: nextX,
-      y: nextY,
-      scale: nextScale,
-      isMobile,
-      tables: validTables.length,
-    });
-
-    setCanvasView({
-      x: nextX,
-      y: nextY,
-      scale: nextScale,
-    });
-  }, [isMobile, setCanvasView]);
-
-  /* ===============================
-     FIT ALL TABLES ON PAGE ENTRY
-     ממקד את כל השולחנות למסך בכל כניסה לעמוד.
-     רץ פעם אחת בלבד לכל אירוע/הזמנה,
-     ולכן לא קופץ בלייב ולא מתערב בריענון כל 3 שניות.
-  =============================== */
-  useEffect(() => {
-    if (!tablesLite?.length) return;
-    if (didFitCanvasOnEntryRef.current) return;
-
-    didFitCanvasOnEntryRef.current = true;
-
-    const timer = window.setTimeout(() => {
-      fitAllTablesIntoViewport();
-    }, 140);
-
-    return () => window.clearTimeout(timer);
-  }, [tablesLite?.length, fitAllTablesIntoViewport]);
 
   /* ===============================
      BACKGROUND
@@ -1603,7 +1497,6 @@ export default function SeatingPage() {
       >
         {/* CANVAS AREA */}
         <section
-          ref={canvasViewportRef}
           className="
             relative min-w-0 flex-1
             overflow-hidden overscroll-contain
@@ -1611,14 +1504,7 @@ export default function SeatingPage() {
         >
           <div className="pointer-events-none absolute inset-0 z-0 bg-[linear-gradient(90deg,rgba(202,161,90,0.04)_1px,transparent_1px),linear-gradient(rgba(202,161,90,0.04)_1px,transparent_1px)] bg-[size:34px_34px]" />
 
-          <div
-            className="
-              relative z-10
-              h-[2200px] w-[2600px]
-              min-h-[2200px] min-w-[2600px]
-              shrink-0
-            "
-          >
+          <div className="relative z-10 h-full w-full min-h-0 min-w-0">
             <SeatingEditor
               background={background?.url || null}
               invitationId={invitationId}
