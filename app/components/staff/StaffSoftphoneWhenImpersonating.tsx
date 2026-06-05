@@ -193,22 +193,35 @@ export default function StaffSoftphoneWhenImpersonating() {
   }
 
   if (!isMounted) return null;
+  if (!shouldShowSoftphone && !supportModeActive) return null;
 
   return (
-    <>
-      {shouldShowSoftphone && <SoftphoneStatusPanel />}
+    <div
+      dir="rtl"
+      className="
+        sticky top-0 z-[80]
+        w-full
+        border-b border-[#E8DCCB]
+        bg-[#F8F2E7]/95
+        shadow-[0_14px_38px_rgba(15,23,42,0.08)]
+        backdrop-blur-xl
+      "
+    >
+      {shouldShowSoftphone && (
+        <div className="w-full bg-[#070B18] px-4 py-4">
+          <div className="mx-auto w-full max-w-[1480px]">
+            <SoftphoneStatusPanel />
+          </div>
+        </div>
+      )}
 
       {supportModeActive && (
         <div
-          dir="rtl"
           className="
-            sticky top-[104px] z-[80]
-            border-b border-amber-200
+            border-t border-amber-200
             bg-amber-50/95
             px-4 py-3
             text-amber-950
-            shadow-[0_12px_34px_rgba(120,53,15,0.10)]
-            backdrop-blur-xl
           "
         >
           <div className="mx-auto flex w-full max-w-[1480px] items-center justify-between gap-3">
@@ -247,6 +260,6 @@ export default function StaffSoftphoneWhenImpersonating() {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
