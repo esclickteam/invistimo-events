@@ -1,22 +1,20 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useAuth } from "@/context/AuthContext";
 import SoftphoneStatusPanel from "@/app/components/staff/SoftphoneStatusPanel";
 
-type UserRole = "client" | "employee" | "admin" | "producer";
-type UserStatus = "active" | "pending" | "blocked";
+type UserRole =
+  | "client"
+  | "customer"
+  | "employee"
+  | "staff"
+  | "admin"
+  | "producer"
+  | "business"
+  | string;
 
-type AppUser = {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  role: UserRole;
-  status: UserStatus;
-  joinedAt: string;
-  lastActivity: string;
-  avatar?: string;
-};
+type UserStatus = "active" | "pending" | "blocked" | "inactive" | string;
 
 type CareStatus = "ok" | "check" | "urgent";
 type EventProgress =
@@ -24,192 +22,350 @@ type EventProgress =
   | "in_progress"
   | "waiting_client"
   | "ready"
-  | "completed";
+  | "completed"
+  | string;
 
-type ManagedEvent = {
-  id: string;
-  title: string;
-  clientName: string;
-  clientPhone: string;
-  eventType: string;
-  eventDate: string;
-  location: string;
-  guestsCount: number;
-  assignedEmployeeId: string;
-  assignedEmployeeName: string;
-  progress: EventProgress;
-  careStatus: CareStatus;
+type ApiUser = {
+  _id?: string;
+  id?: string;
+  name?: string;
+  fullName?: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  role?: UserRole;
+  status?: UserStatus;
+  isActive?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  lastActivity?: string;
+  lastSeenAt?: string;
+  avatar?: string;
+  image?: string;
+};
+
+type ApiEvent = {
+  _id?: string;
+  id?: string;
+  title?: string;
+  eventName?: string;
+  name?: string;
+  clientName?: string;
+  customerName?: string;
+  ownerName?: string;
+  clientPhone?: string;
+  customerPhone?: string;
+  phone?: string;
+  eventType?: string;
+  type?: string;
+  eventDate?: string;
+  date?: string;
+  location?: string | { name?: string; address?: string };
+  guestsCount?: number;
+  guests?: number;
+  maxGuests?: number;
+  assignedEmployeeId?: string;
+  assignedStaffId?: string;
+  assignedTo?: string;
+  assignedEmployeeName?: string;
+  assignedStaffName?: string;
+  progress?: EventProgress;
+  status?: EventProgress;
+  careStatus?: CareStatus;
+  supportStatus?: CareStatus;
+  unreadMessages?: number;
+  unreadCount?: number;
+  lastMessage?: string;
+  lastMessageAt?: string;
+  notes?: string;
+  supportNote?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+type ApiTask = {
+  _id?: string;
+  id?: string;
+  title?: string;
+  text?: string;
+  clientName?: string;
+  customerName?: string;
+  eventName?: string;
+  eventTitle?: string;
+  priority?: CareStatus;
+  careStatus?: CareStatus;
+  dueText?: string;
+  dueAt?: string;
+};
+
+type DashboardStats = {
+  totalUsers: number;
+  myEvents: number;
+  needCheck: number;
   unreadMessages: number;
-  lastMessage: string;
-  lastMessageAt: string;
-  notes: string;
+  activeUsers: number;
 };
 
-type FollowUpTask = {
-  id: string;
-  title: string;
-  clientName: string;
-  eventName: string;
-  priority: CareStatus;
-  dueText: string;
+type DashboardData = {
+  users: ApiUser[];
+  events: ApiEvent[];
+  tasks: ApiTask[];
+  stats?: Partial<DashboardStats>;
 };
 
-const currentEmployeeId = "emp_1";
+const API = {
+  dashboard: "/api/staff/dashboard",
+  users: "/api/staff/users",
+  myEvents: "/api/staff/events/my",
+  myTasks: "/api/staff/tasks/my",
+};
 
-const usersMock: AppUser[] = [
-  {
-    id: "u_1",
-    name: "נועה לוי",
-    email: "noa@example.com",
-    phone: "050-1111111",
-    role: "client",
-    status: "active",
-    joinedAt: "01/06/2026",
-    lastActivity: "לפני 12 דקות",
-  },
-  {
-    id: "u_2",
-    name: "דניאל כהן",
-    email: "daniel@example.com",
-    phone: "052-2222222",
-    role: "client",
-    status: "pending",
-    joinedAt: "30/05/2026",
-    lastActivity: "לפני שעה",
-  },
-  {
-    id: "u_3",
-    name: "מאיה עובדיה",
-    email: "maya@invistimo.com",
-    phone: "054-3333333",
-    role: "employee",
-    status: "active",
-    joinedAt: "20/05/2026",
-    lastActivity: "פעילה עכשיו",
-  },
-  {
-    id: "u_4",
-    name: "אורן מפיק אירועים",
-    email: "oren@example.com",
-    phone: "053-4444444",
-    role: "producer",
-    status: "active",
-    joinedAt: "18/05/2026",
-    lastActivity: "אתמול",
-  },
-  {
-    id: "u_5",
-    name: "רונית שפירא",
-    email: "ronit@example.com",
-    phone: "054-4567890",
-    role: "client",
-    status: "active",
-    joinedAt: "12/05/2026",
-    lastActivity: "לפני 4 שעות",
-  },
-];
+function getArrayFromResponse<T>(data: any, keys: string[]): T[] {
+  if (Array.isArray(data)) return data;
 
-const eventsMock: ManagedEvent[] = [
-  {
-    id: "ev_1",
-    title: "חתונה - נועה ודניאל",
-    clientName: "נועה לוי",
-    clientPhone: "050-1111111",
-    eventType: "חתונה",
-    eventDate: "24/08/2026",
-    location: "אולם קיסריה",
-    guestsCount: 380,
-    assignedEmployeeId: "emp_1",
-    assignedEmployeeName: "הדר",
-    progress: "in_progress",
-    careStatus: "check",
-    unreadMessages: 4,
-    lastMessage: "הלקוחה שאלה אם אפשר לעדכן מספר שולחן למשפחה.",
-    lastMessageAt: "לפני 9 דקות",
-    notes: "לוודא שהלקוחה מסתדרת עם אישורי הגעה וסידורי הושבה.",
-  },
-  {
-    id: "ev_2",
-    title: "בר מצווה - משפחת אדרי",
-    clientName: "שלומי אדרי",
-    clientPhone: "052-5555555",
-    eventType: "בר מצווה",
-    eventDate: "12/09/2026",
-    location: "אולמי בראשית",
-    guestsCount: 220,
-    assignedEmployeeId: "emp_1",
-    assignedEmployeeName: "הדר",
-    progress: "waiting_client",
-    careStatus: "urgent",
-    unreadMessages: 8,
-    lastMessage: "הלקוח לא מצליח לשלוח הודעת וואטסאפ לאורחים.",
-    lastMessageAt: "לפני 3 דקות",
-    notes: "דחוף לבדוק תבנית וואטסאפ והרשאות שליחה.",
-  },
-  {
-    id: "ev_3",
-    title: "חינה - משפחת ביטון",
-    clientName: "מור ביטון",
-    clientPhone: "054-7777777",
-    eventType: "חינה",
-    eventDate: "02/10/2026",
-    location: "בית פרטי",
-    guestsCount: 140,
-    assignedEmployeeId: "emp_1",
-    assignedEmployeeName: "הדר",
-    progress: "ready",
-    careStatus: "ok",
-    unreadMessages: 0,
-    lastMessage: "הכול מוכן, הלקוחה אישרה את רשימת האורחים.",
-    lastMessageAt: "לפני שעתיים",
-    notes: "רק לעקוב יום לפני האירוע.",
-  },
-  {
-    id: "ev_4",
-    title: "אירוע חברה - א.ב. ניסים",
-    clientName: "אבי ניסים",
-    clientPhone: "052-9876543",
-    eventType: "אירוע חברה",
-    eventDate: "18/11/2026",
-    location: "גני תל אביב",
-    guestsCount: 520,
-    assignedEmployeeId: "emp_1",
-    assignedEmployeeName: "הדר",
-    progress: "new",
-    careStatus: "check",
-    unreadMessages: 2,
-    lastMessage: "הלקוח ביקש להבין איך מעלים קובץ אקסל.",
-    lastMessageAt: "לפני 28 דקות",
-    notes: "להיכנס ללקוח ולבדוק שהייבוא תקין.",
-  },
-];
+  for (const key of keys) {
+    const value = data?.[key];
+    if (Array.isArray(value)) return value;
+  }
 
-const followUpTasksMock: FollowUpTask[] = [
-  {
-    id: "t_1",
-    title: "לבדוק למה הודעות וואטסאפ לא נשלחות",
-    clientName: "שלומי אדרי",
-    eventName: "בר מצווה - משפחת אדרי",
-    priority: "urgent",
-    dueText: "עכשיו",
-  },
-  {
-    id: "t_2",
-    title: "לוודא שהלקוחה הסתדרה עם סידורי ההושבה",
-    clientName: "נועה לוי",
-    eventName: "חתונה - נועה ודניאל",
-    priority: "check",
-    dueText: "היום",
-  },
-  {
-    id: "t_3",
-    title: "להיכנס לחשבון הלקוח ולבדוק ייבוא אורחים",
-    clientName: "אבי ניסים",
-    eventName: "אירוע חברה - א.ב. ניסים",
-    priority: "check",
-    dueText: "עד 16:00",
-  },
-];
+  for (const key of keys) {
+    const value = data?.data?.[key];
+    if (Array.isArray(value)) return value;
+  }
+
+  return [];
+}
+
+function getObjectFromResponse<T extends object>(data: any, keys: string[]): Partial<T> {
+  for (const key of keys) {
+    const value = data?.[key];
+    if (value && typeof value === "object" && !Array.isArray(value)) return value;
+  }
+
+  for (const key of keys) {
+    const value = data?.data?.[key];
+    if (value && typeof value === "object" && !Array.isArray(value)) return value;
+  }
+
+  return {};
+}
+
+async function fetchJson(url: string) {
+  const response = await fetch(url, {
+    method: "GET",
+    credentials: "include",
+    cache: "no-store",
+  });
+
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(data?.error || data?.message || `REQUEST_FAILED_${response.status}`);
+  }
+
+  return data;
+}
+
+function formatDate(value?: string) {
+  if (!value) return "—";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleDateString("he-IL", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+function formatDateTimeAgo(value?: string) {
+  if (!value) return "—";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  const diffMs = Date.now() - date.getTime();
+  const diffMinutes = Math.floor(diffMs / 60000);
+
+  if (diffMinutes < 1) return "עכשיו";
+  if (diffMinutes < 60) return `לפני ${diffMinutes} דק׳`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `לפני ${diffHours} שעות`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `לפני ${diffDays} ימים`;
+
+  return formatDate(value);
+}
+
+function normalizeId(item: { _id?: string; id?: string }) {
+  return String(item.id || item._id || "");
+}
+
+function normalizeUserName(user: ApiUser) {
+  const fromFull = user.name || user.fullName;
+  if (fromFull) return fromFull;
+
+  const full = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
+  return full || "משתמש ללא שם";
+}
+
+function normalizeEventTitle(event: ApiEvent) {
+  return event.title || event.eventName || event.name || "אירוע ללא שם";
+}
+
+function normalizeClientName(event: ApiEvent) {
+  return event.clientName || event.customerName || event.ownerName || "לקוח ללא שם";
+}
+
+function normalizeClientPhone(event: ApiEvent) {
+  return event.clientPhone || event.customerPhone || event.phone || "";
+}
+
+function normalizeLocation(event: ApiEvent) {
+  if (!event.location) return "—";
+  if (typeof event.location === "string") return event.location;
+  return event.location.name || event.location.address || "—";
+}
+
+function normalizeGuests(event: ApiEvent) {
+  return Number(event.guestsCount ?? event.guests ?? event.maxGuests ?? 0);
+}
+
+function normalizeCareStatus(value?: string): CareStatus {
+  const status = String(value || "").toLowerCase();
+
+  if (
+    status === "urgent" ||
+    status === "critical" ||
+    status === "danger" ||
+    status === "דחוף"
+  ) {
+    return "urgent";
+  }
+
+  if (
+    status === "check" ||
+    status === "warning" ||
+    status === "pending" ||
+    status === "needs_check" ||
+    status === "דורש בדיקה"
+  ) {
+    return "check";
+  }
+
+  return "ok";
+}
+
+function normalizeUserStatus(user: ApiUser): UserStatus {
+  if (user.status) return user.status;
+  if (user.isActive === false) return "inactive";
+  return "active";
+}
+
+function initials(name: string) {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("");
+}
+
+function roleLabel(role?: UserRole) {
+  switch (String(role || "").toLowerCase()) {
+    case "client":
+    case "customer":
+      return "לקוח";
+    case "employee":
+    case "staff":
+      return "עובד";
+    case "admin":
+      return "אדמין";
+    case "producer":
+      return "מפיק";
+    case "business":
+      return "עסק";
+    default:
+      return role || "משתמש";
+  }
+}
+
+function statusLabel(status?: UserStatus) {
+  switch (String(status || "").toLowerCase()) {
+    case "active":
+      return "פעיל";
+    case "pending":
+      return "ממתין";
+    case "blocked":
+      return "חסום";
+    case "inactive":
+      return "לא פעיל";
+    default:
+      return status || "—";
+  }
+}
+
+function progressLabel(progress?: EventProgress) {
+  switch (String(progress || "").toLowerCase()) {
+    case "new":
+      return "חדש";
+    case "in_progress":
+      return "בטיפול";
+    case "waiting_client":
+      return "ממתין ללקוח";
+    case "ready":
+      return "מוכן";
+    case "completed":
+      return "הושלם";
+    default:
+      return progress || "—";
+  }
+}
+
+function careStatusLabel(status: CareStatus) {
+  switch (status) {
+    case "ok":
+      return "הכול תקין";
+    case "check":
+      return "דורש בדיקה";
+    case "urgent":
+      return "דחוף";
+    default:
+      return status;
+  }
+}
+
+function careStatusClass(status: CareStatus) {
+  switch (status) {
+    case "ok":
+      return "border-emerald-200 bg-emerald-50 text-emerald-700";
+    case "check":
+      return "border-amber-200 bg-amber-50 text-amber-700";
+    case "urgent":
+      return "border-rose-200 bg-rose-50 text-rose-700";
+    default:
+      return "border-slate-200 bg-slate-50 text-slate-700";
+  }
+}
+
+function userStatusClass(status: UserStatus) {
+  switch (String(status || "").toLowerCase()) {
+    case "active":
+      return "bg-emerald-50 text-emerald-700 ring-emerald-200";
+    case "pending":
+      return "bg-amber-50 text-amber-700 ring-amber-200";
+    case "blocked":
+      return "bg-rose-50 text-rose-700 ring-rose-200";
+    case "inactive":
+      return "bg-slate-100 text-slate-600 ring-slate-200";
+    default:
+      return "bg-slate-50 text-slate-700 ring-slate-200";
+  }
+}
 
 function Icon({
   name,
@@ -229,7 +385,8 @@ function Icon({
     | "user"
     | "activity"
     | "open"
-    | "shield";
+    | "shield"
+    | "refresh";
   className?: string;
 }) {
   const common = {
@@ -360,105 +517,23 @@ function Icon({
     );
   }
 
+  if (name === "refresh") {
+    return (
+      <svg {...common}>
+        <path d="M21 12a9 9 0 0 1-15.3 6.4" />
+        <path d="M3 12A9 9 0 0 1 18.3 5.6" />
+        <path d="M18 2v4h-4" />
+        <path d="M6 22v-4h4" />
+      </svg>
+    );
+  }
+
   return (
     <svg {...common}>
       <path d="M20 21a8 8 0 0 0-16 0" />
       <circle cx="12" cy="7" r="4" />
     </svg>
   );
-}
-
-function roleLabel(role: UserRole) {
-  switch (role) {
-    case "client":
-      return "לקוח";
-    case "employee":
-      return "עובד";
-    case "admin":
-      return "אדמין";
-    case "producer":
-      return "מפיק";
-    default:
-      return role;
-  }
-}
-
-function statusLabel(status: UserStatus) {
-  switch (status) {
-    case "active":
-      return "פעיל";
-    case "pending":
-      return "ממתין";
-    case "blocked":
-      return "חסום";
-    default:
-      return status;
-  }
-}
-
-function progressLabel(progress: EventProgress) {
-  switch (progress) {
-    case "new":
-      return "חדש";
-    case "in_progress":
-      return "בטיפול";
-    case "waiting_client":
-      return "ממתין ללקוח";
-    case "ready":
-      return "מוכן";
-    case "completed":
-      return "הושלם";
-    default:
-      return progress;
-  }
-}
-
-function careStatusLabel(status: CareStatus) {
-  switch (status) {
-    case "ok":
-      return "הכול תקין";
-    case "check":
-      return "דורש בדיקה";
-    case "urgent":
-      return "דחוף";
-    default:
-      return status;
-  }
-}
-
-function careStatusClass(status: CareStatus) {
-  switch (status) {
-    case "ok":
-      return "border-emerald-200 bg-emerald-50 text-emerald-700";
-    case "check":
-      return "border-amber-200 bg-amber-50 text-amber-700";
-    case "urgent":
-      return "border-rose-200 bg-rose-50 text-rose-700";
-    default:
-      return "border-slate-200 bg-slate-50 text-slate-700";
-  }
-}
-
-function userStatusClass(status: UserStatus) {
-  switch (status) {
-    case "active":
-      return "bg-emerald-50 text-emerald-700 ring-emerald-200";
-    case "pending":
-      return "bg-amber-50 text-amber-700 ring-amber-200";
-    case "blocked":
-      return "bg-rose-50 text-rose-700 ring-rose-200";
-    default:
-      return "bg-slate-50 text-slate-700 ring-slate-200";
-  }
-}
-
-function initials(name: string) {
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("");
 }
 
 function StatCard({
@@ -485,7 +560,9 @@ function StatCard({
 
   return (
     <div className="group relative overflow-hidden rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-xl">
-      <div className={`absolute -left-10 -top-10 h-28 w-28 rounded-full bg-gradient-to-br ${toneClass} opacity-10 blur-2xl transition group-hover:opacity-20`} />
+      <div
+        className={`absolute -left-10 -top-10 h-28 w-28 rounded-full bg-gradient-to-br ${toneClass} opacity-10 blur-2xl transition group-hover:opacity-20`}
+      />
 
       <div className="relative flex items-start justify-between gap-4">
         <div>
@@ -496,7 +573,9 @@ function StatCard({
           <p className="mt-1 text-xs font-bold text-slate-400">{subtitle}</p>
         </div>
 
-        <div className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${toneClass} text-white shadow-lg`}>
+        <div
+          className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${toneClass} text-white shadow-lg`}
+        >
           {icon}
         </div>
       </div>
@@ -519,7 +598,9 @@ function SectionHeader({
         <h2 className="text-2xl font-black tracking-tight text-slate-950">
           {title}
         </h2>
-        {subtitle && <p className="mt-1 text-sm font-semibold text-slate-500">{subtitle}</p>}
+        {subtitle && (
+          <p className="mt-1 text-sm font-semibold text-slate-500">{subtitle}</p>
+        )}
       </div>
       {action}
     </div>
@@ -550,7 +631,15 @@ function SearchBox({
   );
 }
 
-function EmptyState({ title, subtitle }: { title: string; subtitle: string }) {
+function EmptyState({
+  title,
+  subtitle,
+  action,
+}: {
+  title: string;
+  subtitle: string;
+  action?: React.ReactNode;
+}) {
   return (
     <div className="rounded-[28px] border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
       <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-3xl bg-white text-slate-500 shadow-sm">
@@ -558,64 +647,217 @@ function EmptyState({ title, subtitle }: { title: string; subtitle: string }) {
       </div>
       <p className="mt-4 text-lg font-black text-slate-800">{title}</p>
       <p className="mt-2 text-sm font-semibold text-slate-500">{subtitle}</p>
+      {action && <div className="mt-5">{action}</div>}
+    </div>
+  );
+}
+
+function LoadingPanel() {
+  return (
+    <div className="rounded-[34px] border border-slate-200 bg-white p-8 shadow-sm">
+      <div className="flex min-h-[280px] items-center justify-center">
+        <div className="text-center">
+          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-slate-950" />
+          <p className="mt-4 text-sm font-black text-slate-800">
+            טוען נתוני עובד מהשרת...
+          </p>
+          <p className="mt-2 text-xs font-semibold text-slate-400">
+            משתמשים, אירועים, שיחות ומשימות
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
 
 export default function EmployeeDashboardPage() {
+  const { user } = useAuth();
+
+  const [users, setUsers] = useState<ApiUser[]>([]);
+  const [events, setEvents] = useState<ApiEvent[]>([]);
+  const [tasks, setTasks] = useState<ApiTask[]>([]);
+  const [serverStats, setServerStats] = useState<Partial<DashboardStats>>({});
+
   const [userSearch, setUserSearch] = useState("");
   const [eventSearch, setEventSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState("");
 
-  const myEvents = useMemo(() => {
-    return eventsMock.filter(
-      (event) => event.assignedEmployeeId === currentEmployeeId
-    );
+  const loadDashboard = useCallback(async () => {
+    try {
+      setError("");
+      setRefreshing(true);
+
+      let dashboardData: DashboardData | null = null;
+
+      try {
+        const dashboardResponse = await fetchJson(API.dashboard);
+
+        dashboardData = {
+          users: getArrayFromResponse<ApiUser>(dashboardResponse, [
+            "users",
+            "allUsers",
+            "staffUsers",
+          ]),
+          events: getArrayFromResponse<ApiEvent>(dashboardResponse, [
+            "events",
+            "myEvents",
+            "assignedEvents",
+          ]),
+          tasks: getArrayFromResponse<ApiTask>(dashboardResponse, [
+            "tasks",
+            "myTasks",
+            "followUpTasks",
+          ]),
+          stats: getObjectFromResponse<DashboardStats>(dashboardResponse, [
+            "stats",
+            "summary",
+            "dashboardStats",
+          ]),
+        };
+      } catch (dashboardError) {
+        console.warn("STAFF DASHBOARD SINGLE ENDPOINT FAILED:", dashboardError);
+
+        const [usersResponse, eventsResponse, tasksResponse] = await Promise.all([
+          fetchJson(API.users),
+          fetchJson(API.myEvents),
+          fetchJson(API.myTasks).catch(() => ({ tasks: [] })),
+        ]);
+
+        dashboardData = {
+          users: getArrayFromResponse<ApiUser>(usersResponse, [
+            "users",
+            "allUsers",
+            "items",
+            "data",
+          ]),
+          events: getArrayFromResponse<ApiEvent>(eventsResponse, [
+            "events",
+            "myEvents",
+            "assignedEvents",
+            "items",
+            "data",
+          ]),
+          tasks: getArrayFromResponse<ApiTask>(tasksResponse, [
+            "tasks",
+            "myTasks",
+            "followUpTasks",
+            "items",
+            "data",
+          ]),
+          stats: {},
+        };
+      }
+
+      setUsers(dashboardData.users);
+      setEvents(dashboardData.events);
+      setTasks(dashboardData.tasks);
+      setServerStats(dashboardData.stats || {});
+    } catch (loadError) {
+      console.error("LOAD STAFF DASHBOARD FAILED:", loadError);
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : "שגיאה בטעינת נתוני דשבורד עובדים"
+      );
+      setUsers([]);
+      setEvents([]);
+      setTasks([]);
+      setServerStats({});
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void loadDashboard();
+  }, [loadDashboard]);
 
   const filteredUsers = useMemo(() => {
     const q = userSearch.trim().toLowerCase();
 
-    if (!q) return usersMock;
+    if (!q) return users;
 
-    return usersMock.filter((user) => {
+    return users.filter((currentUser) => {
+      const name = normalizeUserName(currentUser).toLowerCase();
+      const email = String(currentUser.email || "").toLowerCase();
+      const phone = String(currentUser.phone || "").toLowerCase();
+      const role = roleLabel(currentUser.role).toLowerCase();
+      const status = statusLabel(normalizeUserStatus(currentUser)).toLowerCase();
+
       return (
-        user.name.toLowerCase().includes(q) ||
-        user.email.toLowerCase().includes(q) ||
-        user.phone.toLowerCase().includes(q) ||
-        roleLabel(user.role).toLowerCase().includes(q) ||
-        statusLabel(user.status).toLowerCase().includes(q)
+        name.includes(q) ||
+        email.includes(q) ||
+        phone.includes(q) ||
+        role.includes(q) ||
+        status.includes(q)
       );
     });
-  }, [userSearch]);
+  }, [userSearch, users]);
 
   const filteredEvents = useMemo(() => {
     const q = eventSearch.trim().toLowerCase();
 
-    if (!q) return myEvents;
+    if (!q) return events;
 
-    return myEvents.filter((event) => {
+    return events.filter((event) => {
+      const title = normalizeEventTitle(event).toLowerCase();
+      const clientName = normalizeClientName(event).toLowerCase();
+      const clientPhone = normalizeClientPhone(event).toLowerCase();
+      const eventType = String(event.eventType || event.type || "").toLowerCase();
+      const location = normalizeLocation(event).toLowerCase();
+      const careStatus = careStatusLabel(
+        normalizeCareStatus(event.careStatus || event.supportStatus)
+      ).toLowerCase();
+
       return (
-        event.title.toLowerCase().includes(q) ||
-        event.clientName.toLowerCase().includes(q) ||
-        event.clientPhone.toLowerCase().includes(q) ||
-        event.eventType.toLowerCase().includes(q) ||
-        event.location.toLowerCase().includes(q) ||
-        careStatusLabel(event.careStatus).toLowerCase().includes(q)
+        title.includes(q) ||
+        clientName.includes(q) ||
+        clientPhone.includes(q) ||
+        eventType.includes(q) ||
+        location.includes(q) ||
+        careStatus.includes(q)
       );
     });
-  }, [eventSearch, myEvents]);
+  }, [eventSearch, events]);
 
-  const urgentEvents = myEvents.filter((event) => event.careStatus === "urgent");
-  const eventsNeedCheck = myEvents.filter(
-    (event) => event.careStatus === "urgent" || event.careStatus === "check"
-  );
-  const unreadMessages = myEvents.reduce(
-    (sum, event) => sum + event.unreadMessages,
-    0
-  );
+  const eventsNeedCheck = useMemo(() => {
+    return events.filter((event) => {
+      const status = normalizeCareStatus(event.careStatus || event.supportStatus);
+      return status === "urgent" || status === "check";
+    });
+  }, [events]);
+
+  const unreadMessages = useMemo(() => {
+    return events.reduce((sum, event) => {
+      return sum + Number(event.unreadMessages ?? event.unreadCount ?? 0);
+    }, 0);
+  }, [events]);
+
+  const activeUsersCount = useMemo(() => {
+    return users.filter((currentUser) => {
+      return String(normalizeUserStatus(currentUser)).toLowerCase() === "active";
+    }).length;
+  }, [users]);
+
+  const stats: DashboardStats = {
+    totalUsers: Number(serverStats.totalUsers ?? users.length),
+    myEvents: Number(serverStats.myEvents ?? events.length),
+    needCheck: Number(serverStats.needCheck ?? eventsNeedCheck.length),
+    unreadMessages: Number(serverStats.unreadMessages ?? unreadMessages),
+    activeUsers: Number(serverStats.activeUsers ?? activeUsersCount),
+  };
+
+  const displayName =
+  user?.name || user?.email?.split("@")[0] || "עובד";
 
   return (
-    <div dir="rtl" className="min-h-screen bg-[#F5F7FB] text-slate-950 lg:pl-[380px]">
+    <div
+      dir="rtl"
+      className="min-h-screen bg-[#F5F7FB] text-slate-950 lg:pl-[380px]"
+    >
       <SoftphoneStatusPanel />
 
       <main className="min-h-screen">
@@ -631,426 +873,582 @@ export default function EmployeeDashboardPage() {
                 </span>
 
                 <h1 className="mt-5 text-4xl font-black tracking-tight sm:text-5xl">
-                  היי הדר, בוקר טוב 👋
+                  היי {displayName}, בוקר טוב 👋
                 </h1>
 
                 <p className="mt-4 max-w-2xl text-base font-semibold leading-8 text-slate-300">
-                  כאן העובד רואה את הלקוחות, האירועים שבטיפול האישי שלו, השיחות שדורשות בדיקה,
-                  ונכנס לחשבון הלקוח כדי לבצע פעולות לפי הצורך.
+                  כאן העובד רואה נתונים אמיתיים מהשרת: לקוחות, אירועים בטיפול
+                  אישי, שיחות שדורשות בדיקה ופעולות שצריך לבצע אצל הלקוח.
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:min-w-[560px]">
-                <div className="rounded-[24px] border border-white/10 bg-white/10 p-4 backdrop-blur">
-                  <p className="text-xs font-black text-slate-300">משתמשים</p>
-                  <p className="mt-2 text-3xl font-black">{usersMock.length}</p>
-                </div>
+              <div className="flex flex-col gap-3 xl:items-end">
+                <button
+                  type="button"
+                  onClick={() => void loadDashboard()}
+                  disabled={refreshing}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/10 px-4 text-sm font-black text-white transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Icon
+                    name="refresh"
+                    className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+                  />
+                  רענון נתונים
+                </button>
 
-                <div className="rounded-[24px] border border-white/10 bg-white/10 p-4 backdrop-blur">
-                  <p className="text-xs font-black text-slate-300">אירועים שלי</p>
-                  <p className="mt-2 text-3xl font-black">{myEvents.length}</p>
-                </div>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:min-w-[560px]">
+                  <div className="rounded-[24px] border border-white/10 bg-white/10 p-4 backdrop-blur">
+                    <p className="text-xs font-black text-slate-300">משתמשים</p>
+                    <p className="mt-2 text-3xl font-black">{stats.totalUsers}</p>
+                  </div>
 
-                <div className="rounded-[24px] border border-white/10 bg-white/10 p-4 backdrop-blur">
-                  <p className="text-xs font-black text-slate-300">דורש בדיקה</p>
-                  <p className="mt-2 text-3xl font-black">{eventsNeedCheck.length}</p>
-                </div>
+                  <div className="rounded-[24px] border border-white/10 bg-white/10 p-4 backdrop-blur">
+                    <p className="text-xs font-black text-slate-300">
+                      אירועים שלי
+                    </p>
+                    <p className="mt-2 text-3xl font-black">{stats.myEvents}</p>
+                  </div>
 
-                <div className="rounded-[24px] border border-white/10 bg-white/10 p-4 backdrop-blur">
-                  <p className="text-xs font-black text-slate-300">הודעות פתוחות</p>
-                  <p className="mt-2 text-3xl font-black">{unreadMessages}</p>
+                  <div className="rounded-[24px] border border-white/10 bg-white/10 p-4 backdrop-blur">
+                    <p className="text-xs font-black text-slate-300">
+                      דורש בדיקה
+                    </p>
+                    <p className="mt-2 text-3xl font-black">{stats.needCheck}</p>
+                  </div>
+
+                  <div className="rounded-[24px] border border-white/10 bg-white/10 p-4 backdrop-blur">
+                    <p className="text-xs font-black text-slate-300">
+                      הודעות פתוחות
+                    </p>
+                    <p className="mt-2 text-3xl font-black">
+                      {stats.unreadMessages}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <StatCard
-              title="אירועים בטיפול אישי"
-              value={myEvents.length}
-              subtitle="אירועים שהוקצו לעובד"
-              icon={<Icon name="calendar" className="h-6 w-6" />}
-              tone="purple"
-            />
-
-            <StatCard
-              title="לקוחות שצריך לבדוק"
-              value={eventsNeedCheck.length}
-              subtitle="דורש מעקב אנושי"
-              icon={<Icon name="warning" className="h-6 w-6" />}
-              tone="amber"
-            />
-
-            <StatCard
-              title="הודעות לא נקראו"
-              value={unreadMessages}
-              subtitle="מתוך אירועים בטיפול"
-              icon={<Icon name="message" className="h-6 w-6" />}
-              tone="dark"
-            />
-
-            <StatCard
-              title="משתמשים פעילים"
-              value={usersMock.filter((user) => user.status === "active").length}
-              subtitle="במערכת כרגע"
-              icon={<Icon name="users" className="h-6 w-6" />}
-              tone="green"
-            />
-          </div>
-
-          <div className="mt-6 grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-            <section className="rounded-[34px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-              <SectionHeader
-                title="אירועים בטיפול שלי"
-                subtitle="אירועים שהעובד אחראי לבדוק אישית, כולל כניסה ללקוח וביצוע פעולות."
+          {loading ? (
+            <div className="mt-6">
+              <LoadingPanel />
+            </div>
+          ) : error ? (
+            <div className="mt-6">
+              <EmptyState
+                title="לא הצלחנו לטעון נתונים מהשרת"
+                subtitle={error}
                 action={
-                  <SearchBox
-                    value={eventSearch}
-                    onChange={setEventSearch}
-                    placeholder="חיפוש אירוע, לקוח, טלפון, מיקום..."
-                  />
+                  <button
+                    type="button"
+                    onClick={() => void loadDashboard()}
+                    className="h-11 rounded-2xl bg-slate-950 px-5 text-sm font-black text-white transition hover:bg-black"
+                  >
+                    נסה שוב
+                  </button>
                 }
               />
+            </div>
+          ) : (
+            <>
+              <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <StatCard
+                  title="אירועים בטיפול אישי"
+                  value={stats.myEvents}
+                  subtitle="אירועים שהוקצו לעובד"
+                  icon={<Icon name="calendar" className="h-6 w-6" />}
+                  tone="purple"
+                />
 
-              <div className="mt-5 space-y-3">
-                {filteredEvents.map((event) => (
-                  <article
-                    key={event.id}
-                    className="group rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-xl"
-                  >
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
+                <StatCard
+                  title="לקוחות שצריך לבדוק"
+                  value={stats.needCheck}
+                  subtitle="דורש מעקב אנושי"
+                  icon={<Icon name="warning" className="h-6 w-6" />}
+                  tone="amber"
+                />
+
+                <StatCard
+                  title="הודעות לא נקראו"
+                  value={stats.unreadMessages}
+                  subtitle="מתוך אירועים בטיפול"
+                  icon={<Icon name="message" className="h-6 w-6" />}
+                  tone="dark"
+                />
+
+                <StatCard
+                  title="משתמשים פעילים"
+                  value={stats.activeUsers}
+                  subtitle="במערכת כרגע"
+                  icon={<Icon name="users" className="h-6 w-6" />}
+                  tone="green"
+                />
+              </div>
+
+              <div className="mt-6 grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+                <section className="rounded-[34px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+                  <SectionHeader
+                    title="אירועים בטיפול שלי"
+                    subtitle="אירועים אמיתיים מהשרת שהעובד אחראי לבדוק אישית."
+                    action={
+                      <SearchBox
+                        value={eventSearch}
+                        onChange={setEventSearch}
+                        placeholder="חיפוש אירוע, לקוח, טלפון, מיקום..."
+                      />
+                    }
+                  />
+
+                  <div className="mt-5 space-y-3">
+                    {filteredEvents.map((event) => {
+                      const eventId = normalizeId(event);
+                      const careStatus = normalizeCareStatus(
+                        event.careStatus || event.supportStatus
+                      );
+                      const title = normalizeEventTitle(event);
+                      const clientName = normalizeClientName(event);
+                      const clientPhone = normalizeClientPhone(event);
+                      const unread = Number(
+                        event.unreadMessages ?? event.unreadCount ?? 0
+                      );
+
+                      return (
+                        <article
+                          key={eventId || title}
+                          className="group rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-xl"
+                        >
+                          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span
+                                  className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${careStatusClass(
+                                    careStatus
+                                  )}`}
+                                >
+                                  {careStatusLabel(careStatus)}
+                                </span>
+
+                                <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">
+                                  {progressLabel(event.progress || event.status)}
+                                </span>
+
+                                {unread > 0 && (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-slate-950 px-3 py-1 text-xs font-black text-white">
+                                    <Icon name="message" className="h-3.5 w-3.5" />
+                                    {unread} הודעות
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="mt-3 flex items-start gap-3">
+                                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-sm font-black text-white">
+                                  {initials(clientName)}
+                                </div>
+
+                                <div className="min-w-0">
+                                  <h3 className="truncate text-xl font-black text-slate-950">
+                                    {title}
+                                  </h3>
+
+                                  <div className="mt-2 grid gap-2 text-sm font-semibold text-slate-600 sm:grid-cols-2 xl:grid-cols-3">
+                                    <span>
+                                      לקוח:{" "}
+                                      <b className="text-slate-950">
+                                        {clientName}
+                                      </b>
+                                    </span>
+                                    <span
+                                      dir="ltr"
+                                      className="text-right sm:text-left"
+                                    >
+                                      {clientPhone || "—"}
+                                    </span>
+                                    <span>
+                                      תאריך:{" "}
+                                      <b className="text-slate-950">
+                                        {formatDate(event.eventDate || event.date)}
+                                      </b>
+                                    </span>
+                                    <span>
+                                      מיקום:{" "}
+                                      <b className="text-slate-950">
+                                        {normalizeLocation(event)}
+                                      </b>
+                                    </span>
+                                    <span>
+                                      סוג:{" "}
+                                      <b className="text-slate-950">
+                                        {event.eventType || event.type || "—"}
+                                      </b>
+                                    </span>
+                                    <span>
+                                      מוזמנים:{" "}
+                                      <b className="text-slate-950">
+                                        {normalizeGuests(event)}
+                                      </b>
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                                <div className="rounded-3xl bg-slate-50 p-4">
+                                  <p className="flex items-center gap-2 text-xs font-black text-slate-400">
+                                    <Icon name="message" className="h-4 w-4" />
+                                    הודעה אחרונה
+                                  </p>
+                                  <p className="mt-2 text-sm font-bold leading-6 text-slate-700">
+                                    {event.lastMessage || "אין הודעה אחרונה"}
+                                  </p>
+                                  <p className="mt-2 text-xs font-black text-slate-400">
+                                    {formatDateTimeAgo(event.lastMessageAt)}
+                                  </p>
+                                </div>
+
+                                <div className="rounded-3xl border border-dashed border-slate-200 p-4">
+                                  <p className="flex items-center gap-2 text-xs font-black text-slate-400">
+                                    <Icon name="activity" className="h-4 w-4" />
+                                    הערת טיפול
+                                  </p>
+                                  <p className="mt-2 text-sm font-bold leading-6 text-slate-700">
+                                    {event.notes ||
+                                      event.supportNote ||
+                                      "אין הערת טיפול"}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="grid shrink-0 grid-cols-2 gap-2 lg:w-[172px] lg:grid-cols-1">
+                              <button className="h-11 rounded-2xl bg-slate-950 px-4 text-sm font-black text-white transition hover:bg-black">
+                                כניסה ללקוח
+                              </button>
+
+                              <button className="h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 transition hover:bg-slate-50">
+                                פתח שיחה
+                              </button>
+
+                              <button className="h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 transition hover:bg-slate-50">
+                                פעולות
+                              </button>
+
+                              <button className="h-11 rounded-2xl bg-emerald-50 px-4 text-sm font-black text-emerald-700 ring-1 ring-emerald-200 transition hover:bg-emerald-100">
+                                סמן כטופל
+                              </button>
+                            </div>
+                          </div>
+                        </article>
+                      );
+                    })}
+
+                    {filteredEvents.length === 0 && (
+                      <EmptyState
+                        title="אין אירועים להצגה"
+                        subtitle="לא נמצאו אירועים מהשרת שתואמים לחיפוש או שלא הוקצו לעובד אירועים."
+                      />
+                    )}
+                  </div>
+                </section>
+
+                <div className="space-y-6">
+                  <section className="rounded-[34px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+                    <SectionHeader
+                      title="משימות מעקב"
+                      subtitle="משימות שהגיעו מהשרת לעובד הנוכחי."
+                    />
+
+                    <div className="mt-5 space-y-3">
+                      {tasks.map((task) => {
+                        const priority = normalizeCareStatus(
+                          task.priority || task.careStatus
+                        );
+
+                        return (
+                          <div
+                            key={normalizeId(task) || task.title}
+                            className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-sm"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <span
+                                className={`rounded-full border px-3 py-1 text-xs font-black ${careStatusClass(
+                                  priority
+                                )}`}
+                              >
+                                {careStatusLabel(priority)}
+                              </span>
+
+                              <div className="min-w-0 text-right">
+                                <h3 className="text-base font-black text-slate-950">
+                                  {task.title || task.text || "משימה ללא כותרת"}
+                                </h3>
+                                <p className="mt-1 text-sm font-semibold text-slate-500">
+                                  {task.clientName ||
+                                    task.customerName ||
+                                    "לקוח לא צוין"}{" "}
+                                  ·{" "}
+                                  {task.eventName ||
+                                    task.eventTitle ||
+                                    "אירוע לא צוין"}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="mt-4 flex items-center justify-between">
+                              <span className="flex items-center gap-1 text-xs font-black text-slate-400">
+                                <Icon name="clock" className="h-4 w-4" />
+                                {task.dueText || formatDateTimeAgo(task.dueAt)}
+                              </span>
+
+                              <button className="rounded-2xl bg-slate-950 px-4 py-2 text-xs font-black text-white transition hover:bg-black">
+                                טיפול
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {tasks.length === 0 && (
+                        <EmptyState
+                          title="אין משימות מעקב"
+                          subtitle="כרגע לא חזרו משימות מהשרת לעובד הזה."
+                        />
+                      )}
+                    </div>
+                  </section>
+
+                  <section className="rounded-[34px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+                    <SectionHeader
+                      title="לקוחות שדורשים בדיקה"
+                      subtitle="לקוחות עם הודעות פתוחות או סטטוס טיפול בעייתי."
+                    />
+
+                    <div className="mt-5 space-y-3">
+                      {eventsNeedCheck.map((event) => {
+                        const eventId = normalizeId(event);
+                        const careStatus = normalizeCareStatus(
+                          event.careStatus || event.supportStatus
+                        );
+                        const clientName = normalizeClientName(event);
+
+                        return (
+                          <button
+                            key={eventId || clientName}
+                            className="flex w-full items-center gap-3 rounded-[24px] border border-slate-200 bg-slate-50 p-3 text-right transition hover:bg-white hover:shadow-md"
+                          >
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-sm font-black text-slate-950 shadow-sm">
+                              {initials(clientName)}
+                            </div>
+
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center justify-between gap-2">
+                                <span
+                                  className={`rounded-full border px-2.5 py-1 text-[11px] font-black ${careStatusClass(
+                                    careStatus
+                                  )}`}
+                                >
+                                  {careStatusLabel(careStatus)}
+                                </span>
+                                <p className="truncate text-sm font-black text-slate-950">
+                                  {clientName}
+                                </p>
+                              </div>
+                              <p className="mt-1 truncate text-xs font-bold text-slate-500">
+                                {event.lastMessage || "אין הודעה אחרונה"}
+                              </p>
+                            </div>
+                          </button>
+                        );
+                      })}
+
+                      {eventsNeedCheck.length === 0 && (
+                        <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-5 text-center">
+                          <p className="text-sm font-black text-emerald-700">
+                            אין לקוחות שדורשים בדיקה כרגע
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </section>
+                </div>
+              </div>
+
+              <section className="mt-6 rounded-[34px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+                <SectionHeader
+                  title="כל המשתמשים"
+                  subtitle="נתונים אמיתיים מהשרת עם חיפוש לפי שם, מייל, טלפון, סוג משתמש או סטטוס."
+                  action={
+                    <SearchBox
+                      value={userSearch}
+                      onChange={setUserSearch}
+                      placeholder="חיפוש משתמש..."
+                    />
+                  }
+                />
+
+                <div className="mt-5 hidden overflow-hidden rounded-[28px] border border-slate-200 lg:block">
+                  <table className="w-full border-collapse bg-white text-right">
+                    <thead className="bg-slate-50">
+                      <tr className="text-sm text-slate-500">
+                        <th className="px-5 py-4 font-black">משתמש</th>
+                        <th className="px-5 py-4 font-black">מייל</th>
+                        <th className="px-5 py-4 font-black">טלפון</th>
+                        <th className="px-5 py-4 font-black">סוג</th>
+                        <th className="px-5 py-4 font-black">סטטוס</th>
+                        <th className="px-5 py-4 font-black">הצטרף</th>
+                        <th className="px-5 py-4 font-black">פעילות אחרונה</th>
+                        <th className="px-5 py-4 font-black">פעולות</th>
+                      </tr>
+                    </thead>
+
+                    <tbody className="divide-y divide-slate-100">
+                      {filteredUsers.map((currentUser) => {
+                        const name = normalizeUserName(currentUser);
+                        const status = normalizeUserStatus(currentUser);
+
+                        return (
+                          <tr
+                            key={normalizeId(currentUser) || currentUser.email}
+                            className="transition hover:bg-slate-50"
+                          >
+                            <td className="px-5 py-4">
+                              <div className="flex items-center gap-3">
+                                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-sm font-black text-white">
+                                  {initials(name)}
+                                </div>
+                                <span className="font-black text-slate-950">
+                                  {name}
+                                </span>
+                              </div>
+                            </td>
+
+                            <td className="px-5 py-4 text-sm font-semibold text-slate-600">
+                              {currentUser.email || "—"}
+                            </td>
+
+                            <td
+                              dir="ltr"
+                              className="px-5 py-4 text-right text-sm font-semibold text-slate-600"
+                            >
+                              {currentUser.phone || "—"}
+                            </td>
+
+                            <td className="px-5 py-4">
+                              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700">
+                                {roleLabel(currentUser.role)}
+                              </span>
+                            </td>
+
+                            <td className="px-5 py-4">
+                              <span
+                                className={`rounded-full px-3 py-1 text-xs font-black ring-1 ${userStatusClass(
+                                  status
+                                )}`}
+                              >
+                                {statusLabel(status)}
+                              </span>
+                            </td>
+
+                            <td className="px-5 py-4 text-sm font-semibold text-slate-600">
+                              {formatDate(currentUser.createdAt)}
+                            </td>
+
+                            <td className="px-5 py-4 text-sm font-semibold text-slate-600">
+                              {formatDateTimeAgo(
+                                currentUser.lastActivity ||
+                                  currentUser.lastSeenAt ||
+                                  currentUser.updatedAt
+                              )}
+                            </td>
+
+                            <td className="px-5 py-4">
+                              <div className="flex items-center gap-2">
+                                <button className="rounded-2xl bg-slate-950 px-4 py-2 text-xs font-black text-white transition hover:bg-black">
+                                  כניסה
+                                </button>
+                                <button className="rounded-2xl border border-slate-200 px-4 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-100">
+                                  שיחה
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="mt-5 grid gap-3 lg:hidden">
+                  {filteredUsers.map((currentUser) => {
+                    const name = normalizeUserName(currentUser);
+                    const status = normalizeUserStatus(currentUser);
+
+                    return (
+                      <div
+                        key={normalizeId(currentUser) || currentUser.email}
+                        className="rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm"
+                      >
+                        <div className="flex items-start justify-between gap-3">
                           <span
-                            className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${careStatusClass(
-                              event.careStatus
+                            className={`rounded-full px-3 py-1 text-xs font-black ring-1 ${userStatusClass(
+                              status
                             )}`}
                           >
-                            {careStatusLabel(event.careStatus)}
+                            {statusLabel(status)}
                           </span>
 
-                          <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">
-                            {progressLabel(event.progress)}
-                          </span>
+                          <div className="flex items-center gap-3">
+                            <div>
+                              <h3 className="font-black text-slate-950">{name}</h3>
+                              <p className="mt-1 text-xs font-semibold text-slate-500">
+                                {currentUser.email || "—"}
+                              </p>
+                            </div>
 
-                          {event.unreadMessages > 0 && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-slate-950 px-3 py-1 text-xs font-black text-white">
-                              <Icon name="message" className="h-3.5 w-3.5" />
-                              {event.unreadMessages} הודעות
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="mt-3 flex items-start gap-3">
-                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-sm font-black text-white">
-                            {initials(event.clientName)}
-                          </div>
-
-                          <div className="min-w-0">
-                            <h3 className="truncate text-xl font-black text-slate-950">
-                              {event.title}
-                            </h3>
-
-                            <div className="mt-2 grid gap-2 text-sm font-semibold text-slate-600 sm:grid-cols-2 xl:grid-cols-3">
-                              <span>לקוח: <b className="text-slate-950">{event.clientName}</b></span>
-                              <span dir="ltr" className="text-right sm:text-left">{event.clientPhone}</span>
-                              <span>תאריך: <b className="text-slate-950">{event.eventDate}</b></span>
-                              <span>מיקום: <b className="text-slate-950">{event.location}</b></span>
-                              <span>סוג: <b className="text-slate-950">{event.eventType}</b></span>
-                              <span>מוזמנים: <b className="text-slate-950">{event.guestsCount}</b></span>
+                            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-sm font-black text-white">
+                              {initials(name)}
                             </div>
                           </div>
                         </div>
 
-                        <div className="mt-4 grid gap-3 lg:grid-cols-2">
-                          <div className="rounded-3xl bg-slate-50 p-4">
-                            <p className="flex items-center gap-2 text-xs font-black text-slate-400">
-                              <Icon name="message" className="h-4 w-4" />
-                              הודעה אחרונה
-                            </p>
-                            <p className="mt-2 text-sm font-bold leading-6 text-slate-700">
-                              {event.lastMessage}
-                            </p>
-                            <p className="mt-2 text-xs font-black text-slate-400">
-                              {event.lastMessageAt}
-                            </p>
-                          </div>
-
-                          <div className="rounded-3xl border border-dashed border-slate-200 p-4">
-                            <p className="flex items-center gap-2 text-xs font-black text-slate-400">
-                              <Icon name="activity" className="h-4 w-4" />
-                              הערת טיפול
-                            </p>
-                            <p className="mt-2 text-sm font-bold leading-6 text-slate-700">
-                              {event.notes}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="grid shrink-0 grid-cols-2 gap-2 lg:w-[172px] lg:grid-cols-1">
-                        <button className="h-11 rounded-2xl bg-slate-950 px-4 text-sm font-black text-white transition hover:bg-black">
-                          כניסה ללקוח
-                        </button>
-
-                        <button className="h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 transition hover:bg-slate-50">
-                          פתח שיחה
-                        </button>
-
-                        <button className="h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 transition hover:bg-slate-50">
-                          פעולות
-                        </button>
-
-                        <button className="h-11 rounded-2xl bg-emerald-50 px-4 text-sm font-black text-emerald-700 ring-1 ring-emerald-200 transition hover:bg-emerald-100">
-                          סמן כטופל
-                        </button>
-                      </div>
-                    </div>
-                  </article>
-                ))}
-
-                {filteredEvents.length === 0 && (
-                  <EmptyState
-                    title="לא נמצאו אירועים"
-                    subtitle="נסי לחפש לפי שם לקוח, טלפון, סוג אירוע, מיקום או סטטוס."
-                  />
-                )}
-              </div>
-            </section>
-
-            <div className="space-y-6">
-              <section className="rounded-[34px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-                <SectionHeader
-                  title="משימות מעקב"
-                  subtitle="מה שהעובד צריך לוודא שהלקוח מסתדר איתו."
-                />
-
-                <div className="mt-5 space-y-3">
-                  {followUpTasksMock.map((task) => (
-                    <div
-                      key={task.id}
-                      className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-sm"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <span
-                          className={`rounded-full border px-3 py-1 text-xs font-black ${careStatusClass(
-                            task.priority
-                          )}`}
-                        >
-                          {careStatusLabel(task.priority)}
-                        </span>
-
-                        <div className="min-w-0 text-right">
-                          <h3 className="text-base font-black text-slate-950">
-                            {task.title}
-                          </h3>
-                          <p className="mt-1 text-sm font-semibold text-slate-500">
-                            {task.clientName} · {task.eventName}
+                        <div className="mt-4 grid gap-2 text-sm font-semibold text-slate-600">
+                          <p>
+                            טלפון: <span dir="ltr">{currentUser.phone || "—"}</span>
+                          </p>
+                          <p>סוג משתמש: {roleLabel(currentUser.role)}</p>
+                          <p>
+                            פעילות אחרונה:{" "}
+                            {formatDateTimeAgo(
+                              currentUser.lastActivity ||
+                                currentUser.lastSeenAt ||
+                                currentUser.updatedAt
+                            )}
                           </p>
                         </div>
-                      </div>
 
-                      <div className="mt-4 flex items-center justify-between">
-                        <span className="flex items-center gap-1 text-xs font-black text-slate-400">
-                          <Icon name="clock" className="h-4 w-4" />
-                          {task.dueText}
-                        </span>
-
-                        <button className="rounded-2xl bg-slate-950 px-4 py-2 text-xs font-black text-white transition hover:bg-black">
-                          טיפול
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              <section className="rounded-[34px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-                <SectionHeader
-                  title="לקוחות שדורשים בדיקה"
-                  subtitle="לקוח עם הודעות פתוחות או תקלה בתהליך."
-                />
-
-                <div className="mt-5 space-y-3">
-                  {eventsNeedCheck.map((event) => (
-                    <button
-                      key={event.id}
-                      className="flex w-full items-center gap-3 rounded-[24px] border border-slate-200 bg-slate-50 p-3 text-right transition hover:bg-white hover:shadow-md"
-                    >
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-sm font-black text-slate-950 shadow-sm">
-                        {initials(event.clientName)}
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <span
-                            className={`rounded-full border px-2.5 py-1 text-[11px] font-black ${careStatusClass(
-                              event.careStatus
-                            )}`}
-                          >
-                            {careStatusLabel(event.careStatus)}
-                          </span>
-                          <p className="truncate text-sm font-black text-slate-950">
-                            {event.clientName}
-                          </p>
-                        </div>
-                        <p className="mt-1 truncate text-xs font-bold text-slate-500">
-                          {event.lastMessage}
-                        </p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </section>
-            </div>
-          </div>
-
-          <section className="mt-6 rounded-[34px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-            <SectionHeader
-              title="כל המשתמשים"
-              subtitle="חיפוש מהיר לפי שם, מייל, טלפון, סוג משתמש או סטטוס."
-              action={
-                <SearchBox
-                  value={userSearch}
-                  onChange={setUserSearch}
-                  placeholder="חיפוש משתמש..."
-                />
-              }
-            />
-
-            <div className="mt-5 hidden overflow-hidden rounded-[28px] border border-slate-200 lg:block">
-              <table className="w-full border-collapse bg-white text-right">
-                <thead className="bg-slate-50">
-                  <tr className="text-sm text-slate-500">
-                    <th className="px-5 py-4 font-black">משתמש</th>
-                    <th className="px-5 py-4 font-black">מייל</th>
-                    <th className="px-5 py-4 font-black">טלפון</th>
-                    <th className="px-5 py-4 font-black">סוג</th>
-                    <th className="px-5 py-4 font-black">סטטוס</th>
-                    <th className="px-5 py-4 font-black">הצטרף</th>
-                    <th className="px-5 py-4 font-black">פעילות אחרונה</th>
-                    <th className="px-5 py-4 font-black">פעולות</th>
-                  </tr>
-                </thead>
-
-                <tbody className="divide-y divide-slate-100">
-                  {filteredUsers.map((user) => (
-                    <tr key={user.id} className="transition hover:bg-slate-50">
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-sm font-black text-white">
-                            {initials(user.name)}
-                          </div>
-                          <span className="font-black text-slate-950">
-                            {user.name}
-                          </span>
-                        </div>
-                      </td>
-
-                      <td className="px-5 py-4 text-sm font-semibold text-slate-600">
-                        {user.email}
-                      </td>
-
-                      <td dir="ltr" className="px-5 py-4 text-right text-sm font-semibold text-slate-600">
-                        {user.phone}
-                      </td>
-
-                      <td className="px-5 py-4">
-                        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700">
-                          {roleLabel(user.role)}
-                        </span>
-                      </td>
-
-                      <td className="px-5 py-4">
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs font-black ring-1 ${userStatusClass(
-                            user.status
-                          )}`}
-                        >
-                          {statusLabel(user.status)}
-                        </span>
-                      </td>
-
-                      <td className="px-5 py-4 text-sm font-semibold text-slate-600">
-                        {user.joinedAt}
-                      </td>
-
-                      <td className="px-5 py-4 text-sm font-semibold text-slate-600">
-                        {user.lastActivity}
-                      </td>
-
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-2">
-                          <button className="rounded-2xl bg-slate-950 px-4 py-2 text-xs font-black text-white transition hover:bg-black">
+                        <div className="mt-4 grid grid-cols-2 gap-2">
+                          <button className="h-11 rounded-2xl bg-slate-950 text-sm font-black text-white">
                             כניסה
                           </button>
-                          <button className="rounded-2xl border border-slate-200 px-4 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-100">
+                          <button className="h-11 rounded-2xl border border-slate-200 text-sm font-black text-slate-700">
                             שיחה
                           </button>
                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="mt-5 grid gap-3 lg:hidden">
-              {filteredUsers.map((user) => (
-                <div
-                  key={user.id}
-                  className="rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-black ring-1 ${userStatusClass(
-                        user.status
-                      )}`}
-                    >
-                      {statusLabel(user.status)}
-                    </span>
-
-                    <div className="flex items-center gap-3">
-                      <div>
-                        <h3 className="font-black text-slate-950">{user.name}</h3>
-                        <p className="mt-1 text-xs font-semibold text-slate-500">
-                          {user.email}
-                        </p>
                       </div>
-
-                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-sm font-black text-white">
-                        {initials(user.name)}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 grid gap-2 text-sm font-semibold text-slate-600">
-                    <p>טלפון: <span dir="ltr">{user.phone}</span></p>
-                    <p>סוג משתמש: {roleLabel(user.role)}</p>
-                    <p>פעילות אחרונה: {user.lastActivity}</p>
-                  </div>
-
-                  <div className="mt-4 grid grid-cols-2 gap-2">
-                    <button className="h-11 rounded-2xl bg-slate-950 text-sm font-black text-white">
-                      כניסה
-                    </button>
-                    <button className="h-11 rounded-2xl border border-slate-200 text-sm font-black text-slate-700">
-                      שיחה
-                    </button>
-                  </div>
+                    );
+                  })}
                 </div>
-              ))}
-            </div>
 
-            {filteredUsers.length === 0 && (
-              <div className="mt-5">
-                <EmptyState
-                  title="לא נמצאו משתמשים"
-                  subtitle="נסי לחפש לפי שם, מייל, טלפון, סוג משתמש או סטטוס."
-                />
-              </div>
-            )}
-          </section>
+                {filteredUsers.length === 0 && (
+                  <div className="mt-5">
+                    <EmptyState
+                      title="אין משתמשים להצגה"
+                      subtitle="לא חזרו משתמשים מהשרת או שלא נמצאה התאמה לחיפוש."
+                    />
+                  </div>
+                )}
+              </section>
+            </>
+          )}
         </section>
       </main>
     </div>
