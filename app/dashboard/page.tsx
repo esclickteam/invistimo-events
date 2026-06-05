@@ -1950,11 +1950,13 @@ const canOpenEventManagement =
       md:py-7
       max-w-full
       overflow-x-hidden
+      lg:pl-[var(--staff-softphone-offset,0px)]
     "
     dir="rtl"
   >
+    <StaffSoftphoneWhenImpersonating />
+
     <main className="mx-auto w-full max-w-none">
-      <StaffSoftphoneWhenImpersonating />
 
       {isDemo && (
         <div className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 px-5 py-4 text-amber-900 shadow-sm">
