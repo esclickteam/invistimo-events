@@ -392,6 +392,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.error("❌ Logout request failed:", err);
     } finally {
+      if (typeof window !== "undefined") {
+        Object.keys(sessionStorage).forEach((key) => {
+          if (key.startsWith("bizuplyEarlyBirdDismissed")) {
+            sessionStorage.removeItem(key);
+          }
+        });
+      }
+
       setUser(null);
       router.replace("/login");
       router.refresh();

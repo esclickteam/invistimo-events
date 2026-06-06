@@ -1,33 +1,80 @@
 "use client";
+
 import React, { useEffect, useMemo, useState } from "react";
 import "./UpgradeOfferCard.css";
 import API from "../api";
+
+const EARLY_BIRD_DISMISSED_PREFIX = "bizuplyEarlyBirdDismissed";
+
+function getDismissKey(userId) {
+  return userId
+    ? `${EARLY_BIRD_DISMISSED_PREFIX}:${userId}`
+    : EARLY_BIRD_DISMISSED_PREFIX;
+}
+
+function formatTimeLeft(expiresAt) {
+  const diff = new Date(expiresAt).getTime() - Date.now();
+
+  if (!Number.isFinite(diff) || diff <= 0) {
+    return "Offer expired";
+  }
+
+  const totalMinutes = Math.floor(diff / (1000 * 60));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  return `${hours}h ${minutes}m`;
+}
 
 export default function UpgradeOfferCard({ user }) {
   const [showOffer, setShowOffer] = useState(false);
   const [timeLeft, setTimeLeft] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const trialStart = useMemo(
-    () => (user?.trialStartedAt ? new Date(user.trialStartedAt) : null),
-    [user?.trialStartedAt]
-  );
+  const userId = user?._id || user?.id || "";
 
-  // Show only after 3 days from trial start (and only if not paid)
+  const dismissKey = useMemo(() => {
+    return getDismissKey(userId);
+  }, [userId]);
+
+  const trialStart = useMemo(() => {
+    if (!user?.trialStartedAt) return null;
+
+    const date = new Date(user.trialStartedAt);
+    return Number.isFinite(date.getTime()) ? date : null;
+  }, [user?.trialStartedAt]);
+
+  const isOfferExpired = useMemo(() => {
+    if (!user?.earlyBirdExpiresAt) return false;
+
+    const expiresTime = new Date(user.earlyBirdExpiresAt).getTime();
+    if (!Number.isFinite(expiresTime)) return false;
+
+    return expiresTime <= Date.now();
+  }, [user?.earlyBirdExpiresAt]);
+
   useEffect(() => {
-    if (!trialStart) return;
+    if (!user || !trialStart) {
+      setShowOffer(false);
+      return;
+    }
+
+    const dismissedInCurrentLogin =
+      typeof window !== "undefined" &&
+      sessionStorage.getItem(dismissKey) === "true";
 
     const daysPassed =
       (Date.now() - trialStart.getTime()) / (1000 * 60 * 60 * 24);
 
-    if (daysPassed >= 3 && !user?.hasPaid) {
-      setShowOffer(true);
-    } else {
-      setShowOffer(false);
-    }
-  }, [trialStart, user?.hasPaid]);
+    const shouldShow =
+      daysPassed >= 3 &&
+      !user?.hasPaid &&
+      !dismissedInCurrentLogin &&
+      !isOfferExpired;
 
-  // Countdown (based on earlyBirdExpiresAt from your DB)
+    setShowOffer(Boolean(shouldShow));
+  }, [user, trialStart, user?.hasPaid, isOfferExpired, dismissKey]);
+
   useEffect(() => {
     if (!user?.earlyBirdExpiresAt) {
       setTimeLeft("");
@@ -35,33 +82,49 @@ export default function UpgradeOfferCard({ user }) {
     }
 
     const update = () => {
-      const diff = new Date(user.earlyBirdExpiresAt).getTime() - Date.now();
-
-      if (diff <= 0) {
-        setTimeLeft("Offer expired");
-        return;
-      }
-
-      const totalMinutes = Math.floor(diff / (1000 * 60));
-      const hours = Math.floor(totalMinutes / 60);
-      const minutes = totalMinutes % 60;
-
-      setTimeLeft(`${hours}h ${minutes}m`);
+      setTimeLeft(formatTimeLeft(user.earlyBirdExpiresAt));
     };
 
     update();
+
     const timer = setInterval(update, 60 * 1000);
+
     return () => clearInterval(timer);
   }, [user?.earlyBirdExpiresAt]);
 
+  const handleClose = async () => {
+    // סוגר מיידית במסך
+    setShowOffer(false);
+
+    // שומר רק לסשן הנוכחי, לא לתמיד
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem(dismissKey, "true");
+    }
+
+    // לא מחכים לשרת כדי לסגור
+    try {
+      await API.post("/users/mark-earlybird-modal-seen");
+    } catch (err) {
+      console.warn("Could not mark earlybird modal as seen:", err);
+    }
+  };
+
   const handleUpgrade = async () => {
+    if (loading || isOfferExpired) return;
+
     try {
       setLoading(true);
+
       const { data } = await API.post("/payments/early-bird-session");
+
+      if (!data?.url) {
+        throw new Error("Missing checkout URL");
+      }
+
       window.location.href = data.url;
     } catch (err) {
-      console.error(err);
-      alert("Payment redirect failed.");
+      console.error("Payment redirect failed:", err);
+      alert("Payment redirect failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -70,33 +133,57 @@ export default function UpgradeOfferCard({ user }) {
   if (!showOffer) return null;
 
   return (
-    <div className="upgrade-card">
-      <div className="header-line" />
+    <div className="offer-overlay" role="dialog" aria-modal="true">
+      <div className="offer-card">
+        <button
+          type="button"
+          className="offer-close"
+          onClick={handleClose}
+          aria-label="Close offer"
+        >
+          ×
+        </button>
 
-      <h2>🎁 Limited-Time Early Upgrade</h2>
+        <span className="offer-badge">🎁 Limited-time offer</span>
 
-      <p className="subtitle">
-        Upgrade now to unlock <strong>BizUply</strong>&apos;s smart automations,
-        CRM, and AI tools — with a limited-time discount.
-      </p>
+        <h2 className="offer-title">
+          First Month Only{" "}
+          <span className="price-highlight">$99</span>
+          <span className="price-original">$119</span>
+        </h2>
 
-      {timeLeft && (
-        <p className="countdown">
-          ⏳ Offer ends in <strong>{timeLeft}</strong>
+        <p className="offer-save">Save $20 on your first month</p>
+
+        {timeLeft && (
+          <p className="offer-timer">
+            Offer ends in <strong>{timeLeft}</strong>
+          </p>
+        )}
+
+        <p className="offer-desc">
+          Unlock <strong>BizUply</strong> automations, CRM, messaging and AI
+          tools.
+          <br />
+          Special early upgrade pricing — no commitment.
         </p>
-      )}
 
-      <button className="upgrade-btn" onClick={handleUpgrade} disabled={loading}>
-        {loading ? "Redirecting to checkout..." : "Upgrade & Claim Discount"}
-      </button>
+        <p className="offer-note">
+          Then <strong>$119/month</strong>. Cancel anytime.
+        </p>
 
-      <button className="back-btn" onClick={() => (window.location.href = "/dashboard")}>
-        ← Back to Dashboard
-      </button>
+        <button
+          type="button"
+          className="offer-upgrade-btn"
+          onClick={handleUpgrade}
+          disabled={loading || isOfferExpired}
+        >
+          {loading ? "Redirecting to checkout..." : "Upgrade for $99"}
+        </button>
 
-      <p className="note">
-        Your trial remains active. You won&apos;t lose access during the free period.
-      </p>
+        <p className="offer-footer">
+          Your trial stays active • No obligation
+        </p>
+      </div>
     </div>
   );
 }
