@@ -57,7 +57,7 @@
     "app/api/live-snapshot/route.js",
     "app/components/EventDashboard/EventDashboard.jsx",
     "app/components/WhatsAppScheduleManager.jsx"
-  ],
+, "app/components/UpgradeOfferCard.jsx"  ],
 
   "exclude": ["node_modules"]
 }
