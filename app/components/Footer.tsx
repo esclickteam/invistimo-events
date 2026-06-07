@@ -1,51 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { MessageCircle, Clock3, Mail, ShieldCheck, Sparkles } from "lucide-react";
+import {
+  MessageCircle,
+  Clock3,
+  Mail,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useAuth } from "@/context/AuthContext";
-
-const SUPPORT_COOKIE_NAME = "staffImpersonationActive";
-const STAFF_ID_COOKIE_NAME = "staffOriginalUserId";
-
-function getCookieValue(name: string) {
-  if (typeof document === "undefined") return "";
-
-  const cookies = document.cookie
-    .split(";")
-    .map((cookie) => cookie.trim())
-    .filter(Boolean);
-
-  const found = cookies.find((cookie) => cookie.startsWith(`${name}=`));
-
-  if (!found) return "";
-
-  return decodeURIComponent(found.split("=").slice(1).join("="));
-}
-
-function hasCookie(name: string) {
-  return Boolean(getCookieValue(name));
-}
 
 export default function Footer() {
   const pathname = usePathname();
-  const { user } = useAuth();
-
-  const authUser = user as any;
 
   const isStaffPage =
     pathname === "/staff" ||
     pathname.startsWith("/staff/");
 
-  const isStaffImpersonating =
-    hasCookie(SUPPORT_COOKIE_NAME) ||
-    hasCookie(STAFF_ID_COOKIE_NAME) ||
-    authUser?.impersonated === true ||
-    authUser?.impersonatedBy === true ||
-    authUser?.impersonatedByAdmin === true ||
-    Boolean(authUser?.impersonationRole);
-
-  if (isStaffPage || isStaffImpersonating) {
+  if (isStaffPage) {
     return null;
   }
 
@@ -103,29 +75,31 @@ export default function Footer() {
               מסודר ואלגנטי.
             </h2>
 
-            <p className="mt-4 max-w-[620px] text-[16px] font-semibold leading-[1.9] text-[#6B5A49] lg:mx-0 mx-auto">
+            <p className="mx-auto mt-4 max-w-[620px] text-[16px] font-semibold leading-[1.9] text-[#6B5A49] lg:mx-0">
               Invistimo מרכזת הזמנות דיגיטליות, אישורי הגעה, הושבה והודעות
               לאורחים — כדי שתנהלו את האירוע בראש שקט ובסטייל.
             </p>
 
             <div className="mt-7 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
-              {["אישורי הגעה", "הושבה חכמה", "הודעות לאורחים"].map((item) => (
-                <span
-                  key={item}
-                  className="
-                    rounded-full
-                    border border-[#E5D5B6]
-                    bg-[#FFFDF8]/80
-                    px-4 py-2
-                    text-[13px]
-                    font-bold
-                    text-[#735B3C]
-                    shadow-[0_8px_22px_rgba(95,68,34,0.04)]
-                  "
-                >
-                  {item}
-                </span>
-              ))}
+              {["אישורי הגעה", "הושבה חכמה", "הודעות לאורחים"].map(
+                (item) => (
+                  <span
+                    key={item}
+                    className="
+                      rounded-full
+                      border border-[#E5D5B6]
+                      bg-[#FFFDF8]/80
+                      px-4 py-2
+                      text-[13px]
+                      font-bold
+                      text-[#735B3C]
+                      shadow-[0_8px_22px_rgba(95,68,34,0.04)]
+                    "
+                  >
+                    {item}
+                  </span>
+                )
+              )}
             </div>
           </div>
 
