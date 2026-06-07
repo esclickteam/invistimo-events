@@ -386,44 +386,191 @@ export default function AddGuestToTableModal({
 
   /* ================= SEATS ARRAY ================= */
 
-  const seatsArray = useMemo(() => {
-    if (!tableData) return [];
+  const normalizeTableName = (value) => {
+  return String(value || "")
+    .trim()
+    .replace(/\s+/g, " ");
+};
 
-    const totalSeats = Number(tableData.seats || 0);
+const getTableNumber = (t) => {
+  const direct = Number(t?.tableNumber);
+  if (Number.isFinite(direct) && direct > 0) return direct;
 
-    const arr = Array.from({ length: Math.max(0, totalSeats) }, (_, i) => ({
-      index: i,
-      guest: null,
-    }));
+  const fromName = extractNumberFromName(t?.name);
+  if (Number.isFinite(fromName) && fromName > 0) return fromName;
 
-    for (const s of tableData.seatedGuests || []) {
-      const g = tableGuests.find((gg) => getGuestId(gg) === String(s?.guestId));
+  return null;
+};
 
-      if (!g) continue;
+const isGuestAssignedToCurrentTable = (guest) => {
+  if (!tableData || !guest) return false;
 
-      if (
-        typeof s?.seatIndex === "number" &&
-        s.seatIndex >= 0 &&
-        s.seatIndex < arr.length
-      ) {
-        arr[s.seatIndex].guest = g;
-      }
+  const currentTableId = String(tableData.id ?? tableData._id ?? "");
+  const currentTableName = normalizeTableName(tableData.name);
+  const currentTableNumber = getTableNumber(tableData);
+
+  const guestTableId = String(
+    guest.tableId ??
+      guest.seatingTableId ??
+      guest.assignedTableId ??
+      ""
+  );
+
+  const guestTableName = normalizeTableName(
+    guest.tableName ??
+      guest.assignedTableName ??
+      guest.seatingTableName ??
+      ""
+  );
+
+  const guestTableNumberRaw = Number(
+    guest.tableNumber ??
+      guest.assignedTableNumber ??
+      guest.seatingTableNumber
+  );
+
+  const guestTableNumber = Number.isFinite(guestTableNumberRaw)
+    ? guestTableNumberRaw
+    : extractNumberFromName(guestTableName);
+
+  if (guestTableId && currentTableId && guestTableId === currentTableId) {
+    return true;
+  }
+
+  if (
+    guestTableName &&
+    currentTableName &&
+    guestTableName === currentTableName
+  ) {
+    return true;
+  }
+
+  if (
+    Number.isFinite(guestTableNumber) &&
+    Number.isFinite(currentTableNumber) &&
+    Number(guestTableNumber) === Number(currentTableNumber)
+  ) {
+    return true;
+  }
+
+  return false;
+};
+
+const getGuestSeatIndex = (guest) => {
+  const raw =
+    guest?.seatIndex ??
+    guest?.assignedSeatIndex ??
+    guest?.seatingSeatIndex ??
+    guest?.seat;
+
+  const n = Number(raw);
+
+  if (!Number.isFinite(n)) return null;
+
+  /*
+    אם אצלך seat נשמר כ-1,2,3 ולא 0,1,2
+    זה מתקן אוטומטית.
+  */
+  if (n >= 1) return n - 1;
+
+  return n;
+};
+
+const seatsArray = useMemo(() => {
+  if (!tableData) return [];
+
+  const totalSeats = Number(tableData.seats || 0);
+
+  const arr = Array.from({ length: Math.max(0, totalSeats) }, (_, i) => ({
+    index: i,
+    guest: null,
+    source: null,
+  }));
+
+  const usedGuestIds = new Set();
+
+  /*
+    1. קודם מציגים את מי שיושב דרך seatedGuests של השולחן.
+  */
+  for (const s of tableData.seatedGuests || []) {
+    const guestId = String(s?.guestId ?? s?._id ?? s?.id ?? "");
+    if (!guestId) continue;
+
+    const g = tableGuests.find((gg) => getGuestId(gg) === guestId);
+    if (!g) continue;
+
+    const seatIndex = Number(s?.seatIndex);
+
+    if (
+      Number.isFinite(seatIndex) &&
+      seatIndex >= 0 &&
+      seatIndex < arr.length &&
+      !arr[seatIndex].guest
+    ) {
+      arr[seatIndex].guest = g;
+      arr[seatIndex].source = "table";
+      usedGuestIds.add(getGuestId(g));
+    }
+  }
+
+  /*
+    2. אחר כך משלימים אורחים שהסיידבר סימן שהם בשולחן הזה,
+       אבל הם לא קיימים בתוך tableData.seatedGuests.
+       זה בדיוק המקרה של מאור אצלך.
+  */
+  const guestsAssignedByGuestFields = (tableGuests || []).filter((g) => {
+    const id = getGuestId(g);
+
+    if (!id || usedGuestIds.has(id)) return false;
+
+    return isGuestAssignedToCurrentTable(g);
+  });
+
+  for (const g of guestsAssignedByGuestFields) {
+    const id = getGuestId(g);
+    const wantedSeatIndex = getGuestSeatIndex(g);
+
+    if (
+      wantedSeatIndex !== null &&
+      wantedSeatIndex >= 0 &&
+      wantedSeatIndex < arr.length &&
+      !arr[wantedSeatIndex].guest
+    ) {
+      arr[wantedSeatIndex].guest = g;
+      arr[wantedSeatIndex].source = "guest";
+      usedGuestIds.add(id);
+      continue;
     }
 
-    return arr;
-  }, [
-    tableData,
-    tableData?.id,
-    tableData?._id,
-    tableData?.seats,
-    tableData?.seatedGuests,
-    tableGuests,
-    uiVersion,
-  ]);
+    const freeSeat = arr.find((seat) => !seat.guest);
 
-  const occupied = tableData
-    ? getOccupiedSeatsForTable(tableData.id ?? tableData._id)
-    : 0;
+    if (freeSeat) {
+      freeSeat.guest = g;
+      freeSeat.source = "guest";
+      usedGuestIds.add(id);
+    }
+  }
+
+  return arr;
+}, [
+  tableData,
+  tableData?.id,
+  tableData?._id,
+  tableData?.name,
+  tableData?.tableNumber,
+  tableData?.seats,
+  tableData?.seatedGuests,
+  tableGuests,
+  uiVersion,
+]);
+
+ const occupiedFromSeatsArray = seatsArray.filter((seat) => seat.guest).length;
+
+const occupiedFromStore = tableData
+  ? getOccupiedSeatsForTable(tableData.id ?? tableData._id)
+  : 0;
+
+const occupied = Math.max(occupiedFromSeatsArray, occupiedFromStore);
 
   const remainingSeats = Math.max(0, Number(tableData?.seats ?? 0) - occupied);
 
