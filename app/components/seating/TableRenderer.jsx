@@ -592,62 +592,70 @@ function TableRenderer({ table, hideSeats = false }) {
   ]);
 
   const getSeatVisual = (seat, seatIndex) => {
-    /*
-      מצב רגיל:
-      משובץ = זהב
-      פנוי = שמנת
-    */
-    if (seatingMode !== "live") {
-      const isOccupied = !!seat;
+  /*
+    מצב רגיל בלבד:
+    - כיסא משובץ = זהב
+    - כיסא פנוי / כיסא חדש שנוסף = שמנת
+    אסור ירוק במצב רגיל.
+  */
+  if (seatingMode !== "live") {
+    const isOccupied = !!seat;
 
-      return {
-        chairFill: isOccupied ? "#B98A45" : "#FFF9EF",
-        chairStroke: isOccupied ? "#8B6532" : "#D9C3A2",
-        chairHighlight: isOccupied ? "#E3BD63" : "#FFFFFF",
-        chairDepth: isOccupied ? "#8D642C" : "#E9D8BD",
-        chairShadow: isOccupied ? "#6F4A19" : "#D6C3A6",
-      };
-    }
-
-    /*
-      בלייב קודם בודקים אדום לפי מי שהגיע בפועל.
-      זה חשוב גם אם הכיסא כבר לא משובץ ב-seatSource,
-      כדי שהמספר בפועל תמיד יצבע נכון.
-    */
-    if (arrivedSeatsSet.has(Number(seatIndex))) {
-      return {
-        chairFill: "#DC2626",
-        chairStroke: "#991B1B",
-        chairHighlight: "#FEE2E2",
-        chairDepth: "#B91C1C",
-        chairShadow: "#7F1D1D",
-      };
-    }
-
-    /*
-      אין שיבוץ נוכחי בכיסא = ירוק פנוי / שוחרר.
-    */
-    if (!seat) {
-      return {
-        chairFill: "#16A34A",
-        chairStroke: "#166534",
-        chairHighlight: "#DCFCE7",
-        chairDepth: "#15803D",
-        chairShadow: "#14532D",
-      };
-    }
-
-    /*
-      יש שיבוץ רגיל אבל עדיין לא הגיע בפועל = זהב.
-    */
     return {
-      chairFill: "#B98A45",
-      chairStroke: "#8B6532",
-      chairHighlight: "#E3BD63",
-      chairDepth: "#8D642C",
-      chairShadow: "#6F4A19",
+      chairFill: isOccupied ? "#B98A45" : "#FFF9EF",
+      chairStroke: isOccupied ? "#8B6532" : "#D9C3A2",
+      chairHighlight: isOccupied ? "#E3BD63" : "#FFFFFF",
+      chairDepth: isOccupied ? "#8D642C" : "#E9D8BD",
+      chairShadow: isOccupied ? "#6F4A19" : "#D6C3A6",
     };
+  }
+
+  /*
+    מצב לייב בלבד:
+    קודם בודקים אם אין seat.
+    כיסא בלי שיבוץ בפועל = ירוק.
+    זה כולל:
+    - כיסא חדש שהוספת
+    - כיסא ששוחרר
+    - כיסא פנוי רגיל בלייב
+  */
+  if (!seat) {
+    return {
+      chairFill: "#16A34A",
+      chairStroke: "#166534",
+      chairHighlight: "#DCFCE7",
+      chairDepth: "#15803D",
+      chairShadow: "#14532D",
+    };
+  }
+
+  /*
+    בלייב:
+    רק כיסא שיש עליו seat אמיתי יכול להיות אדום.
+    ככה כיסא חדש בלי שיבוץ לא ייצבע אדום בטעות.
+  */
+  if (arrivedSeatsSet.has(Number(seatIndex))) {
+    return {
+      chairFill: "#DC2626",
+      chairStroke: "#991B1B",
+      chairHighlight: "#FEE2E2",
+      chairDepth: "#B91C1C",
+      chairShadow: "#7F1D1D",
+    };
+  }
+
+  /*
+    בלייב:
+    יש שיבוץ רגיל אבל עדיין לא הגיע בפועל = זהב.
+  */
+  return {
+    chairFill: "#B98A45",
+    chairStroke: "#8B6532",
+    chairHighlight: "#E3BD63",
+    chairDepth: "#8D642C",
+    chairShadow: "#6F4A19",
   };
+};
 
   const renderTableCenterLines = (boxWidth, compact = false) => {
     const lineHeight =
