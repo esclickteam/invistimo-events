@@ -31,15 +31,36 @@ export default function AddGuestToTableModal({
   );
 
   const tables = useSeatingStore((s) => s.tables);
+  const storeGuests = useSeatingStore((s) => s.guests);
+
+  /*
+    חשוב:
+    לפעמים ה-store מעדכן seatedGuests בתוך אותו אובייקט,
+    ואז useMemo לא תמיד מחשב מחדש כי ה-reference של tableData לא השתנה.
+    לכן כל פעולה מקומית מעלה uiVersion ומכריחה רענון פנימי של המודאל.
+  */
+  const [uiVersion, setUiVersion] = useState(0);
+
+  const refreshModalUi = () => {
+    setUiVersion((v) => v + 1);
+  };
 
   /* ================= TABLE + GUESTS ================= */
 
-  const tableData = useSeatingStore((s) =>
-    s.tables.find((t) => String(t.id) === String(table?.id))
-  );
+  const tableId = String(table?.id ?? table?._id ?? "");
 
-  const storeGuests = useSeatingStore((s) => s.guests);
-  const tableGuests = storeGuests?.length ? storeGuests : guests || [];
+  const tableData = useMemo(() => {
+    const found = (tables || []).find(
+      (t) => String(t.id ?? t._id) === tableId
+    );
+
+    return found || table || null;
+  }, [tables, tableId, table, uiVersion]);
+
+  const tableGuests = useMemo(() => {
+    if (storeGuests?.length) return storeGuests;
+    return guests || [];
+  }, [storeGuests, guests, uiVersion]);
 
   const [openSeat, setOpenSeat] = useState(null);
   const [error, setError] = useState("");
@@ -54,7 +75,7 @@ export default function AddGuestToTableModal({
   useEffect(() => {
     if (!tableData) return;
     setTableNameDraft(tableData.name || "");
-  }, [tableData?.name]);
+  }, [tableData?.name, uiVersion]);
 
   /* ================= EDIT TABLE SEATS ================= */
 
@@ -64,7 +85,7 @@ export default function AddGuestToTableModal({
   useEffect(() => {
     if (!tableData) return;
     setSeatsDraft(Number(tableData.seats || 0));
-  }, [tableData?.seats]);
+  }, [tableData?.seats, uiVersion]);
 
   /* ================= HELPERS ================= */
 
@@ -119,94 +140,6 @@ export default function AddGuestToTableModal({
       .sort((a, b) => a - b);
   };
 
-  const syncGuestSeatsToActual = async (guest) => {
-    if (!tableData || !guest) return;
-
-    const guestId = getGuestId(guest);
-    const actual = getActualCount(guest);
-    const currentIndexes = getGuestSeatIndexesInCurrentTable(guestId);
-    const previousIndexes = [...currentIndexes];
-
-    setSyncingGuestId(guestId);
-    setError("");
-
-    /*
-      במצב לייב:
-      - אם actual = 0: משחררים את כל הכיסאות.
-      - אם actual קטן מהכמות הנוכחית: משאירים רק actual כיסאות.
-      - אם actual גדול מהכמות הנוכחית: מנסים להוסיף כיסאות לפי מקום פנוי.
-    */
-    removeGuestFromTable(tableData.id, guestId);
-
-    if (actual > 0) {
-      const firstSeat = previousIndexes[0] ?? 0;
-
-      const localRes = assignGuestsToTable(
-        tableData.id,
-        guestId,
-        actual,
-        firstSeat
-      );
-
-      if (!localRes?.ok) {
-        // rollback מקומי
-        if (previousIndexes.length > 0) {
-          assignGuestsToTable(
-            tableData.id,
-            guestId,
-            previousIndexes.length,
-            previousIndexes[0]
-          );
-        }
-
-        setError(localRes?.message || "לא ניתן לעדכן את הכיסאות לפי מגיעים בפועל");
-        setSyncingGuestId(null);
-        return;
-      }
-    }
-
-    try {
-      if (onAutoSave) {
-        const ok = await onAutoSave();
-
-        if (!ok) {
-          // rollback מקומי
-          removeGuestFromTable(tableData.id, guestId);
-
-          if (previousIndexes.length > 0) {
-            assignGuestsToTable(
-              tableData.id,
-              guestId,
-              previousIndexes.length,
-              previousIndexes[0]
-            );
-          }
-
-          setError("שמירה נכשלה, הכיסאות הוחזרו למצב הקודם");
-          return;
-        }
-      }
-
-      setError("");
-    } catch {
-      // rollback מקומי
-      removeGuestFromTable(tableData.id, guestId);
-
-      if (previousIndexes.length > 0) {
-        assignGuestsToTable(
-          tableData.id,
-          guestId,
-          previousIndexes.length,
-          previousIndexes[0]
-        );
-      }
-
-      setError("שגיאת רשת בשחרור הכיסאות");
-    } finally {
-      setSyncingGuestId(null);
-    }
-  };
-
   const extractNumberFromName = (name) => {
     const m = String(name || "").match(/\d+/);
     if (!m) return NaN;
@@ -259,7 +192,7 @@ export default function AddGuestToTableModal({
 
     useSeatingStore.setState((state) => ({
       tables: (state.tables || []).map((t) =>
-        String(t.id) === String(tableData.id)
+        String(t.id ?? t._id) === String(tableData.id ?? tableData._id)
           ? {
               ...t,
               seats: nextSeats,
@@ -267,11 +200,125 @@ export default function AddGuestToTableModal({
           : t
       ),
     }));
+
+    refreshModalUi();
   };
+
+  const rollbackTableSeatsLocally = (prevSeats) => {
+    if (!tableData) return;
+
+    useSeatingStore.setState((state) => ({
+      tables: (state.tables || []).map((t) =>
+        String(t.id ?? t._id) === String(tableData.id ?? tableData._id)
+          ? {
+              ...t,
+              seats: prevSeats,
+            }
+          : t
+      ),
+    }));
+
+    refreshModalUi();
+  };
+
+  /* ================= SYNC LIVE SEATS ================= */
+
+  const syncGuestSeatsToActual = async (guest) => {
+    if (!tableData || !guest) return;
+
+    const currentTableId = tableData.id ?? tableData._id;
+    const guestId = getGuestId(guest);
+    const actual = getActualCount(guest);
+    const currentIndexes = getGuestSeatIndexesInCurrentTable(guestId);
+    const previousIndexes = [...currentIndexes];
+
+    setSyncingGuestId(guestId);
+    setError("");
+
+    removeGuestFromTable(currentTableId, guestId);
+    refreshModalUi();
+
+    if (actual > 0) {
+      const firstSeat = previousIndexes[0] ?? 0;
+
+      const localRes = assignGuestsToTable(
+        currentTableId,
+        guestId,
+        actual,
+        firstSeat
+      );
+
+      refreshModalUi();
+
+      if (!localRes?.ok) {
+        if (previousIndexes.length > 0) {
+          assignGuestsToTable(
+            currentTableId,
+            guestId,
+            previousIndexes.length,
+            previousIndexes[0]
+          );
+        }
+
+        refreshModalUi();
+
+        setError(localRes?.message || "לא ניתן לעדכן את הכיסאות לפי מגיעים בפועל");
+        setSyncingGuestId(null);
+        return;
+      }
+    }
+
+    try {
+      if (onAutoSave) {
+        const ok = await onAutoSave();
+
+        if (!ok) {
+          removeGuestFromTable(currentTableId, guestId);
+
+          if (previousIndexes.length > 0) {
+            assignGuestsToTable(
+              currentTableId,
+              guestId,
+              previousIndexes.length,
+              previousIndexes[0]
+            );
+          }
+
+          refreshModalUi();
+
+          setError("שמירה נכשלה, הכיסאות הוחזרו למצב הקודם");
+          return;
+        }
+      }
+
+      refreshModalUi();
+      setError("");
+    } catch {
+      removeGuestFromTable(currentTableId, guestId);
+
+      if (previousIndexes.length > 0) {
+        assignGuestsToTable(
+          currentTableId,
+          guestId,
+          previousIndexes.length,
+          previousIndexes[0]
+        );
+      }
+
+      refreshModalUi();
+
+      setError("שגיאת רשת בשחרור הכיסאות");
+    } finally {
+      setSyncingGuestId(null);
+    }
+  };
+
+  /* ================= TABLE SEATS ================= */
 
   const commitTableSeats = async (nextSeatsRaw) => {
     if (!tableData) return;
 
+    const currentTableId = tableData.id ?? tableData._id;
     const currentSeats = Number(tableData.seats || 0);
     let nextSeats = Number(nextSeatsRaw);
 
@@ -289,7 +336,7 @@ export default function AddGuestToTableModal({
       nextSeats = 100;
     }
 
-    const occupiedNow = getOccupiedSeatsForTable(tableData.id || tableData._id);
+    const occupiedNow = getOccupiedSeatsForTable(currentTableId);
 
     if (nextSeats < occupiedNow) {
       setError(
@@ -315,14 +362,16 @@ export default function AddGuestToTableModal({
         const ok = await onAutoSave();
 
         if (!ok) {
-          updateTableSeatsLocally(currentSeats);
+          rollbackTableSeatsLocally(currentSeats);
           setSeatsDraft(currentSeats);
           setError("שמירה נכשלה, מספר המקומות הוחזר");
           return;
         }
       }
+
+      refreshModalUi();
     } catch {
-      updateTableSeatsLocally(currentSeats);
+      rollbackTableSeatsLocally(currentSeats);
       setSeatsDraft(currentSeats);
       setError("שגיאת רשת בעדכון מספר המקומות");
     } finally {
@@ -335,7 +384,7 @@ export default function AddGuestToTableModal({
     await commitTableSeats(current + amount);
   };
 
-  /* ================= SEATS ================= */
+  /* ================= SEATS ARRAY ================= */
 
   const seatsArray = useMemo(() => {
     if (!tableData) return [];
@@ -362,11 +411,21 @@ export default function AddGuestToTableModal({
     }
 
     return arr;
-  }, [tableData, tableGuests]);
+  }, [
+    tableData,
+    tableData?.id,
+    tableData?._id,
+    tableData?.seats,
+    tableData?.seatedGuests,
+    tableGuests,
+    uiVersion,
+  ]);
 
-  const occupied = getOccupiedSeatsForTable(tableData?.id || tableData?._id);
+  const occupied = tableData
+    ? getOccupiedSeatsForTable(tableData.id ?? tableData._id)
+    : 0;
 
-  const remainingSeats = Math.max(0, (tableData?.seats ?? 0) - occupied);
+  const remainingSeats = Math.max(0, Number(tableData?.seats ?? 0) - occupied);
 
   const occupancyPercent = tableData?.seats
     ? Math.min(100, Math.round((occupied / tableData.seats) * 100))
@@ -396,13 +455,21 @@ export default function AddGuestToTableModal({
         matchesSearch
       );
     });
-  }, [tableGuests, searchTerm, remainingSeats, tables, isLiveMode]);
+  }, [
+    tableGuests,
+    searchTerm,
+    remainingSeats,
+    tables,
+    isLiveMode,
+    uiVersion,
+  ]);
 
   /* ================= SEAT GUEST ================= */
 
   const handleSeatGuest = async (seatIndex, guest) => {
     if (!tableData) return;
 
+    const currentTableId = tableData.id ?? tableData._id;
     const guestId = getGuestId(guest);
     const count = getPartySize(guest);
 
@@ -412,33 +479,40 @@ export default function AddGuestToTableModal({
     }
 
     const localRes = assignGuestsToTable(
-      tableData.id,
+      currentTableId,
       guestId,
       count,
       seatIndex
     );
+
+    refreshModalUi();
 
     if (!localRes?.ok) {
       setError(localRes?.message || "לא ניתן להושיב כאן");
       return;
     }
 
+    setOpenSeat(null);
+    setSearchTerm("");
+    setError("");
+
     try {
       if (onAutoSave) {
         const ok = await onAutoSave();
 
         if (!ok) {
-          removeGuestFromTable(tableData.id, guestId);
+          removeGuestFromTable(currentTableId, guestId);
+          refreshModalUi();
           setError("שמירה נכשלה, ההושבה בוטלה");
           return;
         }
       }
 
+      refreshModalUi();
       setError("");
-      setOpenSeat(null);
-      setSearchTerm("");
     } catch {
-      removeGuestFromTable(tableData.id, guestId);
+      removeGuestFromTable(currentTableId, guestId);
+      refreshModalUi();
       setError("שגיאת רשת בשמירה");
     }
   };
@@ -448,10 +522,12 @@ export default function AddGuestToTableModal({
   const handleRemoveGuest = async (guest) => {
     if (!tableData || !guest) return;
 
+    const currentTableId = tableData.id ?? tableData._id;
     const guestId = getGuestId(guest);
     const previousIndexes = getGuestSeatIndexesInCurrentTable(guestId);
 
-    removeGuestFromTable(tableData.id, guestId);
+    removeGuestFromTable(currentTableId, guestId);
+    refreshModalUi();
 
     try {
       if (onAutoSave) {
@@ -460,28 +536,33 @@ export default function AddGuestToTableModal({
         if (!ok) {
           if (previousIndexes.length > 0) {
             assignGuestsToTable(
-              tableData.id,
+              currentTableId,
               guestId,
               previousIndexes.length,
               previousIndexes[0]
             );
           }
 
+          refreshModalUi();
+
           setError("שמירה נכשלה, ההסרה בוטלה");
           return;
         }
       }
 
+      refreshModalUi();
       setError("");
     } catch {
       if (previousIndexes.length > 0) {
         assignGuestsToTable(
-          tableData.id,
+          currentTableId,
           guestId,
           previousIndexes.length,
           previousIndexes[0]
         );
       }
+
+      refreshModalUi();
 
       setError("שגיאת רשת בשמירה");
     }
@@ -492,6 +573,7 @@ export default function AddGuestToTableModal({
   const commitTableName = async () => {
     if (!tableData) return;
 
+    const currentTableId = tableData.id ?? tableData._id;
     const newNameRaw = tableNameDraft.trim();
 
     if (!newNameRaw) {
@@ -507,14 +589,17 @@ export default function AddGuestToTableModal({
     }
 
     const prevName = tableData.name;
+    const prevTableNumber = tableData.tableNumber;
 
     useSeatingStore.setState((state) => ({
       tables: (state.tables || []).map((t) =>
-        String(t.id) === String(tableData.id)
+        String(t.id ?? t._id) === String(currentTableId)
           ? { ...t, name: `שולחן ${newNumber}`, tableNumber: newNumber }
           : t
       ),
     }));
+
+    refreshModalUi();
 
     try {
       if (onAutoSave) {
@@ -523,11 +608,13 @@ export default function AddGuestToTableModal({
         if (!ok) {
           useSeatingStore.setState((state) => ({
             tables: (state.tables || []).map((t) =>
-              String(t.id) === String(tableData.id)
-                ? { ...t, name: prevName }
+              String(t.id ?? t._id) === String(currentTableId)
+                ? { ...t, name: prevName, tableNumber: prevTableNumber }
                 : t
             ),
           }));
+
+          refreshModalUi();
 
           setError("שמירה נכשלה, שינוי שם בוטל");
           return;
@@ -536,8 +623,19 @@ export default function AddGuestToTableModal({
 
       setTableNameDraft(`שולחן ${newNumber}`);
       setIsEditingName(false);
+      refreshModalUi();
       setError("");
     } catch {
+      useSeatingStore.setState((state) => ({
+        tables: (state.tables || []).map((t) =>
+          String(t.id ?? t._id) === String(currentTableId)
+            ? { ...t, name: prevName, tableNumber: prevTableNumber }
+            : t
+        ),
+      }));
+
+      refreshModalUi();
+
       setError("שגיאת רשת בעדכון השולחן");
     }
   };
@@ -567,7 +665,6 @@ export default function AddGuestToTableModal({
           shadow-[0_30px_90px_rgba(46,30,20,0.28)]
         "
       >
-        {/* Close */}
         <button
           onClick={onClose}
           className="
@@ -584,7 +681,6 @@ export default function AddGuestToTableModal({
           <X size={20} />
         </button>
 
-        {/* Header */}
         <div
           className="
             border-b border-[#EAD8CC]
@@ -674,7 +770,6 @@ export default function AddGuestToTableModal({
               )}
             </div>
 
-            {/* עדכון מספר מקומות בשולחן */}
             <div
               className="
                 mt-1 flex items-center gap-2
@@ -794,7 +889,6 @@ export default function AddGuestToTableModal({
           )}
         </div>
 
-        {/* Content */}
         <div className="max-h-[62vh] overflow-y-auto px-7 py-6">
           <div
             className="
@@ -813,7 +907,6 @@ export default function AddGuestToTableModal({
             </div>
           </div>
 
-          {/* Seats */}
           <div
             className="
               grid grid-cols-2 gap-3
@@ -827,7 +920,7 @@ export default function AddGuestToTableModal({
               const isOpen = openSeat === i;
 
               return (
-                <div key={i} className="relative">
+                <div key={`${i}-${uiVersion}`} className="relative">
                   <button
                     type="button"
                     className={`
@@ -1096,7 +1189,6 @@ export default function AddGuestToTableModal({
           </div>
         </div>
 
-        {/* Footer */}
         <div
           className="
             flex items-center justify-between gap-3
