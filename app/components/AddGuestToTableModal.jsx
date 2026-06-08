@@ -33,16 +33,25 @@ export default function AddGuestToTableModal({
   const tables = useSeatingStore((s) => s.tables);
   const storeGuests = useSeatingStore((s) => s.guests);
 
-  /*
-    חשוב:
-    לפעמים ה-store מעדכן seatedGuests בתוך אותו אובייקט,
-    ואז useMemo לא תמיד מחשב מחדש כי ה-reference של tableData לא השתנה.
-    לכן כל פעולה מקומית מעלה uiVersion ומכריחה רענון פנימי של המודאל.
-  */
   const [uiVersion, setUiVersion] = useState(0);
 
   const refreshModalUi = () => {
     setUiVersion((v) => v + 1);
+  };
+
+  const sameId = (a, b) => String(a ?? "") === String(b ?? "");
+
+  const isSameTable = (t, id) => {
+    const target = String(id ?? "");
+    return sameId(t?.id, target) || sameId(t?._id, target);
+  };
+
+  const runAutoSave = async () => {
+    if (!onAutoSave) return true;
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    return await onAutoSave();
   };
 
   /* ================= TABLE + GUESTS ================= */
@@ -50,12 +59,12 @@ export default function AddGuestToTableModal({
   const tableId = String(table?.id ?? table?._id ?? "");
 
   const tableData = useMemo(() => {
-    const found = (tables || []).find(
-      (t) => String(t.id ?? t._id) === tableId
-    );
+    const found = (tables || []).find((t) => isSameTable(t, tableId));
 
     return found || table || null;
   }, [tables, tableId, table, uiVersion]);
+
+  const getCurrentTableId = () => tableData?.id ?? tableData?._id;
 
   const tableGuests = useMemo(() => {
     if (storeGuests?.length) return storeGuests;
@@ -187,16 +196,16 @@ export default function AddGuestToTableModal({
     return "right-1/2 translate-x-1/2";
   };
 
-  
   const updateTableSeatsLocally = (nextSeats) => {
     if (!tableData) return;
 
     useSeatingStore.setState((state) => ({
       tables: (state.tables || []).map((t) =>
-        String(t.id ?? t._id) === String(tableData.id ?? tableData._id)
+        isSameTable(t, tableData.id ?? tableData._id)
           ? {
               ...t,
               seats: nextSeats,
+              capacity: nextSeats,
             }
           : t
       ),
@@ -210,10 +219,11 @@ export default function AddGuestToTableModal({
 
     useSeatingStore.setState((state) => ({
       tables: (state.tables || []).map((t) =>
-        String(t.id ?? t._id) === String(tableData.id ?? tableData._id)
+        isSameTable(t, tableData.id ?? tableData._id)
           ? {
               ...t,
               seats: prevSeats,
+              capacity: prevSeats,
             }
           : t
       ),
@@ -263,7 +273,9 @@ export default function AddGuestToTableModal({
 
         refreshModalUi();
 
-        setError(localRes?.message || "לא ניתן לעדכן את הכיסאות לפי מגיעים בפועל");
+        setError(
+          localRes?.message || "לא ניתן לעדכן את הכיסאות לפי מגיעים בפועל"
+        );
         setSyncingGuestId(null);
         return;
       }
@@ -271,7 +283,7 @@ export default function AddGuestToTableModal({
 
     try {
       if (onAutoSave) {
-        const ok = await onAutoSave();
+        const ok = await runAutoSave();
 
         if (!ok) {
           removeGuestFromTable(currentTableId, guestId);
@@ -360,7 +372,7 @@ export default function AddGuestToTableModal({
 
     try {
       if (onAutoSave) {
-        const ok = await onAutoSave();
+        const ok = await runAutoSave();
 
         if (!ok) {
           rollbackTableSeatsLocally(currentSeats);
@@ -388,190 +400,179 @@ export default function AddGuestToTableModal({
   /* ================= SEATS ARRAY ================= */
 
   const normalizeTableName = (value) => {
-  return String(value || "")
-    .trim()
-    .replace(/\s+/g, " ");
-};
+    return String(value || "")
+      .trim()
+      .replace(/\s+/g, " ");
+  };
 
-const getTableNumber = (t) => {
-  const direct = Number(t?.tableNumber);
-  if (Number.isFinite(direct) && direct > 0) return direct;
+  const getTableNumber = (t) => {
+    const direct = Number(t?.tableNumber ?? t?.number);
+    if (Number.isFinite(direct) && direct > 0) return direct;
 
-  const fromName = extractNumberFromName(t?.name);
-  if (Number.isFinite(fromName) && fromName > 0) return fromName;
+    const fromName = extractNumberFromName(t?.name);
+    if (Number.isFinite(fromName) && fromName > 0) return fromName;
 
-  return null;
-};
+    return null;
+  };
 
-const isGuestAssignedToCurrentTable = (guest) => {
-  if (!tableData || !guest) return false;
+  const isGuestAssignedToCurrentTable = (guest) => {
+    if (!tableData || !guest) return false;
 
-  const currentTableId = String(tableData.id ?? tableData._id ?? "");
-  const currentTableName = normalizeTableName(tableData.name);
-  const currentTableNumber = getTableNumber(tableData);
+    const currentTableId = String(tableData.id ?? tableData._id ?? "");
+    const currentTableName = normalizeTableName(tableData.name);
+    const currentTableNumber = getTableNumber(tableData);
 
-  const guestTableId = String(
-    guest.tableId ??
-      guest.seatingTableId ??
-      guest.assignedTableId ??
-      ""
-  );
+    const guestTableId = String(
+      guest.tableId ??
+        guest.seatingTableId ??
+        guest.assignedTableId ??
+        ""
+    );
 
-  const guestTableName = normalizeTableName(
-    guest.tableName ??
-      guest.assignedTableName ??
-      guest.seatingTableName ??
-      ""
-  );
+    const guestTableName = normalizeTableName(
+      guest.tableName ??
+        guest.assignedTableName ??
+        guest.seatingTableName ??
+        ""
+    );
 
-  const guestTableNumberRaw = Number(
-    guest.tableNumber ??
-      guest.assignedTableNumber ??
-      guest.seatingTableNumber
-  );
+    const guestTableNumberRaw = Number(
+      guest.tableNumber ??
+        guest.assignedTableNumber ??
+        guest.seatingTableNumber
+    );
 
-  const guestTableNumber = Number.isFinite(guestTableNumberRaw)
-    ? guestTableNumberRaw
-    : extractNumberFromName(guestTableName);
+    const guestTableNumber = Number.isFinite(guestTableNumberRaw)
+      ? guestTableNumberRaw
+      : extractNumberFromName(guestTableName);
 
-  if (guestTableId && currentTableId && guestTableId === currentTableId) {
-    return true;
-  }
-
-  if (
-    guestTableName &&
-    currentTableName &&
-    guestTableName === currentTableName
-  ) {
-    return true;
-  }
-
-  if (
-    Number.isFinite(guestTableNumber) &&
-    Number.isFinite(currentTableNumber) &&
-    Number(guestTableNumber) === Number(currentTableNumber)
-  ) {
-    return true;
-  }
-
-  return false;
-};
-
-const getGuestSeatIndex = (guest) => {
-  const raw =
-    guest?.seatIndex ??
-    guest?.assignedSeatIndex ??
-    guest?.seatingSeatIndex ??
-    guest?.seat;
-
-  const n = Number(raw);
-
-  if (!Number.isFinite(n)) return null;
-
-  /*
-    אם אצלך seat נשמר כ-1,2,3 ולא 0,1,2
-    זה מתקן אוטומטית.
-  */
-  if (n >= 1) return n - 1;
-
-  return n;
-};
-
-const seatsArray = useMemo(() => {
-  if (!tableData) return [];
-
-  const totalSeats = Number(tableData.seats || 0);
-
-  const arr = Array.from({ length: Math.max(0, totalSeats) }, (_, i) => ({
-    index: i,
-    guest: null,
-    source: null,
-  }));
-
-  const usedGuestIds = new Set();
-
-  /*
-    1. קודם מציגים את מי שיושב דרך seatedGuests של השולחן.
-  */
-  for (const s of tableData.seatedGuests || []) {
-    const guestId = String(s?.guestId ?? s?._id ?? s?.id ?? "");
-    if (!guestId) continue;
-
-    const g = tableGuests.find((gg) => getGuestId(gg) === guestId);
-    if (!g) continue;
-
-    const seatIndex = Number(s?.seatIndex);
+    if (guestTableId && currentTableId && guestTableId === currentTableId) {
+      return true;
+    }
 
     if (
-      Number.isFinite(seatIndex) &&
-      seatIndex >= 0 &&
-      seatIndex < arr.length &&
-      !arr[seatIndex].guest
+      guestTableName &&
+      currentTableName &&
+      guestTableName === currentTableName
     ) {
-      arr[seatIndex].guest = g;
-      arr[seatIndex].source = "table";
-      usedGuestIds.add(getGuestId(g));
+      return true;
     }
-  }
-
-  /*
-    2. אחר כך משלימים אורחים שהסיידבר סימן שהם בשולחן הזה,
-       אבל הם לא קיימים בתוך tableData.seatedGuests.
-       זה בדיוק המקרה של מאור אצלך.
-  */
-  const guestsAssignedByGuestFields = (tableGuests || []).filter((g) => {
-    const id = getGuestId(g);
-
-    if (!id || usedGuestIds.has(id)) return false;
-
-    return isGuestAssignedToCurrentTable(g);
-  });
-
-  for (const g of guestsAssignedByGuestFields) {
-    const id = getGuestId(g);
-    const wantedSeatIndex = getGuestSeatIndex(g);
 
     if (
-      wantedSeatIndex !== null &&
-      wantedSeatIndex >= 0 &&
-      wantedSeatIndex < arr.length &&
-      !arr[wantedSeatIndex].guest
+      Number.isFinite(guestTableNumber) &&
+      Number.isFinite(currentTableNumber) &&
+      Number(guestTableNumber) === Number(currentTableNumber)
     ) {
-      arr[wantedSeatIndex].guest = g;
-      arr[wantedSeatIndex].source = "guest";
-      usedGuestIds.add(id);
-      continue;
+      return true;
     }
 
-    const freeSeat = arr.find((seat) => !seat.guest);
+    return false;
+  };
 
-    if (freeSeat) {
-      freeSeat.guest = g;
-      freeSeat.source = "guest";
-      usedGuestIds.add(id);
+  const getGuestSeatIndex = (guest) => {
+    const raw =
+      guest?.seatIndex ??
+      guest?.assignedSeatIndex ??
+      guest?.seatingSeatIndex ??
+      guest?.seat;
+
+    const n = Number(raw);
+
+    if (!Number.isFinite(n)) return null;
+
+    if (n >= 1) return n - 1;
+
+    return n;
+  };
+
+  const seatsArray = useMemo(() => {
+    if (!tableData) return [];
+
+    const totalSeats = Number(tableData.seats || 0);
+
+    const arr = Array.from({ length: Math.max(0, totalSeats) }, (_, i) => ({
+      index: i,
+      guest: null,
+      source: null,
+    }));
+
+    const usedGuestIds = new Set();
+
+    for (const s of tableData.seatedGuests || []) {
+      const guestId = String(s?.guestId ?? s?._id ?? s?.id ?? "");
+      if (!guestId) continue;
+
+      const g = tableGuests.find((gg) => getGuestId(gg) === guestId);
+      if (!g) continue;
+
+      const seatIndex = Number(s?.seatIndex);
+
+      if (
+        Number.isFinite(seatIndex) &&
+        seatIndex >= 0 &&
+        seatIndex < arr.length &&
+        !arr[seatIndex].guest
+      ) {
+        arr[seatIndex].guest = g;
+        arr[seatIndex].source = "table";
+        usedGuestIds.add(getGuestId(g));
+      }
     }
-  }
 
-  return arr;
-}, [
-  tableData,
-  tableData?.id,
-  tableData?._id,
-  tableData?.name,
-  tableData?.tableNumber,
-  tableData?.seats,
-  tableData?.seatedGuests,
-  tableGuests,
-  uiVersion,
-]);
+    const guestsAssignedByGuestFields = (tableGuests || []).filter((g) => {
+      const id = getGuestId(g);
 
- const occupiedFromSeatsArray = seatsArray.filter((seat) => seat.guest).length;
+      if (!id || usedGuestIds.has(id)) return false;
 
-const occupiedFromStore = tableData
-  ? getOccupiedSeatsForTable(tableData.id ?? tableData._id)
-  : 0;
+      return isGuestAssignedToCurrentTable(g);
+    });
 
-const occupied = Math.max(occupiedFromSeatsArray, occupiedFromStore);
+    for (const g of guestsAssignedByGuestFields) {
+      const id = getGuestId(g);
+      const wantedSeatIndex = getGuestSeatIndex(g);
+
+      if (
+        wantedSeatIndex !== null &&
+        wantedSeatIndex >= 0 &&
+        wantedSeatIndex < arr.length &&
+        !arr[wantedSeatIndex].guest
+      ) {
+        arr[wantedSeatIndex].guest = g;
+        arr[wantedSeatIndex].source = "guest";
+        usedGuestIds.add(id);
+        continue;
+      }
+
+      const freeSeat = arr.find((seat) => !seat.guest);
+
+      if (freeSeat) {
+        freeSeat.guest = g;
+        freeSeat.source = "guest";
+        usedGuestIds.add(id);
+      }
+    }
+
+    return arr;
+  }, [
+    tableData,
+    tableData?.id,
+    tableData?._id,
+    tableData?.name,
+    tableData?.tableNumber,
+    tableData?.number,
+    tableData?.seats,
+    tableData?.seatedGuests,
+    tableGuests,
+    uiVersion,
+  ]);
+
+  const occupiedFromSeatsArray = seatsArray.filter((seat) => seat.guest).length;
+
+  const occupiedFromStore = tableData
+    ? getOccupiedSeatsForTable(tableData.id ?? tableData._id)
+    : 0;
+
+  const occupied = Math.max(occupiedFromSeatsArray, occupiedFromStore);
 
   const remainingSeats = Math.max(0, Number(tableData?.seats ?? 0) - occupied);
 
@@ -646,7 +647,7 @@ const occupied = Math.max(occupiedFromSeatsArray, occupiedFromStore);
 
     try {
       if (onAutoSave) {
-        const ok = await onAutoSave();
+        const ok = await runAutoSave();
 
         if (!ok) {
           removeGuestFromTable(currentTableId, guestId);
@@ -679,7 +680,7 @@ const occupied = Math.max(occupiedFromSeatsArray, occupiedFromStore);
 
     try {
       if (onAutoSave) {
-        const ok = await onAutoSave();
+        const ok = await runAutoSave();
 
         if (!ok) {
           if (previousIndexes.length > 0) {
@@ -721,7 +722,7 @@ const occupied = Math.max(occupiedFromSeatsArray, occupiedFromStore);
   const commitTableName = async () => {
     if (!tableData) return;
 
-    const currentTableId = tableData.id ?? tableData._id;
+    const currentTableId = getCurrentTableId();
     const newNameRaw = tableNameDraft.trim();
 
     if (!newNameRaw) {
@@ -737,12 +738,18 @@ const occupied = Math.max(occupiedFromSeatsArray, occupiedFromStore);
     }
 
     const prevName = tableData.name;
+    const prevNumber = tableData.number;
     const prevTableNumber = tableData.tableNumber;
 
     useSeatingStore.setState((state) => ({
       tables: (state.tables || []).map((t) =>
-        String(t.id ?? t._id) === String(currentTableId)
-          ? { ...t, name: `שולחן ${newNumber}`, tableNumber: newNumber }
+        isSameTable(t, currentTableId)
+          ? {
+              ...t,
+              name: `שולחן ${newNumber}`,
+              number: newNumber,
+              tableNumber: newNumber,
+            }
           : t
       ),
     }));
@@ -751,13 +758,18 @@ const occupied = Math.max(occupiedFromSeatsArray, occupiedFromStore);
 
     try {
       if (onAutoSave) {
-        const ok = await onAutoSave();
+        const ok = await runAutoSave();
 
         if (!ok) {
           useSeatingStore.setState((state) => ({
             tables: (state.tables || []).map((t) =>
-              String(t.id ?? t._id) === String(currentTableId)
-                ? { ...t, name: prevName, tableNumber: prevTableNumber }
+              isSameTable(t, currentTableId)
+                ? {
+                    ...t,
+                    name: prevName,
+                    number: prevNumber,
+                    tableNumber: prevTableNumber,
+                  }
                 : t
             ),
           }));
@@ -776,8 +788,13 @@ const occupied = Math.max(occupiedFromSeatsArray, occupiedFromStore);
     } catch {
       useSeatingStore.setState((state) => ({
         tables: (state.tables || []).map((t) =>
-          String(t.id ?? t._id) === String(currentTableId)
-            ? { ...t, name: prevName, tableNumber: prevTableNumber }
+          isSameTable(t, currentTableId)
+            ? {
+                ...t,
+                name: prevName,
+                number: prevNumber,
+                tableNumber: prevTableNumber,
+              }
             : t
         ),
       }));
@@ -1141,11 +1158,13 @@ const occupied = Math.max(occupiedFromSeatsArray, occupiedFromStore);
                                 {getPartySize(g)} מגיעים
                               </div>
 
-                              {isLiveMode && live.actual > 0 && live.diff === 0 && (
-                                <div className="text-[10px] font-black text-emerald-700">
-                                  תואם לסימון
-                                </div>
-                              )}
+                              {isLiveMode &&
+                                live.actual > 0 &&
+                                live.diff === 0 && (
+                                  <div className="text-[10px] font-black text-emerald-700">
+                                    תואם לסימון
+                                  </div>
+                                )}
 
                               {isLiveMode && live.diff < 0 && (
                                 <div className="flex flex-col items-center gap-1">
