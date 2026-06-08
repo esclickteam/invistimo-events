@@ -866,20 +866,26 @@ initDemo: () => {
  updateTableNumber: (tableId, nextNumber) =>
   set((state) => {
     const n = Number(nextNumber);
+    const targetTableId = String(tableId || "").trim();
 
-    const tables = state.tables.map((t) =>
-      t.id === tableId
+    const tables = state.tables.map((t) => {
+      const currentTableId = String(t.id ?? t._id ?? "").trim();
+
+      return currentTableId === targetTableId
         ? {
             ...t,
             number: n,
-            name: `שולחן ${n}`, // ⭐ זה השם האמיתי
+            name: `שולחן ${n}`,
           }
-        : t
-    );
+        : t;
+    });
 
     const guests = state.guests.map((g) =>
-      String(g.tableId) === String(tableId)
-        ? { ...g, tableName: `שולחן ${n}` }
+      String(g.tableId ?? "").trim() === targetTableId
+        ? {
+            ...g,
+            tableName: `שולחן ${n}`,
+          }
         : g
     );
 
