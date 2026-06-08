@@ -188,38 +188,40 @@ export default function AddGuestToTableModal({
   };
 
   const updateTableSeatsLocally = (nextSeats) => {
-    if (!tableData) return;
+  if (!tableData) return;
 
-    useSeatingStore.setState((state) => ({
-      tables: (state.tables || []).map((t) =>
-        String(t.id ?? t._id) === String(tableData.id ?? tableData._id)
-          ? {
-              ...t,
-              seats: nextSeats,
-            }
-          : t
-      ),
-    }));
+  useSeatingStore.setState((state) => ({
+    tables: (state.tables || []).map((t) =>
+      String(t.id ?? t._id) === String(tableData.id ?? tableData._id)
+        ? {
+            ...t,
+            seats: nextSeats,
+            capacity: nextSeats,
+          }
+        : t
+    ),
+  }));
 
-    refreshModalUi();
-  };
+  refreshModalUi();
+};
 
   const rollbackTableSeatsLocally = (prevSeats) => {
-    if (!tableData) return;
+  if (!tableData) return;
 
-    useSeatingStore.setState((state) => ({
-      tables: (state.tables || []).map((t) =>
-        String(t.id ?? t._id) === String(tableData.id ?? tableData._id)
-          ? {
-              ...t,
-              seats: prevSeats,
-            }
-          : t
-      ),
-    }));
+  useSeatingStore.setState((state) => ({
+    tables: (state.tables || []).map((t) =>
+      String(t.id ?? t._id) === String(tableData.id ?? tableData._id)
+        ? {
+            ...t,
+            seats: prevSeats,
+            capacity: prevSeats,
+          }
+        : t
+    ),
+  }));
 
-    refreshModalUi();
-  };
+  refreshModalUi();
+};
 
   /* ================= SYNC LIVE SEATS ================= */
 

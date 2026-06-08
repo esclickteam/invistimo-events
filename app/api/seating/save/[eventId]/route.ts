@@ -272,11 +272,29 @@ async function normalizeTablesWithGroups({
   const groupsById = new Map(groups.map((group: any) => [String(group._id), group]));
 
   return rawTables.map((table: any) => {
-    if (typeof table.group === "string") {
-      const group = groupsById.get(table.group);
+    const seats = Math.max(
+      0,
+      Math.floor(Number(table?.seats ?? table?.capacity ?? 0))
+    );
+
+    const normalizedTable = {
+      ...table,
+      seats,
+      capacity: seats,
+      seatedGuests: Array.isArray(table?.seatedGuests)
+        ? table.seatedGuests.map((seat: any) => ({
+            ...seat,
+            guestId: String(seat?.guestId ?? seat?._id ?? seat?.id ?? ""),
+            seatIndex: Number(seat?.seatIndex ?? 0),
+          }))
+        : [],
+    };
+
+    if (typeof normalizedTable.group === "string") {
+      const group = groupsById.get(normalizedTable.group);
 
       return {
-        ...table,
+        ...normalizedTable,
         group: group
           ? {
               id: group._id,
@@ -287,7 +305,7 @@ async function normalizeTablesWithGroups({
       };
     }
 
-    return table;
+    return normalizedTable;
   });
 }
 
