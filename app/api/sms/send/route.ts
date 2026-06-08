@@ -10,6 +10,9 @@ import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import { shortenUrl } from "@/lib/shortenUrl";
 
+const SUPPORT_COOKIE_NAME = "staffImpersonationActive";
+const STAFF_ID_COOKIE_NAME = "staffOriginalUserId";
+
 /* ======================================================
    TYPES
 ====================================================== */
@@ -302,6 +305,27 @@ export async function POST(req: Request) {
       user.role === "super_admin" ||
       user.role === "superadmin";
 
+    const staffImpersonationActive =
+      cookieStore.get(SUPPORT_COOKIE_NAME)?.value === "true";
+
+    const staffOriginalUserId =
+      cookieStore.get(STAFF_ID_COOKIE_NAME)?.value || "";
+
+    let isAdminImpersonating = false;
+
+    if (!isAdmin && staffImpersonationActive && staffOriginalUserId) {
+      const originalUser = await User.findById(staffOriginalUserId)
+        .select("role")
+        .lean();
+
+      isAdminImpersonating =
+        originalUser?.role === "admin" ||
+        originalUser?.role === "super_admin" ||
+        originalUser?.role === "superadmin";
+    }
+
+    const canAdminOverride = isAdmin || isAdminImpersonating;
+
     const usesNewLogic =
       Boolean(user.allowedMessageRounds) ||
       Boolean(user.planLimits?.allowedMessageRounds);
@@ -510,8 +534,10 @@ if (isDirectSmsRequest) {
       body.text?.trim() ||
       "";
 
+    const hasCustomTemplateText = Boolean(adminTemplateText);
+
     const baseTemplateText =
-      isAdmin && adminTemplateText ? adminTemplateText : serverTemplateText;
+      hasCustomTemplateText ? adminTemplateText : serverTemplateText;
 
     /* ================= INVITATION ================= */
 
@@ -607,7 +633,7 @@ if (isDirectSmsRequest) {
           inv.adminMessageRoundLocks?.[`rsvp_${round}`]
       );
 
-      if (alreadySent) {
+      if (alreadySent && !canAdminOverride) {
         return NextResponse.json(
           {
             success: false,
@@ -628,7 +654,7 @@ if (isDirectSmsRequest) {
       const reminderAlready =
         inv.reminderSentAt && inv.messageLocks?.reminderSms;
 
-      if (reminderAlready) {
+      if (reminderAlready && !canAdminOverride) {
         return NextResponse.json(
           {
             success: false,
@@ -646,7 +672,7 @@ if (isDirectSmsRequest) {
       const thankyouAlready =
         inv.thankYouSentAt && inv.messageLocks?.thankyouSms;
 
-      if (thankyouAlready) {
+      if (thankyouAlready && !canAdminOverride) {
         return NextResponse.json(
           {
             success: false,
@@ -852,23 +878,23 @@ if (isDirectSmsRequest) {
          * אורח עם שולחן יקבל הודעה עם מספר שולחן.
          * אורח בלי שולחן יקבל תזכורת רגילה בלי המשפט "מספר השולחן שלך".
          */
-                messageContent: isReminderSms
+                messageContent: isReminderSms && !hasCustomTemplateText
           ? REMINDER_WITHOUT_TABLE_SERVER_TEMPLATE
           : messageContent,
 
-        messageOverride: isReminderSms
+        messageOverride: isReminderSms && !hasCustomTemplateText
           ? "__AUTO_REMINDER_BY_TABLE__"
           : baseTemplateText,
 
-        text: isReminderSms
+        text: isReminderSms && !hasCustomTemplateText
           ? REMINDER_WITHOUT_TABLE_SERVER_TEMPLATE
           : messageContent,
 
-        reminderWithTableTemplate: isReminderSms
+        reminderWithTableTemplate: isReminderSms && !hasCustomTemplateText
           ? REMINDER_WITH_TABLE_SERVER_TEMPLATE
           : null,
 
-        reminderWithoutTableTemplate: isReminderSms
+        reminderWithoutTableTemplate: isReminderSms && !hasCustomTemplateText
           ? REMINDER_WITHOUT_TABLE_SERVER_TEMPLATE
           : null,
 
@@ -991,7 +1017,10 @@ if (isDirectSmsRequest) {
          */
         let messageForGuest = baseMessage;
 
-        if (templateKey === "table" || templateKey === "reminder") {
+        if (
+          (templateKey === "table" || templateKey === "reminder") &&
+          !hasCustomTemplateText
+        ) {
           messageForGuest = guestHasTable
             ? baseMessage.includes("{{tableName}}")
               ? baseMessage

@@ -584,10 +584,10 @@ export default function ReminderTab({
             </div>
           </Panel>
 
-          {isAdmin && (
+          {(
             <Panel
-              title="עריכת הודעה לאדמין"
-              subtitle="אדמין יכול לערוך את תוכן ההודעה לפני שליחה מיידית או מתוזמנת."
+              title="עריכת הודעה"
+              subtitle="אפשר לערוך את תוכן ההודעה לפני שליחה מיידית או מתוזמנת."
               icon="✍️"
             >
               <div className="space-y-4">
@@ -784,7 +784,7 @@ export default function ReminderTab({
                     : guestsToSend.map((g) => g._id)
                 }
                 scheduledAt={scheduledAt}
-                {...(isAdmin ? { messageOverride: message } : {})}
+                messageOverride={message}
                 onAfterSend={async () => {
                   if (sendTiming === "now") {
                     setReminderSentAt(new Date());
