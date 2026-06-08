@@ -1509,52 +1509,10 @@ export default function SeatingPage() {
               background={background?.url || null}
               invitationId={invitationId}
               onAutoSave={async () => {
-  if (isVenueTemplateMode) return false;
+                if (isVenueTemplateMode) return false;
 
-  if (!eventId || !invitationId) {
-    console.error("❌ Auto save failed: missing eventId or invitationId", {
-      eventId,
-      invitationId,
-    });
-    return false;
-  }
-
-  try {
-    const seatingState = useSeatingStore.getState();
-    const zoneState = useZoneStore.getState();
-
-    const res = await fetch(`/api/seating/save/${eventId}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      credentials: "include",
-      cache: "no-store",
-      body: JSON.stringify({
-        eventId,
-        invitationId,
-        tables: seatingState.tables || [],
-        guests: seatingState.guests || [],
-        groups: seatingState.groups || [],
-        background: seatingState.background || null,
-        zones: zoneState.zones || [],
-        canvasView: seatingState.canvasView || null,
-      }),
-    });
-
-    const data = await res.json().catch(() => ({}));
-    const ok = res.ok && data?.success === true;
-
-    if (!ok) {
-      console.error("❌ Auto save seating failed:", data);
-    }
-
-    return ok;
-  } catch (err) {
-    console.error("❌ Auto save seating network error:", err);
-    return false;
-  }
-}}
+                return await saveSeating(false);
+              }}
               hideSeats={isProducer}
               sidebarOpen={sidebarOpen}
             />
