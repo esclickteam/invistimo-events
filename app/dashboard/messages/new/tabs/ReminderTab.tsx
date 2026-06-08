@@ -411,10 +411,13 @@ export default function ReminderTab({
     Boolean((user as any)?.impersonatedByAdmin);
 
   const sendButtonDisabled =
-    (reminderAlreadySent && reminderLocked) ||
+    (!isAdmin && reminderAlreadySent && reminderLocked) ||
     (sendTiming === "now" &&
-      (!preview || preview.blocked || guestsToSend.length === 0)) ||
-    (sendTiming === "scheduled" && !scheduledAt);
+      ((!preview && !message.trim()) ||
+        (!isAdmin && preview?.blocked) ||
+        guestsToSend.length === 0)) ||
+    (sendTiming === "scheduled" && !scheduledAt) ||
+    !message.trim();
 
   /* ================= LOADING ================= */
 
@@ -581,7 +584,84 @@ export default function ReminderTab({
             </div>
           </Panel>
 
-          
+          {isAdmin && (
+            <Panel
+              title="עריכת הודעה לאדמין"
+              subtitle="אדמין יכול לערוך את תוכן ההודעה לפני שליחה מיידית או מתוזמנת."
+              icon="✍️"
+            >
+              <div className="space-y-4">
+                <div
+                  className="
+                    rounded-[24px]
+                    border border-[#E4D3BB]
+                    bg-white/70
+                    p-4
+                  "
+                >
+                  <label className="mb-2 block text-sm font-black text-[#6B5138]">
+                    תוכן ההודעה
+                  </label>
+
+                  <textarea
+                    value={message}
+                    onChange={(e) => {
+                      setMessage(e.target.value);
+                      setMessageTouched(true);
+                    }}
+                    rows={8}
+                    className={textareaClassName}
+                    placeholder="כתבי כאן את נוסח ההודעה..."
+                  />
+
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-xs font-bold text-[#7A6246]">
+                      משתנים זמינים: {"{{invitationTitle}}"}, {"{{tableName}}"}, {"{{navigationLink}}"}
+                    </p>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMessage(
+                          hasSeatingPackage
+                            ? REMINDER_WITH_TABLE_TEMPLATE
+                            : REMINDER_ONLY_TEMPLATE
+                        );
+                        setMessageTouched(false);
+                      }}
+                      className="
+                        rounded-full
+                        border border-[#D9B978]
+                        bg-white
+                        px-4 py-2
+                        text-xs font-black
+                        text-[#8A642B]
+                        transition
+                        hover:bg-[#FFF8EA]
+                      "
+                    >
+                      איפוס לתבנית
+                    </button>
+                  </div>
+                </div>
+
+                {reminderAlreadySent && reminderLocked && (
+                  <div
+                    className="
+                      rounded-[20px]
+                      border border-[#D9B978]
+                      bg-[#FFF8EA]
+                      px-4 py-3
+                      text-sm font-bold
+                      text-[#8A642B]
+                    "
+                  >
+                    התזכורת מסומנת כנשלחה ונעולה למשתמשים רגילים, אבל אדמין יכול לשלוח שוב.
+                  </div>
+                )}
+              </div>
+            </Panel>
+          )}
 
           {/* SEND AREA */}
           <div
@@ -714,11 +794,13 @@ export default function ReminderTab({
                 }}
                 disabled={sendButtonDisabled}
               >
-                {reminderAlreadySent
+                {reminderAlreadySent && !isAdmin
                   ? "✓ תזכורת נשלחה"
                   : sendTiming === "scheduled"
                     ? "⏱️ תזמן תזכורת"
-                    : `📩 שלח תזכורת (${guestsToSend.length})`}
+                    : reminderAlreadySent && isAdmin
+                      ? `📩 שלח שוב תזכורת (${guestsToSend.length})`
+                      : `📩 שלח תזכורת (${guestsToSend.length})`}
               </SendButton>
             </div>
           </div>
@@ -1092,6 +1174,23 @@ const inputClassName = `
   bg-white
   px-4 py-3
   text-sm
+  outline-none
+  transition
+  focus:border-[#C79B45]
+  focus:ring-4
+  focus:ring-[#E8C878]/20
+`;
+
+const textareaClassName = `
+  w-full
+  resize-none
+  rounded-[22px]
+  border border-[#E4D3BB]
+  bg-white
+  px-4 py-4
+  text-sm
+  leading-7
+  text-[#3E2D20]
   outline-none
   transition
   focus:border-[#C79B45]
