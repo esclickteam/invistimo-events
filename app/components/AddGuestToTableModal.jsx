@@ -187,180 +187,17 @@ export default function AddGuestToTableModal({
     return "right-1/2 translate-x-1/2";
   };
 
-
-    const getSeatNameFromValue = (value) => {
-    if (typeof value === "string") return value;
-
-    if (value && typeof value === "object") {
-      return (
-        value.name ||
-        value.label ||
-        value.title ||
-        value.seatName ||
-        value.chairName ||
-        ""
-      );
-    }
-
-    return "";
-  };
-
-  const buildSeatNameByExistingPattern = (sourceArray, index) => {
-    const existingName = getSeatNameFromValue(sourceArray?.[index]);
-
-    if (existingName) {
-      return existingName;
-    }
-
-    const sampleName = [...(sourceArray || [])]
-      .map((item) => getSeatNameFromValue(item))
-      .filter(Boolean)
-      .reverse()
-      .find((name) => /\d+/.test(name));
-
-    if (sampleName) {
-      return sampleName.replace(/(\d+)(?!.*\d)/, String(index + 1));
-    }
-
-    return `כיסא ${index + 1}`;
-  };
-
-  const buildSeatObjectByExistingPattern = (sourceArray, index) => {
-    const existing = sourceArray?.[index];
-
-    if (existing && typeof existing === "object" && !Array.isArray(existing)) {
-      return existing;
-    }
-
-    const sample =
-      [...(sourceArray || [])]
-        .reverse()
-        .find(
-          (item) =>
-            item && typeof item === "object" && !Array.isArray(item)
-        ) || {};
-
-    const cleanSample = { ...sample };
-
-    delete cleanSample._id;
-    delete cleanSample.id;
-    delete cleanSample.guestId;
-    delete cleanSample.guest;
-    delete cleanSample.guestName;
-    delete cleanSample.occupied;
-    delete cleanSample.isOccupied;
-
-    const seatName = buildSeatNameByExistingPattern(sourceArray, index);
-
-    const nextSeat = {
-      ...cleanSample,
-    };
-
-    if (
-      "name" in sample ||
-      !(
-        "label" in sample ||
-        "title" in sample ||
-        "seatName" in sample ||
-        "chairName" in sample
-      )
-    ) {
-      nextSeat.name = seatName;
-    }
-
-    if ("label" in sample) {
-      nextSeat.label = seatName;
-    }
-
-    if ("title" in sample) {
-      nextSeat.title = seatName;
-    }
-
-    if ("seatName" in sample) {
-      nextSeat.seatName = seatName;
-    }
-
-    if ("chairName" in sample) {
-      nextSeat.chairName = seatName;
-    }
-
-    if ("index" in sample) {
-      nextSeat.index = index;
-    }
-
-    if ("seatIndex" in sample) {
-      nextSeat.seatIndex = index;
-    }
-
-    if ("number" in sample) {
-      nextSeat.number = index + 1;
-    }
-
-    if ("seatNumber" in sample) {
-      nextSeat.seatNumber = index + 1;
-    }
-
-    return nextSeat;
-  };
-
-  const normalizeSeatArrayLength = (sourceArray, nextSeats) => {
-    if (!Array.isArray(sourceArray)) return sourceArray;
-
-    const isObjectArray = sourceArray.some(
-      (item) => item && typeof item === "object" && !Array.isArray(item)
-    );
-
-    return Array.from({ length: nextSeats }, (_, index) => {
-      const existing = sourceArray[index];
-
-      if (existing !== undefined && existing !== null) {
-        return existing;
-      }
-
-      if (isObjectArray) {
-        return buildSeatObjectByExistingPattern(sourceArray, index);
-      }
-
-      return buildSeatNameByExistingPattern(sourceArray, index);
-    });
-  };
-
-  const normalizeTableSeatFields = (tableToUpdate, nextSeats) => {
-    const normalized = {
-      ...tableToUpdate,
-      seats: nextSeats,
-      capacity: nextSeats,
-    };
-
-    const optionalSeatArrayFields = [
-      "seatNames",
-      "chairNames",
-      "seatLabels",
-      "chairs",
-      "seatObjects",
-      "seatItems",
-    ];
-
-    optionalSeatArrayFields.forEach((field) => {
-      if (Array.isArray(tableToUpdate?.[field])) {
-        normalized[field] = normalizeSeatArrayLength(
-          tableToUpdate[field],
-          nextSeats
-        );
-      }
-    });
-
-    return normalized;
-  };
-
-
-    const updateTableSeatsLocally = (nextSeats) => {
+  
+  const updateTableSeatsLocally = (nextSeats) => {
     if (!tableData) return;
 
     useSeatingStore.setState((state) => ({
       tables: (state.tables || []).map((t) =>
         String(t.id ?? t._id) === String(tableData.id ?? tableData._id)
-          ? normalizeTableSeatFields(t, nextSeats)
+          ? {
+              ...t,
+              seats: nextSeats,
+            }
           : t
       ),
     }));
@@ -374,7 +211,10 @@ export default function AddGuestToTableModal({
     useSeatingStore.setState((state) => ({
       tables: (state.tables || []).map((t) =>
         String(t.id ?? t._id) === String(tableData.id ?? tableData._id)
-          ? normalizeTableSeatFields(t, prevSeats)
+          ? {
+              ...t,
+              seats: prevSeats,
+            }
           : t
       ),
     }));
