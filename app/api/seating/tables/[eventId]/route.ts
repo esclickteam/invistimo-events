@@ -28,6 +28,27 @@ function toObjectId(value: unknown) {
   return new mongoose.Types.ObjectId(id);
 }
 
+function objectIdOrString(value: unknown) {
+  const clean = cleanString(value);
+  const objectId = toObjectId(clean);
+
+  if (objectId) {
+    return [objectId, clean];
+  }
+
+  return clean ? [clean] : [];
+}
+
+function uniqueValues(values: any[]) {
+  return Array.from(
+    new Map(
+      values
+        .filter((value) => value !== undefined && value !== null && String(value).trim())
+        .map((value) => [String(value), value])
+    ).values()
+  );
+}
+
 function createIdQueries({
   eventId,
   invitationId,
@@ -40,27 +61,25 @@ function createIdQueries({
   const cleanEventId = cleanString(eventId);
   const cleanInvitationId = cleanString(invitationId);
 
-  const eventObjectId = toObjectId(cleanEventId);
-  const invitationObjectId = toObjectId(cleanInvitationId);
+  const eventValues = uniqueValues(objectIdOrString(cleanEventId));
+  const invitationValues = uniqueValues(objectIdOrString(cleanInvitationId));
 
-  if (cleanEventId) {
-    queries.push({ eventId: cleanEventId });
-    queries.push({ invitationId: cleanEventId });
-
-    if (eventObjectId) {
-      queries.push({ eventId: eventObjectId });
-      queries.push({ invitationId: eventObjectId });
-    }
+  /*
+    חשוב מאוד:
+    לא מערבבים eventId עם invitationId.
+    eventId מחפש רק בשדה eventId.
+    invitationId מחפש רק בשדה invitationId.
+  */
+  if (eventValues.length) {
+    queries.push({
+      eventId: { $in: eventValues },
+    });
   }
 
-  if (cleanInvitationId) {
-    queries.push({ invitationId: cleanInvitationId });
-    queries.push({ eventId: cleanInvitationId });
-
-    if (invitationObjectId) {
-      queries.push({ invitationId: invitationObjectId });
-      queries.push({ eventId: invitationObjectId });
-    }
+  if (invitationValues.length) {
+    queries.push({
+      invitationId: { $in: invitationValues },
+    });
   }
 
   return queries;
@@ -77,103 +96,102 @@ function createUserFallbackQueries({
 }) {
   const queries: any[] = [];
 
-  const userObjectId = toObjectId(userId);
-  const eventObjectId = toObjectId(eventId);
-  const invitationObjectId = toObjectId(invitationId);
-
-  const userValues = [
-    cleanString(userId),
-    ...(userObjectId ? [userObjectId] : []),
-  ].filter(Boolean);
+  const userValues = uniqueValues(objectIdOrString(userId));
+  const eventValues = uniqueValues(objectIdOrString(eventId));
+  const invitationValues = uniqueValues(objectIdOrString(invitationId));
 
   if (!userValues.length) {
     return queries;
   }
 
   /*
-    fallback ללקוח:
-    לקוח אולם עם אותו userId + אותו eventId.
+    fallback מדויק ללקוח לפי eventId בלבד.
+    לא מחפשים eventId בתוך invitationId.
   */
-  if (eventObjectId) {
+  if (eventValues.length) {
     queries.push({
       userId: { $in: userValues },
-      eventId: eventObjectId,
-    });
-  }
-
-  if (eventId) {
-    queries.push({
-      userId: { $in: userValues },
-      eventId,
+      eventId: { $in: eventValues },
     });
   }
 
   /*
-    fallback ללקוח לפי invitationId.
+    fallback מדויק ללקוח לפי invitationId בלבד.
   */
-  if (invitationObjectId) {
+  if (invitationValues.length) {
     queries.push({
       userId: { $in: userValues },
-      invitationId: invitationObjectId,
-    });
-  }
-
-  if (invitationId) {
-    queries.push({
-      userId: { $in: userValues },
-      invitationId,
+      invitationId: { $in: invitationValues },
     });
   }
 
   /*
-    fallback לבעל אולם:
-    בעל האולם צריך לראות את אותו מסמך seatingtables
-    שנוצר ללקוח, לפי venueOwnerId.
+    fallback מדויק לבעל אולם לפי eventId בלבד.
   */
-  if (eventObjectId) {
+  if (eventValues.length) {
     queries.push({
       venueOwnerId: { $in: userValues },
-      eventId: eventObjectId,
-    });
-  }
-
-  if (eventId) {
-    queries.push({
-      venueOwnerId: { $in: userValues },
-      eventId,
-    });
-  }
-
-  if (invitationObjectId) {
-    queries.push({
-      venueOwnerId: { $in: userValues },
-      invitationId: invitationObjectId,
-    });
-  }
-
-  if (invitationId) {
-    queries.push({
-      venueOwnerId: { $in: userValues },
-      invitationId,
+      eventId: { $in: eventValues },
     });
   }
 
   /*
-    fallback אחרון:
-    לקוח אולם / בעל אולם שההושבה שלו נוצרה מתבנית אולם.
-    זה לא נוגע בהושבה רגילה ולא בלייב.
+    fallback מדויק לבעל אולם לפי invitationId בלבד.
   */
-  queries.push({
-    userId: { $in: userValues },
-    source: "venue_seating_template",
-  });
+  if (invitationValues.length) {
+    queries.push({
+      venueOwnerId: { $in: userValues },
+      invitationId: { $in: invitationValues },
+    });
+  }
 
-  queries.push({
-    venueOwnerId: { $in: userValues },
-    source: "venue_seating_template",
-  });
+  /*
+    לא מוסיפים כאן:
+    source: "venue_seating_template"
+
+    כי זה עלול לטעון תבנית אולם ישנה אחרי רענון,
+    במקום את ההושבה האמיתית של האירוע.
+  */
 
   return queries;
+}
+
+function normalizeTablesForClient(tables: any[]) {
+  if (!Array.isArray(tables)) return [];
+
+  return tables.map((table) => {
+    const seats = Math.max(
+      0,
+      Math.floor(Number(table?.seats ?? table?.capacity ?? 0))
+    );
+
+    return {
+      ...table,
+      seats,
+      capacity: seats,
+      seatedGuests: Array.isArray(table?.seatedGuests)
+        ? table.seatedGuests
+            .map((seat: any) => {
+              const guestId = cleanString(
+                seat?.guestId ?? seat?._id ?? seat?.id ?? ""
+              );
+
+              const seatIndex = Number(seat?.seatIndex);
+
+              if (!guestId || !Number.isFinite(seatIndex)) {
+                return null;
+              }
+
+              return {
+                ...seat,
+                guestId,
+                seatIndex,
+              };
+            })
+            .filter(Boolean)
+        : [],
+    };
+  });
 }
 
 export async function GET(req: NextRequest, context: RouteContext) {
@@ -195,13 +213,6 @@ export async function GET(req: NextRequest, context: RouteContext) {
       return guard.response!;
     }
 
-    /*
-      חשוב:
-      אם החיפוש לפי eventId מחזיר מסמך ריק,
-      נוכל למצוא את ההושבה האמיתית לפי המשתמש המחובר:
-      - לקוח: userId
-      - אולם: venueOwnerId
-    */
     const auth = await getUserIdFromRequest(req).catch(() => null);
     const currentUserId = cleanString((auth as any)?.userId);
 
@@ -239,9 +250,8 @@ export async function GET(req: NextRequest, context: RouteContext) {
     });
 
     /* ===============================
-       2️⃣ שליפת הושבה
-       קודם לפי eventId / invitationId רגיל.
-       אם לא נמצא, או שנמצא מסמך ריק — fallback לפי userId/venueOwnerId.
+       2️⃣ שליפת הושבה מדויקת
+       קודם לפי eventId / invitationId בלי ערבוב ביניהם.
     =============================== */
 
     const idQueries = createIdQueries({
@@ -249,21 +259,26 @@ export async function GET(req: NextRequest, context: RouteContext) {
       invitationId,
     });
 
-    let record = await SeatingTable.findOne({
-      $or: idQueries,
-    })
-      .sort({ updatedAt: -1, createdAt: -1 })
-      .lean();
+    let record =
+      idQueries.length > 0
+        ? await SeatingTable.findOne({
+            $or: idQueries,
+          })
+            .sort({ updatedAt: -1, createdAt: -1 })
+            .lean()
+        : null;
 
     const recordHasTables =
       Array.isArray(record?.tables) && record.tables.length > 0;
 
     /*
-      ✅ fallback:
-      אם לא נמצא record, או שנמצא record ריק בלי שולחנות,
-      נחפש מסמך אמיתי עם שולחנות לפי:
-      - userId של הלקוח
-      - venueOwnerId של האולם
+      fallback:
+      רק אם לא נמצא record או שהוא ריק.
+      גם כאן מחפשים מדויק:
+      userId + eventId
+      userId + invitationId
+      venueOwnerId + eventId
+      venueOwnerId + invitationId
     */
     if ((!record || !recordHasTables) && currentUserId) {
       const fallbackQueries = createUserFallbackQueries({
@@ -287,9 +302,8 @@ export async function GET(req: NextRequest, context: RouteContext) {
     }
 
     /*
-      🔒 אבטחה למצב אולם:
-      אם זה venueView=1, לא מספיק שמצאנו record לפי eventId.
-      חייבים לוודא שבעל האולם המחובר הוא באמת venueOwnerId של ההושבה.
+      אבטחה למצב אולם:
+      אם זה venueView=1, חייבים לוודא שבעל האולם המחובר הוא venueOwnerId של ההושבה.
     */
     if (isVenueView) {
       const recordVenueOwnerId = cleanString((record as any)?.venueOwnerId);
@@ -305,6 +319,10 @@ export async function GET(req: NextRequest, context: RouteContext) {
       }
     }
 
+    const normalizedTables = normalizeTablesForClient(
+      Array.isArray(record?.tables) ? record.tables : []
+    );
+
     console.log("📦 RECORD FOUND:", {
       hasRecord: !!record,
       recordId: record?._id ? String(record._id) : null,
@@ -316,7 +334,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
       invitationId: record?.invitationId ? String(record.invitationId) : null,
       userId: record?.userId ? String(record.userId) : null,
       venueOwnerId: record?.venueOwnerId ? String(record.venueOwnerId) : null,
-      tables: Array.isArray(record?.tables) ? record.tables.length : 0,
+      tables: normalizedTables.length,
       zones: Array.isArray(record?.zones) ? record.zones.length : 0,
       hasBackground: !!record?.background,
       canvasView: record?.canvasView ?? null,
@@ -343,7 +361,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
       userId: record?.userId ? String(record.userId) : null,
       venueOwnerId: record?.venueOwnerId ? String(record.venueOwnerId) : null,
 
-      tables: Array.isArray(record?.tables) ? record.tables : [],
+      tables: normalizedTables,
       background: record?.background ?? null,
       zones: Array.isArray(record?.zones) ? record.zones : [],
       canvasView: record?.canvasView ?? null,
