@@ -167,7 +167,7 @@ function getSeatRotation(table, c) {
 /* ============================================================
    TableRenderer
 ============================================================ */
-function TableRenderer({ table, hideSeats = false }) {
+function TableRenderer({ table: tableProp, hideSeats = false }) {
   const tableRef = useRef(null);
 
   const [rotating, setRotating] = useState(false);
@@ -186,6 +186,37 @@ function TableRenderer({ table, hideSeats = false }) {
   const liveArrivals = useSeatingStore((s) => s.liveArrivals);
   const seatingMode = useSeatingStore((s) => s.seatingMode);
 
+    /*
+    חשוב:
+    ה-TableRenderer לא מצייר לפי snapshot ישן שקיבל מה-parent,
+    אלא מושך את השולחן הכי עדכני מה-store.
+    ככה כיסא שנוסף במודאל / אורח שהושב במודאל
+    מתעדכן מיד גם בציור של השולחן.
+  */
+  const storeTables = useSeatingStore((s) => s.tables);
+
+  const tablePropId = String(tableProp?.id || tableProp?._id || "");
+
+  const table = useMemo(() => {
+    const latestTable = (storeTables || []).find(
+      (t) => String(t.id || t._id || "") === tablePropId
+    );
+
+    if (!latestTable) return tableProp;
+
+    return {
+      ...tableProp,
+      ...latestTable,
+
+      /*
+        שומרים דברים שהגיעו מה-parent ולא קיימים ב-store
+        כדי לא לשבור פתיחת מודאל / סטטיסטיקות.
+      */
+      openAddGuestModal: tableProp?.openAddGuestModal,
+      statsLabel: tableProp?.statsLabel,
+    };
+  }, [storeTables, tableProp, tablePropId]);
+  
   const groups = useGroupStore((s) => s.groups);
 
   const searchParams = useSearchParams();
