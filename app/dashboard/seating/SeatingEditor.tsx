@@ -47,6 +47,7 @@ type SeatedGuest = {
 
 type Table = {
   id: string;
+  _id?: string;
   x: number;
   y: number;
   capacity?: number;
@@ -62,6 +63,9 @@ type Bounds = {
 
 const clamp = (v: number, min: number, max: number) =>
   Math.min(Math.max(v, min), max);
+
+const getTableId = (table: Table | null | undefined) =>
+  String(table?.id ?? table?._id ?? "");
 
 /* ============================================================
    INNER
@@ -107,7 +111,22 @@ function SeatingEditorInner({
     }
   }, [demoMode, readOnly]);
 
-  const [addGuestTable, setAddGuestTable] = useState<Table | null>(null);
+  /*
+    חשוב:
+    לא שומרים פה אובייקט שולחן שלם, כי הוא נהיה snapshot ישן.
+    שומרים רק ID, וכל רינדור שולפים את השולחן המעודכן מתוך tables.
+    זה מה שמסנכרן כיסא שנוסף במודאל גם לשולחן עצמו.
+  */
+  const [addGuestTableId, setAddGuestTableId] = useState<string | null>(null);
+
+  const addGuestTable = useMemo(() => {
+    if (!addGuestTableId) return null;
+
+    return (
+      tables.find((table) => getTableId(table) === String(addGuestTableId)) ||
+      null
+    );
+  }, [tables, addGuestTableId]);
 
   /* ================= CONTAINER / VIEWPORT SIZE ================= */
   const containerRef = useRef<HTMLDivElement>(null);
@@ -625,7 +644,7 @@ function SeatingEditorInner({
                     ...table,
                     openAddGuestModal: readOnly
                       ? undefined
-                      : () => setAddGuestTable(table),
+                      : () => setAddGuestTableId(getTableId(table)),
                     statsLabel: showStats
                       ? `${used} / ${table.capacity ?? "—"}`
                       : undefined,
@@ -669,7 +688,7 @@ function SeatingEditorInner({
           guests={unseatedGuests}
           invitationId={invitationId ?? null}
           onAutoSave={onAutoSave}
-          onClose={() => setAddGuestTable(null)}
+          onClose={() => setAddGuestTableId(null)}
         />
       )}
 
