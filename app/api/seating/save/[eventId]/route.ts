@@ -71,6 +71,49 @@ function getAuthUserIdValues(userId: string) {
   return uniqueValues(objectIdOrString(userId));
 }
 
+function getSeatIndexValue(seat: any) {
+  const raw =
+    seat?.seatIndex ??
+    seat?.index ??
+    seat?.chairIndex ??
+    seat?.seat ??
+    null;
+
+  const n = Number(raw);
+
+  return Number.isFinite(n) ? n : null;
+}
+
+function isOneBasedSeatSource(seatSource: any[], maxSeats: number) {
+  if (!Array.isArray(seatSource) || !seatSource.length) return false;
+
+  const indexes = seatSource
+    .map((seat) => getSeatIndexValue(seat))
+    .filter((index) => Number.isFinite(index));
+
+  if (!indexes.length) return false;
+
+  const hasZero = indexes.some((index) => Number(index) === 0);
+
+  if (hasZero) return false;
+
+  return indexes.every(
+    (index) => Number(index) >= 1 && Number(index) <= Number(maxSeats || 0)
+  );
+}
+
+function normalizeSeatIndexForSource(seat: any, seatSource: any[], maxSeats: number) {
+  const index = getSeatIndexValue(seat);
+
+  if (index === null) return 0;
+
+  if (isOneBasedSeatSource(seatSource, maxSeats)) {
+    return Math.max(0, index - 1);
+  }
+
+  return Math.max(0, index);
+}
+
 async function findInvitationForSeating({
   eventId,
   invitationId,
@@ -272,11 +315,49 @@ async function normalizeTablesWithGroups({
   const groupsById = new Map(groups.map((group: any) => [String(group._id), group]));
 
   return rawTables.map((table: any) => {
-    if (typeof table.group === "string") {
-      const group = groupsById.get(table.group);
+    const seats = Math.max(0, Math.floor(Number(table?.seats || 0)));
+    const rawSeatedGuests = Array.isArray(table?.seatedGuests)
+      ? table.seatedGuests
+      : [];
+
+    const seatedGuests = rawSeatedGuests
+      .map((seat: any) => {
+        const guestId = cleanString(
+          seat?.guestId ??
+            seat?.guest?._id ??
+            seat?.guest?.id ??
+            seat?._id ??
+            seat?.id ??
+            ""
+        );
+
+        if (!guestId) return null;
+
+        const seatIndex = normalizeSeatIndexForSource(
+          seat,
+          rawSeatedGuests,
+          seats
+        );
+
+        return {
+          ...seat,
+          guestId,
+          seatIndex,
+        };
+      })
+      .filter(Boolean);
+
+    const normalizedTable = {
+      ...table,
+      seats,
+      seatedGuests,
+    };
+
+    if (typeof normalizedTable.group === "string") {
+      const group = groupsById.get(normalizedTable.group);
 
       return {
-        ...table,
+        ...normalizedTable,
         group: group
           ? {
               id: group._id,
@@ -287,7 +368,7 @@ async function normalizeTablesWithGroups({
       };
     }
 
-    return table;
+    return normalizedTable;
   });
 }
 
@@ -439,6 +520,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
         const guestId = String(seated.guestId);
         const guestObjectId = toObjectId(guestId);
+        const seatIndex = Number(seated.seatIndex ?? 0);
 
         updatedGuestIds.add(guestId);
 
@@ -452,6 +534,9 @@ export async function POST(req: NextRequest, context: RouteContext) {
               tableId: cleanString(table.id || table._id || ""),
               tableNumber,
               tableName: table.name ?? "",
+              seatIndex,
+              assignedSeatIndex: seatIndex,
+              seatingSeatIndex: seatIndex,
               updatedAt: new Date(),
             },
           }
@@ -475,6 +560,9 @@ export async function POST(req: NextRequest, context: RouteContext) {
           tableId: null,
           tableNumber: null,
           tableName: "",
+          seatIndex: null,
+          assignedSeatIndex: null,
+          seatingSeatIndex: null,
           updatedAt: new Date(),
         },
       }

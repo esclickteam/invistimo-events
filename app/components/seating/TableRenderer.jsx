@@ -165,6 +165,64 @@ function getSeatRotation(table, c) {
 }
 
 /* ============================================================
+   זיהוי seatIndex חזק לכיסאות שנוספו אחרי יצירת שולחן
+============================================================ */
+function getSeatIndexValue(seat) {
+  const raw =
+    seat?.seatIndex ??
+    seat?.index ??
+    seat?.chairIndex ??
+    seat?.seat ??
+    null;
+
+  const n = Number(raw);
+
+  return Number.isFinite(n) ? n : null;
+}
+
+function isOneBasedSeatSource(seatSource, maxSeats) {
+  if (!Array.isArray(seatSource) || !seatSource.length) return false;
+
+  const indexes = seatSource
+    .map((seat) => getSeatIndexValue(seat))
+    .filter((index) => Number.isFinite(index));
+
+  if (!indexes.length) return false;
+
+  const hasZero = indexes.some((index) => Number(index) === 0);
+
+  if (hasZero) return false;
+
+  return indexes.every(
+    (index) => Number(index) >= 1 && Number(index) <= Number(maxSeats || 0)
+  );
+}
+
+function normalizeSeatIndexForSource(seat, seatSource, maxSeats) {
+  const index = getSeatIndexValue(seat);
+
+  if (index === null) return null;
+
+  if (isOneBasedSeatSource(seatSource, maxSeats)) {
+    return index - 1;
+  }
+
+  return index;
+}
+
+function findSeatForRenderedIndex(seatSource, renderedIndex, maxSeats) {
+  if (!Array.isArray(seatSource)) return null;
+
+  return (
+    seatSource.find(
+      (seat) =>
+        Number(normalizeSeatIndexForSource(seat, seatSource, maxSeats)) ===
+        Number(renderedIndex)
+    ) || null
+  );
+}
+
+/* ============================================================
    TableRenderer
 ============================================================ */
 function TableRenderer({ table: tableProp, hideSeats = false }) {
@@ -186,7 +244,7 @@ function TableRenderer({ table: tableProp, hideSeats = false }) {
   const liveArrivals = useSeatingStore((s) => s.liveArrivals);
   const seatingMode = useSeatingStore((s) => s.seatingMode);
 
-    /*
+  /*
     חשוב:
     ה-TableRenderer לא מצייר לפי snapshot ישן שקיבל מה-parent,
     אלא מושך את השולחן הכי עדכני מה-store.
@@ -216,7 +274,7 @@ function TableRenderer({ table: tableProp, hideSeats = false }) {
       statsLabel: tableProp?.statsLabel,
     };
   }, [storeTables, tableProp, tablePropId]);
-  
+
   const groups = useGroupStore((s) => s.groups);
 
   const searchParams = useSearchParams();
@@ -238,11 +296,18 @@ function TableRenderer({ table: tableProp, hideSeats = false }) {
     if (!Array.isArray(value)) return [];
 
     return value
-      .map((seat) => ({
-        ...seat,
-        guestId: String(seat.guestId || seat._id || seat.id || ""),
-        seatIndex: Number(seat.seatIndex ?? 0),
-      }))
+      .map((seat) => {
+        const seatIndexValue = getSeatIndexValue(seat);
+
+        return {
+          ...seat,
+          guestId: String(seat.guestId || seat._id || seat.id || ""),
+          seatIndex:
+            seatIndexValue !== null
+              ? seatIndexValue
+              : Number(seat.seatIndex ?? 0),
+        };
+      })
       .filter((seat) => seat.guestId);
   };
 
@@ -447,7 +512,8 @@ function TableRenderer({ table: tableProp, hideSeats = false }) {
       guestIdFromUrl &&
       assigned.some((s) => String(s.guestId) === String(guestIdFromUrl)));
 
-  const hasArrived = seatingMode === "live" ? displayActualCount > 0 : displayPlannedCount > 0;
+  const hasArrived =
+    seatingMode === "live" ? displayActualCount > 0 : displayPlannedCount > 0;
 
   /* ============================================================
      עיצוב בלבד
@@ -576,9 +642,12 @@ function TableRenderer({ table: tableProp, hideSeats = false }) {
       totalActualRequired += safeValue;
     }
 
-    const sorted = [...seatSource].sort(
-      (a, b) => Number(a.seatIndex ?? 0) - Number(b.seatIndex ?? 0)
-    );
+    const sorted = [...seatSource].sort((a, b) => {
+      const aIndex = normalizeSeatIndexForSource(a, seatSource, maxSeats);
+      const bIndex = normalizeSeatIndexForSource(b, seatSource, maxSeats);
+
+      return Number(aIndex ?? 0) - Number(bIndex ?? 0);
+    });
 
     for (const seated of sorted) {
       const guestId = String(seated.guestId);
@@ -586,7 +655,20 @@ function TableRenderer({ table: tableProp, hideSeats = false }) {
 
       if (remaining <= 0) continue;
 
-      arrived.add(Number(seated.seatIndex));
+      const normalizedSeatIndex = normalizeSeatIndexForSource(
+        seated,
+        seatSource,
+        maxSeats
+      );
+
+      if (
+        normalizedSeatIndex !== null &&
+        normalizedSeatIndex >= 0 &&
+        normalizedSeatIndex < maxSeats
+      ) {
+        arrived.add(Number(normalizedSeatIndex));
+      }
+
       guestActualMap.set(guestId, remaining - 1);
     }
 
@@ -600,14 +682,14 @@ function TableRenderer({ table: tableProp, hideSeats = false }) {
       if (arrived.size < target) {
         const preferredIndexes = [
           ...sorted
-            .map((s) => Number(s.seatIndex ?? 0))
-            .filter((idx) => idx >= 0 && idx < maxSeats),
+            .map((s) => normalizeSeatIndexForSource(s, seatSource, maxSeats))
+            .filter((idx) => idx !== null && idx >= 0 && idx < maxSeats),
           ...Array.from({ length: maxSeats }, (_, idx) => idx),
         ];
 
         for (const idx of preferredIndexes) {
           if (arrived.size >= target) break;
-          arrived.add(idx);
+          arrived.add(Number(idx));
         }
       }
     }
@@ -623,70 +705,70 @@ function TableRenderer({ table: tableProp, hideSeats = false }) {
   ]);
 
   const getSeatVisual = (seat, seatIndex) => {
-  /*
-    מצב רגיל בלבד:
-    - כיסא משובץ = זהב
-    - כיסא פנוי / כיסא חדש שנוסף = שמנת
-    אסור ירוק במצב רגיל.
-  */
-  if (seatingMode !== "live") {
-    const isOccupied = !!seat;
+    /*
+      מצב רגיל בלבד:
+      - כיסא משובץ = זהב
+      - כיסא פנוי / כיסא חדש שנוסף = שמנת
+      אסור ירוק במצב רגיל.
+    */
+    if (seatingMode !== "live") {
+      const isOccupied = !!seat;
 
+      return {
+        chairFill: isOccupied ? "#B98A45" : "#FFF9EF",
+        chairStroke: isOccupied ? "#8B6532" : "#D9C3A2",
+        chairHighlight: isOccupied ? "#E3BD63" : "#FFFFFF",
+        chairDepth: isOccupied ? "#8D642C" : "#E9D8BD",
+        chairShadow: isOccupied ? "#6F4A19" : "#D6C3A6",
+      };
+    }
+
+    /*
+      מצב לייב בלבד:
+      קודם בודקים אם אין seat.
+      כיסא בלי שיבוץ בפועל = ירוק.
+      זה כולל:
+      - כיסא חדש שהוספת
+      - כיסא ששוחרר
+      - כיסא פנוי רגיל בלייב
+    */
+    if (!seat) {
+      return {
+        chairFill: "#16A34A",
+        chairStroke: "#166534",
+        chairHighlight: "#DCFCE7",
+        chairDepth: "#15803D",
+        chairShadow: "#14532D",
+      };
+    }
+
+    /*
+      בלייב:
+      רק כיסא שיש עליו seat אמיתי יכול להיות אדום.
+      ככה כיסא חדש בלי שיבוץ לא ייצבע אדום בטעות.
+    */
+    if (arrivedSeatsSet.has(Number(seatIndex))) {
+      return {
+        chairFill: "#DC2626",
+        chairStroke: "#991B1B",
+        chairHighlight: "#FEE2E2",
+        chairDepth: "#B91C1C",
+        chairShadow: "#7F1D1D",
+      };
+    }
+
+    /*
+      בלייב:
+      יש שיבוץ רגיל אבל עדיין לא הגיע בפועל = זהב.
+    */
     return {
-      chairFill: isOccupied ? "#B98A45" : "#FFF9EF",
-      chairStroke: isOccupied ? "#8B6532" : "#D9C3A2",
-      chairHighlight: isOccupied ? "#E3BD63" : "#FFFFFF",
-      chairDepth: isOccupied ? "#8D642C" : "#E9D8BD",
-      chairShadow: isOccupied ? "#6F4A19" : "#D6C3A6",
+      chairFill: "#B98A45",
+      chairStroke: "#8B6532",
+      chairHighlight: "#E3BD63",
+      chairDepth: "#8D642C",
+      chairShadow: "#6F4A19",
     };
-  }
-
-  /*
-    מצב לייב בלבד:
-    קודם בודקים אם אין seat.
-    כיסא בלי שיבוץ בפועל = ירוק.
-    זה כולל:
-    - כיסא חדש שהוספת
-    - כיסא ששוחרר
-    - כיסא פנוי רגיל בלייב
-  */
-  if (!seat) {
-    return {
-      chairFill: "#16A34A",
-      chairStroke: "#166534",
-      chairHighlight: "#DCFCE7",
-      chairDepth: "#15803D",
-      chairShadow: "#14532D",
-    };
-  }
-
-  /*
-    בלייב:
-    רק כיסא שיש עליו seat אמיתי יכול להיות אדום.
-    ככה כיסא חדש בלי שיבוץ לא ייצבע אדום בטעות.
-  */
-  if (arrivedSeatsSet.has(Number(seatIndex))) {
-    return {
-      chairFill: "#DC2626",
-      chairStroke: "#991B1B",
-      chairHighlight: "#FEE2E2",
-      chairDepth: "#B91C1C",
-      chairShadow: "#7F1D1D",
-    };
-  }
-
-  /*
-    בלייב:
-    יש שיבוץ רגיל אבל עדיין לא הגיע בפועל = זהב.
-  */
-  return {
-    chairFill: "#B98A45",
-    chairStroke: "#8B6532",
-    chairHighlight: "#E3BD63",
-    chairDepth: "#8D642C",
-    chairShadow: "#6F4A19",
   };
-};
 
   const renderTableCenterLines = (boxWidth, compact = false) => {
     const lineHeight =
@@ -840,8 +922,10 @@ function TableRenderer({ table: tableProp, hideSeats = false }) {
         const seatSource =
           seatingMode === "live" ? currentSeatedGuests : plannedSeatedGuests;
 
-        const seat = seatSource.find(
-          (s) => Number(s.seatIndex) === i
+        const seat = findSeatForRenderedIndex(
+          seatSource,
+          i,
+          Number(table.seats || 0)
         );
 
         const rotation = getSeatRotation(layout, c);
