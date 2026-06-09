@@ -36,13 +36,13 @@ const REMINDER_WITH_TABLE_TEMPLATE =
   "תזכורת לאירוע {{invitationTitle}}.\n\n" +
   "מספר השולחן שלך:\n" +
   "{{tableName}}\n\n" +
-  "לניווט לאירוע:\n" +
+  "לכל פרטי האירוע והניווט:\n" +
   "{{navigationLink}}\n\n" +
   "נשמח לראותכם ❤️";
 
 const REMINDER_ONLY_TEMPLATE =
   "תזכורת לאירוע {{invitationTitle}}.\n\n" +
-  "לניווט לאירוע:\n" +
+  "לכל פרטי האירוע והניווט:\n" +
   "{{navigationLink}}\n\n" +
   "נשמח לראותכם ❤️";
 
@@ -258,10 +258,9 @@ export default function ReminderTab({
       invitationTitle,
       eventDate,
       eventLocation,
-      navigationLink:
-        typeof lat === "number" && typeof lng === "number"
-          ? `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`
-          : "",
+      navigationLink: invitation?.shareId
+  ? `https://www.invistimo.com/e/${invitation.shareId}`
+  : "",
     });
   };
 
