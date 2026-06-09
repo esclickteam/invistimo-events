@@ -12,6 +12,7 @@ import {
   Smartphone,
   Sparkles,
   PartyPopper,
+  CarFront,
 } from "lucide-react";
 
 import dbConnect from "@/lib/db";
@@ -652,8 +653,8 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
               <SectionShell
                 title="הגעה וניווט לאירוע"
                 icon={
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] bg-gradient-to-br from-[#F3E4D1] to-[#E8D4BC] shadow-sm">
-                    <MapPin className="h-7 w-7 text-[#8A6748]" />
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] bg-gradient-to-br from-[#F3E4D1] via-[#FFF7EE] to-white shadow-[0_0_24px_rgba(138,103,72,0.28)]">
+                    <MapPin className="h-7 w-7 text-[#8A6748] drop-shadow-[0_0_7px_rgba(138,103,72,0.45)]" />
                   </div>
                 }
               >
@@ -699,11 +700,10 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
                 <SectionShell
                   title="חניה והוראות הגעה"
                   icon={
-                    <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] bg-gradient-to-br from-[#F3E4D1] to-[#E8D4BC] shadow-sm">
-                      <span className="text-2xl font-black leading-none text-[#38BDF8]">
-                        P
-                      </span>
-                      <span className="absolute -bottom-1 -left-1 flex h-5 w-5 items-center justify-center rounded-full bg-white text-[10px] font-black text-[#38BDF8] shadow-sm">
+                    <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] bg-gradient-to-br from-[#E0F2FE] via-[#F0F9FF] to-white shadow-[0_0_28px_rgba(56,189,248,0.35)]">
+                      <CarFront className="h-7 w-7 text-[#0EA5E9] drop-shadow-[0_0_8px_rgba(14,165,233,0.65)]" />
+
+                      <span className="absolute -bottom-1 -left-1 flex h-5 w-5 items-center justify-center rounded-full bg-white text-[10px] font-black text-[#0EA5E9] shadow-[0_0_14px_rgba(14,165,233,0.45)]">
                         P
                       </span>
                     </div>
@@ -752,59 +752,51 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
               <SectionShell
                 title="לו״ז האירוע"
                 icon={
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] bg-gradient-to-br from-[#F3E4D1] to-[#E8D4BC] shadow-sm">
-                    <PartyPopper className="h-7 w-7 text-[#7C3AED]" />
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] bg-gradient-to-br from-[#F3E8FF] via-[#FAF5FF] to-white shadow-[0_0_28px_rgba(124,58,237,0.30)]">
+                    <PartyPopper className="h-7 w-7 text-[#7C3AED] drop-shadow-[0_0_8px_rgba(124,58,237,0.55)]" />
                   </div>
                 }
               >
-                <div className="mt-5 space-y-4">
-                  {schedule.items.map((item, index) => (
-                    <div
-                      key={`${item.time}-${item.title}-${index}`}
-                      className="relative pr-7"
-                    >
-                      <div className="absolute right-0 top-3 h-full w-px bg-[#E5D2BD]" />
+                <div className="relative mt-5 overflow-hidden rounded-[28px] border border-[#EADCCA] bg-gradient-to-br from-[#FFFDFC] via-[#FFF9F2] to-[#F8F0E7] p-4 shadow-[0_14px_36px_rgba(98,70,42,0.08)]">
+                  <div className="pointer-events-none absolute -left-12 -top-12 h-32 w-32 rounded-full bg-white/70 blur-3xl" />
+                  <div className="pointer-events-none absolute -bottom-16 -right-16 h-40 w-40 rounded-full bg-[#E6CDB2]/30 blur-3xl" />
 
-                      <div className="absolute right-[-5px] top-3 h-3 w-3 rounded-full border-2 border-white bg-[#B8844F] shadow-sm" />
-
+                  <div className="relative grid gap-3">
+                    {schedule.items.map((item, index) => (
                       <div
-                        className="
-                          rounded-[24px]
-                          border
-                          border-[#E8D9CB]
-                          bg-gradient-to-l
-                          from-white
-                          to-[#FFF9F2]
-                          px-4
-                          py-4
-                          shadow-[0_10px_26px_rgba(98,70,42,0.07)]
-                        "
+                        key={`${item.time}-${item.title}-${index}`}
+                        className="relative flex items-stretch gap-3"
                       >
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="min-w-0 flex-1">
-                            {item.title && (
-                              <h3 className="text-base font-black text-[#2F2924]">
-                                {item.title}
-                              </h3>
-                            )}
-
-                            {item.description && (
-                              <p className="mt-1 whitespace-pre-line text-sm font-bold leading-7 text-[#746A61]">
-                                {item.description}
-                              </p>
-                            )}
-                          </div>
-
+                        <div className="flex w-[82px] shrink-0 items-center justify-center">
                           {item.time && (
-                            <div className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#F3E4D1] px-4 py-2 text-sm font-black text-[#7A5739] shadow-sm">
-                              <Clock className="h-4 w-4 text-[#7C3AED]" />
+                            <div className="inline-flex min-w-[74px] items-center justify-center gap-1.5 rounded-full border border-[#E7D3BD] bg-white/85 px-3 py-2 text-sm font-black text-[#7A5739] shadow-[0_8px_20px_rgba(98,70,42,0.08)]">
+                              <Clock className="h-3.5 w-3.5 text-[#7C3AED]" />
                               {item.time}
                             </div>
                           )}
                         </div>
+
+                        <div className="relative flex justify-center">
+                          <div className="absolute bottom-[-12px] top-[-12px] w-px bg-[#E2CDB6]" />
+                          <div className="relative mt-4 h-3 w-3 rounded-full border-2 border-white bg-[#B8844F] shadow-[0_0_0_4px_rgba(232,217,203,0.65)]" />
+                        </div>
+
+                        <div className="min-w-0 flex-1 rounded-[22px] border border-[#E8D9CB] bg-white/88 px-4 py-4 shadow-[0_10px_24px_rgba(98,70,42,0.06)]">
+                          {item.title && (
+                            <h3 className="text-base font-black text-[#2F2924]">
+                              {item.title}
+                            </h3>
+                          )}
+
+                          {item.description && (
+                            <p className="mt-1 whitespace-pre-line text-sm font-bold leading-7 text-[#746A61]">
+                              {item.description}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </SectionShell>
             )}
@@ -813,8 +805,8 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
               <SectionShell
                 title="מתנות לזוג"
                 icon={
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] bg-gradient-to-br from-[#F4DEE3] to-[#F7EEF0] shadow-sm">
-                    <Gift className="h-7 w-7 text-[#B94D63]" />
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] bg-gradient-to-br from-[#FCE7F3] via-[#FFF1F5] to-white shadow-[0_0_26px_rgba(185,77,99,0.25)]">
+                    <Gift className="h-7 w-7 text-[#B94D63] drop-shadow-[0_0_7px_rgba(185,77,99,0.45)]" />
                   </div>
                 }
               >
@@ -985,7 +977,7 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
                     <img
                       src={coupleImage.url}
                       alt="תמונת הזוג / האירוע"
-                      className="max-h-[520px] w-full rounded-[1.3rem] object-contain shadow-[0_16px_46px_rgba(47,41,36,0.13)]"
+                      className="mx-auto h-auto max-h-[80vh] w-auto max-w-full rounded-[1.3rem] object-contain shadow-[0_16px_46px_rgba(47,41,36,0.13)]"
                     />
                   </div>
                 </div>
