@@ -29,7 +29,7 @@ function downloadDataUrl(dataUrl: string, fileName: string) {
 
 function convertPngDataUrlToJpg(
   dataUrl: string,
-  quality = 0.98
+  quality = 0.99
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const image = new window.Image();
@@ -142,7 +142,15 @@ export default function ExportSeatingPdf({
 
       const image = saveRealMapImage();
 
-      if (contentType === "map-only" && (fileType === "png" || fileType === "jpg")) {
+      /*
+        הכי איכותי:
+        רק מפה + PNG/JPG יורד ישירות מהתמונה האמיתית של Konva,
+        בלי html2canvas ובלי צילום של הדף.
+      */
+      if (
+        contentType === "map-only" &&
+        (fileType === "png" || fileType === "jpg")
+      ) {
         if (!image) {
           alert("לא הצלחתי לקחת תמונה של המפה. נסי שוב מתוך עמוד ההושבה.");
           return;
@@ -153,7 +161,7 @@ export default function ExportSeatingPdf({
         }
 
         if (fileType === "jpg") {
-          const jpgDataUrl = await convertPngDataUrlToJpg(image, 0.98);
+          const jpgDataUrl = await convertPngDataUrlToJpg(image, 0.99);
           downloadDataUrl(jpgDataUrl, `seating-map-${eventId}.jpg`);
         }
 
@@ -161,6 +169,10 @@ export default function ExportSeatingPdf({
         return;
       }
 
+      /*
+        מפה + אורחים / PDF:
+        עובר לעמוד print כדי לבנות מסמך עם רשימת האורחים.
+      */
       openPrintExport(contentType, fileType);
       setIsExportMenuOpen(false);
     } catch (error) {
@@ -228,44 +240,45 @@ export default function ExportSeatingPdf({
 
       {isExportMenuOpen && (
         <div
-          className="fixed inset-0 z-[99999] flex items-end justify-center bg-black/45 p-0 md:items-center md:p-6"
+          className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/45 p-4"
           onClick={() => setIsExportMenuOpen(false)}
         >
           <div
             dir="rtl"
             onClick={(e) => e.stopPropagation()}
-            className="max-h-[88dvh] w-full max-w-2xl overflow-y-auto rounded-t-[32px] bg-white p-5 shadow-2xl md:rounded-[32px]"
+            className="flex max-h-[82dvh] w-full max-w-2xl flex-col overflow-hidden rounded-[32px] bg-white shadow-2xl"
           >
-            <div className="mx-auto mb-5 h-1.5 w-14 rounded-full bg-[#D8D2CA] md:hidden" />
+            <div className="border-b border-[#EFE3D4] bg-white px-5 py-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-xl font-black text-[#2F241C]">
+                    ייצוא מפת שולחנות
+                  </h3>
 
-            <div className="mb-5 flex items-start justify-between gap-4">
-              <div>
-                <h3 className="text-xl font-black text-[#2F241C]">
-                  ייצוא מפת שולחנות
-                </h3>
+                  <p className="mt-1 text-sm font-semibold text-[#8A7A68]">
+                    בחרי אם לייצא רק מפה או מפה עם רשימת אורחים
+                  </p>
+                </div>
 
-                <p className="mt-1 text-sm font-semibold text-[#8A7A68]">
-                  בחרי אם לייצא רק מפה או מפה עם רשימת אורחים
-                </p>
+                <button
+                  type="button"
+                  onClick={() => setIsExportMenuOpen(false)}
+                  className="rounded-full bg-[#F6F1EA] px-4 py-2 text-sm font-black text-[#3F2F1F] transition hover:bg-[#EFE3D4]"
+                >
+                  סגור
+                </button>
               </div>
-
-              <button
-                type="button"
-                onClick={() => setIsExportMenuOpen(false)}
-                className="rounded-full bg-[#F6F1EA] px-4 py-2 text-sm font-black text-[#3F2F1F] transition hover:bg-[#EFE3D4]"
-              >
-                סגור
-              </button>
             </div>
 
-            <div className="space-y-5">
+            <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5">
               <section className="overflow-hidden rounded-3xl border border-[#EFE3D4] bg-white">
                 <div className="border-b border-[#EFE3D4] bg-[#FCFAF7] px-5 py-4">
                   <h4 className="text-base font-black text-[#2F241C]">
                     רק מפת שולחנות
                   </h4>
+
                   <p className="mt-1 text-xs font-bold text-[#8A7A68]">
-                    הכי מומלץ אם את רוצה תמונה חדה של המפה עצמה בלי רשימות
+                    הכי חד — מוריד את התמונה המקורית של המפה בלי צילום מסך של הדף
                   </p>
                 </div>
 
@@ -297,6 +310,7 @@ export default function ExportSeatingPdf({
                   <h4 className="text-base font-black text-[#2F241C]">
                     מפה + רשימת אורחים
                   </h4>
+
                   <p className="mt-1 text-xs font-bold text-[#8A7A68]">
                     כולל תמונת מפה אמיתית ופירוט אורחים לפי שולחנות
                   </p>
