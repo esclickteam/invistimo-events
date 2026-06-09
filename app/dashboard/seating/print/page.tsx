@@ -45,8 +45,51 @@ function getGuestId(guest: Guest) {
   return getId(guest.id || guest._id);
 }
 
+function downloadDataUrl(dataUrl: string, fileName: string) {
+  const link = document.createElement("a");
+  link.href = dataUrl;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+function convertPngDataUrlToJpg(
+  dataUrl: string,
+  quality = 0.98
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const image = new window.Image();
+
+    image.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = image.width;
+      canvas.height = image.height;
+
+      const ctx = canvas.getContext("2d");
+
+      if (!ctx) {
+        reject(new Error("Canvas context not available"));
+        return;
+      }
+
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(image, 0, 0);
+
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+
+    image.onerror = () => reject(new Error("Failed converting image to JPG"));
+    image.src = dataUrl;
+  });
+}
+
 function buildTableRows(table: Table, guestMap: Map<string, Guest>) {
-  const seatedGuests = Array.isArray(table.seatedGuests) ? table.seatedGuests : [];
+  const seatedGuests = Array.isArray(table.seatedGuests)
+    ? table.seatedGuests
+    : [];
+
   const rowsMap = new Map<string, TableRow>();
 
   seatedGuests.forEach((seat) => {
@@ -97,6 +140,7 @@ function SeatingPrintPageInner() {
   useEffect(() => {
     try {
       const savedImage = sessionStorage.getItem("seatingMapImage");
+
       if (savedImage) {
         setMapImage(savedImage);
         return;
@@ -152,6 +196,7 @@ function SeatingPrintPageInner() {
 
     guests.forEach((guest) => {
       const guestId = getGuestId(guest);
+
       if (guestId) {
         map.set(guestId, guest);
       }
@@ -183,7 +228,22 @@ function SeatingPrintPageInner() {
     return tablesWithRows.reduce((sum, table) => sum + table.capacity, 0);
   }, [tablesWithRows]);
 
-  const downloadAsImage = async (imageFormat: "png" | "jpg") => {
+  const downloadOnlyMapImage = async (imageFormat: "png" | "jpg") => {
+    if (!mapImage) {
+      alert("לא נמצאה תמונת מפה. צריך לפתוח ייצוא מתוך עמוד ההושבה.");
+      return;
+    }
+
+    if (imageFormat === "png") {
+      downloadDataUrl(mapImage, `seating-map-${eventId || "event"}.png`);
+      return;
+    }
+
+    const jpgDataUrl = await convertPngDataUrlToJpg(mapImage, 0.98);
+    downloadDataUrl(jpgDataUrl, `seating-map-${eventId || "event"}.jpg`);
+  };
+
+  const downloadFullPageAsImage = async (imageFormat: "png" | "jpg") => {
     if (!exportRef.current) return;
 
     try {
@@ -202,21 +262,26 @@ function SeatingPrintPageInner() {
       const quality = imageFormat === "jpg" ? 0.98 : undefined;
       const dataUrl = canvas.toDataURL(mimeType, quality);
 
-      const link = document.createElement("a");
-      link.href = dataUrl;
-      link.download = includeGuests
+      const fileName = includeGuests
         ? `seating-map-with-guests-${eventId || "event"}.${imageFormat}`
         : `seating-map-${eventId || "event"}.${imageFormat}`;
 
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      downloadDataUrl(dataUrl, fileName);
     } catch (error) {
       console.error("Image export failed:", error);
       alert("לא הצלחתי לייצא תמונה.");
     } finally {
       setExportingImage(false);
     }
+  };
+
+  const downloadAsImage = async (imageFormat: "png" | "jpg") => {
+    if (!includeGuests) {
+      await downloadOnlyMapImage(imageFormat);
+      return;
+    }
+
+    await downloadFullPageAsImage(imageFormat);
   };
 
   const openPrintDialog = () => {
@@ -240,7 +305,7 @@ function SeatingPrintPageInner() {
     }, 1200);
 
     return () => window.clearTimeout(timer);
-  }, [loading, format, mapImage, mapImageReady]);
+  }, [loading, format, mapImage, mapImageReady, includeGuests]);
 
   if (loading) {
     return (
@@ -262,9 +327,14 @@ function SeatingPrintPageInner() {
     <div className="min-h-screen bg-[#F7F3EC] px-4 py-6 text-right print:bg-white print:px-0 print:py-0">
       <div className="mx-auto mb-5 flex max-w-6xl items-center justify-between gap-3 print:hidden">
         <div>
-          <h1 className="text-xl font-black text-[#2F241C]">ייצוא סידור הושבה</h1>
+          <h1 className="text-xl font-black text-[#2F241C]">
+            ייצוא סידור הושבה
+          </h1>
+
           <p className="mt-1 text-sm font-bold text-[#8A7A68]">
-            {includeGuests ? "מפה + רשימת אורחים לפי שולחנות" : "רק מפת שולחנות"}
+            {includeGuests
+              ? "מפה + רשימת אורחים לפי שולחנות"
+              : "רק מפת שולחנות"}
           </p>
         </div>
 
@@ -304,21 +374,30 @@ function SeatingPrintPageInner() {
       >
         <header className="mb-8 border-b border-[#E8DDD0] pb-5 text-center">
           <div className="text-sm font-black text-[#A58A67]">INVISTIMO</div>
-          <h1 className="mt-2 text-3xl font-black text-[#2F241C]">סידור הושבה</h1>
+
+          <h1 className="mt-2 text-3xl font-black text-[#2F241C]">
+            סידור הושבה
+          </h1>
+
           <p className="mt-2 text-sm font-bold text-[#7A6A5A]">
-            {includeGuests ? "מפת שולחנות + רשימת אורחים לפי שולחנות" : "מפת שולחנות"}
+            {includeGuests
+              ? "מפת שולחנות + רשימת אורחים לפי שולחנות"
+              : "מפת שולחנות"}
           </p>
 
           <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-sm font-black text-[#3F2F1F]">
             <span className="rounded-full bg-[#F6F1EA] px-4 py-2">
               שולחנות: {tablesWithRows.length}
             </span>
+
             <span className="rounded-full bg-[#F6F1EA] px-4 py-2">
               הושבו: {totalSeated}
             </span>
+
             <span className="rounded-full bg-[#F6F1EA] px-4 py-2">
               מקומות: {totalCapacity}
             </span>
+
             <span className="rounded-full bg-[#F6F1EA] px-4 py-2">
               מצב: {mode === "print" ? "הדפסה" : "רגיל"}
             </span>
@@ -327,7 +406,10 @@ function SeatingPrintPageInner() {
 
         <section className="mb-10 break-inside-avoid">
           <div className="mb-4 flex items-center justify-between border-b border-[#EFE3D4] pb-3">
-            <h2 className="text-xl font-black text-[#2F241C]">מפת שולחנות</h2>
+            <h2 className="text-xl font-black text-[#2F241C]">
+              מפת שולחנות
+            </h2>
+
             <span className="text-sm font-bold text-[#8A7A68]">
               תצוגה אמיתית של המפה מהמערכת
             </span>
@@ -428,6 +510,7 @@ function SeatingPrintPageInner() {
                       <tfoot>
                         <tr className="bg-[#FBF7F0] font-black">
                           <td className="px-3 py-2 text-[#2F241C]">סה״כ</td>
+
                           <td className="border-r border-[#2F241C] px-3 py-2 text-center text-[#2F241C]">
                             {table.seatedTotal}
                           </td>
