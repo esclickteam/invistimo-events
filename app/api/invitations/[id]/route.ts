@@ -66,6 +66,27 @@ function normalizeGiftOptions(input: any) {
   };
 }
 
+function normalizePublicEventPage(input: any) {
+  const gifts = input?.gifts || {};
+  const note = input?.note || {};
+
+  return {
+    enabled: input?.enabled === false ? false : true,
+
+    gifts: {
+      creditUrl: cleanUrl(gifts?.creditUrl),
+      payboxUrl: cleanUrl(gifts?.payboxUrl),
+      bitPhone: cleanString(gifts?.bitPhone),
+      bitUrl: cleanUrl(gifts?.bitUrl),
+    },
+
+    note: {
+      enabled: note?.enabled === false ? false : true,
+      text: cleanString(note?.text),
+    },
+  };
+}
+
 function pickBase64Image(body: any): string {
   const v = body?.previewBase64 ?? body?.base64Image ?? body?.previewImageBase64;
   return typeof v === "string" ? v : "";
@@ -705,6 +726,12 @@ export async function PUT(
       };
     }
 
+    if (body.publicEventPage !== undefined) {
+      updatePayload.publicEventPage = normalizePublicEventPage(
+        body.publicEventPage
+      );
+    }
+
     if (body.estimatedGuests !== undefined) {
       updatePayload.estimatedGuests = Math.max(
         0,
@@ -881,6 +908,12 @@ export async function PATCH(
 
     if (body?.giftOptions !== undefined) {
       updatePayload.giftOptions = normalizeGiftOptions(body.giftOptions);
+    }
+
+    if (body?.publicEventPage !== undefined) {
+      updatePayload.publicEventPage = normalizePublicEventPage(
+        body.publicEventPage
+      );
     }
 
     if (body?.invitationSettings !== undefined) {

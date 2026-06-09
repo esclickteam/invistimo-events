@@ -26,6 +26,31 @@ const GiftOptionsSchema = new Schema(
   { _id: false }
 );
 
+/* ================= PUBLIC EVENT PAGE SUB-SCHEMA ================= */
+
+const PublicEventPageSchema = new Schema(
+  {
+    enabled: { type: Boolean, default: true },
+
+    gifts: {
+      creditUrl: { type: String, default: "" },
+      payboxUrl: { type: String, default: "" },
+      bitPhone: { type: String, default: "" },
+      bitUrl: { type: String, default: "" },
+    },
+
+    note: {
+      enabled: { type: Boolean, default: true },
+      text: {
+        type: String,
+        default:
+          "האירוע מתקיים בהתאם להנחיות פיקוד העורף, יש מרחב מוגן במקום.",
+      },
+    },
+  },
+  { _id: false }
+);
+
 /* ================= INVITATION SETTINGS SUB-SCHEMA ================= */
 
 const InvitationSettingsSchema = new Schema(
@@ -238,10 +263,10 @@ const InvitationSchema = new Schema(
     },
 
     orientation: {
-  type: String,
-  enum: ["portrait", "landscape", "square"],
-  default: "portrait",
-},
+      type: String,
+      enum: ["portrait", "landscape", "square"],
+      default: "portrait",
+    },
 
     previewImage: {
       type: String,
@@ -290,6 +315,13 @@ const InvitationSchema = new Schema(
 
     giftOptions: {
       type: GiftOptionsSchema,
+      default: () => ({}),
+    },
+
+    /* ================= PUBLIC EVENT PAGE ================= */
+
+    publicEventPage: {
+      type: PublicEventPageSchema,
       default: () => ({}),
     },
 
@@ -470,6 +502,17 @@ InvitationSchema.pre("save", function () {
       payboxEnabled?: boolean;
       payboxUrl?: string;
     };
+    publicEventPage?: {
+      gifts?: {
+        creditUrl?: string;
+        payboxUrl?: string;
+        bitPhone?: string;
+        bitUrl?: string;
+      };
+      note?: {
+        text?: string;
+      };
+    };
   };
 
   const g = doc.giftOptions ?? {};
@@ -481,6 +524,21 @@ InvitationSchema.pre("save", function () {
   if (!g.payboxEnabled) g.payboxUrl = "";
 
   doc.giftOptions = g;
+
+  const publicEventPage = doc.publicEventPage ?? {};
+  const publicGifts = publicEventPage.gifts ?? {};
+  const publicNote = publicEventPage.note ?? {};
+
+  publicGifts.creditUrl = (publicGifts.creditUrl ?? "").trim();
+  publicGifts.payboxUrl = (publicGifts.payboxUrl ?? "").trim();
+  publicGifts.bitPhone = (publicGifts.bitPhone ?? "").trim();
+  publicGifts.bitUrl = (publicGifts.bitUrl ?? "").trim();
+  publicNote.text = (publicNote.text ?? "").trim();
+
+  publicEventPage.gifts = publicGifts;
+  publicEventPage.note = publicNote;
+
+  doc.publicEventPage = publicEventPage;
 });
 
 /* ================= INDEXES ================= */
