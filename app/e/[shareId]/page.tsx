@@ -602,8 +602,7 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
 
         <div className="overflow-hidden rounded-[2.2rem] border border-white/80 bg-white/82 shadow-[0_28px_100px_rgba(89,64,43,0.20)] backdrop-blur-xl">
           <div className="relative overflow-hidden bg-gradient-to-br from-[#F1DFC9] via-[#F8EFE5] to-[#FFFFFF] px-6 pb-8 pt-10 text-center sm:px-10 sm:pt-12">
-            <div className="absolute right-6 top-6 h-16 w-16 rounded-full border border-white/70 bg-white/35" />
-            <div className="absolute bottom-6 left-7 h-12 w-12 rounded-full border border-white/70 bg-white/35" />
+          
 
             <div className="relative mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-[1.4rem] bg-white shadow-[0_18px_50px_rgba(107,78,52,0.16)]">
               <Heart className="h-8 w-8 fill-[#C54D64] text-[#C54D64]" />
