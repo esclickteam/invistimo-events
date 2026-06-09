@@ -90,7 +90,7 @@ export default function EventDetailsForm({
         publicId: "",
       },
       note: {
-        enabled: true,
+        enabled: false,
         text: "האירוע מתקיים בהתאם להנחיות פיקוד העורף, יש מרחב מוגן במקום.",
       },
     },
@@ -124,7 +124,7 @@ export default function EventDetailsForm({
         lng: event.location?.lng ?? null,
       },
       publicEventPage: {
-        enabled: event.publicEventPage?.enabled !== false,
+        enabled: true,
         gifts: {
           creditUrl: event.publicEventPage?.gifts?.creditUrl ?? "",
           payboxUrl: event.publicEventPage?.gifts?.payboxUrl ?? "",
@@ -148,9 +148,12 @@ export default function EventDetailsForm({
           publicId: event.publicEventPage?.coupleImage?.publicId ?? "",
         },
         note: {
-          enabled: event.publicEventPage?.note?.enabled !== false,
+          enabled:
+            event.publicEventPage?.note?.enabled === true ||
+            event.publicEventPage?.noteEnabled === true,
           text:
             event.publicEventPage?.note?.text ??
+            event.publicEventPage?.noteText ??
             "האירוע מתקיים בהתאם להנחיות פיקוד העורף, יש מרחב מוגן במקום.",
         },
       },
@@ -194,6 +197,7 @@ export default function EventDetailsForm({
         ...f,
         publicEventPage: {
           ...f.publicEventPage,
+          enabled: true,
           coupleImage: {
             enabled: true,
             url: data.url,
@@ -214,6 +218,7 @@ export default function EventDetailsForm({
       ...f,
       publicEventPage: {
         ...f.publicEventPage,
+        enabled: true,
         schedule: {
           ...f.publicEventPage.schedule,
           enabled: true,
@@ -247,6 +252,7 @@ export default function EventDetailsForm({
         ...f,
         publicEventPage: {
           ...f.publicEventPage,
+          enabled: true,
           schedule: {
             ...f.publicEventPage.schedule,
             items,
@@ -266,6 +272,7 @@ export default function EventDetailsForm({
         ...f,
         publicEventPage: {
           ...f.publicEventPage,
+          enabled: true,
           schedule: {
             ...f.publicEventPage.schedule,
             items,
@@ -296,7 +303,7 @@ export default function EventDetailsForm({
           lng: form.location.lng,
         },
         publicEventPage: {
-          enabled: form.publicEventPage.enabled,
+          enabled: true,
           gifts: {
             creditUrl: form.publicEventPage.gifts.creditUrl.trim(),
             payboxUrl: form.publicEventPage.gifts.payboxUrl.trim(),
@@ -319,9 +326,7 @@ export default function EventDetailsForm({
                 title: item.title.trim(),
                 description: item.description.trim(),
               }))
-              .filter(
-                (item) => item.time || item.title || item.description
-              ),
+              .filter((item) => item.time || item.title || item.description),
           },
           coupleImage: {
             enabled: form.publicEventPage.coupleImage.enabled,
@@ -329,7 +334,7 @@ export default function EventDetailsForm({
             publicId: form.publicEventPage.coupleImage.publicId.trim(),
           },
           note: {
-            enabled: form.publicEventPage.note.enabled,
+            enabled: form.publicEventPage.note.enabled === true,
             text: form.publicEventPage.note.text.trim(),
           },
         },
@@ -702,27 +707,6 @@ export default function EventDetailsForm({
                   </a>
                 )}
               </div>
-
-              <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-[#E3D6C3] bg-white px-4 py-3">
-                <input
-                  type="checkbox"
-                  checked={form.publicEventPage.enabled}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      publicEventPage: {
-                        ...f.publicEventPage,
-                        enabled: e.target.checked,
-                      },
-                    }))
-                  }
-                  className="h-4 w-4 accent-[#B8844F]"
-                />
-
-                <span className="text-sm font-black text-[#6B5B4A]">
-                  העמוד פעיל
-                </span>
-              </label>
             </div>
 
             <div className="grid gap-4">
@@ -749,6 +733,7 @@ export default function EventDetailsForm({
                           ...f,
                           publicEventPage: {
                             ...f.publicEventPage,
+                            enabled: true,
                             gifts: {
                               ...f.publicEventPage.gifts,
                               creditUrl: e.target.value,
@@ -791,6 +776,7 @@ export default function EventDetailsForm({
                           ...f,
                           publicEventPage: {
                             ...f.publicEventPage,
+                            enabled: true,
                             gifts: {
                               ...f.publicEventPage.gifts,
                               payboxUrl: e.target.value,
@@ -834,6 +820,7 @@ export default function EventDetailsForm({
                         ...f,
                         publicEventPage: {
                           ...f.publicEventPage,
+                          enabled: true,
                           gifts: {
                             ...f.publicEventPage.gifts,
                             bitPhone: e.target.value,
@@ -879,6 +866,7 @@ export default function EventDetailsForm({
                         ...f,
                         publicEventPage: {
                           ...f.publicEventPage,
+                          enabled: true,
                           parking: {
                             ...f.publicEventPage.parking,
                             enabled: e.target.checked,
@@ -929,6 +917,7 @@ export default function EventDetailsForm({
                               ...f,
                               publicEventPage: {
                                 ...f.publicEventPage,
+                                enabled: true,
                                 parking: {
                                   ...f.publicEventPage.parking,
                                   name: name || address,
@@ -957,6 +946,7 @@ export default function EventDetailsForm({
                             ...f,
                             publicEventPage: {
                               ...f.publicEventPage,
+                              enabled: true,
                               parking: {
                                 ...f.publicEventPage.parking,
                                 instructions: e.target.value,
@@ -1003,6 +993,7 @@ export default function EventDetailsForm({
                           ...f,
                           publicEventPage: {
                             ...f.publicEventPage,
+                            enabled: true,
                             schedule: {
                               ...f.publicEventPage.schedule,
                               enabled: e.target.checked,
@@ -1052,8 +1043,8 @@ export default function EventDetailsForm({
                           עדיין לא נוספו שלבים ללו״ז
                         </p>
                         <p className="mt-1 text-xs font-semibold text-[#9B8D7D]">
-                          לחצו על “הוספת שורה” כדי להוסיף קבלת פנים, חופה, ארוחה,
-                          ריקודים ועוד.
+                          לחצו על “הוספת שורה” כדי להוסיף קבלת פנים, חופה,
+                          ארוחה, ריקודים ועוד.
                         </p>
                       </div>
                     )}
@@ -1106,7 +1097,11 @@ export default function EventDetailsForm({
                               type="time"
                               value={item.time}
                               onChange={(e) =>
-                                updateScheduleItem(index, "time", e.target.value)
+                                updateScheduleItem(
+                                  index,
+                                  "time",
+                                  e.target.value
+                                )
                               }
                               className="
                                 h-[48px]
@@ -1137,7 +1132,11 @@ export default function EventDetailsForm({
                               placeholder="לדוגמה: קבלת פנים / חופה / ריקודים"
                               value={item.title}
                               onChange={(e) =>
-                                updateScheduleItem(index, "title", e.target.value)
+                                updateScheduleItem(
+                                  index,
+                                  "title",
+                                  e.target.value
+                                )
                               }
                               className="
                                 h-[48px]
@@ -1213,6 +1212,7 @@ export default function EventDetailsForm({
                         ...f,
                         publicEventPage: {
                           ...f.publicEventPage,
+                          enabled: true,
                           coupleImage: {
                             ...f.publicEventPage.coupleImage,
                             enabled: e.target.checked,
@@ -1240,9 +1240,7 @@ export default function EventDetailsForm({
                     ) : (
                       <div className="flex h-40 flex-col items-center justify-center gap-2 text-[#9B8D7D]">
                         <ImagePlus className="h-8 w-8" />
-                        <span className="text-xs font-black">
-                          אין תמונה
-                        </span>
+                        <span className="text-xs font-black">אין תמונה</span>
                       </div>
                     )}
                   </div>
@@ -1297,6 +1295,7 @@ export default function EventDetailsForm({
                             ...f,
                             publicEventPage: {
                               ...f.publicEventPage,
+                              enabled: true,
                               coupleImage: {
                                 enabled: false,
                                 url: "",
@@ -1336,12 +1335,13 @@ export default function EventDetailsForm({
                 <label className="mb-3 flex cursor-pointer items-center gap-3">
                   <input
                     type="checkbox"
-                    checked={form.publicEventPage.note.enabled}
+                    checked={form.publicEventPage.note.enabled === true}
                     onChange={(e) =>
                       setForm((f) => ({
                         ...f,
                         publicEventPage: {
                           ...f.publicEventPage,
+                          enabled: true,
                           note: {
                             ...f.publicEventPage.note,
                             enabled: e.target.checked,
@@ -1365,6 +1365,7 @@ export default function EventDetailsForm({
                       ...f,
                       publicEventPage: {
                         ...f.publicEventPage,
+                        enabled: true,
                         note: {
                           ...f.publicEventPage.note,
                           text: e.target.value,
