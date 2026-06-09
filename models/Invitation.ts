@@ -39,6 +39,15 @@ const PublicEventPageSchema = new Schema(
       bitUrl: { type: String, default: "" },
     },
 
+    parking: {
+      enabled: { type: Boolean, default: false },
+      name: { type: String, default: "" },
+      address: { type: String, default: "" },
+      lat: { type: Number, default: null },
+      lng: { type: Number, default: null },
+      instructions: { type: String, default: "" },
+    },
+
     note: {
       enabled: { type: Boolean, default: true },
       text: {
@@ -509,6 +518,11 @@ InvitationSchema.pre("save", function () {
         bitPhone?: string;
         bitUrl?: string;
       };
+      parking?: {
+        name?: string;
+        address?: string;
+        instructions?: string;
+      };
       note?: {
         text?: string;
       };
@@ -527,15 +541,22 @@ InvitationSchema.pre("save", function () {
 
   const publicEventPage = doc.publicEventPage ?? {};
   const publicGifts = publicEventPage.gifts ?? {};
+  const publicParking = publicEventPage.parking ?? {};
   const publicNote = publicEventPage.note ?? {};
 
   publicGifts.creditUrl = (publicGifts.creditUrl ?? "").trim();
   publicGifts.payboxUrl = (publicGifts.payboxUrl ?? "").trim();
   publicGifts.bitPhone = (publicGifts.bitPhone ?? "").trim();
   publicGifts.bitUrl = (publicGifts.bitUrl ?? "").trim();
+
+  publicParking.name = (publicParking.name ?? "").trim();
+  publicParking.address = (publicParking.address ?? "").trim();
+  publicParking.instructions = (publicParking.instructions ?? "").trim();
+
   publicNote.text = (publicNote.text ?? "").trim();
 
   publicEventPage.gifts = publicGifts;
+  publicEventPage.parking = publicParking;
   publicEventPage.note = publicNote;
 
   doc.publicEventPage = publicEventPage;

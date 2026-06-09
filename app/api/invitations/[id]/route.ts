@@ -68,6 +68,7 @@ function normalizeGiftOptions(input: any) {
 
 function normalizePublicEventPage(input: any) {
   const gifts = input?.gifts || {};
+  const parking = input?.parking || {};
   const note = input?.note || {};
 
   return {
@@ -78,6 +79,21 @@ function normalizePublicEventPage(input: any) {
       payboxUrl: cleanUrl(gifts?.payboxUrl),
       bitPhone: cleanString(gifts?.bitPhone),
       bitUrl: cleanUrl(gifts?.bitUrl),
+    },
+
+    parking: {
+      enabled: parking?.enabled === true,
+      name: cleanString(parking?.name),
+      address: cleanString(parking?.address),
+      lat:
+        parking?.lat === undefined || parking?.lat === null
+          ? null
+          : toNumber(parking?.lat, null as any),
+      lng:
+        parking?.lng === undefined || parking?.lng === null
+          ? null
+          : toNumber(parking?.lng, null as any),
+      instructions: cleanString(parking?.instructions),
     },
 
     note: {

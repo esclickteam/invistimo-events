@@ -46,7 +46,14 @@ export default function EventDetailsForm({
         creditUrl: "",
         payboxUrl: "",
         bitPhone: "",
-        bitUrl: "",
+      },
+      parking: {
+        enabled: false,
+        name: "",
+        address: "",
+        lat: null as number | null,
+        lng: null as number | null,
+        instructions: "",
       },
       note: {
         enabled: true,
@@ -80,7 +87,14 @@ export default function EventDetailsForm({
           creditUrl: event.publicEventPage?.gifts?.creditUrl ?? "",
           payboxUrl: event.publicEventPage?.gifts?.payboxUrl ?? "",
           bitPhone: event.publicEventPage?.gifts?.bitPhone ?? "",
-          bitUrl: event.publicEventPage?.gifts?.bitUrl ?? "",
+        },
+        parking: {
+          enabled: event.publicEventPage?.parking?.enabled === true,
+          name: event.publicEventPage?.parking?.name ?? "",
+          address: event.publicEventPage?.parking?.address ?? "",
+          lat: event.publicEventPage?.parking?.lat ?? null,
+          lng: event.publicEventPage?.parking?.lng ?? null,
+          instructions: event.publicEventPage?.parking?.instructions ?? "",
         },
         note: {
           enabled: event.publicEventPage?.note?.enabled !== false,
@@ -118,7 +132,15 @@ export default function EventDetailsForm({
             creditUrl: form.publicEventPage.gifts.creditUrl.trim(),
             payboxUrl: form.publicEventPage.gifts.payboxUrl.trim(),
             bitPhone: form.publicEventPage.gifts.bitPhone.trim(),
-            bitUrl: form.publicEventPage.gifts.bitUrl.trim(),
+            bitUrl: "",
+          },
+          parking: {
+            enabled: form.publicEventPage.parking.enabled,
+            name: form.publicEventPage.parking.name.trim(),
+            address: form.publicEventPage.parking.address.trim(),
+            lat: form.publicEventPage.parking.lat,
+            lng: form.publicEventPage.parking.lng,
+            instructions: form.publicEventPage.parking.instructions.trim(),
           },
           note: {
             enabled: form.publicEventPage.note.enabled,
@@ -465,6 +487,34 @@ export default function EventDetailsForm({
                   בעמוד הזה יוצגו פרטי האירוע, ניווט ומתנות רק אם הוגדרו. הקישור
                   לא אישי ולא קשור לאישור ההגעה.
                 </p>
+
+                {event?.shareId && (
+                  <a
+                    href={`/e/${event.shareId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="
+                      mt-3
+                      inline-flex
+                      h-[44px]
+                      items-center
+                      justify-center
+                      rounded-2xl
+                      border
+                      border-[#D9B46F]/60
+                      bg-white
+                      px-5
+                      text-sm
+                      font-black
+                      text-[#8B5E34]
+                      shadow-sm
+                      transition
+                      hover:bg-[#FFF7EA]
+                    "
+                  >
+                    צפייה בעמוד פרטי אירוע
+                  </a>
+                )}
               </div>
 
               <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-[#E3D6C3] bg-white px-4 py-3">
@@ -576,7 +626,7 @@ export default function EventDetailsForm({
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-1">
                 <div className="flex flex-col gap-2">
                   <label className="px-1 text-sm font-black text-[#6B5B4A]">
                     מספר Bit
@@ -617,49 +667,133 @@ export default function EventDetailsForm({
                       focus:ring-[#D9B46F]/15
                     "
                   />
+
+                  <p className="px-1 text-xs font-semibold leading-6 text-[#9B8D7D]">
+                    בעמוד הציבורי יוצג מספר הביט עם כפתור העתקה בלבד.
+                  </p>
                 </div>
+              </div>
 
-                <div className="flex flex-col gap-2">
-                  <label className="px-1 text-sm font-black text-[#6B5B4A]">
-                    קישור Bit
-                  </label>
-
+              <div className="rounded-[22px] border border-[#EFE4D6] bg-white/80 p-4">
+                <label className="mb-4 flex cursor-pointer items-center gap-3">
                   <input
-                    placeholder="https://..."
-                    value={form.publicEventPage.gifts.bitUrl}
+                    type="checkbox"
+                    checked={form.publicEventPage.parking.enabled}
                     onChange={(e) =>
                       setForm((f) => ({
                         ...f,
                         publicEventPage: {
                           ...f.publicEventPage,
-                          gifts: {
-                            ...f.publicEventPage.gifts,
-                            bitUrl: e.target.value,
+                          parking: {
+                            ...f.publicEventPage.parking,
+                            enabled: e.target.checked,
                           },
                         },
                       }))
                     }
-                    className="
-                      h-[52px]
-                      w-full
-                      rounded-[18px]
-                      border
-                      border-[#E3D6C3]
-                      bg-[#FCFAF6]
-                      px-4
-                      text-sm
-                      font-bold
-                      text-[#241A14]
-                      outline-none
-                      transition
-                      placeholder:text-[#B0A79D]
-                      focus:border-[#B8844F]
-                      focus:bg-white
-                      focus:ring-4
-                      focus:ring-[#D9B46F]/15
-                    "
+                    className="h-4 w-4 accent-[#B8844F]"
                   />
-                </div>
+
+                  <span className="text-sm font-black text-[#6B5B4A]">
+                    הצגת מיקום חניה נוסף
+                  </span>
+                </label>
+
+                {form.publicEventPage.parking.enabled && (
+                  <div className="grid gap-4">
+                    <div className="flex flex-col gap-2">
+                      <label className="px-1 text-sm font-black text-[#6B5B4A]">
+                        מיקום החניה
+                      </label>
+
+                      <div
+                        className="
+                          rounded-[20px]
+                          border
+                          border-[#E3D6C3]
+                          bg-[#FCFAF6]
+                          px-1
+                          py-1
+                          transition
+                          focus-within:border-[#B8844F]
+                          focus-within:bg-white
+                          focus-within:ring-4
+                          focus-within:ring-[#D9B46F]/15
+                        "
+                      >
+                        <LocationAutocomplete
+                          value={
+                            form.publicEventPage.parking.name &&
+                            form.publicEventPage.parking.address
+                              ? `${form.publicEventPage.parking.name}, ${form.publicEventPage.parking.address}`
+                              : form.publicEventPage.parking.name ||
+                                form.publicEventPage.parking.address
+                          }
+                          onSelect={({ name, address, lat, lng }) =>
+                            setForm((f) => ({
+                              ...f,
+                              publicEventPage: {
+                                ...f.publicEventPage,
+                                parking: {
+                                  ...f.publicEventPage.parking,
+                                  name: name || address,
+                                  address,
+                                  lat,
+                                  lng,
+                                },
+                              },
+                            }))
+                          }
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <label className="px-1 text-sm font-black text-[#6B5B4A]">
+                        הוראות לחניה
+                      </label>
+
+                      <textarea
+                        rows={3}
+                        placeholder="לדוגמה: החניה נמצאת מאחורי האולם, כניסה מרחוב..."
+                        value={form.publicEventPage.parking.instructions}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            publicEventPage: {
+                              ...f.publicEventPage,
+                              parking: {
+                                ...f.publicEventPage.parking,
+                                instructions: e.target.value,
+                              },
+                            },
+                          }))
+                        }
+                        className="
+                          w-full
+                          resize-none
+                          rounded-[18px]
+                          border
+                          border-[#E3D6C3]
+                          bg-[#FCFAF6]
+                          px-4
+                          py-3
+                          text-sm
+                          font-bold
+                          leading-7
+                          text-[#241A14]
+                          outline-none
+                          transition
+                          placeholder:text-[#B0A79D]
+                          focus:border-[#B8844F]
+                          focus:bg-white
+                          focus:ring-4
+                          focus:ring-[#D9B46F]/15
+                        "
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="rounded-[22px] border border-[#EFE4D6] bg-white/80 p-4">
@@ -727,8 +861,8 @@ export default function EventDetailsForm({
               </div>
 
               <p className="px-1 text-xs font-semibold leading-6 text-[#9B8D7D]">
-                אם לא יוזן קישור מתנה או מספר Bit — אזור המתנות לא יופיע בעמוד
-                הציבורי.
+                אם לא יוזן קישור מתנה, PayBox או מספר Bit — אזור המתנות לא יופיע
+                בעמוד הציבורי.
               </p>
             </div>
           </div>

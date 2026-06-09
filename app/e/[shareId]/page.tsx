@@ -16,6 +16,7 @@ import {
 import dbConnect from "@/lib/db";
 import Invitation from "@/models/Invitation";
 import Event from "@/models/Event";
+import CopyButton from "./CopyButton";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -33,8 +34,28 @@ type SafeLocation = {
   lng?: number | string | null;
 };
 
+type ParkingSettings = {
+  enabled: boolean;
+  name: string;
+  address: string;
+  lat: number | string | null;
+  lng: number | string | null;
+  instructions: string;
+};
+
 function cleanString(value: unknown) {
   return String(value || "").trim();
+}
+
+function normalizeForCompare(value: unknown) {
+  return cleanString(value).replace(/\s+/g, " ").toLowerCase();
+}
+
+function isSameText(a: unknown, b: unknown) {
+  const first = normalizeForCompare(a);
+  const second = normalizeForCompare(b);
+
+  return Boolean(first && second && first === second);
 }
 
 function isValidUrl(value: unknown) {
@@ -64,24 +85,6 @@ function getPublicSiteUrl() {
   return raw.replace(/\/+$/, "");
 }
 
-function getEventTypeLabel(eventType: unknown) {
-  const value = cleanString(eventType).toLowerCase();
-
-  const map: Record<string, string> = {
-    wedding: "חתונה",
-    henna: "חינה",
-    bar_mitzvah: "בר מצווה",
-    bat_mitzvah: "בת מצווה",
-    birthday: "יום הולדת",
-    brit: "ברית",
-    brita: "בריתה",
-    business: "אירוע עסקי",
-    other: "אירוע",
-  };
-
-  return map[value] || "אירוע";
-}
-
 function formatHebrewDate(value: unknown) {
   if (!value) return "";
 
@@ -93,20 +96,6 @@ function formatHebrewDate(value: unknown) {
     weekday: "long",
     day: "2-digit",
     month: "long",
-    year: "numeric",
-  }).format(date);
-}
-
-function formatShortHebrewDate(value: unknown) {
-  if (!value) return "";
-
-  const date = new Date(value as string | Date);
-
-  if (Number.isNaN(date.getTime())) return "";
-
-  return new Intl.DateTimeFormat("he-IL", {
-    day: "2-digit",
-    month: "2-digit",
     year: "numeric",
   }).format(date);
 }
@@ -228,7 +217,6 @@ function getGiftSettings(publicEventPage: any) {
     creditUrl: normalizeUrl(gifts?.creditUrl || publicEventPage?.creditUrl),
     payboxUrl: normalizeUrl(gifts?.payboxUrl || publicEventPage?.payboxUrl),
     bitPhone: cleanString(gifts?.bitPhone || publicEventPage?.bitPhone),
-    bitUrl: normalizeUrl(gifts?.bitUrl || publicEventPage?.bitUrl),
   };
 }
 
@@ -242,6 +230,19 @@ function getNavigationSettings(publicEventPage: any) {
     googleMapsUrl: normalizeUrl(
       navigation?.googleMapsUrl || publicEventPage?.googleMapsUrl
     ),
+  };
+}
+
+function getParkingSettings(publicEventPage: any): ParkingSettings {
+  const parking = publicEventPage?.parking || {};
+
+  return {
+    enabled: parking?.enabled === true,
+    name: cleanString(parking?.name),
+    address: cleanString(parking?.address),
+    lat: parking?.lat ?? null,
+    lng: parking?.lng ?? null,
+    instructions: cleanString(parking?.instructions),
   };
 }
 
@@ -380,15 +381,11 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
   }
 
   const title = getInvitationTitle(invitation, event);
-  const eventType = getEventTypeLabel(
-    (invitation as any)?.eventType || event?.eventType
-  );
 
   const eventDate = getEventDate(invitation, event);
   const eventTime = getEventTime(invitation, event);
 
   const dateLabel = formatHebrewDate(eventDate);
-  const shortDateLabel = formatShortHebrewDate(eventDate);
 
   const baseLocation = getLocationValue(invitation, event);
   const navigationSettings = getNavigationSettings(publicEventPage);
@@ -406,10 +403,26 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
     navigationSettings.googleMapsUrl
   );
 
+  const parking = getParkingSettings(publicEventPage);
+  const parkingLocation: SafeLocation = {
+    name: parking.name,
+    address: parking.address,
+    lat: parking.lat,
+    lng: parking.lng,
+  };
+
+  const parkingWazeUrl =
+    parking.enabled && (parking.name || parking.address || parking.lat || parking.lng)
+      ? buildWazeUrl(parkingLocation)
+      : "";
+
+  const parkingGoogleMapsUrl =
+    parking.enabled && (parking.name || parking.address || parking.lat || parking.lng)
+      ? buildGoogleMapsUrl(parkingLocation)
+      : "";
+
   const gifts = getGiftSettings(publicEventPage);
-  const hasGifts = Boolean(
-    gifts.creditUrl || gifts.payboxUrl || gifts.bitPhone || gifts.bitUrl
-  );
+  const hasGifts = Boolean(gifts.creditUrl || gifts.payboxUrl || gifts.bitPhone);
 
   const note = getNoteSettings(publicEventPage);
 
@@ -444,7 +457,7 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
             </div>
 
             <p className="relative text-sm font-black text-[#8B6B50]">
-              מחכים לראותכם ב{eventType}
+              מחכים לראותכם באירוע
             </p>
 
             <h1 className="relative mt-3 text-3xl font-black leading-tight text-[#2F2924] sm:text-4xl">
@@ -463,12 +476,6 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
                     <p className="mt-2 text-base font-black text-[#2F2924]">
                       {dateLabel}
                     </p>
-
-                    {shortDateLabel && (
-                      <p className="mt-1 text-xs font-bold text-[#8A8178]">
-                        {shortDateLabel}
-                      </p>
-                    )}
                   </div>
                 )}
 
@@ -481,10 +488,6 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
 
                     <p className="mt-2 text-base font-black text-[#2F2924]">
                       {eventTime}
-                    </p>
-
-                    <p className="mt-1 text-xs font-bold text-[#8A8178]">
-                      מומלץ להגיע בזמן
                     </p>
                   </div>
                 )}
@@ -511,7 +514,7 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
                       </p>
                     )}
 
-                    {location.address && (
+                    {location.address && !isSameText(location.address, location.name) && (
                       <p className="mt-1 text-sm font-bold leading-7 text-[#746A61]">
                         {location.address}
                       </p>
@@ -548,6 +551,73 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
                 </div>
               </section>
             )}
+
+            {parking.enabled &&
+              (parking.name ||
+                parking.address ||
+                parking.instructions ||
+                parkingWazeUrl ||
+                parkingGoogleMapsUrl) && (
+                <section className="rounded-[2rem] border border-[#EFE4D8] bg-[#FFFDFC] p-5 shadow-sm sm:p-6">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#F3E4D1]">
+                      <MapPin className="h-6 w-6 text-[#8A6748]" />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <h2 className="text-lg font-black text-[#2F2924]">
+                        חניה והוראות הגעה
+                      </h2>
+
+                      {parking.name && (
+                        <p className="mt-3 text-base font-black text-[#3C332B]">
+                          {parking.name}
+                        </p>
+                      )}
+
+                      {parking.address && !isSameText(parking.address, parking.name) && (
+                        <p className="mt-1 text-sm font-bold leading-7 text-[#746A61]">
+                          {parking.address}
+                        </p>
+                      )}
+
+                      {parking.instructions && (
+                        <p className="mt-4 whitespace-pre-line rounded-2xl bg-[#F8F0E7] px-4 py-3 text-sm font-bold leading-7 text-[#665A50]">
+                          {parking.instructions}
+                        </p>
+                      )}
+
+                      {(parkingWazeUrl || parkingGoogleMapsUrl) && (
+                        <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          {parkingWazeUrl && (
+                            <a
+                              href={parkingWazeUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[#2F2924] px-5 py-3 text-sm font-black text-white shadow-lg shadow-[#2F2924]/15 transition hover:scale-[1.01]"
+                            >
+                              <Navigation className="h-4 w-4" />
+                              פתח חניה ב־Waze
+                            </a>
+                          )}
+
+                          {parkingGoogleMapsUrl && (
+                            <a
+                              href={parkingGoogleMapsUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-[#E7D7C7] bg-white px-5 py-3 text-sm font-black text-[#2F2924] shadow-sm transition hover:scale-[1.01]"
+                            >
+                              <MapPin className="h-4 w-4" />
+                              פתח חניה במפות
+                            </a>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </section>
+              )}
 
             {hasGifts && (
               <section className="rounded-[2rem] border border-[#EFE4D8] bg-[#FFFDFC] p-5 shadow-sm sm:p-6">
@@ -622,39 +692,25 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
                         </a>
                       )}
 
-                      {(gifts.bitUrl || gifts.bitPhone) && (
-                        <a
-                          href={gifts.bitUrl || `tel:${gifts.bitPhone}`}
-                          target={gifts.bitUrl ? "_blank" : undefined}
-                          rel={gifts.bitUrl ? "noopener noreferrer" : undefined}
-                          className="flex min-h-14 items-center justify-between rounded-2xl border border-[#E8D9CB] bg-white px-4 py-3 text-right shadow-sm transition hover:scale-[1.01]"
-                        >
-                          <span className="flex items-center gap-3">
-                            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#F4DEE3]">
-                              <Heart className="h-5 w-5 fill-[#B94D63] text-[#B94D63]" />
-                            </span>
+                      {gifts.bitPhone && (
+                        <div className="rounded-2xl border border-[#E8D9CB] bg-white px-4 py-4 text-center shadow-sm">
+                          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-[#F4DEE3]">
+                            <Heart className="h-5 w-5 fill-[#B94D63] text-[#B94D63]" />
+                          </div>
 
-                            <span>
-                              <span className="block text-sm font-black text-[#2F2924]">
-                                Bit
-                              </span>
+                          <p className="mt-3 text-sm font-black text-[#2F2924]">
+                            Bit
+                          </p>
 
-                              {gifts.bitPhone ? (
-                                <span className="block text-xs font-bold text-[#8A8178]">
-                                  מספר לביט: {gifts.bitPhone}
-                                </span>
-                              ) : (
-                                <span className="block text-xs font-bold text-[#8A8178]">
-                                  פתיחה בקישור
-                                </span>
-                              )}
-                            </span>
-                          </span>
+                          <p
+                            className="mt-2 text-lg font-black tracking-wide text-[#2F2924]"
+                            dir="ltr"
+                          >
+                            {gifts.bitPhone}
+                          </p>
 
-                          <span className="text-lg font-black text-[#8A6748]">
-                            ←
-                          </span>
-                        </a>
+                          <CopyButton value={gifts.bitPhone} />
+                        </div>
                       )}
                     </div>
                   </div>
@@ -664,7 +720,7 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
 
             {note.enabled && note.text && (
               <section className="rounded-[2rem] border border-[#E7D7C7] bg-[#F8F0E7] p-5 text-center shadow-sm">
-                <p className="text-sm font-bold leading-7 text-[#665A50]">
+                <p className="whitespace-pre-line text-sm font-bold leading-7 text-[#665A50]">
                   {note.text}
                 </p>
               </section>
