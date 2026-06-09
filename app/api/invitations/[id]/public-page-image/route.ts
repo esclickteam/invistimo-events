@@ -34,6 +34,11 @@ function isValidBase64Image(value: unknown) {
    POST — Upload public event page couple image
    Route:
    /api/invitations/[id]/public-page-image
+
+   חשוב:
+   תמונת זוג / אירוע לא נחתכת.
+   לכן לא משתמשים ב-crop: "fill" ולא נותנים height קבוע.
+   crop: "limit" רק מקטין תמונה גדולה מדי ושומר על היחס המקורי.
 ============================================================ */
 
 export async function POST(
@@ -79,13 +84,17 @@ export async function POST(
       resource_type: "image",
       overwrite: false,
       invalidate: true,
-      folder: undefined,
+
+      /*
+        לא לחתוך תמונות לאורך / לרוחב.
+        width: 1800 + crop: "limit" =
+        אם התמונה גדולה מדי היא תוקטן,
+        אם לא — היא נשמרת כמו שהיא.
+      */
       transformation: [
         {
-          width: 1400,
-          height: 1000,
-          crop: "fill",
-          gravity: "auto",
+          width: 1800,
+          crop: "limit",
           quality: "auto:good",
           fetch_format: "auto",
         },
