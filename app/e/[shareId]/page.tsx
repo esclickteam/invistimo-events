@@ -291,9 +291,7 @@ function getNoteSettings(publicEventPage: any) {
   const note = publicEventPage?.note || {};
 
   const enabled =
-    note?.enabled === false || publicEventPage?.noteEnabled === false
-      ? false
-      : true;
+    note?.enabled === true || publicEventPage?.noteEnabled === true;
 
   const text =
     cleanString(note?.text || publicEventPage?.noteText) ||
