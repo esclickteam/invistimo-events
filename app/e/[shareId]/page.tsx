@@ -11,6 +11,7 @@ import {
   Navigation,
   Smartphone,
   Sparkles,
+  CarFront,
 } from "lucide-react";
 
 import dbConnect from "@/lib/db";
@@ -623,10 +624,12 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
                 parkingGoogleMapsUrl) && (
                 <section className="rounded-[2rem] border border-[#EFE4D8] bg-[#FFFDFC] p-5 shadow-sm sm:p-6">
                   <div className="flex items-start gap-3">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#F3E4D1]">
-                      <MapPin className="h-6 w-6 text-[#8A6748]" />
-                    </div>
-
+                    <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] bg-gradient-to-br from-[#F3E4D1] to-[#E8D4BC] shadow-sm">
+  <CarFront className="h-7 w-7 text-[#8A6748]" />
+  <span className="absolute -bottom-1 -left-1 flex h-5 w-5 items-center justify-center rounded-full bg-white text-[10px] font-black text-[#8A6748] shadow-sm">
+    P
+  </span>
+</div>
                     <div className="min-w-0 flex-1">
                       <h2 className="text-lg font-black text-[#2F2924]">
                         חניה והוראות הגעה
