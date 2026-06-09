@@ -4,8 +4,7 @@ import Script from "next/script";
 
 import Providers from "./providers";
 import AccessibilityScript from "./components/AccessibilityScript";
-import ClientShell from "./ClientShell";
-import SupportBotButton from "./components/SupportBotButton";
+import PublicPageShell from "./PublicPageShell";
 
 /* ======================================================
    METADATA – Title + Description + Canonical + Favicon
@@ -76,10 +75,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         />
 
         <Providers>
-          <ClientShell>{children}</ClientShell>
-
-          {/* כפתור וואטסאפ / תמיכה — מופיע בכל האתר */}
-          <SupportBotButton />
+          <PublicPageShell>{children}</PublicPageShell>
         </Providers>
 
         <AccessibilityScript />
