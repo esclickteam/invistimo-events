@@ -12,7 +12,6 @@ import {
   Smartphone,
   Sparkles,
   CarFront,
-  PartyPopper,
 } from "lucide-react";
 
 import dbConnect from "@/lib/db";
@@ -700,9 +699,9 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
                 <SectionShell
                   title="חניה והוראות הגעה"
                   icon={
-                    <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] bg-gradient-to-br from-[#DBEAFE] via-[#EFF6FF] to-white shadow-[0_14px_34px_rgba(37,99,235,0.16)]">
+                    <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] bg-gradient-to-br from-[#F3E4D1] to-[#E8D4BC] shadow-sm">
                       <CarFront className="h-7 w-7 text-[#2563EB]" />
-                      <span className="absolute -bottom-1 -left-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#2563EB] text-[10px] font-black text-white shadow-sm">
+                      <span className="absolute -bottom-1 -left-1 flex h-5 w-5 items-center justify-center rounded-full bg-white text-[10px] font-black text-[#2563EB] shadow-sm">
                         P
                       </span>
                     </div>
@@ -722,7 +721,7 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
                     )}
 
                   {parking.instructions && (
-                    <p className="mt-4 whitespace-pre-line rounded-2xl border border-[#DBEAFE] bg-[#EFF6FF] px-4 py-3 text-sm font-bold leading-7 text-[#1E3A8A]">
+                    <p className="mt-4 whitespace-pre-line rounded-2xl bg-[#F8F0E7] px-4 py-3 text-sm font-bold leading-7 text-[#665A50]">
                       {parking.instructions}
                     </p>
                   )}
@@ -738,7 +737,7 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
 
                       {parkingGoogleMapsUrl && (
                         <LightButton href={parkingGoogleMapsUrl}>
-                          <MapPin className="h-4 w-4 text-[#2563EB] transition group-hover:-translate-x-0.5" />
+                          <MapPin className="h-4 w-4 text-[#9A6B43] transition group-hover:-translate-x-0.5" />
                           מפות לחניה
                         </LightButton>
                       )}
@@ -748,75 +747,57 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
               )}
 
             {hasSchedule && (
-              <section className="relative overflow-hidden rounded-[2rem] border border-[#DDD6FE] bg-gradient-to-br from-[#FFFFFF] via-[#F8F7FF] to-[#EEF2FF] p-5 shadow-[0_24px_70px_rgba(79,70,229,0.13)] sm:p-6">
-                <div className="pointer-events-none absolute -left-16 -top-16 h-40 w-40 rounded-full bg-[#C4B5FD]/35 blur-3xl" />
-                <div className="pointer-events-none absolute -bottom-20 -right-20 h-48 w-48 rounded-full bg-[#A5B4FC]/35 blur-3xl" />
-
-                <div className="relative flex items-start gap-3">
-                  <div className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-[24px] bg-gradient-to-br from-[#C4B5FD] via-[#E0E7FF] to-white shadow-[0_16px_36px_rgba(79,70,229,0.20)]">
-                    <PartyPopper className="h-8 w-8 text-[#4F46E5]" />
-                    <span className="absolute -bottom-1 -left-1 flex h-6 w-6 items-center justify-center rounded-full bg-[#4F46E5] text-[10px] font-black text-white shadow-sm">
-                      לו״ז
-                    </span>
+              <section className="rounded-[2rem] border border-[#EFE4D8] bg-[#FFFDFC] p-5 shadow-[0_16px_42px_rgba(98,70,42,0.07)] sm:p-6">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] bg-gradient-to-br from-[#F3E4D1] to-[#E8D4BC] shadow-sm">
+                    <Clock className="h-7 w-7 text-[#6D28D9]" />
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-                      <div>
-                        <h2 className="text-xl font-black text-[#312E81]">
-                          לו״ז האירוע
-                        </h2>
+                    <h2 className="text-lg font-black text-[#2F2924]">
+                      לו״ז האירוע
+                    </h2>
 
-                        <p className="mt-1 text-sm font-bold leading-7 text-[#6D5D91]">
-                          כל השלבים החשובים של האירוע במקום אחד.
-                        </p>
-                      </div>
-
-                      <div className="mt-2 inline-flex w-fit items-center gap-2 rounded-full border border-[#DDD6FE] bg-white/80 px-3 py-1.5 text-xs font-black text-[#4F46E5] shadow-sm sm:mt-0">
-                        <Clock className="h-3.5 w-3.5" />
-                        {schedule.items.length} שלבים
-                      </div>
-                    </div>
-
-                    <div className="relative mt-6 space-y-4">
-                      <div className="absolute bottom-5 right-[21px] top-5 w-[2px] rounded-full bg-gradient-to-b from-[#4F46E5] via-[#A78BFA] to-transparent" />
-
+                    <div className="mt-5 space-y-3">
                       {schedule.items.map((item, index) => (
                         <div
                           key={`${item.time}-${item.title}-${index}`}
-                          className="relative flex gap-4"
+                          className="
+                            relative
+                            overflow-hidden
+                            rounded-[26px]
+                            border
+                            border-[#E8D9CB]
+                            bg-gradient-to-l
+                            from-white
+                            to-[#FFF9F2]
+                            p-4
+                            shadow-[0_12px_30px_rgba(98,70,42,0.08)]
+                          "
                         >
-                          <div className="relative z-10 mt-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#C4B5FD] bg-white shadow-[0_10px_28px_rgba(79,70,229,0.16)]">
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-[#4F46E5] to-[#7C3AED] text-xs font-black text-white">
-                              {index + 1}
-                            </span>
-                          </div>
+                          <div className="absolute right-0 top-0 h-full w-1.5 bg-[#6D28D9]/70" />
 
-                          <div className="group flex-1 overflow-hidden rounded-[26px] border border-[#DDD6FE] bg-white/90 shadow-[0_14px_34px_rgba(79,70,229,0.09)] transition hover:-translate-y-0.5 hover:shadow-[0_20px_46px_rgba(79,70,229,0.14)]">
-                            <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-                              <div className="min-w-0">
-                                {item.title && (
-                                  <h3 className="text-base font-black text-[#241A14]">
-                                    {item.title}
-                                  </h3>
-                                )}
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="min-w-0 pr-2">
+                              {item.title && (
+                                <h3 className="text-base font-black text-[#2F2924]">
+                                  {item.title}
+                                </h3>
+                              )}
 
-                                {item.description && (
-                                  <p className="mt-1 whitespace-pre-line text-sm font-bold leading-7 text-[#6B6475]">
-                                    {item.description}
-                                  </p>
-                                )}
-                              </div>
-
-                              {item.time && (
-                                <div className="inline-flex w-fit shrink-0 items-center gap-2 rounded-2xl bg-gradient-to-l from-[#4F46E5] to-[#7C3AED] px-4 py-2 text-sm font-black text-white shadow-[0_10px_24px_rgba(79,70,229,0.22)]">
-                                  <Clock className="h-4 w-4" />
-                                  {item.time}
-                                </div>
+                              {item.description && (
+                                <p className="mt-1 whitespace-pre-line text-sm font-bold leading-7 text-[#746A61]">
+                                  {item.description}
+                                </p>
                               )}
                             </div>
 
-                            <div className="h-1 w-full bg-gradient-to-l from-[#4F46E5] via-[#A78BFA] to-[#C4B5FD] opacity-70" />
+                            {item.time && (
+                              <div className="inline-flex w-fit shrink-0 items-center gap-2 rounded-2xl bg-[#F3E4D1] px-4 py-2 text-sm font-black text-[#7A5739] shadow-sm">
+                                <Clock className="h-4 w-4 text-[#6D28D9]" />
+                                {item.time}
+                              </div>
+                            )}
                           </div>
                         </div>
                       ))}
