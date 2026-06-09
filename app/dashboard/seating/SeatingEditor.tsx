@@ -126,55 +126,6 @@ function SeatingEditorInner({
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [isMobile, setIsMobile] = useState(false);
 
-  /* ================= EXPORT REAL MAP IMAGE ================= */
-  const getSeatingMapImageDataUrl = useCallback(() => {
-    if (!stageRef.current) return null;
-
-    try {
-      return stageRef.current.toDataURL({
-        pixelRatio: 6,
-        mimeType: "image/png",
-      });
-    } catch (error) {
-      console.error("Failed creating seating map image:", error);
-      return null;
-    }
-  }, []);
-
-  const saveSeatingMapImageToSession = useCallback(() => {
-    try {
-      const image = getSeatingMapImageDataUrl();
-
-      if (!image) {
-        sessionStorage.removeItem("seatingMapImage");
-        return null;
-      }
-
-      sessionStorage.setItem("seatingMapImage", image);
-      return image;
-    } catch (error) {
-      console.error("Failed saving seating map image:", error);
-      return null;
-    }
-  }, [getSeatingMapImageDataUrl]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    window.__getInvistimoSeatingMapImage = getSeatingMapImageDataUrl;
-    window.__saveInvistimoSeatingMapImage = saveSeatingMapImageToSession;
-
-    return () => {
-      if (window.__getInvistimoSeatingMapImage === getSeatingMapImageDataUrl) {
-        delete window.__getInvistimoSeatingMapImage;
-      }
-
-      if (window.__saveInvistimoSeatingMapImage === saveSeatingMapImageToSession) {
-        delete window.__saveInvistimoSeatingMapImage;
-      }
-    };
-  }, [getSeatingMapImageDataUrl, saveSeatingMapImageToSession]);
-
   useEffect(() => {
     const updateMobile = () => {
       setIsMobile(window.innerWidth < 768);
@@ -278,6 +229,90 @@ function SeatingEditorInner({
     };
   }, [isMobile, tables, zones]);
 
+  /* ================= EXPORT REAL MAP IMAGE FOR PDF ================= */
+  const getSeatingMapImageDataUrl = useCallback(() => {
+    if (!stageRef.current) return null;
+
+    try {
+      const stage = stageRef.current;
+      const bounds = getContentBounds();
+
+      const padding = 120;
+
+      const exportX = bounds ? bounds.minX - padding : 0;
+      const exportY = bounds ? bounds.minY - padding : 0;
+
+      const exportWidth = bounds
+        ? Math.max(1400, bounds.maxX - bounds.minX + padding * 2)
+        : stage.width();
+
+      const exportHeight = bounds
+        ? Math.max(1000, bounds.maxY - bounds.minY + padding * 2)
+        : stage.height();
+
+      const rawCanvas = stage.toCanvas({
+        x: exportX,
+        y: exportY,
+        width: exportWidth,
+        height: exportHeight,
+        pixelRatio: 6,
+      });
+
+      const finalCanvas = document.createElement("canvas");
+      finalCanvas.width = rawCanvas.width;
+      finalCanvas.height = rawCanvas.height;
+
+      const ctx = finalCanvas.getContext("2d");
+      if (!ctx) return null;
+
+      ctx.fillStyle = "#F7F3EC";
+      ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
+
+      ctx.drawImage(rawCanvas, 0, 0);
+
+      return finalCanvas.toDataURL("image/png");
+    } catch (error) {
+      console.error("Failed creating seating map image:", error);
+      return null;
+    }
+  }, [getContentBounds]);
+
+  const saveSeatingMapImageToSession = useCallback(() => {
+    try {
+      const image = getSeatingMapImageDataUrl();
+
+      if (!image) {
+        sessionStorage.removeItem("seatingMapImage");
+        return null;
+      }
+
+      sessionStorage.setItem("seatingMapImage", image);
+      return image;
+    } catch (error) {
+      console.error("Failed saving seating map image:", error);
+      return null;
+    }
+  }, [getSeatingMapImageDataUrl]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    window.__getInvistimoSeatingMapImage = getSeatingMapImageDataUrl;
+    window.__saveInvistimoSeatingMapImage = saveSeatingMapImageToSession;
+
+    return () => {
+      if (window.__getInvistimoSeatingMapImage === getSeatingMapImageDataUrl) {
+        delete window.__getInvistimoSeatingMapImage;
+      }
+
+      if (
+        window.__saveInvistimoSeatingMapImage === saveSeatingMapImageToSession
+      ) {
+        delete window.__saveInvistimoSeatingMapImage;
+      }
+    };
+  }, [getSeatingMapImageDataUrl, saveSeatingMapImageToSession]);
+
   const fitAllTablesIntoScreen = useCallback(() => {
     if (size.width <= 0 || size.height <= 0) return;
 
@@ -339,7 +374,13 @@ function SeatingEditorInner({
     }, 120);
 
     return () => window.clearTimeout(timer);
-  }, [fitAllTablesIntoScreen, size.height, size.width, tables.length, zones.length]);
+  }, [
+    fitAllTablesIntoScreen,
+    size.height,
+    size.width,
+    tables.length,
+    zones.length,
+  ]);
 
   useEffect(() => {
     if (!canvasView) return;
