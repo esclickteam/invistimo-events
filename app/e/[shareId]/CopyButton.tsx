@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Check, Copy } from "lucide-react";
 
 type Props = {
   value: string;
@@ -27,23 +28,34 @@ export default function CopyButton({ value }: Props) {
       type="button"
       onClick={copy}
       className="
-        mt-3
         inline-flex
-        h-11
+        h-10
         items-center
         justify-center
+        gap-2
         rounded-2xl
         bg-[#2F2924]
-        px-5
-        text-sm
+        px-4
+        text-xs
         font-black
         text-white
-        shadow-lg
+        shadow-[0_10px_24px_rgba(47,41,36,0.22)]
         transition
-        hover:scale-[1.01]
+        hover:-translate-y-0.5
+        hover:shadow-[0_14px_30px_rgba(47,41,36,0.30)]
       "
     >
-      {copied ? "המספר הועתק" : "העתק מספר"}
+      {copied ? (
+        <>
+          <Check className="h-4 w-4" />
+          הועתק
+        </>
+      ) : (
+        <>
+          <Copy className="h-4 w-4" />
+          העתק
+        </>
+      )}
     </button>
   );
 }

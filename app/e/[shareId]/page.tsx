@@ -76,15 +76,6 @@ function normalizeUrl(value: unknown) {
   return isValidUrl(url) ? url : "";
 }
 
-function getPublicSiteUrl() {
-  const raw =
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    "https://www.invistimo.com";
-
-  return raw.replace(/\/+$/, "");
-}
-
 function formatHebrewDate(value: unknown) {
   if (!value) return "";
 
@@ -261,6 +252,87 @@ function getNoteSettings(publicEventPage: any) {
   return { enabled, text };
 }
 
+function DarkButton({
+  href,
+  children,
+}: {
+  href: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="
+        group
+        inline-flex
+        min-h-14
+        items-center
+        justify-center
+        gap-2
+        rounded-[22px]
+        bg-gradient-to-l
+        from-[#2F2924]
+        via-[#4A3A30]
+        to-[#6B513F]
+        px-4
+        py-3
+        text-sm
+        font-black
+        text-white
+        shadow-[0_14px_34px_rgba(47,41,36,0.22)]
+        transition
+        hover:-translate-y-0.5
+        hover:shadow-[0_18px_40px_rgba(47,41,36,0.30)]
+      "
+    >
+      {children}
+    </a>
+  );
+}
+
+function LightButton({
+  href,
+  children,
+}: {
+  href: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="
+        group
+        inline-flex
+        min-h-14
+        items-center
+        justify-center
+        gap-2
+        rounded-[22px]
+        border
+        border-[#E6D4BF]
+        bg-gradient-to-l
+        from-white
+        to-[#FFF7EE]
+        px-4
+        py-3
+        text-sm
+        font-black
+        text-[#3A2E27]
+        shadow-[0_12px_28px_rgba(98,70,42,0.10)]
+        transition
+        hover:-translate-y-0.5
+        hover:shadow-[0_16px_34px_rgba(98,70,42,0.16)]
+      "
+    >
+      {children}
+    </a>
+  );
+}
+
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
@@ -412,12 +484,14 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
   };
 
   const parkingWazeUrl =
-    parking.enabled && (parking.name || parking.address || parking.lat || parking.lng)
+    parking.enabled &&
+    (parking.name || parking.address || parking.lat || parking.lng)
       ? buildWazeUrl(parkingLocation)
       : "";
 
   const parkingGoogleMapsUrl =
-    parking.enabled && (parking.name || parking.address || parking.lat || parking.lng)
+    parking.enabled &&
+    (parking.name || parking.address || parking.lat || parking.lng)
       ? buildGoogleMapsUrl(parkingLocation)
       : "";
 
@@ -425,8 +499,6 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
   const hasGifts = Boolean(gifts.creditUrl || gifts.payboxUrl || gifts.bitPhone);
 
   const note = getNoteSettings(publicEventPage);
-
-  const publicUrl = `${getPublicSiteUrl()}/e/${safeShareId}`;
 
   return (
     <main
@@ -514,36 +586,27 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
                       </p>
                     )}
 
-                    {location.address && !isSameText(location.address, location.name) && (
-                      <p className="mt-1 text-sm font-bold leading-7 text-[#746A61]">
-                        {location.address}
-                      </p>
-                    )}
+                    {location.address &&
+                      !isSameText(location.address, location.name) && (
+                        <p className="mt-1 text-sm font-bold leading-7 text-[#746A61]">
+                          {location.address}
+                        </p>
+                      )}
 
                     {(wazeUrl || googleMapsUrl) && (
-                      <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div className="mt-5 grid grid-cols-2 gap-3">
                         {wazeUrl && (
-                          <a
-                            href={wazeUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[#2F2924] px-5 py-3 text-sm font-black text-white shadow-lg shadow-[#2F2924]/15 transition hover:scale-[1.01]"
-                          >
-                            <Navigation className="h-4 w-4" />
-                            פתח ב־Waze
-                          </a>
+                          <DarkButton href={wazeUrl}>
+                            <Navigation className="h-4 w-4 transition group-hover:-translate-x-0.5" />
+                            Waze
+                          </DarkButton>
                         )}
 
                         {googleMapsUrl && (
-                          <a
-                            href={googleMapsUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-[#E7D7C7] bg-white px-5 py-3 text-sm font-black text-[#2F2924] shadow-sm transition hover:scale-[1.01]"
-                          >
-                            <MapPin className="h-4 w-4" />
-                            פתח במפות
-                          </a>
+                          <LightButton href={googleMapsUrl}>
+                            <MapPin className="h-4 w-4 text-[#9A6B43] transition group-hover:-translate-x-0.5" />
+                            מפות
+                          </LightButton>
                         )}
                       </div>
                     )}
@@ -575,11 +638,12 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
                         </p>
                       )}
 
-                      {parking.address && !isSameText(parking.address, parking.name) && (
-                        <p className="mt-1 text-sm font-bold leading-7 text-[#746A61]">
-                          {parking.address}
-                        </p>
-                      )}
+                      {parking.address &&
+                        !isSameText(parking.address, parking.name) && (
+                          <p className="mt-1 text-sm font-bold leading-7 text-[#746A61]">
+                            {parking.address}
+                          </p>
+                        )}
 
                       {parking.instructions && (
                         <p className="mt-4 whitespace-pre-line rounded-2xl bg-[#F8F0E7] px-4 py-3 text-sm font-bold leading-7 text-[#665A50]">
@@ -588,29 +652,19 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
                       )}
 
                       {(parkingWazeUrl || parkingGoogleMapsUrl) && (
-                        <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div className="mt-5 grid grid-cols-2 gap-3">
                           {parkingWazeUrl && (
-                            <a
-                              href={parkingWazeUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[#2F2924] px-5 py-3 text-sm font-black text-white shadow-lg shadow-[#2F2924]/15 transition hover:scale-[1.01]"
-                            >
-                              <Navigation className="h-4 w-4" />
-                              פתח חניה ב־Waze
-                            </a>
+                            <DarkButton href={parkingWazeUrl}>
+                              <Navigation className="h-4 w-4 transition group-hover:-translate-x-0.5" />
+                              Waze לחניה
+                            </DarkButton>
                           )}
 
                           {parkingGoogleMapsUrl && (
-                            <a
-                              href={parkingGoogleMapsUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-[#E7D7C7] bg-white px-5 py-3 text-sm font-black text-[#2F2924] shadow-sm transition hover:scale-[1.01]"
-                            >
-                              <MapPin className="h-4 w-4" />
-                              פתח חניה במפות
-                            </a>
+                            <LightButton href={parkingGoogleMapsUrl}>
+                              <MapPin className="h-4 w-4 text-[#9A6B43] transition group-hover:-translate-x-0.5" />
+                              מפות לחניה
+                            </LightButton>
                           )}
                         </div>
                       )}
@@ -635,30 +689,49 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
                       ניתן לשלוח מתנה בדרך שנוחה לכם.
                     </p>
 
-                    <div className="mt-5 grid grid-cols-1 gap-3">
+                    <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
                       {gifts.creditUrl && (
                         <a
                           href={gifts.creditUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex min-h-14 items-center justify-between rounded-2xl border border-[#E8D9CB] bg-white px-4 py-3 text-right shadow-sm transition hover:scale-[1.01]"
+                          className="
+                            group
+                            flex
+                            min-h-[132px]
+                            flex-col
+                            items-center
+                            justify-center
+                            gap-3
+                            rounded-[26px]
+                            border
+                            border-[#E8D9CB]
+                            bg-gradient-to-b
+                            from-white
+                            to-[#FFF7EE]
+                            px-4
+                            py-5
+                            text-center
+                            shadow-[0_14px_34px_rgba(98,70,42,0.10)]
+                            transition
+                            hover:-translate-y-1
+                            hover:shadow-[0_20px_44px_rgba(98,70,42,0.16)]
+                          "
                         >
-                          <span className="flex items-center gap-3">
-                            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#F3E4D1]">
-                              <CreditCard className="h-5 w-5 text-[#8A6748]" />
-                            </span>
+                          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F3E4D1] shadow-sm">
+                            <CreditCard className="h-5 w-5 text-[#8A6748]" />
+                          </span>
 
-                            <span>
-                              <span className="block text-sm font-black text-[#2F2924]">
-                                מתנה באשראי
-                              </span>
-                              <span className="block text-xs font-bold text-[#8A8178]">
-                                תשלום מאובטח בקישור
-                              </span>
+                          <span>
+                            <span className="block text-sm font-black text-[#2F2924]">
+                              אשראי
+                            </span>
+                            <span className="mt-1 block text-xs font-bold leading-5 text-[#8A8178]">
+                              תשלום מאובטח
                             </span>
                           </span>
 
-                          <span className="text-lg font-black text-[#8A6748]">
+                          <span className="text-lg font-black text-[#8A6748] transition group-hover:-translate-x-1">
                             ←
                           </span>
                         </a>
@@ -669,45 +742,88 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
                           href={gifts.payboxUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex min-h-14 items-center justify-between rounded-2xl border border-[#E8D9CB] bg-white px-4 py-3 text-right shadow-sm transition hover:scale-[1.01]"
+                          className="
+                            group
+                            flex
+                            min-h-[132px]
+                            flex-col
+                            items-center
+                            justify-center
+                            gap-3
+                            rounded-[26px]
+                            border
+                            border-[#E8D9CB]
+                            bg-gradient-to-b
+                            from-white
+                            to-[#F5F8FF]
+                            px-4
+                            py-5
+                            text-center
+                            shadow-[0_14px_34px_rgba(73,108,168,0.10)]
+                            transition
+                            hover:-translate-y-1
+                            hover:shadow-[0_20px_44px_rgba(73,108,168,0.16)]
+                          "
                         >
-                          <span className="flex items-center gap-3">
-                            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#EEF3FF]">
-                              <Smartphone className="h-5 w-5 text-[#496CA8]" />
-                            </span>
+                          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#EEF3FF] shadow-sm">
+                            <Smartphone className="h-5 w-5 text-[#496CA8]" />
+                          </span>
 
-                            <span>
-                              <span className="block text-sm font-black text-[#2F2924]">
-                                PayBox
-                              </span>
-                              <span className="block text-xs font-bold text-[#8A8178]">
-                                פתיחה ישירה באפליקציה / בדפדפן
-                              </span>
+                          <span>
+                            <span className="block text-sm font-black text-[#2F2924]">
+                              PayBox
+                            </span>
+                            <span className="mt-1 block text-xs font-bold leading-5 text-[#8A8178]">
+                              פתיחה בקישור
                             </span>
                           </span>
 
-                          <span className="text-lg font-black text-[#8A6748]">
+                          <span className="text-lg font-black text-[#8A6748] transition group-hover:-translate-x-1">
                             ←
                           </span>
                         </a>
                       )}
 
                       {gifts.bitPhone && (
-                        <div className="rounded-2xl border border-[#E8D9CB] bg-white px-4 py-4 text-center shadow-sm">
-                          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-[#F4DEE3]">
+                        <div
+                          className="
+                            flex
+                            min-h-[132px]
+                            flex-col
+                            items-center
+                            justify-center
+                            gap-3
+                            rounded-[26px]
+                            border
+                            border-[#E8D9CB]
+                            bg-gradient-to-b
+                            from-white
+                            to-[#FFF3F6]
+                            px-4
+                            py-5
+                            text-center
+                            shadow-[0_14px_34px_rgba(185,77,99,0.10)]
+                            transition
+                            hover:-translate-y-1
+                            hover:shadow-[0_20px_44px_rgba(185,77,99,0.16)]
+                          "
+                        >
+                          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F4DEE3] shadow-sm">
                             <Heart className="h-5 w-5 fill-[#B94D63] text-[#B94D63]" />
-                          </div>
+                          </span>
 
-                          <p className="mt-3 text-sm font-black text-[#2F2924]">
-                            Bit
-                          </p>
+                          <span>
+                            <span className="block text-sm font-black text-[#2F2924]">
+                              Bit
+                            </span>
 
-                          <p
-                            className="mt-2 text-lg font-black tracking-wide text-[#2F2924]"
-                            dir="ltr"
-                          >
-                            {gifts.bitPhone}
-                          </p>
+                            <span
+                              className="mt-1 block text-sm font-black tracking-wide text-[#2F2924]"
+                              dir="ltr"
+                            >
+                              {gifts.bitPhone}
+                            </span>
+                          </span>
 
                           <CopyButton value={gifts.bitPhone} />
                         </div>
@@ -729,10 +845,6 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
             <section className="rounded-[2rem] border border-white/80 bg-white/70 p-5 text-center shadow-sm">
               <p className="text-lg font-black text-[#2F2924]">
                 נשמח לראותכם ❤️
-              </p>
-
-              <p className="mt-2 break-all text-xs font-bold text-[#8A8178]">
-                {publicUrl}
               </p>
             </section>
           </div>
