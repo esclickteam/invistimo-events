@@ -132,7 +132,7 @@ function SeatingEditorInner({
 
     try {
       return stageRef.current.toDataURL({
-        pixelRatio: 4,
+        pixelRatio: 6,
         mimeType: "image/png",
       });
     } catch (error) {

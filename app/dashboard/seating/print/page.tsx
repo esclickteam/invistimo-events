@@ -46,10 +46,7 @@ function getGuestId(guest: Guest) {
 }
 
 function buildTableRows(table: Table, guestMap: Map<string, Guest>) {
-  const seatedGuests = Array.isArray(table.seatedGuests)
-    ? table.seatedGuests
-    : [];
-
+  const seatedGuests = Array.isArray(table.seatedGuests) ? table.seatedGuests : [];
   const rowsMap = new Map<string, TableRow>();
 
   seatedGuests.forEach((seat) => {
@@ -85,6 +82,7 @@ function SeatingPrintPageInner() {
   const eventId = params.get("eventId");
   const format = (params.get("format") || "pdf") as ExportFormat;
   const mode = params.get("mode") || "standard";
+  const includeGuests = params.get("includeGuests") !== "0";
 
   const exportRef = useRef<HTMLDivElement | null>(null);
   const didAutoExportRef = useRef(false);
@@ -92,6 +90,7 @@ function SeatingPrintPageInner() {
   const [tables, setTables] = useState<Table[]>([]);
   const [guests, setGuests] = useState<Guest[]>([]);
   const [mapImage, setMapImage] = useState("");
+  const [mapImageReady, setMapImageReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [exportingImage, setExportingImage] = useState(false);
 
@@ -100,9 +99,13 @@ function SeatingPrintPageInner() {
       const savedImage = sessionStorage.getItem("seatingMapImage");
       if (savedImage) {
         setMapImage(savedImage);
+        return;
       }
+
+      setMapImageReady(true);
     } catch (error) {
       console.error("Failed reading seating map image:", error);
+      setMapImageReady(true);
     }
   }, []);
 
@@ -188,7 +191,7 @@ function SeatingPrintPageInner() {
 
       const canvas = await html2canvas(exportRef.current, {
         backgroundColor: "#ffffff",
-        scale: 3,
+        scale: 4,
         useCORS: true,
         logging: false,
         windowWidth: exportRef.current.scrollWidth,
@@ -196,12 +199,15 @@ function SeatingPrintPageInner() {
       });
 
       const mimeType = imageFormat === "jpg" ? "image/jpeg" : "image/png";
-      const quality = imageFormat === "jpg" ? 0.95 : undefined;
+      const quality = imageFormat === "jpg" ? 0.98 : undefined;
       const dataUrl = canvas.toDataURL(mimeType, quality);
 
       const link = document.createElement("a");
       link.href = dataUrl;
-      link.download = `seating-map-${eventId || "event"}.${imageFormat}`;
+      link.download = includeGuests
+        ? `seating-map-with-guests-${eventId || "event"}.${imageFormat}`
+        : `seating-map-${eventId || "event"}.${imageFormat}`;
+
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -219,21 +225,22 @@ function SeatingPrintPageInner() {
 
   useEffect(() => {
     if (loading) return;
+    if (mapImage && !mapImageReady) return;
     if (didAutoExportRef.current) return;
 
     didAutoExportRef.current = true;
 
     const timer = window.setTimeout(() => {
       if (format === "png" || format === "jpg") {
-        downloadAsImage(format);
+        void downloadAsImage(format);
         return;
       }
 
       openPrintDialog();
-    }, 900);
+    }, 1200);
 
     return () => window.clearTimeout(timer);
-  }, [loading, format]);
+  }, [loading, format, mapImage, mapImageReady]);
 
   if (loading) {
     return (
@@ -255,11 +262,9 @@ function SeatingPrintPageInner() {
     <div className="min-h-screen bg-[#F7F3EC] px-4 py-6 text-right print:bg-white print:px-0 print:py-0">
       <div className="mx-auto mb-5 flex max-w-6xl items-center justify-between gap-3 print:hidden">
         <div>
-          <h1 className="text-xl font-black text-[#2F241C]">
-            ייצוא סידור הושבה
-          </h1>
+          <h1 className="text-xl font-black text-[#2F241C]">ייצוא סידור הושבה</h1>
           <p className="mt-1 text-sm font-bold text-[#8A7A68]">
-            מפה אמיתית + רשימת אורחים לפי שולחנות
+            {includeGuests ? "מפה + רשימת אורחים לפי שולחנות" : "רק מפת שולחנות"}
           </p>
         </div>
 
@@ -274,7 +279,7 @@ function SeatingPrintPageInner() {
 
           <button
             type="button"
-            onClick={() => downloadAsImage("png")}
+            onClick={() => void downloadAsImage("png")}
             disabled={exportingImage}
             className="rounded-2xl border border-[#E4D4BE] bg-white px-4 py-2 text-sm font-black text-[#3B2A1D] shadow-sm hover:bg-[#FFF8EF] disabled:opacity-50"
           >
@@ -283,7 +288,7 @@ function SeatingPrintPageInner() {
 
           <button
             type="button"
-            onClick={() => downloadAsImage("jpg")}
+            onClick={() => void downloadAsImage("jpg")}
             disabled={exportingImage}
             className="rounded-2xl border border-[#E4D4BE] bg-white px-4 py-2 text-sm font-black text-[#3B2A1D] shadow-sm hover:bg-[#FFF8EF] disabled:opacity-50"
           >
@@ -299,28 +304,21 @@ function SeatingPrintPageInner() {
       >
         <header className="mb-8 border-b border-[#E8DDD0] pb-5 text-center">
           <div className="text-sm font-black text-[#A58A67]">INVISTIMO</div>
-
-          <h1 className="mt-2 text-3xl font-black text-[#2F241C]">
-            סידור הושבה
-          </h1>
-
+          <h1 className="mt-2 text-3xl font-black text-[#2F241C]">סידור הושבה</h1>
           <p className="mt-2 text-sm font-bold text-[#7A6A5A]">
-            מפת שולחנות + רשימת אורחים לפי שולחנות
+            {includeGuests ? "מפת שולחנות + רשימת אורחים לפי שולחנות" : "מפת שולחנות"}
           </p>
 
           <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-sm font-black text-[#3F2F1F]">
             <span className="rounded-full bg-[#F6F1EA] px-4 py-2">
               שולחנות: {tablesWithRows.length}
             </span>
-
             <span className="rounded-full bg-[#F6F1EA] px-4 py-2">
               הושבו: {totalSeated}
             </span>
-
             <span className="rounded-full bg-[#F6F1EA] px-4 py-2">
               מקומות: {totalCapacity}
             </span>
-
             <span className="rounded-full bg-[#F6F1EA] px-4 py-2">
               מצב: {mode === "print" ? "הדפסה" : "רגיל"}
             </span>
@@ -329,10 +327,7 @@ function SeatingPrintPageInner() {
 
         <section className="mb-10 break-inside-avoid">
           <div className="mb-4 flex items-center justify-between border-b border-[#EFE3D4] pb-3">
-            <h2 className="text-xl font-black text-[#2F241C]">
-              מפת שולחנות
-            </h2>
-
+            <h2 className="text-xl font-black text-[#2F241C]">מפת שולחנות</h2>
             <span className="text-sm font-bold text-[#8A7A68]">
               תצוגה אמיתית של המפה מהמערכת
             </span>
@@ -342,106 +337,109 @@ function SeatingPrintPageInner() {
             <img
               src={mapImage}
               alt="מפת שולחנות"
+              onLoad={() => setMapImageReady(true)}
+              onError={() => setMapImageReady(true)}
               className="w-full rounded-[28px] border border-[#E6D7C4] bg-[#FBF7F0] shadow-sm"
             />
           ) : (
             <div className="rounded-[28px] border border-[#E6D7C4] bg-[#FBF7F0] p-10 text-center text-base font-black text-[#8A7A68]">
-              לא נמצאה תמונת מפה. צריך לפתוח ייצוא מתוך עמוד ההושבה שבו נמצאת המפה.
+              לא נמצאה תמונת מפה. צריך לפתוח ייצוא מתוך עמוד ההושבה.
             </div>
           )}
         </section>
 
-        <section>
-          <div className="mb-4 flex items-center justify-between border-b border-[#EFE3D4] pb-3">
-            <h2 className="text-xl font-black text-[#2F241C]">
-              רשימת אורחים לפי שולחנות
-            </h2>
+        {includeGuests && (
+          <section>
+            <div className="mb-4 flex items-center justify-between border-b border-[#EFE3D4] pb-3">
+              <h2 className="text-xl font-black text-[#2F241C]">
+                רשימת אורחים לפי שולחנות
+              </h2>
 
-            <span className="text-sm font-bold text-[#8A7A68]">
-              פירוט מלא לפי שולחן
-            </span>
-          </div>
+              <span className="text-sm font-bold text-[#8A7A68]">
+                פירוט מלא לפי שולחן
+              </span>
+            </div>
 
-          <div className="grid grid-cols-3 gap-5 print:grid-cols-2 max-[900px]:grid-cols-1">
-            {tablesWithRows.map((table) => {
-              const isEmpty = table.seatedTotal === 0;
-              const isPartial =
-                table.seatedTotal > 0 && table.seatedTotal < table.capacity;
+            <div className="grid grid-cols-2 gap-5 max-[900px]:grid-cols-1 print:grid-cols-2">
+              {tablesWithRows.map((table) => {
+                const isEmpty = table.seatedTotal === 0;
+                const isPartial =
+                  table.seatedTotal > 0 && table.seatedTotal < table.capacity;
 
-              const titleColor = isEmpty
-                ? "text-emerald-700"
-                : isPartial
-                ? "text-amber-700"
-                : "text-[#2F241C]";
+                const titleColor = isEmpty
+                  ? "text-emerald-700"
+                  : isPartial
+                  ? "text-amber-700"
+                  : "text-[#2F241C]";
 
-              return (
-                <div
-                  key={getTableId(table)}
-                  className="break-inside-avoid overflow-hidden rounded-2xl border border-[#2F241C] bg-white"
-                >
-                  <div className="border-b border-[#2F241C] bg-[#F6F1EA] px-4 py-3 text-center">
-                    <div className={`text-base font-black ${titleColor}`}>
-                      {table.name}
+                return (
+                  <div
+                    key={getTableId(table)}
+                    className="break-inside-avoid overflow-hidden rounded-2xl border border-[#2F241C] bg-white"
+                  >
+                    <div className="border-b border-[#2F241C] bg-[#F6F1EA] px-4 py-3 text-center">
+                      <div className={`text-base font-black ${titleColor}`}>
+                        {table.name}
+                      </div>
+
+                      <div className="mt-1 text-xs font-black text-[#6F6257]">
+                        {table.seatedTotal}/{table.capacity} מקומות
+                      </div>
                     </div>
 
-                    <div className="mt-1 text-xs font-black text-[#6F6257]">
-                      {table.seatedTotal}/{table.capacity} מקומות
-                    </div>
-                  </div>
+                    <table className="w-full border-collapse text-sm">
+                      <thead>
+                        <tr className="bg-[#F2EEE8]">
+                          <th className="border-b border-[#2F241C] px-3 py-2 text-right font-black">
+                            שם
+                          </th>
 
-                  <table className="w-full border-collapse text-sm">
-                    <thead>
-                      <tr className="bg-[#F2EEE8]">
-                        <th className="border-b border-[#2F241C] px-3 py-2 text-right font-black">
-                          שם
-                        </th>
+                          <th className="w-20 border-b border-r border-[#2F241C] px-3 py-2 text-center font-black">
+                            כמות
+                          </th>
+                        </tr>
+                      </thead>
 
-                        <th className="w-20 border-b border-r border-[#2F241C] px-3 py-2 text-center font-black">
-                          כמות
-                        </th>
-                      </tr>
-                    </thead>
+                      <tbody>
+                        {table.rows.length ? (
+                          table.rows.map((row) => (
+                            <tr key={row.guestId}>
+                              <td className="border-b border-[#D8CFC4] px-3 py-2 font-bold text-[#2F241C]">
+                                {row.name}
+                              </td>
 
-                    <tbody>
-                      {table.rows.length ? (
-                        table.rows.map((row) => (
-                          <tr key={row.guestId}>
-                            <td className="border-b border-[#D8CFC4] px-3 py-2 font-bold text-[#2F241C]">
-                              {row.name}
-                            </td>
-
-                            <td className="border-b border-r border-[#D8CFC4] px-3 py-2 text-center font-black text-[#2F241C]">
-                              {row.count}
+                              <td className="border-b border-r border-[#D8CFC4] px-3 py-2 text-center font-black text-[#2F241C]">
+                                {row.count}
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td
+                              colSpan={2}
+                              className="px-3 py-4 text-center text-sm font-bold text-[#9A8B7D]"
+                            >
+                              אין אורחים בשולחן זה
                             </td>
                           </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td
-                            colSpan={2}
-                            className="px-3 py-4 text-center text-sm font-bold text-[#9A8B7D]"
-                          >
-                            אין אורחים בשולחן זה
+                        )}
+                      </tbody>
+
+                      <tfoot>
+                        <tr className="bg-[#FBF7F0] font-black">
+                          <td className="px-3 py-2 text-[#2F241C]">סה״כ</td>
+                          <td className="border-r border-[#2F241C] px-3 py-2 text-center text-[#2F241C]">
+                            {table.seatedTotal}
                           </td>
                         </tr>
-                      )}
-                    </tbody>
-
-                    <tfoot>
-                      <tr className="bg-[#FBF7F0] font-black">
-                        <td className="px-3 py-2 text-[#2F241C]">סה״כ</td>
-
-                        <td className="border-r border-[#2F241C] px-3 py-2 text-center text-[#2F241C]">
-                          {table.seatedTotal}
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              );
-            })}
-          </div>
-        </section>
+                      </tfoot>
+                    </table>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
       </div>
 
       <style>{`
