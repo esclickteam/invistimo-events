@@ -72,47 +72,41 @@ export default function ExportSeatingPdf({
     }
   };
 
-  const openPdfExport = (contentType: ExportContentType) => {
+  const openPrintExport = (contentType: ExportContentType) => {
+    if (!eventId) return;
+
+    const params = new URLSearchParams();
+
+    params.set("eventId", eventId);
+    params.set("includeGuests", contentType === "with-guests" ? "1" : "0");
+    params.set("format", "pdf");
+    params.set("mode", "print");
+
+    window.open(`/dashboard/seating/print?${params.toString()}`, "_blank");
+  };
+
+  const handleExport = async (contentType: ExportContentType) => {
     if (!eventId || isWorking) return;
 
     try {
       setIsWorking(true);
 
-      const image = saveRealMapImage();
-
-      if (!image) {
-        alert("לא הצלחתי לקחת תמונה של המפה. נסי שוב מתוך עמוד ההושבה.");
-        return;
-      }
-
-      const params = new URLSearchParams();
-
-      params.set("eventId", eventId);
-      params.set("includeGuests", contentType === "with-guests" ? "1" : "0");
-      params.set("format", "pdf");
-      params.set("mode", "print");
-
-      window.open(`/dashboard/seating/print?${params.toString()}`, "_blank");
+      saveRealMapImage();
+      openPrintExport(contentType);
       setIsExportMenuOpen(false);
     } catch (error) {
-      console.error("PDF export failed:", error);
+      console.error("Export failed:", error);
       alert("הייצוא נכשל. נסי שוב.");
     } finally {
       setIsWorking(false);
     }
   };
 
-  const PdfOption = ({
+  const PdfExportButton = ({
     title,
-    description,
-    icon,
-    badge,
     onClick,
   }: {
     title: string;
-    description: string;
-    icon: string;
-    badge?: string;
     onClick: () => void;
   }) => {
     return (
@@ -120,30 +114,56 @@ export default function ExportSeatingPdf({
         type="button"
         onClick={onClick}
         disabled={isWorking}
-        className="flex min-h-[118px] w-full items-center gap-4 rounded-3xl border border-[#EFE3D4] bg-white p-5 text-right transition hover:bg-[#FFF8EF] disabled:cursor-not-allowed disabled:opacity-50"
+        className="flex min-h-[78px] w-full items-center justify-between gap-3 rounded-2xl border border-[#EFE3D4] bg-white px-4 py-3 text-right transition hover:bg-[#FFF8EF] disabled:cursor-not-allowed disabled:opacity-50"
       >
-        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-[#F6F1EA] text-3xl">
-          {icon}
+        <div className="flex min-w-0 flex-col">
+          <span className="text-base font-black text-[#2F241C]">{title}</span>
+          <span className="mt-1 text-xs font-bold text-[#8A7A68]">
+            ייצוא לקובץ PDF
+          </span>
         </div>
 
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-lg font-black text-[#2F241C]">
-              {title}
-            </span>
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#F6F1EA] text-xl">
+          📄
+        </div>
+      </button>
+    );
+  };
 
-            {badge ? (
+  const ExportCard = ({
+    title,
+    description,
+    contentType,
+    isRecommended,
+  }: {
+    title: string;
+    description: string;
+    contentType: ExportContentType;
+    isRecommended?: boolean;
+  }) => {
+    return (
+      <section className="rounded-[28px] border border-[#EFE3D4] bg-[#FCFAF7] p-4">
+        <div className="mb-4">
+          <div className="flex items-center gap-2">
+            <h4 className="text-lg font-black text-[#2F241C]">{title}</h4>
+
+            {isRecommended ? (
               <span className="rounded-full bg-[#18213D] px-2.5 py-1 text-xs font-black text-white">
-                {badge}
+                מומלץ
               </span>
             ) : null}
           </div>
 
-          <p className="mt-2 text-sm font-bold leading-6 text-[#8A7A68]">
+          <p className="mt-1 text-xs font-bold leading-5 text-[#8A7A68]">
             {description}
           </p>
         </div>
-      </button>
+
+        <PdfExportButton
+          title="ייצוא PDF"
+          onClick={() => void handleExport(contentType)}
+        />
+      </section>
     );
   };
 
@@ -156,7 +176,7 @@ export default function ExportSeatingPdf({
         disabled={!eventId || isWorking}
         className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#E4D4BE] bg-white px-5 py-3 text-sm font-black text-[#3B2A1D] shadow-sm transition hover:bg-[#FFF8EF] disabled:cursor-not-allowed disabled:opacity-50"
       >
-        📄 ייצוא PDF
+        📤 ייצוא PDF
       </Button>
 
       {isExportMenuOpen && (
@@ -167,16 +187,16 @@ export default function ExportSeatingPdf({
           <div
             dir="rtl"
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-3xl rounded-[32px] bg-white p-5 shadow-2xl sm:p-6"
+            className="w-full max-w-4xl rounded-[32px] bg-white p-5 shadow-2xl"
           >
             <div className="mb-5 flex items-start justify-between gap-4 border-b border-[#EFE3D4] pb-4">
-              <div className="min-w-0">
+              <div>
                 <h3 className="text-xl font-black text-[#2F241C]">
-                  ייצוא PDF
+                  ייצוא מפת שולחנות
                 </h3>
 
                 <p className="mt-1 text-sm font-semibold text-[#8A7A68]">
-                  בחרי מה להכניס לקובץ ה־PDF
+                  בחרי איזה PDF לייצא
                 </p>
               </div>
 
@@ -189,25 +209,19 @@ export default function ExportSeatingPdf({
               </button>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <PdfOption
-                icon="🪑"
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <ExportCard
                 title="רק מפת שולחנות"
-                badge="מומלץ"
-                description="המפה בלבד, בעמוד אחד, בלי רשימת אורחים."
-                onClick={() => openPdfExport("map-only")}
+                description="ייצוא PDF של מפת השולחנות בלבד."
+                contentType="map-only"
+                isRecommended
               />
 
-              <PdfOption
-                icon="👥"
+              <ExportCard
                 title="מפה + רשימת אורחים"
-                description="מפת שולחנות ולאחריה פירוט אורחים לפי שולחנות."
-                onClick={() => openPdfExport("with-guests")}
+                description="ייצוא PDF עם תמונת מפה אמיתית ופירוט אורחים לפי שולחנות."
+                contentType="with-guests"
               />
-            </div>
-
-            <div className="mt-5 rounded-2xl bg-[#FCFAF7] px-4 py-3 text-center text-xs font-bold text-[#8A7A68]">
-              אחרי הלחיצה ייפתח חלון הדפסה — לבחור שם Save as PDF / שמירה כ־PDF.
             </div>
           </div>
         </div>
