@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import html2canvas from "html2canvas";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 type Guest = {
@@ -20,11 +21,6 @@ type Table = {
   id?: string;
   _id?: string;
   name: string;
-  type?: string;
-  x?: number;
-  y?: number;
-  width?: number;
-  height?: number;
   seats?: number;
   seatedGuests?: SeatedGuest[];
 };
@@ -49,38 +45,11 @@ function getGuestId(guest: Guest) {
   return getId(guest.id || guest._id);
 }
 
-function getTableSize(table: Table) {
-  const type = String(table.type || "").toLowerCase();
-
-  if (Number(table.width) > 0 && Number(table.height) > 0) {
-    return {
-      width: Number(table.width),
-      height: Number(table.height),
-    };
-  }
-
-  if (type === "banquet") {
-    return {
-      width: 260,
-      height: 120,
-    };
-  }
-
-  if (type === "square") {
-    return {
-      width: 170,
-      height: 170,
-    };
-  }
-
-  return {
-    width: 180,
-    height: 180,
-  };
-}
-
 function buildTableRows(table: Table, guestMap: Map<string, Guest>) {
-  const seatedGuests = Array.isArray(table.seatedGuests) ? table.seatedGuests : [];
+  const seatedGuests = Array.isArray(table.seatedGuests)
+    ? table.seatedGuests
+    : [];
+
   const rowsMap = new Map<string, TableRow>();
 
   seatedGuests.forEach((seat) => {
@@ -110,7 +79,7 @@ function buildTableRows(table: Table, guestMap: Map<string, Guest>) {
   return Array.from(rowsMap.values());
 }
 
-export default function SeatingPrintPage() {
+function SeatingPrintPageInner() {
   const params = useSearchParams();
 
   const eventId = params.get("eventId");
@@ -122,8 +91,20 @@ export default function SeatingPrintPage() {
 
   const [tables, setTables] = useState<Table[]>([]);
   const [guests, setGuests] = useState<Guest[]>([]);
+  const [mapImage, setMapImage] = useState("");
   const [loading, setLoading] = useState(true);
   const [exportingImage, setExportingImage] = useState(false);
+
+  useEffect(() => {
+    try {
+      const savedImage = sessionStorage.getItem("seatingMapImage");
+      if (savedImage) {
+        setMapImage(savedImage);
+      }
+    } catch (error) {
+      console.error("Failed reading seating map image:", error);
+    }
+  }, []);
 
   useEffect(() => {
     if (!eventId) {
@@ -168,7 +149,9 @@ export default function SeatingPrintPage() {
 
     guests.forEach((guest) => {
       const guestId = getGuestId(guest);
-      if (guestId) map.set(guestId, guest);
+      if (guestId) {
+        map.set(guestId, guest);
+      }
     });
 
     return map;
@@ -197,59 +180,11 @@ export default function SeatingPrintPage() {
     return tablesWithRows.reduce((sum, table) => sum + table.capacity, 0);
   }, [tablesWithRows]);
 
-  const mapBounds = useMemo(() => {
-    if (!tables.length) {
-      return {
-        minX: 0,
-        minY: 0,
-        width: 1000,
-        height: 600,
-      };
-    }
-
-    const padding = 140;
-
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-
-    tables.forEach((table) => {
-      const x = Number(table.x || 0);
-      const y = Number(table.y || 0);
-      const size = getTableSize(table);
-
-      minX = Math.min(minX, x);
-      minY = Math.min(minY, y);
-      maxX = Math.max(maxX, x + size.width);
-      maxY = Math.max(maxY, y + size.height);
-    });
-
-    const safeMinX = Number.isFinite(minX) ? minX : 0;
-    const safeMinY = Number.isFinite(minY) ? minY : 0;
-    const safeMaxX = Number.isFinite(maxX) ? maxX : 1000;
-    const safeMaxY = Number.isFinite(maxY) ? maxY : 600;
-
-    return {
-      minX: safeMinX - padding,
-      minY: safeMinY - padding,
-      width: Math.max(900, safeMaxX - safeMinX + padding * 2),
-      height: Math.max(520, safeMaxY - safeMinY + padding * 2),
-    };
-  }, [tables]);
-
   const downloadAsImage = async (imageFormat: "png" | "jpg") => {
     if (!exportRef.current) return;
 
     try {
       setExportingImage(true);
-
-      const importer = new Function("moduleName", "return import(moduleName)") as (
-        moduleName: string
-      ) => Promise<{ default: any }>;
-
-      const html2canvasModule = await importer("html2canvas");
-      const html2canvas = html2canvasModule.default;
 
       const canvas = await html2canvas(exportRef.current, {
         backgroundColor: "#ffffff",
@@ -272,10 +207,14 @@ export default function SeatingPrintPage() {
       document.body.removeChild(link);
     } catch (error) {
       console.error("Image export failed:", error);
-      alert("לא הצלחתי לייצא תמונה. צריך להתקין html2canvas: npm install html2canvas");
+      alert("לא הצלחתי לייצא תמונה.");
     } finally {
       setExportingImage(false);
     }
+  };
+
+  const openPrintDialog = () => {
+    window.print();
   };
 
   useEffect(() => {
@@ -290,8 +229,8 @@ export default function SeatingPrintPage() {
         return;
       }
 
-      window.print();
-    }, 700);
+      openPrintDialog();
+    }, 900);
 
     return () => window.clearTimeout(timer);
   }, [loading, format]);
@@ -316,104 +255,150 @@ export default function SeatingPrintPage() {
     <div className="min-h-screen bg-[#F7F3EC] px-4 py-6 text-right print:bg-white print:px-0 print:py-0">
       <div className="mx-auto mb-5 flex max-w-6xl items-center justify-between gap-3 print:hidden">
         <div>
-          <h1 className="text-xl font-black text-[#2F241C]">ייצוא סידור הושבה</h1>
-          <p className="mt-1 text-sm font-bold text-[#8A7A68]">מפה + רשימת אורחים לפי שולחנות</p>
+          <h1 className="text-xl font-black text-[#2F241C]">
+            ייצוא סידור הושבה
+          </h1>
+          <p className="mt-1 text-sm font-bold text-[#8A7A68]">
+            מפה אמיתית + רשימת אורחים לפי שולחנות
+          </p>
         </div>
 
         <div className="flex items-center gap-2">
-          <button type="button" onClick={() => window.print()} className="rounded-2xl bg-[#2F241C] px-4 py-2 text-sm font-black text-white shadow-sm hover:bg-black">
+          <button
+            type="button"
+            onClick={openPrintDialog}
+            className="rounded-2xl bg-[#2F241C] px-4 py-2 text-sm font-black text-white shadow-sm hover:bg-black"
+          >
             הדפסה / PDF
           </button>
 
-          <button type="button" onClick={() => downloadAsImage("png")} disabled={exportingImage} className="rounded-2xl border border-[#E4D4BE] bg-white px-4 py-2 text-sm font-black text-[#3B2A1D] shadow-sm hover:bg-[#FFF8EF] disabled:opacity-50">
+          <button
+            type="button"
+            onClick={() => downloadAsImage("png")}
+            disabled={exportingImage}
+            className="rounded-2xl border border-[#E4D4BE] bg-white px-4 py-2 text-sm font-black text-[#3B2A1D] shadow-sm hover:bg-[#FFF8EF] disabled:opacity-50"
+          >
             PNG
           </button>
 
-          <button type="button" onClick={() => downloadAsImage("jpg")} disabled={exportingImage} className="rounded-2xl border border-[#E4D4BE] bg-white px-4 py-2 text-sm font-black text-[#3B2A1D] shadow-sm hover:bg-[#FFF8EF] disabled:opacity-50">
+          <button
+            type="button"
+            onClick={() => downloadAsImage("jpg")}
+            disabled={exportingImage}
+            className="rounded-2xl border border-[#E4D4BE] bg-white px-4 py-2 text-sm font-black text-[#3B2A1D] shadow-sm hover:bg-[#FFF8EF] disabled:opacity-50"
+          >
             JPG
           </button>
         </div>
       </div>
 
-      <div ref={exportRef} dir="rtl" className="mx-auto max-w-6xl bg-white p-8 shadow-xl print:max-w-none print:p-6 print:shadow-none">
+      <div
+        ref={exportRef}
+        dir="rtl"
+        className="mx-auto max-w-6xl bg-white p-8 shadow-xl print:max-w-none print:p-6 print:shadow-none"
+      >
         <header className="mb-8 border-b border-[#E8DDD0] pb-5 text-center">
           <div className="text-sm font-black text-[#A58A67]">INVISTIMO</div>
-          <h1 className="mt-2 text-3xl font-black text-[#2F241C]">סידור הושבה</h1>
-          <p className="mt-2 text-sm font-bold text-[#7A6A5A]">מפת שולחנות + רשימת אורחים לפי שולחנות</p>
+
+          <h1 className="mt-2 text-3xl font-black text-[#2F241C]">
+            סידור הושבה
+          </h1>
+
+          <p className="mt-2 text-sm font-bold text-[#7A6A5A]">
+            מפת שולחנות + רשימת אורחים לפי שולחנות
+          </p>
 
           <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-sm font-black text-[#3F2F1F]">
-            <span className="rounded-full bg-[#F6F1EA] px-4 py-2">שולחנות: {tablesWithRows.length}</span>
-            <span className="rounded-full bg-[#F6F1EA] px-4 py-2">הושבו: {totalSeated}</span>
-            <span className="rounded-full bg-[#F6F1EA] px-4 py-2">מקומות: {totalCapacity}</span>
-            <span className="rounded-full bg-[#F6F1EA] px-4 py-2">מצב: {mode === "print" ? "הדפסה" : "רגיל"}</span>
+            <span className="rounded-full bg-[#F6F1EA] px-4 py-2">
+              שולחנות: {tablesWithRows.length}
+            </span>
+
+            <span className="rounded-full bg-[#F6F1EA] px-4 py-2">
+              הושבו: {totalSeated}
+            </span>
+
+            <span className="rounded-full bg-[#F6F1EA] px-4 py-2">
+              מקומות: {totalCapacity}
+            </span>
+
+            <span className="rounded-full bg-[#F6F1EA] px-4 py-2">
+              מצב: {mode === "print" ? "הדפסה" : "רגיל"}
+            </span>
           </div>
         </header>
 
         <section className="mb-10 break-inside-avoid">
           <div className="mb-4 flex items-center justify-between border-b border-[#EFE3D4] pb-3">
-            <h2 className="text-xl font-black text-[#2F241C]">מפת שולחנות</h2>
-            <span className="text-sm font-bold text-[#8A7A68]">תצוגה כללית של האולם</span>
+            <h2 className="text-xl font-black text-[#2F241C]">
+              מפת שולחנות
+            </h2>
+
+            <span className="text-sm font-bold text-[#8A7A68]">
+              תצוגה אמיתית של המפה מהמערכת
+            </span>
           </div>
 
-          <div className="relative w-full overflow-hidden rounded-[28px] border border-[#E6D7C4] bg-[#FBF7F0] shadow-sm" style={{ aspectRatio: `${mapBounds.width} / ${mapBounds.height}`, minHeight: 420 }}>
-            {tablesWithRows.map((table) => {
-              const size = getTableSize(table);
-              const x = Number(table.x || 0);
-              const y = Number(table.y || 0);
-
-              const left = ((x - mapBounds.minX) / mapBounds.width) * 100;
-              const top = ((y - mapBounds.minY) / mapBounds.height) * 100;
-              const width = (size.width / mapBounds.width) * 100;
-              const height = (size.height / mapBounds.height) * 100;
-
-              const isBanquet = String(table.type || "").toLowerCase() === "banquet";
-              const isEmpty = table.seatedTotal === 0;
-              const isPartial = table.seatedTotal > 0 && table.seatedTotal < table.capacity;
-              const isFull = table.capacity > 0 && table.seatedTotal >= table.capacity;
-
-              const statusClass = isEmpty ? "border-emerald-500 bg-emerald-50 text-emerald-800" : isPartial ? "border-amber-500 bg-amber-50 text-amber-800" : isFull ? "border-[#2F241C] bg-white text-[#2F241C]" : "border-[#2F241C] bg-white text-[#2F241C]";
-              const shapeClass = isBanquet ? "rounded-[24px]" : "rounded-full";
-
-              return (
-                <div key={getTableId(table)} className={`absolute flex flex-col items-center justify-center border-2 shadow-sm ${statusClass} ${shapeClass}`} style={{ left: `${left}%`, top: `${top}%`, width: `${width}%`, height: `${height}%`, minWidth: isBanquet ? 92 : 72, minHeight: isBanquet ? 48 : 72 }}>
-                  <div className="max-w-full truncate px-2 text-center text-xs font-black md:text-sm">{table.name}</div>
-                  <div className="mt-1 text-[11px] font-black md:text-xs">{table.seatedTotal}/{table.capacity}</div>
-                </div>
-              );
-            })}
-
-            {!tablesWithRows.length && (
-              <div className="flex h-full items-center justify-center text-lg font-black text-[#8A7A68]">
-                אין שולחנות להצגה
-              </div>
-            )}
-          </div>
+          {mapImage ? (
+            <img
+              src={mapImage}
+              alt="מפת שולחנות"
+              className="w-full rounded-[28px] border border-[#E6D7C4] bg-[#FBF7F0] shadow-sm"
+            />
+          ) : (
+            <div className="rounded-[28px] border border-[#E6D7C4] bg-[#FBF7F0] p-10 text-center text-base font-black text-[#8A7A68]">
+              לא נמצאה תמונת מפה. צריך לפתוח ייצוא מתוך עמוד ההושבה שבו נמצאת המפה.
+            </div>
+          )}
         </section>
 
         <section>
           <div className="mb-4 flex items-center justify-between border-b border-[#EFE3D4] pb-3">
-            <h2 className="text-xl font-black text-[#2F241C]">רשימת אורחים לפי שולחנות</h2>
-            <span className="text-sm font-bold text-[#8A7A68]">פירוט מלא לפי שולחן</span>
+            <h2 className="text-xl font-black text-[#2F241C]">
+              רשימת אורחים לפי שולחנות
+            </h2>
+
+            <span className="text-sm font-bold text-[#8A7A68]">
+              פירוט מלא לפי שולחן
+            </span>
           </div>
 
-          <div className="grid grid-cols-3 gap-5 print:grid-cols-2">
+          <div className="grid grid-cols-3 gap-5 print:grid-cols-2 max-[900px]:grid-cols-1">
             {tablesWithRows.map((table) => {
               const isEmpty = table.seatedTotal === 0;
-              const isPartial = table.seatedTotal > 0 && table.seatedTotal < table.capacity;
-              const titleColor = isEmpty ? "text-emerald-700" : isPartial ? "text-amber-700" : "text-[#2F241C]";
+              const isPartial =
+                table.seatedTotal > 0 && table.seatedTotal < table.capacity;
+
+              const titleColor = isEmpty
+                ? "text-emerald-700"
+                : isPartial
+                ? "text-amber-700"
+                : "text-[#2F241C]";
 
               return (
-                <div key={getTableId(table)} className="break-inside-avoid overflow-hidden rounded-2xl border border-[#2F241C] bg-white">
+                <div
+                  key={getTableId(table)}
+                  className="break-inside-avoid overflow-hidden rounded-2xl border border-[#2F241C] bg-white"
+                >
                   <div className="border-b border-[#2F241C] bg-[#F6F1EA] px-4 py-3 text-center">
-                    <div className={`text-base font-black ${titleColor}`}>{table.name}</div>
-                    <div className="mt-1 text-xs font-black text-[#6F6257]">{table.seatedTotal}/{table.capacity} מקומות</div>
+                    <div className={`text-base font-black ${titleColor}`}>
+                      {table.name}
+                    </div>
+
+                    <div className="mt-1 text-xs font-black text-[#6F6257]">
+                      {table.seatedTotal}/{table.capacity} מקומות
+                    </div>
                   </div>
 
                   <table className="w-full border-collapse text-sm">
                     <thead>
                       <tr className="bg-[#F2EEE8]">
-                        <th className="border-b border-[#2F241C] px-3 py-2 text-right font-black">שם</th>
-                        <th className="w-20 border-b border-r border-[#2F241C] px-3 py-2 text-center font-black">כמות</th>
+                        <th className="border-b border-[#2F241C] px-3 py-2 text-right font-black">
+                          שם
+                        </th>
+
+                        <th className="w-20 border-b border-r border-[#2F241C] px-3 py-2 text-center font-black">
+                          כמות
+                        </th>
                       </tr>
                     </thead>
 
@@ -421,13 +406,23 @@ export default function SeatingPrintPage() {
                       {table.rows.length ? (
                         table.rows.map((row) => (
                           <tr key={row.guestId}>
-                            <td className="border-b border-[#D8CFC4] px-3 py-2 font-bold text-[#2F241C]">{row.name}</td>
-                            <td className="border-b border-r border-[#D8CFC4] px-3 py-2 text-center font-black text-[#2F241C]">{row.count}</td>
+                            <td className="border-b border-[#D8CFC4] px-3 py-2 font-bold text-[#2F241C]">
+                              {row.name}
+                            </td>
+
+                            <td className="border-b border-r border-[#D8CFC4] px-3 py-2 text-center font-black text-[#2F241C]">
+                              {row.count}
+                            </td>
                           </tr>
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={2} className="px-3 py-4 text-center text-sm font-bold text-[#9A8B7D]">אין אורחים בשולחן זה</td>
+                          <td
+                            colSpan={2}
+                            className="px-3 py-4 text-center text-sm font-bold text-[#9A8B7D]"
+                          >
+                            אין אורחים בשולחן זה
+                          </td>
                         </tr>
                       )}
                     </tbody>
@@ -435,7 +430,10 @@ export default function SeatingPrintPage() {
                     <tfoot>
                       <tr className="bg-[#FBF7F0] font-black">
                         <td className="px-3 py-2 text-[#2F241C]">סה״כ</td>
-                        <td className="border-r border-[#2F241C] px-3 py-2 text-center text-[#2F241C]">{table.seatedTotal}</td>
+
+                        <td className="border-r border-[#2F241C] px-3 py-2 text-center text-[#2F241C]">
+                          {table.seatedTotal}
+                        </td>
                       </tr>
                     </tfoot>
                   </table>
@@ -465,5 +463,19 @@ export default function SeatingPrintPage() {
         }
       `}</style>
     </div>
+  );
+}
+
+export default function SeatingPrintPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-screen w-full items-center justify-center bg-white text-lg font-bold text-gray-500">
+          טוען סידור הושבה…
+        </div>
+      }
+    >
+      <SeatingPrintPageInner />
+    </Suspense>
   );
 }

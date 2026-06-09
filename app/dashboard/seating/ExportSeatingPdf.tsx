@@ -5,15 +5,69 @@ import { Button } from "@/components/ui/button";
 
 type ExportFormat = "png" | "jpg" | "pdf-standard" | "pdf-print";
 
+type ExportSeatingPdfProps = {
+  eventId: string | null;
+  getMapImageDataUrl?: () => string | null;
+};
+
+declare global {
+  interface Window {
+    __getInvistimoSeatingMapImage?: () => string | null;
+    __saveInvistimoSeatingMapImage?: () => string | null;
+  }
+}
+
 export default function ExportSeatingPdf({
   eventId,
-}: {
-  eventId: string | null;
-}) {
+  getMapImageDataUrl,
+}: ExportSeatingPdfProps) {
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+
+  const saveRealMapImage = () => {
+    try {
+      sessionStorage.removeItem("seatingMapImage");
+
+      if (getMapImageDataUrl) {
+        const image = getMapImageDataUrl();
+
+        if (image) {
+          sessionStorage.setItem("seatingMapImage", image);
+          return;
+        }
+      }
+
+      if (
+        typeof window !== "undefined" &&
+        typeof window.__saveInvistimoSeatingMapImage === "function"
+      ) {
+        const image = window.__saveInvistimoSeatingMapImage();
+
+        if (image) {
+          sessionStorage.setItem("seatingMapImage", image);
+        }
+
+        return;
+      }
+
+      if (
+        typeof window !== "undefined" &&
+        typeof window.__getInvistimoSeatingMapImage === "function"
+      ) {
+        const image = window.__getInvistimoSeatingMapImage();
+
+        if (image) {
+          sessionStorage.setItem("seatingMapImage", image);
+        }
+      }
+    } catch (error) {
+      console.error("Failed saving seating map image:", error);
+    }
+  };
 
   const openExport = (format: ExportFormat) => {
     if (!eventId) return;
+
+    saveRealMapImage();
 
     const params = new URLSearchParams();
     params.set("eventId", eventId);
@@ -47,15 +101,7 @@ export default function ExportSeatingPdf({
         type="button"
         onClick={() => setIsExportMenuOpen(true)}
         disabled={!eventId}
-        className="
-          inline-flex items-center justify-center gap-2
-          rounded-2xl border border-[#E4D4BE]
-          bg-white px-5 py-3
-          text-sm font-black text-[#3B2A1D]
-          shadow-sm transition
-          hover:bg-[#FFF8EF]
-          disabled:cursor-not-allowed disabled:opacity-50
-        "
+        className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#E4D4BE] bg-white px-5 py-3 text-sm font-black text-[#3B2A1D] shadow-sm transition hover:bg-[#FFF8EF] disabled:cursor-not-allowed disabled:opacity-50"
       >
         📤 ייצוא מפה
       </Button>
@@ -68,12 +114,7 @@ export default function ExportSeatingPdf({
           <div
             dir="rtl"
             onClick={(e) => e.stopPropagation()}
-            className="
-              w-full max-w-xl
-              rounded-t-[32px] bg-white
-              p-5 shadow-2xl
-              md:rounded-[32px]
-            "
+            className="w-full max-w-xl rounded-t-[32px] bg-white p-5 shadow-2xl md:rounded-[32px]"
           >
             <div className="mx-auto mb-5 h-1.5 w-14 rounded-full bg-[#D8D2CA] md:hidden" />
 
@@ -91,12 +132,7 @@ export default function ExportSeatingPdf({
               <button
                 type="button"
                 onClick={() => setIsExportMenuOpen(false)}
-                className="
-                  rounded-full bg-[#F6F1EA]
-                  px-4 py-2
-                  text-sm font-black text-[#3F2F1F]
-                  transition hover:bg-[#EFE3D4]
-                "
+                className="rounded-full bg-[#F6F1EA] px-4 py-2 text-sm font-black text-[#3F2F1F] transition hover:bg-[#EFE3D4]"
               >
                 סגור
               </button>
@@ -106,12 +142,7 @@ export default function ExportSeatingPdf({
               <button
                 type="button"
                 onClick={() => openExport("png")}
-                className="
-                  flex w-full items-center gap-4
-                  border-b border-[#EFE3D4]
-                  bg-white p-5 text-right
-                  transition hover:bg-[#FFF8EF]
-                "
+                className="flex w-full items-center gap-4 border-b border-[#EFE3D4] bg-white p-5 text-right transition hover:bg-[#FFF8EF]"
               >
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#F6F1EA] text-2xl">
                   🖼️
@@ -137,21 +168,14 @@ export default function ExportSeatingPdf({
               <button
                 type="button"
                 onClick={() => openExport("jpg")}
-                className="
-                  flex w-full items-center gap-4
-                  border-b border-[#EFE3D4]
-                  bg-white p-5 text-right
-                  transition hover:bg-[#FFF8EF]
-                "
+                className="flex w-full items-center gap-4 border-b border-[#EFE3D4] bg-white p-5 text-right transition hover:bg-[#FFF8EF]"
               >
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#F6F1EA] text-2xl">
                   🖼️
                 </div>
 
                 <div className="flex-1">
-                  <div className="text-lg font-black text-[#2F241C]">
-                    JPG
-                  </div>
+                  <div className="text-lg font-black text-[#2F241C]">JPG</div>
 
                   <div className="mt-1 text-sm font-semibold text-[#7A6A5A]">
                     קובץ קל לשליחה ושיתוף
@@ -162,12 +186,7 @@ export default function ExportSeatingPdf({
               <button
                 type="button"
                 onClick={() => openExport("pdf-standard")}
-                className="
-                  flex w-full items-center gap-4
-                  border-b border-[#EFE3D4]
-                  bg-white p-5 text-right
-                  transition hover:bg-[#FFF8EF]
-                "
+                className="flex w-full items-center gap-4 border-b border-[#EFE3D4] bg-white p-5 text-right transition hover:bg-[#FFF8EF]"
               >
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#F6F1EA] text-2xl">
                   📄
@@ -187,11 +206,7 @@ export default function ExportSeatingPdf({
               <button
                 type="button"
                 onClick={() => openExport("pdf-print")}
-                className="
-                  flex w-full items-center gap-4
-                  bg-white p-5 text-right
-                  transition hover:bg-[#FFF8EF]
-                "
+                className="flex w-full items-center gap-4 bg-white p-5 text-right transition hover:bg-[#FFF8EF]"
               >
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#F6F1EA] text-2xl">
                   🖨️

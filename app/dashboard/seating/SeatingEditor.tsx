@@ -23,6 +23,16 @@ import AddGuestToTableModal from "@/app/components/AddGuestToTableModal";
 import MobileGuests from "./MobileGuests";
 
 /* ============================================================
+   GLOBAL WINDOW TYPE
+============================================================ */
+declare global {
+  interface Window {
+    __getInvistimoSeatingMapImage?: () => string | null;
+    __saveInvistimoSeatingMapImage?: () => string | null;
+  }
+}
+
+/* ============================================================
    TYPES
 ============================================================ */
 type SeatingEditorProps = {
@@ -109,10 +119,61 @@ function SeatingEditorInner({
 
   const [addGuestTable, setAddGuestTable] = useState<Table | null>(null);
 
-  /* ================= CONTAINER / VIEWPORT SIZE ================= */
+  /* ================= CONTAINER / STAGE REFS ================= */
   const containerRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<any>(null);
+
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [isMobile, setIsMobile] = useState(false);
+
+  /* ================= EXPORT REAL MAP IMAGE ================= */
+  const getSeatingMapImageDataUrl = useCallback(() => {
+    if (!stageRef.current) return null;
+
+    try {
+      return stageRef.current.toDataURL({
+        pixelRatio: 4,
+        mimeType: "image/png",
+      });
+    } catch (error) {
+      console.error("Failed creating seating map image:", error);
+      return null;
+    }
+  }, []);
+
+  const saveSeatingMapImageToSession = useCallback(() => {
+    try {
+      const image = getSeatingMapImageDataUrl();
+
+      if (!image) {
+        sessionStorage.removeItem("seatingMapImage");
+        return null;
+      }
+
+      sessionStorage.setItem("seatingMapImage", image);
+      return image;
+    } catch (error) {
+      console.error("Failed saving seating map image:", error);
+      return null;
+    }
+  }, [getSeatingMapImageDataUrl]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    window.__getInvistimoSeatingMapImage = getSeatingMapImageDataUrl;
+    window.__saveInvistimoSeatingMapImage = saveSeatingMapImageToSession;
+
+    return () => {
+      if (window.__getInvistimoSeatingMapImage === getSeatingMapImageDataUrl) {
+        delete window.__getInvistimoSeatingMapImage;
+      }
+
+      if (window.__saveInvistimoSeatingMapImage === saveSeatingMapImageToSession) {
+        delete window.__saveInvistimoSeatingMapImage;
+      }
+    };
+  }, [getSeatingMapImageDataUrl, saveSeatingMapImageToSession]);
 
   useEffect(() => {
     const updateMobile = () => {
@@ -143,6 +204,7 @@ function SeatingEditorInner({
 
     const updateSize = () => {
       const rect = viewportElement.getBoundingClientRect();
+
       setSize({
         width: Math.max(1, rect.width),
         height: Math.max(1, rect.height),
@@ -289,10 +351,6 @@ function SeatingEditorInner({
 
     if (isSameView) return;
 
-    /*
-      אחרי fit ראשוני לא מקבלים דריסות חיצוניות מה-store,
-      כדי שריענון לייב או init חוזר לא יקפיצו את הקנבס לצד.
-    */
     if (didFitCanvasOnEntryRef.current) return;
 
     setScale(canvasView.scale ?? 1);
@@ -505,13 +563,18 @@ function SeatingEditorInner({
 
     function onKeyDown(e: KeyboardEvent) {
       if (!selectedZoneId) return;
+
       if (e.key === "Delete" || e.key === "Backspace") {
         e.preventDefault();
         removeZone(selectedZoneId);
       }
     }
+
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+    };
   }, [selectedZoneId, removeZone, readOnly]);
 
   /* ================= ADD TABLE ================= */
@@ -530,9 +593,11 @@ function SeatingEditorInner({
   /* ================= UNSEATED ================= */
   const unseatedGuests = useMemo(() => {
     const seated = new Set<string>();
+
     tables.forEach((table) =>
       table.seatedGuests?.forEach((seat) => seated.add(String(seat.guestId)))
     );
+
     return guests.filter((guest) => !seated.has(String(guest.id ?? guest._id)));
   }, [tables, guests]);
 
@@ -541,9 +606,12 @@ function SeatingEditorInner({
       ref={containerRef}
       className="relative z-0 h-full w-full min-w-0 overflow-hidden"
       dir="ltr"
+      data-sidebar-open={sidebarOpen ? "true" : "false"}
+      data-dragging-guest={draggedGuest ? "true" : "false"}
     >
       {size.width > 0 && size.height > 0 && (
         <Stage
+          ref={stageRef}
           width={size.width}
           height={size.height}
           scaleX={scale}
