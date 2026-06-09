@@ -120,6 +120,7 @@ export default function ExportSeatingPdf({
     if (!eventId) return;
 
     const params = new URLSearchParams();
+
     params.set("eventId", eventId);
     params.set("includeGuests", contentType === "with-guests" ? "1" : "0");
     params.set("format", fileType);
@@ -142,11 +143,6 @@ export default function ExportSeatingPdf({
 
       const image = saveRealMapImage();
 
-      /*
-        הכי איכותי:
-        רק מפה + PNG/JPG יורד ישירות מהתמונה האמיתית של Konva,
-        בלי html2canvas ובלי צילום של הדף.
-      */
       if (
         contentType === "map-only" &&
         (fileType === "png" || fileType === "jpg")
@@ -169,10 +165,6 @@ export default function ExportSeatingPdf({
         return;
       }
 
-      /*
-        מפה + אורחים / PDF:
-        עובר לעמוד print כדי לבנות מסמך עם רשימת האורחים.
-      */
       openPrintExport(contentType, fileType);
       setIsExportMenuOpen(false);
     } catch (error) {
@@ -183,16 +175,14 @@ export default function ExportSeatingPdf({
     }
   };
 
-  const ExportRow = ({
+  const MiniExportButton = ({
     icon,
     title,
-    description,
     badge,
     onClick,
   }: {
     icon: string;
     title: string;
-    description: string;
     badge?: string;
     onClick: () => void;
   }) => {
@@ -201,28 +191,79 @@ export default function ExportSeatingPdf({
         type="button"
         onClick={onClick}
         disabled={isWorking}
-        className="flex w-full items-center gap-4 border-b border-[#EFE3D4] bg-white p-5 text-right transition last:border-b-0 hover:bg-[#FFF8EF] disabled:cursor-not-allowed disabled:opacity-50"
+        className="flex min-h-[78px] w-full items-center justify-between gap-3 rounded-2xl border border-[#EFE3D4] bg-white px-4 py-3 text-right transition hover:bg-[#FFF8EF] disabled:cursor-not-allowed disabled:opacity-50"
       >
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#F6F1EA] text-2xl">
-          {icon}
-        </div>
-
-        <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 flex-col">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-lg font-black text-[#2F241C]">{title}</span>
+            <span className="text-base font-black text-[#2F241C]">
+              {title}
+            </span>
 
             {badge ? (
-              <span className="rounded-full bg-[#18213D] px-2.5 py-1 text-xs font-black text-white">
+              <span className="rounded-full bg-[#18213D] px-2 py-0.5 text-[11px] font-black text-white">
                 {badge}
               </span>
             ) : null}
           </div>
+        </div>
 
-          <div className="mt-1 text-sm font-semibold text-[#7A6A5A]">
-            {description}
-          </div>
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#F6F1EA] text-xl">
+          {icon}
         </div>
       </button>
+    );
+  };
+
+  const ExportCard = ({
+    title,
+    description,
+    contentType,
+    isRecommended,
+  }: {
+    title: string;
+    description: string;
+    contentType: ExportContentType;
+    isRecommended?: boolean;
+  }) => {
+    return (
+      <section className="rounded-[28px] border border-[#EFE3D4] bg-[#FCFAF7] p-4">
+        <div className="mb-4">
+          <div className="flex items-center gap-2">
+            <h4 className="text-lg font-black text-[#2F241C]">{title}</h4>
+
+            {isRecommended ? (
+              <span className="rounded-full bg-[#18213D] px-2.5 py-1 text-xs font-black text-white">
+                מומלץ
+              </span>
+            ) : null}
+          </div>
+
+          <p className="mt-1 text-xs font-bold leading-5 text-[#8A7A68]">
+            {description}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2">
+          <MiniExportButton
+            icon="🖼️"
+            title="PNG"
+            badge={contentType === "map-only" ? "הכי חד" : undefined}
+            onClick={() => void handleExport(contentType, "png")}
+          />
+
+          <MiniExportButton
+            icon="🌄"
+            title="JPG"
+            onClick={() => void handleExport(contentType, "jpg")}
+          />
+
+          <MiniExportButton
+            icon="📄"
+            title="PDF"
+            onClick={() => void handleExport(contentType, "pdf")}
+          />
+        </div>
+      </section>
     );
   };
 
@@ -246,98 +287,41 @@ export default function ExportSeatingPdf({
           <div
             dir="rtl"
             onClick={(e) => e.stopPropagation()}
-            className="flex max-h-[82dvh] w-full max-w-2xl flex-col overflow-hidden rounded-[32px] bg-white shadow-2xl"
+            className="w-full max-w-4xl rounded-[32px] bg-white p-5 shadow-2xl"
           >
-            <div className="border-b border-[#EFE3D4] bg-white px-5 py-5">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h3 className="text-xl font-black text-[#2F241C]">
-                    ייצוא מפת שולחנות
-                  </h3>
+            <div className="mb-5 flex items-start justify-between gap-4 border-b border-[#EFE3D4] pb-4">
+              <div>
+                <h3 className="text-xl font-black text-[#2F241C]">
+                  ייצוא מפת שולחנות
+                </h3>
 
-                  <p className="mt-1 text-sm font-semibold text-[#8A7A68]">
-                    בחרי אם לייצא רק מפה או מפה עם רשימת אורחים
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setIsExportMenuOpen(false)}
-                  className="rounded-full bg-[#F6F1EA] px-4 py-2 text-sm font-black text-[#3F2F1F] transition hover:bg-[#EFE3D4]"
-                >
-                  סגור
-                </button>
+                <p className="mt-1 text-sm font-semibold text-[#8A7A68]">
+                  בחרי סוג ייצוא ופורמט קובץ
+                </p>
               </div>
+
+              <button
+                type="button"
+                onClick={() => setIsExportMenuOpen(false)}
+                className="shrink-0 rounded-full bg-[#F6F1EA] px-4 py-2 text-sm font-black text-[#3F2F1F] transition hover:bg-[#EFE3D4]"
+              >
+                סגור
+              </button>
             </div>
 
-            <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5">
-              <section className="overflow-hidden rounded-3xl border border-[#EFE3D4] bg-white">
-                <div className="border-b border-[#EFE3D4] bg-[#FCFAF7] px-5 py-4">
-                  <h4 className="text-base font-black text-[#2F241C]">
-                    רק מפת שולחנות
-                  </h4>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <ExportCard
+                title="רק מפת שולחנות"
+                description="הכי חד — ייצוא ישיר מהמפה המקורית בלי צילום מסך."
+                contentType="map-only"
+                isRecommended
+              />
 
-                  <p className="mt-1 text-xs font-bold text-[#8A7A68]">
-                    הכי חד — מוריד את התמונה המקורית של המפה בלי צילום מסך של הדף
-                  </p>
-                </div>
-
-                <ExportRow
-                  icon="🖼️"
-                  title="PNG"
-                  badge="הכי חד"
-                  description="רק המפה באיכות הגבוהה ביותר"
-                  onClick={() => void handleExport("map-only", "png")}
-                />
-
-                <ExportRow
-                  icon="🌄"
-                  title="JPG"
-                  description="רק המפה בקובץ קל יותר לשליחה"
-                  onClick={() => void handleExport("map-only", "jpg")}
-                />
-
-                <ExportRow
-                  icon="📄"
-                  title="PDF"
-                  description="רק המפה — יפתח חלון הדפסה לשמירה כ-PDF"
-                  onClick={() => void handleExport("map-only", "pdf")}
-                />
-              </section>
-
-              <section className="overflow-hidden rounded-3xl border border-[#EFE3D4] bg-white">
-                <div className="border-b border-[#EFE3D4] bg-[#FCFAF7] px-5 py-4">
-                  <h4 className="text-base font-black text-[#2F241C]">
-                    מפה + רשימת אורחים
-                  </h4>
-
-                  <p className="mt-1 text-xs font-bold text-[#8A7A68]">
-                    כולל תמונת מפה אמיתית ופירוט אורחים לפי שולחנות
-                  </p>
-                </div>
-
-                <ExportRow
-                  icon="🖼️"
-                  title="PNG"
-                  badge="מומלץ"
-                  description="מפה + רשימת אורחים בתמונה אחת"
-                  onClick={() => void handleExport("with-guests", "png")}
-                />
-
-                <ExportRow
-                  icon="🌄"
-                  title="JPG"
-                  description="מפה + רשימת אורחים בקובץ קל לשיתוף"
-                  onClick={() => void handleExport("with-guests", "jpg")}
-                />
-
-                <ExportRow
-                  icon="📄"
-                  title="PDF"
-                  description="מפה + רשימת אורחים — לשמירה כ-PDF"
-                  onClick={() => void handleExport("with-guests", "pdf")}
-                />
-              </section>
+              <ExportCard
+                title="מפה + רשימת אורחים"
+                description="כולל תמונת מפה אמיתית ופירוט אורחים לפי שולחנות."
+                contentType="with-guests"
+              />
             </div>
           </div>
         </div>
