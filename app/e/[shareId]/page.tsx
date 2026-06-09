@@ -11,6 +11,7 @@ import {
   Navigation,
   Smartphone,
   Sparkles,
+  PartyPopper,
 } from "lucide-react";
 
 import dbConnect from "@/lib/db";
@@ -699,8 +700,10 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
                   title="חניה והוראות הגעה"
                   icon={
                     <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] bg-gradient-to-br from-[#F3E4D1] to-[#E8D4BC] shadow-sm">
-                      <MapPin className="h-7 w-7 text-[#2563EB]" />
-                      <span className="absolute -bottom-1 -left-1 flex h-5 w-5 items-center justify-center rounded-full bg-white text-[10px] font-black text-[#2563EB] shadow-sm">
+                      <span className="text-2xl font-black leading-none text-[#38BDF8]">
+                        P
+                      </span>
+                      <span className="absolute -bottom-1 -left-1 flex h-5 w-5 items-center justify-center rounded-full bg-white text-[10px] font-black text-[#38BDF8] shadow-sm">
                         P
                       </span>
                     </div>
@@ -750,47 +753,55 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
                 title="לו״ז האירוע"
                 icon={
                   <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] bg-gradient-to-br from-[#F3E4D1] to-[#E8D4BC] shadow-sm">
-                    <Clock className="h-7 w-7 text-[#6D28D9]" />
+                    <PartyPopper className="h-7 w-7 text-[#7C3AED]" />
                   </div>
                 }
               >
-                <div className="mt-5 grid gap-3">
+                <div className="mt-5 space-y-4">
                   {schedule.items.map((item, index) => (
                     <div
                       key={`${item.time}-${item.title}-${index}`}
-                      className="
-                        rounded-[24px]
-                        border
-                        border-[#E8D9CB]
-                        bg-gradient-to-l
-                        from-white
-                        to-[#FFF9F2]
-                        px-4
-                        py-4
-                        shadow-[0_10px_26px_rgba(98,70,42,0.07)]
-                      "
+                      className="relative pr-7"
                     >
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          {item.title && (
-                            <h3 className="text-base font-black text-[#2F2924]">
-                              {item.title}
-                            </h3>
-                          )}
+                      <div className="absolute right-0 top-3 h-full w-px bg-[#E5D2BD]" />
 
-                          {item.description && (
-                            <p className="mt-1 whitespace-pre-line text-sm font-bold leading-7 text-[#746A61]">
-                              {item.description}
-                            </p>
+                      <div className="absolute right-[-5px] top-3 h-3 w-3 rounded-full border-2 border-white bg-[#B8844F] shadow-sm" />
+
+                      <div
+                        className="
+                          rounded-[24px]
+                          border
+                          border-[#E8D9CB]
+                          bg-gradient-to-l
+                          from-white
+                          to-[#FFF9F2]
+                          px-4
+                          py-4
+                          shadow-[0_10px_26px_rgba(98,70,42,0.07)]
+                        "
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            {item.title && (
+                              <h3 className="text-base font-black text-[#2F2924]">
+                                {item.title}
+                              </h3>
+                            )}
+
+                            {item.description && (
+                              <p className="mt-1 whitespace-pre-line text-sm font-bold leading-7 text-[#746A61]">
+                                {item.description}
+                              </p>
+                            )}
+                          </div>
+
+                          {item.time && (
+                            <div className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#F3E4D1] px-4 py-2 text-sm font-black text-[#7A5739] shadow-sm">
+                              <Clock className="h-4 w-4 text-[#7C3AED]" />
+                              {item.time}
+                            </div>
                           )}
                         </div>
-
-                        {item.time && (
-                          <div className="inline-flex shrink-0 items-center gap-2 rounded-2xl bg-[#F3E4D1] px-4 py-2 text-sm font-black text-[#7A5739] shadow-sm">
-                            <Clock className="h-4 w-4 text-[#6D28D9]" />
-                            {item.time}
-                          </div>
-                        )}
                       </div>
                     </div>
                   ))}
@@ -976,12 +987,6 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
                       alt="תמונת הזוג / האירוע"
                       className="max-h-[520px] w-full rounded-[1.3rem] object-contain shadow-[0_16px_46px_rgba(47,41,36,0.13)]"
                     />
-                  </div>
-
-                  <div className="relative border-t border-white/70 bg-white/60 px-5 py-4 text-center backdrop-blur">
-                    <p className="text-sm font-black text-[#6B513F]">
-                      מחכים לראותכם ❤️
-                    </p>
                   </div>
                 </div>
               </section>
