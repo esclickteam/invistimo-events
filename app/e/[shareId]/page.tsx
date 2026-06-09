@@ -44,6 +44,23 @@ type ParkingSettings = {
   instructions: string;
 };
 
+type ScheduleItem = {
+  time: string;
+  title: string;
+  description: string;
+};
+
+type ScheduleSettings = {
+  enabled: boolean;
+  items: ScheduleItem[];
+};
+
+type CoupleImageSettings = {
+  enabled: boolean;
+  url: string;
+  publicId: string;
+};
+
 function cleanString(value: unknown) {
   return String(value || "").trim();
 }
@@ -238,6 +255,37 @@ function getParkingSettings(publicEventPage: any): ParkingSettings {
   };
 }
 
+function getScheduleSettings(publicEventPage: any): ScheduleSettings {
+  const schedule = publicEventPage?.schedule || {};
+
+  const items = Array.isArray(schedule?.items)
+    ? schedule.items
+        .map((item: any) => ({
+          time: cleanString(item?.time),
+          title: cleanString(item?.title),
+          description: cleanString(item?.description),
+        }))
+        .filter(
+          (item: ScheduleItem) => item.time || item.title || item.description
+        )
+    : [];
+
+  return {
+    enabled: schedule?.enabled === true,
+    items,
+  };
+}
+
+function getCoupleImageSettings(publicEventPage: any): CoupleImageSettings {
+  const coupleImage = publicEventPage?.coupleImage || {};
+
+  return {
+    enabled: coupleImage?.enabled === true,
+    url: normalizeUrl(coupleImage?.url),
+    publicId: cleanString(coupleImage?.publicId),
+  };
+}
+
 function getNoteSettings(publicEventPage: any) {
   const note = publicEventPage?.note || {};
 
@@ -334,6 +382,29 @@ function LightButton({
   );
 }
 
+function SectionShell({
+  icon,
+  title,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-[2rem] border border-[#EFE4D8] bg-[#FFFDFC] p-5 shadow-[0_16px_42px_rgba(98,70,42,0.07)] sm:p-6">
+      <div className="flex items-start gap-3">
+        {icon}
+
+        <div className="min-w-0 flex-1">
+          <h2 className="text-lg font-black text-[#2F2924]">{title}</h2>
+          {children}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
@@ -347,12 +418,14 @@ export async function generateMetadata({
       .lean();
 
     const title = invitation
-      ? `פרטי האירוע - ${cleanString((invitation as any)?.title) || "Invistimo"}`
+      ? `פרטי האירוע - ${
+          cleanString((invitation as any)?.title) || "Invistimo"
+        }`
       : "פרטי האירוע";
 
     return {
       title,
-      description: "פרטי האירוע, ניווט ומתנות",
+      description: "פרטי האירוע, ניווט, לו״ז ומתנות",
       robots: {
         index: false,
         follow: false,
@@ -361,7 +434,7 @@ export async function generateMetadata({
   } catch {
     return {
       title: "פרטי האירוע",
-      description: "פרטי האירוע, ניווט ומתנות",
+      description: "פרטי האירוע, ניווט, לו״ז ומתנות",
       robots: {
         index: false,
         follow: false,
@@ -496,6 +569,12 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
       ? buildGoogleMapsUrl(parkingLocation)
       : "";
 
+  const schedule = getScheduleSettings(publicEventPage);
+  const hasSchedule = schedule.enabled && schedule.items.length > 0;
+
+  const coupleImage = getCoupleImageSettings(publicEventPage);
+  const hasCoupleImage = coupleImage.enabled && coupleImage.url;
+
   const gifts = getGiftSettings(publicEventPage);
   const hasGifts = Boolean(gifts.creditUrl || gifts.payboxUrl || gifts.bitPhone);
 
@@ -538,7 +617,7 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
             </h1>
 
             {(dateLabel || eventTime) && (
-              <div className="relative mx-auto mt-7 grid max-w-xl grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="relative mx-auto mt-7 grid max-w-xl grid-cols-2 gap-3">
                 {dateLabel && (
                   <div className="rounded-3xl border border-white/80 bg-white/70 p-4 text-right shadow-sm">
                     <div className="flex items-center gap-2 text-xs font-black text-[#8B6B50]">
@@ -546,7 +625,7 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
                       תאריך
                     </div>
 
-                    <p className="mt-2 text-base font-black text-[#2F2924]">
+                    <p className="mt-2 text-sm font-black leading-6 text-[#2F2924] sm:text-base">
                       {dateLabel}
                     </p>
                   </div>
@@ -559,7 +638,7 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
                       שעה
                     </div>
 
-                    <p className="mt-2 text-base font-black text-[#2F2924]">
+                    <p className="mt-2 text-sm font-black leading-6 text-[#2F2924] sm:text-base">
                       {eventTime}
                     </p>
                   </div>
@@ -570,50 +649,45 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
 
           <div className="space-y-5 px-5 py-6 sm:px-8 sm:py-8">
             {(location.name || location.address || wazeUrl || googleMapsUrl) && (
-              <section className="rounded-[2rem] border border-[#EFE4D8] bg-[#FFFDFC] p-5 shadow-sm sm:p-6">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#F3E4D1]">
-                    <MapPin className="h-6 w-6 text-[#8A6748]" />
+              <SectionShell
+                title="הגעה וניווט לאירוע"
+                icon={
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] bg-gradient-to-br from-[#F3E4D1] to-[#E8D4BC] shadow-sm">
+                    <MapPin className="h-7 w-7 text-[#8A6748]" />
                   </div>
+                }
+              >
+                {location.name && (
+                  <p className="mt-3 text-base font-black text-[#3C332B]">
+                    {location.name}
+                  </p>
+                )}
 
-                  <div className="min-w-0 flex-1">
-                    <h2 className="text-lg font-black text-[#2F2924]">
-                      הגעה וניווט לאירוע
-                    </h2>
+                {location.address &&
+                  !isSameText(location.address, location.name) && (
+                    <p className="mt-1 text-sm font-bold leading-7 text-[#746A61]">
+                      {location.address}
+                    </p>
+                  )}
 
-                    {location.name && (
-                      <p className="mt-3 text-base font-black text-[#3C332B]">
-                        {location.name}
-                      </p>
+                {(wazeUrl || googleMapsUrl) && (
+                  <div className="mt-5 grid grid-cols-2 gap-3">
+                    {wazeUrl && (
+                      <DarkButton href={wazeUrl}>
+                        <Navigation className="h-4 w-4 transition group-hover:-translate-x-0.5" />
+                        Waze
+                      </DarkButton>
                     )}
 
-                    {location.address &&
-                      !isSameText(location.address, location.name) && (
-                        <p className="mt-1 text-sm font-bold leading-7 text-[#746A61]">
-                          {location.address}
-                        </p>
-                      )}
-
-                    {(wazeUrl || googleMapsUrl) && (
-                      <div className="mt-5 grid grid-cols-2 gap-3">
-                        {wazeUrl && (
-                          <DarkButton href={wazeUrl}>
-                            <Navigation className="h-4 w-4 transition group-hover:-translate-x-0.5" />
-                            Waze
-                          </DarkButton>
-                        )}
-
-                        {googleMapsUrl && (
-                          <LightButton href={googleMapsUrl}>
-                            <MapPin className="h-4 w-4 text-[#9A6B43] transition group-hover:-translate-x-0.5" />
-                            מפות
-                          </LightButton>
-                        )}
-                      </div>
+                    {googleMapsUrl && (
+                      <LightButton href={googleMapsUrl}>
+                        <MapPin className="h-4 w-4 text-[#9A6B43] transition group-hover:-translate-x-0.5" />
+                        מפות
+                      </LightButton>
                     )}
                   </div>
-                </div>
-              </section>
+                )}
+              </SectionShell>
             )}
 
             {parking.enabled &&
@@ -622,219 +696,256 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
                 parking.instructions ||
                 parkingWazeUrl ||
                 parkingGoogleMapsUrl) && (
-                <section className="rounded-[2rem] border border-[#EFE4D8] bg-[#FFFDFC] p-5 shadow-sm sm:p-6">
-                  <div className="flex items-start gap-3">
+                <SectionShell
+                  title="חניה והוראות הגעה"
+                  icon={
                     <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] bg-gradient-to-br from-[#F3E4D1] to-[#E8D4BC] shadow-sm">
-  <CarFront className="h-7 w-7 text-[#8A6748]" />
-  <span className="absolute -bottom-1 -left-1 flex h-5 w-5 items-center justify-center rounded-full bg-white text-[10px] font-black text-[#8A6748] shadow-sm">
-    P
-  </span>
-</div>
-                    <div className="min-w-0 flex-1">
-                      <h2 className="text-lg font-black text-[#2F2924]">
-                        חניה והוראות הגעה
-                      </h2>
+                      <CarFront className="h-7 w-7 text-[#8A6748]" />
+                      <span className="absolute -bottom-1 -left-1 flex h-5 w-5 items-center justify-center rounded-full bg-white text-[10px] font-black text-[#8A6748] shadow-sm">
+                        P
+                      </span>
+                    </div>
+                  }
+                >
+                  {parking.name && (
+                    <p className="mt-3 text-base font-black text-[#3C332B]">
+                      {parking.name}
+                    </p>
+                  )}
 
-                      {parking.name && (
-                        <p className="mt-3 text-base font-black text-[#3C332B]">
-                          {parking.name}
-                        </p>
+                  {parking.address &&
+                    !isSameText(parking.address, parking.name) && (
+                      <p className="mt-1 text-sm font-bold leading-7 text-[#746A61]">
+                        {parking.address}
+                      </p>
+                    )}
+
+                  {parking.instructions && (
+                    <p className="mt-4 whitespace-pre-line rounded-2xl bg-[#F8F0E7] px-4 py-3 text-sm font-bold leading-7 text-[#665A50]">
+                      {parking.instructions}
+                    </p>
+                  )}
+
+                  {(parkingWazeUrl || parkingGoogleMapsUrl) && (
+                    <div className="mt-5 grid grid-cols-2 gap-3">
+                      {parkingWazeUrl && (
+                        <DarkButton href={parkingWazeUrl}>
+                          <Navigation className="h-4 w-4 transition group-hover:-translate-x-0.5" />
+                          Waze לחניה
+                        </DarkButton>
                       )}
 
-                      {parking.address &&
-                        !isSameText(parking.address, parking.name) && (
-                          <p className="mt-1 text-sm font-bold leading-7 text-[#746A61]">
-                            {parking.address}
-                          </p>
-                        )}
-
-                      {parking.instructions && (
-                        <p className="mt-4 whitespace-pre-line rounded-2xl bg-[#F8F0E7] px-4 py-3 text-sm font-bold leading-7 text-[#665A50]">
-                          {parking.instructions}
-                        </p>
-                      )}
-
-                      {(parkingWazeUrl || parkingGoogleMapsUrl) && (
-                        <div className="mt-5 grid grid-cols-2 gap-3">
-                          {parkingWazeUrl && (
-                            <DarkButton href={parkingWazeUrl}>
-                              <Navigation className="h-4 w-4 transition group-hover:-translate-x-0.5" />
-                              Waze לחניה
-                            </DarkButton>
-                          )}
-
-                          {parkingGoogleMapsUrl && (
-                            <LightButton href={parkingGoogleMapsUrl}>
-                              <MapPin className="h-4 w-4 text-[#9A6B43] transition group-hover:-translate-x-0.5" />
-                              מפות לחניה
-                            </LightButton>
-                          )}
-                        </div>
+                      {parkingGoogleMapsUrl && (
+                        <LightButton href={parkingGoogleMapsUrl}>
+                          <MapPin className="h-4 w-4 text-[#9A6B43] transition group-hover:-translate-x-0.5" />
+                          מפות לחניה
+                        </LightButton>
                       )}
                     </div>
-                  </div>
-                </section>
+                  )}
+                </SectionShell>
               )}
 
-            {hasGifts && (
-              <section className="rounded-[2rem] border border-[#EFE4D8] bg-[#FFFDFC] p-5 shadow-sm sm:p-6">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#F4DEE3]">
-                    <Gift className="h-6 w-6 text-[#B94D63]" />
+            {hasSchedule && (
+              <SectionShell
+                title="לו״ז האירוע"
+                icon={
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] bg-gradient-to-br from-[#F3E4D1] to-[#E8D4BC] shadow-sm">
+                    <Clock className="h-7 w-7 text-[#8A6748]" />
                   </div>
+                }
+              >
+                <div className="relative mt-5 space-y-4">
+                  <div className="absolute bottom-4 right-[18px] top-4 w-px bg-gradient-to-b from-[#D7B992] via-[#E6D4BF] to-transparent" />
 
-                  <div className="min-w-0 flex-1">
-                    <h2 className="text-lg font-black text-[#2F2924]">
-                      מתנות לזוג
-                    </h2>
+                  {schedule.items.map((item, index) => (
+                    <div key={`${item.time}-${item.title}-${index}`} className="relative flex gap-4">
+                      <div className="relative z-10 mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#E2C9A9] bg-[#FFF8EF] shadow-sm">
+                        <span className="h-2.5 w-2.5 rounded-full bg-[#B8844F]" />
+                      </div>
 
-                    <p className="mt-2 text-sm font-bold leading-7 text-[#746A61]">
-                      ניתן לשלוח מתנה בדרך שנוחה לכם.
-                    </p>
+                      <div className="flex-1 rounded-[24px] border border-[#E8D9CB] bg-gradient-to-l from-white to-[#FFF9F2] p-4 shadow-[0_12px_30px_rgba(98,70,42,0.08)]">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          {item.title && (
+                            <h3 className="text-base font-black text-[#2F2924]">
+                              {item.title}
+                            </h3>
+                          )}
 
-                    <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                      {gifts.creditUrl && (
-                        <a
-                          href={gifts.creditUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="
-                            group
-                            flex
-                            min-h-[132px]
-                            flex-col
-                            items-center
-                            justify-center
-                            gap-3
-                            rounded-[26px]
-                            border
-                            border-[#E8D9CB]
-                            bg-gradient-to-b
-                            from-white
-                            to-[#FFF7EE]
-                            px-4
-                            py-5
-                            text-center
-                            shadow-[0_14px_34px_rgba(98,70,42,0.10)]
-                            transition
-                            hover:-translate-y-1
-                            hover:shadow-[0_20px_44px_rgba(98,70,42,0.16)]
-                          "
-                        >
-                          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F3E4D1] shadow-sm">
-                            <CreditCard className="h-5 w-5 text-[#8A6748]" />
-                          </span>
-
-                          <span>
-                            <span className="block text-sm font-black text-[#2F2924]">
-                              אשראי
-                            </span>
-                            <span className="mt-1 block text-xs font-bold leading-5 text-[#8A8178]">
-                              תשלום מאובטח
-                            </span>
-                          </span>
-
-                          <span className="text-lg font-black text-[#8A6748] transition group-hover:-translate-x-1">
-                            ←
-                          </span>
-                        </a>
-                      )}
-
-                      {gifts.payboxUrl && (
-                        <a
-                          href={gifts.payboxUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="
-                            group
-                            flex
-                            min-h-[132px]
-                            flex-col
-                            items-center
-                            justify-center
-                            gap-3
-                            rounded-[26px]
-                            border
-                            border-[#E8D9CB]
-                            bg-gradient-to-b
-                            from-white
-                            to-[#F5F8FF]
-                            px-4
-                            py-5
-                            text-center
-                            shadow-[0_14px_34px_rgba(73,108,168,0.10)]
-                            transition
-                            hover:-translate-y-1
-                            hover:shadow-[0_20px_44px_rgba(73,108,168,0.16)]
-                          "
-                        >
-                          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#EEF3FF] shadow-sm">
-                            <Smartphone className="h-5 w-5 text-[#496CA8]" />
-                          </span>
-
-                          <span>
-                            <span className="block text-sm font-black text-[#2F2924]">
-                              PayBox
-                            </span>
-                            <span className="mt-1 block text-xs font-bold leading-5 text-[#8A8178]">
-                              פתיחה בקישור
-                            </span>
-                          </span>
-
-                          <span className="text-lg font-black text-[#8A6748] transition group-hover:-translate-x-1">
-                            ←
-                          </span>
-                        </a>
-                      )}
-
-                      {gifts.bitPhone && (
-                        <div
-                          className="
-                            flex
-                            min-h-[132px]
-                            flex-col
-                            items-center
-                            justify-center
-                            gap-3
-                            rounded-[26px]
-                            border
-                            border-[#E8D9CB]
-                            bg-gradient-to-b
-                            from-white
-                            to-[#FFF3F6]
-                            px-4
-                            py-5
-                            text-center
-                            shadow-[0_14px_34px_rgba(185,77,99,0.10)]
-                            transition
-                            hover:-translate-y-1
-                            hover:shadow-[0_20px_44px_rgba(185,77,99,0.16)]
-                          "
-                        >
-                          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F4DEE3] shadow-sm">
-                            <Heart className="h-5 w-5 fill-[#B94D63] text-[#B94D63]" />
-                          </span>
-
-                          <span>
-                            <span className="block text-sm font-black text-[#2F2924]">
-                              Bit
-                            </span>
-
-                            <span
-                              className="mt-1 block text-sm font-black tracking-wide text-[#2F2924]"
-                              dir="ltr"
-                            >
-                              {gifts.bitPhone}
-                            </span>
-                          </span>
-
-                          <CopyButton value={gifts.bitPhone} />
+                          {item.time && (
+                            <div className="inline-flex w-fit items-center gap-2 rounded-full bg-[#F3E4D1] px-3 py-1.5 text-sm font-black text-[#7A5739]">
+                              <Clock className="h-3.5 w-3.5" />
+                              {item.time}
+                            </div>
+                          )}
                         </div>
-                      )}
+
+                        {item.description && (
+                          <p className="mt-2 whitespace-pre-line text-sm font-bold leading-7 text-[#746A61]">
+                            {item.description}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  ))}
                 </div>
-              </section>
+              </SectionShell>
+            )}
+
+            {hasGifts && (
+              <SectionShell
+                title="מתנות לזוג"
+                icon={
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] bg-gradient-to-br from-[#F4DEE3] to-[#F7EEF0] shadow-sm">
+                    <Gift className="h-7 w-7 text-[#B94D63]" />
+                  </div>
+                }
+              >
+                <p className="mt-2 text-sm font-bold leading-7 text-[#746A61]">
+                  ניתן לשלוח מתנה בדרך שנוחה לכם.
+                </p>
+
+                <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  {gifts.creditUrl && (
+                    <a
+                      href={gifts.creditUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="
+                        group
+                        flex
+                        min-h-[132px]
+                        flex-col
+                        items-center
+                        justify-center
+                        gap-3
+                        rounded-[26px]
+                        border
+                        border-[#E8D9CB]
+                        bg-gradient-to-b
+                        from-white
+                        to-[#FFF7EE]
+                        px-4
+                        py-5
+                        text-center
+                        shadow-[0_14px_34px_rgba(98,70,42,0.10)]
+                        transition
+                        hover:-translate-y-1
+                        hover:shadow-[0_20px_44px_rgba(98,70,42,0.16)]
+                      "
+                    >
+                      <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F3E4D1] shadow-sm">
+                        <CreditCard className="h-5 w-5 text-[#8A6748]" />
+                      </span>
+
+                      <span>
+                        <span className="block text-sm font-black text-[#2F2924]">
+                          אשראי
+                        </span>
+                        <span className="mt-1 block text-xs font-bold leading-5 text-[#8A8178]">
+                          תשלום מאובטח
+                        </span>
+                      </span>
+
+                      <span className="text-lg font-black text-[#8A6748] transition group-hover:-translate-x-1">
+                        ←
+                      </span>
+                    </a>
+                  )}
+
+                  {gifts.payboxUrl && (
+                    <a
+                      href={gifts.payboxUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="
+                        group
+                        flex
+                        min-h-[132px]
+                        flex-col
+                        items-center
+                        justify-center
+                        gap-3
+                        rounded-[26px]
+                        border
+                        border-[#E8D9CB]
+                        bg-gradient-to-b
+                        from-white
+                        to-[#F5F8FF]
+                        px-4
+                        py-5
+                        text-center
+                        shadow-[0_14px_34px_rgba(73,108,168,0.10)]
+                        transition
+                        hover:-translate-y-1
+                        hover:shadow-[0_20px_44px_rgba(73,108,168,0.16)]
+                      "
+                    >
+                      <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#EEF3FF] shadow-sm">
+                        <Smartphone className="h-5 w-5 text-[#496CA8]" />
+                      </span>
+
+                      <span>
+                        <span className="block text-sm font-black text-[#2F2924]">
+                          PayBox
+                        </span>
+                        <span className="mt-1 block text-xs font-bold leading-5 text-[#8A8178]">
+                          פתיחה בקישור
+                        </span>
+                      </span>
+
+                      <span className="text-lg font-black text-[#8A6748] transition group-hover:-translate-x-1">
+                        ←
+                      </span>
+                    </a>
+                  )}
+
+                  {gifts.bitPhone && (
+                    <div
+                      className="
+                        flex
+                        min-h-[132px]
+                        flex-col
+                        items-center
+                        justify-center
+                        gap-3
+                        rounded-[26px]
+                        border
+                        border-[#E8D9CB]
+                        bg-gradient-to-b
+                        from-white
+                        to-[#FFF3F6]
+                        px-4
+                        py-5
+                        text-center
+                        shadow-[0_14px_34px_rgba(185,77,99,0.10)]
+                        transition
+                        hover:-translate-y-1
+                        hover:shadow-[0_20px_44px_rgba(185,77,99,0.16)]
+                      "
+                    >
+                      <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F4DEE3] shadow-sm">
+                        <Heart className="h-5 w-5 fill-[#B94D63] text-[#B94D63]" />
+                      </span>
+
+                      <span>
+                        <span className="block text-sm font-black text-[#2F2924]">
+                          Bit
+                        </span>
+
+                        <span
+                          className="mt-1 block text-sm font-black tracking-wide text-[#2F2924]"
+                          dir="ltr"
+                        >
+                          {gifts.bitPhone}
+                        </span>
+                      </span>
+
+                      <CopyButton value={gifts.bitPhone} />
+                    </div>
+                  )}
+                </div>
+              </SectionShell>
             )}
 
             {note.enabled && note.text && (
@@ -842,6 +953,24 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
                 <p className="whitespace-pre-line text-sm font-bold leading-7 text-[#665A50]">
                   {note.text}
                 </p>
+              </section>
+            )}
+
+            {hasCoupleImage && (
+              <section className="overflow-hidden rounded-[2rem] border border-white/80 bg-white/75 p-4 shadow-[0_18px_50px_rgba(98,70,42,0.12)]">
+                <div className="relative overflow-hidden rounded-[1.7rem] bg-[#F8F0E7]">
+                  <img
+                    src={coupleImage.url}
+                    alt="תמונת הזוג / האירוע"
+                    className="h-[260px] w-full object-cover sm:h-[360px]"
+                  />
+
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/45 to-transparent px-5 py-5 text-right">
+                    <p className="text-sm font-black text-white/90">
+                      מחכים לראותכם ❤️
+                    </p>
+                  </div>
+                </div>
               </section>
             )}
 

@@ -1,6 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  CalendarClock,
+  ImagePlus,
+  Plus,
+  Trash2,
+  UploadCloud,
+} from "lucide-react";
 import LocationAutocomplete from "@/app/components/LocationAutocomplete";
 
 /* =========================
@@ -22,12 +29,30 @@ type Props = {
   onClose?: () => void;
 };
 
+type ScheduleItem = {
+  time: string;
+  title: string;
+  description: string;
+};
+
+function readFileAsBase64(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = reject;
+
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function EventDetailsForm({
   event,
   onSaved,
   onClose,
 }: Props) {
   const [saving, setSaving] = useState(false);
+  const [uploadingCoupleImage, setUploadingCoupleImage] = useState(false);
 
   const [form, setForm] = useState({
     title: "",
@@ -55,6 +80,15 @@ export default function EventDetailsForm({
         lng: null as number | null,
         instructions: "",
       },
+      schedule: {
+        enabled: false,
+        items: [] as ScheduleItem[],
+      },
+      coupleImage: {
+        enabled: false,
+        url: "",
+        publicId: "",
+      },
       note: {
         enabled: true,
         text: "האירוע מתקיים בהתאם להנחיות פיקוד העורף, יש מרחב מוגן במקום.",
@@ -67,6 +101,14 @@ export default function EventDetailsForm({
   ============================================================ */
   useEffect(() => {
     if (!event) return;
+
+    const scheduleItems = Array.isArray(event.publicEventPage?.schedule?.items)
+      ? event.publicEventPage.schedule.items.map((item: any) => ({
+          time: item?.time ?? "",
+          title: item?.title ?? "",
+          description: item?.description ?? "",
+        }))
+      : [];
 
     setForm({
       title: event.title ?? "",
@@ -96,6 +138,15 @@ export default function EventDetailsForm({
           lng: event.publicEventPage?.parking?.lng ?? null,
           instructions: event.publicEventPage?.parking?.instructions ?? "",
         },
+        schedule: {
+          enabled: event.publicEventPage?.schedule?.enabled === true,
+          items: scheduleItems,
+        },
+        coupleImage: {
+          enabled: event.publicEventPage?.coupleImage?.enabled === true,
+          url: event.publicEventPage?.coupleImage?.url ?? "",
+          publicId: event.publicEventPage?.coupleImage?.publicId ?? "",
+        },
         note: {
           enabled: event.publicEventPage?.note?.enabled !== false,
           text:
@@ -105,6 +156,124 @@ export default function EventDetailsForm({
       },
     });
   }, [event]);
+
+  /* ============================================================
+     🖼 Upload couple/event image
+  ============================================================ */
+  async function uploadCoupleImage(file: File) {
+    if (!event?._id) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert("אפשר להעלות קובץ תמונה בלבד");
+      return;
+    }
+
+    try {
+      setUploadingCoupleImage(true);
+
+      const imageBase64 = await readFileAsBase64(file);
+
+      const res = await fetch(
+        `/api/invitations/${event._id}/public-page-image`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ imageBase64 }),
+        }
+      );
+
+      const data = await res.json();
+
+      if (!data?.success || !data?.url) {
+        alert("❌ שגיאה בהעלאת התמונה");
+        return;
+      }
+
+      setForm((f) => ({
+        ...f,
+        publicEventPage: {
+          ...f.publicEventPage,
+          coupleImage: {
+            enabled: true,
+            url: data.url,
+            publicId: data.publicId || "",
+          },
+        },
+      }));
+    } catch (err) {
+      console.error("Couple image upload failed:", err);
+      alert("❌ שגיאה בהעלאת התמונה");
+    } finally {
+      setUploadingCoupleImage(false);
+    }
+  }
+
+  function addScheduleItem() {
+    setForm((f) => ({
+      ...f,
+      publicEventPage: {
+        ...f.publicEventPage,
+        schedule: {
+          ...f.publicEventPage.schedule,
+          enabled: true,
+          items: [
+            ...f.publicEventPage.schedule.items,
+            {
+              time: "",
+              title: "",
+              description: "",
+            },
+          ],
+        },
+      },
+    }));
+  }
+
+  function updateScheduleItem(
+    index: number,
+    field: keyof ScheduleItem,
+    value: string
+  ) {
+    setForm((f) => {
+      const items = [...f.publicEventPage.schedule.items];
+
+      items[index] = {
+        ...items[index],
+        [field]: value,
+      };
+
+      return {
+        ...f,
+        publicEventPage: {
+          ...f.publicEventPage,
+          schedule: {
+            ...f.publicEventPage.schedule,
+            items,
+          },
+        },
+      };
+    });
+  }
+
+  function removeScheduleItem(index: number) {
+    setForm((f) => {
+      const items = f.publicEventPage.schedule.items.filter(
+        (_, i) => i !== index
+      );
+
+      return {
+        ...f,
+        publicEventPage: {
+          ...f.publicEventPage,
+          schedule: {
+            ...f.publicEventPage.schedule,
+            items,
+          },
+        },
+      };
+    });
+  }
 
   /* ============================================================
      💾 Save → UPDATE Invitation
@@ -141,6 +310,23 @@ export default function EventDetailsForm({
             lat: form.publicEventPage.parking.lat,
             lng: form.publicEventPage.parking.lng,
             instructions: form.publicEventPage.parking.instructions.trim(),
+          },
+          schedule: {
+            enabled: form.publicEventPage.schedule.enabled,
+            items: form.publicEventPage.schedule.items
+              .map((item) => ({
+                time: item.time.trim(),
+                title: item.title.trim(),
+                description: item.description.trim(),
+              }))
+              .filter(
+                (item) => item.time || item.title || item.description
+              ),
+          },
+          coupleImage: {
+            enabled: form.publicEventPage.coupleImage.enabled,
+            url: form.publicEventPage.coupleImage.url.trim(),
+            publicId: form.publicEventPage.coupleImage.publicId.trim(),
           },
           note: {
             enabled: form.publicEventPage.note.enabled,
@@ -480,12 +666,12 @@ export default function EventDetailsForm({
                 </div>
 
                 <h3 className="text-lg font-black text-[#241A14]">
-                  קישור ציבורי לניווט ומתנות
+                  קישור ציבורי לניווט, לו״ז ומתנות
                 </h3>
 
                 <p className="mt-1 text-xs font-semibold leading-6 text-[#8A7B69]">
-                  בעמוד הזה יוצגו פרטי האירוע, ניווט ומתנות רק אם הוגדרו. הקישור
-                  לא אישי ולא קשור לאישור ההגעה.
+                  בעמוד הזה יוצגו פרטי האירוע, ניווט, חניה, לו״ז, מתנות ותמונה —
+                  רק אם הוגדרו. הקישור לא אישי ולא קשור לאישור ההגעה.
                 </p>
 
                 {event?.shareId && (
@@ -540,94 +726,102 @@ export default function EventDetailsForm({
             </div>
 
             <div className="grid gap-4">
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div className="flex flex-col gap-2">
-                  <label className="px-1 text-sm font-black text-[#6B5B4A]">
-                    קישור מתנה באשראי
-                  </label>
-
-                  <input
-                    placeholder="https://..."
-                    value={form.publicEventPage.gifts.creditUrl}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        publicEventPage: {
-                          ...f.publicEventPage,
-                          gifts: {
-                            ...f.publicEventPage.gifts,
-                            creditUrl: e.target.value,
-                          },
-                        },
-                      }))
-                    }
-                    className="
-                      h-[52px]
-                      w-full
-                      rounded-[18px]
-                      border
-                      border-[#E3D6C3]
-                      bg-[#FCFAF6]
-                      px-4
-                      text-sm
-                      font-bold
-                      text-[#241A14]
-                      outline-none
-                      transition
-                      placeholder:text-[#B0A79D]
-                      focus:border-[#B8844F]
-                      focus:bg-white
-                      focus:ring-4
-                      focus:ring-[#D9B46F]/15
-                    "
-                  />
+              {/* Gifts */}
+              <div className="rounded-[22px] border border-[#EFE4D6] bg-white/80 p-4">
+                <div className="mb-4 flex items-center gap-2">
+                  <span className="text-lg">🎁</span>
+                  <h4 className="text-sm font-black text-[#6B5B4A]">
+                    מתנות לאורחים
+                  </h4>
                 </div>
 
-                <div className="flex flex-col gap-2">
-                  <label className="px-1 text-sm font-black text-[#6B5B4A]">
-                    קישור PayBox
-                  </label>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="flex flex-col gap-2">
+                    <label className="px-1 text-sm font-black text-[#6B5B4A]">
+                      קישור מתנה באשראי
+                    </label>
 
-                  <input
-                    placeholder="https://..."
-                    value={form.publicEventPage.gifts.payboxUrl}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        publicEventPage: {
-                          ...f.publicEventPage,
-                          gifts: {
-                            ...f.publicEventPage.gifts,
-                            payboxUrl: e.target.value,
+                    <input
+                      placeholder="https://..."
+                      value={form.publicEventPage.gifts.creditUrl}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          publicEventPage: {
+                            ...f.publicEventPage,
+                            gifts: {
+                              ...f.publicEventPage.gifts,
+                              creditUrl: e.target.value,
+                            },
                           },
-                        },
-                      }))
-                    }
-                    className="
-                      h-[52px]
-                      w-full
-                      rounded-[18px]
-                      border
-                      border-[#E3D6C3]
-                      bg-[#FCFAF6]
-                      px-4
-                      text-sm
-                      font-bold
-                      text-[#241A14]
-                      outline-none
-                      transition
-                      placeholder:text-[#B0A79D]
-                      focus:border-[#B8844F]
-                      focus:bg-white
-                      focus:ring-4
-                      focus:ring-[#D9B46F]/15
-                    "
-                  />
-                </div>
-              </div>
+                        }))
+                      }
+                      className="
+                        h-[52px]
+                        w-full
+                        rounded-[18px]
+                        border
+                        border-[#E3D6C3]
+                        bg-[#FCFAF6]
+                        px-4
+                        text-sm
+                        font-bold
+                        text-[#241A14]
+                        outline-none
+                        transition
+                        placeholder:text-[#B0A79D]
+                        focus:border-[#B8844F]
+                        focus:bg-white
+                        focus:ring-4
+                        focus:ring-[#D9B46F]/15
+                      "
+                    />
+                  </div>
 
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-1">
-                <div className="flex flex-col gap-2">
+                  <div className="flex flex-col gap-2">
+                    <label className="px-1 text-sm font-black text-[#6B5B4A]">
+                      קישור PayBox
+                    </label>
+
+                    <input
+                      placeholder="https://..."
+                      value={form.publicEventPage.gifts.payboxUrl}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          publicEventPage: {
+                            ...f.publicEventPage,
+                            gifts: {
+                              ...f.publicEventPage.gifts,
+                              payboxUrl: e.target.value,
+                            },
+                          },
+                        }))
+                      }
+                      className="
+                        h-[52px]
+                        w-full
+                        rounded-[18px]
+                        border
+                        border-[#E3D6C3]
+                        bg-[#FCFAF6]
+                        px-4
+                        text-sm
+                        font-bold
+                        text-[#241A14]
+                        outline-none
+                        transition
+                        placeholder:text-[#B0A79D]
+                        focus:border-[#B8844F]
+                        focus:bg-white
+                        focus:ring-4
+                        focus:ring-[#D9B46F]/15
+                      "
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-4 flex flex-col gap-2">
                   <label className="px-1 text-sm font-black text-[#6B5B4A]">
                     מספר Bit
                   </label>
@@ -674,6 +868,7 @@ export default function EventDetailsForm({
                 </div>
               </div>
 
+              {/* Parking */}
               <div className="rounded-[22px] border border-[#EFE4D6] bg-white/80 p-4">
                 <label className="mb-4 flex cursor-pointer items-center gap-3">
                   <input
@@ -796,6 +991,347 @@ export default function EventDetailsForm({
                 )}
               </div>
 
+              {/* Schedule */}
+              <div className="rounded-[22px] border border-[#EFE4D6] bg-white/80 p-4">
+                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <label className="flex cursor-pointer items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={form.publicEventPage.schedule.enabled}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          publicEventPage: {
+                            ...f.publicEventPage,
+                            schedule: {
+                              ...f.publicEventPage.schedule,
+                              enabled: e.target.checked,
+                            },
+                          },
+                        }))
+                      }
+                      className="h-4 w-4 accent-[#B8844F]"
+                    />
+
+                    <span className="flex items-center gap-2 text-sm font-black text-[#6B5B4A]">
+                      <CalendarClock className="h-4 w-4 text-[#B8844F]" />
+                      הצגת לו״ז אירוע
+                    </span>
+                  </label>
+
+                  <button
+                    type="button"
+                    onClick={addScheduleItem}
+                    className="
+                      inline-flex
+                      h-10
+                      items-center
+                      justify-center
+                      gap-2
+                      rounded-2xl
+                      bg-[#2F2924]
+                      px-4
+                      text-xs
+                      font-black
+                      text-white
+                      shadow-sm
+                      transition
+                      hover:-translate-y-0.5
+                    "
+                  >
+                    <Plus className="h-4 w-4" />
+                    הוספת שורה
+                  </button>
+                </div>
+
+                {form.publicEventPage.schedule.enabled && (
+                  <div className="grid gap-3">
+                    {form.publicEventPage.schedule.items.length === 0 && (
+                      <div className="rounded-2xl border border-dashed border-[#D8C8B6] bg-[#FCFAF6] px-4 py-5 text-center">
+                        <p className="text-sm font-black text-[#6B5B4A]">
+                          עדיין לא נוספו שלבים ללו״ז
+                        </p>
+                        <p className="mt-1 text-xs font-semibold text-[#9B8D7D]">
+                          לחצו על “הוספת שורה” כדי להוסיף קבלת פנים, חופה, ארוחה,
+                          ריקודים ועוד.
+                        </p>
+                      </div>
+                    )}
+
+                    {form.publicEventPage.schedule.items.map((item, index) => (
+                      <div
+                        key={index}
+                        className="
+                          rounded-[22px]
+                          border
+                          border-[#E8D7C2]
+                          bg-[#FFFDF9]
+                          p-4
+                          shadow-[0_10px_26px_rgba(91,63,31,0.05)]
+                        "
+                      >
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                          <div className="inline-flex items-center gap-2 rounded-full bg-[#F8EBD7] px-3 py-1 text-xs font-black text-[#8B5E34]">
+                            שלב {index + 1}
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => removeScheduleItem(index)}
+                            className="
+                              inline-flex
+                              h-9
+                              w-9
+                              items-center
+                              justify-center
+                              rounded-xl
+                              bg-[#FFF1F1]
+                              text-[#B94D63]
+                              transition
+                              hover:bg-[#FFE2E2]
+                            "
+                            aria-label="מחיקת שורה"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-[120px_1fr]">
+                          <div className="flex flex-col gap-2">
+                            <label className="px-1 text-xs font-black text-[#6B5B4A]">
+                              שעה
+                            </label>
+
+                            <input
+                              type="time"
+                              value={item.time}
+                              onChange={(e) =>
+                                updateScheduleItem(index, "time", e.target.value)
+                              }
+                              className="
+                                h-[48px]
+                                rounded-[16px]
+                                border
+                                border-[#E3D6C3]
+                                bg-[#FCFAF6]
+                                px-3
+                                text-sm
+                                font-black
+                                text-[#241A14]
+                                outline-none
+                                transition
+                                focus:border-[#B8844F]
+                                focus:bg-white
+                                focus:ring-4
+                                focus:ring-[#D9B46F]/15
+                              "
+                            />
+                          </div>
+
+                          <div className="flex flex-col gap-2">
+                            <label className="px-1 text-xs font-black text-[#6B5B4A]">
+                              כותרת
+                            </label>
+
+                            <input
+                              placeholder="לדוגמה: קבלת פנים / חופה / ריקודים"
+                              value={item.title}
+                              onChange={(e) =>
+                                updateScheduleItem(index, "title", e.target.value)
+                              }
+                              className="
+                                h-[48px]
+                                rounded-[16px]
+                                border
+                                border-[#E3D6C3]
+                                bg-[#FCFAF6]
+                                px-4
+                                text-sm
+                                font-bold
+                                text-[#241A14]
+                                outline-none
+                                transition
+                                placeholder:text-[#B0A79D]
+                                focus:border-[#B8844F]
+                                focus:bg-white
+                                focus:ring-4
+                                focus:ring-[#D9B46F]/15
+                              "
+                            />
+                          </div>
+                        </div>
+
+                        <div className="mt-3 flex flex-col gap-2">
+                          <label className="px-1 text-xs font-black text-[#6B5B4A]">
+                            תיאור קצר
+                          </label>
+
+                          <input
+                            placeholder="לדוגמה: קבלת אורחים וצילומים"
+                            value={item.description}
+                            onChange={(e) =>
+                              updateScheduleItem(
+                                index,
+                                "description",
+                                e.target.value
+                              )
+                            }
+                            className="
+                              h-[48px]
+                              rounded-[16px]
+                              border
+                              border-[#E3D6C3]
+                              bg-[#FCFAF6]
+                              px-4
+                              text-sm
+                              font-bold
+                              text-[#241A14]
+                              outline-none
+                              transition
+                              placeholder:text-[#B0A79D]
+                              focus:border-[#B8844F]
+                              focus:bg-white
+                              focus:ring-4
+                              focus:ring-[#D9B46F]/15
+                            "
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Couple image */}
+              <div className="rounded-[22px] border border-[#EFE4D6] bg-white/80 p-4">
+                <label className="mb-4 flex cursor-pointer items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={form.publicEventPage.coupleImage.enabled}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        publicEventPage: {
+                          ...f.publicEventPage,
+                          coupleImage: {
+                            ...f.publicEventPage.coupleImage,
+                            enabled: e.target.checked,
+                          },
+                        },
+                      }))
+                    }
+                    className="h-4 w-4 accent-[#B8844F]"
+                  />
+
+                  <span className="flex items-center gap-2 text-sm font-black text-[#6B5B4A]">
+                    <ImagePlus className="h-4 w-4 text-[#B8844F]" />
+                    הצגת תמונת זוג / תמונת אירוע בסוף העמוד
+                  </span>
+                </label>
+
+                <div className="grid gap-4 md:grid-cols-[170px_1fr]">
+                  <div className="overflow-hidden rounded-[22px] border border-[#E3D6C3] bg-[#FCFAF6]">
+                    {form.publicEventPage.coupleImage.url ? (
+                      <img
+                        src={form.publicEventPage.coupleImage.url}
+                        alt="תמונת זוג / אירוע"
+                        className="h-40 w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-40 flex-col items-center justify-center gap-2 text-[#9B8D7D]">
+                        <ImagePlus className="h-8 w-8" />
+                        <span className="text-xs font-black">
+                          אין תמונה
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col justify-center gap-3">
+                    <label
+                      className="
+                        inline-flex
+                        h-12
+                        cursor-pointer
+                        items-center
+                        justify-center
+                        gap-2
+                        rounded-2xl
+                        border
+                        border-[#D9B46F]/60
+                        bg-white
+                        px-5
+                        text-sm
+                        font-black
+                        text-[#8B5E34]
+                        shadow-sm
+                        transition
+                        hover:bg-[#FFF7EA]
+                      "
+                    >
+                      <UploadCloud className="h-4 w-4" />
+                      {uploadingCoupleImage ? "מעלה תמונה..." : "העלאת תמונה"}
+
+                      <input
+                        type="file"
+                        accept="image/*"
+                        disabled={uploadingCoupleImage}
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+
+                          if (file) {
+                            uploadCoupleImage(file);
+                          }
+
+                          e.currentTarget.value = "";
+                        }}
+                      />
+                    </label>
+
+                    {form.publicEventPage.coupleImage.url && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setForm((f) => ({
+                            ...f,
+                            publicEventPage: {
+                              ...f.publicEventPage,
+                              coupleImage: {
+                                enabled: false,
+                                url: "",
+                                publicId: "",
+                              },
+                            },
+                          }))
+                        }
+                        className="
+                          inline-flex
+                          h-11
+                          items-center
+                          justify-center
+                          rounded-2xl
+                          bg-[#FFF1F1]
+                          px-5
+                          text-sm
+                          font-black
+                          text-[#B94D63]
+                          transition
+                          hover:bg-[#FFE2E2]
+                        "
+                      >
+                        הסרת תמונה
+                      </button>
+                    )}
+
+                    <p className="text-xs font-semibold leading-6 text-[#9B8D7D]">
+                      התמונה תוצג בסוף עמוד פרטי האירוע, רק אם האפשרות מסומנת.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Note */}
               <div className="rounded-[22px] border border-[#EFE4D6] bg-white/80 p-4">
                 <label className="mb-3 flex cursor-pointer items-center gap-3">
                   <input
@@ -911,7 +1447,7 @@ export default function EventDetailsForm({
 
         <button
           onClick={save}
-          disabled={saving}
+          disabled={saving || uploadingCoupleImage}
           className="
             h-[48px]
             rounded-2xl

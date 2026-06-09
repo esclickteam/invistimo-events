@@ -69,7 +69,19 @@ function normalizeGiftOptions(input: any) {
 function normalizePublicEventPage(input: any) {
   const gifts = input?.gifts || {};
   const parking = input?.parking || {};
+  const schedule = input?.schedule || {};
+  const coupleImage = input?.coupleImage || {};
   const note = input?.note || {};
+
+  const scheduleItems = Array.isArray(schedule?.items)
+    ? schedule.items
+        .map((item: any) => ({
+          time: cleanString(item?.time),
+          title: cleanString(item?.title),
+          description: cleanString(item?.description),
+        }))
+        .filter((item: any) => item.time || item.title || item.description)
+    : [];
 
   return {
     enabled: input?.enabled === false ? false : true,
@@ -94,6 +106,17 @@ function normalizePublicEventPage(input: any) {
           ? null
           : toNumber(parking?.lng, null as any),
       instructions: cleanString(parking?.instructions),
+    },
+
+    schedule: {
+      enabled: schedule?.enabled === true,
+      items: scheduleItems,
+    },
+
+    coupleImage: {
+      enabled: coupleImage?.enabled === true,
+      url: cleanUrl(coupleImage?.url),
+      publicId: cleanString(coupleImage?.publicId),
     },
 
     note: {

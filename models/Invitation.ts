@@ -48,6 +48,23 @@ const PublicEventPageSchema = new Schema(
       instructions: { type: String, default: "" },
     },
 
+    schedule: {
+      enabled: { type: Boolean, default: false },
+      items: [
+        {
+          time: { type: String, default: "" },
+          title: { type: String, default: "" },
+          description: { type: String, default: "" },
+        },
+      ],
+    },
+
+    coupleImage: {
+      enabled: { type: Boolean, default: false },
+      url: { type: String, default: "" },
+      publicId: { type: String, default: "" },
+    },
+
     note: {
       enabled: { type: Boolean, default: true },
       text: {
@@ -523,6 +540,17 @@ InvitationSchema.pre("save", function () {
         address?: string;
         instructions?: string;
       };
+      schedule?: {
+        items?: Array<{
+          time?: string;
+          title?: string;
+          description?: string;
+        }>;
+      };
+      coupleImage?: {
+        url?: string;
+        publicId?: string;
+      };
       note?: {
         text?: string;
       };
@@ -542,6 +570,8 @@ InvitationSchema.pre("save", function () {
   const publicEventPage = doc.publicEventPage ?? {};
   const publicGifts = publicEventPage.gifts ?? {};
   const publicParking = publicEventPage.parking ?? {};
+  const publicSchedule = publicEventPage.schedule ?? {};
+  const publicCoupleImage = publicEventPage.coupleImage ?? {};
   const publicNote = publicEventPage.note ?? {};
 
   publicGifts.creditUrl = (publicGifts.creditUrl ?? "").trim();
@@ -553,10 +583,25 @@ InvitationSchema.pre("save", function () {
   publicParking.address = (publicParking.address ?? "").trim();
   publicParking.instructions = (publicParking.instructions ?? "").trim();
 
+  publicSchedule.items = Array.isArray(publicSchedule.items)
+    ? publicSchedule.items
+        .map((item) => ({
+          time: (item?.time ?? "").trim(),
+          title: (item?.title ?? "").trim(),
+          description: (item?.description ?? "").trim(),
+        }))
+        .filter((item) => item.time || item.title || item.description)
+    : [];
+
+  publicCoupleImage.url = (publicCoupleImage.url ?? "").trim();
+  publicCoupleImage.publicId = (publicCoupleImage.publicId ?? "").trim();
+
   publicNote.text = (publicNote.text ?? "").trim();
 
   publicEventPage.gifts = publicGifts;
   publicEventPage.parking = publicParking;
+  publicEventPage.schedule = publicSchedule;
+  publicEventPage.coupleImage = publicCoupleImage;
   publicEventPage.note = publicNote;
 
   doc.publicEventPage = publicEventPage;
