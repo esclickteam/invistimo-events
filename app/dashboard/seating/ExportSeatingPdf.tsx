@@ -95,12 +95,8 @@ export default function ExportSeatingPdf({
     try {
       setIsWorking(true);
 
-      const image = saveRealMapImage();
-
-      if (!image) {
-        alert("לא הצלחתי לקחת תמונה של המפה. פתחי את הייצוא מתוך עמוד ההושבה.");
-        return;
-      }
+      // מנסה לשמור את תמונת המפה, אבל לא חוסם את פתיחת ה-PDF
+      saveRealMapImage();
 
       const params = new URLSearchParams();
       params.set("eventId", eventId);
@@ -175,9 +171,7 @@ export default function ExportSeatingPdf({
       >
         <div className="mb-5 flex items-start justify-between gap-4 border-b border-[#EFE3D4] pb-4">
           <div className="min-w-0">
-            <h3 className="text-xl font-black text-[#2F241C]">
-              ייצוא PDF
-            </h3>
+            <h3 className="text-xl font-black text-[#2F241C]">ייצוא PDF</h3>
 
             <p className="mt-1 text-sm font-semibold text-[#8A7A68]">
               בחרי מה להכניס לקובץ ה־PDF
