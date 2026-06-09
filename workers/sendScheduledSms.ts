@@ -115,47 +115,11 @@ function normalizePhone(phoneRaw: any) {
 }
 
 async function buildNavigationLink(invitation: any) {
-  const location =
-    invitation?.eventLocation && typeof invitation.eventLocation === "object"
-      ? invitation.eventLocation
-      : invitation?.location;
+  const shareId = String(invitation?.shareId || "").trim();
 
-  const navigationAddress =
-    typeof invitation?.location === "string" && invitation.location.trim()
-      ? invitation.location.trim()
-      : typeof invitation?.location?.address === "string" &&
-        invitation.location.address.trim()
-      ? invitation.location.address.trim()
-      : typeof invitation?.location?.name === "string" &&
-        invitation.location.name.trim()
-      ? invitation.location.name.trim()
-      : typeof invitation?.address === "string" && invitation.address.trim()
-      ? invitation.address.trim()
-      : typeof invitation?.eventLocation?.address === "string" &&
-        invitation.eventLocation.address.trim()
-      ? invitation.eventLocation.address.trim()
-      : typeof invitation?.eventLocation?.name === "string" &&
-        invitation.eventLocation.name.trim()
-      ? invitation.eventLocation.name.trim()
-      : "";
+  if (!shareId) return "";
 
-  if (
-    typeof location?.lat === "number" &&
-    typeof location?.lng === "number"
-  ) {
-    const wazeUrl = `https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`;
-    return shortenUrl(wazeUrl);
-  }
-
-  if (navigationAddress) {
-    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-      navigationAddress
-    )}`;
-
-    return shortenUrl(mapsUrl);
-  }
-
-  return "";
+  return shortenUrl(`https://www.invistimo.com/e/${shareId}`);
 }
 
 function buildGuestsQuery({
@@ -222,13 +186,13 @@ const REMINDER_WITH_TABLE_SERVER_TEMPLATE =
   "תזכורת לאירוע {{invitationTitle}}.\n\n" +
   "מספר השולחן שלך:\n" +
   "{{tableName}}\n\n" +
-  "לניווט לאירוע:\n" +
+  "לכל פרטי האירוע והניווט:\n" +
   "{{navigationLink}}\n\n" +
   "נשמח לראותכם ❤️";
 
 const REMINDER_WITHOUT_TABLE_SERVER_TEMPLATE =
   "תזכורת לאירוע {{invitationTitle}}.\n\n" +
-  "לניווט לאירוע:\n" +
+  "לכל פרטי האירוע והניווט:\n" +
   "{{navigationLink}}\n\n" +
   "נשמח לראותכם ❤️";
 

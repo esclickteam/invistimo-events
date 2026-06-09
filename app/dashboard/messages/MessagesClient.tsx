@@ -113,7 +113,7 @@ const MESSAGE_TEMPLATES: Record<
       "תזכורת לאירוע {{invitationTitle}}.\n\n" +
       "מספר השולחן שלך:\n" +
       "{{tableName}}\n\n" +
-      "לניווט לאירוע:\n" +
+      "לכל פרטי האירוע והניווט:\n" +
       "{{navigationLink}}\n\n" +
       "נשמח לראותכם ❤️",
   },
@@ -392,14 +392,11 @@ export default function MessagesPage() {
     // ⭐ מקור אמת אחד
     const baseTemplate = message;
 
-    const location = invitation?.eventId?.location;
-    const hasLocation = !!(location?.lat && location?.lng);
-
-    // 📍 ניווט – רק אם צריך ויש מיקום
-    const navigationLink =
-      templateKey === "table" && hasLocation
-        ? `https://waze.com/ul?ll=${location.lat},${location.lng}&navigate=yes`
-        : "";
+    // 📍 קישור לעמוד פרטי האירוע — רק בהודעת תזכורת עם מספר שולחן
+const navigationLink =
+  templateKey === "table" && invitation?.shareId
+    ? `https://www.invistimo.com/e/${invitation.shareId}`
+    : "";
 
     const rsvpLink = `https://www.invistimo.com/invite/${invitation.shareId}?token=${guest.token}`;
 
