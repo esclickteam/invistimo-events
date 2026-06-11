@@ -154,10 +154,12 @@ export async function GET(req: NextRequest, context: RouteContext) {
     }
 
     const queueItems: any[] = await WhatsappQueue.find({
-      invitationId,
-    })
-      .sort({ createdAt: -1 })
-      .lean();
+  invitationId,
+  type: "rsvp",
+  round: { $in: [1, 2, 3] },
+})
+  .sort({ round: 1, createdAt: -1 })
+  .lean();
 
     const guestIds = queueItems.map((item) => item.guestId).filter(Boolean);
 

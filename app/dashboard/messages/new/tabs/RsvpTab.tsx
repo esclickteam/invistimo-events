@@ -7,6 +7,7 @@ import SendButton from "../shared/SendButton";
 import WhatsappTemplatePreview from "../shared/WhatsappTemplatePreview";
 import TextMessagePreview from "../shared/TextMessagePreview";
 import ScheduledMessagesTable from "@/app/components/ScheduledMessagesTable";
+import WhatsappRoundReport from "@/app/dashboard/components/WhatsappRoundReport";
 
 
 /* ================= TYPES ================= */
@@ -313,6 +314,7 @@ export default function RsvpTab({
 
   const [scheduledMessages, setScheduledMessages] = useState<any[]>([]);
   const [showScheduled, setShowScheduled] = useState(false);
+  const [showWhatsappRoundReport, setShowWhatsappRoundReport] = useState(false);
 
   const [smsMessages, setSmsMessages] = useState<Record<RoundNumber, string>>({
     1: RSVP_SMS_TEMPLATES[1],
@@ -911,37 +913,84 @@ setRound3Locked(Boolean(inv?.rsvpRoundSent?.round3));
           </div>
         </section>
 
-        {/* ROUND SELECTOR */}
-        <section className="rounded-[34px] border border-[#E6D6BC] bg-[#FFF9F1]/90 p-3 shadow-[0_18px_50px_rgba(78,49,27,0.08)]">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {[1, 2, 3].map((r) => (
-              <RoundButton
-                key={r}
-                roundNumber={r as RoundNumber}
-                active={round === r}
-                title={`סבב ${r}`}
-                subtitle={getRoundSubtitle(r as RoundNumber)}
-                count={r === 1 ? totalCount : pendingGuests.length}
-                channel={
-                  activeScheduleChannelByRound[r as RoundNumber] ??
-                  roundChannels[r as RoundNumber]
-                }
-                sent={
-                  r === 1
-                    ? round1Sent
-                    : r === 2
-                    ? round2Sent
-                    : round3Sent
-                }
-                scheduled={activeSchedulesByRound[r as RoundNumber]}
-                onClick={() => {
-                  if (sendingNow) return;
-                  setRound(r as RoundNumber);
-                }}
-              />
-            ))}
-          </div>
-        </section>
+        {/* ROUND SELECTOR + REPORT */}
+<section className="rounded-[34px] border border-[#E6D6BC] bg-[#FFF9F1]/90 p-4 shadow-[0_18px_50px_rgba(78,49,27,0.08)]">
+  <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <div>
+      <h3 className="text-lg font-black text-[#3A2417]">
+        סבבי אישורי הגעה
+      </h3>
+
+      <p className="mt-1 text-sm font-semibold text-[#7A5A3A]">
+        בחרו סבב לשליחה או פתחו דוח שליחה לפי סבבים.
+      </p>
+    </div>
+
+    <button
+      type="button"
+      onClick={() => {
+        if (!invitationId) {
+          alert("לא נמצאה הזמנה לדוח WhatsApp");
+          return;
+        }
+
+        setShowWhatsappRoundReport(true);
+      }}
+      className="
+        inline-flex
+        w-fit
+        items-center
+        justify-center
+        gap-2
+        rounded-full
+        border
+        border-[#D9B46F]/60
+        bg-white
+        px-5
+        py-2.5
+        text-sm
+        font-black
+        text-[#6B451E]
+        shadow-sm
+        transition
+        hover:-translate-y-0.5
+        hover:bg-[#FFF8E6]
+        hover:shadow-md
+      "
+    >
+      📊 דוח WhatsApp לסבבים
+    </button>
+  </div>
+
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+    {[1, 2, 3].map((r) => (
+      <RoundButton
+        key={r}
+        roundNumber={r as RoundNumber}
+        active={round === r}
+        title={`סבב ${r}`}
+        subtitle={getRoundSubtitle(r as RoundNumber)}
+        count={r === 1 ? totalCount : pendingGuests.length}
+        channel={
+          activeScheduleChannelByRound[r as RoundNumber] ??
+          roundChannels[r as RoundNumber]
+        }
+        sent={
+          r === 1
+            ? round1Sent
+            : r === 2
+            ? round2Sent
+            : round3Sent
+        }
+        scheduled={activeSchedulesByRound[r as RoundNumber]}
+        onClick={() => {
+          if (sendingNow) return;
+          setRound(r as RoundNumber);
+        }}
+      />
+    ))}
+  </div>
+</section>
 
         <section className="grid grid-cols-1 xl:grid-cols-[0.94fr_1.06fr] gap-7 items-start">
           {/* PREVIEW */}
@@ -1384,6 +1433,15 @@ setRound3Locked(Boolean(inv?.rsvpRoundSent?.round3));
           </div>
         </div>
       )}
+
+      {showWhatsappRoundReport && invitationId && (
+  <WhatsappRoundReport
+    invitationId={invitationId}
+    onClose={() => setShowWhatsappRoundReport(false)}
+  />
+)}
+
+
     </div>
   );
 }
