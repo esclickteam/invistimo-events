@@ -152,6 +152,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
         { status: 403 }
       );
     }
+    
 
     const queueItems: any[] = await WhatsappQueue.find({
   invitationId,
