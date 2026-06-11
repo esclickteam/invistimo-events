@@ -688,7 +688,7 @@ export async function POST(req: NextRequest) {
     const guests = await InvitationGuest.find(guestQuery);
 
     const queueDocs: any[] = [];
-    const batchId = new Date().getTime();
+const sendDateKey = new Date().toISOString().slice(0, 10);
 
     for (const guest of guests) {
       if (!guest.phone || !guest.token) continue;
@@ -736,22 +736,22 @@ export async function POST(req: NextRequest) {
         phone,
         templateName,
         idempotencyKey: [
-          "whatsapp",
-          "immediate",
-          type,
-          String(invitation._id),
-          String(round),
-          String(guest._id),
-          String(batchId),
-          templateName,
-        ].join(":"),
+  "whatsapp",
+  "immediate",
+  type,
+  String(invitation._id),
+  String(round),
+  String(guest._id),
+  sendDateKey,
+  templateName,
+].join(":"),
 
         payload: guestPayload,
 
         status: "pending",
         scheduledAt: null,
         attempts: 0,
-        maxAttempts: 3,
+        maxAttempts: 1,
       });
     }
 

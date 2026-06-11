@@ -204,9 +204,9 @@ const WhatsappQueueSchema = new Schema(
     },
 
     maxAttempts: {
-      type: Number,
-      default: 3,
-    },
+  type: Number,
+  default: 1,
+},
 
     lastAttemptAt: {
       type: Date,

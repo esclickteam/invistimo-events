@@ -949,32 +949,41 @@ export async function sendScheduledWhatsapp() {
           templateName,
         ].join(":");
 
-        await WhatsappQueue.findOneAndUpdate(
-          { idempotencyKey },
-          {
-            $setOnInsert: {
-              invitationId: msg.invitationId,
-              guestId: guest._id,
-              scheduleId: msg._id,
-              channel: "whatsapp",
-              type,
-              round,
-              roundNumber: round,
-              phone,
-              templateName,
-              idempotencyKey,
-              payload,
-              scheduledAt: msg.scheduledAt,
-              status: "pending",
-              attempts: 0,
-              maxAttempts: 3,
-            },
-          },
-          {
-            upsert: true,
-            new: true,
-          }
-        );
+        const existingQueue = await WhatsappQueue.findOne({ idempotencyKey }).lean();
+
+if (existingQueue) {
+  console.log("⛔ Skipping duplicate scheduled WhatsApp send", {
+    idempotencyKey,
+    queueId: String(existingQueue._id),
+    status: existingQueue.status,
+    attempts: existingQueue.attempts,
+    wamid: existingQueue.wamid,
+  });
+
+  continue;
+}
+
+await WhatsappQueue.create({
+  invitationId: msg.invitationId,
+  guestId: guest._id,
+  scheduleId: msg._id,
+
+  channel: "whatsapp",
+  type,
+  round,
+  roundNumber: round,
+
+  phone,
+  templateName,
+  idempotencyKey,
+  payload,
+
+  scheduledAt: msg.scheduledAt,
+  status: "pending",
+
+  attempts: 0,
+  maxAttempts: 1,
+});
 
         const freshRightBeforeSend = await ScheduledMessage.findById(
           msg._id
