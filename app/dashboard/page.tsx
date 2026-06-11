@@ -18,6 +18,7 @@ import DemoToast from "../components/DemoToast";
 import GuestGroupSelect from "@/app/components/groups/GuestGroupSelect";
 import ManageGroupsModal from "@/app/components/groups/ManageGroupsModal";
 import GuestsControls from "@/app/components/GuestsControls";
+import WhatsappRoundReport from "./components/WhatsappRoundReport";
 import StaffSoftphoneWhenImpersonating from "@/app/components/staff/StaffSoftphoneWhenImpersonating";
 import { useGroupStore } from "@/store/groupStore";
 import { useSeatingStore } from "@/store/seatingStore";
@@ -287,6 +288,7 @@ export default function DashboardPage() {
 
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [openWhatsappReport, setOpenWhatsappReport] = useState(false);
 
   const [actualArrivedMoveSuggestions, setActualArrivedMoveSuggestions] =
   useState<Record<string, any>>({});
@@ -2057,6 +2059,44 @@ const canOpenEventManagement =
   eventId={eventIdFromUrl || invitation?.eventId || invitation?.event || invitation?.event_id || ""}
 />
 
+<div className="mt-3 flex flex-wrap gap-3">
+  <button
+    type="button"
+    onClick={() => {
+      if (isDemo) {
+        handleDemoBlockedAction();
+        return;
+      }
+
+      if (!invitationId) {
+        alert("לא נמצאה הזמנה לדוח WhatsApp");
+        return;
+      }
+
+      setOpenWhatsappReport(true);
+    }}
+    className="
+      inline-flex
+      items-center
+      gap-2
+      rounded-full
+      border
+      border-[#D9B46F]/50
+      bg-white
+      px-5
+      py-2.5
+      text-sm
+      font-black
+      text-[#6B451E]
+      shadow-sm
+      transition
+      hover:bg-[#FFF8E6]
+    "
+  >
+    📊 דוח WhatsApp לפי סבבים
+  </button>
+</div>
+
           {/* תיוגים קיימים מהשרת */}
           <div className="mt-4 flex flex-wrap gap-3">
             {user?.includeCalls ? (
@@ -2988,6 +3028,13 @@ const canOpenEventManagement =
         loadGuests(),
       ]);
     }}
+  />
+)}
+
+{openWhatsappReport && invitationId && (
+  <WhatsappRoundReport
+    invitationId={invitationId}
+    onClose={() => setOpenWhatsappReport(false)}
   />
 )}
 
