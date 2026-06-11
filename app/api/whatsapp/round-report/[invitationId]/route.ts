@@ -373,6 +373,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
           : null,
       });
     }
+    
 
     const rounds = Array.from(roundsMap.values()).sort((a, b) => {
       return Number(a.round || 1) - Number(b.round || 1);
