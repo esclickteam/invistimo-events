@@ -12,13 +12,56 @@ import PublicPageShell from "./PublicPageShell";
 export const metadata = {
   metadataBase: new URL("https://www.invistimo.com"),
 
-  title:
-    "Invistimo אישורי הגעה | ניהול אירועים, הזמנות דיגיטליות והושבה",
+  title: "Invistimo אישורי הגעה | ניהול אירועים, הזמנות דיגיטליות והושבה",
+
   description:
     "Invistimo אישורי הגעה היא מערכת חכמה לניהול אישורי הגעה לאירועים, הזמנות דיגיטליות, סידורי הושבה, תזכורות והודעות לאורחים במקום אחד.",
 
+  applicationName: "Invistimo אישורי הגעה",
+
+  keywords: [
+    "Invistimo",
+    "Invistimo אישורי הגעה",
+    "אישורי הגעה",
+    "אישורי הגעה לאירועים",
+    "אישורי הגעה לחתונה",
+    "ניהול אירועים",
+    "ניהול מוזמנים",
+    "הזמנות דיגיטליות",
+    "סידורי הושבה",
+    "הושבה לאירועים",
+    "תזכורות לאורחים",
+    "הודעות לאורחים",
+  ],
+
   alternates: {
     canonical: "https://www.invistimo.com/",
+  },
+
+  openGraph: {
+    title: "Invistimo אישורי הגעה | ניהול אירועים חכם",
+    description:
+      "Invistimo אישורי הגעה היא מערכת לניהול אישורי הגעה, הזמנות דיגיטליות, סידורי הושבה, תזכורות והודעות לאורחים.",
+    url: "https://www.invistimo.com/",
+    siteName: "Invistimo אישורי הגעה",
+    locale: "he_IL",
+    type: "website",
+  },
+
+  twitter: {
+    card: "summary_large_image",
+    title: "Invistimo אישורי הגעה | ניהול אירועים חכם",
+    description:
+      "מערכת חכמה לניהול אישורי הגעה לאירועים, הזמנות דיגיטליות, סידורי הושבה ותזכורות לאורחים.",
+  },
+
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+    },
   },
 
   icons: {
