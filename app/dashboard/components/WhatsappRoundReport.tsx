@@ -98,9 +98,7 @@ function getStatusClass(status: string) {
 }
 
 function normalizeSearch(value: string) {
-  return String(value || "")
-    .trim()
-    .toLowerCase();
+  return String(value || "").trim().toLowerCase();
 }
 
 function onlyDigits(value: string) {
@@ -183,24 +181,21 @@ export default function WhatsappRoundReport({
         fixed
         inset-0
         z-[9999]
-        flex
-        items-center
-        justify-center
         bg-black/45
         p-2
-        md:p-5
+        md:p-4
       "
       dir="rtl"
     >
       <div
         className="
           flex
-          h-[94vh]
-          w-[98vw]
-          max-w-[1800px]
+          h-[96vh]
+          w-full
+          max-w-none
           flex-col
           overflow-hidden
-          rounded-[30px]
+          rounded-[28px]
           border
           border-[#E7DED1]
           bg-white
@@ -267,33 +262,14 @@ export default function WhatsappRoundReport({
             אין עדיין נתוני WhatsApp להצגה.
           </div>
         ) : (
-          <div
-            className="
-              grid
-              min-h-0
-              flex-1
-              grid-cols-1
-              lg:grid-cols-[320px_minmax(0,1fr)]
-            "
-          >
-            {/* SIDEBAR */}
-            <aside
-              className="
-                min-h-0
-                overflow-y-auto
-                border-b
-                border-[#EEE5D8]
-                bg-[#FBF7F0]
-                p-4
-                lg:border-b-0
-                lg:border-l
-              "
-            >
-              <div className="mb-3 text-xs font-black text-[#8A7A68]">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            {/* ROUND TABS */}
+            <div className="shrink-0 border-b border-[#EEE5D8] bg-[#FBF7F0] px-4 py-3 md:px-6">
+              <div className="mb-2 text-xs font-black text-[#8A7A68]">
                 סבבים
               </div>
 
-              <div className="space-y-2">
+              <div className="flex gap-3 overflow-x-auto pb-1">
                 {rounds.map((round) => (
                   <button
                     key={round.key}
@@ -303,7 +279,7 @@ export default function WhatsappRoundReport({
                       setSearch("");
                     }}
                     className={`
-                      w-full
+                      min-w-[240px]
                       rounded-2xl
                       border
                       px-4
@@ -313,7 +289,7 @@ export default function WhatsappRoundReport({
                       ${
                         activeKey === round.key
                           ? "border-[#D9B46F] bg-white shadow-sm"
-                          : "border-transparent bg-transparent hover:bg-white"
+                          : "border-transparent bg-[#FFF9F1] hover:bg-white"
                       }
                     `}
                   >
@@ -328,10 +304,10 @@ export default function WhatsappRoundReport({
                   </button>
                 ))}
               </div>
-            </aside>
+            </div>
 
             {/* MAIN */}
-            <main className="flex min-h-0 flex-col overflow-hidden p-4 md:p-5">
+            <main className="flex min-h-0 flex-1 flex-col overflow-hidden p-4 md:p-5">
               {activeRound && (
                 <>
                   {/* TOP */}
@@ -348,7 +324,7 @@ export default function WhatsappRoundReport({
                         </p>
                       </div>
 
-                      <div className="w-full xl:w-[420px]">
+                      <div className="w-full xl:w-[460px]">
                         <label className="mb-1 block text-xs font-black text-[#8A7A68]">
                           חיפוש לפי שם או טלפון
                         </label>
@@ -429,12 +405,12 @@ export default function WhatsappRoundReport({
                   >
                     <table className="w-full min-w-[1280px] table-fixed text-sm">
                       <colgroup>
-                        <col className="w-[220px]" />
-                        <col className="w-[170px]" />
-                        <col className="w-[130px]" />
-                        <col className="w-[420px]" />
-                        <col className="w-[170px]" />
-                        {isAdmin && <col className="w-[260px]" />}
+                        <col className="w-[260px]" />
+                        <col className="w-[180px]" />
+                        <col className="w-[150px]" />
+                        <col className="w-[480px]" />
+                        <col className="w-[190px]" />
+                        {isAdmin && <col className="w-[300px]" />}
                       </colgroup>
 
                       <thead className="sticky top-0 z-10 bg-[#F2EEE8]">
@@ -528,7 +504,7 @@ export default function WhatsappRoundReport({
                             </td>
 
                             <td className="p-4 text-[#5F564D]">
-                              <div className="max-w-[390px] whitespace-normal leading-6">
+                              <div className="max-w-[460px] whitespace-normal leading-6">
                                 {item.failure?.text || "—"}
                               </div>
                             </td>
@@ -549,7 +525,7 @@ export default function WhatsappRoundReport({
                                   <div
                                     className="
                                       mt-2
-                                      max-w-[240px]
+                                      max-w-[280px]
                                       space-y-1
                                       rounded-xl
                                       bg-[#FBF7F0]
