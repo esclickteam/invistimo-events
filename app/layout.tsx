@@ -12,9 +12,10 @@ import PublicPageShell from "./PublicPageShell";
 export const metadata = {
   metadataBase: new URL("https://www.invistimo.com"),
 
-  title: "Invistimo – ניהול אירועים חכם",
+  title:
+    "Invistimo אישורי הגעה | ניהול אירועים, הזמנות דיגיטליות והושבה",
   description:
-    "Invistimo – מערכת חכמה לניהול אירועים, הזמנות דיגיטליות, אישורי הגעה והושבה במקום אחד",
+    "Invistimo אישורי הגעה היא מערכת חכמה לניהול אישורי הגעה לאירועים, הזמנות דיגיטליות, סידורי הושבה, תזכורות והודעות לאורחים במקום אחד.",
 
   alternates: {
     canonical: "https://www.invistimo.com/",

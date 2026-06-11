@@ -1161,31 +1161,31 @@ export default function HomePage() {
             "
           >
             <h1
-              className="
-                text-[36px]
-                font-black
-                leading-[1.16]
-                tracking-[-0.03em]
-                text-[#3A3028]
-                md:text-[54px]
-                lg:text-[64px]
-              "
-            >
-              המערכת החכמה
-              <br />
-              <span
-                className="
-                  bg-gradient-to-l
-                  from-[#8B642B]
-                  via-[#C69A3F]
-                  to-[#B88A2D]
-                  bg-clip-text
-                  text-transparent
-                "
-              >
-                לאירועים בלתי נשכחים
-              </span>
-            </h1>
+  className="
+    text-[36px]
+    font-black
+    leading-[1.16]
+    tracking-[-0.03em]
+    text-[#3A3028]
+    md:text-[54px]
+    lg:text-[64px]
+  "
+>
+  Invistimo אישורי הגעה
+  <br />
+  <span
+    className="
+      bg-gradient-to-l
+      from-[#8B642B]
+      via-[#C69A3F]
+      to-[#B88A2D]
+      bg-clip-text
+      text-transparent
+    "
+  >
+    לאירועים בלתי נשכחים
+  </span>
+</h1>
 
             <div className="mx-auto mt-5 flex max-w-[520px] items-center justify-center gap-4">
               <span className="h-px flex-1 bg-gradient-to-l from-transparent via-[#C9A45C] to-[#C9A45C]" />
@@ -1194,19 +1194,20 @@ export default function HomePage() {
             </div>
 
             <p
-              className="
-                mx-auto mt-6 max-w-[620px]
-                text-[17px]
-                font-semibold
-                leading-[1.85]
-                text-[#4E4237]
-                md:text-[19px]
-              "
-            >
-              ניהול הזמנות, אישורי הגעה, הושבה וניהול אורחים
-              <br className="hidden md:block" />
-              בקלות, בסטייל וביעילות.
-            </p>
+  className="
+    mx-auto mt-6 max-w-[620px]
+    text-[17px]
+    font-semibold
+    leading-[1.85]
+    text-[#4E4237]
+    md:text-[19px]
+  "
+>
+  Invistimo אישורי הגעה היא מערכת חכמה לניהול אישורי הגעה לאירועים,
+  הזמנות דיגיטליות, סידורי הושבה, תזכורות וניהול אורחים
+  <br className="hidden md:block" />
+  בקלות, בסטייל וביעילות.
+</p>
 
             <div
               className="
@@ -1518,7 +1519,7 @@ export default function HomePage() {
                 lg:mx-0
               "
             >
-              Invistimo מלווה אתכם לפי הסדר האמיתי של ניהול האירוע:
+              Invistimo אישורי הגעה מלווה אתכם לפי הסדר האמיתי של ניהול האירוע:
               קודם מעלים הזמנה, מעדכנים פרטים, מוסיפים מוזמנים —
               ומשם מנהלים אישורי הגעה, הושבה והודעות במקום אחד.
             </p>
