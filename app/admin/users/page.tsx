@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState, type ReactNode } from "react";
 import CreateUserModal from "./CreateUserModal";
+import WhatsappRoundReport from "@/app/dashboard/components/WhatsappRoundReport";
 import {
   Search,
   Users,
@@ -2346,6 +2347,7 @@ function AdminMessageRoundsPanel({
   onChanged: () => void;
 }) {
   const [loadingKey, setLoadingKey] = useState<string | null>(null);
+  const [showWhatsappRoundReport, setShowWhatsappRoundReport] = useState(false);
 
   const rounds = normalizeAdminMessageRounds(user);
 
@@ -2379,14 +2381,14 @@ function AdminMessageRoundsPanel({
 
       console.log("message round response:", data);
 
-if (data?.debug) {
-  alert(
-    `matched: ${data.debug.matchedCount}\n` +
-      `modified: ${data.debug.modifiedCount}\n` +
-      `receivedInvitationId: ${data.debug.receivedInvitationId}\n` +
-      `updatedInvitationId: ${data.debug.updatedInvitationId}`
-  );
-}
+      if (data?.debug) {
+        alert(
+          `matched: ${data.debug.matchedCount}\n` +
+            `modified: ${data.debug.modifiedCount}\n` +
+            `receivedInvitationId: ${data.debug.receivedInvitationId}\n` +
+            `updatedInvitationId: ${data.debug.updatedInvitationId}`
+        );
+      }
 
       if (!res.ok || data?.success === false) {
         alert("עדכון הסבב נכשל");
@@ -2429,14 +2431,51 @@ if (data?.debug) {
         p-5
       "
     >
-      <div className="mb-5">
-        <h3 className="text-lg font-black text-[#3A2A1C]">
-          סבבי הודעות
-        </h3>
+      <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h3 className="text-lg font-black text-[#3A2A1C]">
+            סבבי הודעות
+          </h3>
 
-        <p className="mt-1 text-xs font-bold text-[#8A7867]">
-          אישורי הגעה סבב 1–3, תזכורת ותודה — כולל סטטוס, פתיחה מחדש וחסימה.
-        </p>
+          <p className="mt-1 text-xs font-bold text-[#8A7867]">
+            אישורי הגעה סבב 1–3, תזכורת ותודה — כולל סטטוס, חסימה ופתיחה מחדש.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            if (!user.invitationId) {
+              alert("לא נמצאה הזמנה למשתמש הזה");
+              return;
+            }
+
+            setShowWhatsappRoundReport(true);
+          }}
+          className="
+            inline-flex
+            w-fit
+            items-center
+            justify-center
+            gap-2
+            rounded-full
+            border
+            border-[#D9B46F]/60
+            bg-[#FFFDF8]
+            px-5
+            py-2.5
+            text-sm
+            font-black
+            text-[#6B451E]
+            shadow-sm
+            transition
+            hover:-translate-y-0.5
+            hover:bg-[#FFF8E6]
+            hover:shadow-md
+          "
+        >
+          📊 דוח WhatsApp לסבבים
+        </button>
       </div>
 
       <div className="space-y-5">
@@ -2520,6 +2559,12 @@ if (data?.debug) {
                             נשלח · {sentAtText}
                           </span>
                         )}
+
+                        {round.channel && (
+                          <span className="rounded-full bg-[#F3ECE4] px-3 py-1 text-[#7B6754]">
+                            {getChannelLabel(round.channel)}
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -2534,6 +2579,7 @@ if (data?.debug) {
                           px-4
                           text-xs font-black
                           text-white
+                          disabled:cursor-not-allowed
                           disabled:opacity-50
                         "
                       >
@@ -2551,6 +2597,7 @@ if (data?.debug) {
                             px-4
                             text-xs font-black
                             text-white
+                            disabled:cursor-not-allowed
                             disabled:opacity-50
                           "
                         >
@@ -2567,6 +2614,7 @@ if (data?.debug) {
                             px-4
                             text-xs font-black
                             text-white
+                            disabled:cursor-not-allowed
                             disabled:opacity-50
                           "
                         >
@@ -2577,10 +2625,23 @@ if (data?.debug) {
                   </div>
                 );
               })}
+
+              {section.items.length === 0 && (
+                <div className="rounded-2xl border border-[#EFE2D1] bg-white px-4 py-5 text-center text-sm font-bold text-[#8A7867]">
+                  אין סבבים להצגה.
+                </div>
+              )}
             </div>
           </div>
         ))}
       </div>
+
+      {showWhatsappRoundReport && user.invitationId && (
+        <WhatsappRoundReport
+          invitationId={user.invitationId}
+          onClose={() => setShowWhatsappRoundReport(false)}
+        />
+      )}
     </section>
   );
 }
