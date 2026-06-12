@@ -867,6 +867,20 @@ function formatExcelDate(value?: string | null) {
 function exportWhatsappRoundToExcel(round: WhatsappReportRound, user?: AdminUser) {
   const workbook = XLSX.utils.book_new();
 
+  const recipientRows = round.recipients.map((item, index) => ({
+    "מס׳": index + 1,
+    "שם אורח": item.name,
+    "טלפון": item.phone,
+    "סטטוס": getWhatsappStatusLabel(item.status),
+    "נשלח בתאריך": formatExcelDate(item.sentAt),
+    "נמסר בתאריך": formatExcelDate(item.deliveredAt),
+    "נקרא בתאריך": formatExcelDate(item.readAt),
+    "נכשל בתאריך": formatExcelDate(item.failedAt),
+    "סיבת כישלון": item.errorMessage || "",
+    "ניסיונות": item.attempts || 0,
+    "מזהה הודעה": item.messageId || "",
+  }));
+
   const summaryRows = [
     { "נתון": "לקוח", "ערך": user?.name || user?.email || "" },
     { "נתון": "סבב", "ערך": round.title },
@@ -878,25 +892,35 @@ function exportWhatsappRoundToExcel(round: WhatsappReportRound, user?: AdminUser
     { "נתון": "ממתינים", "ערך": round.pending },
   ];
 
-  const recipientRows = round.recipients.map((item, index) => ({
-    "מס׳": index + 1,
-    "שם אורח": item.name,
-    "טלפון": item.phone,
-    "סטטוס": getWhatsappStatusLabel(item.status),
-    "נשלח בתאריך": formatExcelDate(item.sentAt),
-    "נמסר בתאריך": formatExcelDate(item.deliveredAt),
-    "נקרא בתאריך": formatExcelDate(item.readAt),
-    "נכשל בתאריך": formatExcelDate(item.failedAt),
-    "סיבת כישלון": item.errorMessage,
-    "ניסיונות": item.attempts || 0,
-    "מזהה הודעה": item.messageId,
-  }));
-
-  const summarySheet = XLSX.utils.json_to_sheet(summaryRows);
   const recipientsSheet = XLSX.utils.json_to_sheet(recipientRows);
+  const summarySheet = XLSX.utils.json_to_sheet(summaryRows);
 
+  recipientsSheet["!cols"] = [
+    { wch: 8 },
+    { wch: 24 },
+    { wch: 18 },
+    { wch: 14 },
+    { wch: 22 },
+    { wch: 22 },
+    { wch: 22 },
+    { wch: 22 },
+    { wch: 45 },
+    { wch: 10 },
+    { wch: 36 },
+  ];
+
+  summarySheet["!cols"] = [
+    { wch: 22 },
+    { wch: 35 },
+  ];
+
+  /*
+    חשוב:
+    מוסיפים קודם את "כל האורחים",
+    כדי שזה יהיה הגיליון הראשון שנפתח באקסל.
+  */
+  XLSX.utils.book_append_sheet(workbook, recipientsSheet, "כל האורחים");
   XLSX.utils.book_append_sheet(workbook, summarySheet, "סיכום");
-  XLSX.utils.book_append_sheet(workbook, recipientsSheet, "נמענים");
 
   const safeTitle = round.title.replace(/[\\/:*?"<>|]/g, "-").slice(0, 40);
   const safeName = String(user?.name || user?.email || "client")
