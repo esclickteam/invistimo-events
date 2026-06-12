@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useEffect, useMemo, useState, type ReactNode } from "react";
+import * as XLSX from "xlsx";
 import CreateUserModal from "./CreateUserModal";
-import WhatsappRoundReport from "@/app/dashboard/components/WhatsappRoundReport";
 import {
   Search,
   Users,
@@ -615,6 +615,333 @@ function mergeRoundStatus(
     channel: incoming?.channel || base.channel || null,
   };
 }
+
+
+type WhatsappReportRecipient = {
+  id: string;
+  name: string;
+  phone: string;
+  status: string;
+  sentAt?: string | null;
+  deliveredAt?: string | null;
+  readAt?: string | null;
+  failedAt?: string | null;
+  errorMessage?: string;
+  attempts?: number;
+  messageId?: string;
+};
+
+type WhatsappReportRound = {
+  key: string;
+  title: string;
+  total: number;
+  sent: number;
+  delivered: number;
+  read: number;
+  failed: number;
+  pending: number;
+  recipients: WhatsappReportRecipient[];
+};
+
+function getWhatsappStatusLabel(status?: string) {
+  const normalized = String(status || "").toLowerCase();
+
+  const labels: Record<string, string> = {
+    read: "נקרא",
+    delivered: "נמסר",
+    sent: "נשלח",
+    failed: "נכשל",
+    pending: "ממתין",
+    queued: "בתור",
+    processing: "בתהליך",
+    accepted: "התקבל לשליחה",
+  };
+
+  return labels[normalized] || status || "—";
+}
+
+function getWhatsappStatusClass(status?: string) {
+  const normalized = String(status || "").toLowerCase();
+
+  if (normalized === "failed") {
+    return "border-red-200 bg-red-50 text-red-600";
+  }
+
+  if (normalized === "read") {
+    return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  }
+
+  if (normalized === "delivered") {
+    return "border-blue-200 bg-blue-50 text-blue-700";
+  }
+
+  if (normalized === "sent") {
+    return "border-amber-200 bg-amber-50 text-amber-700";
+  }
+
+  return "border-[#EFE2D1] bg-[#F6F1EA] text-[#7B6754]";
+}
+
+function normalizeWhatsappRecipient(
+  raw: any,
+  index: number
+): WhatsappReportRecipient {
+  const providerStatus = String(raw?.providerStatus || "").toLowerCase();
+  const baseStatus = String(raw?.status || "").toLowerCase();
+
+  const status =
+    providerStatus === "read"
+      ? "read"
+      : providerStatus === "delivered"
+        ? "delivered"
+        : providerStatus === "failed" || baseStatus === "failed"
+          ? "failed"
+          : providerStatus === "sent" || baseStatus === "sent"
+            ? "sent"
+            : baseStatus ||
+              raw?.messageStatus ||
+              raw?.whatsappStatus ||
+              raw?.deliveryStatus ||
+              (raw?.readAt
+                ? "read"
+                : raw?.deliveredAt
+                  ? "delivered"
+                  : raw?.failedAt
+                    ? "failed"
+                    : raw?.sentAt
+                      ? "sent"
+                      : "pending");
+
+  return {
+    id: String(
+      raw?._id ||
+        raw?.id ||
+        raw?.messageId ||
+        raw?.whatsappMessageId ||
+        raw?.admin?.wamid ||
+        index
+    ),
+    name: String(
+      raw?.name ||
+        raw?.guestName ||
+        raw?.fullName ||
+        raw?.recipientName ||
+        ""
+    ),
+    phone: String(
+      raw?.phone ||
+        raw?.to ||
+        raw?.recipientPhone ||
+        raw?.phoneNumber ||
+        ""
+    ),
+    status: String(status || "pending"),
+    sentAt: raw?.sentAt || raw?.createdAt || raw?.timestamp || null,
+    deliveredAt: raw?.deliveredAt || null,
+    readAt: raw?.readAt || null,
+    failedAt: raw?.failedAt || null,
+    errorMessage: String(
+      raw?.failure?.text ||
+        raw?.errorMessage ||
+        raw?.failureReason ||
+        raw?.error ||
+        raw?.reason ||
+        raw?.admin?.errorMessage ||
+        raw?.admin?.lastError ||
+        ""
+    ),
+    attempts: Number(raw?.attempts || raw?.retryCount || raw?.tries || 0),
+    messageId: String(
+      raw?.messageId ||
+        raw?.whatsappMessageId ||
+        raw?.wamid ||
+        raw?.admin?.wamid ||
+        ""
+    ),
+  };
+}
+
+
+function countWhatsappStatus(recipients: WhatsappReportRecipient[], status: string) {
+  return recipients.filter((item) => String(item.status || "").toLowerCase() === status).length;
+}
+
+function normalizeWhatsappRound(raw: any, index: number): WhatsappReportRound {
+  const recipientsSource =
+    raw?.recipients ||
+    raw?.items ||
+    raw?.messages ||
+    raw?.guests ||
+    raw?.logs ||
+    [];
+
+  const recipients = Array.isArray(recipientsSource)
+    ? recipientsSource.map((item, itemIndex) =>
+        normalizeWhatsappRecipient(item, itemIndex)
+      )
+    : [];
+
+  const summary = raw?.summary || {};
+
+  const total = Number(
+    summary.total ?? raw?.total ?? raw?.totalCount ?? raw?.count ?? recipients.length ?? 0
+  );
+
+  const sent = Number(
+    summary.sent ?? raw?.sent ?? raw?.sentCount ?? countWhatsappStatus(recipients, "sent")
+  );
+
+  const delivered = Number(
+    summary.delivered ??
+      raw?.delivered ??
+      raw?.deliveredCount ??
+      countWhatsappStatus(recipients, "delivered")
+  );
+
+  const read = Number(
+    summary.read ?? raw?.read ?? raw?.readCount ?? countWhatsappStatus(recipients, "read")
+  );
+
+  const failed = Number(
+    summary.failed ??
+      raw?.failed ??
+      raw?.failedCount ??
+      countWhatsappStatus(recipients, "failed")
+  );
+
+  const pending = Number(
+    summary.pending ??
+      raw?.pending ??
+      raw?.pendingCount ??
+      Math.max(total - sent - delivered - read - failed, 0)
+  );
+
+  return {
+    key: String(raw?.key || raw?.roundKey || raw?._id || raw?.id || `round-${index + 1}`),
+    title: String(raw?.title || raw?.label || raw?.name || `סבב ${index + 1}`),
+    total,
+    sent,
+    delivered,
+    read,
+    failed,
+    pending,
+    recipients,
+  };
+}
+
+
+function normalizeWhatsappReportPayload(payload: any): WhatsappReportRound[] {
+  const data = payload?.data || payload?.report || payload;
+
+  const roundsSource =
+    data?.rounds ||
+    data?.reports ||
+    data?.items ||
+    data?.messageRounds ||
+    data?.whatsappRounds ||
+    [];
+
+  if (Array.isArray(roundsSource) && roundsSource.length) {
+    return roundsSource.map((round, index) => normalizeWhatsappRound(round, index));
+  }
+
+  if (Array.isArray(data?.recipients) || Array.isArray(data?.messages) || Array.isArray(data?.logs)) {
+    return [normalizeWhatsappRound(data, 0)];
+  }
+
+  return [];
+}
+
+function formatExcelDate(value?: string | null) {
+  if (!value) return "";
+
+  try {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toLocaleString("he-IL");
+  } catch {
+    return "";
+  }
+}
+
+function exportWhatsappRoundToExcel(round: WhatsappReportRound, user?: AdminUser) {
+  const workbook = XLSX.utils.book_new();
+
+  const summaryRows = [
+    { "נתון": "לקוח", "ערך": user?.name || user?.email || "" },
+    { "נתון": "סבב", "ערך": round.title },
+    { "נתון": "סה״כ", "ערך": round.total },
+    { "נתון": "נשלחו", "ערך": round.sent },
+    { "נתון": "נמסרו", "ערך": round.delivered },
+    { "נתון": "נקראו", "ערך": round.read },
+    { "נתון": "נכשלו", "ערך": round.failed },
+    { "נתון": "ממתינים", "ערך": round.pending },
+  ];
+
+  const recipientRows = round.recipients.map((item, index) => ({
+    "מס׳": index + 1,
+    "שם אורח": item.name,
+    "טלפון": item.phone,
+    "סטטוס": getWhatsappStatusLabel(item.status),
+    "נשלח בתאריך": formatExcelDate(item.sentAt),
+    "נמסר בתאריך": formatExcelDate(item.deliveredAt),
+    "נקרא בתאריך": formatExcelDate(item.readAt),
+    "נכשל בתאריך": formatExcelDate(item.failedAt),
+    "סיבת כישלון": item.errorMessage,
+    "ניסיונות": item.attempts || 0,
+    "מזהה הודעה": item.messageId,
+  }));
+
+  const summarySheet = XLSX.utils.json_to_sheet(summaryRows);
+  const recipientsSheet = XLSX.utils.json_to_sheet(recipientRows);
+
+  XLSX.utils.book_append_sheet(workbook, summarySheet, "סיכום");
+  XLSX.utils.book_append_sheet(workbook, recipientsSheet, "נמענים");
+
+  const safeTitle = round.title.replace(/[\\/:*?"<>|]/g, "-").slice(0, 40);
+  const safeName = String(user?.name || user?.email || "client")
+    .replace(/[\\/:*?"<>|]/g, "-")
+    .slice(0, 40);
+
+  XLSX.writeFile(workbook, `whatsapp-report-${safeName}-${safeTitle}.xlsx`);
+}
+
+async function fetchWhatsappRoundReport(invitationId: string) {
+  const encodedInvitationId = encodeURIComponent(invitationId);
+
+  try {
+    const res = await fetch(
+      `/api/whatsapp/round-report/${encodedInvitationId}`,
+      {
+        credentials: "include",
+        cache: "no-store",
+      }
+    );
+
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok || data?.success === false) {
+      throw new Error(
+        data?.message ||
+          data?.error ||
+          `טעינת דוח WhatsApp נכשלה - HTTP ${res.status}`
+      );
+    }
+
+    const rounds = normalizeWhatsappReportPayload(data);
+
+    if (!rounds.length) {
+      throw new Error("לא נמצאו נתוני דוח בתשובת השרת");
+    }
+
+    return rounds;
+  } catch (err) {
+    throw new Error(
+      err instanceof Error ? err.message : "טעינת דוח WhatsApp נכשלה"
+    );
+  }
+}
+
 
 function normalizeAdminMessageRounds(user: AdminUser): AdminMessageRounds {
   const defaults = getDefaultMessageRounds();
@@ -2637,12 +2964,356 @@ function AdminMessageRoundsPanel({
       </div>
 
       {showWhatsappRoundReport && user.invitationId && (
-        <WhatsappRoundReport
+        <AdminWhatsappRoundReportModal
+          user={user}
           invitationId={user.invitationId}
           onClose={() => setShowWhatsappRoundReport(false)}
         />
       )}
     </section>
+  );
+}
+
+
+function AdminWhatsappRoundReportModal({
+  user,
+  invitationId,
+  onClose,
+}: {
+  user: AdminUser;
+  invitationId: string;
+  onClose: () => void;
+}) {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [rounds, setRounds] = useState<WhatsappReportRound[]>([]);
+  const [selectedRoundKey, setSelectedRoundKey] = useState("");
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadReport() {
+      try {
+        setLoading(true);
+        setError("");
+
+        const loadedRounds = await fetchWhatsappRoundReport(invitationId);
+
+        if (!active) return;
+
+        setRounds(loadedRounds);
+        setSelectedRoundKey((current) => current || loadedRounds[0]?.key || "");
+      } catch (err) {
+        if (!active) return;
+        setError(err instanceof Error ? err.message : "טעינת הדוח נכשלה");
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    loadReport();
+
+    return () => {
+      active = false;
+    };
+  }, [invitationId]);
+
+  const selectedRound = useMemo(() => {
+    return rounds.find((round) => round.key === selectedRoundKey) || rounds[0] || null;
+  }, [rounds, selectedRoundKey]);
+
+  const filteredRecipients = useMemo(() => {
+    if (!selectedRound) return [];
+
+    const q = normalizeText(search);
+
+    return selectedRound.recipients.filter((item) => {
+      if (!q) return true;
+
+      return (
+        normalizeText(item.name).includes(q) ||
+        normalizeText(item.phone).includes(q) ||
+        normalizeText(getWhatsappStatusLabel(item.status)).includes(q) ||
+        normalizeText(item.errorMessage).includes(q) ||
+        normalizeText(item.messageId).includes(q)
+      );
+    });
+  }, [selectedRound, search]);
+
+  return (
+    <div
+      dir="rtl"
+      className="
+        fixed inset-0 z-[10050]
+        flex items-start justify-center
+        overflow-y-auto
+        bg-black/45
+        px-2 py-3
+        backdrop-blur-sm
+        sm:px-4 sm:py-6
+      "
+      onClick={onClose}
+    >
+      <div
+        className="
+          relative
+          flex
+          max-h-[calc(100dvh-24px)]
+          w-full
+          max-w-5xl
+          flex-col
+          overflow-hidden
+          rounded-[26px]
+          border border-[#E7D8C6]
+          bg-white
+          shadow-[0_28px_90px_rgba(0,0,0,0.25)]
+          sm:max-h-[calc(100dvh-48px)]
+          sm:rounded-[34px]
+        "
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header
+          className="
+            shrink-0
+            border-b border-[#EFE2D1]
+            bg-gradient-to-br from-[#FFFDF8] to-[#F8EFE3]
+            px-4 py-4
+            sm:px-6 sm:py-5
+          "
+        >
+          <div className="flex items-start justify-between gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="
+                flex h-11 w-11 shrink-0 items-center justify-center
+                rounded-full
+                bg-white
+                text-[#6B5138]
+                shadow-sm
+                transition
+                hover:bg-[#F1E5D6]
+              "
+            >
+              <X size={20} />
+            </button>
+
+            <div className="min-w-0 text-right">
+              <h2 className="break-words text-2xl font-black text-[#3A2A1C] sm:text-3xl">
+                דוח WhatsApp לסבבים
+              </h2>
+              <p className="mt-1 text-sm font-bold leading-6 text-[#8A7867]">
+                {user.name || user.email || "לקוח"} · צפייה בסטטוסים וייצוא לאקסל
+              </p>
+            </div>
+          </div>
+        </header>
+
+        <main
+          className="
+            flex-1
+            overflow-y-auto
+            overscroll-contain
+            px-4 py-4
+            sm:px-6 sm:py-5
+          "
+        >
+          {loading ? (
+            <div className="flex min-h-[240px] items-center justify-center text-[#6B5A48]">
+              <Loader2 className="ml-2 animate-spin" size={22} />
+              טוען דוח WhatsApp…
+            </div>
+          ) : error ? (
+            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-5 text-sm font-bold leading-7 text-red-700">
+              {error}
+            </div>
+          ) : !selectedRound ? (
+            <div className="rounded-2xl border border-[#EFE2D1] bg-[#FFFDF8] px-4 py-5 text-center text-sm font-bold text-[#8A7867]">
+              אין נתוני דוח להצגה.
+            </div>
+          ) : (
+            <div className="space-y-5">
+              <section className="rounded-[24px] border border-[#E7D8C6] bg-[#FFFDF8] p-4">
+                <div className="mb-3 text-sm font-black text-[#7B6754]">סבבים</div>
+
+                <div className="flex gap-3 overflow-x-auto pb-2">
+                  {rounds.map((round) => (
+                    <button
+                      key={round.key}
+                      type="button"
+                      onClick={() => setSelectedRoundKey(round.key)}
+                      className={`
+                        min-w-[220px]
+                        shrink-0
+                        rounded-[22px]
+                        border
+                        px-4 py-3
+                        text-right
+                        transition
+                        ${
+                          selectedRound.key === round.key
+                            ? "border-[#D7A34D] bg-white shadow-sm"
+                            : "border-[#EFE2D1] bg-white/60 hover:bg-white"
+                        }
+                      `}
+                    >
+                      <div className="text-base font-black text-[#3A2A1C]">
+                        {round.title}
+                      </div>
+                      <div className="mt-1 text-xs font-black text-[#8A7867]">
+                        סה״כ {round.total} · נכשלו {round.failed}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <section className="rounded-[24px] border border-[#E7D8C6] bg-white p-4">
+                <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <h3 className="text-xl font-black text-[#3A2A1C]">
+                      {selectedRound.title}
+                    </h3>
+                    <p className="mt-1 text-xs font-bold text-[#8A7867]">
+                      מוצגות {filteredRecipients.length} מתוך {selectedRound.recipients.length} רשומות
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => exportWhatsappRoundToExcel(selectedRound, user)}
+                    className="
+                      flex h-11 w-full items-center justify-center gap-2
+                      rounded-2xl
+                      bg-[#1F7A4D]
+                      px-5
+                      text-sm font-black
+                      text-white
+                      shadow-sm
+                      transition
+                      hover:bg-[#17663F]
+                      md:w-auto
+                    "
+                  >
+                    📥 ייצוא דוח לאקסל
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+                  <WhatsappStatBox label='סה״כ' value={selectedRound.total} />
+                  <WhatsappStatBox label="נשלחו" value={selectedRound.sent} />
+                  <WhatsappStatBox label="נמסרו" value={selectedRound.delivered} />
+                  <WhatsappStatBox label="נקראו" value={selectedRound.read} />
+                  <WhatsappStatBox label="נכשלו" value={selectedRound.failed} danger />
+                  <WhatsappStatBox label="ממתינים" value={selectedRound.pending} />
+                </div>
+              </section>
+
+              <section className="rounded-[24px] border border-[#E7D8C6] bg-white p-4">
+                <label className="mb-4 block">
+                  <span className="mb-2 block text-sm font-black text-[#6B5A48]">
+                    חיפוש לפי שם, טלפון, סטטוס או שגיאה
+                  </span>
+                  <div className="flex h-12 items-center gap-3 rounded-2xl border border-[#E7D8C6] bg-[#FFFDF8] px-4">
+                    <Search size={18} className="text-[#9A7A52]" />
+                    <input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="לדוגמה: גיא / 050 / נכשל"
+                      className="w-full bg-transparent text-sm font-bold text-[#3A2A1C] outline-none placeholder:text-[#B6A28C]"
+                    />
+                  </div>
+                </label>
+
+                <div className="overflow-x-auto rounded-[22px] border border-[#EFE2D1]">
+                  <table className="min-w-[760px] w-full text-right text-sm">
+                    <thead className="bg-[#F5EFE6] text-xs font-black text-[#7B6754]">
+                      <tr>
+                        <th className="p-4">אורח</th>
+                        <th className="p-4">טלפון</th>
+                        <th className="p-4">סטטוס</th>
+                        <th className="p-4">נשלח</th>
+                        <th className="p-4">נמסר</th>
+                        <th className="p-4">נקרא</th>
+                        <th className="p-4">שגיאה</th>
+                      </tr>
+                    </thead>
+
+                    <tbody className="divide-y divide-[#EFE2D1] bg-white">
+                      {filteredRecipients.map((item) => (
+                        <tr key={item.id} className="hover:bg-[#FFFDF8]">
+                          <td className="p-4 font-black text-[#3A2A1C]">
+                            {item.name || "—"}
+                          </td>
+                          <td className="p-4 font-bold text-[#6B5A48]" dir="ltr">
+                            {item.phone || "—"}
+                          </td>
+                          <td className="p-4">
+                            <span
+                              className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${getWhatsappStatusClass(item.status)}`}
+                            >
+                              {getWhatsappStatusLabel(item.status)}
+                            </span>
+                          </td>
+                          <td className="p-4 font-bold text-[#6B5A48]">
+                            {formatDateTime(item.sentAt) || "—"}
+                          </td>
+                          <td className="p-4 font-bold text-[#6B5A48]">
+                            {formatDateTime(item.deliveredAt) || "—"}
+                          </td>
+                          <td className="p-4 font-bold text-[#6B5A48]">
+                            {formatDateTime(item.readAt) || "—"}
+                          </td>
+                          <td className="max-w-[240px] p-4 text-xs font-bold leading-6 text-red-600">
+                            {item.errorMessage || "—"}
+                          </td>
+                        </tr>
+                      ))}
+
+                      {filteredRecipients.length === 0 && (
+                        <tr>
+                          <td colSpan={7} className="p-6 text-center font-bold text-[#8A7867]">
+                            לא נמצאו רשומות לפי החיפוש.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            </div>
+          )}
+        </main>
+      </div>
+    </div>
+  );
+}
+
+function WhatsappStatBox({
+  label,
+  value,
+  danger = false,
+}: {
+  label: string;
+  value: number;
+  danger?: boolean;
+}) {
+  return (
+    <div
+      className={`rounded-[22px] border p-4 ${
+        danger
+          ? "border-red-200 bg-red-50"
+          : "border-[#EFE2D1] bg-[#FFFDF8]"
+      }`}
+    >
+      <div className={`text-xs font-black ${danger ? "text-red-500" : "text-[#7B6754]"}`}>
+        {label}
+      </div>
+      <div className={`mt-1 text-2xl font-black ${danger ? "text-red-600" : "text-[#24190F]"}`}>
+        {Number(value || 0).toLocaleString("he-IL")}
+      </div>
+    </div>
   );
 }
 
