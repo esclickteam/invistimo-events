@@ -35,7 +35,7 @@ function statusLabel(status: EmployeeDocumentStatus) {
     case "approved":
       return "מאושר";
     case "rejected":
-      return "נדחה — צריך להעלות מחדש";
+      return "נדחה — אפשר להעלות מחדש";
     default:
       return "לא הועלה";
   }
@@ -113,6 +113,20 @@ function getMainStatus(
   return "uploaded";
 }
 
+function isDocumentLocked(document: EmployeeDocument | null) {
+  if (!document) return false;
+
+  return document.status === "uploaded" || document.status === "approved";
+}
+
+function lockedMessage(label: string, status?: EmployeeDocumentStatus) {
+  if (status === "approved") {
+    return `${label} כבר אושר וננעל. לא ניתן להעלות קובץ חדש אלא אם האדמין יפתח מחדש.`;
+  }
+
+  return `${label} כבר הועלה וננעל לבדיקה. ניתן להעלות מחדש רק לאחר פתיחה על ידי האדמין.`;
+}
+
 export default function Form101Card({
   employeeId,
   businessId,
@@ -133,6 +147,9 @@ export default function Form101Card({
   const [uploadingType, setUploadingType] =
     useState<EmployeeDocumentType | null>(null);
   const [error, setError] = useState("");
+
+  const isForm101Locked = isDocumentLocked(currentForm101);
+  const isIdCardLocked = isDocumentLocked(currentIdCard);
 
   async function loadDocument(documentType: EmployeeDocumentType) {
     const params = new URLSearchParams({
@@ -187,6 +204,15 @@ export default function Form101Card({
   async function uploadDocument(documentType: EmployeeDocumentType) {
     try {
       const selectedFile = documentType === "form101" ? form101File : idCardFile;
+      const currentDocument =
+        documentType === "form101" ? currentForm101 : currentIdCard;
+      const isLocked = isDocumentLocked(currentDocument);
+      const label = documentType === "form101" ? "טופס 101" : "תעודת זהות";
+
+      if (isLocked) {
+        setError(lockedMessage(label, currentDocument?.status));
+        return;
+      }
 
       if (!selectedFile) {
         alert("בחרי קובץ קודם");
@@ -209,6 +235,13 @@ export default function Form101Card({
       });
 
       const data = await res.json().catch(() => null);
+
+      if (res.status === 423) {
+        throw new Error(
+          data?.error ||
+            `${label} כבר הועלה וננעל. ניתן להעלות מחדש רק לאחר פתיחה על ידי האדמין.`
+        );
+      }
 
       if (!res.ok || !data?.success) {
         throw new Error(data?.error || "שגיאה בהעלאת המסמך");
@@ -251,9 +284,7 @@ export default function Form101Card({
       >
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h2 className="text-xl font-black text-slate-950">
-              מסמכי עובד
-            </h2>
+            <h2 className="text-xl font-black text-slate-950">מסמכי עובד</h2>
 
             <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-slate-500">
               טופס 101 ותעודת זהות נשמרים במערכת וממתינים לבדיקה.
@@ -401,33 +432,52 @@ export default function Form101Card({
                     העלאת טופס חתום
                   </p>
 
-                  <input
-                    type="file"
-                    accept=".pdf,image/png,image/jpeg"
-                    disabled={uploadingType === "form101"}
-                    onChange={(event) => {
-                      setForm101File(event.target.files?.[0] || null);
-                    }}
-                    className="mt-4 block w-full cursor-pointer rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm font-bold text-slate-700 file:ml-4 file:rounded-xl file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-sm file:font-black file:text-white"
-                  />
+                  {isForm101Locked ? (
+                    <div className="mt-4 rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm font-black leading-6 text-amber-700">
+                      {lockedMessage("טופס 101", currentForm101?.status)}
+                    </div>
+                  ) : (
+                    <>
+                      {currentForm101?.status === "rejected" && (
+                        <div className="mt-4 rounded-3xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold leading-6 text-rose-700">
+                          הטופס נדחה על ידי האדמין. ניתן להעלות טופס מתוקן.
+                          {currentForm101.rejectionReason && (
+                            <div className="mt-2">
+                              סיבה: {currentForm101.rejectionReason}
+                            </div>
+                          )}
+                        </div>
+                      )}
 
-                  {form101File && (
-                    <p className="mt-2 text-xs font-bold text-slate-500">
-                      נבחר: {form101File.name} ·{" "}
-                      {formatFileSize(form101File.size)}
-                    </p>
+                      <input
+                        type="file"
+                        accept=".pdf,image/png,image/jpeg"
+                        disabled={uploadingType === "form101"}
+                        onChange={(event) => {
+                          setForm101File(event.target.files?.[0] || null);
+                        }}
+                        className="mt-4 block w-full cursor-pointer rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm font-bold text-slate-700 file:ml-4 file:rounded-xl file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-sm file:font-black file:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                      />
+
+                      {form101File && (
+                        <p className="mt-2 text-xs font-bold text-slate-500">
+                          נבחר: {form101File.name} ·{" "}
+                          {formatFileSize(form101File.size)}
+                        </p>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => uploadDocument("form101")}
+                        disabled={uploadingType === "form101" || !form101File}
+                        className="mt-4 h-11 rounded-2xl bg-emerald-600 px-5 text-sm font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {uploadingType === "form101"
+                          ? "מעלה..."
+                          : "העלאת טופס חתום"}
+                      </button>
+                    </>
                   )}
-
-                  <button
-                    type="button"
-                    onClick={() => uploadDocument("form101")}
-                    disabled={uploadingType === "form101" || !form101File}
-                    className="mt-4 h-11 rounded-2xl bg-emerald-600 px-5 text-sm font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {uploadingType === "form101"
-                      ? "מעלה..."
-                      : "העלאת טופס חתום"}
-                  </button>
                 </div>
 
                 {currentForm101 && (
@@ -508,33 +558,53 @@ export default function Form101Card({
                     העלאת תעודת זהות
                   </p>
 
-                  <input
-                    type="file"
-                    accept=".pdf,image/png,image/jpeg"
-                    disabled={uploadingType === "idCard"}
-                    onChange={(event) => {
-                      setIdCardFile(event.target.files?.[0] || null);
-                    }}
-                    className="mt-4 block w-full cursor-pointer rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm font-bold text-slate-700 file:ml-4 file:rounded-xl file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-sm file:font-black file:text-white"
-                  />
+                  {isIdCardLocked ? (
+                    <div className="mt-4 rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm font-black leading-6 text-amber-700">
+                      {lockedMessage("תעודת זהות", currentIdCard?.status)}
+                    </div>
+                  ) : (
+                    <>
+                      {currentIdCard?.status === "rejected" && (
+                        <div className="mt-4 rounded-3xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold leading-6 text-rose-700">
+                          תעודת הזהות נדחתה על ידי האדמין. ניתן להעלות קובץ
+                          מתוקן.
+                          {currentIdCard.rejectionReason && (
+                            <div className="mt-2">
+                              סיבה: {currentIdCard.rejectionReason}
+                            </div>
+                          )}
+                        </div>
+                      )}
 
-                  {idCardFile && (
-                    <p className="mt-2 text-xs font-bold text-slate-500">
-                      נבחר: {idCardFile.name} ·{" "}
-                      {formatFileSize(idCardFile.size)}
-                    </p>
+                      <input
+                        type="file"
+                        accept=".pdf,image/png,image/jpeg"
+                        disabled={uploadingType === "idCard"}
+                        onChange={(event) => {
+                          setIdCardFile(event.target.files?.[0] || null);
+                        }}
+                        className="mt-4 block w-full cursor-pointer rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm font-bold text-slate-700 file:ml-4 file:rounded-xl file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-sm file:font-black file:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                      />
+
+                      {idCardFile && (
+                        <p className="mt-2 text-xs font-bold text-slate-500">
+                          נבחר: {idCardFile.name} ·{" "}
+                          {formatFileSize(idCardFile.size)}
+                        </p>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => uploadDocument("idCard")}
+                        disabled={uploadingType === "idCard" || !idCardFile}
+                        className="mt-4 h-11 rounded-2xl bg-emerald-600 px-5 text-sm font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {uploadingType === "idCard"
+                          ? "מעלה..."
+                          : "העלאת תעודת זהות"}
+                      </button>
+                    </>
                   )}
-
-                  <button
-                    type="button"
-                    onClick={() => uploadDocument("idCard")}
-                    disabled={uploadingType === "idCard" || !idCardFile}
-                    className="mt-4 h-11 rounded-2xl bg-emerald-600 px-5 text-sm font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {uploadingType === "idCard"
-                      ? "מעלה..."
-                      : "העלאת תעודת זהות"}
-                  </button>
                 </div>
 
                 {currentIdCard && (
