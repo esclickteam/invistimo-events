@@ -337,13 +337,16 @@ function getAgreementEffectiveStatus(
   // אם האדמין דחה את ההסכם — העובד צריך לראות שניתן לחתום מחדש.
   if (agreement.status === "rejected") return "rejected";
 
-  // ✅ כל הסכם שיש לו קובץ חתום/תאריך חתימה/סטטוס signed/approved יוצג כ-"נחתם".
-  // זה מונע מצב שבו ה-PDF נוצר ונשמר, אבל הבועה עדיין מציגה "לא נחתם".
+  // אם האדמין אישר — זה חייב להופיע כמאושר, גם אם יש קובץ חתום.
+  if (agreement.status === "approved" || agreement.approvedAt) {
+    return "approved";
+  }
+
+  // אם העובד חתם ונוצר PDF חתום — זה חייב להופיע כנחתם.
   if (
     getAgreementFileUrl(agreement) ||
     agreement.signedAt ||
-    agreement.status === "signed" ||
-    agreement.status === "approved"
+    agreement.status === "signed"
   ) {
     return "signed";
   }
@@ -384,9 +387,7 @@ function normalizeEmployeeAgreementFromResponse(data: any) {
     normalized.signedFileUrl = fileUrl;
   }
 
-  if (getAgreementEffectiveStatus(normalized) === "signed") {
-    normalized.status = "signed";
-  }
+  normalized.status = getAgreementEffectiveStatus(normalized);
 
   return normalized;
 }
@@ -394,6 +395,7 @@ function normalizeEmployeeAgreementFromResponse(data: any) {
 function agreementStatusLabel(status?: EmployeeAgreementStatus) {
   switch (status) {
     case "approved":
+      return "מאושר";
     case "signed":
       return "נחתם";
     case "rejected":
@@ -1205,7 +1207,7 @@ function DocumentsPanel({
                 </div>
               </div>
 
-              {agreement && agreementStatus === "signed" && (
+              {agreement && (agreementStatus === "signed" || agreementStatus === "approved") && (
                 <div className="mt-5 rounded-[28px] border border-violet-100 bg-white p-5">
                   <p className="text-base font-black text-slate-950">
                     ההסכם החתום האחרון
@@ -1734,15 +1736,17 @@ export default function EmployeeDashboardPage() {
     try {
       setAgreementLoading(true);
 
-      if (!currentEmployeeId || !currentBusinessId) {
+      if (!currentEmployeeId) {
         setAgreement(null);
         return;
       }
 
-      const params = new URLSearchParams({
-        employeeId: currentEmployeeId,
-        businessId: currentBusinessId,
-      });
+      const params = new URLSearchParams();
+      params.set("employeeId", currentEmployeeId);
+
+      if (currentBusinessId) {
+        params.set("businessId", currentBusinessId);
+      }
 
       const response = await fetch(
         `${API.employeeAgreementCurrent}?${params.toString()}`,
