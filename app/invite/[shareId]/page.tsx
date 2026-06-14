@@ -33,6 +33,11 @@ type GiftOptions = {
 
 type PreviewImageMode = "portrait" | "square";
 
+type PublicEventNote = {
+  enabled: boolean;
+  text: string;
+};
+
 /* ============================================================
    HEART BURST EFFECT
 ============================================================ */
@@ -136,6 +141,30 @@ function GiftSection({ giftOptions }: { giftOptions?: GiftOptions }) {
         )}
       </div>
     </div>
+  );
+}
+
+/* ============================================================
+   PUBLIC EVENT NOTE SECTION
+============================================================ */
+
+function PublicEventNoteSection({ note }: { note: PublicEventNote }) {
+  if (!note.enabled || !note.text.trim()) return null;
+
+  return (
+    <section className="mt-7 w-full max-w-md overflow-hidden rounded-[30px] border border-[#eadfce] bg-white/90 p-6 text-center shadow-[0_20px_70px_rgba(92,66,38,0.12)] backdrop-blur">
+      <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#fff7ea] text-2xl shadow-sm">
+        📌
+      </div>
+
+      <h2 className="text-2xl font-black leading-tight text-[#2d241c]">
+        הודעה חשובה לאורחים
+      </h2>
+
+      <p className="mx-auto mt-4 max-w-sm whitespace-pre-line text-base font-bold leading-8 text-[#5a4634]">
+        {note.text}
+      </p>
+    </section>
   );
 }
 
@@ -365,6 +394,30 @@ export default function PublicInvitePage({ params }: any) {
 
   const giftOptions = useMemo(() => invite?.giftOptions, [invite]);
 
+  const publicEventNote = useMemo<PublicEventNote>(() => {
+    const publicEventPage = invite?.publicEventPage || event?.publicEventPage || {};
+    const note = publicEventPage?.note || {};
+
+    const enabled =
+      note?.enabled === true ||
+      publicEventPage?.noteEnabled === true ||
+      invite?.publicEventPage?.note?.enabled === true ||
+      event?.publicEventPage?.note?.enabled === true;
+
+    const text = String(
+      note?.text ||
+        publicEventPage?.noteText ||
+        invite?.publicEventPage?.noteText ||
+        event?.publicEventPage?.noteText ||
+        ""
+    ).trim();
+
+    return {
+      enabled,
+      text,
+    };
+  }, [invite, event]);
+
   /* ============================================================
      SUBMIT RSVP
   ============================================================ */
@@ -508,6 +561,8 @@ export default function PublicInvitePage({ params }: any) {
           imageMode={invitationImageMode}
           canvasData={invite.canvasData}
         />
+
+        <PublicEventNoteSection note={publicEventNote} />
 
         {!sent ? (
           <form
