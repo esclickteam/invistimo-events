@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 type EmployeeDocumentStatus = "missing" | "uploaded" | "approved" | "rejected";
 type EmployeeDocumentType = "form101" | "idCard";
@@ -26,17 +26,18 @@ type EmployeeDocument = {
 };
 
 type EmployeeAgreement = {
-  _id: string;
-  employeeId: string;
-  businessId: string;
+  _id?: string;
+  id?: string;
+  employeeId?: string;
+  businessId?: string;
   fullName?: string;
   idNumber?: string;
   address?: string;
   phone?: string;
   email?: string;
   startDate?: string | null;
-  status: EmployeeAgreementStatus;
   signedFileUrl?: string;
+  status?: EmployeeAgreementStatus;
   signedAt?: string | null;
   approvedAt?: string | null;
   rejectedAt?: string | null;
@@ -63,7 +64,7 @@ function statusLabel(status: EmployeeDocumentStatus) {
   }
 }
 
-function agreementStatusLabel(status: EmployeeAgreementStatus) {
+function agreementStatusLabel(status?: EmployeeAgreementStatus) {
   switch (status) {
     case "signed":
       return "נחתם וממתין לבדיקה";
@@ -89,7 +90,7 @@ function statusClass(status: EmployeeDocumentStatus) {
   }
 }
 
-function agreementStatusClass(status: EmployeeAgreementStatus) {
+function agreementStatusClass(status?: EmployeeAgreementStatus) {
   switch (status) {
     case "approved":
       return "border-emerald-200 bg-emerald-50 text-emerald-700";
@@ -146,24 +147,15 @@ function getDocumentFromResponse(data: any, documentType: EmployeeDocumentType) 
 
 function getMainStatus(
   form101: EmployeeDocument | null,
-  idCard: EmployeeDocument | null,
-  agreement: EmployeeAgreement | null
+  idCard: EmployeeDocument | null
 ): EmployeeDocumentStatus {
-  if (!form101 && !idCard && !agreement?.signedFileUrl) return "missing";
+  if (!form101 && !idCard) return "missing";
 
-  if (
-    form101?.status === "rejected" ||
-    idCard?.status === "rejected" ||
-    agreement?.status === "rejected"
-  ) {
+  if (form101?.status === "rejected" || idCard?.status === "rejected") {
     return "rejected";
   }
 
-  if (
-    form101?.status === "approved" &&
-    idCard?.status === "approved" &&
-    agreement?.status === "approved"
-  ) {
+  if (form101?.status === "approved" && idCard?.status === "approved") {
     return "approved";
   }
 
@@ -201,26 +193,19 @@ export default function Form101Card({
   );
 
   const [agreement, setAgreement] = useState<EmployeeAgreement | null>(null);
-
-  const [loading, setLoading] = useState(true);
   const [loadingAgreement, setLoadingAgreement] = useState(true);
 
+  const [loading, setLoading] = useState(true);
   const [uploadingType, setUploadingType] =
     useState<EmployeeDocumentType | null>(null);
-
   const [error, setError] = useState("");
 
   const isForm101Locked = isDocumentLocked(currentForm101);
   const isIdCardLocked = isDocumentLocked(currentIdCard);
 
-  const signAgreementUrl = useMemo(() => {
-    const params = new URLSearchParams({
-      employeeId,
-      businessId,
-    });
-
-    return `/employee/agreement/sign?${params.toString()}`;
-  }, [employeeId, businessId]);
+  const signAgreementUrl = `/employee/agreement/sign?employeeId=${encodeURIComponent(
+    employeeId
+  )}&businessId=${encodeURIComponent(businessId)}`;
 
   async function loadDocument(documentType: EmployeeDocumentType) {
     const params = new URLSearchParams({
@@ -242,6 +227,36 @@ export default function Form101Card({
     }
 
     return getDocumentFromResponse(data, documentType) as EmployeeDocument | null;
+  }
+
+  async function loadAgreement() {
+    try {
+      setLoadingAgreement(true);
+
+      const params = new URLSearchParams({
+        employeeId,
+        businessId,
+      });
+
+      const res = await fetch(`/api/employee-agreements/current?${params}`, {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(data?.error || "שגיאה בטעינת הסכם העבודה");
+      }
+
+      setAgreement(data?.agreement || null);
+    } catch (err) {
+      console.error("LOAD EMPLOYEE AGREEMENT FAILED:", err);
+      setAgreement(null);
+    } finally {
+      setLoadingAgreement(false);
+    }
   }
 
   async function loadCurrentDocuments() {
@@ -272,34 +287,8 @@ export default function Form101Card({
     }
   }
 
-  async function loadAgreement() {
-    try {
-      setLoadingAgreement(true);
-
-      const params = new URLSearchParams({
-        employeeId,
-        businessId,
-      });
-
-      const res = await fetch(`/api/employee-agreements/current?${params}`, {
-        method: "GET",
-        credentials: "include",
-        cache: "no-store",
-      });
-
-      const data = await res.json().catch(() => null);
-
-      if (!res.ok) {
-        throw new Error(data?.error || "שגיאה בטעינת הסכם העבודה");
-      }
-
-      setAgreement(data?.agreement || null);
-    } catch (err) {
-      console.error("LOAD AGREEMENT FAILED:", err);
-      setAgreement(null);
-    } finally {
-      setLoadingAgreement(false);
-    }
+  async function refreshAll() {
+    await Promise.all([loadCurrentDocuments(), loadAgreement()]);
   }
 
   async function uploadDocument(documentType: EmployeeDocumentType) {
@@ -376,11 +365,10 @@ export default function Form101Card({
     }
   }, [employeeId, businessId]);
 
+  const mainStatus = getMainStatus(currentForm101, currentIdCard);
   const agreementStatus = agreement?.status || "missing";
-  const mainStatus = getMainStatus(currentForm101, currentIdCard, agreement);
-
   const canSignAgreement =
-    agreementStatus === "missing" || agreementStatus === "rejected";
+    !agreement?.signedFileUrl || agreement.status === "rejected";
 
   return (
     <>
@@ -393,7 +381,7 @@ export default function Form101Card({
             <h2 className="text-xl font-black text-slate-950">מסמכי עובד</h2>
 
             <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-slate-500">
-              טופס 101, תעודת זהות והסכם עבודה חתום נשמרים במערכת וממתינים לבדיקה.
+              טופס 101 ותעודת זהות נשמרים במערכת וממתינים לבדיקה.
             </p>
           </div>
 
@@ -406,7 +394,7 @@ export default function Form101Card({
           </span>
         </div>
 
-        <div className="mt-5 grid gap-4 md:grid-cols-3">
+        <div className="mt-5 grid gap-4 md:grid-cols-2">
           <div className="rounded-3xl bg-slate-50 p-4">
             <p className="text-sm font-black text-slate-900">טופס 101</p>
 
@@ -442,26 +430,6 @@ export default function Form101Card({
               {statusLabel(currentIdCard?.status || "missing")}
             </span>
           </div>
-
-          <div className="rounded-3xl bg-slate-50 p-4">
-            <p className="text-sm font-black text-slate-900">הסכם עבודה</p>
-
-            <p className="mt-2 text-sm font-semibold text-slate-500">
-              {loadingAgreement
-                ? "טוען סטטוס הסכם..."
-                : agreement?.signedFileUrl
-                ? `נחתם בתאריך: ${formatDate(agreement.signedAt)}`
-                : "עדיין לא נחתם הסכם עבודה."}
-            </p>
-
-            <span
-              className={`mt-3 inline-flex rounded-full border px-3 py-1 text-xs font-black ${agreementStatusClass(
-                agreementStatus
-              )}`}
-            >
-              {agreementStatusLabel(agreementStatus)}
-            </span>
-          </div>
         </div>
 
         <div className="mt-5 flex flex-wrap gap-3">
@@ -473,45 +441,15 @@ export default function Form101Card({
             ניהול מסמכים
           </button>
 
-          {canSignAgreement ? (
-            <button
-              type="button"
-              onClick={() => {
-                window.location.href = signAgreementUrl;
-              }}
-              disabled={loadingAgreement}
-              className="h-11 rounded-2xl bg-violet-600 px-6 text-sm font-black text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              חתימה על ההסכם
-            </button>
-          ) : agreement?.signedFileUrl ? (
-            <a
-              href={agreement.signedFileUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex h-11 items-center justify-center rounded-2xl bg-violet-600 px-6 text-sm font-black text-white transition hover:bg-violet-700"
-            >
-              צפייה בהסכם חתום
-            </a>
-          ) : null}
-
           <button
             type="button"
-            onClick={async () => {
-              await Promise.all([loadCurrentDocuments(), loadAgreement()]);
-            }}
+            onClick={refreshAll}
             disabled={loading || loadingAgreement}
             className="h-11 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading || loadingAgreement ? "טוען..." : "רענון סטטוס"}
           </button>
         </div>
-
-        {agreement?.status === "rejected" && agreement.rejectionReason && (
-          <div className="mt-5 rounded-3xl border border-rose-200 bg-rose-50 p-4 text-sm font-black text-rose-700">
-            ההסכם נדחה. סיבה: {agreement.rejectionReason}
-          </div>
-        )}
 
         {error && (
           <div className="mt-5 rounded-3xl border border-rose-200 bg-rose-50 p-4 text-sm font-black text-rose-700">
@@ -537,8 +475,9 @@ export default function Form101Card({
                 </h2>
 
                 <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-slate-500">
-                  כאן ניתן לראות ולהעלות טופס 101, תעודת זהות, ולצפות בהסכם
-                  העבודה החתום לאחר שהעובד/ת חתם/ה באתר.
+                  יש להוריד את טופס 101, למלא ולחתום, ואז להעלות אותו יחד עם
+                  צילום תעודת זהות. בנוסף ניתן לחתום על הסכם העבודה באתר.
+                  ניתן להעלות קובץ PDF, JPG או PNG.
                 </p>
               </div>
 
@@ -561,7 +500,7 @@ export default function Form101Card({
 
                   <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-slate-600">
                     העובד/ת ממלא/ת את השדות לפי הסדר, חותם/ת, ובסיום נוצר PDF
-                    חתום שנשמר כאן אוטומטית.
+                    חתום שנשמר במערכת.
                   </p>
 
                   <span
@@ -575,16 +514,12 @@ export default function Form101Card({
 
                 <div className="flex flex-wrap gap-3">
                   {canSignAgreement ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        window.location.href = signAgreementUrl;
-                      }}
-                      disabled={loadingAgreement}
-                      className="h-11 rounded-2xl bg-violet-600 px-6 text-sm font-black text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    <a
+                      href={signAgreementUrl}
+                      className="inline-flex h-11 items-center justify-center rounded-2xl bg-violet-600 px-6 text-sm font-black text-white transition hover:bg-violet-700"
                     >
                       חתימה על ההסכם
-                    </button>
+                    </a>
                   ) : agreement?.signedFileUrl ? (
                     <a
                       href={agreement.signedFileUrl}
@@ -930,9 +865,7 @@ export default function Form101Card({
             <div className="mt-6 flex flex-wrap justify-end gap-3">
               <button
                 type="button"
-                onClick={async () => {
-                  await Promise.all([loadCurrentDocuments(), loadAgreement()]);
-                }}
+                onClick={refreshAll}
                 disabled={loading || loadingAgreement}
                 className="h-11 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
