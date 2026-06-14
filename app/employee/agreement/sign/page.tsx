@@ -19,11 +19,22 @@ type TemplateField = {
   order: number;
 };
 
+type TemplatePage = {
+  pageIndex: number;
+  pageNumber: number;
+  url: string;
+  imageUrl: string;
+  name: string;
+  type: "image" | "pdf";
+};
+
 type AgreementTemplate = {
   _id: string;
   name?: string;
   fileUrl: string;
   pageCount: number;
+  coordinateMode?: "percent" | "pixel";
+  pages?: TemplatePage[];
   fields: TemplateField[];
 };
 
@@ -36,6 +47,12 @@ type EmployeeAgreement = {
   signedAt?: string;
   rejectionReason?: string;
 };
+
+const DEFAULT_FILE_URL = "/templates/employee-agreement-invistimo.pdf";
+const DEFAULT_PAGE_COUNT = 11;
+
+const LEGACY_PAGE_WIDTH = 700;
+const LEGACY_PAGE_HEIGHT = 900;
 
 function getUserId(user: any) {
   return String(user?._id || user?.id || "");
@@ -53,10 +70,21 @@ function getBusinessId(user: any) {
   );
 }
 
+function toNumber(value: unknown, fallback: number) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : fallback;
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
 function formatDate(value?: string | null) {
   if (!value) return "";
+
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
+
+  if (Number.isNaN(date.getTime())) return value || "";
 
   return date.toLocaleDateString("he-IL", {
     day: "2-digit",
@@ -65,9 +93,129 @@ function formatDate(value?: string | null) {
   });
 }
 
+function normalizeField(raw: any, index: number): TemplateField {
+  const rawType = String(raw?.type || "text");
+  const type: FieldType =
+    rawType === "date" || rawType === "signature" ? rawType : "text";
+
+  let width = toNumber(raw?.width, type === "signature" ? 24 : 22);
+  let height = toNumber(raw?.height, type === "signature" ? 8 : 6);
+  let x = toNumber(raw?.x, 38);
+  let y = toNumber(raw?.y, 35);
+
+  const pageIndex =
+    raw?.pageIndex !== undefined
+      ? Math.max(0, toNumber(raw.pageIndex, 0))
+      : raw?.pageNumber !== undefined
+        ? Math.max(0, toNumber(raw.pageNumber, 1) - 1)
+        : 0;
+
+  const looksLikeLegacyPixels =
+    x > 100 || y > 100 || width > 100 || height > 100;
+
+  if (looksLikeLegacyPixels) {
+    x = (x / LEGACY_PAGE_WIDTH) * 100;
+    y = (y / LEGACY_PAGE_HEIGHT) * 100;
+    width = (width / LEGACY_PAGE_WIDTH) * 100;
+    height = (height / LEGACY_PAGE_HEIGHT) * 100;
+  }
+
+  width = clamp(Number(width.toFixed(2)), 4, 85);
+  height = clamp(Number(height.toFixed(2)), 3, 35);
+  x = clamp(Number(x.toFixed(2)), 0, 100 - width);
+  y = clamp(Number(y.toFixed(2)), 0, 100 - height);
+
+  return {
+    id: String(raw?.id || `${Date.now()}-${index}`),
+    label: String(raw?.label || "שדה"),
+    type,
+    pageIndex,
+    x,
+    y,
+    width,
+    height,
+    required: raw?.required !== undefined ? Boolean(raw.required) : true,
+    order: toNumber(raw?.order, index + 1),
+  };
+}
+
+function normalizePage(raw: any, index: number, template: any): TemplatePage {
+  const pageNumber = Math.max(
+    1,
+    toNumber(
+      raw?.pageNumber,
+      raw?.pageIndex !== undefined ? raw.pageIndex + 1 : index + 1
+    )
+  );
+
+  return {
+    pageIndex: pageNumber - 1,
+    pageNumber,
+    url: String(raw?.url || template?.fileUrl || DEFAULT_FILE_URL),
+    imageUrl: String(raw?.imageUrl || ""),
+    name: String(raw?.name || `עמוד ${pageNumber}`),
+    type: String(raw?.type || "image") === "pdf" ? "pdf" : "image",
+  };
+}
+
+function normalizeTemplate(raw: any): AgreementTemplate {
+  const pageCount = Math.max(
+    1,
+    toNumber(raw?.pageCount, DEFAULT_PAGE_COUNT)
+  );
+
+  const pages = Array.isArray(raw?.pages)
+    ? raw.pages
+        .map((page: any, index: number) => normalizePage(page, index, raw))
+        .filter((page: TemplatePage) => page.pageNumber >= 1)
+        .filter((page: TemplatePage) => page.pageNumber <= pageCount)
+        .sort((a: TemplatePage, b: TemplatePage) => a.pageNumber - b.pageNumber)
+    : [];
+
+  const fields = Array.isArray(raw?.fields)
+    ? raw.fields
+        .map((field: any, index: number) => normalizeField(field, index))
+        .sort((a: TemplateField, b: TemplateField) => a.order - b.order)
+    : [];
+
+  return {
+    _id: String(raw?._id || raw?.id || ""),
+    name: String(raw?.name || "תבנית הסכם עבודה"),
+    fileUrl: String(raw?.fileUrl || DEFAULT_FILE_URL),
+    pageCount,
+    coordinateMode: raw?.coordinateMode === "pixel" ? "pixel" : "percent",
+    pages,
+    fields,
+  };
+}
+
+function getFieldDisplayValue({
+  field,
+  values,
+  signatures,
+}: {
+  field: TemplateField;
+  values: Record<string, string>;
+  signatures: Record<string, string>;
+}) {
+  if (field.type === "signature") {
+    return signatures[field.id] || "";
+  }
+
+  const value = values[field.id] || "";
+
+  if (field.type === "date") {
+    return formatDate(value);
+  }
+
+  return value;
+}
+
 function SignatureCanvas({
+  value,
   onChange,
 }: {
+  value?: string;
   onChange: (dataUrl: string) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -108,6 +256,7 @@ function SignatureCanvas({
 
   function draw(event: React.MouseEvent | React.TouchEvent) {
     event.preventDefault();
+
     if (!drawingRef.current) return;
 
     const canvas = canvasRef.current;
@@ -127,6 +276,7 @@ function SignatureCanvas({
 
   function stopDrawing() {
     if (!drawingRef.current) return;
+
     drawingRef.current = false;
 
     const canvas = canvasRef.current;
@@ -151,12 +301,17 @@ function SignatureCanvas({
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    canvas.width = canvas.offsetWidth;
-    canvas.height = canvas.offsetHeight;
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+
+    canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+    canvas.height = Math.max(1, Math.floor(rect.height * dpr));
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, rect.width, rect.height);
   }, []);
 
   return (
@@ -175,6 +330,12 @@ function SignatureCanvas({
         />
       </div>
 
+      {value && (
+        <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-black text-emerald-700">
+          חתימה נקלטה
+        </div>
+      )}
+
       <button
         type="button"
         onClick={clearSignature}
@@ -182,6 +343,98 @@ function SignatureCanvas({
       >
         ניקוי חתימה
       </button>
+    </div>
+  );
+}
+
+function TemplateImagePreview({
+  template,
+  fields,
+  values,
+  signatures,
+  currentFieldId,
+}: {
+  template: AgreementTemplate;
+  fields: TemplateField[];
+  values: Record<string, string>;
+  signatures: Record<string, string>;
+  currentFieldId?: string;
+}) {
+  const pages = template.pages || [];
+
+  return (
+    <div className="h-[74vh] overflow-y-auto overflow-x-hidden bg-slate-100 p-4">
+      <div className="mx-auto flex w-full max-w-[920px] flex-col gap-7">
+        {pages.map((page) => {
+          const pageFields = fields.filter(
+            (field) => field.pageIndex === page.pageIndex
+          );
+
+          return (
+            <div key={page.pageIndex} className="space-y-2">
+              <div className="flex items-center justify-between px-1">
+                <div className="text-sm font-black text-slate-700">
+                  עמוד {page.pageNumber}
+                </div>
+
+                <div className="text-xs font-black text-slate-500">
+                  {pageFields.length} שדות
+                </div>
+              </div>
+
+              <div className="relative overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
+                <img
+                  src={page.imageUrl}
+                  alt={`עמוד ${page.pageNumber}`}
+                  draggable={false}
+                  className="block h-auto w-full select-none rounded-[22px] bg-white"
+                />
+
+                <div className="pointer-events-none absolute inset-0 z-10">
+                  {pageFields.map((field) => {
+                    const selected = currentFieldId === field.id;
+                    const displayValue = getFieldDisplayValue({
+                      field,
+                      values,
+                      signatures,
+                    });
+
+                    return (
+                      <div
+                        key={field.id}
+                        className={[
+                          "absolute flex items-center justify-center overflow-hidden rounded-xl border-2 px-2 text-center text-xs font-black shadow-sm",
+                          selected
+                            ? "border-violet-600 bg-violet-100/80 text-violet-900"
+                            : "border-violet-300 bg-white/70 text-slate-700",
+                        ].join(" ")}
+                        style={{
+                          left: `${field.x}%`,
+                          top: `${field.y}%`,
+                          width: `${field.width}%`,
+                          height: `${field.height}%`,
+                        }}
+                      >
+                        {field.type === "signature" && displayValue ? (
+                          <img
+                            src={displayValue}
+                            alt="חתימה"
+                            className="h-full w-full object-contain"
+                          />
+                        ) : (
+                          <span className="truncate">
+                            {displayValue || field.label}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -270,10 +523,18 @@ function AgreementSignContent() {
   const currentField = fields[stepIndex] || null;
   const isConfirmStep = stepIndex >= fields.length;
 
+  const templateHasImages = Boolean(
+    template?.pages?.some((page) => Boolean(page.imageUrl))
+  );
+
   const progressPercent = useMemo(() => {
     const total = fields.length + 1;
     return Math.round(((stepIndex + 1) / total) * 100);
   }, [fields.length, stepIndex]);
+
+  function clearCreatedPreview() {
+    setPreviewUrl("");
+  }
 
   async function loadAll() {
     try {
@@ -314,15 +575,14 @@ function AgreementSignContent() {
         throw new Error("לא קיימת תבנית הסכם פעילה. יש להגדיר תבנית באדמין.");
       }
 
-      const sortedFields = Array.isArray(loadedTemplate.fields)
-        ? [...loadedTemplate.fields].sort((a, b) => a.order - b.order)
-        : [];
+      const normalizedTemplate = normalizeTemplate(loadedTemplate);
+      const sortedFields = normalizedTemplate.fields;
 
       if (sortedFields.length === 0) {
         throw new Error("בתבנית ההסכם לא הוגדרו שדות למילוי.");
       }
 
-      setTemplate(loadedTemplate);
+      setTemplate(normalizedTemplate);
       setFields(sortedFields);
 
       if (agreementRes.ok && agreementData?.agreement) {
@@ -342,24 +602,6 @@ function AgreementSignContent() {
   }, [employeeId, businessId]);
 
   useEffect(() => {
-    if (!template || !fields.length) return;
-
-    const hasAnyValue =
-      Object.values(values).some(Boolean) || Object.values(signatures).some(Boolean);
-
-    if (!hasAnyValue) {
-      setPreviewUrl("");
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      void createPreview(false);
-    }, 650);
-
-    return () => window.clearTimeout(timer);
-  }, [values, signatures, template?._id]);
-
-  useEffect(() => {
     return () => {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
     };
@@ -368,12 +610,16 @@ function AgreementSignContent() {
   function updateValue(fieldId: string, value: string) {
     setPreviewWasOpened(false);
     setConfirmed(false);
+    clearCreatedPreview();
+
     setValues((prev) => ({ ...prev, [fieldId]: value }));
   }
 
   function updateSignature(fieldId: string, value: string) {
     setPreviewWasOpened(false);
     setConfirmed(false);
+    clearCreatedPreview();
+
     setSignatures((prev) => ({ ...prev, [fieldId]: value }));
   }
 
@@ -443,11 +689,11 @@ function AgreementSignContent() {
     window.history.back();
   }
 
-  async function createPreview(openInNewTab: boolean) {
+  async function createPreview() {
     try {
       if (!template) return;
 
-      if (openInNewTab && !validateAll()) return;
+      if (!validateAll()) return;
 
       setPreviewing(true);
       setError("");
@@ -460,6 +706,7 @@ function AgreementSignContent() {
           businessId,
           values,
           signatures,
+          validateRequired: true,
         }),
       });
 
@@ -477,23 +724,13 @@ function AgreementSignContent() {
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
 
-      setPreviewUrl((oldUrl) => {
-        if (oldUrl) URL.revokeObjectURL(oldUrl);
-        return blobUrl;
-      });
-
-      if (openInNewTab) {
-        window.open(blobUrl, "_blank", "noopener,noreferrer");
-        setPreviewWasOpened(true);
-      }
+      setPreviewUrl(blobUrl);
+      window.open(blobUrl, "_blank", "noopener,noreferrer");
+      setPreviewWasOpened(true);
     } catch (err) {
-      if (openInNewTab) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : "שגיאה ביצירת תצוגה מקדימה להסכם."
-        );
-      }
+      setError(
+        err instanceof Error ? err.message : "שגיאה ביצירת תצוגה מקדימה להסכם."
+      );
     } finally {
       setPreviewing(false);
     }
@@ -568,13 +805,13 @@ function AgreementSignContent() {
             <div>
               <h2 className="text-lg font-black">תצוגת הסכם עבודה</h2>
               <p className="mt-1 text-xs font-bold text-slate-500">
-                התצוגה מתעדכנת אוטומטית לפי השדות שאת ממלאת.
+                התצוגה מתעדכנת לפי השדות שאת ממלאת.
               </p>
             </div>
 
             <button
               type="button"
-              onClick={() => void createPreview(true)}
+              onClick={() => void createPreview()}
               disabled={previewing || submitting}
               className="shrink-0 rounded-2xl bg-violet-600 px-4 py-2 text-xs font-black text-white transition hover:bg-violet-700 disabled:opacity-50"
             >
@@ -588,9 +825,17 @@ function AgreementSignContent() {
               className="h-[74vh] w-full"
               title="תצוגה מקדימה להסכם עבודה"
             />
+          ) : template && templateHasImages ? (
+            <TemplateImagePreview
+              template={template}
+              fields={fields}
+              values={values}
+              signatures={signatures}
+              currentFieldId={currentField?.id}
+            />
           ) : (
             <iframe
-              src={template?.fileUrl || "/templates/employee-agreement-invistimo.pdf"}
+              src={template?.fileUrl || DEFAULT_FILE_URL}
               className="h-[74vh] w-full"
               title="תבנית הסכם עבודה"
             />
@@ -636,7 +881,10 @@ function AgreementSignContent() {
 
                 {currentField.type === "signature" ? (
                   <SignatureCanvas
-                    onChange={(dataUrl) => updateSignature(currentField.id, dataUrl)}
+                    value={signatures[currentField.id]}
+                    onChange={(dataUrl) =>
+                      updateSignature(currentField.id, dataUrl)
+                    }
                   />
                 ) : (
                   <input
@@ -661,7 +909,7 @@ function AgreementSignContent() {
 
                 <button
                   type="button"
-                  onClick={() => void createPreview(true)}
+                  onClick={() => void createPreview()}
                   disabled={previewing || submitting}
                   className="flex h-12 w-full items-center justify-center rounded-2xl bg-violet-600 px-5 text-sm font-black text-white transition hover:bg-violet-700 disabled:opacity-50"
                 >
@@ -716,8 +964,8 @@ function AgreementSignContent() {
               {submitting
                 ? "שולח..."
                 : isConfirmStep
-                ? "שליחת הסכם חתום"
-                : "הבא"}
+                  ? "שליחת הסכם חתום"
+                  : "הבא"}
             </button>
           </div>
         </section>

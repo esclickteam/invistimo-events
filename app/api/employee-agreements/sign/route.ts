@@ -13,6 +13,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type FieldType = "text" | "date" | "signature";
+type CoordinateMode = "percent" | "pixel";
 
 type TemplateField = {
   id: string;
@@ -47,11 +48,18 @@ type SignAgreementBody = {
   signatureDataUrl?: string;
 };
 
+const DEFAULT_FILE_URL = "/templates/employee-agreement-invistimo.pdf";
+
 const DESIGN_WIDTH = 700;
 const DESIGN_HEIGHT = 900;
 
 function cleanStr(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function cleanNumber(value: unknown, fallback = 0) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : fallback;
 }
 
 function safeFileName(value: string) {
@@ -69,6 +77,7 @@ function formatDate(value: string) {
   if (!value) return "";
 
   const date = new Date(value);
+
   if (Number.isNaN(date.getTime())) return value;
 
   return date.toLocaleDateString("he-IL", {
@@ -84,6 +93,7 @@ function hasHebrew(value: string) {
 
 function rtlVisual(value: string) {
   if (!hasHebrew(value)) return value;
+
   return value.split("").reverse().join("");
 }
 
@@ -100,7 +110,9 @@ async function loadHebrewFontBytes() {
   for (const fontPath of possibleFontPaths) {
     try {
       return await fs.readFile(fontPath);
-    } catch {}
+    } catch {
+      // continue
+    }
   }
 
   return null;
@@ -114,20 +126,83 @@ function isValidObjectId(value: string) {
   return mongoose.Types.ObjectId.isValid(value);
 }
 
-function getPublicFilePath(fileUrl: string) {
-  const cleanUrl =
-    cleanStr(fileUrl) || "/templates/employee-agreement-invistimo.pdf";
+async function loadTemplatePdfBytes(fileUrl: string) {
+  const cleanUrl = cleanStr(fileUrl) || DEFAULT_FILE_URL;
 
+  /**
+   * תבנית חדשה:
+   * ה־PDF נמצא ב־Cloudinary / URL חיצוני.
+   */
   if (cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://")) {
-    throw new Error("כרגע נתמך PDF מתוך public בלבד, לא כתובת חיצונית.");
+    const res = await fetch(cleanUrl, {
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      throw new Error("לא ניתן לטעון את קובץ ה־PDF מהקישור של התבנית");
+    }
+
+    const arrayBuffer = await res.arrayBuffer();
+
+    return Buffer.from(arrayBuffer);
   }
 
+  /**
+   * תמיכה אחורה:
+   * PDF מתוך public.
+   */
   const withoutQuery = cleanUrl.split("?")[0].split("#")[0];
   const relativePath = withoutQuery.startsWith("/")
     ? withoutQuery.slice(1)
     : withoutQuery;
 
-  return path.join(process.cwd(), "public", relativePath);
+  const absolutePath = path.join(process.cwd(), "public", relativePath);
+
+  try {
+    return await fs.readFile(absolutePath);
+  } catch {
+    throw new Error("לא נמצא קובץ PDF של התבנית");
+  }
+}
+
+function normalizeField(raw: any): TemplateField {
+  const rawType = cleanStr(raw?.type);
+
+  const type: FieldType =
+    rawType === "date" || rawType === "signature" ? rawType : "text";
+
+  return {
+    id: cleanStr(raw?.id),
+    label: cleanStr(raw?.label) || "שדה",
+    type,
+    pageIndex: Math.max(0, cleanNumber(raw?.pageIndex, 0)),
+    x: cleanNumber(raw?.x, 0),
+    y: cleanNumber(raw?.y, 0),
+    width: cleanNumber(raw?.width, type === "signature" ? 24 : 22),
+    height: cleanNumber(raw?.height, type === "signature" ? 8 : 6),
+    required: raw?.required !== false,
+    order: cleanNumber(raw?.order, 0),
+  };
+}
+
+function resolveCoordinateMode(template: any, fields: TemplateField[]): CoordinateMode {
+  const rawMode = cleanStr(template?.coordinateMode);
+
+  if (rawMode === "pixel") return "pixel";
+  if (rawMode === "percent") return "percent";
+
+  /**
+   * fallback אם יש תבניות ישנות בלי coordinateMode.
+   */
+  const hasPixelLikeField = fields.some(
+    (field) =>
+      field.x > 100 ||
+      field.y > 100 ||
+      field.width > 100 ||
+      field.height > 100
+  );
+
+  return hasPixelLikeField ? "pixel" : "percent";
 }
 
 function getLegacyValue(body: SignAgreementBody, field: TemplateField) {
@@ -192,22 +267,80 @@ function convertTemplateBoxToPdfBox(options: {
   field: TemplateField;
   pageWidth: number;
   pageHeight: number;
+  coordinateMode: CoordinateMode;
 }) {
-  const { field, pageWidth, pageHeight } = options;
+  const { field, pageWidth, pageHeight, coordinateMode } = options;
 
+  /**
+   * תבנית חדשה:
+   * x/y/width/height נשמרים באחוזים.
+   * באדמין ובעובד:
+   * left = x%
+   * top = y%
+   */
+  if (coordinateMode === "percent") {
+    const width = (field.width / 100) * pageWidth;
+    const height = (field.height / 100) * pageHeight;
+
+    const x = (field.x / 100) * pageWidth;
+
+    const y =
+      pageHeight - ((field.y + field.height) / 100) * pageHeight;
+
+    return {
+      x,
+      y,
+      width,
+      height,
+    };
+  }
+
+  /**
+   * תמיכה אחורה:
+   * שדות ישנים בפיקסלים לפי 700x900.
+   */
   const width = (field.width / DESIGN_WIDTH) * pageWidth;
   const height = (field.height / DESIGN_HEIGHT) * pageHeight;
 
-  const left = pageWidth - ((field.x + field.width) / DESIGN_WIDTH) * pageWidth;
-  const bottom =
+  const x = (field.x / DESIGN_WIDTH) * pageWidth;
+
+  const y =
     pageHeight - ((field.y + field.height) / DESIGN_HEIGHT) * pageHeight;
 
   return {
-    x: left,
-    y: bottom,
+    x,
+    y,
     width,
     height,
   };
+}
+
+function buildFullNameForAgreement(
+  body: SignAgreementBody,
+  valuesToSave: Record<string, string>,
+  fields: TemplateField[]
+) {
+  const explicitFullName = cleanStr(body.fullName);
+
+  if (explicitFullName) return explicitFullName;
+
+  const fullNameField = fields.find((field) => {
+    const normalized = normalizeLabel(field.label);
+
+    return (
+      normalized === "שםמלא" ||
+      normalized === "שםהעובד" ||
+      normalized === "שםהעובדת" ||
+      normalized === "שםעובד" ||
+      normalized === "שםעובדת"
+    );
+  });
+
+  if (fullNameField && valuesToSave[fullNameField.id]) {
+    return valuesToSave[fullNameField.id];
+  }
+
+  return Object.values(valuesToSave).find(Boolean) || "";
 }
 
 export async function POST(req: NextRequest) {
@@ -270,7 +403,10 @@ export async function POST(req: NextRequest) {
     }
 
     const fields = Array.isArray((template as any).fields)
-      ? ((template as any).fields as TemplateField[])
+      ? ((template as any).fields as any[])
+          .map(normalizeField)
+          .filter((field) => Boolean(field.id))
+          .sort((a, b) => a.order - b.order)
       : [];
 
     if (fields.length === 0) {
@@ -309,10 +445,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const templatePath = getPublicFilePath((template as any).fileUrl);
-    const templateBytes = await fs.readFile(templatePath);
+    const templatePdfBytes = await loadTemplatePdfBytes(
+      cleanStr((template as any).fileUrl) || DEFAULT_FILE_URL
+    );
 
-    const pdfDoc = await PDFDocument.load(templateBytes);
+    const pdfDoc = await PDFDocument.load(templatePdfBytes);
     pdfDoc.registerFontkit(fontkit);
 
     const fontBytes = await loadHebrewFontBytes();
@@ -330,14 +467,17 @@ export async function POST(req: NextRequest) {
 
     const font = await pdfDoc.embedFont(fontBytes);
     const fallbackFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
     const pages = pdfDoc.getPages();
+    const coordinateMode = resolveCoordinateMode(template, fields);
 
     const textColor = rgb(0.05, 0.09, 0.16);
     const valuesToSave: Record<string, string> = {};
     const signatureFieldIds: string[] = [];
 
-    for (const field of fields.sort((a, b) => a.order - b.order)) {
+    for (const field of fields) {
       const page = pages[field.pageIndex];
+
       if (!page) continue;
 
       const { width: pageWidth, height: pageHeight } = page.getSize();
@@ -346,6 +486,7 @@ export async function POST(req: NextRequest) {
         field,
         pageWidth,
         pageHeight,
+        coordinateMode,
       });
 
       if (field.type === "signature") {
@@ -372,6 +513,7 @@ export async function POST(req: NextRequest) {
         });
 
         signatureFieldIds.push(field.id);
+
         continue;
       }
 
@@ -408,9 +550,15 @@ export async function POST(req: NextRequest) {
     const fileName = `${safeFileName(employeeId)}-${Date.now()}-signed.pdf`;
     const outputPath = path.join(uploadsDir, fileName);
 
-    await fs.writeFile(outputPath, signedPdfBytes);
+    await fs.writeFile(outputPath, Buffer.from(signedPdfBytes));
 
     const signedFileUrl = `/uploads/employee-agreements/${fileName}`;
+
+    const fullNameToSave = buildFullNameForAgreement(
+      body,
+      valuesToSave,
+      fields
+    );
 
     const savedAgreement = await EmployeeAgreement.findOneAndUpdate(
       {
@@ -423,10 +571,7 @@ export async function POST(req: NextRequest) {
         templateId: (template as any)._id,
         values: valuesToSave,
 
-        fullName:
-          cleanStr(body.fullName) ||
-          Object.values(valuesToSave).find(Boolean) ||
-          "",
+        fullName: fullNameToSave,
         idNumber: cleanStr(body.idNumber) || "",
         address: cleanStr(body.address) || "",
         phone: cleanStr(body.phone) || "",

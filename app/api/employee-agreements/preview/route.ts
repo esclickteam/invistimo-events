@@ -12,6 +12,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type FieldType = "text" | "date" | "signature";
+type CoordinateMode = "percent" | "pixel";
 
 type TemplateField = {
   id: string;
@@ -32,6 +33,8 @@ type PreviewAgreementBody = {
   values?: Record<string, string>;
   signatures?: Record<string, string>;
 
+  validateRequired?: boolean;
+
   agreementDate?: string;
   fullName?: string;
   idNumber?: string;
@@ -45,11 +48,18 @@ type PreviewAgreementBody = {
   signatureDataUrl?: string;
 };
 
+const DEFAULT_FILE_URL = "/templates/employee-agreement-invistimo.pdf";
+
 const DESIGN_WIDTH = 700;
 const DESIGN_HEIGHT = 900;
 
 function cleanStr(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function cleanNumber(value: unknown, fallback = 0) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : fallback;
 }
 
 function normalizeLabel(value: string) {
@@ -91,7 +101,9 @@ async function loadHebrewFontBytes() {
   for (const fontPath of possibleFontPaths) {
     try {
       return await fs.readFile(fontPath);
-    } catch {}
+    } catch {
+      // continue
+    }
   }
 
   return null;
@@ -101,11 +113,20 @@ function stripDataUrlPrefix(dataUrl: string) {
   return dataUrl.replace(/^data:image\/png;base64,/, "");
 }
 
-function getPublicFilePath(fileUrl: string) {
-  const cleanUrl = cleanStr(fileUrl) || "/templates/employee-agreement-invistimo.pdf";
+async function loadTemplatePdfBytes(fileUrl: string) {
+  const cleanUrl = cleanStr(fileUrl) || DEFAULT_FILE_URL;
 
   if (cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://")) {
-    throw new Error("כרגע נתמך PDF מתוך public בלבד, לא כתובת חיצונית.");
+    const res = await fetch(cleanUrl, {
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      throw new Error("לא ניתן לטעון את קובץ ה־PDF מהקישור של התבנית");
+    }
+
+    const arrayBuffer = await res.arrayBuffer();
+    return Buffer.from(arrayBuffer);
   }
 
   const withoutQuery = cleanUrl.split("?")[0].split("#")[0];
@@ -113,7 +134,46 @@ function getPublicFilePath(fileUrl: string) {
     ? withoutQuery.slice(1)
     : withoutQuery;
 
-  return path.join(process.cwd(), "public", relativePath);
+  const absolutePath = path.join(process.cwd(), "public", relativePath);
+
+  try {
+    return await fs.readFile(absolutePath);
+  } catch {
+    throw new Error("לא נמצא קובץ PDF של התבנית");
+  }
+}
+
+function normalizeField(raw: any): TemplateField {
+  const rawType = cleanStr(raw?.type);
+  const type: FieldType =
+    rawType === "date" || rawType === "signature" ? rawType : "text";
+
+  return {
+    id: cleanStr(raw?.id),
+    label: cleanStr(raw?.label) || "שדה",
+    type,
+    pageIndex: Math.max(0, cleanNumber(raw?.pageIndex, 0)),
+    x: cleanNumber(raw?.x, 0),
+    y: cleanNumber(raw?.y, 0),
+    width: cleanNumber(raw?.width, type === "signature" ? 24 : 22),
+    height: cleanNumber(raw?.height, type === "signature" ? 8 : 6),
+    required: raw?.required !== false,
+    order: cleanNumber(raw?.order, 0),
+  };
+}
+
+function resolveCoordinateMode(template: any, fields: TemplateField[]): CoordinateMode {
+  const rawMode = cleanStr(template?.coordinateMode);
+
+  if (rawMode === "pixel") return "pixel";
+  if (rawMode === "percent") return "percent";
+
+  const hasPixelLikeField = fields.some(
+    (field) =>
+      field.x > 100 || field.y > 100 || field.width > 100 || field.height > 100
+  );
+
+  return hasPixelLikeField ? "pixel" : "percent";
 }
 
 function getLegacyValue(body: PreviewAgreementBody, field: TemplateField) {
@@ -178,28 +238,34 @@ function convertTemplateBoxToPdfBox(options: {
   field: TemplateField;
   pageWidth: number;
   pageHeight: number;
+  coordinateMode: CoordinateMode;
 }) {
-  const { field, pageWidth, pageHeight } = options;
+  const { field, pageWidth, pageHeight, coordinateMode } = options;
 
-  /**
-   * באדמין השדה נשמר לפי:
-   * right = x
-   * top = y
-   *
-   * ב־pdf-lib עובדים לפי:
-   * left = x
-   * bottom = y
-   */
+  if (coordinateMode === "percent") {
+    const width = (field.width / 100) * pageWidth;
+    const height = (field.height / 100) * pageHeight;
+
+    const x = (field.x / 100) * pageWidth;
+    const y = pageHeight - ((field.y + field.height) / 100) * pageHeight;
+
+    return {
+      x,
+      y,
+      width,
+      height,
+    };
+  }
+
   const width = (field.width / DESIGN_WIDTH) * pageWidth;
   const height = (field.height / DESIGN_HEIGHT) * pageHeight;
 
-  const left = pageWidth - ((field.x + field.width) / DESIGN_WIDTH) * pageWidth;
-  const bottom =
-    pageHeight - ((field.y + field.height) / DESIGN_HEIGHT) * pageHeight;
+  const x = (field.x / DESIGN_WIDTH) * pageWidth;
+  const y = pageHeight - ((field.y + field.height) / DESIGN_HEIGHT) * pageHeight;
 
   return {
-    x: left,
-    y: bottom,
+    x,
+    y,
     width,
     height,
   };
@@ -254,7 +320,10 @@ export async function POST(req: NextRequest) {
     }
 
     const fields = Array.isArray((template as any).fields)
-      ? ((template as any).fields as TemplateField[])
+      ? ((template as any).fields as any[])
+          .map(normalizeField)
+          .filter((field) => Boolean(field.id))
+          .sort((a, b) => a.order - b.order)
       : [];
 
     if (fields.length === 0) {
@@ -267,36 +336,41 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    for (const field of fields) {
-      if (!field.required) continue;
+    const shouldValidateRequired = body.validateRequired !== false;
 
-      if (field.type === "signature") {
-        const signature = getSignatureValue(body, field);
+    if (shouldValidateRequired) {
+      for (const field of fields) {
+        if (!field.required) continue;
 
-        if (!signature) {
+        if (field.type === "signature") {
+          const signature = getSignatureValue(body, field);
+
+          if (!signature) {
+            return NextResponse.json(
+              { success: false, error: `חסר שדה חובה: ${field.label}` },
+              { status: 400 }
+            );
+          }
+
+          continue;
+        }
+
+        const value = getFieldValue(body, field);
+
+        if (!value) {
           return NextResponse.json(
             { success: false, error: `חסר שדה חובה: ${field.label}` },
             { status: 400 }
           );
         }
-
-        continue;
-      }
-
-      const value = getFieldValue(body, field);
-
-      if (!value) {
-        return NextResponse.json(
-          { success: false, error: `חסר שדה חובה: ${field.label}` },
-          { status: 400 }
-        );
       }
     }
 
-    const templatePath = getPublicFilePath((template as any).fileUrl);
-    const templateBytes = await fs.readFile(templatePath);
+    const templatePdfBytes = await loadTemplatePdfBytes(
+      cleanStr((template as any).fileUrl) || DEFAULT_FILE_URL
+    );
 
-    const pdfDoc = await PDFDocument.load(templateBytes);
+    const pdfDoc = await PDFDocument.load(templatePdfBytes);
     pdfDoc.registerFontkit(fontkit);
 
     const fontBytes = await loadHebrewFontBytes();
@@ -316,19 +390,22 @@ export async function POST(req: NextRequest) {
     const fallbackFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
     const pages = pdfDoc.getPages();
-
     const textColor = rgb(0.05, 0.09, 0.16);
 
-    for (const field of fields.sort((a, b) => a.order - b.order)) {
+    const coordinateMode = resolveCoordinateMode(template, fields);
+
+    for (const field of fields) {
       const page = pages[field.pageIndex];
 
       if (!page) continue;
 
       const { width: pageWidth, height: pageHeight } = page.getSize();
+
       const box = convertTemplateBoxToPdfBox({
         field,
         pageWidth,
         pageHeight,
+        coordinateMode,
       });
 
       if (field.type === "signature") {
