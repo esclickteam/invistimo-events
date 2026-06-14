@@ -1,15 +1,19 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 
 type FormValues = {
+  agreementDate: string;
   fullName: string;
   idNumber: string;
   address: string;
   phone: string;
   email: string;
   startDate: string;
+  finalFullName: string;
+  finalIdNumber: string;
+  finalSignatureDate: string;
 };
 
 type EmployeeAgreementStatus = "signed" | "approved" | "rejected";
@@ -33,12 +37,16 @@ type EmployeeAgreement = {
 };
 
 type StepKey =
+  | "agreementDate"
   | "fullName"
   | "idNumber"
   | "address"
   | "phone"
   | "email"
   | "startDate"
+  | "finalFullName"
+  | "finalIdNumber"
+  | "finalSignatureDate"
   | "signature"
   | "confirm";
 
@@ -53,9 +61,16 @@ type Step = {
 
 const steps: Step[] = [
   {
+    key: "agreementDate",
+    title: "תאריך",
+    subtitle: "יש לבחור את התאריך שמופיע בראש ההסכם בעמוד הראשון.",
+    type: "date",
+    required: true,
+  },
+  {
     key: "fullName",
-    title: "שם מלא",
-    subtitle: "יש להזין שם פרטי ושם משפחה כפי שמופיעים בתעודת הזהות.",
+    title: "שם העובד/ת",
+    subtitle: "יש להזין את שם העובד/ת כפי שיופיע בעמוד הראשון.",
     type: "text",
     placeholder: "לדוגמה: ישראל ישראלי",
     required: true,
@@ -63,7 +78,7 @@ const steps: Step[] = [
   {
     key: "idNumber",
     title: "תעודת זהות",
-    subtitle: "יש להזין מספר תעודת זהות מלא.",
+    subtitle: "יש להזין תעודת זהות כפי שתופיע בעמוד הראשון.",
     type: "text",
     placeholder: "לדוגמה: 123456789",
     required: true,
@@ -79,7 +94,7 @@ const steps: Step[] = [
   {
     key: "phone",
     title: "טלפון",
-    subtitle: "יש להזין מספר טלפון נייד ליצירת קשר.",
+    subtitle: "יש להזין מספר טלפון.",
     type: "tel",
     placeholder: "לדוגמה: 0500000000",
     required: true,
@@ -95,7 +110,30 @@ const steps: Step[] = [
   {
     key: "startDate",
     title: "תאריך תחילת עבודה",
-    subtitle: "יש לבחור את תאריך תחילת העבודה.",
+    subtitle: "יש לבחור את תאריך תחילת העבודה שמופיע בעמוד 2.",
+    type: "date",
+    required: true,
+  },
+  {
+    key: "finalFullName",
+    title: "שם מלא לחתימה",
+    subtitle: "יש להזין שוב שם מלא כפי שיופיע בעמוד החתימה האחרון.",
+    type: "text",
+    placeholder: "לדוגמה: ישראל ישראלי",
+    required: true,
+  },
+  {
+    key: "finalIdNumber",
+    title: "תעודת זהות לחתימה",
+    subtitle: "יש להזין שוב תעודת זהות כפי שתופיע בעמוד החתימה האחרון.",
+    type: "text",
+    placeholder: "לדוגמה: 123456789",
+    required: true,
+  },
+  {
+    key: "finalSignatureDate",
+    title: "תאריך חתימה",
+    subtitle: "יש לבחור את התאריך שיופיע ליד החתימה בעמוד האחרון.",
     type: "date",
     required: true,
   },
@@ -116,12 +154,16 @@ const steps: Step[] = [
 ];
 
 const initialValues: FormValues = {
+  agreementDate: "",
   fullName: "",
   idNumber: "",
   address: "",
   phone: "",
   email: "",
   startDate: "",
+  finalFullName: "",
+  finalIdNumber: "",
+  finalSignatureDate: "",
 };
 
 function formatDate(value?: string | null) {
@@ -136,6 +178,22 @@ function formatDate(value?: string | null) {
     month: "2-digit",
     year: "numeric",
   });
+}
+
+function getUserId(user: any) {
+  return String(user?._id || user?.id || "");
+}
+
+function getBusinessId(user: any) {
+  return String(
+    user?.businessId ||
+      user?.employerId ||
+      user?.companyId ||
+      user?.createdByAdmin ||
+      user?._id ||
+      user?.id ||
+      ""
+  );
 }
 
 function SignatureCanvas({
@@ -410,10 +468,10 @@ function ExistingSignedAgreement({
 }
 
 function AgreementSignContent() {
-  const searchParams = useSearchParams();
+  const { user } = useAuth();
 
-  const employeeId = searchParams.get("employeeId") || "";
-  const businessId = searchParams.get("businessId") || "";
+  const employeeId = getUserId(user);
+  const businessId = getBusinessId(user);
 
   const [stepIndex, setStepIndex] = useState(0);
   const [values, setValues] = useState<FormValues>(initialValues);
@@ -485,7 +543,7 @@ function AgreementSignContent() {
     setError("");
 
     if (!employeeId || !businessId) {
-      setError("חסר מזהה עובד או מזהה עסק בקישור.");
+      setError("לא נמצא עובד מחובר. צריך להתחבר מחדש למערכת.");
       return false;
     }
 
@@ -523,7 +581,7 @@ function AgreementSignContent() {
       }
     }
 
-    if (currentStep.key === "idNumber") {
+    if (currentStep.key === "idNumber" || currentStep.key === "finalIdNumber") {
       const cleanId = value.replace(/\D/g, "");
       if (cleanId.length < 7 || cleanId.length > 9) {
         setError("מספר תעודת הזהות אינו תקין.");
@@ -717,26 +775,59 @@ function AgreementSignContent() {
 
                   <div className="mt-3 grid gap-2 text-sm font-semibold text-slate-600">
                     <div>
-                      שם מלא:{" "}
+                      תאריך ההסכם:{" "}
+                      <b className="text-slate-950">
+                        {formatDate(values.agreementDate)}
+                      </b>
+                    </div>
+
+                    <div>
+                      שם העובד/ת בעמוד הראשון:{" "}
                       <b className="text-slate-950">{values.fullName}</b>
                     </div>
+
                     <div>
-                      תעודת זהות:{" "}
+                      תעודת זהות בעמוד הראשון:{" "}
                       <b className="text-slate-950">{values.idNumber}</b>
                     </div>
+
                     <div>
                       כתובת:{" "}
                       <b className="text-slate-950">{values.address}</b>
                     </div>
+
                     <div>
                       טלפון: <b className="text-slate-950">{values.phone}</b>
                     </div>
+
                     <div>
                       אימייל: <b className="text-slate-950">{values.email}</b>
                     </div>
+
                     <div>
                       תאריך תחילת עבודה:{" "}
-                      <b className="text-slate-950">{values.startDate}</b>
+                      <b className="text-slate-950">
+                        {formatDate(values.startDate)}
+                      </b>
+                    </div>
+
+                    <div>
+                      שם מלא בעמוד החתימה:{" "}
+                      <b className="text-slate-950">{values.finalFullName}</b>
+                    </div>
+
+                    <div>
+                      תעודת זהות בעמוד החתימה:{" "}
+                      <b className="text-slate-950">
+                        {values.finalIdNumber}
+                      </b>
+                    </div>
+
+                    <div>
+                      תאריך חתימה:{" "}
+                      <b className="text-slate-950">
+                        {formatDate(values.finalSignatureDate)}
+                      </b>
                     </div>
                   </div>
                 </div>

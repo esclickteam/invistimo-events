@@ -14,12 +14,21 @@ export const dynamic = "force-dynamic";
 type SignAgreementBody = {
   employeeId?: string;
   businessId?: string;
+
+  agreementDate?: string;
+
   fullName?: string;
   idNumber?: string;
   address?: string;
   phone?: string;
   email?: string;
+
   startDate?: string;
+
+  finalFullName?: string;
+  finalIdNumber?: string;
+  finalSignatureDate?: string;
+
   signatureDataUrl?: string;
 };
 
@@ -51,10 +60,6 @@ function hasHebrew(value: string) {
   return /[\u0590-\u05FF]/.test(value);
 }
 
-/**
- * pdf-lib לא עושה RTL לבד.
- * לכן עבור טקסט עברי פשוט הופכים תווים כדי שיופיע תקין על PDF שטוח.
- */
 function rtlVisual(value: string) {
   if (!hasHebrew(value)) return value;
   return value.split("").reverse().join("");
@@ -79,9 +84,7 @@ async function loadHebrewFontBytes() {
   for (const fontPath of possibleFontPaths) {
     try {
       return await fs.readFile(fontPath);
-    } catch {
-      // ממשיכים לפונט הבא
-    }
+    } catch {}
   }
 
   return null;
@@ -109,22 +112,34 @@ export async function POST(req: NextRequest) {
     const employeeId = cleanStr(body.employeeId);
     const businessId = cleanStr(body.businessId);
 
+    const agreementDate = cleanStr(body.agreementDate);
+
     const fullName = cleanStr(body.fullName);
     const idNumber = cleanStr(body.idNumber);
     const address = cleanStr(body.address);
     const phone = cleanStr(body.phone);
     const email = cleanStr(body.email);
+
     const startDate = cleanStr(body.startDate);
+
+    const finalFullName = cleanStr(body.finalFullName);
+    const finalIdNumber = cleanStr(body.finalIdNumber);
+    const finalSignatureDate = cleanStr(body.finalSignatureDate);
+
     const signatureDataUrl = cleanStr(body.signatureDataUrl);
 
     requiredField(employeeId, "מזהה עובד");
     requiredField(businessId, "מזהה עסק");
-    requiredField(fullName, "שם מלא");
+    requiredField(agreementDate, "תאריך ההסכם");
+    requiredField(fullName, "שם העובד/ת");
     requiredField(idNumber, "תעודת זהות");
     requiredField(address, "כתובת");
     requiredField(phone, "טלפון");
     requiredField(email, "אימייל");
     requiredField(startDate, "תאריך תחילת עבודה");
+    requiredField(finalFullName, "שם מלא לחתימה");
+    requiredField(finalIdNumber, "תעודת זהות לחתימה");
+    requiredField(finalSignatureDate, "תאריך חתימה");
     requiredField(signatureDataUrl, "חתימה");
 
     if (!isValidObjectId(employeeId) || !isValidObjectId(businessId)) {
@@ -187,7 +202,7 @@ export async function POST(req: NextRequest) {
       rtl?: boolean;
     }) {
       const page = pages[options.pageIndex];
-      if (!page) return;
+      if (!page || !options.text) return;
 
       const text =
         options.rtl === false ? options.text : rtlVisual(options.text);
@@ -201,20 +216,17 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const today = new Date().toLocaleDateString("he-IL", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-
+    const formattedAgreementDate = formatDate(agreementDate);
     const formattedStartDate = formatDate(startDate);
+    const formattedFinalSignatureDate = formatDate(finalSignatureDate);
 
     /**
-     * עמוד 1 — תאריך ופרטי עובד/ת
+     * עמוד 1:
+     * תאריך, שם העובד/ת, ת.ז, כתובת, טלפון, אימייל
      */
     drawTextOnPage({
       pageIndex: 0,
-      text: today,
+      text: formattedAgreementDate,
       x: 235,
       y: 744,
       size: 10,
@@ -265,7 +277,8 @@ export async function POST(req: NextRequest) {
     });
 
     /**
-     * עמוד 2 — תאריך תחילת עבודה
+     * עמוד 2:
+     * תאריך תחילת עבודה
      */
     drawTextOnPage({
       pageIndex: 1,
@@ -277,19 +290,22 @@ export async function POST(req: NextRequest) {
     });
 
     /**
-     * עמוד 11 — פרטי חתימה
+     * עמוד אחרון:
+     * שם מלא, תעודת זהות, חתימה, תאריך
      */
+    const lastPageIndex = pages.length - 1;
+
     drawTextOnPage({
-      pageIndex: 10,
-      text: fullName,
+      pageIndex: lastPageIndex,
+      text: finalFullName,
       x: 300,
       y: 143,
       size: 10,
     });
 
     drawTextOnPage({
-      pageIndex: 10,
-      text: idNumber,
+      pageIndex: lastPageIndex,
+      text: finalIdNumber,
       x: 145,
       y: 143,
       size: 10,
@@ -297,8 +313,8 @@ export async function POST(req: NextRequest) {
     });
 
     drawTextOnPage({
-      pageIndex: 10,
-      text: today,
+      pageIndex: lastPageIndex,
+      text: formattedFinalSignatureDate,
       x: 110,
       y: 102,
       size: 10,
@@ -309,9 +325,7 @@ export async function POST(req: NextRequest) {
     const signatureBytes = Buffer.from(signatureBase64, "base64");
     const signatureImage = await pdfDoc.embedPng(signatureBytes);
 
-    const signaturePage = pages[10];
-
-    signaturePage.drawImage(signatureImage, {
+    pages[lastPageIndex].drawImage(signatureImage, {
       x: 240,
       y: 82,
       width: 145,
@@ -344,12 +358,18 @@ export async function POST(req: NextRequest) {
       {
         employeeId: employeeObjectId,
         businessId: businessObjectId,
+        agreementDate: agreementDate ? new Date(agreementDate) : null,
         fullName,
         idNumber,
         address,
         phone,
         email,
         startDate: startDate ? new Date(startDate) : null,
+        finalFullName,
+        finalIdNumber,
+        finalSignatureDate: finalSignatureDate
+          ? new Date(finalSignatureDate)
+          : null,
         signedFileUrl,
         status: "signed",
         signedAt: new Date(),
