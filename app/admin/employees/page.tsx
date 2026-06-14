@@ -5,32 +5,63 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 export const dynamic = "force-dynamic";
 
 type Form101Status = "uploaded" | "approved" | "rejected" | string;
-type EmployeeDocumentType = "form101" | "idCard" | string;
+type EmployeeDocumentType = "form101" | "idCard" | "agreement" | string;
 
 type EmployeeForm101 = {
   _id: string;
   id?: string;
-
   employeeId?: string;
   businessId?: string;
-
   documentType?: EmployeeDocumentType;
-
   employeeName?: string;
   employeeEmail?: string;
   employeePhone?: string;
-
   originalFileName?: string;
   storedFileName?: string;
   r2Key?: string;
   fileUrl?: string;
-
   fileType?: string;
   fileSize?: number;
-
   taxYear?: number;
   status?: Form101Status;
+  uploadedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
 
+type EmployeeAgreement = {
+  _id: string;
+  id?: string;
+  employeeId?: string;
+  businessId?: string;
+  employeeName?: string;
+  employeeEmail?: string;
+  employeePhone?: string;
+  fullName?: string;
+  idNumber?: string;
+  signedFileUrl?: string;
+  status?: Form101Status;
+  signedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+type AdminEmployeeDocument = {
+  _id: string;
+  id?: string;
+  source: "form" | "agreement";
+  employeeId?: string;
+  businessId?: string;
+  employeeName?: string;
+  employeeEmail?: string;
+  employeePhone?: string;
+  documentType?: EmployeeDocumentType;
+  originalFileName?: string;
+  fileUrl?: string;
+  fileType?: string;
+  fileSize?: number;
+  taxYear?: number;
+  status?: Form101Status;
   uploadedAt?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -38,14 +69,15 @@ type EmployeeForm101 = {
 
 const API = {
   forms101: "/api/admin/forms/101",
-  updateStatus: (formId: string) => `/api/admin/forms/101/${formId}/status`,
+  agreements: "/api/admin/employee-agreements",
+  updateFormStatus: (formId: string) => `/api/admin/forms/101/${formId}/status`,
+  updateAgreementStatus: (agreementId: string) =>
+    `/api/admin/employee-agreements/${agreementId}/status`,
 };
 
 function formatDate(value?: string) {
   if (!value) return "—";
-
   const date = new Date(value);
-
   if (Number.isNaN(date.getTime())) return "—";
 
   return date.toLocaleDateString("he-IL", {
@@ -57,9 +89,7 @@ function formatDate(value?: string) {
 
 function formatDateTime(value?: string) {
   if (!value) return "—";
-
   const date = new Date(value);
-
   if (Number.isNaN(date.getTime())) return "—";
 
   return date.toLocaleString("he-IL", {
@@ -73,14 +103,8 @@ function formatDateTime(value?: string) {
 
 function formatFileSize(size?: number) {
   if (!size) return "—";
-
   const mb = size / 1024 / 1024;
-
-  if (mb >= 1) {
-    return `${mb.toFixed(1)}MB`;
-  }
-
-  return `${Math.round(size / 1024)}KB`;
+  return mb >= 1 ? `${mb.toFixed(1)}MB` : `${Math.round(size / 1024)}KB`;
 }
 
 function statusLabel(status?: Form101Status) {
@@ -89,6 +113,8 @@ function statusLabel(status?: Form101Status) {
       return "מאושר";
     case "rejected":
       return "נדחה";
+    case "signed":
+      return "נחתם לבדיקה";
     case "uploaded":
       return "הועלה לבדיקה";
     default:
@@ -102,6 +128,7 @@ function statusClass(status?: Form101Status) {
       return "border-emerald-200 bg-emerald-50 text-emerald-700";
     case "rejected":
       return "border-rose-200 bg-rose-50 text-rose-700";
+    case "signed":
     case "uploaded":
       return "border-amber-200 bg-amber-50 text-amber-700";
     default:
@@ -111,6 +138,8 @@ function statusClass(status?: Form101Status) {
 
 function documentTypeLabel(documentType?: EmployeeDocumentType) {
   switch (String(documentType || "form101")) {
+    case "agreement":
+      return "הסכם עבודה";
     case "idCard":
       return "תעודת זהות";
     case "form101":
@@ -122,8 +151,10 @@ function documentTypeLabel(documentType?: EmployeeDocumentType) {
 
 function documentTypeClass(documentType?: EmployeeDocumentType) {
   switch (String(documentType || "form101")) {
-    case "idCard":
+    case "agreement":
       return "border-violet-200 bg-violet-50 text-violet-700";
+    case "idCard":
+      return "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700";
     case "form101":
       return "border-sky-200 bg-sky-50 text-sky-700";
     default:
@@ -131,20 +162,20 @@ function documentTypeClass(documentType?: EmployeeDocumentType) {
   }
 }
 
-function getFormId(form: EmployeeForm101) {
-  return String(form.id || form._id || "");
+function getDocumentId(doc: AdminEmployeeDocument) {
+  return String(doc.id || doc._id || "");
 }
 
-function getEmployeeName(form: EmployeeForm101) {
-  return form.employeeName || "עובד ללא שם";
+function getEmployeeName(doc: AdminEmployeeDocument) {
+  return doc.employeeName || "עובד ללא שם";
 }
 
-function getEmployeeEmail(form: EmployeeForm101) {
-  return form.employeeEmail || "—";
+function getEmployeeEmail(doc: AdminEmployeeDocument) {
+  return doc.employeeEmail || "—";
 }
 
-function getEmployeePhone(form: EmployeeForm101) {
-  return form.employeePhone || "—";
+function getEmployeePhone(doc: AdminEmployeeDocument) {
+  return doc.employeePhone || "—";
 }
 
 function initials(name: string) {
@@ -168,7 +199,8 @@ function Icon({
     | "x"
     | "open"
     | "users"
-    | "warning";
+    | "warning"
+    | "template";
   className?: string;
 }) {
   const common = {
@@ -201,7 +233,7 @@ function Icon({
     );
   }
 
-  if (name === "file") {
+  if (name === "file" || name === "template") {
     return (
       <svg {...common}>
         <path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7z" />
@@ -261,7 +293,7 @@ function Icon({
 }
 
 export default function AdminEmployeesPage() {
-  const [forms, setForms] = useState<EmployeeForm101[]>([]);
+  const [documents, setDocuments] = useState<AdminEmployeeDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -272,51 +304,118 @@ export default function AdminEmployeesPage() {
   const [documentFilter, setDocumentFilter] = useState("");
   const [yearFilter, setYearFilter] = useState("");
 
-  const loadForms = useCallback(async () => {
+  const loadDocuments = useCallback(async () => {
     try {
       setError("");
       setRefreshing(true);
 
       const params = new URLSearchParams();
 
-      if (statusFilter) {
-        params.set("status", statusFilter);
-      }
-
-      if (documentFilter) {
+      if (statusFilter) params.set("status", statusFilter);
+      if (documentFilter && documentFilter !== "agreement") {
         params.set("documentType", documentFilter);
       }
+      if (yearFilter) params.set("taxYear", yearFilter);
 
-      if (yearFilter) {
-        params.set("taxYear", yearFilter);
-      }
-
-      const url = params.toString()
+      const formsUrl = params.toString()
         ? `${API.forms101}?${params.toString()}`
         : API.forms101;
 
-      const response = await fetch(url, {
-        method: "GET",
-        credentials: "include",
-        cache: "no-store",
-      });
+      const agreementsParams = new URLSearchParams();
+      if (statusFilter) agreementsParams.set("status", statusFilter);
 
-      const data = await response.json().catch(() => null);
+      const agreementsUrl = agreementsParams.toString()
+        ? `${API.agreements}?${agreementsParams.toString()}`
+        : API.agreements;
 
-      if (!response.ok || !data?.success) {
-        throw new Error(data?.error || "שגיאה בטעינת מסמכי עובדים");
-      }
+      const [formsResponse, agreementsResponse] = await Promise.all([
+        documentFilter === "agreement"
+          ? Promise.resolve(null)
+          : fetch(formsUrl, {
+              method: "GET",
+              credentials: "include",
+              cache: "no-store",
+            }),
+        documentFilter && documentFilter !== "agreement"
+          ? Promise.resolve(null)
+          : fetch(agreementsUrl, {
+              method: "GET",
+              credentials: "include",
+              cache: "no-store",
+            }),
+      ]);
 
-      setForms(
-        Array.isArray(data.documents)
+      const mergedDocuments: AdminEmployeeDocument[] = [];
+
+      if (formsResponse) {
+        const data = await formsResponse.json().catch(() => null);
+
+        if (!formsResponse.ok || !data?.success) {
+          throw new Error(data?.error || "שגיאה בטעינת מסמכי עובדים");
+        }
+
+        const forms: EmployeeForm101[] = Array.isArray(data.documents)
           ? data.documents
           : Array.isArray(data.forms)
           ? data.forms
-          : []
-      );
+          : [];
+
+        forms.forEach((form) => {
+          mergedDocuments.push({
+            ...form,
+            source: "form",
+            documentType: form.documentType || "form101",
+            fileUrl: form.fileUrl,
+          });
+        });
+      }
+
+      if (agreementsResponse) {
+        const data = await agreementsResponse.json().catch(() => null);
+
+        if (!agreementsResponse.ok || !data?.success) {
+          throw new Error(data?.error || "שגיאה בטעינת הסכמי עובדים");
+        }
+
+        const agreements: EmployeeAgreement[] = Array.isArray(data.agreements)
+          ? data.agreements
+          : Array.isArray(data.documents)
+          ? data.documents
+          : [];
+
+        agreements.forEach((agreement) => {
+          mergedDocuments.push({
+            _id: agreement._id,
+            id: agreement.id,
+            source: "agreement",
+            employeeId: agreement.employeeId,
+            businessId: agreement.businessId,
+            employeeName: agreement.employeeName || agreement.fullName,
+            employeeEmail: agreement.employeeEmail,
+            employeePhone: agreement.employeePhone,
+            documentType: "agreement",
+            originalFileName: "הסכם עבודה חתום",
+            fileUrl: agreement.signedFileUrl,
+            fileType: "application/pdf",
+            fileSize: undefined,
+            status: agreement.status || "signed",
+            uploadedAt: agreement.signedAt,
+            createdAt: agreement.createdAt,
+            updatedAt: agreement.updatedAt,
+          });
+        });
+      }
+
+      mergedDocuments.sort((a, b) => {
+        const aDate = new Date(a.uploadedAt || a.createdAt || 0).getTime();
+        const bDate = new Date(b.uploadedAt || b.createdAt || 0).getTime();
+        return bDate - aDate;
+      });
+
+      setDocuments(mergedDocuments);
     } catch (loadError) {
       console.error("LOAD ADMIN EMPLOYEES DOCUMENTS FAILED:", loadError);
-      setForms([]);
+      setDocuments([]);
       setError(
         loadError instanceof Error
           ? loadError.message
@@ -329,63 +428,70 @@ export default function AdminEmployeesPage() {
   }, [statusFilter, documentFilter, yearFilter]);
 
   useEffect(() => {
-    void loadForms();
-  }, [loadForms]);
+    void loadDocuments();
+  }, [loadDocuments]);
 
-  const filteredForms = useMemo(() => {
+  const filteredDocuments = useMemo(() => {
     const q = search.trim().toLowerCase();
 
-    if (!q) return forms;
+    if (!q) return documents;
 
-    return forms.filter((form) => {
+    return documents.filter((doc) => {
       return (
-        getEmployeeName(form).toLowerCase().includes(q) ||
-        getEmployeeEmail(form).toLowerCase().includes(q) ||
-        getEmployeePhone(form).toLowerCase().includes(q) ||
-        String(form.originalFileName || "").toLowerCase().includes(q) ||
-        documentTypeLabel(form.documentType).toLowerCase().includes(q) ||
-        String(form.documentType || "").toLowerCase().includes(q) ||
-        String(form.employeeId || "").toLowerCase().includes(q)
+        getEmployeeName(doc).toLowerCase().includes(q) ||
+        getEmployeeEmail(doc).toLowerCase().includes(q) ||
+        getEmployeePhone(doc).toLowerCase().includes(q) ||
+        String(doc.originalFileName || "").toLowerCase().includes(q) ||
+        documentTypeLabel(doc.documentType).toLowerCase().includes(q) ||
+        String(doc.documentType || "").toLowerCase().includes(q) ||
+        String(doc.employeeId || "").toLowerCase().includes(q)
       );
     });
-  }, [forms, search]);
+  }, [documents, search]);
 
   const stats = useMemo(() => {
     return {
-      total: forms.length,
-      form101: forms.filter(
-        (form) => !form.documentType || form.documentType === "form101"
+      total: documents.length,
+      form101: documents.filter((doc) => doc.documentType === "form101").length,
+      idCard: documents.filter((doc) => doc.documentType === "idCard").length,
+      agreements: documents.filter((doc) => doc.documentType === "agreement")
+        .length,
+      waiting: documents.filter((doc) =>
+        ["uploaded", "signed"].includes(String(doc.status || ""))
       ).length,
-      idCard: forms.filter((form) => form.documentType === "idCard").length,
-      uploaded: forms.filter((form) => form.status === "uploaded").length,
-      approved: forms.filter((form) => form.status === "approved").length,
-      rejected: forms.filter((form) => form.status === "rejected").length,
+      approved: documents.filter((doc) => doc.status === "approved").length,
+      rejected: documents.filter((doc) => doc.status === "rejected").length,
     };
-  }, [forms]);
+  }, [documents]);
 
   const years = useMemo(() => {
     const set = new Set<number>();
 
-    forms.forEach((form) => {
-      if (form.taxYear) {
-        set.add(Number(form.taxYear));
-      }
+    documents.forEach((doc) => {
+      if (doc.taxYear) set.add(Number(doc.taxYear));
     });
 
-    if (set.size === 0) {
-      set.add(new Date().getFullYear());
-    }
+    if (set.size === 0) set.add(new Date().getFullYear());
 
     return Array.from(set).sort((a, b) => b - a);
-  }, [forms]);
+  }, [documents]);
 
-  async function updateStatus(formId: string, status: "approved" | "rejected" | "uploaded") {
-    if (!formId || updatingId) return;
+  async function updateStatus(
+    doc: AdminEmployeeDocument,
+    status: "approved" | "rejected" | "uploaded" | "signed"
+  ) {
+    const documentId = getDocumentId(doc);
+    if (!documentId || updatingId) return;
 
     try {
-      setUpdatingId(formId);
+      setUpdatingId(documentId);
 
-      const response = await fetch(API.updateStatus(formId), {
+      const url =
+        doc.source === "agreement"
+          ? API.updateAgreementStatus(documentId)
+          : API.updateFormStatus(documentId);
+
+      const response = await fetch(url, {
         method: "PATCH",
         credentials: "include",
         headers: {
@@ -400,19 +506,19 @@ export default function AdminEmployeesPage() {
         throw new Error(data?.error || "שגיאה בעדכון סטטוס");
       }
 
-      setForms((prev) =>
-        prev.map((form) =>
-          getFormId(form) === formId
+      setDocuments((prev) =>
+        prev.map((item) =>
+          getDocumentId(item) === documentId && item.source === doc.source
             ? {
-                ...form,
+                ...item,
                 status,
                 updatedAt: new Date().toISOString(),
               }
-            : form
+            : item
         )
       );
     } catch (updateError) {
-      console.error("UPDATE FORM 101 STATUS FAILED:", updateError);
+      console.error("UPDATE EMPLOYEE DOCUMENT STATUS FAILED:", updateError);
       alert(
         updateError instanceof Error
           ? updateError.message
@@ -439,26 +545,36 @@ export default function AdminEmployeesPage() {
               </h1>
 
               <p className="mt-3 max-w-3xl text-sm font-semibold leading-7 text-slate-300 md:text-base">
-                כאן האדמין רואה את טופסי 101 ותעודות הזהות של כל העובדים/לקוחות,
-                כולל סטטוס, תאריך העלאה, צפייה בקובץ ואישור או דחייה.
+                כאן האדמין רואה טופסי 101, תעודות זהות והסכמי עבודה חתומים של
+                כל העובדים, כולל צפייה בקובץ, אישור או דחייה.
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => void loadForms()}
-              disabled={refreshing}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/10 px-5 text-sm font-black text-white transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <Icon
-                name="refresh"
-                className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
-              />
-              רענון
-            </button>
+            <div className="flex flex-wrap gap-3">
+              <a
+                href="/admin/employees/agreement-template"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-violet-300/30 bg-violet-500 px-5 text-sm font-black text-white transition hover:bg-violet-600"
+              >
+                <Icon name="template" className="h-4 w-4" />
+                יצירת תבנית הסכם לעובדים
+              </a>
+
+              <button
+                type="button"
+                onClick={() => void loadDocuments()}
+                disabled={refreshing}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/10 px-5 text-sm font-black text-white transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Icon
+                  name="refresh"
+                  className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+                />
+                רענון
+              </button>
+            </div>
           </div>
 
-          <div className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
             <div className="rounded-[24px] border border-white/10 bg-white/10 p-4">
               <p className="text-xs font-black text-slate-300">סה״כ מסמכים</p>
               <p className="mt-2 text-3xl font-black">{stats.total}</p>
@@ -475,8 +591,13 @@ export default function AdminEmployeesPage() {
             </div>
 
             <div className="rounded-[24px] border border-white/10 bg-white/10 p-4">
+              <p className="text-xs font-black text-slate-300">הסכמי עבודה</p>
+              <p className="mt-2 text-3xl font-black">{stats.agreements}</p>
+            </div>
+
+            <div className="rounded-[24px] border border-white/10 bg-white/10 p-4">
               <p className="text-xs font-black text-slate-300">ממתינים לבדיקה</p>
-              <p className="mt-2 text-3xl font-black">{stats.uploaded}</p>
+              <p className="mt-2 text-3xl font-black">{stats.waiting}</p>
             </div>
           </div>
         </section>
@@ -503,6 +624,7 @@ export default function AdminEmployeesPage() {
             >
               <option value="">כל הסטטוסים</option>
               <option value="uploaded">הועלה לבדיקה</option>
+              <option value="signed">נחתם לבדיקה</option>
               <option value="approved">מאושר</option>
               <option value="rejected">נדחה</option>
             </select>
@@ -515,6 +637,7 @@ export default function AdminEmployeesPage() {
               <option value="">כל סוגי המסמכים</option>
               <option value="form101">טופס 101</option>
               <option value="idCard">תעודת זהות</option>
+              <option value="agreement">הסכם עבודה</option>
             </select>
 
             <select
@@ -562,13 +685,13 @@ export default function AdminEmployeesPage() {
 
             <button
               type="button"
-              onClick={() => void loadForms()}
+              onClick={() => void loadDocuments()}
               className="mt-5 rounded-2xl bg-rose-600 px-5 py-3 text-sm font-black text-white transition hover:bg-rose-700"
             >
               נסה שוב
             </button>
           </section>
-        ) : filteredForms.length === 0 ? (
+        ) : filteredDocuments.length === 0 ? (
           <section className="rounded-[32px] border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
             <Icon name="file" className="mx-auto h-12 w-12 text-slate-400" />
             <h2 className="mt-4 text-xl font-black text-slate-800">
@@ -589,20 +712,23 @@ export default function AdminEmployeesPage() {
                     <th className="px-5 py-4 font-black">סוג מסמך</th>
                     <th className="px-5 py-4 font-black">שנת מס</th>
                     <th className="px-5 py-4 font-black">קובץ</th>
-                    <th className="px-5 py-4 font-black">תאריך העלאה</th>
+                    <th className="px-5 py-4 font-black">תאריך העלאה/חתימה</th>
                     <th className="px-5 py-4 font-black">סטטוס</th>
                     <th className="px-5 py-4 font-black">פעולות</th>
                   </tr>
                 </thead>
 
                 <tbody className="divide-y divide-slate-100">
-                  {filteredForms.map((form) => {
-                    const formId = getFormId(form);
-                    const employeeName = getEmployeeName(form);
-                    const isUpdating = updatingId === formId;
+                  {filteredDocuments.map((doc) => {
+                    const documentId = getDocumentId(doc);
+                    const employeeName = getEmployeeName(doc);
+                    const isUpdating = updatingId === documentId;
 
                     return (
-                      <tr key={formId} className="transition hover:bg-slate-50">
+                      <tr
+                        key={`${doc.source}-${documentId}`}
+                        className="transition hover:bg-slate-50"
+                      >
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-3">
                             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-sm font-black text-white">
@@ -614,7 +740,7 @@ export default function AdminEmployeesPage() {
                                 {employeeName}
                               </p>
                               <p className="mt-1 text-xs font-bold text-slate-400">
-                                ID: {form.employeeId || "—"}
+                                ID: {doc.employeeId || "—"}
                               </p>
                             </div>
                           </div>
@@ -622,55 +748,60 @@ export default function AdminEmployeesPage() {
 
                         <td className="px-5 py-4">
                           <p className="text-sm font-semibold text-slate-700">
-                            {getEmployeeEmail(form)}
+                            {getEmployeeEmail(doc)}
                           </p>
-                          <p dir="ltr" className="mt-1 text-right text-sm font-semibold text-slate-500">
-                            {getEmployeePhone(form)}
+                          <p
+                            dir="ltr"
+                            className="mt-1 text-right text-sm font-semibold text-slate-500"
+                          >
+                            {getEmployeePhone(doc)}
                           </p>
                         </td>
 
                         <td className="px-5 py-4">
                           <span
                             className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${documentTypeClass(
-                              form.documentType
+                              doc.documentType
                             )}`}
                           >
-                            {documentTypeLabel(form.documentType)}
+                            {documentTypeLabel(doc.documentType)}
                           </span>
                         </td>
 
                         <td className="px-5 py-4 text-sm font-black text-slate-700">
-                          {form.taxYear || "—"}
+                          {doc.taxYear || "—"}
                         </td>
 
                         <td className="px-5 py-4">
                           <p className="max-w-[240px] truncate text-sm font-black text-slate-800">
-                            {form.originalFileName || documentTypeLabel(form.documentType)}
+                            {doc.originalFileName ||
+                              documentTypeLabel(doc.documentType)}
                           </p>
                           <p className="mt-1 text-xs font-bold text-slate-400">
-                            {formatFileSize(form.fileSize)} · {form.fileType || "—"}
+                            {formatFileSize(doc.fileSize)} ·{" "}
+                            {doc.fileType || "PDF"}
                           </p>
                         </td>
 
                         <td className="px-5 py-4 text-sm font-semibold text-slate-600">
-                          {formatDateTime(form.uploadedAt || form.createdAt)}
+                          {formatDateTime(doc.uploadedAt || doc.createdAt)}
                         </td>
 
                         <td className="px-5 py-4">
                           <span
                             className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${statusClass(
-                              form.status
+                              doc.status
                             )}`}
                           >
-                            {statusLabel(form.status)}
+                            {statusLabel(doc.status)}
                           </span>
                         </td>
 
                         <td className="px-5 py-4">
                           <div className="flex flex-wrap items-center gap-2">
-                            {form.fileUrl ? (
+                            {doc.fileUrl ? (
                               <a
-                                href={form.fileUrl}
+                                href={doc.fileUrl}
                                 target="_blank"
                                 rel="noreferrer"
                                 className="inline-flex items-center gap-1 rounded-2xl bg-slate-950 px-4 py-2 text-xs font-black text-white transition hover:bg-black"
@@ -687,7 +818,7 @@ export default function AdminEmployeesPage() {
                             <button
                               type="button"
                               disabled={isUpdating}
-                              onClick={() => void updateStatus(formId, "approved")}
+                              onClick={() => void updateStatus(doc, "approved")}
                               className="inline-flex items-center gap-1 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-black text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               <Icon name="check" className="h-3.5 w-3.5" />
@@ -697,7 +828,7 @@ export default function AdminEmployeesPage() {
                             <button
                               type="button"
                               disabled={isUpdating}
-                              onClick={() => void updateStatus(formId, "rejected")}
+                              onClick={() => void updateStatus(doc, "rejected")}
                               className="inline-flex items-center gap-1 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-black text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               <Icon name="x" className="h-3.5 w-3.5" />
@@ -713,23 +844,23 @@ export default function AdminEmployeesPage() {
             </section>
 
             <section className="grid gap-4 xl:hidden">
-              {filteredForms.map((form) => {
-                const formId = getFormId(form);
-                const employeeName = getEmployeeName(form);
-                const isUpdating = updatingId === formId;
+              {filteredDocuments.map((doc) => {
+                const documentId = getDocumentId(doc);
+                const employeeName = getEmployeeName(doc);
+                const isUpdating = updatingId === documentId;
 
                 return (
                   <article
-                    key={formId}
+                    key={`${doc.source}-${documentId}`}
                     className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm"
                   >
                     <div className="flex items-start justify-between gap-4">
                       <span
                         className={`rounded-full border px-3 py-1 text-xs font-black ${statusClass(
-                          form.status
+                          doc.status
                         )}`}
                       >
-                        {statusLabel(form.status)}
+                        {statusLabel(doc.status)}
                       </span>
 
                       <div className="flex items-center gap-3 text-right">
@@ -738,7 +869,7 @@ export default function AdminEmployeesPage() {
                             {employeeName}
                           </h3>
                           <p className="mt-1 text-xs font-bold text-slate-400">
-                            {getEmployeeEmail(form)}
+                            {getEmployeeEmail(doc)}
                           </p>
                         </div>
 
@@ -750,19 +881,26 @@ export default function AdminEmployeesPage() {
 
                     <div className="mt-4 grid gap-2 text-sm font-semibold text-slate-600">
                       <p>
-                        טלפון: <span dir="ltr">{getEmployeePhone(form)}</span>
+                        טלפון: <span dir="ltr">{getEmployeePhone(doc)}</span>
                       </p>
-                      <p>סוג מסמך: {documentTypeLabel(form.documentType)}</p>
-                      <p>שנת מס: {form.taxYear || "—"}</p>
-                      <p>קובץ: {form.originalFileName || documentTypeLabel(form.documentType)}</p>
-                      <p>גודל: {formatFileSize(form.fileSize)}</p>
-                      <p>תאריך העלאה: {formatDate(form.uploadedAt || form.createdAt)}</p>
+                      <p>סוג מסמך: {documentTypeLabel(doc.documentType)}</p>
+                      <p>שנת מס: {doc.taxYear || "—"}</p>
+                      <p>
+                        קובץ:{" "}
+                        {doc.originalFileName ||
+                          documentTypeLabel(doc.documentType)}
+                      </p>
+                      <p>גודל: {formatFileSize(doc.fileSize)}</p>
+                      <p>
+                        תאריך העלאה/חתימה:{" "}
+                        {formatDate(doc.uploadedAt || doc.createdAt)}
+                      </p>
                     </div>
 
                     <div className="mt-5 grid grid-cols-3 gap-2">
-                      {form.fileUrl ? (
+                      {doc.fileUrl ? (
                         <a
-                          href={form.fileUrl}
+                          href={doc.fileUrl}
                           target="_blank"
                           rel="noreferrer"
                           className="inline-flex h-11 items-center justify-center rounded-2xl bg-slate-950 text-sm font-black text-white"
@@ -781,7 +919,7 @@ export default function AdminEmployeesPage() {
                       <button
                         type="button"
                         disabled={isUpdating}
-                        onClick={() => void updateStatus(formId, "approved")}
+                        onClick={() => void updateStatus(doc, "approved")}
                         className="h-11 rounded-2xl bg-emerald-50 text-sm font-black text-emerald-700 ring-1 ring-emerald-200 disabled:opacity-50"
                       >
                         אשר
@@ -790,7 +928,7 @@ export default function AdminEmployeesPage() {
                       <button
                         type="button"
                         disabled={isUpdating}
-                        onClick={() => void updateStatus(formId, "rejected")}
+                        onClick={() => void updateStatus(doc, "rejected")}
                         className="h-11 rounded-2xl bg-rose-50 text-sm font-black text-rose-700 ring-1 ring-rose-200 disabled:opacity-50"
                       >
                         דחה

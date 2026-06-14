@@ -14,15 +14,27 @@ const EmployeeAgreementSchema = new Schema(
       index: true,
     },
 
+    templateId: {
+      type: mongoose.Schema.Types.ObjectId,
+      default: null,
+      index: true,
+    },
+
+    values: {
+      type: Map,
+      of: Schema.Types.Mixed,
+      default: {},
+    },
+
     fullName: {
       type: String,
-      required: true,
+      default: "",
       trim: true,
     },
 
     idNumber: {
       type: String,
-      required: true,
+      default: "",
       trim: true,
     },
 
@@ -44,7 +56,29 @@ const EmployeeAgreementSchema = new Schema(
       trim: true,
     },
 
+    agreementDate: {
+      type: Date,
+      default: null,
+    },
+
     startDate: {
+      type: Date,
+      default: null,
+    },
+
+    finalFullName: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    finalIdNumber: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    finalSignatureDate: {
       type: Date,
       default: null,
     },

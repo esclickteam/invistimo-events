@@ -3,183 +3,39 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 
-type FormValues = {
-  agreementDate: string;
-  fullName: string;
-  idNumber: string;
-  address: string;
-  phone: string;
-  email: string;
-  startDate: string;
-  finalFullName: string;
-  finalIdNumber: string;
-  finalSignatureDate: string;
+type FieldType = "text" | "date" | "signature";
+type EmployeeAgreementStatus = "signed" | "approved" | "rejected";
+
+type TemplateField = {
+  id: string;
+  label: string;
+  type: FieldType;
+  pageIndex: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  required: boolean;
+  order: number;
 };
 
-type EmployeeAgreementStatus = "signed" | "approved" | "rejected";
+type AgreementTemplate = {
+  _id: string;
+  name?: string;
+  fileUrl: string;
+  pageCount: number;
+  fields: TemplateField[];
+};
 
 type EmployeeAgreement = {
   _id: string;
   employeeId: string;
   businessId: string;
-  fullName: string;
-  idNumber: string;
-  address?: string;
-  phone?: string;
-  email?: string;
-  startDate?: string | null;
   signedFileUrl: string;
   status: EmployeeAgreementStatus;
   signedAt?: string;
-  approvedAt?: string | null;
-  rejectedAt?: string | null;
   rejectionReason?: string;
 };
-
-type StepKey =
-  | "agreementDate"
-  | "fullName"
-  | "idNumber"
-  | "address"
-  | "phone"
-  | "email"
-  | "startDate"
-  | "finalFullName"
-  | "finalIdNumber"
-  | "finalSignatureDate"
-  | "signature"
-  | "confirm";
-
-type Step = {
-  key: StepKey;
-  title: string;
-  subtitle: string;
-  type: "text" | "tel" | "email" | "date" | "signature" | "confirm";
-  placeholder?: string;
-  required?: boolean;
-};
-
-const steps: Step[] = [
-  {
-    key: "agreementDate",
-    title: "תאריך",
-    subtitle: "יש לבחור את התאריך שמופיע בראש ההסכם בעמוד הראשון.",
-    type: "date",
-    required: true,
-  },
-  {
-    key: "fullName",
-    title: "שם העובד/ת",
-    subtitle: "יש להזין את שם העובד/ת כפי שיופיע בעמוד הראשון.",
-    type: "text",
-    placeholder: "לדוגמה: ישראל ישראלי",
-    required: true,
-  },
-  {
-    key: "idNumber",
-    title: "תעודת זהות",
-    subtitle: "יש להזין תעודת זהות כפי שתופיע בעמוד הראשון.",
-    type: "text",
-    placeholder: "לדוגמה: 123456789",
-    required: true,
-  },
-  {
-    key: "address",
-    title: "כתובת",
-    subtitle: "יש להזין כתובת מגורים מלאה.",
-    type: "text",
-    placeholder: "רחוב, מספר, עיר",
-    required: true,
-  },
-  {
-    key: "phone",
-    title: "טלפון",
-    subtitle: "יש להזין מספר טלפון.",
-    type: "tel",
-    placeholder: "לדוגמה: 0500000000",
-    required: true,
-  },
-  {
-    key: "email",
-    title: "אימייל",
-    subtitle: "יש להזין כתובת אימייל פעילה.",
-    type: "email",
-    placeholder: "name@example.com",
-    required: true,
-  },
-  {
-    key: "startDate",
-    title: "תאריך תחילת עבודה",
-    subtitle: "יש לבחור את תאריך תחילת העבודה שמופיע בעמוד 2.",
-    type: "date",
-    required: true,
-  },
-  {
-    key: "finalFullName",
-    title: "שם מלא לחתימה",
-    subtitle: "יש להזין שוב שם מלא כפי שיופיע בעמוד החתימה האחרון.",
-    type: "text",
-    placeholder: "לדוגמה: ישראל ישראלי",
-    required: true,
-  },
-  {
-    key: "finalIdNumber",
-    title: "תעודת זהות לחתימה",
-    subtitle: "יש להזין שוב תעודת זהות כפי שתופיע בעמוד החתימה האחרון.",
-    type: "text",
-    placeholder: "לדוגמה: 123456789",
-    required: true,
-  },
-  {
-    key: "finalSignatureDate",
-    title: "תאריך חתימה",
-    subtitle: "יש לבחור את התאריך שיופיע ליד החתימה בעמוד האחרון.",
-    type: "date",
-    required: true,
-  },
-  {
-    key: "signature",
-    title: "חתימת העובד/ת",
-    subtitle: "יש לחתום בתוך המסגרת באמצעות העכבר או האצבע.",
-    type: "signature",
-    required: true,
-  },
-  {
-    key: "confirm",
-    title: "אישור ושליחה",
-    subtitle:
-      "לפני השליחה יש לצפות בהסכם החתום ולוודא שכל הפרטים נכונים. לאחר השליחה לא ניתן לערוך.",
-    type: "confirm",
-    required: true,
-  },
-];
-
-const initialValues: FormValues = {
-  agreementDate: "",
-  fullName: "",
-  idNumber: "",
-  address: "",
-  phone: "",
-  email: "",
-  startDate: "",
-  finalFullName: "",
-  finalIdNumber: "",
-  finalSignatureDate: "",
-};
-
-function formatDate(value?: string | null) {
-  if (!value) return "";
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) return "";
-
-  return date.toLocaleDateString("he-IL", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-}
 
 function getUserId(user: any) {
   return String(user?._id || user?.id || "");
@@ -195,6 +51,18 @@ function getBusinessId(user: any) {
       user?.id ||
       ""
   );
+}
+
+function formatDate(value?: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  return date.toLocaleDateString("he-IL", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 }
 
 function SignatureCanvas({
@@ -215,17 +83,10 @@ function SignatureCanvas({
     if ("touches" in event) {
       const touch = event.touches[0] || event.changedTouches[0];
       if (!touch) return null;
-
-      return {
-        x: touch.clientX - rect.left,
-        y: touch.clientY - rect.top,
-      };
+      return { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
     }
 
-    return {
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top,
-    };
+    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
   }
 
   function startDrawing(event: React.MouseEvent | React.TouchEvent) {
@@ -247,7 +108,6 @@ function SignatureCanvas({
 
   function draw(event: React.MouseEvent | React.TouchEvent) {
     event.preventDefault();
-
     if (!drawingRef.current) return;
 
     const canvas = canvasRef.current;
@@ -261,14 +121,12 @@ function SignatureCanvas({
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     ctx.strokeStyle = "#0f172a";
-
     ctx.lineTo(point.x, point.y);
     ctx.stroke();
   }
 
   function stopDrawing() {
     if (!drawingRef.current) return;
-
     drawingRef.current = false;
 
     const canvas = canvasRef.current;
@@ -293,15 +151,11 @@ function SignatureCanvas({
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const displayWidth = canvas.offsetWidth;
-    const displayHeight = canvas.offsetHeight;
-
-    canvas.width = displayWidth;
-    canvas.height = displayHeight;
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-
     ctx.clearRect(0, 0, canvas.width, canvas.height);
   }, []);
 
@@ -332,137 +186,55 @@ function SignatureCanvas({
   );
 }
 
-function SignedAgreementSuccess({
-  signedUrl,
-  onBack,
-}: {
-  signedUrl: string;
-  onBack: () => void;
-}) {
+function SignedAgreementSuccess({ signedUrl }: { signedUrl: string }) {
   return (
-    <main
-      dir="rtl"
-      className="min-h-screen bg-slate-50 px-4 py-8 text-slate-950"
-    >
-      <div className="mx-auto max-w-3xl rounded-[32px] border border-emerald-200 bg-white p-6 text-center shadow-sm sm:p-8">
+    <main dir="rtl" className="min-h-screen bg-slate-50 px-4 py-8 text-slate-950">
+      <div className="mx-auto max-w-3xl rounded-[32px] border border-emerald-200 bg-white p-8 text-center shadow-sm">
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-3xl text-emerald-700">
           ✓
         </div>
 
-        <h1 className="mt-5 text-2xl font-black text-slate-950">
-          ההסכם נחתם בהצלחה
-        </h1>
+        <h1 className="mt-5 text-2xl font-black">ההסכם נחתם בהצלחה</h1>
 
         <p className="mt-3 text-sm font-semibold leading-7 text-slate-500">
-          ההסכם החתום נשמר במערכת. האדמין יוכל לראות אותו יחד עם טופס 101
-          ותעודת הזהות של העובד/ת.
+          ההסכם נשמר במערכת ויופיע לאדמין לאישור וצפייה.
         </p>
 
-        <div className="mt-6 flex flex-wrap justify-center gap-3">
-          <a
-            href={signedUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex h-11 items-center justify-center rounded-2xl bg-emerald-600 px-6 text-sm font-black text-white transition hover:bg-emerald-700"
-          >
-            צפייה בהסכם החתום
-          </a>
-
-          <button
-            type="button"
-            onClick={onBack}
-            className="h-11 rounded-2xl border border-slate-200 bg-white px-6 text-sm font-black text-slate-700 transition hover:bg-slate-50"
-          >
-            חזרה
-          </button>
-        </div>
+        <a
+          href={signedUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-6 inline-flex h-11 items-center justify-center rounded-2xl bg-emerald-600 px-6 text-sm font-black text-white transition hover:bg-emerald-700"
+        >
+          צפייה בהסכם החתום
+        </a>
       </div>
     </main>
   );
 }
 
-function ExistingSignedAgreement({
-  agreement,
-}: {
-  agreement: EmployeeAgreement;
-}) {
-  const statusLabel =
-    agreement.status === "approved"
-      ? "הסכם מאושר"
-      : agreement.status === "rejected"
-      ? "הסכם נדחה"
-      : "הסכם נחתם וממתין לבדיקה";
-
+function ExistingSignedAgreement({ agreement }: { agreement: EmployeeAgreement }) {
   return (
-    <main
-      dir="rtl"
-      className="min-h-screen bg-slate-50 px-4 py-8 text-slate-950"
-    >
-      <div className="mx-auto max-w-3xl rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+    <main dir="rtl" className="min-h-screen bg-slate-50 px-4 py-8 text-slate-950">
+      <div className="mx-auto max-w-3xl rounded-[32px] border border-slate-200 bg-white p-8 shadow-sm">
         <div className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-black text-violet-700">
           הסכם עבודה
         </div>
 
-        <h1 className="mt-4 text-2xl font-black text-slate-950">
-          כבר קיים הסכם חתום
-        </h1>
+        <h1 className="mt-4 text-2xl font-black">כבר קיים הסכם חתום</h1>
 
         <p className="mt-3 text-sm font-semibold leading-7 text-slate-500">
-          ההסכם נשמר במערכת ויופיע לאדמין יחד עם טופס 101 ותעודת הזהות.
+          לאחר שליחת ההסכם לא ניתן לערוך אותו, אלא אם האדמין דוחה אותו.
         </p>
 
-        <div className="mt-5 rounded-3xl bg-slate-50 p-4 text-sm font-semibold text-slate-600">
-          <div>
-            סטטוס: <b className="text-slate-950">{statusLabel}</b>
-          </div>
-
-          {agreement.signedAt && (
-            <div className="mt-2">
-              תאריך חתימה:{" "}
-              <b className="text-slate-950">
-                {formatDate(agreement.signedAt)}
-              </b>
-            </div>
-          )}
-
-          {agreement.fullName && (
-            <div className="mt-2">
-              שם עובד/ת:{" "}
-              <b className="text-slate-950">{agreement.fullName}</b>
-            </div>
-          )}
-
-          {agreement.idNumber && (
-            <div className="mt-2">
-              ת.ז: <b className="text-slate-950">{agreement.idNumber}</b>
-            </div>
-          )}
-        </div>
-
-        {agreement.status === "rejected" && agreement.rejectionReason && (
-          <div className="mt-5 rounded-3xl border border-rose-200 bg-rose-50 p-4 text-sm font-black leading-6 text-rose-700">
-            סיבת דחייה: {agreement.rejectionReason}
-          </div>
-        )}
-
-        <div className="mt-6 flex flex-wrap gap-3">
-          <a
-            href={agreement.signedFileUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex h-11 items-center justify-center rounded-2xl bg-violet-600 px-6 text-sm font-black text-white transition hover:bg-violet-700"
-          >
-            צפייה בהסכם החתום
-          </a>
-
-          <button
-            type="button"
-            onClick={() => window.history.back()}
-            className="h-11 rounded-2xl border border-slate-200 bg-white px-6 text-sm font-black text-slate-700 transition hover:bg-slate-50"
-          >
-            חזרה
-          </button>
-        </div>
+        <a
+          href={agreement.signedFileUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-6 inline-flex h-11 items-center justify-center rounded-2xl bg-violet-600 px-6 text-sm font-black text-white transition hover:bg-violet-700"
+        >
+          צפייה בהסכם החתום
+        </a>
       </div>
     </main>
   );
@@ -474,200 +246,190 @@ function AgreementSignContent() {
   const employeeId = getUserId(user);
   const businessId = getBusinessId(user);
 
+  const [template, setTemplate] = useState<AgreementTemplate | null>(null);
+  const [fields, setFields] = useState<TemplateField[]>([]);
   const [stepIndex, setStepIndex] = useState(0);
-  const [values, setValues] = useState<FormValues>(initialValues);
-  const [signatureDataUrl, setSignatureDataUrl] = useState("");
+
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [signatures, setSignatures] = useState<Record<string, string>>({});
+
   const [confirmed, setConfirmed] = useState(false);
   const [previewWasOpened, setPreviewWasOpened] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState("");
 
-  const [loadingAgreement, setLoadingAgreement] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [previewing, setPreviewing] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
   const [existingAgreement, setExistingAgreement] =
     useState<EmployeeAgreement | null>(null);
 
-  const [submitting, setSubmitting] = useState(false);
-  const [previewing, setPreviewing] = useState(false);
-  const [error, setError] = useState("");
   const [successUrl, setSuccessUrl] = useState("");
+  const [error, setError] = useState("");
 
-  const currentStep = steps[stepIndex];
+  const currentField = fields[stepIndex] || null;
+  const isConfirmStep = stepIndex >= fields.length;
 
   const progressPercent = useMemo(() => {
-    return Math.round(((stepIndex + 1) / steps.length) * 100);
-  }, [stepIndex]);
+    const total = fields.length + 1;
+    return Math.round(((stepIndex + 1) / total) * 100);
+  }, [fields.length, stepIndex]);
 
-  async function loadExistingAgreement() {
+  async function loadAll() {
     try {
-      setLoadingAgreement(true);
+      setLoading(true);
       setError("");
 
       if (!employeeId || !businessId) {
-        setLoadingAgreement(false);
+        setError("לא נמצא עובד מחובר. צריך להתחבר מחדש למערכת.");
         return;
       }
 
-      const params = new URLSearchParams({
-        employeeId,
-        businessId,
-      });
+      const templateParams = new URLSearchParams({ businessId });
 
-      const res = await fetch(`/api/employee-agreements/current?${params}`, {
-        method: "GET",
-        credentials: "include",
-        cache: "no-store",
-      });
+      const [templateRes, agreementRes] = await Promise.all([
+        fetch(`/api/employee-agreement-templates/current?${templateParams}`, {
+          credentials: "include",
+          cache: "no-store",
+        }),
+        fetch(
+          `/api/employee-agreements/current?employeeId=${employeeId}&businessId=${businessId}`,
+          {
+            credentials: "include",
+            cache: "no-store",
+          }
+        ),
+      ]);
 
-      const data = await res.json().catch(() => null);
+      const templateData = await templateRes.json().catch(() => null);
+      const agreementData = await agreementRes.json().catch(() => null);
 
-      if (!res.ok) {
-        throw new Error(data?.error || "שגיאה בטעינת הסכם העבודה");
+      if (!templateRes.ok || !templateData?.success) {
+        throw new Error(templateData?.error || "שגיאה בטעינת תבנית ההסכם");
       }
 
-      setExistingAgreement(data?.agreement || null);
+      const loadedTemplate = templateData.template || null;
+
+      if (!loadedTemplate) {
+        throw new Error("לא קיימת תבנית הסכם פעילה. יש להגדיר תבנית באדמין.");
+      }
+
+      const sortedFields = Array.isArray(loadedTemplate.fields)
+        ? [...loadedTemplate.fields].sort((a, b) => a.order - b.order)
+        : [];
+
+      if (sortedFields.length === 0) {
+        throw new Error("בתבנית ההסכם לא הוגדרו שדות למילוי.");
+      }
+
+      setTemplate(loadedTemplate);
+      setFields(sortedFields);
+
+      if (agreementRes.ok && agreementData?.agreement) {
+        setExistingAgreement(agreementData.agreement);
+      } else {
+        setExistingAgreement(null);
+      }
     } catch (err) {
-      console.error("LOAD EXISTING AGREEMENT FAILED:", err);
-      setExistingAgreement(null);
+      setError(err instanceof Error ? err.message : "שגיאה בטעינת ההסכם");
     } finally {
-      setLoadingAgreement(false);
+      setLoading(false);
     }
   }
 
   useEffect(() => {
-    void loadExistingAgreement();
+    void loadAll();
   }, [employeeId, businessId]);
 
-  function updateValue(key: keyof FormValues, value: string) {
+  useEffect(() => {
+    if (!template || !fields.length) return;
+
+    const hasAnyValue =
+      Object.values(values).some(Boolean) || Object.values(signatures).some(Boolean);
+
+    if (!hasAnyValue) {
+      setPreviewUrl("");
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      void createPreview(false);
+    }, 650);
+
+    return () => window.clearTimeout(timer);
+  }, [values, signatures, template?._id]);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
+  function updateValue(fieldId: string, value: string) {
     setPreviewWasOpened(false);
     setConfirmed(false);
-
-    setValues((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
+    setValues((prev) => ({ ...prev, [fieldId]: value }));
   }
 
-  function validateCurrentStep() {
+  function updateSignature(fieldId: string, value: string) {
+    setPreviewWasOpened(false);
+    setConfirmed(false);
+    setSignatures((prev) => ({ ...prev, [fieldId]: value }));
+  }
+
+  function validateField(field: TemplateField) {
     setError("");
 
-    if (!employeeId || !businessId) {
-      setError("לא נמצא עובד מחובר. צריך להתחבר מחדש למערכת.");
-      return false;
-    }
+    if (!field.required) return true;
 
-    if (currentStep.key === "signature") {
-      if (!signatureDataUrl) {
-        setError("יש לחתום בתוך שדה החתימה לפני שממשיכים.");
+    if (field.type === "signature") {
+      if (!signatures[field.id]) {
+        setError(`יש למלא את השדה: ${field.label}`);
         return false;
       }
 
       return true;
     }
 
-    if (currentStep.key === "confirm") {
-      if (!previewWasOpened) {
-        setError("לפני השליחה יש ללחוץ על צפייה בהסכם לפני שליחה ולבדוק שהפרטים נכונים.");
-        return false;
-      }
-
-      if (!confirmed) {
-        setError("יש לאשר שקראת את ההסכם ושכל הפרטים נכונים.");
-        return false;
-      }
-
-      return true;
-    }
-
-    const key = currentStep.key as keyof FormValues;
-    const value = values[key]?.trim();
-
-    if (currentStep.required && !value) {
-      setError(`יש למלא את השדה: ${currentStep.title}`);
+    if (!String(values[field.id] || "").trim()) {
+      setError(`יש למלא את השדה: ${field.label}`);
       return false;
-    }
-
-    if (currentStep.key === "email") {
-      const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-      if (!isValidEmail) {
-        setError("כתובת האימייל אינה תקינה.");
-        return false;
-      }
-    }
-
-    if (currentStep.key === "idNumber" || currentStep.key === "finalIdNumber") {
-      const cleanId = value.replace(/\D/g, "");
-      if (cleanId.length < 7 || cleanId.length > 9) {
-        setError("מספר תעודת הזהות אינו תקין.");
-        return false;
-      }
     }
 
     return true;
   }
 
-  function validateAllBeforePreview() {
+  function validateAll() {
     setError("");
 
-    if (!employeeId || !businessId) {
-      setError("לא נמצא עובד מחובר. צריך להתחבר מחדש למערכת.");
-      return false;
-    }
+    for (const field of fields) {
+      if (!field.required) continue;
 
-    const requiredFields: Array<{ key: keyof FormValues; label: string }> = [
-      { key: "agreementDate", label: "תאריך ההסכם" },
-      { key: "fullName", label: "שם העובד/ת" },
-      { key: "idNumber", label: "תעודת זהות בעמוד הראשון" },
-      { key: "address", label: "כתובת" },
-      { key: "phone", label: "טלפון" },
-      { key: "email", label: "אימייל" },
-      { key: "startDate", label: "תאריך תחילת עבודה" },
-      { key: "finalFullName", label: "שם מלא בעמוד החתימה" },
-      { key: "finalIdNumber", label: "תעודת זהות בעמוד החתימה" },
-      { key: "finalSignatureDate", label: "תאריך חתימה" },
-    ];
-
-    for (const field of requiredFields) {
-      if (!values[field.key]?.trim()) {
+      if (field.type === "signature" && !signatures[field.id]) {
         setError(`חסר שדה חובה: ${field.label}`);
         return false;
       }
-    }
 
-    if (!signatureDataUrl) {
-      setError("חסר שדה חובה: חתימה");
-      return false;
-    }
-
-    const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim());
-
-    if (!emailValid) {
-      setError("כתובת האימייל אינה תקינה.");
-      return false;
-    }
-
-    const idNumberClean = values.idNumber.replace(/\D/g, "");
-    const finalIdNumberClean = values.finalIdNumber.replace(/\D/g, "");
-
-    if (idNumberClean.length < 7 || idNumberClean.length > 9) {
-      setError("מספר תעודת הזהות בעמוד הראשון אינו תקין.");
-      return false;
-    }
-
-    if (finalIdNumberClean.length < 7 || finalIdNumberClean.length > 9) {
-      setError("מספר תעודת הזהות בעמוד החתימה אינו תקין.");
-      return false;
+      if (field.type !== "signature" && !String(values[field.id] || "").trim()) {
+        setError(`חסר שדה חובה: ${field.label}`);
+        return false;
+      }
     }
 
     return true;
   }
 
   function goNext() {
-    if (!validateCurrentStep()) return;
-
-    if (stepIndex < steps.length - 1) {
-      setStepIndex((prev) => prev + 1);
+    if (isConfirmStep) {
+      void submitAgreement();
       return;
     }
 
-    void submitAgreement();
+    if (!currentField) return;
+
+    if (!validateField(currentField)) return;
+
+    setStepIndex((prev) => Math.min(prev + 1, fields.length));
   }
 
   function goBack() {
@@ -681,9 +443,11 @@ function AgreementSignContent() {
     window.history.back();
   }
 
-  async function previewAgreement() {
+  async function createPreview(openInNewTab: boolean) {
     try {
-      if (!validateAllBeforePreview()) return;
+      if (!template) return;
+
+      if (openInNewTab && !validateAll()) return;
 
       setPreviewing(true);
       setError("");
@@ -691,12 +455,11 @@ function AgreementSignContent() {
       const res = await fetch("/api/employee-agreements/preview", {
         method: "POST",
         credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...values,
-          signatureDataUrl,
+          businessId,
+          values,
+          signatures,
         }),
       });
 
@@ -705,25 +468,32 @@ function AgreementSignContent() {
       if (!res.ok) {
         if (contentType.includes("application/json")) {
           const data = await res.json().catch(() => null);
-          throw new Error(data?.error || "שגיאה ביצירת תצוגה מקדימה.");
+          throw new Error(data?.error || "שגיאה ביצירת תצוגה מקדימה");
         }
 
-        throw new Error("שגיאה ביצירת תצוגה מקדימה.");
+        throw new Error("שגיאה ביצירת תצוגה מקדימה");
       }
 
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
 
-      window.open(blobUrl, "_blank", "noopener,noreferrer");
+      setPreviewUrl((oldUrl) => {
+        if (oldUrl) URL.revokeObjectURL(oldUrl);
+        return blobUrl;
+      });
 
-      setPreviewWasOpened(true);
+      if (openInNewTab) {
+        window.open(blobUrl, "_blank", "noopener,noreferrer");
+        setPreviewWasOpened(true);
+      }
     } catch (err) {
-      console.error("PREVIEW AGREEMENT FAILED:", err);
-      setError(
-        err instanceof Error
-          ? err.message
-          : "שגיאה ביצירת תצוגה מקדימה להסכם."
-      );
+      if (openInNewTab) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "שגיאה ביצירת תצוגה מקדימה להסכם."
+        );
+      }
     } finally {
       setPreviewing(false);
     }
@@ -731,7 +501,17 @@ function AgreementSignContent() {
 
   async function submitAgreement() {
     try {
-      if (!validateCurrentStep()) return;
+      if (!validateAll()) return;
+
+      if (!previewWasOpened) {
+        setError("לפני השליחה יש ללחוץ על צפייה בהסכם לפני שליחה.");
+        return;
+      }
+
+      if (!confirmed) {
+        setError("יש לאשר שהפרטים נכונים לפני שליחה.");
+        return;
+      }
 
       setSubmitting(true);
       setError("");
@@ -739,39 +519,32 @@ function AgreementSignContent() {
       const res = await fetch("/api/employee-agreements/sign", {
         method: "POST",
         credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           employeeId,
           businessId,
-          ...values,
-          signatureDataUrl,
+          values,
+          signatures,
         }),
       });
 
       const data = await res.json().catch(() => null);
 
       if (!res.ok || !data?.success) {
-        throw new Error(data?.error || "שגיאה בשליחת ההסכם לחתימה.");
+        throw new Error(data?.error || "שגיאה בשליחת ההסכם");
       }
 
       setSuccessUrl(data.signedFileUrl || data.agreement?.signedFileUrl || "");
-      setExistingAgreement(data.agreement || null);
     } catch (err) {
-      console.error("SIGN AGREEMENT FAILED:", err);
-      setError(err instanceof Error ? err.message : "שגיאה בשליחת ההסכם.");
+      setError(err instanceof Error ? err.message : "שגיאה בשליחת ההסכם");
     } finally {
       setSubmitting(false);
     }
   }
 
-  if (loadingAgreement) {
+  if (loading) {
     return (
-      <main
-        dir="rtl"
-        className="flex min-h-screen items-center justify-center bg-slate-50 px-4"
-      >
+      <main dir="rtl" className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
         <div className="rounded-3xl bg-white p-6 text-sm font-black text-slate-700 shadow-sm">
           טוען הסכם...
         </div>
@@ -780,55 +553,48 @@ function AgreementSignContent() {
   }
 
   if (successUrl) {
-    return (
-      <SignedAgreementSuccess
-        signedUrl={successUrl}
-        onBack={() => window.history.back()}
-      />
-    );
+    return <SignedAgreementSuccess signedUrl={successUrl} />;
   }
 
-  if (
-    existingAgreement?.signedFileUrl &&
-    existingAgreement.status !== "rejected"
-  ) {
+  if (existingAgreement?.signedFileUrl && existingAgreement.status !== "rejected") {
     return <ExistingSignedAgreement agreement={existingAgreement} />;
   }
 
   return (
-    <main
-      dir="rtl"
-      className="min-h-screen bg-slate-50 px-4 py-6 text-slate-950"
-    >
+    <main dir="rtl" className="min-h-screen bg-slate-50 px-4 py-6 text-slate-950">
       <div className="mx-auto grid max-w-7xl gap-5 lg:grid-cols-[minmax(0,1fr)_440px]">
         <section className="order-2 overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-sm lg:order-1">
           <div className="flex items-center justify-between gap-3 border-b border-slate-100 p-4">
             <div>
-              <h2 className="text-lg font-black text-slate-950">
-                תצוגת הסכם עבודה
-              </h2>
-
+              <h2 className="text-lg font-black">תצוגת הסכם עבודה</h2>
               <p className="mt-1 text-xs font-bold text-slate-500">
-                זהו ההסכם הריק. לצפייה בהסכם מלא עם הפרטים והחתימה לחצי על
-                צפייה בהסכם לפני שליחה בשלב האחרון.
+                התצוגה מתעדכנת אוטומטית לפי השדות שאת ממלאת.
               </p>
             </div>
 
-            <a
-              href="/templates/employee-agreement-invistimo.pdf"
-              target="_blank"
-              rel="noreferrer"
-              className="shrink-0 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-50"
+            <button
+              type="button"
+              onClick={() => void createPreview(true)}
+              disabled={previewing || submitting}
+              className="shrink-0 rounded-2xl bg-violet-600 px-4 py-2 text-xs font-black text-white transition hover:bg-violet-700 disabled:opacity-50"
             >
-              פתיחה בחלון חדש
-            </a>
+              {previewing ? "יוצר..." : "צפייה בהסכם לפני שליחה"}
+            </button>
           </div>
 
-          <iframe
-            src="/templates/employee-agreement-invistimo.pdf"
-            className="h-[74vh] w-full"
-            title="הסכם עבודה Invistimo"
-          />
+          {previewUrl ? (
+            <iframe
+              src={previewUrl}
+              className="h-[74vh] w-full"
+              title="תצוגה מקדימה להסכם עבודה"
+            />
+          ) : (
+            <iframe
+              src={template?.fileUrl || "/templates/employee-agreement-invistimo.pdf"}
+              className="h-[74vh] w-full"
+              title="תבנית הסכם עבודה"
+            />
+          )}
         </section>
 
         <section className="order-1 rounded-[32px] border border-slate-200 bg-white p-5 shadow-sm lg:order-2 lg:sticky lg:top-5 lg:self-start">
@@ -836,29 +602,17 @@ function AgreementSignContent() {
             חתימה דיגיטלית
           </div>
 
-          <h1 className="text-2xl font-black text-slate-950">
-            חתימה על הסכם עבודה
-          </h1>
+          <h1 className="text-2xl font-black">חתימה על הסכם עבודה</h1>
 
           <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
-            מלאי את השדות לפי הסדר. בכל שלב לחצי הבא עד השלמת החתימה.
+            מלאי את השדות לפי הסדר שהוגדר בתבנית. בכל שלב לחצי הבא.
           </p>
-
-          {existingAgreement?.status === "rejected" && (
-            <div className="mt-5 rounded-3xl border border-rose-200 bg-rose-50 p-4 text-sm font-black leading-6 text-rose-700">
-              ההסכם הקודם נדחה. ניתן לחתום מחדש.
-              {existingAgreement.rejectionReason && (
-                <div className="mt-2">
-                  סיבת דחייה: {existingAgreement.rejectionReason}
-                </div>
-              )}
-            </div>
-          )}
 
           <div className="mt-5">
             <div className="mb-2 flex items-center justify-between text-xs font-black text-slate-500">
               <span>
-                שדה {stepIndex + 1} מתוך {steps.length}
+                שדה {Math.min(stepIndex + 1, fields.length + 1)} מתוך{" "}
+                {fields.length + 1}
               </span>
               <span>{progressPercent}%</span>
             </div>
@@ -872,108 +626,53 @@ function AgreementSignContent() {
           </div>
 
           <div className="mt-6 rounded-[28px] bg-slate-50 p-5">
-            <h2 className="text-xl font-black text-slate-950">
-              {currentStep.title}
-            </h2>
+            {!isConfirmStep && currentField ? (
+              <>
+                <h2 className="text-xl font-black">{currentField.label}</h2>
 
-            <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
-              {currentStep.subtitle}
-            </p>
+                <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
+                  {currentField.required ? "שדה חובה" : "שדה רשות"}
+                </p>
 
-            {currentStep.type === "signature" ? (
-              <SignatureCanvas
-                onChange={(dataUrl) => {
-                  setPreviewWasOpened(false);
-                  setConfirmed(false);
-                  setSignatureDataUrl(dataUrl);
-                }}
-              />
-            ) : currentStep.type === "confirm" ? (
-              <div className="mt-5 space-y-4">
-                <div className="rounded-3xl border border-slate-200 bg-white p-4">
-                  <p className="text-sm font-black text-slate-900">
-                    סיכום פרטים
-                  </p>
+                {currentField.type === "signature" ? (
+                  <SignatureCanvas
+                    onChange={(dataUrl) => updateSignature(currentField.id, dataUrl)}
+                  />
+                ) : (
+                  <input
+                    type={currentField.type === "date" ? "date" : "text"}
+                    value={values[currentField.id] || ""}
+                    onChange={(event) =>
+                      updateValue(currentField.id, event.target.value)
+                    }
+                    placeholder={`מילוי ${currentField.label}`}
+                    className="mt-5 h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                  />
+                )}
+              </>
+            ) : (
+              <div className="space-y-4">
+                <h2 className="text-xl font-black">אישור ושליחה</h2>
 
-                  <div className="mt-3 grid gap-2 text-sm font-semibold text-slate-600">
-                    <div>
-                      תאריך ההסכם:{" "}
-                      <b className="text-slate-950">
-                        {formatDate(values.agreementDate)}
-                      </b>
-                    </div>
-
-                    <div>
-                      שם העובד/ת בעמוד הראשון:{" "}
-                      <b className="text-slate-950">{values.fullName}</b>
-                    </div>
-
-                    <div>
-                      תעודת זהות בעמוד הראשון:{" "}
-                      <b className="text-slate-950">{values.idNumber}</b>
-                    </div>
-
-                    <div>
-                      כתובת:{" "}
-                      <b className="text-slate-950">{values.address}</b>
-                    </div>
-
-                    <div>
-                      טלפון: <b className="text-slate-950">{values.phone}</b>
-                    </div>
-
-                    <div>
-                      אימייל: <b className="text-slate-950">{values.email}</b>
-                    </div>
-
-                    <div>
-                      תאריך תחילת עבודה:{" "}
-                      <b className="text-slate-950">
-                        {formatDate(values.startDate)}
-                      </b>
-                    </div>
-
-                    <div>
-                      שם מלא בעמוד החתימה:{" "}
-                      <b className="text-slate-950">{values.finalFullName}</b>
-                    </div>
-
-                    <div>
-                      תעודת זהות בעמוד החתימה:{" "}
-                      <b className="text-slate-950">
-                        {values.finalIdNumber}
-                      </b>
-                    </div>
-
-                    <div>
-                      תאריך חתימה:{" "}
-                      <b className="text-slate-950">
-                        {formatDate(values.finalSignatureDate)}
-                      </b>
-                    </div>
-                  </div>
+                <div className="rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm font-black leading-6 text-amber-800">
+                  לפני השליחה חובה לצפות בהסכם. לאחר השליחה לא ניתן לערוך את
+                  הפרטים או החתימה, אלא אם האדמין דוחה את ההסכם.
                 </div>
 
                 <button
                   type="button"
-                  onClick={previewAgreement}
+                  onClick={() => void createPreview(true)}
                   disabled={previewing || submitting}
-                  className="flex h-12 w-full items-center justify-center rounded-2xl bg-violet-600 px-5 text-sm font-black text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex h-12 w-full items-center justify-center rounded-2xl bg-violet-600 px-5 text-sm font-black text-white transition hover:bg-violet-700 disabled:opacity-50"
                 >
                   {previewing ? "יוצר תצוגה..." : "צפייה בהסכם לפני שליחה"}
                 </button>
 
                 {previewWasOpened && (
                   <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-black leading-6 text-emerald-700">
-                    התצוגה נפתחה. לאחר שבדקת שהכול נכון, סמני אישור ושלחי את
-                    ההסכם. לאחר השליחה לא ניתן לערוך את ההסכם.
+                    התצוגה נפתחה. אם הכול תקין, סמני אישור ושלחי.
                   </div>
                 )}
-
-                <div className="rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm font-black leading-6 text-amber-800">
-                  שימי לב: לאחר שליחת ההסכם החתום לא ניתן לערוך את הפרטים או
-                  לשנות את החתימה, אלא אם האדמין ידחה את ההסכם ויאפשר חתימה מחדש.
-                </div>
 
                 <label className="flex cursor-pointer items-start gap-3 rounded-3xl border border-slate-200 bg-white p-4 text-sm font-bold leading-6 text-slate-700">
                   <input
@@ -981,27 +680,14 @@ function AgreementSignContent() {
                     checked={confirmed}
                     disabled={!previewWasOpened}
                     onChange={(event) => setConfirmed(event.target.checked)}
-                    className="mt-1 h-5 w-5 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="mt-1 h-5 w-5 disabled:opacity-40"
                   />
                   <span>
-                    צפיתי בהסכם לפני השליחה, קראתי את הסכם העבודה, הבנתי את
-                    תנאיו, וכל הפרטים שמילאתי נכונים ומדויקים.
+                    צפיתי בהסכם לפני השליחה, קראתי והבנתי את תנאיו, וכל הפרטים
+                    שמילאתי נכונים.
                   </span>
                 </label>
               </div>
-            ) : (
-              <input
-                type={currentStep.type}
-                value={values[currentStep.key as keyof FormValues] || ""}
-                onChange={(event) =>
-                  updateValue(
-                    currentStep.key as keyof FormValues,
-                    event.target.value
-                  )
-                }
-                placeholder={currentStep.placeholder}
-                className="mt-5 h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
-              />
             )}
           </div>
 
@@ -1016,7 +702,7 @@ function AgreementSignContent() {
               type="button"
               onClick={goBack}
               disabled={submitting || previewing}
-              className="h-11 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              className="h-11 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
             >
               {stepIndex === 0 ? "חזרה" : "הקודם"}
             </button>
@@ -1025,11 +711,11 @@ function AgreementSignContent() {
               type="button"
               onClick={goNext}
               disabled={submitting || previewing}
-              className="h-11 rounded-2xl bg-violet-600 px-7 text-sm font-black text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="h-11 rounded-2xl bg-violet-600 px-7 text-sm font-black text-white transition hover:bg-violet-700 disabled:opacity-50"
             >
               {submitting
                 ? "שולח..."
-                : stepIndex === steps.length - 1
+                : isConfirmStep
                 ? "שליחת הסכם חתום"
                 : "הבא"}
             </button>
@@ -1044,10 +730,7 @@ export default function AgreementSignPage() {
   return (
     <Suspense
       fallback={
-        <main
-          dir="rtl"
-          className="flex min-h-screen items-center justify-center bg-slate-50 px-4"
-        >
+        <main dir="rtl" className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
           <div className="rounded-3xl bg-white p-6 text-sm font-black text-slate-700 shadow-sm">
             טוען...
           </div>
