@@ -18,6 +18,7 @@ type UserRole =
 type UserStatus = "active" | "pending" | "blocked" | "inactive" | string;
 
 type CareStatus = "ok" | "check" | "urgent";
+
 type EventProgress =
   | "new"
   | "in_progress"
@@ -25,6 +26,22 @@ type EventProgress =
   | "ready"
   | "completed"
   | string;
+
+type Form101Status = "missing" | "uploaded" | "approved" | "rejected";
+
+type ApiForm101 = {
+  _id?: string;
+  id?: string;
+  originalFileName?: string;
+  fileUrl?: string;
+  fileType?: string;
+  fileSize?: number;
+  taxYear?: number;
+  status?: Form101Status;
+  uploadedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
 
 type ApiUser = {
   _id?: string;
@@ -125,6 +142,9 @@ const API = {
   users: "/api/staff/users",
   myEvents: "/api/staff/events/my",
   myTasks: "/api/staff/tasks/my",
+  form101Current: "/api/forms/101/current",
+  form101Upload: "/api/forms/101/upload",
+  form101Download: "/api/forms/101/download",
 };
 
 function getArrayFromResponse<T>(data: any, keys: string[]): T[] {
@@ -143,15 +163,22 @@ function getArrayFromResponse<T>(data: any, keys: string[]): T[] {
   return [];
 }
 
-function getObjectFromResponse<T extends object>(data: any, keys: string[]): Partial<T> {
+function getObjectFromResponse<T extends object>(
+  data: any,
+  keys: string[]
+): Partial<T> {
   for (const key of keys) {
     const value = data?.[key];
-    if (value && typeof value === "object" && !Array.isArray(value)) return value;
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      return value;
+    }
   }
 
   for (const key of keys) {
     const value = data?.data?.[key];
-    if (value && typeof value === "object" && !Array.isArray(value)) return value;
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      return value;
+    }
   }
 
   return {};
@@ -167,7 +194,9 @@ async function fetchJson(url: string) {
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new Error(data?.error || data?.message || `REQUEST_FAILED_${response.status}`);
+    throw new Error(
+      data?.error || data?.message || `REQUEST_FAILED_${response.status}`
+    );
   }
 
   return data;
@@ -205,6 +234,44 @@ function formatDateTimeAgo(value?: string) {
   if (diffDays < 7) return `לפני ${diffDays} ימים`;
 
   return formatDate(value);
+}
+
+function formatFileSize(size?: number) {
+  if (!size) return "—";
+
+  const mb = size / 1024 / 1024;
+
+  if (mb >= 1) {
+    return `${mb.toFixed(1)}MB`;
+  }
+
+  return `${Math.round(size / 1024)}KB`;
+}
+
+function form101StatusLabel(status?: Form101Status) {
+  switch (status) {
+    case "approved":
+      return "מאושר";
+    case "rejected":
+      return "נדחה — צריך להעלות מחדש";
+    case "uploaded":
+      return "הועלה וממתין לבדיקה";
+    default:
+      return "לא הועלה";
+  }
+}
+
+function form101StatusClass(status?: Form101Status) {
+  switch (status) {
+    case "approved":
+      return "border-emerald-200 bg-emerald-50 text-emerald-700";
+    case "rejected":
+      return "border-rose-200 bg-rose-50 text-rose-700";
+    case "uploaded":
+      return "border-amber-200 bg-amber-50 text-amber-700";
+    default:
+      return "border-slate-200 bg-slate-50 text-slate-600";
+  }
 }
 
 function normalizeId(item: { _id?: string; id?: string }) {
@@ -403,7 +470,8 @@ function Icon({
     | "activity"
     | "open"
     | "shield"
-    | "refresh";
+    | "refresh"
+    | "file";
   className?: string;
 }) {
   const common = {
@@ -415,6 +483,18 @@ function Icon({
     strokeLinecap: "round" as const,
     strokeLinejoin: "round" as const,
   };
+
+  if (name === "file") {
+    return (
+      <svg {...common}>
+        <path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7z" />
+        <path d="M14 2v5h5" />
+        <path d="M9 13h6" />
+        <path d="M9 17h6" />
+        <path d="M9 9h1" />
+      </svg>
+    );
+  }
 
   if (name === "search") {
     return (
@@ -687,6 +767,209 @@ function LoadingPanel() {
   );
 }
 
+function Form101Panel({
+  form101,
+  file,
+  setFile,
+  loading,
+  uploading,
+  error,
+  onUpload,
+  onReload,
+}: {
+  form101: ApiForm101 | null;
+  file: File | null;
+  setFile: (file: File | null) => void;
+  loading: boolean;
+  uploading: boolean;
+  error: string;
+  onUpload: () => void;
+  onReload: () => void;
+}) {
+  const status = form101?.status || "missing";
+
+  return (
+    <section className="mt-6 rounded-[34px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        <div className="flex items-start gap-4">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-3xl bg-slate-950 text-white shadow-lg">
+            <Icon name="file" className="h-6 w-6" />
+          </div>
+
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-2xl font-black tracking-tight text-slate-950">
+                טופס 101
+              </h2>
+
+              <span
+                className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${form101StatusClass(
+                  status
+                )}`}
+              >
+                {form101StatusLabel(status)}
+              </span>
+            </div>
+
+            <p className="mt-2 max-w-3xl text-sm font-semibold leading-7 text-slate-500">
+              יש להוריד את הטופס, למלא ולחתום, ואז להעלות כאן קובץ PDF או
+              תמונה. לאחר ההעלאה הטופס יישמר במערכת ויופיע לבדיקה.
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={onReload}
+          disabled={loading || uploading}
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <Icon
+            name="refresh"
+            className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+          />
+          רענון סטטוס
+        </button>
+      </div>
+
+      <div className="mt-5 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+        <div className="rounded-[28px] bg-slate-50 p-5">
+          <p className="text-base font-black text-slate-950">
+            1. הורדת טופס ריק
+          </p>
+
+          <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
+            הורידו את טופס 101, מלאו אותו ושמרו כ־PDF או כתמונה.
+          </p>
+
+          <a
+            href={API.form101Download}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-4 inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 text-sm font-black text-white transition hover:bg-black"
+          >
+            <Icon name="open" className="h-4 w-4" />
+            הורדת טופס 101
+          </a>
+        </div>
+
+        <div className="rounded-[28px] border border-dashed border-slate-300 bg-white p-5">
+          <p className="text-base font-black text-slate-950">
+            2. העלאת טופס חתום
+          </p>
+
+          <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
+            ניתן להעלות קובץ PDF, JPG או PNG.
+          </p>
+
+          <input
+            type="file"
+            accept=".pdf,image/png,image/jpeg"
+            disabled={uploading}
+            onChange={(event) => {
+              setFile(event.target.files?.[0] || null);
+            }}
+            className="mt-4 block w-full cursor-pointer rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm font-bold text-slate-700 file:ml-4 file:rounded-xl file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-sm file:font-black file:text-white disabled:cursor-not-allowed disabled:opacity-60"
+          />
+
+          {file && (
+            <p className="mt-3 text-xs font-bold text-slate-500">
+              נבחר קובץ:{" "}
+              <b className="text-slate-950">{file.name}</b> ·{" "}
+              {formatFileSize(file.size)}
+            </p>
+          )}
+
+          <button
+            type="button"
+            onClick={onUpload}
+            disabled={uploading || !file}
+            className="mt-4 inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 text-sm font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {uploading ? (
+              <>
+                <Icon name="refresh" className="h-4 w-4 animate-spin" />
+                מעלה...
+              </>
+            ) : (
+              <>
+                <Icon name="check" className="h-4 w-4" />
+                העלאת טופס חתום
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="mt-5 rounded-[28px] bg-slate-50 p-5 text-sm font-black text-slate-500">
+          טוען סטטוס טופס 101...
+        </div>
+      ) : form101 ? (
+        <div className="mt-5 rounded-[28px] border border-slate-200 bg-white p-5">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div>
+              <p className="text-base font-black text-slate-950">
+                הטופס האחרון שהועלה
+              </p>
+
+              <div className="mt-3 grid gap-2 text-sm font-semibold text-slate-600 sm:grid-cols-2 xl:grid-cols-4">
+                <span>
+                  קובץ:{" "}
+                  <b className="text-slate-950">
+                    {form101.originalFileName || "—"}
+                  </b>
+                </span>
+
+                <span>
+                  שנת מס:{" "}
+                  <b className="text-slate-950">{form101.taxYear || "—"}</b>
+                </span>
+
+                <span>
+                  גודל:{" "}
+                  <b className="text-slate-950">
+                    {formatFileSize(form101.fileSize)}
+                  </b>
+                </span>
+
+                <span>
+                  תאריך העלאה:{" "}
+                  <b className="text-slate-950">
+                    {formatDate(form101.uploadedAt || form101.createdAt)}
+                  </b>
+                </span>
+              </div>
+            </div>
+
+            {form101.fileUrl && (
+              <a
+                href={form101.fileUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 px-5 text-sm font-black text-slate-700 transition hover:bg-slate-50"
+              >
+                <Icon name="open" className="h-4 w-4" />
+                צפייה בקובץ
+              </a>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="mt-5 rounded-[28px] bg-slate-50 p-5 text-sm font-black text-slate-500">
+          עדיין לא הועלה טופס 101.
+        </div>
+      )}
+
+      {error && (
+        <div className="mt-5 rounded-[28px] border border-rose-200 bg-rose-50 p-5 text-sm font-black text-rose-700">
+          {error}
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function EmployeeDashboardPage() {
   const router = useRouter();
   const { user } = useAuth();
@@ -695,6 +978,12 @@ export default function EmployeeDashboardPage() {
   const [events, setEvents] = useState<ApiEvent[]>([]);
   const [tasks, setTasks] = useState<ApiTask[]>([]);
   const [serverStats, setServerStats] = useState<Partial<DashboardStats>>({});
+
+  const [form101, setForm101] = useState<ApiForm101 | null>(null);
+  const [form101File, setForm101File] = useState<File | null>(null);
+  const [form101Loading, setForm101Loading] = useState(true);
+  const [form101Uploading, setForm101Uploading] = useState(false);
+  const [form101Error, setForm101Error] = useState("");
 
   const [userSearch, setUserSearch] = useState("");
   const [eventSearch, setEventSearch] = useState("");
@@ -790,6 +1079,74 @@ export default function EmployeeDashboardPage() {
     }
   }, []);
 
+  const loadForm101 = useCallback(async () => {
+    try {
+      setForm101Error("");
+      setForm101Loading(true);
+
+      const response = await fetch(API.form101Current, {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(data?.error || "שגיאה בטעינת טופס 101");
+      }
+
+      setForm101(data?.form101 || null);
+    } catch (loadError) {
+      console.error("LOAD FORM 101 FAILED:", loadError);
+      setForm101(null);
+      setForm101Error(
+        loadError instanceof Error
+          ? loadError.message
+          : "שגיאה בטעינת טופס 101"
+      );
+    } finally {
+      setForm101Loading(false);
+    }
+  }, []);
+
+  const uploadForm101 = useCallback(async () => {
+    if (!form101File || form101Uploading) return;
+
+    try {
+      setForm101Error("");
+      setForm101Uploading(true);
+
+      const formData = new FormData();
+      formData.append("file", form101File);
+
+      const response = await fetch(API.form101Upload, {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.error || "שגיאה בהעלאת טופס 101");
+      }
+
+      setForm101File(null);
+      setForm101(data.form101 || null);
+      alert("טופס 101 הועלה בהצלחה");
+    } catch (uploadError) {
+      console.error("UPLOAD FORM 101 FAILED:", uploadError);
+      setForm101Error(
+        uploadError instanceof Error
+          ? uploadError.message
+          : "שגיאה בהעלאת טופס 101"
+      );
+    } finally {
+      setForm101Uploading(false);
+    }
+  }, [form101File, form101Uploading]);
+
   const enterClientDashboard = useCallback(
     async (targetUserId: string) => {
       if (!targetUserId || enteringUserId) return;
@@ -829,7 +1186,8 @@ export default function EmployeeDashboardPage() {
 
   useEffect(() => {
     void loadDashboard();
-  }, [loadDashboard]);
+    void loadForm101();
+  }, [loadDashboard, loadForm101]);
 
   const filteredUsers = useMemo(() => {
     const q = userSearch.trim().toLowerCase();
@@ -906,14 +1264,10 @@ export default function EmployeeDashboardPage() {
     activeUsers: Number(serverStats.activeUsers ?? activeUsersCount),
   };
 
-  const displayName =
-    user?.name || user?.email?.split("@")[0] || "עובד";
+  const displayName = user?.name || user?.email?.split("@")[0] || "עובד";
 
   return (
-    <div
-      dir="rtl"
-      className="min-h-screen bg-[#F5F7FB] text-slate-950"
-    >
+    <div dir="rtl" className="min-h-screen bg-[#F5F7FB] text-slate-950">
       <SoftphoneStatusPanel />
 
       <main className="min-h-screen pb-10">
@@ -928,7 +1282,6 @@ export default function EmployeeDashboardPage() {
                   דשבורד עובדים
                 </span>
 
-               
                 <h1 className="mt-5 text-4xl font-black tracking-tight sm:text-5xl">
                   היי {displayName}, בוקר טוב 👋
                 </h1>
@@ -942,13 +1295,18 @@ export default function EmployeeDashboardPage() {
               <div className="flex flex-col gap-3 xl:items-end">
                 <button
                   type="button"
-                  onClick={() => void loadDashboard()}
-                  disabled={refreshing}
+                  onClick={() => {
+                    void loadDashboard();
+                    void loadForm101();
+                  }}
+                  disabled={refreshing || form101Loading}
                   className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/10 px-4 text-sm font-black text-white transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <Icon
                     name="refresh"
-                    className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+                    className={`h-4 w-4 ${
+                      refreshing || form101Loading ? "animate-spin" : ""
+                    }`}
                   />
                   רענון נתונים
                 </button>
@@ -985,6 +1343,17 @@ export default function EmployeeDashboardPage() {
               </div>
             </div>
           </div>
+
+          <Form101Panel
+            form101={form101}
+            file={form101File}
+            setFile={setForm101File}
+            loading={form101Loading}
+            uploading={form101Uploading}
+            error={form101Error}
+            onUpload={() => void uploadForm101()}
+            onReload={() => void loadForm101()}
+          />
 
           {loading ? (
             <div className="mt-6">
@@ -1114,30 +1483,35 @@ export default function EmployeeDashboardPage() {
                                         {clientName}
                                       </b>
                                     </span>
+
                                     <span
                                       dir="ltr"
                                       className="text-right sm:text-left"
                                     >
                                       {clientPhone || "—"}
                                     </span>
+
                                     <span>
                                       תאריך:{" "}
                                       <b className="text-slate-950">
                                         {formatDate(event.eventDate || event.date)}
                                       </b>
                                     </span>
+
                                     <span>
                                       מיקום:{" "}
                                       <b className="text-slate-950">
                                         {normalizeLocation(event)}
                                       </b>
                                     </span>
+
                                     <span>
                                       סוג:{" "}
                                       <b className="text-slate-950">
                                         {event.eventType || event.type || "—"}
                                       </b>
                                     </span>
+
                                     <span>
                                       מוזמנים:{" "}
                                       <b className="text-slate-950">
@@ -1179,7 +1553,9 @@ export default function EmployeeDashboardPage() {
                             <div className="grid shrink-0 grid-cols-2 gap-2 lg:w-[172px] lg:grid-cols-1">
                               <button
                                 type="button"
-                                onClick={() => enterClientDashboard(normalizeEventClientId(event))}
+                                onClick={() =>
+                                  enterClientDashboard(normalizeEventClientId(event))
+                                }
                                 disabled={
                                   !normalizeEventClientId(event) ||
                                   enteringUserId === normalizeEventClientId(event)
@@ -1431,7 +1807,9 @@ export default function EmployeeDashboardPage() {
                               <div className="flex items-center gap-2">
                                 <button
                                   type="button"
-                                  onClick={() => enterClientDashboard(normalizeId(currentUser))}
+                                  onClick={() =>
+                                    enterClientDashboard(normalizeId(currentUser))
+                                  }
                                   disabled={
                                     !normalizeId(currentUser) ||
                                     enteringUserId === normalizeId(currentUser)
@@ -1489,7 +1867,8 @@ export default function EmployeeDashboardPage() {
 
                         <div className="mt-4 grid gap-2 text-sm font-semibold text-slate-600">
                           <p>
-                            טלפון: <span dir="ltr">{currentUser.phone || "—"}</span>
+                            טלפון:{" "}
+                            <span dir="ltr">{currentUser.phone || "—"}</span>
                           </p>
                           <p>סוג משתמש: {roleLabel(currentUser.role)}</p>
                           <p>
@@ -1505,7 +1884,9 @@ export default function EmployeeDashboardPage() {
                         <div className="mt-4 grid grid-cols-2 gap-2">
                           <button
                             type="button"
-                            onClick={() => enterClientDashboard(normalizeId(currentUser))}
+                            onClick={() =>
+                              enterClientDashboard(normalizeId(currentUser))
+                            }
                             disabled={
                               !normalizeId(currentUser) ||
                               enteringUserId === normalizeId(currentUser)
