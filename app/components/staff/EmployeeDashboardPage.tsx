@@ -1175,47 +1175,28 @@ function DocumentsPanel({
                 </div>
 
                 <div className="flex flex-wrap gap-3">
-  {canSignAgreement ? (
-    <a
-      href={signAgreementUrl}
-      className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-violet-600 px-6 text-sm font-black text-white transition hover:bg-violet-700"
-    >
-      <Icon name="check" className="h-4 w-4" />
-      חתימה על ההסכם
-    </a>
-  ) : agreementFileUrl ? (
-    <a
-      href={agreementFileUrl}
-      target="_blank"
-      rel="noreferrer"
-      className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-violet-600 px-6 text-sm font-black text-white transition hover:bg-violet-700"
-    >
-      <Icon name="open" className="h-4 w-4" />
-      צפייה בהסכם חתום
-    </a>
-  ) : null}
+                  {canSignAgreement ? (
+                    <a
+                      href={signAgreementUrl}
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-violet-600 px-6 text-sm font-black text-white transition hover:bg-violet-700"
+                    >
+                      <Icon name="check" className="h-4 w-4" />
+                      חתימה על ההסכם
+                    </a>
+                  ) : agreementFileUrl ? (
+                    <a
+                      href={agreementFileUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-violet-600 px-6 text-sm font-black text-white transition hover:bg-violet-700"
+                    >
+                      <Icon name="open" className="h-4 w-4" />
+                      צפייה בהסכם חתום
+                    </a>
+                  ) : null}
 
-  {agreementFileUrl ? (
-    <a
-      href={agreementFileUrl}
-      target="_blank"
-      rel="noreferrer"
-      className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-violet-200 bg-white px-5 text-sm font-black text-violet-700 transition hover:bg-violet-50"
-    >
-      <Icon name="open" className="h-4 w-4" />
-      צפייה בהסכם החתום
-    </a>
-  ) : (
-    <a
-      href={signAgreementUrl}
-      className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-violet-200 bg-white px-5 text-sm font-black text-violet-700 transition hover:bg-violet-50"
-    >
-      <Icon name="check" className="h-4 w-4" />
-      חתימה על ההסכם
-    </a>
-  )}
-</div>
-
+                  
+                </div>
               </div>
 
               {agreement && (agreementStatus === "signed" || agreementStatus === "approved") && (
