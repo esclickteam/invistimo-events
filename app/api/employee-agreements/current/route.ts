@@ -47,9 +47,10 @@ function normalizeAgreement(agreement: any) {
     startDate: agreement.startDate || null,
 
     signedFileUrl,
+    fileUrl: signedFileUrl,
 
-    // ✅ בהסכם עבודה: approved לא אמור להיות "מאושר" בפרונט,
-    // אלא נחתם, כי עצם ההסכם החתום הוא הסטטוס החשוב.
+    // בהסכם עבודה, כל הסכם שיש לו קובץ חתום / signedAt / signed / approved
+    // מוחזר לפרונט כ-signed כדי שיוצג "נחתם"
     status: hasSignedAgreement ? "signed" : agreement.status || "missing",
 
     signedAt: agreement.signedAt || agreement.approvedAt || null,
@@ -66,8 +67,9 @@ function normalizeAgreement(agreement: any) {
 /**
  * GET /api/employee-agreements/current?employeeId=...&businessId=...
  *
- * מחזיר את ההסכם האחרון של העובד בעסק.
- * אם אין הסכם — מחזיר agreement: null ולא שגיאה.
+ * מחזיר את ההסכם האחרון של העובד.
+ * קודם מנסה לפי employeeId + businessId.
+ * אם לא נמצא — מנסה לפי employeeId בלבד.
  */
 export async function GET(req: NextRequest) {
   try {
@@ -80,40 +82,70 @@ export async function GET(req: NextRequest) {
 
     /**
      * חשוב:
-     * בעמוד העובד לפעמים user נטען רגע אחרי הקריאה.
-     * לכן אם חסר מזהה — לא מפילים את העמוד, מחזירים null.
+     * employeeId הוא חובה.
+     * businessId לא חובה, כי לפעמים בפרונט נשלח businessId שונה
+     * ממה שנשמר בפועל במסד.
      */
-    if (!employeeId || !businessId) {
+    if (!employeeId) {
       return NextResponse.json(
         {
           success: true,
           agreement: null,
-          message: "לא נשלחו מזהי עובד/עסק",
+          message: "לא נשלח מזהה עובד",
         },
         { status: 200 }
       );
     }
 
-    if (!isValidObjectId(employeeId) || !isValidObjectId(businessId)) {
+    if (!isValidObjectId(employeeId)) {
       return NextResponse.json(
         {
           success: true,
           agreement: null,
-          message: "מזהה עובד או עסק לא תקין",
+          message: "מזהה עובד לא תקין",
         },
         { status: 200 }
       );
     }
 
-    const agreement = await EmployeeAgreement.findOne({
-      employeeId: new mongoose.Types.ObjectId(employeeId),
-      businessId: new mongoose.Types.ObjectId(businessId),
-    })
-      .sort({
-        updatedAt: -1,
-        createdAt: -1,
+    const employeeObjectId = new mongoose.Types.ObjectId(employeeId);
+
+    let agreement: any = null;
+
+    /**
+     * ניסיון ראשון:
+     * חיפוש מדויק לפי עובד + עסק.
+     */
+    if (businessId && isValidObjectId(businessId)) {
+      const businessObjectId = new mongoose.Types.ObjectId(businessId);
+
+      agreement = await EmployeeAgreement.findOne({
+        employeeId: employeeObjectId,
+        businessId: businessObjectId,
       })
-      .lean();
+        .sort({
+          updatedAt: -1,
+          createdAt: -1,
+        })
+        .lean();
+    }
+
+    /**
+     * ניסיון שני:
+     * אם לא נמצא לפי businessId, נחפש לפי employeeId בלבד.
+     * זה פותר מצב שבו ההסכם נשמר עם businessId אחר,
+     * או שהעובד והעסק יצאו אותו ID כמו שראית ב-Mongo.
+     */
+    if (!agreement) {
+      agreement = await EmployeeAgreement.findOne({
+        employeeId: employeeObjectId,
+      })
+        .sort({
+          updatedAt: -1,
+          createdAt: -1,
+        })
+        .lean();
+    }
 
     return NextResponse.json(
       {
