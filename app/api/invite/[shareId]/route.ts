@@ -33,11 +33,77 @@ function normalizeGiftOptions(raw: any) {
   };
 }
 
+function normalizePublicEventPage(raw: any) {
+  const noteEnabled =
+    raw?.note?.enabled === true ||
+    raw?.noteEnabled === true ||
+    raw?.showNote === true ||
+    raw?.showGuestNote === true;
+
+  const noteText =
+    cleanStr(raw?.note?.text) ||
+    cleanStr(raw?.noteText) ||
+    cleanStr(raw?.guestNoteText) ||
+    "";
+
+  return {
+    enabled: raw?.enabled !== false,
+
+    gifts: {
+      creditUrl: cleanStr(raw?.gifts?.creditUrl),
+      payboxUrl: cleanStr(raw?.gifts?.payboxUrl),
+      bitPhone: cleanStr(raw?.gifts?.bitPhone),
+      bitUrl: cleanStr(raw?.gifts?.bitUrl),
+    },
+
+    parking: {
+      enabled: raw?.parking?.enabled === true,
+      name: cleanStr(raw?.parking?.name),
+      address: cleanStr(raw?.parking?.address),
+      lat:
+        typeof raw?.parking?.lat === "number"
+          ? raw.parking.lat
+          : null,
+      lng:
+        typeof raw?.parking?.lng === "number"
+          ? raw.parking.lng
+          : null,
+      instructions: cleanStr(raw?.parking?.instructions),
+    },
+
+    schedule: {
+      enabled: raw?.schedule?.enabled === true,
+      items: Array.isArray(raw?.schedule?.items)
+        ? raw.schedule.items.map((item: any) => ({
+            time: cleanStr(item?.time),
+            title: cleanStr(item?.title),
+            description: cleanStr(item?.description),
+          }))
+        : [],
+    },
+
+    coupleImage: {
+      enabled: raw?.coupleImage?.enabled === true,
+      url: cleanStr(raw?.coupleImage?.url),
+      publicId: cleanStr(raw?.coupleImage?.publicId),
+    },
+
+    note: {
+      enabled: noteEnabled,
+      text: noteText,
+    },
+
+    // תאימות אחורה אם יש קוד ישן בפרונט
+    noteEnabled,
+    noteText,
+  };
+}
+
 /* ============================================================
    GET — קבלת הזמנה לפי shareId
    אם מגיע token => מאתרים אורח לפי token + invitationId
-   מחזירים invitation + event + guest (אם קיים)
-   ❗️ GET בלבד — לא משנה נתונים
+   מחזירים invitation + event + guest אם קיים
+   GET בלבד — לא משנה נתונים
 ============================================================ */
 export async function GET(
   req: Request,
@@ -55,12 +121,11 @@ export async function GET(
       );
     }
 
-    // token מה-URL: /invite/:shareId?token=...
     const { searchParams } = new URL(req.url);
     const token = searchParams.get("token");
 
     /* ============================================================
-       1) שליפת ההזמנה (בלי populate)
+       1) שליפת ההזמנה
     ============================================================ */
     const invitation = await Invitation.findOne({ shareId }).lean();
 
@@ -72,17 +137,9 @@ export async function GET(
     }
 
     /* ============================================================
-       ✅ נרמול giftOptions כדי שה-Frontend יקבל תמיד מבנה עקבי
+       2) שליפת האירוע
     ============================================================ */
-    const safeInvitation = {
-      ...invitation,
-      giftOptions: normalizeGiftOptions((invitation as any)?.giftOptions),
-    };
-
-    /* ============================================================
-       2) שליפת האירוע (location האמיתי נמצא כאן)
-    ============================================================ */
-    const event = await Event.findById(invitation.eventId).lean();
+    const event = await Event.findById((invitation as any).eventId).lean();
 
     if (!event) {
       return NextResponse.json(
@@ -92,14 +149,27 @@ export async function GET(
     }
 
     /* ============================================================
-       3) אימות אורח לפי token + invitationId (אם קיים token)
+       3) נרמול ההזמנה לעמוד הציבורי
+    ============================================================ */
+    const safeInvitation = {
+      ...invitation,
+
+      giftOptions: normalizeGiftOptions((invitation as any)?.giftOptions),
+
+      publicEventPage: normalizePublicEventPage(
+        (invitation as any)?.publicEventPage
+      ),
+    };
+
+    /* ============================================================
+       4) אימות אורח לפי token + invitationId
     ============================================================ */
     let guest: any = null;
 
     if (token) {
       const foundGuest = await InvitationGuest.findOne({
         token,
-        invitationId: invitation._id,
+        invitationId: (invitation as any)._id,
       }).lean();
 
       if (!foundGuest) {
@@ -109,8 +179,6 @@ export async function GET(
         );
       }
 
-      // ✅ נרמול עקבי ל־Frontend:
-      // arrivedCount תמיד קיים (לפני RSVP = 0)
       guest = {
         ...foundGuest,
         arrivedCount:
@@ -126,14 +194,15 @@ export async function GET(
     return NextResponse.json(
       {
         success: true,
-        invitation: safeInvitation, // ✅ כולל giftOptions עקבי
-        event, // כולל location עם lat/lng
-        guest, // arrivedCount תמיד קיים
+        invitation: safeInvitation,
+        event,
+        guest,
       },
       { status: 200 }
     );
   } catch (err) {
     console.error("❌ Error in GET /api/invite/[shareId]:", err);
+
     return NextResponse.json(
       { success: false, error: "Server error" },
       { status: 500 }
