@@ -172,6 +172,12 @@ export default function AgreementTemplatePage() {
     setDragId("");
   }
 
+  function changePage(nextPage: number) {
+    dragRef.current = null;
+    setDragId("");
+    setPageIndex(clamp(nextPage, 0, pageCount - 1));
+  }
+
   function startDrag(
     event: React.PointerEvent<HTMLDivElement>,
     field: TemplateField
@@ -288,11 +294,12 @@ export default function AgreementTemplatePage() {
             <div className="mt-6">
               <h3 className="text-sm font-black text-slate-900">עמוד</h3>
 
-              <div className="mt-3 flex gap-2">
+              <div className="mt-3 flex flex-wrap gap-2">
                 <button
                   type="button"
-                  onClick={() => setPageIndex((p) => Math.max(0, p - 1))}
-                  className="h-10 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black"
+                  onClick={() => changePage(pageIndex - 1)}
+                  disabled={pageIndex <= 0}
+                  className="h-10 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black disabled:opacity-40"
                 >
                   הקודם
                 </button>
@@ -303,14 +310,17 @@ export default function AgreementTemplatePage() {
 
                 <button
                   type="button"
-                  onClick={() =>
-                    setPageIndex((p) => Math.min(pageCount - 1, p + 1))
-                  }
-                  className="h-10 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black"
+                  onClick={() => changePage(pageIndex + 1)}
+                  disabled={pageIndex >= pageCount - 1}
+                  className="h-10 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black disabled:opacity-40"
                 >
                   הבא
                 </button>
               </div>
+
+              <p className="mt-3 text-xs font-bold leading-5 text-slate-500">
+                חשוב: לא גוללים בתוך ה־PDF. עוברים עמודים רק מכאן, כדי שהשדות יישארו קבועים בעמוד הנכון.
+              </p>
             </div>
 
             {selectedField && (
@@ -448,7 +458,7 @@ export default function AgreementTemplatePage() {
                       type="button"
                       onClick={() => {
                         setSelectedId(field.id);
-                        setPageIndex(field.pageIndex);
+                        changePage(field.pageIndex);
                       }}
                       className={`w-full rounded-2xl border p-3 text-right text-xs font-black ${
                         selectedId === field.id
@@ -464,17 +474,42 @@ export default function AgreementTemplatePage() {
           </aside>
 
           <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <h2 className="text-lg font-black">מיקום שדות על ההסכם</h2>
+            <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h2 className="text-lg font-black">מיקום שדות על ההסכם</h2>
+                <p className="mt-1 text-xs font-bold text-slate-500">
+                  הגלילה הפנימית של ה־PDF חסומה כדי שהשדות לא יזוזו לעמודים אחרים.
+                </p>
+              </div>
 
-              <a
-                href={fileUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-700 hover:bg-slate-50"
-              >
-                פתיחת PDF
-              </a>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => changePage(pageIndex - 1)}
+                  disabled={pageIndex <= 0}
+                  className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+                >
+                  עמוד קודם
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => changePage(pageIndex + 1)}
+                  disabled={pageIndex >= pageCount - 1}
+                  className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+                >
+                  עמוד הבא
+                </button>
+
+                <a
+                  href={fileUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-700 hover:bg-slate-50"
+                >
+                  פתיחת PDF
+                </a>
+              </div>
             </div>
 
             <div
@@ -482,11 +517,12 @@ export default function AgreementTemplatePage() {
               className="relative mx-auto h-[900px] max-w-[700px] overflow-hidden rounded-2xl border border-slate-200 bg-slate-100"
             >
               <iframe
-                src={`${fileUrl}#page=${pageIndex + 1}&toolbar=0`}
+                key={`${fileUrl}-${pageIndex}`}
+                src={`${fileUrl}#page=${pageIndex + 1}&toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
                 className="h-full w-full"
                 title="תבנית הסכם עבודה"
                 style={{
-                  pointerEvents: dragId ? "none" : "auto",
+                  pointerEvents: "none",
                 }}
               />
 
