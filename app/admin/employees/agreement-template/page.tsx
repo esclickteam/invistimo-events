@@ -40,11 +40,6 @@ type DragState = {
 const DEFAULT_FILE_URL = "/templates/employee-agreement-invistimo.pdf";
 const DEFAULT_PAGE_COUNT = 11;
 
-/**
- * המרה מהקוד הישן:
- * לפני כן השדות נשמרו בפיקסלים בערך על 700x900.
- * עכשיו אנחנו עובדים באחוזים כמו בקובץ הדוגמה שלך.
- */
 const LEGACY_PAGE_WIDTH = 700;
 const LEGACY_PAGE_HEIGHT = 900;
 
@@ -67,8 +62,14 @@ function toNumber(value: unknown, fallback: number) {
   return Number.isFinite(num) ? num : fallback;
 }
 
+function normalizePageType(value: unknown): TemplatePage["type"] {
+  return String(value || "") === "pdf" ? "pdf" : "image";
+}
+
 function normalizeField(raw: any, index: number): TemplateField {
-  const type = String(raw?.type || "text") as FieldType;
+  const rawType = String(raw?.type || "text");
+  const type: FieldType =
+    rawType === "date" || rawType === "signature" ? rawType : "text";
 
   let width = toNumber(raw?.width, type === "signature" ? 24 : 22);
   let height = toNumber(raw?.height, type === "signature" ? 8 : 6);
@@ -82,10 +83,6 @@ function normalizeField(raw: any, index: number): TemplateField {
         ? Math.max(0, toNumber(raw.pageNumber, 1) - 1)
         : 0;
 
-  /**
-   * אם מגיעים שדות ישנים בפיקסלים — ממירים לאחוזים.
-   * לדוגמה: x=329 נהיה בערך 47%.
-   */
   const looksLikeLegacyPixels =
     x > 100 || y > 100 || width > 100 || height > 100;
 
@@ -124,29 +121,27 @@ function buildPagesFromTemplate(template: any): TemplatePage[] {
   const rawPages = Array.isArray(template?.pages) ? template.pages : [];
 
   if (rawPages.length > 0) {
-    return rawPages.map((page: any, index: number) => {
+    return rawPages.map((page: any, index: number): TemplatePage => {
       const pageNumber = Math.max(
         1,
-        toNumber(page?.pageNumber, page?.pageIndex !== undefined ? page.pageIndex + 1 : index + 1)
+        toNumber(
+          page?.pageNumber,
+          page?.pageIndex !== undefined ? page.pageIndex + 1 : index + 1
+        )
       );
 
       return {
         pageIndex: pageNumber - 1,
         pageNumber,
         url: String(page?.url || template?.fileUrl || DEFAULT_FILE_URL),
-        imageUrl: String(page?.imageUrl || page?.url || ""),
+        imageUrl: String(page?.imageUrl || ""),
         name: String(page?.name || `עמוד ${pageNumber}`),
-        type: String(page?.type || "image").includes("image") ? "image" : "pdf",
+        type: normalizePageType(page?.type),
       };
     });
   }
 
-  /**
-   * אם השרת עדיין לא מחזיר תמונות עמודים,
-   * ניצור רשימת עמודים אבל בלי imageUrl.
-   * במקרה כזה תופיע הודעה שצריך לעדכן את השרת לייצר תמונות.
-   */
-  return Array.from({ length: pageCount }).map((_, index) => ({
+  return Array.from({ length: pageCount }).map((_, index): TemplatePage => ({
     pageIndex: index,
     pageNumber: index + 1,
     url: String(template?.fileUrl || DEFAULT_FILE_URL),
@@ -157,6 +152,7 @@ function buildPagesFromTemplate(template: any): TemplatePage[] {
 }
 
 export default function AgreementTemplatePage() {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const pageEditorRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const dragRef = useRef<DragState | null>(null);
 
@@ -171,6 +167,7 @@ export default function AgreementTemplatePage() {
   const [draggingId, setDraggingId] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingPdf, setUploadingPdf] = useState(false);
   const [message, setMessage] = useState("");
 
   const selectedField = useMemo(
@@ -185,6 +182,35 @@ export default function AgreementTemplatePage() {
 
   const hasPageImages = pages.some((page) => Boolean(page.imageUrl));
 
+  function applyTemplateToState(template: any) {
+    const nextFileUrl = String(template?.fileUrl || DEFAULT_FILE_URL);
+    const nextPageCount = Math.max(
+      1,
+      toNumber(template?.pageCount, DEFAULT_PAGE_COUNT)
+    );
+
+    const nextPages = buildPagesFromTemplate({
+      ...template,
+      fileUrl: nextFileUrl,
+      pageCount: nextPageCount,
+    });
+
+    setFileUrl(nextFileUrl);
+    setPageCount(nextPageCount);
+    setPages(nextPages);
+
+    setFields(
+      Array.isArray(template?.fields)
+        ? template.fields.map((field: any, index: number) =>
+            normalizeField(field, index)
+          )
+        : []
+    );
+
+    setActivePageIndex(0);
+    setSelectedId("");
+  }
+
   async function loadTemplate() {
     try {
       setLoading(true);
@@ -198,46 +224,16 @@ export default function AgreementTemplatePage() {
       const data = await res.json().catch(() => null);
       const template = data?.template || {};
 
-      const nextFileUrl = String(template.fileUrl || DEFAULT_FILE_URL);
-      const nextPageCount = Math.max(
-        1,
-        toNumber(template.pageCount, DEFAULT_PAGE_COUNT)
-      );
-
-      const nextPages = buildPagesFromTemplate({
-        ...template,
-        fileUrl: nextFileUrl,
-        pageCount: nextPageCount,
-      });
-
-      setFileUrl(nextFileUrl);
-      setPageCount(nextPageCount);
-      setPages(nextPages);
-
-      setFields(
-        Array.isArray(template.fields)
-          ? template.fields.map((field: any, index: number) =>
-              normalizeField(field, index)
-            )
-          : []
-      );
-
-      setActivePageIndex(0);
-      setSelectedId("");
+      applyTemplateToState(template);
     } catch {
       setMessage("לא נטענה תבנית קיימת");
-      setFileUrl(DEFAULT_FILE_URL);
-      setPageCount(DEFAULT_PAGE_COUNT);
-      setPages(
-        Array.from({ length: DEFAULT_PAGE_COUNT }).map((_, index) => ({
-          pageIndex: index,
-          pageNumber: index + 1,
-          url: DEFAULT_FILE_URL,
-          imageUrl: "",
-          name: `עמוד ${index + 1}`,
-          type: "image",
-        }))
-      );
+
+      applyTemplateToState({
+        fileUrl: DEFAULT_FILE_URL,
+        pageCount: DEFAULT_PAGE_COUNT,
+        pages: [],
+        fields: [],
+      });
     } finally {
       setLoading(false);
     }
@@ -289,17 +285,8 @@ export default function AgreementTemplatePage() {
             };
           }
 
-          const nextX = clamp(
-            activeDrag.startX + dx,
-            0,
-            100 - item.width
-          );
-
-          const nextY = clamp(
-            activeDrag.startY + dy,
-            0,
-            100 - item.height
-          );
+          const nextX = clamp(activeDrag.startX + dx, 0, 100 - item.width);
+          const nextY = clamp(activeDrag.startY + dy, 0, 100 - item.height);
 
           return {
             ...item,
@@ -341,6 +328,11 @@ export default function AgreementTemplatePage() {
   }
 
   function addField(type: FieldType) {
+    if (!hasPageImages) {
+      alert("קודם צריך להעלות PDF וליצור תמונות עמודים.");
+      return;
+    }
+
     const width = type === "signature" ? 24 : type === "date" ? 18 : 22;
     const height = type === "signature" ? 8 : 6;
 
@@ -470,30 +462,49 @@ export default function AgreementTemplatePage() {
     return field.label || "שדה טקסט";
   }
 
-  async function saveTemplate() {
+  async function saveTemplate(pdfFile?: File) {
     try {
-      setSaving(true);
+      setSaving(!pdfFile);
+      setUploadingPdf(Boolean(pdfFile));
       setMessage("");
 
-      const res = await fetch("/api/employee-agreement-templates/save", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: "תבנית הסכם עבודה",
-          fileUrl,
-          pageCount,
-          pages,
-          fields,
-          isActive: true,
+      const endpoint = "/api/employee-agreement-templates/save";
 
-          /**
-           * חשוב:
-           * מעכשיו x/y/width/height נשמרים באחוזים ולא בפיקסלים.
-           */
-          coordinateMode: "percent",
-        }),
-      });
+      let res: Response;
+
+      if (pdfFile) {
+        const formData = new FormData();
+
+        formData.append("file", pdfFile);
+        formData.append("name", "תבנית הסכם עבודה");
+        formData.append("fileUrl", fileUrl || DEFAULT_FILE_URL);
+        formData.append("pageCount", String(pageCount || DEFAULT_PAGE_COUNT));
+        formData.append("pages", JSON.stringify([]));
+        formData.append("fields", JSON.stringify([]));
+        formData.append("isActive", "true");
+        formData.append("coordinateMode", "percent");
+
+        res = await fetch(endpoint, {
+          method: "POST",
+          credentials: "include",
+          body: formData,
+        });
+      } else {
+        res = await fetch(endpoint, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: "תבנית הסכם עבודה",
+            fileUrl,
+            pageCount,
+            pages,
+            fields,
+            isActive: true,
+            coordinateMode: "percent",
+          }),
+        });
+      }
 
       const data = await res.json().catch(() => null);
 
@@ -502,39 +513,38 @@ export default function AgreementTemplatePage() {
       }
 
       if (data?.template) {
-        const template = data.template;
-
-        const nextFileUrl = String(template.fileUrl || fileUrl);
-        const nextPageCount = Math.max(
-          1,
-          toNumber(template.pageCount, pageCount)
-        );
-
-        setFileUrl(nextFileUrl);
-        setPageCount(nextPageCount);
-        setPages(
-          buildPagesFromTemplate({
-            ...template,
-            fileUrl: nextFileUrl,
-            pageCount: nextPageCount,
-          })
-        );
-
-        if (Array.isArray(template.fields)) {
-          setFields(
-            template.fields.map((field: any, index: number) =>
-              normalizeField(field, index)
-            )
-          );
-        }
+        applyTemplateToState(data.template);
       }
 
-      setMessage("התבנית נשמרה בהצלחה");
+      setMessage(
+        pdfFile
+          ? "ה־PDF הועלה בהצלחה והתבנית התעדכנה אוטומטית"
+          : "התבנית נשמרה בהצלחה"
+      );
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "שגיאה בשמירת התבנית");
     } finally {
       setSaving(false);
+      setUploadingPdf(false);
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
+  }
+
+  async function handleUploadPdf(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+
+    if (!file) return;
+
+    if (file.type !== "application/pdf") {
+      alert("אפשר להעלות רק קובץ PDF");
+      event.target.value = "";
+      return;
+    }
+
+    await saveTemplate(file);
   }
 
   return (
@@ -545,11 +555,29 @@ export default function AgreementTemplatePage() {
             <h1 className="text-2xl font-black">תבנית הסכם עבודה</h1>
 
             <p className="mt-2 text-sm font-bold text-slate-500">
-              הצגת עמודי ההסכם כתמונות איכותיות, מיקום שדות באחוזים ושמירה לפי עמוד.
+              העלאת PDF, יצירת תמונות עמודים אוטומטית, מיקום שדות באחוזים ושמירה לפי עמוד.
             </p>
           </div>
 
           <div className="flex flex-wrap gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/pdf"
+              className="hidden"
+              onChange={handleUploadPdf}
+              disabled={uploadingPdf || saving || loading}
+            />
+
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingPdf || saving || loading}
+              className="inline-flex h-11 items-center rounded-2xl bg-slate-950 px-5 text-sm font-black text-white hover:bg-slate-800 disabled:opacity-50"
+            >
+              {uploadingPdf ? "מעלה וממיר..." : "העלאת PDF"}
+            </button>
+
             <a
               href={fileUrl}
               target="_blank"
@@ -561,8 +589,8 @@ export default function AgreementTemplatePage() {
 
             <button
               type="button"
-              onClick={saveTemplate}
-              disabled={saving || loading}
+              onClick={() => saveTemplate()}
+              disabled={saving || uploadingPdf || loading}
               className="h-11 rounded-2xl bg-violet-600 px-6 text-sm font-black text-white hover:bg-violet-700 disabled:opacity-50"
             >
               {saving ? "שומר..." : "שמירת תבנית"}
@@ -578,9 +606,8 @@ export default function AgreementTemplatePage() {
 
         {!hasPageImages && !loading && (
           <div className="mb-5 rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm font-black leading-6 text-amber-800">
-            כרגע השרת לא מחזיר תמונות לכל עמוד של ה־PDF. כדי שזה יהיה בדיוק כמו הדוגמה ששלחת,
-            ה־API צריך להחזיר בתוך התבנית מערך <span dir="ltr">pages</span> עם{" "}
-            <span dir="ltr">imageUrl</span> לכל עמוד.
+            עדיין לא נוצרו תמונות לעמודי ה־PDF. לחצי על <span className="font-black">העלאת PDF</span>,
+            בחרי את קובץ ההסכם, והמערכת תעלה ותמיר אותו אוטומטית לתמונות עמודים.
           </div>
         )}
 
@@ -619,9 +646,11 @@ export default function AgreementTemplatePage() {
               </div>
             </div>
 
-            {loading ? (
+            {loading || uploadingPdf ? (
               <div className="flex min-h-[520px] items-center justify-center rounded-[28px] bg-slate-50 text-sm font-black text-slate-500">
-                טוען תבנית...
+                {uploadingPdf
+                  ? "מעלה PDF ומייצר תמונות עמודים..."
+                  : "טוען תבנית..."}
               </div>
             ) : (
               <div className="h-[calc(100vh-230px)] overflow-y-auto overflow-x-hidden rounded-[24px] bg-slate-100 p-4">
@@ -739,7 +768,7 @@ export default function AgreementTemplatePage() {
                 <button
                   type="button"
                   onClick={() => addField("text")}
-                  disabled={loading}
+                  disabled={loading || uploadingPdf || !hasPageImages}
                   className="h-12 rounded-2xl bg-slate-950 px-4 text-sm font-black text-white disabled:opacity-40"
                 >
                   הוסף שדה טקסט
@@ -748,7 +777,7 @@ export default function AgreementTemplatePage() {
                 <button
                   type="button"
                   onClick={() => addField("date")}
-                  disabled={loading}
+                  disabled={loading || uploadingPdf || !hasPageImages}
                   className="h-12 rounded-2xl bg-slate-950 px-4 text-sm font-black text-white disabled:opacity-40"
                 >
                   הוסף שדה תאריך
@@ -757,7 +786,7 @@ export default function AgreementTemplatePage() {
                 <button
                   type="button"
                   onClick={() => addField("signature")}
-                  disabled={loading}
+                  disabled={loading || uploadingPdf || !hasPageImages}
                   className="h-12 rounded-2xl bg-slate-950 px-4 text-sm font-black text-white disabled:opacity-40"
                 >
                   הוסף שדה חתימה
@@ -960,7 +989,7 @@ function TemplatePageImage({ page }: { page: TemplatePage }) {
         </div>
 
         <div className="mt-2 max-w-md text-sm font-bold leading-6 text-slate-500">
-          כדי להציג את ה־PDF באיכות גבוהה ללא canvas, השרת צריך לייצר ולהחזיר imageUrl לעמוד הזה.
+          לחצי על העלאת PDF כדי שהמערכת תיצור תמונות עמודים אוטומטית.
         </div>
       </div>
     );
