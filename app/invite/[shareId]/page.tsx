@@ -555,8 +555,6 @@ export default function PublicInvitePage({ params }: any) {
           canvasData={invite.canvasData}
         />
 
-        <PublicEventNoteSection note={publicEventNote} />
-
         {!sent ? (
           <form
             onSubmit={handleSubmit}
@@ -688,6 +686,8 @@ export default function PublicInvitePage({ params }: any) {
               >
                 שליחת אישור הגעה
               </button>
+
+              <PublicEventNoteSection note={publicEventNote} />
 
               <div className="mt-5">
                 <GiftSection giftOptions={giftOptions} />
