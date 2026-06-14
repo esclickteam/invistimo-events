@@ -10,6 +10,7 @@ import fontkit from "@pdf-lib/fontkit";
 import fs from "fs/promises";
 import path from "path";
 import mongoose from "mongoose";
+import { v2 as cloudinary } from "cloudinary";
 
 import db from "@/lib/db";
 import EmployeeAgreement from "@/models/EmployeeAgreement";
@@ -58,6 +59,21 @@ const DEFAULT_FILE_URL = "/templates/employee-agreement-invistimo.pdf";
 const DESIGN_WIDTH = 700;
 const DESIGN_HEIGHT = 900;
 
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+  secure: true,
+});
+
+function hasCloudinaryConfig() {
+  return Boolean(
+    process.env.CLOUDINARY_CLOUD_NAME &&
+      process.env.CLOUDINARY_API_KEY &&
+      process.env.CLOUDINARY_API_SECRET
+  );
+}
+
 function cleanStr(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -96,11 +112,6 @@ function hasHebrew(value: string) {
   return /[\u0590-\u05FF]/.test(value);
 }
 
-/**
- * חשוב:
- * לא הופכים עברית ידנית.
- * הפונקציה הישנה split().reverse() גרמה לשמות בעברית להופיע הפוך.
- */
 function preparePdfText(value: string) {
   return (
     cleanStr(value)
@@ -350,11 +361,6 @@ function drawTextInBox(options: {
   if (!text) return;
 
   const isHebrew = hasHebrew(text);
-
-  /**
-   * משתמשים בפונט העברי לטקסט עברי ולערכים מעורבים.
-   * זה נותן תוצאה נקייה וקריאה יותר בעברית.
-   */
   const font = isHebrew ? hebrewFont : fallbackFont;
 
   const paddingX = Math.max(2, box.width * 0.035);
@@ -369,10 +375,6 @@ function drawTextInBox(options: {
 
   const textWidth = font.widthOfTextAtSize(text, size);
 
-  /**
-   * עברית מיושרת לימין בתוך השדה.
-   * מספרים / מייל / טלפון מיושרים לשמאל.
-   */
   const x = isHebrew
     ? box.x + box.width - paddingX - textWidth
     : box.x + paddingX;
@@ -414,6 +416,49 @@ function buildFullNameForAgreement(
   }
 
   return Object.values(valuesToSave).find(Boolean) || "";
+}
+
+function uploadSignedPdfToCloudinary(options: {
+  pdfBuffer: Buffer;
+  employeeId: string;
+  businessId: string;
+}) {
+  const { pdfBuffer, employeeId, businessId } = options;
+
+  if (!hasCloudinaryConfig()) {
+    throw new Error("חסרה הגדרת Cloudinary ב־env");
+  }
+
+  const publicId = `signed-${safeFileName(employeeId)}-${Date.now()}`;
+
+  return new Promise<string>((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        resource_type: "raw",
+        folder: `employee-agreements/${safeFileName(businessId)}`,
+        public_id: publicId,
+        format: "pdf",
+        overwrite: true,
+      },
+      (error, result) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+
+        const secureUrl = String(result?.secure_url || "");
+
+        if (!secureUrl) {
+          reject(new Error("Cloudinary לא החזיר קישור להסכם החתום"));
+          return;
+        }
+
+        resolve(secureUrl);
+      }
+    );
+
+    uploadStream.end(pdfBuffer);
+  });
 }
 
 export async function POST(req: NextRequest) {
@@ -607,21 +652,11 @@ export async function POST(req: NextRequest) {
 
     const signedPdfBytes = await pdfDoc.save();
 
-    const uploadsDir = path.join(
-      process.cwd(),
-      "public",
-      "uploads",
-      "employee-agreements"
-    );
-
-    await fs.mkdir(uploadsDir, { recursive: true });
-
-    const fileName = `${safeFileName(employeeId)}-${Date.now()}-signed.pdf`;
-    const outputPath = path.join(uploadsDir, fileName);
-
-    await fs.writeFile(outputPath, Buffer.from(signedPdfBytes));
-
-    const signedFileUrl = `/uploads/employee-agreements/${fileName}`;
+    const signedFileUrl = await uploadSignedPdfToCloudinary({
+      pdfBuffer: Buffer.from(signedPdfBytes),
+      employeeId,
+      businessId,
+    });
 
     const fullNameToSave = buildFullNameForAgreement(
       body,
