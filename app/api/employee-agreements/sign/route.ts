@@ -175,9 +175,18 @@ export async function POST(req: NextRequest) {
 
     const fontBytes = await loadHebrewFontBytes();
 
-    const font = fontBytes
-      ? await pdfDoc.embedFont(fontBytes)
-      : await pdfDoc.embedFont(StandardFonts.Helvetica);
+    if (!fontBytes) {
+  return NextResponse.json(
+    {
+      success: false,
+      error:
+        "חסר פונט עברית. שימי את הקובץ NotoSansHebrew-Regular.ttf בתוך public/fonts",
+    },
+    { status: 500 }
+  );
+}
+
+const font = await pdfDoc.embedFont(fontBytes);
 
     const pages = pdfDoc.getPages();
 
