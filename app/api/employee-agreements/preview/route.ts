@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
+import {
+  PDFDocument,
+  rgb,
+  StandardFonts,
+  type PDFFont,
+  type PDFPage,
+} from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import fs from "fs/promises";
 import path from "path";
@@ -70,6 +76,7 @@ function formatDate(value: string) {
   if (!value) return "";
 
   const date = new Date(value);
+
   if (Number.isNaN(date.getTime())) return value;
 
   return date.toLocaleDateString("he-IL", {
@@ -83,14 +90,24 @@ function hasHebrew(value: string) {
   return /[\u0590-\u05FF]/.test(value);
 }
 
-function rtlVisual(value: string) {
-  if (!hasHebrew(value)) return value;
-  return value.split("").reverse().join("");
+/**
+ * חשוב:
+ * לא הופכים יותר עברית עם split().reverse().
+ * זה מה שגרם לשמות כמו "אלה" להופיע הפוך.
+ */
+function preparePdfText(value: string) {
+  return cleanStr(value)
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)[0] || "";
 }
 
 async function loadHebrewFontBytes() {
   const possibleFontPaths = [
     path.join(process.cwd(), "public", "fonts", "NotoSansHebrew-Regular.ttf"),
+    path.join(process.cwd(), "public", "fonts", "NotoSansHebrew-Medium.ttf"),
     path.join(process.cwd(), "public", "fonts", "Arial.ttf"),
     "C:\\Windows\\Fonts\\arial.ttf",
     "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
@@ -130,6 +147,7 @@ async function loadTemplatePdfBytes(fileUrl: string) {
   }
 
   const withoutQuery = cleanUrl.split("?")[0].split("#")[0];
+
   const relativePath = withoutQuery.startsWith("/")
     ? withoutQuery.slice(1)
     : withoutQuery;
@@ -145,6 +163,7 @@ async function loadTemplatePdfBytes(fileUrl: string) {
 
 function normalizeField(raw: any): TemplateField {
   const rawType = cleanStr(raw?.type);
+
   const type: FieldType =
     rawType === "date" || rawType === "signature" ? rawType : "text";
 
@@ -162,7 +181,10 @@ function normalizeField(raw: any): TemplateField {
   };
 }
 
-function resolveCoordinateMode(template: any, fields: TemplateField[]): CoordinateMode {
+function resolveCoordinateMode(
+  template: any,
+  fields: TemplateField[]
+): CoordinateMode {
   const rawMode = cleanStr(template?.coordinateMode);
 
   if (rawMode === "pixel") return "pixel";
@@ -170,7 +192,10 @@ function resolveCoordinateMode(template: any, fields: TemplateField[]): Coordina
 
   const hasPixelLikeField = fields.some(
     (field) =>
-      field.x > 100 || field.y > 100 || field.width > 100 || field.height > 100
+      field.x > 100 ||
+      field.y > 100 ||
+      field.width > 100 ||
+      field.height > 100
   );
 
   return hasPixelLikeField ? "pixel" : "percent";
@@ -269,6 +294,86 @@ function convertTemplateBoxToPdfBox(options: {
     width,
     height,
   };
+}
+
+function getFittedFontSize(options: {
+  text: string;
+  font: PDFFont;
+  maxWidth: number;
+  boxHeight: number;
+}) {
+  const { text, font, maxWidth, boxHeight } = options;
+
+  let size = Math.max(8, Math.min(13, boxHeight * 0.48));
+
+  while (size > 6) {
+    const width = font.widthOfTextAtSize(text, size);
+
+    if (width <= maxWidth) {
+      return size;
+    }
+
+    size -= 0.5;
+  }
+
+  return 6;
+}
+
+function drawTextInBox(options: {
+  page: PDFPage;
+  rawText: string;
+  box: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+  hebrewFont: PDFFont;
+  fallbackFont: PDFFont;
+}) {
+  const { page, rawText, box, hebrewFont, fallbackFont } = options;
+
+  const text = preparePdfText(rawText);
+
+  if (!text) return;
+
+  const isHebrew = hasHebrew(text);
+
+  /**
+   * לפונט עברי איכותי:
+   * משתמשים בפונט העברי גם לעברית וגם לערכים מעורבים.
+   */
+  const font = isHebrew ? hebrewFont : fallbackFont;
+
+  const paddingX = Math.max(2, box.width * 0.035);
+  const maxTextWidth = Math.max(1, box.width - paddingX * 2);
+
+  const size = getFittedFontSize({
+    text,
+    font,
+    maxWidth: maxTextWidth,
+    boxHeight: box.height,
+  });
+
+  const textWidth = font.widthOfTextAtSize(text, size);
+
+  /**
+   * עברית מיושרת לימין בתוך השדה.
+   * מספרים/אימייל מיושרים לשמאל בתוך השדה.
+   */
+  const x = isHebrew
+    ? box.x + box.width - paddingX - textWidth
+    : box.x + paddingX;
+
+  const y = box.y + Math.max(2, (box.height - size) * 0.48);
+
+  page.drawText(text, {
+    x,
+    y,
+    size,
+    font,
+    color: rgb(0.05, 0.09, 0.16),
+  });
 }
 
 export async function POST(req: NextRequest) {
@@ -386,12 +491,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const font = await pdfDoc.embedFont(fontBytes);
+    const hebrewFont = await pdfDoc.embedFont(fontBytes);
     const fallbackFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
     const pages = pdfDoc.getPages();
-    const textColor = rgb(0.05, 0.09, 0.16);
-
     const coordinateMode = resolveCoordinateMode(template, fields);
 
     for (const field of fields) {
@@ -437,17 +540,12 @@ export async function POST(req: NextRequest) {
       const rawValue = getFieldValue(body, field);
       const value = field.type === "date" ? formatDate(rawValue) : rawValue;
 
-      if (!value) continue;
-
-      const isHebrew = hasHebrew(value);
-      const text = isHebrew ? rtlVisual(value) : value;
-
-      page.drawText(text, {
-        x: box.x,
-        y: box.y + Math.max(2, box.height * 0.22),
-        size: Math.max(8, Math.min(13, box.height * 0.45)),
-        font: isHebrew ? font : fallbackFont,
-        color: textColor,
+      drawTextInBox({
+        page,
+        rawText: value,
+        box,
+        hebrewFont,
+        fallbackFont,
       });
     }
 

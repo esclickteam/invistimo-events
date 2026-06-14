@@ -457,11 +457,13 @@ export default function AgreementTemplatePage() {
   }
 
   function getFieldPreview(field: TemplateField) {
-    if (field.type === "signature") return "חתימה";
-    if (field.type === "date") return "תאריך";
-    return field.label || "שדה טקסט";
-  }
+  if (field.label?.trim()) return field.label.trim();
 
+  if (field.type === "signature") return "חתימה";
+  if (field.type === "date") return "תאריך";
+
+  return "שדה טקסט";
+}
   async function saveTemplate(pdfFile?: File) {
     try {
       setSaving(!pdfFile);
