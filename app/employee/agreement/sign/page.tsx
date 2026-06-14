@@ -147,7 +147,8 @@ const steps: Step[] = [
   {
     key: "confirm",
     title: "אישור ושליחה",
-    subtitle: "יש לוודא שכל הפרטים נכונים לפני שליחת ההסכם החתום.",
+    subtitle:
+      "לפני השליחה יש לצפות בהסכם החתום ולוודא שכל הפרטים נכונים. לאחר השליחה לא ניתן לערוך.",
     type: "confirm",
     required: true,
   },
@@ -477,12 +478,14 @@ function AgreementSignContent() {
   const [values, setValues] = useState<FormValues>(initialValues);
   const [signatureDataUrl, setSignatureDataUrl] = useState("");
   const [confirmed, setConfirmed] = useState(false);
+  const [previewWasOpened, setPreviewWasOpened] = useState(false);
 
   const [loadingAgreement, setLoadingAgreement] = useState(true);
   const [existingAgreement, setExistingAgreement] =
     useState<EmployeeAgreement | null>(null);
 
   const [submitting, setSubmitting] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
   const [error, setError] = useState("");
   const [successUrl, setSuccessUrl] = useState("");
 
@@ -533,6 +536,9 @@ function AgreementSignContent() {
   }, [employeeId, businessId]);
 
   function updateValue(key: keyof FormValues, value: string) {
+    setPreviewWasOpened(false);
+    setConfirmed(false);
+
     setValues((prev) => ({
       ...prev,
       [key]: value,
@@ -557,6 +563,11 @@ function AgreementSignContent() {
     }
 
     if (currentStep.key === "confirm") {
+      if (!previewWasOpened) {
+        setError("לפני השליחה יש ללחוץ על צפייה בהסכם לפני שליחה ולבדוק שהפרטים נכונים.");
+        return false;
+      }
+
       if (!confirmed) {
         setError("יש לאשר שקראת את ההסכם ושכל הפרטים נכונים.");
         return false;
@@ -592,6 +603,62 @@ function AgreementSignContent() {
     return true;
   }
 
+  function validateAllBeforePreview() {
+    setError("");
+
+    if (!employeeId || !businessId) {
+      setError("לא נמצא עובד מחובר. צריך להתחבר מחדש למערכת.");
+      return false;
+    }
+
+    const requiredFields: Array<{ key: keyof FormValues; label: string }> = [
+      { key: "agreementDate", label: "תאריך ההסכם" },
+      { key: "fullName", label: "שם העובד/ת" },
+      { key: "idNumber", label: "תעודת זהות בעמוד הראשון" },
+      { key: "address", label: "כתובת" },
+      { key: "phone", label: "טלפון" },
+      { key: "email", label: "אימייל" },
+      { key: "startDate", label: "תאריך תחילת עבודה" },
+      { key: "finalFullName", label: "שם מלא בעמוד החתימה" },
+      { key: "finalIdNumber", label: "תעודת זהות בעמוד החתימה" },
+      { key: "finalSignatureDate", label: "תאריך חתימה" },
+    ];
+
+    for (const field of requiredFields) {
+      if (!values[field.key]?.trim()) {
+        setError(`חסר שדה חובה: ${field.label}`);
+        return false;
+      }
+    }
+
+    if (!signatureDataUrl) {
+      setError("חסר שדה חובה: חתימה");
+      return false;
+    }
+
+    const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim());
+
+    if (!emailValid) {
+      setError("כתובת האימייל אינה תקינה.");
+      return false;
+    }
+
+    const idNumberClean = values.idNumber.replace(/\D/g, "");
+    const finalIdNumberClean = values.finalIdNumber.replace(/\D/g, "");
+
+    if (idNumberClean.length < 7 || idNumberClean.length > 9) {
+      setError("מספר תעודת הזהות בעמוד הראשון אינו תקין.");
+      return false;
+    }
+
+    if (finalIdNumberClean.length < 7 || finalIdNumberClean.length > 9) {
+      setError("מספר תעודת הזהות בעמוד החתימה אינו תקין.");
+      return false;
+    }
+
+    return true;
+  }
+
   function goNext() {
     if (!validateCurrentStep()) return;
 
@@ -612,6 +679,54 @@ function AgreementSignContent() {
     }
 
     window.history.back();
+  }
+
+  async function previewAgreement() {
+    try {
+      if (!validateAllBeforePreview()) return;
+
+      setPreviewing(true);
+      setError("");
+
+      const res = await fetch("/api/employee-agreements/preview", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...values,
+          signatureDataUrl,
+        }),
+      });
+
+      const contentType = res.headers.get("content-type") || "";
+
+      if (!res.ok) {
+        if (contentType.includes("application/json")) {
+          const data = await res.json().catch(() => null);
+          throw new Error(data?.error || "שגיאה ביצירת תצוגה מקדימה.");
+        }
+
+        throw new Error("שגיאה ביצירת תצוגה מקדימה.");
+      }
+
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+
+      window.open(blobUrl, "_blank", "noopener,noreferrer");
+
+      setPreviewWasOpened(true);
+    } catch (err) {
+      console.error("PREVIEW AGREEMENT FAILED:", err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "שגיאה ביצירת תצוגה מקדימה להסכם."
+      );
+    } finally {
+      setPreviewing(false);
+    }
   }
 
   async function submitAgreement() {
@@ -694,7 +809,8 @@ function AgreementSignContent() {
               </h2>
 
               <p className="mt-1 text-xs font-bold text-slate-500">
-                זהו ההסכם הריק. לאחר השליחה ייווצר עותק חתום עם הפרטים שלך.
+                זהו ההסכם הריק. לצפייה בהסכם מלא עם הפרטים והחתימה לחצי על
+                צפייה בהסכם לפני שליחה בשלב האחרון.
               </p>
             </div>
 
@@ -765,7 +881,13 @@ function AgreementSignContent() {
             </p>
 
             {currentStep.type === "signature" ? (
-              <SignatureCanvas onChange={setSignatureDataUrl} />
+              <SignatureCanvas
+                onChange={(dataUrl) => {
+                  setPreviewWasOpened(false);
+                  setConfirmed(false);
+                  setSignatureDataUrl(dataUrl);
+                }}
+              />
             ) : currentStep.type === "confirm" ? (
               <div className="mt-5 space-y-4">
                 <div className="rounded-3xl border border-slate-200 bg-white p-4">
@@ -832,16 +954,38 @@ function AgreementSignContent() {
                   </div>
                 </div>
 
+                <button
+                  type="button"
+                  onClick={previewAgreement}
+                  disabled={previewing || submitting}
+                  className="flex h-12 w-full items-center justify-center rounded-2xl bg-violet-600 px-5 text-sm font-black text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {previewing ? "יוצר תצוגה..." : "צפייה בהסכם לפני שליחה"}
+                </button>
+
+                {previewWasOpened && (
+                  <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-black leading-6 text-emerald-700">
+                    התצוגה נפתחה. לאחר שבדקת שהכול נכון, סמני אישור ושלחי את
+                    ההסכם. לאחר השליחה לא ניתן לערוך את ההסכם.
+                  </div>
+                )}
+
+                <div className="rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm font-black leading-6 text-amber-800">
+                  שימי לב: לאחר שליחת ההסכם החתום לא ניתן לערוך את הפרטים או
+                  לשנות את החתימה, אלא אם האדמין ידחה את ההסכם ויאפשר חתימה מחדש.
+                </div>
+
                 <label className="flex cursor-pointer items-start gap-3 rounded-3xl border border-slate-200 bg-white p-4 text-sm font-bold leading-6 text-slate-700">
                   <input
                     type="checkbox"
                     checked={confirmed}
+                    disabled={!previewWasOpened}
                     onChange={(event) => setConfirmed(event.target.checked)}
-                    className="mt-1 h-5 w-5"
+                    className="mt-1 h-5 w-5 disabled:cursor-not-allowed disabled:opacity-40"
                   />
                   <span>
-                    אני מאשר/ת שקראתי את הסכם העבודה, הבנתי את תנאיו, וכל
-                    הפרטים שמילאתי נכונים ומדויקים.
+                    צפיתי בהסכם לפני השליחה, קראתי את הסכם העבודה, הבנתי את
+                    תנאיו, וכל הפרטים שמילאתי נכונים ומדויקים.
                   </span>
                 </label>
               </div>
@@ -871,7 +1015,7 @@ function AgreementSignContent() {
             <button
               type="button"
               onClick={goBack}
-              disabled={submitting}
+              disabled={submitting || previewing}
               className="h-11 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {stepIndex === 0 ? "חזרה" : "הקודם"}
@@ -880,7 +1024,7 @@ function AgreementSignContent() {
             <button
               type="button"
               onClick={goNext}
-              disabled={submitting}
+              disabled={submitting || previewing}
               className="h-11 rounded-2xl bg-violet-600 px-7 text-sm font-black text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {submitting
