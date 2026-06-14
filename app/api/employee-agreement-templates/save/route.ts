@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
+import { v2 as cloudinary } from "cloudinary";
+import { PDFDocument } from "pdf-lib";
+import fs from "fs/promises";
+import os from "os";
+import path from "path";
 
 import db from "@/lib/db";
 import EmployeeAgreementTemplate from "@/models/EmployeeAgreementTemplate";
@@ -40,42 +45,29 @@ type SaveTemplateBody = {
   fields?: TemplateField[];
   pages?: TemplatePage[];
   isActive?: boolean;
-
-  /**
-   * מעכשיו מומלץ לשלוח:
-   * coordinateMode: "percent"
-   */
   coordinateMode?: "percent" | "pixel";
-
-  /**
-   * אופציונלי:
-   * אם תרצי בעתיד לשנות תיקייה לתמונות בלי לשנות קוד.
-   */
-  pageImageBaseUrl?: string;
 };
 
 const DEFAULT_FILE_URL = "/templates/employee-agreement-invistimo.pdf";
 const DEFAULT_PAGE_COUNT = 11;
 
-/**
- * כאן שמים את תמונות העמודים של ה־PDF.
- * בפועל הקבצים צריכים להיות:
- * public/templates/employee-agreement-invistimo-pages/page-1.png
- * public/templates/employee-agreement-invistimo-pages/page-2.png
- * וכו׳
- */
-const DEFAULT_PAGE_IMAGE_BASE_URL =
-  "/templates/employee-agreement-invistimo-pages";
-
-const DEFAULT_PAGE_IMAGE_EXT = "png";
-
-/**
- * המרה מהקוד הישן:
- * לפני כן x/y/width/height נשמרו בערך בפיקסלים לפי 700x900.
- * עכשיו שומרים באחוזים.
- */
 const LEGACY_PAGE_WIDTH = 700;
 const LEGACY_PAGE_HEIGHT = 900;
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+  secure: true,
+});
+
+function hasCloudinaryConfig() {
+  return Boolean(
+    process.env.CLOUDINARY_CLOUD_NAME &&
+      process.env.CLOUDINARY_API_KEY &&
+      process.env.CLOUDINARY_API_SECRET
+  );
+}
 
 function cleanStr(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -99,24 +91,25 @@ function normalizeFieldType(value: unknown): FieldType {
   return "text";
 }
 
+function normalizePageFileType(value: unknown): NonNullable<TemplatePage["type"]> {
+  return cleanStr(value) === "pdf" ? "pdf" : "image";
+}
+
 function defaultFieldLabel(type: FieldType, index: number) {
   if (type === "date") return "תאריך";
   if (type === "signature") return "חתימה";
-  if (type === "text") return "שדה טקסט";
-
   return `שדה ${index + 1}`;
 }
 
 function normalizeFields(
   fields: unknown,
-  coordinateMode: SaveTemplateBody["coordinateMode"]
+  coordinateMode: "percent" | "pixel"
 ): TemplateField[] {
   if (!Array.isArray(fields)) return [];
 
   return fields
     .map((field, index) => {
       const item = field as TemplateField;
-
       const type = normalizeFieldType(item.type);
 
       let x = cleanNumber(item.x, 38);
@@ -124,10 +117,6 @@ function normalizeFields(
       let width = cleanNumber(item.width, type === "signature" ? 24 : 22);
       let height = cleanNumber(item.height, type === "signature" ? 8 : 6);
 
-      /**
-       * אם מגיעים שדות ישנים בפיקסלים — ממירים לאחוזים.
-       * אם coordinateMode הוא percent, לא נוגעים.
-       */
       const looksLikeLegacyPixels =
         coordinateMode !== "percent" &&
         (x > 100 || y > 100 || width > 100 || height > 100);
@@ -167,111 +156,215 @@ function normalizeFields(
     .sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
 }
 
-function normalizePageType(value: unknown): "image" | "pdf" {
-  const type = cleanStr(value);
-
-  if (type === "pdf") return "pdf";
-
-  return "image";
-}
-
-function buildDefaultPages({
-  fileUrl,
-  pageCount,
-  pageImageBaseUrl,
-}: {
-  fileUrl: string;
-  pageCount: number;
-  pageImageBaseUrl: string;
-}): TemplatePage[] {
-  return Array.from({ length: pageCount }).map((_, index) => {
-    const pageNumber = index + 1;
-
-    return {
-      pageIndex: index,
-      pageNumber,
-      url: fileUrl,
-      imageUrl: `${pageImageBaseUrl}/page-${pageNumber}.${DEFAULT_PAGE_IMAGE_EXT}`,
-      name: `עמוד ${pageNumber}`,
-      type: "image",
-    };
-  });
-}
-
-function normalizePages({
+function normalizePagesFromBody({
   pages,
   fileUrl,
   pageCount,
-  pageImageBaseUrl,
 }: {
   pages: unknown;
   fileUrl: string;
   pageCount: number;
-  pageImageBaseUrl: string;
 }): TemplatePage[] {
-  if (!Array.isArray(pages) || pages.length === 0) {
-    return buildDefaultPages({
-      fileUrl,
-      pageCount,
-      pageImageBaseUrl,
-    });
-  }
+  if (!Array.isArray(pages)) return [];
 
-  const normalized = pages.map((page, index) => {
-    const item = page as TemplatePage;
+  return pages
+    .map((page, index): TemplatePage => {
+      const item = page as TemplatePage;
 
-    const pageNumber =
-      item.pageNumber !== undefined
-        ? Math.max(1, cleanNumber(item.pageNumber, index + 1))
-        : item.pageIndex !== undefined
-          ? Math.max(1, cleanNumber(item.pageIndex, index) + 1)
-          : index + 1;
+      const pageNumber =
+        item.pageNumber !== undefined
+          ? Math.max(1, cleanNumber(item.pageNumber, index + 1))
+          : item.pageIndex !== undefined
+            ? Math.max(1, cleanNumber(item.pageIndex, index) + 1)
+            : index + 1;
 
-    const pageIndex = Math.max(0, pageNumber - 1);
+      const imageUrl = cleanStr(item.imageUrl);
 
-    return {
-      pageIndex,
-      pageNumber,
-      url: cleanStr(item.url) || fileUrl,
-      imageUrl:
-        cleanStr(item.imageUrl) ||
-        `${pageImageBaseUrl}/page-${pageNumber}.${DEFAULT_PAGE_IMAGE_EXT}`,
-      name: cleanStr(item.name) || `עמוד ${pageNumber}`,
-      type: normalizePageType(item.type),
-    };
-  });
-
-  /**
-   * אם חסרים עמודים, משלימים אותם אוטומטית.
-   */
-  const existingPageNumbers = new Set(
-    normalized.map((page) => Number(page.pageNumber))
-  );
-
-  for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
-    if (!existingPageNumbers.has(pageNumber)) {
-      normalized.push({
+      return {
         pageIndex: pageNumber - 1,
         pageNumber,
-        url: fileUrl,
-        imageUrl: `${pageImageBaseUrl}/page-${pageNumber}.${DEFAULT_PAGE_IMAGE_EXT}`,
-        name: `עמוד ${pageNumber}`,
-        type: "image",
-      });
-    }
-  }
-
-  return normalized
+        url: cleanStr(item.url) || fileUrl,
+        imageUrl,
+        name: cleanStr(item.name) || `עמוד ${pageNumber}`,
+        type: normalizePageFileType(item.type),
+      };
+    })
     .filter((page) => Number(page.pageNumber) >= 1)
     .filter((page) => Number(page.pageNumber) <= pageCount)
     .sort((a, b) => Number(a.pageNumber || 0) - Number(b.pageNumber || 0));
+}
+
+async function getPdfPageCountFromBuffer(buffer: Buffer, fallback: number) {
+  try {
+    const pdf = await PDFDocument.load(buffer);
+    return Math.max(1, pdf.getPageCount());
+  } catch {
+    return Math.max(1, fallback);
+  }
+}
+
+async function readPublicPdf(fileUrl: string) {
+  const cleanFileUrl = cleanStr(fileUrl) || DEFAULT_FILE_URL;
+
+  if (!cleanFileUrl.startsWith("/")) {
+    return null;
+  }
+
+  const relativePath = cleanFileUrl.replace(/^\/+/, "");
+
+  if (!relativePath.endsWith(".pdf")) {
+    return null;
+  }
+
+  const absolutePath = path.join(process.cwd(), "public", relativePath);
+
+  try {
+    return await fs.readFile(absolutePath);
+  } catch {
+    return null;
+  }
+}
+
+function cloudinaryPageImageUrl(publicId: string, pageNumber: number) {
+  return cloudinary.url(publicId, {
+    secure: true,
+    resource_type: "image",
+    format: "jpg",
+    transformation: [
+      {
+        page: pageNumber,
+        width: 1800,
+        crop: "scale",
+        quality: "auto:best",
+      },
+    ],
+  });
+}
+
+async function uploadPdfToCloudinaryAndBuildPages({
+  pdfBuffer,
+  originalName,
+  pageCount,
+}: {
+  pdfBuffer: Buffer;
+  originalName: string;
+  pageCount: number;
+}): Promise<{
+  fileUrl: string;
+  pages: TemplatePage[];
+}> {
+  if (!hasCloudinaryConfig()) {
+    throw new Error("חסרה הגדרת Cloudinary ב־env");
+  }
+
+  const safeName =
+    originalName
+      .replace(/[^\w.\-א-ת]/g, "-")
+      .replace(/-+/g, "-")
+      .slice(0, 80) || "employee-agreement-template.pdf";
+
+  const tempPath = path.join(os.tmpdir(), `${Date.now()}-${safeName}`);
+
+  await fs.writeFile(tempPath, pdfBuffer);
+
+  try {
+    const uploaded = await cloudinary.uploader.upload(tempPath, {
+      resource_type: "image",
+      folder: "employee-agreement-templates",
+      use_filename: true,
+      unique_filename: true,
+      overwrite: false,
+    });
+
+    const fileUrl = uploaded.secure_url;
+    const publicId = uploaded.public_id;
+
+    const pages: TemplatePage[] = Array.from({ length: pageCount }).map(
+      (_, index): TemplatePage => {
+        const pageNumber = index + 1;
+
+        return {
+          pageIndex: index,
+          pageNumber,
+          url: fileUrl,
+          imageUrl: cloudinaryPageImageUrl(publicId, pageNumber),
+          name: `עמוד ${pageNumber}`,
+          type: "image" as const,
+        };
+      }
+    );
+
+    return {
+      fileUrl,
+      pages,
+    };
+  } finally {
+    await fs.unlink(tempPath).catch(() => null);
+  }
+}
+
+async function parseRequest(req: NextRequest): Promise<{
+  body: SaveTemplateBody;
+  pdfFile: File | null;
+}> {
+  const contentType = req.headers.get("content-type") || "";
+
+  if (contentType.includes("multipart/form-data")) {
+    const formData = await req.formData();
+
+    const body: SaveTemplateBody = {
+      businessId: cleanStr(formData.get("businessId")),
+      name: cleanStr(formData.get("name")),
+      fileUrl: cleanStr(formData.get("fileUrl")),
+      pageCount: cleanNumber(formData.get("pageCount"), DEFAULT_PAGE_COUNT),
+      isActive: cleanStr(formData.get("isActive")) !== "false",
+      coordinateMode:
+        cleanStr(formData.get("coordinateMode")) === "pixel"
+          ? "pixel"
+          : "percent",
+    };
+
+    const fieldsRaw = cleanStr(formData.get("fields"));
+    const pagesRaw = cleanStr(formData.get("pages"));
+
+    if (fieldsRaw) {
+      try {
+        body.fields = JSON.parse(fieldsRaw);
+      } catch {
+        body.fields = [];
+      }
+    }
+
+    if (pagesRaw) {
+      try {
+        body.pages = JSON.parse(pagesRaw);
+      } catch {
+        body.pages = [];
+      }
+    }
+
+    const fileValue = formData.get("file");
+    const pdfFile = fileValue instanceof File ? fileValue : null;
+
+    return {
+      body,
+      pdfFile,
+    };
+  }
+
+  const body = (await req.json().catch(() => null)) as SaveTemplateBody | null;
+
+  return {
+    body: body || {},
+    pdfFile: null,
+  };
 }
 
 export async function POST(req: NextRequest) {
   try {
     await db();
 
-    const body = (await req.json().catch(() => null)) as SaveTemplateBody | null;
+    const { body, pdfFile } = await parseRequest(req);
 
     if (!body) {
       return NextResponse.json(
@@ -282,26 +375,47 @@ export async function POST(req: NextRequest) {
 
     const businessId = cleanStr(body.businessId);
     const name = cleanStr(body.name) || "תבנית הסכם עבודה";
-    const fileUrl = cleanStr(body.fileUrl) || DEFAULT_FILE_URL;
-    const pageCount = Math.max(
+
+    let fileUrl = cleanStr(body.fileUrl) || DEFAULT_FILE_URL;
+
+    let pageCount = Math.max(
       1,
       Math.round(cleanNumber(body.pageCount, DEFAULT_PAGE_COUNT))
     );
-
-    const pageImageBaseUrl =
-      cleanStr(body.pageImageBaseUrl) || DEFAULT_PAGE_IMAGE_BASE_URL;
 
     const coordinateMode =
       body.coordinateMode === "pixel" ? "pixel" : "percent";
 
     const fields = normalizeFields(body.fields, coordinateMode);
 
-    const pages = normalizePages({
+    let pages = normalizePagesFromBody({
       pages: body.pages,
       fileUrl,
       pageCount,
-      pageImageBaseUrl,
     });
+
+    let pdfBuffer: Buffer | null = null;
+    let originalPdfName = "employee-agreement-invistimo.pdf";
+
+    if (pdfFile && pdfFile.type === "application/pdf") {
+      pdfBuffer = Buffer.from(await pdfFile.arrayBuffer());
+      originalPdfName = pdfFile.name || originalPdfName;
+    } else if (!pages.some((page) => cleanStr(page.imageUrl))) {
+      pdfBuffer = await readPublicPdf(fileUrl);
+    }
+
+    if (pdfBuffer) {
+      pageCount = await getPdfPageCountFromBuffer(pdfBuffer, pageCount);
+
+      const result = await uploadPdfToCloudinaryAndBuildPages({
+        pdfBuffer,
+        originalName: originalPdfName,
+        pageCount,
+      });
+
+      fileUrl = result.fileUrl;
+      pages = result.pages;
+    }
 
     const isActive = body.isActive !== false;
 
@@ -347,7 +461,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: "שגיאה בשמירת תבנית ההסכם",
+        error:
+          err instanceof Error
+            ? err.message
+            : "שגיאה בשמירת תבנית ההסכם",
       },
       { status: 500 }
     );
