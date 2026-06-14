@@ -17,14 +17,27 @@ type TemplateField = {
   order: number;
 };
 
+type DragState = {
+  id: string;
+  offsetX: number;
+  offsetY: number;
+};
+
+const DEFAULT_FILE_URL = "/templates/employee-agreement-invistimo.pdf";
+
 function makeId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
 export default function AgreementTemplatePage() {
   const pdfWrapRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef<DragState | null>(null);
 
-  const [fileUrl, setFileUrl] = useState("/templates/employee-agreement-invistimo.pdf");
+  const [fileUrl, setFileUrl] = useState(DEFAULT_FILE_URL);
   const [pageIndex, setPageIndex] = useState(0);
   const [pageCount, setPageCount] = useState(11);
   const [fields, setFields] = useState<TemplateField[]>([]);
@@ -38,7 +51,10 @@ export default function AgreementTemplatePage() {
     [fields, pageIndex]
   );
 
-  const selectedField = fields.find((f) => f.id === selectedId) || null;
+  const selectedField = useMemo(
+    () => fields.find((f) => f.id === selectedId) || null,
+    [fields, selectedId]
+  );
 
   async function loadTemplate() {
     try {
@@ -50,9 +66,9 @@ export default function AgreementTemplatePage() {
       const data = await res.json().catch(() => null);
 
       if (data?.template) {
-        setFileUrl(data.template.fileUrl || "/templates/employee-agreement-invistimo.pdf");
-        setFields(data.template.fields || []);
-        setPageCount(data.template.pageCount || 11);
+        setFileUrl(data.template.fileUrl || DEFAULT_FILE_URL);
+        setFields(Array.isArray(data.template.fields) ? data.template.fields : []);
+        setPageCount(Number(data.template.pageCount) || 11);
       }
     } catch {
       setMessage("לא נטענה תבנית קיימת");
@@ -62,6 +78,63 @@ export default function AgreementTemplatePage() {
   useEffect(() => {
     void loadTemplate();
   }, []);
+
+  useEffect(() => {
+    if (!dragId) return;
+
+    function handlePointerMove(event: PointerEvent) {
+      const activeDrag = dragRef.current;
+      const wrap = pdfWrapRef.current;
+
+      if (!activeDrag || !wrap) return;
+
+      const rect = wrap.getBoundingClientRect();
+
+      setFields((prev) =>
+        prev.map((field) => {
+          if (field.id !== activeDrag.id) return field;
+
+          const maxX = Math.max(0, rect.width - field.width);
+          const maxY = Math.max(0, rect.height - field.height);
+
+          const nextX = clamp(
+            Math.round(event.clientX - rect.left - activeDrag.offsetX),
+            0,
+            maxX
+          );
+
+          const nextY = clamp(
+            Math.round(event.clientY - rect.top - activeDrag.offsetY),
+            0,
+            maxY
+          );
+
+          if (field.x === nextX && field.y === nextY) return field;
+
+          return {
+            ...field,
+            x: nextX,
+            y: nextY,
+          };
+        })
+      );
+    }
+
+    function handlePointerUp() {
+      dragRef.current = null;
+      setDragId("");
+    }
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener("pointercancel", handlePointerUp);
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("pointercancel", handlePointerUp);
+    };
+  }, [dragId]);
 
   function addField(type: FieldType) {
     const field: TemplateField = {
@@ -95,32 +168,32 @@ export default function AgreementTemplatePage() {
   function deleteField(id: string) {
     setFields((prev) => prev.filter((field) => field.id !== id));
     setSelectedId("");
+    dragRef.current = null;
+    setDragId("");
   }
 
-  function startDrag(id: string) {
-    setDragId(id);
-    setSelectedId(id);
-  }
-
-  function onMove(event: React.MouseEvent<HTMLDivElement>) {
-    if (!dragId) return;
+  function startDrag(
+    event: React.PointerEvent<HTMLDivElement>,
+    field: TemplateField
+  ) {
+    event.preventDefault();
+    event.stopPropagation();
 
     const wrap = pdfWrapRef.current;
     if (!wrap) return;
 
     const rect = wrap.getBoundingClientRect();
 
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
+    dragRef.current = {
+      id: field.id,
+      offsetX: event.clientX - rect.left - field.x,
+      offsetY: event.clientY - rect.top - field.y,
+    };
 
-    updateField(dragId, {
-      x: Math.max(0, Math.round(x)),
-      y: Math.max(0, Math.round(y)),
-    });
-  }
+    setDragId(field.id);
+    setSelectedId(field.id);
 
-  function stopDrag() {
-    setDragId("");
+    event.currentTarget.setPointerCapture?.(event.pointerId);
   }
 
   async function saveTemplate() {
@@ -214,6 +287,7 @@ export default function AgreementTemplatePage() {
 
             <div className="mt-6">
               <h3 className="text-sm font-black text-slate-900">עמוד</h3>
+
               <div className="mt-3 flex gap-2">
                 <button
                   type="button"
@@ -248,12 +322,13 @@ export default function AgreementTemplatePage() {
                 <label className="mt-4 block text-xs font-black text-slate-600">
                   שם השדה לעובד
                 </label>
+
                 <input
                   value={selectedField.label}
                   onChange={(e) =>
                     updateField(selectedField.id, { label: e.target.value })
                   }
-                  className="mt-2 h-10 w-full rounded-2xl border border-slate-200 px-3 text-sm font-bold"
+                  className="mt-2 h-10 w-full rounded-2xl border border-slate-200 px-3 text-sm font-bold outline-none focus:border-violet-400"
                 />
 
                 <div className="mt-4 grid grid-cols-2 gap-3">
@@ -261,15 +336,17 @@ export default function AgreementTemplatePage() {
                     <label className="text-xs font-black text-slate-600">
                       רוחב
                     </label>
+
                     <input
                       type="number"
+                      min={20}
                       value={selectedField.width}
                       onChange={(e) =>
                         updateField(selectedField.id, {
-                          width: Number(e.target.value),
+                          width: Math.max(20, Number(e.target.value) || 20),
                         })
                       }
-                      className="mt-2 h-10 w-full rounded-2xl border border-slate-200 px-3 text-sm font-bold"
+                      className="mt-2 h-10 w-full rounded-2xl border border-slate-200 px-3 text-sm font-bold outline-none focus:border-violet-400"
                     />
                   </div>
 
@@ -277,15 +354,55 @@ export default function AgreementTemplatePage() {
                     <label className="text-xs font-black text-slate-600">
                       גובה
                     </label>
+
                     <input
                       type="number"
+                      min={20}
                       value={selectedField.height}
                       onChange={(e) =>
                         updateField(selectedField.id, {
-                          height: Number(e.target.value),
+                          height: Math.max(20, Number(e.target.value) || 20),
                         })
                       }
-                      className="mt-2 h-10 w-full rounded-2xl border border-slate-200 px-3 text-sm font-bold"
+                      className="mt-2 h-10 w-full rounded-2xl border border-slate-200 px-3 text-sm font-bold outline-none focus:border-violet-400"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-black text-slate-600">
+                      מיקום X
+                    </label>
+
+                    <input
+                      type="number"
+                      min={0}
+                      value={selectedField.x}
+                      onChange={(e) =>
+                        updateField(selectedField.id, {
+                          x: Math.max(0, Number(e.target.value) || 0),
+                        })
+                      }
+                      className="mt-2 h-10 w-full rounded-2xl border border-slate-200 px-3 text-sm font-bold outline-none focus:border-violet-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-black text-slate-600">
+                      מיקום Y
+                    </label>
+
+                    <input
+                      type="number"
+                      min={0}
+                      value={selectedField.y}
+                      onChange={(e) =>
+                        updateField(selectedField.id, {
+                          y: Math.max(0, Number(e.target.value) || 0),
+                        })
+                      }
+                      className="mt-2 h-10 w-full rounded-2xl border border-slate-200 px-3 text-sm font-bold outline-none focus:border-violet-400"
                     />
                   </div>
                 </div>
@@ -306,7 +423,7 @@ export default function AgreementTemplatePage() {
                 <button
                   type="button"
                   onClick={() => deleteField(selectedField.id)}
-                  className="mt-4 h-10 rounded-2xl bg-rose-600 px-4 text-sm font-black text-white"
+                  className="mt-4 h-10 rounded-2xl bg-rose-600 px-4 text-sm font-black text-white hover:bg-rose-700"
                 >
                   מחיקת שדה
                 </button>
@@ -315,6 +432,7 @@ export default function AgreementTemplatePage() {
 
             <div className="mt-6 rounded-3xl bg-slate-50 p-4">
               <h3 className="text-sm font-black">שדות שהוגדרו</h3>
+
               <div className="mt-3 space-y-2">
                 {fields.length === 0 && (
                   <p className="text-sm font-bold text-slate-500">
@@ -322,7 +440,7 @@ export default function AgreementTemplatePage() {
                   </p>
                 )}
 
-                {fields
+                {[...fields]
                   .sort((a, b) => a.order - b.order)
                   .map((field, index) => (
                     <button
@@ -353,7 +471,7 @@ export default function AgreementTemplatePage() {
                 href={fileUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-700"
+                className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-700 hover:bg-slate-50"
               >
                 פתיחת PDF
               </a>
@@ -361,32 +479,41 @@ export default function AgreementTemplatePage() {
 
             <div
               ref={pdfWrapRef}
-              onMouseMove={onMove}
-              onMouseUp={stopDrag}
-              onMouseLeave={stopDrag}
               className="relative mx-auto h-[900px] max-w-[700px] overflow-hidden rounded-2xl border border-slate-200 bg-slate-100"
             >
               <iframe
                 src={`${fileUrl}#page=${pageIndex + 1}&toolbar=0`}
                 className="h-full w-full"
                 title="תבנית הסכם עבודה"
+                style={{
+                  pointerEvents: dragId ? "none" : "auto",
+                }}
               />
 
               {currentFields.map((field) => (
                 <div
                   key={field.id}
-                  onMouseDown={() => startDrag(field.id)}
-                  onClick={() => setSelectedId(field.id)}
-                  className={`absolute cursor-move rounded-xl border-2 px-2 py-1 text-xs font-black shadow-sm ${
+                  onPointerDown={(event) => startDrag(event, field)}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setSelectedId(field.id);
+                  }}
+                  className={`absolute z-10 flex items-center justify-center rounded-xl border-2 px-2 py-1 text-center text-xs font-black shadow-sm ${
                     selectedId === field.id
                       ? "border-violet-600 bg-violet-100 text-violet-900"
-                      : "border-slate-500 bg-white/80 text-slate-800"
+                      : "border-slate-500 bg-white/85 text-slate-800"
+                  } ${
+                    dragId === field.id
+                      ? "cursor-grabbing select-none"
+                      : "cursor-grab"
                   }`}
                   style={{
-                    right: field.x,
+                    left: field.x,
                     top: field.y,
                     width: field.width,
                     height: field.height,
+                    touchAction: "none",
+                    userSelect: "none",
                   }}
                 >
                   {field.label}
