@@ -27,7 +27,10 @@ export default function AdminLayout({
     { href: "/admin", label: "סקירה" },
     { href: "/admin/users", label: "משתמשים" },
 
-    // ✅ חדש: טאב הקלטות שיחות מתחת למשתמשים
+    // ✅ חדש: טאב עובדים — כאן יהיה טפסי 101 של העובדים
+    { href: "/admin/employees", label: "עובדים" },
+
+    // ✅ טאב הקלטות שיחות
     { href: "/admin/call-recordings", label: "הקלטות שיחות" },
   ];
 
