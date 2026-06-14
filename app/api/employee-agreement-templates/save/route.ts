@@ -13,6 +13,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type FieldType = "text" | "date" | "signature";
+type PageFileType = "image" | "pdf";
 
 type TemplateField = {
   id?: string;
@@ -34,7 +35,7 @@ type TemplatePage = {
   url?: string;
   imageUrl?: string;
   name?: string;
-  type?: "image" | "pdf";
+  type?: PageFileType;
 };
 
 type SaveTemplateBody = {
@@ -91,13 +92,15 @@ function normalizeFieldType(value: unknown): FieldType {
   return "text";
 }
 
-function normalizePageFileType(value: unknown): NonNullable<TemplatePage["type"]> {
+function normalizePageType(value: unknown): PageFileType {
   return cleanStr(value) === "pdf" ? "pdf" : "image";
 }
 
 function defaultFieldLabel(type: FieldType, index: number) {
   if (type === "date") return "תאריך";
   if (type === "signature") return "חתימה";
+  if (type === "text") return "שדה טקסט";
+
   return `שדה ${index + 1}`;
 }
 
@@ -108,7 +111,7 @@ function normalizeFields(
   if (!Array.isArray(fields)) return [];
 
   return fields
-    .map((field, index) => {
+    .map((field, index): TemplateField => {
       const item = field as TemplateField;
       const type = normalizeFieldType(item.type);
 
@@ -178,15 +181,13 @@ function normalizePagesFromBody({
             ? Math.max(1, cleanNumber(item.pageIndex, index) + 1)
             : index + 1;
 
-      const imageUrl = cleanStr(item.imageUrl);
-
       return {
         pageIndex: pageNumber - 1,
         pageNumber,
         url: cleanStr(item.url) || fileUrl,
-        imageUrl,
+        imageUrl: cleanStr(item.imageUrl),
         name: cleanStr(item.name) || `עמוד ${pageNumber}`,
-        type: normalizePageFileType(item.type),
+        type: normalizePageType(item.type),
       };
     })
     .filter((page) => Number(page.pageNumber) >= 1)
@@ -197,13 +198,14 @@ function normalizePagesFromBody({
 async function getPdfPageCountFromBuffer(buffer: Buffer, fallback: number) {
   try {
     const pdf = await PDFDocument.load(buffer);
+
     return Math.max(1, pdf.getPageCount());
   } catch {
     return Math.max(1, fallback);
   }
 }
 
-async function readPublicPdf(fileUrl: string) {
+async function readPublicPdf(fileUrl: string): Promise<Buffer | null> {
   const cleanFileUrl = cleanStr(fileUrl) || DEFAULT_FILE_URL;
 
   if (!cleanFileUrl.startsWith("/")) {
@@ -276,8 +278,12 @@ async function uploadPdfToCloudinaryAndBuildPages({
       overwrite: false,
     });
 
-    const fileUrl = uploaded.secure_url;
-    const publicId = uploaded.public_id;
+    const fileUrl = String(uploaded.secure_url || "");
+    const publicId = String(uploaded.public_id || "");
+
+    if (!fileUrl || !publicId) {
+      throw new Error("Cloudinary לא החזיר קישור תקין לקובץ");
+    }
 
     const pages: TemplatePage[] = Array.from({ length: pageCount }).map(
       (_, index): TemplatePage => {
@@ -289,7 +295,7 @@ async function uploadPdfToCloudinaryAndBuildPages({
           url: fileUrl,
           imageUrl: cloudinaryPageImageUrl(publicId, pageNumber),
           name: `עמוד ${pageNumber}`,
-          type: "image" as const,
+          type: "image",
         };
       }
     );
@@ -329,7 +335,7 @@ async function parseRequest(req: NextRequest): Promise<{
 
     if (fieldsRaw) {
       try {
-        body.fields = JSON.parse(fieldsRaw);
+        body.fields = JSON.parse(fieldsRaw) as TemplateField[];
       } catch {
         body.fields = [];
       }
@@ -337,7 +343,7 @@ async function parseRequest(req: NextRequest): Promise<{
 
     if (pagesRaw) {
       try {
-        body.pages = JSON.parse(pagesRaw);
+        body.pages = JSON.parse(pagesRaw) as TemplatePage[];
       } catch {
         body.pages = [];
       }
@@ -388,7 +394,7 @@ export async function POST(req: NextRequest) {
 
     const fields = normalizeFields(body.fields, coordinateMode);
 
-    let pages = normalizePagesFromBody({
+    let pages: TemplatePage[] = normalizePagesFromBody({
       pages: body.pages,
       fileUrl,
       pageCount,
