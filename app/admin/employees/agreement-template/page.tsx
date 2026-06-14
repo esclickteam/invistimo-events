@@ -1,6 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  GlobalWorkerOptions,
+  getDocument,
+  type PDFDocumentProxy,
+} from "pdfjs-dist";
+
+if (typeof window !== "undefined") {
+  GlobalWorkerOptions.workerSrc = new URL(
+    "pdfjs-dist/build/pdf.worker.min.mjs",
+    import.meta.url
+  ).toString();
+}
 
 type FieldType = "text" | "date" | "signature";
 
@@ -23,7 +35,18 @@ type DragState = {
   offsetY: number;
 };
 
+type PageSize = {
+  width: number;
+  height: number;
+};
+
+type PdfRenderTask = {
+  cancel: () => void;
+  promise: Promise<void>;
+};
+
 const DEFAULT_FILE_URL = "/templates/employee-agreement-invistimo.pdf";
+const MAX_PAGE_WIDTH = 700;
 
 function makeId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -35,14 +58,25 @@ function clamp(value: number, min: number, max: number) {
 
 export default function AgreementTemplatePage() {
   const pdfWrapRef = useRef<HTMLDivElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const dragRef = useRef<DragState | null>(null);
 
   const [fileUrl, setFileUrl] = useState(DEFAULT_FILE_URL);
+  const [pdfDoc, setPdfDoc] = useState<PDFDocumentProxy | null>(null);
+
   const [pageIndex, setPageIndex] = useState(0);
   const [pageCount, setPageCount] = useState(11);
+  const [pageSize, setPageSize] = useState<PageSize>({
+    width: MAX_PAGE_WIDTH,
+    height: 900,
+  });
+
   const [fields, setFields] = useState<TemplateField[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [dragId, setDragId] = useState("");
+
+  const [loadingPdf, setLoadingPdf] = useState(true);
+  const [renderingPage, setRenderingPage] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -78,6 +112,126 @@ export default function AgreementTemplatePage() {
   useEffect(() => {
     void loadTemplate();
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadPdf() {
+      try {
+        setLoadingPdf(true);
+        setMessage("");
+
+        const task = getDocument({
+          url: fileUrl,
+          withCredentials: true,
+        });
+
+        const pdf = await task.promise;
+
+        if (cancelled) return;
+
+        setPdfDoc(pdf);
+        setPageCount(pdf.numPages);
+
+        setPageIndex((current) =>
+          clamp(current, 0, Math.max(0, pdf.numPages - 1))
+        );
+      } catch {
+        if (!cancelled) {
+          setMessage("לא ניתן לטעון את קובץ ה־PDF");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingPdf(false);
+        }
+      }
+    }
+
+    void loadPdf();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fileUrl]);
+
+  useEffect(() => {
+    if (!pdfDoc) return;
+
+    const activePdfDoc = pdfDoc;
+
+    let cancelled = false;
+    let renderTask: PdfRenderTask | null = null;
+
+    async function renderPage() {
+      try {
+        setRenderingPage(true);
+        setMessage("");
+
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        const context = canvas.getContext("2d");
+        if (!context) return;
+
+        const page = await activePdfDoc.getPage(pageIndex + 1);
+
+        if (cancelled) return;
+
+        const baseViewport = page.getViewport({ scale: 1 });
+        const scale = MAX_PAGE_WIDTH / baseViewport.width;
+        const viewport = page.getViewport({ scale });
+
+        const dpr = window.devicePixelRatio || 1;
+
+        canvas.width = Math.floor(viewport.width * dpr);
+        canvas.height = Math.floor(viewport.height * dpr);
+
+        canvas.style.width = `${Math.floor(viewport.width)}px`;
+        canvas.style.height = `${Math.floor(viewport.height)}px`;
+
+        context.setTransform(dpr, 0, 0, dpr, 0, 0);
+        context.clearRect(0, 0, viewport.width, viewport.height);
+
+        setPageSize({
+          width: viewport.width,
+          height: viewport.height,
+        });
+
+        renderTask = page.render({
+          canvas,
+          canvasContext: context,
+          viewport,
+        }) as PdfRenderTask;
+
+        await renderTask.promise;
+      } catch (err: unknown) {
+        const errorName =
+          err && typeof err === "object" && "name" in err
+            ? String((err as { name?: unknown }).name)
+            : "";
+
+        if (errorName !== "RenderingCancelledException" && !cancelled) {
+          setMessage("שגיאה בהצגת עמוד ה־PDF");
+        }
+      } finally {
+        if (!cancelled) {
+          setRenderingPage(false);
+        }
+      }
+    }
+
+    void renderPage();
+
+    return () => {
+      cancelled = true;
+
+      try {
+        renderTask?.cancel();
+      } catch {
+        // ignore
+      }
+    };
+  }, [pdfDoc, pageIndex]);
 
   useEffect(() => {
     if (!dragId) return;
@@ -137,6 +291,9 @@ export default function AgreementTemplatePage() {
   }, [dragId]);
 
   function addField(type: FieldType) {
+    const fieldWidth = type === "signature" ? 180 : 160;
+    const fieldHeight = type === "signature" ? 70 : 32;
+
     const field: TemplateField = {
       id: makeId(),
       label:
@@ -147,10 +304,10 @@ export default function AgreementTemplatePage() {
           : "שדה טקסט",
       type,
       pageIndex,
-      x: 120,
-      y: 120,
-      width: type === "signature" ? 180 : 160,
-      height: type === "signature" ? 70 : 32,
+      x: clamp(120, 0, Math.max(0, pageSize.width - fieldWidth)),
+      y: clamp(120, 0, Math.max(0, pageSize.height - fieldHeight)),
+      width: fieldWidth,
+      height: fieldHeight,
       required: true,
       order: fields.length + 1,
     };
@@ -161,7 +318,33 @@ export default function AgreementTemplatePage() {
 
   function updateField(id: string, patch: Partial<TemplateField>) {
     setFields((prev) =>
-      prev.map((field) => (field.id === id ? { ...field, ...patch } : field))
+      prev.map((field) => {
+        if (field.id !== id) return field;
+
+        const nextField = {
+          ...field,
+          ...patch,
+        };
+
+        const fixedWidth = Math.max(20, Number(nextField.width) || 20);
+        const fixedHeight = Math.max(20, Number(nextField.height) || 20);
+
+        return {
+          ...nextField,
+          width: fixedWidth,
+          height: fixedHeight,
+          x: clamp(
+            Number(nextField.x) || 0,
+            0,
+            Math.max(0, pageSize.width - fixedWidth)
+          ),
+          y: clamp(
+            Number(nextField.y) || 0,
+            0,
+            Math.max(0, pageSize.height - fixedHeight)
+          ),
+        };
+      })
     );
   }
 
@@ -248,7 +431,7 @@ export default function AgreementTemplatePage() {
           <button
             type="button"
             onClick={saveTemplate}
-            disabled={saving}
+            disabled={saving || loadingPdf}
             className="h-11 rounded-2xl bg-violet-600 px-6 text-sm font-black text-white hover:bg-violet-700 disabled:opacity-50"
           >
             {saving ? "שומר..." : "שמירת תבנית"}
@@ -269,7 +452,8 @@ export default function AgreementTemplatePage() {
               <button
                 type="button"
                 onClick={() => addField("text")}
-                className="h-11 rounded-2xl bg-slate-950 px-4 text-sm font-black text-white"
+                disabled={loadingPdf || renderingPage}
+                className="h-11 rounded-2xl bg-slate-950 px-4 text-sm font-black text-white disabled:opacity-40"
               >
                 הוסף שדה טקסט
               </button>
@@ -277,7 +461,8 @@ export default function AgreementTemplatePage() {
               <button
                 type="button"
                 onClick={() => addField("date")}
-                className="h-11 rounded-2xl bg-slate-950 px-4 text-sm font-black text-white"
+                disabled={loadingPdf || renderingPage}
+                className="h-11 rounded-2xl bg-slate-950 px-4 text-sm font-black text-white disabled:opacity-40"
               >
                 הוסף שדה תאריך
               </button>
@@ -285,7 +470,8 @@ export default function AgreementTemplatePage() {
               <button
                 type="button"
                 onClick={() => addField("signature")}
-                className="h-11 rounded-2xl bg-slate-950 px-4 text-sm font-black text-white"
+                disabled={loadingPdf || renderingPage}
+                className="h-11 rounded-2xl bg-slate-950 px-4 text-sm font-black text-white disabled:opacity-40"
               >
                 הוסף שדה חתימה
               </button>
@@ -298,29 +484,28 @@ export default function AgreementTemplatePage() {
                 <button
                   type="button"
                   onClick={() => changePage(pageIndex - 1)}
-                  disabled={pageIndex <= 0}
+                  disabled={pageIndex <= 0 || loadingPdf}
                   className="h-10 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black disabled:opacity-40"
                 >
                   הקודם
                 </button>
 
-                <div className="flex h-10 items-center rounded-2xl bg-slate-100 px-4 text-sm font-black">
+                <div
+                  dir="ltr"
+                  className="flex h-10 items-center rounded-2xl bg-slate-100 px-4 text-sm font-black"
+                >
                   {pageIndex + 1} / {pageCount}
                 </div>
 
                 <button
                   type="button"
                   onClick={() => changePage(pageIndex + 1)}
-                  disabled={pageIndex >= pageCount - 1}
+                  disabled={pageIndex >= pageCount - 1 || loadingPdf}
                   className="h-10 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black disabled:opacity-40"
                 >
                   הבא
                 </button>
               </div>
-
-              <p className="mt-3 text-xs font-bold leading-5 text-slate-500">
-                חשוב: לא גוללים בתוך ה־PDF. עוברים עמודים רק מכאן, כדי שהשדות יישארו קבועים בעמוד הנכון.
-              </p>
             </div>
 
             {selectedField && (
@@ -478,7 +663,7 @@ export default function AgreementTemplatePage() {
               <div>
                 <h2 className="text-lg font-black">מיקום שדות על ההסכם</h2>
                 <p className="mt-1 text-xs font-bold text-slate-500">
-                  הגלילה הפנימית של ה־PDF חסומה כדי שהשדות לא יזוזו לעמודים אחרים.
+                  כפתורי הבא/הקודם מחליפים עמוד אמיתי, והשדות מוצגים לפי העמוד שלהם בלבד.
                 </p>
               </div>
 
@@ -486,16 +671,23 @@ export default function AgreementTemplatePage() {
                 <button
                   type="button"
                   onClick={() => changePage(pageIndex - 1)}
-                  disabled={pageIndex <= 0}
+                  disabled={pageIndex <= 0 || loadingPdf}
                   className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-700 hover:bg-slate-50 disabled:opacity-40"
                 >
                   עמוד קודם
                 </button>
 
+                <div
+                  dir="ltr"
+                  className="rounded-2xl bg-slate-100 px-4 py-2 text-xs font-black text-slate-700"
+                >
+                  {pageIndex + 1} / {pageCount}
+                </div>
+
                 <button
                   type="button"
                   onClick={() => changePage(pageIndex + 1)}
-                  disabled={pageIndex >= pageCount - 1}
+                  disabled={pageIndex >= pageCount - 1 || loadingPdf}
                   className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-700 hover:bg-slate-50 disabled:opacity-40"
                 >
                   עמוד הבא
@@ -512,49 +704,60 @@ export default function AgreementTemplatePage() {
               </div>
             </div>
 
-            <div
-              ref={pdfWrapRef}
-              className="relative mx-auto h-[900px] max-w-[700px] overflow-hidden rounded-2xl border border-slate-200 bg-slate-100"
-            >
-              <iframe
-                key={`${fileUrl}-${pageIndex}`}
-                src={`${fileUrl}#page=${pageIndex + 1}&toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
-                className="h-full w-full"
-                title="תבנית הסכם עבודה"
+            <div className="overflow-auto rounded-2xl border border-slate-200 bg-slate-100 p-4">
+              <div
+                ref={pdfWrapRef}
+                className="relative mx-auto overflow-hidden rounded-xl bg-white shadow-sm"
                 style={{
-                  pointerEvents: "none",
+                  width: pageSize.width,
+                  height: pageSize.height,
                 }}
-              />
-
-              {currentFields.map((field) => (
-                <div
-                  key={field.id}
-                  onPointerDown={(event) => startDrag(event, field)}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setSelectedId(field.id);
-                  }}
-                  className={`absolute z-10 flex items-center justify-center rounded-xl border-2 px-2 py-1 text-center text-xs font-black shadow-sm ${
-                    selectedId === field.id
-                      ? "border-violet-600 bg-violet-100 text-violet-900"
-                      : "border-slate-500 bg-white/85 text-slate-800"
-                  } ${
-                    dragId === field.id
-                      ? "cursor-grabbing select-none"
-                      : "cursor-grab"
-                  }`}
+              >
+                <canvas
+                  ref={canvasRef}
+                  className="block"
                   style={{
-                    left: field.x,
-                    top: field.y,
-                    width: field.width,
-                    height: field.height,
-                    touchAction: "none",
-                    userSelect: "none",
+                    width: pageSize.width,
+                    height: pageSize.height,
                   }}
-                >
-                  {field.label}
-                </div>
-              ))}
+                />
+
+                {(loadingPdf || renderingPage) && (
+                  <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/70 text-sm font-black text-slate-600">
+                    טוען עמוד...
+                  </div>
+                )}
+
+                {currentFields.map((field) => (
+                  <div
+                    key={field.id}
+                    onPointerDown={(event) => startDrag(event, field)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setSelectedId(field.id);
+                    }}
+                    className={`absolute z-10 flex items-center justify-center rounded-xl border-2 px-2 py-1 text-center text-xs font-black shadow-sm ${
+                      selectedId === field.id
+                        ? "border-violet-600 bg-violet-100 text-violet-900"
+                        : "border-slate-500 bg-white/85 text-slate-800"
+                    } ${
+                      dragId === field.id
+                        ? "cursor-grabbing select-none"
+                        : "cursor-grab"
+                    }`}
+                    style={{
+                      left: field.x,
+                      top: field.y,
+                      width: field.width,
+                      height: field.height,
+                      touchAction: "none",
+                      userSelect: "none",
+                    }}
+                  >
+                    {field.label}
+                  </div>
+                ))}
+              </div>
             </div>
           </section>
         </div>
