@@ -15,11 +15,9 @@ export const dynamic = "force-dynamic";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
-const ALLOWED_FILE_TYPES = [
-  "application/pdf",
-  "image/jpeg",
-  "image/png",
-];
+const ALLOWED_FILE_TYPES = ["application/pdf", "image/jpeg", "image/png"];
+
+type EmployeeDocumentType = "form101" | "idCard";
 
 function extractUserId(authResult: any) {
   if (!authResult) return "";
@@ -48,25 +46,56 @@ function getSafeExtension(fileName: string) {
   return "";
 }
 
-function serializeForm101(form: any) {
-  if (!form) return null;
+function normalizeDocumentType(value: FormDataEntryValue | null): EmployeeDocumentType {
+  const raw = String(value || "").trim();
+
+  if (raw === "idCard") return "idCard";
+  if (raw === "form101") return "form101";
+
+  // ברירת מחדל לשמירה על תאימות אחורה
+  return "form101";
+}
+
+function getDocumentFolder(documentType: EmployeeDocumentType) {
+  if (documentType === "idCard") return "id-card";
+  return "101";
+}
+
+function getDocumentLabel(documentType: EmployeeDocumentType) {
+  if (documentType === "idCard") return "תעודת זהות";
+  return "טופס 101";
+}
+
+function serializeEmployeeDocument(document: any) {
+  if (!document) return null;
 
   return {
-    _id: String(form._id),
-    id: String(form._id),
-    employeeId: form.employeeId ? String(form.employeeId) : "",
-    businessId: form.businessId ? String(form.businessId) : "",
-    originalFileName: form.originalFileName || "",
-    storedFileName: form.storedFileName || "",
-    r2Key: form.r2Key || "",
-    fileUrl: form.fileUrl || "",
-    fileType: form.fileType || "",
-    fileSize: Number(form.fileSize || 0),
-    taxYear: Number(form.taxYear || new Date().getFullYear()),
-    status: form.status || "uploaded",
-    uploadedAt: form.uploadedAt,
-    createdAt: form.createdAt,
-    updatedAt: form.updatedAt,
+    _id: String(document._id),
+    id: String(document._id),
+
+    employeeId: document.employeeId ? String(document.employeeId) : "",
+    businessId: document.businessId ? String(document.businessId) : "",
+
+    documentType: document.documentType || "form101",
+
+    originalFileName: document.originalFileName || "",
+    storedFileName: document.storedFileName || "",
+    r2Key: document.r2Key || "",
+    fileUrl: document.fileUrl || "",
+    fileType: document.fileType || "",
+    fileSize: Number(document.fileSize || 0),
+
+    taxYear: Number(document.taxYear || new Date().getFullYear()),
+
+    status: document.status || "uploaded",
+    rejectionReason: document.rejectionReason || "",
+
+    uploadedAt: document.uploadedAt,
+    approvedAt: document.approvedAt || null,
+    rejectedAt: document.rejectedAt || null,
+
+    createdAt: document.createdAt,
+    updatedAt: document.updatedAt,
   };
 }
 
@@ -78,30 +107,30 @@ export async function POST(req: NextRequest) {
     const userId = extractUserId(authResult);
 
     if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
-      return NextResponse.json(
-        { error: "לא מחובר" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "לא מחובר" }, { status: 401 });
     }
 
     const user = await User.findById(userId).lean();
 
     if (!user) {
-      return NextResponse.json(
-        { error: "משתמש לא נמצא" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "משתמש לא נמצא" }, { status: 404 });
     }
 
     const formData = await req.formData();
+
     const file = formData.get("file");
 
     if (!(file instanceof File)) {
-      return NextResponse.json(
-        { error: "לא נשלח קובץ" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "לא נשלח קובץ" }, { status: 400 });
     }
+
+    /**
+     * תומך גם ב-documentType וגם ב-type
+     * כדי שלא יישבר אם כבר כתבת בצד לקוח formData.append("type", ...)
+     */
+    const documentType = normalizeDocumentType(
+      formData.get("documentType") || formData.get("type")
+    );
 
     if (!ALLOWED_FILE_TYPES.includes(file.type)) {
       return NextResponse.json(
@@ -134,12 +163,20 @@ export async function POST(req: NextRequest) {
         ? new mongoose.Types.ObjectId(String((user as any).businessId))
         : null;
 
-    const taxYear = new Date().getFullYear();
+    const taxYearFromForm = Number(formData.get("taxYear"));
+    const taxYear =
+      Number.isFinite(taxYearFromForm) && taxYearFromForm > 2000
+        ? taxYearFromForm
+        : new Date().getFullYear();
+
     const storedFileName = `${crypto.randomUUID()}${ext}`;
 
+    const documentFolder = getDocumentFolder(documentType);
+
     const r2Key = [
-      "forms",
-      "101",
+      "employees",
+      "documents",
+      documentFolder,
       String(employeeId),
       String(taxYear),
       storedFileName,
@@ -157,37 +194,55 @@ export async function POST(req: NextRequest) {
         ContentLength: file.size,
         Metadata: {
           employeeId: String(employeeId),
+          businessId: businessId ? String(businessId) : "",
+          documentType,
           taxYear: String(taxYear),
           originalFileName: encodeURIComponent(file.name),
         },
       })
     );
 
+    /**
+     * נשארים עם אותו endpoint צפייה אם הוא אצלך מחפש לפי storedFileName במסד.
+     * אם endpoint הצפייה שלך בנוי רק לטפסי 101, צריך לעדכן גם אותו שיחפש כל documentType.
+     */
     const fileUrl = `/api/forms/101/file/${storedFileName}`;
 
     const saved = await EmployeeForm101.create({
       employeeId,
       businessId,
+
+      documentType,
+
       originalFileName: file.name,
       storedFileName,
       r2Key,
       fileUrl,
       fileType: file.type,
       fileSize: file.size,
+
       taxYear,
+
       status: "uploaded",
       uploadedAt: new Date(),
     });
 
+    const serialized = serializeEmployeeDocument(saved);
+
     return NextResponse.json({
       success: true,
-      form101: serializeForm101(saved),
+      message: `${getDocumentLabel(documentType)} הועלה בהצלחה`,
+      document: serialized,
+
+      // תאימות אחורה לקוד קיים שמצפה ל-form101
+      form101: documentType === "form101" ? serialized : null,
+      idCard: documentType === "idCard" ? serialized : null,
     });
   } catch (error) {
-    console.error("UPLOAD FORM 101 TO R2 FAILED:", error);
+    console.error("UPLOAD EMPLOYEE DOCUMENT TO R2 FAILED:", error);
 
     return NextResponse.json(
-      { error: "שגיאה בהעלאת טופס 101" },
+      { error: "שגיאה בהעלאת המסמך" },
       { status: 500 }
     );
   }

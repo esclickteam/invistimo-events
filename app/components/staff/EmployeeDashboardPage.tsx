@@ -27,21 +27,28 @@ type EventProgress =
   | "completed"
   | string;
 
-type Form101Status = "missing" | "uploaded" | "approved" | "rejected";
+type EmployeeDocumentStatus = "missing" | "uploaded" | "approved" | "rejected";
+type EmployeeDocumentType = "form101" | "idCard";
 
-type ApiForm101 = {
+type ApiEmployeeDocument = {
   _id?: string;
   id?: string;
+  documentType?: EmployeeDocumentType;
   originalFileName?: string;
   fileUrl?: string;
   fileType?: string;
   fileSize?: number;
   taxYear?: number;
-  status?: Form101Status;
+  status?: EmployeeDocumentStatus;
+  rejectionReason?: string;
   uploadedAt?: string;
+  approvedAt?: string | null;
+  rejectedAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
 };
+
+type ApiForm101 = ApiEmployeeDocument;
 
 type ApiUser = {
   _id?: string;
@@ -248,7 +255,7 @@ function formatFileSize(size?: number) {
   return `${Math.round(size / 1024)}KB`;
 }
 
-function form101StatusLabel(status?: Form101Status) {
+function documentStatusLabel(status?: EmployeeDocumentStatus) {
   switch (status) {
     case "approved":
       return "מאושר";
@@ -261,7 +268,7 @@ function form101StatusLabel(status?: Form101Status) {
   }
 }
 
-function form101StatusClass(status?: Form101Status) {
+function documentStatusClass(status?: EmployeeDocumentStatus) {
   switch (status) {
     case "approved":
       return "border-emerald-200 bg-emerald-50 text-emerald-700";
@@ -767,187 +774,173 @@ function LoadingPanel() {
   );
 }
 
-function Form101Panel({
+function getCombinedDocumentsStatus(
+  form101: ApiEmployeeDocument | null,
+  idCard: ApiEmployeeDocument | null
+): EmployeeDocumentStatus {
+  if (!form101 && !idCard) return "missing";
+
+  if (form101?.status === "rejected" || idCard?.status === "rejected") {
+    return "rejected";
+  }
+
+  if (form101?.status === "approved" && idCard?.status === "approved") {
+    return "approved";
+  }
+
+  return "uploaded";
+}
+
+function getUploadedDate(document?: ApiEmployeeDocument | null) {
+  return formatDate(document?.uploadedAt || document?.createdAt);
+}
+
+function DocumentsPanel({
   form101,
-  file,
-  setFile,
+  idCard,
+  form101File,
+  idCardFile,
+  setForm101File,
+  setIdCardFile,
   loading,
-  uploading,
+  uploadingType,
   error,
   onUpload,
   onReload,
 }: {
-  form101: ApiForm101 | null;
-  file: File | null;
-  setFile: (file: File | null) => void;
+  form101: ApiEmployeeDocument | null;
+  idCard: ApiEmployeeDocument | null;
+  form101File: File | null;
+  idCardFile: File | null;
+  setForm101File: (file: File | null) => void;
+  setIdCardFile: (file: File | null) => void;
   loading: boolean;
-  uploading: boolean;
+  uploadingType: EmployeeDocumentType | null;
   error: string;
-  onUpload: () => void;
+  onUpload: (documentType: EmployeeDocumentType) => void;
   onReload: () => void;
 }) {
-  const status = form101?.status || "missing";
+  const [open, setOpen] = useState(false);
+  const combinedStatus = getCombinedDocumentsStatus(form101, idCard);
 
   return (
-    <section className="mt-6 rounded-[34px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-        <div className="flex items-start gap-4">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-3xl bg-slate-950 text-white shadow-lg">
-            <Icon name="file" className="h-6 w-6" />
+    <>
+      <section className="mt-6 rounded-[34px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+          <div className="flex items-start gap-4">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-3xl bg-slate-950 text-white shadow-lg">
+              <Icon name="file" className="h-6 w-6" />
+            </div>
+
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-2xl font-black tracking-tight text-slate-950">
+                  מסמכי עובד
+                </h2>
+
+                <span
+                  className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${documentStatusClass(
+                    combinedStatus
+                  )}`}
+                >
+                  {documentStatusLabel(combinedStatus)}
+                </span>
+              </div>
+
+              <p className="mt-2 max-w-3xl text-sm font-semibold leading-7 text-slate-500">
+                טופס 101 ותעודת זהות נשמרים במערכת וממתינים לבדיקה. לחצי על
+                ניהול מסמכים כדי להעלות או לצפות בקבצים.
+              </p>
+            </div>
           </div>
 
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-2xl font-black tracking-tight text-slate-950">
-                טופס 101
-              </h2>
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={onReload}
+              disabled={loading || Boolean(uploadingType)}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Icon
+                name="refresh"
+                className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+              />
+              רענון סטטוס
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setOpen(true)}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 text-sm font-black text-white transition hover:bg-black"
+            >
+              <Icon name="open" className="h-4 w-4" />
+              ניהול מסמכים
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-4 md:grid-cols-2">
+          <div className="rounded-[28px] bg-slate-50 p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-base font-black text-slate-950">טופס 101</p>
+                <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
+                  {form101
+                    ? `הועלה: ${form101.originalFileName || "קובץ"}`
+                    : "עדיין לא הועלה טופס 101."}
+                </p>
+              </div>
 
               <span
-                className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${form101StatusClass(
-                  status
+                className={`shrink-0 rounded-full border px-3 py-1 text-xs font-black ${documentStatusClass(
+                  form101?.status || "missing"
                 )}`}
               >
-                {form101StatusLabel(status)}
+                {documentStatusLabel(form101?.status || "missing")}
               </span>
             </div>
 
-            <p className="mt-2 max-w-3xl text-sm font-semibold leading-7 text-slate-500">
-              יש להוריד את הטופס, למלא ולחתום, ואז להעלות כאן קובץ PDF או
-              תמונה. לאחר ההעלאה הטופס יישמר במערכת ויופיע לבדיקה.
-            </p>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={onReload}
-          disabled={loading || uploading}
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <Icon
-            name="refresh"
-            className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
-          />
-          רענון סטטוס
-        </button>
-      </div>
-
-      <div className="mt-5 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-        <div className="rounded-[28px] bg-slate-50 p-5">
-          <p className="text-base font-black text-slate-950">
-            1. הורדת טופס ריק
-          </p>
-
-          <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
-            הורידו את טופס 101, מלאו אותו ושמרו כ־PDF או כתמונה.
-          </p>
-
-          <a
-            href={API.form101Download}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-4 inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 text-sm font-black text-white transition hover:bg-black"
-          >
-            <Icon name="open" className="h-4 w-4" />
-            הורדת טופס 101
-          </a>
-        </div>
-
-        <div className="rounded-[28px] border border-dashed border-slate-300 bg-white p-5">
-          <p className="text-base font-black text-slate-950">
-            2. העלאת טופס חתום
-          </p>
-
-          <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
-            ניתן להעלות קובץ PDF, JPG או PNG.
-          </p>
-
-          <input
-            type="file"
-            accept=".pdf,image/png,image/jpeg"
-            disabled={uploading}
-            onChange={(event) => {
-              setFile(event.target.files?.[0] || null);
-            }}
-            className="mt-4 block w-full cursor-pointer rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm font-bold text-slate-700 file:ml-4 file:rounded-xl file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-sm file:font-black file:text-white disabled:cursor-not-allowed disabled:opacity-60"
-          />
-
-          {file && (
-            <p className="mt-3 text-xs font-bold text-slate-500">
-              נבחר קובץ:{" "}
-              <b className="text-slate-950">{file.name}</b> ·{" "}
-              {formatFileSize(file.size)}
-            </p>
-          )}
-
-          <button
-            type="button"
-            onClick={onUpload}
-            disabled={uploading || !file}
-            className="mt-4 inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 text-sm font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {uploading ? (
-              <>
-                <Icon name="refresh" className="h-4 w-4 animate-spin" />
-                מעלה...
-              </>
-            ) : (
-              <>
-                <Icon name="check" className="h-4 w-4" />
-                העלאת טופס חתום
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-
-      {loading ? (
-        <div className="mt-5 rounded-[28px] bg-slate-50 p-5 text-sm font-black text-slate-500">
-          טוען סטטוס טופס 101...
-        </div>
-      ) : form101 ? (
-        <div className="mt-5 rounded-[28px] border border-slate-200 bg-white p-5">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-            <div>
-              <p className="text-base font-black text-slate-950">
-                הטופס האחרון שהועלה
-              </p>
-
-              <div className="mt-3 grid gap-2 text-sm font-semibold text-slate-600 sm:grid-cols-2 xl:grid-cols-4">
-                <span>
-                  קובץ:{" "}
-                  <b className="text-slate-950">
-                    {form101.originalFileName || "—"}
-                  </b>
-                </span>
-
-                <span>
-                  שנת מס:{" "}
-                  <b className="text-slate-950">{form101.taxYear || "—"}</b>
-                </span>
-
-                <span>
-                  גודל:{" "}
-                  <b className="text-slate-950">
-                    {formatFileSize(form101.fileSize)}
-                  </b>
-                </span>
-
-                <span>
-                  תאריך העלאה:{" "}
-                  <b className="text-slate-950">
-                    {formatDate(form101.uploadedAt || form101.createdAt)}
-                  </b>
-                </span>
-              </div>
-            </div>
-
-            {form101.fileUrl && (
+            {form101?.fileUrl && (
               <a
                 href={form101.fileUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 px-5 text-sm font-black text-slate-700 transition hover:bg-slate-50"
+                className="mt-4 inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-xs font-black text-slate-700 transition hover:bg-slate-50"
+              >
+                <Icon name="open" className="h-4 w-4" />
+                צפייה בקובץ
+              </a>
+            )}
+          </div>
+
+          <div className="rounded-[28px] bg-slate-50 p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-base font-black text-slate-950">
+                  תעודת זהות
+                </p>
+                <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
+                  {idCard
+                    ? `הועלתה: ${idCard.originalFileName || "קובץ"}`
+                    : "עדיין לא הועלתה תעודת זהות."}
+                </p>
+              </div>
+
+              <span
+                className={`shrink-0 rounded-full border px-3 py-1 text-xs font-black ${documentStatusClass(
+                  idCard?.status || "missing"
+                )}`}
+              >
+                {documentStatusLabel(idCard?.status || "missing")}
+              </span>
+            </div>
+
+            {idCard?.fileUrl && (
+              <a
+                href={idCard.fileUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-4 inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-xs font-black text-slate-700 transition hover:bg-slate-50"
               >
                 <Icon name="open" className="h-4 w-4" />
                 צפייה בקובץ
@@ -955,18 +948,327 @@ function Form101Panel({
             )}
           </div>
         </div>
-      ) : (
-        <div className="mt-5 rounded-[28px] bg-slate-50 p-5 text-sm font-black text-slate-500">
-          עדיין לא הועלה טופס 101.
-        </div>
-      )}
 
-      {error && (
-        <div className="mt-5 rounded-[28px] border border-rose-200 bg-rose-50 p-5 text-sm font-black text-rose-700">
-          {error}
+        {loading && (
+          <div className="mt-5 rounded-[28px] bg-slate-50 p-5 text-sm font-black text-slate-500">
+            טוען סטטוס מסמכים...
+          </div>
+        )}
+
+        {error && (
+          <div className="mt-5 rounded-[28px] border border-rose-200 bg-rose-50 p-5 text-sm font-black text-rose-700">
+            {error}
+          </div>
+        )}
+      </section>
+
+      {open && (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-slate-950/55 px-4 py-6">
+          <div className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-[34px] bg-white p-5 shadow-2xl sm:p-7">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-black text-slate-600">
+                  מסמכי עובד
+                </span>
+
+                <h2 className="mt-3 text-2xl font-black tracking-tight text-slate-950">
+                  ניהול טופס 101 ותעודת זהות
+                </h2>
+
+                <p className="mt-2 max-w-3xl text-sm font-semibold leading-7 text-slate-500">
+                  הורידי את טופס 101, מלאי וחתמי עליו, ואז העלי אותו יחד עם
+                  צילום תעודת זהות. ניתן להעלות PDF, JPG או PNG.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-2xl font-black text-slate-500 transition hover:bg-slate-50"
+                aria-label="סגירה"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="mt-6 grid gap-5 lg:grid-cols-2">
+              <div className="rounded-[30px] border border-slate-200 bg-slate-50 p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-lg font-black text-slate-950">
+                      טופס 101
+                    </h3>
+                    <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
+                      הורידי טופס ריק, מלאי אותו, חתמי והעלי לכאן.
+                    </p>
+                  </div>
+
+                  <span
+                    className={`shrink-0 rounded-full border px-3 py-1 text-xs font-black ${documentStatusClass(
+                      form101?.status || "missing"
+                    )}`}
+                  >
+                    {documentStatusLabel(form101?.status || "missing")}
+                  </span>
+                </div>
+
+                <a
+                  href={API.form101Download}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 text-sm font-black text-white transition hover:bg-black"
+                >
+                  <Icon name="open" className="h-4 w-4" />
+                  הורדת טופס 101
+                </a>
+
+                <div className="mt-5 rounded-[28px] border border-dashed border-slate-300 bg-white p-5">
+                  <p className="text-base font-black text-slate-950">
+                    העלאת טופס חתום
+                  </p>
+
+                  <input
+                    type="file"
+                    accept=".pdf,image/png,image/jpeg"
+                    disabled={uploadingType === "form101"}
+                    onChange={(event) => {
+                      setForm101File(event.target.files?.[0] || null);
+                    }}
+                    className="mt-4 block w-full cursor-pointer rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm font-bold text-slate-700 file:ml-4 file:rounded-xl file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-sm file:font-black file:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                  />
+
+                  {form101File && (
+                    <p className="mt-3 text-xs font-bold text-slate-500">
+                      נבחר קובץ:{" "}
+                      <b className="text-slate-950">{form101File.name}</b> ·{" "}
+                      {formatFileSize(form101File.size)}
+                    </p>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => onUpload("form101")}
+                    disabled={uploadingType === "form101" || !form101File}
+                    className="mt-4 inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 text-sm font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {uploadingType === "form101" ? (
+                      <>
+                        <Icon name="refresh" className="h-4 w-4 animate-spin" />
+                        מעלה...
+                      </>
+                    ) : (
+                      <>
+                        <Icon name="check" className="h-4 w-4" />
+                        העלאת טופס חתום
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {form101 ? (
+                  <div className="mt-5 rounded-[28px] border border-slate-200 bg-white p-5">
+                    <p className="text-base font-black text-slate-950">
+                      הטופס האחרון שהועלה
+                    </p>
+
+                    <div className="mt-3 grid gap-2 text-sm font-semibold text-slate-600">
+                      <span>
+                        קובץ:{" "}
+                        <b className="text-slate-950">
+                          {form101.originalFileName || "—"}
+                        </b>
+                      </span>
+
+                      <span>
+                        שנת מס:{" "}
+                        <b className="text-slate-950">
+                          {form101.taxYear || "—"}
+                        </b>
+                      </span>
+
+                      <span>
+                        גודל:{" "}
+                        <b className="text-slate-950">
+                          {formatFileSize(form101.fileSize)}
+                        </b>
+                      </span>
+
+                      <span>
+                        תאריך העלאה:{" "}
+                        <b className="text-slate-950">
+                          {getUploadedDate(form101)}
+                        </b>
+                      </span>
+                    </div>
+
+                    {form101.fileUrl && (
+                      <a
+                        href={form101.fileUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-4 inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 text-xs font-black text-slate-700 transition hover:bg-slate-50"
+                      >
+                        <Icon name="open" className="h-4 w-4" />
+                        צפייה בטופס
+                      </a>
+                    )}
+                  </div>
+                ) : (
+                  !loading && (
+                    <div className="mt-5 rounded-[28px] bg-white p-5 text-sm font-black text-slate-500">
+                      עדיין לא הועלה טופס 101.
+                    </div>
+                  )
+                )}
+              </div>
+
+              <div className="rounded-[30px] border border-slate-200 bg-slate-50 p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-lg font-black text-slate-950">
+                      תעודת זהות
+                    </h3>
+                    <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
+                      העלי צילום תעודת זהות או קובץ PDF. אפשר להעלות גם צילום
+                      ספח לפי הצורך.
+                    </p>
+                  </div>
+
+                  <span
+                    className={`shrink-0 rounded-full border px-3 py-1 text-xs font-black ${documentStatusClass(
+                      idCard?.status || "missing"
+                    )}`}
+                  >
+                    {documentStatusLabel(idCard?.status || "missing")}
+                  </span>
+                </div>
+
+                <div className="mt-5 rounded-[28px] border border-dashed border-slate-300 bg-white p-5">
+                  <p className="text-base font-black text-slate-950">
+                    העלאת תעודת זהות
+                  </p>
+
+                  <input
+                    type="file"
+                    accept=".pdf,image/png,image/jpeg"
+                    disabled={uploadingType === "idCard"}
+                    onChange={(event) => {
+                      setIdCardFile(event.target.files?.[0] || null);
+                    }}
+                    className="mt-4 block w-full cursor-pointer rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm font-bold text-slate-700 file:ml-4 file:rounded-xl file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-sm file:font-black file:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                  />
+
+                  {idCardFile && (
+                    <p className="mt-3 text-xs font-bold text-slate-500">
+                      נבחר קובץ:{" "}
+                      <b className="text-slate-950">{idCardFile.name}</b> ·{" "}
+                      {formatFileSize(idCardFile.size)}
+                    </p>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => onUpload("idCard")}
+                    disabled={uploadingType === "idCard" || !idCardFile}
+                    className="mt-4 inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 text-sm font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {uploadingType === "idCard" ? (
+                      <>
+                        <Icon name="refresh" className="h-4 w-4 animate-spin" />
+                        מעלה...
+                      </>
+                    ) : (
+                      <>
+                        <Icon name="check" className="h-4 w-4" />
+                        העלאת תעודת זהות
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {idCard ? (
+                  <div className="mt-5 rounded-[28px] border border-slate-200 bg-white p-5">
+                    <p className="text-base font-black text-slate-950">
+                      תעודת הזהות האחרונה שהועלתה
+                    </p>
+
+                    <div className="mt-3 grid gap-2 text-sm font-semibold text-slate-600">
+                      <span>
+                        קובץ:{" "}
+                        <b className="text-slate-950">
+                          {idCard.originalFileName || "—"}
+                        </b>
+                      </span>
+
+                      <span>
+                        גודל:{" "}
+                        <b className="text-slate-950">
+                          {formatFileSize(idCard.fileSize)}
+                        </b>
+                      </span>
+
+                      <span>
+                        תאריך העלאה:{" "}
+                        <b className="text-slate-950">
+                          {getUploadedDate(idCard)}
+                        </b>
+                      </span>
+                    </div>
+
+                    {idCard.fileUrl && (
+                      <a
+                        href={idCard.fileUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-4 inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 text-xs font-black text-slate-700 transition hover:bg-slate-50"
+                      >
+                        <Icon name="open" className="h-4 w-4" />
+                        צפייה בתעודת זהות
+                      </a>
+                    )}
+                  </div>
+                ) : (
+                  !loading && (
+                    <div className="mt-5 rounded-[28px] bg-white p-5 text-sm font-black text-slate-500">
+                      עדיין לא הועלתה תעודת זהות.
+                    </div>
+                  )
+                )}
+              </div>
+            </div>
+
+            {error && (
+              <div className="mt-5 rounded-[28px] border border-rose-200 bg-rose-50 p-5 text-sm font-black text-rose-700">
+                {error}
+              </div>
+            )}
+
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
+              <button
+                type="button"
+                onClick={onReload}
+                disabled={loading || Boolean(uploadingType)}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Icon
+                  name="refresh"
+                  className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+                />
+                {loading ? "מרענן..." : "רענון סטטוס"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="h-11 rounded-2xl bg-slate-950 px-6 text-sm font-black text-white transition hover:bg-black"
+              >
+                סגירה
+              </button>
+            </div>
+          </div>
         </div>
       )}
-    </section>
+    </>
   );
 }
 
@@ -979,11 +1281,14 @@ export default function EmployeeDashboardPage() {
   const [tasks, setTasks] = useState<ApiTask[]>([]);
   const [serverStats, setServerStats] = useState<Partial<DashboardStats>>({});
 
-  const [form101, setForm101] = useState<ApiForm101 | null>(null);
+  const [form101, setForm101] = useState<ApiEmployeeDocument | null>(null);
+  const [idCard, setIdCard] = useState<ApiEmployeeDocument | null>(null);
   const [form101File, setForm101File] = useState<File | null>(null);
-  const [form101Loading, setForm101Loading] = useState(true);
-  const [form101Uploading, setForm101Uploading] = useState(false);
-  const [form101Error, setForm101Error] = useState("");
+  const [idCardFile, setIdCardFile] = useState<File | null>(null);
+  const [documentsLoading, setDocumentsLoading] = useState(true);
+  const [uploadingDocumentType, setUploadingDocumentType] =
+    useState<EmployeeDocumentType | null>(null);
+  const [documentsError, setDocumentsError] = useState("");
 
   const [userSearch, setUserSearch] = useState("");
   const [eventSearch, setEventSearch] = useState("");
@@ -1079,12 +1384,13 @@ export default function EmployeeDashboardPage() {
     }
   }, []);
 
-  const loadForm101 = useCallback(async () => {
-    try {
-      setForm101Error("");
-      setForm101Loading(true);
+  const loadEmployeeDocument = useCallback(
+    async (documentType: EmployeeDocumentType) => {
+      const params = new URLSearchParams({
+        documentType,
+      });
 
-      const response = await fetch(API.form101Current, {
+      const response = await fetch(`${API.form101Current}?${params.toString()}`, {
         method: "GET",
         credentials: "include",
         cache: "no-store",
@@ -1093,59 +1399,107 @@ export default function EmployeeDashboardPage() {
       const data = await response.json().catch(() => null);
 
       if (!response.ok) {
-        throw new Error(data?.error || "שגיאה בטעינת טופס 101");
+        throw new Error(data?.error || "שגיאה בטעינת המסמך");
       }
 
-      setForm101(data?.form101 || null);
+      return (data?.document ||
+        (documentType === "form101" ? data?.form101 : data?.idCard) ||
+        null) as ApiEmployeeDocument | null;
+    },
+    []
+  );
+
+  const loadEmployeeDocuments = useCallback(async () => {
+    try {
+      setDocumentsError("");
+      setDocumentsLoading(true);
+
+      const [form101Document, idCardDocument] = await Promise.all([
+        loadEmployeeDocument("form101").catch((loadError) => {
+          console.error("LOAD FORM 101 FAILED:", loadError);
+          return null;
+        }),
+        loadEmployeeDocument("idCard").catch((loadError) => {
+          console.error("LOAD ID CARD FAILED:", loadError);
+          return null;
+        }),
+      ]);
+
+      setForm101(form101Document);
+      setIdCard(idCardDocument);
     } catch (loadError) {
-      console.error("LOAD FORM 101 FAILED:", loadError);
+      console.error("LOAD EMPLOYEE DOCUMENTS FAILED:", loadError);
       setForm101(null);
-      setForm101Error(
+      setIdCard(null);
+      setDocumentsError(
         loadError instanceof Error
           ? loadError.message
-          : "שגיאה בטעינת טופס 101"
+          : "שגיאה בטעינת מסמכי עובד"
       );
     } finally {
-      setForm101Loading(false);
+      setDocumentsLoading(false);
     }
-  }, []);
+  }, [loadEmployeeDocument]);
 
-  const uploadForm101 = useCallback(async () => {
-    if (!form101File || form101Uploading) return;
+  const uploadEmployeeDocument = useCallback(
+    async (documentType: EmployeeDocumentType) => {
+      const selectedFile = documentType === "form101" ? form101File : idCardFile;
 
-    try {
-      setForm101Error("");
-      setForm101Uploading(true);
+      if (!selectedFile || uploadingDocumentType) return;
 
-      const formData = new FormData();
-      formData.append("file", form101File);
+      try {
+        setDocumentsError("");
+        setUploadingDocumentType(documentType);
 
-      const response = await fetch(API.form101Upload, {
-        method: "POST",
-        credentials: "include",
-        body: formData,
-      });
+        const formData = new FormData();
+        formData.append("file", selectedFile);
+        formData.append("documentType", documentType);
 
-      const data = await response.json().catch(() => null);
+        const response = await fetch(API.form101Upload, {
+          method: "POST",
+          credentials: "include",
+          body: formData,
+        });
 
-      if (!response.ok || !data?.success) {
-        throw new Error(data?.error || "שגיאה בהעלאת טופס 101");
+        const data = await response.json().catch(() => null);
+
+        if (!response.ok || !data?.success) {
+          throw new Error(data?.error || "שגיאה בהעלאת המסמך");
+        }
+
+        const uploadedDocument = (data?.document ||
+          (documentType === "form101" ? data?.form101 : data?.idCard) ||
+          null) as ApiEmployeeDocument | null;
+
+        if (documentType === "form101") {
+          setForm101File(null);
+          setForm101(uploadedDocument);
+          alert("טופס 101 הועלה בהצלחה");
+        } else {
+          setIdCardFile(null);
+          setIdCard(uploadedDocument);
+          alert("תעודת זהות הועלתה בהצלחה");
+        }
+
+        await loadEmployeeDocuments();
+      } catch (uploadError) {
+        console.error("UPLOAD EMPLOYEE DOCUMENT FAILED:", uploadError);
+        setDocumentsError(
+          uploadError instanceof Error
+            ? uploadError.message
+            : "שגיאה בהעלאת המסמך"
+        );
+      } finally {
+        setUploadingDocumentType(null);
       }
-
-      setForm101File(null);
-      setForm101(data.form101 || null);
-      alert("טופס 101 הועלה בהצלחה");
-    } catch (uploadError) {
-      console.error("UPLOAD FORM 101 FAILED:", uploadError);
-      setForm101Error(
-        uploadError instanceof Error
-          ? uploadError.message
-          : "שגיאה בהעלאת טופס 101"
-      );
-    } finally {
-      setForm101Uploading(false);
-    }
-  }, [form101File, form101Uploading]);
+    },
+    [
+      form101File,
+      idCardFile,
+      loadEmployeeDocuments,
+      uploadingDocumentType,
+    ]
+  );
 
   const enterClientDashboard = useCallback(
     async (targetUserId: string) => {
@@ -1186,8 +1540,8 @@ export default function EmployeeDashboardPage() {
 
   useEffect(() => {
     void loadDashboard();
-    void loadForm101();
-  }, [loadDashboard, loadForm101]);
+    void loadEmployeeDocuments();
+  }, [loadDashboard, loadEmployeeDocuments]);
 
   const filteredUsers = useMemo(() => {
     const q = userSearch.trim().toLowerCase();
@@ -1297,15 +1651,15 @@ export default function EmployeeDashboardPage() {
                   type="button"
                   onClick={() => {
                     void loadDashboard();
-                    void loadForm101();
+                    void loadEmployeeDocuments();
                   }}
-                  disabled={refreshing || form101Loading}
+                  disabled={refreshing || documentsLoading}
                   className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/10 px-4 text-sm font-black text-white transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <Icon
                     name="refresh"
                     className={`h-4 w-4 ${
-                      refreshing || form101Loading ? "animate-spin" : ""
+                      refreshing || documentsLoading ? "animate-spin" : ""
                     }`}
                   />
                   רענון נתונים
@@ -1344,15 +1698,18 @@ export default function EmployeeDashboardPage() {
             </div>
           </div>
 
-          <Form101Panel
+          <DocumentsPanel
             form101={form101}
-            file={form101File}
-            setFile={setForm101File}
-            loading={form101Loading}
-            uploading={form101Uploading}
-            error={form101Error}
-            onUpload={() => void uploadForm101()}
-            onReload={() => void loadForm101()}
+            idCard={idCard}
+            form101File={form101File}
+            idCardFile={idCardFile}
+            setForm101File={setForm101File}
+            setIdCardFile={setIdCardFile}
+            loading={documentsLoading}
+            uploadingType={uploadingDocumentType}
+            error={documentsError}
+            onUpload={(documentType) => void uploadEmployeeDocument(documentType)}
+            onReload={() => void loadEmployeeDocuments()}
           />
 
           {loading ? (

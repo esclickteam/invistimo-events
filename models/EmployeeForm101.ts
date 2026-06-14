@@ -16,6 +16,19 @@ const EmployeeForm101Schema = new Schema(
       index: true,
     },
 
+    /**
+     * סוג המסמך:
+     * form101 = טופס 101
+     * idCard = תעודת זהות
+     */
+    documentType: {
+      type: String,
+      enum: ["form101", "idCard"],
+      default: "form101",
+      required: true,
+      index: true,
+    },
+
     originalFileName: {
       type: String,
       required: true,
@@ -49,6 +62,11 @@ const EmployeeForm101Schema = new Schema(
       required: true,
     },
 
+    /**
+     * שנת מס.
+     * לטופס 101 זה חובה לוגית.
+     * לתעודת זהות נשמור גם את אותה שנה כדי שיהיה קל לשלוף לפי שנה.
+     */
     taxYear: {
       type: Number,
       required: true,
@@ -62,9 +80,25 @@ const EmployeeForm101Schema = new Schema(
       index: true,
     },
 
+    rejectionReason: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
     uploadedAt: {
       type: Date,
       default: Date.now,
+    },
+
+    approvedAt: {
+      type: Date,
+      default: null,
+    },
+
+    rejectedAt: {
+      type: Date,
+      default: null,
     },
   },
   {
@@ -72,11 +106,30 @@ const EmployeeForm101Schema = new Schema(
   }
 );
 
+/**
+ * שליפה מהירה של כל המסמכים של עובד לפי שנה
+ */
 EmployeeForm101Schema.index({
   employeeId: 1,
   taxYear: 1,
+  documentType: 1,
   createdAt: -1,
 });
+
+/**
+ * שליפה מהירה לפי עסק
+ */
+EmployeeForm101Schema.index({
+  businessId: 1,
+  taxYear: 1,
+  documentType: 1,
+  createdAt: -1,
+});
+
+/**
+ * שלא יהיו כפילויות פעילות אם תרצי בעתיד להשתמש בזה.
+ * כרגע אני לא שם unique כדי לא לשבור העלאות קודמות.
+ */
 
 export default models.EmployeeForm101 ||
   model("EmployeeForm101", EmployeeForm101Schema);

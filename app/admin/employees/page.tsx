@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 export const dynamic = "force-dynamic";
 
 type Form101Status = "uploaded" | "approved" | "rejected" | string;
+type EmployeeDocumentType = "form101" | "idCard" | string;
 
 type EmployeeForm101 = {
   _id: string;
@@ -12,6 +13,8 @@ type EmployeeForm101 = {
 
   employeeId?: string;
   businessId?: string;
+
+  documentType?: EmployeeDocumentType;
 
   employeeName?: string;
   employeeEmail?: string;
@@ -103,6 +106,28 @@ function statusClass(status?: Form101Status) {
       return "border-amber-200 bg-amber-50 text-amber-700";
     default:
       return "border-slate-200 bg-slate-50 text-slate-600";
+  }
+}
+
+function documentTypeLabel(documentType?: EmployeeDocumentType) {
+  switch (String(documentType || "form101")) {
+    case "idCard":
+      return "תעודת זהות";
+    case "form101":
+      return "טופס 101";
+    default:
+      return "מסמך עובד";
+  }
+}
+
+function documentTypeClass(documentType?: EmployeeDocumentType) {
+  switch (String(documentType || "form101")) {
+    case "idCard":
+      return "border-violet-200 bg-violet-50 text-violet-700";
+    case "form101":
+      return "border-sky-200 bg-sky-50 text-sky-700";
+    default:
+      return "border-slate-200 bg-slate-50 text-slate-700";
   }
 }
 
@@ -244,6 +269,7 @@ export default function AdminEmployeesPage() {
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [documentFilter, setDocumentFilter] = useState("");
   const [yearFilter, setYearFilter] = useState("");
 
   const loadForms = useCallback(async () => {
@@ -255,6 +281,10 @@ export default function AdminEmployeesPage() {
 
       if (statusFilter) {
         params.set("status", statusFilter);
+      }
+
+      if (documentFilter) {
+        params.set("documentType", documentFilter);
       }
 
       if (yearFilter) {
@@ -274,23 +304,29 @@ export default function AdminEmployeesPage() {
       const data = await response.json().catch(() => null);
 
       if (!response.ok || !data?.success) {
-        throw new Error(data?.error || "שגיאה בטעינת טפסי 101");
+        throw new Error(data?.error || "שגיאה בטעינת מסמכי עובדים");
       }
 
-      setForms(Array.isArray(data.forms) ? data.forms : []);
+      setForms(
+        Array.isArray(data.documents)
+          ? data.documents
+          : Array.isArray(data.forms)
+          ? data.forms
+          : []
+      );
     } catch (loadError) {
-      console.error("LOAD ADMIN EMPLOYEES FORMS 101 FAILED:", loadError);
+      console.error("LOAD ADMIN EMPLOYEES DOCUMENTS FAILED:", loadError);
       setForms([]);
       setError(
         loadError instanceof Error
           ? loadError.message
-          : "שגיאה בטעינת טפסי 101"
+          : "שגיאה בטעינת מסמכי עובדים"
       );
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [statusFilter, yearFilter]);
+  }, [statusFilter, documentFilter, yearFilter]);
 
   useEffect(() => {
     void loadForms();
@@ -307,6 +343,8 @@ export default function AdminEmployeesPage() {
         getEmployeeEmail(form).toLowerCase().includes(q) ||
         getEmployeePhone(form).toLowerCase().includes(q) ||
         String(form.originalFileName || "").toLowerCase().includes(q) ||
+        documentTypeLabel(form.documentType).toLowerCase().includes(q) ||
+        String(form.documentType || "").toLowerCase().includes(q) ||
         String(form.employeeId || "").toLowerCase().includes(q)
       );
     });
@@ -315,6 +353,10 @@ export default function AdminEmployeesPage() {
   const stats = useMemo(() => {
     return {
       total: forms.length,
+      form101: forms.filter(
+        (form) => !form.documentType || form.documentType === "form101"
+      ).length,
+      idCard: forms.filter((form) => form.documentType === "idCard").length,
       uploaded: forms.filter((form) => form.status === "uploaded").length,
       approved: forms.filter((form) => form.status === "approved").length,
       rejected: forms.filter((form) => form.status === "rejected").length,
@@ -393,12 +435,12 @@ export default function AdminEmployeesPage() {
               </div>
 
               <h1 className="mt-5 text-3xl font-black tracking-tight md:text-5xl">
-                עובדים וטפסי 101
+                עובדים ומסמכים
               </h1>
 
               <p className="mt-3 max-w-3xl text-sm font-semibold leading-7 text-slate-300 md:text-base">
-                כאן האדמין רואה את טפסי 101 של כל העובדים/לקוחות, כולל סטטוס,
-                תאריך העלאה, צפייה בקובץ ואישור או דחייה.
+                כאן האדמין רואה את טופסי 101 ותעודות הזהות של כל העובדים/לקוחות,
+                כולל סטטוס, תאריך העלאה, צפייה בקובץ ואישור או דחייה.
               </p>
             </div>
 
@@ -418,34 +460,34 @@ export default function AdminEmployeesPage() {
 
           <div className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <div className="rounded-[24px] border border-white/10 bg-white/10 p-4">
-              <p className="text-xs font-black text-slate-300">סה״כ טפסים</p>
+              <p className="text-xs font-black text-slate-300">סה״כ מסמכים</p>
               <p className="mt-2 text-3xl font-black">{stats.total}</p>
+            </div>
+
+            <div className="rounded-[24px] border border-white/10 bg-white/10 p-4">
+              <p className="text-xs font-black text-slate-300">טופסי 101</p>
+              <p className="mt-2 text-3xl font-black">{stats.form101}</p>
+            </div>
+
+            <div className="rounded-[24px] border border-white/10 bg-white/10 p-4">
+              <p className="text-xs font-black text-slate-300">תעודות זהות</p>
+              <p className="mt-2 text-3xl font-black">{stats.idCard}</p>
             </div>
 
             <div className="rounded-[24px] border border-white/10 bg-white/10 p-4">
               <p className="text-xs font-black text-slate-300">ממתינים לבדיקה</p>
               <p className="mt-2 text-3xl font-black">{stats.uploaded}</p>
             </div>
-
-            <div className="rounded-[24px] border border-white/10 bg-white/10 p-4">
-              <p className="text-xs font-black text-slate-300">מאושרים</p>
-              <p className="mt-2 text-3xl font-black">{stats.approved}</p>
-            </div>
-
-            <div className="rounded-[24px] border border-white/10 bg-white/10 p-4">
-              <p className="text-xs font-black text-slate-300">נדחו</p>
-              <p className="mt-2 text-3xl font-black">{stats.rejected}</p>
-            </div>
           </div>
         </section>
 
         <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="grid gap-3 xl:grid-cols-[1fr_220px_220px_auto]">
+          <div className="grid gap-3 xl:grid-cols-[1fr_190px_190px_190px_auto]">
             <div className="relative">
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="חיפוש לפי עובד, מייל, טלפון, קובץ או מזהה..."
+                placeholder="חיפוש לפי עובד, מייל, טלפון, סוג מסמך, קובץ או מזהה..."
                 className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 pr-12 text-sm font-bold text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white"
               />
 
@@ -466,6 +508,16 @@ export default function AdminEmployeesPage() {
             </select>
 
             <select
+              value={documentFilter}
+              onChange={(event) => setDocumentFilter(event.target.value)}
+              className="h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-700 outline-none focus:border-slate-400 focus:bg-white"
+            >
+              <option value="">כל סוגי המסמכים</option>
+              <option value="form101">טופס 101</option>
+              <option value="idCard">תעודת זהות</option>
+            </select>
+
+            <select
               value={yearFilter}
               onChange={(event) => setYearFilter(event.target.value)}
               className="h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-700 outline-none focus:border-slate-400 focus:bg-white"
@@ -483,6 +535,7 @@ export default function AdminEmployeesPage() {
               onClick={() => {
                 setSearch("");
                 setStatusFilter("");
+                setDocumentFilter("");
                 setYearFilter("");
               }}
               className="h-12 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-700 transition hover:bg-slate-50"
@@ -496,14 +549,14 @@ export default function AdminEmployeesPage() {
           <section className="rounded-[32px] border border-slate-200 bg-white p-10 text-center shadow-sm">
             <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-slate-950" />
             <p className="mt-4 text-sm font-black text-slate-700">
-              טוען טפסי 101...
+              טוען מסמכי עובדים...
             </p>
           </section>
         ) : error ? (
           <section className="rounded-[32px] border border-rose-200 bg-rose-50 p-8 text-center shadow-sm">
             <Icon name="warning" className="mx-auto h-10 w-10 text-rose-600" />
             <h2 className="mt-4 text-xl font-black text-rose-700">
-              לא הצלחנו לטעון את טפסי 101
+              לא הצלחנו לטעון את מסמכי העובדים
             </h2>
             <p className="mt-2 text-sm font-bold text-rose-600">{error}</p>
 
@@ -519,10 +572,10 @@ export default function AdminEmployeesPage() {
           <section className="rounded-[32px] border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
             <Icon name="file" className="mx-auto h-12 w-12 text-slate-400" />
             <h2 className="mt-4 text-xl font-black text-slate-800">
-              אין טפסי 101 להצגה
+              אין מסמכי עובדים להצגה
             </h2>
             <p className="mt-2 text-sm font-semibold text-slate-500">
-              לא נמצאו טפסים או שאין התאמה לחיפוש/סינון.
+              לא נמצאו מסמכים או שאין התאמה לחיפוש/סינון.
             </p>
           </section>
         ) : (
@@ -533,6 +586,7 @@ export default function AdminEmployeesPage() {
                   <tr className="text-sm text-slate-500">
                     <th className="px-5 py-4 font-black">עובד</th>
                     <th className="px-5 py-4 font-black">פרטים</th>
+                    <th className="px-5 py-4 font-black">סוג מסמך</th>
                     <th className="px-5 py-4 font-black">שנת מס</th>
                     <th className="px-5 py-4 font-black">קובץ</th>
                     <th className="px-5 py-4 font-black">תאריך העלאה</th>
@@ -575,13 +629,23 @@ export default function AdminEmployeesPage() {
                           </p>
                         </td>
 
+                        <td className="px-5 py-4">
+                          <span
+                            className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${documentTypeClass(
+                              form.documentType
+                            )}`}
+                          >
+                            {documentTypeLabel(form.documentType)}
+                          </span>
+                        </td>
+
                         <td className="px-5 py-4 text-sm font-black text-slate-700">
                           {form.taxYear || "—"}
                         </td>
 
                         <td className="px-5 py-4">
                           <p className="max-w-[240px] truncate text-sm font-black text-slate-800">
-                            {form.originalFileName || "טופס 101"}
+                            {form.originalFileName || documentTypeLabel(form.documentType)}
                           </p>
                           <p className="mt-1 text-xs font-bold text-slate-400">
                             {formatFileSize(form.fileSize)} · {form.fileType || "—"}
@@ -688,8 +752,9 @@ export default function AdminEmployeesPage() {
                       <p>
                         טלפון: <span dir="ltr">{getEmployeePhone(form)}</span>
                       </p>
+                      <p>סוג מסמך: {documentTypeLabel(form.documentType)}</p>
                       <p>שנת מס: {form.taxYear || "—"}</p>
-                      <p>קובץ: {form.originalFileName || "טופס 101"}</p>
+                      <p>קובץ: {form.originalFileName || documentTypeLabel(form.documentType)}</p>
                       <p>גודל: {formatFileSize(form.fileSize)}</p>
                       <p>תאריך העלאה: {formatDate(form.uploadedAt || form.createdAt)}</p>
                     </div>

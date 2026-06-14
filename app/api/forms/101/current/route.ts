@@ -8,6 +8,8 @@ import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+type EmployeeDocumentType = "form101" | "idCard";
+
 function extractUserId(authResult: any) {
   if (!authResult) return "";
 
@@ -24,25 +26,45 @@ function extractUserId(authResult: any) {
   );
 }
 
-function serializeForm101(form: any) {
-  if (!form) return null;
+function normalizeDocumentType(value: string | null): EmployeeDocumentType {
+  const raw = String(value || "").trim();
+
+  if (raw === "idCard") return "idCard";
+  if (raw === "form101") return "form101";
+
+  return "form101";
+}
+
+function serializeEmployeeDocument(document: any) {
+  if (!document) return null;
 
   return {
-    _id: String(form._id),
-    id: String(form._id),
-    employeeId: form.employeeId ? String(form.employeeId) : "",
-    businessId: form.businessId ? String(form.businessId) : "",
-    originalFileName: form.originalFileName || "",
-    storedFileName: form.storedFileName || "",
-    r2Key: form.r2Key || "",
-    fileUrl: form.fileUrl || "",
-    fileType: form.fileType || "",
-    fileSize: Number(form.fileSize || 0),
-    taxYear: Number(form.taxYear || new Date().getFullYear()),
-    status: form.status || "uploaded",
-    uploadedAt: form.uploadedAt,
-    createdAt: form.createdAt,
-    updatedAt: form.updatedAt,
+    _id: String(document._id),
+    id: String(document._id),
+
+    employeeId: document.employeeId ? String(document.employeeId) : "",
+    businessId: document.businessId ? String(document.businessId) : "",
+
+    documentType: document.documentType || "form101",
+
+    originalFileName: document.originalFileName || "",
+    storedFileName: document.storedFileName || "",
+    r2Key: document.r2Key || "",
+    fileUrl: document.fileUrl || "",
+    fileType: document.fileType || "",
+    fileSize: Number(document.fileSize || 0),
+
+    taxYear: Number(document.taxYear || new Date().getFullYear()),
+
+    status: document.status || "uploaded",
+    rejectionReason: document.rejectionReason || "",
+
+    uploadedAt: document.uploadedAt,
+    approvedAt: document.approvedAt || null,
+    rejectedAt: document.rejectedAt || null,
+
+    createdAt: document.createdAt,
+    updatedAt: document.updatedAt,
   };
 }
 
@@ -54,30 +76,69 @@ export async function GET(req: NextRequest) {
     const userId = extractUserId(authResult);
 
     if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
-      return NextResponse.json(
-        { error: "לא מחובר" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "לא מחובר" }, { status: 401 });
     }
 
-    const taxYear = new Date().getFullYear();
+    const { searchParams } = new URL(req.url);
 
-    const form101 = await EmployeeForm101.findOne({
-      employeeId: new mongoose.Types.ObjectId(userId),
-      taxYear,
-    })
+    const documentType = normalizeDocumentType(
+      searchParams.get("documentType") || searchParams.get("type")
+    );
+
+    const taxYearFromQuery = Number(searchParams.get("taxYear"));
+    const taxYear =
+      Number.isFinite(taxYearFromQuery) && taxYearFromQuery > 2000
+        ? taxYearFromQuery
+        : new Date().getFullYear();
+
+    /**
+     * כרגע מקור האמת הוא המשתמש המחובר.
+     * גם אם הפרונט שולח employeeId, לא נסמוך עליו כדי שעובד לא יוכל לשלוף מסמך של עובד אחר.
+     */
+    const employeeObjectId = new mongoose.Types.ObjectId(userId);
+
+    /**
+     * לטופס 101:
+     * תומך גם במסמכים ישנים שאין להם documentType,
+     * כי לפני העדכון כל הרשומות היו בעצם form101.
+     */
+    const query =
+      documentType === "form101"
+        ? {
+            employeeId: employeeObjectId,
+            taxYear,
+            $or: [
+              { documentType: "form101" },
+              { documentType: { $exists: false } },
+              { documentType: null },
+            ],
+          }
+        : {
+            employeeId: employeeObjectId,
+            taxYear,
+            documentType: "idCard",
+          };
+
+    const document = await EmployeeForm101.findOne(query)
       .sort({ createdAt: -1 })
       .lean();
 
+    const serialized = serializeEmployeeDocument(document);
+
     return NextResponse.json({
       success: true,
-      form101: serializeForm101(form101),
+
+      document: serialized,
+
+      // תאימות לקומפוננטות ישנות
+      form101: documentType === "form101" ? serialized : null,
+      idCard: documentType === "idCard" ? serialized : null,
     });
   } catch (error) {
-    console.error("GET CURRENT FORM 101 FAILED:", error);
+    console.error("GET CURRENT EMPLOYEE DOCUMENT FAILED:", error);
 
     return NextResponse.json(
-      { error: "שגיאה בטעינת טופס 101" },
+      { error: "שגיאה בטעינת המסמך" },
       { status: 500 }
     );
   }
