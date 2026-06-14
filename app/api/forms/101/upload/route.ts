@@ -46,7 +46,9 @@ function getSafeExtension(fileName: string) {
   return "";
 }
 
-function normalizeDocumentType(value: FormDataEntryValue | null): EmployeeDocumentType {
+function normalizeDocumentType(
+  value: FormDataEntryValue | null
+): EmployeeDocumentType {
   const raw = String(value || "").trim();
 
   if (raw === "idCard") return "idCard";
@@ -96,6 +98,38 @@ function serializeEmployeeDocument(document: any) {
 
     createdAt: document.createdAt,
     updatedAt: document.updatedAt,
+  };
+}
+
+function buildExistingDocumentQuery({
+  employeeId,
+  taxYear,
+  documentType,
+}: {
+  employeeId: mongoose.Types.ObjectId;
+  taxYear: number;
+  documentType: EmployeeDocumentType;
+}) {
+  /**
+   * תמיכה במסמכים ישנים:
+   * לפני שהוספנו documentType, כל הרשומות הישנות הן בעצם טופס 101.
+   */
+  if (documentType === "form101") {
+    return {
+      employeeId,
+      taxYear,
+      $or: [
+        { documentType: "form101" },
+        { documentType: { $exists: false } },
+        { documentType: null },
+      ],
+    };
+  }
+
+  return {
+    employeeId,
+    taxYear,
+    documentType: "idCard",
   };
 }
 
@@ -169,6 +203,54 @@ export async function POST(req: NextRequest) {
         ? taxYearFromForm
         : new Date().getFullYear();
 
+    /**
+     * חסימת העלאה חוזרת:
+     * אם כבר קיים מסמך מאותו סוג לאותה שנת מס בסטטוס uploaded/approved,
+     * העובד לא יכול להחליף אותו.
+     *
+     * רק rejected מאפשר העלאה מחדש.
+     */
+    const existingDocument = await EmployeeForm101.findOne(
+      buildExistingDocumentQuery({
+        employeeId,
+        taxYear,
+        documentType,
+      })
+    )
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const existingStatus = String((existingDocument as any)?.status || "");
+
+    if (
+      existingDocument &&
+      existingStatus !== "rejected"
+    ) {
+      const label = getDocumentLabel(documentType);
+
+      return NextResponse.json(
+        {
+          success: false,
+          error: `${label} כבר הועלה וננעל לבדיקה. ניתן להעלות מחדש רק לאחר פתיחה על ידי האדמין.`,
+          locked: true,
+          documentType,
+          status: existingStatus || "uploaded",
+          document: serializeEmployeeDocument(existingDocument),
+
+          // תאימות אחורה
+          form101:
+            documentType === "form101"
+              ? serializeEmployeeDocument(existingDocument)
+              : null,
+          idCard:
+            documentType === "idCard"
+              ? serializeEmployeeDocument(existingDocument)
+              : null,
+        },
+        { status: 423 }
+      );
+    }
+
     const storedFileName = `${crypto.randomUUID()}${ext}`;
 
     const documentFolder = getDocumentFolder(documentType);
@@ -203,8 +285,8 @@ export async function POST(req: NextRequest) {
     );
 
     /**
-     * נשארים עם אותו endpoint צפייה אם הוא אצלך מחפש לפי storedFileName במסד.
-     * אם endpoint הצפייה שלך בנוי רק לטפסי 101, צריך לעדכן גם אותו שיחפש כל documentType.
+     * נשארים עם אותו endpoint צפייה.
+     * route הצפייה כבר עודכן לחפש לפי storedFileName בכל סוגי המסמכים.
      */
     const fileUrl = `/api/forms/101/file/${storedFileName}`;
 
@@ -225,6 +307,10 @@ export async function POST(req: NextRequest) {
 
       status: "uploaded",
       uploadedAt: new Date(),
+
+      approvedAt: null,
+      rejectedAt: null,
+      rejectionReason: "",
     });
 
     const serialized = serializeEmployeeDocument(saved);
