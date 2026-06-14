@@ -1,18 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  GlobalWorkerOptions,
-  getDocument,
-  type PDFDocumentProxy,
-} from "pdfjs-dist";
-
-if (typeof window !== "undefined") {
-  GlobalWorkerOptions.workerSrc = new URL(
-    "pdfjs-dist/build/pdf.worker.min.mjs",
-    import.meta.url
-  ).toString();
-}
 
 type FieldType = "text" | "date" | "signature";
 
@@ -29,24 +17,42 @@ type TemplateField = {
   order: number;
 };
 
+type TemplatePage = {
+  pageIndex: number;
+  pageNumber: number;
+  url: string;
+  imageUrl: string;
+  name: string;
+  type: "image" | "pdf";
+};
+
 type DragState = {
   id: string;
-  offsetX: number;
-  offsetY: number;
-};
-
-type PageSize = {
-  width: number;
-  height: number;
-};
-
-type PdfRenderTask = {
-  cancel: () => void;
-  promise: Promise<void>;
+  startClientX: number;
+  startClientY: number;
+  startX: number;
+  startY: number;
+  startWidth: number;
+  startHeight: number;
+  mode: "move" | "resize";
 };
 
 const DEFAULT_FILE_URL = "/templates/employee-agreement-invistimo.pdf";
-const MAX_PAGE_WIDTH = 700;
+const DEFAULT_PAGE_COUNT = 11;
+
+/**
+ * המרה מהקוד הישן:
+ * לפני כן השדות נשמרו בפיקסלים בערך על 700x900.
+ * עכשיו אנחנו עובדים באחוזים כמו בקובץ הדוגמה שלך.
+ */
+const LEGACY_PAGE_WIDTH = 700;
+const LEGACY_PAGE_HEIGHT = 900;
+
+const FIELD_LABELS: Record<FieldType, string> = {
+  text: "שדה טקסט",
+  date: "תאריך",
+  signature: "חתימה",
+};
 
 function makeId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -56,56 +62,184 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
+function toNumber(value: unknown, fallback: number) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : fallback;
+}
+
+function normalizeField(raw: any, index: number): TemplateField {
+  const type = String(raw?.type || "text") as FieldType;
+
+  let width = toNumber(raw?.width, type === "signature" ? 24 : 22);
+  let height = toNumber(raw?.height, type === "signature" ? 8 : 6);
+  let x = toNumber(raw?.x, 38);
+  let y = toNumber(raw?.y, 35);
+
+  const pageIndex =
+    raw?.pageIndex !== undefined
+      ? Math.max(0, toNumber(raw.pageIndex, 0))
+      : raw?.pageNumber !== undefined
+        ? Math.max(0, toNumber(raw.pageNumber, 1) - 1)
+        : 0;
+
+  /**
+   * אם מגיעים שדות ישנים בפיקסלים — ממירים לאחוזים.
+   * לדוגמה: x=329 נהיה בערך 47%.
+   */
+  const looksLikeLegacyPixels =
+    x > 100 || y > 100 || width > 100 || height > 100;
+
+  if (looksLikeLegacyPixels) {
+    x = (x / LEGACY_PAGE_WIDTH) * 100;
+    y = (y / LEGACY_PAGE_HEIGHT) * 100;
+    width = (width / LEGACY_PAGE_WIDTH) * 100;
+    height = (height / LEGACY_PAGE_HEIGHT) * 100;
+  }
+
+  width = clamp(Number(width.toFixed(2)), 4, 85);
+  height = clamp(Number(height.toFixed(2)), 3, 35);
+  x = clamp(Number(x.toFixed(2)), 0, 100 - width);
+  y = clamp(Number(y.toFixed(2)), 0, 100 - height);
+
+  return {
+    id: String(raw?.id || makeId()),
+    label: String(raw?.label || FIELD_LABELS[type] || "שדה"),
+    type,
+    pageIndex,
+    x,
+    y,
+    width,
+    height,
+    required: raw?.required !== undefined ? Boolean(raw.required) : true,
+    order: toNumber(raw?.order, index + 1),
+  };
+}
+
+function buildPagesFromTemplate(template: any): TemplatePage[] {
+  const pageCount = Math.max(
+    1,
+    toNumber(template?.pageCount, DEFAULT_PAGE_COUNT)
+  );
+
+  const rawPages = Array.isArray(template?.pages) ? template.pages : [];
+
+  if (rawPages.length > 0) {
+    return rawPages.map((page: any, index: number) => {
+      const pageNumber = Math.max(
+        1,
+        toNumber(page?.pageNumber, page?.pageIndex !== undefined ? page.pageIndex + 1 : index + 1)
+      );
+
+      return {
+        pageIndex: pageNumber - 1,
+        pageNumber,
+        url: String(page?.url || template?.fileUrl || DEFAULT_FILE_URL),
+        imageUrl: String(page?.imageUrl || page?.url || ""),
+        name: String(page?.name || `עמוד ${pageNumber}`),
+        type: String(page?.type || "image").includes("image") ? "image" : "pdf",
+      };
+    });
+  }
+
+  /**
+   * אם השרת עדיין לא מחזיר תמונות עמודים,
+   * ניצור רשימת עמודים אבל בלי imageUrl.
+   * במקרה כזה תופיע הודעה שצריך לעדכן את השרת לייצר תמונות.
+   */
+  return Array.from({ length: pageCount }).map((_, index) => ({
+    pageIndex: index,
+    pageNumber: index + 1,
+    url: String(template?.fileUrl || DEFAULT_FILE_URL),
+    imageUrl: "",
+    name: `עמוד ${index + 1}`,
+    type: "image",
+  }));
+}
+
 export default function AgreementTemplatePage() {
-  const pdfWrapRef = useRef<HTMLDivElement | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const pageEditorRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const dragRef = useRef<DragState | null>(null);
 
   const [fileUrl, setFileUrl] = useState(DEFAULT_FILE_URL);
-  const [pdfDoc, setPdfDoc] = useState<PDFDocumentProxy | null>(null);
+  const [pageCount, setPageCount] = useState(DEFAULT_PAGE_COUNT);
+  const [pages, setPages] = useState<TemplatePage[]>([]);
 
-  const [pageIndex, setPageIndex] = useState(0);
-  const [pageCount, setPageCount] = useState(11);
-  const [pageSize, setPageSize] = useState<PageSize>({
-    width: MAX_PAGE_WIDTH,
-    height: 900,
-  });
-
+  const [activePageIndex, setActivePageIndex] = useState(0);
   const [fields, setFields] = useState<TemplateField[]>([]);
   const [selectedId, setSelectedId] = useState("");
-  const [dragId, setDragId] = useState("");
 
-  const [loadingPdf, setLoadingPdf] = useState(true);
-  const [renderingPage, setRenderingPage] = useState(false);
+  const [draggingId, setDraggingId] = useState("");
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
-  const currentFields = useMemo(
-    () => fields.filter((f) => f.pageIndex === pageIndex),
-    [fields, pageIndex]
-  );
-
   const selectedField = useMemo(
-    () => fields.find((f) => f.id === selectedId) || null,
+    () => fields.find((field) => field.id === selectedId) || null,
     [fields, selectedId]
   );
 
+  const sortedFields = useMemo(
+    () => [...fields].sort((a, b) => a.order - b.order),
+    [fields]
+  );
+
+  const hasPageImages = pages.some((page) => Boolean(page.imageUrl));
+
   async function loadTemplate() {
     try {
+      setLoading(true);
+      setMessage("");
+
       const res = await fetch("/api/employee-agreement-templates/current", {
         credentials: "include",
         cache: "no-store",
       });
 
       const data = await res.json().catch(() => null);
+      const template = data?.template || {};
 
-      if (data?.template) {
-        setFileUrl(data.template.fileUrl || DEFAULT_FILE_URL);
-        setFields(Array.isArray(data.template.fields) ? data.template.fields : []);
-        setPageCount(Number(data.template.pageCount) || 11);
-      }
+      const nextFileUrl = String(template.fileUrl || DEFAULT_FILE_URL);
+      const nextPageCount = Math.max(
+        1,
+        toNumber(template.pageCount, DEFAULT_PAGE_COUNT)
+      );
+
+      const nextPages = buildPagesFromTemplate({
+        ...template,
+        fileUrl: nextFileUrl,
+        pageCount: nextPageCount,
+      });
+
+      setFileUrl(nextFileUrl);
+      setPageCount(nextPageCount);
+      setPages(nextPages);
+
+      setFields(
+        Array.isArray(template.fields)
+          ? template.fields.map((field: any, index: number) =>
+              normalizeField(field, index)
+            )
+          : []
+      );
+
+      setActivePageIndex(0);
+      setSelectedId("");
     } catch {
       setMessage("לא נטענה תבנית קיימת");
+      setFileUrl(DEFAULT_FILE_URL);
+      setPageCount(DEFAULT_PAGE_COUNT);
+      setPages(
+        Array.from({ length: DEFAULT_PAGE_COUNT }).map((_, index) => ({
+          pageIndex: index,
+          pageNumber: index + 1,
+          url: DEFAULT_FILE_URL,
+          imageUrl: "",
+          name: `עמוד ${index + 1}`,
+          type: "image",
+        }))
+      );
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -114,161 +248,63 @@ export default function AgreementTemplatePage() {
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function loadPdf() {
-      try {
-        setLoadingPdf(true);
-        setMessage("");
-
-        const task = getDocument({
-          url: fileUrl,
-          withCredentials: true,
-        });
-
-        const pdf = await task.promise;
-
-        if (cancelled) return;
-
-        setPdfDoc(pdf);
-        setPageCount(pdf.numPages);
-
-        setPageIndex((current) =>
-          clamp(current, 0, Math.max(0, pdf.numPages - 1))
-        );
-      } catch {
-        if (!cancelled) {
-          setMessage("לא ניתן לטעון את קובץ ה־PDF");
-        }
-      } finally {
-        if (!cancelled) {
-          setLoadingPdf(false);
-        }
-      }
-    }
-
-    void loadPdf();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [fileUrl]);
-
-  useEffect(() => {
-    if (!pdfDoc) return;
-
-    const activePdfDoc = pdfDoc;
-
-    let cancelled = false;
-    let renderTask: PdfRenderTask | null = null;
-
-    async function renderPage() {
-      try {
-        setRenderingPage(true);
-        setMessage("");
-
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-
-        const context = canvas.getContext("2d");
-        if (!context) return;
-
-        const page = await activePdfDoc.getPage(pageIndex + 1);
-
-        if (cancelled) return;
-
-        const baseViewport = page.getViewport({ scale: 1 });
-        const scale = MAX_PAGE_WIDTH / baseViewport.width;
-        const viewport = page.getViewport({ scale });
-
-        const dpr = window.devicePixelRatio || 1;
-
-        canvas.width = Math.floor(viewport.width * dpr);
-        canvas.height = Math.floor(viewport.height * dpr);
-
-        canvas.style.width = `${Math.floor(viewport.width)}px`;
-        canvas.style.height = `${Math.floor(viewport.height)}px`;
-
-        context.setTransform(dpr, 0, 0, dpr, 0, 0);
-        context.clearRect(0, 0, viewport.width, viewport.height);
-
-        setPageSize({
-          width: viewport.width,
-          height: viewport.height,
-        });
-
-        renderTask = page.render({
-          canvas,
-          canvasContext: context,
-          viewport,
-        }) as PdfRenderTask;
-
-        await renderTask.promise;
-      } catch (err: unknown) {
-        const errorName =
-          err && typeof err === "object" && "name" in err
-            ? String((err as { name?: unknown }).name)
-            : "";
-
-        if (errorName !== "RenderingCancelledException" && !cancelled) {
-          setMessage("שגיאה בהצגת עמוד ה־PDF");
-        }
-      } finally {
-        if (!cancelled) {
-          setRenderingPage(false);
-        }
-      }
-    }
-
-    void renderPage();
-
-    return () => {
-      cancelled = true;
-
-      try {
-        renderTask?.cancel();
-      } catch {
-        // ignore
-      }
-    };
-  }, [pdfDoc, pageIndex]);
-
-  useEffect(() => {
-    if (!dragId) return;
+    if (!draggingId) return;
 
     function handlePointerMove(event: PointerEvent) {
       const activeDrag = dragRef.current;
-      const wrap = pdfWrapRef.current;
+      if (!activeDrag) return;
 
-      if (!activeDrag || !wrap) return;
+      const field = fields.find((item) => item.id === activeDrag.id);
+      if (!field) return;
 
-      const rect = wrap.getBoundingClientRect();
+      const editor = pageEditorRefs.current[field.pageIndex];
+      if (!editor) return;
+
+      const rect = editor.getBoundingClientRect();
+
+      const dx = ((event.clientX - activeDrag.startClientX) / rect.width) * 100;
+      const dy = ((event.clientY - activeDrag.startClientY) / rect.height) * 100;
 
       setFields((prev) =>
-        prev.map((field) => {
-          if (field.id !== activeDrag.id) return field;
+        prev.map((item) => {
+          if (item.id !== activeDrag.id) return item;
 
-          const maxX = Math.max(0, rect.width - field.width);
-          const maxY = Math.max(0, rect.height - field.height);
+          if (activeDrag.mode === "resize") {
+            const nextWidth = clamp(
+              activeDrag.startWidth + dx,
+              4,
+              100 - item.x
+            );
+
+            const nextHeight = clamp(
+              activeDrag.startHeight + dy,
+              3,
+              100 - item.y
+            );
+
+            return {
+              ...item,
+              width: Number(nextWidth.toFixed(2)),
+              height: Number(nextHeight.toFixed(2)),
+            };
+          }
 
           const nextX = clamp(
-            Math.round(event.clientX - rect.left - activeDrag.offsetX),
+            activeDrag.startX + dx,
             0,
-            maxX
+            100 - item.width
           );
 
           const nextY = clamp(
-            Math.round(event.clientY - rect.top - activeDrag.offsetY),
+            activeDrag.startY + dy,
             0,
-            maxY
+            100 - item.height
           );
 
-          if (field.x === nextX && field.y === nextY) return field;
-
           return {
-            ...field,
-            x: nextX,
-            y: nextY,
+            ...item,
+            x: Number(nextX.toFixed(2)),
+            y: Number(nextY.toFixed(2)),
           };
         })
       );
@@ -276,7 +312,7 @@ export default function AgreementTemplatePage() {
 
     function handlePointerUp() {
       dragRef.current = null;
-      setDragId("");
+      setDraggingId("");
     }
 
     window.addEventListener("pointermove", handlePointerMove);
@@ -288,32 +324,48 @@ export default function AgreementTemplatePage() {
       window.removeEventListener("pointerup", handlePointerUp);
       window.removeEventListener("pointercancel", handlePointerUp);
     };
-  }, [dragId]);
+  }, [draggingId, fields]);
+
+  function scrollToPage(pageIndex: number) {
+    const safePageIndex = clamp(pageIndex, 0, pageCount - 1);
+
+    setActivePageIndex(safePageIndex);
+    setSelectedId("");
+
+    requestAnimationFrame(() => {
+      pageEditorRefs.current[safePageIndex]?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  }
 
   function addField(type: FieldType) {
-    const fieldWidth = type === "signature" ? 180 : 160;
-    const fieldHeight = type === "signature" ? 70 : 32;
+    const width = type === "signature" ? 24 : type === "date" ? 18 : 22;
+    const height = type === "signature" ? 8 : 6;
 
     const field: TemplateField = {
       id: makeId(),
-      label:
-        type === "signature"
-          ? "חתימה"
-          : type === "date"
-          ? "תאריך"
-          : "שדה טקסט",
+      label: FIELD_LABELS[type],
       type,
-      pageIndex,
-      x: clamp(120, 0, Math.max(0, pageSize.width - fieldWidth)),
-      y: clamp(120, 0, Math.max(0, pageSize.height - fieldHeight)),
-      width: fieldWidth,
-      height: fieldHeight,
+      pageIndex: activePageIndex,
+      x: 38,
+      y: 35,
+      width,
+      height,
       required: true,
       order: fields.length + 1,
     };
 
     setFields((prev) => [...prev, field]);
     setSelectedId(field.id);
+
+    requestAnimationFrame(() => {
+      pageEditorRefs.current[activePageIndex]?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    });
   }
 
   function updateField(id: string, patch: Partial<TemplateField>) {
@@ -326,23 +378,15 @@ export default function AgreementTemplatePage() {
           ...patch,
         };
 
-        const fixedWidth = Math.max(20, Number(nextField.width) || 20);
-        const fixedHeight = Math.max(20, Number(nextField.height) || 20);
+        const width = clamp(toNumber(nextField.width, field.width), 4, 85);
+        const height = clamp(toNumber(nextField.height, field.height), 3, 35);
 
         return {
           ...nextField,
-          width: fixedWidth,
-          height: fixedHeight,
-          x: clamp(
-            Number(nextField.x) || 0,
-            0,
-            Math.max(0, pageSize.width - fixedWidth)
-          ),
-          y: clamp(
-            Number(nextField.y) || 0,
-            0,
-            Math.max(0, pageSize.height - fixedHeight)
-          ),
+          width,
+          height,
+          x: clamp(toNumber(nextField.x, field.x), 0, 100 - width),
+          y: clamp(toNumber(nextField.y, field.y), 0, 100 - height),
         };
       })
     );
@@ -350,15 +394,24 @@ export default function AgreementTemplatePage() {
 
   function deleteField(id: string) {
     setFields((prev) => prev.filter((field) => field.id !== id));
-    setSelectedId("");
-    dragRef.current = null;
-    setDragId("");
+
+    if (selectedId === id) {
+      setSelectedId("");
+    }
   }
 
-  function changePage(nextPage: number) {
-    dragRef.current = null;
-    setDragId("");
-    setPageIndex(clamp(nextPage, 0, pageCount - 1));
+  function moveFieldToPage(id: string, pageIndex: number) {
+    const safePageIndex = clamp(pageIndex, 0, pageCount - 1);
+
+    updateField(id, { pageIndex: safePageIndex });
+    setActivePageIndex(safePageIndex);
+
+    requestAnimationFrame(() => {
+      pageEditorRefs.current[safePageIndex]?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    });
   }
 
   function startDrag(
@@ -368,21 +421,53 @@ export default function AgreementTemplatePage() {
     event.preventDefault();
     event.stopPropagation();
 
-    const wrap = pdfWrapRef.current;
-    if (!wrap) return;
-
-    const rect = wrap.getBoundingClientRect();
+    setSelectedId(field.id);
+    setActivePageIndex(field.pageIndex);
 
     dragRef.current = {
       id: field.id,
-      offsetX: event.clientX - rect.left - field.x,
-      offsetY: event.clientY - rect.top - field.y,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startX: field.x,
+      startY: field.y,
+      startWidth: field.width,
+      startHeight: field.height,
+      mode: "move",
     };
 
-    setDragId(field.id);
-    setSelectedId(field.id);
-
+    setDraggingId(field.id);
     event.currentTarget.setPointerCapture?.(event.pointerId);
+  }
+
+  function startResize(
+    event: React.PointerEvent<HTMLButtonElement>,
+    field: TemplateField
+  ) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    setSelectedId(field.id);
+    setActivePageIndex(field.pageIndex);
+
+    dragRef.current = {
+      id: field.id,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startX: field.x,
+      startY: field.y,
+      startWidth: field.width,
+      startHeight: field.height,
+      mode: "resize",
+    };
+
+    setDraggingId(field.id);
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  }
+
+  function getFieldPreview(field: TemplateField) {
+    if (field.type === "signature") return "חתימה";
+    if (field.type === "date") return "תאריך";
+    return field.label || "שדה טקסט";
   }
 
   async function saveTemplate() {
@@ -398,8 +483,15 @@ export default function AgreementTemplatePage() {
           name: "תבנית הסכם עבודה",
           fileUrl,
           pageCount,
+          pages,
           fields,
           isActive: true,
+
+          /**
+           * חשוב:
+           * מעכשיו x/y/width/height נשמרים באחוזים ולא בפיקסלים.
+           */
+          coordinateMode: "percent",
         }),
       });
 
@@ -407,6 +499,34 @@ export default function AgreementTemplatePage() {
 
       if (!res.ok || !data?.success) {
         throw new Error(data?.error || "שגיאה בשמירת התבנית");
+      }
+
+      if (data?.template) {
+        const template = data.template;
+
+        const nextFileUrl = String(template.fileUrl || fileUrl);
+        const nextPageCount = Math.max(
+          1,
+          toNumber(template.pageCount, pageCount)
+        );
+
+        setFileUrl(nextFileUrl);
+        setPageCount(nextPageCount);
+        setPages(
+          buildPagesFromTemplate({
+            ...template,
+            fileUrl: nextFileUrl,
+            pageCount: nextPageCount,
+          })
+        );
+
+        if (Array.isArray(template.fields)) {
+          setFields(
+            template.fields.map((field: any, index: number) =>
+              normalizeField(field, index)
+            )
+          );
+        }
       }
 
       setMessage("התבנית נשמרה בהצלחה");
@@ -423,19 +543,31 @@ export default function AgreementTemplatePage() {
         <div className="mb-5 flex flex-col gap-3 rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-2xl font-black">תבנית הסכם עבודה</h1>
+
             <p className="mt-2 text-sm font-bold text-slate-500">
-              הוסיפי שדות על ה־PDF, גררי למיקום הרצוי, ושמרי. העובד ימלא שדה־שדה לפי סדר ההוספה.
+              הצגת עמודי ההסכם כתמונות איכותיות, מיקום שדות באחוזים ושמירה לפי עמוד.
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={saveTemplate}
-            disabled={saving || loadingPdf}
-            className="h-11 rounded-2xl bg-violet-600 px-6 text-sm font-black text-white hover:bg-violet-700 disabled:opacity-50"
-          >
-            {saving ? "שומר..." : "שמירת תבנית"}
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <a
+              href={fileUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex h-11 items-center rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-700 hover:bg-slate-50"
+            >
+              פתיחת PDF
+            </a>
+
+            <button
+              type="button"
+              onClick={saveTemplate}
+              disabled={saving || loading}
+              className="h-11 rounded-2xl bg-violet-600 px-6 text-sm font-black text-white hover:bg-violet-700 disabled:opacity-50"
+            >
+              {saving ? "שומר..." : "שמירת תבנית"}
+            </button>
+          </div>
         </div>
 
         {message && (
@@ -444,324 +576,442 @@ export default function AgreementTemplatePage() {
           </div>
         )}
 
-        <div className="grid gap-5 lg:grid-cols-[360px_minmax(0,1fr)]">
-          <aside className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-black">הוספת שדות</h2>
+        {!hasPageImages && !loading && (
+          <div className="mb-5 rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm font-black leading-6 text-amber-800">
+            כרגע השרת לא מחזיר תמונות לכל עמוד של ה־PDF. כדי שזה יהיה בדיוק כמו הדוגמה ששלחת,
+            ה־API צריך להחזיר בתוך התבנית מערך <span dir="ltr">pages</span> עם{" "}
+            <span dir="ltr">imageUrl</span> לכל עמוד.
+          </div>
+        )}
 
-            <div className="mt-4 grid gap-3">
-              <button
-                type="button"
-                onClick={() => addField("text")}
-                disabled={loadingPdf || renderingPage}
-                className="h-11 rounded-2xl bg-slate-950 px-4 text-sm font-black text-white disabled:opacity-40"
-              >
-                הוסף שדה טקסט
-              </button>
-
-              <button
-                type="button"
-                onClick={() => addField("date")}
-                disabled={loadingPdf || renderingPage}
-                className="h-11 rounded-2xl bg-slate-950 px-4 text-sm font-black text-white disabled:opacity-40"
-              >
-                הוסף שדה תאריך
-              </button>
-
-              <button
-                type="button"
-                onClick={() => addField("signature")}
-                disabled={loadingPdf || renderingPage}
-                className="h-11 rounded-2xl bg-slate-950 px-4 text-sm font-black text-white disabled:opacity-40"
-              >
-                הוסף שדה חתימה
-              </button>
-            </div>
-
-            <div className="mt-6">
-              <h3 className="text-sm font-black text-slate-900">עמוד</h3>
-
-              <div className="mt-3 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => changePage(pageIndex - 1)}
-                  disabled={pageIndex <= 0 || loadingPdf}
-                  className="h-10 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black disabled:opacity-40"
-                >
-                  הקודם
-                </button>
-
-                <div
-                  dir="ltr"
-                  className="flex h-10 items-center rounded-2xl bg-slate-100 px-4 text-sm font-black"
-                >
-                  {pageIndex + 1} / {pageCount}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => changePage(pageIndex + 1)}
-                  disabled={pageIndex >= pageCount - 1 || loadingPdf}
-                  className="h-10 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black disabled:opacity-40"
-                >
-                  הבא
-                </button>
-              </div>
-            </div>
-
-            {selectedField && (
-              <div className="mt-6 rounded-3xl border border-violet-200 bg-violet-50 p-4">
-                <h3 className="text-sm font-black text-violet-900">
-                  עריכת שדה
-                </h3>
-
-                <label className="mt-4 block text-xs font-black text-slate-600">
-                  שם השדה לעובד
-                </label>
-
-                <input
-                  value={selectedField.label}
-                  onChange={(e) =>
-                    updateField(selectedField.id, { label: e.target.value })
-                  }
-                  className="mt-2 h-10 w-full rounded-2xl border border-slate-200 px-3 text-sm font-bold outline-none focus:border-violet-400"
-                />
-
-                <div className="mt-4 grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-black text-slate-600">
-                      רוחב
-                    </label>
-
-                    <input
-                      type="number"
-                      min={20}
-                      value={selectedField.width}
-                      onChange={(e) =>
-                        updateField(selectedField.id, {
-                          width: Math.max(20, Number(e.target.value) || 20),
-                        })
-                      }
-                      className="mt-2 h-10 w-full rounded-2xl border border-slate-200 px-3 text-sm font-bold outline-none focus:border-violet-400"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-black text-slate-600">
-                      גובה
-                    </label>
-
-                    <input
-                      type="number"
-                      min={20}
-                      value={selectedField.height}
-                      onChange={(e) =>
-                        updateField(selectedField.id, {
-                          height: Math.max(20, Number(e.target.value) || 20),
-                        })
-                      }
-                      className="mt-2 h-10 w-full rounded-2xl border border-slate-200 px-3 text-sm font-bold outline-none focus:border-violet-400"
-                    />
-                  </div>
-                </div>
-
-                <div className="mt-4 grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-black text-slate-600">
-                      מיקום X
-                    </label>
-
-                    <input
-                      type="number"
-                      min={0}
-                      value={selectedField.x}
-                      onChange={(e) =>
-                        updateField(selectedField.id, {
-                          x: Math.max(0, Number(e.target.value) || 0),
-                        })
-                      }
-                      className="mt-2 h-10 w-full rounded-2xl border border-slate-200 px-3 text-sm font-bold outline-none focus:border-violet-400"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-black text-slate-600">
-                      מיקום Y
-                    </label>
-
-                    <input
-                      type="number"
-                      min={0}
-                      value={selectedField.y}
-                      onChange={(e) =>
-                        updateField(selectedField.id, {
-                          y: Math.max(0, Number(e.target.value) || 0),
-                        })
-                      }
-                      className="mt-2 h-10 w-full rounded-2xl border border-slate-200 px-3 text-sm font-bold outline-none focus:border-violet-400"
-                    />
-                  </div>
-                </div>
-
-                <label className="mt-4 flex items-center gap-2 text-sm font-bold">
-                  <input
-                    type="checkbox"
-                    checked={selectedField.required}
-                    onChange={(e) =>
-                      updateField(selectedField.id, {
-                        required: e.target.checked,
-                      })
-                    }
-                  />
-                  שדה חובה
-                </label>
-
-                <button
-                  type="button"
-                  onClick={() => deleteField(selectedField.id)}
-                  className="mt-4 h-10 rounded-2xl bg-rose-600 px-4 text-sm font-black text-white hover:bg-rose-700"
-                >
-                  מחיקת שדה
-                </button>
-              </div>
-            )}
-
-            <div className="mt-6 rounded-3xl bg-slate-50 p-4">
-              <h3 className="text-sm font-black">שדות שהוגדרו</h3>
-
-              <div className="mt-3 space-y-2">
-                {fields.length === 0 && (
-                  <p className="text-sm font-bold text-slate-500">
-                    עדיין לא הוגדרו שדות.
-                  </p>
-                )}
-
-                {[...fields]
-                  .sort((a, b) => a.order - b.order)
-                  .map((field, index) => (
-                    <button
-                      key={field.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedId(field.id);
-                        changePage(field.pageIndex);
-                      }}
-                      className={`w-full rounded-2xl border p-3 text-right text-xs font-black ${
-                        selectedId === field.id
-                          ? "border-violet-300 bg-violet-50 text-violet-800"
-                          : "border-slate-200 bg-white text-slate-700"
-                      }`}
-                    >
-                      {index + 1}. {field.label} — עמוד {field.pageIndex + 1}
-                    </button>
-                  ))}
-              </div>
-            </div>
-          </aside>
-
-          <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_390px]">
+          <section className="min-w-0 rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="mb-4 flex flex-col gap-3 border-b border-slate-100 pb-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <h2 className="text-lg font-black">מיקום שדות על ההסכם</h2>
+
                 <p className="mt-1 text-xs font-bold text-slate-500">
-                  כפתורי הבא/הקודם מחליפים עמוד אמיתי, והשדות מוצגים לפי העמוד שלהם בלבד.
+                  כל עמוד מוצג כתמונה, והשדות מוצמדים אליו באחוזים.
                 </p>
               </div>
 
               <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => changePage(pageIndex - 1)}
-                  disabled={pageIndex <= 0 || loadingPdf}
-                  className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-700 hover:bg-slate-50 disabled:opacity-40"
-                >
-                  עמוד קודם
-                </button>
+                {pages.map((page) => {
+                  const count = fields.filter(
+                    (field) => field.pageIndex === page.pageIndex
+                  ).length;
 
-                <div
-                  dir="ltr"
-                  className="rounded-2xl bg-slate-100 px-4 py-2 text-xs font-black text-slate-700"
-                >
-                  {pageIndex + 1} / {pageCount}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => changePage(pageIndex + 1)}
-                  disabled={pageIndex >= pageCount - 1 || loadingPdf}
-                  className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-700 hover:bg-slate-50 disabled:opacity-40"
-                >
-                  עמוד הבא
-                </button>
-
-                <a
-                  href={fileUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-700 hover:bg-slate-50"
-                >
-                  פתיחת PDF
-                </a>
+                  return (
+                    <button
+                      key={page.pageIndex}
+                      type="button"
+                      onClick={() => scrollToPage(page.pageIndex)}
+                      className={`h-10 rounded-2xl border px-4 text-xs font-black transition ${
+                        activePageIndex === page.pageIndex
+                          ? "border-violet-500 bg-violet-600 text-white"
+                          : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                      }`}
+                    >
+                      עמוד {page.pageNumber} ({count})
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
-            <div className="overflow-auto rounded-2xl border border-slate-200 bg-slate-100 p-4">
-              <div
-                ref={pdfWrapRef}
-                className="relative mx-auto overflow-hidden rounded-xl bg-white shadow-sm"
-                style={{
-                  width: pageSize.width,
-                  height: pageSize.height,
-                }}
-              >
-                <canvas
-                  ref={canvasRef}
-                  className="block"
-                  style={{
-                    width: pageSize.width,
-                    height: pageSize.height,
-                  }}
-                />
+            {loading ? (
+              <div className="flex min-h-[520px] items-center justify-center rounded-[28px] bg-slate-50 text-sm font-black text-slate-500">
+                טוען תבנית...
+              </div>
+            ) : (
+              <div className="h-[calc(100vh-230px)] overflow-y-auto overflow-x-hidden rounded-[24px] bg-slate-100 p-4">
+                <div className="mx-auto flex w-full max-w-[920px] flex-col gap-7">
+                  {pages.map((page) => {
+                    const pageFields = fields.filter(
+                      (field) => field.pageIndex === page.pageIndex
+                    );
 
-                {(loadingPdf || renderingPage) && (
-                  <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/70 text-sm font-black text-slate-600">
-                    טוען עמוד...
+                    return (
+                      <div key={page.pageIndex} className="space-y-2">
+                        <div className="flex items-center justify-between px-1">
+                          <div className="text-sm font-black text-slate-700">
+                            עמוד {page.pageNumber}
+                          </div>
+
+                          <div className="text-xs font-black text-slate-500">
+                            {pageFields.length} שדות
+                          </div>
+                        </div>
+
+                        <div
+                          ref={(node) => {
+                            pageEditorRefs.current[page.pageIndex] = node;
+                          }}
+                          onClick={() => {
+                            setActivePageIndex(page.pageIndex);
+                            setSelectedId("");
+                          }}
+                          className="relative w-full overflow-visible rounded-[22px] border border-slate-300 bg-white shadow-sm"
+                        >
+                          <TemplatePageImage page={page} />
+
+                          <div className="pointer-events-none absolute inset-0 z-10">
+                            {pageFields.map((field) => {
+                              const selected = selectedId === field.id;
+
+                              return (
+                                <div
+                                  key={field.id}
+                                  onPointerDown={(event) =>
+                                    startDrag(event, field)
+                                  }
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    setSelectedId(field.id);
+                                    setActivePageIndex(field.pageIndex);
+                                  }}
+                                  className={[
+                                    "group pointer-events-auto absolute flex items-center justify-center overflow-visible rounded-xl border-2 text-center text-xs font-black shadow-sm backdrop-blur-sm transition",
+                                    "cursor-move bg-white/85 text-slate-900",
+                                    selected
+                                      ? "border-violet-600 ring-4 ring-violet-600/15"
+                                      : "border-slate-500 hover:border-violet-500",
+                                  ].join(" ")}
+                                  style={{
+                                    left: `${field.x}%`,
+                                    top: `${field.y}%`,
+                                    width: `${field.width}%`,
+                                    height: `${field.height}%`,
+                                    touchAction: "none",
+                                    userSelect: "none",
+                                  }}
+                                >
+                                  <span className="absolute right-1 top-1 text-slate-400">
+                                    ⋮⋮
+                                  </span>
+
+                                  <div className="max-w-full truncate px-2">
+                                    {getFieldPreview(field)}
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onPointerDown={(event) => {
+                                      event.preventDefault();
+                                      event.stopPropagation();
+                                    }}
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      deleteField(field.id);
+                                    }}
+                                    className="absolute -left-2 -top-2 hidden h-7 w-7 items-center justify-center rounded-full bg-rose-500 text-white shadow-md group-hover:flex"
+                                    title="מחיקת שדה"
+                                  >
+                                    ×
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onPointerDown={(event) =>
+                                      startResize(event, field)
+                                    }
+                                    className="absolute -bottom-2 -right-2 hidden h-7 w-7 cursor-se-resize items-center justify-center rounded-full border border-violet-200 bg-white text-violet-700 shadow-md group-hover:flex"
+                                    title="הגדלה / הקטנה"
+                                  >
+                                    ↘
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </section>
+
+          <aside className="space-y-5">
+            <SideBox title="הוספת שדות">
+              <div className="grid gap-3">
+                <button
+                  type="button"
+                  onClick={() => addField("text")}
+                  disabled={loading}
+                  className="h-12 rounded-2xl bg-slate-950 px-4 text-sm font-black text-white disabled:opacity-40"
+                >
+                  הוסף שדה טקסט
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => addField("date")}
+                  disabled={loading}
+                  className="h-12 rounded-2xl bg-slate-950 px-4 text-sm font-black text-white disabled:opacity-40"
+                >
+                  הוסף שדה תאריך
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => addField("signature")}
+                  disabled={loading}
+                  className="h-12 rounded-2xl bg-slate-950 px-4 text-sm font-black text-white disabled:opacity-40"
+                >
+                  הוסף שדה חתימה
+                </button>
+              </div>
+
+              <div className="mt-5">
+                <h3 className="mb-2 text-sm font-black text-slate-800">
+                  מעבר עמודים
+                </h3>
+
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => scrollToPage(activePageIndex - 1)}
+                    disabled={activePageIndex <= 0}
+                    className="h-10 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black disabled:opacity-40"
+                  >
+                    הקודם
+                  </button>
+
+                  <div
+                    dir="ltr"
+                    className="flex h-10 items-center rounded-2xl bg-slate-100 px-4 text-sm font-black"
+                  >
+                    {activePageIndex + 1} / {pageCount}
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={() => scrollToPage(activePageIndex + 1)}
+                    disabled={activePageIndex >= pageCount - 1}
+                    className="h-10 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black disabled:opacity-40"
+                  >
+                    הבא
+                  </button>
+                </div>
+              </div>
+            </SideBox>
+
+            <SideBox title="עריכת שדה">
+              {!selectedField ? (
+                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-5 text-center text-sm font-black text-slate-500">
+                  בחרי שדה מהמסמך כדי לערוך
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div>
+                    <label className="mb-1 block text-xs font-black text-slate-500">
+                      שם השדה לעובד
+                    </label>
+
+                    <input
+                      value={selectedField.label}
+                      onChange={(event) =>
+                        updateField(selectedField.id, {
+                          label: event.target.value,
+                        })
+                      }
+                      className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-black outline-none focus:border-violet-400"
+                    />
+                  </div>
+
+                  <label className="flex h-12 cursor-pointer items-center justify-between rounded-2xl border border-slate-200 bg-white px-3 text-sm font-black text-slate-800">
+                    <span>שדה חובה</span>
+
+                    <input
+                      type="checkbox"
+                      checked={selectedField.required}
+                      onChange={(event) =>
+                        updateField(selectedField.id, {
+                          required: event.target.checked,
+                        })
+                      }
+                      className="h-4 w-4 accent-violet-600"
+                    />
+                  </label>
+
+                  <div>
+                    <label className="mb-1 block text-xs font-black text-slate-500">
+                      עמוד השדה
+                    </label>
+
+                    <select
+                      value={selectedField.pageIndex}
+                      onChange={(event) =>
+                        moveFieldToPage(
+                          selectedField.id,
+                          Number(event.target.value)
+                        )
+                      }
+                      className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-black outline-none focus:border-violet-400"
+                    >
+                      {pages.map((page) => (
+                        <option key={page.pageIndex} value={page.pageIndex}>
+                          עמוד {page.pageNumber}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <NumberInput
+                      label="מיקום X %"
+                      value={selectedField.x}
+                      onChange={(value) =>
+                        updateField(selectedField.id, {
+                          x: clamp(value, 0, 100 - selectedField.width),
+                        })
+                      }
+                    />
+
+                    <NumberInput
+                      label="מיקום Y %"
+                      value={selectedField.y}
+                      onChange={(value) =>
+                        updateField(selectedField.id, {
+                          y: clamp(value, 0, 100 - selectedField.height),
+                        })
+                      }
+                    />
+
+                    <NumberInput
+                      label="רוחב %"
+                      value={selectedField.width}
+                      onChange={(value) =>
+                        updateField(selectedField.id, {
+                          width: clamp(value, 4, 85),
+                        })
+                      }
+                    />
+
+                    <NumberInput
+                      label="גובה %"
+                      value={selectedField.height}
+                      onChange={(value) =>
+                        updateField(selectedField.id, {
+                          height: clamp(value, 3, 35),
+                        })
+                      }
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => deleteField(selectedField.id)}
+                    className="h-11 w-full rounded-2xl bg-rose-600 px-4 text-sm font-black text-white hover:bg-rose-700"
+                  >
+                    מחיקת שדה
+                  </button>
+                </div>
+              )}
+            </SideBox>
+
+            <SideBox title="שדות שהוגדרו">
+              <div className="space-y-2">
+                {sortedFields.length === 0 && (
+                  <p className="rounded-2xl bg-slate-50 p-4 text-sm font-bold text-slate-500">
+                    עדיין לא הוגדרו שדות.
+                  </p>
                 )}
 
-                {currentFields.map((field) => (
-                  <div
+                {sortedFields.map((field, index) => (
+                  <button
                     key={field.id}
-                    onPointerDown={(event) => startDrag(event, field)}
-                    onClick={(event) => {
-                      event.stopPropagation();
+                    type="button"
+                    onClick={() => {
                       setSelectedId(field.id);
+                      scrollToPage(field.pageIndex);
                     }}
-                    className={`absolute z-10 flex items-center justify-center rounded-xl border-2 px-2 py-1 text-center text-xs font-black shadow-sm ${
+                    className={`w-full rounded-2xl border p-3 text-right text-xs font-black ${
                       selectedId === field.id
-                        ? "border-violet-600 bg-violet-100 text-violet-900"
-                        : "border-slate-500 bg-white/85 text-slate-800"
-                    } ${
-                      dragId === field.id
-                        ? "cursor-grabbing select-none"
-                        : "cursor-grab"
+                        ? "border-violet-300 bg-violet-50 text-violet-800"
+                        : "border-slate-200 bg-white text-slate-700"
                     }`}
-                    style={{
-                      left: field.x,
-                      top: field.y,
-                      width: field.width,
-                      height: field.height,
-                      touchAction: "none",
-                      userSelect: "none",
-                    }}
                   >
-                    {field.label}
-                  </div>
+                    {index + 1}. {field.label} — עמוד {field.pageIndex + 1}
+                  </button>
                 ))}
               </div>
-            </div>
-          </section>
+            </SideBox>
+          </aside>
         </div>
       </div>
     </main>
+  );
+}
+
+function TemplatePageImage({ page }: { page: TemplatePage }) {
+  if (!page.imageUrl) {
+    return (
+      <div
+        className="flex w-full flex-col items-center justify-center rounded-[22px] bg-white p-8 text-center"
+        style={{
+          aspectRatio: "1 / 1.4142",
+        }}
+      >
+        <div className="text-base font-black text-slate-800">
+          אין עדיין תמונת עמוד להצגה איכותית
+        </div>
+
+        <div className="mt-2 max-w-md text-sm font-bold leading-6 text-slate-500">
+          כדי להציג את ה־PDF באיכות גבוהה ללא canvas, השרת צריך לייצר ולהחזיר imageUrl לעמוד הזה.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={page.imageUrl}
+      alt={`עמוד ${page.pageNumber}`}
+      draggable={false}
+      className="block h-auto w-full select-none rounded-[22px] bg-white"
+    />
+  );
+}
+
+function NumberInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <div>
+      <label className="mb-1 block text-xs font-black text-slate-500">
+        {label}
+      </label>
+
+      <input
+        type="number"
+        value={value}
+        onChange={(event) => onChange(Number(event.target.value))}
+        className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-black outline-none focus:border-violet-400"
+      />
+    </div>
+  );
+}
+
+function SideBox({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm">
+      <h3 className="mb-4 font-black text-slate-900">{title}</h3>
+      {children}
+    </div>
   );
 }

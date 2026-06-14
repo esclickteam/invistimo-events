@@ -27,28 +27,36 @@ const EmployeeAgreementTemplateFieldSchema = new Schema(
       min: 0,
     },
 
+    /**
+     * שדות מיקום נשמרים באחוזים:
+     * x/y/width/height = 0 עד 100
+     */
     x: {
       type: Number,
-      default: 0,
+      default: 38,
       min: 0,
+      max: 100,
     },
 
     y: {
       type: Number,
-      default: 0,
+      default: 35,
       min: 0,
+      max: 100,
     },
 
     width: {
       type: Number,
-      default: 160,
-      min: 20,
+      default: 22,
+      min: 1,
+      max: 100,
     },
 
     height: {
       type: Number,
-      default: 32,
-      min: 20,
+      default: 6,
+      min: 1,
+      max: 100,
     },
 
     required: {
@@ -60,6 +68,54 @@ const EmployeeAgreementTemplateFieldSchema = new Schema(
       type: Number,
       default: 0,
       index: true,
+    },
+  },
+  {
+    _id: false,
+  }
+);
+
+const EmployeeAgreementTemplatePageSchema = new Schema(
+  {
+    pageIndex: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    pageNumber: {
+      type: Number,
+      default: 1,
+      min: 1,
+    },
+
+    url: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    /**
+     * תמונת עמוד איכותית להצגה במקום canvas / iframe
+     * לדוגמה:
+     * /templates/employee-agreement-invistimo-pages/page-1.png
+     */
+    imageUrl: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    name: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    type: {
+      type: String,
+      enum: ["image", "pdf"],
+      default: "image",
     },
   },
   {
@@ -91,6 +147,26 @@ const EmployeeAgreementTemplateSchema = new Schema(
       type: Number,
       default: 11,
       min: 1,
+    },
+
+    /**
+     * עמודי ההסכם כתמונות איכותיות.
+     * חשוב כדי שהעורך יציג כמו הדוגמה שלך — ללא canvas.
+     */
+    pages: {
+      type: [EmployeeAgreementTemplatePageSchema],
+      default: [],
+    },
+
+    /**
+     * מצב קואורדינטות:
+     * percent = x/y/width/height באחוזים
+     * pixel = תמיכה אחורה, אם נשמרו נתונים ישנים בפיקסלים
+     */
+    coordinateMode: {
+      type: String,
+      enum: ["percent", "pixel"],
+      default: "percent",
     },
 
     fields: {
