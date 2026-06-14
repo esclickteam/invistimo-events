@@ -61,7 +61,15 @@ type ApiEmployeeAgreement = {
   phone?: string;
   email?: string;
   startDate?: string | null;
+
+  // ✅ תמיכה בכמה שמות שדות מהשרת כדי שהסטטוס לא ייתקע על "לא נחתם"
   signedFileUrl?: string;
+  signedPdfUrl?: string;
+  fileUrl?: string;
+  pdfUrl?: string;
+  documentUrl?: string;
+  url?: string;
+
   status?: EmployeeAgreementStatus;
   signedAt?: string | null;
   approvedAt?: string | null;
@@ -307,14 +315,89 @@ function documentStatusClass(status?: EmployeeDocumentStatus) {
   }
 }
 
+function getAgreementFileUrl(agreement?: ApiEmployeeAgreement | null) {
+  if (!agreement) return "";
+
+  return String(
+    agreement.signedFileUrl ||
+      agreement.signedPdfUrl ||
+      agreement.fileUrl ||
+      agreement.pdfUrl ||
+      agreement.documentUrl ||
+      agreement.url ||
+      ""
+  );
+}
+
+function getAgreementEffectiveStatus(
+  agreement?: ApiEmployeeAgreement | null
+): EmployeeAgreementStatus {
+  if (!agreement) return "missing";
+
+  // אם האדמין דחה את ההסכם — העובד צריך לראות שניתן לחתום מחדש.
+  if (agreement.status === "rejected") return "rejected";
+
+  // ✅ כל הסכם שיש לו קובץ חתום/תאריך חתימה/סטטוס signed/approved יוצג כ-"נחתם".
+  // זה מונע מצב שבו ה-PDF נוצר ונשמר, אבל הבועה עדיין מציגה "לא נחתם".
+  if (
+    getAgreementFileUrl(agreement) ||
+    agreement.signedAt ||
+    agreement.status === "signed" ||
+    agreement.status === "approved"
+  ) {
+    return "signed";
+  }
+
+  return "missing";
+}
+
+function getAgreementDate(agreement?: ApiEmployeeAgreement | null) {
+  return (
+    agreement?.signedAt ||
+    agreement?.approvedAt ||
+    agreement?.updatedAt ||
+    agreement?.createdAt ||
+    ""
+  );
+}
+
+function normalizeEmployeeAgreementFromResponse(data: any) {
+  const rawAgreement =
+    data?.agreement ||
+    data?.employeeAgreement ||
+    data?.signedAgreement ||
+    data?.document ||
+    data?.data?.agreement ||
+    data?.data?.employeeAgreement ||
+    data?.data?.signedAgreement ||
+    data?.data?.document ||
+    null;
+
+  if (!rawAgreement || typeof rawAgreement !== "object" || Array.isArray(rawAgreement)) {
+    return null;
+  }
+
+  const normalized = { ...rawAgreement } as ApiEmployeeAgreement;
+  const fileUrl = getAgreementFileUrl(normalized);
+
+  if (fileUrl) {
+    normalized.signedFileUrl = fileUrl;
+  }
+
+  if (getAgreementEffectiveStatus(normalized) === "signed") {
+    normalized.status = "signed";
+  }
+
+  return normalized;
+}
+
 function agreementStatusLabel(status?: EmployeeAgreementStatus) {
   switch (status) {
     case "approved":
-      return "הסכם מאושר";
+    case "signed":
+      return "נחתם";
     case "rejected":
       return "הסכם נדחה — ניתן לחתום מחדש";
-    case "signed":
-      return "נחתם וממתין לבדיקה";
     default:
       return "לא נחתם";
   }
@@ -323,11 +406,10 @@ function agreementStatusLabel(status?: EmployeeAgreementStatus) {
 function agreementStatusClass(status?: EmployeeAgreementStatus) {
   switch (status) {
     case "approved":
+    case "signed":
       return "border-emerald-200 bg-emerald-50 text-emerald-700";
     case "rejected":
       return "border-rose-200 bg-rose-50 text-rose-700";
-    case "signed":
-      return "border-blue-200 bg-blue-50 text-blue-700";
     default:
       return "border-slate-200 bg-slate-50 text-slate-600";
   }
@@ -890,9 +972,10 @@ function DocumentsPanel({
 }) {
   const [open, setOpen] = useState(false);
   const combinedStatus = getCombinedDocumentsStatus(form101, idCard);
-  const agreementStatus = agreement?.status || "missing";
-  const canSignAgreement =
-    !agreement?.signedFileUrl || agreement.status === "rejected";
+  const agreementStatus = getAgreementEffectiveStatus(agreement);
+  const agreementFileUrl = getAgreementFileUrl(agreement);
+  const agreementDate = getAgreementDate(agreement);
+  const canSignAgreement = agreementStatus === "missing" || agreementStatus === "rejected";
 
   return (
     <>
@@ -1098,9 +1181,9 @@ function DocumentsPanel({
                       <Icon name="check" className="h-4 w-4" />
                       חתימה על ההסכם
                     </a>
-                  ) : agreement?.signedFileUrl ? (
+                  ) : agreementFileUrl ? (
                     <a
-                      href={agreement.signedFileUrl}
+                      href={agreementFileUrl}
                       target="_blank"
                       rel="noreferrer"
                       className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-violet-600 px-6 text-sm font-black text-white transition hover:bg-violet-700"
@@ -1122,7 +1205,7 @@ function DocumentsPanel({
                 </div>
               </div>
 
-              {agreement?.signedFileUrl && (
+              {agreement && agreementStatus === "signed" && (
                 <div className="mt-5 rounded-[28px] border border-violet-100 bg-white p-5">
                   <p className="text-base font-black text-slate-950">
                     ההסכם החתום האחרון
@@ -1141,25 +1224,27 @@ function DocumentsPanel({
                       </span>
                     )}
 
-                    {agreement.signedAt && (
+                    {agreementDate && (
                       <span>
                         תאריך חתימה:{" "}
                         <b className="text-slate-950">
-                          {formatDate(agreement.signedAt)}
+                          {formatDate(agreementDate)}
                         </b>
                       </span>
                     )}
                   </div>
 
-                  <a
-                    href={agreement.signedFileUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-4 inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 text-xs font-black text-slate-700 transition hover:bg-slate-50"
-                  >
-                    <Icon name="open" className="h-4 w-4" />
-                    צפייה בהסכם חתום
-                  </a>
+                  {agreementFileUrl && (
+                    <a
+                      href={agreementFileUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-4 inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 text-xs font-black text-slate-700 transition hover:bg-slate-50"
+                    >
+                      <Icon name="open" className="h-4 w-4" />
+                      צפייה בהסכם חתום
+                    </a>
+                  )}
                 </div>
               )}
 
@@ -1674,7 +1759,7 @@ export default function EmployeeDashboardPage() {
         throw new Error(data?.error || "שגיאה בטעינת הסכם העבודה");
       }
 
-      setAgreement((data?.agreement || null) as ApiEmployeeAgreement | null);
+      setAgreement(normalizeEmployeeAgreementFromResponse(data));
     } catch (loadError) {
       console.error("LOAD EMPLOYEE AGREEMENT FAILED:", loadError);
       setAgreement(null);

@@ -15,6 +15,54 @@ function isValidObjectId(value: string) {
   return mongoose.Types.ObjectId.isValid(value);
 }
 
+function normalizeAgreement(agreement: any) {
+  if (!agreement) return null;
+
+  const signedFileUrl =
+    agreement.signedFileUrl ||
+    agreement.fileUrl ||
+    agreement.pdfUrl ||
+    agreement.signedPdfUrl ||
+    "";
+
+  const hasSignedAgreement =
+    Boolean(signedFileUrl) ||
+    Boolean(agreement.signedAt) ||
+    agreement.status === "signed" ||
+    agreement.status === "approved";
+
+  return {
+    ...agreement,
+
+    id: String(agreement._id || agreement.id || ""),
+
+    employeeId: agreement.employeeId ? String(agreement.employeeId) : "",
+    businessId: agreement.businessId ? String(agreement.businessId) : "",
+
+    fullName: agreement.fullName || "",
+    idNumber: agreement.idNumber || "",
+    address: agreement.address || "",
+    phone: agreement.phone || "",
+    email: agreement.email || "",
+    startDate: agreement.startDate || null,
+
+    signedFileUrl,
+
+    // ✅ בהסכם עבודה: approved לא אמור להיות "מאושר" בפרונט,
+    // אלא נחתם, כי עצם ההסכם החתום הוא הסטטוס החשוב.
+    status: hasSignedAgreement ? "signed" : agreement.status || "missing",
+
+    signedAt: agreement.signedAt || agreement.approvedAt || null,
+
+    approvedAt: agreement.approvedAt || null,
+    rejectedAt: agreement.rejectedAt || null,
+    rejectionReason: agreement.rejectionReason || "",
+
+    createdAt: agreement.createdAt || null,
+    updatedAt: agreement.updatedAt || null,
+  };
+}
+
 /**
  * GET /api/employee-agreements/current?employeeId=...&businessId=...
  *
@@ -70,7 +118,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        agreement: agreement || null,
+        agreement: normalizeAgreement(agreement),
       },
       { status: 200 }
     );
