@@ -48,6 +48,29 @@ type ApiEmployeeDocument = {
   updatedAt?: string;
 };
 
+type EmployeeAgreementStatus = "missing" | "signed" | "approved" | "rejected";
+
+type ApiEmployeeAgreement = {
+  _id?: string;
+  id?: string;
+  employeeId?: string;
+  businessId?: string;
+  fullName?: string;
+  idNumber?: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  startDate?: string | null;
+  signedFileUrl?: string;
+  status?: EmployeeAgreementStatus;
+  signedAt?: string | null;
+  approvedAt?: string | null;
+  rejectedAt?: string | null;
+  rejectionReason?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 type ApiForm101 = ApiEmployeeDocument;
 
 type ApiUser = {
@@ -59,6 +82,8 @@ type ApiUser = {
   lastName?: string;
   email?: string;
   phone?: string;
+  businessId?: string | { _id?: string; id?: string };
+  business?: string | { _id?: string; id?: string };
   role?: UserRole;
   status?: UserStatus;
   isActive?: boolean;
@@ -152,6 +177,7 @@ const API = {
   form101Current: "/api/forms/101/current",
   form101Upload: "/api/forms/101/upload",
   form101Download: "/api/forms/101/download",
+  employeeAgreementCurrent: "/api/employee-agreements/current",
 };
 
 function getArrayFromResponse<T>(data: any, keys: string[]): T[] {
@@ -281,8 +307,44 @@ function documentStatusClass(status?: EmployeeDocumentStatus) {
   }
 }
 
+function agreementStatusLabel(status?: EmployeeAgreementStatus) {
+  switch (status) {
+    case "approved":
+      return "הסכם מאושר";
+    case "rejected":
+      return "הסכם נדחה — ניתן לחתום מחדש";
+    case "signed":
+      return "נחתם וממתין לבדיקה";
+    default:
+      return "לא נחתם";
+  }
+}
+
+function agreementStatusClass(status?: EmployeeAgreementStatus) {
+  switch (status) {
+    case "approved":
+      return "border-emerald-200 bg-emerald-50 text-emerald-700";
+    case "rejected":
+      return "border-rose-200 bg-rose-50 text-rose-700";
+    case "signed":
+      return "border-blue-200 bg-blue-50 text-blue-700";
+    default:
+      return "border-slate-200 bg-slate-50 text-slate-600";
+  }
+}
+
 function normalizeId(item: { _id?: string; id?: string }) {
   return String(item.id || item._id || "");
+}
+
+function normalizeUserBusinessId(user: any) {
+  const businessValue = user?.businessId || user?.business;
+
+  if (!businessValue) return "";
+
+  if (typeof businessValue === "string") return businessValue;
+
+  return String(businessValue.id || businessValue._id || "");
 }
 
 function normalizeEventClientId(event: ApiEvent) {
@@ -798,30 +860,39 @@ function getUploadedDate(document?: ApiEmployeeDocument | null) {
 function DocumentsPanel({
   form101,
   idCard,
+  agreement,
   form101File,
   idCardFile,
   setForm101File,
   setIdCardFile,
   loading,
+  agreementLoading,
   uploadingType,
   error,
   onUpload,
   onReload,
+  signAgreementUrl,
 }: {
   form101: ApiEmployeeDocument | null;
   idCard: ApiEmployeeDocument | null;
+  agreement: ApiEmployeeAgreement | null;
   form101File: File | null;
   idCardFile: File | null;
   setForm101File: (file: File | null) => void;
   setIdCardFile: (file: File | null) => void;
   loading: boolean;
+  agreementLoading: boolean;
   uploadingType: EmployeeDocumentType | null;
   error: string;
   onUpload: (documentType: EmployeeDocumentType) => void;
   onReload: () => void;
+  signAgreementUrl: string;
 }) {
   const [open, setOpen] = useState(false);
   const combinedStatus = getCombinedDocumentsStatus(form101, idCard);
+  const agreementStatus = agreement?.status || "missing";
+  const canSignAgreement =
+    !agreement?.signedFileUrl || agreement.status === "rejected";
 
   return (
     <>
@@ -858,12 +929,14 @@ function DocumentsPanel({
             <button
               type="button"
               onClick={onReload}
-              disabled={loading || Boolean(uploadingType)}
+              disabled={loading || agreementLoading || Boolean(uploadingType)}
               className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Icon
                 name="refresh"
-                className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+                className={`h-4 w-4 ${
+                  loading || agreementLoading ? "animate-spin" : ""
+                }`}
               />
               רענון סטטוס
             </button>
@@ -972,12 +1045,13 @@ function DocumentsPanel({
                 </span>
 
                 <h2 className="mt-3 text-2xl font-black tracking-tight text-slate-950">
-                  ניהול טופס 101 ותעודת זהות
+                  ניהול טופס 101, תעודת זהות והסכם עבודה
                 </h2>
 
                 <p className="mt-2 max-w-3xl text-sm font-semibold leading-7 text-slate-500">
                   הורידי את טופס 101, מלאי וחתמי עליו, ואז העלי אותו יחד עם
-                  צילום תעודת זהות. ניתן להעלות PDF, JPG או PNG.
+                  צילום תעודת זהות. בנוסף ניתן לחתום על הסכם העבודה באתר.
+                  ניתן להעלות PDF, JPG או PNG.
                 </p>
               </div>
 
@@ -989,6 +1063,111 @@ function DocumentsPanel({
               >
                 ×
               </button>
+            </div>
+
+
+            <div className="mt-6 rounded-[30px] border border-violet-200 bg-violet-50 p-5">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h3 className="text-lg font-black text-slate-950">
+                      הסכם עבודה
+                    </h3>
+
+                    <span
+                      className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${agreementStatusClass(
+                        agreementStatus
+                      )}`}
+                    >
+                      {agreementStatusLabel(agreementStatus)}
+                    </span>
+                  </div>
+
+                  <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-slate-600">
+                    העובד/ת ממלא/ת את השדות לפי הסדר, חותם/ת, ובסיום נוצר PDF
+                    חתום שנשמר במערכת.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap gap-3">
+                  {canSignAgreement ? (
+                    <a
+                      href={signAgreementUrl}
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-violet-600 px-6 text-sm font-black text-white transition hover:bg-violet-700"
+                    >
+                      <Icon name="check" className="h-4 w-4" />
+                      חתימה על ההסכם
+                    </a>
+                  ) : agreement?.signedFileUrl ? (
+                    <a
+                      href={agreement.signedFileUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-violet-600 px-6 text-sm font-black text-white transition hover:bg-violet-700"
+                    >
+                      <Icon name="open" className="h-4 w-4" />
+                      צפייה בהסכם חתום
+                    </a>
+                  ) : null}
+
+                  <a
+                    href="/templates/employee-agreement-invistimo.pdf"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-violet-200 bg-white px-5 text-sm font-black text-violet-700 transition hover:bg-violet-50"
+                  >
+                    <Icon name="open" className="h-4 w-4" />
+                    צפייה בתבנית ריקה
+                  </a>
+                </div>
+              </div>
+
+              {agreement?.signedFileUrl && (
+                <div className="mt-5 rounded-[28px] border border-violet-100 bg-white p-5">
+                  <p className="text-base font-black text-slate-950">
+                    ההסכם החתום האחרון
+                  </p>
+
+                  <div className="mt-3 grid gap-2 text-sm font-semibold text-slate-600">
+                    {agreement.fullName && (
+                      <span>
+                        שם: <b className="text-slate-950">{agreement.fullName}</b>
+                      </span>
+                    )}
+
+                    {agreement.idNumber && (
+                      <span>
+                        ת.ז: <b className="text-slate-950">{agreement.idNumber}</b>
+                      </span>
+                    )}
+
+                    {agreement.signedAt && (
+                      <span>
+                        תאריך חתימה:{" "}
+                        <b className="text-slate-950">
+                          {formatDate(agreement.signedAt)}
+                        </b>
+                      </span>
+                    )}
+                  </div>
+
+                  <a
+                    href={agreement.signedFileUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-4 inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 text-xs font-black text-slate-700 transition hover:bg-slate-50"
+                  >
+                    <Icon name="open" className="h-4 w-4" />
+                    צפייה בהסכם חתום
+                  </a>
+                </div>
+              )}
+
+              {agreement?.status === "rejected" && agreement.rejectionReason && (
+                <div className="mt-5 rounded-[28px] border border-rose-200 bg-rose-50 p-5 text-sm font-black text-rose-700">
+                  ההסכם נדחה. סיבה: {agreement.rejectionReason}
+                </div>
+              )}
             </div>
 
             <div className="mt-6 grid gap-5 lg:grid-cols-2">
@@ -1247,14 +1426,16 @@ function DocumentsPanel({
               <button
                 type="button"
                 onClick={onReload}
-                disabled={loading || Boolean(uploadingType)}
+                disabled={loading || agreementLoading || Boolean(uploadingType)}
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Icon
                   name="refresh"
-                  className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+                  className={`h-4 w-4 ${
+                    loading || agreementLoading ? "animate-spin" : ""
+                  }`}
                 />
-                {loading ? "מרענן..." : "רענון סטטוס"}
+                {loading || agreementLoading ? "מרענן..." : "רענון סטטוס"}
               </button>
 
               <button
@@ -1283,6 +1464,8 @@ export default function EmployeeDashboardPage() {
 
   const [form101, setForm101] = useState<ApiEmployeeDocument | null>(null);
   const [idCard, setIdCard] = useState<ApiEmployeeDocument | null>(null);
+  const [agreement, setAgreement] = useState<ApiEmployeeAgreement | null>(null);
+  const [agreementLoading, setAgreementLoading] = useState(true);
   const [form101File, setForm101File] = useState<File | null>(null);
   const [idCardFile, setIdCardFile] = useState<File | null>(null);
   const [documentsLoading, setDocumentsLoading] = useState(true);
@@ -1296,6 +1479,27 @@ export default function EmployeeDashboardPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [enteringUserId, setEnteringUserId] = useState<string | null>(null);
   const [error, setError] = useState("");
+
+  const currentEmployeeId = String(
+    (user as any)?.id || (user as any)?._id || ""
+  );
+  const currentBusinessId = normalizeUserBusinessId(user as any);
+
+  const signAgreementUrl = useMemo(() => {
+    const params = new URLSearchParams();
+
+    if (currentEmployeeId) {
+      params.set("employeeId", currentEmployeeId);
+    }
+
+    if (currentBusinessId) {
+      params.set("businessId", currentBusinessId);
+    }
+
+    const query = params.toString();
+
+    return query ? `/employee/agreement/sign?${query}` : "/employee/agreement/sign";
+  }, [currentEmployeeId, currentBusinessId]);
 
   const loadDashboard = useCallback(async () => {
     try {
@@ -1441,6 +1645,44 @@ export default function EmployeeDashboardPage() {
     }
   }, [loadEmployeeDocument]);
 
+  const loadEmployeeAgreement = useCallback(async () => {
+    try {
+      setAgreementLoading(true);
+
+      if (!currentEmployeeId || !currentBusinessId) {
+        setAgreement(null);
+        return;
+      }
+
+      const params = new URLSearchParams({
+        employeeId: currentEmployeeId,
+        businessId: currentBusinessId,
+      });
+
+      const response = await fetch(
+        `${API.employeeAgreementCurrent}?${params.toString()}`,
+        {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        }
+      );
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(data?.error || "שגיאה בטעינת הסכם העבודה");
+      }
+
+      setAgreement((data?.agreement || null) as ApiEmployeeAgreement | null);
+    } catch (loadError) {
+      console.error("LOAD EMPLOYEE AGREEMENT FAILED:", loadError);
+      setAgreement(null);
+    } finally {
+      setAgreementLoading(false);
+    }
+  }, [currentEmployeeId, currentBusinessId]);
+
   const uploadEmployeeDocument = useCallback(
     async (documentType: EmployeeDocumentType) => {
       const selectedFile = documentType === "form101" ? form101File : idCardFile;
@@ -1541,7 +1783,8 @@ export default function EmployeeDashboardPage() {
   useEffect(() => {
     void loadDashboard();
     void loadEmployeeDocuments();
-  }, [loadDashboard, loadEmployeeDocuments]);
+    void loadEmployeeAgreement();
+  }, [loadDashboard, loadEmployeeDocuments, loadEmployeeAgreement]);
 
   const filteredUsers = useMemo(() => {
     const q = userSearch.trim().toLowerCase();
@@ -1652,14 +1895,17 @@ export default function EmployeeDashboardPage() {
                   onClick={() => {
                     void loadDashboard();
                     void loadEmployeeDocuments();
+                    void loadEmployeeAgreement();
                   }}
-                  disabled={refreshing || documentsLoading}
+                  disabled={refreshing || documentsLoading || agreementLoading}
                   className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/10 px-4 text-sm font-black text-white transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <Icon
                     name="refresh"
                     className={`h-4 w-4 ${
-                      refreshing || documentsLoading ? "animate-spin" : ""
+                      refreshing || documentsLoading || agreementLoading
+                        ? "animate-spin"
+                        : ""
                     }`}
                   />
                   רענון נתונים
@@ -1701,15 +1947,21 @@ export default function EmployeeDashboardPage() {
           <DocumentsPanel
             form101={form101}
             idCard={idCard}
+            agreement={agreement}
             form101File={form101File}
             idCardFile={idCardFile}
             setForm101File={setForm101File}
             setIdCardFile={setIdCardFile}
             loading={documentsLoading}
+            agreementLoading={agreementLoading}
             uploadingType={uploadingDocumentType}
             error={documentsError}
             onUpload={(documentType) => void uploadEmployeeDocument(documentType)}
-            onReload={() => void loadEmployeeDocuments()}
+            onReload={() => {
+              void loadEmployeeDocuments();
+              void loadEmployeeAgreement();
+            }}
+            signAgreementUrl={signAgreementUrl}
           />
 
           {loading ? (
