@@ -71,6 +71,33 @@ type WebrtcAuthResponse = {
   error?: string;
 };
 
+type SoftphoneShiftSession = {
+  _id?: string;
+  id?: string;
+  employeeId?: string;
+  businessId?: string;
+  date?: string;
+  month?: string;
+  startedAt?: string | null;
+  endedAt?: string | null;
+  totalMinutes?: number;
+  status?: "open" | "closed" | string;
+};
+
+type ShiftApiResponse = {
+  success?: boolean;
+  alreadyOpen?: boolean;
+  message?: string;
+  error?: string;
+  session?: SoftphoneShiftSession | null;
+  summary?: {
+    startedAt?: string;
+    endedAt?: string;
+    totalMinutes?: number;
+    totalHours?: number;
+  };
+};
+
 type TelnyxRtcClient = {
   connect?: () => void;
   disconnect?: () => void;
@@ -268,54 +295,54 @@ function getTimerLabel(status: AgentStatus, reason?: BusyReason | null) {
 function getStatusStyles(status: AgentStatus) {
   if (status === "available") {
     return {
-      dot: "bg-emerald-400 shadow-emerald-400/30",
-      pill: "border-emerald-400/20 bg-emerald-400/10 text-emerald-100",
-      glow: "from-emerald-500/25 via-emerald-400/5 to-transparent",
-      icon: "bg-emerald-400 text-slate-950",
+      dot: "bg-emerald-500 shadow-emerald-500/20",
+      pill: "border-emerald-200 bg-emerald-50 text-emerald-700",
+      glow: "from-emerald-100 via-white to-transparent",
+      icon: "border border-emerald-200 bg-emerald-50 text-emerald-700",
     };
   }
 
   if (status === "dialing") {
     return {
-      dot: "bg-sky-400 shadow-sky-400/30",
-      pill: "border-sky-400/20 bg-sky-400/10 text-sky-100",
-      glow: "from-sky-500/25 via-sky-400/5 to-transparent",
-      icon: "bg-sky-400 text-slate-950",
+      dot: "bg-sky-500 shadow-sky-500/20",
+      pill: "border-sky-200 bg-sky-50 text-sky-700",
+      glow: "from-sky-100 via-white to-transparent",
+      icon: "border border-sky-200 bg-sky-50 text-sky-700",
     };
   }
 
   if (status === "ringing") {
     return {
-      dot: "bg-violet-400 shadow-violet-400/30",
-      pill: "border-violet-400/20 bg-violet-400/10 text-violet-100",
-      glow: "from-violet-500/25 via-violet-400/5 to-transparent",
-      icon: "bg-violet-400 text-slate-950",
+      dot: "bg-violet-500 shadow-violet-500/20",
+      pill: "border-violet-200 bg-violet-50 text-violet-700",
+      glow: "from-violet-100 via-white to-transparent",
+      icon: "border border-violet-200 bg-violet-50 text-violet-700",
     };
   }
 
   if (status === "in_call") {
     return {
-      dot: "bg-rose-400 shadow-rose-400/30",
-      pill: "border-rose-400/20 bg-rose-400/10 text-rose-100",
-      glow: "from-rose-500/25 via-rose-400/5 to-transparent",
-      icon: "bg-rose-400 text-slate-950",
+      dot: "bg-rose-500 shadow-rose-500/20",
+      pill: "border-rose-200 bg-rose-50 text-rose-700",
+      glow: "from-rose-100 via-white to-transparent",
+      icon: "border border-rose-200 bg-rose-50 text-rose-700",
     };
   }
 
   if (status === "after_call" || status === "break" || status === "unavailable") {
     return {
-      dot: "bg-amber-400 shadow-amber-400/30",
-      pill: "border-amber-400/20 bg-amber-400/10 text-amber-100",
-      glow: "from-amber-500/25 via-amber-400/5 to-transparent",
-      icon: "bg-amber-400 text-slate-950",
+      dot: "bg-amber-500 shadow-amber-500/20",
+      pill: "border-amber-200 bg-amber-50 text-amber-700",
+      glow: "from-amber-100 via-white to-transparent",
+      icon: "border border-amber-200 bg-amber-50 text-amber-700",
     };
   }
 
   return {
-    dot: "bg-slate-500 shadow-slate-500/30",
-    pill: "border-white/10 bg-white/5 text-slate-300",
-    glow: "from-slate-500/20 via-white/5 to-transparent",
-    icon: "bg-slate-700 text-slate-200",
+    dot: "bg-slate-400 shadow-slate-400/20",
+    pill: "border-slate-200 bg-slate-50 text-slate-600",
+    glow: "from-slate-100 via-white to-transparent",
+    icon: "border border-slate-200 bg-slate-50 text-slate-600",
   };
 }
 
@@ -596,9 +623,9 @@ function MiniMetric({
   value: string | number;
 }) {
   return (
-    <div className="rounded-[20px] border border-white/10 bg-white/[0.055] px-3 py-3">
-      <p className="text-[11px] font-black text-slate-400">{label}</p>
-      <p className="mt-1 font-mono text-lg font-black tracking-tight text-white">
+    <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-3 py-3">
+      <p className="text-[11px] font-black text-slate-500">{label}</p>
+      <p className="mt-1 font-mono text-lg font-black tracking-tight text-slate-800">
         {value}
       </p>
     </div>
@@ -629,6 +656,9 @@ export default function SoftphoneStatusPanel() {
 
   const [shiftStarted, setShiftStarted] = useState(false);
   const [shiftStartedAt, setShiftStartedAt] = useState<string | null>(null);
+  const [shiftSessionId, setShiftSessionId] = useState<string | null>(null);
+  const [shiftSaving, setShiftSaving] = useState(false);
+  const [shiftError, setShiftError] = useState("");
   const [showEndShiftConfirm, setShowEndShiftConfirm] = useState(false);
 
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -731,6 +761,79 @@ export default function SoftphoneStatusPanel() {
     };
   }, []);
 
+  function getShiftSessionId(session?: SoftphoneShiftSession | null) {
+    return String(session?._id || session?.id || "");
+  }
+
+  async function startShiftSessionApi() {
+    setShiftSaving(true);
+    setShiftError("");
+
+    try {
+      const response = await fetch("/api/softphone/shift/start", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        cache: "no-store",
+        body: JSON.stringify({
+          source: "softphone",
+          meta: {
+            webrtcReady,
+          },
+        }),
+      });
+
+      const data = (await response.json().catch(() => null)) as
+        | ShiftApiResponse
+        | null;
+
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.error || data?.message || "SHIFT_START_FAILED");
+      }
+
+      return data.session || null;
+    } finally {
+      setShiftSaving(false);
+    }
+  }
+
+  async function endShiftSessionApi() {
+    setShiftSaving(true);
+    setShiftError("");
+
+    try {
+      const response = await fetch("/api/softphone/shift/end", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        cache: "no-store",
+        body: JSON.stringify({
+          source: "softphone",
+          meta: {
+            shiftSessionId,
+            webrtcReady,
+          },
+        }),
+      });
+
+      const data = (await response.json().catch(() => null)) as
+        | ShiftApiResponse
+        | null;
+
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.error || data?.message || "SHIFT_END_FAILED");
+      }
+
+      return data.session || null;
+    } finally {
+      setShiftSaving(false);
+    }
+  }
+
   async function loadMyStatus() {
     const now = new Date().toISOString();
 
@@ -757,6 +860,8 @@ export default function SoftphoneStatusPanel() {
 
     setShiftStarted(false);
     setShiftStartedAt(null);
+    setShiftSessionId(null);
+    setShiftError("");
     setLoading(false);
   }
 
@@ -821,13 +926,19 @@ export default function SoftphoneStatusPanel() {
   }
 
   async function startShift() {
-    if (savingStatus || webrtcConnecting) return;
+    if (savingStatus || webrtcConnecting || shiftSaving) return;
 
     try {
+      setShiftError("");
+
       await connectWebrtc();
 
+      const session = await startShiftSessionApi();
+      const startedAt = session?.startedAt || new Date().toISOString();
+
       setShiftStarted(true);
-      setShiftStartedAt(new Date().toISOString());
+      setShiftStartedAt(startedAt);
+      setShiftSessionId(getShiftSessionId(session));
       setCallDirection("none");
       setActiveCallNumber("");
       setActiveBusyReason(null);
@@ -841,8 +952,14 @@ export default function SoftphoneStatusPanel() {
         reason: null,
         autoStartShift: false,
       });
-    } catch {
-      alert("לא הצלחנו לחבר את הסופטפון בדפדפן. בדקי הרשאת מיקרופון ו־ENV של Telnyx.");
+    } catch (error) {
+      console.error("START SHIFT FAILED:", error);
+      const message =
+        error instanceof Error
+          ? error.message
+          : "לא הצלחנו להתחיל משמרת";
+      setShiftError(message);
+      alert("לא הצלחנו להתחיל משמרת. בדקי חיבור סופטפון והרשאת מיקרופון.");
     }
   }
 
@@ -854,29 +971,42 @@ export default function SoftphoneStatusPanel() {
   }
 
   async function confirmEndShift() {
-    if (savingStatus) return;
+    if (savingStatus || shiftSaving) return;
 
-    disconnectWebrtc();
+    try {
+      setShiftError("");
 
-    setShowEndShiftConfirm(false);
-    setShiftStarted(false);
-    setShiftStartedAt(null);
-    setCallDirection("none");
-    setActiveCallNumber("");
-    setActiveBusyReason(null);
-    setBusyReason("");
-    setShowDialer(false);
-    setShowBusyMenu(false);
-    setPhoneNumber("");
-    setShowIncomingCallModal(false);
-    setIncomingCallNumber("");
+      await endShiftSessionApi();
 
-    await changeStatus("offline", {
-      direction: "none",
-      number: null,
-      reason: null,
-      autoStartShift: false,
-    });
+      disconnectWebrtc();
+
+      setShowEndShiftConfirm(false);
+      setShiftStarted(false);
+      setShiftStartedAt(null);
+      setShiftSessionId(null);
+      setCallDirection("none");
+      setActiveCallNumber("");
+      setActiveBusyReason(null);
+      setBusyReason("");
+      setShowDialer(false);
+      setShowBusyMenu(false);
+      setPhoneNumber("");
+      setShowIncomingCallModal(false);
+      setIncomingCallNumber("");
+
+      await changeStatus("offline", {
+        direction: "none",
+        number: null,
+        reason: null,
+        autoStartShift: false,
+      });
+    } catch (error) {
+      console.error("END SHIFT FAILED:", error);
+      const message =
+        error instanceof Error ? error.message : "לא הצלחנו לסיים משמרת";
+      setShiftError(message);
+      alert("לא הצלחנו לשמור סיום משמרת. נסי שוב.");
+    }
   }
 
   async function setAvailable() {
@@ -1505,12 +1635,19 @@ export default function SoftphoneStatusPanel() {
 
   async function handleLogout() {
     try {
-      disconnectWebrtc();
-
       if (shiftStarted) {
+        try {
+          await endShiftSessionApi();
+        } catch (error) {
+          console.error("END SHIFT BEFORE LOGOUT FAILED:", error);
+        }
+
         setShiftStarted(false);
         setShiftStartedAt(null);
+        setShiftSessionId(null);
       }
+
+      disconnectWebrtc();
 
       await logout();
     } catch (error) {
@@ -1523,20 +1660,20 @@ export default function SoftphoneStatusPanel() {
     return (
       <div
         dir="rtl"
-        className="sticky top-0 z-[80] w-full border-b border-white/10 bg-[#070B16] px-4 py-3 text-white shadow-[0_20px_60px_rgba(2,6,23,0.28)]"
+        className="sticky top-0 z-[80] w-full border-b border-slate-200 bg-white px-4 py-3 text-slate-900 shadow-sm"
       >
         <div className="mx-auto flex w-full max-w-[1500px] items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="h-11 w-11 animate-pulse rounded-2xl bg-white/10" />
+            <div className="h-11 w-11 animate-pulse rounded-2xl bg-slate-100" />
             <div>
-              <p className="text-sm font-black text-white">טוען סופטפון...</p>
-              <p className="mt-1 text-xs font-bold text-slate-400">
+              <p className="text-sm font-black text-slate-900">טוען סופטפון...</p>
+              <p className="mt-1 text-xs font-bold text-slate-500">
                 מכין סטטוס עובד ושיחות
               </p>
             </div>
           </div>
 
-          <div className="hidden h-11 w-[360px] animate-pulse rounded-2xl bg-white/10 md:block" />
+          <div className="hidden h-11 w-[360px] animate-pulse rounded-2xl bg-slate-100 md:block" />
         </div>
       </div>
     );
@@ -1546,13 +1683,13 @@ export default function SoftphoneStatusPanel() {
     <>
       <header
         dir="rtl"
-        className="sticky top-0 z-[80] w-full border-b border-white/10 bg-[#070B16] px-3 py-3 text-white shadow-[0_20px_70px_rgba(2,6,23,0.34)] print:hidden"
+        className="sticky top-0 z-[80] w-full border-b border-slate-200 bg-white px-3 py-3 text-slate-900 shadow-sm print:hidden"
       >
         <audio ref={remoteAudioRef} autoPlay className="hidden" aria-hidden="true" />
 
         <div className="mx-auto w-full max-w-[1500px]">
-          <div className="relative overflow-hidden rounded-[30px] border border-white/10 bg-[#070B16] p-3 shadow-[0_24px_80px_rgba(2,6,23,0.35)]">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_15%,rgba(124,58,237,0.25),transparent_28%),radial-gradient(circle_at_88%_10%,rgba(16,185,129,0.16),transparent_24%),linear-gradient(135deg,rgba(255,255,255,0.07),transparent_35%)]" />
+          <div className="relative overflow-hidden rounded-[30px] border border-slate-200 bg-white p-3 shadow-sm">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_15%,rgba(14,165,233,0.12),transparent_28%),radial-gradient(circle_at_88%_10%,rgba(16,185,129,0.10),transparent_24%),linear-gradient(135deg,rgba(248,250,252,0.92),transparent_35%)]" />
 
             <div className="relative flex flex-col gap-3">
               <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
@@ -1563,7 +1700,7 @@ export default function SoftphoneStatusPanel() {
 
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="text-xl font-black tracking-tight text-white">
+                      <h2 className="text-xl font-black tracking-tight text-slate-900">
                         סופטפון עובדים
                       </h2>
 
@@ -1579,10 +1716,10 @@ export default function SoftphoneStatusPanel() {
                       <span
                         className={`rounded-full border px-3 py-1.5 text-[11px] font-black ${
                           webrtcReady
-                            ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-100"
+                            ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-700"
                             : webrtcConnecting
-                            ? "border-sky-400/20 bg-sky-400/10 text-sky-100"
-                            : "border-white/10 bg-white/5 text-slate-300"
+                            ? "border-sky-400/20 bg-sky-400/10 text-sky-700"
+                            : "border-slate-200 bg-slate-50 text-slate-600"
                         }`}
                       >
                         {webrtcReady
@@ -1593,22 +1730,23 @@ export default function SoftphoneStatusPanel() {
                       </span>
 
                       {canReceiveInbound && (
-                        <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-[11px] font-black text-emerald-100">
+                        <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-[11px] font-black text-emerald-700">
                           מוכן לקבל שיחות
                         </span>
                       )}
                     </div>
 
-                    <p className="mt-1 truncate text-xs font-bold text-slate-400">
+                    <p className="mt-1 truncate text-xs font-bold text-slate-500">
                       {timerLabel}:{" "}
-                      <span dir="ltr" className="font-mono font-black text-white">
+                      <span dir="ltr" className="font-mono font-black text-slate-900">
                         {formatDuration(liveStatusSeconds)}
                       </span>
                       {" "}· משמרת:{" "}
-                      <span dir="ltr" className="font-mono font-black text-white">
+                      <span dir="ltr" className="font-mono font-black text-slate-900">
                         {formatDuration(shiftSeconds)}
                       </span>
                       {webrtcError ? ` · ${webrtcError}` : ""}
+                      {shiftError ? ` · ${shiftError}` : ""}
                     </p>
                   </div>
                 </div>
@@ -1617,21 +1755,21 @@ export default function SoftphoneStatusPanel() {
                   <button
                     type="button"
                     onClick={shiftStarted ? requestEndShift : startShift}
-                    disabled={!!savingStatus || creatingCall || webrtcConnecting}
+                    disabled={!!savingStatus || creatingCall || webrtcConnecting || shiftSaving}
                     className={`h-11 rounded-2xl px-4 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-55 ${
                       shiftStarted
-                        ? "border border-rose-400/25 bg-rose-500/15 text-rose-100 hover:bg-rose-500/25"
-                        : "bg-emerald-400 text-slate-950 hover:bg-emerald-300"
+                        ? "border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100"
+                        : "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
                     }`}
                   >
-                    {shiftStarted ? "סיים משמרת" : webrtcConnecting ? "מתחבר..." : "התחל משמרת"}
+                    {shiftStarted ? "סיים משמרת" : webrtcConnecting || shiftSaving ? "מתחבר..." : "התחל משמרת"}
                   </button>
 
                   <button
                     type="button"
                     onClick={openAddCall}
-                    disabled={!!savingStatus || creatingCall}
-                    className="h-11 rounded-2xl bg-amber-400 px-4 text-sm font-black text-slate-950 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-55"
+                    disabled={!!savingStatus || creatingCall || shiftSaving}
+                    className="h-11 rounded-2xl border border-sky-200 bg-sky-50 px-4 text-sm font-black text-sky-700 transition hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-55"
                   >
                     שיחה חדשה
                   </button>
@@ -1640,7 +1778,7 @@ export default function SoftphoneStatusPanel() {
                     type="button"
                     onClick={setAvailable}
                     disabled={!!savingStatus || creatingCall || !shiftStarted}
-                    className="h-11 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 text-sm font-black text-emerald-100 transition hover:bg-emerald-400/20 disabled:cursor-not-allowed disabled:opacity-45"
+                    className="h-11 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 text-sm font-black text-emerald-700 transition hover:bg-emerald-400/20 disabled:cursor-not-allowed disabled:opacity-45"
                   >
                     פנוי
                   </button>
@@ -1653,23 +1791,23 @@ export default function SoftphoneStatusPanel() {
                         setShowBusyMenu((prev) => !prev);
                         setShowDialer(false);
                       }}
-                      disabled={!shiftStarted || !!savingStatus || creatingCall}
-                      className="h-11 rounded-2xl border border-white/10 bg-white/[0.055] px-4 text-sm font-black text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-45"
+                      disabled={!shiftStarted || !!savingStatus || creatingCall || shiftSaving}
+                      className="h-11 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-black text-slate-900 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45"
                     >
                       לא פנוי
                     </button>
 
                     {showBusyMenu && (
-                      <div className="absolute left-0 top-12 z-[90] w-[260px] rounded-[24px] border border-white/10 bg-[#101626] p-2 shadow-[0_24px_70px_rgba(0,0,0,0.35)]">
+                      <div className="absolute left-0 top-12 z-[90] w-[260px] rounded-[24px] border border-slate-200 bg-white p-2 shadow-xl">
                         {BUSY_REASONS.map((reason) => (
                           <button
                             key={reason.value}
                             type="button"
                             onClick={() => void handleBusyReasonChange(reason.value)}
-                            className="flex w-full items-center justify-between gap-3 rounded-[18px] px-3 py-3 text-right text-sm font-black text-slate-100 transition hover:bg-white/10"
+                            className="flex w-full items-center justify-between gap-3 rounded-[18px] px-3 py-3 text-right text-sm font-black text-slate-700 transition hover:bg-slate-100"
                           >
                             <span>{reason.label}</span>
-                            <span className="text-slate-400">
+                            <span className="text-slate-500">
                               <ReasonIcon reason={reason.value} />
                             </span>
                           </button>
@@ -1681,7 +1819,7 @@ export default function SoftphoneStatusPanel() {
                   <button
                     type="button"
                     onClick={handleLogout}
-                    className="h-11 rounded-2xl border border-rose-400/25 bg-rose-500/15 px-4 text-sm font-black text-rose-100 transition hover:bg-rose-500/25"
+                    className="h-11 rounded-2xl border border-rose-200 bg-rose-50 px-4 text-sm font-black text-rose-700 transition hover:bg-rose-100"
                   >
                     התנתקות
                   </button>
@@ -1696,10 +1834,10 @@ export default function SoftphoneStatusPanel() {
               </div>
 
               {(showDialer || isCallActive || currentStatus === "after_call") && (
-                <section className="rounded-[26px] border border-white/10 bg-white/[0.055] p-3">
+                <section className="rounded-[26px] border border-slate-200 bg-slate-50 p-3">
                   <div className="grid gap-3 xl:grid-cols-[1fr_auto_auto] xl:items-center">
                     <div className="min-w-0">
-                      <p className="mb-2 text-xs font-black text-slate-400">
+                      <p className="mb-2 text-xs font-black text-slate-500">
                         {isCallActive ? "שיחה פעילה" : "חייגן"}
                       </p>
 
@@ -1713,14 +1851,14 @@ export default function SoftphoneStatusPanel() {
                           }
                           disabled={isCallActive || creatingCall}
                           placeholder="הקלד מספר..."
-                          className="h-12 min-w-0 flex-1 rounded-2xl border border-white/10 bg-[#070B16]/70 px-4 text-left font-mono text-lg font-black text-white outline-none placeholder:text-slate-500 focus:border-emerald-400/50 disabled:opacity-60"
+                          className="h-12 min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white/70 px-4 text-left font-mono text-lg font-black text-slate-900 outline-none placeholder:text-slate-500 focus:border-emerald-400 disabled:opacity-60"
                         />
 
                         <button
                           type="button"
                           onClick={clearNumber}
                           disabled={isCallActive || creatingCall || !phoneNumber}
-                          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.055] text-slate-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+                          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-200 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
                           aria-label="נקה מספר"
                         >
                           <Icon name="x" className="h-5 w-5" />
@@ -1735,7 +1873,7 @@ export default function SoftphoneStatusPanel() {
                               type="button"
                               onClick={() => appendDigit(item.key)}
                               disabled={creatingCall}
-                              className="h-10 rounded-2xl border border-white/10 bg-white/[0.055] text-center font-mono text-sm font-black text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+                              className="h-10 rounded-2xl border border-slate-200 bg-slate-50 text-center font-mono text-sm font-black text-slate-900 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               {item.key}
                             </button>
@@ -1749,7 +1887,7 @@ export default function SoftphoneStatusPanel() {
                         type="button"
                         onClick={() => void startOutboundCall()}
                         disabled={!shiftStarted || isCallActive || creatingCall || !phoneNumber.trim()}
-                        className="h-12 rounded-2xl bg-emerald-400 text-sm font-black text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-45"
+                        className="h-12 rounded-2xl border border-emerald-200 bg-emerald-50 text-sm font-black text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-45"
                       >
                         {creatingCall ? "מחייג..." : "חייג"}
                       </button>
@@ -1758,7 +1896,7 @@ export default function SoftphoneStatusPanel() {
                         type="button"
                         onClick={markAnswered}
                         disabled={!isCallActive || !!savingStatus || creatingCall}
-                        className="h-12 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 text-sm font-black text-emerald-100 transition hover:bg-emerald-400/20 disabled:cursor-not-allowed disabled:opacity-45"
+                        className="h-12 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 text-sm font-black text-emerald-700 transition hover:bg-emerald-400/20 disabled:cursor-not-allowed disabled:opacity-45"
                       >
                         ענה
                       </button>
@@ -1767,7 +1905,7 @@ export default function SoftphoneStatusPanel() {
                         type="button"
                         onClick={finishCall}
                         disabled={!isCallActive || !!savingStatus || creatingCall}
-                        className="h-12 rounded-2xl bg-rose-500 text-sm font-black text-white transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-45"
+                        className="h-12 rounded-2xl border border-rose-200 bg-rose-50 text-sm font-black text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-45"
                       >
                         סיים שיחה
                       </button>
@@ -1776,7 +1914,7 @@ export default function SoftphoneStatusPanel() {
                         type="button"
                         onClick={() => setShowDialer(false)}
                         disabled={isCallActive}
-                        className="h-12 rounded-2xl border border-white/10 bg-white/[0.055] text-sm font-black text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-45"
+                        className="h-12 rounded-2xl border border-slate-200 bg-slate-50 text-sm font-black text-slate-900 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-45"
                       >
                         סגור
                       </button>
@@ -1789,8 +1927,8 @@ export default function SoftphoneStatusPanel() {
                         disabled={!isCallActive}
                         className={`h-12 rounded-2xl border text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-45 ${
                           muted
-                            ? "border-amber-400/20 bg-amber-400/15 text-amber-100"
-                            : "border-white/10 bg-white/[0.055] text-white hover:bg-white/10"
+                            ? "border-amber-400/20 bg-amber-400/15 text-amber-700"
+                            : "border-slate-200 bg-slate-50 text-slate-900 hover:bg-slate-100"
                         }`}
                       >
                         {muted ? "בטל השתק" : "השתק"}
@@ -1802,8 +1940,8 @@ export default function SoftphoneStatusPanel() {
                         disabled={!isCallActive}
                         className={`h-12 rounded-2xl border text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-45 ${
                           speakerEnabled
-                            ? "border-sky-400/20 bg-sky-400/15 text-sky-100"
-                            : "border-white/10 bg-white/[0.055] text-white hover:bg-white/10"
+                            ? "border-sky-400/20 bg-sky-400/15 text-sky-700"
+                            : "border-slate-200 bg-slate-50 text-slate-900 hover:bg-slate-100"
                         }`}
                       >
                         רמקול
@@ -1812,9 +1950,9 @@ export default function SoftphoneStatusPanel() {
                   </div>
 
                   {activeDisplayNumber !== "—" && (
-                    <p className="mt-3 text-xs font-bold text-slate-400">
+                    <p className="mt-3 text-xs font-bold text-slate-500">
                       מספר פעיל:{" "}
-                      <span dir="ltr" className="font-mono font-black text-white">
+                      <span dir="ltr" className="font-mono font-black text-slate-900">
                         {activeDisplayNumber}
                       </span>
                     </p>
@@ -1824,7 +1962,7 @@ export default function SoftphoneStatusPanel() {
 
               {recentCalls.length > 0 && (
                 <div className="hidden items-center gap-2 overflow-x-auto pb-1 xl:flex">
-                  <span className="shrink-0 text-xs font-black text-slate-400">
+                  <span className="shrink-0 text-xs font-black text-slate-500">
                     שיחות אחרונות:
                   </span>
 
@@ -1833,11 +1971,11 @@ export default function SoftphoneStatusPanel() {
                       key={call.id}
                       type="button"
                       onClick={() => selectRecentCall(call)}
-                      className="inline-flex shrink-0 items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.055] px-3 py-2 text-xs font-black text-white transition hover:bg-white/10"
+                      className="inline-flex shrink-0 items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-black text-slate-900 transition hover:bg-slate-100"
                     >
                       <Icon
                         name={call.direction === "outbound" ? "arrowOut" : "arrowIn"}
-                        className="h-4 w-4 text-slate-400"
+                        className="h-4 w-4 text-slate-500"
                       />
                       <span dir="ltr">{call.number}</span>
                       <span className="text-slate-500">{call.time}</span>
@@ -1853,13 +1991,13 @@ export default function SoftphoneStatusPanel() {
       {showEndShiftConfirm && (
         <div
           dir="rtl"
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-500/25 p-4 backdrop-blur-sm"
         >
-          <div className="w-full max-w-[420px] rounded-[30px] border border-white/10 bg-[#101626] p-6 text-white shadow-[0_30px_90px_rgba(0,0,0,0.42)]">
+          <div className="w-full max-w-[420px] rounded-[30px] border border-slate-200 bg-white p-6 text-slate-900 shadow-2xl">
             <p className="text-xl font-black">לסיים משמרת?</p>
-            <p className="mt-2 text-sm font-bold leading-6 text-slate-300">
+            <p className="mt-2 text-sm font-bold leading-6 text-slate-600">
               סה״כ זמן עבודה:{" "}
-              <span dir="ltr" className="font-mono font-black text-white">
+              <span dir="ltr" className="font-mono font-black text-slate-900">
                 {formatDuration(shiftSeconds)}
               </span>
             </p>
@@ -1868,8 +2006,8 @@ export default function SoftphoneStatusPanel() {
               <button
                 type="button"
                 onClick={confirmEndShift}
-                disabled={!!savingStatus || creatingCall}
-                className="h-12 rounded-2xl bg-rose-500 text-sm font-black text-white transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={!!savingStatus || creatingCall || shiftSaving}
+                className="h-12 rounded-2xl border border-rose-200 bg-rose-50 text-sm font-black text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 כן, לסיים
               </button>
@@ -1877,8 +2015,8 @@ export default function SoftphoneStatusPanel() {
               <button
                 type="button"
                 onClick={() => setShowEndShiftConfirm(false)}
-                disabled={!!savingStatus || creatingCall}
-                className="h-12 rounded-2xl border border-white/10 bg-white/[0.055] text-sm font-black text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={!!savingStatus || creatingCall || shiftSaving}
+                className="h-12 rounded-2xl border border-slate-200 bg-slate-50 text-sm font-black text-slate-900 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 ביטול
               </button>
@@ -1890,14 +2028,14 @@ export default function SoftphoneStatusPanel() {
       {showIncomingCallModal && (
         <div
           dir="rtl"
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/65 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-500/25 p-4 backdrop-blur-sm"
         >
-          <div className="w-full max-w-[440px] rounded-[34px] border border-white/10 bg-[#101626] p-6 text-center text-white shadow-[0_32px_100px_rgba(0,0,0,0.46)]">
+          <div className="w-full max-w-[440px] rounded-[34px] border border-slate-200 bg-white p-6 text-center text-slate-900 shadow-2xl">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[26px] bg-emerald-400 text-slate-950">
               <Icon name="phone" className="h-7 w-7" />
             </div>
 
-            <p className="mt-5 text-sm font-black text-emerald-100">
+            <p className="mt-5 text-sm font-black text-emerald-700">
               שיחה נכנסת
             </p>
             <p dir="ltr" className="mt-2 font-mono text-3xl font-black">
@@ -1909,7 +2047,7 @@ export default function SoftphoneStatusPanel() {
                 type="button"
                 onClick={rejectIncomingCall}
                 disabled={!!savingStatus}
-                className="h-14 rounded-2xl border border-white/10 bg-white/[0.055] text-base font-black text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+                className="h-14 rounded-2xl border border-slate-200 bg-slate-50 text-base font-black text-slate-900 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 דחה
               </button>
@@ -1917,8 +2055,8 @@ export default function SoftphoneStatusPanel() {
               <button
                 type="button"
                 onClick={markAnswered}
-                disabled={!!savingStatus || creatingCall}
-                className="h-14 rounded-2xl bg-emerald-400 text-base font-black text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={!!savingStatus || creatingCall || shiftSaving}
+                className="h-14 rounded-2xl border border-emerald-200 bg-emerald-50 text-base font-black text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 ענה
               </button>
