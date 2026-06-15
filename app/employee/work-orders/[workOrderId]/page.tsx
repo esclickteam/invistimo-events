@@ -616,9 +616,16 @@ export default function EmployeeWorkOrderTasksPage() {
   }
 
   useEffect(() => {
-    loadTasks();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workOrderId, status, sort]);
+  const timer = window.setTimeout(() => {
+    loadTasks({ silent: true });
+  }, search.trim() ? 350 : 0);
+
+  return () => {
+    window.clearTimeout(timer);
+  };
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [workOrderId, status, sort, search]);
 
   function handleSearchSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -953,7 +960,6 @@ export default function EmployeeWorkOrderTasksPage() {
               onChange={(e) => setSearch(e.target.value)}
             />
 
-            <button type="submit">חפש</button>
           </div>
         </form>
 
@@ -974,10 +980,7 @@ export default function EmployeeWorkOrderTasksPage() {
             <option value="confirmed">מגיע</option>
             <option value="declined">לא מגיע</option>
             <option value="no_answer">לא ענה</option>
-            <option value="callback">לחזור אליו</option>
-            <option value="undecided">מתלבט</option>
             <option value="will_reply_message">ישיב בהודעה</option>
-            <option value="wrong_number">מספר שגוי</option>
           </select>
         </div>
 
@@ -1193,16 +1196,14 @@ export default function EmployeeWorkOrderTasksPage() {
 
                   <div className="resultButtons">
                     {(
-                      [
-                        "confirmed",
-                        "declined",
-                        "undecided",
-                        "callback",
-                        "will_reply_message",
-                        "no_answer",
-                        "wrong_number",
-                      ] as TaskStatus[]
-                    ).map((item) => (
+  [
+    "confirmed",
+    "declined",
+    "will_reply_message",
+    "no_answer",
+  ] as TaskStatus[]
+).map((item) => (
+
                       <button
                         type="button"
                         key={item}
