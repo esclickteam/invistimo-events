@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
+import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { Readable } from "stream";
 import CallRecording from "@/models/CallRecording";
 
 export const runtime = "nodejs";
@@ -32,14 +34,14 @@ type RouteContext = {
       }>;
 };
 
-declare global {
-  // eslint-disable-next-line no-var
-  var mongooseCallRecordingStreamCache: MongoCache | undefined;
-}
+const globalCache = globalThis as typeof globalThis & {
+  mongooseCallRecordingStreamCache?: MongoCache;
+  invistimoR2Client?: S3Client;
+};
 
 const cached: MongoCache =
-  global.mongooseCallRecordingStreamCache ||
-  (global.mongooseCallRecordingStreamCache = {
+  globalCache.mongooseCallRecordingStreamCache ||
+  (globalCache.mongooseCallRecordingStreamCache = {
     conn: null,
     promise: null,
   });
@@ -74,6 +76,10 @@ function jsonError(message: string, status = 400, details?: unknown) {
     },
     { status }
   );
+}
+
+function cleanStr(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
 }
 
 function getBearerToken(req: NextRequest) {
@@ -170,23 +176,52 @@ async function verifyAdmin(req: NextRequest) {
   }
 }
 
-function cleanStr(value: unknown) {
-  return typeof value === "string" ? value.trim() : "";
+function getR2Endpoint() {
+  const directEndpoint = cleanStr(process.env.R2_ENDPOINT);
+  if (directEndpoint) return directEndpoint.replace(/\/+$/, "");
+
+  const accountId = cleanStr(process.env.R2_ACCOUNT_ID);
+  if (!accountId) return "";
+
+  return `https://${accountId}.r2.cloudflarestorage.com`;
 }
 
-function encodeStorageKey(key: string) {
-  return key
-    .split("/")
-    .filter(Boolean)
-    .map((part) => encodeURIComponent(part))
-    .join("/");
+function getR2Config() {
+  const endpoint = getR2Endpoint();
+  const bucket = cleanStr(process.env.R2_BUCKET_NAME);
+  const accessKeyId = cleanStr(process.env.R2_ACCESS_KEY_ID);
+  const secretAccessKey = cleanStr(process.env.R2_SECRET_ACCESS_KEY);
+
+  return {
+    enabled: Boolean(endpoint && bucket && accessKeyId && secretAccessKey),
+    endpoint,
+    bucket,
+    accessKeyId,
+    secretAccessKey,
+  };
 }
 
-function joinUrl(base: string, key: string) {
-  const cleanBase = base.replace(/\/+$/, "");
-  const cleanKey = encodeStorageKey(key.replace(/^\/+/, ""));
+function getR2Client() {
+  if (globalCache.invistimoR2Client) {
+    return globalCache.invistimoR2Client;
+  }
 
-  return `${cleanBase}/${cleanKey}`;
+  const config = getR2Config();
+
+  if (!config.enabled) {
+    throw new Error("R2 configuration is missing");
+  }
+
+  globalCache.invistimoR2Client = new S3Client({
+    region: "auto",
+    endpoint: config.endpoint,
+    credentials: {
+      accessKeyId: config.accessKeyId,
+      secretAccessKey: config.secretAccessKey,
+    },
+  });
+
+  return globalCache.invistimoR2Client;
 }
 
 function getRecordingKey(item: any) {
@@ -199,14 +234,9 @@ function getRecordingKey(item: any) {
   );
 }
 
-function getPermanentBaseUrl() {
+function getRecordingBucket(item: any) {
   return cleanStr(
-    process.env.RECORDINGS_PUBLIC_BASE_URL ||
-      process.env.RECORDINGS_BASE_URL ||
-      process.env.CALL_RECORDINGS_PUBLIC_BASE_URL ||
-      process.env.CALL_RECORDINGS_BASE_URL ||
-      process.env.R2_PUBLIC_BASE_URL ||
-      process.env.S3_PUBLIC_BASE_URL
+    item?.recordingBucket || item?.bucket || process.env.R2_BUCKET_NAME
   );
 }
 
@@ -222,61 +252,41 @@ function getLegacyRecordingUrl(item: any) {
   );
 }
 
-function getPermanentRecordingUrl(item: any) {
-  return cleanStr(
-    item?.permanentRecordingUrl ||
-      item?.recordingPermanentUrl ||
-      item?.recordingFileUrl ||
-      item?.storageUrl ||
-      item?.publicUrl ||
-      item?.fileUrl
-  );
+function inferContentTypeFromKey(key: string) {
+  const lower = key.toLowerCase().split("?")[0];
+
+  if (lower.endsWith(".wav")) return "audio/wav";
+  if (lower.endsWith(".mp3")) return "audio/mpeg";
+  if (lower.endsWith(".webm")) return "audio/webm";
+  if (lower.endsWith(".ogg")) return "audio/ogg";
+  if (lower.endsWith(".m4a")) return "audio/mp4";
+  if (lower.endsWith(".aac")) return "audio/aac";
+
+  return "";
 }
 
-function getRecordingSourceUrl(item: any) {
-  const permanentUrl = getPermanentRecordingUrl(item);
-  if (permanentUrl) {
-    return {
-      url: permanentUrl,
-      source: "permanent_url",
-    };
+function normalizeContentType(value: unknown, key = "") {
+  const contentType = cleanStr(value);
+
+  if (
+    contentType &&
+    contentType !== "application/octet-stream" &&
+    contentType !== "binary/octet-stream"
+  ) {
+    return contentType;
   }
 
-  const recordingKey = getRecordingKey(item);
-  const permanentBaseUrl = getPermanentBaseUrl();
-
-  if (recordingKey && permanentBaseUrl) {
-    return {
-      url: joinUrl(permanentBaseUrl, recordingKey),
-      source: "storage_key",
-    };
-  }
-
-  const legacyUrl = getLegacyRecordingUrl(item);
-
-  if (legacyUrl) {
-    return {
-      url: legacyUrl,
-      source: "legacy_url",
-    };
-  }
-
-  return {
-    url: "",
-    source: "none",
-  };
+  return inferContentTypeFromKey(key) || "audio/wav";
 }
 
 function getFilename(item: any) {
   const id = cleanStr(item?.recordingId) || String(item?._id || "recording");
-  const contentType = cleanStr(item?.recordingContentType || item?.contentType);
+  const key = getRecordingKey(item);
 
-  let extension = "mp3";
+  let extension = "wav";
 
-  if (contentType.includes("wav")) extension = "wav";
-  if (contentType.includes("webm")) extension = "webm";
-  if (contentType.includes("ogg")) extension = "ogg";
-  if (contentType.includes("mpeg")) extension = "mp3";
+  const fromKey = key.split("?")[0].match(/\.([a-z0-9]{2,6})$/i)?.[1];
+  if (fromKey) extension = fromKey.toLowerCase();
 
   return `call-recording-${id}.${extension}`.replace(/[\\/:*?"<>|]/g, "-");
 }
@@ -301,11 +311,189 @@ async function findRecording(rawRecordingId: string) {
   return CallRecording.findOne({ $or: orQuery }).lean();
 }
 
-function copyAudioHeaders(upstream: Response, fallbackContentType: string) {
+async function toWebResponseBody(body: any) {
+  if (!body) return null;
+
+  if (typeof body.transformToWebStream === "function") {
+    return body.transformToWebStream();
+  }
+
+  if (body instanceof ReadableStream) {
+    return body;
+  }
+
+  if (typeof body.transformToByteArray === "function") {
+    const bytes = await body.transformToByteArray();
+    return Buffer.from(bytes);
+  }
+
+  if (Buffer.isBuffer(body)) {
+    return body;
+  }
+
+  if (typeof body.pipe === "function") {
+    return Readable.toWeb(body as Readable) as ReadableStream;
+  }
+
+  return body;
+}
+
+function buildAudioHeaders(params: {
+  contentType: string;
+  contentLength?: number;
+  contentRange?: string;
+  etag?: string;
+  lastModified?: Date;
+  filename: string;
+  download: boolean;
+}) {
   const headers = new Headers();
 
-  const contentType =
-    upstream.headers.get("content-type") || fallbackContentType || "audio/mpeg";
+  headers.set("Content-Type", params.contentType);
+  headers.set("Accept-Ranges", "bytes");
+  headers.set("Cache-Control", "private, no-store, max-age=0");
+  headers.set("X-Content-Type-Options", "nosniff");
+
+  if (typeof params.contentLength === "number") {
+    headers.set("Content-Length", String(params.contentLength));
+  }
+
+  if (params.contentRange) {
+    headers.set("Content-Range", params.contentRange);
+  }
+
+  if (params.etag) {
+    headers.set("ETag", params.etag);
+  }
+
+  if (params.lastModified) {
+    headers.set("Last-Modified", params.lastModified.toUTCString());
+  }
+
+  headers.set(
+    "Content-Disposition",
+    `${params.download ? "attachment" : "inline"}; filename="${params.filename}"`
+  );
+
+  return headers;
+}
+
+async function streamFromR2(req: NextRequest, recording: any) {
+  const key = getRecordingKey(recording);
+  const bucket = getRecordingBucket(recording);
+
+  if (!key || !bucket) {
+    return jsonError("CALL_RECORDING_R2_KEY_OR_BUCKET_MISSING", 404, {
+      key,
+      bucket,
+    });
+  }
+
+  const range = req.headers.get("range") || undefined;
+
+  try {
+    const client = getR2Client();
+
+    const result = await client.send(
+      new GetObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        Range: range,
+      })
+    );
+
+    const body = await toWebResponseBody(result.Body);
+
+    if (!body) {
+      return jsonError("CALL_RECORDING_R2_BODY_EMPTY", 404);
+    }
+
+    const shouldDownload =
+      req.nextUrl.searchParams.get("download") === "1" ||
+      req.nextUrl.searchParams.get("download") === "true";
+
+    const contentType = normalizeContentType(
+      result.ContentType || recording.recordingContentType,
+      key
+    );
+
+    const headers = buildAudioHeaders({
+      contentType,
+      contentLength: result.ContentLength,
+      contentRange: result.ContentRange,
+      etag: result.ETag,
+      lastModified: result.LastModified,
+      filename: getFilename(recording),
+      download: shouldDownload,
+    });
+
+    return new NextResponse(body, {
+      status: result.ContentRange || range ? 206 : 200,
+      headers,
+    });
+  } catch (error: any) {
+    console.error("STREAM RECORDING FROM R2 FAILED:", {
+      message: error?.message,
+      name: error?.name,
+      code: error?.Code,
+      key,
+      bucket,
+    });
+
+    return jsonError("CALL_RECORDING_R2_STREAM_FAILED", 500, {
+      message: error?.message,
+      name: error?.name,
+      code: error?.Code,
+      key,
+      bucket,
+    });
+  }
+}
+
+async function streamFromLegacyUrl(req: NextRequest, recording: any) {
+  const legacyUrl = getLegacyRecordingUrl(recording);
+
+  if (!legacyUrl) {
+    return jsonError("CALL_RECORDING_FILE_URL_MISSING", 404);
+  }
+
+  const range = req.headers.get("range");
+
+  const upstream = await fetch(legacyUrl, {
+    method: "GET",
+    headers: range ? { Range: range } : {},
+    cache: "no-store",
+    redirect: "follow",
+  });
+
+  if (!upstream.ok && upstream.status !== 206) {
+    const details = await upstream.text().catch(() => "");
+
+    if (upstream.status === 401 || upstream.status === 403) {
+      return jsonError("CALL_RECORDING_SOURCE_URL_EXPIRED_OR_FORBIDDEN", 410, {
+        status: upstream.status,
+        hint:
+          "הקישור הישן של Telnyx פג תוקף. הקלטות ישנות יעבדו רק אם יש להן recordingKey ב-R2.",
+        details: details.slice(0, 1000),
+      });
+    }
+
+    return jsonError("CALL_RECORDING_SOURCE_FETCH_FAILED", upstream.status, {
+      status: upstream.status,
+      details: details.slice(0, 1000),
+    });
+  }
+
+  const shouldDownload =
+    req.nextUrl.searchParams.get("download") === "1" ||
+    req.nextUrl.searchParams.get("download") === "true";
+
+  const contentType = normalizeContentType(
+    upstream.headers.get("content-type") || recording.recordingContentType,
+    getRecordingKey(recording) || legacyUrl
+  );
+
+  const headers = new Headers();
 
   headers.set("Content-Type", contentType);
   headers.set("Accept-Ranges", upstream.headers.get("accept-ranges") || "bytes");
@@ -322,21 +510,17 @@ function copyAudioHeaders(upstream: Response, fallbackContentType: string) {
   if (etag) headers.set("ETag", etag);
   if (lastModified) headers.set("Last-Modified", lastModified);
 
-  return headers;
-}
+  headers.set(
+    "Content-Disposition",
+    `${shouldDownload ? "attachment" : "inline"}; filename="${getFilename(
+      recording
+    )}"`
+  );
 
-function buildUpstreamHeaders(req: NextRequest) {
-  const headers = new Headers();
-
-  const range = req.headers.get("range");
-  const ifRange = req.headers.get("if-range");
-  const userAgent = req.headers.get("user-agent");
-
-  if (range) headers.set("Range", range);
-  if (ifRange) headers.set("If-Range", ifRange);
-  if (userAgent) headers.set("User-Agent", userAgent);
-
-  return headers;
+  return new NextResponse(upstream.body, {
+    status: upstream.status,
+    headers,
+  });
 }
 
 export async function GET(req: NextRequest, context: RouteContext) {
@@ -355,6 +539,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
 
     const params = await context.params;
     const rawRecordingId = cleanStr(params?.recordingId);
+
     const recording = await findRecording(rawRecordingId);
 
     if (!recording) {
@@ -363,67 +548,13 @@ export async function GET(req: NextRequest, context: RouteContext) {
       });
     }
 
-    const source = getRecordingSourceUrl(recording);
+    const recordingKey = getRecordingKey(recording);
 
-    if (!source.url) {
-      return jsonError("CALL_RECORDING_FILE_URL_MISSING", 404, {
-        recordingId: rawRecordingId,
-      });
+    if (recordingKey) {
+      return streamFromR2(req, recording);
     }
 
-    const fallbackContentType =
-      cleanStr(
-        (recording as any).recordingContentType || (recording as any).contentType
-      ) || "audio/mpeg";
-
-    const upstream = await fetch(source.url, {
-      method: "GET",
-      headers: buildUpstreamHeaders(req),
-      cache: "no-store",
-      redirect: "follow",
-    });
-
-    if (!upstream.ok && upstream.status !== 206) {
-      const details = await upstream.text().catch(() => "");
-
-      if (upstream.status === 403 || upstream.status === 401) {
-        return jsonError("CALL_RECORDING_SOURCE_URL_EXPIRED_OR_FORBIDDEN", 410, {
-          status: upstream.status,
-          source: source.source,
-          hint:
-            "הקישור הישן של ההקלטה פג תוקף. כדי שזה יעבוד קבוע צריך לשמור את הקובץ באחסון קבוע ולשמור recordingKey במונגו.",
-          details: details.slice(0, 1000),
-        });
-      }
-
-      return jsonError("CALL_RECORDING_SOURCE_FETCH_FAILED", upstream.status, {
-        status: upstream.status,
-        source: source.source,
-        details: details.slice(0, 1000),
-      });
-    }
-
-    const responseHeaders = copyAudioHeaders(upstream, fallbackContentType);
-    const shouldDownload =
-      req.nextUrl.searchParams.get("download") === "1" ||
-      req.nextUrl.searchParams.get("download") === "true";
-
-    if (shouldDownload) {
-      responseHeaders.set(
-        "Content-Disposition",
-        `attachment; filename="${getFilename(recording)}"`
-      );
-    } else {
-      responseHeaders.set(
-        "Content-Disposition",
-        `inline; filename="${getFilename(recording)}"`
-      );
-    }
-
-    return new NextResponse(upstream.body, {
-      status: upstream.status,
-      headers: responseHeaders,
-    });
+    return streamFromLegacyUrl(req, recording);
   } catch (error) {
     console.error("ADMIN STREAM CALL RECORDING ERROR:", error);
 
