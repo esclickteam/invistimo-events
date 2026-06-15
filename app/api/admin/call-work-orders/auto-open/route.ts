@@ -1496,6 +1496,8 @@ async function syncExistingWorkOrderWithScheduledEmployees(input: {
     .map((employee) => employee.shiftId)
     .filter(Boolean) as Types.ObjectId[];
 
+  const scheduledEmployeeById = buildScheduledEmployeeMap(scheduledEmployees);
+
   const tasks = await CallTask.find({
     workOrderId,
   })
@@ -1511,25 +1513,24 @@ async function syncExistingWorkOrderWithScheduledEmployees(input: {
   );
 
   const bulkOps: any[] = [];
+  let assignedMissingTasks = 0;
+  let reassignedTasks = 0;
 
   /*
-    חשוב מאוד:
-    לא עושים איזון מחדש ולא מזיזים משימות שכבר משויכות לעובד.
-    גם אם לעובד אחד יש 20 ולעובד שני יש 25 — לא נוגעים.
-
-    משבצים רק משימות פתוחות שאין להן עובד בכלל.
+    כלל סנכרון:
+    1. אם המשימה כבר משויכת לעובד שמשובץ היום — לא נוגעים.
+    2. אם המשימה בלי עובד — משבצים לעובד עם הכי פחות עומס.
+    3. אם המשימה משויכת לעובד שכבר לא משובץ היום — מעבירים רק אם לא נגעו בה.
+    4. לא מאזנים מחדש בין עובדים קיימים.
   */
-  const unassignedOpenTasks = tasks.filter((task: any) => {
+  for (const task of tasks) {
     const currentEmployeeId = getTaskAssignedEmployeeIdString(task);
+    const currentEmployeeIsScheduled =
+      !!currentEmployeeId && scheduledEmployeeById.has(currentEmployeeId);
 
-    if (currentEmployeeId) return false;
+    if (currentEmployeeIsScheduled) continue;
+    if (!isUntouchedOpenCallTask(task)) continue;
 
-    const status = cleanStr(task?.status).toLowerCase();
-
-    return isOpenTaskStatusForRedistribution(status);
-  });
-
-  for (const task of unassignedOpenTasks) {
     const nextEmployee = chooseLeastLoadedEmployee(
       scheduledEmployees,
       distribution
@@ -1540,21 +1541,34 @@ async function syncExistingWorkOrderWithScheduledEmployees(input: {
     distribution[nextEmployee.employeeIdString] =
       Number(distribution[nextEmployee.employeeIdString] || 0) + 1;
 
+    const set: Record<string, unknown> = {
+      assignedToEmployeeId: nextEmployee.employeeId,
+      assignedEmployeeId: nextEmployee.employeeId,
+      employeeId: nextEmployee.employeeId,
+      assignedAt: (task as any)?.assignedAt || now,
+      reassignedAt: now,
+      reassignedReason: currentEmployeeId
+        ? `העובד הקודם לא משובץ למשמרת בתאריך ${dateKey}`
+        : `שובץ כי לא היה עובד משויך בתאריך ${dateKey}`,
+      updatedAt: now,
+    };
+
+    const previousObjectId = toObjectId(currentEmployeeId);
+
+    if (previousObjectId) {
+      set.previousAssignedEmployeeId = previousObjectId;
+      reassignedTasks += 1;
+    } else {
+      assignedMissingTasks += 1;
+    }
+
     bulkOps.push({
       updateOne: {
         filter: {
           _id: (task as any)._id,
         },
         update: {
-          $set: {
-            assignedToEmployeeId: nextEmployee.employeeId,
-            assignedEmployeeId: nextEmployee.employeeId,
-            employeeId: nextEmployee.employeeId,
-            assignedAt: (task as any)?.assignedAt || now,
-            reassignedAt: now,
-            reassignedReason: `שובץ כי לא היה עובד משויך בתאריך ${dateKey}`,
-            updatedAt: now,
-          },
+          $set: set,
         },
       },
     });
@@ -1598,8 +1612,8 @@ async function syncExistingWorkOrderWithScheduledEmployees(input: {
 
   return {
     workOrder: serializeWorkOrder(freshWorkOrder),
-    reassignedTasks: 0,
-    assignedMissingTasks: bulkOps.length,
+    reassignedTasks,
+    assignedMissingTasks,
     distribution,
   };
 }
@@ -1760,6 +1774,7 @@ async function reconcileExistingWorkOrderWithEligibleGuests(input: {
       eligibleGuestsCount: 0,
       reassignedTasks: 0,
       assignedMissingTasks: 0,
+      realignedTasks: 0,
       distribution: {},
     };
   }
@@ -1805,6 +1820,14 @@ async function reconcileExistingWorkOrderWithEligibleGuests(input: {
   const workDate = startOfDateKey(dateKey);
   const now = new Date();
 
+  const scheduledEmployeeById = buildScheduledEmployeeMap(scheduledEmployees);
+
+  /*
+    previousEmployeeByGuestId מחזיר עובד קודם רק אם אותו עובד משובץ גם למשמרת הנוכחית.
+    לכן:
+    - אם העובד הקודם משובץ היום: שומרים המשכיות אליו.
+    - אם העובד הקודם לא משובץ היום: אין previousEmployee, ואז עובד מהמשמרת הנוכחית מתחיל את הסבב.
+  */
   const previousEmployeeByGuestId = await loadPreviousRoundEmployeeByGuest({
     invitationObjectId,
     round: candidate.round,
@@ -1812,23 +1835,74 @@ async function reconcileExistingWorkOrderWithEligibleGuests(input: {
     scheduledEmployees,
   });
 
+  let distribution = await loadEmployeeTaskDistributionForDate(
+    dateKey,
+    scheduledEmployees
+  );
+
   const realignOps: any[] = [];
 
   /*
     אם סבב 2/3 כבר נוצר בטעות לעובד הלא נכון,
     מתקנים רק משימות שלא נגעו בהן בכלל.
-    לא מזיזים משימות שכבר התחילו / טופלו / חויגו.
+
+    כלל:
+    1. עובד קודם מהסבב הקודם + הוא במשמרת עכשיו => ממשיך לאותו עובד.
+    2. עובד קודם לא במשמרת עכשיו => עובד מהמשמרת הנוכחית מתחיל.
+    3. משימה שכבר התחילו לטפל בה => לא מזיזים.
   */
   for (const task of existingTasks) {
-    const guestId = extractIdString((task as any)?.guestId);
-    const previousEmployee = previousEmployeeByGuestId.get(guestId);
-
-    if (!guestId || !previousEmployee) continue;
     if (!isUntouchedOpenCallTask(task)) continue;
 
-    const currentEmployeeId = getTaskAssignedEmployeeIdString(task);
+    const guestId = extractIdString((task as any)?.guestId);
 
-    if (currentEmployeeId === previousEmployee.employeeIdString) continue;
+    if (!guestId) continue;
+
+    const currentEmployeeId = getTaskAssignedEmployeeIdString(task);
+    const currentEmployeeIsScheduled =
+      !!currentEmployeeId && scheduledEmployeeById.has(currentEmployeeId);
+
+    const previousEmployee = previousEmployeeByGuestId.get(guestId);
+
+    let targetEmployee: ScheduledEmployee | null = null;
+    let reassignedReason = "";
+
+    if (previousEmployee) {
+      if (currentEmployeeId === previousEmployee.employeeIdString) continue;
+
+      targetEmployee = previousEmployee;
+      reassignedReason = `יישור לעובד שטיפל באורח בסבב הקודם בתאריך ${dateKey}`;
+    } else if (!currentEmployeeIsScheduled) {
+      targetEmployee = chooseLeastLoadedEmployee(
+        scheduledEmployees,
+        distribution
+      );
+      reassignedReason = currentEmployeeId
+        ? `העובד מהסבב הקודם לא משובץ היום ולכן עובד משובץ מתחיל סבב ${candidate.round}`
+        : `שובץ לעובד במשמרת כי לא היה עובד משויך בתאריך ${dateKey}`;
+    }
+
+    if (!targetEmployee) continue;
+    if (currentEmployeeId === targetEmployee.employeeIdString) continue;
+
+    distribution[targetEmployee.employeeIdString] =
+      Number(distribution[targetEmployee.employeeIdString] || 0) + 1;
+
+    const set: Record<string, unknown> = {
+      assignedToEmployeeId: targetEmployee.employeeId,
+      assignedEmployeeId: targetEmployee.employeeId,
+      employeeId: targetEmployee.employeeId,
+      assignedAt: (task as any)?.assignedAt || now,
+      reassignedAt: now,
+      reassignedReason,
+      updatedAt: now,
+    };
+
+    const previousObjectId = toObjectId(currentEmployeeId);
+
+    if (previousObjectId) {
+      set.previousAssignedEmployeeId = previousObjectId;
+    }
 
     realignOps.push({
       updateOne: {
@@ -1836,15 +1910,7 @@ async function reconcileExistingWorkOrderWithEligibleGuests(input: {
           _id: (task as any)._id,
         },
         update: {
-          $set: {
-            assignedToEmployeeId: previousEmployee.employeeId,
-            assignedEmployeeId: previousEmployee.employeeId,
-            employeeId: previousEmployee.employeeId,
-            assignedAt: (task as any)?.assignedAt || now,
-            reassignedAt: now,
-            reassignedReason: `יישור לסבב קודם בלי לגעת במשימות שכבר טופלו בתאריך ${dateKey}`,
-            updatedAt: now,
-          },
+          $set: set,
         },
       },
     });
@@ -1854,12 +1920,12 @@ async function reconcileExistingWorkOrderWithEligibleGuests(input: {
     await CallTask.bulkWrite(realignOps, {
       ordered: false,
     });
-  }
 
-  const distribution = await loadEmployeeTaskDistributionForDate(
-    dateKey,
-    scheduledEmployees
-  );
+    distribution = await loadEmployeeTaskDistributionForDate(
+      dateKey,
+      scheduledEmployees
+    );
+  }
 
   const docsToInsert: any[] = [];
 
