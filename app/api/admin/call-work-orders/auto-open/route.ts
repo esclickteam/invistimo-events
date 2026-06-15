@@ -18,10 +18,16 @@ export const dynamic = "force-dynamic";
 ============================================================ */
 
 const TIMEZONE = "Asia/Jerusalem";
-const AUTO_OPEN_HOUR = 8;
+const AUTO_OPEN_HOUR = 0;
 const SHIFT_COLLECTION = "employeeshifts";
 
 const NEXT_ROUND_ELIGIBLE_STATUSES = [
+  "pending",
+  "open",
+  "assigned",
+  "active",
+  "in_progress",
+
   "no_answer",
   "callback",
   "needs_fix",
@@ -34,6 +40,12 @@ const OPEN_TASK_STATUSES_FOR_REDISTRIBUTION = [
   "open",
   "assigned",
   "active",
+] as const;
+
+const SAFE_MOVE_WORK_ORDER_STATUSES = [
+  "scheduled",
+  "open",
+  "pending",
 ] as const;
 
 type RoundNumber = 1 | 2 | 3;
@@ -85,18 +97,10 @@ function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function toObjectId(value: unknown) {
-  const id = extractIdString(value);
-  if (!mongoose.Types.ObjectId.isValid(id)) return null;
-  return new mongoose.Types.ObjectId(id);
-}
-
 function extractIdString(value: unknown): string {
   if (!value) return "";
 
-  if (typeof value === "string") {
-    return value;
-  }
+  if (typeof value === "string") return value;
 
   if (value instanceof mongoose.Types.ObjectId) {
     return String(value);
@@ -113,6 +117,14 @@ function extractIdString(value: unknown): string {
   return String(value || "");
 }
 
+function toObjectId(value: unknown) {
+  const id = extractIdString(value);
+
+  if (!mongoose.Types.ObjectId.isValid(id)) return null;
+
+  return new mongoose.Types.ObjectId(id);
+}
+
 function normalizeRound(value: unknown, fallbackIndex = 0): RoundNumber | null {
   const hasExplicit =
     value !== undefined && value !== null && cleanStr(value) !== "";
@@ -121,9 +133,13 @@ function normalizeRound(value: unknown, fallbackIndex = 0): RoundNumber | null {
     const n = Number(value);
 
     if (n === 1 || n === 2 || n === 3) return n;
+
     if (n === 0 || n === 1 || n === 2) {
       const byIndex = n + 1;
-      if (byIndex === 1 || byIndex === 2 || byIndex === 3) return byIndex;
+
+      if (byIndex === 1 || byIndex === 2 || byIndex === 3) {
+        return byIndex;
+      }
     }
   }
 
@@ -139,6 +155,7 @@ function normalizeRound(value: unknown, fallbackIndex = 0): RoundNumber | null {
 function getSourceAudienceByRound(round: RoundNumber) {
   if (round === 1) return "pending_rsvp";
   if (round === 2) return "round_1_no_answer";
+
   return "round_2_no_answer";
 }
 
@@ -149,6 +166,24 @@ function isAdminRole(role?: string) {
     normalized === "admin" ||
     normalized === "super_admin" ||
     normalized === "owner"
+  );
+}
+
+function isNextRoundEligibleStatus(status: unknown) {
+  return NEXT_ROUND_ELIGIBLE_STATUSES.includes(
+    cleanStr(status).toLowerCase() as any
+  );
+}
+
+function isOpenTaskStatusForRedistribution(status: unknown) {
+  return OPEN_TASK_STATUSES_FOR_REDISTRIBUTION.includes(
+    cleanStr(status).toLowerCase() as any
+  );
+}
+
+function isSafeMoveWorkOrderStatus(status: unknown) {
+  return SAFE_MOVE_WORK_ORDER_STATUSES.includes(
+    cleanStr(status || "open").toLowerCase() as any
   );
 }
 
@@ -169,7 +204,6 @@ function getTimeZoneParts(date: Date, timeZone = TIMEZONE) {
   });
 
   const parts = formatter.formatToParts(date);
-
   const map: Record<string, string> = {};
 
   for (const part of parts) {
@@ -367,6 +401,7 @@ async function getAuthUser(): Promise<AuthUser | null> {
   if (!token) return null;
 
   const secret = getJwtSecret();
+
   if (!secret) return null;
 
   try {
@@ -414,14 +449,15 @@ async function requireAdminOrCron(req: NextRequest) {
   }
 
   const userObjectId = toObjectId(auth.id);
-
   const userConditions: any[] = [];
 
   if (userObjectId) userConditions.push({ _id: userObjectId });
+
   userConditions.push({ id: auth.id });
 
   if (auth.email) {
     userConditions.push({ email: auth.email });
+    userConditions.push({ email: auth.email.toLowerCase() });
   }
 
   const currentUser = await User.findOne({
@@ -520,7 +556,6 @@ function getRoundScheduledAt(raw: any) {
 
 function extractScheduledRoundsForDate(container: any, dateKey: string) {
   const results: ScheduledRound[] = [];
-
   const arrays = getScheduleArrays(container);
 
   for (const rounds of arrays) {
@@ -556,39 +591,48 @@ function buildScheduleQuery(dateKey: string) {
   const end = addHours(endOfDateKey(dateKey), 12);
   const dateRegex = new RegExp(`^${escapeRegExp(dateKey)}`);
 
-  const fields = [
-    "callRoundsSchedule.rounds.scheduledAt",
-    "callRoundsSchedule.rounds.scheduledDate",
-    "callRoundsSchedule.rounds.date",
-    "phoneCallRoundsSchedule.rounds.scheduledAt",
-    "phoneCallRoundsSchedule.rounds.scheduledDate",
-    "phoneCallRoundsSchedule.rounds.date",
-    "callRounds.scheduledAt",
-    "callRounds.scheduledDate",
-    "callRounds.date",
-    "phoneCallRounds.scheduledAt",
-    "phoneCallRounds.scheduledDate",
-    "phoneCallRounds.date",
-    "rounds.scheduledAt",
-    "rounds.scheduledDate",
-    "rounds.date",
+  const arrayPaths = [
+    "callRoundsSchedule.rounds",
+    "phoneCallRoundsSchedule.rounds",
+    "callRounds",
+    "phoneCallRounds",
+    "rounds",
+  ];
+
+  const dateFields = [
+    "scheduledAt",
+    "scheduledDate",
+    "callAt",
+    "callDateTime",
+    "sendAt",
+    "dateTime",
+    "at",
+    "date",
+    "scheduledDay",
+    "day",
+    "workDate",
+    "roundDate",
   ];
 
   const or: any[] = [];
 
-  for (const field of fields) {
-    or.push({
-      [field]: {
-        $gte: start,
-        $lte: end,
-      },
-    });
+  for (const arrayPath of arrayPaths) {
+    for (const field of dateFields) {
+      const fullPath = `${arrayPath}.${field}`;
 
-    or.push({
-      [field]: {
-        $regex: dateRegex,
-      },
-    });
+      or.push({
+        [fullPath]: {
+          $gte: start,
+          $lte: end,
+        },
+      });
+
+      or.push({
+        [fullPath]: {
+          $regex: dateRegex,
+        },
+      });
+    }
   }
 
   return {
@@ -609,6 +653,7 @@ async function findInvitationByAnyId(value: unknown) {
   const conditions: any[] = [];
 
   if (objectId) conditions.push({ _id: objectId });
+
   if (id) {
     conditions.push({ id });
     conditions.push({ invitationId: id });
@@ -637,6 +682,7 @@ async function findClientUserFromInvitation(invitation: any) {
 
   if (ownerObjectId) {
     const byId = await User.findById(ownerObjectId).lean();
+
     if (byId) return byId;
   }
 
@@ -666,11 +712,11 @@ async function findInvitationForUserRound(user: any, rawRound: any) {
 
   if (explicitInvitationId) {
     const explicit = await findInvitationByAnyId(explicitInvitationId);
+
     if (explicit) return explicit;
   }
 
   const userObjectId = toObjectId(user?._id || user?.id);
-
   const conditions: any[] = [];
 
   if (userObjectId) {
@@ -700,7 +746,9 @@ async function findInvitationForUserRound(user: any, rawRound: any) {
 
   const upcoming = await Invitation.findOne({
     $and: [
-      { $or: conditions },
+      {
+        $or: conditions,
+      },
       {
         $or: [
           { eventDate: { $gte: todayStart } },
@@ -799,6 +847,7 @@ async function loadScheduleCandidates(dateKey: string, maxCandidates: number) {
       const key = `${invitationId}:${roundInfo.round}:${dateKey}`;
 
       if (dedupe.has(key)) continue;
+
       dedupe.add(key);
 
       candidates.push({
@@ -831,6 +880,7 @@ async function loadScheduleCandidates(dateKey: string, maxCandidates: number) {
       const key = `${invitationId}:${roundInfo.round}:${dateKey}`;
 
       if (dedupe.has(key)) continue;
+
       dedupe.add(key);
 
       candidates.push({
@@ -853,6 +903,7 @@ async function loadScheduleCandidates(dateKey: string, maxCandidates: number) {
 
 function shiftEmployeeId(shift: any) {
   return (
+    shift?.employeeIdString ||
     shift?.employeeId ||
     shift?.userId ||
     shift?.staffId ||
@@ -914,16 +965,19 @@ async function loadScheduledEmployeesForDate(dateKey: string) {
             { workDate: dateKey },
             { shiftDate: dateKey },
             { day: dateKey },
+            { startDate: dateKey },
+
             { date: { $gte: start, $lte: end } },
             { workDate: { $gte: start, $lte: end } },
             { shiftDate: { $gte: start, $lte: end } },
+            { startsAt: { $gte: start, $lte: end } },
+            { startAt: { $gte: start, $lte: end } },
+            { startTime: { $gte: start, $lte: end } },
+            { from: { $gte: start, $lte: end } },
           ],
         },
         {
-          $or: [
-            { isDeleted: { $exists: false } },
-            { isDeleted: false },
-          ],
+          $or: [{ isDeleted: { $exists: false } }, { isDeleted: false }],
         },
         {
           $or: [
@@ -939,11 +993,13 @@ async function loadScheduledEmployeesForDate(dateKey: string) {
                 ],
               },
             },
+            { active: true },
+            { isActive: true },
           ],
         },
       ],
     })
-    .limit(500)
+    .limit(1000)
     .toArray();
 
   const map = new Map<string, ScheduledEmployee>();
@@ -1061,10 +1117,12 @@ async function loadGuestsForRound(input: {
 
   const allGuests = await loadGuestsForInvitation(input.invitation);
 
+  const pendingGuestsWithPhone = allGuests.filter((guest: any) => {
+    return hasPhone(guest) && isPendingGuest(guest);
+  });
+
   if (input.round === 1) {
-    return allGuests.filter((guest: any) => {
-      return hasPhone(guest) && isPendingGuest(guest);
-    });
+    return pendingGuestsWithPhone;
   }
 
   if (!invitationObjectId) return [];
@@ -1074,31 +1132,49 @@ async function loadGuestsForRound(input: {
   const previousRoundTasks = await CallTask.find({
     invitationId: invitationObjectId,
     round: previousRound,
-    status: {
-      $in: NEXT_ROUND_ELIGIBLE_STATUSES,
-    },
     workDate: {
       $lte: endOfDateKey(input.dateKey),
     },
   })
-    .select("guestId")
+    .select("guestId status updatedAt createdAt")
+    .sort({
+      updatedAt: -1,
+      createdAt: -1,
+    })
     .lean();
 
-  const guestIds = new Set(
-    previousRoundTasks.map((task: any) => String(task.guestId))
-  );
+  const latestTaskByGuestId = new Map<string, any>();
 
-  return allGuests.filter((guest: any) => {
-    return (
-      hasPhone(guest) &&
-      isPendingGuest(guest) &&
-      guestIds.has(String(guest?._id || ""))
-    );
+  for (const task of previousRoundTasks) {
+    const guestId = extractIdString((task as any)?.guestId);
+
+    if (!guestId) continue;
+
+    if (!latestTaskByGuestId.has(guestId)) {
+      latestTaskByGuestId.set(guestId, task);
+    }
+  }
+
+  return pendingGuestsWithPhone.filter((guest: any) => {
+    const guestId = extractIdString(guest?._id);
+
+    if (!guestId) return false;
+
+    const previousTask = latestTaskByGuestId.get(guestId);
+
+    /*
+      חשוב:
+      אם אין task קודם — מכניסים אותו לסבב הבא.
+      זה מכסה אורח שבהמתנה שלא נגעו בו בכלל בסבב הקודם.
+    */
+    if (!previousTask) return true;
+
+    return isNextRoundEligibleStatus(previousTask?.status);
   });
 }
 
 /* ============================================================
-   Work order creation
+   Work order serialization / counts
 ============================================================ */
 
 function getRoundTitle(input: {
@@ -1117,10 +1193,10 @@ function getRoundDescription(round: RoundNumber) {
   }
 
   if (round === 2) {
-    return "סבב 2 - שיחות למי שלא ענה בסבב הראשון";
+    return "סבב 2 - שיחות למי שלא נסגר בסבב הראשון";
   }
 
-  return "סבב 3 - שיחות למי שלא ענה בסבב השני";
+  return "סבב 3 - שיחות למי שלא נסגר בסבב השני";
 }
 
 function getAttendingCount(guest: any) {
@@ -1195,13 +1271,6 @@ function serializeWorkOrder(order: any) {
   };
 }
 
-
-function isOpenTaskStatusForRedistribution(status: unknown) {
-  return OPEN_TASK_STATUSES_FOR_REDISTRIBUTION.includes(
-    cleanStr(status).toLowerCase() as any
-  );
-}
-
 function summarizeCallTaskStatuses(tasks: any[]) {
   const summary = {
     totalTasks: tasks.length,
@@ -1221,13 +1290,17 @@ function summarizeCallTaskStatuses(tasks: any[]) {
   for (const task of tasks) {
     const status = cleanStr(task?.status).toLowerCase();
 
-    if (!task?.assignedToEmployeeId) {
+    if (!task?.assignedToEmployeeId && !task?.assignedEmployeeId && !task?.employeeId) {
       summary.unassignedTasks += 1;
     }
 
-    if (status === "pending") summary.pendingTasks += 1;
-    else if (status === "in_progress") summary.inProgressTasks += 1;
-    else summary.completedTasks += 1;
+    if (status === "pending") {
+      summary.pendingTasks += 1;
+    } else if (status === "in_progress") {
+      summary.inProgressTasks += 1;
+    } else {
+      summary.completedTasks += 1;
+    }
 
     if (status === "confirmed") summary.confirmedTasks += 1;
     if (status === "declined") summary.declinedTasks += 1;
@@ -1250,6 +1323,10 @@ function buildEmployeeDistribution(employees: ScheduledEmployee[]) {
 
   return distribution;
 }
+
+/* ============================================================
+   Existing work order sync / move
+============================================================ */
 
 async function syncExistingWorkOrderWithScheduledEmployees(input: {
   existing: any;
@@ -1292,23 +1369,31 @@ async function syncExistingWorkOrderWithScheduledEmployees(input: {
 
   for (const task of tasks) {
     const status = cleanStr((task as any)?.status).toLowerCase();
-    const currentEmployeeId = extractIdString((task as any)?.assignedToEmployeeId);
+    const currentEmployeeId =
+      extractIdString((task as any)?.assignedToEmployeeId) ||
+      extractIdString((task as any)?.assignedEmployeeId) ||
+      extractIdString((task as any)?.employeeId);
 
     if (!isOpenTaskStatusForRedistribution(status)) {
       if (currentEmployeeId) {
-        distribution[currentEmployeeId] = Number(distribution[currentEmployeeId] || 0) + 1;
+        distribution[currentEmployeeId] =
+          Number(distribution[currentEmployeeId] || 0) + 1;
       }
+
       continue;
     }
 
-    const nextEmployee = scheduledEmployees[openIndex % scheduledEmployees.length];
+    const nextEmployee =
+      scheduledEmployees[openIndex % scheduledEmployees.length];
+
     openIndex += 1;
 
     const nextEmployeeId = nextEmployee?.employeeId;
     const nextEmployeeIdString = nextEmployee?.employeeIdString || "";
 
     if (nextEmployeeIdString) {
-      distribution[nextEmployeeIdString] = Number(distribution[nextEmployeeIdString] || 0) + 1;
+      distribution[nextEmployeeIdString] =
+        Number(distribution[nextEmployeeIdString] || 0) + 1;
     }
 
     if (!nextEmployeeId || currentEmployeeId === nextEmployeeIdString) {
@@ -1317,12 +1402,16 @@ async function syncExistingWorkOrderWithScheduledEmployees(input: {
 
     const set: Record<string, unknown> = {
       assignedToEmployeeId: nextEmployeeId,
+      assignedEmployeeId: nextEmployeeId,
+      employeeId: nextEmployeeId,
       assignedAt: (task as any)?.assignedAt || now,
       reassignedAt: now,
       reassignedReason: `שיבוץ מחדש לפי העובדים במשמרת בתאריך ${dateKey}`,
+      updatedAt: now,
     };
 
     const previousObjectId = toObjectId(currentEmployeeId);
+
     if (previousObjectId) {
       set.previousAssignedEmployeeId = previousObjectId;
     }
@@ -1348,7 +1437,7 @@ async function syncExistingWorkOrderWithScheduledEmployees(input: {
   const freshTasks = await CallTask.find({
     workOrderId,
   })
-    .select("status assignedToEmployeeId")
+    .select("status assignedToEmployeeId assignedEmployeeId employeeId")
     .lean();
 
   const taskSummary = summarizeCallTaskStatuses(freshTasks);
@@ -1369,6 +1458,7 @@ async function syncExistingWorkOrderWithScheduledEmployees(input: {
       notes: notesText.includes(syncNote)
         ? notesText
         : [notesText, syncNote].filter(Boolean).join(" | "),
+      updatedAt: now,
     },
   });
 
@@ -1380,6 +1470,147 @@ async function syncExistingWorkOrderWithScheduledEmployees(input: {
     distribution,
   };
 }
+
+async function findMovableExistingWorkOrder(input: {
+  invitationObjectId: Types.ObjectId;
+  round: RoundNumber;
+  dateKey: string;
+}) {
+  const { invitationObjectId, round, dateKey } = input;
+
+  const exact = await CallWorkOrder.findOne({
+    invitationId: invitationObjectId,
+    type: "rsvp_calls",
+    round,
+    workDate: {
+      $gte: startOfDateKey(dateKey),
+      $lte: endOfDateKey(dateKey),
+    },
+  }).lean();
+
+  if (exact) {
+    return {
+      type: "exact" as const,
+      workOrder: exact,
+    };
+  }
+
+  const other = await CallWorkOrder.findOne({
+    invitationId: invitationObjectId,
+    type: "rsvp_calls",
+    round,
+    status: {
+      $in: SAFE_MOVE_WORK_ORDER_STATUSES,
+    },
+  })
+    .sort({
+      updatedAt: -1,
+      createdAt: -1,
+    })
+    .lean();
+
+  if (!other) return null;
+
+  return {
+    type: "other_date" as const,
+    workOrder: other,
+  };
+}
+
+async function moveExistingWorkOrderToDateAndSync(input: {
+  existing: any;
+  scheduledEmployees: ScheduledEmployee[];
+  dateKey: string;
+  configuredRoundAt: Date;
+}) {
+  const { existing, scheduledEmployees, dateKey, configuredRoundAt } = input;
+  const workOrderId = toObjectId(existing?._id);
+
+  if (!workOrderId) {
+    return {
+      status: "skipped",
+      reason: "EXISTING_WORK_ORDER_ID_INVALID",
+      workOrder: null,
+    };
+  }
+
+  if (!isSafeMoveWorkOrderStatus(existing?.status)) {
+    return {
+      status: "skipped",
+      reason: "EXISTING_WORK_ORDER_STATUS_NOT_SAFE_TO_MOVE",
+      workOrder: serializeWorkOrder(existing),
+    };
+  }
+
+  const tasks = await CallTask.find({
+    workOrderId,
+  })
+    .select("status")
+    .lean();
+
+  const hasClosedTasks = tasks.some((task: any) => {
+    return !isOpenTaskStatusForRedistribution(task?.status);
+  });
+
+  if (hasClosedTasks) {
+    return {
+      status: "skipped",
+      reason: "EXISTING_WORK_ORDER_FOR_OTHER_DATE_HAS_CLOSED_TASKS",
+      workOrder: serializeWorkOrder(existing),
+    };
+  }
+
+  const now = new Date();
+  const newWorkDate = startOfDateKey(dateKey);
+  const newAutoOpenAt = autoOpenAtForDateKey(dateKey);
+
+  await CallWorkOrder.findByIdAndUpdate(workOrderId, {
+    $set: {
+      workDate: newWorkDate,
+      configuredRoundAt,
+      autoOpenAt: newAutoOpenAt,
+      autoOpenHour: AUTO_OPEN_HOUR,
+      timezone: TIMEZONE,
+      notes: [
+        cleanStr(existing?.notes),
+        `הועבר אוטומטית לתאריך ${dateKey} אחרי שינוי תזמון`,
+      ]
+        .filter(Boolean)
+        .join(" | "),
+      updatedAt: now,
+    },
+  });
+
+  await CallTask.updateMany(
+    {
+      workOrderId,
+    },
+    {
+      $set: {
+        workDate: newWorkDate,
+        updatedAt: now,
+      },
+    }
+  );
+
+  const movedWorkOrder = await CallWorkOrder.findById(workOrderId).lean();
+
+  const synced = await syncExistingWorkOrderWithScheduledEmployees({
+    existing: movedWorkOrder,
+    scheduledEmployees,
+    dateKey,
+  });
+
+  return {
+    status: "exists",
+    reason: "EXISTING_WORK_ORDER_MOVED_TO_NEW_DATE_AND_SYNCED",
+    ...synced,
+  };
+}
+
+/* ============================================================
+   Work order creation
+============================================================ */
 
 async function createWorkOrderForCandidate(input: {
   candidate: ScheduleCandidate;
@@ -1398,19 +1629,15 @@ async function createWorkOrderForCandidate(input: {
     };
   }
 
-  const existing = await CallWorkOrder.findOne({
-    invitationId: invitationObjectId,
-    type: "rsvp_calls",
+  const existingResult = await findMovableExistingWorkOrder({
+    invitationObjectId,
     round: candidate.round,
-    workDate: {
-      $gte: startOfDateKey(dateKey),
-      $lte: endOfDateKey(dateKey),
-    },
-  }).lean();
+    dateKey,
+  });
 
-  if (existing) {
+  if (existingResult?.type === "exact") {
     const synced = await syncExistingWorkOrderWithScheduledEmployees({
-      existing,
+      existing: existingResult.workOrder,
       scheduledEmployees,
       dateKey,
     });
@@ -1420,6 +1647,20 @@ async function createWorkOrderForCandidate(input: {
       reason: "WORK_ORDER_ALREADY_EXISTS_SYNCED_TO_SHIFT_DATE",
       round: candidate.round,
       ...synced,
+    };
+  }
+
+  if (existingResult?.type === "other_date") {
+    const moved = await moveExistingWorkOrderToDateAndSync({
+      existing: existingResult.workOrder,
+      scheduledEmployees,
+      dateKey,
+      configuredRoundAt: candidate.configuredRoundAt,
+    });
+
+    return {
+      ...moved,
+      round: candidate.round,
     };
   }
 
@@ -1443,7 +1684,7 @@ async function createWorkOrderForCandidate(input: {
       reason:
         candidate.round === 1
           ? "NO_PENDING_GUESTS_FOR_ROUND_1"
-          : `NO_NO_ANSWER_GUESTS_FROM_ROUND_${candidate.round - 1}`,
+          : `NO_GUESTS_FOR_ROUND_${candidate.round}`,
       round: candidate.round,
     };
   }
@@ -1527,6 +1768,8 @@ async function createWorkOrderForCandidate(input: {
 
       lastDistributedAt: now,
       notes: `נפתח אוטומטית לפי סבב ${candidate.round} מתאריך ${dateKey}`,
+      createdAt: now,
+      updatedAt: now,
     });
   } catch (error: any) {
     if (error?.code === 11000) {
@@ -1534,24 +1777,24 @@ async function createWorkOrderForCandidate(input: {
         invitationId: invitationObjectId,
         type: "rsvp_calls",
         round: candidate.round,
-        workDate: {
-          $gte: startOfDateKey(dateKey),
-          $lte: endOfDateKey(dateKey),
-        },
-      }).lean();
+      })
+        .sort({
+          updatedAt: -1,
+          createdAt: -1,
+        })
+        .lean();
 
       if (duplicate) {
-        const synced = await syncExistingWorkOrderWithScheduledEmployees({
+        const moved = await moveExistingWorkOrderToDateAndSync({
           existing: duplicate,
           scheduledEmployees,
           dateKey,
+          configuredRoundAt: candidate.configuredRoundAt,
         });
 
         return {
-          status: "exists",
-          reason: "WORK_ORDER_ALREADY_EXISTS_SYNCED_TO_SHIFT_DATE",
+          ...moved,
           round: candidate.round,
-          ...synced,
         };
       }
 
@@ -1567,7 +1810,6 @@ async function createWorkOrderForCandidate(input: {
   }
 
   const workOrderId = workOrder._id as Types.ObjectId;
-
   const distribution: Record<string, number> = {};
 
   const taskDocs = guestsForRound
@@ -1580,6 +1822,7 @@ async function createWorkOrderForCandidate(input: {
         scheduledEmployees[index % scheduledEmployees.length];
 
       const employeeKey = assignedEmployee?.employeeIdString || "unassigned";
+
       distribution[employeeKey] = Number(distribution[employeeKey] || 0) + 1;
 
       return {
@@ -1590,6 +1833,9 @@ async function createWorkOrderForCandidate(input: {
         guestId: guestObjectId,
 
         assignedToEmployeeId: assignedEmployee?.employeeId || null,
+        assignedEmployeeId: assignedEmployee?.employeeId || null,
+        employeeId: assignedEmployee?.employeeId || null,
+
         previousAssignedEmployeeId: null,
 
         clientName,
@@ -1638,12 +1884,15 @@ async function createWorkOrderForCandidate(input: {
 
         note: "",
         adminNote: "",
+
+        createdAt: now,
+        updatedAt: now,
       };
     })
     .filter(Boolean);
 
   try {
-    await CallTask.insertMany(taskDocs, {
+    await (CallTask as any).insertMany(taskDocs, {
       ordered: true,
     });
   } catch (error) {
@@ -1661,11 +1910,14 @@ async function createWorkOrderForCandidate(input: {
   const freshTasks = await CallTask.find({
     workOrderId,
   })
-    .select("status assignedToEmployeeId")
+    .select("status assignedToEmployeeId assignedEmployeeId employeeId")
     .lean();
 
   await CallWorkOrder.findByIdAndUpdate(workOrderId, {
-    $set: summarizeCallTaskStatuses(freshTasks),
+    $set: {
+      ...summarizeCallTaskStatuses(freshTasks),
+      updatedAt: new Date(),
+    },
   });
 
   const freshWorkOrder = await CallWorkOrder.findById(workOrderId).lean();
@@ -1712,36 +1964,21 @@ async function handleAutoOpen(req: NextRequest) {
       url.searchParams.get("date") || body?.date || body?.workDate
     );
 
-    const force =
-      url.searchParams.get("force") === "1" ||
-      url.searchParams.get("force") === "true" ||
-      body?.force === true;
-
     const maxCandidates = Math.min(
-      500,
-      Math.max(
-        1,
-        Number(url.searchParams.get("limit") || body?.limit || 200)
-      )
+      2000,
+      Math.max(1, Number(url.searchParams.get("limit") || body?.limit || 500))
     );
 
-    const todayKey = getDateKeyInIsrael(new Date());
-    const currentIsraelHour = getIsraelHour(new Date());
+    const now = new Date();
+    const todayKey = getDateKeyInIsrael(now);
+    const currentIsraelHour = getIsraelHour(now);
 
-    /**
-     * לא לפתוח לפני 08:00 בבוקר, אלא אם force=true.
-     * ככה גם אם Cron רץ מוקדם מדי בגלל שעון חורף/קיץ - לא ייפתח לפני הזמן.
-     */
-    if (!force && dateKey === todayKey && currentIsraelHour < AUTO_OPEN_HOUR) {
-      return NextResponse.json({
-        success: true,
-        skipped: true,
-        reason: "NOT_TIME_YET",
-        message: "עדיין לפני 08:00 לפי שעון ישראל",
-        dateKey,
-        currentIsraelHour,
-      });
-    }
+    /*
+      אין יותר חסימת שעה.
+      הכרון יכול לרוץ כל דקה.
+      הוא פותח לפי dateKey בלבד:
+      00:00 עד 23:59:59 לפי Asia/Jerusalem.
+    */
 
     const scheduledEmployees = await loadScheduledEmployeesForDate(dateKey);
 
@@ -1753,6 +1990,10 @@ async function handleAutoOpen(req: NextRequest) {
         message:
           "אין עובדים משובצים לתאריך הזה, לכן לא נפתחו הוראות עבודה אוטומטיות",
         dateKey,
+        todayKey,
+        timezone: TIMEZONE,
+        serverNow: now.toISOString(),
+        currentIsraelHour,
         employees: [],
       });
     }
@@ -1766,6 +2007,10 @@ async function handleAutoOpen(req: NextRequest) {
         reason: "NO_SCHEDULED_ROUNDS_FOR_DATE",
         message: "לא נמצאו סבבי שיחות שמוגדרים לתאריך הזה",
         dateKey,
+        todayKey,
+        timezone: TIMEZONE,
+        serverNow: now.toISOString(),
+        currentIsraelHour,
         employeesCount: scheduledEmployees.length,
       });
     }
@@ -1820,8 +2065,10 @@ async function handleAutoOpen(req: NextRequest) {
     return NextResponse.json({
       success: errors.length === 0,
       dateKey,
-      openedAtHour: AUTO_OPEN_HOUR,
+      todayKey,
       timezone: TIMEZONE,
+      serverNow: now.toISOString(),
+      currentIsraelHour,
 
       employeesCount: scheduledEmployees.length,
       employees: scheduledEmployees.map((employee) => ({
@@ -1852,8 +2099,6 @@ async function handleAutoOpen(req: NextRequest) {
     );
   }
 }
-
-
 
 /* ============================================================
    Routes
