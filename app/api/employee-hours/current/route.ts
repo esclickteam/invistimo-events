@@ -53,6 +53,10 @@ const SHIFT_COLLECTIONS_TO_TRY = [
 ];
 
 const SOFTPHONE_COLLECTIONS_TO_TRY = [
+  // המודל החדש שיצרנו:
+  // models/SoftphoneWorkSession.ts -> collection: softphoneworksessions
+  "softphoneworksessions",
+
   "softphonesessions",
   "softphone_sessions",
   "softphonelogs",
@@ -264,6 +268,7 @@ function formatTime(value: any) {
   if (Number.isNaN(date.getTime())) return "";
 
   return date.toLocaleTimeString("he-IL", {
+    timeZone: "Asia/Jerusalem",
     hour: "2-digit",
     minute: "2-digit",
   });
@@ -390,6 +395,11 @@ async function loadSoftphoneSessions(employeeId: string, monthKey: string) {
           { $or: employeeConditions },
           {
             $or: [
+              // SoftphoneWorkSession החדש
+              { month: monthKey },
+              { date: { $gte: `${monthKey}-01`, $lte: `${monthKey}-31` } },
+
+              // תמיכה בקולקשנים ישנים/אחרים עם Date
               { date: { $gte: start, $lt: end } },
               { startedAt: { $gte: start, $lt: end } },
               { startAt: { $gte: start, $lt: end } },
@@ -481,30 +491,43 @@ function mergeSoftphoneIntoRows(rows: DayRow[], sessions: any[]) {
 
   for (const session of sessions) {
     const startValue = getValueByKeys(session, [
+      // SoftphoneWorkSession החדש
+      "startedAt",
+
+      // תמיכה בשמות קיימים/עתידיים
       "actualStart",
       "softphoneStart",
       "clockIn",
       "clockInAt",
       "loginAt",
-      "startedAt",
       "startAt",
       "createdAt",
     ]);
 
     const endValue = getValueByKeys(session, [
+      // SoftphoneWorkSession החדש
+      "endedAt",
+
+      // תמיכה בשמות קיימים/עתידיים
       "actualEnd",
       "softphoneEnd",
       "clockOut",
       "clockOutAt",
       "logoutAt",
-      "endedAt",
       "endAt",
       "updatedAt",
     ]);
 
     const dateKey =
       normalizeDateKey(
-        getValueByKeys(session, ["date", "workDate", "day", "startedAt", "clockInAt", "createdAt"]),
+        getValueByKeys(session, [
+          "date",
+          "workDate",
+          "day",
+          "startedAt",
+          "clockInAt",
+          "createdAt",
+        ]),
       ) || normalizeDateKey(startValue);
 
     if (!dateKey || !rowsMap.has(dateKey)) continue;
@@ -521,13 +544,22 @@ function mergeSoftphoneIntoRows(rows: DayRow[], sessions: any[]) {
     if (endValue) current.ends.push(endValue);
 
     const directMinutes = Number(
-      getValueByKeys(session, ["totalMinutes", "workMinutes", "minutes", "durationMinutes"]),
+      getValueByKeys(session, [
+        "totalMinutes",
+        "workMinutes",
+        "minutes",
+        "durationMinutes",
+      ]),
     );
 
-    current.totalMinutes +=
-      !Number.isNaN(directMinutes) && directMinutes > 0
-        ? directMinutes
-        : minutesBetween(startValue, endValue);
+    if (!Number.isNaN(directMinutes) && directMinutes > 0) {
+      current.totalMinutes += directMinutes;
+    } else if (startValue && endValue) {
+      current.totalMinutes += minutesBetween(startValue, endValue);
+    } else if (startValue && String(session?.status || "").toLowerCase() === "open") {
+      // משמרת פתוחה — מציג זמן רץ עד עכשיו כדי שהעובד/ת יראו את היום הנוכחי
+      current.totalMinutes += minutesBetween(startValue, new Date());
+    }
 
     grouped.set(dateKey, current);
   }
