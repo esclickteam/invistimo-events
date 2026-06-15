@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 export const dynamic = "force-dynamic";
@@ -70,9 +71,6 @@ type AdminEmployeeDocument = {
 const API = {
   forms101: "/api/admin/forms/101",
   agreements: "/api/admin/employee-agreements",
-  updateFormStatus: (formId: string) => `/api/admin/forms/101/${formId}/status`,
-  updateAgreementStatus: (agreementId: string) =>
-    `/api/admin/employee-agreements/${agreementId}/status`,
 };
 
 function formatDate(value?: string) {
@@ -195,8 +193,6 @@ function Icon({
     | "search"
     | "refresh"
     | "file"
-    | "check"
-    | "x"
     | "open"
     | "users"
     | "warning"
@@ -245,23 +241,6 @@ function Icon({
     );
   }
 
-  if (name === "check") {
-    return (
-      <svg {...common}>
-        <path d="m20 6-11 11-5-5" />
-      </svg>
-    );
-  }
-
-  if (name === "x") {
-    return (
-      <svg {...common}>
-        <path d="M18 6 6 18" />
-        <path d="m6 6 12 12" />
-      </svg>
-    );
-  }
-
   if (name === "open") {
     return (
       <svg {...common}>
@@ -296,7 +275,6 @@ export default function AdminEmployeesPage() {
   const [documents, setDocuments] = useState<AdminEmployeeDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
   const [search, setSearch] = useState("");
@@ -476,59 +454,6 @@ export default function AdminEmployeesPage() {
     return Array.from(set).sort((a, b) => b - a);
   }, [documents]);
 
-  async function updateStatus(
-    doc: AdminEmployeeDocument,
-    status: "approved" | "rejected" | "uploaded" | "signed"
-  ) {
-    const documentId = getDocumentId(doc);
-    if (!documentId || updatingId) return;
-
-    try {
-      setUpdatingId(documentId);
-
-      const url =
-        doc.source === "agreement"
-          ? API.updateAgreementStatus(documentId)
-          : API.updateFormStatus(documentId);
-
-      const response = await fetch(url, {
-        method: "PATCH",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ status }),
-      });
-
-      const data = await response.json().catch(() => null);
-
-      if (!response.ok || !data?.success) {
-        throw new Error(data?.error || "שגיאה בעדכון סטטוס");
-      }
-
-      setDocuments((prev) =>
-        prev.map((item) =>
-          getDocumentId(item) === documentId && item.source === doc.source
-            ? {
-                ...item,
-                status,
-                updatedAt: new Date().toISOString(),
-              }
-            : item
-        )
-      );
-    } catch (updateError) {
-      console.error("UPDATE EMPLOYEE DOCUMENT STATUS FAILED:", updateError);
-      alert(
-        updateError instanceof Error
-          ? updateError.message
-          : "שגיאה בעדכון סטטוס"
-      );
-    } finally {
-      setUpdatingId(null);
-    }
-  }
-
   return (
     <div dir="rtl" className="min-h-screen text-slate-950">
       <div className="mx-auto w-full max-w-[1500px] space-y-6">
@@ -545,19 +470,19 @@ export default function AdminEmployeesPage() {
               </h1>
 
               <p className="mt-3 max-w-3xl text-sm font-semibold leading-7 text-slate-300 md:text-base">
-                כאן האדמין רואה טופסי 101, תעודות זהות והסכמי עבודה חתומים של
-                כל העובדים, כולל צפייה בקובץ, אישור או דחייה.
+                כאן האדמין רואה את מסמכי העובדים. כניסה לצפייה, אישור, דחייה,
+                שעות והערות מתבצעת מתוך תיק העובד.
               </p>
             </div>
 
             <div className="flex flex-wrap gap-3">
-              <a
+              <Link
                 href="/admin/employees/agreement-template"
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-violet-300/30 bg-violet-500 px-5 text-sm font-black text-white transition hover:bg-violet-600"
               >
                 <Icon name="template" className="h-4 w-4" />
                 יצירת תבנית הסכם לעובדים
-              </a>
+              </Link>
 
               <button
                 type="button"
@@ -714,7 +639,7 @@ export default function AdminEmployeesPage() {
                     <th className="px-5 py-4 font-black">קובץ</th>
                     <th className="px-5 py-4 font-black">תאריך העלאה/חתימה</th>
                     <th className="px-5 py-4 font-black">סטטוס</th>
-                    <th className="px-5 py-4 font-black">פעולות</th>
+                    <th className="px-5 py-4 font-black">תיק עובד</th>
                   </tr>
                 </thead>
 
@@ -722,7 +647,6 @@ export default function AdminEmployeesPage() {
                   {filteredDocuments.map((doc) => {
                     const documentId = getDocumentId(doc);
                     const employeeName = getEmployeeName(doc);
-                    const isUpdating = updatingId === documentId;
 
                     return (
                       <tr
@@ -798,43 +722,21 @@ export default function AdminEmployeesPage() {
                         </td>
 
                         <td className="px-5 py-4">
-                          <div className="flex flex-wrap items-center gap-2">
-                            {doc.fileUrl ? (
-                              <a
-                                href={doc.fileUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex items-center gap-1 rounded-2xl bg-slate-950 px-4 py-2 text-xs font-black text-white transition hover:bg-black"
-                              >
-                                <Icon name="open" className="h-3.5 w-3.5" />
-                                צפייה
-                              </a>
-                            ) : (
-                              <span className="rounded-2xl bg-slate-100 px-4 py-2 text-xs font-black text-slate-400">
-                                אין קובץ
-                              </span>
-                            )}
-
-                            <button
-                              type="button"
-                              disabled={isUpdating}
-                              onClick={() => void updateStatus(doc, "approved")}
-                              className="inline-flex items-center gap-1 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-black text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                          {doc.employeeId ? (
+                            <Link
+                              href={`/admin/employees/${encodeURIComponent(
+                                String(doc.employeeId)
+                              )}`}
+                              className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 text-xs font-black text-white transition hover:bg-black"
                             >
-                              <Icon name="check" className="h-3.5 w-3.5" />
-                              אשר
-                            </button>
-
-                            <button
-                              type="button"
-                              disabled={isUpdating}
-                              onClick={() => void updateStatus(doc, "rejected")}
-                              className="inline-flex items-center gap-1 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-black text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              <Icon name="x" className="h-3.5 w-3.5" />
-                              דחה
-                            </button>
-                          </div>
+                              <Icon name="open" className="h-3.5 w-3.5" />
+                              תיק עובד
+                            </Link>
+                          ) : (
+                            <span className="rounded-2xl bg-slate-100 px-4 py-2 text-xs font-black text-slate-400">
+                              אין מזהה עובד
+                            </span>
+                          )}
                         </td>
                       </tr>
                     );
@@ -847,7 +749,6 @@ export default function AdminEmployeesPage() {
               {filteredDocuments.map((doc) => {
                 const documentId = getDocumentId(doc);
                 const employeeName = getEmployeeName(doc);
-                const isUpdating = updatingId === documentId;
 
                 return (
                   <article
@@ -897,42 +798,25 @@ export default function AdminEmployeesPage() {
                       </p>
                     </div>
 
-                    <div className="mt-5 grid grid-cols-3 gap-2">
-                      {doc.fileUrl ? (
-                        <a
-                          href={doc.fileUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex h-11 items-center justify-center rounded-2xl bg-slate-950 text-sm font-black text-white"
+                    <div className="mt-5">
+                      {doc.employeeId ? (
+                        <Link
+                          href={`/admin/employees/${encodeURIComponent(
+                            String(doc.employeeId)
+                          )}`}
+                          className="inline-flex h-11 w-full items-center justify-center rounded-2xl bg-slate-950 text-sm font-black text-white"
                         >
-                          צפייה
-                        </a>
+                          תיק עובד
+                        </Link>
                       ) : (
                         <button
+                          type="button"
                           disabled
-                          className="h-11 rounded-2xl bg-slate-100 text-sm font-black text-slate-400"
+                          className="h-11 w-full rounded-2xl bg-slate-100 text-sm font-black text-slate-400"
                         >
-                          אין קובץ
+                          אין מזהה עובד
                         </button>
                       )}
-
-                      <button
-                        type="button"
-                        disabled={isUpdating}
-                        onClick={() => void updateStatus(doc, "approved")}
-                        className="h-11 rounded-2xl bg-emerald-50 text-sm font-black text-emerald-700 ring-1 ring-emerald-200 disabled:opacity-50"
-                      >
-                        אשר
-                      </button>
-
-                      <button
-                        type="button"
-                        disabled={isUpdating}
-                        onClick={() => void updateStatus(doc, "rejected")}
-                        className="h-11 rounded-2xl bg-rose-50 text-sm font-black text-rose-700 ring-1 ring-rose-200 disabled:opacity-50"
-                      >
-                        דחה
-                      </button>
                     </div>
                   </article>
                 );
