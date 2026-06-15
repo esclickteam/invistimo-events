@@ -333,14 +333,24 @@ function minutesBetween(start?: string, end?: string) {
   return Math.round(diff / 60000);
 }
 
-function formatMinutes(minutes?: number) {
-  const value = Number(minutes || 0);
-  if (!value) return "0:00";
-
+function formatWorkDuration(minutes?: number) {
+  const value = Math.max(0, Math.round(Number(minutes || 0)));
   const hours = Math.floor(value / 60);
   const remainingMinutes = value % 60;
 
-  return `${hours}:${pad2(remainingMinutes)}`;
+  if (hours > 0 && remainingMinutes > 0) {
+    return `${hours} שעות ו-${remainingMinutes} דק׳`;
+  }
+
+  if (hours > 0) {
+    return `${hours} שעות`;
+  }
+
+  if (remainingMinutes > 0) {
+    return `${remainingMinutes} דק׳`;
+  }
+
+  return "0 שעות";
 }
 
 function monthName(value?: number | string) {
@@ -1122,7 +1132,7 @@ function HoursTable({
               <th className="px-4 py-3 font-black">שעות משמרת</th>
               <th className="px-4 py-3 font-black">כניסה לפי סופטפון</th>
               <th className="px-4 py-3 font-black">יציאה לפי סופטפון</th>
-              <th className="px-4 py-3 font-black">סה״כ</th>
+              <th className="px-4 py-3 font-black">סה״כ שעות</th>
               <th className="px-4 py-3 font-black">הערת העובד/ת</th>
             </tr>
           </thead>
@@ -1173,7 +1183,7 @@ function HoursTable({
                   </td>
 
                   <td className="px-4 py-3 text-sm font-black text-slate-900">
-                    {formatMinutes(row.totalMinutes)}
+                    {formatWorkDuration(row.totalMinutes)}
                   </td>
 
                   <td className="px-4 py-3">
@@ -1196,10 +1206,10 @@ function HoursTable({
                 colSpan={6}
                 className="px-4 py-4 text-left text-sm font-black text-slate-600"
               >
-                סיכום שעות לחודש
+                סיכום שעות חודשי
               </td>
               <td className="px-4 py-4 text-sm font-black text-slate-900">
-                {formatMinutes(
+                {formatWorkDuration(
                   rows.reduce((sum, row) => sum + Number(row.totalMinutes || 0), 0),
                 )}
               </td>
@@ -1886,9 +1896,9 @@ export default function EmployeeDocumentsModal({
                   />
 
                   <HoursSummaryCard
-                    title="סה״כ שעות"
-                    value={formatMinutes(hoursSummary.totalMinutes)}
-                    subtitle="סיכום חודשי"
+                    title="סה״כ שעות בפועל"
+                    value={formatWorkDuration(hoursSummary.totalMinutes)}
+                    subtitle="שעות ודקות לפי הסופטפון"
                   />
                 </div>
 
