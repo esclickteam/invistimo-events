@@ -154,9 +154,9 @@ function normalizeRound(value: unknown, fallbackIndex = 0): RoundNumber | null {
 
 function getSourceAudienceByRound(round: RoundNumber) {
   if (round === 1) return "pending_rsvp";
-  if (round === 2) return "round_1_not_closed";
+  if (round === 2) return "round_1_no_answer";
 
-  return "round_2_not_closed";
+  return "round_2_no_answer";
 }
 
 function isAdminRole(role?: string) {
@@ -1508,7 +1508,7 @@ async function syncExistingWorkOrderWithScheduledEmployees(input: {
       assignedEmployeeIds,
       assignedShiftIds,
       employeeCount: assignedEmployeeIds.length,
-      distributionStrategy: "keep_existing_assignments_assign_only_missing",
+      distributionStrategy: "scheduled_shift_round_robin",
       ...taskSummary,
       lastDistributedAt: now,
       lastStatusSyncAt: now,
@@ -1834,7 +1834,7 @@ async function reconcileExistingWorkOrderWithEligibleGuests(input: {
       sourceAudience,
       description: getRoundDescription(candidate.round),
       totalTasks: eligibleGuests.length,
-      distributionStrategy: "keep_existing_assignments_add_missing_by_load",
+      distributionStrategy: "scheduled_shift_round_robin",
       updatedAt: now,
     },
   });
@@ -2017,7 +2017,7 @@ async function createWorkOrderForCandidate(input: {
       description: getRoundDescription(candidate.round),
 
       status: "open",
-      distributionStrategy: "assign_by_daily_load_keep_existing",
+      distributionStrategy: "scheduled_shift_round_robin",
 
       assignedEmployeeIds,
       assignedShiftIds,
