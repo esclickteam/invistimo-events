@@ -2,13 +2,33 @@ import mongoose, { Schema, model, models } from "mongoose";
 
 export type CallDirection = "inbound" | "outbound" | "unknown";
 
+export type CallStatus =
+  | "initiated"
+  | "ringing"
+  | "answered"
+  | "completed"
+  | "missed"
+  | "no_answer"
+  | "busy"
+  | "failed"
+  | "voicemail"
+  | "canceled"
+  | "unknown";
+
 export type CallRecordingStatus =
+  | "pending"
   | "started"
   | "saved"
   | "failed"
   | "deleted";
 
 export type CallRecordingStorage = "" | "r2" | "telnyx" | "external";
+
+export type CallRecordingSource =
+  | "webhook"
+  | "manual"
+  | "system"
+  | "softphone";
 
 export type CallRecordingDocument = {
   _id: mongoose.Types.ObjectId;
@@ -20,8 +40,15 @@ export type CallRecordingDocument = {
   callSessionId?: string;
   connectionId?: string;
 
+  // Call status
+  callStatus: CallStatus;
+  telnyxCallStatus?: string;
+  hangupCause?: string;
+  hangupSource?: string;
+  lastWebhookEvent?: string;
+
   // Recording identifiers
-  recordingId: string;
+  recordingId?: string;
   recordingStatus: CallRecordingStatus;
 
   // Legacy / Telnyx temporary urls
@@ -62,13 +89,17 @@ export type CallRecordingDocument = {
 
   // Timing
   startedAt?: Date | null;
+  answeredAt?: Date | null;
   endedAt?: Date | null;
   recordedAt?: Date | null;
   durationSeconds?: number;
 
   // Source
   provider: "telnyx";
-  source: "webhook" | "manual" | "system";
+  source: CallRecordingSource;
+
+  // Data we pass to Telnyx client_state
+  clientState?: Record<string, unknown>;
 
   // Raw payload for debugging
   rawPayload?: Record<string, unknown>;
@@ -114,23 +145,72 @@ const CallRecordingSchema = new Schema<CallRecordingDocument>(
       trim: true,
     },
 
+    callStatus: {
+      type: String,
+      enum: [
+        "initiated",
+        "ringing",
+        "answered",
+        "completed",
+        "missed",
+        "no_answer",
+        "busy",
+        "failed",
+        "voicemail",
+        "canceled",
+        "unknown",
+      ],
+      default: "unknown",
+      index: true,
+    },
+
+    telnyxCallStatus: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    hangupCause: {
+      type: String,
+      default: "",
+      index: true,
+      trim: true,
+    },
+
+    hangupSource: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    lastWebhookEvent: {
+      type: String,
+      default: "",
+      index: true,
+      trim: true,
+    },
+
+    /*
+      חשוב:
+      recordingId כבר לא required ולא unique ישירות בשדה.
+      למה?
+      כי אנחנו יוצרים רשומת שיחה כבר בתחילת החיוג,
+      ובשלב הזה עדיין אין recordingId.
+    */
     recordingId: {
       type: String,
-      required: true,
-      unique: true,
-      index: true,
+      default: "",
       trim: true,
     },
 
     recordingStatus: {
       type: String,
-      enum: ["started", "saved", "failed", "deleted"],
-      default: "saved",
+      enum: ["pending", "started", "saved", "failed", "deleted"],
+      default: "pending",
       index: true,
     },
 
     /*
-      חשוב:
       recordingUrl / recordingUrls הם לינקים זמניים של Telnyx.
       משאירים אותם רק לדיבוג/גיבוי, לא לניגון קבוע.
     */
@@ -160,7 +240,6 @@ const CallRecordingSchema = new Schema<CallRecordingDocument>(
 
     /*
       Cloudflare R2 permanent storage
-      אלו השדות שה-webhook החדש שומר אחרי העלאה ל-R2.
     */
     recordingStorage: {
       type: String,
@@ -252,12 +331,14 @@ const CallRecordingSchema = new Schema<CallRecordingDocument>(
     agentName: {
       type: String,
       default: "",
+      index: true,
       trim: true,
     },
 
     agentEmail: {
       type: String,
       default: "",
+      index: true,
       trim: true,
       lowercase: true,
     },
@@ -288,9 +369,16 @@ const CallRecordingSchema = new Schema<CallRecordingDocument>(
       index: true,
     },
 
+    answeredAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+
     endedAt: {
       type: Date,
       default: null,
+      index: true,
     },
 
     recordedAt: {
@@ -303,6 +391,7 @@ const CallRecordingSchema = new Schema<CallRecordingDocument>(
       type: Number,
       default: 0,
       min: 0,
+      index: true,
     },
 
     provider: {
@@ -314,9 +403,14 @@ const CallRecordingSchema = new Schema<CallRecordingDocument>(
 
     source: {
       type: String,
-      enum: ["webhook", "manual", "system"],
+      enum: ["webhook", "manual", "system", "softphone"],
       default: "webhook",
       index: true,
+    },
+
+    clientState: {
+      type: Schema.Types.Mixed,
+      default: {},
     },
 
     rawPayload: {
@@ -335,10 +429,41 @@ const CallRecordingSchema = new Schema<CallRecordingDocument>(
 
 CallRecordingSchema.index({ createdAt: -1 });
 CallRecordingSchema.index({ recordedAt: -1 });
+CallRecordingSchema.index({ startedAt: -1 });
+CallRecordingSchema.index({ answeredAt: -1 });
+CallRecordingSchema.index({ endedAt: -1 });
+
 CallRecordingSchema.index({ direction: 1, createdAt: -1 });
+CallRecordingSchema.index({ callStatus: 1, createdAt: -1 });
+CallRecordingSchema.index({ recordingStatus: 1, createdAt: -1 });
+
 CallRecordingSchema.index({ agentId: 1, createdAt: -1 });
+CallRecordingSchema.index({ agentEmail: 1, createdAt: -1 });
+
 CallRecordingSchema.index({ customerPhone: 1, createdAt: -1 });
+CallRecordingSchema.index({ to: 1, createdAt: -1 });
+CallRecordingSchema.index({ from: 1, createdAt: -1 });
+
+CallRecordingSchema.index({ callControlId: 1, createdAt: -1 });
+CallRecordingSchema.index({ callLegId: 1, createdAt: -1 });
 CallRecordingSchema.index({ callSessionId: 1, createdAt: -1 });
+CallRecordingSchema.index({ connectionId: 1, createdAt: -1 });
+
+/*
+  חשוב:
+  recordingId חייב להיות ייחודי רק אם הוא קיים ולא ריק.
+  זה מאפשר ליצור רשומות חיוג לפני שנוצרה הקלטה.
+*/
+CallRecordingSchema.index(
+  { recordingId: 1 },
+  {
+    unique: true,
+    name: "recordingId_unique_when_present",
+    partialFilterExpression: {
+      recordingId: { $gt: "" },
+    },
+  }
+);
 
 /*
   R2 indexes

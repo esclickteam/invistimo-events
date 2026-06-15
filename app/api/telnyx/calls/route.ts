@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
 
+import CallRecording from "@/models/CallRecording";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -329,6 +331,14 @@ function encodeClientState(value: Record<string, unknown>) {
   return Buffer.from(JSON.stringify(value), "utf8").toString("base64");
 }
 
+function safeClientState(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  return value as Record<string, unknown>;
+}
+
 export async function GET() {
   return NextResponse.json({
     success: true,
@@ -337,6 +347,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  let localCallRecordingId = "";
+
   try {
     const currentUser = await getCurrentUser(req);
 
@@ -384,24 +396,82 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    await connectMongo();
+
     const baseUrl = getBaseUrl(req);
     const webhookUrl =
       process.env.TELNYX_VOICE_WEBHOOK_URL ||
       `${baseUrl}/api/telnyx/voice/webhook`;
 
     const user = currentUser.user;
+    const now = new Date();
+
+    /**
+     * קודם יוצרים רשומת שיחה מקומית.
+     * זה מה שהיה חסר אצלך.
+     * ככה גם אם ה-recording.saved מגיע אחר כך לבד,
+     * יהיה לנו כבר מי העובד, מה המייל שלו, ולאיזה מספר הוא חייג.
+     */
+    const initialCallRecording = await CallRecording.create({
+      provider: "telnyx",
+      source: "softphone",
+
+      callStatus: "initiated",
+      recordingStatus: "pending",
+
+      direction: "outbound",
+
+      from,
+      to,
+      customerPhone: to,
+      customerName: "",
+
+      agentId: user.id,
+      agentName: user.name,
+      agentEmail: user.email,
+
+      connectionId,
+
+      startedAt: now,
+      answeredAt: null,
+      endedAt: null,
+      recordedAt: null,
+      durationSeconds: 0,
+
+      clientState: {},
+      rawPayload: {
+        source: "create-outbound-call-route",
+        stage: "created-before-telnyx",
+        requestedAt: now.toISOString(),
+        originalTo,
+        originalFrom,
+        normalizedTo: to,
+        normalizedFrom: from,
+        agentId: user.id,
+        agentName: user.name,
+        agentEmail: user.email,
+      },
+    });
+
+    localCallRecordingId = initialCallRecording._id.toString();
 
     /**
      * חשוב:
      * קודם מכניסים clientState מהפרונט,
      * ואז דורסים agentId / agentName / agentEmail לפי היוזר המחובר.
      * ככה אי אפשר לזייף עובד מהפרונט.
+     *
+     * בנוסף מוסיפים localCallRecordingId,
+     * כדי שה-webhook יוכל למצוא את הרשומה בוודאות.
      */
     const clientStateObject: Record<string, unknown> = {
-      ...(body.clientState || {}),
+      ...safeClientState(body.clientState),
 
       source: "invistimo-softphone",
-      requestedAt: new Date().toISOString(),
+      requestedAt: now.toISOString(),
+
+      localCallRecordingId,
+      callRecordingId: localCallRecordingId,
 
       originalTo,
       originalFrom,
@@ -418,6 +488,29 @@ export async function POST(req: NextRequest) {
       agentRole: user.role,
     };
 
+    await CallRecording.updateOne(
+      { _id: initialCallRecording._id },
+      {
+        $set: {
+          clientState: clientStateObject,
+          rawPayload: {
+            source: "create-outbound-call-route",
+            stage: "client-state-prepared",
+            requestedAt: now.toISOString(),
+            originalTo,
+            originalFrom,
+            normalizedTo: to,
+            normalizedFrom: from,
+            webhookUrl,
+            localCallRecordingId,
+            agentId: user.id,
+            agentName: user.name,
+            agentEmail: user.email,
+          },
+        },
+      }
+    );
+
     const clientState = encodeClientState(clientStateObject);
 
     const telnyxPayload = {
@@ -430,6 +523,7 @@ export async function POST(req: NextRequest) {
     };
 
     console.log("TELNYX CREATE OUTBOUND CALL REQUEST:", {
+      localCallRecordingId,
       connectionId,
       originalTo,
       originalFrom,
@@ -458,6 +552,7 @@ export async function POST(req: NextRequest) {
 
     if (!telnyxRes.ok) {
       console.error("TELNYX CREATE OUTBOUND CALL FAILED:", {
+        localCallRecordingId,
         status: telnyxRes.status,
         originalTo,
         originalFrom,
@@ -469,10 +564,39 @@ export async function POST(req: NextRequest) {
         data: telnyxData,
       });
 
+      await CallRecording.updateOne(
+        { _id: initialCallRecording._id },
+        {
+          $set: {
+            callStatus: "failed",
+            telnyxCallStatus: "create_call_failed",
+            endedAt: new Date(),
+            lastWebhookEvent: "telnyx_create_call_failed",
+            rawPayload: {
+              source: "create-outbound-call-route",
+              stage: "telnyx-create-failed",
+              status: telnyxRes.status,
+              requestedAt: now.toISOString(),
+              failedAt: new Date().toISOString(),
+              originalTo,
+              originalFrom,
+              normalizedTo: to,
+              normalizedFrom: from,
+              localCallRecordingId,
+              agentId: user.id,
+              agentName: user.name,
+              agentEmail: user.email,
+              telnyx: telnyxData,
+            },
+          },
+        }
+      );
+
       return jsonError(
         "TELNYX_CREATE_OUTBOUND_CALL_FAILED",
         telnyxRes.status,
         {
+          localCallRecordingId,
           originalTo,
           originalFrom,
           normalizedTo: to,
@@ -485,10 +609,56 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const callControlId = telnyxData?.data?.call_control_id || "";
+    const callLegId = telnyxData?.data?.call_leg_id || "";
+    const callSessionId = telnyxData?.data?.call_session_id || "";
+    const telnyxConnectionId = telnyxData?.data?.connection_id || connectionId;
+
+    await CallRecording.updateOne(
+      { _id: initialCallRecording._id },
+      {
+        $set: {
+          callControlId,
+          callLegId,
+          callSessionId,
+          connectionId: telnyxConnectionId,
+
+          callStatus: "initiated",
+          telnyxCallStatus: "created",
+          lastWebhookEvent: "telnyx_create_call_success",
+
+          from: telnyxData?.data?.from || from,
+          to: telnyxData?.data?.to || to,
+          customerPhone: telnyxData?.data?.to || to,
+
+          rawPayload: {
+            source: "create-outbound-call-route",
+            stage: "telnyx-create-success",
+            requestedAt: now.toISOString(),
+            createdAt: new Date().toISOString(),
+            originalTo,
+            originalFrom,
+            normalizedTo: to,
+            normalizedFrom: from,
+            localCallRecordingId,
+            callControlId,
+            callLegId,
+            callSessionId,
+            connectionId: telnyxConnectionId,
+            agentId: user.id,
+            agentName: user.name,
+            agentEmail: user.email,
+            telnyx: telnyxData,
+          },
+        },
+      }
+    );
+
     console.log("TELNYX CREATE OUTBOUND CALL SUCCESS:", {
-      callControlId: telnyxData?.data?.call_control_id || null,
-      callLegId: telnyxData?.data?.call_leg_id || null,
-      callSessionId: telnyxData?.data?.call_session_id || null,
+      localCallRecordingId,
+      callControlId,
+      callLegId,
+      callSessionId,
       to,
       from,
       agentId: user.id,
@@ -499,10 +669,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       call: {
-        callControlId: telnyxData?.data?.call_control_id || null,
-        callLegId: telnyxData?.data?.call_leg_id || null,
-        callSessionId: telnyxData?.data?.call_session_id || null,
-        connectionId: telnyxData?.data?.connection_id || connectionId,
+        localCallRecordingId,
+
+        callControlId: callControlId || null,
+        callLegId: callLegId || null,
+        callSessionId: callSessionId || null,
+        connectionId: telnyxConnectionId,
+
         from,
         to,
         originalTo,
@@ -515,13 +688,41 @@ export async function POST(req: NextRequest) {
       telnyx: telnyxData,
     });
   } catch (error) {
-    console.error("TELNYX OUTBOUND CALL ROUTE ERROR:", error);
+    console.error("TELNYX OUTBOUND CALL ROUTE ERROR:", {
+      localCallRecordingId,
+      error,
+    });
+
+    if (localCallRecordingId && mongoose.Types.ObjectId.isValid(localCallRecordingId)) {
+      try {
+        await CallRecording.updateOne(
+          { _id: new mongoose.Types.ObjectId(localCallRecordingId) },
+          {
+            $set: {
+              callStatus: "failed",
+              telnyxCallStatus: "route_error",
+              endedAt: new Date(),
+              lastWebhookEvent: "create_call_route_error",
+              rawPayload: {
+                source: "create-outbound-call-route",
+                stage: "route-error",
+                failedAt: new Date().toISOString(),
+                error: error instanceof Error ? error.message : error,
+              },
+            },
+          }
+        );
+      } catch (mongoError) {
+        console.error("FAILED TO UPDATE CALL RECORDING AFTER ROUTE ERROR:", mongoError);
+      }
+    }
 
     return NextResponse.json(
       {
         success: false,
         error: "TELNYX_OUTBOUND_CALL_ROUTE_FAILED",
         details: error instanceof Error ? error.message : error,
+        localCallRecordingId: localCallRecordingId || null,
       },
       { status: 500 }
     );
