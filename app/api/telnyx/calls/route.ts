@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import mongoose from "mongoose";
+import jwt from "jsonwebtoken";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -6,8 +8,37 @@ export const dynamic = "force-dynamic";
 type CreateTelnyxCallRequest = {
   to?: string;
   from?: string;
+
+  /**
+   * נשאר לתאימות לאחור, אבל לא מסתמכים עליו כמקור אמת.
+   * מקור האמת לעובד הוא המשתמש המחובר מה-JWT.
+   */
   agentId?: string;
   clientState?: Record<string, unknown>;
+};
+
+type JwtPayload = {
+  userId?: string;
+  id?: string;
+  _id?: string;
+  role?: string;
+  email?: string;
+  name?: string;
+  fullName?: string;
+  firstName?: string;
+  lastName?: string;
+  displayName?: string;
+  isAdmin?: boolean;
+  isSystemStaff?: boolean;
+  effectiveRole?: string;
+  [key: string]: unknown;
+};
+
+type AuthUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
 };
 
 type TelnyxCreateCallResponse = {
@@ -23,6 +54,42 @@ type TelnyxCreateCallResponse = {
   errors?: unknown;
 };
 
+type MongoCache = {
+  conn: typeof mongoose | null;
+  promise: Promise<typeof mongoose> | null;
+};
+
+declare global {
+  // eslint-disable-next-line no-var
+  var mongooseTelnyxCallsCache: MongoCache | undefined;
+}
+
+const cached: MongoCache =
+  global.mongooseTelnyxCallsCache ||
+  (global.mongooseTelnyxCallsCache = {
+    conn: null,
+    promise: null,
+  });
+
+async function connectMongo() {
+  if (cached.conn) return cached.conn;
+
+  const uri = process.env.MONGODB_URI || process.env.MONGO_URI || "";
+
+  if (!uri) {
+    throw new Error("Mongo connection string is missing. Set MONGODB_URI or MONGO_URI.");
+  }
+
+  if (!cached.promise) {
+    cached.promise = mongoose.connect(uri, {
+      bufferCommands: false,
+    });
+  }
+
+  cached.conn = await cached.promise;
+  return cached.conn;
+}
+
 function jsonError(message: string, status = 400, details?: unknown) {
   return NextResponse.json(
     {
@@ -34,57 +101,214 @@ function jsonError(message: string, status = 400, details?: unknown) {
   );
 }
 
+function cleanStr(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function getBearerToken(req: NextRequest) {
+  const authHeader = req.headers.get("authorization") || "";
+
+  if (authHeader.toLowerCase().startsWith("bearer ")) {
+    return authHeader.slice(7).trim();
+  }
+
+  return "";
+}
+
+function getTokenFromCookies(req: NextRequest) {
+  const possibleCookieNames = [
+    "token",
+    "accessToken",
+    "access_token",
+    "authToken",
+    "auth_token",
+    "adminToken",
+    "admin_token",
+    "staffToken",
+    "staff_token",
+    "employeeToken",
+    "employee_token",
+  ];
+
+  for (const name of possibleCookieNames) {
+    const value = req.cookies.get(name)?.value;
+    if (value) return value;
+  }
+
+  return "";
+}
+
+function getJwtSecret() {
+  return (
+    process.env.JWT_SECRET ||
+    process.env.AUTH_SECRET ||
+    process.env.NEXTAUTH_SECRET ||
+    ""
+  );
+}
+
+function buildNameFromDecoded(decoded: JwtPayload) {
+  const directName =
+    cleanStr(decoded.name) ||
+    cleanStr(decoded.fullName) ||
+    cleanStr(decoded.displayName);
+
+  if (directName) return directName;
+
+  const firstName = cleanStr(decoded.firstName);
+  const lastName = cleanStr(decoded.lastName);
+  const combined = `${firstName} ${lastName}`.trim();
+
+  return combined;
+}
+
+function extractUserId(decoded: JwtPayload) {
+  return cleanStr(decoded.userId) || cleanStr(decoded.id) || cleanStr(decoded._id);
+}
+
+function normalizeUserDoc(doc: any, fallback: JwtPayload): AuthUser {
+  const fallbackId = extractUserId(fallback);
+  const fallbackEmail = cleanStr(fallback.email);
+  const fallbackName = buildNameFromDecoded(fallback);
+
+  const docId = cleanStr(doc?._id?.toString?.()) || cleanStr(doc?.id);
+  const docEmail = cleanStr(doc?.email);
+  const docName =
+    cleanStr(doc?.name) ||
+    cleanStr(doc?.fullName) ||
+    cleanStr(doc?.displayName) ||
+    `${cleanStr(doc?.firstName)} ${cleanStr(doc?.lastName)}`.trim();
+
+  return {
+    id: docId || fallbackId || fallbackEmail || "unknown-user",
+    name: docName || fallbackName || docEmail || fallbackEmail || "עובד",
+    email: docEmail || fallbackEmail || "",
+    role: cleanStr(doc?.role) || cleanStr(fallback.role) || "",
+  };
+}
+
+async function findUserFromToken(decoded: JwtPayload): Promise<AuthUser> {
+  const fallbackUser = normalizeUserDoc(null, decoded);
+
+  try {
+    await connectMongo();
+
+    const userId = extractUserId(decoded);
+    const email = cleanStr(decoded.email).toLowerCase();
+
+    const orQuery: Record<string, unknown>[] = [];
+
+    if (userId && mongoose.Types.ObjectId.isValid(userId)) {
+      orQuery.push({ _id: new mongoose.Types.ObjectId(userId) });
+    }
+
+    if (userId) {
+      orQuery.push({ id: userId });
+      orQuery.push({ userId });
+    }
+
+    if (email) {
+      orQuery.push({ email });
+    }
+
+    if (!orQuery.length) {
+      return fallbackUser;
+    }
+
+    /**
+     * לא מייבאים כאן User model כדי לא להיתקע על שם מודל שונה.
+     * קוראים ישירות לקולקציה users.
+     */
+    const userDoc = await mongoose.connection.collection("users").findOne({
+      $or: orQuery,
+    });
+
+    if (!userDoc) {
+      return fallbackUser;
+    }
+
+    return normalizeUserDoc(userDoc, decoded);
+  } catch (error) {
+    console.warn("FIND USER FROM TOKEN FAILED, USING JWT FALLBACK:", error);
+    return fallbackUser;
+  }
+}
+
+async function getCurrentUser(req: NextRequest) {
+  const token = getBearerToken(req) || getTokenFromCookies(req);
+
+  if (!token) {
+    return {
+      ok: false as const,
+      status: 401,
+      error: "UNAUTHORIZED_NO_TOKEN",
+    };
+  }
+
+  const secret = getJwtSecret();
+
+  if (!secret) {
+    return {
+      ok: false as const,
+      status: 500,
+      error: "JWT_SECRET is missing",
+    };
+  }
+
+  try {
+    const decoded = jwt.verify(token, secret) as JwtPayload;
+    const user = await findUserFromToken(decoded);
+
+    return {
+      ok: true as const,
+      user,
+      decoded,
+    };
+  } catch (error) {
+    return {
+      ok: false as const,
+      status: 401,
+      error: "UNAUTHORIZED_INVALID_TOKEN",
+      details: error instanceof Error ? error.message : error,
+    };
+  }
+}
+
 function normalizePhoneNumber(value: unknown) {
   if (typeof value !== "string") return "";
 
   let clean = value.trim();
 
-  // מסיר רווחים, מקפים, סוגריים וכו׳ — משאיר רק ספרות ופלוס
   clean = clean.replace(/[^\d+]/g, "");
 
   if (!clean) return "";
 
-  // אם יש כמה פלוסים בטעות — משאיר רק אחד בהתחלה
   clean = clean.replace(/\+/g, (match, offset) => (offset === 0 ? match : ""));
 
-  // 00972501234567 -> +972501234567
   if (clean.startsWith("00")) {
     clean = `+${clean.slice(2)}`;
   }
 
-  // כבר בפורמט בינלאומי: +972501234567
   if (clean.startsWith("+")) {
     return clean;
   }
 
-  // ישראל בלי פלוס: 972501234567 -> +972501234567
   if (clean.startsWith("972")) {
     return `+${clean}`;
   }
 
-  // ישראל רגיל עם 0 בהתחלה:
-  // 0501234567 -> +972501234567
-  // 031234567 -> +97231234567
-  // 083761556 -> +97283761556
   if (clean.startsWith("0") && clean.length >= 8) {
     return `+972${clean.slice(1)}`;
   }
 
-  // נייד ישראלי בלי 0:
-  // 501234567 -> +972501234567
-  // 521234567 -> +972521234567
   if (clean.length === 9 && clean.startsWith("5")) {
     return `+972${clean}`;
   }
 
-  // מספר נייח ישראלי בלי 0:
-  // 31234567 -> +97231234567
-  // 83761556 -> +97283761556
   if (clean.length === 8 && /^[23489]/.test(clean)) {
     return `+972${clean}`;
   }
 
-  // fallback — מחזיר כמו שהוא, כדי לא לשבור חיוג בינלאומי אחר
   return clean;
 }
 
@@ -114,6 +338,16 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const currentUser = await getCurrentUser(req);
+
+    if (!currentUser.ok) {
+      return jsonError(
+        currentUser.error || "UNAUTHORIZED",
+        currentUser.status || 401,
+        "details" in currentUser ? currentUser.details : undefined
+      );
+    }
+
     const apiKey = process.env.TELNYX_API_KEY;
     const connectionId = process.env.TELNYX_CONNECTION_ID;
     const defaultFrom = process.env.TELNYX_FROM_NUMBER || "+97283761556";
@@ -155,16 +389,36 @@ export async function POST(req: NextRequest) {
       process.env.TELNYX_VOICE_WEBHOOK_URL ||
       `${baseUrl}/api/telnyx/voice/webhook`;
 
-    const clientState = encodeClientState({
+    const user = currentUser.user;
+
+    /**
+     * חשוב:
+     * קודם מכניסים clientState מהפרונט,
+     * ואז דורסים agentId / agentName / agentEmail לפי היוזר המחובר.
+     * ככה אי אפשר לזייף עובד מהפרונט.
+     */
+    const clientStateObject: Record<string, unknown> = {
+      ...(body.clientState || {}),
+
       source: "invistimo-softphone",
-      agentId: body.agentId || null,
       requestedAt: new Date().toISOString(),
+
       originalTo,
       originalFrom,
       normalizedTo: to,
       normalizedFrom: from,
-      ...(body.clientState || {}),
-    });
+
+      customerPhone: to,
+      dialedPhone: to,
+      destinationPhone: to,
+
+      agentId: user.id,
+      agentName: user.name,
+      agentEmail: user.email,
+      agentRole: user.role,
+    };
+
+    const clientState = encodeClientState(clientStateObject);
 
     const telnyxPayload = {
       connection_id: connectionId,
@@ -182,6 +436,9 @@ export async function POST(req: NextRequest) {
       normalizedTo: to,
       normalizedFrom: from,
       webhookUrl,
+      agentId: user.id,
+      agentName: user.name,
+      agentEmail: user.email,
     });
 
     const telnyxRes = await fetch("https://api.telnyx.com/v2/calls", {
@@ -195,7 +452,9 @@ export async function POST(req: NextRequest) {
     });
 
     const telnyxData =
-      (await telnyxRes.json().catch(() => null)) as TelnyxCreateCallResponse | null;
+      (await telnyxRes.json().catch(() => null)) as
+        | TelnyxCreateCallResponse
+        | null;
 
     if (!telnyxRes.ok) {
       console.error("TELNYX CREATE OUTBOUND CALL FAILED:", {
@@ -204,6 +463,9 @@ export async function POST(req: NextRequest) {
         originalFrom,
         normalizedTo: to,
         normalizedFrom: from,
+        agentId: user.id,
+        agentName: user.name,
+        agentEmail: user.email,
         data: telnyxData,
       });
 
@@ -215,6 +477,9 @@ export async function POST(req: NextRequest) {
           originalFrom,
           normalizedTo: to,
           normalizedFrom: from,
+          agentId: user.id,
+          agentName: user.name,
+          agentEmail: user.email,
           telnyx: telnyxData,
         }
       );
@@ -226,6 +491,9 @@ export async function POST(req: NextRequest) {
       callSessionId: telnyxData?.data?.call_session_id || null,
       to,
       from,
+      agentId: user.id,
+      agentName: user.name,
+      agentEmail: user.email,
     });
 
     return NextResponse.json({
@@ -239,6 +507,10 @@ export async function POST(req: NextRequest) {
         to,
         originalTo,
         originalFrom,
+
+        agentId: user.id,
+        agentName: user.name,
+        agentEmail: user.email,
       },
       telnyx: telnyxData,
     });
@@ -249,6 +521,7 @@ export async function POST(req: NextRequest) {
       {
         success: false,
         error: "TELNYX_OUTBOUND_CALL_ROUTE_FAILED",
+        details: error instanceof Error ? error.message : error,
       },
       { status: 500 }
     );
