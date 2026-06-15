@@ -2233,3 +2233,4 @@ export default function SoftphoneStatusPanel({
     </>
   );
 }
+
