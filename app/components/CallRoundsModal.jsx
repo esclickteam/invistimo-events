@@ -10,7 +10,10 @@ const ANSWER_OPTIONS = [
 const RESULT_OPTIONS = [
   { value: "yes", label: "מגיע" },
   { value: "no", label: "לא מגיע" },
+  { value: "undecided", label: "מתלבט" },
+  { value: "callback", label: "לחזור אליו" },
   { value: "will_reply", label: "ישיב בהודעה" },
+  { value: "wrong_number", label: "מספר שגוי" },
   { value: "needs_correction", label: "ממתין לתיקון" },
 ];
 
@@ -28,9 +31,26 @@ const ANSWER_LABELS = {
 const RESULT_LABELS = {
   yes: "מגיע",
   no: "לא מגיע",
+  undecided: "מתלבט",
+  callback: "לחזור אליו",
   will_reply: "ישיב בהודעה",
+  wrong_number: "מספר שגוי",
   needs_correction: "ממתין לתיקון",
 };
+
+const EMPLOYEE_STATUS_LABELS = {
+  confirmed: "מגיע",
+  declined: "לא מגיע",
+  no_answer: "לא ענה",
+  callback: "לחזור אליו",
+  undecided: "מתלבט",
+  will_reply_message: "ישיב בהודעה",
+  wrong_number: "מספר שגוי",
+};
+
+function cleanText(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
 
 function formatDateTime(value) {
   if (!value) return "";
@@ -45,17 +65,40 @@ function formatDateTime(value) {
   });
 }
 
+function safeNumber(value, fallback = 0) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 function getGuestAmount(guest) {
   const amount = Number(
-    guest?.amount ??
-      guest?.arrivedCount ??
-      guest?.guestsCount ??
+    guest?.arrivedCount ??
+      guest?.actualArrivedCount ??
+      guest?.amount ??
+      guest?.attendingCount ??
       guest?.confirmedCount ??
-      guest?.expectedGuests ??
-      1
+      0
   );
 
   return Number.isFinite(amount) && amount > 0 ? amount : 1;
+}
+
+function getRoundAmountFromGuest(guest, roundNumber) {
+  const roundKey = `round${roundNumber}`;
+
+  const amount = Number(
+    guest?.[`${roundKey}ArrivedCount`] ??
+      guest?.[`${roundKey}ActualArrivedCount`] ??
+      guest?.[`${roundKey}Amount`] ??
+      guest?.[`${roundKey}AttendingCount`] ??
+      guest?.arrivedCount ??
+      guest?.actualArrivedCount ??
+      guest?.amount ??
+      guest?.attendingCount ??
+      0
+  );
+
+  return Number.isFinite(amount) && amount > 0 ? amount : getGuestAmount(guest);
 }
 
 function normalizeNote(note) {
@@ -77,9 +120,89 @@ function normalizeNote(note) {
 
   return {
     text,
-    createdAt: note?.createdAt || new Date().toISOString(),
-    createdBy: note?.createdBy || "מערכת",
+    createdAt: note?.createdAt || note?.at || new Date().toISOString(),
+    createdBy: note?.createdBy || note?.by || "מערכת",
   };
+}
+
+function createSystemLog(text, createdAt = new Date().toISOString()) {
+  return {
+    text,
+    createdAt,
+    createdBy: "מערכת",
+  };
+}
+
+function mapEmployeeStatusToRound(status, rsvpStatus) {
+  const s = cleanText(status).toLowerCase();
+  const rsvp = cleanText(rsvpStatus).toLowerCase();
+
+  if (s === "confirmed" || rsvp === "yes") {
+    return {
+      answerStatus: "answered",
+      resultStatus: "yes",
+    };
+  }
+
+  if (s === "declined" || rsvp === "no") {
+    return {
+      answerStatus: "answered",
+      resultStatus: "no",
+    };
+  }
+
+  if (s === "no_answer") {
+    return {
+      answerStatus: "no_answer",
+      resultStatus: null,
+    };
+  }
+
+  if (s === "callback") {
+    return {
+      answerStatus: "answered",
+      resultStatus: "callback",
+    };
+  }
+
+  if (s === "undecided") {
+    return {
+      answerStatus: "answered",
+      resultStatus: "undecided",
+    };
+  }
+
+  if (s === "will_reply_message" || s === "will_reply") {
+    return {
+      answerStatus: "answered",
+      resultStatus: "will_reply",
+    };
+  }
+
+  if (s === "wrong_number") {
+    return {
+      answerStatus: "answered",
+      resultStatus: "wrong_number",
+    };
+  }
+
+  if (s === "needs_correction") {
+    return {
+      answerStatus: "answered",
+      resultStatus: "needs_correction",
+    };
+  }
+
+  return {
+    answerStatus: null,
+    resultStatus: null,
+  };
+}
+
+function getRsvpFromResult(resultStatus) {
+  if (resultStatus === "yes") return "yes";
+  if (resultStatus === "no") return "no";
+  return "pending";
 }
 
 function normalizeRound(existing, roundNumber, guest) {
@@ -98,31 +221,242 @@ function normalizeRound(existing, roundNumber, guest) {
         ]
       : [];
 
+  const mapped = mapEmployeeStatusToRound(
+    existing?.status || existing?.callStatus,
+    existing?.rsvpStatus
+  );
+
   return {
     roundNumber,
-    answerStatus: existing?.answerStatus || existing?.status || null,
-    resultStatus: existing?.resultStatus || null,
-    amount: Number(existing?.amount || getGuestAmount(guest)),
+    answerStatus:
+      existing?.answerStatus ||
+      mapped.answerStatus ||
+      existing?.status ||
+      null,
+    resultStatus:
+      existing?.resultStatus ||
+      mapped.resultStatus ||
+      existing?.callResult ||
+      null,
+    amount: Number(existing?.amount || getRoundAmountFromGuest(guest, roundNumber)),
     notes: oldNotes,
-    calledAt: existing?.calledAt || null,
+    calledAt: existing?.calledAt || existing?.completedAt || null,
     updatedAt: existing?.updatedAt || null,
+    source: existing?.source || "manual",
+  };
+}
+
+function getExistingRoundFromArray(guest, roundNumber) {
+  if (!Array.isArray(guest?.callRounds)) return null;
+
+  return (
+    guest.callRounds.find(
+      (round) =>
+        Number(round?.roundNumber || round?.round || 0) === Number(roundNumber)
+    ) || null
+  );
+}
+
+function getLatestHistoryForRound(guest, roundNumber) {
+  if (!Array.isArray(guest?.callHistory)) return null;
+
+  const rows = guest.callHistory
+    .filter((row) => Number(row?.round || row?.roundNumber || 0) === roundNumber)
+    .sort((a, b) => {
+      const aTime = new Date(a?.at || a?.createdAt || 0).getTime();
+      const bTime = new Date(b?.at || b?.createdAt || 0).getTime();
+      return bTime - aTime;
+    });
+
+  return rows[0] || null;
+}
+
+function getHistoryNotesForRound(guest, roundNumber) {
+  if (!Array.isArray(guest?.callHistory)) return [];
+
+  return guest.callHistory
+    .filter((row) => Number(row?.round || row?.roundNumber || 0) === roundNumber)
+    .map((row) => {
+      const status = cleanText(row?.status);
+      const label = EMPLOYEE_STATUS_LABELS[status] || status;
+      const rowNote = cleanText(row?.note);
+
+      const text = rowNote
+        ? `${label ? `${label}: ` : ""}${rowNote}`
+        : label
+          ? `עודכן סטטוס מהעובד: ${label}`
+          : "";
+
+      if (!text) return null;
+
+      return {
+        text,
+        createdAt: row?.at || row?.createdAt || new Date().toISOString(),
+        createdBy: "עובד",
+      };
+    })
+    .filter(Boolean);
+}
+
+function getFlatRoundData(guest, roundNumber) {
+  const roundKey = `round${roundNumber}`;
+
+  const status =
+    guest?.[`${roundKey}CallStatus`] ||
+    guest?.[`${roundKey}CallResult`] ||
+    null;
+
+  const note = cleanText(guest?.[`${roundKey}CallNote`] || "");
+  const completedAt =
+    guest?.[`${roundKey}CallCompletedAt`] ||
+    guest?.[`${roundKey}CallAt`] ||
+    null;
+
+  if (!status && !note && !completedAt) return null;
+
+  const mapped = mapEmployeeStatusToRound(status, guest?.rsvpStatus);
+
+  const notes = [];
+
+  if (status) {
+    const label = EMPLOYEE_STATUS_LABELS[status] || status;
+    notes.push(
+      createSystemLog(
+        `עודכן מהעובד: ${label}`,
+        completedAt || new Date().toISOString()
+      )
+    );
+  }
+
+  if (note) {
+    notes.push({
+      text: note,
+      createdAt: completedAt || new Date().toISOString(),
+      createdBy: "עובד",
+    });
+  }
+
+  return {
+    roundNumber,
+    answerStatus: mapped.answerStatus,
+    resultStatus: mapped.resultStatus,
+    amount: getRoundAmountFromGuest(guest, roundNumber),
+    notes,
+    calledAt: completedAt,
+    updatedAt: completedAt,
+    source: "employee_flat",
+  };
+}
+
+function mergeNotes(...noteGroups) {
+  const map = new Map();
+
+  for (const group of noteGroups) {
+    for (const note of Array.isArray(group) ? group : []) {
+      const normalized = normalizeNote(note);
+      if (!normalized) continue;
+
+      const key = `${normalized.createdAt}-${normalized.text}-${normalized.createdBy}`;
+      map.set(key, normalized);
+    }
+  }
+
+  return Array.from(map.values()).sort((a, b) => {
+    const aTime = new Date(a.createdAt || 0).getTime();
+    const bTime = new Date(b.createdAt || 0).getTime();
+    return aTime - bTime;
+  });
+}
+
+function buildRoundFromSources(guest, roundNumber) {
+  const arrayRound = getExistingRoundFromArray(guest, roundNumber);
+  const flatRound = getFlatRoundData(guest, roundNumber);
+  const historyRound = getLatestHistoryForRound(guest, roundNumber);
+
+  const normalizedArrayRound = arrayRound
+    ? normalizeRound(arrayRound, roundNumber, guest)
+    : null;
+
+  const normalizedHistoryRound = historyRound
+    ? normalizeRound(
+        {
+          roundNumber,
+          status: historyRound.status,
+          resultStatus:
+            mapEmployeeStatusToRound(historyRound.status, historyRound.rsvpStatus)
+              .resultStatus,
+          amount:
+            historyRound.arrivedCount ??
+            historyRound.attendingCount ??
+            getRoundAmountFromGuest(guest, roundNumber),
+          notes: historyRound.note
+            ? [
+                {
+                  text: historyRound.note,
+                  createdAt: historyRound.at || new Date().toISOString(),
+                  createdBy: "עובד",
+                },
+              ]
+            : [],
+          calledAt: historyRound.at,
+          updatedAt: historyRound.at,
+          source: "employee_history",
+        },
+        roundNumber,
+        guest
+      )
+    : null;
+
+  const candidates = [
+    normalizedArrayRound,
+    flatRound,
+    normalizedHistoryRound,
+  ].filter(Boolean);
+
+  const latest = candidates.sort((a, b) => {
+    const aTime = new Date(a.updatedAt || a.calledAt || 0).getTime();
+    const bTime = new Date(b.updatedAt || b.calledAt || 0).getTime();
+    return bTime - aTime;
+  })[0];
+
+  const base =
+    latest ||
+    normalizeRound(null, roundNumber, {
+      ...guest,
+      arrivedCount: 0,
+      actualArrivedCount: 0,
+    });
+
+  const allNotes = mergeNotes(
+    normalizedArrayRound?.notes,
+    flatRound?.notes,
+    normalizedHistoryRound?.notes,
+    getHistoryNotesForRound(guest, roundNumber)
+  );
+
+  return {
+    ...base,
+    notes: allNotes,
   };
 }
 
 function buildInitialRounds(guest) {
-  return [1, 2, 3].map((roundNumber) => {
-    const existing = Array.isArray(guest?.callRounds)
-      ? guest.callRounds.find((round) => round.roundNumber === roundNumber)
-      : null;
-
-    return normalizeRound(existing, roundNumber, guest);
-  });
+  return [1, 2, 3].map((roundNumber) =>
+    buildRoundFromSources(guest, roundNumber)
+  );
 }
 
 function getLatestRsvpFromRounds(rounds) {
   const reversedRounds = [...rounds].reverse();
 
   for (const round of reversedRounds) {
+    if (round.answerStatus === "no_answer") {
+      return {
+        rsvpStatus: "pending",
+        amount: 0,
+      };
+    }
+
     if (round.answerStatus !== "answered") continue;
 
     if (round.resultStatus === "yes") {
@@ -141,7 +475,10 @@ function getLatestRsvpFromRounds(rounds) {
 
     if (
       round.resultStatus === "will_reply" ||
-      round.resultStatus === "needs_correction"
+      round.resultStatus === "needs_correction" ||
+      round.resultStatus === "callback" ||
+      round.resultStatus === "undecided" ||
+      round.resultStatus === "wrong_number"
     ) {
       return {
         rsvpStatus: "pending",
@@ -153,14 +490,6 @@ function getLatestRsvpFromRounds(rounds) {
   return {
     rsvpStatus: "pending",
     amount: 0,
-  };
-}
-
-function createSystemLog(text) {
-  return {
-    text,
-    createdAt: new Date().toISOString(),
-    createdBy: "מערכת",
   };
 }
 
@@ -222,9 +551,7 @@ export default function CallRoundsModal({ guest, onClose, onUpdated }) {
     if (!previousAnswer) {
       nextNotes = [
         ...currentNotes,
-        createSystemLog(
-          `סומן סטטוס שיחה: ${ANSWER_LABELS[value] || value}`
-        ),
+        createSystemLog(`סומן סטטוס שיחה: ${ANSWER_LABELS[value] || value}`),
       ];
     } else if (previousAnswer !== value) {
       nextNotes = [
@@ -246,6 +573,7 @@ export default function CallRoundsModal({ guest, onClose, onUpdated }) {
           : currentRound.amount || getGuestAmount(guest),
       notes: nextNotes,
       calledAt: new Date().toISOString(),
+      source: "manual",
     });
   };
 
@@ -261,9 +589,7 @@ export default function CallRoundsModal({ guest, onClose, onUpdated }) {
     if (!previousResult) {
       nextNotes = [
         ...currentNotes,
-        createSystemLog(
-          `סומנה תוצאת שיחה: ${RESULT_LABELS[value] || value}`
-        ),
+        createSystemLog(`סומנה תוצאת שיחה: ${RESULT_LABELS[value] || value}`),
       ];
     } else if (previousResult !== value) {
       nextNotes = [
@@ -277,16 +603,15 @@ export default function CallRoundsModal({ guest, onClose, onUpdated }) {
     }
 
     updateRound(index, {
-      answerStatus: "answered",
-      resultStatus: value,
+      answerStatus: value === "no_answer" ? "no_answer" : "answered",
+      resultStatus: value === "no_answer" ? null : value,
       amount:
         value === "yes"
           ? Math.max(1, Number(currentRound.amount || getGuestAmount(guest)))
-          : value === "no"
-            ? 0
-            : 0,
+          : 0,
       notes: nextNotes,
       calledAt: new Date().toISOString(),
+      source: "manual",
     });
   };
 
@@ -302,9 +627,7 @@ export default function CallRoundsModal({ guest, onClose, onUpdated }) {
       previousAmount > 0 && previousAmount !== nextAmount
         ? [
             ...currentNotes,
-            createSystemLog(
-              `שונתה כמות מגיעים: ${previousAmount} ← ${nextAmount}`
-            ),
+            createSystemLog(`שונתה כמות מגיעים: ${previousAmount} ← ${nextAmount}`),
           ]
         : currentNotes;
 
@@ -314,6 +637,7 @@ export default function CallRoundsModal({ guest, onClose, onUpdated }) {
       amount: nextAmount,
       notes: nextNotes,
       calledAt: new Date().toISOString(),
+      source: "manual",
     });
   };
 
@@ -335,6 +659,7 @@ export default function CallRoundsModal({ guest, onClose, onUpdated }) {
 
     updateRound(index, {
       notes: [...currentNotes, newNote],
+      source: "manual",
     });
 
     setNoteDrafts((prev) => ({
@@ -364,9 +689,7 @@ export default function CallRoundsModal({ guest, onClose, onUpdated }) {
         amount:
           round.answerStatus === "answered" && round.resultStatus === "yes"
             ? Math.max(1, Number(round.amount || 1))
-            : round.resultStatus === "no"
-              ? 0
-              : 0,
+            : 0,
         notes: Array.isArray(round.notes)
           ? round.notes.map(normalizeNote).filter(Boolean)
           : [],
@@ -374,7 +697,12 @@ export default function CallRoundsModal({ guest, onClose, onUpdated }) {
           ? round.calledAt || new Date().toISOString()
           : null,
         updatedAt: round.updatedAt || new Date().toISOString(),
+        source: round.source || "manual",
       }));
+
+      const latestTouchedRound = [...cleanRounds]
+        .reverse()
+        .find((round) => round.answerStatus || round.resultStatus);
 
       const res = await fetch(`/api/guests/${guest._id}`, {
         method: "PUT",
@@ -383,12 +711,24 @@ export default function CallRoundsModal({ guest, onClose, onUpdated }) {
         body: JSON.stringify({
           callRounds: cleanRounds,
 
-          // עדכון אוטומטי ל-RSVP של האורח
+          // RSVP חוקי לפי enum: yes / no / pending
           rsvp: rsvpUpdate.rsvpStatus,
           rsvpStatus: rsvpUpdate.rsvpStatus,
           status: rsvpUpdate.rsvpStatus,
+
+          // רק מגיעים, לא מוזמנים
           arrivedCount: rsvpUpdate.amount,
+          actualArrivedCount: rsvpUpdate.amount,
           amount: rsvpUpdate.amount,
+
+          // שדות תצוגה אחרונים ללקוח / טלפון
+          lastCallStatus: latestTouchedRound?.resultStatus || null,
+          lastCallResult: latestTouchedRound?.resultStatus || null,
+          lastCallRound: latestTouchedRound?.roundNumber || null,
+          lastCallNote:
+            latestTouchedRound?.notes?.[latestTouchedRound.notes.length - 1]
+              ?.text || "",
+          lastCallAt: new Date().toISOString(),
         }),
       });
 
