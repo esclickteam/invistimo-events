@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import SoftphoneStatusPanel from "@/app/components/staff/SoftphoneStatusPanel";
+import EmployeeDocumentsModal from "../employee/EmployeeDocumentsModal";
 
 type UserRole =
   | "client"
@@ -78,8 +79,6 @@ type ApiEmployeeAgreement = {
   createdAt?: string;
   updatedAt?: string;
 };
-
-type ApiForm101 = ApiEmployeeDocument;
 
 type ApiUser = {
   _id?: string;
@@ -206,7 +205,7 @@ function getArrayFromResponse<T>(data: any, keys: string[]): T[] {
 
 function getObjectFromResponse<T extends object>(
   data: any,
-  keys: string[]
+  keys: string[],
 ): Partial<T> {
   for (const key of keys) {
     const value = data?.[key];
@@ -236,7 +235,7 @@ async function fetchJson(url: string) {
 
   if (!response.ok) {
     throw new Error(
-      data?.error || data?.message || `REQUEST_FAILED_${response.status}`
+      data?.error || data?.message || `REQUEST_FAILED_${response.status}`,
     );
   }
 
@@ -277,18 +276,6 @@ function formatDateTimeAgo(value?: string) {
   return formatDate(value);
 }
 
-function formatFileSize(size?: number) {
-  if (!size) return "—";
-
-  const mb = size / 1024 / 1024;
-
-  if (mb >= 1) {
-    return `${mb.toFixed(1)}MB`;
-  }
-
-  return `${Math.round(size / 1024)}KB`;
-}
-
 function documentStatusLabel(status?: EmployeeDocumentStatus) {
   switch (status) {
     case "approved":
@@ -325,12 +312,12 @@ function getAgreementFileUrl(agreement?: ApiEmployeeAgreement | null) {
       agreement.pdfUrl ||
       agreement.documentUrl ||
       agreement.url ||
-      ""
+      "",
   );
 }
 
 function getAgreementEffectiveStatus(
-  agreement?: ApiEmployeeAgreement | null
+  agreement?: ApiEmployeeAgreement | null,
 ): EmployeeAgreementStatus {
   if (!agreement) return "missing";
 
@@ -376,7 +363,11 @@ function normalizeEmployeeAgreementFromResponse(data: any) {
     data?.data?.document ||
     null;
 
-  if (!rawAgreement || typeof rawAgreement !== "object" || Array.isArray(rawAgreement)) {
+  if (
+    !rawAgreement ||
+    typeof rawAgreement !== "object" ||
+    Array.isArray(rawAgreement)
+  ) {
     return null;
   }
 
@@ -438,7 +429,7 @@ function normalizeEventClientId(event: ApiEvent) {
       event.userId ||
       event.ownerId ||
       event.createdBy ||
-      ""
+      "",
   );
 }
 
@@ -455,7 +446,9 @@ function normalizeEventTitle(event: ApiEvent) {
 }
 
 function normalizeClientName(event: ApiEvent) {
-  return event.clientName || event.customerName || event.ownerName || "לקוח ללא שם";
+  return (
+    event.clientName || event.customerName || event.ownerName || "לקוח ללא שם"
+  );
 }
 
 function normalizeClientPhone(event: ApiEvent) {
@@ -803,10 +796,10 @@ function StatCard({
     tone === "purple"
       ? "from-violet-600 to-fuchsia-600"
       : tone === "green"
-      ? "from-emerald-500 to-teal-600"
-      : tone === "amber"
-      ? "from-amber-400 to-orange-500"
-      : "from-slate-950 to-slate-800";
+        ? "from-emerald-500 to-teal-600"
+        : tone === "amber"
+          ? "from-amber-400 to-orange-500"
+          : "from-sky-500 to-blue-600";
 
   return (
     <div className="group relative overflow-hidden rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-xl">
@@ -849,7 +842,9 @@ function SectionHeader({
           {title}
         </h2>
         {subtitle && (
-          <p className="mt-1 text-sm font-semibold text-slate-500">{subtitle}</p>
+          <p className="mt-1 text-sm font-semibold text-slate-500">
+            {subtitle}
+          </p>
         )}
       </div>
       {action}
@@ -922,7 +917,7 @@ function LoadingPanel() {
 
 function getCombinedDocumentsStatus(
   form101: ApiEmployeeDocument | null,
-  idCard: ApiEmployeeDocument | null
+  idCard: ApiEmployeeDocument | null,
 ): EmployeeDocumentStatus {
   if (!form101 && !idCard) return "missing";
 
@@ -941,594 +936,205 @@ function getUploadedDate(document?: ApiEmployeeDocument | null) {
   return formatDate(document?.uploadedAt || document?.createdAt);
 }
 
-function DocumentsPanel({
+function MiniDocumentStatusCard({
+  title,
+  subtitle,
+  statusLabel,
+  statusClass,
+  icon,
+}: {
+  title: string;
+  subtitle: string;
+  statusLabel: string;
+  statusClass: string;
+  icon: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
+            {icon}
+          </div>
+
+          <div>
+            <p className="text-sm font-black text-slate-950">{title}</p>
+            <p className="mt-1 text-xs font-bold leading-5 text-slate-500">
+              {subtitle}
+            </p>
+          </div>
+        </div>
+
+        <span
+          className={`shrink-0 rounded-full border px-3 py-1 text-[11px] font-black ${statusClass}`}
+        >
+          {statusLabel}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function EmployeeFileSummaryPanel({
   form101,
   idCard,
   agreement,
-  form101File,
-  idCardFile,
-  setForm101File,
-  setIdCardFile,
   loading,
   agreementLoading,
-  uploadingType,
   error,
-  onUpload,
   onReload,
-  signAgreementUrl,
+  onOpen,
 }: {
   form101: ApiEmployeeDocument | null;
   idCard: ApiEmployeeDocument | null;
   agreement: ApiEmployeeAgreement | null;
-  form101File: File | null;
-  idCardFile: File | null;
-  setForm101File: (file: File | null) => void;
-  setIdCardFile: (file: File | null) => void;
   loading: boolean;
   agreementLoading: boolean;
-  uploadingType: EmployeeDocumentType | null;
   error: string;
-  onUpload: (documentType: EmployeeDocumentType) => void;
   onReload: () => void;
-  signAgreementUrl: string;
+  onOpen: () => void;
 }) {
-  const [open, setOpen] = useState(false);
   const combinedStatus = getCombinedDocumentsStatus(form101, idCard);
   const agreementStatus = getAgreementEffectiveStatus(agreement);
   const agreementFileUrl = getAgreementFileUrl(agreement);
   const agreementDate = getAgreementDate(agreement);
-  const canSignAgreement = agreementStatus === "missing" || agreementStatus === "rejected";
+  const isReloading = loading || agreementLoading;
 
   return (
-    <>
-      <section className="mt-6 rounded-[34px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-          <div className="flex items-start gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-3xl bg-slate-950 text-white shadow-lg">
-              <Icon name="file" className="h-6 w-6" />
-            </div>
+    <section className="mt-6 overflow-hidden rounded-[34px] border border-slate-200 bg-white shadow-sm">
+      <div className="grid gap-0 xl:grid-cols-[0.95fr_1.05fr]">
+        <div className="relative border-b border-slate-200 bg-gradient-to-br from-white via-slate-50 to-sky-50 p-5 sm:p-6 xl:border-b-0 xl:border-l">
+          <div className="pointer-events-none absolute -right-16 -top-16 h-52 w-52 rounded-full bg-sky-200/40 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-16 left-0 h-48 w-48 rounded-full bg-emerald-200/30 blur-3xl" />
 
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-2xl font-black tracking-tight text-slate-950">
-                  מסמכי עובד
-                </h2>
-
-                <span
-                  className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${documentStatusClass(
-                    combinedStatus
-                  )}`}
-                >
-                  {documentStatusLabel(combinedStatus)}
-                </span>
-              </div>
-
-              <p className="mt-2 max-w-3xl text-sm font-semibold leading-7 text-slate-500">
-                טופס 101 ותעודת זהות נשמרים במערכת וממתינים לבדיקה. לחצי על
-                ניהול מסמכים כדי להעלות או לצפות בקבצים.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={onReload}
-              disabled={loading || agreementLoading || Boolean(uploadingType)}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <Icon
-                name="refresh"
-                className={`h-4 w-4 ${
-                  loading || agreementLoading ? "animate-spin" : ""
-                }`}
-              />
-              רענון סטטוס
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setOpen(true)}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 text-sm font-black text-white transition hover:bg-black"
-            >
-              <Icon name="open" className="h-4 w-4" />
-              ניהול מסמכים
-            </button>
-          </div>
-        </div>
-
-        <div className="mt-5 grid gap-4 md:grid-cols-2">
-          <div className="rounded-[28px] bg-slate-50 p-5">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-base font-black text-slate-950">טופס 101</p>
-                <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
-                  {form101
-                    ? `הועלה: ${form101.originalFileName || "קובץ"}`
-                    : "עדיין לא הועלה טופס 101."}
-                </p>
-              </div>
-
-              <span
-                className={`shrink-0 rounded-full border px-3 py-1 text-xs font-black ${documentStatusClass(
-                  form101?.status || "missing"
-                )}`}
-              >
-                {documentStatusLabel(form101?.status || "missing")}
-              </span>
-            </div>
-
-            {form101?.fileUrl && (
-              <a
-                href={form101.fileUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-4 inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-xs font-black text-slate-700 transition hover:bg-slate-50"
-              >
-                <Icon name="open" className="h-4 w-4" />
-                צפייה בקובץ
-              </a>
-            )}
-          </div>
-
-          <div className="rounded-[28px] bg-slate-50 p-5">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-base font-black text-slate-950">
-                  תעודת זהות
-                </p>
-                <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
-                  {idCard
-                    ? `הועלתה: ${idCard.originalFileName || "קובץ"}`
-                    : "עדיין לא הועלתה תעודת זהות."}
-                </p>
-              </div>
-
-              <span
-                className={`shrink-0 rounded-full border px-3 py-1 text-xs font-black ${documentStatusClass(
-                  idCard?.status || "missing"
-                )}`}
-              >
-                {documentStatusLabel(idCard?.status || "missing")}
-              </span>
-            </div>
-
-            {idCard?.fileUrl && (
-              <a
-                href={idCard.fileUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-4 inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-xs font-black text-slate-700 transition hover:bg-slate-50"
-              >
-                <Icon name="open" className="h-4 w-4" />
-                צפייה בקובץ
-              </a>
-            )}
-          </div>
-        </div>
-
-        {loading && (
-          <div className="mt-5 rounded-[28px] bg-slate-50 p-5 text-sm font-black text-slate-500">
-            טוען סטטוס מסמכים...
-          </div>
-        )}
-
-        {error && (
-          <div className="mt-5 rounded-[28px] border border-rose-200 bg-rose-50 p-5 text-sm font-black text-rose-700">
-            {error}
-          </div>
-        )}
-      </section>
-
-      {open && (
-        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-slate-950/55 px-4 py-6">
-          <div className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-[34px] bg-white p-5 shadow-2xl sm:p-7">
+          <div className="relative">
             <div className="flex items-start justify-between gap-4">
-              <div>
-                <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-black text-slate-600">
-                  מסמכי עובד
-                </span>
+              <div className="flex items-start gap-4">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-3xl bg-white text-sky-700 shadow-sm ring-1 ring-slate-200">
+                  <Icon name="file" className="h-6 w-6" />
+                </div>
 
-                <h2 className="mt-3 text-2xl font-black tracking-tight text-slate-950">
-                  ניהול טופס 101, תעודת זהות והסכם עבודה
-                </h2>
+                <div>
+                  <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-black text-sky-700">
+                    אזור אישי לעובד
+                  </span>
 
-                <p className="mt-2 max-w-3xl text-sm font-semibold leading-7 text-slate-500">
-                  הורידי את טופס 101, מלאי וחתמי עליו, ואז העלי אותו יחד עם
-                  צילום תעודת זהות. בנוסף ניתן לחתום על הסכם העבודה באתר.
-                  ניתן להעלות PDF, JPG או PNG.
-                </p>
+                  <h2 className="mt-3 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
+                    התיק עובד שלי
+                  </h2>
+
+                  <p className="mt-2 max-w-xl text-sm font-semibold leading-7 text-slate-600">
+                    כל המסמכים האישיים במקום אחד: טופס 101, תעודת זהות, הסכם
+                    עבודה, שעות ותלושי שכר. מסמך שנשלח נשאר לצפייה בלבד, אלא אם
+                    נדחה ונדרש להעלות מחדש.
+                  </p>
+                </div>
               </div>
+            </div>
 
+            <div className="mt-5 flex flex-wrap gap-3">
               <button
                 type="button"
-                onClick={() => setOpen(false)}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-2xl font-black text-slate-500 transition hover:bg-slate-50"
-                aria-label="סגירה"
+                onClick={onOpen}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-sky-600 px-5 text-sm font-black text-white shadow-sm transition hover:bg-sky-700"
               >
-                ×
+                <Icon name="open" className="h-4 w-4" />
+                התיק עובד שלי
               </button>
-            </div>
 
-
-            <div className="mt-6 rounded-[30px] border border-violet-200 bg-violet-50 p-5">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <h3 className="text-lg font-black text-slate-950">
-                      הסכם עבודה
-                    </h3>
-
-                    <span
-                      className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${agreementStatusClass(
-                        agreementStatus
-                      )}`}
-                    >
-                      {agreementStatusLabel(agreementStatus)}
-                    </span>
-                  </div>
-
-                  <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-slate-600">
-                    העובד/ת ממלא/ת את השדות לפי הסדר, חותם/ת, ובסיום נוצר PDF
-                    חתום שנשמר במערכת.
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap gap-3">
-                  {canSignAgreement ? (
-                    <a
-                      href={signAgreementUrl}
-                      className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-violet-600 px-6 text-sm font-black text-white transition hover:bg-violet-700"
-                    >
-                      <Icon name="check" className="h-4 w-4" />
-                      חתימה על ההסכם
-                    </a>
-                  ) : agreementFileUrl ? (
-                    <a
-                      href={agreementFileUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-violet-600 px-6 text-sm font-black text-white transition hover:bg-violet-700"
-                    >
-                      <Icon name="open" className="h-4 w-4" />
-                      צפייה בהסכם חתום
-                    </a>
-                  ) : null}
-
-                  
-                </div>
-              </div>
-
-              {agreement && (agreementStatus === "signed" || agreementStatus === "approved") && (
-                <div className="mt-5 rounded-[28px] border border-violet-100 bg-white p-5">
-                  <p className="text-base font-black text-slate-950">
-                    ההסכם החתום האחרון
-                  </p>
-
-                  <div className="mt-3 grid gap-2 text-sm font-semibold text-slate-600">
-                    {agreement.fullName && (
-                      <span>
-                        שם: <b className="text-slate-950">{agreement.fullName}</b>
-                      </span>
-                    )}
-
-                    {agreement.idNumber && (
-                      <span>
-                        ת.ז: <b className="text-slate-950">{agreement.idNumber}</b>
-                      </span>
-                    )}
-
-                    {agreementDate && (
-                      <span>
-                        תאריך חתימה:{" "}
-                        <b className="text-slate-950">
-                          {formatDate(agreementDate)}
-                        </b>
-                      </span>
-                    )}
-                  </div>
-
-                  {agreementFileUrl && (
-                    <a
-                      href={agreementFileUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-4 inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 text-xs font-black text-slate-700 transition hover:bg-slate-50"
-                    >
-                      <Icon name="open" className="h-4 w-4" />
-                      צפייה בהסכם חתום
-                    </a>
-                  )}
-                </div>
-              )}
-
-              {agreement?.status === "rejected" && agreement.rejectionReason && (
-                <div className="mt-5 rounded-[28px] border border-rose-200 bg-rose-50 p-5 text-sm font-black text-rose-700">
-                  ההסכם נדחה. סיבה: {agreement.rejectionReason}
-                </div>
-              )}
-            </div>
-
-            <div className="mt-6 grid gap-5 lg:grid-cols-2">
-              <div className="rounded-[30px] border border-slate-200 bg-slate-50 p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h3 className="text-lg font-black text-slate-950">
-                      טופס 101
-                    </h3>
-                    <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
-                      הורידי טופס ריק, מלאי אותו, חתמי והעלי לכאן.
-                    </p>
-                  </div>
-
-                  <span
-                    className={`shrink-0 rounded-full border px-3 py-1 text-xs font-black ${documentStatusClass(
-                      form101?.status || "missing"
-                    )}`}
-                  >
-                    {documentStatusLabel(form101?.status || "missing")}
-                  </span>
-                </div>
-
-                <a
-                  href={API.form101Download}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 text-sm font-black text-white transition hover:bg-black"
-                >
-                  <Icon name="open" className="h-4 w-4" />
-                  הורדת טופס 101
-                </a>
-
-                <div className="mt-5 rounded-[28px] border border-dashed border-slate-300 bg-white p-5">
-                  <p className="text-base font-black text-slate-950">
-                    העלאת טופס חתום
-                  </p>
-
-                  <input
-                    type="file"
-                    accept=".pdf,image/png,image/jpeg"
-                    disabled={uploadingType === "form101"}
-                    onChange={(event) => {
-                      setForm101File(event.target.files?.[0] || null);
-                    }}
-                    className="mt-4 block w-full cursor-pointer rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm font-bold text-slate-700 file:ml-4 file:rounded-xl file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-sm file:font-black file:text-white disabled:cursor-not-allowed disabled:opacity-60"
-                  />
-
-                  {form101File && (
-                    <p className="mt-3 text-xs font-bold text-slate-500">
-                      נבחר קובץ:{" "}
-                      <b className="text-slate-950">{form101File.name}</b> ·{" "}
-                      {formatFileSize(form101File.size)}
-                    </p>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() => onUpload("form101")}
-                    disabled={uploadingType === "form101" || !form101File}
-                    className="mt-4 inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 text-sm font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {uploadingType === "form101" ? (
-                      <>
-                        <Icon name="refresh" className="h-4 w-4 animate-spin" />
-                        מעלה...
-                      </>
-                    ) : (
-                      <>
-                        <Icon name="check" className="h-4 w-4" />
-                        העלאת טופס חתום
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                {form101 ? (
-                  <div className="mt-5 rounded-[28px] border border-slate-200 bg-white p-5">
-                    <p className="text-base font-black text-slate-950">
-                      הטופס האחרון שהועלה
-                    </p>
-
-                    <div className="mt-3 grid gap-2 text-sm font-semibold text-slate-600">
-                      <span>
-                        קובץ:{" "}
-                        <b className="text-slate-950">
-                          {form101.originalFileName || "—"}
-                        </b>
-                      </span>
-
-                      <span>
-                        שנת מס:{" "}
-                        <b className="text-slate-950">
-                          {form101.taxYear || "—"}
-                        </b>
-                      </span>
-
-                      <span>
-                        גודל:{" "}
-                        <b className="text-slate-950">
-                          {formatFileSize(form101.fileSize)}
-                        </b>
-                      </span>
-
-                      <span>
-                        תאריך העלאה:{" "}
-                        <b className="text-slate-950">
-                          {getUploadedDate(form101)}
-                        </b>
-                      </span>
-                    </div>
-
-                    {form101.fileUrl && (
-                      <a
-                        href={form101.fileUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="mt-4 inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 text-xs font-black text-slate-700 transition hover:bg-slate-50"
-                      >
-                        <Icon name="open" className="h-4 w-4" />
-                        צפייה בטופס
-                      </a>
-                    )}
-                  </div>
-                ) : (
-                  !loading && (
-                    <div className="mt-5 rounded-[28px] bg-white p-5 text-sm font-black text-slate-500">
-                      עדיין לא הועלה טופס 101.
-                    </div>
-                  )
-                )}
-              </div>
-
-              <div className="rounded-[30px] border border-slate-200 bg-slate-50 p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h3 className="text-lg font-black text-slate-950">
-                      תעודת זהות
-                    </h3>
-                    <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
-                      העלי צילום תעודת זהות או קובץ PDF. אפשר להעלות גם צילום
-                      ספח לפי הצורך.
-                    </p>
-                  </div>
-
-                  <span
-                    className={`shrink-0 rounded-full border px-3 py-1 text-xs font-black ${documentStatusClass(
-                      idCard?.status || "missing"
-                    )}`}
-                  >
-                    {documentStatusLabel(idCard?.status || "missing")}
-                  </span>
-                </div>
-
-                <div className="mt-5 rounded-[28px] border border-dashed border-slate-300 bg-white p-5">
-                  <p className="text-base font-black text-slate-950">
-                    העלאת תעודת זהות
-                  </p>
-
-                  <input
-                    type="file"
-                    accept=".pdf,image/png,image/jpeg"
-                    disabled={uploadingType === "idCard"}
-                    onChange={(event) => {
-                      setIdCardFile(event.target.files?.[0] || null);
-                    }}
-                    className="mt-4 block w-full cursor-pointer rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm font-bold text-slate-700 file:ml-4 file:rounded-xl file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-sm file:font-black file:text-white disabled:cursor-not-allowed disabled:opacity-60"
-                  />
-
-                  {idCardFile && (
-                    <p className="mt-3 text-xs font-bold text-slate-500">
-                      נבחר קובץ:{" "}
-                      <b className="text-slate-950">{idCardFile.name}</b> ·{" "}
-                      {formatFileSize(idCardFile.size)}
-                    </p>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() => onUpload("idCard")}
-                    disabled={uploadingType === "idCard" || !idCardFile}
-                    className="mt-4 inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 text-sm font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {uploadingType === "idCard" ? (
-                      <>
-                        <Icon name="refresh" className="h-4 w-4 animate-spin" />
-                        מעלה...
-                      </>
-                    ) : (
-                      <>
-                        <Icon name="check" className="h-4 w-4" />
-                        העלאת תעודת זהות
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                {idCard ? (
-                  <div className="mt-5 rounded-[28px] border border-slate-200 bg-white p-5">
-                    <p className="text-base font-black text-slate-950">
-                      תעודת הזהות האחרונה שהועלתה
-                    </p>
-
-                    <div className="mt-3 grid gap-2 text-sm font-semibold text-slate-600">
-                      <span>
-                        קובץ:{" "}
-                        <b className="text-slate-950">
-                          {idCard.originalFileName || "—"}
-                        </b>
-                      </span>
-
-                      <span>
-                        גודל:{" "}
-                        <b className="text-slate-950">
-                          {formatFileSize(idCard.fileSize)}
-                        </b>
-                      </span>
-
-                      <span>
-                        תאריך העלאה:{" "}
-                        <b className="text-slate-950">
-                          {getUploadedDate(idCard)}
-                        </b>
-                      </span>
-                    </div>
-
-                    {idCard.fileUrl && (
-                      <a
-                        href={idCard.fileUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="mt-4 inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 text-xs font-black text-slate-700 transition hover:bg-slate-50"
-                      >
-                        <Icon name="open" className="h-4 w-4" />
-                        צפייה בתעודת זהות
-                      </a>
-                    )}
-                  </div>
-                ) : (
-                  !loading && (
-                    <div className="mt-5 rounded-[28px] bg-white p-5 text-sm font-black text-slate-500">
-                      עדיין לא הועלתה תעודת זהות.
-                    </div>
-                  )
-                )}
-              </div>
-            </div>
-
-            {error && (
-              <div className="mt-5 rounded-[28px] border border-rose-200 bg-rose-50 p-5 text-sm font-black text-rose-700">
-                {error}
-              </div>
-            )}
-
-            <div className="mt-6 flex flex-wrap justify-end gap-3">
               <button
                 type="button"
                 onClick={onReload}
-                disabled={loading || agreementLoading || Boolean(uploadingType)}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={isReloading}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Icon
                   name="refresh"
-                  className={`h-4 w-4 ${
-                    loading || agreementLoading ? "animate-spin" : ""
-                  }`}
+                  className={`h-4 w-4 ${isReloading ? "animate-spin" : ""}`}
                 />
-                {loading || agreementLoading ? "מרענן..." : "רענון סטטוס"}
+                רענון סטטוס
               </button>
+            </div>
 
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                className="h-11 rounded-2xl bg-slate-950 px-6 text-sm font-black text-white transition hover:bg-black"
+            {error && (
+              <div className="mt-5 rounded-[24px] border border-rose-200 bg-rose-50 p-4 text-sm font-black leading-6 text-rose-700">
+                {error}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="p-5 sm:p-6">
+          <div className="grid gap-3 md:grid-cols-2">
+            <MiniDocumentStatusCard
+              title="טופס 101"
+              subtitle={
+                form101
+                  ? `הועלה: ${form101.originalFileName || "קובץ"} · ${getUploadedDate(form101)}`
+                  : "לא הועלה עדיין"
+              }
+              statusLabel={documentStatusLabel(form101?.status || "missing")}
+              statusClass={documentStatusClass(form101?.status || "missing")}
+              icon={<Icon name="file" className="h-5 w-5" />}
+            />
+
+            <MiniDocumentStatusCard
+              title="תעודת זהות"
+              subtitle={
+                idCard
+                  ? `הועלתה: ${idCard.originalFileName || "קובץ"} · ${getUploadedDate(idCard)}`
+                  : "לא הועלתה עדיין"
+              }
+              statusLabel={documentStatusLabel(idCard?.status || "missing")}
+              statusClass={documentStatusClass(idCard?.status || "missing")}
+              icon={<Icon name="shield" className="h-5 w-5" />}
+            />
+
+            <MiniDocumentStatusCard
+              title="הסכם עבודה"
+              subtitle={
+                agreementFileUrl
+                  ? `קיים הסכם חתום${agreementDate ? ` · ${formatDate(agreementDate)}` : ""}`
+                  : "לא נחתם עדיין"
+              }
+              statusLabel={agreementStatusLabel(agreementStatus)}
+              statusClass={agreementStatusClass(agreementStatus)}
+              icon={<Icon name="check" className="h-5 w-5" />}
+            />
+
+            <MiniDocumentStatusCard
+              title="שעות ותלושי שכר"
+              subtitle="ייפתחו בטאבים נפרדים בתוך תיק העובד"
+              statusLabel="זמין בתיק"
+              statusClass="border-slate-200 bg-slate-50 text-slate-600"
+              icon={<Icon name="clock" className="h-5 w-5" />}
+            />
+          </div>
+
+          <div className="mt-4 rounded-[24px] border border-slate-200 bg-slate-50 p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-black text-slate-950">
+                  סטטוס כללי של מסמכי חובה
+                </p>
+                <p className="mt-1 text-xs font-bold leading-5 text-slate-500">
+                  טופס 101 + תעודת זהות + הסכם עבודה. כניסה מלאה נמצאת בכפתור
+                  הקטן של תיק העובד.
+                </p>
+              </div>
+
+              <span
+                className={`inline-flex w-fit rounded-full border px-3 py-1 text-xs font-black ${documentStatusClass(
+                  combinedStatus,
+                )}`}
               >
-                סגירה
-              </button>
+                {documentStatusLabel(combinedStatus)}
+              </span>
             </div>
           </div>
         </div>
-      )}
-    </>
+      </div>
+    </section>
   );
 }
 
@@ -1551,6 +1157,7 @@ export default function EmployeeDashboardPage() {
   const [uploadingDocumentType, setUploadingDocumentType] =
     useState<EmployeeDocumentType | null>(null);
   const [documentsError, setDocumentsError] = useState("");
+  const [documentsModalOpen, setDocumentsModalOpen] = useState(false);
 
   const [userSearch, setUserSearch] = useState("");
   const [eventSearch, setEventSearch] = useState("");
@@ -1560,7 +1167,7 @@ export default function EmployeeDashboardPage() {
   const [error, setError] = useState("");
 
   const currentEmployeeId = String(
-    (user as any)?.id || (user as any)?._id || ""
+    (user as any)?.id || (user as any)?._id || "",
   );
   const currentBusinessId = normalizeUserBusinessId(user as any);
 
@@ -1577,7 +1184,9 @@ export default function EmployeeDashboardPage() {
 
     const query = params.toString();
 
-    return query ? `/employee/agreement/sign?${query}` : "/employee/agreement/sign";
+    return query
+      ? `/employee/agreement/sign?${query}`
+      : "/employee/agreement/sign";
   }, [currentEmployeeId, currentBusinessId]);
 
   const loadDashboard = useCallback(async () => {
@@ -1615,11 +1224,12 @@ export default function EmployeeDashboardPage() {
       } catch (dashboardError) {
         console.warn("STAFF DASHBOARD SINGLE ENDPOINT FAILED:", dashboardError);
 
-        const [usersResponse, eventsResponse, tasksResponse] = await Promise.all([
-          fetchJson(API.users),
-          fetchJson(API.myEvents),
-          fetchJson(API.myTasks).catch(() => ({ tasks: [] })),
-        ]);
+        const [usersResponse, eventsResponse, tasksResponse] =
+          await Promise.all([
+            fetchJson(API.users),
+            fetchJson(API.myEvents),
+            fetchJson(API.myTasks).catch(() => ({ tasks: [] })),
+          ]);
 
         dashboardData = {
           users: getArrayFromResponse<ApiUser>(usersResponse, [
@@ -1655,7 +1265,7 @@ export default function EmployeeDashboardPage() {
       setError(
         loadError instanceof Error
           ? loadError.message
-          : "שגיאה בטעינת נתוני דשבורד עובדים"
+          : "שגיאה בטעינת נתוני דשבורד עובדים",
       );
       setUsers([]);
       setEvents([]);
@@ -1673,11 +1283,14 @@ export default function EmployeeDashboardPage() {
         documentType,
       });
 
-      const response = await fetch(`${API.form101Current}?${params.toString()}`, {
-        method: "GET",
-        credentials: "include",
-        cache: "no-store",
-      });
+      const response = await fetch(
+        `${API.form101Current}?${params.toString()}`,
+        {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        },
+      );
 
       const data = await response.json().catch(() => null);
 
@@ -1689,7 +1302,7 @@ export default function EmployeeDashboardPage() {
         (documentType === "form101" ? data?.form101 : data?.idCard) ||
         null) as ApiEmployeeDocument | null;
     },
-    []
+    [],
   );
 
   const loadEmployeeDocuments = useCallback(async () => {
@@ -1717,7 +1330,7 @@ export default function EmployeeDashboardPage() {
       setDocumentsError(
         loadError instanceof Error
           ? loadError.message
-          : "שגיאה בטעינת מסמכי עובד"
+          : "שגיאה בטעינת מסמכי עובד",
       );
     } finally {
       setDocumentsLoading(false);
@@ -1746,7 +1359,7 @@ export default function EmployeeDashboardPage() {
           method: "GET",
           credentials: "include",
           cache: "no-store",
-        }
+        },
       );
 
       const data = await response.json().catch(() => null);
@@ -1766,7 +1379,8 @@ export default function EmployeeDashboardPage() {
 
   const uploadEmployeeDocument = useCallback(
     async (documentType: EmployeeDocumentType) => {
-      const selectedFile = documentType === "form101" ? form101File : idCardFile;
+      const selectedFile =
+        documentType === "form101" ? form101File : idCardFile;
 
       if (!selectedFile || uploadingDocumentType) return;
 
@@ -1810,18 +1424,13 @@ export default function EmployeeDashboardPage() {
         setDocumentsError(
           uploadError instanceof Error
             ? uploadError.message
-            : "שגיאה בהעלאת המסמך"
+            : "שגיאה בהעלאת המסמך",
         );
       } finally {
         setUploadingDocumentType(null);
       }
     },
-    [
-      form101File,
-      idCardFile,
-      loadEmployeeDocuments,
-      uploadingDocumentType,
-    ]
+    [form101File, idCardFile, loadEmployeeDocuments, uploadingDocumentType],
   );
 
   const enterClientDashboard = useCallback(
@@ -1858,7 +1467,7 @@ export default function EmployeeDashboardPage() {
         setEnteringUserId(null);
       }
     },
-    [enteringUserId, router]
+    [enteringUserId, router],
   );
 
   useEffect(() => {
@@ -1877,7 +1486,9 @@ export default function EmployeeDashboardPage() {
       const email = String(currentUser.email || "").toLowerCase();
       const phone = String(currentUser.phone || "").toLowerCase();
       const role = roleLabel(currentUser.role).toLowerCase();
-      const status = statusLabel(normalizeUserStatus(currentUser)).toLowerCase();
+      const status = statusLabel(
+        normalizeUserStatus(currentUser),
+      ).toLowerCase();
 
       return (
         name.includes(q) ||
@@ -1898,10 +1509,12 @@ export default function EmployeeDashboardPage() {
       const title = normalizeEventTitle(event).toLowerCase();
       const clientName = normalizeClientName(event).toLowerCase();
       const clientPhone = normalizeClientPhone(event).toLowerCase();
-      const eventType = String(event.eventType || event.type || "").toLowerCase();
+      const eventType = String(
+        event.eventType || event.type || "",
+      ).toLowerCase();
       const location = normalizeLocation(event).toLowerCase();
       const careStatus = careStatusLabel(
-        normalizeCareStatus(event.careStatus || event.supportStatus)
+        normalizeCareStatus(event.careStatus || event.supportStatus),
       ).toLowerCase();
 
       return (
@@ -1917,7 +1530,9 @@ export default function EmployeeDashboardPage() {
 
   const eventsNeedCheck = useMemo(() => {
     return events.filter((event) => {
-      const status = normalizeCareStatus(event.careStatus || event.supportStatus);
+      const status = normalizeCareStatus(
+        event.careStatus || event.supportStatus,
+      );
       return status === "urgent" || status === "check";
     });
   }, [events]);
@@ -1930,7 +1545,9 @@ export default function EmployeeDashboardPage() {
 
   const activeUsersCount = useMemo(() => {
     return users.filter((currentUser) => {
-      return String(normalizeUserStatus(currentUser)).toLowerCase() === "active";
+      return (
+        String(normalizeUserStatus(currentUser)).toLowerCase() === "active"
+      );
     }).length;
   }, [users]);
 
@@ -1945,28 +1562,32 @@ export default function EmployeeDashboardPage() {
   const displayName = user?.name || user?.email?.split("@")[0] || "עובד";
 
   return (
-    <div dir="rtl" className="min-h-screen bg-[#F5F7FB] text-slate-950">
+    <div
+      dir="rtl"
+      className="min-h-screen bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_100%)] text-slate-950"
+    >
       <SoftphoneStatusPanel />
 
       <main className="min-h-screen pb-10">
         <section className="mx-auto w-full max-w-[1480px] px-4 py-6 sm:px-6 lg:px-8">
-          <div className="relative overflow-hidden rounded-[36px] bg-slate-950 p-6 text-white shadow-[0_30px_90px_rgba(15,23,42,0.18)] sm:p-8">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_20%,rgba(139,92,246,0.35),transparent_30%),radial-gradient(circle_at_90%_10%,rgba(16,185,129,0.22),transparent_24%),linear-gradient(135deg,rgba(255,255,255,0.08),transparent_35%)]" />
+          <div className="relative overflow-hidden rounded-[36px] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+            <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-sky-100 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-24 left-10 h-64 w-64 rounded-full bg-emerald-100 blur-3xl" />
 
             <div className="relative flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
               <div className="max-w-3xl">
-                <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-4 py-2 text-sm font-black text-white">
-                  <Icon name="shield" className="h-4 w-4" />
+                <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-black text-slate-700">
+                  <Icon name="shield" className="h-4 w-4 text-sky-600" />
                   דשבורד עובדים
                 </span>
 
-                <h1 className="mt-5 text-4xl font-black tracking-tight sm:text-5xl">
+                <h1 className="mt-5 text-4xl font-black tracking-tight text-slate-950 sm:text-5xl">
                   היי {displayName}, בוקר טוב 👋
                 </h1>
 
-                <p className="mt-4 max-w-2xl text-base font-semibold leading-8 text-slate-300">
-                  כאן העובד רואה נתונים אמיתיים מהשרת: לקוחות, אירועים בטיפול
-                  אישי, שיחות שדורשות בדיקה ופעולות שצריך לבצע אצל הלקוח.
+                <p className="mt-4 max-w-2xl text-base font-semibold leading-8 text-slate-600">
+                  כאן מופיעים הנתונים שלך כעובד: אירועים בטיפול אישי, לקוחות
+                  שדורשים בדיקה, הודעות פתוחות ותיק העובד האישי שלך.
                 </p>
               </div>
 
@@ -1979,7 +1600,7 @@ export default function EmployeeDashboardPage() {
                     void loadEmployeeAgreement();
                   }}
                   disabled={refreshing || documentsLoading || agreementLoading}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/10 px-4 text-sm font-black text-white transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <Icon
                     name="refresh"
@@ -1993,30 +1614,36 @@ export default function EmployeeDashboardPage() {
                 </button>
 
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:min-w-[560px]">
-                  <div className="rounded-[24px] border border-white/10 bg-white/10 p-4 backdrop-blur">
-                    <p className="text-xs font-black text-slate-300">משתמשים</p>
-                    <p className="mt-2 text-3xl font-black">{stats.totalUsers}</p>
+                  <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-xs font-black text-slate-500">משתמשים</p>
+                    <p className="mt-2 text-3xl font-black text-slate-950">
+                      {stats.totalUsers}
+                    </p>
                   </div>
 
-                  <div className="rounded-[24px] border border-white/10 bg-white/10 p-4 backdrop-blur">
-                    <p className="text-xs font-black text-slate-300">
+                  <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-xs font-black text-slate-500">
                       אירועים שלי
                     </p>
-                    <p className="mt-2 text-3xl font-black">{stats.myEvents}</p>
+                    <p className="mt-2 text-3xl font-black text-slate-950">
+                      {stats.myEvents}
+                    </p>
                   </div>
 
-                  <div className="rounded-[24px] border border-white/10 bg-white/10 p-4 backdrop-blur">
-                    <p className="text-xs font-black text-slate-300">
+                  <div className="rounded-[24px] border border-amber-200 bg-amber-50 p-4">
+                    <p className="text-xs font-black text-amber-700">
                       דורש בדיקה
                     </p>
-                    <p className="mt-2 text-3xl font-black">{stats.needCheck}</p>
+                    <p className="mt-2 text-3xl font-black text-amber-900">
+                      {stats.needCheck}
+                    </p>
                   </div>
 
-                  <div className="rounded-[24px] border border-white/10 bg-white/10 p-4 backdrop-blur">
-                    <p className="text-xs font-black text-slate-300">
+                  <div className="rounded-[24px] border border-sky-200 bg-sky-50 p-4">
+                    <p className="text-xs font-black text-sky-700">
                       הודעות פתוחות
                     </p>
-                    <p className="mt-2 text-3xl font-black">
+                    <p className="mt-2 text-3xl font-black text-sky-950">
                       {stats.unreadMessages}
                     </p>
                   </div>
@@ -2025,7 +1652,23 @@ export default function EmployeeDashboardPage() {
             </div>
           </div>
 
-          <DocumentsPanel
+          <EmployeeFileSummaryPanel
+            form101={form101}
+            idCard={idCard}
+            agreement={agreement}
+            loading={documentsLoading}
+            agreementLoading={agreementLoading}
+            error={documentsError}
+            onReload={() => {
+              void loadEmployeeDocuments();
+              void loadEmployeeAgreement();
+            }}
+            onOpen={() => setDocumentsModalOpen(true)}
+          />
+
+          <EmployeeDocumentsModal
+            open={documentsModalOpen}
+            onClose={() => setDocumentsModalOpen(false)}
             form101={form101}
             idCard={idCard}
             agreement={agreement}
@@ -2037,12 +1680,15 @@ export default function EmployeeDashboardPage() {
             agreementLoading={agreementLoading}
             uploadingType={uploadingDocumentType}
             error={documentsError}
-            onUpload={(documentType) => void uploadEmployeeDocument(documentType)}
+            onUpload={(documentType: EmployeeDocumentType) =>
+              void uploadEmployeeDocument(documentType)
+            }
             onReload={() => {
               void loadEmployeeDocuments();
               void loadEmployeeAgreement();
             }}
             signAgreementUrl={signAgreementUrl}
+            form101DownloadUrl={API.form101Download}
           />
 
           {loading ? (
@@ -2119,13 +1765,13 @@ export default function EmployeeDashboardPage() {
                     {filteredEvents.map((event) => {
                       const eventId = normalizeId(event);
                       const careStatus = normalizeCareStatus(
-                        event.careStatus || event.supportStatus
+                        event.careStatus || event.supportStatus,
                       );
                       const title = normalizeEventTitle(event);
                       const clientName = normalizeClientName(event);
                       const clientPhone = normalizeClientPhone(event);
                       const unread = Number(
-                        event.unreadMessages ?? event.unreadCount ?? 0
+                        event.unreadMessages ?? event.unreadCount ?? 0,
                       );
 
                       return (
@@ -2138,19 +1784,24 @@ export default function EmployeeDashboardPage() {
                               <div className="flex flex-wrap items-center gap-2">
                                 <span
                                   className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${careStatusClass(
-                                    careStatus
+                                    careStatus,
                                   )}`}
                                 >
                                   {careStatusLabel(careStatus)}
                                 </span>
 
                                 <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">
-                                  {progressLabel(event.progress || event.status)}
+                                  {progressLabel(
+                                    event.progress || event.status,
+                                  )}
                                 </span>
 
                                 {unread > 0 && (
                                   <span className="inline-flex items-center gap-1 rounded-full bg-slate-950 px-3 py-1 text-xs font-black text-white">
-                                    <Icon name="message" className="h-3.5 w-3.5" />
+                                    <Icon
+                                      name="message"
+                                      className="h-3.5 w-3.5"
+                                    />
                                     {unread} הודעות
                                   </span>
                                 )}
@@ -2184,7 +1835,9 @@ export default function EmployeeDashboardPage() {
                                     <span>
                                       תאריך:{" "}
                                       <b className="text-slate-950">
-                                        {formatDate(event.eventDate || event.date)}
+                                        {formatDate(
+                                          event.eventDate || event.date,
+                                        )}
                                       </b>
                                     </span>
 
@@ -2244,15 +1897,19 @@ export default function EmployeeDashboardPage() {
                               <button
                                 type="button"
                                 onClick={() =>
-                                  enterClientDashboard(normalizeEventClientId(event))
+                                  enterClientDashboard(
+                                    normalizeEventClientId(event),
+                                  )
                                 }
                                 disabled={
                                   !normalizeEventClientId(event) ||
-                                  enteringUserId === normalizeEventClientId(event)
+                                  enteringUserId ===
+                                    normalizeEventClientId(event)
                                 }
                                 className="h-11 rounded-2xl bg-slate-950 px-4 text-sm font-black text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
                               >
-                                {enteringUserId === normalizeEventClientId(event)
+                                {enteringUserId ===
+                                normalizeEventClientId(event)
                                   ? "נכנס..."
                                   : "כניסה ללקוח"}
                               </button>
@@ -2293,7 +1950,7 @@ export default function EmployeeDashboardPage() {
                     <div className="mt-5 space-y-3">
                       {tasks.map((task) => {
                         const priority = normalizeCareStatus(
-                          task.priority || task.careStatus
+                          task.priority || task.careStatus,
                         );
 
                         return (
@@ -2304,7 +1961,7 @@ export default function EmployeeDashboardPage() {
                             <div className="flex items-start justify-between gap-3">
                               <span
                                 className={`rounded-full border px-3 py-1 text-xs font-black ${careStatusClass(
-                                  priority
+                                  priority,
                                 )}`}
                               >
                                 {careStatusLabel(priority)}
@@ -2359,7 +2016,7 @@ export default function EmployeeDashboardPage() {
                       {eventsNeedCheck.map((event) => {
                         const eventId = normalizeId(event);
                         const careStatus = normalizeCareStatus(
-                          event.careStatus || event.supportStatus
+                          event.careStatus || event.supportStatus,
                         );
                         const clientName = normalizeClientName(event);
 
@@ -2376,7 +2033,7 @@ export default function EmployeeDashboardPage() {
                               <div className="flex items-center justify-between gap-2">
                                 <span
                                   className={`rounded-full border px-2.5 py-1 text-[11px] font-black ${careStatusClass(
-                                    careStatus
+                                    careStatus,
                                   )}`}
                                 >
                                   {careStatusLabel(careStatus)}
@@ -2474,7 +2131,7 @@ export default function EmployeeDashboardPage() {
                             <td className="px-5 py-4">
                               <span
                                 className={`rounded-full px-3 py-1 text-xs font-black ring-1 ${userStatusClass(
-                                  status
+                                  status,
                                 )}`}
                               >
                                 {statusLabel(status)}
@@ -2489,7 +2146,7 @@ export default function EmployeeDashboardPage() {
                               {formatDateTimeAgo(
                                 currentUser.lastActivity ||
                                   currentUser.lastSeenAt ||
-                                  currentUser.updatedAt
+                                  currentUser.updatedAt,
                               )}
                             </td>
 
@@ -2498,7 +2155,9 @@ export default function EmployeeDashboardPage() {
                                 <button
                                   type="button"
                                   onClick={() =>
-                                    enterClientDashboard(normalizeId(currentUser))
+                                    enterClientDashboard(
+                                      normalizeId(currentUser),
+                                    )
                                   }
                                   disabled={
                                     !normalizeId(currentUser) ||
@@ -2535,7 +2194,7 @@ export default function EmployeeDashboardPage() {
                         <div className="flex items-start justify-between gap-3">
                           <span
                             className={`rounded-full px-3 py-1 text-xs font-black ring-1 ${userStatusClass(
-                              status
+                              status,
                             )}`}
                           >
                             {statusLabel(status)}
@@ -2543,7 +2202,9 @@ export default function EmployeeDashboardPage() {
 
                           <div className="flex items-center gap-3">
                             <div>
-                              <h3 className="font-black text-slate-950">{name}</h3>
+                              <h3 className="font-black text-slate-950">
+                                {name}
+                              </h3>
                               <p className="mt-1 text-xs font-semibold text-slate-500">
                                 {currentUser.email || "—"}
                               </p>
@@ -2566,7 +2227,7 @@ export default function EmployeeDashboardPage() {
                             {formatDateTimeAgo(
                               currentUser.lastActivity ||
                                 currentUser.lastSeenAt ||
-                                currentUser.updatedAt
+                                currentUser.updatedAt,
                             )}
                           </p>
                         </div>
