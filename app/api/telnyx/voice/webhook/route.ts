@@ -1049,6 +1049,7 @@ async function updateCallLifecycleEvent(params: {
     });
   }
 
+  
   const filter = buildUpdateFilter({
     existing,
     clientState,
