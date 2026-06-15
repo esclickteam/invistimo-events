@@ -5,42 +5,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 export const dynamic = "force-dynamic";
 
-type ApiUser = {
-  _id?: string;
-  id?: string;
-
-  name?: string;
-  fullName?: string;
-  firstName?: string;
-  lastName?: string;
-
-  email?: string;
-  phone?: string;
-  role?: string;
-  status?: string;
-
-  address?: string;
-  employeeAddress?: string;
-
-  idNumber?: string;
-  employeeIdNumber?: string;
-
-  startDate?: string;
-  employeeStartDate?: string;
-  employmentStartDate?: string;
-
-  endDate?: string;
-  employeeEndDate?: string;
-  employmentEndDate?: string;
-
-  hourlyRate?: number;
-  employeeHourlyRate?: number;
-
-  employeeProfileUpdatedAt?: string;
-  createdAt?: string;
-  updatedAt?: string;
-};
-
 type EmployeeRow = {
   id: string;
   name: string;
@@ -57,22 +21,11 @@ type EmployeeRow = {
 };
 
 const API = {
-  users: "/api/admin/users",
+  employees: "/api/admin/employees",
 };
 
 function cleanStr(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
-}
-
-function getArrayFromResponse<T>(data: any, keys: string[]): T[] {
-  if (Array.isArray(data)) return data;
-
-  for (const key of keys) {
-    if (Array.isArray(data?.[key])) return data[key];
-    if (Array.isArray(data?.data?.[key])) return data.data[key];
-  }
-
-  return [];
 }
 
 async function fetchJson(url: string) {
@@ -91,67 +44,6 @@ async function fetchJson(url: string) {
   return data;
 }
 
-function normalizeUserId(user: ApiUser) {
-  return String(user.id || user._id || "");
-}
-
-function normalizeUserName(user: ApiUser) {
-  const fullName = cleanStr(user.name || user.fullName);
-  if (fullName) return fullName;
-
-  const combined = [user.firstName, user.lastName].filter(Boolean).join(" ");
-  return cleanStr(combined) || "עובד ללא שם";
-}
-
-function isEmployeeUser(user: ApiUser) {
-  const role = String(user.role || "").toLowerCase();
-
-  if (
-    role === "employee" ||
-    role === "staff" ||
-    role === "worker" ||
-    role.includes("employee") ||
-    role.includes("staff") ||
-    role.includes("worker")
-  ) {
-    return true;
-  }
-
-  return Boolean(
-    user.employeeProfileUpdatedAt ||
-      user.employeeStartDate ||
-      user.employmentStartDate ||
-      user.employeeEndDate ||
-      user.employmentEndDate ||
-      user.employeeAddress ||
-      user.employeeIdNumber ||
-      user.employeeHourlyRate
-  );
-}
-
-function normalizeEmployee(user: ApiUser): EmployeeRow {
-  return {
-    id: normalizeUserId(user),
-    name: normalizeUserName(user),
-    email: cleanStr(user.email),
-    phone: cleanStr(user.phone),
-    address: cleanStr(user.address || user.employeeAddress),
-    idNumber: cleanStr(user.idNumber || user.employeeIdNumber),
-    startDate: cleanStr(
-      user.startDate || user.employeeStartDate || user.employmentStartDate
-    ),
-    endDate: cleanStr(
-      user.endDate || user.employeeEndDate || user.employmentEndDate
-    ),
-    hourlyRate: Number(user.hourlyRate || user.employeeHourlyRate || 0),
-    role: cleanStr(user.role),
-    status: cleanStr(user.status),
-    updatedAt: cleanStr(
-      user.employeeProfileUpdatedAt || user.updatedAt || user.createdAt
-    ),
-  };
-}
-
 function formatDate(value?: string) {
   if (!value) return "—";
 
@@ -162,21 +54,6 @@ function formatDate(value?: string) {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
-  });
-}
-
-function formatDateTime(value?: string) {
-  if (!value) return "—";
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
-
-  return date.toLocaleString("he-IL", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
   });
 }
 
@@ -202,7 +79,7 @@ function getMissingFields(employee: EmployeeRow) {
 }
 
 function employmentStatusLabel(employee: EmployeeRow) {
-  if (employee.endDate) return "סיום העסקה";
+  if (employee.endDate) return "סיים העסקה";
   return "פעיל";
 }
 
@@ -218,7 +95,10 @@ function detailsStatusLabel(employee: EmployeeRow) {
   const missing = getMissingFields(employee);
 
   if (missing.length === 0) return "פרטים מלאים";
-  return `חסר: ${missing.slice(0, 2).join(", ")}${missing.length > 2 ? "..." : ""}`;
+
+  return `חסר: ${missing.slice(0, 2).join(", ")}${
+    missing.length > 2 ? "..." : ""
+  }`;
 }
 
 function detailsStatusClass(employee: EmployeeRow) {
@@ -256,7 +136,6 @@ function Icon({
     | "mail"
     | "phone"
     | "id"
-    | "calendar"
     | "sparkles";
   className?: string;
 }) {
@@ -352,17 +231,6 @@ function Icon({
     );
   }
 
-  if (name === "calendar") {
-    return (
-      <svg {...common}>
-        <path d="M8 2v4" />
-        <path d="M16 2v4" />
-        <rect x="3" y="4" width="18" height="18" rx="2" />
-        <path d="M3 10h18" />
-      </svg>
-    );
-  }
-
   if (name === "sparkles") {
     return (
       <svg {...common}>
@@ -399,25 +267,28 @@ export default function AdminEmployeesPage() {
       setError("");
       setRefreshing(true);
 
-      const data = await fetchJson(API.users);
+      const data = await fetchJson(API.employees);
 
-      const users = getArrayFromResponse<ApiUser>(data, [
-        "users",
-        "items",
-        "data",
-      ]);
+      const nextEmployees: EmployeeRow[] = Array.isArray(data.employees)
+        ? data.employees
+        : [];
 
-      const normalized = users
-        .filter((user) => normalizeUserId(user))
-        .filter(isEmployeeUser)
-        .map(normalizeEmployee)
-        .sort((a, b) => {
-          const aDate = new Date(a.updatedAt || 0).getTime();
-          const bDate = new Date(b.updatedAt || 0).getTime();
-          return bDate - aDate;
-        });
-
-      setEmployees(normalized);
+      setEmployees(
+        nextEmployees.map((employee) => ({
+          id: cleanStr(employee.id),
+          name: cleanStr(employee.name) || "עובד ללא שם",
+          email: cleanStr(employee.email),
+          phone: cleanStr(employee.phone),
+          address: cleanStr(employee.address),
+          idNumber: cleanStr(employee.idNumber),
+          startDate: cleanStr(employee.startDate),
+          endDate: cleanStr(employee.endDate),
+          hourlyRate: Number(employee.hourlyRate || 0),
+          role: cleanStr(employee.role),
+          status: cleanStr(employee.status),
+          updatedAt: cleanStr(employee.updatedAt),
+        }))
+      );
     } catch (loadError) {
       console.error("LOAD ADMIN EMPLOYEES FAILED:", loadError);
       setEmployees([]);
@@ -488,7 +359,7 @@ export default function AdminEmployeesPage() {
       className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-fuchsia-50 text-slate-900"
     >
       <div className="mx-auto w-full max-w-[1550px] space-y-6 p-4 md:p-6">
-        <section className="overflow-hidden rounded-[34px] border border-white/80 bg-white/85 p-6 shadow-[0_18px_60px_rgba(79,70,229,0.10)] backdrop-blur md:p-8">
+        <section className="overflow-hidden rounded-[34px] border border-white/80 bg-white/90 p-6 shadow-[0_18px_60px_rgba(79,70,229,0.10)] backdrop-blur md:p-8">
           <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
             <div>
               <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50 px-4 py-2 text-sm font-black text-indigo-700">
@@ -501,9 +372,9 @@ export default function AdminEmployeesPage() {
               </h1>
 
               <p className="mt-3 max-w-3xl text-sm font-semibold leading-7 text-slate-500 md:text-base">
-                כאן מוצגת רשימת עובדים בלבד. הפרטים מסתנכרנים מתיק העובד:
-                מייל, טלפון, כתובת, תעודת זהות, תחילת העסקה וסיום העסקה.
-                מסמכים והסכמים נשארים בתוך תיק העובד בלבד.
+                כאן מוצגת רשימת עובדים בלבד. הנתונים מסתנכרנים מתיק העובד:
+                מייל, טלפון, כתובת, תעודת זהות, תחילת העסקה, סיום העסקה ושכר
+                שעתי.
               </p>
             </div>
 
@@ -652,243 +523,125 @@ export default function AdminEmployeesPage() {
             </p>
           </section>
         ) : (
-          <>
-            <section className="hidden overflow-hidden rounded-[34px] border border-white/80 bg-white shadow-[0_12px_40px_rgba(15,23,42,0.06)] xl:block">
-              <table className="w-full border-collapse text-right">
-                <thead className="bg-slate-50/80">
-                  <tr className="text-sm text-slate-500">
-                    <th className="px-5 py-4 font-black">עובד</th>
-                    <th className="px-5 py-4 font-black">מייל</th>
-                    <th className="px-5 py-4 font-black">טלפון</th>
-                    <th className="px-5 py-4 font-black">כתובת</th>
-                    <th className="px-5 py-4 font-black">תעודת זהות</th>
-                    <th className="px-5 py-4 font-black">תחילת העסקה</th>
-                    <th className="px-5 py-4 font-black">סיום העסקה</th>
-                    <th className="px-5 py-4 font-black">שכר שעתי</th>
-                    <th className="px-5 py-4 font-black">סטטוס</th>
-                    <th className="px-5 py-4 font-black">תיק עובד</th>
-                  </tr>
-                </thead>
+          <section className="hidden overflow-hidden rounded-[34px] border border-white/80 bg-white shadow-[0_12px_40px_rgba(15,23,42,0.06)] xl:block">
+            <table className="w-full border-collapse text-right">
+              <thead className="bg-slate-50/80">
+                <tr className="text-sm text-slate-500">
+                  <th className="px-5 py-4 font-black">עובד</th>
+                  <th className="px-5 py-4 font-black">מייל</th>
+                  <th className="px-5 py-4 font-black">טלפון</th>
+                  <th className="px-5 py-4 font-black">כתובת</th>
+                  <th className="px-5 py-4 font-black">תעודת זהות</th>
+                  <th className="px-5 py-4 font-black">תחילת העסקה</th>
+                  <th className="px-5 py-4 font-black">סיום העסקה</th>
+                  <th className="px-5 py-4 font-black">שכר שעתי</th>
+                  <th className="px-5 py-4 font-black">סטטוס</th>
+                  <th className="px-5 py-4 font-black">תיק עובד</th>
+                </tr>
+              </thead>
 
-                <tbody className="divide-y divide-slate-100">
-                  {filteredEmployees.map((employee) => (
-                    <tr
-                      key={employee.id}
-                      className="transition hover:bg-indigo-50/40"
-                    >
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-100 to-fuchsia-100 text-sm font-black text-indigo-700 ring-1 ring-indigo-100">
-                            {initials(employee.name)}
-                          </div>
-
-                          <div>
-                            <p className="font-black text-slate-900">
-                              {employee.name}
-                            </p>
-                            <p className="mt-1 text-xs font-bold text-slate-400">
-                              ID: {employee.id}
-                            </p>
-                          </div>
+              <tbody className="divide-y divide-slate-100">
+                {filteredEmployees.map((employee) => (
+                  <tr
+                    key={employee.id}
+                    className="transition hover:bg-indigo-50/40"
+                  >
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-100 to-fuchsia-100 text-sm font-black text-indigo-700 ring-1 ring-indigo-100">
+                          {initials(employee.name)}
                         </div>
-                      </td>
 
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
-                          <Icon name="mail" className="h-4 w-4 text-slate-400" />
-                          <span className="max-w-[230px] truncate">
-                            {employee.email || "—"}
-                          </span>
+                        <div>
+                          <p className="font-black text-slate-900">
+                            {employee.name}
+                          </p>
+                          <p className="mt-1 text-xs font-bold text-slate-400">
+                            ID: {employee.id}
+                          </p>
                         </div>
-                      </td>
+                      </div>
+                    </td>
 
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
-                          <Icon
-                            name="phone"
-                            className="h-4 w-4 text-slate-400"
-                          />
-                          <span dir="ltr">{employee.phone || "—"}</span>
-                        </div>
-                      </td>
-
-                      <td className="px-5 py-4 text-sm font-bold text-slate-700">
-                        <span className="block max-w-[220px] truncate">
-                          {employee.address || "—"}
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
+                        <Icon name="mail" className="h-4 w-4 text-slate-400" />
+                        <span className="max-w-[220px] truncate">
+                          {employee.email || "—"}
                         </span>
-                      </td>
-
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
-                          <Icon name="id" className="h-4 w-4 text-slate-400" />
-                          <span dir="ltr">{employee.idNumber || "—"}</span>
-                        </div>
-                      </td>
-
-                      <td className="px-5 py-4 text-sm font-black text-slate-700">
-                        {formatDate(employee.startDate)}
-                      </td>
-
-                      <td className="px-5 py-4 text-sm font-black text-slate-700">
-                        {formatDate(employee.endDate)}
-                      </td>
-
-                      <td className="px-5 py-4 text-sm font-black text-slate-700">
-                        {employee.hourlyRate > 0
-                          ? formatMoney(employee.hourlyRate)
-                          : "—"}
-                      </td>
-
-                      <td className="px-5 py-4">
-                        <div className="flex flex-col gap-2">
-                          <span
-                            className={`inline-flex w-fit rounded-full border px-3 py-1 text-xs font-black ${employmentStatusClass(
-                              employee
-                            )}`}
-                          >
-                            {employmentStatusLabel(employee)}
-                          </span>
-
-                          <span
-                            className={`inline-flex w-fit rounded-full border px-3 py-1 text-xs font-black ${detailsStatusClass(
-                              employee
-                            )}`}
-                          >
-                            {detailsStatusLabel(employee)}
-                          </span>
-                        </div>
-                      </td>
-
-                      <td className="px-5 py-4">
-                        <Link
-                          href={`/admin/employees/${encodeURIComponent(
-                            employee.id
-                          )}`}
-                          className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-indigo-500 to-violet-500 px-4 text-xs font-black text-white shadow-md shadow-indigo-100 transition hover:scale-[1.02]"
-                        >
-                          <Icon name="open" className="h-3.5 w-3.5" />
-                          תיק עובד
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </section>
-
-            <section className="grid gap-4 xl:hidden">
-              {filteredEmployees.map((employee) => (
-                <article
-                  key={employee.id}
-                  className="rounded-[30px] border border-white/80 bg-white p-5 shadow-[0_12px_35px_rgba(15,23,42,0.06)]"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex flex-col gap-2">
-                      <span
-                        className={`w-fit rounded-full border px-3 py-1 text-xs font-black ${employmentStatusClass(
-                          employee
-                        )}`}
-                      >
-                        {employmentStatusLabel(employee)}
-                      </span>
-
-                      <span
-                        className={`w-fit rounded-full border px-3 py-1 text-xs font-black ${detailsStatusClass(
-                          employee
-                        )}`}
-                      >
-                        {detailsStatusLabel(employee)}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-3 text-right">
-                      <div>
-                        <h3 className="font-black text-slate-900">
-                          {employee.name}
-                        </h3>
-                        <p className="mt-1 text-xs font-bold text-slate-400">
-                          ID: {employee.id}
-                        </p>
                       </div>
+                    </td>
 
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-100 to-fuchsia-100 text-sm font-black text-indigo-700 ring-1 ring-indigo-100">
-                        {initials(employee.name)}
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
+                        <Icon name="phone" className="h-4 w-4 text-slate-400" />
+                        <span dir="ltr">{employee.phone || "—"}</span>
                       </div>
-                    </div>
-                  </div>
+                    </td>
 
-                  <div className="mt-5 grid gap-3 text-sm font-semibold text-slate-600">
-                    <p>
-                      מייל:{" "}
-                      <span className="font-black text-slate-800">
-                        {employee.email || "—"}
-                      </span>
-                    </p>
-
-                    <p>
-                      טלפון:{" "}
-                      <span dir="ltr" className="font-black text-slate-800">
-                        {employee.phone || "—"}
-                      </span>
-                    </p>
-
-                    <p>
-                      כתובת:{" "}
-                      <span className="font-black text-slate-800">
+                    <td className="px-5 py-4 text-sm font-bold text-slate-700">
+                      <span className="block max-w-[210px] truncate">
                         {employee.address || "—"}
                       </span>
-                    </p>
+                    </td>
 
-                    <p>
-                      תעודת זהות:{" "}
-                      <span dir="ltr" className="font-black text-slate-800">
-                        {employee.idNumber || "—"}
-                      </span>
-                    </p>
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
+                        <Icon name="id" className="h-4 w-4 text-slate-400" />
+                        <span dir="ltr">{employee.idNumber || "—"}</span>
+                      </div>
+                    </td>
 
-                    <p>
-                      תחילת העסקה:{" "}
-                      <span className="font-black text-slate-800">
-                        {formatDate(employee.startDate)}
-                      </span>
-                    </p>
+                    <td className="px-5 py-4 text-sm font-black text-slate-700">
+                      {formatDate(employee.startDate)}
+                    </td>
 
-                    <p>
-                      סיום העסקה:{" "}
-                      <span className="font-black text-slate-800">
-                        {formatDate(employee.endDate)}
-                      </span>
-                    </p>
+                    <td className="px-5 py-4 text-sm font-black text-slate-700">
+                      {formatDate(employee.endDate)}
+                    </td>
 
-                    <p>
-                      שכר שעתי:{" "}
-                      <span className="font-black text-slate-800">
-                        {employee.hourlyRate > 0
-                          ? formatMoney(employee.hourlyRate)
-                          : "—"}
-                      </span>
-                    </p>
+                    <td className="px-5 py-4 text-sm font-black text-slate-700">
+                      {employee.hourlyRate > 0
+                        ? formatMoney(employee.hourlyRate)
+                        : "—"}
+                    </td>
 
-                    <p>
-                      עודכן לאחרונה:{" "}
-                      <span className="font-black text-slate-800">
-                        {formatDateTime(employee.updatedAt)}
-                      </span>
-                    </p>
-                  </div>
+                    <td className="px-5 py-4">
+                      <div className="flex flex-col gap-2">
+                        <span
+                          className={`inline-flex w-fit rounded-full border px-3 py-1 text-xs font-black ${employmentStatusClass(
+                            employee
+                          )}`}
+                        >
+                          {employmentStatusLabel(employee)}
+                        </span>
 
-                  <div className="mt-5">
-                    <Link
-                      href={`/admin/employees/${encodeURIComponent(employee.id)}`}
-                      className="inline-flex h-11 w-full items-center justify-center rounded-2xl bg-gradient-to-l from-indigo-500 to-violet-500 text-sm font-black text-white shadow-md shadow-indigo-100"
-                    >
-                      כניסה לתיק עובד
-                    </Link>
-                  </div>
-                </article>
-              ))}
-            </section>
-          </>
+                        <span
+                          className={`inline-flex w-fit rounded-full border px-3 py-1 text-xs font-black ${detailsStatusClass(
+                            employee
+                          )}`}
+                        >
+                          {detailsStatusLabel(employee)}
+                        </span>
+                      </div>
+                    </td>
+
+                    <td className="px-5 py-4">
+                      <Link
+                        href={`/admin/employees/${encodeURIComponent(
+                          employee.id
+                        )}`}
+                        className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-indigo-500 to-violet-500 px-4 text-xs font-black text-white shadow-md shadow-indigo-100 transition hover:scale-[1.02]"
+                      >
+                        <Icon name="open" className="h-3.5 w-3.5" />
+                        תיק עובד
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
         )}
       </div>
     </div>
