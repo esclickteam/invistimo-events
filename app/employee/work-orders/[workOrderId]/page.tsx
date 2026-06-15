@@ -1261,7 +1261,9 @@ export default function EmployeeWorkOrderTasksPage() {
 
       <style>{`
         .callCenterPage {
+          --softphone-sticky-offset: 280px;
           min-height: 100vh;
+          scroll-padding-top: var(--softphone-sticky-offset);
           background:
             radial-gradient(circle at 88% 0%, rgba(37, 99, 235, 0.18), transparent 28%),
             radial-gradient(circle at 8% 20%, rgba(14, 165, 233, 0.1), transparent 24%),
@@ -1697,6 +1699,7 @@ export default function EmployeeWorkOrderTasksPage() {
         }
 
         .queueRow {
+          scroll-margin-top: var(--softphone-sticky-offset);
           width: 100%;
           min-height: 62px;
           border: 0;
@@ -1808,7 +1811,7 @@ export default function EmployeeWorkOrderTasksPage() {
 
         .callPanel {
           position: sticky;
-          top: 18px;
+          top: calc(var(--softphone-sticky-offset) + 18px);
           padding: 18px;
         }
 
@@ -2003,6 +2006,10 @@ export default function EmployeeWorkOrderTasksPage() {
         }
 
         @media (max-width: 1200px) {
+          .callCenterPage {
+            --softphone-sticky-offset: 240px;
+          }
+
           .statsGrid {
             grid-template-columns: repeat(3, minmax(0, 1fr));
           }
@@ -2031,6 +2038,7 @@ export default function EmployeeWorkOrderTasksPage() {
 
         @media (max-width: 760px) {
           .callCenterPage {
+            --softphone-sticky-offset: 210px;
             padding: 16px;
           }
 
