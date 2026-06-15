@@ -1391,6 +1391,80 @@ async function loadEmployeeTaskDistributionForDate(
   return distribution;
 }
 
+function isUntouchedOpenCallTask(task: any) {
+  const status = cleanStr(task?.status).toLowerCase();
+
+  if (!["pending", "open", "assigned", "active"].includes(status)) {
+    return false;
+  }
+
+  if (task?.startedAt || task?.completedAt || task?.lastAttemptAt) {
+    return false;
+  }
+
+  if (Number(task?.attemptsCount || 0) > 0) {
+    return false;
+  }
+
+  return true;
+}
+
+function buildScheduledEmployeeMap(employees: ScheduledEmployee[]) {
+  const map = new Map<string, ScheduledEmployee>();
+
+  for (const employee of employees) {
+    map.set(employee.employeeIdString, employee);
+  }
+
+  return map;
+}
+
+async function loadPreviousRoundEmployeeByGuest(input: {
+  invitationObjectId: Types.ObjectId;
+  round: RoundNumber;
+  dateKey: string;
+  scheduledEmployees: ScheduledEmployee[];
+}) {
+  const { invitationObjectId, round, dateKey, scheduledEmployees } = input;
+  const result = new Map<string, ScheduledEmployee>();
+
+  if (round === 1 || !scheduledEmployees.length) return result;
+
+  const previousRound = (round - 1) as 1 | 2;
+  const employeeById = buildScheduledEmployeeMap(scheduledEmployees);
+
+  const previousTasks = await CallTask.find({
+    invitationId: invitationObjectId,
+    round: previousRound,
+    workDate: {
+      $lte: endOfDateKey(dateKey),
+    },
+  })
+    .select(
+      "guestId assignedToEmployeeId assignedEmployeeId employeeId updatedAt createdAt"
+    )
+    .sort({
+      updatedAt: -1,
+      createdAt: -1,
+    })
+    .lean();
+
+  for (const task of previousTasks) {
+    const guestId = extractIdString((task as any)?.guestId);
+
+    if (!guestId || result.has(guestId)) continue;
+
+    const employeeId = getTaskAssignedEmployeeIdString(task);
+    const employee = employeeById.get(employeeId);
+
+    if (!employee) continue;
+
+    result.set(guestId, employee);
+  }
+
+  return result;
+}
+
 /* ============================================================
    Existing work order sync / move
 ============================================================ */
@@ -1699,7 +1773,9 @@ async function reconcileExistingWorkOrderWithEligibleGuests(input: {
   const existingTasks = await CallTask.find({
     workOrderId,
   })
-    .select("guestId assignedToEmployeeId assignedEmployeeId employeeId")
+    .select(
+      "guestId status assignedToEmployeeId assignedEmployeeId employeeId startedAt completedAt lastAttemptAt attemptsCount"
+    )
     .sort({
       sortOrder: 1,
       _id: 1,
@@ -1729,6 +1805,57 @@ async function reconcileExistingWorkOrderWithEligibleGuests(input: {
   const workDate = startOfDateKey(dateKey);
   const now = new Date();
 
+  const previousEmployeeByGuestId = await loadPreviousRoundEmployeeByGuest({
+    invitationObjectId,
+    round: candidate.round,
+    dateKey,
+    scheduledEmployees,
+  });
+
+  const realignOps: any[] = [];
+
+  /*
+    אם סבב 2/3 כבר נוצר בטעות לעובד הלא נכון,
+    מתקנים רק משימות שלא נגעו בהן בכלל.
+    לא מזיזים משימות שכבר התחילו / טופלו / חויגו.
+  */
+  for (const task of existingTasks) {
+    const guestId = extractIdString((task as any)?.guestId);
+    const previousEmployee = previousEmployeeByGuestId.get(guestId);
+
+    if (!guestId || !previousEmployee) continue;
+    if (!isUntouchedOpenCallTask(task)) continue;
+
+    const currentEmployeeId = getTaskAssignedEmployeeIdString(task);
+
+    if (currentEmployeeId === previousEmployee.employeeIdString) continue;
+
+    realignOps.push({
+      updateOne: {
+        filter: {
+          _id: (task as any)._id,
+        },
+        update: {
+          $set: {
+            assignedToEmployeeId: previousEmployee.employeeId,
+            assignedEmployeeId: previousEmployee.employeeId,
+            employeeId: previousEmployee.employeeId,
+            assignedAt: (task as any)?.assignedAt || now,
+            reassignedAt: now,
+            reassignedReason: `יישור לסבב קודם בלי לגעת במשימות שכבר טופלו בתאריך ${dateKey}`,
+            updatedAt: now,
+          },
+        },
+      },
+    });
+  }
+
+  if (realignOps.length) {
+    await CallTask.bulkWrite(realignOps, {
+      ordered: false,
+    });
+  }
+
   const distribution = await loadEmployeeTaskDistributionForDate(
     dateKey,
     scheduledEmployees
@@ -1744,10 +1871,10 @@ async function reconcileExistingWorkOrderWithEligibleGuests(input: {
 
     if (existingGuestIds.has(guestId)) continue;
 
-    const assignedEmployee = chooseLeastLoadedEmployee(
-      scheduledEmployees,
-      distribution
-    );
+    const previousEmployee = previousEmployeeByGuestId.get(guestId);
+    const assignedEmployee =
+      previousEmployee ||
+      chooseLeastLoadedEmployee(scheduledEmployees, distribution);
 
     if (assignedEmployee) {
       distribution[assignedEmployee.employeeIdString] =
@@ -1850,6 +1977,7 @@ async function reconcileExistingWorkOrderWithEligibleGuests(input: {
   return {
     ...synced,
     addedMissingTasks: docsToInsert.length,
+    realignedTasks: realignOps.length,
     eligibleGuestsCount: eligibleGuests.length,
   };
 }
@@ -2108,6 +2236,13 @@ async function createWorkOrderForCandidate(input: {
   }
 
   const workOrderId = workOrder._id as Types.ObjectId;
+  const previousEmployeeByGuestId = await loadPreviousRoundEmployeeByGuest({
+    invitationObjectId,
+    round: candidate.round,
+    dateKey,
+    scheduledEmployees,
+  });
+
   const distribution = await loadEmployeeTaskDistributionForDate(
     dateKey,
     scheduledEmployees
@@ -2115,14 +2250,15 @@ async function createWorkOrderForCandidate(input: {
 
   const taskDocs = guestsForRound
     .map((guest: any, index: number) => {
-      const guestObjectId = toObjectId(guest?._id);
+      const guestId = extractIdString(guest?._id);
+      const guestObjectId = toObjectId(guestId);
 
-      if (!guestObjectId) return null;
+      if (!guestId || !guestObjectId) return null;
 
-      const assignedEmployee = chooseLeastLoadedEmployee(
-        scheduledEmployees,
-        distribution
-      );
+      const previousEmployee = previousEmployeeByGuestId.get(guestId);
+      const assignedEmployee =
+        previousEmployee ||
+        chooseLeastLoadedEmployee(scheduledEmployees, distribution);
 
       if (assignedEmployee) {
         distribution[assignedEmployee.employeeIdString] =
