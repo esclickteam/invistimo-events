@@ -587,7 +587,7 @@ function getAllHistory(guest) {
   });
 }
 
-export default function CallRoundsModal({ guest, onClose }) {
+export default function CallRoundsModal({ guest, onClose, onUpdated }) {
   const [rounds, setRounds] = useState(() => buildInitialRounds(guest));
   const [expandedLogs, setExpandedLogs] = useState({});
   const [showFullHistory, setShowFullHistory] = useState(false);
