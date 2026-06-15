@@ -1592,26 +1592,46 @@ export default function EmployeeDashboardPage() {
               </div>
 
               <div className="flex flex-col gap-3 xl:items-end">
-                <button
-                  type="button"
-                  onClick={() => {
-                    void loadDashboard();
-                    void loadEmployeeDocuments();
-                    void loadEmployeeAgreement();
-                  }}
-                  disabled={refreshing || documentsLoading || agreementLoading}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <Icon
-                    name="refresh"
-                    className={`h-4 w-4 ${
-                      refreshing || documentsLoading || agreementLoading
-                        ? "animate-spin"
-                        : ""
-                    }`}
-                  />
-                  רענון נתונים
-                </button>
+                <div className="flex flex-wrap justify-start gap-2 xl:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void loadDashboard();
+                      void loadEmployeeDocuments();
+                      void loadEmployeeAgreement();
+                    }}
+                    disabled={refreshing || documentsLoading || agreementLoading}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <Icon
+                      name="refresh"
+                      className={`h-4 w-4 ${
+                        refreshing || documentsLoading || agreementLoading
+                          ? "animate-spin"
+                          : ""
+                      }`}
+                    />
+                    רענון נתונים
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setDocumentsModalOpen(true)}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-sky-600 px-4 text-sm font-black text-white shadow-sm transition hover:bg-sky-700"
+                  >
+                    <Icon name="file" className="h-4 w-4" />
+                    תיק עובד שלי
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => router.push('/employee/shifts')}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-violet-600 px-4 text-sm font-black text-white shadow-sm transition hover:bg-violet-700"
+                  >
+                    <Icon name="calendar" className="h-4 w-4" />
+                    השיבוצים שלי
+                  </button>
+                </div>
 
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:min-w-[560px]">
                   <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-4">
@@ -1651,20 +1671,6 @@ export default function EmployeeDashboardPage() {
               </div>
             </div>
           </div>
-
-          <EmployeeFileSummaryPanel
-            form101={form101}
-            idCard={idCard}
-            agreement={agreement}
-            loading={documentsLoading}
-            agreementLoading={agreementLoading}
-            error={documentsError}
-            onReload={() => {
-              void loadEmployeeDocuments();
-              void loadEmployeeAgreement();
-            }}
-            onOpen={() => setDocumentsModalOpen(true)}
-          />
 
           <EmployeeDocumentsModal
             open={documentsModalOpen}
