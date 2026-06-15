@@ -55,7 +55,13 @@ type TaskResult =
 
 type CallAnswered = "" | "answered" | "no_answer";
 
-type MessageFollowUpAction = "" | "callback" | "move_to_next_round";
+type MessageFollowUpAction =
+  | ""
+  | "self_reply"
+  | "callback"
+  | "move_to_next_round";
+
+type NextRoundReason = "" | "no_answer" | "callback_next_round" | "manual";
 
 type StatusCounts = {
   total: number;
@@ -172,6 +178,18 @@ function normalizeMessageFollowUpAction(value: unknown): MessageFollowUpAction {
   if (!raw) return "";
 
   if (
+    raw === "self_reply" ||
+    raw === "reply_self" ||
+    raw === "will_reply_self" ||
+    raw === "ישיב עצמאית" ||
+    raw === "תשיב עצמאית" ||
+    raw === "יענה לבד" ||
+    raw === "תענה לבד"
+  ) {
+    return "self_reply";
+  }
+
+  if (
     raw === "callback" ||
     raw === "call_back" ||
     raw === "follow_up" ||
@@ -189,6 +207,9 @@ function normalizeMessageFollowUpAction(value: unknown): MessageFollowUpAction {
     raw === "next_round" ||
     raw === "transfer_to_next_round" ||
     raw === "open_in_next_round" ||
+    raw === "callback_next_round" ||
+    raw === "חזרה בסבב הבא" ||
+    raw === "לחזור בסבב הבא" ||
     raw === "העבר לסבב הבא" ||
     raw === "להעביר לסבב הבא"
   ) {
@@ -253,7 +274,11 @@ function normalizeIncomingStatus(value: unknown): TaskStatus | "" {
     call_back: "callback",
     follow_up: "callback",
     followup: "callback",
+    callback_next_round: "callback",
+    next_round_callback: "callback",
     later: "callback",
+    "חזרה בסבב הבא": "callback",
+    "לחזור בסבב הבא": "callback",
     "לחזור": "callback",
     "לחזור אליו": "callback",
     "לחזור אליה": "callback",
@@ -276,10 +301,13 @@ function normalizeIncomingStatus(value: unknown): TaskStatus | "" {
     reply_message: "will_reply_message",
     message: "will_reply_message",
     whatsapp_reply: "will_reply_message",
+    self_reply: "will_reply_message",
     "ישיב בהודעה": "will_reply_message",
     "תשיב בהודעה": "will_reply_message",
     "ישיב בוואטסאפ": "will_reply_message",
     "תשיב בוואטסאפ": "will_reply_message",
+    "ישיב עצמאית": "will_reply_message",
+    "תשיב עצמאית": "will_reply_message",
 
     needs_fix: "needs_fix",
     need_fix: "needs_fix",
@@ -486,6 +514,15 @@ function serializeTask(task: any) {
       typeof task?.attendingCount === "number" ? task.attendingCount : null,
 
     note: cleanStr(task?.note),
+
+    callAnswered: cleanStr(task?.callAnswered),
+    answeredResult: cleanStr(task?.answeredResult),
+    messageFollowUpAction: cleanStr(task?.messageFollowUpAction),
+    noAnswerResult: cleanStr(task?.noAnswerResult),
+
+    moveToNextRound: Boolean(task?.moveToNextRound),
+    nextRound:
+      typeof task?.nextRound === "number" ? Number(task.nextRound) : null,
 
     isCompleted: isCompletedStatus(status),
     canUpdate: status !== "cancelled",
@@ -808,6 +845,8 @@ async function syncDuplicateGuestRoundTasks(input: {
   task: any;
   status: TaskStatus;
   note: string;
+  guestNote: string;
+  hasGuestNote: boolean;
   attendingCount?: number;
   now: Date;
 }) {
@@ -833,6 +872,10 @@ async function syncDuplicateGuestRoundTasks(input: {
 
   if (input.note || input.note === "") {
     set.note = input.note || "";
+  }
+
+  if (input.hasGuestNote) {
+    set.guestNotes = input.guestNote || "";
   }
 
   if (input.attendingCount !== undefined) {
@@ -880,6 +923,9 @@ async function ensureNextRoundTask(input: {
   employeeId: Types.ObjectId;
   now: Date;
   note: string;
+  guestNote: string;
+  hasGuestNote: boolean;
+  reason: NextRoundReason;
 }) {
   const guestObjectId = toObjectId(input.task?.guestId);
   const currentTaskObjectId = toObjectId(input.task?._id);
@@ -901,17 +947,31 @@ async function ensureNextRoundTask(input: {
     return null;
   }
 
-  const nextWorkOrderFilter: any = {
-  invitationId: invitationIdForQuery,
-  round: input.nextRound,
-  status: {
-    $ne: "cancelled",
-  },
-};
+  const reasonLabel =
+    input.reason === "no_answer"
+      ? "לא ענה"
+      : input.reason === "callback_next_round"
+        ? "חזרה בסבב הבא"
+        : "העברה לסבב הבא";
 
-let nextWorkOrder = await CallWorkOrder.findOne(nextWorkOrderFilter)
-  .sort({ createdAt: -1 })
-  .lean();
+  const sourceAudience =
+    input.reason === "no_answer"
+      ? `round_${input.currentRound}_no_answer`
+      : input.reason === "callback_next_round"
+        ? `round_${input.currentRound}_callback_next_round`
+        : `manual_next_round_from_round_${input.currentRound}`;
+
+  const nextWorkOrderFilter: any = {
+    invitationId: invitationIdForQuery,
+    round: input.nextRound,
+    status: {
+      $ne: "cancelled",
+    },
+  };
+
+  let nextWorkOrder = await CallWorkOrder.findOne(nextWorkOrderFilter)
+    .sort({ createdAt: -1 })
+    .lean();
 
   if (!nextWorkOrder) {
     const createdWorkOrder = await (CallWorkOrder as any).create({
@@ -921,9 +981,7 @@ let nextWorkOrder = await CallWorkOrder.findOne(nextWorkOrderFilter)
       title:
         cleanStr((sourceWorkOrder as any)?.title) ||
         `שיחות RSVP - סבב ${input.nextRound}`,
-      description:
-        cleanStr((sourceWorkOrder as any)?.description) ||
-        `נוצר אוטומטית מהעברה לסבב ${input.nextRound}`,
+      description: `נוצר אוטומטית בגלל ${reasonLabel} בסבב ${input.currentRound}`,
 
       invitationId: invitationIdForQuery,
 
@@ -937,10 +995,11 @@ let nextWorkOrder = await CallWorkOrder.findOne(nextWorkOrderFilter)
       eventName:
         cleanStr((sourceWorkOrder as any)?.eventName) ||
         cleanStr(input.task?.eventName),
-      eventDate: (sourceWorkOrder as any)?.eventDate || input.task?.eventDate || null,
+      eventDate:
+        (sourceWorkOrder as any)?.eventDate || input.task?.eventDate || null,
 
       round: input.nextRound,
-      sourceAudience: `manual_next_round_from_round_${input.currentRound}`,
+      sourceAudience,
 
       workDate: (sourceWorkOrder as any)?.workDate || null,
       configuredRoundAt: input.now,
@@ -964,7 +1023,7 @@ let nextWorkOrder = await CallWorkOrder.findOne(nextWorkOrderFilter)
 
       createdFromWorkOrderId: currentWorkOrderObjectId,
       createdFromTaskId: currentTaskObjectId,
-      createdReason: "move_to_next_round",
+      createdReason: input.reason || "move_to_next_round",
 
       createdAt: input.now,
       updatedAt: input.now,
@@ -982,39 +1041,46 @@ let nextWorkOrder = await CallWorkOrder.findOne(nextWorkOrderFilter)
   }
 
   const existingNextTaskFilter: any = {
-  workOrderId: nextWorkOrderObjectId,
-  guestId: guestObjectId,
-  round: input.nextRound,
-  status: {
-    $ne: "cancelled",
-  },
-};
+    workOrderId: nextWorkOrderObjectId,
+    guestId: guestObjectId,
+    round: input.nextRound,
+    status: {
+      $ne: "cancelled",
+    },
+  };
 
-const existingNextTask = await CallTask.findOne(existingNextTaskFilter).lean();
+  const existingNextTask = await CallTask.findOne(existingNextTaskFilter).lean();
 
   if (existingNextTask) {
+    const set: Record<string, any> = {
+      status: "pending",
+      result: null,
+      rsvpStatus: "pending",
+
+      assignedToEmployeeId: input.employeeId,
+      assignedEmployeeId: input.employeeId,
+      employeeId: input.employeeId,
+
+      movedFromRound: input.currentRound,
+      movedFromTaskId: currentTaskObjectId,
+      movedFromWorkOrderId: currentWorkOrderObjectId,
+      movedToNextRoundAt: input.now,
+      movedToNextRoundNote: input.note || "",
+      movedToNextRoundReason: input.reason || "",
+
+      updatedAt: input.now,
+    };
+
+    if (input.hasGuestNote) {
+      set.guestNotes = input.guestNote || "";
+    }
+
     await (CallTask as any).updateOne(
       {
         _id: (existingNextTask as any)._id,
       },
       {
-        $set: {
-          status: "pending",
-          result: null,
-          rsvpStatus: "pending",
-
-          assignedToEmployeeId: input.employeeId,
-          assignedEmployeeId: input.employeeId,
-          employeeId: input.employeeId,
-
-          movedFromRound: input.currentRound,
-          movedFromTaskId: currentTaskObjectId,
-          movedFromWorkOrderId: currentWorkOrderObjectId,
-          movedToNextRoundAt: input.now,
-          movedToNextRoundNote: input.note || "",
-
-          updatedAt: input.now,
-        },
+        $set: set,
         $unset: {
           completedAt: "",
         },
@@ -1059,10 +1125,12 @@ const existingNextTask = await CallTask.findOne(existingNextTaskFilter).lean();
     guestGroup: cleanStr(input.task?.guestGroup),
     guestSide: cleanStr(input.task?.guestSide),
     guestTable: cleanStr(input.task?.guestTable),
-    guestNotes: cleanStr(input.task?.guestNotes),
+    guestNotes: input.hasGuestNote
+      ? input.guestNote || ""
+      : cleanStr(input.task?.guestNotes),
 
     round: input.nextRound,
-    sourceAudience: `manual_next_round_from_round_${input.currentRound}`,
+    sourceAudience,
 
     workDate: (nextWorkOrder as any)?.workDate || null,
 
@@ -1090,6 +1158,7 @@ const existingNextTask = await CallTask.findOne(existingNextTaskFilter).lean();
     movedFromWorkOrderId: currentWorkOrderObjectId,
     movedToNextRoundAt: input.now,
     movedToNextRoundNote: input.note || "",
+    movedToNextRoundReason: input.reason || "",
 
     createdAt: input.now,
     updatedAt: input.now,
@@ -1104,10 +1173,38 @@ const existingNextTask = await CallTask.findOne(existingNextTaskFilter).lean();
   };
 }
 
+async function updateGuestExternalNoteOnly(input: {
+  task: any;
+  guestNote: string;
+  now: Date;
+}) {
+  const guestObjectId = toObjectId(input.task?.guestId);
+
+  if (!guestObjectId) return;
+
+  await InvitationGuest.collection.updateOne(
+    {
+      _id: guestObjectId,
+    },
+    {
+      $set: {
+        notes: input.guestNote || "",
+        guestNotes: input.guestNote || "",
+        guestNote: input.guestNote || "",
+        updatedByCallTaskAt: input.now,
+      },
+    }
+  );
+}
+
 async function syncInvitationGuest(input: {
   task: any;
   status: TaskStatus;
+
   note: string;
+  guestNote: string;
+  hasGuestNote: boolean;
+
   attendingCount?: number;
   employeeId: Types.ObjectId;
   employeeName: string;
@@ -1120,6 +1217,7 @@ async function syncInvitationGuest(input: {
   noAnswerResult: string;
 
   moveToNextRound: boolean;
+  nextRoundReason: NextRoundReason;
   nextRound: number;
   nextRoundTaskId?: Types.ObjectId | null;
   nextRoundWorkOrderId?: Types.ObjectId | null;
@@ -1176,16 +1274,26 @@ async function syncInvitationGuest(input: {
     [`${roundKey}CallNote`]: input.note || "",
     [`${roundKey}CallAnswered`]: input.callAnswered || "",
     [`${roundKey}AnsweredResult`]: input.answeredResult || "",
-    [`${roundKey}MessageFollowUpAction`]: input.messageFollowUpAction || "",
+    [`${roundKey}MessageFollowUpAction`]:
+      input.messageFollowUpAction || "",
     [`${roundKey}NoAnswerResult`]: input.noAnswerResult || "",
 
     updatedByCallTaskAt: input.now,
   };
 
+  // תיעוד שיחה פנימי בלבד — לא דורס הערות אורח חיצוניות
   if (input.note || input.note === "") {
     set.lastCallNote = input.note || "";
     set.callNote = input.note || "";
-    set.notes = input.note || "";
+    set.rsvpCallNote = input.note || "";
+    set.internalCallNote = input.note || "";
+  }
+
+  // הערות אורח חיצוניות בלבד
+  if (input.hasGuestNote) {
+    set.notes = input.guestNote || "";
+    set.guestNotes = input.guestNote || "";
+    set.guestNote = input.guestNote || "";
   }
 
   if (input.moveToNextRound) {
@@ -1196,8 +1304,7 @@ async function syncInvitationGuest(input: {
     set.nextCallTaskId = input.nextRoundTaskId || null;
     set.nextCallWorkOrderId = input.nextRoundWorkOrderId || null;
     set.movedToNextRoundAt = input.now;
-    set.pendingReason = "move_to_next_round";
-    set.pendingCallStatus = "will_reply_message";
+    set.movedToNextRoundReason = input.nextRoundReason || "";
   } else {
     set.moveToNextRound = false;
     set.movedToNextRound = false;
@@ -1324,7 +1431,9 @@ async function syncInvitationGuest(input: {
     set.rsvpFinal = false;
     set.rsvpOpen = true;
 
-    set.pendingReason = "no_answer";
+    set.pendingReason = input.moveToNextRound
+      ? "no_answer_next_round"
+      : "no_answer";
     set.pendingCallStatus = "no_answer";
     set.needsFollowUp = false;
     set.isUndecided = false;
@@ -1344,12 +1453,14 @@ async function syncInvitationGuest(input: {
     set.rsvpFinal = false;
     set.rsvpOpen = true;
 
-    set.pendingReason = "callback";
+    set.pendingReason = input.moveToNextRound
+      ? "callback_next_round"
+      : "callback";
     set.pendingCallStatus = "callback";
     set.needsFollowUp = true;
     set.callbackRequested = true;
     set.isUndecided = false;
-    set.willReplyMessage = true;
+    set.willReplyMessage = false;
     set.requestedNoMoreCalls = false;
   }
 
@@ -1385,9 +1496,7 @@ async function syncInvitationGuest(input: {
     set.rsvpFinal = false;
     set.rsvpOpen = true;
 
-    set.pendingReason = input.moveToNextRound
-      ? "move_to_next_round"
-      : "will_reply_message";
+    set.pendingReason = "will_reply_message";
     set.pendingCallStatus = "will_reply_message";
     set.needsFollowUp = false;
     set.isUndecided = false;
@@ -1417,9 +1526,16 @@ async function syncInvitationGuest(input: {
 
     arrivedCount:
       input.attendingCount !== undefined ? input.attendingCount : null,
+
+    // תיעוד שיחה פנימי
     note: input.note || "",
+    callDocumentation: input.note || "",
+
+    // הערת אורח חיצונית בזמן השיחה
+    guestNote: input.hasGuestNote ? input.guestNote || "" : "",
 
     movedToNextRound: Boolean(input.moveToNextRound),
+    nextRoundReason: input.nextRoundReason || "",
     nextRound: input.moveToNextRound ? input.nextRound : null,
     nextRoundTaskId: input.nextRoundTaskId || null,
     nextRoundWorkOrderId: input.nextRoundWorkOrderId || null,
@@ -1471,6 +1587,7 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
     }
 
     const body = await req.json().catch(() => ({}));
+
     const callDocumentation =
       body?.callDocumentation &&
       typeof body.callDocumentation === "object" &&
@@ -1478,7 +1595,7 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
         ? body.callDocumentation
         : {};
 
-    const incomingStatus = normalizeIncomingStatus(
+    const rawIncomingStatus = normalizeIncomingStatus(
       body?.status ||
         body?.result ||
         body?.callStatus ||
@@ -1492,11 +1609,22 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
 
     const note = cleanStr(
       body?.note ??
-        body?.comment ??
-        body?.comments ??
-        body?.notes ??
+        body?.callDocumentationNote ??
         body?.documentationNote ??
         callDocumentation?.note
+    );
+
+    const hasGuestNote =
+      Object.prototype.hasOwnProperty.call(body, "guestNote") ||
+      Object.prototype.hasOwnProperty.call(body, "externalGuestNote") ||
+      Object.prototype.hasOwnProperty.call(body, "guestNotes") ||
+      Object.prototype.hasOwnProperty.call(callDocumentation, "guestNote");
+
+    const guestNote = cleanStr(
+      body?.guestNote ??
+        body?.externalGuestNote ??
+        body?.guestNotes ??
+        callDocumentation?.guestNote
     );
 
     const callAnswered = normalizeCallAnswered(
@@ -1530,18 +1658,28 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
         callDocumentation?.attendingCount
     );
 
-    const moveToNextRound =
+    const requestedMoveToNextRound =
       toBool(body?.moveToNextRound) ||
       toBool(body?.transferToNextRound) ||
       toBool(body?.openInNextRound) ||
       toBool(callDocumentation?.movedToNextRound) ||
       messageFollowUpAction === "move_to_next_round";
 
-    if (!incomingStatus && !note && requestedAttendingCount === undefined) {
+    const incomingStatus =
+      rawIncomingStatus === "will_reply_message" && requestedMoveToNextRound
+        ? "callback"
+        : rawIncomingStatus;
+
+    if (
+      !incomingStatus &&
+      !note &&
+      !hasGuestNote &&
+      requestedAttendingCount === undefined
+    ) {
       return NextResponse.json(
         {
           success: false,
-          error: "חסר סטטוס או הערה לעדכון",
+          error: "חסר סטטוס, הערה או תיעוד לעדכון",
         },
         { status: 400 }
       );
@@ -1583,6 +1721,25 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
       body?.nextRound || callDocumentation?.nextRound || round + 1
     );
 
+    const autoMoveBecauseNoAnswer = nextStatus === "no_answer";
+    const autoMoveBecauseCallbackNextRound = nextStatus === "callback";
+
+    const moveToNextRound =
+      autoMoveBecauseNoAnswer ||
+      autoMoveBecauseCallbackNextRound ||
+      (requestedMoveToNextRound &&
+        nextStatus !== "confirmed" &&
+        nextStatus !== "declined" &&
+        nextStatus !== "will_reply_message");
+
+    const nextRoundReason: NextRoundReason = autoMoveBecauseNoAnswer
+      ? "no_answer"
+      : autoMoveBecauseCallbackNextRound
+        ? "callback_next_round"
+        : moveToNextRound
+          ? "manual"
+          : "";
+
     let attendingCount = requestedAttendingCount;
 
     if (nextStatus === "confirmed") {
@@ -1599,12 +1756,8 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
             : 1;
     }
 
-    if (
-      nextStatus === "declined" ||
-      nextStatus === "needs_fix" ||
-      nextStatus === "wrong_number"
-    ) {
-      attendingCount = nextStatus === "declined" ? 0 : attendingCount;
+    if (nextStatus === "declined") {
+      attendingCount = 0;
     }
 
     const isFinal = isCompletedStatus(nextStatus);
@@ -1625,13 +1778,20 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
       $set.round = round;
       $set.lastAttemptAt = now;
 
-      $set.callAnswered = callAnswered || "";
-      $set.answeredResult = answeredResult || "";
-      $set.messageFollowUpAction = messageFollowUpAction || "";
-      $set.noAnswerResult = noAnswerResult || "";
+      $set.callAnswered =
+        callAnswered ||
+        (nextStatus === "no_answer" ? "no_answer" : "answered");
+      $set.answeredResult = answeredResult || nextStatus || "";
+      $set.messageFollowUpAction =
+        nextStatus === "callback"
+          ? "move_to_next_round"
+          : messageFollowUpAction || "";
+      $set.noAnswerResult =
+        nextStatus === "no_answer" ? "no_answer" : noAnswerResult || "";
 
       $set.moveToNextRound = Boolean(moveToNextRound);
       $set.nextRound = moveToNextRound ? nextRound : null;
+      $set.nextRoundReason = nextRoundReason;
 
       $set.handledByEmployeeId = employee.employeeId;
       $set.handledByEmployeeName = employee.employeeName;
@@ -1660,7 +1820,13 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
     }
 
     if (note || body?.note === "") {
+      // תיעוד פנימי של השיחה
       $set.note = note;
+    }
+
+    if (hasGuestNote) {
+      // הערות אורח חיצוניות
+      $set.guestNotes = guestNote || "";
     }
 
     if (attendingCount !== undefined) {
@@ -1721,12 +1887,7 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
         }
       | null = null;
 
-    if (
-      incomingStatus &&
-      isCallResultStatus(nextStatus) &&
-      moveToNextRound &&
-      nextStatus === "will_reply_message"
-    ) {
+    if (incomingStatus && isCallResultStatus(nextStatus) && moveToNextRound) {
       nextRoundCreated = await ensureNextRoundTask({
         task: updatedTask,
         currentRound: round,
@@ -1734,6 +1895,9 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
         employeeId: employee.employeeId,
         now,
         note,
+        guestNote,
+        hasGuestNote,
+        reason: nextRoundReason,
       });
     }
 
@@ -1741,19 +1905,30 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
       await syncInvitationGuest({
         task: updatedTask,
         status: nextStatus,
+
         note,
+        guestNote,
+        hasGuestNote,
+
         attendingCount,
         employeeId: employee.employeeId,
         employeeName: employee.employeeName,
         employeeEmail: employee.employeeEmail,
         now,
 
-        callAnswered,
-        answeredResult,
-        messageFollowUpAction,
-        noAnswerResult,
+        callAnswered:
+          callAnswered ||
+          (nextStatus === "no_answer" ? "no_answer" : "answered"),
+        answeredResult: answeredResult || nextStatus || "",
+        messageFollowUpAction:
+          nextStatus === "callback"
+            ? "move_to_next_round"
+            : messageFollowUpAction || "",
+        noAnswerResult:
+          nextStatus === "no_answer" ? "no_answer" : noAnswerResult || "",
 
         moveToNextRound,
+        nextRoundReason,
         nextRound,
         nextRoundTaskId: nextRoundCreated?.taskId || null,
         nextRoundWorkOrderId: nextRoundCreated?.workOrderId || null,
@@ -1763,7 +1938,15 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
         task: updatedTask,
         status: nextStatus,
         note,
+        guestNote,
+        hasGuestNote,
         attendingCount,
+        now,
+      });
+    } else if (hasGuestNote) {
+      await updateGuestExternalNoteOnly({
+        task: updatedTask,
+        guestNote,
         now,
       });
     }
@@ -1783,7 +1966,9 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
       success: true,
       message: isCallResultStatus(nextStatus)
         ? moveToNextRound
-          ? "התיעוד נשמר והאורח הועבר לסבב הבא"
+          ? nextStatus === "no_answer"
+            ? "התיעוד נשמר והאורח שלא ענה נפתח אוטומטית בסבב הבא"
+            : "התיעוד נשמר והאורח הועבר לחזרה בסבב הבא"
           : "התיעוד נשמר והאורח עודכן"
         : "סטטוס השיחה עודכן בהצלחה",
 
@@ -1806,6 +1991,7 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
               : "",
             created: nextRoundCreated.created,
             round: nextRound,
+            reason: nextRoundReason,
           }
         : null,
 

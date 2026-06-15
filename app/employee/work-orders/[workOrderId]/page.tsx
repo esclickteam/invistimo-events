@@ -31,9 +31,14 @@ type TaskStatus =
 
 type CallAnswered = "" | "answered" | "no_answer";
 
-type AnsweredResult = "" | "confirmed" | "declined" | "will_reply_message";
+type AnsweredResult =
+  | ""
+  | "confirmed"
+  | "declined"
+  | "will_reply_message"
+  | "callback";
 
-type MessageFollowUpAction = "" | "callback" | "move_to_next_round";
+type MessageFollowUpAction = "" | "self_reply" | "move_to_next_round";
 
 type NoAnswerResult = "" | "no_answer" | "needs_fix";
 
@@ -258,7 +263,7 @@ function getStatusLabel(status: string) {
     confirmed: "מגיע",
     declined: "לא מגיע",
     no_answer: "לא ענה",
-    callback: "מעוניין בחזרה נוספת",
+    callback: "חזרה בסבב הבא",
     will_reply_message: "ישיב בהודעה",
     needs_fix: "דורש תיקון",
     wrong_number: "דורש תיקון",
@@ -279,7 +284,7 @@ function getStatusClass(status: string) {
   if (status === "confirmed") return "good";
   if (status === "declined") return "bad";
   if (status === "no_answer") return "warn";
-  if (status === "callback") return "info";
+  if (status === "callback") return "active";
   if (status === "will_reply_message") return "cyan";
   if (status === "needs_fix" || status === "wrong_number") return "danger";
   if (status === "in_progress") return "active";
@@ -348,7 +353,7 @@ function statusButtonLabel(status: TaskStatus) {
     confirmed: "מגיע",
     declined: "לא מגיע",
     no_answer: "לא ענה",
-    callback: "מעוניין בחזרה נוספת",
+    callback: "חזרה בסבב הבא",
     will_reply_message: "ישיב בהודעה",
     needs_fix: "דורש תיקון",
     wrong_number: "דורש תיקון",
@@ -398,7 +403,8 @@ export default function EmployeeWorkOrderTasksPage() {
     useState<MessageFollowUpAction>("");
   const [noAnswerResult, setNoAnswerResult] = useState<NoAnswerResult>("");
 
-  const [draftNote, setDraftNote] = useState("");
+  const [draftGuestNote, setDraftGuestNote] = useState("");
+  const [draftCallDocumentation, setDraftCallDocumentation] = useState("");
   const [draftCount, setDraftCount] = useState("1");
 
   const [status, setStatus] = useState("open");
@@ -452,7 +458,8 @@ export default function EmployeeWorkOrderTasksPage() {
     setAnsweredResult("");
     setMessageFollowUpAction("");
     setNoAnswerResult("");
-    setDraftNote("");
+    setDraftGuestNote("");
+    setDraftCallDocumentation("");
     setDraftCount("1");
   }
 
@@ -466,7 +473,8 @@ export default function EmployeeWorkOrderTasksPage() {
 
     const currentStatus = String(task.status || "pending");
 
-    setDraftNote(task.note || "");
+    setDraftGuestNote(task.guestNotes || "");
+    setDraftCallDocumentation(task.note || "");
 
     const existingCount =
       typeof task.attendingCount === "number" && task.attendingCount > 0
@@ -494,15 +502,15 @@ export default function EmployeeWorkOrderTasksPage() {
     if (currentStatus === "will_reply_message") {
       setCallAnswered("answered");
       setAnsweredResult("will_reply_message");
-      setMessageFollowUpAction("");
+      setMessageFollowUpAction("self_reply");
       setNoAnswerResult("");
       return;
     }
 
     if (currentStatus === "callback") {
       setCallAnswered("answered");
-      setAnsweredResult("will_reply_message");
-      setMessageFollowUpAction("callback");
+      setAnsweredResult("callback");
+      setMessageFollowUpAction("move_to_next_round");
       setNoAnswerResult("");
       return;
     }
@@ -677,11 +685,8 @@ export default function EmployeeWorkOrderTasksPage() {
     if (callAnswered === "answered") {
       if (answeredResult === "confirmed") return "confirmed";
       if (answeredResult === "declined") return "declined";
-
-      if (answeredResult === "will_reply_message") {
-        if (messageFollowUpAction === "callback") return "callback";
-        return "will_reply_message";
-      }
+      if (answeredResult === "will_reply_message") return "will_reply_message";
+      if (answeredResult === "callback") return "callback";
 
       return "";
     }
@@ -702,7 +707,7 @@ export default function EmployeeWorkOrderTasksPage() {
 
     if (callAnswered === "answered") {
       if (!answeredResult) {
-        return "האורח ענה. עכשיו בחרי אם הוא מגיע, לא מגיע או ישיב בהודעה.";
+        return "האורח ענה. בחרי: מגיע, לא מגיע, ישיב בהודעה או חזרה בסבב הבא.";
       }
 
       if (answeredResult === "confirmed") {
@@ -714,28 +719,24 @@ export default function EmployeeWorkOrderTasksPage() {
       }
 
       if (answeredResult === "will_reply_message") {
-        if (!messageFollowUpAction) {
-          return "האורח ישיב בהודעה. בחרי אם הוא מעוניין בחזרה נוספת או להעביר לסבב הבא.";
-        }
+        return "האורח אמר שהוא ישיב בהודעה באופן עצמאי. לא נפתח לו סבב הבא.";
+      }
 
-        if (messageFollowUpAction === "callback") {
-          return "יישמר תיעוד שהאורח ישיב בהודעה וגם מעוניין בחזרה נוספת.";
-        }
-
-        return "יישמר תיעוד שהאורח ישיב בהודעה, והוא יסומן להעברה לסבב הבא.";
+      if (answeredResult === "callback") {
+        return "האורח ענה וביקש חזרה בסבב הבא. אחרי השמירה הוא ייפתח אוטומטית בהוראת עבודה של הסבב הבא.";
       }
     }
 
     if (callAnswered === "no_answer") {
       if (!noAnswerResult) {
-        return "לא הייתה תשובה. בחרי לא ענה או דורש תיקון.";
+        return "בחרי אם לא ענה או דורש תיקון.";
       }
 
       if (noAnswerResult === "needs_fix") {
-        return "יישמר תיעוד שהרשומה דורשת תיקון, בלי לסמן RSVP סופי.";
+        return "יישמר תיעוד שהרשומה דורשת תיקון, בלי לפתוח אותה אוטומטית כסבב הבא.";
       }
 
-      return "יסמן שלא הייתה תשובה בסבב הזה. האורח ייחשב כטופל בסבב הנוכחי.";
+      return "לא ענה בסבב הזה. אחרי השמירה הוא ייפתח אוטומטית בהוראת עבודה של הסבב הבא.";
     }
 
     return "";
@@ -747,13 +748,7 @@ export default function EmployeeWorkOrderTasksPage() {
     if (Boolean(updatingTaskId)) return true;
 
     if (callAnswered === "answered") {
-      if (!answeredResult) return true;
-
-      if (answeredResult === "will_reply_message" && !messageFollowUpAction) {
-        return true;
-      }
-
-      return false;
+      return !answeredResult;
     }
 
     if (callAnswered === "no_answer") {
@@ -766,7 +761,8 @@ export default function EmployeeWorkOrderTasksPage() {
   async function updateTaskStatus(input: {
     task: CallTask;
     status: TaskStatus;
-    note?: string;
+    callDocumentationNote?: string;
+    guestNote?: string;
     attendingCount?: number;
     callAnswered?: CallAnswered;
     answeredResult?: AnsweredResult;
@@ -788,8 +784,22 @@ export default function EmployeeWorkOrderTasksPage() {
       const invitationId =
         input.task.invitationId || workOrder?.invitationId || "";
       const guestId = input.task.guestId || "";
-
       const nowIso = new Date().toISOString();
+
+      const callDocumentationNote = input.callDocumentationNote || "";
+      const guestNote = input.guestNote || "";
+
+      const shouldMoveToNextRound =
+        input.status === "no_answer" ||
+        input.status === "callback" ||
+        Boolean(input.moveToNextRound);
+
+      const finalMessageFollowUpAction =
+        input.status === "callback"
+          ? "move_to_next_round"
+          : input.status === "will_reply_message"
+            ? "self_reply"
+            : input.messageFollowUpAction || "";
 
       const body: Record<string, any> = {
         taskId,
@@ -812,11 +822,17 @@ export default function EmployeeWorkOrderTasksPage() {
         callAnswered: input.callAnswered || "",
         callAnswer: input.callAnswered || "",
         answeredResult: input.answeredResult || "",
-        messageFollowUpAction: input.messageFollowUpAction || "",
+        messageFollowUpAction: finalMessageFollowUpAction,
         noAnswerResult: input.noAnswerResult || "",
 
-        note: input.note || "",
-        documentationNote: input.note || "",
+        note: callDocumentationNote,
+        documentationNote: callDocumentationNote,
+        callDocumentationNote,
+
+        guestNote,
+        externalGuestNote: guestNote,
+        guestNotes: guestNote,
+        updateGuestNote: true,
 
         markCompleted: isFinal,
         isCompleted: isFinal,
@@ -846,13 +862,15 @@ export default function EmployeeWorkOrderTasksPage() {
           result: input.status,
           callAnswered: input.callAnswered || "",
           answeredResult: input.answeredResult || "",
-          messageFollowUpAction: input.messageFollowUpAction || "",
+          messageFollowUpAction: finalMessageFollowUpAction,
           noAnswerResult: input.noAnswerResult || "",
-          note: input.note || "",
+          note: callDocumentationNote,
+          callDocumentation: callDocumentationNote,
+          guestNote,
           attendingCount:
             input.attendingCount !== undefined ? input.attendingCount : null,
-          movedToNextRound: Boolean(input.moveToNextRound),
-          nextRound: input.moveToNextRound ? nextRound : null,
+          movedToNextRound: shouldMoveToNextRound,
+          nextRound: shouldMoveToNextRound ? nextRound : null,
           employeeId: employee?.id || "",
           employeeName: employee?.name || "",
           employeeEmail: employee?.email || "",
@@ -863,7 +881,8 @@ export default function EmployeeWorkOrderTasksPage() {
       if (input.attendingCount !== undefined) {
         body.attendingCount = input.attendingCount;
         body.confirmedCount = input.attendingCount;
-        body.guestsCount = input.attendingCount;
+        body.arrivedCount = input.attendingCount;
+        body.actualArrivedCount = input.attendingCount;
       }
 
       if (input.status === "confirmed") {
@@ -879,15 +898,9 @@ export default function EmployeeWorkOrderTasksPage() {
         body.rsvpResult = "not_attending";
         body.attendingCount = 0;
         body.confirmedCount = 0;
-        body.guestsCount = 0;
+        body.arrivedCount = 0;
+        body.actualArrivedCount = 0;
         body.keepRsvpOpen = false;
-      }
-
-      if (input.status === "no_answer") {
-        body.rsvpStatus = "no_answer";
-        body.guestRsvpStatus = "no_answer";
-        body.rsvpResult = "no_answer";
-        body.keepRsvpOpen = true;
       }
 
       if (input.status === "will_reply_message") {
@@ -895,6 +908,7 @@ export default function EmployeeWorkOrderTasksPage() {
         body.guestRsvpStatus = "will_reply_message";
         body.rsvpResult = "will_reply_message";
         body.keepRsvpOpen = true;
+        body.messageFollowUpAction = "self_reply";
       }
 
       if (input.status === "callback") {
@@ -903,6 +917,22 @@ export default function EmployeeWorkOrderTasksPage() {
         body.rsvpResult = "callback";
         body.callbackRequested = true;
         body.needsCallback = true;
+        body.moveToNextRound = true;
+        body.transferToNextRound = true;
+        body.openInNextRound = true;
+        body.nextRound = nextRound;
+        body.keepRsvpOpen = true;
+        body.messageFollowUpAction = "move_to_next_round";
+      }
+
+      if (input.status === "no_answer") {
+        body.rsvpStatus = "no_answer";
+        body.guestRsvpStatus = "no_answer";
+        body.rsvpResult = "no_answer";
+        body.moveToNextRound = true;
+        body.transferToNextRound = true;
+        body.openInNextRound = true;
+        body.nextRound = nextRound;
         body.keepRsvpOpen = true;
       }
 
@@ -913,14 +943,6 @@ export default function EmployeeWorkOrderTasksPage() {
         body.needsFix = true;
         body.requiresCorrection = true;
         body.phoneNeedsCorrection = true;
-        body.keepRsvpOpen = true;
-      }
-
-      if (input.moveToNextRound) {
-        body.moveToNextRound = true;
-        body.transferToNextRound = true;
-        body.openInNextRound = true;
-        body.nextRound = nextRound;
         body.keepRsvpOpen = true;
       }
 
@@ -942,12 +964,7 @@ export default function EmployeeWorkOrderTasksPage() {
         throw new Error(data.error || "שגיאה בעדכון השיחה");
       }
 
-      setSuccessMsg(
-        data.message ||
-          (input.moveToNextRound
-            ? "התיעוד נשמר והאורח סומן להעברה לסבב הבא"
-            : "התיעוד נשמר בהצלחה")
-      );
+      setSuccessMsg(data.message || "התיעוד נשמר בהצלחה");
 
       if (data.workOrder) {
         setWorkOrder(data.workOrder);
@@ -961,7 +978,8 @@ export default function EmployeeWorkOrderTasksPage() {
             ...task,
             status: input.status,
             result: input.status,
-            note: input.note || "",
+            note: callDocumentationNote,
+            guestNotes: guestNote,
             attendingCount:
               input.attendingCount !== undefined
                 ? input.attendingCount
@@ -1004,14 +1022,13 @@ export default function EmployeeWorkOrderTasksPage() {
     }
 
     const shouldMoveToNextRound =
-      callAnswered === "answered" &&
-      answeredResult === "will_reply_message" &&
-      messageFollowUpAction === "move_to_next_round";
+      finalStatus === "no_answer" || finalStatus === "callback";
 
     const payload: {
       task: CallTask;
       status: TaskStatus;
-      note?: string;
+      callDocumentationNote?: string;
+      guestNote?: string;
       attendingCount?: number;
       callAnswered?: CallAnswered;
       answeredResult?: AnsweredResult;
@@ -1021,10 +1038,16 @@ export default function EmployeeWorkOrderTasksPage() {
     } = {
       task: selectedTask,
       status: finalStatus,
-      note: draftNote,
+      callDocumentationNote: draftCallDocumentation,
+      guestNote: draftGuestNote,
       callAnswered,
       answeredResult,
-      messageFollowUpAction,
+      messageFollowUpAction:
+        finalStatus === "callback"
+          ? "move_to_next_round"
+          : finalStatus === "will_reply_message"
+            ? "self_reply"
+            : messageFollowUpAction,
       noAnswerResult,
       moveToNextRound: shouldMoveToNextRound,
     };
@@ -1076,7 +1099,9 @@ export default function EmployeeWorkOrderTasksPage() {
       void updateTaskStatus({
         task: selectedTask,
         status: "in_progress",
-        note: draftNote || selectedTask.note || "",
+        callDocumentationNote:
+          draftCallDocumentation || selectedTask.note || "",
+        guestNote: draftGuestNote || selectedTask.guestNotes || "",
       });
     }
   }
@@ -1134,8 +1159,8 @@ export default function EmployeeWorkOrderTasksPage() {
           </p>
 
           <p className="dailyHint">
-            כל שמירת תוצאה שולחת לשרת את פרטי העובד, הסבב, האורח, תוצאת השיחה
-            וההערה כדי לשמור תיעוד מלא בכרטיס האורח.
+            לא ענה וחזרה בסבב הבא נפתחים אוטומטית בהוראת העבודה של הסבב הבא.
+            תיעוד השיחה נשמר בנפרד מהערות האורח החיצוניות.
           </p>
         </div>
 
@@ -1219,9 +1244,9 @@ export default function EmployeeWorkOrderTasksPage() {
             <option value="in_progress">בטיפול</option>
             <option value="confirmed">מגיע</option>
             <option value="declined">לא מגיע</option>
-            <option value="no_answer">לא ענה</option>
             <option value="will_reply_message">ישיב בהודעה</option>
-            <option value="callback">מעוניין בחזרה נוספת</option>
+            <option value="callback">חזרה בסבב הבא</option>
+            <option value="no_answer">לא ענה</option>
             <option value="needs_fix">דורש תיקון</option>
           </select>
         </div>
@@ -1387,14 +1412,14 @@ export default function EmployeeWorkOrderTasksPage() {
 
                 {selectedTask.guestNotes && (
                   <div className="noteBox guest">
-                    <span>הערת אורח</span>
+                    <span>הערות אורח חיצוניות קיימות</span>
                     <p>{selectedTask.guestNotes}</p>
                   </div>
                 )}
 
                 {selectedTask.note && (
                   <div className="noteBox worker">
-                    <span>תיעוד קודם</span>
+                    <span>תיעוד שיחה קודם</span>
                     <p>{selectedTask.note}</p>
                   </div>
                 )}
@@ -1417,7 +1442,7 @@ export default function EmployeeWorkOrderTasksPage() {
                 </div>
 
                 <div className="resultPanel">
-                  <span className="panelMiniTitle">תוצאת השיחה</span>
+                  <span className="panelMiniTitle">האם האורח ענה?</span>
 
                   <div className="resultButtons callAnswerButtons">
                     <button
@@ -1446,10 +1471,7 @@ export default function EmployeeWorkOrderTasksPage() {
                         setCallAnswered("no_answer");
                         setAnsweredResult("");
                         setMessageFollowUpAction("");
-
-                        if (!noAnswerResult) {
-                          setNoAnswerResult("no_answer");
-                        }
+                        setNoAnswerResult("no_answer");
                       }}
                     >
                       לא ענה
@@ -1458,14 +1480,15 @@ export default function EmployeeWorkOrderTasksPage() {
 
                   {callAnswered === "answered" && (
                     <>
-                      <span className="subChoiceTitle">מה האורח ענה?</span>
+                      <span className="subChoiceTitle">תוצאת השיחה</span>
 
-                      <div className="resultButtons threeChoices">
+                      <div className="resultButtons fourChoices">
                         {(
                           [
                             "confirmed",
                             "declined",
                             "will_reply_message",
+                            "callback",
                           ] as TaskStatus[]
                         ).map((item) => (
                           <button
@@ -1476,8 +1499,15 @@ export default function EmployeeWorkOrderTasksPage() {
                             }`}
                             onClick={() => {
                               setAnsweredResult(item as AnsweredResult);
+                              setNoAnswerResult("");
 
-                              if (item !== "will_reply_message") {
+                              if (item === "callback") {
+                                setMessageFollowUpAction(
+                                  "move_to_next_round"
+                                );
+                              } else if (item === "will_reply_message") {
+                                setMessageFollowUpAction("self_reply");
+                              } else {
                                 setMessageFollowUpAction("");
                               }
                             }}
@@ -1488,43 +1518,6 @@ export default function EmployeeWorkOrderTasksPage() {
                       </div>
                     </>
                   )}
-
-                  {callAnswered === "answered" &&
-                    answeredResult === "will_reply_message" && (
-                      <>
-                        <span className="subChoiceTitle">המשך טיפול</span>
-
-                        <div className="resultButtons callAnswerButtons">
-                          <button
-                            type="button"
-                            className={`info ${
-                              messageFollowUpAction === "callback"
-                                ? "selected"
-                                : ""
-                            }`}
-                            onClick={() =>
-                              setMessageFollowUpAction("callback")
-                            }
-                          >
-                            מעוניין בחזרה נוספת
-                          </button>
-
-                          <button
-                            type="button"
-                            className={`active ${
-                              messageFollowUpAction === "move_to_next_round"
-                                ? "selected"
-                                : ""
-                            }`}
-                            onClick={() =>
-                              setMessageFollowUpAction("move_to_next_round")
-                            }
-                          >
-                            העבר לסבב הבא
-                          </button>
-                        </div>
-                      </>
-                    )}
 
                   {callAnswered === "no_answer" && (
                     <>
@@ -1570,11 +1563,22 @@ export default function EmployeeWorkOrderTasksPage() {
                     )}
 
                   <div className="field">
-                    <label>הערה / תיעוד</label>
+                    <label>הערות אורח חיצוניות</label>
                     <textarea
-                      value={draftNote}
-                      placeholder="לדוגמה: ביקש לחזור בערב / ישיב בהודעה / דורש תיקון..."
-                      onChange={(e) => setDraftNote(e.target.value)}
+                      value={draftGuestNote}
+                      placeholder="הערה שתופיע בכרטיס האורח, לדוגמה: להגיע דרך שער 2 / הערה כללית / בקשה מיוחדת..."
+                      onChange={(e) => setDraftGuestNote(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="field">
+                    <label>תיעוד שיחה פנימי</label>
+                    <textarea
+                      value={draftCallDocumentation}
+                      placeholder="תיעוד השיחה, לדוגמה: ענה וביקש חזרה בסבב הבא / לא ענה / אמר שישיב בהודעה..."
+                      onChange={(e) =>
+                        setDraftCallDocumentation(e.target.value)
+                      }
                     />
                   </div>
 
@@ -2297,8 +2301,8 @@ export default function EmployeeWorkOrderTasksPage() {
           gap: 9px;
         }
 
-        .resultButtons.threeChoices {
-          grid-template-columns: repeat(3, minmax(0, 1fr));
+        .resultButtons.fourChoices {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 
         .resultButtons button {
@@ -2404,7 +2408,7 @@ export default function EmployeeWorkOrderTasksPage() {
           .employeeStrip,
           .detailsGrid,
           .resultButtons,
-          .resultButtons.threeChoices {
+          .resultButtons.fourChoices {
             grid-template-columns: 1fr;
           }
 
