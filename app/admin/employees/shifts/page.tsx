@@ -44,6 +44,16 @@ type ShiftForm = {
   note: string;
 };
 
+type CalendarDay = {
+  key: string;
+  date: string;
+  dayNumber: number;
+  inMonth: boolean;
+  isToday: boolean;
+  isSelected: boolean;
+  shifts: EmployeeShift[];
+};
+
 const API = {
   employees: "/api/admin/employees",
   shifts: (month: string) =>
@@ -53,6 +63,8 @@ const API = {
     `/api/admin/employees/shifts?shiftId=${encodeURIComponent(shiftId)}`,
 };
 
+const WEEK_DAYS = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"];
+
 function cleanStr(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -61,21 +73,42 @@ function pad2(value: number) {
   return String(value).padStart(2, "0");
 }
 
+function toDateKey(date: Date) {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(
+    date.getDate()
+  )}`;
+}
+
+function parseLocalDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day, 12, 0, 0, 0);
+}
+
 function getCurrentMonthKey() {
   const now = new Date();
   return `${now.getFullYear()}-${pad2(now.getMonth() + 1)}`;
 }
 
 function getTodayInput() {
-  const now = new Date();
-  return `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(
-    now.getDate()
-  )}`;
+  return toDateKey(new Date());
+}
+
+function getFirstDayOfMonth(month: string) {
+  return `${month}-01`;
 }
 
 function getMonthFromDate(date: string) {
   if (/^\d{4}-\d{2}-\d{2}$/.test(date)) return date.slice(0, 7);
   return getCurrentMonthKey();
+}
+
+function addMonths(monthKey: string, amount: number) {
+  const [year, month] = monthKey.split("-").map(Number);
+  const date = new Date(year, month - 1 + amount, 1, 12, 0, 0, 0);
+
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}`;
 }
 
 async function fetchJson(url: string, init?: RequestInit) {
@@ -97,7 +130,7 @@ async function fetchJson(url: string, init?: RequestInit) {
 function formatDate(value?: string) {
   if (!value) return "—";
 
-  const date = new Date(value);
+  const date = parseLocalDate(value) || new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
 
   return date.toLocaleDateString("he-IL", {
@@ -107,11 +140,20 @@ function formatDate(value?: string) {
   });
 }
 
+function getDayName(value: string) {
+  const date = parseLocalDate(value);
+  if (!date || Number.isNaN(date.getTime())) return "";
+
+  return date.toLocaleDateString("he-IL", {
+    weekday: "long",
+  });
+}
+
 function monthLabel(monthKey: string) {
   const [year, month] = monthKey.split("-").map(Number);
   if (!year || !month) return monthKey;
 
-  return new Date(year, month - 1, 1).toLocaleDateString("he-IL", {
+  return new Date(year, month - 1, 1, 12, 0, 0, 0).toLocaleDateString("he-IL", {
     month: "long",
     year: "numeric",
   });
@@ -123,7 +165,7 @@ function normalizeShift(raw: any): EmployeeShift {
 
   return {
     id: cleanStr(raw?.id || raw?._id),
-    employeeId: cleanStr(raw?.employeeId),
+    employeeId: cleanStr(raw?.employeeId || raw?.employeeIdString),
     employeeName: cleanStr(raw?.employeeName) || "עובד ללא שם",
     employeeEmail: cleanStr(raw?.employeeEmail),
     employeePhone: cleanStr(raw?.employeePhone),
@@ -169,10 +211,10 @@ function sortShifts(shifts: EmployeeShift[]) {
   });
 }
 
-function getEmptyForm(): ShiftForm {
+function getEmptyForm(date = getTodayInput()): ShiftForm {
   return {
     employeeId: "",
-    date: getTodayInput(),
+    date,
     scheduledStart: "",
     scheduledEnd: "",
     locationType: "home",
@@ -180,6 +222,66 @@ function getEmptyForm(): ShiftForm {
     locationAddress: "",
     note: "",
   };
+}
+
+function buildCalendarDays({
+  month,
+  selectedDate,
+  shiftsByDate,
+}: {
+  month: string;
+  selectedDate: string;
+  shiftsByDate: Map<string, EmployeeShift[]>;
+}): CalendarDay[] {
+  const [year, monthNumber] = month.split("-").map(Number);
+  if (!year || !monthNumber) return [];
+
+  const today = getTodayInput();
+  const firstDate = new Date(year, monthNumber - 1, 1, 12, 0, 0, 0);
+  const daysInMonth = new Date(year, monthNumber, 0, 12, 0, 0, 0).getDate();
+  const startOffset = firstDate.getDay();
+
+  const days: CalendarDay[] = [];
+
+  for (let index = 0; index < startOffset; index += 1) {
+    days.push({
+      key: `empty-start-${index}`,
+      date: "",
+      dayNumber: 0,
+      inMonth: false,
+      isToday: false,
+      isSelected: false,
+      shifts: [],
+    });
+  }
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const date = `${year}-${pad2(monthNumber)}-${pad2(day)}`;
+
+    days.push({
+      key: date,
+      date,
+      dayNumber: day,
+      inMonth: true,
+      isToday: date === today,
+      isSelected: date === selectedDate,
+      shifts: shiftsByDate.get(date) || [],
+    });
+  }
+
+  while (days.length % 7 !== 0) {
+    days.push({
+      key: `empty-end-${days.length}`,
+      date: "",
+      dayNumber: 0,
+      inMonth: false,
+      isToday: false,
+      isSelected: false,
+      shifts: [],
+    });
+  }
+
+  return days;
 }
 
 function Icon({
@@ -192,12 +294,13 @@ function Icon({
     | "save"
     | "trash"
     | "clock"
-    | "map"
-    | "users"
     | "edit"
     | "home"
     | "building"
-    | "calendar";
+    | "calendar"
+    | "plus"
+    | "right"
+    | "left";
   className?: string;
 }) {
   const common = {
@@ -215,6 +318,22 @@ function Icon({
       <svg {...common}>
         <path d="M19 12H5" />
         <path d="m12 19-7-7 7-7" />
+      </svg>
+    );
+  }
+
+  if (name === "right") {
+    return (
+      <svg {...common}>
+        <path d="m15 18-6-6 6-6" />
+      </svg>
+    );
+  }
+
+  if (name === "left") {
+    return (
+      <svg {...common}>
+        <path d="m9 18 6-6-6-6" />
       </svg>
     );
   }
@@ -257,16 +376,6 @@ function Icon({
       <svg {...common}>
         <circle cx="12" cy="12" r="9" />
         <path d="M12 7v5l3 2" />
-      </svg>
-    );
-  }
-
-  if (name === "map") {
-    return (
-      <svg {...common}>
-        <path d="M9 18 3 21V6l6-3 6 3 6-3v15l-6 3-6-3z" />
-        <path d="M9 3v15" />
-        <path d="M15 6v15" />
       </svg>
     );
   }
@@ -323,10 +432,8 @@ function Icon({
 
   return (
     <svg {...common}>
-      <path d="M17 21a5 5 0 0 0-10 0" />
-      <circle cx="12" cy="7" r="4" />
-      <path d="M22 21a4 4 0 0 0-3-3.87" />
-      <path d="M2 21a4 4 0 0 1 3-3.87" />
+      <path d="M12 5v14" />
+      <path d="M5 12h14" />
     </svg>
   );
 }
@@ -338,12 +445,42 @@ export default function AdminEmployeeShiftsPage() {
   const [month, setMonth] = useState(getCurrentMonthKey());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [editingShiftId, setEditingShiftId] = useState("");
 
-  const [form, setForm] = useState<ShiftForm>(getEmptyForm);
+  const [form, setForm] = useState<ShiftForm>(() =>
+    getEmptyForm(getTodayInput())
+  );
+
+  const selectedDate = form.date || getFirstDayOfMonth(month);
 
   const selectedEmployee = useMemo(
     () => employees.find((employee) => employee.id === form.employeeId) || null,
     [employees, form.employeeId]
+  );
+
+  const shiftsByDate = useMemo(() => {
+    const map = new Map<string, EmployeeShift[]>();
+
+    shifts.forEach((shift) => {
+      if (!shift.date) return;
+
+      const current = map.get(shift.date) || [];
+      current.push(shift);
+
+      map.set(shift.date, sortShifts(current));
+    });
+
+    return map;
+  }, [shifts]);
+
+  const calendarDays = useMemo(
+    () => buildCalendarDays({ month, selectedDate, shiftsByDate }),
+    [month, selectedDate, shiftsByDate]
+  );
+
+  const selectedDateShifts = useMemo(
+    () => shiftsByDate.get(selectedDate) || [],
+    [selectedDate, shiftsByDate]
   );
 
   const stats = useMemo(() => {
@@ -398,6 +535,27 @@ export default function AdminEmployeeShiftsPage() {
     void loadData();
   }, [loadData]);
 
+  function changeMonth(nextMonth: string) {
+    if (!/^\d{4}-\d{2}$/.test(nextMonth)) return;
+
+    setMonth(nextMonth);
+    setEditingShiftId("");
+    setForm((prev) => ({
+      ...prev,
+      date: getFirstDayOfMonth(nextMonth),
+    }));
+  }
+
+  function selectDate(date: string) {
+    if (!date) return;
+
+    setEditingShiftId("");
+    setForm((prev) => ({
+      ...prev,
+      date,
+    }));
+  }
+
   function setLocationType(value: LocationType) {
     setForm((prev) => ({
       ...prev,
@@ -408,6 +566,11 @@ export default function AdminEmployeeShiftsPage() {
   }
 
   function editShift(shift: EmployeeShift) {
+    const shiftMonth = getMonthFromDate(shift.date);
+
+    setEditingShiftId(shift.id);
+    setMonth(shiftMonth);
+
     setForm({
       employeeId: shift.employeeId,
       date: shift.date || getTodayInput(),
@@ -418,8 +581,6 @@ export default function AdminEmployeeShiftsPage() {
       locationAddress: shift.locationAddress,
       note: shift.note,
     });
-
-    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   async function saveShift() {
@@ -428,13 +589,8 @@ export default function AdminEmployeeShiftsPage() {
     try {
       setSaving(true);
 
-      if (!form.employeeId) {
-        throw new Error("חובה לבחור עובד");
-      }
-
-      if (!form.date) {
-        throw new Error("חובה לבחור תאריך");
-      }
+      if (!form.employeeId) throw new Error("חובה לבחור עובד");
+      if (!form.date) throw new Error("חובה לבחור תאריך");
 
       if (!form.scheduledStart || !form.scheduledEnd) {
         throw new Error("חובה להזין שעת התחלה ושעת סיום");
@@ -469,27 +625,38 @@ export default function AdminEmployeeShiftsPage() {
       const savedShift = normalizeShift(data.shift);
       const savedMonth = savedShift.month || getMonthFromDate(savedShift.date);
 
+      if (editingShiftId && savedShift.id && editingShiftId !== savedShift.id) {
+        await fetchJson(API.deleteShift(editingShiftId), {
+          method: "DELETE",
+        });
+      }
+
       if (savedMonth !== month) {
         setMonth(savedMonth);
       }
 
       setShifts((prev) => {
-        const withoutSameShift = prev.filter((shift) => {
-          const sameId = savedShift.id && shift.id === savedShift.id;
+        const withoutOld = prev.filter((shift) => {
+          const sameSavedId = savedShift.id && shift.id === savedShift.id;
+          const sameEditingId = editingShiftId && shift.id === editingShiftId;
+
           const sameEmployeeSameDate =
             shift.employeeId === savedShift.employeeId &&
             shift.date === savedShift.date;
 
-          return !sameId && !sameEmployeeSameDate;
+          return !sameSavedId && !sameEditingId && !sameEmployeeSameDate;
         });
 
-        return sortShifts([...withoutSameShift, savedShift]);
+        return sortShifts([...withoutOld, savedShift]);
       });
 
+      setEditingShiftId("");
       setForm((prev) => ({
         ...prev,
+        employeeId: "",
         scheduledStart: "",
         scheduledEnd: "",
+        locationType: "home",
         locationName: "",
         locationAddress: "",
         note: "",
@@ -514,6 +681,11 @@ export default function AdminEmployeeShiftsPage() {
       });
 
       setShifts((prev) => prev.filter((shift) => shift.id !== shiftId));
+
+      if (editingShiftId === shiftId) {
+        setEditingShiftId("");
+        setForm(getEmptyForm(selectedDate));
+      }
     } catch (error) {
       console.error("DELETE SHIFT FAILED:", error);
       alert(error instanceof Error ? error.message : "שגיאה במחיקת שיבוץ");
@@ -525,7 +697,7 @@ export default function AdminEmployeeShiftsPage() {
       dir="rtl"
       className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-emerald-50 text-slate-900"
     >
-      <div className="mx-auto w-full max-w-[1500px] space-y-6 p-4 md:p-6">
+      <div className="mx-auto w-full max-w-[1600px] space-y-6 p-4 md:p-6">
         <section className="rounded-[34px] border border-white bg-white p-6 shadow-[0_18px_55px_rgba(79,70,229,0.10)] md:p-8">
           <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
             <div>
@@ -539,33 +711,60 @@ export default function AdminEmployeeShiftsPage() {
 
               <div className="mt-5">
                 <div className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-700">
-                  <Icon name="clock" className="h-4 w-4" />
-                  שיבוץ משמרות
+                  <Icon name="calendar" className="h-4 w-4" />
+                  יומן שיבוץ משמרות
                 </div>
 
                 <h1 className="mt-4 text-3xl font-black tracking-tight text-slate-900 md:text-5xl">
-                  שיבוץ משמרות עובדים
+                  יומן שיבוץ משמרות עובדים
                 </h1>
 
-                <p className="mt-3 max-w-3xl text-sm font-semibold leading-7 text-slate-500 md:text-base">
-                  כאן האדמין משבץ עובד ליום, שעה ומיקום. השיבוץ נשמר
-                  ב־employeeshifts ומסתנכרן אוטומטית לעמוד שעות עובד ולדוחות.
+                <p className="mt-3 max-w-4xl text-sm font-semibold leading-7 text-slate-500 md:text-base">
+                  בחרי תאריך מתוך היומן, בחרי עובד מתוך רשימת העובדים, הגדירי
+                  שעות ומיקום. השיבוץ מסתנכרן לעמוד שעות עובד ולדוחות.
                 </p>
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={() => void loadData()}
-              disabled={loading}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-700 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50 disabled:opacity-50"
-            >
-              <Icon
-                name="refresh"
-                className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => changeMonth(addMonths(month, -1))}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50"
+              >
+                <Icon name="right" className="h-4 w-4" />
+                חודש קודם
+              </button>
+
+              <input
+                type="month"
+                value={month}
+                onChange={(event) => changeMonth(event.target.value)}
+                className="h-11 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-black text-slate-700 outline-none focus:border-indigo-300 focus:bg-white"
               />
-              רענון
-            </button>
+
+              <button
+                type="button"
+                onClick={() => changeMonth(addMonths(month, 1))}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50"
+              >
+                חודש הבא
+                <Icon name="left" className="h-4 w-4" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => void loadData()}
+                disabled={loading}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-700 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50 disabled:opacity-50"
+              >
+                <Icon
+                  name="refresh"
+                  className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+                />
+                רענון
+              </button>
+            </div>
           </div>
 
           <div className="mt-7 grid gap-3 md:grid-cols-4">
@@ -603,357 +802,396 @@ export default function AdminEmployeeShiftsPage() {
           </div>
         </section>
 
-        <section className="rounded-[34px] border border-white bg-white p-5 shadow-[0_12px_35px_rgba(15,23,42,0.06)] md:p-6">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-            <div>
-              <h2 className="text-xl font-black text-slate-900">
-                יצירת שיבוץ
-              </h2>
-              <p className="mt-1 text-sm font-semibold text-slate-500">
-                בחרי עובד, תאריך, שעות ומיקום. אם זה אולם — מלאי שם אולם
-                וכתובת/מיקום.
-              </p>
+        <section className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
+          <div className="rounded-[34px] border border-white bg-white p-5 shadow-[0_12px_35px_rgba(15,23,42,0.06)] md:p-6">
+            <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+              <div>
+                <h2 className="text-xl font-black text-slate-900">
+                  יומן חודשי — {monthLabel(month)}
+                </h2>
+                <p className="mt-1 text-sm font-semibold text-slate-500">
+                  לחצי על תאריך כדי לבחור יום לשיבוץ.
+                </p>
+              </div>
+
+              <div className="text-sm font-black text-slate-500">
+                {loading ? "טוען..." : `${shifts.length} שיבוצים בחודש`}
+              </div>
             </div>
 
-            <input
-              type="month"
-              value={month}
-              onChange={(event) => setMonth(event.target.value)}
-              className="h-11 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-black text-slate-700 outline-none focus:border-indigo-300 focus:bg-white"
-            />
+            <div className="mt-5 grid grid-cols-7 gap-2">
+              {WEEK_DAYS.map((day) => (
+                <div
+                  key={day}
+                  className="rounded-2xl bg-slate-50 py-3 text-center text-xs font-black text-slate-500"
+                >
+                  {day}
+                </div>
+              ))}
+
+              {calendarDays.map((day) => {
+                if (!day.inMonth) {
+                  return (
+                    <div
+                      key={day.key}
+                      className="min-h-[124px] rounded-[24px] border border-dashed border-slate-100 bg-slate-50/40"
+                    />
+                  );
+                }
+
+                return (
+                  <button
+                    key={day.key}
+                    type="button"
+                    onClick={() => selectDate(day.date)}
+                    className={`min-h-[124px] rounded-[24px] border p-3 text-right transition hover:border-indigo-200 hover:bg-indigo-50/50 ${
+                      day.isSelected
+                        ? "border-indigo-300 bg-indigo-50 shadow-[0_10px_30px_rgba(99,102,241,0.12)]"
+                        : "border-slate-100 bg-white"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <span
+                        className={`flex h-8 w-8 items-center justify-center rounded-2xl text-sm font-black ${
+                          day.isToday
+                            ? "bg-emerald-500 text-white"
+                            : day.isSelected
+                            ? "bg-indigo-500 text-white"
+                            : "bg-slate-100 text-slate-700"
+                        }`}
+                      >
+                        {day.dayNumber}
+                      </span>
+
+                      {day.shifts.length > 0 ? (
+                        <span className="rounded-full bg-indigo-100 px-2 py-1 text-[11px] font-black text-indigo-700">
+                          {day.shifts.length} שיבוצים
+                        </span>
+                      ) : null}
+                    </div>
+
+                    <div className="mt-3 space-y-1.5">
+                      {day.shifts.slice(0, 3).map((shift) => (
+                        <div
+                          key={shift.id}
+                          className={`rounded-2xl border px-2 py-1.5 ${
+                            shift.locationType === "home"
+                              ? "border-emerald-100 bg-emerald-50"
+                              : "border-violet-100 bg-violet-50"
+                          }`}
+                        >
+                          <p className="truncate text-[11px] font-black text-slate-800">
+                            {shift.employeeName}
+                          </p>
+                          <p className="mt-0.5 text-[11px] font-bold text-slate-500">
+                            {shift.scheduledStart || "—"} -{" "}
+                            {shift.scheduledEnd || "—"}
+                          </p>
+                        </div>
+                      ))}
+
+                      {day.shifts.length > 3 ? (
+                        <p className="text-[11px] font-black text-indigo-500">
+                          +{day.shifts.length - 3} נוספים
+                        </p>
+                      ) : null}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <label className="grid gap-2">
-              <span className="text-xs font-black text-slate-500">עובד</span>
+          <div className="rounded-[34px] border border-white bg-white p-5 shadow-[0_12px_35px_rgba(15,23,42,0.06)] md:p-6">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-black text-slate-900">
+                  {editingShiftId ? "עריכת שיבוץ" : "שיבוץ לתאריך"}
+                </h2>
 
-              <select
-                value={form.employeeId}
-                onChange={(event) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    employeeId: event.target.value,
-                  }))
-                }
-                className="h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-900 outline-none focus:border-indigo-300 focus:bg-white"
-              >
-                <option value="">בחירת עובד</option>
-                {employees.map((employee) => (
-                  <option key={employee.id} value={employee.id}>
-                    {employee.name} — {employee.email || employee.phone || ""}
-                  </option>
-                ))}
-              </select>
-            </label>
+                <p className="mt-1 text-sm font-semibold text-slate-500">
+                  {formatDate(selectedDate)} · {getDayName(selectedDate)}
+                </p>
+              </div>
 
-            <label className="grid gap-2">
-              <span className="text-xs font-black text-slate-500">תאריך</span>
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+                <Icon name="plus" className="h-6 w-6" />
+              </div>
+            </div>
 
-              <input
-                type="date"
-                value={form.date}
-                onChange={(event) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    date: event.target.value,
-                  }))
-                }
-                className="h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-900 outline-none focus:border-indigo-300 focus:bg-white"
-              />
-            </label>
+            <div className="mt-5 grid gap-4">
+              <label className="grid gap-2">
+                <span className="text-xs font-black text-slate-500">עובד</span>
 
-            <label className="grid gap-2">
-              <span className="text-xs font-black text-slate-500">
-                שעת התחלה
-              </span>
+                <select
+                  value={form.employeeId}
+                  onChange={(event) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      employeeId: event.target.value,
+                    }))
+                  }
+                  className="h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-900 outline-none focus:border-indigo-300 focus:bg-white"
+                >
+                  <option value="">בחירת עובד</option>
+                  {employees.map((employee) => (
+                    <option key={employee.id} value={employee.id}>
+                      {employee.name} — {employee.email || employee.phone || ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-              <input
-                type="time"
-                value={form.scheduledStart}
-                onChange={(event) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    scheduledStart: event.target.value,
-                  }))
-                }
-                className="h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-900 outline-none focus:border-indigo-300 focus:bg-white"
-              />
-            </label>
+              <label className="grid gap-2">
+                <span className="text-xs font-black text-slate-500">
+                  תאריך
+                </span>
 
-            <label className="grid gap-2">
-              <span className="text-xs font-black text-slate-500">
-                שעת סיום
-              </span>
+                <input
+                  type="date"
+                  value={form.date}
+                  onChange={(event) => {
+                    const nextDate = event.target.value;
+                    const nextMonth = getMonthFromDate(nextDate);
 
-              <input
-                type="time"
-                value={form.scheduledEnd}
-                onChange={(event) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    scheduledEnd: event.target.value,
-                  }))
-                }
-                className="h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-900 outline-none focus:border-indigo-300 focus:bg-white"
-              />
-            </label>
+                    setForm((prev) => ({ ...prev, date: nextDate }));
 
-            <label className="grid gap-2">
-              <span className="text-xs font-black text-slate-500">
-                סוג מיקום
-              </span>
+                    if (nextMonth !== month) {
+                      setMonth(nextMonth);
+                    }
+                  }}
+                  className="h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-900 outline-none focus:border-indigo-300 focus:bg-white"
+                />
+              </label>
 
-              <select
-                value={form.locationType}
-                onChange={(event) =>
-                  setLocationType(event.target.value as LocationType)
-                }
-                className="h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-900 outline-none focus:border-indigo-300 focus:bg-white"
-              >
-                <option value="home">בית</option>
-                <option value="hall">אולם</option>
-              </select>
-            </label>
-
-            {form.locationType === "hall" ? (
-              <>
+              <div className="grid gap-4 md:grid-cols-2">
                 <label className="grid gap-2">
                   <span className="text-xs font-black text-slate-500">
-                    שם אולם
+                    שעת התחלה
                   </span>
 
                   <input
-                    value={form.locationName}
+                    type="time"
+                    value={form.scheduledStart}
                     onChange={(event) =>
                       setForm((prev) => ({
                         ...prev,
-                        locationName: event.target.value,
+                        scheduledStart: event.target.value,
                       }))
                     }
-                    placeholder="לדוגמה: טרויה"
                     className="h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-900 outline-none focus:border-indigo-300 focus:bg-white"
                   />
                 </label>
 
-                <label className="grid gap-2 xl:col-span-2">
+                <label className="grid gap-2">
                   <span className="text-xs font-black text-slate-500">
-                    מיקום / כתובת אולם
+                    שעת סיום
                   </span>
 
                   <input
-                    value={form.locationAddress}
+                    type="time"
+                    value={form.scheduledEnd}
                     onChange={(event) =>
                       setForm((prev) => ({
                         ...prev,
-                        locationAddress: event.target.value,
+                        scheduledEnd: event.target.value,
                       }))
                     }
-                    placeholder="כתובת מלאה או מיקום"
                     className="h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-900 outline-none focus:border-indigo-300 focus:bg-white"
                   />
                 </label>
-              </>
-            ) : (
-              <div className="rounded-[22px] border border-emerald-100 bg-emerald-50 p-4 md:col-span-2 xl:col-span-3">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-emerald-600">
-                    <Icon name="home" className="h-5 w-5" />
-                  </div>
+              </div>
 
-                  <div>
-                    <p className="text-sm font-black text-emerald-900">
-                      שיבוץ לבית
-                    </p>
-                    <p className="mt-1 text-xs font-bold leading-6 text-emerald-700">
-                      המיקום יילקח אוטומטית מכתובת העובד בתיק העובד:{" "}
-                      {selectedEmployee?.address || "אין כתובת שמורה לעובד"}
-                    </p>
+              <label className="grid gap-2">
+                <span className="text-xs font-black text-slate-500">
+                  סוג מיקום
+                </span>
+
+                <select
+                  value={form.locationType}
+                  onChange={(event) =>
+                    setLocationType(event.target.value as LocationType)
+                  }
+                  className="h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-900 outline-none focus:border-indigo-300 focus:bg-white"
+                >
+                  <option value="home">בית</option>
+                  <option value="hall">אולם</option>
+                </select>
+              </label>
+
+              {form.locationType === "hall" ? (
+                <>
+                  <label className="grid gap-2">
+                    <span className="text-xs font-black text-slate-500">
+                      שם אולם
+                    </span>
+
+                    <input
+                      value={form.locationName}
+                      onChange={(event) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          locationName: event.target.value,
+                        }))
+                      }
+                      placeholder="לדוגמה: טרויה"
+                      className="h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-900 outline-none focus:border-indigo-300 focus:bg-white"
+                    />
+                  </label>
+
+                  <label className="grid gap-2">
+                    <span className="text-xs font-black text-slate-500">
+                      מיקום / כתובת אולם
+                    </span>
+
+                    <input
+                      value={form.locationAddress}
+                      onChange={(event) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          locationAddress: event.target.value,
+                        }))
+                      }
+                      placeholder="כתובת מלאה או מיקום"
+                      className="h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-900 outline-none focus:border-indigo-300 focus:bg-white"
+                    />
+                  </label>
+                </>
+              ) : (
+                <div className="rounded-[22px] border border-emerald-100 bg-emerald-50 p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-emerald-600">
+                      <Icon name="home" className="h-5 w-5" />
+                    </div>
+
+                    <div>
+                      <p className="text-sm font-black text-emerald-900">
+                        שיבוץ לבית
+                      </p>
+                      <p className="mt-1 text-xs font-bold leading-6 text-emerald-700">
+                        המיקום יילקח אוטומטית מכתובת העובד בתיק העובד:{" "}
+                        {selectedEmployee?.address || "אין כתובת שמורה לעובד"}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            <label className="grid gap-2 md:col-span-2 xl:col-span-4">
-              <span className="text-xs font-black text-slate-500">הערה</span>
+              <label className="grid gap-2">
+                <span className="text-xs font-black text-slate-500">הערה</span>
 
-              <textarea
-                value={form.note}
-                onChange={(event) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    note: event.target.value,
-                  }))
-                }
-                rows={3}
-                placeholder="הערה פנימית לשיבוץ..."
-                className="resize-y rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:border-indigo-300 focus:bg-white"
-              />
-            </label>
-          </div>
-
-          <div className="mt-5 flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={() => void saveShift()}
-              disabled={saving}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-indigo-500 to-violet-500 px-5 text-sm font-black text-white shadow-lg shadow-indigo-100 transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <Icon name="save" className="h-4 w-4" />
-              {saving ? "שומר..." : "שמירת שיבוץ"}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setForm(getEmptyForm())}
-              className="inline-flex h-11 items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-700 transition hover:bg-slate-50"
-            >
-              ניקוי
-            </button>
-          </div>
-        </section>
-
-        <section className="rounded-[34px] border border-white bg-white p-5 shadow-[0_12px_35px_rgba(15,23,42,0.06)] md:p-6">
-          <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-            <div>
-              <h2 className="text-xl font-black text-slate-900">
-                שיבוצים קיימים — {monthLabel(month)}
-              </h2>
-
-              <p className="mt-1 text-sm font-semibold text-slate-500">
-                כל שיבוץ שמופיע כאן יסתנכרן לעמוד שעות עובד לפי אותו תאריך.
-              </p>
+                <textarea
+                  value={form.note}
+                  onChange={(event) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      note: event.target.value,
+                    }))
+                  }
+                  rows={3}
+                  placeholder="הערה פנימית לשיבוץ..."
+                  className="resize-y rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:border-indigo-300 focus:bg-white"
+                />
+              </label>
             </div>
 
-            <div className="text-sm font-black text-slate-500">
-              {loading ? "טוען..." : `${shifts.length} שיבוצים`}
-            </div>
-          </div>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => void saveShift()}
+                disabled={saving}
+                className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-indigo-500 to-violet-500 px-5 text-sm font-black text-white shadow-lg shadow-indigo-100 transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Icon name="save" className="h-4 w-4" />
+                {saving
+                  ? "שומר..."
+                  : editingShiftId
+                  ? "שמירת עריכה"
+                  : "שמירת שיבוץ"}
+              </button>
 
-          {loading ? (
-            <div className="mt-6 rounded-[26px] border border-slate-100 bg-slate-50 p-8 text-center">
-              <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-indigo-100 border-t-indigo-500" />
-              <p className="mt-3 text-sm font-black text-slate-500">
-                טוען שיבוצים...
-              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingShiftId("");
+                  setForm(getEmptyForm(selectedDate));
+                }}
+                className="inline-flex h-11 items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-700 transition hover:bg-slate-50"
+              >
+                ניקוי
+              </button>
             </div>
-          ) : shifts.length === 0 ? (
-            <div className="mt-6 rounded-[26px] border border-dashed border-indigo-200 bg-indigo-50/40 p-8 text-center">
-              <Icon
-                name="calendar"
-                className="mx-auto h-10 w-10 text-indigo-300"
-              />
-              <h3 className="mt-3 text-lg font-black text-slate-800">
-                אין שיבוצים לחודש הזה
+
+            <div className="mt-6 border-t border-slate-100 pt-5">
+              <h3 className="text-sm font-black text-slate-900">
+                שיבוצים בתאריך הנבחר
               </h3>
-              <p className="mt-1 text-sm font-semibold text-slate-500">
-                צרי שיבוץ חדש למעלה והוא יופיע כאן.
-              </p>
-            </div>
-          ) : (
-            <div className="mt-5 overflow-x-auto rounded-[26px] border border-slate-100">
-              <table className="w-full min-w-[1050px] border-collapse text-right">
-                <thead className="bg-slate-50">
-                  <tr className="text-xs text-slate-500">
-                    <th className="px-4 py-3 font-black">עובד</th>
-                    <th className="px-4 py-3 font-black">תאריך</th>
-                    <th className="px-4 py-3 font-black">יום</th>
-                    <th className="px-4 py-3 font-black">שעות</th>
-                    <th className="px-4 py-3 font-black">סוג</th>
-                    <th className="px-4 py-3 font-black">מיקום</th>
-                    <th className="px-4 py-3 font-black">הערה</th>
-                    <th className="px-4 py-3 font-black">פעולות</th>
-                  </tr>
-                </thead>
 
-                <tbody className="divide-y divide-slate-100">
-                  {shifts.map((shift) => (
-                    <tr
+              {selectedDateShifts.length === 0 ? (
+                <p className="mt-3 rounded-2xl bg-slate-50 p-4 text-sm font-bold text-slate-500">
+                  אין שיבוצים לתאריך הזה.
+                </p>
+              ) : (
+                <div className="mt-3 space-y-2">
+                  {selectedDateShifts.map((shift) => (
+                    <div
                       key={shift.id}
-                      className="transition hover:bg-indigo-50/30"
+                      className="rounded-[22px] border border-slate-100 bg-slate-50 p-4"
                     >
-                      <td className="px-4 py-4">
-                        <p className="text-sm font-black text-slate-900">
-                          {shift.employeeName || "עובד ללא שם"}
-                        </p>
-                        <p className="mt-1 text-xs font-bold text-slate-400">
-                          {shift.employeeEmail ||
-                            shift.employeePhone ||
-                            shift.employeeId}
-                        </p>
-                      </td>
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-black text-slate-900">
+                            {shift.employeeName}
+                          </p>
+                          <p className="mt-1 text-xs font-bold text-slate-500">
+                            {shift.scheduledStart || "—"} -{" "}
+                            {shift.scheduledEnd || "—"} ·{" "}
+                            {locationLabel(shift)}
+                          </p>
+                        </div>
 
-                      <td className="px-4 py-4 text-sm font-black text-slate-800">
-                        {formatDate(shift.date)}
-                      </td>
-
-                      <td className="px-4 py-4 text-sm font-bold text-slate-600">
-                        {shift.dayName || "—"}
-                      </td>
-
-                      <td className="px-4 py-4 text-sm font-black text-slate-800">
-                        {shift.scheduledStart || "—"} -{" "}
-                        {shift.scheduledEnd || "—"}
-                      </td>
-
-                      <td className="px-4 py-4">
                         <span
-                          className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-black ${
+                          className={`rounded-full border px-3 py-1 text-xs font-black ${
                             shift.locationType === "home"
                               ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                               : "border-violet-200 bg-violet-50 text-violet-700"
                           }`}
                         >
-                          <Icon
-                            name={
-                              shift.locationType === "home"
-                                ? "home"
-                                : "building"
-                            }
-                            className="h-3.5 w-3.5"
-                          />
                           {shift.locationType === "home" ? "בית" : "אולם"}
                         </span>
-                      </td>
+                      </div>
 
-                      <td className="px-4 py-4 text-sm font-bold text-slate-700">
-                        <span className="block max-w-[280px] truncate">
-                          {locationLabel(shift)}
-                        </span>
-                      </td>
+                      {shift.note ? (
+                        <p className="mt-2 text-xs font-semibold text-slate-500">
+                          {shift.note}
+                        </p>
+                      ) : null}
 
-                      <td className="px-4 py-4 text-sm font-semibold text-slate-500">
-                        <span className="block max-w-[260px] truncate">
-                          {shift.note || "—"}
-                        </span>
-                      </td>
+                      <div className="mt-3 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => editShift(shift)}
+                          className="inline-flex h-9 items-center justify-center gap-1 rounded-2xl border border-indigo-100 bg-indigo-50 px-3 text-xs font-black text-indigo-700 transition hover:bg-indigo-100"
+                        >
+                          <Icon name="edit" className="h-3.5 w-3.5" />
+                          עריכה
+                        </button>
 
-                      <td className="px-4 py-4">
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            onClick={() => editShift(shift)}
-                            className="inline-flex h-9 items-center justify-center gap-1 rounded-2xl border border-indigo-100 bg-indigo-50 px-3 text-xs font-black text-indigo-700 transition hover:bg-indigo-100"
-                          >
-                            <Icon name="edit" className="h-3.5 w-3.5" />
-                            עריכה
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => void deleteShift(shift.id)}
-                            className="inline-flex h-9 items-center justify-center gap-1 rounded-2xl border border-rose-100 bg-rose-50 px-3 text-xs font-black text-rose-600 transition hover:bg-rose-100"
-                          >
-                            <Icon name="trash" className="h-3.5 w-3.5" />
-                            מחיקה
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+                        <button
+                          type="button"
+                          onClick={() => void deleteShift(shift.id)}
+                          className="inline-flex h-9 items-center justify-center gap-1 rounded-2xl border border-rose-100 bg-rose-50 px-3 text-xs font-black text-rose-600 transition hover:bg-rose-100"
+                        >
+                          <Icon name="trash" className="h-3.5 w-3.5" />
+                          מחיקה
+                        </button>
+                      </div>
+                    </div>
                   ))}
-                </tbody>
-              </table>
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </section>
       </div>
     </div>
