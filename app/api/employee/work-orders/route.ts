@@ -16,6 +16,7 @@ export const dynamic = "force-dynamic";
 ============================================================ */
 
 const TIMEZONE = "Asia/Jerusalem";
+const DEBUG = true;
 
 const OPEN_TASK_STATUSES = [
   "pending",
@@ -55,8 +56,28 @@ type Summary = {
   remaining: number;
 };
 
+type MongoFilter = Record<string, any>;
+
 /* ============================================================
-   Helpers
+   Debug helpers
+============================================================ */
+
+function logDebug(label: string, data?: any) {
+  if (!DEBUG) return;
+
+  try {
+    console.log(`[EMPLOYEE_WORK_ORDERS_DEBUG] ${label}`, data ?? "");
+  } catch {
+    console.log(`[EMPLOYEE_WORK_ORDERS_DEBUG] ${label}`);
+  }
+}
+
+function logError(label: string, error?: any) {
+  console.error(`[EMPLOYEE_WORK_ORDERS_ERROR] ${label}`, error ?? "");
+}
+
+/* ============================================================
+   Basic helpers
 ============================================================ */
 
 function cleanStr(value: unknown) {
@@ -103,12 +124,11 @@ function toObjectId(value: unknown) {
 
 function safeNumber(value: unknown) {
   const n = Number(value || 0);
-
   return Number.isFinite(n) ? n : 0;
 }
 
 /* ============================================================
-   Timezone helpers - Asia/Jerusalem
+   Timezone helpers
 ============================================================ */
 
 function getTimeZoneParts(date: Date, timeZone = TIMEZONE) {
@@ -144,7 +164,6 @@ function getTimeZoneParts(date: Date, timeZone = TIMEZONE) {
 
 function getDateKeyInIsrael(date = new Date()) {
   const parts = getTimeZoneParts(date, TIMEZONE);
-
   return `${parts.year}-${pad2(parts.month)}-${pad2(parts.day)}`;
 }
 
@@ -238,7 +257,6 @@ async function getAuthUser(): Promise<AuthUser | null> {
   if (!token) return null;
 
   const secret = getJwtSecret();
-
   if (!secret) return null;
 
   try {
@@ -248,21 +266,22 @@ async function getAuthUser(): Promise<AuthUser | null> {
       decoded.id || decoded._id || decoded.userId || decoded.sub || ""
     );
 
-    if (!id) return null;
-
     return {
       id,
       role: decoded.role,
       email: decoded.email,
       name: decoded.name,
     };
-  } catch {
+  } catch (error) {
+    logError("JWT_VERIFY_FAILED", error);
     return null;
   }
 }
 
 async function requireEmployee() {
   const auth = await getAuthUser();
+
+  logDebug("AUTH_FROM_COOKIE", auth);
 
   if (!auth?.id && !auth?.email) {
     return {
@@ -280,7 +299,7 @@ async function requireEmployee() {
   const authObjectId = toObjectId(auth.id);
   const email = cleanStr(auth.email).toLowerCase();
 
-  const userConditions: any[] = [];
+  const userConditions: MongoFilter[] = [];
 
   if (authObjectId) {
     userConditions.push({ _id: authObjectId });
@@ -295,11 +314,15 @@ async function requireEmployee() {
     userConditions.push({ email });
   }
 
+  logDebug("USER_LOOKUP_CONDITIONS", userConditions);
+
   const currentUser = await User.findOne({
     $or: userConditions,
-  })
+  } as any)
     .select("_id id name email role phone")
     .lean();
+
+  logDebug("CURRENT_USER_FOUND", currentUser);
 
   if (!currentUser) {
     return {
@@ -308,6 +331,10 @@ async function requireEmployee() {
         {
           success: false,
           error: "משתמש לא נמצא",
+          debug: {
+            auth,
+            userConditions,
+          },
         },
         { status: 404 }
       ),
@@ -316,19 +343,6 @@ async function requireEmployee() {
 
   const employeeId = extractIdString((currentUser as any)._id || auth.id);
   const employeeObjectId = toObjectId(employeeId);
-
-  if (!employeeId && !email) {
-    return {
-      ok: false as const,
-      response: NextResponse.json(
-        {
-          success: false,
-          error: "מזהה עובד לא תקין",
-        },
-        { status: 400 }
-      ),
-    };
-  }
 
   return {
     ok: true as const,
@@ -346,7 +360,7 @@ async function requireEmployee() {
 }
 
 /* ============================================================
-   Task status logic
+   Status logic
 ============================================================ */
 
 function getTaskResultKey(task: any) {
@@ -359,7 +373,6 @@ function getTaskResultKey(task: any) {
   );
 
   const status = normalize(task?.status);
-
   const raw = result || status;
 
   if (
@@ -437,9 +450,7 @@ function getTaskResultKey(task: any) {
     return "wrong_number";
   }
 
-  if (
-    ["cancelled", "canceled", "cancel", "בוטל", "בוטלה"].includes(raw)
-  ) {
+  if (["cancelled", "canceled", "cancel", "בוטל", "בוטלה"].includes(raw)) {
     return "cancelled";
   }
 
@@ -462,9 +473,7 @@ function isTaskRemaining(task: any) {
   const status = normalize(task?.status);
   const result = normalize(task?.result || task?.callResult || task?.outcome);
 
-  if (result) {
-    return false;
-  }
+  if (result) return false;
 
   return OPEN_TASK_STATUSES.includes(status || "pending");
 }
@@ -476,13 +485,8 @@ function matchesStatusFilter(task: any, statusFilter: string) {
 
   const resultKey = getTaskResultKey(task);
 
-  if (filter === "open") {
-    return isTaskRemaining(task);
-  }
-
-  if (filter === "done") {
-    return !isTaskRemaining(task);
-  }
+  if (filter === "open") return isTaskRemaining(task);
+  if (filter === "done") return !isTaskRemaining(task);
 
   return resultKey === filter || normalize(task?.status) === filter;
 }
@@ -536,40 +540,39 @@ function countTasks(tasks: any[]) {
    Query helpers
 ============================================================ */
 
-function buildEmployeeTaskMatch(employee: EmployeeInfo) {
-  const idValues: any[] = [];
+function getEmployeeIdVariants(employee: EmployeeInfo) {
+  const values: any[] = [];
 
   if (employee.objectId) {
-    idValues.push(employee.objectId);
-    idValues.push(String(employee.objectId));
+    values.push(employee.objectId);
+    values.push(String(employee.objectId));
   }
 
   if (employee.id) {
-    idValues.push(employee.id);
+    values.push(employee.id);
+
+    const fromId = toObjectId(employee.id);
+    if (fromId) values.push(fromId);
   }
 
-  const uniqueValues: any[] = [];
+  const deduped = new Map<string, any>();
 
-  for (const value of idValues) {
-    const id = extractIdString(value);
-    if (!id) continue;
-
-    const objectId = toObjectId(id);
-
-    if (objectId) uniqueValues.push(objectId);
-    uniqueValues.push(id);
+  for (const value of values) {
+    if (!value) continue;
+    deduped.set(String(value), value);
   }
 
-  const uniqueIdValues = Array.from(
-    new Map(uniqueValues.map((value) => [String(value), value])).values()
-  );
+  return Array.from(deduped.values());
+}
 
-  const or: any[] = [];
+function buildEmployeeTaskMatch(employee: EmployeeInfo): MongoFilter {
+  const employeeIdValues = getEmployeeIdVariants(employee);
+  const or: MongoFilter[] = [];
 
-  if (uniqueIdValues.length) {
-    or.push({ employeeId: { $in: uniqueIdValues } });
-    or.push({ assignedEmployeeId: { $in: uniqueIdValues } });
-    or.push({ assignedToEmployeeId: { $in: uniqueIdValues } });
+  if (employeeIdValues.length) {
+    or.push({ employeeId: { $in: employeeIdValues } });
+    or.push({ assignedEmployeeId: { $in: employeeIdValues } });
+    or.push({ assignedToEmployeeId: { $in: employeeIdValues } });
   }
 
   if (employee.email) {
@@ -579,13 +582,19 @@ function buildEmployeeTaskMatch(employee: EmployeeInfo) {
   }
 
   if (!or.length) {
-    return { _id: null };
+    return {
+      _id: {
+        $exists: false,
+      },
+    };
   }
 
-  return { $or: or };
+  return {
+    $or: or,
+  };
 }
 
-function buildDateMatch(dateKey: string) {
+function buildDateMatch(dateKey: string): MongoFilter {
   const start = startOfDateKey(dateKey);
   const end = endOfDateKey(dateKey);
 
@@ -595,6 +604,7 @@ function buildDateMatch(dateKey: string) {
       { scheduledFor: { $gte: start, $lte: end } },
       { configuredRoundAt: { $gte: start, $lte: end } },
       { assignedAt: { $gte: start, $lte: end } },
+      { createdAt: { $gte: start, $lte: end } },
 
       { workDate: dateKey },
       { scheduledFor: dateKey },
@@ -613,11 +623,167 @@ function getSortDate(value: any) {
 
   const date = raw ? new Date(raw) : null;
 
-  if (!date || Number.isNaN(date.getTime())) {
-    return 0;
-  }
+  if (!date || Number.isNaN(date.getTime())) return 0;
 
   return date.getTime();
+}
+
+/* ============================================================
+   Debug counts
+============================================================ */
+
+async function safeCount(filter: MongoFilter) {
+  return CallTask.collection.countDocuments(filter as any);
+}
+
+async function safeFindOne(filter: MongoFilter, options?: any) {
+  return CallTask.collection.findOne(filter as any, options as any);
+}
+
+async function buildDebugCounts(input: {
+  employee: EmployeeInfo;
+  dateKey: string;
+  showAllDates: boolean;
+}) {
+  const { employee, dateKey, showAllDates } = input;
+
+  const employeeIdValues = getEmployeeIdVariants(employee);
+  const employeeObjectId = employee.objectId;
+  const employeeIdString = employee.id;
+
+  const dateMatch = buildDateMatch(dateKey);
+  const anyEmployeeMatch = buildEmployeeTaskMatch(employee);
+
+  const anyDateCount = await safeCount(anyEmployeeMatch);
+
+  const selectedDateCount = await safeCount({
+    $and: [anyEmployeeMatch, dateMatch],
+  });
+
+  const assignedToObjectIdCount = employeeObjectId
+    ? await safeCount({
+        assignedToEmployeeId: employeeObjectId,
+      })
+    : 0;
+
+  const assignedEmployeeObjectIdCount = employeeObjectId
+    ? await safeCount({
+        assignedEmployeeId: employeeObjectId,
+      })
+    : 0;
+
+  const employeeObjectIdCount = employeeObjectId
+    ? await safeCount({
+        employeeId: employeeObjectId,
+      })
+    : 0;
+
+  const assignedToStringCount = employeeIdString
+    ? await safeCount({
+        assignedToEmployeeId: employeeIdString,
+      })
+    : 0;
+
+  const assignedEmployeeStringCount = employeeIdString
+    ? await safeCount({
+        assignedEmployeeId: employeeIdString,
+      })
+    : 0;
+
+  const employeeStringCount = employeeIdString
+    ? await safeCount({
+        employeeId: employeeIdString,
+      })
+    : 0;
+
+  const emailCount = employee.email
+    ? await safeCount({
+        $or: [
+          { employeeEmail: employee.email },
+          { assignedEmployeeEmail: employee.email },
+          { assignedToEmployeeEmail: employee.email },
+        ],
+      })
+    : 0;
+
+  const latestTaskForEmployee = await safeFindOne(anyEmployeeMatch, {
+    sort: {
+      createdAt: -1,
+    },
+    projection: {
+      _id: 1,
+      workOrderId: 1,
+      invitationId: 1,
+      employeeId: 1,
+      assignedEmployeeId: 1,
+      assignedToEmployeeId: 1,
+      employeeEmail: 1,
+      guestName: 1,
+      guestPhone: 1,
+      workDate: 1,
+      scheduledFor: 1,
+      configuredRoundAt: 1,
+      status: 1,
+      result: 1,
+      round: 1,
+      createdAt: 1,
+    },
+  });
+
+  const latestAnyTask = await safeFindOne(
+    {},
+    {
+      sort: {
+        createdAt: -1,
+      },
+      projection: {
+        _id: 1,
+        workOrderId: 1,
+        invitationId: 1,
+        employeeId: 1,
+        assignedEmployeeId: 1,
+        assignedToEmployeeId: 1,
+        employeeEmail: 1,
+        guestName: 1,
+        guestPhone: 1,
+        workDate: 1,
+        scheduledFor: 1,
+        configuredRoundAt: 1,
+        status: 1,
+        result: 1,
+        round: 1,
+        createdAt: 1,
+      },
+    }
+  );
+
+  return {
+    employeeIdValues: employeeIdValues.map((value) => String(value)),
+    employeeObjectId: employeeObjectId ? String(employeeObjectId) : "",
+    employeeIdString,
+    employeeEmail: employee.email,
+
+    showAllDates,
+    dateKey,
+    dateStart: startOfDateKey(dateKey).toISOString(),
+    dateEnd: endOfDateKey(dateKey).toISOString(),
+
+    anyDateCount,
+    selectedDateCount,
+
+    assignedToObjectIdCount,
+    assignedEmployeeObjectIdCount,
+    employeeObjectIdCount,
+
+    assignedToStringCount,
+    assignedEmployeeStringCount,
+    employeeStringCount,
+
+    emailCount,
+
+    latestTaskForEmployee,
+    latestAnyTask,
+  };
 }
 
 /* ============================================================
@@ -714,7 +880,7 @@ function serializeWorkOrderFromGroup(input: {
 }
 
 /* ============================================================
-   GET - הוראות העבודה של העובד המחובר
+   GET
 ============================================================ */
 
 export async function GET(req: NextRequest) {
@@ -736,7 +902,6 @@ export async function GET(req: NextRequest) {
       url.searchParams.get("date") === "all";
 
     const dateKey = normalizeDateKey(url.searchParams.get("date"));
-
     const statusFilter = cleanStr(url.searchParams.get("status") || "all");
 
     const limit = Math.min(
@@ -746,27 +911,46 @@ export async function GET(req: NextRequest) {
 
     const employeeMatch = buildEmployeeTaskMatch(employee);
 
-    const andConditions: any[] = [employeeMatch];
+    const debugCounts = await buildDebugCounts({
+      employee,
+      dateKey,
+      showAllDates,
+    });
+
+    const andConditions: MongoFilter[] = [employeeMatch];
 
     if (!showAllDates) {
       andConditions.push(buildDateMatch(dateKey));
     }
 
-    const mongoQuery =
+    const mongoQuery: MongoFilter =
       andConditions.length === 1
         ? andConditions[0]
         : {
             $and: andConditions,
           };
 
+    logDebug("REQUEST_PARAMS", {
+      url: req.url,
+      dateKey,
+      showAllDates,
+      statusFilter,
+      limit,
+    });
+
+    logDebug("EMPLOYEE", employee);
+    logDebug("MONGO_QUERY", JSON.stringify(mongoQuery, null, 2));
+    logDebug("DEBUG_COUNTS_BEFORE_FIND", debugCounts);
+
     const allTasksForEmployee = await CallTask.collection
-      .find(mongoQuery)
+      .find(mongoQuery as any)
       .sort({
         workDate: -1,
         configuredRoundAt: -1,
+        scheduledFor: -1,
         createdAt: -1,
         sortOrder: 1,
-      })
+      } as any)
       .limit(50000)
       .toArray();
 
@@ -779,7 +963,7 @@ export async function GET(req: NextRequest) {
     const workOrderIdsMap = new Map<string, Types.ObjectId>();
 
     for (const task of filteredTasks) {
-      const workOrderObjectId = toObjectId(task?.workOrderId);
+      const workOrderObjectId = toObjectId((task as any)?.workOrderId);
 
       if (workOrderObjectId) {
         workOrderIdsMap.set(String(workOrderObjectId), workOrderObjectId);
@@ -794,26 +978,26 @@ export async function GET(req: NextRequest) {
             _id: {
               $in: workOrderIds,
             },
-          })
+          } as any)
           .toArray()
       : [];
 
     const workOrderById = new Map<string, any>();
 
     for (const order of workOrdersRaw) {
-      workOrderById.set(String(order._id), order);
+      workOrderById.set(String((order as any)._id), order);
     }
 
     const tasksByWorkOrder = new Map<string, any[]>();
 
     for (const task of filteredTasks) {
-      const workOrderId = extractIdString(task?.workOrderId);
+      const workOrderId = extractIdString((task as any)?.workOrderId);
 
       const groupKey =
         workOrderId ||
-        `${extractIdString(task?.invitationId)}:${safeNumber(
-          task?.round || task?.callRound || 1
-        )}:${extractIdString(task?.workDate)}`;
+        `${extractIdString((task as any)?.invitationId)}:${safeNumber(
+          (task as any)?.round || (task as any)?.callRound || 1
+        )}:${extractIdString((task as any)?.workDate)}`;
 
       if (!tasksByWorkOrder.has(groupKey)) {
         tasksByWorkOrder.set(groupKey, []);
@@ -842,6 +1026,30 @@ export async function GET(req: NextRequest) {
         safeNumber(order.myTasksRemaining) <= 0
     );
 
+    const debug = {
+      dateKey,
+      showAllDates,
+      statusFilter,
+      limit,
+
+      employeeId: employee.id,
+      employeeObjectId: employee.objectId ? String(employee.objectId) : "",
+      employeeEmail: employee.email,
+
+      rawTasksFound: allTasksForEmployee.length,
+      filteredTasksFound: filteredTasks.length,
+      workOrdersFound: serializedWorkOrders.length,
+
+      workOrderIds: workOrderIds.map((id) => String(id)),
+
+      debugCounts,
+
+      firstTaskFound: allTasksForEmployee[0] || null,
+      firstFilteredTask: filteredTasks[0] || null,
+    };
+
+    logDebug("RESULT_DEBUG", debug);
+
     return NextResponse.json({
       success: true,
 
@@ -859,19 +1067,10 @@ export async function GET(req: NextRequest) {
       activeWorkOrders,
       completedWorkOrders,
 
-      debug: {
-        dateKey,
-        showAllDates,
-        statusFilter,
-        employeeId: employee.id,
-        employeeEmail: employee.email,
-        rawTasksFound: allTasksForEmployee.length,
-        filteredTasksFound: filteredTasks.length,
-        workOrdersFound: serializedWorkOrders.length,
-      },
+      debug,
     });
   } catch (error: any) {
-    console.error("GET /api/employee/work-orders failed:", error);
+    logError("GET /api/employee/work-orders failed", error);
 
     return NextResponse.json(
       {
