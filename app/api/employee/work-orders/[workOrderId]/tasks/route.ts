@@ -31,6 +31,8 @@ type TaskStatus =
   | "declined"
   | "no_answer"
   | "callback"
+  | "undecided"
+  | "will_reply_message"
   | "wrong_number"
   | "completed"
   | "cancelled";
@@ -43,6 +45,8 @@ type TaskStatusCount = {
   declined: number;
   no_answer: number;
   callback: number;
+  undecided: number;
+  will_reply_message: number;
   wrong_number: number;
   completed: number;
   cancelled: number;
@@ -93,6 +97,18 @@ function getJwtSecret() {
   );
 }
 
+function toBool(value: unknown) {
+  const v = cleanStr(value).toLowerCase();
+
+  return (
+    value === true ||
+    value === 1 ||
+    v === "true" ||
+    v === "1" ||
+    v === "yes"
+  );
+}
+
 function isValidStatus(value: string): value is TaskStatus {
   return [
     "pending",
@@ -101,6 +117,8 @@ function isValidStatus(value: string): value is TaskStatus {
     "declined",
     "no_answer",
     "callback",
+    "undecided",
+    "will_reply_message",
     "wrong_number",
     "completed",
     "cancelled",
@@ -113,6 +131,8 @@ function isCompletedStatus(status: string) {
     "declined",
     "no_answer",
     "callback",
+    "undecided",
+    "will_reply_message",
     "wrong_number",
     "completed",
     "cancelled",
@@ -128,6 +148,8 @@ function emptyCounts(): TaskStatusCount {
     declined: 0,
     no_answer: 0,
     callback: 0,
+    undecided: 0,
+    will_reply_message: 0,
     wrong_number: 0,
     completed: 0,
     cancelled: 0,
@@ -135,17 +157,21 @@ function emptyCounts(): TaskStatusCount {
 }
 
 function addCount(target: TaskStatusCount, status: string, count: number) {
+  const normalized = cleanStr(status) || "pending";
+
   target.total += count;
 
-  if (status === "pending") target.pending += count;
-  if (status === "in_progress") target.in_progress += count;
-  if (status === "confirmed") target.confirmed += count;
-  if (status === "declined") target.declined += count;
-  if (status === "no_answer") target.no_answer += count;
-  if (status === "callback") target.callback += count;
-  if (status === "wrong_number") target.wrong_number += count;
-  if (status === "completed") target.completed += count;
-  if (status === "cancelled") target.cancelled += count;
+  if (normalized === "pending") target.pending += count;
+  if (normalized === "in_progress") target.in_progress += count;
+  if (normalized === "confirmed") target.confirmed += count;
+  if (normalized === "declined") target.declined += count;
+  if (normalized === "no_answer") target.no_answer += count;
+  if (normalized === "callback") target.callback += count;
+  if (normalized === "undecided") target.undecided += count;
+  if (normalized === "will_reply_message") target.will_reply_message += count;
+  if (normalized === "wrong_number") target.wrong_number += count;
+  if (normalized === "completed") target.completed += count;
+  if (normalized === "cancelled") target.cancelled += count;
 }
 
 function getCompletedFromCounts(counts: TaskStatusCount) {
@@ -154,6 +180,8 @@ function getCompletedFromCounts(counts: TaskStatusCount) {
     counts.declined +
     counts.no_answer +
     counts.callback +
+    counts.undecided +
+    counts.will_reply_message +
     counts.wrong_number +
     counts.completed +
     counts.cancelled
@@ -175,6 +203,8 @@ function normalizeStatusParam(value: unknown) {
       "declined",
       "no_answer",
       "callback",
+      "undecided",
+      "will_reply_message",
       "wrong_number",
       "completed",
       "cancelled",
@@ -233,8 +263,27 @@ function serializeWorkOrder(order: any, counts: TaskStatusCount) {
     myDeclinedTasks: counts.declined,
     myNoAnswerTasks: counts.no_answer,
     myCallbackTasks: counts.callback,
+    myUndecidedTasks: counts.undecided,
+    myWillReplyMessageTasks: counts.will_reply_message,
     myWrongNumberTasks: counts.wrong_number,
     myCancelledTasks: counts.cancelled,
+
+    totalTasks: counts.total,
+    completedTasks: completed,
+    remainingTasks: remaining,
+    progressPercent:
+      counts.total > 0 ? Math.round((completed / counts.total) * 100) : 0,
+
+    pendingTasks: counts.pending,
+    inProgressTasks: counts.in_progress,
+    confirmedTasks: counts.confirmed,
+    declinedTasks: counts.declined,
+    noAnswerTasks: counts.no_answer,
+    callbackTasks: counts.callback,
+    undecidedTasks: counts.undecided,
+    willReplyMessageTasks: counts.will_reply_message,
+    wrongNumberTasks: counts.wrong_number,
+    cancelledTasks: counts.cancelled,
 
     createdAt: order?.createdAt || null,
     updatedAt: order?.updatedAt || null,
@@ -416,6 +465,16 @@ async function requireEmployee() {
    Data
 ============================================================ */
 
+function buildEmployeeAssignmentMatch(employeeId: Types.ObjectId) {
+  return {
+    $or: [
+      { assignedToEmployeeId: employeeId },
+      { assignedEmployeeId: employeeId },
+      { employeeId },
+    ],
+  };
+}
+
 async function getCountsForEmployeeWorkOrder(input: {
   workOrderId: Types.ObjectId;
   employeeId: Types.ObjectId;
@@ -424,7 +483,7 @@ async function getCountsForEmployeeWorkOrder(input: {
     {
       $match: {
         workOrderId: input.workOrderId,
-        assignedToEmployeeId: input.employeeId,
+        ...buildEmployeeAssignmentMatch(input.employeeId),
       },
     },
     {
@@ -458,7 +517,7 @@ function buildTaskQuery(input: {
 
   const query: any = {
     workOrderId,
-    assignedToEmployeeId: employeeId,
+    ...buildEmployeeAssignmentMatch(employeeId),
   };
 
   const statusParam = normalizeStatusParam(searchParams.get("status"));
@@ -476,15 +535,19 @@ function buildTaskQuery(input: {
   if (q) {
     const regex = buildRegex(q);
 
-    query.$or = [
-      { guestName: regex },
-      { guestPhone: regex },
-      { guestEmail: regex },
-      { guestGroup: regex },
-      { guestSide: regex },
-      { guestTable: regex },
-      { note: regex },
-    ];
+    query.$and = query.$and || [];
+
+    query.$and.push({
+      $or: [
+        { guestName: regex },
+        { guestPhone: regex },
+        { guestEmail: regex },
+        { guestGroup: regex },
+        { guestSide: regex },
+        { guestTable: regex },
+        { note: regex },
+      ],
+    });
   }
 
   return query;
@@ -557,13 +620,24 @@ export async function GET(req: NextRequest, context: RouteContext) {
 
     const { searchParams } = new URL(req.url);
 
-    const page = Math.max(1, Number(searchParams.get("page") || 1));
-    const limit = Math.min(
-      300,
-      Math.max(1, Number(searchParams.get("limit") || 100))
+    const allMode =
+      toBool(searchParams.get("all")) ||
+      toBool(searchParams.get("noPagination")) ||
+      toBool(searchParams.get("full"));
+
+    const requestedPage = Math.max(1, Number(searchParams.get("page") || 1));
+    const requestedLimit = Math.max(
+      1,
+      Number(searchParams.get("limit") || 100)
     );
 
-    const skip = (page - 1) * limit;
+    const page = allMode ? 1 : requestedPage;
+
+    const limit = allMode
+      ? Math.min(5000, Math.max(1, requestedLimit))
+      : Math.min(300, Math.max(1, requestedLimit));
+
+    const skip = allMode ? 0 : (page - 1) * limit;
 
     const counts = await getCountsForEmployeeWorkOrder({
       workOrderId: workOrderObjectId,
@@ -603,11 +677,15 @@ export async function GET(req: NextRequest, context: RouteContext) {
 
     const totalFiltered = await CallTask.countDocuments(taskQuery);
 
-    const tasks = await CallTask.find(taskQuery)
-      .sort(getSort(searchParams))
-      .skip(skip)
-      .limit(limit)
-      .lean();
+    const tasksQuery = CallTask.find(taskQuery).sort(getSort(searchParams));
+
+    if (!allMode) {
+      tasksQuery.skip(skip).limit(limit);
+    } else {
+      tasksQuery.limit(limit);
+    }
+
+    const tasks = await tasksQuery.lean();
 
     const completed = getCompletedFromCounts(counts);
     const remaining = Math.max(0, counts.total - completed);
@@ -636,11 +714,12 @@ export async function GET(req: NextRequest, context: RouteContext) {
         page,
         limit,
         totalFiltered,
-        totalPages: Math.max(1, Math.ceil(totalFiltered / limit)),
-        hasNextPage: page * limit < totalFiltered,
-        hasPrevPage: page > 1,
+        totalPages: allMode ? 1 : Math.max(1, Math.ceil(totalFiltered / limit)),
+        hasNextPage: allMode ? false : page * limit < totalFiltered,
+        hasPrevPage: allMode ? false : page > 1,
       },
 
+      allMode,
       count: tasks.length,
       tasks: tasks.map(serializeTask),
     });

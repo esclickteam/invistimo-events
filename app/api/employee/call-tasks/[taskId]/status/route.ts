@@ -32,6 +32,8 @@ type TaskStatus =
   | "declined"
   | "no_answer"
   | "callback"
+  | "undecided"
+  | "will_reply_message"
   | "wrong_number"
   | "completed"
   | "cancelled";
@@ -41,6 +43,8 @@ type TaskResult =
   | "declined"
   | "no_answer"
   | "callback"
+  | "undecided"
+  | "will_reply_message"
   | "wrong_number"
   | "other"
   | null;
@@ -53,6 +57,8 @@ type StatusCounts = {
   declined: number;
   no_answer: number;
   callback: number;
+  undecided: number;
+  will_reply_message: number;
   wrong_number: number;
   completed: number;
   cancelled: number;
@@ -103,6 +109,26 @@ function getJwtSecret() {
   );
 }
 
+function toBool(value: unknown) {
+  const raw = cleanStr(value).toLowerCase();
+
+  return (
+    value === true ||
+    value === 1 ||
+    raw === "true" ||
+    raw === "1" ||
+    raw === "yes"
+  );
+}
+
+function normalizeRound(value: unknown) {
+  const n = Number(value || 1);
+
+  if (!Number.isFinite(n) || n < 1) return 1;
+
+  return Math.max(1, Math.min(10, Math.floor(n)));
+}
+
 function normalizeIncomingStatus(value: unknown): TaskStatus | "" {
   const raw = cleanStr(value).toLowerCase();
 
@@ -123,6 +149,8 @@ function normalizeIncomingStatus(value: unknown): TaskStatus | "" {
     approved: "confirmed",
     yes: "confirmed",
     attending: "confirmed",
+    arrive: "confirmed",
+    arrives: "confirmed",
     "אישר": "confirmed",
     "אישרה": "confirmed",
     "אישרו": "confirmed",
@@ -135,6 +163,7 @@ function normalizeIncomingStatus(value: unknown): TaskStatus | "" {
     rejected: "declined",
     no: "declined",
     not_coming: "declined",
+    not_attending: "declined",
     notcoming: "declined",
     "לא מגיע": "declined",
     "לא מגיעה": "declined",
@@ -159,6 +188,30 @@ function normalizeIncomingStatus(value: unknown): TaskStatus | "" {
     "לחזור אליו": "callback",
     "לחזור אליה": "callback",
     "להתקשר שוב": "callback",
+    "ביקש לחזור אליו": "callback",
+    "ביקשה לחזור אליה": "callback",
+
+    undecided: "undecided",
+    maybe: "undecided",
+    thinking: "undecided",
+    hesitating: "undecided",
+    "מתלבט": "undecided",
+    "מתלבטת": "undecided",
+    "מתלבטים": "undecided",
+
+    will_reply_message: "will_reply_message",
+    will_reply: "will_reply_message",
+    reply_message: "will_reply_message",
+    message: "will_reply_message",
+    whatsapp_reply: "will_reply_message",
+    "ישיב בהודעה": "will_reply_message",
+    "תשיב בהודעה": "will_reply_message",
+    "ישיב בוואטסאפ": "will_reply_message",
+    "תשיב בוואטסאפ": "will_reply_message",
+    "לא לחזור אליו": "will_reply_message",
+    "לא לחזור אליה": "will_reply_message",
+    "ביקש שלא יחזרו אליו": "will_reply_message",
+    "ביקשה שלא יחזרו אליה": "will_reply_message",
 
     wrong_number: "wrong_number",
     wrongnumber: "wrong_number",
@@ -166,6 +219,7 @@ function normalizeIncomingStatus(value: unknown): TaskStatus | "" {
     invalid_number: "wrong_number",
     "מספר שגוי": "wrong_number",
     "טלפון שגוי": "wrong_number",
+    "מספר לא תקין": "wrong_number",
 
     completed: "completed",
     done: "completed",
@@ -184,9 +238,23 @@ function isCompletedStatus(status: string) {
     "declined",
     "no_answer",
     "callback",
+    "undecided",
+    "will_reply_message",
     "wrong_number",
     "completed",
     "cancelled",
+  ].includes(status);
+}
+
+function isCallResultStatus(status: string) {
+  return [
+    "confirmed",
+    "declined",
+    "no_answer",
+    "callback",
+    "undecided",
+    "will_reply_message",
+    "wrong_number",
   ].includes(status);
 }
 
@@ -195,21 +263,23 @@ function getResultFromStatus(status: TaskStatus): TaskResult {
   if (status === "declined") return "declined";
   if (status === "no_answer") return "no_answer";
   if (status === "callback") return "callback";
+  if (status === "undecided") return "undecided";
+  if (status === "will_reply_message") return "will_reply_message";
   if (status === "wrong_number") return "wrong_number";
   if (status === "completed") return "other";
 
   return null;
 }
 
-function getRsvpStatusFromTaskStatus(status: TaskStatus) {
-  if (status === "confirmed") return "confirmed";
-  if (status === "declined") return "declined";
+function getTaskRsvpStatus(status: TaskStatus) {
+  if (status === "confirmed") return "attending";
+  if (status === "declined") return "not_attending";
+  if (status === "wrong_number") return "wrong_number";
+  if (status === "undecided") return "undecided";
+  if (status === "callback") return "callback";
+  if (status === "will_reply_message") return "will_reply_message";
+  if (status === "no_answer") return "no_answer";
 
-  /**
-   * חשוב:
-   * בסבב 2/3 אנחנו רוצים שהאורח עדיין ייחשב "ממתין",
-   * לכן ב"לא ענה" לא משנים אותו ל־no_answer ברשומת האורח.
-   */
   return "pending";
 }
 
@@ -236,6 +306,8 @@ function emptyCounts(): StatusCounts {
     declined: 0,
     no_answer: 0,
     callback: 0,
+    undecided: 0,
+    will_reply_message: 0,
     wrong_number: 0,
     completed: 0,
     cancelled: 0,
@@ -243,17 +315,21 @@ function emptyCounts(): StatusCounts {
 }
 
 function addCount(target: StatusCounts, status: string, count: number) {
+  const normalized = cleanStr(status) || "pending";
+
   target.total += count;
 
-  if (status === "pending") target.pending += count;
-  if (status === "in_progress") target.in_progress += count;
-  if (status === "confirmed") target.confirmed += count;
-  if (status === "declined") target.declined += count;
-  if (status === "no_answer") target.no_answer += count;
-  if (status === "callback") target.callback += count;
-  if (status === "wrong_number") target.wrong_number += count;
-  if (status === "completed") target.completed += count;
-  if (status === "cancelled") target.cancelled += count;
+  if (normalized === "pending") target.pending += count;
+  if (normalized === "in_progress") target.in_progress += count;
+  if (normalized === "confirmed") target.confirmed += count;
+  if (normalized === "declined") target.declined += count;
+  if (normalized === "no_answer") target.no_answer += count;
+  if (normalized === "callback") target.callback += count;
+  if (normalized === "undecided") target.undecided += count;
+  if (normalized === "will_reply_message") target.will_reply_message += count;
+  if (normalized === "wrong_number") target.wrong_number += count;
+  if (normalized === "completed") target.completed += count;
+  if (normalized === "cancelled") target.cancelled += count;
 }
 
 function getCompletedFromCounts(counts: StatusCounts) {
@@ -262,6 +338,8 @@ function getCompletedFromCounts(counts: StatusCounts) {
     counts.declined +
     counts.no_answer +
     counts.callback +
+    counts.undecided +
+    counts.will_reply_message +
     counts.wrong_number +
     counts.completed +
     counts.cancelled
@@ -284,6 +362,10 @@ function serializeTask(task: any) {
     assignedToEmployeeId: task?.assignedToEmployeeId
       ? String(task.assignedToEmployeeId)
       : "",
+    assignedEmployeeId: task?.assignedEmployeeId
+      ? String(task.assignedEmployeeId)
+      : "",
+    employeeId: task?.employeeId ? String(task.employeeId) : "",
 
     clientName: cleanStr(task?.clientName),
     clientEmail: cleanStr(task?.clientEmail),
@@ -371,8 +453,27 @@ function serializeWorkOrder(order: any, counts: StatusCounts) {
     declinedTasks: counts.declined,
     noAnswerTasks: counts.no_answer,
     callbackTasks: counts.callback,
+    undecidedTasks: counts.undecided,
+    willReplyMessageTasks: counts.will_reply_message,
     wrongNumberTasks: counts.wrong_number,
     cancelledTasks: counts.cancelled,
+
+    myTasksTotal: counts.total,
+    myTasksCompleted: completed,
+    myTasksRemaining: remaining,
+    myProgressPercent:
+      counts.total > 0 ? Math.round((completed / counts.total) * 100) : 0,
+
+    myPendingTasks: counts.pending,
+    myInProgressTasks: counts.in_progress,
+    myConfirmedTasks: counts.confirmed,
+    myDeclinedTasks: counts.declined,
+    myNoAnswerTasks: counts.no_answer,
+    myCallbackTasks: counts.callback,
+    myUndecidedTasks: counts.undecided,
+    myWillReplyMessageTasks: counts.will_reply_message,
+    myWrongNumberTasks: counts.wrong_number,
+    myCancelledTasks: counts.cancelled,
 
     createdAt: order?.createdAt || null,
     updatedAt: order?.updatedAt || null,
@@ -497,6 +598,16 @@ async function requireEmployee() {
    Sync helpers
 ============================================================ */
 
+function buildEmployeeAssignmentMatch(employeeId: Types.ObjectId) {
+  return {
+    $or: [
+      { assignedToEmployeeId: employeeId },
+      { assignedEmployeeId: employeeId },
+      { employeeId },
+    ],
+  };
+}
+
 async function getCountsForWorkOrder(workOrderId: Types.ObjectId) {
   const rows = await CallTask.aggregate([
     {
@@ -533,9 +644,22 @@ async function syncWorkOrderStatus(workOrderId: Types.ObjectId) {
 
   const unassignedTasks = await CallTask.countDocuments({
     workOrderId,
-    $or: [
-      { assignedToEmployeeId: null },
-      { assignedToEmployeeId: { $exists: false } },
+    $and: [
+      {
+        $or: [
+          { assignedToEmployeeId: null },
+          { assignedToEmployeeId: { $exists: false } },
+        ],
+      },
+      {
+        $or: [
+          { assignedEmployeeId: null },
+          { assignedEmployeeId: { $exists: false } },
+        ],
+      },
+      {
+        $or: [{ employeeId: null }, { employeeId: { $exists: false } }],
+      },
     ],
   });
 
@@ -554,11 +678,16 @@ async function syncWorkOrderStatus(workOrderId: Types.ObjectId) {
     pendingTasks: counts.pending,
     inProgressTasks: counts.in_progress,
     completedTasks: completed,
+
     confirmedTasks: counts.confirmed,
     declinedTasks: counts.declined,
     noAnswerTasks: counts.no_answer,
     callbackTasks: counts.callback,
+    undecidedTasks: counts.undecided,
+    willReplyMessageTasks: counts.will_reply_message,
     wrongNumberTasks: counts.wrong_number,
+    cancelledTasks: counts.cancelled,
+
     unassignedTasks,
 
     lastStatusSyncAt: new Date(),
@@ -566,6 +695,8 @@ async function syncWorkOrderStatus(workOrderId: Types.ObjectId) {
 
   if (nextStatus === "completed") {
     update.completedAt = new Date();
+  } else {
+    update.completedAt = null;
   }
 
   const workOrder = await CallWorkOrder.findByIdAndUpdate(
@@ -584,69 +715,244 @@ async function syncWorkOrderStatus(workOrderId: Types.ObjectId) {
   };
 }
 
+async function syncDuplicateGuestRoundTasks(input: {
+  task: any;
+  status: TaskStatus;
+  note: string;
+  attendingCount?: number;
+  now: Date;
+}) {
+  if (!isCallResultStatus(input.status)) return;
+
+  const workOrderObjectId = toObjectId(input.task?.workOrderId);
+  const guestObjectId = toObjectId(input.task?.guestId);
+
+  if (!workOrderObjectId || !guestObjectId) return;
+
+  const round = normalizeRound(input.task?.round || 1);
+
+  const set: Record<string, any> = {
+    status: input.status,
+    result: getResultFromStatus(input.status),
+    rsvpStatus: getTaskRsvpStatus(input.status),
+    completedAt: input.now,
+    lastAttemptAt: input.now,
+    updatedAt: input.now,
+  };
+
+  if (input.note) {
+    set.note = input.note;
+  }
+
+  if (input.attendingCount !== undefined) {
+    set.attendingCount = input.attendingCount;
+  }
+
+  await CallTask.updateMany(
+    {
+      _id: {
+        $ne: toObjectId(input.task?._id),
+      },
+      workOrderId: workOrderObjectId,
+      guestId: guestObjectId,
+      round,
+      status: {
+        $ne: "cancelled",
+      },
+    },
+    {
+      $set: set,
+    }
+  );
+}
+
 async function syncInvitationGuest(input: {
   task: any;
   status: TaskStatus;
   note: string;
   attendingCount?: number;
   employeeId: Types.ObjectId;
+  now: Date;
 }) {
+  if (!isCallResultStatus(input.status)) return;
+
   const guestObjectId = toObjectId(input.task?.guestId);
 
   if (!guestObjectId) return;
 
-  const now = new Date();
-
-  const rsvpStatus = getRsvpStatusFromTaskStatus(input.status);
+  const round = normalizeRound(input.task?.round || 1);
+  const roundKey = `round${round}`;
+  const taskObjectId = toObjectId(input.task?._id);
+  const workOrderObjectId = toObjectId(input.task?.workOrderId);
+  const result = getResultFromStatus(input.status);
+  const guestRsvpStatus = getTaskRsvpStatus(input.status);
 
   const set: Record<string, any> = {
     lastCallStatus: input.status,
-    lastCallResult: getResultFromStatus(input.status),
-    lastCallRound: Number(input.task?.round || 1),
-    lastCallAt: now,
-    lastCallTaskId: toObjectId(input.task?._id),
-    lastCallWorkOrderId: toObjectId(input.task?.workOrderId),
+    lastCallResult: result,
+    lastCallRound: round,
+    lastCallAt: input.now,
+    lastCallTaskId: taskObjectId,
+    lastCallWorkOrderId: workOrderObjectId,
     lastCallEmployeeId: input.employeeId,
+
+    callStatus: input.status,
+    callResult: result,
+    callRound: round,
+    callCompleted: true,
+    callCompletedAt: input.now,
+
+    rsvpCallStatus: input.status,
+    rsvpCallResult: result,
+    rsvpCallRound: round,
+    rsvpCallCompletedAt: input.now,
+
+    [`callRounds.${roundKey}.status`]: input.status,
+    [`callRounds.${roundKey}.result`]: result,
+    [`callRounds.${roundKey}.completed`]: true,
+    [`callRounds.${roundKey}.completedAt`]: input.now,
+    [`callRounds.${roundKey}.taskId`]: taskObjectId,
+    [`callRounds.${roundKey}.workOrderId`]: workOrderObjectId,
+    [`callRounds.${roundKey}.employeeId`]: input.employeeId,
+    [`callRounds.${roundKey}.note`]: input.note || "",
+
+    [`rsvpCallRounds.${roundKey}.status`]: input.status,
+    [`rsvpCallRounds.${roundKey}.result`]: result,
+    [`rsvpCallRounds.${roundKey}.completed`]: true,
+    [`rsvpCallRounds.${roundKey}.completedAt`]: input.now,
+
+    [`${roundKey}CallStatus`]: input.status,
+    [`${roundKey}CallResult`]: result,
+    [`${roundKey}CallCompleted`]: true,
+    [`${roundKey}CallCompletedAt`]: input.now,
+
+    updatedByCallTaskAt: input.now,
   };
 
-  if (input.note) {
-    set.lastCallNote = input.note;
+  if (input.note || input.note === "") {
+    set.lastCallNote = input.note || "";
+    set.callNote = input.note || "";
   }
 
-  /**
-   * רק אם האורח אישר / סירב — מעדכנים RSVP אמיתי.
-   * אם לא ענה / לחזור אליו — נשאר pending כדי שיוכל להיכנס לסבבים הבאים.
-   */
-  if (input.status === "confirmed" || input.status === "declined") {
-    set.rsvp = rsvpStatus;
-    set.rsvpStatus = rsvpStatus;
-    set.attendanceStatus = rsvpStatus;
-    set.respondedAt = now;
-    set.updatedByCallTaskAt = now;
-  }
+  if (input.status === "confirmed") {
+    const count =
+      input.attendingCount !== undefined && input.attendingCount > 0
+        ? input.attendingCount
+        : 1;
 
-  if (input.status === "confirmed" && input.attendingCount !== undefined) {
-    set.attendingCount = input.attendingCount;
-    set.guestsCount = input.attendingCount;
+    set.rsvp = "attending";
+    set.rsvpStatus = "attending";
+    set.attendanceStatus = "attending";
+    set.responseStatus = "attending";
+    set.finalRsvpStatus = "attending";
+
+    set.isRsvpFinal = true;
+    set.rsvpFinal = true;
+    set.rsvpOpen = false;
+    set.respondedAt = input.now;
+    set.respondedVia = "call";
+
+    set.attending = true;
+    set.isAttending = true;
+
+    set.attendingCount = count;
+    set.guestsCount = count;
+    set.confirmedGuests = count;
+    set.arrivingGuests = count;
+    set.numberOfGuests = count;
   }
 
   if (input.status === "declined") {
+    set.rsvp = "not_attending";
+    set.rsvpStatus = "not_attending";
+    set.attendanceStatus = "not_attending";
+    set.responseStatus = "not_attending";
+    set.finalRsvpStatus = "not_attending";
+
+    set.isRsvpFinal = true;
+    set.rsvpFinal = true;
+    set.rsvpOpen = false;
+    set.respondedAt = input.now;
+    set.respondedVia = "call";
+
+    set.attending = false;
+    set.isAttending = false;
+
     set.attendingCount = 0;
     set.guestsCount = 0;
+    set.confirmedGuests = 0;
+    set.arrivingGuests = 0;
+    set.numberOfGuests = 0;
+  }
+
+  if (input.status === "wrong_number") {
+    set.rsvp = "wrong_number";
+    set.rsvpStatus = "wrong_number";
+    set.attendanceStatus = "wrong_number";
+    set.responseStatus = "wrong_number";
+    set.finalRsvpStatus = "wrong_number";
+
+    set.isRsvpFinal = true;
+    set.rsvpFinal = true;
+    set.rsvpOpen = false;
+    set.respondedAt = input.now;
+    set.respondedVia = "call";
+
+    set.phoneInvalid = true;
+    set.invalidPhone = true;
+    set.isWrongNumber = true;
+
+    set.attending = false;
+    set.isAttending = false;
+
+    set.attendingCount = 0;
+    set.guestsCount = 0;
+    set.confirmedGuests = 0;
+    set.arrivingGuests = 0;
+    set.numberOfGuests = 0;
+  }
+
+  if (
+    input.status === "no_answer" ||
+    input.status === "callback" ||
+    input.status === "undecided" ||
+    input.status === "will_reply_message"
+  ) {
+    set.rsvpStatus = guestRsvpStatus;
+    set.responseStatus = guestRsvpStatus;
+
+    set.rsvp = "pending";
+    set.attendanceStatus = "pending";
+    set.finalRsvpStatus = "pending";
+
+    set.isRsvpFinal = false;
+    set.rsvpFinal = false;
+    set.rsvpOpen = true;
+
+    set.pendingReason = input.status;
+    set.pendingCallStatus = input.status;
+
+    set.needsFollowUp = input.status === "callback";
+    set.isUndecided = input.status === "undecided";
+    set.willReplyMessage = input.status === "will_reply_message";
+    set.requestedNoMoreCalls = input.status === "will_reply_message";
   }
 
   const updatePayload: any = {
     $set: set,
     $push: {
       callHistory: {
-        taskId: toObjectId(input.task?._id),
-        workOrderId: toObjectId(input.task?.workOrderId),
+        taskId: taskObjectId,
+        workOrderId: workOrderObjectId,
         employeeId: input.employeeId,
-        round: Number(input.task?.round || 1),
+        round,
         status: input.status,
-        result: getResultFromStatus(input.status),
+        result,
+        rsvpStatus: guestRsvpStatus,
+        attendingCount:
+          input.attendingCount !== undefined ? input.attendingCount : null,
         note: input.note || "",
-        at: now,
+        at: input.now,
       },
     },
   };
@@ -658,6 +964,7 @@ async function syncInvitationGuest(input: {
     updatePayload
   );
 }
+
 /* ============================================================
    Main update
 ============================================================ */
@@ -689,15 +996,24 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
     const body = await req.json().catch(() => ({}));
 
     const incomingStatus = normalizeIncomingStatus(
-      body?.status || body?.result || body?.callStatus
+      body?.status ||
+        body?.result ||
+        body?.callStatus ||
+        body?.callResult ||
+        body?.rsvpStatus ||
+        body?.guestRsvpStatus
     );
 
     const note = cleanStr(body?.note ?? body?.comment ?? body?.notes);
-    const attendingCount = parseOptionalNumber(
-      body?.attendingCount ?? body?.guestsCount ?? body?.count
+
+    const requestedAttendingCount = parseOptionalNumber(
+      body?.attendingCount ??
+        body?.confirmedCount ??
+        body?.guestsCount ??
+        body?.count
     );
 
-    if (!incomingStatus && !note && attendingCount === undefined) {
+    if (!incomingStatus && !note && requestedAttendingCount === undefined) {
       return NextResponse.json(
         {
           success: false,
@@ -707,9 +1023,11 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
       );
     }
 
+    const assignmentMatch = buildEmployeeAssignmentMatch(employee.employeeId);
+
     const existingTask = await CallTask.findOne({
       _id: taskObjectId,
-      assignedToEmployeeId: employee.employeeId,
+      ...assignmentMatch,
     }).lean();
 
     if (!existingTask) {
@@ -736,35 +1054,64 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
     }
 
     const now = new Date();
+    const round = normalizeRound(body?.round || (existingTask as any)?.round || 1);
+
+    let attendingCount = requestedAttendingCount;
+
+    if (nextStatus === "confirmed") {
+      const existingCount =
+        typeof (existingTask as any)?.attendingCount === "number"
+          ? (existingTask as any).attendingCount
+          : undefined;
+
+      attendingCount =
+        requestedAttendingCount !== undefined && requestedAttendingCount > 0
+          ? requestedAttendingCount
+          : existingCount && existingCount > 0
+            ? existingCount
+            : 1;
+    }
+
+    if (nextStatus === "declined" || nextStatus === "wrong_number") {
+      attendingCount = 0;
+    }
+
+    const isFinal = isCompletedStatus(nextStatus);
+    const result = getResultFromStatus(nextStatus);
+    const taskRsvpStatus = getTaskRsvpStatus(nextStatus);
 
     const $set: Record<string, any> = {
       updatedAt: now,
     };
 
     const $inc: Record<string, number> = {};
-
     const $unset: Record<string, any> = {};
 
     if (incomingStatus) {
       $set.status = nextStatus;
-      $set.result = getResultFromStatus(nextStatus);
-      $set.rsvpStatus = getRsvpStatusFromTaskStatus(nextStatus);
+      $set.result = result;
+      $set.rsvpStatus = taskRsvpStatus;
+      $set.round = round;
       $set.lastAttemptAt = now;
 
       if (nextStatus === "in_progress") {
         $set.startedAt = (existingTask as any)?.startedAt || now;
       }
 
-      if (isCompletedStatus(nextStatus)) {
+      if (isFinal) {
         $set.completedAt = (existingTask as any)?.completedAt || now;
+        $set.isCompleted = true;
+        $set.completed = true;
       }
 
       if (nextStatus === "pending") {
         $unset.completedAt = "";
         $unset.result = "";
+        $set.isCompleted = false;
+        $set.completed = false;
       }
 
-      if (oldStatus !== nextStatus && isCompletedStatus(nextStatus)) {
+      if (oldStatus !== nextStatus && isFinal) {
         $inc.attemptsCount = 1;
       }
     }
@@ -775,6 +1122,13 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
 
     if (attendingCount !== undefined) {
       $set.attendingCount = attendingCount;
+      $set.confirmedCount = attendingCount;
+      $set.guestsCount = attendingCount;
+    }
+
+    if (nextStatus === "wrong_number") {
+      $set.phoneInvalid = true;
+      $set.invalidPhone = true;
     }
 
     const update: any = {};
@@ -786,7 +1140,7 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
     const updatedTask = await CallTask.findOneAndUpdate(
       {
         _id: taskObjectId,
-        assignedToEmployeeId: employee.employeeId,
+        ...assignmentMatch,
       },
       update,
       {
@@ -804,13 +1158,24 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
       );
     }
 
-    await syncInvitationGuest({
-      task: updatedTask,
-      status: nextStatus,
-      note,
-      attendingCount,
-      employeeId: employee.employeeId,
-    });
+    if (incomingStatus && isCallResultStatus(nextStatus)) {
+      await syncInvitationGuest({
+        task: updatedTask,
+        status: nextStatus,
+        note,
+        attendingCount,
+        employeeId: employee.employeeId,
+        now,
+      });
+
+      await syncDuplicateGuestRoundTasks({
+        task: updatedTask,
+        status: nextStatus,
+        note,
+        attendingCount,
+        now,
+      });
+    }
 
     const workOrderObjectId = toObjectId((updatedTask as any)?.workOrderId);
 
@@ -825,7 +1190,9 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
 
     return NextResponse.json({
       success: true,
-      message: "סטטוס השיחה עודכן בהצלחה",
+      message: isCallResultStatus(nextStatus)
+        ? "השיחה עודכנה, האורח סומן כבוצע וה-RSVP עודכן"
+        : "סטטוס השיחה עודכן בהצלחה",
 
       employee: {
         id: employee.employeeIdString,

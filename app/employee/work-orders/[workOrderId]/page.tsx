@@ -5,6 +5,13 @@ import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 /* ============================================================
+   Constants
+============================================================ */
+
+const TASKS_PAGE_LIMIT = 5000;
+const MAX_AUTO_PAGES = 50;
+
+/* ============================================================
    Types
 ============================================================ */
 
@@ -15,6 +22,8 @@ type TaskStatus =
   | "declined"
   | "no_answer"
   | "callback"
+  | "undecided"
+  | "will_reply_message"
   | "wrong_number"
   | "completed"
   | "cancelled";
@@ -77,6 +86,8 @@ type WorkOrder = {
   declinedTasks?: number;
   noAnswerTasks?: number;
   callbackTasks?: number;
+  undecidedTasks?: number;
+  willReplyMessageTasks?: number;
   wrongNumberTasks?: number;
   cancelledTasks?: number;
 
@@ -143,6 +154,8 @@ type Summary = {
   declined: number;
   no_answer: number;
   callback: number;
+  undecided?: number;
+  will_reply_message?: number;
   wrong_number: number;
   completed: number;
   cancelled: number;
@@ -224,16 +237,20 @@ function getStatusLabel(status: string) {
   const map: Record<string, string> = {
     pending: "ממתין",
     in_progress: "בטיפול",
-    confirmed: "אישר הגעה",
+    confirmed: "מגיע",
     declined: "לא מגיע",
     no_answer: "לא ענה",
     callback: "לחזור אליו",
+    undecided: "מתלבט",
+    will_reply_message: "ישיב בהודעה",
     wrong_number: "מספר שגוי",
     completed: "הושלם",
     cancelled: "בוטל",
 
     scheduled: "מתוזמן",
     open: "פתוח",
+    assigned: "משויך",
+    active: "פעיל",
     paused: "מוקפא",
   };
 
@@ -245,6 +262,8 @@ function getStatusClass(status: string) {
   if (status === "declined") return "bad";
   if (status === "no_answer") return "warn";
   if (status === "callback") return "info";
+  if (status === "undecided") return "purple";
+  if (status === "will_reply_message") return "cyan";
   if (status === "wrong_number") return "danger";
   if (status === "in_progress") return "active";
   if (status === "completed") return "good";
@@ -263,9 +282,11 @@ function getRoundLabel(round: number) {
 
 function getAudienceLabel(sourceAudience: string) {
   const map: Record<string, string> = {
-    pending_rsvp: "כל הממתינים",
-    round_1_no_answer: "לא ענו בסבב 1",
-    round_2_no_answer: "לא ענו בסבב 2",
+    pending_rsvp: "סבב 1 - כל מי שממתין לתשובה",
+    round_1_no_answer: "סבב 2 - מי שלא ענה בסבב 1",
+    round_2_no_answer: "סבב 3 - מי שלא ענה בסבב 2",
+    all_pending: "כל הממתינים",
+    no_response: "ללא תשובה",
   };
 
   return map[sourceAudience] || sourceAudience || "—";
@@ -275,8 +296,25 @@ function normalizePhone(phone: string) {
   return cleanText(phone).replace(/[^\d+]/g, "");
 }
 
+function getTaskId(task: CallTask) {
+  return String(task.id || task._id || "");
+}
+
+function isFinalResultStatus(status: TaskStatus) {
+  return (
+    status === "confirmed" ||
+    status === "declined" ||
+    status === "no_answer" ||
+    status === "callback" ||
+    status === "undecided" ||
+    status === "will_reply_message" ||
+    status === "wrong_number"
+  );
+}
+
 function isOpenTask(task: CallTask) {
   const status = String(task.status || "");
+
   return (
     status === "pending" ||
     status === "in_progress" ||
@@ -290,16 +328,71 @@ function statusButtonLabel(status: TaskStatus) {
   const map: Record<TaskStatus, string> = {
     pending: "ממתין",
     in_progress: "בטיפול",
-    confirmed: "אישר",
+    confirmed: "מגיע",
     declined: "לא מגיע",
     no_answer: "לא ענה",
     callback: "לחזור אליו",
+    undecided: "מתלבט",
+    will_reply_message: "ישיב בהודעה",
     wrong_number: "מספר שגוי",
     completed: "הושלם",
     cancelled: "בוטל",
   };
 
   return map[status] || status;
+}
+
+function getResultHelp(status: TaskStatus) {
+  const map: Record<TaskStatus, string> = {
+    pending: "השיחה עדיין ממתינה לטיפול.",
+    in_progress: "השיחה נמצאת בטיפול.",
+    confirmed: "יעדכן את ה-RSVP של האורח כמגיע ואת כמות המגיעים.",
+    declined: "יעדכן את ה-RSVP של האורח כלא מגיע וכמות מגיעים 0.",
+    no_answer: "יסמן שלא הייתה תשובה בסבב הזה. האורח ייחשב בוצע בסבב הנוכחי.",
+    callback: "יסמן שהאורח ביקש שיחזרו אליו. האורח ייחשב בוצע בסבב הנוכחי.",
+    undecided: "יסמן שהאורח ענה אבל עדיין מתלבט, בלי לסגור RSVP סופי.",
+    will_reply_message:
+      "יסמן שהאורח ביקש לא לחזור אליו ושהוא ישיב בהודעה, בלי לסגור RSVP סופי.",
+    wrong_number: "יסמן מספר שגוי ויעדכן גם את האורח.",
+    completed: "השיחה הושלמה.",
+    cancelled: "השיחה בוטלה.",
+  };
+
+  return map[status] || "";
+}
+
+function normalizeDraftStatus(status: string): TaskStatus {
+  const allowed: TaskStatus[] = [
+    "pending",
+    "in_progress",
+    "confirmed",
+    "declined",
+    "no_answer",
+    "callback",
+    "undecided",
+    "will_reply_message",
+    "wrong_number",
+    "completed",
+    "cancelled",
+  ];
+
+  if (allowed.includes(status as TaskStatus)) {
+    return status as TaskStatus;
+  }
+
+  return "confirmed";
+}
+
+function uniqueTasksById(items: CallTask[]) {
+  const map = new Map<string, CallTask>();
+
+  for (const task of items) {
+    const id = getTaskId(task);
+    if (!id) continue;
+    map.set(id, task);
+  }
+
+  return Array.from(map.values());
 }
 
 /* ============================================================
@@ -318,7 +411,7 @@ export default function EmployeeWorkOrderTasksPage() {
   const [employee, setEmployee] = useState<EmployeeInfo | null>(null);
   const [workOrder, setWorkOrder] = useState<WorkOrder | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
-  const [pagination, setPagination] = useState<Pagination | null>(null);
+  const [serverTotalFiltered, setServerTotalFiltered] = useState(0);
   const [tasks, setTasks] = useState<CallTask[]>([]);
 
   const [selectedTask, setSelectedTask] = useState<CallTask | null>(null);
@@ -329,7 +422,6 @@ export default function EmployeeWorkOrderTasksPage() {
   const [status, setStatus] = useState("open");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("default");
-  const [page, setPage] = useState(1);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -337,19 +429,37 @@ export default function EmployeeWorkOrderTasksPage() {
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
 
+  const visibleOpenTasks = useMemo(() => {
+    return tasks.filter(isOpenTask);
+  }, [tasks]);
+
+  const visibleCompletedTasks = useMemo(() => {
+    return tasks.filter((task) => !isOpenTask(task));
+  }, [tasks]);
+
   const progress = summary
     ? Math.min(100, Math.max(0, safeNumber(summary.progressPercent)))
     : workOrder
       ? Math.min(100, Math.max(0, safeNumber(workOrder.myProgressPercent)))
       : 0;
 
-  const openTasks = useMemo(() => {
-    return tasks.filter(isOpenTask);
-  }, [tasks]);
+  const totalTasksCount = summary
+    ? safeNumber(summary.total)
+    : workOrder
+      ? safeNumber(workOrder.myTasksTotal)
+      : tasks.length;
 
-  const completedTasks = useMemo(() => {
-    return tasks.filter((task) => !isOpenTask(task));
-  }, [tasks]);
+  const openTasksCount = summary
+    ? safeNumber(summary.remaining)
+    : workOrder
+      ? safeNumber(workOrder.myTasksRemaining)
+      : visibleOpenTasks.length;
+
+  const completedTasksCount = summary
+    ? safeNumber(summary.completedLogical)
+    : workOrder
+      ? safeNumber(workOrder.myTasksCompleted)
+      : visibleCompletedTasks.length;
 
   const selectedTel = selectedTask ? normalizePhone(selectedTask.guestPhone) : "";
 
@@ -363,29 +473,13 @@ export default function EmployeeWorkOrderTasksPage() {
       return;
     }
 
-    const currentStatus = String(task.status || "pending") as TaskStatus;
+    const currentStatus = normalizeDraftStatus(String(task.status || "pending"));
 
-    if (
-      [
-        "confirmed",
-        "declined",
-        "no_answer",
-        "callback",
-        "wrong_number",
-        "completed",
-        "cancelled",
-        "in_progress",
-        "pending",
-      ].includes(currentStatus)
-    ) {
-      setDraftStatus(
-        currentStatus === "pending" || currentStatus === "in_progress"
-          ? "confirmed"
-          : currentStatus
-      );
-    } else {
-      setDraftStatus("confirmed");
-    }
+    setDraftStatus(
+      currentStatus === "pending" || currentStatus === "in_progress"
+        ? "confirmed"
+        : currentStatus
+    );
 
     setDraftNote(task.note || "");
 
@@ -397,7 +491,54 @@ export default function EmployeeWorkOrderTasksPage() {
     setDraftCount(String(existingCount));
   }
 
-  async function loadTasks(options?: { silent?: boolean; nextPage?: number }) {
+  function buildTasksQuery(pageNumber: number) {
+    const query = new URLSearchParams();
+
+    query.set("page", String(pageNumber));
+    query.set("limit", String(TASKS_PAGE_LIMIT));
+    query.set("all", "true");
+    query.set("noPagination", "true");
+    query.set("_t", String(Date.now()));
+
+    if (status && status !== "all") {
+      query.set("status", status);
+    }
+
+    if (search.trim()) {
+      query.set("q", search.trim());
+    }
+
+    if (sort && sort !== "default") {
+      query.set("sort", sort);
+    }
+
+    return query;
+  }
+
+  async function fetchTasksPage(pageNumber: number) {
+    const query = buildTasksQuery(pageNumber);
+
+    const res = await fetch(
+      `/api/employee/work-orders/${encodeURIComponent(
+        workOrderId
+      )}/tasks?${query.toString()}`,
+      {
+        method: "GET",
+        cache: "no-store",
+        credentials: "include",
+      }
+    );
+
+    const data = (await res.json().catch(() => ({}))) as TasksApiResponse;
+
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || "שגיאה בטעינת רשימת השיחות");
+    }
+
+    return data;
+  }
+
+  async function loadTasks(options?: { silent?: boolean }) {
     if (!workOrderId) return;
 
     try {
@@ -409,51 +550,40 @@ export default function EmployeeWorkOrderTasksPage() {
 
       setError("");
 
-      const requestedPage = options?.nextPage || page;
+      const firstData = await fetchTasksPage(1);
+      let allTasks = Array.isArray(firstData.tasks) ? firstData.tasks : [];
 
-      const query = new URLSearchParams();
-      query.set("page", String(requestedPage));
-      query.set("limit", "120");
+      let latestPagination = firstData.pagination || null;
+      let nextPage = 2;
 
-      if (status && status !== "all") {
-        query.set("status", status);
+      while (
+        latestPagination?.hasNextPage &&
+        nextPage <= safeNumber(latestPagination.totalPages) &&
+        nextPage <= MAX_AUTO_PAGES
+      ) {
+        const nextData = await fetchTasksPage(nextPage);
+        const nextTasks = Array.isArray(nextData.tasks) ? nextData.tasks : [];
+
+        allTasks = allTasks.concat(nextTasks);
+        latestPagination = nextData.pagination || null;
+        nextPage += 1;
       }
 
-      if (search.trim()) {
-        query.set("q", search.trim());
-      }
+      const nextTasks = uniqueTasksById(allTasks);
 
-      if (sort && sort !== "default") {
-        query.set("sort", sort);
-      }
-
-      const res = await fetch(
-        `/api/employee/work-orders/${encodeURIComponent(
-          workOrderId
-        )}/tasks?${query.toString()}`,
-        {
-          method: "GET",
-          cache: "no-store",
-          credentials: "include",
-        }
+      setEmployee(firstData.employee || null);
+      setWorkOrder(firstData.workOrder || null);
+      setSummary(firstData.summary || null);
+      setServerTotalFiltered(
+        safeNumber(firstData.pagination?.totalFiltered || nextTasks.length)
       );
-
-      const data = (await res.json().catch(() => ({}))) as TasksApiResponse;
-
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "שגיאה בטעינת רשימת השיחות");
-      }
-
-      const nextTasks = Array.isArray(data.tasks) ? data.tasks : [];
-
-      setEmployee(data.employee || null);
-      setWorkOrder(data.workOrder || null);
-      setSummary(data.summary || null);
-      setPagination(data.pagination || null);
       setTasks(nextTasks);
 
       setSelectedTask((current) => {
-        if (!nextTasks.length) return null;
+        if (!nextTasks.length) {
+          setTimeout(() => applySelectedTask(null), 0);
+          return null;
+        }
 
         if (!current) {
           const firstOpen = nextTasks.find(isOpenTask) || nextTasks[0];
@@ -461,7 +591,10 @@ export default function EmployeeWorkOrderTasksPage() {
           return firstOpen;
         }
 
-        const stillExists = nextTasks.find((task) => task.id === current.id);
+        const stillExists = nextTasks.find(
+          (task) => getTaskId(task) === getTaskId(current)
+        );
+
         if (stillExists) {
           setTimeout(() => applySelectedTask(stillExists), 0);
           return stillExists;
@@ -474,6 +607,7 @@ export default function EmployeeWorkOrderTasksPage() {
     } catch (err: any) {
       setError(err?.message || "שגיאה בטעינת רשימת השיחות");
       setTasks([]);
+      setServerTotalFiltered(0);
       applySelectedTask(null);
     } finally {
       setLoading(false);
@@ -484,12 +618,11 @@ export default function EmployeeWorkOrderTasksPage() {
   useEffect(() => {
     loadTasks();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workOrderId, page, status, sort]);
+  }, [workOrderId, status, sort]);
 
   function handleSearchSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setPage(1);
-    loadTasks({ silent: true, nextPage: 1 });
+    loadTasks({ silent: true });
   }
 
   async function updateTaskStatus(input: {
@@ -499,26 +632,95 @@ export default function EmployeeWorkOrderTasksPage() {
     attendingCount?: number;
   }) {
     try {
-      setUpdatingTaskId(input.task.id);
+      const taskId = getTaskId(input.task);
+
+      setUpdatingTaskId(taskId);
       setError("");
       setSuccessMsg("");
 
-      const body: Record<string, any> = {
-        status: input.status,
-      };
+      const isFinal = isFinalResultStatus(input.status);
+      const round = safeNumber(input.task.round || workOrder?.round || 1);
+      const currentWorkOrderId = input.task.workOrderId || workOrderId;
+      const invitationId = input.task.invitationId || workOrder?.invitationId || "";
+      const guestId = input.task.guestId || "";
 
-      if (input.note !== undefined) {
-        body.note = input.note;
-      }
+      const body: Record<string, any> = {
+        taskId,
+        callTaskId: taskId,
+
+        workOrderId: currentWorkOrderId,
+        invitationId,
+        guestId,
+
+        round,
+        sourceAudience:
+          input.task.sourceAudience || workOrder?.sourceAudience || "",
+
+        status: input.status,
+        result: input.status,
+        callResult: input.status,
+
+        note: input.note || "",
+
+        markCompleted: isFinal,
+        isCompleted: isFinal,
+        completed: isFinal,
+
+        updateGuestRsvp: isFinal,
+        updateGuest: isFinal,
+
+        completedAt: isFinal ? new Date().toISOString() : null,
+      };
 
       if (input.attendingCount !== undefined) {
         body.attendingCount = input.attendingCount;
+        body.confirmedCount = input.attendingCount;
+        body.guestsCount = input.attendingCount;
+      }
+
+      if (input.status === "confirmed") {
+        body.rsvpStatus = "attending";
+        body.guestRsvpStatus = "attending";
+        body.rsvpResult = "attending";
+        body.keepRsvpOpen = false;
+      }
+
+      if (input.status === "declined") {
+        body.rsvpStatus = "not_attending";
+        body.guestRsvpStatus = "not_attending";
+        body.rsvpResult = "not_attending";
+        body.attendingCount = 0;
+        body.confirmedCount = 0;
+        body.guestsCount = 0;
+        body.keepRsvpOpen = false;
+      }
+
+      if (input.status === "wrong_number") {
+        body.rsvpStatus = "wrong_number";
+        body.guestRsvpStatus = "wrong_number";
+        body.rsvpResult = "wrong_number";
+        body.attendingCount = 0;
+        body.confirmedCount = 0;
+        body.guestsCount = 0;
+        body.phoneInvalid = true;
+        body.invalidPhone = true;
+        body.keepRsvpOpen = false;
+      }
+
+      if (
+        input.status === "undecided" ||
+        input.status === "callback" ||
+        input.status === "will_reply_message" ||
+        input.status === "no_answer"
+      ) {
+        body.keepRsvpOpen = true;
+        body.rsvpStatus = input.status;
+        body.guestRsvpStatus = input.status;
+        body.rsvpResult = input.status;
       }
 
       const res = await fetch(
-        `/api/employee/call-tasks/${encodeURIComponent(
-          input.task.id
-        )}/status`,
+        `/api/employee/call-tasks/${encodeURIComponent(taskId)}/status`,
         {
           method: "PATCH",
           headers: {
@@ -535,13 +737,45 @@ export default function EmployeeWorkOrderTasksPage() {
         throw new Error(data.error || "שגיאה בעדכון השיחה");
       }
 
-      setSuccessMsg(data.message || "השיחה עודכנה בהצלחה");
+      setSuccessMsg(data.message || "השיחה עודכנה והאורח סומן כבוצע");
 
       if (data.workOrder) {
         setWorkOrder(data.workOrder);
       }
 
-      await loadTasks({ silent: true });
+      setTasks((current) => {
+        const updated = current.map((task) => {
+          if (getTaskId(task) !== taskId) return task;
+
+          return {
+            ...task,
+            status: input.status,
+            result: input.status,
+            note: input.note || "",
+            attendingCount:
+              input.attendingCount !== undefined
+                ? input.attendingCount
+                : task.attendingCount,
+            isCompleted: isFinal,
+            completedAt: isFinal ? new Date().toISOString() : task.completedAt,
+            lastAttemptAt: new Date().toISOString(),
+            attemptsCount:
+              input.status === "in_progress"
+                ? safeNumber(task.attemptsCount)
+                : safeNumber(task.attemptsCount) + 1,
+          };
+        });
+
+        return updated;
+      });
+
+      if (isFinal) {
+        setTimeout(() => {
+          loadTasks({ silent: true });
+        }, 250);
+      } else {
+        await loadTasks({ silent: true });
+      }
     } catch (err: any) {
       setError(err?.message || "שגיאה בעדכון השיחה");
     } finally {
@@ -568,6 +802,10 @@ export default function EmployeeWorkOrderTasksPage() {
       payload.attendingCount = Number.isFinite(count) ? count : 1;
     }
 
+    if (draftStatus === "declined" || draftStatus === "wrong_number") {
+      payload.attendingCount = 0;
+    }
+
     await updateTaskStatus(payload);
   }
 
@@ -582,16 +820,23 @@ export default function EmployeeWorkOrderTasksPage() {
   }
 
   function selectNextOpenTask() {
-    const next = openTasks.find((task) => task.id !== selectedTask?.id);
+    if (!visibleOpenTasks.length) return;
 
-    if (next) {
-      applySelectedTask(next);
+    if (!selectedTask) {
+      applySelectedTask(visibleOpenTasks[0]);
       return;
     }
 
-    if (openTasks[0]) {
-      applySelectedTask(openTasks[0]);
-    }
+    const currentIndex = visibleOpenTasks.findIndex(
+      (task) => getTaskId(task) === getTaskId(selectedTask)
+    );
+
+    const next =
+      currentIndex >= 0
+        ? visibleOpenTasks[currentIndex + 1] || visibleOpenTasks[0]
+        : visibleOpenTasks[0];
+
+    applySelectedTask(next);
   }
 
   return (
@@ -605,7 +850,7 @@ export default function EmployeeWorkOrderTasksPage() {
           <button
             type="button"
             className="ghostBtn"
-            disabled={refreshing || loading}
+            disabled={refreshing || loading || !visibleOpenTasks.length}
             onClick={selectNextOpenTask}
           >
             השיחה הבאה
@@ -639,6 +884,11 @@ export default function EmployeeWorkOrderTasksPage() {
                 )} · ${workOrder.eventName || "אירוע"}`
               : "כאן מופיעות רק השיחות שהוקצו לעובד המחובר."}
           </p>
+
+          <p className="dailyHint">
+            כל הרשימה נטענת במסך אחד. בסיום שיחה נשלח לשרת הסבב, האורח והתוצאה
+            כדי לעדכן RSVP ולסמן את אותו אורח כבוצע בסבב הנוכחי.
+          </p>
         </div>
 
         <div className="heroMeta">
@@ -650,18 +900,18 @@ export default function EmployeeWorkOrderTasksPage() {
 
       <section className="statsGrid">
         <div className="statBox primary">
-          <span>סה״כ שיחות</span>
-          <strong>{safeNumber(summary?.total)}</strong>
+          <span>סה״כ שיחות שלי</span>
+          <strong>{totalTasksCount}</strong>
         </div>
 
         <div className="statBox">
-          <span>נותרו</span>
-          <strong>{safeNumber(summary?.remaining)}</strong>
+          <span>פתוחות</span>
+          <strong>{openTasksCount}</strong>
         </div>
 
         <div className="statBox">
           <span>טופלו</span>
-          <strong>{safeNumber(summary?.completedLogical)}</strong>
+          <strong>{completedTasksCount}</strong>
         </div>
 
         <div className="statBox">
@@ -670,7 +920,7 @@ export default function EmployeeWorkOrderTasksPage() {
         </div>
 
         <div className="statBox">
-          <span>אישרו</span>
+          <span>מגיעים</span>
           <strong>{safeNumber(summary?.confirmed)}</strong>
         </div>
 
@@ -713,7 +963,6 @@ export default function EmployeeWorkOrderTasksPage() {
           <select
             value={status}
             onChange={(e) => {
-              setPage(1);
               setStatus(e.target.value);
             }}
           >
@@ -722,10 +971,12 @@ export default function EmployeeWorkOrderTasksPage() {
             <option value="done">טופלו בלבד</option>
             <option value="pending">ממתין</option>
             <option value="in_progress">בטיפול</option>
-            <option value="confirmed">אישר הגעה</option>
+            <option value="confirmed">מגיע</option>
             <option value="declined">לא מגיע</option>
             <option value="no_answer">לא ענה</option>
             <option value="callback">לחזור אליו</option>
+            <option value="undecided">מתלבט</option>
+            <option value="will_reply_message">ישיב בהודעה</option>
             <option value="wrong_number">מספר שגוי</option>
           </select>
         </div>
@@ -736,7 +987,6 @@ export default function EmployeeWorkOrderTasksPage() {
           <select
             value={sort}
             onChange={(e) => {
-              setPage(1);
               setSort(e.target.value);
             }}
           >
@@ -774,7 +1024,7 @@ export default function EmployeeWorkOrderTasksPage() {
       {loading ? (
         <section className="loadingCard">
           <div className="spinner" />
-          <p>טוען שיחות...</p>
+          <p>טוען את כל רשימת השיחות...</p>
         </section>
       ) : tasks.length === 0 ? (
         <section className="emptyCard">
@@ -788,7 +1038,11 @@ export default function EmployeeWorkOrderTasksPage() {
               <div>
                 <h2>תור שיחות</h2>
                 <p>
-                  {openTasks.length} פתוחות · {completedTasks.length} טופלו
+                  {openTasksCount} פתוחות · {completedTasksCount} טופלו · מוצגות{" "}
+                  {tasks.length}
+                  {serverTotalFiltered && serverTotalFiltered !== tasks.length
+                    ? ` מתוך ${serverTotalFiltered}`
+                    : " - כל הרשימה"}
                 </p>
               </div>
             </div>
@@ -804,18 +1058,22 @@ export default function EmployeeWorkOrderTasksPage() {
 
               <div className="queueRows">
                 {tasks.map((task) => {
-                  const selected = selectedTask?.id === task.id;
+                  const taskId = getTaskId(task);
+                  const selected =
+                    selectedTask && getTaskId(selectedTask) === taskId;
 
                   return (
                     <button
                       type="button"
-                      key={task.id}
+                      key={taskId}
                       className={`queueRow ${selected ? "selected" : ""}`}
                       onClick={() => applySelectedTask(task)}
                     >
                       <span className="guestCell">
                         <strong>{task.guestName || "אורח ללא שם"}</strong>
-                        <small>{task.guestTable ? `שולחן ${task.guestTable}` : "—"}</small>
+                        <small>
+                          {task.guestTable ? `שולחן ${task.guestTable}` : "—"}
+                        </small>
                       </span>
 
                       <span dir="ltr">{task.guestPhone || "—"}</span>
@@ -825,7 +1083,11 @@ export default function EmployeeWorkOrderTasksPage() {
                       <span>{safeNumber(task.attemptsCount)}</span>
 
                       <span>
-                        <b className={`statusPill ${getStatusClass(String(task.status))}`}>
+                        <b
+                          className={`statusPill ${getStatusClass(
+                            String(task.status)
+                          )}`}
+                        >
                           {getStatusLabel(String(task.status))}
                         </b>
                       </span>
@@ -867,13 +1129,17 @@ export default function EmployeeWorkOrderTasksPage() {
 
                 <div className="detailsGrid">
                   <div>
-                    <span>קבוצה</span>
-                    <strong>{selectedTask.guestGroup || "—"}</strong>
+                    <span>סבב</span>
+                    <strong>
+                      {getRoundLabel(
+                        safeNumber(selectedTask.round || workOrder?.round || 1)
+                      )}
+                    </strong>
                   </div>
 
                   <div>
-                    <span>צד</span>
-                    <strong>{selectedTask.guestSide || "—"}</strong>
+                    <span>קבוצה</span>
+                    <strong>{selectedTask.guestGroup || "—"}</strong>
                   </div>
 
                   <div>
@@ -915,9 +1181,7 @@ export default function EmployeeWorkOrderTasksPage() {
                   <button
                     type="button"
                     className="startBtn"
-                    disabled={
-                      Boolean(updatingTaskId) || !selectedTask.canUpdate
-                    }
+                    disabled={Boolean(updatingTaskId) || !selectedTask.canUpdate}
                     onClick={startSelectedTask}
                   >
                     התחל טיפול
@@ -932,8 +1196,10 @@ export default function EmployeeWorkOrderTasksPage() {
                       [
                         "confirmed",
                         "declined",
-                        "no_answer",
+                        "undecided",
                         "callback",
+                        "will_reply_message",
+                        "no_answer",
                         "wrong_number",
                       ] as TaskStatus[]
                     ).map((item) => (
@@ -949,6 +1215,8 @@ export default function EmployeeWorkOrderTasksPage() {
                       </button>
                     ))}
                   </div>
+
+                  <div className="resultHelp">{getResultHelp(draftStatus)}</div>
 
                   {draftStatus === "confirmed" && (
                     <div className="field">
@@ -966,7 +1234,7 @@ export default function EmployeeWorkOrderTasksPage() {
                     <label>הערה</label>
                     <textarea
                       value={draftNote}
-                      placeholder="לדוגמה: ביקש לחזור בערב / אישר עם בת זוג / מספר לא תקין..."
+                      placeholder="לדוגמה: ביקש לחזור בערב / מתלבט / ישיב בהודעה / מספר לא תקין..."
                       onChange={(e) => setDraftNote(e.target.value)}
                     />
                   </div>
@@ -979,42 +1247,14 @@ export default function EmployeeWorkOrderTasksPage() {
                     }
                     onClick={saveSelectedTask}
                   >
-                    {updatingTaskId === selectedTask.id
+                    {updatingTaskId === getTaskId(selectedTask)
                       ? "שומר..."
-                      : "שמור תוצאה"}
+                      : "שמור תוצאה וסמן כבוצע"}
                   </button>
                 </div>
               </>
             )}
           </aside>
-        </section>
-      )}
-
-      {pagination && pagination.totalPages > 1 && (
-        <section className="pagination">
-          <button
-            type="button"
-            disabled={!pagination.hasPrevPage || loading}
-            onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-          >
-            הקודם
-          </button>
-
-          <span>
-            עמוד {pagination.page} מתוך {pagination.totalPages}
-          </span>
-
-          <button
-            type="button"
-            disabled={!pagination.hasNextPage || loading}
-            onClick={() =>
-              setPage((prev) =>
-                Math.min(pagination.totalPages || prev + 1, prev + 1)
-              )
-            }
-          >
-            הבא
-          </button>
         </section>
       )}
 
@@ -1116,6 +1356,15 @@ export default function EmployeeWorkOrderTasksPage() {
           color: #64748b;
           font-size: 15px;
           font-weight: 800;
+        }
+
+        .dailyHint {
+          margin: 8px 0 0;
+          color: #2563eb;
+          font-size: 13px;
+          font-weight: 950;
+          max-width: 850px;
+          line-height: 1.6;
         }
 
         .heroMeta {
@@ -1533,6 +1782,18 @@ export default function EmployeeWorkOrderTasksPage() {
           color: #0e7490;
         }
 
+        .statusPill.purple,
+        .resultButtons .purple {
+          background: #ede9fe;
+          color: #6d28d9;
+        }
+
+        .statusPill.cyan,
+        .resultButtons .cyan {
+          background: #ccfbf1;
+          color: #0f766e;
+        }
+
         .statusPill.danger,
         .resultButtons .danger {
           background: #ffe4e6;
@@ -1716,6 +1977,17 @@ export default function EmployeeWorkOrderTasksPage() {
           box-shadow: 0 10px 22px rgba(37, 99, 235, 0.1);
         }
 
+        .resultHelp {
+          background: #f8fafc;
+          border: 1px solid #eef2f7;
+          color: #475569;
+          border-radius: 14px;
+          padding: 10px 12px;
+          font-size: 13px;
+          font-weight: 900;
+          line-height: 1.5;
+        }
+
         .field {
           display: grid;
           gap: 7px;
@@ -1727,30 +1999,6 @@ export default function EmployeeWorkOrderTasksPage() {
           background: #2563eb;
           color: white;
           box-shadow: 0 14px 30px rgba(37, 99, 235, 0.2);
-        }
-
-        .pagination {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 12px;
-          margin-top: 18px;
-        }
-
-        .pagination button {
-          height: 42px;
-          border: 1px solid #dbeafe;
-          background: white;
-          color: #2563eb;
-          border-radius: 999px;
-          padding: 0 16px;
-          font-weight: 950;
-          cursor: pointer;
-        }
-
-        .pagination span {
-          color: #475569;
-          font-weight: 950;
         }
 
         @media (max-width: 1200px) {
