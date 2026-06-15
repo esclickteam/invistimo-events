@@ -101,6 +101,8 @@ export interface ICallWorkOrder {
   declinedTasks: number;
   noAnswerTasks: number;
   callbackTasks: number;
+  willReplyMessageTasks: number;
+  needsFixTasks: number;
   wrongNumberTasks: number;
   unassignedTasks: number;
 
@@ -330,6 +332,18 @@ const CallWorkOrderSchema = new Schema<ICallWorkOrder>(
       min: 0,
     },
 
+    willReplyMessageTasks: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    needsFixTasks: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
     wrongNumberTasks: {
       type: Number,
       default: 0,
@@ -554,6 +568,9 @@ CallWorkOrderSchema.virtual("progressPercent").get(function () {
 
   return Math.round((completed / total) * 100);
 });
+
+
+
 
 /* ============================================================
    Export

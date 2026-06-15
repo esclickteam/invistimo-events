@@ -510,7 +510,7 @@ export default function EmployeeWorkOrderTasksPage() {
     if (currentStatus === "callback") {
       setCallAnswered("answered");
       setAnsweredResult("callback");
-      setMessageFollowUpAction("move_to_next_round");
+      setMessageFollowUpAction("");
       setNoAnswerResult("");
       return;
     }
@@ -723,7 +723,7 @@ export default function EmployeeWorkOrderTasksPage() {
       }
 
       if (answeredResult === "callback") {
-        return "האורח ענה וביקש חזרה בסבב הבא. אחרי השמירה הוא ייפתח אוטומטית בהוראת עבודה של הסבב הבא.";
+        return "האורח ענה וביקש חזרה. הוא ייכנס לסבב הבא רק בתאריך שהוגדר באדמין, ויחולק לעובדים שמשובצים באותו תאריך.";
       }
     }
 
@@ -733,10 +733,10 @@ export default function EmployeeWorkOrderTasksPage() {
       }
 
       if (noAnswerResult === "needs_fix") {
-  return "יישמר תיעוד שהרשומה דורשת תיקון, והוא ייפתח אוטומטית בהוראת העבודה של הסבב הבא.";
+  return "יישמר תיעוד שהרשומה דורשת תיקון. אם יש סבב הבא, היא תיפתח רק בתאריך שהוגדר לסבב הבא.";
 }
 
-      return "לא ענה בסבב הזה. אחרי השמירה הוא ייפתח אוטומטית בהוראת עבודה של הסבב הבא.";
+      return "לא ענה בסבב הזה. הוא ייכנס לסבב הבא רק בתאריך שהוגדר באדמין, ולא ייפתח מיד לעובד הנוכחי.";
     }
 
     return "";
@@ -789,16 +789,16 @@ export default function EmployeeWorkOrderTasksPage() {
       const callDocumentationNote = input.callDocumentationNote || "";
       const guestNote = input.guestNote || "";
 
-      const shouldMoveToNextRound =
-  input.status === "no_answer" ||
-  input.status === "callback" ||
-  input.status === "needs_fix" ||
-  input.status === "wrong_number" ||
-  Boolean(input.moveToNextRound);
+      const eligibleForNextScheduledRound =
+        input.status === "no_answer" ||
+        input.status === "callback" ||
+        input.status === "needs_fix" ||
+        input.status === "wrong_number" ||
+        Boolean(input.moveToNextRound);
 
       const finalMessageFollowUpAction =
         input.status === "callback"
-          ? "move_to_next_round"
+          ? ""
           : input.status === "will_reply_message"
             ? "self_reply"
             : input.messageFollowUpAction || "";
@@ -812,9 +812,23 @@ export default function EmployeeWorkOrderTasksPage() {
         guestId,
 
         round,
-        nextRound,
+        nextRound: null,
         sourceAudience:
           input.task.sourceAudience || workOrder?.sourceAudience || "",
+
+        /*
+          חשוב:
+          לא פותחים את הסבב הבא מתוך מסך העובד.
+          העובד רק מתעד את התוצאה.
+          פתיחת סבב 2/3 נעשית אך ורק ע״י ה־cron לפי התאריך שהוגדר באדמין
+          ולפי העובדים שמשובצים באותו תאריך.
+        */
+        eligibleForNextScheduledRound,
+        deferToScheduledRound: eligibleForNextScheduledRound,
+        nextScheduledRound: eligibleForNextScheduledRound ? nextRound : null,
+        moveToNextRound: false,
+        transferToNextRound: false,
+        openInNextRound: false,
 
         status: input.status,
         result: input.status,
@@ -871,8 +885,11 @@ export default function EmployeeWorkOrderTasksPage() {
           guestNote,
           attendingCount:
             input.attendingCount !== undefined ? input.attendingCount : null,
-          movedToNextRound: shouldMoveToNextRound,
-          nextRound: shouldMoveToNextRound ? nextRound : null,
+          movedToNextRound: false,
+          eligibleForNextScheduledRound,
+          deferToScheduledRound: eligibleForNextScheduledRound,
+          nextRound: null,
+          nextScheduledRound: eligibleForNextScheduledRound ? nextRound : null,
           employeeId: employee?.id || "",
           employeeName: employee?.name || "",
           employeeEmail: employee?.email || "",
@@ -919,22 +936,28 @@ export default function EmployeeWorkOrderTasksPage() {
         body.rsvpResult = "callback";
         body.callbackRequested = true;
         body.needsCallback = true;
-        body.moveToNextRound = true;
-        body.transferToNextRound = true;
-        body.openInNextRound = true;
-        body.nextRound = nextRound;
+        body.eligibleForNextScheduledRound = true;
+        body.deferToScheduledRound = true;
+        body.nextScheduledRound = nextRound;
+        body.moveToNextRound = false;
+        body.transferToNextRound = false;
+        body.openInNextRound = false;
+        body.nextRound = null;
         body.keepRsvpOpen = true;
-        body.messageFollowUpAction = "move_to_next_round";
+        body.messageFollowUpAction = "";
       }
 
       if (input.status === "no_answer") {
         body.rsvpStatus = "no_answer";
         body.guestRsvpStatus = "no_answer";
         body.rsvpResult = "no_answer";
-        body.moveToNextRound = true;
-        body.transferToNextRound = true;
-        body.openInNextRound = true;
-        body.nextRound = nextRound;
+        body.eligibleForNextScheduledRound = true;
+        body.deferToScheduledRound = true;
+        body.nextScheduledRound = nextRound;
+        body.moveToNextRound = false;
+        body.transferToNextRound = false;
+        body.openInNextRound = false;
+        body.nextRound = null;
         body.keepRsvpOpen = true;
       }
 
@@ -946,10 +969,13 @@ export default function EmployeeWorkOrderTasksPage() {
   body.requiresCorrection = true;
   body.phoneNeedsCorrection = true;
 
-  body.moveToNextRound = true;
-  body.transferToNextRound = true;
-  body.openInNextRound = true;
-  body.nextRound = nextRound;
+  body.eligibleForNextScheduledRound = true;
+  body.deferToScheduledRound = true;
+  body.nextScheduledRound = nextRound;
+  body.moveToNextRound = false;
+  body.transferToNextRound = false;
+  body.openInNextRound = false;
+  body.nextRound = null;
 
   body.keepRsvpOpen = true;
 }
@@ -1029,11 +1055,11 @@ export default function EmployeeWorkOrderTasksPage() {
       return;
     }
 
-    const shouldMoveToNextRound =
-  finalStatus === "no_answer" ||
-  finalStatus === "callback" ||
-  finalStatus === "needs_fix" ||
-  finalStatus === "wrong_number";
+    const eligibleForNextScheduledRound =
+      finalStatus === "no_answer" ||
+      finalStatus === "callback" ||
+      finalStatus === "needs_fix" ||
+      finalStatus === "wrong_number";
 
     const payload: {
       task: CallTask;
@@ -1055,12 +1081,12 @@ export default function EmployeeWorkOrderTasksPage() {
       answeredResult,
       messageFollowUpAction:
         finalStatus === "callback"
-          ? "move_to_next_round"
+          ? ""
           : finalStatus === "will_reply_message"
             ? "self_reply"
             : messageFollowUpAction,
       noAnswerResult,
-      moveToNextRound: shouldMoveToNextRound,
+      moveToNextRound: false,
     };
 
     if (finalStatus === "confirmed") {
@@ -1168,10 +1194,11 @@ export default function EmployeeWorkOrderTasksPage() {
                 )} · ${workOrder.eventName || "אירוע"}`
               : "כאן מופיעות רק השיחות שהוקצו לעובד המחובר."}
           </p>
+          
 
           <p className="dailyHint">
-            לא ענה וחזרה בסבב הבא נפתחים אוטומטית בהוראת העבודה של הסבב הבא.
-            תיעוד השיחה נשמר בנפרד מהערות האורח החיצוניות.
+            לא ענה / חזרה / דורש תיקון נשמרים לסבב הבא, אבל לא נפתחים מיד.
+            הסבב הבא ייפתח רק בתאריך שהוגדר באדמין ולפי העובדים שמשובצים באותו תאריך.
           </p>
         </div>
 
@@ -1513,9 +1540,7 @@ export default function EmployeeWorkOrderTasksPage() {
                               setNoAnswerResult("");
 
                               if (item === "callback") {
-                                setMessageFollowUpAction(
-                                  "move_to_next_round"
-                                );
+                                setMessageFollowUpAction("");
                               } else if (item === "will_reply_message") {
                                 setMessageFollowUpAction("self_reply");
                               } else {

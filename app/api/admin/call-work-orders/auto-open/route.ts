@@ -21,6 +21,21 @@ const TIMEZONE = "Asia/Jerusalem";
 const AUTO_OPEN_HOUR = 8;
 const SHIFT_COLLECTION = "employeeshifts";
 
+const NEXT_ROUND_ELIGIBLE_STATUSES = [
+  "no_answer",
+  "callback",
+  "needs_fix",
+  "wrong_number",
+] as const;
+
+const OPEN_TASK_STATUSES_FOR_REDISTRIBUTION = [
+  "pending",
+  "in_progress",
+  "open",
+  "assigned",
+  "active",
+] as const;
+
 type RoundNumber = 1 | 2 | 3;
 
 type AuthUser = {
@@ -1056,10 +1071,12 @@ async function loadGuestsForRound(input: {
 
   const previousRound = (input.round - 1) as 1 | 2;
 
-  const previousNoAnswerTasks = await CallTask.find({
+  const previousRoundTasks = await CallTask.find({
     invitationId: invitationObjectId,
     round: previousRound,
-    status: "no_answer",
+    status: {
+      $in: NEXT_ROUND_ELIGIBLE_STATUSES,
+    },
     workDate: {
       $lte: endOfDateKey(input.dateKey),
     },
@@ -1068,7 +1085,7 @@ async function loadGuestsForRound(input: {
     .lean();
 
   const guestIds = new Set(
-    previousNoAnswerTasks.map((task: any) => String(task.guestId))
+    previousRoundTasks.map((task: any) => String(task.guestId))
   );
 
   return allGuests.filter((guest: any) => {
@@ -1162,11 +1179,205 @@ function serializeWorkOrder(order: any) {
     employeeCount: Number(order?.employeeCount || 0),
     totalTasks: Number(order?.totalTasks || 0),
     pendingTasks: Number(order?.pendingTasks || 0),
+    inProgressTasks: Number(order?.inProgressTasks || 0),
     completedTasks: Number(order?.completedTasks || 0),
+    confirmedTasks: Number(order?.confirmedTasks || 0),
+    declinedTasks: Number(order?.declinedTasks || 0),
     noAnswerTasks: Number(order?.noAnswerTasks || 0),
+    callbackTasks: Number(order?.callbackTasks || 0),
+    willReplyMessageTasks: Number(order?.willReplyMessageTasks || 0),
+    needsFixTasks: Number(order?.needsFixTasks || 0),
+    wrongNumberTasks: Number(order?.wrongNumberTasks || 0),
+    unassignedTasks: Number(order?.unassignedTasks || 0),
 
     createdAt: order?.createdAt || null,
     updatedAt: order?.updatedAt || null,
+  };
+}
+
+
+function isOpenTaskStatusForRedistribution(status: unknown) {
+  return OPEN_TASK_STATUSES_FOR_REDISTRIBUTION.includes(
+    cleanStr(status).toLowerCase() as any
+  );
+}
+
+function summarizeCallTaskStatuses(tasks: any[]) {
+  const summary = {
+    totalTasks: tasks.length,
+    pendingTasks: 0,
+    inProgressTasks: 0,
+    completedTasks: 0,
+    confirmedTasks: 0,
+    declinedTasks: 0,
+    noAnswerTasks: 0,
+    callbackTasks: 0,
+    willReplyMessageTasks: 0,
+    needsFixTasks: 0,
+    wrongNumberTasks: 0,
+    unassignedTasks: 0,
+  };
+
+  for (const task of tasks) {
+    const status = cleanStr(task?.status).toLowerCase();
+
+    if (!task?.assignedToEmployeeId) {
+      summary.unassignedTasks += 1;
+    }
+
+    if (status === "pending") summary.pendingTasks += 1;
+    else if (status === "in_progress") summary.inProgressTasks += 1;
+    else summary.completedTasks += 1;
+
+    if (status === "confirmed") summary.confirmedTasks += 1;
+    if (status === "declined") summary.declinedTasks += 1;
+    if (status === "no_answer") summary.noAnswerTasks += 1;
+    if (status === "callback") summary.callbackTasks += 1;
+    if (status === "will_reply_message") summary.willReplyMessageTasks += 1;
+    if (status === "needs_fix") summary.needsFixTasks += 1;
+    if (status === "wrong_number") summary.wrongNumberTasks += 1;
+  }
+
+  return summary;
+}
+
+function buildEmployeeDistribution(employees: ScheduledEmployee[]) {
+  const distribution: Record<string, number> = {};
+
+  for (const employee of employees) {
+    distribution[employee.employeeIdString] = 0;
+  }
+
+  return distribution;
+}
+
+async function syncExistingWorkOrderWithScheduledEmployees(input: {
+  existing: any;
+  scheduledEmployees: ScheduledEmployee[];
+  dateKey: string;
+}) {
+  const { existing, scheduledEmployees, dateKey } = input;
+  const workOrderId = toObjectId(existing?._id);
+
+  if (!workOrderId || !scheduledEmployees.length) {
+    return {
+      workOrder: serializeWorkOrder(existing),
+      reassignedTasks: 0,
+      distribution: {},
+    };
+  }
+
+  const now = new Date();
+
+  const assignedEmployeeIds = scheduledEmployees.map(
+    (employee) => employee.employeeId
+  );
+
+  const assignedShiftIds = scheduledEmployees
+    .map((employee) => employee.shiftId)
+    .filter(Boolean) as Types.ObjectId[];
+
+  const tasks = await CallTask.find({
+    workOrderId,
+  })
+    .sort({
+      sortOrder: 1,
+      _id: 1,
+    })
+    .lean();
+
+  const distribution = buildEmployeeDistribution(scheduledEmployees);
+  const bulkOps: any[] = [];
+  let openIndex = 0;
+
+  for (const task of tasks) {
+    const status = cleanStr((task as any)?.status).toLowerCase();
+    const currentEmployeeId = extractIdString((task as any)?.assignedToEmployeeId);
+
+    if (!isOpenTaskStatusForRedistribution(status)) {
+      if (currentEmployeeId) {
+        distribution[currentEmployeeId] = Number(distribution[currentEmployeeId] || 0) + 1;
+      }
+      continue;
+    }
+
+    const nextEmployee = scheduledEmployees[openIndex % scheduledEmployees.length];
+    openIndex += 1;
+
+    const nextEmployeeId = nextEmployee?.employeeId;
+    const nextEmployeeIdString = nextEmployee?.employeeIdString || "";
+
+    if (nextEmployeeIdString) {
+      distribution[nextEmployeeIdString] = Number(distribution[nextEmployeeIdString] || 0) + 1;
+    }
+
+    if (!nextEmployeeId || currentEmployeeId === nextEmployeeIdString) {
+      continue;
+    }
+
+    const set: Record<string, unknown> = {
+      assignedToEmployeeId: nextEmployeeId,
+      assignedAt: (task as any)?.assignedAt || now,
+      reassignedAt: now,
+      reassignedReason: `שיבוץ מחדש לפי העובדים במשמרת בתאריך ${dateKey}`,
+    };
+
+    const previousObjectId = toObjectId(currentEmployeeId);
+    if (previousObjectId) {
+      set.previousAssignedEmployeeId = previousObjectId;
+    }
+
+    bulkOps.push({
+      updateOne: {
+        filter: {
+          _id: (task as any)._id,
+        },
+        update: {
+          $set: set,
+        },
+      },
+    });
+  }
+
+  if (bulkOps.length) {
+    await CallTask.bulkWrite(bulkOps, {
+      ordered: false,
+    });
+  }
+
+  const freshTasks = await CallTask.find({
+    workOrderId,
+  })
+    .select("status assignedToEmployeeId")
+    .lean();
+
+  const taskSummary = summarizeCallTaskStatuses(freshTasks);
+
+  const notesText = cleanStr(existing?.notes);
+  const syncNote = `עודכן לפי עובדים במשמרת בתאריך ${dateKey}`;
+
+  await CallWorkOrder.findByIdAndUpdate(workOrderId, {
+    $set: {
+      assignedEmployeeIds,
+      assignedShiftIds,
+      employeeCount: assignedEmployeeIds.length,
+      distributionStrategy: "scheduled_shift_round_robin",
+      ...taskSummary,
+      lastDistributedAt: now,
+      lastStatusSyncAt: now,
+      ...(bulkOps.length ? { lastReassignedAt: now } : {}),
+      notes: notesText.includes(syncNote)
+        ? notesText
+        : [notesText, syncNote].filter(Boolean).join(" | "),
+    },
+  });
+
+  const freshWorkOrder = await CallWorkOrder.findById(workOrderId).lean();
+
+  return {
+    workOrder: serializeWorkOrder(freshWorkOrder),
+    reassignedTasks: bulkOps.length,
+    distribution,
   };
 }
 
@@ -1198,11 +1409,17 @@ async function createWorkOrderForCandidate(input: {
   }).lean();
 
   if (existing) {
+    const synced = await syncExistingWorkOrderWithScheduledEmployees({
+      existing,
+      scheduledEmployees,
+      dateKey,
+    });
+
     return {
       status: "exists",
-      reason: "WORK_ORDER_ALREADY_EXISTS",
+      reason: "WORK_ORDER_ALREADY_EXISTS_SYNCED_TO_SHIFT_DATE",
       round: candidate.round,
-      workOrder: serializeWorkOrder(existing),
+      ...synced,
     };
   }
 
@@ -1300,6 +1517,8 @@ async function createWorkOrderForCandidate(input: {
       declinedTasks: 0,
       noAnswerTasks: 0,
       callbackTasks: 0,
+      willReplyMessageTasks: 0,
+      needsFixTasks: 0,
       wrongNumberTasks: 0,
       unassignedTasks: 0,
 
@@ -1321,11 +1540,26 @@ async function createWorkOrderForCandidate(input: {
         },
       }).lean();
 
+      if (duplicate) {
+        const synced = await syncExistingWorkOrderWithScheduledEmployees({
+          existing: duplicate,
+          scheduledEmployees,
+          dateKey,
+        });
+
+        return {
+          status: "exists",
+          reason: "WORK_ORDER_ALREADY_EXISTS_SYNCED_TO_SHIFT_DATE",
+          round: candidate.round,
+          ...synced,
+        };
+      }
+
       return {
         status: "exists",
         reason: "WORK_ORDER_ALREADY_EXISTS",
         round: candidate.round,
-        workOrder: duplicate ? serializeWorkOrder(duplicate) : null,
+        workOrder: null,
       };
     }
 
@@ -1423,6 +1657,16 @@ async function createWorkOrderForCandidate(input: {
 
     throw error;
   }
+
+  const freshTasks = await CallTask.find({
+    workOrderId,
+  })
+    .select("status assignedToEmployeeId")
+    .lean();
+
+  await CallWorkOrder.findByIdAndUpdate(workOrderId, {
+    $set: summarizeCallTaskStatuses(freshTasks),
+  });
 
   const freshWorkOrder = await CallWorkOrder.findById(workOrderId).lean();
 
@@ -1608,6 +1852,8 @@ async function handleAutoOpen(req: NextRequest) {
     );
   }
 }
+
+
 
 /* ============================================================
    Routes

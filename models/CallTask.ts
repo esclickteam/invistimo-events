@@ -15,8 +15,10 @@ export type CallTaskStatus =
   | "confirmed" // אישר הגעה
   | "declined" // לא מגיע
   | "no_answer" // לא ענה
-  | "callback" // לחזור אליו
-  | "wrong_number" // מספר שגוי
+  | "callback" // חזרה בסבב הבא לפי תאריך הסבב
+  | "will_reply_message" // האורח אמר שישיב בהודעה
+  | "needs_fix" // דורש תיקון
+  | "wrong_number" // מספר שגוי - תאימות לאחור
   | "completed" // הושלם כללי
   | "cancelled"; // בוטל
 
@@ -30,6 +32,8 @@ export type CallTaskResult =
   | "declined"
   | "no_answer"
   | "callback"
+  | "will_reply_message"
+  | "needs_fix"
   | "wrong_number"
   | "other";
 
@@ -288,6 +292,8 @@ const CallTaskSchema = new Schema<ICallTask>(
         "declined",
         "no_answer",
         "callback",
+        "will_reply_message",
+        "needs_fix",
         "wrong_number",
         "completed",
         "cancelled",
@@ -304,6 +310,8 @@ const CallTaskSchema = new Schema<ICallTask>(
         "declined",
         "no_answer",
         "callback",
+        "will_reply_message",
+        "needs_fix",
         "wrong_number",
         "other",
         null,
@@ -424,6 +432,8 @@ function isCompletedStatus(status: CallTaskStatus) {
     "declined",
     "no_answer",
     "callback",
+    "will_reply_message",
+    "needs_fix",
     "wrong_number",
     "completed",
     "cancelled",
@@ -454,6 +464,8 @@ CallTaskSchema.pre("validate", function () {
     else if (doc.status === "declined") doc.result = "declined";
     else if (doc.status === "no_answer") doc.result = "no_answer";
     else if (doc.status === "callback") doc.result = "callback";
+    else if (doc.status === "will_reply_message") doc.result = "will_reply_message";
+    else if (doc.status === "needs_fix") doc.result = "needs_fix";
     else if (doc.status === "wrong_number") doc.result = "wrong_number";
     else doc.result = "other";
   }
@@ -556,10 +568,18 @@ CallTaskSchema.virtual("isCompleted").get(function () {
 CallTaskSchema.virtual("canReassign").get(function () {
   const doc = this as ICallTask;
 
-  return ["pending", "in_progress", "no_answer", "callback"].includes(
-    doc.status
-  );
+  return [
+    "pending",
+    "in_progress",
+    "no_answer",
+    "callback",
+    "needs_fix",
+    "wrong_number",
+  ].includes(doc.status);
 });
+
+
+
 
 /* ============================================================
    Export
