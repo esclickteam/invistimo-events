@@ -1324,6 +1324,73 @@ function buildEmployeeDistribution(employees: ScheduledEmployee[]) {
   return distribution;
 }
 
+function getTaskAssignedEmployeeIdString(task: any) {
+  return (
+    extractIdString(task?.assignedToEmployeeId) ||
+    extractIdString(task?.assignedEmployeeId) ||
+    extractIdString(task?.employeeId)
+  );
+}
+
+function chooseLeastLoadedEmployee(
+  employees: ScheduledEmployee[],
+  distribution: Record<string, number>
+) {
+  if (!employees.length) return null;
+
+  let selected = employees[0];
+  let selectedCount = Number(distribution[selected.employeeIdString] || 0);
+
+  for (const employee of employees.slice(1)) {
+    const count = Number(distribution[employee.employeeIdString] || 0);
+
+    if (count < selectedCount) {
+      selected = employee;
+      selectedCount = count;
+    }
+  }
+
+  return selected;
+}
+
+async function loadEmployeeTaskDistributionForDate(
+  dateKey: string,
+  employees: ScheduledEmployee[]
+) {
+  const distribution = buildEmployeeDistribution(employees);
+
+  if (!employees.length) return distribution;
+
+  const employeeObjectIds = employees.map((employee) => employee.employeeId);
+  const employeeIdStrings = employees.map((employee) => employee.employeeIdString);
+  const employeeIdsSet = new Set(employeeIdStrings);
+  const employeeValues: any[] = [...employeeObjectIds, ...employeeIdStrings];
+
+  const tasks = await CallTask.find({
+    workDate: {
+      $gte: startOfDateKey(dateKey),
+      $lte: endOfDateKey(dateKey),
+    },
+    $or: [
+      { assignedToEmployeeId: { $in: employeeValues } },
+      { assignedEmployeeId: { $in: employeeValues } },
+      { employeeId: { $in: employeeValues } },
+    ],
+  })
+    .select("assignedToEmployeeId assignedEmployeeId employeeId")
+    .lean();
+
+  for (const task of tasks) {
+    const employeeId = getTaskAssignedEmployeeIdString(task);
+
+    if (!employeeIdsSet.has(employeeId)) continue;
+
+    distribution[employeeId] = Number(distribution[employeeId] || 0) + 1;
+  }
+
+  return distribution;
+}
+
 /* ============================================================
    Existing work order sync / move
 ============================================================ */
@@ -1340,6 +1407,7 @@ async function syncExistingWorkOrderWithScheduledEmployees(input: {
     return {
       workOrder: serializeWorkOrder(existing),
       reassignedTasks: 0,
+      assignedMissingTasks: 0,
       distribution: {},
     };
   }
@@ -1363,58 +1431,40 @@ async function syncExistingWorkOrderWithScheduledEmployees(input: {
     })
     .lean();
 
-  const distribution = buildEmployeeDistribution(scheduledEmployees);
+  const distribution = await loadEmployeeTaskDistributionForDate(
+    dateKey,
+    scheduledEmployees
+  );
+
   const bulkOps: any[] = [];
-  let openIndex = 0;
 
-  for (const task of tasks) {
-    const status = cleanStr((task as any)?.status).toLowerCase();
-    const currentEmployeeId =
-      extractIdString((task as any)?.assignedToEmployeeId) ||
-      extractIdString((task as any)?.assignedEmployeeId) ||
-      extractIdString((task as any)?.employeeId);
+  /*
+    חשוב מאוד:
+    לא עושים איזון מחדש ולא מזיזים משימות שכבר משויכות לעובד.
+    גם אם לעובד אחד יש 20 ולעובד שני יש 25 — לא נוגעים.
 
-    if (!isOpenTaskStatusForRedistribution(status)) {
-      if (currentEmployeeId) {
-        distribution[currentEmployeeId] =
-          Number(distribution[currentEmployeeId] || 0) + 1;
-      }
+    משבצים רק משימות פתוחות שאין להן עובד בכלל.
+  */
+  const unassignedOpenTasks = tasks.filter((task: any) => {
+    const currentEmployeeId = getTaskAssignedEmployeeIdString(task);
 
-      continue;
-    }
+    if (currentEmployeeId) return false;
 
-    const nextEmployee =
-      scheduledEmployees[openIndex % scheduledEmployees.length];
+    const status = cleanStr(task?.status).toLowerCase();
 
-    openIndex += 1;
+    return isOpenTaskStatusForRedistribution(status);
+  });
 
-    const nextEmployeeId = nextEmployee?.employeeId;
-    const nextEmployeeIdString = nextEmployee?.employeeIdString || "";
+  for (const task of unassignedOpenTasks) {
+    const nextEmployee = chooseLeastLoadedEmployee(
+      scheduledEmployees,
+      distribution
+    );
 
-    if (nextEmployeeIdString) {
-      distribution[nextEmployeeIdString] =
-        Number(distribution[nextEmployeeIdString] || 0) + 1;
-    }
+    if (!nextEmployee) continue;
 
-    if (!nextEmployeeId || currentEmployeeId === nextEmployeeIdString) {
-      continue;
-    }
-
-    const set: Record<string, unknown> = {
-      assignedToEmployeeId: nextEmployeeId,
-      assignedEmployeeId: nextEmployeeId,
-      employeeId: nextEmployeeId,
-      assignedAt: (task as any)?.assignedAt || now,
-      reassignedAt: now,
-      reassignedReason: `שיבוץ מחדש לפי העובדים במשמרת בתאריך ${dateKey}`,
-      updatedAt: now,
-    };
-
-    const previousObjectId = toObjectId(currentEmployeeId);
-
-    if (previousObjectId) {
-      set.previousAssignedEmployeeId = previousObjectId;
-    }
+    distribution[nextEmployee.employeeIdString] =
+      Number(distribution[nextEmployee.employeeIdString] || 0) + 1;
 
     bulkOps.push({
       updateOne: {
@@ -1422,7 +1472,15 @@ async function syncExistingWorkOrderWithScheduledEmployees(input: {
           _id: (task as any)._id,
         },
         update: {
-          $set: set,
+          $set: {
+            assignedToEmployeeId: nextEmployee.employeeId,
+            assignedEmployeeId: nextEmployee.employeeId,
+            employeeId: nextEmployee.employeeId,
+            assignedAt: (task as any)?.assignedAt || now,
+            reassignedAt: now,
+            reassignedReason: `שובץ כי לא היה עובד משויך בתאריך ${dateKey}`,
+            updatedAt: now,
+          },
         },
       },
     });
@@ -1443,14 +1501,14 @@ async function syncExistingWorkOrderWithScheduledEmployees(input: {
   const taskSummary = summarizeCallTaskStatuses(freshTasks);
 
   const notesText = cleanStr(existing?.notes);
-  const syncNote = `עודכן לפי עובדים במשמרת בתאריך ${dateKey}`;
+  const syncNote = `סונכרן לפי עובדים במשמרת בתאריך ${dateKey} ללא איזון מחדש`;
 
   await CallWorkOrder.findByIdAndUpdate(workOrderId, {
     $set: {
       assignedEmployeeIds,
       assignedShiftIds,
       employeeCount: assignedEmployeeIds.length,
-      distributionStrategy: "scheduled_shift_round_robin",
+      distributionStrategy: "keep_existing_assignments_assign_only_missing",
       ...taskSummary,
       lastDistributedAt: now,
       lastStatusSyncAt: now,
@@ -1466,7 +1524,8 @@ async function syncExistingWorkOrderWithScheduledEmployees(input: {
 
   return {
     workOrder: serializeWorkOrder(freshWorkOrder),
-    reassignedTasks: bulkOps.length,
+    reassignedTasks: 0,
+    assignedMissingTasks: bulkOps.length,
     distribution,
   };
 }
@@ -1626,6 +1685,7 @@ async function reconcileExistingWorkOrderWithEligibleGuests(input: {
       addedMissingTasks: 0,
       eligibleGuestsCount: 0,
       reassignedTasks: 0,
+      assignedMissingTasks: 0,
       distribution: {},
     };
   }
@@ -1639,7 +1699,7 @@ async function reconcileExistingWorkOrderWithEligibleGuests(input: {
   const existingTasks = await CallTask.find({
     workOrderId,
   })
-    .select("guestId")
+    .select("guestId assignedToEmployeeId assignedEmployeeId employeeId")
     .sort({
       sortOrder: 1,
       _id: 1,
@@ -1669,6 +1729,11 @@ async function reconcileExistingWorkOrderWithEligibleGuests(input: {
   const workDate = startOfDateKey(dateKey);
   const now = new Date();
 
+  const distribution = await loadEmployeeTaskDistributionForDate(
+    dateKey,
+    scheduledEmployees
+  );
+
   const docsToInsert: any[] = [];
 
   for (const guest of eligibleGuests) {
@@ -1679,10 +1744,15 @@ async function reconcileExistingWorkOrderWithEligibleGuests(input: {
 
     if (existingGuestIds.has(guestId)) continue;
 
-    const assignedEmployee =
-      scheduledEmployees[
-        (existingTasks.length + docsToInsert.length) % scheduledEmployees.length
-      ];
+    const assignedEmployee = chooseLeastLoadedEmployee(
+      scheduledEmployees,
+      distribution
+    );
+
+    if (assignedEmployee) {
+      distribution[assignedEmployee.employeeIdString] =
+        Number(distribution[assignedEmployee.employeeIdString] || 0) + 1;
+    }
 
     docsToInsert.push({
       type: "rsvp_call",
@@ -1764,6 +1834,7 @@ async function reconcileExistingWorkOrderWithEligibleGuests(input: {
       sourceAudience,
       description: getRoundDescription(candidate.round),
       totalTasks: eligibleGuests.length,
+      distributionStrategy: "keep_existing_assignments_add_missing_by_load",
       updatedAt: now,
     },
   });
@@ -1946,7 +2017,7 @@ async function createWorkOrderForCandidate(input: {
       description: getRoundDescription(candidate.round),
 
       status: "open",
-      distributionStrategy: "scheduled_shift_round_robin",
+      distributionStrategy: "assign_by_daily_load_keep_existing",
 
       assignedEmployeeIds,
       assignedShiftIds,
@@ -2037,7 +2108,10 @@ async function createWorkOrderForCandidate(input: {
   }
 
   const workOrderId = workOrder._id as Types.ObjectId;
-  const distribution: Record<string, number> = {};
+  const distribution = await loadEmployeeTaskDistributionForDate(
+    dateKey,
+    scheduledEmployees
+  );
 
   const taskDocs = guestsForRound
     .map((guest: any, index: number) => {
@@ -2045,12 +2119,15 @@ async function createWorkOrderForCandidate(input: {
 
       if (!guestObjectId) return null;
 
-      const assignedEmployee =
-        scheduledEmployees[index % scheduledEmployees.length];
+      const assignedEmployee = chooseLeastLoadedEmployee(
+        scheduledEmployees,
+        distribution
+      );
 
-      const employeeKey = assignedEmployee?.employeeIdString || "unassigned";
-
-      distribution[employeeKey] = Number(distribution[employeeKey] || 0) + 1;
+      if (assignedEmployee) {
+        distribution[assignedEmployee.employeeIdString] =
+          Number(distribution[assignedEmployee.employeeIdString] || 0) + 1;
+      }
 
       return {
         type: "rsvp_call",
