@@ -37,11 +37,12 @@ const cached: MongoCache =
 async function connectMongo() {
   if (cached.conn) return cached.conn;
 
-  // ✅ תומך גם בשם שיש לך עכשיו ב-Vercel וגם בשם הסטנדרטי
   const uri = process.env.MONGODB_URI || process.env.MONGO_URI;
 
   if (!uri) {
-    throw new Error("Mongo connection string is missing. Please set MONGODB_URI or MONGO_URI.");
+    throw new Error(
+      "Mongo connection string is missing. Please set MONGODB_URI or MONGO_URI."
+    );
   }
 
   if (!cached.promise) {
@@ -197,6 +198,36 @@ function safeRegex(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function getBaseUrl(req: NextRequest) {
+  const forwardedProto = req.headers.get("x-forwarded-proto");
+  const forwardedHost = req.headers.get("x-forwarded-host");
+  const host = forwardedHost || req.headers.get("host") || "";
+
+  if (host) {
+    return `${forwardedProto || "https"}://${host}`;
+  }
+
+  return new URL(req.url).origin;
+}
+
+function buildStreamUrl(req: NextRequest, mongoId: string) {
+  const baseUrl = getBaseUrl(req);
+
+  return `${baseUrl}/api/admin/call-recordings/${encodeURIComponent(
+    mongoId
+  )}/stream`;
+}
+
+function getLegacyRecordingUrl(item: any) {
+  return (
+    item.recordingUrl ||
+    item.recordingUrls?.mp3 ||
+    item.recordingUrls?.wav ||
+    item.recordingUrls?.raw ||
+    ""
+  );
+}
+
 export async function GET(req: NextRequest) {
   try {
     const admin = await verifyAdmin(req);
@@ -273,15 +304,12 @@ export async function GET(req: NextRequest) {
     ]);
 
     const recordings = items.map((item: any) => {
-      const recordingUrl =
-        item.recordingUrl ||
-        item.recordingUrls?.mp3 ||
-        item.recordingUrls?.wav ||
-        item.recordingUrls?.raw ||
-        "";
+      const mongoId = String(item._id);
+      const streamUrl = buildStreamUrl(req, mongoId);
+      const legacyRecordingUrl = getLegacyRecordingUrl(item);
 
       return {
-        id: String(item._id),
+        id: mongoId,
         eventId: item.eventId || "",
 
         callControlId: item.callControlId || "",
@@ -291,8 +319,23 @@ export async function GET(req: NextRequest) {
 
         recordingId: item.recordingId || "",
         recordingStatus: item.recordingStatus || "saved",
-        recordingUrl,
-        recordingUrls: item.recordingUrls || {},
+
+        // ✅ זה מה שהפרונט ישתמש בו לנגן ולהורדה
+        recordingUrl: streamUrl,
+        playbackUrl: streamUrl,
+        streamUrl,
+        downloadUrl: `${streamUrl}?download=1`,
+
+        // ✅ שומרים למקרה שצריך דיבוג, אבל הפרונט לא אמור לנגן את זה ישירות
+        legacyRecordingUrl,
+        legacyRecordingUrls: item.recordingUrls || {},
+
+        // ✅ אם בהמשך נשמור באחסון קבוע, הנתונים האלו כבר יחזרו לפרונט
+        recordingStorage: item.recordingStorage || item.storage || "",
+        recordingBucket: item.recordingBucket || item.bucket || "",
+        recordingKey: item.recordingKey || item.storageKey || item.key || "",
+        recordingContentType:
+          item.recordingContentType || item.contentType || "audio/mpeg",
 
         from: item.from || "",
         to: item.to || "",

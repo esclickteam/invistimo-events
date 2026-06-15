@@ -8,12 +8,28 @@ type CallRecording = {
   id: string;
   recordingId: string;
   recordingStatus: string;
-  recordingUrl: string;
+
+  /**
+   * חשוב:
+   * recordingUrl / recordingUrls הם בדרך כלל לינקים זמניים מטלניקס / S3.
+   * לא מנגנים אותם ישירות בפרונט, כי הם פגים תוקף.
+   * הפרונט תמיד מנגן דרך API קבוע אצלנו.
+   */
+  recordingUrl?: string;
   recordingUrls?: {
     mp3?: string;
     wav?: string;
     raw?: string;
   };
+
+  /** שדות קבועים/עתידיים לאחסון שלך: S3 / R2 / Spaces */
+  recordingKey?: string;
+  recordingStorageKey?: string;
+  recordingBucket?: string;
+  recordingStorage?: string;
+  permanentRecordingUrl?: string;
+  storedRecordingUrl?: string;
+  hasPermanentFile?: boolean;
   from: string;
   to: string;
   direction: CallDirection;
@@ -69,13 +85,43 @@ function formatDuration(totalSeconds?: number) {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
-function getRecordingUrl(recording: CallRecording) {
+function getLegacyRecordingUrl(recording: CallRecording) {
   return (
     recording.recordingUrl ||
     recording.recordingUrls?.mp3 ||
     recording.recordingUrls?.wav ||
     recording.recordingUrls?.raw ||
     ""
+  );
+}
+
+function getRecordingIdentifier(recording: CallRecording) {
+  return String(recording.id || recording.recordingId || "").trim();
+}
+
+function getRecordingStreamUrl(recording: CallRecording, download = false) {
+  const id = getRecordingIdentifier(recording);
+  if (!id) return "";
+
+  const query = download ? "?download=1" : "";
+
+  /**
+   * הכתובת הזאת נשארת קבועה גם עוד שנה.
+   * השרת מאחוריה צריך להביא את הקובץ מהאחסון הקבוע שלך
+   * או לייצר signed-url חדש בזמן אמת.
+   */
+  return `/api/admin/call-recordings/${encodeURIComponent(id)}/stream${query}`;
+}
+
+function hasRecordingFile(recording: CallRecording) {
+  return Boolean(
+    recording.hasPermanentFile ||
+      recording.recordingKey ||
+      recording.recordingStorageKey ||
+      recording.permanentRecordingUrl ||
+      recording.storedRecordingUrl ||
+      getLegacyRecordingUrl(recording) ||
+      getRecordingIdentifier(recording)
   );
 }
 
@@ -181,8 +227,8 @@ export default function AdminCallRecordingsPage() {
                 </h1>
 
                 <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-[#8b7b68]">
-                  כאן האדמין יכול לראות, לנגן ולהוריד הקלטות שיחות שנשמרו
-                  מ־Telnyx במונגו.
+                  כאן האדמין יכול לראות, לנגן ולהוריד הקלטות שיחות.
+                  הניגון מתבצע דרך API קבוע אצלנו כדי שלינקים זמניים מטלניקס לא יישברו.
                 </p>
               </div>
 
@@ -264,7 +310,7 @@ export default function AdminCallRecordingsPage() {
           />
           <StatCard
             label="עם קובץ שמע"
-            value={recordings.filter((item) => Boolean(getRecordingUrl(item))).length}
+            value={recordings.filter((item) => hasRecordingFile(item)).length}
           />
         </div>
 
@@ -307,7 +353,9 @@ export default function AdminCallRecordingsPage() {
 
                 <tbody>
                   {recordings.map((recording) => {
-                    const url = getRecordingUrl(recording);
+                    const canPlay = hasRecordingFile(recording);
+                    const streamUrl = getRecordingStreamUrl(recording);
+                    const downloadUrl = getRecordingStreamUrl(recording, true);
 
                     return (
                       <tr
@@ -362,24 +410,30 @@ export default function AdminCallRecordingsPage() {
                         </td>
 
                         <td className="p-4">
-                          {url ? (
-                            <audio
-                              controls
-                              preload="none"
-                              src={url}
-                              className="h-10 w-[260px]"
-                            />
+                          {canPlay && streamUrl ? (
+                            <div className="grid gap-2">
+                              <audio
+                                controls
+                                preload="none"
+                                src={streamUrl}
+                                className="h-10 w-[260px]"
+                              />
+
+                              <span className="text-[11px] font-bold text-[#8b7b68]">
+                                הנגן נטען דרך השרת כדי שלא נשתמש בלינק שפג תוקף.
+                              </span>
+                            </div>
                           ) : (
                             <span className="text-xs font-bold text-[#8b7b68]">
-                              אין קישור הקלטה
+                              אין קובץ הקלטה
                             </span>
                           )}
                         </td>
 
                         <td className="p-4">
-                          {url ? (
+                          {canPlay && downloadUrl ? (
                             <a
-                              href={url}
+                              href={downloadUrl}
                               target="_blank"
                               rel="noreferrer"
                               download

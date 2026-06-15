@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
+import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import CallRecording from "@/models/CallRecording";
 
 export const runtime = "nodejs";
@@ -25,6 +26,8 @@ type TelnyxVoicePayload = {
   client_state?: string;
 
   recording_id?: string;
+  recordingId?: string;
+  id?: string;
   recording_url?: string;
   recording_urls?: unknown;
   recording_status?: string;
@@ -65,11 +68,28 @@ type ParsedClientState = {
   [key: string]: unknown;
 };
 
+type R2UploadResult =
+  | {
+      ok: true;
+      storage: "r2";
+      bucket: string;
+      key: string;
+      contentType: string;
+      sizeBytes: number;
+      uploadedAt: Date;
+    }
+  | {
+      ok: false;
+      reason: string;
+      details?: unknown;
+    };
+
 const mongoCache = globalThis as typeof globalThis & {
   __invistimoMongoose?: {
     conn: typeof mongoose | null;
     promise: Promise<typeof mongoose> | null;
   };
+  __invistimoR2Client?: S3Client;
 };
 
 async function connectMongo() {
@@ -96,7 +116,9 @@ async function connectMongo() {
     });
   }
 
-  mongoCache.__invistimoMongoose.conn = await mongoCache.__invistimoMongoose.promise;
+  mongoCache.__invistimoMongoose.conn =
+    await mongoCache.__invistimoMongoose.promise;
+
   return mongoCache.__invistimoMongoose.conn;
 }
 
@@ -186,10 +208,6 @@ function normalizeDirection(value: unknown): CallDirection {
   return "unknown";
 }
 
-/**
- * בגלל שב־Telnyx לפעמים direction חוזר ריק,
- * אנחנו מזהים שיחה נכנסת גם לפי זה שהיעד הוא המספר שלנו.
- */
 function isInboundCall(params: {
   direction: string;
   from: string;
@@ -210,6 +228,236 @@ function isInboundCall(params: {
       toNormalized === systemNumber &&
       fromNormalized !== systemNumber
   );
+}
+
+function getR2Endpoint() {
+  const directEndpoint = getString(process.env.R2_ENDPOINT);
+  if (directEndpoint) return directEndpoint.replace(/\/+$/, "");
+
+  const accountId = getString(process.env.R2_ACCOUNT_ID);
+  if (!accountId) return "";
+
+  return `https://${accountId}.r2.cloudflarestorage.com`;
+}
+
+function getR2Config() {
+  const endpoint = getR2Endpoint();
+  const bucket = getString(process.env.R2_BUCKET_NAME);
+  const accessKeyId = getString(process.env.R2_ACCESS_KEY_ID);
+  const secretAccessKey = getString(process.env.R2_SECRET_ACCESS_KEY);
+
+  const enabled = Boolean(endpoint && bucket && accessKeyId && secretAccessKey);
+
+  return {
+    enabled,
+    endpoint,
+    bucket,
+    accessKeyId,
+    secretAccessKey,
+  };
+}
+
+function getR2Client() {
+  if (mongoCache.__invistimoR2Client) {
+    return mongoCache.__invistimoR2Client;
+  }
+
+  const config = getR2Config();
+
+  if (!config.enabled) {
+    throw new Error("R2 configuration is missing");
+  }
+
+  mongoCache.__invistimoR2Client = new S3Client({
+    region: "auto",
+    endpoint: config.endpoint,
+    credentials: {
+      accessKeyId: config.accessKeyId,
+      secretAccessKey: config.secretAccessKey,
+    },
+  });
+
+  return mongoCache.__invistimoR2Client;
+}
+
+function sanitizeKeyPart(value: unknown, fallback = "unknown") {
+  const clean =
+    getString(value)
+      .replace(/[^\w.-]+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 120) || fallback;
+
+  return clean;
+}
+
+function getExtensionFromContentType(contentType: string) {
+  const lower = contentType.toLowerCase();
+
+  if (lower.includes("mpeg") || lower.includes("mp3")) return "mp3";
+  if (lower.includes("wav")) return "wav";
+  if (lower.includes("webm")) return "webm";
+  if (lower.includes("ogg")) return "ogg";
+  if (lower.includes("mp4")) return "mp4";
+  if (lower.includes("aac")) return "aac";
+
+  return "";
+}
+
+function getExtensionFromUrl(url: string) {
+  const cleanUrl = url.split("?")[0] || "";
+  const match = cleanUrl.match(/\.([a-z0-9]{2,6})$/i);
+  return match?.[1]?.toLowerCase() || "";
+}
+
+function getContentTypeFromFormat(format: unknown) {
+  const clean = getString(format).toLowerCase();
+
+  if (clean === "mp3") return "audio/mpeg";
+  if (clean === "wav") return "audio/wav";
+  if (clean === "webm") return "audio/webm";
+  if (clean === "ogg") return "audio/ogg";
+
+  return "";
+}
+
+function buildRecordingKey(params: {
+  recordingId: string;
+  callSessionId: string;
+  recordedAt: Date;
+  contentType: string;
+  sourceUrl: string;
+  format?: string;
+}) {
+  const year = String(params.recordedAt.getFullYear());
+  const month = String(params.recordedAt.getMonth() + 1).padStart(2, "0");
+  const day = String(params.recordedAt.getDate()).padStart(2, "0");
+
+  const baseName = sanitizeKeyPart(
+    params.recordingId || params.callSessionId || Date.now(),
+    "recording"
+  );
+
+  const extension =
+    getExtensionFromContentType(params.contentType) ||
+    getString(params.format).toLowerCase() ||
+    getExtensionFromUrl(params.sourceUrl) ||
+    "mp3";
+
+  return `call-recordings/${year}/${month}/${day}/${baseName}.${extension}`;
+}
+
+function normalizeMetadata(value: unknown) {
+  return getString(value).replace(/[^\x20-\x7E]/g, "").slice(0, 500);
+}
+
+async function uploadRecordingToR2(params: {
+  recordingUrl: string;
+  recordingId: string;
+  callControlId: string;
+  callSessionId: string;
+  callLegId: string;
+  eventId: string;
+  recordedAt: Date;
+  format?: string;
+}) {
+  const config = getR2Config();
+
+  if (!config.enabled) {
+    return {
+      ok: false,
+      reason: "R2_NOT_CONFIGURED",
+    } satisfies R2UploadResult;
+  }
+
+  if (!params.recordingUrl) {
+    return {
+      ok: false,
+      reason: "RECORDING_URL_MISSING",
+    } satisfies R2UploadResult;
+  }
+
+  try {
+    const response = await fetch(params.recordingUrl, {
+      method: "GET",
+      cache: "no-store",
+      redirect: "follow",
+    });
+
+    if (!response.ok) {
+      const details = await response.text().catch(() => "");
+
+      return {
+        ok: false,
+        reason: "TELNYX_RECORDING_DOWNLOAD_FAILED",
+        details: {
+          status: response.status,
+          body: details.slice(0, 1000),
+        },
+      } satisfies R2UploadResult;
+    }
+
+    const headerContentType = getString(response.headers.get("content-type"));
+    const fallbackContentType = getContentTypeFromFormat(params.format);
+    const contentType = headerContentType || fallbackContentType || "audio/mpeg";
+
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    if (!buffer.length) {
+      return {
+        ok: false,
+        reason: "TELNYX_RECORDING_EMPTY_FILE",
+      } satisfies R2UploadResult;
+    }
+
+    const key = buildRecordingKey({
+      recordingId: params.recordingId,
+      callSessionId: params.callSessionId,
+      recordedAt: params.recordedAt,
+      contentType,
+      sourceUrl: params.recordingUrl,
+      format: params.format,
+    });
+
+    const client = getR2Client();
+
+    await client.send(
+      new PutObjectCommand({
+        Bucket: config.bucket,
+        Key: key,
+        Body: buffer,
+        ContentType: contentType,
+        Metadata: {
+          provider: "telnyx",
+          recordingId: normalizeMetadata(params.recordingId),
+          callControlId: normalizeMetadata(params.callControlId),
+          callSessionId: normalizeMetadata(params.callSessionId),
+          callLegId: normalizeMetadata(params.callLegId),
+          eventId: normalizeMetadata(params.eventId),
+          uploadedBy: "invistimo-webhook",
+        },
+      })
+    );
+
+    return {
+      ok: true,
+      storage: "r2",
+      bucket: config.bucket,
+      key,
+      contentType,
+      sizeBytes: buffer.byteLength,
+      uploadedAt: new Date(),
+    } satisfies R2UploadResult;
+  } catch (error) {
+    console.error("UPLOAD RECORDING TO R2 FAILED:", error);
+
+    return {
+      ok: false,
+      reason: "R2_UPLOAD_FAILED",
+      details: error instanceof Error ? error.message : error,
+    } satisfies R2UploadResult;
+  }
 }
 
 async function telnyxCallAction(
@@ -252,20 +500,22 @@ async function telnyxCallAction(
     }
   );
 
-  const data = (await res.json().catch(() => null)) as TelnyxActionResponse | null;
+  const data = (await res.json().catch(() => null)) as
+    | TelnyxActionResponse
+    | null;
 
   if (!res.ok) {
-  console.error(`TELNYX ${action.toUpperCase()} FAILED:`, {
-    status: res.status,
-    data: JSON.stringify(data, null, 2),
-  });
+    console.error(`TELNYX ${action.toUpperCase()} FAILED:`, {
+      status: res.status,
+      data: JSON.stringify(data, null, 2),
+    });
 
-  return {
-    ok: false,
-    status: res.status,
-    data,
-  };
-}
+    return {
+      ok: false,
+      status: res.status,
+      data,
+    };
+  }
 
   console.log(`TELNYX ${action.toUpperCase()} SUCCESS:`, data);
 
@@ -384,7 +634,8 @@ function getRecordingId(params: {
 
   const callControlId = getString(params.payload.call_control_id);
   const callSessionId = getString(params.payload.call_session_id);
-  const occurredAt = getString(params.event?.occurred_at) || new Date().toISOString();
+  const occurredAt =
+    getString(params.event?.occurred_at) || new Date().toISOString();
 
   return `${params.status}-${callSessionId || callControlId || occurredAt}`;
 }
@@ -414,7 +665,27 @@ async function saveRecordingEvent(params: {
     getDate(event?.occurred_at) ||
     new Date();
 
-  const update = {
+  const legacyRecordingUrl = getBestRecordingUrl(payload);
+
+  let r2Upload: R2UploadResult = {
+    ok: false,
+    reason: "NOT_ATTEMPTED",
+  };
+
+  if (status === "saved" && legacyRecordingUrl) {
+    r2Upload = await uploadRecordingToR2({
+      recordingUrl: legacyRecordingUrl,
+      recordingId,
+      callControlId: getString(payload.call_control_id),
+      callSessionId: getString(payload.call_session_id),
+      callLegId: getString(payload.call_leg_id),
+      eventId: getString(event?.id),
+      recordedAt,
+      format: getString(payload.format),
+    });
+  }
+
+  const update: Record<string, unknown> = {
     eventId: getString(event?.id),
     callControlId: getString(payload.call_control_id),
     callLegId: getString(payload.call_leg_id),
@@ -423,7 +694,9 @@ async function saveRecordingEvent(params: {
 
     recordingId,
     recordingStatus: status,
-    recordingUrl: getBestRecordingUrl(payload),
+
+    // נשאר לדיבוג/גיבוי בלבד. לא להסתמך עליו לניגון עתידי.
+    recordingUrl: legacyRecordingUrl,
     recordingUrls,
 
     from,
@@ -440,15 +713,28 @@ async function saveRecordingEvent(params: {
       getString(clientState.customerPhone) ||
       (direction === "inbound" ? from : to),
 
-    startedAt: getDate(payload.recording_started_at) || getDate(payload.start_time),
+    startedAt:
+      getDate(payload.recording_started_at) || getDate(payload.start_time),
     endedAt: getDate(payload.recording_ended_at) || getDate(payload.end_time),
     recordedAt,
     durationSeconds,
 
-    provider: "telnyx" as const,
-    source: "webhook" as const,
+    provider: "telnyx",
+    source: "webhook",
     rawPayload: payload,
+
+    recordingStorageStatus: r2Upload.ok ? "saved" : r2Upload.reason,
+    recordingStorageError: r2Upload.ok ? "" : JSON.stringify(r2Upload.details || ""),
   };
+
+  if (r2Upload.ok) {
+    update.recordingStorage = "r2";
+    update.recordingBucket = r2Upload.bucket;
+    update.recordingKey = r2Upload.key;
+    update.recordingContentType = r2Upload.contentType;
+    update.recordingSizeBytes = r2Upload.sizeBytes;
+    update.recordingSavedAt = r2Upload.uploadedAt;
+  }
 
   const recording = await CallRecording.findOneAndUpdate(
     { recordingId },
@@ -467,7 +753,8 @@ async function saveRecordingEvent(params: {
     from,
     to,
     direction,
-    recordingUrl: update.recordingUrl,
+    legacyRecordingUrl,
+    r2Upload,
   });
 
   return recording;
@@ -527,13 +814,11 @@ export async function POST(req: NextRequest) {
           callControlId,
         });
 
-        /**
-         * חשוב ל־WebRTC:
-         * ברירת המחדל כאן היא לא לענות אוטומטית,
-         * כדי שהשיחה תצלצל בדפדפן והנציג יענה.
-         * אם תרצי IVR/מענה אוטומטי, אפשר להפעיל ENV נפרד.
-         */
-        if (inbound && callControlId && getBooleanEnv("TELNYX_AUTO_ANSWER_INBOUND", false)) {
+        if (
+          inbound &&
+          callControlId &&
+          getBooleanEnv("TELNYX_AUTO_ANSWER_INBOUND", false)
+        ) {
           await answerIncomingCall(callControlId);
         }
 
@@ -574,6 +859,7 @@ export async function POST(req: NextRequest) {
           callControlId,
           callSessionId,
           recordingId: payload.recording_id,
+          recordingUrl: payload.recording_url,
         });
 
         await saveRecordingEvent({
@@ -676,6 +962,7 @@ export async function POST(req: NextRequest) {
       {
         success: false,
         error: "TELNYX_VOICE_WEBHOOK_FAILED",
+        details: error instanceof Error ? error.message : error,
       },
       { status: 500 }
     );

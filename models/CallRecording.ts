@@ -8,6 +8,8 @@ export type CallRecordingStatus =
   | "failed"
   | "deleted";
 
+export type CallRecordingStorage = "" | "r2" | "telnyx" | "external";
+
 export type CallRecordingDocument = {
   _id: mongoose.Types.ObjectId;
 
@@ -22,13 +24,26 @@ export type CallRecordingDocument = {
   recordingId: string;
   recordingStatus: CallRecordingStatus;
 
-  // Recording files
+  // Legacy / Telnyx temporary urls
   recordingUrl?: string;
   recordingUrls?: {
     mp3?: string;
     wav?: string;
     raw?: string;
   };
+
+  // Permanent storage - Cloudflare R2
+  recordingStorage?: CallRecordingStorage;
+  recordingBucket?: string;
+  recordingKey?: string;
+  recordingContentType?: string;
+  recordingSizeBytes?: number;
+  recordingSavedAt?: Date | null;
+  recordingPermanentUrl?: string;
+
+  // Storage status/debug
+  recordingStorageStatus?: string;
+  recordingStorageError?: string;
 
   // Call details
   from?: string;
@@ -46,9 +61,9 @@ export type CallRecordingDocument = {
   customerPhone?: string;
 
   // Timing
-  startedAt?: Date;
-  endedAt?: Date;
-  recordedAt?: Date;
+  startedAt?: Date | null;
+  endedAt?: Date | null;
+  recordedAt?: Date | null;
   durationSeconds?: number;
 
   // Source
@@ -114,6 +129,11 @@ const CallRecordingSchema = new Schema<CallRecordingDocument>(
       index: true,
     },
 
+    /*
+      חשוב:
+      recordingUrl / recordingUrls הם לינקים זמניים של Telnyx.
+      משאירים אותם רק לדיבוג/גיבוי, לא לניגון קבוע.
+    */
     recordingUrl: {
       type: String,
       default: "",
@@ -136,6 +156,69 @@ const CallRecordingSchema = new Schema<CallRecordingDocument>(
         default: "",
         trim: true,
       },
+    },
+
+    /*
+      Cloudflare R2 permanent storage
+      אלו השדות שה-webhook החדש שומר אחרי העלאה ל-R2.
+    */
+    recordingStorage: {
+      type: String,
+      enum: ["", "r2", "telnyx", "external"],
+      default: "",
+      index: true,
+      trim: true,
+    },
+
+    recordingBucket: {
+      type: String,
+      default: "",
+      index: true,
+      trim: true,
+    },
+
+    recordingKey: {
+      type: String,
+      default: "",
+      index: true,
+      trim: true,
+    },
+
+    recordingContentType: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    recordingSizeBytes: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    recordingSavedAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+
+    recordingPermanentUrl: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    recordingStorageStatus: {
+      type: String,
+      default: "",
+      index: true,
+      trim: true,
+    },
+
+    recordingStorageError: {
+      type: String,
+      default: "",
+      trim: true,
     },
 
     from: {
@@ -246,12 +329,24 @@ const CallRecordingSchema = new Schema<CallRecordingDocument>(
   }
 );
 
+/* ============================================================
+   Indexes
+============================================================ */
+
 CallRecordingSchema.index({ createdAt: -1 });
 CallRecordingSchema.index({ recordedAt: -1 });
 CallRecordingSchema.index({ direction: 1, createdAt: -1 });
 CallRecordingSchema.index({ agentId: 1, createdAt: -1 });
 CallRecordingSchema.index({ customerPhone: 1, createdAt: -1 });
 CallRecordingSchema.index({ callSessionId: 1, createdAt: -1 });
+
+/*
+  R2 indexes
+*/
+CallRecordingSchema.index({ recordingStorage: 1, createdAt: -1 });
+CallRecordingSchema.index({ recordingBucket: 1, recordingKey: 1 });
+CallRecordingSchema.index({ recordingStorageStatus: 1, createdAt: -1 });
+CallRecordingSchema.index({ recordingSavedAt: -1 });
 
 const CallRecording =
   models.CallRecording ||
