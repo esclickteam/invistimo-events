@@ -16,6 +16,7 @@ export type CallStatus =
   | "unknown";
 
 export type CallRecordingStatus =
+  | "none"
   | "pending"
   | "started"
   | "saved"
@@ -92,7 +93,32 @@ export type CallRecordingDocument = {
   answeredAt?: Date | null;
   endedAt?: Date | null;
   recordedAt?: Date | null;
+
+  /**
+   * durationSeconds:
+   * אם השיחה נענתה — משך דיבור.
+   * אם לא נענתה — משך ניסיון החיוג.
+   */
   durationSeconds?: number;
+
+  /**
+   * ringDurationSeconds:
+   * כמה זמן עבר מתחילת החיוג עד מענה / ניתוק.
+   */
+  ringDurationSeconds?: number;
+
+  /**
+   * talkDurationSeconds:
+   * כמה זמן הייתה שיחה בפועל אחרי מענה.
+   */
+  talkDurationSeconds?: number;
+
+  /**
+   * noRecordingReason:
+   * למה אין הקלטה, למשל:
+   * not_answered / busy / failed / canceled_before_answer
+   */
+  noRecordingReason?: string;
 
   // Source
   provider: "telnyx";
@@ -192,8 +218,7 @@ const CallRecordingSchema = new Schema<CallRecordingDocument>(
 
     /*
       חשוב:
-      recordingId כבר לא required ולא unique ישירות בשדה.
-      למה?
+      recordingId לא required ולא unique ישירות בשדה.
       כי אנחנו יוצרים רשומת שיחה כבר בתחילת החיוג,
       ובשלב הזה עדיין אין recordingId.
     */
@@ -203,9 +228,14 @@ const CallRecordingSchema = new Schema<CallRecordingDocument>(
       trim: true,
     },
 
+    /*
+      none = אין הקלטה כי השיחה לא נענתה / תפוס / נותקה לפני מענה.
+      pending = מחכים לראות אם תיווצר הקלטה.
+      saved = יש הקלטה שמורה.
+    */
     recordingStatus: {
       type: String,
-      enum: ["pending", "started", "saved", "failed", "deleted"],
+      enum: ["none", "pending", "started", "saved", "failed", "deleted"],
       default: "pending",
       index: true,
     },
@@ -394,6 +424,27 @@ const CallRecordingSchema = new Schema<CallRecordingDocument>(
       index: true,
     },
 
+    ringDurationSeconds: {
+      type: Number,
+      default: 0,
+      min: 0,
+      index: true,
+    },
+
+    talkDurationSeconds: {
+      type: Number,
+      default: 0,
+      min: 0,
+      index: true,
+    },
+
+    noRecordingReason: {
+      type: String,
+      default: "",
+      index: true,
+      trim: true,
+    },
+
     provider: {
       type: String,
       enum: ["telnyx"],
@@ -436,6 +487,10 @@ CallRecordingSchema.index({ endedAt: -1 });
 CallRecordingSchema.index({ direction: 1, createdAt: -1 });
 CallRecordingSchema.index({ callStatus: 1, createdAt: -1 });
 CallRecordingSchema.index({ recordingStatus: 1, createdAt: -1 });
+
+CallRecordingSchema.index({ ringDurationSeconds: 1, createdAt: -1 });
+CallRecordingSchema.index({ talkDurationSeconds: 1, createdAt: -1 });
+CallRecordingSchema.index({ noRecordingReason: 1, createdAt: -1 });
 
 CallRecordingSchema.index({ agentId: 1, createdAt: -1 });
 CallRecordingSchema.index({ agentEmail: 1, createdAt: -1 });

@@ -79,7 +79,9 @@ async function connectMongo() {
   const uri = process.env.MONGODB_URI || process.env.MONGO_URI || "";
 
   if (!uri) {
-    throw new Error("Mongo connection string is missing. Set MONGODB_URI or MONGO_URI.");
+    throw new Error(
+      "Mongo connection string is missing. Set MONGODB_URI or MONGO_URI."
+    );
   }
 
   if (!cached.promise) {
@@ -217,10 +219,6 @@ async function findUserFromToken(decoded: JwtPayload): Promise<AuthUser> {
       return fallbackUser;
     }
 
-    /**
-     * לא מייבאים כאן User model כדי לא להיתקע על שם מודל שונה.
-     * קוראים ישירות לקולקציה users.
-     */
     const userDoc = await mongoose.connection.collection("users").findOne({
       $or: orQuery,
     });
@@ -406,12 +404,6 @@ export async function POST(req: NextRequest) {
     const user = currentUser.user;
     const now = new Date();
 
-    /**
-     * קודם יוצרים רשומת שיחה מקומית.
-     * זה מה שהיה חסר אצלך.
-     * ככה גם אם ה-recording.saved מגיע אחר כך לבד,
-     * יהיה לנו כבר מי העובד, מה המייל שלו, ולאיזה מספר הוא חייג.
-     */
     const initialCallRecording = await CallRecording.create({
       provider: "telnyx",
       source: "softphone",
@@ -436,7 +428,11 @@ export async function POST(req: NextRequest) {
       answeredAt: null,
       endedAt: null,
       recordedAt: null,
+
       durationSeconds: 0,
+      ringDurationSeconds: 0,
+      talkDurationSeconds: 0,
+      noRecordingReason: "",
 
       clientState: {},
       rawPayload: {
@@ -455,15 +451,6 @@ export async function POST(req: NextRequest) {
 
     localCallRecordingId = initialCallRecording._id.toString();
 
-    /**
-     * חשוב:
-     * קודם מכניסים clientState מהפרונט,
-     * ואז דורסים agentId / agentName / agentEmail לפי היוזר המחובר.
-     * ככה אי אפשר לזייף עובד מהפרונט.
-     *
-     * בנוסף מוסיפים localCallRecordingId,
-     * כדי שה-webhook יוכל למצוא את הרשומה בוודאות.
-     */
     const clientStateObject: Record<string, unknown> = {
       ...safeClientState(body.clientState),
 
@@ -570,6 +557,8 @@ export async function POST(req: NextRequest) {
           $set: {
             callStatus: "failed",
             telnyxCallStatus: "create_call_failed",
+            recordingStatus: "none",
+            noRecordingReason: "telnyx_create_call_failed",
             endedAt: new Date(),
             lastWebhookEvent: "telnyx_create_call_failed",
             rawPayload: {
@@ -693,7 +682,10 @@ export async function POST(req: NextRequest) {
       error,
     });
 
-    if (localCallRecordingId && mongoose.Types.ObjectId.isValid(localCallRecordingId)) {
+    if (
+      localCallRecordingId &&
+      mongoose.Types.ObjectId.isValid(localCallRecordingId)
+    ) {
       try {
         await CallRecording.updateOne(
           { _id: new mongoose.Types.ObjectId(localCallRecordingId) },
@@ -701,6 +693,8 @@ export async function POST(req: NextRequest) {
             $set: {
               callStatus: "failed",
               telnyxCallStatus: "route_error",
+              recordingStatus: "none",
+              noRecordingReason: "route_error",
               endedAt: new Date(),
               lastWebhookEvent: "create_call_route_error",
               rawPayload: {
@@ -717,7 +711,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    
     return NextResponse.json(
       {
         success: false,
