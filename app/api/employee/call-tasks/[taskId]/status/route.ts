@@ -890,18 +890,6 @@ async function syncWorkOrderStatus(workOrderId: Types.ObjectId) {
   };
 }
 
-async function getGuestCallHistory(guestId: Types.ObjectId) {
-  const guest = await InvitationGuest.findById(guestId)
-    .select("callHistory")
-    .lean();
-
-  const history = Array.isArray((guest as any)?.callHistory)
-    ? (guest as any).callHistory
-    : [];
-
-  return history.map(serializeCallHistoryItem);
-}
-
 async function syncDuplicateGuestRoundTasks(input: {
   task: any;
   status: TaskStatus;
@@ -972,274 +960,6 @@ async function syncDuplicateGuestRoundTasks(input: {
   await (CallTask as any).updateMany(filter, {
     $set: set,
   });
-}
-
-async function ensureNextRoundTask(input: {
-  task: any;
-  currentRound: number;
-  nextRound: number;
-  employeeId: Types.ObjectId;
-  now: Date;
-  note: string;
-  guestNote: string;
-  hasGuestNote: boolean;
-  reason: NextRoundReason;
-}) {
-  const guestObjectId = toObjectId(input.task?.guestId);
-  const currentTaskObjectId = toObjectId(input.task?._id);
-  const currentWorkOrderObjectId = toObjectId(input.task?.workOrderId);
-  const invitationObjectId = toObjectId(input.task?.invitationId);
-
-  if (!guestObjectId || !currentTaskObjectId) {
-    return null;
-  }
-
-  const previousCallHistory = await getGuestCallHistory(guestObjectId);
-
-  const sourceWorkOrder = currentWorkOrderObjectId
-    ? await CallWorkOrder.findById(currentWorkOrderObjectId).lean()
-    : null;
-
-  const invitationIdForQuery =
-    invitationObjectId || toObjectId((sourceWorkOrder as any)?.invitationId);
-
-  if (!invitationIdForQuery) {
-    return null;
-  }
-
-  const reasonLabel =
-    input.reason === "no_answer"
-      ? "לא ענה"
-      : input.reason === "callback_next_round"
-        ? "חזרה בסבב הבא"
-        : input.reason === "needs_fix"
-          ? "דורש תיקון"
-          : "העברה לסבב הבא";
-
-  const sourceAudience =
-    input.reason === "no_answer"
-      ? `round_${input.currentRound}_no_answer`
-      : input.reason === "callback_next_round"
-        ? `round_${input.currentRound}_callback_next_round`
-        : input.reason === "needs_fix"
-          ? `round_${input.currentRound}_needs_fix`
-          : `manual_next_round_from_round_${input.currentRound}`;
-
-  const nextWorkOrderFilter: any = {
-    invitationId: invitationIdForQuery,
-    round: input.nextRound,
-    status: {
-      $ne: "cancelled",
-    },
-  };
-
-  let nextWorkOrder = await CallWorkOrder.findOne(nextWorkOrderFilter)
-    .sort({ createdAt: -1 })
-    .lean();
-
-  if (!nextWorkOrder) {
-    const createdWorkOrder = await (CallWorkOrder as any).create({
-      type: (sourceWorkOrder as any)?.type || "rsvp_calls",
-      status: "open",
-
-      title:
-        cleanStr((sourceWorkOrder as any)?.title) ||
-        `שיחות RSVP - סבב ${input.nextRound}`,
-      description: `נוצר אוטומטית בגלל ${reasonLabel} בסבב ${input.currentRound}`,
-
-      invitationId: invitationIdForQuery,
-
-      clientName:
-        cleanStr((sourceWorkOrder as any)?.clientName) ||
-        cleanStr(input.task?.clientName),
-      clientEmail:
-        cleanStr((sourceWorkOrder as any)?.clientEmail) ||
-        cleanStr(input.task?.clientEmail),
-
-      eventName:
-        cleanStr((sourceWorkOrder as any)?.eventName) ||
-        cleanStr(input.task?.eventName),
-      eventDate:
-        (sourceWorkOrder as any)?.eventDate || input.task?.eventDate || null,
-
-      round: input.nextRound,
-      sourceAudience,
-
-      workDate: (sourceWorkOrder as any)?.workDate || null,
-      configuredRoundAt: input.now,
-      autoOpenAt: null,
-      timezone:
-        cleanStr((sourceWorkOrder as any)?.timezone) || "Asia/Jerusalem",
-
-      totalTasks: 0,
-      pendingTasks: 0,
-      inProgressTasks: 0,
-      completedTasks: 0,
-      confirmedTasks: 0,
-      declinedTasks: 0,
-      noAnswerTasks: 0,
-      callbackTasks: 0,
-      undecidedTasks: 0,
-      willReplyMessageTasks: 0,
-      needsFixTasks: 0,
-      wrongNumberTasks: 0,
-      cancelledTasks: 0,
-
-      createdFromWorkOrderId: currentWorkOrderObjectId,
-      createdFromTaskId: currentTaskObjectId,
-      createdReason: input.reason || "move_to_next_round",
-
-      createdAt: input.now,
-      updatedAt: input.now,
-    });
-
-    nextWorkOrder = createdWorkOrder?.toObject
-      ? createdWorkOrder.toObject()
-      : createdWorkOrder;
-  }
-
-  const nextWorkOrderObjectId = toObjectId((nextWorkOrder as any)?._id);
-
-  if (!nextWorkOrderObjectId) {
-    return null;
-  }
-
-  const existingNextTaskFilter: any = {
-    workOrderId: nextWorkOrderObjectId,
-    guestId: guestObjectId,
-    round: input.nextRound,
-    status: {
-      $ne: "cancelled",
-    },
-  };
-
-  const existingNextTask = await CallTask.findOne(existingNextTaskFilter).lean();
-
-  if (existingNextTask) {
-    const set: Record<string, any> = {
-      status: "pending",
-      result: null,
-      rsvpStatus: "pending",
-
-      assignedToEmployeeId: input.employeeId,
-      assignedEmployeeId: input.employeeId,
-      employeeId: input.employeeId,
-
-      movedFromRound: input.currentRound,
-      movedFromTaskId: currentTaskObjectId,
-      movedFromWorkOrderId: currentWorkOrderObjectId,
-      movedToNextRoundAt: input.now,
-      movedToNextRoundNote: input.note || "",
-      movedToNextRoundReason: input.reason || "",
-
-      previousCallHistory,
-
-      updatedAt: input.now,
-    };
-
-    if (input.hasGuestNote) {
-      set.guestNotes = input.guestNote || "";
-    }
-
-    await (CallTask as any).updateOne(
-      {
-        _id: (existingNextTask as any)._id,
-      },
-      {
-        $set: set,
-        $unset: {
-          completedAt: "",
-        },
-      }
-    );
-
-    await syncWorkOrderStatus(nextWorkOrderObjectId);
-
-    return {
-      workOrderId: nextWorkOrderObjectId,
-      taskId: toObjectId((existingNextTask as any)._id),
-      created: false,
-    };
-  }
-
-  const createdTask = await (CallTask as any).create({
-    type: input.task?.type || "rsvp_call",
-
-    workOrderId: nextWorkOrderObjectId,
-    invitationId: invitationIdForQuery,
-    guestId: guestObjectId,
-
-    assignedToEmployeeId: input.employeeId,
-    assignedEmployeeId: input.employeeId,
-    employeeId: input.employeeId,
-
-    clientName:
-      cleanStr(input.task?.clientName) ||
-      cleanStr((nextWorkOrder as any)?.clientName),
-    clientEmail:
-      cleanStr(input.task?.clientEmail) ||
-      cleanStr((nextWorkOrder as any)?.clientEmail),
-
-    eventName:
-      cleanStr(input.task?.eventName) ||
-      cleanStr((nextWorkOrder as any)?.eventName),
-    eventDate:
-      input.task?.eventDate || (nextWorkOrder as any)?.eventDate || null,
-
-    guestName: cleanStr(input.task?.guestName),
-    guestPhone: cleanStr(input.task?.guestPhone),
-    guestEmail: cleanStr(input.task?.guestEmail),
-    guestGroup: cleanStr(input.task?.guestGroup),
-    guestSide: cleanStr(input.task?.guestSide),
-    guestTable: cleanStr(input.task?.guestTable),
-    guestNotes: input.hasGuestNote
-      ? input.guestNote || ""
-      : cleanStr(input.task?.guestNotes),
-
-    round: input.nextRound,
-    sourceAudience,
-
-    workDate: (nextWorkOrder as any)?.workDate || null,
-
-    status: "pending",
-    result: null,
-    rsvpStatus: "pending",
-
-    priority: Number(input.task?.priority || 0),
-    sortOrder: Number(input.task?.sortOrder || 0),
-
-    assignedAt: input.now,
-    startedAt: null,
-    completedAt: null,
-    lastAttemptAt: null,
-
-    attemptsCount: 0,
-
-    note: "",
-
-    isCompleted: false,
-    completed: false,
-
-    movedFromRound: input.currentRound,
-    movedFromTaskId: currentTaskObjectId,
-    movedFromWorkOrderId: currentWorkOrderObjectId,
-    movedToNextRoundAt: input.now,
-    movedToNextRoundNote: input.note || "",
-    movedToNextRoundReason: input.reason || "",
-
-    previousCallHistory,
-
-    createdAt: input.now,
-    updatedAt: input.now,
-  });
-
-  await syncWorkOrderStatus(nextWorkOrderObjectId);
-
-  return {
-    workOrderId: nextWorkOrderObjectId,
-    taskId: toObjectId(createdTask?._id),
-    created: true,
-  };
 }
 
 async function updateGuestExternalNoteOnly(input: {
@@ -1942,27 +1662,13 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
       );
     }
 
-    let nextRoundCreated:
-      | {
-          workOrderId: Types.ObjectId | null;
-          taskId: Types.ObjectId | null;
-          created: boolean;
-        }
-      | null = null;
-
-    if (incomingStatus && isCallResultStatus(nextStatus) && moveToNextRound) {
-      nextRoundCreated = await ensureNextRoundTask({
-        task: updatedTask,
-        currentRound: round,
-        nextRound,
-        employeeId: employee.employeeId,
-        now,
-        note,
-        guestNote,
-        hasGuestNote,
-        reason: nextRoundReason,
-      });
-    }
+    /*
+      חשוב:
+      לא יוצרים כאן משימה / הוראת עבודה לסבב הבא.
+      עדכון סטטוס של עובד רק מסמן שהאורח צריך להיכנס לסבב הבא.
+      פתיחת הסבב הבא, בחירת העובדים וחלוקת המשימות נעשות אך ורק דרך ה-cron
+      לפי תאריך הסבב שהוגדר באדמין ולפי העובדים שמשובצים באותו תאריך.
+    */
 
     if (incomingStatus && isCallResultStatus(nextStatus)) {
       await syncInvitationGuest({
@@ -1997,8 +1703,8 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
         moveToNextRound,
         nextRoundReason,
         nextRound,
-        nextRoundTaskId: nextRoundCreated?.taskId || null,
-        nextRoundWorkOrderId: nextRoundCreated?.workOrderId || null,
+        nextRoundTaskId: null,
+        nextRoundWorkOrderId: null,
       });
 
       await syncDuplicateGuestRoundTasks({
@@ -2034,10 +1740,10 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
       message: isCallResultStatus(nextStatus)
         ? moveToNextRound
           ? nextStatus === "no_answer"
-            ? "התיעוד נשמר והאורח שלא ענה נפתח אוטומטית בסבב הבא"
+            ? "התיעוד נשמר. האורח ייכנס לסבב הבא רק בתאריך שהוגדר באדמין דרך ה-cron"
             : nextStatus === "needs_fix" || nextStatus === "wrong_number"
-              ? "התיעוד נשמר והאורח שדורש תיקון נפתח אוטומטית בסבב הבא"
-              : "התיעוד נשמר והאורח הועבר לחזרה בסבב הבא"
+              ? "התיעוד נשמר. האורח שדורש תיקון ייכנס לסבב הבא רק בתאריך שהוגדר באדמין דרך ה-cron"
+              : "התיעוד נשמר. החזרה תיפתח רק בסבב הבא לפי התאריך באדמין והעובדים שבמשמרת"
           : "התיעוד נשמר והאורח עודכן"
         : "סטטוס השיחה עודכן בהצלחה",
 
@@ -2050,19 +1756,10 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
 
       task: serializeTask(updatedTask),
 
-      nextRoundTask: nextRoundCreated
-        ? {
-            workOrderId: nextRoundCreated.workOrderId
-              ? String(nextRoundCreated.workOrderId)
-              : "",
-            taskId: nextRoundCreated.taskId
-              ? String(nextRoundCreated.taskId)
-              : "",
-            created: nextRoundCreated.created,
-            round: nextRound,
-            reason: nextRoundReason,
-          }
-        : null,
+      nextRoundTask: null,
+      nextRoundWillBeOpenedByCron: Boolean(moveToNextRound),
+      nextRound,
+      nextRoundReason,
 
       workOrder: syncedWorkOrder
         ? serializeWorkOrder(syncedWorkOrder, counts)
