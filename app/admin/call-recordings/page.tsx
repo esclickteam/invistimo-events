@@ -9,6 +9,12 @@ type CallRecording = {
   recordingId: string;
   recordingStatus: string;
 
+  callStatus?: string;
+  noRecordingReason?: string;
+
+  ringDurationSeconds?: number;
+  talkDurationSeconds?: number;
+
   /**
    * חשוב:
    * recordingUrl / recordingUrls הם בדרך כלל לינקים זמניים מטלניקס / S3.
@@ -68,6 +74,30 @@ const DIRECTION_LABELS: Record<CallDirection, string> = {
   inbound: "נכנסת",
   outbound: "יוצאת",
   unknown: "לא ידוע",
+};
+
+const CALL_STATUS_LABELS: Record<string, string> = {
+  initiated: "התחילה",
+  ringing: "מחייג",
+  answered: "נענתה",
+  completed: "הסתיימה",
+  missed: "שיחה שלא נענתה",
+  no_answer: "לא נענתה",
+  busy: "תפוס",
+  failed: "נכשלה",
+  voicemail: "תא קולי",
+  canceled: "בוטלה",
+  unknown: "לא ידוע",
+};
+
+const NO_RECORDING_REASON_LABELS: Record<string, string> = {
+  not_answered: "אין הקלטה — השיחה לא נענתה",
+  busy: "אין הקלטה — הקו היה תפוס",
+  failed: "אין הקלטה — השיחה נכשלה",
+  canceled_before_answer: "אין הקלטה — נותק לפני מענה",
+  missed: "אין הקלטה — שיחה נכנסת שלא נענתה",
+  route_error: "אין הקלטה — שגיאת מערכת",
+  telnyx_create_call_failed: "אין הקלטה — Telnyx לא יצר שיחה",
 };
 
 function formatDate(value?: string | null) {
@@ -131,7 +161,16 @@ function getRecordingStreamUrl(recording: CallRecording, download = false) {
   return `/api/admin/call-recordings/${encodeURIComponent(id)}/stream${query}`;
 }
 
+/**
+ * חשוב:
+ * לא מספיק שיש id לרשומה.
+ * אם אין קובץ אמיתי, לא מציגים נגן ריק של 0:00.
+ */
 function hasRecordingFile(recording: CallRecording) {
+  const recordingStatus = cleanText(recording.recordingStatus).toLowerCase();
+
+  if (recordingStatus === "none") return false;
+
   return Boolean(
     recording.hasPermanentFile ||
       recording.recordingKey ||
@@ -139,57 +178,139 @@ function hasRecordingFile(recording: CallRecording) {
       recording.permanentRecordingUrl ||
       recording.storedRecordingUrl ||
       getLegacyRecordingUrl(recording) ||
-      getRecordingIdentifier(recording)
+      (recordingStatus === "saved" && cleanText(recording.recordingId))
   );
 }
 
 /**
- * מאת = העובד שביצע את השיחה.
- * השם והמייל אמורים להגיע מהיוזר דרך agentName / agentEmail.
+ * מאת:
+ * שיחה נכנסת = המספר שהתקשר.
+ * שיחה יוצאת = העובד שחייג.
  */
-function getEmployeeName(recording: CallRecording) {
+function getFromMain(recording: CallRecording) {
+  if (recording.direction === "inbound") {
+    return (
+      cleanText(recording.from) ||
+      cleanText(recording.customerPhone) ||
+      "לא ידוע"
+    );
+  }
+
+  if (recording.direction === "outbound") {
+    return (
+      cleanText(recording.agentName) ||
+      cleanText(recording.agentEmail) ||
+      cleanText(recording.agentId) ||
+      "לא נקלט עובד"
+    );
+  }
+
   return (
     cleanText(recording.agentName) ||
     cleanText(recording.agentEmail) ||
-    cleanText(recording.agentId) ||
-    "לא נקלט עובד"
+    cleanText(recording.from) ||
+    cleanText(recording.customerPhone) ||
+    "לא ידוע"
   );
 }
 
-function getEmployeeEmail(recording: CallRecording) {
-  return cleanText(recording.agentEmail);
+function getFromSub(recording: CallRecording) {
+  if (recording.direction === "inbound") {
+    return cleanText(recording.customerName) || "מספר שהתקשר";
+  }
+
+  if (recording.direction === "outbound") {
+    return cleanText(recording.agentEmail) || "מייל עובד לא נקלט";
+  }
+
+  return cleanText(recording.agentEmail) || "";
 }
 
 /**
- * אל = המספר שאליו חייגו.
- * בשיחות יוצאות זה בדרך כלל customerPhone או to.
- * בשיחה נכנסת אין "חייגו אל", לכן נציג את מספר הלקוח שהתקשר.
+ * אל:
+ * שיחה נכנסת = המספר שלנו / מספר המערכת.
+ * שיחה יוצאת = המספר שאליו העובד חייג.
  */
-function getCalledNumber(recording: CallRecording) {
+function getToMain(recording: CallRecording) {
+  if (recording.direction === "inbound") {
+    return cleanText(recording.to) || "מספר המערכת";
+  }
+
   if (recording.direction === "outbound") {
     return (
       cleanText(recording.customerPhone) ||
       cleanText(recording.to) ||
-      cleanText(recording.from) ||
-      "-"
-    );
-  }
-
-  if (recording.direction === "inbound") {
-    return (
-      cleanText(recording.customerPhone) ||
-      cleanText(recording.from) ||
-      cleanText(recording.to) ||
-      "-"
+      "לא ידוע"
     );
   }
 
   return (
-    cleanText(recording.customerPhone) ||
     cleanText(recording.to) ||
+    cleanText(recording.customerPhone) ||
     cleanText(recording.from) ||
-    "-"
+    "לא ידוע"
   );
+}
+
+function getToSub(recording: CallRecording) {
+  if (recording.direction === "inbound") {
+    return "מספר המערכת";
+  }
+
+  if (recording.direction === "outbound") {
+    return cleanText(recording.customerName) || "מספר לקוח";
+  }
+
+  return "";
+}
+
+function getCallStatusLabel(recording: CallRecording) {
+  const callStatus = cleanText(recording.callStatus).toLowerCase();
+
+  if (!callStatus) return "לא ידוע";
+
+  return CALL_STATUS_LABELS[callStatus] || callStatus;
+}
+
+function getRecordingStatusLabel(recording: CallRecording) {
+  const status = cleanText(recording.recordingStatus).toLowerCase();
+
+  if (status === "none") return "אין הקלטה";
+  if (status === "pending") return "ממתין";
+  if (status === "started") return "התחילה";
+  if (status === "saved") return "saved";
+  if (status === "failed") return "נכשלה";
+  if (status === "deleted") return "נמחקה";
+
+  return status || "לא ידוע";
+}
+
+function getNoRecordingText(recording: CallRecording) {
+  const reason = cleanText(recording.noRecordingReason).toLowerCase();
+
+  if (reason && NO_RECORDING_REASON_LABELS[reason]) {
+    return NO_RECORDING_REASON_LABELS[reason];
+  }
+
+  const callStatus = cleanText(recording.callStatus).toLowerCase();
+
+  if (callStatus === "no_answer") {
+    return "אין הקלטה — השיחה לא נענתה";
+  }
+
+  if (callStatus === "busy") {
+    return "אין הקלטה — הקו היה תפוס";
+  }
+
+  if (callStatus === "missed") {
+    return "אין הקלטה — שיחה נכנסת שלא נענתה";
+  }
+
+  if (callStatus === "failed") {
+    return "אין הקלטה — השיחה נכשלה";
+  }
+
+  return "אין קובץ הקלטה";
 }
 
 export default function AdminCallRecordingsPage() {
@@ -282,16 +403,17 @@ export default function AdminCallRecordingsPage() {
             <div className="relative flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
               <div>
                 <p className="text-sm font-black tracking-[0.18em] text-[#b9945a]">
-                  CALL RECORDINGS
+                  CALL LOG
                 </p>
 
                 <h1 className="mt-3 text-3xl font-black text-[#2f251d] md:text-4xl">
-                  הקלטות שיחות
+                  יומן שיחות והקלטות
                 </h1>
 
                 <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-[#8b7b68]">
-                  כאן האדמין יכול לראות, לנגן ולהוריד הקלטות שיחות. בעמודה
-                  “מאת” יוצג העובד שחייג, כולל המייל שלו מתחת לשם.
+                  כאן האדמין יכול לראות שיחות נכנסות, שיחות יוצאות, ניסיונות
+                  חיוג והקלטות. בשיחה נכנסת “מאת” הוא המספר שהתקשר ו“אל” הוא
+                  מספר המערכת. בשיחה יוצאת “מאת” הוא העובד ו“אל” הוא הלקוח.
                 </p>
               </div>
 
@@ -362,7 +484,7 @@ export default function AdminCallRecordingsPage() {
         </div>
 
         <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatCard label="סה״כ הקלטות" value={total} />
+          <StatCard label="סה״כ שיחות" value={total} />
           <StatCard
             label="נכנסות בעמוד"
             value={recordings.filter((item) => item.direction === "inbound").length}
@@ -386,20 +508,20 @@ export default function AdminCallRecordingsPage() {
         <div className="overflow-hidden rounded-[32px] border border-[#eadfce] bg-white shadow-[0_18px_60px_rgba(47,37,29,0.07)]">
           {loading ? (
             <div className="p-10 text-center text-sm font-black text-[#8b7b68]">
-              טוען הקלטות...
+              טוען שיחות...
             </div>
           ) : recordings.length === 0 ? (
             <div className="p-10 text-center">
               <p className="text-lg font-black text-[#2f251d]">
-                אין עדיין הקלטות להצגה
+                אין עדיין שיחות להצגה
               </p>
               <p className="mt-2 text-sm font-semibold text-[#8b7b68]">
-                אחרי שיחה מוקלטת, Telnyx ישלח webhook וההקלטה תופיע כאן.
+                אחרי שיחה או ניסיון חיוג, הרשומה תופיע כאן.
               </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1080px] border-collapse text-right">
+              <table className="w-full min-w-[1120px] border-collapse text-right">
                 <thead>
                   <tr className="border-b border-[#eadfce] bg-[#fff8ed] text-xs font-black text-[#6b5a45]">
                     <th className="p-4">תאריך</th>
@@ -418,9 +540,12 @@ export default function AdminCallRecordingsPage() {
                     const canPlay = hasRecordingFile(recording);
                     const streamUrl = getRecordingStreamUrl(recording);
                     const downloadUrl = getRecordingStreamUrl(recording, true);
-                    const employeeName = getEmployeeName(recording);
-                    const employeeEmail = getEmployeeEmail(recording);
-                    const calledNumber = getCalledNumber(recording);
+
+                    const fromMain = getFromMain(recording);
+                    const fromSub = getFromSub(recording);
+
+                    const toMain = getToMain(recording);
+                    const toSub = getToSub(recording);
 
                     return (
                       <tr
@@ -446,36 +571,78 @@ export default function AdminCallRecordingsPage() {
                         </td>
 
                         <td className="p-4">
-                          <p className="font-black text-[#2f251d]">
-                            {employeeName}
+                          <p
+                            dir={
+                              recording.direction === "inbound" ? "ltr" : "rtl"
+                            }
+                            className="font-black text-[#2f251d]"
+                          >
+                            {fromMain}
                           </p>
 
-                          {employeeEmail ? (
+                          {fromSub ? (
                             <p
-                              dir="ltr"
-                              className="mt-1 text-xs font-bold text-[#8b7b68]"
+                              dir={
+                                recording.direction === "outbound" &&
+                                fromSub.includes("@")
+                                  ? "ltr"
+                                  : "rtl"
+                              }
+                              className={`mt-1 text-xs font-bold ${
+                                recording.direction === "outbound" &&
+                                !cleanText(recording.agentEmail)
+                                  ? "text-red-500"
+                                  : "text-[#8b7b68]"
+                              }`}
                             >
-                              {employeeEmail}
+                              {fromSub}
                             </p>
-                          ) : (
-                            <p className="mt-1 text-xs font-bold text-red-500">
-                              מייל עובד לא נקלט
-                            </p>
-                          )}
-                        </td>
-
-                        <td dir="ltr" className="p-4 font-mono font-black">
-                          {cleanPhone(calledNumber)}
-                        </td>
-
-                        <td dir="ltr" className="p-4 font-mono font-black">
-                          {formatDuration(recording.durationSeconds)}
+                          ) : null}
                         </td>
 
                         <td className="p-4">
-                          <span className="rounded-full bg-[#f7f3ec] px-3 py-1 text-xs font-black text-[#6b5a45]">
-                            {recording.recordingStatus || "saved"}
-                          </span>
+                          <p dir="ltr" className="font-mono font-black">
+                            {cleanPhone(toMain)}
+                          </p>
+
+                          {toSub ? (
+                            <p className="mt-1 text-xs font-bold text-[#8b7b68]">
+                              {toSub}
+                            </p>
+                          ) : null}
+                        </td>
+
+                        <td className="p-4">
+                          <p dir="ltr" className="font-mono font-black">
+                            {formatDuration(recording.durationSeconds)}
+                          </p>
+
+                          {recording.ringDurationSeconds ||
+                          recording.talkDurationSeconds ? (
+                            <p className="mt-1 text-[11px] font-bold text-[#8b7b68]">
+                              צלצול:{" "}
+                              <span dir="ltr">
+                                {formatDuration(recording.ringDurationSeconds)}
+                              </span>
+                              {" · "}
+                              דיבור:{" "}
+                              <span dir="ltr">
+                                {formatDuration(recording.talkDurationSeconds)}
+                              </span>
+                            </p>
+                          ) : null}
+                        </td>
+
+                        <td className="p-4">
+                          <div className="grid gap-1">
+                            <span className="w-fit rounded-full bg-[#f7f3ec] px-3 py-1 text-xs font-black text-[#6b5a45]">
+                              {getCallStatusLabel(recording)}
+                            </span>
+
+                            <span className="text-[11px] font-bold text-[#8b7b68]">
+                              הקלטה: {getRecordingStatusLabel(recording)}
+                            </span>
+                          </div>
                         </td>
 
                         <td className="p-4">
@@ -494,7 +661,7 @@ export default function AdminCallRecordingsPage() {
                             </div>
                           ) : (
                             <span className="text-xs font-bold text-[#8b7b68]">
-                              אין קובץ הקלטה
+                              {getNoRecordingText(recording)}
                             </span>
                           )}
                         </td>
@@ -526,7 +693,7 @@ export default function AdminCallRecordingsPage() {
         <div className="mt-5 flex flex-col gap-3 rounded-[28px] border border-[#eadfce] bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between">
           <p className="text-sm font-bold text-[#8b7b68]">
             עמוד {pagination?.page || page} מתוך {pagination?.totalPages || 1} ·{" "}
-            סה״כ {pagination?.total || 0} הקלטות
+            סה״כ {pagination?.total || 0} שיחות
           </p>
 
           <div className="flex items-center gap-2">
