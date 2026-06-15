@@ -7,6 +7,20 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type CallDirection = "inbound" | "outbound" | "unknown";
+
+type CallStatus =
+  | "initiated"
+  | "ringing"
+  | "answered"
+  | "completed"
+  | "missed"
+  | "no_answer"
+  | "busy"
+  | "failed"
+  | "voicemail"
+  | "canceled"
+  | "unknown";
+
 type RecordingStatus = "started" | "saved" | "failed" | "deleted";
 
 type TelnyxVoicePayload = {
@@ -59,12 +73,29 @@ type TelnyxActionResponse = {
 };
 
 type ParsedClientState = {
-  agentId?: string;
-  agentName?: string;
-  agentEmail?: string;
+  localCallRecordingId?: string;
+  callRecordingId?: string;
+  recordingMongoId?: string;
+
+  source?: string;
+  requestedAt?: string;
+
+  originalTo?: string;
+  originalFrom?: string;
+  normalizedTo?: string;
+  normalizedFrom?: string;
+
   customerId?: string;
   customerName?: string;
   customerPhone?: string;
+  dialedPhone?: string;
+  destinationPhone?: string;
+
+  agentId?: string;
+  agentName?: string;
+  agentEmail?: string;
+  agentRole?: string;
+
   [key: string]: unknown;
 };
 
@@ -181,6 +212,15 @@ function getString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function firstString(...values: unknown[]) {
+  for (const value of values) {
+    const clean = getString(value);
+    if (clean) return clean;
+  }
+
+  return "";
+}
+
 function getNumber(value: unknown) {
   if (typeof value === "number" && Number.isFinite(value)) return value;
 
@@ -193,10 +233,22 @@ function getNumber(value: unknown) {
 }
 
 function getDate(value: unknown) {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
+
   if (typeof value !== "string" || !value.trim()) return null;
 
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function diffSeconds(start?: Date | null, end?: Date | null) {
+  if (!start || !end) return 0;
+
+  const ms = end.getTime() - start.getTime();
+
+  if (!Number.isFinite(ms) || ms <= 0) return 0;
+
+  return Math.round(ms / 1000);
 }
 
 function normalizeDirection(value: unknown): CallDirection {
@@ -229,6 +281,233 @@ function isInboundCall(params: {
       fromNormalized !== systemNumber
   );
 }
+
+function resolveDirection(params: {
+  payloadDirection: unknown;
+  clientState: ParsedClientState;
+  existing?: any;
+  from: string;
+  to: string;
+}): CallDirection {
+  const fromPayload = normalizeDirection(params.payloadDirection);
+  if (fromPayload !== "unknown") return fromPayload;
+
+  const existingDirection = normalizeDirection(params.existing?.direction);
+  if (existingDirection !== "unknown") return existingDirection;
+
+  const source = getString(params.clientState.source).toLowerCase();
+
+  if (
+    source.includes("softphone") ||
+    getString(params.clientState.agentId) ||
+    getString(params.clientState.agentEmail)
+  ) {
+    return "outbound";
+  }
+
+  const systemNumber = getSystemPhoneNumber();
+  const fromNormalized = normalizePhoneForCompare(params.from);
+  const toNormalized = normalizePhoneForCompare(params.to);
+
+  if (systemNumber && fromNormalized === systemNumber && toNormalized) {
+    return "outbound";
+  }
+
+  if (systemNumber && toNormalized === systemNumber && fromNormalized) {
+    return "inbound";
+  }
+
+  return "unknown";
+}
+
+function isValidObjectId(value: unknown) {
+  const id = getString(value);
+  return Boolean(id && mongoose.Types.ObjectId.isValid(id));
+}
+
+function getLocalCallRecordingId(clientState: ParsedClientState) {
+  return firstString(
+    clientState.localCallRecordingId,
+    clientState.callRecordingId,
+    clientState.recordingMongoId
+  );
+}
+
+function parseClientState(value: unknown): ParsedClientState {
+  if (typeof value !== "string" || !value.trim()) return {};
+
+  const raw = value.trim();
+  const candidates = [raw];
+
+  try {
+    candidates.push(Buffer.from(raw, "base64").toString("utf8"));
+  } catch {
+    // ignore base64 errors
+  }
+
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate) as ParsedClientState;
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      // keep trying
+    }
+  }
+
+  return {};
+}
+
+async function findExistingCallRecording(params: {
+  clientState: ParsedClientState;
+  payload: TelnyxVoicePayload;
+  recordingId?: string;
+}) {
+  const localCallRecordingId = getLocalCallRecordingId(params.clientState);
+
+  if (isValidObjectId(localCallRecordingId)) {
+    const byId = await CallRecording.findById(localCallRecordingId);
+    if (byId) return byId;
+  }
+
+  const recordingId = getString(params.recordingId);
+
+  if (recordingId) {
+    const byRecordingId = await CallRecording.findOne({ recordingId });
+    if (byRecordingId) return byRecordingId;
+  }
+
+  const callControlId = getString(params.payload.call_control_id);
+  const callLegId = getString(params.payload.call_leg_id);
+  const callSessionId = getString(params.payload.call_session_id);
+
+  const orQuery: Record<string, unknown>[] = [];
+
+  if (callControlId) orQuery.push({ callControlId });
+  if (callLegId) orQuery.push({ callLegId });
+  if (callSessionId) orQuery.push({ callSessionId });
+
+  if (!orQuery.length) return null;
+
+  return CallRecording.findOne({ $or: orQuery }).sort({ createdAt: -1 });
+}
+
+function buildUpdateFilter(params: {
+  existing?: any;
+  clientState: ParsedClientState;
+  payload: TelnyxVoicePayload;
+  recordingId?: string;
+  eventId?: string;
+}) {
+  if (params.existing?._id) {
+    return { _id: params.existing._id };
+  }
+
+  const localCallRecordingId = getLocalCallRecordingId(params.clientState);
+
+  if (isValidObjectId(localCallRecordingId)) {
+    return { _id: new mongoose.Types.ObjectId(localCallRecordingId) };
+  }
+
+  const recordingId = getString(params.recordingId);
+  if (recordingId) return { recordingId };
+
+  const callControlId = getString(params.payload.call_control_id);
+  if (callControlId) return { callControlId };
+
+  const callLegId = getString(params.payload.call_leg_id);
+  if (callLegId) return { callLegId };
+
+  const callSessionId = getString(params.payload.call_session_id);
+  if (callSessionId) return { callSessionId };
+
+  const eventId = getString(params.eventId);
+  if (eventId) return { eventId };
+
+  return { eventId: `unknown-${Date.now()}` };
+}
+
+function setIfString(target: Record<string, unknown>, key: string, value: unknown) {
+  const clean = getString(value);
+  if (clean) target[key] = clean;
+}
+
+function getCallStatusFromExisting(value: unknown): CallStatus {
+  const status = getString(value) as CallStatus;
+
+  if (
+    [
+      "initiated",
+      "ringing",
+      "answered",
+      "completed",
+      "missed",
+      "no_answer",
+      "busy",
+      "failed",
+      "voicemail",
+      "canceled",
+      "unknown",
+    ].includes(status)
+  ) {
+    return status;
+  }
+
+  return "unknown";
+}
+
+function mapHangupToCallStatus(params: {
+  hangupCause: string;
+  answeredAt?: Date | null;
+  durationSeconds: number;
+  direction: CallDirection;
+}): CallStatus {
+  const cause = params.hangupCause.toLowerCase();
+
+  if (cause.includes("busy")) return "busy";
+
+  if (
+    cause.includes("no_answer") ||
+    cause.includes("no-answer") ||
+    cause.includes("no answer") ||
+    cause.includes("timeout")
+  ) {
+    return "no_answer";
+  }
+
+  if (cause.includes("voicemail")) return "voicemail";
+
+  if (
+    cause.includes("cancel") ||
+    cause.includes("originator_cancel") ||
+    cause.includes("user_busy")
+  ) {
+    return "canceled";
+  }
+
+  if (
+    cause.includes("failed") ||
+    cause.includes("error") ||
+    cause.includes("reject") ||
+    cause.includes("unallocated") ||
+    cause.includes("invalid")
+  ) {
+    return "failed";
+  }
+
+  if (params.answeredAt || params.durationSeconds > 0) {
+    return "completed";
+  }
+
+  if (params.direction === "inbound") {
+    return "missed";
+  }
+
+  return "no_answer";
+}
+
+/* ============================================================
+   R2 helpers
+============================================================ */
 
 function getR2Endpoint() {
   const directEndpoint = getString(process.env.R2_ENDPOINT);
@@ -460,6 +739,10 @@ async function uploadRecordingToR2(params: {
   }
 }
 
+/* ============================================================
+   Telnyx actions
+============================================================ */
+
 async function telnyxCallAction(
   callControlId: string,
   action: "answer" | "speak" | "hangup" | "record_start" | "record_stop",
@@ -548,29 +831,9 @@ async function startRecording(callControlId: string) {
   });
 }
 
-function parseClientState(value: unknown): ParsedClientState {
-  if (typeof value !== "string" || !value.trim()) return {};
-
-  const raw = value.trim();
-  const candidates = [raw];
-
-  try {
-    candidates.push(Buffer.from(raw, "base64").toString("utf8"));
-  } catch {
-    // ignore base64 errors
-  }
-
-  for (const candidate of candidates) {
-    try {
-      const parsed = JSON.parse(candidate) as ParsedClientState;
-      return parsed && typeof parsed === "object" ? parsed : {};
-    } catch {
-      // keep trying
-    }
-  }
-
-  return {};
-}
+/* ============================================================
+   Recording helpers
+============================================================ */
 
 function getRecordingUrls(payload: TelnyxVoicePayload) {
   const urls = payload.recording_urls;
@@ -640,6 +903,192 @@ function getRecordingId(params: {
   return `${params.status}-${callSessionId || callControlId || occurredAt}`;
 }
 
+/* ============================================================
+   Mongo update logic
+============================================================ */
+
+async function updateCallLifecycleEvent(params: {
+  event?: TelnyxVoiceData;
+  payload: TelnyxVoicePayload;
+  eventType: string;
+}) {
+  const { event, payload, eventType } = params;
+
+  await connectMongo();
+
+  const clientState = parseClientState(payload.client_state);
+  const existing = await findExistingCallRecording({
+    clientState,
+    payload,
+  });
+
+  const occurredAt = getDate(event?.occurred_at) || new Date();
+
+  const from = firstString(
+    cleanPhone(payload.from),
+    existing?.from,
+    clientState.normalizedFrom,
+    clientState.originalFrom
+  );
+
+  const to = firstString(
+    cleanPhone(payload.to),
+    existing?.to,
+    clientState.normalizedTo,
+    clientState.originalTo,
+    clientState.destinationPhone,
+    clientState.dialedPhone,
+    clientState.customerPhone
+  );
+
+  const direction = resolveDirection({
+    payloadDirection: payload.direction,
+    clientState,
+    existing,
+    from,
+    to,
+  });
+
+  const set: Record<string, unknown> = {
+    provider: "telnyx",
+    lastWebhookEvent: eventType,
+    clientState,
+    rawPayload: {
+      event,
+      payload,
+    },
+  };
+
+  setIfString(set, "eventId", event?.id);
+  setIfString(set, "callControlId", payload.call_control_id);
+  setIfString(set, "callLegId", payload.call_leg_id);
+  setIfString(set, "callSessionId", payload.call_session_id);
+  setIfString(set, "connectionId", payload.connection_id);
+
+  if (from) set.from = from;
+  if (to) {
+    set.to = to;
+    set.customerPhone = firstString(
+      clientState.customerPhone,
+      existing?.customerPhone,
+      to
+    );
+  }
+
+  if (direction !== "unknown") {
+    set.direction = direction;
+  }
+
+  const agentId = firstString(clientState.agentId, existing?.agentId);
+  const agentName = firstString(clientState.agentName, existing?.agentName);
+  const agentEmail = firstString(clientState.agentEmail, existing?.agentEmail);
+
+  if (agentId) set.agentId = agentId;
+  if (agentName) set.agentName = agentName;
+  if (agentEmail) set.agentEmail = agentEmail;
+
+  const customerId = firstString(clientState.customerId, existing?.customerId);
+  const customerName = firstString(
+    clientState.customerName,
+    existing?.customerName
+  );
+
+  if (customerId) set.customerId = customerId;
+  if (customerName) set.customerName = customerName;
+
+  const existingStartedAt = getDate(existing?.startedAt);
+  const existingAnsweredAt = getDate(existing?.answeredAt);
+  const existingEndedAt = getDate(existing?.endedAt);
+
+  const payloadStartAt = getDate(payload.start_time);
+  const payloadEndAt = getDate(payload.end_time);
+
+  if (eventType === "call.initiated") {
+    set.callStatus = "initiated";
+    set.telnyxCallStatus = getString(payload.state) || "initiated";
+    set.startedAt = existingStartedAt || payloadStartAt || occurredAt;
+  }
+
+  if (eventType === "call.answered") {
+    set.callStatus = "answered";
+    set.telnyxCallStatus = getString(payload.state) || "answered";
+    set.startedAt = existingStartedAt || payloadStartAt || occurredAt;
+    set.answeredAt = existingAnsweredAt || occurredAt;
+  }
+
+  if (eventType === "call.hangup") {
+    const endedAt = payloadEndAt || occurredAt;
+    const startedAt =
+      existingStartedAt ||
+      payloadStartAt ||
+      getDate(existing?.createdAt) ||
+      null;
+
+    const answeredAt = existingAnsweredAt || null;
+
+    const payloadDuration =
+      getNumber(payload.duration_secs) || getNumber(payload.duration);
+
+    const durationSeconds =
+      payloadDuration ||
+      diffSeconds(answeredAt || startedAt, endedAt) ||
+      getNumber(existing?.durationSeconds);
+
+    set.startedAt = startedAt;
+    set.answeredAt = answeredAt;
+    set.endedAt = existingEndedAt || endedAt;
+    set.durationSeconds = durationSeconds;
+    set.hangupCause = getString(payload.hangup_cause);
+    set.hangupSource = getString(payload.hangup_source);
+    set.telnyxCallStatus = getString(payload.state) || "hangup";
+    set.callStatus = mapHangupToCallStatus({
+      hangupCause: getString(payload.hangup_cause),
+      answeredAt,
+      durationSeconds,
+      direction,
+    });
+  }
+
+  const filter = buildUpdateFilter({
+    existing,
+    clientState,
+    payload,
+    eventId: event?.id,
+  });
+
+  const updated = await CallRecording.findOneAndUpdate(
+    filter,
+    {
+      $set: set,
+      $setOnInsert: {
+        provider: "telnyx",
+        source: "webhook",
+        recordingStatus: "pending",
+        recordingId: "",
+      },
+    },
+    {
+      upsert: true,
+      new: true,
+      setDefaultsOnInsert: true,
+    }
+  );
+
+  console.log("CALL LIFECYCLE UPDATED:", {
+    eventType,
+    mongoId: updated?._id?.toString?.(),
+    callStatus: updated?.callStatus,
+    direction: updated?.direction,
+    durationSeconds: updated?.durationSeconds,
+    from,
+    to,
+    agentName: updated?.agentName,
+    agentEmail: updated?.agentEmail,
+  });
+
+  return updated;
+}
+
 async function saveRecordingEvent(params: {
   event?: TelnyxVoiceData;
   payload: TelnyxVoicePayload;
@@ -653,17 +1102,66 @@ async function saveRecordingEvent(params: {
   const recordingUrls = getRecordingUrls(payload);
   const recordingId = getRecordingId({ event, payload, status });
 
-  const from = cleanPhone(payload.from);
-  const to = cleanPhone(payload.to);
-  const direction = normalizeDirection(payload.direction);
-  const durationSeconds =
-    getNumber(payload.duration_secs) || getNumber(payload.duration) || 0;
+  const existing = await findExistingCallRecording({
+    clientState,
+    payload,
+    recordingId,
+  });
+
+  const from = firstString(
+    cleanPhone(payload.from),
+    existing?.from,
+    clientState.normalizedFrom,
+    clientState.originalFrom
+  );
+
+  const to = firstString(
+    cleanPhone(payload.to),
+    existing?.to,
+    clientState.normalizedTo,
+    clientState.originalTo,
+    clientState.destinationPhone,
+    clientState.dialedPhone,
+    clientState.customerPhone
+  );
+
+  const direction = resolveDirection({
+    payloadDirection: payload.direction,
+    clientState,
+    existing,
+    from,
+    to,
+  });
+
+  const payloadDuration =
+    getNumber(payload.duration_secs) || getNumber(payload.duration);
 
   const recordedAt =
     getDate(payload.recording_ended_at) ||
     getDate(payload.end_time) ||
     getDate(event?.occurred_at) ||
     new Date();
+
+  const existingStartedAt = getDate(existing?.startedAt);
+  const existingAnsweredAt = getDate(existing?.answeredAt);
+  const existingEndedAt = getDate(existing?.endedAt);
+
+  const startedAt =
+    existingStartedAt ||
+    getDate(payload.recording_started_at) ||
+    getDate(payload.start_time) ||
+    null;
+
+  const endedAt =
+    existingEndedAt ||
+    getDate(payload.recording_ended_at) ||
+    getDate(payload.end_time) ||
+    recordedAt;
+
+  const durationSeconds =
+    getNumber(existing?.durationSeconds) ||
+    payloadDuration ||
+    diffSeconds(existingAnsweredAt || startedAt, endedAt);
 
   const legacyRecordingUrl = getBestRecordingUrl(payload);
 
@@ -685,47 +1183,69 @@ async function saveRecordingEvent(params: {
     });
   }
 
-  const update: Record<string, unknown> = {
-    eventId: getString(event?.id),
-    callControlId: getString(payload.call_control_id),
-    callLegId: getString(payload.call_leg_id),
-    callSessionId: getString(payload.call_session_id),
-    connectionId: getString(payload.connection_id),
+  const existingCallStatus = getCallStatusFromExisting(existing?.callStatus);
 
+  const callStatus: CallStatus =
+    status === "failed"
+      ? "failed"
+      : existingCallStatus !== "unknown"
+        ? existingCallStatus
+        : durationSeconds > 0 || existingAnsweredAt
+          ? "completed"
+          : "unknown";
+
+  const update: Record<string, unknown> = {
+    provider: "telnyx",
+    source: existing?.source || "webhook",
+
+    eventId: getString(event?.id),
     recordingId,
     recordingStatus: status,
 
-    // נשאר לדיבוג/גיבוי בלבד. לא להסתמך עליו לניגון עתידי.
     recordingUrl: legacyRecordingUrl,
     recordingUrls,
+
+    callStatus,
+    lastWebhookEvent: getString(event?.event_type) || `recording.${status}`,
 
     from,
     to,
     direction,
 
-    agentId: getString(clientState.agentId),
-    agentName: getString(clientState.agentName),
-    agentEmail: getString(clientState.agentEmail),
+    agentId: firstString(clientState.agentId, existing?.agentId),
+    agentName: firstString(clientState.agentName, existing?.agentName),
+    agentEmail: firstString(clientState.agentEmail, existing?.agentEmail),
 
-    customerId: getString(clientState.customerId),
-    customerName: getString(clientState.customerName),
-    customerPhone:
-      getString(clientState.customerPhone) ||
-      (direction === "inbound" ? from : to),
+    customerId: firstString(clientState.customerId, existing?.customerId),
+    customerName: firstString(clientState.customerName, existing?.customerName),
+    customerPhone: firstString(
+      clientState.customerPhone,
+      existing?.customerPhone,
+      direction === "inbound" ? from : to
+    ),
 
-    startedAt:
-      getDate(payload.recording_started_at) || getDate(payload.start_time),
-    endedAt: getDate(payload.recording_ended_at) || getDate(payload.end_time),
+    startedAt,
+    answeredAt: existingAnsweredAt || null,
+    endedAt,
     recordedAt,
     durationSeconds,
 
-    provider: "telnyx",
-    source: "webhook",
-    rawPayload: payload,
+    clientState,
+    rawPayload: {
+      event,
+      payload,
+    },
 
     recordingStorageStatus: r2Upload.ok ? "saved" : r2Upload.reason,
-    recordingStorageError: r2Upload.ok ? "" : JSON.stringify(r2Upload.details || ""),
+    recordingStorageError: r2Upload.ok
+      ? ""
+      : JSON.stringify(r2Upload.details || ""),
   };
+
+  setIfString(update, "callControlId", payload.call_control_id);
+  setIfString(update, "callLegId", payload.call_leg_id);
+  setIfString(update, "callSessionId", payload.call_session_id);
+  setIfString(update, "connectionId", payload.connection_id);
 
   if (r2Upload.ok) {
     update.recordingStorage = "r2";
@@ -736,8 +1256,16 @@ async function saveRecordingEvent(params: {
     update.recordingSavedAt = r2Upload.uploadedAt;
   }
 
+  const filter = buildUpdateFilter({
+    existing,
+    clientState,
+    payload,
+    recordingId,
+    eventId: event?.id,
+  });
+
   const recording = await CallRecording.findOneAndUpdate(
-    { recordingId },
+    filter,
     { $set: update },
     {
       upsert: true,
@@ -750,15 +1278,23 @@ async function saveRecordingEvent(params: {
     recordingId,
     status,
     mongoId: recording?._id?.toString?.(),
+    callStatus: recording?.callStatus,
     from,
     to,
     direction,
+    durationSeconds,
+    agentName: recording?.agentName,
+    agentEmail: recording?.agentEmail,
     legacyRecordingUrl,
     r2Upload,
   });
 
   return recording;
 }
+
+/* ============================================================
+   Routes
+============================================================ */
 
 export async function GET() {
   return NextResponse.json({
@@ -806,6 +1342,12 @@ export async function POST(req: NextRequest) {
 
     switch (eventType) {
       case "call.initiated": {
+        await updateCallLifecycleEvent({
+          event,
+          payload,
+          eventType,
+        });
+
         console.log("CALL INITIATED:", {
           from,
           to,
@@ -826,6 +1368,12 @@ export async function POST(req: NextRequest) {
       }
 
       case "call.answered": {
+        await updateCallLifecycleEvent({
+          event,
+          payload,
+          eventType,
+        });
+
         console.log("CALL ANSWERED:", {
           from,
           to,
@@ -849,6 +1397,43 @@ export async function POST(req: NextRequest) {
         if (callControlId && getBooleanEnv("TELNYX_AUTO_RECORD_CALLS", true)) {
           await startRecording(callControlId);
         }
+
+        break;
+      }
+
+      case "call.hangup": {
+        await updateCallLifecycleEvent({
+          event,
+          payload,
+          eventType,
+        });
+
+        console.log("CALL HANGUP:", {
+          from,
+          to,
+          direction,
+          inbound,
+          callControlId,
+          hangupCause: payload.hangup_cause,
+          hangupSource: payload.hangup_source,
+        });
+
+        break;
+      }
+
+      case "call.recording.started": {
+        console.log("CALL RECORDING STARTED EVENT:", {
+          eventId: event?.id,
+          callControlId,
+          callSessionId,
+          recordingId: payload.recording_id,
+        });
+
+        await saveRecordingEvent({
+          event,
+          payload,
+          status: "started",
+        });
 
         break;
       }
@@ -904,20 +1489,6 @@ export async function POST(req: NextRequest) {
           from,
           to,
           callControlId,
-        });
-
-        break;
-      }
-
-      case "call.hangup": {
-        console.log("CALL HANGUP:", {
-          from,
-          to,
-          direction,
-          inbound,
-          callControlId,
-          hangupCause: payload.hangup_cause,
-          hangupSource: payload.hangup_source,
         });
 
         break;
