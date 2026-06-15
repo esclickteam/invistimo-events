@@ -1057,23 +1057,21 @@ async function updateCallLifecycleEvent(params: {
   });
 
   const updated = await CallRecording.findOneAndUpdate(
-    filter,
-    {
-      $set: set,
-      $setOnInsert: {
-        provider: "telnyx",
-        source: "webhook",
-        recordingStatus: "pending",
-        recordingId: "",
-      },
+  filter,
+  {
+    $set: set,
+    $setOnInsert: {
+      source: "webhook",
+      recordingStatus: "pending",
+      recordingId: "",
     },
-    {
-      upsert: true,
-      new: true,
-      setDefaultsOnInsert: true,
-    }
-  );
-
+  },
+  {
+    upsert: true,
+    new: true,
+    setDefaultsOnInsert: true,
+  }
+);
   console.log("CALL LIFECYCLE UPDATED:", {
     eventType,
     mongoId: updated?._id?.toString?.(),
@@ -1525,7 +1523,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    
+
 
     return NextResponse.json({ success: true });
   } catch (error) {
