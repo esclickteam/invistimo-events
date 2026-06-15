@@ -38,6 +38,8 @@ type TaskStatus =
   | "completed"
   | "cancelled";
 
+type GuestRsvpStatus = "yes" | "no" | "pending";
+
 type TaskResult =
   | "confirmed"
   | "declined"
@@ -259,14 +261,14 @@ function getResultFromStatus(status: TaskStatus): TaskResult {
   return null;
 }
 
-function getTaskRsvpStatus(status: TaskStatus) {
-  if (status === "confirmed") return "attending";
-  if (status === "declined") return "not_attending";
-  if (status === "wrong_number") return "wrong_number";
-  if (status === "undecided") return "undecided";
-  if (status === "callback") return "callback";
-  if (status === "will_reply_message") return "will_reply_message";
-  if (status === "no_answer") return "no_answer";
+/**
+ * חשוב:
+ * ב-InvitationGuest הערכים החוקיים הם רק:
+ * yes / no / pending
+ */
+function getGuestRsvpStatus(status: TaskStatus): GuestRsvpStatus {
+  if (status === "confirmed") return "yes";
+  if (status === "declined") return "no";
 
   return "pending";
 }
@@ -719,11 +721,12 @@ async function syncDuplicateGuestRoundTasks(input: {
   if (!workOrderObjectId || !guestObjectId || !taskObjectId) return;
 
   const roundNumber = normalizeRound(input.task?.round || 1);
+  const guestRsvpStatus = getGuestRsvpStatus(input.status);
 
   const set: Record<string, any> = {
     status: input.status,
     result: getResultFromStatus(input.status),
-    rsvpStatus: getTaskRsvpStatus(input.status),
+    rsvpStatus: guestRsvpStatus,
     completedAt: input.now,
     lastAttemptAt: input.now,
     updatedAt: input.now,
@@ -734,9 +737,17 @@ async function syncDuplicateGuestRoundTasks(input: {
   }
 
   if (input.attendingCount !== undefined) {
+    set.arrivedCount = input.attendingCount;
+    set.actualArrivedCount = input.attendingCount;
+
+    // תאימות למסכים ישנים בלבד
     set.attendingCount = input.attendingCount;
     set.confirmedCount = input.attendingCount;
-    set.guestsCount = input.attendingCount;
+    set.confirmedGuests = input.attendingCount;
+    set.arrivingGuests = input.attendingCount;
+    set.attendeesCount = input.attendingCount;
+
+    // לא לעדכן guestsCount / numberOfGuests
   }
 
   if (input.status === "wrong_number") {
@@ -780,7 +791,7 @@ async function syncInvitationGuest(input: {
   const taskObjectId = toObjectId(input.task?._id);
   const workOrderObjectId = toObjectId(input.task?.workOrderId);
   const result = getResultFromStatus(input.status);
-  const guestRsvpStatus = getTaskRsvpStatus(input.status);
+  const guestRsvpStatus = getGuestRsvpStatus(input.status);
 
   const set: Record<string, any> = {
     lastCallStatus: input.status,
@@ -802,9 +813,6 @@ async function syncInvitationGuest(input: {
     rsvpCallRound: round,
     rsvpCallCompletedAt: input.now,
 
-    // ✅ חשוב:
-    // לא משתמשים ב-callRounds.round1 כי אצלך callRounds קיים כמערך []
-    // לכן משתמשים בשדות שטוחים שלא מפילים את Mongo.
     [`${roundKey}CallStatus`]: input.status,
     [`${roundKey}CallResult`]: result,
     [`${roundKey}CallCompleted`]: true,
@@ -820,6 +828,7 @@ async function syncInvitationGuest(input: {
   if (input.note || input.note === "") {
     set.lastCallNote = input.note || "";
     set.callNote = input.note || "";
+    set.notes = input.note || "";
   }
 
   if (input.status === "confirmed") {
@@ -828,11 +837,13 @@ async function syncInvitationGuest(input: {
         ? input.attendingCount
         : 1;
 
-    set.rsvp = "attending";
-    set.rsvpStatus = "attending";
-    set.attendanceStatus = "attending";
-    set.responseStatus = "attending";
-    set.finalRsvpStatus = "attending";
+    // RSVP חוקי לפי enum: yes/no/pending
+    set.status = "yes";
+    set.rsvp = "yes";
+    set.rsvpStatus = "yes";
+    set.attendanceStatus = "yes";
+    set.responseStatus = "yes";
+    set.finalRsvpStatus = "yes";
 
     set.isRsvpFinal = true;
     set.rsvpFinal = true;
@@ -843,19 +854,28 @@ async function syncInvitationGuest(input: {
     set.attending = true;
     set.isAttending = true;
 
+    // רק כמות מגיעים
+    set.arrivedCount = count;
+    set.actualArrivedCount = count;
+
+    // תאימות למסכים ישנים בלבד
     set.attendingCount = count;
-    set.guestsCount = count;
+    set.confirmedCount = count;
     set.confirmedGuests = count;
     set.arrivingGuests = count;
-    set.numberOfGuests = count;
+    set.attendeesCount = count;
+
+    // לא לעדכן guestsCount / numberOfGuests
   }
 
   if (input.status === "declined") {
-    set.rsvp = "not_attending";
-    set.rsvpStatus = "not_attending";
-    set.attendanceStatus = "not_attending";
-    set.responseStatus = "not_attending";
-    set.finalRsvpStatus = "not_attending";
+    // RSVP חוקי לפי enum: yes/no/pending
+    set.status = "no";
+    set.rsvp = "no";
+    set.rsvpStatus = "no";
+    set.attendanceStatus = "no";
+    set.responseStatus = "no";
+    set.finalRsvpStatus = "no";
 
     set.isRsvpFinal = true;
     set.rsvpFinal = true;
@@ -866,64 +886,135 @@ async function syncInvitationGuest(input: {
     set.attending = false;
     set.isAttending = false;
 
+    // רק כמות מגיעים
+    set.arrivedCount = 0;
+    set.actualArrivedCount = 0;
+
+    // תאימות למסכים ישנים בלבד
     set.attendingCount = 0;
-    set.guestsCount = 0;
+    set.confirmedCount = 0;
     set.confirmedGuests = 0;
     set.arrivingGuests = 0;
-    set.numberOfGuests = 0;
+    set.attendeesCount = 0;
+
+    // לא לעדכן guestsCount / numberOfGuests
   }
 
   if (input.status === "wrong_number") {
-    set.rsvp = "wrong_number";
-    set.rsvpStatus = "wrong_number";
-    set.attendanceStatus = "wrong_number";
-    set.responseStatus = "wrong_number";
-    set.finalRsvpStatus = "wrong_number";
-
-    set.isRsvpFinal = true;
-    set.rsvpFinal = true;
-    set.rsvpOpen = false;
-    set.respondedAt = input.now;
-    set.respondedVia = "call";
-
-    set.phoneInvalid = true;
-    set.invalidPhone = true;
-    set.isWrongNumber = true;
-
-    set.attending = false;
-    set.isAttending = false;
-
-    set.attendingCount = 0;
-    set.guestsCount = 0;
-    set.confirmedGuests = 0;
-    set.arrivingGuests = 0;
-    set.numberOfGuests = 0;
-  }
-
-  if (
-    input.status === "no_answer" ||
-    input.status === "callback" ||
-    input.status === "undecided" ||
-    input.status === "will_reply_message"
-  ) {
-    set.rsvpStatus = guestRsvpStatus;
-    set.responseStatus = guestRsvpStatus;
-
+    // לפי enum הראשי — נשאר pending, הסיבה נשמרת בנפרד
+    set.status = "pending";
     set.rsvp = "pending";
+    set.rsvpStatus = "pending";
     set.attendanceStatus = "pending";
+    set.responseStatus = "pending";
     set.finalRsvpStatus = "pending";
 
     set.isRsvpFinal = false;
     set.rsvpFinal = false;
     set.rsvpOpen = true;
 
-    set.pendingReason = input.status;
-    set.pendingCallStatus = input.status;
+    set.phoneInvalid = true;
+    set.invalidPhone = true;
+    set.isWrongNumber = true;
 
-    set.needsFollowUp = input.status === "callback";
-    set.isUndecided = input.status === "undecided";
-    set.willReplyMessage = input.status === "will_reply_message";
-    set.requestedNoMoreCalls = input.status === "will_reply_message";
+    set.pendingReason = "wrong_number";
+    set.pendingCallStatus = "wrong_number";
+
+    set.attending = false;
+    set.isAttending = false;
+
+    // רק כמות מגיעים
+    set.arrivedCount = 0;
+    set.actualArrivedCount = 0;
+
+    // תאימות למסכים ישנים בלבד
+    set.attendingCount = 0;
+    set.confirmedCount = 0;
+    set.confirmedGuests = 0;
+    set.arrivingGuests = 0;
+    set.attendeesCount = 0;
+
+    // לא לעדכן guestsCount / numberOfGuests
+  }
+
+  if (input.status === "no_answer") {
+    set.status = "pending";
+    set.rsvp = "pending";
+    set.rsvpStatus = "pending";
+    set.attendanceStatus = "pending";
+    set.responseStatus = "pending";
+    set.finalRsvpStatus = "pending";
+
+    set.isRsvpFinal = false;
+    set.rsvpFinal = false;
+    set.rsvpOpen = true;
+
+    set.pendingReason = "no_answer";
+    set.pendingCallStatus = "no_answer";
+    set.needsFollowUp = false;
+    set.isUndecided = false;
+    set.willReplyMessage = false;
+    set.requestedNoMoreCalls = false;
+  }
+
+  if (input.status === "callback") {
+    set.status = "pending";
+    set.rsvp = "pending";
+    set.rsvpStatus = "pending";
+    set.attendanceStatus = "pending";
+    set.responseStatus = "pending";
+    set.finalRsvpStatus = "pending";
+
+    set.isRsvpFinal = false;
+    set.rsvpFinal = false;
+    set.rsvpOpen = true;
+
+    set.pendingReason = "callback";
+    set.pendingCallStatus = "callback";
+    set.needsFollowUp = true;
+    set.isUndecided = false;
+    set.willReplyMessage = false;
+    set.requestedNoMoreCalls = false;
+  }
+
+  if (input.status === "undecided") {
+    set.status = "pending";
+    set.rsvp = "pending";
+    set.rsvpStatus = "pending";
+    set.attendanceStatus = "pending";
+    set.responseStatus = "pending";
+    set.finalRsvpStatus = "pending";
+
+    set.isRsvpFinal = false;
+    set.rsvpFinal = false;
+    set.rsvpOpen = true;
+
+    set.pendingReason = "undecided";
+    set.pendingCallStatus = "undecided";
+    set.needsFollowUp = false;
+    set.isUndecided = true;
+    set.willReplyMessage = false;
+    set.requestedNoMoreCalls = false;
+  }
+
+  if (input.status === "will_reply_message") {
+    set.status = "pending";
+    set.rsvp = "pending";
+    set.rsvpStatus = "pending";
+    set.attendanceStatus = "pending";
+    set.responseStatus = "pending";
+    set.finalRsvpStatus = "pending";
+
+    set.isRsvpFinal = false;
+    set.rsvpFinal = false;
+    set.rsvpOpen = true;
+
+    set.pendingReason = "will_reply_message";
+    set.pendingCallStatus = "will_reply_message";
+    set.needsFollowUp = false;
+    set.isUndecided = false;
+    set.willReplyMessage = true;
+    set.requestedNoMoreCalls = true;
   }
 
   const updatePayload: any = {
@@ -937,7 +1028,7 @@ async function syncInvitationGuest(input: {
         status: input.status,
         result,
         rsvpStatus: guestRsvpStatus,
-        attendingCount:
+        arrivedCount:
           input.attendingCount !== undefined ? input.attendingCount : null,
         note: input.note || "",
         at: input.now,
@@ -996,7 +1087,8 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
     const requestedAttendingCount = parseOptionalNumber(
       body?.attendingCount ??
         body?.confirmedCount ??
-        body?.guestsCount ??
+        body?.arrivedCount ??
+        body?.actualArrivedCount ??
         body?.count
     );
 
@@ -1065,7 +1157,7 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
 
     const isFinal = isCompletedStatus(nextStatus);
     const result = getResultFromStatus(nextStatus);
-    const taskRsvpStatus = getTaskRsvpStatus(nextStatus);
+    const taskRsvpStatus = getGuestRsvpStatus(nextStatus);
 
     const $set: Record<string, any> = {
       updatedAt: now,
@@ -1108,9 +1200,18 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
     }
 
     if (attendingCount !== undefined) {
+      // רק מגיעים, לא מוזמנים
+      $set.arrivedCount = attendingCount;
+      $set.actualArrivedCount = attendingCount;
+
+      // תאימות למסכים ישנים בלבד
       $set.attendingCount = attendingCount;
       $set.confirmedCount = attendingCount;
-      $set.guestsCount = attendingCount;
+      $set.confirmedGuests = attendingCount;
+      $set.arrivingGuests = attendingCount;
+      $set.attendeesCount = attendingCount;
+
+      // לא לעדכן guestsCount / numberOfGuests
     }
 
     if (nextStatus === "wrong_number") {
