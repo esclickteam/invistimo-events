@@ -49,6 +49,9 @@ type Summary = {
   declined: number;
   no_answer: number;
   callback: number;
+  undecided: number;
+  will_reply_message: number;
+  needs_fix: number;
   wrong_number: number;
   completed: number;
   cancelled: number;
@@ -363,119 +366,198 @@ async function requireEmployee() {
    Status logic
 ============================================================ */
 
+function normalizeTaskResultKey(value: unknown) {
+  const raw = normalize(value);
+
+  if (!raw) return "";
+
+  const map: Record<string, string> = {
+    pending: "pending",
+    wait: "pending",
+    waiting: "pending",
+    open: "pending",
+    assigned: "pending",
+
+    in_progress: "in_progress",
+    progress: "in_progress",
+    active: "in_progress",
+    started: "in_progress",
+    calling: "in_progress",
+    "בטיפול": "in_progress",
+
+    confirmed: "confirmed",
+    confirm: "confirmed",
+    approved: "confirmed",
+    yes: "confirmed",
+    coming: "confirmed",
+    attending: "confirmed",
+    arrived: "confirmed",
+    arrives: "confirmed",
+    arrive: "confirmed",
+    "אישר": "confirmed",
+    "אישרה": "confirmed",
+    "אישרו": "confirmed",
+    "אישרו הגעה": "confirmed",
+    "מאשר": "confirmed",
+    "מאשרת": "confirmed",
+    "מגיע": "confirmed",
+    "מגיעה": "confirmed",
+    "מגיעים": "confirmed",
+
+    declined: "declined",
+    decline: "declined",
+    rejected: "declined",
+    no: "declined",
+    not_coming: "declined",
+    not_attending: "declined",
+    notcoming: "declined",
+    "לא מגיע": "declined",
+    "לא מגיעה": "declined",
+    "לא מגיעים": "declined",
+    "סירב": "declined",
+    "סירבה": "declined",
+
+    no_answer: "no_answer",
+    noanswer: "no_answer",
+    not_answered: "no_answer",
+    unanswered: "no_answer",
+    busy: "no_answer",
+    voicemail: "no_answer",
+    no_response: "no_answer",
+    "לא ענה": "no_answer",
+    "לא ענתה": "no_answer",
+    "לא ענו": "no_answer",
+    "לא עונים": "no_answer",
+    "אין מענה": "no_answer",
+    "עסוק": "no_answer",
+    "תא קולי": "no_answer",
+
+    callback: "callback",
+    call_back: "callback",
+    call_later: "callback",
+    follow_up: "callback",
+    followup: "callback",
+    later: "callback",
+    callback_next_round: "callback",
+    next_round_callback: "callback",
+    "לחזור": "callback",
+    "לחזור אליו": "callback",
+    "לחזור אליה": "callback",
+    "לחזור אליהם": "callback",
+    "להתקשר שוב": "callback",
+    "ביקש לחזור אליו": "callback",
+    "ביקשה לחזור אליה": "callback",
+    "חזרה": "callback",
+    "חזרה בסבב הבא": "callback",
+    "לחזור בסבב הבא": "callback",
+
+    undecided: "undecided",
+    maybe: "undecided",
+    thinking: "undecided",
+    hesitating: "undecided",
+    "מתלבט": "undecided",
+    "מתלבטת": "undecided",
+    "מתלבטים": "undecided",
+
+    will_reply_message: "will_reply_message",
+    will_reply: "will_reply_message",
+    reply_message: "will_reply_message",
+    message: "will_reply_message",
+    whatsapp_reply: "will_reply_message",
+    self_reply: "will_reply_message",
+    "ישיב בהודעה": "will_reply_message",
+    "תשיב בהודעה": "will_reply_message",
+    "ישיב בוואטסאפ": "will_reply_message",
+    "תשיב בוואטסאפ": "will_reply_message",
+    "ישיב עצמאית": "will_reply_message",
+    "תשיב עצמאית": "will_reply_message",
+
+    needs_fix: "needs_fix",
+    need_fix: "needs_fix",
+    needs_correction: "needs_fix",
+    requires_correction: "needs_fix",
+    fix: "needs_fix",
+    correction: "needs_fix",
+    "דורש תיקון": "needs_fix",
+    "דורשת תיקון": "needs_fix",
+    "צריך תיקון": "needs_fix",
+
+    wrong_number: "wrong_number",
+    wrongnumber: "wrong_number",
+    bad_number: "wrong_number",
+    invalid_number: "wrong_number",
+    "מספר שגוי": "wrong_number",
+    "טלפון שגוי": "wrong_number",
+    "מספר לא תקין": "wrong_number",
+
+    completed: "completed",
+    done: "completed",
+    closed: "completed",
+    finished: "completed",
+    "טופל": "completed",
+    "הושלם": "completed",
+
+    cancelled: "cancelled",
+    canceled: "cancelled",
+    cancel: "cancelled",
+    "בוטל": "cancelled",
+    "בוטלה": "cancelled",
+  };
+
+  return map[raw] || raw;
+}
+
+function isLogicalFinalKey(key: string) {
+  return [
+    "confirmed",
+    "declined",
+    "no_answer",
+    "callback",
+    "undecided",
+    "will_reply_message",
+    "needs_fix",
+    "wrong_number",
+    "completed",
+    "cancelled",
+  ].includes(key);
+}
+
 function getTaskResultKey(task: any) {
-  const result = normalize(
+  const statusKey = normalizeTaskResultKey(task?.status);
+  const resultKey = normalizeTaskResultKey(
     task?.result ||
       task?.callResult ||
       task?.outcome ||
       task?.callStatus ||
+      task?.rsvpCallResult ||
+      task?.lastCallResult ||
       ""
   );
 
-  const status = normalize(task?.status);
-  const raw = result || status;
-
-  if (
-    [
-      "confirmed",
-      "coming",
-      "attending",
-      "yes",
-      "approved",
-      "אישר",
-      "אישרה",
-      "מאשר",
-      "מאשרת",
-      "מגיע",
-      "מגיעה",
-    ].includes(raw)
-  ) {
-    return "confirmed";
+  /*
+    חשוב:
+    אם status כבר סופי, הוא המקור החזק ביותר.
+    זה מונע מצב שבו result ישן/ריק/other גורם לכרטיס להישאר על pending.
+  */
+  if (statusKey && isLogicalFinalKey(statusKey)) {
+    return statusKey;
   }
 
-  if (
-    [
-      "declined",
-      "not_coming",
-      "no",
-      "not_attending",
-      "לא מגיע",
-      "לא מגיעה",
-      "סירב",
-      "סירבה",
-    ].includes(raw)
-  ) {
-    return "declined";
+  if (resultKey && isLogicalFinalKey(resultKey)) {
+    return resultKey;
   }
 
-  if (
-    [
-      "no_answer",
-      "not_answered",
-      "busy",
-      "voicemail",
-      "no_response",
-      "אין מענה",
-      "לא ענה",
-      "לא ענתה",
-      "עסוק",
-      "תא קולי",
-    ].includes(raw)
-  ) {
-    return "no_answer";
-  }
-
-  if (
-    [
-      "callback",
-      "call_later",
-      "later",
-      "לחזור",
-      "לחזור אליו",
-      "לחזור אליה",
-    ].includes(raw)
-  ) {
-    return "callback";
-  }
-
-  if (
-    [
-      "wrong_number",
-      "bad_number",
-      "invalid_number",
-      "מספר שגוי",
-      "טלפון שגוי",
-    ].includes(raw)
-  ) {
-    return "wrong_number";
-  }
-
-  if (["cancelled", "canceled", "cancel", "בוטל", "בוטלה"].includes(raw)) {
-    return "cancelled";
-  }
-
-  if (["in_progress", "active", "started", "בטיפול"].includes(status)) {
+  if (statusKey === "in_progress" || resultKey === "in_progress") {
     return "in_progress";
-  }
-
-  if (
-    ["done", "completed", "closed", "finished", "טופל", "הושלם"].includes(
-      status
-    )
-  ) {
-    return "completed";
   }
 
   return "pending";
 }
 
 function isTaskRemaining(task: any) {
-  const status = normalize(task?.status);
-  const result = normalize(task?.result || task?.callResult || task?.outcome);
+  const key = getTaskResultKey(task);
 
-  if (result) return false;
-
-  return OPEN_TASK_STATUSES.includes(status || "pending");
+  return key === "pending" || key === "in_progress";
 }
 
 function matchesStatusFilter(task: any, statusFilter: string) {
@@ -500,6 +582,9 @@ function emptySummary(): Summary {
     declined: 0,
     no_answer: 0,
     callback: 0,
+    undecided: 0,
+    will_reply_message: 0,
+    needs_fix: 0,
     wrong_number: 0,
     completed: 0,
     cancelled: 0,
@@ -522,6 +607,9 @@ function countTasks(tasks: any[]) {
     else if (key === "declined") summary.declined += 1;
     else if (key === "no_answer") summary.no_answer += 1;
     else if (key === "callback") summary.callback += 1;
+    else if (key === "undecided") summary.undecided += 1;
+    else if (key === "will_reply_message") summary.will_reply_message += 1;
+    else if (key === "needs_fix") summary.needs_fix += 1;
     else if (key === "wrong_number") summary.wrong_number += 1;
     else if (key === "cancelled") summary.cancelled += 1;
     else if (key === "completed") summary.completed += 1;
@@ -871,6 +959,9 @@ function serializeWorkOrderFromGroup(input: {
     myDeclinedTasks: summary.declined,
     myNoAnswerTasks: summary.no_answer,
     myCallbackTasks: summary.callback,
+    myUndecidedTasks: summary.undecided,
+    myWillReplyMessageTasks: summary.will_reply_message,
+    myNeedsFixTasks: summary.needs_fix,
     myWrongNumberTasks: summary.wrong_number,
     myCancelledTasks: summary.cancelled,
 

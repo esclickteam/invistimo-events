@@ -250,6 +250,7 @@ function normalizeIncomingStatus(value: unknown): TaskStatus | "" {
     "אישר": "confirmed",
     "אישרה": "confirmed",
     "אישרו": "confirmed",
+    "אישרו הגעה": "confirmed",
     "מגיע": "confirmed",
     "מגיעה": "confirmed",
     "מגיעים": "confirmed",
@@ -274,6 +275,9 @@ function normalizeIncomingStatus(value: unknown): TaskStatus | "" {
     "לא ענה": "no_answer",
     "לא ענתה": "no_answer",
     "אין מענה": "no_answer",
+    "לא ענו": "no_answer",
+    "לא עונים": "no_answer",
+    "לא מגיבים": "no_answer",
 
     callback: "callback",
     call_back: "callback",
@@ -292,6 +296,9 @@ function normalizeIncomingStatus(value: unknown): TaskStatus | "" {
     "ביקשה לחזור אליה": "callback",
     "מעוניין בחזרה נוספת": "callback",
     "מעוניינת בחזרה נוספת": "callback",
+    "לחזור אליהם": "callback",
+    "לחזור אליהן": "callback",
+    "חזרה": "callback",
 
     undecided: "undecided",
     maybe: "undecided",
@@ -320,16 +327,16 @@ function normalizeIncomingStatus(value: unknown): TaskStatus | "" {
     requires_correction: "needs_fix",
     fix: "needs_fix",
     correction: "needs_fix",
-    wrong_number: "needs_fix",
-    wrongnumber: "needs_fix",
-    bad_number: "needs_fix",
-    invalid_number: "needs_fix",
+    wrong_number: "wrong_number",
+    wrongnumber: "wrong_number",
+    bad_number: "wrong_number",
+    invalid_number: "wrong_number",
     "דורש תיקון": "needs_fix",
     "דורשת תיקון": "needs_fix",
     "צריך תיקון": "needs_fix",
-    "מספר שגוי": "needs_fix",
-    "טלפון שגוי": "needs_fix",
-    "מספר לא תקין": "needs_fix",
+    "מספר שגוי": "wrong_number",
+    "טלפון שגוי": "wrong_number",
+    "מספר לא תקין": "wrong_number",
 
     completed: "completed",
     done: "completed",
@@ -340,6 +347,88 @@ function normalizeIncomingStatus(value: unknown): TaskStatus | "" {
   };
 
   return map[raw] || "";
+}
+
+
+function pickIncomingStatus(body: any, callDocumentation: any): TaskStatus | "" {
+  /*
+    חשוב:
+    לא נותנים ל-body.status="pending" למחוק תוצאה אמיתית.
+    בהרבה מסכים שולחים את הסטטוס הנוכחי של המשימה יחד עם result/rsvpStatus.
+    לכן קודם מחפשים תוצאת שיחה אמיתית, ורק אם אין — משתמשים ב-status.
+  */
+
+  const resultCandidates = [
+    body?.result,
+    body?.callResult,
+    body?.callOutcome,
+    body?.rsvpStatus,
+    body?.guestRsvpStatus,
+    body?.attendanceStatus,
+    body?.answer,
+    body?.answeredResult,
+    body?.noAnswerResult,
+
+    callDocumentation?.result,
+    callDocumentation?.callResult,
+    callDocumentation?.callOutcome,
+    callDocumentation?.rsvpStatus,
+    callDocumentation?.guestRsvpStatus,
+    callDocumentation?.attendanceStatus,
+    callDocumentation?.answer,
+    callDocumentation?.answeredResult,
+    callDocumentation?.noAnswerResult,
+  ];
+
+  for (const candidate of resultCandidates) {
+    const normalized = normalizeIncomingStatus(candidate);
+
+    if (
+      normalized &&
+      normalized !== "pending" &&
+      normalized !== "in_progress"
+    ) {
+      return normalized;
+    }
+  }
+
+  const statusCandidates = [
+    body?.status,
+    body?.callStatus,
+    callDocumentation?.status,
+    callDocumentation?.callStatus,
+  ];
+
+  for (const candidate of statusCandidates) {
+    const normalized = normalizeIncomingStatus(candidate);
+
+    if (normalized) return normalized;
+  }
+
+  for (const candidate of resultCandidates) {
+    const normalized = normalizeIncomingStatus(candidate);
+
+    if (normalized) return normalized;
+  }
+
+  return "";
+}
+
+function normalizeCountStatus(value: unknown): TaskStatus | "" {
+  const normalized = normalizeIncomingStatus(value);
+
+  if (normalized) return normalized;
+
+  const raw = cleanStr(value).toLowerCase();
+
+  if (!raw) return "pending";
+
+  if (raw === "yes") return "confirmed";
+  if (raw === "no") return "declined";
+  if (raw === "call_back" || raw === "follow_up") return "callback";
+  if (raw === "not_answered" || raw === "unanswered") return "no_answer";
+
+  return "";
 }
 
 function isCompletedStatus(status: string) {
@@ -429,7 +518,8 @@ function emptyCounts(): StatusCounts {
 }
 
 function addCount(target: StatusCounts, status: string, count: number) {
-  const normalized = cleanStr(status) || "pending";
+  const normalized =
+    normalizeCountStatus(status) || cleanStr(status).toLowerCase() || "pending";
 
   target.total += count;
 
@@ -1368,17 +1458,7 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
         ? body.callDocumentation
         : {};
 
-    const rawIncomingStatus = normalizeIncomingStatus(
-      body?.status ||
-        body?.result ||
-        body?.callStatus ||
-        body?.callResult ||
-        body?.callOutcome ||
-        body?.rsvpStatus ||
-        body?.guestRsvpStatus ||
-        callDocumentation?.status ||
-        callDocumentation?.result
-    );
+    const rawIncomingStatus = pickIncomingStatus(body, callDocumentation);
 
     const note = cleanStr(
       body?.note ??
