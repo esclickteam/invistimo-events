@@ -503,7 +503,7 @@ function getDefaultMessageRounds(): AdminMessageRounds {
   };
 }
 
-function formatDateTimeInput(value?: string | null) {
+function formatCallRoundDateInput(value?: string | null) {
   if (!value) return "";
 
   try {
@@ -513,25 +513,54 @@ function formatDateTimeInput(value?: string | null) {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, "0");
     const day = String(date.getDate()).padStart(2, "0");
-    const hours = String(date.getHours()).padStart(2, "0");
-    const minutes = String(date.getMinutes()).padStart(2, "0");
 
-    return `${year}-${month}-${day}T${hours}:${minutes}`;
+    return `${year}-${month}-${day}`;
   } catch {
     return "";
   }
 }
 
-function normalizeDateTimeLocalForSave(value?: string | null) {
+function normalizeCallRoundDateForSave(value?: string | null) {
   if (!value) return "";
 
   try {
-    const date = new Date(value);
+    const parts = value.split("-").map(Number);
+
+    if (parts.length !== 3 || parts.some((part) => !Number.isFinite(part))) {
+      return "";
+    }
+
+    const [year, month, day] = parts;
+    const date = new Date(year, month - 1, day, 12, 0, 0, 0);
+
     if (Number.isNaN(date.getTime())) return "";
 
     return date.toISOString();
   } catch {
     return "";
+  }
+}
+
+function formatCallRoundDateWithWeekday(value?: string | null) {
+  if (!value) return null;
+
+  try {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+
+    const weekday = date.toLocaleDateString("he-IL", {
+      weekday: "long",
+    });
+
+    const dateText = date.toLocaleDateString("he-IL", {
+      day: "numeric",
+      month: "numeric",
+      year: "numeric",
+    });
+
+    return `${weekday} · ${dateText}`;
+  } catch {
+    return null;
   }
 }
 
@@ -546,7 +575,7 @@ function getInitialCallRoundsSchedule(user?: AdminUser): CallRoundsScheduleState
       return {
         roundNumber,
         title: existing?.title || `סבב שיחות ${roundNumber}`,
-        scheduledAt: formatDateTimeInput(existing?.scheduledAt || ""),
+        scheduledAt: formatCallRoundDateInput(existing?.scheduledAt || ""),
         status: existing?.status || (existing?.scheduledAt ? "scheduled" : "draft"),
         notes: existing?.notes || "",
       };
@@ -1938,7 +1967,7 @@ function CallRoundsScheduleFields({
           </h3>
 
           <p className="mt-1 text-xs font-bold text-[#8A7867]">
-            כאן מגדירים תאריך ושעה לסבבי השיחות של הלקוח. השמירה מתבצעת על המשתמש.
+            כאן מגדירים תאריך בלבד לסבבי השיחות של הלקוח. השמירה מתבצעת על המשתמש.
           </p>
         </div>
 
@@ -2000,7 +2029,7 @@ function CallRoundsScheduleFields({
               </div>
 
               <input
-                type="datetime-local"
+                type="date"
                 value={round.scheduledAt}
                 onChange={(e) =>
                   updateRound(round.roundNumber, "scheduledAt", e.target.value)
@@ -2091,7 +2120,7 @@ function EditUserModal({
         rounds: callRoundsSchedule.rounds.map((round) => ({
           ...round,
           scheduledAt: round.scheduledAt
-            ? normalizeDateTimeLocalForSave(round.scheduledAt)
+            ? normalizeCallRoundDateForSave(round.scheduledAt)
             : "",
         })),
       },
@@ -2572,8 +2601,11 @@ function EventScheduleModal({
           <div className="space-y-3">
             {sortedItems.map((item) => {
 
-              const scheduledAtText = formatDateTimeWithWeekday(item.scheduledAt);
-const sentAtText = formatDateTimeWithWeekday(item.sentAt);
+              const isCallsRound = item.channel === "calls" || item.group === "סבבי שיחות";
+              const scheduledAtText = isCallsRound
+                ? formatCallRoundDateWithWeekday(item.scheduledAt)
+                : formatDateTimeWithWeekday(item.scheduledAt);
+              const sentAtText = formatDateTimeWithWeekday(item.sentAt);
 
               return (
                 <div
