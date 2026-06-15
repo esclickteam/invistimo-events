@@ -632,6 +632,59 @@ function MiniMetric({
   );
 }
 
+function cleanUserText(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function getLoggedUserId(user: any) {
+  return (
+    cleanUserText(user?._id) ||
+    cleanUserText(user?.id) ||
+    cleanUserText(user?.userId) ||
+    cleanUserText(user?.employeeId) ||
+    cleanUserText(user?.staffId) ||
+    ""
+  );
+}
+
+function getLoggedUserName(user: any) {
+  const firstName = cleanUserText(user?.firstName);
+  const lastName = cleanUserText(user?.lastName);
+  const combined = `${firstName} ${lastName}`.trim();
+
+  return (
+    cleanUserText(user?.name) ||
+    cleanUserText(user?.fullName) ||
+    cleanUserText(user?.displayName) ||
+    cleanUserText(user?.employeeName) ||
+    cleanUserText(user?.staffName) ||
+    combined ||
+    cleanUserText(user?.email) ||
+    "עובד"
+  );
+}
+
+function getLoggedUserEmail(user: any) {
+  return cleanUserText(user?.email).toLowerCase();
+}
+
+function encodeSoftphoneClientState(value: Record<string, unknown>) {
+  const json = JSON.stringify(value);
+
+  if (typeof window === "undefined" || typeof window.btoa !== "function") {
+    return json;
+  }
+
+  const bytes = new TextEncoder().encode(json);
+  let binary = "";
+
+  for (let i = 0; i < bytes.length; i += 1) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+
+  return window.btoa(binary);
+}
+
 
 type SoftphoneDialRequest = {
   number?: string;
@@ -654,7 +707,17 @@ export default function SoftphoneStatusPanel({
   onDialRequestConsumed,
 }: SoftphoneStatusPanelProps = {}) {
   const router = useRouter();
-  const { logout } = useAuth();
+  const auth = useAuth() as any;
+  const { logout } = auth;
+
+  const loggedUser =
+    auth?.user ||
+    auth?.currentUser ||
+    auth?.employee ||
+    auth?.staff ||
+    auth?.me ||
+    auth?.profile ||
+    null;
 
   const [agent, setAgent] = useState<AgentState | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1515,9 +1578,39 @@ export default function SoftphoneStatusPanel({
       const callerNumber =
         auth?.callerNumber || auth?.fromNumber || TELNYX_DEFAULT_CALLER_NUMBER;
 
+      const agentId = getLoggedUserId(loggedUser) || agent?.agentId || "local-softphone";
+      const agentName =
+        getLoggedUserName(loggedUser) || agent?.name || agent?.email || "עובד";
+      const agentEmail = getLoggedUserEmail(loggedUser) || agent?.email || "";
+
+      const clientState = encodeSoftphoneClientState({
+        source: "invistimo-softphone-webrtc",
+        requestedAt: new Date().toISOString(),
+
+        agentId,
+        agentName,
+        agentEmail,
+
+        customerPhone: cleanNumber,
+        dialedPhone: cleanNumber,
+        destinationPhone: cleanNumber,
+
+        normalizedTo: cleanNumber,
+        normalizedFrom: callerNumber,
+
+        taskId: dialRequest?.taskId || "",
+        guestName: dialRequest?.guestName || dialRequest?.label || "",
+        label: dialRequest?.label || "",
+        requestId: dialRequest?.requestId || "",
+        nonce: dialRequest?.nonce || "",
+        ts: dialRequest?.ts || "",
+      });
+
       const call = client.newCall({
         destinationNumber: cleanNumber,
         callerNumber,
+        clientState,
+        client_state: clientState,
         ...getCallMediaOptions(),
       });
 
@@ -1542,6 +1635,9 @@ export default function SoftphoneStatusPanel({
       console.log("TELNYX WEBRTC OUTBOUND CALL STARTED:", {
         to: cleanNumber,
         callerNumber,
+        agentId,
+        agentName,
+        agentEmail,
       });
     } catch (err) {
       console.error("START WEBRTC OUTBOUND CALL FAILED:", err);
