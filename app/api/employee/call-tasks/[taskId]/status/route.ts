@@ -802,24 +802,17 @@ async function syncInvitationGuest(input: {
     rsvpCallRound: round,
     rsvpCallCompletedAt: input.now,
 
-    [`callRounds.${roundKey}.status`]: input.status,
-    [`callRounds.${roundKey}.result`]: result,
-    [`callRounds.${roundKey}.completed`]: true,
-    [`callRounds.${roundKey}.completedAt`]: input.now,
-    [`callRounds.${roundKey}.taskId`]: taskObjectId,
-    [`callRounds.${roundKey}.workOrderId`]: workOrderObjectId,
-    [`callRounds.${roundKey}.employeeId`]: input.employeeId,
-    [`callRounds.${roundKey}.note`]: input.note || "",
-
-    [`rsvpCallRounds.${roundKey}.status`]: input.status,
-    [`rsvpCallRounds.${roundKey}.result`]: result,
-    [`rsvpCallRounds.${roundKey}.completed`]: true,
-    [`rsvpCallRounds.${roundKey}.completedAt`]: input.now,
-
+    // ✅ חשוב:
+    // לא משתמשים ב-callRounds.round1 כי אצלך callRounds קיים כמערך []
+    // לכן משתמשים בשדות שטוחים שלא מפילים את Mongo.
     [`${roundKey}CallStatus`]: input.status,
     [`${roundKey}CallResult`]: result,
     [`${roundKey}CallCompleted`]: true,
     [`${roundKey}CallCompletedAt`]: input.now,
+    [`${roundKey}CallTaskId`]: taskObjectId,
+    [`${roundKey}CallWorkOrderId`]: workOrderObjectId,
+    [`${roundKey}CallEmployeeId`]: input.employeeId,
+    [`${roundKey}CallNote`]: input.note || "",
 
     updatedByCallTaskAt: input.now,
   };
