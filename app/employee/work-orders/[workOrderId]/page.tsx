@@ -196,7 +196,6 @@ function formatDate(value?: string | null) {
   if (!value) return "—";
 
   const date = new Date(value);
-
   if (Number.isNaN(date.getTime())) return "—";
 
   return date.toLocaleDateString("he-IL", {
@@ -210,7 +209,6 @@ function formatDateTime(value?: string | null) {
   if (!value) return "—";
 
   const date = new Date(value);
-
   if (Number.isNaN(date.getTime())) return "—";
 
   return date.toLocaleString("he-IL", {
@@ -277,20 +275,31 @@ function normalizePhone(phone: string) {
   return cleanText(phone).replace(/[^\d+]/g, "");
 }
 
-function getActionTitle(status: TaskStatus) {
+function isOpenTask(task: CallTask) {
+  const status = String(task.status || "");
+  return (
+    status === "pending" ||
+    status === "in_progress" ||
+    status === "open" ||
+    status === "assigned" ||
+    status === "active"
+  );
+}
+
+function statusButtonLabel(status: TaskStatus) {
   const map: Record<TaskStatus, string> = {
-    pending: "החזרה לממתין",
-    in_progress: "התחלת טיפול",
-    confirmed: "סימון אישר הגעה",
-    declined: "סימון לא מגיע",
-    no_answer: "סימון לא ענה",
-    callback: "סימון לחזור אליו",
-    wrong_number: "סימון מספר שגוי",
-    completed: "סימון הושלם",
-    cancelled: "ביטול משימה",
+    pending: "ממתין",
+    in_progress: "בטיפול",
+    confirmed: "אישר",
+    declined: "לא מגיע",
+    no_answer: "לא ענה",
+    callback: "לחזור אליו",
+    wrong_number: "מספר שגוי",
+    completed: "הושלם",
+    cancelled: "בוטל",
   };
 
-  return map[status] || "עדכון סטטוס";
+  return map[status] || status;
 }
 
 /* ============================================================
@@ -302,9 +311,7 @@ export default function EmployeeWorkOrderTasksPage() {
 
   const workOrderId = useMemo(() => {
     const raw = params?.workOrderId;
-
     if (Array.isArray(raw)) return raw[0] || "";
-
     return String(raw || "");
   }, [params]);
 
@@ -313,6 +320,11 @@ export default function EmployeeWorkOrderTasksPage() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [tasks, setTasks] = useState<CallTask[]>([]);
+
+  const [selectedTask, setSelectedTask] = useState<CallTask | null>(null);
+  const [draftStatus, setDraftStatus] = useState<TaskStatus>("confirmed");
+  const [draftNote, setDraftNote] = useState("");
+  const [draftCount, setDraftCount] = useState("1");
 
   const [status, setStatus] = useState("open");
   const [search, setSearch] = useState("");
@@ -325,16 +337,65 @@ export default function EmployeeWorkOrderTasksPage() {
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
 
-  const [modalTask, setModalTask] = useState<CallTask | null>(null);
-  const [modalStatus, setModalStatus] = useState<TaskStatus | "">("");
-  const [modalNote, setModalNote] = useState("");
-  const [modalCount, setModalCount] = useState("1");
-
   const progress = summary
     ? Math.min(100, Math.max(0, safeNumber(summary.progressPercent)))
     : workOrder
       ? Math.min(100, Math.max(0, safeNumber(workOrder.myProgressPercent)))
       : 0;
+
+  const openTasks = useMemo(() => {
+    return tasks.filter(isOpenTask);
+  }, [tasks]);
+
+  const completedTasks = useMemo(() => {
+    return tasks.filter((task) => !isOpenTask(task));
+  }, [tasks]);
+
+  const selectedTel = selectedTask ? normalizePhone(selectedTask.guestPhone) : "";
+
+  function applySelectedTask(task: CallTask | null) {
+    setSelectedTask(task);
+
+    if (!task) {
+      setDraftStatus("confirmed");
+      setDraftNote("");
+      setDraftCount("1");
+      return;
+    }
+
+    const currentStatus = String(task.status || "pending") as TaskStatus;
+
+    if (
+      [
+        "confirmed",
+        "declined",
+        "no_answer",
+        "callback",
+        "wrong_number",
+        "completed",
+        "cancelled",
+        "in_progress",
+        "pending",
+      ].includes(currentStatus)
+    ) {
+      setDraftStatus(
+        currentStatus === "pending" || currentStatus === "in_progress"
+          ? "confirmed"
+          : currentStatus
+      );
+    } else {
+      setDraftStatus("confirmed");
+    }
+
+    setDraftNote(task.note || "");
+
+    const existingCount =
+      typeof task.attendingCount === "number" && task.attendingCount > 0
+        ? task.attendingCount
+        : 1;
+
+    setDraftCount(String(existingCount));
+  }
 
   async function loadTasks(options?: { silent?: boolean; nextPage?: number }) {
     if (!workOrderId) return;
@@ -383,14 +444,37 @@ export default function EmployeeWorkOrderTasksPage() {
         throw new Error(data.error || "שגיאה בטעינת רשימת השיחות");
       }
 
+      const nextTasks = Array.isArray(data.tasks) ? data.tasks : [];
+
       setEmployee(data.employee || null);
       setWorkOrder(data.workOrder || null);
       setSummary(data.summary || null);
       setPagination(data.pagination || null);
-      setTasks(Array.isArray(data.tasks) ? data.tasks : []);
+      setTasks(nextTasks);
+
+      setSelectedTask((current) => {
+        if (!nextTasks.length) return null;
+
+        if (!current) {
+          const firstOpen = nextTasks.find(isOpenTask) || nextTasks[0];
+          setTimeout(() => applySelectedTask(firstOpen), 0);
+          return firstOpen;
+        }
+
+        const stillExists = nextTasks.find((task) => task.id === current.id);
+        if (stillExists) {
+          setTimeout(() => applySelectedTask(stillExists), 0);
+          return stillExists;
+        }
+
+        const firstOpen = nextTasks.find(isOpenTask) || nextTasks[0];
+        setTimeout(() => applySelectedTask(firstOpen), 0);
+        return firstOpen;
+      });
     } catch (err: any) {
       setError(err?.message || "שגיאה בטעינת רשימת השיחות");
       setTasks([]);
+      applySelectedTask(null);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -406,28 +490,6 @@ export default function EmployeeWorkOrderTasksPage() {
     e.preventDefault();
     setPage(1);
     loadTasks({ silent: true, nextPage: 1 });
-  }
-
-  function openUpdateModal(task: CallTask, nextStatus: TaskStatus) {
-    setModalTask(task);
-    setModalStatus(nextStatus);
-    setModalNote(task.note || "");
-
-    const existingCount =
-      typeof task.attendingCount === "number" && task.attendingCount > 0
-        ? task.attendingCount
-        : 1;
-
-    setModalCount(String(existingCount));
-  }
-
-  function closeModal() {
-    if (updatingTaskId) return;
-
-    setModalTask(null);
-    setModalStatus("");
-    setModalNote("");
-    setModalCount("1");
   }
 
   async function updateTaskStatus(input: {
@@ -479,8 +541,6 @@ export default function EmployeeWorkOrderTasksPage() {
         setWorkOrder(data.workOrder);
       }
 
-      closeModal();
-
       await loadTasks({ silent: true });
     } catch (err: any) {
       setError(err?.message || "שגיאה בעדכון השיחה");
@@ -489,10 +549,8 @@ export default function EmployeeWorkOrderTasksPage() {
     }
   }
 
-  async function submitModalUpdate(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-
-    if (!modalTask || !modalStatus) return;
+  async function saveSelectedTask() {
+    if (!selectedTask || !draftStatus) return;
 
     const payload: {
       task: CallTask;
@@ -500,129 +558,141 @@ export default function EmployeeWorkOrderTasksPage() {
       note?: string;
       attendingCount?: number;
     } = {
-      task: modalTask,
-      status: modalStatus,
-      note: modalNote,
+      task: selectedTask,
+      status: draftStatus,
+      note: draftNote,
     };
 
-    if (modalStatus === "confirmed") {
-      const count = Math.max(1, Number(modalCount || 1));
+    if (draftStatus === "confirmed") {
+      const count = Math.max(1, Number(draftCount || 1));
       payload.attendingCount = Number.isFinite(count) ? count : 1;
     }
 
     await updateTaskStatus(payload);
   }
 
-  async function startTask(task: CallTask) {
+  async function startSelectedTask() {
+    if (!selectedTask) return;
+
     await updateTaskStatus({
-      task,
+      task: selectedTask,
       status: "in_progress",
-      note: task.note || "",
+      note: draftNote || selectedTask.note || "",
     });
   }
 
+  function selectNextOpenTask() {
+    const next = openTasks.find((task) => task.id !== selectedTask?.id);
+
+    if (next) {
+      applySelectedTask(next);
+      return;
+    }
+
+    if (openTasks[0]) {
+      applySelectedTask(openTasks[0]);
+    }
+  }
+
   return (
-    <main className="ewoTasksPage" dir="rtl">
-      <section className="ewoTopBar">
-        <Link href="/employee/work-orders" className="ewoBackLink">
+    <main className="callCenterPage" dir="rtl">
+      <section className="topBar">
+        <Link href="/employee/work-orders" className="backLink">
           ← חזרה להוראות עבודה
         </Link>
 
-        <button
-          type="button"
-          className="ewoRefreshBtn"
-          disabled={refreshing || loading}
-          onClick={() => loadTasks({ silent: true })}
-        >
-          {refreshing ? "מרענן..." : "רענון"}
-        </button>
+        <div className="topActions">
+          <button
+            type="button"
+            className="ghostBtn"
+            disabled={refreshing || loading}
+            onClick={selectNextOpenTask}
+          >
+            השיחה הבאה
+          </button>
+
+          <button
+            type="button"
+            className="refreshBtn"
+            disabled={refreshing || loading}
+            onClick={() => loadTasks({ silent: true })}
+          >
+            {refreshing ? "מרענן..." : "רענון"}
+          </button>
+        </div>
       </section>
 
-      <section className="ewoHero">
+      <section className="hero">
         <div>
-          <p className="ewoEyebrow">רשימת שיחות</p>
+          <p className="eyebrow">מוקד שיחות RSVP</p>
+
           <h1>
             {workOrder?.clientName ||
               workOrder?.clientEmail ||
               "הוראת עבודה"}
           </h1>
 
-          <p className="ewoSubtitle">
+          <p className="subtitle">
             {workOrder
               ? `${getRoundLabel(workOrder.round)} · ${getAudienceLabel(
                   workOrder.sourceAudience
-                )}`
+                )} · ${workOrder.eventName || "אירוע"}`
               : "כאן מופיעות רק השיחות שהוקצו לעובד המחובר."}
           </p>
         </div>
 
-        <div className="ewoHeroMeta">
-          <span>{workOrder?.eventName || "אירוע"}</span>
+        <div className="heroMeta">
+          <span>תאריך עבודה</span>
           <strong>{formatDate(workOrder?.workDate)}</strong>
+          <small>{formatDateTime(workOrder?.configuredRoundAt)}</small>
         </div>
       </section>
 
-      {employee && (
-        <section className="ewoEmployeeCard">
-          <div>
-            <span>עובד מחובר</span>
-            <strong>{employee.name || employee.email || "עובד"}</strong>
-          </div>
+      <section className="statsGrid">
+        <div className="statBox primary">
+          <span>סה״כ שיחות</span>
+          <strong>{safeNumber(summary?.total)}</strong>
+        </div>
 
-          <div>
-            <span>מייל</span>
-            <strong>{employee.email || "—"}</strong>
-          </div>
+        <div className="statBox">
+          <span>נותרו</span>
+          <strong>{safeNumber(summary?.remaining)}</strong>
+        </div>
 
-          <div>
-            <span>לקוחה</span>
-            <strong>{workOrder?.clientEmail || "—"}</strong>
-          </div>
+        <div className="statBox">
+          <span>טופלו</span>
+          <strong>{safeNumber(summary?.completedLogical)}</strong>
+        </div>
 
-          <div>
-            <span>מועד סבב</span>
-            <strong>{formatDateTime(workOrder?.configuredRoundAt)}</strong>
-          </div>
-        </section>
-      )}
+        <div className="statBox">
+          <span>לא ענו</span>
+          <strong>{safeNumber(summary?.no_answer)}</strong>
+        </div>
 
-      {summary && (
-        <section className="ewoSummaryGrid">
-          <div className="ewoSummaryBox">
-            <span>סה״כ שיחות שלי</span>
-            <strong>{safeNumber(summary.total)}</strong>
-          </div>
+        <div className="statBox">
+          <span>אישרו</span>
+          <strong>{safeNumber(summary?.confirmed)}</strong>
+        </div>
 
-          <div className="ewoSummaryBox">
-            <span>נותרו</span>
-            <strong>{safeNumber(summary.remaining)}</strong>
-          </div>
+        <div className="statBox">
+          <span>התקדמות</span>
+          <strong>{progress}%</strong>
+        </div>
+      </section>
 
-          <div className="ewoSummaryBox">
-            <span>טופלו</span>
-            <strong>{safeNumber(summary.completedLogical)}</strong>
-          </div>
-
-          <div className="ewoSummaryBox">
-            <span>התקדמות</span>
-            <strong>{progress}%</strong>
-          </div>
-        </section>
-      )}
-
-      <section className="ewoProgressCard">
-        <div className="ewoProgressText">
+      <section className="progressCard">
+        <div>
           <span>התקדמות טיפול</span>
           <strong>{progress}%</strong>
         </div>
 
-        <div className="ewoProgressBar">
+        <div className="progressBar">
           <div style={{ width: `${progress}%` }} />
         </div>
       </section>
 
-      <section className="ewoFiltersCard">
-        <form onSubmit={handleSearchSubmit} className="ewoSearchForm">
+      <section className="filtersCard">
+        <form onSubmit={handleSearchSubmit} className="searchForm">
           <label>חיפוש</label>
 
           <div>
@@ -637,7 +707,7 @@ export default function EmployeeWorkOrderTasksPage() {
           </div>
         </form>
 
-        <div className="ewoFilterGroup">
+        <div className="filterGroup">
           <label>סטטוס</label>
 
           <select
@@ -660,7 +730,7 @@ export default function EmployeeWorkOrderTasksPage() {
           </select>
         </div>
 
-        <div className="ewoFilterGroup">
+        <div className="filterGroup">
           <label>מיון</label>
 
           <select
@@ -679,161 +749,249 @@ export default function EmployeeWorkOrderTasksPage() {
         </div>
       </section>
 
-      {error && <div className="ewoErrorBox">{error}</div>}
-      {successMsg && <div className="ewoSuccessBox">{successMsg}</div>}
+      {employee && (
+        <section className="employeeStrip">
+          <div>
+            <span>עובד מחובר</span>
+            <strong>{employee.name || employee.email || "עובד"}</strong>
+          </div>
+
+          <div>
+            <span>מייל</span>
+            <strong>{employee.email || "—"}</strong>
+          </div>
+
+          <div>
+            <span>לקוח</span>
+            <strong>{workOrder?.clientEmail || "—"}</strong>
+          </div>
+        </section>
+      )}
+
+      {error && <div className="errorBox">{error}</div>}
+      {successMsg && <div className="successBox">{successMsg}</div>}
 
       {loading ? (
-        <section className="ewoLoadingCard">
-          <div className="ewoSpinner" />
+        <section className="loadingCard">
+          <div className="spinner" />
           <p>טוען שיחות...</p>
         </section>
       ) : tasks.length === 0 ? (
-        <section className="ewoEmptyCard">
+        <section className="emptyCard">
           <h2>אין שיחות להצגה</h2>
           <p>אפשר לשנות סינון או לחזור להוראות העבודה.</p>
         </section>
       ) : (
-        <section className="ewoTasksGrid">
-          {tasks.map((task) => {
-            const tel = normalizePhone(task.guestPhone);
-            const isUpdating = updatingTaskId === task.id;
+        <section className="workspace">
+          <section className="queuePanel">
+            <div className="panelHeader">
+              <div>
+                <h2>תור שיחות</h2>
+                <p>
+                  {openTasks.length} פתוחות · {completedTasks.length} טופלו
+                </p>
+              </div>
+            </div>
 
-            return (
-              <article key={task.id} className="ewoTaskCard">
-                <div className="ewoTaskTop">
+            <div className="queueTable">
+              <div className="queueHead">
+                <span>אורח</span>
+                <span>טלפון</span>
+                <span>קבוצה</span>
+                <span>ניסיונות</span>
+                <span>סטטוס</span>
+              </div>
+
+              <div className="queueRows">
+                {tasks.map((task) => {
+                  const selected = selectedTask?.id === task.id;
+
+                  return (
+                    <button
+                      type="button"
+                      key={task.id}
+                      className={`queueRow ${selected ? "selected" : ""}`}
+                      onClick={() => applySelectedTask(task)}
+                    >
+                      <span className="guestCell">
+                        <strong>{task.guestName || "אורח ללא שם"}</strong>
+                        <small>{task.guestTable ? `שולחן ${task.guestTable}` : "—"}</small>
+                      </span>
+
+                      <span dir="ltr">{task.guestPhone || "—"}</span>
+
+                      <span>{task.guestGroup || "—"}</span>
+
+                      <span>{safeNumber(task.attemptsCount)}</span>
+
+                      <span>
+                        <b className={`statusPill ${getStatusClass(String(task.status))}`}>
+                          {getStatusLabel(String(task.status))}
+                        </b>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+
+          <aside className="callPanel">
+            {!selectedTask ? (
+              <div className="noSelection">
+                <h2>בחרי שיחה מהרשימה</h2>
+                <p>כאן יופיעו פרטי האורח והפעולות לעדכון.</p>
+              </div>
+            ) : (
+              <>
+                <div className="callPanelTop">
                   <div>
                     <span
-                      className={`ewoStatusBadge ${getStatusClass(
-                        String(task.status)
+                      className={`statusPill ${getStatusClass(
+                        String(selectedTask.status)
                       )}`}
                     >
-                      {getStatusLabel(String(task.status))}
+                      {getStatusLabel(String(selectedTask.status))}
                     </span>
 
-                    <h2>{task.guestName || "אורח ללא שם"}</h2>
+                    <h2>{selectedTask.guestName || "אורח ללא שם"}</h2>
 
-                    <p>{task.guestPhone || "אין טלפון"}</p>
+                    <p dir="ltr">{selectedTask.guestPhone || "אין טלפון"}</p>
                   </div>
 
-                  <div className="ewoAttempts">
+                  <div className="attemptBox">
                     <span>ניסיונות</span>
-                    <strong>{safeNumber(task.attemptsCount)}</strong>
+                    <strong>{safeNumber(selectedTask.attemptsCount)}</strong>
                   </div>
                 </div>
 
-                <div className="ewoTaskMeta">
+                <div className="detailsGrid">
                   <div>
                     <span>קבוצה</span>
-                    <strong>{task.guestGroup || "—"}</strong>
+                    <strong>{selectedTask.guestGroup || "—"}</strong>
                   </div>
 
                   <div>
                     <span>צד</span>
-                    <strong>{task.guestSide || "—"}</strong>
+                    <strong>{selectedTask.guestSide || "—"}</strong>
                   </div>
 
                   <div>
                     <span>שולחן</span>
-                    <strong>{task.guestTable || "—"}</strong>
+                    <strong>{selectedTask.guestTable || "—"}</strong>
                   </div>
 
                   <div>
                     <span>עודכן</span>
-                    <strong>{formatDateTime(task.lastAttemptAt)}</strong>
+                    <strong>{formatDateTime(selectedTask.lastAttemptAt)}</strong>
                   </div>
                 </div>
 
-                {task.guestNotes && (
-                  <div className="ewoGuestNote">
+                {selectedTask.guestNotes && (
+                  <div className="noteBox guest">
                     <span>הערת אורח</span>
-                    <p>{task.guestNotes}</p>
+                    <p>{selectedTask.guestNotes}</p>
                   </div>
                 )}
 
-                {task.note && (
-                  <div className="ewoWorkerNote">
-                    <span>הערת עובד</span>
-                    <p>{task.note}</p>
+                {selectedTask.note && (
+                  <div className="noteBox worker">
+                    <span>הערת עובד קיימת</span>
+                    <p>{selectedTask.note}</p>
                   </div>
                 )}
 
-                <div className="ewoCallActions">
-                  {tel ? (
-                    <a href={`tel:${tel}`} className="ewoCallBtn">
-                      התקשר
+                <div className="mainActions">
+                  {selectedTel ? (
+                    <a href={`tel:${selectedTel}`} className="callBtn">
+                      התקשר עכשיו
                     </a>
                   ) : (
-                    <button type="button" className="ewoCallBtn" disabled>
+                    <button type="button" className="callBtn" disabled>
                       אין טלפון
                     </button>
                   )}
 
                   <button
                     type="button"
-                    className="ewoSecondaryBtn"
-                    disabled={isUpdating || !task.canUpdate}
-                    onClick={() => startTask(task)}
+                    className="startBtn"
+                    disabled={
+                      Boolean(updatingTaskId) || !selectedTask.canUpdate
+                    }
+                    onClick={startSelectedTask}
                   >
                     התחל טיפול
                   </button>
                 </div>
 
-                <div className="ewoResultActions">
-                  <button
-                    type="button"
-                    className="good"
-                    disabled={isUpdating || !task.canUpdate}
-                    onClick={() => openUpdateModal(task, "confirmed")}
-                  >
-                    אישר
-                  </button>
+                <div className="resultPanel">
+                  <span className="panelMiniTitle">תוצאת השיחה</span>
+
+                  <div className="resultButtons">
+                    {(
+                      [
+                        "confirmed",
+                        "declined",
+                        "no_answer",
+                        "callback",
+                        "wrong_number",
+                      ] as TaskStatus[]
+                    ).map((item) => (
+                      <button
+                        type="button"
+                        key={item}
+                        className={`${getStatusClass(item)} ${
+                          draftStatus === item ? "selected" : ""
+                        }`}
+                        onClick={() => setDraftStatus(item)}
+                      >
+                        {statusButtonLabel(item)}
+                      </button>
+                    ))}
+                  </div>
+
+                  {draftStatus === "confirmed" && (
+                    <div className="field">
+                      <label>כמה מגיעים?</label>
+                      <input
+                        type="number"
+                        min={1}
+                        value={draftCount}
+                        onChange={(e) => setDraftCount(e.target.value)}
+                      />
+                    </div>
+                  )}
+
+                  <div className="field">
+                    <label>הערה</label>
+                    <textarea
+                      value={draftNote}
+                      placeholder="לדוגמה: ביקש לחזור בערב / אישר עם בת זוג / מספר לא תקין..."
+                      onChange={(e) => setDraftNote(e.target.value)}
+                    />
+                  </div>
 
                   <button
                     type="button"
-                    className="bad"
-                    disabled={isUpdating || !task.canUpdate}
-                    onClick={() => openUpdateModal(task, "declined")}
+                    className="saveBtn"
+                    disabled={
+                      Boolean(updatingTaskId) || !selectedTask.canUpdate
+                    }
+                    onClick={saveSelectedTask}
                   >
-                    לא מגיע
-                  </button>
-
-                  <button
-                    type="button"
-                    className="warn"
-                    disabled={isUpdating || !task.canUpdate}
-                    onClick={() => openUpdateModal(task, "no_answer")}
-                  >
-                    לא ענה
-                  </button>
-
-                  <button
-                    type="button"
-                    className="info"
-                    disabled={isUpdating || !task.canUpdate}
-                    onClick={() => openUpdateModal(task, "callback")}
-                  >
-                    לחזור אליו
-                  </button>
-
-                  <button
-                    type="button"
-                    className="danger"
-                    disabled={isUpdating || !task.canUpdate}
-                    onClick={() => openUpdateModal(task, "wrong_number")}
-                  >
-                    מספר שגוי
+                    {updatingTaskId === selectedTask.id
+                      ? "שומר..."
+                      : "שמור תוצאה"}
                   </button>
                 </div>
-
-                {isUpdating && <div className="ewoUpdating">מעדכן...</div>}
-              </article>
-            );
-          })}
+              </>
+            )}
+          </aside>
         </section>
       )}
 
       {pagination && pagination.totalPages > 1 && (
-        <section className="ewoPagination">
+        <section className="pagination">
           <button
             type="button"
             disabled={!pagination.hasPrevPage || loading}
@@ -860,84 +1018,34 @@ export default function EmployeeWorkOrderTasksPage() {
         </section>
       )}
 
-      {modalTask && modalStatus && (
-        <div className="ewoModalOverlay" role="dialog" aria-modal="true">
-          <form className="ewoModal" onSubmit={submitModalUpdate}>
-            <div className="ewoModalTop">
-              <div>
-                <span>{getActionTitle(modalStatus)}</span>
-                <h2>{modalTask.guestName || "אורח"}</h2>
-                <p>{modalTask.guestPhone || "—"}</p>
-              </div>
-
-              <button type="button" onClick={closeModal}>
-                ×
-              </button>
-            </div>
-
-            {modalStatus === "confirmed" && (
-              <div className="ewoModalField">
-                <label>כמה מגיעים?</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={modalCount}
-                  onChange={(e) => setModalCount(e.target.value)}
-                />
-              </div>
-            )}
-
-            <div className="ewoModalField">
-              <label>הערה</label>
-              <textarea
-                value={modalNote}
-                placeholder="לדוגמה: ביקש לחזור בערב / אישר עם בת זוג / מספר לא תקין..."
-                onChange={(e) => setModalNote(e.target.value)}
-              />
-            </div>
-
-            <div className="ewoModalActions">
-              <button
-                type="button"
-                className="ewoCancelModal"
-                disabled={Boolean(updatingTaskId)}
-                onClick={closeModal}
-              >
-                ביטול
-              </button>
-
-              <button
-                type="submit"
-                className="ewoSaveModal"
-                disabled={Boolean(updatingTaskId)}
-              >
-                {updatingTaskId ? "שומר..." : "שמור סטטוס"}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
       <style>{`
-        .ewoTasksPage {
+        .callCenterPage {
           min-height: 100vh;
           background:
-            radial-gradient(circle at top right, rgba(37, 99, 235, 0.13), transparent 28%),
-            linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
-          padding: 28px;
+            radial-gradient(circle at 88% 0%, rgba(37, 99, 235, 0.18), transparent 28%),
+            radial-gradient(circle at 8% 20%, rgba(14, 165, 233, 0.1), transparent 24%),
+            linear-gradient(180deg, #f8fafc 0%, #edf2f8 100%);
+          padding: 24px;
           color: #0f172a;
         }
 
-        .ewoTopBar {
+        .topBar {
           display: flex;
           justify-content: space-between;
           align-items: center;
           gap: 12px;
-          margin-bottom: 18px;
+          margin-bottom: 16px;
         }
 
-        .ewoBackLink,
-        .ewoRefreshBtn {
+        .topActions {
+          display: flex;
+          gap: 10px;
+          align-items: center;
+        }
+
+        .backLink,
+        .refreshBtn,
+        .ghostBtn {
           height: 44px;
           display: inline-flex;
           align-items: center;
@@ -946,15 +1054,16 @@ export default function EmployeeWorkOrderTasksPage() {
           padding: 0 16px;
           font-weight: 950;
           text-decoration: none;
+          white-space: nowrap;
         }
 
-        .ewoBackLink {
-          background: white;
+        .backLink {
+          background: rgba(255, 255, 255, 0.94);
           color: #2563eb;
           border: 1px solid #dbeafe;
         }
 
-        .ewoRefreshBtn {
+        .refreshBtn {
           border: 0;
           color: white;
           background: #0f172a;
@@ -962,13 +1071,20 @@ export default function EmployeeWorkOrderTasksPage() {
           box-shadow: 0 14px 32px rgba(15, 23, 42, 0.16);
         }
 
-        .ewoRefreshBtn:disabled,
-        button:disabled {
+        .ghostBtn {
+          border: 1px solid #bfdbfe;
+          color: #1d4ed8;
+          background: #eff6ff;
+          cursor: pointer;
+        }
+
+        button:disabled,
+        .refreshBtn:disabled {
           opacity: 0.58;
           cursor: not-allowed;
         }
 
-        .ewoHero {
+        .hero {
           display: flex;
           justify-content: space-between;
           align-items: end;
@@ -976,183 +1092,165 @@ export default function EmployeeWorkOrderTasksPage() {
           background: rgba(255, 255, 255, 0.94);
           border: 1px solid rgba(148, 163, 184, 0.24);
           border-radius: 30px;
-          padding: 26px;
+          padding: 24px;
           box-shadow: 0 18px 54px rgba(15, 23, 42, 0.08);
-          margin-bottom: 16px;
+          margin-bottom: 14px;
         }
 
-        .ewoEyebrow {
+        .eyebrow {
           margin: 0 0 6px;
           color: #2563eb;
           font-size: 13px;
-          font-weight: 900;
+          font-weight: 950;
         }
 
-        .ewoHero h1 {
+        .hero h1 {
           margin: 0;
-          font-size: clamp(30px, 4vw, 46px);
+          font-size: clamp(30px, 4vw, 44px);
           font-weight: 950;
           letter-spacing: -0.04em;
         }
 
-        .ewoSubtitle {
+        .subtitle {
           margin: 8px 0 0;
           color: #64748b;
           font-size: 15px;
           font-weight: 800;
         }
 
-        .ewoHeroMeta {
+        .heroMeta {
           background: #eff6ff;
           border: 1px solid #dbeafe;
           border-radius: 20px;
           padding: 14px 16px;
-          min-width: 210px;
+          min-width: 220px;
         }
 
-        .ewoHeroMeta span {
+        .heroMeta span,
+        .employeeStrip span,
+        .detailsGrid span,
+        .noteBox span,
+        .field label,
+        .panelMiniTitle {
           display: block;
           color: #64748b;
           font-size: 12px;
-          font-weight: 900;
+          font-weight: 950;
           margin-bottom: 5px;
         }
 
-        .ewoHeroMeta strong {
+        .heroMeta strong {
           display: block;
           font-size: 17px;
           font-weight: 950;
         }
 
-        .ewoEmployeeCard,
-        .ewoProgressCard,
-        .ewoFiltersCard,
-        .ewoLoadingCard,
-        .ewoEmptyCard {
-          background: rgba(255, 255, 255, 0.94);
+        .heroMeta small {
+          display: block;
+          color: #64748b;
+          font-weight: 800;
+          margin-top: 4px;
+        }
+
+        .statsGrid {
+          display: grid;
+          grid-template-columns: repeat(6, minmax(0, 1fr));
+          gap: 12px;
+          margin-bottom: 14px;
+        }
+
+        .statBox,
+        .progressCard,
+        .filtersCard,
+        .employeeStrip,
+        .queuePanel,
+        .callPanel,
+        .loadingCard,
+        .emptyCard {
+          background: rgba(255, 255, 255, 0.95);
           border: 1px solid rgba(148, 163, 184, 0.24);
-          border-radius: 24px;
           box-shadow: 0 18px 50px rgba(15, 23, 42, 0.07);
         }
 
-        .ewoEmployeeCard {
-          display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 14px;
+        .statBox {
+          border-radius: 22px;
           padding: 16px;
-          margin-bottom: 16px;
         }
 
-        .ewoEmployeeCard div {
-          background: #f8fafc;
-          border: 1px solid #eef2f7;
-          border-radius: 16px;
-          padding: 12px;
-          min-width: 0;
+        .statBox.primary {
+          background: #0f172a;
+          color: white;
         }
 
-        .ewoEmployeeCard span,
-        .ewoTaskMeta span,
-        .ewoGuestNote span,
-        .ewoWorkerNote span {
+        .statBox span {
           display: block;
           color: #64748b;
           font-size: 12px;
-          font-weight: 900;
-          margin-bottom: 5px;
-        }
-
-        .ewoEmployeeCard strong,
-        .ewoTaskMeta strong {
-          display: block;
-          font-size: 14px;
           font-weight: 950;
-          overflow: hidden;
-          white-space: nowrap;
-          text-overflow: ellipsis;
+          margin-bottom: 6px;
         }
 
-        .ewoSummaryGrid {
-          display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 14px;
-          margin-bottom: 16px;
+        .statBox.primary span {
+          color: #cbd5e1;
         }
 
-        .ewoSummaryBox {
-          background: white;
-          border: 1px solid rgba(148, 163, 184, 0.22);
-          border-radius: 22px;
-          padding: 18px;
-          box-shadow: 0 14px 40px rgba(15, 23, 42, 0.07);
-        }
-
-        .ewoSummaryBox span {
+        .statBox strong {
           display: block;
-          color: #64748b;
-          font-size: 13px;
-          font-weight: 900;
-          margin-bottom: 7px;
-        }
-
-        .ewoSummaryBox strong {
-          display: block;
-          font-size: 31px;
+          font-size: 30px;
           font-weight: 950;
           letter-spacing: -0.04em;
         }
 
-        .ewoProgressCard {
-          padding: 16px;
-          margin-bottom: 16px;
+        .progressCard {
+          border-radius: 22px;
+          padding: 14px 16px;
+          margin-bottom: 14px;
         }
 
-        .ewoProgressText {
+        .progressCard > div:first-child {
           display: flex;
           justify-content: space-between;
-          align-items: center;
-          color: #334155;
           font-weight: 950;
-          margin-bottom: 9px;
+          margin-bottom: 8px;
         }
 
-        .ewoProgressBar {
+        .progressBar {
           height: 12px;
           border-radius: 999px;
           background: #e2e8f0;
           overflow: hidden;
         }
 
-        .ewoProgressBar div {
+        .progressBar div {
           height: 100%;
           background: linear-gradient(90deg, #2563eb, #06b6d4);
           border-radius: 999px;
         }
 
-        .ewoFiltersCard {
+        .filtersCard {
           display: grid;
           grid-template-columns: 1fr 220px 220px;
-          gap: 14px;
-          padding: 16px;
-          margin-bottom: 16px;
+          gap: 12px;
+          padding: 14px;
+          border-radius: 24px;
+          margin-bottom: 14px;
           align-items: end;
         }
 
-        .ewoSearchForm,
-        .ewoFilterGroup {
+        .searchForm,
+        .filterGroup {
           display: grid;
           gap: 7px;
         }
 
-        .ewoSearchForm label,
-        .ewoFilterGroup label,
-        .ewoModalField label {
+        .searchForm label,
+        .filterGroup label {
           color: #64748b;
           font-size: 12px;
           font-weight: 950;
         }
 
-        .ewoSearchForm div {
+        .searchForm div {
           display: flex;
           gap: 8px;
         }
@@ -1165,7 +1263,7 @@ export default function EmployeeWorkOrderTasksPage() {
           color: #0f172a;
           border-radius: 14px;
           padding: 0 12px;
-          font-weight: 800;
+          font-weight: 850;
           outline: none;
         }
 
@@ -1175,7 +1273,7 @@ export default function EmployeeWorkOrderTasksPage() {
         }
 
         textarea {
-          min-height: 104px;
+          min-height: 94px;
           padding: 12px;
           resize: vertical;
         }
@@ -1187,12 +1285,12 @@ export default function EmployeeWorkOrderTasksPage() {
           box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
         }
 
-        .ewoSearchForm input {
+        .searchForm input {
           flex: 1;
           min-width: 0;
         }
 
-        .ewoSearchForm button {
+        .searchForm button {
           height: 44px;
           border: 0;
           border-radius: 14px;
@@ -1203,181 +1301,16 @@ export default function EmployeeWorkOrderTasksPage() {
           cursor: pointer;
         }
 
-        .ewoErrorBox,
-        .ewoSuccessBox {
-          border-radius: 18px;
-          padding: 14px 16px;
-          font-weight: 950;
-          margin-bottom: 16px;
-        }
-
-        .ewoErrorBox {
-          background: #fff1f2;
-          border: 1px solid #fecdd3;
-          color: #be123c;
-        }
-
-        .ewoSuccessBox {
-          background: #ecfdf5;
-          border: 1px solid #bbf7d0;
-          color: #15803d;
-        }
-
-        .ewoLoadingCard,
-        .ewoEmptyCard {
-          padding: 34px;
-          text-align: center;
-        }
-
-        .ewoEmptyCard h2 {
-          margin: 0 0 8px;
-          font-size: 22px;
-          font-weight: 950;
-        }
-
-        .ewoEmptyCard p,
-        .ewoLoadingCard p {
-          margin: 0;
-          color: #64748b;
-          font-weight: 800;
-        }
-
-        .ewoSpinner {
-          width: 34px;
-          height: 34px;
-          border-radius: 999px;
-          border: 4px solid #dbeafe;
-          border-top-color: #2563eb;
-          margin: 0 auto 12px;
-          animation: ewoSpin 0.8s linear infinite;
-        }
-
-        @keyframes ewoSpin {
-          to {
-            transform: rotate(360deg);
-          }
-        }
-
-        .ewoTasksGrid {
+        .employeeStrip {
           display: grid;
           grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 16px;
-        }
-
-        .ewoTaskCard {
-          background: rgba(255, 255, 255, 0.96);
-          border: 1px solid rgba(148, 163, 184, 0.24);
-          border-radius: 26px;
-          padding: 18px;
-          box-shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
-          display: flex;
-          flex-direction: column;
-          gap: 14px;
-          position: relative;
-        }
-
-        .ewoTaskTop {
-          display: flex;
-          justify-content: space-between;
-          align-items: start;
           gap: 12px;
+          padding: 14px;
+          border-radius: 22px;
+          margin-bottom: 14px;
         }
 
-        .ewoStatusBadge {
-          display: inline-flex;
-          align-items: center;
-          border-radius: 999px;
-          padding: 6px 10px;
-          font-size: 12px;
-          font-weight: 950;
-          margin-bottom: 10px;
-        }
-
-        .ewoStatusBadge.pending {
-          background: #f1f5f9;
-          color: #475569;
-        }
-
-        .ewoStatusBadge.active {
-          background: #dbeafe;
-          color: #1d4ed8;
-        }
-
-        .ewoStatusBadge.good {
-          background: #dcfce7;
-          color: #15803d;
-        }
-
-        .ewoStatusBadge.bad {
-          background: #fee2e2;
-          color: #b91c1c;
-        }
-
-        .ewoStatusBadge.warn {
-          background: #fef3c7;
-          color: #b45309;
-        }
-
-        .ewoStatusBadge.info {
-          background: #cffafe;
-          color: #0e7490;
-        }
-
-        .ewoStatusBadge.danger {
-          background: #ffe4e6;
-          color: #be123c;
-        }
-
-        .ewoStatusBadge.muted {
-          background: #e2e8f0;
-          color: #64748b;
-        }
-
-        .ewoTaskTop h2 {
-          margin: 0;
-          font-size: 22px;
-          font-weight: 950;
-          letter-spacing: -0.03em;
-        }
-
-        .ewoTaskTop p {
-          margin: 5px 0 0;
-          color: #475569;
-          font-size: 15px;
-          font-weight: 900;
-          direction: ltr;
-          text-align: right;
-        }
-
-        .ewoAttempts {
-          background: #f8fafc;
-          border: 1px solid #eef2f7;
-          border-radius: 16px;
-          padding: 10px 12px;
-          text-align: center;
-          min-width: 74px;
-        }
-
-        .ewoAttempts span {
-          display: block;
-          color: #64748b;
-          font-size: 11px;
-          font-weight: 900;
-        }
-
-        .ewoAttempts strong {
-          display: block;
-          font-size: 23px;
-          font-weight: 950;
-        }
-
-        .ewoTaskMeta {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 10px;
-        }
-
-        .ewoTaskMeta div {
+        .employeeStrip div {
           background: #f8fafc;
           border: 1px solid #eef2f7;
           border-radius: 16px;
@@ -1385,126 +1318,426 @@ export default function EmployeeWorkOrderTasksPage() {
           min-width: 0;
         }
 
-        .ewoGuestNote,
-        .ewoWorkerNote {
-          border-radius: 16px;
-          padding: 12px;
+        .employeeStrip strong,
+        .detailsGrid strong {
+          display: block;
+          font-size: 14px;
+          font-weight: 950;
+          overflow: hidden;
+          white-space: nowrap;
+          text-overflow: ellipsis;
         }
 
-        .ewoGuestNote {
+        .errorBox,
+        .successBox {
+          border-radius: 18px;
+          padding: 14px 16px;
+          font-weight: 950;
+          margin-bottom: 14px;
+        }
+
+        .errorBox {
+          background: #fff1f2;
+          border: 1px solid #fecdd3;
+          color: #be123c;
+        }
+
+        .successBox {
+          background: #ecfdf5;
+          border: 1px solid #bbf7d0;
+          color: #15803d;
+        }
+
+        .loadingCard,
+        .emptyCard {
+          border-radius: 24px;
+          padding: 34px;
+          text-align: center;
+        }
+
+        .emptyCard h2 {
+          margin: 0 0 8px;
+          font-size: 22px;
+          font-weight: 950;
+        }
+
+        .emptyCard p,
+        .loadingCard p {
+          margin: 0;
+          color: #64748b;
+          font-weight: 800;
+        }
+
+        .spinner {
+          width: 34px;
+          height: 34px;
+          border-radius: 999px;
+          border: 4px solid #dbeafe;
+          border-top-color: #2563eb;
+          margin: 0 auto 12px;
+          animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+          to {
+            transform: rotate(360deg);
+          }
+        }
+
+        .workspace {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) 420px;
+          gap: 16px;
+          align-items: start;
+        }
+
+        .queuePanel,
+        .callPanel {
+          border-radius: 26px;
+          overflow: hidden;
+        }
+
+        .panelHeader {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 16px;
+          border-bottom: 1px solid #e2e8f0;
+        }
+
+        .panelHeader h2 {
+          margin: 0;
+          font-size: 20px;
+          font-weight: 950;
+        }
+
+        .panelHeader p {
+          margin: 4px 0 0;
+          color: #64748b;
+          font-size: 13px;
+          font-weight: 850;
+        }
+
+        .queueTable {
+          width: 100%;
+        }
+
+        .queueHead,
+        .queueRow {
+          display: grid;
+          grid-template-columns: 1.7fr 1fr 0.8fr 0.6fr 0.9fr;
+          gap: 12px;
+          align-items: center;
+          padding: 0 16px;
+        }
+
+        .queueHead {
+          min-height: 42px;
+          background: #f8fafc;
+          color: #64748b;
+          font-size: 12px;
+          font-weight: 950;
+          border-bottom: 1px solid #e2e8f0;
+        }
+
+        .queueRows {
+          max-height: calc(100vh - 420px);
+          min-height: 460px;
+          overflow: auto;
+        }
+
+        .queueRow {
+          width: 100%;
+          min-height: 62px;
+          border: 0;
+          border-bottom: 1px solid #eef2f7;
+          background: white;
+          color: #0f172a;
+          text-align: right;
+          cursor: pointer;
+          font-weight: 850;
+        }
+
+        .queueRow:hover {
+          background: #f8fafc;
+        }
+
+        .queueRow.selected {
+          background: #eff6ff;
+          box-shadow: inset -4px 0 0 #2563eb;
+        }
+
+        .guestCell {
+          min-width: 0;
+        }
+
+        .guestCell strong {
+          display: block;
+          overflow: hidden;
+          white-space: nowrap;
+          text-overflow: ellipsis;
+          font-size: 14px;
+        }
+
+        .guestCell small {
+          display: block;
+          color: #64748b;
+          margin-top: 3px;
+          font-size: 12px;
+        }
+
+        .statusPill {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 999px;
+          padding: 6px 10px;
+          font-size: 12px;
+          font-weight: 950;
+          white-space: nowrap;
+        }
+
+        .statusPill.pending,
+        .resultButtons .pending {
+          background: #f1f5f9;
+          color: #475569;
+        }
+
+        .statusPill.active,
+        .resultButtons .active {
+          background: #dbeafe;
+          color: #1d4ed8;
+        }
+
+        .statusPill.good,
+        .resultButtons .good {
+          background: #dcfce7;
+          color: #15803d;
+        }
+
+        .statusPill.bad,
+        .resultButtons .bad {
+          background: #fee2e2;
+          color: #b91c1c;
+        }
+
+        .statusPill.warn,
+        .resultButtons .warn {
+          background: #fef3c7;
+          color: #b45309;
+        }
+
+        .statusPill.info,
+        .resultButtons .info {
+          background: #cffafe;
+          color: #0e7490;
+        }
+
+        .statusPill.danger,
+        .resultButtons .danger {
+          background: #ffe4e6;
+          color: #be123c;
+        }
+
+        .statusPill.muted {
+          background: #e2e8f0;
+          color: #64748b;
+        }
+
+        .callPanel {
+          position: sticky;
+          top: 18px;
+          padding: 18px;
+        }
+
+        .noSelection {
+          min-height: 400px;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          text-align: center;
+        }
+
+        .noSelection h2 {
+          margin: 0 0 8px;
+          font-size: 22px;
+          font-weight: 950;
+        }
+
+        .noSelection p {
+          margin: 0;
+          color: #64748b;
+          font-weight: 850;
+        }
+
+        .callPanelTop {
+          display: flex;
+          justify-content: space-between;
+          gap: 14px;
+          align-items: start;
+          margin-bottom: 16px;
+        }
+
+        .callPanelTop h2 {
+          margin: 10px 0 4px;
+          font-size: 28px;
+          line-height: 1.15;
+          font-weight: 950;
+          letter-spacing: -0.04em;
+        }
+
+        .callPanelTop p {
+          margin: 0;
+          color: #475569;
+          font-size: 17px;
+          font-weight: 950;
+          text-align: right;
+        }
+
+        .attemptBox {
+          background: #f8fafc;
+          border: 1px solid #eef2f7;
+          border-radius: 16px;
+          padding: 10px 12px;
+          text-align: center;
+          min-width: 78px;
+        }
+
+        .attemptBox span {
+          display: block;
+          color: #64748b;
+          font-size: 11px;
+          font-weight: 950;
+        }
+
+        .attemptBox strong {
+          display: block;
+          font-size: 25px;
+          font-weight: 950;
+        }
+
+        .detailsGrid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 10px;
+          margin-bottom: 12px;
+        }
+
+        .detailsGrid div {
+          background: #f8fafc;
+          border: 1px solid #eef2f7;
+          border-radius: 16px;
+          padding: 11px;
+          min-width: 0;
+        }
+
+        .noteBox {
+          border-radius: 16px;
+          padding: 12px;
+          margin-bottom: 10px;
+        }
+
+        .noteBox.guest {
           background: #fff7ed;
           border: 1px solid #fed7aa;
         }
 
-        .ewoWorkerNote {
+        .noteBox.worker {
           background: #eff6ff;
           border: 1px solid #bfdbfe;
         }
 
-        .ewoGuestNote p,
-        .ewoWorkerNote p {
+        .noteBox p {
           margin: 0;
           color: #334155;
           font-size: 14px;
-          font-weight: 800;
+          font-weight: 850;
           line-height: 1.55;
         }
 
-        .ewoCallActions {
+        .mainActions {
           display: grid;
           grid-template-columns: 1fr 1fr;
           gap: 10px;
+          margin: 12px 0;
         }
 
-        .ewoCallBtn,
-        .ewoSecondaryBtn {
-          height: 44px;
-          border-radius: 14px;
+        .callBtn,
+        .startBtn,
+        .saveBtn {
+          min-height: 48px;
+          border-radius: 16px;
           font-weight: 950;
           display: flex;
           align-items: center;
           justify-content: center;
           text-decoration: none;
+          cursor: pointer;
         }
 
-        .ewoCallBtn {
+        .callBtn {
           border: 0;
           background: #10b981;
           color: white;
-          box-shadow: 0 12px 26px rgba(16, 185, 129, 0.22);
-          cursor: pointer;
+          box-shadow: 0 14px 28px rgba(16, 185, 129, 0.22);
         }
 
-        .ewoSecondaryBtn {
+        .startBtn {
           border: 1px solid #dbeafe;
           background: #eff6ff;
           color: #1d4ed8;
-          cursor: pointer;
         }
 
-        .ewoResultActions {
+        .resultPanel {
+          border-top: 1px solid #e2e8f0;
+          padding-top: 14px;
+          display: grid;
+          gap: 12px;
+        }
+
+        .resultButtons {
           display: grid;
           grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 9px;
         }
 
-        .ewoResultActions button {
+        .resultButtons button {
           min-height: 42px;
-          border: 0;
+          border: 1px solid transparent;
           border-radius: 14px;
           font-weight: 950;
           cursor: pointer;
           padding: 8px 10px;
         }
 
-        .ewoResultActions .good {
-          background: #dcfce7;
-          color: #15803d;
+        .resultButtons button.selected {
+          outline: 3px solid rgba(37, 99, 235, 0.18);
+          border-color: #2563eb;
+          box-shadow: 0 10px 22px rgba(37, 99, 235, 0.1);
         }
 
-        .ewoResultActions .bad {
-          background: #fee2e2;
-          color: #b91c1c;
+        .field {
+          display: grid;
+          gap: 7px;
         }
 
-        .ewoResultActions .warn {
-          background: #fef3c7;
-          color: #b45309;
+        .saveBtn {
+          width: 100%;
+          border: 0;
+          background: #2563eb;
+          color: white;
+          box-shadow: 0 14px 30px rgba(37, 99, 235, 0.2);
         }
 
-        .ewoResultActions .info {
-          background: #cffafe;
-          color: #0e7490;
-        }
-
-        .ewoResultActions .danger {
-          background: #ffe4e6;
-          color: #be123c;
-          grid-column: 1 / -1;
-        }
-
-        .ewoUpdating {
-          position: absolute;
-          inset: 0;
-          background: rgba(255, 255, 255, 0.74);
-          backdrop-filter: blur(3px);
-          border-radius: 26px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: 950;
-          color: #2563eb;
-        }
-
-        .ewoPagination {
+        .pagination {
           display: flex;
           align-items: center;
           justify-content: center;
           gap: 12px;
-          margin-top: 22px;
+          margin-top: 18px;
         }
 
-        .ewoPagination button {
+        .pagination button {
           height: 42px;
           border: 1px solid #dbeafe;
           background: white;
@@ -1515,161 +1748,96 @@ export default function EmployeeWorkOrderTasksPage() {
           cursor: pointer;
         }
 
-        .ewoPagination span {
+        .pagination span {
           color: #475569;
           font-weight: 950;
         }
 
-        .ewoModalOverlay {
-          position: fixed;
-          inset: 0;
-          background: rgba(15, 23, 42, 0.46);
-          backdrop-filter: blur(6px);
-          z-index: 1000;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 20px;
-        }
-
-        .ewoModal {
-          width: min(520px, 100%);
-          background: white;
-          border-radius: 28px;
-          padding: 20px;
-          box-shadow: 0 30px 90px rgba(15, 23, 42, 0.28);
-          display: grid;
-          gap: 16px;
-        }
-
-        .ewoModalTop {
-          display: flex;
-          justify-content: space-between;
-          gap: 12px;
-          align-items: start;
-        }
-
-        .ewoModalTop span {
-          color: #2563eb;
-          font-size: 13px;
-          font-weight: 950;
-        }
-
-        .ewoModalTop h2 {
-          margin: 5px 0 4px;
-          font-size: 26px;
-          font-weight: 950;
-        }
-
-        .ewoModalTop p {
-          margin: 0;
-          color: #64748b;
-          font-weight: 900;
-          direction: ltr;
-          text-align: right;
-        }
-
-        .ewoModalTop button {
-          width: 42px;
-          height: 42px;
-          border-radius: 999px;
-          border: 1px solid #e2e8f0;
-          background: #fff;
-          color: #0f172a;
-          font-size: 26px;
-          cursor: pointer;
-        }
-
-        .ewoModalField {
-          display: grid;
-          gap: 7px;
-        }
-
-        .ewoModalActions {
-          display: flex;
-          gap: 10px;
-        }
-
-        .ewoCancelModal,
-        .ewoSaveModal {
-          flex: 1;
-          height: 46px;
-          border-radius: 16px;
-          font-weight: 950;
-          cursor: pointer;
-        }
-
-        .ewoCancelModal {
-          border: 1px solid #e2e8f0;
-          background: #fff;
-          color: #334155;
-        }
-
-        .ewoSaveModal {
-          border: 0;
-          background: #2563eb;
-          color: white;
-          box-shadow: 0 14px 30px rgba(37, 99, 235, 0.2);
-        }
-
-        @media (max-width: 1180px) {
-          .ewoTasksGrid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+        @media (max-width: 1200px) {
+          .statsGrid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
           }
 
-          .ewoEmployeeCard,
-          .ewoSummaryGrid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-          }
-
-          .ewoFiltersCard {
+          .filtersCard {
             grid-template-columns: 1fr 1fr;
           }
 
-          .ewoSearchForm {
+          .searchForm {
             grid-column: 1 / -1;
+          }
+
+          .workspace {
+            grid-template-columns: 1fr;
+          }
+
+          .callPanel {
+            position: static;
+          }
+
+          .queueRows {
+            max-height: 520px;
+            min-height: 360px;
           }
         }
 
         @media (max-width: 760px) {
-          .ewoTasksPage {
-            padding: 18px;
+          .callCenterPage {
+            padding: 16px;
           }
 
-          .ewoTopBar,
-          .ewoHero {
+          .topBar,
+          .hero {
             flex-direction: column;
             align-items: stretch;
           }
 
-          .ewoHeroMeta {
+          .topActions,
+          .mainActions {
+            grid-template-columns: 1fr;
+            display: grid;
+          }
+
+          .heroMeta {
             min-width: 0;
           }
 
-          .ewoEmployeeCard,
-          .ewoSummaryGrid,
-          .ewoFiltersCard,
-          .ewoTasksGrid {
+          .statsGrid,
+          .filtersCard,
+          .employeeStrip,
+          .detailsGrid,
+          .resultButtons {
             grid-template-columns: 1fr;
           }
 
-          .ewoSearchForm div,
-          .ewoModalActions {
+          .searchForm div {
             flex-direction: column;
           }
 
-          .ewoSearchForm button {
+          .searchForm button {
             width: 100%;
           }
 
-          .ewoTaskMeta,
-          .ewoCallActions,
-          .ewoResultActions {
-            grid-template-columns: 1fr;
+          .queueHead {
+            display: none;
           }
 
-          .ewoResultActions .danger {
-            grid-column: auto;
+          .queueRow {
+            grid-template-columns: 1fr;
+            gap: 6px;
+            align-items: start;
+            padding: 12px 14px;
+          }
+
+          .queueRow span {
+            width: 100%;
+          }
+
+          .callPanelTop {
+            flex-direction: column;
+          }
+
+          .attemptBox {
+            width: 100%;
           }
         }
       `}</style>
