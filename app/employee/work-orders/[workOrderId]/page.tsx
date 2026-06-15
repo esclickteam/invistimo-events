@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import SoftphoneStatusPanel from "@/app/components/staff/SoftphoneStatusPanel";
 
 /* ============================================================
    Constants
@@ -848,6 +849,11 @@ export default function EmployeeWorkOrderTasksPage() {
 
   return (
     <main className="callCenterPage" dir="rtl">
+      <section className="softphoneStickyShell" aria-label="סופטפון עובדים">
+        <div className="softphoneStickyInner">
+          <SoftphoneStatusPanel />
+        </div>
+      </section>
       <section className="topBar">
         <Link href="/employee/work-orders" className="backLink">
           ← חזרה להוראות עבודה
@@ -1271,6 +1277,26 @@ export default function EmployeeWorkOrderTasksPage() {
           padding: 24px;
           color: #0f172a;
         }
+
+        .softphoneStickyShell {
+          position: sticky;
+          top: 0;
+          z-index: 999;
+          margin: -24px -24px 16px;
+          padding: 14px 24px 12px;
+          background: rgba(248, 250, 252, 0.82);
+          border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+          backdrop-filter: blur(22px);
+          -webkit-backdrop-filter: blur(22px);
+          box-shadow: 0 14px 34px rgba(15, 23, 42, 0.08);
+        }
+
+        .softphoneStickyInner {
+          width: 100%;
+          max-width: 1800px;
+          margin: 0 auto;
+        }
+
 
         .topBar {
           display: flex;
@@ -2040,6 +2066,11 @@ export default function EmployeeWorkOrderTasksPage() {
           .callCenterPage {
             --softphone-sticky-offset: 210px;
             padding: 16px;
+          }
+
+          .softphoneStickyShell {
+            margin: -16px -16px 14px;
+            padding: 10px 16px;
           }
 
           .topBar,
