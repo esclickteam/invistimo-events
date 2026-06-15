@@ -176,6 +176,76 @@ type DashboardData = {
   stats?: Partial<DashboardStats>;
 };
 
+type EmployeeWorkOrderSummary = {
+  total: number;
+  pending: number;
+  in_progress: number;
+  confirmed: number;
+  declined: number;
+  no_answer: number;
+  callback: number;
+  wrong_number: number;
+  completed: number;
+  cancelled: number;
+  completedLogical: number;
+  remaining: number;
+};
+
+type EmployeeWorkOrderListItem = {
+  id?: string;
+  _id?: string;
+  title?: string;
+  clientName?: string;
+  clientEmail?: string;
+  eventName?: string;
+  round?: number;
+  myTasksTotal?: number;
+  myTasksRemaining?: number;
+  myTasksCompleted?: number;
+};
+
+type EmployeeWorkOrdersResponse = {
+  success?: boolean;
+  error?: string;
+  summary?: Partial<EmployeeWorkOrderSummary>;
+  workOrders?: EmployeeWorkOrderListItem[];
+  activeWorkOrders?: EmployeeWorkOrderListItem[];
+  completedWorkOrders?: EmployeeWorkOrderListItem[];
+};
+
+type EmployeeWorkOrdersDashboardData = {
+  loading: boolean;
+  error: string;
+  summary: EmployeeWorkOrderSummary;
+  workOrdersCount: number;
+  activeWorkOrdersCount: number;
+  completedWorkOrdersCount: number;
+};
+
+function getEmptyWorkOrdersDashboardData(): EmployeeWorkOrdersDashboardData {
+  return {
+    loading: true,
+    error: "",
+    summary: {
+      total: 0,
+      pending: 0,
+      in_progress: 0,
+      confirmed: 0,
+      declined: 0,
+      no_answer: 0,
+      callback: 0,
+      wrong_number: 0,
+      completed: 0,
+      cancelled: 0,
+      completedLogical: 0,
+      remaining: 0,
+    },
+    workOrdersCount: 0,
+    activeWorkOrdersCount: 0,
+    completedWorkOrdersCount: 0,
+  };
+}
+
 const API = {
   dashboard: "/api/staff/dashboard",
   users: "/api/staff/users",
@@ -185,6 +255,7 @@ const API = {
   form101Upload: "/api/forms/101/upload",
   form101Download: "/api/forms/101/download",
   employeeAgreementCurrent: "/api/employee-agreements/current",
+  employeeWorkOrders: "/api/employee/work-orders",
 };
 
 function getArrayFromResponse<T>(data: any, keys: string[]): T[] {
@@ -240,6 +311,43 @@ async function fetchJson(url: string) {
   }
 
   return data;
+}
+
+function pad2(value: number) {
+  return String(value).padStart(2, "0");
+}
+
+function getTodayKey() {
+  const now = new Date();
+
+  return `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(
+    now.getDate(),
+  )}`;
+}
+
+function asNumber(value: unknown) {
+  const n = Number(value || 0);
+
+  return Number.isFinite(n) ? n : 0;
+}
+
+function normalizeWorkOrdersSummary(
+  summary?: Partial<EmployeeWorkOrderSummary>,
+): EmployeeWorkOrderSummary {
+  return {
+    total: asNumber(summary?.total),
+    pending: asNumber(summary?.pending),
+    in_progress: asNumber(summary?.in_progress),
+    confirmed: asNumber(summary?.confirmed),
+    declined: asNumber(summary?.declined),
+    no_answer: asNumber(summary?.no_answer),
+    callback: asNumber(summary?.callback),
+    wrong_number: asNumber(summary?.wrong_number),
+    completed: asNumber(summary?.completed),
+    cancelled: asNumber(summary?.cancelled),
+    completedLogical: asNumber(summary?.completedLogical),
+    remaining: asNumber(summary?.remaining),
+  };
 }
 
 function formatDate(value?: string) {
@@ -1146,6 +1254,10 @@ export default function EmployeeDashboardPage() {
   const [events, setEvents] = useState<ApiEvent[]>([]);
   const [tasks, setTasks] = useState<ApiTask[]>([]);
   const [serverStats, setServerStats] = useState<Partial<DashboardStats>>({});
+  const [workOrdersDashboard, setWorkOrdersDashboard] =
+    useState<EmployeeWorkOrdersDashboardData>(() =>
+      getEmptyWorkOrdersDashboardData(),
+    );
 
   const [form101, setForm101] = useState<ApiEmployeeDocument | null>(null);
   const [idCard, setIdCard] = useState<ApiEmployeeDocument | null>(null);
@@ -1188,6 +1300,67 @@ export default function EmployeeDashboardPage() {
       ? `/employee/agreement/sign?${query}`
       : "/employee/agreement/sign";
   }, [currentEmployeeId, currentBusinessId]);
+
+  const loadEmployeeWorkOrders = useCallback(async () => {
+    try {
+      setWorkOrdersDashboard((prev) => ({
+        ...prev,
+        loading: true,
+        error: "",
+      }));
+
+      const params = new URLSearchParams({
+        date: getTodayKey(),
+        limit: "100",
+      });
+
+      const response = await fetch(`${API.employeeWorkOrders}?${params}`, {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      const data = (await response
+        .json()
+        .catch(() => null)) as EmployeeWorkOrdersResponse | null;
+
+      if (!response.ok || data?.success === false) {
+        throw new Error(data?.error || "שגיאה בטעינת הוראות העבודה");
+      }
+
+      const workOrders = Array.isArray(data?.workOrders) ? data.workOrders : [];
+      const activeWorkOrders = Array.isArray(data?.activeWorkOrders)
+        ? data.activeWorkOrders
+        : workOrders.filter((order) => asNumber(order.myTasksRemaining) > 0);
+      const completedWorkOrders = Array.isArray(data?.completedWorkOrders)
+        ? data.completedWorkOrders
+        : workOrders.filter(
+            (order) =>
+              asNumber(order.myTasksTotal) > 0 &&
+              asNumber(order.myTasksRemaining) <= 0,
+          );
+
+      setWorkOrdersDashboard({
+        loading: false,
+        error: "",
+        summary: normalizeWorkOrdersSummary(data?.summary),
+        workOrdersCount: workOrders.length,
+        activeWorkOrdersCount: activeWorkOrders.length,
+        completedWorkOrdersCount: completedWorkOrders.length,
+      });
+    } catch (loadError) {
+      console.error("LOAD EMPLOYEE WORK ORDERS FAILED:", loadError);
+
+      setWorkOrdersDashboard({
+        ...getEmptyWorkOrdersDashboardData(),
+        loading: false,
+        error:
+          loadError instanceof Error
+            ? loadError.message
+            : "שגיאה בטעינת הוראות העבודה",
+      });
+    }
+  }, []);
 
   const loadDashboard = useCallback(async () => {
     try {
@@ -1474,7 +1647,13 @@ export default function EmployeeDashboardPage() {
     void loadDashboard();
     void loadEmployeeDocuments();
     void loadEmployeeAgreement();
-  }, [loadDashboard, loadEmployeeDocuments, loadEmployeeAgreement]);
+    void loadEmployeeWorkOrders();
+  }, [
+    loadDashboard,
+    loadEmployeeDocuments,
+    loadEmployeeAgreement,
+    loadEmployeeWorkOrders,
+  ]);
 
   const filteredUsers = useMemo(() => {
     const q = userSearch.trim().toLowerCase();
@@ -1599,14 +1778,23 @@ export default function EmployeeDashboardPage() {
                       void loadDashboard();
                       void loadEmployeeDocuments();
                       void loadEmployeeAgreement();
+                      void loadEmployeeWorkOrders();
                     }}
-                    disabled={refreshing || documentsLoading || agreementLoading}
+                    disabled={
+                      refreshing ||
+                      documentsLoading ||
+                      agreementLoading ||
+                      workOrdersDashboard.loading
+                    }
                     className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <Icon
                       name="refresh"
                       className={`h-4 w-4 ${
-                        refreshing || documentsLoading || agreementLoading
+                        refreshing ||
+                        documentsLoading ||
+                        agreementLoading ||
+                        workOrdersDashboard.loading
                           ? "animate-spin"
                           : ""
                       }`}
@@ -1625,7 +1813,16 @@ export default function EmployeeDashboardPage() {
 
                   <button
                     type="button"
-                    onClick={() => router.push('/employee/shifts')}
+                    onClick={() => router.push("/employee/work-orders")}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 text-sm font-black text-white shadow-sm transition hover:bg-emerald-700"
+                  >
+                    <Icon name="phone" className="h-4 w-4" />
+                    הוראות עבודה
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => router.push("/employee/shifts")}
                     className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-violet-600 px-4 text-sm font-black text-white shadow-sm transition hover:bg-violet-700"
                   >
                     <Icon name="calendar" className="h-4 w-4" />
@@ -1633,7 +1830,7 @@ export default function EmployeeDashboardPage() {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:min-w-[560px]">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-5 xl:min-w-[700px]">
                   <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-4">
                     <p className="text-xs font-black text-slate-500">משתמשים</p>
                     <p className="mt-2 text-3xl font-black text-slate-950">
@@ -1667,6 +1864,24 @@ export default function EmployeeDashboardPage() {
                       {stats.unreadMessages}
                     </p>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={() => router.push("/employee/work-orders")}
+                    className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-4 text-right transition hover:-translate-y-0.5 hover:bg-emerald-100"
+                  >
+                    <p className="text-xs font-black text-emerald-700">
+                      שיחות שלי היום
+                    </p>
+                    <p className="mt-2 text-3xl font-black text-emerald-950">
+                      {workOrdersDashboard.loading
+                        ? "..."
+                        : workOrdersDashboard.summary.remaining}
+                    </p>
+                    <p className="mt-1 text-[11px] font-black text-emerald-700/70">
+                      מתוך {workOrdersDashboard.summary.total} שיחות
+                    </p>
+                  </button>
                 </div>
               </div>
             </div>
@@ -1719,7 +1934,7 @@ export default function EmployeeDashboardPage() {
             </div>
           ) : (
             <>
-              <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                 <StatCard
                   title="אירועים בטיפול אישי"
                   value={stats.myEvents}
@@ -1751,6 +1966,24 @@ export default function EmployeeDashboardPage() {
                   icon={<Icon name="users" className="h-6 w-6" />}
                   tone="green"
                 />
+
+                <button
+                  type="button"
+                  onClick={() => router.push("/employee/work-orders")}
+                  className="text-right"
+                >
+                  <StatCard
+                    title="הוראות עבודה"
+                    value={
+                      workOrdersDashboard.loading
+                        ? "..."
+                        : workOrdersDashboard.activeWorkOrdersCount
+                    }
+                    subtitle={`נותרו ${workOrdersDashboard.summary.remaining} שיחות להיום`}
+                    icon={<Icon name="phone" className="h-6 w-6" />}
+                    tone="green"
+                  />
+                </button>
               </div>
 
               <div className="mt-6 grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
