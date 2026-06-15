@@ -4,6 +4,12 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 /* ============================================================
+   Debug
+============================================================ */
+
+const DEBUG_WORK_ORDERS = true;
+
+/* ============================================================
    Types
 ============================================================ */
 
@@ -73,6 +79,18 @@ type Summary = {
   remaining: number;
 };
 
+type ApiDebug = {
+  dateKey?: string;
+  showAllDates?: boolean;
+  statusFilter?: string;
+  employeeId?: string;
+  employeeEmail?: string;
+  rawTasksFound?: number;
+  filteredTasksFound?: number;
+  workOrdersFound?: number;
+  [key: string]: any;
+};
+
 type ApiResponse = {
   success: boolean;
   error?: string;
@@ -82,6 +100,7 @@ type ApiResponse = {
   workOrders?: WorkOrder[];
   activeWorkOrders?: WorkOrder[];
   completedWorkOrders?: WorkOrder[];
+  debug?: ApiDebug;
 };
 
 /* ============================================================
@@ -134,6 +153,9 @@ function getStatusLabel(status: string) {
   const map: Record<string, string> = {
     scheduled: "מתוזמנת",
     open: "פתוחה",
+    pending: "ממתינה",
+    assigned: "הוקצתה",
+    active: "פעילה",
     in_progress: "בטיפול",
     completed: "הושלמה",
     cancelled: "בוטלה",
@@ -167,6 +189,18 @@ function safeNumber(value: unknown) {
   return Number.isFinite(n) ? n : 0;
 }
 
+function consoleLog(...args: any[]) {
+  if (DEBUG_WORK_ORDERS && typeof window !== "undefined") {
+    console.log(...args);
+  }
+}
+
+function consoleError(...args: any[]) {
+  if (DEBUG_WORK_ORDERS && typeof window !== "undefined") {
+    console.error(...args);
+  }
+}
+
 /* ============================================================
    Page
 ============================================================ */
@@ -184,6 +218,13 @@ export default function EmployeeWorkOrdersPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
 
+  const [apiDebug, setApiDebug] = useState<ApiDebug | null>(null);
+  const [lastApiUrl, setLastApiUrl] = useState("");
+  const [lastHttpStatus, setLastHttpStatus] = useState<number | null>(null);
+  const [lastRawResponse, setLastRawResponse] = useState<ApiResponse | null>(
+    null
+  );
+
   const activeOrders = useMemo(() => {
     return workOrders.filter((order) => safeNumber(order.myTasksRemaining) > 0);
   }, [workOrders]);
@@ -197,6 +238,22 @@ export default function EmployeeWorkOrdersPage() {
   }, [workOrders]);
 
   async function loadWorkOrders(options?: { silent?: boolean }) {
+    const params = new URLSearchParams();
+
+    params.set("limit", "200");
+
+    if (showAllDates) {
+      params.set("all", "1");
+    } else {
+      params.set("date", date || getTodayKey());
+    }
+
+    if (status && status !== "all") {
+      params.set("status", status);
+    }
+
+    const apiUrl = `/api/employee/work-orders?${params.toString()}`;
+
     try {
       if (options?.silent) {
         setRefreshing(true);
@@ -205,37 +262,111 @@ export default function EmployeeWorkOrdersPage() {
       }
 
       setError("");
+      setLastApiUrl(apiUrl);
+      setLastHttpStatus(null);
 
-      const params = new URLSearchParams();
+      consoleLog("==========================================");
+      consoleLog("🟦 [EmployeeWorkOrders] התחלת טעינת הוראות עבודה");
+      consoleLog("📌 apiUrl:", apiUrl);
+      consoleLog("📌 filters:", {
+        date,
+        showAllDates,
+        status,
+        params: params.toString(),
+      });
 
-      params.set("limit", "200");
-
-      if (showAllDates) {
-        params.set("all", "1");
-      } else {
-        params.set("date", date || getTodayKey());
-      }
-
-      if (status && status !== "all") {
-        params.set("status", status);
-      }
-
-      const res = await fetch(`/api/employee/work-orders?${params.toString()}`, {
+      const res = await fetch(apiUrl, {
         method: "GET",
         cache: "no-store",
         credentials: "include",
       });
 
-      const data = (await res.json().catch(() => ({}))) as ApiResponse;
+      setLastHttpStatus(res.status);
+
+      consoleLog("📡 [EmployeeWorkOrders] HTTP response:", {
+        ok: res.ok,
+        status: res.status,
+        statusText: res.statusText,
+      });
+
+      const data = (await res.json().catch((jsonError) => {
+        consoleError("❌ [EmployeeWorkOrders] שגיאה בקריאת JSON:", jsonError);
+        return {};
+      })) as ApiResponse;
+
+      setLastRawResponse(data);
+      setApiDebug(data.debug || null);
+
+      consoleLog("📦 [EmployeeWorkOrders] API data:", data);
+      consoleLog("🧪 [EmployeeWorkOrders] API debug:", data.debug || null);
+      consoleLog("👤 [EmployeeWorkOrders] employee:", data.employee || null);
+      consoleLog("📊 [EmployeeWorkOrders] summary:", data.summary || null);
+      consoleLog("📋 [EmployeeWorkOrders] count:", data.count);
+      consoleLog(
+        "📋 [EmployeeWorkOrders] workOrders length:",
+        Array.isArray(data.workOrders) ? data.workOrders.length : "not array"
+      );
+
+      if (Array.isArray(data.workOrders)) {
+        console.table(
+          data.workOrders.map((order) => ({
+            id: order.id,
+            clientName: order.clientName,
+            eventName: order.eventName,
+            round: order.round,
+            status: order.status,
+            myTasksTotal: order.myTasksTotal,
+            myTasksRemaining: order.myTasksRemaining,
+            workDate: order.workDate,
+            configuredRoundAt: order.configuredRoundAt,
+          }))
+        );
+      }
 
       if (!res.ok || !data.success) {
+        consoleError("❌ [EmployeeWorkOrders] API failed:", {
+          status: res.status,
+          error: data.error,
+          data,
+        });
+
         throw new Error(data.error || "שגיאה בטעינת הוראות העבודה");
       }
 
-      setEmployee(data.employee || null);
-      setSummary(data.summary || null);
-      setWorkOrders(Array.isArray(data.workOrders) ? data.workOrders : []);
+      const nextEmployee = data.employee || null;
+      const nextSummary = data.summary || null;
+      const nextWorkOrders = Array.isArray(data.workOrders)
+        ? data.workOrders
+        : [];
+
+      setEmployee(nextEmployee);
+      setSummary(nextSummary);
+      setWorkOrders(nextWorkOrders);
+
+      consoleLog("✅ [EmployeeWorkOrders] state updated:", {
+        employee: nextEmployee,
+        summary: nextSummary,
+        workOrdersLength: nextWorkOrders.length,
+      });
+
+      if (nextWorkOrders.length === 0) {
+        consoleLog("⚠️ [EmployeeWorkOrders] אין workOrders להצגה. בדקי:", {
+          rawTasksFound: data.debug?.rawTasksFound,
+          filteredTasksFound: data.debug?.filteredTasksFound,
+          workOrdersFound: data.debug?.workOrdersFound,
+          employeeId: data.debug?.employeeId,
+          employeeEmail: data.debug?.employeeEmail,
+          dateKey: data.debug?.dateKey,
+          showAllDates: data.debug?.showAllDates,
+          statusFilter: data.debug?.statusFilter,
+        });
+      }
+
+      consoleLog("🟩 [EmployeeWorkOrders] סיום טעינה בהצלחה");
+      consoleLog("==========================================");
     } catch (err: any) {
+      consoleError("❌ [EmployeeWorkOrders] catch error:", err);
+
       setError(err?.message || "שגיאה בטעינת הוראות העבודה");
       setWorkOrders([]);
     } finally {
@@ -245,9 +376,43 @@ export default function EmployeeWorkOrdersPage() {
   }
 
   useEffect(() => {
+    consoleLog("🔄 [EmployeeWorkOrders] useEffect triggered:", {
+      date,
+      showAllDates,
+      status,
+    });
+
     loadWorkOrders();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [date, showAllDates, status]);
+
+  useEffect(() => {
+    consoleLog("📌 [EmployeeWorkOrders] render state:", {
+      employee,
+      summary,
+      workOrdersLength: workOrders.length,
+      activeOrdersLength: activeOrders.length,
+      completedOrdersLength: completedOrders.length,
+      loading,
+      refreshing,
+      error,
+      apiDebug,
+      lastApiUrl,
+      lastHttpStatus,
+    });
+  }, [
+    employee,
+    summary,
+    workOrders.length,
+    activeOrders.length,
+    completedOrders.length,
+    loading,
+    refreshing,
+    error,
+    apiDebug,
+    lastApiUrl,
+    lastHttpStatus,
+  ]);
 
   return (
     <main className="workOrdersPage" dir="rtl">
@@ -307,6 +472,108 @@ export default function EmployeeWorkOrdersPage() {
         </label>
       </section>
 
+      <section className="debugCard">
+        <div className="debugHeader">
+          <div>
+            <strong>בדיקת Debug</strong>
+            <span>המידע הזה יעזור להבין למה לא מוצג לעובד.</span>
+          </div>
+
+          <button
+            type="button"
+            className="debugBtn"
+            onClick={() => {
+              consoleLog("🧪 [EmployeeWorkOrders] manual debug dump:", {
+                lastApiUrl,
+                lastHttpStatus,
+                apiDebug,
+                lastRawResponse,
+                employee,
+                summary,
+                workOrders,
+                activeOrders,
+                completedOrders,
+              });
+            }}
+          >
+            הדפס לקונסול
+          </button>
+        </div>
+
+        <div className="debugGrid">
+          <div>
+            <span>API</span>
+            <strong dir="ltr">{lastApiUrl || "—"}</strong>
+          </div>
+
+          <div>
+            <span>HTTP</span>
+            <strong>{lastHttpStatus || "—"}</strong>
+          </div>
+
+          <div>
+            <span>rawTasksFound</span>
+            <strong>{safeNumber(apiDebug?.rawTasksFound)}</strong>
+          </div>
+
+          <div>
+            <span>filteredTasksFound</span>
+            <strong>{safeNumber(apiDebug?.filteredTasksFound)}</strong>
+          </div>
+
+          <div>
+            <span>workOrdersFound</span>
+            <strong>{safeNumber(apiDebug?.workOrdersFound)}</strong>
+          </div>
+
+          <div>
+            <span>count שהתקבל</span>
+            <strong>{safeNumber(lastRawResponse?.count)}</strong>
+          </div>
+
+          <div>
+            <span>employeeId מה־API</span>
+            <strong dir="ltr">{apiDebug?.employeeId || employee?.id || "—"}</strong>
+          </div>
+
+          <div>
+            <span>employeeEmail מה־API</span>
+            <strong dir="ltr">
+              {apiDebug?.employeeEmail || employee?.email || "—"}
+            </strong>
+          </div>
+
+          <div>
+            <span>showAllDates</span>
+            <strong>{String(showAllDates)}</strong>
+          </div>
+
+          <div>
+            <span>dateKey</span>
+            <strong>{apiDebug?.dateKey || date || "—"}</strong>
+          </div>
+
+          <div>
+            <span>statusFilter</span>
+            <strong>{apiDebug?.statusFilter || status || "—"}</strong>
+          </div>
+
+          <div>
+            <span>workOrders במסך</span>
+            <strong>{workOrders.length}</strong>
+          </div>
+        </div>
+
+        {lastRawResponse && (
+          <details className="debugDetails">
+            <summary>פתח JSON מלא שה־API החזיר</summary>
+            <pre dir="ltr">
+              {JSON.stringify(lastRawResponse, null, 2)}
+            </pre>
+          </details>
+        )}
+      </section>
+
       {employee && (
         <section className="employeeCard">
           <div>
@@ -355,10 +622,26 @@ export default function EmployeeWorkOrdersPage() {
       ) : workOrders.length === 0 ? (
         <section className="emptyCard">
           <h2>אין הוראות עבודה להצגה</h2>
+
           <p>
-            אם אמורות להיות הוראות עבודה להיום, בדקי שיש עובדים משובצים
-            במשמרת ושנפתחו הוראות עבודה אוטומטית.
+            אם אמורות להיות הוראות עבודה להיום, בדקי קודם את תיבת ה־Debug למעלה.
           </p>
+
+          <div className="emptyDebugHint">
+            <p>
+              אם <b>rawTasksFound = 0</b> — העובד המחובר לא תואם לשדה
+              employeeId / assignedEmployeeId / assignedToEmployeeId במשימות.
+            </p>
+
+            <p>
+              אם <b>rawTasksFound גדול מ־0</b> אבל <b>workOrdersFound = 0</b> —
+              ה־API מצא משימות אבל לא מקבץ אותן להוראת עבודה.
+            </p>
+
+            <p>
+              אם <b>אין debug בכלל</b> — הקוד החדש של ה־API לא עלה לשרת.
+            </p>
+          </div>
         </section>
       ) : (
         <>
@@ -453,7 +736,8 @@ export default function EmployeeWorkOrdersPage() {
         .filtersCard,
         .employeeCard,
         .loadingCard,
-        .emptyCard {
+        .emptyCard,
+        .debugCard {
           background: rgba(255, 255, 255, 0.92);
           border: 1px solid rgba(148, 163, 184, 0.24);
           border-radius: 24px;
@@ -512,6 +796,106 @@ export default function EmployeeWorkOrdersPage() {
         .checkboxLine input {
           width: 18px;
           height: 18px;
+        }
+
+        .debugCard {
+          padding: 16px;
+          margin-bottom: 16px;
+          border-color: rgba(37, 99, 235, 0.22);
+          background: rgba(239, 246, 255, 0.74);
+        }
+
+        .debugHeader {
+          display: flex;
+          justify-content: space-between;
+          gap: 14px;
+          align-items: center;
+          margin-bottom: 14px;
+        }
+
+        .debugHeader div {
+          display: grid;
+          gap: 4px;
+        }
+
+        .debugHeader strong {
+          font-size: 16px;
+          font-weight: 950;
+          color: #1e3a8a;
+        }
+
+        .debugHeader span {
+          font-size: 13px;
+          font-weight: 800;
+          color: #475569;
+        }
+
+        .debugBtn {
+          border: 0;
+          border-radius: 14px;
+          background: #2563eb;
+          color: white;
+          padding: 11px 14px;
+          font-weight: 950;
+          cursor: pointer;
+          white-space: nowrap;
+        }
+
+        .debugGrid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 10px;
+        }
+
+        .debugGrid div {
+          background: white;
+          border: 1px solid #dbeafe;
+          border-radius: 16px;
+          padding: 10px;
+          min-width: 0;
+        }
+
+        .debugGrid span {
+          display: block;
+          color: #64748b;
+          font-size: 11px;
+          font-weight: 900;
+          margin-bottom: 5px;
+        }
+
+        .debugGrid strong {
+          display: block;
+          color: #0f172a;
+          font-size: 13px;
+          font-weight: 950;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .debugDetails {
+          margin-top: 12px;
+          background: white;
+          border: 1px solid #dbeafe;
+          border-radius: 16px;
+          padding: 10px;
+        }
+
+        .debugDetails summary {
+          cursor: pointer;
+          font-weight: 950;
+          color: #1d4ed8;
+        }
+
+        .debugDetails pre {
+          max-height: 360px;
+          overflow: auto;
+          background: #0f172a;
+          color: #dbeafe;
+          padding: 14px;
+          border-radius: 14px;
+          font-size: 12px;
+          text-align: left;
         }
 
         .employeeCard {
@@ -624,6 +1008,23 @@ export default function EmployeeWorkOrdersPage() {
           font-weight: 700;
         }
 
+        .emptyDebugHint {
+          margin-top: 18px;
+          display: grid;
+          gap: 8px;
+          text-align: right;
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 18px;
+          padding: 14px;
+        }
+
+        .emptyDebugHint p {
+          color: #334155;
+          font-size: 13px;
+          line-height: 1.7;
+        }
+
         .spinner {
           width: 34px;
           height: 34px;
@@ -645,7 +1046,8 @@ export default function EmployeeWorkOrdersPage() {
             grid-template-columns: repeat(2, minmax(0, 1fr));
           }
 
-          .summaryGrid {
+          .summaryGrid,
+          .debugGrid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
           }
         }
@@ -655,12 +1057,14 @@ export default function EmployeeWorkOrdersPage() {
             padding: 18px;
           }
 
-          .hero {
+          .hero,
+          .debugHeader {
             align-items: stretch;
             flex-direction: column;
           }
 
-          .refreshBtn {
+          .refreshBtn,
+          .debugBtn {
             width: 100%;
           }
 
@@ -673,11 +1077,9 @@ export default function EmployeeWorkOrdersPage() {
             min-width: 100%;
           }
 
-          .ordersGrid {
-            grid-template-columns: 1fr;
-          }
-
-          .summaryGrid {
+          .ordersGrid,
+          .summaryGrid,
+          .debugGrid {
             grid-template-columns: 1fr;
           }
         }
@@ -700,7 +1102,10 @@ function WorkOrderCard({
   const total = safeNumber(order.myTasksTotal);
   const completedCount = safeNumber(order.myTasksCompleted);
   const remaining = safeNumber(order.myTasksRemaining);
-  const progress = Math.min(100, Math.max(0, safeNumber(order.myProgressPercent)));
+  const progress = Math.min(
+    100,
+    Math.max(0, safeNumber(order.myProgressPercent))
+  );
 
   return (
     <article className="orderCard">
