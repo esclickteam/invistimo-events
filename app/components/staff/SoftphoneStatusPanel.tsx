@@ -633,7 +633,26 @@ function MiniMetric({
 }
 
 
-export default function SoftphoneStatusPanel() {
+type SoftphoneDialRequest = {
+  number?: string;
+  phone?: string;
+  label?: string;
+  guestName?: string;
+  taskId?: string;
+  nonce?: number;
+  ts?: number;
+  requestId?: number;
+};
+
+type SoftphoneStatusPanelProps = {
+  dialRequest?: SoftphoneDialRequest | null;
+  onDialRequestConsumed?: () => void;
+};
+
+export default function SoftphoneStatusPanel({
+  dialRequest = null,
+  onDialRequestConsumed,
+}: SoftphoneStatusPanelProps = {}) {
   const router = useRouter();
   const { logout } = useAuth();
 
@@ -651,6 +670,7 @@ export default function SoftphoneStatusPanel() {
   const activeCallRef = useRef<TelnyxRtcCall | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
   const phoneInputRef = useRef<HTMLInputElement | null>(null);
+  const lastAutoDialRequestKeyRef = useRef("");
 
   const [tick, setTick] = useState(0);
 
@@ -746,20 +766,53 @@ export default function SoftphoneStatusPanel() {
   }, [showDialer, shiftStarted, savingStatus, creatingCall, phoneNumber]);
 
   useEffect(() => {
-    return () => {
-      try {
-        activeCallRef.current?.hangup?.();
-      } catch {
-        // ignore cleanup hangup errors
-      }
+    const rawNumber = dialRequest?.number || dialRequest?.phone || "";
+    const cleanNumber = normalizeDialNumber(rawNumber);
 
-      try {
-        telnyxClientRef.current?.disconnect?.();
-      } catch {
-        // ignore cleanup disconnect errors
-      }
+    if (!cleanNumber) return;
+
+    const requestKey = [
+      dialRequest?.nonce,
+      dialRequest?.ts,
+      dialRequest?.requestId,
+      dialRequest?.taskId,
+      cleanNumber,
+    ]
+      .filter((value) => value !== undefined && value !== null && value !== "")
+      .join(":");
+
+    if (!requestKey || lastAutoDialRequestKeyRef.current === requestKey) return;
+
+    lastAutoDialRequestKeyRef.current = requestKey;
+
+    setPhoneNumber(cleanNumber);
+    setActiveBusyReason("outbound_call");
+    setBusyReason("");
+    setCallDirection("outbound");
+    setActiveCallNumber(cleanNumber);
+    setShowEndShiftConfirm(false);
+    setShowBusyMenu(false);
+    setShowIncomingCallModal(false);
+    setIncomingCallNumber("");
+    setShowDialer(true);
+
+    const timer = window.setTimeout(() => {
+      void startOutboundCall(cleanNumber);
+      onDialRequestConsumed?.();
+    }, 120);
+
+    return () => {
+      window.clearTimeout(timer);
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    dialRequest?.nonce,
+    dialRequest?.ts,
+    dialRequest?.requestId,
+    dialRequest?.taskId,
+    dialRequest?.number,
+    dialRequest?.phone,
+  ]);
 
   function getShiftSessionId(session?: SoftphoneShiftSession | null) {
     return String(session?._id || session?.id || "");
@@ -867,6 +920,24 @@ export default function SoftphoneStatusPanel() {
 
   function ensureShiftStarted() {
     if (!shiftStarted) {
+      setShiftStarted(true);
+      setShiftStartedAt(new Date().toISOString());
+    }
+  }
+
+  async function ensureShiftStartedForCall() {
+    if (shiftStarted) return;
+
+    try {
+      const session = await startShiftSessionApi();
+      const startedAt = session?.startedAt || new Date().toISOString();
+
+      setShiftStarted(true);
+      setShiftStartedAt(startedAt);
+      setShiftSessionId(getShiftSessionId(session));
+      setShiftError("");
+    } catch (error) {
+      console.error("AUTO START SHIFT FOR CALL FAILED:", error);
       setShiftStarted(true);
       setShiftStartedAt(new Date().toISOString());
     }
@@ -1419,20 +1490,19 @@ export default function SoftphoneStatusPanel() {
     };
   }
 
-  async function startOutboundCall() {
+  async function startOutboundCall(explicitNumber?: string) {
     if (savingStatus || creatingCall) return;
 
-    const cleanNumber = normalizeDialNumber(phoneNumber);
+    const cleanNumber = normalizeDialNumber(explicitNumber || phoneNumber);
 
     if (!cleanNumber) {
       setShowDialer(true);
       return;
     }
 
-    ensureShiftStarted();
-
     try {
       setCreatingCall(true);
+      await ensureShiftStartedForCall();
       setWebrtcError("");
 
       const client = telnyxClientRef.current || (await connectWebrtc());

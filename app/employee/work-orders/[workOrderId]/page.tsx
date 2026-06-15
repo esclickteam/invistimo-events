@@ -193,6 +193,13 @@ type UpdateApiResponse = {
   workOrder?: WorkOrder | null;
 };
 
+type SoftphoneDialRequest = {
+  number: string;
+  label: string;
+  taskId: string;
+  nonce: number;
+};
+
 /* ============================================================
    Helpers
 ============================================================ */
@@ -429,6 +436,8 @@ export default function EmployeeWorkOrderTasksPage() {
   const [updatingTaskId, setUpdatingTaskId] = useState("");
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const [softphoneDialRequest, setSoftphoneDialRequest] =
+    useState<SoftphoneDialRequest | null>(null);
 
   const visibleOpenTasks = useMemo(() => {
     return tasks.filter(isOpenTask);
@@ -847,11 +856,30 @@ export default function EmployeeWorkOrderTasksPage() {
     applySelectedTask(next);
   }
 
+  function dialSelectedTaskFromSoftphone() {
+    if (!selectedTask || !selectedTel) return;
+
+    setSoftphoneDialRequest({
+      number: selectedTel,
+      label: selectedTask.guestName || selectedTask.guestPhone || "אורח",
+      taskId: getTaskId(selectedTask),
+      nonce: Date.now(),
+    });
+
+    if (selectedTask.canUpdate && String(selectedTask.status) !== "in_progress") {
+      void updateTaskStatus({
+        task: selectedTask,
+        status: "in_progress",
+        note: draftNote || selectedTask.note || "",
+      });
+    }
+  }
+
   return (
     <main className="callCenterPage" dir="rtl">
       <section className="softphoneStickyShell" aria-label="סופטפון עובדים">
         <div className="softphoneStickyInner">
-          <SoftphoneStatusPanel />
+          <SoftphoneStatusPanel dialRequest={softphoneDialRequest} />
         </div>
       </section>
       <section className="topBar">
@@ -1178,9 +1206,14 @@ export default function EmployeeWorkOrderTasksPage() {
 
                 <div className="mainActions">
                   {selectedTel ? (
-                    <a href={`tel:${selectedTel}`} className="callBtn">
+                    <button
+                      type="button"
+                      className="callBtn"
+                      disabled={Boolean(updatingTaskId)}
+                      onClick={dialSelectedTaskFromSoftphone}
+                    >
                       התקשר עכשיו
-                    </a>
+                    </button>
                   ) : (
                     <button type="button" className="callBtn" disabled>
                       אין טלפון
