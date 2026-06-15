@@ -29,6 +29,7 @@ type DayRow = {
   totalMinutes: number;
   note: string;
   status: string;
+  manualOverride?: boolean;
 };
 
 const APPROVAL_COLLECTION = "employeehoursapprovals";
@@ -44,16 +45,31 @@ const SHIFT_COLLECTIONS_TO_TRY = [
   "work_schedules",
   "schedules",
   "shifts",
+  "employeeschedules",
+  "employee_schedules",
+  "employeeShiftSchedules",
+  "employeeshiftschedules",
 ];
 
 const SOFTPHONE_COLLECTIONS_TO_TRY = [
   "softphoneworksessions",
+  "softphone_work_sessions",
   "softphonesessions",
   "softphone_sessions",
+  "softphoneworklogs",
+  "softphone_work_logs",
   "softphonelogs",
   "softphone_logs",
   "staffsoftphonesessions",
   "staff_softphone_sessions",
+  "employeehours",
+  "employee_hours",
+  "employeehourlogs",
+  "employee_hour_logs",
+  "worklogs",
+  "work_logs",
+  "shiftlogs",
+  "shift_logs",
   "telnyxsessions",
   "telnyx_sessions",
   "calllogs",
@@ -117,6 +133,7 @@ async function getAuthUser(): Promise<AuthUser | null> {
 
 function isAdmin(role?: string) {
   const normalized = String(role || "").toLowerCase();
+
   return (
     normalized === "admin" ||
     normalized === "super_admin" ||
@@ -142,13 +159,11 @@ function getMonthParts(monthValue: string) {
   }
 
   const [yearRaw, monthRaw] = month.split("-");
-  const year = Number(yearRaw);
-  const monthNumber = Number(monthRaw);
 
   return {
     monthKey: month,
-    year,
-    monthIndex: monthNumber - 1,
+    year: Number(yearRaw),
+    monthIndex: Number(monthRaw) - 1,
   };
 }
 
@@ -192,6 +207,7 @@ function getDaysInMonth(monthKey: string): DayRow[] {
       totalMinutes: 0,
       note: "",
       status: "draft",
+      manualOverride: false,
     };
   });
 }
@@ -226,9 +242,16 @@ function formatTime(value: any) {
   });
 }
 
+function getByPath(item: any, path: string) {
+  return path.split(".").reduce((obj, key) => {
+    if (!obj || typeof obj !== "object") return undefined;
+    return obj[key];
+  }, item);
+}
+
 function getValueByKeys(item: any, keys: string[]) {
   for (const key of keys) {
-    const value = item?.[key];
+    const value = key.includes(".") ? getByPath(item, key) : item?.[key];
 
     if (value !== undefined && value !== null && value !== "") {
       return value;
@@ -268,28 +291,78 @@ async function listExistingCollections() {
 function normalizeEmployeeIdQuery(employeeId: string) {
   const objectId = toObjectId(employeeId);
 
-  return objectId
-    ? [
-        { employeeId: objectId },
-        { employeeId },
-        { employeeIdString: employeeId },
-        { userId: objectId },
-        { userId: employeeId },
-        { staffId: objectId },
-        { staffId: employeeId },
-        { assignedEmployeeId: objectId },
-        { assignedEmployeeId: employeeId },
-        { assignedStaffId: objectId },
-        { assignedStaffId: employeeId },
-      ]
-    : [
-        { employeeId },
-        { employeeIdString: employeeId },
-        { userId: employeeId },
-        { staffId: employeeId },
-        { assignedEmployeeId: employeeId },
-        { assignedStaffId: employeeId },
-      ];
+  const stringConditions = [
+    { employeeId },
+    { employeeIdString: employeeId },
+    { userId: employeeId },
+    { staffId: employeeId },
+    { workerId: employeeId },
+    { assignedEmployeeId: employeeId },
+    { assignedStaffId: employeeId },
+    { createdBy: employeeId },
+
+    { "employee._id": employeeId },
+    { "employee.id": employeeId },
+    { "user._id": employeeId },
+    { "user.id": employeeId },
+    { "staff._id": employeeId },
+    { "staff.id": employeeId },
+  ];
+
+  if (!objectId) return stringConditions;
+
+  return [
+    { employeeId: objectId },
+    { userId: objectId },
+    { staffId: objectId },
+    { workerId: objectId },
+    { assignedEmployeeId: objectId },
+    { assignedStaffId: objectId },
+    { createdBy: objectId },
+
+    { "employee._id": objectId },
+    { "user._id": objectId },
+    { "staff._id": objectId },
+
+    ...stringConditions,
+  ];
+}
+
+function dateQuery(monthKey: string) {
+  const { start, end } = makeMonthDateRange(monthKey);
+
+  return [
+    { date: { $gte: start, $lt: end } },
+    { workDate: { $gte: start, $lt: end } },
+    { day: { $gte: start, $lt: end } },
+    { shiftDate: { $gte: start, $lt: end } },
+
+    { startedAt: { $gte: start, $lt: end } },
+    { endedAt: { $gte: start, $lt: end } },
+
+    { startAt: { $gte: start, $lt: end } },
+    { endAt: { $gte: start, $lt: end } },
+
+    { startTime: { $gte: start, $lt: end } },
+    { endTime: { $gte: start, $lt: end } },
+
+    { clockInAt: { $gte: start, $lt: end } },
+    { clockOutAt: { $gte: start, $lt: end } },
+
+    { loginAt: { $gte: start, $lt: end } },
+    { logoutAt: { $gte: start, $lt: end } },
+
+    { scheduledStart: { $gte: start, $lt: end } },
+    { scheduledEnd: { $gte: start, $lt: end } },
+
+    { createdAt: { $gte: start, $lt: end } },
+    { updatedAt: { $gte: start, $lt: end } },
+
+    { date: { $gte: monthKey, $lte: `${monthKey}-31` } },
+    { workDate: { $gte: monthKey, $lte: `${monthKey}-31` } },
+    { day: { $gte: monthKey, $lte: `${monthKey}-31` } },
+    { shiftDate: { $gte: monthKey, $lte: `${monthKey}-31` } },
+  ];
 }
 
 async function findUserBusinessId(employeeId: string) {
@@ -321,108 +394,92 @@ async function loadApproval(employeeId: string, monthKey: string) {
   return database.collection(APPROVAL_COLLECTION).findOne({
     month: monthKey,
     $or: objectId
-      ? [{ employeeId: objectId }, { employeeId }, { employeeIdString: employeeId }]
+      ? [
+          { employeeId: objectId },
+          { employeeId },
+          { employeeIdString: employeeId },
+        ]
       : [{ employeeId }, { employeeIdString: employeeId }],
   });
 }
 
-async function loadShifts(employeeId: string, monthKey: string) {
+async function loadFromCollections(
+  collectionNames: string[],
+  employeeId: string,
+  monthKey: string,
+  limit: number
+) {
   const database = mongoose.connection.db;
-  if (!database) return [];
+  if (!database) return { items: [], collections: [] as string[] };
 
   const existingCollections = await listExistingCollections();
-  const { start, end } = makeMonthDateRange(monthKey);
   const employeeConditions = normalizeEmployeeIdQuery(employeeId);
 
   const allItems: any[] = [];
+  const collections: string[] = [];
 
-  for (const collectionName of SHIFT_COLLECTIONS_TO_TRY) {
+  for (const collectionName of collectionNames) {
     if (!existingCollections.has(collectionName)) continue;
+
+    collections.push(collectionName);
 
     const results = await database
       .collection(collectionName)
       .find({
         $and: [
           { $or: employeeConditions },
-          {
-            $or: [
-              { date: { $gte: start, $lt: end } },
-              { shiftDate: { $gte: start, $lt: end } },
-              { startAt: { $gte: start, $lt: end } },
-              { startTime: { $gte: start, $lt: end } },
-              { scheduledStart: { $gte: start, $lt: end } },
-              { date: { $gte: monthKey, $lte: `${monthKey}-31` } },
-              { shiftDate: { $gte: monthKey, $lte: `${monthKey}-31` } },
-            ],
-          },
+          { $or: dateQuery(monthKey) },
         ],
       })
-      .limit(1000)
+      .limit(limit)
       .toArray();
 
-    allItems.push(...results);
+    allItems.push(
+      ...results.map((item) => ({
+        ...item,
+        __collectionName: collectionName,
+      }))
+    );
   }
 
-  return allItems;
+  return { items: allItems, collections };
+}
+
+async function loadShifts(employeeId: string, monthKey: string) {
+  return loadFromCollections(
+    SHIFT_COLLECTIONS_TO_TRY,
+    employeeId,
+    monthKey,
+    2000
+  );
 }
 
 async function loadSoftphoneSessions(employeeId: string, monthKey: string) {
-  const database = mongoose.connection.db;
-  if (!database) return [];
-
-  const existingCollections = await listExistingCollections();
-  const { start, end } = makeMonthDateRange(monthKey);
-  const employeeConditions = normalizeEmployeeIdQuery(employeeId);
-
-  const allItems: any[] = [];
-
-  for (const collectionName of SOFTPHONE_COLLECTIONS_TO_TRY) {
-    if (!existingCollections.has(collectionName)) continue;
-
-    const results = await database
-      .collection(collectionName)
-      .find({
-        $and: [
-          { $or: employeeConditions },
-          {
-            $or: [
-              { date: { $gte: start, $lt: end } },
-              { workDate: { $gte: start, $lt: end } },
-              { startedAt: { $gte: start, $lt: end } },
-              { startAt: { $gte: start, $lt: end } },
-              { clockInAt: { $gte: start, $lt: end } },
-              { loginAt: { $gte: start, $lt: end } },
-              { createdAt: { $gte: start, $lt: end } },
-              { date: { $gte: monthKey, $lte: `${monthKey}-31` } },
-              { workDate: { $gte: monthKey, $lte: `${monthKey}-31` } },
-            ],
-          },
-        ],
-      })
-      .limit(3000)
-      .toArray();
-
-    allItems.push(...results);
-  }
-
-  return allItems;
+  return loadFromCollections(
+    SOFTPHONE_COLLECTIONS_TO_TRY,
+    employeeId,
+    monthKey,
+    5000
+  );
 }
 
 function mergeShiftsIntoRows(rows: DayRow[], shifts: any[]) {
   const rowsMap = new Map(rows.map((row) => [row.date, row]));
 
   for (const shift of shifts) {
-    const dateKey =
-      normalizeDateKey(
-        getValueByKeys(shift, [
-          "date",
-          "shiftDate",
-          "startAt",
-          "startTime",
-          "scheduledStart",
-          "createdAt",
-        ])
-      ) || "";
+    const dateKey = normalizeDateKey(
+      getValueByKeys(shift, [
+        "date",
+        "workDate",
+        "day",
+        "shiftDate",
+        "scheduledDate",
+        "scheduledStart",
+        "startAt",
+        "startTime",
+        "createdAt",
+      ])
+    );
 
     if (!dateKey || !rowsMap.has(dateKey)) continue;
 
@@ -457,13 +514,15 @@ function mergeShiftsIntoRows(rows: DayRow[], shifts: any[]) {
           "name",
           "role",
         ])
-      ) || "משמרת";
+      ) || "משובץ";
 
     row.scheduledStart = formatTime(scheduledStart);
     row.scheduledEnd = formatTime(scheduledEnd);
   }
 
-  return Array.from(rowsMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+  return Array.from(rowsMap.values()).sort((a, b) =>
+    a.date.localeCompare(b.date)
+  );
 }
 
 function mergeSoftphoneIntoRows(rows: DayRow[], sessions: any[]) {
@@ -472,9 +531,10 @@ function mergeSoftphoneIntoRows(rows: DayRow[], sessions: any[]) {
   const grouped = new Map<
     string,
     {
-      starts: any[];
-      ends: any[];
+      starts: Date[];
+      ends: Date[];
       totalMinutes: number;
+      notes: string[];
     }
   >();
 
@@ -487,6 +547,8 @@ function mergeSoftphoneIntoRows(rows: DayRow[], sessions: any[]) {
       "clockInAt",
       "loginAt",
       "startAt",
+      "startTime",
+      "shiftStartAt",
       "createdAt",
     ]);
 
@@ -498,6 +560,8 @@ function mergeSoftphoneIntoRows(rows: DayRow[], sessions: any[]) {
       "clockOutAt",
       "logoutAt",
       "endAt",
+      "endTime",
+      "shiftEndAt",
       "updatedAt",
     ]);
 
@@ -507,11 +571,13 @@ function mergeSoftphoneIntoRows(rows: DayRow[], sessions: any[]) {
           "date",
           "workDate",
           "day",
+          "shiftDate",
           "startedAt",
           "clockInAt",
+          "startAt",
           "createdAt",
         ])
-      ) || normalizeDateKey(startValue);
+      ) || normalizeDateKey(startValue || endValue);
 
     if (!dateKey || !rowsMap.has(dateKey)) continue;
 
@@ -521,10 +587,19 @@ function mergeSoftphoneIntoRows(rows: DayRow[], sessions: any[]) {
         starts: [],
         ends: [],
         totalMinutes: 0,
+        notes: [],
       };
 
-    if (startValue) current.starts.push(startValue);
-    if (endValue) current.ends.push(endValue);
+    const startDate = new Date(startValue);
+    const endDate = new Date(endValue);
+
+    if (startValue && !Number.isNaN(startDate.getTime())) {
+      current.starts.push(startDate);
+    }
+
+    if (endValue && !Number.isNaN(endDate.getTime())) {
+      current.ends.push(endDate);
+    }
 
     const directMinutes = Number(
       getValueByKeys(session, [
@@ -532,13 +607,29 @@ function mergeSoftphoneIntoRows(rows: DayRow[], sessions: any[]) {
         "workMinutes",
         "minutes",
         "durationMinutes",
+        "duration",
       ])
     );
 
     current.totalMinutes +=
-      !Number.isNaN(directMinutes) && directMinutes > 0
-        ? directMinutes
+      Number.isFinite(directMinutes) && directMinutes > 0
+        ? Math.round(directMinutes)
         : minutesBetween(startValue, endValue);
+
+    const note = cleanStr(
+      getValueByKeys(session, [
+        "note",
+        "notes",
+        "employeeNote",
+        "employeeNotes",
+        "adminNote",
+        "comment",
+        "comments",
+        "shiftNote",
+      ])
+    );
+
+    if (note) current.notes.push(note);
 
     grouped.set(dateKey, current);
   }
@@ -547,37 +638,64 @@ function mergeSoftphoneIntoRows(rows: DayRow[], sessions: any[]) {
     const row = rowsMap.get(dateKey);
     if (!row) continue;
 
-    const sortedStarts = data.starts
-      .map((value) => new Date(value))
-      .filter((date) => !Number.isNaN(date.getTime()))
-      .sort((a, b) => a.getTime() - b.getTime());
+    const sortedStarts = data.starts.sort((a, b) => a.getTime() - b.getTime());
+    const sortedEnds = data.ends.sort((a, b) => b.getTime() - a.getTime());
 
-    const sortedEnds = data.ends
-      .map((value) => new Date(value))
-      .filter((date) => !Number.isNaN(date.getTime()))
-      .sort((a, b) => b.getTime() - a.getTime());
-
-    row.actualStart = sortedStarts[0] ? formatTime(sortedStarts[0]) : row.actualStart;
-    row.actualEnd = sortedEnds[0] ? formatTime(sortedEnds[0]) : row.actualEnd;
+    row.actualStart = sortedStarts[0] ? formatTime(sortedStarts[0]) : "";
+    row.actualEnd = sortedEnds[0] ? formatTime(sortedEnds[0]) : "";
     row.totalMinutes = Math.round(data.totalMinutes);
+
+    if (data.notes.length > 0) {
+      row.note = data.notes.join(" | ");
+    }
   }
 
-  return Array.from(rowsMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+  return Array.from(rowsMap.values()).sort((a, b) =>
+    a.date.localeCompare(b.date)
+  );
+}
+
+function hasManualOverride(saved: any, sourceRow: DayRow) {
+  if (saved?.manualOverride === true) return true;
+
+  const savedStart = cleanStr(saved?.actualStart);
+  const savedEnd = cleanStr(saved?.actualEnd);
+  const savedNote = cleanStr(saved?.note);
+  const savedMinutes = Number(saved?.totalMinutes);
+
+  if (savedStart && savedStart !== sourceRow.actualStart) return true;
+  if (savedEnd && savedEnd !== sourceRow.actualEnd) return true;
+  if (savedNote && savedNote !== sourceRow.note) return true;
+
+  if (
+    Number.isFinite(savedMinutes) &&
+    savedMinutes > 0 &&
+    savedMinutes !== Number(sourceRow.totalMinutes || 0)
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 function mergeApprovalIntoRows(rows: DayRow[], approval: any) {
-  if (!approval?.rows || !Array.isArray(approval.rows)) return rows;
+  if (!approval?.rows || !Array.isArray(approval.rows)) {
+    return rows.map((row) => ({
+      ...row,
+      status: approval?.status || row.status,
+    }));
+  }
 
   const savedMap = new Map<string, any>();
 
   for (const savedRow of approval.rows) {
     const date = cleanStr(savedRow?.date);
-    if (!date) continue;
-    savedMap.set(date, savedRow);
+    if (date) savedMap.set(date, savedRow);
   }
 
   return rows.map((row) => {
     const saved = savedMap.get(row.date);
+
     if (!saved) {
       return {
         ...row,
@@ -585,37 +703,61 @@ function mergeApprovalIntoRows(rows: DayRow[], approval: any) {
       };
     }
 
-    const next = {
-      ...row,
-      status: approval.status || row.status,
-    };
+    const shouldOverride = hasManualOverride(saved, row);
 
-    if ("actualStart" in saved) next.actualStart = cleanStr(saved.actualStart);
-    if ("actualEnd" in saved) next.actualEnd = cleanStr(saved.actualEnd);
-    if ("note" in saved) next.note = cleanStr(saved.note);
+    if (!shouldOverride) {
+      return {
+        ...row,
+        status: approval.status || row.status,
+      };
+    }
 
+    const actualStart =
+      "actualStart" in saved ? cleanStr(saved.actualStart) : row.actualStart;
+
+    const actualEnd =
+      "actualEnd" in saved ? cleanStr(saved.actualEnd) : row.actualEnd;
+
+    const note = "note" in saved ? cleanStr(saved.note) : row.note;
     const savedMinutes = Number(saved.totalMinutes);
 
-    next.totalMinutes =
-      !Number.isNaN(savedMinutes) && savedMinutes >= 0
-        ? Math.round(savedMinutes)
-        : minutesBetween(next.actualStart, next.actualEnd);
-
-    return next;
+    return {
+      ...row,
+      actualStart,
+      actualEnd,
+      note,
+      totalMinutes:
+        Number.isFinite(savedMinutes) && savedMinutes >= 0
+          ? Math.round(savedMinutes)
+          : minutesBetween(actualStart, actualEnd),
+      status: approval.status || row.status,
+      manualOverride: true,
+    };
   });
 }
 
-function sanitizeRows(rawRows: any[]): DayRow[] {
+function sanitizeRows(rawRows: any[], sourceRows: DayRow[]): DayRow[] {
+  const sourceMap = new Map(sourceRows.map((row) => [row.date, row]));
+
   return rawRows
     .filter((row) => cleanStr(row?.date))
     .map((row) => {
+      const date = cleanStr(row.date);
+      const source = sourceMap.get(date);
+
       const actualStart = cleanStr(row.actualStart);
       const actualEnd = cleanStr(row.actualEnd);
-      const directMinutes = Number(row.totalMinutes);
+      const note = cleanStr(row.note);
 
-      return {
-        id: cleanStr(row.id || row.date),
-        date: cleanStr(row.date),
+      const directMinutes = Number(row.totalMinutes);
+      const totalMinutes =
+        Number.isFinite(directMinutes) && directMinutes >= 0
+          ? Math.round(directMinutes)
+          : minutesBetween(actualStart, actualEnd);
+
+      const next: DayRow = {
+        id: cleanStr(row.id || date),
+        date,
         dayName: cleanStr(row.dayName),
         isScheduled: Boolean(row.isScheduled),
         shiftLabel: cleanStr(row.shiftLabel) || "לא משובץ",
@@ -623,18 +765,34 @@ function sanitizeRows(rawRows: any[]): DayRow[] {
         scheduledEnd: cleanStr(row.scheduledEnd),
         actualStart,
         actualEnd,
-        totalMinutes:
-          !Number.isNaN(directMinutes) && directMinutes >= 0
-            ? Math.round(directMinutes)
-            : minutesBetween(actualStart, actualEnd),
-        note: cleanStr(row.note),
+        totalMinutes,
+        note,
         status: cleanStr(row.status) || "draft",
+        manualOverride: false,
       };
+
+      if (source) {
+        next.manualOverride =
+          actualStart !== cleanStr(source.actualStart) ||
+          actualEnd !== cleanStr(source.actualEnd) ||
+          note !== cleanStr(source.note) ||
+          totalMinutes !== Number(source.totalMinutes || 0);
+      } else {
+        next.manualOverride =
+          Boolean(actualStart || actualEnd || note) || totalMinutes > 0;
+      }
+
+      return next;
     })
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
-function buildSummary(rows: DayRow[], monthKey: string, status: string, approval: any = {}) {
+function buildSummary(
+  rows: DayRow[],
+  monthKey: string,
+  status: string,
+  approval: any = {}
+) {
   const totalMinutes = rows.reduce(
     (sum, row) => sum + Number(row.totalMinutes || 0),
     0
@@ -655,29 +813,50 @@ function buildSummary(rows: DayRow[], monthKey: string, status: string, approval
     submittedAt: approval?.submittedAt || null,
     approvedAt: approval?.approvedAt || null,
     rejectedAt: approval?.rejectedAt || null,
-    rejectionReason: approval?.rejectionReason || "",
+    rejectionReason: cleanStr(approval?.rejectionReason),
   };
 }
 
-async function buildHours(employeeId: string, monthKey: string) {
+async function buildSyncedHours(employeeId: string, monthKey: string) {
   let rows = getDaysInMonth(monthKey);
 
-  const [approval, shifts, softphoneSessions] = await Promise.all([
-    loadApproval(employeeId, monthKey),
+  const [shiftsResult, sessionsResult] = await Promise.all([
     loadShifts(employeeId, monthKey),
     loadSoftphoneSessions(employeeId, monthKey),
   ]);
 
-  rows = mergeShiftsIntoRows(rows, shifts);
-  rows = mergeSoftphoneIntoRows(rows, softphoneSessions);
-  rows = mergeApprovalIntoRows(rows, approval);
+  rows = mergeShiftsIntoRows(rows, shiftsResult.items);
+  rows = mergeSoftphoneIntoRows(rows, sessionsResult.items);
 
+  return {
+    rows,
+    debug: {
+      shiftCollectionsChecked: shiftsResult.collections,
+      softphoneCollectionsChecked: sessionsResult.collections,
+      shiftsFound: shiftsResult.items.length,
+      sessionsFound: sessionsResult.items.length,
+    },
+  };
+}
+
+async function buildHours(employeeId: string, monthKey: string) {
+  const [approval, synced] = await Promise.all([
+    loadApproval(employeeId, monthKey),
+    buildSyncedHours(employeeId, monthKey),
+  ]);
+
+  const rows = mergeApprovalIntoRows(synced.rows, approval);
   const summary = buildSummary(rows, monthKey, approval?.status || "draft", approval);
 
   return {
     rows,
     summary,
     approval,
+    debug: {
+      ...synced.debug,
+      approvalFound: Boolean(approval),
+      manualRows: rows.filter((row) => row.manualOverride).length,
+    },
   };
 }
 
@@ -711,7 +890,7 @@ export async function GET(
     const { monthKey } = getMonthParts(cleanStr(url.searchParams.get("month")));
 
     const businessId = await findUserBusinessId(employeeId);
-    const { rows, summary } = await buildHours(employeeId, monthKey);
+    const { rows, summary, debug } = await buildHours(employeeId, monthKey);
 
     return NextResponse.json({
       success: true,
@@ -720,6 +899,7 @@ export async function GET(
       month: monthKey,
       rows,
       summary,
+      debug,
     });
   } catch (error) {
     console.error("GET ADMIN EMPLOYEE HOURS FAILED:", error);
@@ -728,9 +908,7 @@ export async function GET(
       {
         success: false,
         error:
-          error instanceof Error
-            ? error.message
-            : "שגיאה בטעינת שעות עובד",
+          error instanceof Error ? error.message : "שגיאה בטעינת שעות עובד",
       },
       { status: 500 }
     );
@@ -768,9 +946,6 @@ export async function PATCH(
     const { monthKey } = getMonthParts(cleanStr(body.month));
     const action = cleanStr(body.action);
 
-    const rawRows = Array.isArray(body.rows) ? body.rows : [];
-    const rows = sanitizeRows(rawRows);
-
     const database = mongoose.connection.db;
 
     if (!database) {
@@ -780,6 +955,9 @@ export async function PATCH(
       );
     }
 
+    const synced = await buildSyncedHours(employeeId, monthKey);
+    const rows = sanitizeRows(Array.isArray(body.rows) ? body.rows : [], synced.rows);
+
     const collection = database.collection(APPROVAL_COLLECTION);
     const objectId = toObjectId(employeeId);
 
@@ -787,11 +965,16 @@ export async function PATCH(
 
     const now = new Date();
 
-    let status = cleanStr(body.status) || "submitted";
+    let status = existing?.status || "submitted";
 
     if (action === "approve") status = "approved";
     if (action === "reject") status = "rejected";
     if (action === "save") status = existing?.status || "submitted";
+
+    const totalMinutes = rows.reduce(
+      (sum, row) => sum + Number(row.totalMinutes || 0),
+      0
+    );
 
     const setDoc: any = {
       employeeId,
@@ -799,20 +982,23 @@ export async function PATCH(
       month: monthKey,
       rows,
       status,
-      totalMinutes: rows.reduce(
-        (sum, row) => sum + Number(row.totalMinutes || 0),
-        0
-      ),
+      totalMinutes,
       workedDays: rows.filter(
         (row) => row.actualStart || row.actualEnd || row.totalMinutes > 0
       ).length,
       scheduledDays: rows.filter((row) => row.isScheduled).length,
+      hourlyRate: Number(body.hourlyRate || 0),
+      totalSalary: Number(body.totalSalary || 0),
       updatedAt: now,
       updatedBy: authUser.id,
     };
 
     if (objectId) {
       setDoc.employeeObjectId = objectId;
+    }
+
+    if (!existing?.submittedAt) {
+      setDoc.submittedAt = now;
     }
 
     if (status === "approved") {
@@ -829,10 +1015,6 @@ export async function PATCH(
       setDoc.approvedAt = null;
     }
 
-    if (!existing?.submittedAt) {
-      setDoc.submittedAt = now;
-    }
-
     if (existing?._id) {
       await collection.updateOne(
         { _id: existing._id },
@@ -847,17 +1029,21 @@ export async function PATCH(
       });
     }
 
-    const nextApproval = await loadApproval(employeeId, monthKey);
-    const nextRows = mergeApprovalIntoRows(getDaysInMonth(monthKey), nextApproval);
-    const summary = buildSummary(rows, monthKey, status, nextApproval);
+    const approval = await loadApproval(employeeId, monthKey);
+    const finalRows = mergeApprovalIntoRows(synced.rows, approval);
+    const summary = buildSummary(finalRows, monthKey, status, approval);
 
     return NextResponse.json({
       success: true,
       employeeId,
       month: monthKey,
-      rows,
+      rows: finalRows,
       summary,
-      savedRows: nextRows.length,
+      debug: {
+        ...synced.debug,
+        approvalFound: Boolean(approval),
+        manualRows: finalRows.filter((row) => row.manualOverride).length,
+      },
     });
   } catch (error) {
     console.error("PATCH ADMIN EMPLOYEE HOURS FAILED:", error);
@@ -866,9 +1052,7 @@ export async function PATCH(
       {
         success: false,
         error:
-          error instanceof Error
-            ? error.message
-            : "שגיאה בשמירת שעות עובד",
+          error instanceof Error ? error.message : "שגיאה בשמירת שעות עובד",
       },
       { status: 500 }
     );

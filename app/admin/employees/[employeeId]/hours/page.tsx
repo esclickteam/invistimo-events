@@ -173,6 +173,13 @@ function escapeHtml(value: unknown) {
     .replaceAll('"', "&quot;");
 }
 
+function safeFileName(value: string) {
+  return cleanStr(value)
+    .replace(/[\\/:*?"<>|]/g, "-")
+    .replace(/\s+/g, "-")
+    .slice(0, 80);
+}
+
 function Icon({
   name,
   className = "h-5 w-5",
@@ -382,6 +389,10 @@ export default function AdminEmployeeHoursPage() {
 
       const data = await fetchJson(API.hours(employeeId, month));
 
+      if (process.env.NODE_ENV !== "production") {
+        console.log("HOURS DEBUG:", data?.debug || null);
+      }
+
       const rows = Array.isArray(data?.rows) ? data.rows : [];
       const summary = data?.summary || {};
 
@@ -558,7 +569,9 @@ export default function AdminEmployeeHoursPage() {
           <tr>
             <td>${escapeHtml(formatDate(row.date))}</td>
             <td>${escapeHtml(row.dayName || "—")}</td>
-            <td>${escapeHtml(row.isScheduled ? row.shiftLabel || "משובץ" : "לא משובץ")}</td>
+            <td>${escapeHtml(
+              row.isScheduled ? row.shiftLabel || "משובץ" : "לא משובץ"
+            )}</td>
             <td>${escapeHtml(row.scheduledStart || "—")}</td>
             <td>${escapeHtml(row.scheduledEnd || "—")}</td>
             <td>${escapeHtml(row.actualStart || "—")}</td>
@@ -676,7 +689,7 @@ export default function AdminEmployeeHoursPage() {
     const a = document.createElement("a");
 
     a.href = url;
-    a.download = `דוח-שעות-${employee.name || employeeId}-${month}.xls`;
+    a.download = `דוח-שעות-${safeFileName(employee.name || employeeId)}-${month}.xls`;
     a.click();
 
     URL.revokeObjectURL(url);
@@ -728,7 +741,28 @@ export default function AdminEmployeeHoursPage() {
       className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-emerald-50 text-slate-900"
     >
       <style>{`
+        .print-only-report {
+          display: none;
+        }
+
         @media print {
+          @page {
+            size: A4 landscape;
+            margin: 4mm;
+          }
+
+          html,
+          body {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+            background: #fff !important;
+            overflow: visible !important;
+            direction: rtl !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
           body * {
             visibility: hidden !important;
           }
@@ -740,34 +774,134 @@ export default function AdminEmployeeHoursPage() {
 
           #employee-hours-print {
             position: absolute !important;
-            inset: 0 !important;
+            top: 0 !important;
+            right: 0 !important;
+            left: 0 !important;
             width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
             background: #fff !important;
-            padding: 24px !important;
+            border: none !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            overflow: visible !important;
           }
 
-          .no-print {
+          .no-print,
+          .screen-only-report {
             display: none !important;
           }
 
-          #employee-hours-print table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 12px;
-          }
-
-          #employee-hours-print th,
-          #employee-hours-print td {
-            border: 1px solid #cbd5e1;
-            padding: 7px;
-            text-align: right;
-          }
-
-          #employee-hours-print input,
-          #employee-hours-print textarea {
-            border: none !important;
-            padding: 0 !important;
+          .print-only-report {
+            display: block !important;
             width: 100% !important;
+            max-width: 100% !important;
+          }
+
+          .print-title {
+            margin: 0 0 4px 0 !important;
+            font-size: 15px !important;
+            font-weight: 900 !important;
+            text-align: center !important;
+            color: #0f172a !important;
+          }
+
+          .print-subtitle {
+            margin: 0 0 6px 0 !important;
+            font-size: 9px !important;
+            font-weight: 700 !important;
+            text-align: center !important;
+            color: #334155 !important;
+          }
+
+          .print-summary-table,
+          .print-hours-table {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            table-layout: fixed !important;
+            border-collapse: collapse !important;
+            direction: rtl !important;
+          }
+
+          .print-summary-table {
+            margin-bottom: 6px !important;
+            font-size: 8px !important;
+          }
+
+          .print-hours-table {
+            font-size: 7px !important;
+          }
+
+          .print-summary-table th,
+          .print-summary-table td,
+          .print-hours-table th,
+          .print-hours-table td {
+            border: 1px solid #cbd5e1 !important;
+            padding: 3px !important;
+            text-align: right !important;
+            white-space: normal !important;
+            word-break: break-word !important;
+            overflow-wrap: anywhere !important;
+            line-height: 1.18 !important;
+            vertical-align: middle !important;
+          }
+
+          .print-summary-table th,
+          .print-hours-table th {
+            background: #eef2ff !important;
+            font-weight: 900 !important;
+            color: #1e293b !important;
+          }
+
+          .print-hours-table tr {
+            page-break-inside: avoid !important;
+          }
+
+          .print-hours-table th:nth-child(1),
+          .print-hours-table td:nth-child(1) {
+            width: 8.5% !important;
+          }
+
+          .print-hours-table th:nth-child(2),
+          .print-hours-table td:nth-child(2) {
+            width: 8% !important;
+          }
+
+          .print-hours-table th:nth-child(3),
+          .print-hours-table td:nth-child(3) {
+            width: 8.5% !important;
+          }
+
+          .print-hours-table th:nth-child(4),
+          .print-hours-table td:nth-child(4) {
+            width: 9% !important;
+          }
+
+          .print-hours-table th:nth-child(5),
+          .print-hours-table td:nth-child(5) {
+            width: 9% !important;
+          }
+
+          .print-hours-table th:nth-child(6),
+          .print-hours-table td:nth-child(6) {
+            width: 9% !important;
+          }
+
+          .print-hours-table th:nth-child(7),
+          .print-hours-table td:nth-child(7) {
+            width: 8.5% !important;
+          }
+
+          .print-hours-table th:nth-child(8),
+          .print-hours-table td:nth-child(8) {
+            width: 8.5% !important;
+          }
+
+          .print-hours-table th:nth-child(9),
+          .print-hours-table td:nth-child(9) {
+            width: 31% !important;
           }
         }
       `}</style>
@@ -831,7 +965,10 @@ export default function AdminEmployeeHoursPage() {
 
             <div className="rounded-[24px] border border-sky-100 bg-sky-50 p-4">
               <p className="text-xs font-black text-sky-600">טלפון</p>
-              <p dir="ltr" className="mt-2 text-right text-sm font-black text-slate-800">
+              <p
+                dir="ltr"
+                className="mt-2 text-right text-sm font-black text-slate-800"
+              >
                 {employee.phone || "—"}
               </p>
             </div>
@@ -863,258 +1000,325 @@ export default function AdminEmployeeHoursPage() {
           id="employee-hours-print"
           className="rounded-[34px] border border-white bg-white p-5 shadow-[0_12px_35px_rgba(15,23,42,0.06)] md:p-6"
         >
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-            <div>
-              <div className="flex items-center gap-2">
-                <Icon name="clock" className="h-6 w-6 text-emerald-500" />
-                <h2 className="text-xl font-black text-slate-900">
-                  שעות עבודה — {monthLabel(month)}
-                </h2>
-              </div>
+          <div className="print-only-report">
+            <h1 className="print-title">דוח שעות עובד לרואה חשבון</h1>
 
-              <p className="mt-2 text-sm font-semibold text-slate-500">
-                עובד/ת: {employee.name || "—"} · מייל: {employee.email || "—"} ·
-                טלפון: {employee.phone || "—"}
-              </p>
+            <p className="print-subtitle">
+              {monthLabel(month)} · עובד/ת: {employee.name || "—"} · מייל:{" "}
+              {employee.email || "—"} · טלפון: {employee.phone || "—"} · סטטוס:{" "}
+              {statusLabel(hoursSummary.status)}
+            </p>
 
-              <p className="mt-1 text-sm font-semibold text-slate-500">
-                סטטוס:{" "}
-                <span className="font-black text-slate-900">
-                  {statusLabel(hoursSummary.status)}
-                </span>{" "}
-                · שעות:{" "}
-                <span className="font-black text-slate-900">
-                  {formatWorkDuration(totalMinutes)}
-                </span>{" "}
-                · שכר שעתי:{" "}
-                <span className="font-black text-slate-900">
-                  {formatMoney(hourlyRate)}
-                </span>{" "}
-                · תשלום משוער:{" "}
-                <span className="font-black text-slate-900">
-                  {formatMoney(totalSalary)}
-                </span>
-              </p>
-            </div>
+            <table className="print-summary-table">
+              <tbody>
+                <tr>
+                  <th>סה״כ שעות</th>
+                  <td>{totalHoursDecimal.toFixed(2)}</td>
+                  <th>שכר שעתי</th>
+                  <td>{formatMoney(hourlyRate)}</td>
+                  <th>תשלום משוער</th>
+                  <td>{formatMoney(totalSalary)}</td>
+                  <th>ימי עבודה</th>
+                  <td>{workedDays}</td>
+                </tr>
+              </tbody>
+            </table>
 
-            <div className="no-print flex flex-wrap gap-2">
-              <input
-                type="month"
-                value={month}
-                onChange={(event) => setMonth(event.target.value)}
-                className="h-11 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-black text-slate-700 outline-none transition focus:border-emerald-300 focus:bg-white focus:ring-4 focus:ring-emerald-50"
-              />
-
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={employee.hourlyRate || ""}
-                onChange={(event) =>
-                  setEmployee((prev) => ({
-                    ...prev,
-                    hourlyRate: Number(event.target.value || 0),
-                  }))
-                }
-                placeholder="שכר שעתי"
-                className="h-11 w-36 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 text-sm font-black text-emerald-900 outline-none transition focus:border-emerald-300 focus:bg-white focus:ring-4 focus:ring-emerald-50"
-              />
-
-              <button
-                type="button"
-                onClick={() => void loadHours()}
-                disabled={hoursLoading}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 transition hover:border-emerald-200 hover:bg-emerald-50 disabled:opacity-50"
-              >
-                <Icon
-                  name="refresh"
-                  className={`h-4 w-4 ${hoursLoading ? "animate-spin" : ""}`}
-                />
-                רענון
-              </button>
-
-              <button
-                type="button"
-                onClick={() => void saveHours("save")}
-                disabled={savingHours}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-slate-700 px-4 text-sm font-black text-white transition hover:bg-slate-800 disabled:opacity-50"
-              >
-                <Icon name="save" className="h-4 w-4" />
-                שמירה
-              </button>
-
-              <button
-                type="button"
-                onClick={() => void saveHours("approve")}
-                disabled={savingHours}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-4 text-sm font-black text-white transition hover:bg-emerald-600 disabled:opacity-50"
-              >
-                <Icon name="check" className="h-4 w-4" />
-                אישור שעות
-              </button>
-
-              <button
-                type="button"
-                onClick={() => void saveHours("reject")}
-                disabled={savingHours}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-rose-500 px-4 text-sm font-black text-white transition hover:bg-rose-600 disabled:opacity-50"
-              >
-                <Icon name="x" className="h-4 w-4" />
-                דחייה
-              </button>
-            </div>
-          </div>
-
-          <div className="mt-5 overflow-x-auto rounded-[24px] border border-slate-200">
-            <table className="w-full min-w-[1250px] border-collapse text-right">
-              <thead className="bg-slate-50">
-                <tr className="text-xs text-slate-500">
-                  <th className="px-4 py-3 font-black">תאריך</th>
-                  <th className="px-4 py-3 font-black">יום</th>
-                  <th className="px-4 py-3 font-black">שיבוץ</th>
-                  <th className="px-4 py-3 font-black">מתוכנן</th>
-                  <th className="px-4 py-3 font-black">כניסה בפועל</th>
-                  <th className="px-4 py-3 font-black">יציאה בפועל</th>
-                  <th className="px-4 py-3 font-black">סה״כ שעות</th>
-                  <th className="px-4 py-3 font-black">סכום יומי</th>
-                  <th className="px-4 py-3 font-black">הערות</th>
+            <table className="print-hours-table">
+              <thead>
+                <tr>
+                  <th>תאריך</th>
+                  <th>יום</th>
+                  <th>שיבוץ</th>
+                  <th>מתוכנן</th>
+                  <th>כניסה בפועל</th>
+                  <th>יציאה בפועל</th>
+                  <th>סה״כ שעות</th>
+                  <th>סכום יומי</th>
+                  <th>הערות</th>
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-slate-100">
-                {hoursLoading ? (
-                  <tr>
-                    <td
-                      colSpan={9}
-                      className="px-4 py-10 text-center text-sm font-black text-slate-500"
-                    >
-                      טוען שעות...
-                    </td>
-                  </tr>
-                ) : (
-                  hoursRows.map((row) => {
-                    const dailySalary =
-                      (Number(row.totalMinutes || 0) / 60) * hourlyRate;
+              <tbody>
+                {hoursRows.map((row) => {
+                  const dailySalary =
+                    (Number(row.totalMinutes || 0) / 60) * hourlyRate;
 
-                    return (
-                      <tr key={row.date} className="hover:bg-emerald-50/30">
-                        <td className="px-4 py-3 text-sm font-black text-slate-800">
-                          {formatDate(row.date)}
-                        </td>
-
-                        <td className="px-4 py-3 text-sm font-bold text-slate-600">
-                          {row.dayName || "—"}
-                        </td>
-
-                        <td className="px-4 py-3">
-                          <span
-                            className={`rounded-full border px-3 py-1 text-xs font-black ${
-                              row.isScheduled
-                                ? "border-blue-200 bg-blue-50 text-blue-700"
-                                : "border-slate-200 bg-slate-50 text-slate-500"
-                            }`}
-                          >
-                            {row.shiftLabel || "לא משובץ"}
-                          </span>
-                        </td>
-
-                        <td className="px-4 py-3 text-sm font-bold text-slate-600">
-                          {row.scheduledStart || "—"} - {row.scheduledEnd || "—"}
-                        </td>
-
-                        <td className="px-4 py-3">
-                          <input
-                            type="time"
-                            value={row.actualStart}
-                            onChange={(event) =>
-                              updateHourRow(
-                                row.date,
-                                "actualStart",
-                                event.target.value
-                              )
-                            }
-                            className="h-10 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-300"
-                          />
-                        </td>
-
-                        <td className="px-4 py-3">
-                          <input
-                            type="time"
-                            value={row.actualEnd}
-                            onChange={(event) =>
-                              updateHourRow(
-                                row.date,
-                                "actualEnd",
-                                event.target.value
-                              )
-                            }
-                            className="h-10 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-300"
-                          />
-                        </td>
-
-                        <td className="px-4 py-3 text-sm font-black text-slate-800">
-                          {formatWorkDuration(row.totalMinutes)}
-                        </td>
-
-                        <td className="px-4 py-3 text-sm font-black text-slate-800">
-                          {formatMoney(dailySalary)}
-                        </td>
-
-                        <td className="px-4 py-3">
-                          <textarea
-                            value={row.note}
-                            onChange={(event) =>
-                              updateHourRow(row.date, "note", event.target.value)
-                            }
-                            rows={1}
-                            placeholder="הערה לאדמין / רו״ח..."
-                            className="min-h-10 w-full resize-y rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 outline-none placeholder:text-slate-400 focus:border-emerald-300"
-                          />
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
+                  return (
+                    <tr key={`print-${row.date}`}>
+                      <td>{formatDate(row.date)}</td>
+                      <td>{row.dayName || "—"}</td>
+                      <td>{row.isScheduled ? row.shiftLabel || "משובץ" : "לא משובץ"}</td>
+                      <td>
+                        {row.scheduledStart || "—"} - {row.scheduledEnd || "—"}
+                      </td>
+                      <td>{row.actualStart || "—"}</td>
+                      <td>{row.actualEnd || "—"}</td>
+                      <td>{formatWorkDuration(row.totalMinutes)}</td>
+                      <td>{formatMoney(dailySalary)}</td>
+                      <td>{row.note || ""}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
 
-          <div className="mt-5 grid gap-3 md:grid-cols-5">
-            <div className="rounded-[22px] border border-emerald-100 bg-emerald-50 p-4">
-              <p className="text-xs font-black text-emerald-600">סה״כ שעות</p>
-              <p className="mt-1 text-xl font-black text-emerald-950">
-                {formatWorkDuration(totalMinutes)}
-              </p>
+          <div className="screen-only-report">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Icon name="clock" className="h-6 w-6 text-emerald-500" />
+                  <h2 className="text-xl font-black text-slate-900">
+                    שעות עבודה — {monthLabel(month)}
+                  </h2>
+                </div>
+
+                <p className="mt-2 text-sm font-semibold text-slate-500">
+                  עובד/ת: {employee.name || "—"} · מייל: {employee.email || "—"} ·
+                  טלפון: {employee.phone || "—"}
+                </p>
+
+                <p className="mt-1 text-sm font-semibold text-slate-500">
+                  סטטוס:{" "}
+                  <span className="font-black text-slate-900">
+                    {statusLabel(hoursSummary.status)}
+                  </span>{" "}
+                  · שעות:{" "}
+                  <span className="font-black text-slate-900">
+                    {formatWorkDuration(totalMinutes)}
+                  </span>{" "}
+                  · שכר שעתי:{" "}
+                  <span className="font-black text-slate-900">
+                    {formatMoney(hourlyRate)}
+                  </span>{" "}
+                  · תשלום משוער:{" "}
+                  <span className="font-black text-slate-900">
+                    {formatMoney(totalSalary)}
+                  </span>
+                </p>
+              </div>
+
+              <div className="no-print flex flex-wrap gap-2">
+                <input
+                  type="month"
+                  value={month}
+                  onChange={(event) => setMonth(event.target.value)}
+                  className="h-11 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-black text-slate-700 outline-none transition focus:border-emerald-300 focus:bg-white focus:ring-4 focus:ring-emerald-50"
+                />
+
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={employee.hourlyRate || ""}
+                  onChange={(event) =>
+                    setEmployee((prev) => ({
+                      ...prev,
+                      hourlyRate: Number(event.target.value || 0),
+                    }))
+                  }
+                  placeholder="שכר שעתי"
+                  className="h-11 w-36 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 text-sm font-black text-emerald-900 outline-none transition focus:border-emerald-300 focus:bg-white focus:ring-4 focus:ring-emerald-50"
+                />
+
+                <button
+                  type="button"
+                  onClick={() => void loadHours()}
+                  disabled={hoursLoading}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 transition hover:border-emerald-200 hover:bg-emerald-50 disabled:opacity-50"
+                >
+                  <Icon
+                    name="refresh"
+                    className={`h-4 w-4 ${hoursLoading ? "animate-spin" : ""}`}
+                  />
+                  רענון
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => void saveHours("save")}
+                  disabled={savingHours}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 text-sm font-black text-white transition hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  <Icon name="save" className="h-4 w-4" />
+                  שמירה
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => void saveHours("approve")}
+                  disabled={savingHours}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-4 text-sm font-black text-white transition hover:bg-emerald-600 disabled:opacity-50"
+                >
+                  <Icon name="check" className="h-4 w-4" />
+                  אישור שעות
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => void saveHours("reject")}
+                  disabled={savingHours}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-rose-500 px-4 text-sm font-black text-white transition hover:bg-rose-600 disabled:opacity-50"
+                >
+                  <Icon name="x" className="h-4 w-4" />
+                  דחייה
+                </button>
+              </div>
             </div>
 
-            <div className="rounded-[22px] border border-sky-100 bg-sky-50 p-4">
-              <p className="text-xs font-black text-sky-600">שעות מספרי</p>
-              <p className="mt-1 text-xl font-black text-sky-950">
-                {totalHoursDecimal.toFixed(2)}
-              </p>
+            <div className="mt-5 overflow-x-auto rounded-[24px] border border-slate-200">
+              <table className="w-full min-w-[1250px] border-collapse text-right">
+                <thead className="bg-slate-50">
+                  <tr className="text-xs text-slate-500">
+                    <th className="px-4 py-3 font-black">תאריך</th>
+                    <th className="px-4 py-3 font-black">יום</th>
+                    <th className="px-4 py-3 font-black">שיבוץ</th>
+                    <th className="px-4 py-3 font-black">מתוכנן</th>
+                    <th className="px-4 py-3 font-black">כניסה בפועל</th>
+                    <th className="px-4 py-3 font-black">יציאה בפועל</th>
+                    <th className="px-4 py-3 font-black">סה״כ שעות</th>
+                    <th className="px-4 py-3 font-black">סכום יומי</th>
+                    <th className="px-4 py-3 font-black">הערות</th>
+                  </tr>
+                </thead>
+
+                <tbody className="divide-y divide-slate-100">
+                  {hoursLoading ? (
+                    <tr>
+                      <td
+                        colSpan={9}
+                        className="px-4 py-10 text-center text-sm font-black text-slate-500"
+                      >
+                        טוען שעות...
+                      </td>
+                    </tr>
+                  ) : (
+                    hoursRows.map((row) => {
+                      const dailySalary =
+                        (Number(row.totalMinutes || 0) / 60) * hourlyRate;
+
+                      return (
+                        <tr key={row.date} className="hover:bg-emerald-50/30">
+                          <td className="px-4 py-3 text-sm font-black text-slate-800">
+                            {formatDate(row.date)}
+                          </td>
+
+                          <td className="px-4 py-3 text-sm font-bold text-slate-600">
+                            {row.dayName || "—"}
+                          </td>
+
+                          <td className="px-4 py-3">
+                            <span
+                              className={`rounded-full border px-3 py-1 text-xs font-black ${
+                                row.isScheduled
+                                  ? "border-blue-200 bg-blue-50 text-blue-700"
+                                  : "border-slate-200 bg-slate-50 text-slate-500"
+                              }`}
+                            >
+                              {row.shiftLabel || "לא משובץ"}
+                            </span>
+                          </td>
+
+                          <td className="px-4 py-3 text-sm font-bold text-slate-600">
+                            {row.scheduledStart || "—"} -{" "}
+                            {row.scheduledEnd || "—"}
+                          </td>
+
+                          <td className="px-4 py-3">
+                            <input
+                              type="time"
+                              value={row.actualStart}
+                              onChange={(event) =>
+                                updateHourRow(
+                                  row.date,
+                                  "actualStart",
+                                  event.target.value
+                                )
+                              }
+                              className="h-10 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-300"
+                            />
+                          </td>
+
+                          <td className="px-4 py-3">
+                            <input
+                              type="time"
+                              value={row.actualEnd}
+                              onChange={(event) =>
+                                updateHourRow(
+                                  row.date,
+                                  "actualEnd",
+                                  event.target.value
+                                )
+                              }
+                              className="h-10 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-300"
+                            />
+                          </td>
+
+                          <td className="px-4 py-3 text-sm font-black text-slate-800">
+                            {formatWorkDuration(row.totalMinutes)}
+                          </td>
+
+                          <td className="px-4 py-3 text-sm font-black text-slate-800">
+                            {formatMoney(dailySalary)}
+                          </td>
+
+                          <td className="px-4 py-3">
+                            <textarea
+                              value={row.note}
+                              onChange={(event) =>
+                                updateHourRow(row.date, "note", event.target.value)
+                              }
+                              rows={1}
+                              placeholder="הערה לאדמין / רו״ח..."
+                              className="min-h-10 w-full resize-y rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 outline-none placeholder:text-slate-400 focus:border-emerald-300"
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
             </div>
 
-            <div className="rounded-[22px] border border-indigo-100 bg-indigo-50 p-4">
-              <p className="text-xs font-black text-indigo-600">ימי עבודה</p>
-              <p className="mt-1 text-xl font-black text-indigo-950">
-                {workedDays}
-              </p>
-            </div>
+            <div className="mt-5 grid gap-3 md:grid-cols-5">
+              <div className="rounded-[22px] border border-emerald-100 bg-emerald-50 p-4">
+                <p className="text-xs font-black text-emerald-600">סה״כ שעות</p>
+                <p className="mt-1 text-xl font-black text-emerald-950">
+                  {formatWorkDuration(totalMinutes)}
+                </p>
+              </div>
 
-            <div className="rounded-[22px] border border-violet-100 bg-violet-50 p-4">
-              <p className="text-xs font-black text-violet-600">שכר שעתי</p>
-              <p className="mt-1 text-xl font-black text-violet-950">
-                {formatMoney(hourlyRate)}
-              </p>
-            </div>
+              <div className="rounded-[22px] border border-sky-100 bg-sky-50 p-4">
+                <p className="text-xs font-black text-sky-600">שעות מספרי</p>
+                <p className="mt-1 text-xl font-black text-sky-950">
+                  {totalHoursDecimal.toFixed(2)}
+                </p>
+              </div>
 
-            <div className="rounded-[22px] border border-amber-100 bg-amber-50 p-4">
-              <p className="text-xs font-black text-amber-600">
-                תשלום משוער
-              </p>
-              <p className="mt-1 text-xl font-black text-amber-950">
-                {formatMoney(totalSalary)}
-              </p>
+              <div className="rounded-[22px] border border-indigo-100 bg-indigo-50 p-4">
+                <p className="text-xs font-black text-indigo-600">ימי עבודה</p>
+                <p className="mt-1 text-xl font-black text-indigo-950">
+                  {workedDays}
+                </p>
+              </div>
+
+              <div className="rounded-[22px] border border-violet-100 bg-violet-50 p-4">
+                <p className="text-xs font-black text-violet-600">שכר שעתי</p>
+                <p className="mt-1 text-xl font-black text-violet-950">
+                  {formatMoney(hourlyRate)}
+                </p>
+              </div>
+
+              <div className="rounded-[22px] border border-amber-100 bg-amber-50 p-4">
+                <p className="text-xs font-black text-amber-600">
+                  תשלום משוער
+                </p>
+                <p className="mt-1 text-xl font-black text-amber-950">
+                  {formatMoney(totalSalary)}
+                </p>
+              </div>
             </div>
           </div>
         </section>
