@@ -5,76 +5,156 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 export const dynamic = "force-dynamic";
 
-type Form101Status = "uploaded" | "approved" | "rejected" | string;
-type EmployeeDocumentType = "form101" | "idCard" | "agreement" | string;
-
-type EmployeeForm101 = {
-  _id: string;
+type ApiUser = {
+  _id?: string;
   id?: string;
-  employeeId?: string;
-  businessId?: string;
-  documentType?: EmployeeDocumentType;
-  employeeName?: string;
-  employeeEmail?: string;
-  employeePhone?: string;
-  originalFileName?: string;
-  storedFileName?: string;
-  r2Key?: string;
-  fileUrl?: string;
-  fileType?: string;
-  fileSize?: number;
-  taxYear?: number;
-  status?: Form101Status;
-  uploadedAt?: string;
-  createdAt?: string;
-  updatedAt?: string;
-};
 
-type EmployeeAgreement = {
-  _id: string;
-  id?: string;
-  employeeId?: string;
-  businessId?: string;
-  employeeName?: string;
-  employeeEmail?: string;
-  employeePhone?: string;
+  name?: string;
   fullName?: string;
+  firstName?: string;
+  lastName?: string;
+
+  email?: string;
+  phone?: string;
+  role?: string;
+  status?: string;
+
+  address?: string;
+  employeeAddress?: string;
+
   idNumber?: string;
-  signedFileUrl?: string;
-  status?: Form101Status;
-  signedAt?: string;
+  employeeIdNumber?: string;
+
+  startDate?: string;
+  employeeStartDate?: string;
+  employmentStartDate?: string;
+
+  endDate?: string;
+  employeeEndDate?: string;
+  employmentEndDate?: string;
+
+  hourlyRate?: number;
+  employeeHourlyRate?: number;
+
+  employeeProfileUpdatedAt?: string;
   createdAt?: string;
   updatedAt?: string;
 };
 
-type AdminEmployeeDocument = {
-  _id: string;
-  id?: string;
-  source: "form" | "agreement";
-  employeeId?: string;
-  businessId?: string;
-  employeeName?: string;
-  employeeEmail?: string;
-  employeePhone?: string;
-  documentType?: EmployeeDocumentType;
-  originalFileName?: string;
-  fileUrl?: string;
-  fileType?: string;
-  fileSize?: number;
-  taxYear?: number;
-  status?: Form101Status;
-  uploadedAt?: string;
-  createdAt?: string;
-  updatedAt?: string;
+type EmployeeRow = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  idNumber: string;
+  startDate: string;
+  endDate: string;
+  hourlyRate: number;
+  role: string;
+  status: string;
+  updatedAt: string;
 };
 
 const API = {
-  forms101: "/api/admin/forms/101",
-  agreements: "/api/admin/employee-agreements",
+  users: "/api/admin/users",
 };
+
+function cleanStr(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function getArrayFromResponse<T>(data: any, keys: string[]): T[] {
+  if (Array.isArray(data)) return data;
+
+  for (const key of keys) {
+    if (Array.isArray(data?.[key])) return data[key];
+    if (Array.isArray(data?.data?.[key])) return data.data[key];
+  }
+
+  return [];
+}
+
+async function fetchJson(url: string) {
+  const response = await fetch(url, {
+    method: "GET",
+    credentials: "include",
+    cache: "no-store",
+  });
+
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok || data?.success === false) {
+    throw new Error(data?.error || data?.message || "שגיאה בטעינת נתונים");
+  }
+
+  return data;
+}
+
+function normalizeUserId(user: ApiUser) {
+  return String(user.id || user._id || "");
+}
+
+function normalizeUserName(user: ApiUser) {
+  const fullName = cleanStr(user.name || user.fullName);
+  if (fullName) return fullName;
+
+  const combined = [user.firstName, user.lastName].filter(Boolean).join(" ");
+  return cleanStr(combined) || "עובד ללא שם";
+}
+
+function isEmployeeUser(user: ApiUser) {
+  const role = String(user.role || "").toLowerCase();
+
+  if (
+    role === "employee" ||
+    role === "staff" ||
+    role === "worker" ||
+    role.includes("employee") ||
+    role.includes("staff") ||
+    role.includes("worker")
+  ) {
+    return true;
+  }
+
+  return Boolean(
+    user.employeeProfileUpdatedAt ||
+      user.employeeStartDate ||
+      user.employmentStartDate ||
+      user.employeeEndDate ||
+      user.employmentEndDate ||
+      user.employeeAddress ||
+      user.employeeIdNumber ||
+      user.employeeHourlyRate
+  );
+}
+
+function normalizeEmployee(user: ApiUser): EmployeeRow {
+  return {
+    id: normalizeUserId(user),
+    name: normalizeUserName(user),
+    email: cleanStr(user.email),
+    phone: cleanStr(user.phone),
+    address: cleanStr(user.address || user.employeeAddress),
+    idNumber: cleanStr(user.idNumber || user.employeeIdNumber),
+    startDate: cleanStr(
+      user.startDate || user.employeeStartDate || user.employmentStartDate
+    ),
+    endDate: cleanStr(
+      user.endDate || user.employeeEndDate || user.employmentEndDate
+    ),
+    hourlyRate: Number(user.hourlyRate || user.employeeHourlyRate || 0),
+    role: cleanStr(user.role),
+    status: cleanStr(user.status),
+    updatedAt: cleanStr(
+      user.employeeProfileUpdatedAt || user.updatedAt || user.createdAt
+    ),
+  };
+}
 
 function formatDate(value?: string) {
   if (!value) return "—";
+
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
 
@@ -87,6 +167,7 @@ function formatDate(value?: string) {
 
 function formatDateTime(value?: string) {
   if (!value) return "—";
+
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
 
@@ -99,90 +180,66 @@ function formatDateTime(value?: string) {
   });
 }
 
-function formatFileSize(size?: number) {
-  if (!size) return "—";
-  const mb = size / 1024 / 1024;
-  return mb >= 1 ? `${mb.toFixed(1)}MB` : `${Math.round(size / 1024)}KB`;
+function formatMoney(value: number) {
+  return new Intl.NumberFormat("he-IL", {
+    style: "currency",
+    currency: "ILS",
+    maximumFractionDigits: 2,
+  }).format(Number.isFinite(value) ? value : 0);
 }
 
-function statusLabel(status?: Form101Status) {
-  switch (String(status || "").toLowerCase()) {
-    case "approved":
-      return "מאושר";
-    case "rejected":
-      return "נדחה";
-    case "signed":
-      return "נחתם לבדיקה";
-    case "uploaded":
-      return "הועלה לבדיקה";
-    default:
-      return "לא ידוע";
+function getMissingFields(employee: EmployeeRow) {
+  const missing: string[] = [];
+
+  if (!employee.name || employee.name === "עובד ללא שם") missing.push("שם");
+  if (!employee.email) missing.push("מייל");
+  if (!employee.phone) missing.push("טלפון");
+  if (!employee.address) missing.push("כתובת");
+  if (!employee.idNumber) missing.push("תעודת זהות");
+  if (!employee.startDate) missing.push("תחילת העסקה");
+
+  return missing;
+}
+
+function employmentStatusLabel(employee: EmployeeRow) {
+  if (employee.endDate) return "סיום העסקה";
+  return "פעיל";
+}
+
+function employmentStatusClass(employee: EmployeeRow) {
+  if (employee.endDate) {
+    return "border-rose-200 bg-rose-50 text-rose-700";
   }
+
+  return "border-emerald-200 bg-emerald-50 text-emerald-700";
 }
 
-function statusClass(status?: Form101Status) {
-  switch (String(status || "").toLowerCase()) {
-    case "approved":
-      return "border-emerald-200 bg-emerald-50 text-emerald-700";
-    case "rejected":
-      return "border-rose-200 bg-rose-50 text-rose-700";
-    case "signed":
-    case "uploaded":
-      return "border-amber-200 bg-amber-50 text-amber-700";
-    default:
-      return "border-slate-200 bg-slate-50 text-slate-600";
+function detailsStatusLabel(employee: EmployeeRow) {
+  const missing = getMissingFields(employee);
+
+  if (missing.length === 0) return "פרטים מלאים";
+  return `חסר: ${missing.slice(0, 2).join(", ")}${missing.length > 2 ? "..." : ""}`;
+}
+
+function detailsStatusClass(employee: EmployeeRow) {
+  const missing = getMissingFields(employee);
+
+  if (missing.length === 0) {
+    return "border-sky-200 bg-sky-50 text-sky-700";
   }
-}
 
-function documentTypeLabel(documentType?: EmployeeDocumentType) {
-  switch (String(documentType || "form101")) {
-    case "agreement":
-      return "הסכם עבודה";
-    case "idCard":
-      return "תעודת זהות";
-    case "form101":
-      return "טופס 101";
-    default:
-      return "מסמך עובד";
-  }
-}
-
-function documentTypeClass(documentType?: EmployeeDocumentType) {
-  switch (String(documentType || "form101")) {
-    case "agreement":
-      return "border-violet-200 bg-violet-50 text-violet-700";
-    case "idCard":
-      return "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700";
-    case "form101":
-      return "border-sky-200 bg-sky-50 text-sky-700";
-    default:
-      return "border-slate-200 bg-slate-50 text-slate-700";
-  }
-}
-
-function getDocumentId(doc: AdminEmployeeDocument) {
-  return String(doc.id || doc._id || "");
-}
-
-function getEmployeeName(doc: AdminEmployeeDocument) {
-  return doc.employeeName || "עובד ללא שם";
-}
-
-function getEmployeeEmail(doc: AdminEmployeeDocument) {
-  return doc.employeeEmail || "—";
-}
-
-function getEmployeePhone(doc: AdminEmployeeDocument) {
-  return doc.employeePhone || "—";
+  return "border-amber-200 bg-amber-50 text-amber-700";
 }
 
 function initials(name: string) {
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("");
+  return (
+    name
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join("") || "ע"
+  );
 }
 
 function Icon({
@@ -192,11 +249,15 @@ function Icon({
   name:
     | "search"
     | "refresh"
-    | "file"
-    | "open"
     | "users"
     | "warning"
-    | "template";
+    | "open"
+    | "template"
+    | "mail"
+    | "phone"
+    | "id"
+    | "calendar"
+    | "sparkles";
   className?: string;
 }) {
   const common = {
@@ -229,14 +290,13 @@ function Icon({
     );
   }
 
-  if (name === "file" || name === "template") {
+  if (name === "users") {
     return (
       <svg {...common}>
-        <path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7z" />
-        <path d="M14 2v5h5" />
-        <path d="M9 13h6" />
-        <path d="M9 17h6" />
-        <path d="M9 9h1" />
+        <path d="M17 21a5 5 0 0 0-10 0" />
+        <circle cx="12" cy="7" r="4" />
+        <path d="M22 21a4 4 0 0 0-3-3.87" />
+        <path d="M2 21a4 4 0 0 1 3-3.87" />
       </svg>
     );
   }
@@ -251,13 +311,66 @@ function Icon({
     );
   }
 
-  if (name === "users") {
+  if (name === "template") {
     return (
       <svg {...common}>
-        <path d="M17 21a5 5 0 0 0-10 0" />
-        <circle cx="12" cy="7" r="4" />
-        <path d="M22 21a4 4 0 0 0-3-3.87" />
-        <path d="M2 21a4 4 0 0 1 3-3.87" />
+        <path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7z" />
+        <path d="M14 2v5h5" />
+        <path d="M9 13h6" />
+        <path d="M9 17h6" />
+      </svg>
+    );
+  }
+
+  if (name === "mail") {
+    return (
+      <svg {...common}>
+        <rect x="3" y="5" width="18" height="14" rx="2" />
+        <path d="m3 7 9 6 9-6" />
+      </svg>
+    );
+  }
+
+  if (name === "phone") {
+    return (
+      <svg {...common}>
+        <path d="M22 16.92v3a2 2 0 0 1-2.18 2A19.8 19.8 0 0 1 11.19 19 19.5 19.5 0 0 1 5 12.81 19.8 19.8 0 0 1 2.08 4.18 2 2 0 0 1 4.06 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.77.62 2.61a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.47-1.14a2 2 0 0 1 2.11-.45c.84.29 1.71.5 2.61.62A2 2 0 0 1 22 16.92z" />
+      </svg>
+    );
+  }
+
+  if (name === "id") {
+    return (
+      <svg {...common}>
+        <rect x="3" y="4" width="18" height="16" rx="2" />
+        <circle cx="9" cy="10" r="2" />
+        <path d="M6.5 16a3 3 0 0 1 5 0" />
+        <path d="M14 9h4" />
+        <path d="M14 13h4" />
+        <path d="M14 17h3" />
+      </svg>
+    );
+  }
+
+  if (name === "calendar") {
+    return (
+      <svg {...common}>
+        <path d="M8 2v4" />
+        <path d="M16 2v4" />
+        <rect x="3" y="4" width="18" height="18" rx="2" />
+        <path d="M3 10h18" />
+      </svg>
+    );
+  }
+
+  if (name === "sparkles") {
+    return (
+      <svg {...common}>
+        <path d="M12 3 9.8 8.8 4 11l5.8 2.2L12 19l2.2-5.8L20 11l-5.8-2.2L12 3z" />
+        <path d="M5 3v4" />
+        <path d="M3 5h4" />
+        <path d="M19 17v4" />
+        <path d="M17 19h4" />
       </svg>
     );
   }
@@ -272,213 +385,132 @@ function Icon({
 }
 
 export default function AdminEmployeesPage() {
-  const [documents, setDocuments] = useState<AdminEmployeeDocument[]>([]);
+  const [employees, setEmployees] = useState<EmployeeRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [documentFilter, setDocumentFilter] = useState("");
-  const [yearFilter, setYearFilter] = useState("");
+  const [detailsFilter, setDetailsFilter] = useState("");
 
-  const loadDocuments = useCallback(async () => {
+  const loadEmployees = useCallback(async () => {
     try {
       setError("");
       setRefreshing(true);
 
-      const params = new URLSearchParams();
+      const data = await fetchJson(API.users);
 
-      if (statusFilter) params.set("status", statusFilter);
-      if (documentFilter && documentFilter !== "agreement") {
-        params.set("documentType", documentFilter);
-      }
-      if (yearFilter) params.set("taxYear", yearFilter);
-
-      const formsUrl = params.toString()
-        ? `${API.forms101}?${params.toString()}`
-        : API.forms101;
-
-      const agreementsParams = new URLSearchParams();
-      if (statusFilter) agreementsParams.set("status", statusFilter);
-
-      const agreementsUrl = agreementsParams.toString()
-        ? `${API.agreements}?${agreementsParams.toString()}`
-        : API.agreements;
-
-      const [formsResponse, agreementsResponse] = await Promise.all([
-        documentFilter === "agreement"
-          ? Promise.resolve(null)
-          : fetch(formsUrl, {
-              method: "GET",
-              credentials: "include",
-              cache: "no-store",
-            }),
-        documentFilter && documentFilter !== "agreement"
-          ? Promise.resolve(null)
-          : fetch(agreementsUrl, {
-              method: "GET",
-              credentials: "include",
-              cache: "no-store",
-            }),
+      const users = getArrayFromResponse<ApiUser>(data, [
+        "users",
+        "items",
+        "data",
       ]);
 
-      const mergedDocuments: AdminEmployeeDocument[] = [];
-
-      if (formsResponse) {
-        const data = await formsResponse.json().catch(() => null);
-
-        if (!formsResponse.ok || !data?.success) {
-          throw new Error(data?.error || "שגיאה בטעינת מסמכי עובדים");
-        }
-
-        const forms: EmployeeForm101[] = Array.isArray(data.documents)
-          ? data.documents
-          : Array.isArray(data.forms)
-          ? data.forms
-          : [];
-
-        forms.forEach((form) => {
-          mergedDocuments.push({
-            ...form,
-            source: "form",
-            documentType: form.documentType || "form101",
-            fileUrl: form.fileUrl,
-          });
+      const normalized = users
+        .filter((user) => normalizeUserId(user))
+        .filter(isEmployeeUser)
+        .map(normalizeEmployee)
+        .sort((a, b) => {
+          const aDate = new Date(a.updatedAt || 0).getTime();
+          const bDate = new Date(b.updatedAt || 0).getTime();
+          return bDate - aDate;
         });
-      }
 
-      if (agreementsResponse) {
-        const data = await agreementsResponse.json().catch(() => null);
-
-        if (!agreementsResponse.ok || !data?.success) {
-          throw new Error(data?.error || "שגיאה בטעינת הסכמי עובדים");
-        }
-
-        const agreements: EmployeeAgreement[] = Array.isArray(data.agreements)
-          ? data.agreements
-          : Array.isArray(data.documents)
-          ? data.documents
-          : [];
-
-        agreements.forEach((agreement) => {
-          mergedDocuments.push({
-            _id: agreement._id,
-            id: agreement.id,
-            source: "agreement",
-            employeeId: agreement.employeeId,
-            businessId: agreement.businessId,
-            employeeName: agreement.employeeName || agreement.fullName,
-            employeeEmail: agreement.employeeEmail,
-            employeePhone: agreement.employeePhone,
-            documentType: "agreement",
-            originalFileName: "הסכם עבודה חתום",
-            fileUrl: agreement.signedFileUrl,
-            fileType: "application/pdf",
-            fileSize: undefined,
-            status: agreement.status || "signed",
-            uploadedAt: agreement.signedAt,
-            createdAt: agreement.createdAt,
-            updatedAt: agreement.updatedAt,
-          });
-        });
-      }
-
-      mergedDocuments.sort((a, b) => {
-        const aDate = new Date(a.uploadedAt || a.createdAt || 0).getTime();
-        const bDate = new Date(b.uploadedAt || b.createdAt || 0).getTime();
-        return bDate - aDate;
-      });
-
-      setDocuments(mergedDocuments);
+      setEmployees(normalized);
     } catch (loadError) {
-      console.error("LOAD ADMIN EMPLOYEES DOCUMENTS FAILED:", loadError);
-      setDocuments([]);
+      console.error("LOAD ADMIN EMPLOYEES FAILED:", loadError);
+      setEmployees([]);
       setError(
-        loadError instanceof Error
-          ? loadError.message
-          : "שגיאה בטעינת מסמכי עובדים"
+        loadError instanceof Error ? loadError.message : "שגיאה בטעינת עובדים"
       );
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [statusFilter, documentFilter, yearFilter]);
+  }, []);
 
   useEffect(() => {
-    void loadDocuments();
-  }, [loadDocuments]);
+    void loadEmployees();
+  }, [loadEmployees]);
 
-  const filteredDocuments = useMemo(() => {
+  const filteredEmployees = useMemo(() => {
     const q = search.trim().toLowerCase();
 
-    if (!q) return documents;
+    return employees.filter((employee) => {
+      const missing = getMissingFields(employee);
 
-    return documents.filter((doc) => {
-      return (
-        getEmployeeName(doc).toLowerCase().includes(q) ||
-        getEmployeeEmail(doc).toLowerCase().includes(q) ||
-        getEmployeePhone(doc).toLowerCase().includes(q) ||
-        String(doc.originalFileName || "").toLowerCase().includes(q) ||
-        documentTypeLabel(doc.documentType).toLowerCase().includes(q) ||
-        String(doc.documentType || "").toLowerCase().includes(q) ||
-        String(doc.employeeId || "").toLowerCase().includes(q)
-      );
+      const matchesSearch =
+        !q ||
+        employee.name.toLowerCase().includes(q) ||
+        employee.email.toLowerCase().includes(q) ||
+        employee.phone.toLowerCase().includes(q) ||
+        employee.address.toLowerCase().includes(q) ||
+        employee.idNumber.toLowerCase().includes(q) ||
+        employee.id.toLowerCase().includes(q);
+
+      const matchesStatus =
+        !statusFilter ||
+        (statusFilter === "active" && !employee.endDate) ||
+        (statusFilter === "ended" && Boolean(employee.endDate));
+
+      const matchesDetails =
+        !detailsFilter ||
+        (detailsFilter === "complete" && missing.length === 0) ||
+        (detailsFilter === "missing" && missing.length > 0);
+
+      return matchesSearch && matchesStatus && matchesDetails;
     });
-  }, [documents, search]);
+  }, [employees, search, statusFilter, detailsFilter]);
 
   const stats = useMemo(() => {
+    const active = employees.filter((employee) => !employee.endDate).length;
+    const ended = employees.filter((employee) => employee.endDate).length;
+    const complete = employees.filter(
+      (employee) => getMissingFields(employee).length === 0
+    ).length;
+    const missing = employees.filter(
+      (employee) => getMissingFields(employee).length > 0
+    ).length;
+
     return {
-      total: documents.length,
-      form101: documents.filter((doc) => doc.documentType === "form101").length,
-      idCard: documents.filter((doc) => doc.documentType === "idCard").length,
-      agreements: documents.filter((doc) => doc.documentType === "agreement")
-        .length,
-      waiting: documents.filter((doc) =>
-        ["uploaded", "signed"].includes(String(doc.status || ""))
-      ).length,
-      approved: documents.filter((doc) => doc.status === "approved").length,
-      rejected: documents.filter((doc) => doc.status === "rejected").length,
+      total: employees.length,
+      active,
+      ended,
+      complete,
+      missing,
     };
-  }, [documents]);
-
-  const years = useMemo(() => {
-    const set = new Set<number>();
-
-    documents.forEach((doc) => {
-      if (doc.taxYear) set.add(Number(doc.taxYear));
-    });
-
-    if (set.size === 0) set.add(new Date().getFullYear());
-
-    return Array.from(set).sort((a, b) => b - a);
-  }, [documents]);
+  }, [employees]);
 
   return (
-    <div dir="rtl" className="min-h-screen text-slate-950">
-      <div className="mx-auto w-full max-w-[1500px] space-y-6">
-        <section className="overflow-hidden rounded-[32px] bg-slate-950 p-6 text-white shadow-sm md:p-8">
+    <div
+      dir="rtl"
+      className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-fuchsia-50 text-slate-900"
+    >
+      <div className="mx-auto w-full max-w-[1550px] space-y-6 p-4 md:p-6">
+        <section className="overflow-hidden rounded-[34px] border border-white/80 bg-white/85 p-6 shadow-[0_18px_60px_rgba(79,70,229,0.10)] backdrop-blur md:p-8">
           <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-4 py-2 text-sm font-black">
-                <Icon name="users" className="h-4 w-4" />
+              <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50 px-4 py-2 text-sm font-black text-indigo-700">
+                <Icon name="sparkles" className="h-4 w-4" />
                 ניהול עובדים
               </div>
 
-              <h1 className="mt-5 text-3xl font-black tracking-tight md:text-5xl">
-                עובדים ומסמכים
+              <h1 className="mt-5 text-3xl font-black tracking-tight text-slate-900 md:text-5xl">
+                עובדים
               </h1>
 
-              <p className="mt-3 max-w-3xl text-sm font-semibold leading-7 text-slate-300 md:text-base">
-                כאן האדמין רואה את מסמכי העובדים. כניסה לצפייה, אישור, דחייה,
-                שעות והערות מתבצעת מתוך תיק העובד.
+              <p className="mt-3 max-w-3xl text-sm font-semibold leading-7 text-slate-500 md:text-base">
+                כאן מוצגת רשימת עובדים בלבד. הפרטים מסתנכרנים מתיק העובד:
+                מייל, טלפון, כתובת, תעודת זהות, תחילת העסקה וסיום העסקה.
+                מסמכים והסכמים נשארים בתוך תיק העובד בלבד.
               </p>
             </div>
 
             <div className="flex flex-wrap gap-3">
               <Link
                 href="/admin/employees/agreement-template"
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-violet-300/30 bg-violet-500 px-5 text-sm font-black text-white transition hover:bg-violet-600"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-violet-500 to-indigo-500 px-5 text-sm font-black text-white shadow-lg shadow-indigo-200 transition hover:scale-[1.01]"
               >
                 <Icon name="template" className="h-4 w-4" />
                 יצירת תבנית הסכם לעובדים
@@ -486,9 +518,9 @@ export default function AdminEmployeesPage() {
 
               <button
                 type="button"
-                onClick={() => void loadDocuments()}
+                onClick={() => void loadEmployees()}
                 disabled={refreshing}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/10 px-5 text-sm font-black text-white transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-700 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Icon
                   name="refresh"
@@ -500,41 +532,51 @@ export default function AdminEmployeesPage() {
           </div>
 
           <div className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-            <div className="rounded-[24px] border border-white/10 bg-white/10 p-4">
-              <p className="text-xs font-black text-slate-300">סה״כ מסמכים</p>
-              <p className="mt-2 text-3xl font-black">{stats.total}</p>
+            <div className="rounded-[26px] border border-indigo-100 bg-indigo-50 p-5">
+              <p className="text-xs font-black text-indigo-500">סה״כ עובדים</p>
+              <p className="mt-2 text-3xl font-black text-indigo-950">
+                {stats.total}
+              </p>
             </div>
 
-            <div className="rounded-[24px] border border-white/10 bg-white/10 p-4">
-              <p className="text-xs font-black text-slate-300">טופסי 101</p>
-              <p className="mt-2 text-3xl font-black">{stats.form101}</p>
+            <div className="rounded-[26px] border border-emerald-100 bg-emerald-50 p-5">
+              <p className="text-xs font-black text-emerald-600">פעילים</p>
+              <p className="mt-2 text-3xl font-black text-emerald-900">
+                {stats.active}
+              </p>
             </div>
 
-            <div className="rounded-[24px] border border-white/10 bg-white/10 p-4">
-              <p className="text-xs font-black text-slate-300">תעודות זהות</p>
-              <p className="mt-2 text-3xl font-black">{stats.idCard}</p>
+            <div className="rounded-[26px] border border-rose-100 bg-rose-50 p-5">
+              <p className="text-xs font-black text-rose-600">סיימו העסקה</p>
+              <p className="mt-2 text-3xl font-black text-rose-900">
+                {stats.ended}
+              </p>
             </div>
 
-            <div className="rounded-[24px] border border-white/10 bg-white/10 p-4">
-              <p className="text-xs font-black text-slate-300">הסכמי עבודה</p>
-              <p className="mt-2 text-3xl font-black">{stats.agreements}</p>
+            <div className="rounded-[26px] border border-sky-100 bg-sky-50 p-5">
+              <p className="text-xs font-black text-sky-600">פרטים מלאים</p>
+              <p className="mt-2 text-3xl font-black text-sky-900">
+                {stats.complete}
+              </p>
             </div>
 
-            <div className="rounded-[24px] border border-white/10 bg-white/10 p-4">
-              <p className="text-xs font-black text-slate-300">ממתינים לבדיקה</p>
-              <p className="mt-2 text-3xl font-black">{stats.waiting}</p>
+            <div className="rounded-[26px] border border-amber-100 bg-amber-50 p-5">
+              <p className="text-xs font-black text-amber-600">חסר מידע</p>
+              <p className="mt-2 text-3xl font-black text-amber-900">
+                {stats.missing}
+              </p>
             </div>
           </div>
         </section>
 
-        <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="grid gap-3 xl:grid-cols-[1fr_190px_190px_190px_auto]">
+        <section className="rounded-[30px] border border-white/80 bg-white/90 p-5 shadow-[0_12px_40px_rgba(15,23,42,0.06)] backdrop-blur">
+          <div className="grid gap-3 xl:grid-cols-[1fr_220px_220px_auto]">
             <div className="relative">
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="חיפוש לפי עובד, מייל, טלפון, סוג מסמך, קובץ או מזהה..."
-                className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 pr-12 text-sm font-bold text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white"
+                placeholder="חיפוש לפי שם עובד, מייל, טלפון, כתובת, תעודת זהות או מזהה..."
+                className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 pr-12 text-sm font-bold text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-50"
               />
 
               <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
@@ -545,37 +587,21 @@ export default function AdminEmployeesPage() {
             <select
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value)}
-              className="h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-700 outline-none focus:border-slate-400 focus:bg-white"
+              className="h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-700 outline-none focus:border-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-50"
             >
-              <option value="">כל הסטטוסים</option>
-              <option value="uploaded">הועלה לבדיקה</option>
-              <option value="signed">נחתם לבדיקה</option>
-              <option value="approved">מאושר</option>
-              <option value="rejected">נדחה</option>
+              <option value="">כל העובדים</option>
+              <option value="active">פעילים</option>
+              <option value="ended">סיימו העסקה</option>
             </select>
 
             <select
-              value={documentFilter}
-              onChange={(event) => setDocumentFilter(event.target.value)}
-              className="h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-700 outline-none focus:border-slate-400 focus:bg-white"
+              value={detailsFilter}
+              onChange={(event) => setDetailsFilter(event.target.value)}
+              className="h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-700 outline-none focus:border-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-50"
             >
-              <option value="">כל סוגי המסמכים</option>
-              <option value="form101">טופס 101</option>
-              <option value="idCard">תעודת זהות</option>
-              <option value="agreement">הסכם עבודה</option>
-            </select>
-
-            <select
-              value={yearFilter}
-              onChange={(event) => setYearFilter(event.target.value)}
-              className="h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-700 outline-none focus:border-slate-400 focus:bg-white"
-            >
-              <option value="">כל השנים</option>
-              {years.map((year) => (
-                <option key={year} value={String(year)}>
-                  {year}
-                </option>
-              ))}
+              <option value="">כל הפרטים</option>
+              <option value="complete">פרטים מלאים</option>
+              <option value="missing">חסר מידע</option>
             </select>
 
             <button
@@ -583,10 +609,9 @@ export default function AdminEmployeesPage() {
               onClick={() => {
                 setSearch("");
                 setStatusFilter("");
-                setDocumentFilter("");
-                setYearFilter("");
+                setDetailsFilter("");
               }}
-              className="h-12 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-700 transition hover:bg-slate-50"
+              className="h-12 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-700 transition hover:border-indigo-200 hover:bg-indigo-50"
             >
               ניקוי
             </button>
@@ -594,233 +619,274 @@ export default function AdminEmployeesPage() {
         </section>
 
         {loading ? (
-          <section className="rounded-[32px] border border-slate-200 bg-white p-10 text-center shadow-sm">
-            <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-slate-950" />
-            <p className="mt-4 text-sm font-black text-slate-700">
-              טוען מסמכי עובדים...
+          <section className="rounded-[34px] border border-white/80 bg-white p-10 text-center shadow-sm">
+            <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-indigo-100 border-t-indigo-500" />
+            <p className="mt-4 text-sm font-black text-slate-600">
+              טוען עובדים...
             </p>
           </section>
         ) : error ? (
-          <section className="rounded-[32px] border border-rose-200 bg-rose-50 p-8 text-center shadow-sm">
+          <section className="rounded-[34px] border border-rose-200 bg-rose-50 p-8 text-center shadow-sm">
             <Icon name="warning" className="mx-auto h-10 w-10 text-rose-600" />
             <h2 className="mt-4 text-xl font-black text-rose-700">
-              לא הצלחנו לטעון את מסמכי העובדים
+              לא הצלחנו לטעון את העובדים
             </h2>
             <p className="mt-2 text-sm font-bold text-rose-600">{error}</p>
 
             <button
               type="button"
-              onClick={() => void loadDocuments()}
+              onClick={() => void loadEmployees()}
               className="mt-5 rounded-2xl bg-rose-600 px-5 py-3 text-sm font-black text-white transition hover:bg-rose-700"
             >
               נסה שוב
             </button>
           </section>
-        ) : filteredDocuments.length === 0 ? (
-          <section className="rounded-[32px] border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
-            <Icon name="file" className="mx-auto h-12 w-12 text-slate-400" />
+        ) : filteredEmployees.length === 0 ? (
+          <section className="rounded-[34px] border border-dashed border-indigo-200 bg-white/90 p-10 text-center shadow-sm">
+            <Icon name="users" className="mx-auto h-12 w-12 text-indigo-300" />
             <h2 className="mt-4 text-xl font-black text-slate-800">
-              אין מסמכי עובדים להצגה
+              אין עובדים להצגה
             </h2>
             <p className="mt-2 text-sm font-semibold text-slate-500">
-              לא נמצאו מסמכים או שאין התאמה לחיפוש/סינון.
+              לא נמצאו עובדים או שאין התאמה לחיפוש/סינון.
             </p>
           </section>
         ) : (
           <>
-            <section className="hidden overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-sm xl:block">
+            <section className="hidden overflow-hidden rounded-[34px] border border-white/80 bg-white shadow-[0_12px_40px_rgba(15,23,42,0.06)] xl:block">
               <table className="w-full border-collapse text-right">
-                <thead className="bg-slate-50">
+                <thead className="bg-slate-50/80">
                   <tr className="text-sm text-slate-500">
                     <th className="px-5 py-4 font-black">עובד</th>
-                    <th className="px-5 py-4 font-black">פרטים</th>
-                    <th className="px-5 py-4 font-black">סוג מסמך</th>
-                    <th className="px-5 py-4 font-black">שנת מס</th>
-                    <th className="px-5 py-4 font-black">קובץ</th>
-                    <th className="px-5 py-4 font-black">תאריך העלאה/חתימה</th>
+                    <th className="px-5 py-4 font-black">מייל</th>
+                    <th className="px-5 py-4 font-black">טלפון</th>
+                    <th className="px-5 py-4 font-black">כתובת</th>
+                    <th className="px-5 py-4 font-black">תעודת זהות</th>
+                    <th className="px-5 py-4 font-black">תחילת העסקה</th>
+                    <th className="px-5 py-4 font-black">סיום העסקה</th>
+                    <th className="px-5 py-4 font-black">שכר שעתי</th>
                     <th className="px-5 py-4 font-black">סטטוס</th>
                     <th className="px-5 py-4 font-black">תיק עובד</th>
                   </tr>
                 </thead>
 
                 <tbody className="divide-y divide-slate-100">
-                  {filteredDocuments.map((doc) => {
-                    const documentId = getDocumentId(doc);
-                    const employeeName = getEmployeeName(doc);
-
-                    return (
-                      <tr
-                        key={`${doc.source}-${documentId}`}
-                        className="transition hover:bg-slate-50"
-                      >
-                        <td className="px-5 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-sm font-black text-white">
-                              {initials(employeeName)}
-                            </div>
-
-                            <div>
-                              <p className="font-black text-slate-950">
-                                {employeeName}
-                              </p>
-                              <p className="mt-1 text-xs font-bold text-slate-400">
-                                ID: {doc.employeeId || "—"}
-                              </p>
-                            </div>
+                  {filteredEmployees.map((employee) => (
+                    <tr
+                      key={employee.id}
+                      className="transition hover:bg-indigo-50/40"
+                    >
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-100 to-fuchsia-100 text-sm font-black text-indigo-700 ring-1 ring-indigo-100">
+                            {initials(employee.name)}
                           </div>
-                        </td>
 
-                        <td className="px-5 py-4">
-                          <p className="text-sm font-semibold text-slate-700">
-                            {getEmployeeEmail(doc)}
-                          </p>
-                          <p
-                            dir="ltr"
-                            className="mt-1 text-right text-sm font-semibold text-slate-500"
-                          >
-                            {getEmployeePhone(doc)}
-                          </p>
-                        </td>
+                          <div>
+                            <p className="font-black text-slate-900">
+                              {employee.name}
+                            </p>
+                            <p className="mt-1 text-xs font-bold text-slate-400">
+                              ID: {employee.id}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
 
-                        <td className="px-5 py-4">
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
+                          <Icon name="mail" className="h-4 w-4 text-slate-400" />
+                          <span className="max-w-[230px] truncate">
+                            {employee.email || "—"}
+                          </span>
+                        </div>
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
+                          <Icon
+                            name="phone"
+                            className="h-4 w-4 text-slate-400"
+                          />
+                          <span dir="ltr">{employee.phone || "—"}</span>
+                        </div>
+                      </td>
+
+                      <td className="px-5 py-4 text-sm font-bold text-slate-700">
+                        <span className="block max-w-[220px] truncate">
+                          {employee.address || "—"}
+                        </span>
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
+                          <Icon name="id" className="h-4 w-4 text-slate-400" />
+                          <span dir="ltr">{employee.idNumber || "—"}</span>
+                        </div>
+                      </td>
+
+                      <td className="px-5 py-4 text-sm font-black text-slate-700">
+                        {formatDate(employee.startDate)}
+                      </td>
+
+                      <td className="px-5 py-4 text-sm font-black text-slate-700">
+                        {formatDate(employee.endDate)}
+                      </td>
+
+                      <td className="px-5 py-4 text-sm font-black text-slate-700">
+                        {employee.hourlyRate > 0
+                          ? formatMoney(employee.hourlyRate)
+                          : "—"}
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <div className="flex flex-col gap-2">
                           <span
-                            className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${documentTypeClass(
-                              doc.documentType
+                            className={`inline-flex w-fit rounded-full border px-3 py-1 text-xs font-black ${employmentStatusClass(
+                              employee
                             )}`}
                           >
-                            {documentTypeLabel(doc.documentType)}
+                            {employmentStatusLabel(employee)}
                           </span>
-                        </td>
 
-                        <td className="px-5 py-4 text-sm font-black text-slate-700">
-                          {doc.taxYear || "—"}
-                        </td>
-
-                        <td className="px-5 py-4">
-                          <p className="max-w-[240px] truncate text-sm font-black text-slate-800">
-                            {doc.originalFileName ||
-                              documentTypeLabel(doc.documentType)}
-                          </p>
-                          <p className="mt-1 text-xs font-bold text-slate-400">
-                            {formatFileSize(doc.fileSize)} ·{" "}
-                            {doc.fileType || "PDF"}
-                          </p>
-                        </td>
-
-                        <td className="px-5 py-4 text-sm font-semibold text-slate-600">
-                          {formatDateTime(doc.uploadedAt || doc.createdAt)}
-                        </td>
-
-                        <td className="px-5 py-4">
                           <span
-                            className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${statusClass(
-                              doc.status
+                            className={`inline-flex w-fit rounded-full border px-3 py-1 text-xs font-black ${detailsStatusClass(
+                              employee
                             )}`}
                           >
-                            {statusLabel(doc.status)}
+                            {detailsStatusLabel(employee)}
                           </span>
-                        </td>
+                        </div>
+                      </td>
 
-                        <td className="px-5 py-4">
-                          {doc.employeeId ? (
-                            <Link
-                              href={`/admin/employees/${encodeURIComponent(
-                                String(doc.employeeId)
-                              )}`}
-                              className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 text-xs font-black text-white transition hover:bg-black"
-                            >
-                              <Icon name="open" className="h-3.5 w-3.5" />
-                              תיק עובד
-                            </Link>
-                          ) : (
-                            <span className="rounded-2xl bg-slate-100 px-4 py-2 text-xs font-black text-slate-400">
-                              אין מזהה עובד
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                      <td className="px-5 py-4">
+                        <Link
+                          href={`/admin/employees/${encodeURIComponent(
+                            employee.id
+                          )}`}
+                          className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-indigo-500 to-violet-500 px-4 text-xs font-black text-white shadow-md shadow-indigo-100 transition hover:scale-[1.02]"
+                        >
+                          <Icon name="open" className="h-3.5 w-3.5" />
+                          תיק עובד
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </section>
 
             <section className="grid gap-4 xl:hidden">
-              {filteredDocuments.map((doc) => {
-                const documentId = getDocumentId(doc);
-                const employeeName = getEmployeeName(doc);
-
-                return (
-                  <article
-                    key={`${doc.source}-${documentId}`}
-                    className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm"
-                  >
-                    <div className="flex items-start justify-between gap-4">
+              {filteredEmployees.map((employee) => (
+                <article
+                  key={employee.id}
+                  className="rounded-[30px] border border-white/80 bg-white p-5 shadow-[0_12px_35px_rgba(15,23,42,0.06)]"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex flex-col gap-2">
                       <span
-                        className={`rounded-full border px-3 py-1 text-xs font-black ${statusClass(
-                          doc.status
+                        className={`w-fit rounded-full border px-3 py-1 text-xs font-black ${employmentStatusClass(
+                          employee
                         )}`}
                       >
-                        {statusLabel(doc.status)}
+                        {employmentStatusLabel(employee)}
                       </span>
 
-                      <div className="flex items-center gap-3 text-right">
-                        <div>
-                          <h3 className="font-black text-slate-950">
-                            {employeeName}
-                          </h3>
-                          <p className="mt-1 text-xs font-bold text-slate-400">
-                            {getEmployeeEmail(doc)}
-                          </p>
-                        </div>
+                      <span
+                        className={`w-fit rounded-full border px-3 py-1 text-xs font-black ${detailsStatusClass(
+                          employee
+                        )}`}
+                      >
+                        {detailsStatusLabel(employee)}
+                      </span>
+                    </div>
 
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-sm font-black text-white">
-                          {initials(employeeName)}
-                        </div>
+                    <div className="flex items-center gap-3 text-right">
+                      <div>
+                        <h3 className="font-black text-slate-900">
+                          {employee.name}
+                        </h3>
+                        <p className="mt-1 text-xs font-bold text-slate-400">
+                          ID: {employee.id}
+                        </p>
+                      </div>
+
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-100 to-fuchsia-100 text-sm font-black text-indigo-700 ring-1 ring-indigo-100">
+                        {initials(employee.name)}
                       </div>
                     </div>
+                  </div>
 
-                    <div className="mt-4 grid gap-2 text-sm font-semibold text-slate-600">
-                      <p>
-                        טלפון: <span dir="ltr">{getEmployeePhone(doc)}</span>
-                      </p>
-                      <p>סוג מסמך: {documentTypeLabel(doc.documentType)}</p>
-                      <p>שנת מס: {doc.taxYear || "—"}</p>
-                      <p>
-                        קובץ:{" "}
-                        {doc.originalFileName ||
-                          documentTypeLabel(doc.documentType)}
-                      </p>
-                      <p>גודל: {formatFileSize(doc.fileSize)}</p>
-                      <p>
-                        תאריך העלאה/חתימה:{" "}
-                        {formatDate(doc.uploadedAt || doc.createdAt)}
-                      </p>
-                    </div>
+                  <div className="mt-5 grid gap-3 text-sm font-semibold text-slate-600">
+                    <p>
+                      מייל:{" "}
+                      <span className="font-black text-slate-800">
+                        {employee.email || "—"}
+                      </span>
+                    </p>
 
-                    <div className="mt-5">
-                      {doc.employeeId ? (
-                        <Link
-                          href={`/admin/employees/${encodeURIComponent(
-                            String(doc.employeeId)
-                          )}`}
-                          className="inline-flex h-11 w-full items-center justify-center rounded-2xl bg-slate-950 text-sm font-black text-white"
-                        >
-                          תיק עובד
-                        </Link>
-                      ) : (
-                        <button
-                          type="button"
-                          disabled
-                          className="h-11 w-full rounded-2xl bg-slate-100 text-sm font-black text-slate-400"
-                        >
-                          אין מזהה עובד
-                        </button>
-                      )}
-                    </div>
-                  </article>
-                );
-              })}
+                    <p>
+                      טלפון:{" "}
+                      <span dir="ltr" className="font-black text-slate-800">
+                        {employee.phone || "—"}
+                      </span>
+                    </p>
+
+                    <p>
+                      כתובת:{" "}
+                      <span className="font-black text-slate-800">
+                        {employee.address || "—"}
+                      </span>
+                    </p>
+
+                    <p>
+                      תעודת זהות:{" "}
+                      <span dir="ltr" className="font-black text-slate-800">
+                        {employee.idNumber || "—"}
+                      </span>
+                    </p>
+
+                    <p>
+                      תחילת העסקה:{" "}
+                      <span className="font-black text-slate-800">
+                        {formatDate(employee.startDate)}
+                      </span>
+                    </p>
+
+                    <p>
+                      סיום העסקה:{" "}
+                      <span className="font-black text-slate-800">
+                        {formatDate(employee.endDate)}
+                      </span>
+                    </p>
+
+                    <p>
+                      שכר שעתי:{" "}
+                      <span className="font-black text-slate-800">
+                        {employee.hourlyRate > 0
+                          ? formatMoney(employee.hourlyRate)
+                          : "—"}
+                      </span>
+                    </p>
+
+                    <p>
+                      עודכן לאחרונה:{" "}
+                      <span className="font-black text-slate-800">
+                        {formatDateTime(employee.updatedAt)}
+                      </span>
+                    </p>
+                  </div>
+
+                  <div className="mt-5">
+                    <Link
+                      href={`/admin/employees/${encodeURIComponent(employee.id)}`}
+                      className="inline-flex h-11 w-full items-center justify-center rounded-2xl bg-gradient-to-l from-indigo-500 to-violet-500 text-sm font-black text-white shadow-md shadow-indigo-100"
+                    >
+                      כניסה לתיק עובד
+                    </Link>
+                  </div>
+                </article>
+              ))}
             </section>
           </>
         )}
