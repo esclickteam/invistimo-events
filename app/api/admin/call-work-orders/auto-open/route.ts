@@ -154,9 +154,9 @@ function normalizeRound(value: unknown, fallbackIndex = 0): RoundNumber | null {
 
 function getSourceAudienceByRound(round: RoundNumber) {
   if (round === 1) return "pending_rsvp";
-  if (round === 2) return "round_1_no_answer";
+  if (round === 2) return "round_1_not_closed";
 
-  return "round_2_no_answer";
+  return "round_2_not_closed";
 }
 
 function isAdminRole(role?: string) {
@@ -1608,6 +1608,182 @@ async function moveExistingWorkOrderToDateAndSync(input: {
   };
 }
 
+
+async function reconcileExistingWorkOrderWithEligibleGuests(input: {
+  existing: any;
+  candidate: ScheduleCandidate;
+  scheduledEmployees: ScheduledEmployee[];
+  dateKey: string;
+}) {
+  const { existing, candidate, scheduledEmployees, dateKey } = input;
+
+  const workOrderId = toObjectId(existing?._id);
+  const invitationObjectId = toObjectId(candidate.invitation?._id);
+
+  if (!workOrderId || !invitationObjectId) {
+    return {
+      workOrder: serializeWorkOrder(existing),
+      addedMissingTasks: 0,
+      eligibleGuestsCount: 0,
+      reassignedTasks: 0,
+      distribution: {},
+    };
+  }
+
+  const eligibleGuests = await loadGuestsForRound({
+    invitation: candidate.invitation,
+    round: candidate.round,
+    dateKey,
+  });
+
+  const existingTasks = await CallTask.find({
+    workOrderId,
+  })
+    .select("guestId")
+    .sort({
+      sortOrder: 1,
+      _id: 1,
+    })
+    .lean();
+
+  const existingGuestIds = new Set(
+    existingTasks
+      .map((task: any) => extractIdString(task?.guestId))
+      .filter(Boolean)
+  );
+
+  const clientName =
+    cleanStr(existing?.clientName) ||
+    getClientName(candidate.invitation, candidate.clientUser);
+
+  const clientEmail =
+    cleanStr(existing?.clientEmail) ||
+    getClientEmail(candidate.invitation, candidate.clientUser);
+
+  const eventName =
+    cleanStr(existing?.eventName) || getEventName(candidate.invitation);
+
+  const eventDate = existing?.eventDate || getEventDate(candidate.invitation);
+
+  const sourceAudience = getSourceAudienceByRound(candidate.round);
+  const workDate = startOfDateKey(dateKey);
+  const now = new Date();
+
+  const docsToInsert: any[] = [];
+
+  for (const guest of eligibleGuests) {
+    const guestId = extractIdString(guest?._id);
+    const guestObjectId = toObjectId(guestId);
+
+    if (!guestId || !guestObjectId) continue;
+
+    if (existingGuestIds.has(guestId)) continue;
+
+    const assignedEmployee =
+      scheduledEmployees[
+        (existingTasks.length + docsToInsert.length) % scheduledEmployees.length
+      ];
+
+    docsToInsert.push({
+      type: "rsvp_call",
+
+      workOrderId,
+      invitationId: invitationObjectId,
+      guestId: guestObjectId,
+
+      assignedToEmployeeId: assignedEmployee?.employeeId || null,
+      assignedEmployeeId: assignedEmployee?.employeeId || null,
+      employeeId: assignedEmployee?.employeeId || null,
+
+      previousAssignedEmployeeId: null,
+
+      clientName,
+      clientEmail,
+      eventName,
+      eventDate,
+
+      guestName: getGuestName(guest),
+      guestPhone: getGuestPhone(guest),
+      guestEmail: cleanStr(guest?.email),
+
+      guestGroup:
+        cleanStr(guest?.groupName) ||
+        cleanStr(guest?.group) ||
+        cleanStr(guest?.relation),
+
+      guestSide: cleanStr(guest?.side),
+
+      guestTable:
+        cleanStr(guest?.tableName) ||
+        cleanStr(guest?.tableNumber) ||
+        cleanStr(guest?.table),
+
+      guestNotes: cleanStr(guest?.notes || guest?.note),
+
+      round: candidate.round,
+      sourceAudience,
+
+      workDate,
+
+      status: "pending",
+      result: null,
+
+      priority: 0,
+      sortOrder: existingTasks.length + docsToInsert.length,
+
+      assignedAt: assignedEmployee ? now : null,
+      startedAt: null,
+      completedAt: null,
+      lastAttemptAt: null,
+
+      attemptsCount: 0,
+
+      reassignedAt: null,
+      reassignedByUserId: null,
+      reassignedReason: "",
+
+      rsvpStatus: getGuestRsvp(guest) || "pending",
+      attendingCount: getAttendingCount(guest),
+
+      note: "",
+      adminNote: "",
+
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+
+  if (docsToInsert.length) {
+    await (CallTask as any).insertMany(docsToInsert, {
+      ordered: false,
+    });
+  }
+
+  await CallWorkOrder.findByIdAndUpdate(workOrderId, {
+    $set: {
+      sourceAudience,
+      description: getRoundDescription(candidate.round),
+      totalTasks: eligibleGuests.length,
+      updatedAt: now,
+    },
+  });
+
+  const freshExisting = await CallWorkOrder.findById(workOrderId).lean();
+
+  const synced = await syncExistingWorkOrderWithScheduledEmployees({
+    existing: freshExisting || existing,
+    scheduledEmployees,
+    dateKey,
+  });
+
+  return {
+    ...synced,
+    addedMissingTasks: docsToInsert.length,
+    eligibleGuestsCount: eligibleGuests.length,
+  };
+}
+
+
 /* ============================================================
    Work order creation
 ============================================================ */
@@ -1636,17 +1812,18 @@ async function createWorkOrderForCandidate(input: {
   });
 
   if (existingResult?.type === "exact") {
-    const synced = await syncExistingWorkOrderWithScheduledEmployees({
+    const reconciled = await reconcileExistingWorkOrderWithEligibleGuests({
       existing: existingResult.workOrder,
+      candidate,
       scheduledEmployees,
       dateKey,
     });
 
     return {
       status: "exists",
-      reason: "WORK_ORDER_ALREADY_EXISTS_SYNCED_TO_SHIFT_DATE",
+      reason: "WORK_ORDER_ALREADY_EXISTS_RECONCILED_AND_SYNCED",
       round: candidate.round,
-      ...synced,
+      ...reconciled,
     };
   }
 
@@ -1657,6 +1834,31 @@ async function createWorkOrderForCandidate(input: {
       dateKey,
       configuredRoundAt: candidate.configuredRoundAt,
     });
+
+    const movedWorkOrderId =
+      (moved as any)?.workOrder?.id ||
+      (moved as any)?.workOrder?._id ||
+      extractIdString(existingResult.workOrder?._id);
+
+    const freshMovedWorkOrder = movedWorkOrderId
+      ? await CallWorkOrder.findById(toObjectId(movedWorkOrderId)).lean()
+      : null;
+
+    if (freshMovedWorkOrder) {
+      const reconciled = await reconcileExistingWorkOrderWithEligibleGuests({
+        existing: freshMovedWorkOrder,
+        candidate,
+        scheduledEmployees,
+        dateKey,
+      });
+
+      return {
+        status: "exists",
+        reason: "EXISTING_WORK_ORDER_MOVED_RECONCILED_AND_SYNCED",
+        round: candidate.round,
+        ...reconciled,
+      };
+    }
 
     return {
       ...moved,
@@ -1791,6 +1993,31 @@ async function createWorkOrderForCandidate(input: {
           dateKey,
           configuredRoundAt: candidate.configuredRoundAt,
         });
+
+        const movedWorkOrderId =
+          (moved as any)?.workOrder?.id ||
+          (moved as any)?.workOrder?._id ||
+          extractIdString((duplicate as any)?._id);
+
+        const freshMovedWorkOrder = movedWorkOrderId
+          ? await CallWorkOrder.findById(toObjectId(movedWorkOrderId)).lean()
+          : null;
+
+        if (freshMovedWorkOrder) {
+          const reconciled = await reconcileExistingWorkOrderWithEligibleGuests({
+            existing: freshMovedWorkOrder,
+            candidate,
+            scheduledEmployees,
+            dateKey,
+          });
+
+          return {
+            status: "exists",
+            reason: "DUPLICATE_WORK_ORDER_RECONCILED_AND_SYNCED",
+            round: candidate.round,
+            ...reconciled,
+          };
+        }
 
         return {
           ...moved,
@@ -2099,7 +2326,6 @@ async function handleAutoOpen(req: NextRequest) {
     );
   }
 }
-
 
 /* ============================================================
    Routes
