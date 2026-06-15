@@ -901,15 +901,17 @@ async function ensureNextRoundTask(input: {
     return null;
   }
 
-  let nextWorkOrder = await CallWorkOrder.findOne({
-    invitationId: invitationIdForQuery,
-    round: input.nextRound,
-    status: {
-      $ne: "cancelled",
-    },
-  })
-    .sort({ createdAt: -1 })
-    .lean();
+  const nextWorkOrderFilter: any = {
+  invitationId: invitationIdForQuery,
+  round: input.nextRound,
+  status: {
+    $ne: "cancelled",
+  },
+};
+
+let nextWorkOrder = await CallWorkOrder.findOne(nextWorkOrderFilter)
+  .sort({ createdAt: -1 })
+  .lean();
 
   if (!nextWorkOrder) {
     const createdWorkOrder = await (CallWorkOrder as any).create({
@@ -979,14 +981,16 @@ async function ensureNextRoundTask(input: {
     return null;
   }
 
-  const existingNextTask = await CallTask.findOne({
-    workOrderId: nextWorkOrderObjectId,
-    guestId: guestObjectId,
-    round: input.nextRound,
-    status: {
-      $ne: "cancelled",
-    },
-  }).lean();
+  const existingNextTaskFilter: any = {
+  workOrderId: nextWorkOrderObjectId,
+  guestId: guestObjectId,
+  round: input.nextRound,
+  status: {
+    $ne: "cancelled",
+  },
+};
+
+const existingNextTask = await CallTask.findOne(existingNextTaskFilter).lean();
 
   if (existingNextTask) {
     await (CallTask as any).updateOne(
