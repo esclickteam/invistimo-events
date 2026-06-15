@@ -23,11 +23,19 @@ type TaskStatus =
   | "declined"
   | "no_answer"
   | "callback"
-  | "undecided"
   | "will_reply_message"
+  | "needs_fix"
   | "wrong_number"
   | "completed"
   | "cancelled";
+
+type CallAnswered = "" | "answered" | "no_answer";
+
+type AnsweredResult = "" | "confirmed" | "declined" | "will_reply_message";
+
+type MessageFollowUpAction = "" | "callback" | "move_to_next_round";
+
+type NoAnswerResult = "" | "no_answer" | "needs_fix";
 
 type EmployeeInfo = {
   id: string;
@@ -90,6 +98,7 @@ type WorkOrder = {
   undecidedTasks?: number;
   willReplyMessageTasks?: number;
   wrongNumberTasks?: number;
+  needsFixTasks?: number;
   cancelledTasks?: number;
 
   createdAt: string | null;
@@ -158,6 +167,7 @@ type Summary = {
   undecided?: number;
   will_reply_message?: number;
   wrong_number: number;
+  needs_fix?: number;
   completed: number;
   cancelled: number;
   completedLogical: number;
@@ -248,10 +258,10 @@ function getStatusLabel(status: string) {
     confirmed: "מגיע",
     declined: "לא מגיע",
     no_answer: "לא ענה",
-    callback: "לחזור אליו",
-    undecided: "מתלבט",
+    callback: "מעוניין בחזרה נוספת",
     will_reply_message: "ישיב בהודעה",
-    wrong_number: "מספר שגוי",
+    needs_fix: "דורש תיקון",
+    wrong_number: "דורש תיקון",
     completed: "הושלם",
     cancelled: "בוטל",
 
@@ -270,9 +280,8 @@ function getStatusClass(status: string) {
   if (status === "declined") return "bad";
   if (status === "no_answer") return "warn";
   if (status === "callback") return "info";
-  if (status === "undecided") return "purple";
   if (status === "will_reply_message") return "cyan";
-  if (status === "wrong_number") return "danger";
+  if (status === "needs_fix" || status === "wrong_number") return "danger";
   if (status === "in_progress") return "active";
   if (status === "completed") return "good";
   if (status === "cancelled") return "muted";
@@ -314,8 +323,8 @@ function isFinalResultStatus(status: TaskStatus) {
     status === "declined" ||
     status === "no_answer" ||
     status === "callback" ||
-    status === "undecided" ||
     status === "will_reply_message" ||
+    status === "needs_fix" ||
     status === "wrong_number"
   );
 }
@@ -339,56 +348,15 @@ function statusButtonLabel(status: TaskStatus) {
     confirmed: "מגיע",
     declined: "לא מגיע",
     no_answer: "לא ענה",
-    callback: "לחזור אליו",
-    undecided: "מתלבט",
+    callback: "מעוניין בחזרה נוספת",
     will_reply_message: "ישיב בהודעה",
-    wrong_number: "מספר שגוי",
+    needs_fix: "דורש תיקון",
+    wrong_number: "דורש תיקון",
     completed: "הושלם",
     cancelled: "בוטל",
   };
 
   return map[status] || status;
-}
-
-function getResultHelp(status: TaskStatus) {
-  const map: Record<TaskStatus, string> = {
-    pending: "השיחה עדיין ממתינה לטיפול.",
-    in_progress: "השיחה נמצאת בטיפול.",
-    confirmed: "יעדכן את ה-RSVP של האורח כמגיע ואת כמות המגיעים.",
-    declined: "יעדכן את ה-RSVP של האורח כלא מגיע וכמות מגיעים 0.",
-    no_answer: "יסמן שלא הייתה תשובה בסבב הזה. האורח ייחשב בוצע בסבב הנוכחי.",
-    callback: "יסמן שהאורח ביקש שיחזרו אליו. האורח ייחשב בוצע בסבב הנוכחי.",
-    undecided: "יסמן שהאורח ענה אבל עדיין מתלבט, בלי לסגור RSVP סופי.",
-    will_reply_message:
-      "יסמן שהאורח ביקש לא לחזור אליו ושהוא ישיב בהודעה, בלי לסגור RSVP סופי.",
-    wrong_number: "יסמן מספר שגוי ויעדכן גם את האורח.",
-    completed: "השיחה הושלמה.",
-    cancelled: "השיחה בוטלה.",
-  };
-
-  return map[status] || "";
-}
-
-function normalizeDraftStatus(status: string): TaskStatus {
-  const allowed: TaskStatus[] = [
-    "pending",
-    "in_progress",
-    "confirmed",
-    "declined",
-    "no_answer",
-    "callback",
-    "undecided",
-    "will_reply_message",
-    "wrong_number",
-    "completed",
-    "cancelled",
-  ];
-
-  if (allowed.includes(status as TaskStatus)) {
-    return status as TaskStatus;
-  }
-
-  return "confirmed";
 }
 
 function uniqueTasksById(items: CallTask[]) {
@@ -423,7 +391,13 @@ export default function EmployeeWorkOrderTasksPage() {
   const [tasks, setTasks] = useState<CallTask[]>([]);
 
   const [selectedTask, setSelectedTask] = useState<CallTask | null>(null);
-  const [draftStatus, setDraftStatus] = useState<TaskStatus>("confirmed");
+
+  const [callAnswered, setCallAnswered] = useState<CallAnswered>("");
+  const [answeredResult, setAnsweredResult] = useState<AnsweredResult>("");
+  const [messageFollowUpAction, setMessageFollowUpAction] =
+    useState<MessageFollowUpAction>("");
+  const [noAnswerResult, setNoAnswerResult] = useState<NoAnswerResult>("");
+
   const [draftNote, setDraftNote] = useState("");
   const [draftCount, setDraftCount] = useState("1");
 
@@ -473,23 +447,24 @@ export default function EmployeeWorkOrderTasksPage() {
 
   const selectedTel = selectedTask ? normalizePhone(selectedTask.guestPhone) : "";
 
+  function resetDraftSelection() {
+    setCallAnswered("");
+    setAnsweredResult("");
+    setMessageFollowUpAction("");
+    setNoAnswerResult("");
+    setDraftNote("");
+    setDraftCount("1");
+  }
+
   function applySelectedTask(task: CallTask | null) {
     setSelectedTask(task);
 
     if (!task) {
-      setDraftStatus("confirmed");
-      setDraftNote("");
-      setDraftCount("1");
+      resetDraftSelection();
       return;
     }
 
-    const currentStatus = normalizeDraftStatus(String(task.status || "pending"));
-
-    setDraftStatus(
-      currentStatus === "pending" || currentStatus === "in_progress"
-        ? "confirmed"
-        : currentStatus
-    );
+    const currentStatus = String(task.status || "pending");
 
     setDraftNote(task.note || "");
 
@@ -499,6 +474,59 @@ export default function EmployeeWorkOrderTasksPage() {
         : 1;
 
     setDraftCount(String(existingCount));
+
+    if (currentStatus === "confirmed") {
+      setCallAnswered("answered");
+      setAnsweredResult("confirmed");
+      setMessageFollowUpAction("");
+      setNoAnswerResult("");
+      return;
+    }
+
+    if (currentStatus === "declined") {
+      setCallAnswered("answered");
+      setAnsweredResult("declined");
+      setMessageFollowUpAction("");
+      setNoAnswerResult("");
+      return;
+    }
+
+    if (currentStatus === "will_reply_message") {
+      setCallAnswered("answered");
+      setAnsweredResult("will_reply_message");
+      setMessageFollowUpAction("");
+      setNoAnswerResult("");
+      return;
+    }
+
+    if (currentStatus === "callback") {
+      setCallAnswered("answered");
+      setAnsweredResult("will_reply_message");
+      setMessageFollowUpAction("callback");
+      setNoAnswerResult("");
+      return;
+    }
+
+    if (currentStatus === "no_answer") {
+      setCallAnswered("no_answer");
+      setAnsweredResult("");
+      setMessageFollowUpAction("");
+      setNoAnswerResult("no_answer");
+      return;
+    }
+
+    if (currentStatus === "needs_fix" || currentStatus === "wrong_number") {
+      setCallAnswered("no_answer");
+      setAnsweredResult("");
+      setMessageFollowUpAction("");
+      setNoAnswerResult("needs_fix");
+      return;
+    }
+
+    setCallAnswered("");
+    setAnsweredResult("");
+    setMessageFollowUpAction("");
+    setNoAnswerResult("");
   }
 
   function buildTasksQuery(pageNumber: number) {
@@ -626,20 +654,113 @@ export default function EmployeeWorkOrderTasksPage() {
   }
 
   useEffect(() => {
-  const timer = window.setTimeout(() => {
-    loadTasks({ silent: true });
-  }, search.trim() ? 350 : 0);
+    const timer = window.setTimeout(
+      () => {
+        loadTasks({ silent: true });
+      },
+      search.trim() ? 350 : 0
+    );
 
-  return () => {
-    window.clearTimeout(timer);
-  };
+    return () => {
+      window.clearTimeout(timer);
+    };
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [workOrderId, status, sort, search]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workOrderId, status, sort, search]);
 
   function handleSearchSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     loadTasks({ silent: true });
+  }
+
+  function deriveFinalStatus(): TaskStatus | "" {
+    if (callAnswered === "answered") {
+      if (answeredResult === "confirmed") return "confirmed";
+      if (answeredResult === "declined") return "declined";
+
+      if (answeredResult === "will_reply_message") {
+        if (messageFollowUpAction === "callback") return "callback";
+        return "will_reply_message";
+      }
+
+      return "";
+    }
+
+    if (callAnswered === "no_answer") {
+      if (noAnswerResult === "needs_fix") return "needs_fix";
+      if (noAnswerResult === "no_answer") return "no_answer";
+      return "";
+    }
+
+    return "";
+  }
+
+  function getResultHelp() {
+    if (!callAnswered) {
+      return "בחרי קודם אם האורח ענה או לא ענה.";
+    }
+
+    if (callAnswered === "answered") {
+      if (!answeredResult) {
+        return "האורח ענה. עכשיו בחרי אם הוא מגיע, לא מגיע או ישיב בהודעה.";
+      }
+
+      if (answeredResult === "confirmed") {
+        return "יעדכן את ה-RSVP של האורח כמגיע ויעדכן את כמות המגיעים.";
+      }
+
+      if (answeredResult === "declined") {
+        return "יעדכן את ה-RSVP של האורח כלא מגיע וכמות מגיעים 0.";
+      }
+
+      if (answeredResult === "will_reply_message") {
+        if (!messageFollowUpAction) {
+          return "האורח ישיב בהודעה. בחרי אם הוא מעוניין בחזרה נוספת או להעביר לסבב הבא.";
+        }
+
+        if (messageFollowUpAction === "callback") {
+          return "יישמר תיעוד שהאורח ישיב בהודעה וגם מעוניין בחזרה נוספת.";
+        }
+
+        return "יישמר תיעוד שהאורח ישיב בהודעה, והוא יסומן להעברה לסבב הבא.";
+      }
+    }
+
+    if (callAnswered === "no_answer") {
+      if (!noAnswerResult) {
+        return "לא הייתה תשובה. בחרי לא ענה או דורש תיקון.";
+      }
+
+      if (noAnswerResult === "needs_fix") {
+        return "יישמר תיעוד שהרשומה דורשת תיקון, בלי לסמן RSVP סופי.";
+      }
+
+      return "יסמן שלא הייתה תשובה בסבב הזה. האורח ייחשב כטופל בסבב הנוכחי.";
+    }
+
+    return "";
+  }
+
+  function isSaveDisabled() {
+    if (!selectedTask) return true;
+    if (!selectedTask.canUpdate) return true;
+    if (Boolean(updatingTaskId)) return true;
+
+    if (callAnswered === "answered") {
+      if (!answeredResult) return true;
+
+      if (answeredResult === "will_reply_message" && !messageFollowUpAction) {
+        return true;
+      }
+
+      return false;
+    }
+
+    if (callAnswered === "no_answer") {
+      return !noAnswerResult;
+    }
+
+    return true;
   }
 
   async function updateTaskStatus(input: {
@@ -647,6 +768,11 @@ export default function EmployeeWorkOrderTasksPage() {
     status: TaskStatus;
     note?: string;
     attendingCount?: number;
+    callAnswered?: CallAnswered;
+    answeredResult?: AnsweredResult;
+    messageFollowUpAction?: MessageFollowUpAction;
+    noAnswerResult?: NoAnswerResult;
+    moveToNextRound?: boolean;
   }) {
     try {
       const taskId = getTaskId(input.task);
@@ -657,9 +783,13 @@ export default function EmployeeWorkOrderTasksPage() {
 
       const isFinal = isFinalResultStatus(input.status);
       const round = safeNumber(input.task.round || workOrder?.round || 1);
+      const nextRound = round + 1;
       const currentWorkOrderId = input.task.workOrderId || workOrderId;
-      const invitationId = input.task.invitationId || workOrder?.invitationId || "";
+      const invitationId =
+        input.task.invitationId || workOrder?.invitationId || "";
       const guestId = input.task.guestId || "";
+
+      const nowIso = new Date().toISOString();
 
       const body: Record<string, any> = {
         taskId,
@@ -670,14 +800,23 @@ export default function EmployeeWorkOrderTasksPage() {
         guestId,
 
         round,
+        nextRound,
         sourceAudience:
           input.task.sourceAudience || workOrder?.sourceAudience || "",
 
         status: input.status,
         result: input.status,
         callResult: input.status,
+        callOutcome: input.status,
+
+        callAnswered: input.callAnswered || "",
+        callAnswer: input.callAnswered || "",
+        answeredResult: input.answeredResult || "",
+        messageFollowUpAction: input.messageFollowUpAction || "",
+        noAnswerResult: input.noAnswerResult || "",
 
         note: input.note || "",
+        documentationNote: input.note || "",
 
         markCompleted: isFinal,
         isCompleted: isFinal,
@@ -686,7 +825,39 @@ export default function EmployeeWorkOrderTasksPage() {
         updateGuestRsvp: isFinal,
         updateGuest: isFinal,
 
-        completedAt: isFinal ? new Date().toISOString() : null,
+        completedAt: isFinal ? nowIso : null,
+        lastAttemptAt: nowIso,
+
+        handledByEmployeeId: employee?.id || "",
+        handledByEmployeeName: employee?.name || "",
+        handledByEmployeeEmail: employee?.email || "",
+
+        employeeId: employee?.id || "",
+        employeeName: employee?.name || "",
+        employeeEmail: employee?.email || "",
+
+        callDocumentation: {
+          taskId,
+          workOrderId: currentWorkOrderId,
+          invitationId,
+          guestId,
+          round,
+          status: input.status,
+          result: input.status,
+          callAnswered: input.callAnswered || "",
+          answeredResult: input.answeredResult || "",
+          messageFollowUpAction: input.messageFollowUpAction || "",
+          noAnswerResult: input.noAnswerResult || "",
+          note: input.note || "",
+          attendingCount:
+            input.attendingCount !== undefined ? input.attendingCount : null,
+          movedToNextRound: Boolean(input.moveToNextRound),
+          nextRound: input.moveToNextRound ? nextRound : null,
+          employeeId: employee?.id || "",
+          employeeName: employee?.name || "",
+          employeeEmail: employee?.email || "",
+          createdAt: nowIso,
+        },
       };
 
       if (input.attendingCount !== undefined) {
@@ -712,28 +883,45 @@ export default function EmployeeWorkOrderTasksPage() {
         body.keepRsvpOpen = false;
       }
 
-      if (input.status === "wrong_number") {
-        body.rsvpStatus = "wrong_number";
-        body.guestRsvpStatus = "wrong_number";
-        body.rsvpResult = "wrong_number";
-        body.attendingCount = 0;
-        body.confirmedCount = 0;
-        body.guestsCount = 0;
-        body.phoneInvalid = true;
-        body.invalidPhone = true;
-        body.keepRsvpOpen = false;
+      if (input.status === "no_answer") {
+        body.rsvpStatus = "no_answer";
+        body.guestRsvpStatus = "no_answer";
+        body.rsvpResult = "no_answer";
+        body.keepRsvpOpen = true;
       }
 
-      if (
-        input.status === "undecided" ||
-        input.status === "callback" ||
-        input.status === "will_reply_message" ||
-        input.status === "no_answer"
-      ) {
+      if (input.status === "will_reply_message") {
+        body.rsvpStatus = "will_reply_message";
+        body.guestRsvpStatus = "will_reply_message";
+        body.rsvpResult = "will_reply_message";
         body.keepRsvpOpen = true;
-        body.rsvpStatus = input.status;
-        body.guestRsvpStatus = input.status;
-        body.rsvpResult = input.status;
+      }
+
+      if (input.status === "callback") {
+        body.rsvpStatus = "callback";
+        body.guestRsvpStatus = "callback";
+        body.rsvpResult = "callback";
+        body.callbackRequested = true;
+        body.needsCallback = true;
+        body.keepRsvpOpen = true;
+      }
+
+      if (input.status === "needs_fix" || input.status === "wrong_number") {
+        body.rsvpStatus = "needs_fix";
+        body.guestRsvpStatus = "needs_fix";
+        body.rsvpResult = "needs_fix";
+        body.needsFix = true;
+        body.requiresCorrection = true;
+        body.phoneNeedsCorrection = true;
+        body.keepRsvpOpen = true;
+      }
+
+      if (input.moveToNextRound) {
+        body.moveToNextRound = true;
+        body.transferToNextRound = true;
+        body.openInNextRound = true;
+        body.nextRound = nextRound;
+        body.keepRsvpOpen = true;
       }
 
       const res = await fetch(
@@ -754,7 +942,12 @@ export default function EmployeeWorkOrderTasksPage() {
         throw new Error(data.error || "שגיאה בעדכון השיחה");
       }
 
-      setSuccessMsg(data.message || "השיחה עודכנה והאורח סומן כבוצע");
+      setSuccessMsg(
+        data.message ||
+          (input.moveToNextRound
+            ? "התיעוד נשמר והאורח סומן להעברה לסבב הבא"
+            : "התיעוד נשמר בהצלחה")
+      );
 
       if (data.workOrder) {
         setWorkOrder(data.workOrder);
@@ -774,8 +967,8 @@ export default function EmployeeWorkOrderTasksPage() {
                 ? input.attendingCount
                 : task.attendingCount,
             isCompleted: isFinal,
-            completedAt: isFinal ? new Date().toISOString() : task.completedAt,
-            lastAttemptAt: new Date().toISOString(),
+            completedAt: isFinal ? nowIso : task.completedAt,
+            lastAttemptAt: nowIso,
             attemptsCount:
               input.status === "in_progress"
                 ? safeNumber(task.attemptsCount)
@@ -801,39 +994,52 @@ export default function EmployeeWorkOrderTasksPage() {
   }
 
   async function saveSelectedTask() {
-    if (!selectedTask || !draftStatus) return;
+    if (!selectedTask) return;
+
+    const finalStatus = deriveFinalStatus();
+
+    if (!finalStatus) {
+      setError("צריך לבחור תוצאת שיחה לפני שמירה");
+      return;
+    }
+
+    const shouldMoveToNextRound =
+      callAnswered === "answered" &&
+      answeredResult === "will_reply_message" &&
+      messageFollowUpAction === "move_to_next_round";
 
     const payload: {
       task: CallTask;
       status: TaskStatus;
       note?: string;
       attendingCount?: number;
+      callAnswered?: CallAnswered;
+      answeredResult?: AnsweredResult;
+      messageFollowUpAction?: MessageFollowUpAction;
+      noAnswerResult?: NoAnswerResult;
+      moveToNextRound?: boolean;
     } = {
       task: selectedTask,
-      status: draftStatus,
+      status: finalStatus,
       note: draftNote,
+      callAnswered,
+      answeredResult,
+      messageFollowUpAction,
+      noAnswerResult,
+      moveToNextRound: shouldMoveToNextRound,
     };
 
-    if (draftStatus === "confirmed") {
-      const count = Math.max(1, Number(draftCount || 1));
-      payload.attendingCount = Number.isFinite(count) ? count : 1;
+    if (finalStatus === "confirmed") {
+      const rawCount = Number(draftCount || 1);
+      const count = Number.isFinite(rawCount) ? Math.max(1, rawCount) : 1;
+      payload.attendingCount = count;
     }
 
-    if (draftStatus === "declined" || draftStatus === "wrong_number") {
+    if (finalStatus === "declined") {
       payload.attendingCount = 0;
     }
 
     await updateTaskStatus(payload);
-  }
-
-  async function startSelectedTask() {
-    if (!selectedTask) return;
-
-    await updateTaskStatus({
-      task: selectedTask,
-      status: "in_progress",
-      note: draftNote || selectedTask.note || "",
-    });
   }
 
   function selectNextOpenTask() {
@@ -882,6 +1088,7 @@ export default function EmployeeWorkOrderTasksPage() {
           <SoftphoneStatusPanel dialRequest={softphoneDialRequest} />
         </div>
       </section>
+
       <section className="topBar">
         <Link href="/employee/work-orders" className="backLink">
           ← חזרה להוראות עבודה
@@ -927,8 +1134,8 @@ export default function EmployeeWorkOrderTasksPage() {
           </p>
 
           <p className="dailyHint">
-            כל הרשימה נטענת במסך אחד. בסיום שיחה נשלח לשרת הסבב, האורח והתוצאה
-            כדי לעדכן RSVP ולסמן את אותו אורח כבוצע בסבב הנוכחי.
+            כל שמירת תוצאה שולחת לשרת את פרטי העובד, הסבב, האורח, תוצאת השיחה
+            וההערה כדי לשמור תיעוד מלא בכרטיס האורח.
           </p>
         </div>
 
@@ -990,10 +1197,9 @@ export default function EmployeeWorkOrderTasksPage() {
             <input
               type="search"
               value={search}
-              placeholder="שם אורח, טלפון, קבוצה, שולחן..."
+              placeholder="שם אורח, טלפון, קבוצה..."
               onChange={(e) => setSearch(e.target.value)}
             />
-
           </div>
         </form>
 
@@ -1015,6 +1221,8 @@ export default function EmployeeWorkOrderTasksPage() {
             <option value="declined">לא מגיע</option>
             <option value="no_answer">לא ענה</option>
             <option value="will_reply_message">ישיב בהודעה</option>
+            <option value="callback">מעוניין בחזרה נוספת</option>
+            <option value="needs_fix">דורש תיקון</option>
           </select>
         </div>
 
@@ -1108,9 +1316,6 @@ export default function EmployeeWorkOrderTasksPage() {
                     >
                       <span className="guestCell">
                         <strong>{task.guestName || "אורח ללא שם"}</strong>
-                        <small>
-                          {task.guestTable ? `שולחן ${task.guestTable}` : "—"}
-                        </small>
                       </span>
 
                       <span dir="ltr">{task.guestPhone || "—"}</span>
@@ -1178,16 +1383,6 @@ export default function EmployeeWorkOrderTasksPage() {
                     <span>קבוצה</span>
                     <strong>{selectedTask.guestGroup || "—"}</strong>
                   </div>
-
-                  <div>
-                    <span>שולחן</span>
-                    <strong>{selectedTask.guestTable || "—"}</strong>
-                  </div>
-
-                  <div>
-                    <span>עודכן</span>
-                    <strong>{formatDateTime(selectedTask.lastAttemptAt)}</strong>
-                  </div>
                 </div>
 
                 {selectedTask.guestNotes && (
@@ -1199,7 +1394,7 @@ export default function EmployeeWorkOrderTasksPage() {
 
                 {selectedTask.note && (
                   <div className="noteBox worker">
-                    <span>הערת עובד קיימת</span>
+                    <span>תיעוד קודם</span>
                     <p>{selectedTask.note}</p>
                   </div>
                 )}
@@ -1219,62 +1414,166 @@ export default function EmployeeWorkOrderTasksPage() {
                       אין טלפון
                     </button>
                   )}
-
-                  <button
-                    type="button"
-                    className="startBtn"
-                    disabled={Boolean(updatingTaskId) || !selectedTask.canUpdate}
-                    onClick={startSelectedTask}
-                  >
-                    התחל טיפול
-                  </button>
                 </div>
 
                 <div className="resultPanel">
                   <span className="panelMiniTitle">תוצאת השיחה</span>
 
-                  <div className="resultButtons">
-                    {(
-  [
-    "confirmed",
-    "declined",
-    "will_reply_message",
-    "no_answer",
-  ] as TaskStatus[]
-).map((item) => (
+                  <div className="resultButtons callAnswerButtons">
+                    <button
+                      type="button"
+                      className={`good ${
+                        callAnswered === "answered" ? "selected" : ""
+                      }`}
+                      onClick={() => {
+                        setCallAnswered("answered");
+                        setNoAnswerResult("");
 
-                      <button
-                        type="button"
-                        key={item}
-                        className={`${getStatusClass(item)} ${
-                          draftStatus === item ? "selected" : ""
-                        }`}
-                        onClick={() => setDraftStatus(item)}
-                      >
-                        {statusButtonLabel(item)}
-                      </button>
-                    ))}
+                        if (!answeredResult) {
+                          setAnsweredResult("confirmed");
+                        }
+                      }}
+                    >
+                      ענה
+                    </button>
+
+                    <button
+                      type="button"
+                      className={`warn ${
+                        callAnswered === "no_answer" ? "selected" : ""
+                      }`}
+                      onClick={() => {
+                        setCallAnswered("no_answer");
+                        setAnsweredResult("");
+                        setMessageFollowUpAction("");
+
+                        if (!noAnswerResult) {
+                          setNoAnswerResult("no_answer");
+                        }
+                      }}
+                    >
+                      לא ענה
+                    </button>
                   </div>
 
-                  <div className="resultHelp">{getResultHelp(draftStatus)}</div>
+                  {callAnswered === "answered" && (
+                    <>
+                      <span className="subChoiceTitle">מה האורח ענה?</span>
 
-                  {draftStatus === "confirmed" && (
-                    <div className="field">
-                      <label>כמה מגיעים?</label>
-                      <input
-                        type="number"
-                        min={1}
-                        value={draftCount}
-                        onChange={(e) => setDraftCount(e.target.value)}
-                      />
-                    </div>
+                      <div className="resultButtons threeChoices">
+                        {(
+                          [
+                            "confirmed",
+                            "declined",
+                            "will_reply_message",
+                          ] as TaskStatus[]
+                        ).map((item) => (
+                          <button
+                            type="button"
+                            key={item}
+                            className={`${getStatusClass(item)} ${
+                              answeredResult === item ? "selected" : ""
+                            }`}
+                            onClick={() => {
+                              setAnsweredResult(item as AnsweredResult);
+
+                              if (item !== "will_reply_message") {
+                                setMessageFollowUpAction("");
+                              }
+                            }}
+                          >
+                            {statusButtonLabel(item)}
+                          </button>
+                        ))}
+                      </div>
+                    </>
                   )}
 
+                  {callAnswered === "answered" &&
+                    answeredResult === "will_reply_message" && (
+                      <>
+                        <span className="subChoiceTitle">המשך טיפול</span>
+
+                        <div className="resultButtons callAnswerButtons">
+                          <button
+                            type="button"
+                            className={`info ${
+                              messageFollowUpAction === "callback"
+                                ? "selected"
+                                : ""
+                            }`}
+                            onClick={() =>
+                              setMessageFollowUpAction("callback")
+                            }
+                          >
+                            מעוניין בחזרה נוספת
+                          </button>
+
+                          <button
+                            type="button"
+                            className={`active ${
+                              messageFollowUpAction === "move_to_next_round"
+                                ? "selected"
+                                : ""
+                            }`}
+                            onClick={() =>
+                              setMessageFollowUpAction("move_to_next_round")
+                            }
+                          >
+                            העבר לסבב הבא
+                          </button>
+                        </div>
+                      </>
+                    )}
+
+                  {callAnswered === "no_answer" && (
+                    <>
+                      <span className="subChoiceTitle">סיבת אי מענה</span>
+
+                      <div className="resultButtons callAnswerButtons">
+                        <button
+                          type="button"
+                          className={`warn ${
+                            noAnswerResult === "no_answer" ? "selected" : ""
+                          }`}
+                          onClick={() => setNoAnswerResult("no_answer")}
+                        >
+                          לא ענה
+                        </button>
+
+                        <button
+                          type="button"
+                          className={`danger ${
+                            noAnswerResult === "needs_fix" ? "selected" : ""
+                          }`}
+                          onClick={() => setNoAnswerResult("needs_fix")}
+                        >
+                          דורש תיקון
+                        </button>
+                      </div>
+                    </>
+                  )}
+
+                  <div className="resultHelp">{getResultHelp()}</div>
+
+                  {callAnswered === "answered" &&
+                    answeredResult === "confirmed" && (
+                      <div className="field">
+                        <label>כמה מגיעים?</label>
+                        <input
+                          type="number"
+                          min={1}
+                          value={draftCount}
+                          onChange={(e) => setDraftCount(e.target.value)}
+                        />
+                      </div>
+                    )}
+
                   <div className="field">
-                    <label>הערה</label>
+                    <label>הערה / תיעוד</label>
                     <textarea
                       value={draftNote}
-                      placeholder="לדוגמה: ביקש לחזור בערב / מתלבט / ישיב בהודעה / מספר לא תקין..."
+                      placeholder="לדוגמה: ביקש לחזור בערב / ישיב בהודעה / דורש תיקון..."
                       onChange={(e) => setDraftNote(e.target.value)}
                     />
                   </div>
@@ -1282,14 +1581,12 @@ export default function EmployeeWorkOrderTasksPage() {
                   <button
                     type="button"
                     className="saveBtn"
-                    disabled={
-                      Boolean(updatingTaskId) || !selectedTask.canUpdate
-                    }
+                    disabled={isSaveDisabled()}
                     onClick={saveSelectedTask}
                   >
                     {updatingTaskId === getTaskId(selectedTask)
                       ? "שומר..."
-                      : "שמור תוצאה וסמן כבוצע"}
+                      : "שמור תיעוד"}
                   </button>
                 </div>
               </>
@@ -1329,7 +1626,6 @@ export default function EmployeeWorkOrderTasksPage() {
           max-width: 1800px;
           margin: 0 auto;
         }
-
 
         .topBar {
           display: flex;
@@ -1442,12 +1738,18 @@ export default function EmployeeWorkOrderTasksPage() {
         .detailsGrid span,
         .noteBox span,
         .field label,
-        .panelMiniTitle {
+        .panelMiniTitle,
+        .subChoiceTitle {
           display: block;
           color: #64748b;
           font-size: 12px;
           font-weight: 950;
           margin-bottom: 5px;
+        }
+
+        .subChoiceTitle {
+          margin-top: 2px;
+          margin-bottom: -3px;
         }
 
         .heroMeta strong {
@@ -1584,7 +1886,7 @@ export default function EmployeeWorkOrderTasksPage() {
         }
 
         textarea {
-          min-height: 94px;
+          min-height: 110px;
           padding: 12px;
           resize: vertical;
         }
@@ -1599,17 +1901,6 @@ export default function EmployeeWorkOrderTasksPage() {
         .searchForm input {
           flex: 1;
           min-width: 0;
-        }
-
-        .searchForm button {
-          height: 44px;
-          border: 0;
-          border-radius: 14px;
-          background: #2563eb;
-          color: white;
-          padding: 0 16px;
-          font-weight: 950;
-          cursor: pointer;
         }
 
         .employeeStrip {
@@ -1791,13 +2082,6 @@ export default function EmployeeWorkOrderTasksPage() {
           font-size: 14px;
         }
 
-        .guestCell small {
-          display: block;
-          color: #64748b;
-          margin-top: 3px;
-          font-size: 12px;
-        }
-
         .statusPill {
           display: inline-flex;
           align-items: center;
@@ -1843,12 +2127,6 @@ export default function EmployeeWorkOrderTasksPage() {
         .resultButtons .info {
           background: #cffafe;
           color: #0e7490;
-        }
-
-        .statusPill.purple,
-        .resultButtons .purple {
-          background: #ede9fe;
-          color: #6d28d9;
         }
 
         .statusPill.cyan,
@@ -1981,15 +2259,14 @@ export default function EmployeeWorkOrderTasksPage() {
 
         .mainActions {
           display: grid;
-          grid-template-columns: 1fr 1fr;
+          grid-template-columns: 1fr;
           gap: 10px;
           margin: 12px 0;
         }
 
         .callBtn,
-        .startBtn,
         .saveBtn {
-          min-height: 48px;
+          min-height: 52px;
           border-radius: 16px;
           font-weight: 950;
           display: flex;
@@ -2004,12 +2281,7 @@ export default function EmployeeWorkOrderTasksPage() {
           background: #10b981;
           color: white;
           box-shadow: 0 14px 28px rgba(16, 185, 129, 0.22);
-        }
-
-        .startBtn {
-          border: 1px solid #dbeafe;
-          background: #eff6ff;
-          color: #1d4ed8;
+          font-size: 17px;
         }
 
         .resultPanel {
@@ -2025,13 +2297,18 @@ export default function EmployeeWorkOrderTasksPage() {
           gap: 9px;
         }
 
+        .resultButtons.threeChoices {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
         .resultButtons button {
-          min-height: 42px;
+          min-height: 46px;
           border: 1px solid transparent;
           border-radius: 14px;
           font-weight: 950;
           cursor: pointer;
           padding: 8px 10px;
+          font-size: 14px;
         }
 
         .resultButtons button.selected {
@@ -2062,6 +2339,7 @@ export default function EmployeeWorkOrderTasksPage() {
           background: #2563eb;
           color: white;
           box-shadow: 0 14px 30px rgba(37, 99, 235, 0.2);
+          font-size: 17px;
         }
 
         @media (max-width: 1200px) {
@@ -2112,10 +2390,9 @@ export default function EmployeeWorkOrderTasksPage() {
             align-items: stretch;
           }
 
-          .topActions,
-          .mainActions {
-            grid-template-columns: 1fr;
+          .topActions {
             display: grid;
+            grid-template-columns: 1fr;
           }
 
           .heroMeta {
@@ -2126,16 +2403,13 @@ export default function EmployeeWorkOrderTasksPage() {
           .filtersCard,
           .employeeStrip,
           .detailsGrid,
-          .resultButtons {
+          .resultButtons,
+          .resultButtons.threeChoices {
             grid-template-columns: 1fr;
           }
 
           .searchForm div {
             flex-direction: column;
-          }
-
-          .searchForm button {
-            width: 100%;
           }
 
           .queueHead {
