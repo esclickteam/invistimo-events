@@ -109,18 +109,6 @@ function getJwtSecret() {
   );
 }
 
-function toBool(value: unknown) {
-  const raw = cleanStr(value).toLowerCase();
-
-  return (
-    value === true ||
-    value === 1 ||
-    raw === "true" ||
-    raw === "1" ||
-    raw === "yes"
-  );
-}
-
 function normalizeRound(value: unknown) {
   const n = Number(value || 1);
 
@@ -726,10 +714,11 @@ async function syncDuplicateGuestRoundTasks(input: {
 
   const workOrderObjectId = toObjectId(input.task?.workOrderId);
   const guestObjectId = toObjectId(input.task?.guestId);
+  const taskObjectId = toObjectId(input.task?._id);
 
-  if (!workOrderObjectId || !guestObjectId) return;
+  if (!workOrderObjectId || !guestObjectId || !taskObjectId) return;
 
-  const round = normalizeRound(input.task?.round || 1);
+  const roundNumber = normalizeRound(input.task?.round || 1);
 
   const set: Record<string, any> = {
     status: input.status,
@@ -740,30 +729,36 @@ async function syncDuplicateGuestRoundTasks(input: {
     updatedAt: input.now,
   };
 
-  if (input.note) {
-    set.note = input.note;
+  if (input.note || input.note === "") {
+    set.note = input.note || "";
   }
 
   if (input.attendingCount !== undefined) {
     set.attendingCount = input.attendingCount;
+    set.confirmedCount = input.attendingCount;
+    set.guestsCount = input.attendingCount;
   }
 
-  await CallTask.updateMany(
-    {
-      _id: {
-        $ne: toObjectId(input.task?._id),
-      },
-      workOrderId: workOrderObjectId,
-      guestId: guestObjectId,
-      round,
-      status: {
-        $ne: "cancelled",
-      },
+  if (input.status === "wrong_number") {
+    set.phoneInvalid = true;
+    set.invalidPhone = true;
+  }
+
+  const filter: any = {
+    _id: {
+      $ne: taskObjectId,
     },
-    {
-      $set: set,
-    }
-  );
+    workOrderId: workOrderObjectId,
+    guestId: guestObjectId,
+    round: roundNumber,
+    status: {
+      $ne: "cancelled",
+    },
+  };
+
+  await (CallTask as any).updateMany(filter, {
+    $set: set,
+  });
 }
 
 async function syncInvitationGuest(input: {
@@ -980,7 +975,6 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
     }
 
     const params = await context.params;
-
     const taskObjectId = toObjectId(params.taskId);
 
     if (!taskObjectId) {
