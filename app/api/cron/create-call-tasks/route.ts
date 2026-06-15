@@ -53,6 +53,11 @@ type ScheduleCandidate = {
   rawRound: any;
 };
 
+type AssignmentState = {
+  employees: ScheduledEmployee[];
+  loads: Map<string, number>;
+};
+
 /* ============================================================
    Basic helpers
 ============================================================ */
@@ -65,16 +70,10 @@ function pad2(value: number) {
   return String(value).padStart(2, "0");
 }
 
-function escapeRegExp(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 function extractIdString(value: unknown): string {
   if (!value) return "";
 
-  if (typeof value === "string") {
-    return value;
-  }
+  if (typeof value === "string") return value;
 
   if (value instanceof mongoose.Types.ObjectId) {
     return String(value);
@@ -110,9 +109,6 @@ function normalizeRound(value: unknown, fallbackIndex = 0): RoundNumber | null {
 
     if (n === 1 || n === 2 || n === 3) return n;
 
-    /**
-     * תמיכה במקרה שהמערכת שמרה אינדקסים 0/1/2 במקום סבבים 1/2/3.
-     */
     if (n === 0 || n === 1 || n === 2) {
       const byIndex = n + 1;
 
@@ -149,10 +145,8 @@ function normalizePhone(value: unknown) {
   return phone;
 }
 
-function getSourceAudienceByRound(round: RoundNumber) {
-  if (round === 1) return "pending_rsvp";
-  if (round === 2) return "round_1_no_answer";
-  return "round_2_no_answer";
+function normalizeStatus(value: unknown) {
+  return cleanStr(value).toLowerCase();
 }
 
 function isAdminRole(role?: string) {
@@ -163,6 +157,12 @@ function isAdminRole(role?: string) {
     normalized === "super_admin" ||
     normalized === "owner"
   );
+}
+
+function getSourceAudienceByRound(round: RoundNumber) {
+  if (round === 1) return "pending_rsvp";
+  if (round === 2) return "round_1_no_answer";
+  return "round_2_no_answer";
 }
 
 /* ============================================================
@@ -243,10 +243,6 @@ function makeDateInTimeZone(
   );
 }
 
-function addHours(date: Date, hours: number) {
-  return new Date(date.getTime() + hours * 60 * 60 * 1000);
-}
-
 function normalizeDateKey(value: unknown) {
   const raw = cleanStr(value);
 
@@ -275,7 +271,6 @@ function endOfDateKey(dateKey: string) {
 
 function parseTimeParts(raw: unknown) {
   const value = cleanStr(raw);
-
   const match = value.match(/^(\d{1,2}):(\d{2})/);
 
   if (!match) {
@@ -458,44 +453,165 @@ async function requireAdminOrCron(req: NextRequest) {
 }
 
 /* ============================================================
-   Schedule extraction from User / Invitation
+   Calls enabled / schedule
 ============================================================ */
 
+function hasPhoneCallsEnabled(source: any) {
+  if (!source) return false;
+
+  if (
+    source?.deletedAt ||
+    source?.isDeleted === true ||
+    source?.deleted === true ||
+    source?.archivedAt ||
+    source?.isArchived === true
+  ) {
+    return false;
+  }
+
+  const flags = [
+    source?.includeCalls,
+    source?.callsEnabled,
+    source?.phoneCallsEnabled,
+    source?.phoneCallEnabled,
+    source?.callServiceEnabled,
+    source?.phoneCallServiceEnabled,
+    source?.includePhoneCalls,
+    source?.hasPhoneCalls,
+    source?.phoneCallsPurchased,
+    source?.callsPurchased,
+    source?.rsvpCallsEnabled,
+  ];
+
+  if (
+    flags.some(
+      (value) =>
+        value === true || value === "true" || value === 1 || value === "1"
+    )
+  ) {
+    return true;
+  }
+
+  const numericValues = [
+    source?.callsRounds,
+    source?.allowedCallRounds,
+    source?.phoneCalls,
+    source?.calls,
+    source?.callCount,
+    source?.phoneCallCount,
+  ];
+
+  if (
+    numericValues.some(
+      (value) => typeof value === "number" && Number(value) > 0
+    )
+  ) {
+    return true;
+  }
+
+  const packageText = [
+    source?.package,
+    source?.plan,
+    source?.serviceType,
+    source?.servicePackage,
+    source?.selectedPackage,
+    source?.packageName,
+  ]
+    .map(cleanStr)
+    .join(" ")
+    .toLowerCase();
+
+  return (
+    packageText.includes("call") ||
+    packageText.includes("phone") ||
+    packageText.includes("טלפון") ||
+    packageText.includes("שיחות")
+  );
+}
+
+function getMaxCallRounds(source: any) {
+  const values = [
+    source?.callsRounds,
+    source?.allowedCallRounds,
+    source?.phoneCalls?.rounds,
+    source?.calls?.rounds,
+  ];
+
+  for (const value of values) {
+    const n = Number(value);
+
+    if (n === 1 || n === 2 || n === 3) {
+      return n;
+    }
+  }
+
+  return 3;
+}
+
+function isScheduleContainerEnabled(schedule: any) {
+  if (!schedule) return false;
+
+  if (schedule.enabled === false) return false;
+  if (schedule.active === false) return false;
+  if (schedule.isActive === false) return false;
+  if (schedule.disabled === true) return false;
+
+  const status = normalizeStatus(schedule.status);
+
+  if (
+    ["cancelled", "canceled", "deleted", "disabled", "inactive"].includes(
+      status
+    )
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
 function getScheduleArrays(container: any) {
-  const arrays = [
-    /**
-     * השמות העיקריים מהמסך של המשתמשים.
-     */
-    container?.callRoundSchedule?.rounds,
-    container?.phoneCallRoundSchedule?.rounds,
-
-    /**
-     * תמיכה בגרסאות שמירה אחרות.
-     */
-    container?.callRoundsSchedule?.rounds,
-    container?.phoneCallRoundsSchedule?.rounds,
-    container?.callSchedule?.rounds,
-    container?.phoneCallsSchedule?.rounds,
-    container?.callsSchedule?.rounds,
-    container?.rsvpCallSchedule?.rounds,
-    container?.rsvpCallsSchedule?.rounds,
-
-    /**
-     * אם נשמר ישירות כמערך.
-     */
-    container?.callRoundSchedule,
-    container?.phoneCallRoundSchedule,
+  const schedules = [
     container?.callRoundsSchedule,
+    container?.callRoundSchedule,
     container?.phoneCallRoundsSchedule,
-    container?.callRounds,
-    container?.phoneCallRounds,
+    container?.phoneCallRoundSchedule,
     container?.callSchedule,
     container?.phoneCallsSchedule,
     container?.callsSchedule,
+    container?.rsvpCallSchedule,
+    container?.rsvpCallsSchedule,
+  ];
+
+  const arrays: any[][] = [];
+
+  for (const schedule of schedules) {
+    if (!schedule) continue;
+
+    if (Array.isArray(schedule)) {
+      arrays.push(schedule);
+      continue;
+    }
+
+    if (!isScheduleContainerEnabled(schedule)) continue;
+
+    if (Array.isArray(schedule.rounds)) {
+      arrays.push(schedule.rounds);
+    }
+  }
+
+  const directArrays = [
+    container?.callRounds,
+    container?.phoneCallRounds,
     container?.rounds,
   ];
 
-  return arrays.filter(Array.isArray) as any[][];
+  for (const arr of directArrays) {
+    if (Array.isArray(arr)) {
+      arrays.push(arr);
+    }
+  }
+
+  return arrays;
 }
 
 function isRoundEnabled(raw: any) {
@@ -509,7 +625,7 @@ function isRoundEnabled(raw: any) {
   if (raw.canceled === true) return false;
   if (raw.deleted === true) return false;
 
-  const status = cleanStr(raw.status).toLowerCase();
+  const status = normalizeStatus(raw.status);
 
   if (
     ["cancelled", "canceled", "deleted", "disabled", "inactive"].includes(
@@ -568,6 +684,8 @@ function extractScheduledRoundsForDate(container: any, dateKey: string) {
 
       if (!round) return;
 
+      if (round > getMaxCallRounds(container)) return;
+
       const scheduledAt = getRoundScheduledAt(raw);
 
       if (!scheduledAt) return;
@@ -597,27 +715,35 @@ function isDueRound(input: {
     return false;
   }
 
-  /**
-   * בלי AUTO_OPEN_HOUR.
-   * נפתח לפי השעה שהוגדרה בלו״ז.
-   */
   return input.scheduledAt.getTime() <= input.now.getTime();
 }
 
 function buildLooseScheduleUserQuery() {
   return {
-    $or: [
-      { callRoundSchedule: { $exists: true } },
-      { phoneCallRoundSchedule: { $exists: true } },
-      { callRoundsSchedule: { $exists: true } },
-      { phoneCallRoundsSchedule: { $exists: true } },
-      { callRounds: { $exists: true } },
-      { phoneCallRounds: { $exists: true } },
-      { callSchedule: { $exists: true } },
-      { phoneCallsSchedule: { $exists: true } },
-      { callsSchedule: { $exists: true } },
-      { rsvpCallSchedule: { $exists: true } },
-      { rsvpCallsSchedule: { $exists: true } },
+    $and: [
+      {
+        $or: [
+          { includeCalls: true },
+          { callsRounds: { $gt: 0 } },
+          { callsEnabled: true },
+          { phoneCallsEnabled: true },
+        ],
+      },
+      {
+        $or: [
+          { callRoundsSchedule: { $exists: true } },
+          { callRoundSchedule: { $exists: true } },
+          { phoneCallRoundsSchedule: { $exists: true } },
+          { phoneCallRoundSchedule: { $exists: true } },
+          { callRounds: { $exists: true } },
+          { phoneCallRounds: { $exists: true } },
+          { callSchedule: { $exists: true } },
+          { phoneCallsSchedule: { $exists: true } },
+          { callsSchedule: { $exists: true } },
+          { rsvpCallSchedule: { $exists: true } },
+          { rsvpCallsSchedule: { $exists: true } },
+        ],
+      },
     ],
   };
 }
@@ -625,10 +751,10 @@ function buildLooseScheduleUserQuery() {
 function buildLooseScheduleInvitationQuery() {
   return {
     $or: [
-      { callRoundSchedule: { $exists: true } },
-      { phoneCallRoundSchedule: { $exists: true } },
       { callRoundsSchedule: { $exists: true } },
+      { callRoundSchedule: { $exists: true } },
       { phoneCallRoundsSchedule: { $exists: true } },
+      { phoneCallRoundSchedule: { $exists: true } },
       { callRounds: { $exists: true } },
       { phoneCallRounds: { $exists: true } },
       { callSchedule: { $exists: true } },
@@ -705,97 +831,6 @@ function getClientEmail(invitation: any, clientUser: any) {
   );
 }
 
-function invitationHasPhoneCalls(invitation: any) {
-  if (!invitation) return false;
-
-  if (
-    invitation?.deletedAt ||
-    invitation?.isDeleted === true ||
-    invitation?.deleted === true ||
-    invitation?.archivedAt ||
-    invitation?.isArchived === true
-  ) {
-    return false;
-  }
-
-  const flags = [
-    invitation?.phoneCallsEnabled,
-    invitation?.phoneCallEnabled,
-    invitation?.callsEnabled,
-    invitation?.callServiceEnabled,
-    invitation?.phoneCallServiceEnabled,
-    invitation?.includePhoneCalls,
-    invitation?.hasPhoneCalls,
-    invitation?.phoneCallsPurchased,
-    invitation?.callsPurchased,
-    invitation?.rsvpCallsEnabled,
-  ];
-
-  if (
-    flags.some(
-      (value) =>
-        value === true || value === "true" || value === 1 || value === "1"
-    )
-  ) {
-    return true;
-  }
-
-  const numericValues = [
-    invitation?.phoneCalls,
-    invitation?.calls,
-    invitation?.callCount,
-    invitation?.phoneCallCount,
-  ];
-
-  if (
-    numericValues.some(
-      (value) => typeof value === "number" && Number(value) > 0
-    )
-  ) {
-    return true;
-  }
-
-  if (
-    invitation?.phoneCalls &&
-    typeof invitation.phoneCalls === "object" &&
-    (invitation.phoneCalls.enabled === true ||
-      invitation.phoneCalls.enabled === "true" ||
-      Number(invitation.phoneCalls.rounds || 0) > 0 ||
-      Number(invitation.phoneCalls.total || 0) > 0)
-  ) {
-    return true;
-  }
-
-  if (
-    invitation?.calls &&
-    typeof invitation.calls === "object" &&
-    (invitation.calls.enabled === true ||
-      invitation.calls.enabled === "true" ||
-      Number(invitation.calls.rounds || 0) > 0 ||
-      Number(invitation.calls.total || 0) > 0)
-  ) {
-    return true;
-  }
-
-  const packageText = [
-    invitation?.package,
-    invitation?.plan,
-    invitation?.serviceType,
-    invitation?.servicePackage,
-    invitation?.selectedPackage,
-  ]
-    .map(cleanStr)
-    .join(" ")
-    .toLowerCase();
-
-  return (
-    packageText.includes("call") ||
-    packageText.includes("phone") ||
-    packageText.includes("טלפון") ||
-    packageText.includes("שיחות")
-  );
-}
-
 function getInvitationOwnerConditions(user: any) {
   const userObjectId = toObjectId(user?._id || user?.id);
   const email = cleanStr(user?.email).toLowerCase();
@@ -841,12 +876,38 @@ async function findInvitationByAnyId(value: unknown) {
     conditions.push({ eventId: id });
   }
 
-  return Invitation.findOne({
+  return Invitation.collection.findOne({
     $or: conditions,
-  }).lean();
+  });
+}
+
+function userAsInvitation(user: any) {
+  return {
+    ...user,
+    _id: user._id,
+    userId: user._id,
+    ownerId: user._id,
+    clientUserId: user._id,
+    clientEmail: user.email,
+    clientName: user.name,
+    eventName:
+      cleanStr(user.eventName) ||
+      cleanStr(user.eventTitle) ||
+      cleanStr(user.name) ||
+      "אירוע ללא שם",
+    eventDate: user.eventDate || user.date || null,
+    includeCalls: user.includeCalls,
+    callsRounds: user.callsRounds,
+    callRoundsSchedule: user.callRoundsSchedule,
+    __userAsInvitation: true,
+  };
 }
 
 async function loadInvitationsForUserWithCalls(user: any, rawRound: any) {
+  if (!hasPhoneCallsEnabled(user)) {
+    return [];
+  }
+
   const explicitInvitationId =
     rawRound?.invitationId ||
     rawRound?.eventId ||
@@ -859,29 +920,32 @@ async function loadInvitationsForUserWithCalls(user: any, rawRound: any) {
   if (explicitInvitationId) {
     const explicit = await findInvitationByAnyId(explicitInvitationId);
 
-    if (explicit && invitationHasPhoneCalls(explicit)) {
+    if (explicit) {
       return [explicit];
     }
-
-    return [];
   }
 
   const conditions = getInvitationOwnerConditions(user);
 
-  if (!conditions.length) return [];
+  if (conditions.length) {
+    const invitations = await Invitation.collection
+      .find({
+        $or: conditions,
+      })
+      .sort({
+        eventDate: 1,
+        date: 1,
+        createdAt: -1,
+      })
+      .limit(50)
+      .toArray();
 
-  const invitations = await Invitation.find({
-    $or: conditions,
-  })
-    .sort({
-      eventDate: 1,
-      date: 1,
-      createdAt: -1,
-    })
-    .limit(50)
-    .lean();
+    if (invitations.length) {
+      return invitations;
+    }
+  }
 
-  return invitations.filter(invitationHasPhoneCalls);
+  return [userAsInvitation(user)];
 }
 
 async function findClientUserFromInvitation(invitation: any) {
@@ -921,16 +985,14 @@ async function loadScheduleCandidates(input: {
   const candidates: ScheduleCandidate[] = [];
   const dedupe = new Set<string>();
 
-  /**
-   * מקור האמת החדש:
-   * לו״ז סבבי שיחות שמוגדר בכרטיס המשתמש באדמין.
-   */
   const users = await User.collection
     .find(buildLooseScheduleUserQuery())
     .limit(maxCandidates)
     .toArray();
 
   for (const user of users) {
+    if (!hasPhoneCallsEnabled(user)) continue;
+
     const rounds = extractScheduledRoundsForDate(user, dateKey).filter(
       (roundInfo) =>
         isDueRound({
@@ -968,17 +1030,13 @@ async function loadScheduleCandidates(input: {
     }
   }
 
-  /**
-   * תמיכה נוספת:
-   * אם בעתיד/בעבר נשמר לו״ז ישירות על ההזמנה.
-   */
   const invitationsWithOwnSchedule = await Invitation.collection
     .find(buildLooseScheduleInvitationQuery())
     .limit(maxCandidates)
     .toArray();
 
   for (const invitation of invitationsWithOwnSchedule) {
-    if (!invitationHasPhoneCalls(invitation)) continue;
+    if (!hasPhoneCallsEnabled(invitation)) continue;
 
     const rounds = extractScheduledRoundsForDate(invitation, dateKey).filter(
       (roundInfo) =>
@@ -1158,6 +1216,92 @@ async function loadScheduledEmployeesForDate(dateKey: string) {
 }
 
 /* ============================================================
+   Assignment helpers
+============================================================ */
+
+const OPEN_TASK_STATUSES = [
+  "pending",
+  "open",
+  "assigned",
+  "in_progress",
+  "active",
+];
+
+async function buildAssignmentState(input: {
+  employees: ScheduledEmployee[];
+  dateKey: string;
+}) {
+  const { employees, dateKey } = input;
+
+  const loads = new Map<string, number>();
+
+  for (const employee of employees) {
+    loads.set(employee.employeeIdString, 0);
+  }
+
+  const employeeIds = employees.map((employee) => employee.employeeId);
+
+  const existingOpenTasks = await CallTask.collection
+    .find({
+      $or: [
+        { employeeId: { $in: employeeIds } },
+        { assignedEmployeeId: { $in: employeeIds } },
+        { assignedToEmployeeId: { $in: employeeIds } },
+      ],
+      workDate: {
+        $gte: startOfDateKey(dateKey),
+        $lte: endOfDateKey(dateKey),
+      },
+      status: { $in: OPEN_TASK_STATUSES },
+    })
+    .project({
+      employeeId: 1,
+      assignedEmployeeId: 1,
+      assignedToEmployeeId: 1,
+    })
+    .toArray();
+
+  for (const task of existingOpenTasks) {
+    const employeeId =
+      extractIdString(task.employeeId) ||
+      extractIdString(task.assignedEmployeeId) ||
+      extractIdString(task.assignedToEmployeeId);
+
+    if (!employeeId) continue;
+
+    loads.set(employeeId, Number(loads.get(employeeId) || 0) + 1);
+  }
+
+  return {
+    employees,
+    loads,
+  };
+}
+
+function pickEmployee(state: AssignmentState) {
+  let selected: ScheduledEmployee | null = null;
+  let selectedLoad = Number.POSITIVE_INFINITY;
+
+  for (const employee of state.employees) {
+    const load = Number(state.loads.get(employee.employeeIdString) || 0);
+
+    if (!selected || load < selectedLoad) {
+      selected = employee;
+      selectedLoad = load;
+    }
+  }
+
+  if (!selected) return null;
+
+  state.loads.set(
+    selected.employeeIdString,
+    Number(state.loads.get(selected.employeeIdString) || 0) + 1
+  );
+
+  return selected;
+}
+
+/* ============================================================
    Guests helpers
 ============================================================ */
 
@@ -1185,12 +1329,8 @@ function hasPhone(guest: any) {
   return getGuestPhone(guest).replace(/\D/g, "").length >= 7;
 }
 
-function normalizeRsvp(value: unknown) {
-  return cleanStr(value).toLowerCase();
-}
-
 function getGuestRsvp(guest: any) {
-  return normalizeRsvp(
+  return normalizeStatus(
     guest?.rsvp ||
       guest?.rsvpStatus ||
       guest?.attendanceStatus ||
@@ -1201,52 +1341,119 @@ function getGuestRsvp(guest: any) {
   );
 }
 
-function isPendingGuest(guest: any) {
+const FINAL_GUEST_RSVP = [
+  "confirmed",
+  "coming",
+  "attending",
+  "yes",
+  "approved",
+  "not_coming",
+  "declined",
+  "no",
+  "cancelled",
+  "canceled",
+  "מגיע",
+  "מגיעה",
+  "מאשר",
+  "מאשרת",
+  "אישר",
+  "אישרה",
+  "לא מגיע",
+  "לא מגיעה",
+  "סירב",
+  "סירבה",
+];
+
+const PENDING_GUEST_RSVP = [
+  "",
+  "pending",
+  "wait",
+  "waiting",
+  "unknown",
+  "none",
+  "no_response",
+  "unanswered",
+  "not_answered",
+  "new",
+  "created",
+  "טרם השיב",
+  "ממתין",
+  "לא ידוע",
+];
+
+function isPendingGuestForRound1(guest: any) {
   const rsvp = getGuestRsvp(guest);
 
-  if (!rsvp) return true;
+  if (FINAL_GUEST_RSVP.includes(rsvp)) return false;
 
-  return [
-    "pending",
-    "wait",
-    "waiting",
-    "unknown",
-    "none",
-    "no_response",
-    "unanswered",
-    "not_answered",
-    "טרם השיב",
-    "ממתין",
-    "לא ידוע",
-  ].includes(rsvp);
+  return PENDING_GUEST_RSVP.includes(rsvp);
 }
 
 async function loadGuestsForInvitation(invitation: any) {
   const invitationId = extractIdString(invitation?._id);
   const invitationObjectId = toObjectId(invitationId);
 
+  const ownerId = extractIdString(
+    invitation?.userId ||
+      invitation?.ownerId ||
+      invitation?.clientUserId ||
+      invitation?.createdBy ||
+      ""
+  );
+
+  const ownerObjectId = toObjectId(ownerId);
+
+  const email =
+    cleanStr(invitation?.clientEmail) ||
+    cleanStr(invitation?.customerEmail) ||
+    cleanStr(invitation?.email);
+
   const conditions: any[] = [];
 
   if (invitationObjectId) {
     conditions.push({ invitationId: invitationObjectId });
     conditions.push({ eventId: invitationObjectId });
+    conditions.push({ invitation: invitationObjectId });
+    conditions.push({ event: invitationObjectId });
   }
 
   if (invitationId) {
     conditions.push({ invitationId });
     conditions.push({ eventId: invitationId });
+    conditions.push({ invitation: invitationId });
+    conditions.push({ event: invitationId });
+  }
+
+  if (ownerObjectId) {
+    conditions.push({ userId: ownerObjectId });
+    conditions.push({ clientUserId: ownerObjectId });
+    conditions.push({ ownerId: ownerObjectId });
+    conditions.push({ createdBy: ownerObjectId });
+  }
+
+  if (ownerId) {
+    conditions.push({ userId: ownerId });
+    conditions.push({ clientUserId: ownerId });
+    conditions.push({ ownerId });
+    conditions.push({ createdBy: ownerId });
+  }
+
+  if (email) {
+    conditions.push({ clientEmail: email.toLowerCase() });
+    conditions.push({ customerEmail: email.toLowerCase() });
   }
 
   if (!conditions.length) return [];
 
-  return InvitationGuest.find({
-    $or: conditions,
-  })
+  return InvitationGuest.collection
+    .find({
+      $or: conditions,
+    })
     .sort({
       createdAt: 1,
       _id: 1,
     })
-    .lean();
+    .toArray();
 }
 
 const NO_ANSWER_RESULTS = [
@@ -1257,7 +1464,22 @@ const NO_ANSWER_RESULTS = [
   "callback",
   "call_later",
   "no_response",
+  "לא ענה",
+  "אין מענה",
+  "תא קולי",
+  "עסוק",
 ];
+
+function getTaskResult(task: any) {
+  return normalizeStatus(
+    task?.result ||
+      task?.callResult ||
+      task?.status ||
+      task?.outcome ||
+      task?.callStatus ||
+      ""
+  );
+}
 
 async function loadGuestsForRound(input: {
   invitation: any;
@@ -1270,38 +1492,52 @@ async function loadGuestsForRound(input: {
   const allGuests = await loadGuestsForInvitation(input.invitation);
 
   if (input.round === 1) {
-    return allGuests.filter((guest: any) => hasPhone(guest) && isPendingGuest(guest));
+    return allGuests.filter((guest: any) => {
+      return hasPhone(guest) && isPendingGuestForRound1(guest);
+    });
   }
 
   if (!invitationObjectId) return [];
 
   const previousRound = (input.round - 1) as 1 | 2;
 
-  const previousNoAnswerTasks = await CallTask.find({
-    invitationId: invitationObjectId,
-    round: previousRound,
-    $or: [
-      { result: { $in: NO_ANSWER_RESULTS } },
-      { status: { $in: NO_ANSWER_RESULTS } },
-      { callResult: { $in: NO_ANSWER_RESULTS } },
-    ],
-    workDate: {
-      $lte: endOfDateKey(input.dateKey),
-    },
-  })
-    .select("guestId invitationGuestId")
-    .lean();
+  const previousTasks = await CallTask.collection
+    .find({
+      invitationId: invitationObjectId,
+      round: previousRound,
+      workDate: {
+        $lte: endOfDateKey(input.dateKey),
+      },
+    })
+    .project({
+      guestId: 1,
+      invitationGuestId: 1,
+      result: 1,
+      callResult: 1,
+      status: 1,
+      outcome: 1,
+      callStatus: 1,
+    })
+    .toArray();
 
-  const guestIds = new Set(
-    previousNoAnswerTasks
-      .map((task: any) => String(task.guestId || task.invitationGuestId || ""))
-      .filter(Boolean)
-  );
+  const guestIds = new Set<string>();
+
+  for (const task of previousTasks) {
+    const result = getTaskResult(task);
+
+    if (!NO_ANSWER_RESULTS.includes(result)) continue;
+
+    const guestId = extractIdString(task.guestId || task.invitationGuestId);
+
+    if (guestId) {
+      guestIds.add(guestId);
+    }
+  }
 
   return allGuests.filter((guest: any) => {
     return (
       hasPhone(guest) &&
-      isPendingGuest(guest) &&
+      isPendingGuestForRound1(guest) &&
       guestIds.has(String(guest?._id || ""))
     );
   });
@@ -1341,7 +1577,7 @@ function getRoundTitle(input: {
 
 function getRoundDescription(round: RoundNumber) {
   if (round === 1) {
-    return "סבב 1 - שיחות לכל האורחים שטרם השיבו";
+    return "סבב 1 - שיחות לכל האורחים שטרם סימנו תשובה";
   }
 
   if (round === 2) {
@@ -1398,11 +1634,10 @@ function serializeWorkOrder(order: any) {
 
 async function findOrCreateWorkOrder(input: {
   candidate: ScheduleCandidate;
-  scheduledEmployees: ScheduledEmployee[];
   dateKey: string;
   guestsCount: number;
 }) {
-  const { candidate, scheduledEmployees, dateKey, guestsCount } = input;
+  const { candidate, dateKey, guestsCount } = input;
 
   const invitationObjectId = toObjectId(candidate.invitation?._id);
 
@@ -1410,7 +1645,7 @@ async function findOrCreateWorkOrder(input: {
     throw new Error("INVITATION_ID_INVALID");
   }
 
-  const existing = await CallWorkOrder.findOne({
+  const existing = await CallWorkOrder.collection.findOne({
     invitationId: invitationObjectId,
     type: "rsvp_calls",
     round: candidate.round,
@@ -1418,7 +1653,7 @@ async function findOrCreateWorkOrder(input: {
       $gte: startOfDateKey(dateKey),
       $lte: endOfDateKey(dateKey),
     },
-  }).lean();
+  });
 
   if (existing) {
     return {
@@ -1440,18 +1675,12 @@ async function findOrCreateWorkOrder(input: {
   const workDate = startOfDateKey(dateKey);
   const sourceAudience = getSourceAudienceByRound(candidate.round);
 
-  const assignedEmployeeIds = scheduledEmployees.map(
-    (employee) => employee.employeeId
-  );
-
-  const assignedShiftIds = scheduledEmployees
-    .map((employee) => employee.shiftId)
-    .filter(Boolean) as Types.ObjectId[];
-
-  const workOrder = await CallWorkOrder.create({
+  const workOrderDoc = {
     type: "rsvp_calls",
 
     invitationId: invitationObjectId,
+    eventId: invitationObjectId,
+
     userId: ownerObjectId || null,
     clientUserId: ownerObjectId || null,
 
@@ -1461,9 +1690,11 @@ async function findOrCreateWorkOrder(input: {
     eventDate,
 
     round: candidate.round,
+    callRound: candidate.round,
     sourceAudience,
 
     workDate,
+    scheduledFor: candidate.configuredRoundAt,
     configuredRoundAt: candidate.configuredRoundAt,
     timezone: TIMEZONE,
 
@@ -1476,12 +1707,12 @@ async function findOrCreateWorkOrder(input: {
     description: getRoundDescription(candidate.round),
 
     status: "open",
-    distributionStrategy: "scheduled_shift_round_robin",
+    distributionStrategy: "daily_all_rounds_least_loaded",
 
-    assignedEmployeeIds,
-    assignedShiftIds,
+    assignedEmployeeIds: [],
+    assignedShiftIds: [],
 
-    employeeCount: assignedEmployeeIds.length,
+    employeeCount: 0,
     totalTasks: guestsCount,
     pendingTasks: guestsCount,
     inProgressTasks: 0,
@@ -1498,20 +1729,99 @@ async function findOrCreateWorkOrder(input: {
 
     lastDistributedAt: now,
     notes: `נפתח אוטומטית לפי לו״ז סבב ${candidate.round} לתאריך ${dateKey}`,
-  });
+
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  const insertResult = await CallWorkOrder.collection.insertOne(workOrderDoc);
 
   return {
-    workOrder,
+    workOrder: {
+      _id: insertResult.insertedId,
+      ...workOrderDoc,
+    },
     created: true,
   };
 }
 
+async function refreshWorkOrderCounters(workOrderId: Types.ObjectId) {
+  const tasks = await CallTask.collection
+    .find({
+      workOrderId,
+    })
+    .project({
+      employeeId: 1,
+      assignedEmployeeId: 1,
+      assignedToEmployeeId: 1,
+      status: 1,
+      result: 1,
+      callResult: 1,
+    })
+    .toArray();
+
+  const assignedEmployeeIds: Types.ObjectId[] = [];
+  const assignedEmployeeIdSet = new Set<string>();
+
+  let pendingTasks = 0;
+  let completedTasks = 0;
+  let noAnswerTasks = 0;
+
+  for (const task of tasks) {
+    const employeeId =
+      extractIdString(task.employeeId) ||
+      extractIdString(task.assignedEmployeeId) ||
+      extractIdString(task.assignedToEmployeeId);
+
+    const employeeObjectId = toObjectId(employeeId);
+
+    if (employeeObjectId && !assignedEmployeeIdSet.has(String(employeeObjectId))) {
+      assignedEmployeeIdSet.add(String(employeeObjectId));
+      assignedEmployeeIds.push(employeeObjectId);
+    }
+
+    const status = normalizeStatus(task.status);
+    const result = getTaskResult(task);
+
+    if (status === "pending") pendingTasks += 1;
+
+    if (
+      ["done", "completed", "closed", "finished"].includes(status) ||
+      result
+    ) {
+      completedTasks += 1;
+    }
+
+    if (NO_ANSWER_RESULTS.includes(result)) {
+      noAnswerTasks += 1;
+    }
+  }
+
+  await CallWorkOrder.collection.updateOne(
+    {
+      _id: workOrderId,
+    },
+    {
+      $set: {
+        totalTasks: tasks.length,
+        pendingTasks,
+        completedTasks,
+        noAnswerTasks,
+        assignedEmployeeIds,
+        employeeCount: assignedEmployeeIds.length,
+        lastDistributedAt: new Date(),
+        updatedAt: new Date(),
+      },
+    }
+  );
+}
+
 async function createOrCompleteWorkOrderForCandidate(input: {
   candidate: ScheduleCandidate;
-  scheduledEmployees: ScheduledEmployee[];
+  assignmentState: AssignmentState;
   dateKey: string;
 }) {
-  const { candidate, scheduledEmployees, dateKey } = input;
+  const { candidate, assignmentState, dateKey } = input;
 
   const invitationObjectId = toObjectId(candidate.invitation?._id);
 
@@ -1523,7 +1833,7 @@ async function createOrCompleteWorkOrderForCandidate(input: {
     };
   }
 
-  if (!scheduledEmployees.length) {
+  if (!assignmentState.employees.length) {
     return {
       status: "skipped",
       reason: "NO_EMPLOYEES_SCHEDULED",
@@ -1551,24 +1861,23 @@ async function createOrCompleteWorkOrderForCandidate(input: {
   const { workOrder, created: workOrderCreated } =
     await findOrCreateWorkOrder({
       candidate,
-      scheduledEmployees,
       dateKey,
       guestsCount: guestsForRound.length,
     });
 
   const workOrderId = (workOrder as any)._id as Types.ObjectId;
 
-  /**
-   * אם הוראת עבודה כבר קיימת אבל אין משימות או שחלק חסרות,
-   * לא מדלגים. יוצרים רק את המשימות החסרות.
-   */
-  const existingTasks = await CallTask.find({
-    invitationId: invitationObjectId,
-    workOrderId,
-    round: candidate.round,
-  })
-    .select("guestId invitationGuestId assignedToEmployeeId employeeId")
-    .lean();
+  const existingTasks = await CallTask.collection
+    .find({
+      invitationId: invitationObjectId,
+      workOrderId,
+      round: candidate.round,
+    })
+    .project({
+      guestId: 1,
+      invitationGuestId: 1,
+    })
+    .toArray();
 
   const existingGuestIds = new Set(
     existingTasks
@@ -1581,14 +1890,19 @@ async function createOrCompleteWorkOrderForCandidate(input: {
   });
 
   if (!guestsMissingTasks.length) {
-    const freshWorkOrder = await CallWorkOrder.findById(workOrderId).lean();
+    await refreshWorkOrderCounters(workOrderId);
+
+    const freshWorkOrder = await CallWorkOrder.collection.findOne({
+      _id: workOrderId,
+    });
 
     return {
       status: workOrderCreated ? "created_without_new_tasks" : "exists",
       reason: "WORK_ORDER_AND_TASKS_ALREADY_EXIST",
       round: candidate.round,
       totalTasks: existingTasks.length,
-      employeesCount: scheduledEmployees.length,
+      newTasks: 0,
+      employeesCount: assignmentState.employees.length,
       workOrder: serializeWorkOrder(freshWorkOrder || workOrder),
     };
   }
@@ -1606,6 +1920,8 @@ async function createOrCompleteWorkOrderForCandidate(input: {
   const sourceAudience = getSourceAudienceByRound(candidate.round);
 
   const distribution: Record<string, number> = {};
+  const assignedShiftIds: Types.ObjectId[] = [];
+  const assignedShiftIdSet = new Set<string>();
 
   const taskDocs = guestsMissingTasks
     .map((guest: any, index: number) => {
@@ -1613,11 +1929,20 @@ async function createOrCompleteWorkOrderForCandidate(input: {
 
       if (!guestObjectId) return null;
 
-      const assignedEmployee =
-        scheduledEmployees[index % scheduledEmployees.length];
+      const assignedEmployee = pickEmployee(assignmentState);
 
-      const employeeKey = assignedEmployee?.employeeIdString || "unassigned";
+      if (!assignedEmployee) return null;
+
+      const employeeKey = assignedEmployee.employeeIdString;
       distribution[employeeKey] = Number(distribution[employeeKey] || 0) + 1;
+
+      if (
+        assignedEmployee.shiftId &&
+        !assignedShiftIdSet.has(String(assignedEmployee.shiftId))
+      ) {
+        assignedShiftIdSet.add(String(assignedEmployee.shiftId));
+        assignedShiftIds.push(assignedEmployee.shiftId);
+      }
 
       const guestName = getGuestName(guest);
       const guestPhone = getGuestPhone(guest);
@@ -1635,18 +1960,13 @@ async function createOrCompleteWorkOrderForCandidate(input: {
         guestId: guestObjectId,
         invitationGuestId: guestObjectId,
 
-        /**
-         * חשוב:
-         * שומרים את כל שמות השדות כדי שגם מסך עובד,
-         * גם מסך אדמין וגם תיעודי שיחות יוכלו למצוא את העובד.
-         */
-        assignedToEmployeeId: assignedEmployee?.employeeId || null,
-        assignedEmployeeId: assignedEmployee?.employeeId || null,
-        employeeId: assignedEmployee?.employeeId || null,
+        assignedToEmployeeId: assignedEmployee.employeeId,
+        assignedEmployeeId: assignedEmployee.employeeId,
+        employeeId: assignedEmployee.employeeId,
 
-        employeeName: assignedEmployee?.employeeName || "",
-        employeeEmail: assignedEmployee?.employeeEmail || "",
-        employeePhone: assignedEmployee?.employeePhone || "",
+        employeeName: assignedEmployee.employeeName || "",
+        employeeEmail: assignedEmployee.employeeEmail || "",
+        employeePhone: assignedEmployee.employeePhone || "",
 
         previousAssignedEmployeeId: null,
 
@@ -1690,7 +2010,7 @@ async function createOrCompleteWorkOrderForCandidate(input: {
         priority: 0,
         sortOrder: existingTasks.length + index,
 
-        assignedAt: assignedEmployee ? now : null,
+        assignedAt: now,
         startedAt: null,
         completedAt: null,
         lastAttemptAt: null,
@@ -1724,41 +2044,33 @@ async function createOrCompleteWorkOrderForCandidate(input: {
     };
   }
 
-  await CallTask.insertMany(taskDocs, {
+  await CallTask.collection.insertMany(taskDocs as any[], {
     ordered: false,
   });
 
-  const totalTasks = await CallTask.countDocuments({
-    workOrderId,
-  });
-
-  const pendingTasks = await CallTask.countDocuments({
-    workOrderId,
-    status: "pending",
-  });
-
-  await CallWorkOrder.updateOne(
-    {
-      _id: workOrderId,
-    },
-    {
-      $set: {
-        totalTasks,
-        pendingTasks,
-        employeeCount: scheduledEmployees.length,
-        assignedEmployeeIds: scheduledEmployees.map(
-          (employee) => employee.employeeId
-        ),
-        assignedShiftIds: scheduledEmployees
-          .map((employee) => employee.shiftId)
-          .filter(Boolean),
-        lastDistributedAt: now,
-        updatedAt: now,
+  if (assignedShiftIds.length) {
+    await CallWorkOrder.collection.updateOne(
+      {
+        _id: workOrderId,
       },
-    }
-  );
+      {
+        $addToSet: {
+          assignedShiftIds: {
+            $each: assignedShiftIds,
+          },
+        },
+        $set: {
+          updatedAt: now,
+        },
+      }
+    );
+  }
 
-  const freshWorkOrder = await CallWorkOrder.findById(workOrderId).lean();
+  await refreshWorkOrderCounters(workOrderId);
+
+  const freshWorkOrder = await CallWorkOrder.collection.findOne({
+    _id: workOrderId,
+  });
 
   return {
     status: workOrderCreated ? "created" : "completed_existing",
@@ -1766,9 +2078,9 @@ async function createOrCompleteWorkOrderForCandidate(input: {
       ? "WORK_ORDER_CREATED_AND_TASKS_CREATED"
       : "EXISTING_WORK_ORDER_COMPLETED_WITH_MISSING_TASKS",
     round: candidate.round,
-    totalTasks,
+    totalTasks: freshWorkOrder?.totalTasks || taskDocs.length,
     newTasks: taskDocs.length,
-    employeesCount: scheduledEmployees.length,
+    employeesCount: assignmentState.employees.length,
     distribution,
     workOrder: serializeWorkOrder(freshWorkOrder || workOrder),
   };
@@ -1853,9 +2165,14 @@ async function handleCreateCallTasks(req: NextRequest) {
         force,
         employeesCount: scheduledEmployees.length,
         hint:
-          "אם זו בדיקה, ודאי שהלו״ז שמור בכרטיס המשתמש, שהתאריך הוא היום, ושהאירוע של אותו משתמש מסומן עם שירות שיחות.",
+          "ודאי שיש includeCalls=true, callsRounds גדול מ-0, callRoundsSchedule.enabled=true, וסבב עם scheduledAt באותו תאריך.",
       });
     }
+
+    const assignmentState = await buildAssignmentState({
+      employees: scheduledEmployees,
+      dateKey,
+    });
 
     const results = [];
 
@@ -1863,7 +2180,7 @@ async function handleCreateCallTasks(req: NextRequest) {
       try {
         const result = await createOrCompleteWorkOrderForCandidate({
           candidate,
-          scheduledEmployees,
+          assignmentState,
           dateKey,
         });
 
@@ -1907,6 +2224,10 @@ async function handleCreateCallTasks(req: NextRequest) {
     const skipped = results.filter((item) => item.status === "skipped");
     const errors = results.filter((item) => item.status === "error");
 
+    const newTasksCount = results.reduce((sum, item: any) => {
+      return sum + Number(item?.newTasks || 0);
+    }, 0);
+
     return NextResponse.json({
       success: errors.length === 0,
       dateKey,
@@ -1920,6 +2241,9 @@ async function handleCreateCallTasks(req: NextRequest) {
         email: employee.employeeEmail,
         phone: employee.employeePhone,
         shiftId: employee.shiftId ? String(employee.shiftId) : "",
+        currentLoadAfterRun: Number(
+          assignmentState.loads.get(employee.employeeIdString) || 0
+        ),
       })),
 
       totalCandidates: candidates.length,
@@ -1928,6 +2252,7 @@ async function handleCreateCallTasks(req: NextRequest) {
       existingCount: existing.length,
       skippedCount: skipped.length,
       errorCount: errors.length,
+      newTasksCount,
 
       results,
     });
