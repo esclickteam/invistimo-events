@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 
 import db from "@/lib/db";
 import User from "@/models/User";
+import InvitationGuest from "@/models/InvitationGuest";
 import CallWorkOrder from "@/models/CallWorkOrder";
 import CallTask from "@/models/CallTask";
 
@@ -33,6 +34,7 @@ type TaskStatus =
   | "callback"
   | "undecided"
   | "will_reply_message"
+  | "needs_fix"
   | "wrong_number"
   | "completed"
   | "cancelled";
@@ -47,6 +49,7 @@ type TaskStatusCount = {
   callback: number;
   undecided: number;
   will_reply_message: number;
+  needs_fix: number;
   wrong_number: number;
   completed: number;
   cancelled: number;
@@ -105,7 +108,8 @@ function toBool(value: unknown) {
     value === 1 ||
     v === "true" ||
     v === "1" ||
-    v === "yes"
+    v === "yes" ||
+    v === "כן"
   );
 }
 
@@ -119,6 +123,7 @@ function isValidStatus(value: string): value is TaskStatus {
     "callback",
     "undecided",
     "will_reply_message",
+    "needs_fix",
     "wrong_number",
     "completed",
     "cancelled",
@@ -133,6 +138,7 @@ function isCompletedStatus(status: string) {
     "callback",
     "undecided",
     "will_reply_message",
+    "needs_fix",
     "wrong_number",
     "completed",
     "cancelled",
@@ -150,6 +156,7 @@ function emptyCounts(): TaskStatusCount {
     callback: 0,
     undecided: 0,
     will_reply_message: 0,
+    needs_fix: 0,
     wrong_number: 0,
     completed: 0,
     cancelled: 0,
@@ -169,6 +176,7 @@ function addCount(target: TaskStatusCount, status: string, count: number) {
   if (normalized === "callback") target.callback += count;
   if (normalized === "undecided") target.undecided += count;
   if (normalized === "will_reply_message") target.will_reply_message += count;
+  if (normalized === "needs_fix") target.needs_fix += count;
   if (normalized === "wrong_number") target.wrong_number += count;
   if (normalized === "completed") target.completed += count;
   if (normalized === "cancelled") target.cancelled += count;
@@ -182,6 +190,7 @@ function getCompletedFromCounts(counts: TaskStatusCount) {
     counts.callback +
     counts.undecided +
     counts.will_reply_message +
+    counts.needs_fix +
     counts.wrong_number +
     counts.completed +
     counts.cancelled
@@ -194,7 +203,7 @@ function normalizeStatusParam(value: unknown) {
   if (!status || status === "all") return "";
 
   if (status === "open") {
-    return ["pending", "in_progress"];
+    return ["pending", "in_progress", "open", "assigned", "active"];
   }
 
   if (status === "done" || status === "completed_all") {
@@ -205,10 +214,19 @@ function normalizeStatusParam(value: unknown) {
       "callback",
       "undecided",
       "will_reply_message",
+      "needs_fix",
       "wrong_number",
       "completed",
       "cancelled",
     ];
+  }
+
+  if (status === "needs_correction" || status === "requires_correction") {
+    return "needs_fix";
+  }
+
+  if (status === "wrongnumber" || status === "wrong_number") {
+    return "needs_fix";
   }
 
   if (isValidStatus(status)) return status;
@@ -219,6 +237,69 @@ function normalizeStatusParam(value: unknown) {
 function buildRegex(value: string) {
   const escaped = value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return new RegExp(escaped, "i");
+}
+
+function serializeCallHistoryItem(item: any) {
+  return {
+    taskId: item?.taskId ? String(item.taskId) : "",
+    workOrderId: item?.workOrderId ? String(item.workOrderId) : "",
+    invitationId: item?.invitationId ? String(item.invitationId) : "",
+    guestId: item?.guestId ? String(item.guestId) : "",
+
+    employeeId: item?.employeeId ? String(item.employeeId) : "",
+    employeeName: cleanStr(item?.employeeName),
+    employeeEmail: cleanStr(item?.employeeEmail),
+
+    round:
+      typeof item?.round === "number"
+        ? item.round
+        : Number(item?.round || 0) || null,
+
+    status: cleanStr(item?.status),
+    result: cleanStr(item?.result),
+    rsvpStatus: cleanStr(item?.rsvpStatus),
+
+    callAnswered: cleanStr(item?.callAnswered),
+    answeredResult: cleanStr(item?.answeredResult),
+    messageFollowUpAction: cleanStr(item?.messageFollowUpAction),
+    noAnswerResult: cleanStr(item?.noAnswerResult),
+
+    arrivedCount:
+      typeof item?.arrivedCount === "number" ? item.arrivedCount : null,
+
+    note: cleanStr(item?.note),
+    callDocumentation: cleanStr(item?.callDocumentation || item?.note),
+    guestNote: cleanStr(item?.guestNote),
+
+    movedToNextRound: Boolean(item?.movedToNextRound),
+    nextRoundReason: cleanStr(item?.nextRoundReason),
+    nextRound:
+      typeof item?.nextRound === "number"
+        ? item.nextRound
+        : Number(item?.nextRound || 0) || null,
+
+    nextRoundTaskId: item?.nextRoundTaskId ? String(item.nextRoundTaskId) : "",
+    nextRoundWorkOrderId: item?.nextRoundWorkOrderId
+      ? String(item.nextRoundWorkOrderId)
+      : "",
+
+    at: item?.at || item?.createdAt || null,
+    createdAt: item?.createdAt || item?.at || null,
+  };
+}
+
+function getGuestIdKey(value: unknown) {
+  const id = extractIdString(value);
+  return id || "";
+}
+
+function getGuestNotesFromGuest(guest: any) {
+  return (
+    cleanStr(guest?.guestNotes) ||
+    cleanStr(guest?.guestNote) ||
+    cleanStr(guest?.notes) ||
+    ""
+  );
 }
 
 function serializeWorkOrder(order: any, counts: TaskStatusCount) {
@@ -265,6 +346,7 @@ function serializeWorkOrder(order: any, counts: TaskStatusCount) {
     myCallbackTasks: counts.callback,
     myUndecidedTasks: counts.undecided,
     myWillReplyMessageTasks: counts.will_reply_message,
+    myNeedsFixTasks: counts.needs_fix,
     myWrongNumberTasks: counts.wrong_number,
     myCancelledTasks: counts.cancelled,
 
@@ -282,6 +364,7 @@ function serializeWorkOrder(order: any, counts: TaskStatusCount) {
     callbackTasks: counts.callback,
     undecidedTasks: counts.undecided,
     willReplyMessageTasks: counts.will_reply_message,
+    needsFixTasks: counts.needs_fix,
     wrongNumberTasks: counts.wrong_number,
     cancelledTasks: counts.cancelled,
 
@@ -290,8 +373,21 @@ function serializeWorkOrder(order: any, counts: TaskStatusCount) {
   };
 }
 
-function serializeTask(task: any) {
+function serializeTask(task: any, guest?: any) {
   const status = cleanStr(task?.status) || "pending";
+
+  const guestHistory = Array.isArray(guest?.callHistory)
+    ? guest.callHistory.map(serializeCallHistoryItem)
+    : [];
+
+  const taskPreviousHistory = Array.isArray(task?.previousCallHistory)
+    ? task.previousCallHistory.map(serializeCallHistoryItem)
+    : [];
+
+  const mergedHistory = guestHistory.length ? guestHistory : taskPreviousHistory;
+
+  const guestNotes =
+    cleanStr(task?.guestNotes) || getGuestNotesFromGuest(guest) || "";
 
   return {
     id: String(task?._id || ""),
@@ -314,7 +410,7 @@ function serializeTask(task: any) {
     guestGroup: cleanStr(task?.guestGroup),
     guestSide: cleanStr(task?.guestSide),
     guestTable: cleanStr(task?.guestTable),
-    guestNotes: cleanStr(task?.guestNotes),
+    guestNotes,
 
     round: Number(task?.round || 1),
     sourceAudience: cleanStr(task?.sourceAudience),
@@ -340,10 +436,42 @@ function serializeTask(task: any) {
 
     note: cleanStr(task?.note),
 
+    callAnswered: cleanStr(task?.callAnswered),
+    answeredResult: cleanStr(task?.answeredResult),
+    messageFollowUpAction: cleanStr(task?.messageFollowUpAction),
+    noAnswerResult: cleanStr(task?.noAnswerResult),
+
+    moveToNextRound: Boolean(task?.moveToNextRound),
+    nextRound:
+      typeof task?.nextRound === "number"
+        ? Number(task.nextRound)
+        : Number(task?.nextRound || 0) || null,
+    nextRoundReason: cleanStr(task?.nextRoundReason),
+
+    movedFromRound:
+      typeof task?.movedFromRound === "number"
+        ? Number(task.movedFromRound)
+        : Number(task?.movedFromRound || 0) || null,
+    movedFromTaskId: task?.movedFromTaskId ? String(task.movedFromTaskId) : "",
+    movedFromWorkOrderId: task?.movedFromWorkOrderId
+      ? String(task.movedFromWorkOrderId)
+      : "",
+    movedToNextRoundAt: task?.movedToNextRoundAt || null,
+    movedToNextRoundNote: cleanStr(task?.movedToNextRoundNote),
+    movedToNextRoundReason: cleanStr(task?.movedToNextRoundReason),
+
+    previousCallHistory: mergedHistory,
+    guestCallHistory: mergedHistory,
+
     isCompleted: isCompletedStatus(status),
 
-    canStart: ["pending", "in_progress"].includes(status),
+    canStart: ["pending", "in_progress", "open", "assigned", "active"].includes(
+      status
+    ),
     canUpdate: status !== "cancelled",
+
+    createdAt: task?.createdAt || null,
+    updatedAt: task?.updatedAt || null,
   };
 }
 
@@ -545,7 +673,15 @@ function buildTaskQuery(input: {
         { guestGroup: regex },
         { guestSide: regex },
         { guestTable: regex },
+        { guestNotes: regex },
         { note: regex },
+        { status: regex },
+        { result: regex },
+        { callAnswered: regex },
+        { answeredResult: regex },
+        { messageFollowUpAction: regex },
+        { noAnswerResult: regex },
+        { movedToNextRoundReason: regex },
       ],
     });
   }
@@ -560,6 +696,7 @@ function getSort(searchParams: URLSearchParams): Record<string, SortOrder> {
     return {
       createdAt: -1,
       sortOrder: 1,
+      _id: -1,
     };
   }
 
@@ -567,6 +704,7 @@ function getSort(searchParams: URLSearchParams): Record<string, SortOrder> {
     return {
       createdAt: 1,
       sortOrder: 1,
+      _id: 1,
     };
   }
 
@@ -574,6 +712,8 @@ function getSort(searchParams: URLSearchParams): Record<string, SortOrder> {
     return {
       guestName: 1,
       sortOrder: 1,
+      createdAt: 1,
+      _id: 1,
     };
   }
 
@@ -581,13 +721,47 @@ function getSort(searchParams: URLSearchParams): Record<string, SortOrder> {
     return {
       status: 1,
       sortOrder: 1,
+      guestName: 1,
+      _id: 1,
     };
   }
 
   return {
     sortOrder: 1,
     createdAt: 1,
+    _id: 1,
   };
+}
+
+async function getGuestsMapForTasks(tasks: any[]) {
+  const ids = Array.from(
+    new Set(
+      tasks
+        .map((task) => toObjectId(task?.guestId))
+        .filter(Boolean)
+        .map((id) => String(id))
+    )
+  );
+
+  if (!ids.length) return new Map<string, any>();
+
+  const objectIds = ids.map((id) => new mongoose.Types.ObjectId(id));
+
+  const guests = await InvitationGuest.find({
+    _id: {
+      $in: objectIds,
+    },
+  })
+    .select("_id notes guestNote guestNotes callHistory")
+    .lean();
+
+  const map = new Map<string, any>();
+
+  for (const guest of guests) {
+    map.set(String((guest as any)._id), guest);
+  }
+
+  return map;
 }
 
 /* ============================================================
@@ -686,6 +860,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
     }
 
     const tasks = await tasksQuery.lean();
+    const guestsMap = await getGuestsMapForTasks(tasks);
 
     const completed = getCompletedFromCounts(counts);
     const remaining = Math.max(0, counts.total - completed);
@@ -721,7 +896,12 @@ export async function GET(req: NextRequest, context: RouteContext) {
 
       allMode,
       count: tasks.length,
-      tasks: tasks.map(serializeTask),
+      tasks: tasks.map((task: any) => {
+        const guestKey = getGuestIdKey(task?.guestId);
+        const guest = guestKey ? guestsMap.get(guestKey) : null;
+
+        return serializeTask(task, guest);
+      }),
     });
   } catch (error: any) {
     console.error(

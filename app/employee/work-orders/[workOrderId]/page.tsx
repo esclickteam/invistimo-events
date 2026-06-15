@@ -733,8 +733,8 @@ export default function EmployeeWorkOrderTasksPage() {
       }
 
       if (noAnswerResult === "needs_fix") {
-        return "יישמר תיעוד שהרשומה דורשת תיקון, בלי לפתוח אותה אוטומטית כסבב הבא.";
-      }
+  return "יישמר תיעוד שהרשומה דורשת תיקון, והוא ייפתח אוטומטית בהוראת העבודה של הסבב הבא.";
+}
 
       return "לא ענה בסבב הזה. אחרי השמירה הוא ייפתח אוטומטית בהוראת עבודה של הסבב הבא.";
     }
@@ -790,9 +790,11 @@ export default function EmployeeWorkOrderTasksPage() {
       const guestNote = input.guestNote || "";
 
       const shouldMoveToNextRound =
-        input.status === "no_answer" ||
-        input.status === "callback" ||
-        Boolean(input.moveToNextRound);
+  input.status === "no_answer" ||
+  input.status === "callback" ||
+  input.status === "needs_fix" ||
+  input.status === "wrong_number" ||
+  Boolean(input.moveToNextRound);
 
       const finalMessageFollowUpAction =
         input.status === "callback"
@@ -937,14 +939,20 @@ export default function EmployeeWorkOrderTasksPage() {
       }
 
       if (input.status === "needs_fix" || input.status === "wrong_number") {
-        body.rsvpStatus = "needs_fix";
-        body.guestRsvpStatus = "needs_fix";
-        body.rsvpResult = "needs_fix";
-        body.needsFix = true;
-        body.requiresCorrection = true;
-        body.phoneNeedsCorrection = true;
-        body.keepRsvpOpen = true;
-      }
+  body.rsvpStatus = "needs_fix";
+  body.guestRsvpStatus = "needs_fix";
+  body.rsvpResult = "needs_fix";
+  body.needsFix = true;
+  body.requiresCorrection = true;
+  body.phoneNeedsCorrection = true;
+
+  body.moveToNextRound = true;
+  body.transferToNextRound = true;
+  body.openInNextRound = true;
+  body.nextRound = nextRound;
+
+  body.keepRsvpOpen = true;
+}
 
       const res = await fetch(
         `/api/employee/call-tasks/${encodeURIComponent(taskId)}/status`,
@@ -1022,7 +1030,10 @@ export default function EmployeeWorkOrderTasksPage() {
     }
 
     const shouldMoveToNextRound =
-      finalStatus === "no_answer" || finalStatus === "callback";
+  finalStatus === "no_answer" ||
+  finalStatus === "callback" ||
+  finalStatus === "needs_fix" ||
+  finalStatus === "wrong_number";
 
     const payload: {
       task: CallTask;

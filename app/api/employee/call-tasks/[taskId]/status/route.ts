@@ -61,7 +61,12 @@ type MessageFollowUpAction =
   | "callback"
   | "move_to_next_round";
 
-type NextRoundReason = "" | "no_answer" | "callback_next_round" | "manual";
+type NextRoundReason =
+  | ""
+  | "no_answer"
+  | "callback_next_round"
+  | "needs_fix"
+  | "manual";
 
 type StatusCounts = {
   total: number;
@@ -457,6 +462,47 @@ function getCompletedFromCounts(counts: StatusCounts) {
   );
 }
 
+function serializeCallHistoryItem(item: any) {
+  return {
+    taskId: item?.taskId ? String(item.taskId) : "",
+    workOrderId: item?.workOrderId ? String(item.workOrderId) : "",
+    invitationId: item?.invitationId ? String(item.invitationId) : "",
+    guestId: item?.guestId ? String(item.guestId) : "",
+
+    employeeId: item?.employeeId ? String(item.employeeId) : "",
+    employeeName: cleanStr(item?.employeeName),
+    employeeEmail: cleanStr(item?.employeeEmail),
+
+    round: Number(item?.round || 0) || null,
+    status: cleanStr(item?.status),
+    result: cleanStr(item?.result),
+    rsvpStatus: cleanStr(item?.rsvpStatus),
+
+    callAnswered: cleanStr(item?.callAnswered),
+    answeredResult: cleanStr(item?.answeredResult),
+    messageFollowUpAction: cleanStr(item?.messageFollowUpAction),
+    noAnswerResult: cleanStr(item?.noAnswerResult),
+
+    arrivedCount:
+      typeof item?.arrivedCount === "number" ? item.arrivedCount : null,
+
+    note: cleanStr(item?.note),
+    callDocumentation: cleanStr(item?.callDocumentation || item?.note),
+    guestNote: cleanStr(item?.guestNote),
+
+    movedToNextRound: Boolean(item?.movedToNextRound),
+    nextRoundReason: cleanStr(item?.nextRoundReason),
+    nextRound: Number(item?.nextRound || 0) || null,
+    nextRoundTaskId: item?.nextRoundTaskId ? String(item.nextRoundTaskId) : "",
+    nextRoundWorkOrderId: item?.nextRoundWorkOrderId
+      ? String(item.nextRoundWorkOrderId)
+      : "",
+
+    at: item?.at || item?.createdAt || null,
+    createdAt: item?.createdAt || item?.at || null,
+  };
+}
+
 function serializeTask(task: any) {
   const status = cleanStr(task?.status) || "pending";
 
@@ -523,6 +569,11 @@ function serializeTask(task: any) {
     moveToNextRound: Boolean(task?.moveToNextRound),
     nextRound:
       typeof task?.nextRound === "number" ? Number(task.nextRound) : null,
+    nextRoundReason: cleanStr(task?.nextRoundReason),
+
+    previousCallHistory: Array.isArray(task?.previousCallHistory)
+      ? task.previousCallHistory.map(serializeCallHistoryItem)
+      : [],
 
     isCompleted: isCompletedStatus(status),
     canUpdate: status !== "cancelled",
@@ -660,7 +711,6 @@ async function requireEmployee() {
   }
 
   const userObjectId = toObjectId(auth.id);
-
   const userConditions: any[] = [];
 
   if (userObjectId) {
@@ -764,7 +814,6 @@ async function getCountsForWorkOrder(workOrderId: Types.ObjectId) {
 
 async function syncWorkOrderStatus(workOrderId: Types.ObjectId) {
   const counts = await getCountsForWorkOrder(workOrderId);
-
   const completed = getCompletedFromCounts(counts);
 
   const unassignedTasks = await CallTask.countDocuments({
@@ -841,6 +890,18 @@ async function syncWorkOrderStatus(workOrderId: Types.ObjectId) {
   };
 }
 
+async function getGuestCallHistory(guestId: Types.ObjectId) {
+  const guest = await InvitationGuest.findById(guestId)
+    .select("callHistory")
+    .lean();
+
+  const history = Array.isArray((guest as any)?.callHistory)
+    ? (guest as any).callHistory
+    : [];
+
+  return history.map(serializeCallHistoryItem);
+}
+
 async function syncDuplicateGuestRoundTasks(input: {
   task: any;
   status: TaskStatus;
@@ -882,14 +943,11 @@ async function syncDuplicateGuestRoundTasks(input: {
     set.arrivedCount = input.attendingCount;
     set.actualArrivedCount = input.attendingCount;
 
-    // תאימות למסכים ישנים בלבד
     set.attendingCount = input.attendingCount;
     set.confirmedCount = input.attendingCount;
     set.confirmedGuests = input.attendingCount;
     set.arrivingGuests = input.attendingCount;
     set.attendeesCount = input.attendingCount;
-
-    // לא לעדכן guestsCount / numberOfGuests
   }
 
   if (input.status === "needs_fix" || input.status === "wrong_number") {
@@ -936,6 +994,8 @@ async function ensureNextRoundTask(input: {
     return null;
   }
 
+  const previousCallHistory = await getGuestCallHistory(guestObjectId);
+
   const sourceWorkOrder = currentWorkOrderObjectId
     ? await CallWorkOrder.findById(currentWorkOrderObjectId).lean()
     : null;
@@ -952,14 +1012,18 @@ async function ensureNextRoundTask(input: {
       ? "לא ענה"
       : input.reason === "callback_next_round"
         ? "חזרה בסבב הבא"
-        : "העברה לסבב הבא";
+        : input.reason === "needs_fix"
+          ? "דורש תיקון"
+          : "העברה לסבב הבא";
 
   const sourceAudience =
     input.reason === "no_answer"
       ? `round_${input.currentRound}_no_answer`
       : input.reason === "callback_next_round"
         ? `round_${input.currentRound}_callback_next_round`
-        : `manual_next_round_from_round_${input.currentRound}`;
+        : input.reason === "needs_fix"
+          ? `round_${input.currentRound}_needs_fix`
+          : `manual_next_round_from_round_${input.currentRound}`;
 
   const nextWorkOrderFilter: any = {
     invitationId: invitationIdForQuery,
@@ -1068,6 +1132,8 @@ async function ensureNextRoundTask(input: {
       movedToNextRoundNote: input.note || "",
       movedToNextRoundReason: input.reason || "",
 
+      previousCallHistory,
+
       updatedAt: input.now,
     };
 
@@ -1117,7 +1183,8 @@ async function ensureNextRoundTask(input: {
     eventName:
       cleanStr(input.task?.eventName) ||
       cleanStr((nextWorkOrder as any)?.eventName),
-    eventDate: input.task?.eventDate || (nextWorkOrder as any)?.eventDate || null,
+    eventDate:
+      input.task?.eventDate || (nextWorkOrder as any)?.eventDate || null,
 
     guestName: cleanStr(input.task?.guestName),
     guestPhone: cleanStr(input.task?.guestPhone),
@@ -1159,6 +1226,8 @@ async function ensureNextRoundTask(input: {
     movedToNextRoundAt: input.now,
     movedToNextRoundNote: input.note || "",
     movedToNextRoundReason: input.reason || "",
+
+    previousCallHistory,
 
     createdAt: input.now,
     updatedAt: input.now,
@@ -1281,7 +1350,6 @@ async function syncInvitationGuest(input: {
     updatedByCallTaskAt: input.now,
   };
 
-  // תיעוד שיחה פנימי בלבד — לא דורס הערות אורח חיצוניות
   if (input.note || input.note === "") {
     set.lastCallNote = input.note || "";
     set.callNote = input.note || "";
@@ -1289,7 +1357,6 @@ async function syncInvitationGuest(input: {
     set.internalCallNote = input.note || "";
   }
 
-  // הערות אורח חיצוניות בלבד
   if (input.hasGuestNote) {
     set.notes = input.guestNote || "";
     set.guestNotes = input.guestNote || "";
@@ -1316,7 +1383,6 @@ async function syncInvitationGuest(input: {
         ? input.attendingCount
         : 1;
 
-    // RSVP חוקי לפי enum: yes/no/pending
     set.status = "yes";
     set.rsvp = "yes";
     set.rsvpStatus = "yes";
@@ -1333,22 +1399,17 @@ async function syncInvitationGuest(input: {
     set.attending = true;
     set.isAttending = true;
 
-    // רק כמות מגיעים
     set.arrivedCount = count;
     set.actualArrivedCount = count;
 
-    // תאימות למסכים ישנים בלבד
     set.attendingCount = count;
     set.confirmedCount = count;
     set.confirmedGuests = count;
     set.arrivingGuests = count;
     set.attendeesCount = count;
-
-    // לא לעדכן guestsCount / numberOfGuests
   }
 
   if (input.status === "declined") {
-    // RSVP חוקי לפי enum: yes/no/pending
     set.status = "no";
     set.rsvp = "no";
     set.rsvpStatus = "no";
@@ -1365,22 +1426,17 @@ async function syncInvitationGuest(input: {
     set.attending = false;
     set.isAttending = false;
 
-    // רק כמות מגיעים
     set.arrivedCount = 0;
     set.actualArrivedCount = 0;
 
-    // תאימות למסכים ישנים בלבד
     set.attendingCount = 0;
     set.confirmedCount = 0;
     set.confirmedGuests = 0;
     set.arrivingGuests = 0;
     set.attendeesCount = 0;
-
-    // לא לעדכן guestsCount / numberOfGuests
   }
 
   if (input.status === "needs_fix" || input.status === "wrong_number") {
-    // לפי enum הראשי — נשאר pending, הסיבה נשמרת בנפרד
     set.status = "pending";
     set.rsvp = "pending";
     set.rsvpStatus = "pending";
@@ -1399,24 +1455,23 @@ async function syncInvitationGuest(input: {
     set.requiresCorrection = true;
     set.phoneNeedsCorrection = true;
 
-    set.pendingReason = "needs_fix";
+    set.pendingReason = input.moveToNextRound
+      ? "needs_fix_next_round"
+      : "needs_fix";
     set.pendingCallStatus = "needs_fix";
+    set.needsFollowUp = true;
 
     set.attending = false;
     set.isAttending = false;
 
-    // רק כמות מגיעים
     set.arrivedCount = 0;
     set.actualArrivedCount = 0;
 
-    // תאימות למסכים ישנים בלבד
     set.attendingCount = 0;
     set.confirmedCount = 0;
     set.confirmedGuests = 0;
     set.arrivingGuests = 0;
     set.attendeesCount = 0;
-
-    // לא לעדכן guestsCount / numberOfGuests
   }
 
   if (input.status === "no_answer") {
@@ -1435,7 +1490,7 @@ async function syncInvitationGuest(input: {
       ? "no_answer_next_round"
       : "no_answer";
     set.pendingCallStatus = "no_answer";
-    set.needsFollowUp = false;
+    set.needsFollowUp = true;
     set.isUndecided = false;
     set.willReplyMessage = false;
     set.requestedNoMoreCalls = false;
@@ -1527,11 +1582,9 @@ async function syncInvitationGuest(input: {
     arrivedCount:
       input.attendingCount !== undefined ? input.attendingCount : null,
 
-    // תיעוד שיחה פנימי
     note: input.note || "",
     callDocumentation: input.note || "",
 
-    // הערת אורח חיצונית בזמן השיחה
     guestNote: input.hasGuestNote ? input.guestNote || "" : "",
 
     movedToNextRound: Boolean(input.moveToNextRound),
@@ -1723,10 +1776,13 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
 
     const autoMoveBecauseNoAnswer = nextStatus === "no_answer";
     const autoMoveBecauseCallbackNextRound = nextStatus === "callback";
+    const autoMoveBecauseNeedsFix =
+      nextStatus === "needs_fix" || nextStatus === "wrong_number";
 
     const moveToNextRound =
       autoMoveBecauseNoAnswer ||
       autoMoveBecauseCallbackNextRound ||
+      autoMoveBecauseNeedsFix ||
       (requestedMoveToNextRound &&
         nextStatus !== "confirmed" &&
         nextStatus !== "declined" &&
@@ -1736,9 +1792,11 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
       ? "no_answer"
       : autoMoveBecauseCallbackNextRound
         ? "callback_next_round"
-        : moveToNextRound
-          ? "manual"
-          : "";
+        : autoMoveBecauseNeedsFix
+          ? "needs_fix"
+          : moveToNextRound
+            ? "manual"
+            : "";
 
     let attendingCount = requestedAttendingCount;
 
@@ -1756,8 +1814,12 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
             : 1;
     }
 
-    if (nextStatus === "declined") {
-      attendingCount = 0;
+    if (
+      nextStatus === "declined" ||
+      nextStatus === "needs_fix" ||
+      nextStatus === "wrong_number"
+    ) {
+      attendingCount = nextStatus === "declined" ? 0 : attendingCount;
     }
 
     const isFinal = isCompletedStatus(nextStatus);
@@ -1781,13 +1843,20 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
       $set.callAnswered =
         callAnswered ||
         (nextStatus === "no_answer" ? "no_answer" : "answered");
+
       $set.answeredResult = answeredResult || nextStatus || "";
+
       $set.messageFollowUpAction =
         nextStatus === "callback"
           ? "move_to_next_round"
           : messageFollowUpAction || "";
+
       $set.noAnswerResult =
-        nextStatus === "no_answer" ? "no_answer" : noAnswerResult || "";
+        nextStatus === "no_answer"
+          ? "no_answer"
+          : nextStatus === "needs_fix" || nextStatus === "wrong_number"
+            ? "needs_fix"
+            : noAnswerResult || "";
 
       $set.moveToNextRound = Boolean(moveToNextRound);
       $set.nextRound = moveToNextRound ? nextRound : null;
@@ -1820,28 +1889,22 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
     }
 
     if (note || body?.note === "") {
-      // תיעוד פנימי של השיחה
       $set.note = note;
     }
 
     if (hasGuestNote) {
-      // הערות אורח חיצוניות
       $set.guestNotes = guestNote || "";
     }
 
     if (attendingCount !== undefined) {
-      // רק מגיעים, לא מוזמנים
       $set.arrivedCount = attendingCount;
       $set.actualArrivedCount = attendingCount;
 
-      // תאימות למסכים ישנים בלבד
       $set.attendingCount = attendingCount;
       $set.confirmedCount = attendingCount;
       $set.confirmedGuests = attendingCount;
       $set.arrivingGuests = attendingCount;
       $set.attendeesCount = attendingCount;
-
-      // לא לעדכן guestsCount / numberOfGuests
     }
 
     if (nextStatus === "needs_fix" || nextStatus === "wrong_number") {
@@ -1925,7 +1988,11 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
             ? "move_to_next_round"
             : messageFollowUpAction || "",
         noAnswerResult:
-          nextStatus === "no_answer" ? "no_answer" : noAnswerResult || "",
+          nextStatus === "no_answer"
+            ? "no_answer"
+            : nextStatus === "needs_fix" || nextStatus === "wrong_number"
+              ? "needs_fix"
+              : noAnswerResult || "",
 
         moveToNextRound,
         nextRoundReason,
@@ -1968,7 +2035,9 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
         ? moveToNextRound
           ? nextStatus === "no_answer"
             ? "התיעוד נשמר והאורח שלא ענה נפתח אוטומטית בסבב הבא"
-            : "התיעוד נשמר והאורח הועבר לחזרה בסבב הבא"
+            : nextStatus === "needs_fix" || nextStatus === "wrong_number"
+              ? "התיעוד נשמר והאורח שדורש תיקון נפתח אוטומטית בסבב הבא"
+              : "התיעוד נשמר והאורח הועבר לחזרה בסבב הבא"
           : "התיעוד נשמר והאורח עודכן"
         : "סטטוס השיחה עודכן בהצלחה",
 
