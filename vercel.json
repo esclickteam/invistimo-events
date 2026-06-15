@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/admin/call-work-orders/auto-open",
-      "schedule": "0 5,6 * * *"
+      "schedule": "* * * * *"
     }
   ]
 }
