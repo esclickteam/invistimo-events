@@ -30,6 +30,17 @@ type AuthUser = {
   name?: string;
 };
 
+type ScheduledEmployee = {
+  employeeId: Types.ObjectId;
+  employeeIdString: string;
+  shiftId: Types.ObjectId | null;
+  employeeName: string;
+  employeeEmail: string;
+  employeePhone: string;
+};
+
+type StatusCounts = Record<string, number>;
+
 /* ============================================================
    Helpers
 ============================================================ */
@@ -38,9 +49,31 @@ function cleanStr(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function extractIdString(value: unknown): string {
+  if (!value) return "";
+
+  if (typeof value === "string") return value;
+
+  if (value instanceof mongoose.Types.ObjectId) {
+    return String(value);
+  }
+
+  if (typeof value === "object") {
+    const anyValue = value as any;
+
+    if (anyValue._id) return extractIdString(anyValue._id);
+    if (anyValue.id) return extractIdString(anyValue.id);
+    if (anyValue.$oid) return extractIdString(anyValue.$oid);
+  }
+
+  return String(value || "");
+}
+
 function toObjectId(value: unknown) {
-  const id = String(value || "");
+  const id = extractIdString(value);
+
   if (!mongoose.Types.ObjectId.isValid(id)) return null;
+
   return new mongoose.Types.ObjectId(id);
 }
 
@@ -62,6 +95,160 @@ function getJwtSecret() {
     ""
   );
 }
+
+function pad2(value: number) {
+  return String(value).padStart(2, "0");
+}
+
+/* ============================================================
+   Timezone helpers - Asia/Jerusalem
+============================================================ */
+
+function getTimeZoneParts(date: Date, timeZone = TIMEZONE) {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+
+  const parts = formatter.formatToParts(date);
+  const map: Record<string, string> = {};
+
+  for (const part of parts) {
+    if (part.type !== "literal") {
+      map[part.type] = part.value;
+    }
+  }
+
+  return {
+    year: Number(map.year),
+    month: Number(map.month),
+    day: Number(map.day),
+    hour: Number(map.hour),
+    minute: Number(map.minute),
+    second: Number(map.second),
+  };
+}
+
+function getDateKeyInIsrael(date = new Date()) {
+  const parts = getTimeZoneParts(date, TIMEZONE);
+
+  return `${parts.year}-${pad2(parts.month)}-${pad2(parts.day)}`;
+}
+
+function getTimeZoneOffsetMs(date: Date, timeZone = TIMEZONE) {
+  const parts = getTimeZoneParts(date, timeZone);
+
+  const asUtc = Date.UTC(
+    parts.year,
+    parts.month - 1,
+    parts.day,
+    parts.hour,
+    parts.minute,
+    parts.second,
+    0
+  );
+
+  return asUtc - date.getTime();
+}
+
+function makeDateInTimeZone(
+  dateKey: string,
+  hour = 0,
+  minute = 0,
+  second = 0,
+  millisecond = 0
+) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+
+  const utcGuess = new Date(
+    Date.UTC(year, month - 1, day, hour, minute, second, millisecond)
+  );
+
+  const offset = getTimeZoneOffsetMs(utcGuess, TIMEZONE);
+
+  return new Date(
+    Date.UTC(year, month - 1, day, hour, minute, second, millisecond) -
+      offset
+  );
+}
+
+function getTodayDateKey() {
+  return getDateKeyInIsrael(new Date());
+}
+
+function normalizeDateKey(value: unknown) {
+  const raw = cleanStr(value);
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    return raw;
+  }
+
+  if (raw) {
+    const date = new Date(raw);
+
+    if (!Number.isNaN(date.getTime())) {
+      return getDateKeyInIsrael(date);
+    }
+  }
+
+  return getTodayDateKey();
+}
+
+function dateFromKey(dateKey: string, hour = 0) {
+  return makeDateInTimeZone(dateKey, hour, 0, 0, 0);
+}
+
+function endOfDateKey(dateKey: string) {
+  return makeDateInTimeZone(dateKey, 23, 59, 59, 999);
+}
+
+function normalizeRound(value: unknown): RoundNumber {
+  const round = Number(value);
+
+  if (round === 1 || round === 2 || round === 3) {
+    return round;
+  }
+
+  return 1;
+}
+
+function getSourceAudienceByRound(round: RoundNumber) {
+  if (round === 1) return "pending_rsvp";
+  if (round === 2) return "round_1_no_answer";
+  return "round_2_no_answer";
+}
+
+function getRoundTitle(input: {
+  clientName: string;
+  clientEmail: string;
+  round: RoundNumber;
+}) {
+  const name = input.clientName || input.clientEmail || "לקוח";
+
+  return `${name} | סבב ${input.round} שיחות`;
+}
+
+function getDescriptionByRound(round: RoundNumber) {
+  if (round === 1) {
+    return "סבב 1 - שיחות לכל האורחים שטרם השיבו";
+  }
+
+  if (round === 2) {
+    return "סבב 2 - שיחות למי שלא נסגר בסבב הראשון";
+  }
+
+  return "סבב 3 - שיחות למי שלא נסגר בסבב השני";
+}
+
+/* ============================================================
+   Auth
+============================================================ */
 
 async function getAuthUser(): Promise<AuthUser | null> {
   const cookieStore = await cookies();
@@ -120,14 +307,13 @@ async function requireAdmin() {
   }
 
   const userObjectId = toObjectId(auth.id);
-
   const userConditions: any[] = [];
 
   if (userObjectId) userConditions.push({ _id: userObjectId });
   userConditions.push({ id: auth.id });
 
   if (auth.email) {
-    userConditions.push({ email: auth.email });
+    userConditions.push({ email: auth.email.toLowerCase() });
   }
 
   const currentUser = await User.findOne({
@@ -159,75 +345,9 @@ async function requireAdmin() {
   };
 }
 
-function pad2(value: number) {
-  return String(value).padStart(2, "0");
-}
-
-function getTodayDateKey() {
-  const now = new Date();
-
-  return `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(
-    now.getDate()
-  )}`;
-}
-
-function normalizeDateKey(value: unknown) {
-  const raw = cleanStr(value);
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
-    return raw;
-  }
-
-  if (raw) {
-    const date = new Date(raw);
-
-    if (!Number.isNaN(date.getTime())) {
-      return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(
-        date.getDate()
-      )}`;
-    }
-  }
-
-  return getTodayDateKey();
-}
-
-function dateFromKey(dateKey: string, hour = 0) {
-  const [year, month, day] = dateKey.split("-").map(Number);
-
-  return new Date(year, month - 1, day, hour, 0, 0, 0);
-}
-
-function endOfDateKey(dateKey: string) {
-  const [year, month, day] = dateKey.split("-").map(Number);
-
-  return new Date(year, month - 1, day, 23, 59, 59, 999);
-}
-
-function normalizeRound(value: unknown): RoundNumber {
-  const round = Number(value);
-
-  if (round === 1 || round === 2 || round === 3) {
-    return round;
-  }
-
-  return 1;
-}
-
-function getSourceAudienceByRound(round: RoundNumber) {
-  if (round === 1) return "pending_rsvp";
-  if (round === 2) return "round_1_no_answer";
-  return "round_2_no_answer";
-}
-
-function getRoundTitle(input: {
-  clientName: string;
-  clientEmail: string;
-  round: RoundNumber;
-}) {
-  const name = input.clientName || input.clientEmail || "לקוח";
-
-  return `${name} | סבב ${input.round} שיחות`;
-}
+/* ============================================================
+   Invitation / client helpers
+============================================================ */
 
 function getEventName(invitation: any) {
   return (
@@ -382,15 +502,25 @@ function getConfiguredRoundAt(input: {
 
   if (!raw) return null;
 
+  if (typeof raw === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    return dateFromKey(raw, AUTO_OPEN_HOUR);
+  }
+
   const date = new Date(raw);
 
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+/* ============================================================
+   Shift helpers
+============================================================ */
+
 function shiftEmployeeId(shift: any) {
-  return String(
+  return extractIdString(
     shift?.employeeIdString ||
       shift?.employeeId ||
+      shift?.employee?._id ||
+      shift?.employee?.id ||
       shift?.userId ||
       shift?.staffId ||
       shift?.workerId ||
@@ -398,22 +528,31 @@ function shiftEmployeeId(shift: any) {
   );
 }
 
-function normalizeShiftEmployee(shift: any) {
+function normalizeShiftEmployee(shift: any): ScheduledEmployee | null {
   const employeeId = shiftEmployeeId(shift);
   const employeeObjectId = toObjectId(employeeId);
 
   if (!employeeObjectId) return null;
 
-  const shiftId = String(shift?._id || shift?.id || "");
+  const shiftId = extractIdString(shift?._id || shift?.id || "");
   const shiftObjectId = toObjectId(shiftId);
 
   return {
     employeeId: employeeObjectId,
     employeeIdString: String(employeeObjectId),
     shiftId: shiftObjectId,
-    employeeName: cleanStr(shift?.employeeName),
-    employeeEmail: cleanStr(shift?.employeeEmail),
-    employeePhone: cleanStr(shift?.employeePhone),
+    employeeName:
+      cleanStr(shift?.employeeName) ||
+      cleanStr(shift?.employee?.name) ||
+      cleanStr(shift?.name),
+    employeeEmail:
+      cleanStr(shift?.employeeEmail) ||
+      cleanStr(shift?.employee?.email) ||
+      cleanStr(shift?.email),
+    employeePhone:
+      cleanStr(shift?.employeePhone) ||
+      cleanStr(shift?.employee?.phone) ||
+      cleanStr(shift?.phone),
   };
 }
 
@@ -424,25 +563,54 @@ async function loadScheduledEmployeesForDate(dateKey: string) {
     throw new Error("DATABASE_NOT_READY");
   }
 
+  const start = dateFromKey(dateKey, 0);
+  const end = endOfDateKey(dateKey);
+
   const shifts = await database
     .collection(SHIFT_COLLECTION)
     .find({
-      date: dateKey,
+      $and: [
+        {
+          $or: [
+            { date: dateKey },
+            { workDate: dateKey },
+            { shiftDate: dateKey },
+            { day: dateKey },
+            { startDate: dateKey },
+
+            { date: { $gte: start, $lte: end } },
+            { workDate: { $gte: start, $lte: end } },
+            { shiftDate: { $gte: start, $lte: end } },
+            { startsAt: { $gte: start, $lte: end } },
+            { startAt: { $gte: start, $lte: end } },
+            { startTime: { $gte: start, $lte: end } },
+            { from: { $gte: start, $lte: end } },
+          ],
+        },
+        {
+          $or: [
+            { status: { $exists: false } },
+            {
+              status: {
+                $nin: [
+                  "cancelled",
+                  "canceled",
+                  "deleted",
+                  "inactive",
+                  "disabled",
+                ],
+              },
+            },
+            { active: true },
+            { isActive: true },
+          ],
+        },
+      ],
     })
     .limit(500)
     .toArray();
 
-  const map = new Map<
-    string,
-    {
-      employeeId: Types.ObjectId;
-      employeeIdString: string;
-      shiftId: Types.ObjectId | null;
-      employeeName: string;
-      employeeEmail: string;
-      employeePhone: string;
-    }
-  >();
+  const map = new Map<string, ScheduledEmployee>();
 
   for (const shift of shifts) {
     const normalized = normalizeShiftEmployee(shift);
@@ -456,10 +624,17 @@ async function loadScheduledEmployeesForDate(dateKey: string) {
   return Array.from(map.values());
 }
 
+/* ============================================================
+   DB loaders
+============================================================ */
+
 async function findInvitationById(invitationId: string) {
   const objectId = toObjectId(invitationId);
 
-  const conditions: any[] = [{ id: invitationId }];
+  const conditions: any[] = [
+    { id: invitationId },
+    { invitationId },
+  ];
 
   if (objectId) {
     conditions.unshift({ _id: objectId });
@@ -481,7 +656,7 @@ async function findClientUser(ownerId: unknown) {
 }
 
 async function loadGuestsForInvitation(invitation: any) {
-  const invitationId = String(invitation?._id || "");
+  const invitationId = extractIdString(invitation?._id || "");
   const invitationObjectId = toObjectId(invitationId);
 
   const conditions: any[] = [{ invitationId }];
@@ -495,58 +670,142 @@ async function loadGuestsForInvitation(invitation: any) {
   }).lean();
 }
 
+function shouldCarryPreviousRoundTaskToNextRound(status: unknown) {
+  const normalized = cleanStr(status).toLowerCase();
+
+  /*
+    מי נכנס לסבב הבא מתוך הסבב הקודם:
+
+    כן:
+    - pending/open/assigned/active/in_progress = לא נגעו בו / לא נסגר
+    - no_answer = לא ענה
+    - callback = ענה וביקש שיחזרו אליו
+    - needs_fix/wrong_number = לא ענה / דורש תיקון
+
+    לא:
+    - confirmed = מגיע
+    - declined = לא מגיע
+    - will_reply_message = ישיב בהודעה לבד
+    - completed/cancelled = נסגר / בוטל
+  */
+  return [
+    "pending",
+    "open",
+    "assigned",
+    "active",
+    "in_progress",
+
+    "no_answer",
+    "callback",
+    "needs_fix",
+    "wrong_number",
+  ].includes(normalized);
+}
+
 async function loadGuestsForRound(input: {
   invitation: any;
   round: RoundNumber;
+  dateKey: string;
 }) {
-  const invitationId = String(input.invitation?._id || "");
+  const invitationId = extractIdString(input.invitation?._id || "");
   const invitationObjectId = toObjectId(invitationId);
 
   const allGuests = await loadGuestsForInvitation(input.invitation);
 
+  const pendingGuestsWithPhone = allGuests.filter((guest: any) => {
+    return hasPhone(guest) && isPendingGuest(guest);
+  });
+
+  /*
+    סבב 1:
+    כל מי שבהמתנה ויש לו טלפון.
+  */
   if (input.round === 1) {
-    return allGuests.filter((guest: any) => {
-      return hasPhone(guest) && isPendingGuest(guest);
-    });
+    return pendingGuestsWithPhone;
   }
 
   if (!invitationObjectId) return [];
 
   const previousRound = (input.round - 1) as 1 | 2;
 
-  const previousNoAnswerTasks = await CallTask.find({
+  /*
+    סבב 2 / סבב 3:
+    לא לוקחים את כל מי שבהמתנה באירוע.
+    לוקחים רק אורחים שיש להם משימה בסבב הקודם,
+    והמשימה האחרונה שלהם בסבב הקודם היא:
+    pending = לא נגעו בו,
+    no_answer,
+    callback,
+    needs_fix,
+    wrong_number.
+  */
+  const previousRoundTasks = await CallTask.find({
     invitationId: invitationObjectId,
     round: previousRound,
-    status: "no_answer",
+    workDate: {
+      $lte: endOfDateKey(input.dateKey),
+    },
   })
-    .select("guestId")
+    .select("guestId status updatedAt createdAt")
+    .sort({
+      updatedAt: -1,
+      createdAt: -1,
+    })
     .lean();
 
-  const guestIds = new Set(
-    previousNoAnswerTasks.map((task: any) => String(task.guestId))
-  );
+  const latestTaskByGuestId = new Map<string, any>();
 
-  return allGuests.filter((guest: any) => {
-    return (
-      hasPhone(guest) &&
-      isPendingGuest(guest) &&
-      guestIds.has(String(guest?._id || ""))
-    );
+  for (const task of previousRoundTasks) {
+    const guestId = extractIdString((task as any)?.guestId);
+    if (!guestId) continue;
+
+    if (!latestTaskByGuestId.has(guestId)) {
+      latestTaskByGuestId.set(guestId, task);
+    }
+  }
+
+  return pendingGuestsWithPhone.filter((guest: any) => {
+    const guestId = extractIdString(guest?._id || "");
+    if (!guestId) return false;
+
+    const previousTask = latestTaskByGuestId.get(guestId);
+
+    /*
+      אם אין בכלל task בסבב הקודם —
+      כן מכניסים אותו.
+      זה מכסה בדיוק את המקרה:
+      אורח עדיין בהמתנה + יש לו טלפון + לא עשו לו בכלל סבב קודם.
+    */
+    if (!previousTask) return true;
+
+    return shouldCarryPreviousRoundTaskToNextRound(previousTask?.status);
   });
 }
 
-function serializeWorkOrder(order: any, counts?: Record<string, number>) {
+/* ============================================================
+   Counts / serialization
+============================================================ */
+
+function getCompletedFromCounts(counts: StatusCounts) {
+  return (
+    Number(counts.confirmed || 0) +
+    Number(counts.declined || 0) +
+    Number(counts.no_answer || 0) +
+    Number(counts.callback || 0) +
+    Number(counts.undecided || 0) +
+    Number(counts.will_reply_message || 0) +
+    Number(counts.needs_fix || 0) +
+    Number(counts.wrong_number || 0) +
+    Number(counts.completed || 0) +
+    Number(counts.cancelled || 0)
+  );
+}
+
+function serializeWorkOrder(order: any, counts?: StatusCounts) {
   const total =
     Number(counts?.total || 0) || Number(order?.totalTasks || 0) || 0;
 
-  const completed =
-    Number(counts?.confirmed || 0) +
-    Number(counts?.declined || 0) +
-    Number(counts?.no_answer || 0) +
-    Number(counts?.callback || 0) +
-    Number(counts?.wrong_number || 0) +
-    Number(counts?.completed || 0) +
-    Number(counts?.cancelled || 0);
+  const completed = counts ? getCompletedFromCounts(counts) : 0;
 
   return {
     id: String(order?._id || ""),
@@ -591,14 +850,21 @@ function serializeWorkOrder(order: any, counts?: Record<string, number>) {
     inProgressTasks: Number(
       counts?.in_progress || order?.inProgressTasks || 0
     ),
-    completedTasks: completed,
+    completedTasks:
+      counts ? completed : Number(order?.completedTasks || 0),
     confirmedTasks: Number(counts?.confirmed || order?.confirmedTasks || 0),
     declinedTasks: Number(counts?.declined || order?.declinedTasks || 0),
     noAnswerTasks: Number(counts?.no_answer || order?.noAnswerTasks || 0),
     callbackTasks: Number(counts?.callback || order?.callbackTasks || 0),
+    undecidedTasks: Number(counts?.undecided || order?.undecidedTasks || 0),
+    willReplyMessageTasks: Number(
+      counts?.will_reply_message || order?.willReplyMessageTasks || 0
+    ),
+    needsFixTasks: Number(counts?.needs_fix || order?.needsFixTasks || 0),
     wrongNumberTasks: Number(
       counts?.wrong_number || order?.wrongNumberTasks || 0
     ),
+    cancelledTasks: Number(counts?.cancelled || order?.cancelledTasks || 0),
     unassignedTasks: Number(order?.unassignedTasks || 0),
 
     lastDistributedAt: order?.lastDistributedAt || null,
@@ -612,7 +878,7 @@ function serializeWorkOrder(order: any, counts?: Record<string, number>) {
 
 async function getCountsByWorkOrderIds(workOrderIds: Types.ObjectId[]) {
   if (!workOrderIds.length) {
-    return new Map<string, Record<string, number>>();
+    return new Map<string, StatusCounts>();
   }
 
   const rows = await CallTask.aggregate([
@@ -632,7 +898,7 @@ async function getCountsByWorkOrderIds(workOrderIds: Types.ObjectId[]) {
     },
   ]);
 
-  const map = new Map<string, Record<string, number>>();
+  const map = new Map<string, StatusCounts>();
 
   for (const row of rows) {
     const workOrderId = String(row?._id?.workOrderId || "");
@@ -649,6 +915,131 @@ async function getCountsByWorkOrderIds(workOrderIds: Types.ObjectId[]) {
   }
 
   return map;
+}
+
+/* ============================================================
+   Distribution helpers
+============================================================ */
+
+function sameObjectIdArrays(a: Types.ObjectId[], b: Types.ObjectId[]) {
+  const aa = a.map((id) => String(id)).sort();
+  const bb = b.map((id) => String(id)).sort();
+
+  if (aa.length !== bb.length) return false;
+
+  return aa.every((id, index) => id === bb[index]);
+}
+
+async function redistributeExistingWorkOrder(input: {
+  workOrder: any;
+  scheduledEmployees: ScheduledEmployee[];
+}) {
+  const workOrderObjectId = toObjectId(input.workOrder?._id);
+
+  if (!workOrderObjectId) return input.workOrder;
+
+  const now = new Date();
+
+  const assignedEmployeeIds = input.scheduledEmployees.map(
+    (employee) => employee.employeeId
+  );
+
+  const assignedShiftIds = input.scheduledEmployees
+    .map((employee) => employee.shiftId)
+    .filter(Boolean) as Types.ObjectId[];
+
+  const existingAssignedEmployeeIds = Array.isArray(
+    input.workOrder?.assignedEmployeeIds
+  )
+    ? input.workOrder.assignedEmployeeIds
+        .map((id: any) => toObjectId(id))
+        .filter(Boolean)
+    : [];
+
+  const shouldRedistribute =
+    !sameObjectIdArrays(existingAssignedEmployeeIds, assignedEmployeeIds);
+
+  await CallWorkOrder.updateOne(
+    {
+      _id: workOrderObjectId,
+    },
+    {
+      $set: {
+        assignedEmployeeIds,
+        assignedShiftIds,
+        employeeCount: assignedEmployeeIds.length,
+        distributionStrategy: "scheduled_shift_round_robin",
+        lastDistributedAt: now,
+        updatedAt: now,
+      },
+    }
+  );
+
+  if (shouldRedistribute) {
+    const openTasks = await CallTask.find({
+      workOrderId: workOrderObjectId,
+      status: {
+        $in: ["pending", "open", "assigned", "active"],
+      },
+    })
+      .select("_id assignedToEmployeeId")
+      .sort({
+        sortOrder: 1,
+        createdAt: 1,
+      })
+      .lean();
+
+    for (let index = 0; index < openTasks.length; index += 1) {
+      const task = openTasks[index] as any;
+      const assignedEmployee =
+        input.scheduledEmployees[index % input.scheduledEmployees.length];
+
+      const currentAssigned = toObjectId(task?.assignedToEmployeeId);
+
+      await (CallTask as any).updateOne(
+        {
+          _id: task._id,
+        },
+        {
+          $set: {
+            assignedToEmployeeId: assignedEmployee.employeeId,
+            assignedEmployeeId: assignedEmployee.employeeId,
+            employeeId: assignedEmployee.employeeId,
+            assignedAt: now,
+            updatedAt: now,
+          },
+          ...(currentAssigned &&
+          String(currentAssigned) !== String(assignedEmployee.employeeId)
+            ? {
+                $setOnInsert: {},
+                $currentDate: {},
+              }
+            : {}),
+        }
+      );
+
+      if (
+        currentAssigned &&
+        String(currentAssigned) !== String(assignedEmployee.employeeId)
+      ) {
+        await (CallTask as any).updateOne(
+          {
+            _id: task._id,
+          },
+          {
+            $set: {
+              previousAssignedEmployeeId: currentAssigned,
+              reassignedAt: now,
+              reassignedReason:
+                "redistributed_by_shift_for_round_date",
+            },
+          }
+        );
+      }
+    }
+  }
+
+  return CallWorkOrder.findById(workOrderObjectId).lean();
 }
 
 /* ============================================================
@@ -814,32 +1205,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const existingWorkOrder = await CallWorkOrder.findOne({
-      invitationId: invitationObjectId,
-      type: "rsvp_calls",
-      round,
-      workDate: {
-        $gte: dateFromKey(workDateKey, 0),
-        $lte: endOfDateKey(workDateKey),
-      },
-    }).lean();
-
-    if (existingWorkOrder) {
-      const countsMap = await getCountsByWorkOrderIds([
-        existingWorkOrder._id as Types.ObjectId,
-      ]);
-
-      return NextResponse.json({
-        success: true,
-        alreadyExists: true,
-        message: "כבר קיימת הוראת עבודה לסבב הזה בתאריך הזה",
-        workOrder: serializeWorkOrder(
-          existingWorkOrder,
-          countsMap.get(String(existingWorkOrder._id))
-        ),
-      });
-    }
-
     const scheduledEmployees = await loadScheduledEmployeesForDate(workDateKey);
 
     if (!scheduledEmployees.length) {
@@ -854,7 +1219,52 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const existingWorkOrder = await CallWorkOrder.findOne({
+      invitationId: invitationObjectId,
+      type: "rsvp_calls",
+      round,
+      workDate: {
+        $gte: dateFromKey(workDateKey, 0),
+        $lte: endOfDateKey(workDateKey),
+      },
+    }).lean();
+
+    if (existingWorkOrder) {
+      const redistributedWorkOrder = await redistributeExistingWorkOrder({
+        workOrder: existingWorkOrder,
+        scheduledEmployees,
+      });
+
+      const workOrderObjectId = toObjectId(
+        (redistributedWorkOrder as any)?._id ||
+          (existingWorkOrder as any)?._id
+      );
+
+      const countsMap = workOrderObjectId
+        ? await getCountsByWorkOrderIds([workOrderObjectId])
+        : new Map<string, StatusCounts>();
+
+      return NextResponse.json({
+        success: true,
+        alreadyExists: true,
+        redistributed: true,
+        message:
+          "כבר קיימת הוראת עבודה לסבב הזה בתאריך הזה. העובדים עודכנו לפי המשמרות של אותו תאריך.",
+        workOrder: serializeWorkOrder(
+          redistributedWorkOrder || existingWorkOrder,
+          countsMap.get(
+            String(
+              (redistributedWorkOrder as any)?._id ||
+                (existingWorkOrder as any)?._id ||
+                ""
+            )
+          )
+        ),
+      });
+    }
+
     const ownerId = getOwnerIdFromInvitation(invitation);
+    const ownerObjectId = toObjectId(ownerId);
     const clientUser = await findClientUser(ownerId);
 
     const clientName = getClientName(invitation, clientUser);
@@ -879,6 +1289,7 @@ export async function POST(req: NextRequest) {
     const guestsForRound = await loadGuestsForRound({
       invitation,
       round,
+      dateKey: workDateKey,
     });
 
     if (!guestsForRound.length) {
@@ -888,7 +1299,9 @@ export async function POST(req: NextRequest) {
           error:
             round === 1
               ? "אין אורחים ממתינים לשיחה בסבב 1"
-              : `אין אורחים שלא ענו בסבב ${round - 1}`,
+              : `אין אורחים להמשך סבב ${round}. סבב ${round} נפתח רק למי שהיה בסבב ${
+                  round - 1
+                } ולא נסגר סופית או שלא נגעו בו.`,
           round,
           workDate: workDateKey,
         },
@@ -909,12 +1322,12 @@ export async function POST(req: NextRequest) {
       .map((employee) => employee.shiftId)
       .filter(Boolean) as Types.ObjectId[];
 
-    const workOrder = await CallWorkOrder.create({
+    const workOrderPayload: any = {
       type: "rsvp_calls",
 
       invitationId: invitationObjectId,
-      userId: ownerId || null,
-      clientUserId: ownerId || null,
+      userId: ownerObjectId || null,
+      clientUserId: ownerObjectId || null,
 
       clientName,
       clientEmail,
@@ -936,12 +1349,7 @@ export async function POST(req: NextRequest) {
         round,
       }),
 
-      description:
-        round === 1
-          ? "סבב 1 - שיחות לכל האורחים שטרם השיבו"
-          : round === 2
-            ? "סבב 2 - שיחות למי שלא ענה בסבב הראשון"
-            : "סבב 3 - שיחות למי שלא ענה בסבב השני",
+      description: getDescriptionByRound(round),
 
       status: "open",
       distributionStrategy: "scheduled_shift_round_robin",
@@ -958,7 +1366,11 @@ export async function POST(req: NextRequest) {
       declinedTasks: 0,
       noAnswerTasks: 0,
       callbackTasks: 0,
+      undecidedTasks: 0,
+      willReplyMessageTasks: 0,
+      needsFixTasks: 0,
       wrongNumberTasks: 0,
+      cancelledTasks: 0,
       unassignedTasks: 0,
 
       createdBy: "admin",
@@ -966,7 +1378,9 @@ export async function POST(req: NextRequest) {
 
       lastDistributedAt: now,
       notes: cleanStr(body?.notes),
-    });
+    };
+
+    const workOrder = await (CallWorkOrder as any).create(workOrderPayload);
 
     const workOrderId = workOrder._id as Types.ObjectId;
 
@@ -982,6 +1396,9 @@ export async function POST(req: NextRequest) {
         guestId: guest._id,
 
         assignedToEmployeeId: assignedEmployee?.employeeId || null,
+        assignedEmployeeId: assignedEmployee?.employeeId || null,
+        employeeId: assignedEmployee?.employeeId || null,
+
         previousAssignedEmployeeId: null,
 
         clientName,
@@ -1041,7 +1458,7 @@ export async function POST(req: NextRequest) {
     });
 
     try {
-      await CallTask.insertMany(taskDocs, {
+      await (CallTask as any).insertMany(taskDocs, {
         ordered: false,
       });
     } catch (insertError: any) {
