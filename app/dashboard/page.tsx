@@ -18,7 +18,6 @@ import DemoToast from "../components/DemoToast";
 import GuestGroupSelect from "@/app/components/groups/GuestGroupSelect";
 import ManageGroupsModal from "@/app/components/groups/ManageGroupsModal";
 import GuestsControls from "@/app/components/GuestsControls";
-import StaffSoftphoneWhenImpersonating from "@/app/components/staff/StaffSoftphoneWhenImpersonating";
 import { useGroupStore } from "@/store/groupStore";
 import { useSeatingStore } from "@/store/seatingStore";
 import CallRoundsModal from "../components/CallRoundsModal";
@@ -1941,8 +1940,6 @@ const canOpenEventManagement =
   ============================================================ */
   return (
   <>
-    <StaffSoftphoneWhenImpersonating />
-
     <div
       className="
         min-h-screen
