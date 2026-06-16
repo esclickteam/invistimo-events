@@ -10,6 +10,17 @@ import {
 import { useRouter } from "next/navigation";
 
 /* =====================================================
+   AUTH EVENT
+===================================================== */
+export const INVISTIMO_AUTH_CHANGED_EVENT = "invistimo:auth-changed";
+
+function emitAuthChanged() {
+  if (typeof window === "undefined") return;
+
+  window.dispatchEvent(new Event(INVISTIMO_AUTH_CHANGED_EVENT));
+}
+
+/* =====================================================
    TYPES
 ===================================================== */
 type UserRole =
@@ -242,6 +253,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sessionStorage.removeItem("auth_user");
       _setIsAuthenticated(false);
     }
+
+    /*
+      חשוב:
+      מודיע ל־GlobalSoftphoneMount שהמשתמש השתנה,
+      כדי שהסופטפון יופיע/ייעלם בלי ריענון דף.
+    */
+    emitAuthChanged();
   };
 
   const setIsAuthenticated = (value: boolean) => {
@@ -250,6 +268,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!value && !user) {
       sessionStorage.removeItem("auth_user");
     }
+
+    emitAuthChanged();
   };
 
   /* --------------------------------------------------
@@ -310,6 +330,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string) => {
     try {
       sessionStorage.removeItem("auth_user");
+      emitAuthChanged();
 
       const res = await fetch("/api/login", {
         method: "POST",
@@ -336,6 +357,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error("לא הצלחנו לטעון את המשתמש");
       }
 
+      emitAuthChanged();
+
       // ⛔ אם זה משתמש בתחזות – לא לנתב אוטומטית
       if (nextUser.impersonated) {
         return;
@@ -347,6 +370,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (err: any) {
       console.error("❌ Login failed:", err);
       alert(err.message || "שגיאה בהתחברות");
+      emitAuthChanged();
       throw err;
     }
   };
@@ -365,6 +389,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       setUser(null); // ננקה לוקאלית לפני מעבר
+      emitAuthChanged();
 
       if (returnRole === "admin") {
         window.location.href = "/admin";
@@ -376,6 +401,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.error("❌ exitImpersonation failed:", err);
       alert("שגיאה ביציאה ממצב התחזות");
+      emitAuthChanged();
     }
   };
 
@@ -392,9 +418,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.error("❌ Logout request failed:", err);
     } finally {
+      /*
+        חשוב:
+        קודם מנקים משתמש ומשדרים אירוע,
+        כדי שהסופטפון ייעלם מיד בלי לחכות לרענון.
+      */
       setUser(null);
+      emitAuthChanged();
+
       router.replace("/login");
-      router.refresh();
+
+      /*
+        אין router.refresh כאן.
+        router.refresh עלול לגרום להתנהגות שנראית כמו ריענון
+        ולבלבל את הסופטפון.
+      */
     }
   };
 
