@@ -68,6 +68,24 @@ type DetailsModalState = {
   defaultView?: "employee" | "customer";
 } | null;
 
+type GeneratedDocumentType = "quote" | "agreement";
+
+type GeneratedDocumentLink = {
+  type: GeneratedDocumentType;
+  url: string;
+  createdAt: string;
+  expiresAt: string;
+} | null;
+
+type PaymentSchedule = {
+  immediateTotal: number;
+  eventDayTotal: number;
+  preEventServicesTotal: number;
+  eventServicesTotal: number;
+  eventServicesDeposit: number;
+  eventServicesBalance: number;
+};
+
 const VENUE_SEATING_OPTIONS: {
   staffCount: VenueSeatingStaffCount;
   title: string;
@@ -311,6 +329,14 @@ function getEmployeeDetailsForUpsell(upsell: UpsellItem) {
     return ALCOHOL_MANAGEMENT_EMPLOYEE_DETAILS;
   }
 
+  if (upsell.key === "personalRepresentative") {
+    return PERSONAL_REPRESENTATIVE_EMPLOYEE_DETAILS;
+  }
+
+  if (upsell.key === "suppliersBudgetSystem") {
+    return SUPPLIERS_BUDGET_EMPLOYEE_DETAILS;
+  }
+
   return upsell.details;
 }
 
@@ -321,6 +347,14 @@ function getCustomerDetailsForUpsell(upsell: UpsellItem) {
 
   if (upsell.key === "alcoholManagement") {
     return ALCOHOL_MANAGEMENT_CUSTOMER_DETAILS;
+  }
+
+  if (upsell.key === "personalRepresentative") {
+    return PERSONAL_REPRESENTATIVE_CUSTOMER_DETAILS;
+  }
+
+  if (upsell.key === "suppliersBudgetSystem") {
+    return SUPPLIERS_BUDGET_CUSTOMER_DETAILS;
   }
 
   return upsell.details;
@@ -584,6 +618,165 @@ const ALCOHOL_MANAGEMENT_EMPLOYEE_DETAILS: DetailSection[] = [
   },
 ];
 
+const PERSONAL_REPRESENTATIVE_CUSTOMER_DETAILS: DetailSection[] = [
+  {
+    title: "נציג אישי לליווי",
+    items: [
+      "שירות נציג אישי לליווי כולל ליווי אישי וממוקד לאורך תהליך ניהול האירוע במערכת, בהתאם לחבילה שנבחרה ולצרכים שסוכמו מול הלקוח.",
+      "השירות נועד לתת ללקוח מענה אישי, סדר ובקרה לאורך הדרך, לעזור לו להבין את מצב האירוע במערכת, לעקוב אחרי הנתונים, לקבל עדכונים שוטפים ולבצע פעולות חשובות בצורה מסודרת יותר עד מועד האירוע.",
+    ],
+  },
+  {
+    title: "מטרת השירות",
+    items: [
+      "מטרת השירות היא להעניק ללקוח ליווי אישי בתהליך ההכנות, כך שלא יצטרך להתמודד לבד עם כל הנתונים, הרשימות, אישורי ההגעה וההושבה הדיגיטלית.",
+      "הנציג האישי מסייע ללקוח לעקוב אחרי התקדמות האירוע, להבין מה כבר בוצע, מה עדיין פתוח, אילו נתונים דורשים תשומת לב, ומה מומלץ לעשות בשלבים הבאים.",
+    ],
+  },
+  {
+    title: "מה כולל הליווי האישי",
+    items: [
+      "במסגרת השירות ימונה ללקוח נציג אישי מטעמנו אשר ילווה אותו מרחוק לאורך תקופת ההכנות לאירוע.",
+      "הליווי כולל מעבר על נתוני האירוע במערכת, בדיקת סטטוס אישורי ההגעה, מעקב אחר רשימת המוזמנים, סיוע בהבנת הנתונים ומתן הכוונה לגבי המשך הפעולות הנדרשות במערכת.",
+      "הנציג יסייע ללקוח להבין את תמונת המצב של האירוע, כולל כמות מאשרים, כמות לא מגיעים, אורחים שטרם ענו, שינויים ברשימות ועדכונים חשובים לקראת האירוע.",
+    ],
+  },
+  {
+    title: "עדכונים שוטפים",
+    items: [
+      "השירות כולל עדכון ומעבר עם הלקוח פעמיים בשבוע, בהתאם להתקדמות האירוע ולשלב שבו נמצא הלקוח בתהליך.",
+      "במהלך העדכונים הנציג יעבור עם הלקוח על הנתונים המרכזיים במערכת, יציף נקודות שדורשות טיפול, ויסייע ללקוח להבין מה מומלץ לבצע בהמשך.",
+      "העדכונים נועדו לשמור על סדר, להפחית עומס מהלקוח, ולוודא שהלקוח נמצא בשליטה על הנתונים לקראת האירוע.",
+    ],
+  },
+  {
+    title: "סיוע בהושבה דיגיטלית מרחוק",
+    items: [
+      "ככל שהלקוח משתמש במערכת ההושבה הדיגיטלית, הנציג האישי יסייע מרחוק בבניית ההושבה ובארגון השולחנות בהתאם לסקיצת האולם ולנתונים שהלקוח מספק.",
+      "הסיוע יכול לכלול הכוונה בבניית שולחנות, שיוך אורחים לשולחנות, בדיקת חוסרים, התאמות לפי משפחות או קבוצות, וסידור ראשוני או עדכונים בהתאם לשינויים שמתקבלים במערכת.",
+      "הלקוח נדרש להעביר את סקיצת האולם, כמות השולחנות, כמות הכיסאות בכל שולחן וכל מידע נוסף הדרוש לצורך סיוע בבניית ההושבה.",
+    ],
+  },
+  {
+    title: "אופי השירות והבהרות",
+    items: [
+      "שירות הנציג האישי מתבצע מרחוק ואינו כולל הגעה פיזית לאולם ביום האירוע, אלא אם נרכש בנפרד שירות הושבה באולם.",
+      "הנציג האישי מסייע ללקוח בניהול, מעקב, הכוונה וסדר במערכת, אך אינו מחליף את אחריות הלקוח לעדכון פרטים, אישור שינויים, העברת רשימות, קבלת החלטות או אישור סופי של סידורי ההושבה.",
+      "החלטות סופיות לגבי רשימות, אישורי הגעה, הושבה, פתיחת שולחנות, שינויים מול האולם או כל התחייבות אחרת נשארות באחריות הלקוח או נציג מוסמך מטעמו.",
+    ],
+  },
+];
+
+const PERSONAL_REPRESENTATIVE_EMPLOYEE_DETAILS: DetailSection[] = [
+  {
+    title: "מה העובד צריך להסביר בשיחה",
+    items: [
+      "להסביר שזה שירות ליווי אישי מרחוק ללקוח לאורך תקופת ההכנות לאירוע.",
+      "להדגיש שהלקוח מקבל מעבר ועדכון פעמיים בשבוע על הנתונים, אישורי ההגעה והמשימות הפתוחות במערכת.",
+      "להסביר שהשירות כולל סיוע בהושבה דיגיטלית מרחוק לפי סקיצת אולם, אבל לא כולל הגעה פיזית לאולם.",
+      "אם הלקוח רוצה צוות פיזי באולם ביום האירוע — צריך להוסיף אפסייל הושבה באולם בנפרד.",
+    ],
+  },
+  {
+    title: "מה חובה לסגור מול הלקוח",
+    items: [
+      "שהליווי הוא מרחוק בלבד.",
+      "שהלקוח צריך להעביר רשימות, סקיצה ועדכונים בזמן כדי שניתן יהיה לסייע בצורה מסודרת.",
+      "שהנציג מלווה ומכוון, אך החלטות סופיות נשארות באחריות הלקוח או נציג מוסמך מטעמו.",
+      "לתעד בסיכום השיחה שהוסבר ללקוח מה כולל השירות ומה אינו כולל.",
+    ],
+  },
+];
+
+const SUPPLIERS_BUDGET_CUSTOMER_DETAILS: DetailSection[] = [
+  {
+    title: "מערכת עצמאית לניהול ספקים ותקציב",
+    items: [
+      "השירות כולל פתיחת אזור עצמאי במערכת לניהול ספקים, תקציב, הוצאות ולוחות זמנים של האירוע.",
+      "המערכת נועדה לאפשר ללקוח לרכז במקום אחד את כל הספקים, המחירים, המקדמות, היתרות, החוזים והנתונים הכספיים של האירוע.",
+    ],
+  },
+  {
+    title: "ניהול ספקים ומחירים",
+    items: [
+      "ניתן להוסיף ספקים לפי תחומים, לרבות שם ספק, פרטי התקשרות, מחיר כולל, סכום מקדמה, יתרה לתשלום והערות חשובות.",
+      "המערכת מציגה תמונת מצב מסודרת של כל ההתחייבויות מול הספקים ומאפשרת מעקב אחר ההוצאות בצורה נוחה וברורה.",
+    ],
+  },
+  {
+    title: "חישובים אוטומטיים",
+    items: [
+      "המערכת מחשבת אוטומטית כמה שולם, כמה נותר לשלם, סכומי מקדמות ויתרות פתוחות מול הספקים.",
+      "המערכת מחשבת עלות ממוצעת לאדם לפי כמות האורחים וההוצאות שהוזנו, כדי לעזור ללקוח להבין את המשמעות הכספית של האירוע ביחס לכמות המשתתפים.",
+    ],
+  },
+  {
+    title: "מסמכים וחוזים",
+    items: [
+      "בכל כרטיס ספק ניתן להעלות חוזים, מסמכים וקבצים רלוונטיים, כדי שכל המידע החשוב יהיה מרוכז תחת אותו ספק.",
+      "העלאת החוזים מיועדת לנוחות הלקוח ולשמירת סדר במסמכים, ואינה מהווה בדיקה משפטית או אישור מקצועי של תוכן ההסכמים.",
+    ],
+  },
+  {
+    title: "תכנון לו״ז אירוע",
+    items: [
+      "המערכת כוללת אפשרות לתכנון לו״ז האירוע, ריכוז משימות, שלבים וזמנים חשובים לקראת האירוע ובמהלכו.",
+      "מטרת הלו״ז היא לעזור ללקוח לשמור על סדר, להבין מה מתוכנן ומתי, ולרכז את פרטי האירוע במקום אחד.",
+    ],
+  },
+  {
+    title: "הבהרות חשובות",
+    items: [
+      "המערכת היא כלי לניהול עצמי של הלקוח ואינה מחליפה ייעוץ מקצועי, ייעוץ משפטי, ייעוץ פיננסי או אחריות של הלקוח מול הספקים.",
+      "האחריות להזנת נתונים נכונים, עדכון תשלומים, בדיקת חוזים וקבלת החלטות מול ספקים נשארת באחריות הלקוח.",
+    ],
+  },
+];
+
+const SUPPLIERS_BUDGET_EMPLOYEE_DETAILS: DetailSection[] = [
+  {
+    title: "מה העובד צריך להסביר בשיחה",
+    items: [
+      "להסביר שזה אזור עצמאי ללקוח לניהול ספקים, תקציב, מקדמות, יתרות, חוזים ולו״ז אירוע.",
+      "להדגיש שהמערכת מחשבת אוטומטית כמה שולם, כמה נשאר לשלם, ומה העלות הממוצעת לאדם לפי כמות אורחים והוצאות.",
+      "להסביר שניתן להעלות חוזים וקבצים תחת כל ספק כדי לשמור הכול במקום אחד.",
+      "להבהיר שהמערכת היא כלי ניהול עצמי ולא ייעוץ משפטי/פיננסי או בדיקת חוזים.",
+    ],
+  },
+  {
+    title: "הטבה",
+    items: [
+      "ברכישות מעל 1,000 ₪ העובד רשאי לתת את המודול ללא עלות אם ההטבה מסומנת במערכת.",
+      "אם ההטבה ניתנת ללא עלות — היא תופיע בסיכום העסקה כ'ללא עלות'.",
+    ],
+  },
+];
+
+const QUOTE_VALIDITY_DAYS = 4;
+
+const CANCELLATION_TERMS: DetailSection[] = [
+  {
+    title: "תנאי ביטול",
+    items: [
+      "מרגע ביצוע התשלום נפתח ללקוח משתמש במערכת ונפתחת גישה לשירותים הדיגיטליים שנרכשו, ולכן לא ניתן לבטל את השירותים הדיגיטליים לאחר פתיחת הגישה והשימוש במערכת.",
+      "שירותים הניתנים ביום האירוע, כגון הושבה באולם וניהול אלכוהול באולם, ניתנים לביטול רק בהודעה מוקדמת של יותר מחודש לפני מועד האירוע.",
+      "במקרה של ביטול שירות יום אירוע בהתראה של יותר מחודש, יתרת השירות שטרם סופקה תבוטל, אך דמי השריון ששולמו מראש לא יוחזרו, מאחר שהם מיועדים לשריון הצוות ותאריך האירוע מראש.",
+      "ביטול שירותי יום אירוע בהתראה של חודש או פחות ממועד האירוע אינו מזכה בהחזר, אלא אם סוכם אחרת בכתב.",
+    ],
+  },
+];
+
+const PAYMENT_TERMS: DetailSection[] = [
+  {
+    title: "תנאי תשלום",
+    items: [
+      "שירותים דיגיטליים ושירותי הכנה לפני האירוע, לרבות מערכת ההזמנה, אישורי ההגעה, מערכת ניהול ספקים ותקציב ונציג אישי לליווי, משולמים במלואם במועד ביצוע העסקה.",
+      "שירותי יום האירוע, לרבות הושבה באולם וניהול אלכוהול באולם, משולמים כך: 50% במועד ביצוע העסקה לצורך שריון הצוות והתאריך, ו־50% יתרה ביום האירוע.",
+      "הלקוח מאשר כי הוסבר לו ששירותי יום האירוע דורשים שריון כוח אדם מראש, ולכן התשלום הראשוני עבור שירותים אלו משמש כדמי שריון לצוות ולתאריך האירוע.",
+    ],
+  },
+];
+
 const UPSELLS: UpsellItem[] = [
   {
     key: "venueSeating",
@@ -790,6 +983,40 @@ function calculate(grossAmount: number) {
     net,
     commission,
   };
+}
+
+function formatDate(value: string) {
+  if (!value) return "לא הוגדר";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleDateString("he-IL");
+}
+
+function toDateInputValue(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function isEventDayService(key: UpsellKey) {
+  return key === "venueSeating" || key === "alcoholManagement";
+}
+
+function createLocalDocumentUrl(type: GeneratedDocumentType) {
+  if (typeof window === "undefined") return "";
+
+  const token = `${type}-${Date.now().toString(36)}`;
+  return `${window.location.origin}/employee/sales/documents/${token}`;
 }
 
 function Icon({
@@ -1063,6 +1290,9 @@ export default function NewEmployeeSalePage() {
 
   const [eventName, setEventName] = useState("");
   const [eventDate, setEventDate] = useState("");
+  const [eventCity, setEventCity] = useState("");
+  const [venueName, setVenueName] = useState("");
+  const [customerIdNumber, setCustomerIdNumber] = useState("");
 
   const [selectedPlanKey, setSelectedPlanKey] = useState<PackageKey>("smart");
   const [records, setRecords] = useState("300");
@@ -1078,6 +1308,15 @@ export default function NewEmployeeSalePage() {
 
   const [paymentStatus, setPaymentStatus] = useState<"stripe" | "paid">(
     "stripe",
+  );
+
+  const [generatedDocument, setGeneratedDocument] =
+    useState<GeneratedDocumentLink>(null);
+  const [documentSaving, setDocumentSaving] = useState(false);
+  const [signatureFullName, setSignatureFullName] = useState("");
+  const [signatureIdNumber, setSignatureIdNumber] = useState("");
+  const [signatureDate, setSignatureDate] = useState(() =>
+    toDateInputValue(new Date()),
   );
 
   const [detailsModal, setDetailsModal] = useState<DetailsModalState>(null);
@@ -1162,12 +1401,85 @@ export default function NewEmployeeSalePage() {
     return calculate(finalGrossAmount);
   }, [finalGrossAmount]);
 
+  const quoteCreatedAt = useMemo(() => toDateInputValue(new Date()), []);
+  const quoteExpiresAt = useMemo(
+    () => toDateInputValue(addDays(new Date(), QUOTE_VALIDITY_DAYS)),
+    [],
+  );
+
+  const paymentSchedule = useMemo<PaymentSchedule>(() => {
+    const preEventServicesTotal = packageCalculation.finalPrice;
+    const eventServicesTotal = selectedUpsellsList.reduce((sum, upsell) => {
+      if (!isEventDayService(upsell.key)) return sum;
+
+      return (
+        sum +
+        getUpsellPrice(
+          upsell,
+          venueSeatingStaffCount,
+          alcoholManagementStaffCount,
+        )
+      );
+    }, 0);
+
+    const nonEventUpsellsTotal = selectedUpsellsList.reduce((sum, upsell) => {
+      if (isEventDayService(upsell.key)) return sum;
+
+      if (
+        upsell.key === "suppliersBudgetSystem" &&
+        suppliersBudgetFree &&
+        canGiveSuppliersBudgetFree
+      ) {
+        return sum;
+      }
+
+      return (
+        sum +
+        getUpsellPrice(
+          upsell,
+          venueSeatingStaffCount,
+          alcoholManagementStaffCount,
+        )
+      );
+    }, 0);
+
+    const eventServicesDeposit = roundMoney(eventServicesTotal * 0.5);
+    const eventServicesBalance = roundMoney(eventServicesTotal - eventServicesDeposit);
+
+    return {
+      preEventServicesTotal: roundMoney(preEventServicesTotal + nonEventUpsellsTotal),
+      eventServicesTotal: roundMoney(eventServicesTotal),
+      eventServicesDeposit,
+      eventServicesBalance,
+      immediateTotal: roundMoney(
+        preEventServicesTotal + nonEventUpsellsTotal + eventServicesDeposit,
+      ),
+      eventDayTotal: eventServicesBalance,
+    };
+  }, [
+    alcoholManagementStaffCount,
+    canGiveSuppliersBudgetFree,
+    packageCalculation.finalPrice,
+    selectedUpsellsList,
+    suppliersBudgetFree,
+    venueSeatingStaffCount,
+  ]);
+
   const customerDealSummary = useMemo(() => {
     return {
       packageTitle: selectedPlan.title,
       packageSummary: selectedPlan.customerSummary,
       records: packageCalculation.records,
       totalPrice: finalGrossAmount,
+      eventName: eventName.trim(),
+      eventDate,
+      eventCity: eventCity.trim(),
+      venueName: venueName.trim(),
+      quoteCreatedAt,
+      quoteExpiresAt,
+      paymentSchedule,
+      cancellationTerms: CANCELLATION_TERMS,
+      paymentTerms: PAYMENT_TERMS,
       includedItems: selectedPlan.includes,
       upsells: selectedUpsellsList.map((upsell) => {
         const givenFree =
@@ -1194,12 +1506,19 @@ export default function NewEmployeeSalePage() {
   }, [
     alcoholManagementStaffCount,
     canGiveSuppliersBudgetFree,
+    eventCity,
+    eventDate,
+    eventName,
     finalGrossAmount,
     packageCalculation.records,
+    paymentSchedule,
+    quoteCreatedAt,
+    quoteExpiresAt,
     selectedPlan.customerSummary,
     selectedPlan.includes,
     selectedPlan.title,
     selectedUpsellsList,
+    venueName,
     suppliersBudgetFree,
     venueSeatingStaffCount,
   ]);
@@ -1231,6 +1550,141 @@ export default function NewEmployeeSalePage() {
     });
   }
 
+  const isDocumentActionDisabled =
+    documentSaving ||
+    !clientName.trim() ||
+    !clientEmail.trim() ||
+    !clientPhone.trim() ||
+    !eventDate ||
+    !eventCity.trim() ||
+    !venueName.trim() ||
+    finalGrossAmount <= 0;
+
+  async function createDocumentLink(type: GeneratedDocumentType) {
+    if (isDocumentActionDisabled) return;
+
+    try {
+      setError("");
+      setDocumentSaving(true);
+
+      const payload = {
+        type,
+        client: {
+          fullName: clientName.trim(),
+          idNumber: customerIdNumber.trim(),
+          email: clientEmail.trim(),
+          phone: clientPhone.trim(),
+        },
+        event: {
+          name: eventName.trim(),
+          date: eventDate,
+          city: eventCity.trim(),
+          venueName: venueName.trim(),
+        },
+        quote: {
+          createdAt: quoteCreatedAt,
+          expiresAt: quoteExpiresAt,
+          validityDays: QUOTE_VALIDITY_DAYS,
+        },
+        agreement: {
+          signatureFullName: signatureFullName.trim(),
+          signatureIdNumber: signatureIdNumber.trim(),
+          signatureDate,
+        },
+        selectedPackage: {
+          key: selectedPlan.key,
+          title: selectedPlan.title,
+          customerSummary: selectedPlan.customerSummary,
+          includes: selectedPlan.includes,
+          records: packageCalculation.records,
+          price: packageCalculation.finalPrice,
+        },
+        upsells: selectedUpsellsList.map((upsell) => {
+          const dynamicPrice = getUpsellPrice(
+            upsell,
+            venueSeatingStaffCount,
+            alcoholManagementStaffCount,
+          );
+          const givenFree =
+            upsell.key === "suppliersBudgetSystem" &&
+            suppliersBudgetFree &&
+            canGiveSuppliersBudgetFree;
+
+          return {
+            key: upsell.key,
+            title: getUpsellDynamicTitle(
+              upsell,
+              venueSeatingStaffCount,
+              alcoholManagementStaffCount,
+            ),
+            description: getUpsellDynamicDescription(
+              upsell,
+              venueSeatingStaffCount,
+              alcoholManagementStaffCount,
+            ),
+            customerDetails: getCustomerDetailsForUpsell(upsell),
+            staffCount:
+              upsell.key === "venueSeating"
+                ? venueSeatingStaffCount
+                : upsell.key === "alcoholManagement"
+                  ? alcoholManagementStaffCount
+                  : null,
+            price: givenFree ? 0 : dynamicPrice,
+            givenFree,
+            paymentType: isEventDayService(upsell.key)
+              ? "event_day_service"
+              : "pre_event_service",
+          };
+        }),
+        totals: {
+          grossAmount: finalGrossAmount,
+          netAmount: calculated.net,
+          vatRate: VAT_RATE,
+          paymentSchedule,
+        },
+        customerDealSummary,
+        cancellationTerms: CANCELLATION_TERMS,
+        paymentTerms: PAYMENT_TERMS,
+      };
+
+      const response = await fetch("/api/employee/sales/documents", {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      }).catch(() => null);
+
+      const data = response ? await response.json().catch(() => null) : null;
+      const url = data?.url || data?.documentUrl || createLocalDocumentUrl(type);
+
+      setGeneratedDocument({
+        type,
+        url,
+        createdAt: quoteCreatedAt,
+        expiresAt: quoteExpiresAt,
+      });
+
+      setTimeout(() => {
+        document.getElementById("document-preview")?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 50);
+    } catch (documentError) {
+      console.error("CREATE DOCUMENT LINK FAILED:", documentError);
+      setError(
+        documentError instanceof Error
+          ? documentError.message
+          : "שגיאה ביצירת קישור למסמך",
+      );
+    } finally {
+      setDocumentSaving(false);
+    }
+  }
+
   async function submitSale(event: React.FormEvent) {
     event.preventDefault();
 
@@ -1253,6 +1707,9 @@ export default function NewEmployeeSalePage() {
           clientPhone: clientPhone.trim(),
           eventName: eventName.trim(),
           eventDate,
+          eventCity: eventCity.trim(),
+          venueName: venueName.trim(),
+          customerIdNumber: customerIdNumber.trim(),
 
           plan: selectedPlan.key,
           packageName: selectedPlan.title,
@@ -1325,12 +1782,28 @@ export default function NewEmployeeSalePage() {
 
           customerDealSummary,
 
+          quote: {
+            createdAt: quoteCreatedAt,
+            expiresAt: quoteExpiresAt,
+            validityDays: QUOTE_VALIDITY_DAYS,
+          },
+          agreement: {
+            signatureFullName: signatureFullName.trim(),
+            signatureIdNumber: signatureIdNumber.trim(),
+            signatureDate,
+          },
+          paymentSchedule,
+          cancellationTerms: CANCELLATION_TERMS,
+          paymentTerms: PAYMENT_TERMS,
+
           notes: saleSummary.trim(),
 
           payment: {
             method: paymentStatus,
             provider: paymentStatus === "stripe" ? "stripe" : "manual",
             amount: finalGrossAmount,
+            immediateAmount: paymentSchedule.immediateTotal,
+            eventDayAmount: paymentSchedule.eventDayTotal,
           },
         }),
       });
@@ -1527,6 +2000,43 @@ export default function NewEmployeeSalePage() {
                     value={eventDate}
                     onChange={(e) => setEventDate(e.target.value)}
                     className="mt-2 h-12 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-sm font-bold outline-none transition focus:border-[#c7a76c] focus:bg-white focus:ring-4 focus:ring-[#c7a76c]/15"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-sm font-black text-slate-700">
+                    עיר האירוע *
+                  </span>
+                  <input
+                    value={eventCity}
+                    onChange={(e) => setEventCity(e.target.value)}
+                    className="mt-2 h-12 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-sm font-bold outline-none transition focus:border-[#c7a76c] focus:bg-white focus:ring-4 focus:ring-[#c7a76c]/15"
+                    placeholder="לדוגמה: אשדוד"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-sm font-black text-slate-700">
+                    שם האולם *
+                  </span>
+                  <input
+                    value={venueName}
+                    onChange={(e) => setVenueName(e.target.value)}
+                    className="mt-2 h-12 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-sm font-bold outline-none transition focus:border-[#c7a76c] focus:bg-white focus:ring-4 focus:ring-[#c7a76c]/15"
+                    placeholder="לדוגמה: טרויה"
+                  />
+                </label>
+
+                <label className="block md:col-span-2">
+                  <span className="text-sm font-black text-slate-700">
+                    תעודת זהות לקוח לחתימה
+                  </span>
+                  <input
+                    value={customerIdNumber}
+                    onChange={(e) => setCustomerIdNumber(e.target.value)}
+                    className="mt-2 h-12 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-sm font-bold outline-none transition focus:border-[#c7a76c] focus:bg-white focus:ring-4 focus:ring-[#c7a76c]/15"
+                    placeholder="יופיע בהסכם החתימה"
+                    dir="ltr"
                   />
                 </label>
               </div>
@@ -2107,6 +2617,264 @@ export default function NewEmployeeSalePage() {
               </div>
             </section>
 
+            <section
+              id="document-preview"
+              className="rounded-[34px] border border-[#eadfce] bg-white p-5 shadow-sm sm:p-6"
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h2 className="text-2xl font-black text-slate-950">
+                    הצעת מחיר / הסכם לחתימה
+                  </h2>
+                  <p className="mt-1 text-sm font-semibold text-slate-500">
+                    זה העמוד שאפשר לשלוח ללקוח בתוך האתר. הצעת מחיר תקפה ל־4 ימים ממועד ההצעה. הסכם כולל פרטי חתימה.
+                  </p>
+                </div>
+
+                {generatedDocument && (
+                  <Pill className="border-emerald-200 bg-emerald-50 text-emerald-700">
+                    {generatedDocument.type === "quote"
+                      ? "קישור הצעת מחיר נוצר"
+                      : "קישור הסכם נוצר"}
+                  </Pill>
+                )}
+              </div>
+
+              <div className="mt-5 grid gap-4 lg:grid-cols-3">
+                <div className="rounded-[26px] border border-[#eadfce] bg-[#fffdf9] p-4">
+                  <p className="text-xs font-black text-[#8b7b68]">פרטי לקוח</p>
+                  <p className="mt-2 text-lg font-black text-[#3f3327]">
+                    {clientName || "שם לקוח"}
+                  </p>
+                  <p className="mt-1 text-xs font-bold text-[#7b6a58]">
+                    {clientEmail || "אימייל"} · {clientPhone || "טלפון"}
+                  </p>
+                  {customerIdNumber && (
+                    <p className="mt-1 text-xs font-bold text-[#7b6a58]">
+                      ת״ז: {customerIdNumber}
+                    </p>
+                  )}
+                </div>
+
+                <div className="rounded-[26px] border border-[#eadfce] bg-[#fffdf9] p-4">
+                  <p className="text-xs font-black text-[#8b7b68]">פרטי אירוע</p>
+                  <p className="mt-2 text-lg font-black text-[#3f3327]">
+                    {eventName || "שם האירוע"}
+                  </p>
+                  <p className="mt-1 text-xs font-bold text-[#7b6a58]">
+                    {formatDate(eventDate)} · {eventCity || "עיר"} · {venueName || "שם אולם"}
+                  </p>
+                </div>
+
+                <div className="rounded-[26px] border border-[#d8b777] bg-[#fff7ec] p-4">
+                  <p className="text-xs font-black text-[#8a5c20]">תוקף הצעת מחיר</p>
+                  <p className="mt-2 text-lg font-black text-[#3f3327]">
+                    עד {formatDate(quoteExpiresAt)}
+                  </p>
+                  <p className="mt-1 text-xs font-bold text-[#8b7b68]">
+                    לאחר 4 ימים ההצעה תימחק אם לא בוצעה עסקה.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-5 rounded-[28px] border border-[#eadfce] bg-[#fffdf9] p-5">
+                <h3 className="text-xl font-black text-[#3f3327]">
+                  פירוט העסקה ללקוח
+                </h3>
+                <p className="mt-2 text-sm font-semibold leading-7 text-[#5b4a3a]">
+                  {customerDealSummary.packageSummary}
+                </p>
+
+                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                  <div className="rounded-2xl border border-[#eadfce] bg-white p-4">
+                    <p className="text-xs font-black text-[#8b7b68]">סה״כ עסקה</p>
+                    <p className="mt-1 text-2xl font-black text-[#3f3327]">
+                      {money(finalGrossAmount)}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                    <p className="text-xs font-black text-emerald-700">לתשלום מראש</p>
+                    <p className="mt-1 text-2xl font-black text-emerald-900">
+                      {money(paymentSchedule.immediateTotal)}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                    <p className="text-xs font-black text-amber-700">לתשלום ביום האירוע</p>
+                    <p className="mt-1 text-2xl font-black text-amber-900">
+                      {money(paymentSchedule.eventDayTotal)}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 rounded-2xl border border-[#eadfce] bg-white p-4 text-sm font-bold leading-7 text-[#5b4a3a]">
+                  שירותים דיגיטליים ושירותי הכנה לפני האירוע משולמים במלואם במועד ביצוע העסקה, מאחר שמיד לאחר התשלום נפתח ללקוח משתמש וגישה לשירותים. שירותי יום האירוע, כגון הושבה באולם וניהול אלכוהול, משולמים 50% מראש לצורך שריון הצוות והתאריך ו־50% ביום האירוע.
+                </div>
+
+                <div className="mt-5 space-y-4">
+                  <section className="rounded-[24px] border border-[#eadfce] bg-white p-4">
+                    <h4 className="text-lg font-black text-[#3f3327]">
+                      {selectedPlan.title}
+                    </h4>
+                    <ul className="mt-3 space-y-2">
+                      {selectedPlan.includes.map((item) => (
+                        <li
+                          key={item}
+                          className="flex items-start gap-2 text-sm font-semibold leading-7 text-[#5b4a3a]"
+                        >
+                          <span className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#fff3df] text-[#b47a3b]">
+                            <Icon name="check" className="h-3.5 w-3.5" />
+                          </span>
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+
+                  {selectedUpsellsList.map((upsell) => (
+                    <section
+                      key={upsell.key}
+                      className="rounded-[24px] border border-[#eadfce] bg-white p-4"
+                    >
+                      <h4 className="text-lg font-black text-[#3f3327]">
+                        {getUpsellDynamicTitle(
+                          upsell,
+                          venueSeatingStaffCount,
+                          alcoholManagementStaffCount,
+                        )}
+                      </h4>
+                      <p className="mt-1 text-xs font-bold text-[#8b7b68]">
+                        {getUpsellDynamicDescription(
+                          upsell,
+                          venueSeatingStaffCount,
+                          alcoholManagementStaffCount,
+                        )}
+                      </p>
+
+                      <div className="mt-4 space-y-3">
+                        {getCustomerDetailsForUpsell(upsell).map((section) => (
+                          <div key={section.title}>
+                            <p className="text-sm font-black text-[#3f3327]">
+                              {section.title}
+                            </p>
+                            <ul className="mt-2 space-y-1">
+                              {section.items.map((item) => (
+                                <li
+                                  key={item}
+                                  className="text-xs font-semibold leading-6 text-[#5b4a3a]"
+                                >
+                                  • {item}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  ))}
+                </div>
+
+                <div className="mt-5 grid gap-4 md:grid-cols-2">
+                  {PAYMENT_TERMS.map((section) => (
+                    <section
+                      key={section.title}
+                      className="rounded-[24px] border border-[#eadfce] bg-white p-4"
+                    >
+                      <h4 className="text-lg font-black text-[#3f3327]">
+                        {section.title}
+                      </h4>
+                      <ul className="mt-3 space-y-2">
+                        {section.items.map((item) => (
+                          <li key={item} className="text-xs font-semibold leading-6 text-[#5b4a3a]">
+                            • {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  ))}
+
+                  {CANCELLATION_TERMS.map((section) => (
+                    <section
+                      key={section.title}
+                      className="rounded-[24px] border border-rose-100 bg-rose-50/50 p-4"
+                    >
+                      <h4 className="text-lg font-black text-[#3f3327]">
+                        {section.title}
+                      </h4>
+                      <ul className="mt-3 space-y-2">
+                        {section.items.map((item) => (
+                          <li key={item} className="text-xs font-semibold leading-6 text-[#5b4a3a]">
+                            • {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  ))}
+                </div>
+
+                <div className="mt-5 rounded-[24px] border border-[#eadfce] bg-white p-4">
+                  <h4 className="text-lg font-black text-[#3f3327]">
+                    חתימה דיגיטלית להסכם
+                  </h4>
+                  <div className="mt-4 grid gap-3 md:grid-cols-3">
+                    <label className="block">
+                      <span className="text-xs font-black text-[#7b6a58]">שם מלא</span>
+                      <input
+                        value={signatureFullName}
+                        onChange={(e) => setSignatureFullName(e.target.value)}
+                        className="mt-2 h-11 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-3 text-sm font-bold outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
+                        placeholder={clientName || "שם מלא"}
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs font-black text-[#7b6a58]">תעודת זהות</span>
+                      <input
+                        value={signatureIdNumber}
+                        onChange={(e) => setSignatureIdNumber(e.target.value)}
+                        className="mt-2 h-11 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-3 text-sm font-bold outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
+                        placeholder={customerIdNumber || "תעודת זהות"}
+                        dir="ltr"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs font-black text-[#7b6a58]">תאריך חתימה</span>
+                      <input
+                        type="date"
+                        value={signatureDate}
+                        onChange={(e) => setSignatureDate(e.target.value)}
+                        className="mt-2 h-11 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-3 text-sm font-bold outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
+                      />
+                    </label>
+                  </div>
+                  <div className="mt-4 rounded-2xl border border-dashed border-[#d8b777] bg-[#fff7ec] p-4 text-center text-sm font-black text-[#8a5c20]">
+                    אזור חתימה דיגיטלית יוצג ללקוח בעמוד ההסכם.
+                  </div>
+                </div>
+
+                {generatedDocument && (
+                  <div className="mt-5 rounded-[24px] border border-emerald-200 bg-emerald-50 p-4">
+                    <p className="text-sm font-black text-emerald-800">
+                      קישור לשליחה ללקוח
+                    </p>
+                    <div className="mt-3 flex flex-col gap-3 sm:flex-row">
+                      <input
+                        value={generatedDocument.url}
+                        readOnly
+                        className="h-12 flex-1 rounded-2xl border border-emerald-200 bg-white px-4 text-left text-xs font-bold text-emerald-900"
+                        dir="ltr"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => navigator.clipboard?.writeText(generatedDocument.url)}
+                        className="h-12 rounded-2xl bg-emerald-700 px-5 text-sm font-black text-white transition hover:bg-emerald-800"
+                      >
+                        העתק קישור
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+
             <section className="rounded-[34px] border border-[#eadfce] bg-white p-5 shadow-sm sm:p-6">
               <div>
                 <h2 className="text-2xl font-black text-slate-950">
@@ -2319,6 +3087,45 @@ export default function NewEmployeeSalePage() {
                     <option value="stripe">לתשלום דרך Stripe</option>
                     <option value="paid">שולם ידנית</option>
                   </select>
+                </div>
+
+                <div className="grid gap-3">
+                  <button
+                    type="button"
+                    disabled={isDocumentActionDisabled}
+                    onClick={() => createDocumentLink("quote")}
+                    className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#d8b777] bg-[#fff7ec] px-5 text-sm font-black text-[#8a5c20] transition hover:bg-[#ffefd8] disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <Icon name="card" className="h-4 w-4" />
+                    שליחת הצעת מחיר
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={isDocumentActionDisabled}
+                    onClick={() => createDocumentLink("agreement")}
+                    className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <Icon name="shield" className="h-4 w-4" />
+                    יצירת קישור להסכם וחתימה
+                  </button>
+                </div>
+
+                <div className="rounded-[24px] border border-[#eadfce] bg-[#fffdf9] p-4">
+                  <p className="text-sm font-black text-[#3f3327]">חלוקת תשלום</p>
+                  <div className="mt-3 space-y-2 text-xs font-bold leading-5 text-[#7b6a58]">
+                    <div className="flex items-center justify-between gap-3">
+                      <span>לתשלום מראש</span>
+                      <span>{money(paymentSchedule.immediateTotal)}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span>לתשלום ביום האירוע</span>
+                      <span>{money(paymentSchedule.eventDayTotal)}</span>
+                    </div>
+                  </div>
+                  <p className="mt-3 text-[11px] font-bold leading-5 text-[#8b7b68]">
+                    שירותים דיגיטליים והכנה לפני האירוע משולמים במלואם. שירותי יום האירוע משולמים 50% מראש ו־50% ביום האירוע.
+                  </p>
                 </div>
 
                 <button
