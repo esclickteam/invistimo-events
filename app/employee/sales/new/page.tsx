@@ -13,11 +13,17 @@ const COMMISSION_RATE = 0.05;
  * עדיף להעביר את PACKAGE_PLANS לשם ולייבא אותו גם לכאן וגם לעמוד החבילות.
  */
 
+
 type PackageKey = "easy" | "smart" | "seating";
 
 type PackageTier = {
   maxRecords: number;
   price: number;
+};
+
+type DetailSection = {
+  title: string;
+  items: string[];
 };
 
 type PackagePlan = {
@@ -26,6 +32,8 @@ type PackagePlan = {
   badge: string;
   shortDescription: string;
   includes: string[];
+  customerSummary: string;
+  details: DetailSection[];
   tiers: PackageTier[];
 };
 
@@ -35,7 +43,8 @@ type UpsellKey =
   | "venueSeatingThreeStaff"
   | "personalRepresentative"
   | "thirdRsvpRound"
-  | "suppliersBudgetSystem";
+  | "suppliersBudgetSystem"
+  | "alcoholManagement";
 
 type UpsellItem = {
   key: UpsellKey;
@@ -43,9 +52,29 @@ type UpsellItem = {
   price: number;
   description: string;
   note?: string;
+  details: DetailSection[];
 };
 
 type SelectedUpsells = Record<UpsellKey, boolean>;
+
+type DetailsModalState = {
+  title: string;
+  subtitle?: string;
+  price?: number;
+  sections: DetailSection[];
+} | null;
+
+const MESSAGE_DETAILS: DetailSection = {
+  title: "אישורי הגעה והודעות",
+  items: [
+    "החבילה כוללת 2 סבבים אוטומטיים של הודעות לאישורי הגעה.",
+    "אפשר לבצע את הסבבים ב־SMS או ב־WhatsApp, ומומלץ לפצל בין הערוצים כדי לשפר את אחוזי המענה.",
+    "ניתן להוסיף אורחים חדשים עד תחילת הסבב הבא.",
+    "אורחים שנוספו לאחר שסבב מסוים כבר יצא לא יקבלו את הסבב הקודם, אלא רק סבבים עתידיים שעדיין לא נשלחו.",
+    "החבילה כוללת הודעת תזכורת לקראת האירוע, כולל פרטי האירוע ומספר שולחן אם הוגדר.",
+    "החבילה כוללת הודעת תודה לאחר האירוע ב־SMS.",
+  ],
+};
 
 const PACKAGE_PLANS: PackagePlan[] = [
   {
@@ -55,9 +84,31 @@ const PACKAGE_PLANS: PackagePlan[] = [
     shortDescription: "הבסיס המושלם להזמנה דיגיטלית ואישורי הגעה",
     includes: [
       "הזמנה דיגיטלית מלאה",
-      "שליחה ב־2 סבבי WhatsApp אוטומטיים לאישורי הגעה",
-      "תזכורת SMS לקראת האירוע + מספר שולחן",
+      "2 סבבים אוטומטיים של הודעות לאישורי הגעה",
+      "אפשרות לשליחה ב־SMS או WhatsApp",
+      "הודעת תזכורת לקראת האירוע",
       "הודעת תודה לאחר האירוע ב־SMS",
+    ],
+    customerSummary:
+      "חבילת קל להזמין כוללת הזמנה דיגיטלית, 2 סבבי הודעות אוטומטיים לאישורי הגעה, הודעת תזכורת לקראת האירוע והודעת תודה לאחר האירוע.",
+    details: [
+      {
+        title: "מה כלול בחבילה",
+        items: [
+          "הקמת הזמנה דיגיטלית מלאה לאירוע.",
+          "ניהול רשימת מוזמנים ורשומות לפי הכמות שנרכשה.",
+          "אישורי הגעה באמצעות הודעות אוטומטיות.",
+        ],
+      },
+      MESSAGE_DETAILS,
+      {
+        title: "דגשים שצריך לסכם עם הלקוח",
+        items: [
+          "המחיר מחושב לפי כמות הרשומות שנרכשה בפועל.",
+          "אורחים שנוספו לאחר סבב שכבר נשלח לא יקבלו את הסבב הקודם.",
+          "מומלץ לפצל בין SMS ו־WhatsApp כדי להגדיל סיכויי מענה.",
+        ],
+      },
     ],
     tiers: [
       { maxRecords: 50, price: 99 },
@@ -88,13 +139,31 @@ const PACKAGE_PLANS: PackagePlan[] = [
     badge: "הבחירה הפופולרית",
     shortDescription: "כולל מוקד טלפוני וניהול אישורי הגעה מלא",
     includes: [
-      "הזמנה דיגיטלית מלאה",
-      "שליחה ב־2 סבבי WhatsApp אוטומטיים לאישורי הגעה",
-      "תזכורת SMS לקראת האירוע + מספר שולחן",
-      "הודעת תודה לאחר האירוע ב־SMS",
+      "כל מה שכלול בחבילת קל להזמין",
       "מוקד טלפוני מקצועי",
-      "עד 3 ניסיונות חיוג לכל רשומה",
-      "תיעוד ועדכון סטטוסים בזמן אמת",
+      "עד 3 סבבי שיחה של נציגים אנושיים למי שלא ענה",
+      "עדכון סטטוסים ותיעוד בזמן אמת",
+    ],
+    customerSummary:
+      "חבילת מזמינים חכם כוללת את כל חבילת קל להזמין, ובנוסף עד 3 סבבי שיחה של נציגים אנושיים לווידוא הגעה מול מי שלא ענה בהודעות.",
+    details: [
+      {
+        title: "מה כלול מעבר לחבילה 1",
+        items: [
+          "כל מה שכלול בחבילת קל להזמין.",
+          "מוקד טלפוני מקצועי לביצוע שיחות לאורחים שלא ענו.",
+          "עד 3 סבבי שיחה של נציגים אנושיים לווידוא הגעה למי שלא ענה.",
+          "תיעוד ועדכון סטטוסים בזמן אמת במערכת.",
+        ],
+      },
+      MESSAGE_DETAILS,
+      {
+        title: "דגשים לשיחת המכירה",
+        items: [
+          "השיחות מתבצעות למי שלא ענה ולא לכל מי שכבר אישר או סימן שלא מגיע.",
+          "יש להסביר שהשירות נועד לשפר את אחוזי המענה ולחסוך ללקוח מעקב ידני.",
+        ],
+      },
     ],
     tiers: [
       { maxRecords: 50, price: 149 },
@@ -123,16 +192,33 @@ const PACKAGE_PLANS: PackagePlan[] = [
     key: "seating",
     title: "מזמינים ומושיבים",
     badge: "הכי מקיף",
-    shortDescription: "הפתרון המלא כולל הושבה חכמה ושולחנות",
+    shortDescription: "הפתרון המלא כולל הושבה דיגיטלית ושולחנות",
     includes: [
-      "הזמנה דיגיטלית מלאה",
-      "שליחה ב־2 סבבי WhatsApp אוטומטיים לאישורי הגעה",
-      "תזכורת SMS לקראת האירוע + מספר שולחן",
-      "הודעת תודה לאחר האירוע ב־SMS",
-      "מוקד טלפוני מקצועי",
-      "עד 3 ניסיונות חיוג לכל רשומה",
-      "תיעוד ועדכון סטטוסים בזמן אמת",
-      "מערכת הושבה חכמה",
+      "כל מה שכלול בחבילת מזמינים חכם",
+      "מערכת הושבה דיגיטלית",
+      "ניהול שולחנות וסידורי הושבה",
+      "חיבור בין אישורי הגעה לבין ההושבה",
+    ],
+    customerSummary:
+      "חבילת מזמינים ומושיבים כוללת את כל חבילת מזמינים חכם, ובנוסף מערכת הושבה דיגיטלית לניהול שולחנות וסידורי הושבה.",
+    details: [
+      {
+        title: "מה כלול מעבר לחבילה 2",
+        items: [
+          "כל מה שכלול בחבילת מזמינים חכם.",
+          "מערכת הושבה דיגיטלית לניהול שולחנות וסידורי הושבה.",
+          "חיבור בין סטטוסי אישורי ההגעה לבין ההושבה בפועל.",
+          "אפשרות לעדכון ושינוי הושבה עד האירוע בהתאם לנתוני המערכת.",
+        ],
+      },
+      MESSAGE_DETAILS,
+      {
+        title: "דגשים לשיחת המכירה",
+        items: [
+          "יש להסביר שההושבה הדיגיטלית היא כלי מערכת, ולא בהכרח כוללת נציג פיזי באולם אלא אם נרכש אפסייל הושבה באולם.",
+          "אם הלקוח רוצה צוות באולם — יש לבחור אפסייל הושבה באולם לפי כמות אנשי צוות.",
+        ],
+      },
     ],
     tiers: [
       { maxRecords: 50, price: 199 },
@@ -165,18 +251,69 @@ const UPSELLS: UpsellItem[] = [
     title: "הושבה באולם — 2 אנשי צוות עד 200 מוזמנים",
     price: 1000,
     description: "שירות הושבה באולם לאירועים קטנים עד 200 מוזמנים.",
+    details: [
+      {
+        title: "מה השירות נותן",
+        items: [
+          "2 אנשי צוות מגיעים לאולם עבור אירוע קטן עד 200 מוזמנים.",
+          "הצוות מסייע בבדיקת הושבה, הכוונת אורחים ועדכון מצב בזמן אמת לפי הצורך.",
+          "השירות מתאים ללקוחות שרוצים נוכחות אנושית באולם מעבר להושבה הדיגיטלית.",
+        ],
+      },
+      {
+        title: "דגשים לסיכום מול הלקוח",
+        items: [
+          "יש לסכם מראש שעות הגעה, נקודת מפגש ואיש קשר באולם.",
+          "השירות אינו מחליף מנהל אירוע מטעם האולם אלא נותן תמיכה ייעודית בהושבה.",
+        ],
+      },
+    ],
   },
   {
     key: "venueSeatingTwoStaff",
     title: "הושבה באולם — 2 אנשי צוות",
     price: 1600,
     description: "שירות הושבה באולם עם 2 אנשי צוות.",
+    details: [
+      {
+        title: "מה השירות נותן",
+        items: [
+          "2 אנשי צוות מגיעים לאולם ומסייעים בניהול ההושבה בפועל.",
+          "הצוות בודק את רשימות ההושבה ומסייע בהכוונת אורחים לפי השולחנות.",
+          "השירות מתאים לאירועים שבהם נדרשת נוכחות אנושית באולם ביום האירוע.",
+        ],
+      },
+      {
+        title: "דגשים לסיכום מול הלקוח",
+        items: [
+          "יש לוודא שהלקוח מבין שמדובר באפסייל נפרד מההושבה הדיגיטלית.",
+          "יש לסכם מראש את זמני הנוכחות והציפיות מהצוות.",
+        ],
+      },
+    ],
   },
   {
     key: "venueSeatingThreeStaff",
     title: "הושבה באולם — 3 אנשי צוות",
     price: 2100,
     description: "שירות הושבה באולם עם 3 אנשי צוות.",
+    details: [
+      {
+        title: "מה השירות נותן",
+        items: [
+          "3 אנשי צוות מגיעים לאולם ומסייעים בניהול ההושבה בפועל.",
+          "מתאים לאירועים גדולים יותר או לאירועים שבהם יש צורך ביותר נקודות שירות והכוונה.",
+          "הצוות מסייע בהכוונה לשולחנות ובעדכונים בזמן אמת לפי הצורך.",
+        ],
+      },
+      {
+        title: "דגשים לסיכום מול הלקוח",
+        items: [
+          "יש לוודא מראש את מבנה האולם, כניסות, נקודות קבלת פנים ואיש קשר במקום.",
+          "השירות הוא תמיכת הושבה ולא ניהול אירוע מלא, אלא אם נרכש שירות נוסף לכך.",
+        ],
+      },
+    ],
   },
   {
     key: "personalRepresentative",
@@ -184,12 +321,47 @@ const UPSELLS: UpsellItem[] = [
     price: 450,
     description:
       "ליווי כולל מעבר ועדכון פעמיים בשבוע, עזרה בהושבה דיגיטלית מרחוק ובניית ההושבה לפי סקיצת האולם.",
+    details: [
+      {
+        title: "מה השירות נותן",
+        items: [
+          "נציג אישי שמלווה את הלקוח בתהליך ההכנות במערכת.",
+          "מעבר ועדכון עם הלקוח פעמיים בשבוע.",
+          "עזרה בהושבה דיגיטלית מרחוק.",
+          "סיוע בבניית ההושבה לפי סקיצת האולם שהלקוח מספק.",
+        ],
+      },
+      {
+        title: "דגשים לסיכום מול הלקוח",
+        items: [
+          "הליווי מתבצע מרחוק, אלא אם נרכש שירות נוכחות באולם בנפרד.",
+          "הלקוח צריך להעביר סקיצה/פריסת שולחנות כדי שניתן יהיה לסייע בבניית ההושבה.",
+        ],
+      },
+    ],
   },
   {
     key: "thirdRsvpRound",
     title: "תוספת סבב 3 לאישורי הגעה",
     price: 90,
     description: "פתיחת סבב שלישי לאישורי הגעה.",
+    details: [
+      {
+        title: "מה השירות נותן",
+        items: [
+          "פתיחת סבב שלישי נוסף לאישורי הגעה מעבר ל־2 הסבבים הכלולים בחבילות.",
+          "הסבב מיועד לשיפור אחוזי המענה מול מוזמנים שעדיין לא הגיבו.",
+          "אפשר להשתמש בסבב הנוסף בהתאם לערוצי ההודעות הפעילים במערכת.",
+        ],
+      },
+      {
+        title: "דגשים לסיכום מול הלקוח",
+        items: [
+          "יש להסביר שסבב שנשלח לא נשלח רטרואקטיבית לאורחים שנוספו אחריו.",
+          "אורחים שנוספו אחרי סבב מסוים יקבלו רק סבבים עתידיים שעדיין לא יצאו.",
+        ],
+      },
+    ],
   },
   {
     key: "suppliersBudgetSystem",
@@ -197,6 +369,50 @@ const UPSELLS: UpsellItem[] = [
     price: 200,
     description: "פתיחת אזור ניהול ספקים ותקציב ללקוח.",
     note: "ברכישות מעל 1,000 ₪ העובד רשאי לתת ללא עלות.",
+    details: [
+      {
+        title: "מה השירות נותן",
+        items: [
+          "פתיחת מערכת עצמאית לניהול ספקים ותקציב האירוע.",
+          "הלקוח יכול לרכז ספקים, מחירים, מקדמות, יתרות ותמונת מצב תקציבית.",
+          "מיועד ללקוחות שרוצים לנהל את ההוצאות והספקים במקום אחד.",
+        ],
+      },
+      {
+        title: "הטבה ברכישה מעל 1,000 ₪",
+        items: [
+          "ברכישות מעל 1,000 ₪ יש הרשאה לעובד לתת את המודול ללא עלות.",
+          "אם ההטבה ניתנת ללא עלות, היא תופיע בסיכום העסקה כ'ללא עלות'.",
+        ],
+      },
+    ],
+  },
+  {
+    key: "alcoholManagement",
+    title: "ניהול אלכוהול באולם",
+    price: 1200,
+    description:
+      "איש צוות אחד נשאר באולם עד השעה 02:00 לכל המאוחר לניהול ותיעוד אלכוהול.",
+    details: [
+      {
+        title: "מה השירות נותן",
+        items: [
+          "איש צוות אחד מתוך הצוות שמגיע לאירוע נשאר עד השעה 02:00 לכל המאוחר.",
+          "איש הצוות ידאג לשים בקבוקים על השולחנות לפי מה שסוכם מראש עם בעל האירוע.",
+          "איש הצוות יבדוק בשולחנות אם יש בקבוקים ריקים ויחליף בקבוק רק במידת הצורך.",
+          "כל בקבוק מתועד במערכת: איפה נפתח, מתי נפתח ומתי הוקצה בקבוק נוסף.",
+          "בסוף הערב בעל האירוע מקבל דוח מלא וממוחשב על ניהול האלכוהול.",
+        ],
+      },
+      {
+        title: "דגשים לסיכום מול הלקוח",
+        items: [
+          "יש לסכם מראש עם בעל האירוע את כמות הבקבוקים, סוגי האלכוהול והאופן שבו רוצים לפזר אותם בשולחנות.",
+          "השירות כולל ניהול ותיעוד, לא רכישת אלכוהול ולא אספקת בקבוקים מטעם Invistimo.",
+          "יש לוודא שיש איש קשר באולם למקרה של שינוי או צורך בתיאום בזמן האירוע.",
+        ],
+      },
+    ],
   },
 ];
 
@@ -274,6 +490,7 @@ function createEmptyUpsells(): SelectedUpsells {
     personalRepresentative: false,
     thirdRsvpRound: false,
     suppliersBudgetSystem: false,
+    alcoholManagement: false,
   };
 }
 
@@ -317,7 +534,8 @@ function Icon({
     | "spark"
     | "card"
     | "phone"
-    | "lock";
+    | "lock"
+    | "info";
   className?: string;
 }) {
   const common = {
@@ -392,6 +610,16 @@ function Icon({
     );
   }
 
+  if (name === "info") {
+    return (
+      <svg {...common}>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 16v-4" />
+        <path d="M12 8h.01" />
+      </svg>
+    );
+  }
+
   return (
     <svg {...common}>
       <path d="M19 12H5" />
@@ -442,6 +670,79 @@ function InfoCard({
   );
 }
 
+function DetailsModal({
+  details,
+  onClose,
+}: {
+  details: DetailsModalState;
+  onClose: () => void;
+}) {
+  if (!details) return null;
+
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/55 px-4 backdrop-blur-sm">
+      <div className="max-h-[88vh] w-full max-w-3xl overflow-hidden rounded-[32px] border border-[#eadfce] bg-white shadow-2xl">
+        <div className="flex items-start justify-between gap-4 border-b border-[#eadfce] bg-[#fff7ec] p-5 sm:p-6">
+          <div>
+            <Pill className="border-[#d6b47c] bg-white text-[#8a5c20]">
+              פירוט מלא
+            </Pill>
+            <h3 className="mt-3 text-2xl font-black text-[#3f3327]">
+              {details.title}
+            </h3>
+            {details.subtitle && (
+              <p className="mt-2 text-sm font-semibold leading-6 text-[#7b6a58]">
+                {details.subtitle}
+              </p>
+            )}
+            {typeof details.price === "number" && (
+              <p className="mt-3 text-lg font-black text-[#3f3327]">
+                מחיר: {money(details.price)}
+              </p>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#eadfce] bg-white text-lg font-black text-[#7b6a58] transition hover:bg-[#fffdf9] hover:text-[#3f3327]"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="max-h-[62vh] overflow-y-auto p-5 sm:p-6">
+          <div className="space-y-4">
+            {details.sections.map((section) => (
+              <section
+                key={section.title}
+                className="rounded-[26px] border border-[#eadfce] bg-[#fffdf9] p-4"
+              >
+                <h4 className="text-lg font-black text-[#3f3327]">
+                  {section.title}
+                </h4>
+                <ul className="mt-3 space-y-2">
+                  {section.items.map((item) => (
+                    <li
+                      key={item}
+                      className="flex items-start gap-2 text-sm font-semibold leading-7 text-[#5b4a3a]"
+                    >
+                      <span className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#fff3df] text-[#b47a3b]">
+                        <Icon name="check" className="h-3.5 w-3.5" />
+                      </span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function NewEmployeeSalePage() {
   const router = useRouter();
 
@@ -464,6 +765,8 @@ export default function NewEmployeeSalePage() {
     "stripe",
   );
 
+  const [detailsModal, setDetailsModal] = useState<DetailsModalState>(null);
+
   const [saleSummary, setSaleSummary] = useState("");
 
   const [confirmRecordedCall, setConfirmRecordedCall] = useState(false);
@@ -484,7 +787,11 @@ export default function NewEmployeeSalePage() {
   }, [records, selectedPlan]);
 
   const canGiveSuppliersBudgetFree =
-    packageCalculation.finalPrice + calculateUpsellsTotal(selectedUpsells, packageCalculation.finalPrice, false) >=
+    packageCalculation.finalPrice +
+      UPSELLS.reduce((sum, upsell) => {
+        if (upsell.key === "suppliersBudgetSystem") return sum;
+        return selectedUpsells[upsell.key] ? sum + upsell.price : sum;
+      }, 0) >=
     1000;
 
   const selectedUpsellsList = useMemo(() => {
@@ -511,6 +818,37 @@ export default function NewEmployeeSalePage() {
   const calculated = useMemo(() => {
     return calculate(finalGrossAmount);
   }, [finalGrossAmount]);
+
+  const customerDealSummary = useMemo(() => {
+    return {
+      packageTitle: selectedPlan.title,
+      packageSummary: selectedPlan.customerSummary,
+      records: packageCalculation.records,
+      totalPrice: finalGrossAmount,
+      includedItems: selectedPlan.includes,
+      upsells: selectedUpsellsList.map((upsell) => {
+        const givenFree =
+          upsell.key === "suppliersBudgetSystem" &&
+          suppliersBudgetFree &&
+          canGiveSuppliersBudgetFree;
+
+        return {
+          title: upsell.title,
+          description: upsell.description,
+          givenFree,
+        };
+      }),
+    };
+  }, [
+    canGiveSuppliersBudgetFree,
+    finalGrossAmount,
+    packageCalculation.records,
+    selectedPlan.customerSummary,
+    selectedPlan.includes,
+    selectedPlan.title,
+    selectedUpsellsList,
+    suppliersBudgetFree,
+  ]);
 
   const isSubmitDisabled =
     saving ||
@@ -575,6 +913,8 @@ export default function NewEmployeeSalePage() {
             title: selectedPlan.title,
             badge: selectedPlan.badge,
             includes: selectedPlan.includes,
+            customerSummary: selectedPlan.customerSummary,
+            details: selectedPlan.details,
             records: packageCalculation.records,
             tierMaxRecords: packageCalculation.tierMaxRecords,
             tierPrice: packageCalculation.tierPrice,
@@ -586,6 +926,7 @@ export default function NewEmployeeSalePage() {
             key: upsell.key,
             title: upsell.title,
             description: upsell.description,
+            details: upsell.details,
             originalPrice: upsell.price,
             price:
               upsell.key === "suppliersBudgetSystem" &&
@@ -602,10 +943,13 @@ export default function NewEmployeeSalePage() {
           saleCompliance: {
             recordedCall: confirmRecordedCall,
             cardOwnerConfirmed: confirmCardOwner,
+            cardHolderPresentAndApproved: confirmCardOwner,
             saleSummaryConfirmed: confirmSaleSummary,
             termsConfirmed: confirmTerms,
             summary: saleSummary.trim(),
           },
+
+          customerDealSummary,
 
           notes: saleSummary.trim(),
 
@@ -673,6 +1017,7 @@ export default function NewEmployeeSalePage() {
       dir="rtl"
       className="min-h-screen bg-[radial-gradient(circle_at_top,#fff7ed_0%,#f8fafc_38%,#eef2f7_100%)] text-slate-950"
     >
+      <DetailsModal details={detailsModal} onClose={() => setDetailsModal(null)} />
       <main className="mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
         <section className="relative overflow-hidden rounded-[36px] border border-[#eadfce] bg-white/90 p-6 shadow-sm sm:p-8">
           <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-[#ffe7bd] blur-3xl" />
@@ -859,6 +1204,34 @@ export default function NewEmployeeSalePage() {
                           <p className="mt-2 min-h-[48px] text-sm font-semibold leading-6 text-[#7b6a58]">
                             {plan.shortDescription}
                           </p>
+
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setDetailsModal({
+                                title: plan.title,
+                                subtitle: plan.customerSummary,
+                                sections: plan.details,
+                              });
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                setDetailsModal({
+                                  title: plan.title,
+                                  subtitle: plan.customerSummary,
+                                  sections: plan.details,
+                                });
+                              }
+                            }}
+                            className="mt-3 inline-flex h-9 items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-3 text-xs font-black text-[#7b6a58] transition hover:bg-[#fffdf9]"
+                          >
+                            <Icon name="info" className="h-4 w-4" />
+                            פירוט
+                          </span>
                         </div>
 
                         <div
@@ -1024,6 +1397,24 @@ export default function NewEmployeeSalePage() {
                                 {upsell.note}
                               </span>
                             )}
+
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                setDetailsModal({
+                                  title: upsell.title,
+                                  subtitle: upsell.description,
+                                  price: upsell.price,
+                                  sections: upsell.details,
+                                });
+                              }}
+                              className="mt-3 inline-flex h-8 items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-3 text-xs font-black text-[#7b6a58] transition hover:bg-[#fffdf9]"
+                            >
+                              <Icon name="info" className="h-3.5 w-3.5" />
+                              פירוט
+                            </button>
                           </span>
                         </label>
 
@@ -1079,6 +1470,117 @@ export default function NewEmployeeSalePage() {
               </div>
             </section>
 
+
+
+            <section className="rounded-[34px] border border-[#eadfce] bg-white p-5 shadow-sm sm:p-6">
+              <div>
+                <h2 className="text-2xl font-black text-slate-950">
+                  סיכום פרטי העסקה ללקוח
+                </h2>
+                <p className="mt-1 text-sm font-semibold text-slate-500">
+                  זה הסיכום שיישמר בפרטי העסקה: חבילה, כמות רשומות, מה כלול
+                  והמחיר הכולל. ללקוח לא יוצג פירוק מחיר של כל רכיב בנפרד.
+                </p>
+              </div>
+
+              <div className="mt-5 rounded-[28px] border border-[#eadfce] bg-[#fffdf9] p-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <Pill className="border-[#d6b47c] bg-white text-[#8a5c20]">
+                      פרטי עסקה
+                    </Pill>
+                    <h3 className="mt-3 text-2xl font-black text-[#3f3327]">
+                      {customerDealSummary.packageTitle}
+                    </h3>
+                    <p className="mt-2 text-sm font-semibold leading-7 text-[#5b4a3a]">
+                      {customerDealSummary.packageSummary}
+                    </p>
+                  </div>
+
+                  <div className="rounded-3xl border border-[#d8b777] bg-white p-4 text-center sm:min-w-[180px]">
+                    <p className="text-xs font-black text-[#8a5c20]">
+                      מחיר כולל לתשלום
+                    </p>
+                    <p className="mt-1 text-3xl font-black text-[#3f3327]">
+                      {money(customerDealSummary.totalPrice)}
+                    </p>
+                    <p className="mt-1 text-xs font-bold text-[#8b7b68]">
+                      כולל מע״מ
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-5 grid gap-3 md:grid-cols-2">
+                  <div className="rounded-2xl border border-[#eadfce] bg-white p-4">
+                    <p className="text-xs font-black text-[#8b7b68]">
+                      כמות רשומות שנרכשה
+                    </p>
+                    <p className="mt-1 text-2xl font-black text-[#3f3327]">
+                      {customerDealSummary.records}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-[#eadfce] bg-white p-4">
+                    <p className="text-xs font-black text-[#8b7b68]">
+                      סך הכל לתשלום על כל העסקה
+                    </p>
+                    <p className="mt-1 text-2xl font-black text-[#3f3327]">
+                      {money(customerDealSummary.totalPrice)}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-5 grid gap-4 md:grid-cols-2">
+                  <div>
+                    <p className="text-sm font-black text-[#3f3327]">
+                      מה כלול בחבילה
+                    </p>
+                    <ul className="mt-3 space-y-2">
+                      {customerDealSummary.includedItems.map((item) => (
+                        <li
+                          key={item}
+                          className="flex items-start gap-2 text-sm font-semibold leading-6 text-[#5b4a3a]"
+                        >
+                          <span className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#fff3df] text-[#b47a3b]">
+                            <Icon name="check" className="h-3.5 w-3.5" />
+                          </span>
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-black text-[#3f3327]">
+                      תוספות שנבחרו
+                    </p>
+                    {customerDealSummary.upsells.length === 0 ? (
+                      <p className="mt-3 rounded-2xl border border-[#eadfce] bg-white p-4 text-sm font-bold text-[#8b7b68]">
+                        לא נבחרו תוספות לעסקה.
+                      </p>
+                    ) : (
+                      <ul className="mt-3 space-y-2">
+                        {customerDealSummary.upsells.map((upsell) => (
+                          <li
+                            key={upsell.title}
+                            className="rounded-2xl border border-[#eadfce] bg-white p-3 text-sm font-semibold leading-6 text-[#5b4a3a]"
+                          >
+                            <p className="font-black text-[#3f3327]">
+                              {upsell.title}
+                              {upsell.givenFree ? " — ללא עלות" : ""}
+                            </p>
+                            <p className="mt-1 text-xs font-bold text-[#8b7b68]">
+                              {upsell.description}
+                            </p>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </section>
+
             <section className="rounded-[34px] border border-[#eadfce] bg-white p-5 shadow-sm sm:p-6">
               <div>
                 <h2 className="text-2xl font-black text-slate-950">
@@ -1113,7 +1615,7 @@ export default function NewEmployeeSalePage() {
                       className="mt-1 h-4 w-4 accent-[#9b7a3c]"
                     />
                     <span className="text-sm font-bold leading-6 text-[#5b4a3a]">
-                      וידאתי שרק הלקוח או הגורם המשלם משתמשים בכרטיס האשראי.
+                      וידאתי שרק הלקוח או הגורם המשלם משתמשים בכרטיס האשראי, ושבעל הכרטיס היה נוכח בעסקה ואישר את התשלום.
                     </span>
                   </div>
                 </label>
