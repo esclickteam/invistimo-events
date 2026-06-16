@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 const VAT_RATE = 0.18;
@@ -38,13 +38,14 @@ type PackagePlan = {
 };
 
 type UpsellKey =
-  | "venueSeatingSmall"
-  | "venueSeatingTwoStaff"
-  | "venueSeatingThreeStaff"
+  | "venueSeating"
   | "personalRepresentative"
   | "thirdRsvpRound"
   | "suppliersBudgetSystem"
   | "alcoholManagement";
+
+type VenueSeatingStaffCount = 1 | 2 | 3;
+type AlcoholManagementStaffCount = 1 | 2;
 
 type UpsellItem = {
   key: UpsellKey;
@@ -66,6 +67,58 @@ type DetailsModalState = {
   customerSections?: DetailSection[];
   defaultView?: "employee" | "customer";
 } | null;
+
+const VENUE_SEATING_OPTIONS: {
+  staffCount: VenueSeatingStaffCount;
+  title: string;
+  price: number;
+  maxRecords?: number;
+  description: string;
+}[] = [
+  {
+    staffCount: 1,
+    title: "איש צוות אחד",
+    price: 1000,
+    maxRecords: 200,
+    description: "מתאים לאירועים קטנים עד 200 רשומות.",
+  },
+  {
+    staffCount: 2,
+    title: "2 אנשי צוות",
+    price: 1600,
+    description: "מתאים לאירועים בינוניים או לאירועים עם צורך ביותר עמדות שירות.",
+  },
+  {
+    staffCount: 3,
+    title: "3 אנשי צוות",
+    price: 2100,
+    description: "מתאים לאירועים גדולים או לאירועים עם צורך בניהול הושבה רחב יותר.",
+  },
+];
+
+const ALCOHOL_MANAGEMENT_OPTIONS: {
+  staffCount: AlcoholManagementStaffCount;
+  title: string;
+  price: number;
+  maxRecords?: number;
+  minRecords?: number;
+  description: string;
+}[] = [
+  {
+    staffCount: 1,
+    title: "איש צוות אחד",
+    price: 1200,
+    maxRecords: 450,
+    description: "מתאים לאירועים עד 450 רשומות.",
+  },
+  {
+    staffCount: 2,
+    title: "2 אנשי צוות",
+    price: 2000,
+    minRecords: 451,
+    description: "חובה באירועים מעל 450 רשומות.",
+  },
+];
 
 const MESSAGE_DETAILS: DetailSection = {
   title: "אישורי הגעה והודעות",
@@ -162,23 +215,115 @@ const VENUE_SEATING_EMPLOYEE_DETAILS: DetailSection[] = [
 ];
 
 function isVenueSeatingUpsell(key?: UpsellKey) {
+  return key === "venueSeating";
+}
+
+function getVenueSeatingOption(staffCount: VenueSeatingStaffCount) {
   return (
-    key === "venueSeatingSmall" ||
-    key === "venueSeatingTwoStaff" ||
-    key === "venueSeatingThreeStaff"
+    VENUE_SEATING_OPTIONS.find((option) => option.staffCount === staffCount) ||
+    VENUE_SEATING_OPTIONS[0]
   );
 }
 
+function getAlcoholManagementOption(staffCount: AlcoholManagementStaffCount) {
+  return (
+    ALCOHOL_MANAGEMENT_OPTIONS.find(
+      (option) => option.staffCount === staffCount,
+    ) || ALCOHOL_MANAGEMENT_OPTIONS[0]
+  );
+}
+
+function isVenueStaffOptionDisabled(
+  option: (typeof VENUE_SEATING_OPTIONS)[number],
+  records: number,
+) {
+  return Boolean(option.maxRecords && records > option.maxRecords);
+}
+
+function isAlcoholStaffOptionDisabled(
+  option: (typeof ALCOHOL_MANAGEMENT_OPTIONS)[number],
+  records: number,
+) {
+  if (option.maxRecords && records > option.maxRecords) return true;
+  if (option.minRecords && records < option.minRecords) return true;
+
+  return false;
+}
+
+function getUpsellDynamicTitle(
+  upsell: UpsellItem,
+  venueSeatingStaffCount: VenueSeatingStaffCount,
+  alcoholManagementStaffCount: AlcoholManagementStaffCount,
+) {
+  if (upsell.key === "venueSeating") {
+    const option = getVenueSeatingOption(venueSeatingStaffCount);
+    return `הושבה באולם — ${option.title}`;
+  }
+
+  if (upsell.key === "alcoholManagement") {
+    const option = getAlcoholManagementOption(alcoholManagementStaffCount);
+    return `ניהול אלכוהול באולם — ${option.title}`;
+  }
+
+  return upsell.title;
+}
+
+function getUpsellDynamicDescription(
+  upsell: UpsellItem,
+  venueSeatingStaffCount: VenueSeatingStaffCount,
+  alcoholManagementStaffCount: AlcoholManagementStaffCount,
+) {
+  if (upsell.key === "venueSeating") {
+    const option = getVenueSeatingOption(venueSeatingStaffCount);
+    return `${upsell.description} ${option.description}`;
+  }
+
+  if (upsell.key === "alcoholManagement") {
+    const option = getAlcoholManagementOption(alcoholManagementStaffCount);
+    return `${upsell.description} ${option.description}`;
+  }
+
+  return upsell.description;
+}
+
+function getUpsellPrice(
+  upsell: UpsellItem,
+  venueSeatingStaffCount: VenueSeatingStaffCount,
+  alcoholManagementStaffCount: AlcoholManagementStaffCount,
+) {
+  if (upsell.key === "venueSeating") {
+    return getVenueSeatingOption(venueSeatingStaffCount).price;
+  }
+
+  if (upsell.key === "alcoholManagement") {
+    return getAlcoholManagementOption(alcoholManagementStaffCount).price;
+  }
+
+  return upsell.price;
+}
+
 function getEmployeeDetailsForUpsell(upsell: UpsellItem) {
-  return isVenueSeatingUpsell(upsell.key)
-    ? VENUE_SEATING_EMPLOYEE_DETAILS
-    : upsell.details;
+  if (isVenueSeatingUpsell(upsell.key)) {
+    return VENUE_SEATING_EMPLOYEE_DETAILS;
+  }
+
+  if (upsell.key === "alcoholManagement") {
+    return ALCOHOL_MANAGEMENT_EMPLOYEE_DETAILS;
+  }
+
+  return upsell.details;
 }
 
 function getCustomerDetailsForUpsell(upsell: UpsellItem) {
-  return isVenueSeatingUpsell(upsell.key)
-    ? VENUE_SEATING_CUSTOMER_DETAILS
-    : upsell.details;
+  if (isVenueSeatingUpsell(upsell.key)) {
+    return VENUE_SEATING_CUSTOMER_DETAILS;
+  }
+
+  if (upsell.key === "alcoholManagement") {
+    return ALCOHOL_MANAGEMENT_CUSTOMER_DETAILS;
+  }
+
+  return upsell.details;
 }
 
 function getCustomerDetailsForPlan(plan: PackagePlan) {
@@ -359,75 +504,94 @@ const PACKAGE_PLANS: PackagePlan[] = [
   },
 ];
 
+const ALCOHOL_MANAGEMENT_CUSTOMER_DETAILS: DetailSection[] = [
+  {
+    title: "שירות ניהול אלכוהול באולם",
+    items: [
+      "שירות ניהול האלכוהול באולם כולל איש צוות אחד או שני אנשי צוות מתוך צוות השירות שמגיע לאולם ביום האירוע, בהתאם לכמות הרשומות שנרכשה ולבחירה שסוכמה מול הלקוח.",
+      "איש הצוות יישאר באירוע לצורך ניהול, פיזור ותיעוד האלכוהול עד השעה 02:00 בלילה לכל המאוחר, או עד לסיום השירות בפועל — לפי המוקדם מביניהם.",
+      "השירות נועד לסייע לבעל/ת האירוע לנהל את האלכוהול בצורה מסודרת, מבוקרת ומתועדת, לצמצם פתיחה מיותרת של בקבוקים, לוודא שהבקבוקים נפתחים ומוקצים רק לפי צורך בפועל, ולאפשר לבעל/ת האירוע לקבל בסיום הערב תמונת מצב מסודרת וברורה.",
+    ],
+  },
+  {
+    title: "היערכות ותיאום לפני תחילת השירות",
+    items: [
+      "לפני תחילת ניהול האלכוהול, איש הצוות יבצע תיאום מול בעל/ת האירוע או מול נציג מוסמך מטעמם לגבי אופן ניהול האלכוהול באירוע.",
+      "במסגרת התיאום יוגדרו, ככל שנמסרו מראש, סוגי האלכוהול, כמות הבקבוקים, אופן הפיזור לשולחנות, סדר עדיפויות לפתיחת בקבוקים והנחיות מיוחדות של בעל/ת האירוע לגבי שימוש באלכוהול במהלך הערב.",
+      "איש הצוות יפעל בהתאם להנחיות שסוכמו מראש, ובמידת הצורך יתאם במהלך האירוע מול בעל/ת האירוע או מול נציג מוסמך מטעמם.",
+    ],
+  },
+  {
+    title: "פיזור בקבוקים וניהול במהלך האירוע",
+    items: [
+      "במהלך האירוע, איש הצוות ידאג לפיזור בקבוקים על השולחנות בהתאם למה שסוכם מראש עם בעל/ת האירוע או עם נציג מוסמך מטעמם.",
+      "איש הצוות יבצע בדיקות במהלך הערב בשולחנות, יבדוק האם קיימים בקבוקים ריקים או בקבוקים שנדרש להחליף, וידאג לפתוח או להקצות בקבוק נוסף רק במידת הצורך ובהתאם להנחיות שסוכמו מראש.",
+      "מטרת השירות היא למנוע פתיחה מיותרת של בקבוקים, לצמצם בזבוז, ולשמור על ניהול מסודר של מלאי האלכוהול במהלך האירוע.",
+    ],
+  },
+  {
+    title: "תיעוד ממוחשב",
+    items: [
+      "כל בקבוק שייפתח או יוקצה יתועד במערכת, לרבות מיקום ההקצאה, מועד פתיחת הבקבוק, ומועד הקצאת בקבוק נוסף ככל שבוצעה.",
+      "בסיום הערב, בעל/ת האירוע יקבלו דוח ממוחשב מסודר הכולל את תיעוד ניהול האלכוהול במהלך האירוע, בהתאם לנתונים שתועדו בפועל.",
+    ],
+  },
+  {
+    title: "שעות השירות",
+    items: [
+      "שירות ניהול האלכוהול מתבצע על ידי איש צוות אחד או שני אנשי צוות מתוך הצוות שמגיע לאולם, בהתאם להיקף האירוע והבחירה שסוכמה.",
+      "איש הצוות יישאר לצורך שירות זה עד השעה 02:00 בלילה לכל המאוחר, או עד לסיום הצורך בשירות בפועל — לפי המוקדם מביניהם.",
+      "באירועים מעל 450 רשומות נדרש שירות של 2 אנשי צוות לניהול אלכוהול.",
+    ],
+  },
+  {
+    title: "הבהרות חשובות",
+    items: [
+      "השירות כולל ניהול, פיזור ותיעוד של האלכוהול באירוע בלבד.",
+      "השירות אינו כולל רכישת אלכוהול, אספקת בקבוקים או אחריות על כמות האלכוהול שסופקה לאירוע.",
+      "האחריות על רכישת האלכוהול, אספקתו לאולם, אישור שימוש בו מול האולם וכל התחייבות מול האולם בנושא האלכוהול הינה באחריות בעל/ת האירוע או מי מטעמם.",
+    ],
+  },
+];
+
+const ALCOHOL_MANAGEMENT_EMPLOYEE_DETAILS: DetailSection[] = [
+  {
+    title: "מה העובד צריך להסביר בשיחה",
+    items: [
+      "להסביר שזה שירות נוסף לניהול אלכוהול באולם, והוא מתבצע על ידי איש צוות מתוך הצוות שמגיע לאירוע.",
+      "להסביר שאיש הצוות נשאר עד השעה 02:00 לכל המאוחר, או עד סיום הצורך בשירות בפועל — לפי המוקדם מביניהם.",
+      "להסביר שהשירות כולל ניהול, פיזור ותיעוד בקבוקים בלבד, ולא כולל רכישה או אספקה של אלכוהול.",
+      "להדגיש שהמטרה היא לצמצם פתיחה מיותרת של בקבוקים, לתעד כל בקבוק שנפתח או הוקצה, ולתת ללקוח דוח ממוחשב בסוף הערב.",
+    ],
+  },
+  {
+    title: "מה חובה לסגור מול הלקוח לפני מכירה",
+    items: [
+      "מי איש הקשר באירוע שמוסמך לתת הנחיות בנושא האלכוהול.",
+      "אילו סוגי אלכוהול קיימים, כמה בקבוקים יש, ואיפה הם מאוחסנים באולם.",
+      "איך הלקוח רוצה לפזר בקבוקים בשולחנות ובאיזה סדר עדיפויות לפתוח בקבוקים.",
+      "להבהיר שבאירועים מעל 450 רשומות נדרש לבחור 2 אנשי צוות לניהול אלכוהול בעלות 2,000 ₪.",
+      "להבהיר שהשירות אינו כולל רכישת אלכוהול או אספקת בקבוקים.",
+    ],
+  },
+  {
+    title: "נוסח מומלץ לסיכום עם הלקוח",
+    items: [
+      "השירות כולל איש צוות מתוך הצוות שמגיע לאולם, אשר יישאר עד השעה 02:00 לכל המאוחר לצורך ניהול, פיזור ותיעוד האלכוהול.",
+      "איש הצוות יפעל לפי ההנחיות שסוכמו מראש עם בעל האירוע, יבדוק בקבוקים ריקים, יחליף או יקצה בקבוק נוסף רק במידת הצורך, ויתעד במערכת כל בקבוק שנפתח או הוקצה.",
+      "בסיום הערב הלקוח יקבל דוח ממוחשב מסודר על ניהול האלכוהול בפועל.",
+    ],
+  },
+];
+
 const UPSELLS: UpsellItem[] = [
   {
-    key: "venueSeatingSmall",
-    title: "הושבה באולם — 2 אנשי צוות עד 200 מוזמנים",
+    key: "venueSeating",
+    title: "הושבה באולם",
     price: 1000,
-    description: "שירות הושבה באולם לאירועים קטנים עד 200 מוזמנים.",
-    details: [
-      {
-        title: "מה השירות נותן",
-        items: [
-          "2 אנשי צוות מגיעים לאולם עבור אירוע קטן עד 200 מוזמנים.",
-          "הצוות מסייע בבדיקת הושבה, הכוונת אורחים ועדכון מצב בזמן אמת לפי הצורך.",
-          "השירות מתאים ללקוחות שרוצים נוכחות אנושית באולם מעבר להושבה הדיגיטלית.",
-        ],
-      },
-      {
-        title: "דגשים לסיכום מול הלקוח",
-        items: [
-          "יש לסכם מראש שעות הגעה, נקודת מפגש ואיש קשר באולם.",
-          "השירות אינו מחליף מנהל אירוע מטעם האולם אלא נותן תמיכה ייעודית בהושבה.",
-        ],
-      },
-    ],
-  },
-  {
-    key: "venueSeatingTwoStaff",
-    title: "הושבה באולם — 2 אנשי צוות",
-    price: 1600,
-    description: "שירות הושבה באולם עם 2 אנשי צוות.",
-    details: [
-      {
-        title: "מה השירות נותן",
-        items: [
-          "2 אנשי צוות מגיעים לאולם ומסייעים בניהול ההושבה בפועל.",
-          "הצוות בודק את רשימות ההושבה ומסייע בהכוונת אורחים לפי השולחנות.",
-          "השירות מתאים לאירועים שבהם נדרשת נוכחות אנושית באולם ביום האירוע.",
-        ],
-      },
-      {
-        title: "דגשים לסיכום מול הלקוח",
-        items: [
-          "יש לוודא שהלקוח מבין שמדובר באפסייל נפרד מההושבה הדיגיטלית.",
-          "יש לסכם מראש את זמני הנוכחות והציפיות מהצוות.",
-        ],
-      },
-    ],
-  },
-  {
-    key: "venueSeatingThreeStaff",
-    title: "הושבה באולם — 3 אנשי צוות",
-    price: 2100,
-    description: "שירות הושבה באולם עם 3 אנשי צוות.",
-    details: [
-      {
-        title: "מה השירות נותן",
-        items: [
-          "3 אנשי צוות מגיעים לאולם ומסייעים בניהול ההושבה בפועל.",
-          "מתאים לאירועים גדולים יותר או לאירועים שבהם יש צורך ביותר נקודות שירות והכוונה.",
-          "הצוות מסייע בהכוונה לשולחנות ובעדכונים בזמן אמת לפי הצורך.",
-        ],
-      },
-      {
-        title: "דגשים לסיכום מול הלקוח",
-        items: [
-          "יש לוודא מראש את מבנה האולם, כניסות, נקודות קבלת פנים ואיש קשר במקום.",
-          "השירות הוא תמיכת הושבה ולא ניהול אירוע מלא, אלא אם נרכש שירות נוסף לכך.",
-        ],
-      },
-    ],
+    description:
+      "שירות הושבה באולם עם בחירת כמות אנשי צוות לפי גודל האירוע.",
+    details: VENUE_SEATING_EMPLOYEE_DETAILS,
   },
   {
     key: "personalRepresentative",
@@ -506,27 +670,8 @@ const UPSELLS: UpsellItem[] = [
     title: "ניהול אלכוהול באולם",
     price: 1200,
     description:
-      "איש צוות אחד נשאר באולם עד השעה 02:00 לכל המאוחר לניהול ותיעוד אלכוהול.",
-    details: [
-      {
-        title: "מה השירות נותן",
-        items: [
-          "איש צוות אחד מתוך הצוות שמגיע לאירוע נשאר עד השעה 02:00 לכל המאוחר.",
-          "איש הצוות ידאג לשים בקבוקים על השולחנות לפי מה שסוכם מראש עם בעל האירוע.",
-          "איש הצוות יבדוק בשולחנות אם יש בקבוקים ריקים ויחליף בקבוק רק במידת הצורך.",
-          "כל בקבוק מתועד במערכת: איפה נפתח, מתי נפתח ומתי הוקצה בקבוק נוסף.",
-          "בסוף הערב בעל האירוע מקבל דוח מלא וממוחשב על ניהול האלכוהול.",
-        ],
-      },
-      {
-        title: "דגשים לסיכום מול הלקוח",
-        items: [
-          "יש לסכם מראש עם בעל האירוע את כמות הבקבוקים, סוגי האלכוהול והאופן שבו רוצים לפזר אותם בשולחנות.",
-          "השירות כולל ניהול ותיעוד, לא רכישת אלכוהול ולא אספקת בקבוקים מטעם Invistimo.",
-          "יש לוודא שיש איש קשר באולם למקרה של שינוי או צורך בתיאום בזמן האירוע.",
-        ],
-      },
-    ],
+      "ניהול, פיזור ותיעוד אלכוהול באולם עד השעה 02:00 לכל המאוחר.",
+    details: ALCOHOL_MANAGEMENT_EMPLOYEE_DETAILS,
   },
 ];
 
@@ -598,9 +743,7 @@ function calculatePackagePrice(plan: PackagePlan, records: number) {
 
 function createEmptyUpsells(): SelectedUpsells {
   return {
-    venueSeatingSmall: false,
-    venueSeatingTwoStaff: false,
-    venueSeatingThreeStaff: false,
+    venueSeating: false,
     personalRepresentative: false,
     thirdRsvpRound: false,
     suppliersBudgetSystem: false,
@@ -608,11 +751,17 @@ function createEmptyUpsells(): SelectedUpsells {
   };
 }
 
-function calculateUpsellsTotal(
-  selectedUpsells: SelectedUpsells,
-  basePrice: number,
-  suppliersBudgetFree: boolean,
-) {
+function calculateUpsellsTotal({
+  selectedUpsells,
+  suppliersBudgetFree,
+  venueSeatingStaffCount,
+  alcoholManagementStaffCount,
+}: {
+  selectedUpsells: SelectedUpsells;
+  suppliersBudgetFree: boolean;
+  venueSeatingStaffCount: VenueSeatingStaffCount;
+  alcoholManagementStaffCount: AlcoholManagementStaffCount;
+}) {
   return UPSELLS.reduce((sum, item) => {
     if (!selectedUpsells[item.key]) return sum;
 
@@ -620,7 +769,14 @@ function calculateUpsellsTotal(
       return sum;
     }
 
-    return sum + item.price;
+    return (
+      sum +
+      getUpsellPrice(
+        item,
+        venueSeatingStaffCount,
+        alcoholManagementStaffCount,
+      )
+    );
   }, 0);
 }
 
@@ -914,6 +1070,10 @@ export default function NewEmployeeSalePage() {
   const [selectedUpsells, setSelectedUpsells] = useState<SelectedUpsells>(() =>
     createEmptyUpsells(),
   );
+  const [venueSeatingStaffCount, setVenueSeatingStaffCount] =
+    useState<VenueSeatingStaffCount>(1);
+  const [alcoholManagementStaffCount, setAlcoholManagementStaffCount] =
+    useState<AlcoholManagementStaffCount>(1);
   const [suppliersBudgetFree, setSuppliersBudgetFree] = useState(false);
 
   const [paymentStatus, setPaymentStatus] = useState<"stripe" | "paid">(
@@ -941,11 +1101,37 @@ export default function NewEmployeeSalePage() {
     return calculatePackagePrice(selectedPlan, clampRecords(records));
   }, [records, selectedPlan]);
 
+  useEffect(() => {
+    if (packageCalculation.records > 200 && venueSeatingStaffCount === 1) {
+      setVenueSeatingStaffCount(2);
+    }
+
+    if (
+      packageCalculation.records > 450 &&
+      alcoholManagementStaffCount === 1
+    ) {
+      setAlcoholManagementStaffCount(2);
+    }
+  }, [
+    alcoholManagementStaffCount,
+    packageCalculation.records,
+    venueSeatingStaffCount,
+  ]);
+
   const canGiveSuppliersBudgetFree =
     packageCalculation.finalPrice +
       UPSELLS.reduce((sum, upsell) => {
         if (upsell.key === "suppliersBudgetSystem") return sum;
-        return selectedUpsells[upsell.key] ? sum + upsell.price : sum;
+        if (!selectedUpsells[upsell.key]) return sum;
+
+        return (
+          sum +
+          getUpsellPrice(
+            upsell,
+            venueSeatingStaffCount,
+            alcoholManagementStaffCount,
+          )
+        );
       }, 0) >=
     1000;
 
@@ -954,16 +1140,18 @@ export default function NewEmployeeSalePage() {
   }, [selectedUpsells]);
 
   const upsellsTotal = useMemo(() => {
-    return calculateUpsellsTotal(
+    return calculateUpsellsTotal({
       selectedUpsells,
-      packageCalculation.finalPrice,
-      suppliersBudgetFree && canGiveSuppliersBudgetFree,
-    );
+      suppliersBudgetFree: suppliersBudgetFree && canGiveSuppliersBudgetFree,
+      venueSeatingStaffCount,
+      alcoholManagementStaffCount,
+    });
   }, [
+    alcoholManagementStaffCount,
     canGiveSuppliersBudgetFree,
-    packageCalculation.finalPrice,
     selectedUpsells,
     suppliersBudgetFree,
+    venueSeatingStaffCount,
   ]);
 
   const finalGrossAmount = useMemo(() => {
@@ -988,14 +1176,23 @@ export default function NewEmployeeSalePage() {
           canGiveSuppliersBudgetFree;
 
         return {
-          title: upsell.title,
-          description: upsell.description,
+          title: getUpsellDynamicTitle(
+            upsell,
+            venueSeatingStaffCount,
+            alcoholManagementStaffCount,
+          ),
+          description: getUpsellDynamicDescription(
+            upsell,
+            venueSeatingStaffCount,
+            alcoholManagementStaffCount,
+          ),
           customerDetails: getCustomerDetailsForUpsell(upsell),
           givenFree,
         };
       }),
     };
   }, [
+    alcoholManagementStaffCount,
     canGiveSuppliersBudgetFree,
     finalGrossAmount,
     packageCalculation.records,
@@ -1004,6 +1201,7 @@ export default function NewEmployeeSalePage() {
     selectedPlan.title,
     selectedUpsellsList,
     suppliersBudgetFree,
+    venueSeatingStaffCount,
   ]);
 
   const isSubmitDisabled =
@@ -1078,25 +1276,43 @@ export default function NewEmployeeSalePage() {
             finalPrice: packageCalculation.finalPrice,
           },
 
-          upsells: selectedUpsellsList.map((upsell) => ({
-            key: upsell.key,
-            title: upsell.title,
-            description: upsell.description,
-            details: getEmployeeDetailsForUpsell(upsell),
-            employeeDetails: getEmployeeDetailsForUpsell(upsell),
-            customerDetails: getCustomerDetailsForUpsell(upsell),
-            originalPrice: upsell.price,
-            price:
+          upsells: selectedUpsellsList.map((upsell) => {
+            const dynamicPrice = getUpsellPrice(
+              upsell,
+              venueSeatingStaffCount,
+              alcoholManagementStaffCount,
+            );
+            const givenFree =
               upsell.key === "suppliersBudgetSystem" &&
               suppliersBudgetFree &&
-              canGiveSuppliersBudgetFree
-                ? 0
-                : upsell.price,
-            givenFree:
-              upsell.key === "suppliersBudgetSystem" &&
-              suppliersBudgetFree &&
-              canGiveSuppliersBudgetFree,
-          })),
+              canGiveSuppliersBudgetFree;
+
+            return {
+              key: upsell.key,
+              title: getUpsellDynamicTitle(
+                upsell,
+                venueSeatingStaffCount,
+                alcoholManagementStaffCount,
+              ),
+              description: getUpsellDynamicDescription(
+                upsell,
+                venueSeatingStaffCount,
+                alcoholManagementStaffCount,
+              ),
+              details: getEmployeeDetailsForUpsell(upsell),
+              employeeDetails: getEmployeeDetailsForUpsell(upsell),
+              customerDetails: getCustomerDetailsForUpsell(upsell),
+              selectedStaffCount:
+                upsell.key === "venueSeating"
+                  ? venueSeatingStaffCount
+                  : upsell.key === "alcoholManagement"
+                    ? alcoholManagementStaffCount
+                    : null,
+              originalPrice: dynamicPrice,
+              price: givenFree ? 0 : dynamicPrice,
+              givenFree,
+            };
+          }),
 
           saleCompliance: {
             recordedCall: confirmRecordedCall,
@@ -1522,11 +1738,29 @@ export default function NewEmployeeSalePage() {
                 {UPSELLS.map((upsell) => {
                   const selected = selectedUpsells[upsell.key];
                   const isSuppliers = upsell.key === "suppliersBudgetSystem";
+                  const isVenueSeating = upsell.key === "venueSeating";
+                  const isAlcoholManagement =
+                    upsell.key === "alcoholManagement";
+                  const dynamicPrice = getUpsellPrice(
+                    upsell,
+                    venueSeatingStaffCount,
+                    alcoholManagementStaffCount,
+                  );
                   const freeApplied =
                     isSuppliers &&
                     selected &&
                     suppliersBudgetFree &&
                     canGiveSuppliersBudgetFree;
+                  const displayTitle = getUpsellDynamicTitle(
+                    upsell,
+                    venueSeatingStaffCount,
+                    alcoholManagementStaffCount,
+                  );
+                  const displayDescription = getUpsellDynamicDescription(
+                    upsell,
+                    venueSeatingStaffCount,
+                    alcoholManagementStaffCount,
+                  );
 
                   return (
                     <div
@@ -1548,10 +1782,10 @@ export default function NewEmployeeSalePage() {
 
                           <span>
                             <span className="block text-sm font-black text-[#3f3327]">
-                              {upsell.title}
+                              {displayTitle}
                             </span>
                             <span className="mt-1 block text-xs font-semibold leading-5 text-[#7b6a58]">
-                              {upsell.description}
+                              {displayDescription}
                             </span>
                             {upsell.note && (
                               <span className="mt-2 block text-xs font-black leading-5 text-[#9b6a30]">
@@ -1565,12 +1799,14 @@ export default function NewEmployeeSalePage() {
                                 event.preventDefault();
                                 event.stopPropagation();
                                 setDetailsModal({
-                                  title: upsell.title,
-                                  subtitle: upsell.description,
-                                  price: upsell.price,
+                                  title: displayTitle,
+                                  subtitle: displayDescription,
+                                  price: dynamicPrice,
                                   sections: getEmployeeDetailsForUpsell(upsell),
-                                  employeeSections: getEmployeeDetailsForUpsell(upsell),
-                                  customerSections: getCustomerDetailsForUpsell(upsell),
+                                  employeeSections:
+                                    getEmployeeDetailsForUpsell(upsell),
+                                  customerSections:
+                                    getCustomerDetailsForUpsell(upsell),
                                   defaultView: "employee",
                                 });
                               }}
@@ -1586,7 +1822,7 @@ export default function NewEmployeeSalePage() {
                           {freeApplied ? (
                             <>
                               <p className="text-xs font-black text-[#8b7b68] line-through">
-                                {money(upsell.price)}
+                                {money(dynamicPrice)}
                               </p>
                               <p className="text-sm font-black text-emerald-700">
                                 ללא עלות
@@ -1594,11 +1830,137 @@ export default function NewEmployeeSalePage() {
                             </>
                           ) : (
                             <p className="text-sm font-black text-[#3f3327]">
-                              {money(upsell.price)}
+                              {money(dynamicPrice)}
                             </p>
                           )}
                         </div>
                       </div>
+
+                      {isVenueSeating && selected && (
+                        <div className="mt-4 rounded-2xl border border-[#eadfce] bg-white p-3">
+                          <p className="text-xs font-black text-[#3f3327]">
+                            בחירת כמות אנשי צוות להושבה באולם
+                          </p>
+
+                          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                            {VENUE_SEATING_OPTIONS.map((option) => {
+                              const disabled = isVenueStaffOptionDisabled(
+                                option,
+                                packageCalculation.records,
+                              );
+
+                              return (
+                                <label
+                                  key={option.staffCount}
+                                  className={`rounded-2xl border p-3 text-xs font-bold leading-5 transition ${
+                                    venueSeatingStaffCount ===
+                                    option.staffCount
+                                      ? "border-[#b47a3b] bg-[#fff7ec] text-[#3f3327]"
+                                      : "border-[#eadfce] bg-[#fffdf9] text-[#7b6a58]"
+                                  } ${
+                                    disabled
+                                      ? "cursor-not-allowed opacity-50"
+                                      : "cursor-pointer hover:border-[#d5b98b]"
+                                  }`}
+                                >
+                                  <input
+                                    type="radio"
+                                    name="venueSeatingStaffCount"
+                                    checked={
+                                      venueSeatingStaffCount ===
+                                      option.staffCount
+                                    }
+                                    disabled={disabled}
+                                    onChange={() =>
+                                      setVenueSeatingStaffCount(
+                                        option.staffCount,
+                                      )
+                                    }
+                                    className="ml-2 accent-[#9b7a3c]"
+                                  />
+                                  <span className="font-black">
+                                    {option.title}
+                                  </span>
+                                  <span className="mt-1 block">
+                                    {money(option.price)}
+                                  </span>
+                                  <span className="mt-1 block">
+                                    {option.description}
+                                  </span>
+                                  {disabled && (
+                                    <span className="mt-1 block text-rose-600">
+                                      לא זמין מעל 200 רשומות.
+                                    </span>
+                                  )}
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {isAlcoholManagement && selected && (
+                        <div className="mt-4 rounded-2xl border border-[#eadfce] bg-white p-3">
+                          <p className="text-xs font-black text-[#3f3327]">
+                            בחירת כמות אנשי צוות לניהול אלכוהול
+                          </p>
+
+                          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                            {ALCOHOL_MANAGEMENT_OPTIONS.map((option) => {
+                              const disabled = isAlcoholStaffOptionDisabled(
+                                option,
+                                packageCalculation.records,
+                              );
+
+                              return (
+                                <label
+                                  key={option.staffCount}
+                                  className={`rounded-2xl border p-3 text-xs font-bold leading-5 transition ${
+                                    alcoholManagementStaffCount ===
+                                    option.staffCount
+                                      ? "border-[#b47a3b] bg-[#fff7ec] text-[#3f3327]"
+                                      : "border-[#eadfce] bg-[#fffdf9] text-[#7b6a58]"
+                                  } ${
+                                    disabled
+                                      ? "cursor-not-allowed opacity-50"
+                                      : "cursor-pointer hover:border-[#d5b98b]"
+                                  }`}
+                                >
+                                  <input
+                                    type="radio"
+                                    name="alcoholManagementStaffCount"
+                                    checked={
+                                      alcoholManagementStaffCount ===
+                                      option.staffCount
+                                    }
+                                    disabled={disabled}
+                                    onChange={() =>
+                                      setAlcoholManagementStaffCount(
+                                        option.staffCount,
+                                      )
+                                    }
+                                    className="ml-2 accent-[#9b7a3c]"
+                                  />
+                                  <span className="font-black">
+                                    {option.title}
+                                  </span>
+                                  <span className="mt-1 block">
+                                    {money(option.price)}
+                                  </span>
+                                  <span className="mt-1 block">
+                                    {option.description}
+                                  </span>
+                                  {disabled && option.staffCount === 1 && (
+                                    <span className="mt-1 block text-rose-600">
+                                      מעל 450 רשומות חובה לבחור 2 אנשי צוות.
+                                    </span>
+                                  )}
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
 
                       {isSuppliers && selected && (
                         <div className="mt-4 rounded-2xl border border-[#eadfce] bg-white p-3">
@@ -1879,15 +2241,26 @@ export default function NewEmployeeSalePage() {
                           upsell.key === "suppliersBudgetSystem" &&
                           suppliersBudgetFree &&
                           canGiveSuppliersBudgetFree;
+                        const dynamicPrice = getUpsellPrice(
+                          upsell,
+                          venueSeatingStaffCount,
+                          alcoholManagementStaffCount,
+                        );
 
                         return (
                           <div
                             key={upsell.key}
                             className="flex items-start justify-between gap-3 text-xs font-bold leading-5 text-[#8b7b68]"
                           >
-                            <span>{upsell.title}</span>
+                            <span>
+                              {getUpsellDynamicTitle(
+                                upsell,
+                                venueSeatingStaffCount,
+                                alcoholManagementStaffCount,
+                              )}
+                            </span>
                             <span className="shrink-0">
-                              {free ? "ללא עלות" : money(upsell.price)}
+                              {free ? "ללא עלות" : money(dynamicPrice)}
                             </span>
                           </div>
                         );
