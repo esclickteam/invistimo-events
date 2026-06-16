@@ -389,7 +389,7 @@ const [toYear, setToYear] = useState(currentYear);
         setLoadingUpcomingCalls(true);
       }
 
-      const res = await fetch("/api/admin/call-rounds/upcoming?days=7", {
+      const res = await fetch("/api/admin/call-rounds/upcoming?days=30", {
         credentials: "include",
         cache: "no-store",
       });
