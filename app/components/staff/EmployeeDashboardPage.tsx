@@ -724,7 +724,8 @@ function Icon({
     | "open"
     | "shield"
     | "refresh"
-    | "file";
+    | "file"
+    | "sales";
   className?: string;
 }) {
   const common = {
@@ -745,6 +746,19 @@ function Icon({
         <path d="M9 13h6" />
         <path d="M9 17h6" />
         <path d="M9 9h1" />
+      </svg>
+    );
+  }
+
+  if (name === "sales") {
+    return (
+      <svg {...common}>
+        <path d="M3 17h18" />
+        <path d="M6 17V9" />
+        <path d="M12 17V5" />
+        <path d="M18 17v-6" />
+        <path d="M5 21h14" />
+        <path d="M8 7l4-4 4 4" />
       </svg>
     );
   }
@@ -1763,7 +1777,7 @@ export default function EmployeeDashboardPage() {
 
                 <p className="mt-4 max-w-2xl text-base font-semibold leading-8 text-slate-600">
                   כאן מופיעים הנתונים שלך כעובד: אירועים בטיפול אישי, לקוחות
-                  שדורשים בדיקה, הודעות פתוחות ותיק העובד האישי שלך.
+                  שדורשים בדיקה, הודעות פתוחות, מכירות ותיק העובד האישי שלך.
                 </p>
               </div>
 
@@ -1815,6 +1829,15 @@ export default function EmployeeDashboardPage() {
                   >
                     <Icon name="phone" className="h-4 w-4" />
                     הוראות עבודה
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => router.push("/employee/sales")}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 text-sm font-black text-white shadow-sm transition hover:bg-orange-600"
+                  >
+                    <Icon name="sales" className="h-4 w-4" />
+                    המכירות שלי
                   </button>
 
                   <button
