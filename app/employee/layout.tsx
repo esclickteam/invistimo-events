@@ -10,8 +10,8 @@ export default function EmployeeLayout({
 }) {
   return (
     <>
-      {children}
       <SoftphoneStatusPanel />
+      {children}
     </>
   );
 }

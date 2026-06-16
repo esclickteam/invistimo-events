@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import SoftphoneStatusPanel from "@/app/components/staff/SoftphoneStatusPanel";
 
 /* ============================================================
    Constants
@@ -11,6 +10,7 @@ import SoftphoneStatusPanel from "@/app/components/staff/SoftphoneStatusPanel";
 
 const TASKS_PAGE_LIMIT = 5000;
 const MAX_AUTO_PAGES = 50;
+const SOFTPHONE_DIAL_EVENT = "invistimo:softphone:dial";
 
 /* ============================================================
    Types
@@ -210,9 +210,13 @@ type UpdateApiResponse = {
 
 type SoftphoneDialRequest = {
   number: string;
+  phone?: string;
   label: string;
+  guestName?: string;
   taskId: string;
   nonce: number;
+  ts: number;
+  requestId: number;
 };
 
 /* ============================================================
@@ -318,6 +322,16 @@ function normalizePhone(phone: string) {
   return cleanText(phone).replace(/[^\d+]/g, "");
 }
 
+function dispatchSoftphoneDialRequest(request: SoftphoneDialRequest) {
+  if (typeof window === "undefined") return;
+
+  window.dispatchEvent(
+    new CustomEvent<SoftphoneDialRequest>(SOFTPHONE_DIAL_EVENT, {
+      detail: request,
+    })
+  );
+}
+
 function getTaskId(task: CallTask) {
   return String(task.id || task._id || "");
 }
@@ -416,8 +430,6 @@ export default function EmployeeWorkOrderTasksPage() {
   const [updatingTaskId, setUpdatingTaskId] = useState("");
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
-  const [softphoneDialRequest, setSoftphoneDialRequest] =
-    useState<SoftphoneDialRequest | null>(null);
 
   const visibleOpenTasks = useMemo(() => {
     return tasks.filter(isOpenTask);
@@ -1125,11 +1137,17 @@ export default function EmployeeWorkOrderTasksPage() {
   function dialSelectedTaskFromSoftphone() {
     if (!selectedTask || !selectedTel) return;
 
-    setSoftphoneDialRequest({
+    const now = Date.now();
+
+    dispatchSoftphoneDialRequest({
       number: selectedTel,
+      phone: selectedTel,
       label: selectedTask.guestName || selectedTask.guestPhone || "אורח",
+      guestName: selectedTask.guestName || "",
       taskId: getTaskId(selectedTask),
-      nonce: Date.now(),
+      nonce: now,
+      ts: now,
+      requestId: now,
     });
 
     if (selectedTask.canUpdate && String(selectedTask.status) !== "in_progress") {
@@ -1145,12 +1163,6 @@ export default function EmployeeWorkOrderTasksPage() {
 
   return (
     <main className="callCenterPage" dir="rtl">
-      <section className="softphoneStickyShell" aria-label="סופטפון עובדים">
-        <div className="softphoneStickyInner">
-          <SoftphoneStatusPanel dialRequest={softphoneDialRequest} />
-        </div>
-      </section>
-
       <section className="topBar">
         <Link href="/employee/work-orders" className="backLink">
           ← חזרה להוראות עבודה
@@ -1646,25 +1658,6 @@ export default function EmployeeWorkOrderTasksPage() {
             linear-gradient(180deg, #f8fafc 0%, #edf2f8 100%);
           padding: 24px;
           color: #0f172a;
-        }
-
-        .softphoneStickyShell {
-          position: sticky;
-          top: 0;
-          z-index: 999;
-          margin: -24px -24px 16px;
-          padding: 14px 24px 12px;
-          background: rgba(248, 250, 252, 0.82);
-          border-bottom: 1px solid rgba(226, 232, 240, 0.9);
-          backdrop-filter: blur(22px);
-          -webkit-backdrop-filter: blur(22px);
-          box-shadow: 0 14px 34px rgba(15, 23, 42, 0.08);
-        }
-
-        .softphoneStickyInner {
-          width: 100%;
-          max-width: 1800px;
-          margin: 0 auto;
         }
 
         .topBar {
@@ -2417,11 +2410,6 @@ export default function EmployeeWorkOrderTasksPage() {
           .callCenterPage {
             --softphone-sticky-offset: 210px;
             padding: 16px;
-          }
-
-          .softphoneStickyShell {
-            margin: -16px -16px 14px;
-            padding: 10px 16px;
           }
 
           .topBar,

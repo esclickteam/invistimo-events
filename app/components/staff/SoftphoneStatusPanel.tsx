@@ -686,6 +686,8 @@ function encodeSoftphoneClientState(value: Record<string, unknown>) {
 }
 
 
+const SOFTPHONE_DIAL_EVENT = "invistimo:softphone:dial";
+
 type SoftphoneDialRequest = {
   number?: string;
   phone?: string;
@@ -757,9 +759,47 @@ export default function SoftphoneStatusPanel({
 
   const [showIncomingCallModal, setShowIncomingCallModal] = useState(false);
   const [incomingCallNumber, setIncomingCallNumber] = useState("");
+  const [externalDialRequest, setExternalDialRequest] =
+    useState<SoftphoneDialRequest | null>(null);
+
+  const activeDialRequest = dialRequest || externalDialRequest;
 
   useEffect(() => {
     loadMyStatus();
+  }, []);
+
+  useEffect(() => {
+    function handleExternalDialRequest(event: Event) {
+      const customEvent = event as CustomEvent<SoftphoneDialRequest>;
+      const detail = customEvent.detail || {};
+      const rawNumber = detail.number || detail.phone || "";
+      const cleanNumber = normalizeDialNumber(rawNumber);
+
+      if (!cleanNumber) return;
+
+      const now = Date.now();
+
+      setExternalDialRequest({
+        ...detail,
+        number: cleanNumber,
+        phone: cleanNumber,
+        nonce: detail.nonce || now,
+        ts: detail.ts || now,
+        requestId: detail.requestId || now,
+      });
+    }
+
+    window.addEventListener(
+      SOFTPHONE_DIAL_EVENT,
+      handleExternalDialRequest as EventListener
+    );
+
+    return () => {
+      window.removeEventListener(
+        SOFTPHONE_DIAL_EVENT,
+        handleExternalDialRequest as EventListener
+      );
+    };
   }, []);
 
   useEffect(() => {
@@ -829,16 +869,16 @@ export default function SoftphoneStatusPanel({
   }, [showDialer, shiftStarted, savingStatus, creatingCall, phoneNumber]);
 
   useEffect(() => {
-    const rawNumber = dialRequest?.number || dialRequest?.phone || "";
+    const rawNumber = activeDialRequest?.number || activeDialRequest?.phone || "";
     const cleanNumber = normalizeDialNumber(rawNumber);
 
     if (!cleanNumber) return;
 
     const requestKey = [
-      dialRequest?.nonce,
-      dialRequest?.ts,
-      dialRequest?.requestId,
-      dialRequest?.taskId,
+      activeDialRequest?.nonce,
+      activeDialRequest?.ts,
+      activeDialRequest?.requestId,
+      activeDialRequest?.taskId,
       cleanNumber,
     ]
       .filter((value) => value !== undefined && value !== null && value !== "")
@@ -861,7 +901,11 @@ export default function SoftphoneStatusPanel({
 
     const timer = window.setTimeout(() => {
       void startOutboundCall(cleanNumber);
-      onDialRequestConsumed?.();
+      if (externalDialRequest) {
+        setExternalDialRequest(null);
+      } else {
+        onDialRequestConsumed?.();
+      }
     }, 120);
 
     return () => {
@@ -869,42 +913,16 @@ export default function SoftphoneStatusPanel({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    dialRequest?.nonce,
-    dialRequest?.ts,
-    dialRequest?.requestId,
-    dialRequest?.taskId,
-    dialRequest?.number,
-    dialRequest?.phone,
+    activeDialRequest?.nonce,
+    activeDialRequest?.ts,
+    activeDialRequest?.requestId,
+    activeDialRequest?.taskId,
+    activeDialRequest?.number,
+    activeDialRequest?.phone,
   ]);
 
   function getShiftSessionId(session?: SoftphoneShiftSession | null) {
     return String(session?._id || session?.id || "");
-  }
-
-  function isOpenShiftSession(session?: SoftphoneShiftSession | null) {
-    if (!session) return false;
-
-    const status = String(session.status || "").toLowerCase();
-
-    return !session.endedAt && status !== "closed";
-  }
-
-  async function getCurrentShiftSessionApi() {
-    const response = await fetch("/api/softphone/shift/current", {
-      method: "GET",
-      credentials: "include",
-      cache: "no-store",
-    });
-
-    const data = (await response.json().catch(() => null)) as
-      | ShiftApiResponse
-      | null;
-
-    if (!response.ok || data?.success === false) {
-      throw new Error(data?.error || data?.message || "SHIFT_CURRENT_FAILED");
-    }
-
-    return data?.session || null;
   }
 
   async function startShiftSessionApi() {
@@ -980,69 +998,31 @@ export default function SoftphoneStatusPanel({
     const now = new Date().toISOString();
 
     setLoading(true);
+
+    setAgent({
+      agentId: "local-softphone",
+      status: "offline",
+      statusStartedAt: now,
+      todayAvailableSeconds: 0,
+      todayDialingSeconds: 0,
+      todayRingingSeconds: 0,
+      todayTalkSeconds: 0,
+      todayAfterCallSeconds: 0,
+      todayBreakSeconds: 0,
+      todayUnavailableSeconds: 0,
+      todayOfflineSeconds: 0,
+      totalCallsToday: 0,
+      answeredCallsToday: 0,
+      missedCallsToday: 0,
+      failedCallsToday: 0,
+      lastSeenAt: now,
+    });
+
+    setShiftStarted(false);
+    setShiftStartedAt(null);
+    setShiftSessionId(null);
     setShiftError("");
-
-    try {
-      const currentSession = await getCurrentShiftSessionApi().catch((error) => {
-        console.warn("LOAD CURRENT SHIFT FAILED OR ENDPOINT MISSING:", error);
-        return null;
-      });
-
-      const hasOpenShift = isOpenShiftSession(currentSession);
-      const startedAt = hasOpenShift
-        ? currentSession?.startedAt || now
-        : null;
-
-      setAgent({
-        agentId: "local-softphone",
-        status: hasOpenShift ? "available" : "offline",
-        statusStartedAt: startedAt || now,
-        todayAvailableSeconds: 0,
-        todayDialingSeconds: 0,
-        todayRingingSeconds: 0,
-        todayTalkSeconds: 0,
-        todayAfterCallSeconds: 0,
-        todayBreakSeconds: 0,
-        todayUnavailableSeconds: 0,
-        todayOfflineSeconds: 0,
-        totalCallsToday: 0,
-        answeredCallsToday: 0,
-        missedCallsToday: 0,
-        failedCallsToday: 0,
-        lastSeenAt: now,
-      });
-
-      setShiftStarted(hasOpenShift);
-      setShiftStartedAt(startedAt);
-      setShiftSessionId(hasOpenShift ? getShiftSessionId(currentSession) : null);
-    } catch (error) {
-      console.error("LOAD SOFTPHONE STATUS FAILED:", error);
-
-      setAgent({
-        agentId: "local-softphone",
-        status: "offline",
-        statusStartedAt: now,
-        todayAvailableSeconds: 0,
-        todayDialingSeconds: 0,
-        todayRingingSeconds: 0,
-        todayTalkSeconds: 0,
-        todayAfterCallSeconds: 0,
-        todayBreakSeconds: 0,
-        todayUnavailableSeconds: 0,
-        todayOfflineSeconds: 0,
-        totalCallsToday: 0,
-        answeredCallsToday: 0,
-        missedCallsToday: 0,
-        failedCallsToday: 0,
-        lastSeenAt: now,
-      });
-
-      setShiftStarted(false);
-      setShiftStartedAt(null);
-      setShiftSessionId(null);
-    } finally {
-      setLoading(false);
-    }
+    setLoading(false);
   }
 
   function ensureShiftStarted() {
@@ -1662,12 +1642,12 @@ export default function SoftphoneStatusPanel({
         normalizedTo: cleanNumber,
         normalizedFrom: callerNumber,
 
-        taskId: dialRequest?.taskId || "",
-        guestName: dialRequest?.guestName || dialRequest?.label || "",
-        label: dialRequest?.label || "",
-        requestId: dialRequest?.requestId || "",
-        nonce: dialRequest?.nonce || "",
-        ts: dialRequest?.ts || "",
+        taskId: activeDialRequest?.taskId || "",
+        guestName: activeDialRequest?.guestName || activeDialRequest?.label || "",
+        label: activeDialRequest?.label || "",
+        requestId: activeDialRequest?.requestId || "",
+        nonce: activeDialRequest?.nonce || "",
+        ts: activeDialRequest?.ts || "",
       });
 
       const call = client.newCall({
@@ -1865,8 +1845,10 @@ export default function SoftphoneStatusPanel({
 
   async function handleLogout() {
     try {
-      // לא מסיימים משמרת בהתנתקות / מעבר עמוד / רענון.
-      // סיום משמרת נשמר בשרת רק דרך confirmEndShift, כלומר רק אחרי לחיצה על "סיים משמרת" ואישור.
+      /*
+        חשוב: התנתקות לא מסיימת משמרת.
+        סיום משמרת נשמר רק דרך כפתור "סיים משמרת" ואישור ידני.
+      */
       disconnectWebrtc();
 
       await logout();
