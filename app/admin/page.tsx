@@ -193,6 +193,26 @@ function isSameDate(a: Date, b: Date) {
   return getDateOnly(a).getTime() === getDateOnly(b).getTime();
 }
 
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function startOfCurrentWeek(date: Date) {
+  const start = getDateOnly(date);
+  start.setDate(start.getDate() - start.getDay());
+  return start;
+}
+
+function startOfNextWeek(date: Date) {
+  return addDays(startOfCurrentWeek(date), 7);
+}
+
+function startOfNextMonth(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 1);
+}
+
 function getRelativeDayLabel(value?: string | null) {
   if (!value) return "לא הוגדר";
 
@@ -729,7 +749,7 @@ const [toYear, setToYear] = useState(currentYear);
 
           <AdminBox
             title="סבבים קרובים"
-            subtitle="סבבי שיחות ל־7 ימים הקרובים"
+            subtitle="סבבי שיחות לחודש הקרוב"
             value={
               loadingUpcomingCalls ? "—" : String(upcomingCalls?.total ?? 0)
             }
@@ -1425,20 +1445,37 @@ function UpcomingCallRoundsModal({
       today: [],
       tomorrow: [],
       week: [],
+      month: [],
     };
 
-    rounds.forEach((round) => {
-      const date = new Date(round.scheduledAt);
-      const today = new Date();
-      const tomorrow = new Date();
-      tomorrow.setDate(today.getDate() + 1);
+    const todayStart = getDateOnly(new Date());
+    const tomorrowStart = addDays(todayStart, 1);
+    const afterTomorrowStart = addDays(todayStart, 2);
+    const nextWeekStart = startOfNextWeek(todayStart);
+    const nextMonthStart = startOfNextMonth(todayStart);
 
-      if (isSameDate(date, today)) {
+    rounds.forEach((round) => {
+      const scheduledAt = new Date(round.scheduledAt);
+
+      if (Number.isNaN(scheduledAt.getTime())) return;
+
+      if (isSameDate(scheduledAt, todayStart)) {
         groups.today.push(round);
-      } else if (isSameDate(date, tomorrow)) {
+      } else if (
+        scheduledAt >= tomorrowStart &&
+        scheduledAt < afterTomorrowStart
+      ) {
         groups.tomorrow.push(round);
-      } else {
+      } else if (
+        scheduledAt >= afterTomorrowStart &&
+        scheduledAt < nextWeekStart
+      ) {
         groups.week.push(round);
+      } else if (
+        scheduledAt >= nextWeekStart &&
+        scheduledAt < nextMonthStart
+      ) {
+        groups.month.push(round);
       }
     });
 
@@ -1496,8 +1533,7 @@ function UpcomingCallRoundsModal({
               </h3>
 
               <p className="mt-1 text-sm text-[#8A7867]">
-                היום: {data?.today || 0} · מחר: {data?.tomorrow || 0} · השבוע:{" "}
-                {data?.week || 0}
+                היום: {data?.today || 0} · מחר: {data?.tomorrow || 0} · השבוע: {data?.week || 0} · החודש: {data?.month || 0}
               </p>
             </div>
 
@@ -1543,6 +1579,11 @@ function UpcomingCallRoundsModal({
               <CallRoundsGroup
                 title="השבוע"
                 rounds={groupedRounds.week}
+              />
+
+              <CallRoundsGroup
+                title="החודש"
+                rounds={groupedRounds.month}
               />
             </div>
           )}

@@ -57,6 +57,24 @@ function addDays(date: Date, days: number) {
   return next;
 }
 
+function startOfCurrentWeek(date: Date) {
+  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  start.setDate(start.getDate() - start.getDay());
+  return start;
+}
+
+function startOfNextWeek(date: Date) {
+  return addDays(startOfCurrentWeek(date), 7);
+}
+
+function startOfNextMonth(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 1);
+}
+
+function minDate(a: Date, b: Date) {
+  return a.getTime() <= b.getTime() ? a : b;
+}
+
 function isSameDay(a: Date, b: Date) {
   return (
     a.getFullYear() === b.getFullYear() &&
@@ -217,14 +235,16 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const days = Math.min(
       30,
-      Math.max(1, Number(searchParams.get("days") || 7))
+      Math.max(1, Number(searchParams.get("days") || 30))
     );
 
     const todayStart = startOfToday();
     const tomorrowStart = addDays(todayStart, 1);
     const afterTomorrowStart = addDays(todayStart, 2);
-    const rangeEnd = addDays(todayStart, days + 1);
-    const weekEnd = addDays(todayStart, 7);
+    const weekEnd = startOfNextWeek(todayStart);
+    const monthEnd = startOfNextMonth(todayStart);
+    const requestedRangeEnd = addDays(todayStart, days + 1);
+    const rangeEnd = minDate(requestedRangeEnd, monthEnd);
 
     const users = (await User.find({
       $or: [
@@ -251,14 +271,14 @@ export async function GET(req: NextRequest) {
 
     if (!usersWithRelevantRounds.length) {
       return NextResponse.json({
-  success: true,
-  total: 0,
-  today: 0,
-  tomorrow: 0,
-  week: 0,
-  month: 0,
-  rounds: [],
-});
+        success: true,
+        total: 0,
+        today: 0,
+        tomorrow: 0,
+        week: 0,
+        month: 0,
+        rounds: [],
+      });
     }
 
     const userIds = usersWithRelevantRounds.map((user) => user._id);
@@ -365,21 +385,24 @@ export async function GET(req: NextRequest) {
     }).length;
 
     const week = rounds.filter((round) => {
-  const scheduledAt = new Date(round.scheduledAt);
-  return scheduledAt >= todayStart && scheduledAt < weekEnd;
-}).length;
+      const scheduledAt = new Date(round.scheduledAt);
+      return scheduledAt >= todayStart && scheduledAt < weekEnd;
+    }).length;
 
-const month = rounds.length;
+    const month = rounds.filter((round) => {
+      const scheduledAt = new Date(round.scheduledAt);
+      return scheduledAt >= todayStart && scheduledAt < monthEnd;
+    }).length;
 
-return NextResponse.json({
-  success: true,
-  total: rounds.length,
-  today,
-  tomorrow,
-  week,
-  month,
-  rounds,
-});
+    return NextResponse.json({
+      success: true,
+      total: rounds.length,
+      today,
+      tomorrow,
+      week,
+      month,
+      rounds,
+    });
   } catch (error: any) {
     console.error("❌ GET /api/admin/call-rounds/upcoming error:", error);
 
