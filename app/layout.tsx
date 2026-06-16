@@ -5,6 +5,7 @@ import Script from "next/script";
 import Providers from "./providers";
 import AccessibilityScript from "./components/AccessibilityScript";
 import PublicPageShell from "./PublicPageShell";
+import GlobalSoftphoneMount from "./components/staff/GlobalSoftphoneMount";
 
 /* ======================================================
    METADATA – Title + Description + Canonical + Favicon
@@ -119,6 +120,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         />
 
         <Providers>
+          <GlobalSoftphoneMount />
+
           <PublicPageShell>{children}</PublicPageShell>
         </Providers>
 

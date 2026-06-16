@@ -1,47 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
 import SoftphoneStatusPanel from "@/app/components/staff/SoftphoneStatusPanel";
 
 const SUPPORT_COOKIE_NAME = "staffImpersonationActive";
 const STAFF_ID_COOKIE_NAME = "staffOriginalUserId";
-
-type MeResponse = {
-  success?: boolean;
-  user?: {
-    role?: string;
-    staffType?: string;
-    impersonated?: boolean;
-    impersonatedByAdmin?: boolean;
-    impersonationRole?: string;
-  } | null;
-};
-
-function normalizeRole(value?: string | null) {
-  return String(value || "").trim().toLowerCase();
-}
-
-function isRegularWorker(user: MeResponse["user"]) {
-  if (!user) return false;
-
-  const role = normalizeRole(user.role);
-  const staffType = normalizeRole(user.staffType);
-  const impersonationRole = normalizeRole(user.impersonationRole);
-
-  /*
-    מסופון לעובד רגיל בלבד כשאין התחזות.
-    בזמן התחזות נציג את המסופון לפי cookie של מצב תמיכה.
-  */
-  if (user.impersonated === true) return false;
-  if (user.impersonatedByAdmin === true) return false;
-  if (impersonationRole) return false;
-
-  if (role !== "worker" && role !== "staff" && role !== "employee") return false;
-  if (staffType === "producer_staff") return false;
-  if (staffType === "producer") return false;
-
-  return true;
-}
 
 function getCookieValue(name: string) {
   if (typeof document === "undefined") return "";
@@ -62,12 +26,26 @@ function hasCookie(name: string) {
   return Boolean(getCookieValue(name));
 }
 
+function isEmployeeArea(pathname: string | null) {
+  const path = String(pathname || "");
+
+  return path === "/employee" || path.startsWith("/employee/");
+}
+
+/*
+  חשוב:
+  הקומפוננטה הזו מיועדת רק לסופטפון בזמן התחזות / מצב תמיכה.
+
+  לעובד רגיל הסופטפון כבר נטען קבוע מתוך:
+  app/employee/layout.tsx
+
+  לכן אסור להציג כאן סופטפון לעובד רגיל,
+  אחרת יהיו שני מופעים של הסופטפון והוא יכול להתנתק / להופיע כפול.
+*/
 export default function StaffSoftphoneWhenImpersonating() {
+  const pathname = usePathname();
+
   const [isMounted, setIsMounted] = useState(false);
-
-  const [currentUser, setCurrentUser] = useState<MeResponse["user"]>(null);
-  const [loadingUser, setLoadingUser] = useState(true);
-
   const [supportModeActive, setSupportModeActive] = useState(false);
 
   const refreshSupportModeState = useCallback(() => {
@@ -77,56 +55,25 @@ export default function StaffSoftphoneWhenImpersonating() {
     setSupportModeActive(active);
   }, []);
 
-  const loadCurrentUser = useCallback(async () => {
-    try {
-      setLoadingUser(true);
-
-      const res = await fetch("/api/me", {
-        method: "GET",
-        credentials: "include",
-        cache: "no-store",
-      });
-
-      const data = (await res.json().catch(() => null)) as MeResponse | null;
-
-      if (!res.ok || !data?.success) {
-        setCurrentUser(null);
-        return;
-      }
-
-      setCurrentUser(data.user || null);
-    } catch (error) {
-      console.error("LOAD CURRENT USER FOR SOFTPHONE FAILED:", error);
-      setCurrentUser(null);
-    } finally {
-      setLoadingUser(false);
-    }
-  }, []);
-
   useEffect(() => {
     setIsMounted(true);
-
     refreshSupportModeState();
-    void loadCurrentUser();
 
-    const handleFocus = () => {
+    function handleFocus() {
       refreshSupportModeState();
-      void loadCurrentUser();
-    };
+    }
 
-    const handleVisibilityChange = () => {
+    function handleVisibilityChange() {
       if (!document.hidden) {
         refreshSupportModeState();
-        void loadCurrentUser();
       }
-    };
+    }
 
     window.addEventListener("focus", handleFocus);
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     const interval = window.setInterval(() => {
       refreshSupportModeState();
-      void loadCurrentUser();
     }, 2500);
 
     return () => {
@@ -134,26 +81,24 @@ export default function StaffSoftphoneWhenImpersonating() {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.clearInterval(interval);
     };
-  }, [refreshSupportModeState, loadCurrentUser]);
+  }, [refreshSupportModeState]);
 
   const shouldShowSoftphone = useMemo(() => {
     if (!isMounted) return false;
 
     /*
-      עובד רגיל בדשבורד עובדים:
-      מציג סופטפון.
-
-      עובד שנכנס ללקוח בהתחזות:
-      currentUser הוא כבר הלקוח, לכן מציגים לפי cookie של מצב תמיכה.
+      אם אנחנו בתוך אזור עובד — לא מציגים כאן.
+      שם הסופטפון מגיע מ־app/employee/layout.tsx
     */
-    if (supportModeActive) return true;
+    if (isEmployeeArea(pathname)) return false;
 
-    if (loadingUser) return false;
+    /*
+      מציגים רק בזמן התחזות / תמיכה.
+      לדוגמה: עובד נכנס לדשבורד לקוח והמערכת שומרת cookie.
+    */
+    return supportModeActive;
+  }, [isMounted, pathname, supportModeActive]);
 
-    return isRegularWorker(currentUser);
-  }, [isMounted, supportModeActive, loadingUser, currentUser]);
-
-  if (!isMounted) return null;
   if (!shouldShowSoftphone) return null;
 
   return (
@@ -162,9 +107,10 @@ export default function StaffSoftphoneWhenImpersonating() {
       className="
         sticky top-0 z-[80]
         w-full
-        bg-[#070B18]
-        px-4 py-4
-        shadow-[0_14px_38px_rgba(15,23,42,0.18)]
+        bg-white
+        px-4 py-3
+        shadow-[0_14px_38px_rgba(15,23,42,0.12)]
+        print:hidden
       "
     >
       <div className="mx-auto w-full max-w-[1480px]">
