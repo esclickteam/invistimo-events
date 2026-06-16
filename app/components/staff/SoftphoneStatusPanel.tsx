@@ -881,6 +881,32 @@ export default function SoftphoneStatusPanel({
     return String(session?._id || session?.id || "");
   }
 
+  function isOpenShiftSession(session?: SoftphoneShiftSession | null) {
+    if (!session) return false;
+
+    const status = String(session.status || "").toLowerCase();
+
+    return !session.endedAt && status !== "closed";
+  }
+
+  async function getCurrentShiftSessionApi() {
+    const response = await fetch("/api/softphone/shift/current", {
+      method: "GET",
+      credentials: "include",
+      cache: "no-store",
+    });
+
+    const data = (await response.json().catch(() => null)) as
+      | ShiftApiResponse
+      | null;
+
+    if (!response.ok || data?.success === false) {
+      throw new Error(data?.error || data?.message || "SHIFT_CURRENT_FAILED");
+    }
+
+    return data?.session || null;
+  }
+
   async function startShiftSessionApi() {
     setShiftSaving(true);
     setShiftError("");
@@ -954,31 +980,69 @@ export default function SoftphoneStatusPanel({
     const now = new Date().toISOString();
 
     setLoading(true);
-
-    setAgent({
-      agentId: "local-softphone",
-      status: "offline",
-      statusStartedAt: now,
-      todayAvailableSeconds: 0,
-      todayDialingSeconds: 0,
-      todayRingingSeconds: 0,
-      todayTalkSeconds: 0,
-      todayAfterCallSeconds: 0,
-      todayBreakSeconds: 0,
-      todayUnavailableSeconds: 0,
-      todayOfflineSeconds: 0,
-      totalCallsToday: 0,
-      answeredCallsToday: 0,
-      missedCallsToday: 0,
-      failedCallsToday: 0,
-      lastSeenAt: now,
-    });
-
-    setShiftStarted(false);
-    setShiftStartedAt(null);
-    setShiftSessionId(null);
     setShiftError("");
-    setLoading(false);
+
+    try {
+      const currentSession = await getCurrentShiftSessionApi().catch((error) => {
+        console.warn("LOAD CURRENT SHIFT FAILED OR ENDPOINT MISSING:", error);
+        return null;
+      });
+
+      const hasOpenShift = isOpenShiftSession(currentSession);
+      const startedAt = hasOpenShift
+        ? currentSession?.startedAt || now
+        : null;
+
+      setAgent({
+        agentId: "local-softphone",
+        status: hasOpenShift ? "available" : "offline",
+        statusStartedAt: startedAt || now,
+        todayAvailableSeconds: 0,
+        todayDialingSeconds: 0,
+        todayRingingSeconds: 0,
+        todayTalkSeconds: 0,
+        todayAfterCallSeconds: 0,
+        todayBreakSeconds: 0,
+        todayUnavailableSeconds: 0,
+        todayOfflineSeconds: 0,
+        totalCallsToday: 0,
+        answeredCallsToday: 0,
+        missedCallsToday: 0,
+        failedCallsToday: 0,
+        lastSeenAt: now,
+      });
+
+      setShiftStarted(hasOpenShift);
+      setShiftStartedAt(startedAt);
+      setShiftSessionId(hasOpenShift ? getShiftSessionId(currentSession) : null);
+    } catch (error) {
+      console.error("LOAD SOFTPHONE STATUS FAILED:", error);
+
+      setAgent({
+        agentId: "local-softphone",
+        status: "offline",
+        statusStartedAt: now,
+        todayAvailableSeconds: 0,
+        todayDialingSeconds: 0,
+        todayRingingSeconds: 0,
+        todayTalkSeconds: 0,
+        todayAfterCallSeconds: 0,
+        todayBreakSeconds: 0,
+        todayUnavailableSeconds: 0,
+        todayOfflineSeconds: 0,
+        totalCallsToday: 0,
+        answeredCallsToday: 0,
+        missedCallsToday: 0,
+        failedCallsToday: 0,
+        lastSeenAt: now,
+      });
+
+      setShiftStarted(false);
+      setShiftStartedAt(null);
+      setShiftSessionId(null);
+    } finally {
+      setLoading(false);
+    }
   }
 
   function ensureShiftStarted() {
@@ -1801,18 +1865,8 @@ export default function SoftphoneStatusPanel({
 
   async function handleLogout() {
     try {
-      if (shiftStarted) {
-        try {
-          await endShiftSessionApi();
-        } catch (error) {
-          console.error("END SHIFT BEFORE LOGOUT FAILED:", error);
-        }
-
-        setShiftStarted(false);
-        setShiftStartedAt(null);
-        setShiftSessionId(null);
-      }
-
+      // לא מסיימים משמרת בהתנתקות / מעבר עמוד / רענון.
+      // סיום משמרת נשמר בשרת רק דרך confirmEndShift, כלומר רק אחרי לחיצה על "סיים משמרת" ואישור.
       disconnectWebrtc();
 
       await logout();

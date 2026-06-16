@@ -3,7 +3,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import SoftphoneStatusPanel from "@/app/components/staff/SoftphoneStatusPanel";
 import EmployeeDocumentsModal from "../employee/EmployeeDocumentsModal";
 
 type UserRole =
@@ -1745,8 +1744,6 @@ export default function EmployeeDashboardPage() {
       dir="rtl"
       className="min-h-screen bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_100%)] text-slate-950"
     >
-      <SoftphoneStatusPanel />
-
       <main className="min-h-screen pb-10">
         <section className="mx-auto w-full max-w-[1480px] px-4 py-6 sm:px-6 lg:px-8">
           <div className="relative overflow-hidden rounded-[36px] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
