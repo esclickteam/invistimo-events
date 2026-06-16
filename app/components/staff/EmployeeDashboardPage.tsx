@@ -1783,59 +1783,41 @@ export default function EmployeeDashboardPage() {
 
 
               <div className="flex flex-col gap-3 xl:items-end">
-                <div className="flex flex-wrap justify-start gap-2 xl:justify-end">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void loadDashboard();
-                      void loadEmployeeDocuments();
-                      void loadEmployeeAgreement();
-                      void loadEmployeeWorkOrders();
-                    }}
-                    disabled={
+                <button
+                  type="button"
+                  onClick={() => {
+                    void loadDashboard();
+                    void loadEmployeeDocuments();
+                    void loadEmployeeAgreement();
+                    void loadEmployeeWorkOrders();
+                  }}
+                  disabled={
+                    refreshing ||
+                    documentsLoading ||
+                    agreementLoading ||
+                    workOrdersDashboard.loading
+                  }
+                  className="inline-flex h-10 w-fit items-center justify-center gap-2 rounded-full border border-slate-200 bg-white/90 px-4 text-xs font-black text-slate-600 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Icon
+                    name="refresh"
+                    className={`h-4 w-4 ${
                       refreshing ||
                       documentsLoading ||
                       agreementLoading ||
                       workOrdersDashboard.loading
-                    }
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    <Icon
-                      name="refresh"
-                      className={`h-4 w-4 ${
-                        refreshing ||
-                        documentsLoading ||
-                        agreementLoading ||
-                        workOrdersDashboard.loading
-                          ? "animate-spin"
-                          : ""
-                      }`}
-                    />
-                    רענון נתונים
-                  </button>
+                        ? "animate-spin"
+                        : ""
+                    }`}
+                  />
+                  רענון נתונים
+                </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setDocumentsModalOpen(true)}
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-sky-600 px-4 text-sm font-black text-white shadow-sm transition hover:bg-sky-700"
-                  >
-                    <Icon name="file" className="h-4 w-4" />
-                    תיק עובד שלי
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => router.push("/employee/work-orders")}
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 text-sm font-black text-white shadow-sm transition hover:bg-emerald-700"
-                  >
-                    <Icon name="phone" className="h-4 w-4" />
-                    הוראות עבודה
-                  </button>
-
+                <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-start xl:justify-end">
                   <button
                     type="button"
                     onClick={() => router.push("/employee/sales")}
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 text-sm font-black text-white shadow-sm transition hover:bg-orange-600"
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 text-sm font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-black hover:shadow-md"
                   >
                     <Icon name="sales" className="h-4 w-4" />
                     המכירות שלי
@@ -1843,8 +1825,26 @@ export default function EmployeeDashboardPage() {
 
                   <button
                     type="button"
+                    onClick={() => router.push("/employee/work-orders")}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 text-sm font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-emerald-700 hover:shadow-md"
+                  >
+                    <Icon name="phone" className="h-4 w-4" />
+                    הוראות עבודה
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setDocumentsModalOpen(true)}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-sky-600 px-4 text-sm font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-sky-700 hover:shadow-md"
+                  >
+                    <Icon name="file" className="h-4 w-4" />
+                    תיק עובד שלי
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={() => router.push("/employee/shifts")}
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-violet-600 px-4 text-sm font-black text-white shadow-sm transition hover:bg-violet-700"
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-violet-600 px-4 text-sm font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-violet-700 hover:shadow-md"
                   >
                     <Icon name="calendar" className="h-4 w-4" />
                     השיבוצים שלי
