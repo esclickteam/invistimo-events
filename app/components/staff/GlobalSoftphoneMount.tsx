@@ -109,7 +109,13 @@ export default function GlobalSoftphoneMount() {
 
   const [mounted, setMounted] = useState(false);
   const [currentUser, setCurrentUser] = useState<MeResponse["user"]>(null);
-  const [loadingUser, setLoadingUser] = useState(true);
+
+  /*
+    חשוב:
+    לא משתמשים ב-loadingUser שכל פעם מחביא את הסופטפון.
+    אחרת בכל בדיקת /api/me הסופטפון מתפרק ונטען מחדש.
+  */
+  const [initialUserLoaded, setInitialUserLoaded] = useState(false);
   const [supportModeActive, setSupportModeActive] = useState(false);
 
   const refreshSupportModeState = useCallback(() => {
@@ -118,8 +124,6 @@ export default function GlobalSoftphoneMount() {
 
   const loadCurrentUser = useCallback(async () => {
     try {
-      setLoadingUser(true);
-
       const response = await fetch("/api/me", {
         method: "GET",
         credentials: "include",
@@ -140,7 +144,7 @@ export default function GlobalSoftphoneMount() {
       console.error("GLOBAL SOFTPHONE LOAD CURRENT USER FAILED:", error);
       setCurrentUser(null);
     } finally {
-      setLoadingUser(false);
+      setInitialUserLoaded(true);
     }
   }, []);
 
@@ -165,21 +169,24 @@ export default function GlobalSoftphoneMount() {
     window.addEventListener("focus", handleFocus);
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
-    const interval = window.setInterval(() => {
-      refreshSupportModeState();
-      void loadCurrentUser();
-    }, 10000);
+    /*
+      אין כאן setInterval.
+      לא בודקים /api/me כל כמה שניות כדי לא לפרק את הסופטפון.
+      הבדיקה מתבצעת רק:
+      1. בטעינה ראשונה
+      2. בחזרה לטאב
+      3. כשהחלון מקבל פוקוס
+    */
 
     return () => {
       window.removeEventListener("focus", handleFocus);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.clearInterval(interval);
     };
   }, [refreshSupportModeState, loadCurrentUser]);
 
   const shouldShowSoftphone = useMemo(() => {
     if (!mounted) return false;
-    if (loadingUser) return false;
+    if (!initialUserLoaded) return false;
 
     /*
       מצב התחזות / תמיכה:
@@ -198,7 +205,13 @@ export default function GlobalSoftphoneMount() {
     if (!isEmployeeOrStaffPath(pathname)) return false;
 
     return isSystemEmployeeUser(currentUser);
-  }, [mounted, loadingUser, supportModeActive, pathname, currentUser]);
+  }, [
+    mounted,
+    initialUserLoaded,
+    supportModeActive,
+    pathname,
+    currentUser,
+  ]);
 
   if (!shouldShowSoftphone) return null;
 
