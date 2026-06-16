@@ -62,6 +62,9 @@ type DetailsModalState = {
   subtitle?: string;
   price?: number;
   sections: DetailSection[];
+  employeeSections?: DetailSection[];
+  customerSections?: DetailSection[];
+  defaultView?: "employee" | "customer";
 } | null;
 
 const MESSAGE_DETAILS: DetailSection = {
@@ -75,6 +78,117 @@ const MESSAGE_DETAILS: DetailSection = {
     "החבילה כוללת הודעת תודה לאחר האירוע ב־SMS.",
   ],
 };
+
+
+const VENUE_SEATING_CUSTOMER_DETAILS: DetailSection[] = [
+  {
+    title: "שירות הושבה באולם",
+    items: [
+      "שירות ההושבה באולם כולל צוות הושבה מטעמנו, הכולל דיילים/דיילות ומנהל/ת הושבה, בהתאם לחבילה שנבחרה ולכמות אנשי הצוות שסוכמה מול הלקוח.",
+      "השירות נועד לנהל את שלב קבלת האורחים והושבתם באולם בצורה מסודרת, יעילה ומקצועית, תוך שימוש במערכת לייב ייעודית לניהול ההושבה בזמן אמת.",
+      "מטרת השירות היא לצמצם עיכובים בכניסה לאולם, למנוע אי־נעימות לאורחים, ולסייע במציאת פתרונות מהירים במקרה של שינויים בכמות המגיעים בפועל.",
+    ],
+  },
+  {
+    title: "היערכות לפני תחילת האירוע",
+    items: [
+      "צוות ההושבה יגיע לאולם כחצי שעה לפני תחילת האירוע, ייצור קשר עם בעל/ת האירוע או עם נציג מוסמך מטעמם, ויבצע מעבר על סקיצת ההושבה, מספרי השולחנות, כמות הכיסאות והסידור בפועל באולם.",
+      "לאחר מכן הצוות יקים עמדת הושבה מסודרת, הכוללת מחשבים, מערכת לייב ופתקי הושבה, ויוודא שהנתונים במערכת תואמים ככל האפשר לסידור שהוגדר מראש.",
+      "שירות ההושבה נמשך לאורך שלב קבלת האורחים והכניסה לאולם, ועד לשלב המנה הראשונה או עד שכלל האורחים יושבים בצורה מסודרת — בהתאם להתנהלות האירוע בפועל.",
+    ],
+  },
+  {
+    title: "קבלת האורחים והכוונה לשולחנות",
+    items: [
+      "במהלך הגעת האורחים, הצוות יקבל את האורחים בכניסה, יאתר אותם במערכת, וימסור להם את פרטי ההושבה שלהם בצורה נעימה וברורה.",
+      "הצוות פועל כדי שהאורחים יקבלו מענה מהיר, ידעו לאיזה שולחן הם משובצים, ולא יצטרכו להמתין או להסתובב באולם עד למציאת מקום.",
+    ],
+  },
+  {
+    title: "ניהול הושבה בזמן אמת",
+    items: [
+      "ההושבה מנוהלת באמצעות מערכת לייב ייעודית, המאפשרת לצוות לעדכן בזמן אמת את כמות האורחים שהגיעו בפועל ביחס לאישורי ההגעה שסומנו מראש.",
+      "לדוגמה, אם אורח אישר הגעה עבור 4 אנשים ובפועל הגיע אדם אחד בלבד, הצוות רשאי לברר בנימוס האם צפויים להגיע אורחים נוספים מתוך אותה רשומה.",
+      "אם לא צפויים להגיע נוספים, ניתן לעדכן את המערכת בזמן אמת ולפנות את המקומות שלא נוצלו, כך שניתן יהיה להשתמש בהם במקרה הצורך.",
+      "במקרה שבו מגיעים יותר אורחים מהכמות שסומנה מראש, המערכת מסייעת לצוות לאתר מקומות פנויים באולם בצורה מהירה ומסודרת, כדי למצוא פתרון יעיל ולצמצם עיכובים או אי־נעימות לאורחים.",
+    ],
+  },
+  {
+    title: "ניהול במהלך האירוע",
+    items: [
+      "במהלך שלב הכניסה לאולם ועד להתייצבות ההושבה, הצוות יפעל לוודא שהאורחים יודעים היכן הם יושבים, ויסייע במקרה שבו אורחים עומדים, מחפשים מקום או נדרשת התאמה בשטח.",
+      "במידת הצורך, הצוות יסייע בניוד כיסאות, איתור מקומות פנויים, עדכון הגעת אורחים בפועל ותיאום פתרונות מול נציג המשפחה או הגורם המוסמך מטעם בעל האירוע.",
+    ],
+  },
+  {
+    title: "רזרבות ושינויים מול האולם",
+    items: [
+      "השירות כולל סיוע בניהול ההושבה ובצמצום הצורך בפתיחת רזרבות מיותרות, ככל שניתן ובהתאם למצב בפועל באירוע.",
+      "פתיחת רזרבות או התחייבות נוספת מול האולם תתבצע רק באישור נציג המשפחה או גורם מוסמך מטעם בעל האירוע.",
+      "ככל שנדרשת חתימה על פתיחת רזרבות מול האולם, החתימה תתבצע על ידי נציג המשפחה או הגורם המוסמך בלבד, ולא על ידי צוות ההושבה.",
+    ],
+  },
+];
+
+const VENUE_SEATING_EMPLOYEE_DETAILS: DetailSection[] = [
+  {
+    title: "מה העובד צריך להסביר בשיחה",
+    items: [
+      "להסביר ללקוח ששירות הושבה באולם הוא שירות פיזי באירוע, בנוסף למערכת ההושבה הדיגיטלית.",
+      "להדגיש שהצוות מגיע כחצי שעה לפני תחילת האירוע ונשאר עד שלב המנה הראשונה או עד שכל האורחים יושבים בצורה מסודרת, בהתאם להתנהלות האירוע בפועל.",
+      "להסביר שהעבודה מתבצעת דרך מערכת לייב, כדי לזהות בזמן אמת מי הגיע, כמה הגיעו מכל רשומה, איפה התפנו מקומות ואיפה אפשר להושיב אורחים במקרה של שינוי.",
+      "להבהיר שהמטרה היא למנוע עיכובים ואי־נעימות לאורחים, ולצמצם פתיחת רזרבות מיותרות ככל שניתן.",
+    ],
+  },
+  {
+    title: "מה חובה לסגור מול הלקוח לפני מכירה",
+    items: [
+      "איזו חבילת הושבה נרכשה וכמה אנשי צוות מגיעים לאירוע.",
+      "שם איש קשר באירוע ומספר טלפון זמין ליום האירוע.",
+      "שעת תחילת האירוע ושעת קבלת הפנים, כדי לוודא הגעה כחצי שעה לפני.",
+      "קבלת סקיצת אולם, מספרי שולחנות וכמות כיסאות לפי ההתחייבות מול האולם.",
+      "הבהרה שחתימה או אישור על פתיחת רזרבות מול האולם נעשית רק על ידי נציג משפחה או גורם מוסמך מטעם בעל האירוע.",
+    ],
+  },
+  {
+    title: "נוסח מומלץ לסיכום עם הלקוח",
+    items: [
+      "השירות כולל צוות הושבה מטעמנו שמגיע לאולם, מקים עמדת הושבה ועובד עם מערכת לייב לניהול ההושבה בזמן אמת.",
+      "הצוות בודק בזמן אמת אם הגיעו יותר או פחות אורחים ממה שסומן באישורי ההגעה, ומעדכן את המערכת כדי למצוא פתרונות במהירות.",
+      "השירות נמשך עד שלב המנה הראשונה או עד שכל האורחים יושבים בצורה מסודרת.",
+      "פתיחת רזרבות או התחייבות נוספת מול האולם תתבצע רק באישור נציג המשפחה או גורם מוסמך מטעם בעל האירוע.",
+    ],
+  },
+];
+
+function isVenueSeatingUpsell(key?: UpsellKey) {
+  return (
+    key === "venueSeatingSmall" ||
+    key === "venueSeatingTwoStaff" ||
+    key === "venueSeatingThreeStaff"
+  );
+}
+
+function getEmployeeDetailsForUpsell(upsell: UpsellItem) {
+  return isVenueSeatingUpsell(upsell.key)
+    ? VENUE_SEATING_EMPLOYEE_DETAILS
+    : upsell.details;
+}
+
+function getCustomerDetailsForUpsell(upsell: UpsellItem) {
+  return isVenueSeatingUpsell(upsell.key)
+    ? VENUE_SEATING_CUSTOMER_DETAILS
+    : upsell.details;
+}
+
+function getCustomerDetailsForPlan(plan: PackagePlan) {
+  return [
+    {
+      title: "פירוט ללקוח",
+      items: [plan.customerSummary, ...plan.includes],
+    },
+  ];
+}
 
 const PACKAGE_PLANS: PackagePlan[] = [
   {
@@ -677,13 +791,22 @@ function DetailsModal({
   details: DetailsModalState;
   onClose: () => void;
 }) {
+  const [activeView, setActiveView] = useState<"employee" | "customer">(
+    details?.defaultView || "employee",
+  );
+
   if (!details) return null;
+
+  const employeeSections = details.employeeSections || details.sections;
+  const customerSections = details.customerSections || details.sections;
+  const currentSections =
+    activeView === "customer" ? customerSections : employeeSections;
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/55 px-4 backdrop-blur-sm">
       <div className="max-h-[88vh] w-full max-w-3xl overflow-hidden rounded-[32px] border border-[#eadfce] bg-white shadow-2xl">
         <div className="flex items-start justify-between gap-4 border-b border-[#eadfce] bg-[#fff7ec] p-5 sm:p-6">
-          <div>
+          <div className="min-w-0 flex-1">
             <Pill className="border-[#d6b47c] bg-white text-[#8a5c20]">
               פירוט מלא
             </Pill>
@@ -700,6 +823,32 @@ function DetailsModal({
                 מחיר: {money(details.price)}
               </p>
             )}
+
+            <div className="mt-4 inline-flex rounded-2xl border border-[#eadfce] bg-white p-1 shadow-sm">
+              <button
+                type="button"
+                onClick={() => setActiveView("employee")}
+                className={`h-9 rounded-xl px-4 text-xs font-black transition ${
+                  activeView === "employee"
+                    ? "bg-[#3f3327] text-white shadow-sm"
+                    : "text-[#7b6a58] hover:bg-[#fff7ec]"
+                }`}
+              >
+                לעובד
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveView("customer")}
+                className={`h-9 rounded-xl px-4 text-xs font-black transition ${
+                  activeView === "customer"
+                    ? "bg-[#3f3327] text-white shadow-sm"
+                    : "text-[#7b6a58] hover:bg-[#fff7ec]"
+                }`}
+              >
+                ללקוח
+              </button>
+            </div>
           </div>
 
           <button
@@ -712,8 +861,14 @@ function DetailsModal({
         </div>
 
         <div className="max-h-[62vh] overflow-y-auto p-5 sm:p-6">
+          <div className="mb-4 rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 py-3 text-xs font-bold leading-5 text-[#7b6a58]">
+            {activeView === "employee"
+              ? "פירוט פנימי לעובד: מה להסביר בשיחה, מה לוודא ומה לסכם לפני העברת הלקוח לתשלום."
+              : "פירוט ללקוח: זה הנוסח שניתן לשמור בפרטי העסקה ובעמוד סיכום/חתימה."}
+          </div>
+
           <div className="space-y-4">
-            {details.sections.map((section) => (
+            {currentSections.map((section) => (
               <section
                 key={section.title}
                 className="rounded-[26px] border border-[#eadfce] bg-[#fffdf9] p-4"
@@ -835,6 +990,7 @@ export default function NewEmployeeSalePage() {
         return {
           title: upsell.title,
           description: upsell.description,
+          customerDetails: getCustomerDetailsForUpsell(upsell),
           givenFree,
         };
       }),
@@ -926,7 +1082,9 @@ export default function NewEmployeeSalePage() {
             key: upsell.key,
             title: upsell.title,
             description: upsell.description,
-            details: upsell.details,
+            details: getEmployeeDetailsForUpsell(upsell),
+            employeeDetails: getEmployeeDetailsForUpsell(upsell),
+            customerDetails: getCustomerDetailsForUpsell(upsell),
             originalPrice: upsell.price,
             price:
               upsell.key === "suppliersBudgetSystem" &&
@@ -1214,6 +1372,9 @@ export default function NewEmployeeSalePage() {
                                 title: plan.title,
                                 subtitle: plan.customerSummary,
                                 sections: plan.details,
+                                employeeSections: plan.details,
+                                customerSections: getCustomerDetailsForPlan(plan),
+                                defaultView: "employee",
                               });
                             }}
                             onKeyDown={(event) => {
@@ -1407,7 +1568,10 @@ export default function NewEmployeeSalePage() {
                                   title: upsell.title,
                                   subtitle: upsell.description,
                                   price: upsell.price,
-                                  sections: upsell.details,
+                                  sections: getEmployeeDetailsForUpsell(upsell),
+                                  employeeSections: getEmployeeDetailsForUpsell(upsell),
+                                  customerSections: getCustomerDetailsForUpsell(upsell),
+                                  defaultView: "employee",
                                 });
                               }}
                               className="mt-3 inline-flex h-8 items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-3 text-xs font-black text-[#7b6a58] transition hover:bg-[#fffdf9]"
