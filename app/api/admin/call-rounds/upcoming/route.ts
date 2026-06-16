@@ -224,6 +224,7 @@ export async function GET(req: NextRequest) {
     const tomorrowStart = addDays(todayStart, 1);
     const afterTomorrowStart = addDays(todayStart, 2);
     const rangeEnd = addDays(todayStart, days + 1);
+    const weekEnd = addDays(todayStart, 7);
 
     const users = (await User.find({
       $or: [
@@ -250,13 +251,14 @@ export async function GET(req: NextRequest) {
 
     if (!usersWithRelevantRounds.length) {
       return NextResponse.json({
-        success: true,
-        total: 0,
-        today: 0,
-        tomorrow: 0,
-        week: 0,
-        rounds: [],
-      });
+  success: true,
+  total: 0,
+  today: 0,
+  tomorrow: 0,
+  week: 0,
+  month: 0,
+  rounds: [],
+});
     }
 
     const userIds = usersWithRelevantRounds.map((user) => user._id);
@@ -362,14 +364,22 @@ export async function GET(req: NextRequest) {
       return scheduledAt >= tomorrowStart && scheduledAt < afterTomorrowStart;
     }).length;
 
-    return NextResponse.json({
-      success: true,
-      total: rounds.length,
-      today,
-      tomorrow,
-      week: rounds.length,
-      rounds,
-    });
+    const week = rounds.filter((round) => {
+  const scheduledAt = new Date(round.scheduledAt);
+  return scheduledAt >= todayStart && scheduledAt < weekEnd;
+}).length;
+
+const month = rounds.length;
+
+return NextResponse.json({
+  success: true,
+  total: rounds.length,
+  today,
+  tomorrow,
+  week,
+  month,
+  rounds,
+});
   } catch (error: any) {
     console.error("❌ GET /api/admin/call-rounds/upcoming error:", error);
 

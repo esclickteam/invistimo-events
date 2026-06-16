@@ -89,6 +89,7 @@ interface UpcomingCallRoundsResponse {
   today: number;
   tomorrow: number;
   week: number;
+  month: number;
   rounds: UpcomingCallRound[];
 }
 
@@ -404,13 +405,14 @@ const [toYear, setToYear] = useState(currentYear);
     } catch (err) {
       console.error("❌ Failed to load upcoming call rounds:", err);
       setUpcomingCalls({
-        success: false,
-        total: 0,
-        today: 0,
-        tomorrow: 0,
-        week: 0,
-        rounds: [],
-      });
+  success: false,
+  total: 0,
+  today: 0,
+  tomorrow: 0,
+  week: 0,
+  month: 0,
+  rounds: [],
+});
     } finally {
       if (showLoader) {
         setLoadingUpcomingCalls(false);
@@ -1363,18 +1365,22 @@ function AdminCallRoundsAlert({
             </p>
 
             <div className="mt-3 flex flex-wrap gap-2 text-xs font-black">
-              <span className="rounded-full bg-white px-3 py-1 text-[#8A6A43] ring-1 ring-[#E7D8C6]">
-                היום: {data?.today || 0}
-              </span>
+  <span className="rounded-full bg-white px-3 py-1 text-[#8A6A43] ring-1 ring-[#E7D8C6]">
+    היום: {data?.today || 0}
+  </span>
 
-              <span className="rounded-full bg-white px-3 py-1 text-[#8A6A43] ring-1 ring-[#E7D8C6]">
-                מחר: {data?.tomorrow || 0}
-              </span>
+  <span className="rounded-full bg-white px-3 py-1 text-[#8A6A43] ring-1 ring-[#E7D8C6]">
+    מחר: {data?.tomorrow || 0}
+  </span>
 
-              <span className="rounded-full bg-white px-3 py-1 text-[#8A6A43] ring-1 ring-[#E7D8C6]">
-                השבוע: {data?.week || 0}
-              </span>
-            </div>
+  <span className="rounded-full bg-white px-3 py-1 text-[#8A6A43] ring-1 ring-[#E7D8C6]">
+    השבוע: {data?.week || 0}
+  </span>
+
+  <span className="rounded-full bg-white px-3 py-1 text-[#8A6A43] ring-1 ring-[#E7D8C6]">
+    החודש: {data?.month || 0}
+  </span>
+</div>
           </div>
         </div>
 
