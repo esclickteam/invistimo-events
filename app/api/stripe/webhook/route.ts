@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import Payment from "@/models/Payment";
 import User from "@/models/User";
+import EmployeeSale from "@/models/EmployeeSale";
 import { notifyAdminPurchase } from "@/lib/notifyAdminPurchase";
 
 export const runtime = "nodejs";
@@ -93,8 +94,35 @@ function parseAccessModulesFromMetadata(
               );
 
   return {
-    rsvpSeating,
-    eventProduction,
+    rsvpSeating: Boolean(rsvpSeating),
+    eventProduction: Boolean(eventProduction),
+
+    venues: Boolean(
+      parsedAccessModules?.venues ?? fallback.existingAccessModules?.venues ?? false
+    ),
+    venueDashboard: Boolean(
+      parsedAccessModules?.venueDashboard ??
+        fallback.existingAccessModules?.venueDashboard ??
+        false
+    ),
+    venueCrm: Boolean(
+      parsedAccessModules?.venueCrm ?? fallback.existingAccessModules?.venueCrm ?? false
+    ),
+    venueCalendar: Boolean(
+      parsedAccessModules?.venueCalendar ??
+        fallback.existingAccessModules?.venueCalendar ??
+        false
+    ),
+    venueMenus: Boolean(
+      parsedAccessModules?.venueMenus ??
+        fallback.existingAccessModules?.venueMenus ??
+        false
+    ),
+    venueStaff: Boolean(
+      parsedAccessModules?.venueStaff ??
+        fallback.existingAccessModules?.venueStaff ??
+        false
+    ),
   };
 }
 
@@ -168,6 +196,191 @@ function getPlanDefaults(
         includeCreditGifts: false,
       };
   }
+}
+
+
+function cleanString(value: unknown): string {
+  return String(value || "").trim();
+}
+
+function normalizeUpsellKey(value: unknown): string {
+  return cleanString(value).trim();
+}
+
+function getSaleUpsellsArray(sale: any): any[] {
+  return Array.isArray(sale?.upsells) ? sale.upsells : [];
+}
+
+function findSaleUpsell(sale: any, key: string) {
+  return getSaleUpsellsArray(sale).find(
+    (upsell: any) => normalizeUpsellKey(upsell?.key) === key
+  );
+}
+
+function hasSaleUpsell(sale: any, key: string): boolean {
+  return Boolean(findSaleUpsell(sale, key));
+}
+
+function getSaleUpsellPrice(sale: any, key: string): number {
+  const upsell = findSaleUpsell(sale, key);
+  if (!upsell) return 0;
+  if (upsell.givenFree) return 0;
+
+  return toNum(
+    upsell.totalPrice ?? upsell.price ?? upsell.amount ?? upsell.grossAmount,
+    0
+  );
+}
+
+function getSaleUpsellStaffCount(sale: any, key: string, fallback = 0): number {
+  const upsell = findSaleUpsell(sale, key);
+  if (!upsell) return fallback;
+
+  return toNum(upsell.staffCount ?? upsell.count ?? upsell.quantity, fallback);
+}
+
+function getSalePlan(sale: any, user: any): string {
+  return cleanString(sale?.plan || user?.plan || "premium");
+}
+
+function getSalePackageName(sale: any, plan: string): string {
+  return cleanString(
+    sale?.packageName || sale?.selectedPackage?.title || sale?.selectedPackage?.key || plan
+  );
+}
+
+function getSaleGuests(sale: any, user: any): number {
+  return Math.max(
+    0,
+    Math.floor(
+      toNum(
+        sale?.guests ??
+          sale?.selectedPackage?.records ??
+          sale?.customerDealSummary?.records ??
+          user?.guests ??
+          user?.maxGuests ??
+          0,
+        0
+      )
+    )
+  );
+}
+
+function buildEmployeeSaleUpsells(sale: any) {
+  const digitalSeatingEnabled = hasSaleUpsell(sale, "digitalSeating");
+  const venueSeatingEnabled = hasSaleUpsell(sale, "venueSeating");
+  const personalRepresentativeEnabled = hasSaleUpsell(
+    sale,
+    "personalRepresentative"
+  );
+  const thirdRsvpRoundEnabled = hasSaleUpsell(sale, "thirdRsvpRound");
+  const suppliersBudgetSystemEnabled = hasSaleUpsell(
+    sale,
+    "suppliersBudgetSystem"
+  );
+  const alcoholManagementEnabled = hasSaleUpsell(sale, "alcoholManagement");
+
+  return {
+    digitalSeating: {
+      enabled: digitalSeatingEnabled,
+      price: getSaleUpsellPrice(sale, "digitalSeating"),
+    },
+
+    venueSeating: {
+      enabled: venueSeatingEnabled,
+      staffCount: getSaleUpsellStaffCount(sale, "venueSeating", 0),
+      totalPrice: getSaleUpsellPrice(sale, "venueSeating"),
+    },
+
+    personalRepresentative: {
+      enabled: personalRepresentativeEnabled,
+      price: getSaleUpsellPrice(sale, "personalRepresentative"),
+    },
+
+    thirdRsvpRound: {
+      enabled: thirdRsvpRoundEnabled,
+      price: getSaleUpsellPrice(sale, "thirdRsvpRound"),
+    },
+
+    suppliersBudgetSystem: {
+      enabled: suppliersBudgetSystemEnabled,
+      price: getSaleUpsellPrice(sale, "suppliersBudgetSystem"),
+      givenFree: Boolean(findSaleUpsell(sale, "suppliersBudgetSystem")?.givenFree),
+    },
+
+    alcoholManagement: {
+      enabled: alcoholManagementEnabled,
+      staffCount: getSaleUpsellStaffCount(sale, "alcoholManagement", 0),
+      totalPrice: getSaleUpsellPrice(sale, "alcoholManagement"),
+    },
+  };
+}
+
+function getEmployeeSalePackageFlags(sale: any, user: any) {
+  const plan = getSalePlan(sale, user);
+  const isSmartOrSeating = plan === "smart" || plan === "seating";
+  const isSeatingPackage = plan === "seating";
+  const salesUpsells = buildEmployeeSaleUpsells(sale);
+
+  const includeCalls = Boolean(
+    isSmartOrSeating || user?.includeCalls || user?.planLimits?.callsEnabled
+  );
+
+  const includeDigitalSeating = Boolean(
+    isSeatingPackage || salesUpsells.digitalSeating.enabled
+  );
+
+  const includeEventManagement = Boolean(
+    salesUpsells.suppliersBudgetSystem.enabled || user?.includeEventManagement
+  );
+
+  const allowedMessageRounds: 2 | 3 = salesUpsells.thirdRsvpRound.enabled
+    ? 3
+    : normalizeAllowedMessageRounds(
+        sale?.allowedMessageRounds ??
+          sale?.planLimits?.allowedMessageRounds ??
+          user?.allowedMessageRounds ??
+          user?.planLimits?.allowedMessageRounds
+      );
+
+  const guests = getSaleGuests(sale, user);
+
+  const accessModules = {
+    rsvpSeating: includeDigitalSeating,
+    eventProduction: includeEventManagement,
+
+    venues: Boolean(user?.accessModules?.venues ?? false),
+    venueDashboard: Boolean(user?.accessModules?.venueDashboard ?? false),
+    venueCrm: Boolean(user?.accessModules?.venueCrm ?? false),
+    venueCalendar: Boolean(user?.accessModules?.venueCalendar ?? false),
+    venueMenus: Boolean(user?.accessModules?.venueMenus ?? false),
+    venueStaff: Boolean(user?.accessModules?.venueStaff ?? false),
+  };
+
+  const planLimits = {
+    ...(user?.planLimits || {}),
+    maxGuests: guests,
+    allowedMessageRounds,
+    smsEnabled: true,
+    smsLimit: guests,
+    seatingEnabled: includeDigitalSeating,
+    remindersEnabled: true,
+    callsEnabled: includeCalls,
+  };
+
+  return {
+    plan,
+    packageName: getSalePackageName(sale, plan),
+    guests,
+    includeCalls,
+    callsRounds: includeCalls ? 3 : 0,
+    includeDigitalSeating,
+    includeEventManagement,
+    allowedMessageRounds,
+    accessModules,
+    planLimits,
+    salesUpsells,
+  };
 }
 
 /* =========================================================
@@ -425,6 +638,192 @@ export async function POST(req: Request) {
       console.log("✅ Admin upgrade completed for user:", {
         userId: String(user._id),
         accessModules,
+      });
+
+      return NextResponse.json({ received: true });
+    }
+
+
+    /* =========================================================
+       HANDLE EMPLOYEE SALES CHECKOUT
+       עסקה שנוצרה ממסך עובד + פתיחת כל האפסיילים אחרי תשלום
+    ============================================================ */
+
+    if (session.metadata?.source === "employee_sales_page") {
+      const paymentIntentId = String(session.payment_intent);
+      const amount = toNum(session.amount_total, 0) / 100;
+      const saleId = cleanString(session.metadata?.saleId);
+
+      const sale: any = saleId ? await EmployeeSale.findById(saleId) : null;
+
+      if (!sale) {
+        console.error("❌ EmployeeSale not found for employee checkout", {
+          saleId,
+          userId: String(user._id),
+        });
+        return NextResponse.json({ received: true });
+      }
+
+      const packageFlags = getEmployeeSalePackageFlags(sale, user);
+      const existingPayment = await Payment.findOne({
+        stripePaymentIntentId: paymentIntentId,
+      }).lean();
+
+      if (!existingPayment) {
+        await Payment.create({
+          email: (user.email || "").toLowerCase(),
+
+          stripeSessionId: session.id,
+          stripePaymentIntentId: paymentIntentId,
+          stripeCustomerId: (session.customer as string) || "",
+
+          priceKey: packageFlags.plan,
+          maxGuests: packageFlags.guests,
+
+          includeCalls: packageFlags.includeCalls,
+          callsAddonPrice: 0,
+
+          includeCreditGifts: Boolean(user.includeCreditGifts),
+          creditGiftsAddonPrice: 0,
+
+          amount,
+          refundAmount: 0,
+          currency: (session.currency || "ils").toLowerCase(),
+
+          status: "paid",
+          type: "package",
+          isTest: !session.livemode,
+
+          meta: {
+            source: "employee_sales_page",
+            stripeEventId: stripeEvent.id,
+
+            userId: String(user._id),
+            saleId: String(sale._id),
+            employeeId: sale.employeeId ? String(sale.employeeId) : null,
+
+            plan: packageFlags.plan,
+            priceKey: packageFlags.plan,
+            packageName: packageFlags.packageName,
+
+            guests: packageFlags.guests,
+            maxGuests: packageFlags.guests,
+
+            allowedMessageRounds: packageFlags.allowedMessageRounds,
+
+            includeCalls: packageFlags.includeCalls,
+            includeDigitalSeating: packageFlags.includeDigitalSeating,
+            includeEventManagement: packageFlags.includeEventManagement,
+
+            accessModules: packageFlags.accessModules,
+            salesUpsells: packageFlags.salesUpsells,
+          },
+        });
+      } else {
+        console.log(
+          "ℹ️ Employee sale payment already exists for paymentIntent:",
+          paymentIntentId
+        );
+      }
+
+      const venueSeatingPrice = packageFlags.salesUpsells.venueSeating.totalPrice;
+      const venueSeatingDeposit = toNum(sale?.paymentSchedule?.eventServicesDeposit, 0);
+      const venueSeatingBalance = toNum(sale?.paymentSchedule?.eventServicesBalance, 0);
+
+      await User.findByIdAndUpdate(
+        user._id,
+        {
+          $inc: {
+            paidAmount: amount,
+          },
+
+          $set: {
+            hasPaid: true,
+            isActive: true,
+            billingSource: "stripe",
+
+            isTrial: false,
+            hasDashboardAccess: true,
+
+            plan: packageFlags.plan,
+            priceKey: packageFlags.plan,
+            packageName: packageFlags.packageName,
+
+            guests: packageFlags.guests,
+            maxGuests: packageFlags.guests,
+
+            allowedMessageRounds: packageFlags.allowedMessageRounds,
+
+            planLimits: packageFlags.planLimits,
+
+            smsLimit: packageFlags.guests,
+            maxMessages: packageFlags.guests,
+
+            includeCalls: packageFlags.includeCalls,
+            callsRounds: packageFlags.callsRounds,
+            callsAddonPrice: 0,
+            callsEnabledBy: packageFlags.includeCalls ? "stripe" : null,
+            callsEnabledAt: packageFlags.includeCalls ? new Date() : null,
+
+            includeDigitalSeating: packageFlags.includeDigitalSeating,
+            includeEventManagement: packageFlags.includeEventManagement,
+
+            accessModules: packageFlags.accessModules,
+
+            selfManageEnabled: packageFlags.includeEventManagement,
+
+            salesUpsells: packageFlags.salesUpsells,
+
+            venueSeatingService: {
+              enabled: packageFlags.salesUpsells.venueSeating.enabled,
+              totalPrice: venueSeatingPrice,
+              depositAmount: venueSeatingDeposit,
+              venuePaymentAmount: venueSeatingBalance,
+              staffPaymentAmount: 0,
+              staffPaidFromVenue: 0,
+              staffPaidFromFullAmount: 0,
+              venuePaymentAfterStaff: venueSeatingBalance,
+              totalAfterStaff: venueSeatingPrice,
+            },
+
+            stripeCheckoutSessionId: session.id,
+            stripePaymentIntentId: paymentIntentId,
+            stripePaidAt: new Date(),
+
+            updatedAt: new Date(),
+          },
+        },
+        { new: true }
+      );
+
+      sale.set?.("status", "paid");
+      sale.set?.("stripePaymentIntentId", paymentIntentId);
+      sale.set?.("stripePaidAt", new Date());
+      sale.set?.("payment.status", "paid");
+      sale.set?.("payment.stripePaymentIntentId", paymentIntentId);
+      sale.set?.("payment.paidAt", new Date());
+      sale.set?.("paidAt", new Date());
+      await sale.save?.();
+
+      try {
+        await notifyAdminPurchase({
+          email: user.email,
+          amount,
+          currency: "ils",
+          type: "Employee sale checkout",
+          details: `saleId=${String(sale._id)} | plan=${packageFlags.plan} | guests=${packageFlags.guests} | rounds=${packageFlags.allowedMessageRounds} | eventProduction=${packageFlags.accessModules.eventProduction} | rsvpSeating=${packageFlags.accessModules.rsvpSeating}`,
+        });
+      } catch (err) {
+        console.error("❌ Failed to notify admin about employee sale", err);
+      }
+
+      console.log("✅ Employee sale payment completed:", {
+        userId: String(user._id),
+        saleId: String(sale._id),
+        plan: packageFlags.plan,
+        guests: packageFlags.guests,
+        allowedMessageRounds: packageFlags.allowedMessageRounds,
+        salesUpsells: packageFlags.salesUpsells,
       });
 
       return NextResponse.json({ received: true });

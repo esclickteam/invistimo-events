@@ -98,12 +98,127 @@ function normalizePaymentMode(value: unknown): PaymentMode {
   return cleanString(value) === "full" ? "full" : "split";
 }
 
+
+
+type NormalizedUpsell = Record<string, unknown>;
+
+function getUpsellsArray(body: any): NormalizedUpsell[] {
+  return Array.isArray(body?.upsells) ? body.upsells : [];
+}
+
+function getUpsellKey(upsell: NormalizedUpsell) {
+  return cleanString(upsell?.key);
+}
+
+function findUpsell(upsells: NormalizedUpsell[], key: string) {
+  return upsells.find((upsell) => getUpsellKey(upsell) === key) || null;
+}
+
+function hasUpsell(upsells: NormalizedUpsell[], key: string) {
+  return Boolean(findUpsell(upsells, key));
+}
+
+function getUpsellPrice(upsell: NormalizedUpsell | null) {
+  if (!upsell) return 0;
+  if (Boolean(upsell.givenFree)) return 0;
+  return roundMoney(toNumber(upsell.price) || toNumber(upsell.totalPrice));
+}
+
+function getUpsellStaffCount(
+  upsell: NormalizedUpsell | null,
+  fallback: number,
+) {
+  const staffCount = Math.floor(
+    toNumber(upsell?.staffCount) ||
+      toNumber(upsell?.selectedStaffCount) ||
+      toNumber(upsell?.count) ||
+      fallback,
+  );
+
+  return staffCount > 0 ? staffCount : fallback;
+}
+
+function planHasCalls(plan: string) {
+  return plan === "smart" || plan === "seating" || plan === "plan2" || plan === "plan3";
+}
+
+function planHasDigitalSeating(plan: string) {
+  return plan === "seating" || plan === "plan3";
+}
+
+function getAllowedMessageRoundsFromUpsells(upsells: NormalizedUpsell[]) {
+  return hasUpsell(upsells, "thirdRsvpRound") ? 3 : 2;
+}
+
+function buildSalesUpsells(plan: string, upsells: NormalizedUpsell[]) {
+  const digitalSeating = findUpsell(upsells, "digitalSeating");
+  const venueSeating = findUpsell(upsells, "venueSeating");
+  const personalRepresentative = findUpsell(
+    upsells,
+    "personalRepresentative",
+  );
+  const thirdRsvpRound = findUpsell(upsells, "thirdRsvpRound");
+  const suppliersBudgetSystem = findUpsell(upsells, "suppliersBudgetSystem");
+  const alcoholManagement = findUpsell(upsells, "alcoholManagement");
+
+  const venueSeatingPrice = getUpsellPrice(venueSeating);
+  const alcoholManagementPrice = getUpsellPrice(alcoholManagement);
+
+  return {
+    digitalSeating: {
+      enabled: planHasDigitalSeating(plan) || Boolean(digitalSeating),
+      price: getUpsellPrice(digitalSeating),
+    },
+
+    venueSeating: {
+      enabled: Boolean(venueSeating),
+      staffCount: getUpsellStaffCount(venueSeating, 1),
+      totalPrice: venueSeatingPrice,
+    },
+
+    personalRepresentative: {
+      enabled: Boolean(personalRepresentative),
+      price: getUpsellPrice(personalRepresentative),
+    },
+
+    thirdRsvpRound: {
+      enabled: Boolean(thirdRsvpRound),
+      price: getUpsellPrice(thirdRsvpRound),
+    },
+
+    suppliersBudgetSystem: {
+      enabled: Boolean(suppliersBudgetSystem),
+      price: getUpsellPrice(suppliersBudgetSystem),
+      givenFree: Boolean(suppliersBudgetSystem?.givenFree),
+    },
+
+    alcoholManagement: {
+      enabled: Boolean(alcoholManagement),
+      staffCount: getUpsellStaffCount(alcoholManagement, 1),
+      totalPrice: alcoholManagementPrice,
+    },
+  };
+}
+
+function buildPendingAccessModules() {
+  return {
+    rsvpSeating: true,
+    eventProduction: false,
+    venues: false,
+    venueDashboard: false,
+    venueCrm: false,
+    venueCalendar: false,
+    venueMenus: false,
+    venueStaff: false,
+  };
+}
+
 function getStripeAmountFromBody(body: any) {
   const payment = normalizeObject(body?.payment);
   const totals = normalizeObject(body?.totals);
-  const paymentSchedule =
-    normalizeObject(body?.paymentSchedule).stripeAmount ||
-    normalizeObject(totals?.paymentSchedule);
+  const paymentSchedule = normalizeObject(
+    body?.paymentSchedule || totals?.paymentSchedule,
+  );
 
   const fromPaymentStripe = toNumber(payment.stripeAmount);
   const fromPaymentImmediate = toNumber(payment.immediateAmount);
@@ -389,6 +504,7 @@ async function createStripeCheckoutSession({
   body.set("metadata[originalGrossAmount]", String(originalGrossAmount));
   body.set("metadata[discountAmount]", String(discountAmount));
   body.set("metadata[eventDayAmount]", String(eventDayAmount));
+  body.set("metadata[requiresWebhookActivation]", "true");
 
   body.set("payment_intent_data[metadata][userId]", userId);
   body.set("payment_intent_data[metadata][saleId]", saleId);
@@ -403,6 +519,7 @@ async function createStripeCheckoutSession({
     "payment_intent_data[metadata][eventDayAmount]",
     String(eventDayAmount),
   );
+  body.set("payment_intent_data[metadata][requiresWebhookActivation]", "true");
 
   const response = await fetch("https://api.stripe.com/v1/checkout/sessions", {
     method: "POST",
@@ -570,6 +687,15 @@ export async function POST(req: NextRequest) {
     const eventDayAmount = getEventDayAmountFromBody(body);
 
     const notes = cleanString(body?.notes);
+    const upsells = getUpsellsArray(body);
+    const allowedMessageRounds = getAllowedMessageRoundsFromUpsells(upsells);
+    const salesUpsells = buildSalesUpsells(plan, upsells);
+    const hasCallsPackage = planHasCalls(plan);
+    const hasDigitalSeatingPackage = planHasDigitalSeating(plan);
+    const hasSuppliersBudgetSystem = salesUpsells.suppliersBudgetSystem.enabled;
+    const hasDigitalSeating = salesUpsells.digitalSeating.enabled;
+    const hasVenueSeating = salesUpsells.venueSeating.enabled;
+    const hasAlcoholManagement = salesUpsells.alcoholManagement.enabled;
 
     if (!clientName || !clientEmail || !clientPhone || finalGrossAmount <= 0) {
       return NextResponse.json(
@@ -640,41 +766,26 @@ export async function POST(req: NextRequest) {
       guests,
       maxGuests: guests,
 
-      // תשלום רק Stripe — לכן עד שה-Stripe חוזר כ-paid, זה נשאר לא משולם
+      // תשלום רק Stripe — עד שה-webhook חוזר כ-paid, הלקוח לא פעיל ולא נפתחות הרשאות.
       paidAmount: 0,
       hasPaid: false,
-      isActive: true,
+      isActive: false,
 
       eventDate,
 
-      includeCalls: Boolean(
-        plan === "smart" ||
-          plan === "seating" ||
-          (Array.isArray(body?.upsells) &&
-            body.upsells.some((upsell: any) =>
-              cleanString(upsell?.key).includes("call"),
-            )),
-      ),
-      callsRounds: plan === "smart" || plan === "seating" ? 3 : 0,
+      // נשמרים במכירה ונפתחים בפועל רק אחרי checkout.session.completed ב-webhook.
+      includeCalls: false,
+      callsRounds: 0,
       callsAddonPrice: 0,
 
       includeCreditGifts: false,
       creditGiftsAddonPrice: 0,
 
-      includeDigitalSeating:
-        plan === "seating" ||
-        (Array.isArray(body?.upsells) &&
-          body.upsells.some(
-            (upsell: any) => cleanString(upsell?.key) === "digitalSeating",
-          )),
-      includeEventManagement:
-        Array.isArray(body?.upsells) &&
-        body.upsells.some(
-          (upsell: any) => cleanString(upsell?.key) === "suppliersBudgetSystem",
-        ),
+      includeDigitalSeating: false,
+      includeEventManagement: false,
       includeCustomDesign: false,
 
-      selfManageEnabled: true,
+      selfManageEnabled: false,
       customDesignEnabled: false,
 
       smsPerRecord: 1,
@@ -688,33 +799,48 @@ export async function POST(req: NextRequest) {
       whatsappBalance: 0,
       whatsappUsed: 0,
 
-      allowedMessageRounds:
-        Array.isArray(body?.upsells) &&
-        body.upsells.some(
-          (upsell: any) => cleanString(upsell?.key) === "thirdRsvpRound",
-        )
-          ? 3
-          : 2,
+      allowedMessageRounds: 2,
+
+      salesUpsells: {
+        digitalSeating: {
+          enabled: false,
+          price: salesUpsells.digitalSeating.price,
+        },
+        venueSeating: {
+          enabled: false,
+          staffCount: salesUpsells.venueSeating.staffCount,
+          totalPrice: salesUpsells.venueSeating.totalPrice,
+        },
+        personalRepresentative: {
+          enabled: false,
+          price: salesUpsells.personalRepresentative.price,
+        },
+        thirdRsvpRound: {
+          enabled: false,
+          price: salesUpsells.thirdRsvpRound.price,
+        },
+        suppliersBudgetSystem: {
+          enabled: false,
+          price: salesUpsells.suppliersBudgetSystem.price,
+          givenFree: salesUpsells.suppliersBudgetSystem.givenFree,
+        },
+        alcoholManagement: {
+          enabled: false,
+          staffCount: salesUpsells.alcoholManagement.staffCount,
+          totalPrice: salesUpsells.alcoholManagement.totalPrice,
+        },
+      },
+
+      accessModules: buildPendingAccessModules(),
 
       planLimits: {
         maxGuests: guests,
-        allowedMessageRounds:
-          Array.isArray(body?.upsells) &&
-          body.upsells.some(
-            (upsell: any) => cleanString(upsell?.key) === "thirdRsvpRound",
-          )
-            ? 3
-            : 2,
+        allowedMessageRounds: 2,
         smsEnabled: true,
         smsLimit: guests,
-        seatingEnabled:
-          plan === "seating" ||
-          (Array.isArray(body?.upsells) &&
-            body.upsells.some(
-              (upsell: any) => cleanString(upsell?.key) === "digitalSeating",
-            )),
+        seatingEnabled: false,
         remindersEnabled: true,
-        callsEnabled: plan === "smart" || plan === "seating",
+        callsEnabled: false,
       },
 
       isTrial: false,
@@ -756,7 +882,21 @@ export async function POST(req: NextRequest) {
       paymentProvider: "stripe",
 
       selectedPackage: body?.selectedPackage || null,
-      upsells: Array.isArray(body?.upsells) ? body.upsells : [],
+      upsells,
+      salesUpsells,
+      activationSnapshot: {
+        plan,
+        packageName: packageName || plan,
+        guests,
+        allowedMessageRounds,
+        hasCallsPackage,
+        hasDigitalSeatingPackage,
+        hasDigitalSeating,
+        hasVenueSeating,
+        hasSuppliersBudgetSystem,
+        hasAlcoholManagement,
+        salesUpsells,
+      },
       quote: body?.quote || null,
       totals: body?.totals || null,
       customerDealSummary: body?.customerDealSummary || null,

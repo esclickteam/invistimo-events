@@ -42,6 +42,54 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
     totalAfterStaff: number;
   };
 
+  salesUpsells?: {
+    digitalSeating?: {
+      enabled: boolean;
+      price: number;
+      givenFree?: boolean;
+      notes?: string;
+    };
+
+    venueSeating?: {
+      enabled: boolean;
+      staffCount: number;
+      totalPrice: number;
+      depositAmount: number;
+      eventDayBalance: number;
+      notes?: string;
+    };
+
+    personalRepresentative?: {
+      enabled: boolean;
+      price: number;
+      givenFree?: boolean;
+      notes?: string;
+    };
+
+    thirdRsvpRound?: {
+      enabled: boolean;
+      price: number;
+      givenFree?: boolean;
+      notes?: string;
+    };
+
+    suppliersBudgetSystem?: {
+      enabled: boolean;
+      price: number;
+      givenFree?: boolean;
+      notes?: string;
+    };
+
+    alcoholManagement?: {
+      enabled: boolean;
+      staffCount: number;
+      totalPrice: number;
+      depositAmount: number;
+      eventDayBalance: number;
+      notes?: string;
+    };
+  };
+
   paidAmount: number;
   hasPaid: boolean;
   isActive: boolean;
@@ -288,6 +336,172 @@ const UserSchema = new Schema<IUser>(
       totalAfterStaff: {
         type: Number,
         default: 0,
+      },
+    },
+
+    salesUpsells: {
+      digitalSeating: {
+        enabled: {
+          type: Boolean,
+          default: false,
+          index: true,
+        },
+
+        price: {
+          type: Number,
+          default: 0,
+        },
+
+        givenFree: {
+          type: Boolean,
+          default: false,
+        },
+
+        notes: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+      },
+
+      venueSeating: {
+        enabled: {
+          type: Boolean,
+          default: false,
+          index: true,
+        },
+
+        staffCount: {
+          type: Number,
+          default: 0,
+        },
+
+        totalPrice: {
+          type: Number,
+          default: 0,
+        },
+
+        depositAmount: {
+          type: Number,
+          default: 0,
+        },
+
+        eventDayBalance: {
+          type: Number,
+          default: 0,
+        },
+
+        notes: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+      },
+
+      personalRepresentative: {
+        enabled: {
+          type: Boolean,
+          default: false,
+          index: true,
+        },
+
+        price: {
+          type: Number,
+          default: 0,
+        },
+
+        givenFree: {
+          type: Boolean,
+          default: false,
+        },
+
+        notes: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+      },
+
+      thirdRsvpRound: {
+        enabled: {
+          type: Boolean,
+          default: false,
+          index: true,
+        },
+
+        price: {
+          type: Number,
+          default: 0,
+        },
+
+        givenFree: {
+          type: Boolean,
+          default: false,
+        },
+
+        notes: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+      },
+
+      suppliersBudgetSystem: {
+        enabled: {
+          type: Boolean,
+          default: false,
+          index: true,
+        },
+
+        price: {
+          type: Number,
+          default: 0,
+        },
+
+        givenFree: {
+          type: Boolean,
+          default: false,
+        },
+
+        notes: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+      },
+
+      alcoholManagement: {
+        enabled: {
+          type: Boolean,
+          default: false,
+          index: true,
+        },
+
+        staffCount: {
+          type: Number,
+          default: 0,
+        },
+
+        totalPrice: {
+          type: Number,
+          default: 0,
+        },
+
+        depositAmount: {
+          type: Number,
+          default: 0,
+        },
+
+        eventDayBalance: {
+          type: Number,
+          default: 0,
+        },
+
+        notes: {
+          type: String,
+          trim: true,
+          default: "",
+        },
       },
     },
 
@@ -644,6 +858,135 @@ UserSchema.pre("validate", function () {
     doc.email = String(doc.email).trim().toLowerCase();
   }
 
+  const currentSalesUpsells = doc.salesUpsells || {};
+  const currentVenueSeatingService = doc.venueSeatingService || {
+    enabled: false,
+    totalPrice: 0,
+    depositAmount: 0,
+    venuePaymentAmount: 0,
+    staffPaymentAmount: 0,
+    staffPaidFromVenue: 0,
+    staffPaidFromFullAmount: 0,
+    venuePaymentAfterStaff: 0,
+    totalAfterStaff: 0,
+  };
+
+  const existingVenueSeatingEnabled = Boolean(
+    currentSalesUpsells.venueSeating?.enabled ||
+      currentVenueSeatingService.enabled
+  );
+
+  const existingThirdRsvpRoundEnabled = Boolean(
+    currentSalesUpsells.thirdRsvpRound?.enabled ||
+      Number(doc.allowedMessageRounds) === 3 ||
+      Number(doc.planLimits?.allowedMessageRounds) === 3
+  );
+
+  doc.salesUpsells = {
+    digitalSeating: {
+      enabled: Boolean(
+        currentSalesUpsells.digitalSeating?.enabled || doc.includeDigitalSeating
+      ),
+      price: Number(currentSalesUpsells.digitalSeating?.price || 0),
+      givenFree: Boolean(currentSalesUpsells.digitalSeating?.givenFree),
+      notes: String(currentSalesUpsells.digitalSeating?.notes || ""),
+    },
+
+    venueSeating: {
+      enabled: existingVenueSeatingEnabled,
+      staffCount: Number(currentSalesUpsells.venueSeating?.staffCount || 0),
+      totalPrice: Number(
+        currentSalesUpsells.venueSeating?.totalPrice ||
+          currentVenueSeatingService.totalPrice ||
+          0
+      ),
+      depositAmount: Number(
+        currentSalesUpsells.venueSeating?.depositAmount ||
+          currentVenueSeatingService.depositAmount ||
+          0
+      ),
+      eventDayBalance: Number(
+        currentSalesUpsells.venueSeating?.eventDayBalance || 0
+      ),
+      notes: String(currentSalesUpsells.venueSeating?.notes || ""),
+    },
+
+    personalRepresentative: {
+      enabled: Boolean(currentSalesUpsells.personalRepresentative?.enabled),
+      price: Number(currentSalesUpsells.personalRepresentative?.price || 0),
+      givenFree: Boolean(currentSalesUpsells.personalRepresentative?.givenFree),
+      notes: String(currentSalesUpsells.personalRepresentative?.notes || ""),
+    },
+
+    thirdRsvpRound: {
+      enabled: existingThirdRsvpRoundEnabled,
+      price: Number(currentSalesUpsells.thirdRsvpRound?.price || 0),
+      givenFree: Boolean(currentSalesUpsells.thirdRsvpRound?.givenFree),
+      notes: String(currentSalesUpsells.thirdRsvpRound?.notes || ""),
+    },
+
+    suppliersBudgetSystem: {
+      enabled: Boolean(currentSalesUpsells.suppliersBudgetSystem?.enabled),
+      price: Number(currentSalesUpsells.suppliersBudgetSystem?.price || 0),
+      givenFree: Boolean(currentSalesUpsells.suppliersBudgetSystem?.givenFree),
+      notes: String(currentSalesUpsells.suppliersBudgetSystem?.notes || ""),
+    },
+
+    alcoholManagement: {
+      enabled: Boolean(currentSalesUpsells.alcoholManagement?.enabled),
+      staffCount: Number(currentSalesUpsells.alcoholManagement?.staffCount || 0),
+      totalPrice: Number(currentSalesUpsells.alcoholManagement?.totalPrice || 0),
+      depositAmount: Number(
+        currentSalesUpsells.alcoholManagement?.depositAmount || 0
+      ),
+      eventDayBalance: Number(
+        currentSalesUpsells.alcoholManagement?.eventDayBalance || 0
+      ),
+      notes: String(currentSalesUpsells.alcoholManagement?.notes || ""),
+    },
+  };
+
+  if (doc.salesUpsells.digitalSeating?.enabled) {
+    doc.includeDigitalSeating = true;
+  }
+
+  if (doc.salesUpsells.thirdRsvpRound?.enabled) {
+    doc.allowedMessageRounds = 3;
+    doc.planLimits = {
+      ...(doc.planLimits || {}),
+      allowedMessageRounds: 3,
+    };
+  }
+
+  if (doc.salesUpsells.suppliersBudgetSystem?.enabled) {
+    doc.includeEventManagement = true;
+    doc.selfManageEnabled = true;
+  }
+
+  if (doc.salesUpsells.venueSeating?.enabled) {
+    doc.venueSeatingService = {
+      ...(currentVenueSeatingService || {}),
+      enabled: true,
+      totalPrice:
+        doc.salesUpsells.venueSeating.totalPrice ||
+        currentVenueSeatingService.totalPrice ||
+        0,
+      depositAmount:
+        doc.salesUpsells.venueSeating.depositAmount ||
+        currentVenueSeatingService.depositAmount ||
+        0,
+      venuePaymentAmount: currentVenueSeatingService.venuePaymentAmount || 0,
+      staffPaymentAmount: currentVenueSeatingService.staffPaymentAmount || 0,
+      staffPaidFromVenue: currentVenueSeatingService.staffPaidFromVenue || 0,
+      staffPaidFromFullAmount:
+        currentVenueSeatingService.staffPaidFromFullAmount || 0,
+      venuePaymentAfterStaff:
+        currentVenueSeatingService.venuePaymentAfterStaff || 0,
+      totalAfterStaff: currentVenueSeatingService.totalAfterStaff || 0,
+    };
+  }
+
+
     if (doc.includeCalls) {
     doc.callsRounds = doc.callsRounds || 3;
 
@@ -694,39 +1037,29 @@ UserSchema.pre("validate", function () {
   const isVenueOwner = doc.role === "venue_owner";
 
   doc.accessModules = {
-    rsvpSeating:
-      doc.accessModules?.rsvpSeating ??
-      doc.includeDigitalSeating ??
-      true,
+    rsvpSeating: Boolean(
+      doc.accessModules?.rsvpSeating ?? doc.includeDigitalSeating ?? true
+    ),
 
-    eventProduction:
-      doc.accessModules?.eventProduction ??
-      doc.includeEventManagement ??
-      false,
+    eventProduction: Boolean(
+      doc.accessModules?.eventProduction || doc.includeEventManagement
+    ),
 
-    venues:
-      doc.accessModules?.venues ??
-      isVenueOwner,
+    venues: Boolean(doc.accessModules?.venues ?? isVenueOwner),
 
-    venueDashboard:
-      doc.accessModules?.venueDashboard ??
-      isVenueOwner,
+    venueDashboard: Boolean(
+      doc.accessModules?.venueDashboard ?? isVenueOwner
+    ),
 
-    venueCrm:
-      doc.accessModules?.venueCrm ??
-      isVenueOwner,
+    venueCrm: Boolean(doc.accessModules?.venueCrm ?? isVenueOwner),
 
-    venueCalendar:
-      doc.accessModules?.venueCalendar ??
-      isVenueOwner,
+    venueCalendar: Boolean(
+      doc.accessModules?.venueCalendar ?? isVenueOwner
+    ),
 
-    venueMenus:
-      doc.accessModules?.venueMenus ??
-      isVenueOwner,
+    venueMenus: Boolean(doc.accessModules?.venueMenus ?? isVenueOwner),
 
-    venueStaff:
-      doc.accessModules?.venueStaff ??
-      isVenueOwner,
+    venueStaff: Boolean(doc.accessModules?.venueStaff ?? isVenueOwner),
   };
 
   if (doc.guests && !doc.maxGuests) {
@@ -852,6 +1185,13 @@ UserSchema.index({ role: 1, "accessModules.venues": 1 });
 UserSchema.index({ "callRoundsSchedule.enabled": 1 });
 UserSchema.index({ "callRoundsSchedule.rounds.scheduledAt": 1 });
 UserSchema.index({ "callRoundsSchedule.rounds.status": 1 });
+
+UserSchema.index({ "salesUpsells.digitalSeating.enabled": 1 });
+UserSchema.index({ "salesUpsells.venueSeating.enabled": 1 });
+UserSchema.index({ "salesUpsells.personalRepresentative.enabled": 1 });
+UserSchema.index({ "salesUpsells.thirdRsvpRound.enabled": 1 });
+UserSchema.index({ "salesUpsells.suppliersBudgetSystem.enabled": 1 });
+UserSchema.index({ "salesUpsells.alcoholManagement.enabled": 1 });
 
 /* ============================================================
    MODEL
