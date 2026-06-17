@@ -765,6 +765,7 @@ export default function SoftphoneStatusPanel({
 
   const [showDialer, setShowDialer] = useState(false);
   const [showBusyMenu, setShowBusyMenu] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [recentCalls, setRecentCalls] =
     useState<RecentCall[]>(DEFAULT_RECENT_CALLS);
 
@@ -907,6 +908,7 @@ export default function SoftphoneStatusPanel({
     setActiveCallNumber(cleanNumber);
     setShowEndShiftConfirm(false);
     setShowBusyMenu(false);
+    setShowHistory(false);
     setShowIncomingCallModal(false);
     setIncomingCallNumber("");
     setShowDialer(true);
@@ -1208,6 +1210,7 @@ export default function SoftphoneStatusPanel({
     setBusyReason("");
     setShowDialer(false);
     setShowBusyMenu(false);
+    setShowHistory(false);
     setShowIncomingCallModal(false);
     setIncomingCallNumber("");
 
@@ -1253,6 +1256,7 @@ export default function SoftphoneStatusPanel({
     setCallDirection("outbound");
     setShowEndShiftConfirm(false);
     setShowBusyMenu(false);
+    setShowHistory(false);
     setShowIncomingCallModal(false);
     setIncomingCallNumber("");
     setShowDialer(true);
@@ -1265,6 +1269,7 @@ export default function SoftphoneStatusPanel({
     setCallDirection("outbound");
     setShowEndShiftConfirm(false);
     setShowBusyMenu(false);
+    setShowHistory(false);
     setShowIncomingCallModal(false);
     setIncomingCallNumber("");
     setShowDialer((prev) => !prev);
@@ -1276,6 +1281,7 @@ export default function SoftphoneStatusPanel({
     setCallDirection("outbound");
     setShowDialer(true);
     setShowBusyMenu(false);
+    setShowHistory(false);
   }
 
   function addRecentCall(number: string, direction: RecentCall["direction"]) {
@@ -2064,6 +2070,7 @@ export default function SoftphoneStatusPanel({
                     onClick={() => {
                       if (!shiftStarted) return;
                       setShowBusyMenu((prev) => !prev);
+                      setShowHistory(false);
                       setShowDialer(false);
                     }}
                     disabled={
@@ -2094,6 +2101,74 @@ export default function SoftphoneStatusPanel({
                           </span>
                         </button>
                       ))}
+                    </div>
+                  )}
+                </div>
+
+
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowHistory((prev) => !prev);
+                      setShowBusyMenu(false);
+                      setShowDialer(false);
+                    }}
+                    className="h-10 rounded-2xl border border-slate-200 bg-white px-4 text-xs font-black text-slate-700 transition hover:bg-slate-50"
+                  >
+                    היסטוריה
+                  </button>
+
+                  {showHistory && (
+                    <div className="absolute left-0 top-12 z-[100] w-[340px] rounded-[24px] border border-slate-200 bg-white p-3 shadow-2xl">
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <p className="text-sm font-black text-slate-900">היסטוריית שיחות</p>
+                        <button
+                          type="button"
+                          onClick={() => setShowHistory(false)}
+                          className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100"
+                          aria-label="סגור היסטוריה"
+                        >
+                          <Icon name="x" className="h-4 w-4" />
+                        </button>
+                      </div>
+
+                      {recentCalls.length ? (
+                        <div className="max-h-[260px] space-y-2 overflow-y-auto pr-1">
+                          {recentCalls.map((call) => (
+                            <button
+                              key={call.id}
+                              type="button"
+                              onClick={() => selectRecentCall(call)}
+                              className="flex w-full items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-slate-50 px-3 py-2 text-right transition hover:border-sky-200 hover:bg-sky-50"
+                            >
+                              <span className="flex min-w-0 items-center gap-2">
+                                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white text-slate-600 ring-1 ring-slate-200">
+                                  <Icon
+                                    name={call.direction === "inbound" ? "arrowIn" : "arrowOut"}
+                                    className="h-4 w-4"
+                                  />
+                                </span>
+                                <span className="min-w-0">
+                                  <span className="block truncate text-xs font-black text-slate-900">
+                                    {call.label || (call.direction === "inbound" ? "נכנסת" : "יוצאת")}
+                                  </span>
+                                  <span dir="ltr" className="block truncate text-left font-mono text-sm font-black text-slate-700">
+                                    {call.number}
+                                  </span>
+                                </span>
+                              </span>
+                              <span className="shrink-0 text-xs font-black text-slate-500">
+                                {call.time}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="rounded-2xl bg-slate-50 px-3 py-4 text-center text-xs font-bold text-slate-500">
+                          אין שיחות אחרונות להצגה
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
