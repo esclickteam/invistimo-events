@@ -43,6 +43,17 @@ function normalizeAllowedMessageRounds(value: unknown): 2 | 3 {
   return Number(value) === 3 ? 3 : 2;
 }
 
+function toUserPlan(plan: string): "basic" | "premium" | "plan1" | "plan2" | "plan3" {
+  const normalized = String(plan || "").trim().toLowerCase();
+
+  if (normalized === "easy" || normalized === "plan1") return "plan1";
+  if (normalized === "smart" || normalized === "plan2") return "plan2";
+  if (normalized === "seating" || normalized === "plan3") return "plan3";
+  if (normalized === "basic") return "basic";
+
+  return "premium";
+}
+
 function parseAccessModulesFromMetadata(
   metadata: Stripe.Metadata | null | undefined,
   fallback: {
@@ -665,6 +676,7 @@ export async function POST(req: Request) {
       }
 
       const packageFlags = getEmployeeSalePackageFlags(sale, user);
+      const userPlan = toUserPlan(packageFlags.plan);
       const existingPayment = await Payment.findOne({
         stripePaymentIntentId: paymentIntentId,
       }).lean();
@@ -690,7 +702,7 @@ export async function POST(req: Request) {
           stripePaymentIntentId: paymentIntentId,
           stripeCustomerId: (session.customer as string) || "",
 
-          priceKey: packageFlags.plan,
+          priceKey: userPlan,
           maxGuests: packageFlags.guests,
 
           includeCalls: packageFlags.includeCalls,
@@ -716,7 +728,7 @@ export async function POST(req: Request) {
             employeeId: sale.employeeId ? String(sale.employeeId) : null,
 
             plan: packageFlags.plan,
-            priceKey: packageFlags.plan,
+            priceKey: userPlan,
             packageName: packageFlags.packageName,
 
             guests: packageFlags.guests,
@@ -750,13 +762,13 @@ export async function POST(req: Request) {
             paidAmount: amount,
             hasPaid: true,
             isActive: true,
-            billingSource: "stripe",
+            billingSource: "pricing",
 
             isTrial: false,
             hasDashboardAccess: true,
 
-            plan: packageFlags.plan,
-            priceKey: packageFlags.plan,
+            plan: userPlan,
+            priceKey: userPlan,
             packageName: packageFlags.packageName,
 
             guests: packageFlags.guests,

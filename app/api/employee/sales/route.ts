@@ -146,6 +146,17 @@ function planHasDigitalSeating(plan: string) {
   return plan === "seating" || plan === "plan3";
 }
 
+function toUserPlan(plan: string): "basic" | "premium" | "plan1" | "plan2" | "plan3" {
+  const normalized = cleanString(plan).toLowerCase();
+
+  if (normalized === "easy" || normalized === "plan1") return "plan1";
+  if (normalized === "smart" || normalized === "plan2") return "plan2";
+  if (normalized === "seating" || normalized === "plan3") return "plan3";
+  if (normalized === "basic") return "basic";
+
+  return "premium";
+}
+
 function getAllowedMessageRoundsFromUpsells(upsells: NormalizedUpsell[]) {
   return hasUpsell(upsells, "thirdRsvpRound") ? 3 : 2;
 }
@@ -751,6 +762,7 @@ export async function POST(req: NextRequest) {
 
     const packageName = cleanString(body?.packageName);
     const plan = cleanString(body?.plan) || "premium";
+    const userPlan = toUserPlan(plan);
     const guests = Math.max(0, Math.floor(toNumber(body?.guests || body?.records)));
 
     const payment = normalizeObject(body?.payment);
@@ -842,8 +854,8 @@ export async function POST(req: NextRequest) {
 
       role: "user",
 
-      plan,
-      priceKey: plan,
+      plan: userPlan,
+      priceKey: userPlan,
       packageName: packageName || plan,
 
       guests,
@@ -930,7 +942,7 @@ export async function POST(req: NextRequest) {
       needsPasswordSetup: true,
 
       createdByAdmin: false,
-      billingSource: "stripe",
+      billingSource: "pricing",
     });
 
     const sale = await EmployeeSale.create({
@@ -1029,7 +1041,7 @@ export async function POST(req: NextRequest) {
           pendingGrossAmount: finalGrossAmount,
           pendingEventDayAmount: eventDayAmount,
           paymentMode,
-          billingSource: "stripe",
+          billingSource: "pricing",
         },
       },
     );
