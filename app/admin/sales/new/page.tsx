@@ -1388,7 +1388,8 @@ export default function AdminSalesNewPage() {
   const signedAgreementReady =
     generatedDocument?.type === "agreement" && generatedDocument.status === "signed";
 
-  const isSubmitDisabled = saving || finalGrossAmount <= 0;
+  const isSubmitDisabled =
+    saving || finalGrossAmount <= 0 || !signedAgreementReady;
 
   function getMissingDocumentFields() {
     const missing: string[] = [];
@@ -1407,6 +1408,7 @@ export default function AdminSalesNewPage() {
     if (!eventDate) missing.push("תאריך אירוע");
     if (!eventCity.trim()) missing.push("עיר אירוע");
     if (!venueName.trim()) missing.push("שם אולם");
+    if (!signedAgreementReady) missing.push("הסכם חתום על ידי הלקוח");
 
     return missing;
   }
@@ -1567,7 +1569,7 @@ export default function AdminSalesNewPage() {
     const missing = getMissingPaymentFields();
 
     if (missing.length > 0) {
-      setError(`כדי לפתוח לקוח/לעבור לתשלום חסר: ${missing.join(", ")}`);
+      setError(`כדי לעבור לתשלום חסר: ${missing.join(", ")}`);
       return;
     }
 
@@ -1678,7 +1680,9 @@ export default function AdminSalesNewPage() {
       }
 
       if (data?.sale?.status === "paid" || data?.payment?.provider === "manual") {
-        router.push("/admin/crm?created=paid");
+        setError("");
+        setDocumentSuccess("הלקוח נפתח וסומן כשולם ידנית בהצלחה. נשארת בעמוד כדי להמשיך לעבוד.");
+        router.refresh();
         return;
       }
 
@@ -1710,11 +1714,11 @@ export default function AdminSalesNewPage() {
               </button>
 
               <p className="mt-5 inline-flex rounded-full border border-[#eadfce] bg-[#fff7ec] px-4 py-2 text-sm font-black text-[#8a5c20]">
-                יצירת עסקה / הצעת מחיר / הסכם אופציונלי
+                יצירת עסקה / הצעת מחיר / הסכם
               </p>
               <h1 className="mt-4 text-4xl font-black tracking-tight text-slate-950 sm:text-5xl">יצירת לקוח חדש ותשלום</h1>
               <p className="mt-4 max-w-3xl text-base font-semibold leading-8 text-slate-600">
-                האדמין יוצר לקוח עם אפשרות לשלוח הצעת מחיר או הסכם, אבל זה לא חובה. אפשר לפתוח לקוח ישירות עם Stripe או שולם ידנית, לערוך מחיר ידנית ולהגדיר מבצע מוגבל בזמן.
+                האדמין יוצר לקוח בדיוק כמו במסך העובד: הצעת מחיר, הסכם, חתימה ותשלום. בנוסף אפשר לבחור שולם ידנית, לערוך מחיר ידנית ולהגדיר מבצע מוגבל בזמן.
               </p>
             </div>
 
@@ -2286,11 +2290,12 @@ export default function AdminSalesNewPage() {
 
                 {!signedAgreementReady ? (
                   <div className="rounded-[24px] border border-amber-200 bg-amber-50 p-4 text-xs font-bold leading-6 text-amber-800">
-                    הצעת מחיר או הסכם הם אופציונליים באדמין. אפשר לשלוח ללקוח מסמך לחתימה, אבל אפשר גם לפתוח לקוח ולהמשיך לתשלום בלי מסמך.
+                    לפני תשלום חובה לשלוח ללקוח הסכם לחתימה. רק אחרי שההסכם נחתם
+                    בקישור שנשלח ב־SMS, ניתן להמשיך לתשלום.
                   </div>
                 ) : (
                   <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-4 text-xs font-bold leading-6 text-emerald-800">
-                    ההסכם נחתם ונשמר. עדיין ניתן לפתוח לקוח גם בלי הסכם חתום אם זו החלטת אדמין.
+                    ההסכם נחתם — ניתן ליצור קישור תשלום.
                   </div>
                 )}
 
@@ -2298,9 +2303,11 @@ export default function AdminSalesNewPage() {
                   <Icon name="save" className="h-4 w-4" />
                   {saving
                     ? "שומר..."
-                    : adminPaymentStatus === "manual_paid"
-                      ? `פתיחת לקוח וסימון כשולם ${money(paymentSchedule.stripeAmount)}`
-                      : `פתיחת לקוח ומעבר לתשלום ${money(paymentSchedule.stripeAmount)}`}
+                    : signedAgreementReady
+                      ? adminPaymentStatus === "manual_paid"
+                        ? `הסכם נחתם — סימון כשולם ${money(paymentSchedule.stripeAmount)}`
+                        : `הסכם נחתם — מעבר לתשלום ${money(paymentSchedule.stripeAmount)}`
+                      : "ממתין לחתימת הסכם לפני תשלום"}
                 </button>
               </div>
             </section>
