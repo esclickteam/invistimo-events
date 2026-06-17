@@ -65,13 +65,23 @@ type GuestAction = (guest: Guest) => void | Promise<void>;
 type Props = {
   guests: Guest[];
 
-  // בדיוק כמו בדסקטופ
-  onOpenInviteLink: GuestAction;
-  onCopyInviteLink: GuestAction;
-  onCall: GuestAction;
-  onWhatsApp: GuestAction;
+  /*
+    חדש — בדיוק כמו הדסקטופ
+  */
+  onOpenInviteLink?: GuestAction;
+  onCopyInviteLink?: GuestAction;
+  onCall?: GuestAction;
+  onWhatsApp?: GuestAction;
   onEdit: GuestAction;
   onDelete: GuestAction;
+
+  /*
+    ישן — כדי שהבילד לא יישבר אם יש קריאות ישנות.
+    לא מציגים כיסא במובייל.
+  */
+  onMessage?: GuestAction;
+  onSeat?: GuestAction;
+  onInviteLink?: GuestAction;
 };
 
 /* ============================================================
@@ -175,13 +185,21 @@ function ActionButton({
 ============================================================ */
 export default function GuestsMobileList({
   guests,
+
   onOpenInviteLink,
   onCopyInviteLink,
   onCall,
   onWhatsApp,
   onEdit,
   onDelete,
+
+  // ישן
+  onMessage,
+  onInviteLink,
 }: Props) {
+  const handleOpenInviteLink = onOpenInviteLink || onInviteLink;
+  const handleWhatsApp = onWhatsApp || onMessage;
+
   if (!guests || guests.length === 0) {
     return (
       <div
@@ -294,19 +312,23 @@ export default function GuestsMobileList({
                   </div>
 
                   <div className="flex flex-wrap gap-3">
-                    <ActionButton
-                      title="פתיחת קישור הזמנה"
-                      onClick={() => onOpenInviteLink(g)}
-                    >
-                      🔗
-                    </ActionButton>
+                    {handleOpenInviteLink && (
+                      <ActionButton
+                        title="פתיחת קישור הזמנה"
+                        onClick={() => handleOpenInviteLink(g)}
+                      >
+                        🔗
+                      </ActionButton>
+                    )}
 
-                    <ActionButton
-                      title="העתקת קישור הזמנה"
-                      onClick={() => onCopyInviteLink(g)}
-                    >
-                      📋
-                    </ActionButton>
+                    {onCopyInviteLink && (
+                      <ActionButton
+                        title="העתקת קישור הזמנה"
+                        onClick={() => onCopyInviteLink(g)}
+                      >
+                        📋
+                      </ActionButton>
+                    )}
                   </div>
                 </div>
 
@@ -317,19 +339,23 @@ export default function GuestsMobileList({
                   </div>
 
                   <div className="flex flex-wrap gap-3">
-                    <ActionButton
-                      title="מעקב סבבי שיחה"
-                      onClick={() => onCall(g)}
-                    >
-                      📞
-                    </ActionButton>
+                    {onCall && (
+                      <ActionButton
+                        title="מעקב סבבי שיחה"
+                        onClick={() => onCall(g)}
+                      >
+                        📞
+                      </ActionButton>
+                    )}
 
-                    <ActionButton
-                      title="שליחת וואטסאפ אישי"
-                      onClick={() => onWhatsApp(g)}
-                    >
-                      💬
-                    </ActionButton>
+                    {handleWhatsApp && (
+                      <ActionButton
+                        title="שליחת וואטסאפ אישי"
+                        onClick={() => handleWhatsApp(g)}
+                      >
+                        💬
+                      </ActionButton>
+                    )}
 
                     <ActionButton
                       title="עריכת מוזמן"
