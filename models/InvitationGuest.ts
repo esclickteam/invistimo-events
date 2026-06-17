@@ -37,6 +37,7 @@ const CallRoundNoteSchema = new Schema(
     createdBy: {
       type: String,
       default: "מערכת",
+      trim: true,
     },
   },
   {
@@ -46,6 +47,11 @@ const CallRoundNoteSchema = new Schema(
 
 /* ===========================================================
    📞 Call Round Schema
+   חשוב:
+   callRounds = היסטוריית שיחות בלבד.
+   זה לא נועל RSVP.
+   זה לא מונע עריכת אורח.
+   עובד בהוראת עבודה כן יכול להוסיף/לעדכן סבב.
 =========================================================== */
 const CallRoundSchema = new Schema(
   {
@@ -62,24 +68,38 @@ const CallRoundSchema = new Schema(
      */
     answerStatus: {
       type: String,
-      enum: ["answered", "no_answer"],
+      enum: ["answered", "no_answer", null],
       default: null,
     },
 
     /**
-     * yes = מגיע
-     * no = לא מגיע
-     * will_reply = ישיב בהודעה
-     * needs_correction = ממתין לתיקון
+     * תוצאה של סבב השיחה.
+     *
+     * חשוב:
+     * כאן חייבים להכניס את כל הערכים שהמערכת יכולה לשמור בפועל,
+     * כדי שעדכון רגיל של RSVP לא ייכשל בגלל callRounds ישן.
      */
     resultStatus: {
       type: String,
-      enum: ["yes", "no", "will_reply", "needs_correction"],
+      enum: [
+        "yes",
+        "no",
+        "pending",
+        "answered",
+        "no_answer",
+        "will_reply",
+        "callback",
+        "needs_correction",
+        "wrong_number",
+        "undecided",
+        null,
+      ],
       default: null,
     },
 
     /**
-     * כמה מגיעים
+     * כמה מגיעים לפי השיחה.
+     * זה תיעוד של השיחה ולא נעילה של ה-RSVP.
      */
     amount: {
       type: Number,
@@ -158,10 +178,10 @@ const InvitationGuestSchema = new Schema(
     },
 
     /* ===============================
-       ✅ סטטוס RSVP
-       yes = מגיע
-       no = לא מגיע
-       pending = בהמתנה
+       ✅ סטטוס RSVP נוכחי
+       תמיד ניתן לעריכה.
+       לא תלוי בשיחות.
+       לא תלוי במה שסומן קודם.
     =============================== */
     rsvp: {
       type: String,
@@ -180,7 +200,9 @@ const InvitationGuestSchema = new Schema(
       index: true,
     },
 
-    // ✅ כמה הוזמנו
+    /**
+     * כמה הוזמנו
+     */
     guestsCount: {
       type: Number,
       default: 1,
@@ -188,7 +210,9 @@ const InvitationGuestSchema = new Schema(
       set: (v: unknown) => toNumber(v, 0),
     },
 
-    // ✅ כמה אישרו הגעה
+    /**
+     * כמה אישרו הגעה כרגע
+     */
     arrivedCount: {
       type: Number,
       default: 0,
@@ -206,7 +230,9 @@ const InvitationGuestSchema = new Schema(
       set: (v: unknown) => toNumber(v, 0),
     },
 
-    // ✅ כמה הגיעו בפועל ביום האירוע
+    /**
+     * כמה הגיעו בפועל ביום האירוע
+     */
     actualArrivedCount: {
       type: Number,
       default: 0,
@@ -216,6 +242,8 @@ const InvitationGuestSchema = new Schema(
 
     /* ===============================
        📞 סבבי שיחה
+       היסטוריה בלבד.
+       לא מונע עריכה רגילה.
     =============================== */
     callRounds: {
       type: [CallRoundSchema],
@@ -252,7 +280,10 @@ const InvitationGuestSchema = new Schema(
 
 /* ===========================================================
    Sync hooks
-   בלי next() כדי למנוע שגיאת TypeScript
+   חשוב:
+   - לא נוגעים ב-callRounds כאן.
+   - callRounds לא קובע אם מותר לערוך RSVP.
+   - אם מסמנים לא מגיע, מאפסים רק את כמות המאשרים.
 =========================================================== */
 InvitationGuestSchema.pre("save", function () {
   const doc = this as any;
@@ -282,5 +313,59 @@ InvitationGuestSchema.pre("save", function () {
   }
 });
 
-export default models.InvitationGuest ||
+/* ===========================================================
+   Update validators hook
+   כדי שגם findByIdAndUpdate / findOneAndUpdate יסנכרנו rsvp/status
+   ולא רק save()
+=========================================================== */
+InvitationGuestSchema.pre("findOneAndUpdate", function () {
+  const update = this.getUpdate() as any;
+
+  if (!update) return;
+
+  const $set = update.$set || {};
+
+  const nextRsvp = $set.rsvp ?? update.rsvp;
+  const nextStatus = $set.status ?? update.status;
+
+  if (nextRsvp && !nextStatus) {
+    $set.status = nextRsvp;
+  }
+
+  if (nextStatus && !nextRsvp) {
+    $set.rsvp = nextStatus;
+  }
+
+  const finalRsvp = $set.rsvp ?? update.rsvp;
+
+  if (finalRsvp === "no") {
+    $set.arrivedCount = 0;
+    $set.amount = 0;
+  }
+
+  if ($set.arrivedCount !== undefined && $set.amount === undefined) {
+    $set.amount = toNumber($set.arrivedCount, 0);
+  }
+
+  if ($set.amount !== undefined && $set.arrivedCount === undefined) {
+    $set.arrivedCount = toNumber($set.amount, 0);
+  }
+
+  update.$set = $set;
+
+  delete update.rsvp;
+  delete update.status;
+  delete update.arrivedCount;
+  delete update.amount;
+
+  this.setUpdate(update);
+});
+
+/* ===========================================================
+   Model
+=========================================================== */
+const InvitationGuest =
+  models.InvitationGuest ||
   mongoose.model("InvitationGuest", InvitationGuestSchema);
+
+export default InvitationGuest;
