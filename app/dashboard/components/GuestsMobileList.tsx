@@ -338,40 +338,41 @@ export default function GuestsMobileList({
                     פעולות
                   </div>
 
-                  <div className="flex flex-wrap gap-3">
-                    {onCall && (
-                      <ActionButton
-                        title="מעקב סבבי שיחה"
-                        onClick={() => onCall(g)}
-                      >
-                        📞
-                      </ActionButton>
-                    )}
+                  <div className="grid w-fit grid-cols-2 gap-3">
+  {onCall && (
+    <ActionButton
+      title="מעקב סבבי שיחה"
+      onClick={() => onCall(g)}
+    >
+      📞
+    </ActionButton>
+  )}
 
-                    {handleWhatsApp && (
-                      <ActionButton
-                        title="שליחת וואטסאפ אישי"
-                        onClick={() => handleWhatsApp(g)}
-                      >
-                        💬
-                      </ActionButton>
-                    )}
+  {handleWhatsApp && (
+    <ActionButton
+      title="שליחת וואטסאפ אישי"
+      onClick={() => handleWhatsApp(g)}
+    >
+      💬
+    </ActionButton>
+  )}
 
-                    <ActionButton
-                      title="עריכת מוזמן"
-                      onClick={() => onEdit(g)}
-                    >
-                      ✏️
-                    </ActionButton>
+  <ActionButton
+    title="עריכת מוזמן"
+    onClick={() => onEdit(g)}
+  >
+    ✏️
+  </ActionButton>
 
-                    <ActionButton
-                      title="מחיקת מוזמן"
-                      onClick={() => onDelete(g)}
-                      danger
-                    >
-                      🗑️
-                    </ActionButton>
-                  </div>
+  <ActionButton
+    title="מחיקת מוזמן"
+    onClick={() => onDelete(g)}
+    danger
+  >
+    🗑️
+  </ActionButton>
+</div>
+
                 </div>
               </div>
             </div>
