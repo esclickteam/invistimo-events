@@ -338,39 +338,64 @@ export default function GuestsMobileList({
                     פעולות
                   </div>
 
-                  <div className="grid w-fit grid-cols-2 gap-3">
-  {onCall && (
+                  {/* ================= Actions + invite in one row ================= */}
+<div className="mt-4 border-t border-[#E7DED1] pt-4">
+  <div className="mb-3 text-center text-sm font-black text-[#7B6A58]">
+    הזמנת אורח ופעולות
+  </div>
+
+  <div className="flex w-full items-center justify-between gap-2">
+    {handleOpenInviteLink && (
+      <ActionButton
+        title="פתיחת קישור הזמנה"
+        onClick={() => handleOpenInviteLink(g)}
+      >
+        🔗
+      </ActionButton>
+    )}
+
+    {onCopyInviteLink && (
+      <ActionButton
+        title="העתקת קישור הזמנה"
+        onClick={() => onCopyInviteLink(g)}
+      >
+        📋
+      </ActionButton>
+    )}
+
+    {onCall && (
+      <ActionButton
+        title="מעקב סבבי שיחה"
+        onClick={() => onCall(g)}
+      >
+        📞
+      </ActionButton>
+    )}
+
+    {handleWhatsApp && (
+      <ActionButton
+        title="שליחת וואטסאפ אישי"
+        onClick={() => handleWhatsApp(g)}
+      >
+        💬
+      </ActionButton>
+    )}
+
     <ActionButton
-      title="מעקב סבבי שיחה"
-      onClick={() => onCall(g)}
+      title="עריכת מוזמן"
+      onClick={() => onEdit(g)}
     >
-      📞
+      ✏️
     </ActionButton>
-  )}
 
-  {handleWhatsApp && (
     <ActionButton
-      title="שליחת וואטסאפ אישי"
-      onClick={() => handleWhatsApp(g)}
+      title="מחיקת מוזמן"
+      onClick={() => onDelete(g)}
+      danger
     >
-      💬
+      🗑️
     </ActionButton>
-  )}
-
-  <ActionButton
-    title="עריכת מוזמן"
-    onClick={() => onEdit(g)}
-  >
-    ✏️
-  </ActionButton>
-
-  <ActionButton
-    title="מחיקת מוזמן"
-    onClick={() => onDelete(g)}
-    danger
-  >
-    🗑️
-  </ActionButton>
+  </div>
 </div>
 
                 </div>
