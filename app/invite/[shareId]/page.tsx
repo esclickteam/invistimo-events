@@ -24,6 +24,10 @@ const MENU_LABELS: Record<string, string> = {
    TYPES
 ============================================================ */
 
+const RSVP_VALUES = ["yes", "no", "pending"] as const;
+
+type RsvpValue = (typeof RSVP_VALUES)[number];
+
 type GiftOptions = {
   creditEnabled?: boolean;
   creditUrl?: string;
@@ -57,6 +61,38 @@ function toBool(value: unknown) {
     normalized === "yes" ||
     normalized === "כן"
   );
+}
+
+function toNumber(value: unknown, fallback = 0) {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : fallback;
+  }
+
+  if (typeof value === "string") {
+    const n = parseInt(value, 10);
+    return Number.isFinite(n) ? n : fallback;
+  }
+
+  return fallback;
+}
+
+function normalizeRsvp(value: unknown): RsvpValue {
+  return value === "yes" || value === "no" ? value : "pending";
+}
+
+function normalizeNotes(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.map((item) => cleanStr(item)).filter(Boolean);
+  }
+
+  if (typeof value === "string") {
+    return value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return [];
 }
 
 function isStaffPreviewFromSearchParams(searchParams: URLSearchParams) {
@@ -297,9 +333,9 @@ export default function PublicInvitePage({ params }: any) {
 
   const [loading, setLoading] = useState(true);
   const [sent, setSent] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [isStaffPreview, setIsStaffPreview] = useState(false);
-  const [canSubmitRsvp, setCanSubmitRsvp] = useState(false);
 
   const [heartTrigger, setHeartTrigger] = useState(0);
 
@@ -313,7 +349,7 @@ export default function PublicInvitePage({ params }: any) {
     useState<PreviewImageMode | null>(null);
 
   const [form, setForm] = useState({
-    rsvp: "pending" as "yes" | "no" | "pending",
+    rsvp: "pending" as RsvpValue,
     arrivedCount: 1,
     notes: [] as string[],
   });
@@ -373,6 +409,9 @@ export default function PublicInvitePage({ params }: any) {
 
   /* ============================================================
      LOAD INVITATION + GUEST
+     חשוב:
+     אורח עם token אישי תמיד יכול לעדכן.
+     לא חוסמים לפי canSubmitRsvp מהשרת.
   ============================================================ */
 
   useEffect(() => {
@@ -418,49 +457,45 @@ export default function PublicInvitePage({ params }: any) {
           */
           if (nextIsStaffPreview) {
             setSelectedGuest(null);
-            setCanSubmitRsvp(false);
             return;
           }
 
           if (data.guest) {
-            setSelectedGuest(data.guest);
-            setCanSubmitRsvp(Boolean(data.canSubmitRsvp ?? true));
+            const guest = data.guest;
+            const existingRsvp = normalizeRsvp(guest.rsvp || guest.status);
+
+            const existingArrivedCount = toNumber(
+              guest.arrivedCount ?? guest.amount,
+              existingRsvp === "yes" ? 1 : 0
+            );
+
+            setSelectedGuest(guest);
 
             /*
-              לא מסמנים "מגיע" כברירת מחדל.
-              רק אם האורח כבר ענה בעבר yes/no — נטען את הבחירה הקיימת.
+              חשוב:
+              הסימון הקיים נטען כברירת מחדל,
+              אבל המשתמש יכול לשנות אותו תמיד.
             */
-            if (data.guest.rsvp === "yes" || data.guest.rsvp === "no") {
-              setForm((f) => ({
-                ...f,
-                rsvp: data.guest.rsvp,
-                arrivedCount:
-                  data.guest.rsvp === "yes" &&
-                  typeof data.guest.arrivedCount === "number"
-                    ? data.guest.arrivedCount
-                    : data.guest.rsvp === "yes"
-                    ? 1
-                    : 0,
-                notes: Array.isArray(data.guest.notes)
-                  ? data.guest.notes
-                  : [],
-              }));
-            }
+            setForm({
+              rsvp: existingRsvp,
+              arrivedCount:
+                existingRsvp === "yes"
+                  ? Math.max(1, existingArrivedCount || 1)
+                  : 0,
+              notes: normalizeNotes(guest.notes),
+            });
           } else {
             setSelectedGuest(null);
-            setCanSubmitRsvp(false);
           }
         } else {
           setInvite(null);
           setEvent(null);
           setSelectedGuest(null);
-          setCanSubmitRsvp(false);
         }
       } catch {
         setInvite(null);
         setEvent(null);
         setSelectedGuest(null);
-        setCanSubmitRsvp(false);
       } finally {
         setLoading(false);
       }
@@ -511,7 +546,8 @@ export default function PublicInvitePage({ params }: any) {
   const giftOptions = useMemo(() => invite?.giftOptions, [invite]);
 
   const publicEventNote = useMemo<PublicEventNote>(() => {
-    const publicEventPage = invite?.publicEventPage || event?.publicEventPage || {};
+    const publicEventPage =
+      invite?.publicEventPage || event?.publicEventPage || {};
     const note = publicEventPage?.note || {};
 
     const enabled =
@@ -536,12 +572,19 @@ export default function PublicInvitePage({ params }: any) {
 
   /* ============================================================
      SUBMIT RSVP
+     חשוב:
+     לא חוסמים לפי סטטוס קודם.
+     לא חוסמים לפי callRounds.
+     לא חוסמים לפי canSubmitRsvp.
+     רק staff preview חסום.
   ============================================================ */
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    if (isStaffPreview || !canSubmitRsvp) {
+    if (isSubmitting) return;
+
+    if (isStaffPreview) {
       alert("זה מצב צפייה בלבד. לא ניתן לשלוח אישור הגעה מכאן.");
       return;
     }
@@ -551,28 +594,54 @@ export default function PublicInvitePage({ params }: any) {
       return;
     }
 
-    if (!selectedGuest?.token) {
+    const guestToken = cleanStr(selectedGuest?.token || token);
+
+    if (!guestToken) {
       alert("שגיאה בזיהוי האורח");
       return;
     }
 
-    const res = await fetch(
-      `/api/invitationGuests/respondByToken/${selectedGuest.token}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          rsvp: form.rsvp,
-          arrivedCount: form.rsvp === "yes" ? form.arrivedCount : 0,
-          notes: form.notes,
-        }),
+    try {
+      setIsSubmitting(true);
+
+      const nextArrivedCount =
+        form.rsvp === "yes" ? Math.max(1, toNumber(form.arrivedCount, 1)) : 0;
+
+      const res = await fetch(
+        `/api/invitationGuests/respondByToken/${guestToken}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            rsvp: form.rsvp,
+            status: form.rsvp,
+            arrivedCount: nextArrivedCount,
+            amount: nextArrivedCount,
+            notes: form.notes,
+          }),
+        }
+      );
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data.success) {
+        alert(data?.error || data?.message || "לא הצלחנו לשמור את אישור ההגעה");
+        return;
       }
-    );
 
-    const data = await res.json();
+      if (data.guest) {
+        setSelectedGuest(data.guest);
+      }
 
-    if (data.success) {
-      form.rsvp === "yes" ? router.push("/thank-you") : setSent(true);
+      if (form.rsvp === "yes") {
+        router.push("/thank-you");
+      } else {
+        setSent(true);
+      }
+    } catch {
+      alert("שגיאה בשליחת אישור ההגעה");
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -718,11 +787,17 @@ export default function PublicInvitePage({ params }: any) {
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
+                  disabled={isSubmitting}
                   onClick={() => {
-                    setForm({ ...form, rsvp: "yes", arrivedCount: 1 });
+                    setSent(false);
+                    setForm((prev) => ({
+                      ...prev,
+                      rsvp: "yes",
+                      arrivedCount: Math.max(1, prev.arrivedCount || 1),
+                    }));
                     setHeartTrigger(Date.now());
                   }}
-                  className={`relative overflow-hidden rounded-2xl border px-4 py-4 text-sm font-black transition ${
+                  className={`relative overflow-hidden rounded-2xl border px-4 py-4 text-sm font-black transition disabled:cursor-wait disabled:opacity-70 ${
                     form.rsvp === "yes"
                       ? "border-[#c79a55] bg-gradient-to-l from-[#c79a55] to-[#8f6437] text-white shadow-lg"
                       : "border-[#eadfce] bg-[#fbf8f2] text-[#5a4634] hover:border-[#c79a55] hover:bg-[#fff7ea]"
@@ -733,10 +808,16 @@ export default function PublicInvitePage({ params }: any) {
 
                 <button
                   type="button"
-                  onClick={() =>
-                    setForm({ ...form, rsvp: "no", arrivedCount: 0 })
-                  }
-                  className={`rounded-2xl border px-4 py-4 text-sm font-black transition ${
+                  disabled={isSubmitting}
+                  onClick={() => {
+                    setSent(false);
+                    setForm((prev) => ({
+                      ...prev,
+                      rsvp: "no",
+                      arrivedCount: 0,
+                    }));
+                  }}
+                  className={`rounded-2xl border px-4 py-4 text-sm font-black transition disabled:cursor-wait disabled:opacity-70 ${
                     form.rsvp === "no"
                       ? "border-[#b88a8a] bg-[#b88a8a] text-white shadow-lg"
                       : "border-[#eadfce] bg-[#fbf8f2] text-[#5a4634] hover:bg-white"
@@ -756,13 +837,14 @@ export default function PublicInvitePage({ params }: any) {
                   <div className="flex items-center justify-center gap-5">
                     <button
                       type="button"
+                      disabled={isSubmitting}
                       onClick={() =>
-                        setForm((p) => ({
-                          ...p,
-                          arrivedCount: Math.max(1, p.arrivedCount - 1),
+                        setForm((prev) => ({
+                          ...prev,
+                          arrivedCount: Math.max(1, prev.arrivedCount - 1),
                         }))
                       }
-                      className="flex h-11 w-11 items-center justify-center rounded-full border border-[#d8c7ad] bg-white text-xl font-bold text-[#5a4634] shadow-sm transition hover:bg-[#fbf7f0]"
+                      className="flex h-11 w-11 items-center justify-center rounded-full border border-[#d8c7ad] bg-white text-xl font-bold text-[#5a4634] shadow-sm transition hover:bg-[#fbf7f0] disabled:cursor-wait disabled:opacity-70"
                     >
                       −
                     </button>
@@ -773,13 +855,14 @@ export default function PublicInvitePage({ params }: any) {
 
                     <button
                       type="button"
+                      disabled={isSubmitting}
                       onClick={() =>
-                        setForm((p) => ({
-                          ...p,
-                          arrivedCount: p.arrivedCount + 1,
+                        setForm((prev) => ({
+                          ...prev,
+                          arrivedCount: prev.arrivedCount + 1,
                         }))
                       }
-                      className="flex h-11 w-11 items-center justify-center rounded-full border border-[#d8c7ad] bg-white text-xl font-bold text-[#5a4634] shadow-sm transition hover:bg-[#fbf7f0]"
+                      className="flex h-11 w-11 items-center justify-center rounded-full border border-[#d8c7ad] bg-white text-xl font-bold text-[#5a4634] shadow-sm transition hover:bg-[#fbf7f0] disabled:cursor-wait disabled:opacity-70"
                     >
                       +
                     </button>
@@ -787,7 +870,7 @@ export default function PublicInvitePage({ params }: any) {
                 </div>
               )}
 
-              {/* הערות */}
+              {/* בקשות מיוחדות */}
               {form.rsvp === "yes" && activeMenuOptions.length > 0 && (
                 <div className="mt-6 rounded-[28px] border border-[#eadfce] bg-white p-5">
                   <label className="mb-3 block text-sm font-black text-[#3a2c20]">
@@ -806,16 +889,17 @@ export default function PublicInvitePage({ params }: any) {
                       >
                         <input
                           type="checkbox"
+                          disabled={isSubmitting}
                           checked={form.notes.includes(opt.label)}
                           onChange={(e) =>
-                            setForm({
-                              ...form,
+                            setForm((prev) => ({
+                              ...prev,
                               notes: e.target.checked
-                                ? [...form.notes, opt.label]
-                                : form.notes.filter((n) => n !== opt.label),
-                            })
+                                ? Array.from(new Set([...prev.notes, opt.label]))
+                                : prev.notes.filter((n) => n !== opt.label),
+                            }))
                           }
-                          className="accent-[#8f6437]"
+                          className="accent-[#8f6437] disabled:cursor-wait"
                         />
                         {opt.label}
                       </label>
@@ -826,7 +910,7 @@ export default function PublicInvitePage({ params }: any) {
 
               <button
                 type="submit"
-                disabled={!canSubmitRsvp}
+                disabled={isSubmitting}
                 className="
                   mt-6 w-full rounded-2xl
                   bg-gradient-to-l from-[#c79a55] to-[#8f6437]
@@ -836,11 +920,11 @@ export default function PublicInvitePage({ params }: any) {
                   shadow-[0_18px_45px_rgba(143,100,55,0.28)]
                   transition
                   hover:shadow-[0_22px_55px_rgba(143,100,55,0.34)]
-                  disabled:cursor-not-allowed
-                  disabled:opacity-50
+                  disabled:cursor-wait
+                  disabled:opacity-70
                 "
               >
-                שליחת אישור הגעה
+                {isSubmitting ? "שולח אישור הגעה…" : "שליחת אישור הגעה"}
               </button>
 
               <PublicEventNoteSection note={publicEventNote} />
@@ -855,7 +939,6 @@ export default function PublicInvitePage({ params }: any) {
             ✓ תודה! תשובתך התקבלה
           </div>
         )}
-
 
         <div className="mt-7 w-full max-w-md">
           <EventLocationCard location={invite?.location} />

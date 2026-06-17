@@ -740,6 +740,7 @@ const CANCELLATION_TERMS: DetailSection[] = [
       "שירותים הניתנים ביום האירוע, כגון הושבה באולם וניהול אלכוהול באולם, ניתנים לביטול רק בהודעה מוקדמת של יותר מחודש לפני מועד האירוע.",
       "במקרה של ביטול שירות יום אירוע בהתראה של יותר מחודש, יתרת השירות שטרם סופקה תבוטל, אך דמי השריון ששולמו מראש לא יוחזרו, מאחר שהם מיועדים לשריון הצוות ותאריך האירוע מראש.",
       "ביטול שירותי יום אירוע בהתראה של חודש או פחות ממועד האירוע אינו מזכה בהחזר, אלא אם סוכם אחרת בכתב.",
+      "במקרה של ביטול או דחיית אירוע עקב כוח עליון, לרבות מלחמה, מצב ביטחוני חריג, הנחיית רשויות או נסיבות חיצוניות שאינן בשליטת הלקוח או Invistimo, ניתן יהיה לדחות את השירותים למועד האירוע החדש, בכפוף לזמינות ולתיאום מראש. שירותים דיגיטליים שטרם נוצלו בפועל יידחו גם הם למועד החדש, ולא ייחשבו כמבוטלים.",
     ],
   },
 ];
@@ -1190,6 +1191,22 @@ export default function NewEmployeeSalePage() {
     };
   }, [alcoholManagementStaffCount, baseGrossAmount, canGiveSuppliersBudgetFree, finalGrossAmount, packageCalculation.finalPrice, paymentDiscountAmount, paymentMode, selectedUpsellsList, suppliersBudgetFree, venueSeatingStaffCount]);
 
+  const extraRecordPrice = packageCalculation.pricePerRecord;
+
+  const extraRecordsTerms = useMemo<DetailSection[]>(() => [
+    {
+      title: "רשומות נוספות",
+      items: [
+        `העסקה כוללת ${packageCalculation.records} רשומות. כל רשומה נוספת מעבר לכמות שנרכשה תחויב לפי ${money(extraRecordPrice)} לרשומה, בהתאם למחיר הממוצע לרשומה בחבילה שנבחרה.`,
+      ],
+    },
+  ], [extraRecordPrice, packageCalculation.records]);
+
+  const finalPaymentTerms = useMemo(
+    () => [...PAYMENT_TERMS, ...extraRecordsTerms],
+    [extraRecordsTerms],
+  );
+
   const showUpsellPricesInDocument =
     quotePricingDisplay === "showUpsellPrices";
 
@@ -1197,6 +1214,9 @@ export default function NewEmployeeSalePage() {
     packageTitle: selectedPlan.title,
     packageSummary: selectedPlan.customerSummary,
     records: packageCalculation.records,
+    pricePerRecord: extraRecordPrice,
+    extraRecordPrice,
+    extraRecordsNote: `כל רשומה נוספת מעבר ל-${packageCalculation.records} רשומות תחויב לפי ${money(extraRecordPrice)} לרשומה.`,
     originalTotalPrice: baseGrossAmount,
     discountAmount: paymentDiscountAmount,
     totalPrice: finalGrossAmount,
@@ -1212,7 +1232,8 @@ export default function NewEmployeeSalePage() {
     showUpsellPricesInDocument,
     pricingDisplayMode: quotePricingDisplay,
     cancellationTerms: CANCELLATION_TERMS,
-    paymentTerms: PAYMENT_TERMS,
+    paymentTerms: finalPaymentTerms,
+    extraRecordsTerms,
     includedItems: selectedPlan.includes,
     upsells: selectedUpsellsList.map((upsell) => ({
       title: getUpsellTitle(upsell, venueSeatingStaffCount, alcoholManagementStaffCount),
@@ -1234,7 +1255,7 @@ export default function NewEmployeeSalePage() {
         suppliersBudgetFree &&
         canGiveSuppliersBudgetFree,
     })),
-  }), [alcoholManagementStaffCount, baseGrossAmount, canGiveSuppliersBudgetFree, eventCity, eventDate, eventName, finalGrossAmount, packageCalculation.records, paymentDiscountAmount, paymentMode, paymentSchedule, quoteCreatedAt, quoteExpiresAt, quotePricingDisplay, selectedPlan.customerSummary, selectedPlan.includes, selectedPlan.title, selectedUpsellsList, showUpsellPricesInDocument, suppliersBudgetFree, venueSeatingStaffCount]);
+  }), [alcoholManagementStaffCount, baseGrossAmount, canGiveSuppliersBudgetFree, eventCity, eventDate, eventName, extraRecordPrice, extraRecordsTerms, finalGrossAmount, finalPaymentTerms, packageCalculation.records, paymentDiscountAmount, paymentMode, paymentSchedule, quoteCreatedAt, quoteExpiresAt, quotePricingDisplay, selectedPlan.customerSummary, selectedPlan.includes, selectedPlan.title, selectedUpsellsList, showUpsellPricesInDocument, suppliersBudgetFree, venueSeatingStaffCount]);
 
   const effectiveEventDate = eventDate || quoteCreatedAt;
   const effectiveEventCity = eventCity.trim() || "לא הוגדרה";
@@ -1271,6 +1292,9 @@ export default function NewEmployeeSalePage() {
       includes: selectedPlan.includes,
       records: packageCalculation.records,
       price: packageCalculation.finalPrice,
+      pricePerRecord: extraRecordPrice,
+      extraRecordPrice,
+      extraRecordsNote: `כל רשומה נוספת מעבר ל-${packageCalculation.records} רשומות תחויב לפי ${money(extraRecordPrice)} לרשומה.`,
       displayPrice: packageCalculation.finalPrice,
     },
     upsells: selectedUpsellsList.map((upsell) => {
@@ -1297,6 +1321,10 @@ export default function NewEmployeeSalePage() {
       netAmount,
       vatRate: VAT_RATE,
       paymentMode,
+      records: packageCalculation.records,
+      pricePerRecord: extraRecordPrice,
+      extraRecordPrice,
+      extraRecordsNote: `כל רשומה נוספת מעבר ל-${packageCalculation.records} רשומות תחויב לפי ${money(extraRecordPrice)} לרשומה.`,
       stripeAmount: paymentSchedule.stripeAmount,
       quotePricingDisplay,
       showUpsellPricesInDocument,
@@ -1305,8 +1333,8 @@ export default function NewEmployeeSalePage() {
     },
     customerDealSummary,
     cancellationTerms: CANCELLATION_TERMS,
-    paymentTerms: PAYMENT_TERMS,
-  }), [alcoholManagementStaffCount, baseGrossAmount, canGiveSuppliersBudgetFree, clientAddress, clientEmail, clientName, clientPhone, customerDealSummary, customerIdNumber, documentType, effectiveEventCity, effectiveEventDate, effectiveEventName, effectiveVenueName, finalGrossAmount, netAmount, packageCalculation.finalPrice, packageCalculation.records, paymentDiscountAmount, paymentMode, paymentSchedule, quoteCreatedAt, quoteExpiresAt, quotePricingDisplay, selectedPlan.customerSummary, selectedPlan.includes, selectedPlan.key, selectedPlan.title, selectedUpsellsList, showUpsellPricesInDocument, suppliersBudgetFree, venueSeatingStaffCount]);
+    paymentTerms: finalPaymentTerms,
+  }), [alcoholManagementStaffCount, baseGrossAmount, canGiveSuppliersBudgetFree, clientAddress, clientEmail, clientName, clientPhone, customerDealSummary, customerIdNumber, documentType, effectiveEventCity, effectiveEventDate, effectiveEventName, effectiveVenueName, extraRecordPrice, finalGrossAmount, finalPaymentTerms, netAmount, packageCalculation.finalPrice, packageCalculation.records, paymentDiscountAmount, paymentMode, paymentSchedule, quoteCreatedAt, quoteExpiresAt, quotePricingDisplay, selectedPlan.customerSummary, selectedPlan.includes, selectedPlan.key, selectedPlan.title, selectedUpsellsList, showUpsellPricesInDocument, suppliersBudgetFree, venueSeatingStaffCount]);
 
   const isDocumentActionDisabled = documentSaving || finalGrossAmount <= 0;
 
@@ -1544,7 +1572,7 @@ export default function NewEmployeeSalePage() {
           totals: documentPayload.totals,
           customerDealSummary,
           cancellationTerms: CANCELLATION_TERMS,
-          paymentTerms: PAYMENT_TERMS,
+          paymentTerms: finalPaymentTerms,
           paymentSchedule,
           paymentMode,
 
