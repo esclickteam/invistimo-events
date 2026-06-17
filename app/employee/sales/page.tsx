@@ -736,6 +736,110 @@ export default function EmployeeSalesPage() {
             </div>
           )}
         </section>
+
+        <section className="mt-6 overflow-hidden rounded-[34px] border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-200 p-5 sm:p-6">
+            <h2 className="text-2xl font-black text-slate-950">
+              טבלת עסקאות ששולמו
+            </h2>
+            <p className="mt-1 text-sm font-semibold text-slate-500">
+              טבלה מלאה לפי החודש שנבחר, כולל סכומים ועמלת העובד.
+            </p>
+          </div>
+
+          {loading ? null : filteredPaidSales.length === 0 ? (
+            <div className="p-10 text-center text-sm font-black text-slate-500">
+              אין עסקאות להצגה בטבלה עבור הסינון הנוכחי.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[1220px] border-collapse text-right">
+                <thead>
+                  <tr className="bg-slate-50 text-xs font-black text-slate-500">
+                    <th className="px-5 py-4">לקוח</th>
+                    <th className="px-5 py-4">טלפון</th>
+                    <th className="px-5 py-4">אירוע</th>
+                    <th className="px-5 py-4">חבילה</th>
+                    <th className="px-5 py-4">שולם ב־Stripe</th>
+                    <th className="px-5 py-4">כולל מע״מ</th>
+                    <th className="px-5 py-4">לפני מע״מ</th>
+                    <th className="px-5 py-4">עמלה</th>
+                    <th className="px-5 py-4">תשלום</th>
+                    <th className="px-5 py-4">שולם בתאריך</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {filteredPaidSales.map((sale) => {
+                    const records = asNumber(sale.records || sale.guests);
+                    const paidDate = getSalePaidDateValue(sale);
+
+                    return (
+                      <tr
+                        key={saleId(sale)}
+                        className="border-t border-slate-100 text-sm font-bold text-slate-700"
+                      >
+                        <td className="px-5 py-4">
+                          <div>
+                            <p className="font-black text-slate-950">
+                              {sale.clientName || "—"}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-400">
+                              {sale.clientEmail || "—"}
+                            </p>
+                          </div>
+                        </td>
+
+                        <td className="px-5 py-4" dir="ltr">
+                          {sale.clientPhone || "—"}
+                        </td>
+
+                        <td className="px-5 py-4">
+                          <p>{sale.eventName || "—"}</p>
+                          <p className="mt-1 text-xs text-slate-400">
+                            {formatDate(sale.eventDate)}
+                          </p>
+                        </td>
+
+                        <td className="px-5 py-4">
+                          <p>{sale.packageName || sale.plan || "—"}</p>
+                          <p className="mt-1 text-xs text-slate-400">
+                            {records.toLocaleString("he-IL")} רשומות
+                          </p>
+                        </td>
+
+                        <td className="px-5 py-4 font-black text-slate-950">
+                          {money(sale.stripeAmount || sale.grossAmount)}
+                        </td>
+
+                        <td className="px-5 py-4 font-black text-slate-950">
+                          {money(sale.grossAmount)}
+                        </td>
+
+                        <td className="px-5 py-4">{money(sale.netAmount)}</td>
+
+                        <td className="px-5 py-4 font-black text-emerald-700">
+                          {money(sale.commissionAmount)}
+                        </td>
+
+                        <td className="px-5 py-4">
+                          <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">
+                            שולם
+                          </span>
+                        </td>
+
+                        <td className="px-5 py-4">
+                          {formatDateTime(paidDate)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
       </main>
     </div>
   );
