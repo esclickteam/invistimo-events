@@ -1388,8 +1388,9 @@ export default function AdminSalesNewPage() {
   const signedAgreementReady =
     generatedDocument?.type === "agreement" && generatedDocument.status === "signed";
 
-  const isSubmitDisabled =
-    saving || finalGrossAmount <= 0 || !signedAgreementReady;
+  // באדמין הצעת מחיר/הסכם הם אופציונליים בלבד.
+  // אפשר לפתוח לקוח, לסמן שולם ידנית או לעבור ל-Stripe גם בלי הסכם חתום.
+  const isSubmitDisabled = saving || finalGrossAmount <= 0;
 
   function getMissingDocumentFields() {
     const missing: string[] = [];
@@ -1408,7 +1409,6 @@ export default function AdminSalesNewPage() {
     if (!eventDate) missing.push("תאריך אירוע");
     if (!eventCity.trim()) missing.push("עיר אירוע");
     if (!venueName.trim()) missing.push("שם אולם");
-    if (!signedAgreementReady) missing.push("הסכם חתום על ידי הלקוח");
 
     return missing;
   }
@@ -2288,26 +2288,17 @@ export default function AdminSalesNewPage() {
                   )}
                 </div>
 
-                {!signedAgreementReady ? (
-                  <div className="rounded-[24px] border border-amber-200 bg-amber-50 p-4 text-xs font-bold leading-6 text-amber-800">
-                    לפני תשלום חובה לשלוח ללקוח הסכם לחתימה. רק אחרי שההסכם נחתם
-                    בקישור שנשלח ב־SMS, ניתן להמשיך לתשלום.
-                  </div>
-                ) : (
-                  <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-4 text-xs font-bold leading-6 text-emerald-800">
-                    ההסכם נחתם — ניתן ליצור קישור תשלום.
-                  </div>
-                )}
+                <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-4 text-xs font-bold leading-6 text-emerald-800">
+                  הצעת מחיר או הסכם הם אופציונליים באדמין. אפשר לפתוח לקוח ולהמשיך לתשלום גם בלי מסמך חתום.
+                </div>
 
                 <button type="submit" disabled={isSubmitDisabled} className="inline-flex h-13 min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-[#3f3327] px-5 text-sm font-black text-white shadow-lg shadow-black/10 transition hover:bg-[#2f251d] disabled:cursor-not-allowed disabled:opacity-40">
                   <Icon name="save" className="h-4 w-4" />
                   {saving
                     ? "שומר..."
-                    : signedAgreementReady
-                      ? adminPaymentStatus === "manual_paid"
-                        ? `הסכם נחתם — סימון כשולם ${money(paymentSchedule.stripeAmount)}`
-                        : `הסכם נחתם — מעבר לתשלום ${money(paymentSchedule.stripeAmount)}`
-                      : "ממתין לחתימת הסכם לפני תשלום"}
+                    : adminPaymentStatus === "manual_paid"
+                      ? `פתיחת לקוח וסימון כשולם ${money(paymentSchedule.stripeAmount)}`
+                      : `פתיחת לקוח ומעבר לתשלום ${money(paymentSchedule.stripeAmount)}`}
                 </button>
               </div>
             </section>
