@@ -77,6 +77,12 @@ function formatMoney(value: number) {
 
 export default function CreateUserModal({ onClose }: Props) {
   const router = useRouter();
+
+  function openFullClientCreation() {
+    onClose();
+    router.push("/admin/sales/new");
+  }
+
   /* ===== USER BASIC ===== */
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -301,8 +307,7 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
   ===================================================== */
   async function handleSubmit() {
     if (role === "user") {
-      onClose();
-      router.push("/admin/sales/new");
+      openFullClientCreation();
       return;
     }
 
@@ -597,6 +602,7 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
         throw new Error("CREATE_USER_FAILED");
       }
 
+
       onClose();
     } catch (err) {
       console.error("CREATE USER FAILED:", err);
@@ -608,11 +614,11 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
   role === "user"
     ? false
     : !name ||
-  !email ||
-  (role === "producer" && !producerPricePerRecord) ||
-  (role === "staff" &&
-    staffCreateType === "producer" &&
-    !assignedProducerId);
+      !email ||
+      (role === "producer" && !producerPricePerRecord) ||
+      (role === "staff" &&
+        staffCreateType === "producer" &&
+        !assignedProducerId);
 
   /* =====================================================
      UI
@@ -685,12 +691,6 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
                 <option value="staff">עובד</option>
               </select>
 
-              {role === "user" && (
-                <div className="rounded-2xl border border-[#d9b46d] bg-[#fff8ed] px-4 py-3 text-sm text-[#7a5a2f] leading-6">
-                  לקוח רגיל נוצר עכשיו דרך מסך המכירה המלא של האדמין — בדיוק כמו אצל העובד: הצעת מחיר, הסכם, חתימה, Stripe או שולם ידנית.
-                </div>
-              )}
-
               {role === "venue_owner" && (
                 <div className="rounded-2xl border border-[#eadfce] bg-[#fff8ed] px-4 py-3 text-sm text-[#7a5a2f] leading-6">
                   משתמש מסוג בעל אולם יקבל הרשאת כניסה לדשבורד אולמות בלבד.
@@ -703,655 +703,55 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
 
           {/* USER */}
           {role === "user" && (
-            <>
-              {/* PLAN */}
-              <section className="space-y-4">
-                <div>
-                  <h3 className="text-sm font-bold text-[#3f4856]">
-                    חבילה
-                  </h3>
+            <section className="space-y-5 rounded-3xl border border-[#eadfce] bg-white p-5 shadow-sm">
+              <div>
+                <h3 className="text-base font-bold text-[#3f4856]">
+                  יצירת לקוח מלאה
+                </h3>
 
-                  <p className="text-xs text-[#8b7b68] mt-1">
-                    בחירת החבילה הבסיסית של הלקוח
-                  </p>
-                </div>
+                <p className="mt-2 text-sm leading-7 text-[#8b7b68]">
+                  לקוח לא נוצר יותר מתוך הטופס הישן הזה. לחיצה על הכפתור תפתח
+                  את מסך המכירה המלא של האדמין — בדיוק כמו אצל העובד: חבילה,
+                  אפסיילים, עריכת מחירים, הנחות, הצעת מחיר, הסכם, שליחת SMS,
+                  Stripe או שולם ידנית.
+                </p>
+              </div>
 
-                <select
-                  value={plan}
-                  onChange={(e) => setPlan(e.target.value as PlanKey)}
-                  className="w-full h-14 rounded-2xl border border-[#eadfce] bg-white px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
-                >
-                  <option value="plan1">חבילה 1</option>
-                  <option value="plan2">חבילה 2</option>
-                  <option value="plan3">חבילה 3</option>
-                </select>
-              </section>
+              <div className="rounded-3xl border border-[#f0d8b7] bg-[#fff8ed] p-5">
+                <h4 className="text-lg font-black text-[#3f3327]">
+                  מה ייפתח במסך המלא?
+                </h4>
 
-              {/* ACCESS MODULES */}
-              <section className="space-y-4">
-                <div>
-                  <h3 className="text-sm font-bold text-[#3f4856]">
-                    הרשאות מודולים
-                  </h3>
-
-                  <p className="text-xs text-[#8b7b68] mt-1">
-                    בחרי לאילו אזורים הלקוח יקבל גישה בפועל
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div
-                    className={`rounded-3xl border p-4 space-y-3 shadow-sm transition ${
-                      accessModules.rsvpSeating
-                        ? "border-[#c7a76c] bg-[#fff8ed]"
-                        : "border-[#eadfce] bg-white"
-                    }`}
-                  >
-                    <label className="flex items-center gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={accessModules.rsvpSeating}
-                        onChange={(e) =>
-                          setAccessModules((prev) => ({
-                            ...prev,
-                            rsvpSeating: e.target.checked,
-                          }))
-                        }
-                        className="w-4 h-4 accent-[#9b7a3c]"
-                      />
-
-                      <span className="text-[#4b3b2a] font-bold">
-                        אישורי הגעה והושבה
-                      </span>
-                    </label>
-
-                    <p className="text-xs text-[#8b7b68] leading-5">
-                      פותח ללקוח את הדשבורד הרגיל: מוזמנים, אישורי הגעה,
-                      סבבי SMS/WhatsApp, הושבה וניהול יום אירוע.
-                    </p>
+                <div className="mt-4 grid grid-cols-1 gap-3 text-sm font-semibold text-[#6b5a45] md:grid-cols-2">
+                  <div className="rounded-2xl border border-[#eadfce] bg-white px-4 py-3">
+                    הצעת מחיר / הסכם
                   </div>
-
-                  <div
-                    className={`rounded-3xl border p-4 space-y-3 shadow-sm transition ${
-                      accessModules.eventProduction
-                        ? "border-[#c7a76c] bg-[#fff8ed]"
-                        : "border-[#eadfce] bg-white"
-                    }`}
-                  >
-                    <label className="flex items-center gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={accessModules.eventProduction}
-                        onChange={(e) =>
-                          setAccessModules((prev) => ({
-                            ...prev,
-                            eventProduction: e.target.checked,
-                          }))
-                        }
-                        className="w-4 h-4 accent-[#9b7a3c]"
-                      />
-
-                      <span className="text-[#4b3b2a] font-bold">
-                        הפקת אירוע
-                      </span>
-                    </label>
-
-                    <p className="text-xs text-[#8b7b68] leading-5">
-                      פותח ללקוח את דשבורד הפקת האירוע בלבד: תקציב, ספקים,
-                      משימות, לוגיסטיקה, לו״ז ותמונת מצב.
-                    </p>
+                  <div className="rounded-2xl border border-[#eadfce] bg-white px-4 py-3">
+                    שליחה ב־SMS
+                  </div>
+                  <div className="rounded-2xl border border-[#eadfce] bg-white px-4 py-3">
+                    עריכת מחיר חבילה ואפסיילים
+                  </div>
+                  <div className="rounded-2xl border border-[#eadfce] bg-white px-4 py-3">
+                    הנחה בשקלים או באחוזים
+                  </div>
+                  <div className="rounded-2xl border border-[#eadfce] bg-white px-4 py-3">
+                    תשלום Stripe
+                  </div>
+                  <div className="rounded-2xl border border-[#eadfce] bg-white px-4 py-3">
+                    שולם ידנית
                   </div>
                 </div>
-
-                {!accessModules.rsvpSeating &&
-                  !accessModules.eventProduction && (
-                    <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                      שימי לב: לא נבחר אף מודול. הלקוח ייווצר בלי גישה לאזורי
-                      ניהול.
-                    </div>
-                  )}
-              </section>
-
-              {/* LIMITS */}
-              <section className="space-y-5">
-                <div>
-                  <h3 className="text-sm font-bold text-[#3f4856]">
-                    מגבלות מערכת
-                  </h3>
-
-                  <p className="text-xs text-[#8b7b68] mt-1">
-                    הגדרת כמות רשומות וכמות סבבי הודעות שפתוחים ללקוח
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* RECORDS */}
-                  <label className="space-y-2">
-                    <span className="block text-sm font-semibold text-[#6b5a45]">
-                      כמות רשומות
-                    </span>
-
-                    <input
-                      type="number"
-                      min={1}
-                      value={records}
-                      onChange={(e) => setRecords(Number(e.target.value))}
-                      className="w-full h-14 rounded-2xl border border-[#eadfce] bg-white px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
-                    />
-
-                    <p className="text-xs text-[#8b7b68]">
-                      מספר הרשומות שהלקוח יכול לנהל במערכת.
-                    </p>
-                  </label>
-
-                  {/* MESSAGE ROUNDS */}
-                  <label className="space-y-2">
-                    <span className="block text-sm font-semibold text-[#6b5a45]">
-                      סבבי הודעות פתוחים ללקוח
-                    </span>
-
-                    <select
-                      value={allowedMessageRounds}
-                      onChange={(e) => {
-                        const nextValue: AllowedMessageRounds =
-                          Number(e.target.value) === 3 ? 3 : 2;
-
-                        setAllowedMessageRounds(nextValue);
-                      }}
-                      className="w-full h-14 rounded-2xl border border-[#eadfce] bg-white px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
-                    >
-                      <option value={2}>2 סבבים — כלול בחבילה</option>
-                      <option value={3}>3 סבבים — פתוח בחבילה</option>
-                    </select>
-
-                    <p className="text-xs text-[#8b7b68]">
-                      ברירת המחדל היא 2 סבבים. בחירה ב־3 תפתח ללקוח גם את
-                      הסבב השלישי.
-                    </p>
-                  </label>
-                </div>
-
-                <div className="rounded-2xl border border-[#eadfce] bg-[#fff8ed] px-4 py-3 text-sm text-[#7a5a2f]">
-                  שימי לב: המערכת לא מגבילה לפי כמות הודעות SMS, אלא לפי מספר
-                  סבבי ההודעות שפתוחים ללקוח בחבילה.
-                </div>
-              </section>
-
-              {/* ADDONS */}
-              <section className="space-y-4">
-                <div>
-                  <h3 className="text-sm font-bold text-[#3f4856]">
-                    אפסיילים
-                  </h3>
-
-                  <p className="text-xs text-[#8b7b68] mt-1">
-                    שירותים נוספים שאפשר לפתוח ללקוח
-                  </p>
-                </div>
-
-                <div className="space-y-3">
-                  {(Object.keys(addons) as AddonKey[]).map((key) => {
-                    const isIncluded = includedByPlan[plan].includes(key);
-                    const value = addons[key];
-
-                    return (
-                      <div
-                        key={key}
-                        className="rounded-2xl border border-[#eadfce] bg-white p-4 space-y-3 shadow-sm"
-                      >
-                        <div className="flex items-center justify-between gap-4">
-                          <label className="flex items-center gap-3 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              disabled={isIncluded}
-                              checked={isIncluded ? true : value.enabled}
-                              onChange={() =>
-                                setAddons((prev) => ({
-                                  ...prev,
-                                  [key]: {
-                                    ...prev[key],
-                                    enabled: !prev[key].enabled,
-                                  },
-                                }))
-                              }
-                              className="w-4 h-4 accent-[#9b7a3c]"
-                            />
-
-                            <span className="text-[#4b3b2a] font-medium">
-                              {addonLabels[key]}
-                            </span>
-                          </label>
-
-                          {isIncluded && (
-                            <span className="rounded-full bg-[#eef8ef] text-[#258343] px-3 py-1 text-xs font-bold">
-                              כלול בחבילה
-                            </span>
-                          )}
-                        </div>
-
-                        {!isIncluded && value.enabled && (
-                          <input
-                            type="number"
-                            placeholder="מחיר אפסייל (₪) – אפשר 0"
-                            value={value.price}
-                            onChange={(e) =>
-                              setAddons((prev) => ({
-                                ...prev,
-                                [key]: {
-                                  ...prev[key],
-                                  price: Number(e.target.value),
-                                },
-                              }))
-                            }
-                            className="w-full h-12 rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
-                          />
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-
-              {/* CALL ROUNDS SCHEDULE */}
-              <section className="space-y-4">
-                <div>
-                  <h3 className="text-sm font-bold text-[#3f4856]">
-                    לו״ז סבבי שיחות
-                  </h3>
-
-                  <p className="text-xs text-[#8b7b68] mt-1">
-                    אפשר להגדיר כבר בזמן הקמת המשתמש תאריך ושעה לכל סבב
-                    שיחות. הנתונים נשמרים על מודל המשתמש.
-                  </p>
-                </div>
-
-                <div
-                  className={`rounded-3xl border p-4 space-y-5 shadow-sm transition ${
-                    callsEnabledForUser
-                      ? "border-[#eadfce] bg-white"
-                      : "border-[#eadfce] bg-[#f4f1ed] opacity-75"
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-4">
-                    <label className="flex items-center gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        disabled={!callsEnabledForUser}
-                        checked={Boolean(
-                          callsEnabledForUser && callRoundsSchedule.enabled
-                        )}
-                        onChange={(e) =>
-                          setCallRoundsSchedule((prev) => ({
-                            ...prev,
-                            enabled: e.target.checked,
-                          }))
-                        }
-                        className="w-4 h-4 accent-[#9b7a3c] disabled:cursor-not-allowed"
-                      />
-
-                      <span className="text-[#4b3b2a] font-bold">
-                        הגדרת תאריכים לסבבי שיחות
-                      </span>
-                    </label>
-
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-bold border ${
-                        callsEnabledForUser
-                          ? "bg-[#eef8ef] text-[#258343] border-[#d7eadb]"
-                          : "bg-white text-[#8b7b68] border-[#eadfce]"
-                      }`}
-                    >
-                      {callsEnabledForUser ? "שיחות פעילות" : "שיחות לא פעילות"}
-                    </span>
-                  </div>
-
-                  {!callsEnabledForUser ? (
-                    <div className="rounded-2xl border border-[#eadfce] bg-[#fff8ed] px-4 py-3 text-sm text-[#7a5a2f] leading-6">
-                      כדי להגדיר לו״ז שיחות צריך לבחור חבילה שכוללת שיחות או
-                      לסמן את האפסייל “שיחות”.
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {callRoundsSchedule.rounds.map((round) => (
-                        <div
-                          key={round.roundNumber}
-                          className="rounded-2xl border border-[#eadfce] bg-[#fffdf9] p-4 space-y-3"
-                        >
-                          <div className="flex items-center justify-between gap-3">
-                            <div>
-                              <p className="text-sm font-bold text-[#3f3327]">
-                                {round.title}
-                              </p>
-
-                              <p className="text-xs text-[#8b7b68] mt-1">
-                                בחירה אופציונלית. אם לא יוגדר תאריך — הסבב
-                                יישמר ללא תזמון.
-                              </p>
-                            </div>
-
-                            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#b47a3b] text-sm font-bold text-white">
-                              {round.roundNumber}
-                            </span>
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-[1fr_1.2fr] gap-3">
-                            <label className="space-y-2">
-                              <span className="block text-xs font-bold text-[#6b5a45]">
-                                תאריך ושעה
-                              </span>
-
-                              <input
-                                type="datetime-local"
-                                value={round.scheduledAt}
-                                onChange={(e) =>
-                                  handleCallRoundChange(
-                                    round.roundNumber,
-                                    "scheduledAt",
-                                    e.target.value
-                                  )
-                                }
-                                disabled={!callRoundsSchedule.enabled}
-                                className="w-full h-12 rounded-2xl border border-[#eadfce] bg-white px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15 disabled:opacity-50"
-                              />
-                            </label>
-
-                            <label className="space-y-2">
-                              <span className="block text-xs font-bold text-[#6b5a45]">
-                                הערה פנימית
-                              </span>
-
-                              <input
-                                type="text"
-                                placeholder="לדוגמה: להתחיל ממשפחה קרובה..."
-                                value={round.notes}
-                                onChange={(e) =>
-                                  handleCallRoundChange(
-                                    round.roundNumber,
-                                    "notes",
-                                    e.target.value
-                                  )
-                                }
-                                disabled={!callRoundsSchedule.enabled}
-                                className="w-full h-12 rounded-2xl border border-[#eadfce] bg-white px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15 disabled:opacity-50"
-                              />
-                            </label>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </section>
-
-              {/* VENUE SEATING SERVICE */}
-              <section className="space-y-4">
-                <div>
-                  <h3 className="text-sm font-bold text-[#3f4856]">
-                    שירות הושבה באולם
-                  </h3>
-
-                  <p className="text-xs text-[#8b7b68] mt-1">
-                    הוספת שירות נציגים ביום האירוע, כולל מקדמה, תשלום באולם
-                    ותשלום אנשי צוות
-                  </p>
-                </div>
-
-                <div className="rounded-3xl border border-[#eadfce] bg-white p-4 space-y-5 shadow-sm">
-                  <div className="flex items-center justify-between gap-4">
-                    <label className="flex items-center gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={venueSeatingService.enabled}
-                        onChange={handleVenueServiceToggle}
-                        className="w-4 h-4 accent-[#9b7a3c]"
-                      />
-
-                      <span className="text-[#4b3b2a] font-bold">
-                        הוסף שירות הושבה באולם
-                      </span>
-                    </label>
-
-                    {venueSeatingService.enabled && (
-                      <span className="rounded-full bg-[#fff4de] text-[#8a6330] px-3 py-1 text-xs font-bold border border-[#eadfce]">
-                        שירות פעיל
-                      </span>
-                    )}
-                  </div>
-
-                  {venueSeatingService.enabled && (
-                    <>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* TOTAL */}
-                        <label className="space-y-2">
-                          <span className="block text-sm font-semibold text-[#6b5a45]">
-                            סך הכל שירות (₪)
-                          </span>
-
-                          <input
-                            type="number"
-                            min={0}
-                            value={venueSeatingService.totalPrice}
-                            onChange={(e) =>
-                              handleVenueTotalChange(e.target.value)
-                            }
-                            className="w-full h-14 rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
-                          />
-
-                          <p className="text-xs text-[#8b7b68]">
-                            הסכום הכולל שהלקוח משלם על שירות ההושבה באולם.
-                            ברירת מחדל: 50% מקדמה ו־50% תשלום באולם.
-                          </p>
-                        </label>
-
-                        {/* STAFF */}
-                        <label className="space-y-2">
-                          <span className="block text-sm font-semibold text-[#6b5a45]">
-                            תשלום לאנשי צוות (₪)
-                          </span>
-
-                          <input
-                            type="number"
-                            min={0}
-                            value={venueSeatingService.staffPaymentAmount}
-                            onChange={(e) =>
-                              handleStaffPaymentChange(e.target.value)
-                            }
-                            className="w-full h-14 rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
-                          />
-
-                          <p className="text-xs text-[#8b7b68]">
-                            יורד קודם מהתשלום באולם. אם אין מספיק באולם,
-                            היתרה יורדת מהסכום הכולל.
-                          </p>
-                        </label>
-
-                        {/* DEPOSIT */}
-                        <label className="space-y-2">
-                          <span className="block text-sm font-semibold text-[#6b5a45]">
-                            סך מקדמה (₪)
-                          </span>
-
-                          <input
-                            type="number"
-                            min={0}
-                            value={venueSeatingService.depositAmount}
-                            onChange={(e) =>
-                              handleVenueDepositChange(e.target.value)
-                            }
-                            className="w-full h-14 rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
-                          />
-
-                          <p className="text-xs text-[#8b7b68]">
-                            נקלטת בחודש הרכישה ומתווספת להכנסות החודשיות
-                            באדמין. שינוי ידני ישלים אוטומטית את התשלום
-                            באולם.
-                          </p>
-                        </label>
-
-                        {/* VENUE PAYMENT */}
-                        <label className="space-y-2">
-                          <span className="block text-sm font-semibold text-[#6b5a45]">
-                            סך תשלום באולם (₪)
-                          </span>
-
-                          <input
-                            type="number"
-                            min={0}
-                            value={venueSeatingService.venuePaymentAmount}
-                            onChange={(e) =>
-                              handleVenuePaymentChange(e.target.value)
-                            }
-                            className="w-full h-14 rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
-                          />
-
-                          <p className="text-xs text-[#8b7b68]">
-                            הסכום שישולם ביום האירוע באולם. שינוי ידני ישלים
-                            אוטומטית את המקדמה.
-                          </p>
-                        </label>
-                      </div>
-
-                      <div className="rounded-3xl border border-[#eadfce] bg-[#fff8ed] p-4 space-y-3">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                          <div className="rounded-2xl bg-white border border-[#eadfce] p-3">
-                            <p className="text-[#8b7b68] text-xs">
-                              סך הכל שירות
-                            </p>
-
-                            <p className="text-[#3f3327] font-bold mt-1">
-                              ₪{formatMoney(venueSeatingService.totalPrice)}
-                            </p>
-                          </div>
-
-                          <div className="rounded-2xl bg-white border border-[#eadfce] p-3">
-                            <p className="text-[#8b7b68] text-xs">
-                              מקדמה להכנסות החודש
-                            </p>
-
-                            <p className="text-[#3f3327] font-bold mt-1">
-                              ₪{formatMoney(venueSeatingService.depositAmount)}
-                            </p>
-                          </div>
-
-                          <div className="rounded-2xl bg-white border border-[#eadfce] p-3">
-                            <p className="text-[#8b7b68] text-xs">
-                              תשלום באולם לפני צוות
-                            </p>
-
-                            <p className="text-[#3f3327] font-bold mt-1">
-                              ₪
-                              {formatMoney(
-                                venueSeatingService.venuePaymentAmount
-                              )}
-                            </p>
-                          </div>
-
-                          <div className="rounded-2xl bg-white border border-[#eadfce] p-3">
-                            <p className="text-[#8b7b68] text-xs">
-                              תשלום לאנשי צוות
-                            </p>
-
-                            <p className="text-[#3f3327] font-bold mt-1">
-                              ₪
-                              {formatMoney(
-                                venueSeatingService.staffPaymentAmount
-                              )}
-                            </p>
-                          </div>
-
-                          <div className="rounded-2xl bg-white border border-[#eadfce] p-3">
-                            <p className="text-[#8b7b68] text-xs">
-                              ירד מתוך התשלום באולם
-                            </p>
-
-                            <p className="text-[#3f3327] font-bold mt-1">
-                              ₪{formatMoney(staffPaidFromVenue)}
-                            </p>
-                          </div>
-
-                          <div className="rounded-2xl bg-white border border-[#eadfce] p-3">
-                            <p className="text-[#8b7b68] text-xs">
-                              ירד מהסכום הכולל כי לא הספיק באולם
-                            </p>
-
-                            <p className="text-[#3f3327] font-bold mt-1">
-                              ₪{formatMoney(staffPaidFromFullAmount)}
-                            </p>
-                          </div>
-
-                          <div className="rounded-2xl bg-white border border-[#eadfce] p-3">
-                            <p className="text-[#8b7b68] text-xs">
-                              נשאר מהתשלום באולם אחרי צוות
-                            </p>
-
-                            <p className="text-[#3f3327] font-bold mt-1">
-                              ₪{formatMoney(venuePaymentAfterStaff)}
-                            </p>
-                          </div>
-
-                          <div className="rounded-2xl bg-white border border-[#eadfce] p-3">
-                            <p className="text-[#8b7b68] text-xs">
-                              סך הכל אחרי תשלום צוות
-                            </p>
-
-                            <p className="text-[#3f3327] font-bold mt-1">
-                              ₪{formatMoney(totalAfterStaff)}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="rounded-2xl border border-[#eadfce] bg-white px-4 py-3 text-sm text-[#7a5a2f] leading-6">
-                          המקדמה בלבד תתווסף להכנסות החודשיות באדמין בחודש
-                          הרכישה. התשלום באולם נשמר בנפרד כתשלום עתידי ביום
-                          האירוע.
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </section>
-
-              {/* PAYMENT */}
-              <section className="space-y-4">
-                <div>
-                  <h3 className="text-sm font-bold text-[#3f4856]">
-                    תשלום
-                  </h3>
-
-                  <p className="text-xs text-[#8b7b68] mt-1">
-                    הגדרת מחיר ואופן תשלום ללקוח
-                  </p>
-                </div>
-
-                <label className="space-y-2 block">
-                  <span className="block text-sm font-semibold text-[#6b5a45]">
-                    מחיר כולל (₪)
-                  </span>
-
-                  <input
-                    type="number"
-                    value={price}
-                    onChange={(e) =>
-                      setPrice(
-                        e.target.value === "" ? "" : Number(e.target.value)
-                      )
-                    }
-                    className="w-full h-14 rounded-2xl border border-[#eadfce] bg-white px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
-                  />
-                </label>
-
-                <select
-                  value={paymentStatus}
-                  onChange={(e) =>
-                    setPaymentStatus(e.target.value as PaymentStatus)
-                  }
-                  className="w-full h-14 rounded-2xl border border-[#eadfce] bg-white px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
-                >
-                  <option value="stripe">לתשלום דרך Stripe</option>
-                  <option value="paid">שולם ידנית</option>
-                </select>
-              </section>
-            </>
+              </div>
+
+              <button
+                type="button"
+                onClick={openFullClientCreation}
+                className="h-14 w-full rounded-2xl bg-[#3f3327] px-6 text-base font-black text-white shadow-lg shadow-black/10 transition hover:bg-[#2f251d]"
+              >
+                פתיחת יצירת לקוח מלאה
+              </button>
+            </section>
           )}
 
           {/* PRODUCER */}
