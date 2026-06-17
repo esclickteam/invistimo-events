@@ -61,6 +61,17 @@ type WorkOrder = {
 
   invitationId: string;
 
+  /*
+    קישור תצוגת הזמנה לעובד.
+    מומלץ שהשרת יחזיר אחד מהשדות האלה כדי לפתוח הזמנה בתצוגה בלבד.
+  */
+  invitationShareId?: string;
+  shareId?: string;
+  invitationUrl?: string;
+  inviteUrl?: string;
+  previewUrl?: string;
+  invitationPreviewUrl?: string;
+
   clientName: string;
   clientEmail: string;
 
@@ -390,6 +401,48 @@ function uniqueTasksById(items: CallTask[]) {
   return Array.from(map.values());
 }
 
+function buildAbsoluteUrl(url: string) {
+  const cleanUrl = cleanText(url);
+
+  if (!cleanUrl) return "";
+
+  if (/^https?:\/\//i.test(cleanUrl)) {
+    return cleanUrl;
+  }
+
+  if (typeof window === "undefined") {
+    return cleanUrl;
+  }
+
+  const normalizedPath = cleanUrl.startsWith("/") ? cleanUrl : `/${cleanUrl}`;
+
+  return `${window.location.origin}${normalizedPath}`;
+}
+
+function getWorkOrderInvitationPreviewUrl(workOrder?: WorkOrder | null) {
+  if (!workOrder) return "";
+
+  const directUrl =
+    cleanText(workOrder.invitationPreviewUrl) ||
+    cleanText(workOrder.previewUrl) ||
+    cleanText(workOrder.invitationUrl) ||
+    cleanText(workOrder.inviteUrl);
+
+  if (directUrl) {
+    return buildAbsoluteUrl(directUrl);
+  }
+
+  const shareId =
+    cleanText(workOrder.invitationShareId) ||
+    cleanText(workOrder.shareId);
+
+  if (!shareId) return "";
+
+  return buildAbsoluteUrl(
+    `/invite/${encodeURIComponent(shareId)}?preview=staff&readonly=1`
+  );
+}
+
 /* ============================================================
    Page
 ============================================================ */
@@ -430,6 +483,7 @@ export default function EmployeeWorkOrderTasksPage() {
   const [updatingTaskId, setUpdatingTaskId] = useState("");
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const [openingInvitationPreview, setOpeningInvitationPreview] = useState(false);
 
   const visibleOpenTasks = useMemo(() => {
     return tasks.filter(isOpenTask);
@@ -1134,6 +1188,77 @@ export default function EmployeeWorkOrderTasksPage() {
     applySelectedTask(next);
   }
 
+  async function openInvitationPreview() {
+    if (!workOrderId) return;
+
+    const directUrl = getWorkOrderInvitationPreviewUrl(workOrder);
+
+    if (directUrl) {
+      window.open(directUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    try {
+      setOpeningInvitationPreview(true);
+      setError("");
+
+      const endpoints = [
+        `/api/employee/work-orders/${encodeURIComponent(
+          workOrderId
+        )}/invitation-preview`,
+        `/api/employee/work-orders/${encodeURIComponent(workOrderId)}/invite-link`,
+      ];
+
+      for (const endpoint of endpoints) {
+        const res = await fetch(endpoint, {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (res.ok && data?.success !== false) {
+          const previewUrl =
+            cleanText(data?.previewUrl) ||
+            cleanText(data?.invitationPreviewUrl) ||
+            cleanText(data?.invitationUrl) ||
+            cleanText(data?.inviteUrl) ||
+            cleanText(data?.url);
+
+          if (previewUrl) {
+            window.open(
+              buildAbsoluteUrl(previewUrl),
+              "_blank",
+              "noopener,noreferrer"
+            );
+            return;
+          }
+        }
+
+        /*
+          אם endpoint אחד לא קיים, ננסה את הבא.
+          אם הוא קיים אבל החזיר שגיאה אמיתית — נציג אותה.
+        */
+        if (res.status !== 404) {
+          throw new Error(
+            data?.message ||
+              data?.error ||
+              "לא הצלחנו לפתוח את תצוגת ההזמנה"
+          );
+        }
+      }
+
+      setError(
+        "לא נמצא קישור תצוגה להזמנה. צריך שהשרת יחזיר previewUrl או invitationShareId להוראת העבודה."
+      );
+    } catch (err: any) {
+      setError(err?.message || "לא הצלחנו לפתוח את תצוגת ההזמנה");
+    } finally {
+      setOpeningInvitationPreview(false);
+    }
+  }
+
   function dialSelectedTaskFromSoftphone() {
     if (!selectedTask || !selectedTel) return;
 
@@ -1212,6 +1337,23 @@ export default function EmployeeWorkOrderTasksPage() {
             לא ענה / חזרה / דורש תיקון נשמרים לסבב הבא, אבל לא נפתחים מיד.
             הסבב הבא ייפתח רק בתאריך שהוגדר באדמין ולפי העובדים שמשובצים באותו תאריך.
           </p>
+
+          <div className="heroInviteActions">
+            <button
+              type="button"
+              className="invitePreviewBtn"
+              disabled={!workOrder || openingInvitationPreview}
+              onClick={openInvitationPreview}
+            >
+              {openingInvitationPreview
+                ? "פותח הזמנה..."
+                : "🔗 צפייה בהזמנה של האירוע"}
+            </button>
+
+            <span>
+              פתיחה חד־פעמית להצגת ההזמנה לעובד בזמן השיחה, בלי לשים כפתור ליד כל אורח.
+            </span>
+          </div>
         </div>
 
         <div className="heroMeta">
@@ -1756,6 +1898,37 @@ export default function EmployeeWorkOrderTasksPage() {
           font-weight: 950;
           max-width: 850px;
           line-height: 1.6;
+        }
+
+        .heroInviteActions {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex-wrap: wrap;
+          margin-top: 14px;
+        }
+
+        .invitePreviewBtn {
+          min-height: 44px;
+          border: 0;
+          border-radius: 999px;
+          background: #2563eb;
+          color: #ffffff;
+          padding: 0 18px;
+          font-weight: 950;
+          cursor: pointer;
+          box-shadow: 0 14px 28px rgba(37, 99, 235, 0.2);
+        }
+
+        .invitePreviewBtn:hover:not(:disabled) {
+          background: #1d4ed8;
+        }
+
+        .heroInviteActions span {
+          color: #64748b;
+          font-size: 12px;
+          font-weight: 850;
+          line-height: 1.5;
         }
 
         .heroMeta {
@@ -2421,6 +2594,14 @@ export default function EmployeeWorkOrderTasksPage() {
           .topActions {
             display: grid;
             grid-template-columns: 1fr;
+          }
+
+          .heroInviteActions {
+            align-items: stretch;
+          }
+
+          .invitePreviewBtn {
+            width: 100%;
           }
 
           .heroMeta {

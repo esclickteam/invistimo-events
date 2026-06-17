@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 
 import db from "@/lib/db";
 import User from "@/models/User";
+import Invitation from "@/models/Invitation";
 import InvitationGuest from "@/models/InvitationGuest";
 import CallWorkOrder from "@/models/CallWorkOrder";
 import CallTask from "@/models/CallTask";
@@ -302,9 +303,51 @@ function getGuestNotesFromGuest(guest: any) {
   );
 }
 
-function serializeWorkOrder(order: any, counts: TaskStatusCount) {
+function getInvitationShareId(invitation: any, order: any) {
+  return (
+    cleanStr(invitation?.shareId) ||
+    cleanStr(invitation?.shareID) ||
+    cleanStr(invitation?.slug) ||
+    cleanStr(invitation?.publicId) ||
+    cleanStr(order?.invitationShareId) ||
+    cleanStr(order?.shareId) ||
+    ""
+  );
+}
+
+function buildInvitationPreviewUrl(shareId: string) {
+  if (!shareId) return "";
+
+  return `/invite/${encodeURIComponent(shareId)}?preview=staff`;
+}
+
+async function getInvitationForWorkOrder(order: any) {
+  const invitationId =
+    order?.invitationId ||
+    order?.invitation ||
+    order?.invitation_id ||
+    order?.invitationDetails?._id ||
+    "";
+
+  const invitationObjectId = toObjectId(invitationId);
+
+  if (!invitationObjectId) return null;
+
+  return Invitation.findById(invitationObjectId)
+    .select("_id shareId shareID slug publicId")
+    .lean();
+}
+
+function serializeWorkOrder(
+  order: any,
+  counts: TaskStatusCount,
+  invitation?: any
+) {
   const completed = getCompletedFromCounts(counts);
   const remaining = Math.max(0, counts.total - completed);
+
+  const invitationShareId = getInvitationShareId(invitation, order);
+  const invitationPreviewUrl = buildInvitationPreviewUrl(invitationShareId);
 
   return {
     id: String(order?._id || ""),
@@ -316,7 +359,20 @@ function serializeWorkOrder(order: any, counts: TaskStatusCount) {
     title: cleanStr(order?.title),
     description: cleanStr(order?.description),
 
-    invitationId: String(order?.invitationId || ""),
+    invitationId: String(order?.invitationId || invitation?._id || ""),
+
+    /*
+      חדש:
+      קישור אחד ברמת האירוע לצפייה בהזמנה.
+      זה מיועד לכפתור אחד למעלה בעמוד העובד,
+      לא לכל אורח בנפרד.
+    */
+    invitationShareId,
+    shareId: invitationShareId,
+    invitationPreviewUrl,
+    previewUrl: invitationPreviewUrl,
+    invitationUrl: invitationPreviewUrl,
+    inviteUrl: invitationPreviewUrl,
 
     clientName: cleanStr(order?.clientName),
     clientEmail: cleanStr(order?.clientEmail),
@@ -843,6 +899,8 @@ export async function GET(req: NextRequest, context: RouteContext) {
       );
     }
 
+    const invitation = await getInvitationForWorkOrder(workOrder);
+
     const taskQuery = buildTaskQuery({
       searchParams,
       workOrderId: workOrderObjectId,
@@ -875,7 +933,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
         role: cleanStr((employee.currentUser as any)?.role),
       },
 
-      workOrder: serializeWorkOrder(workOrder, counts),
+      workOrder: serializeWorkOrder(workOrder, counts, invitation),
 
       summary: {
         ...counts,
