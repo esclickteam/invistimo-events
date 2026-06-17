@@ -744,13 +744,6 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={openFullClientCreation}
-                className="h-14 w-full rounded-2xl bg-[#3f3327] px-6 text-base font-black text-white shadow-lg shadow-black/10 transition hover:bg-[#2f251d]"
-              >
-                פתיחת יצירת לקוח מלאה
-              </button>
             </section>
           )}
 

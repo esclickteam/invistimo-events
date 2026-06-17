@@ -1076,12 +1076,6 @@ export default function AdminSalesNewPage() {
   const [quotePricingDisplay, setQuotePricingDisplay] =
     useState<QuotePricingDisplay>("showUpsellPrices");
 
-  const [saleSummary, setSaleSummary] = useState("");
-  const [confirmRecordedCall, setConfirmRecordedCall] = useState(false);
-  const [confirmCardOwner, setConfirmCardOwner] = useState(false);
-  const [confirmSaleSummary, setConfirmSaleSummary] = useState(false);
-  const [confirmTerms, setConfirmTerms] = useState(false);
-
   const [detailsModal, setDetailsModal] = useState<DetailsModalState>(null);
   const [generatedDocument, setGeneratedDocument] = useState<{
     type: DocumentType;
@@ -1198,8 +1192,6 @@ export default function AdminSalesNewPage() {
     () => roundMoney(finalGrossAmount / (1 + VAT_RATE)),
     [finalGrossAmount],
   );
-
-  const commission = 0; // באדמין אין עמלת עובד
 
   const paymentSchedule = useMemo<PaymentSchedule>(() => {
     const nonEventUpsellsTotal = selectedUpsellsList.reduce((sum, upsell) => {
@@ -1417,11 +1409,6 @@ export default function AdminSalesNewPage() {
     if (!eventCity.trim()) missing.push("עיר אירוע");
     if (!venueName.trim()) missing.push("שם אולם");
     if (!signedAgreementReady) missing.push("הסכם חתום על ידי הלקוח");
-    if (!saleSummary.trim()) missing.push("סיכום שיחת מכירה");
-    if (!confirmRecordedCall) missing.push("אישור שהמכירה בוצעה בשיחה מוקלטת");
-    if (!confirmCardOwner) missing.push("אישור שהלקוח/המשלם אישר שימוש בכרטיס");
-    if (!confirmSaleSummary) missing.push("אישור שסוכמו מחיר ושירותים");
-    if (!confirmTerms) missing.push("אישור שהוסברו תנאי תשלום וביטול");
 
     return missing;
   }
@@ -1649,15 +1636,15 @@ export default function AdminSalesNewPage() {
             appliesToEmployees: adminOfferAppliesToEmployees,
           },
 
-          notes: saleSummary.trim(),
+          notes: manualPaymentNote.trim(),
 
           saleCompliance: {
-            recordedCall: confirmRecordedCall,
-            cardOwnerConfirmed: confirmCardOwner,
-            cardHolderPresentAndApproved: confirmCardOwner,
-            saleSummaryConfirmed: confirmSaleSummary,
-            termsConfirmed: confirmTerms,
-            summary: saleSummary.trim(),
+            recordedCall: false,
+            cardOwnerConfirmed: false,
+            cardHolderPresentAndApproved: false,
+            saleSummaryConfirmed: true,
+            termsConfirmed: true,
+            summary: manualPaymentNote.trim(),
           },
 
           payment: {
@@ -2016,47 +2003,6 @@ export default function AdminSalesNewPage() {
               </div>
             </section>
 
-            <section className="rounded-[34px] border border-[#eadfce] bg-white p-5 shadow-sm sm:p-6">
-              <div>
-                <h2 className="text-2xl font-black text-slate-950">אישורי מכירה חובה</h2>
-                <p className="mt-1 text-sm font-semibold text-slate-500">בלי סימון כל הסעיפים אי אפשר להתקדם להסכם חתימה ותשלום.</p>
-              </div>
-
-              <div className="mt-5 grid gap-3 md:grid-cols-2">
-                <label className="rounded-2xl border border-[#eadfce] bg-[#fffdf9] p-4">
-                  <div className="flex cursor-pointer items-start gap-3">
-                    <input type="checkbox" checked={confirmRecordedCall} onChange={(e) => setConfirmRecordedCall(e.target.checked)} className="mt-1 h-4 w-4 accent-[#9b7a3c]" />
-                    <span className="text-sm font-bold leading-6 text-[#5b4a3a]">אני מאשר/ת שהמכירה בוצעה בשיחה מוקלטת בלבד.</span>
-                  </div>
-                </label>
-
-                <label className="rounded-2xl border border-[#eadfce] bg-[#fffdf9] p-4">
-                  <div className="flex cursor-pointer items-start gap-3">
-                    <input type="checkbox" checked={confirmCardOwner} onChange={(e) => setConfirmCardOwner(e.target.checked)} className="mt-1 h-4 w-4 accent-[#9b7a3c]" />
-                    <span className="text-sm font-bold leading-6 text-[#5b4a3a]">וידאתי שרק הלקוח או הגורם המשלם משתמשים בכרטיס האשראי, ושבעל הכרטיס היה נוכח בעסקה ואישר את התשלום.</span>
-                  </div>
-                </label>
-
-                <label className="rounded-2xl border border-[#eadfce] bg-[#fffdf9] p-4">
-                  <div className="flex cursor-pointer items-start gap-3">
-                    <input type="checkbox" checked={confirmSaleSummary} onChange={(e) => setConfirmSaleSummary(e.target.checked)} className="mt-1 h-4 w-4 accent-[#9b7a3c]" />
-                    <span className="text-sm font-bold leading-6 text-[#5b4a3a]">סיכמתי בשיחה מה החבילה כוללת, מה מקבלים והמחיר הכולל.</span>
-                  </div>
-                </label>
-
-                <label className="rounded-2xl border border-[#eadfce] bg-[#fffdf9] p-4">
-                  <div className="flex cursor-pointer items-start gap-3">
-                    <input type="checkbox" checked={confirmTerms} onChange={(e) => setConfirmTerms(e.target.checked)} className="mt-1 h-4 w-4 accent-[#9b7a3c]" />
-                    <span className="text-sm font-bold leading-6 text-[#5b4a3a]">סיכמתי בשיחה את אופן התשלום, תנאי התשלום ותנאי הביטול.</span>
-                  </div>
-                </label>
-              </div>
-
-              <label className="mt-5 block">
-                <span className="text-sm font-black text-slate-700">סיכום שיחת המכירה *</span>
-                <textarea value={saleSummary} onChange={(e) => setSaleSummary(e.target.value)} className="mt-2 min-h-[150px] w-full rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 py-3 text-sm font-bold leading-7 outline-none transition focus:border-[#c7a76c] focus:bg-white focus:ring-4 focus:ring-[#c7a76c]/15" placeholder="לדוגמה: הוסבר ללקוח מה החבילה כוללת, אילו שירותים נבחרו, מחיר כולל מע״מ, תשלום מיידי ויתרה ביום האירוע אם קיימת..." required />
-              </label>
-            </section>
           </div>
 
           <aside className="h-fit space-y-4 xl:sticky xl:top-6">
@@ -2097,16 +2043,9 @@ export default function AdminSalesNewPage() {
                     </div>
                   ) : null}
                   <p className="mt-2 text-4xl font-black tracking-tight text-[#3f3327]">{money(finalGrossAmount)}</p>
-                  <p className="mt-1 text-xs font-bold text-[#8b7b68]">לפני מע״מ: {money(netAmount)} · באדמין לא מחושבת עמלת עובד</p>
+                  <p className="mt-1 text-xs font-bold text-[#8b7b68]">לפני מע״מ: {money(netAmount)}</p>
                 </div>
 
-                <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs font-black text-slate-600">עמלת עובד</p>
-                  <p className="mt-2 text-3xl font-black tracking-tight text-slate-900">₪0.00</p>
-                  <p className="mt-2 text-xs font-bold leading-5 text-slate-600">
-                    עסקה שנוצרה על ידי אדמין לא משויכת לעמלת עובד.
-                  </p>
-                </div>
 
                 <div className="rounded-[24px] border border-[#eadfce] bg-white p-4">
                   <p className="text-sm font-black text-[#3f3327]">בחירת תשלום</p>
