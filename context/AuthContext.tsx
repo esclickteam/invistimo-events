@@ -23,9 +23,9 @@ type UserRole =
   | "system_staff"
   | "venue_owner";
 
-type StaffType = "producer_staff" | "general_staff";
+type StaffType = "producer_staff" | "general_staff" | string;
 
-type EmployeeScope = "system" | "producer" | "venue" | "client";
+type EmployeeScope = "system" | "producer" | "venue" | "client" | string;
 
 type AccessModules = {
   rsvpSeating?: boolean;
@@ -37,6 +37,9 @@ type AccessModules = {
   venueCalendar?: boolean;
   venueMenus?: boolean;
   venueStaff?: boolean;
+
+  liveDashboard?: boolean;
+  actualArrivals?: boolean;
 };
 
 interface User {
@@ -52,6 +55,8 @@ interface User {
   staffType?: StaffType | null;
   employeeScope?: EmployeeScope | null;
   assignedProducerId?: string | null;
+  producerId?: string | null;
+  createdByProducer?: string | null;
   isProducerStaff?: boolean;
   isSystemStaff?: boolean;
 
@@ -66,6 +71,7 @@ interface User {
     seatingEnabled?: boolean;
     remindersEnabled?: boolean;
     maxMessages?: number;
+    liveDashboard?: boolean;
   };
 
   /* ===== MODULE ACCESS ===== */
@@ -80,12 +86,40 @@ interface User {
   /* ===== IMPERSONATION ===== */
   impersonated?: boolean;
   impersonatedBy?: string;
+  impersonatedByAdmin?: boolean;
+  adminId?: string;
+
+  /*
+    התפקיד שאליו מתחזים:
+    staff / producer_staff / producer / venue_owner / user וכו׳
+  */
   impersonationRole?:
     | "admin"
     | "producer"
     | "producer_staff"
+    | "staff"
     | "staff_producer"
-    | "venue_owner";
+    | "system_staff"
+    | "venue_owner"
+    | "user"
+    | "client";
+
+  originalTargetRole?:
+    | "admin"
+    | "producer"
+    | "producer_staff"
+    | "staff"
+    | "staff_producer"
+    | "system_staff"
+    | "venue_owner"
+    | "user"
+    | "client";
+
+  /*
+    מי התחיל את ההתחזות:
+    admin / producer / venue_owner
+  */
+  impersonationSourceRole?: "admin" | "producer" | "venue_owner" | string;
 }
 
 interface AuthContextType {
@@ -98,7 +132,6 @@ interface AuthContextType {
   exitImpersonation: () => Promise<void>;
   logout: () => Promise<void>;
 
-  // ⭐ חשוב כדי לעדכן מייד אחרי set-password/login
   setUser: (user: User | null) => void;
   setIsAuthenticated: (value: boolean) => void;
 }
@@ -106,35 +139,64 @@ interface AuthContextType {
 /* =====================================================
    HELPERS
 ===================================================== */
-function getUserRedirectPath(nextUser: User) {
-  const role = String(nextUser.role || "").toLowerCase().trim();
-  const effectiveRole = String(nextUser.effectiveRole || "")
-    .toLowerCase()
-    .trim();
+function cleanRole(value: unknown) {
+  return String(value || "").toLowerCase().trim();
+}
 
-  const staffType = String(nextUser.staffType || "").toLowerCase().trim();
-  const employeeScope = String(nextUser.employeeScope || "")
-    .toLowerCase()
-    .trim();
+function getUserRedirectPath(nextUser: User) {
+  const role = cleanRole(nextUser.role);
+  const effectiveRole = cleanRole(nextUser.effectiveRole);
+  const impersonationRole = cleanRole(nextUser.impersonationRole);
+  const originalTargetRole = cleanRole(nextUser.originalTargetRole);
+
+  const staffType = cleanRole(nextUser.staffType);
+  const employeeScope = cleanRole(nextUser.employeeScope);
+
+  /*
+    במצב התחזות נעדיף את התפקיד שאליו התחזינו,
+    אבל נשאיר fallback ל-role הרגיל.
+  */
+  const targetRole =
+    originalTargetRole ||
+    impersonationRole ||
+    effectiveRole ||
+    role ||
+    "user";
 
   const isSystemStaff =
+    targetRole === "system_staff" ||
     effectiveRole === "system_staff" ||
     nextUser.isSystemStaff === true ||
-    (role === "staff" &&
-      staffType === "general_staff" &&
-      employeeScope === "system");
+    role === "system_staff" ||
+    (
+      role === "staff" &&
+      staffType !== "producer_staff" &&
+      employeeScope !== "producer"
+    ) ||
+    (
+      role === "staff" &&
+      staffType === "general_staff"
+    );
 
   const isProducerStaff =
+    targetRole === "producer_staff" ||
+    targetRole === "staff_producer" ||
     effectiveRole === "producer_staff" ||
     effectiveRole === "staff_producer" ||
     nextUser.isProducerStaff === true ||
     role === "producer_staff" ||
     role === "staff_producer" ||
-    (role === "staff" &&
-      staffType === "producer_staff" &&
-      employeeScope === "producer");
+    (
+      role === "staff" &&
+      staffType === "producer_staff"
+    ) ||
+    (
+      role === "staff" &&
+      employeeScope === "producer"
+    );
 
   const isVenueOwner =
+    targetRole === "venue_owner" ||
     role === "venue_owner" ||
     effectiveRole === "venue_owner" ||
     nextUser.venueOwner === true ||
@@ -154,11 +216,11 @@ function getUserRedirectPath(nextUser: User) {
     false;
 
   // ADMIN
-  if (role === "admin" || effectiveRole === "admin") {
+  if (targetRole === "admin" || role === "admin" || effectiveRole === "admin") {
     return "/admin";
   }
 
-  // SYSTEM STAFF — עובד כללי של Invistimo
+  // SYSTEM STAFF — עובד מערכת כללי של Invistimo
   if (isSystemStaff) {
     return "/staff/dashboard";
   }
@@ -169,7 +231,7 @@ function getUserRedirectPath(nextUser: User) {
   }
 
   // PRODUCER
-  if (role === "producer" || effectiveRole === "producer") {
+  if (targetRole === "producer" || role === "producer" || effectiveRole === "producer") {
     return "/producer/dashboard";
   }
 
@@ -185,6 +247,28 @@ function getUserRedirectPath(nextUser: User) {
 
   // USER / CLIENT — רגיל / שניהם
   return "/dashboard";
+}
+
+function getExitImpersonationRedirectPath(currentUser: User | null) {
+  const sourceRole = cleanRole(currentUser?.impersonationSourceRole);
+  const returnRole = cleanRole(currentUser?.impersonationRole);
+
+  if (
+    currentUser?.impersonatedByAdmin === true ||
+    sourceRole === "admin"
+  ) {
+    return "/admin";
+  }
+
+  if (sourceRole === "venue_owner" || returnRole === "venue_owner") {
+    return "/venues/dashboard";
+  }
+
+  if (sourceRole === "producer" || returnRole === "producer") {
+    return "/producer/dashboard";
+  }
+
+  return "/admin";
 }
 
 /* =====================================================
@@ -231,9 +315,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return !!sessionStorage.getItem("auth_user");
   });
 
-  // עטיפה כדי לשמור תמיד על sessionStorage מסונכרן
   const setUser = (next: User | null) => {
     _setUser(next);
+
+    if (typeof window === "undefined") return;
 
     if (next) {
       sessionStorage.setItem("auth_user", JSON.stringify(next));
@@ -246,6 +331,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const setIsAuthenticated = (value: boolean) => {
     _setIsAuthenticated(value);
+
+    if (typeof window === "undefined") return;
 
     if (!value && !user) {
       sessionStorage.removeItem("auth_user");
@@ -262,7 +349,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         cache: "no-store",
       });
 
-      // ✅ מצב תקין: לא מחובר
       if (res.status === 401) {
         setUser(null);
         return null;
@@ -274,7 +360,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return null;
       }
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       const nextUser: User | null = data?.user ?? null;
 
       if (!nextUser || !nextUser.role) {
@@ -293,7 +379,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   /* --------------------------------------------------
-     🚀 אימות ראשוני (mount)
+     🚀 אימות ראשוני
   -------------------------------------------------- */
   useEffect(() => {
     refreshUser().finally(() => {
@@ -315,38 +401,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
+        cache: "no-store",
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
       if (!res.ok || !data.success) {
         throw new Error(data.error || "שגיאת התחברות");
       }
 
-      // ⭐ אם השרת כבר החזיר user - מעדכנים מייד
       if (data.user) {
         setUser(data.user as User);
       }
 
-      // אימות סופי מהשרת
       const nextUser = await refreshUser();
 
       if (!nextUser) {
         throw new Error("לא הצלחנו לטעון את המשתמש");
       }
 
-      // ⛔ אם זה משתמש בתחזות – לא לנתב אוטומטית
-      if (nextUser.impersonated) {
-        return;
-      }
-
+      /*
+        אם זה משתמש בתחזות — עדיין אפשר לנתב לפי התפקיד שאליו התחזינו,
+        כדי שעובד מערכת לא ייפול בטעות ל-producer-staff.
+      */
       const redirectPath = getUserRedirectPath(nextUser);
 
       router.replace(redirectPath);
     } catch (err: any) {
       console.error("❌ Login failed:", err);
-      alert(err.message || "שגיאה בהתחברות");
+      alert(err?.message || "שגיאה בהתחברות");
       throw err;
     }
   };
@@ -356,7 +440,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   -------------------------------------------------- */
   const exitImpersonation = async () => {
     try {
-      const returnRole = user?.impersonationRole;
+      const redirectPath = getExitImpersonationRedirectPath(user);
 
       await fetch("/api/producer/stop-impersonation", {
         method: "POST",
@@ -364,15 +448,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         cache: "no-store",
       });
 
-      setUser(null); // ננקה לוקאלית לפני מעבר
+      setUser(null);
 
-      if (returnRole === "admin") {
-        window.location.href = "/admin";
-      } else if (returnRole === "venue_owner") {
-        window.location.href = "/venues/dashboard";
-      } else {
-        window.location.href = "/producer/dashboard";
-      }
+      window.location.href = redirectPath;
     } catch (err) {
       console.error("❌ exitImpersonation failed:", err);
       alert("שגיאה ביציאה ממצב התחזות");
@@ -399,10 +477,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   /* --------------------------------------------------
-     ⏳ Guard – לא מציג ילדים לפני אימות
+     ⏳ Guard
   -------------------------------------------------- */
   if (loading) {
-    return null; // או Spinner
+    return null;
   }
 
   /* --------------------------------------------------

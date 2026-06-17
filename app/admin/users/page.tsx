@@ -1170,34 +1170,32 @@ export default function AdminUsersPage() {
   }
 
   async function impersonateUser(userId: string) {
-    setImpersonating(userId);
+  setImpersonating(userId);
 
-    try {
-      const res = await fetch("/api/admin/impersonate", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId }),
-      });
+  try {
+    const res = await fetch("/api/admin/impersonate", {
+      method: "POST",
+      credentials: "include",
+      cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId }),
+    });
 
-      const data = await res.json();
+    const data = await res.json().catch(() => ({}));
 
-      if (!data.success) {
-        alert("כניסה בהתחזות נכשלה");
-        return;
-      }
-
-      if (data.role === "producer") {
-        window.location.href = "/producer/dashboard";
-      } else if (data.role === "staff") {
-        window.location.href = "/producer-staff/dashboard";
-      } else {
-        window.location.href = "/dashboard";
-      }
-    } finally {
-      setImpersonating(null);
+    if (!res.ok || !data.success) {
+      alert(data?.error || "כניסה בהתחזות נכשלה");
+      return;
     }
+
+    window.location.href = data.redirectUrl || "/dashboard";
+  } catch (err) {
+    console.error("Admin impersonation failed:", err);
+    alert("שגיאה בכניסה בהתחזות");
+  } finally {
+    setImpersonating(null);
   }
+}
 
   async function removeUser(userId: string) {
     const confirmed = confirm("האם למחוק את המשתמש לצמיתות?");
