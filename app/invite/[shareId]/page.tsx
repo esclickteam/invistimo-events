@@ -856,6 +856,7 @@ export default function PublicInvitePage({ params }: any) {
           </div>
         )}
 
+
         <div className="mt-7 w-full max-w-md">
           <EventLocationCard location={invite?.location} />
         </div>
