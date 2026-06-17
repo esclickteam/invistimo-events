@@ -41,6 +41,7 @@ type EmployeeSale = {
   stripeCheckoutUrl?: string;
   stripePaymentIntentId?: string;
   stripePaidAt?: string | null;
+  paidAt?: string | null;
 
   status?: SaleStatus;
   notes?: string;
@@ -68,15 +69,20 @@ type SalesResponse = {
   sales?: EmployeeSale[];
 };
 
-type LocalSummary = SalesSummary & {
-  cancelledSales: number;
-  refundedSales: number;
-  pendingGrossTotal: number;
-  pendingNetTotal: number;
-  pendingCommissionTotal: number;
+type LocalSummary = {
+  paidSales: number;
   paidGrossTotal: number;
   paidNetTotal: number;
   paidCommissionTotal: number;
+  paidStripeTotal: number;
+  eventDayTotal: number;
+  vatRate: number;
+  commissionRate: number;
+};
+
+type MonthOption = {
+  value: string;
+  label: string;
 };
 
 const EMPTY_SUMMARY: SalesSummary = {
@@ -91,15 +97,14 @@ const EMPTY_SUMMARY: SalesSummary = {
 };
 
 const EMPTY_LOCAL_SUMMARY: LocalSummary = {
-  ...EMPTY_SUMMARY,
-  cancelledSales: 0,
-  refundedSales: 0,
-  pendingGrossTotal: 0,
-  pendingNetTotal: 0,
-  pendingCommissionTotal: 0,
+  paidSales: 0,
   paidGrossTotal: 0,
   paidNetTotal: 0,
   paidCommissionTotal: 0,
+  paidStripeTotal: 0,
+  eventDayTotal: 0,
+  vatRate: 0.18,
+  commissionRate: 0.05,
 };
 
 function asNumber(value: unknown) {
@@ -153,39 +158,38 @@ function normalizeStatus(status?: string) {
   return String(status || "").toLowerCase();
 }
 
-function statusLabel(status?: string) {
-  switch (normalizeStatus(status)) {
-    case "paid":
-      return "שולם";
-    case "pending":
-      return "ממתין לתשלום";
-    case "cancelled":
-      return "בוטל";
-    case "refunded":
-      return "זוכה";
-    default:
-      return status || "—";
-  }
+function getSalePaidDateValue(sale: EmployeeSale) {
+  return sale.stripePaidAt || sale.paidAt || sale.updatedAt || sale.createdAt || null;
+}
+
+function getSaleMonthValue(sale: EmployeeSale) {
+  const rawDate = getSalePaidDateValue(sale);
+  if (!rawDate) return "";
+
+  const date = new Date(rawDate);
+  if (Number.isNaN(date.getTime())) return "";
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+}
+
+function formatMonthLabel(monthValue: string) {
+  const [year, month] = monthValue.split("-");
+  const date = new Date(Number(year), Number(month) - 1, 1);
+
+  if (Number.isNaN(date.getTime())) return monthValue;
+
+  return date.toLocaleDateString("he-IL", {
+    month: "long",
+    year: "numeric",
+  });
 }
 
 function paymentModeLabel(mode?: string) {
   return String(mode || "").toLowerCase() === "full"
     ? "תשלום מלא"
     : "תשלום ראשוני + יתרה באירוע";
-}
-
-function statusClass(status?: string) {
-  switch (normalizeStatus(status)) {
-    case "paid":
-      return "border-emerald-200 bg-emerald-50 text-emerald-700";
-    case "pending":
-      return "border-amber-200 bg-amber-50 text-amber-700";
-    case "cancelled":
-    case "refunded":
-      return "border-rose-200 bg-rose-50 text-rose-700";
-    default:
-      return "border-slate-200 bg-slate-50 text-slate-600";
-  }
 }
 
 function Icon({
@@ -197,11 +201,9 @@ function Icon({
     | "plus"
     | "refresh"
     | "sales"
-    | "user"
     | "money"
     | "card"
-    | "clock"
-    | "open";
+    | "calendar";
   className?: string;
 }) {
   const common = {
@@ -246,15 +248,6 @@ function Icon({
     );
   }
 
-  if (name === "user") {
-    return (
-      <svg {...common}>
-        <circle cx="12" cy="8" r="4" />
-        <path d="M4 21a8 8 0 0 1 16 0" />
-      </svg>
-    );
-  }
-
   if (name === "card") {
     return (
       <svg {...common}>
@@ -265,20 +258,13 @@ function Icon({
     );
   }
 
-  if (name === "clock") {
+  if (name === "calendar") {
     return (
       <svg {...common}>
-        <circle cx="12" cy="12" r="9" />
-        <path d="M12 7v5l3 2" />
-      </svg>
-    );
-  }
-
-  if (name === "open") {
-    return (
-      <svg {...common}>
-        <path d="M7 17 17 7" />
-        <path d="M8 7h9v9" />
+        <rect x="3" y="4" width="18" height="18" rx="3" />
+        <path d="M16 2v4" />
+        <path d="M8 2v4" />
+        <path d="M3 10h18" />
       </svg>
     );
   }
@@ -301,17 +287,15 @@ function StatCard({
   title: string;
   value: string | number;
   subtitle: string;
-  icon?: "sales" | "money" | "card" | "clock";
-  tone?: "default" | "paid" | "pending" | "commission";
+  icon?: "sales" | "money" | "card" | "calendar";
+  tone?: "default" | "paid" | "commission";
 }) {
   const toneClass =
     tone === "paid"
       ? "bg-emerald-50 text-emerald-700 border-emerald-100"
-      : tone === "pending"
-        ? "bg-amber-50 text-amber-700 border-amber-100"
-        : tone === "commission"
-          ? "bg-orange-50 text-orange-700 border-orange-100"
-          : "bg-slate-50 text-slate-700 border-slate-100";
+      : tone === "commission"
+        ? "bg-orange-50 text-orange-700 border-orange-100"
+        : "bg-slate-50 text-slate-700 border-slate-100";
 
   return (
     <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
@@ -335,33 +319,25 @@ function StatCard({
 }
 
 function SaleCard({ sale }: { sale: EmployeeSale }) {
-  const status = normalizeStatus(sale.status);
-  const isPaid = status === "paid";
-  const isPending = status === "pending";
   const records = asNumber(sale.records || sale.guests);
+  const paidDate = getSalePaidDateValue(sale);
 
   return (
     <article className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span
-              className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${statusClass(
-                sale.status,
-              )}`}
-            >
-              {statusLabel(sale.status)}
+            <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">
+              שולם
             </span>
 
             <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-black text-slate-500">
               {paymentModeLabel(sale.paymentMode)}
             </span>
 
-            {isPaid && sale.stripePaidAt ? (
-              <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">
-                שולם ב־{formatDateTime(sale.stripePaidAt)}
-              </span>
-            ) : null}
+            <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">
+              שולם ב־{formatDateTime(paidDate)}
+            </span>
           </div>
 
           <h3 className="mt-4 text-2xl font-black text-slate-950">
@@ -437,18 +413,6 @@ function SaleCard({ sale }: { sale: EmployeeSale }) {
               </p>
             </div>
           </div>
-
-          {isPending && sale.stripeCheckoutUrl ? (
-            <a
-              href={sale.stripeCheckoutUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-amber-200 bg-white px-4 text-sm font-black text-amber-700 transition hover:bg-amber-50"
-            >
-              <Icon name="open" className="h-4 w-4" />
-              פתיחת קישור תשלום
-            </a>
-          ) : null}
         </div>
       </div>
     </article>
@@ -460,6 +424,7 @@ export default function EmployeeSalesPage() {
 
   const [sales, setSales] = useState<EmployeeSale[]>([]);
   const [summary, setSummary] = useState<SalesSummary>(EMPTY_SUMMARY);
+  const [selectedMonth, setSelectedMonth] = useState("all");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -519,52 +484,61 @@ export default function EmployeeSalesPage() {
     return () => window.clearInterval(interval);
   }, [loadSales]);
 
-  const sortedSales = useMemo(() => {
-    return [...sales].sort((a, b) => {
-      const paidA = normalizeStatus(a.status) === "paid" ? 1 : 0;
-      const paidB = normalizeStatus(b.status) === "paid" ? 1 : 0;
+  const paidSalesAll = useMemo(() => {
+    return sales
+      .filter((sale) => normalizeStatus(sale.status) === "paid")
+      .sort((a, b) => {
+        const dateA = new Date(String(getSalePaidDateValue(a) || "")).getTime();
+        const dateB = new Date(String(getSalePaidDateValue(b) || "")).getTime();
 
-      if (paidA !== paidB) return paidB - paidA;
-
-      const dateA = new Date(String(a.createdAt || "")).getTime();
-      const dateB = new Date(String(b.createdAt || "")).getTime();
-
-      return (
-        (Number.isFinite(dateB) ? dateB : 0) -
-        (Number.isFinite(dateA) ? dateA : 0)
-      );
-    });
+        return (
+          (Number.isFinite(dateB) ? dateB : 0) -
+          (Number.isFinite(dateA) ? dateA : 0)
+        );
+      });
   }, [sales]);
 
+  const monthOptions = useMemo<MonthOption[]>(() => {
+    const months = Array.from(
+      new Set(
+        paidSalesAll
+          .map((sale) => getSaleMonthValue(sale))
+          .filter(Boolean),
+      ),
+    ).sort((a, b) => b.localeCompare(a));
+
+    return months.map((month) => ({
+      value: month,
+      label: formatMonthLabel(month),
+    }));
+  }, [paidSalesAll]);
+
+  useEffect(() => {
+    if (selectedMonth === "all") return;
+
+    const exists = monthOptions.some((option) => option.value === selectedMonth);
+    if (!exists) {
+      setSelectedMonth("all");
+    }
+  }, [monthOptions, selectedMonth]);
+
+  const filteredPaidSales = useMemo(() => {
+    if (selectedMonth === "all") return paidSalesAll;
+
+    return paidSalesAll.filter(
+      (sale) => getSaleMonthValue(sale) === selectedMonth,
+    );
+  }, [paidSalesAll, selectedMonth]);
+
   const localSummary = useMemo<LocalSummary>(() => {
-    return sales.reduce<LocalSummary>(
+    return filteredPaidSales.reduce<LocalSummary>(
       (acc, sale) => {
-        const status = normalizeStatus(sale.status);
-        const gross = asNumber(sale.grossAmount);
-        const net = asNumber(sale.netAmount);
-        const commission = asNumber(sale.commissionAmount);
-
-        if (status !== "cancelled" && status !== "refunded") {
-          acc.totalSales += 1;
-        }
-
-        if (status === "paid") {
-          acc.paidSales += 1;
-          acc.paidGrossTotal += gross;
-          acc.paidNetTotal += net;
-          acc.paidCommissionTotal += commission;
-        }
-
-        if (status === "pending") {
-          acc.pendingSales += 1;
-          acc.pendingGrossTotal += gross;
-          acc.pendingNetTotal += net;
-          acc.pendingCommissionTotal += commission;
-        }
-
-        if (status === "cancelled") acc.cancelledSales += 1;
-        if (status === "refunded") acc.refundedSales += 1;
-
+        acc.paidSales += 1;
+        acc.paidGrossTotal += asNumber(sale.grossAmount);
+        acc.paidNetTotal += asNumber(sale.netAmount);
+        acc.paidCommissionTotal += asNumber(sale.commissionAmount);
+        acc.paidStripeTotal += asNumber(sale.stripeAmount || sale.grossAmount);
+        acc.eventDayTotal += asNumber(sale.eventDayAmount);
         return acc;
       },
       {
@@ -573,18 +547,12 @@ export default function EmployeeSalesPage() {
         commissionRate: summary.commissionRate || EMPTY_SUMMARY.commissionRate,
       },
     );
-  }, [sales, summary.commissionRate, summary.vatRate]);
+  }, [filteredPaidSales, summary.commissionRate, summary.vatRate]);
 
-  const paidSales = useMemo(
-    () => sortedSales.filter((sale) => normalizeStatus(sale.status) === "paid"),
-    [sortedSales],
-  );
-
-  const pendingSales = useMemo(
-    () =>
-      sortedSales.filter((sale) => normalizeStatus(sale.status) === "pending"),
-    [sortedSales],
-  );
+  const selectedMonthLabel = useMemo(() => {
+    if (selectedMonth === "all") return "כל החודשים";
+    return formatMonthLabel(selectedMonth);
+  }, [selectedMonth]);
 
   return (
     <div
@@ -617,8 +585,8 @@ export default function EmployeeSalesPage() {
               </h1>
 
               <p className="mt-4 max-w-3xl text-base font-semibold leading-8 text-slate-600">
-                כאן העובד רואה את כל העסקאות שהוא יצר. אחרי תשלום Stripe
-                הסטטוס מתעדכן ל־שולם, והעמלה מחושבת לפי 5% מהסכום לפני מע״מ.
+                כאן העובד רואה רק עסקאות ששולמו בפועל. העמלה מחושבת לפי
+                חודש התשלום שנבחר בסינון.
               </p>
 
               {lastLoadedAt ? (
@@ -654,18 +622,49 @@ export default function EmployeeSalesPage() {
           </div>
         </section>
 
+        <section className="mt-6 rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-sm font-black text-slate-500">סינון עמלות לפי חודש</p>
+              <h2 className="mt-1 text-2xl font-black text-slate-950">
+                {selectedMonthLabel}
+              </h2>
+              <p className="mt-1 text-xs font-bold text-slate-400">
+                הסיכומים והעמלה למטה מחושבים לפי חודש התשלום שנבחר.
+              </p>
+            </div>
+
+            <label className="flex w-full flex-col gap-2 lg:w-[320px]">
+              <span className="text-xs font-black text-slate-500">בחירת חודש</span>
+              <select
+                value={selectedMonth}
+                onChange={(event) => setSelectedMonth(event.target.value)}
+                className="h-12 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-800 outline-none transition focus:border-orange-300 focus:ring-4 focus:ring-orange-100"
+              >
+                <option value="all">כל החודשים</option>
+                {monthOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </section>
+
         <section className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <StatCard
-            title="כמות מכירות"
-            value={loading ? "..." : localSummary.totalSales}
-            subtitle={`שולמו: ${localSummary.paidSales} · ממתינות: ${localSummary.pendingSales}`}
+            title="עסקאות ששולמו"
+            value={loading ? "..." : localSummary.paidSales}
+            subtitle="רק עסקאות paid נכנסות לחישוב"
             icon="sales"
+            tone="paid"
           />
 
           <StatCard
             title="סה״כ ששולם כולל מע״מ"
             value={loading ? "..." : money(localSummary.paidGrossTotal)}
-            subtitle="רק עסקאות ששולמו בפועל"
+            subtitle="לפי הסינון החודשי"
             icon="card"
             tone="paid"
           />
@@ -686,24 +685,6 @@ export default function EmployeeSalesPage() {
           />
         </section>
 
-        <section className="mt-4 grid gap-4 md:grid-cols-2">
-          <StatCard
-            title="עסקאות ממתינות"
-            value={loading ? "..." : localSummary.pendingSales}
-            subtitle={`פוטנציאל עמלה: ${money(localSummary.pendingCommissionTotal)}`}
-            icon="clock"
-            tone="pending"
-          />
-
-          <StatCard
-            title="סכום ממתין לתשלום"
-            value={loading ? "..." : money(localSummary.pendingGrossTotal)}
-            subtitle="לא נכנס לעמלה עד תשלום בפועל"
-            icon="card"
-            tone="pending"
-          />
-        </section>
-
         {error ? (
           <div className="mt-6 rounded-[28px] border border-rose-200 bg-rose-50 p-5 text-sm font-black text-rose-700">
             {error}
@@ -716,7 +697,7 @@ export default function EmployeeSalesPage() {
               עסקאות ששולמו
             </h2>
             <p className="mt-1 text-sm font-semibold text-slate-500">
-              כאן יוצגו העסקאות שעברו תשלום Stripe והעמלה שלהן נכנסה לחישוב.
+              מוצגות רק עסקאות שעברו תשלום Stripe ונכנסות לעמלה של העובד.
             </p>
           </div>
 
@@ -727,54 +708,16 @@ export default function EmployeeSalesPage() {
                 טוען מכירות...
               </p>
             </div>
-          ) : paidSales.length === 0 ? (
+          ) : filteredPaidSales.length === 0 ? (
             <div className="p-10 text-center">
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-3xl bg-slate-100 text-slate-600">
-                <Icon name="sales" className="h-6 w-6" />
+                <Icon name="calendar" className="h-6 w-6" />
               </div>
               <p className="mt-4 text-lg font-black text-slate-800">
-                אין עדיין עסקאות ששולמו
+                אין עסקאות ששולמו בחודש הזה
               </p>
               <p className="mt-2 text-sm font-semibold text-slate-500">
-                אחרי שהלקוח משלם, ה־Webhook של Stripe יעדכן את המכירה והיא תופיע כאן.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4 p-4 sm:p-6">
-              {paidSales.map((sale) => (
-                <SaleCard key={saleId(sale)} sale={sale} />
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section className="mt-6 overflow-hidden rounded-[34px] border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-200 p-5 sm:p-6">
-            <h2 className="text-2xl font-black text-slate-950">
-              עסקאות ממתינות לתשלום
-            </h2>
-            <p className="mt-1 text-sm font-semibold text-slate-500">
-              עסקאות שנוצרו על ידי העובד אך עדיין לא שולמו. הן לא נכנסות לעמלה עד תשלום.
-            </p>
-          </div>
-
-          {loading ? (
-            <div className="p-10 text-center">
-              <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-slate-950" />
-              <p className="mt-4 text-sm font-black text-slate-700">
-                טוען מכירות...
-              </p>
-            </div>
-          ) : pendingSales.length === 0 ? (
-            <div className="p-10 text-center">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-3xl bg-slate-100 text-slate-600">
-                <Icon name="clock" className="h-6 w-6" />
-              </div>
-              <p className="mt-4 text-lg font-black text-slate-800">
-                אין עסקאות ממתינות
-              </p>
-              <p className="mt-2 text-sm font-semibold text-slate-500">
-                לחצי על יצירת לקוח חדש כדי לבצע עסקה ראשונה.
+                אפשר לבחור חודש אחר בסינון או ליצור עסקה חדשה.
               </p>
               <button
                 type="button"
@@ -787,111 +730,9 @@ export default function EmployeeSalesPage() {
             </div>
           ) : (
             <div className="space-y-4 p-4 sm:p-6">
-              {pendingSales.map((sale) => (
+              {filteredPaidSales.map((sale) => (
                 <SaleCard key={saleId(sale)} sale={sale} />
               ))}
-            </div>
-          )}
-        </section>
-
-        <section className="mt-6 overflow-hidden rounded-[34px] border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-200 p-5 sm:p-6">
-            <h2 className="text-2xl font-black text-slate-950">
-              כל רשימת המכירות
-            </h2>
-            <p className="mt-1 text-sm font-semibold text-slate-500">
-              טבלה מלאה לצפייה מהירה בכל העסקאות של העובד.
-            </p>
-          </div>
-
-          {loading ? null : sortedSales.length === 0 ? (
-            <div className="p-10 text-center text-sm font-black text-slate-500">
-              אין עדיין מכירות להצגה.
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1220px] border-collapse text-right">
-                <thead>
-                  <tr className="bg-slate-50 text-xs font-black text-slate-500">
-                    <th className="px-5 py-4">לקוח</th>
-                    <th className="px-5 py-4">טלפון</th>
-                    <th className="px-5 py-4">אירוע</th>
-                    <th className="px-5 py-4">חבילה</th>
-                    <th className="px-5 py-4">לתשלום ב־Stripe</th>
-                    <th className="px-5 py-4">כולל מע״מ</th>
-                    <th className="px-5 py-4">לפני מע״מ</th>
-                    <th className="px-5 py-4">עמלה</th>
-                    <th className="px-5 py-4">סטטוס</th>
-                    <th className="px-5 py-4">נוצר</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {sortedSales.map((sale) => (
-                    <tr
-                      key={saleId(sale)}
-                      className="border-t border-slate-100 text-sm font-bold text-slate-700"
-                    >
-                      <td className="px-5 py-4">
-                        <div>
-                          <p className="font-black text-slate-950">
-                            {sale.clientName || "—"}
-                          </p>
-                          <p className="mt-1 text-xs text-slate-400">
-                            {sale.clientEmail || "—"}
-                          </p>
-                        </div>
-                      </td>
-
-                      <td className="px-5 py-4" dir="ltr">
-                        {sale.clientPhone || "—"}
-                      </td>
-
-                      <td className="px-5 py-4">
-                        <p>{sale.eventName || "—"}</p>
-                        <p className="mt-1 text-xs text-slate-400">
-                          {formatDate(sale.eventDate)}
-                        </p>
-                      </td>
-
-                      <td className="px-5 py-4">
-                        <p>{sale.packageName || sale.plan || "—"}</p>
-                        <p className="mt-1 text-xs text-slate-400">
-                          {asNumber(sale.records || sale.guests).toLocaleString(
-                            "he-IL",
-                          )} רשומות
-                        </p>
-                      </td>
-
-                      <td className="px-5 py-4 font-black text-slate-950">
-                        {money(sale.stripeAmount || sale.grossAmount)}
-                      </td>
-
-                      <td className="px-5 py-4 font-black text-slate-950">
-                        {money(sale.grossAmount)}
-                      </td>
-
-                      <td className="px-5 py-4">{money(sale.netAmount)}</td>
-
-                      <td className="px-5 py-4 font-black text-emerald-700">
-                        {money(sale.commissionAmount)}
-                      </td>
-
-                      <td className="px-5 py-4">
-                        <span
-                          className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${statusClass(
-                            sale.status,
-                          )}`}
-                        >
-                          {statusLabel(sale.status)}
-                        </span>
-                      </td>
-
-                      <td className="px-5 py-4">{formatDate(sale.createdAt)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </div>
           )}
         </section>
