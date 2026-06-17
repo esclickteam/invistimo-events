@@ -12,6 +12,9 @@ export const dynamic = "force-dynamic";
 
 const VAT_RATE = 0.18;
 const COMMISSION_RATE = 0.05;
+const DEFAULT_CURRENCY = "ils";
+
+type PaymentMode = "full" | "split";
 
 function cleanString(value: unknown) {
   return String(value || "").trim();
@@ -30,6 +33,38 @@ function roundMoney(value: number) {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
+function toObjectId(value: unknown) {
+  const id = cleanString(value);
+
+  if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+    return null;
+  }
+
+  return new mongoose.Types.ObjectId(id);
+}
+
+function normalizeObject(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {} as Record<string, unknown>;
+  }
+
+  return value as Record<string, unknown>;
+}
+
+function getBaseUrl(req: NextRequest) {
+  const fromEnv =
+    cleanString(process.env.NEXT_PUBLIC_APP_URL) ||
+    cleanString(process.env.NEXT_PUBLIC_SITE_URL) ||
+    cleanString(process.env.NEXTAUTH_URL) ||
+    cleanString(process.env.APP_URL);
+
+  if (fromEnv) {
+    return fromEnv.replace(/\/+$/, "");
+  }
+
+  return req.nextUrl.origin.replace(/\/+$/, "");
+}
+
 function calculateSale(grossAmount: number) {
   const safeGross = Math.max(0, toNumber(grossAmount));
   const netAmount = roundMoney(safeGross / (1 + VAT_RATE));
@@ -44,19 +79,11 @@ function calculateSale(grossAmount: number) {
   };
 }
 
-function toObjectId(value: unknown) {
-  const id = cleanString(value);
-
-  if (!id || !mongoose.Types.ObjectId.isValid(id)) {
-    return null;
-  }
-
-  return new mongoose.Types.ObjectId(id);
-}
-
 function isEmployeeAllowed(user: any, auth: any) {
   const role = cleanString(user?.role || auth?.role).toLowerCase();
-  const staffType = cleanString(user?.staffType || auth?.staffType).toLowerCase();
+  const staffType = cleanString(
+    user?.staffType || auth?.staffType,
+  ).toLowerCase();
 
   return (
     role === "staff" ||
@@ -64,6 +91,102 @@ function isEmployeeAllowed(user: any, auth: any) {
     role === "admin" ||
     staffType === "producer_staff" ||
     staffType === "general_staff"
+  );
+}
+
+function normalizePaymentMode(value: unknown): PaymentMode {
+  return cleanString(value) === "full" ? "full" : "split";
+}
+
+function getStripeAmountFromBody(body: any) {
+  const payment = normalizeObject(body?.payment);
+  const totals = normalizeObject(body?.totals);
+  const paymentSchedule =
+    normalizeObject(body?.paymentSchedule).stripeAmount ||
+    normalizeObject(totals?.paymentSchedule);
+
+  const fromPaymentStripe = toNumber(payment.stripeAmount);
+  const fromPaymentImmediate = toNumber(payment.immediateAmount);
+  const fromTotalsStripe = toNumber(totals.stripeAmount);
+  const fromScheduleStripe = toNumber(
+    (paymentSchedule as Record<string, unknown>)?.stripeAmount,
+  );
+  const fromScheduleImmediate = toNumber(
+    (paymentSchedule as Record<string, unknown>)?.immediateTotal,
+  );
+  const fromAmount = toNumber(body?.amount);
+
+  const amount =
+    fromPaymentStripe ||
+    fromTotalsStripe ||
+    fromScheduleStripe ||
+    fromPaymentImmediate ||
+    fromScheduleImmediate ||
+    fromAmount;
+
+  return roundMoney(amount);
+}
+
+function getFinalGrossAmountFromBody(body: any) {
+  const payment = normalizeObject(body?.payment);
+  const totals = normalizeObject(body?.totals);
+
+  const fromTotalsAfterDiscount =
+    toNumber(totals.grossAmountAfterDiscount) ||
+    toNumber(totals.grossAmount);
+
+  const fromBodyGross = toNumber(body?.grossAmount);
+  const fromPaymentTotal = toNumber(payment.totalAmount);
+  const fromPaymentAmount = toNumber(payment.amount);
+
+  return roundMoney(
+    fromTotalsAfterDiscount ||
+      fromBodyGross ||
+      fromPaymentTotal ||
+      fromPaymentAmount,
+  );
+}
+
+function getOriginalGrossAmountFromBody(body: any, fallback: number) {
+  const payment = normalizeObject(body?.payment);
+  const totals = normalizeObject(body?.totals);
+  const schedule = normalizeObject(totals?.paymentSchedule);
+
+  return roundMoney(
+    toNumber(body?.originalGrossAmount) ||
+      toNumber(payment.originalAmount) ||
+      toNumber(totals.originalGrossAmount) ||
+      toNumber(totals.grossAmountBeforeDiscount) ||
+      toNumber(schedule.originalGrossAmount) ||
+      toNumber(schedule.grossAmountBeforeDiscount) ||
+      fallback,
+  );
+}
+
+function getDiscountAmountFromBody(body: any) {
+  const payment = normalizeObject(body?.payment);
+  const totals = normalizeObject(body?.totals);
+  const schedule = normalizeObject(totals?.paymentSchedule);
+
+  return roundMoney(
+    toNumber(body?.discountAmount) ||
+      toNumber(payment.discountAmount) ||
+      toNumber(totals.discountAmount) ||
+      toNumber(totals.fullPaymentDiscount) ||
+      toNumber(schedule.discountAmount) ||
+      toNumber(schedule.fullPaymentDiscount),
+  );
+}
+
+function getEventDayAmountFromBody(body: any) {
+  const payment = normalizeObject(body?.payment);
+  const schedule =
+    normalizeObject(body?.paymentSchedule) ||
+    normalizeObject(normalizeObject(body?.totals)?.paymentSchedule);
+
+  return roundMoney(
+    toNumber(payment.eventDayAmount) ||
+      toNumber((schedule as Record<string, unknown>)?.eventDayTotal),
   );
 }
 
@@ -90,12 +213,22 @@ function serializeSale(sale: any) {
     guests: Number(sale.guests || 0),
 
     grossAmount: Number(sale.grossAmount || 0),
+    originalGrossAmount: Number(sale.originalGrossAmount || sale.grossAmount || 0),
+    discountAmount: Number(sale.discountAmount || 0),
+    stripeAmount: Number(sale.stripeAmount || 0),
+    eventDayAmount: Number(sale.eventDayAmount || 0),
+
     vatRate: Number(sale.vatRate || VAT_RATE),
     netAmount: Number(sale.netAmount || 0),
     commissionRate: Number(sale.commissionRate || COMMISSION_RATE),
     commissionAmount: Number(sale.commissionAmount || 0),
 
-    status: sale.status || "paid",
+    status: sale.status || "pending",
+    paymentMode: sale.paymentMode || "split",
+    paymentProvider: sale.paymentProvider || "stripe",
+    stripeCheckoutSessionId: sale.stripeCheckoutSessionId || "",
+    stripeCheckoutUrl: sale.stripeCheckoutUrl || "",
+
     source: sale.source || "employee_sales_page",
     notes: sale.notes || "",
 
@@ -158,6 +291,145 @@ async function requireEmployee(req: NextRequest) {
     auth,
     employeeObjectId,
     currentUser,
+  };
+}
+
+async function createStripeCheckoutSession({
+  req,
+  userId,
+  saleId,
+  clientEmail,
+  clientName,
+  packageName,
+  plan,
+  stripeAmount,
+  finalGrossAmount,
+  originalGrossAmount,
+  discountAmount,
+  eventDayAmount,
+  paymentMode,
+}: {
+  req: NextRequest;
+  userId: string;
+  saleId: string;
+  clientEmail: string;
+  clientName: string;
+  packageName: string;
+  plan: string;
+  stripeAmount: number;
+  finalGrossAmount: number;
+  originalGrossAmount: number;
+  discountAmount: number;
+  eventDayAmount: number;
+  paymentMode: PaymentMode;
+}) {
+  const secretKey = cleanString(process.env.STRIPE_SECRET_KEY);
+
+  if (!secretKey) {
+    throw new Error("חסר STRIPE_SECRET_KEY במשתני הסביבה");
+  }
+
+  const baseUrl = getBaseUrl(req);
+  const amountInAgorot = Math.round(stripeAmount * 100);
+
+  if (amountInAgorot < 50) {
+    throw new Error("סכום Stripe נמוך מדי או לא תקין");
+  }
+
+  const successUrl = `${baseUrl}/employee/sales?payment=success&saleId=${encodeURIComponent(
+    saleId,
+  )}&userId=${encodeURIComponent(userId)}`;
+
+  const cancelUrl = `${baseUrl}/employee/sales/new?payment=cancelled&saleId=${encodeURIComponent(
+    saleId,
+  )}&userId=${encodeURIComponent(userId)}`;
+
+  const descriptionParts = [
+    `לקוח: ${clientName}`,
+    `סכום עסקה כולל: ${finalGrossAmount} ₪`,
+  ];
+
+  if (paymentMode === "full" && discountAmount > 0) {
+    descriptionParts.push(`הנחת תשלום מלא: ${discountAmount} ₪`);
+  }
+
+  if (paymentMode === "split" && eventDayAmount > 0) {
+    descriptionParts.push(`יתרה ביום האירוע: ${eventDayAmount} ₪`);
+  }
+
+  const body = new URLSearchParams();
+
+  body.set("mode", "payment");
+  body.set("success_url", successUrl);
+  body.set("cancel_url", cancelUrl);
+  body.set("customer_email", clientEmail);
+  body.set("client_reference_id", userId);
+
+  body.set("line_items[0][quantity]", "1");
+  body.set("line_items[0][price_data][currency]", DEFAULT_CURRENCY);
+  body.set(
+    "line_items[0][price_data][unit_amount]",
+    String(amountInAgorot),
+  );
+  body.set(
+    "line_items[0][price_data][product_data][name]",
+    `Invistimo - ${packageName || plan}`,
+  );
+  body.set(
+    "line_items[0][price_data][product_data][description]",
+    descriptionParts.join(" | "),
+  );
+
+  body.set("metadata[userId]", userId);
+  body.set("metadata[saleId]", saleId);
+  body.set("metadata[source]", "employee_sales_page");
+  body.set("metadata[paymentMode]", paymentMode);
+  body.set("metadata[stripeAmount]", String(stripeAmount));
+  body.set("metadata[finalGrossAmount]", String(finalGrossAmount));
+  body.set("metadata[originalGrossAmount]", String(originalGrossAmount));
+  body.set("metadata[discountAmount]", String(discountAmount));
+  body.set("metadata[eventDayAmount]", String(eventDayAmount));
+
+  body.set("payment_intent_data[metadata][userId]", userId);
+  body.set("payment_intent_data[metadata][saleId]", saleId);
+  body.set("payment_intent_data[metadata][source]", "employee_sales_page");
+  body.set("payment_intent_data[metadata][paymentMode]", paymentMode);
+  body.set("payment_intent_data[metadata][stripeAmount]", String(stripeAmount));
+  body.set(
+    "payment_intent_data[metadata][finalGrossAmount]",
+    String(finalGrossAmount),
+  );
+  body.set(
+    "payment_intent_data[metadata][eventDayAmount]",
+    String(eventDayAmount),
+  );
+
+  const response = await fetch("https://api.stripe.com/v1/checkout/sessions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${secretKey}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    cache: "no-store",
+    body,
+  });
+
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok || !data?.url) {
+    console.error("CREATE STRIPE CHECKOUT FAILED:", {
+      status: response.status,
+      data,
+    });
+
+    throw new Error(
+      data?.error?.message || "שגיאה ביצירת קישור תשלום Stripe",
+    );
+  }
+
+  return {
+    checkoutSessionId: cleanString(data.id),
+    checkoutUrl: cleanString(data.url),
   };
 }
 
@@ -228,7 +500,11 @@ export async function GET(req: NextRequest) {
     console.error("EMPLOYEE SALES GET FAILED:", error);
 
     return NextResponse.json(
-      { success: false, error: "SERVER_ERROR" },
+      {
+        success: false,
+        error: "SERVER_ERROR",
+        message: error instanceof Error ? error.message : "שגיאת שרת",
+      },
       { status: 500 },
     );
   }
@@ -236,7 +512,7 @@ export async function GET(req: NextRequest) {
 
 /* =========================================================
    POST /api/employee/sales
-   יוצר לקוח חדש + שומר מכירה לעובד המחובר
+   יוצר לקוח חדש + שומר מכירה לעובד המחובר + יוצר Stripe Checkout
 ========================================================= */
 export async function POST(req: NextRequest) {
   try {
@@ -250,25 +526,68 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json().catch(() => null);
 
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "INVALID_BODY",
+          message: "בקשה לא תקינה",
+        },
+        { status: 400 },
+      );
+    }
+
     const clientName = cleanString(body?.clientName || body?.name);
     const clientEmail = normalizeEmail(body?.clientEmail || body?.email);
     const clientPhone = cleanString(body?.clientPhone || body?.phone);
 
+    const customerIdNumber = cleanString(body?.customerIdNumber);
+    const clientAddress = cleanString(body?.clientAddress);
+
     const eventName = cleanString(body?.eventName);
     const eventDateRaw = cleanString(body?.eventDate);
+    const eventCity = cleanString(body?.eventCity);
+    const venueName = cleanString(body?.venueName);
+
     const packageName = cleanString(body?.packageName);
     const plan = cleanString(body?.plan) || "premium";
-    const guests = Math.max(0, Math.floor(toNumber(body?.guests)));
-    const grossAmountRaw = toNumber(body?.grossAmount || body?.amount);
-    const status = cleanString(body?.status) || "paid";
+    const guests = Math.max(0, Math.floor(toNumber(body?.guests || body?.records)));
+
+    const payment = normalizeObject(body?.payment);
+    const totals = normalizeObject(body?.totals);
+
+    const paymentMode = normalizePaymentMode(
+      body?.paymentMode || payment.mode || totals.paymentMode,
+    );
+
+    const finalGrossAmount = getFinalGrossAmountFromBody(body);
+    const originalGrossAmount = getOriginalGrossAmountFromBody(
+      body,
+      finalGrossAmount,
+    );
+    const discountAmount = getDiscountAmountFromBody(body);
+    const stripeAmount = getStripeAmountFromBody(body);
+    const eventDayAmount = getEventDayAmountFromBody(body);
+
     const notes = cleanString(body?.notes);
 
-    if (!clientName || !clientEmail || grossAmountRaw <= 0) {
+    if (!clientName || !clientEmail || !clientPhone || finalGrossAmount <= 0) {
       return NextResponse.json(
         {
           success: false,
           error: "MISSING_REQUIRED_FIELDS",
-          message: "חובה למלא שם לקוח, מייל וסכום עסקה",
+          message: "חובה למלא שם לקוח, מייל, טלפון וסכום עסקה",
+        },
+        { status: 400 },
+      );
+    }
+
+    if (stripeAmount <= 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "INVALID_STRIPE_AMOUNT",
+          message: "סכום Stripe לתשלום עכשיו לא תקין",
         },
         { status: 400 },
       );
@@ -280,16 +599,6 @@ export async function POST(req: NextRequest) {
           success: false,
           error: "INVALID_EMAIL",
           message: "אימייל לקוח לא תקין",
-        },
-        { status: 400 },
-      );
-    }
-
-    if (!["pending", "paid", "cancelled", "refunded"].includes(status)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "INVALID_STATUS",
         },
         { status: 400 },
       );
@@ -310,7 +619,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const calculated = calculateSale(grossAmountRaw);
+    const calculated = calculateSale(finalGrossAmount);
 
     const eventDate =
       eventDateRaw && !Number.isNaN(new Date(eventDateRaw).getTime())
@@ -331,21 +640,38 @@ export async function POST(req: NextRequest) {
       guests,
       maxGuests: guests,
 
-      paidAmount: calculated.grossAmount,
-      hasPaid: status === "paid",
+      // תשלום רק Stripe — לכן עד שה-Stripe חוזר כ-paid, זה נשאר לא משולם
+      paidAmount: 0,
+      hasPaid: false,
       isActive: true,
 
       eventDate,
 
-      includeCalls: false,
-      callsRounds: 0,
+      includeCalls: Boolean(
+        plan === "smart" ||
+          plan === "seating" ||
+          (Array.isArray(body?.upsells) &&
+            body.upsells.some((upsell: any) =>
+              cleanString(upsell?.key).includes("call"),
+            )),
+      ),
+      callsRounds: plan === "smart" || plan === "seating" ? 3 : 0,
       callsAddonPrice: 0,
 
       includeCreditGifts: false,
       creditGiftsAddonPrice: 0,
 
-      includeDigitalSeating: true,
-      includeEventManagement: false,
+      includeDigitalSeating:
+        plan === "seating" ||
+        (Array.isArray(body?.upsells) &&
+          body.upsells.some(
+            (upsell: any) => cleanString(upsell?.key) === "digitalSeating",
+          )),
+      includeEventManagement:
+        Array.isArray(body?.upsells) &&
+        body.upsells.some(
+          (upsell: any) => cleanString(upsell?.key) === "suppliersBudgetSystem",
+        ),
       includeCustomDesign: false,
 
       selfManageEnabled: true,
@@ -362,23 +688,40 @@ export async function POST(req: NextRequest) {
       whatsappBalance: 0,
       whatsappUsed: 0,
 
-      allowedMessageRounds: 2,
+      allowedMessageRounds:
+        Array.isArray(body?.upsells) &&
+        body.upsells.some(
+          (upsell: any) => cleanString(upsell?.key) === "thirdRsvpRound",
+        )
+          ? 3
+          : 2,
 
       planLimits: {
         maxGuests: guests,
-        allowedMessageRounds: 2,
+        allowedMessageRounds:
+          Array.isArray(body?.upsells) &&
+          body.upsells.some(
+            (upsell: any) => cleanString(upsell?.key) === "thirdRsvpRound",
+          )
+            ? 3
+            : 2,
         smsEnabled: true,
         smsLimit: guests,
-        seatingEnabled: true,
+        seatingEnabled:
+          plan === "seating" ||
+          (Array.isArray(body?.upsells) &&
+            body.upsells.some(
+              (upsell: any) => cleanString(upsell?.key) === "digitalSeating",
+            )),
         remindersEnabled: true,
-        callsEnabled: false,
+        callsEnabled: plan === "smart" || plan === "seating",
       },
 
       isTrial: false,
       needsPasswordSetup: true,
 
       createdByAdmin: false,
-      billingSource: "admin",
+      billingSource: "stripe",
     });
 
     const sale = await EmployeeSale.create({
@@ -391,8 +734,13 @@ export async function POST(req: NextRequest) {
       clientEmail,
       clientPhone,
 
+      customerIdNumber,
+      clientAddress,
+
       eventName,
       eventDate,
+      eventCity,
+      venueName,
 
       packageName: packageName || plan,
       plan,
@@ -400,10 +748,68 @@ export async function POST(req: NextRequest) {
 
       ...calculated,
 
-      status,
+      originalGrossAmount,
+      discountAmount,
+      stripeAmount,
+      eventDayAmount,
+      paymentMode,
+      paymentProvider: "stripe",
+
+      selectedPackage: body?.selectedPackage || null,
+      upsells: Array.isArray(body?.upsells) ? body.upsells : [],
+      quote: body?.quote || null,
+      totals: body?.totals || null,
+      customerDealSummary: body?.customerDealSummary || null,
+      cancellationTerms: Array.isArray(body?.cancellationTerms)
+        ? body.cancellationTerms
+        : [],
+      paymentTerms: Array.isArray(body?.paymentTerms) ? body.paymentTerms : [],
+      paymentSchedule: body?.paymentSchedule || null,
+
+      saleCompliance: body?.saleCompliance || null,
+
+      // תשלום רק Stripe
+      status: "pending",
       source: "employee_client_create",
       notes,
     });
+
+    const checkout = await createStripeCheckoutSession({
+      req,
+      userId: String(createdUser._id),
+      saleId: String(sale._id),
+      clientEmail,
+      clientName,
+      packageName: packageName || plan,
+      plan,
+      stripeAmount,
+      finalGrossAmount,
+      originalGrossAmount,
+      discountAmount,
+      eventDayAmount,
+      paymentMode,
+    });
+
+    sale.set?.("stripeCheckoutSessionId", checkout.checkoutSessionId);
+    sale.set?.("stripeCheckoutUrl", checkout.checkoutUrl);
+    sale.set?.("payment.checkoutSessionId", checkout.checkoutSessionId);
+    sale.set?.("payment.checkoutUrl", checkout.checkoutUrl);
+    await sale.save?.();
+
+    await User.updateOne(
+      { _id: createdUser._id },
+      {
+        $set: {
+          stripeCheckoutSessionId: checkout.checkoutSessionId,
+          stripeCheckoutUrl: checkout.checkoutUrl,
+          pendingPaymentAmount: stripeAmount,
+          pendingGrossAmount: finalGrossAmount,
+          pendingEventDayAmount: eventDayAmount,
+          paymentMode,
+          billingSource: "stripe",
+        },
+      },
+    );
 
     try {
       await sendPasswordSetupMail(String(createdUser._id));
@@ -415,6 +821,19 @@ export async function POST(req: NextRequest) {
       {
         success: true,
         userId: String(createdUser._id),
+        saleId: String(sale._id),
+        checkoutUrl: checkout.checkoutUrl,
+        stripeCheckoutUrl: checkout.checkoutUrl,
+        checkoutSessionId: checkout.checkoutSessionId,
+        payment: {
+          provider: "stripe",
+          mode: paymentMode,
+          stripeAmount,
+          finalGrossAmount,
+          originalGrossAmount,
+          discountAmount,
+          eventDayAmount,
+        },
         sale: serializeSale(sale),
       },
       { status: 201 },
@@ -434,7 +853,11 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json(
-      { success: false, error: "SERVER_ERROR" },
+      {
+        success: false,
+        error: "SERVER_ERROR",
+        message: error instanceof Error ? error.message : "שגיאת שרת",
+      },
       { status: 500 },
     );
   }

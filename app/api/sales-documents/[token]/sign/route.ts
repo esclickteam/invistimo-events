@@ -36,21 +36,26 @@ function normalizePhone(value: unknown) {
   return cleanStr(value).replace(/[^\d+]/g, "");
 }
 
-function parseDate(value: unknown) {
+function parseDateInput(value: unknown) {
   const str = cleanStr(value);
 
   if (!str) return null;
+
+  const parts = str.split("-").map((part) => Number(part));
+
+  if (
+    parts.length === 3 &&
+    Number.isFinite(parts[0]) &&
+    Number.isFinite(parts[1]) &&
+    Number.isFinite(parts[2])
+  ) {
+    return new Date(parts[0], parts[1] - 1, parts[2]);
+  }
 
   const date = new Date(str);
 
   if (!Number.isNaN(date.getTime())) {
     return date;
-  }
-
-  const fallback = new Date(`${str}T00:00:00.000`);
-
-  if (!Number.isNaN(fallback.getTime())) {
-    return fallback;
   }
 
   return null;
@@ -84,13 +89,11 @@ async function getTokenFromContext(context: RouteContext) {
   return cleanStr(params?.token);
 }
 
-function getSignatureValue(body: any) {
+function getSignatureText(body: any) {
   return (
     cleanStr(body?.signatureText) ||
     cleanStr(body?.signature) ||
-    cleanStr(body?.signatureValue) ||
-    cleanStr(body?.drawnSignature) ||
-    cleanStr(body?.signatureDataUrl)
+    cleanStr(body?.signatureValue)
   );
 }
 
@@ -132,7 +135,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     const body = await req.json().catch(() => null);
 
-    if (!body || typeof body !== "object") {
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
       return jsonError("בקשה לא תקינה", 400);
     }
 
@@ -146,12 +149,18 @@ export async function POST(req: NextRequest, context: RouteContext) {
     const currentStatus = cleanStr(document.get("status"));
 
     if (documentType !== "agreement") {
-      return jsonError("לא ניתן לחתום על הצעת מחיר. חתימה זמינה רק בהסכם.", 400);
+      return jsonError(
+        "לא ניתן לחתום על הצעת מחיר. חתימה זמינה רק בהסכם.",
+        400,
+      );
     }
 
     if (currentStatus === "signed") {
       return jsonError("ההסכם כבר נחתם", 409, {
-        signedAt: document.get("signature.signedAt") || document.get("signedAt"),
+        signedAt:
+          document.get("signature.signedAt") ||
+          document.get("agreement.signedAt") ||
+          document.get("signedAt"),
       });
     }
 
@@ -180,7 +189,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
       cleanStr((body as any).signatureDate) ||
       getTodayDateInputValue();
 
-    const signatureText = getSignatureValue(body as any);
+    const signatureText = getSignatureText(body as any);
     const signatureDataUrl = getSignatureDataUrl(body as any);
 
     const acceptedTerms =
@@ -198,7 +207,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
       return jsonError("מספר הטלפון לא תקין", 400);
     }
 
-    if (!parseDate(signatureDate)) {
+    if (!parseDateInput(signatureDate)) {
       return jsonError("תאריך החתימה לא תקין", 400);
     }
 
@@ -226,6 +235,8 @@ export async function POST(req: NextRequest, context: RouteContext) {
     document.set("signature.signatureDataUrl", signatureDataUrl);
     document.set("signature.acceptedTerms", true);
     document.set("signature.signedAt", signedAt);
+    document.set("signature.ip", signedIp);
+    document.set("signature.userAgent", signedUserAgent);
     document.set("signature.signedIp", signedIp);
     document.set("signature.signedUserAgent", signedUserAgent);
 
@@ -239,10 +250,21 @@ export async function POST(req: NextRequest, context: RouteContext) {
     document.set("agreement.acceptedTerms", true);
     document.set("agreement.signedAt", signedAt);
 
-    document.set("client.fullName", cleanStr(document.get("client.fullName")) || fullName);
-    document.set("client.idNumber", cleanStr(document.get("client.idNumber")) || idNumber);
-    document.set("client.address", cleanStr(document.get("client.address")) || address);
-    document.set("client.phone", cleanStr(document.get("client.phone")) || phone);
+    if (!cleanStr(document.get("client.fullName"))) {
+      document.set("client.fullName", fullName);
+    }
+
+    if (!cleanStr(document.get("client.idNumber"))) {
+      document.set("client.idNumber", idNumber);
+    }
+
+    if (!cleanStr(document.get("client.address"))) {
+      document.set("client.address", address);
+    }
+
+    if (!cleanStr(document.get("client.phone"))) {
+      document.set("client.phone", phone);
+    }
 
     document.set("audit.signedAt", signedAt);
     document.set("audit.signedIp", signedIp);

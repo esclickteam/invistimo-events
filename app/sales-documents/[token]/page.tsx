@@ -21,6 +21,10 @@ type PaymentSchedule = {
   eventServicesTotal?: number;
   eventServicesDeposit?: number;
   eventServicesBalance?: number;
+  stripeAmount?: number;
+  fullPaymentDiscount?: number;
+  grossAmountBeforeDiscount?: number;
+  grossAmountAfterDiscount?: number;
 };
 
 type SalesDocument = {
@@ -53,6 +57,18 @@ type SalesDocument = {
     validityDays?: number;
   };
 
+  agreement?: {
+    signatureFullName?: string;
+    signatureIdNumber?: string;
+    signatureAddress?: string;
+    signaturePhone?: string;
+    signatureDate?: string;
+    signatureText?: string;
+    signatureDataUrl?: string;
+    acceptedTerms?: boolean;
+    signedAt?: string;
+  };
+
   selectedPackage?: {
     key?: string;
     title?: string;
@@ -75,9 +91,14 @@ type SalesDocument = {
 
   totals?: {
     grossAmount?: number;
+    grossAmountBeforeDiscount?: number;
+    grossAmountAfterDiscount?: number;
+    discountAmount?: number;
+    fullPaymentDiscount?: number;
     netAmount?: number;
     vatRate?: number;
-    paymentMode?: string;
+    paymentMode?: "full" | "split" | string;
+    stripeAmount?: number;
     paymentSchedule?: PaymentSchedule;
   };
 
@@ -105,6 +126,7 @@ type ApiResponse = {
   expired?: boolean;
   canSign?: boolean;
   readOnly?: boolean;
+  documentUrl?: string;
 };
 
 function cleanStr(value: unknown) {
@@ -129,6 +151,19 @@ function formatDate(value?: string) {
 
   if (!str) return "לא הוגדר";
 
+  const parts = str.split("-").map((part) => Number(part));
+
+  if (
+    parts.length === 3 &&
+    Number.isFinite(parts[0]) &&
+    Number.isFinite(parts[1]) &&
+    Number.isFinite(parts[2])
+  ) {
+    return new Date(parts[0], parts[1] - 1, parts[2]).toLocaleDateString(
+      "he-IL",
+    );
+  }
+
   const date = new Date(str);
 
   if (Number.isNaN(date.getTime())) {
@@ -145,6 +180,16 @@ function todayInputValue() {
   const day = String(now.getDate()).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
+}
+
+function getParamToken(params: ReturnType<typeof useParams>) {
+  const value = params?.token;
+
+  if (Array.isArray(value)) {
+    return cleanStr(value[0]);
+  }
+
+  return cleanStr(value);
 }
 
 function getStatusLabel(status?: string) {
@@ -170,6 +215,11 @@ function getDocumentTitle(type?: string) {
   }
 
   return "הצעת מחיר";
+}
+
+function getPaymentModeLabel(mode?: string) {
+  if (mode === "full") return "תשלום מלא מראש";
+  return "תשלום ראשוני ויתרה ביום האירוע";
 }
 
 function SectionCard({
@@ -217,7 +267,9 @@ function DetailSections({ sections }: { sections?: DetailSection[] }) {
                 key={item}
                 className="flex gap-2 text-sm font-semibold leading-7 text-[#5d4c3b]"
               >
-                <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#c9944a]" />
+                <span className="mt-2 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#fff3df] text-[#b47a3b]">
+                  ✓
+                </span>
                 <span>{item}</span>
               </li>
             ))}
@@ -252,6 +304,7 @@ function TextInput({
   placeholder,
   type = "text",
   required,
+  disabled,
 }: {
   label: string;
   value: string;
@@ -259,6 +312,7 @@ function TextInput({
   placeholder?: string;
   type?: string;
   required?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <label className="block">
@@ -270,9 +324,10 @@ function TextInput({
       <input
         type={type}
         value={value}
+        disabled={disabled}
         placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-2 h-12 w-full rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-bold text-[#3f3327] outline-none transition placeholder:text-[#b6a38d] focus:border-[#c9944a] focus:ring-4 focus:ring-[#c9944a]/15"
+        className="mt-2 h-12 w-full rounded-2xl border border-[#eadfce] bg-white px-4 text-sm font-bold text-[#3f3327] outline-none transition placeholder:text-[#b6a38d] focus:border-[#c9944a] focus:ring-4 focus:ring-[#c9944a]/15 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
       />
     </label>
   );
@@ -310,7 +365,7 @@ function SignatureCanvas({
 
     if (!ctx) return;
 
-    ctx.scale(ratio, ratio);
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
     ctx.lineWidth = 2.5;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
@@ -406,7 +461,6 @@ function SignatureCanvas({
 
     if (!ctx) return;
 
-    ctx.clearRect(0, 0, rect.width, rect.height);
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, rect.width, rect.height);
 
@@ -450,7 +504,7 @@ function SignatureCanvas({
 
 export default function SalesDocumentPage() {
   const params = useParams();
-  const token = useMemo(() => cleanStr(params?.token), [params]);
+  const token = useMemo(() => getParamToken(params), [params]);
 
   const [document, setDocument] = useState<SalesDocument | null>(null);
   const [loading, setLoading] = useState(true);
@@ -477,6 +531,26 @@ export default function SalesDocumentPage() {
   const isSigned = document?.status === "signed";
 
   const paymentSchedule = document?.totals?.paymentSchedule || {};
+  const paymentMode = cleanStr(document?.totals?.paymentMode) || "split";
+
+  const grossAmount =
+    asNumber(document?.totals?.grossAmountAfterDiscount) ||
+    asNumber(document?.totals?.grossAmount) ||
+    asNumber(paymentSchedule.grossAmountAfterDiscount);
+
+  const grossBeforeDiscount =
+    asNumber(document?.totals?.grossAmountBeforeDiscount) ||
+    asNumber(paymentSchedule.grossAmountBeforeDiscount);
+
+  const discountAmount =
+    asNumber(document?.totals?.discountAmount) ||
+    asNumber(document?.totals?.fullPaymentDiscount) ||
+    asNumber(paymentSchedule.fullPaymentDiscount);
+
+  const stripeAmount =
+    asNumber(document?.totals?.stripeAmount) ||
+    asNumber(paymentSchedule.stripeAmount) ||
+    asNumber(paymentSchedule.immediateTotal);
 
   const loadDocument = useCallback(async () => {
     if (!token) {
@@ -508,26 +582,48 @@ export default function SalesDocumentPage() {
 
       setSignatureFullName(
         cleanStr(data.document.signature?.fullName) ||
+          cleanStr(data.document.agreement?.signatureFullName) ||
           cleanStr(data.document.client?.fullName),
       );
+
       setSignatureIdNumber(
         cleanStr(data.document.signature?.idNumber) ||
+          cleanStr(data.document.agreement?.signatureIdNumber) ||
           cleanStr(data.document.client?.idNumber),
       );
+
       setSignatureAddress(
         cleanStr(data.document.signature?.address) ||
+          cleanStr(data.document.agreement?.signatureAddress) ||
           cleanStr(data.document.client?.address),
       );
+
       setSignaturePhone(
         cleanStr(data.document.signature?.phone) ||
+          cleanStr(data.document.agreement?.signaturePhone) ||
           cleanStr(data.document.client?.phone),
       );
+
       setSignatureDate(
-        cleanStr(data.document.signature?.date) || todayInputValue(),
+        cleanStr(data.document.signature?.date) ||
+          cleanStr(data.document.agreement?.signatureDate) ||
+          todayInputValue(),
       );
-      setSignatureText(cleanStr(data.document.signature?.signatureText));
-      setSignatureDataUrl(cleanStr(data.document.signature?.signatureDataUrl));
-      setAcceptedTerms(Boolean(data.document.signature?.acceptedTerms));
+
+      setSignatureText(
+        cleanStr(data.document.signature?.signatureText) ||
+          cleanStr(data.document.agreement?.signatureText),
+      );
+
+      setSignatureDataUrl(
+        cleanStr(data.document.signature?.signatureDataUrl) ||
+          cleanStr(data.document.agreement?.signatureDataUrl),
+      );
+
+      setAcceptedTerms(
+        Boolean(data.document.signature?.acceptedTerms) ||
+          Boolean(data.document.agreement?.acceptedTerms),
+      );
     } catch (error) {
       setLoadError(
         error instanceof Error ? error.message : "שגיאה בטעינת המסמך",
@@ -700,6 +796,10 @@ export default function SalesDocumentPage() {
                   סטטוס: {getStatusLabel(document.status)}
                 </span>
 
+                <span className="rounded-full border border-[#eadfce] bg-white px-4 py-2 text-xs font-black text-[#7b6a58]">
+                  {getPaymentModeLabel(paymentMode)}
+                </span>
+
                 {isQuote ? (
                   <span className="rounded-full border border-[#eadfce] bg-white px-4 py-2 text-xs font-black text-[#7b6a58]">
                     צפייה בלבד
@@ -753,7 +853,10 @@ export default function SalesDocumentPage() {
                   label="שם האירוע"
                   value={document.event?.name || "אירוע"}
                 />
-                <Field label="תאריך אירוע" value={formatDate(document.event?.date)} />
+                <Field
+                  label="תאריך אירוע"
+                  value={formatDate(document.event?.date)}
+                />
                 <Field label="עיר" value={document.event?.city} />
                 <Field label="שם האולם" value={document.event?.venueName} />
               </div>
@@ -763,24 +866,37 @@ export default function SalesDocumentPage() {
               <div className="grid gap-3 sm:grid-cols-3">
                 <Field
                   label={isAgreement ? "תאריך עסקה" : "תאריך הצעה"}
-                  value={formatDate(document.quote?.createdAt || document.createdAt)}
+                  value={formatDate(
+                    document.quote?.createdAt || document.createdAt,
+                  )}
                 />
+
                 {isQuote ? (
                   <Field
                     label="ההצעה תקפה עד"
-                    value={`${formatDate(document.quote?.expiresAt)} בהתאם לזמינות`}
+                    value={`${formatDate(
+                      document.quote?.expiresAt,
+                    )} בהתאם לזמינות`}
                   />
                 ) : (
                   <Field
                     label="תאריך חתימה"
                     value={
-                      document.signature?.signedAt
-                        ? formatDate(document.signature.signedAt)
+                      document.signature?.signedAt ||
+                      document.agreement?.signedAt
+                        ? formatDate(
+                            document.signature?.signedAt ||
+                              document.agreement?.signedAt,
+                          )
                         : "טרם נחתם"
                     }
                   />
                 )}
-                <Field label="מספר רשומות" value={document.selectedPackage?.records} />
+
+                <Field
+                  label="מספר רשומות"
+                  value={document.selectedPackage?.records}
+                />
               </div>
             </SectionCard>
 
@@ -806,7 +922,9 @@ export default function SalesDocumentPage() {
                         </div>
 
                         <div className="shrink-0 rounded-2xl bg-white px-4 py-3 text-sm font-black text-[#3f3327] ring-1 ring-[#eadfce]">
-                          {service.givenFree ? "ללא עלות" : money(service.price)}
+                          {service.givenFree
+                            ? "ללא עלות"
+                            : money(service.price)}
                         </div>
                       </div>
 
@@ -840,32 +958,60 @@ export default function SalesDocumentPage() {
                     <div className="grid gap-3 sm:grid-cols-2">
                       <Field
                         label="שם מלא"
-                        value={document.signature?.fullName}
+                        value={
+                          document.signature?.fullName ||
+                          document.agreement?.signatureFullName
+                        }
                       />
                       <Field
                         label="תעודת זהות"
-                        value={document.signature?.idNumber}
+                        value={
+                          document.signature?.idNumber ||
+                          document.agreement?.signatureIdNumber
+                        }
                       />
-                      <Field label="כתובת" value={document.signature?.address} />
-                      <Field label="טלפון" value={document.signature?.phone} />
+                      <Field
+                        label="כתובת"
+                        value={
+                          document.signature?.address ||
+                          document.agreement?.signatureAddress
+                        }
+                      />
+                      <Field
+                        label="טלפון"
+                        value={
+                          document.signature?.phone ||
+                          document.agreement?.signaturePhone
+                        }
+                      />
                       <Field
                         label="תאריך חתימה"
-                        value={formatDate(document.signature?.date)}
+                        value={formatDate(
+                          document.signature?.date ||
+                            document.agreement?.signatureDate,
+                        )}
                       />
                       <Field
                         label="נחתם בתאריך"
-                        value={formatDate(document.signature?.signedAt)}
+                        value={formatDate(
+                          document.signature?.signedAt ||
+                            document.agreement?.signedAt,
+                        )}
                       />
                     </div>
 
-                    {document.signature?.signatureDataUrl ? (
+                    {document.signature?.signatureDataUrl ||
+                    document.agreement?.signatureDataUrl ? (
                       <div>
                         <p className="mb-2 text-sm font-black text-[#3f3327]">
                           חתימה
                         </p>
                         <div className="rounded-3xl border border-[#eadfce] bg-white p-4">
                           <img
-                            src={document.signature.signatureDataUrl}
+                            src={
+                              document.signature?.signatureDataUrl ||
+                              document.agreement?.signatureDataUrl
+                            }
                             alt="חתימת לקוח"
                             className="max-h-40 w-full object-contain"
                           />
@@ -874,17 +1020,26 @@ export default function SalesDocumentPage() {
                     ) : (
                       <Field
                         label="חתימה"
-                        value={document.signature?.signatureText}
+                        value={
+                          document.signature?.signatureText ||
+                          document.agreement?.signatureText
+                        }
                       />
                     )}
                   </div>
                 ) : (
                   <div className="space-y-5">
+                    <div className="rounded-[24px] border border-[#eadfce] bg-[#fffdf9] p-4 text-sm font-bold leading-7 text-[#6d5840]">
+                      יש למלא את הפרטים האישיים, לאשר את תנאי העסקה ולחתום.
+                      החתימה נשמרת במערכת יחד עם פרטי ההסכם.
+                    </div>
+
                     <div className="grid gap-4 sm:grid-cols-2">
                       <TextInput
                         label="שם מלא"
                         value={signatureFullName}
                         onChange={setSignatureFullName}
+                        disabled={!canSign || readOnly || expired}
                         required
                       />
 
@@ -892,6 +1047,7 @@ export default function SalesDocumentPage() {
                         label="תעודת זהות"
                         value={signatureIdNumber}
                         onChange={setSignatureIdNumber}
+                        disabled={!canSign || readOnly || expired}
                         required
                       />
 
@@ -899,6 +1055,7 @@ export default function SalesDocumentPage() {
                         label="כתובת"
                         value={signatureAddress}
                         onChange={setSignatureAddress}
+                        disabled={!canSign || readOnly || expired}
                         required
                       />
 
@@ -906,6 +1063,7 @@ export default function SalesDocumentPage() {
                         label="טלפון"
                         value={signaturePhone}
                         onChange={setSignaturePhone}
+                        disabled={!canSign || readOnly || expired}
                         required
                       />
 
@@ -914,6 +1072,7 @@ export default function SalesDocumentPage() {
                         value={signatureDate}
                         onChange={setSignatureDate}
                         type="date"
+                        disabled={!canSign || readOnly || expired}
                         required
                       />
 
@@ -921,6 +1080,7 @@ export default function SalesDocumentPage() {
                         label="חתימה מוקלדת"
                         value={signatureText}
                         onChange={setSignatureText}
+                        disabled={!canSign || readOnly || expired}
                         placeholder="הקלדת שם מלא כחתימה"
                       />
                     </div>
@@ -941,6 +1101,7 @@ export default function SalesDocumentPage() {
                       <input
                         type="checkbox"
                         checked={acceptedTerms}
+                        disabled={!canSign || readOnly || expired}
                         onChange={(event) =>
                           setAcceptedTerms(event.target.checked)
                         }
@@ -987,14 +1148,33 @@ export default function SalesDocumentPage() {
                     מחיר סופי כולל מע״מ
                   </p>
                   <p className="mt-2 text-4xl font-black">
-                    {money(document.totals?.grossAmount)}
+                    {money(grossAmount)}
                   </p>
                 </div>
+
+                {discountAmount > 0 ? (
+                  <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold leading-7 text-emerald-800">
+                    ניתנה הנחת תשלום מלא בסך {money(discountAmount)}.
+                    {grossBeforeDiscount > 0
+                      ? ` מחיר לפני הנחה: ${money(grossBeforeDiscount)}.`
+                      : ""}
+                  </div>
+                ) : null}
 
                 <div className="grid gap-3">
                   <Field
                     label="מחיר חבילה"
                     value={money(document.selectedPackage?.price)}
+                  />
+
+                  <Field
+                    label="סוג תשלום"
+                    value={getPaymentModeLabel(paymentMode)}
+                  />
+
+                  <Field
+                    label="לתשלום עכשיו ב-Stripe"
+                    value={money(stripeAmount)}
                   />
 
                   <Field
@@ -1018,10 +1198,18 @@ export default function SalesDocumentPage() {
                   />
                 </div>
 
-                {asNumber(paymentSchedule.eventServicesTotal) > 0 ? (
+                {paymentMode === "split" &&
+                asNumber(paymentSchedule.eventServicesTotal) > 0 ? (
                   <div className="rounded-[24px] border border-[#eadfce] bg-[#fff7ec] p-4 text-sm font-bold leading-7 text-[#6d5840]">
                     שירותי יום האירוע מחולקים ל־50% תשלום ראשוני לשריון
                     התאריך והצוות, ו־50% יתרה ביום האירוע.
+                  </div>
+                ) : null}
+
+                {paymentMode === "full" ? (
+                  <div className="rounded-[24px] border border-[#eadfce] bg-[#fff7ec] p-4 text-sm font-bold leading-7 text-[#6d5840]">
+                    נבחר תשלום מלא מראש. התשלום מתבצע במלואו דרך Stripe בהתאם
+                    לסכום הסופי לאחר ההנחה.
                   </div>
                 ) : null}
               </div>
@@ -1029,7 +1217,10 @@ export default function SalesDocumentPage() {
 
             <SectionCard title="סטטוס המסמך">
               <div className="space-y-3">
-                <Field label="סוג מסמך" value={getDocumentTitle(document.type)} />
+                <Field
+                  label="סוג מסמך"
+                  value={getDocumentTitle(document.type)}
+                />
                 <Field label="סטטוס" value={getStatusLabel(document.status)} />
 
                 {isQuote ? (

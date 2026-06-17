@@ -42,16 +42,26 @@ function toDateInputValue(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
-function parseDate(value: unknown) {
+function parseDateInput(value: unknown) {
   const str = cleanStr(value);
+
   if (!str) return null;
+
+  const parts = str.split("-").map((part) => Number(part));
+
+  if (
+    parts.length === 3 &&
+    Number.isFinite(parts[0]) &&
+    Number.isFinite(parts[1]) &&
+    Number.isFinite(parts[2])
+  ) {
+    return new Date(parts[0], parts[1] - 1, parts[2]);
+  }
 
   const date = new Date(str);
 
   if (Number.isNaN(date.getTime())) {
-    const fallback = new Date(`${str}T00:00:00.000`);
-    if (Number.isNaN(fallback.getTime())) return null;
-    return fallback;
+    return null;
   }
 
   return date;
@@ -66,34 +76,62 @@ function addDays(date: Date, days: number) {
 
 function isDateExpired(dateValue?: string) {
   const str = cleanStr(dateValue);
+
   if (!str) return false;
 
-  const endOfDay = new Date(`${str}T23:59:59.999`);
+  const parts = str.split("-").map((part) => Number(part));
 
-  if (Number.isNaN(endOfDay.getTime())) {
-    const parsed = new Date(str);
-    if (Number.isNaN(parsed.getTime())) return false;
-
-    parsed.setHours(23, 59, 59, 999);
-    return Date.now() > parsed.getTime();
+  if (
+    parts.length === 3 &&
+    Number.isFinite(parts[0]) &&
+    Number.isFinite(parts[1]) &&
+    Number.isFinite(parts[2])
+  ) {
+    const endOfDay = new Date(parts[0], parts[1] - 1, parts[2], 23, 59, 59, 999);
+    return Date.now() > endOfDay.getTime();
   }
 
-  return Date.now() > endOfDay.getTime();
+  const parsed = new Date(str);
+
+  if (Number.isNaN(parsed.getTime())) return false;
+
+  parsed.setHours(23, 59, 59, 999);
+
+  return Date.now() > parsed.getTime();
 }
 
 function getClientIp(req: NextRequest) {
+  const forwardedFor = cleanStr(req.headers.get("x-forwarded-for"));
+
+  if (forwardedFor) {
+    return forwardedFor.split(",")[0]?.trim() || "";
+  }
+
   return (
-    cleanStr(req.headers.get("x-forwarded-for")).split(",")[0]?.trim() ||
     cleanStr(req.headers.get("x-real-ip")) ||
     cleanStr(req.headers.get("cf-connecting-ip")) ||
     ""
   );
 }
 
+function getBaseUrl(req: NextRequest) {
+  const fromEnv =
+    cleanStr(process.env.NEXT_PUBLIC_APP_URL) ||
+    cleanStr(process.env.NEXT_PUBLIC_SITE_URL) ||
+    cleanStr(process.env.NEXTAUTH_URL) ||
+    cleanStr(process.env.APP_URL);
+
+  if (fromEnv) {
+    return fromEnv.replace(/\/+$/, "");
+  }
+
+  return req.nextUrl.origin.replace(/\/+$/, "");
+}
+
 function shouldMarkAsViewed(req: NextRequest) {
   const url = new URL(req.url);
-  const preview = url.searchParams.get("preview");
-  const markViewed = url.searchParams.get("markViewed");
+  const preview = cleanStr(url.searchParams.get("preview"));
+  const markViewed = cleanStr(url.searchParams.get("markViewed"));
 
   if (preview === "1" || preview === "true") return false;
   if (markViewed === "0" || markViewed === "false") return false;
@@ -104,18 +142,46 @@ function shouldMarkAsViewed(req: NextRequest) {
 function normalizeDocumentForClient(document: any) {
   if (!document) return null;
 
-  return {
+  const normalized = {
     ...document,
     _id: document._id ? String(document._id) : "",
     createdByUserId: document.createdByUserId
       ? String(document.createdByUserId)
       : null,
   };
+
+  return normalized;
 }
 
 async function getTokenFromContext(context: RouteContext) {
   const params = await context.params;
   return cleanStr(params?.token);
+}
+
+function getQuoteDates(document: any) {
+  const now = new Date();
+  const quote = document?.quote || {};
+
+  const createdAt =
+    cleanStr(quote.createdAt) ||
+    toDateInputValue(document?.createdAt ? new Date(document.createdAt) : now);
+
+  const createdDate = parseDateInput(createdAt) || now;
+
+  const expiresAt =
+    cleanStr(quote.expiresAt) ||
+    toDateInputValue(addDays(createdDate, QUOTE_VALIDITY_DAYS));
+
+  const validityDays =
+    typeof quote.validityDays === "number" && Number.isFinite(quote.validityDays)
+      ? quote.validityDays
+      : QUOTE_VALIDITY_DAYS;
+
+  return {
+    createdAt,
+    expiresAt,
+    validityDays,
+  };
 }
 
 export async function GET(req: NextRequest, context: RouteContext) {
@@ -140,40 +206,56 @@ export async function GET(req: NextRequest, context: RouteContext) {
     const documentType = cleanStr((document as any).type);
     const currentStatus = cleanStr((document as any).status);
 
-    const quote = (document as any).quote || {};
-    const quoteCreatedAt =
-      cleanStr(quote.createdAt) ||
-      toDateInputValue((document as any).createdAt || now);
+    if (documentType !== "quote" && documentType !== "agreement") {
+      return jsonError("סוג מסמך לא תקין", 400);
+    }
 
-    let quoteExpiresAt = cleanStr(quote.expiresAt);
+    const quoteDates = getQuoteDates(document);
 
-    if (documentType === "quote" && !quoteExpiresAt) {
-      const createdDate = parseDate(quoteCreatedAt) || now;
-      quoteExpiresAt = toDateInputValue(
-        addDays(createdDate, QUOTE_VALIDITY_DAYS),
-      );
-
-      updates["quote.createdAt"] = quoteCreatedAt;
-      updates["quote.expiresAt"] = quoteExpiresAt;
-      updates["quote.validityDays"] = QUOTE_VALIDITY_DAYS;
-
+    if (!(document as any).quote?.createdAt) {
+      updates["quote.createdAt"] = quoteDates.createdAt;
       (document as any).quote = {
-        ...quote,
-        createdAt: quoteCreatedAt,
-        expiresAt: quoteExpiresAt,
-        validityDays: quote.validityDays || QUOTE_VALIDITY_DAYS,
+        ...((document as any).quote || {}),
+        createdAt: quoteDates.createdAt,
+      };
+    }
+
+    if (!(document as any).quote?.expiresAt) {
+      updates["quote.expiresAt"] = quoteDates.expiresAt;
+      (document as any).quote = {
+        ...((document as any).quote || {}),
+        expiresAt: quoteDates.expiresAt,
+      };
+    }
+
+    if (!(document as any).quote?.validityDays) {
+      updates["quote.validityDays"] = quoteDates.validityDays;
+      (document as any).quote = {
+        ...((document as any).quote || {}),
+        validityDays: quoteDates.validityDays,
       };
     }
 
     const expired =
       documentType === "quote" &&
       currentStatus !== "signed" &&
-      isDateExpired(quoteExpiresAt);
+      isDateExpired(quoteDates.expiresAt);
 
     if (expired && currentStatus !== "expired") {
       updates.status = "expired";
       (document as any).status = "expired";
     }
+
+    const baseUrl = getBaseUrl(req);
+    const documentUrl = `${baseUrl}/sales-documents/${token}`;
+
+    if (!cleanStr((document as any).url)) {
+      updates.url = documentUrl;
+      (document as any).url = documentUrl;
+    }
+
+    const viewedIp = getClientIp(req);
+    const viewedUserAgent = cleanStr(req.headers.get("user-agent"));
 
     const canMarkViewed =
       shouldMarkAsViewed(req) &&
@@ -181,29 +263,32 @@ export async function GET(req: NextRequest, context: RouteContext) {
       currentStatus !== "signed" &&
       currentStatus !== "expired";
 
-    if (canMarkViewed && !(document as any).viewedAt) {
-      updates.viewedAt = now;
-      updates.viewedIp = getClientIp(req);
-      updates.viewedUserAgent = cleanStr(req.headers.get("user-agent"));
+    if (canMarkViewed) {
+      if (!(document as any).viewedAt) {
+        updates.viewedAt = now;
+        updates.viewedIp = viewedIp;
+        updates.viewedUserAgent = viewedUserAgent;
 
-      (document as any).viewedAt = now;
+        updates["audit.viewedAt"] = now;
+        updates["audit.viewedIp"] = viewedIp;
+        updates["audit.viewedUserAgent"] = viewedUserAgent;
+
+        (document as any).viewedAt = now;
+        (document as any).viewedIp = viewedIp;
+        (document as any).viewedUserAgent = viewedUserAgent;
+
+        (document as any).audit = {
+          ...((document as any).audit || {}),
+          viewedAt: now,
+          viewedIp,
+          viewedUserAgent,
+        };
+      }
 
       if (currentStatus === "draft" || currentStatus === "sent") {
         updates.status = "viewed";
         (document as any).status = "viewed";
       }
-    } else if (
-      canMarkViewed &&
-      (currentStatus === "draft" || currentStatus === "sent")
-    ) {
-      updates.status = "viewed";
-      (document as any).status = "viewed";
-    }
-
-    if (!cleanStr((document as any).url)) {
-      const url = `${req.nextUrl.origin}/sales-documents/${token}`;
-      updates.url = url;
-      (document as any).url = url;
     }
 
     if (Object.keys(updates).length > 0) {
@@ -217,15 +302,25 @@ export async function GET(req: NextRequest, context: RouteContext) {
 
     const normalizedDocument = normalizeDocumentForClient(document);
 
+    const normalizedStatus = cleanStr(normalizedDocument?.status);
+
+    const canSign =
+      documentType === "agreement" &&
+      normalizedStatus !== "signed" &&
+      normalizedStatus !== "expired";
+
+    const readOnly =
+      documentType === "quote" ||
+      normalizedStatus === "signed" ||
+      normalizedStatus === "expired";
+
     return NextResponse.json({
       success: true,
       document: normalizedDocument,
       expired,
-      canSign:
-        documentType === "agreement" &&
-        normalizedDocument?.status !== "signed" &&
-        normalizedDocument?.status !== "expired",
-      readOnly: documentType === "quote" || normalizedDocument?.status === "signed",
+      canSign,
+      readOnly,
+      documentUrl: normalizedDocument?.url || documentUrl,
       serverNow: now.toISOString(),
     });
   } catch (error) {

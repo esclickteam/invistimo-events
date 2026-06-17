@@ -8,6 +8,10 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const QUOTE_VALIDITY_DAYS = 4;
+const DEFAULT_VAT_RATE = 0.18;
+
+type SalesDocumentType = "quote" | "agreement";
+type PaymentMode = "full" | "split";
 
 function cleanStr(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -18,6 +22,10 @@ function asNumber(value: unknown, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function roundMoney(value: number) {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
 function toDateInputValue(date: Date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -26,11 +34,198 @@ function toDateInputValue(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
+function parseDateInput(value: unknown) {
+  const str = cleanStr(value);
+
+  if (!str) return null;
+
+  const parts = str.split("-").map((part) => Number(part));
+
+  if (
+    parts.length === 3 &&
+    Number.isFinite(parts[0]) &&
+    Number.isFinite(parts[1]) &&
+    Number.isFinite(parts[2])
+  ) {
+    return new Date(parts[0], parts[1] - 1, parts[2]);
+  }
+
+  const date = new Date(str);
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return date;
+}
+
 function addDays(date: Date, days: number) {
   const next = new Date(date);
   next.setDate(next.getDate() + days);
 
   return next;
+}
+
+function jsonError(message: string, status = 400, details?: unknown) {
+  return NextResponse.json(
+    {
+      success: false,
+      error: message,
+      message,
+      details,
+    },
+    { status },
+  );
+}
+
+function getClientIp(req: NextRequest) {
+  const forwardedFor = cleanStr(req.headers.get("x-forwarded-for"));
+
+  if (forwardedFor) {
+    return forwardedFor.split(",")[0]?.trim() || "";
+  }
+
+  return (
+    cleanStr(req.headers.get("x-real-ip")) ||
+    cleanStr(req.headers.get("cf-connecting-ip")) ||
+    ""
+  );
+}
+
+function getBaseUrl(req: NextRequest) {
+  const fromEnv =
+    cleanStr(process.env.NEXT_PUBLIC_APP_URL) ||
+    cleanStr(process.env.NEXT_PUBLIC_SITE_URL) ||
+    cleanStr(process.env.NEXTAUTH_URL) ||
+    cleanStr(process.env.APP_URL);
+
+  if (fromEnv) {
+    return fromEnv.replace(/\/+$/, "");
+  }
+
+  return req.nextUrl.origin.replace(/\/+$/, "");
+}
+
+function normalizePaymentMode(value: unknown): PaymentMode {
+  const mode = cleanStr(value);
+
+  if (mode === "full") return "full";
+  return "split";
+}
+
+function normalizeArrayOfStrings(value: unknown) {
+  if (!Array.isArray(value)) return [];
+
+  return value.map(cleanStr).filter(Boolean);
+}
+
+function normalizeArray(value: unknown) {
+  return Array.isArray(value) ? value : [];
+}
+
+function normalizeObject(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  return value as Record<string, unknown>;
+}
+
+function buildQuoteDates(quote: Record<string, unknown>) {
+  const today = new Date();
+
+  const createdAt =
+    cleanStr(quote.createdAt) ||
+    cleanStr(quote.createdDate) ||
+    toDateInputValue(today);
+
+  const createdDate = parseDateInput(createdAt) || today;
+
+  const expiresAt =
+    cleanStr(quote.expiresAt) ||
+    cleanStr(quote.expiredAt) ||
+    toDateInputValue(addDays(createdDate, QUOTE_VALIDITY_DAYS));
+
+  const validityDays = asNumber(quote.validityDays, QUOTE_VALIDITY_DAYS);
+
+  return {
+    createdAt,
+    expiresAt,
+    validityDays,
+  };
+}
+
+function buildPaymentAmounts({
+  totals,
+  paymentSchedule,
+}: {
+  totals: Record<string, unknown>;
+  paymentSchedule: Record<string, unknown>;
+}) {
+  const paymentMode = normalizePaymentMode(
+    totals.paymentMode || paymentSchedule.paymentMode,
+  );
+
+  const vatRate = asNumber(totals.vatRate, DEFAULT_VAT_RATE);
+
+  const fullPaymentDiscount =
+    asNumber(totals.fullPaymentDiscount) ||
+    asNumber(totals.discountAmount) ||
+    asNumber(paymentSchedule.fullPaymentDiscount);
+
+  const discountAmount =
+    asNumber(totals.discountAmount) ||
+    asNumber(totals.fullPaymentDiscount) ||
+    asNumber(paymentSchedule.fullPaymentDiscount);
+
+  const grossAmountFromBody = asNumber(totals.grossAmount);
+  const grossAmountAfterDiscount =
+    asNumber(totals.grossAmountAfterDiscount) ||
+    asNumber(paymentSchedule.grossAmountAfterDiscount) ||
+    grossAmountFromBody;
+
+  const grossAmountBeforeDiscount =
+    asNumber(totals.grossAmountBeforeDiscount) ||
+    asNumber(paymentSchedule.grossAmountBeforeDiscount) ||
+    roundMoney(grossAmountAfterDiscount + discountAmount);
+
+  const immediateTotal =
+    asNumber(paymentSchedule.immediateTotal) ||
+    asNumber(totals.immediateTotal) ||
+    grossAmountAfterDiscount;
+
+  const eventDayTotal =
+    asNumber(paymentSchedule.eventDayTotal) || asNumber(totals.eventDayTotal);
+
+  const stripeAmount =
+    asNumber(totals.stripeAmount) ||
+    asNumber(paymentSchedule.stripeAmount) ||
+    immediateTotal;
+
+  const netAmount =
+    asNumber(totals.netAmount) ||
+    roundMoney(grossAmountAfterDiscount / (1 + vatRate));
+
+  return {
+    grossAmount: grossAmountAfterDiscount,
+    grossAmountBeforeDiscount,
+    grossAmountAfterDiscount,
+    discountAmount,
+    fullPaymentDiscount,
+    netAmount,
+    vatRate,
+    paymentMode,
+    stripeAmount,
+    paymentSchedule: {
+      ...paymentSchedule,
+      immediateTotal,
+      eventDayTotal,
+      stripeAmount,
+      fullPaymentDiscount,
+      grossAmountBeforeDiscount,
+      grossAmountAfterDiscount,
+    },
+  };
 }
 
 async function createUniqueToken() {
@@ -46,64 +241,76 @@ async function createUniqueToken() {
     .toString("base64url")}`;
 }
 
-function jsonError(message: string, status = 400, details?: unknown) {
-  return NextResponse.json(
-    {
-      success: false,
-      error: message,
-      message,
-      details,
-    },
-    { status },
-  );
-}
-
 export async function POST(req: NextRequest) {
   try {
     await db();
 
     const body = await req.json().catch(() => null);
 
-    if (!body || typeof body !== "object") {
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
       return jsonError("בקשה לא תקינה", 400);
     }
 
-    const type = cleanStr((body as any).type);
+    const payload = body as Record<string, unknown>;
+
+    const type = cleanStr(payload.type) as SalesDocumentType;
 
     if (type !== "quote" && type !== "agreement") {
       return jsonError("סוג מסמך לא תקין", 400);
     }
 
-    const client = (body as any).client || {};
-    const event = (body as any).event || {};
-    const selectedPackage = (body as any).selectedPackage || {};
-    const totals = (body as any).totals || {};
-    const quote = (body as any).quote || {};
+    const client = normalizeObject(payload.client);
+    const event = normalizeObject(payload.event);
+    const quote = normalizeObject(payload.quote);
+    const selectedPackage = normalizeObject(payload.selectedPackage);
+    const totals = normalizeObject(payload.totals);
+    const paymentScheduleFromBody = normalizeObject(totals.paymentSchedule);
 
     const clientFullName = cleanStr(client.fullName);
     const clientPhone = cleanStr(client.phone);
+    const clientEmail = cleanStr(client.email);
+    const clientIdNumber = cleanStr(client.idNumber);
+    const clientAddress = cleanStr(client.address);
 
+    const eventName = cleanStr(event.name);
     const eventDate = cleanStr(event.date);
     const eventCity = cleanStr(event.city);
     const venueName = cleanStr(event.venueName);
-
-    const grossAmount = asNumber(totals.grossAmount);
 
     if (!clientFullName) return jsonError("חסר שם לקוח", 400);
     if (!clientPhone) return jsonError("חסר טלפון לקוח", 400);
     if (!eventDate) return jsonError("חסר תאריך אירוע", 400);
     if (!eventCity) return jsonError("חסרה עיר אירוע", 400);
     if (!venueName) return jsonError("חסר שם אולם", 400);
-    if (grossAmount <= 0) return jsonError("סכום העסקה לא תקין", 400);
 
-    const createdAt = cleanStr(quote.createdAt) || toDateInputValue(new Date());
+    const quoteDates = buildQuoteDates(quote);
 
-    const expiresAt =
-      cleanStr(quote.expiresAt) ||
-      toDateInputValue(addDays(new Date(createdAt), QUOTE_VALIDITY_DAYS));
+    const paymentAmounts = buildPaymentAmounts({
+      totals,
+      paymentSchedule: paymentScheduleFromBody,
+    });
+
+    if (paymentAmounts.grossAmountAfterDiscount <= 0) {
+      return jsonError("סכום העסקה לא תקין", 400);
+    }
+
+    if (paymentAmounts.stripeAmount <= 0) {
+      return jsonError("סכום Stripe לתשלום עכשיו לא תקין", 400);
+    }
 
     const token = await createUniqueToken();
-    const url = `${req.nextUrl.origin}/sales-documents/${token}`;
+    const baseUrl = getBaseUrl(req);
+    const url = `${baseUrl}/sales-documents/${token}`;
+
+    const userAgent = cleanStr(req.headers.get("user-agent"));
+    const ip = getClientIp(req);
+
+    const selectedPackageIncludes = normalizeArrayOfStrings(
+      selectedPackage.includes,
+    );
+
+    const selectedPackagePrice = asNumber(selectedPackage.price);
+    const selectedPackageRecords = asNumber(selectedPackage.records);
 
     const document = await SalesDocument.create({
       type,
@@ -113,57 +320,66 @@ export async function POST(req: NextRequest) {
 
       client: {
         fullName: clientFullName,
-        idNumber: cleanStr(client.idNumber),
-        email: cleanStr(client.email),
+        idNumber: clientIdNumber,
+        email: clientEmail,
         phone: clientPhone,
-        address: cleanStr(client.address),
+        address: clientAddress,
       },
 
       event: {
-        name: cleanStr(event.name),
+        name: eventName,
         date: eventDate,
         city: eventCity,
         venueName,
       },
 
       quote: {
-        createdAt,
-        expiresAt,
-        validityDays: asNumber(quote.validityDays, QUOTE_VALIDITY_DAYS),
+        createdAt: quoteDates.createdAt,
+        expiresAt: quoteDates.expiresAt,
+        validityDays: quoteDates.validityDays,
+      },
+
+      agreement: {
+        signatureFullName: "",
+        signatureIdNumber: "",
+        signatureAddress: "",
+        signaturePhone: "",
+        signatureDate: "",
+        signatureText: "",
+        signatureDataUrl: "",
+        acceptedTerms: false,
+        signedAt: null,
       },
 
       selectedPackage: {
         key: cleanStr(selectedPackage.key),
         title: cleanStr(selectedPackage.title),
         customerSummary: cleanStr(selectedPackage.customerSummary),
-        includes: Array.isArray(selectedPackage.includes)
-          ? selectedPackage.includes.map(cleanStr).filter(Boolean)
-          : [],
-        records: asNumber(selectedPackage.records),
-        price: asNumber(selectedPackage.price),
+        includes: selectedPackageIncludes,
+        records: selectedPackageRecords,
+        price: selectedPackagePrice,
       },
 
-      upsells: Array.isArray((body as any).upsells)
-        ? (body as any).upsells
-        : [],
+      upsells: normalizeArray(payload.upsells),
 
       totals: {
-        grossAmount,
-        netAmount: asNumber(totals.netAmount),
-        vatRate: asNumber(totals.vatRate, 0.18),
-        paymentMode: cleanStr(totals.paymentMode) || "split",
-        paymentSchedule: totals.paymentSchedule || {},
+        grossAmount: paymentAmounts.grossAmount,
+        grossAmountBeforeDiscount: paymentAmounts.grossAmountBeforeDiscount,
+        grossAmountAfterDiscount: paymentAmounts.grossAmountAfterDiscount,
+        discountAmount: paymentAmounts.discountAmount,
+        fullPaymentDiscount: paymentAmounts.fullPaymentDiscount,
+        netAmount: paymentAmounts.netAmount,
+        vatRate: paymentAmounts.vatRate,
+        paymentMode: paymentAmounts.paymentMode,
+        stripeAmount: paymentAmounts.stripeAmount,
+        paymentSchedule: paymentAmounts.paymentSchedule,
       },
 
-      customerDealSummary: (body as any).customerDealSummary || {},
+      customerDealSummary: normalizeObject(payload.customerDealSummary),
 
-      cancellationTerms: Array.isArray((body as any).cancellationTerms)
-        ? (body as any).cancellationTerms
-        : [],
+      cancellationTerms: normalizeArray(payload.cancellationTerms),
 
-      paymentTerms: Array.isArray((body as any).paymentTerms)
-        ? (body as any).paymentTerms
-        : [],
+      paymentTerms: normalizeArray(payload.paymentTerms),
 
       signature: {
         fullName: "",
@@ -172,18 +388,85 @@ export async function POST(req: NextRequest) {
         phone: "",
         date: "",
         signatureText: "",
+        signatureDataUrl: "",
+        acceptedTerms: false,
         signedAt: null,
+        ip: "",
+        userAgent: "",
+        signedIp: "",
+        signedUserAgent: "",
       },
+
+      sms: {
+        sentAt: null,
+        lastTriedAt: null,
+        sentTo: "",
+        normalizedSentTo: "",
+        provider: "",
+        parts: 0,
+        message: "",
+        response: "",
+        lastError: "",
+      },
+
+      stripe: {
+        checkoutUrl: "",
+        checkoutSessionId: "",
+        amount: paymentAmounts.stripeAmount,
+        status: "",
+        lastError: "",
+      },
+
+      audit: {
+        createdIp: ip,
+        createdUserAgent: userAgent,
+        viewedAt: null,
+        viewedIp: "",
+        viewedUserAgent: "",
+        signedAt: null,
+        signedIp: "",
+        signedUserAgent: "",
+      },
+
+      viewedAt: null,
+      viewedIp: "",
+      viewedUserAgent: "",
+
+      signedAt: null,
+
+      createdByUserId: null,
     });
 
     return NextResponse.json({
       success: true,
+      message:
+        type === "quote"
+          ? "הצעת המחיר נוצרה בהצלחה"
+          : "הסכם תנאי העסקה נוצר בהצלחה",
       documentId: String(document._id),
       token,
       url,
       documentUrl: url,
       type,
-      expiresAt,
+      status: document.status,
+      quote: {
+        createdAt: quoteDates.createdAt,
+        expiresAt: quoteDates.expiresAt,
+        validityDays: quoteDates.validityDays,
+      },
+      totals: {
+        grossAmount: paymentAmounts.grossAmount,
+        grossAmountBeforeDiscount: paymentAmounts.grossAmountBeforeDiscount,
+        grossAmountAfterDiscount: paymentAmounts.grossAmountAfterDiscount,
+        discountAmount: paymentAmounts.discountAmount,
+        fullPaymentDiscount: paymentAmounts.fullPaymentDiscount,
+        netAmount: paymentAmounts.netAmount,
+        vatRate: paymentAmounts.vatRate,
+        paymentMode: paymentAmounts.paymentMode,
+        stripeAmount: paymentAmounts.stripeAmount,
+        paymentSchedule: paymentAmounts.paymentSchedule,
+      },
+      expiresAt: quoteDates.expiresAt,
     });
   } catch (error) {
     console.error("CREATE SALES DOCUMENT FAILED:", error);
