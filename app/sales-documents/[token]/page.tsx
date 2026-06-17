@@ -27,6 +27,14 @@ type PaymentSchedule = {
   grossAmountAfterDiscount?: number;
 };
 
+type PriceDisplaySettings = {
+  showUpsellPrices?: boolean;
+  showIndividualUpsellPrices?: boolean;
+  showAddonsPrices?: boolean;
+  priceDisplayMode?: string;
+  mode?: string;
+};
+
 type SalesDocument = {
   _id?: string;
   type?: "quote" | "agreement";
@@ -102,6 +110,19 @@ type SalesDocument = {
     paymentSchedule?: PaymentSchedule;
   };
 
+  pricingDisplay?: PriceDisplaySettings;
+  quoteDisplay?: PriceDisplaySettings;
+  priceDisplay?: PriceDisplaySettings;
+
+  customerDealSummary?: {
+    showUpsellPrices?: boolean;
+    showIndividualUpsellPrices?: boolean;
+    showAddonsPrices?: boolean;
+    priceDisplayMode?: string;
+    mode?: string;
+    [key: string]: unknown;
+  };
+
   cancellationTerms?: DetailSection[];
   paymentTerms?: DetailSection[];
 
@@ -127,6 +148,15 @@ type ApiResponse = {
   canSign?: boolean;
   readOnly?: boolean;
   documentUrl?: string;
+};
+
+type SelectedService = {
+  kind: "package" | "upsell";
+  title: string;
+  description?: string;
+  price?: number;
+  givenFree?: boolean;
+  details?: DetailSection[];
 };
 
 function cleanStr(value: unknown) {
@@ -220,6 +250,81 @@ function getDocumentTitle(type?: string) {
 function getPaymentModeLabel(mode?: string) {
   if (mode === "full") return "תשלום מלא מראש";
   return "תשלום ראשוני ויתרה ביום האירוע";
+}
+
+function getBooleanOrUndefined(value: unknown) {
+  if (typeof value === "boolean") return value;
+  return undefined;
+}
+
+function getDisplayMode(document?: SalesDocument | null) {
+  const modes = [
+    cleanStr(document?.quoteDisplay?.priceDisplayMode),
+    cleanStr(document?.quoteDisplay?.mode),
+    cleanStr(document?.pricingDisplay?.priceDisplayMode),
+    cleanStr(document?.pricingDisplay?.mode),
+    cleanStr(document?.priceDisplay?.priceDisplayMode),
+    cleanStr(document?.priceDisplay?.mode),
+    cleanStr(document?.customerDealSummary?.priceDisplayMode),
+    cleanStr(document?.customerDealSummary?.mode),
+  ].filter(Boolean);
+
+  return modes[0] || "";
+}
+
+function shouldShowUpsellPrices(document?: SalesDocument | null) {
+  const mode = getDisplayMode(document);
+
+  if (
+    [
+      "totalOnly",
+      "total_only",
+      "packageOnly",
+      "package_only",
+      "summaryOnly",
+      "summary_only",
+      "hideUpsells",
+      "hide_upsells",
+    ].includes(mode)
+  ) {
+    return false;
+  }
+
+  if (
+    [
+      "detailed",
+      "details",
+      "showUpsells",
+      "show_upsells",
+      "showAddons",
+      "show_addons",
+    ].includes(mode)
+  ) {
+    return true;
+  }
+
+  const values = [
+    getBooleanOrUndefined(document?.quoteDisplay?.showUpsellPrices),
+    getBooleanOrUndefined(document?.quoteDisplay?.showIndividualUpsellPrices),
+    getBooleanOrUndefined(document?.quoteDisplay?.showAddonsPrices),
+    getBooleanOrUndefined(document?.pricingDisplay?.showUpsellPrices),
+    getBooleanOrUndefined(document?.pricingDisplay?.showIndividualUpsellPrices),
+    getBooleanOrUndefined(document?.pricingDisplay?.showAddonsPrices),
+    getBooleanOrUndefined(document?.priceDisplay?.showUpsellPrices),
+    getBooleanOrUndefined(document?.priceDisplay?.showIndividualUpsellPrices),
+    getBooleanOrUndefined(document?.priceDisplay?.showAddonsPrices),
+    getBooleanOrUndefined(document?.customerDealSummary?.showUpsellPrices),
+    getBooleanOrUndefined(
+      document?.customerDealSummary?.showIndividualUpsellPrices,
+    ),
+    getBooleanOrUndefined(document?.customerDealSummary?.showAddonsPrices),
+  ];
+
+  const explicit = values.find((value) => typeof value === "boolean");
+
+  if (typeof explicit === "boolean") return explicit;
+
+  return true;
 }
 
 function SectionCard({
@@ -532,6 +637,7 @@ export default function SalesDocumentPage() {
 
   const paymentSchedule = document?.totals?.paymentSchedule || {};
   const paymentMode = cleanStr(document?.totals?.paymentMode) || "split";
+  const showUpsellPrices = shouldShowUpsellPrices(document);
 
   const grossAmount =
     asNumber(document?.totals?.grossAmountAfterDiscount) ||
@@ -547,7 +653,7 @@ export default function SalesDocumentPage() {
     asNumber(document?.totals?.fullPaymentDiscount) ||
     asNumber(paymentSchedule.fullPaymentDiscount);
 
-  const stripeAmount =
+  const amountToPayNow =
     asNumber(document?.totals?.stripeAmount) ||
     asNumber(paymentSchedule.stripeAmount) ||
     asNumber(paymentSchedule.immediateTotal);
@@ -637,17 +743,12 @@ export default function SalesDocumentPage() {
     loadDocument();
   }, [loadDocument]);
 
-  const selectedServices = useMemo(() => {
-    const services: {
-      title: string;
-      description?: string;
-      price?: number;
-      givenFree?: boolean;
-      details?: DetailSection[];
-    }[] = [];
+  const selectedServices = useMemo<SelectedService[]>(() => {
+    const services: SelectedService[] = [];
 
     if (document?.selectedPackage?.title) {
       services.push({
+        kind: "package",
         title: document.selectedPackage.title,
         description: document.selectedPackage.customerSummary,
         price: document.selectedPackage.price,
@@ -662,6 +763,7 @@ export default function SalesDocumentPage() {
 
     (document?.upsells || []).forEach((upsell) => {
       services.push({
+        kind: "upsell",
         title: upsell.title || "תוספת שירות",
         description: upsell.description,
         price: upsell.price,
@@ -731,6 +833,34 @@ export default function SalesDocumentPage() {
     } finally {
       setSigning(false);
     }
+  }
+
+  function getServicePriceText(service: SelectedService) {
+    if (service.kind === "package" && !showUpsellPrices) {
+      return money(grossAmount);
+    }
+
+    if (service.givenFree) {
+      return "ללא עלות";
+    }
+
+    if (!showUpsellPrices && service.kind === "upsell") {
+      return "כלול במחיר הכולל";
+    }
+
+    return money(service.price);
+  }
+
+  function getServicePriceLabel(service: SelectedService) {
+    if (service.kind === "package" && !showUpsellPrices) {
+      return "מחיר חבילה כולל";
+    }
+
+    if (!showUpsellPrices && service.kind === "upsell") {
+      return "כלול";
+    }
+
+    return "מחיר";
   }
 
   if (loading) {
@@ -901,6 +1031,13 @@ export default function SalesDocumentPage() {
             </SectionCard>
 
             <SectionCard title="השירותים הכלולים בעסקה">
+              {!showUpsellPrices ? (
+                <div className="mb-4 rounded-[24px] border border-[#eadfce] bg-[#fff7ec] p-4 text-sm font-bold leading-7 text-[#6d5840]">
+                  המחיר בהצעה זו מוצג כמחיר חבילה כולל. מחירי התוספות אינם
+                  מוצגים בנפרד.
+                </div>
+              ) : null}
+
               {selectedServices.length > 0 ? (
                 <div className="space-y-4">
                   {selectedServices.map((service, index) => (
@@ -922,9 +1059,10 @@ export default function SalesDocumentPage() {
                         </div>
 
                         <div className="shrink-0 rounded-2xl bg-white px-4 py-3 text-sm font-black text-[#3f3327] ring-1 ring-[#eadfce]">
-                          {service.givenFree
-                            ? "ללא עלות"
-                            : money(service.price)}
+                          <p className="text-[11px] font-black text-[#9b805f]">
+                            {getServicePriceLabel(service)}
+                          </p>
+                          <p className="mt-1">{getServicePriceText(service)}</p>
                         </div>
                       </div>
 
@@ -1162,20 +1300,21 @@ export default function SalesDocumentPage() {
                 ) : null}
 
                 <div className="grid gap-3">
-                  <Field
-                    label="מחיר חבילה"
-                    value={money(document.selectedPackage?.price)}
-                  />
+                  {showUpsellPrices ? (
+                    <Field
+                      label="מחיר חבילה"
+                      value={money(document.selectedPackage?.price)}
+                    />
+                  ) : (
+                    <Field label="מחיר חבילה כולל" value={money(grossAmount)} />
+                  )}
 
                   <Field
                     label="סוג תשלום"
                     value={getPaymentModeLabel(paymentMode)}
                   />
 
-                  <Field
-                    label="לתשלום עכשיו ב-Stripe"
-                    value={money(stripeAmount)}
-                  />
+                  <Field label="לתשלום עכשיו" value={money(amountToPayNow)} />
 
                   <Field
                     label="תשלום במועד ביצוע העסקה"
@@ -1187,15 +1326,19 @@ export default function SalesDocumentPage() {
                     value={money(paymentSchedule.eventDayTotal)}
                   />
 
-                  <Field
-                    label="שירותים דיגיטליים / לפני האירוע"
-                    value={money(paymentSchedule.preEventServicesTotal)}
-                  />
+                  {showUpsellPrices ? (
+                    <>
+                      <Field
+                        label="שירותים דיגיטליים / לפני האירוע"
+                        value={money(paymentSchedule.preEventServicesTotal)}
+                      />
 
-                  <Field
-                    label="שירותי יום האירוע"
-                    value={money(paymentSchedule.eventServicesTotal)}
-                  />
+                      <Field
+                        label="שירותי יום האירוע"
+                        value={money(paymentSchedule.eventServicesTotal)}
+                      />
+                    </>
+                  ) : null}
                 </div>
 
                 {paymentMode === "split" &&
@@ -1208,8 +1351,8 @@ export default function SalesDocumentPage() {
 
                 {paymentMode === "full" ? (
                   <div className="rounded-[24px] border border-[#eadfce] bg-[#fff7ec] p-4 text-sm font-bold leading-7 text-[#6d5840]">
-                    נבחר תשלום מלא מראש. התשלום מתבצע במלואו דרך Stripe בהתאם
-                    לסכום הסופי לאחר ההנחה.
+                    נבחר תשלום מלא מראש. התשלום מתבצע במלואו בהתאם לסכום הסופי
+                    לאחר ההנחה.
                   </div>
                 ) : null}
               </div>

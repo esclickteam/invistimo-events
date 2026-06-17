@@ -10,6 +10,7 @@ const QUOTE_VALIDITY_DAYS = 4;
 type PackageKey = "easy" | "smart" | "seating";
 type DocumentType = "quote" | "agreement";
 type PaymentMode = "full" | "split";
+type QuotePricingDisplay = "showUpsellPrices" | "packageTotalOnly";
 
 type DetailSection = {
   title: string;
@@ -74,6 +75,9 @@ type DetailsModalState = {
   subtitle?: string;
   price?: number;
   sections: DetailSection[];
+  employeeSections?: DetailSection[];
+  customerSections?: DetailSection[];
+  defaultView?: "employee" | "customer";
 } | null;
 
 const PACKAGE_TIERS = {
@@ -316,6 +320,306 @@ const ALCOHOL_CUSTOMER_DETAILS: DetailSection[] = [
       "איש הצוות פועל לפי ההנחיות שסוכמו עם הלקוח או נציג מוסמך מטעמו, ומתעד פתיחה או הקצאת בקבוקים במערכת.",
       "השירות נועד לצמצם פתיחת בקבוקים מיותרת ולתת בסיום הערב תמונת מצב מסודרת על האלכוהול שנוהל בפועל.",
       "השירות אינו כולל רכישת אלכוהול, אספקת בקבוקים או אחריות על כמות האלכוהול שסופקה לאירוע.",
+    ],
+  },
+];
+
+
+
+/* =========================================================
+   פירוט מלא מהקוד הקודם — למודל עם מתג עובד/לקוח
+========================================================= */
+const DETAILED_VENUE_SEATING_CUSTOMER_DETAILS: DetailSection[] = [
+  {
+    title: "שירות הושבה באולם",
+    items: [
+      "שירות ההושבה באולם כולל צוות הושבה מטעמנו, הכולל דיילים/דיילות ומנהל/ת הושבה, בהתאם לחבילה שנבחרה ולכמות אנשי הצוות שסוכמה מול הלקוח.",
+      "השירות נועד לנהל את שלב קבלת האורחים והושבתם באולם בצורה מסודרת, יעילה ומקצועית, תוך שימוש במערכת לייב ייעודית לניהול ההושבה בזמן אמת.",
+      "מטרת השירות היא לצמצם עיכובים בכניסה לאולם, למנוע אי־נעימות לאורחים, ולסייע במציאת פתרונות מהירים במקרה של שינויים בכמות המגיעים בפועל.",
+    ],
+  },
+  {
+    title: "היערכות לפני תחילת האירוע",
+    items: [
+      "צוות ההושבה יגיע לאולם כחצי שעה לפני תחילת האירוע, ייצור קשר עם בעל/ת האירוע או עם נציג מוסמך מטעמם, ויבצע מעבר על סקיצת ההושבה, מספרי השולחנות, כמות הכיסאות והסידור בפועל באולם.",
+      "לאחר מכן הצוות יקים עמדת הושבה מסודרת, הכוללת מחשבים, מערכת לייב ופתקי הושבה, ויוודא שהנתונים במערכת תואמים ככל האפשר לסידור שהוגדר מראש.",
+      "שירות ההושבה נמשך לאורך שלב קבלת האורחים והכניסה לאולם, ועד לשלב המנה הראשונה או עד שכלל האורחים יושבים בצורה מסודרת — בהתאם להתנהלות האירוע בפועל.",
+    ],
+  },
+  {
+    title: "קבלת האורחים והכוונה לשולחנות",
+    items: [
+      "במהלך הגעת האורחים, הצוות יקבל את האורחים בכניסה, יאתר אותם במערכת, וימסור להם את פרטי ההושבה שלהם בצורה נעימה וברורה.",
+      "הצוות פועל כדי שהאורחים יקבלו מענה מהיר, ידעו לאיזה שולחן הם משובצים, ולא יצטרכו להמתין או להסתובב באולם עד למציאת מקום.",
+    ],
+  },
+  {
+    title: "ניהול הושבה בזמן אמת",
+    items: [
+      "ההושבה מנוהלת באמצעות מערכת לייב ייעודית, המאפשרת לצוות לעדכן בזמן אמת את כמות האורחים שהגיעו בפועל ביחס לאישורי ההגעה שסומנו מראש.",
+      "לדוגמה, אם אורח אישר הגעה עבור 4 אנשים ובפועל הגיע אדם אחד בלבד, הצוות רשאי לברר בנימוס האם צפויים להגיע אורחים נוספים מתוך אותה רשומה.",
+      "אם לא צפויים להגיע נוספים, ניתן לעדכן את המערכת בזמן אמת ולפנות את המקומות שלא נוצלו, כך שניתן יהיה להשתמש בהם במקרה הצורך.",
+      "במקרה שבו מגיעים יותר אורחים מהכמות שסומנה מראש, המערכת מסייעת לצוות לאתר מקומות פנויים באולם בצורה מהירה ומסודרת, כדי למצוא פתרון יעיל ולצמצם עיכובים או אי־נעימות לאורחים.",
+    ],
+  },
+  {
+    title: "ניהול במהלך האירוע",
+    items: [
+      "במהלך שלב הכניסה לאולם ועד להתייצבות ההושבה, הצוות יפעל לוודא שהאורחים יודעים היכן הם יושבים, ויסייע במקרה שבו אורחים עומדים, מחפשים מקום או נדרשת התאמה בשטח.",
+      "במידת הצורך, הצוות יסייע בניוד כיסאות, איתור מקומות פנויים, עדכון הגעת אורחים בפועל ותיאום פתרונות מול נציג המשפחה או הגורם המוסמך מטעם בעל האירוע.",
+    ],
+  },
+  {
+    title: "רזרבות ושינויים מול האולם",
+    items: [
+      "השירות כולל סיוע בניהול ההושבה ובצמצום הצורך בפתיחת רזרבות מיותרות, ככל שניתן ובהתאם למצב בפועל באירוע.",
+      "פתיחת רזרבות או התחייבות נוספת מול האולם תתבצע רק באישור נציג המשפחה או גורם מוסמך מטעם בעל האירוע.",
+      "ככל שנדרשת חתימה על פתיחת רזרבות מול האולם, החתימה תתבצע על ידי נציג המשפחה או הגורם המוסמך בלבד, ולא על ידי צוות ההושבה.",
+    ],
+  },
+];
+
+const DETAILED_VENUE_SEATING_EMPLOYEE_DETAILS: DetailSection[] = [
+  {
+    title: "מה העובד צריך להסביר בשיחה",
+    items: [
+      "להסביר ללקוח ששירות הושבה באולם הוא שירות פיזי באירוע, בנוסף למערכת ההושבה הדיגיטלית.",
+      "להדגיש שהצוות מגיע כחצי שעה לפני תחילת האירוע ונשאר עד שלב המנה הראשונה או עד שכל האורחים יושבים בצורה מסודרת, בהתאם להתנהלות האירוע בפועל.",
+      "להסביר שהעבודה מתבצעת דרך מערכת לייב, כדי לזהות בזמן אמת מי הגיע, כמה הגיעו מכל רשומה, איפה התפנו מקומות ואיפה אפשר להושיב אורחים במקרה של שינוי.",
+      "להבהיר שהמטרה היא למנוע עיכובים ואי־נעימות לאורחים, ולצמצם פתיחת רזרבות מיותרות ככל שניתן.",
+    ],
+  },
+  {
+    title: "מה חובה לסגור מול הלקוח לפני מכירה",
+    items: [
+      "איזו חבילת הושבה נרכשה וכמה אנשי צוות מגיעים לאירוע.",
+      "שם איש קשר באירוע ומספר טלפון זמין ליום האירוע.",
+      "שעת תחילת האירוע ושעת קבלת הפנים, כדי לוודא הגעה כחצי שעה לפני.",
+      "קבלת סקיצת אולם, מספרי שולחנות וכמות כיסאות לפי ההתחייבות מול האולם.",
+      "הבהרה שחתימה או אישור על פתיחת רזרבות מול האולם נעשית רק על ידי נציג משפחה או גורם מוסמך מטעם בעל האירוע.",
+    ],
+  },
+  {
+    title: "נוסח מומלץ לסיכום עם הלקוח",
+    items: [
+      "השירות כולל צוות הושבה מטעמנו שמגיע לאולם, מקים עמדת הושבה ועובד עם מערכת לייב לניהול ההושבה בזמן אמת.",
+      "הצוות בודק בזמן אמת אם הגיעו יותר או פחות אורחים ממה שסומן באישורי ההגעה, ומעדכן את המערכת כדי למצוא פתרונות במהירות.",
+      "השירות נמשך עד שלב המנה הראשונה או עד שכל האורחים יושבים בצורה מסודרת.",
+      "פתיחת רזרבות או התחייבות נוספת מול האולם תתבצע רק באישור נציג המשפחה או גורם מוסמך מטעם בעל האירוע.",
+    ],
+  },
+];
+
+const DETAILED_ALCOHOL_MANAGEMENT_CUSTOMER_DETAILS: DetailSection[] = [
+  {
+    title: "שירות ניהול אלכוהול באולם",
+    items: [
+      "שירות ניהול האלכוהול באולם כולל איש צוות אחד או שני אנשי צוות מתוך צוות השירות שמגיע לאולם ביום האירוע, בהתאם לכמות הרשומות שנרכשה ולבחירה שסוכמה מול הלקוח.",
+      "איש הצוות יישאר באירוע לצורך ניהול, פיזור ותיעוד האלכוהול עד השעה 02:00 בלילה לכל המאוחר, או עד לסיום השירות בפועל — לפי המוקדם מביניהם.",
+      "השירות נועד לסייע לבעל/ת האירוע לנהל את האלכוהול בצורה מסודרת, מבוקרת ומתועדת, לצמצם פתיחה מיותרת של בקבוקים, לוודא שהבקבוקים נפתחים ומוקצים רק לפי צורך בפועל, ולאפשר לבעל/ת האירוע לקבל בסיום הערב תמונת מצב מסודרת וברורה.",
+    ],
+  },
+  {
+    title: "היערכות ותיאום לפני תחילת השירות",
+    items: [
+      "לפני תחילת ניהול האלכוהול, איש הצוות יבצע תיאום מול בעל/ת האירוע או מול נציג מוסמך מטעמם לגבי אופן ניהול האלכוהול באירוע.",
+      "במסגרת התיאום יוגדרו, ככל שנמסרו מראש, סוגי האלכוהול, כמות הבקבוקים, אופן הפיזור לשולחנות, סדר עדיפויות לפתיחת בקבוקים והנחיות מיוחדות של בעל/ת האירוע לגבי שימוש באלכוהול במהלך הערב.",
+      "איש הצוות יפעל בהתאם להנחיות שסוכמו מראש, ובמידת הצורך יתאם במהלך האירוע מול בעל/ת האירוע או מול נציג מוסמך מטעמם.",
+    ],
+  },
+  {
+    title: "פיזור בקבוקים וניהול במהלך האירוע",
+    items: [
+      "במהלך האירוע, איש הצוות ידאג לפיזור בקבוקים על השולחנות בהתאם למה שסוכם מראש עם בעל/ת האירוע או עם נציג מוסמך מטעמם.",
+      "איש הצוות יבצע בדיקות במהלך הערב בשולחנות, יבדוק האם קיימים בקבוקים ריקים או בקבוקים שנדרש להחליף, וידאג לפתוח או להקצות בקבוק נוסף רק במידת הצורך ובהתאם להנחיות שסוכמו מראש.",
+      "מטרת השירות היא למנוע פתיחה מיותרת של בקבוקים, לצמצם בזבוז, ולשמור על ניהול מסודר של מלאי האלכוהול במהלך האירוע.",
+    ],
+  },
+  {
+    title: "תיעוד ממוחשב",
+    items: [
+      "כל בקבוק שייפתח או יוקצה יתועד במערכת, לרבות מיקום ההקצאה, מועד פתיחת הבקבוק, ומועד הקצאת בקבוק נוסף ככל שבוצעה.",
+      "בסיום הערב, בעל/ת האירוע יקבלו דוח ממוחשב מסודר הכולל את תיעוד ניהול האלכוהול במהלך האירוע, בהתאם לנתונים שתועדו בפועל.",
+    ],
+  },
+  {
+    title: "שעות השירות",
+    items: [
+      "שירות ניהול האלכוהול מתבצע על ידי איש צוות אחד או שני אנשי צוות מתוך הצוות שמגיע לאולם, בהתאם להיקף האירוע והבחירה שסוכמה.",
+      "איש הצוות יישאר לצורך שירות זה עד השעה 02:00 בלילה לכל המאוחר, או עד לסיום הצורך בשירות בפועל — לפי המוקדם מביניהם.",
+      "באירועים מעל 450 רשומות נדרש שירות של 2 אנשי צוות לניהול אלכוהול.",
+    ],
+  },
+  {
+    title: "הבהרות חשובות",
+    items: [
+      "השירות כולל ניהול, פיזור ותיעוד של האלכוהול באירוע בלבד.",
+      "השירות אינו כולל רכישת אלכוהול, אספקת בקבוקים או אחריות על כמות האלכוהול שסופקה לאירוע.",
+      "האחריות על רכישת האלכוהול, אספקתו לאולם, אישור שימוש בו מול האולם וכל התחייבות מול האולם בנושא האלכוהול הינה באחריות בעל/ת האירוע או מי מטעמם.",
+    ],
+  },
+];
+
+const DETAILED_ALCOHOL_MANAGEMENT_EMPLOYEE_DETAILS: DetailSection[] = [
+  {
+    title: "מה העובד צריך להסביר בשיחה",
+    items: [
+      "להסביר שזה שירות נוסף לניהול אלכוהול באולם, והוא מתבצע על ידי איש צוות מתוך הצוות שמגיע לאירוע.",
+      "להסביר שאיש הצוות נשאר עד השעה 02:00 לכל המאוחר, או עד סיום הצורך בשירות בפועל — לפי המוקדם מביניהם.",
+      "להסביר שהשירות כולל ניהול, פיזור ותיעוד בקבוקים בלבד, ולא כולל רכישה או אספקה של אלכוהול.",
+      "להדגיש שהמטרה היא לצמצם פתיחה מיותרת של בקבוקים, לתעד כל בקבוק שנפתח או הוקצה, ולתת ללקוח דוח ממוחשב בסוף הערב.",
+    ],
+  },
+  {
+    title: "מה חובה לסגור מול הלקוח לפני מכירה",
+    items: [
+      "מי איש הקשר באירוע שמוסמך לתת הנחיות בנושא האלכוהול.",
+      "אילו סוגי אלכוהול קיימים, כמה בקבוקים יש, ואיפה הם מאוחסנים באולם.",
+      "איך הלקוח רוצה לפזר בקבוקים בשולחנות ובאיזה סדר עדיפויות לפתוח בקבוקים.",
+      "להבהיר שבאירועים מעל 450 רשומות נדרש לבחור 2 אנשי צוות לניהול אלכוהול בעלות 2,000 ₪.",
+      "להבהיר שהשירות אינו כולל רכישת אלכוהול או אספקת בקבוקים.",
+    ],
+  },
+  {
+    title: "נוסח מומלץ לסיכום עם הלקוח",
+    items: [
+      "השירות כולל איש צוות מתוך הצוות שמגיע לאולם, אשר יישאר עד השעה 02:00 לכל המאוחר לצורך ניהול, פיזור ותיעוד האלכוהול.",
+      "איש הצוות יפעל לפי ההנחיות שסוכמו מראש עם בעל האירוע, יבדוק בקבוקים ריקים, יחליף או יקצה בקבוק נוסף רק במידת הצורך, ויתעד במערכת כל בקבוק שנפתח או הוקצה.",
+      "בסיום הערב הלקוח יקבל דוח ממוחשב מסודר על ניהול האלכוהול בפועל.",
+    ],
+  },
+];
+
+const DETAILED_PERSONAL_REP_CUSTOMER_DETAILS: DetailSection[] = [
+  {
+    title: "נציג אישי לליווי",
+    items: [
+      "שירות נציג אישי לליווי כולל ליווי אישי וממוקד לאורך תהליך ניהול האירוע במערכת, בהתאם לחבילה שנבחרה ולצרכים שסוכמו מול הלקוח.",
+      "השירות נועד לתת ללקוח מענה אישי, סדר ובקרה לאורך הדרך, לעזור לו להבין את מצב האירוע במערכת, לעקוב אחרי הנתונים, לקבל עדכונים שוטפים ולבצע פעולות חשובות בצורה מסודרת יותר עד מועד האירוע.",
+    ],
+  },
+  {
+    title: "מטרת השירות",
+    items: [
+      "מטרת השירות היא להעניק ללקוח ליווי אישי בתהליך ההכנות, כך שלא יצטרך להתמודד לבד עם כל הנתונים, הרשימות, אישורי ההגעה וההושבה הדיגיטלית.",
+      "הנציג האישי מסייע ללקוח לעקוב אחרי התקדמות האירוע, להבין מה כבר בוצע, מה עדיין פתוח, אילו נתונים דורשים תשומת לב, ומה מומלץ לעשות בשלבים הבאים.",
+    ],
+  },
+  {
+    title: "מה כולל הליווי האישי",
+    items: [
+      "במסגרת השירות ימונה ללקוח נציג אישי מטעמנו אשר ילווה אותו מרחוק לאורך תקופת ההכנות לאירוע.",
+      "הליווי כולל מעבר על נתוני האירוע במערכת, בדיקת סטטוס אישורי ההגעה, מעקב אחר רשימת המוזמנים, סיוע בהבנת הנתונים ומתן הכוונה לגבי המשך הפעולות הנדרשות במערכת.",
+      "הנציג יסייע ללקוח להבין את תמונת המצב של האירוע, כולל כמות מאשרים, כמות לא מגיעים, אורחים שטרם ענו, שינויים ברשימות ועדכונים חשובים לקראת האירוע.",
+    ],
+  },
+  {
+    title: "עדכונים שוטפים",
+    items: [
+      "השירות כולל עדכון ומעבר עם הלקוח פעמיים בשבוע, בהתאם להתקדמות האירוע ולשלב שבו נמצא הלקוח בתהליך.",
+      "במהלך העדכונים הנציג יעבור עם הלקוח על הנתונים המרכזיים במערכת, יציף נקודות שדורשות טיפול, ויסייע ללקוח להבין מה מומלץ לבצע בהמשך.",
+      "העדכונים נועדו לשמור על סדר, להפחית עומס מהלקוח, ולוודא שהלקוח נמצא בשליטה על הנתונים לקראת האירוע.",
+    ],
+  },
+  {
+    title: "סיוע בהושבה דיגיטלית מרחוק",
+    items: [
+      "ככל שהלקוח משתמש במערכת ההושבה הדיגיטלית, הנציג האישי יסייע מרחוק בבניית ההושבה ובארגון השולחנות בהתאם לסקיצת האולם ולנתונים שהלקוח מספק.",
+      "הסיוע יכול לכלול הכוונה בבניית שולחנות, שיוך אורחים לשולחנות, בדיקת חוסרים, התאמות לפי משפחות או קבוצות, וסידור ראשוני או עדכונים בהתאם לשינויים שמתקבלים במערכת.",
+      "הלקוח נדרש להעביר את סקיצת האולם, כמות השולחנות, כמות הכיסאות בכל שולחן וכל מידע נוסף הדרוש לצורך סיוע בבניית ההושבה.",
+    ],
+  },
+  {
+    title: "אופי השירות והבהרות",
+    items: [
+      "שירות הנציג האישי מתבצע מרחוק ואינו כולל הגעה פיזית לאולם ביום האירוע, אלא אם נרכש בנפרד שירות הושבה באולם.",
+      "הנציג האישי מסייע ללקוח בניהול, מעקב, הכוונה וסדר במערכת, אך אינו מחליף את אחריות הלקוח לעדכון פרטים, אישור שינויים, העברת רשימות, קבלת החלטות או אישור סופי של סידורי ההושבה.",
+      "החלטות סופיות לגבי רשימות, אישורי הגעה, הושבה, פתיחת שולחנות, שינויים מול האולם או כל התחייבות אחרת נשארות באחריות הלקוח או נציג מוסמך מטעמו.",
+    ],
+  },
+];
+
+const DETAILED_PERSONAL_REP_EMPLOYEE_DETAILS: DetailSection[] = [
+  {
+    title: "מה העובד צריך להסביר בשיחה",
+    items: [
+      "להסביר שזה שירות ליווי אישי מרחוק ללקוח לאורך תקופת ההכנות לאירוע.",
+      "להדגיש שהלקוח מקבל מעבר ועדכון פעמיים בשבוע על הנתונים, אישורי ההגעה והמשימות הפתוחות במערכת.",
+      "להסביר שהשירות כולל סיוע בהושבה דיגיטלית מרחוק לפי סקיצת אולם, אבל לא כולל הגעה פיזית לאולם.",
+      "אם הלקוח רוצה צוות פיזי באולם ביום האירוע — צריך להוסיף אפסייל הושבה באולם בנפרד.",
+    ],
+  },
+  {
+    title: "מה חובה לסגור מול הלקוח",
+    items: [
+      "שהליווי הוא מרחוק בלבד.",
+      "שהלקוח צריך להעביר רשימות, סקיצה ועדכונים בזמן כדי שניתן יהיה לסייע בצורה מסודרת.",
+      "שהנציג מלווה ומכוון, אך החלטות סופיות נשארות באחריות הלקוח או נציג מוסמך מטעמו.",
+      "לתעד בסיכום השיחה שהוסבר ללקוח מה כולל השירות ומה אינו כולל.",
+    ],
+  },
+];
+
+const DETAILED_SUPPLIERS_BUDGET_CUSTOMER_DETAILS: DetailSection[] = [
+  {
+    title: "מערכת עצמאית לניהול ספקים ותקציב",
+    items: [
+      "השירות כולל פתיחת אזור עצמאי במערכת לניהול ספקים, תקציב, הוצאות ולוחות זמנים של האירוע.",
+      "המערכת נועדה לאפשר ללקוח לרכז במקום אחד את כל הספקים, המחירים, המקדמות, היתרות, החוזים והנתונים הכספיים של האירוע.",
+    ],
+  },
+  {
+    title: "ניהול ספקים ומחירים",
+    items: [
+      "ניתן להוסיף ספקים לפי תחומים, לרבות שם ספק, פרטי התקשרות, מחיר כולל, סכום מקדמה, יתרה לתשלום והערות חשובות.",
+      "המערכת מציגה תמונת מצב מסודרת של כל ההתחייבויות מול הספקים ומאפשרת מעקב אחר ההוצאות בצורה נוחה וברורה.",
+    ],
+  },
+  {
+    title: "חישובים אוטומטיים",
+    items: [
+      "המערכת מחשבת אוטומטית כמה שולם, כמה נותר לשלם, סכומי מקדמות ויתרות פתוחות מול הספקים.",
+      "המערכת מחשבת עלות ממוצעת לאדם לפי כמות האורחים וההוצאות שהוזנו, כדי לעזור ללקוח להבין את המשמעות הכספית של האירוע ביחס לכמות המשתתפים.",
+    ],
+  },
+  {
+    title: "מסמכים וחוזים",
+    items: [
+      "בכל כרטיס ספק ניתן להעלות חוזים, מסמכים וקבצים רלוונטיים, כדי שכל המידע החשוב יהיה מרוכז תחת אותו ספק.",
+      "העלאת החוזים מיועדת לנוחות הלקוח ולשמירת סדר במסמכים, ואינה מהווה בדיקה משפטית או אישור מקצועי של תוכן ההסכמים.",
+    ],
+  },
+  {
+    title: "תכנון לו״ז אירוע",
+    items: [
+      "המערכת כוללת אפשרות לתכנון לו״ז האירוע, ריכוז משימות, שלבים וזמנים חשובים לקראת האירוע ובמהלכו.",
+      "מטרת הלו״ז היא לעזור ללקוח לשמור על סדר, להבין מה מתוכנן ומתי, ולרכז את פרטי האירוע במקום אחד.",
+    ],
+  },
+  {
+    title: "הבהרות חשובות",
+    items: [
+      "המערכת היא כלי לניהול עצמי של הלקוח ואינה מחליפה ייעוץ מקצועי, ייעוץ משפטי, ייעוץ פיננסי או אחריות של הלקוח מול הספקים.",
+      "האחריות להזנת נתונים נכונים, עדכון תשלומים, בדיקת חוזים וקבלת החלטות מול ספקים נשארת באחריות הלקוח.",
+    ],
+  },
+];
+
+const DETAILED_SUPPLIERS_BUDGET_EMPLOYEE_DETAILS: DetailSection[] = [
+  {
+    title: "מה העובד צריך להסביר בשיחה",
+    items: [
+      "להסביר שזה אזור עצמאי ללקוח לניהול ספקים, תקציב, מקדמות, יתרות, חוזים ולו״ז אירוע.",
+      "להדגיש שהמערכת מחשבת אוטומטית כמה שולם, כמה נשאר לשלם, ומה העלות הממוצעת לאדם לפי כמות אורחים והוצאות.",
+      "להסביר שניתן להעלות חוזים וקבצים תחת כל ספק כדי לשמור הכול במקום אחד.",
+      "להבהיר שהמערכת היא כלי ניהול עצמי ולא ייעוץ משפטי/פיננסי או בדיקת חוזים.",
+    ],
+  },
+  {
+    title: "הטבה",
+    items: [
+      "ברכישות מעל 1,000 ₪ העובד רשאי לתת את המודול ללא עלות אם ההטבה מסומנת במערכת.",
+      "אם ההטבה ניתנת ללא עלות — היא תופיע בסיכום העסקה כ'ללא עלות'.",
     ],
   },
 ];
@@ -579,31 +883,147 @@ function Icon({ name, className = "h-5 w-5" }: { name: "arrow" | "save" | "check
   return <svg {...common}><path d="M19 12H5" /><path d="m12 19-7-7 7-7" /></svg>;
 }
 
+
+function getCustomerDetailsForPlan(plan: PackagePlan): DetailSection[] {
+  return [
+    {
+      title: "פירוט ללקוח",
+      items: [plan.customerSummary, ...plan.includes],
+    },
+  ];
+}
+
+function getEmployeeDetailsForPlan(plan: PackagePlan): DetailSection[] {
+  return [
+    ...plan.employeeDetails,
+    {
+      title: "דגשים להצגה בשיחה",
+      items: [
+        "לעבור עם הלקוח על החבילה שנבחרה, כמות הרשומות והמחיר.",
+        "להסביר שהמחיר מחושב אוטומטית לפי כמות הרשומות והתוספות שנבחרו.",
+        "אם נשלחת הצעת מחיר, לוודא מול הלקוח האם להציג בה פירוט מחירי תוספות או רק מחיר כולל.",
+      ],
+    },
+  ];
+}
+
+function getCustomerSectionsForUpsell(upsell: UpsellItem): DetailSection[] {
+  if (upsell.key === "venueSeating") return DETAILED_VENUE_SEATING_CUSTOMER_DETAILS;
+  if (upsell.key === "alcoholManagement") return DETAILED_ALCOHOL_MANAGEMENT_CUSTOMER_DETAILS;
+  if (upsell.key === "personalRepresentative") return DETAILED_PERSONAL_REP_CUSTOMER_DETAILS;
+  if (upsell.key === "suppliersBudgetSystem") return DETAILED_SUPPLIERS_BUDGET_CUSTOMER_DETAILS;
+
+  return upsell.customerDetails || [];
+}
+
+function getEmployeeSectionsForUpsell(upsell: UpsellItem): DetailSection[] {
+  if (upsell.key === "venueSeating") return DETAILED_VENUE_SEATING_EMPLOYEE_DETAILS;
+  if (upsell.key === "alcoholManagement") return DETAILED_ALCOHOL_MANAGEMENT_EMPLOYEE_DETAILS;
+  if (upsell.key === "personalRepresentative") return DETAILED_PERSONAL_REP_EMPLOYEE_DETAILS;
+  if (upsell.key === "suppliersBudgetSystem") return DETAILED_SUPPLIERS_BUDGET_EMPLOYEE_DETAILS;
+
+  return upsell.employeeDetails || [];
+}
+
 function DetailsModal({ details, onClose }: { details: DetailsModalState; onClose: () => void }) {
+  const [activeView, setActiveView] = useState<"employee" | "customer">(
+    details?.defaultView || "customer",
+  );
+
   if (!details) return null;
+
+  const employeeSections = details.employeeSections || details.sections;
+  const customerSections = details.customerSections || details.sections;
+  const currentSections =
+    activeView === "customer" ? customerSections : employeeSections;
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/55 px-4 backdrop-blur-sm">
       <div className="max-h-[88vh] w-full max-w-3xl overflow-hidden rounded-[32px] border border-[#eadfce] bg-white shadow-2xl">
-        <div className="flex items-start justify-between gap-4 border-b border-[#eadfce] bg-[#fff7ec] p-6">
-          <div>
-            <p className="inline-flex rounded-full border border-[#d8b777] bg-white px-4 py-2 text-xs font-black text-[#8a5c20]">פירוט מלא</p>
-            <h3 className="mt-3 text-2xl font-black text-[#3f3327]">{details.title}</h3>
-            {details.subtitle && <p className="mt-2 text-sm font-semibold leading-6 text-[#7b6a58]">{details.subtitle}</p>}
-            {typeof details.price === "number" && <p className="mt-3 text-lg font-black text-[#3f3327]">מחיר: {money(details.price)}</p>}
+        <div className="flex items-start justify-between gap-4 border-b border-[#eadfce] bg-[#fff7ec] p-5 sm:p-6">
+          <div className="min-w-0 flex-1">
+            <p className="inline-flex rounded-full border border-[#d8b777] bg-white px-4 py-2 text-xs font-black text-[#8a5c20]">
+              פירוט מלא
+            </p>
+
+            <h3 className="mt-3 text-2xl font-black text-[#3f3327]">
+              {details.title}
+            </h3>
+
+            {details.subtitle ? (
+              <p className="mt-2 text-sm font-semibold leading-6 text-[#7b6a58]">
+                {details.subtitle}
+              </p>
+            ) : null}
+
+            {typeof details.price === "number" ? (
+              <p className="mt-3 text-lg font-black text-[#3f3327]">
+                מחיר: {money(details.price)}
+              </p>
+            ) : null}
+
+            <div className="mt-4 inline-flex rounded-2xl border border-[#eadfce] bg-white p-1 shadow-sm">
+              <button
+                type="button"
+                onClick={() => setActiveView("customer")}
+                className={`h-9 rounded-xl px-4 text-xs font-black transition ${
+                  activeView === "customer"
+                    ? "bg-[#3f3327] text-white shadow-sm"
+                    : "text-[#7b6a58] hover:bg-[#fff7ec]"
+                }`}
+              >
+                סיכום ללקוח
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveView("employee")}
+                className={`h-9 rounded-xl px-4 text-xs font-black transition ${
+                  activeView === "employee"
+                    ? "bg-[#3f3327] text-white shadow-sm"
+                    : "text-[#7b6a58] hover:bg-[#fff7ec]"
+                }`}
+              >
+                סיכום לעובד
+              </button>
+            </div>
           </div>
-          <button type="button" onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-full border border-[#eadfce] bg-white text-xl font-black text-[#7b6a58]">×</button>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#eadfce] bg-white text-xl font-black text-[#7b6a58] transition hover:bg-[#fffdf9]"
+          >
+            ×
+          </button>
         </div>
 
-        <div className="max-h-[62vh] overflow-y-auto p-6">
+        <div className="max-h-[62vh] overflow-y-auto p-5 sm:p-6">
+          <div className="mb-4 rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 py-3 text-xs font-bold leading-5 text-[#7b6a58]">
+            {activeView === "customer"
+              ? "זה הפירוט שיוצג/יישמר ללקוח בהצעת המחיר או בהסכם."
+              : "זה הפירוט הפנימי לעובד: מה להסביר, מה לוודא ומה לסכם בשיחה."}
+          </div>
+
           <div className="space-y-4">
-            {details.sections.map((section) => (
-              <section key={section.title} className="rounded-[26px] border border-[#eadfce] bg-[#fffdf9] p-4">
-                <h4 className="text-lg font-black text-[#3f3327]">{section.title}</h4>
+            {currentSections.map((section) => (
+              <section
+                key={section.title}
+                className="rounded-[26px] border border-[#eadfce] bg-[#fffdf9] p-4"
+              >
+                <h4 className="text-lg font-black text-[#3f3327]">
+                  {section.title}
+                </h4>
+
                 <ul className="mt-3 space-y-2">
                   {section.items.map((item) => (
-                    <li key={item} className="flex items-start gap-2 text-sm font-semibold leading-7 text-[#5b4a3a]">
-                      <span className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#fff3df] text-[#b47a3b]"><Icon name="check" className="h-3.5 w-3.5" /></span>
+                    <li
+                      key={item}
+                      className="flex items-start gap-2 text-sm font-semibold leading-7 text-[#5b4a3a]"
+                    >
+                      <span className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#fff3df] text-[#b47a3b]">
+                        <Icon name="check" className="h-3.5 w-3.5" />
+                      </span>
                       {item}
                     </li>
                   ))}
@@ -639,8 +1059,9 @@ export default function NewEmployeeSalePage() {
   const [suppliersBudgetFree, setSuppliersBudgetFree] = useState(false);
 
   const [paymentMode, setPaymentMode] = useState<PaymentMode>("split");
-  const [paymentStatus, setPaymentStatus] = useState<"stripe" | "paid">("stripe");
   const [documentType, setDocumentType] = useState<DocumentType>("quote");
+  const [quotePricingDisplay, setQuotePricingDisplay] =
+    useState<QuotePricingDisplay>("showUpsellPrices");
 
   const [saleSummary, setSaleSummary] = useState("");
   const [confirmRecordedCall, setConfirmRecordedCall] = useState(false);
@@ -767,6 +1188,9 @@ export default function NewEmployeeSalePage() {
     };
   }, [alcoholManagementStaffCount, baseGrossAmount, canGiveSuppliersBudgetFree, finalGrossAmount, packageCalculation.finalPrice, paymentDiscountAmount, paymentMode, selectedUpsellsList, suppliersBudgetFree, venueSeatingStaffCount]);
 
+  const showUpsellPricesInDocument =
+    quotePricingDisplay === "showUpsellPrices";
+
   const customerDealSummary = useMemo(() => ({
     packageTitle: selectedPlan.title,
     packageSummary: selectedPlan.customerSummary,
@@ -782,16 +1206,33 @@ export default function NewEmployeeSalePage() {
     quoteExpiresAt,
     paymentMode,
     paymentSchedule,
+    quotePricingDisplay,
+    showUpsellPricesInDocument,
+    pricingDisplayMode: quotePricingDisplay,
     cancellationTerms: CANCELLATION_TERMS,
     paymentTerms: PAYMENT_TERMS,
     includedItems: selectedPlan.includes,
     upsells: selectedUpsellsList.map((upsell) => ({
       title: getUpsellTitle(upsell, venueSeatingStaffCount, alcoholManagementStaffCount),
       description: getUpsellDescription(upsell, venueSeatingStaffCount, alcoholManagementStaffCount),
-      customerDetails: upsell.customerDetails,
-      givenFree: upsell.key === "suppliersBudgetSystem" && suppliersBudgetFree && canGiveSuppliersBudgetFree,
+      customerDetails: getCustomerSectionsForUpsell(upsell),
+      price:
+        upsell.key === "suppliersBudgetSystem" &&
+        suppliersBudgetFree &&
+        canGiveSuppliersBudgetFree
+          ? 0
+          : getUpsellPrice(
+              upsell,
+              venueSeatingStaffCount,
+              alcoholManagementStaffCount,
+            ),
+      showPriceInDocument: showUpsellPricesInDocument,
+      givenFree:
+        upsell.key === "suppliersBudgetSystem" &&
+        suppliersBudgetFree &&
+        canGiveSuppliersBudgetFree,
     })),
-  }), [alcoholManagementStaffCount, baseGrossAmount, canGiveSuppliersBudgetFree, eventCity, eventDate, eventName, finalGrossAmount, packageCalculation.records, paymentDiscountAmount, paymentMode, paymentSchedule, quoteCreatedAt, quoteExpiresAt, selectedPlan.customerSummary, selectedPlan.includes, selectedPlan.title, selectedUpsellsList, suppliersBudgetFree, venueSeatingStaffCount]);
+  }), [alcoholManagementStaffCount, baseGrossAmount, canGiveSuppliersBudgetFree, eventCity, eventDate, eventName, finalGrossAmount, packageCalculation.records, paymentDiscountAmount, paymentMode, paymentSchedule, quoteCreatedAt, quoteExpiresAt, quotePricingDisplay, selectedPlan.customerSummary, selectedPlan.includes, selectedPlan.title, selectedUpsellsList, showUpsellPricesInDocument, suppliersBudgetFree, venueSeatingStaffCount]);
 
   const effectiveEventDate = eventDate || quoteCreatedAt;
   const effectiveEventCity = eventCity.trim() || "לא הוגדרה";
@@ -800,6 +1241,9 @@ export default function NewEmployeeSalePage() {
 
   const documentPayload = useMemo(() => ({
     type: documentType,
+    quotePricingDisplay,
+    showUpsellPricesInDocument,
+    pricingDisplayMode: quotePricingDisplay,
     client: {
       fullName: clientName.trim(),
       idNumber: customerIdNumber.trim(),
@@ -825,6 +1269,7 @@ export default function NewEmployeeSalePage() {
       includes: selectedPlan.includes,
       records: packageCalculation.records,
       price: packageCalculation.finalPrice,
+      displayPrice: packageCalculation.finalPrice,
     },
     upsells: selectedUpsellsList.map((upsell) => {
       const dynamicPrice = getUpsellPrice(upsell, venueSeatingStaffCount, alcoholManagementStaffCount);
@@ -836,7 +1281,10 @@ export default function NewEmployeeSalePage() {
         description: getUpsellDescription(upsell, venueSeatingStaffCount, alcoholManagementStaffCount),
         price: givenFree ? 0 : dynamicPrice,
         givenFree,
-        customerDetails: upsell.customerDetails,
+        customerDetails: getCustomerSectionsForUpsell(upsell),
+        employeeDetails: getEmployeeSectionsForUpsell(upsell),
+        showPriceInDocument: showUpsellPricesInDocument,
+        hidePriceInDocument: !showUpsellPricesInDocument,
         paymentType: isEventDayService(upsell.key) ? "event_day_service" : "pre_event_service",
       };
     }),
@@ -848,12 +1296,15 @@ export default function NewEmployeeSalePage() {
       vatRate: VAT_RATE,
       paymentMode,
       stripeAmount: paymentSchedule.stripeAmount,
+      quotePricingDisplay,
+      showUpsellPricesInDocument,
+      pricingDisplayMode: quotePricingDisplay,
       paymentSchedule,
     },
     customerDealSummary,
     cancellationTerms: CANCELLATION_TERMS,
     paymentTerms: PAYMENT_TERMS,
-  }), [alcoholManagementStaffCount, baseGrossAmount, canGiveSuppliersBudgetFree, clientAddress, clientEmail, clientName, clientPhone, customerDealSummary, customerIdNumber, documentType, effectiveEventCity, effectiveEventDate, effectiveEventName, effectiveVenueName, finalGrossAmount, netAmount, packageCalculation.finalPrice, packageCalculation.records, paymentDiscountAmount, paymentMode, paymentSchedule, quoteCreatedAt, quoteExpiresAt, selectedPlan.customerSummary, selectedPlan.includes, selectedPlan.key, selectedPlan.title, selectedUpsellsList, suppliersBudgetFree, venueSeatingStaffCount]);
+  }), [alcoholManagementStaffCount, baseGrossAmount, canGiveSuppliersBudgetFree, clientAddress, clientEmail, clientName, clientPhone, customerDealSummary, customerIdNumber, documentType, effectiveEventCity, effectiveEventDate, effectiveEventName, effectiveVenueName, finalGrossAmount, netAmount, packageCalculation.finalPrice, packageCalculation.records, paymentDiscountAmount, paymentMode, paymentSchedule, quoteCreatedAt, quoteExpiresAt, quotePricingDisplay, selectedPlan.customerSummary, selectedPlan.includes, selectedPlan.key, selectedPlan.title, selectedUpsellsList, showUpsellPricesInDocument, suppliersBudgetFree, venueSeatingStaffCount]);
 
   const isDocumentActionDisabled = documentSaving || finalGrossAmount <= 0;
 
@@ -996,18 +1447,23 @@ export default function NewEmployeeSalePage() {
           clientPhone: clientPhone.trim(),
           customerIdNumber: customerIdNumber.trim(),
           clientAddress: clientAddress.trim(),
+
           eventName: eventName.trim(),
           eventDate,
           eventCity: eventCity.trim(),
           venueName: venueName.trim(),
+
           plan: selectedPlan.key,
           packageName: selectedPlan.title,
           guests: packageCalculation.records,
           records: packageCalculation.records,
+
           grossAmount: finalGrossAmount,
           originalGrossAmount: baseGrossAmount,
           discountAmount: paymentDiscountAmount,
-          status: paymentStatus === "paid" ? "paid" : "pending",
+
+          status: "pending",
+
           selectedPackage: documentPayload.selectedPackage,
           upsells: documentPayload.upsells,
           quote: documentPayload.quote,
@@ -1017,7 +1473,9 @@ export default function NewEmployeeSalePage() {
           paymentTerms: PAYMENT_TERMS,
           paymentSchedule,
           paymentMode,
+
           notes: saleSummary.trim(),
+
           saleCompliance: {
             recordedCall: confirmRecordedCall,
             cardOwnerConfirmed: confirmCardOwner,
@@ -1026,9 +1484,10 @@ export default function NewEmployeeSalePage() {
             termsConfirmed: confirmTerms,
             summary: saleSummary.trim(),
           },
+
           payment: {
-            method: paymentStatus,
-            provider: paymentStatus === "stripe" ? "stripe" : "manual",
+            method: "stripe",
+            provider: "stripe",
             amount: finalGrossAmount,
             originalAmount: baseGrossAmount,
             discountAmount: paymentDiscountAmount,
@@ -1041,50 +1500,36 @@ export default function NewEmployeeSalePage() {
       });
 
       const data = await response.json().catch(() => null);
+
       if (!response.ok || data?.success === false) {
-        throw new Error(data?.message || data?.error || "שגיאה ביצירת הלקוח והמכירה");
+        throw new Error(
+          data?.message || data?.error || "שגיאה ביצירת הלקוח והמכירה",
+        );
       }
 
-      if (paymentStatus === "stripe") {
-        if (data?.checkoutUrl) {
-          window.location.href = data.checkoutUrl;
-          return;
-        }
-        if (data?.userId) {
-          const checkoutResponse = await fetch(`/api/admin/users/${data.userId}/checkout`, {
-            method: "POST",
-            credentials: "include",
-            cache: "no-store",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              amount: paymentSchedule.stripeAmount,
-              immediateAmount: paymentSchedule.immediateTotal,
-              totalAmount: finalGrossAmount,
-              originalAmount: baseGrossAmount,
-              discountAmount: paymentDiscountAmount,
-              paymentMode,
-              eventDayAmount: paymentSchedule.eventDayTotal,
-            }),
-          });
-          const checkoutData = await checkoutResponse.json().catch(() => null);
-          if (checkoutData?.checkoutUrl) {
-            window.location.href = checkoutData.checkoutUrl;
-            return;
-          }
-        }
-        throw new Error("הלקוח נוצר, אבל לא התקבל קישור תשלום Stripe");
+      if (data?.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+        return;
       }
 
-      alert("הלקוח והעסקה נוצרו בהצלחה");
-      router.push("/employee/sales");
-      router.refresh();
+      if (data?.stripeCheckoutUrl) {
+        window.location.href = data.stripeCheckoutUrl;
+        return;
+      }
+
+      throw new Error("הלקוח נוצר, אבל לא התקבל קישור תשלום");
     } catch (submitError) {
       console.error("CREATE EMPLOYEE SALE FAILED:", submitError);
-      setError(submitError instanceof Error ? submitError.message : "שגיאה ביצירת הלקוח והמכירה");
+      setError(
+        submitError instanceof Error
+          ? submitError.message
+          : "שגיאה ביצירת הלקוח והמכירה",
+      );
     } finally {
       setSaving(false);
     }
   }
+
 
   return (
     <div dir="rtl" className="min-h-screen bg-[radial-gradient(circle_at_top,#fff7ed_0%,#f8fafc_38%,#eef2f7_100%)] text-slate-950">
@@ -1171,7 +1616,15 @@ export default function NewEmployeeSalePage() {
                         <p className="mt-2 text-3xl font-black text-[#3f3327]">{money(calc.finalPrice)}</p>
                         <p className="mt-1 text-xs font-bold text-[#9a8976]">מדרגה עד {calc.tierMaxRecords} · ממוצע {money(calc.pricePerRecord)} לרשומה</p>
                       </div>
-                      <button type="button" onClick={(event) => { event.stopPropagation(); setDetailsModal({ title: plan.title, subtitle: plan.customerSummary, price: calc.finalPrice, sections: [{ title: "פירוט ללקוח", items: plan.includes }, ...plan.employeeDetails] }); }} className="mt-4 inline-flex h-9 items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-4 text-xs font-black text-[#7b6a58] transition hover:bg-[#fffdf9]"><Icon name="info" className="h-4 w-4" /> פירוט מלא</button>
+                      <button type="button" onClick={(event) => { event.stopPropagation(); setDetailsModal({
+                          title: plan.title,
+                          subtitle: plan.customerSummary,
+                          price: calc.finalPrice,
+                          sections: getCustomerDetailsForPlan(plan),
+                          customerSections: getCustomerDetailsForPlan(plan),
+                          employeeSections: getEmployeeDetailsForPlan(plan),
+                          defaultView: "customer",
+                        }); }} className="mt-4 inline-flex h-9 items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-4 text-xs font-black text-[#7b6a58] transition hover:bg-[#fffdf9]"><Icon name="info" className="h-4 w-4" /> פירוט מלא</button>
                     </button>
                   );
                 })}
@@ -1203,7 +1656,15 @@ export default function NewEmployeeSalePage() {
                       </div>
 
                       <div className="mt-3 flex flex-wrap gap-2">
-                        <button type="button" onClick={() => setDetailsModal({ title: getUpsellTitle(upsell, venueSeatingStaffCount, alcoholManagementStaffCount), subtitle: upsell.description, price: dynamicPrice, sections: [...upsell.customerDetails, ...upsell.employeeDetails] })} className="inline-flex h-8 items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-3 text-xs font-black text-[#7b6a58] transition hover:bg-[#fffdf9]"><Icon name="info" className="h-3.5 w-3.5" /> פירוט</button>
+                        <button type="button" onClick={() => setDetailsModal({
+                              title: getUpsellTitle(upsell, venueSeatingStaffCount, alcoholManagementStaffCount),
+                              subtitle: getUpsellDescription(upsell, venueSeatingStaffCount, alcoholManagementStaffCount),
+                              price: dynamicPrice,
+                              sections: getCustomerSectionsForUpsell(upsell),
+                              customerSections: getCustomerSectionsForUpsell(upsell),
+                              employeeSections: getEmployeeSectionsForUpsell(upsell),
+                              defaultView: "customer",
+                            })} className="inline-flex h-8 items-center justify-center gap-2 rounded-2xl border border-[#eadfce] bg-white px-3 text-xs font-black text-[#7b6a58] transition hover:bg-[#fffdf9]"><Icon name="info" className="h-3.5 w-3.5" /> פירוט</button>
 
                         {upsell.key === "suppliersBudgetSystem" && selected && canGiveSuppliersBudgetFree && (
                           <label className="inline-flex h-8 cursor-pointer items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 text-xs font-black text-emerald-800">
@@ -1294,7 +1755,7 @@ export default function NewEmployeeSalePage() {
 
               <label className="mt-5 block">
                 <span className="text-sm font-black text-slate-700">סיכום שיחת המכירה *</span>
-                <textarea value={saleSummary} onChange={(e) => setSaleSummary(e.target.value)} className="mt-2 min-h-[150px] w-full rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 py-3 text-sm font-bold leading-7 outline-none transition focus:border-[#c7a76c] focus:bg-white focus:ring-4 focus:ring-[#c7a76c]/15" placeholder="לדוגמה: הוסבר ללקוח מה החבילה כוללת, אילו שירותים נבחרו, מחיר כולל מע״מ, תשלום מיידי דרך Stripe ויתרה ביום האירוע אם קיימת..." required />
+                <textarea value={saleSummary} onChange={(e) => setSaleSummary(e.target.value)} className="mt-2 min-h-[150px] w-full rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 py-3 text-sm font-bold leading-7 outline-none transition focus:border-[#c7a76c] focus:bg-white focus:ring-4 focus:ring-[#c7a76c]/15" placeholder="לדוגמה: הוסבר ללקוח מה החבילה כוללת, אילו שירותים נבחרו, מחיר כולל מע״מ, תשלום מיידי ויתרה ביום האירוע אם קיימת..." required />
               </label>
             </section>
           </div>
@@ -1351,19 +1812,19 @@ export default function NewEmployeeSalePage() {
                       <>
                         <div className="flex items-center justify-between gap-3"><span>סה״כ לפני הנחה</span><span>{money(baseGrossAmount)}</span></div>
                         <div className="flex items-center justify-between gap-3 text-emerald-700"><span>הנחת תשלום מלא 5%</span><span>-{money(paymentDiscountAmount)}</span></div>
-                        <div className="flex items-center justify-between gap-3 text-[#3f3327]"><span>לתשלום עכשיו / Stripe</span><span>{money(paymentSchedule.immediateTotal)}</span></div>
+                        <div className="flex items-center justify-between gap-3 text-[#3f3327]"><span>לתשלום עכשיו</span><span>{money(paymentSchedule.immediateTotal)}</span></div>
                         <div className="flex items-center justify-between gap-3"><span>יתרה ביום האירוע</span><span>{money(0)}</span></div>
                       </>
                     ) : (
                       <>
-                        <div className="flex items-center justify-between gap-3"><span>תשלום ראשוני / Stripe</span><span>{money(paymentSchedule.immediateTotal)}</span></div>
+                        <div className="flex items-center justify-between gap-3"><span>תשלום ראשוני</span><span>{money(paymentSchedule.immediateTotal)}</span></div>
                         <div className="flex items-center justify-between gap-3"><span>יתרה ביום האירוע</span><span>{money(paymentSchedule.eventDayTotal)}</span></div>
                         <div className="flex items-center justify-between gap-3"><span>שירותים דיגיטליים/לפני האירוע</span><span>{money(paymentSchedule.preEventServicesTotal)}</span></div>
                         <div className="flex items-center justify-between gap-3"><span>שירותי יום אירוע</span><span>{money(paymentSchedule.eventServicesTotal)}</span></div>
                       </>
                     )}
                   </div>
-                  <p className="mt-3 text-[11px] font-bold leading-5 text-[#8b7b68]">Stripe יעביר לתשלום רק את הסכום המיידי: {money(paymentSchedule.stripeAmount)}.</p>
+                  <p className="mt-3 text-[11px] font-bold leading-5 text-[#8b7b68]">לתשלום עכשיו: {money(paymentSchedule.stripeAmount)}.</p>
                 </div>
 
                 <div className="rounded-[24px] border border-[#eadfce] bg-white p-4">
@@ -1373,6 +1834,44 @@ export default function NewEmployeeSalePage() {
                     <option value="agreement">הסכם תנאי עסקה — חתימה</option>
                   </select>
                   <p className="mt-3 text-xs font-bold leading-5 text-[#8b7b68]">תאריך הצעה: {formatDate(quoteCreatedAt)} · תקף עד: {formatDate(quoteExpiresAt)}</p>
+
+                  <div className="mt-4 rounded-2xl border border-[#eadfce] bg-[#fffdf9] p-3">
+                    <p className="text-xs font-black text-[#3f3327]">
+                      הצגת מחירים בהצעה/הסכם
+                    </p>
+
+                    <div className="mt-3 grid gap-2">
+                      <label className="flex cursor-pointer items-start gap-2 rounded-2xl border border-[#eadfce] bg-white p-3 text-xs font-bold leading-5 text-[#6d5840]">
+                        <input
+                          type="radio"
+                          name="quotePricingDisplay"
+                          checked={quotePricingDisplay === "showUpsellPrices"}
+                          onChange={() =>
+                            setQuotePricingDisplay("showUpsellPrices")
+                          }
+                          className="mt-1 accent-[#9b7a3c]"
+                        />
+                        <span>
+                          להציג מחיר לכל תוספת בנפרד + מחיר כולל
+                        </span>
+                      </label>
+
+                      <label className="flex cursor-pointer items-start gap-2 rounded-2xl border border-[#eadfce] bg-white p-3 text-xs font-bold leading-5 text-[#6d5840]">
+                        <input
+                          type="radio"
+                          name="quotePricingDisplay"
+                          checked={quotePricingDisplay === "packageTotalOnly"}
+                          onChange={() =>
+                            setQuotePricingDisplay("packageTotalOnly")
+                          }
+                          className="mt-1 accent-[#9b7a3c]"
+                        />
+                        <span>
+                          להציג רק מחיר חבילה כולל — בלי מחירי תוספות נפרדים
+                        </span>
+                      </label>
+                    </div>
+                  </div>
 
                   <div className="mt-4 grid gap-2">
                     <button type="button" disabled={isDocumentActionDisabled} onClick={() => createDocument("preview")} className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#d8b777] bg-[#fff7ec] px-5 text-sm font-black text-[#8a5c20] transition hover:bg-[#ffefd8] disabled:cursor-not-allowed disabled:opacity-40"><Icon name="eye" className="h-4 w-4" /> תצוגה מקדימה בחלון חדש</button>
@@ -1395,18 +1894,9 @@ export default function NewEmployeeSalePage() {
                     </div>
                   )}
                 </div>
-
-                <div className="rounded-[24px] border border-[#eadfce] bg-white p-4">
-                  <p className="text-sm font-black text-[#3f3327]">אופן תשלום במערכת</p>
-                  <select value={paymentStatus} onChange={(e) => setPaymentStatus(e.target.value as "stripe" | "paid")} className="mt-3 h-12 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-right text-sm font-bold text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15">
-                    <option value="stripe">לתשלום דרך Stripe</option>
-                    <option value="paid">שולם ידנית</option>
-                  </select>
-                </div>
-
                 <button type="submit" disabled={isSubmitDisabled} className="inline-flex h-13 min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-[#3f3327] px-5 text-sm font-black text-white shadow-lg shadow-black/10 transition hover:bg-[#2f251d] disabled:cursor-not-allowed disabled:opacity-40">
                   <Icon name="save" className="h-4 w-4" />
-                  {saving ? "שומר..." : paymentStatus === "stripe" ? `יצירת לקוח ומעבר לתשלום ${money(paymentSchedule.stripeAmount)}` : "שמור לקוח ועסקה"}
+                  {saving ? "שומר..." : `יצירת לקוח ומעבר לתשלום ${money(paymentSchedule.stripeAmount)}`}
                 </button>
               </div>
             </section>
