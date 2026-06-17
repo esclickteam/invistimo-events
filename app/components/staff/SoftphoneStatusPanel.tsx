@@ -2109,7 +2109,7 @@ export default function SoftphoneStatusPanel({
             </div>
 
             {(showDialer || isCallActive || currentStatus === "after_call") && (
-              <section className="absolute left-3 right-3 top-[calc(100%+8px)] z-[95] rounded-[24px] border border-slate-200 bg-white/98 p-3 shadow-2xl backdrop-blur xl:left-auto xl:right-3 xl:w-[980px]">
+              <section className="fixed left-4 top-[96px] z-[60] w-[760px] max-w-[calc(100vw-32px)] rounded-[24px] border border-slate-200 bg-white/98 p-3 shadow-2xl backdrop-blur max-xl:left-3 max-xl:right-3 max-xl:w-auto">
                 <div className="grid gap-3 xl:grid-cols-[1fr_360px_180px] xl:items-center">
                   <div className="min-w-0">
                     <div className="mb-2 flex items-center justify-between gap-2">
