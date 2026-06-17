@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 type UserRole = "user" | "producer" | "staff" | "venue_owner";
 type StaffCreateType = "system" | "producer";
@@ -75,6 +76,7 @@ function formatMoney(value: number) {
 }
 
 export default function CreateUserModal({ onClose }: Props) {
+  const router = useRouter();
   /* ===== USER BASIC ===== */
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -298,6 +300,12 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
      SUBMIT
   ===================================================== */
   async function handleSubmit() {
+    if (role === "user") {
+      onClose();
+      router.push("/admin/sales/new");
+      return;
+    }
+
     const included = new Set(includedByPlan[plan]);
 
     const finalAllowedMessageRounds: AllowedMessageRounds =
@@ -589,23 +597,6 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
         throw new Error("CREATE_USER_FAILED");
       }
 
-      if (role === "user" && paymentStatus === "stripe" && data.userId) {
-        const checkoutRes = await fetch(
-          `/api/admin/users/${data.userId}/checkout`,
-          {
-            method: "POST",
-            credentials: "include",
-          }
-        );
-
-        const checkoutData = await checkoutRes.json();
-
-        if (checkoutData.checkoutUrl) {
-          window.location.href = checkoutData.checkoutUrl;
-          return;
-        }
-      }
-
       onClose();
     } catch (err) {
       console.error("CREATE USER FAILED:", err);
@@ -614,9 +605,10 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
   }
 
   const isSubmitDisabled =
-  !name ||
+  role === "user"
+    ? false
+    : !name ||
   !email ||
-  (role === "user" && price === "") ||
   (role === "producer" && !producerPricePerRecord) ||
   (role === "staff" &&
     staffCreateType === "producer" &&
@@ -692,6 +684,12 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
                 <option value="producer">מפיק</option>
                 <option value="staff">עובד</option>
               </select>
+
+              {role === "user" && (
+                <div className="rounded-2xl border border-[#d9b46d] bg-[#fff8ed] px-4 py-3 text-sm text-[#7a5a2f] leading-6">
+                  לקוח רגיל נוצר עכשיו דרך מסך המכירה המלא של האדמין — בדיוק כמו אצל העובד: הצעת מחיר, הסכם, חתימה, Stripe או שולם ידנית.
+                </div>
+              )}
 
               {role === "venue_owner" && (
                 <div className="rounded-2xl border border-[#eadfce] bg-[#fff8ed] px-4 py-3 text-sm text-[#7a5a2f] leading-6">
@@ -1478,7 +1476,7 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
             disabled={isSubmitDisabled}
             className="px-6 py-3 rounded-2xl bg-[#3f3327] text-white font-bold shadow-lg shadow-black/10 hover:bg-[#2f251d] disabled:opacity-40 disabled:cursor-not-allowed transition"
           >
-            צור משתמש
+            {role === "user" ? "פתיחת יצירת לקוח מלאה" : "צור משתמש"}
           </button>
         </div>
       </div>
