@@ -1807,6 +1807,21 @@ export default function NewEmployeeSalePage() {
                     <option value="full">תשלום מלא עכשיו — 5% הנחה</option>
                   </select>
 
+
+<div className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-4">
+  <p className="text-xs font-black text-emerald-700">עמלת עובד צפויה</p>
+
+  <p className="mt-2 text-3xl font-black tracking-tight text-emerald-900">
+    {money(commission)}
+  </p>
+
+  <p className="mt-2 text-xs font-bold leading-5 text-emerald-800">
+    העמלה מחושבת לפי {percent(COMMISSION_RATE)} מהסכום לפני מע״מ,
+    לאחר הנחת תשלום מלא אם נבחרה.
+  </p>
+</div>
+
+
                   <div className="mt-4 space-y-2 text-xs font-bold leading-5 text-[#7b6a58]">
                     {paymentMode === "full" ? (
                       <>
