@@ -65,9 +65,6 @@ type GuestAction = (guest: Guest) => void | Promise<void>;
 type Props = {
   guests: Guest[];
 
-  /*
-    חדש — בדיוק כמו הדסקטופ
-  */
   onOpenInviteLink?: GuestAction;
   onCopyInviteLink?: GuestAction;
   onCall?: GuestAction;
@@ -76,8 +73,8 @@ type Props = {
   onDelete: GuestAction;
 
   /*
-    ישן — כדי שהבילד לא יישבר אם יש קריאות ישנות.
-    לא מציגים כיסא במובייל.
+    תמיכה ישנה כדי לא לשבור קריאות קיימות.
+    במובייל לא מציגים כיסא.
   */
   onMessage?: GuestAction;
   onSeat?: GuestAction;
@@ -157,13 +154,14 @@ function ActionButton({
       aria-label={title}
       className={`
         flex
-        h-12
-        w-12
+        h-11
+        w-11
+        shrink-0
         items-center
         justify-center
         rounded-2xl
         border
-        text-[22px]
+        text-[20px]
         shadow-sm
         transition
         hover:-translate-y-0.5
@@ -180,6 +178,50 @@ function ActionButton({
   );
 }
 
+function ActionGroup({
+  title,
+  children,
+  align = "right",
+}: {
+  title: string;
+  children: ReactNode;
+  align?: "right" | "left";
+}) {
+  return (
+    <div
+      dir="rtl"
+      className={`
+        min-w-0
+        ${align === "left" ? "text-left" : "text-right"}
+      `}
+    >
+      <div
+        className={`
+          mb-2
+          text-xs
+          font-black
+          text-[#7B6A58]
+          ${align === "left" ? "text-left" : "text-right"}
+        `}
+      >
+        {title}
+      </div>
+
+      <div
+        className={`
+          flex
+          flex-nowrap
+          items-center
+          gap-2
+          ${align === "left" ? "justify-start" : "justify-end"}
+        `}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 /* ============================================================
    Component
 ============================================================ */
@@ -193,7 +235,7 @@ export default function GuestsMobileList({
   onEdit,
   onDelete,
 
-  // ישן
+  // תמיכה ישנה
   onMessage,
   onInviteLink,
 }: Props) {
@@ -229,6 +271,7 @@ export default function GuestsMobileList({
         return (
           <div
             key={g._id}
+            dir="rtl"
             className="
               rounded-[22px]
               border
@@ -283,7 +326,7 @@ export default function GuestsMobileList({
             </div>
 
             {/* ================= Notes ================= */}
-            {g.notes?.trim() && (
+            {g.notes?.trim() ? (
               <div
                 className="
                   mt-3
@@ -300,105 +343,75 @@ export default function GuestsMobileList({
               >
                 {g.notes.trim()}
               </div>
-            )}
+            ) : null}
 
-            {/* ================= Actions exactly like desktop ================= */}
+            {/* ================= Actions ================= */}
             <div className="mt-4 border-t border-[#E7DED1] pt-4">
-              <div className="grid grid-cols-2 gap-4">
-                {/* הזמנת אורח */}
-                <div>
-                  <div className="mb-2 text-xs font-black text-[#7B6A58]">
-                    הזמנת אורח
-                  </div>
+              <div
+                dir="ltr"
+                className="
+                  flex
+                  w-full
+                  items-end
+                  justify-between
+                  gap-4
+                  overflow-x-auto
+                  pb-1
+                "
+              >
+                {/* פעולות — צד שמאל */}
+                <ActionGroup title="פעולות" align="left">
+                  {onCall ? (
+                    <ActionButton
+                      title="מעקב סבבי שיחה"
+                      onClick={() => onCall(g)}
+                    >
+                      📞
+                    </ActionButton>
+                  ) : null}
 
-                  <div className="flex flex-wrap gap-3">
-                    {handleOpenInviteLink && (
-                      <ActionButton
-                        title="פתיחת קישור הזמנה"
-                        onClick={() => handleOpenInviteLink(g)}
-                      >
-                        🔗
-                      </ActionButton>
-                    )}
+                  {handleWhatsApp ? (
+                    <ActionButton
+                      title="שליחת וואטסאפ אישי"
+                      onClick={() => handleWhatsApp(g)}
+                    >
+                      💬
+                    </ActionButton>
+                  ) : null}
 
-                    {onCopyInviteLink && (
-                      <ActionButton
-                        title="העתקת קישור הזמנה"
-                        onClick={() => onCopyInviteLink(g)}
-                      >
-                        📋
-                      </ActionButton>
-                    )}
-                  </div>
-                </div>
+                  <ActionButton title="עריכת מוזמן" onClick={() => onEdit(g)}>
+                    ✏️
+                  </ActionButton>
 
-                {/* פעולות */}
-                <div>
-                  <div className="mb-2 text-xs font-black text-[#7B6A58]">
-                    פעולות
-                  </div>
+                  <ActionButton
+                    title="מחיקת מוזמן"
+                    onClick={() => onDelete(g)}
+                    danger
+                  >
+                    🗑️
+                  </ActionButton>
+                </ActionGroup>
 
-                  {/* ================= Actions + invite in one row ================= */}
-<div className="mt-4 border-t border-[#E7DED1] pt-4">
-  <div className="mb-3 text-center text-sm font-black text-[#7B6A58]">
-    הזמנת אורח ופעולות
-  </div>
+                {/* הזמנת אורח — צד ימין */}
+                <ActionGroup title="הזמנת אורח" align="right">
+                  {handleOpenInviteLink ? (
+                    <ActionButton
+                      title="פתיחת קישור הזמנה"
+                      onClick={() => handleOpenInviteLink(g)}
+                    >
+                      🔗
+                    </ActionButton>
+                  ) : null}
 
-  <div className="flex w-full items-center justify-between gap-2">
-    {handleOpenInviteLink && (
-      <ActionButton
-        title="פתיחת קישור הזמנה"
-        onClick={() => handleOpenInviteLink(g)}
-      >
-        🔗
-      </ActionButton>
-    )}
-
-    {onCopyInviteLink && (
-      <ActionButton
-        title="העתקת קישור הזמנה"
-        onClick={() => onCopyInviteLink(g)}
-      >
-        📋
-      </ActionButton>
-    )}
-
-    {onCall && (
-      <ActionButton
-        title="מעקב סבבי שיחה"
-        onClick={() => onCall(g)}
-      >
-        📞
-      </ActionButton>
-    )}
-
-    {handleWhatsApp && (
-      <ActionButton
-        title="שליחת וואטסאפ אישי"
-        onClick={() => handleWhatsApp(g)}
-      >
-        💬
-      </ActionButton>
-    )}
-
-    <ActionButton
-      title="עריכת מוזמן"
-      onClick={() => onEdit(g)}
-    >
-      ✏️
-    </ActionButton>
-
-    <ActionButton
-      title="מחיקת מוזמן"
-      onClick={() => onDelete(g)}
-      danger
-    >
-      🗑️
-    </ActionButton>
-  </div>
-</div>
-
-                </div>
+                  {onCopyInviteLink ? (
+                    <ActionButton
+                      title="העתקת קישור הזמנה"
+                      onClick={() => onCopyInviteLink(g)}
+                    >
+                      📋
+                    </ActionButton>
+                  ) : null}
+                </ActionGroup>
               </div>
             </div>
           </div>
