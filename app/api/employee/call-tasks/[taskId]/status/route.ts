@@ -1076,6 +1076,173 @@ async function updateGuestExternalNoteOnly(input: {
   );
 }
 
+
+function getRoundAnswerStatusFromTaskStatus(
+  status: TaskStatus,
+  callAnswered?: CallAnswered
+): "answered" | "no_answer" {
+  if (callAnswered === "answered" || callAnswered === "no_answer") {
+    return callAnswered;
+  }
+
+  if (
+    status === "no_answer" ||
+    status === "needs_fix" ||
+    status === "wrong_number"
+  ) {
+    return "no_answer";
+  }
+
+  return "answered";
+}
+
+function getRoundResultStatusFromTaskStatus(
+  status: TaskStatus
+):
+  | "yes"
+  | "no"
+  | "will_reply"
+  | "callback"
+  | "no_answer"
+  | "needs_correction"
+  | "undecided"
+  | "other" {
+  if (status === "confirmed") return "yes";
+  if (status === "declined") return "no";
+  if (status === "will_reply_message") return "will_reply";
+  if (status === "callback") return "callback";
+  if (status === "no_answer") return "no_answer";
+  if (status === "needs_fix" || status === "wrong_number") {
+    return "needs_correction";
+  }
+  if (status === "undecided") return "undecided";
+
+  return "other";
+}
+
+function normalizeGuestCallRounds(guest: any) {
+  const result: any[] = [];
+
+  const addRound = (roundNumber: number, source: any) => {
+    if (!source || !roundNumber) return;
+
+    const status = cleanStr(source.status || source.callStatus || source.result);
+    const resultValue = cleanStr(source.result || source.resultStatus || status);
+
+    if (!status && !resultValue && !source.answerStatus) return;
+
+    const answerStatus =
+      source.answerStatus ||
+      source.callAnswerStatus ||
+      source.callAnswered ||
+      (status === "no_answer" || status === "needs_fix" || status === "wrong_number"
+        ? "no_answer"
+        : "answered");
+
+    const resultStatus =
+      source.resultStatus ||
+      source.callResultStatus ||
+      source.answeredResult ||
+      source.noAnswerResult ||
+      (status === "confirmed"
+        ? "yes"
+        : status === "declined"
+          ? "no"
+          : status === "will_reply_message"
+            ? "will_reply"
+            : status === "callback"
+              ? "callback"
+              : status === "needs_fix" || status === "wrong_number"
+                ? "needs_correction"
+                : status === "no_answer"
+                  ? "no_answer"
+                  : status === "undecided"
+                    ? "undecided"
+                    : resultValue || status);
+
+    result.push({
+      roundNumber,
+      ...source,
+      status: status || source.status,
+      result: resultValue || source.result,
+      answerStatus,
+      resultStatus,
+      calledAt:
+        source.calledAt ||
+        source.completedAt ||
+        source.updatedAt ||
+        source.callCompletedAt ||
+        null,
+      updatedAt:
+        source.updatedAt ||
+        source.completedAt ||
+        source.calledAt ||
+        source.callCompletedAt ||
+        null,
+    });
+  };
+
+  if (Array.isArray(guest?.callRounds)) {
+    for (const round of guest.callRounds) {
+      addRound(Number(round?.roundNumber || 0), round);
+    }
+  }
+
+  if (guest?.callRounds && !Array.isArray(guest.callRounds)) {
+    addRound(1, guest.callRounds.round1);
+    addRound(2, guest.callRounds.round2);
+    addRound(3, guest.callRounds.round3);
+  }
+
+  if (guest?.rsvpCallRounds && !Array.isArray(guest.rsvpCallRounds)) {
+    addRound(1, guest.rsvpCallRounds.round1);
+    addRound(2, guest.rsvpCallRounds.round2);
+    addRound(3, guest.rsvpCallRounds.round3);
+  }
+
+  for (const roundNumber of [1, 2, 3]) {
+    const status = guest?.[`round${roundNumber}CallStatus`];
+
+    if (status) {
+      addRound(roundNumber, {
+        status,
+        result: guest?.[`round${roundNumber}CallResult`],
+        answerStatus:
+          guest?.[`round${roundNumber}CallAnswerStatus`] ||
+          guest?.[`round${roundNumber}CallAnswered`],
+        resultStatus:
+          guest?.[`round${roundNumber}CallResultStatus`] ||
+          guest?.[`round${roundNumber}AnsweredResult`] ||
+          guest?.[`round${roundNumber}NoAnswerResult`],
+        completedAt: guest?.[`round${roundNumber}CallCompletedAt`],
+        taskId: guest?.[`round${roundNumber}CallTaskId`],
+        workOrderId: guest?.[`round${roundNumber}CallWorkOrderId`],
+        employeeId: guest?.[`round${roundNumber}CallEmployeeId`],
+        employeeName: guest?.[`round${roundNumber}CallEmployeeName`],
+        employeeEmail: guest?.[`round${roundNumber}CallEmployeeEmail`],
+        note: guest?.[`round${roundNumber}CallNote`],
+      });
+    }
+  }
+
+  const byRound = new Map<number, any>();
+
+  for (const round of result) {
+    const roundNumber = Number(round?.roundNumber || 0);
+    if (!roundNumber) continue;
+
+    byRound.set(roundNumber, {
+      ...(byRound.get(roundNumber) || {}),
+      ...round,
+      roundNumber,
+    });
+  }
+
+  return Array.from(byRound.values()).sort(
+    (a, b) => Number(a.roundNumber || 0) - Number(b.roundNumber || 0)
+  );
+}
+
 async function syncInvitationGuest(input: {
   task: any;
   status: TaskStatus;
@@ -1114,6 +1281,122 @@ async function syncInvitationGuest(input: {
   const result = getResultFromStatus(input.status);
   const guestRsvpStatus = getGuestRsvpStatus(input.status);
 
+  const answerStatus = getRoundAnswerStatusFromTaskStatus(
+    input.status,
+    input.callAnswered
+  );
+  const resultStatus = getRoundResultStatusFromTaskStatus(input.status);
+
+  const existingGuest: any = await InvitationGuest.findById(guestObjectId)
+    .select(
+      [
+        "callRounds",
+        "rsvpCallRounds",
+        "round1CallStatus",
+        "round1CallResult",
+        "round1CallAnswerStatus",
+        "round1CallResultStatus",
+        "round1CallCompletedAt",
+        "round1CallTaskId",
+        "round1CallWorkOrderId",
+        "round1CallEmployeeId",
+        "round1CallEmployeeName",
+        "round1CallEmployeeEmail",
+        "round1CallNote",
+        "round1CallAnswered",
+        "round1AnsweredResult",
+        "round1NoAnswerResult",
+        "round2CallStatus",
+        "round2CallResult",
+        "round2CallAnswerStatus",
+        "round2CallResultStatus",
+        "round2CallCompletedAt",
+        "round2CallTaskId",
+        "round2CallWorkOrderId",
+        "round2CallEmployeeId",
+        "round2CallEmployeeName",
+        "round2CallEmployeeEmail",
+        "round2CallNote",
+        "round2CallAnswered",
+        "round2AnsweredResult",
+        "round2NoAnswerResult",
+        "round3CallStatus",
+        "round3CallResult",
+        "round3CallAnswerStatus",
+        "round3CallResultStatus",
+        "round3CallCompletedAt",
+        "round3CallTaskId",
+        "round3CallWorkOrderId",
+        "round3CallEmployeeId",
+        "round3CallEmployeeName",
+        "round3CallEmployeeEmail",
+        "round3CallNote",
+        "round3CallAnswered",
+        "round3AnsweredResult",
+        "round3NoAnswerResult",
+      ].join(" ")
+    )
+    .lean();
+
+  const callRoundPayload = {
+    roundNumber: round,
+
+    status: input.status,
+    result,
+    resultStatus,
+    answerStatus,
+
+    taskId: taskObjectId,
+    workOrderId: workOrderObjectId,
+    invitationId: toObjectId(input.task?.invitationId),
+    guestId: guestObjectId,
+
+    employeeId: input.employeeId,
+    employeeName: input.employeeName,
+    employeeEmail: input.employeeEmail,
+
+    amount:
+      input.attendingCount !== undefined && input.attendingCount >= 0
+        ? input.attendingCount
+        : null,
+    arrivedCount:
+      input.attendingCount !== undefined && input.attendingCount >= 0
+        ? input.attendingCount
+        : null,
+
+    notes: input.note || "",
+    note: input.note || "",
+    callDocumentation: input.note || "",
+    guestNote: input.hasGuestNote ? input.guestNote || "" : "",
+
+    callAnswered: input.callAnswered || answerStatus,
+    answeredResult: input.answeredResult || input.status || "",
+    messageFollowUpAction: input.messageFollowUpAction || "",
+    noAnswerResult: input.noAnswerResult || "",
+
+    movedToNextRound: Boolean(input.moveToNextRound),
+    nextRoundReason: input.nextRoundReason || "",
+    nextRound: input.moveToNextRound ? input.nextRound : null,
+    nextRoundTaskId: input.nextRoundTaskId || null,
+    nextRoundWorkOrderId: input.nextRoundWorkOrderId || null,
+
+    calledAt: input.now,
+    completedAt: input.now,
+    updatedAt: input.now,
+    createdAt: input.now,
+
+    source: "employee",
+  };
+
+  const existingRounds = normalizeGuestCallRounds(existingGuest);
+
+  const nextCallRounds = existingRounds
+    .filter((item: any) => Number(item?.roundNumber || 0) !== round)
+    .concat(callRoundPayload)
+    .sort((a: any, b: any) =>
+      Number(a.roundNumber || 0) - Number(b.roundNumber || 0)
+    );
+
   const set: Record<string, any> = {
     lastCallStatus: input.status,
     lastCallResult: result,
@@ -1135,6 +1418,15 @@ async function syncInvitationGuest(input: {
     rsvpCallResult: result,
     rsvpCallRound: round,
     rsvpCallCompletedAt: input.now,
+    rsvpCallAnswerStatus: answerStatus,
+    rsvpCallResultStatus: resultStatus,
+
+    lastCallAnswerStatus: answerStatus,
+    lastCallResultStatus: resultStatus,
+    callAnswerStatus: answerStatus,
+    callResultStatus: resultStatus,
+
+    callRounds: nextCallRounds,
 
     callAnswered: input.callAnswered || "",
     answeredResult: input.answeredResult || "",
@@ -1143,6 +1435,8 @@ async function syncInvitationGuest(input: {
 
     [`${roundKey}CallStatus`]: input.status,
     [`${roundKey}CallResult`]: result,
+    [`${roundKey}CallAnswerStatus`]: answerStatus,
+    [`${roundKey}CallResultStatus`]: resultStatus,
     [`${roundKey}CallCompleted`]: true,
     [`${roundKey}CallCompletedAt`]: input.now,
     [`${roundKey}CallTaskId`]: taskObjectId,

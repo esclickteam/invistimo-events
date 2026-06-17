@@ -4,6 +4,7 @@ import InvitationGuest from "@/models/InvitationGuest";
 import Invitation from "@/models/Invitation";
 import SeatingTable from "@/models/SeatingTable";
 import User from "@/models/User";
+import CallTask from "@/models/CallTask";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import mongoose, { Types } from "mongoose";
 
@@ -252,6 +253,338 @@ async function attachTableNamesToGuests({
   });
 }
 
+
+function normalizeCallRoundAnswerStatus(value: unknown) {
+  const raw = cleanString(value).toLowerCase();
+
+  if (
+    raw === "answered" ||
+    raw === "answer" ||
+    raw === "yes" ||
+    raw === "confirmed" ||
+    raw === "declined" ||
+    raw === "callback" ||
+    raw === "will_reply_message" ||
+    raw === "undecided" ||
+    raw === "ענה" ||
+    raw === "ענתה"
+  ) {
+    return "answered";
+  }
+
+  if (
+    raw === "no_answer" ||
+    raw === "not_answered" ||
+    raw === "unanswered" ||
+    raw === "needs_fix" ||
+    raw === "wrong_number" ||
+    raw === "לא ענה" ||
+    raw === "לא ענתה" ||
+    raw === "אין מענה"
+  ) {
+    return "no_answer";
+  }
+
+  return "";
+}
+
+function normalizeCallRoundResultStatus(value: unknown) {
+  const raw = cleanString(value).toLowerCase();
+
+  if (
+    raw === "yes" ||
+    raw === "confirmed" ||
+    raw === "attending" ||
+    raw === "arriving" ||
+    raw === "מגיע" ||
+    raw === "מגיעה" ||
+    raw === "מגיעים"
+  ) {
+    return "yes";
+  }
+
+  if (
+    raw === "no" ||
+    raw === "declined" ||
+    raw === "not_attending" ||
+    raw === "not_coming" ||
+    raw === "לא מגיע" ||
+    raw === "לא מגיעה" ||
+    raw === "לא מגיעים"
+  ) {
+    return "no";
+  }
+
+  if (raw === "will_reply" || raw === "will_reply_message") {
+    return "will_reply";
+  }
+
+  if (raw === "callback" || raw === "call_back" || raw === "follow_up") {
+    return "callback";
+  }
+
+  if (raw === "no_answer" || raw === "not_answered" || raw === "unanswered") {
+    return "no_answer";
+  }
+
+  if (
+    raw === "needs_correction" ||
+    raw === "needs_fix" ||
+    raw === "wrong_number" ||
+    raw === "requires_correction"
+  ) {
+    return "needs_correction";
+  }
+
+  if (raw === "undecided" || raw === "maybe") {
+    return "undecided";
+  }
+
+  return raw || "";
+}
+
+function normalizeGuestCallRoundsForApi(guest: any) {
+  const result: any[] = [];
+
+  const addRound = (roundNumber: number, source: any) => {
+    if (!source || !roundNumber) return;
+
+    const status = cleanString(source.status || source.callStatus || source.result);
+    const resultValue = cleanString(source.result || source.resultStatus || status);
+
+    const answerStatus =
+      normalizeCallRoundAnswerStatus(source.answerStatus) ||
+      normalizeCallRoundAnswerStatus(source.callAnswerStatus) ||
+      normalizeCallRoundAnswerStatus(source.callAnswered) ||
+      normalizeCallRoundAnswerStatus(status);
+
+    const resultStatus =
+      normalizeCallRoundResultStatus(source.resultStatus) ||
+      normalizeCallRoundResultStatus(source.callResultStatus) ||
+      normalizeCallRoundResultStatus(source.result) ||
+      normalizeCallRoundResultStatus(source.answeredResult) ||
+      normalizeCallRoundResultStatus(source.noAnswerResult) ||
+      normalizeCallRoundResultStatus(status);
+
+    if (!status && !resultValue && !answerStatus && !resultStatus) return;
+
+    result.push({
+      roundNumber,
+      ...source,
+      status: status || source.status,
+      result: resultValue || source.result,
+      answerStatus,
+      resultStatus,
+      calledAt:
+        source.calledAt ||
+        source.completedAt ||
+        source.updatedAt ||
+        source.callCompletedAt ||
+        null,
+      updatedAt:
+        source.updatedAt ||
+        source.completedAt ||
+        source.calledAt ||
+        source.callCompletedAt ||
+        null,
+    });
+  };
+
+  if (Array.isArray(guest?.callRounds)) {
+    for (const round of guest.callRounds) {
+      addRound(Number(round?.roundNumber || 0), round);
+    }
+  }
+
+  if (guest?.callRounds && !Array.isArray(guest.callRounds)) {
+    addRound(1, guest.callRounds.round1);
+    addRound(2, guest.callRounds.round2);
+    addRound(3, guest.callRounds.round3);
+  }
+
+  if (guest?.rsvpCallRounds && !Array.isArray(guest.rsvpCallRounds)) {
+    addRound(1, guest.rsvpCallRounds.round1);
+    addRound(2, guest.rsvpCallRounds.round2);
+    addRound(3, guest.rsvpCallRounds.round3);
+  }
+
+  for (const roundNumber of [1, 2, 3]) {
+    const status = guest?.[`round${roundNumber}CallStatus`];
+
+    if (status) {
+      addRound(roundNumber, {
+        status,
+        result: guest?.[`round${roundNumber}CallResult`],
+        answerStatus:
+          guest?.[`round${roundNumber}CallAnswerStatus`] ||
+          guest?.[`round${roundNumber}CallAnswered`],
+        resultStatus:
+          guest?.[`round${roundNumber}CallResultStatus`] ||
+          guest?.[`round${roundNumber}AnsweredResult`] ||
+          guest?.[`round${roundNumber}NoAnswerResult`],
+        completedAt: guest?.[`round${roundNumber}CallCompletedAt`],
+        taskId: guest?.[`round${roundNumber}CallTaskId`],
+        workOrderId: guest?.[`round${roundNumber}CallWorkOrderId`],
+        employeeId: guest?.[`round${roundNumber}CallEmployeeId`],
+        employeeName: guest?.[`round${roundNumber}CallEmployeeName`],
+        employeeEmail: guest?.[`round${roundNumber}CallEmployeeEmail`],
+        note: guest?.[`round${roundNumber}CallNote`],
+      });
+    }
+  }
+
+  const byRound = new Map<number, any>();
+
+  for (const round of result) {
+    const roundNumber = Number(round?.roundNumber || 0);
+    if (!roundNumber) continue;
+
+    byRound.set(roundNumber, {
+      ...(byRound.get(roundNumber) || {}),
+      ...round,
+      roundNumber,
+    });
+  }
+
+  return Array.from(byRound.values()).sort(
+    (a, b) => Number(a.roundNumber || 0) - Number(b.roundNumber || 0)
+  );
+}
+
+function getTaskRoundResultStatus(status: string) {
+  return normalizeCallRoundResultStatus(status);
+}
+
+function getTaskRoundAnswerStatus(status: string) {
+  return normalizeCallRoundAnswerStatus(status) || "answered";
+}
+
+async function attachCallRoundsFromTasks(guests: any[]) {
+  const guestIds = guests
+    .map((guest) => guest?._id || guest?.id)
+    .filter(Boolean);
+
+  if (!guestIds.length) return guests;
+
+  const objectIds = guestIds
+    .map((id) => toObjectId(id))
+    .filter(Boolean) as Types.ObjectId[];
+
+  const stringIds = guestIds.map((id) => String(id));
+
+  const tasks = (await CallTask.find({
+    $or: [
+      objectIds.length ? { guestId: { $in: objectIds } } : {},
+      { guestId: { $in: stringIds } },
+    ].filter((item) => Object.keys(item).length),
+    status: {
+      $in: [
+        "confirmed",
+        "declined",
+        "no_answer",
+        "callback",
+        "will_reply_message",
+        "needs_fix",
+        "wrong_number",
+        "undecided",
+      ],
+    },
+  })
+    .select(
+      "_id guestId workOrderId invitationId assignedToEmployeeId assignedEmployeeId employeeId handledByEmployeeId handledByEmployeeName handledByEmployeeEmail round status result note guestNotes attendingCount arrivedCount completedAt lastAttemptAt updatedAt callAnswered answeredResult messageFollowUpAction noAnswerResult moveToNextRound nextRound nextRoundReason"
+    )
+    .lean()) as any[];
+
+  const tasksByGuest = new Map<string, any[]>();
+
+  for (const task of tasks) {
+    const key = String(task?.guestId || "");
+    if (!key) continue;
+
+    if (!tasksByGuest.has(key)) {
+      tasksByGuest.set(key, []);
+    }
+
+    tasksByGuest.get(key)!.push(task);
+  }
+
+  return guests.map((guest) => {
+    const guestId = String(guest?._id || guest?.id || "");
+    const guestTasks = tasksByGuest.get(guestId) || [];
+    const existingRounds = normalizeGuestCallRoundsForApi(guest);
+    const byRound = new Map<number, any>();
+
+    for (const round of existingRounds) {
+      const roundNumber = Number(round?.roundNumber || 0);
+      if (!roundNumber) continue;
+      byRound.set(roundNumber, round);
+    }
+
+    for (const task of guestTasks) {
+      const roundNumber = Number(task?.round || 1);
+      const status = cleanString(task?.status);
+      if (!status) continue;
+
+      const answerStatus = getTaskRoundAnswerStatus(status);
+      const resultStatus = getTaskRoundResultStatus(status);
+
+      byRound.set(roundNumber, {
+        ...(byRound.get(roundNumber) || {}),
+        roundNumber,
+        status,
+        result: task?.result || status,
+        answerStatus,
+        resultStatus,
+        taskId: task?._id || null,
+        workOrderId: task?.workOrderId || null,
+        invitationId: task?.invitationId || guest?.invitationId || null,
+        guestId: guest?._id || guest?.id || null,
+        employeeId:
+          task?.handledByEmployeeId ||
+          task?.assignedToEmployeeId ||
+          task?.assignedEmployeeId ||
+          task?.employeeId ||
+          null,
+        employeeName: cleanString(task?.handledByEmployeeName),
+        employeeEmail: cleanString(task?.handledByEmployeeEmail),
+        amount:
+          typeof task?.attendingCount === "number"
+            ? task.attendingCount
+            : typeof task?.arrivedCount === "number"
+              ? task.arrivedCount
+              : null,
+        arrivedCount:
+          typeof task?.attendingCount === "number"
+            ? task.attendingCount
+            : typeof task?.arrivedCount === "number"
+              ? task.arrivedCount
+              : null,
+        notes: cleanString(task?.note),
+        note: cleanString(task?.note),
+        guestNote: cleanString(task?.guestNotes),
+        callAnswered: cleanString(task?.callAnswered) || answerStatus,
+        answeredResult: cleanString(task?.answeredResult) || status,
+        messageFollowUpAction: cleanString(task?.messageFollowUpAction),
+        noAnswerResult: cleanString(task?.noAnswerResult),
+        movedToNextRound: Boolean(task?.moveToNextRound),
+        nextRound: task?.nextRound || null,
+        nextRoundReason: cleanString(task?.nextRoundReason),
+        calledAt: task?.completedAt || task?.lastAttemptAt || task?.updatedAt || null,
+        completedAt: task?.completedAt || null,
+        updatedAt: task?.updatedAt || task?.completedAt || task?.lastAttemptAt || null,
+        source: byRound.has(roundNumber) ? "guest_and_call_task" : "call_task_fallback",
+      });
+    }
+
+    return {
+      ...guest,
+      callRounds: Array.from(byRound.values()).sort(
+        (a, b) => Number(a.roundNumber || 0) - Number(b.roundNumber || 0)
+      ),
+    };
+  });
+}
+
 /* =========================================================
    GET /api/guests
 ========================================================= */
@@ -341,9 +674,13 @@ export async function GET(req: NextRequest) {
         invitation,
       });
 
+      const guestsWithCallRounds = await attachCallRoundsFromTasks(
+        guestsWithTable
+      );
+
       return NextResponse.json({
         success: true,
-        guests: guestsWithTable,
+        guests: guestsWithCallRounds,
         usage: null,
       });
     }
@@ -436,13 +773,15 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    const current = guestsWithTable.length;
+    const guestsWithCallRounds = await attachCallRoundsFromTasks(guestsWithTable);
+
+    const current = guestsWithCallRounds.length;
     const limit = maxGuests;
     const remaining = Math.max(0, limit - current);
 
     return NextResponse.json({
       success: true,
-      guests: guestsWithTable,
+      guests: guestsWithCallRounds,
       usage: {
         current,
         limit,

@@ -44,13 +44,14 @@ export type Guest = {
     answerStatus?: "answered" | "no_answer" | null;
 
     resultStatus?:
-      | "yes"
-      | "no"
-      | "will_reply"
-      | "callback"
-      | "no_answer"
-      | "needs_correction"
-      | null;
+  | "yes"
+  | "no"
+  | "will_reply"
+  | "callback"
+  | "no_answer"
+  | "needs_correction"
+  | "undecided"
+  | null;
 
     amount?: number;
 

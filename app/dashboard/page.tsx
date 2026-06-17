@@ -81,6 +81,7 @@ type Guest = {
     | "callback"
     | "no_answer"
     | "needs_correction"
+    | "undecided"
     | null;
 
   amount?: number;
@@ -1303,8 +1304,25 @@ const pending = guests.filter(
       | "callback"
       | "no_answer"
       | "needs_correction"
+      | "undecided"
       | null;
   };
+
+type ParsedCallQuickFilter = {
+  roundNumber: 0 | 1 | 2 | 3;
+  filterType:
+    | "round"
+    | "answered"
+    | "no_answer"
+    | "yes"
+    | "no"
+    | "will_reply"
+    | "callback"
+    | "no_answer_result"
+    | "needs_correction"
+    | "undecided"
+    | null;
+};
 
 function normalizeAnswerStatus(
   status?: string | null
@@ -1314,13 +1332,35 @@ function normalizeAnswerStatus(
   switch (value) {
     case "answered":
     case "answer":
+    case "answered_call":
+    case "confirmed":
+    case "declined":
+    case "yes":
+    case "no":
+    case "callback":
+    case "call_back":
+    case "will_reply":
+    case "will_reply_message":
+    case "undecided":
     case "ענה":
+    case "ענתה":
+    case "מגיע":
+    case "לא מגיע":
       return "answered";
 
     case "no_answer":
     case "no-answer":
     case "not_answered":
+    case "unanswered":
+    case "needs_fix":
+    case "needs_correction":
+    case "wrong_number":
+    case "requires_correction":
     case "לא ענה":
+    case "לא ענתה":
+    case "אין מענה":
+    case "דורש תיקון":
+    case "מספר שגוי":
       return "no_answer";
 
     default:
@@ -1337,6 +1377,7 @@ function normalizeResultStatus(
   | "callback"
   | "no_answer"
   | "needs_correction"
+  | "undecided"
   | null {
   const value = String(status || "").trim().toLowerCase();
 
@@ -1344,29 +1385,50 @@ function normalizeResultStatus(
     case "yes":
     case "confirmed":
     case "attending":
+    case "approved":
+    case "arriving":
     case "מגיע":
+    case "מגיעה":
+    case "אישר":
+    case "אישרה":
       return "yes";
 
     case "no":
     case "declined":
     case "not_attending":
+    case "not_coming":
     case "לא מגיע":
+    case "לא מגיעה":
       return "no";
 
     case "will_reply":
     case "will_reply_message":
+    case "self_reply":
+    case "reply_message":
     case "ישיב בהודעה":
+    case "תשיב בהודעה":
+    case "ישיב עצמאית":
+    case "תשיב עצמאית":
       return "will_reply";
 
     case "callback":
     case "call_back":
+    case "follow_up":
+    case "followup":
     case "חזרה":
+    case "לחזור":
+    case "לחזור אליו":
+    case "לחזור אליה":
     case "חזרה בסבב הבא":
       return "callback";
 
     case "no_answer":
+    case "no-answer":
     case "not_answered":
+    case "unanswered":
     case "לא ענה":
+    case "לא ענתה":
+    case "אין מענה":
       return "no_answer";
 
     case "needs_correction":
@@ -1374,8 +1436,17 @@ function normalizeResultStatus(
     case "wrong_number":
     case "requires_correction":
     case "דורש תיקון":
+    case "דורשת תיקון":
     case "ממתין לתיקון":
+    case "מספר שגוי":
+    case "טלפון שגוי":
       return "needs_correction";
+
+    case "undecided":
+    case "maybe":
+    case "מתלבט":
+    case "מתלבטת":
+      return "undecided";
 
     default:
       return null;
@@ -1393,19 +1464,24 @@ function normalizeCallRoundForFilter(round: any): CallRoundForFilter | null {
 
   let answerStatus =
     normalizeAnswerStatus(round.answerStatus) ||
-    normalizeAnswerStatus(round.callAnswered);
+    normalizeAnswerStatus(round.callAnswered) ||
+    normalizeAnswerStatus(round.answeredStatus);
 
   const resultStatus =
     normalizeResultStatus(round.resultStatus) ||
+    normalizeResultStatus(round.callResultStatus) ||
     normalizeResultStatus(round.result) ||
-    normalizeResultStatus(round.status);
+    normalizeResultStatus(round.status) ||
+    normalizeResultStatus(round.answeredResult) ||
+    normalizeResultStatus(round.noAnswerResult);
 
   if (!answerStatus) {
     if (
       resultStatus === "yes" ||
       resultStatus === "no" ||
       resultStatus === "will_reply" ||
-      resultStatus === "callback"
+      resultStatus === "callback" ||
+      resultStatus === "undecided"
     ) {
       answerStatus = "answered";
     }
@@ -1459,27 +1535,123 @@ function getGuestCallRoundForFilter(
   )[0];
 }
 
-function isCallFilter(filter: QuickFilter) {
-  return (
-    filter === "call_round_1" ||
-    filter === "call_round_2" ||
-    filter === "call_round_3" ||
-    filter === "call_answered" ||
-    filter === "call_no_answer" ||
-    filter === "call_answered_yes" ||
-    filter === "call_answered_no" ||
-    filter === "call_will_reply" ||
-    filter === "call_callback" ||
-    filter === "call_no_answer_result" ||
-    filter === "call_needs_correction"
+function parseCallQuickFilter(filter: QuickFilter): ParsedCallQuickFilter {
+  const value = String(filter || "");
+
+  const combined = value.match(
+    /^call_round_([123])_(answered|no_answer|yes|no|will_reply|callback|needs_correction|undecided)$/
   );
+
+  if (combined) {
+    return {
+      roundNumber: Number(combined[1]) as 1 | 2 | 3,
+      filterType: combined[2] as ParsedCallQuickFilter["filterType"],
+    };
+  }
+
+  const roundOnly = value.match(/^call_round_([123])$/);
+
+  if (roundOnly) {
+    return {
+      roundNumber: Number(roundOnly[1]) as 1 | 2 | 3,
+      filterType: "round",
+    };
+  }
+
+  const legacyMap: Record<string, ParsedCallQuickFilter["filterType"]> = {
+    call_answered: "answered",
+    call_no_answer: "no_answer",
+    call_answered_yes: "yes",
+    call_answered_no: "no",
+    call_will_reply: "will_reply",
+    call_callback: "callback",
+    call_no_answer_result: "no_answer_result",
+    call_needs_correction: "needs_correction",
+  };
+
+  return {
+    roundNumber: 0,
+    filterType: legacyMap[value] || null,
+  };
+}
+
+function isCallFilter(filter: QuickFilter) {
+  return parseCallQuickFilter(filter).filterType !== null;
 }
 
 function getRoundFromQuickFilter(filter: QuickFilter): 0 | 1 | 2 | 3 {
-  if (filter === "call_round_1") return 1;
-  if (filter === "call_round_2") return 2;
-  if (filter === "call_round_3") return 3;
-  return 0;
+  return parseCallQuickFilter(filter).roundNumber;
+}
+
+function doesGuestMatchCallFilter(
+  guest: Guest,
+  filter: QuickFilter,
+  selectedRound: 0 | 1 | 2 | 3
+) {
+  const parsed = parseCallQuickFilter(filter);
+
+  if (!parsed.filterType) return true;
+
+  const activeCallRound = parsed.roundNumber || selectedRound;
+  const callRound = getGuestCallRoundForFilter(guest, activeCallRound);
+
+  if (!callRound) return false;
+
+  switch (parsed.filterType) {
+    case "round":
+      return true;
+
+    case "answered":
+      return callRound.answerStatus === "answered";
+
+    case "no_answer":
+      return callRound.answerStatus === "no_answer";
+
+    case "yes":
+      return (
+        callRound.answerStatus === "answered" &&
+        callRound.resultStatus === "yes"
+      );
+
+    case "no":
+      return (
+        callRound.answerStatus === "answered" &&
+        callRound.resultStatus === "no"
+      );
+
+    case "will_reply":
+      return (
+        callRound.answerStatus === "answered" &&
+        callRound.resultStatus === "will_reply"
+      );
+
+    case "callback":
+      return (
+        callRound.answerStatus === "answered" &&
+        callRound.resultStatus === "callback"
+      );
+
+    case "no_answer_result":
+      return (
+        callRound.answerStatus === "no_answer" &&
+        callRound.resultStatus === "no_answer"
+      );
+
+    case "needs_correction":
+      return (
+        callRound.answerStatus === "no_answer" &&
+        callRound.resultStatus === "needs_correction"
+      );
+
+    case "undecided":
+      return (
+        callRound.answerStatus === "answered" &&
+        callRound.resultStatus === "undecided"
+      );
+
+    default:
+      return true;
+  }
 }
 
 function getGuestRsvp(guest: Guest) {
@@ -1509,120 +1681,29 @@ function normalizeGuestForDashboard(guest: Guest): Guest {
   ============================================================ */
   const displayGuests = useMemo(() => {
     let list = [...guests];
+    const quickFilterValue = String(quickFilter || "all");
 
-    if (quickFilter === "yes") {
-  list = list.filter((g) => getGuestRsvp(g) === "yes");
-}
+    if (quickFilterValue === "yes") {
+      list = list.filter((g) => getGuestRsvp(g) === "yes");
+    }
 
-if (quickFilter === "no") {
-  list = list.filter((g) => getGuestRsvp(g) === "no");
-}
+    if (quickFilterValue === "no") {
+      list = list.filter((g) => getGuestRsvp(g) === "no");
+    }
 
-if (quickFilter === "noTable") {
-  list = list.filter((g) => !(g.tableName && g.tableName.trim()));
-}
+    if (quickFilterValue === "noTable") {
+      list = list.filter((g) => !(g.tableName && g.tableName.trim()));
+    }
 
-if (quickFilter === "pending") {
-  list = list.filter((g) => getGuestRsvp(g) === "pending");
-}
+    if (quickFilterValue === "pending") {
+      list = list.filter((g) => getGuestRsvp(g) === "pending");
+    }
 
-const activeCallRound =
-  selectedCallRound || getRoundFromQuickFilter(quickFilter);
-
-if (quickFilter === "call_round_1") {
-  list = list.filter((g) => Boolean(getGuestCallRoundForFilter(g, 1)));
-}
-
-if (quickFilter === "call_round_2") {
-  list = list.filter((g) => Boolean(getGuestCallRoundForFilter(g, 2)));
-}
-
-if (quickFilter === "call_round_3") {
-  list = list.filter((g) => Boolean(getGuestCallRoundForFilter(g, 3)));
-}
-
-if (quickFilter === "call_answered") {
-  list = list.filter((g) => {
-    const callRound = getGuestCallRoundForFilter(g, activeCallRound);
-
-    return callRound?.answerStatus === "answered";
-  });
-}
-
-if (quickFilter === "call_no_answer") {
-  list = list.filter((g) => {
-    const callRound = getGuestCallRoundForFilter(g, activeCallRound);
-
-    return callRound?.answerStatus === "no_answer";
-  });
-}
-
-if (quickFilter === "call_answered_yes") {
-  list = list.filter((g) => {
-    const callRound = getGuestCallRoundForFilter(g, activeCallRound);
-
-    return (
-      callRound?.answerStatus === "answered" &&
-      callRound?.resultStatus === "yes"
-    );
-  });
-}
-
-if (quickFilter === "call_answered_no") {
-  list = list.filter((g) => {
-    const callRound = getGuestCallRoundForFilter(g, activeCallRound);
-
-    return (
-      callRound?.answerStatus === "answered" &&
-      callRound?.resultStatus === "no"
-    );
-  });
-}
-
-if (quickFilter === "call_will_reply") {
-  list = list.filter((g) => {
-    const callRound = getGuestCallRoundForFilter(g, activeCallRound);
-
-    return (
-      callRound?.answerStatus === "answered" &&
-      callRound?.resultStatus === "will_reply"
-    );
-  });
-}
-
-if (quickFilter === "call_callback") {
-  list = list.filter((g) => {
-    const callRound = getGuestCallRoundForFilter(g, activeCallRound);
-
-    return (
-      callRound?.answerStatus === "answered" &&
-      callRound?.resultStatus === "callback"
-    );
-  });
-}
-
-if (quickFilter === "call_no_answer_result") {
-  list = list.filter((g) => {
-    const callRound = getGuestCallRoundForFilter(g, activeCallRound);
-
-    return (
-      callRound?.answerStatus === "no_answer" &&
-      callRound?.resultStatus === "no_answer"
-    );
-  });
-}
-
-if (quickFilter === "call_needs_correction") {
-  list = list.filter((g) => {
-    const callRound = getGuestCallRoundForFilter(g, activeCallRound);
-
-    return (
-      callRound?.answerStatus === "no_answer" &&
-      callRound?.resultStatus === "needs_correction"
-    );
-  });
-}
-
+    if (isCallFilter(quickFilter)) {
+      list = list.filter((g) =>
+        doesGuestMatchCallFilter(g, quickFilter, selectedCallRound)
+      );
+    }
 
     const q = search.trim().toLowerCase();
 
@@ -4268,6 +4349,8 @@ function GoldenDonutCard({
     </div>
   );
 }
+
+
 
 
 type UserRsvpScheduleItem = {
