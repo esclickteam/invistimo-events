@@ -1430,33 +1430,11 @@ export default function AdminSalesNewPage() {
     const missing = getMissingDocumentFields();
 
     if (missing.length > 0) {
-      setError(
-        `כדי ליצור ${
-          documentType === "quote" ? "הצעת מחיר" : "הסכם"
-        } חסר: ${missing.join(", ")}`,
-      );
+      setError(`כדי ליצור ${documentType === "quote" ? "הצעת מחיר" : "הסכם"} חסר: ${missing.join(", ")}`);
       return;
     }
 
     if (isDocumentActionDisabled) return;
-
-    /*
-      חשוב:
-      דפדפנים חוסמים window.open אם הוא קורה אחרי await/fetch.
-      לכן בתצוגה מקדימה פותחים חלון ריק מיד בלחיצה, ואז אחרי שהשרת מחזיר URL
-      מעבירים את החלון לכתובת של ההצעה/הסכם.
-    */
-    const previewWindow =
-      action === "preview"
-        ? window.open("about:blank", "_blank", "noopener,noreferrer")
-        : null;
-
-    if (previewWindow) {
-      previewWindow.document.write(
-        `<html dir="rtl"><head><title>טוען מסמך...</title></head><body style="font-family:Arial,sans-serif;padding:32px;text-align:center;color:#3f3327"><h2>טוען תצוגה מקדימה...</h2><p>מיד נפתח המסמך.</p></body></html>`,
-      );
-      previewWindow.document.close();
-    }
 
     try {
       setError("");
@@ -1470,21 +1448,15 @@ export default function AdminSalesNewPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(documentPayload),
       });
-
       const data = await response.json().catch(() => null);
 
       if (!response.ok || data?.success === false) {
-        throw new Error(
-          data?.message || data?.error || "שגיאה ביצירת קישור למסמך",
-        );
+        throw new Error(data?.message || data?.error || "שגיאה ביצירת קישור למסמך");
       }
 
       const url = data?.url || data?.documentUrl;
       const token = data?.token;
-
-      if (!url || !token) {
-        throw new Error("לא התקבל קישור למסמך");
-      }
+      if (!url || !token) throw new Error("לא התקבל קישור למסמך");
 
       const nextDocument = {
         type: documentType,
@@ -1500,66 +1472,30 @@ export default function AdminSalesNewPage() {
       };
 
       if (action === "preview") {
-        const previewUrl = `${url}?preview=1`;
-
         setGeneratedDocument(nextDocument);
-        setDocumentSuccess(
-          documentType === "quote"
-            ? "הצעת המחיר נוצרה ונפתחה לתצוגה מקדימה"
-            : "ההסכם נוצר ונפתח לתצוגה מקדימה",
-        );
-
-        if (previewWindow && !previewWindow.closed) {
-          previewWindow.location.href = previewUrl;
-        } else {
-          window.open(previewUrl, "_blank", "noopener,noreferrer");
-        }
-
+        setDocumentSuccess(documentType === "quote" ? "הצעת המחיר נוצרה ונפתחה לתצוגה מקדימה" : "ההסכם נוצר ונפתח לתצוגה מקדימה");
+        window.open(`${url}?preview=1`, "_blank", "noopener,noreferrer");
         return;
       }
 
-      const smsResponse = await fetch(
-        `/api/employee/sales/documents/${token}/send-sms`,
-        {
-          method: "POST",
-          credentials: "include",
-          cache: "no-store",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phone: clientPhone.trim() }),
-        },
-      );
-
+      const smsResponse = await fetch(`/api/employee/sales/documents/${token}/send-sms`, {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: clientPhone.trim() }),
+      });
       const smsData = await smsResponse.json().catch(() => null);
 
       if (!smsResponse.ok || smsData?.success === false) {
-        throw new Error(
-          smsData?.message ||
-            smsData?.error ||
-            "הקישור נוצר, אבל שליחת ה־SMS נכשלה",
-        );
+        throw new Error(smsData?.message || smsData?.error || "הקישור נוצר, אבל שליחת ה־SMS נכשלה");
       }
 
-      setGeneratedDocument({
-        ...nextDocument,
-        smsSentAt: new Date().toISOString(),
-      });
-      setDocumentSuccess(
-        documentType === "quote"
-          ? "הצעת המחיר נשלחה ב-SMS"
-          : "קישור ההסכם נשלח ב-SMS",
-      );
+      setGeneratedDocument({ ...nextDocument, smsSentAt: new Date().toISOString() });
+      setDocumentSuccess(documentType === "quote" ? "הצעת המחיר נשלחה ב-SMS" : "קישור ההסכם נשלח ב-SMS");
     } catch (documentError) {
-      console.error("CREATE ADMIN SALES DOCUMENT FAILED:", documentError);
-
-      if (previewWindow && !previewWindow.closed) {
-        previewWindow.close();
-      }
-
-      setError(
-        documentError instanceof Error
-          ? documentError.message
-          : "שגיאה ביצירת מסמך",
-      );
+      console.error("CREATE OR SEND SALES DOCUMENT FAILED:", documentError);
+      setError(documentError instanceof Error ? documentError.message : "שגיאה ביצירת/שליחת מסמך");
     } finally {
       setDocumentSaving(false);
     }
