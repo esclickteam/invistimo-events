@@ -1076,6 +1076,8 @@ export default function NewEmployeeSalePage() {
     token?: string;
     expiresAt: string;
     smsSentAt?: string;
+    status?: string;
+    signedAt?: string;
   } | null>(null);
   const [documentSaving, setDocumentSaving] = useState(false);
   const [documentSuccess, setDocumentSuccess] = useState("");
@@ -1308,7 +1310,11 @@ export default function NewEmployeeSalePage() {
 
   const isDocumentActionDisabled = documentSaving || finalGrossAmount <= 0;
 
-  const isSubmitDisabled = saving || finalGrossAmount <= 0;
+  const signedAgreementReady =
+    generatedDocument?.type === "agreement" && generatedDocument.status === "signed";
+
+  const isSubmitDisabled =
+    saving || finalGrossAmount <= 0 || !signedAgreementReady;
 
   function getMissingDocumentFields() {
     const missing: string[] = [];
@@ -1327,6 +1333,7 @@ export default function NewEmployeeSalePage() {
     if (!eventDate) missing.push("תאריך אירוע");
     if (!eventCity.trim()) missing.push("עיר אירוע");
     if (!venueName.trim()) missing.push("שם אולם");
+    if (!signedAgreementReady) missing.push("הסכם חתום על ידי הלקוח");
     if (!saleSummary.trim()) missing.push("סיכום שיחת מכירה");
     if (!confirmRecordedCall) missing.push("אישור שהמכירה בוצעה בשיחה מוקלטת");
     if (!confirmCardOwner) missing.push("אישור שהלקוח/המשלם אישר שימוש בכרטיס");
@@ -1388,6 +1395,12 @@ export default function NewEmployeeSalePage() {
         url,
         token,
         expiresAt: data?.expiresAt || quoteExpiresAt,
+        status: data?.document?.status || data?.status || "draft",
+        signedAt:
+          data?.document?.signedAt ||
+          data?.document?.signature?.signedAt ||
+          data?.document?.agreement?.signedAt ||
+          "",
       };
 
       if (action === "preview") {
@@ -1415,6 +1428,66 @@ export default function NewEmployeeSalePage() {
     } catch (documentError) {
       console.error("CREATE OR SEND SALES DOCUMENT FAILED:", documentError);
       setError(documentError instanceof Error ? documentError.message : "שגיאה ביצירת/שליחת מסמך");
+    } finally {
+      setDocumentSaving(false);
+    }
+  }
+
+  async function refreshGeneratedDocumentStatus() {
+    if (!generatedDocument?.token) {
+      setError("אין קישור הסכם לבדיקה");
+      return;
+    }
+
+    try {
+      setError("");
+      setDocumentSuccess("");
+      setDocumentSaving(true);
+
+      const response = await fetch(
+        `/api/sales-documents/${generatedDocument.token}?markViewed=false`,
+        {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        },
+      );
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok || data?.success === false || !data?.document) {
+        throw new Error(data?.message || data?.error || "שגיאה בבדיקת סטטוס ההסכם");
+      }
+
+      const signedAt =
+        data.document?.signedAt ||
+        data.document?.signature?.signedAt ||
+        data.document?.agreement?.signedAt ||
+        "";
+
+      setGeneratedDocument((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: data.document?.status || prev.status,
+              signedAt,
+            }
+          : prev,
+      );
+
+      if (data.document?.status === "signed") {
+        setDocumentSuccess("ההסכם נחתם — ניתן לעבור לתשלום");
+        return;
+      }
+
+      setDocumentSuccess("ההסכם עדיין לא נחתם. לאחר שהלקוח יחתום, לחצי שוב על בדיקת חתימה.");
+    } catch (statusError) {
+      console.error("CHECK SALES DOCUMENT STATUS FAILED:", statusError);
+      setError(
+        statusError instanceof Error
+          ? statusError.message
+          : "שגיאה בבדיקת סטטוס ההסכם",
+      );
     } finally {
       setDocumentSaving(false);
     }
@@ -1463,6 +1536,7 @@ export default function NewEmployeeSalePage() {
           discountAmount: paymentDiscountAmount,
 
           status: "pending",
+          signedAgreementToken: generatedDocument?.token || "",
 
           selectedPackage: documentPayload.selectedPackage,
           upsells: documentPayload.upsells,
@@ -1574,26 +1648,112 @@ export default function NewEmployeeSalePage() {
 
         <form onSubmit={submitSale} className="mt-6 grid gap-6 xl:grid-cols-[1fr_430px]">
           <div className="space-y-6">
-            <section className="rounded-[34px] border border-[#eadfce] bg-white p-5 shadow-sm sm:p-6">
-              <h2 className="text-2xl font-black text-slate-950">פרטי לקוח ואירוע</h2>
-              <div className="mt-5 grid gap-4 md:grid-cols-2">
-                <label className="text-sm font-black text-[#3f3327]">שם לקוח<input value={clientName} onChange={(e) => setClientName(e.target.value)} className="mt-2 h-12 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-sm font-bold outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15" required /></label>
-                <label className="text-sm font-black text-[#3f3327]">טלפון<input value={clientPhone} onChange={(e) => setClientPhone(e.target.value)} className="mt-2 h-12 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-sm font-bold outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15" required /></label>
-                <label className="text-sm font-black text-[#3f3327]">מייל<input type="email" value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} className="mt-2 h-12 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-sm font-bold outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15" required /></label>
-                <label className="text-sm font-black text-[#3f3327]">תעודת זהות<input value={customerIdNumber} onChange={(e) => setCustomerIdNumber(e.target.value)} className="mt-2 h-12 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-sm font-bold outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15" /></label>
-                <label className="text-sm font-black text-[#3f3327] md:col-span-2">כתובת לחתימה בהסכם<input value={clientAddress} onChange={(e) => setClientAddress(e.target.value)} className="mt-2 h-12 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-sm font-bold outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15" /></label>
-                <label className="text-sm font-black text-[#3f3327]">שם האירוע<input value={eventName} onChange={(e) => setEventName(e.target.value)} placeholder="לדוגמה: חתונת הדר ו..." className="mt-2 h-12 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-sm font-bold outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15" /></label>
-                <label className="text-sm font-black text-[#3f3327]">תאריך אירוע<input type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} className="mt-2 h-12 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-sm font-bold outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15" required /></label>
-                <label className="text-sm font-black text-[#3f3327]">עיר<input value={eventCity} onChange={(e) => setEventCity(e.target.value)} className="mt-2 h-12 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-sm font-bold outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15" required /></label>
-                <label className="text-sm font-black text-[#3f3327]">שם האולם<input value={venueName} onChange={(e) => setVenueName(e.target.value)} className="mt-2 h-12 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-sm font-bold outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15" required /></label>
+            <section className="overflow-hidden rounded-[34px] border border-[#eadfce] bg-white shadow-sm">
+              <div className="border-b border-[#eadfce] bg-[#fff7ec] p-5 sm:p-6">
+                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <p className="inline-flex rounded-full border border-[#d8b777] bg-white px-4 py-2 text-xs font-black text-[#8a5c20]">
+                      שלב 1
+                    </p>
+                    <h2 className="mt-3 text-2xl font-black text-slate-950">
+                      פרטי לקוח ואירוע
+                    </h2>
+                    <p className="mt-2 max-w-2xl text-sm font-bold leading-6 text-[#7b6a58]">
+                      כאן מזינים רק את הפרטים הדרושים לעובד לצורך יצירת הצעה/הסכם.
+                      תעודת זהות וכתובת ימולאו על ידי הלקוח בקישור ההסכם בזמן החתימה.
+                    </p>
+                  </div>
+
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-[#9b6a30] shadow-sm">
+                    <Icon name="shield" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-5 sm:p-6">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="text-sm font-black text-[#3f3327]">
+                    שם לקוח
+                    <input
+                      value={clientName}
+                      onChange={(e) => setClientName(e.target.value)}
+                      className="mt-2 h-12 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-sm font-bold outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
+                      required
+                    />
+                  </label>
+
+                  <label className="text-sm font-black text-[#3f3327]">
+                    טלפון
+                    <input
+                      value={clientPhone}
+                      onChange={(e) => setClientPhone(e.target.value)}
+                      className="mt-2 h-12 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-sm font-bold outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
+                      required
+                    />
+                  </label>
+
+                  <label className="text-sm font-black text-[#3f3327] md:col-span-2">
+                    מייל
+                    <input
+                      type="email"
+                      value={clientEmail}
+                      onChange={(e) => setClientEmail(e.target.value)}
+                      className="mt-2 h-12 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-sm font-bold outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
+                      required
+                    />
+                  </label>
+
+                  <label className="text-sm font-black text-[#3f3327]">
+                    שם האירוע
+                    <input
+                      value={eventName}
+                      onChange={(e) => setEventName(e.target.value)}
+                      placeholder="לדוגמה: חתונת הדר ו..."
+                      className="mt-2 h-12 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-sm font-bold outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
+                    />
+                  </label>
+
+                  <label className="text-sm font-black text-[#3f3327]">
+                    תאריך אירוע
+                    <input
+                      type="date"
+                      value={eventDate}
+                      onChange={(e) => setEventDate(e.target.value)}
+                      className="mt-2 h-12 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-sm font-bold outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
+                      required
+                    />
+                  </label>
+
+                  <label className="text-sm font-black text-[#3f3327]">
+                    עיר
+                    <input
+                      value={eventCity}
+                      onChange={(e) => setEventCity(e.target.value)}
+                      className="mt-2 h-12 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-sm font-bold outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
+                      required
+                    />
+                  </label>
+
+                  <label className="text-sm font-black text-[#3f3327]">
+                    שם האולם
+                    <input
+                      value={venueName}
+                      onChange={(e) => setVenueName(e.target.value)}
+                      className="mt-2 h-12 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-sm font-bold outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
+                      required
+                    />
+                  </label>
+                </div>
               </div>
             </section>
 
             <section className="rounded-[34px] border border-[#eadfce] bg-white p-5 shadow-sm sm:p-6">
               <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
                 <div>
-                  <h2 className="text-2xl font-black text-slate-950">בחירת חבילה</h2>
-                  <p className="mt-1 text-sm font-semibold text-slate-500">הפירוט ללקוח מלא ולא משתמש בניסוח “כל מה שכלול בחבילה...”.</p>
+                  <p className="inline-flex rounded-full border border-[#d8b777] bg-[#fff7ec] px-4 py-2 text-xs font-black text-[#8a5c20]">
+                    שלב 2
+                  </p>
+                  <h2 className="mt-3 text-2xl font-black text-slate-950">בחירת חבילה</h2>
                 </div>
                 <label className="text-sm font-black text-[#3f3327]">כמות רשומות<input type="number" min={1} max={1000} value={records} onChange={(e) => setRecords(e.target.value)} className="mt-2 h-12 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-sm font-bold outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15 md:w-40" /></label>
               </div>
@@ -1720,7 +1880,7 @@ export default function NewEmployeeSalePage() {
             <section className="rounded-[34px] border border-[#eadfce] bg-white p-5 shadow-sm sm:p-6">
               <div>
                 <h2 className="text-2xl font-black text-slate-950">אישורי מכירה חובה</h2>
-                <p className="mt-1 text-sm font-semibold text-slate-500">בלי סימון כל הסעיפים אי אפשר להעביר את העסקה לתשלום.</p>
+                <p className="mt-1 text-sm font-semibold text-slate-500">בלי סימון כל הסעיפים אי אפשר להתקדם להסכם חתימה ותשלום.</p>
               </div>
 
               <div className="mt-5 grid gap-3 md:grid-cols-2">
@@ -1800,27 +1960,25 @@ export default function NewEmployeeSalePage() {
                   <p className="mt-1 text-xs font-bold text-[#8b7b68]">לפני מע״מ: {money(netAmount)} · עמלה לעובד: {money(commission)} ({percent(COMMISSION_RATE)} לפני מע״מ)</p>
                 </div>
 
+                <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-4">
+                  <p className="text-xs font-black text-emerald-700">עמלת עובד צפויה</p>
+
+                  <p className="mt-2 text-3xl font-black tracking-tight text-emerald-900">
+                    {money(commission)}
+                  </p>
+
+                  <p className="mt-2 text-xs font-bold leading-5 text-emerald-800">
+                    העמלה מחושבת לפי {percent(COMMISSION_RATE)} מהסכום לפני מע״מ,
+                    לאחר הנחת תשלום מלא אם נבחרה.
+                  </p>
+                </div>
+
                 <div className="rounded-[24px] border border-[#eadfce] bg-white p-4">
                   <p className="text-sm font-black text-[#3f3327]">בחירת תשלום</p>
                   <select value={paymentMode} onChange={(e) => setPaymentMode(e.target.value as PaymentMode)} className="mt-3 h-12 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-right text-sm font-bold text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15">
                     <option value="split">תשלום ראשוני + יתרה ביום האירוע</option>
                     <option value="full">תשלום מלא עכשיו — 5% הנחה</option>
                   </select>
-
-
-<div className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-4">
-  <p className="text-xs font-black text-emerald-700">עמלת עובד צפויה</p>
-
-  <p className="mt-2 text-3xl font-black tracking-tight text-emerald-900">
-    {money(commission)}
-  </p>
-
-  <p className="mt-2 text-xs font-bold leading-5 text-emerald-800">
-    העמלה מחושבת לפי {percent(COMMISSION_RATE)} מהסכום לפני מע״מ,
-    לאחר הנחת תשלום מלא אם נבחרה.
-  </p>
-</div>
-
 
                   <div className="mt-4 space-y-2 text-xs font-bold leading-5 text-[#7b6a58]">
                     {paymentMode === "full" ? (
@@ -1904,14 +2062,67 @@ export default function NewEmployeeSalePage() {
                   ) : null}
 
                   {generatedDocument && (
-                    <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-bold leading-5 text-emerald-800">
-                      קישור נוצר: <a href={generatedDocument.url} target="_blank" rel="noreferrer" className="underline">פתיחה</a>
+                    <div className={`mt-4 rounded-2xl border p-3 text-xs font-bold leading-5 ${
+                      generatedDocument.status === "signed"
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                        : "border-[#eadfce] bg-[#fffdf9] text-[#6d5840]"
+                    }`}>
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p>
+                            קישור נוצר:{" "}
+                            <a
+                              href={generatedDocument.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="underline"
+                            >
+                              פתיחה
+                            </a>
+                          </p>
+                          {generatedDocument.type === "agreement" ? (
+                            <p className="mt-1">
+                              סטטוס הסכם:{" "}
+                              {generatedDocument.status === "signed"
+                                ? "נחתם"
+                                : "ממתין לחתימת לקוח"}
+                            </p>
+                          ) : null}
+                        </div>
+
+                        {generatedDocument.type === "agreement" ? (
+                          <button
+                            type="button"
+                            onClick={refreshGeneratedDocumentStatus}
+                            disabled={documentSaving}
+                            className="inline-flex h-9 items-center justify-center rounded-xl border border-[#d8b777] bg-white px-3 text-xs font-black text-[#8a5c20] transition hover:bg-[#fff7ec] disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            בדיקת חתימה
+                          </button>
+                        ) : null}
+                      </div>
                     </div>
                   )}
                 </div>
+
+                {!signedAgreementReady ? (
+                  <div className="rounded-[24px] border border-amber-200 bg-amber-50 p-4 text-xs font-bold leading-6 text-amber-800">
+                    לפני תשלום חובה לשלוח ללקוח הסכם לחתימה. רק אחרי שההסכם נחתם
+                    בקישור שנשלח ב־SMS, ניתן להמשיך לתשלום.
+                  </div>
+                ) : (
+                  <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-4 text-xs font-bold leading-6 text-emerald-800">
+                    ההסכם נחתם — ניתן ליצור קישור תשלום.
+                  </div>
+                )}
+
                 <button type="submit" disabled={isSubmitDisabled} className="inline-flex h-13 min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-[#3f3327] px-5 text-sm font-black text-white shadow-lg shadow-black/10 transition hover:bg-[#2f251d] disabled:cursor-not-allowed disabled:opacity-40">
                   <Icon name="save" className="h-4 w-4" />
-                  {saving ? "שומר..." : `יצירת לקוח ומעבר לתשלום ${money(paymentSchedule.stripeAmount)}`}
+                  {saving
+                    ? "שומר..."
+                    : signedAgreementReady
+                      ? `הסכם נחתם — מעבר לתשלום ${money(paymentSchedule.stripeAmount)}`
+                      : "ממתין לחתימת הסכם לפני תשלום"}
                 </button>
               </div>
             </section>
