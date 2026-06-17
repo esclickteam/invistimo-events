@@ -8,6 +8,8 @@ type Group = {
   name: string;
 };
 
+type CallRoundFilterValue = 0 | 1 | 2 | 3;
+
 type Props = {
   search: string;
   setSearch: Dispatch<SetStateAction<string>>;
@@ -20,6 +22,9 @@ type Props = {
 
   quickFilter: QuickFilter;
   setQuickFilter: Dispatch<SetStateAction<QuickFilter>>;
+
+  selectedCallRound?: CallRoundFilterValue;
+  setSelectedCallRound?: Dispatch<SetStateAction<CallRoundFilterValue>>;
 
   totalCount: number;
   displayCount: number;
@@ -42,6 +47,103 @@ type Props = {
   disabledAddGuest?: boolean;
 };
 
+/* ============================================================
+   Call filters helpers
+============================================================ */
+
+type FilterButton = {
+  key: QuickFilter;
+  label: string;
+};
+
+const CALL_ROUND_FILTERS: FilterButton[] = [
+  { key: "call_round_1" as QuickFilter, label: "סבב 1" },
+  { key: "call_round_2" as QuickFilter, label: "סבב 2" },
+  { key: "call_round_3" as QuickFilter, label: "סבב 3" },
+];
+
+const CALL_ANSWER_FILTERS: FilterButton[] = [
+  { key: "call_answered" as QuickFilter, label: "ענה" },
+  { key: "call_no_answer" as QuickFilter, label: "לא ענה" },
+];
+
+const CALL_ANSWERED_RESULT_FILTERS: FilterButton[] = [
+  { key: "call_answered_yes" as QuickFilter, label: "מגיע" },
+  { key: "call_answered_no" as QuickFilter, label: "לא מגיע" },
+  { key: "call_will_reply" as QuickFilter, label: "ישיב בהודעה" },
+  { key: "call_callback" as QuickFilter, label: "חזרה בסבב הבא" },
+];
+
+const CALL_NO_ANSWER_RESULT_FILTERS: FilterButton[] = [
+  { key: "call_no_answer_result" as QuickFilter, label: "לא ענה" },
+  { key: "call_needs_correction" as QuickFilter, label: "דורש תיקון" },
+];
+
+function getRoundNumberFromQuickFilter(quickFilter: QuickFilter) {
+  const value = String(quickFilter || "");
+
+  if (value.includes("round_1")) return 1;
+  if (value.includes("round_2")) return 2;
+  if (value.includes("round_3")) return 3;
+
+  return 0;
+}
+
+function isCallRoundFilter(quickFilter: QuickFilter) {
+  return (
+    quickFilter === ("call_round_1" as QuickFilter) ||
+    quickFilter === ("call_round_2" as QuickFilter) ||
+    quickFilter === ("call_round_3" as QuickFilter)
+  );
+}
+
+function isAnsweredFilter(quickFilter: QuickFilter) {
+  return (
+    quickFilter === ("call_answered" as QuickFilter) ||
+    quickFilter === ("call_answered_yes" as QuickFilter) ||
+    quickFilter === ("call_answered_no" as QuickFilter) ||
+    quickFilter === ("call_will_reply" as QuickFilter) ||
+    quickFilter === ("call_callback" as QuickFilter)
+  );
+}
+
+function isNoAnswerFilter(quickFilter: QuickFilter) {
+  return (
+    quickFilter === ("call_no_answer" as QuickFilter) ||
+    quickFilter === ("call_no_answer_result" as QuickFilter) ||
+    quickFilter === ("call_needs_correction" as QuickFilter)
+  );
+}
+
+function isCallFilterOpen(quickFilter: QuickFilter) {
+  return (
+    quickFilter === ("pending" as QuickFilter) ||
+    isCallRoundFilter(quickFilter) ||
+    isAnsweredFilter(quickFilter) ||
+    isNoAnswerFilter(quickFilter)
+  );
+}
+
+function getRoundQuickFilter(roundNumber: number) {
+  return `call_round_${roundNumber}` as QuickFilter;
+}
+
+function getAnswerQuickFilter(answerType: "answered" | "no_answer") {
+  return answerType === "answered"
+    ? ("call_answered" as QuickFilter)
+    : ("call_no_answer" as QuickFilter);
+}
+
+function isBaseFilter(filter: QuickFilter) {
+  return (
+    filter === "all" ||
+    filter === "yes" ||
+    filter === "no" ||
+    filter === "pending" ||
+    filter === "noTable"
+  );
+}
+
 export default function GuestsControls({
   search,
   setSearch,
@@ -51,6 +153,8 @@ export default function GuestsControls({
   onManageGroups,
   quickFilter,
   setQuickFilter,
+  selectedCallRound = 0,
+  setSelectedCallRound,
   totalCount,
   displayCount,
   recordsLimit = 0,
@@ -70,38 +174,12 @@ export default function GuestsControls({
     { key: "noTable", label: "בלי שולחן" },
   ];
 
-  const answerFilters: {
-    key: QuickFilter;
-    label: string;
-  }[] = [
-    { key: "call_answered", label: "ענה" },
-    { key: "call_no_answer", label: "לא ענה" },
-  ];
+  const selectedRoundNumber =
+    selectedCallRound || getRoundNumberFromQuickFilter(quickFilter);
 
-  const answeredResultFilters: {
-    key: QuickFilter;
-    label: string;
-  }[] = [
-    { key: "call_answered_yes", label: "מגיע" },
-    { key: "call_answered_no", label: "לא מגיע" },
-    { key: "call_will_reply", label: "ישיב בהודעה" },
-    { key: "call_needs_correction", label: "ממתין לתיקון" },
-  ];
-
-  const isAnsweredResultFilter =
-    quickFilter === "call_answered_yes" ||
-    quickFilter === "call_answered_no" ||
-    quickFilter === "call_will_reply" ||
-    quickFilter === "call_needs_correction";
-
-  const isPendingFilterOpen =
-    quickFilter === "pending" ||
-    quickFilter === "call_answered" ||
-    quickFilter === "call_no_answer" ||
-    isAnsweredResultFilter;
-
-  const isAnsweredOpen =
-    quickFilter === "call_answered" || isAnsweredResultFilter;
+  const isPendingFilterOpen = isCallFilterOpen(quickFilter);
+  const isAnsweredOpen = isAnsweredFilter(quickFilter);
+  const isNoAnswerOpen = isNoAnswerFilter(quickFilter);
 
   const safeRecordsLimit = Number(recordsLimit || 0);
   const safeUsedRecordsCount = Number(usedRecordsCount ?? totalCount ?? 0);
@@ -110,6 +188,38 @@ export default function GuestsControls({
     safeRecordsLimit > 0
       ? Math.max(0, safeRecordsLimit - safeUsedRecordsCount)
       : null;
+
+  function updateSelectedCallRound(roundNumber: CallRoundFilterValue) {
+    if (setSelectedCallRound) {
+      setSelectedCallRound(roundNumber);
+    }
+  }
+
+  function handleBaseFilterClick(filterKey: QuickFilter) {
+    setQuickFilter(filterKey);
+
+    if (isBaseFilter(filterKey)) {
+      updateSelectedCallRound(0);
+    }
+  }
+
+  function handleRoundClick(roundNumber: 1 | 2 | 3) {
+    updateSelectedCallRound(roundNumber);
+    setQuickFilter(getRoundQuickFilter(roundNumber));
+  }
+
+  function handleAnswerClick(answerType: "answered" | "no_answer") {
+    setQuickFilter(getAnswerQuickFilter(answerType));
+  }
+
+  function handleResultClick(filterKey: QuickFilter) {
+    setQuickFilter(filterKey);
+  }
+
+  function resetCallFilters() {
+    updateSelectedCallRound(0);
+    setQuickFilter("pending");
+  }
 
   return (
     <section
@@ -357,7 +467,7 @@ export default function GuestsControls({
               <button
                 key={filter.key}
                 type="button"
-                onClick={() => setQuickFilter(filter.key)}
+                onClick={() => handleBaseFilterClick(filter.key)}
                 className={`
                   h-9
                   rounded-full
@@ -413,13 +523,13 @@ export default function GuestsControls({
           >
             <div className="mb-2 flex items-center justify-between gap-2 px-1">
               <span className="text-[11px] font-black text-[#8A7B69]">
-                סינון שיחות בהמתנה
+                סינון לפי סבבי שיחות
               </span>
 
               {quickFilter !== "pending" && (
                 <button
                   type="button"
-                  onClick={() => setQuickFilter("pending")}
+                  onClick={resetCallFilters}
                   className="text-[11px] font-black text-[#B8844F] hover:text-[#2B2118]"
                 >
                   איפוס לתת־סינון
@@ -427,36 +537,93 @@ export default function GuestsControls({
               )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              {answerFilters.map((filter) => {
-                const active =
-                  quickFilter === filter.key ||
-                  (filter.key === "call_answered" && isAnsweredOpen);
+            <div className="rounded-[16px] border border-[#EFE2CF] bg-[#FFFDF8] p-2">
+              <div className="mb-2 px-1 text-[11px] font-black text-[#8A7B69]">
+                סבב שיחות
+              </div>
 
-                return (
-                  <button
-                    key={filter.key}
-                    type="button"
-                    onClick={() => setQuickFilter(filter.key)}
-                    className={`
-                      h-8
-                      rounded-full
-                      border
-                      px-4
-                      text-[11px]
-                      font-black
-                      transition
-                      ${
-                        active
-                          ? "border-[#2B2118] bg-[#2B2118] text-white shadow-[0_8px_16px_rgba(36,26,20,0.18)]"
-                          : "border-[#E3D6C3] bg-white text-[#6B5B4A] hover:bg-[#FFF7EA]"
+              <div className="flex flex-wrap items-center gap-2">
+                {CALL_ROUND_FILTERS.map((filter) => {
+                  const roundNumber = getRoundNumberFromQuickFilter(
+                    filter.key
+                  ) as 1 | 2 | 3;
+
+                  const active =
+                    quickFilter === filter.key ||
+                    selectedRoundNumber === roundNumber;
+
+                  return (
+                    <button
+                      key={filter.key}
+                      type="button"
+                      onClick={() => handleRoundClick(roundNumber)}
+                      className={`
+                        h-8
+                        rounded-full
+                        border
+                        px-4
+                        text-[11px]
+                        font-black
+                        transition
+                        ${
+                          active
+                            ? "border-[#B8844F] bg-[#B8844F] text-white shadow-[0_8px_16px_rgba(184,132,79,0.2)]"
+                            : "border-[#E3D6C3] bg-white text-[#6B5B4A] hover:bg-[#FFF7EA]"
+                        }
+                      `}
+                    >
+                      {filter.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="mt-2 rounded-[16px] border border-[#EFE2CF] bg-[#FFFDF8] p-2">
+              <div className="mb-2 px-1 text-[11px] font-black text-[#8A7B69]">
+                האם האורח ענה?
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {CALL_ANSWER_FILTERS.map((filter) => {
+                  const active =
+                    quickFilter === filter.key ||
+                    (filter.key === ("call_answered" as QuickFilter) &&
+                      isAnsweredOpen) ||
+                    (filter.key === ("call_no_answer" as QuickFilter) &&
+                      isNoAnswerOpen);
+
+                  return (
+                    <button
+                      key={filter.key}
+                      type="button"
+                      onClick={() =>
+                        handleAnswerClick(
+                          filter.key === ("call_answered" as QuickFilter)
+                            ? "answered"
+                            : "no_answer"
+                        )
                       }
-                    `}
-                  >
-                    {filter.label}
-                  </button>
-                );
-              })}
+                      className={`
+                        h-8
+                        rounded-full
+                        border
+                        px-4
+                        text-[11px]
+                        font-black
+                        transition
+                        ${
+                          active
+                            ? "border-[#2B2118] bg-[#2B2118] text-white shadow-[0_8px_16px_rgba(36,26,20,0.18)]"
+                            : "border-[#E3D6C3] bg-white text-[#6B5B4A] hover:bg-[#FFF7EA]"
+                        }
+                      `}
+                    >
+                      {filter.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {isAnsweredOpen && (
@@ -466,14 +633,52 @@ export default function GuestsControls({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  {answeredResultFilters.map((filter) => {
+                  {CALL_ANSWERED_RESULT_FILTERS.map((filter) => {
                     const active = quickFilter === filter.key;
 
                     return (
                       <button
                         key={filter.key}
                         type="button"
-                        onClick={() => setQuickFilter(filter.key)}
+                        onClick={() => handleResultClick(filter.key)}
+                        className={`
+                          h-8
+                          rounded-full
+                          border
+                          px-3
+                          text-[11px]
+                          font-black
+                          transition
+                          ${
+                            active
+                              ? "border-[#B8844F] bg-[#B8844F] text-white shadow-[0_8px_16px_rgba(184,132,79,0.2)]"
+                              : "border-[#E3D6C3] bg-white text-[#6B5B4A] hover:bg-[#FFF7EA]"
+                          }
+                        `}
+                      >
+                        {filter.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {isNoAnswerOpen && (
+              <div className="mt-2 rounded-[16px] border border-[#EFE2CF] bg-[#FFFDF8] p-2">
+                <div className="mb-2 px-1 text-[11px] font-black text-[#8A7B69]">
+                  סיבה אם לא ענה
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {CALL_NO_ANSWER_RESULT_FILTERS.map((filter) => {
+                    const active = quickFilter === filter.key;
+
+                    return (
+                      <button
+                        key={filter.key}
+                        type="button"
+                        onClick={() => handleResultClick(filter.key)}
                         className={`
                           h-8
                           rounded-full

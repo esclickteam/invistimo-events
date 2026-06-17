@@ -40,14 +40,20 @@ export type Guest = {
   callRounds?: {
     roundNumber: number;
     status?: string;
+
     answerStatus?: "answered" | "no_answer" | null;
+
     resultStatus?:
       | "yes"
       | "no"
       | "will_reply"
+      | "callback"
+      | "no_answer"
       | "needs_correction"
       | null;
+
     amount?: number;
+
     notes?:
       | string
       | {
@@ -55,6 +61,7 @@ export type Guest = {
           createdAt?: string;
           createdBy?: string;
         }[];
+
     calledAt?: string;
     updatedAt?: string;
   }[];

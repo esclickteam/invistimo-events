@@ -74,10 +74,12 @@ type Guest = {
 
   // חדש — מהמודאל החדש
   answerStatus?: "answered" | "no_answer" | null;
-  resultStatus?:
+    resultStatus?:
     | "yes"
     | "no"
     | "will_reply"
+    | "callback"
+    | "no_answer"
     | "needs_correction"
     | null;
 
@@ -494,6 +496,9 @@ const canViewActualArrived =
   const [quickFilter, setQuickFilter] =
     useState<QuickFilter>("all");
 
+      const [selectedCallRound, setSelectedCallRound] =
+    useState<0 | 1 | 2 | 3>(0);
+    
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
 
@@ -1288,24 +1293,33 @@ const pending = guests.filter(
     );
   };
 
-  type LatestCallRound = {
-  roundNumber: number;
-  answerStatus: "answered" | "no_answer" | null;
-  resultStatus:
-    | "yes"
-    | "no"
-    | "will_reply"
-    | "needs_correction"
-    | null;
-};
+    type CallRoundForFilter = {
+    roundNumber: number;
+    answerStatus: "answered" | "no_answer" | null;
+    resultStatus:
+      | "yes"
+      | "no"
+      | "will_reply"
+      | "callback"
+      | "no_answer"
+      | "needs_correction"
+      | null;
+  };
 
-function normalizeAnswerStatus(status?: string | null) {
-  switch (status) {
+function normalizeAnswerStatus(
+  status?: string | null
+): "answered" | "no_answer" | null {
+  const value = String(status || "").trim().toLowerCase();
+
+  switch (value) {
     case "answered":
+    case "answer":
     case "ענה":
       return "answered";
 
     case "no_answer":
+    case "no-answer":
+    case "not_answered":
     case "לא ענה":
       return "no_answer";
 
@@ -1314,21 +1328,52 @@ function normalizeAnswerStatus(status?: string | null) {
   }
 }
 
-function normalizeResultStatus(status?: string | null) {
-  switch (status) {
+function normalizeResultStatus(
+  status?: string | null
+):
+  | "yes"
+  | "no"
+  | "will_reply"
+  | "callback"
+  | "no_answer"
+  | "needs_correction"
+  | null {
+  const value = String(status || "").trim().toLowerCase();
+
+  switch (value) {
     case "yes":
+    case "confirmed":
+    case "attending":
     case "מגיע":
       return "yes";
 
     case "no":
+    case "declined":
+    case "not_attending":
     case "לא מגיע":
       return "no";
 
     case "will_reply":
+    case "will_reply_message":
     case "ישיב בהודעה":
       return "will_reply";
 
+    case "callback":
+    case "call_back":
+    case "חזרה":
+    case "חזרה בסבב הבא":
+      return "callback";
+
+    case "no_answer":
+    case "not_answered":
+    case "לא ענה":
+      return "no_answer";
+
     case "needs_correction":
+    case "needs_fix":
+    case "wrong_number":
+    case "requires_correction":
+    case "דורש תיקון":
     case "ממתין לתיקון":
       return "needs_correction";
 
@@ -1337,41 +1382,104 @@ function normalizeResultStatus(status?: string | null) {
   }
 }
 
-function getLatestCallRound(guest: Guest): LatestCallRound | null {
+function normalizeCallRoundForFilter(round: any): CallRoundForFilter | null {
+  if (!round) return null;
+
+  const roundNumber = Number(round.roundNumber || round.round || 0);
+
+  if (!roundNumber) return null;
+
+  const rawStatus = String(round.status || "").trim().toLowerCase();
+
+  let answerStatus =
+    normalizeAnswerStatus(round.answerStatus) ||
+    normalizeAnswerStatus(round.callAnswered);
+
+  const resultStatus =
+    normalizeResultStatus(round.resultStatus) ||
+    normalizeResultStatus(round.result) ||
+    normalizeResultStatus(round.status);
+
+  if (!answerStatus) {
+    if (
+      resultStatus === "yes" ||
+      resultStatus === "no" ||
+      resultStatus === "will_reply" ||
+      resultStatus === "callback"
+    ) {
+      answerStatus = "answered";
+    }
+
+    if (
+      resultStatus === "no_answer" ||
+      resultStatus === "needs_correction"
+    ) {
+      answerStatus = "no_answer";
+    }
+  }
+
+  if (!answerStatus && rawStatus === "answered") {
+    answerStatus = "answered";
+  }
+
+  if (!answerStatus && rawStatus === "no_answer") {
+    answerStatus = "no_answer";
+  }
+
+  return {
+    roundNumber,
+    answerStatus,
+    resultStatus,
+  };
+}
+
+function getGuestCallRoundForFilter(
+  guest: Guest,
+  roundNumber: 0 | 1 | 2 | 3
+): CallRoundForFilter | null {
   if (!Array.isArray(guest.callRounds) || guest.callRounds.length === 0) {
     return null;
   }
 
-  const rounds = [...guest.callRounds]
-    .filter((round) => {
-      return (
-        round?.answerStatus ||
-        round?.resultStatus ||
-        round?.status
-      );
-    })
-    .sort(
-      (a, b) =>
-        Number(b.roundNumber || 0) - Number(a.roundNumber || 0)
+  const rounds = guest.callRounds
+    .map((round) => normalizeCallRoundForFilter(round))
+    .filter(Boolean) as CallRoundForFilter[];
+
+  if (!rounds.length) return null;
+
+  if (roundNumber) {
+    return (
+      rounds.find((round) => Number(round.roundNumber) === roundNumber) ||
+      null
     );
+  }
 
-  const latest = rounds[0];
+  return rounds.sort(
+    (a, b) => Number(b.roundNumber || 0) - Number(a.roundNumber || 0)
+  )[0];
+}
 
-  if (!latest) return null;
+function isCallFilter(filter: QuickFilter) {
+  return (
+    filter === "call_round_1" ||
+    filter === "call_round_2" ||
+    filter === "call_round_3" ||
+    filter === "call_answered" ||
+    filter === "call_no_answer" ||
+    filter === "call_answered_yes" ||
+    filter === "call_answered_no" ||
+    filter === "call_will_reply" ||
+    filter === "call_callback" ||
+    filter === "call_no_answer_result" ||
+    filter === "call_needs_correction"
+  );
+}
 
-  const answerStatus =
-    normalizeAnswerStatus(latest.answerStatus) ||
-    normalizeAnswerStatus(latest.status);
-
-  const resultStatus =
-    normalizeResultStatus(latest.resultStatus) ||
-    normalizeResultStatus(latest.status);
-
-  return {
-    roundNumber: Number(latest.roundNumber || 0),
-    answerStatus,
-    resultStatus,
-  };
+function getRoundFromQuickFilter(filter: QuickFilter): 0 | 1 | 2 | 3 {
+  if (filter === "call_round_1") return 1;
+  if (filter === "call_round_2") return 2;
+  if (filter === "call_round_3") return 3;
+  return 0;
 }
 
 function getGuestRsvp(guest: Guest) {
@@ -1415,85 +1523,106 @@ if (quickFilter === "noTable") {
 }
 
 if (quickFilter === "pending") {
-  list = list.filter((g) => {
-    const latestRound = getLatestCallRound(g);
+  list = list.filter((g) => getGuestRsvp(g) === "pending");
+}
 
-    return (
-      getGuestRsvp(g) === "pending" &&
-      latestRound?.answerStatus !== "answered" &&
-      latestRound?.answerStatus !== "no_answer"
-    );
-  });
+const activeCallRound =
+  selectedCallRound || getRoundFromQuickFilter(quickFilter);
+
+if (quickFilter === "call_round_1") {
+  list = list.filter((g) => Boolean(getGuestCallRoundForFilter(g, 1)));
+}
+
+if (quickFilter === "call_round_2") {
+  list = list.filter((g) => Boolean(getGuestCallRoundForFilter(g, 2)));
+}
+
+if (quickFilter === "call_round_3") {
+  list = list.filter((g) => Boolean(getGuestCallRoundForFilter(g, 3)));
 }
 
 if (quickFilter === "call_answered") {
   list = list.filter((g) => {
-    const latestRound = getLatestCallRound(g);
+    const callRound = getGuestCallRoundForFilter(g, activeCallRound);
 
-    return (
-      latestRound?.answerStatus === "answered"
-    );
+    return callRound?.answerStatus === "answered";
   });
 }
 
 if (quickFilter === "call_no_answer") {
   list = list.filter((g) => {
-    const latestRound = getLatestCallRound(g);
+    const callRound = getGuestCallRoundForFilter(g, activeCallRound);
 
-    return (
-      getGuestRsvp(g) === "pending" &&
-      latestRound?.answerStatus === "no_answer"
-    );
+    return callRound?.answerStatus === "no_answer";
   });
 }
 
 if (quickFilter === "call_answered_yes") {
   list = list.filter((g) => {
-    const latestRound = getLatestCallRound(g);
+    const callRound = getGuestCallRoundForFilter(g, activeCallRound);
 
     return (
-      getGuestRsvp(g) === "yes" &&
-      latestRound?.answerStatus === "answered" &&
-      latestRound?.resultStatus === "yes"
+      callRound?.answerStatus === "answered" &&
+      callRound?.resultStatus === "yes"
     );
   });
 }
 
 if (quickFilter === "call_answered_no") {
   list = list.filter((g) => {
-    const latestRound = getLatestCallRound(g);
+    const callRound = getGuestCallRoundForFilter(g, activeCallRound);
 
     return (
-      getGuestRsvp(g) === "no" &&
-      latestRound?.answerStatus === "answered" &&
-      latestRound?.resultStatus === "no"
+      callRound?.answerStatus === "answered" &&
+      callRound?.resultStatus === "no"
     );
   });
 }
 
 if (quickFilter === "call_will_reply") {
   list = list.filter((g) => {
-    const latestRound = getLatestCallRound(g);
+    const callRound = getGuestCallRoundForFilter(g, activeCallRound);
 
     return (
-      getGuestRsvp(g) === "pending" &&
-      latestRound?.answerStatus === "answered" &&
-      latestRound?.resultStatus === "will_reply"
+      callRound?.answerStatus === "answered" &&
+      callRound?.resultStatus === "will_reply"
+    );
+  });
+}
+
+if (quickFilter === "call_callback") {
+  list = list.filter((g) => {
+    const callRound = getGuestCallRoundForFilter(g, activeCallRound);
+
+    return (
+      callRound?.answerStatus === "answered" &&
+      callRound?.resultStatus === "callback"
+    );
+  });
+}
+
+if (quickFilter === "call_no_answer_result") {
+  list = list.filter((g) => {
+    const callRound = getGuestCallRoundForFilter(g, activeCallRound);
+
+    return (
+      callRound?.answerStatus === "no_answer" &&
+      callRound?.resultStatus === "no_answer"
     );
   });
 }
 
 if (quickFilter === "call_needs_correction") {
   list = list.filter((g) => {
-    const latestRound = getLatestCallRound(g);
+    const callRound = getGuestCallRoundForFilter(g, activeCallRound);
 
     return (
-      getGuestRsvp(g) === "pending" &&
-      latestRound?.answerStatus === "answered" &&
-      latestRound?.resultStatus === "needs_correction"
+      callRound?.answerStatus === "no_answer" &&
+      callRound?.resultStatus === "needs_correction"
     );
   });
 }
+
 
     const q = search.trim().toLowerCase();
 
@@ -1567,9 +1696,10 @@ if (quickFilter === "call_needs_correction") {
     });
 
     return list;
-  }, [
+   }, [
     guests,
     quickFilter,
+    selectedCallRound,
     search,
     selectedGroupId,
     sortKey,
@@ -2161,6 +2291,8 @@ const canOpenEventManagement =
   onManageGroups={() => setOpenGroupModal(true)}
   quickFilter={quickFilter}
   setQuickFilter={setQuickFilter}
+  selectedCallRound={selectedCallRound}
+  setSelectedCallRound={setSelectedCallRound}
   totalCount={guests.length}
   displayCount={displayGuests.length}
   recordsLimit={Number(user?.guests || 0)}

@@ -5,12 +5,21 @@ export type QuickFilter =
   | "pending"
   | "noTable"
 
-  // 🔽 ממתינים – לפי סטטוס שיחה אחרון
+  // 🔽 סבבי שיחות
+  | "call_round_1" // סבב 1
+  | "call_round_2" // סבב 2
+  | "call_round_3" // סבב 3
+
+  // 🔽 מענה בשיחה
   | "call_answered" // ענה
   | "call_no_answer" // לא ענה
 
-  // 🔽 מתחת ל"ענה" – לפי תוצאת השיחה
+  // 🔽 מתחת ל"ענה"
   | "call_answered_yes" // ענה + מגיע
   | "call_answered_no" // ענה + לא מגיע
   | "call_will_reply" // ענה + ישיב בהודעה
-  | "call_needs_correction"; // ענה + ממתין לתיקון
+  | "call_callback" // ענה + חזרה בסבב הבא
+
+  // 🔽 מתחת ל"לא ענה"
+  | "call_no_answer_result" // לא ענה
+  | "call_needs_correction"; // דורש תיקון
