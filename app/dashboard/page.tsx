@@ -2628,33 +2628,28 @@ const canOpenEventManagement =
       </div>
 
       {/* ===================== MOBILE LIST ===================== */}
-      <div className="md:hidden">
-        <GuestsMobileList
-          guests={displayGuests}
-          onEdit={(g) => setSelectedGuest(g)}
-          onDelete={(g) => deleteGuest(g)}
-          onMessage={(g) =>
-            router.push(
-              isDemo
-                ? `/try/dashboard/messages/new?guestId=${g._id}`
-                : `/dashboard/messages/new?guestId=${g._id}`
-            )
-          }
-          onSeat={(g) =>
-            router.push(
-              isDemo
-                ? `/try/dashboard/seating?from=personal&guestId=${g._id}`
-                : `/dashboard/seating?from=personal&guestId=${g._id}`
-            )
-          }
-          onInviteLink={(g) => {
-            const link = getGuestInviteLink(g);
-            if (!link) return;
+<div className="md:hidden">
+  <GuestsMobileList
+    guests={displayGuests}
+    onOpenInviteLink={(g) => {
+      const link = getGuestInviteLink(g);
+      if (!link) return;
 
-            window.open(link, "_blank", "noopener,noreferrer");
-          }}
-        />
-      </div>
+      window.open(link, "_blank", "noopener,noreferrer");
+    }}
+    onCopyInviteLink={async (g) => {
+      const link = getGuestInviteLink(g);
+      if (!link) return;
+
+      await navigator.clipboard.writeText(link);
+      alert("📋 הקישור הועתק");
+    }}
+    onCall={(g) => setOpenCallsGuest(g)}
+    onWhatsApp={(g) => sendWhatsApp(g)}
+    onEdit={(g) => setSelectedGuest(g)}
+    onDelete={(g) => deleteGuest(g)}
+  />
+</div>
 
       {openFreeTablesGuestId && (() => {
         const guest = guests.find(
