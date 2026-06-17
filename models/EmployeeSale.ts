@@ -288,6 +288,17 @@ const EmployeeSaleSchema = new Schema(
       default: null,
     },
 
+    paidAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+
+    activationSnapshot: {
+      type: AnySchema,
+      default: null,
+    },
+
     payment: {
       method: {
         type: String,
@@ -298,6 +309,13 @@ const EmployeeSaleSchema = new Schema(
       provider: {
         type: String,
         default: "stripe",
+        trim: true,
+      },
+
+      status: {
+        type: String,
+        enum: ["pending", "paid", "cancelled", "refunded", ""],
+        default: "pending",
         trim: true,
       },
 
@@ -563,6 +581,7 @@ EmployeeSaleSchema.pre("validate", function () {
 
   doc.payment.method = doc.payment.method || "stripe";
   doc.payment.provider = doc.payment.provider || doc.paymentProvider || "stripe";
+  doc.payment.status = doc.payment.status || doc.status || "pending";
   doc.payment.mode = doc.payment.mode || doc.paymentMode || "split";
 
   if (!doc.payment.amount) {
@@ -605,6 +624,18 @@ EmployeeSaleSchema.pre("validate", function () {
     doc.payment.paidAt = doc.stripePaidAt;
   }
 
+  if (!doc.stripePaidAt && doc.payment.paidAt) {
+    doc.stripePaidAt = doc.payment.paidAt;
+  }
+
+  if (!doc.paidAt && (doc.stripePaidAt || doc.payment.paidAt)) {
+    doc.paidAt = doc.stripePaidAt || doc.payment.paidAt;
+  }
+
+  if (doc.status === "paid") {
+    doc.payment.status = "paid";
+  }
+
   if (!doc.salesUpsells) {
     doc.salesUpsells = {};
   }
@@ -618,6 +649,7 @@ EmployeeSaleSchema.index({ clientUserId: 1 });
 EmployeeSaleSchema.index({ stripeCheckoutSessionId: 1 });
 EmployeeSaleSchema.index({ stripePaymentIntentId: 1 });
 EmployeeSaleSchema.index({ status: 1, createdAt: -1 });
+EmployeeSaleSchema.index({ status: 1, paidAt: -1 });
 EmployeeSaleSchema.index({ paymentMode: 1, paymentProvider: 1 });
 EmployeeSaleSchema.index({ source: 1, status: 1, createdAt: -1 });
 EmployeeSaleSchema.index({ signedAgreementToken: 1 });

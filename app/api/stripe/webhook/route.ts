@@ -669,6 +669,19 @@ export async function POST(req: Request) {
         stripePaymentIntentId: paymentIntentId,
       }).lean();
 
+      const saleAlreadyMarkedPaid =
+        String(sale.status || "").toLowerCase() === "paid" &&
+        cleanString(sale.stripePaymentIntentId) === paymentIntentId;
+
+      if (existingPayment && saleAlreadyMarkedPaid) {
+        console.log("ℹ️ Employee sale already processed:", {
+          paymentIntentId,
+          saleId: String(sale._id),
+        });
+
+        return NextResponse.json({ received: true });
+      }
+
       if (!existingPayment) {
         await Payment.create({
           email: (user.email || "").toLowerCase(),
@@ -733,11 +746,8 @@ export async function POST(req: Request) {
       await User.findByIdAndUpdate(
         user._id,
         {
-          $inc: {
-            paidAmount: amount,
-          },
-
           $set: {
+            paidAmount: amount,
             hasPaid: true,
             isActive: true,
             billingSource: "stripe",
@@ -796,13 +806,22 @@ export async function POST(req: Request) {
         { new: true }
       );
 
+      const paidAt = new Date();
+
       sale.set?.("status", "paid");
+      sale.set?.("stripeCheckoutSessionId", sale.stripeCheckoutSessionId || session.id);
       sale.set?.("stripePaymentIntentId", paymentIntentId);
-      sale.set?.("stripePaidAt", new Date());
+      sale.set?.("stripePaidAt", paidAt);
+      sale.set?.("paidAt", paidAt);
+
       sale.set?.("payment.status", "paid");
-      sale.set?.("payment.stripePaymentIntentId", paymentIntentId);
-      sale.set?.("payment.paidAt", new Date());
-      sale.set?.("paidAt", new Date());
+      sale.set?.("payment.checkoutSessionId", sale.payment?.checkoutSessionId || session.id);
+      sale.set?.("payment.paymentIntentId", paymentIntentId);
+      sale.set?.("payment.paidAt", paidAt);
+      sale.set?.("payment.amount", sale.payment?.amount || sale.grossAmount || amount);
+      sale.set?.("payment.stripeAmount", sale.payment?.stripeAmount || sale.stripeAmount || amount);
+      sale.set?.("payment.immediateAmount", sale.payment?.immediateAmount || sale.stripeAmount || amount);
+
       await sale.save?.();
 
       try {

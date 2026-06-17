@@ -325,7 +325,8 @@ function serializeSale(sale: any) {
     packageName: sale.packageName || "",
     plan: sale.plan || "",
 
-    guests: Number(sale.guests || 0),
+    guests: Number(sale.guests || sale.records || 0),
+    records: Number(sale.records || sale.guests || 0),
 
     grossAmount: Number(sale.grossAmount || 0),
     originalGrossAmount: Number(sale.originalGrossAmount || sale.grossAmount || 0),
@@ -341,8 +342,25 @@ function serializeSale(sale: any) {
     status: sale.status || "pending",
     paymentMode: sale.paymentMode || "split",
     paymentProvider: sale.paymentProvider || "stripe",
-    stripeCheckoutSessionId: sale.stripeCheckoutSessionId || "",
-    stripeCheckoutUrl: sale.stripeCheckoutUrl || "",
+
+    stripeCheckoutSessionId:
+      sale.stripeCheckoutSessionId || sale.payment?.checkoutSessionId || "",
+    stripeCheckoutUrl: sale.stripeCheckoutUrl || sale.payment?.checkoutUrl || "",
+    stripePaymentIntentId:
+      sale.stripePaymentIntentId || sale.payment?.paymentIntentId || "",
+    stripePaidAt: sale.stripePaidAt || sale.payment?.paidAt || null,
+
+    payment: sale.payment || null,
+    salesUpsells: sale.salesUpsells || null,
+
+    signedAgreementToken: sale.signedAgreementToken || "",
+    agreementToken: sale.agreementToken || "",
+    agreementDocumentId: sale.agreementDocumentId
+      ? String(sale.agreementDocumentId)
+      : "",
+    salesDocumentId: sale.salesDocumentId ? String(sale.salesDocumentId) : "",
+    agreementStatus: sale.agreementStatus || "",
+    agreementSignedAt: sale.agreementSignedAt || null,
 
     source: sale.source || "employee_sales_page",
     notes: sale.notes || "",
@@ -572,19 +590,63 @@ export async function GET(req: NextRequest) {
 
     const sales = salesRaw.map(serializeSale);
 
-    const eligibleSales = sales.filter(
-      (sale) => sale.status !== "cancelled" && sale.status !== "refunded",
-    );
+    const summary = sales.reduce(
+      (
+        acc: {
+          totalSales: number;
+          paidSales: number;
+          pendingSales: number;
+          cancelledSales: number;
+          refundedSales: number;
 
-    const summary = eligibleSales.reduce(
-      (acc, sale) => {
+          grossTotal: number;
+          netTotal: number;
+          commissionTotal: number;
+
+          paidGrossTotal: number;
+          paidNetTotal: number;
+          paidCommissionTotal: number;
+
+          pendingGrossTotal: number;
+          pendingNetTotal: number;
+          pendingCommissionTotal: number;
+        },
+        sale,
+      ) => {
+        const status = String(sale.status || "").toLowerCase();
+
+        if (status === "cancelled") {
+          acc.cancelledSales += 1;
+          return acc;
+        }
+
+        if (status === "refunded") {
+          acc.refundedSales += 1;
+          return acc;
+        }
+
         acc.totalSales += 1;
-        acc.grossTotal += Number(sale.grossAmount || 0);
-        acc.netTotal += Number(sale.netAmount || 0);
-        acc.commissionTotal += Number(sale.commissionAmount || 0);
 
-        if (sale.status === "paid") acc.paidSales += 1;
-        if (sale.status === "pending") acc.pendingSales += 1;
+        const grossAmount = Number(sale.grossAmount || 0);
+        const netAmount = Number(sale.netAmount || 0);
+        const commissionAmount = Number(sale.commissionAmount || 0);
+
+        if (status === "paid") {
+          acc.paidSales += 1;
+          acc.paidGrossTotal += grossAmount;
+          acc.paidNetTotal += netAmount;
+          acc.paidCommissionTotal += commissionAmount;
+
+          // תאימות לאחור: הכרטיסים הראשיים מציגים רק עסקאות ששולמו בפועל.
+          acc.grossTotal += grossAmount;
+          acc.netTotal += netAmount;
+          acc.commissionTotal += commissionAmount;
+        } else {
+          acc.pendingSales += 1;
+          acc.pendingGrossTotal += grossAmount;
+          acc.pendingNetTotal += netAmount;
+          acc.pendingCommissionTotal += commissionAmount;
+        }
 
         return acc;
       },
@@ -592,9 +654,20 @@ export async function GET(req: NextRequest) {
         totalSales: 0,
         paidSales: 0,
         pendingSales: 0,
+        cancelledSales: 0,
+        refundedSales: 0,
+
         grossTotal: 0,
         netTotal: 0,
         commissionTotal: 0,
+
+        paidGrossTotal: 0,
+        paidNetTotal: 0,
+        paidCommissionTotal: 0,
+
+        pendingGrossTotal: 0,
+        pendingNetTotal: 0,
+        pendingCommissionTotal: 0,
       },
     );
 
@@ -603,9 +676,19 @@ export async function GET(req: NextRequest) {
         success: true,
         summary: {
           ...summary,
+
           grossTotal: roundMoney(summary.grossTotal),
           netTotal: roundMoney(summary.netTotal),
           commissionTotal: roundMoney(summary.commissionTotal),
+
+          paidGrossTotal: roundMoney(summary.paidGrossTotal),
+          paidNetTotal: roundMoney(summary.paidNetTotal),
+          paidCommissionTotal: roundMoney(summary.paidCommissionTotal),
+
+          pendingGrossTotal: roundMoney(summary.pendingGrossTotal),
+          pendingNetTotal: roundMoney(summary.pendingNetTotal),
+          pendingCommissionTotal: roundMoney(summary.pendingCommissionTotal),
+
           vatRate: VAT_RATE,
           commissionRate: COMMISSION_RATE,
         },
@@ -910,7 +993,7 @@ export async function POST(req: NextRequest) {
 
       // תשלום רק Stripe
       status: "pending",
-      source: "employee_client_create",
+      source: "employee_sales_page",
       notes,
     });
 
