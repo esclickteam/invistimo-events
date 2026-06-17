@@ -56,12 +56,17 @@ type UpsellItem = {
 };
 
 type PaymentSchedule = {
+  paymentMode: PaymentMode;
+  originalGrossAmount: number;
+  discountAmount: number;
+  finalGrossAmount: number;
   immediateTotal: number;
   eventDayTotal: number;
   preEventServicesTotal: number;
   eventServicesTotal: number;
   eventServicesDeposit: number;
   eventServicesBalance: number;
+  stripeAmount: number;
 };
 
 type DetailsModalState = {
@@ -644,8 +649,15 @@ export default function NewEmployeeSalePage() {
   const [confirmTerms, setConfirmTerms] = useState(false);
 
   const [detailsModal, setDetailsModal] = useState<DetailsModalState>(null);
-  const [generatedDocument, setGeneratedDocument] = useState<{ type: DocumentType; url: string; expiresAt: string } | null>(null);
+  const [generatedDocument, setGeneratedDocument] = useState<{
+    type: DocumentType;
+    url: string;
+    token?: string;
+    expiresAt: string;
+    smsSentAt?: string;
+  } | null>(null);
   const [documentSaving, setDocumentSaving] = useState(false);
+  const [documentSuccess, setDocumentSuccess] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -680,9 +692,30 @@ export default function NewEmployeeSalePage() {
     }, 0);
   }, [alcoholManagementStaffCount, canGiveSuppliersBudgetFree, selectedUpsellsList, suppliersBudgetFree, venueSeatingStaffCount]);
 
-  const finalGrossAmount = useMemo(() => roundMoney(packageCalculation.finalPrice + upsellsTotal), [packageCalculation.finalPrice, upsellsTotal]);
-  const netAmount = useMemo(() => roundMoney(finalGrossAmount / (1 + VAT_RATE)), [finalGrossAmount]);
-  const commission = useMemo(() => roundMoney(netAmount * COMMISSION_RATE), [netAmount]);
+  const baseGrossAmount = useMemo(
+    () => roundMoney(packageCalculation.finalPrice + upsellsTotal),
+    [packageCalculation.finalPrice, upsellsTotal],
+  );
+
+  const paymentDiscountAmount = useMemo(() => {
+    if (paymentMode !== "full") return 0;
+    return roundMoney(baseGrossAmount * 0.05);
+  }, [baseGrossAmount, paymentMode]);
+
+  const finalGrossAmount = useMemo(
+    () => roundMoney(baseGrossAmount - paymentDiscountAmount),
+    [baseGrossAmount, paymentDiscountAmount],
+  );
+
+  const netAmount = useMemo(
+    () => roundMoney(finalGrossAmount / (1 + VAT_RATE)),
+    [finalGrossAmount],
+  );
+
+  const commission = useMemo(
+    () => roundMoney(netAmount * COMMISSION_RATE),
+    [netAmount],
+  );
 
   const paymentSchedule = useMemo<PaymentSchedule>(() => {
     const nonEventUpsellsTotal = selectedUpsellsList.reduce((sum, upsell) => {
@@ -697,35 +730,49 @@ export default function NewEmployeeSalePage() {
     }, 0);
 
     const preEventServicesTotal = roundMoney(packageCalculation.finalPrice + nonEventUpsellsTotal);
+    const roundedEventServicesTotal = roundMoney(eventServicesTotal);
 
     if (paymentMode === "full") {
       return {
+        paymentMode,
+        originalGrossAmount: baseGrossAmount,
+        discountAmount: paymentDiscountAmount,
+        finalGrossAmount,
         preEventServicesTotal,
-        eventServicesTotal: roundMoney(eventServicesTotal),
-        eventServicesDeposit: roundMoney(eventServicesTotal),
+        eventServicesTotal: roundedEventServicesTotal,
+        eventServicesDeposit: roundedEventServicesTotal,
         eventServicesBalance: 0,
-        immediateTotal: roundMoney(preEventServicesTotal + eventServicesTotal),
+        immediateTotal: finalGrossAmount,
         eventDayTotal: 0,
+        stripeAmount: finalGrossAmount,
       };
     }
 
-    const eventServicesDeposit = roundMoney(eventServicesTotal * 0.5);
-    const eventServicesBalance = roundMoney(eventServicesTotal - eventServicesDeposit);
+    const eventServicesDeposit = roundMoney(roundedEventServicesTotal * 0.5);
+    const eventServicesBalance = roundMoney(roundedEventServicesTotal - eventServicesDeposit);
+    const immediateTotal = roundMoney(preEventServicesTotal + eventServicesDeposit);
 
     return {
+      paymentMode,
+      originalGrossAmount: baseGrossAmount,
+      discountAmount: 0,
+      finalGrossAmount,
       preEventServicesTotal,
-      eventServicesTotal: roundMoney(eventServicesTotal),
+      eventServicesTotal: roundedEventServicesTotal,
       eventServicesDeposit,
       eventServicesBalance,
-      immediateTotal: roundMoney(preEventServicesTotal + eventServicesDeposit),
+      immediateTotal,
       eventDayTotal: eventServicesBalance,
+      stripeAmount: immediateTotal,
     };
-  }, [alcoholManagementStaffCount, canGiveSuppliersBudgetFree, packageCalculation.finalPrice, paymentMode, selectedUpsellsList, suppliersBudgetFree, venueSeatingStaffCount]);
+  }, [alcoholManagementStaffCount, baseGrossAmount, canGiveSuppliersBudgetFree, finalGrossAmount, packageCalculation.finalPrice, paymentDiscountAmount, paymentMode, selectedUpsellsList, suppliersBudgetFree, venueSeatingStaffCount]);
 
   const customerDealSummary = useMemo(() => ({
     packageTitle: selectedPlan.title,
     packageSummary: selectedPlan.customerSummary,
     records: packageCalculation.records,
+    originalTotalPrice: baseGrossAmount,
+    discountAmount: paymentDiscountAmount,
     totalPrice: finalGrossAmount,
     eventName: eventName.trim(),
     eventDate,
@@ -744,7 +791,12 @@ export default function NewEmployeeSalePage() {
       customerDetails: upsell.customerDetails,
       givenFree: upsell.key === "suppliersBudgetSystem" && suppliersBudgetFree && canGiveSuppliersBudgetFree,
     })),
-  }), [alcoholManagementStaffCount, canGiveSuppliersBudgetFree, eventCity, eventDate, eventName, finalGrossAmount, packageCalculation.records, paymentMode, paymentSchedule, quoteCreatedAt, quoteExpiresAt, selectedPlan.customerSummary, selectedPlan.includes, selectedPlan.title, selectedUpsellsList, suppliersBudgetFree, venueName, venueSeatingStaffCount]);
+  }), [alcoholManagementStaffCount, baseGrossAmount, canGiveSuppliersBudgetFree, eventCity, eventDate, eventName, finalGrossAmount, packageCalculation.records, paymentDiscountAmount, paymentMode, paymentSchedule, quoteCreatedAt, quoteExpiresAt, selectedPlan.customerSummary, selectedPlan.includes, selectedPlan.title, selectedUpsellsList, suppliersBudgetFree, venueSeatingStaffCount]);
+
+  const effectiveEventDate = eventDate || quoteCreatedAt;
+  const effectiveEventCity = eventCity.trim() || "לא הוגדרה";
+  const effectiveVenueName = venueName.trim() || "לא הוגדר";
+  const effectiveEventName = eventName.trim() || "אירוע";
 
   const documentPayload = useMemo(() => ({
     type: documentType,
@@ -756,10 +808,10 @@ export default function NewEmployeeSalePage() {
       address: clientAddress.trim(),
     },
     event: {
-      name: eventName.trim(),
-      date: eventDate,
-      city: eventCity.trim(),
-      venueName: venueName.trim(),
+      name: effectiveEventName,
+      date: effectiveEventDate,
+      city: effectiveEventCity,
+      venueName: effectiveVenueName,
     },
     quote: {
       createdAt: quoteCreatedAt,
@@ -790,32 +842,48 @@ export default function NewEmployeeSalePage() {
     }),
     totals: {
       grossAmount: finalGrossAmount,
+      originalGrossAmount: baseGrossAmount,
+      discountAmount: paymentDiscountAmount,
       netAmount,
       vatRate: VAT_RATE,
       paymentMode,
+      stripeAmount: paymentSchedule.stripeAmount,
       paymentSchedule,
     },
     customerDealSummary,
     cancellationTerms: CANCELLATION_TERMS,
     paymentTerms: PAYMENT_TERMS,
-  }), [alcoholManagementStaffCount, canGiveSuppliersBudgetFree, clientAddress, clientEmail, clientName, clientPhone, customerDealSummary, customerIdNumber, documentType, eventCity, eventDate, eventName, finalGrossAmount, netAmount, packageCalculation.finalPrice, packageCalculation.records, paymentMode, paymentSchedule, quoteCreatedAt, quoteExpiresAt, selectedPlan.customerSummary, selectedPlan.includes, selectedPlan.key, selectedPlan.title, selectedUpsellsList, suppliersBudgetFree, venueName, venueSeatingStaffCount]);
+  }), [alcoholManagementStaffCount, baseGrossAmount, canGiveSuppliersBudgetFree, clientAddress, clientEmail, clientName, clientPhone, customerDealSummary, customerIdNumber, documentType, effectiveEventCity, effectiveEventDate, effectiveEventName, effectiveVenueName, finalGrossAmount, netAmount, packageCalculation.finalPrice, packageCalculation.records, paymentDiscountAmount, paymentMode, paymentSchedule, quoteCreatedAt, quoteExpiresAt, selectedPlan.customerSummary, selectedPlan.includes, selectedPlan.key, selectedPlan.title, selectedUpsellsList, suppliersBudgetFree, venueSeatingStaffCount]);
 
-  const isDocumentActionDisabled = documentSaving || !clientName.trim() || !clientPhone.trim() || !eventDate || !eventCity.trim() || !venueName.trim() || finalGrossAmount <= 0;
+  const isDocumentActionDisabled = documentSaving || finalGrossAmount <= 0;
 
-  const isSubmitDisabled =
-    saving ||
-    !clientName.trim() ||
-    !clientEmail.trim() ||
-    !clientPhone.trim() ||
-    !eventDate ||
-    !eventCity.trim() ||
-    !venueName.trim() ||
-    !saleSummary.trim() ||
-    !confirmRecordedCall ||
-    !confirmCardOwner ||
-    !confirmSaleSummary ||
-    !confirmTerms ||
-    finalGrossAmount <= 0;
+  const isSubmitDisabled = saving || finalGrossAmount <= 0;
+
+  function getMissingDocumentFields() {
+    const missing: string[] = [];
+
+    if (!clientName.trim()) missing.push("שם לקוח");
+    if (!clientPhone.trim()) missing.push("טלפון לקוח");
+
+    return missing;
+  }
+
+  function getMissingPaymentFields() {
+    const missing: string[] = [];
+
+    if (!clientName.trim()) missing.push("שם לקוח");
+    if (!clientPhone.trim()) missing.push("טלפון לקוח");
+    if (!eventDate) missing.push("תאריך אירוע");
+    if (!eventCity.trim()) missing.push("עיר אירוע");
+    if (!venueName.trim()) missing.push("שם אולם");
+    if (!saleSummary.trim()) missing.push("סיכום שיחת מכירה");
+    if (!confirmRecordedCall) missing.push("אישור שהמכירה בוצעה בשיחה מוקלטת");
+    if (!confirmCardOwner) missing.push("אישור שהלקוח/המשלם אישר שימוש בכרטיס");
+    if (!confirmSaleSummary) missing.push("אישור שסוכמו מחיר ושירותים");
+    if (!confirmTerms) missing.push("אישור שהוסברו תנאי תשלום וביטול");
+
+    return missing;
+  }
 
   function toggleUpsell(key: UpsellKey) {
     setSelectedUpsells((prev) => {
@@ -833,10 +901,18 @@ export default function NewEmployeeSalePage() {
   }
 
   async function createDocument(action: "preview" | "sms") {
+    const missing = getMissingDocumentFields();
+
+    if (missing.length > 0) {
+      setError(`כדי ליצור ${documentType === "quote" ? "הצעת מחיר" : "הסכם"} חסר: ${missing.join(", ")}`);
+      return;
+    }
+
     if (isDocumentActionDisabled) return;
 
     try {
       setError("");
+      setDocumentSuccess("");
       setDocumentSaving(true);
 
       const response = await fetch("/api/employee/sales/documents", {
@@ -856,10 +932,17 @@ export default function NewEmployeeSalePage() {
       const token = data?.token;
       if (!url || !token) throw new Error("לא התקבל קישור למסמך");
 
-      setGeneratedDocument({ type: documentType, url, expiresAt: data?.expiresAt || quoteExpiresAt });
+      const nextDocument = {
+        type: documentType,
+        url,
+        token,
+        expiresAt: data?.expiresAt || quoteExpiresAt,
+      };
 
       if (action === "preview") {
-        window.open(url, "_blank", "noopener,noreferrer");
+        setGeneratedDocument(nextDocument);
+        setDocumentSuccess(documentType === "quote" ? "הצעת המחיר נוצרה ונפתחה לתצוגה מקדימה" : "ההסכם נוצר ונפתח לתצוגה מקדימה");
+        window.open(`${url}?preview=1`, "_blank", "noopener,noreferrer");
         return;
       }
 
@@ -867,6 +950,8 @@ export default function NewEmployeeSalePage() {
         method: "POST",
         credentials: "include",
         cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: clientPhone.trim() }),
       });
       const smsData = await smsResponse.json().catch(() => null);
 
@@ -874,7 +959,8 @@ export default function NewEmployeeSalePage() {
         throw new Error(smsData?.message || smsData?.error || "הקישור נוצר, אבל שליחת ה־SMS נכשלה");
       }
 
-      alert(documentType === "quote" ? "הצעת המחיר נשלחה ב־SMS" : "קישור ההסכם נשלח ב־SMS");
+      setGeneratedDocument({ ...nextDocument, smsSentAt: new Date().toISOString() });
+      setDocumentSuccess(documentType === "quote" ? "הצעת המחיר נשלחה ב-SMS" : "קישור ההסכם נשלח ב-SMS");
     } catch (documentError) {
       console.error("CREATE OR SEND SALES DOCUMENT FAILED:", documentError);
       setError(documentError instanceof Error ? documentError.message : "שגיאה ביצירת/שליחת מסמך");
@@ -885,6 +971,14 @@ export default function NewEmployeeSalePage() {
 
   async function submitSale(event: React.FormEvent) {
     event.preventDefault();
+
+    const missing = getMissingPaymentFields();
+
+    if (missing.length > 0) {
+      setError(`כדי לעבור לתשלום חסר: ${missing.join(", ")}`);
+      return;
+    }
+
     if (isSubmitDisabled) return;
 
     try {
@@ -911,6 +1005,8 @@ export default function NewEmployeeSalePage() {
           guests: packageCalculation.records,
           records: packageCalculation.records,
           grossAmount: finalGrossAmount,
+          originalGrossAmount: baseGrossAmount,
+          discountAmount: paymentDiscountAmount,
           status: paymentStatus === "paid" ? "paid" : "pending",
           selectedPackage: documentPayload.selectedPackage,
           upsells: documentPayload.upsells,
@@ -934,7 +1030,10 @@ export default function NewEmployeeSalePage() {
             method: paymentStatus,
             provider: paymentStatus === "stripe" ? "stripe" : "manual",
             amount: finalGrossAmount,
+            originalAmount: baseGrossAmount,
+            discountAmount: paymentDiscountAmount,
             immediateAmount: paymentSchedule.immediateTotal,
+            stripeAmount: paymentSchedule.stripeAmount,
             eventDayAmount: paymentSchedule.eventDayTotal,
             mode: paymentMode,
           },
@@ -955,6 +1054,17 @@ export default function NewEmployeeSalePage() {
           const checkoutResponse = await fetch(`/api/admin/users/${data.userId}/checkout`, {
             method: "POST",
             credentials: "include",
+            cache: "no-store",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              amount: paymentSchedule.stripeAmount,
+              immediateAmount: paymentSchedule.immediateTotal,
+              totalAmount: finalGrossAmount,
+              originalAmount: baseGrossAmount,
+              discountAmount: paymentDiscountAmount,
+              paymentMode,
+              eventDayAmount: paymentSchedule.eventDayTotal,
+            }),
           });
           const checkoutData = await checkoutResponse.json().catch(() => null);
           if (checkoutData?.checkoutUrl) {
@@ -1147,14 +1257,45 @@ export default function NewEmployeeSalePage() {
             </section>
 
             <section className="rounded-[34px] border border-[#eadfce] bg-white p-5 shadow-sm sm:p-6">
-              <h2 className="text-2xl font-black text-slate-950">סיכום שיחה ותאימות</h2>
-              <textarea value={saleSummary} onChange={(e) => setSaleSummary(e.target.value)} className="mt-4 min-h-[150px] w-full rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 py-3 text-sm font-bold leading-7 outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15" placeholder="סיכום שיחה: מה הוסבר ללקוח, אילו שירותים נבחרו, מחיר כולל מע״מ, תשלום ראשוני ויתרה ביום האירוע..." required />
-              <div className="mt-4 grid gap-3 md:grid-cols-2">
-                <label className="flex items-center gap-2 text-sm font-bold text-[#5b4a3a]"><input type="checkbox" checked={confirmRecordedCall} onChange={(e) => setConfirmRecordedCall(e.target.checked)} className="accent-[#9b7a3c]" /> השיחה מוקלטת</label>
-                <label className="flex items-center gap-2 text-sm font-bold text-[#5b4a3a]"><input type="checkbox" checked={confirmCardOwner} onChange={(e) => setConfirmCardOwner(e.target.checked)} className="accent-[#9b7a3c]" /> הכרטיס שייך ללקוח/משלם שאישר</label>
-                <label className="flex items-center gap-2 text-sm font-bold text-[#5b4a3a]"><input type="checkbox" checked={confirmSaleSummary} onChange={(e) => setConfirmSaleSummary(e.target.checked)} className="accent-[#9b7a3c]" /> סוכמו מחיר ושירותים</label>
-                <label className="flex items-center gap-2 text-sm font-bold text-[#5b4a3a]"><input type="checkbox" checked={confirmTerms} onChange={(e) => setConfirmTerms(e.target.checked)} className="accent-[#9b7a3c]" /> הוסברו תנאי תשלום וביטול</label>
+              <div>
+                <h2 className="text-2xl font-black text-slate-950">אישורי מכירה חובה</h2>
+                <p className="mt-1 text-sm font-semibold text-slate-500">בלי סימון כל הסעיפים אי אפשר להעביר את העסקה לתשלום.</p>
               </div>
+
+              <div className="mt-5 grid gap-3 md:grid-cols-2">
+                <label className="rounded-2xl border border-[#eadfce] bg-[#fffdf9] p-4">
+                  <div className="flex cursor-pointer items-start gap-3">
+                    <input type="checkbox" checked={confirmRecordedCall} onChange={(e) => setConfirmRecordedCall(e.target.checked)} className="mt-1 h-4 w-4 accent-[#9b7a3c]" />
+                    <span className="text-sm font-bold leading-6 text-[#5b4a3a]">אני מאשר/ת שהמכירה בוצעה בשיחה מוקלטת בלבד.</span>
+                  </div>
+                </label>
+
+                <label className="rounded-2xl border border-[#eadfce] bg-[#fffdf9] p-4">
+                  <div className="flex cursor-pointer items-start gap-3">
+                    <input type="checkbox" checked={confirmCardOwner} onChange={(e) => setConfirmCardOwner(e.target.checked)} className="mt-1 h-4 w-4 accent-[#9b7a3c]" />
+                    <span className="text-sm font-bold leading-6 text-[#5b4a3a]">וידאתי שרק הלקוח או הגורם המשלם משתמשים בכרטיס האשראי, ושבעל הכרטיס היה נוכח בעסקה ואישר את התשלום.</span>
+                  </div>
+                </label>
+
+                <label className="rounded-2xl border border-[#eadfce] bg-[#fffdf9] p-4">
+                  <div className="flex cursor-pointer items-start gap-3">
+                    <input type="checkbox" checked={confirmSaleSummary} onChange={(e) => setConfirmSaleSummary(e.target.checked)} className="mt-1 h-4 w-4 accent-[#9b7a3c]" />
+                    <span className="text-sm font-bold leading-6 text-[#5b4a3a]">סיכמתי בשיחה מה החבילה כוללת, מה מקבלים והמחיר הכולל.</span>
+                  </div>
+                </label>
+
+                <label className="rounded-2xl border border-[#eadfce] bg-[#fffdf9] p-4">
+                  <div className="flex cursor-pointer items-start gap-3">
+                    <input type="checkbox" checked={confirmTerms} onChange={(e) => setConfirmTerms(e.target.checked)} className="mt-1 h-4 w-4 accent-[#9b7a3c]" />
+                    <span className="text-sm font-bold leading-6 text-[#5b4a3a]">סיכמתי בשיחה את אופן התשלום, תנאי התשלום ותנאי הביטול.</span>
+                  </div>
+                </label>
+              </div>
+
+              <label className="mt-5 block">
+                <span className="text-sm font-black text-slate-700">סיכום שיחת המכירה *</span>
+                <textarea value={saleSummary} onChange={(e) => setSaleSummary(e.target.value)} className="mt-2 min-h-[150px] w-full rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 py-3 text-sm font-bold leading-7 outline-none transition focus:border-[#c7a76c] focus:bg-white focus:ring-4 focus:ring-[#c7a76c]/15" placeholder="לדוגמה: הוסבר ללקוח מה החבילה כוללת, אילו שירותים נבחרו, מחיר כולל מע״מ, תשלום מיידי דרך Stripe ויתרה ביום האירוע אם קיימת..." required />
+              </label>
             </section>
           </div>
 
@@ -1187,24 +1328,42 @@ export default function NewEmployeeSalePage() {
                 </div>
 
                 <div className="rounded-[24px] border border-[#d8b777] bg-[#fff7ec] p-4">
-                  <p className="text-xs font-black text-[#8a5c20]">סה״כ כולל מע״מ</p>
+                  <p className="text-xs font-black text-[#8a5c20]">סה״כ עסקה כולל מע״מ</p>
+                  {paymentMode === "full" && paymentDiscountAmount > 0 ? (
+                    <div className="mt-2 space-y-1 text-xs font-bold text-[#7b6a58]">
+                      <div className="flex items-center justify-between gap-3"><span>מחיר לפני הנחה</span><span className="line-through">{money(baseGrossAmount)}</span></div>
+                      <div className="flex items-center justify-between gap-3 text-emerald-700"><span>הנחת תשלום מלא 5%</span><span>-{money(paymentDiscountAmount)}</span></div>
+                    </div>
+                  ) : null}
                   <p className="mt-2 text-4xl font-black tracking-tight text-[#3f3327]">{money(finalGrossAmount)}</p>
-                  <p className="mt-1 text-xs font-bold text-[#8b7b68]">לפני מע״מ: {money(netAmount)} · עמלה לעובד: {money(commission)} ({percent(COMMISSION_RATE)})</p>
+                  <p className="mt-1 text-xs font-bold text-[#8b7b68]">לפני מע״מ: {money(netAmount)} · עמלה לעובד: {money(commission)} ({percent(COMMISSION_RATE)} לפני מע״מ)</p>
                 </div>
 
                 <div className="rounded-[24px] border border-[#eadfce] bg-white p-4">
                   <p className="text-sm font-black text-[#3f3327]">בחירת תשלום</p>
                   <select value={paymentMode} onChange={(e) => setPaymentMode(e.target.value as PaymentMode)} className="mt-3 h-12 w-full rounded-2xl border border-[#eadfce] bg-[#fffdf9] px-4 text-right text-sm font-bold text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15">
-                    <option value="full">לשלם הכול עכשיו</option>
                     <option value="split">תשלום ראשוני + יתרה ביום האירוע</option>
+                    <option value="full">תשלום מלא עכשיו — 5% הנחה</option>
                   </select>
 
                   <div className="mt-4 space-y-2 text-xs font-bold leading-5 text-[#7b6a58]">
-                    <div className="flex items-center justify-between gap-3"><span>{paymentMode === "full" ? "לתשלום עכשיו" : "תשלום ראשוני"}</span><span>{money(paymentSchedule.immediateTotal)}</span></div>
-                    <div className="flex items-center justify-between gap-3"><span>יתרה ביום האירוע</span><span>{money(paymentSchedule.eventDayTotal)}</span></div>
-                    <div className="flex items-center justify-between gap-3"><span>שירותים דיגיטליים/לפני האירוע</span><span>{money(paymentSchedule.preEventServicesTotal)}</span></div>
-                    <div className="flex items-center justify-between gap-3"><span>שירותי יום אירוע</span><span>{money(paymentSchedule.eventServicesTotal)}</span></div>
+                    {paymentMode === "full" ? (
+                      <>
+                        <div className="flex items-center justify-between gap-3"><span>סה״כ לפני הנחה</span><span>{money(baseGrossAmount)}</span></div>
+                        <div className="flex items-center justify-between gap-3 text-emerald-700"><span>הנחת תשלום מלא 5%</span><span>-{money(paymentDiscountAmount)}</span></div>
+                        <div className="flex items-center justify-between gap-3 text-[#3f3327]"><span>לתשלום עכשיו / Stripe</span><span>{money(paymentSchedule.immediateTotal)}</span></div>
+                        <div className="flex items-center justify-between gap-3"><span>יתרה ביום האירוע</span><span>{money(0)}</span></div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between gap-3"><span>תשלום ראשוני / Stripe</span><span>{money(paymentSchedule.immediateTotal)}</span></div>
+                        <div className="flex items-center justify-between gap-3"><span>יתרה ביום האירוע</span><span>{money(paymentSchedule.eventDayTotal)}</span></div>
+                        <div className="flex items-center justify-between gap-3"><span>שירותים דיגיטליים/לפני האירוע</span><span>{money(paymentSchedule.preEventServicesTotal)}</span></div>
+                        <div className="flex items-center justify-between gap-3"><span>שירותי יום אירוע</span><span>{money(paymentSchedule.eventServicesTotal)}</span></div>
+                      </>
+                    )}
                   </div>
+                  <p className="mt-3 text-[11px] font-bold leading-5 text-[#8b7b68]">Stripe יעביר לתשלום רק את הסכום המיידי: {money(paymentSchedule.stripeAmount)}.</p>
                 </div>
 
                 <div className="rounded-[24px] border border-[#eadfce] bg-white p-4">
@@ -1219,6 +1378,16 @@ export default function NewEmployeeSalePage() {
                     <button type="button" disabled={isDocumentActionDisabled} onClick={() => createDocument("preview")} className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#d8b777] bg-[#fff7ec] px-5 text-sm font-black text-[#8a5c20] transition hover:bg-[#ffefd8] disabled:cursor-not-allowed disabled:opacity-40"><Icon name="eye" className="h-4 w-4" /> תצוגה מקדימה בחלון חדש</button>
                     <button type="button" disabled={isDocumentActionDisabled} onClick={() => createDocument("sms")} className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"><Icon name="sms" className="h-4 w-4" /> שליחה ישר ב־SMS</button>
                   </div>
+
+                  {documentSaving ? (
+                    <p className="mt-3 text-xs font-black text-[#8a5c20]">יוצר קישור...</p>
+                  ) : null}
+
+                  {documentSuccess ? (
+                    <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-bold leading-5 text-emerald-800">
+                      {documentSuccess}
+                    </div>
+                  ) : null}
 
                   {generatedDocument && (
                     <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-bold leading-5 text-emerald-800">
@@ -1237,7 +1406,7 @@ export default function NewEmployeeSalePage() {
 
                 <button type="submit" disabled={isSubmitDisabled} className="inline-flex h-13 min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-[#3f3327] px-5 text-sm font-black text-white shadow-lg shadow-black/10 transition hover:bg-[#2f251d] disabled:cursor-not-allowed disabled:opacity-40">
                   <Icon name="save" className="h-4 w-4" />
-                  {saving ? "שומר..." : paymentStatus === "stripe" ? "יצירת לקוח ומעבר לתשלום" : "שמור לקוח ועסקה"}
+                  {saving ? "שומר..." : paymentStatus === "stripe" ? `יצירת לקוח ומעבר לתשלום ${money(paymentSchedule.stripeAmount)}` : "שמור לקוח ועסקה"}
                 </button>
               </div>
             </section>
