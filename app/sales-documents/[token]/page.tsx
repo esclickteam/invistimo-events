@@ -978,7 +978,6 @@ export default function SalesDocumentPage() {
                 <Field label="שם לקוח" value={document.client?.fullName} />
                 <Field label="טלפון" value={document.client?.phone} />
                 <Field label="מייל" value={document.client?.email} />
-                <Field label="תעודת זהות" value={document.client?.idNumber} />
                 <Field
                   label="שם האירוע"
                   value={document.event?.name || "אירוע"}

@@ -1388,8 +1388,7 @@ export default function AdminSalesNewPage() {
   const signedAgreementReady =
     generatedDocument?.type === "agreement" && generatedDocument.status === "signed";
 
-  const isSubmitDisabled =
-    saving || finalGrossAmount <= 0 || !signedAgreementReady;
+  const isSubmitDisabled = saving || finalGrossAmount <= 0;
 
   function getMissingDocumentFields() {
     const missing: string[] = [];
@@ -1408,7 +1407,6 @@ export default function AdminSalesNewPage() {
     if (!eventDate) missing.push("תאריך אירוע");
     if (!eventCity.trim()) missing.push("עיר אירוע");
     if (!venueName.trim()) missing.push("שם אולם");
-    if (!signedAgreementReady) missing.push("הסכם חתום על ידי הלקוח");
 
     return missing;
   }
@@ -1569,7 +1567,7 @@ export default function AdminSalesNewPage() {
     const missing = getMissingPaymentFields();
 
     if (missing.length > 0) {
-      setError(`כדי לעבור לתשלום חסר: ${missing.join(", ")}`);
+      setError(`כדי לפתוח לקוח/לעבור לתשלום חסר: ${missing.join(", ")}`);
       return;
     }
 
@@ -1712,11 +1710,11 @@ export default function AdminSalesNewPage() {
               </button>
 
               <p className="mt-5 inline-flex rounded-full border border-[#eadfce] bg-[#fff7ec] px-4 py-2 text-sm font-black text-[#8a5c20]">
-                יצירת עסקה / הצעת מחיר / הסכם
+                יצירת עסקה / הצעת מחיר / הסכם אופציונלי
               </p>
               <h1 className="mt-4 text-4xl font-black tracking-tight text-slate-950 sm:text-5xl">יצירת לקוח חדש ותשלום</h1>
               <p className="mt-4 max-w-3xl text-base font-semibold leading-8 text-slate-600">
-                האדמין יוצר לקוח בדיוק כמו במסך העובד: הצעת מחיר, הסכם, חתימה ותשלום. בנוסף אפשר לבחור שולם ידנית, לערוך מחיר ידנית ולהגדיר מבצע מוגבל בזמן.
+                האדמין יוצר לקוח עם אפשרות לשלוח הצעת מחיר או הסכם, אבל זה לא חובה. אפשר לפתוח לקוח ישירות עם Stripe או שולם ידנית, לערוך מחיר ידנית ולהגדיר מבצע מוגבל בזמן.
               </p>
             </div>
 
@@ -2288,12 +2286,11 @@ export default function AdminSalesNewPage() {
 
                 {!signedAgreementReady ? (
                   <div className="rounded-[24px] border border-amber-200 bg-amber-50 p-4 text-xs font-bold leading-6 text-amber-800">
-                    לפני תשלום חובה לשלוח ללקוח הסכם לחתימה. רק אחרי שההסכם נחתם
-                    בקישור שנשלח ב־SMS, ניתן להמשיך לתשלום.
+                    הצעת מחיר או הסכם הם אופציונליים באדמין. אפשר לשלוח ללקוח מסמך לחתימה, אבל אפשר גם לפתוח לקוח ולהמשיך לתשלום בלי מסמך.
                   </div>
                 ) : (
                   <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-4 text-xs font-bold leading-6 text-emerald-800">
-                    ההסכם נחתם — ניתן ליצור קישור תשלום.
+                    ההסכם נחתם ונשמר. עדיין ניתן לפתוח לקוח גם בלי הסכם חתום אם זו החלטת אדמין.
                   </div>
                 )}
 
@@ -2301,11 +2298,9 @@ export default function AdminSalesNewPage() {
                   <Icon name="save" className="h-4 w-4" />
                   {saving
                     ? "שומר..."
-                    : signedAgreementReady
-                      ? adminPaymentStatus === "manual_paid"
-                        ? `הסכם נחתם — סימון כשולם ${money(paymentSchedule.stripeAmount)}`
-                        : `הסכם נחתם — מעבר לתשלום ${money(paymentSchedule.stripeAmount)}`
-                      : "ממתין לחתימת הסכם לפני תשלום"}
+                    : adminPaymentStatus === "manual_paid"
+                      ? `פתיחת לקוח וסימון כשולם ${money(paymentSchedule.stripeAmount)}`
+                      : `פתיחת לקוח ומעבר לתשלום ${money(paymentSchedule.stripeAmount)}`}
                 </button>
               </div>
             </section>
