@@ -39,6 +39,38 @@ type PublicEventNote = {
 };
 
 /* ============================================================
+   HELPERS
+============================================================ */
+
+function cleanStr(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function toBool(value: unknown) {
+  const normalized = cleanStr(value).toLowerCase();
+
+  return (
+    value === true ||
+    value === 1 ||
+    normalized === "true" ||
+    normalized === "1" ||
+    normalized === "yes" ||
+    normalized === "כן"
+  );
+}
+
+function isStaffPreviewFromSearchParams(searchParams: URLSearchParams) {
+  const preview = cleanStr(searchParams.get("preview")).toLowerCase();
+  const mode = cleanStr(searchParams.get("mode")).toLowerCase();
+
+  return (
+    preview === "staff" ||
+    mode === "staff" ||
+    toBool(searchParams.get("staffPreview"))
+  );
+}
+
+/* ============================================================
    HEART BURST EFFECT
 ============================================================ */
 
@@ -153,10 +185,48 @@ function PublicEventNoteSection({ note }: { note: PublicEventNote }) {
 
   return (
     <section className="mt-7 w-full max-w-md overflow-hidden rounded-[30px] border border-[#eadfce] bg-white/90 p-6 text-center shadow-[0_20px_70px_rgba(92,66,38,0.12)] backdrop-blur">
-      
       <p className="mx-auto mt-4 max-w-sm whitespace-pre-line text-base font-bold leading-8 text-[#5a4634]">
         {note.text}
       </p>
+    </section>
+  );
+}
+
+/* ============================================================
+   STAFF PREVIEW CARD
+============================================================ */
+
+function StaffPreviewCard({
+  publicEventNote,
+  giftOptions,
+}: {
+  publicEventNote: PublicEventNote;
+  giftOptions?: GiftOptions;
+}) {
+  return (
+    <section className="mt-7 w-full max-w-md overflow-hidden rounded-[34px] border border-[#eadfce] bg-white/92 p-6 text-center shadow-[0_28px_90px_rgba(92,66,38,0.16)] backdrop-blur">
+      <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#fff7ea] text-2xl">
+        👀
+      </div>
+
+      <h2 className="text-2xl font-black leading-tight text-[#2d241c]">
+        צפייה בהזמנה בלבד
+      </h2>
+
+      <p className="mx-auto mt-3 max-w-sm text-sm font-bold leading-7 text-[#6b6046]">
+        זהו מצב צפייה לעובד מערכת. ניתן לראות איך ההזמנה נראית לאורחים,
+        אבל אי אפשר לאשר הגעה או לשנות תשובה בשם אורח.
+      </p>
+
+      <div className="mt-5 rounded-2xl border border-[#eadfce] bg-[#fffaf2] px-4 py-3 text-sm font-black text-[#8f6437]">
+        טופס אישור ההגעה מוסתר במצב צפייה.
+      </div>
+
+      <PublicEventNoteSection note={publicEventNote} />
+
+      <div className="mt-5">
+        <GiftSection giftOptions={giftOptions} />
+      </div>
     </section>
   );
 }
@@ -219,6 +289,7 @@ export default function PublicInvitePage({ params }: any) {
 
   const [shareId, setShareId] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [routeReady, setRouteReady] = useState(false);
 
   const [invite, setInvite] = useState<any>(null);
   const [event, setEvent] = useState<any>(null);
@@ -226,6 +297,9 @@ export default function PublicInvitePage({ params }: any) {
 
   const [loading, setLoading] = useState(true);
   const [sent, setSent] = useState(false);
+
+  const [isStaffPreview, setIsStaffPreview] = useState(false);
+  const [canSubmitRsvp, setCanSubmitRsvp] = useState(false);
 
   const [heartTrigger, setHeartTrigger] = useState(0);
 
@@ -245,19 +319,29 @@ export default function PublicInvitePage({ params }: any) {
   });
 
   /* ============================================================
-     UNWRAP PARAMS + TOKEN
+     UNWRAP PARAMS + TOKEN / STAFF PREVIEW
   ============================================================ */
 
   useEffect(() => {
     (async () => {
       const resolved = await params;
 
-      setShareId(resolved.shareId || resolved.id);
+      const nextShareId = resolved.shareId || resolved.id || "";
 
       const sp = new URLSearchParams(window.location.search);
-      const t = sp.get("token");
+      const nextIsStaffPreview = isStaffPreviewFromSearchParams(sp);
+      const nextToken = cleanStr(sp.get("token"));
 
-      if (t) setToken(t);
+      setShareId(nextShareId);
+      setIsStaffPreview(nextIsStaffPreview);
+
+      /*
+        חשוב:
+        במצב צפייה של עובד לא משתמשים ב-token,
+        כדי שלא תהיה אפשרות לענות בשם אורח.
+      */
+      setToken(nextIsStaffPreview ? null : nextToken || null);
+      setRouteReady(true);
     })();
   }, [params]);
 
@@ -292,25 +376,55 @@ export default function PublicInvitePage({ params }: any) {
   ============================================================ */
 
   useEffect(() => {
-    if (!shareId) return;
+    if (!routeReady || !shareId) return;
 
     async function fetchInvite() {
       try {
+        setLoading(true);
+
+        const query = new URLSearchParams();
+
+        if (isStaffPreview) {
+          query.set("preview", "staff");
+        } else if (token) {
+          query.set("token", token);
+        }
+
+        const queryString = query.toString();
+
         const res = await fetch(
-          `/api/invite/${shareId}${token ? `?token=${token}` : ""}`,
+          `/api/invite/${shareId}${queryString ? `?${queryString}` : ""}`,
           {
             cache: "no-store",
           }
         );
 
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
 
         if (data.success) {
+          const nextIsStaffPreview = Boolean(
+            data.isStaffPreview ||
+              data.preview?.type === "staff" ||
+              data.preview?.enabled === true ||
+              isStaffPreview
+          );
+
           setInvite(data.invitation);
           setEvent(data.event);
+          setIsStaffPreview(nextIsStaffPreview);
+
+          /*
+            במצב preview=staff אין אורח פעיל ואין שליחת RSVP.
+          */
+          if (nextIsStaffPreview) {
+            setSelectedGuest(null);
+            setCanSubmitRsvp(false);
+            return;
+          }
 
           if (data.guest) {
             setSelectedGuest(data.guest);
+            setCanSubmitRsvp(Boolean(data.canSubmitRsvp ?? true));
 
             /*
               לא מסמנים "מגיע" כברירת מחדל.
@@ -332,19 +446,28 @@ export default function PublicInvitePage({ params }: any) {
                   : [],
               }));
             }
+          } else {
+            setSelectedGuest(null);
+            setCanSubmitRsvp(false);
           }
         } else {
           setInvite(null);
+          setEvent(null);
+          setSelectedGuest(null);
+          setCanSubmitRsvp(false);
         }
       } catch {
         setInvite(null);
+        setEvent(null);
+        setSelectedGuest(null);
+        setCanSubmitRsvp(false);
       } finally {
         setLoading(false);
       }
     }
 
     fetchInvite();
-  }, [shareId, token]);
+  }, [routeReady, shareId, token, isStaffPreview]);
 
   /* ============================================================
      INVITATION IMAGE
@@ -417,6 +540,11 @@ export default function PublicInvitePage({ params }: any) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    if (isStaffPreview || !canSubmitRsvp) {
+      alert("זה מצב צפייה בלבד. לא ניתן לשלוח אישור הגעה מכאן.");
+      return;
+    }
 
     if (form.rsvp !== "yes" && form.rsvp !== "no") {
       alert("יש לבחור האם מגיעים או לא מגיעים");
@@ -549,13 +677,29 @@ export default function PublicInvitePage({ params }: any) {
           <div className="mx-auto mt-5 h-px w-20 bg-gradient-to-l from-transparent via-[#d7b98b] to-transparent" />
         </section>
 
+        {isStaffPreview && (
+          <section className="mb-5 w-full max-w-md rounded-[24px] border border-[#d7b98b] bg-[#fffaf2] px-5 py-4 text-center shadow-sm">
+            <p className="text-sm font-black text-[#8f6437]">
+              מצב צפייה לעובד מערכת
+            </p>
+            <p className="mt-1 text-xs font-bold leading-6 text-[#6b6046]">
+              העובד רואה את ההזמנה בלבד. אישור הגעה חסום במסך הזה.
+            </p>
+          </section>
+        )}
+
         <InvitationImageCard
           imageUrl={invitationImageUrl}
           imageMode={invitationImageMode}
           canvasData={invite.canvasData}
         />
 
-        {!sent ? (
+        {isStaffPreview ? (
+          <StaffPreviewCard
+            publicEventNote={publicEventNote}
+            giftOptions={giftOptions}
+          />
+        ) : !sent ? (
           <form
             onSubmit={handleSubmit}
             className="relative mt-7 w-full max-w-md overflow-hidden rounded-[34px] border border-white/80 bg-white/92 p-6 shadow-[0_28px_90px_rgba(92,66,38,0.16)] backdrop-blur"
@@ -565,10 +709,10 @@ export default function PublicInvitePage({ params }: any) {
 
             <div className="relative">
               <div className="mb-6 text-center">
-  <h2 className="text-2xl font-black text-[#2d241c] leading-tight">
-    נשמח לדעת אם תגיעו לחגוג איתנו
-  </h2>
-</div>
+                <h2 className="text-2xl font-black text-[#2d241c] leading-tight">
+                  נשמח לדעת אם תגיעו לחגוג איתנו
+                </h2>
+              </div>
 
               {/* מגיע / לא מגיע */}
               <div className="grid grid-cols-2 gap-3">
@@ -682,7 +826,19 @@ export default function PublicInvitePage({ params }: any) {
 
               <button
                 type="submit"
-                className="mt-6 w-full rounded-2xl bg-gradient-to-l from-[#c79a55] to-[#8f6437] px-5 py-4 text-lg font-black text-white shadow-[0_18px_45px_rgba(143,100,55,0.28)] transition hover:shadow-[0_22px_55px_rgba(143,100,55,0.34)]"
+                disabled={!canSubmitRsvp}
+                className="
+                  mt-6 w-full rounded-2xl
+                  bg-gradient-to-l from-[#c79a55] to-[#8f6437]
+                  px-5 py-4
+                  text-lg font-black
+                  text-white
+                  shadow-[0_18px_45px_rgba(143,100,55,0.28)]
+                  transition
+                  hover:shadow-[0_22px_55px_rgba(143,100,55,0.34)]
+                  disabled:cursor-not-allowed
+                  disabled:opacity-50
+                "
               >
                 שליחת אישור הגעה
               </button>

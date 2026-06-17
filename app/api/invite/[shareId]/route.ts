@@ -99,11 +99,31 @@ function normalizePublicEventPage(raw: any) {
   };
 }
 
+function isStaffPreviewRequest(req: Request) {
+  const { searchParams } = new URL(req.url);
+
+  const preview = cleanStr(searchParams.get("preview")).toLowerCase();
+  const mode = cleanStr(searchParams.get("mode")).toLowerCase();
+  const staffPreview = searchParams.get("staffPreview");
+
+  return (
+    preview === "staff" ||
+    mode === "staff" ||
+    toBool(staffPreview)
+  );
+}
+
 /* ============================================================
    GET — קבלת הזמנה לפי shareId
-   אם מגיע token => מאתרים אורח לפי token + invitationId
-   מחזירים invitation + event + guest אם קיים
-   GET בלבד — לא משנה נתונים
+
+   רגיל:
+   /invite/[shareId]?token=GUEST_TOKEN
+   מחזיר גם guest ומאפשר RSVP.
+
+   צפייה לעובד:
+   /invite/[shareId]?preview=staff
+   מחזיר invitation + event בלבד, בלי guest,
+   כדי שהעובד יראה את ההזמנה ולא יענה בשם אורח.
 ============================================================ */
 export async function GET(
   req: Request,
@@ -122,7 +142,8 @@ export async function GET(
     }
 
     const { searchParams } = new URL(req.url);
-    const token = searchParams.get("token");
+    const token = cleanStr(searchParams.get("token"));
+    const isStaffPreview = isStaffPreviewRequest(req);
 
     /* ============================================================
        1) שליפת ההזמנה
@@ -163,10 +184,14 @@ export async function GET(
 
     /* ============================================================
        4) אימות אורח לפי token + invitationId
+
+       חשוב:
+       במצב preview=staff לא מחפשים אורח ולא דורשים token.
+       ככה העובד רואה את ההזמנה בלבד, בלי אפשרות לענות בשם אורח.
     ============================================================ */
     let guest: any = null;
 
-    if (token) {
+    if (token && !isStaffPreview) {
       const foundGuest = await InvitationGuest.findOne({
         token,
         invitationId: (invitation as any)._id,
@@ -194,9 +219,24 @@ export async function GET(
     return NextResponse.json(
       {
         success: true,
+
         invitation: safeInvitation,
         event,
+
+        // יהיה null במצב preview=staff
         guest,
+
+        // חדש — כדי שהפרונט ידע שזה צפייה בלבד
+        preview: {
+          enabled: isStaffPreview,
+          type: isStaffPreview ? "staff" : "",
+        },
+
+        isPreview: isStaffPreview,
+        isStaffPreview,
+
+        // כפתורי RSVP צריכים להיות פעילים רק כשיש אורח אמיתי עם token
+        canSubmitRsvp: Boolean(guest && !isStaffPreview),
       },
       { status: 200 }
     );
