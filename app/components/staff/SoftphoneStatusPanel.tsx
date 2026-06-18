@@ -696,6 +696,77 @@ function encodeSoftphoneClientState(value: Record<string, unknown>) {
 
 const SOFTPHONE_DIAL_EVENT = "invistimo:softphone:dial";
 
+const SOFTPHONE_SHIFT_STORAGE_PREFIX = "invistimo:softphone:open-shift";
+
+type PersistedSoftphoneShift = {
+  shiftStarted: boolean;
+  shiftStartedAt: string | null;
+  shiftSessionId: string | null;
+  savedAt: string;
+};
+
+function getSoftphoneShiftStorageKey(user: any) {
+  const userId = getLoggedUserId(user) || getLoggedUserEmail(user) || "anonymous";
+  return `${SOFTPHONE_SHIFT_STORAGE_PREFIX}:${userId}`;
+}
+
+function readPersistedSoftphoneShift(user: any): PersistedSoftphoneShift | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = window.localStorage.getItem(getSoftphoneShiftStorageKey(user));
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as PersistedSoftphoneShift;
+
+    if (!parsed?.shiftStarted || !parsed?.shiftStartedAt) {
+      return null;
+    }
+
+    return {
+      shiftStarted: true,
+      shiftStartedAt: parsed.shiftStartedAt,
+      shiftSessionId: parsed.shiftSessionId || null,
+      savedAt: parsed.savedAt || new Date().toISOString(),
+    };
+  } catch (error) {
+    console.warn("READ PERSISTED SOFTPHONE SHIFT FAILED:", error);
+    return null;
+  }
+}
+
+function persistSoftphoneShift(
+  user: any,
+  value: {
+    shiftStarted: boolean;
+    shiftStartedAt?: string | null;
+    shiftSessionId?: string | null;
+  },
+) {
+  if (typeof window === "undefined") return;
+
+  try {
+    const key = getSoftphoneShiftStorageKey(user);
+
+    if (!value.shiftStarted) {
+      window.localStorage.removeItem(key);
+      return;
+    }
+
+    window.localStorage.setItem(
+      key,
+      JSON.stringify({
+        shiftStarted: true,
+        shiftStartedAt: value.shiftStartedAt || new Date().toISOString(),
+        shiftSessionId: value.shiftSessionId || null,
+        savedAt: new Date().toISOString(),
+      } satisfies PersistedSoftphoneShift),
+    );
+  } catch (error) {
+    console.warn("PERSIST SOFTPHONE SHIFT FAILED:", error);
+  }
+}
+
 type SoftphoneDialRequest = {
   number?: string;
   phone?: string;
@@ -745,6 +816,10 @@ export default function SoftphoneStatusPanel({
   const phoneInputRef = useRef<HTMLInputElement | null>(null);
   const lastAutoDialRequestKeyRef = useRef("");
 
+  const shiftStartedRef = useRef(false);
+  const shiftStartedAtRef = useRef<string | null>(null);
+  const shiftSessionIdRef = useRef<string | null>(null);
+
   const [tick, setTick] = useState(0);
 
   const [shiftStarted, setShiftStarted] = useState(false);
@@ -775,6 +850,18 @@ export default function SoftphoneStatusPanel({
     useState<SoftphoneDialRequest | null>(null);
 
   const activeDialRequest = dialRequest || externalDialRequest;
+
+  useEffect(() => {
+    shiftStartedRef.current = shiftStarted;
+    shiftStartedAtRef.current = shiftStartedAt;
+    shiftSessionIdRef.current = shiftSessionId;
+
+    persistSoftphoneShift(loggedUser, {
+      shiftStarted,
+      shiftStartedAt,
+      shiftSessionId,
+    });
+  }, [loggedUser, shiftStarted, shiftStartedAt, shiftSessionId]);
 
   useEffect(() => {
     loadMyStatus();
@@ -1010,13 +1097,21 @@ export default function SoftphoneStatusPanel({
 
   async function loadMyStatus() {
     const now = new Date().toISOString();
+    const persistedShift = readPersistedSoftphoneShift(loggedUser);
 
     setLoading(true);
+    setShiftError("");
+
+    const defaultStatus: AgentStatus = persistedShift?.shiftStarted
+      ? "available"
+      : "offline";
 
     setAgent({
-      agentId: "local-softphone",
-      status: "offline",
-      statusStartedAt: now,
+      agentId: getLoggedUserId(loggedUser) || "local-softphone",
+      name: getLoggedUserName(loggedUser),
+      email: getLoggedUserEmail(loggedUser),
+      status: defaultStatus,
+      statusStartedAt: persistedShift?.shiftStartedAt || now,
       todayAvailableSeconds: 0,
       todayDialingSeconds: 0,
       todayRingingSeconds: 0,
@@ -1032,35 +1127,149 @@ export default function SoftphoneStatusPanel({
       lastSeenAt: now,
     });
 
-    setShiftStarted(false);
-    setShiftStartedAt(null);
-    setShiftSessionId(null);
-    setShiftError("");
+    if (persistedShift?.shiftStarted) {
+      setShiftStarted(true);
+      setShiftStartedAt(persistedShift.shiftStartedAt || now);
+      setShiftSessionId(persistedShift.shiftSessionId || null);
+
+      // חשוב: מעבר עמוד / רענון לא מסיים משמרת.
+      // רק מחזירים את העובד לסטטוס זמין ומעדכנים נוכחות חיה.
+      void syncLiveStatus("available", {
+        direction: "none",
+        number: null,
+        reason: null,
+        shiftStartedOverride: true,
+        shiftStartedAtOverride: persistedShift.shiftStartedAt || now,
+        shiftSessionIdOverride: persistedShift.shiftSessionId || null,
+      });
+    } else {
+      setShiftStarted(false);
+      setShiftStartedAt(null);
+      setShiftSessionId(null);
+    }
+
     setLoading(false);
   }
 
   function ensureShiftStarted() {
-    if (!shiftStarted) {
-      setShiftStarted(true);
-      setShiftStartedAt(new Date().toISOString());
-    }
+    if (shiftStartedRef.current) return;
+
+    const now = new Date().toISOString();
+
+    shiftStartedRef.current = true;
+    shiftStartedAtRef.current = now;
+
+    setShiftStarted(true);
+    setShiftStartedAt(now);
+
+    persistSoftphoneShift(loggedUser, {
+      shiftStarted: true,
+      shiftStartedAt: now,
+      shiftSessionId: shiftSessionIdRef.current,
+    });
   }
 
   async function ensureShiftStartedForCall() {
-    if (shiftStarted) return;
+    if (shiftStartedRef.current) return;
 
     try {
       const session = await startShiftSessionApi();
       const startedAt = session?.startedAt || new Date().toISOString();
+      const sessionId = getShiftSessionId(session);
+
+      shiftStartedRef.current = true;
+      shiftStartedAtRef.current = startedAt;
+      shiftSessionIdRef.current = sessionId;
 
       setShiftStarted(true);
       setShiftStartedAt(startedAt);
-      setShiftSessionId(getShiftSessionId(session));
+      setShiftSessionId(sessionId);
       setShiftError("");
+
+      persistSoftphoneShift(loggedUser, {
+        shiftStarted: true,
+        shiftStartedAt: startedAt,
+        shiftSessionId: sessionId,
+      });
     } catch (error) {
       console.error("AUTO START SHIFT FOR CALL FAILED:", error);
+
+      const startedAt = new Date().toISOString();
+
+      shiftStartedRef.current = true;
+      shiftStartedAtRef.current = startedAt;
+
       setShiftStarted(true);
-      setShiftStartedAt(new Date().toISOString());
+      setShiftStartedAt(startedAt);
+
+      persistSoftphoneShift(loggedUser, {
+        shiftStarted: true,
+        shiftStartedAt: startedAt,
+        shiftSessionId: shiftSessionIdRef.current,
+      });
+    }
+  }
+
+  async function syncLiveStatus(
+    nextStatus: AgentStatus,
+    options?: {
+      reason?: BusyReason | null;
+      number?: string | null;
+      direction?: CallDirection;
+      shiftStartedOverride?: boolean;
+      shiftStartedAtOverride?: string | null;
+      shiftSessionIdOverride?: string | null;
+      endedBy?: "employee" | "admin" | null;
+    },
+  ) {
+    const number = options?.number || activeCallNumber || phoneNumber || "";
+    const direction = options?.direction || callDirection || "none";
+
+    try {
+      await fetch("/api/softphone/live-status", {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-store",
+        },
+        body: JSON.stringify({
+          status: nextStatus,
+          reason: options?.reason || null,
+          reasonLabel: getBusyReasonLabel(options?.reason || null),
+
+          number,
+          phone: number,
+          direction,
+
+          shiftSessionId:
+            options?.shiftSessionIdOverride !== undefined
+              ? options.shiftSessionIdOverride
+              : shiftSessionIdRef.current,
+          shiftStarted:
+            options?.shiftStartedOverride !== undefined
+              ? options.shiftStartedOverride
+              : shiftStartedRef.current,
+          shiftStartedAt:
+            options?.shiftStartedAtOverride !== undefined
+              ? options.shiftStartedAtOverride
+              : shiftStartedAtRef.current,
+
+          endedBy: options?.endedBy || null,
+
+          statusStartedAt: new Date().toISOString(),
+
+          taskId: activeDialRequest?.taskId || "",
+          guestName: activeDialRequest?.guestName || activeDialRequest?.label || "",
+          label: activeDialRequest?.label || "",
+
+          webrtcReady,
+          source: "staff-softphone",
+        }),
+      });
+    } catch (error) {
+      console.error("SOFTPHONE LIVE STATUS SYNC FAILED:", error);
     }
   }
 
@@ -1071,23 +1280,35 @@ export default function SoftphoneStatusPanel({
       number?: string | null;
       direction?: CallDirection;
       autoStartShift?: boolean;
+      endShiftExplicitly?: boolean;
+      endedBy?: "employee" | "admin" | null;
     },
   ) {
     if (savingStatus) return;
 
-    const shouldAutoStartShift = options?.autoStartShift !== false;
     const now = new Date().toISOString();
+    const shouldAutoStartShift = options?.autoStartShift !== false;
+    const explicitShiftEnd =
+      nextStatus === "offline" && options?.endShiftExplicitly === true;
 
+    // קריטי:
+    // offline רגיל לא מסיים משמרת. רק confirmEndShift / הוצאה ע״י אדמין.
     if (nextStatus !== "offline" && shouldAutoStartShift) {
       ensureShiftStarted();
     }
 
     setSavingStatus(nextStatus);
 
+    const currentNumber = options?.number || activeCallNumber || phoneNumber || "";
+    const currentDirection = options?.direction || callDirection || "none";
+
     setAgent((prev) => ({
-      agentId: prev?.agentId || "local-softphone",
-      name: prev?.name,
-      email: prev?.email,
+      agentId:
+        prev?.agentId ||
+        getLoggedUserId(loggedUser) ||
+        "local-softphone",
+      name: prev?.name || getLoggedUserName(loggedUser),
+      email: prev?.email || getLoggedUserEmail(loggedUser),
       status: nextStatus,
       statusStartedAt: now,
       currentCallId: prev?.currentCallId || null,
@@ -1112,6 +1333,17 @@ export default function SoftphoneStatusPanel({
       lastSeenAt: now,
     }));
 
+    await syncLiveStatus(nextStatus, {
+      ...options,
+      number: currentNumber,
+      direction: currentDirection,
+      endedBy: explicitShiftEnd ? options?.endedBy || "employee" : null,
+    });
+
+    if (explicitShiftEnd) {
+      persistSoftphoneShift(loggedUser, { shiftStarted: false });
+    }
+
     window.setTimeout(() => {
       setSavingStatus(null);
     }, 80);
@@ -1128,9 +1360,21 @@ export default function SoftphoneStatusPanel({
       const session = await startShiftSessionApi();
       const startedAt = session?.startedAt || new Date().toISOString();
 
+      const sessionId = getShiftSessionId(session);
+
+      shiftStartedRef.current = true;
+      shiftStartedAtRef.current = startedAt;
+      shiftSessionIdRef.current = sessionId;
+
       setShiftStarted(true);
       setShiftStartedAt(startedAt);
-      setShiftSessionId(getShiftSessionId(session));
+      setShiftSessionId(sessionId);
+
+      persistSoftphoneShift(loggedUser, {
+        shiftStarted: true,
+        shiftStartedAt: startedAt,
+        shiftSessionId: sessionId,
+      });
       setCallDirection("none");
       setActiveCallNumber("");
       setActiveBusyReason(null);
@@ -1170,6 +1414,12 @@ export default function SoftphoneStatusPanel({
 
       disconnectWebrtc();
 
+      shiftStartedRef.current = false;
+      shiftStartedAtRef.current = null;
+      shiftSessionIdRef.current = null;
+
+      persistSoftphoneShift(loggedUser, { shiftStarted: false });
+
       setShowEndShiftConfirm(false);
       setShiftStarted(false);
       setShiftStartedAt(null);
@@ -1189,6 +1439,8 @@ export default function SoftphoneStatusPanel({
         number: null,
         reason: null,
         autoStartShift: false,
+        endShiftExplicitly: true,
+        endedBy: "employee",
       });
     } catch (error) {
       console.error("END SHIFT FAILED:", error);
