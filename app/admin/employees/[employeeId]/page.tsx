@@ -917,6 +917,128 @@ export default function AdminEmployeeFilePage() {
     }
   }
 
+
+  function csvSafe(value: unknown) {
+    const text = String(value ?? "").replaceAll('"', '""');
+    return `"${text}"`;
+  }
+
+  function downloadCsv(filename: string, rows: unknown[][]) {
+    const csvContent = rows.map((row) => row.map(csvSafe).join(",")).join("\n");
+
+    const blob = new Blob(["\uFEFF" + csvContent], {
+      type: "text/csv;charset=utf-8;",
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
+  function exportAccountantHoursAndSalesReport() {
+    const hourlyRate = Number(employee.hourlyRate || 0);
+    const hoursAmount = Number(estimatedMonthlyPayment || 0);
+    const paidCommissionAmount = Number(salesTotals.paidCommission || 0);
+    const grossTotalToPay = Number((hoursAmount + paidCommissionAmount).toFixed(2));
+
+    const rows: unknown[][] = [
+      ["דוח שעות ומכירות לרואה חשבון"],
+      ["עובד", employee.name || "—"],
+      ["מייל", employee.email || "—"],
+      ["טלפון", employee.phone || "—"],
+      ["חודש", monthLabel(month)],
+      [],
+      ["סיכום לתשלום ברוטו"],
+      ["סה״כ שעות מספרי", totalHoursDecimal.toFixed(2)],
+      ["שכר שעתי", hourlyRate.toFixed(2)],
+      ["תשלום שעות ברוטו", hoursAmount.toFixed(2)],
+      ["סה״כ מכירות ששולמו", salesTotals.paidSalesCount],
+      ["סכום מכירות לפני מע״מ ששולם", salesTotals.paidBeforeVat.toFixed(2)],
+      ["סכום מכירות אחרי מע״מ ששולם", salesTotals.paidAfterVat.toFixed(2)],
+      ["עמלת מכירות 5%", paidCommissionAmount.toFixed(2)],
+      ["סה״כ לתשלום ברוטו", grossTotalToPay.toFixed(2)],
+      [],
+      ["פירוט יומי של שעות"],
+      [
+        "תאריך",
+        "יום",
+        "משובץ",
+        "משמרת",
+        "התחלה מתוכננת",
+        "סיום מתוכנן",
+        "התחלה בפועל",
+        "סיום בפועל",
+        "סה״כ דקות",
+        "סה״כ שעות",
+        "שכר שעתי",
+        "סכום יומי ברוטו",
+        "סטטוס",
+        "הערה",
+      ],
+      ...hoursRows.map((row) => {
+        const rowHours = Number(row.totalMinutes || 0) / 60;
+        const rowAmount = Number((rowHours * hourlyRate).toFixed(2));
+
+        return [
+          formatDate(row.date),
+          row.dayName || "—",
+          row.isScheduled ? "כן" : "לא",
+          row.shiftLabel || "—",
+          row.scheduledStart || "—",
+          row.scheduledEnd || "—",
+          row.actualStart || "—",
+          row.actualEnd || "—",
+          row.totalMinutes || 0,
+          rowHours.toFixed(2),
+          hourlyRate.toFixed(2),
+          rowAmount.toFixed(2),
+          statusLabel(row.status),
+          row.note || "",
+        ];
+      }),
+      [],
+      ["פירוט מכירות"],
+      [
+        "תאריך",
+        "איזה מכירה",
+        "לקוח",
+        "טלפון לקוח",
+        "מייל לקוח",
+        "סכום לפני מע״מ",
+        "סכום אחרי מע״מ",
+        "עמלה 5%",
+        "תשלום",
+        "סטטוס",
+        "הערות",
+      ],
+      ...salesRows.map((sale) => [
+        formatDate(sale.paidAt || sale.saleDate || sale.createdAt),
+        sale.saleTitle || "מכירה",
+        sale.clientName || "—",
+        sale.clientPhone || "—",
+        sale.clientEmail || "—",
+        Number(sale.dealAmountBeforeVat || 0).toFixed(2),
+        Number(sale.dealAmountAfterVat || 0).toFixed(2),
+        Number(sale.commissionAmount || 0).toFixed(2),
+        paymentModeLabel(sale.paymentMode),
+        statusLabel(sale.status),
+        sale.notes || "",
+      ]),
+    ];
+
+    downloadCsv(
+      `דוח-שעות-ומכירות-${employee.name || "עובד"}-${month}.csv`,
+      rows
+    );
+  }
+
   if (loading) {
     return (
       <div
@@ -996,6 +1118,14 @@ export default function AdminEmployeeFilePage() {
               >
                 <Icon name="clock" className="h-4 w-4" />
                 עמוד שעות מלא
+              </Link>
+
+              <Link
+                href={`/admin/employees/${encodeURIComponent(employeeId)}/sales`}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-indigo-500 to-blue-500 px-5 text-sm font-black text-white shadow-lg shadow-indigo-100 transition hover:scale-[1.01]"
+              >
+                <Icon name="sales" className="h-4 w-4" />
+                עמוד מכירות שלי
               </Link>
 
               <button
@@ -1238,6 +1368,15 @@ export default function AdminEmployeeFilePage() {
                 רענון חודש
               </button>
 
+              <button
+                type="button"
+                onClick={exportAccountantHoursAndSalesReport}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-fuchsia-500 to-purple-500 px-4 text-sm font-black text-white shadow-md shadow-fuchsia-100 transition hover:scale-[1.01]"
+              >
+                <Icon name="file" className="h-4 w-4" />
+                ייצוא שעות ומכירות לרו״ח
+              </button>
+
               <Link
                 href={`/admin/employees/${encodeURIComponent(employeeId)}/hours`}
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-4 text-sm font-black text-white shadow-md shadow-emerald-100 transition hover:bg-emerald-600"
@@ -1328,6 +1467,14 @@ export default function AdminEmployeeFilePage() {
                 לפני מע״מ. הסכום לתשלום בפועל מחושב לפי מכירות בסטטוס שולם.
               </p>
             </div>
+
+            <Link
+              href={`/admin/employees/${encodeURIComponent(employeeId)}/sales`}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-indigo-500 to-blue-500 px-5 text-sm font-black text-white shadow-md shadow-indigo-100 transition hover:scale-[1.01]"
+            >
+              <Icon name="sales" className="h-4 w-4" />
+              עמוד מכירות שלי
+            </Link>
           </div>
 
           {salesError ? (
