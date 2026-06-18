@@ -148,16 +148,30 @@ async function fetchJson(url: string) {
   return data;
 }
 
-function csvSafe(value: unknown) {
-  const text = String(value ?? "").replaceAll('"', '""');
-  return `"${text}"`;
+function excelSafe(value: unknown) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
 }
 
-function downloadCsv(filename: string, rows: unknown[][]) {
-  const csvContent = rows.map((row) => row.map(csvSafe).join(",")).join("\n");
+function excelMoney(value: number) {
+  const numericValue = Number.isFinite(Number(value)) ? Number(value) : 0;
+  return numericValue.toFixed(2);
+}
 
-  const blob = new Blob(["\uFEFF" + csvContent], {
-    type: "text/csv;charset=utf-8;",
+function excelCell(value: unknown, className = "") {
+  return `<td class="${className}">${excelSafe(value)}</td>`;
+}
+
+function excelHeaderCell(value: unknown, className = "") {
+  return `<th class="${className}">${excelSafe(value)}</th>`;
+}
+
+function downloadExcel(filename: string, html: string) {
+  const blob = new Blob(["\uFEFF" + html], {
+    type: "application/vnd.ms-excel;charset=utf-8;",
   });
 
   const url = URL.createObjectURL(blob);
@@ -337,49 +351,87 @@ export default function AdminEmployeeSalesPage() {
     void loadSales();
   }, [loadSales]);
 
-  function exportSalesCsv() {
-    const rows: unknown[][] = [
-      ["דוח מכירות עובד"],
-      ["עובד", employeeName],
-      ["חודש", monthLabel(month)],
-      [],
-      ["סיכום"],
-      ["סה״כ מכירות", totals.salesCount],
-      ["סכום לפני מע״מ", totals.totalBeforeVat.toFixed(2)],
-      ["סכום אחרי מע״מ", totals.totalAfterVat.toFixed(2)],
-      ["סה״כ עמלות 5%", totals.totalCommission.toFixed(2)],
-      ["מכירות ששולמו", totals.paidSalesCount],
-      ["עמלות לתשלום בפועל", totals.paidCommission.toFixed(2)],
-      [],
-      [
-        "תאריך",
-        "איזה מכירה",
-        "לקוח",
-        "טלפון",
-        "מייל",
-        "סכום לפני מע״מ",
-        "סכום אחרי מע״מ",
-        "עמלה 5%",
-        "תשלום",
-        "סטטוס",
-        "הערות",
-      ],
-      ...salesRows.map((sale) => [
-        formatDate(sale.paidAt || sale.saleDate || sale.createdAt),
-        sale.saleTitle,
-        sale.clientName,
-        sale.clientPhone,
-        sale.clientEmail,
-        sale.dealAmountBeforeVat.toFixed(2),
-        sale.dealAmountAfterVat.toFixed(2),
-        sale.commissionAmount.toFixed(2),
-        paymentModeLabel(sale.paymentMode),
-        statusLabel(sale.status),
-        sale.notes,
-      ]),
-    ];
+  function exportSalesExcel() {
+    const salesRowsHtml = salesRows
+      .map((sale) => `<tr>
+        ${excelCell(formatDate(sale.paidAt || sale.saleDate || sale.createdAt))}
+        ${excelCell(sale.saleTitle || "מכירה")}
+        ${excelCell(sale.clientName || "—")}
+        ${excelCell(sale.clientPhone || "—")}
+        ${excelCell(sale.clientEmail || "—")}
+        ${excelCell(excelMoney(sale.dealAmountBeforeVat), "money")}
+        ${excelCell(excelMoney(sale.dealAmountAfterVat), "money")}
+        ${excelCell(excelMoney(sale.commissionAmount), "money green")}
+        ${excelCell(paymentModeLabel(sale.paymentMode))}
+        ${excelCell(statusLabel(sale.status))}
+        ${excelCell(sale.notes || "")}
+      </tr>`)
+      .join("");
 
-    downloadCsv(`דוח-מכירות-${employeeName}-${month}.csv`, rows);
+    const html = `<!doctype html>
+<html dir="rtl" lang="he">
+<head>
+  <meta charset="utf-8" />
+  <style>
+    body { direction: rtl; font-family: Arial, sans-serif; color: #0f172a; }
+    .page-title { font-size: 24px; font-weight: 800; color: #111827; padding: 16px 0 8px; }
+    .subtitle { font-size: 13px; color: #64748b; padding-bottom: 14px; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 18px; }
+    th { background: #eef2ff; color: #1e1b4b; font-weight: 800; border: 1px solid #c7d2fe; padding: 9px; text-align: right; white-space: nowrap; }
+    td { border: 1px solid #e2e8f0; padding: 8px; text-align: right; white-space: nowrap; }
+    .section-title { background: #111827; color: #ffffff; font-size: 16px; font-weight: 800; padding: 10px; }
+    .money { mso-number-format:"#,##0.00"; }
+    .num { mso-number-format:"0.00"; }
+    .green { color: #047857; font-weight: 800; }
+    .total { background: #ecfdf5; font-weight: 800; color: #065f46; }
+    .muted { color: #64748b; }
+  </style>
+</head>
+<body>
+  <div class="page-title">${excelSafe(`דוח מכירות עובד — ${employeeName} — ${monthLabel(month)}`)}</div>
+  <div class="subtitle">דוח מקצועי לרו״ח עם פירוט מכירות, סכומים לפני/אחרי מע״מ ועמלת 5%.</div>
+
+  <table>
+    <tr><td class="section-title" colspan="4">סיכום מכירות</td></tr>
+    <tr>
+      ${excelHeaderCell("סה״כ מכירות")}${excelCell(totals.salesCount, "num")}
+      ${excelHeaderCell("מכירות ששולמו")}${excelCell(totals.paidSalesCount, "num")}
+    </tr>
+    <tr>
+      ${excelHeaderCell("סכום לפני מע״מ")}${excelCell(excelMoney(totals.totalBeforeVat), "money")}
+      ${excelHeaderCell("סכום לפני מע״מ ששולם")}${excelCell(excelMoney(totals.paidBeforeVat), "money")}
+    </tr>
+    <tr>
+      ${excelHeaderCell("סכום אחרי מע״מ")}${excelCell(excelMoney(totals.totalAfterVat), "money")}
+      ${excelHeaderCell("סכום אחרי מע״מ ששולם")}${excelCell(excelMoney(totals.paidAfterVat), "money")}
+    </tr>
+    <tr>
+      ${excelHeaderCell("סה״כ עמלות 5%", "total")}${excelCell(excelMoney(totals.totalCommission), "money total")}
+      ${excelHeaderCell("עמלות לתשלום בפועל", "total")}${excelCell(excelMoney(totals.paidCommission), "money total")}
+    </tr>
+  </table>
+
+  <table>
+    <tr><td class="section-title" colspan="11">פירוט מכירות</td></tr>
+    <tr>
+      ${excelHeaderCell("תאריך")}
+      ${excelHeaderCell("איזה מכירה")}
+      ${excelHeaderCell("לקוח")}
+      ${excelHeaderCell("טלפון")}
+      ${excelHeaderCell("מייל")}
+      ${excelHeaderCell("סכום לפני מע״מ")}
+      ${excelHeaderCell("סכום אחרי מע״מ")}
+      ${excelHeaderCell("עמלה 5%")}
+      ${excelHeaderCell("תשלום")}
+      ${excelHeaderCell("סטטוס")}
+      ${excelHeaderCell("הערות")}
+    </tr>
+    ${salesRowsHtml || `<tr><td colspan="11" class="muted">אין מכירות להצגה</td></tr>`}
+  </table>
+</body>
+</html>`;
+
+    downloadExcel(`דוח-מכירות-${employeeName}-${month}.xls`, html);
   }
 
   return (
@@ -417,11 +469,11 @@ export default function AdminEmployeeSalesPage() {
             <div className="flex flex-wrap gap-3">
               <button
                 type="button"
-                onClick={exportSalesCsv}
+                onClick={exportSalesExcel}
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-fuchsia-500 to-purple-500 px-5 text-sm font-black text-white shadow-lg shadow-fuchsia-100 transition hover:scale-[1.01]"
               >
                 <Icon name="download" className="h-4 w-4" />
-                ייצוא מכירות לרו״ח
+                ייצוא אקסל מכירות לרו״ח
               </button>
 
               <button
