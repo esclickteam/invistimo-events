@@ -15,6 +15,8 @@ type EmployeeSaleRow = {
   dealAmountBeforeVat?: number;
   amountBeforeVat?: number;
   beforeVat?: number;
+  netAmount?: number;
+  grossAmount?: number;
   dealAmountAfterVat?: number;
   amountAfterVat?: number;
   afterVat?: number;
@@ -109,7 +111,11 @@ function formatMoney(value: number) {
 
 function getSaleBeforeVat(sale: EmployeeSaleRow) {
   return cleanNumber(
-    sale.dealAmountBeforeVat ?? sale.amountBeforeVat ?? sale.beforeVat ?? 0
+    sale.dealAmountBeforeVat ??
+      sale.amountBeforeVat ??
+      sale.beforeVat ??
+      sale.netAmount ??
+      0
   );
 }
 
@@ -117,12 +123,16 @@ function getSaleAfterVat(sale: EmployeeSaleRow) {
   const beforeVat = getSaleBeforeVat(sale);
 
   const existingAfterVat = cleanNumber(
-    sale.dealAmountAfterVat ?? sale.amountAfterVat ?? sale.afterVat ?? 0
+    sale.dealAmountAfterVat ??
+      sale.amountAfterVat ??
+      sale.afterVat ??
+      sale.grossAmount ??
+      0
   );
 
   if (existingAfterVat > 0) return existingAfterVat;
 
-  return Number((beforeVat * 1.17).toFixed(2));
+  return Number((beforeVat * 1.18).toFixed(2));
 }
 
 function getSaleCommission(sale: EmployeeSaleRow) {
@@ -172,7 +182,10 @@ function getEmployeeSalesSummary(employee: EmployeeRow): EmployeeSalesSummary {
       salesCount: salesCountFromSummary,
       totalBeforeVat: beforeVatFromSummary,
       totalAfterVat: afterVatFromSummary,
-      totalCommission: commissionFromSummary,
+      totalCommission:
+        commissionFromSummary > 0
+          ? commissionFromSummary
+          : Number((beforeVatFromSummary * 0.05).toFixed(2)),
     };
   }
 
@@ -265,7 +278,6 @@ function Icon({
     | "phone"
     | "id"
     | "sparkles"
-    | "sales"
     | "money";
   className?: string;
 }) {
@@ -373,16 +385,6 @@ function Icon({
     );
   }
 
-  if (name === "sales") {
-    return (
-      <svg {...common}>
-        <path d="M3 3v18h18" />
-        <path d="m7 15 4-4 3 3 6-7" />
-        <path d="M18 7h2v2" />
-      </svg>
-    );
-  }
-
   if (name === "money") {
     return (
       <svg {...common}>
@@ -482,7 +484,6 @@ export default function AdminEmployeesPage() {
         employee.address.toLowerCase().includes(q) ||
         employee.idNumber.toLowerCase().includes(q) ||
         employee.id.toLowerCase().includes(q) ||
-        String(salesSummary.salesCount).includes(q) ||
         String(salesSummary.totalCommission).includes(q);
 
       const matchesStatus =
@@ -509,24 +510,10 @@ export default function AdminEmployeesPage() {
       (employee) => getMissingFields(employee).length > 0
     ).length;
 
-    const salesStats = employees.reduce(
-      (acc, employee) => {
-        const summary = getEmployeeSalesSummary(employee);
-
-        acc.salesCount += summary.salesCount;
-        acc.totalBeforeVat += summary.totalBeforeVat;
-        acc.totalAfterVat += summary.totalAfterVat;
-        acc.totalCommission += summary.totalCommission;
-
-        return acc;
-      },
-      {
-        salesCount: 0,
-        totalBeforeVat: 0,
-        totalAfterVat: 0,
-        totalCommission: 0,
-      }
-    );
+    const totalCommission = employees.reduce((sum, employee) => {
+      const summary = getEmployeeSalesSummary(employee);
+      return sum + summary.totalCommission;
+    }, 0);
 
     return {
       total: employees.length,
@@ -534,7 +521,7 @@ export default function AdminEmployeesPage() {
       ended,
       complete,
       missing,
-      ...salesStats,
+      totalCommission,
     };
   }, [employees]);
 
@@ -543,7 +530,7 @@ export default function AdminEmployeesPage() {
       dir="rtl"
       className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-fuchsia-50 text-slate-900"
     >
-      <div className="mx-auto w-full max-w-[1700px] space-y-6 p-4 md:p-6">
+      <div className="mx-auto w-full max-w-[1550px] space-y-6 p-4 md:p-6">
         <section className="overflow-hidden rounded-[34px] border border-white/80 bg-white/90 p-6 shadow-[0_18px_60px_rgba(79,70,229,0.10)] backdrop-blur md:p-8">
           <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
             <div>
@@ -558,8 +545,8 @@ export default function AdminEmployeesPage() {
 
               <p className="mt-3 max-w-4xl text-sm font-semibold leading-7 text-slate-500 md:text-base">
                 כאן מוצגת רשימת עובדים בלבד. הנתונים מסתנכרנים מתיק העובד:
-                פרטים אישיים, העסקה, שכר שעתי וגם מכירות ועמלות. עמלה מחושבת
-                לפי 5% מהסכום לפני מע״מ אם לא קיימת עמלה מוכנה בנתונים.
+                פרטים אישיים, העסקה, שכר שעתי ועמלת מכירה. עמלת המכירה היא 5%
+                מסכום העסקה לפני מע״מ.
               </p>
             </div>
 
@@ -596,30 +583,35 @@ export default function AdminEmployeesPage() {
             </div>
 
             <div className="rounded-[26px] border border-emerald-100 bg-emerald-50 p-5">
-              <p className="text-xs font-black text-emerald-600">סה״כ מכירות</p>
+              <p className="text-xs font-black text-emerald-600">פעילים</p>
               <p className="mt-2 text-3xl font-black text-emerald-900">
-                {stats.salesCount}
+                {stats.active}
+              </p>
+            </div>
+
+            <div className="rounded-[26px] border border-rose-100 bg-rose-50 p-5">
+              <p className="text-xs font-black text-rose-600">סיימו העסקה</p>
+              <p className="mt-2 text-3xl font-black text-rose-900">
+                {stats.ended}
               </p>
             </div>
 
             <div className="rounded-[26px] border border-sky-100 bg-sky-50 p-5">
-              <p className="text-xs font-black text-sky-600">לפני מע״מ</p>
-              <p className="mt-2 text-2xl font-black text-sky-900">
-                {formatMoney(stats.totalBeforeVat)}
-              </p>
-            </div>
-
-            <div className="rounded-[26px] border border-violet-100 bg-violet-50 p-5">
-              <p className="text-xs font-black text-violet-600">אחרי מע״מ</p>
-              <p className="mt-2 text-2xl font-black text-violet-900">
-                {formatMoney(stats.totalAfterVat)}
+              <p className="text-xs font-black text-sky-600">פרטים מלאים</p>
+              <p className="mt-2 text-3xl font-black text-sky-900">
+                {stats.complete}
               </p>
             </div>
 
             <div className="rounded-[26px] border border-amber-100 bg-amber-50 p-5">
-              <p className="text-xs font-black text-amber-600">עמלות מכירה</p>
+              <p className="text-xs font-black text-amber-600">
+                עמלת מכירות
+              </p>
               <p className="mt-2 text-2xl font-black text-amber-900">
                 {formatMoney(stats.totalCommission)}
+              </p>
+              <p className="mt-1 text-xs font-bold text-amber-700">
+                5% מסכום העסקה לפני מע״מ
               </p>
             </div>
           </div>
@@ -715,12 +707,12 @@ export default function AdminEmployeesPage() {
                   <th className="px-5 py-4 font-black">עובד</th>
                   <th className="px-5 py-4 font-black">מייל</th>
                   <th className="px-5 py-4 font-black">טלפון</th>
+                  <th className="px-5 py-4 font-black">כתובת</th>
+                  <th className="px-5 py-4 font-black">תעודת זהות</th>
                   <th className="px-5 py-4 font-black">תחילת העסקה</th>
+                  <th className="px-5 py-4 font-black">סיום העסקה</th>
                   <th className="px-5 py-4 font-black">שכר שעתי</th>
-                  <th className="px-5 py-4 font-black">מכירות</th>
-                  <th className="px-5 py-4 font-black">עסקאות לפני מע״מ</th>
-                  <th className="px-5 py-4 font-black">עסקאות אחרי מע״מ</th>
-                  <th className="px-5 py-4 font-black">עמלה 5%</th>
+                  <th className="px-5 py-4 font-black">עמלת מכירות</th>
                   <th className="px-5 py-4 font-black">סטטוס</th>
                   <th className="px-5 py-4 font-black">תיק עובד</th>
                 </tr>
@@ -774,8 +766,25 @@ export default function AdminEmployeesPage() {
                         </div>
                       </td>
 
+                      <td className="px-5 py-4 text-sm font-bold text-slate-700">
+                        <span className="block max-w-[210px] truncate">
+                          {employee.address || "—"}
+                        </span>
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
+                          <Icon name="id" className="h-4 w-4 text-slate-400" />
+                          <span dir="ltr">{employee.idNumber || "—"}</span>
+                        </div>
+                      </td>
+
                       <td className="px-5 py-4 text-sm font-black text-slate-700">
                         {formatDate(employee.startDate)}
+                      </td>
+
+                      <td className="px-5 py-4 text-sm font-black text-slate-700">
+                        {formatDate(employee.endDate)}
                       </td>
 
                       <td className="px-5 py-4 text-sm font-black text-slate-700">
@@ -785,21 +794,14 @@ export default function AdminEmployeesPage() {
                       </td>
 
                       <td className="px-5 py-4">
-                        <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">
-                          {salesSummary.salesCount}
-                        </span>
-                      </td>
-
-                      <td className="px-5 py-4 text-sm font-black text-slate-700">
-                        {formatMoney(salesSummary.totalBeforeVat)}
-                      </td>
-
-                      <td className="px-5 py-4 text-sm font-black text-slate-700">
-                        {formatMoney(salesSummary.totalAfterVat)}
-                      </td>
-
-                      <td className="px-5 py-4 text-sm font-black text-emerald-700">
-                        {formatMoney(salesSummary.totalCommission)}
+                        <div className="flex flex-col gap-1">
+                          <span className="text-sm font-black text-emerald-700">
+                            {formatMoney(salesSummary.totalCommission)}
+                          </span>
+                          <span className="text-xs font-bold text-slate-400">
+                            5% לפני מע״מ
+                          </span>
+                        </div>
                       </td>
 
                       <td className="px-5 py-4">
@@ -877,42 +879,16 @@ export default function AdminEmployeesPage() {
                     </Link>
                   </div>
 
-                  <div className="mt-5 grid grid-cols-2 gap-3">
-                    <div className="rounded-2xl bg-emerald-50 p-4">
-                      <p className="text-xs font-black text-emerald-600">
-                        מכירות
-                      </p>
-                      <p className="mt-1 text-xl font-black text-emerald-900">
-                        {salesSummary.salesCount}
-                      </p>
-                    </div>
-
-                    <div className="rounded-2xl bg-amber-50 p-4">
-                      <p className="text-xs font-black text-amber-600">
-                        עמלה 5%
-                      </p>
-                      <p className="mt-1 text-lg font-black text-amber-900">
-                        {formatMoney(salesSummary.totalCommission)}
-                      </p>
-                    </div>
-
-                    <div className="rounded-2xl bg-sky-50 p-4">
-                      <p className="text-xs font-black text-sky-600">
-                        לפני מע״מ
-                      </p>
-                      <p className="mt-1 text-lg font-black text-sky-900">
-                        {formatMoney(salesSummary.totalBeforeVat)}
-                      </p>
-                    </div>
-
-                    <div className="rounded-2xl bg-violet-50 p-4">
-                      <p className="text-xs font-black text-violet-600">
-                        אחרי מע״מ
-                      </p>
-                      <p className="mt-1 text-lg font-black text-violet-900">
-                        {formatMoney(salesSummary.totalAfterVat)}
-                      </p>
-                    </div>
+                  <div className="mt-5 rounded-2xl bg-amber-50 p-4">
+                    <p className="text-xs font-black text-amber-600">
+                      עמלת מכירות
+                    </p>
+                    <p className="mt-1 text-xl font-black text-amber-900">
+                      {formatMoney(salesSummary.totalCommission)}
+                    </p>
+                    <p className="mt-1 text-xs font-bold text-amber-700">
+                      5% מסכום העסקה לפני מע״מ
+                    </p>
                   </div>
                 </div>
               );
