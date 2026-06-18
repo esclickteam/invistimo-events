@@ -1255,12 +1255,16 @@ export default function NewEmployeeSalePage() {
         title: getUpsellTitle(upsell, venueSeatingStaffCount, alcoholManagementStaffCount),
         description: getUpsellDescription(upsell, venueSeatingStaffCount, alcoholManagementStaffCount),
         customerDetails: getCustomerSectionsForUpsell(upsell),
-        price: showUpsellPricesInDocument ? actualPrice : undefined,
-        actualPrice,
-        displayPrice: showUpsellPricesInDocument ? actualPrice : undefined,
         showPriceInDocument: showUpsellPricesInDocument,
         hidePriceInDocument: !showUpsellPricesInDocument,
-        givenFree: showUpsellPricesInDocument ? givenFree : false,
+        ...(showUpsellPricesInDocument
+          ? {
+              price: actualPrice,
+              actualPrice,
+              displayPrice: actualPrice,
+              givenFree,
+            }
+          : {}),
       };
     }),
   }), [alcoholManagementStaffCount, baseGrossAmount, canGiveSuppliersBudgetFree, eventCity, eventDate, eventName, extraRecordPrice, extraRecordsTerms, finalGrossAmount, finalPaymentTerms, packageCalculation.records, paymentDiscountAmount, paymentMode, paymentSchedule, quoteCreatedAt, quoteExpiresAt, quotePricingDisplay, selectedPlan.customerSummary, selectedPlan.includes, selectedPlan.title, selectedUpsellsList, showUpsellPricesInDocument, suppliersBudgetFree, venueSeatingStaffCount]);
@@ -1315,15 +1319,19 @@ export default function NewEmployeeSalePage() {
         key: upsell.key,
         title: getUpsellTitle(upsell, venueSeatingStaffCount, alcoholManagementStaffCount),
         description: getUpsellDescription(upsell, venueSeatingStaffCount, alcoholManagementStaffCount),
-        price: showUpsellPricesInDocument ? actualPrice : undefined,
-        actualPrice,
-        displayPrice: showUpsellPricesInDocument ? actualPrice : undefined,
-        givenFree: showUpsellPricesInDocument ? givenFree : false,
         customerDetails: getCustomerSectionsForUpsell(upsell),
         employeeDetails: getEmployeeSectionsForUpsell(upsell),
         showPriceInDocument: showUpsellPricesInDocument,
         hidePriceInDocument: !showUpsellPricesInDocument,
         paymentType: isEventDayService(upsell.key) ? "event_day_service" : "pre_event_service",
+        ...(showUpsellPricesInDocument
+          ? {
+              price: actualPrice,
+              actualPrice,
+              displayPrice: actualPrice,
+              givenFree,
+            }
+          : {}),
       };
     }),
     totals: {
