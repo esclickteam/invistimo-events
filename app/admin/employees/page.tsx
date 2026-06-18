@@ -5,36 +5,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 export const dynamic = "force-dynamic";
 
-type EmployeeSaleRow = {
-  id?: string;
-  saleTitle?: string;
-  title?: string;
-  type?: string;
-  clientName?: string;
-  customerName?: string;
-  dealAmountBeforeVat?: number;
-  amountBeforeVat?: number;
-  beforeVat?: number;
-  netAmount?: number;
-  grossAmount?: number;
-  dealAmountAfterVat?: number;
-  amountAfterVat?: number;
-  afterVat?: number;
-  commissionRate?: number;
-  commissionAmount?: number;
-  commission?: number;
-  saleDate?: string;
-  createdAt?: string;
-  notes?: string;
-};
-
-type EmployeeSalesSummary = {
-  salesCount: number;
-  totalBeforeVat: number;
-  totalAfterVat: number;
-  totalCommission: number;
-};
-
 type EmployeeRow = {
   id: string;
   name: string;
@@ -48,15 +18,6 @@ type EmployeeRow = {
   role: string;
   status: string;
   updatedAt: string;
-
-  sales?: EmployeeSaleRow[];
-  employeeSales?: EmployeeSaleRow[];
-  salesSummary?: Partial<EmployeeSalesSummary>;
-  commissionSummary?: Partial<EmployeeSalesSummary>;
-  salesCount?: number;
-  totalSalesBeforeVat?: number;
-  totalSalesAfterVat?: number;
-  totalCommission?: number;
 };
 
 const API = {
@@ -65,11 +26,6 @@ const API = {
 
 function cleanStr(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
-}
-
-function cleanNumber(value: unknown) {
-  const numberValue = Number(value);
-  return Number.isFinite(numberValue) ? numberValue : 0;
 }
 
 async function fetchJson(url: string) {
@@ -107,103 +63,6 @@ function formatMoney(value: number) {
     currency: "ILS",
     maximumFractionDigits: 2,
   }).format(Number.isFinite(value) ? value : 0);
-}
-
-function getSaleBeforeVat(sale: EmployeeSaleRow) {
-  return cleanNumber(
-    sale.dealAmountBeforeVat ??
-      sale.amountBeforeVat ??
-      sale.beforeVat ??
-      sale.netAmount ??
-      0
-  );
-}
-
-function getSaleAfterVat(sale: EmployeeSaleRow) {
-  const beforeVat = getSaleBeforeVat(sale);
-
-  const existingAfterVat = cleanNumber(
-    sale.dealAmountAfterVat ??
-      sale.amountAfterVat ??
-      sale.afterVat ??
-      sale.grossAmount ??
-      0
-  );
-
-  if (existingAfterVat > 0) return existingAfterVat;
-
-  return Number((beforeVat * 1.18).toFixed(2));
-}
-
-function getSaleCommission(sale: EmployeeSaleRow) {
-  const existingCommission = cleanNumber(
-    sale.commissionAmount ?? sale.commission ?? 0
-  );
-
-  if (existingCommission > 0) return existingCommission;
-
-  return Number((getSaleBeforeVat(sale) * 0.05).toFixed(2));
-}
-
-function getEmployeeSales(employee: EmployeeRow) {
-  if (Array.isArray(employee.sales)) return employee.sales;
-  if (Array.isArray(employee.employeeSales)) return employee.employeeSales;
-  return [];
-}
-
-function getEmployeeSalesSummary(employee: EmployeeRow): EmployeeSalesSummary {
-  const sales = getEmployeeSales(employee);
-
-  const summary = employee.salesSummary || employee.commissionSummary || {};
-
-  const salesCountFromSummary = cleanNumber(
-    summary.salesCount ?? employee.salesCount ?? 0
-  );
-
-  const beforeVatFromSummary = cleanNumber(
-    summary.totalBeforeVat ?? employee.totalSalesBeforeVat ?? 0
-  );
-
-  const afterVatFromSummary = cleanNumber(
-    summary.totalAfterVat ?? employee.totalSalesAfterVat ?? 0
-  );
-
-  const commissionFromSummary = cleanNumber(
-    summary.totalCommission ?? employee.totalCommission ?? 0
-  );
-
-  if (
-    salesCountFromSummary > 0 ||
-    beforeVatFromSummary > 0 ||
-    afterVatFromSummary > 0 ||
-    commissionFromSummary > 0
-  ) {
-    return {
-      salesCount: salesCountFromSummary,
-      totalBeforeVat: beforeVatFromSummary,
-      totalAfterVat: afterVatFromSummary,
-      totalCommission:
-        commissionFromSummary > 0
-          ? commissionFromSummary
-          : Number((beforeVatFromSummary * 0.05).toFixed(2)),
-    };
-  }
-
-  return sales.reduce<EmployeeSalesSummary>(
-    (acc, sale) => {
-      acc.salesCount += 1;
-      acc.totalBeforeVat += getSaleBeforeVat(sale);
-      acc.totalAfterVat += getSaleAfterVat(sale);
-      acc.totalCommission += getSaleCommission(sale);
-      return acc;
-    },
-    {
-      salesCount: 0,
-      totalBeforeVat: 0,
-      totalAfterVat: 0,
-      totalCommission: 0,
-    }
-  );
 }
 
 function getMissingFields(employee: EmployeeRow) {
@@ -277,8 +136,7 @@ function Icon({
     | "mail"
     | "phone"
     | "id"
-    | "sparkles"
-    | "money";
+    | "sparkles";
   className?: string;
 }) {
   const common = {
@@ -385,17 +243,6 @@ function Icon({
     );
   }
 
-  if (name === "money") {
-    return (
-      <svg {...common}>
-        <rect x="3" y="6" width="18" height="12" rx="2" />
-        <circle cx="12" cy="12" r="3" />
-        <path d="M6 9v.01" />
-        <path d="M18 15v.01" />
-      </svg>
-    );
-  }
-
   return (
     <svg {...common}>
       <path d="m12 3 10 18H2L12 3z" />
@@ -440,17 +287,6 @@ export default function AdminEmployeesPage() {
           role: cleanStr(employee.role),
           status: cleanStr(employee.status),
           updatedAt: cleanStr(employee.updatedAt),
-
-          sales: Array.isArray(employee.sales) ? employee.sales : [],
-          employeeSales: Array.isArray(employee.employeeSales)
-            ? employee.employeeSales
-            : [],
-          salesSummary: employee.salesSummary || undefined,
-          commissionSummary: employee.commissionSummary || undefined,
-          salesCount: cleanNumber(employee.salesCount),
-          totalSalesBeforeVat: cleanNumber(employee.totalSalesBeforeVat),
-          totalSalesAfterVat: cleanNumber(employee.totalSalesAfterVat),
-          totalCommission: cleanNumber(employee.totalCommission),
         }))
       );
     } catch (loadError) {
@@ -474,7 +310,6 @@ export default function AdminEmployeesPage() {
 
     return employees.filter((employee) => {
       const missing = getMissingFields(employee);
-      const salesSummary = getEmployeeSalesSummary(employee);
 
       const matchesSearch =
         !q ||
@@ -483,8 +318,7 @@ export default function AdminEmployeesPage() {
         employee.phone.toLowerCase().includes(q) ||
         employee.address.toLowerCase().includes(q) ||
         employee.idNumber.toLowerCase().includes(q) ||
-        employee.id.toLowerCase().includes(q) ||
-        String(salesSummary.totalCommission).includes(q);
+        employee.id.toLowerCase().includes(q);
 
       const matchesStatus =
         !statusFilter ||
@@ -510,18 +344,12 @@ export default function AdminEmployeesPage() {
       (employee) => getMissingFields(employee).length > 0
     ).length;
 
-    const totalCommission = employees.reduce((sum, employee) => {
-      const summary = getEmployeeSalesSummary(employee);
-      return sum + summary.totalCommission;
-    }, 0);
-
     return {
       total: employees.length,
       active,
       ended,
       complete,
       missing,
-      totalCommission,
     };
   }, [employees]);
 
@@ -543,10 +371,10 @@ export default function AdminEmployeesPage() {
                 עובדים
               </h1>
 
-              <p className="mt-3 max-w-4xl text-sm font-semibold leading-7 text-slate-500 md:text-base">
+              <p className="mt-3 max-w-3xl text-sm font-semibold leading-7 text-slate-500 md:text-base">
                 כאן מוצגת רשימת עובדים בלבד. הנתונים מסתנכרנים מתיק העובד:
-                פרטים אישיים, העסקה, שכר שעתי ועמלת מכירה. עמלת המכירה היא 5%
-                מסכום העסקה לפני מע״מ.
+                מייל, טלפון, כתובת, תעודת זהות, תחילת העסקה, סיום העסקה ושכר
+                שעתי.
               </p>
             </div>
 
@@ -604,14 +432,9 @@ export default function AdminEmployeesPage() {
             </div>
 
             <div className="rounded-[26px] border border-amber-100 bg-amber-50 p-5">
-              <p className="text-xs font-black text-amber-600">
-                עמלת מכירות
-              </p>
-              <p className="mt-2 text-2xl font-black text-amber-900">
-                {formatMoney(stats.totalCommission)}
-              </p>
-              <p className="mt-1 text-xs font-bold text-amber-700">
-                5% מסכום העסקה לפני מע״מ
+              <p className="text-xs font-black text-amber-600">חסר מידע</p>
+              <p className="mt-2 text-3xl font-black text-amber-900">
+                {stats.missing}
               </p>
             </div>
           </div>
@@ -623,7 +446,7 @@ export default function AdminEmployeesPage() {
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="חיפוש לפי שם עובד, מייל, טלפון, כתובת, תעודת זהות, מזהה או עמלה..."
+                placeholder="חיפוש לפי שם עובד, מייל, טלפון, כתובת, תעודת זהות או מזהה..."
                 className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 pr-12 text-sm font-bold text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-50"
               />
 
@@ -712,189 +535,114 @@ export default function AdminEmployeesPage() {
                   <th className="px-5 py-4 font-black">תחילת העסקה</th>
                   <th className="px-5 py-4 font-black">סיום העסקה</th>
                   <th className="px-5 py-4 font-black">שכר שעתי</th>
-                  <th className="px-5 py-4 font-black">עמלת מכירות</th>
                   <th className="px-5 py-4 font-black">סטטוס</th>
                   <th className="px-5 py-4 font-black">תיק עובד</th>
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-slate-100">
-                {filteredEmployees.map((employee) => {
-                  const salesSummary = getEmployeeSalesSummary(employee);
-
-                  return (
-                    <tr
-                      key={employee.id}
-                      className="transition hover:bg-indigo-50/40"
-                    >
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-100 to-fuchsia-100 text-sm font-black text-indigo-700 ring-1 ring-indigo-100">
-                            {initials(employee.name)}
-                          </div>
-
-                          <div>
-                            <p className="font-black text-slate-900">
-                              {employee.name}
-                            </p>
-                            <p className="mt-1 text-xs font-bold text-slate-400">
-                              ID: {employee.id}
-                            </p>
-                          </div>
+                {filteredEmployees.map((employee) => (
+                  <tr
+                    key={employee.id}
+                    className="transition hover:bg-indigo-50/40"
+                  >
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-100 to-fuchsia-100 text-sm font-black text-indigo-700 ring-1 ring-indigo-100">
+                          {initials(employee.name)}
                         </div>
-                      </td>
 
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
-                          <Icon
-                            name="mail"
-                            className="h-4 w-4 text-slate-400"
-                          />
-                          <span className="max-w-[220px] truncate">
-                            {employee.email || "—"}
-                          </span>
+                        <div>
+                          <p className="font-black text-slate-900">
+                            {employee.name}
+                          </p>
+                          <p className="mt-1 text-xs font-bold text-slate-400">
+                            ID: {employee.id}
+                          </p>
                         </div>
-                      </td>
+                      </div>
+                    </td>
 
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
-                          <Icon
-                            name="phone"
-                            className="h-4 w-4 text-slate-400"
-                          />
-                          <span dir="ltr">{employee.phone || "—"}</span>
-                        </div>
-                      </td>
-
-                      <td className="px-5 py-4 text-sm font-bold text-slate-700">
-                        <span className="block max-w-[210px] truncate">
-                          {employee.address || "—"}
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
+                        <Icon name="mail" className="h-4 w-4 text-slate-400" />
+                        <span className="max-w-[220px] truncate">
+                          {employee.email || "—"}
                         </span>
-                      </td>
+                      </div>
+                    </td>
 
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
-                          <Icon name="id" className="h-4 w-4 text-slate-400" />
-                          <span dir="ltr">{employee.idNumber || "—"}</span>
-                        </div>
-                      </td>
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
+                        <Icon name="phone" className="h-4 w-4 text-slate-400" />
+                        <span dir="ltr">{employee.phone || "—"}</span>
+                      </div>
+                    </td>
 
-                      <td className="px-5 py-4 text-sm font-black text-slate-700">
-                        {formatDate(employee.startDate)}
-                      </td>
+                    <td className="px-5 py-4 text-sm font-bold text-slate-700">
+                      <span className="block max-w-[210px] truncate">
+                        {employee.address || "—"}
+                      </span>
+                    </td>
 
-                      <td className="px-5 py-4 text-sm font-black text-slate-700">
-                        {formatDate(employee.endDate)}
-                      </td>
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
+                        <Icon name="id" className="h-4 w-4 text-slate-400" />
+                        <span dir="ltr">{employee.idNumber || "—"}</span>
+                      </div>
+                    </td>
 
-                      <td className="px-5 py-4 text-sm font-black text-slate-700">
-                        {employee.hourlyRate > 0
-                          ? formatMoney(employee.hourlyRate)
-                          : "—"}
-                      </td>
+                    <td className="px-5 py-4 text-sm font-black text-slate-700">
+                      {formatDate(employee.startDate)}
+                    </td>
 
-                      <td className="px-5 py-4">
-                        <div className="flex flex-col gap-1">
-                          <span className="text-sm font-black text-emerald-700">
-                            {formatMoney(salesSummary.totalCommission)}
-                          </span>
-                          <span className="text-xs font-bold text-slate-400">
-                            5% לפני מע״מ
-                          </span>
-                        </div>
-                      </td>
+                    <td className="px-5 py-4 text-sm font-black text-slate-700">
+                      {formatDate(employee.endDate)}
+                    </td>
 
-                      <td className="px-5 py-4">
-                        <div className="flex flex-col gap-2">
-                          <span
-                            className={`inline-flex w-fit rounded-full border px-3 py-1 text-xs font-black ${employmentStatusClass(
-                              employee
-                            )}`}
-                          >
-                            {employmentStatusLabel(employee)}
-                          </span>
+                    <td className="px-5 py-4 text-sm font-black text-slate-700">
+                      {employee.hourlyRate > 0
+                        ? formatMoney(employee.hourlyRate)
+                        : "—"}
+                    </td>
 
-                          <span
-                            className={`inline-flex w-fit rounded-full border px-3 py-1 text-xs font-black ${detailsStatusClass(
-                              employee
-                            )}`}
-                          >
-                            {detailsStatusLabel(employee)}
-                          </span>
-                        </div>
-                      </td>
-
-                      <td className="px-5 py-4">
-                        <Link
-                          href={`/admin/employees/${encodeURIComponent(
-                            employee.id
+                    <td className="px-5 py-4">
+                      <div className="flex flex-col gap-2">
+                        <span
+                          className={`inline-flex w-fit rounded-full border px-3 py-1 text-xs font-black ${employmentStatusClass(
+                            employee
                           )}`}
-                          className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-indigo-500 to-violet-500 px-4 text-xs font-black text-white shadow-md shadow-indigo-100 transition hover:scale-[1.02]"
                         >
-                          <Icon name="open" className="h-3.5 w-3.5" />
-                          תיק עובד
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })}
+                          {employmentStatusLabel(employee)}
+                        </span>
+
+                        <span
+                          className={`inline-flex w-fit rounded-full border px-3 py-1 text-xs font-black ${detailsStatusClass(
+                            employee
+                          )}`}
+                        >
+                          {detailsStatusLabel(employee)}
+                        </span>
+                      </div>
+                    </td>
+
+                    <td className="px-5 py-4">
+                      <Link
+                        href={`/admin/employees/${encodeURIComponent(
+                          employee.id
+                        )}`}
+                        className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-indigo-500 to-violet-500 px-4 text-xs font-black text-white shadow-md shadow-indigo-100 transition hover:scale-[1.02]"
+                      >
+                        <Icon name="open" className="h-3.5 w-3.5" />
+                        תיק עובד
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </section>
         )}
-
-        {!loading && !error && filteredEmployees.length > 0 ? (
-          <section className="grid gap-4 xl:hidden">
-            {filteredEmployees.map((employee) => {
-              const salesSummary = getEmployeeSalesSummary(employee);
-
-              return (
-                <div
-                  key={employee.id}
-                  className="rounded-[30px] border border-white/80 bg-white p-5 shadow-[0_12px_35px_rgba(15,23,42,0.06)]"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-100 to-fuchsia-100 text-sm font-black text-indigo-700">
-                        {initials(employee.name)}
-                      </div>
-
-                      <div>
-                        <p className="font-black text-slate-900">
-                          {employee.name}
-                        </p>
-                        <p className="mt-1 text-xs font-bold text-slate-400">
-                          {employee.email || "—"}
-                        </p>
-                      </div>
-                    </div>
-
-                    <Link
-                      href={`/admin/employees/${encodeURIComponent(
-                        employee.id
-                      )}`}
-                      className="rounded-2xl bg-gradient-to-l from-indigo-500 to-violet-500 px-4 py-2 text-xs font-black text-white"
-                    >
-                      תיק עובד
-                    </Link>
-                  </div>
-
-                  <div className="mt-5 rounded-2xl bg-amber-50 p-4">
-                    <p className="text-xs font-black text-amber-600">
-                      עמלת מכירות
-                    </p>
-                    <p className="mt-1 text-xl font-black text-amber-900">
-                      {formatMoney(salesSummary.totalCommission)}
-                    </p>
-                    <p className="mt-1 text-xs font-bold text-amber-700">
-                      5% מסכום העסקה לפני מע״מ
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </section>
-        ) : null}
       </div>
     </div>
   );
