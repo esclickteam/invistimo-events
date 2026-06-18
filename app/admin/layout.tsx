@@ -52,6 +52,12 @@ export default function AdminLayout({
       description: "תיק עובד, מסמכים ושעות",
     },
     {
+      href: "/admin/shift-management",
+      label: "ניהול משמרת",
+      icon: "shiftManagement",
+      description: "מעקב עובדים וסופטפון",
+    },
+    {
       href: "/admin/employees/shifts",
       label: "שיבוץ משמרות",
       icon: "calendar",
@@ -299,6 +305,19 @@ function NavIcon({ name }: { name: string }) {
         <path d="M14 9h4" />
         <path d="M14 13h4" />
         <path d="M14 17h3" />
+      </svg>
+    );
+  }
+
+  if (name === "shiftManagement") {
+    return (
+      <svg {...common}>
+        <path d="M4 12a8 8 0 0 1 16 0" />
+        <path d="M4 12v3a2 2 0 0 0 2 2h1v-6H6a2 2 0 0 0-2 2" />
+        <path d="M20 12v3a2 2 0 0 1-2 2h-1v-6h1a2 2 0 0 1 2 2" />
+        <path d="M13 19h2a3 3 0 0 0 3-3" />
+        <path d="M8 21h8" />
+        <path d="M12 17v4" />
       </svg>
     );
   }

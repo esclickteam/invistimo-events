@@ -1772,8 +1772,8 @@ export default function EmployeeDashboardPage() {
                 </span>
 
                 <h1 className="mt-5 text-4xl font-black tracking-tight text-slate-950 sm:text-5xl">
-                  היי {displayName}, בוקר טוב 👋
-                </h1>
+  היי {displayName}
+</h1>
 
                 <p className="mt-4 max-w-2xl text-base font-semibold leading-8 text-slate-600">
                   כאן מופיעים הנתונים שלך כעובד: אירועים בטיפול אישי, לקוחות
