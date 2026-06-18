@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 /* =====================================================
    TYPES
@@ -17,7 +17,12 @@ type SoftphoneStatus =
   | "not_available"
   | "unknown";
 
-type ShiftManagementFilter = "in_shift" | "all" | SoftphoneStatus;
+type ShiftManagementFilter =
+  | "default"
+  | "connected"
+  | "scheduled_today"
+  | "all"
+  | SoftphoneStatus;
 
 type EmployeeShiftMonitor = {
   id?: string;
@@ -209,21 +214,6 @@ type ApiResponse = {
 type ActionResponse = {
   success?: boolean;
   error?: string;
-  monitorSessionId?: string;
-  monitorUrl?: string;
-  url?: string;
-  audioUrl?: string;
-  streamUrl?: string;
-};
-
-type InlineListenSession = {
-  employeeId: string;
-  employeeName: string;
-  loading: boolean;
-  error: string;
-  monitorUrl: string;
-  audioUrl: string;
-  streamUrl: string;
 };
 
 /* =====================================================
@@ -241,8 +231,11 @@ function cleanLower(value: any) {
 
 function safeDate(value?: string | Date | null) {
   if (!value) return null;
+
   const date = new Date(value);
+
   if (Number.isNaN(date.getTime())) return null;
+
   return date;
 }
 
@@ -269,6 +262,14 @@ function parseShiftDateTime(
   date.setHours(Number(match[1]), Number(match[2]), 0, 0);
 
   return date;
+}
+
+function isSameLocalDay(a: Date, b: Date) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
 }
 
 function getEmployeeId(employee: EmployeeShiftMonitor) {
@@ -341,6 +342,20 @@ function getShiftEnd(employee: EmployeeShiftMonitor) {
   );
 }
 
+function getShiftDate(employee: EmployeeShiftMonitor) {
+  const shift = employee.shift;
+  if (!shift) return null;
+
+  return (
+    safeDate(shift.date) ||
+    safeDate(shift.shiftDate) ||
+    safeDate(shift.workDate) ||
+    safeDate(shift.day) ||
+    getShiftStart(employee) ||
+    getShiftEnd(employee)
+  );
+}
+
 function isShiftActiveNow(employee: EmployeeShiftMonitor) {
   const shift = employee.shift;
 
@@ -354,6 +369,13 @@ function isShiftActiveNow(employee: EmployeeShiftMonitor) {
 
   const now = Date.now();
   return start.getTime() <= now && end.getTime() >= now;
+}
+
+function isScheduledToday(employee: EmployeeShiftMonitor) {
+  const shiftDate = getShiftDate(employee);
+  if (!shiftDate) return false;
+
+  return isSameLocalDay(shiftDate, new Date());
 }
 
 function formatTime(value?: string | Date | null) {
@@ -503,7 +525,8 @@ function normalizeStatus(employee: EmployeeShiftMonitor): SoftphoneStatus {
   if (softphoneStatus !== "unknown") return softphoneStatus;
 
   if (employee.isOnline === true || employee.online === true) return "online";
-  if (employee.isActive === false || employee.active === false) return "offline";
+  if (employee.isActive === false || employee.active === false)
+    return "offline";
 
   const lastSeen =
     employee.softphone?.lastSeenAt ||
@@ -514,11 +537,18 @@ function normalizeStatus(employee: EmployeeShiftMonitor): SoftphoneStatus {
   const lastSeenDate = safeDate(lastSeen);
 
   if (lastSeenDate) {
-    const diffSeconds = Math.floor((Date.now() - lastSeenDate.getTime()) / 1000);
+    const diffSeconds = Math.floor(
+      (Date.now() - lastSeenDate.getTime()) / 1000,
+    );
     return diffSeconds <= 120 ? "online" : "offline";
   }
 
   return "unknown";
+}
+
+function isSoftphoneConnected(employee: EmployeeShiftMonitor) {
+  const status = normalizeStatus(employee);
+  return status !== "offline" && status !== "unknown";
 }
 
 function isBlockedRole(employee: EmployeeShiftMonitor) {
@@ -544,7 +574,8 @@ function isBlockedRole(employee: EmployeeShiftMonitor) {
   if (blocked.includes(userType)) return true;
 
   if (employee.isProducer === true || employee.producer === true) return true;
-  if (employee.isVenueOwner === true || employee.venueOwner === true) return true;
+  if (employee.isVenueOwner === true || employee.venueOwner === true)
+    return true;
 
   if (staffType === "producer" || staffType === "venue_owner") return true;
 
@@ -600,8 +631,10 @@ function getStatusMeta(status: SoftphoneStatus) {
     return {
       label: "מחייג",
       dot: "bg-sky-500",
-      row: "border-sky-100 bg-sky-50/40",
+      row: "border-sky-100 bg-sky-50/35",
       badge: "bg-sky-50 text-sky-700 ring-sky-100",
+      accent: "bg-sky-500",
+      glow: "shadow-sky-100",
     };
   }
 
@@ -609,8 +642,10 @@ function getStatusMeta(status: SoftphoneStatus) {
     return {
       label: "בשיחה",
       dot: "bg-emerald-500",
-      row: "border-emerald-100 bg-emerald-50/40",
+      row: "border-emerald-100 bg-emerald-50/35",
       badge: "bg-emerald-50 text-emerald-700 ring-emerald-100",
+      accent: "bg-emerald-500",
+      glow: "shadow-emerald-100",
     };
   }
 
@@ -618,17 +653,21 @@ function getStatusMeta(status: SoftphoneStatus) {
     return {
       label: "שיחה נכנסת",
       dot: "bg-violet-500",
-      row: "border-violet-100 bg-violet-50/40",
+      row: "border-violet-100 bg-violet-50/35",
       badge: "bg-violet-50 text-violet-700 ring-violet-100",
+      accent: "bg-violet-500",
+      glow: "shadow-violet-100",
     };
   }
 
   if (status === "online") {
     return {
-      label: "פנוי",
+      label: "מחובר",
       dot: "bg-emerald-500",
       row: "border-slate-100 bg-white",
       badge: "bg-emerald-50 text-emerald-700 ring-emerald-100",
+      accent: "bg-emerald-500",
+      glow: "shadow-slate-100",
     };
   }
 
@@ -638,6 +677,8 @@ function getStatusMeta(status: SoftphoneStatus) {
       dot: "bg-amber-500",
       row: "border-amber-100 bg-amber-50/30",
       badge: "bg-amber-50 text-amber-700 ring-amber-100",
+      accent: "bg-amber-500",
+      glow: "shadow-amber-100",
     };
   }
 
@@ -647,6 +688,8 @@ function getStatusMeta(status: SoftphoneStatus) {
       dot: "bg-orange-500",
       row: "border-orange-100 bg-orange-50/30",
       badge: "bg-orange-50 text-orange-700 ring-orange-100",
+      accent: "bg-orange-500",
+      glow: "shadow-orange-100",
     };
   }
 
@@ -656,6 +699,8 @@ function getStatusMeta(status: SoftphoneStatus) {
       dot: "bg-rose-500",
       row: "border-rose-100 bg-rose-50/30",
       badge: "bg-rose-50 text-rose-700 ring-rose-100",
+      accent: "bg-rose-500",
+      glow: "shadow-rose-100",
     };
   }
 
@@ -665,6 +710,8 @@ function getStatusMeta(status: SoftphoneStatus) {
       dot: "bg-slate-400",
       row: "border-slate-100 bg-slate-50/70",
       badge: "bg-slate-100 text-slate-600 ring-slate-200",
+      accent: "bg-slate-300",
+      glow: "shadow-slate-100",
     };
   }
 
@@ -673,6 +720,8 @@ function getStatusMeta(status: SoftphoneStatus) {
     dot: "bg-slate-300",
     row: "border-slate-100 bg-white",
     badge: "bg-slate-100 text-slate-500 ring-slate-200",
+    accent: "bg-slate-300",
+    glow: "shadow-slate-100",
   };
 }
 
@@ -802,16 +851,6 @@ function getShiftSeconds(employee: EmployeeShiftMonitor, tick: number) {
   return secondsBetween(start) + tick * 0;
 }
 
-function getShiftLocationLabel(value?: string) {
-  const clean = cleanLower(value);
-
-  if (clean === "home") return "בית";
-  if (clean === "venue") return "אולם";
-  if (clean === "office") return "משרד";
-
-  return cleanString(value) || "—";
-}
-
 function getDirectionLabel(value?: string) {
   const clean = cleanLower(value);
 
@@ -823,16 +862,19 @@ function getDirectionLabel(value?: string) {
 
 function getShiftTitle(employee: EmployeeShiftMonitor) {
   const shift = employee.shift;
-  if (!shift) return "לא במשמרת";
+  if (!shift) return "לא שובץ היום";
 
   return (
     cleanString(shift.title) ||
     cleanString(shift.name) ||
-    (isShiftActiveNow(employee) ? "משמרת פעילה" : "משמרת היום")
+    (isShiftActiveNow(employee) ? "משמרת פעילה" : "משובץ היום")
   );
 }
 
-function getCurrentAction(employee: EmployeeShiftMonitor, status: SoftphoneStatus) {
+function getCurrentAction(
+  employee: EmployeeShiftMonitor,
+  status: SoftphoneStatus,
+) {
   const call = employee.currentCall;
 
   if (status === "dialing") {
@@ -892,7 +934,7 @@ function getCurrentAction(employee: EmployeeShiftMonitor, status: SoftphoneStatu
 
   if (status === "online") {
     return {
-      title: "פנוי לקבל שיחות",
+      title: "מחובר ופנוי",
       sub:
         employee.work?.currentTaskTitle ||
         employee.work?.currentClientName ||
@@ -904,21 +946,39 @@ function getCurrentAction(employee: EmployeeShiftMonitor, status: SoftphoneStatu
   if (status === "offline") {
     return {
       title: "מנותק מהסופטפון",
-      sub: "לא זמין לשיחות",
+      sub: isScheduledToday(employee)
+        ? "משובץ היום אבל לא מחובר"
+        : "לא זמין לשיחות",
     };
   }
 
   return {
     title: "אין נתונים עדכניים",
-    sub: "מחכה לסנכרון מהסופטפון",
+    sub: isScheduledToday(employee)
+      ? "משובץ היום, מחכה לחיבור"
+      : "מחכה לסנכרון מהסופטפון",
   };
 }
 
 function isInDefaultShiftView(employee: EmployeeShiftMonitor) {
-  const status = normalizeStatus(employee);
-  const shiftActive = isShiftActiveNow(employee);
+  return (
+    isSoftphoneConnected(employee) ||
+    isShiftActiveNow(employee) ||
+    isScheduledToday(employee)
+  );
+}
 
-  return shiftActive && status !== "offline" && status !== "unknown";
+function getRowPriority(employee: EmployeeShiftMonitor) {
+  const status = normalizeStatus(employee);
+
+  if (status === "ringing") return 1;
+  if (status === "in_call") return 2;
+  if (status === "dialing") return 3;
+  if (status === "online") return 4;
+  if (status === "busy" || status === "not_available") return 5;
+  if (status === "break") return 6;
+  if (isScheduledToday(employee)) return 7;
+  return 9;
 }
 
 /* =====================================================
@@ -928,21 +988,27 @@ function isInDefaultShiftView(employee: EmployeeShiftMonitor) {
 export default function AdminShiftManagementPage() {
   const [employees, setEmployees] = useState<EmployeeShiftMonitor[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [backgroundSyncing, setBackgroundSyncing] = useState(false);
   const [actionEmployeeId, setActionEmployeeId] = useState("");
-  const [listenSession, setListenSession] =
-    useState<InlineListenSession | null>(null);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] =
-    useState<ShiftManagementFilter>("in_shift");
+    useState<ShiftManagementFilter>("default");
   const [tick, setTick] = useState(0);
   const [lastRefreshAt, setLastRefreshAt] = useState<Date | null>(null);
+  const fetchingRef = useRef(false);
 
-  const fetchEmployees = useCallback(async (silent = false) => {
+  const fetchEmployees = useCallback(async (initialLoad = false) => {
+    if (fetchingRef.current) return;
+
     try {
-      if (silent) setRefreshing(true);
-      else setLoading(true);
+      fetchingRef.current = true;
+
+      if (initialLoad) {
+        setLoading(true);
+      } else {
+        setBackgroundSyncing(true);
+      }
 
       setError("");
 
@@ -970,15 +1036,15 @@ export default function AdminShiftManagementPage() {
       setLastRefreshAt(new Date());
     } catch (err: any) {
       setError(err?.message || "שגיאה בטעינת ניהול המשמרת");
-      setEmployees([]);
     } finally {
       setLoading(false);
-      setRefreshing(false);
+      setBackgroundSyncing(false);
+      fetchingRef.current = false;
     }
   }, []);
 
   useEffect(() => {
-    fetchEmployees(false);
+    fetchEmployees(true);
   }, [fetchEmployees]);
 
   useEffect(() => {
@@ -991,8 +1057,8 @@ export default function AdminShiftManagementPage() {
 
   useEffect(() => {
     const timer = window.setInterval(() => {
-      fetchEmployees(true);
-    }, 1500);
+      fetchEmployees(false);
+    }, 2500);
 
     return () => window.clearInterval(timer);
   }, [fetchEmployees]);
@@ -1002,27 +1068,32 @@ export default function AdminShiftManagementPage() {
 
     if (!employeeId || actionEmployeeId) return;
 
-    const ok = window.confirm(`להוציא את ${getEmployeeName(employee)} מהמשמרת?`);
+    const ok = window.confirm(
+      `להוציא את ${getEmployeeName(employee)} מהמשמרת?`,
+    );
     if (!ok) return;
 
     try {
       setActionEmployeeId(employeeId);
 
-      const res = await fetch("/api/admin/shift-management/end-employee-shift", {
-        method: "POST",
-        credentials: "include",
-        cache: "no-store",
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store",
+      const res = await fetch(
+        "/api/admin/shift-management/end-employee-shift",
+        {
+          method: "POST",
+          credentials: "include",
+          cache: "no-store",
+          headers: {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-store",
+          },
+          body: JSON.stringify({
+            employeeId,
+            employeeEmail: employee.email || "",
+            shiftSessionId: employee.shiftSessionId || "",
+            source: "admin-shift-management",
+          }),
         },
-        body: JSON.stringify({
-          employeeId,
-          employeeEmail: employee.email || "",
-          shiftSessionId: employee.shiftSessionId || "",
-          source: "admin-shift-management",
-        }),
-      });
+      );
 
       const json = (await res.json().catch(() => ({}))) as ActionResponse;
 
@@ -1030,11 +1101,7 @@ export default function AdminShiftManagementPage() {
         throw new Error(json.error || "לא הצלחתי להוציא את העובד מהמשמרת");
       }
 
-      if (listenSession?.employeeId === employeeId) {
-        setListenSession(null);
-      }
-
-      await fetchEmployees(true);
+      await fetchEmployees(false);
     } catch (err: any) {
       alert(err?.message || "שגיאה בהוצאת העובד מהמשמרת");
     } finally {
@@ -1076,11 +1143,7 @@ export default function AdminShiftManagementPage() {
         throw new Error(json.error || "לא הצלחתי לנתק את השיחה");
       }
 
-      if (listenSession?.employeeId === employeeId) {
-        setListenSession(null);
-      }
-
-      await fetchEmployees(true);
+      await fetchEmployees(false);
     } catch (err: any) {
       alert(err?.message || "שגיאה בניתוק שיחה");
     } finally {
@@ -1088,248 +1151,268 @@ export default function AdminShiftManagementPage() {
     }
   }
 
-  async function listenToEmployeeCall(employee: EmployeeShiftMonitor) {
-    const employeeId = getEmployeeId(employee);
-    const employeeName = getEmployeeName(employee);
-    const callControlId = getCallControlId(employee);
-
-    if (!employeeId || !callControlId || actionEmployeeId) return;
-
-    try {
-      setActionEmployeeId(employeeId);
-
-      setListenSession({
-        employeeId,
-        employeeName,
-        loading: true,
-        error: "",
-        monitorUrl: "",
-        audioUrl: "",
-        streamUrl: "",
-      });
-
-      const res = await fetch("/api/admin/shift-management/listen-call", {
-        method: "POST",
-        credentials: "include",
-        cache: "no-store",
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-store",
-        },
-        body: JSON.stringify({
-          employeeId,
-          employeeEmail: employee.email || "",
-          callControlId,
-          source: "admin-shift-management-inline-row",
-        }),
-      });
-
-      const json = (await res.json().catch(() => ({}))) as ActionResponse;
-
-      if (!res.ok || json.success === false) {
-        throw new Error(json.error || "לא הצלחתי לפתוח האזנה לשיחה");
-      }
-
-      setListenSession({
-        employeeId,
-        employeeName,
-        loading: false,
-        error: "",
-        monitorUrl: json.monitorUrl || json.url || "",
-        audioUrl: json.audioUrl || "",
-        streamUrl: json.streamUrl || "",
-      });
-    } catch (err: any) {
-      setListenSession({
-        employeeId,
-        employeeName,
-        loading: false,
-        error: err?.message || "שגיאה בהאזנה לשיחה",
-        monitorUrl: "",
-        audioUrl: "",
-        streamUrl: "",
-      });
-    } finally {
-      setActionEmployeeId("");
-    }
-  }
-
   const stats = useMemo(() => {
-    let inShift = 0;
-    let online = 0;
+    let visibleDefault = 0;
+    let connected = 0;
+    let scheduledToday = 0;
+    let activeShift = 0;
     let dialing = 0;
-    let inCall = 0;
+    let liveCalls = 0;
     let notAvailable = 0;
-    let offline = 0;
 
     for (const employee of employees) {
       const status = normalizeStatus(employee);
-      const shiftActive = isShiftActiveNow(employee);
 
-      if (shiftActive) inShift += 1;
-      if (status === "online") online += 1;
+      if (isInDefaultShiftView(employee)) visibleDefault += 1;
+      if (isSoftphoneConnected(employee)) connected += 1;
+      if (isScheduledToday(employee)) scheduledToday += 1;
+      if (isShiftActiveNow(employee)) activeShift += 1;
       if (status === "dialing") dialing += 1;
-      if (status === "in_call" || status === "ringing") inCall += 1;
+      if (status === "in_call" || status === "ringing") liveCalls += 1;
 
-      if (status === "busy" || status === "break" || status === "not_available") {
+      if (
+        status === "busy" ||
+        status === "break" ||
+        status === "not_available"
+      ) {
         notAvailable += 1;
       }
-
-      if (status === "offline" || status === "unknown") offline += 1;
     }
 
     return {
       total: employees.length,
-      inShift,
-      online,
+      visibleDefault,
+      connected,
+      scheduledToday,
+      activeShift,
       dialing,
-      inCall,
+      liveCalls,
       notAvailable,
-      offline,
     };
   }, [employees, tick]);
 
   const filteredEmployees = useMemo(() => {
     const cleanQuery = query.trim().toLowerCase();
 
-    return employees.filter((employee) => {
-      const status = normalizeStatus(employee);
-      const name = getEmployeeName(employee).toLowerCase();
+    return employees
+      .filter((employee) => {
+        const status = normalizeStatus(employee);
+        const name = getEmployeeName(employee).toLowerCase();
 
-      const searchable = [
-        name,
-        employee.email,
-        getEmployeePhone(employee),
-        employee.role,
-        employee.staffType,
-        employee.softphone?.extension,
-        employee.softphone?.sipExtension,
-        employee.softphone?.sipUsername,
-        employee.softphone?.sip_user,
-        employee.currentCall?.customerName,
-        employee.currentCall?.customerPhone,
-        employee.currentCall?.clientName,
-        employee.currentCall?.clientPhone,
-        employee.currentCall?.guestName,
-        employee.currentCall?.guestPhone,
-        employee.currentCall?.eventName,
-        employee.currentCall?.eventTitle,
-        employee.currentCall?.invitationTitle,
-        employee.currentCall?.invitationName,
-        employee.availability?.reason,
-        employee.availability?.note,
-        employee.availabilityReason,
-        employee.notAvailableReason,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
+        const searchable = [
+          name,
+          employee.email,
+          getEmployeePhone(employee),
+          employee.role,
+          employee.staffType,
+          employee.softphone?.extension,
+          employee.softphone?.sipExtension,
+          employee.softphone?.sipUsername,
+          employee.softphone?.sip_user,
+          employee.currentCall?.customerName,
+          employee.currentCall?.customerPhone,
+          employee.currentCall?.clientName,
+          employee.currentCall?.clientPhone,
+          employee.currentCall?.guestName,
+          employee.currentCall?.guestPhone,
+          employee.currentCall?.eventName,
+          employee.currentCall?.eventTitle,
+          employee.currentCall?.invitationTitle,
+          employee.currentCall?.invitationName,
+          employee.availability?.reason,
+          employee.availability?.note,
+          employee.availabilityReason,
+          employee.notAvailableReason,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
 
-      const matchQuery = !cleanQuery || searchable.includes(cleanQuery);
+        const matchQuery = !cleanQuery || searchable.includes(cleanQuery);
 
-      const matchStatus =
-        statusFilter === "all"
-          ? true
-          : statusFilter === "in_shift"
-            ? isInDefaultShiftView(employee)
-            : status === statusFilter;
+        const matchStatus =
+          statusFilter === "all"
+            ? true
+            : statusFilter === "default"
+              ? isInDefaultShiftView(employee)
+              : statusFilter === "connected"
+                ? isSoftphoneConnected(employee)
+                : statusFilter === "scheduled_today"
+                  ? isScheduledToday(employee)
+                  : status === statusFilter;
 
-      return matchQuery && matchStatus;
-    });
+        return matchQuery && matchStatus;
+      })
+      .sort((a, b) => {
+        const priorityDiff = getRowPriority(a) - getRowPriority(b);
+        if (priorityDiff !== 0) return priorityDiff;
+
+        return getEmployeeName(a).localeCompare(getEmployeeName(b), "he");
+      });
   }, [employees, query, statusFilter, tick]);
 
   return (
     <div className="space-y-5" dir="rtl">
-      {/* HEADER */}
-      <section className="rounded-[30px] border border-white/80 bg-white/90 p-5 shadow-xl shadow-indigo-100/40 backdrop-blur">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+      {/* HERO */}
+      <section className="relative overflow-hidden rounded-[34px] border border-white/80 bg-slate-950 p-5 text-white shadow-2xl shadow-indigo-200/50 md:p-6">
+        <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-indigo-500/30 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-28 right-8 h-72 w-72 rounded-full bg-emerald-500/20 blur-3xl" />
+
+        <div className="relative flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-indigo-50 px-4 py-2 text-xs font-black text-indigo-700 ring-1 ring-indigo-100">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-indigo-500" />
-              טבלת סופטפונים חיה · עובדים במשמרת כברירת מחדל
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-xs font-black text-white ring-1 ring-white/15">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
+              </span>
+              LIVE · מתעדכן אוטומטית כל 2.5 שניות
             </div>
 
-            <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-950">
+            <h1 className="mt-3 text-3xl font-black tracking-tight md:text-4xl">
               ניהול משמרת
             </h1>
 
-            <p className="mt-2 text-sm font-bold text-slate-500">
-              שורה לכל עובד: סטטוס, שיחה פעילה, זמן, האזנה בתוך השורה, ניתוק שיחה והוצאה ממשמרת.
-            </p>
-
-            <p className="mt-2 text-xs font-bold text-slate-400">
-              עדכון אחרון: {lastRefreshAt ? formatDateTime(lastRefreshAt) : "—"}
-              {refreshing ? " · מתעדכן..." : ""}
+            <p className="mt-2 max-w-4xl text-sm font-bold leading-6 text-slate-300">
+              ברירת המחדל מציגה עובד שמחובר לסופטפון, עובד במשמרת פעילה, או עובד
+              שמשובץ היום. חיבור לסופטפון נחשב כמשמרת בפועל ואפשר להוציא אותו
+              ממשמרת.
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => fetchEmployees(false)}
-            disabled={loading || refreshing}
-            className="h-11 rounded-2xl bg-gradient-to-l from-indigo-500 to-violet-500 px-5 text-sm font-black text-white shadow-lg shadow-indigo-100 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {loading || refreshing ? "מרענן..." : "רענון ידני"}
-          </button>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <HeroMini label="מוצגים עכשיו" value={stats.visibleDefault} />
+            <HeroMini label="מחוברים" value={stats.connected} />
+            <HeroMini label="בשיחה" value={stats.liveCalls} />
+            <HeroMini label="משובצים היום" value={stats.scheduledToday} />
+          </div>
+        </div>
+      </section>
+
+      {/* STATUS BAR */}
+      <section className="flex flex-col gap-3 rounded-[28px] border border-white/80 bg-white/90 p-4 shadow-xl shadow-slate-100/80 backdrop-blur xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex flex-wrap items-center gap-2 text-xs font-black">
+          <span className="rounded-full bg-emerald-50 px-3 py-2 text-emerald-700 ring-1 ring-emerald-100">
+            עדכון אחרון: {lastRefreshAt ? formatDateTime(lastRefreshAt) : "—"}
+          </span>
+          <span className="rounded-full bg-slate-50 px-3 py-2 text-slate-500 ring-1 ring-slate-100">
+            {backgroundSyncing ? "מסנכרן ברקע..." : "סנכרון אוטומטי פעיל"}
+          </span>
+          <span className="rounded-full bg-indigo-50 px-3 py-2 text-indigo-700 ring-1 ring-indigo-100">
+            ללא כפתור רענון ידני
+          </span>
+        </div>
+
+        <div className="relative w-full xl:max-w-md">
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="חיפוש עובד / מספר / לקוח / אירוע..."
+            className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 pr-11 text-sm font-bold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-indigo-200 focus:bg-white focus:ring-4 focus:ring-indigo-50"
+          />
+
+          <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
+            🔎
+          </span>
         </div>
       </section>
 
       {/* STATS */}
-      <section className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
-        <StatCard label="במשמרת" value={stats.inShift} hint="ברירת מחדל" />
-        <StatCard label="פנויים" value={stats.online} hint="יכולים לקבל שיחה" />
+      <section className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
+        <StatCard
+          label="מוצגים"
+          value={stats.visibleDefault}
+          hint="מחובר / משמרת / שיבוץ"
+        />
+        <StatCard label="מחוברים" value={stats.connected} hint="נחשב במשמרת" />
+        <StatCard
+          label="משמרת פעילה"
+          value={stats.activeShift}
+          hint="shift פעיל"
+        />
+        <StatCard
+          label="משובצים היום"
+          value={stats.scheduledToday}
+          hint="גם אם לא התחברו"
+        />
         <StatCard label="מחייגים" value={stats.dialing} hint="שיחה יוצאת" />
-        <StatCard label="בשיחה" value={stats.inCall} hint="פעילות עכשיו" />
-        <StatCard label="לא פנויים" value={stats.notAvailable} hint="עסוק / הפסקה" />
-        <StatCard label="מנותקים" value={stats.offline} hint="לא זמינים" />
-        <StatCard label="סה״כ עובדים" value={stats.total} hint="עובדי מערכת" />
+        <StatCard label="בשיחה" value={stats.liveCalls} hint="פעילות עכשיו" />
+        <StatCard
+          label="לא פנויים"
+          value={stats.notAvailable}
+          hint="עסוק / הפסקה"
+        />
+        <StatCard label="סה״כ" value={stats.total} hint="עובדי מערכת" />
       </section>
 
       {/* FILTERS */}
       <section className="rounded-[26px] border border-white/70 bg-white/90 p-4 shadow-lg shadow-slate-100/70 backdrop-blur">
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-          <div className="relative w-full xl:max-w-md">
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="חיפוש עובד / מספר / לקוח / אירוע..."
-              className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 pr-11 text-sm font-bold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-indigo-200 focus:bg-white focus:ring-4 focus:ring-indigo-50"
-            />
-
-            <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
-              🔎
-            </span>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <FilterButton active={statusFilter === "in_shift"} onClick={() => setStatusFilter("in_shift")}>
-              במשמרת
-            </FilterButton>
-            <FilterButton active={statusFilter === "all"} onClick={() => setStatusFilter("all")}>
-              הכל
-            </FilterButton>
-            <FilterButton active={statusFilter === "online"} onClick={() => setStatusFilter("online")}>
-              פנויים
-            </FilterButton>
-            <FilterButton active={statusFilter === "dialing"} onClick={() => setStatusFilter("dialing")}>
-              מחייגים
-            </FilterButton>
-            <FilterButton active={statusFilter === "in_call"} onClick={() => setStatusFilter("in_call")}>
-              בשיחה
-            </FilterButton>
-            <FilterButton active={statusFilter === "ringing"} onClick={() => setStatusFilter("ringing")}>
-              נכנסת
-            </FilterButton>
-            <FilterButton active={statusFilter === "not_available"} onClick={() => setStatusFilter("not_available")}>
-              לא פנויים
-            </FilterButton>
-            <FilterButton active={statusFilter === "break"} onClick={() => setStatusFilter("break")}>
-              הפסקה
-            </FilterButton>
-            <FilterButton active={statusFilter === "offline"} onClick={() => setStatusFilter("offline")}>
-              מנותקים
-            </FilterButton>
-          </div>
+        <div className="flex flex-wrap gap-2">
+          <FilterButton
+            active={statusFilter === "default"}
+            onClick={() => setStatusFilter("default")}
+          >
+            ברירת מחדל
+          </FilterButton>
+          <FilterButton
+            active={statusFilter === "connected"}
+            onClick={() => setStatusFilter("connected")}
+          >
+            מחוברים
+          </FilterButton>
+          <FilterButton
+            active={statusFilter === "scheduled_today"}
+            onClick={() => setStatusFilter("scheduled_today")}
+          >
+            משובצים היום
+          </FilterButton>
+          <FilterButton
+            active={statusFilter === "all"}
+            onClick={() => setStatusFilter("all")}
+          >
+            הכל
+          </FilterButton>
+          <FilterButton
+            active={statusFilter === "online"}
+            onClick={() => setStatusFilter("online")}
+          >
+            פנויים
+          </FilterButton>
+          <FilterButton
+            active={statusFilter === "dialing"}
+            onClick={() => setStatusFilter("dialing")}
+          >
+            מחייגים
+          </FilterButton>
+          <FilterButton
+            active={statusFilter === "in_call"}
+            onClick={() => setStatusFilter("in_call")}
+          >
+            בשיחה
+          </FilterButton>
+          <FilterButton
+            active={statusFilter === "ringing"}
+            onClick={() => setStatusFilter("ringing")}
+          >
+            נכנסת
+          </FilterButton>
+          <FilterButton
+            active={statusFilter === "not_available"}
+            onClick={() => setStatusFilter("not_available")}
+          >
+            לא פנויים
+          </FilterButton>
+          <FilterButton
+            active={statusFilter === "break"}
+            onClick={() => setStatusFilter("break")}
+          >
+            הפסקה
+          </FilterButton>
+          <FilterButton
+            active={statusFilter === "offline"}
+            onClick={() => setStatusFilter("offline")}
+          >
+            מנותקים
+          </FilterButton>
         </div>
       </section>
 
@@ -1342,19 +1425,19 @@ export default function AdminShiftManagementPage() {
       {/* TABLE */}
       <section className="overflow-hidden rounded-[30px] border border-white/80 bg-white/95 shadow-xl shadow-slate-100/80 backdrop-blur">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1550px] border-collapse text-right">
+          <table className="w-full min-w-[1450px] border-collapse text-right">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50/90 text-xs font-black text-slate-500">
                 <th className="px-5 py-4">עובד</th>
-                <th className="px-5 py-4">סטטוס סופטפון</th>
+                <th className="px-5 py-4">חיבור</th>
                 <th className="px-5 py-4">מה קורה עכשיו</th>
                 <th className="px-5 py-4">מספר פעיל</th>
                 <th className="px-5 py-4">זמן מצב</th>
-                <th className="px-5 py-4">משמרת</th>
+                <th className="px-5 py-4">שיבוץ / משמרת</th>
                 <th className="px-5 py-4">זמן משמרת</th>
                 <th className="px-5 py-4">שיחות היום</th>
                 <th className="px-5 py-4">עדכון אחרון</th>
-                <th className="px-5 py-4">פעולות אדמין</th>
+                <th className="px-5 py-4">פעולות</th>
               </tr>
             </thead>
 
@@ -1369,51 +1452,26 @@ export default function AdminShiftManagementPage() {
                         🎧
                       </div>
                       <p className="mt-4 text-lg font-black text-slate-900">
-                        {statusFilter === "in_shift"
-                          ? "אין עובדים במשמרת כרגע"
-                          : "אין עובדים להצגה"}
+                        אין עובדים להצגה
                       </p>
                       <p className="mt-2 text-sm font-bold text-slate-500">
-                        ברירת המחדל מציגה רק עובדים שמחוברים ובמשמרת. לחצי על “הכל” כדי לראות את כל עובדי המערכת.
+                        ברירת המחדל מציגה מחוברים, עובדים במשמרת פעילה ומשובצים
+                        היום.
                       </p>
                     </div>
                   </td>
                 </tr>
               ) : (
-                filteredEmployees.map((employee) => {
-                  const employeeId = getEmployeeId(employee);
-                  const isListeningRow = listenSession?.employeeId === employeeId;
-
-                  return (
-                    <Fragment key={employeeId}>
-                      <LiveSoftphoneRow
-                        employee={employee}
-                        tick={tick}
-                        busy={actionEmployeeId === employeeId}
-                        listening={isListeningRow}
-                        onEndShift={() => endEmployeeShift(employee)}
-                        onHangup={() => hangupEmployeeCall(employee)}
-                        onListen={() => listenToEmployeeCall(employee)}
-                        onCloseListen={() => {
-                          if (listenSession?.employeeId === employeeId) {
-                            setListenSession(null);
-                          }
-                        }}
-                      />
-
-                      {isListeningRow && (
-                        <tr className="border-b border-indigo-100 bg-indigo-50/40">
-                          <td colSpan={10} className="px-5 py-4">
-                            <InlineListenPanel
-                              session={listenSession}
-                              onClose={() => setListenSession(null)}
-                            />
-                          </td>
-                        </tr>
-                      )}
-                    </Fragment>
-                  );
-                })
+                filteredEmployees.map((employee) => (
+                  <LiveSoftphoneRow
+                    key={getEmployeeId(employee)}
+                    employee={employee}
+                    tick={tick}
+                    busy={actionEmployeeId === getEmployeeId(employee)}
+                    onEndShift={() => endEmployeeShift(employee)}
+                    onHangup={() => hangupEmployeeCall(employee)}
+                  />
+                ))
               )}
             </tbody>
           </table>
@@ -1431,55 +1489,58 @@ function LiveSoftphoneRow({
   employee,
   tick,
   busy,
-  listening,
   onEndShift,
   onHangup,
-  onListen,
-  onCloseListen,
 }: {
   employee: EmployeeShiftMonitor;
   tick: number;
   busy: boolean;
-  listening: boolean;
   onEndShift: () => void;
   onHangup: () => void;
-  onListen: () => void;
-  onCloseListen: () => void;
 }) {
   const status = normalizeStatus(employee);
   const meta = getStatusMeta(status);
   const name = getEmployeeName(employee);
   const image = getEmployeeImage(employee);
   const shiftActive = isShiftActiveNow(employee);
+  const connected = isSoftphoneConnected(employee);
+  const scheduledToday = isScheduledToday(employee);
   const action = getCurrentAction(employee, status);
 
-  const isCall = status === "dialing" || status === "ringing" || status === "in_call";
+  const isCall =
+    status === "dialing" || status === "ringing" || status === "in_call";
   const duration = isCall
     ? getCurrentCallDuration(employee, tick)
     : getAvailabilityDuration(employee, tick);
 
   const callControlId = getCallControlId(employee);
-  const canListen = Boolean(callControlId) && (status === "in_call" || status === "ringing" || status === "dialing");
-  const canHangup = Boolean(callControlId) && (status === "in_call" || status === "ringing" || status === "dialing");
+  const canHangup = Boolean(callControlId) && isCall;
 
   const shiftStart = getShiftStart(employee);
   const shiftEnd = getShiftEnd(employee);
 
   return (
-    <tr className={`border-b last:border-b-0 ${meta.row}`}>
+    <tr
+      className={`border-b last:border-b-0 ${meta.row} transition-colors hover:bg-white`}
+    >
       <td className="px-5 py-4">
         <div className="flex items-center gap-3">
-          {image ? (
-            <img
-              src={image}
-              alt={name}
-              className="h-12 w-12 shrink-0 rounded-2xl object-cover ring-1 ring-slate-100"
+          <div className="relative shrink-0">
+            {image ? (
+              <img
+                src={image}
+                alt={name}
+                className="h-12 w-12 rounded-2xl object-cover ring-1 ring-slate-100"
+              />
+            ) : (
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-900 to-indigo-600 text-sm font-black text-white shadow-lg shadow-indigo-100">
+                {getInitials(name)}
+              </div>
+            )}
+            <span
+              className={`absolute -bottom-1 -left-1 h-4 w-4 rounded-full border-2 border-white ${connected ? "bg-emerald-500" : "bg-slate-300"}`}
             />
-          ) : (
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-500 text-sm font-black text-white shadow-lg shadow-indigo-100">
-              {getInitials(name)}
-            </div>
-          )}
+          </div>
 
           <div className="min-w-0">
             <p className="truncate text-sm font-black text-slate-950">{name}</p>
@@ -1491,7 +1552,16 @@ function LiveSoftphoneRow({
       </td>
 
       <td className="px-5 py-4">
-        <StatusBadge status={status} />
+        <div className="space-y-2">
+          <StatusBadge status={status} />
+          <div className="flex flex-wrap gap-1.5">
+            {connected && <SmallPill tone="green">מחובר = במשמרת</SmallPill>}
+            {shiftActive && <SmallPill tone="blue">משמרת פעילה</SmallPill>}
+            {scheduledToday && !shiftActive && (
+              <SmallPill tone="amber">משובץ היום</SmallPill>
+            )}
+          </div>
+        </div>
       </td>
 
       <td className="px-5 py-4">
@@ -1504,34 +1574,50 @@ function LiveSoftphoneRow({
       </td>
 
       <td className="px-5 py-4">
-        <p dir="ltr" className="text-left font-mono text-sm font-black text-slate-900">
+        <p
+          dir="ltr"
+          className="text-left font-mono text-sm font-black text-slate-900"
+        >
           {isCall ? getCallPhone(employee) || "—" : "—"}
         </p>
         <p className="mt-1 text-xs font-bold text-slate-400">
-          {isCall ? getDirectionLabel(employee.currentCall?.direction) : "אין שיחה"}
+          {isCall
+            ? getDirectionLabel(employee.currentCall?.direction)
+            : "אין שיחה"}
         </p>
       </td>
 
       <td className="px-5 py-4">
-        <span dir="ltr" className="inline-flex rounded-2xl bg-slate-950 px-3 py-2 font-mono text-sm font-black text-white">
+        <span
+          dir="ltr"
+          className="inline-flex rounded-2xl bg-slate-950 px-3 py-2 font-mono text-sm font-black text-white shadow-lg shadow-slate-200"
+        >
           {formatDuration(duration)}
         </span>
       </td>
 
       <td className="px-5 py-4">
-        <p className={`text-sm font-black ${shiftActive ? "text-emerald-700" : "text-slate-700"}`}>
-          {shiftActive ? getShiftTitle(employee) : "לא במשמרת"}
+        <p
+          className={`text-sm font-black ${shiftActive || connected ? "text-emerald-700" : scheduledToday ? "text-amber-700" : "text-slate-700"}`}
+        >
+          {connected ? "במשמרת מחובר" : getShiftTitle(employee)}
         </p>
         <p className="mt-1 text-xs font-bold text-slate-400">
           {shiftStart || shiftEnd
             ? `${formatTime(shiftStart)} - ${formatTime(shiftEnd)}`
-            : "—"}
+            : scheduledToday
+              ? "שיבוץ היום ללא שעות"
+              : "—"}
         </p>
       </td>
 
       <td className="px-5 py-4">
         <span dir="ltr" className="font-mono text-sm font-black text-slate-900">
-          {shiftActive ? formatDuration(getShiftSeconds(employee, tick)) : "—"}
+          {shiftActive
+            ? formatDuration(getShiftSeconds(employee, tick))
+            : connected
+              ? formatDuration(getAvailabilityDuration(employee, tick))
+              : "—"}
         </span>
       </td>
 
@@ -1558,19 +1644,6 @@ function LiveSoftphoneRow({
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={listening ? onCloseListen : onListen}
-            disabled={!canListen || busy}
-            className={`h-9 rounded-2xl border px-3 text-xs font-black transition disabled:cursor-not-allowed disabled:opacity-40 ${
-              listening
-                ? "border-indigo-200 bg-indigo-600 text-white hover:bg-indigo-700"
-                : "border-indigo-100 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
-            }`}
-          >
-            {listening ? "סגור האזנה" : "האזנה"}
-          </button>
-
-          <button
-            type="button"
             onClick={onHangup}
             disabled={!canHangup || busy}
             className="h-9 rounded-2xl border border-rose-100 bg-rose-50 px-3 text-xs font-black text-rose-600 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-40"
@@ -1581,7 +1654,7 @@ function LiveSoftphoneRow({
           <button
             type="button"
             onClick={onEndShift}
-            disabled={!shiftActive || busy}
+            disabled={(!connected && !shiftActive) || busy}
             className="h-9 rounded-2xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
           >
             הוצא ממשמרת
@@ -1592,96 +1665,51 @@ function LiveSoftphoneRow({
   );
 }
 
-function InlineListenPanel({
-  session,
-  onClose,
-}: {
-  session: InlineListenSession;
-  onClose: () => void;
-}) {
-  const playableUrl = session.audioUrl || session.streamUrl || "";
-
-  return (
-    <div className="rounded-[26px] border border-indigo-100 bg-white p-4 shadow-lg shadow-indigo-100/50">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <div className="inline-flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-black text-indigo-700 ring-1 ring-indigo-100">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-indigo-500" />
-            האזנה חיה לשיחה
-          </div>
-
-          <h3 className="mt-2 text-lg font-black text-slate-950">
-            {session.employeeName}
-          </h3>
-
-          <p className="mt-1 text-xs font-bold text-slate-500">
-            ההאזנה מוצגת בתוך שורת העובד, בלי לפתוח חלון חדש.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={onClose}
-          className="h-10 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-xs font-black text-slate-600 transition hover:bg-slate-100"
-        >
-          סגור האזנה
-        </button>
-      </div>
-
-      {session.loading && (
-        <div className="mt-4 rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm font-black text-slate-600">
-          מתחבר להאזנה...
-        </div>
-      )}
-
-      {!session.loading && session.error && (
-        <div className="mt-4 rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm font-black text-rose-700">
-          {session.error}
-        </div>
-      )}
-
-      {!session.loading && !session.error && playableUrl && (
-        <div className="mt-4 rounded-2xl border border-slate-100 bg-slate-50 p-4">
-          <p className="mb-2 text-xs font-black text-slate-500">נגן האזנה</p>
-
-          <audio src={playableUrl} controls autoPlay className="w-full" />
-        </div>
-      )}
-
-      {!session.loading && !session.error && !playableUrl && session.monitorUrl && (
-        <div className="mt-4 overflow-hidden rounded-2xl border border-slate-100 bg-slate-50">
-          <iframe
-            src={session.monitorUrl}
-            className="h-[220px] w-full border-0"
-            allow="autoplay; microphone"
-            title={`האזנה לשיחה של ${session.employeeName}`}
-          />
-        </div>
-      )}
-
-      {!session.loading &&
-        !session.error &&
-        !playableUrl &&
-        !session.monitorUrl && (
-          <div className="mt-4 rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm font-black text-amber-700">
-            נוצרה בקשת האזנה, אבל השרת לא החזיר נגן או קישור האזנה.
-          </div>
-        )}
-    </div>
-  );
-}
-
 /* =====================================================
    SMALL COMPONENTS
 ===================================================== */
+
+function HeroMini({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-3xl bg-white/10 p-4 ring-1 ring-white/10 backdrop-blur">
+      <p className="text-xs font-black text-slate-300">{label}</p>
+      <p className="mt-1 text-3xl font-black text-white">{value}</p>
+    </div>
+  );
+}
 
 function StatusBadge({ status }: { status: SoftphoneStatus }) {
   const meta = getStatusMeta(status);
 
   return (
-    <span className={`inline-flex items-center gap-2 rounded-2xl px-3 py-2 text-xs font-black ring-1 ${meta.badge}`}>
+    <span
+      className={`inline-flex items-center gap-2 rounded-2xl px-3 py-2 text-xs font-black ring-1 ${meta.badge}`}
+    >
       <span className={`h-2.5 w-2.5 rounded-full ${meta.dot}`} />
       {meta.label}
+    </span>
+  );
+}
+
+function SmallPill({
+  children,
+  tone,
+}: {
+  children: React.ReactNode;
+  tone: "green" | "blue" | "amber";
+}) {
+  const className =
+    tone === "green"
+      ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
+      : tone === "blue"
+        ? "bg-indigo-50 text-indigo-700 ring-indigo-100"
+        : "bg-amber-50 text-amber-700 ring-amber-100";
+
+  return (
+    <span
+      className={`rounded-full px-2 py-1 text-[10px] font-black ring-1 ${className}`}
+    >
+      {children}
     </span>
   );
 }
@@ -1696,9 +1724,11 @@ function StatCard({
   hint: string;
 }) {
   return (
-    <div className="rounded-[24px] border border-white/70 bg-white/90 p-4 shadow-lg shadow-slate-100/70 backdrop-blur">
+    <div className="rounded-[24px] border border-white/70 bg-white/90 p-4 shadow-lg shadow-slate-100/70 backdrop-blur transition hover:-translate-y-0.5 hover:shadow-xl">
       <p className="text-xs font-black text-slate-400">{label}</p>
-      <p className="mt-2 text-3xl font-black tracking-tight text-slate-950">{value}</p>
+      <p className="mt-2 text-3xl font-black tracking-tight text-slate-950">
+        {value}
+      </p>
       <p className="mt-1 text-xs font-bold text-slate-400">{hint}</p>
     </div>
   );
@@ -1721,7 +1751,7 @@ function FilterButton({
         h-10 rounded-2xl px-4 text-xs font-black transition
         ${
           active
-            ? "bg-gradient-to-l from-indigo-500 to-violet-500 text-white shadow-lg shadow-indigo-100"
+            ? "bg-gradient-to-l from-slate-950 to-indigo-700 text-white shadow-lg shadow-indigo-100"
             : "bg-slate-50 text-slate-500 ring-1 ring-slate-100 hover:bg-indigo-50 hover:text-indigo-700 hover:ring-indigo-100"
         }
       `}
@@ -1743,7 +1773,7 @@ function MiniMetric({ label, value }: { label: string; value: number }) {
 function LoadingRows() {
   return (
     <>
-      {Array.from({ length: 6 }).map((_, index) => (
+      {Array.from({ length: 7 }).map((_, index) => (
         <tr key={index} className="border-b border-slate-100">
           <td colSpan={10} className="px-5 py-4">
             <div className="h-16 animate-pulse rounded-2xl bg-slate-50" />
