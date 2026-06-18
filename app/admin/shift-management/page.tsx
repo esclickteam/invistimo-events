@@ -24,54 +24,152 @@ type EmployeeShiftMonitor = {
 
   name?: string;
   fullName?: string;
+  displayName?: string;
+  employeeName?: string;
+
   email?: string;
   phone?: string;
+  phoneNumber?: string;
+  mobile?: string;
 
   avatar?: string;
+  image?: string;
+  photoURL?: string;
+  profileImage?: string;
+
   role?: string;
   staffType?: string;
+  type?: string;
+  userType?: string;
+
+  isProducer?: boolean;
+  producer?: boolean;
+  isVenueOwner?: boolean;
+  venueOwner?: boolean;
+
+  isEmployee?: boolean;
+  employee?: boolean;
+  isStaff?: boolean;
+  staff?: boolean;
 
   isActive?: boolean;
+  active?: boolean;
   isOnline?: boolean;
+  online?: boolean;
+
+  status?: string;
+  availabilityStatus?: string;
+  currentAvailabilityStatus?: string;
+  availabilityReason?: string;
+  notAvailableReason?: string;
+  availabilitySince?: string | Date | null;
+  notAvailableSince?: string | Date | null;
 
   softphone?: {
     status?: SoftphoneStatus | string;
+    softphoneStatus?: SoftphoneStatus | string;
+    availabilityStatus?: SoftphoneStatus | string;
     extension?: string;
+    sipExtension?: string;
     sipUsername?: string;
+    sip_user?: string;
     lastSeenAt?: string | Date | null;
+    updatedAt?: string | Date | null;
   };
 
   currentCall?: {
     active?: boolean;
+    isActive?: boolean;
     direction?: "inbound" | "outbound" | "unknown" | string;
     status?: string;
+    callStatus?: string;
+
     startedAt?: string | Date | null;
+    startTime?: string | Date | null;
+    createdAt?: string | Date | null;
     answeredAt?: string | Date | null;
+    connectedAt?: string | Date | null;
+
     durationSeconds?: number;
+    duration?: number;
+
     customerName?: string;
     customerPhone?: string;
+    clientName?: string;
+    clientPhone?: string;
     guestName?: string;
     guestPhone?: string;
+    contactName?: string;
+    leadName?: string;
+
+    from?: string;
+    to?: string;
+    caller?: string;
+    callerNumber?: string;
+    toNumber?: string;
+    phone?: string;
+
     eventName?: string;
+    eventTitle?: string;
     invitationTitle?: string;
+    invitationName?: string;
+
+    taskTitle?: string;
+    taskType?: string;
+
     callControlId?: string;
+    call_control_id?: string;
+    callLegId?: string;
+    call_leg_id?: string;
   } | null;
 
   availability?: {
     status?: SoftphoneStatus | string;
+    availabilityStatus?: SoftphoneStatus | string;
     reason?: string;
+    note?: string;
+    statusReason?: string;
     since?: string | Date | null;
+    startedAt?: string | Date | null;
+    statusSince?: string | Date | null;
     durationSeconds?: number;
   };
 
   shift?: {
     active?: boolean;
+    isActive?: boolean;
+
     title?: string;
+    name?: string;
+
+    date?: string | Date | null;
+    shiftDate?: string | Date | null;
+    workDate?: string | Date | null;
+    day?: string | Date | null;
+
     startAt?: string | Date | null;
+    startsAt?: string | Date | null;
+    startTime?: string | Date | null;
+    startHour?: string;
+    from?: string;
+
     endAt?: string | Date | null;
+    endsAt?: string | Date | null;
+    endTime?: string | Date | null;
+    endHour?: string;
+    to?: string;
+
     location?: ShiftLocation | string;
+    locationType?: ShiftLocation | string;
+    workLocation?: ShiftLocation | string;
+
     venueName?: string;
+    hallName?: string;
+    placeName?: string;
+
     eventName?: string;
+    eventTitle?: string;
+    invitationTitle?: string;
   } | null;
 
   work?: {
@@ -86,6 +184,7 @@ type EmployeeShiftMonitor = {
   };
 
   updatedAt?: string | Date | null;
+  lastSeenAt?: string | Date | null;
 };
 
 type ApiResponse = {
@@ -93,6 +192,7 @@ type ApiResponse = {
   employees?: EmployeeShiftMonitor[];
   data?: EmployeeShiftMonitor[];
   items?: EmployeeShiftMonitor[];
+  count?: number;
   error?: string;
 };
 
@@ -100,21 +200,50 @@ type ApiResponse = {
    HELPERS
 ===================================================== */
 
+function cleanString(value: any) {
+  if (value === null || value === undefined) return "";
+  return String(value).trim();
+}
+
+function cleanLower(value: any) {
+  return cleanString(value).toLowerCase();
+}
+
 function getEmployeeId(employee: EmployeeShiftMonitor) {
   return String(employee.id || employee._id || employee.email || Math.random());
 }
 
 function getEmployeeName(employee: EmployeeShiftMonitor) {
   return (
-    employee.fullName ||
-    employee.name ||
-    employee.email ||
+    cleanString(employee.fullName) ||
+    cleanString(employee.name) ||
+    cleanString(employee.displayName) ||
+    cleanString(employee.employeeName) ||
+    cleanString(employee.email) ||
     "עובד ללא שם"
+  );
+}
+
+function getEmployeePhone(employee: EmployeeShiftMonitor) {
+  return (
+    cleanString(employee.phone) ||
+    cleanString(employee.phoneNumber) ||
+    cleanString(employee.mobile)
+  );
+}
+
+function getEmployeeImage(employee: EmployeeShiftMonitor) {
+  return (
+    cleanString(employee.avatar) ||
+    cleanString(employee.image) ||
+    cleanString(employee.photoURL) ||
+    cleanString(employee.profileImage)
   );
 }
 
 function getInitials(name: string) {
   const clean = String(name || "").trim();
+
   if (!clean) return "??";
 
   const parts = clean.split(/\s+/).filter(Boolean);
@@ -130,13 +259,94 @@ function safeDate(value?: string | Date | null) {
   if (!value) return null;
 
   const date = new Date(value);
+
   if (Number.isNaN(date.getTime())) return null;
 
   return date;
 }
 
+function parseShiftDateTime(dateValue?: string | Date | null, timeValue?: string | Date | null) {
+  const directTimeDate = safeDate(timeValue);
+
+  if (directTimeDate && String(timeValue).includes("T")) {
+    return directTimeDate;
+  }
+
+  const baseDate = safeDate(dateValue);
+
+  if (!baseDate) {
+    return directTimeDate;
+  }
+
+  const timeString = cleanString(timeValue);
+
+  if (!timeString) {
+    return baseDate;
+  }
+
+  const match = timeString.match(/^(\d{1,2}):(\d{2})/);
+
+  if (!match) {
+    return directTimeDate || baseDate;
+  }
+
+  const date = new Date(baseDate);
+
+  date.setHours(Number(match[1]), Number(match[2]), 0, 0);
+
+  return date;
+}
+
+function getShiftStart(employee: EmployeeShiftMonitor) {
+  const shift = employee.shift;
+
+  if (!shift) return null;
+
+  return (
+    safeDate(shift.startAt) ||
+    safeDate(shift.startsAt) ||
+    parseShiftDateTime(
+      shift.date || shift.shiftDate || shift.workDate || shift.day,
+      shift.startTime || shift.startHour || shift.from
+    )
+  );
+}
+
+function getShiftEnd(employee: EmployeeShiftMonitor) {
+  const shift = employee.shift;
+
+  if (!shift) return null;
+
+  return (
+    safeDate(shift.endAt) ||
+    safeDate(shift.endsAt) ||
+    parseShiftDateTime(
+      shift.date || shift.shiftDate || shift.workDate || shift.day,
+      shift.endTime || shift.endHour || shift.to
+    )
+  );
+}
+
+function isShiftActiveNow(employee: EmployeeShiftMonitor) {
+  const shift = employee.shift;
+
+  if (!shift) return false;
+
+  if (shift.active === true || shift.isActive === true) return true;
+
+  const start = getShiftStart(employee);
+  const end = getShiftEnd(employee);
+
+  if (!start || !end) return false;
+
+  const now = Date.now();
+
+  return start.getTime() <= now && end.getTime() >= now;
+}
+
 function formatTime(value?: string | Date | null) {
   const date = safeDate(value);
+
   if (!date) return "—";
 
   return date.toLocaleTimeString("he-IL", {
@@ -147,6 +357,7 @@ function formatTime(value?: string | Date | null) {
 
 function formatDateTime(value?: string | Date | null) {
   const date = safeDate(value);
+
   if (!date) return "—";
 
   return date.toLocaleString("he-IL", {
@@ -159,6 +370,7 @@ function formatDateTime(value?: string | Date | null) {
 
 function secondsBetween(from?: string | Date | null) {
   const date = safeDate(from);
+
   if (!date) return 0;
 
   return Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
@@ -178,35 +390,185 @@ function formatDuration(totalSeconds?: number) {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
-function normalizeStatus(employee: EmployeeShiftMonitor): SoftphoneStatus {
-  const callActive =
-    employee.currentCall?.active ||
-    employee.currentCall?.status === "answered" ||
-    employee.currentCall?.status === "in_call";
+function normalizeRawStatus(value: any): SoftphoneStatus {
+  const raw = cleanLower(value);
 
-  if (callActive) return "in_call";
-
-  const softphoneStatus = String(employee.softphone?.status || "").toLowerCase();
-  const availabilityStatus = String(employee.availability?.status || "").toLowerCase();
-
-  const raw = availabilityStatus || softphoneStatus;
-
-  if (
-    raw === "online" ||
-    raw === "offline" ||
-    raw === "in_call" ||
-    raw === "ringing" ||
-    raw === "busy" ||
-    raw === "break" ||
-    raw === "not_available"
-  ) {
-    return raw as SoftphoneStatus;
+  if (raw === "online" || raw === "available" || raw === "ready" || raw === "free" || raw === "פנוי") {
+    return "online";
   }
 
-  if (employee.isOnline) return "online";
-  if (employee.isActive === false) return "offline";
+  if (raw === "offline" || raw === "disconnected" || raw === "מנותק") {
+    return "offline";
+  }
+
+  if (
+    raw === "in_call" ||
+    raw === "incall" ||
+    raw === "answered" ||
+    raw === "bridged" ||
+    raw === "active_call"
+  ) {
+    return "in_call";
+  }
+
+  if (raw === "ringing" || raw === "initiated" || raw === "incoming") {
+    return "ringing";
+  }
+
+  if (raw === "busy" || raw === "עסוק") {
+    return "busy";
+  }
+
+  if (raw === "break" || raw === "pause" || raw === "הפסקה") {
+    return "break";
+  }
+
+  if (
+    raw === "not_available" ||
+    raw === "unavailable" ||
+    raw === "away" ||
+    raw === "לא פנוי"
+  ) {
+    return "not_available";
+  }
 
   return "unknown";
+}
+
+function normalizeStatus(employee: EmployeeShiftMonitor): SoftphoneStatus {
+  const callStatus = normalizeRawStatus(
+    employee.currentCall?.status || employee.currentCall?.callStatus
+  );
+
+  const callActive =
+    employee.currentCall?.active === true ||
+    employee.currentCall?.isActive === true ||
+    callStatus === "in_call" ||
+    callStatus === "ringing";
+
+  if (callActive) {
+    return callStatus === "ringing" ? "ringing" : "in_call";
+  }
+
+  const availabilityStatus = normalizeRawStatus(
+    employee.availability?.status ||
+      employee.availability?.availabilityStatus ||
+      employee.availabilityStatus ||
+      employee.currentAvailabilityStatus
+  );
+
+  if (
+    availabilityStatus !== "unknown" &&
+    availabilityStatus !== "online" &&
+    availabilityStatus !== "offline"
+  ) {
+    return availabilityStatus;
+  }
+
+  const softphoneStatus = normalizeRawStatus(
+    employee.softphone?.status ||
+      employee.softphone?.softphoneStatus ||
+      employee.softphone?.availabilityStatus ||
+      employee.status
+  );
+
+  if (softphoneStatus !== "unknown") {
+    return softphoneStatus;
+  }
+
+  if (employee.isOnline === true || employee.online === true) return "online";
+
+  if (employee.isActive === false || employee.active === false) return "offline";
+
+  const lastSeen =
+    employee.softphone?.lastSeenAt ||
+    employee.softphone?.updatedAt ||
+    employee.lastSeenAt ||
+    employee.updatedAt;
+
+  const lastSeenDate = safeDate(lastSeen);
+
+  if (lastSeenDate) {
+    const diffSeconds = Math.floor((Date.now() - lastSeenDate.getTime()) / 1000);
+
+    return diffSeconds <= 120 ? "online" : "offline";
+  }
+
+  return "unknown";
+}
+
+function isBlockedRole(employee: EmployeeShiftMonitor) {
+  const role = cleanLower(employee.role);
+  const staffType = cleanLower(employee.staffType);
+  const type = cleanLower(employee.type);
+  const userType = cleanLower(employee.userType);
+
+  const blocked = [
+    "admin",
+    "user",
+    "client",
+    "customer",
+    "producer",
+    "venue_owner",
+    "venueowner",
+    "venue",
+    "owner",
+  ];
+
+  if (blocked.includes(role)) return true;
+  if (blocked.includes(type)) return true;
+  if (blocked.includes(userType)) return true;
+
+  if (employee.isProducer === true || employee.producer === true) return true;
+  if (employee.isVenueOwner === true || employee.venueOwner === true) return true;
+
+  if (staffType === "producer" || staffType === "venue_owner") return true;
+
+  return false;
+}
+
+function isSystemEmployee(employee: EmployeeShiftMonitor) {
+  if (!employee) return false;
+  if (isBlockedRole(employee)) return false;
+
+  const role = cleanLower(employee.role);
+  const staffType = cleanLower(employee.staffType);
+  const type = cleanLower(employee.type);
+
+  const allowedRoles = [
+    "staff",
+    "employee",
+    "worker",
+    "representative",
+    "sales",
+    "caller",
+    "call_agent",
+    "phone_agent",
+  ];
+
+  const allowedStaffTypes = [
+    "staff",
+    "employee",
+    "worker",
+    "calls",
+    "call",
+    "caller",
+    "sales",
+    "representative",
+    "phone",
+    "phone_agent",
+  ];
+
+  if (allowedRoles.includes(role)) return true;
+  if (allowedRoles.includes(type)) return true;
+  if (allowedStaffTypes.includes(staffType)) return true;
+
+  if (employee.isEmployee === true) return true;
+  if (employee.employee === true) return true;
+  if (employee.isStaff === true) return true;
+  if (employee.staff === true) return true;
+
+  return false;
 }
 
 function getStatusMeta(status: SoftphoneStatus) {
@@ -287,10 +649,15 @@ function getCallTarget(employee: EmployeeShiftMonitor) {
   if (!call) return "—";
 
   return (
-    call.customerName ||
-    call.guestName ||
-    call.customerPhone ||
-    call.guestPhone ||
+    cleanString(call.customerName) ||
+    cleanString(call.clientName) ||
+    cleanString(call.guestName) ||
+    cleanString(call.contactName) ||
+    cleanString(call.leadName) ||
+    cleanString(call.customerPhone) ||
+    cleanString(call.clientPhone) ||
+    cleanString(call.guestPhone) ||
+    cleanString(call.phone) ||
     "לקוח ללא שם"
   );
 }
@@ -300,43 +667,136 @@ function getCallPhone(employee: EmployeeShiftMonitor) {
 
   if (!call) return "";
 
-  return call.customerPhone || call.guestPhone || "";
+  const direction = cleanLower(call.direction);
+
+  if (direction === "inbound") {
+    return (
+      cleanString(call.from) ||
+      cleanString(call.caller) ||
+      cleanString(call.callerNumber) ||
+      cleanString(call.customerPhone) ||
+      cleanString(call.clientPhone) ||
+      cleanString(call.guestPhone) ||
+      cleanString(call.phone)
+    );
+  }
+
+  if (direction === "outbound") {
+    return (
+      cleanString(call.to) ||
+      cleanString(call.toNumber) ||
+      cleanString(call.customerPhone) ||
+      cleanString(call.clientPhone) ||
+      cleanString(call.guestPhone) ||
+      cleanString(call.phone)
+    );
+  }
+
+  return (
+    cleanString(call.customerPhone) ||
+    cleanString(call.clientPhone) ||
+    cleanString(call.guestPhone) ||
+    cleanString(call.phone) ||
+    cleanString(call.to) ||
+    cleanString(call.from)
+  );
 }
 
 function getCurrentCallDuration(employee: EmployeeShiftMonitor, tick: number) {
   const call = employee.currentCall;
 
-  if (!call?.active && !call?.startedAt && !call?.answeredAt) {
+  if (!call?.active && !call?.isActive && !call?.startedAt && !call?.answeredAt && !call?.connectedAt) {
     return 0;
   }
 
   if (typeof call?.durationSeconds === "number" && call.durationSeconds > 0) {
-    return call.durationSeconds;
+    return call.durationSeconds + tick * 0;
   }
 
-  const start = call.answeredAt || call.startedAt;
+  if (typeof call?.duration === "number" && call.duration > 0) {
+    return call.duration + tick * 0;
+  }
+
+  const start = call?.answeredAt || call?.connectedAt || call?.startedAt || call?.startTime || call?.createdAt;
+
   return secondsBetween(start) + tick * 0;
 }
 
 function getAvailabilityDuration(employee: EmployeeShiftMonitor, tick: number) {
   if (typeof employee.availability?.durationSeconds === "number") {
-    return employee.availability.durationSeconds;
+    return employee.availability.durationSeconds + tick * 0;
   }
 
-  return secondsBetween(employee.availability?.since) + tick * 0;
+  const since =
+    employee.availability?.since ||
+    employee.availability?.startedAt ||
+    employee.availability?.statusSince ||
+    employee.availabilitySince ||
+    employee.notAvailableSince ||
+    employee.softphone?.updatedAt ||
+    employee.updatedAt;
+
+  return secondsBetween(since) + tick * 0;
 }
 
 function getShiftLocationLabel(value?: string) {
-  if (value === "home") return "בית";
-  if (value === "venue") return "אולם";
-  if (value === "office") return "משרד";
-  return "—";
+  const clean = cleanLower(value);
+
+  if (clean === "home") return "בית";
+  if (clean === "venue") return "אולם";
+  if (clean === "office") return "משרד";
+
+  return cleanString(value) || "—";
 }
 
 function getDirectionLabel(value?: string) {
-  if (value === "inbound") return "נכנסת";
-  if (value === "outbound") return "יוצאת";
+  const clean = cleanLower(value);
+
+  if (clean === "inbound" || clean === "incoming") return "נכנסת";
+  if (clean === "outbound" || clean === "outgoing") return "יוצאת";
+
   return "—";
+}
+
+function getShiftTitle(employee: EmployeeShiftMonitor) {
+  const shift = employee.shift;
+
+  if (!shift) return "לא במשמרת";
+
+  return (
+    cleanString(shift.title) ||
+    cleanString(shift.name) ||
+    (isShiftActiveNow(employee) ? "משמרת פעילה" : "משמרת היום")
+  );
+}
+
+function getShiftLocation(employee: EmployeeShiftMonitor) {
+  const shift = employee.shift;
+
+  if (!shift) return "—";
+
+  const location =
+    cleanString(shift.location) ||
+    cleanString(shift.locationType) ||
+    cleanString(shift.workLocation);
+
+  const venue =
+    cleanString(shift.venueName) ||
+    cleanString(shift.hallName) ||
+    cleanString(shift.placeName);
+
+  const event =
+    cleanString(shift.eventName) ||
+    cleanString(shift.eventTitle) ||
+    cleanString(shift.invitationTitle);
+
+  const parts = [
+    getShiftLocationLabel(location),
+    venue,
+    event,
+  ].filter((item) => item && item !== "—");
+
+  return parts.length ? parts.join(" · ") : "—";
 }
 
 /* =====================================================
@@ -351,6 +811,7 @@ export default function AdminShiftManagementPage() {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | SoftphoneStatus>("all");
   const [tick, setTick] = useState(0);
+  const [lastRefreshAt, setLastRefreshAt] = useState<Date | null>(null);
 
   const fetchEmployees = useCallback(async (silent = false) => {
     try {
@@ -362,9 +823,12 @@ export default function AdminShiftManagementPage() {
 
       setError("");
 
-      const res = await fetch("/api/admin/shift-management", {
+      const res = await fetch(`/api/admin/shift-management?t=${Date.now()}`, {
         method: "GET",
         cache: "no-store",
+        headers: {
+          "Cache-Control": "no-store",
+        },
       });
 
       const json = (await res.json().catch(() => ({}))) as ApiResponse;
@@ -375,7 +839,12 @@ export default function AdminShiftManagementPage() {
 
       const list = json.employees || json.data || json.items || [];
 
-      setEmployees(Array.isArray(list) ? list : []);
+      const onlySystemEmployees = Array.isArray(list)
+        ? list.filter(isSystemEmployee)
+        : [];
+
+      setEmployees(onlySystemEmployees);
+      setLastRefreshAt(new Date());
     } catch (err: any) {
       setError(err?.message || "שגיאה בטעינת ניהול המשמרת");
       setEmployees([]);
@@ -400,7 +869,7 @@ export default function AdminShiftManagementPage() {
   useEffect(() => {
     const timer = window.setInterval(() => {
       fetchEmployees(true);
-    }, 5000);
+    }, 3000);
 
     return () => window.clearInterval(timer);
   }, [fetchEmployees]);
@@ -412,6 +881,7 @@ export default function AdminShiftManagementPage() {
     let inCall = 0;
     let notAvailable = 0;
     let offline = 0;
+    let inShift = 0;
 
     for (const employee of employees) {
       const status = normalizeStatus(employee);
@@ -422,6 +892,7 @@ export default function AdminShiftManagementPage() {
         notAvailable += 1;
       }
       if (status === "offline" || status === "unknown") offline += 1;
+      if (isShiftActiveNow(employee)) inShift += 1;
     }
 
     return {
@@ -430,8 +901,9 @@ export default function AdminShiftManagementPage() {
       inCall,
       notAvailable,
       offline,
+      inShift,
     };
-  }, [employees]);
+  }, [employees, tick]);
 
   const filteredEmployees = useMemo(() => {
     const cleanQuery = query.trim().toLowerCase();
@@ -443,18 +915,33 @@ export default function AdminShiftManagementPage() {
       const searchable = [
         name,
         employee.email,
-        employee.phone,
+        getEmployeePhone(employee),
+        employee.role,
+        employee.staffType,
         employee.softphone?.extension,
+        employee.softphone?.sipExtension,
         employee.softphone?.sipUsername,
+        employee.softphone?.sip_user,
         employee.currentCall?.customerName,
         employee.currentCall?.customerPhone,
+        employee.currentCall?.clientName,
+        employee.currentCall?.clientPhone,
         employee.currentCall?.guestName,
         employee.currentCall?.guestPhone,
         employee.currentCall?.eventName,
+        employee.currentCall?.eventTitle,
         employee.currentCall?.invitationTitle,
+        employee.currentCall?.invitationName,
         employee.shift?.eventName,
+        employee.shift?.eventTitle,
+        employee.shift?.invitationTitle,
         employee.shift?.venueName,
+        employee.shift?.hallName,
+        employee.shift?.placeName,
         employee.availability?.reason,
+        employee.availability?.note,
+        employee.availabilityReason,
+        employee.notAvailableReason,
       ]
         .filter(Boolean)
         .join(" ")
@@ -475,7 +962,7 @@ export default function AdminShiftManagementPage() {
           <div>
             <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-indigo-50 px-4 py-2 text-xs font-black text-indigo-700 ring-1 ring-indigo-100">
               <span className="h-2 w-2 rounded-full bg-indigo-500" />
-              צפייה בלבד בסופטפון העובדים
+              עובדים בלבד · צפייה בסופטפון בלי חיוג
             </div>
 
             <h1 className="text-2xl font-black tracking-tight text-slate-950 md:text-4xl">
@@ -483,8 +970,13 @@ export default function AdminShiftManagementPage() {
             </h1>
 
             <p className="mt-2 max-w-3xl text-sm font-bold leading-6 text-slate-500">
-              כאן רואים בזמן אמת מה כל עובד עושה: האם הוא פנוי, בשיחה, עם מי הוא מדבר,
-              כמה זמן השיחה נמשכת, ואם הוא לא פנוי — מה הסיבה וכמה זמן.
+              כאן רואים בזמן אמת מי במשמרת, מי פנוי, מי בשיחה, עם מי העובד מדבר,
+              כמה זמן, ואם הוא לא פנוי — מה הסיבה וכמה זמן.
+            </p>
+
+            <p className="mt-2 text-xs font-bold text-slate-400">
+              עדכון אחרון: {lastRefreshAt ? formatDateTime(lastRefreshAt) : "—"}
+              {refreshing ? " · מתעדכן..." : ""}
             </p>
           </div>
 
@@ -501,8 +993,9 @@ export default function AdminShiftManagementPage() {
       </section>
 
       {/* ================= Stats ================= */}
-      <section className="grid grid-cols-2 gap-3 md:grid-cols-5">
-        <StatCard label="סה״כ עובדים" value={stats.total} hint="במערכת" />
+      <section className="grid grid-cols-2 gap-3 md:grid-cols-6">
+        <StatCard label="סה״כ עובדים" value={stats.total} hint="עובדי מערכת בלבד" />
+        <StatCard label="במשמרת" value={stats.inShift} hint="משמרת פעילה עכשיו" />
         <StatCard label="פנויים" value={stats.online} hint="יכולים לקבל שיחה" />
         <StatCard label="בשיחה" value={stats.inCall} hint="פעילות עכשיו" />
         <StatCard label="לא פנויים" value={stats.notAvailable} hint="עסוק / הפסקה" />
@@ -516,7 +1009,7 @@ export default function AdminShiftManagementPage() {
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="חיפוש עובד / מספר / לקוח / אירוע..."
+              placeholder="חיפוש עובד / מספר / לקוח / אירוע / אולם..."
               className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 pr-11 text-sm font-bold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-indigo-200 focus:bg-white focus:ring-4 focus:ring-indigo-50"
             />
 
@@ -526,45 +1019,31 @@ export default function AdminShiftManagementPage() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <FilterButton
-              active={statusFilter === "all"}
-              onClick={() => setStatusFilter("all")}
-            >
+            <FilterButton active={statusFilter === "all"} onClick={() => setStatusFilter("all")}>
               הכל
             </FilterButton>
 
-            <FilterButton
-              active={statusFilter === "online"}
-              onClick={() => setStatusFilter("online")}
-            >
+            <FilterButton active={statusFilter === "online"} onClick={() => setStatusFilter("online")}>
               פנויים
             </FilterButton>
 
-            <FilterButton
-              active={statusFilter === "in_call"}
-              onClick={() => setStatusFilter("in_call")}
-            >
+            <FilterButton active={statusFilter === "in_call"} onClick={() => setStatusFilter("in_call")}>
               בשיחה
             </FilterButton>
 
-            <FilterButton
-              active={statusFilter === "not_available"}
-              onClick={() => setStatusFilter("not_available")}
-            >
+            <FilterButton active={statusFilter === "ringing"} onClick={() => setStatusFilter("ringing")}>
+              שיחה נכנסת
+            </FilterButton>
+
+            <FilterButton active={statusFilter === "not_available"} onClick={() => setStatusFilter("not_available")}>
               לא פנויים
             </FilterButton>
 
-            <FilterButton
-              active={statusFilter === "break"}
-              onClick={() => setStatusFilter("break")}
-            >
+            <FilterButton active={statusFilter === "break"} onClick={() => setStatusFilter("break")}>
               הפסקה
             </FilterButton>
 
-            <FilterButton
-              active={statusFilter === "offline"}
-              onClick={() => setStatusFilter("offline")}
-            >
+            <FilterButton active={statusFilter === "offline"} onClick={() => setStatusFilter("offline")}>
               מנותקים
             </FilterButton>
           </div>
@@ -588,7 +1067,7 @@ export default function AdminShiftManagementPage() {
           {/* Desktop table */}
           <section className="hidden overflow-hidden rounded-[30px] border border-white/70 bg-white/90 shadow-xl shadow-slate-100/80 backdrop-blur xl:block">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1200px] border-collapse text-right">
+              <table className="w-full min-w-[1320px] border-collapse text-right">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50/80 text-xs font-black text-slate-500">
                     <th className="px-5 py-4">עובד</th>
@@ -597,6 +1076,7 @@ export default function AdminShiftManagementPage() {
                     <th className="px-5 py-4">עם מי / מספר</th>
                     <th className="px-5 py-4">משך</th>
                     <th className="px-5 py-4">משמרת</th>
+                    <th className="px-5 py-4">מיקום / אירוע</th>
                     <th className="px-5 py-4">היום</th>
                     <th className="px-5 py-4">עדכון אחרון</th>
                   </tr>
@@ -643,7 +1123,6 @@ function EmployeeTableRow({
   tick: number;
 }) {
   const status = normalizeStatus(employee);
-  const meta = getStatusMeta(status);
   const name = getEmployeeName(employee);
 
   const callActive = status === "in_call" || status === "ringing";
@@ -652,6 +1131,10 @@ function EmployeeTableRow({
 
   const currentAction = getCurrentAction(employee, status);
   const duration = callActive ? callDuration : availabilityDuration;
+
+  const shiftActive = isShiftActiveNow(employee);
+  const shiftStart = getShiftStart(employee);
+  const shiftEnd = getShiftEnd(employee);
 
   return (
     <tr className="border-b border-slate-100 last:border-b-0 hover:bg-slate-50/70">
@@ -662,7 +1145,7 @@ function EmployeeTableRow({
           <div className="min-w-0">
             <p className="truncate text-sm font-black text-slate-950">{name}</p>
             <p className="mt-1 truncate text-xs font-bold text-slate-400">
-              {employee.email || employee.phone || "—"}
+              {employee.email || getEmployeePhone(employee) || "—"}
             </p>
           </div>
         </div>
@@ -693,13 +1176,24 @@ function EmployeeTableRow({
       </td>
 
       <td className="px-5 py-4">
-        <p className="text-sm font-black text-slate-800">
-          {employee.shift?.active ? "פעילה" : "לא במשמרת"}
+        <p className={`text-sm font-black ${shiftActive ? "text-emerald-700" : "text-slate-800"}`}>
+          {shiftActive ? getShiftTitle(employee) : "לא במשמרת"}
         </p>
         <p className="mt-1 text-xs font-bold text-slate-400">
-          {employee.shift?.active
-            ? `${formatTime(employee.shift?.startAt)} - ${formatTime(employee.shift?.endAt)}`
+          {shiftStart || shiftEnd
+            ? `${formatTime(shiftStart)} - ${formatTime(shiftEnd)}`
             : "—"}
+        </p>
+      </td>
+
+      <td className="px-5 py-4">
+        <p className="max-w-[220px] truncate text-sm font-black text-slate-800">
+          {getShiftLocation(employee)}
+        </p>
+        <p className="mt-1 text-xs font-bold text-slate-400">
+          {employee.softphone?.extension || employee.softphone?.sipExtension || employee.softphone?.sipUsername
+            ? `שלוחה: ${employee.softphone?.extension || employee.softphone?.sipExtension || employee.softphone?.sipUsername}`
+            : "אין שלוחה"}
         </p>
       </td>
 
@@ -713,7 +1207,12 @@ function EmployeeTableRow({
 
       <td className="px-5 py-4">
         <p className="text-xs font-bold text-slate-500">
-          {formatDateTime(employee.updatedAt || employee.softphone?.lastSeenAt)}
+          {formatDateTime(
+            employee.updatedAt ||
+              employee.softphone?.lastSeenAt ||
+              employee.softphone?.updatedAt ||
+              employee.lastSeenAt
+          )}
         </p>
       </td>
     </tr>
@@ -737,6 +1236,10 @@ function EmployeeCard({
   const currentAction = getCurrentAction(employee, status);
   const duration = callActive ? callDuration : availabilityDuration;
 
+  const shiftActive = isShiftActiveNow(employee);
+  const shiftStart = getShiftStart(employee);
+  const shiftEnd = getShiftEnd(employee);
+
   return (
     <article className={`rounded-[30px] border p-4 shadow-lg shadow-slate-100/70 ${meta.card}`}>
       <div className="flex items-start justify-between gap-3">
@@ -746,7 +1249,7 @@ function EmployeeCard({
           <div className="min-w-0">
             <p className="truncate text-base font-black text-slate-950">{name}</p>
             <p className="mt-1 truncate text-xs font-bold text-slate-400">
-              {employee.email || employee.phone || "—"}
+              {employee.email || getEmployeePhone(employee) || "—"}
             </p>
           </div>
         </div>
@@ -760,29 +1263,22 @@ function EmployeeCard({
         <p className="mt-1 text-sm font-bold text-slate-500">{currentAction.sub}</p>
 
         <div className="mt-4 grid grid-cols-2 gap-3">
-          <InfoBox
-            label="משך"
-            value={duration > 0 ? formatDuration(duration) : "—"}
-          />
+          <InfoBox label="משך" value={duration > 0 ? formatDuration(duration) : "—"} />
 
           <InfoBox
             label="שלוחה"
             value={
               employee.softphone?.extension ||
+              employee.softphone?.sipExtension ||
               employee.softphone?.sipUsername ||
+              employee.softphone?.sip_user ||
               "—"
             }
           />
 
-          <InfoBox
-            label="עם מי"
-            value={callActive ? getCallTarget(employee) : "—"}
-          />
+          <InfoBox label="עם מי" value={callActive ? getCallTarget(employee) : "—"} />
 
-          <InfoBox
-            label="מספר"
-            value={callActive ? getCallPhone(employee) || "—" : "—"}
-          />
+          <InfoBox label="מספר" value={callActive ? getCallPhone(employee) || "—" : "—"} />
         </div>
       </div>
 
@@ -795,23 +1291,17 @@ function EmployeeCard({
       <div className="mt-4 rounded-[22px] bg-white/70 p-3 ring-1 ring-slate-100">
         <div className="flex items-center justify-between gap-3 text-xs font-bold">
           <span className="text-slate-400">משמרת</span>
-          <span className="text-slate-800">
-            {employee.shift?.active ? "פעילה" : "לא במשמרת"}
+          <span className={shiftActive ? "text-emerald-700" : "text-slate-800"}>
+            {shiftActive ? getShiftTitle(employee) : "לא במשמרת"}
           </span>
         </div>
 
-        {employee.shift?.active && (
-          <div className="mt-2 text-xs font-bold leading-5 text-slate-500">
-            <p>
-              שעות: {formatTime(employee.shift?.startAt)} -{" "}
-              {formatTime(employee.shift?.endAt)}
-            </p>
-            <p>
-              מיקום: {getShiftLocationLabel(employee.shift?.location)}
-              {employee.shift?.venueName ? ` · ${employee.shift.venueName}` : ""}
-            </p>
-          </div>
-        )}
+        <div className="mt-2 text-xs font-bold leading-5 text-slate-500">
+          <p>
+            שעות: {shiftStart || shiftEnd ? `${formatTime(shiftStart)} - ${formatTime(shiftEnd)}` : "—"}
+          </p>
+          <p>מיקום: {getShiftLocation(employee)}</p>
+        </div>
       </div>
     </article>
   );
@@ -826,12 +1316,13 @@ function getCurrentAction(employee: EmployeeShiftMonitor, status: SoftphoneStatu
 
     return {
       title: status === "ringing" ? "שיחה נכנסת" : `בשיחה עם ${target}`,
-      sub: [
-        direction !== "—" ? `שיחה ${direction}` : "",
-        call?.eventName || call?.invitationTitle || "",
-      ]
-        .filter(Boolean)
-        .join(" · ") || "שיחה פעילה",
+      sub:
+        [
+          direction !== "—" ? `שיחה ${direction}` : "",
+          call?.eventName || call?.eventTitle || call?.invitationTitle || call?.invitationName || "",
+        ]
+          .filter(Boolean)
+          .join(" · ") || "שיחה פעילה",
     };
   }
 
@@ -839,6 +1330,10 @@ function getCurrentAction(employee: EmployeeShiftMonitor, status: SoftphoneStatu
     return {
       title:
         employee.availability?.reason ||
+        employee.availability?.note ||
+        employee.availability?.statusReason ||
+        employee.availabilityReason ||
+        employee.notAvailableReason ||
         (status === "break" ? "בהפסקה" : "לא פנוי"),
       sub: employee.work?.currentTaskTitle || "העובד לא זמין לשיחות כרגע",
     };
@@ -863,17 +1358,18 @@ function getCurrentAction(employee: EmployeeShiftMonitor, status: SoftphoneStatu
 
   return {
     title: "לא ידוע",
-    sub: "אין נתונים עדכניים",
+    sub: "אין נתונים עדכניים מהסופטפון",
   };
 }
 
 function Avatar({ employee }: { employee: EmployeeShiftMonitor }) {
   const name = getEmployeeName(employee);
+  const image = getEmployeeImage(employee);
 
-  if (employee.avatar) {
+  if (image) {
     return (
       <img
-        src={employee.avatar}
+        src={image}
         alt={name}
         className="h-12 w-12 shrink-0 rounded-2xl object-cover ring-1 ring-slate-100"
       />
@@ -891,9 +1387,7 @@ function StatusBadge({ status }: { status: SoftphoneStatus }) {
   const meta = getStatusMeta(status);
 
   return (
-    <span
-      className={`inline-flex items-center gap-2 rounded-2xl px-3 py-2 text-xs font-black ring-1 ${meta.badge}`}
-    >
+    <span className={`inline-flex items-center gap-2 rounded-2xl px-3 py-2 text-xs font-black ring-1 ${meta.badge}`}>
       <span className={`h-2 w-2 rounded-full ${meta.dot}`} />
       {meta.label}
     </span>
@@ -912,9 +1406,7 @@ function StatCard({
   return (
     <div className="rounded-[26px] border border-white/70 bg-white/85 p-4 shadow-lg shadow-slate-100/70 backdrop-blur">
       <p className="text-xs font-black text-slate-400">{label}</p>
-      <p className="mt-2 text-3xl font-black tracking-tight text-slate-950">
-        {value}
-      </p>
+      <p className="mt-2 text-3xl font-black tracking-tight text-slate-950">{value}</p>
       <p className="mt-1 text-xs font-bold text-slate-400">{hint}</p>
     </div>
   );
@@ -990,8 +1482,7 @@ function EmptyState() {
       </h2>
 
       <p className="mx-auto mt-2 max-w-md text-sm font-bold leading-6 text-slate-500">
-        ברגע שה־API יחזיר עובדים פעילים או עובדים עם סופטפון, הם יופיעו כאן
-        אוטומטית.
+        כרגע ה־API לא מחזיר עובדי מערכת. שימי לב: מפיקים, לקוחות ובעלי אולם מסוננים ולא מוצגים כאן.
       </p>
     </section>
   );
