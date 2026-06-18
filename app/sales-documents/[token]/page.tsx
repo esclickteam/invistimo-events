@@ -937,6 +937,7 @@ export default function SalesDocumentPage() {
                 ) : null}
               </div>
 
+
               <h1 className="mt-5 text-3xl font-black tracking-tight text-[#3f3327] sm:text-4xl">
                 {isAgreement ? "הסכם פרטי עסקה ותנאי שירות" : "הצעת מחיר"}
               </h1>

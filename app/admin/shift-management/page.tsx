@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 /* =====================================================
    TYPES
@@ -19,9 +19,9 @@ type SoftphoneStatus =
 
 type ShiftManagementFilter =
   | "default"
+  | "all"
   | "connected"
   | "scheduled_today"
-  | "all"
   | SoftphoneStatus;
 
 type EmployeeShiftMonitor = {
@@ -231,11 +231,8 @@ function cleanLower(value: any) {
 
 function safeDate(value?: string | Date | null) {
   if (!value) return null;
-
   const date = new Date(value);
-
   if (Number.isNaN(date.getTime())) return null;
-
   return date;
 }
 
@@ -262,14 +259,6 @@ function parseShiftDateTime(
   date.setHours(Number(match[1]), Number(match[2]), 0, 0);
 
   return date;
-}
-
-function isSameLocalDay(a: Date, b: Date) {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
 }
 
 function getEmployeeId(employee: EmployeeShiftMonitor) {
@@ -342,20 +331,6 @@ function getShiftEnd(employee: EmployeeShiftMonitor) {
   );
 }
 
-function getShiftDate(employee: EmployeeShiftMonitor) {
-  const shift = employee.shift;
-  if (!shift) return null;
-
-  return (
-    safeDate(shift.date) ||
-    safeDate(shift.shiftDate) ||
-    safeDate(shift.workDate) ||
-    safeDate(shift.day) ||
-    getShiftStart(employee) ||
-    getShiftEnd(employee)
-  );
-}
-
 function isShiftActiveNow(employee: EmployeeShiftMonitor) {
   const shift = employee.shift;
 
@@ -371,10 +346,31 @@ function isShiftActiveNow(employee: EmployeeShiftMonitor) {
   return start.getTime() <= now && end.getTime() >= now;
 }
 
+function isSameLocalDay(a: Date, b: Date) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+function getShiftDate(employee: EmployeeShiftMonitor) {
+  const shift = employee.shift;
+  if (!shift) return null;
+
+  return (
+    safeDate(shift.date) ||
+    safeDate(shift.shiftDate) ||
+    safeDate(shift.workDate) ||
+    safeDate(shift.day) ||
+    getShiftStart(employee) ||
+    getShiftEnd(employee)
+  );
+}
+
 function isScheduledToday(employee: EmployeeShiftMonitor) {
   const shiftDate = getShiftDate(employee);
   if (!shiftDate) return false;
-
   return isSameLocalDay(shiftDate, new Date());
 }
 
@@ -525,8 +521,7 @@ function normalizeStatus(employee: EmployeeShiftMonitor): SoftphoneStatus {
   if (softphoneStatus !== "unknown") return softphoneStatus;
 
   if (employee.isOnline === true || employee.online === true) return "online";
-  if (employee.isActive === false || employee.active === false)
-    return "offline";
+  if (employee.isActive === false || employee.active === false) return "offline";
 
   const lastSeen =
     employee.softphone?.lastSeenAt ||
@@ -537,10 +532,8 @@ function normalizeStatus(employee: EmployeeShiftMonitor): SoftphoneStatus {
   const lastSeenDate = safeDate(lastSeen);
 
   if (lastSeenDate) {
-    const diffSeconds = Math.floor(
-      (Date.now() - lastSeenDate.getTime()) / 1000,
-    );
-    return diffSeconds <= 120 ? "online" : "offline";
+    const diffSeconds = Math.floor((Date.now() - lastSeenDate.getTime()) / 1000);
+    return diffSeconds <= 180 ? "online" : "offline";
   }
 
   return "unknown";
@@ -574,8 +567,7 @@ function isBlockedRole(employee: EmployeeShiftMonitor) {
   if (blocked.includes(userType)) return true;
 
   if (employee.isProducer === true || employee.producer === true) return true;
-  if (employee.isVenueOwner === true || employee.venueOwner === true)
-    return true;
+  if (employee.isVenueOwner === true || employee.venueOwner === true) return true;
 
   if (staffType === "producer" || staffType === "venue_owner") return true;
 
@@ -633,8 +625,6 @@ function getStatusMeta(status: SoftphoneStatus) {
       dot: "bg-sky-500",
       row: "border-sky-100 bg-sky-50/35",
       badge: "bg-sky-50 text-sky-700 ring-sky-100",
-      accent: "bg-sky-500",
-      glow: "shadow-sky-100",
     };
   }
 
@@ -642,10 +632,8 @@ function getStatusMeta(status: SoftphoneStatus) {
     return {
       label: "בשיחה",
       dot: "bg-emerald-500",
-      row: "border-emerald-100 bg-emerald-50/35",
+      row: "border-emerald-100 bg-emerald-50/40",
       badge: "bg-emerald-50 text-emerald-700 ring-emerald-100",
-      accent: "bg-emerald-500",
-      glow: "shadow-emerald-100",
     };
   }
 
@@ -655,8 +643,6 @@ function getStatusMeta(status: SoftphoneStatus) {
       dot: "bg-violet-500",
       row: "border-violet-100 bg-violet-50/35",
       badge: "bg-violet-50 text-violet-700 ring-violet-100",
-      accent: "bg-violet-500",
-      glow: "shadow-violet-100",
     };
   }
 
@@ -664,10 +650,8 @@ function getStatusMeta(status: SoftphoneStatus) {
     return {
       label: "מחובר",
       dot: "bg-emerald-500",
-      row: "border-slate-100 bg-white",
+      row: "border-emerald-100 bg-white",
       badge: "bg-emerald-50 text-emerald-700 ring-emerald-100",
-      accent: "bg-emerald-500",
-      glow: "shadow-slate-100",
     };
   }
 
@@ -677,8 +661,6 @@ function getStatusMeta(status: SoftphoneStatus) {
       dot: "bg-amber-500",
       row: "border-amber-100 bg-amber-50/30",
       badge: "bg-amber-50 text-amber-700 ring-amber-100",
-      accent: "bg-amber-500",
-      glow: "shadow-amber-100",
     };
   }
 
@@ -688,8 +670,6 @@ function getStatusMeta(status: SoftphoneStatus) {
       dot: "bg-orange-500",
       row: "border-orange-100 bg-orange-50/30",
       badge: "bg-orange-50 text-orange-700 ring-orange-100",
-      accent: "bg-orange-500",
-      glow: "shadow-orange-100",
     };
   }
 
@@ -697,10 +677,8 @@ function getStatusMeta(status: SoftphoneStatus) {
     return {
       label: "לא פנוי",
       dot: "bg-rose-500",
-      row: "border-rose-100 bg-rose-50/30",
+      row: "border-rose-100 bg-rose-50/25",
       badge: "bg-rose-50 text-rose-700 ring-rose-100",
-      accent: "bg-rose-500",
-      glow: "shadow-rose-100",
     };
   }
 
@@ -708,10 +686,8 @@ function getStatusMeta(status: SoftphoneStatus) {
     return {
       label: "מנותק",
       dot: "bg-slate-400",
-      row: "border-slate-100 bg-slate-50/70",
+      row: "border-slate-100 bg-white",
       badge: "bg-slate-100 text-slate-600 ring-slate-200",
-      accent: "bg-slate-300",
-      glow: "shadow-slate-100",
     };
   }
 
@@ -720,8 +696,6 @@ function getStatusMeta(status: SoftphoneStatus) {
     dot: "bg-slate-300",
     row: "border-slate-100 bg-white",
     badge: "bg-slate-100 text-slate-500 ring-slate-200",
-    accent: "bg-slate-300",
-    glow: "shadow-slate-100",
   };
 }
 
@@ -796,6 +770,7 @@ function getCallControlId(employee: EmployeeShiftMonitor) {
 
 function getCurrentCallDuration(employee: EmployeeShiftMonitor, tick: number) {
   const call = employee.currentCall;
+  void tick;
 
   if (
     !call?.active &&
@@ -808,11 +783,11 @@ function getCurrentCallDuration(employee: EmployeeShiftMonitor, tick: number) {
   }
 
   if (typeof call?.durationSeconds === "number" && call.durationSeconds > 0) {
-    return call.durationSeconds + tick * 0;
+    return call.durationSeconds;
   }
 
   if (typeof call?.duration === "number" && call.duration > 0) {
-    return call.duration + tick * 0;
+    return call.duration;
   }
 
   const start =
@@ -822,12 +797,14 @@ function getCurrentCallDuration(employee: EmployeeShiftMonitor, tick: number) {
     call?.startTime ||
     call?.createdAt;
 
-  return secondsBetween(start) + tick * 0;
+  return secondsBetween(start);
 }
 
 function getAvailabilityDuration(employee: EmployeeShiftMonitor, tick: number) {
+  void tick;
+
   if (typeof employee.availability?.durationSeconds === "number") {
-    return employee.availability.durationSeconds + tick * 0;
+    return employee.availability.durationSeconds;
   }
 
   const since =
@@ -839,16 +816,28 @@ function getAvailabilityDuration(employee: EmployeeShiftMonitor, tick: number) {
     employee.statusStartedAt ||
     employee.since ||
     employee.softphone?.updatedAt ||
-    employee.updatedAt;
+    employee.updatedAt ||
+    employee.lastSeenAt;
 
-  return secondsBetween(since) + tick * 0;
+  return secondsBetween(since);
 }
 
 function getShiftSeconds(employee: EmployeeShiftMonitor, tick: number) {
+  void tick;
   const start = getShiftStart(employee);
   if (!start) return 0;
 
-  return secondsBetween(start) + tick * 0;
+  return secondsBetween(start);
+}
+
+function getShiftLocationLabel(value?: string) {
+  const clean = cleanLower(value);
+
+  if (clean === "home") return "בית";
+  if (clean === "venue") return "אולם";
+  if (clean === "office") return "משרד";
+
+  return cleanString(value) || "—";
 }
 
 function getDirectionLabel(value?: string) {
@@ -862,19 +851,47 @@ function getDirectionLabel(value?: string) {
 
 function getShiftTitle(employee: EmployeeShiftMonitor) {
   const shift = employee.shift;
-  if (!shift) return "לא שובץ היום";
+
+  if (isSoftphoneConnected(employee) && !shift) {
+    return "מחובר ללא שיבוץ";
+  }
+
+  if (!shift) return "לא משובץ היום";
 
   return (
     cleanString(shift.title) ||
     cleanString(shift.name) ||
-    (isShiftActiveNow(employee) ? "משמרת פעילה" : "משובץ היום")
+    (isShiftActiveNow(employee) ? "משמרת פעילה" : "שיבוץ היום")
   );
 }
 
-function getCurrentAction(
-  employee: EmployeeShiftMonitor,
-  status: SoftphoneStatus,
-) {
+function getShiftLocation(employee: EmployeeShiftMonitor) {
+  const shift = employee.shift;
+  if (!shift) return "—";
+
+  const location =
+    cleanString(shift.location) ||
+    cleanString(shift.locationType) ||
+    cleanString(shift.workLocation);
+
+  const venue =
+    cleanString(shift.venueName) ||
+    cleanString(shift.hallName) ||
+    cleanString(shift.placeName);
+
+  const event =
+    cleanString(shift.eventName) ||
+    cleanString(shift.eventTitle) ||
+    cleanString(shift.invitationTitle);
+
+  const parts = [getShiftLocationLabel(location), venue, event].filter(
+    (item) => item && item !== "—",
+  );
+
+  return parts.length ? parts.join(" · ") : "—";
+}
+
+function getCurrentAction(employee: EmployeeShiftMonitor, status: SoftphoneStatus) {
   const call = employee.currentCall;
 
   if (status === "dialing") {
@@ -946,17 +963,13 @@ function getCurrentAction(
   if (status === "offline") {
     return {
       title: "מנותק מהסופטפון",
-      sub: isScheduledToday(employee)
-        ? "משובץ היום אבל לא מחובר"
-        : "לא זמין לשיחות",
+      sub: "לא זמין לשיחות",
     };
   }
 
   return {
     title: "אין נתונים עדכניים",
-    sub: isScheduledToday(employee)
-      ? "משובץ היום, מחכה לחיבור"
-      : "מחכה לסנכרון מהסופטפון",
+    sub: "מחכה לסנכרון מהסופטפון",
   };
 }
 
@@ -968,17 +981,64 @@ function isInDefaultShiftView(employee: EmployeeShiftMonitor) {
   );
 }
 
-function getRowPriority(employee: EmployeeShiftMonitor) {
-  const status = normalizeStatus(employee);
+function canEndEmployeeShift(employee: EmployeeShiftMonitor) {
+  return isSoftphoneConnected(employee) || isShiftActiveNow(employee);
+}
 
-  if (status === "ringing") return 1;
-  if (status === "in_call") return 2;
-  if (status === "dialing") return 3;
-  if (status === "online") return 4;
-  if (status === "busy" || status === "not_available") return 5;
-  if (status === "break") return 6;
-  if (isScheduledToday(employee)) return 7;
-  return 9;
+function getShiftBadge(employee: EmployeeShiftMonitor) {
+  const connected = isSoftphoneConnected(employee);
+  const active = isShiftActiveNow(employee);
+  const scheduledToday = isScheduledToday(employee);
+
+  if (connected && active) {
+    return {
+      label: "מחובר במשמרת",
+      className: "bg-emerald-50 text-emerald-700 ring-emerald-100",
+    };
+  }
+
+  if (connected && scheduledToday) {
+    return {
+      label: "מחובר + משובץ",
+      className: "bg-emerald-50 text-emerald-700 ring-emerald-100",
+    };
+  }
+
+  if (connected) {
+    return {
+      label: "מחובר ללא שיבוץ",
+      className: "bg-cyan-50 text-cyan-700 ring-cyan-100",
+    };
+  }
+
+  if (active) {
+    return {
+      label: "משמרת פעילה",
+      className: "bg-indigo-50 text-indigo-700 ring-indigo-100",
+    };
+  }
+
+  if (scheduledToday) {
+    return {
+      label: "משובץ היום",
+      className: "bg-amber-50 text-amber-700 ring-amber-100",
+    };
+  }
+
+  return {
+    label: "לא משובץ",
+    className: "bg-slate-100 text-slate-500 ring-slate-200",
+  };
+}
+
+function getLastSeen(employee: EmployeeShiftMonitor) {
+  return (
+    employee.updatedAt ||
+    employee.softphone?.lastSeenAt ||
+    employee.softphone?.updatedAt ||
+    employee.lastSeenAt ||
+    null
+  );
 }
 
 /* =====================================================
@@ -988,7 +1048,6 @@ function getRowPriority(employee: EmployeeShiftMonitor) {
 export default function AdminShiftManagementPage() {
   const [employees, setEmployees] = useState<EmployeeShiftMonitor[]>([]);
   const [loading, setLoading] = useState(true);
-  const [backgroundSyncing, setBackgroundSyncing] = useState(false);
   const [actionEmployeeId, setActionEmployeeId] = useState("");
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
@@ -996,21 +1055,10 @@ export default function AdminShiftManagementPage() {
     useState<ShiftManagementFilter>("default");
   const [tick, setTick] = useState(0);
   const [lastRefreshAt, setLastRefreshAt] = useState<Date | null>(null);
-  const fetchingRef = useRef(false);
 
-  const fetchEmployees = useCallback(async (initialLoad = false) => {
-    if (fetchingRef.current) return;
-
+  const fetchEmployees = useCallback(async (showLoader = false) => {
     try {
-      fetchingRef.current = true;
-
-      if (initialLoad) {
-        setLoading(true);
-      } else {
-        setBackgroundSyncing(true);
-      }
-
-      setError("");
+      if (showLoader) setLoading(true);
 
       const res = await fetch(`/api/admin/shift-management?t=${Date.now()}`, {
         method: "GET",
@@ -1034,12 +1082,11 @@ export default function AdminShiftManagementPage() {
 
       setEmployees(onlySystemEmployees);
       setLastRefreshAt(new Date());
+      setError("");
     } catch (err: any) {
       setError(err?.message || "שגיאה בטעינת ניהול המשמרת");
     } finally {
-      setLoading(false);
-      setBackgroundSyncing(false);
-      fetchingRef.current = false;
+      if (showLoader) setLoading(false);
     }
   }, []);
 
@@ -1047,6 +1094,7 @@ export default function AdminShiftManagementPage() {
     fetchEmployees(true);
   }, [fetchEmployees]);
 
+  // זה מה שנותן מספרים חיים 0:01, 0:02, 0:03 בלי למשוך API כל שנייה.
   useEffect(() => {
     const timer = window.setInterval(() => {
       setTick((prev) => prev + 1);
@@ -1055,10 +1103,11 @@ export default function AdminShiftManagementPage() {
     return () => window.clearInterval(timer);
   }, []);
 
+  // סנכרון נתונים ברקע בלבד. לא מציג כפתור ולא מקפיץ את המסך.
   useEffect(() => {
     const timer = window.setInterval(() => {
       fetchEmployees(false);
-    }, 2500);
+    }, 10000);
 
     return () => window.clearInterval(timer);
   }, [fetchEmployees]);
@@ -1068,32 +1117,27 @@ export default function AdminShiftManagementPage() {
 
     if (!employeeId || actionEmployeeId) return;
 
-    const ok = window.confirm(
-      `להוציא את ${getEmployeeName(employee)} מהמשמרת?`,
-    );
+    const ok = window.confirm(`להוציא את ${getEmployeeName(employee)} מהמשמרת?`);
     if (!ok) return;
 
     try {
       setActionEmployeeId(employeeId);
 
-      const res = await fetch(
-        "/api/admin/shift-management/end-employee-shift",
-        {
-          method: "POST",
-          credentials: "include",
-          cache: "no-store",
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-store",
-          },
-          body: JSON.stringify({
-            employeeId,
-            employeeEmail: employee.email || "",
-            shiftSessionId: employee.shiftSessionId || "",
-            source: "admin-shift-management",
-          }),
+      const res = await fetch("/api/admin/shift-management/end-employee-shift", {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-store",
         },
-      );
+        body: JSON.stringify({
+          employeeId,
+          employeeEmail: employee.email || "",
+          shiftSessionId: employee.shiftSessionId || "",
+          source: "admin-shift-management",
+        }),
+      });
 
       const json = (await res.json().catch(() => ({}))) as ActionResponse;
 
@@ -1152,267 +1196,176 @@ export default function AdminShiftManagementPage() {
   }
 
   const stats = useMemo(() => {
-    let visibleDefault = 0;
     let connected = 0;
     let scheduledToday = 0;
     let activeShift = 0;
     let dialing = 0;
-    let liveCalls = 0;
+    let inCall = 0;
     let notAvailable = 0;
+    let offline = 0;
 
     for (const employee of employees) {
       const status = normalizeStatus(employee);
 
-      if (isInDefaultShiftView(employee)) visibleDefault += 1;
       if (isSoftphoneConnected(employee)) connected += 1;
       if (isScheduledToday(employee)) scheduledToday += 1;
       if (isShiftActiveNow(employee)) activeShift += 1;
       if (status === "dialing") dialing += 1;
-      if (status === "in_call" || status === "ringing") liveCalls += 1;
+      if (status === "in_call" || status === "ringing") inCall += 1;
 
-      if (
-        status === "busy" ||
-        status === "break" ||
-        status === "not_available"
-      ) {
+      if (status === "busy" || status === "break" || status === "not_available") {
         notAvailable += 1;
       }
+
+      if (status === "offline" || status === "unknown") offline += 1;
     }
 
     return {
       total: employees.length,
-      visibleDefault,
       connected,
       scheduledToday,
       activeShift,
       dialing,
-      liveCalls,
+      inCall,
       notAvailable,
+      offline,
     };
   }, [employees, tick]);
 
   const filteredEmployees = useMemo(() => {
     const cleanQuery = query.trim().toLowerCase();
 
-    return employees
-      .filter((employee) => {
-        const status = normalizeStatus(employee);
-        const name = getEmployeeName(employee).toLowerCase();
+    return employees.filter((employee) => {
+      const status = normalizeStatus(employee);
+      const name = getEmployeeName(employee).toLowerCase();
 
-        const searchable = [
-          name,
-          employee.email,
-          getEmployeePhone(employee),
-          employee.role,
-          employee.staffType,
-          employee.softphone?.extension,
-          employee.softphone?.sipExtension,
-          employee.softphone?.sipUsername,
-          employee.softphone?.sip_user,
-          employee.currentCall?.customerName,
-          employee.currentCall?.customerPhone,
-          employee.currentCall?.clientName,
-          employee.currentCall?.clientPhone,
-          employee.currentCall?.guestName,
-          employee.currentCall?.guestPhone,
-          employee.currentCall?.eventName,
-          employee.currentCall?.eventTitle,
-          employee.currentCall?.invitationTitle,
-          employee.currentCall?.invitationName,
-          employee.availability?.reason,
-          employee.availability?.note,
-          employee.availabilityReason,
-          employee.notAvailableReason,
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
+      const searchable = [
+        name,
+        employee.email,
+        getEmployeePhone(employee),
+        employee.role,
+        employee.staffType,
+        employee.softphone?.extension,
+        employee.softphone?.sipExtension,
+        employee.softphone?.sipUsername,
+        employee.softphone?.sip_user,
+        employee.currentCall?.customerName,
+        employee.currentCall?.customerPhone,
+        employee.currentCall?.clientName,
+        employee.currentCall?.clientPhone,
+        employee.currentCall?.guestName,
+        employee.currentCall?.guestPhone,
+        employee.currentCall?.eventName,
+        employee.currentCall?.eventTitle,
+        employee.currentCall?.invitationTitle,
+        employee.currentCall?.invitationName,
+        employee.availability?.reason,
+        employee.availability?.note,
+        employee.availabilityReason,
+        employee.notAvailableReason,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
 
-        const matchQuery = !cleanQuery || searchable.includes(cleanQuery);
+      const matchQuery = !cleanQuery || searchable.includes(cleanQuery);
 
-        const matchStatus =
-          statusFilter === "all"
-            ? true
-            : statusFilter === "default"
-              ? isInDefaultShiftView(employee)
-              : statusFilter === "connected"
-                ? isSoftphoneConnected(employee)
-                : statusFilter === "scheduled_today"
-                  ? isScheduledToday(employee)
-                  : status === statusFilter;
+      const matchStatus =
+        statusFilter === "all"
+          ? true
+          : statusFilter === "default"
+            ? isInDefaultShiftView(employee)
+            : statusFilter === "connected"
+              ? isSoftphoneConnected(employee)
+              : statusFilter === "scheduled_today"
+                ? isScheduledToday(employee)
+                : status === statusFilter;
 
-        return matchQuery && matchStatus;
-      })
-      .sort((a, b) => {
-        const priorityDiff = getRowPriority(a) - getRowPriority(b);
-        if (priorityDiff !== 0) return priorityDiff;
-
-        return getEmployeeName(a).localeCompare(getEmployeeName(b), "he");
-      });
+      return matchQuery && matchStatus;
+    });
   }, [employees, query, statusFilter, tick]);
 
   return (
-    <div className="space-y-5" dir="rtl">
-      {/* HERO */}
-      <section className="relative overflow-hidden rounded-[34px] border border-white/80 bg-slate-950 p-5 text-white shadow-2xl shadow-indigo-200/50 md:p-6">
-        <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-indigo-500/30 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-28 right-8 h-72 w-72 rounded-full bg-emerald-500/20 blur-3xl" />
-
-        <div className="relative flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+    <div className="space-y-5 text-slate-950" dir="rtl">
+      <section className="overflow-hidden rounded-[30px] border border-[#E9ECF5] bg-gradient-to-l from-white via-[#F8FBFF] to-[#F3F0FF] p-5 shadow-xl shadow-slate-100/80">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-xs font-black text-white ring-1 ring-white/15">
-              <span className="relative flex h-2.5 w-2.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
-              </span>
-              LIVE · מתעדכן אוטומטית כל 2.5 שניות
+            <div className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-black text-emerald-700 ring-1 ring-emerald-100 shadow-sm">
+              <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-500" />
+              LIVE · מונה זמן כל שנייה · סנכרון שקט ברקע
             </div>
 
-            <h1 className="mt-3 text-3xl font-black tracking-tight md:text-4xl">
+            <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-950">
               ניהול משמרת
             </h1>
 
-            <p className="mt-2 max-w-4xl text-sm font-bold leading-6 text-slate-300">
-              ברירת המחדל מציגה עובד שמחובר לסופטפון, עובד במשמרת פעילה, או עובד
-              שמשובץ היום. חיבור לסופטפון נחשב כמשמרת בפועל ואפשר להוציא אותו
-              ממשמרת.
+            <p className="mt-2 max-w-4xl text-sm font-bold leading-6 text-slate-500">
+              עובד שמחובר לסופטפון נחשב במשמרת בפועל וניתן להוציא אותו. בנוסף מוצגים עובדים שמשובצים היום גם אם עוד לא התחברו.
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <HeroMini label="מוצגים עכשיו" value={stats.visibleDefault} />
-            <HeroMini label="מחוברים" value={stats.connected} />
-            <HeroMini label="בשיחה" value={stats.liveCalls} />
-            <HeroMini label="משובצים היום" value={stats.scheduledToday} />
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <HeroMetric label="מחוברים" value={stats.connected} />
+            <HeroMetric label="בשיחה" value={stats.inCall} />
+            <HeroMetric label="מחייגים" value={stats.dialing} />
+            <HeroMetric label="משובצים היום" value={stats.scheduledToday} />
           </div>
         </div>
       </section>
 
-      {/* STATUS BAR */}
-      <section className="flex flex-col gap-3 rounded-[28px] border border-white/80 bg-white/90 p-4 shadow-xl shadow-slate-100/80 backdrop-blur xl:flex-row xl:items-center xl:justify-between">
-        <div className="flex flex-wrap items-center gap-2 text-xs font-black">
-          <span className="rounded-full bg-emerald-50 px-3 py-2 text-emerald-700 ring-1 ring-emerald-100">
-            עדכון אחרון: {lastRefreshAt ? formatDateTime(lastRefreshAt) : "—"}
-          </span>
-          <span className="rounded-full bg-slate-50 px-3 py-2 text-slate-500 ring-1 ring-slate-100">
-            {backgroundSyncing ? "מסנכרן ברקע..." : "סנכרון אוטומטי פעיל"}
-          </span>
-          <span className="rounded-full bg-indigo-50 px-3 py-2 text-indigo-700 ring-1 ring-indigo-100">
-            ללא כפתור רענון ידני
-          </span>
-        </div>
+      <section className="rounded-[26px] border border-[#E9ECF5] bg-white/95 p-4 shadow-lg shadow-slate-100/70">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700 ring-1 ring-emerald-100">
+              עודכן: {lastRefreshAt ? formatDateTime(lastRefreshAt) : "—"}
+            </span>
+            <span className="rounded-full bg-slate-50 px-3 py-2 text-xs font-black text-slate-500 ring-1 ring-slate-100">
+              סנכרון שקט כל 10 שניות
+            </span>
+            <span className="rounded-full bg-indigo-50 px-3 py-2 text-xs font-black text-indigo-700 ring-1 ring-indigo-100">
+              השעונים רצים כל שנייה
+            </span>
+          </div>
 
-        <div className="relative w-full xl:max-w-md">
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="חיפוש עובד / מספר / לקוח / אירוע..."
-            className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 pr-11 text-sm font-bold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-indigo-200 focus:bg-white focus:ring-4 focus:ring-indigo-50"
-          />
+          <div className="relative w-full xl:max-w-md">
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="חיפוש עובד / מספר / לקוח / אירוע..."
+              className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 pr-11 text-sm font-bold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-indigo-200 focus:bg-white focus:ring-4 focus:ring-indigo-50"
+            />
 
-          <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
-            🔎
-          </span>
+            <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
+              🔎
+            </span>
+          </div>
         </div>
       </section>
 
-      {/* STATS */}
       <section className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
-        <StatCard
-          label="מוצגים"
-          value={stats.visibleDefault}
-          hint="מחובר / משמרת / שיבוץ"
-        />
-        <StatCard label="מחוברים" value={stats.connected} hint="נחשב במשמרת" />
-        <StatCard
-          label="משמרת פעילה"
-          value={stats.activeShift}
-          hint="shift פעיל"
-        />
-        <StatCard
-          label="משובצים היום"
-          value={stats.scheduledToday}
-          hint="גם אם לא התחברו"
-        />
+        <StatCard label="מחוברים" value={stats.connected} hint="נחשב משמרת" />
+        <StatCard label="משובצים היום" value={stats.scheduledToday} hint="גם אם לא התחברו" />
+        <StatCard label="משמרת פעילה" value={stats.activeShift} hint="shift פעיל" />
         <StatCard label="מחייגים" value={stats.dialing} hint="שיחה יוצאת" />
-        <StatCard label="בשיחה" value={stats.liveCalls} hint="פעילות עכשיו" />
-        <StatCard
-          label="לא פנויים"
-          value={stats.notAvailable}
-          hint="עסוק / הפסקה"
-        />
+        <StatCard label="בשיחה" value={stats.inCall} hint="פעילות עכשיו" />
+        <StatCard label="לא פנויים" value={stats.notAvailable} hint="עסוק / הפסקה" />
+        <StatCard label="מנותקים" value={stats.offline} hint="לא זמינים" />
         <StatCard label="סה״כ" value={stats.total} hint="עובדי מערכת" />
       </section>
 
-      {/* FILTERS */}
-      <section className="rounded-[26px] border border-white/70 bg-white/90 p-4 shadow-lg shadow-slate-100/70 backdrop-blur">
+      <section className="rounded-[26px] border border-[#E9ECF5] bg-white/95 p-4 shadow-lg shadow-slate-100/70">
         <div className="flex flex-wrap gap-2">
-          <FilterButton
-            active={statusFilter === "default"}
-            onClick={() => setStatusFilter("default")}
-          >
-            ברירת מחדל
-          </FilterButton>
-          <FilterButton
-            active={statusFilter === "connected"}
-            onClick={() => setStatusFilter("connected")}
-          >
-            מחוברים
-          </FilterButton>
-          <FilterButton
-            active={statusFilter === "scheduled_today"}
-            onClick={() => setStatusFilter("scheduled_today")}
-          >
-            משובצים היום
-          </FilterButton>
-          <FilterButton
-            active={statusFilter === "all"}
-            onClick={() => setStatusFilter("all")}
-          >
-            הכל
-          </FilterButton>
-          <FilterButton
-            active={statusFilter === "online"}
-            onClick={() => setStatusFilter("online")}
-          >
-            פנויים
-          </FilterButton>
-          <FilterButton
-            active={statusFilter === "dialing"}
-            onClick={() => setStatusFilter("dialing")}
-          >
-            מחייגים
-          </FilterButton>
-          <FilterButton
-            active={statusFilter === "in_call"}
-            onClick={() => setStatusFilter("in_call")}
-          >
-            בשיחה
-          </FilterButton>
-          <FilterButton
-            active={statusFilter === "ringing"}
-            onClick={() => setStatusFilter("ringing")}
-          >
-            נכנסת
-          </FilterButton>
-          <FilterButton
-            active={statusFilter === "not_available"}
-            onClick={() => setStatusFilter("not_available")}
-          >
-            לא פנויים
-          </FilterButton>
-          <FilterButton
-            active={statusFilter === "break"}
-            onClick={() => setStatusFilter("break")}
-          >
-            הפסקה
-          </FilterButton>
-          <FilterButton
-            active={statusFilter === "offline"}
-            onClick={() => setStatusFilter("offline")}
-          >
-            מנותקים
-          </FilterButton>
+          <FilterButton active={statusFilter === "default"} onClick={() => setStatusFilter("default")}>ברירת מחדל</FilterButton>
+          <FilterButton active={statusFilter === "connected"} onClick={() => setStatusFilter("connected")}>מחוברים</FilterButton>
+          <FilterButton active={statusFilter === "scheduled_today"} onClick={() => setStatusFilter("scheduled_today")}>משובצים היום</FilterButton>
+          <FilterButton active={statusFilter === "all"} onClick={() => setStatusFilter("all")}>הכל</FilterButton>
+          <FilterButton active={statusFilter === "online"} onClick={() => setStatusFilter("online")}>פנויים</FilterButton>
+          <FilterButton active={statusFilter === "dialing"} onClick={() => setStatusFilter("dialing")}>מחייגים</FilterButton>
+          <FilterButton active={statusFilter === "in_call"} onClick={() => setStatusFilter("in_call")}>בשיחה</FilterButton>
+          <FilterButton active={statusFilter === "ringing"} onClick={() => setStatusFilter("ringing")}>נכנסת</FilterButton>
+          <FilterButton active={statusFilter === "not_available"} onClick={() => setStatusFilter("not_available")}>לא פנויים</FilterButton>
+          <FilterButton active={statusFilter === "break"} onClick={() => setStatusFilter("break")}>הפסקה</FilterButton>
+          <FilterButton active={statusFilter === "offline"} onClick={() => setStatusFilter("offline")}>מנותקים</FilterButton>
         </div>
       </section>
 
@@ -1422,10 +1375,9 @@ export default function AdminShiftManagementPage() {
         </section>
       )}
 
-      {/* TABLE */}
-      <section className="overflow-hidden rounded-[30px] border border-white/80 bg-white/95 shadow-xl shadow-slate-100/80 backdrop-blur">
+      <section className="overflow-hidden rounded-[30px] border border-[#E9ECF5] bg-white shadow-xl shadow-slate-100/80">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1450px] border-collapse text-right">
+          <table className="w-full min-w-[1500px] border-collapse text-right">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50/90 text-xs font-black text-slate-500">
                 <th className="px-5 py-4">עובד</th>
@@ -1451,12 +1403,9 @@ export default function AdminShiftManagementPage() {
                       <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-50 text-2xl ring-1 ring-slate-100">
                         🎧
                       </div>
-                      <p className="mt-4 text-lg font-black text-slate-900">
-                        אין עובדים להצגה
-                      </p>
+                      <p className="mt-4 text-lg font-black text-slate-900">אין עובדים להצגה</p>
                       <p className="mt-2 text-sm font-bold text-slate-500">
-                        ברירת המחדל מציגה מחוברים, עובדים במשמרת פעילה ומשובצים
-                        היום.
+                        ברירת המחדל מציגה מחוברים, משמרת פעילה ומשובצים היום.
                       </p>
                     </div>
                   </td>
@@ -1506,23 +1455,22 @@ function LiveSoftphoneRow({
   const connected = isSoftphoneConnected(employee);
   const scheduledToday = isScheduledToday(employee);
   const action = getCurrentAction(employee, status);
+  const shiftBadge = getShiftBadge(employee);
 
-  const isCall =
-    status === "dialing" || status === "ringing" || status === "in_call";
+  const isCall = status === "dialing" || status === "ringing" || status === "in_call";
   const duration = isCall
     ? getCurrentCallDuration(employee, tick)
     : getAvailabilityDuration(employee, tick);
 
   const callControlId = getCallControlId(employee);
   const canHangup = Boolean(callControlId) && isCall;
+  const canEndShift = canEndEmployeeShift(employee);
 
   const shiftStart = getShiftStart(employee);
   const shiftEnd = getShiftEnd(employee);
 
   return (
-    <tr
-      className={`border-b last:border-b-0 ${meta.row} transition-colors hover:bg-white`}
-    >
+    <tr className={`group border-b transition last:border-b-0 hover:bg-indigo-50/25 ${meta.row}`}>
       <td className="px-5 py-4">
         <div className="flex items-center gap-3">
           <div className="relative shrink-0">
@@ -1533,12 +1481,15 @@ function LiveSoftphoneRow({
                 className="h-12 w-12 rounded-2xl object-cover ring-1 ring-slate-100"
               />
             ) : (
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-900 to-indigo-600 text-sm font-black text-white shadow-lg shadow-indigo-100">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-500 text-sm font-black text-white shadow-lg shadow-indigo-100">
                 {getInitials(name)}
               </div>
             )}
+
             <span
-              className={`absolute -bottom-1 -left-1 h-4 w-4 rounded-full border-2 border-white ${connected ? "bg-emerald-500" : "bg-slate-300"}`}
+              className={`absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full border-2 border-white ${
+                connected ? "bg-emerald-500" : "bg-slate-300"
+              }`}
             />
           </div>
 
@@ -1552,15 +1503,11 @@ function LiveSoftphoneRow({
       </td>
 
       <td className="px-5 py-4">
-        <div className="space-y-2">
+        <div className="flex flex-col gap-2">
           <StatusBadge status={status} />
-          <div className="flex flex-wrap gap-1.5">
-            {connected && <SmallPill tone="green">מחובר = במשמרת</SmallPill>}
-            {shiftActive && <SmallPill tone="blue">משמרת פעילה</SmallPill>}
-            {scheduledToday && !shiftActive && (
-              <SmallPill tone="amber">משובץ היום</SmallPill>
-            )}
-          </div>
+          <span className={`w-fit rounded-full px-3 py-1.5 text-[11px] font-black ring-1 ${shiftBadge.className}`}>
+            {shiftBadge.label}
+          </span>
         </div>
       </td>
 
@@ -1574,50 +1521,34 @@ function LiveSoftphoneRow({
       </td>
 
       <td className="px-5 py-4">
-        <p
-          dir="ltr"
-          className="text-left font-mono text-sm font-black text-slate-900"
-        >
+        <p dir="ltr" className="text-left font-mono text-sm font-black text-slate-900">
           {isCall ? getCallPhone(employee) || "—" : "—"}
         </p>
         <p className="mt-1 text-xs font-bold text-slate-400">
-          {isCall
-            ? getDirectionLabel(employee.currentCall?.direction)
-            : "אין שיחה"}
+          {isCall ? getDirectionLabel(employee.currentCall?.direction) : "אין שיחה"}
         </p>
       </td>
 
       <td className="px-5 py-4">
-        <span
-          dir="ltr"
-          className="inline-flex rounded-2xl bg-slate-950 px-3 py-2 font-mono text-sm font-black text-white shadow-lg shadow-slate-200"
-        >
+        <span dir="ltr" className="inline-flex rounded-2xl bg-slate-950 px-3 py-2 font-mono text-sm font-black text-white shadow-lg shadow-slate-200">
           {formatDuration(duration)}
         </span>
       </td>
 
       <td className="px-5 py-4">
-        <p
-          className={`text-sm font-black ${shiftActive || connected ? "text-emerald-700" : scheduledToday ? "text-amber-700" : "text-slate-700"}`}
-        >
-          {connected ? "במשמרת מחובר" : getShiftTitle(employee)}
+        <p className={`text-sm font-black ${connected || shiftActive ? "text-emerald-700" : scheduledToday ? "text-amber-700" : "text-slate-700"}`}>
+          {getShiftTitle(employee)}
         </p>
         <p className="mt-1 text-xs font-bold text-slate-400">
           {shiftStart || shiftEnd
             ? `${formatTime(shiftStart)} - ${formatTime(shiftEnd)}`
-            : scheduledToday
-              ? "שיבוץ היום ללא שעות"
-              : "—"}
+            : getShiftLocation(employee)}
         </p>
       </td>
 
       <td className="px-5 py-4">
         <span dir="ltr" className="font-mono text-sm font-black text-slate-900">
-          {shiftActive
-            ? formatDuration(getShiftSeconds(employee, tick))
-            : connected
-              ? formatDuration(getAvailabilityDuration(employee, tick))
-              : "—"}
+          {shiftActive ? formatDuration(getShiftSeconds(employee, tick)) : connected ? formatDuration(duration) : "—"}
         </span>
       </td>
 
@@ -1631,12 +1562,7 @@ function LiveSoftphoneRow({
 
       <td className="px-5 py-4">
         <p className="text-xs font-bold text-slate-500">
-          {formatDateTime(
-            employee.updatedAt ||
-              employee.softphone?.lastSeenAt ||
-              employee.softphone?.updatedAt ||
-              employee.lastSeenAt,
-          )}
+          {formatDateTime(getLastSeen(employee))}
         </p>
       </td>
 
@@ -1654,8 +1580,12 @@ function LiveSoftphoneRow({
           <button
             type="button"
             onClick={onEndShift}
-            disabled={(!connected && !shiftActive) || busy}
-            className="h-9 rounded-2xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+            disabled={!canEndShift || busy}
+            className={`h-9 rounded-2xl border px-3 text-xs font-black transition disabled:cursor-not-allowed disabled:opacity-40 ${
+              canEndShift
+                ? "border-indigo-100 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+                : "border-slate-200 bg-white text-slate-400"
+            }`}
           >
             הוצא ממשמרת
           </button>
@@ -1669,48 +1599,23 @@ function LiveSoftphoneRow({
    SMALL COMPONENTS
 ===================================================== */
 
-function HeroMini({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-3xl bg-white/10 p-4 ring-1 ring-white/10 backdrop-blur">
-      <p className="text-xs font-black text-slate-300">{label}</p>
-      <p className="mt-1 text-3xl font-black text-white">{value}</p>
-    </div>
-  );
-}
-
 function StatusBadge({ status }: { status: SoftphoneStatus }) {
   const meta = getStatusMeta(status);
 
   return (
-    <span
-      className={`inline-flex items-center gap-2 rounded-2xl px-3 py-2 text-xs font-black ring-1 ${meta.badge}`}
-    >
+    <span className={`inline-flex w-fit items-center gap-2 rounded-2xl px-3 py-2 text-xs font-black ring-1 ${meta.badge}`}>
       <span className={`h-2.5 w-2.5 rounded-full ${meta.dot}`} />
       {meta.label}
     </span>
   );
 }
 
-function SmallPill({
-  children,
-  tone,
-}: {
-  children: React.ReactNode;
-  tone: "green" | "blue" | "amber";
-}) {
-  const className =
-    tone === "green"
-      ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
-      : tone === "blue"
-        ? "bg-indigo-50 text-indigo-700 ring-indigo-100"
-        : "bg-amber-50 text-amber-700 ring-amber-100";
-
+function HeroMetric({ label, value }: { label: string; value: number }) {
   return (
-    <span
-      className={`rounded-full px-2 py-1 text-[10px] font-black ring-1 ${className}`}
-    >
-      {children}
-    </span>
+    <div className="min-w-[115px] rounded-[24px] border border-white/80 bg-white/80 p-4 shadow-lg shadow-slate-100/70 backdrop-blur">
+      <p className="text-xs font-black text-slate-400">{label}</p>
+      <p className="mt-1 text-3xl font-black text-slate-950">{value}</p>
+    </div>
   );
 }
 
@@ -1724,11 +1629,9 @@ function StatCard({
   hint: string;
 }) {
   return (
-    <div className="rounded-[24px] border border-white/70 bg-white/90 p-4 shadow-lg shadow-slate-100/70 backdrop-blur transition hover:-translate-y-0.5 hover:shadow-xl">
+    <div className="rounded-[24px] border border-[#E9ECF5] bg-white p-4 shadow-lg shadow-slate-100/70 transition hover:-translate-y-0.5 hover:shadow-xl">
       <p className="text-xs font-black text-slate-400">{label}</p>
-      <p className="mt-2 text-3xl font-black tracking-tight text-slate-950">
-        {value}
-      </p>
+      <p className="mt-2 text-3xl font-black tracking-tight text-slate-950">{value}</p>
       <p className="mt-1 text-xs font-bold text-slate-400">{hint}</p>
     </div>
   );
@@ -1751,7 +1654,7 @@ function FilterButton({
         h-10 rounded-2xl px-4 text-xs font-black transition
         ${
           active
-            ? "bg-gradient-to-l from-slate-950 to-indigo-700 text-white shadow-lg shadow-indigo-100"
+            ? "bg-gradient-to-l from-indigo-500 to-violet-500 text-white shadow-lg shadow-indigo-100"
             : "bg-slate-50 text-slate-500 ring-1 ring-slate-100 hover:bg-indigo-50 hover:text-indigo-700 hover:ring-indigo-100"
         }
       `}
@@ -1773,7 +1676,7 @@ function MiniMetric({ label, value }: { label: string; value: number }) {
 function LoadingRows() {
   return (
     <>
-      {Array.from({ length: 7 }).map((_, index) => (
+      {Array.from({ length: 6 }).map((_, index) => (
         <tr key={index} className="border-b border-slate-100">
           <td colSpan={10} className="px-5 py-4">
             <div className="h-16 animate-pulse rounded-2xl bg-slate-50" />
