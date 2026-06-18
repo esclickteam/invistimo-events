@@ -1235,11 +1235,8 @@ export default function NewEmployeeSalePage() {
     paymentTerms: finalPaymentTerms,
     extraRecordsTerms,
     includedItems: selectedPlan.includes,
-    upsells: selectedUpsellsList.map((upsell) => ({
-      title: getUpsellTitle(upsell, venueSeatingStaffCount, alcoholManagementStaffCount),
-      description: getUpsellDescription(upsell, venueSeatingStaffCount, alcoholManagementStaffCount),
-      customerDetails: getCustomerSectionsForUpsell(upsell),
-      price:
+    upsells: selectedUpsellsList.map((upsell) => {
+      const actualPrice =
         upsell.key === "suppliersBudgetSystem" &&
         suppliersBudgetFree &&
         canGiveSuppliersBudgetFree
@@ -1248,13 +1245,24 @@ export default function NewEmployeeSalePage() {
               upsell,
               venueSeatingStaffCount,
               alcoholManagementStaffCount,
-            ),
-      showPriceInDocument: showUpsellPricesInDocument,
-      givenFree:
+            );
+      const givenFree =
         upsell.key === "suppliersBudgetSystem" &&
         suppliersBudgetFree &&
-        canGiveSuppliersBudgetFree,
-    })),
+        canGiveSuppliersBudgetFree;
+
+      return {
+        title: getUpsellTitle(upsell, venueSeatingStaffCount, alcoholManagementStaffCount),
+        description: getUpsellDescription(upsell, venueSeatingStaffCount, alcoholManagementStaffCount),
+        customerDetails: getCustomerSectionsForUpsell(upsell),
+        price: showUpsellPricesInDocument ? actualPrice : undefined,
+        actualPrice,
+        displayPrice: showUpsellPricesInDocument ? actualPrice : undefined,
+        showPriceInDocument: showUpsellPricesInDocument,
+        hidePriceInDocument: !showUpsellPricesInDocument,
+        givenFree: showUpsellPricesInDocument ? givenFree : false,
+      };
+    }),
   }), [alcoholManagementStaffCount, baseGrossAmount, canGiveSuppliersBudgetFree, eventCity, eventDate, eventName, extraRecordPrice, extraRecordsTerms, finalGrossAmount, finalPaymentTerms, packageCalculation.records, paymentDiscountAmount, paymentMode, paymentSchedule, quoteCreatedAt, quoteExpiresAt, quotePricingDisplay, selectedPlan.customerSummary, selectedPlan.includes, selectedPlan.title, selectedUpsellsList, showUpsellPricesInDocument, suppliersBudgetFree, venueSeatingStaffCount]);
 
   const effectiveEventDate = eventDate || quoteCreatedAt;
@@ -1301,12 +1309,16 @@ export default function NewEmployeeSalePage() {
       const dynamicPrice = getUpsellPrice(upsell, venueSeatingStaffCount, alcoholManagementStaffCount);
       const givenFree = upsell.key === "suppliersBudgetSystem" && suppliersBudgetFree && canGiveSuppliersBudgetFree;
 
+      const actualPrice = givenFree ? 0 : dynamicPrice;
+
       return {
         key: upsell.key,
         title: getUpsellTitle(upsell, venueSeatingStaffCount, alcoholManagementStaffCount),
         description: getUpsellDescription(upsell, venueSeatingStaffCount, alcoholManagementStaffCount),
-        price: givenFree ? 0 : dynamicPrice,
-        givenFree,
+        price: showUpsellPricesInDocument ? actualPrice : undefined,
+        actualPrice,
+        displayPrice: showUpsellPricesInDocument ? actualPrice : undefined,
+        givenFree: showUpsellPricesInDocument ? givenFree : false,
         customerDetails: getCustomerSectionsForUpsell(upsell),
         employeeDetails: getEmployeeSectionsForUpsell(upsell),
         showPriceInDocument: showUpsellPricesInDocument,

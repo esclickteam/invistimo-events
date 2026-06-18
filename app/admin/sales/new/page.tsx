@@ -1069,7 +1069,6 @@ export default function AdminSalesNewPage() {
   const [adminCustomTotalEnabled, setAdminCustomTotalEnabled] = useState(false);
   const [adminCustomTotal, setAdminCustomTotal] = useState<number | "">("");
   const [adminSpecialOfferExpiresAt, setAdminSpecialOfferExpiresAt] = useState("");
-  const [adminOfferAppliesToEmployees, setAdminOfferAppliesToEmployees] = useState(false);
   const [manualPaymentReference, setManualPaymentReference] = useState("");
   const [manualPaymentNote, setManualPaymentNote] = useState("");
   const [documentType, setDocumentType] = useState<DocumentType>("quote");
@@ -1286,17 +1285,28 @@ export default function AdminSalesNewPage() {
     paymentTerms: finalPaymentTerms,
     extraRecordsTerms,
     includedItems: selectedPlan.includes,
-    upsells: selectedUpsellsList.map((upsell) => ({
-      title: getUpsellTitle(upsell, venueSeatingStaffCount, alcoholManagementStaffCount),
-      description: getUpsellDescription(upsell, venueSeatingStaffCount, alcoholManagementStaffCount),
-      customerDetails: getCustomerSectionsForUpsell(upsell),
-      price: getEffectiveUpsellPrice(upsell),
-      showPriceInDocument: showUpsellPricesInDocument,
-      givenFree:
+    upsells: selectedUpsellsList.map((upsell) => {
+      const effectivePrice = getEffectiveUpsellPrice(upsell);
+      const givenFree =
         upsell.key === "suppliersBudgetSystem" &&
         suppliersBudgetFree &&
-        canGiveSuppliersBudgetFree,
-    })),
+        canGiveSuppliersBudgetFree;
+
+      return {
+        title: getUpsellTitle(upsell, venueSeatingStaffCount, alcoholManagementStaffCount),
+        description: getUpsellDescription(upsell, venueSeatingStaffCount, alcoholManagementStaffCount),
+        customerDetails: getCustomerSectionsForUpsell(upsell),
+        price: effectivePrice,
+        actualPrice: effectivePrice,
+        documentPrice: showUpsellPricesInDocument ? effectivePrice : undefined,
+        displayPrice: showUpsellPricesInDocument ? effectivePrice : undefined,
+        priceLabel: showUpsellPricesInDocument ? money(effectivePrice) : "",
+        showPriceInDocument: showUpsellPricesInDocument,
+        hidePriceInDocument: !showUpsellPricesInDocument,
+        givenFree,
+        showFreeLabelInDocument: showUpsellPricesInDocument && givenFree,
+      };
+    }),
   }), [alcoholManagementStaffCount, baseGrossAmount, canGiveSuppliersBudgetFree, eventCity, eventDate, eventName, extraRecordPrice, extraRecordsTerms, finalGrossAmount, finalPaymentTerms, packageCalculation.records, paymentDiscountAmount, paymentMode, paymentSchedule, quoteCreatedAt, quoteExpiresAt, quotePricingDisplay, selectedPlan.customerSummary, selectedPlan.includes, selectedPlan.title, selectedUpsellsList, showUpsellPricesInDocument, suppliersBudgetFree, venueSeatingStaffCount, getEffectiveUpsellPrice]);
 
   const effectiveEventDate = eventDate || quoteCreatedAt;
@@ -1339,7 +1349,12 @@ export default function AdminSalesNewPage() {
       pricePerRecord: extraRecordPrice,
       extraRecordPrice,
       extraRecordsNote: `כל רשומה נוספת מעבר ל-${packageCalculation.records} רשומות תחויב לפי ${money(extraRecordPrice)} לרשומה.`,
-      displayPrice: effectivePackagePrice,
+      actualPrice: effectivePackagePrice,
+      documentPrice: showUpsellPricesInDocument ? effectivePackagePrice : undefined,
+      displayPrice: showUpsellPricesInDocument ? effectivePackagePrice : undefined,
+      priceLabel: showUpsellPricesInDocument ? money(effectivePackagePrice) : "",
+      showPriceInDocument: showUpsellPricesInDocument,
+      hidePriceInDocument: !showUpsellPricesInDocument,
     },
     upsells: selectedUpsellsList.map((upsell) => {
       const originalDynamicPrice = getUpsellPrice(upsell, venueSeatingStaffCount, alcoholManagementStaffCount);
@@ -1351,9 +1366,14 @@ export default function AdminSalesNewPage() {
         title: getUpsellTitle(upsell, venueSeatingStaffCount, alcoholManagementStaffCount),
         description: getUpsellDescription(upsell, venueSeatingStaffCount, alcoholManagementStaffCount),
         price: dynamicPrice,
+        actualPrice: dynamicPrice,
+        documentPrice: showUpsellPricesInDocument ? dynamicPrice : undefined,
+        displayPrice: showUpsellPricesInDocument ? dynamicPrice : undefined,
+        priceLabel: showUpsellPricesInDocument ? money(dynamicPrice) : "",
         originalCalculatedPrice: originalDynamicPrice,
         priceOverriddenByAdmin: dynamicPrice !== originalDynamicPrice,
         givenFree,
+        showFreeLabelInDocument: showUpsellPricesInDocument && givenFree,
         customerDetails: getCustomerSectionsForUpsell(upsell),
         employeeDetails: getEmployeeSectionsForUpsell(upsell),
         showPriceInDocument: showUpsellPricesInDocument,
@@ -1382,6 +1402,46 @@ export default function AdminSalesNewPage() {
     cancellationTerms: CANCELLATION_TERMS,
     paymentTerms: finalPaymentTerms,
   }), [alcoholManagementStaffCount, baseGrossAmount, canGiveSuppliersBudgetFree, clientAddress, clientEmail, clientName, clientPhone, customerDealSummary, customerIdNumber, documentType, effectiveEventCity, effectiveEventDate, effectiveEventName, effectiveVenueName, extraRecordPrice, finalGrossAmount, finalPaymentTerms, netAmount, effectivePackagePrice, getEffectiveUpsellPrice, packageCalculation.finalPrice, packageCalculation.records, paymentDiscountAmount, paymentMode, paymentSchedule, quoteCreatedAt, quoteExpiresAt, quotePricingDisplay, selectedPlan.customerSummary, selectedPlan.includes, selectedPlan.key, selectedPlan.title, selectedUpsellsList, showUpsellPricesInDocument, suppliersBudgetFree, venueSeatingStaffCount, getEffectiveUpsellPrice]);
+
+  const documentRequestPayload = useMemo(() => {
+    if (showUpsellPricesInDocument) return documentPayload;
+
+    return {
+      ...documentPayload,
+      selectedPackage: {
+        ...documentPayload.selectedPackage,
+        price: undefined,
+        documentPrice: undefined,
+        displayPrice: undefined,
+        priceLabel: "",
+        showPriceInDocument: false,
+        hidePriceInDocument: true,
+      },
+      upsells: documentPayload.upsells.map((upsell) => ({
+        ...upsell,
+        price: undefined,
+        documentPrice: undefined,
+        displayPrice: undefined,
+        priceLabel: "",
+        showPriceInDocument: false,
+        hidePriceInDocument: true,
+        showFreeLabelInDocument: false,
+      })),
+      customerDealSummary: {
+        ...documentPayload.customerDealSummary,
+        upsells: documentPayload.customerDealSummary.upsells.map((upsell) => ({
+          ...upsell,
+          price: undefined,
+          documentPrice: undefined,
+          displayPrice: undefined,
+          priceLabel: "",
+          showPriceInDocument: false,
+          hidePriceInDocument: true,
+          showFreeLabelInDocument: false,
+        })),
+      },
+    };
+  }, [documentPayload, showUpsellPricesInDocument]);
 
   const isDocumentActionDisabled = documentSaving || finalGrossAmount <= 0;
 
@@ -1448,7 +1508,7 @@ export default function AdminSalesNewPage() {
         credentials: "include",
         cache: "no-store",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(documentPayload),
+        body: JSON.stringify(documentRequestPayload),
       });
       const data = await response.json().catch(() => null);
 
@@ -1633,7 +1693,6 @@ export default function AdminSalesNewPage() {
             fullPaymentDiscountAmount,
             adminManualDiscountAmount,
             specialOfferExpiresAt: adminSpecialOfferExpiresAt,
-            appliesToEmployees: adminOfferAppliesToEmployees,
           },
 
           notes: manualPaymentNote.trim(),
@@ -2126,16 +2185,6 @@ export default function AdminSalesNewPage() {
                           className="h-12 rounded-2xl border border-[#eadfce] bg-white px-4 text-right text-sm font-bold text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15 disabled:opacity-50"
                         />
                       </div>
-
-                      <label className="mt-3 flex items-center gap-2 text-xs font-black text-[#7b6a58]">
-                        <input
-                          type="checkbox"
-                          checked={adminOfferAppliesToEmployees}
-                          onChange={(event) => setAdminOfferAppliesToEmployees(event.target.checked)}
-                          className="h-4 w-4 accent-[#9b7a3c]"
-                        />
-                        מבצע מוגבל בזמן שיחול גם אצל העובדים
-                      </label>
                     </div>
 
                     {adminPaymentStatus === "manual_paid" ? (
