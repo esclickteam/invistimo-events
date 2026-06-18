@@ -76,6 +76,43 @@ type EmployeeHoursSummary = {
   rejectionReason?: string;
 };
 
+type EmployeeSaleRow = {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  employeeEmail: string;
+  saleTitle: string;
+  clientName: string;
+  clientEmail: string;
+  clientPhone: string;
+  eventName: string;
+  eventDate: string;
+  eventCity: string;
+  venueName: string;
+  dealAmountBeforeVat: number;
+  dealAmountAfterVat: number;
+  commissionRate: number;
+  commissionAmount: number;
+  paymentMode: string;
+  paymentProvider: string;
+  status: string;
+  saleDate: string;
+  paidAt: string;
+  createdAt: string;
+  notes: string;
+};
+
+type EmployeeSalesTotals = {
+  salesCount: number;
+  totalBeforeVat: number;
+  totalAfterVat: number;
+  totalCommission: number;
+  paidSalesCount: number;
+  paidBeforeVat: number;
+  paidAfterVat: number;
+  paidCommission: number;
+};
+
 const API = {
   profile: (employeeId: string) =>
     `/api/admin/employees/${encodeURIComponent(employeeId)}/profile`,
@@ -88,6 +125,10 @@ const API = {
     `/api/admin/employees/${encodeURIComponent(
       employeeId
     )}/hours?month=${encodeURIComponent(month)}`,
+  sales: (employeeId: string, month: string) =>
+    `/api/admin/employees/${encodeURIComponent(
+      employeeId
+    )}/sales?month=${encodeURIComponent(month)}&status=all`,
 };
 
 function cleanStr(value: unknown) {
@@ -224,6 +265,14 @@ function statusLabel(status?: string) {
       return "הוגש לאישור";
     case "draft":
       return "טיוטה";
+    case "pending":
+      return "ממתין לתשלום";
+    case "paid":
+      return "שולם";
+    case "cancelled":
+      return "בוטל";
+    case "refunded":
+      return "זוכה";
     default:
       return "לא הועלה";
   }
@@ -232,12 +281,16 @@ function statusLabel(status?: string) {
 function statusClass(status?: string) {
   switch (String(status || "").toLowerCase()) {
     case "approved":
+    case "paid":
       return "border-emerald-200 bg-emerald-50 text-emerald-700";
     case "rejected":
+    case "cancelled":
+    case "refunded":
       return "border-rose-200 bg-rose-50 text-rose-700";
     case "signed":
     case "uploaded":
     case "submitted":
+    case "pending":
       return "border-amber-200 bg-amber-50 text-amber-700";
     default:
       return "border-slate-200 bg-slate-50 text-slate-600";
@@ -254,6 +307,17 @@ function documentTypeLabel(type?: string) {
       return "הסכם עבודה";
     default:
       return "מסמך עובד";
+  }
+}
+
+function paymentModeLabel(value?: string) {
+  switch (String(value || "").toLowerCase()) {
+    case "full":
+      return "תשלום מלא";
+    case "split":
+      return "שני תשלומים";
+    default:
+      return "—";
   }
 }
 
@@ -289,7 +353,8 @@ function Icon({
     | "user"
     | "money"
     | "calendar"
-    | "sparkles";
+    | "sparkles"
+    | "sales";
   className?: string;
 }) {
   const common = {
@@ -422,6 +487,16 @@ function Icon({
     );
   }
 
+  if (name === "sales") {
+    return (
+      <svg {...common}>
+        <path d="M3 3v18h18" />
+        <path d="m7 15 4-4 3 3 6-7" />
+        <path d="M18 7h2v2" />
+      </svg>
+    );
+  }
+
   return (
     <svg {...common}>
       <path d="m12 3 10 18H2L12 3z" />
@@ -458,11 +533,25 @@ export default function AdminEmployeeFilePage() {
     status: "draft",
   });
 
+  const [salesRows, setSalesRows] = useState<EmployeeSaleRow[]>([]);
+  const [salesTotals, setSalesTotals] = useState<EmployeeSalesTotals>({
+    salesCount: 0,
+    totalBeforeVat: 0,
+    totalAfterVat: 0,
+    totalCommission: 0,
+    paidSalesCount: 0,
+    paidBeforeVat: 0,
+    paidAfterVat: 0,
+    paidCommission: 0,
+  });
+
   const [loading, setLoading] = useState(true);
   const [hoursLoading, setHoursLoading] = useState(true);
+  const [salesLoading, setSalesLoading] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
   const [updatingDocId, setUpdatingDocId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [salesError, setSalesError] = useState("");
 
   const form101 = documents.find((doc) => doc.documentType === "form101") || null;
   const idCard = documents.find((doc) => doc.documentType === "idCard") || null;
@@ -489,6 +578,82 @@ export default function AdminEmployeeFilePage() {
     () => totalHoursDecimal * Number(employee.hourlyRate || 0),
     [employee.hourlyRate, totalHoursDecimal]
   );
+
+  const estimatedMonthlyPaymentWithCommissions = useMemo(
+    () => estimatedMonthlyPayment + Number(salesTotals.paidCommission || 0),
+    [estimatedMonthlyPayment, salesTotals.paidCommission]
+  );
+
+  const loadSalesSummary = useCallback(async () => {
+    if (!employeeId) return;
+
+    try {
+      setSalesLoading(true);
+      setSalesError("");
+
+      const data = await fetchJson(API.sales(employeeId, month), true);
+
+      const rows = Array.isArray(data?.sales) ? data.sales : [];
+      const totals = data?.totals || {};
+
+      setSalesRows(
+        rows.map((sale: any) => ({
+          id: cleanStr(sale.id),
+          employeeId: cleanStr(sale.employeeId),
+          employeeName: cleanStr(sale.employeeName),
+          employeeEmail: cleanStr(sale.employeeEmail),
+          saleTitle: cleanStr(sale.saleTitle) || "מכירה",
+          clientName: cleanStr(sale.clientName),
+          clientEmail: cleanStr(sale.clientEmail),
+          clientPhone: cleanStr(sale.clientPhone),
+          eventName: cleanStr(sale.eventName),
+          eventDate: cleanStr(sale.eventDate),
+          eventCity: cleanStr(sale.eventCity),
+          venueName: cleanStr(sale.venueName),
+          dealAmountBeforeVat: Number(sale.dealAmountBeforeVat || 0),
+          dealAmountAfterVat: Number(sale.dealAmountAfterVat || 0),
+          commissionRate: Number(sale.commissionRate || 5),
+          commissionAmount: Number(sale.commissionAmount || 0),
+          paymentMode: cleanStr(sale.paymentMode),
+          paymentProvider: cleanStr(sale.paymentProvider),
+          status: cleanStr(sale.status) || "pending",
+          saleDate: cleanStr(sale.saleDate),
+          paidAt: cleanStr(sale.paidAt),
+          createdAt: cleanStr(sale.createdAt),
+          notes: cleanStr(sale.notes),
+        }))
+      );
+
+      setSalesTotals({
+        salesCount: Number(totals.salesCount || 0),
+        totalBeforeVat: Number(totals.totalBeforeVat || 0),
+        totalAfterVat: Number(totals.totalAfterVat || 0),
+        totalCommission: Number(totals.totalCommission || 0),
+        paidSalesCount: Number(totals.paidSalesCount || 0),
+        paidBeforeVat: Number(totals.paidBeforeVat || 0),
+        paidAfterVat: Number(totals.paidAfterVat || 0),
+        paidCommission: Number(totals.paidCommission || 0),
+      });
+    } catch (loadError) {
+      console.error("LOAD EMPLOYEE SALES SUMMARY FAILED:", loadError);
+      setSalesRows([]);
+      setSalesTotals({
+        salesCount: 0,
+        totalBeforeVat: 0,
+        totalAfterVat: 0,
+        totalCommission: 0,
+        paidSalesCount: 0,
+        paidBeforeVat: 0,
+        paidAfterVat: 0,
+        paidCommission: 0,
+      });
+      setSalesError(
+        loadError instanceof Error ? loadError.message : "שגיאה בטעינת מכירות"
+      );
+    } finally {
+      setSalesLoading(false);
+    }
+  }, [employeeId, month]);
 
   const loadHoursSummary = useCallback(async () => {
     if (!employeeId) return;
@@ -652,7 +817,8 @@ export default function AdminEmployeeFilePage() {
 
   useEffect(() => {
     void loadHoursSummary();
-  }, [loadHoursSummary]);
+    void loadSalesSummary();
+  }, [loadHoursSummary, loadSalesSummary]);
 
   async function saveProfile() {
     if (!employeeId || savingProfile) return;
@@ -837,6 +1003,7 @@ export default function AdminEmployeeFilePage() {
                 onClick={() => {
                   void loadEmployee();
                   void loadHoursSummary();
+                  void loadSalesSummary();
                 }}
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-700 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50"
               >
@@ -1055,15 +1222,20 @@ export default function AdminEmployeeFilePage() {
 
               <button
                 type="button"
-                onClick={() => void loadHoursSummary()}
-                disabled={hoursLoading}
+                onClick={() => {
+                  void loadHoursSummary();
+                  void loadSalesSummary();
+                }}
+                disabled={hoursLoading || salesLoading}
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 transition hover:border-emerald-200 hover:bg-emerald-50 disabled:opacity-50"
               >
                 <Icon
                   name="refresh"
-                  className={`h-4 w-4 ${hoursLoading ? "animate-spin" : ""}`}
+                  className={`h-4 w-4 ${
+                    hoursLoading || salesLoading ? "animate-spin" : ""
+                  }`}
                 />
-                רענון שעות
+                רענון חודש
               </button>
 
               <Link
@@ -1076,7 +1248,7 @@ export default function AdminEmployeeFilePage() {
             </div>
           </div>
 
-          <div className="mt-5 grid gap-3 md:grid-cols-4">
+          <div className="mt-5 grid gap-3 md:grid-cols-5">
             <div className="rounded-[24px] border border-emerald-100 bg-emerald-50 p-5">
               <p className="text-xs font-black text-emerald-600">
                 סה״כ שעות החודש
@@ -1103,7 +1275,7 @@ export default function AdminEmployeeFilePage() {
 
             <div className="rounded-[24px] border border-violet-100 bg-violet-50 p-5">
               <p className="text-xs font-black text-violet-600">
-                תשלום חודשי משוער
+                תשלום שעות משוער
               </p>
               <p className="mt-2 text-2xl font-black text-violet-950">
                 {formatMoney(estimatedMonthlyPayment)}
@@ -1114,17 +1286,185 @@ export default function AdminEmployeeFilePage() {
             </div>
 
             <div className="rounded-[24px] border border-amber-100 bg-amber-50 p-5">
-              <p className="text-xs font-black text-amber-600">סטטוס שעות</p>
+              <p className="text-xs font-black text-amber-600">
+                עמלות מכירה ששולמו
+              </p>
               <p className="mt-2 text-2xl font-black text-amber-950">
-                {statusLabel(hoursSummary.status)}
+                {formatMoney(salesTotals.paidCommission)}
               </p>
               <p className="mt-1 text-xs font-bold text-amber-700">
-                {hoursSummary.approvedAt
-                  ? `אושר: ${formatDateTime(hoursSummary.approvedAt)}`
-                  : "טרם אושר"}
+                5% מהסכום לפני מע״מ
+              </p>
+            </div>
+
+            <div className="rounded-[24px] border border-fuchsia-100 bg-fuchsia-50 p-5">
+              <p className="text-xs font-black text-fuchsia-600">
+                שעות + עמלות
+              </p>
+              <p className="mt-2 text-2xl font-black text-fuchsia-950">
+                {formatMoney(estimatedMonthlyPaymentWithCommissions)}
+              </p>
+              <p className="mt-1 text-xs font-bold text-fuchsia-700">
+                לחישוב פנימי
               </p>
             </div>
           </div>
+        </section>
+
+        <section className="rounded-[34px] border border-white/80 bg-white/90 p-5 shadow-[0_12px_40px_rgba(15,23,42,0.06)] backdrop-blur md:p-6">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50 px-4 py-2 text-sm font-black text-indigo-700">
+                <Icon name="sales" className="h-4 w-4" />
+                מכירות ועמלות
+              </div>
+
+              <h2 className="mt-4 text-xl font-black text-slate-900">
+                מכירות העובד — {monthLabel(month)}
+              </h2>
+
+              <p className="mt-1 text-sm font-semibold text-slate-500">
+                כאן מוצגות כל המכירות ששויכו לעובד. עמלת המכירה היא 5% מהסכום
+                לפני מע״מ. הסכום לתשלום בפועל מחושב לפי מכירות בסטטוס שולם.
+              </p>
+            </div>
+          </div>
+
+          {salesError ? (
+            <div className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-700">
+              {salesError}
+            </div>
+          ) : null}
+
+          <div className="mt-5 grid gap-3 md:grid-cols-4">
+            <div className="rounded-[24px] border border-indigo-100 bg-indigo-50 p-5">
+              <p className="text-xs font-black text-indigo-600">סה״כ מכירות</p>
+              <p className="mt-2 text-3xl font-black text-indigo-950">
+                {salesTotals.salesCount}
+              </p>
+              <p className="mt-1 text-xs font-bold text-indigo-700">
+                שולם: {salesTotals.paidSalesCount}
+              </p>
+            </div>
+
+            <div className="rounded-[24px] border border-sky-100 bg-sky-50 p-5">
+              <p className="text-xs font-black text-sky-600">
+                סכום לפני מע״מ
+              </p>
+              <p className="mt-2 text-2xl font-black text-sky-950">
+                {formatMoney(salesTotals.totalBeforeVat)}
+              </p>
+              <p className="mt-1 text-xs font-bold text-sky-700">
+                שולם: {formatMoney(salesTotals.paidBeforeVat)}
+              </p>
+            </div>
+
+            <div className="rounded-[24px] border border-violet-100 bg-violet-50 p-5">
+              <p className="text-xs font-black text-violet-600">
+                סכום אחרי מע״מ
+              </p>
+              <p className="mt-2 text-2xl font-black text-violet-950">
+                {formatMoney(salesTotals.totalAfterVat)}
+              </p>
+              <p className="mt-1 text-xs font-bold text-violet-700">
+                שולם: {formatMoney(salesTotals.paidAfterVat)}
+              </p>
+            </div>
+
+            <div className="rounded-[24px] border border-emerald-100 bg-emerald-50 p-5">
+              <p className="text-xs font-black text-emerald-600">עמלה 5%</p>
+              <p className="mt-2 text-2xl font-black text-emerald-950">
+                {formatMoney(salesTotals.totalCommission)}
+              </p>
+              <p className="mt-1 text-xs font-bold text-emerald-700">
+                לתשלום: {formatMoney(salesTotals.paidCommission)}
+              </p>
+            </div>
+          </div>
+
+          {salesLoading ? (
+            <div className="mt-6 rounded-3xl border border-slate-100 bg-slate-50 p-8 text-center">
+              <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-indigo-100 border-t-indigo-500" />
+              <p className="mt-3 text-sm font-black text-slate-600">
+                טוען מכירות...
+              </p>
+            </div>
+          ) : salesRows.length === 0 ? (
+            <div className="mt-6 rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-sm font-black text-slate-500">
+              אין מכירות לעובד בחודש הזה.
+            </div>
+          ) : (
+            <div className="mt-6 overflow-hidden rounded-3xl border border-slate-100">
+              <table className="w-full border-collapse text-right">
+                <thead className="bg-slate-50">
+                  <tr className="text-sm text-slate-500">
+                    <th className="px-5 py-4 font-black">תאריך</th>
+                    <th className="px-5 py-4 font-black">איזה מכירה</th>
+                    <th className="px-5 py-4 font-black">לקוח</th>
+                    <th className="px-5 py-4 font-black">סכום לפני מע״מ</th>
+                    <th className="px-5 py-4 font-black">סכום אחרי מע״מ</th>
+                    <th className="px-5 py-4 font-black">עמלה 5%</th>
+                    <th className="px-5 py-4 font-black">תשלום</th>
+                    <th className="px-5 py-4 font-black">סטטוס</th>
+                  </tr>
+                </thead>
+
+                <tbody className="divide-y divide-slate-100">
+                  {salesRows.map((sale) => (
+                    <tr key={sale.id} className="transition hover:bg-indigo-50/40">
+                      <td className="px-5 py-4 text-sm font-black text-slate-700">
+                        {formatDate(sale.paidAt || sale.saleDate || sale.createdAt)}
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <p className="text-sm font-black text-slate-900">
+                          {sale.saleTitle || "מכירה"}
+                        </p>
+                        <p className="mt-1 text-xs font-bold text-slate-400">
+                          {sale.eventName || sale.venueName || ""}
+                        </p>
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <p className="text-sm font-black text-slate-800">
+                          {sale.clientName || "—"}
+                        </p>
+                        <p className="mt-1 text-xs font-bold text-slate-400">
+                          {sale.clientPhone || sale.clientEmail || ""}
+                        </p>
+                      </td>
+
+                      <td className="px-5 py-4 text-sm font-black text-slate-700">
+                        {formatMoney(sale.dealAmountBeforeVat)}
+                      </td>
+
+                      <td className="px-5 py-4 text-sm font-black text-slate-700">
+                        {formatMoney(sale.dealAmountAfterVat)}
+                      </td>
+
+                      <td className="px-5 py-4 text-sm font-black text-emerald-700">
+                        {formatMoney(sale.commissionAmount)}
+                      </td>
+
+                      <td className="px-5 py-4 text-sm font-bold text-slate-600">
+                        {paymentModeLabel(sale.paymentMode)}
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <span
+                          className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${statusClass(
+                            sale.status
+                          )}`}
+                        >
+                          {statusLabel(sale.status)}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
 
         <section className="rounded-[34px] border border-white/80 bg-white/90 p-5 shadow-[0_12px_40px_rgba(15,23,42,0.06)] backdrop-blur md:p-6">
