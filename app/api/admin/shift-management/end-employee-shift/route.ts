@@ -11,9 +11,9 @@ type JwtPayload = {
   id?: string;
   _id?: string;
   role?: string;
+  effectiveRole?: string;
   email?: string;
   isAdmin?: boolean;
-  effectiveRole?: string;
   [key: string]: unknown;
 };
 
@@ -22,27 +22,38 @@ type MongoCache = {
   promise: Promise<typeof mongoose> | null;
 };
 
-type CloseSessionsResult = {
-  closedCount: number;
-  createdFallback: boolean;
+type SessionCloseResult = {
+  collectionName: string;
   sessionId: string;
-  startedAt: Date | null;
+  startedAt: Date;
   endedAt: Date;
-  durationSeconds: number;
-  touchedCollections: string[];
+  totalSeconds: number;
+  totalMinutes: number;
+  totalHours: number;
+  createdFallback: boolean;
 };
 
 declare global {
   // eslint-disable-next-line no-var
-  var mongooseAdminEndEmployeeShiftCache: MongoCache | undefined;
+  var mongooseAdminEndEmployeeShiftFinalCache: MongoCache | undefined;
 }
 
 const cached: MongoCache =
-  global.mongooseAdminEndEmployeeShiftCache ||
-  (global.mongooseAdminEndEmployeeShiftCache = {
+  global.mongooseAdminEndEmployeeShiftFinalCache ||
+  (global.mongooseAdminEndEmployeeShiftFinalCache = {
     conn: null,
     promise: null,
   });
+
+const SHIFT_SESSION_COLLECTIONS = [
+  "softphoneshiftsessions",
+  "SoftphoneShiftSessions",
+  "employeeshiftsessions",
+  "EmployeeShiftSessions",
+  "softphone_shift_sessions",
+];
+
+const DAILY_SUMMARY_COLLECTION = "softphoneshiftdailysummaries";
 
 async function connectMongo() {
   if (cached.conn) return cached.conn;
@@ -75,12 +86,37 @@ function jsonError(message: string, status = 400, details?: unknown) {
 }
 
 function cleanStr(value: unknown) {
-  if (value === null || value === undefined) return "";
-  return String(value).trim();
+  return typeof value === "string" ? value.trim() : "";
 }
 
-function cleanLower(value: unknown) {
-  return cleanStr(value).toLowerCase();
+function toObjectId(value: unknown) {
+  const clean = cleanStr(value);
+  if (!clean || !mongoose.Types.ObjectId.isValid(clean)) return null;
+  return new mongoose.Types.ObjectId(clean);
+}
+
+function safeDate(value: unknown) {
+  if (!value) return null;
+  const date = new Date(value as string | number | Date);
+  if (Number.isNaN(date.getTime())) return null;
+  return date;
+}
+
+function getDayKey(date: Date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function getMonthKey(date: Date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  return `${y}-${m}`;
+}
+
+function secondsBetween(start: Date, end: Date) {
+  return Math.max(0, Math.floor((end.getTime() - start.getTime()) / 1000));
 }
 
 function getBearerToken(req: NextRequest) {
@@ -125,105 +161,6 @@ function getUserId(decoded: JwtPayload) {
   return cleanStr(decoded.userId) || cleanStr(decoded.id) || cleanStr(decoded._id);
 }
 
-function toObjectId(value: unknown) {
-  const clean = cleanStr(value);
-  if (!clean || !mongoose.Types.ObjectId.isValid(clean)) return null;
-  return new mongoose.Types.ObjectId(clean);
-}
-
-function safeDate(value: unknown) {
-  if (!value) return null;
-
-  if (value instanceof Date && !Number.isNaN(value.getTime())) {
-    return value;
-  }
-
-  const date = new Date(String(value));
-
-  if (Number.isNaN(date.getTime())) return null;
-
-  return date;
-}
-
-function durationSecondsBetween(start: Date | null, end: Date) {
-  if (!start) return 0;
-
-  return Math.max(0, Math.floor((end.getTime() - start.getTime()) / 1000));
-}
-
-function durationMinutesFromSeconds(seconds: number) {
-  return Math.round((seconds / 60) * 100) / 100;
-}
-
-function durationHoursFromSeconds(seconds: number) {
-  return Math.round((seconds / 3600) * 10000) / 10000;
-}
-
-function getFirstDate(doc: any, fields: string[]) {
-  for (const field of fields) {
-    const date = safeDate(doc?.[field]);
-    if (date) return date;
-  }
-
-  return null;
-}
-
-function getStatusShiftStart(statusDoc: any) {
-  return getFirstDate(statusDoc, [
-    "shiftStartedAt",
-    "shiftStartAt",
-    "shiftStartTime",
-    "startedAt",
-    "startAt",
-    "statusStartedAt",
-    "since",
-    "availabilitySince",
-    "lastSeenAt",
-    "updatedAt",
-    "createdAt",
-  ]);
-}
-
-function getSessionStart(session: any, fallback: Date | null) {
-  return (
-    getFirstDate(session, [
-      "startedAt",
-      "startAt",
-      "startTime",
-      "shiftStartedAt",
-      "createdAt",
-    ]) || fallback
-  );
-}
-
-function buildSessionCloseSet(params: {
-  now: Date;
-  startedAt: Date | null;
-  adminId: string;
-  adminEmail: string;
-}) {
-  const durationSeconds = durationSecondsBetween(params.startedAt, params.now);
-
-  return {
-    status: "closed",
-    active: false,
-    isActive: false,
-    endedAt: params.now,
-    endAt: params.now,
-    endTime: params.now,
-    updatedAt: params.now,
-    endedBy: "admin",
-    endedByAdmin: true,
-    endedByAdminId: params.adminId,
-    endedByAdminEmail: params.adminEmail,
-    endReason: "admin_force_end_shift",
-    closeReason: "admin_force_end_shift",
-    durationSeconds,
-    durationMinutes: durationMinutesFromSeconds(durationSeconds),
-    durationHours: durationHoursFromSeconds(durationSeconds),
-  };
-}
-
 async function requireAdmin(req: NextRequest) {
   const token = getBearerToken(req) || getTokenFromCookies(req);
 
@@ -247,20 +184,25 @@ async function requireAdmin(req: NextRequest) {
 
   try {
     const decoded = jwt.verify(token, secret) as JwtPayload;
-    const role = cleanLower(decoded.effectiveRole || decoded.role);
+    const role = cleanStr(decoded.effectiveRole || decoded.role).toLowerCase();
 
-    if (decoded.isAdmin === true || role === "admin" || role === "super_admin" || role === "owner") {
+    if (
+      decoded.isAdmin === true ||
+      role === "admin" ||
+      role === "super_admin" ||
+      role === "owner"
+    ) {
       return {
         ok: true as const,
         adminId: getUserId(decoded),
-        adminEmail: cleanStr(decoded.email),
+        adminEmail: cleanStr(decoded.email).toLowerCase(),
       };
     }
 
     await connectMongo();
 
     const userId = getUserId(decoded);
-    const email = cleanLower(decoded.email);
+    const email = cleanStr(decoded.email).toLowerCase();
     const or: Record<string, unknown>[] = [];
 
     const objectId = toObjectId(userId);
@@ -275,7 +217,7 @@ async function requireAdmin(req: NextRequest) {
       ? await mongoose.connection.collection("users").findOne({ $or: or })
       : null;
 
-    const userRole = cleanLower(user?.role);
+    const userRole = cleanStr(user?.role).toLowerCase();
 
     if (
       userRole !== "admin" &&
@@ -293,7 +235,7 @@ async function requireAdmin(req: NextRequest) {
     return {
       ok: true as const,
       adminId: cleanStr(user?._id?.toString?.()) || userId,
-      adminEmail: cleanStr(user?.email) || email,
+      adminEmail: cleanStr(user?.email).toLowerCase() || email,
     };
   } catch (error) {
     return {
@@ -305,133 +247,124 @@ async function requireAdmin(req: NextRequest) {
   }
 }
 
-async function collectionExists(name: string) {
-  const db = mongoose.connection.db;
-  if (!db) return false;
-
-  const found = await db.listCollections({ name }).toArray();
-  return found.length > 0;
-}
-
-async function getCollection(name: string, createIfMissing = false) {
-  const db = mongoose.connection.db;
-  if (!db) return null;
-
-  if (!createIfMissing && !(await collectionExists(name))) return null;
-
-  return db.collection(name);
-}
-
 function buildEmployeeOr(employeeId: string, employeeEmail: string) {
   const employeeObjectId = toObjectId(employeeId);
-  const employeeOr: Record<string, unknown>[] = [];
+  const or: Record<string, unknown>[] = [];
 
   if (employeeId) {
-    employeeOr.push({ agentId: employeeId });
-    employeeOr.push({ employeeId });
-    employeeOr.push({ staffId: employeeId });
-    employeeOr.push({ userId: employeeId });
-    employeeOr.push({ id: employeeId });
+    or.push({ agentId: employeeId });
+    or.push({ employeeId });
+    or.push({ staffId: employeeId });
+    or.push({ userId: employeeId });
+    or.push({ id: employeeId });
   }
 
   if (employeeObjectId) {
-    employeeOr.push({ agentId: employeeObjectId });
-    employeeOr.push({ employeeId: employeeObjectId });
-    employeeOr.push({ staffId: employeeObjectId });
-    employeeOr.push({ userId: employeeObjectId });
-    employeeOr.push({ _id: employeeObjectId });
+    or.push({ agentId: employeeObjectId });
+    or.push({ employeeId: employeeObjectId });
+    or.push({ staffId: employeeObjectId });
+    or.push({ userId: employeeObjectId });
+    or.push({ _id: employeeObjectId });
   }
 
   if (employeeEmail) {
-    employeeOr.push({ agentEmail: employeeEmail });
-    employeeOr.push({ employeeEmail });
-    employeeOr.push({ staffEmail: employeeEmail });
-    employeeOr.push({ email: employeeEmail });
+    or.push({ agentEmail: employeeEmail });
+    or.push({ employeeEmail });
+    or.push({ staffEmail: employeeEmail });
+    or.push({ email: employeeEmail });
   }
 
-  return employeeOr;
+  return or;
 }
 
-function buildOpenSessionQuery(params: {
-  employeeId: string;
-  employeeEmail: string;
-  shiftSessionId: string;
-}) {
-  const employeeObjectId = toObjectId(params.employeeId);
-  const shiftObjectId = toObjectId(params.shiftSessionId);
+function getEmployeeKey(employeeId: string, employeeEmail: string) {
+  return employeeId || employeeEmail;
+}
 
-  const identityOr: Record<string, unknown>[] = [];
+function getSessionId(doc: any) {
+  return cleanStr(doc?._id?.toString?.()) || cleanStr(doc?.id);
+}
 
-  if (params.shiftSessionId) {
-    identityOr.push({ id: params.shiftSessionId });
-    identityOr.push({ shiftSessionId: params.shiftSessionId });
-    identityOr.push({ sessionId: params.shiftSessionId });
-    identityOr.push({ _id: params.shiftSessionId });
+function getSessionStart(doc: any) {
+  return (
+    safeDate(doc?.startedAt) ||
+    safeDate(doc?.startAt) ||
+    safeDate(doc?.startsAt) ||
+    safeDate(doc?.shiftStartedAt) ||
+    safeDate(doc?.statusStartedAt) ||
+    safeDate(doc?.since) ||
+    safeDate(doc?.createdAt)
+  );
+}
+
+function getStatusStart(statusDoc: any, now: Date) {
+  const start =
+    safeDate(statusDoc?.shiftStartedAt) ||
+    safeDate(statusDoc?.currentShiftStartedAt) ||
+    safeDate(statusDoc?.shift?.startedAt) ||
+    safeDate(statusDoc?.statusStartedAt) ||
+    safeDate(statusDoc?.since) ||
+    safeDate(statusDoc?.availabilitySince) ||
+    safeDate(statusDoc?.availability?.since) ||
+    safeDate(statusDoc?.softphone?.updatedAt) ||
+    safeDate(statusDoc?.updatedAt) ||
+    safeDate(statusDoc?.lastSeenAt);
+
+  if (!start || start.getTime() > now.getTime()) return now;
+  return start;
+}
+
+function isStatusConnected(statusDoc: any) {
+  const raw = cleanStr(
+    statusDoc?.status ||
+      statusDoc?.softphoneStatus ||
+      statusDoc?.availabilityStatus ||
+      statusDoc?.rawAgentStatus,
+  ).toLowerCase();
+
+  if (statusDoc?.shiftStarted === true) return true;
+  if (statusDoc?.isOnline === true || statusDoc?.online === true) return true;
+  if (!raw) return false;
+
+  return ![
+    "offline",
+    "disconnected",
+    "unknown",
+    "not_in_shift",
+    "מחוץ למשמרת",
+    "מנותק",
+  ].includes(raw);
+}
+
+async function getExistingCollection(name: string) {
+  const db = mongoose.connection.db;
+  if (!db) return null;
+
+  const found = await db.listCollections({ name }).toArray();
+  if (!found.length) return null;
+
+  return mongoose.connection.collection(name);
+}
+
+async function getWritableShiftCollection() {
+  for (const name of SHIFT_SESSION_COLLECTIONS) {
+    const collection = await getExistingCollection(name);
+    if (collection) return { name, collection };
   }
-
-  if (shiftObjectId) {
-    identityOr.push({ _id: shiftObjectId });
-    identityOr.push({ shiftSessionId: shiftObjectId });
-    identityOr.push({ sessionId: shiftObjectId });
-  }
-
-  if (params.employeeId) {
-    identityOr.push({ agentId: params.employeeId });
-    identityOr.push({ employeeId: params.employeeId });
-    identityOr.push({ staffId: params.employeeId });
-    identityOr.push({ userId: params.employeeId });
-  }
-
-  if (employeeObjectId) {
-    identityOr.push({ agentId: employeeObjectId });
-    identityOr.push({ employeeId: employeeObjectId });
-    identityOr.push({ staffId: employeeObjectId });
-    identityOr.push({ userId: employeeObjectId });
-  }
-
-  if (params.employeeEmail) {
-    identityOr.push({ agentEmail: params.employeeEmail });
-    identityOr.push({ employeeEmail: params.employeeEmail });
-    identityOr.push({ staffEmail: params.employeeEmail });
-    identityOr.push({ email: params.employeeEmail });
-  }
-
-  if (!identityOr.length) return null;
 
   return {
-    $and: [
-      { $or: identityOr },
-      {
-        $or: [
-          { status: "open" },
-          { status: "active" },
-          { status: "started" },
-          { endedAt: null },
-          { endedAt: { $exists: false } },
-          { endAt: null },
-          { endAt: { $exists: false } },
-          { active: true },
-          { isActive: true },
-        ],
-      },
-    ],
+    name: SHIFT_SESSION_COLLECTIONS[0],
+    collection: mongoose.connection.collection(SHIFT_SESSION_COLLECTIONS[0]),
   };
 }
 
-async function findSoftphoneStatus(params: {
-  employeeId: string;
-  employeeEmail: string;
-}) {
-  const employeeOr = buildEmployeeOr(params.employeeId, params.employeeEmail);
-
+async function findSoftphoneStatus(employeeOr: Record<string, unknown>[]) {
   if (!employeeOr.length) return null;
 
   return mongoose.connection.collection("softphonestatuses").findOne(
     { $or: employeeOr },
     {
       sort: {
-        shiftStartedAt: -1,
-        statusStartedAt: -1,
         updatedAt: -1,
         lastSeenAt: -1,
         createdAt: -1,
@@ -440,253 +373,331 @@ async function findSoftphoneStatus(params: {
   );
 }
 
+async function incrementDailySummary(params: {
+  employeeId: string;
+  employeeEmail: string;
+  startedAt: Date;
+  endedAt: Date;
+  totalSeconds: number;
+  endedBy: "admin" | "employee";
+  adminId?: string;
+  adminEmail?: string;
+  sessionId?: string;
+}) {
+  if (params.totalSeconds <= 0) return;
+
+  const dateKey = getDayKey(params.startedAt);
+  const monthKey = getMonthKey(params.startedAt);
+  const employeeKey = getEmployeeKey(params.employeeId, params.employeeEmail);
+  const now = new Date();
+
+  await mongoose.connection.collection(DAILY_SUMMARY_COLLECTION).updateOne(
+    {
+      employeeKey,
+      dateKey,
+    },
+    {
+      $setOnInsert: {
+        employeeKey,
+        employeeId: params.employeeId || "",
+        employeeEmail: params.employeeEmail || "",
+        date: dateKey,
+        dateKey,
+        month: monthKey,
+        monthKey,
+        createdAt: now,
+      },
+      $set: {
+        updatedAt: now,
+        lastEndedAt: params.endedAt,
+        lastEndedBy: params.endedBy,
+        lastAdminId: params.adminId || "",
+        lastAdminEmail: params.adminEmail || "",
+      },
+      $inc: {
+        totalSeconds: params.totalSeconds,
+        totalMinutes: params.totalSeconds / 60,
+        totalHours: params.totalSeconds / 3600,
+        sessionsCount: 1,
+      },
+      $min: {
+        firstStartedAt: params.startedAt,
+      },
+      $addToSet: {
+        sessionIds: params.sessionId || "",
+      },
+    },
+    { upsert: true },
+  );
+}
+
 async function closeOpenShiftSessions(params: {
   employeeId: string;
   employeeEmail: string;
   shiftSessionId: string;
+  employeeOr: Record<string, unknown>[];
+  statusDoc: any;
   now: Date;
-  adminId: string;
-  adminEmail: string;
-  fallbackStartedAt: Date | null;
-}): Promise<CloseSessionsResult> {
-  const names = [
-    "softphoneshiftsessions",
-    "SoftphoneShiftSessions",
-    "employeeshiftsessions",
-    "EmployeeShiftSessions",
-    "softphone_shift_sessions",
-    "staffshiftsessions",
-    "StaffShiftSessions",
-    "workhours",
-    "WorkHours",
-    "employeehours",
-    "EmployeeHours",
-  ];
+  endedBy: "admin" | "employee";
+  adminId?: string;
+  adminEmail?: string;
+}) {
+  const results: SessionCloseResult[] = [];
 
-  let closedCount = 0;
-  let lastSessionId = params.shiftSessionId;
-  let lastStartedAt: Date | null = params.fallbackStartedAt;
-  let lastDurationSeconds = durationSecondsBetween(params.fallbackStartedAt, params.now);
-  const touchedCollections: string[] = [];
-
-  for (const name of names) {
-    const collection = await getCollection(name);
+  for (const name of SHIFT_SESSION_COLLECTIONS) {
+    const collection = await getExistingCollection(name);
     if (!collection) continue;
 
-    const query = buildOpenSessionQuery({
-      employeeId: params.employeeId,
-      employeeEmail: params.employeeEmail,
-      shiftSessionId: params.shiftSessionId,
+    const shiftObjectId = toObjectId(params.shiftSessionId);
+    const sessionOr: Record<string, unknown>[] = [];
+
+    if (params.shiftSessionId) {
+      sessionOr.push({ id: params.shiftSessionId });
+      sessionOr.push({ _id: params.shiftSessionId });
+    }
+
+    if (shiftObjectId) {
+      sessionOr.push({ _id: shiftObjectId });
+    }
+
+    const queryParts: Record<string, unknown>[] = [];
+
+    if (sessionOr.length) {
+      queryParts.push({ $or: sessionOr });
+    } else if (params.employeeOr.length) {
+      queryParts.push({ $or: params.employeeOr });
+    }
+
+    queryParts.push({
+      $or: [
+        { status: "open" },
+        { status: "active" },
+        { endedAt: null },
+        { endedAt: { $exists: false } },
+        { active: true },
+        { isActive: true },
+      ],
     });
 
-    if (!query) continue;
-
-    const sessions = await collection
-      .find(query)
-      .sort({ startedAt: -1, startAt: -1, createdAt: -1 })
-      .limit(20)
+    const openSessions = await collection
+      .find({ $and: queryParts })
+      .sort({ startedAt: 1, startAt: 1, createdAt: 1 })
       .toArray();
 
-    for (const session of sessions) {
-      const startedAt = getSessionStart(session, params.fallbackStartedAt);
-      const set = buildSessionCloseSet({
-        now: params.now,
-        startedAt,
-        adminId: params.adminId,
-        adminEmail: params.adminEmail,
-      });
+    for (const session of openSessions) {
+      const startedAt = getSessionStart(session) || getStatusStart(params.statusDoc, params.now);
+      const totalSeconds = secondsBetween(startedAt, params.now);
+      const totalMinutes = totalSeconds / 60;
+      const totalHours = totalSeconds / 3600;
+      const dateKey = getDayKey(startedAt);
+      const monthKey = getMonthKey(startedAt);
+      const sessionId = getSessionId(session);
 
       await collection.updateOne(
         { _id: session._id },
         {
-          $set: set,
+          $set: {
+            status: "closed",
+            active: false,
+            isActive: false,
+            endedAt: params.now,
+            endAt: params.now,
+            updatedAt: params.now,
+            endedBy: params.endedBy,
+            endedByAdminId: params.adminId || "",
+            endedByAdminEmail: params.adminEmail || "",
+            endReason:
+              params.endedBy === "admin"
+                ? "admin_force_end_shift"
+                : "employee_end_shift",
+            totalSeconds,
+            durationSeconds: totalSeconds,
+            totalMinutes,
+            durationMinutes: totalMinutes,
+            totalHours,
+            durationHours: totalHours,
+            date: session.date || dateKey,
+            dateKey,
+            month: session.month || monthKey,
+            monthKey,
+          },
           $setOnInsert: {
             createdAt: params.now,
           },
         },
       );
 
-      closedCount += 1;
-      touchedCollections.push(name);
-      lastSessionId = cleanStr(session._id?.toString?.()) || cleanStr(session.id) || lastSessionId;
-      lastStartedAt = startedAt;
-      lastDurationSeconds = set.durationSeconds;
+      await incrementDailySummary({
+        employeeId: params.employeeId,
+        employeeEmail: params.employeeEmail,
+        startedAt,
+        endedAt: params.now,
+        totalSeconds,
+        endedBy: params.endedBy,
+        adminId: params.adminId,
+        adminEmail: params.adminEmail,
+        sessionId,
+      });
+
+      results.push({
+        collectionName: name,
+        sessionId,
+        startedAt,
+        endedAt: params.now,
+        totalSeconds,
+        totalMinutes,
+        totalHours,
+        createdFallback: false,
+      });
     }
   }
 
-  if (closedCount > 0) {
-    return {
-      closedCount,
-      createdFallback: false,
-      sessionId: lastSessionId,
-      startedAt: lastStartedAt,
-      endedAt: params.now,
-      durationSeconds: lastDurationSeconds,
-      touchedCollections: Array.from(new Set(touchedCollections)),
-    };
+  if (results.length) return results;
+
+  if (!params.statusDoc || !isStatusConnected(params.statusDoc)) {
+    return results;
   }
 
-  const fallbackCollection = await getCollection("softphoneshiftsessions", true);
-  const fallbackId = new mongoose.Types.ObjectId();
-  const employeeObjectId = toObjectId(params.employeeId);
-  const startedAt = params.fallbackStartedAt || params.now;
-  const durationSeconds = durationSecondsBetween(startedAt, params.now);
+  const startedAt = getStatusStart(params.statusDoc, params.now);
+  const totalSeconds = secondsBetween(startedAt, params.now);
 
-  await fallbackCollection?.insertOne({
-    _id: fallbackId,
-    id: fallbackId.toString(),
-    shiftSessionId: fallbackId.toString(),
-    sessionId: fallbackId.toString(),
+  if (totalSeconds <= 0) return results;
 
-    agentId: employeeObjectId || params.employeeId || undefined,
-    employeeId: employeeObjectId || params.employeeId || undefined,
-    staffId: employeeObjectId || params.employeeId || undefined,
-    userId: employeeObjectId || params.employeeId || undefined,
-    employeeIdString: params.employeeId || undefined,
-    staffIdString: params.employeeId || undefined,
-    userIdString: params.employeeId || undefined,
+  const totalMinutes = totalSeconds / 60;
+  const totalHours = totalSeconds / 3600;
+  const dateKey = getDayKey(startedAt);
+  const monthKey = getMonthKey(startedAt);
+  const writable = await getWritableShiftCollection();
+  const _id = new mongoose.Types.ObjectId();
 
-    agentEmail: params.employeeEmail || undefined,
-    employeeEmail: params.employeeEmail || undefined,
-    staffEmail: params.employeeEmail || undefined,
-    email: params.employeeEmail || undefined,
-
+  await writable.collection.insertOne({
+    _id,
+    employeeId: params.employeeId || "",
+    staffId: params.employeeId || "",
+    userId: params.employeeId || "",
+    employeeEmail: params.employeeEmail || "",
+    staffEmail: params.employeeEmail || "",
+    email: params.employeeEmail || "",
+    date: dateKey,
+    dateKey,
+    month: monthKey,
+    monthKey,
+    startedAt,
+    startAt: startedAt,
+    endedAt: params.now,
+    endAt: params.now,
     status: "closed",
     active: false,
     isActive: false,
-
-    startedAt,
-    startAt: startedAt,
-    startTime: startedAt,
-    endedAt: params.now,
-    endAt: params.now,
-    endTime: params.now,
-
-    durationSeconds,
-    durationMinutes: durationMinutesFromSeconds(durationSeconds),
-    durationHours: durationHoursFromSeconds(durationSeconds),
-
-    source: "admin_force_end_shift_fallback",
-    createdBy: "admin",
-    createdByAdmin: true,
-    endedBy: "admin",
-    endedByAdmin: true,
-    endedByAdminId: params.adminId,
-    endedByAdminEmail: params.adminEmail,
-    endReason: "admin_force_end_shift",
-    closeReason: "admin_force_end_shift",
+    totalSeconds,
+    durationSeconds: totalSeconds,
+    totalMinutes,
+    durationMinutes: totalMinutes,
+    totalHours,
+    durationHours: totalHours,
+    createdFallback: true,
+    source: "admin-end-employee-shift-fallback",
+    endedBy: params.endedBy,
+    endedByAdminId: params.adminId || "",
+    endedByAdminEmail: params.adminEmail || "",
+    endReason:
+      params.endedBy === "admin"
+        ? "admin_force_end_shift"
+        : "employee_end_shift",
     createdAt: params.now,
     updatedAt: params.now,
   });
 
-  return {
-    closedCount: 1,
-    createdFallback: true,
-    sessionId: fallbackId.toString(),
+  await incrementDailySummary({
+    employeeId: params.employeeId,
+    employeeEmail: params.employeeEmail,
     startedAt,
     endedAt: params.now,
-    durationSeconds,
-    touchedCollections: ["softphoneshiftsessions"],
-  };
+    totalSeconds,
+    endedBy: params.endedBy,
+    adminId: params.adminId,
+    adminEmail: params.adminEmail,
+    sessionId: _id.toString(),
+  });
+
+  results.push({
+    collectionName: writable.name,
+    sessionId: _id.toString(),
+    startedAt,
+    endedAt: params.now,
+    totalSeconds,
+    totalMinutes,
+    totalHours,
+    createdFallback: true,
+  });
+
+  return results;
 }
 
-async function markSoftphoneOffline(params: {
+async function updateSoftphoneStatus(params: {
+  employeeOr: Record<string, unknown>[];
   employeeId: string;
   employeeEmail: string;
   now: Date;
   adminId: string;
   adminEmail: string;
-  sessionResult: CloseSessionsResult;
 }) {
-  const employeeOr = buildEmployeeOr(params.employeeId, params.employeeEmail);
+  const query = params.employeeOr.length
+    ? { $or: params.employeeOr }
+    : { employeeEmail: params.employeeEmail || "__missing__" };
 
-  if (!employeeOr.length) return { matchedCount: 0, modifiedCount: 0, inserted: false };
-
-  const setPayload = {
-    status: "offline",
-    softphoneStatus: "offline",
-    availabilityStatus: "offline",
-    rawAgentStatus: "offline",
-    reason: "admin_force_end_shift",
-    reasonLabel: "המשמרת הסתיימה על ידי אדמין",
-    currentCall: null,
-    activeCallNumber: "",
-    callDirection: "none",
-    activeBusyReason: null,
-    busyReason: "",
-    shiftStarted: false,
-    shiftEndedAt: params.now,
-    shiftEndAt: params.now,
-    shiftSessionId: "",
-    currentShiftSessionId: "",
-    shiftStartedAt: null,
-    forceEndedAt: params.now,
-    forceEndedByAdminId: params.adminId,
-    forceEndedByAdminEmail: params.adminEmail,
-    endedAt: params.now,
-    endedBy: "admin",
-    endReason: "admin_force_end_shift",
-    lastClosedShiftSessionId: params.sessionResult.sessionId,
-    lastClosedShiftStartedAt: params.sessionResult.startedAt,
-    lastClosedShiftEndedAt: params.sessionResult.endedAt,
-    lastClosedShiftDurationSeconds: params.sessionResult.durationSeconds,
-    updatedAt: params.now,
-    lastSeenAt: params.now,
-  };
-
-  const result = await mongoose.connection.collection("softphonestatuses").updateMany(
-    { $or: employeeOr },
+  await mongoose.connection.collection("softphonestatuses").updateOne(
+    query,
     {
-      $set: setPayload,
+      $set: {
+        agentId: params.employeeId || "",
+        employeeId: params.employeeId || "",
+        staffId: params.employeeId || "",
+        userId: params.employeeId || "",
+        agentEmail: params.employeeEmail || "",
+        employeeEmail: params.employeeEmail || "",
+        staffEmail: params.employeeEmail || "",
+        email: params.employeeEmail || "",
+        status: "offline",
+        softphoneStatus: "offline",
+        availabilityStatus: "offline",
+        rawAgentStatus: "offline",
+        reason: "admin_force_end_shift",
+        reasonLabel: "המשמרת הסתיימה על ידי אדמין",
+        currentCall: null,
+        activeCallNumber: "",
+        callDirection: "none",
+        shiftStarted: false,
+        shiftEndedAt: params.now,
+        forceEndedAt: params.now,
+        forceEndedByAdminId: params.adminId,
+        forceEndedByAdminEmail: params.adminEmail,
+        endedAt: params.now,
+        endedBy: "admin",
+        updatedAt: params.now,
+        lastSeenAt: params.now,
+        statusStartedAt: params.now,
+        since: params.now,
+      },
+      $setOnInsert: {
+        createdAt: params.now,
+      },
     },
+    { upsert: true },
   );
-
-  if (result.matchedCount > 0) {
-    return {
-      matchedCount: result.matchedCount,
-      modifiedCount: result.modifiedCount,
-      inserted: false,
-    };
-  }
-
-  const employeeObjectId = toObjectId(params.employeeId);
-
-  await mongoose.connection.collection("softphonestatuses").insertOne({
-    agentId: employeeObjectId || params.employeeId || undefined,
-    employeeId: employeeObjectId || params.employeeId || undefined,
-    staffId: employeeObjectId || params.employeeId || undefined,
-    userId: employeeObjectId || params.employeeId || undefined,
-    employeeIdString: params.employeeId || undefined,
-    agentEmail: params.employeeEmail || undefined,
-    employeeEmail: params.employeeEmail || undefined,
-    staffEmail: params.employeeEmail || undefined,
-    email: params.employeeEmail || undefined,
-    ...setPayload,
-    createdAt: params.now,
-  });
-
-  return {
-    matchedCount: 0,
-    modifiedCount: 0,
-    inserted: true,
-  };
 }
 
 async function closeActiveCalls(params: {
-  employeeId: string;
-  employeeEmail: string;
+  employeeOr: Record<string, unknown>[];
   now: Date;
-  adminId: string;
-  adminEmail: string;
+  endedBy: "admin" | "employee";
 }) {
-  const employeeOr = buildEmployeeOr(params.employeeId, params.employeeEmail);
+  if (!params.employeeOr.length) return;
 
-  if (!employeeOr.length) return { modifiedCount: 0 };
-
-  const result = await mongoose.connection.collection("softphonecalls").updateMany(
+  await mongoose.connection.collection("softphonecalls").updateMany(
     {
       $and: [
-        { $or: employeeOr },
+        { $or: params.employeeOr },
         {
           $or: [
             { active: true },
@@ -706,15 +717,14 @@ async function closeActiveCalls(params: {
         callStatus: "completed",
         endedAt: params.now,
         updatedAt: params.now,
-        endedBy: "admin",
-        endedByAdminId: params.adminId,
-        endedByAdminEmail: params.adminEmail,
-        endReason: "admin_force_end_shift",
+        endedBy: params.endedBy,
+        endReason:
+          params.endedBy === "admin"
+            ? "admin_force_end_shift"
+            : "employee_end_shift",
       },
     },
   );
-
-  return { modifiedCount: result.modifiedCount };
 }
 
 export async function POST(req: NextRequest) {
@@ -736,74 +746,65 @@ export async function POST(req: NextRequest) {
     const employeeId = cleanStr(
       body?.employeeId || body?.agentId || body?.staffId || body?.userId,
     );
-    const employeeEmail = cleanLower(body?.employeeEmail || body?.agentEmail || body?.email);
-    const shiftSessionId = cleanStr(body?.shiftSessionId || body?.sessionId);
+    const employeeEmail = cleanStr(
+      body?.employeeEmail || body?.agentEmail || body?.email,
+    ).toLowerCase();
+    const shiftSessionId = cleanStr(body?.shiftSessionId);
 
     if (!employeeId && !employeeEmail) {
       return jsonError("MISSING_EMPLOYEE_ID_OR_EMAIL", 400);
     }
 
     const now = new Date();
+    const employeeOr = buildEmployeeOr(employeeId, employeeEmail);
+    const statusDoc = await findSoftphoneStatus(employeeOr);
 
-    const statusDoc = await findSoftphoneStatus({
-      employeeId,
-      employeeEmail,
-    });
-
-    const fallbackStartedAt =
-      safeDate(body?.shiftStartedAt) ||
-      safeDate(body?.startedAt) ||
-      getStatusShiftStart(statusDoc) ||
-      now;
-
-    const sessionResult = await closeOpenShiftSessions({
+    const closedSessions = await closeOpenShiftSessions({
       employeeId,
       employeeEmail,
       shiftSessionId,
+      employeeOr,
+      statusDoc,
       now,
+      endedBy: "admin",
       adminId: admin.adminId,
       adminEmail: admin.adminEmail,
-      fallbackStartedAt,
     });
 
-    const statusResult = await markSoftphoneOffline({
-      employeeId,
-      employeeEmail,
-      now,
-      adminId: admin.adminId,
-      adminEmail: admin.adminEmail,
-      sessionResult,
-    });
-
-    const callsResult = await closeActiveCalls({
+    await updateSoftphoneStatus({
+      employeeOr,
       employeeId,
       employeeEmail,
       now,
       adminId: admin.adminId,
       adminEmail: admin.adminEmail,
     });
+
+    await closeActiveCalls({
+      employeeOr,
+      now,
+      endedBy: "admin",
+    });
+
+    const totalSecondsAdded = closedSessions.reduce(
+      (sum, item) => sum + item.totalSeconds,
+      0,
+    );
 
     return NextResponse.json({
       success: true,
-      message: "EMPLOYEE_SHIFT_ENDED_BY_ADMIN",
       employeeId,
       employeeEmail,
-      requestedShiftSessionId: shiftSessionId,
+      shiftSessionId,
       endedBy: "admin",
       endedAt: now,
-      session: {
-        sessionId: sessionResult.sessionId,
-        startedAt: sessionResult.startedAt,
-        endedAt: sessionResult.endedAt,
-        durationSeconds: sessionResult.durationSeconds,
-        durationMinutes: durationMinutesFromSeconds(sessionResult.durationSeconds),
-        durationHours: durationHoursFromSeconds(sessionResult.durationSeconds),
-        closedCount: sessionResult.closedCount,
-        createdFallback: sessionResult.createdFallback,
-        touchedCollections: sessionResult.touchedCollections,
+      closedSessions,
+      summary: {
+        addedSeconds: totalSecondsAdded,
+        addedMinutes: totalSecondsAdded / 60,
+        addedHours: totalSecondsAdded / 3600,
+        sessionsClosed: closedSessions.length,
       },
-      softphoneStatus: statusResult,
-      calls: callsResult,
     });
   } catch (error) {
     console.error("ADMIN END EMPLOYEE SHIFT FAILED:", error);

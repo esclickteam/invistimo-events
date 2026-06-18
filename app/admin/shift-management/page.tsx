@@ -1094,7 +1094,7 @@ export default function AdminShiftManagementPage() {
     fetchEmployees(true);
   }, [fetchEmployees]);
 
-  // זה מה שנותן מספרים חיים 0:01, 0:02, 0:03 בלי למשוך API כל שנייה.
+  // זה מה שנותן מספרים חיים 0:01, 0:02, 0:03 ובמקביל יש סנכרון API כל שנייה.
   useEffect(() => {
     const timer = window.setInterval(() => {
       setTick((prev) => prev + 1);
@@ -1103,11 +1103,11 @@ export default function AdminShiftManagementPage() {
     return () => window.clearInterval(timer);
   }, []);
 
-  // סנכרון נתונים ברקע בלבד. לא מציג כפתור ולא מקפיץ את המסך.
+  // סנכרון נתונים כל שנייה בלי כפתור רענון.
   useEffect(() => {
     const timer = window.setInterval(() => {
       fetchEmployees(false);
-    }, 10000);
+    }, 1000);
 
     return () => window.clearInterval(timer);
   }, [fetchEmployees]);
@@ -1117,7 +1117,7 @@ export default function AdminShiftManagementPage() {
 
     if (!employeeId || actionEmployeeId) return;
 
-    const ok = window.confirm(`להוציא את ${getEmployeeName(employee)} מהמשמרת?`);
+    const ok = window.confirm(`לסיים את המשמרת של ${getEmployeeName(employee)}?`);
     if (!ok) return;
 
     try {
@@ -1142,12 +1142,12 @@ export default function AdminShiftManagementPage() {
       const json = (await res.json().catch(() => ({}))) as ActionResponse;
 
       if (!res.ok || json.success === false) {
-        throw new Error(json.error || "לא הצלחתי להוציא את העובד מהמשמרת");
+        throw new Error(json.error || "לא הצלחתי לסיים את המשמרת של העובד");
       }
 
       await fetchEmployees(false);
     } catch (err: any) {
-      alert(err?.message || "שגיאה בהוצאת העובד מהמשמרת");
+      alert(err?.message || "שגיאה בסיום משמרת");
     } finally {
       setActionEmployeeId("");
     }
@@ -1292,7 +1292,7 @@ export default function AdminShiftManagementPage() {
           <div>
             <div className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-black text-emerald-700 ring-1 ring-emerald-100 shadow-sm">
               <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-500" />
-              LIVE · מונה זמן כל שנייה · סנכרון שקט ברקע
+              LIVE · מונה זמן כל שנייה · סנכרון כל שנייה
             </div>
 
             <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-950">
@@ -1320,7 +1320,7 @@ export default function AdminShiftManagementPage() {
               עודכן: {lastRefreshAt ? formatDateTime(lastRefreshAt) : "—"}
             </span>
             <span className="rounded-full bg-slate-50 px-3 py-2 text-xs font-black text-slate-500 ring-1 ring-slate-100">
-              סנכרון שקט כל 10 שניות
+              סנכרון כל שנייה
             </span>
             <span className="rounded-full bg-indigo-50 px-3 py-2 text-xs font-black text-indigo-700 ring-1 ring-indigo-100">
               השעונים רצים כל שנייה
@@ -1343,7 +1343,7 @@ export default function AdminShiftManagementPage() {
       </section>
 
       <section className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
-        <StatCard label="מחוברים" value={stats.connected} hint="נחשב משמרת" />
+        <StatCard label="מחוברים" value={stats.connected} hint="נחשב במשמרת" />
         <StatCard label="משובצים היום" value={stats.scheduledToday} hint="גם אם לא התחברו" />
         <StatCard label="משמרת פעילה" value={stats.activeShift} hint="shift פעיל" />
         <StatCard label="מחייגים" value={stats.dialing} hint="שיחה יוצאת" />
@@ -1587,7 +1587,7 @@ function LiveSoftphoneRow({
                 : "border-slate-200 bg-white text-slate-400"
             }`}
           >
-            הוצא ממשמרת
+            סיים משמרת
           </button>
         </div>
       </td>

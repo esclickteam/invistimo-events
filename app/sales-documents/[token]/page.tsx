@@ -285,6 +285,8 @@ function shouldShowUpsellPrices(document?: SalesDocument | null) {
       "summary_only",
       "hideUpsells",
       "hide_upsells",
+      "packageTotalOnly",
+      "package_total_only",
     ].includes(mode)
   ) {
     return false;
@@ -298,6 +300,8 @@ function shouldShowUpsellPrices(document?: SalesDocument | null) {
       "show_upsells",
       "showAddons",
       "show_addons",
+      "showUpsellPrices",
+      "show_upsell_prices",
     ].includes(mode)
   ) {
     return true;
@@ -863,6 +867,12 @@ export default function SalesDocumentPage() {
     return "מחיר";
   }
 
+  function shouldShowServicePriceCard(service: SelectedService) {
+    if (!showUpsellPrices) return false;
+    if (service.givenFree) return true;
+    return typeof service.price === "number" && Number.isFinite(service.price) && service.price > 0;
+  }
+
   if (loading) {
     return (
       <main
@@ -1058,12 +1068,14 @@ export default function SalesDocumentPage() {
                           ) : null}
                         </div>
 
-                        <div className="shrink-0 rounded-2xl bg-white px-4 py-3 text-sm font-black text-[#3f3327] ring-1 ring-[#eadfce]">
-                          <p className="text-[11px] font-black text-[#9b805f]">
-                            {getServicePriceLabel(service)}
-                          </p>
-                          <p className="mt-1">{getServicePriceText(service)}</p>
-                        </div>
+                        {shouldShowServicePriceCard(service) ? (
+                          <div className="shrink-0 rounded-2xl bg-white px-4 py-3 text-sm font-black text-[#3f3327] ring-1 ring-[#eadfce]">
+                            <p className="text-[11px] font-black text-[#9b805f]">
+                              {getServicePriceLabel(service)}
+                            </p>
+                            <p className="mt-1">{getServicePriceText(service)}</p>
+                          </div>
+                        ) : null}
                       </div>
 
                       <div className="mt-4">
@@ -1300,14 +1312,15 @@ export default function SalesDocumentPage() {
                 ) : null}
 
                 <div className="grid gap-3">
-                  {showUpsellPrices ? (
+                  {showUpsellPrices &&
+                  typeof document.selectedPackage?.price === "number" &&
+                  Number.isFinite(document.selectedPackage.price) &&
+                  document.selectedPackage.price > 0 ? (
                     <Field
                       label="מחיר חבילה"
-                      value={money(document.selectedPackage?.price)}
+                      value={money(document.selectedPackage.price)}
                     />
-                  ) : (
-                    <Field label="מחיר חבילה כולל" value={money(grossAmount)} />
-                  )}
+                  ) : null}
 
                   <Field
                     label="סוג תשלום"
