@@ -967,6 +967,13 @@ export default function AdminEmployeeFilePage() {
   }
 
   function exportAccountantHoursAndSalesReport() {
+    const employeeFullNameForReport = cleanStr(employee.name) || "—";
+    const employeeIdNumberForReport = cleanStr(employee.idNumber) || "—";
+    const employeePhoneForReport = cleanStr(employee.phone) || "—";
+    const employeeEmailForReport = cleanStr(employee.email) || "—";
+    const employeeAddressForReport = cleanStr(employee.address) || "—";
+    const employeeSystemIdForReport = cleanStr(employee.id || employeeId) || "—";
+
     const hourlyRate = Number(employee.hourlyRate || 0);
     const hoursAmount = Number(estimatedMonthlyPayment || 0);
     const paidCommissionAmount = Number(salesTotals.paidCommission || 0);
@@ -1137,23 +1144,23 @@ export default function AdminEmployeeFilePage() {
         <body>
           <table class="sheet">
             <tr><td class="title" colspan="14">דוח שעות ומכירות לרואה חשבון</td></tr>
-            <tr><td class="subtitle" colspan="14">${excelSafe(employee.name || "עובד")} · ${excelSafe(monthLabel(month))}</td></tr>
+            <tr><td class="subtitle" colspan="14">${excelSafe(employeeFullNameForReport)} · ${excelSafe(monthLabel(month))}</td></tr>
             <tr class="spacer"><td colspan="14"></td></tr>
             <tr><td class="section" colspan="14">פרטי עובד מלאים</td></tr>
             <tr>
-              <td class="summary-label">שם מלא</td><td class="summary-value" colspan="3">${excelSafe(employee.name || "—")}</td>
-              <td class="summary-label">תעודת זהות</td><td class="summary-value ltr" colspan="2">${excelSafe(employee.idNumber || "—")}</td>
-              <td class="summary-label">טלפון</td><td class="summary-value ltr" colspan="2">${excelSafe(employee.phone || "—")}</td>
-              <td class="summary-label">מייל</td><td class="summary-value ltr" colspan="4">${excelSafe(employee.email || "—")}</td>
+              <td class="summary-label">שם מלא</td><td class="summary-value" colspan="3">${excelSafe(employeeFullNameForReport)}</td>
+              <td class="summary-label">תעודת זהות</td><td class="summary-value ltr" colspan="2">${excelSafe(employeeIdNumberForReport)}</td>
+              <td class="summary-label">טלפון</td><td class="summary-value ltr" colspan="2">${excelSafe(employeePhoneForReport)}</td>
+              <td class="summary-label">מייל</td><td class="summary-value ltr" colspan="4">${excelSafe(employeeEmailForReport)}</td>
             </tr>
             <tr>
-              <td class="summary-label">כתובת</td><td class="summary-value" colspan="5">${excelSafe(employee.address || "—")}</td>
+              <td class="summary-label">כתובת</td><td class="summary-value" colspan="5">${excelSafe(employeeAddressForReport)}</td>
               <td class="summary-label">תחילת העסקה</td><td class="summary-value" colspan="2">${excelSafe(formatDate(employee.startDate))}</td>
               <td class="summary-label">סיום העסקה</td><td class="summary-value" colspan="2">${excelSafe(formatDate(employee.endDate))}</td>
               <td class="summary-label">חודש דוח</td><td class="summary-value" colspan="2">${excelSafe(monthLabel(month))}</td>
             </tr>
             <tr>
-              <td class="summary-label">מזהה עובד במערכת</td><td class="summary-value ltr" colspan="13">${excelSafe(employee.id || employeeId || "—")}</td>
+              <td class="summary-label">מזהה עובד במערכת</td><td class="summary-value ltr" colspan="13">${excelSafe(employeeSystemIdForReport)}</td>
             </tr>
             <tr class="spacer"><td colspan="14"></td></tr>
             <tr><td class="section" colspan="14">סיכום לתשלום ברוטו</td></tr>
