@@ -354,8 +354,7 @@ function Icon({
     | "money"
     | "calendar"
     | "sparkles"
-    | "sales"
-    | "download";
+    | "sales";
   className?: string;
 }) {
   const common = {
@@ -484,16 +483,6 @@ function Icon({
         <path d="M3 5h4" />
         <path d="M19 17v4" />
         <path d="M17 19h4" />
-      </svg>
-    );
-  }
-
-  if (name === "download") {
-    return (
-      <svg {...common}>
-        <path d="M12 3v12" />
-        <path d="m7 10 5 5 5-5" />
-        <path d="M5 21h14" />
       </svg>
     );
   }
@@ -928,6 +917,8 @@ export default function AdminEmployeeFilePage() {
     }
   }
 
+
+
   function excelSafe(value: unknown) {
     return String(value ?? "")
       .replaceAll("&", "&amp;")
@@ -936,20 +927,19 @@ export default function AdminEmployeeFilePage() {
       .replaceAll('"', "&quot;");
   }
 
-  function excelMoney(value: number) {
-    const numericValue = Number.isFinite(Number(value)) ? Number(value) : 0;
-    return numericValue.toFixed(2);
+  function excelNumber(value: unknown) {
+    const numberValue = Number(value || 0);
+    return Number.isFinite(numberValue) ? numberValue.toFixed(2) : "0.00";
   }
 
-  function excelCell(value: unknown, className = "") {
-    return `<td class="${className}">${excelSafe(value)}</td>`;
+  function excelFileName(value: string) {
+    return String(value || "דוח")
+      .replace(/[\\/:*?"<>|]/g, "-")
+      .replace(/\s+/g, "-")
+      .slice(0, 120);
   }
 
-  function excelHeaderCell(value: unknown, className = "") {
-    return `<th class="${className}">${excelSafe(value)}</th>`;
-  }
-
-  function downloadExcel(filename: string, html: string) {
+  function downloadExcelHtml(filename: string, html: string) {
     const blob = new Blob(["\uFEFF" + html], {
       type: "application/vnd.ms-excel;charset=utf-8;",
     });
@@ -958,7 +948,7 @@ export default function AdminEmployeeFilePage() {
     const link = document.createElement("a");
 
     link.href = url;
-    link.download = filename;
+    link.download = filename.endsWith(".xls") ? filename : `${filename}.xls`;
     document.body.appendChild(link);
     link.click();
 
@@ -966,156 +956,260 @@ export default function AdminEmployeeFilePage() {
     URL.revokeObjectURL(url);
   }
 
+  function buildExcelCell(value: unknown, className = "") {
+    return `<td class="${className}">${excelSafe(value)}</td>`;
+  }
+
+  function buildExcelHeader(cells: string[]) {
+    return `<tr>${cells
+      .map((cell) => `<th>${excelSafe(cell)}</th>`)
+      .join("")}</tr>`;
+  }
+
   function exportAccountantHoursAndSalesReport() {
     const hourlyRate = Number(employee.hourlyRate || 0);
     const hoursAmount = Number(estimatedMonthlyPayment || 0);
     const paidCommissionAmount = Number(salesTotals.paidCommission || 0);
-    const totalGrossToPay = Number((hoursAmount + paidCommissionAmount).toFixed(2));
-    const reportTitle = `דוח שעות ומכירות לרו״ח — ${employee.name || "עובד"} — ${monthLabel(month)}`;
+    const grossTotalToPay = Number(
+      (hoursAmount + paidCommissionAmount).toFixed(2)
+    );
 
-    const hoursDetailsRows = hoursRows
-      .map((row) => {
+    const hoursRowsHtml = hoursRows
+      .map((row, index) => {
         const rowHours = Number(row.totalMinutes || 0) / 60;
         const rowAmount = Number((rowHours * hourlyRate).toFixed(2));
 
-        return `<tr>
-          ${excelCell(formatDate(row.date))}
-          ${excelCell(row.dayName || "—")}
-          ${excelCell(row.isScheduled ? "כן" : "לא")}
-          ${excelCell(row.shiftLabel || "לא משובץ")}
-          ${excelCell(row.scheduledStart || "—")}
-          ${excelCell(row.scheduledEnd || "—")}
-          ${excelCell(row.actualStart || "—")}
-          ${excelCell(row.actualEnd || "—")}
-          ${excelCell(row.totalMinutes || 0, "num")}
-          ${excelCell(rowHours.toFixed(2), "num")}
-          ${excelCell(excelMoney(hourlyRate), "money")}
-          ${excelCell(excelMoney(rowAmount), "money")}
-          ${excelCell(statusLabel(row.status))}
-          ${excelCell(row.note || "")}
+        return `<tr class="${index % 2 ? "alt" : ""}">
+          ${buildExcelCell(formatDate(row.date))}
+          ${buildExcelCell(row.dayName || "—")}
+          ${buildExcelCell(row.isScheduled ? "כן" : "לא")}
+          ${buildExcelCell(row.shiftLabel || "—")}
+          ${buildExcelCell(row.scheduledStart || "—", "ltr")}
+          ${buildExcelCell(row.scheduledEnd || "—", "ltr")}
+          ${buildExcelCell(row.actualStart || "—", "ltr")}
+          ${buildExcelCell(row.actualEnd || "—", "ltr")}
+          ${buildExcelCell(row.totalMinutes || 0, "num")}
+          ${buildExcelCell(rowHours.toFixed(2), "num")}
+          ${buildExcelCell(hourlyRate.toFixed(2), "money")}
+          ${buildExcelCell(rowAmount.toFixed(2), "money")}
+          ${buildExcelCell(statusLabel(row.status))}
+          ${buildExcelCell(row.note || "")}
         </tr>`;
       })
       .join("");
 
-    const salesDetailsRows = salesRows
-      .map((sale) => `<tr>
-        ${excelCell(formatDate(sale.paidAt || sale.saleDate || sale.createdAt))}
-        ${excelCell(sale.saleTitle || "מכירה")}
-        ${excelCell(sale.clientName || "—")}
-        ${excelCell(sale.clientPhone || "—")}
-        ${excelCell(sale.clientEmail || "—")}
-        ${excelCell(excelMoney(sale.dealAmountBeforeVat), "money")}
-        ${excelCell(excelMoney(sale.dealAmountAfterVat), "money")}
-        ${excelCell(excelMoney(sale.commissionAmount), "money green")}
-        ${excelCell(paymentModeLabel(sale.paymentMode))}
-        ${excelCell(statusLabel(sale.status))}
-        ${excelCell(sale.notes || "")}
+    const salesRowsHtml = salesRows
+      .map((sale, index) => `<tr class="${index % 2 ? "alt" : ""}">
+        ${buildExcelCell(formatDate(sale.paidAt || sale.saleDate || sale.createdAt))}
+        ${buildExcelCell(sale.saleTitle || "מכירה")}
+        ${buildExcelCell(sale.clientName || "—")}
+        ${buildExcelCell(sale.clientPhone || "—", "ltr")}
+        ${buildExcelCell(sale.clientEmail || "—", "ltr")}
+        ${buildExcelCell(excelNumber(sale.dealAmountBeforeVat), "money")}
+        ${buildExcelCell(excelNumber(sale.dealAmountAfterVat), "money")}
+        ${buildExcelCell(excelNumber(sale.commissionAmount), "money highlight")}
+        ${buildExcelCell(paymentModeLabel(sale.paymentMode))}
+        ${buildExcelCell(statusLabel(sale.status))}
+        ${buildExcelCell(sale.notes || "")}
       </tr>`)
       .join("");
 
-    const html = `<!doctype html>
-<html dir="rtl" lang="he">
-<head>
-  <meta charset="utf-8" />
-  <style>
-    body { direction: rtl; font-family: Arial, sans-serif; color: #0f172a; }
-    .page-title { font-size: 24px; font-weight: 800; color: #111827; padding: 16px 0 8px; }
-    .subtitle { font-size: 13px; color: #64748b; padding-bottom: 14px; }
-    table { border-collapse: collapse; width: 100%; margin-bottom: 18px; }
-    th { background: #eef2ff; color: #1e1b4b; font-weight: 800; border: 1px solid #c7d2fe; padding: 9px; text-align: right; white-space: nowrap; }
-    td { border: 1px solid #e2e8f0; padding: 8px; text-align: right; white-space: nowrap; }
-    .section-title { background: #111827; color: #ffffff; font-size: 16px; font-weight: 800; padding: 10px; }
-    .summary-title { background: #f8fafc; color: #334155; font-weight: 800; }
-    .money { mso-number-format:"#,##0.00"; }
-    .num { mso-number-format:"0.00"; }
-    .green { color: #047857; font-weight: 800; }
-    .total { background: #ecfdf5; font-weight: 800; color: #065f46; }
-    .warning { background: #fffbeb; font-weight: 800; color: #92400e; }
-    .muted { color: #64748b; }
-  </style>
-</head>
-<body>
-  <div class="page-title">${excelSafe(reportTitle)}</div>
-  <div class="subtitle">הדוח כולל פירוט יומי של שעות, פירוט מכירות, עמלות 5% וסיכום ברוטו לתשלום.</div>
+    const html = `
+      <!doctype html>
+      <html dir="rtl">
+        <head>
+          <meta charSet="utf-8" />
+          <style>
+            body {
+              direction: rtl;
+              font-family: Arial, sans-serif;
+              color: #111827;
+              background: #ffffff;
+            }
+            .sheet {
+              width: 100%;
+            }
+            .title {
+              background: #312e81;
+              color: #ffffff;
+              font-size: 24px;
+              font-weight: 800;
+              padding: 18px;
+              border: 1px solid #312e81;
+              text-align: center;
+            }
+            .subtitle {
+              background: #eef2ff;
+              color: #3730a3;
+              font-size: 14px;
+              font-weight: 700;
+              padding: 10px;
+              border: 1px solid #c7d2fe;
+              text-align: center;
+            }
+            .section {
+              background: #0f766e;
+              color: #ffffff;
+              font-size: 16px;
+              font-weight: 800;
+              padding: 10px;
+              border: 1px solid #0f766e;
+              text-align: right;
+            }
+            .summary-label {
+              background: #f8fafc;
+              color: #475569;
+              font-weight: 800;
+              border: 1px solid #cbd5e1;
+              padding: 8px;
+            }
+            .summary-value {
+              background: #ffffff;
+              color: #111827;
+              font-weight: 800;
+              border: 1px solid #cbd5e1;
+              padding: 8px;
+            }
+            .total-label {
+              background: #fef3c7;
+              color: #92400e;
+              font-weight: 900;
+              border: 1px solid #f59e0b;
+              padding: 10px;
+            }
+            .total-value {
+              background: #fffbeb;
+              color: #78350f;
+              font-weight: 900;
+              border: 1px solid #f59e0b;
+              padding: 10px;
+              font-size: 15px;
+            }
+            table {
+              border-collapse: collapse;
+              width: 100%;
+              direction: rtl;
+            }
+            th {
+              background: #1e293b;
+              color: #ffffff;
+              font-weight: 800;
+              border: 1px solid #94a3b8;
+              padding: 9px;
+              text-align: right;
+              white-space: nowrap;
+            }
+            td {
+              border: 1px solid #cbd5e1;
+              padding: 8px;
+              text-align: right;
+              vertical-align: middle;
+              mso-number-format: "\\@";
+            }
+            .alt td {
+              background: #f8fafc;
+            }
+            .num,
+            .money,
+            .ltr {
+              direction: ltr;
+              text-align: left;
+            }
+            .num {
+              mso-number-format: "0.00";
+            }
+            .money {
+              mso-number-format: "#,##0.00";
+              font-weight: 700;
+            }
+            .highlight {
+              color: #047857;
+              background: #ecfdf5;
+              font-weight: 900;
+            }
+            .spacer td {
+              border: none;
+              height: 14px;
+              background: #ffffff;
+            }
+          </style>
+        </head>
+        <body>
+          <table class="sheet">
+            <tr><td class="title" colspan="14">דוח שעות ומכירות לרואה חשבון</td></tr>
+            <tr><td class="subtitle" colspan="14">${excelSafe(employee.name || "עובד")} · ${excelSafe(monthLabel(month))}</td></tr>
+            <tr class="spacer"><td colspan="14"></td></tr>
+            <tr><td class="section" colspan="14">פרטי עובד</td></tr>
+            <tr>
+              <td class="summary-label">שם עובד</td><td class="summary-value" colspan="3">${excelSafe(employee.name || "—")}</td>
+              <td class="summary-label">מייל</td><td class="summary-value" colspan="3">${excelSafe(employee.email || "—")}</td>
+              <td class="summary-label">טלפון</td><td class="summary-value" colspan="2">${excelSafe(employee.phone || "—")}</td>
+              <td class="summary-label">חודש</td><td class="summary-value" colspan="2">${excelSafe(monthLabel(month))}</td>
+            </tr>
+            <tr class="spacer"><td colspan="14"></td></tr>
+            <tr><td class="section" colspan="14">סיכום לתשלום ברוטו</td></tr>
+            <tr>
+              <td class="summary-label">סה״כ שעות</td><td class="summary-value money">${excelNumber(totalHoursDecimal)}</td>
+              <td class="summary-label">שכר שעתי</td><td class="summary-value money">${excelNumber(hourlyRate)}</td>
+              <td class="summary-label">תשלום שעות</td><td class="summary-value money">${excelNumber(hoursAmount)}</td>
+              <td class="summary-label">מכירות ששולמו</td><td class="summary-value num">${salesTotals.paidSalesCount}</td>
+              <td class="summary-label">מכירות לפני מע״מ</td><td class="summary-value money">${excelNumber(salesTotals.paidBeforeVat)}</td>
+              <td class="summary-label">עמלות 5%</td><td class="summary-value money highlight">${excelNumber(paidCommissionAmount)}</td>
+              <td class="total-label">סה״כ ברוטו</td><td class="total-value money">${excelNumber(grossTotalToPay)}</td>
+            </tr>
+            <tr class="spacer"><td colspan="14"></td></tr>
+            <tr><td class="section" colspan="14">פירוט יומי של שעות</td></tr>
+          </table>
 
-  <table>
-    <tr><td class="section-title" colspan="4">פרטי עובד</td></tr>
-    <tr>
-      ${excelHeaderCell("שם עובד")}${excelCell(employee.name || "—")}
-      ${excelHeaderCell("חודש")}${excelCell(monthLabel(month))}
-    </tr>
-    <tr>
-      ${excelHeaderCell("מייל")}${excelCell(employee.email || "—")}
-      ${excelHeaderCell("טלפון")}${excelCell(employee.phone || "—")}
-    </tr>
-    <tr>
-      ${excelHeaderCell("תעודת זהות")}${excelCell(employee.idNumber || "—")}
-      ${excelHeaderCell("שכר שעתי")}${excelCell(excelMoney(hourlyRate), "money")}
-    </tr>
-  </table>
+          <table>
+            ${buildExcelHeader([
+              "תאריך",
+              "יום",
+              "משובץ",
+              "משמרת",
+              "התחלה מתוכנן",
+              "סיום מתוכנן",
+              "התחלה בפועל",
+              "סיום בפועל",
+              "סה״כ דקות",
+              "סה״כ שעות",
+              "שכר שעתי",
+              "סכום יומי ברוטו",
+              "סטטוס",
+              "הערה",
+            ])}
+            ${hoursRowsHtml || `<tr><td colspan="14">אין נתוני שעות לחודש הזה</td></tr>`}
+          </table>
 
-  <table>
-    <tr><td class="section-title" colspan="4">סיכום לתשלום ברוטו</td></tr>
-    <tr>
-      ${excelHeaderCell("סה״כ שעות")}${excelCell(totalHoursDecimal.toFixed(2), "num")}
-      ${excelHeaderCell("שכר שעתי")}${excelCell(excelMoney(hourlyRate), "money")}
-    </tr>
-    <tr>
-      ${excelHeaderCell("תשלום שעות ברוטו")}${excelCell(excelMoney(hoursAmount), "money")}
-      ${excelHeaderCell("עמלות מכירה לתשלום")}${excelCell(excelMoney(paidCommissionAmount), "money green")}
-    </tr>
-    <tr>
-      ${excelHeaderCell("מכירות ששולמו")}${excelCell(salesTotals.paidSalesCount, "num")}
-      ${excelHeaderCell("סכום מכירות לפני מע״מ ששולם")}${excelCell(excelMoney(salesTotals.paidBeforeVat), "money")}
-    </tr>
-    <tr>
-      ${excelHeaderCell("סה״כ לתשלום ברוטו", "total")}${excelCell(excelMoney(totalGrossToPay), "money total")}
-      ${excelHeaderCell("הערה", "warning")}${excelCell("שעות × שכר שעתי + עמלות ששולמו", "warning")}
-    </tr>
-  </table>
+          <table class="sheet">
+            <tr class="spacer"><td colspan="11"></td></tr>
+            <tr><td class="section" colspan="11">פירוט מכירות ועמלות</td></tr>
+          </table>
 
-  <table>
-    <tr><td class="section-title" colspan="14">פירוט יומי של שעות</td></tr>
-    <tr>
-      ${excelHeaderCell("תאריך")}
-      ${excelHeaderCell("יום")}
-      ${excelHeaderCell("משובץ")}
-      ${excelHeaderCell("משמרת")}
-      ${excelHeaderCell("התחלה מתוכנן")}
-      ${excelHeaderCell("סיום מתוכנן")}
-      ${excelHeaderCell("התחלה בפועל")}
-      ${excelHeaderCell("סיום בפועל")}
-      ${excelHeaderCell("סה״כ דקות")}
-      ${excelHeaderCell("סה״כ שעות")}
-      ${excelHeaderCell("שכר שעתי")}
-      ${excelHeaderCell("סכום יומי ברוטו")}
-      ${excelHeaderCell("סטטוס")}
-      ${excelHeaderCell("הערה")}
-    </tr>
-    ${hoursDetailsRows || `<tr><td colspan="14" class="muted">אין נתוני שעות לחודש הזה</td></tr>`}
-  </table>
+          <table>
+            ${buildExcelHeader([
+              "תאריך",
+              "איזה מכירה",
+              "לקוח",
+              "טלפון לקוח",
+              "מייל לקוח",
+              "סכום לפני מע״מ",
+              "סכום אחרי מע״מ",
+              "עמלה 5%",
+              "תשלום",
+              "סטטוס",
+              "הערות",
+            ])}
+            ${salesRowsHtml || `<tr><td colspan="11">אין מכירות לחודש הזה</td></tr>`}
+          </table>
+        </body>
+      </html>
+    `;
 
-  <table>
-    <tr><td class="section-title" colspan="11">פירוט מכירות ועמלות</td></tr>
-    <tr>
-      ${excelHeaderCell("תאריך")}
-      ${excelHeaderCell("איזה מכירה")}
-      ${excelHeaderCell("לקוח")}
-      ${excelHeaderCell("טלפון לקוח")}
-      ${excelHeaderCell("מייל לקוח")}
-      ${excelHeaderCell("סכום לפני מע״מ")}
-      ${excelHeaderCell("סכום אחרי מע״מ")}
-      ${excelHeaderCell("עמלה 5%")}
-      ${excelHeaderCell("תשלום")}
-      ${excelHeaderCell("סטטוס")}
-      ${excelHeaderCell("הערות")}
-    </tr>
-    ${salesDetailsRows || `<tr><td colspan="11" class="muted">אין מכירות לחודש הזה</td></tr>`}
-  </table>
-</body>
-</html>`;
-
-    downloadExcel(`דוח-שעות-ומכירות-${employee.name || "עובד"}-${month}.xls`, html);
+    downloadExcelHtml(
+      excelFileName(`דוח-שעות-ומכירות-${employee.name || "עובד"}-${month}`),
+      html
+    );
   }
 
   if (loading) {
@@ -1194,9 +1288,10 @@ export default function AdminEmployeeFilePage() {
               <button
                 type="button"
                 onClick={exportAccountantHoursAndSalesReport}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-fuchsia-500 to-purple-500 px-5 text-sm font-black text-white shadow-lg shadow-fuchsia-100 transition hover:scale-[1.01]"
+                disabled={hoursLoading || salesLoading}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-fuchsia-500 to-purple-500 px-5 text-sm font-black text-white shadow-lg shadow-fuchsia-100 transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <Icon name="download" className="h-4 w-4" />
+                <Icon name="file" className="h-4 w-4" />
                 ייצוא שעות ומכירות לרו״ח
               </button>
 
@@ -1546,14 +1641,6 @@ export default function AdminEmployeeFilePage() {
                 לפני מע״מ. הסכום לתשלום בפועל מחושב לפי מכירות בסטטוס שולם.
               </p>
             </div>
-
-            <Link
-              href={`/admin/employees/${encodeURIComponent(employeeId)}/sales`}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-indigo-500 px-4 text-sm font-black text-white shadow-md shadow-indigo-100 transition hover:bg-indigo-600"
-            >
-              <Icon name="open" className="h-4 w-4" />
-              עמוד מכירות מלא
-            </Link>
           </div>
 
           {salesError ? (
