@@ -47,6 +47,13 @@ type LeadsResponse = {
   message?: string;
 };
 
+type SoftphoneDialPayload = {
+  phone: string;
+  leadId?: string;
+  leadName?: string;
+  source?: string;
+};
+
 const LEAD_STATUS_OPTIONS = [
   { value: "all", label: "כל הלידים" },
   { value: "new", label: "חדשים" },
@@ -176,6 +183,43 @@ function normalizePhoneForWhatsapp(phone?: string) {
   return digits;
 }
 
+function triggerSoftphoneDial(payload: SoftphoneDialPayload) {
+  if (typeof window === "undefined") return;
+
+  const phone = normalizePhoneForTel(payload.phone);
+
+  if (!phone) return;
+
+  const now = Date.now();
+
+  const dialPayload = {
+    number: phone,
+    phone,
+    label: payload.leadName || "",
+    leadId: payload.leadId || "",
+    leadName: payload.leadName || "",
+    source: payload.source || "employee_leads",
+    nonce: now,
+    ts: now,
+    requestId: now,
+  };
+
+  try {
+    window.localStorage.setItem(
+      "invistimoSoftphonePendingCall",
+      JSON.stringify(dialPayload)
+    );
+  } catch (error) {
+    console.warn("SOFTPHONE LOCAL STORAGE FAILED:", error);
+  }
+
+  window.dispatchEvent(
+    new CustomEvent("invistimo:softphone:dial", {
+      detail: dialPayload,
+    })
+  );
+}
+
 function Pill({
   children,
   className,
@@ -281,10 +325,18 @@ export default function EmployeeLeadsPage() {
 
   const stats = useMemo(() => {
     const total = leads.length;
-    const newLeads = leads.filter((lead) => (lead.leadStatus || "new") === "new").length;
-    const contacted = leads.filter((lead) => lead.leadStatus === "contacted").length;
-    const quoteSent = leads.filter((lead) => lead.leadStatus === "quote_sent").length;
-    const converted = leads.filter((lead) => lead.leadStatus === "converted").length;
+    const newLeads = leads.filter(
+      (lead) => (lead.leadStatus || "new") === "new"
+    ).length;
+    const contacted = leads.filter(
+      (lead) => lead.leadStatus === "contacted"
+    ).length;
+    const quoteSent = leads.filter(
+      (lead) => lead.leadStatus === "quote_sent"
+    ).length;
+    const converted = leads.filter(
+      (lead) => lead.leadStatus === "converted"
+    ).length;
 
     return {
       total,
@@ -426,12 +478,19 @@ export default function EmployeeLeadsPage() {
                               {lead.fullName || "ליד ללא שם"}
                             </h3>
 
-                            <Pill className={getLeadStatusClass(lead.leadStatus || "new")}>
+                            <Pill
+                              className={getLeadStatusClass(
+                                lead.leadStatus || "new"
+                              )}
+                            >
                               {getLeadStatusLabel(lead.leadStatus || "new")}
                             </Pill>
 
                             <Pill className="border-blue-200 bg-blue-50 text-blue-700">
-                              {getLeadSourceLabel(lead.leadSource, lead.leadProvider)}
+                              {getLeadSourceLabel(
+                                lead.leadSource,
+                                lead.leadProvider
+                              )}
                             </Pill>
                           </div>
 
@@ -443,12 +502,24 @@ export default function EmployeeLeadsPage() {
                       </div>
 
                       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                        <InfoItem label="טלפון" value={lead.phone || "-"} strong />
+                        <InfoItem
+                          label="טלפון"
+                          value={lead.phone || "-"}
+                          strong
+                        />
+
                         <InfoItem label="מייל" value={lead.email || "-"} />
-                        <InfoItem label="תאריך אירוע" value={formatDate(lead.eventDate)} />
+
+                        <InfoItem
+                          label="תאריך אירוע"
+                          value={formatDate(lead.eventDate)}
+                        />
+
                         <InfoItem
                           label="שירות מעניין"
-                          value={lead.interestedService || lead.packageName || "-"}
+                          value={
+                            lead.interestedService || lead.packageName || "-"
+                          }
                           strong
                         />
                       </div>
@@ -462,12 +533,20 @@ export default function EmployeeLeadsPage() {
                         </Link>
 
                         {telNumber ? (
-                          <a
-                            href={`tel:${telNumber}`}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              triggerSoftphoneDial({
+                                phone: telNumber,
+                                leadId,
+                                leadName: lead.fullName || "",
+                                source: "employee_leads",
+                              })
+                            }
                             className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-center text-sm font-black text-slate-700 transition hover:bg-slate-50"
                           >
                             התקשר
-                          </a>
+                          </button>
                         ) : null}
 
                         {whatsappNumber ? (
