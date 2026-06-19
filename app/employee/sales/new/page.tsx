@@ -1171,6 +1171,16 @@ export default function NewEmployeeSalePage() {
   const selectedPlan = useMemo(() => getSelectedPlan(selectedPlanKey), [selectedPlanKey]);
   const packageCalculation = useMemo(() => calculatePackagePrice(selectedPlan, clampRecords(records)), [records, selectedPlan]);
 
+  const packageTargetPriceWithCalls = useMemo(() => {
+    if (selectedPlanKey !== "easy") return packageCalculation.finalPrice;
+
+    const smartPlan = getSelectedPlan("smart");
+    return calculatePackagePrice(smartPlan, packageCalculation.records).finalPrice;
+  }, [packageCalculation.finalPrice, packageCalculation.records, selectedPlanKey]);
+
+  const hasCallRounds = selectedPlanKey === "smart" || selectedPlanKey === "seating";
+  const allowedCallRounds = hasCallRounds ? 3 : 0;
+
   const canGiveSuppliersBudgetFree = useMemo(() => {
     const totalWithoutSuppliers = packageCalculation.finalPrice + UPSELLS.reduce((sum, upsell) => {
       if (upsell.key === "suppliersBudgetSystem") return sum;
@@ -1443,6 +1453,74 @@ export default function NewEmployeeSalePage() {
     paymentTerms: finalPaymentTerms,
   }), [alcoholManagementStaffCount, baseGrossAmount, canGiveSuppliersBudgetFree, clientAddress, clientEmail, clientName, clientPhone, customerDealSummary, customerIdNumber, documentType, effectiveEventCity, effectiveEventDate, effectiveEventName, effectiveVenueName, extraRecordPrice, finalGrossAmount, finalPaymentTerms, netAmount, packageCalculation.finalPrice, packageCalculation.records, paymentDiscountAmount, paymentMode, paymentSchedule, quoteCreatedAt, quoteExpiresAt, quotePricingDisplay, selectedPlan.customerSummary, selectedPlan.includes, selectedPlan.key, selectedPlan.title, selectedPlanKey, selectedUpsellsList, showUpsellPricesInDocument, suppliersBudgetFree, venueSeatingStaffCount]);
 
+  const customerFilePayload = useMemo(() => ({
+    source: "employee_sale",
+    createCustomerFile: true,
+    saveToCustomerFile: true,
+
+    fullName: clientName.trim(),
+    email: clientEmail.trim(),
+    phone: clientPhone.trim(),
+    idNumber: customerIdNumber.trim(),
+    address: clientAddress.trim(),
+
+    eventName: eventName.trim(),
+    eventDate,
+    venueName: venueName.trim(),
+    city: eventCity.trim(),
+
+    packageName: selectedPlan.title,
+    packageKey: selectedPlan.key,
+    records: packageCalculation.records,
+    guests: packageCalculation.records,
+    packageBasePrice: packageCalculation.finalPrice,
+    packageTargetPriceWithCalls,
+
+    hasCallRounds,
+    allowedCallRounds,
+
+    totalPrice: finalGrossAmount,
+    paidAmount: 0,
+    balance: finalGrossAmount,
+    status: "lead",
+    notes: saleSummary.trim(),
+
+    signedAgreementToken: generatedDocument?.type === "agreement" ? generatedDocument.token || "" : "",
+    latestDocumentToken: generatedDocument?.token || "",
+    latestDocumentType: generatedDocument?.type || "",
+
+    selectedPackage: documentPayload.selectedPackage,
+    upsells: documentPayload.upsells,
+    quote: documentPayload.quote,
+    totals: documentPayload.totals,
+    customerDealSummary,
+    cancellationTerms: CANCELLATION_TERMS,
+    paymentTerms: finalPaymentTerms,
+    paymentSchedule,
+    paymentMode,
+
+    saleCompliance: {
+      recordedCall: confirmRecordedCall,
+      cardOwnerConfirmed: confirmCardOwner,
+      cardHolderPresentAndApproved: confirmCardOwner,
+      saleSummaryConfirmed: confirmSaleSummary,
+      termsConfirmed: confirmTerms,
+      summary: saleSummary.trim(),
+    },
+
+    payment: {
+      method: "stripe",
+      provider: "stripe",
+      amount: finalGrossAmount,
+      originalAmount: baseGrossAmount,
+      discountAmount: paymentDiscountAmount,
+      immediateAmount: paymentSchedule.immediateTotal,
+      stripeAmount: paymentSchedule.stripeAmount,
+      eventDayAmount: paymentSchedule.eventDayTotal,
+      mode: paymentMode,
+    },
+  }), [baseGrossAmount, clientAddress, clientEmail, clientName, clientPhone, confirmCardOwner, confirmRecordedCall, confirmSaleSummary, confirmTerms, customerDealSummary, customerIdNumber, documentPayload.quote, documentPayload.selectedPackage, documentPayload.totals, documentPayload.upsells, eventCity, eventDate, eventName, finalGrossAmount, finalPaymentTerms, generatedDocument?.token, generatedDocument?.type, hasCallRounds, packageCalculation.finalPrice, packageCalculation.records, packageTargetPriceWithCalls, paymentDiscountAmount, paymentMode, paymentSchedule, saleSummary, selectedPlan.key, selectedPlan.title, venueName]);
+
   const isDocumentActionDisabled = documentSaving || finalGrossAmount <= 0;
 
   const signedAgreementReady =
@@ -1669,6 +1747,15 @@ export default function NewEmployeeSalePage() {
           packageName: selectedPlan.title,
           guests: packageCalculation.records,
           records: packageCalculation.records,
+          packageBasePrice: packageCalculation.finalPrice,
+          packageTargetPriceWithCalls,
+          hasCallRounds,
+          allowedCallRounds,
+
+          createCustomerFile: true,
+          saveToCustomerFile: true,
+          createdFrom: "employee_sale",
+          customerFile: customerFilePayload,
 
           grossAmount: finalGrossAmount,
           originalGrossAmount: baseGrossAmount,

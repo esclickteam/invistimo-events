@@ -5,6 +5,7 @@ import { connectDB } from "@/lib/db";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import User from "@/models/User";
 import EmployeeSale from "@/models/EmployeeSale";
+import CustomerFile from "@/models/CustomerFile";
 import { sendPasswordSetupMail } from "@/lib/sendPasswordSetupMail";
 
 export const runtime = "nodejs";
@@ -446,6 +447,219 @@ function serializeSale(sale: any) {
     updatedAt: sale.updatedAt || null,
   };
 }
+
+function getNestedNumber(
+  source: Record<string, unknown>,
+  keys: string[],
+  fallback = 0,
+) {
+  for (const key of keys) {
+    const value = key
+      .split(".")
+      .reduce<unknown>((acc, part) => {
+        if (!acc || typeof acc !== "object" || Array.isArray(acc)) return undefined;
+        return (acc as Record<string, unknown>)[part];
+      }, source);
+
+    const parsed = toNumber(value);
+
+    if (parsed > 0) return parsed;
+  }
+
+  return fallback;
+}
+
+function buildCustomerFileNotes({
+  notes,
+  eventName,
+  saleId,
+  employeeName,
+  paymentMode,
+  paymentProvider,
+  eventDayAmount,
+}: {
+  notes: string;
+  eventName: string;
+  saleId: string;
+  employeeName: string;
+  paymentMode: PaymentMode;
+  paymentProvider: "stripe" | "manual";
+  eventDayAmount: number;
+}) {
+  const parts = [
+    "נוצר אוטומטית ממכירה של עובד.",
+    saleId ? `מספר מכירה: ${saleId}` : "",
+    employeeName ? `עובד מטפל: ${employeeName}` : "",
+    eventName ? `שם אירוע: ${eventName}` : "",
+    `סוג תשלום: ${paymentProvider === "manual" ? "ידני" : "Stripe"}`,
+    `אופן תשלום: ${paymentMode === "full" ? "תשלום מלא" : "תשלום מפוצל"}`,
+    eventDayAmount > 0 ? `יתרה ליום האירוע: ${roundMoney(eventDayAmount)} ₪` : "",
+    notes ? `הערות מכירה: ${notes}` : "",
+  ].filter(Boolean);
+
+  return parts.join("\n");
+}
+
+async function createCustomerFileFromEmployeeSale({
+  body,
+  createdUser,
+  sale,
+  required,
+  clientName,
+  clientEmail,
+  clientPhone,
+  customerIdNumber,
+  clientAddress,
+  eventDate,
+  eventCity,
+  venueName,
+  packageName,
+  plan,
+  guests,
+  hasCallsPackage,
+  allowedMessageRounds,
+  finalGrossAmount,
+  originalGrossAmount,
+  discountAmount,
+  eventDayAmount,
+  paymentMode,
+  paymentProvider,
+  isManualPaid,
+  salesUpsells,
+  upsells,
+  notes,
+  calculated,
+}: {
+  body: any;
+  createdUser: any;
+  sale: any;
+  required: Awaited<ReturnType<typeof requireEmployee>> & { ok: true };
+  clientName: string;
+  clientEmail: string;
+  clientPhone: string;
+  customerIdNumber: string;
+  clientAddress: string;
+  eventDate: Date | null;
+  eventCity: string;
+  venueName: string;
+  packageName: string;
+  plan: string;
+  guests: number;
+  hasCallsPackage: boolean;
+  allowedMessageRounds: number;
+  finalGrossAmount: number;
+  originalGrossAmount: number;
+  discountAmount: number;
+  eventDayAmount: number;
+  paymentMode: PaymentMode;
+  paymentProvider: "stripe" | "manual";
+  isManualPaid: boolean;
+  salesUpsells: any;
+  upsells: NormalizedUpsell[];
+  notes: string;
+  calculated: ReturnType<typeof calculateSale>;
+}) {
+  const customerFileFromBody = normalizeObject(body?.customerFile);
+  const selectedPackage = normalizeObject(body?.selectedPackage);
+  const totals = normalizeObject(body?.totals);
+  const paymentSchedule = normalizeObject(
+    body?.paymentSchedule || totals?.paymentSchedule,
+  );
+
+  const paidAmount = isManualPaid
+    ? finalGrossAmount
+    : roundMoney(
+        getNestedNumber(customerFileFromBody, ["paidAmount"], 0) ||
+          getNestedNumber(paymentSchedule, ["paidAmount"], 0),
+      );
+
+  const balance = roundMoney(Math.max(0, finalGrossAmount - paidAmount));
+
+  const packageBasePrice = roundMoney(
+    getNestedNumber(customerFileFromBody, ["packageBasePrice"], 0) ||
+      getNestedNumber(selectedPackage, [
+        "basePrice",
+        "price",
+        "finalPrice",
+        "packagePrice",
+      ], 0) ||
+      getNestedNumber(totals, ["packagePrice", "basePackagePrice"], 0),
+  );
+
+  const packageTargetPriceWithCalls = roundMoney(
+    getNestedNumber(customerFileFromBody, ["packageTargetPriceWithCalls"], 0) ||
+      getNestedNumber(selectedPackage, [
+        "targetPriceWithCalls",
+        "packageTargetPriceWithCalls",
+      ], 0),
+  );
+
+  const customerFilePayload = {
+    userId: createdUser._id,
+
+    fullName: clientName,
+    email: clientEmail,
+    phone: clientPhone,
+
+    idNumber: customerIdNumber,
+    address: clientAddress,
+
+    eventDate,
+    venueName,
+    city: eventCity,
+
+    packageName: packageName || plan,
+    packageBasePrice,
+    packageTargetPriceWithCalls,
+
+    hasCallRounds: hasCallsPackage,
+    allowedCallRounds: hasCallsPackage ? 3 : 0,
+
+    totalPrice: finalGrossAmount,
+    paidAmount,
+    balance,
+
+    status: isManualPaid ? "paid" : "lead",
+
+    notes: buildCustomerFileNotes({
+      notes,
+      eventName: cleanString(body?.eventName),
+      saleId: String(sale._id),
+      employeeName: cleanString((required.currentUser as any).name),
+      paymentMode,
+      paymentProvider,
+      eventDayAmount,
+    }),
+
+    source: "employee_sale",
+    createdFrom: "employee_sale",
+    employeeSaleId: sale._id,
+    employeeId: required.employeeObjectId,
+
+    records: guests,
+    guests,
+    originalGrossAmount,
+    discountAmount,
+    eventDayAmount,
+    vatRate: calculated.vatRate,
+    netAmount: calculated.netAmount,
+    commissionRate: calculated.commissionRate,
+    commissionAmount: calculated.commissionAmount,
+    paymentMode,
+    paymentProvider,
+    salesUpsells,
+    upsells,
+    paymentSchedule,
+    customerDealSummary: body?.customerDealSummary || null,
+    signedAgreementToken: cleanString(body?.signedAgreementToken),
+    agreementToken: cleanString(body?.agreementToken),
+    quoteToken: cleanString(body?.quoteToken),
+    allowedMessageRounds,
+  };
+
+  return CustomerFile.create(customerFilePayload);
+}
+
 
 async function requireEmployee(req: NextRequest) {
   const auth = await getUserIdFromRequest(req);
@@ -1113,6 +1327,37 @@ export async function POST(req: NextRequest) {
       notes,
     });
 
+    const customerFile = await createCustomerFileFromEmployeeSale({
+      body,
+      createdUser,
+      sale,
+      required,
+      clientName,
+      clientEmail,
+      clientPhone,
+      customerIdNumber,
+      clientAddress,
+      eventDate,
+      eventCity,
+      venueName,
+      packageName: packageName || plan,
+      plan,
+      guests,
+      hasCallsPackage,
+      allowedMessageRounds,
+      finalGrossAmount,
+      originalGrossAmount,
+      discountAmount,
+      eventDayAmount,
+      paymentMode,
+      paymentProvider,
+      isManualPaid,
+      salesUpsells,
+      upsells,
+      notes,
+      calculated,
+    });
+
     if (isManualPaid) {
       const paidAt = new Date();
 
@@ -1147,6 +1392,7 @@ export async function POST(req: NextRequest) {
           success: true,
           userId: String(createdUser._id),
           saleId: String(sale._id),
+          customerFileId: String(customerFile._id),
           checkoutUrl: "",
           stripeCheckoutUrl: "",
           checkoutSessionId: "",
@@ -1214,6 +1460,7 @@ export async function POST(req: NextRequest) {
         success: true,
         userId: String(createdUser._id),
         saleId: String(sale._id),
+        customerFileId: String(customerFile._id),
         checkoutUrl: checkout.checkoutUrl,
         stripeCheckoutUrl: checkout.checkoutUrl,
         checkoutSessionId: checkout.checkoutSessionId,
