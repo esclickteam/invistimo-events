@@ -807,7 +807,7 @@ export default function AdminCustomerFilePage() {
                             )}
 
                             <Link
-                              href={`/api/admin/agreements/${agreement._id}/pdf`}
+                              href={`/api/admin/agreements/pdf?agreementId=${agreement._id}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="rounded-xl bg-[#3A271D] px-4 py-2 text-xs font-black text-white hover:bg-[#24170f]"

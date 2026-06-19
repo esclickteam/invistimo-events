@@ -9,12 +9,6 @@ import CustomerFile from "@/models/CustomerFile";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type RouteContext = {
-  params: Promise<{
-    agreementId: string;
-  }>;
-};
-
 function escapeHtml(value: unknown) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -476,13 +470,14 @@ function buildAgreementHtml({
 </html>`;
 }
 
-export async function GET(req: NextRequest, context: RouteContext) {
+export async function GET(req: NextRequest) {
   let browser: Awaited<ReturnType<typeof puppeteer.launch>> | null = null;
 
   try {
     await db();
 
-    const { agreementId } = await context.params;
+    const { searchParams } = new URL(req.url);
+    const agreementId = String(searchParams.get("agreementId") || "").trim();
 
     if (!agreementId || !mongoose.Types.ObjectId.isValid(agreementId)) {
       return NextResponse.json(
