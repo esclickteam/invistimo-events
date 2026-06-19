@@ -704,7 +704,8 @@ export default function AdminCustomerFilePage() {
                       <td className="px-5 py-4">
                         {quote.publicToken ? (
                           <Link
-                            href={`/quote/${quote.publicToken}`}
+                              href={`/sales-documents/${encodeURIComponent(quote.publicToken)}?preview=1`}
+
                             target="_blank"
                             className="rounded-xl border border-[#D9C3A8] bg-white px-4 py-2 text-xs font-black text-[#3A271D] hover:bg-[#FFF7EC]"
                           >
