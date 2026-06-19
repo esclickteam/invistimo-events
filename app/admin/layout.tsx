@@ -24,11 +24,7 @@ export default function AdminLayout({
 
   const user = auth?.user || auth?.currentUser || null;
 
-  const adminName =
-    user?.name ||
-    user?.fullName ||
-    user?.email ||
-    "Admin";
+  const adminName = user?.name || user?.fullName || user?.email || "Admin";
 
   const pathname = usePathname();
 
@@ -40,10 +36,16 @@ export default function AdminLayout({
       description: "תמונת מצב כללית",
     },
     {
+      href: "/admin/customers",
+      label: "לקוחות",
+      icon: "customers",
+      description: "תיקי לקוח, הסכמים והצעות",
+    },
+    {
       href: "/admin/users",
       label: "משתמשים",
       icon: "users",
-      description: "ניהול לקוחות ומשתמשים",
+      description: "ניהול חשבונות והרשאות",
     },
     {
       href: "/admin/employees",
@@ -281,6 +283,20 @@ function NavIcon({ name }: { name: string }) {
         <path d="M13 21h8v-8h-8z" />
         <path d="M13 3h8v6h-8z" />
         <path d="M3 21h8v-4H3z" />
+      </svg>
+    );
+  }
+
+  if (name === "customers") {
+    return (
+      <svg {...common}>
+        <path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v11A2.5 2.5 0 0 1 17.5 20h-11A2.5 2.5 0 0 1 4 17.5z" />
+        <path d="M8 8h8" />
+        <path d="M8 12h8" />
+        <path d="M8 16h5" />
+        <path d="M6.5 8h.01" />
+        <path d="M6.5 12h.01" />
+        <path d="M6.5 16h.01" />
       </svg>
     );
   }
