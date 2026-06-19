@@ -53,6 +53,15 @@ function isPublicEventRoute(pathname: string | null) {
   return path === "/e" || path.startsWith("/e/");
 }
 
+function isSalesDocumentRoute(pathname: string | null) {
+  const path = String(pathname || "");
+
+  return (
+    path.startsWith("/sales-documents") ||
+    path.startsWith("/client-contracts/sign")
+  );
+}
+
 export default function PublicPageShell({ children }: PublicPageShellProps) {
   const pathname = usePathname();
 
@@ -92,6 +101,8 @@ export default function PublicPageShell({ children }: PublicPageShellProps) {
   }, [refreshSupportModeState]);
 
   const shouldHidePublicShell = useMemo(() => {
+    if (isSalesDocumentRoute(pathname)) return true;
+
     if (isPublicEventRoute(pathname)) return true;
 
     if (isPrivateStaffRoute(pathname)) return true;
@@ -106,8 +117,69 @@ export default function PublicPageShell({ children }: PublicPageShellProps) {
     return false;
   }, [pathname, mounted, supportModeActive]);
 
+  const shouldShowSupportBot = useMemo(() => {
+    if (isSalesDocumentRoute(pathname)) return false;
+
+    if (isPublicEventRoute(pathname)) return false;
+
+    if (isPrivateStaffRoute(pathname)) return false;
+
+    if (mounted && supportModeActive) return false;
+
+    return true;
+  }, [pathname, mounted, supportModeActive]);
+
   if (shouldHidePublicShell) {
-    return <>{children}</>;
+    return (
+      <>
+        <style>{`
+          a[href*="wa.me"],
+          a[href*="whatsapp"],
+          a[href*="api.whatsapp.com"],
+          button[aria-label*="WhatsApp"],
+          button[aria-label*="וואטסאפ"],
+          [title*="WhatsApp"],
+          [title*="וואטסאפ"],
+          [class*="whatsapp"],
+          [class*="WhatsApp"],
+          [class*="support"],
+          [class*="Support"],
+          [id*="whatsapp"],
+          [id*="WhatsApp"],
+          [id*="support"],
+          [id*="Support"] {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+          }
+
+          #userwayAccessibilityIcon,
+          #userwayAccessibilityIconRoot,
+          #userwayAccessibilityIconWrapper,
+          .userway_accessibility_icon,
+          .userway_p1,
+          .uwy,
+          .uwy-user-way,
+          iframe[src*="userway"],
+          iframe[title*="Accessibility"],
+          iframe[title*="נגישות"],
+          [aria-label*="Accessibility"],
+          [aria-label*="נגישות"],
+          [class*="accessibility"],
+          [class*="Accessibility"],
+          [id*="accessibility"],
+          [id*="Accessibility"] {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+          }
+        `}</style>
+
+        {children}
+      </>
+    );
   }
 
   return (
@@ -115,7 +187,7 @@ export default function PublicPageShell({ children }: PublicPageShellProps) {
       <ClientShell>{children}</ClientShell>
 
       {/* כפתור וואטסאפ / תמיכה — מופיע רק באתר הציבורי */}
-      <SupportBotButton />
+      {shouldShowSupportBot ? <SupportBotButton /> : null}
     </>
   );
 }
