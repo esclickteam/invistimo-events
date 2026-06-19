@@ -235,6 +235,61 @@ function buildPendingAccessModules() {
   };
 }
 
+function buildAccessModules({
+  includeDigitalSeating,
+  includeEventManagement,
+}: {
+  includeDigitalSeating: boolean;
+  includeEventManagement: boolean;
+}) {
+  return {
+    rsvpSeating: Boolean(includeDigitalSeating),
+    eventProduction: Boolean(includeEventManagement),
+    venues: false,
+    venueDashboard: false,
+    venueCrm: false,
+    venueCalendar: false,
+    venueMenus: false,
+    venueStaff: false,
+  };
+}
+
+function getCreditGiftsState(plan: string, salesUpsells: any) {
+  const includedInPackage = planHasCreditGifts(plan);
+  const price = includedInPackage ? 0 : roundMoney(toNumber(salesUpsells?.creditGifts?.price));
+  const enabled = Boolean(includedInPackage || salesUpsells?.creditGifts?.enabled);
+
+  return {
+    enabled,
+    price,
+    totalPrice: price,
+    givenFree: includedInPackage,
+    title: "מתנות באשראי באמצעות ספק חיצוני RSVP",
+    description: includedInPackage
+      ? "כלול בחבילת מזמינים ומושיבים"
+      : "תוספת מתנות באשראי באמצעות ספק חיצוני RSVP",
+  };
+}
+
+function getPaymentProviderFromBody(body: any): "stripe" | "manual" {
+  const payment = normalizeObject(body?.payment);
+  const adminPaymentStatus = cleanString(body?.adminPaymentStatus).toLowerCase();
+  const provider = cleanString(
+    body?.paymentProvider || payment.provider || payment.method,
+  ).toLowerCase();
+  const status = cleanString(body?.status || payment.status).toLowerCase();
+
+  if (
+    adminPaymentStatus === "manual_paid" ||
+    provider === "manual" ||
+    status === "manual_paid"
+  ) {
+    return "manual";
+  }
+
+  return "stripe";
+}
+
 function getStripeAmountFromBody(body: any) {
   const payment = normalizeObject(body?.payment);
   const totals = normalizeObject(body?.totals);
@@ -796,13 +851,34 @@ export async function POST(req: NextRequest) {
     const upsells = getUpsellsArray(body);
     const allowedMessageRounds = getAllowedMessageRoundsFromUpsells(upsells);
     const salesUpsells = buildSalesUpsells(plan, upsells);
+    const creditGiftsState = getCreditGiftsState(plan, salesUpsells);
+    salesUpsells.creditGifts = creditGiftsState;
+
+    const paymentProvider = getPaymentProviderFromBody(body);
+    const isManualPaid = paymentProvider === "manual";
+
     const hasCallsPackage = planHasCalls(plan);
     const hasDigitalSeatingPackage = planHasDigitalSeating(plan);
     const hasSuppliersBudgetSystem = salesUpsells.suppliersBudgetSystem.enabled;
     const hasDigitalSeating = salesUpsells.digitalSeating.enabled;
-    const hasCreditGifts = salesUpsells.creditGifts.enabled;
+    const hasCreditGifts = creditGiftsState.enabled;
     const hasVenueSeating = salesUpsells.venueSeating.enabled;
     const hasAlcoholManagement = salesUpsells.alcoholManagement.enabled;
+
+    const activeAccessModules = buildAccessModules({
+      includeDigitalSeating: hasDigitalSeating,
+      includeEventManagement: hasSuppliersBudgetSystem,
+    });
+
+    const activePlanLimits = {
+      maxGuests: guests,
+      allowedMessageRounds,
+      smsEnabled: true,
+      smsLimit: guests,
+      seatingEnabled: hasDigitalSeating,
+      remindersEnabled: true,
+      callsEnabled: hasCallsPackage,
+    };
 
     if (!clientName || !clientEmail || !clientPhone || finalGrossAmount <= 0) {
       return NextResponse.json(
@@ -815,7 +891,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (stripeAmount <= 0) {
+    if (!isManualPaid && stripeAmount <= 0) {
       return NextResponse.json(
         {
           success: false,
@@ -873,26 +949,30 @@ export async function POST(req: NextRequest) {
       guests,
       maxGuests: guests,
 
-      // תשלום רק Stripe — עד שה-webhook חוזר כ-paid, הלקוח לא פעיל ולא נפתחות הרשאות.
-      paidAmount: 0,
-      hasPaid: false,
-      isActive: false,
+      // Stripe נפתח רק אחרי webhook. תשלום ידני נפתח מיידית.
+      paidAmount: isManualPaid ? finalGrossAmount : 0,
+      hasPaid: isManualPaid,
+      isActive: isManualPaid,
+      hasDashboardAccess: isManualPaid,
 
       eventDate,
 
-      // נשמרים במכירה ונפתחים בפועל רק אחרי checkout.session.completed ב-webhook.
-      includeCalls: false,
-      callsRounds: 0,
+      includeCalls: isManualPaid ? hasCallsPackage : false,
+      callsRounds: isManualPaid && hasCallsPackage ? 3 : 0,
       callsAddonPrice: 0,
+      callsEnabledBy: isManualPaid && hasCallsPackage ? "manual" : null,
+      callsEnabledAt: isManualPaid && hasCallsPackage ? new Date() : null,
 
-      includeCreditGifts: false,
-      creditGiftsAddonPrice: salesUpsells.creditGifts.price,
+      includeCreditGifts: isManualPaid ? hasCreditGifts : false,
+      creditGiftsAddonPrice: creditGiftsState.price,
+      creditGiftsEnabledBy: isManualPaid && hasCreditGifts ? "manual" : null,
+      creditGiftsEnabledAt: isManualPaid && hasCreditGifts ? new Date() : null,
 
-      includeDigitalSeating: false,
-      includeEventManagement: false,
+      includeDigitalSeating: isManualPaid ? hasDigitalSeating : false,
+      includeEventManagement: isManualPaid ? hasSuppliersBudgetSystem : false,
       includeCustomDesign: false,
 
-      selfManageEnabled: false,
+      selfManageEnabled: isManualPaid ? hasSuppliersBudgetSystem : false,
       customDesignEnabled: false,
 
       smsPerRecord: 1,
@@ -910,55 +990,63 @@ export async function POST(req: NextRequest) {
 
       salesUpsells: {
         digitalSeating: {
-          enabled: false,
+          enabled: isManualPaid ? hasDigitalSeating : false,
           price: salesUpsells.digitalSeating.price,
         },
         creditGifts: {
-          enabled: false,
-          price: salesUpsells.creditGifts.price,
+          ...creditGiftsState,
+          enabled: isManualPaid ? hasCreditGifts : false,
         },
         venueSeating: {
-          enabled: false,
+          enabled: isManualPaid ? hasVenueSeating : false,
           staffCount: salesUpsells.venueSeating.staffCount,
           totalPrice: salesUpsells.venueSeating.totalPrice,
         },
         personalRepresentative: {
-          enabled: false,
+          enabled: isManualPaid ? salesUpsells.personalRepresentative.enabled : false,
           price: salesUpsells.personalRepresentative.price,
         },
         thirdRsvpRound: {
-          enabled: false,
+          enabled: isManualPaid ? salesUpsells.thirdRsvpRound.enabled : false,
           price: salesUpsells.thirdRsvpRound.price,
         },
         suppliersBudgetSystem: {
-          enabled: false,
+          enabled: isManualPaid ? salesUpsells.suppliersBudgetSystem.enabled : false,
           price: salesUpsells.suppliersBudgetSystem.price,
           givenFree: salesUpsells.suppliersBudgetSystem.givenFree,
         },
         alcoholManagement: {
-          enabled: false,
+          enabled: isManualPaid ? hasAlcoholManagement : false,
           staffCount: salesUpsells.alcoholManagement.staffCount,
           totalPrice: salesUpsells.alcoholManagement.totalPrice,
         },
       },
 
-      accessModules: buildPendingAccessModules(),
+      accessModules: isManualPaid ? activeAccessModules : buildPendingAccessModules(),
 
-      planLimits: {
-        maxGuests: guests,
-        allowedMessageRounds: 2,
-        smsEnabled: true,
-        smsLimit: guests,
-        seatingEnabled: false,
-        remindersEnabled: true,
-        callsEnabled: false,
-      },
+      planLimits: isManualPaid
+        ? activePlanLimits
+        : {
+            maxGuests: guests,
+            allowedMessageRounds: 2,
+            smsEnabled: true,
+            smsLimit: guests,
+            seatingEnabled: false,
+            remindersEnabled: true,
+            callsEnabled: false,
+          },
 
       isTrial: false,
       needsPasswordSetup: true,
 
       createdByAdmin: false,
-      billingSource: "pricing",
+      billingSource: isManualPaid ? "manual" : "pricing",
+      paymentMode,
+      paymentProvider,
+      paidAt: isManualPaid ? new Date() : null,
+      manualPaidAt: isManualPaid ? new Date() : null,
+      manualPaymentReference: cleanString(body?.manualPaymentReference),
+      manualPaymentNote: cleanString(body?.manualPaymentNote),
     });
 
     const sale = await EmployeeSale.create({
@@ -987,10 +1075,10 @@ export async function POST(req: NextRequest) {
 
       originalGrossAmount,
       discountAmount,
-      stripeAmount,
+      stripeAmount: isManualPaid ? 0 : stripeAmount,
       eventDayAmount,
       paymentMode,
-      paymentProvider: "stripe",
+      paymentProvider,
 
       selectedPackage: body?.selectedPackage || null,
       upsells,
@@ -1020,11 +1108,63 @@ export async function POST(req: NextRequest) {
 
       saleCompliance: body?.saleCompliance || null,
 
-      // תשלום רק Stripe
-      status: "pending",
-      source: "employee_sales_page",
+      status: isManualPaid ? "paid" : "pending",
+      source: isManualPaid ? "manual" : "employee_sales_page",
       notes,
     });
+
+    if (isManualPaid) {
+      const paidAt = new Date();
+
+      sale.set?.("paidAt", paidAt);
+      sale.set?.("payment.method", "manual");
+      sale.set?.("payment.provider", "manual");
+      sale.set?.("payment.status", "paid");
+      sale.set?.("payment.mode", paymentMode);
+      sale.set?.("payment.amount", finalGrossAmount);
+      sale.set?.("payment.originalAmount", originalGrossAmount);
+      sale.set?.("payment.discountAmount", discountAmount);
+      sale.set?.("payment.immediateAmount", finalGrossAmount);
+      sale.set?.("payment.stripeAmount", 0);
+      sale.set?.("payment.eventDayAmount", eventDayAmount);
+      sale.set?.("payment.paidAt", paidAt);
+      sale.set?.("payment.manualPaymentReference", cleanString(body?.manualPaymentReference));
+      sale.set?.("payment.manualPaymentNote", cleanString(body?.manualPaymentNote));
+      sale.set?.("salesUpsells.creditGifts", {
+        ...creditGiftsState,
+        enabled: hasCreditGifts,
+      });
+      await sale.save?.();
+
+      try {
+        await sendPasswordSetupMail(String(createdUser._id));
+      } catch (mailError) {
+        console.error("SEND PASSWORD SETUP MAIL FAILED:", mailError);
+      }
+
+      return NextResponse.json(
+        {
+          success: true,
+          userId: String(createdUser._id),
+          saleId: String(sale._id),
+          checkoutUrl: "",
+          stripeCheckoutUrl: "",
+          checkoutSessionId: "",
+          payment: {
+            provider: "manual",
+            mode: paymentMode,
+            stripeAmount: 0,
+            finalGrossAmount,
+            originalGrossAmount,
+            discountAmount,
+            eventDayAmount,
+            status: "paid",
+          },
+          sale: serializeSale(sale),
+        },
+        { status: 201 },
+      );
+    }
 
     const checkout = await createStripeCheckoutSession({
       req,
