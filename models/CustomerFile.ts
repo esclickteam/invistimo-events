@@ -2,27 +2,107 @@ import mongoose, { Schema, model, models } from "mongoose";
 
 const CustomerFileSchema = new Schema(
   {
-    userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
-    invitationId: { type: Schema.Types.ObjectId, ref: "Invitation", index: true },
+    // לא חובה — כי תיק לקוח יכול להיווצר כבר בשלב הצעת מחיר / הסכם
+    // לפני שנפתח ללקוח משתמש בפועל במערכת
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: false,
+      default: null,
+      index: true,
+    },
 
-    fullName: { type: String, default: "" },
-    email: { type: String, default: "" },
-    phone: { type: String, default: "" },
+    invitationId: {
+      type: Schema.Types.ObjectId,
+      ref: "Invitation",
+      required: false,
+      default: null,
+      index: true,
+    },
 
-    eventDate: { type: Date },
-    venueName: { type: String, default: "" },
-    city: { type: String, default: "" },
+    fullName: {
+      type: String,
+      default: "",
+      trim: true,
+      index: true,
+    },
 
-    packageName: { type: String, default: "" },
-    packageBasePrice: { type: Number, default: 0 },
-    packageTargetPriceWithCalls: { type: Number, default: 0 },
+    email: {
+      type: String,
+      default: "",
+      trim: true,
+      lowercase: true,
+      index: true,
+    },
 
-    hasCallRounds: { type: Boolean, default: false },
-    allowedCallRounds: { type: Number, default: 0 },
+    phone: {
+      type: String,
+      default: "",
+      trim: true,
+      index: true,
+    },
 
-    totalPrice: { type: Number, default: 0 },
-    paidAmount: { type: Number, default: 0 },
-    balance: { type: Number, default: 0 },
+    eventDate: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+
+    venueName: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    city: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    packageName: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    // מחיר החבילה/עסקה הנוכחית
+    packageBasePrice: {
+      type: Number,
+      default: 0,
+    },
+
+    // מחיר יעד אם משדרגים לחבילה עם סבבי שיחות
+    packageTargetPriceWithCalls: {
+      type: Number,
+      default: 0,
+    },
+
+    hasCallRounds: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
+    allowedCallRounds: {
+      type: Number,
+      default: 0,
+    },
+
+    totalPrice: {
+      type: Number,
+      default: 0,
+    },
+
+    paidAmount: {
+      type: Number,
+      default: 0,
+    },
+
+    balance: {
+      type: Number,
+      default: 0,
+    },
 
     status: {
       type: String,
@@ -31,11 +111,19 @@ const CustomerFileSchema = new Schema(
       index: true,
     },
 
-    assignedStaffIds: [{ type: Schema.Types.ObjectId, ref: "User" }],
+    assignedStaffIds: {
+      type: [{ type: Schema.Types.ObjectId, ref: "User" }],
+      default: [],
+      index: true,
+    },
 
-    notes: { type: String, default: "" },
+    notes: {
+      type: String,
+      default: "",
+    },
   },
   { timestamps: true }
 );
 
-export default models.CustomerFile || model("CustomerFile", CustomerFileSchema);
+export default models.CustomerFile ||
+  model("CustomerFile", CustomerFileSchema);
