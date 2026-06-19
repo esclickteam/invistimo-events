@@ -32,7 +32,6 @@ type CustomerFile = {
   leadSource?: string;
   leadProvider?: string;
   leadStatus?: string;
-  guestsCount?: number;
   interestedService?: string;
   facebookLeadId?: string;
   campaignName?: string;
@@ -196,6 +195,10 @@ function isFacebookLead(customer: CustomerFile) {
   );
 }
 
+function isLeadCustomer(customer: CustomerFile) {
+  return customer.status === "lead" || isFacebookLead(customer);
+}
+
 function getInitials(name?: string) {
   const cleanName = cleanText(name);
 
@@ -299,7 +302,7 @@ export default function AdminCustomersPage() {
 
   const stats = useMemo(() => {
     const total = customers.length;
-    const leads = customers.filter((customer) => customer.status === "lead").length;
+    const leads = customers.filter((customer) => isLeadCustomer(customer)).length;
     const facebookLeads = customers.filter((customer) => isFacebookLead(customer)).length;
     const active = customers.filter((customer) => customer.status === "active").length;
     const paid = customers.filter((customer) => customer.status === "paid").length;
@@ -341,9 +344,9 @@ export default function AdminCustomersPage() {
                 </h1>
 
                 <p className="mt-3 max-w-4xl text-sm font-semibold leading-7 text-[#8A6A43]">
-                  כאן רואים את כל הלקוחות והלידים במקום אחד: לידים מפייסבוק דרך
-                  Make, פרטי קשר, תאריך אירוע, כמות מוזמנים, שירות מעניין, סטטוס
-                  וכניסה מלאה לתיק הלקוח.
+                  כאן רואים את כל הלקוחות והלידים במקום אחד: פרטי קשר, תאריך
+                  אירוע, חבילה או שירות מעניין, סטטוס, מקור ליד כשקיים וכניסה
+                  מלאה לתיק הלקוח.
                 </p>
               </div>
 
@@ -366,8 +369,8 @@ export default function AdminCustomersPage() {
                 </div>
 
                 <p className="px-2 text-xs font-bold text-[#9A7A55]">
-                  מוצגים עד 300 תיקים אחרונים. חיפוש מתבצע לפי הנתונים שה־API
-                  מחזיר מהשרת.
+                  מוצגים עד 300 תיקים אחרונים. לידים יציגו מקור ליד וסטטוס ליד;
+                  לקוחות רגילים יציגו רק פרטי לקוח ועסקה.
                 </p>
               </div>
             </div>
@@ -391,7 +394,8 @@ export default function AdminCustomersPage() {
           <div className="mb-5 flex flex-col gap-2 px-1 sm:px-2">
             <h2 className="text-2xl font-black">כל הלקוחות והלידים</h2>
             <p className="text-sm font-semibold leading-6 text-[#8A6A43]">
-              במקום טבלה צפופה — כל לקוח מוצג ככרטיס מלא, בלי גלילה אופקית.
+              כל לקוח מוצג ככרטיס מלא, בלי גלילה אופקית. פרטי ליד מוצגים רק
+              כשמדובר בליד.
             </p>
           </div>
 
@@ -415,7 +419,7 @@ export default function AdminCustomersPage() {
                 const customerId = String(customer._id);
                 const userId = String(customer.userId || "");
                 const facebookLead = isFacebookLead(customer);
-                const guestsCount = Number(customer.guestsCount || 0);
+                const leadCustomer = isLeadCustomer(customer);
                 const interestedService = cleanText(customer.interestedService);
                 const leadSourceLabel = getLeadSourceLabel(
                   customer.leadSource,
@@ -457,58 +461,73 @@ export default function AdminCustomersPage() {
                         </div>
                       </div>
 
-                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+                      <div
+                        className={`grid gap-3 sm:grid-cols-2 lg:grid-cols-4 ${
+                          leadCustomer ? "xl:grid-cols-6" : "xl:grid-cols-5"
+                        }`}
+                      >
                         <InfoItem label="טלפון" value={customer.phone || "-"} strong />
                         <InfoItem label="מייל" value={customer.email || "-"} />
                         <InfoItem label="תאריך אירוע" value={formatDate(customer.eventDate)} />
-                        <InfoItem
-                          label="כמות מוזמנים"
-                          value={
-                            guestsCount > 0
-                              ? `${guestsCount.toLocaleString("he-IL")} מוזמנים`
-                              : "-"
-                          }
-                          strong
-                        />
-                        <InfoItem
-                          label="שירות מעניין"
-                          value={interestedService || customer.packageName || "-"}
-                          strong
-                        />
-                        <InfoItem
-                          label="מקור ליד"
-                          value={
-                            leadSourceLabel !== "-" ? (
-                              <div className="space-y-1">
-                                <div>{leadSourceLabel}</div>
-                                {customer.facebookLeadId ? (
-                                  <div className="text-[11px] text-[#9A7A55]">
-                                    Lead ID:{" "}
-                                    {String(customer.facebookLeadId).slice(-8)}
+
+                        {leadCustomer ? (
+                          <>
+                            <InfoItem
+                              label="שירות מעניין"
+                              value={interestedService || "-"}
+                              strong
+                            />
+
+                            <InfoItem
+                              label="מקור ליד"
+                              value={
+                                leadSourceLabel !== "-" ? (
+                                  <div className="space-y-1">
+                                    <div>{leadSourceLabel}</div>
+                                    {customer.facebookLeadId ? (
+                                      <div className="text-[11px] text-[#9A7A55]">
+                                        Lead ID:{" "}
+                                        {String(customer.facebookLeadId).slice(-8)}
+                                      </div>
+                                    ) : null}
                                   </div>
-                                ) : null}
-                              </div>
-                            ) : (
-                              "-"
-                            )
-                          }
-                        />
-                        <InfoItem
-                          label="סטטוס ליד"
-                          value={
-                            customer.status === "lead" || customer.leadStatus ? (
-                              <Pill
-                                className={getLeadStatusClass(
-                                  customer.leadStatus || "new"
-                                )}
-                              >
-                                {getLeadStatusLabel(customer.leadStatus || "new")}
-                              </Pill>
-                            ) : (
-                              "-"
-                            )
-                          }
-                        />
+                                ) : (
+                                  "-"
+                                )
+                              }
+                            />
+
+                            <InfoItem
+                              label="סטטוס ליד"
+                              value={
+                                <Pill
+                                  className={getLeadStatusClass(
+                                    customer.leadStatus || "new"
+                                  )}
+                                >
+                                  {getLeadStatusLabel(customer.leadStatus || "new")}
+                                </Pill>
+                              }
+                            />
+                          </>
+                        ) : (
+                          <>
+                            <InfoItem
+                              label="חבילה / שירות"
+                              value={customer.packageName || "-"}
+                              strong
+                            />
+
+                            <InfoItem
+                              label="סטטוס"
+                              value={
+                                <Pill className={getStatusClass(customer.status)}>
+                                  {getStatusLabel(customer.status)}
+                                </Pill>
+                              }
+                            />
+                          </>
+                        )}
                       </div>
 
                       <div className="flex flex-col gap-2 xl:min-w-[150px]">
@@ -540,11 +559,22 @@ export default function AdminCustomersPage() {
 
                     <div className="mt-4 grid gap-3 border-t border-[#F1E7DA] pt-4 sm:grid-cols-2 lg:grid-cols-4">
                       <InfoItem
-                        label="חבילה / שירות"
-                        value={customer.packageName || interestedService || "-"}
+                        label={leadCustomer ? "שירות מעניין" : "חבילה / שירות"}
+                        value={
+                          leadCustomer
+                            ? interestedService || "-"
+                            : customer.packageName || "-"
+                        }
                       />
-                      <InfoItem label="סכום עסקה" value={formatMoney(customer.totalPrice)} strong />
+
+                      <InfoItem
+                        label="סכום עסקה"
+                        value={formatMoney(customer.totalPrice)}
+                        strong
+                      />
+
                       <InfoItem label="יתרה" value={formatMoney(customer.balance)} />
+
                       <InfoItem
                         label="סבבי שיחות"
                         value={
@@ -555,7 +585,10 @@ export default function AdminCustomersPage() {
                       />
                     </div>
 
-                    {customer.venueName || customer.city || customer.campaignName || customer.adName ? (
+                    {customer.venueName ||
+                    customer.city ||
+                    customer.campaignName ||
+                    customer.adName ? (
                       <div className="mt-4 flex flex-wrap gap-2">
                         {customer.venueName || customer.city ? (
                           <Pill className="bg-[#FFF7EC] text-[#B87920] ring-[#E8D8C4]">
@@ -565,13 +598,13 @@ export default function AdminCustomersPage() {
                           </Pill>
                         ) : null}
 
-                        {customer.campaignName ? (
+                        {leadCustomer && customer.campaignName ? (
                           <Pill className="bg-stone-50 text-stone-700 ring-stone-100">
                             קמפיין: {customer.campaignName}
                           </Pill>
                         ) : null}
 
-                        {customer.adName ? (
+                        {leadCustomer && customer.adName ? (
                           <Pill className="bg-stone-50 text-stone-700 ring-stone-100">
                             מודעה: {customer.adName}
                           </Pill>
