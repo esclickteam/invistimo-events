@@ -953,6 +953,9 @@ packageName
             planData.allowedMessageRounds
         );
 
+        const includeCreditGifts =
+          Boolean(u.includeCreditGifts) || Boolean(planData.includeCreditGifts);
+
         return {
           ...u,
 
@@ -969,8 +972,10 @@ packageName
           callsRounds: Number(u.callsRounds || 0),
           callsAddonPrice: Number(u.callsAddonPrice || 0),
 
-          includeCreditGifts: Boolean(u.includeCreditGifts),
-          creditGiftsAddonPrice: Number(u.creditGiftsAddonPrice || 0),
+          includeCreditGifts,
+          creditGiftsAddonPrice: includeCreditGifts && planData.includeCreditGifts
+            ? 0
+            : Number(u.creditGiftsAddonPrice || 0),
 
           includeDigitalSeating,
           includeEventManagement,
@@ -1501,6 +1506,11 @@ if (safeRole === "staff") {
           maxGuests: recordsNum,
           allowedMessageRounds,
 
+          includeCalls: finalIncludeCalls,
+          includeCreditGifts: finalIncludeCreditGifts,
+          creditGiftsAddonPrice: finalIncludeCreditGifts && planData.includeCreditGifts
+            ? 0
+            : Number(addons?.credit?.price || 0),
           includeDigitalSeating: finalAccessModules.rsvpSeating,
           includeEventManagement: finalAccessModules.eventProduction,
           includeCustomDesign: finalCustomDesign,

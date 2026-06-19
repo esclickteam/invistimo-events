@@ -159,6 +159,10 @@ function planHasDigitalSeating(plan: string) {
   return plan === "seating" || plan === "plan3";
 }
 
+function planHasCreditGifts(plan: string) {
+  return plan === "seating" || plan === "plan3";
+}
+
 function toUserPlan(plan: string): "basic" | "premium" | "plan1" | "plan2" | "plan3" {
   const normalized = cleanString(plan).toLowerCase();
 
@@ -184,14 +188,27 @@ function buildSalesUpsells(plan: string, upsells: NormalizedUpsell[]) {
   const thirdRsvpRound = findUpsell(upsells, "thirdRsvpRound");
   const suppliersBudgetSystem = findUpsell(upsells, "suppliersBudgetSystem");
   const alcoholManagement = findUpsell(upsells, "alcoholManagement");
+  const creditGifts = findUpsell(upsells, "creditGifts");
 
   const venueSeatingPrice = getUpsellPrice(venueSeating);
   const alcoholManagementPrice = getUpsellPrice(alcoholManagement);
+  const creditGiftsPrice = planHasCreditGifts(plan) ? 0 : getUpsellPrice(creditGifts);
 
   return {
     digitalSeating: {
       enabled: planHasDigitalSeating(plan) || Boolean(digitalSeating),
       price: getUpsellPrice(digitalSeating),
+    },
+
+    creditGifts: {
+      enabled: planHasCreditGifts(plan) || Boolean(creditGifts),
+      price: creditGiftsPrice,
+      totalPrice: creditGiftsPrice,
+      givenFree: planHasCreditGifts(plan) || Boolean(creditGifts?.givenFree),
+      title: "מתנות באשראי באמצעות ספק חיצוני RSVP",
+      description: planHasCreditGifts(plan)
+        ? "כלול בחבילת מזמינים ומושיבים"
+        : "תוספת מתנות באשראי באמצעות ספק חיצוני RSVP",
     },
 
     venueSeating: {
@@ -810,6 +827,7 @@ export async function POST(req: NextRequest) {
     const hasDigitalSeatingPackage = planHasDigitalSeating(plan);
     const hasSuppliersBudgetSystem = salesUpsells.suppliersBudgetSystem.enabled;
     const hasDigitalSeating = salesUpsells.digitalSeating.enabled;
+    const hasCreditGifts = salesUpsells.creditGifts.enabled;
     const hasVenueSeating = salesUpsells.venueSeating.enabled;
     const hasAlcoholManagement = salesUpsells.alcoholManagement.enabled;
 
@@ -895,7 +913,7 @@ export async function POST(req: NextRequest) {
       callsAddonPrice: 0,
 
       includeCreditGifts: false,
-      creditGiftsAddonPrice: 0,
+      creditGiftsAddonPrice: salesUpsells.creditGifts.price,
 
       includeDigitalSeating: false,
       includeEventManagement: false,
@@ -921,6 +939,14 @@ export async function POST(req: NextRequest) {
         digitalSeating: {
           enabled: false,
           price: salesUpsells.digitalSeating.price,
+        },
+        creditGifts: {
+          enabled: false,
+          price: salesUpsells.creditGifts.price,
+          totalPrice: salesUpsells.creditGifts.totalPrice,
+          givenFree: salesUpsells.creditGifts.givenFree,
+          title: salesUpsells.creditGifts.title,
+          description: salesUpsells.creditGifts.description,
         },
         venueSeating: {
           enabled: false,
@@ -1009,6 +1035,7 @@ export async function POST(req: NextRequest) {
         hasCallsPackage,
         hasDigitalSeatingPackage,
         hasDigitalSeating,
+        hasCreditGifts,
         hasVenueSeating,
         hasSuppliersBudgetSystem,
         hasAlcoholManagement,
@@ -1038,6 +1065,7 @@ export async function POST(req: NextRequest) {
       const paidAmount = stripeAmount > 0 ? stripeAmount : finalGrossAmount;
       const includeCalls = Boolean(hasCallsPackage);
       const includeDigitalSeating = Boolean(hasDigitalSeating);
+      const includeCreditGifts = Boolean(hasCreditGifts);
       const includeEventManagement = Boolean(hasSuppliersBudgetSystem);
       const activatedAllowedMessageRounds = allowedMessageRounds;
 
@@ -1094,6 +1122,19 @@ export async function POST(req: NextRequest) {
             callsEnabledBy: includeCalls ? "admin" : null,
             callsEnabledAt: includeCalls ? now : null,
 
+            includeCreditGifts,
+            creditGiftsAddonPrice: salesUpsells.creditGifts.price,
+            creditGiftsEnabledBy: includeCreditGifts ? "admin" : null,
+            creditGiftsEnabledAt: includeCreditGifts ? now : null,
+            "salesUpsells.creditGifts": {
+              enabled: includeCreditGifts,
+              price: salesUpsells.creditGifts.price,
+              totalPrice: salesUpsells.creditGifts.totalPrice,
+              givenFree: salesUpsells.creditGifts.givenFree,
+              title: salesUpsells.creditGifts.title,
+              description: salesUpsells.creditGifts.description,
+            },
+
             includeDigitalSeating,
             includeEventManagement,
             includeCustomDesign: false,
@@ -1135,6 +1176,15 @@ export async function POST(req: NextRequest) {
       sale.set?.("payment.amount", finalGrossAmount);
       sale.set?.("payment.stripeAmount", paidAmount);
       sale.set?.("payment.eventDayAmount", eventDayAmount);
+      sale.set?.("salesUpsells.creditGifts", {
+        enabled: includeCreditGifts,
+        price: salesUpsells.creditGifts.price,
+        totalPrice: salesUpsells.creditGifts.totalPrice,
+        givenFree: salesUpsells.creditGifts.givenFree,
+        title: salesUpsells.creditGifts.title,
+        description: salesUpsells.creditGifts.description,
+      });
+      sale.set?.("activationSnapshot.hasCreditGifts", includeCreditGifts);
       sale.set?.("paidAt", now);
       sale.set?.("stripePaidAt", now);
       sale.set?.("manualPaymentReference", manualPaymentReference);
