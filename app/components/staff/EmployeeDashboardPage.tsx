@@ -221,6 +221,37 @@ type EmployeeWorkOrdersDashboardData = {
   completedWorkOrdersCount: number;
 };
 
+type EmployeeLead = {
+  _id?: string;
+  id?: string;
+  fullName?: string;
+  email?: string;
+  phone?: string;
+  eventDate?: string;
+  packageName?: string;
+  status?: string;
+  leadSource?: string;
+  leadProvider?: string;
+  leadStatus?: string;
+  interestedService?: string;
+  facebookLeadId?: string;
+  campaignName?: string;
+  adName?: string;
+  formName?: string;
+  source?: string;
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+type EmployeeLeadsResponse = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+  employeeId?: string;
+  leads?: EmployeeLead[];
+};
+
 function getEmptyWorkOrdersDashboardData(): EmployeeWorkOrdersDashboardData {
   return {
     loading: true,
@@ -255,6 +286,7 @@ const API = {
   form101Download: "/api/forms/101/download",
   employeeAgreementCurrent: "/api/employee-agreements/current",
   employeeWorkOrders: "/api/employee/work-orders",
+  employeeLeads: "/api/employee/leads",
 };
 
 function getArrayFromResponse<T>(data: any, keys: string[]): T[] {
@@ -1096,6 +1128,78 @@ function MiniDocumentStatusCard({
   );
 }
 
+function getLeadStatusLabel(status?: string) {
+  switch (String(status || "").toLowerCase()) {
+    case "new":
+      return "חדש";
+    case "contacted":
+      return "נוצר קשר";
+    case "quote_sent":
+      return "נשלחה הצעה";
+    case "converted":
+      return "הומר ללקוח";
+    case "lost":
+      return "לא רלוונטי";
+    default:
+      return "חדש";
+  }
+}
+
+function getLeadStatusClass(status?: string) {
+  switch (String(status || "").toLowerCase()) {
+    case "contacted":
+      return "border-sky-200 bg-sky-50 text-sky-700";
+    case "quote_sent":
+      return "border-violet-200 bg-violet-50 text-violet-700";
+    case "converted":
+      return "border-emerald-200 bg-emerald-50 text-emerald-700";
+    case "lost":
+      return "border-rose-200 bg-rose-50 text-rose-700";
+    case "new":
+    default:
+      return "border-amber-200 bg-amber-50 text-amber-700";
+  }
+}
+
+function getLeadSourceLabel(source?: string, provider?: string) {
+  const cleanSource = String(source || "").trim().toLowerCase();
+  const cleanProvider = String(provider || "").trim().toLowerCase();
+
+  if (cleanSource === "facebook" && cleanProvider === "make") {
+    return "Facebook / Make";
+  }
+
+  if (cleanSource === "facebook") return "Facebook";
+  if (cleanProvider === "make") return "Make";
+  if (cleanSource === "whatsapp") return "WhatsApp";
+
+  return source || provider || "—";
+}
+
+function normalizeLeadName(lead: EmployeeLead) {
+  return lead.fullName || "ליד ללא שם";
+}
+
+function normalizeLeadPhone(lead: EmployeeLead) {
+  return String(lead.phone || "").trim();
+}
+
+function normalizeLeadService(lead: EmployeeLead) {
+  return lead.interestedService || lead.packageName || "—";
+}
+
+function normalizeLeadSource(lead: EmployeeLead) {
+  return getLeadSourceLabel(lead.leadSource, lead.leadProvider);
+}
+
+function isFacebookLead(lead: EmployeeLead) {
+  return (
+    String(lead.leadSource || "").toLowerCase() === "facebook" ||
+    String(lead.source || "").toLowerCase() === "facebook_lead_make" ||
+    Boolean(lead.facebookLeadId)
+  );
+}
+
 function EmployeeFileSummaryPanel({
   form101,
   idCard,
@@ -1271,6 +1375,9 @@ export default function EmployeeDashboardPage() {
     useState<EmployeeWorkOrdersDashboardData>(() =>
       getEmptyWorkOrdersDashboardData(),
     );
+  const [employeeLeads, setEmployeeLeads] = useState<EmployeeLead[]>([]);
+  const [employeeLeadsLoading, setEmployeeLeadsLoading] = useState(true);
+  const [employeeLeadsError, setEmployeeLeadsError] = useState("");
 
   const [form101, setForm101] = useState<ApiEmployeeDocument | null>(null);
   const [idCard, setIdCard] = useState<ApiEmployeeDocument | null>(null);
@@ -1286,6 +1393,7 @@ export default function EmployeeDashboardPage() {
 
   const [userSearch, setUserSearch] = useState("");
   const [eventSearch, setEventSearch] = useState("");
+  const [leadSearch, setLeadSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [enteringUserId, setEnteringUserId] = useState<string | null>(null);
@@ -1374,6 +1482,51 @@ export default function EmployeeDashboardPage() {
       });
     }
   }, []);
+
+  const loadEmployeeLeads = useCallback(async () => {
+    try {
+      setEmployeeLeadsLoading(true);
+      setEmployeeLeadsError("");
+
+      const params = new URLSearchParams();
+
+      if (leadSearch.trim()) {
+        params.set("q", leadSearch.trim());
+      }
+
+      const url = params.toString()
+        ? `${API.employeeLeads}?${params.toString()}`
+        : API.employeeLeads;
+
+      const response = await fetch(url, {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      const data = (await response
+        .json()
+        .catch(() => null)) as EmployeeLeadsResponse | null;
+
+      if (!response.ok || data?.success === false) {
+        throw new Error(
+          data?.message || data?.error || "שגיאה בטעינת הלידים שלי",
+        );
+      }
+
+      setEmployeeLeads(Array.isArray(data?.leads) ? data.leads : []);
+    } catch (loadError) {
+      console.error("LOAD EMPLOYEE LEADS FAILED:", loadError);
+      setEmployeeLeads([]);
+      setEmployeeLeadsError(
+        loadError instanceof Error
+          ? loadError.message
+          : "שגיאה בטעינת הלידים שלי",
+      );
+    } finally {
+      setEmployeeLeadsLoading(false);
+    }
+  }, [leadSearch]);
 
   const loadDashboard = useCallback(async () => {
     try {
@@ -1661,11 +1814,13 @@ export default function EmployeeDashboardPage() {
     void loadEmployeeDocuments();
     void loadEmployeeAgreement();
     void loadEmployeeWorkOrders();
+    void loadEmployeeLeads();
   }, [
     loadDashboard,
     loadEmployeeDocuments,
     loadEmployeeAgreement,
     loadEmployeeWorkOrders,
+    loadEmployeeLeads,
   ]);
 
   const filteredUsers = useMemo(() => {
@@ -1719,6 +1874,36 @@ export default function EmployeeDashboardPage() {
       );
     });
   }, [eventSearch, events]);
+
+  const filteredLeads = useMemo(() => {
+    const q = leadSearch.trim().toLowerCase();
+
+    if (!q) return employeeLeads;
+
+    return employeeLeads.filter((lead) => {
+      const name = normalizeLeadName(lead).toLowerCase();
+      const phone = normalizeLeadPhone(lead).toLowerCase();
+      const email = String(lead.email || "").toLowerCase();
+      const service = normalizeLeadService(lead).toLowerCase();
+      const source = normalizeLeadSource(lead).toLowerCase();
+      const status = getLeadStatusLabel(lead.leadStatus || "new").toLowerCase();
+
+      return (
+        name.includes(q) ||
+        phone.includes(q) ||
+        email.includes(q) ||
+        service.includes(q) ||
+        source.includes(q) ||
+        status.includes(q)
+      );
+    });
+  }, [employeeLeads, leadSearch]);
+
+  const newLeadsCount = useMemo(() => {
+    return employeeLeads.filter((lead) => {
+      return String(lead.leadStatus || "new").toLowerCase() === "new";
+    }).length;
+  }, [employeeLeads]);
 
   const eventsNeedCheck = useMemo(() => {
     return events.filter((event) => {
@@ -1790,12 +1975,14 @@ export default function EmployeeDashboardPage() {
                     void loadEmployeeDocuments();
                     void loadEmployeeAgreement();
                     void loadEmployeeWorkOrders();
+                    void loadEmployeeLeads();
                   }}
                   disabled={
                     refreshing ||
                     documentsLoading ||
                     agreementLoading ||
-                    workOrdersDashboard.loading
+                    workOrdersDashboard.loading ||
+                    employeeLeadsLoading
                   }
                   className="inline-flex h-10 w-fit items-center justify-center gap-2 rounded-full border border-slate-200 bg-white/90 px-4 text-xs font-black text-slate-600 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
@@ -1805,7 +1992,8 @@ export default function EmployeeDashboardPage() {
                       refreshing ||
                       documentsLoading ||
                       agreementLoading ||
-                      workOrdersDashboard.loading
+                      workOrdersDashboard.loading ||
+                    employeeLeadsLoading
                         ? "animate-spin"
                         : ""
                     }`}
@@ -1821,6 +2009,15 @@ export default function EmployeeDashboardPage() {
                   >
                     <Icon name="sales" className="h-4 w-4" />
                     המכירות שלי
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => router.push("/employee/leads")}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-amber-500 px-4 text-sm font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-amber-600 hover:shadow-md"
+                  >
+                    <Icon name="message" className="h-4 w-4" />
+                    הלידים שלי
                   </button>
 
                   <button
@@ -1851,7 +2048,7 @@ export default function EmployeeDashboardPage() {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-5 xl:min-w-[700px]">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:min-w-[820px] xl:grid-cols-6">
                   <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-4">
                     <p className="text-xs font-black text-slate-500">משתמשים</p>
                     <p className="mt-2 text-3xl font-black text-slate-950">
@@ -1885,6 +2082,22 @@ export default function EmployeeDashboardPage() {
                       {stats.unreadMessages}
                     </p>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={() => router.push("/employee/leads")}
+                    className="rounded-[24px] border border-amber-200 bg-amber-50 p-4 text-right transition hover:-translate-y-0.5 hover:bg-amber-100"
+                  >
+                    <p className="text-xs font-black text-amber-700">
+                      לידים שלי
+                    </p>
+                    <p className="mt-2 text-3xl font-black text-amber-950">
+                      {employeeLeadsLoading ? "..." : employeeLeads.length}
+                    </p>
+                    <p className="mt-1 text-[11px] font-black text-amber-700/70">
+                      {newLeadsCount} חדשים
+                    </p>
+                  </button>
 
                   <button
                     type="button"
@@ -1955,7 +2168,7 @@ export default function EmployeeDashboardPage() {
             </div>
           ) : (
             <>
-              <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+              <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
                 <StatCard
                   title="אירועים בטיפול אישי"
                   value={stats.myEvents}
@@ -1963,6 +2176,20 @@ export default function EmployeeDashboardPage() {
                   icon={<Icon name="calendar" className="h-6 w-6" />}
                   tone="purple"
                 />
+
+                <button
+                  type="button"
+                  onClick={() => router.push("/employee/leads")}
+                  className="text-right"
+                >
+                  <StatCard
+                    title="לידים שלי"
+                    value={employeeLeadsLoading ? "..." : employeeLeads.length}
+                    subtitle={`${newLeadsCount} לידים חדשים לטיפול`}
+                    icon={<Icon name="message" className="h-6 w-6" />}
+                    tone="amber"
+                  />
+                </button>
 
                 <StatCard
                   title="לקוחות שצריך לבדוק"
@@ -1996,7 +2223,8 @@ export default function EmployeeDashboardPage() {
                   <StatCard
                     title="הוראות עבודה"
                     value={
-                      workOrdersDashboard.loading
+                      workOrdersDashboard.loading ||
+                    employeeLeadsLoading
                         ? "..."
                         : workOrdersDashboard.activeWorkOrdersCount
                     }
@@ -2006,6 +2234,154 @@ export default function EmployeeDashboardPage() {
                   />
                 </button>
               </div>
+
+              <section className="mt-6 rounded-[34px] border border-amber-200 bg-white p-5 shadow-sm sm:p-6">
+                <SectionHeader
+                  title="הלידים שלי"
+                  subtitle="לידים שהאדמין שייך אליך לטיפול. כאן מתחיל הטיפול לפני חיבור הצ׳אט וה־WhatsApp API."
+                  action={
+                    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                      <SearchBox
+                        value={leadSearch}
+                        onChange={setLeadSearch}
+                        placeholder="חיפוש ליד, טלפון, שירות, מקור..."
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() => void loadEmployeeLeads()}
+                        disabled={employeeLeadsLoading}
+                        className="h-12 rounded-2xl border border-amber-200 bg-amber-50 px-4 text-sm font-black text-amber-800 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {employeeLeadsLoading ? "טוען..." : "רענון לידים"}
+                      </button>
+                    </div>
+                  }
+                />
+
+                {employeeLeadsError ? (
+                  <div className="mt-5 rounded-[24px] border border-rose-200 bg-rose-50 p-4 text-sm font-black text-rose-700">
+                    {employeeLeadsError}
+                  </div>
+                ) : null}
+
+                {employeeLeadsLoading ? (
+                  <div className="mt-5 rounded-[28px] border border-amber-100 bg-amber-50/60 p-8 text-center text-sm font-black text-amber-800">
+                    טוען את הלידים שהוקצו אליך...
+                  </div>
+                ) : filteredLeads.length === 0 ? (
+                  <div className="mt-5">
+                    <EmptyState
+                      title="אין לידים להצגה"
+                      subtitle="ברגע שהאדמין יקצה לך ליד, הוא יופיע כאן לטיפול."
+                    />
+                  </div>
+                ) : (
+                  <div className="mt-5 grid gap-3 xl:grid-cols-2">
+                    {filteredLeads.map((lead) => {
+                      const leadId = normalizeId(lead);
+                      const leadName = normalizeLeadName(lead);
+                      const leadPhone = normalizeLeadPhone(lead);
+                      const leadService = normalizeLeadService(lead);
+                      const leadSource = normalizeLeadSource(lead);
+                      const status = lead.leadStatus || "new";
+
+                      return (
+                        <article
+                          key={leadId || leadPhone || leadName}
+                          className="rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-amber-200 hover:shadow-lg"
+                        >
+                          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span
+                                  className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${getLeadStatusClass(
+                                    status,
+                                  )}`}
+                                >
+                                  {getLeadStatusLabel(status)}
+                                </span>
+
+                                <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-black text-slate-600">
+                                  {leadSource}
+                                </span>
+
+                                {isFacebookLead(lead) ? (
+                                  <span className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">
+                                    ליד מפייסבוק
+                                  </span>
+                                ) : null}
+                              </div>
+
+                              <div className="mt-3 flex items-start gap-3">
+                                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-500 text-sm font-black text-white">
+                                  {initials(leadName)}
+                                </div>
+
+                                <div className="min-w-0">
+                                  <h3 className="truncate text-xl font-black text-slate-950">
+                                    {leadName}
+                                  </h3>
+
+                                  <div className="mt-2 grid gap-2 text-sm font-semibold text-slate-600 sm:grid-cols-2">
+                                    <span dir="ltr" className="text-right sm:text-left">
+                                      {leadPhone || "—"}
+                                    </span>
+
+                                    <span>
+                                      תאריך אירוע: {formatDate(lead.eventDate)}
+                                    </span>
+
+                                    <span>
+                                      שירות: <b className="text-slate-950">{leadService}</b>
+                                    </span>
+
+                                    <span>
+                                      נוצר: {formatDateTimeAgo(lead.createdAt)}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="mt-4 rounded-3xl bg-slate-50 p-4">
+                                <p className="flex items-center gap-2 text-xs font-black text-slate-400">
+                                  <Icon name="message" className="h-4 w-4" />
+                                  הערות / מידע מהליד
+                                </p>
+                                <p className="mt-2 text-sm font-bold leading-6 text-slate-700">
+                                  {lead.notes || lead.campaignName || lead.adName || "אין הערות נוספות"}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="grid shrink-0 grid-cols-2 gap-2 lg:w-[172px] lg:grid-cols-1">
+                              <button
+                                type="button"
+                                onClick={() => router.push(`/employee/leads/${leadId}`)}
+                                disabled={!leadId}
+                                className="h-11 rounded-2xl bg-slate-950 px-4 text-sm font-black text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                טיפול בליד
+                              </button>
+
+                              <a
+                                href={leadPhone ? `tel:${leadPhone}` : undefined}
+                                className={`inline-flex h-11 items-center justify-center rounded-2xl border border-slate-200 px-4 text-sm font-black transition ${
+                                  leadPhone
+                                    ? "bg-white text-slate-700 hover:bg-slate-50"
+                                    : "pointer-events-none bg-slate-50 text-slate-300"
+                                }`}
+                              >
+                                התקשר
+                              </a>
+                            </div>
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
 
               <div className="mt-6 grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
                 <section className="rounded-[34px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
