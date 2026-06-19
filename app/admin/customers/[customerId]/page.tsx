@@ -795,7 +795,8 @@ export default function AdminCustomerFilePage() {
                           <div className="flex flex-wrap gap-2">
                             {agreement.publicToken ? (
                               <Link
-                                href={`/agreement/${agreement.publicToken}`}
+                                  href={`/sales-documents/${encodeURIComponent(agreement.publicToken)}?preview=1`}
+
                                 target="_blank"
                                 className="rounded-xl border border-[#D9C3A8] bg-white px-4 py-2 text-xs font-black text-[#3A271D] hover:bg-[#FFF7EC]"
                               >
