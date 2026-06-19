@@ -162,19 +162,25 @@ type SelectedService = {
   details?: DetailSection[];
 };
 
-const CREDIT_GIFTS_TITLE = "מתנות באשראי דרך ספק חיצוני";
+const CREDIT_GIFTS_TITLE = "מתנות באשראי באמצעות ספק חיצוני RSVP";
 
 const CREDIT_GIFTS_INCLUDED_TEXT =
-  "פתיחת אפשרות מתנות באשראי דרך ספק חיצוני, כחלק מהחבילה וללא תוספת תשלום.";
+  "מתנות באשראי באמצעות ספק חיצוני RSVP, כחלק מהחבילה וללא תוספת תשלום.";
 
 const CREDIT_GIFTS_DETAILS: DetailSection[] = [
   {
     title: CREDIT_GIFTS_TITLE,
     items: [
-      "פתיחת אפשרות לקבלת מתנות באשראי דרך ספק חיצוני, בהתאם לתנאי הספק והחיבור הפעיל במערכת.",
-      "השירות מיועד לאפשר לאורחים להעביר מתנה באשראי בצורה נוחה ומסודרת דרך קישור ייעודי.",
-      "הכספים, העמלות, מועדי ההעברה ותנאי השירות כפופים לספק החיצוני שמפעיל את שירות המתנות באשראי.",
-      "השירות אינו כולל סליקה ישירה של Invistimo ואינו מהווה שירות פיננסי מטעם Invistimo.",
+      "שירות מתנות באשראי מאפשר לאורחים להעביר מתנה באשראי באמצעות קישור ייעודי, שניתן לשלב בפרטי האירוע ובהודעות הנשלחות לאורחים.",
+      "השירות מתבצע באמצעות ספק חיצוני בשם RSVP ואינו מופעל ישירות על ידי Invistimo.",
+      "הפעלת השירות מותנית בהרשמה למערכת RSVP, מילוי הפרטים הנדרשים ואישור פתיחת משתמש על ידי הספק.",
+      "אישור פתיחת המשתמש על ידי RSVP מתבצע עד 2 ימי עסקים ממועד השלמת ההרשמה, מילוי כלל הפרטים והעברת המסמכים הנדרשים, ככל שיידרשו.",
+      "לאחר השלמת ההרשמה וקבלת הקישור מ־RSVP, יש להוסיף את הקישור בפרטי האירוע במערכת Invistimo ובשליחת ההודעות לאורחים.",
+      "ללא הוספת הקישור בפרטי האירוע ו/או בהודעות הנשלחות לאורחים, השירות לא יוצג לאורחים ולא תהיה להם אפשרות לבצע מתנה באשראי דרך הקישור.",
+      "בגין כל מתנה המשולמת באשראי נגבית עמלה בשיעור של 2.5% מסכום המתנה. העמלה משולמת על ידי האורח במעמד ביצוע התשלום.",
+      "הכספים המתקבלים ממתנות באשראי מועברים לחשבון הבנק שהוגדר במערכת RSVP עד 5 ימי עסקים, בהתאם למדיניות הספק החיצוני.",
+      "ניתן לבקש העברת זהב לצורך העברת כספים מהירה יותר, בעלות של 100 ₪, עד יום עסקים אחד, בכפוף לזמינות ולאישור הספק.",
+      "Invistimo מאפשרת שילוב של קישור המתנות באשראי במערכת ובהודעות לאורחים. ניהול ההרשמה, אישור המשתמש, הסליקה, העמלות והעברת הכספים מתבצעים על ידי RSVP ובהתאם לתנאי השירות של הספק.",
     ],
   },
 ];
@@ -207,10 +213,10 @@ function getCreditGiftsPriceByPackage(packageKey?: string) {
 
 function getCreditGiftsDescription(packageKey?: string) {
   if (packageKey === "seating") {
-    return "מתנות באשראי דרך ספק חיצוני כלולות בחבילת מזמינים ומושיבים ללא תוספת תשלום.";
+    return "מתנות באשראי באמצעות ספק חיצוני RSVP כלולות בחבילת מזמינים ומושיבים ללא תוספת תשלום.";
   }
 
-  return "תוספת לקבלת מתנות באשראי דרך ספק חיצוני.";
+  return "תוספת לקבלת מתנות באשראי באמצעות ספק חיצוני RSVP.";
 }
 
 function asNumber(value: unknown) {
@@ -850,11 +856,6 @@ export default function SalesDocumentPage() {
     (document?.upsells || []).forEach((upsell) => {
       const isCreditGifts = isCreditGiftsUpsell(upsell);
       const upsellDetails = upsell.customerDetails || [];
-      const hasDetails = upsellDetails.some((section) =>
-        hasCreditGiftsText(section.title) ||
-        (section.items || []).some((item) => hasCreditGiftsText(item)),
-      );
-
       services.push({
         kind: "upsell",
         key: isCreditGifts ? "creditGifts" : cleanStr(upsell.key),
@@ -868,7 +869,7 @@ export default function SalesDocumentPage() {
             ? getCreditGiftsPriceByPackage(packageKey)
             : upsell.price,
         givenFree: Boolean(upsell.givenFree),
-        details: isCreditGifts && !hasDetails ? CREDIT_GIFTS_DETAILS : upsellDetails,
+        details: isCreditGifts ? CREDIT_GIFTS_DETAILS : upsellDetails,
       });
     });
 
