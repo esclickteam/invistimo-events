@@ -661,8 +661,8 @@ const UPSELLS: UpsellItem[] = [
     key: "creditGifts",
     title: "מתנות באשראי דרך ספק חיצוני",
     price: 150,
-    availableForPlans: ["easy", "smart"],
-    description: "תוספת לקבלת מתנות באשראי דרך ספק חיצוני.",
+    availableForPlans: ["easy", "smart", "seating"],
+    description: "תוספת לקבלת מתנות באשראי דרך ספק חיצוני. בחבילת מזמינים ומושיבים השירות כלול ללא תוספת תשלום.",
     customerDetails: CREDIT_GIFTS_DETAILS,
     employeeDetails: [
       {
@@ -1176,8 +1176,14 @@ export default function AdminSalesNewPage() {
   }, [selectedPlanKey]);
 
   const selectedUpsellsList = useMemo(() => {
-    return availableUpsells.filter((upsell) => selectedUpsells[upsell.key]);
-  }, [availableUpsells, selectedUpsells]);
+    return availableUpsells.filter((upsell) => {
+      if (upsell.key === "creditGifts" && selectedPlanKey === "seating") {
+        return true;
+      }
+
+      return selectedUpsells[upsell.key];
+    });
+  }, [availableUpsells, selectedPlanKey, selectedUpsells]);
 
   const packageBasePrice = packageCalculation.finalPrice;
 
@@ -1551,6 +1557,10 @@ export default function AdminSalesNewPage() {
   }
 
   function toggleUpsell(key: UpsellKey) {
+    if (key === "creditGifts" && selectedPlanKey === "seating") {
+      return;
+    }
+
     setSelectedUpsells((prev) => {
       const next = { ...prev, [key]: !prev[key] };
       if (key === "suppliersBudgetSystem" && !next[key]) setSuppliersBudgetFree(false);
@@ -2042,25 +2052,31 @@ export default function AdminSalesNewPage() {
 
               <div className="mt-6 grid gap-3 md:grid-cols-2">
                 {availableUpsells.map((upsell) => {
-                  const selected = selectedUpsells[upsell.key];
+                  const includedInPackage = upsell.key === "creditGifts" && selectedPlanKey === "seating";
+                  const selected = selectedUpsells[upsell.key] || includedInPackage;
                   const dynamicPrice = getUpsellPrice(upsell, venueSeatingStaffCount, alcoholManagementStaffCount, selectedPlanKey);
                   const freeApplied = upsell.key === "suppliersBudgetSystem" && selected && suppliersBudgetFree && canGiveSuppliersBudgetFree;
 
                   return (
                     <div key={upsell.key} className={`rounded-[26px] border p-4 transition ${selected ? "border-[#b47a3b] bg-[#fff7ec]" : "border-[#eadfce] bg-white"}`}>
                       <div className="flex items-start justify-between gap-3">
-                        <label className="flex cursor-pointer items-start gap-3">
-                          <input type="checkbox" checked={selected} onChange={() => toggleUpsell(upsell.key)} className="mt-1 h-4 w-4 accent-[#9b7a3c]" />
+                        <label className={`flex items-start gap-3 ${includedInPackage ? "cursor-default" : "cursor-pointer"}`}>
+                          <input type="checkbox" checked={selected} disabled={includedInPackage} onChange={() => toggleUpsell(upsell.key)} className="mt-1 h-4 w-4 accent-[#9b7a3c] disabled:cursor-not-allowed" />
                           <span>
                             <span className="block text-sm font-black text-[#3f3327]">{getUpsellTitle(upsell, venueSeatingStaffCount, alcoholManagementStaffCount)}</span>
                             <span className="mt-1 block text-xs font-semibold leading-5 text-[#7b6a58]">{getUpsellDescription(upsell, venueSeatingStaffCount, alcoholManagementStaffCount)}</span>
                             {upsell.note && <span className="mt-2 block text-xs font-black leading-5 text-[#9b6a30]">{upsell.note}</span>}
+                            {includedInPackage ? (
+                              <span className="mt-2 inline-flex rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-black text-emerald-700 ring-1 ring-emerald-200">
+                                כלול בחבילה — 0 ₪
+                              </span>
+                            ) : null}
                           </span>
                         </label>
-                        <div className="shrink-0 text-left text-sm font-black text-[#3f3327]">{freeApplied ? "ללא עלות" : money(getEffectiveUpsellPrice(upsell))}</div>
+                        <div className="shrink-0 text-left text-sm font-black text-[#3f3327]">{includedInPackage ? money(0) : freeApplied ? "ללא עלות" : money(getEffectiveUpsellPrice(upsell))}</div>
                       </div>
 
-                      {selected && !freeApplied ? (
+                      {selected && !freeApplied && !includedInPackage ? (
                         <label className="mt-3 block text-xs font-black text-[#7b6a58]">
                           עריכת מחיר אפסייל באדמין
                           <input

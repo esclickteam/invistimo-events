@@ -843,6 +843,10 @@ export default function SalesDocumentPage() {
       });
     }
 
+    const hasCreditGiftsService = (document?.upsells || []).some((upsell) =>
+      isCreditGiftsUpsell(upsell),
+    );
+
     (document?.upsells || []).forEach((upsell) => {
       const isCreditGifts = isCreditGiftsUpsell(upsell);
       const upsellDetails = upsell.customerDetails || [];
@@ -853,7 +857,7 @@ export default function SalesDocumentPage() {
 
       services.push({
         kind: "upsell",
-        key: cleanStr(upsell.key),
+        key: isCreditGifts ? "creditGifts" : cleanStr(upsell.key),
         title: isCreditGifts ? CREDIT_GIFTS_TITLE : upsell.title || "תוספת שירות",
         description: isCreditGifts
           ? upsell.description || getCreditGiftsDescription(packageKey)
@@ -863,10 +867,22 @@ export default function SalesDocumentPage() {
           (typeof upsell.price !== "number" || !Number.isFinite(upsell.price))
             ? getCreditGiftsPriceByPackage(packageKey)
             : upsell.price,
-        givenFree: Boolean(upsell.givenFree) || (isCreditGifts && packageKey === "seating"),
+        givenFree: Boolean(upsell.givenFree),
         details: isCreditGifts && !hasDetails ? CREDIT_GIFTS_DETAILS : upsellDetails,
       });
     });
+
+    if (packageKey === "seating" && !hasCreditGiftsService) {
+      services.push({
+        kind: "upsell",
+        key: "creditGifts",
+        title: CREDIT_GIFTS_TITLE,
+        description: getCreditGiftsDescription(packageKey),
+        price: 0,
+        givenFree: false,
+        details: CREDIT_GIFTS_DETAILS,
+      });
+    }
 
     return services;
   }, [document]);
@@ -962,6 +978,7 @@ export default function SalesDocumentPage() {
   function shouldShowServicePriceCard(service: SelectedService) {
     if (!showUpsellPrices) return false;
     if (service.givenFree) return true;
+    if (service.key === "creditGifts" && service.price === 0) return true;
     return typeof service.price === "number" && Number.isFinite(service.price) && service.price > 0;
   }
 
