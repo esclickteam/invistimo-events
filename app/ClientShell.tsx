@@ -19,6 +19,13 @@ export default function ClientShell({ children }: { children: ReactNode }) {
     pathname.startsWith("/events/production");
 
   /* =====================================================
+     ❌ דפי הצעת מחיר / הסכם – בלי Header / Footer / SupportBot
+  ===================================================== */
+  const isSalesDocumentPage =
+    pathname.startsWith("/sales-documents") ||
+    pathname.startsWith("/client-contracts/sign");
+
+  /* =====================================================
      ❌ דפים פנימיים / אחרי התחברות – בלי SupportBot
      שימי לב:
      לא משתמשים ב-pathname.startsWith("/seating")
@@ -32,6 +39,8 @@ export default function ClientShell({ children }: { children: ReactNode }) {
     pathname.startsWith("/events") ||
     pathname.startsWith("/client") ||
     pathname.startsWith("/guests") ||
+    pathname.startsWith("/sales-documents") ||
+    pathname.startsWith("/client-contracts/sign") ||
     pathname === "/seating" ||
     pathname.startsWith("/seating/");
 
@@ -66,6 +75,13 @@ export default function ClientShell({ children }: { children: ReactNode }) {
      🔴 Admin – בלי Header / Footer בכלל
   ===================================================== */
   if (isAdmin) {
+    return <>{children}</>;
+  }
+
+  /* =====================================================
+     📄 הצעת מחיר / הסכם – בלי Header / Footer בכלל
+  ===================================================== */
+  if (isSalesDocumentPage) {
     return <>{children}</>;
   }
 
