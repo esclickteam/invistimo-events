@@ -2,8 +2,7 @@ import mongoose, { Schema, model, models } from "mongoose";
 
 const CustomerFileSchema = new Schema(
   {
-    // לא חובה — כי תיק לקוח יכול להיווצר כבר בשלב הצעת מחיר / הסכם
-    // לפני שנפתח ללקוח משתמש בפועל במערכת
+    // תיק לקוח יכול להיווצר כליד לפני שנפתח User בפועל
     userId: {
       type: Schema.Types.ObjectId,
       ref: "User",
@@ -66,13 +65,11 @@ const CustomerFileSchema = new Schema(
       trim: true,
     },
 
-    // מחיר החבילה/עסקה הנוכחית
     packageBasePrice: {
       type: Number,
       default: 0,
     },
 
-    // מחיר יעד אם משדרגים לחבילה עם סבבי שיחות
     packageTargetPriceWithCalls: {
       type: Number,
       default: 0,
@@ -111,6 +108,81 @@ const CustomerFileSchema = new Schema(
       index: true,
     },
 
+    /* =========================================================
+       פרטי ליד מקצועיים — Facebook / Make
+    ========================================================= */
+
+    leadSource: {
+      type: String,
+      default: "",
+      trim: true,
+      index: true,
+    },
+
+    leadProvider: {
+      type: String,
+      default: "",
+      trim: true,
+      index: true,
+    },
+
+    leadStatus: {
+      type: String,
+      enum: ["new", "contacted", "quote_sent", "converted", "lost"],
+      default: "new",
+      index: true,
+    },
+
+    guestsCount: {
+      type: Number,
+      default: 0,
+      index: true,
+    },
+
+    interestedService: {
+      type: String,
+      default: "",
+      trim: true,
+      index: true,
+    },
+
+    facebookLeadId: {
+      type: String,
+      default: "",
+      trim: true,
+      index: true,
+    },
+
+    campaignName: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    adName: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    formName: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    rawLeadData: {
+      type: Schema.Types.Mixed,
+      default: null,
+    },
+
+    source: {
+      type: String,
+      default: "",
+      trim: true,
+      index: true,
+    },
+
     assignedStaffIds: {
       type: [{ type: Schema.Types.ObjectId, ref: "User" }],
       default: [],
@@ -124,6 +196,10 @@ const CustomerFileSchema = new Schema(
   },
   { timestamps: true }
 );
+
+CustomerFileSchema.index({ phone: 1, leadSource: 1 });
+CustomerFileSchema.index({ email: 1, leadSource: 1 });
+CustomerFileSchema.index({ facebookLeadId: 1, leadProvider: 1 });
 
 export default models.CustomerFile ||
   model("CustomerFile", CustomerFileSchema);

@@ -28,6 +28,18 @@ type CustomerFile = {
   balance?: number;
 
   status?: string;
+
+  leadSource?: string;
+  leadProvider?: string;
+  leadStatus?: string;
+  guestsCount?: number;
+  interestedService?: string;
+  facebookLeadId?: string;
+  campaignName?: string;
+  adName?: string;
+  formName?: string;
+  source?: string;
+
   notes?: string;
 
   createdAt?: string | Date;
@@ -65,6 +77,10 @@ function formatMoney(value?: number) {
   }).format(amount);
 }
 
+function cleanText(value?: string | number | Date) {
+  return String(value || "").trim();
+}
+
 function getStatusLabel(status?: string) {
   switch (status) {
     case "lead":
@@ -84,6 +100,42 @@ function getStatusLabel(status?: string) {
   }
 }
 
+function getLeadStatusLabel(status?: string) {
+  switch (status) {
+    case "new":
+      return "חדש";
+    case "contacted":
+      return "נוצר קשר";
+    case "quote_sent":
+      return "נשלחה הצעה";
+    case "converted":
+      return "הומר ללקוח";
+    case "lost":
+      return "לא רלוונטי";
+    default:
+      return "חדש";
+  }
+}
+
+function getLeadSourceLabel(source?: string, provider?: string) {
+  const cleanSource = cleanText(source).toLowerCase();
+  const cleanProvider = cleanText(provider).toLowerCase();
+
+  if (cleanSource === "facebook" && cleanProvider === "make") {
+    return "Facebook / Make";
+  }
+
+  if (cleanSource === "facebook") {
+    return "Facebook";
+  }
+
+  if (cleanProvider === "make") {
+    return "Make";
+  }
+
+  return "-";
+}
+
 function getStatusClass(status?: string) {
   switch (status) {
     case "active":
@@ -100,6 +152,31 @@ function getStatusClass(status?: string) {
     default:
       return "bg-stone-50 text-stone-700 ring-stone-100";
   }
+}
+
+function getLeadStatusClass(status?: string) {
+  switch (status) {
+    case "new":
+      return "bg-amber-50 text-amber-700 ring-amber-100";
+    case "contacted":
+      return "bg-blue-50 text-blue-700 ring-blue-100";
+    case "quote_sent":
+      return "bg-indigo-50 text-indigo-700 ring-indigo-100";
+    case "converted":
+      return "bg-emerald-50 text-emerald-700 ring-emerald-100";
+    case "lost":
+      return "bg-red-50 text-red-700 ring-red-100";
+    default:
+      return "bg-amber-50 text-amber-700 ring-amber-100";
+  }
+}
+
+function isFacebookLead(customer: CustomerFile) {
+  return (
+    cleanText(customer.leadSource).toLowerCase() === "facebook" ||
+    cleanText(customer.source).toLowerCase() === "facebook_lead_make" ||
+    Boolean(customer.facebookLeadId)
+  );
 }
 
 export default function AdminCustomersPage() {
@@ -154,6 +231,8 @@ export default function AdminCustomersPage() {
 
   const stats = useMemo(() => {
     const total = customers.length;
+    const leads = customers.filter((customer) => customer.status === "lead").length;
+    const facebookLeads = customers.filter((customer) => isFacebookLead(customer)).length;
     const active = customers.filter((customer) => customer.status === "active").length;
     const paid = customers.filter((customer) => customer.status === "paid").length;
     const withCalls = customers.filter((customer) => customer.hasCallRounds).length;
@@ -164,6 +243,8 @@ export default function AdminCustomersPage() {
 
     return {
       total,
+      leads,
+      facebookLeads,
       active,
       paid,
       withCalls,
@@ -187,8 +268,9 @@ export default function AdminCustomersPage() {
               </h1>
 
               <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-[#8A6A43]">
-                כאן רואים את כל הלקוחות, פרטי קשר, חבילה, סטטוס, סבבי שיחות
-                וכניסה מלאה לתיק הלקוח.
+                כאן רואים את כל הלקוחות והלידים, כולל לידים מפייסבוק דרך Make,
+                פרטי קשר, תאריך אירוע, כמות מוזמנים, שירות מעניין, סטטוס וכניסה
+                מלאה לתיק הלקוח.
               </p>
             </div>
 
@@ -196,8 +278,8 @@ export default function AdminCustomersPage() {
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="חיפוש לפי שם, מייל או טלפון..."
-                className="h-12 w-full rounded-2xl border border-[#E8D8C4] bg-[#FFFCF7] px-4 text-sm font-bold outline-none transition placeholder:text-[#B9A28A] focus:border-[#C58B2B] sm:w-80"
+                placeholder="חיפוש לפי שם, מייל, טלפון, שירות או מקור ליד..."
+                className="h-12 w-full rounded-2xl border border-[#E8D8C4] bg-[#FFFCF7] px-4 text-sm font-bold outline-none transition placeholder:text-[#B9A28A] focus:border-[#C58B2B] sm:w-96"
               />
 
               <button
@@ -211,23 +293,30 @@ export default function AdminCustomersPage() {
           </div>
         </section>
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
           <div className="rounded-[1.5rem] border border-[#E8D8C4] bg-white p-5 shadow-sm">
-            <p className="text-xs font-black text-[#8A6A43]">סה״כ לקוחות</p>
+            <p className="text-xs font-black text-[#8A6A43]">סה״כ תיקים</p>
             <p className="mt-3 text-3xl font-black">{stats.total}</p>
+          </div>
+
+          <div className="rounded-[1.5rem] border border-[#E8D8C4] bg-white p-5 shadow-sm">
+            <p className="text-xs font-black text-[#8A6A43]">סה״כ לידים</p>
+            <p className="mt-3 text-3xl font-black text-amber-700">
+              {stats.leads}
+            </p>
+          </div>
+
+          <div className="rounded-[1.5rem] border border-[#E8D8C4] bg-white p-5 shadow-sm">
+            <p className="text-xs font-black text-[#8A6A43]">לידים מפייסבוק</p>
+            <p className="mt-3 text-3xl font-black text-blue-700">
+              {stats.facebookLeads}
+            </p>
           </div>
 
           <div className="rounded-[1.5rem] border border-[#E8D8C4] bg-white p-5 shadow-sm">
             <p className="text-xs font-black text-[#8A6A43]">לקוחות פעילים</p>
             <p className="mt-3 text-3xl font-black text-emerald-700">
               {stats.active}
-            </p>
-          </div>
-
-          <div className="rounded-[1.5rem] border border-[#E8D8C4] bg-white p-5 shadow-sm">
-            <p className="text-xs font-black text-[#8A6A43]">לקוחות ששילמו</p>
-            <p className="mt-3 text-3xl font-black text-blue-700">
-              {stats.paid}
             </p>
           </div>
 
@@ -248,9 +337,9 @@ export default function AdminCustomersPage() {
 
         <section className="overflow-hidden rounded-[2rem] border border-[#E8D8C4] bg-white shadow-sm">
           <div className="border-b border-[#EFE3D4] px-5 py-5 sm:px-6">
-            <h2 className="text-xl font-black">כל הלקוחות</h2>
+            <h2 className="text-xl font-black">כל הלקוחות והלידים</h2>
             <p className="mt-1 text-sm font-semibold text-[#8A6A43]">
-              כל לקוח בשורה אחת, עם כניסה לתיק לקוח ולדשבורד הלקוח.
+              כל תיק בשורה אחת, כולל לידים מפייסבוק שנכנסו אוטומטית דרך Make.
             </p>
           </div>
 
@@ -261,17 +350,21 @@ export default function AdminCustomersPage() {
           ) : null}
 
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1150px] border-collapse text-right">
+            <table className="w-full min-w-[1450px] border-collapse text-right">
               <thead>
                 <tr className="border-b border-[#EFE3D4] bg-[#FFFBF5] text-xs font-black text-[#8A6A43]">
                   <th className="px-5 py-4">לקוח</th>
                   <th className="px-5 py-4">מייל</th>
                   <th className="px-5 py-4">טלפון</th>
                   <th className="px-5 py-4">תאריך אירוע</th>
+                  <th className="px-5 py-4">כמות מוזמנים</th>
+                  <th className="px-5 py-4">שירות מעניין</th>
+                  <th className="px-5 py-4">מקור ליד</th>
                   <th className="px-5 py-4">חבילה</th>
                   <th className="px-5 py-4">סכום</th>
                   <th className="px-5 py-4">יתרה</th>
                   <th className="px-5 py-4">סטטוס</th>
+                  <th className="px-5 py-4">סטטוס ליד</th>
                   <th className="px-5 py-4">סבבי שיחות</th>
                   <th className="px-5 py-4">פעולות</th>
                 </tr>
@@ -281,25 +374,32 @@ export default function AdminCustomersPage() {
                 {loading ? (
                   <tr>
                     <td
-                      colSpan={10}
+                      colSpan={14}
                       className="px-5 py-12 text-center text-sm font-black text-[#8A6A43]"
                     >
-                      טוען לקוחות...
+                      טוען לקוחות ולידים...
                     </td>
                   </tr>
                 ) : customers.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={10}
+                      colSpan={14}
                       className="px-5 py-12 text-center text-sm font-black text-[#8A6A43]"
                     >
-                      לא נמצאו לקוחות.
+                      לא נמצאו לקוחות או לידים.
                     </td>
                   </tr>
                 ) : (
                   customers.map((customer) => {
                     const customerId = String(customer._id);
                     const userId = String(customer.userId || "");
+                    const facebookLead = isFacebookLead(customer);
+                    const guestsCount = Number(customer.guestsCount || 0);
+                    const interestedService = cleanText(customer.interestedService);
+                    const leadSourceLabel = getLeadSourceLabel(
+                      customer.leadSource,
+                      customer.leadProvider
+                    );
 
                     return (
                       <tr
@@ -307,12 +407,20 @@ export default function AdminCustomersPage() {
                         className="border-b border-[#F1E7DA] text-sm transition hover:bg-[#FFFCF7]"
                       >
                         <td className="px-5 py-4">
-                          <div className="font-black text-[#3A271D]">
-                            {customer.fullName || "לקוח ללא שם"}
-                          </div>
+                          <div className="flex flex-col gap-1">
+                            <div className="font-black text-[#3A271D]">
+                              {customer.fullName || "לקוח ללא שם"}
+                            </div>
 
-                          <div className="mt-1 text-xs font-bold text-[#9A7A55]">
-                            תיק לקוח: {customerId.slice(-6)}
+                            <div className="text-xs font-bold text-[#9A7A55]">
+                              תיק לקוח: {customerId.slice(-6)}
+                            </div>
+
+                            {facebookLead ? (
+                              <span className="mt-1 inline-flex w-fit rounded-full bg-blue-50 px-3 py-1 text-[11px] font-black text-blue-700 ring-1 ring-blue-100">
+                                ליד מפייסבוק
+                              </span>
+                            ) : null}
                           </div>
                         </td>
 
@@ -329,8 +437,42 @@ export default function AdminCustomersPage() {
                         </td>
 
                         <td className="px-5 py-4">
+                          {guestsCount > 0 ? (
+                            <span className="inline-flex rounded-full bg-[#FFF7EC] px-3 py-1 text-xs font-black text-[#B87920] ring-1 ring-[#E8D8C4]">
+                              {guestsCount.toLocaleString("he-IL")} מוזמנים
+                            </span>
+                          ) : (
+                            <span className="font-bold text-[#B9A28A]">-</span>
+                          )}
+                        </td>
+
+                        <td className="px-5 py-4">
+                          <div className="max-w-[190px] whitespace-normal font-black leading-6 text-[#3A271D]">
+                            {interestedService || "-"}
+                          </div>
+                        </td>
+
+                        <td className="px-5 py-4">
+                          {leadSourceLabel !== "-" ? (
+                            <div className="flex flex-col gap-1">
+                              <span className="inline-flex w-fit rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700 ring-1 ring-blue-100">
+                                {leadSourceLabel}
+                              </span>
+
+                              {customer.facebookLeadId ? (
+                                <span className="text-[11px] font-bold text-[#9A7A55]">
+                                  Lead ID: {String(customer.facebookLeadId).slice(-8)}
+                                </span>
+                              ) : null}
+                            </div>
+                          ) : (
+                            <span className="font-bold text-[#B9A28A]">-</span>
+                          )}
+                        </td>
+
+                        <td className="px-5 py-4">
                           <div className="font-black text-[#3A271D]">
-                            {customer.packageName || "-"}
+                            {customer.packageName || interestedService || "-"}
                           </div>
 
                           {customer.venueName || customer.city ? (
@@ -358,6 +500,20 @@ export default function AdminCustomersPage() {
                           >
                             {getStatusLabel(customer.status)}
                           </span>
+                        </td>
+
+                        <td className="px-5 py-4">
+                          {customer.status === "lead" || customer.leadStatus ? (
+                            <span
+                              className={`inline-flex rounded-full px-3 py-1 text-xs font-black ring-1 ${getLeadStatusClass(
+                                customer.leadStatus || "new"
+                              )}`}
+                            >
+                              {getLeadStatusLabel(customer.leadStatus || "new")}
+                            </span>
+                          ) : (
+                            <span className="font-bold text-[#B9A28A]">-</span>
+                          )}
                         </td>
 
                         <td className="px-5 py-4">
