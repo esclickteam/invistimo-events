@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 
 import db from "@/lib/db";
+import User from "@/models/User";
 import CustomerFile from "@/models/CustomerFile";
 import CustomerLeadMessage from "@/models/CustomerLeadMessage";
 
