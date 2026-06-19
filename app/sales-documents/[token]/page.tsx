@@ -150,8 +150,11 @@ type ApiResponse = {
   documentUrl?: string;
 };
 
+type SalesDocumentUpsell = NonNullable<SalesDocument["upsells"]>[number];
+
 type SelectedService = {
   kind: "package" | "upsell";
+  key?: string;
   title: string;
   description?: string;
   price?: number;
@@ -159,8 +162,55 @@ type SelectedService = {
   details?: DetailSection[];
 };
 
+const CREDIT_GIFTS_TITLE = "מתנות באשראי דרך ספק חיצוני";
+
+const CREDIT_GIFTS_INCLUDED_TEXT =
+  "פתיחת אפשרות מתנות באשראי דרך ספק חיצוני, כחלק מהחבילה וללא תוספת תשלום.";
+
+const CREDIT_GIFTS_DETAILS: DetailSection[] = [
+  {
+    title: CREDIT_GIFTS_TITLE,
+    items: [
+      "פתיחת אפשרות לקבלת מתנות באשראי דרך ספק חיצוני, בהתאם לתנאי הספק והחיבור הפעיל במערכת.",
+      "השירות מיועד לאפשר לאורחים להעביר מתנה באשראי בצורה נוחה ומסודרת דרך קישור ייעודי.",
+      "הכספים, העמלות, מועדי ההעברה ותנאי השירות כפופים לספק החיצוני שמפעיל את שירות המתנות באשראי.",
+      "השירות אינו כולל סליקה ישירה של Invistimo ואינו מהווה שירות פיננסי מטעם Invistimo.",
+    ],
+  },
+];
+
 function cleanStr(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function hasCreditGiftsText(value: unknown) {
+  return cleanStr(value).includes("מתנות באשראי");
+}
+
+function isCreditGiftsUpsell(upsell?: SalesDocumentUpsell) {
+  const key = cleanStr(upsell?.key).toLowerCase();
+  const title = cleanStr(upsell?.title);
+
+  return (
+    key === "creditgifts" ||
+    key === "credit_gifts" ||
+    key === "credit-gifts" ||
+    hasCreditGiftsText(title)
+  );
+}
+
+function getCreditGiftsPriceByPackage(packageKey?: string) {
+  if (packageKey === "smart") return 100;
+  if (packageKey === "easy") return 150;
+  return 0;
+}
+
+function getCreditGiftsDescription(packageKey?: string) {
+  if (packageKey === "seating") {
+    return "מתנות באשראי דרך ספק חיצוני כלולות בחבילת מזמינים ומושיבים ללא תוספת תשלום.";
+  }
+
+  return "תוספת לקבלת מתנות באשראי דרך ספק חיצוני.";
 }
 
 function asNumber(value: unknown) {
@@ -749,30 +799,59 @@ export default function SalesDocumentPage() {
 
   const selectedServices = useMemo<SelectedService[]>(() => {
     const services: SelectedService[] = [];
+    const packageKey = cleanStr(document?.selectedPackage?.key);
 
     if (document?.selectedPackage?.title) {
+      const originalIncludes = document.selectedPackage.includes || [];
+      const packageIncludes =
+        packageKey === "seating" &&
+        !originalIncludes.some((item) => hasCreditGiftsText(item))
+          ? [...originalIncludes, CREDIT_GIFTS_INCLUDED_TEXT]
+          : originalIncludes;
+
+      const packageDescription =
+        packageKey === "seating" &&
+        !hasCreditGiftsText(document.selectedPackage.customerSummary)
+          ? `${document.selectedPackage.customerSummary || ""} ${getCreditGiftsDescription(packageKey)}`.trim()
+          : document.selectedPackage.customerSummary;
+
       services.push({
         kind: "package",
+        key: packageKey,
         title: document.selectedPackage.title,
-        description: document.selectedPackage.customerSummary,
+        description: packageDescription,
         price: document.selectedPackage.price,
         details: [
           {
             title: "מה כלול בחבילה",
-            items: document.selectedPackage.includes || [],
+            items: packageIncludes,
           },
         ],
       });
     }
 
     (document?.upsells || []).forEach((upsell) => {
+      const isCreditGifts = isCreditGiftsUpsell(upsell);
+      const upsellDetails = upsell.customerDetails || [];
+      const hasDetails = upsellDetails.some((section) =>
+        hasCreditGiftsText(section.title) ||
+        (section.items || []).some((item) => hasCreditGiftsText(item)),
+      );
+
       services.push({
         kind: "upsell",
-        title: upsell.title || "תוספת שירות",
-        description: upsell.description,
-        price: upsell.price,
-        givenFree: upsell.givenFree,
-        details: upsell.customerDetails || [],
+        key: cleanStr(upsell.key),
+        title: isCreditGifts ? CREDIT_GIFTS_TITLE : upsell.title || "תוספת שירות",
+        description: isCreditGifts
+          ? upsell.description || getCreditGiftsDescription(packageKey)
+          : upsell.description,
+        price:
+          isCreditGifts &&
+          (typeof upsell.price !== "number" || !Number.isFinite(upsell.price))
+            ? getCreditGiftsPriceByPackage(packageKey)
+            : upsell.price,
+        givenFree: Boolean(upsell.givenFree) || (isCreditGifts && packageKey === "seating"),
+        details: isCreditGifts && !hasDetails ? CREDIT_GIFTS_DETAILS : upsellDetails,
       });
     });
 
@@ -946,6 +1025,7 @@ export default function SalesDocumentPage() {
                   </span>
                 ) : null}
               </div>
+
 
 
               <h1 className="mt-5 text-3xl font-black tracking-tight text-[#3f3327] sm:text-4xl">

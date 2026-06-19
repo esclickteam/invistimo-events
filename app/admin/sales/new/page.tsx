@@ -36,6 +36,7 @@ type PackagePlan = {
 
 type UpsellKey =
   | "digitalSeating"
+  | "creditGifts"
   | "venueSeating"
   | "personalRepresentative"
   | "thirdRsvpRound"
@@ -190,6 +191,7 @@ const SEATING_INCLUDES = [
   "מערכת הושבה דיגיטלית באתר לניהול שולחנות וסידורי הושבה.",
   "חיבור בין אישורי ההגעה לבין סידורי ההושבה, כדי לראות מי אישר וכמה מגיעים מכל רשומה.",
   "אפשרות לעדכן שולחנות, מספרי כיסאות ושיוך אורחים עד מועד האירוע.",
+  "פתיחת אפשרות מתנות באשראי דרך ספק חיצוני, כחלק מהחבילה וללא תוספת תשלום.",
 ];
 
 const PACKAGE_PLANS: PackagePlan[] = [
@@ -240,7 +242,7 @@ const PACKAGE_PLANS: PackagePlan[] = [
     shortDescription: "הזמנה + הודעות + מוקד + הושבה דיגיטלית באתר",
     includes: SEATING_INCLUDES,
     customerSummary:
-      "חבילת מזמינים ומושיבים כוללת הזמנה דיגיטלית על בסיס קובץ שהלקוח מעלה, 2 סבבי הודעות ב־WhatsApp או SMS, הודעת תזכורת, הודעת תודה, מוקד טלפוני ועד 3 סבבי שיחה, וכן מערכת הושבה דיגיטלית באתר לניהול שולחנות וסידורי הושבה.",
+      "חבילת מזמינים ומושיבים כוללת הזמנה דיגיטלית על בסיס קובץ שהלקוח מעלה, 2 סבבי הודעות ב־WhatsApp או SMS, הודעת תזכורת, הודעת תודה, מוקד טלפוני ועד 3 סבבי שיחה, מערכת הושבה דיגיטלית באתר לניהול שולחנות וסידורי הושבה, ומתנות באשראי דרך ספק חיצוני ללא תוספת תשלום.",
     employeeDetails: [
       {
         title: "דגשים לעובד",
@@ -262,6 +264,18 @@ const DIGITAL_SEATING_DETAILS: DetailSection[] = [
       "אפשרות להגדיר שולחנות, מספרי כיסאות ושיוך אורחים לשולחנות.",
       "חיבור בין אישורי ההגעה לבין ההושבה, כך שהלקוח רואה מי אישר וכמה צפויים להגיע מכל רשומה.",
       "השירות הוא מערכת דיגיטלית בלבד ואינו כולל צוות פיזי באולם, אלא אם נרכש שירות הושבה באולם בנפרד.",
+    ],
+  },
+];
+
+const CREDIT_GIFTS_DETAILS: DetailSection[] = [
+  {
+    title: "מתנות באשראי דרך ספק חיצוני",
+    items: [
+      "פתיחת אפשרות לקבלת מתנות באשראי דרך ספק חיצוני, בהתאם לתנאי הספק והחיבור הפעיל במערכת.",
+      "השירות מיועד לאפשר לאורחים להעביר מתנה באשראי בצורה נוחה ומסודרת דרך קישור ייעודי.",
+      "הכספים, העמלות, מועדי ההעברה ותנאי השירות כפופים לספק החיצוני שמפעיל את שירות המתנות באשראי.",
+      "השירות אינו כולל סליקה ישירה של Invistimo ואינו מהווה שירות פיננסי מטעם Invistimo.",
     ],
   },
 ];
@@ -644,6 +658,25 @@ const UPSELLS: UpsellItem[] = [
     ],
   },
   {
+    key: "creditGifts",
+    title: "מתנות באשראי דרך ספק חיצוני",
+    price: 150,
+    availableForPlans: ["easy", "smart"],
+    description: "תוספת לקבלת מתנות באשראי דרך ספק חיצוני.",
+    customerDetails: CREDIT_GIFTS_DETAILS,
+    employeeDetails: [
+      {
+        title: "דגשים לעובד",
+        items: [
+          "בחבילת קל להזמין התוספת היא 150 ₪.",
+          "בחבילת מזמינים חכם התוספת היא 100 ₪.",
+          "בחבילת מזמינים ומושיבים מתנות באשראי כלול בחבילה ואין צורך לבחור תוספת.",
+          "להבהיר שהשירות מתבצע דרך ספק חיצוני, ותנאי הסליקה, העמלות והעברות הכספים הם לפי תנאי הספק.",
+        ],
+      },
+    ],
+  },
+  {
     key: "venueSeating",
     title: "הושבה באולם",
     price: 1000,
@@ -761,6 +794,7 @@ const PAYMENT_TERMS: DetailSection[] = [
 function createEmptyUpsells(): SelectedUpsells {
   return {
     digitalSeating: false,
+    creditGifts: false,
     venueSeating: false,
     personalRepresentative: false,
     thirdRsvpRound: false,
@@ -853,9 +887,19 @@ function getAlcoholOption(staffCount: AlcoholManagementStaffCount) {
   return ALCOHOL_OPTIONS.find((option) => option.staffCount === staffCount) || ALCOHOL_OPTIONS[0];
 }
 
-function getUpsellPrice(upsell: UpsellItem, venueStaff: VenueSeatingStaffCount, alcoholStaff: AlcoholManagementStaffCount) {
+function getUpsellPrice(
+  upsell: UpsellItem,
+  venueStaff: VenueSeatingStaffCount,
+  alcoholStaff: AlcoholManagementStaffCount,
+  planKey: PackageKey = "easy",
+) {
   if (upsell.key === "venueSeating") return getVenueOption(venueStaff).price;
   if (upsell.key === "alcoholManagement") return getAlcoholOption(alcoholStaff).price;
+  if (upsell.key === "creditGifts") {
+    if (planKey === "smart") return 100;
+    if (planKey === "easy") return 150;
+    return 0;
+  }
   return upsell.price;
 }
 
@@ -914,6 +958,7 @@ function getCustomerSectionsForUpsell(upsell: UpsellItem): DetailSection[] {
   if (upsell.key === "alcoholManagement") return DETAILED_ALCOHOL_MANAGEMENT_CUSTOMER_DETAILS;
   if (upsell.key === "personalRepresentative") return DETAILED_PERSONAL_REP_CUSTOMER_DETAILS;
   if (upsell.key === "suppliersBudgetSystem") return DETAILED_SUPPLIERS_BUDGET_CUSTOMER_DETAILS;
+  if (upsell.key === "creditGifts") return CREDIT_GIFTS_DETAILS;
 
   return upsell.customerDetails || [];
 }
@@ -1100,11 +1145,11 @@ export default function AdminSalesNewPage() {
     const totalWithoutSuppliers = packageCalculation.finalPrice + UPSELLS.reduce((sum, upsell) => {
       if (upsell.key === "suppliersBudgetSystem") return sum;
       if (!selectedUpsells[upsell.key]) return sum;
-      return sum + getUpsellPrice(upsell, venueSeatingStaffCount, alcoholManagementStaffCount);
+      return sum + getUpsellPrice(upsell, venueSeatingStaffCount, alcoholManagementStaffCount, selectedPlanKey);
     }, 0);
 
     return totalWithoutSuppliers >= 1000;
-  }, [alcoholManagementStaffCount, packageCalculation.finalPrice, selectedUpsells, venueSeatingStaffCount]);
+  }, [alcoholManagementStaffCount, packageCalculation.finalPrice, selectedPlanKey, selectedUpsells, venueSeatingStaffCount]);
 
   const availableUpsells = useMemo(() => {
     return UPSELLS.filter((upsell) => !upsell.availableForPlans || upsell.availableForPlans.includes(selectedPlanKey));
@@ -1139,9 +1184,9 @@ export default function AdminSalesNewPage() {
         return roundMoney(override);
       }
 
-      return getUpsellPrice(upsell, venueSeatingStaffCount, alcoholManagementStaffCount);
+      return getUpsellPrice(upsell, venueSeatingStaffCount, alcoholManagementStaffCount, selectedPlanKey);
     },
-    [adminUpsellPriceOverrides, alcoholManagementStaffCount, canGiveSuppliersBudgetFree, suppliersBudgetFree, venueSeatingStaffCount],
+    [adminUpsellPriceOverrides, alcoholManagementStaffCount, canGiveSuppliersBudgetFree, selectedPlanKey, suppliersBudgetFree, venueSeatingStaffCount],
   );
 
   const upsellsTotal = useMemo(() => {
@@ -1357,7 +1402,7 @@ export default function AdminSalesNewPage() {
       hidePriceInDocument: !showUpsellPricesInDocument,
     },
     upsells: selectedUpsellsList.map((upsell) => {
-      const originalDynamicPrice = getUpsellPrice(upsell, venueSeatingStaffCount, alcoholManagementStaffCount);
+      const originalDynamicPrice = getUpsellPrice(upsell, venueSeatingStaffCount, alcoholManagementStaffCount, selectedPlanKey);
       const dynamicPrice = getEffectiveUpsellPrice(upsell);
       const givenFree = upsell.key === "suppliersBudgetSystem" && suppliersBudgetFree && canGiveSuppliersBudgetFree;
 
@@ -1978,7 +2023,7 @@ export default function AdminSalesNewPage() {
               <div className="mt-6 grid gap-3 md:grid-cols-2">
                 {availableUpsells.map((upsell) => {
                   const selected = selectedUpsells[upsell.key];
-                  const dynamicPrice = getUpsellPrice(upsell, venueSeatingStaffCount, alcoholManagementStaffCount);
+                  const dynamicPrice = getUpsellPrice(upsell, venueSeatingStaffCount, alcoholManagementStaffCount, selectedPlanKey);
                   const freeApplied = upsell.key === "suppliersBudgetSystem" && selected && suppliersBudgetFree && canGiveSuppliersBudgetFree;
 
                   return (

@@ -146,6 +146,10 @@ function planHasDigitalSeating(plan: string) {
   return plan === "seating" || plan === "plan3";
 }
 
+function planHasCreditGifts(plan: string) {
+  return plan === "seating" || plan === "plan3";
+}
+
 function toUserPlan(plan: string): "basic" | "premium" | "plan1" | "plan2" | "plan3" {
   const normalized = cleanString(plan).toLowerCase();
 
@@ -171,14 +175,21 @@ function buildSalesUpsells(plan: string, upsells: NormalizedUpsell[]) {
   const thirdRsvpRound = findUpsell(upsells, "thirdRsvpRound");
   const suppliersBudgetSystem = findUpsell(upsells, "suppliersBudgetSystem");
   const alcoholManagement = findUpsell(upsells, "alcoholManagement");
+  const creditGifts = findUpsell(upsells, "creditGifts");
 
   const venueSeatingPrice = getUpsellPrice(venueSeating);
   const alcoholManagementPrice = getUpsellPrice(alcoholManagement);
+  const creditGiftsPrice = getUpsellPrice(creditGifts);
 
   return {
     digitalSeating: {
       enabled: planHasDigitalSeating(plan) || Boolean(digitalSeating),
       price: getUpsellPrice(digitalSeating),
+    },
+
+    creditGifts: {
+      enabled: planHasCreditGifts(plan) || Boolean(creditGifts),
+      price: planHasCreditGifts(plan) ? 0 : creditGiftsPrice,
     },
 
     venueSeating: {
@@ -789,6 +800,7 @@ export async function POST(req: NextRequest) {
     const hasDigitalSeatingPackage = planHasDigitalSeating(plan);
     const hasSuppliersBudgetSystem = salesUpsells.suppliersBudgetSystem.enabled;
     const hasDigitalSeating = salesUpsells.digitalSeating.enabled;
+    const hasCreditGifts = salesUpsells.creditGifts.enabled;
     const hasVenueSeating = salesUpsells.venueSeating.enabled;
     const hasAlcoholManagement = salesUpsells.alcoholManagement.enabled;
 
@@ -874,7 +886,7 @@ export async function POST(req: NextRequest) {
       callsAddonPrice: 0,
 
       includeCreditGifts: false,
-      creditGiftsAddonPrice: 0,
+      creditGiftsAddonPrice: salesUpsells.creditGifts.price,
 
       includeDigitalSeating: false,
       includeEventManagement: false,
@@ -900,6 +912,10 @@ export async function POST(req: NextRequest) {
         digitalSeating: {
           enabled: false,
           price: salesUpsells.digitalSeating.price,
+        },
+        creditGifts: {
+          enabled: false,
+          price: salesUpsells.creditGifts.price,
         },
         venueSeating: {
           enabled: false,
@@ -987,6 +1003,7 @@ export async function POST(req: NextRequest) {
         hasCallsPackage,
         hasDigitalSeatingPackage,
         hasDigitalSeating,
+        hasCreditGifts,
         hasVenueSeating,
         hasSuppliersBudgetSystem,
         hasAlcoholManagement,

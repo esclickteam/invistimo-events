@@ -290,11 +290,17 @@ function buildEmployeeSaleUpsells(sale: any) {
     "suppliersBudgetSystem"
   );
   const alcoholManagementEnabled = hasSaleUpsell(sale, "alcoholManagement");
+  const creditGiftsEnabled = hasSaleUpsell(sale, "creditGifts");
 
   return {
     digitalSeating: {
       enabled: digitalSeatingEnabled,
       price: getSaleUpsellPrice(sale, "digitalSeating"),
+    },
+
+    creditGifts: {
+      enabled: creditGiftsEnabled,
+      price: getSaleUpsellPrice(sale, "creditGifts"),
     },
 
     venueSeating: {
@@ -329,8 +335,9 @@ function buildEmployeeSaleUpsells(sale: any) {
 
 function getEmployeeSalePackageFlags(sale: any, user: any) {
   const plan = getSalePlan(sale, user);
-  const isSmartOrSeating = plan === "smart" || plan === "seating";
-  const isSeatingPackage = plan === "seating";
+  const isSmartOrSeating =
+    plan === "smart" || plan === "seating" || plan === "plan2" || plan === "plan3";
+  const isSeatingPackage = plan === "seating" || plan === "plan3";
   const salesUpsells = buildEmployeeSaleUpsells(sale);
 
   const includeCalls = Boolean(
@@ -339,6 +346,10 @@ function getEmployeeSalePackageFlags(sale: any, user: any) {
 
   const includeDigitalSeating = Boolean(
     isSeatingPackage || salesUpsells.digitalSeating.enabled
+  );
+
+  const includeCreditGifts = Boolean(
+    isSeatingPackage || salesUpsells.creditGifts.enabled || user?.includeCreditGifts
   );
 
   const includeEventManagement = Boolean(
@@ -386,6 +397,7 @@ function getEmployeeSalePackageFlags(sale: any, user: any) {
     includeCalls,
     callsRounds: includeCalls ? 3 : 0,
     includeDigitalSeating,
+    includeCreditGifts,
     includeEventManagement,
     allowedMessageRounds,
     accessModules,
@@ -708,8 +720,8 @@ export async function POST(req: Request) {
           includeCalls: packageFlags.includeCalls,
           callsAddonPrice: 0,
 
-          includeCreditGifts: Boolean(user.includeCreditGifts),
-          creditGiftsAddonPrice: 0,
+          includeCreditGifts: packageFlags.includeCreditGifts,
+          creditGiftsAddonPrice: packageFlags.salesUpsells.creditGifts.price,
 
           amount,
           refundAmount: 0,
@@ -737,6 +749,7 @@ export async function POST(req: Request) {
             allowedMessageRounds: packageFlags.allowedMessageRounds,
 
             includeCalls: packageFlags.includeCalls,
+            includeCreditGifts: packageFlags.includeCreditGifts,
             includeDigitalSeating: packageFlags.includeDigitalSeating,
             includeEventManagement: packageFlags.includeEventManagement,
 
@@ -786,6 +799,11 @@ export async function POST(req: Request) {
             callsAddonPrice: 0,
             callsEnabledBy: packageFlags.includeCalls ? "stripe" : null,
             callsEnabledAt: packageFlags.includeCalls ? new Date() : null,
+
+            includeCreditGifts: packageFlags.includeCreditGifts,
+            creditGiftsAddonPrice: packageFlags.salesUpsells.creditGifts.price,
+            creditGiftsEnabledBy: packageFlags.includeCreditGifts ? "stripe" : null,
+            creditGiftsEnabledAt: packageFlags.includeCreditGifts ? new Date() : null,
 
             includeDigitalSeating: packageFlags.includeDigitalSeating,
             includeEventManagement: packageFlags.includeEventManagement,

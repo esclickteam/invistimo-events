@@ -18,6 +18,7 @@ export type EmployeeSalePaymentProvider = "stripe" | "manual" | "";
 
 export type EmployeeSaleUpsellKey =
   | "digitalSeating"
+  | "creditGifts"
   | "venueSeating"
   | "personalRepresentative"
   | "thirdRsvpRound"
@@ -401,6 +402,11 @@ const EmployeeSaleSchema = new Schema(
         default: () => ({ enabled: false, price: 0, totalPrice: 0 }),
       },
 
+      creditGifts: {
+        type: UpsellStateSchema,
+        default: () => ({ enabled: false, price: 0, totalPrice: 0 }),
+      },
+
       venueSeating: {
         type: UpsellStateSchema,
         default: () => ({ enabled: false, price: 0, totalPrice: 0, staffCount: 0 }),
@@ -640,6 +646,7 @@ EmployeeSaleSchema.pre("validate", function () {
     doc.salesUpsells = {};
   }
 });
+
 
 EmployeeSaleSchema.index({ employeeId: 1, createdAt: -1 });
 EmployeeSaleSchema.index({ employeeId: 1, status: 1, createdAt: -1 });

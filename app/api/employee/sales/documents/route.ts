@@ -10,6 +10,9 @@ export const dynamic = "force-dynamic";
 const QUOTE_VALIDITY_DAYS = 4;
 const DEFAULT_VAT_RATE = 0.18;
 
+const CREDIT_GIFTS_INCLUDED_TEXT =
+  "פתיחת אפשרות מתנות באשראי דרך ספק חיצוני, כחלק מהחבילה וללא תוספת תשלום.";
+
 type SalesDocumentType = "quote" | "agreement";
 type PaymentMode = "full" | "split";
 
@@ -117,6 +120,20 @@ function normalizeArrayOfStrings(value: unknown) {
   if (!Array.isArray(value)) return [];
 
   return value.map(cleanStr).filter(Boolean);
+}
+
+function normalizePackageIncludes(selectedPackage: Record<string, unknown>) {
+  const includes = normalizeArrayOfStrings(selectedPackage.includes);
+  const packageKey = cleanStr(selectedPackage.key).toLowerCase();
+
+  if (
+    (packageKey === "seating" || packageKey === "plan3") &&
+    !includes.some((item) => item.includes("מתנות באשראי"))
+  ) {
+    return [...includes, CREDIT_GIFTS_INCLUDED_TEXT];
+  }
+
+  return includes;
 }
 
 function normalizeArray(value: unknown) {
@@ -305,9 +322,7 @@ export async function POST(req: NextRequest) {
     const userAgent = cleanStr(req.headers.get("user-agent"));
     const ip = getClientIp(req);
 
-    const selectedPackageIncludes = normalizeArrayOfStrings(
-      selectedPackage.includes,
-    );
+    const selectedPackageIncludes = normalizePackageIncludes(selectedPackage);
 
     const selectedPackagePrice = asNumber(selectedPackage.price);
     const selectedPackageRecords = asNumber(selectedPackage.records);
