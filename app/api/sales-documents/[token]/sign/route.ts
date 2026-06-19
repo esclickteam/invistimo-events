@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import db from "@/lib/db";
 import SalesDocument from "@/models/SalesDocument";
+import CustomerAgreement from "@/models/CustomerAgreement";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -272,6 +273,36 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     await document.save();
 
+    const customerAgreement = await CustomerAgreement.findOneAndUpdate(
+      { publicToken: token },
+      {
+        $set: {
+          status: "signed",
+          signedAt,
+
+          signerName: fullName,
+          signerIdNumber: idNumber,
+          signerEmail: cleanStr(document.get("client.email")),
+          signerPhone: phone,
+
+          signatureText,
+          signatureImageUrl: signatureDataUrl,
+
+          ipAddress: signedIp,
+        },
+      },
+      {
+        new: true,
+      },
+    );
+
+    if (!customerAgreement) {
+      console.warn("CUSTOMER AGREEMENT NOT FOUND FOR SIGNED SALES DOCUMENT:", {
+        token,
+        salesDocumentId: String(document._id),
+      });
+    }
+
     const normalizedDocument = normalizeSignedDocumentForClient(document);
 
     return NextResponse.json({
@@ -279,6 +310,9 @@ export async function POST(req: NextRequest, context: RouteContext) {
       message: "ההסכם נחתם ונשמר בהצלחה",
       status: "signed",
       signedAt: signedAt.toISOString(),
+      customerAgreementId: customerAgreement
+        ? String((customerAgreement as any)._id)
+        : "",
       document: normalizedDocument,
     });
   } catch (error) {

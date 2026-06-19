@@ -3,6 +3,9 @@ import crypto from "crypto";
 
 import db from "@/lib/db";
 import SalesDocument from "@/models/SalesDocument";
+import CustomerFile from "@/models/CustomerFile";
+import CustomerQuote from "@/models/CustomerQuote";
+import CustomerAgreement from "@/models/CustomerAgreement";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,6 +18,29 @@ const CREDIT_GIFTS_INCLUDED_TEXT =
 
 type SalesDocumentType = "quote" | "agreement";
 type PaymentMode = "full" | "split";
+
+const SMART_PACKAGE_TIERS = [
+  { maxRecords: 50, price: 149 },
+  { maxRecords: 100, price: 249 },
+  { maxRecords: 150, price: 349 },
+  { maxRecords: 200, price: 449 },
+  { maxRecords: 250, price: 549 },
+  { maxRecords: 300, price: 649 },
+  { maxRecords: 350, price: 749 },
+  { maxRecords: 400, price: 849 },
+  { maxRecords: 450, price: 949 },
+  { maxRecords: 500, price: 1049 },
+  { maxRecords: 550, price: 1149 },
+  { maxRecords: 600, price: 1249 },
+  { maxRecords: 650, price: 1349 },
+  { maxRecords: 700, price: 1449 },
+  { maxRecords: 750, price: 1549 },
+  { maxRecords: 800, price: 1649 },
+  { maxRecords: 850, price: 1749 },
+  { maxRecords: 900, price: 1849 },
+  { maxRecords: 950, price: 1949 },
+  { maxRecords: 1000, price: 2049 },
+];
 
 function cleanStr(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -196,6 +222,7 @@ function buildPaymentAmounts({
     asNumber(paymentSchedule.fullPaymentDiscount);
 
   const grossAmountFromBody = asNumber(totals.grossAmount);
+
   const grossAmountAfterDiscount =
     asNumber(totals.grossAmountAfterDiscount) ||
     asNumber(paymentSchedule.grossAmountAfterDiscount) ||
@@ -245,6 +272,79 @@ function buildPaymentAmounts({
   };
 }
 
+function clampRecords(value: unknown) {
+  const parsed = Math.floor(asNumber(value));
+  if (parsed <= 0) return 1;
+  if (parsed > 1000) return 1000;
+  return parsed;
+}
+
+function calculateSmartPackagePrice(records: unknown) {
+  const safeRecords = clampRecords(records);
+  const tier =
+    SMART_PACKAGE_TIERS.find((item) => safeRecords <= item.maxRecords) ||
+    SMART_PACKAGE_TIERS[SMART_PACKAGE_TIERS.length - 1];
+
+  const pricePerRecord = tier.price / tier.maxRecords;
+
+  return roundMoney(pricePerRecord * safeRecords);
+}
+
+function hasCallsIncluded(packageKey: string) {
+  const normalized = packageKey.toLowerCase();
+
+  return (
+    normalized === "smart" ||
+    normalized === "seating" ||
+    normalized === "plan2" ||
+    normalized === "plan3"
+  );
+}
+
+function buildQuoteItems({
+  selectedPackage,
+  upsells,
+}: {
+  selectedPackage: Record<string, unknown>;
+  upsells: unknown[];
+}) {
+  const items: {
+    title: string;
+    description: string;
+    price: number;
+  }[] = [];
+
+  const packageTitle = cleanStr(selectedPackage.title) || "חבילה";
+  const packageSummary = cleanStr(selectedPackage.customerSummary);
+  const packagePrice = asNumber(selectedPackage.price);
+
+  items.push({
+    title: packageTitle,
+    description: packageSummary,
+    price: packagePrice,
+  });
+
+  upsells.forEach((upsell) => {
+    const item = normalizeObject(upsell);
+    const title = cleanStr(item.title);
+    const description = cleanStr(item.description);
+    const price =
+      asNumber(item.price, NaN) ||
+      asNumber(item.finalPrice, NaN) ||
+      asNumber(item.amount, 0);
+
+    if (!title) return;
+
+    items.push({
+      title,
+      description,
+      price: Number.isFinite(price) ? price : 0,
+    });
+  });
+
+  return items;
+}
+
 async function createUniqueToken() {
   for (let index = 0; index < 8; index += 1) {
     const token = crypto.randomBytes(18).toString("base64url");
@@ -256,6 +356,94 @@ async function createUniqueToken() {
   return `${Date.now().toString(36)}-${crypto
     .randomBytes(10)
     .toString("base64url")}`;
+}
+
+async function upsertCustomerFile({
+  type,
+  clientFullName,
+  clientPhone,
+  clientEmail,
+  eventDate,
+  eventCity,
+  venueName,
+  selectedPackage,
+  paymentAmounts,
+}: {
+  type: SalesDocumentType;
+  clientFullName: string;
+  clientPhone: string;
+  clientEmail: string;
+  eventDate: string;
+  eventCity: string;
+  venueName: string;
+  selectedPackage: Record<string, unknown>;
+  paymentAmounts: ReturnType<typeof buildPaymentAmounts>;
+}) {
+  const packageKey = cleanStr(selectedPackage.key);
+  const packageTitle = cleanStr(selectedPackage.title);
+  const selectedPackagePrice = asNumber(selectedPackage.price);
+  const selectedPackageRecords = asNumber(selectedPackage.records);
+
+  const currentDealTotal = roundMoney(paymentAmounts.grossAmountAfterDiscount);
+
+  const smartPackagePrice = calculateSmartPackagePrice(selectedPackageRecords);
+
+  const upgradeDeltaToCalls = hasCallsIncluded(packageKey)
+    ? 0
+    : Math.max(0, roundMoney(smartPackagePrice - selectedPackagePrice));
+
+  const targetPriceWithCalls = roundMoney(currentDealTotal + upgradeDeltaToCalls);
+
+  const query =
+    clientEmail && clientPhone
+      ? {
+          $or: [
+            { email: clientEmail },
+            { phone: clientPhone },
+          ],
+        }
+      : clientEmail
+        ? { email: clientEmail }
+        : { phone: clientPhone };
+
+  const customer = await CustomerFile.findOneAndUpdate(
+    query,
+    {
+      $set: {
+        fullName: clientFullName,
+        email: clientEmail,
+        phone: clientPhone,
+
+        eventDate: parseDateInput(eventDate) || undefined,
+        venueName,
+        city: eventCity,
+
+        packageName: packageTitle,
+        packageBasePrice: currentDealTotal,
+        packageTargetPriceWithCalls: targetPriceWithCalls,
+
+        hasCallRounds: hasCallsIncluded(packageKey),
+        allowedCallRounds: hasCallsIncluded(packageKey) ? 3 : 0,
+
+        totalPrice: currentDealTotal,
+        paidAmount: 0,
+        balance: currentDealTotal,
+
+        status: type === "quote" ? "quote_sent" : "quote_sent",
+      },
+      $setOnInsert: {
+        notes: "",
+        assignedStaffIds: [],
+      },
+    },
+    {
+      upsert: true,
+      new: true,
+      setDefaultsOnInsert: true,
+    },
+  );
+
+  return customer;
 }
 
 export async function POST(req: NextRequest) {
@@ -327,6 +515,20 @@ export async function POST(req: NextRequest) {
     const selectedPackagePrice = asNumber(selectedPackage.price);
     const selectedPackageRecords = asNumber(selectedPackage.records);
 
+    const upsells = normalizeArray(payload.upsells);
+
+    const customerFile = await upsertCustomerFile({
+      type,
+      clientFullName,
+      clientPhone,
+      clientEmail,
+      eventDate,
+      eventCity,
+      venueName,
+      selectedPackage,
+      paymentAmounts,
+    });
+
     const document = await SalesDocument.create({
       type,
       token,
@@ -375,7 +577,7 @@ export async function POST(req: NextRequest) {
         price: selectedPackagePrice,
       },
 
-      upsells: normalizeArray(payload.upsells),
+      upsells,
 
       totals: {
         grossAmount: paymentAmounts.grossAmount,
@@ -452,23 +654,80 @@ export async function POST(req: NextRequest) {
       createdByUserId: null,
     });
 
+    const customerFileId = String((customerFile as any)._id);
+    const documentId = String((document as any)._id);
+
+    let customerQuoteId = "";
+    let customerAgreementId = "";
+
+    if (type === "quote") {
+      const quoteItems = buildQuoteItems({
+        selectedPackage,
+        upsells,
+      });
+
+      const customerQuote = await CustomerQuote.create({
+        customerFileId,
+        quoteNumber: `Q-${documentId.slice(-6).toUpperCase()}`,
+        items: quoteItems,
+        total: paymentAmounts.grossAmountAfterDiscount,
+        validUntil: parseDateInput(quoteDates.expiresAt),
+        status: "draft",
+        publicToken: token,
+      });
+
+      customerQuoteId = String((customerQuote as any)._id);
+    }
+
+    if (type === "agreement") {
+      const customerAgreement = await CustomerAgreement.create({
+        customerFileId,
+        title: "הסכם שירותים",
+        amount: paymentAmounts.grossAmountAfterDiscount,
+        status: "draft",
+
+        signedAt: null,
+        signerName: clientFullName,
+        signerIdNumber: clientIdNumber,
+        signerEmail: clientEmail,
+        signerPhone: clientPhone,
+
+        signatureText: "",
+        signatureImageUrl: "",
+
+        ipAddress: "",
+
+        publicToken: token,
+        pdfUrl: "",
+      });
+
+      customerAgreementId = String((customerAgreement as any)._id);
+    }
+
     return NextResponse.json({
       success: true,
       message:
         type === "quote"
           ? "הצעת המחיר נוצרה בהצלחה"
           : "הסכם תנאי העסקה נוצר בהצלחה",
-      documentId: String(document._id),
+
+      documentId,
+      customerFileId,
+      customerQuoteId,
+      customerAgreementId,
+
       token,
       url,
       documentUrl: url,
       type,
       status: document.status,
+
       quote: {
         createdAt: quoteDates.createdAt,
         expiresAt: quoteDates.expiresAt,
         validityDays: quoteDates.validityDays,
       },
+
       totals: {
         grossAmount: paymentAmounts.grossAmount,
         grossAmountBeforeDiscount: paymentAmounts.grossAmountBeforeDiscount,
@@ -481,6 +740,7 @@ export async function POST(req: NextRequest) {
         stripeAmount: paymentAmounts.stripeAmount,
         paymentSchedule: paymentAmounts.paymentSchedule,
       },
+
       expiresAt: quoteDates.expiresAt,
     });
   } catch (error) {
