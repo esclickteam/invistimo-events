@@ -930,16 +930,22 @@ function Icon({ name, className = "h-5 w-5" }: { name: "arrow" | "save" | "check
 
 
 function getCustomerDetailsForPlan(plan: PackagePlan): DetailSection[] {
-  return [
+  const sections: DetailSection[] = [
     {
       title: "פירוט ללקוח",
       items: [plan.customerSummary, ...plan.includes],
     },
   ];
+
+  if (plan.key === "seating") {
+    sections.push(...CREDIT_GIFTS_DETAILS);
+  }
+
+  return sections;
 }
 
 function getEmployeeDetailsForPlan(plan: PackagePlan): DetailSection[] {
-  return [
+  const sections: DetailSection[] = [
     ...plan.employeeDetails,
     {
       title: "דגשים להצגה בשיחה",
@@ -950,6 +956,20 @@ function getEmployeeDetailsForPlan(plan: PackagePlan): DetailSection[] {
       ],
     },
   ];
+
+  if (plan.key === "seating") {
+    sections.push({
+      title: "מתנות באשראי — דגשים לעובד",
+      items: [
+        "בחבילת מזמינים ומושיבים מתנות באשראי כלולות בחבילה ללא תוספת תשלום.",
+        "להבהיר שהשירות מתבצע דרך ספק חיצוני.",
+        "תנאי הסליקה, העמלות ומועדי העברת הכספים כפופים לתנאי הספק החיצוני.",
+        "Invistimo אינה מבצעת סליקה ישירה ואינה מחזיקה בכספי המתנות.",
+      ],
+    });
+  }
+
+  return sections;
 }
 
 function getCustomerSectionsForUpsell(upsell: UpsellItem): DetailSection[] {

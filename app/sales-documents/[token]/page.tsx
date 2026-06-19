@@ -815,18 +815,31 @@ export default function SalesDocumentPage() {
           ? `${document.selectedPackage.customerSummary || ""} ${getCreditGiftsDescription(packageKey)}`.trim()
           : document.selectedPackage.customerSummary;
 
+      const packageDetails: DetailSection[] = [
+        {
+          title: "מה כלול בחבילה",
+          items: packageIncludes,
+        },
+      ];
+
+      if (packageKey === "seating") {
+        const hasCreditGiftsDetails = packageDetails.some((section) =>
+          hasCreditGiftsText(section.title) ||
+          (section.items || []).some((item) => hasCreditGiftsText(item)),
+        );
+
+        if (!hasCreditGiftsDetails) {
+          packageDetails.push(...CREDIT_GIFTS_DETAILS);
+        }
+      }
+
       services.push({
         kind: "package",
         key: packageKey,
         title: document.selectedPackage.title,
         description: packageDescription,
         price: document.selectedPackage.price,
-        details: [
-          {
-            title: "מה כלול בחבילה",
-            items: packageIncludes,
-          },
-        ],
+        details: packageDetails,
       });
     }
 
