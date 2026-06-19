@@ -22,10 +22,29 @@ type EmployeeRow = {
 
 const API = {
   employees: "/api/admin/employees",
+  payrollReport: "/api/admin/employees/payroll-report",
 };
 
 function cleanStr(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function getCurrentMonthValue() {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+
+  return `${year}-${month}`;
+}
+
+function getPayrollFileName(monthValue: string) {
+  const [year, month] = monthValue.split("-");
+
+  if (!year || !month) {
+    return "דוח_משכורת_חודשי.xlsx";
+  }
+
+  return `דוח_משכורת_חודשי_${month}_${year}.xlsx`;
 }
 
 async function fetchJson(url: string) {
@@ -136,7 +155,9 @@ function Icon({
     | "mail"
     | "phone"
     | "id"
-    | "sparkles";
+    | "sparkles"
+    | "download"
+    | "calendar";
   className?: string;
 }) {
   const common = {
@@ -243,6 +264,27 @@ function Icon({
     );
   }
 
+  if (name === "download") {
+    return (
+      <svg {...common}>
+        <path d="M12 3v12" />
+        <path d="m7 10 5 5 5-5" />
+        <path d="M5 21h14" />
+      </svg>
+    );
+  }
+
+  if (name === "calendar") {
+    return (
+      <svg {...common}>
+        <rect x="3" y="4" width="18" height="18" rx="2" />
+        <path d="M16 2v4" />
+        <path d="M8 2v4" />
+        <path d="M3 10h18" />
+      </svg>
+    );
+  }
+
   return (
     <svg {...common}>
       <path d="m12 3 10 18H2L12 3z" />
@@ -256,11 +298,13 @@ export default function AdminEmployeesPage() {
   const [employees, setEmployees] = useState<EmployeeRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [exportingPayroll, setExportingPayroll] = useState(false);
   const [error, setError] = useState("");
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [detailsFilter, setDetailsFilter] = useState("");
+  const [payrollMonth, setPayrollMonth] = useState(getCurrentMonthValue());
 
   const loadEmployees = useCallback(async () => {
     try {
@@ -300,6 +344,67 @@ export default function AdminEmployeesPage() {
       setRefreshing(false);
     }
   }, []);
+
+  const handleExportPayrollReport = useCallback(async () => {
+    if (!payrollMonth) {
+      alert("צריך לבחור חודש לדוח המשכורת");
+      return;
+    }
+
+    try {
+      setExportingPayroll(true);
+
+      const url = `${API.payrollReport}?month=${encodeURIComponent(
+        payrollMonth
+      )}`;
+
+      const response = await fetch(url, {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        const contentType = response.headers.get("content-type") || "";
+
+        if (contentType.includes("application/json")) {
+          const data = await response.json().catch(() => null);
+          throw new Error(
+            data?.error || data?.message || "שגיאה בייצוא דוח משכורת"
+          );
+        }
+
+        const text = await response.text().catch(() => "");
+        throw new Error(text || "שגיאה בייצוא דוח משכורת");
+      }
+
+      const blob = await response.blob();
+
+      if (!blob || blob.size === 0) {
+        throw new Error("הקובץ שהתקבל ריק");
+      }
+
+      const objectUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = objectUrl;
+      link.download = getPayrollFileName(payrollMonth);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      window.URL.revokeObjectURL(objectUrl);
+    } catch (exportError) {
+      console.error("EXPORT PAYROLL REPORT FAILED:", exportError);
+      alert(
+        exportError instanceof Error
+          ? exportError.message
+          : "שגיאה בייצוא דוח משכורת"
+      );
+    } finally {
+      setExportingPayroll(false);
+    }
+  }, [payrollMonth]);
 
   useEffect(() => {
     void loadEmployees();
@@ -378,27 +483,61 @@ export default function AdminEmployeesPage() {
               </p>
             </div>
 
-            <div className="flex flex-wrap gap-3">
-              <Link
-                href="/admin/employees/agreement-template"
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-violet-500 to-indigo-500 px-5 text-sm font-black text-white shadow-lg shadow-indigo-200 transition hover:scale-[1.01]"
-              >
-                <Icon name="template" className="h-4 w-4" />
-                יצירת תבנית הסכם לעובדים
-              </Link>
+            <div className="flex flex-col gap-3 xl:items-end">
+              <div className="flex flex-wrap gap-3">
+                <Link
+                  href="/admin/employees/agreement-template"
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-violet-500 to-indigo-500 px-5 text-sm font-black text-white shadow-lg shadow-indigo-200 transition hover:scale-[1.01]"
+                >
+                  <Icon name="template" className="h-4 w-4" />
+                  יצירת תבנית הסכם לעובדים
+                </Link>
 
-              <button
-                type="button"
-                onClick={() => void loadEmployees()}
-                disabled={refreshing}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-700 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <Icon
-                  name="refresh"
-                  className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
-                />
-                רענון
-              </button>
+                <button
+                  type="button"
+                  onClick={() => void loadEmployees()}
+                  disabled={refreshing}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-700 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Icon
+                    name="refresh"
+                    className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+                  />
+                  רענון
+                </button>
+              </div>
+
+              <div className="flex w-full flex-col gap-3 rounded-[24px] border border-indigo-100 bg-indigo-50/60 p-3 sm:flex-row xl:w-auto">
+                <label className="relative flex h-11 min-w-[190px] items-center rounded-2xl border border-indigo-100 bg-white px-4 pr-11 text-sm font-black text-slate-700 shadow-sm">
+                  <span className="pointer-events-none absolute right-4 text-indigo-400">
+                    <Icon name="calendar" className="h-4 w-4" />
+                  </span>
+
+                  <input
+                    type="month"
+                    value={payrollMonth}
+                    onChange={(event) => setPayrollMonth(event.target.value)}
+                    className="w-full bg-transparent text-sm font-black text-slate-800 outline-none"
+                  />
+                </label>
+
+                <button
+                  type="button"
+                  onClick={() => void handleExportPayrollReport()}
+                  disabled={exportingPayroll || !payrollMonth}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-emerald-500 to-teal-500 px-5 text-sm font-black text-white shadow-lg shadow-emerald-100 transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Icon
+                    name={exportingPayroll ? "refresh" : "download"}
+                    className={`h-4 w-4 ${
+                      exportingPayroll ? "animate-spin" : ""
+                    }`}
+                  />
+                  {exportingPayroll
+                    ? "מייצא דוח..."
+                    : "ייצוא דוח משכורת חודשית"}
+                </button>
+              </div>
             </div>
           </div>
 
