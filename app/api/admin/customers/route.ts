@@ -52,6 +52,7 @@ export async function GET(req: NextRequest) {
 
       if (numericQ !== null) {
         filter.$or.push({ guestsCount: numericQ });
+        filter.$or.push({ recordsCount: numericQ });
         filter.$or.push({ totalPrice: numericQ });
         filter.$or.push({ paidAmount: numericQ });
         filter.$or.push({ balance: numericQ });
@@ -59,6 +60,7 @@ export async function GET(req: NextRequest) {
     }
 
     const customers = await CustomerFile.find(filter)
+      .populate("assignedStaffIds", "_id name email role staffType")
       .sort({ createdAt: -1 })
       .limit(300)
       .lean();

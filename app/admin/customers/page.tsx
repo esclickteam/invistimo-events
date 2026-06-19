@@ -3,6 +3,14 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+type StaffMember = {
+  _id: string;
+  name?: string;
+  email?: string;
+  role?: string;
+  staffType?: string;
+};
+
 type CustomerFile = {
   _id: string;
   userId?: string;
@@ -39,6 +47,8 @@ type CustomerFile = {
   formName?: string;
   source?: string;
 
+  assignedStaffIds?: Array<string | StaffMember>;
+
   notes?: string;
 
   createdAt?: string | Date;
@@ -49,6 +59,19 @@ type CustomersResponse = {
   success?: boolean;
   customers?: CustomerFile[];
   error?: string;
+};
+
+type StaffResponse = {
+  success?: boolean;
+  staff?: StaffMember[];
+  error?: string;
+};
+
+type AssignResponse = {
+  success?: boolean;
+  customer?: CustomerFile;
+  error?: string;
+  message?: string;
 };
 
 function formatDate(value?: string | Date) {
@@ -211,6 +234,35 @@ function getInitials(name?: string) {
   return `${parts[0].slice(0, 1)}${parts[1].slice(0, 1)}`;
 }
 
+function getStaffId(staff: string | StaffMember) {
+  return typeof staff === "string" ? staff : String(staff?._id || "");
+}
+
+function getAssignedStaff(customer: CustomerFile, staffList: StaffMember[]) {
+  const firstAssigned = Array.isArray(customer.assignedStaffIds)
+    ? customer.assignedStaffIds[0]
+    : null;
+
+  if (!firstAssigned) return null;
+
+  if (typeof firstAssigned === "object") {
+    return firstAssigned;
+  }
+
+  const assignedId = String(firstAssigned);
+
+  return staffList.find((staff) => String(staff._id) === assignedId) || {
+    _id: assignedId,
+    name: "",
+    email: "",
+  };
+}
+
+function getStaffLabel(staff?: StaffMember | null) {
+  if (!staff) return "לא משויך";
+  return staff.name || staff.email || "עובד ללא שם";
+}
+
 function InfoItem({
   label,
   value,
@@ -252,9 +304,20 @@ function Pill({
 
 export default function AdminCustomersPage() {
   const [customers, setCustomers] = useState<CustomerFile[]>([]);
+  const [staff, setStaff] = useState<StaffMember[]>([]);
+
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [staffLoading, setStaffLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const [selectedStaffByCustomer, setSelectedStaffByCustomer] = useState<
+    Record<string, string>
+  >({});
+  const [assigningCustomerId, setAssigningCustomerId] = useState("");
+  const [assignMessageByCustomer, setAssignMessageByCustomer] = useState<
+    Record<string, string>
+  >({});
 
   const loadCustomers = useCallback(async () => {
     try {
@@ -292,6 +355,30 @@ export default function AdminCustomersPage() {
     }
   }, [search]);
 
+  const loadStaff = useCallback(async () => {
+    try {
+      setStaffLoading(true);
+
+      const res = await fetch("/api/admin/staff", {
+        method: "GET",
+        cache: "no-store",
+      });
+
+      const data = (await res.json()) as StaffResponse;
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "שגיאה בטעינת עובדים");
+      }
+
+      setStaff(Array.isArray(data.staff) ? data.staff : []);
+    } catch (err) {
+      console.error("LOAD STAFF ERROR:", err);
+      setStaff([]);
+    } finally {
+      setStaffLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     const timer = window.setTimeout(() => {
       loadCustomers();
@@ -300,13 +387,29 @@ export default function AdminCustomersPage() {
     return () => window.clearTimeout(timer);
   }, [loadCustomers]);
 
+  useEffect(() => {
+    loadStaff();
+  }, [loadStaff]);
+
   const stats = useMemo(() => {
     const total = customers.length;
     const leads = customers.filter((customer) => isLeadCustomer(customer)).length;
-    const facebookLeads = customers.filter((customer) => isFacebookLead(customer)).length;
-    const active = customers.filter((customer) => customer.status === "active").length;
+    const facebookLeads = customers.filter((customer) =>
+      isFacebookLead(customer)
+    ).length;
+    const active = customers.filter(
+      (customer) => customer.status === "active"
+    ).length;
     const paid = customers.filter((customer) => customer.status === "paid").length;
     const withCalls = customers.filter((customer) => customer.hasCallRounds).length;
+
+    const assignedLeads = customers.filter((customer) => {
+      return (
+        isLeadCustomer(customer) &&
+        Array.isArray(customer.assignedStaffIds) &&
+        customer.assignedStaffIds.length > 0
+      );
+    }).length;
 
     const totalRevenue = customers.reduce((sum, customer) => {
       return sum + Number(customer.totalPrice || 0);
@@ -316,12 +419,65 @@ export default function AdminCustomersPage() {
       total,
       leads,
       facebookLeads,
+      assignedLeads,
       active,
       paid,
       withCalls,
       totalRevenue,
     };
   }, [customers]);
+
+  async function handleAssignStaff(customerId: string) {
+    const staffId = selectedStaffByCustomer[customerId];
+
+    if (!staffId) {
+      setAssignMessageByCustomer((prev) => ({
+        ...prev,
+        [customerId]: "צריך לבחור עובד",
+      }));
+      return;
+    }
+
+    try {
+      setAssigningCustomerId(customerId);
+      setAssignMessageByCustomer((prev) => ({
+        ...prev,
+        [customerId]: "",
+      }));
+
+      const res = await fetch(
+        `/api/admin/customers/${customerId}/assign-staff`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ staffId }),
+        }
+      );
+
+      const data = (await res.json()) as AssignResponse;
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || data.error || "שגיאה בשיוך עובד");
+      }
+
+      setAssignMessageByCustomer((prev) => ({
+        ...prev,
+        [customerId]: "הליד שויך לעובד בהצלחה",
+      }));
+
+      await loadCustomers();
+    } catch (err) {
+      console.error("ASSIGN STAFF ERROR:", err);
+      setAssignMessageByCustomer((prev) => ({
+        ...prev,
+        [customerId]: err instanceof Error ? err.message : "שגיאה בשיוך עובד",
+      }));
+    } finally {
+      setAssigningCustomerId("");
+    }
+  }
 
   return (
     <main
@@ -344,9 +500,8 @@ export default function AdminCustomersPage() {
                 </h1>
 
                 <p className="mt-3 max-w-4xl text-sm font-semibold leading-7 text-[#8A6A43]">
-                  כאן רואים את כל הלקוחות והלידים במקום אחד: פרטי קשר, תאריך
-                  אירוע, חבילה או שירות מעניין, סטטוס, מקור ליד כשקיים וכניסה
-                  מלאה לתיק הלקוח.
+                  כאן רואים את כל הלקוחות והלידים במקום אחד. לידים ניתן להקצות
+                  לעובד לטיפול, ואז בשלב הבא הם יופיעו לעובד באזור “הלידים שלי”.
                 </p>
               </div>
 
@@ -369,18 +524,26 @@ export default function AdminCustomersPage() {
                 </div>
 
                 <p className="px-2 text-xs font-bold text-[#9A7A55]">
-                  מוצגים עד 300 תיקים אחרונים. לידים יציגו מקור ליד וסטטוס ליד;
-                  לקוחות רגילים יציגו רק פרטי לקוח ועסקה.
+                  עובדים נטענים מהמערכת. שיוך עובד מופיע רק בתיקים שהם לידים.
                 </p>
               </div>
             </div>
           </div>
         </section>
 
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-7">
           <StatCard title="סה״כ תיקים" value={stats.total} tone="dark" />
           <StatCard title="סה״כ לידים" value={stats.leads} tone="amber" />
-          <StatCard title="לידים מפייסבוק" value={stats.facebookLeads} tone="blue" />
+          <StatCard
+            title="לידים משויכים"
+            value={stats.assignedLeads}
+            tone="indigo"
+          />
+          <StatCard
+            title="לידים מפייסבוק"
+            value={stats.facebookLeads}
+            tone="blue"
+          />
           <StatCard title="לקוחות פעילים" value={stats.active} tone="green" />
           <StatCard title="עם סבבי שיחות" value={stats.withCalls} tone="orange" />
           <StatCard
@@ -394,8 +557,7 @@ export default function AdminCustomersPage() {
           <div className="mb-5 flex flex-col gap-2 px-1 sm:px-2">
             <h2 className="text-2xl font-black">כל הלקוחות והלידים</h2>
             <p className="text-sm font-semibold leading-6 text-[#8A6A43]">
-              כל לקוח מוצג ככרטיס מלא, בלי גלילה אופקית. פרטי ליד מוצגים רק
-              כשמדובר בליד.
+              פרטי ליד ושיוך לעובד מוצגים רק כאשר מדובר בליד.
             </p>
           </div>
 
@@ -425,6 +587,10 @@ export default function AdminCustomersPage() {
                   customer.leadSource,
                   customer.leadProvider
                 );
+                const assignedStaff = getAssignedStaff(customer, staff);
+                const selectedStaffId =
+                  selectedStaffByCustomer[customerId] ||
+                  getStaffId(assignedStaff || "");
 
                 return (
                   <article
@@ -452,6 +618,12 @@ export default function AdminCustomersPage() {
                                 ליד מפייסבוק
                               </Pill>
                             ) : null}
+
+                            {leadCustomer && assignedStaff ? (
+                              <Pill className="bg-emerald-50 text-emerald-700 ring-emerald-100">
+                                משויך לעובד
+                              </Pill>
+                            ) : null}
                           </div>
 
                           <div className="mt-2 space-y-1 text-xs font-bold text-[#9A7A55]">
@@ -468,7 +640,10 @@ export default function AdminCustomersPage() {
                       >
                         <InfoItem label="טלפון" value={customer.phone || "-"} strong />
                         <InfoItem label="מייל" value={customer.email || "-"} />
-                        <InfoItem label="תאריך אירוע" value={formatDate(customer.eventDate)} />
+                        <InfoItem
+                          label="תאריך אירוע"
+                          value={formatDate(customer.eventDate)}
+                        />
 
                         {leadCustomer ? (
                           <>
@@ -585,6 +760,84 @@ export default function AdminCustomersPage() {
                       />
                     </div>
 
+                    {leadCustomer ? (
+                      <div className="mt-4 rounded-[1.5rem] border border-[#E8D8C4] bg-[#FFFCF7] p-4">
+                        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+                          <div>
+                            <h4 className="text-base font-black text-[#3A271D]">
+                              הקצאת ליד לעובד
+                            </h4>
+                            <p className="mt-1 text-xs font-bold leading-5 text-[#8A6A43]">
+                              בחרי עובד שיטפל בליד. לאחר השיוך הליד יופיע אצל
+                              העובד באזור הלידים שלו.
+                            </p>
+
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <Pill className="bg-white text-[#8A6A43] ring-[#E8D8C4]">
+                                עובד נוכחי: {getStaffLabel(assignedStaff)}
+                              </Pill>
+                            </div>
+                          </div>
+
+                          <div className="flex w-full flex-col gap-2 sm:flex-row xl:w-auto">
+                            <select
+                              value={selectedStaffId}
+                              onChange={(event) =>
+                                setSelectedStaffByCustomer((prev) => ({
+                                  ...prev,
+                                  [customerId]: event.target.value,
+                                }))
+                              }
+                              disabled={staffLoading || assigningCustomerId === customerId}
+                              className="h-12 min-w-[240px] rounded-2xl border border-[#D9C3A8] bg-white px-4 text-sm font-black text-[#3A271D] outline-none transition focus:border-[#C58B2B]"
+                            >
+                              <option value="">
+                                {staffLoading ? "טוען עובדים..." : "בחר עובד"}
+                              </option>
+
+                              {staff.map((staffMember) => (
+                                <option
+                                  key={staffMember._id}
+                                  value={String(staffMember._id)}
+                                >
+                                  {staffMember.name ||
+                                    staffMember.email ||
+                                    "עובד ללא שם"}
+                                </option>
+                              ))}
+                            </select>
+
+                            <button
+                              type="button"
+                              onClick={() => handleAssignStaff(customerId)}
+                              disabled={
+                                assigningCustomerId === customerId ||
+                                staffLoading ||
+                                !selectedStaffId
+                              }
+                              className={`h-12 rounded-2xl px-5 text-sm font-black transition ${
+                                assigningCustomerId === customerId ||
+                                staffLoading ||
+                                !selectedStaffId
+                                  ? "cursor-not-allowed bg-[#E8D8C4] text-[#9A7A55]"
+                                  : "bg-[#3A271D] text-white hover:bg-[#24170f]"
+                              }`}
+                            >
+                              {assigningCustomerId === customerId
+                                ? "משייך..."
+                                : "הקצה ליד"}
+                            </button>
+                          </div>
+                        </div>
+
+                        {assignMessageByCustomer[customerId] ? (
+                          <div className="mt-3 rounded-2xl border border-[#E8D8C4] bg-white px-4 py-3 text-xs font-black text-[#3A271D]">
+                            {assignMessageByCustomer[customerId]}
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
+
                     {customer.venueName ||
                     customer.city ||
                     customer.campaignName ||
@@ -629,7 +882,7 @@ function StatCard({
 }: {
   title: string;
   value: React.ReactNode;
-  tone: "dark" | "amber" | "blue" | "green" | "orange" | "gold";
+  tone: "dark" | "amber" | "blue" | "green" | "orange" | "gold" | "indigo";
 }) {
   const toneClass =
     tone === "amber"
@@ -642,7 +895,9 @@ function StatCard({
             ? "text-orange-700"
             : tone === "gold"
               ? "text-[#B87920]"
-              : "text-[#3A271D]";
+              : tone === "indigo"
+                ? "text-indigo-700"
+                : "text-[#3A271D]";
 
   return (
     <div className="rounded-[1.5rem] border border-[#E8D8C4] bg-white p-5 shadow-sm">
