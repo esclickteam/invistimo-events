@@ -5,6 +5,7 @@ import mongoose from "mongoose";
 import db from "@/lib/db";
 import User from "@/models/User";
 import SoftphoneWorkSession from "@/models/SoftphoneWorkSession";
+import EmployeeSale from "@/models/EmployeeSale";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,7 +26,19 @@ type PlainEmployee = {
   travelPay?: number;
   role?: string;
   staffType?: string;
+  type?: string;
+  userType?: string;
   status?: string;
+  isEmployee?: boolean;
+  employee?: boolean;
+  isStaff?: boolean;
+  staff?: boolean;
+};
+
+type SaleSummary = {
+  count: number;
+  totalSalesCents: number;
+  totalCommissionCents: number;
 };
 
 type PayrollEmployeeRow = {
@@ -45,14 +58,12 @@ type PayrollEmployeeRow = {
   totalPayment: number;
 };
 
-type SaleSummary = {
-  count: number;
-  totalSales: number;
-  totalCommission: number;
-};
-
 function cleanStr(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function cleanLower(value: unknown) {
+  return cleanStr(value).toLowerCase();
 }
 
 function toNumber(value: unknown) {
@@ -60,18 +71,55 @@ function toNumber(value: unknown) {
   return Number.isFinite(numberValue) ? numberValue : 0;
 }
 
-function round2(value: number) {
-  return Math.round((value + Number.EPSILON) * 100) / 100;
-}
+function getRawId(value: unknown) {
+  if (!value) return "";
 
-function getMongoDb() {
-  const mongoDb = mongoose.connection.db;
-
-  if (!mongoDb) {
-    throw new Error("החיבור למסד הנתונים לא זמין");
+  if (value instanceof mongoose.Types.ObjectId) {
+    return value.toString();
   }
 
-  return mongoDb;
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "_id" in value &&
+    value._id
+  ) {
+    return getRawId(value._id);
+  }
+
+  return String(value).trim();
+}
+
+function moneyToCents(value: unknown) {
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) return 0;
+    return Math.round(value * 100);
+  }
+
+  if (typeof value === "string") {
+    const cleaned = value
+      .trim()
+      .replace(/[₪,\s]/g, "")
+      .replace(/[^\d.-]/g, "");
+
+    const numberValue = Number(cleaned);
+
+    if (!Number.isFinite(numberValue)) return 0;
+
+    return Math.round(numberValue * 100);
+  }
+
+  return 0;
+}
+
+function centsToMoney(value: number) {
+  if (!Number.isFinite(value)) return 0;
+  return value / 100;
+}
+
+function roundHours(value: number) {
+  if (!Number.isFinite(value)) return 0;
+  return Math.round(value * 10000) / 10000;
 }
 
 function getMonthRange(month: string) {
@@ -99,6 +147,54 @@ function getMonthRange(month: string) {
   };
 }
 
+function isRealEmployee(employee: PlainEmployee) {
+  const role = cleanLower(employee.role);
+  const staffType = cleanLower(employee.staffType);
+  const type = cleanLower(employee.type);
+  const userType = cleanLower(employee.userType);
+
+  const blockedValues = [
+    "admin",
+    "user",
+    "client",
+    "customer",
+    "producer",
+    "venue_owner",
+    "venueowner",
+    "venue",
+    "owner",
+  ];
+
+  if (blockedValues.includes(role)) return false;
+  if (blockedValues.includes(staffType)) return false;
+  if (blockedValues.includes(type)) return false;
+  if (blockedValues.includes(userType)) return false;
+
+  const allowedValues = [
+    "staff",
+    "employee",
+    "worker",
+    "representative",
+    "sales",
+    "caller",
+    "call_agent",
+    "phone_agent",
+    "support",
+  ];
+
+  if (allowedValues.includes(role)) return true;
+  if (allowedValues.includes(staffType)) return true;
+  if (allowedValues.includes(type)) return true;
+  if (allowedValues.includes(userType)) return true;
+
+  if (employee.isEmployee === true) return true;
+  if (employee.employee === true) return true;
+  if (employee.isStaff === true) return true;
+  if (employee.staff === true) return true;
+
+  return false;
+}
+
 function getEmployeeName(employee: PlainEmployee) {
   return (
     cleanStr(employee.fullName) ||
@@ -113,19 +209,26 @@ function getEmployeeIdNumber(employee: PlainEmployee) {
 }
 
 function getHourlyRate(employee: PlainEmployee) {
-  return toNumber(employee.hourlyRate);
+  return centsToMoney(moneyToCents(employee.hourlyRate));
 }
 
 function getTravelPayment(employee: PlainEmployee) {
-  return toNumber(employee.travelAmount) || toNumber(employee.travelPay);
+  return centsToMoney(
+    moneyToCents(employee.travelAmount) || moneyToCents(employee.travelPay)
+  );
 }
 
 function getSessionStart(session: Record<string, unknown>) {
   return (
-    session.startTime ||
     session.startedAt ||
-    session.shiftStart ||
+    session.startTime ||
+    session.actualStart ||
+    session.softphoneStart ||
+    session.clockIn ||
     session.clockInAt ||
+    session.loginAt ||
+    session.startAt ||
+    session.shiftStart ||
     session.createdAt ||
     null
   );
@@ -133,10 +236,15 @@ function getSessionStart(session: Record<string, unknown>) {
 
 function getSessionEnd(session: Record<string, unknown>) {
   return (
-    session.endTime ||
     session.endedAt ||
-    session.shiftEnd ||
+    session.endTime ||
+    session.actualEnd ||
+    session.softphoneEnd ||
+    session.clockOut ||
     session.clockOutAt ||
+    session.logoutAt ||
+    session.endAt ||
+    session.shiftEnd ||
     session.updatedAt ||
     null
   );
@@ -153,9 +261,9 @@ function getSessionHours(session: Record<string, unknown>) {
 
   const explicitMinutes =
     toNumber(session.totalMinutes) ||
+    toNumber(session.workMinutes) ||
     toNumber(session.minutes) ||
-    toNumber(session.durationMinutes) ||
-    toNumber(session.workMinutes);
+    toNumber(session.durationMinutes);
 
   if (explicitMinutes > 0) return explicitMinutes / 60;
 
@@ -178,48 +286,68 @@ function getSessionHours(session: Record<string, unknown>) {
   return diffMs / 1000 / 60 / 60;
 }
 
-function getRawId(value: unknown) {
-  if (!value) return "";
+function isDateInRange(value: unknown, start: Date, end: Date) {
+  if (!value) return false;
 
-  if (value instanceof mongoose.Types.ObjectId) {
-    return value.toString();
-  }
+  const date = new Date(String(value));
 
-  return cleanStr(String(value));
+  if (Number.isNaN(date.getTime())) return false;
+
+  return date.getTime() >= start.getTime() && date.getTime() < end.getTime();
 }
 
-function getEmployeeIdFromSale(sale: Record<string, unknown>) {
+function getSaleDate(sale: Record<string, unknown>) {
+  return (
+    sale.paidAt ||
+    sale.saleDate ||
+    sale.soldAt ||
+    sale.createdAt ||
+    sale.updatedAt ||
+    null
+  );
+}
+
+function getSaleEmployeeId(sale: Record<string, unknown>) {
   return (
     getRawId(sale.employeeId) ||
     getRawId(sale.staffId) ||
     getRawId(sale.sellerId) ||
-    getRawId(sale.createdBy) ||
-    getRawId(sale.userId) ||
-    getRawId(sale.workerId)
+    getRawId(sale.workerId) ||
+    getRawId(sale.createdBy)
   );
 }
 
-function getSaleDate(sale: Record<string, unknown>) {
-  return sale.createdAt || sale.saleDate || sale.paidAt || sale.updatedAt || null;
-}
-
-function getSaleAmount(sale: Record<string, unknown>) {
+function getSaleAmountCents(sale: Record<string, unknown>) {
   return (
-    toNumber(sale.totalAmount) ||
-    toNumber(sale.amount) ||
-    toNumber(sale.price) ||
-    toNumber(sale.total) ||
-    toNumber(sale.finalPrice)
+    moneyToCents(sale.grossAmount) ||
+    moneyToCents(sale.dealAmountAfterVat) ||
+    moneyToCents(sale.netAmount) ||
+    moneyToCents(sale.totalAmount) ||
+    moneyToCents(sale.amount) ||
+    moneyToCents(sale.price) ||
+    moneyToCents(sale.total) ||
+    moneyToCents(sale.finalPrice)
   );
 }
 
-function getSaleCommission(sale: Record<string, unknown>) {
+function getSaleCommissionCents(sale: Record<string, unknown>) {
   return (
-    toNumber(sale.employeeCommission) ||
-    toNumber(sale.commission) ||
-    toNumber(sale.commissionAmount) ||
-    toNumber(sale.staffCommission) ||
-    toNumber(sale.workerCommission)
+    moneyToCents(sale.commissionAmount) ||
+    moneyToCents(sale.employeeCommission) ||
+    moneyToCents(sale.commission) ||
+    moneyToCents(sale.staffCommission) ||
+    moneyToCents(sale.workerCommission)
+  );
+}
+
+function isCancelledSale(sale: Record<string, unknown>) {
+  const status = cleanLower(sale.status);
+
+  return (
+    status === "cancelled" ||
+    status === "canceled" ||
+    status === "refunded" ||
+    status === "deleted"
   );
 }
 
@@ -240,15 +368,50 @@ function formatDateTime(value: Date) {
 async function getEmployees() {
   const employees = await User.find({
     $or: [
-      { role: "staff" },
-      { role: "employee" },
-      { staffType: { $exists: true, $ne: "" } },
+      {
+        role: {
+          $in: [
+            "staff",
+            "employee",
+            "worker",
+            "representative",
+            "sales",
+            "caller",
+            "call_agent",
+            "phone_agent",
+            "support",
+          ],
+        },
+      },
+      {
+        staffType: {
+          $in: [
+            "staff",
+            "employee",
+            "worker",
+            "representative",
+            "sales",
+            "caller",
+            "call_agent",
+            "phone_agent",
+            "support",
+          ],
+        },
+      },
+      { isEmployee: true },
+      { employee: true },
+      { isStaff: true },
+      { staff: true },
     ],
+    role: { $nin: ["user", "client", "customer", "producer", "venue_owner"] },
   })
-    .lean<PlainEmployee[]>()
+    .select(
+      "_id name fullName email phone address idNumber employeeIdNumber startDate endDate hourlyRate travelAmount travelPay role staffType type userType status isEmployee employee isStaff staff"
+    )
+    .lean()
     .exec();
 
-  return employees;
+  return (employees as PlainEmployee[]).filter(isRealEmployee);
 }
 
 async function getEmployeeHoursByMonth(
@@ -268,14 +431,21 @@ async function getEmployeeHoursByMonth(
       { staffId: { $in: objectIds } },
       { userId: { $in: employeeIds } },
       { userId: { $in: objectIds } },
+      { workerId: { $in: employeeIds } },
+      { workerId: { $in: objectIds } },
     ],
     $and: [
       {
         $or: [
-          { startTime: { $gte: start, $lt: end } },
           { startedAt: { $gte: start, $lt: end } },
-          { shiftStart: { $gte: start, $lt: end } },
+          { startTime: { $gte: start, $lt: end } },
+          { actualStart: { $gte: start, $lt: end } },
+          { softphoneStart: { $gte: start, $lt: end } },
+          { clockIn: { $gte: start, $lt: end } },
           { clockInAt: { $gte: start, $lt: end } },
+          { loginAt: { $gte: start, $lt: end } },
+          { startAt: { $gte: start, $lt: end } },
+          { shiftStart: { $gte: start, $lt: end } },
           { createdAt: { $gte: start, $lt: end } },
         ],
       },
@@ -287,89 +457,75 @@ async function getEmployeeHoursByMonth(
   const map = new Map<string, number>();
 
   for (const session of sessions) {
-    const rawEmployeeId =
+    const employeeId =
       getRawId(session.employeeId) ||
       getRawId(session.staffId) ||
-      getRawId(session.userId);
+      getRawId(session.userId) ||
+      getRawId(session.workerId);
 
-    if (!rawEmployeeId) continue;
+    if (!employeeId) continue;
 
     const hours = getSessionHours(session);
-    map.set(rawEmployeeId, round2((map.get(rawEmployeeId) || 0) + hours));
+    map.set(employeeId, roundHours((map.get(employeeId) || 0) + hours));
   }
 
   return map;
 }
 
 async function getSalesByMonth(employeeIds: string[], start: Date, end: Date) {
-  const salesCollections = ["staffsales", "sales", "adminsales", "orders"];
+  const objectIds = employeeIds
+    .filter((id) => mongoose.Types.ObjectId.isValid(id))
+    .map((id) => new mongoose.Types.ObjectId(id));
+
+  const sales = await EmployeeSale.find({
+    $or: [
+      { employeeId: { $in: employeeIds } },
+      { employeeId: { $in: objectIds } },
+      { staffId: { $in: employeeIds } },
+      { staffId: { $in: objectIds } },
+      { sellerId: { $in: employeeIds } },
+      { sellerId: { $in: objectIds } },
+      { workerId: { $in: employeeIds } },
+      { workerId: { $in: objectIds } },
+      { createdBy: { $in: employeeIds } },
+      { createdBy: { $in: objectIds } },
+    ],
+    $and: [
+      {
+        $or: [
+          { paidAt: { $gte: start, $lt: end } },
+          { saleDate: { $gte: start, $lt: end } },
+          { soldAt: { $gte: start, $lt: end } },
+          { createdAt: { $gte: start, $lt: end } },
+        ],
+      },
+    ],
+  })
+    .lean<Record<string, unknown>[]>()
+    .exec();
+
   const map = new Map<string, SaleSummary>();
-  const mongoDb = getMongoDb();
 
-  for (const collectionName of salesCollections) {
-    try {
-      const collectionExists = await mongoDb
-        .listCollections({ name: collectionName })
-        .hasNext();
+  for (const sale of sales) {
+    if (isCancelledSale(sale)) continue;
 
-      if (!collectionExists) continue;
+    const saleDate = getSaleDate(sale);
+    if (!isDateInRange(saleDate, start, end)) continue;
 
-      const sales = await mongoDb
-        .collection<Record<string, unknown>>(collectionName)
-        .find({
-          $or: [
-            { employeeId: { $in: employeeIds } },
-            { staffId: { $in: employeeIds } },
-            { sellerId: { $in: employeeIds } },
-            { createdBy: { $in: employeeIds } },
-            { userId: { $in: employeeIds } },
-            { workerId: { $in: employeeIds } },
-          ],
-          $and: [
-            {
-              $or: [
-                { createdAt: { $gte: start, $lt: end } },
-                { saleDate: { $gte: start, $lt: end } },
-                { paidAt: { $gte: start, $lt: end } },
-              ],
-            },
-          ],
-        })
-        .toArray();
+    const employeeId = getSaleEmployeeId(sale);
+    if (!employeeId) continue;
 
-      for (const sale of sales) {
-        const saleDate = getSaleDate(sale);
+    const current = map.get(employeeId) || {
+      count: 0,
+      totalSalesCents: 0,
+      totalCommissionCents: 0,
+    };
 
-        if (saleDate) {
-          const date = new Date(String(saleDate));
+    current.count += 1;
+    current.totalSalesCents += getSaleAmountCents(sale);
+    current.totalCommissionCents += getSaleCommissionCents(sale);
 
-          if (
-            Number.isNaN(date.getTime()) ||
-            date.getTime() < start.getTime() ||
-            date.getTime() >= end.getTime()
-          ) {
-            continue;
-          }
-        }
-
-        const employeeId = getEmployeeIdFromSale(sale);
-        if (!employeeId) continue;
-
-        const current = map.get(employeeId) || {
-          count: 0,
-          totalSales: 0,
-          totalCommission: 0,
-        };
-
-        current.count += 1;
-        current.totalSales += getSaleAmount(sale);
-        current.totalCommission += getSaleCommission(sale);
-
-        map.set(employeeId, current);
-      }
-    } catch (error) {
-      console.warn(`PAYROLL SALES COLLECTION SKIPPED: ${collectionName}`, error);
-    }
+    map.set(employeeId, current);
   }
 
   return map;
@@ -382,19 +538,23 @@ function buildRows(
 ): PayrollEmployeeRow[] {
   return employees.map((employee) => {
     const employeeId = String(employee._id);
-    const totalHours = round2(hoursMap.get(employeeId) || 0);
-    const hourlyRate = getHourlyRate(employee);
-    const hoursPayment = round2(totalHours * hourlyRate);
-    const travelPayment = getTravelPayment(employee);
+
+    const totalHours = roundHours(hoursMap.get(employeeId) || 0);
+
+    const hourlyRateCents = moneyToCents(employee.hourlyRate);
+    const hoursPaymentCents = Math.round(totalHours * hourlyRateCents);
+
+    const travelPaymentCents =
+      moneyToCents(employee.travelAmount) || moneyToCents(employee.travelPay);
 
     const sales = salesMap.get(employeeId) || {
       count: 0,
-      totalSales: 0,
-      totalCommission: 0,
+      totalSalesCents: 0,
+      totalCommissionCents: 0,
     };
 
-    const commissionTotal = round2(sales.totalCommission);
-    const totalPayment = round2(hoursPayment + travelPayment + commissionTotal);
+    const totalPaymentCents =
+      hoursPaymentCents + travelPaymentCents + sales.totalCommissionCents;
 
     return {
       employeeId,
@@ -404,13 +564,13 @@ function buildRows(
       address: cleanStr(employee.address),
       email: cleanStr(employee.email),
       totalHours,
-      hourlyRate,
-      hoursPayment,
-      travelPayment,
+      hourlyRate: centsToMoney(hourlyRateCents),
+      hoursPayment: centsToMoney(hoursPaymentCents),
+      travelPayment: centsToMoney(travelPaymentCents),
       salesCount: sales.count,
-      salesTotal: round2(sales.totalSales),
-      commissionTotal,
-      totalPayment,
+      salesTotal: centsToMoney(sales.totalSalesCents),
+      commissionTotal: centsToMoney(sales.totalCommissionCents),
+      totalPayment: centsToMoney(totalPaymentCents),
     };
   });
 }
@@ -456,12 +616,12 @@ function styleWorksheet(sheet: ExcelJS.Worksheet) {
   });
 
   sheet.getColumn(6).numFmt = "#,##0.00";
-  sheet.getColumn(7).numFmt = '₪#,##0.00';
-  sheet.getColumn(8).numFmt = '₪#,##0.00';
-  sheet.getColumn(9).numFmt = '₪#,##0.00';
-  sheet.getColumn(11).numFmt = '₪#,##0.00';
-  sheet.getColumn(12).numFmt = '₪#,##0.00';
-  sheet.getColumn(13).numFmt = '₪#,##0.00';
+  sheet.getColumn(7).numFmt = "₪#,##0.00";
+  sheet.getColumn(8).numFmt = "₪#,##0.00";
+  sheet.getColumn(9).numFmt = "₪#,##0.00";
+  sheet.getColumn(11).numFmt = "₪#,##0.00";
+  sheet.getColumn(12).numFmt = "₪#,##0.00";
+  sheet.getColumn(13).numFmt = "₪#,##0.00";
 }
 
 function buildWorkbook(rows: PayrollEmployeeRow[], monthLabel: string) {

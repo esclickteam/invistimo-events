@@ -16,8 +16,15 @@ type EmployeeRow = {
   endDate: string;
   hourlyRate: number;
   role: string;
+  staffType?: string;
+  type?: string;
+  userType?: string;
   status: string;
   updatedAt: string;
+  isEmployee?: boolean;
+  employee?: boolean;
+  isStaff?: boolean;
+  staff?: boolean;
 };
 
 const API = {
@@ -27,6 +34,10 @@ const API = {
 
 function cleanStr(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function cleanLower(value: unknown) {
+  return cleanStr(value).toLowerCase();
 }
 
 function getCurrentMonthValue() {
@@ -45,6 +56,54 @@ function getPayrollFileName(monthValue: string) {
   }
 
   return `דוח_משכורת_חודשי_${month}_${year}.xlsx`;
+}
+
+function isRealEmployee(employee: EmployeeRow) {
+  const role = cleanLower(employee.role);
+  const staffType = cleanLower(employee.staffType);
+  const type = cleanLower(employee.type);
+  const userType = cleanLower(employee.userType);
+
+  const blockedValues = [
+    "admin",
+    "user",
+    "client",
+    "customer",
+    "producer",
+    "venue_owner",
+    "venueowner",
+    "venue",
+    "owner",
+  ];
+
+  if (blockedValues.includes(role)) return false;
+  if (blockedValues.includes(staffType)) return false;
+  if (blockedValues.includes(type)) return false;
+  if (blockedValues.includes(userType)) return false;
+
+  const allowedValues = [
+    "staff",
+    "employee",
+    "worker",
+    "representative",
+    "sales",
+    "caller",
+    "call_agent",
+    "phone_agent",
+    "support",
+  ];
+
+  if (allowedValues.includes(role)) return true;
+  if (allowedValues.includes(staffType)) return true;
+  if (allowedValues.includes(type)) return true;
+  if (allowedValues.includes(userType)) return true;
+
+  if (employee.isEmployee === true) return true;
+  if (employee.employee === true) return true;
+  if (employee.isStaff === true) return true;
+  if (employee.staff === true) return true;
+
+  return false;
 }
 
 async function fetchJson(url: string) {
@@ -77,11 +136,14 @@ function formatDate(value?: string) {
 }
 
 function formatMoney(value: number) {
+  const safeValue = Number.isFinite(Number(value)) ? Number(value) : 0;
+
   return new Intl.NumberFormat("he-IL", {
     style: "currency",
     currency: "ILS",
+    minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(Number.isFinite(value) ? value : 0);
+  }).format(safeValue);
 }
 
 function getMissingFields(employee: EmployeeRow) {
@@ -318,20 +380,29 @@ export default function AdminEmployeesPage() {
         : [];
 
       setEmployees(
-        nextEmployees.map((employee) => ({
-          id: cleanStr(employee.id),
-          name: cleanStr(employee.name) || "עובד ללא שם",
-          email: cleanStr(employee.email),
-          phone: cleanStr(employee.phone),
-          address: cleanStr(employee.address),
-          idNumber: cleanStr(employee.idNumber),
-          startDate: cleanStr(employee.startDate),
-          endDate: cleanStr(employee.endDate),
-          hourlyRate: Number(employee.hourlyRate || 0),
-          role: cleanStr(employee.role),
-          status: cleanStr(employee.status),
-          updatedAt: cleanStr(employee.updatedAt),
-        }))
+        nextEmployees
+          .map((employee) => ({
+            id: cleanStr(employee.id),
+            name: cleanStr(employee.name) || "עובד ללא שם",
+            email: cleanStr(employee.email),
+            phone: cleanStr(employee.phone),
+            address: cleanStr(employee.address),
+            idNumber: cleanStr(employee.idNumber),
+            startDate: cleanStr(employee.startDate),
+            endDate: cleanStr(employee.endDate),
+            hourlyRate: Number(employee.hourlyRate || 0),
+            role: cleanStr(employee.role),
+            staffType: cleanStr(employee.staffType),
+            type: cleanStr(employee.type),
+            userType: cleanStr(employee.userType),
+            status: cleanStr(employee.status),
+            updatedAt: cleanStr(employee.updatedAt),
+            isEmployee: Boolean(employee.isEmployee),
+            employee: Boolean(employee.employee),
+            isStaff: Boolean(employee.isStaff),
+            staff: Boolean(employee.staff),
+          }))
+          .filter(isRealEmployee)
       );
     } catch (loadError) {
       console.error("LOAD ADMIN EMPLOYEES FAILED:", loadError);
