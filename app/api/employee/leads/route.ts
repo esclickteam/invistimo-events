@@ -9,6 +9,8 @@ import CustomerFile from "@/models/CustomerFile";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+void User;
+
 function cleanString(value: unknown) {
   return String(value || "").trim();
 }
@@ -25,9 +27,7 @@ function toObjectId(value: unknown) {
 
 function isEmployeeAllowed(user: any, auth: any) {
   const role = cleanString(user?.role || auth?.role).toLowerCase();
-  const staffType = cleanString(
-    user?.staffType || auth?.staffType,
-  ).toLowerCase();
+  const staffType = cleanString(user?.staffType || auth?.staffType).toLowerCase();
 
   return (
     role === "staff" ||
@@ -51,7 +51,7 @@ async function requireEmployee(req: NextRequest) {
           error: "UNAUTHORIZED",
           message: "אין הרשאה לצפייה בלידים",
         },
-        { status: 401 },
+        { status: 401 }
       ),
     };
   }
@@ -67,7 +67,7 @@ async function requireEmployee(req: NextRequest) {
           error: "INVALID_EMPLOYEE_ID",
           message: "משתמש עובד לא תקין",
         },
-        { status: 400 },
+        { status: 400 }
       ),
     };
   }
@@ -85,7 +85,7 @@ async function requireEmployee(req: NextRequest) {
           error: "EMPLOYEE_NOT_FOUND",
           message: "עובד לא נמצא",
         },
-        { status: 404 },
+        { status: 404 }
       ),
     };
   }
@@ -99,7 +99,7 @@ async function requireEmployee(req: NextRequest) {
           error: "FORBIDDEN",
           message: "אין הרשאה לצפייה בלידים",
         },
-        { status: 403 },
+        { status: 403 }
       ),
     };
   }
@@ -164,7 +164,11 @@ export async function GET(req: NextRequest) {
     }
 
     const leads = await CustomerFile.find(filter)
-      .populate("assignedStaffIds", "_id name email role staffType")
+      .populate({
+        path: "assignedStaffIds",
+        model: User,
+        select: "_id name email role staffType",
+      })
       .sort({ updatedAt: -1, createdAt: -1 })
       .limit(300)
       .lean();
@@ -179,7 +183,7 @@ export async function GET(req: NextRequest) {
         headers: {
           "Cache-Control": "no-store",
         },
-      },
+      }
     );
   } catch (error) {
     console.error("GET EMPLOYEE LEADS ERROR:", error);
@@ -190,7 +194,7 @@ export async function GET(req: NextRequest) {
         error: "SERVER_ERROR",
         message: "שגיאה בטעינת הלידים של העובד",
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
