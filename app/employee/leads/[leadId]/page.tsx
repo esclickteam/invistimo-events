@@ -139,6 +139,14 @@ function cleanText(value: unknown) {
   return String(value || "").trim();
 }
 
+function getFirstName(value: unknown) {
+  const clean = cleanText(value);
+
+  if (!clean) return "";
+
+  return clean.split(/\s+/).filter(Boolean)[0] || "";
+}
+
 function formatDate(value?: string | Date) {
   if (!value) return "-";
 
@@ -463,8 +471,10 @@ export default function EmployeeLeadDetailsPage() {
   }, [lead]);
 
   const employeeName = useMemo(() => {
+    const firstName = getFirstName(assignedStaff?.name);
+
     return (
-      cleanText(assignedStaff?.name) ||
+      firstName ||
       cleanText(assignedStaff?.email) ||
       "נציגת השירות"
     );
