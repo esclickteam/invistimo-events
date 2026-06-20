@@ -98,6 +98,7 @@ function getModeTitle(mode: PreRsvpType) {
 /* ================= COMPONENT ================= */
 
 export default function PreRsvpTab({
+  invitationId,
   invitationTitle,
   eventDate,
   eventLocation,
@@ -165,15 +166,36 @@ export default function PreRsvpTab({
     setInvitationOnlyImage("");
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
+    const isSaveTheDate = activeMode === "save_the_date";
+
+    const templateName = isSaveTheDate
+      ? "save_the_date_image_he"
+      : "event_invitation_image_he";
+
+    const templateVariables = isSaveTheDate
+      ? {
+          saveTheDateTitle: cleanString(saveTheDateTitle), // {{1}}
+          eventDate: cleanString(eventDate), // {{2}}
+        }
+      : {
+          invitationTitle: cleanString(invitationTitle), // {{1}}
+          eventDate: cleanString(eventDate), // {{2}}
+          eventLocation: cleanString(eventLocation), // {{3}}
+        };
+
     const payload = {
+      invitationId,
       messageType: activeMode,
-      channel: "whatsapp",
+      channel: "whatsapp" as const,
       sendTiming,
       scheduledDate: sendTiming === "scheduled" ? scheduledDate : "",
       scheduledTime: sendTiming === "scheduled" ? scheduledTime : "",
-      saveTheDateTitle:
-        activeMode === "save_the_date" ? saveTheDateTitle : "",
+
+      templateName,
+      templateVariables,
+
+      saveTheDateTitle: isSaveTheDate ? cleanString(saveTheDateTitle) : "",
       templateMessage: currentTemplate,
       previewMessage,
       imageUrl: currentImage,
@@ -183,8 +205,8 @@ export default function PreRsvpTab({
 
     alert(
       sendTiming === "scheduled"
-        ? "בשלב הבא נחבר את זה ל־API של תזמון וואטסאפ"
-        : "בשלב הבא נחבר את זה ל־API של שליחה מיידית בוואטסאפ"
+        ? "הנתונים מוכנים לתזמון. בשלב הבא נחבר API שישמור את זה ב-ScheduledMessage."
+        : "הנתונים מוכנים לשליחה מיידית. בשלב הבא נחבר API שיכניס את זה ל-WhatsappQueue."
     );
   }
 

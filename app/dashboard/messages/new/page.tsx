@@ -247,7 +247,6 @@ export default function NewMessagesPage() {
         md:pt-12
       "
     >
-      {/* Background decoration */}
       <div
         className="
           pointer-events-none
@@ -286,7 +285,6 @@ export default function NewMessagesPage() {
       />
 
       <div className="relative z-10 mx-auto max-w-6xl space-y-8">
-        {/* Header */}
         <header className="text-center">
           <div
             className="
@@ -362,7 +360,6 @@ export default function NewMessagesPage() {
           </p>
         </header>
 
-        {/* Tabs */}
         <section
           className="
             mx-auto
@@ -411,7 +408,6 @@ export default function NewMessagesPage() {
           </div>
         </section>
 
-        {/* Content */}
         <main
           className="
             relative
@@ -483,7 +479,13 @@ export default function NewMessagesPage() {
 
 /* ================= Pre RSVP Tab ================= */
 
-function PreRsvpTab({ meta }: { invitationId: string; meta: MessageMeta }) {
+function PreRsvpTab({
+  invitationId,
+  meta,
+}: {
+  invitationId: string;
+  meta: MessageMeta;
+}) {
   const [activePreTab, setActivePreTab] =
     useState<PreRsvpType>("save_the_date");
 
@@ -498,10 +500,22 @@ function PreRsvpTab({ meta }: { invitationId: string; meta: MessageMeta }) {
   const [saveTheDateImage, setSaveTheDateImage] = useState("");
   const [invitationOnlyImage, setInvitationOnlyImage] = useState("");
 
+  const [saveTheDateImageFile, setSaveTheDateImageFile] =
+    useState<File | null>(null);
+  const [invitationOnlyImageFile, setInvitationOnlyImageFile] =
+    useState<File | null>(null);
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const currentMessage = getCurrentTemplate(activePreTab);
 
   const currentImage =
     activePreTab === "save_the_date" ? saveTheDateImage : invitationOnlyImage;
+
+  const currentImageFile =
+    activePreTab === "save_the_date"
+      ? saveTheDateImageFile
+      : invitationOnlyImageFile;
 
   const previewMessage = useMemo(() => {
     return replaceMessageVariables({
@@ -524,50 +538,152 @@ function PreRsvpTab({ meta }: { invitationId: string; meta: MessageMeta }) {
     if (activePreTab === "save_the_date") {
       if (saveTheDateImage) URL.revokeObjectURL(saveTheDateImage);
       setSaveTheDateImage(imageUrl);
+      setSaveTheDateImageFile(file);
       return;
     }
 
     if (invitationOnlyImage) URL.revokeObjectURL(invitationOnlyImage);
     setInvitationOnlyImage(imageUrl);
+    setInvitationOnlyImageFile(file);
   }
 
   function handleRemoveImage() {
     if (activePreTab === "save_the_date") {
       if (saveTheDateImage) URL.revokeObjectURL(saveTheDateImage);
       setSaveTheDateImage("");
+      setSaveTheDateImageFile(null);
       return;
     }
 
     if (invitationOnlyImage) URL.revokeObjectURL(invitationOnlyImage);
     setInvitationOnlyImage("");
+    setInvitationOnlyImageFile(null);
   }
 
-  function handleSubmit() {
-    const payload = {
-      messageType: activePreTab,
-      channel: "whatsapp",
-      sendTiming,
-      scheduledDate: sendTiming === "scheduled" ? scheduledDate : "",
-      scheduledTime: sendTiming === "scheduled" ? scheduledTime : "",
-      saveTheDateTitle:
-        activePreTab === "save_the_date" ? saveTheDateTitle : "",
-      message: currentMessage,
-      previewMessage,
-      imageUrl: currentImage,
-    };
+  async function handleSubmit() {
+    try {
+      if (isSubmitting) return;
 
-    console.log("PRE RSVP SEND PAYLOAD:", payload);
+      const isSaveTheDate = activePreTab === "save_the_date";
 
-    alert(
-      sendTiming === "scheduled"
-        ? "בשלב הבא נחבר את התזמון ל־API של WhatsApp"
-        : "בשלב הבא נחבר שליחה מיידית ל־API של WhatsApp"
-    );
+      const cleanInvitationId = cleanString(invitationId);
+      const cleanSaveTheDateTitle = cleanString(saveTheDateTitle);
+      const cleanEventTitle = cleanString(meta.invitationTitle);
+      const cleanEventDate = cleanString(meta.eventDate);
+      const cleanEventLocation = cleanString(meta.eventLocation);
+
+      if (!cleanInvitationId) {
+        alert("לא נמצאה הזמנה פעילה לשליחה.");
+        return;
+      }
+
+      if (sendTiming === "scheduled" && (!scheduledDate || !scheduledTime)) {
+        alert("בחרי תאריך ושעה לשליחה מתוזמנת.");
+        return;
+      }
+
+      if (isSaveTheDate && !cleanSaveTheDateTitle) {
+        alert("יש להזין כותרת מתחת ל־Save The Date.");
+        return;
+      }
+
+      if (!isSaveTheDate && !cleanEventTitle) {
+        alert("חסר שם אירוע לשליחת ההזמנה.");
+        return;
+      }
+
+      if (!cleanEventDate) {
+        alert("חסר תאריך אירוע לשליחת ההודעה.");
+        return;
+      }
+
+      if (!isSaveTheDate && !cleanEventLocation) {
+        alert("חסר מיקום אירוע לשליחת ההזמנה.");
+        return;
+      }
+
+      const templateName = isSaveTheDate
+        ? "save_the_date_image_he"
+        : "event_invitation_image_he";
+
+      const templateVariables = isSaveTheDate
+        ? {
+            saveTheDateTitle: cleanSaveTheDateTitle,
+            eventDate: cleanEventDate,
+          }
+        : {
+            invitationTitle: cleanEventTitle,
+            eventDate: cleanEventDate,
+            eventLocation: cleanEventLocation,
+          };
+
+      const payload = {
+        invitationId: cleanInvitationId,
+        messageType: activePreTab,
+        channel: "whatsapp",
+        sendTiming,
+        scheduledDate: sendTiming === "scheduled" ? scheduledDate : "",
+        scheduledTime: sendTiming === "scheduled" ? scheduledTime : "",
+        templateName,
+        templateVariables,
+        saveTheDateTitle: isSaveTheDate ? cleanSaveTheDateTitle : "",
+        message: currentMessage,
+        previewMessage,
+        hasImage: Boolean(currentImageFile),
+      };
+
+      console.log("PRE RSVP SEND PAYLOAD:", payload);
+
+      const formData = new FormData();
+
+      formData.append("invitationId", payload.invitationId);
+      formData.append("messageType", payload.messageType);
+      formData.append("channel", payload.channel);
+      formData.append("sendTiming", payload.sendTiming);
+      formData.append("scheduledDate", payload.scheduledDate);
+      formData.append("scheduledTime", payload.scheduledTime);
+      formData.append("templateName", payload.templateName);
+      formData.append(
+        "templateVariables",
+        JSON.stringify(payload.templateVariables)
+      );
+      formData.append("saveTheDateTitle", payload.saveTheDateTitle);
+      formData.append("message", payload.message);
+      formData.append("previewMessage", payload.previewMessage);
+
+      if (currentImageFile) {
+        formData.append("image", currentImageFile);
+      }
+
+      setIsSubmitting(true);
+
+      const res = await fetch("/api/messages/pre-rsvp/whatsapp", {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || data?.success === false) {
+        throw new Error(data?.error || "שליחת הבקשה נכשלה");
+      }
+
+      alert(
+        sendTiming === "scheduled"
+          ? "הודעת הוואטסאפ תוזמנה בהצלחה."
+          : "הודעת הוואטסאפ נשלחה לשליחה מיידית."
+      );
+    } catch (err: any) {
+      console.error("❌ PRE RSVP WHATSAPP SUBMIT ERROR:", err);
+      alert(err?.message || "שגיאה בשליחת הודעת וואטסאפ.");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
     <div className="grid grid-cols-1 gap-6 p-5 md:p-8 lg:grid-cols-[460px_1fr]">
-      {/* Preview side */}
       <div>
         <div
           className="
@@ -630,9 +746,7 @@ function PreRsvpTab({ meta }: { invitationId: string; meta: MessageMeta }) {
         </div>
       </div>
 
-      {/* Editor side */}
       <div className="space-y-6">
-        {/* Sub tabs */}
         <Panel
           icon="💌"
           title="טרום אישורי הגעה"
@@ -657,7 +771,6 @@ function PreRsvpTab({ meta }: { invitationId: string; meta: MessageMeta }) {
           </div>
         </Panel>
 
-        {/* Channel */}
         <Panel
           icon="📩"
           title="ערוץ שליחה"
@@ -702,7 +815,6 @@ function PreRsvpTab({ meta }: { invitationId: string; meta: MessageMeta }) {
           </div>
         </Panel>
 
-        {/* Audience */}
         <Panel
           icon="👥"
           title="קהל יעד"
@@ -717,7 +829,6 @@ function PreRsvpTab({ meta }: { invitationId: string; meta: MessageMeta }) {
           </div>
         </Panel>
 
-        {/* Template settings */}
         <Panel
           icon="✍️"
           title={
@@ -953,7 +1064,6 @@ function PreRsvpTab({ meta }: { invitationId: string; meta: MessageMeta }) {
           </div>
         </Panel>
 
-        {/* Sending */}
         <Panel
           icon="📥"
           title="שליחת הודעה"
@@ -1041,6 +1151,7 @@ function PreRsvpTab({ meta }: { invitationId: string; meta: MessageMeta }) {
             <button
               type="button"
               onClick={handleSubmit}
+              disabled={isSubmitting}
               className="
                 w-full
                 rounded-[24px]
@@ -1054,11 +1165,16 @@ function PreRsvpTab({ meta }: { invitationId: string; meta: MessageMeta }) {
                 transition
                 hover:scale-[1.01]
                 active:scale-[0.99]
+                disabled:cursor-not-allowed
+                disabled:opacity-60
+                disabled:hover:scale-100
               "
             >
-              {sendTiming === "scheduled"
-                ? "תזמן שליחה בוואטסאפ ⏱️"
-                : "שליחה מיידית בוואטסאפ 🚀"}
+              {isSubmitting
+                ? "שולח בקשה..."
+                : sendTiming === "scheduled"
+                  ? "תזמן שליחה בוואטסאפ ⏱️"
+                  : "שליחה מיידית בוואטסאפ 🚀"}
             </button>
           </div>
         </Panel>

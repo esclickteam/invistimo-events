@@ -26,7 +26,9 @@ export type WhatsappQueueType =
   | "reminder"
   | "thankyou"
   | "table"
-  | "custom";
+  | "custom"
+  | "save_the_date"
+  | "invitation_only";
 
 export type WhatsappRoundNumber = 1 | 2 | 3;
 
@@ -71,11 +73,19 @@ const WhatsappQueueSchema = new Schema(
     },
 
     type: {
-      type: String,
-      enum: ["rsvp", "reminder", "thankyou", "table", "custom"],
-      default: "rsvp",
-      index: true,
-    },
+  type: String,
+  enum: [
+    "rsvp",
+    "reminder",
+    "thankyou",
+    "table",
+    "custom",
+    "save_the_date",
+    "invitation_only",
+  ],
+  default: "rsvp",
+  index: true,
+},
 
     /**
      * round וגם roundNumber נשמרים במקביל כדי לא לשבור קוד קיים/חדש.

@@ -18,14 +18,18 @@ export type ScheduledMessageType =
   | "reminder"
   | "thankyou"
   | "table"
-  | "custom";
+  | "custom"
+  | "save_the_date"
+  | "invitation_only";
 
 export type MessageTemplateKey =
   | "rsvp"
   | "table"
   | "custom"
   | "reminder"
-  | "thankyou";
+  | "thankyou"
+  | "save_the_date"
+  | "invitation_only";
 
 export type ScheduledAudienceFilter = "all" | "pending" | "withTable";
 
@@ -190,12 +194,20 @@ const ScheduledMessageSchema = new Schema<ScheduledMessageDocument>(
     },
 
     type: {
-      type: String,
-      enum: ["rsvp", "reminder", "thankyou", "table", "custom"],
-      default: "rsvp",
-      required: true,
-      index: true,
-    },
+  type: String,
+  enum: [
+    "rsvp",
+    "reminder",
+    "thankyou",
+    "table",
+    "custom",
+    "save_the_date",
+    "invitation_only",
+  ],
+  default: "rsvp",
+  required: true,
+  index: true,
+},
 
     filter: {
       type: String,
@@ -221,11 +233,19 @@ const ScheduledMessageSchema = new Schema<ScheduledMessageDocument>(
     ====================== */
 
     templateKey: {
-      type: String,
-      enum: ["rsvp", "table", "custom", "reminder", "thankyou"],
-      required: true,
-      index: true,
-    },
+  type: String,
+  enum: [
+    "rsvp",
+    "table",
+    "custom",
+    "reminder",
+    "thankyou",
+    "save_the_date",
+    "invitation_only",
+  ],
+  required: true,
+  index: true,
+},
 
     roundNumber: {
       type: Number,
