@@ -96,10 +96,11 @@ function getHighQualityCloudinaryImageUrl(value: unknown) {
     .replace(/^c_fill[^/]*\//, "")
     .replace(/^c_fit[^/]*\//, "")
     .replace(/^c_pad[^/]*\//, "")
+    .replace(/^c_limit[^/]*\//, "")
     .replace(/^w_\d+[^/]*\//, "")
     .replace(/^h_\d+[^/]*\//, "");
 
-  return `${beforeUpload}/upload/q_100,f_png/${cleanedAfterUpload}`;
+  return `${beforeUpload}/upload/c_limit,w_2000,q_100,f_png/${cleanedAfterUpload}`;
 }
 
 function replaceMessageVariables({
@@ -334,9 +335,9 @@ export default function PreRsvpTab({
   );
 
   const previewImageUrl =
-  activeMode === "save_the_date"
-    ? currentImage
-    : currentImage || cleanHeaderImageUrl;
+    activeMode === "save_the_date"
+      ? currentImage
+      : currentImage || cleanHeaderImageUrl;
 
   const previewMessage = useMemo(() => {
     return replaceMessageVariables({
@@ -445,17 +446,10 @@ export default function PreRsvpTab({
           eventLocation: cleanString(eventLocation),
         };
 
-    const fallbackHeaderImageUrl = isSaveTheDate ? "" : cleanHeaderImageUrl;
-
-if (isSaveTheDate && !currentImageFile) {
-  alert("חובה להעלות תמונה ל־Save The Date.");
-  return;
-}
-
-if (!isSaveTheDate && !currentImageFile && !fallbackHeaderImageUrl) {
-  alert("חובה להעלות תמונה או לוודא שקיימת תמונת הזמנה איכותית.");
-  return;
-}
+    if (isSaveTheDate && !currentImageFile) {
+      alert("חובה להעלות תמונה ל־Save The Date.");
+      return;
+    }
 
     const formData = new FormData();
 
@@ -495,15 +489,13 @@ if (!isSaveTheDate && !currentImageFile && !fallbackHeaderImageUrl) {
 
     /*
       חשוב:
-      לא שולחים blob / preview image בתור URL.
+      לא שולחים blob / preview image / headerImageUrl בתור URL לשליחה.
       אם המשתמש העלה קובץ ידנית — שולחים את הקובץ המקורי.
-      אם לא העלה — שולחים headerImageUrl איכותי מההזמנה.
+      אם לא העלה בהזמנה מוקדמת — השרת יבחר רק תמונה מקורית/מלאה מההזמנה.
     */
     if (currentImageFile) {
       formData.append("image", currentImageFile);
     }
-
-    formData.append("headerImageUrl", fallbackHeaderImageUrl);
 
     console.log("PRE RSVP WHATSAPP SUBMIT:", {
       invitationId: cleanInvitationId,
@@ -511,7 +503,7 @@ if (!isSaveTheDate && !currentImageFile && !fallbackHeaderImageUrl) {
       templateName,
       sendTiming,
       hasManualImageFile: Boolean(currentImageFile),
-      headerImageUrl: fallbackHeaderImageUrl,
+      serverShouldUseOriginalInvitationImage: !currentImageFile,
       templateVariables,
     });
 
@@ -784,10 +776,10 @@ if (!isSaveTheDate && !currentImageFile && !fallbackHeaderImageUrl) {
                       </div>
 
                       <div className="mt-1 text-xs font-bold text-[#8A7A6B]">
-  {activeMode === "save_the_date"
-    ? "ל־Save The Date יש להעלות תמונה ייעודית."
-    : "אם לא מעלים תמונה ידנית, תישלח תמונת ההזמנה המקורית."}
-</div>
+                        {activeMode === "save_the_date"
+                          ? "ל־Save The Date יש להעלות תמונה ייעודית."
+                          : "אם לא מעלים תמונה ידנית, השרת ישתמש רק בתמונת ההזמנה המקורית ולא בתמונת תצוגה."}
+                      </div>
                     </div>
                   </label>
                 )}
