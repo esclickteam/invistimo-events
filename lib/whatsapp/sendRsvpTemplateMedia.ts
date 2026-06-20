@@ -1,26 +1,50 @@
 export type SendRsvpTemplateMediaInput = {
   to: string;
 
-  // BODY VARIABLES
-  eventTitle: string; // {{1}}
-  eventDate: string; // {{2}} – סבב 1 בלבד
-  eventLocation: string; // {{3}} – סבב 1 בלבד
+  // BODY VARIABLES - RSVP
+  eventTitle?: string; // {{1}}
+  eventDate?: string; // {{2}}
+  eventLocation?: string; // {{3}}
 
   /**
    * קישור אישי מלא, לדוגמה:
    * https://www.invistimo.com/invite/INHtag6CZG?token=tSPo8g_1x5Li
+   *
+   * חובה רק בתבניות RSVP שיש להן כפתור.
    */
-  rsvpLink: string;
+  rsvpLink?: string;
 
   // HEADER
   headerImageUrl: string;
 
   templateName?: string;
   languageCode?: "he" | "he_IL" | string;
+
+  /**
+   * תמיכה בתבניות WhatsApp כלליות.
+   * לדוגמה:
+   * save_the_date_image_he
+   * event_invitation_image_he
+   */
+  templateVariables?: {
+    saveTheDateTitle?: string;
+    invitationTitle?: string;
+    eventDate?: string;
+    eventLocation?: string;
+  };
+
+  /**
+   * אם מגיע components מוכן מה-API/Worker,
+   * נשלח אותו כמו שהוא ל-WhatsApp.
+   */
+  components?: any[];
 };
 
 const ROUND1_TEMPLATE = "rsvp_invitation_media";
 const ROUND2_TEMPLATE = "rsvp_reminder_invistimo";
+
+const SAVE_THE_DATE_TEMPLATE = "save_the_date_image_he";
+const EVENT_INVITATION_TEMPLATE = "event_invitation_image_he";
 
 const DEFAULT_TEMPLATE_NAME = ROUND1_TEMPLATE;
 const DEFAULT_LANGUAGE_CODE = "he";
@@ -65,6 +89,13 @@ function normalizePhoneIL(phone: string): string {
   return p;
 }
 
+function isPreRsvpTemplate(templateName: string) {
+  return (
+    templateName === SAVE_THE_DATE_TEMPLATE ||
+    templateName === EVENT_INVITATION_TEMPLATE
+  );
+}
+
 function extractInviteSuffixForButton(rsvpLink: string): string {
   const u = new URL(rsvpLink.trim());
   const parts = u.pathname.split("/").filter(Boolean);
@@ -81,12 +112,59 @@ function extractInviteSuffixForButton(rsvpLink: string): string {
 
 function assertRequiredFields(input: SendRsvpTemplateMediaInput): void {
   if (!isNonEmptyString(input.to)) throw new Error("Missing field: to");
-  if (!isNonEmptyString(input.eventTitle))
-    throw new Error("Missing field: eventTitle");
-  if (!isNonEmptyString(input.rsvpLink))
-    throw new Error("Missing field: rsvpLink");
-  if (!isNonEmptyString(input.headerImageUrl))
+  if (!isNonEmptyString(input.headerImageUrl)) {
     throw new Error("Missing field: headerImageUrl");
+  }
+
+  const templateName = (input.templateName || DEFAULT_TEMPLATE_NAME).trim();
+
+  if (isPreRsvpTemplate(templateName)) {
+    if (templateName === SAVE_THE_DATE_TEMPLATE) {
+      const title =
+        input.templateVariables?.saveTheDateTitle || input.eventTitle;
+      const date = input.templateVariables?.eventDate || input.eventDate;
+
+      if (!isNonEmptyString(title)) {
+        throw new Error("Missing field: saveTheDateTitle");
+      }
+
+      if (!isNonEmptyString(date)) {
+        throw new Error("Missing field: eventDate");
+      }
+
+      return;
+    }
+
+    if (templateName === EVENT_INVITATION_TEMPLATE) {
+      const title =
+        input.templateVariables?.invitationTitle || input.eventTitle;
+      const date = input.templateVariables?.eventDate || input.eventDate;
+      const location =
+        input.templateVariables?.eventLocation || input.eventLocation;
+
+      if (!isNonEmptyString(title)) {
+        throw new Error("Missing field: invitationTitle");
+      }
+
+      if (!isNonEmptyString(date)) {
+        throw new Error("Missing field: eventDate");
+      }
+
+      if (!isNonEmptyString(location)) {
+        throw new Error("Missing field: eventLocation");
+      }
+
+      return;
+    }
+  }
+
+  if (!isNonEmptyString(input.eventTitle)) {
+    throw new Error("Missing field: eventTitle");
+  }
+
+  if (!isNonEmptyString(input.rsvpLink)) {
+    throw new Error("Missing field: rsvpLink");
+  }
 }
 
 async function safeParseResponse(res: Response): Promise<any> {
@@ -119,73 +197,190 @@ export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
     throw new Error("Invalid headerImageUrl (must be https)");
   }
 
-  const rsvpLink = String(input.rsvpLink ?? "").trim();
-  if (!isValidHttpsUrl(rsvpLink)) {
-    throw new Error("Invalid rsvpLink (must be https)");
-  }
-
-  const buttonUrlParam = extractInviteSuffixForButton(rsvpLink);
-
   const templateName = (input.templateName || DEFAULT_TEMPLATE_NAME).trim();
-  const languageCode = (input.languageCode || DEFAULT_LANGUAGE_CODE).trim();
+const languageCode = (input.languageCode || DEFAULT_LANGUAGE_CODE).trim();
 
+const customComponents = Array.isArray(input.components)
+  ? input.components
+  : null;
+
+let buttonUrlParam = "";
+let components: any[] = [];
+
+/* ================= COMPONENTS FROM API / WORKER ================= */
+
+if (customComponents && customComponents.length > 0) {
+  components = customComponents;
+} else {
   /* ================= BODY PARAMETERS ================= */
 
   let bodyParameters: { type: "text"; text: string }[] = [];
 
   if (templateName === ROUND1_TEMPLATE) {
-    // Round 1 requires 3 body params in the approved template.
-    // WhatsApp rejects empty text params, so we always provide fallbacks.
+    const rsvpLink = String(input.rsvpLink ?? "").trim();
+
+    if (!isValidHttpsUrl(rsvpLink)) {
+      throw new Error("Invalid rsvpLink (must be https)");
+    }
+
+    buttonUrlParam = extractInviteSuffixForButton(rsvpLink);
+
     bodyParameters = [
       { type: "text", text: safeTemplateText(input.eventTitle, "—") },
-      { type: "text", text: safeTemplateText(input.eventDate, "תאריך יעודכן בהמשך") },
-      { type: "text", text: safeTemplateText(input.eventLocation, "מיקום יישלח בהמשך") },
+      {
+        type: "text",
+        text: safeTemplateText(input.eventDate, "תאריך יעודכן בהמשך"),
+      },
+      {
+        type: "text",
+        text: safeTemplateText(input.eventLocation, "מיקום יישלח בהמשך"),
+      },
+    ];
+
+    components = [
+      {
+        type: "header",
+        parameters: [
+          {
+            type: "image",
+            image: { link: headerImageUrl },
+          },
+        ],
+      },
+      {
+        type: "body",
+        parameters: bodyParameters,
+      },
+      {
+        type: "button",
+        sub_type: "url",
+        index: "0",
+        parameters: [
+          {
+            type: "text",
+            text: safeTemplateText(buttonUrlParam, "invite"),
+          },
+        ],
+      },
     ];
   } else if (templateName === ROUND2_TEMPLATE) {
+    const rsvpLink = String(input.rsvpLink ?? "").trim();
+
+    if (!isValidHttpsUrl(rsvpLink)) {
+      throw new Error("Invalid rsvpLink (must be https)");
+    }
+
+    buttonUrlParam = extractInviteSuffixForButton(rsvpLink);
+
     bodyParameters = [
       { type: "text", text: safeTemplateText(input.eventTitle, "—") },
+    ];
+
+    components = [
+      {
+        type: "header",
+        parameters: [
+          {
+            type: "image",
+            image: { link: headerImageUrl },
+          },
+        ],
+      },
+      {
+        type: "body",
+        parameters: bodyParameters,
+      },
+      {
+        type: "button",
+        sub_type: "url",
+        index: "0",
+        parameters: [
+          {
+            type: "text",
+            text: safeTemplateText(buttonUrlParam, "invite"),
+          },
+        ],
+      },
+    ];
+  } else if (templateName === SAVE_THE_DATE_TEMPLATE) {
+    const title =
+      input.templateVariables?.saveTheDateTitle || input.eventTitle;
+    const date = input.templateVariables?.eventDate || input.eventDate;
+
+    bodyParameters = [
+      { type: "text", text: safeTemplateText(title, "—") },
+      {
+        type: "text",
+        text: safeTemplateText(date, "תאריך יעודכן בהמשך"),
+      },
+    ];
+
+    components = [
+      {
+        type: "header",
+        parameters: [
+          {
+            type: "image",
+            image: { link: headerImageUrl },
+          },
+        ],
+      },
+      {
+        type: "body",
+        parameters: bodyParameters,
+      },
+    ];
+  } else if (templateName === EVENT_INVITATION_TEMPLATE) {
+    const title =
+      input.templateVariables?.invitationTitle || input.eventTitle;
+    const date = input.templateVariables?.eventDate || input.eventDate;
+    const location =
+      input.templateVariables?.eventLocation || input.eventLocation;
+
+    bodyParameters = [
+      { type: "text", text: safeTemplateText(title, "—") },
+      {
+        type: "text",
+        text: safeTemplateText(date, "תאריך יעודכן בהמשך"),
+      },
+      {
+        type: "text",
+        text: safeTemplateText(location, "מיקום יישלח בהמשך"),
+      },
+    ];
+
+    components = [
+      {
+        type: "header",
+        parameters: [
+          {
+            type: "image",
+            image: { link: headerImageUrl },
+          },
+        ],
+      },
+      {
+        type: "body",
+        parameters: bodyParameters,
+      },
     ];
   } else {
     throw new Error(`Unsupported templateName "${templateName}"`);
   }
+}
 
-  /* ================= PAYLOAD ================= */
+/* ================= PAYLOAD ================= */
 
-  const payload = {
-    messaging_product: "whatsapp",
-    to,
-    type: "template",
-    template: {
-      name: templateName,
-      language: { code: languageCode },
-      components: [
-        {
-          type: "header",
-          parameters: [
-            {
-              type: "image",
-              image: { link: headerImageUrl },
-            },
-          ],
-        },
-        {
-          type: "body",
-          parameters: bodyParameters,
-        },
-        {
-          type: "button",
-          sub_type: "url",
-          index: "0",
-          parameters: [
-            {
-              type: "text",
-              text: safeTemplateText(buttonUrlParam, "invite"),
-            },
-          ],
-        },
-      ],
-    },
-  };
+const payload = {
+  messaging_product: "whatsapp",
+  to,
+  type: "template",
+  template: {
+    name: templateName,
+    language: { code: languageCode },
+    components,
+  },
+};
 
   const res = await fetch(D360_ENDPOINT, {
     method: "POST",

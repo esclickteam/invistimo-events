@@ -17,7 +17,14 @@ import {
 
 type Channel = "sms" | "whatsapp";
 type RoundNumber = 1 | 2 | 3;
-type ScheduleType = "rsvp" | "reminder" | "thankyou" | "table" | "custom";
+type ScheduleType =
+  | "rsvp"
+  | "reminder"
+  | "thankyou"
+  | "table"
+  | "custom"
+  | "save_the_date"
+  | "invitation_only";
 
 /* ======================================================
    HELPERS
@@ -63,7 +70,9 @@ function normalizeType(value: any): ScheduleType {
     value === "reminder" ||
     value === "thankyou" ||
     value === "table" ||
-    value === "custom"
+    value === "custom" ||
+    value === "save_the_date" ||
+    value === "invitation_only"
   ) {
     return value;
   }
@@ -490,6 +499,19 @@ async function markInvitationAfterSend({
 
     return;
   }
+
+
+  if (type === "save_the_date" || type === "invitation_only") {
+  console.log("✅ SCHEDULED PRE RSVP WHATSAPP SENT:", {
+    invitationId: String(schedule.invitationId),
+    channel,
+    type,
+    sent,
+  });
+
+  return;
+}
+
 
   if (type === "thankyou" || type === "custom") {
     const scheduledField = getThankYouScheduledField(channel);
