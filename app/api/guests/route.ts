@@ -158,6 +158,65 @@ function normalizeEmbeddedGuest(row: any, invitationId: string) {
   };
 }
 
+
+function normalizePreRsvpMessagesAccess(user: any) {
+  const preRsvpMessages = user?.salesUpsells?.preRsvpMessages || {};
+  const mode = cleanString(preRsvpMessages.mode || "none");
+
+  const saveTheDateEnabled = Boolean(
+    preRsvpMessages.saveTheDateEnabled ??
+      (mode === "save_the_date_only" || mode === "both")
+  );
+
+  const invitationOnlyEnabled = Boolean(
+    preRsvpMessages.invitationOnlyEnabled ??
+      (mode === "invitation_only" || mode === "both")
+  );
+
+  const saveTheDateSentCount = Number(
+    preRsvpMessages.saveTheDateSentCount ||
+      (mode === "save_the_date_only" ? preRsvpMessages.sentCount : 0) ||
+      0
+  );
+
+  const invitationOnlySentCount = Number(
+    preRsvpMessages.invitationOnlySentCount ||
+      (mode === "invitation_only" ? preRsvpMessages.sentCount : 0) ||
+      0
+  );
+
+  const saveTheDateSentAt =
+    preRsvpMessages.saveTheDateSentAt ||
+    (mode === "save_the_date_only" ? preRsvpMessages.sentAt : null) ||
+    null;
+
+  const invitationOnlySentAt =
+    preRsvpMessages.invitationOnlySentAt ||
+    (mode === "invitation_only" ? preRsvpMessages.sentAt : null) ||
+    null;
+
+  return {
+    enabled: Boolean(preRsvpMessages.enabled),
+    mode,
+    price: Number(preRsvpMessages.price || 0),
+    givenFree: Boolean(preRsvpMessages.givenFree),
+    notes: cleanString(preRsvpMessages.notes),
+
+    saveTheDateEnabled,
+    invitationOnlyEnabled,
+
+    saveTheDateSentCount,
+    saveTheDateSentAt,
+
+    invitationOnlySentCount,
+    invitationOnlySentAt,
+
+    sentCount: Number(preRsvpMessages.sentCount || 0),
+    sentAt: preRsvpMessages.sentAt || null,
+  };
+}
+
+
 async function canVenueOwnerAccessInvitation({
   userId,
   invitationId,
@@ -678,10 +737,28 @@ export async function GET(req: NextRequest) {
         guestsWithTable
       );
 
+      const invitationAccessOwnerId = ownerId || invitationUserId || userId;
+      const accessOwnerUser = invitationAccessOwnerId
+        ? await User.findById(invitationAccessOwnerId)
+            .select("salesUpsells.preRsvpMessages")
+            .lean()
+        : null;
+
+      const preRsvpMessages = normalizePreRsvpMessagesAccess(accessOwnerUser);
+
       return NextResponse.json({
         success: true,
         guests: guestsWithCallRounds,
         usage: null,
+        invitation: {
+          ...invitation,
+          _id: invitation._id ? String(invitation._id) : "",
+          eventId: invitation.eventId ? String(invitation.eventId) : null,
+          ownerId: ownerId || null,
+          userId: invitationUserId || null,
+          producerId: producerId || null,
+          preRsvpMessages,
+        },
       });
     }
 
