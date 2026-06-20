@@ -488,6 +488,132 @@ function buildIdempotencyKey({
   ].join(":");
 }
 
+function normalizePreRsvpAccessMode(value: unknown) {
+  const mode = cleanString(value);
+
+  if (
+    mode === "save_the_date_only" ||
+    mode === "invitation_only" ||
+    mode === "both"
+  ) {
+    return mode;
+  }
+
+  return "none";
+}
+
+function canUsePreRsvpMessageType({
+  preRsvpUpsell,
+  messageType,
+}: {
+  preRsvpUpsell: any;
+  messageType: PreRsvpMessageType;
+}) {
+  if (!preRsvpUpsell?.enabled) return false;
+
+  const mode = normalizePreRsvpAccessMode(preRsvpUpsell?.mode);
+
+  if (messageType === "save_the_date") {
+    return (
+      mode === "save_the_date_only" ||
+      mode === "both" ||
+      preRsvpUpsell?.saveTheDateEnabled === true
+    );
+  }
+
+  return (
+    mode === "invitation_only" ||
+    mode === "both" ||
+    preRsvpUpsell?.invitationOnlyEnabled === true
+  );
+}
+
+function getPreRsvpAlreadySent({
+  preRsvpUpsell,
+  messageType,
+}: {
+  preRsvpUpsell: any;
+  messageType: PreRsvpMessageType;
+}) {
+  if (messageType === "save_the_date") {
+    return (
+      Number(preRsvpUpsell?.saveTheDateSentCount || 0) >= 1 ||
+      Boolean(preRsvpUpsell?.saveTheDateSentAt)
+    );
+  }
+
+  return (
+    Number(preRsvpUpsell?.invitationOnlySentCount || 0) >= 1 ||
+    Boolean(preRsvpUpsell?.invitationOnlySentAt)
+  );
+}
+
+function getPreRsvpBlockedMessage({
+  preRsvpUpsell,
+  messageType,
+}: {
+  preRsvpUpsell: any;
+  messageType: PreRsvpMessageType;
+}) {
+  if (!preRsvpUpsell?.enabled) {
+    return "שירות Save The Date / הזמנה מוקדמת בוואטסאפ לא פתוח בחבילה שלך. ניתן לרכוש את השירות דרך נציג.";
+  }
+
+  if (getPreRsvpAlreadySent({ preRsvpUpsell, messageType })) {
+    return messageType === "save_the_date"
+      ? "הודעת Save The Date כבר נשלחה או תוזמנה בעבר ולכן לא ניתן לשלוח אותה שוב."
+      : "הודעת ההזמנה המוקדמת כבר נשלחה או תוזמנה בעבר ולכן לא ניתן לשלוח אותה שוב.";
+  }
+
+  return messageType === "save_the_date"
+    ? "בחבילה הנוכחית פתוחה רק שליחת הזמנה מוקדמת, ללא Save The Date."
+    : "בחבילה הנוכחית פתוח רק Save The Date, ללא שליחת הזמנה מוקדמת.";
+}
+
+async function markPreRsvpMessageUsed({
+  ownerId,
+  messageType,
+}: {
+  ownerId: string;
+  messageType: PreRsvpMessageType;
+}) {
+  const ownerObjectId = toObjectId(ownerId);
+
+  if (!ownerObjectId) {
+    throw new Error("לא נמצא בעלים תקין לעדכון נעילת השליחה.");
+  }
+
+  const now = new Date();
+
+  const setData: Record<string, any> = {
+    "salesUpsells.preRsvpMessages.sentAt": now,
+    "salesUpsells.preRsvpMessages.updatedAt": now,
+  };
+
+  const incData: Record<string, number> = {
+    "salesUpsells.preRsvpMessages.sentCount": 1,
+  };
+
+  if (messageType === "save_the_date") {
+    setData["salesUpsells.preRsvpMessages.saveTheDateSentAt"] = now;
+    incData["salesUpsells.preRsvpMessages.saveTheDateSentCount"] = 1;
+  }
+
+  if (messageType === "invitation_only") {
+    setData["salesUpsells.preRsvpMessages.invitationOnlySentAt"] = now;
+    incData["salesUpsells.preRsvpMessages.invitationOnlySentCount"] = 1;
+  }
+
+  await User.updateOne(
+    { _id: ownerObjectId },
+    {
+      $set: setData,
+      $inc: incData,
+    }
+  );
+}
+
+
 /* ================= ROUTE ================= */
 
 export async function POST(req: NextRequest) {
@@ -640,26 +766,20 @@ export async function POST(req: NextRequest) {
     const preRsvpUpsell = ownerUser?.salesUpsells?.preRsvpMessages;
 
     const hasPreRsvpAccess = Boolean(preRsvpUpsell?.enabled);
+    const messageTypeAllowed = canUsePreRsvpMessageType({
+      preRsvpUpsell,
+      messageType,
+    });
+    const preRsvpAlreadySent = getPreRsvpAlreadySent({
+      preRsvpUpsell,
+      messageType,
+    });
 
-    const preRsvpAlreadySent =
-      Number(preRsvpUpsell?.sentCount || 0) >= 1 ||
-      Boolean(preRsvpUpsell?.sentAt);
-
-    if (!hasPreRsvpAccess) {
+    if (!hasPreRsvpAccess || !messageTypeAllowed || preRsvpAlreadySent) {
       return NextResponse.json(
         {
           success: false,
-          error: "שירות Save The Date / הזמנה מוקדמת בוואטסאפ לא פתוח בחבילה שלך. ניתן לרכוש את השירות דרך נציג.",
-        },
-        { status: 403 }
-      );
-    }
-
-    if (preRsvpAlreadySent) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "הודעת Save The Date / הזמנה מוקדמת כבר נשלחה בעבר ולכן לא ניתן לשלוח אותה שוב.",
+          error: getPreRsvpBlockedMessage({ preRsvpUpsell, messageType }),
         },
         { status: 403 }
       );
@@ -861,6 +981,11 @@ export async function POST(req: NextRequest) {
         scheduledMessage = await ScheduledMessage.create(schedulePayload);
       }
 
+      await markPreRsvpMessageUsed({
+        ownerId,
+        messageType,
+      });
+
       return NextResponse.json({
         success: true,
         mode: "scheduled",
@@ -931,6 +1056,11 @@ export async function POST(req: NextRequest) {
 
     const inserted = await WhatsappQueue.insertMany(queueDocs, {
       ordered: false,
+    });
+
+    await markPreRsvpMessageUsed({
+      ownerId,
+      messageType,
     });
 
     return NextResponse.json({
