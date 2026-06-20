@@ -213,41 +213,55 @@ export async function POST(req: Request) {
     ========================= */
     console.log("🔑 HASHING PASSWORD...");
 
-    user.password = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
+    /*
+      חשוב מאוד:
+      לא משתמשים כאן ב-user.save().
+      save מפעיל hooks של User ועלול לבנות מחדש שדות שלא נטענו ב-select,
+      כולל salesUpsells.preRsvpMessages, ואז להפוך אותם ל-false/default.
+
+      לכן מעדכנים רק את השדות שקשורים להגדרת הסיסמה והרשאות קיימות,
+      בלי לגעת בשום salesUpsells / preRsvpMessages.
+    */
+    await User.updateOne(
+      { _id: user._id },
+      {
+        $set: {
+          password: hashedPassword,
+          needsPasswordSetup: false,
+
+          allowedMessageRounds,
+          "planLimits.allowedMessageRounds": allowedMessageRounds,
+          "planLimits.seatingEnabled": isVenueOwner
+            ? false
+            : accessModules.rsvpSeating,
+
+          accessModules,
+
+          includeDigitalSeating: isVenueOwner
+            ? false
+            : accessModules.rsvpSeating,
+
+          includeEventManagement: isVenueOwner
+            ? false
+            : accessModules.eventProduction,
+
+          selfManageEnabled: isVenueOwner
+            ? false
+            : accessModules.eventProduction,
+        },
+        $unset: {
+          resetPasswordToken: "",
+          resetPasswordExpires: "",
+        },
+      }
+    );
+
+    user.password = hashedPassword;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
     user.needsPasswordSetup = false;
-
-    await user.save();
-
-    /*
-      ✅ הגנה נוספת אחרי save:
-      מוודאים שלא נדרסו allowedMessageRounds / accessModules בזמן hook.
-    */
-    await User.findByIdAndUpdate(user._id, {
-      $set: {
-        allowedMessageRounds,
-        "planLimits.allowedMessageRounds": allowedMessageRounds,
-        "planLimits.seatingEnabled": isVenueOwner
-          ? false
-          : accessModules.rsvpSeating,
-
-        accessModules,
-
-        includeDigitalSeating: isVenueOwner
-          ? false
-          : accessModules.rsvpSeating,
-
-        includeEventManagement: isVenueOwner
-          ? false
-          : accessModules.eventProduction,
-
-        selfManageEnabled: isVenueOwner
-          ? false
-          : accessModules.eventProduction,
-      },
-    });
 
     console.log("✅ PASSWORD SAVED", {
       userId: user._id.toString(),
