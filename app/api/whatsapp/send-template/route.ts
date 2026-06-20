@@ -701,14 +701,15 @@ const sendDateKey = new Date().toISOString().slice(0, 10);
           ? `שולחן ${guest.tableNumber}`
           : guest.tableName || "";
 
-      const urlSuffix = `invite/${invitation.shareId}?token=${guest.token}`;
+      const urlSuffix = `${invitation.shareId}?token=${guest.token}`;
+const rsvpLink = `https://www.invistimo.com/invite/${urlSuffix}`;
 
-      const guestPayload = JSON.parse(JSON.stringify(payload));
+const guestPayload = JSON.parse(JSON.stringify(payload));
 
-      guestPayload.name = guest.name || "";
-      guestPayload.tableName = tableName;
-      guestPayload.rsvpLink = `https://www.invistimo.com/${urlSuffix}`;
-      guestPayload.urlSuffix = urlSuffix;
+guestPayload.name = guest.name || "";
+guestPayload.tableName = tableName;
+guestPayload.rsvpLink = rsvpLink;
+guestPayload.urlSuffix = urlSuffix;
 
       if (Array.isArray(guestPayload.components)) {
         guestPayload.components = JSON.parse(
@@ -716,10 +717,7 @@ const sendDateKey = new Date().toISOString().slice(0, 10);
             .replace(/{{name}}/g, guest.name || "")
             .replace(/{{tableName}}/g, tableName)
             .replace(/{{urlSuffix}}/g, urlSuffix)
-            .replace(
-              /{{rsvpLink}}/g,
-              `https://www.invistimo.com/${urlSuffix}`
-            )
+            .replace(/{{rsvpLink}}/g, rsvpLink)
         );
       }
 

@@ -30,6 +30,14 @@ type TemplateVariables = {
 const SAVE_THE_DATE_TEMPLATE_NAME = "save_the_date_image_he";
 const EVENT_INVITATION_TEMPLATE_NAME = "event_invitation_image_he";
 
+const BLOCKED_RSVP_TEMPLATE_NAMES = new Set([
+  "rsvp_invitation_media",
+  "rsvp_reminder_invistimo",
+  "table_number_update_invistimo",
+  "table_number_update_with_gift",
+  "thank_you_message",
+]);
+
 const CLOUDINARY_FOLDER = "invistimo/pre-rsvp";
 const DEFAULT_BATCH_SIZE = 50;
 
@@ -175,14 +183,6 @@ function buildEventLocationFromInvitation(invitation: any) {
   const normalizedName = normalizeCompareText(locationName);
   const normalizedAddress = normalizeCompareText(locationAddress);
 
-  /*
-    לוגיקה:
-    - אם יש שם אולם ויש כתובת שונה -> מציגים: שם אולם, כתובת
-    - אם שם האולם והכתובת זהים -> מציגים פעם אחת בלבד
-    - אם יש רק שם אולם -> מציגים שם אולם
-    - אם יש רק כתובת -> מציגים כתובת
-  */
-
   if (locationName && locationAddress) {
     if (normalizedName === normalizedAddress) {
       return locationName;
@@ -304,7 +304,6 @@ async function uploadImageToCloudinary({
     format?: string;
     bytes?: number;
   }>((resolve, reject) => {
-
     const uploadStream = cloudinary.uploader.upload_stream(
       {
         folder,
@@ -316,27 +315,29 @@ async function uploadImageToCloudinary({
         invalidate: true,
       },
       (error, result) => {
-    if (error) {
-      reject(error);
-      return;
-    }
+        if (error) {
+          reject(error);
+          return;
+        }
 
-    if (!result?.secure_url) {
-      reject(new Error("העלאת התמונה נכשלה."));
-      return;
-    }
+        if (!result?.secure_url) {
+          reject(new Error("העלאת התמונה נכשלה."));
+          return;
+        }
 
-    const highQualitySecureUrl = getHighQualityCloudinaryImageUrl(result.secure_url);
+        const highQualitySecureUrl = getHighQualityCloudinaryImageUrl(
+          result.secure_url
+        );
 
-    resolve({
-      url: result.url,
-      secureUrl: highQualitySecureUrl,
-      publicId: result.public_id,
-      width: result.width,
-      height: result.height,
-      format: result.format,
-      bytes: result.bytes,
-    });
+        resolve({
+          url: result.url,
+          secureUrl: highQualitySecureUrl,
+          publicId: result.public_id,
+          width: result.width,
+          height: result.height,
+          format: result.format,
+          bytes: result.bytes,
+        });
       }
     );
 
@@ -361,43 +362,18 @@ function buildTemplateVariables({
 }): TemplateVariables {
   if (messageType === "save_the_date") {
     return {
-      /*
-        Save The Date:
-        {{1}} = הכותרת שהוגדרה בסייב דה דייט בלבד.
-        לא לוקחים כאן את שם האירוע מפרטי האירוע.
-      */
       saveTheDateTitle: cleanString(
         rawVariables.saveTheDateTitle || fallbackSaveTheDateTitle
       ),
-
-      /*
-        {{2}} = תאריך.
-        אם הפרונט לא שלח תאריך, השרת משלים מפרטי האירוע.
-      */
       eventDate: cleanString(rawVariables.eventDate || fallbackEventDate),
     };
   }
 
   return {
-    /*
-      הזמנה:
-      {{1}} = כותרת ההזמנה מהפרונט/משתנים.
-      אם אין, אפשר להשלים משם האירוע.
-    */
     invitationTitle: cleanString(
       rawVariables.invitationTitle || fallbackInvitationTitle
     ),
-
-    /*
-      {{2}} = תאריך האירוע.
-    */
     eventDate: cleanString(rawVariables.eventDate || fallbackEventDate),
-
-    /*
-      {{3}} = מיקום האירוע.
-      שם אולם + כתובת אם הם שונים.
-      בלי כפילות אם name/address זהים.
-    */
     eventLocation: cleanString(
       rawVariables.eventLocation || fallbackEventLocation
     ),
@@ -485,11 +461,9 @@ function buildWhatsappTemplatePayload({
     imageUrl,
     headerImageUrl: imageUrl,
     cloudinaryPublicId,
-
     templateVariables,
     previewMessage,
     templateMessage,
-
     components: [
       {
         type: "header",
@@ -657,7 +631,6 @@ async function markPreRsvpMessageUsed({
   );
 }
 
-
 /* ================= ROUTE ================= */
 
 export async function POST(req: NextRequest) {
@@ -737,11 +710,43 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const templateName = getTemplateNameByType(messageType);
+
+    if (templateNameFromClient) {
+      if (BLOCKED_RSVP_TEMPLATE_NAMES.has(templateNameFromClient)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "התבנית שנשלחה שייכת לטאב אישורי הגעה ולא לשליחה מוקדמת.",
+            expectedTemplateName: templateName,
+            receivedTemplateName: templateNameFromClient,
+            messageType,
+          },
+          { status: 400 }
+        );
+      }
+
+      if (templateNameFromClient !== templateName) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "שם התבנית שנשלח לא תואם לסוג ההודעה המוקדמת.",
+            expectedTemplateName: templateName,
+            receivedTemplateName: templateNameFromClient,
+            messageType,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     if (!imageFile && !headerImageUrlFromForm) {
       return NextResponse.json(
         {
           success: false,
-          error: "יש להעלות תמונה להודעת הוואטסאפ או להשתמש בתמונת ההזמנה הקיימת.",
+          error:
+            "יש להעלות תמונה להודעת הוואטסאפ או להשתמש בתמונת ההזמנה הקיימת.",
         },
         { status: 400 }
       );
@@ -780,18 +785,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    /*
-      במודל Invitation אין userId.
-      בעל ההזמנה הוא ownerId.
-
-      כאן אנחנו טוענים גם את פרטי האירוע:
-      eventDate + location
-      כדי להשלים רק תאריך/מיקום אם הפרונט לא שלח אותם.
-    */
     const invitation: any = await Invitation.findOne({
       _id: toObjectId(invitationId),
     })
-      .select("_id ownerId title eventDate location headerImageUrl imageUrl invitationImageUrl previewImage")
+      .select(
+        "_id ownerId title eventDate location headerImageUrl finalImageUrl originalImageUrl fullImageUrl cloudinaryUrl secureUrl imageUrl invitationImageUrl canvasImageUrl previewImageUrl previewImage"
+      )
       .lean();
 
     if (!invitation) {
@@ -846,20 +845,8 @@ export async function POST(req: NextRequest) {
     const eventDateFromEvent = formatEventDate(invitation.eventDate);
     const eventLocationFromEvent = buildEventLocationFromInvitation(invitation);
 
-    /*
-      חשוב:
-      Save The Date:
-      {{1}} לא מקבל fallback מ-Invitation.title.
-      הוא חייב להיות מהכותרת של הסייב דה דייט/מהפרונט/מה-templateVariables.
-
-      רק {{2}} מקבל fallback מפרטי האירוע.
-    */
     const fallbackSaveTheDateTitle = saveTheDateTitleFromForm;
 
-    /*
-      הזמנה:
-      כאן כן מותר להשלים כותרת משם האירוע אם הפרונט לא שלח.
-    */
     const fallbackInvitationTitle =
       invitationTitleFromForm || invitationTitleFromEvent;
 
@@ -868,18 +855,6 @@ export async function POST(req: NextRequest) {
     const fallbackEventLocation =
       eventLocationFromForm || eventLocationFromEvent;
 
-    const templateName = getTemplateNameByType(messageType);
-
-    if (templateNameFromClient && templateNameFromClient !== templateName) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "שם התבנית שנשלח לא תואם לסוג ההודעה.",
-        },
-        { status: 400 }
-      );
-    }
-
     const templateVariables = buildTemplateVariables({
       messageType,
       rawVariables: rawTemplateVariables,
@@ -887,6 +862,16 @@ export async function POST(req: NextRequest) {
       fallbackInvitationTitle,
       fallbackEventDate,
       fallbackEventLocation,
+    });
+
+    console.log("🟢 PRE RSVP TEMPLATE SELECTED:", {
+      messageType,
+      templateName,
+      expected:
+        messageType === "save_the_date"
+          ? SAVE_THE_DATE_TEMPLATE_NAME
+          : EVENT_INVITATION_TEMPLATE_NAME,
+      receivedFromClient: templateNameFromClient || null,
     });
 
     console.log("🟢 PRE RSVP TEMPLATE VARIABLES:", {
@@ -917,6 +902,8 @@ export async function POST(req: NextRequest) {
           success: false,
           error: variablesError,
           details: {
+            templateName,
+            messageType,
             templateVariables,
             fromInvitation: {
               title: invitationTitleFromEvent,
@@ -937,8 +924,15 @@ export async function POST(req: NextRequest) {
 
     const fallbackImageUrlFromInvitation = getHighQualityCloudinaryImageUrl(
       invitation.headerImageUrl ||
+        invitation.finalImageUrl ||
+        invitation.originalImageUrl ||
+        invitation.fullImageUrl ||
+        invitation.cloudinaryUrl ||
+        invitation.secureUrl ||
         invitation.imageUrl ||
         invitation.invitationImageUrl ||
+        invitation.canvasImageUrl ||
+        invitation.previewImageUrl ||
         invitation.previewImage ||
         ""
     );
@@ -952,7 +946,9 @@ export async function POST(req: NextRequest) {
       : null;
 
     const imageUrl = getHighQualityCloudinaryImageUrl(
-      uploadResult?.secureUrl || headerImageUrlFromForm || fallbackImageUrlFromInvitation
+      uploadResult?.secureUrl ||
+        headerImageUrlFromForm ||
+        fallbackImageUrlFromInvitation
     );
 
     if (!imageUrl) {
@@ -966,6 +962,14 @@ export async function POST(req: NextRequest) {
     }
 
     const cloudinaryPublicId = uploadResult?.publicId || "";
+
+    console.log("🖼️ PRE RSVP FINAL IMAGE:", {
+      messageType,
+      templateName,
+      hasUploadedFile: Boolean(imageFile),
+      finalImageUrl: imageUrl,
+      cloudinaryPublicId,
+    });
 
     const whatsappPayload = buildWhatsappTemplatePayload({
       messageType,

@@ -941,8 +941,8 @@ export async function sendScheduledWhatsapp() {
 
         const tableName = getTableName(guest);
 
-        const urlSuffix = `invite/${invitation.shareId}?token=${guest.token}`;
-        const personalUrl = `https://www.invistimo.com/${urlSuffix}`;
+        const urlSuffix = `${invitation.shareId}?token=${guest.token}`;
+const personalUrl = `https://www.invistimo.com/invite/${urlSuffix}`;
 
         const replacements = {
           name: guest.name || "",
