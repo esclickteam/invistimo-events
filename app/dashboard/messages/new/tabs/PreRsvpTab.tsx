@@ -91,8 +91,14 @@ function getModeTitle(mode: PreRsvpType) {
 
 function getModeSubtitle(mode: PreRsvpType) {
   return mode === "save_the_date"
-    ? "שריון תאריך לפני פתיחת אישורי הגעה"
+    ? "שריון תאריך לפני שליחת ההזמנה"
     : "הזמנה כללית ללא אישור הגעה";
+}
+
+function getCurrentTemplate(mode: PreRsvpType) {
+  return mode === "save_the_date"
+    ? DEFAULT_SAVE_THE_DATE_MESSAGE
+    : DEFAULT_INVITATION_ONLY_MESSAGE;
 }
 
 /* ================= COMPONENT ================= */
@@ -109,34 +115,25 @@ export default function PreRsvpTab({
   const [scheduledTime, setScheduledTime] = useState("");
 
   const [saveTheDateTitle, setSaveTheDateTitle] = useState("");
-  const [saveTheDateMessage, setSaveTheDateMessage] = useState(
-    DEFAULT_SAVE_THE_DATE_MESSAGE
-  );
-  const [invitationOnlyMessage, setInvitationOnlyMessage] = useState(
-    DEFAULT_INVITATION_ONLY_MESSAGE
-  );
 
   const [saveTheDateImage, setSaveTheDateImage] = useState("");
   const [invitationOnlyImage, setInvitationOnlyImage] = useState("");
 
-  const currentMessage =
-    activeMode === "save_the_date"
-      ? saveTheDateMessage
-      : invitationOnlyMessage;
+  const currentTemplate = getCurrentTemplate(activeMode);
 
   const currentImage =
     activeMode === "save_the_date" ? saveTheDateImage : invitationOnlyImage;
 
   const previewMessage = useMemo(() => {
     return replaceMessageVariables({
-      message: currentMessage,
+      message: currentTemplate,
       saveTheDateTitle,
       invitationTitle,
       eventDate,
       eventLocation,
     });
   }, [
-    currentMessage,
+    currentTemplate,
     saveTheDateTitle,
     invitationTitle,
     eventDate,
@@ -152,15 +149,6 @@ export default function PreRsvpTab({
 
   function handleModeChange(mode: PreRsvpType) {
     setActiveMode(mode);
-  }
-
-  function handleMessageChange(value: string) {
-    if (activeMode === "save_the_date") {
-      setSaveTheDateMessage(value);
-      return;
-    }
-
-    setInvitationOnlyMessage(value);
   }
 
   function handleImageChange(file: File | null) {
@@ -196,7 +184,7 @@ export default function PreRsvpTab({
       scheduledTime: sendTiming === "scheduled" ? scheduledTime : "",
       saveTheDateTitle:
         activeMode === "save_the_date" ? saveTheDateTitle : "",
-      message: currentMessage,
+      templateMessage: currentTemplate,
       previewMessage,
       imageUrl: currentImage,
     };
@@ -211,7 +199,55 @@ export default function PreRsvpTab({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-6 p-5 md:p-8 xl:grid-cols-[1fr_460px]">
+    <div className="grid grid-cols-1 gap-6 p-5 md:p-8 xl:grid-cols-[460px_1fr]">
+      {/* ================= Preview Side ================= */}
+      <div>
+        <div
+          className="
+            sticky
+            top-6
+            rounded-[34px]
+            border
+            border-[#E6D8C5]
+            bg-[#FBF7EF]/90
+            p-6
+            shadow-[0_26px_70px_rgba(72,48,28,0.11)]
+            backdrop-blur-xl
+          "
+        >
+          <div className="mb-7 flex items-center justify-between gap-4">
+            <div>
+              <h3 className="text-2xl font-black text-[#2D241D]">
+                תצוגה מקדימה
+              </h3>
+
+              <p className="mt-1 text-sm font-bold text-[#8A7A6B]">
+                כך תיראה הודעת הוואטסאפ
+              </p>
+            </div>
+
+            <div className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-[#F4E5CC] text-2xl shadow-sm">
+              ✨
+            </div>
+          </div>
+
+          <PhonePreview
+            title="INVISTIMO · WHATSAPP"
+            message={previewMessage}
+            imageUrl={currentImage}
+          />
+
+          <div className="mt-7 grid grid-cols-3 gap-3">
+            <PreviewStat value={getModeTitle(activeMode)} label="סוג הודעה" />
+            <PreviewStat value="WA" label="ערוץ" />
+            <PreviewStat
+              value={sendTiming === "scheduled" ? "מתוזמן" : "מיידי"}
+              label="שליחה"
+            />
+          </div>
+        </div>
+      </div>
+
       {/* ================= Editor Side ================= */}
       <div className="space-y-6">
         <Panel
@@ -280,10 +316,10 @@ export default function PreRsvpTab({
           icon="✍️"
           title={
             activeMode === "save_the_date"
-              ? "עריכת הודעת Save The Date"
-              : "עריכת הודעת הזמנה"
+              ? "הגדרת הודעת Save The Date"
+              : "הגדרת הודעת הזמנה"
           }
-          description="אפשר לערוך את תוכן ההודעה לפני שליחה מיידית או מתוזמנת."
+          description="התוכן הוא תבנית WhatsApp קבועה ולכן לא ניתן לערוך את גוף ההודעה."
         >
           <div className="space-y-5">
             {activeMode === "save_the_date" && (
@@ -385,33 +421,56 @@ export default function PreRsvpTab({
 
             <div>
               <label className="mb-2 block text-sm font-black text-[#3A3028]">
-                תוכן ההודעה
+                תבנית ההודעה
               </label>
 
-              <textarea
-                value={currentMessage}
-                onChange={(e) => handleMessageChange(e.target.value)}
-                rows={activeMode === "save_the_date" ? 9 : 12}
+              <div
                 className="
-                  w-full
-                  resize-none
+                  relative
+                  overflow-hidden
                   rounded-[26px]
                   border
                   border-[#E4D3BC]
-                  bg-white
+                  bg-[#F8F1E8]
                   px-4
                   py-4
-                  text-sm
-                  font-semibold
-                  leading-8
-                  text-[#2D241D]
-                  outline-none
-                  transition
-                  focus:border-[#C5964D]
-                  focus:ring-4
-                  focus:ring-[#D8B878]/20
                 "
-              />
+              >
+                <div
+                  className="
+                    mb-3
+                    inline-flex
+                    items-center
+                    gap-2
+                    rounded-full
+                    border
+                    border-[#E2D1B8]
+                    bg-white
+                    px-3
+                    py-1.5
+                    text-xs
+                    font-black
+                    text-[#8A6A3D]
+                    shadow-sm
+                  "
+                >
+                  🔒 תבנית WhatsApp קבועה
+                </div>
+
+                <pre
+                  className="
+                    whitespace-pre-wrap
+                    break-words
+                    text-right
+                    text-sm
+                    font-semibold
+                    leading-8
+                    text-[#3A3028]
+                  "
+                >
+                  {previewMessage}
+                </pre>
+              </div>
             </div>
           </div>
         </Panel>
@@ -524,54 +583,6 @@ export default function PreRsvpTab({
             </button>
           </div>
         </Panel>
-      </div>
-
-      {/* ================= Preview Side ================= */}
-      <div>
-        <div
-          className="
-            sticky
-            top-6
-            rounded-[34px]
-            border
-            border-[#E6D8C5]
-            bg-[#FBF7EF]/90
-            p-6
-            shadow-[0_26px_70px_rgba(72,48,28,0.11)]
-            backdrop-blur-xl
-          "
-        >
-          <div className="mb-7 flex items-center justify-between gap-4">
-            <div>
-              <h3 className="text-2xl font-black text-[#2D241D]">
-                תצוגה מקדימה
-              </h3>
-
-              <p className="mt-1 text-sm font-bold text-[#8A7A6B]">
-                כך תיראה הודעת הוואטסאפ
-              </p>
-            </div>
-
-            <div className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-[#F4E5CC] text-2xl shadow-sm">
-              ✨
-            </div>
-          </div>
-
-          <PhonePreview
-            title="INVISTIMO · WHATSAPP"
-            message={previewMessage}
-            imageUrl={currentImage}
-          />
-
-          <div className="mt-7 grid grid-cols-3 gap-3">
-            <PreviewStat value={getModeTitle(activeMode)} label="סוג הודעה" />
-            <PreviewStat value="WA" label="ערוץ" />
-            <PreviewStat
-              value={sendTiming === "scheduled" ? "מתוזמן" : "מיידי"}
-              label="שליחה"
-            />
-          </div>
-        </div>
       </div>
     </div>
   );
