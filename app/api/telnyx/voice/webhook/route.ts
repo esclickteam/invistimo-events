@@ -1141,21 +1141,20 @@ if (direction === "inbound") {
   });
 
   const updated = await CallRecording.findOneAndUpdate(
-    filter,
-    {
-      $set: set,
-      $setOnInsert: {
-        source: "webhook",
-        recordingStatus: "pending",
-        recordingId: "",
-      },
+  filter,
+  {
+    $set: set,
+    $setOnInsert: {
+      source: "webhook",
+      recordingId: "",
     },
-    {
-      upsert: true,
-      new: true,
-      setDefaultsOnInsert: true,
-    }
-  );
+  },
+  {
+    upsert: true,
+    new: true,
+    setDefaultsOnInsert: true,
+  }
+);
 
   console.log("CALL LIFECYCLE UPDATED:", {
     eventType,
