@@ -38,6 +38,14 @@ function cleanString(value: unknown) {
   return String(value || "").trim();
 }
 
+function normalizeCompareText(value: unknown) {
+  return cleanString(value)
+    .replace(/\s+/g, " ")
+    .replace(/,+/g, ",")
+    .replace(/\s*,\s*/g, ", ")
+    .trim();
+}
+
 function isValidObjectId(value: unknown) {
   return mongoose.Types.ObjectId.isValid(cleanString(value));
 }
@@ -123,7 +131,22 @@ function buildEventLocationFromInvitation(invitation: any) {
   const locationName = cleanString(invitation?.location?.name);
   const locationAddress = cleanString(invitation?.location?.address);
 
+  const normalizedName = normalizeCompareText(locationName);
+  const normalizedAddress = normalizeCompareText(locationAddress);
+
+  /*
+    לוגיקה:
+    - אם יש שם אולם ויש כתובת שונה -> מציגים: שם אולם, כתובת
+    - אם שם האולם והכתובת זהים -> מציגים פעם אחת בלבד
+    - אם יש רק שם אולם -> מציגים שם אולם
+    - אם יש רק כתובת -> מציגים כתובת
+  */
+
   if (locationName && locationAddress) {
+    if (normalizedName === normalizedAddress) {
+      return locationName;
+    }
+
     return `${locationName}, ${locationAddress}`;
   }
 
@@ -334,6 +357,8 @@ function buildTemplateVariables({
 
     /*
       {{3}} = מיקום האירוע.
+      שם אולם + כתובת אם הם שונים.
+      בלי כפילות אם name/address זהים.
     */
     eventLocation: cleanString(
       rawVariables.eventLocation || fallbackEventLocation

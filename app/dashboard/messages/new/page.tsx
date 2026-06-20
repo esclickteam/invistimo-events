@@ -98,6 +98,38 @@ function cleanString(value: unknown) {
   return String(value || "").trim();
 }
 
+function normalizeCompareText(value: unknown) {
+  return cleanString(value)
+    .replace(/\s+/g, " ")
+    .replace(/,+/g, ",")
+    .replace(/\s*,\s*/g, ", ")
+    .trim();
+}
+
+function buildEventLocationText(invitation: any, event: any): string {
+  const invitationName = cleanString(invitation?.location?.name);
+  const invitationAddress = cleanString(invitation?.location?.address);
+
+  const eventName = cleanString(event?.location?.name);
+  const eventAddress = cleanString(event?.location?.address);
+
+  const locationName = invitationName || eventName;
+  const locationAddress = invitationAddress || eventAddress;
+
+  const normalizedName = normalizeCompareText(locationName);
+  const normalizedAddress = normalizeCompareText(locationAddress);
+
+  if (locationName && locationAddress) {
+    if (normalizedName === normalizedAddress) {
+      return locationName;
+    }
+
+    return `${locationName}, ${locationAddress}`;
+  }
+
+  return locationName || locationAddress || "";
+}
+
 function getCurrentTemplate(type: PreRsvpType) {
   return type === "save_the_date"
     ? DEFAULT_SAVE_THE_DATE_MESSAGE
@@ -176,28 +208,16 @@ export default function NewMessagesPage() {
           setInvitationId(invitation._id || "");
 
           setMeta({
-  invitationTitle: invitation.title || "",
-
-  // לוקח קודם מהמודל invitations
-  eventDate: formatEventDate(invitation.eventDate || event?.date),
-
-  // לוקח קודם מהמודל invitations
-  eventLocation:
-    [
-      invitation.location?.name || event?.location?.name,
-      invitation.location?.address || event?.location?.address,
-    ]
-      .filter(Boolean)
-      .join(", ") || "",
-
-  eventType: invitation.eventType || event?.eventType || "",
-  giftCreditUrl: invitation.giftCreditUrl || event?.giftCreditUrl || "",
-  headerImageUrl:
-    invitation.previewImage || invitation.headerImageUrl || "",
-  lat: invitation.location?.lat ?? event?.location?.lat,
-  lng: invitation.location?.lng ?? event?.location?.lng,
-});
-
+            invitationTitle: invitation.title || "",
+            eventDate: formatEventDate(invitation.eventDate || event?.date),
+            eventLocation: buildEventLocationText(invitation, event),
+            eventType: invitation.eventType || event?.eventType || "",
+            giftCreditUrl: invitation.giftCreditUrl || event?.giftCreditUrl || "",
+            headerImageUrl:
+              invitation.previewImage || invitation.headerImageUrl || "",
+            lat: invitation.location?.lat ?? event?.location?.lat,
+            lng: invitation.location?.lng ?? event?.location?.lng,
+          });
         }
       } catch (err) {
         console.error("❌ Failed to load invitation data", err);
@@ -678,6 +698,19 @@ function PreRsvpTab({
         JSON.stringify(payload.templateVariables)
       );
       formData.append("saveTheDateTitle", payload.saveTheDateTitle);
+
+      formData.append(
+        "invitationTitle",
+        isSaveTheDate ? "" : cleanEventTitle
+      );
+
+      formData.append("eventDate", cleanEventDate);
+
+      formData.append(
+        "eventLocation",
+        isSaveTheDate ? "" : cleanEventLocation
+      );
+
       formData.append("message", payload.message);
       formData.append("previewMessage", payload.previewMessage);
 
