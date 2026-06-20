@@ -43,7 +43,7 @@ export default function SupportBot({ onClose }) {
 
     const whatsappText = encodeURIComponent(
       [
-        "היי, אשמח לקבל עזרה עם Invistimo ✨",
+        "היי, אשמח לקבל עזרה עם Invistimo ",
         "רוצה להבין איזו חבילה מתאימה לאירוע שלי.",
         fullName.trim() ? `שם: ${fullName.trim()}` : "",
         cleanDisplayPhone ? `טלפון: ${cleanDisplayPhone}` : "",
