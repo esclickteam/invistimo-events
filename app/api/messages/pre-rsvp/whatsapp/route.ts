@@ -68,11 +68,10 @@ function getHighQualityCloudinaryImageUrl(value: unknown) {
     .replace(/^c_fill[^/]*\//, "")
     .replace(/^c_fit[^/]*\//, "")
     .replace(/^c_pad[^/]*\//, "")
-    .replace(/^c_limit[^/]*\//, "")
     .replace(/^w_\d+[^/]*\//, "")
     .replace(/^h_\d+[^/]*\//, "");
 
-  return `${beforeUpload}/upload/c_limit,w_2000,q_100,f_png/${cleanedAfterUpload}`;
+  return `${beforeUpload}/upload/q_100,f_png/${cleanedAfterUpload}`;
 }
 
 function isHttpImageUrl(value: unknown) {
@@ -632,20 +631,6 @@ async function markPreRsvpMessageUsed({
   );
 }
 
-function getOriginalInvitationImageUrl(invitation: any) {
-  return getHighQualityCloudinaryImageUrl(
-    invitation.fullImageUrl ||
-      invitation.originalImageUrl ||
-      invitation.finalImageUrl ||
-      invitation.cloudinaryUrl ||
-      invitation.secureUrl ||
-      invitation.imageUrl ||
-      invitation.invitationImageUrl ||
-      invitation.canvasImageUrl ||
-      ""
-  );
-}
-
 /* ================= ROUTE ================= */
 
 export async function POST(req: NextRequest) {
@@ -684,6 +669,9 @@ export async function POST(req: NextRequest) {
 
     const templateMessage = cleanString(formData.get("message"));
     const previewMessage = cleanString(formData.get("previewMessage"));
+    const headerImageUrlFromForm = getHighQualityCloudinaryImageUrl(
+      formData.get("headerImageUrl")
+    );
 
     const rawTemplateVariables = parseJsonObject(
       formData.get("templateVariables")
@@ -753,6 +741,27 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    if (!imageFile && !headerImageUrlFromForm) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "יש להעלות תמונה להודעת הוואטסאפ או להשתמש בתמונת ההזמנה הקיימת.",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (headerImageUrlFromForm && !isHttpImageUrl(headerImageUrlFromForm)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "קישור התמונה אינו תקין.",
+        },
+        { status: 400 }
+      );
+    }
+
     if (imageFile && !imageFile.type.startsWith("image/")) {
       return NextResponse.json(
         {
@@ -780,7 +789,7 @@ export async function POST(req: NextRequest) {
       _id: toObjectId(invitationId),
     })
       .select(
-        "_id ownerId title eventDate location finalImageUrl originalImageUrl fullImageUrl cloudinaryUrl secureUrl imageUrl invitationImageUrl canvasImageUrl"
+        "_id ownerId title eventDate location headerImageUrl finalImageUrl originalImageUrl fullImageUrl cloudinaryUrl secureUrl imageUrl invitationImageUrl canvasImageUrl previewImageUrl previewImage"
       )
       .lean();
 
@@ -913,7 +922,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const originalInvitationImageUrl = getOriginalInvitationImageUrl(invitation);
+    const fallbackImageUrlFromInvitation = getHighQualityCloudinaryImageUrl(
+      invitation.headerImageUrl ||
+        invitation.finalImageUrl ||
+        invitation.originalImageUrl ||
+        invitation.fullImageUrl ||
+        invitation.cloudinaryUrl ||
+        invitation.secureUrl ||
+        invitation.imageUrl ||
+        invitation.invitationImageUrl ||
+        invitation.canvasImageUrl ||
+        invitation.previewImageUrl ||
+        invitation.previewImage ||
+        ""
+    );
 
     const uploadResult = imageFile
       ? await uploadImageToCloudinary({
@@ -924,15 +946,16 @@ export async function POST(req: NextRequest) {
       : null;
 
     const imageUrl = getHighQualityCloudinaryImageUrl(
-      uploadResult?.secureUrl || originalInvitationImageUrl
+      uploadResult?.secureUrl ||
+        headerImageUrlFromForm ||
+        fallbackImageUrlFromInvitation
     );
 
-    if (!imageUrl || !isHttpImageUrl(imageUrl)) {
+    if (!imageUrl) {
       return NextResponse.json(
         {
           success: false,
-          error:
-            "לא נמצאה תמונה מקורית/מלאה לשליחת הוואטסאפ. לא נשלחה תמונת תצוגה כדי לא לפגוע באיכות. יש להעלות תמונה ידנית או לוודא שקיים fullImageUrl / originalImageUrl / finalImageUrl בהזמנה.",
+          error: "לא נמצאה תמונה תקינה לשליחת הוואטסאפ.",
         },
         { status: 400 }
       );
@@ -944,8 +967,6 @@ export async function POST(req: NextRequest) {
       messageType,
       templateName,
       hasUploadedFile: Boolean(imageFile),
-      usedManualUpload: Boolean(uploadResult),
-      usedOriginalInvitationImage: !uploadResult,
       finalImageUrl: imageUrl,
       cloudinaryPublicId,
     });
