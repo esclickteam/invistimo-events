@@ -409,6 +409,9 @@ export async function POST(req: NextRequest) {
 
     const userId = await getUserIdFromRequest(req);
 
+    console.log("🟡 PRE RSVP AUTH USER ID:", userId);
+console.log("🟡 PRE RSVP COOKIE:", req.headers.get("cookie"));
+
     if (!userId || !isValidObjectId(userId)) {
       return NextResponse.json(
         {
