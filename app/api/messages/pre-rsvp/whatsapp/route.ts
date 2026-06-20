@@ -264,44 +264,37 @@ async function uploadImageToCloudinary({
     format?: string;
     bytes?: number;
   }>((resolve, reject) => {
+
     const uploadStream = cloudinary.uploader.upload_stream(
   {
     folder,
     public_id: publicId,
     resource_type: "image",
     overwrite: false,
-    quality: "100",
-    format: file.type.includes("png") ? "png" : undefined,
-    transformation: [
-      {
-        width: 1080,
-        height: 1920,
-        crop: "limit",
-      },
-    ],
   },
-      (error, result) => {
-        if (error) {
-          reject(error);
-          return;
-        }
+  (error, result) => {
+    if (error) {
+      reject(error);
+      return;
+    }
 
-        if (!result?.secure_url) {
-          reject(new Error("העלאת התמונה נכשלה."));
-          return;
-        }
+    if (!result?.secure_url) {
+      reject(new Error("העלאת התמונה נכשלה."));
+      return;
+    }
 
-        resolve({
-          url: result.url,
-          secureUrl: result.secure_url,
-          publicId: result.public_id,
-          width: result.width,
-          height: result.height,
-          format: result.format,
-          bytes: result.bytes,
-        });
-      }
-    );
+    resolve({
+      url: result.url,
+      secureUrl: result.secure_url,
+      publicId: result.public_id,
+      width: result.width,
+      height: result.height,
+      format: result.format,
+      bytes: result.bytes,
+    });
+  }
+);
+    
 
     uploadStream.end(buffer);
   });
