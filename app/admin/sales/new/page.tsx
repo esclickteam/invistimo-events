@@ -40,6 +40,7 @@ type UpsellKey =
   | "venueSeating"
   | "personalRepresentative"
   | "thirdRsvpRound"
+  | "preRsvpMessages"
   | "suppliersBudgetSystem"
   | "alcoholManagement";
 
@@ -320,6 +321,69 @@ const PERSONAL_REP_CUSTOMER_DETAILS: DetailSection[] = [
     ],
   },
 ];
+
+const PRE_RSVP_MESSAGES_CUSTOMER_DETAILS: DetailSection[] = [
+  {
+    title: "שליחת Save The Date והזמנה מוקדמת בוואטסאפ",
+    items: [
+      "השירות מאפשר ללקוח לשלוח לאורחים הודעת Save The Date או הזמנה מוקדמת בוואטסאפ לפני פתיחת סבבי אישורי ההגעה הרגילים.",
+      "ההודעה נשלחת כתבנית WhatsApp מאושרת, הכוללת תמונת הזמנה או תמונה מעוצבת שהלקוח מעלה למערכת.",
+      "ניתן להשתמש בשירות לשליחת Save The Date עם תאריך האירוע, או לשליחת הזמנה מוקדמת עם שם האירוע, תאריך ומיקום האירוע.",
+      "השירות מיועד לשליחה חד־פעמית לכלל האורחים שנמצאים ברשימת המוזמנים במועד השליחה בפועל.",
+      "ניתן לתזמן את השליחה מראש או לשלוח מיידית, בהתאם לזמינות המערכת והגדרות ה־WhatsApp הפעילות.",
+      "כל עוד השליחה רק מתוזמנת ולא נשלחה בפועל, ניתן לשנות או לבטל את התזמון בהתאם לאפשרויות הקיימות במערכת.",
+      "לאחר שההודעה נשלחה בפועל לאורחים, השירות נחשב כמומש ולא ניתן להשתמש בו שוב ללא פתיחה מחדש או רכישה נוספת.",
+      "השירות אינו מחליף את סבבי אישורי ההגעה הרגילים, אלא מיועד לשלב מוקדם יותר — לפני פתיחת RSVP או לפני שליחת סבבי אישורי ההגעה.",
+      "איכות התמונה תלויה בקובץ שהלקוח מעלה. מומלץ להעלות תמונה בגודל 1080×1080 להזמנה מרובעת או 1080×1920 להזמנה לאורך.",
+    ],
+  },
+  {
+    title: "הבהרות חשובות",
+    items: [
+      "השירות כולל שליחת הודעת WhatsApp מוקדמת אחת בלבד לכלל האורחים הרלוונטיים במועד השליחה בפועל.",
+      "אם לאחר השליחה נוספו אורחים חדשים לרשימה, ההודעה לא תישלח אליהם רטרואקטיבית במסגרת אותה רכישה.",
+      "התצוגה בוואטסאפ עשויה להשתנות בין מכשירים שונים, בהתאם לאופן שבו WhatsApp מציגה תמונות ותבניות.",
+      "השירות כפוף לאישור וזמינות תבניות WhatsApp ולתקינות מספרי הטלפון של האורחים.",
+    ],
+  },
+];
+
+const PRE_RSVP_MESSAGES_EMPLOYEE_DETAILS: DetailSection[] = [
+  {
+    title: "מה העובד צריך להסביר בשיחה",
+    items: [
+      "להסביר ללקוח שזה שירות לשליחת הודעה מוקדמת בוואטסאפ לפני סבבי אישורי ההגעה הרגילים.",
+      "להבהיר שיש שתי אפשרויות שימוש: Save The Date או שליחת הזמנה מוקדמת לפני RSVP.",
+      "להסביר שהלקוח מעלה תמונה/הזמנה למערכת, והמערכת שולחת אותה לאורחים באמצעות תבנית WhatsApp מאושרת.",
+      "להדגיש שהשירות הוא חד־פעמי ונועד לשליחה אחת בלבד לכלל האורחים שנמצאים במערכת בזמן השליחה בפועל.",
+      "להסביר שהשירות ננעל רק אחרי שליחה בפועל, ולא אחרי תזמון בלבד.",
+      "אם הלקוח מתזמן ואז מבטל או משנה את התזמון לפני שההודעה נשלחה בפועל — השירות עדיין נשאר פתוח.",
+      "לאחר שההודעה נשלחה בפועל, השירות נחשב כמומש ולא ניתן לשלוח שוב בלי פתיחה מחדש ידנית או רכישה נוספת.",
+    ],
+  },
+  {
+    title: "מה חובה לוודא לפני מכירה",
+    items: [
+      "לוודא שהלקוח מבין שזה לא סבב RSVP רגיל ולא אוסף אישורי הגעה.",
+      "לוודא שהלקוח מבין שזה שלב מקדים בלבד — לפני פתיחת אישורי ההגעה או לפני שליחת סבבי RSVP.",
+      "לוודא שיש ללקוח תמונה מוכנה לשליחה, או שהוא מבין שעליו להעלות תמונה באיכות מתאימה.",
+      "להמליץ על תמונת הזמנה בגודל 1080×1080 להזמנה מרובעת או 1080×1920 להזמנה לאורך.",
+      "לוודא שרשימת המוזמנים מעודכנת לפני השליחה, כי ההודעה נשלחת רק לאורחים שקיימים במערכת בזמן השליחה בפועל.",
+      "להבהיר שאורחים שיתווספו אחרי השליחה לא יקבלו את ההודעה במסגרת אותה רכישה.",
+      "להבהיר שהשליחה כפופה לתקינות מספרי הטלפון, זמינות WhatsApp ותבנית מאושרת.",
+    ],
+  },
+  {
+    title: "נוסח מומלץ לסיכום עם הלקוח",
+    items: [
+      "השירות כולל שליחה חד־פעמית של הודעת Save The Date או הזמנה מוקדמת בוואטסאפ לכלל האורחים שנמצאים במערכת בזמן השליחה בפועל.",
+      "ניתן לתזמן את השליחה מראש, לשנות או לבטל כל עוד ההודעה לא נשלחה בפועל.",
+      "לאחר שליחה בפועל השירות נחשב כמומש וננעל לשימוש חוזר.",
+      "השירות אינו מחליף את סבבי אישורי ההגעה הרגילים, אלא נועד לשליחה מוקדמת לפני RSVP.",
+    ],
+  },
+];
+
 
 const SUPPLIERS_BUDGET_CUSTOMER_DETAILS: DetailSection[] = [
   {
@@ -743,6 +807,17 @@ const UPSELLS: UpsellItem[] = [
       },
     ],
   },
+
+  {
+  key: "preRsvpMessages",
+  title: "Save The Date / הזמנה מוקדמת בוואטסאפ",
+  price: 79,
+  description:
+    "שליחה חד־פעמית של Save The Date או הזמנה מוקדמת בוואטסאפ לפני פתיחת סבבי אישורי ההגעה.",
+  customerDetails: PRE_RSVP_MESSAGES_CUSTOMER_DETAILS,
+  employeeDetails: PRE_RSVP_MESSAGES_EMPLOYEE_DETAILS,
+},
+
   {
     key: "suppliersBudgetSystem",
     title: "מערכת עצמאית לניהול ספקים ותקציב",
@@ -810,6 +885,7 @@ function createEmptyUpsells(): SelectedUpsells {
     venueSeating: false,
     personalRepresentative: false,
     thirdRsvpRound: false,
+    preRsvpMessages: false,
     suppliersBudgetSystem: false,
     alcoholManagement: false,
   };
@@ -993,6 +1069,7 @@ function getCustomerSectionsForUpsell(upsell: UpsellItem): DetailSection[] {
   if (upsell.key === "alcoholManagement") return DETAILED_ALCOHOL_MANAGEMENT_CUSTOMER_DETAILS;
   if (upsell.key === "personalRepresentative") return DETAILED_PERSONAL_REP_CUSTOMER_DETAILS;
   if (upsell.key === "suppliersBudgetSystem") return DETAILED_SUPPLIERS_BUDGET_CUSTOMER_DETAILS;
+  if (upsell.key === "preRsvpMessages") return PRE_RSVP_MESSAGES_CUSTOMER_DETAILS;
   if (upsell.key === "creditGifts") return CREDIT_GIFTS_DETAILS;
 
   return upsell.customerDetails || [];

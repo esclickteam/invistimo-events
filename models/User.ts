@@ -73,6 +73,15 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
       notes?: string;
     };
 
+    preRsvpMessages?: {
+  enabled: boolean;
+  price: number;
+  givenFree?: boolean;
+  notes?: string;
+  sentCount?: number;
+  sentAt?: Date | null;
+};
+
     suppliersBudgetSystem?: {
       enabled: boolean;
       price: number;
@@ -445,6 +454,43 @@ const UserSchema = new Schema<IUser>(
           default: "",
         },
       },
+
+
+preRsvpMessages: {
+  enabled: {
+    type: Boolean,
+    default: false,
+    index: true,
+  },
+
+  price: {
+    type: Number,
+    default: 0,
+  },
+
+  givenFree: {
+    type: Boolean,
+    default: false,
+  },
+
+  notes: {
+    type: String,
+    trim: true,
+    default: "",
+  },
+
+  sentCount: {
+    type: Number,
+    default: 0,
+    min: 0,
+  },
+
+  sentAt: {
+    type: Date,
+    default: null,
+    index: true,
+  },
+},
 
       suppliersBudgetSystem: {
         enabled: {
@@ -925,6 +971,15 @@ UserSchema.pre("validate", function () {
       notes: String(currentSalesUpsells.thirdRsvpRound?.notes || ""),
     },
 
+    preRsvpMessages: {
+  enabled: Boolean(currentSalesUpsells.preRsvpMessages?.enabled),
+  price: Number(currentSalesUpsells.preRsvpMessages?.price || 0),
+  givenFree: Boolean(currentSalesUpsells.preRsvpMessages?.givenFree),
+  notes: String(currentSalesUpsells.preRsvpMessages?.notes || ""),
+  sentCount: Number(currentSalesUpsells.preRsvpMessages?.sentCount || 0),
+  sentAt: currentSalesUpsells.preRsvpMessages?.sentAt || null,
+},
+
     suppliersBudgetSystem: {
       enabled: Boolean(currentSalesUpsells.suppliersBudgetSystem?.enabled),
       price: Number(currentSalesUpsells.suppliersBudgetSystem?.price || 0),
@@ -1190,6 +1245,8 @@ UserSchema.index({ "salesUpsells.digitalSeating.enabled": 1 });
 UserSchema.index({ "salesUpsells.venueSeating.enabled": 1 });
 UserSchema.index({ "salesUpsells.personalRepresentative.enabled": 1 });
 UserSchema.index({ "salesUpsells.thirdRsvpRound.enabled": 1 });
+UserSchema.index({ "salesUpsells.preRsvpMessages.enabled": 1 });
+UserSchema.index({ "salesUpsells.preRsvpMessages.sentAt": 1 });
 UserSchema.index({ "salesUpsells.suppliersBudgetSystem.enabled": 1 });
 UserSchema.index({ "salesUpsells.alcoholManagement.enabled": 1 });
 
