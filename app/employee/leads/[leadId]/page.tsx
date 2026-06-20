@@ -927,324 +927,299 @@ export default function EmployeeLeadDetailsPage() {
           <InfoCard label="משויך לעובד" value={getAssignedStaffLabel(lead)} />
         </section>
 
-        <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-          <div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-            <h2 className="text-2xl font-black">טיפול בליד</h2>
-
-            <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
-              כאן העובד מעדכן את סטטוס הטיפול בליד. כל שמירה מעדכנת את תיק
-              הלקוח באדמין.
-            </p>
-
-            <div className="mt-5 space-y-4">
-              <label className="block">
-                <span className="text-xs font-black text-slate-500">
-                  סטטוס ליד
-                </span>
-
-                <select
-                  value={leadStatus}
-                  onChange={(event) => setLeadStatus(event.target.value)}
-                  className="mt-2 h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-black text-slate-950 outline-none transition focus:border-slate-400 focus:bg-white"
-                >
-                  {LEAD_STATUS_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              {error ? (
-                <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-black text-red-700">
-                  {error}
-                </div>
-              ) : null}
-
-              {saveMessage ? (
-                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-black text-emerald-700">
-                  {saveMessage}
-                </div>
-              ) : null}
-
-              <button
-                type="button"
-                onClick={saveLead}
-                disabled={saving}
-                className="h-12 w-full rounded-2xl bg-slate-950 px-5 text-sm font-black text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {saving ? "שומר..." : "שמור טיפול בליד"}
-              </button>
-            </div>
-          </div>
-
-          <div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <h2 className="text-2xl font-black">צ׳אט WhatsApp</h2>
-
-                <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
-                  הודעות שנשלחות כאן נשמרות בתיק הליד. תגובות נכנסות יופיעו
-                  בזמן אמת לאחר שה־Webhook של 360dialog שומר אותן במערכת.
-                </p>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                <span
-                  className={`inline-flex h-10 items-center rounded-2xl border px-4 text-xs font-black ${
-                    liveChatConnected
-                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                      : "border-slate-200 bg-slate-50 text-slate-500"
-                  }`}
-                >
-                  {liveChatConnected
-                    ? "צ׳אט בזמן אמת פעיל"
-                    : "מתחבר לצ׳אט..."}
-                </span>
-
-                <button
-                  type="button"
-                  onClick={loadMessages}
-                  disabled={messagesLoading}
-                  className="h-10 rounded-2xl border border-slate-200 bg-white px-4 text-xs font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {messagesLoading ? "טוען..." : "רענון צ׳אט"}
-                </button>
-              </div>
-            </div>
-
-            {liveChatError ? (
-              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs font-black leading-6 text-amber-700">
-                {liveChatError}
-              </div>
-            ) : null}
-
-            <div className="mt-5 h-[360px] overflow-y-auto rounded-[1.6rem] border border-slate-200 bg-slate-50 p-4">
-              {messagesLoading ? (
-                <div className="flex h-full items-center justify-center text-sm font-black text-slate-500">
-                  טוען הודעות...
-                </div>
-              ) : messages.length === 0 ? (
-                <div className="flex h-full flex-col items-center justify-center text-center">
-                  <p className="text-base font-black text-slate-800">
-                    אין הודעות עדיין
-                  </p>
-                  <p className="mt-2 max-w-md text-sm font-semibold leading-7 text-slate-500">
-                    כתבי הודעה למטה כדי לפתוח תיעוד שיחה מול הליד.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {messages.map((message) => {
-                    const isOutgoing = message.direction === "outgoing";
-                    const isFailed = message.status === "failed";
-
-                    return (
-                      <div
-                        key={getMessageId(message)}
-                        className={`flex ${
-                          isOutgoing ? "justify-start" : "justify-end"
-                        }`}
-                      >
-                        <div
-                          className={`max-w-[82%] rounded-[1.25rem] px-4 py-3 shadow-sm ${
-                            isOutgoing
-                              ? isFailed
-                                ? "border border-red-200 bg-red-50 text-red-800"
-                                : "bg-slate-950 text-white"
-                              : "border border-emerald-200 bg-emerald-50 text-emerald-900"
-                          }`}
-                        >
-                          <p className="whitespace-pre-wrap text-sm font-bold leading-6">
-                            {message.messageText || ""}
-                          </p>
-
-                          <div
-                            className={`mt-2 flex flex-wrap items-center gap-2 text-[11px] font-black ${
-                              isOutgoing
-                                ? isFailed
-                                  ? "text-red-600"
-                                  : "text-slate-300"
-                                : "text-emerald-700"
-                            }`}
-                          >
-                            <span>
-                              {isOutgoing ? "נשלח מהמערכת" : "התקבל מהלקוח"}
-                            </span>
-                            <span>·</span>
-                            <span>{formatTime(message.createdAt)}</span>
-                            <span>·</span>
-                            <span>{getMessageStatusLabel(message.status)}</span>
-                          </div>
-
-                          {message.errorMessage ? (
-                            <p className="mt-2 text-xs font-black leading-5 text-red-600">
-                              {getReadableWhatsappError(message.errorMessage)}
-                            </p>
-                          ) : null}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {messagesError ? (
-              <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-black leading-7 text-red-700">
-                {messagesError}
-              </div>
-            ) : null}
-
-            {messageSuccess ? (
-              <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-black text-emerald-700">
-                {messageSuccess}
-              </div>
-            ) : null}
-
-            <div className="mt-4 rounded-[1.6rem] border border-emerald-200 bg-emerald-50/50 p-4">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <h3 className="text-base font-black text-emerald-950">
-                    שליחת הודעת וואטסאפ מאושרת
-                  </h3>
-                  <p className="mt-1 text-xs font-bold leading-5 text-emerald-800">
-                    בחרי הודעה מוכנה לשליחה. הודעות אלה מתאימות גם כאשר עברו
-                    יותר מ־24 שעות מאז שהלקוח ענה.
-                  </p>
-                </div>
-
-                <Pill className="border-emerald-200 bg-white text-emerald-700">
-                  תבנית מאושרת
-                </Pill>
-              </div>
-
-              <label className="mt-4 block">
-                <span className="text-xs font-black text-slate-600">
-                  בחירת הודעה מוכנה
-                </span>
-
-                <select
-                  value={selectedTemplateKey}
-                  onChange={(event) => {
-                    setSelectedTemplateKey(
-                      event.target.value as WhatsappTemplateKey
-                    );
-                    setMessageSuccess("");
-                    setMessagesError("");
-                  }}
-                  className="mt-2 h-12 w-full rounded-2xl border border-emerald-200 bg-white px-4 text-sm font-black text-slate-950 outline-none transition focus:border-emerald-400"
-                >
-                  {WHATSAPP_TEMPLATE_OPTIONS.map((option) => (
-                    <option key={option.key} value={option.key}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <div className="mt-3 rounded-2xl border border-emerald-200 bg-white p-4">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <p className="text-sm font-black text-slate-900">
-                      {selectedTemplate.label}
-                    </p>
-                    <p className="mt-1 text-xs font-bold leading-5 text-slate-500">
-                      {selectedTemplate.description}
-                    </p>
-                  </div>
-
-                  <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-black text-slate-500">
-                    שם עובד: {employeeName}
-                  </span>
-                </div>
-
-                <div className="mt-3 rounded-2xl bg-slate-50 p-4">
-                  <p className="mb-2 text-xs font-black text-slate-500">
-                    תצוגה מקדימה
-                  </p>
-                  <p className="whitespace-pre-wrap text-sm font-bold leading-7 text-slate-900">
-                    {selectedTemplatePreview}
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={sendWhatsappTemplate}
-                disabled={sendingTemplate}
-                className="mt-3 h-12 w-full rounded-2xl bg-emerald-600 px-5 text-sm font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {sendingTemplate ? "שולח הודעה מוכנה..." : "שליחת הודעה מוכנה"}
-              </button>
-            </div>
-
-            <div className="mt-4 rounded-[1.6rem] border border-slate-200 bg-white p-4">
-              <label className="block">
-                <span className="text-xs font-black text-slate-500">
-                  הודעה רגילה
-                </span>
-
-                <textarea
-                  value={messageText}
-                  onChange={(event) => {
-                    setMessageText(event.target.value);
-                    setMessageSuccess("");
-                    setMessagesError("");
-                  }}
-                  rows={4}
-                  placeholder="כתבי הודעה לליד..."
-                  className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm font-bold leading-7 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white"
-                />
-              </label>
-
-              <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-xs font-bold leading-5 text-slate-500">
-                  ניתן לשלוח הודעה רגילה רק לאחר שהלקוח ענה ב־WhatsApp ב־24
-                  השעות האחרונות. אם עברו יותר מ־24 שעות, השתמשי בהודעה מוכנה.
-                </p>
-
-                <button
-                  type="button"
-                  onClick={sendWhatsappMessage}
-                  disabled={sendingMessage || !messageText.trim()}
-                  className="h-11 rounded-2xl bg-green-600 px-5 text-sm font-black text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {sendingMessage ? "שולח..." : "שליחת הודעה רגילה"}
-                </button>
-              </div>
-            </div>
-
-            <div className="mt-5 grid gap-3 sm:grid-cols-3">
-              <InfoCard label="סכום עסקה" value={formatMoney(lead?.totalPrice)} />
-              <InfoCard label="שולם" value={formatMoney(lead?.paidAmount)} />
-              <InfoCard label="יתרה" value={formatMoney(lead?.balance)} />
-            </div>
-          </div>
-        </section>
-
         <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-          <h2 className="text-xl font-black">פעולות נוספות</h2>
+          <h2 className="text-2xl font-black">טיפול בליד</h2>
 
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Link
-              href={`/admin/customers/${leadId}`}
-              className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50"
-            >
-              פתיחה בתיק לקוח אדמין
-            </Link>
+          <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
+            כאן העובד מעדכן את סטטוס הטיפול בליד. כל שמירה מעדכנת את תיק הלקוח
+            באדמין.
+          </p>
+
+          <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
+            <label className="block">
+              <span className="text-xs font-black text-slate-500">
+                סטטוס ליד
+              </span>
+
+              <select
+                value={leadStatus}
+                onChange={(event) => setLeadStatus(event.target.value)}
+                className="mt-2 h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-black text-slate-950 outline-none transition focus:border-slate-400 focus:bg-white"
+              >
+                {LEAD_STATUS_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
 
             <button
               type="button"
-              onClick={() => {
-                void loadLead();
-                void loadMessages();
-              }}
-              className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50"
+              onClick={saveLead}
+              disabled={saving}
+              className="h-12 rounded-2xl bg-slate-950 px-8 text-sm font-black text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
             >
-              רענון ליד
+              {saving ? "שומר..." : "שמור טיפול בליד"}
             </button>
           </div>
+
+          {error ? (
+            <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-black text-red-700">
+              {error}
+            </div>
+          ) : null}
+
+          {saveMessage ? (
+            <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-black text-emerald-700">
+              {saveMessage}
+            </div>
+          ) : null}
+        </section>
+
+        <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="text-2xl font-black">צ׳אט WhatsApp</h2>
+
+              <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
+                הודעות שנשלחות כאן נשמרות בתיק הליד. תגובות נכנסות יופיעו בזמן
+                אמת לאחר שה־Webhook של 360dialog שומר אותן במערכת.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <span
+                className={`inline-flex h-10 items-center rounded-2xl border px-4 text-xs font-black ${
+                  liveChatConnected
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                    : "border-slate-200 bg-slate-50 text-slate-500"
+                }`}
+              >
+                {liveChatConnected ? "צ׳אט בזמן אמת פעיל" : "מתחבר לצ׳אט..."}
+              </span>
+
+              <button
+                type="button"
+                onClick={loadMessages}
+                disabled={messagesLoading}
+                className="h-10 rounded-2xl border border-slate-200 bg-white px-4 text-xs font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {messagesLoading ? "טוען..." : "רענון צ׳אט"}
+              </button>
+            </div>
+          </div>
+
+          {liveChatError ? (
+            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs font-black leading-6 text-amber-700">
+              {liveChatError}
+            </div>
+          ) : null}
+
+          <div className="mt-5 h-[620px] overflow-y-auto rounded-[1.8rem] border border-slate-200 bg-slate-50 p-5">
+            {messagesLoading ? (
+              <div className="flex h-full items-center justify-center text-sm font-black text-slate-500">
+                טוען הודעות...
+              </div>
+            ) : messages.length === 0 ? (
+              <div className="flex h-full flex-col items-center justify-center text-center">
+                <p className="text-base font-black text-slate-800">
+                  אין הודעות עדיין
+                </p>
+                <p className="mt-2 max-w-md text-sm font-semibold leading-7 text-slate-500">
+                  כתבי הודעה למטה כדי לפתוח תיעוד שיחה מול הליד.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {messages.map((message) => {
+                  const isOutgoing = message.direction === "outgoing";
+                  const isFailed = message.status === "failed";
+
+                  return (
+                    <div
+                      key={getMessageId(message)}
+                      className={`flex ${
+                        isOutgoing ? "justify-start" : "justify-end"
+                      }`}
+                    >
+                      <div
+                        className={`max-w-[78%] rounded-[1.25rem] px-4 py-3 shadow-sm ${
+                          isOutgoing
+                            ? isFailed
+                              ? "border border-red-200 bg-red-50 text-red-800"
+                              : "bg-slate-950 text-white"
+                            : "border border-emerald-200 bg-emerald-50 text-emerald-900"
+                        }`}
+                      >
+                        <p className="whitespace-pre-wrap text-sm font-bold leading-6">
+                          {message.messageText || ""}
+                        </p>
+
+                        <div
+                          className={`mt-2 flex flex-wrap items-center gap-2 text-[11px] font-black ${
+                            isOutgoing
+                              ? isFailed
+                                ? "text-red-600"
+                                : "text-slate-300"
+                              : "text-emerald-700"
+                          }`}
+                        >
+                          <span>
+                            {isOutgoing ? "נשלח מהמערכת" : "התקבל מהלקוח"}
+                          </span>
+                          <span>·</span>
+                          <span>{formatTime(message.createdAt)}</span>
+                          <span>·</span>
+                          <span>{getMessageStatusLabel(message.status)}</span>
+                        </div>
+
+                        {message.errorMessage ? (
+                          <p className="mt-2 text-xs font-black leading-5 text-red-600">
+                            {getReadableWhatsappError(message.errorMessage)}
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {messagesError ? (
+            <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-black leading-7 text-red-700">
+              {messagesError}
+            </div>
+          ) : null}
+
+          {messageSuccess ? (
+            <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-black text-emerald-700">
+              {messageSuccess}
+            </div>
+          ) : null}
+        </section>
+
+        <section className="grid gap-6 xl:grid-cols-2">
+          <div className="rounded-[2rem] border border-emerald-200 bg-emerald-50/60 p-5 shadow-sm sm:p-6">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h2 className="text-2xl font-black text-emerald-950">
+                  שליחת הודעת וואטסאפ מאושרת
+                </h2>
+
+                <p className="mt-2 text-sm font-bold leading-7 text-emerald-800">
+                  בחרי הודעה מוכנה לשליחה. הודעות אלה מתאימות גם כאשר עברו יותר
+                  מ־24 שעות מאז שהלקוח ענה.
+                </p>
+              </div>
+
+              <Pill className="border-emerald-200 bg-white text-emerald-700">
+                תבנית מאושרת
+              </Pill>
+            </div>
+
+            <label className="mt-5 block">
+              <span className="text-xs font-black text-slate-600">
+                בחירת הודעה מוכנה
+              </span>
+
+              <select
+                value={selectedTemplateKey}
+                onChange={(event) => {
+                  setSelectedTemplateKey(
+                    event.target.value as WhatsappTemplateKey
+                  );
+                  setMessageSuccess("");
+                  setMessagesError("");
+                }}
+                className="mt-2 h-12 w-full rounded-2xl border border-emerald-200 bg-white px-4 text-sm font-black text-slate-950 outline-none transition focus:border-emerald-400"
+              >
+                {WHATSAPP_TEMPLATE_OPTIONS.map((option) => (
+                  <option key={option.key} value={option.key}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div className="mt-4 rounded-[1.5rem] border border-emerald-200 bg-white p-4">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-sm font-black text-slate-900">
+                    {selectedTemplate.label}
+                  </p>
+                  <p className="mt-1 text-xs font-bold leading-5 text-slate-500">
+                    {selectedTemplate.description}
+                  </p>
+                </div>
+
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-black text-slate-500">
+                  שם עובד: {employeeName}
+                </span>
+              </div>
+
+              <div className="mt-3 rounded-2xl bg-slate-50 p-4">
+                <p className="mb-2 text-xs font-black text-slate-500">
+                  תצוגה מקדימה
+                </p>
+                <p className="whitespace-pre-wrap text-sm font-bold leading-7 text-slate-900">
+                  {selectedTemplatePreview}
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={sendWhatsappTemplate}
+              disabled={sendingTemplate}
+              className="mt-4 h-12 w-full rounded-2xl bg-emerald-600 px-5 text-sm font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {sendingTemplate ? "שולח הודעה מוכנה..." : "שליחת הודעה מוכנה"}
+            </button>
+          </div>
+
+          <div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <h2 className="text-2xl font-black">הודעה רגילה</h2>
+
+            <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
+              ניתן לשלוח הודעה רגילה רק לאחר שהלקוח ענה ב־WhatsApp ב־24 השעות
+              האחרונות. אם עברו יותר מ־24 שעות, השתמשי בהודעה מוכנה.
+            </p>
+
+            <label className="mt-5 block">
+              <span className="text-xs font-black text-slate-500">
+                כתיבת הודעה לליד
+              </span>
+
+              <textarea
+                value={messageText}
+                onChange={(event) => {
+                  setMessageText(event.target.value);
+                  setMessageSuccess("");
+                  setMessagesError("");
+                }}
+                rows={12}
+                placeholder="כתבי הודעה לליד..."
+                className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm font-bold leading-7 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white"
+              />
+            </label>
+
+            <button
+              type="button"
+              onClick={sendWhatsappMessage}
+              disabled={sendingMessage || !messageText.trim()}
+              className="mt-4 h-12 w-full rounded-2xl bg-green-600 px-5 text-sm font-black text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {sendingMessage ? "שולח..." : "שליחת הודעה רגילה"}
+            </button>
+          </div>
+        </section>
+
+        <section className="grid gap-3 sm:grid-cols-3">
+          <InfoCard label="סכום עסקה" value={formatMoney(lead?.totalPrice)} />
+          <InfoCard label="שולם" value={formatMoney(lead?.paidAmount)} />
+          <InfoCard label="יתרה" value={formatMoney(lead?.balance)} />
         </section>
       </div>
     </main>
