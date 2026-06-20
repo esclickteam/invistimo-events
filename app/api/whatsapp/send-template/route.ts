@@ -267,42 +267,71 @@ function buildPayloadTemplate({
     navigationLink: "{{navigationLink}}",
   };
 
-  if (
-    templateName === "rsvp_invitation_media" ||
-    templateName === "rsvp_reminder_invistimo"
-  ) {
-    basePayload.components = [
-      ...(finalImageUrl
-        ? [
-            {
-              type: "header",
-              parameters: [
-                {
-                  type: "image",
-                  image: {
-                    link: finalImageUrl,
-                  },
+  if (templateName === "rsvp_invitation_media") {
+  basePayload.components = [
+    ...(finalImageUrl
+      ? [
+          {
+            type: "header",
+            parameters: [
+              {
+                type: "image",
+                image: {
+                  link: finalImageUrl,
                 },
-              ],
-            },
-          ]
-        : []),
-      {
-        type: "body",
-        parameters: [
-          { type: "text", text: invitation.title || "" },
-          { type: "text", text: eventDate },
-          { type: "text", text: eventLocation },
-        ],
-      },
-      {
-        type: "button",
-        sub_type: "url",
-        index: "0",
-        parameters: [{ type: "text", text: "{{urlSuffix}}" }],
-      },
-    ];
-  }
+              },
+            ],
+          },
+        ]
+      : []),
+    {
+      type: "body",
+      parameters: [
+        { type: "text", text: invitation.title || "" },
+        { type: "text", text: eventDate },
+        { type: "text", text: eventLocation },
+      ],
+    },
+    {
+      type: "button",
+      sub_type: "url",
+      index: "0",
+      parameters: [{ type: "text", text: "{{urlSuffix}}" }],
+    },
+  ];
+}
+
+if (templateName === "rsvp_reminder_invistimo") {
+  basePayload.components = [
+    ...(finalImageUrl
+      ? [
+          {
+            type: "header",
+            parameters: [
+              {
+                type: "image",
+                image: {
+                  link: finalImageUrl,
+                },
+              },
+            ],
+          },
+        ]
+      : []),
+    {
+      type: "body",
+      parameters: [
+        { type: "text", text: invitation.title || "האירוע שלנו" },
+      ],
+    },
+    {
+      type: "button",
+      sub_type: "url",
+      index: "0",
+      parameters: [{ type: "text", text: "{{urlSuffix}}" }],
+    },
+  ];
+}
 
   if (
     templateName === "table_number_update_invistimo" ||
