@@ -76,6 +76,7 @@ function parseJsonObject(value: unknown): Record<string, any> {
 
   try {
     const parsed = JSON.parse(raw);
+
     if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
       return parsed;
     }
@@ -491,37 +492,37 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const invitationQuery: any = {
+    /*
+      חשוב:
+      במודל Invitation שלך אין userId.
+      בעל ההזמנה נשמר בשדה ownerId.
+      לכן לא מחפשים כאן לפי invitationQuery.userId.
+      קודם מוצאים את ההזמנה לפי _id, ואז לוקחים ownerId ממנה.
+    */
+
+    const invitation: any = await Invitation.findOne({
       _id: toObjectId(invitationId),
-    };
-
-    if (authUserId && isValidObjectId(authUserId)) {
-      invitationQuery.userId = toObjectId(authUserId);
-    }
-
-    const invitation: any = await Invitation.findOne(invitationQuery)
-      .select("_id userId title")
+    })
+      .select("_id ownerId title")
       .lean();
 
     if (!invitation) {
       return NextResponse.json(
         {
           success: false,
-          error: authUserId
-            ? "INVITATION_NOT_FOUND"
-            : "INVITATION_NOT_FOUND_OR_AUTH_NOT_RESOLVED",
+          error: "INVITATION_NOT_FOUND",
         },
         { status: 404 }
       );
     }
 
-    const userId = String(invitation.userId || authUserId || "");
+    const ownerId = String(invitation.ownerId || "");
 
-    if (!userId || !isValidObjectId(userId)) {
+    if (!ownerId || !isValidObjectId(ownerId)) {
       return NextResponse.json(
         {
           success: false,
-          error: "MISSING_INVITATION_USER_ID",
+          error: "MISSING_INVITATION_OWNER_ID",
         },
         { status: 400 }
       );
@@ -622,7 +623,13 @@ export async function POST(req: NextRequest) {
 
       const schedulePayload = {
         invitationId: toObjectId(invitationId),
-        userId: toObjectId(userId),
+
+        /*
+          ScheduledMessage עדיין יכול לשמור את זה בשם userId,
+          אבל הערך הנכון מגיע מ-Invitation.ownerId.
+        */
+        userId: toObjectId(ownerId),
+
         channel: "whatsapp",
         type: messageType,
         filter: "all",
