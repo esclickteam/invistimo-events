@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import RsvpTab from "./tabs/RsvpTab";
 import ReminderTab from "./tabs/ReminderTab";
 import ThankYouTab from "./tabs/ThankYouTab";
@@ -48,16 +48,17 @@ const DEFAULT_SAVE_THE_DATE_MESSAGE = `Save The Date
 
 const DEFAULT_INVITATION_ONLY_MESSAGE = `ההזמנה שלנו כבר כאן 🤍
 
-נשמח להזמין אתכם לאירוע:
+אנחנו מתרגשים להזמין אתכם לקחת חלק באירוע שלנו:
 {שם האירוע}
 
-בתאריך:
+נשמח לראותכם בתאריך:
 {תאריך אירוע}
 
-מיקום האירוע:
+במיקום:
 {מיקום האירוע}
 
-פרטים נוספים יישלחו בקרוב 🤍`;
+פרטים נוספים יישלחו בהמשך.
+מחכים לחגוג איתכם ✨`;
 
 /* ================= HELPERS ================= */
 
@@ -72,6 +73,12 @@ function formatEventDate(value: any): string {
 
 function cleanString(value: unknown) {
   return String(value || "").trim();
+}
+
+function getCurrentTemplate(type: PreRsvpType) {
+  return type === "save_the_date"
+    ? DEFAULT_SAVE_THE_DATE_MESSAGE
+    : DEFAULT_INVITATION_ONLY_MESSAGE;
 }
 
 function replaceMessageVariables({
@@ -143,7 +150,7 @@ export default function NewMessagesPage() {
         );
 
         if (invitation) {
-          setInvitationId(invitation._id);
+          setInvitationId(invitation._id || "");
 
           setMeta({
             invitationTitle: invitation.title || "",
@@ -488,21 +495,10 @@ function PreRsvpTab({ meta }: { invitationId: string; meta: MessageMeta }) {
     DEFAULT_SAVE_THE_DATE_TITLE
   );
 
-  const [saveTheDateMessage, setSaveTheDateMessage] = useState(
-    DEFAULT_SAVE_THE_DATE_MESSAGE
-  );
-
-  const [invitationOnlyMessage, setInvitationOnlyMessage] = useState(
-    DEFAULT_INVITATION_ONLY_MESSAGE
-  );
-
   const [saveTheDateImage, setSaveTheDateImage] = useState("");
   const [invitationOnlyImage, setInvitationOnlyImage] = useState("");
 
-  const currentMessage =
-    activePreTab === "save_the_date"
-      ? saveTheDateMessage
-      : invitationOnlyMessage;
+  const currentMessage = getCurrentTemplate(activePreTab);
 
   const currentImage =
     activePreTab === "save_the_date" ? saveTheDateImage : invitationOnlyImage;
@@ -515,24 +511,35 @@ function PreRsvpTab({ meta }: { invitationId: string; meta: MessageMeta }) {
     });
   }, [currentMessage, saveTheDateTitle, meta]);
 
-  function handleMessageChange(value: string) {
-    if (activePreTab === "save_the_date") {
-      setSaveTheDateMessage(value);
-      return;
-    }
-
-    setInvitationOnlyMessage(value);
-  }
+  useEffect(() => {
+    return () => {
+      if (saveTheDateImage) URL.revokeObjectURL(saveTheDateImage);
+      if (invitationOnlyImage) URL.revokeObjectURL(invitationOnlyImage);
+    };
+  }, [saveTheDateImage, invitationOnlyImage]);
 
   function handleImageChange(file: File | null) {
     const imageUrl = getFilePreview(file);
 
     if (activePreTab === "save_the_date") {
+      if (saveTheDateImage) URL.revokeObjectURL(saveTheDateImage);
       setSaveTheDateImage(imageUrl);
       return;
     }
 
+    if (invitationOnlyImage) URL.revokeObjectURL(invitationOnlyImage);
     setInvitationOnlyImage(imageUrl);
+  }
+
+  function handleRemoveImage() {
+    if (activePreTab === "save_the_date") {
+      if (saveTheDateImage) URL.revokeObjectURL(saveTheDateImage);
+      setSaveTheDateImage("");
+      return;
+    }
+
+    if (invitationOnlyImage) URL.revokeObjectURL(invitationOnlyImage);
+    setInvitationOnlyImage("");
   }
 
   function handleSubmit() {
@@ -542,8 +549,10 @@ function PreRsvpTab({ meta }: { invitationId: string; meta: MessageMeta }) {
       sendTiming,
       scheduledDate: sendTiming === "scheduled" ? scheduledDate : "",
       scheduledTime: sendTiming === "scheduled" ? scheduledTime : "",
-      saveTheDateTitle,
+      saveTheDateTitle:
+        activePreTab === "save_the_date" ? saveTheDateTitle : "",
       message: currentMessage,
+      previewMessage,
       imageUrl: currentImage,
     };
 
@@ -557,7 +566,70 @@ function PreRsvpTab({ meta }: { invitationId: string; meta: MessageMeta }) {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-6 p-5 lg:grid-cols-[1fr_460px] md:p-8">
+    <div className="grid grid-cols-1 gap-6 p-5 md:p-8 lg:grid-cols-[460px_1fr]">
+      {/* Preview side */}
+      <div>
+        <div
+          className="
+            sticky
+            top-6
+            rounded-[34px]
+            border
+            border-[#E6D8C5]
+            bg-[#FBF7EF]/90
+            p-6
+            shadow-[0_26px_70px_rgba(72,48,28,0.11)]
+            backdrop-blur-xl
+          "
+        >
+          <div className="mb-7 flex items-center justify-between gap-4">
+            <div>
+              <h3 className="text-2xl font-black text-[#2D241D]">
+                תצוגה מקדימה
+              </h3>
+
+              <p className="mt-1 text-sm font-bold text-[#8A7A6B]">
+                כך תיראה הודעת הוואטסאפ
+              </p>
+            </div>
+
+            <div
+              className="
+                flex
+                h-12
+                w-12
+                items-center
+                justify-center
+                rounded-[18px]
+                bg-[#F4E5CC]
+                text-2xl
+                shadow-sm
+              "
+            >
+              ✨
+            </div>
+          </div>
+
+          <PhonePreview
+            title="INVISTIMO · WHATSAPP"
+            message={previewMessage}
+            imageUrl={currentImage}
+          />
+
+          <div className="mt-7 grid grid-cols-3 gap-3">
+            <PreviewStat
+              value={activePreTab === "save_the_date" ? "Save" : "Invite"}
+              label="סוג הודעה"
+            />
+            <PreviewStat value="WA" label="ערוץ" />
+            <PreviewStat
+              value={sendTiming === "scheduled" ? "מתוזמן" : "מיידי"}
+              label="שליחה"
+            />
+          </div>
+        </div>
+      </div>
+
       {/* Editor side */}
       <div className="space-y-6">
         {/* Sub tabs */}
@@ -645,15 +717,15 @@ function PreRsvpTab({ meta }: { invitationId: string; meta: MessageMeta }) {
           </div>
         </Panel>
 
-        {/* Message editor */}
+        {/* Template settings */}
         <Panel
           icon="✍️"
           title={
             activePreTab === "save_the_date"
-              ? "עריכת הודעת Save The Date"
-              : "עריכת הודעת הזמנה"
+              ? "הגדרת הודעת Save The Date"
+              : "הגדרת הודעת הזמנה"
           }
-          description="אפשר לערוך את תוכן ההודעה לפני שליחה מיידית או מתוזמנת"
+          description="תבנית WhatsApp קבועה"
         >
           <div className="space-y-5">
             {activePreTab === "save_the_date" && (
@@ -693,90 +765,190 @@ function PreRsvpTab({ meta }: { invitationId: string; meta: MessageMeta }) {
                 תמונה להודעה
               </label>
 
-              <label
+              <div
                 className="
-                  flex
-                  cursor-pointer
-                  flex-col
-                  items-center
-                  justify-center
-                  gap-3
                   rounded-[26px]
                   border
                   border-dashed
                   border-[#D6A64F]
                   bg-[#FFF8ED]
-                  px-5
-                  py-7
-                  text-center
+                  p-4
                   transition
                   hover:bg-[#FFF1D2]
                 "
               >
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => handleImageChange(e.target.files?.[0] || null)}
-                />
+                {currentImage ? (
+                  <div className="space-y-3">
+                    <img
+                      src={currentImage}
+                      alt="תמונה להודעה"
+                      className="
+                        h-48
+                        w-full
+                        rounded-[22px]
+                        object-cover
+                        shadow-sm
+                      "
+                    />
 
-                <div
-                  className="
-                    flex
-                    h-14
-                    w-14
-                    items-center
-                    justify-center
-                    rounded-[20px]
-                    bg-white
-                    text-2xl
-                    shadow-sm
-                  "
-                >
-                  🖼️
-                </div>
+                    <div className="flex flex-col gap-3 sm:flex-row">
+                      <label
+                        className="
+                          flex
+                          flex-1
+                          cursor-pointer
+                          items-center
+                          justify-center
+                          rounded-[18px]
+                          bg-white
+                          px-4
+                          py-3
+                          text-sm
+                          font-black
+                          text-[#8A6A3D]
+                          shadow-sm
+                          transition
+                          hover:bg-[#FAF3E9]
+                        "
+                      >
+                        החלפת תמונה
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) =>
+                            handleImageChange(e.target.files?.[0] || null)
+                          }
+                        />
+                      </label>
 
-                <div>
-                  <div className="text-sm font-black text-[#3A3028]">
-                    העלאת תמונה להודעת WhatsApp
+                      <button
+                        type="button"
+                        onClick={handleRemoveImage}
+                        className="
+                          rounded-[18px]
+                          border
+                          border-[#E0CFB8]
+                          bg-white
+                          px-4
+                          py-3
+                          text-sm
+                          font-black
+                          text-[#8A6A3D]
+                          shadow-sm
+                          transition
+                          hover:bg-[#FAF3E9]
+                        "
+                      >
+                        הסרת תמונה
+                      </button>
+                    </div>
                   </div>
+                ) : (
+                  <label
+                    className="
+                      flex
+                      cursor-pointer
+                      flex-col
+                      items-center
+                      justify-center
+                      gap-3
+                      px-5
+                      py-6
+                      text-center
+                    "
+                  >
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) =>
+                        handleImageChange(e.target.files?.[0] || null)
+                      }
+                    />
 
-                  <div className="mt-1 text-xs font-bold text-[#8A7A6B]">
-                    התמונה תופיע מעל הטקסט בתצוגה המקדימה.
-                  </div>
-                </div>
-              </label>
+                    <div
+                      className="
+                        flex
+                        h-14
+                        w-14
+                        items-center
+                        justify-center
+                        rounded-[20px]
+                        bg-white
+                        text-2xl
+                        shadow-sm
+                      "
+                    >
+                      🖼️
+                    </div>
+
+                    <div>
+                      <div className="text-sm font-black text-[#3A3028]">
+                        העלאת תמונה להודעת WhatsApp
+                      </div>
+
+                      <div className="mt-1 text-xs font-bold text-[#8A7A6B]">
+                        התמונה תופיע מעל הטקסט בתצוגה המקדימה.
+                      </div>
+                    </div>
+                  </label>
+                )}
+              </div>
             </div>
 
             <div>
               <label className="mb-2 block text-sm font-black text-[#3A3028]">
-                תוכן ההודעה
+                תבנית ההודעה
               </label>
 
-              <textarea
-                value={currentMessage}
-                onChange={(e) => handleMessageChange(e.target.value)}
-                rows={activePreTab === "save_the_date" ? 9 : 10}
+              <div
                 className="
-                  w-full
-                  resize-none
+                  relative
+                  overflow-hidden
                   rounded-[26px]
                   border
                   border-[#E4D3BC]
-                  bg-white
+                  bg-[#F8F1E8]
                   px-4
                   py-4
-                  text-sm
-                  font-semibold
-                  leading-8
-                  text-[#2D241D]
-                  outline-none
-                  transition
-                  focus:border-[#C5964D]
-                  focus:ring-4
-                  focus:ring-[#D8B878]/20
                 "
-              />
+              >
+                <div
+                  className="
+                    mb-3
+                    inline-flex
+                    items-center
+                    gap-2
+                    rounded-full
+                    border
+                    border-[#E2D1B8]
+                    bg-white
+                    px-3
+                    py-1.5
+                    text-xs
+                    font-black
+                    text-[#8A6A3D]
+                    shadow-sm
+                  "
+                >
+                  🔒 תבנית קבועה
+                </div>
+
+                <pre
+                  className="
+                    whitespace-pre-wrap
+                    break-words
+                    text-right
+                    text-sm
+                    font-semibold
+                    leading-8
+                    text-[#3A3028]
+                  "
+                >
+                  {previewMessage}
+                </pre>
+              </div>
             </div>
           </div>
         </Panel>
@@ -891,69 +1063,6 @@ function PreRsvpTab({ meta }: { invitationId: string; meta: MessageMeta }) {
           </div>
         </Panel>
       </div>
-
-      {/* Preview side */}
-      <div>
-        <div
-          className="
-            sticky
-            top-6
-            rounded-[34px]
-            border
-            border-[#E6D8C5]
-            bg-[#FBF7EF]/90
-            p-6
-            shadow-[0_26px_70px_rgba(72,48,28,0.11)]
-            backdrop-blur-xl
-          "
-        >
-          <div className="mb-7 flex items-center justify-between gap-4">
-            <div>
-              <h3 className="text-2xl font-black text-[#2D241D]">
-                תצוגה מקדימה
-              </h3>
-
-              <p className="mt-1 text-sm font-bold text-[#8A7A6B]">
-                כך תיראה הודעת הוואטסאפ
-              </p>
-            </div>
-
-            <div
-              className="
-                flex
-                h-12
-                w-12
-                items-center
-                justify-center
-                rounded-[18px]
-                bg-[#F4E5CC]
-                text-2xl
-                shadow-sm
-              "
-            >
-              ✨
-            </div>
-          </div>
-
-          <PhonePreview
-            title="INVISTIMO · WHATSAPP"
-            message={previewMessage}
-            imageUrl={currentImage}
-          />
-
-          <div className="mt-7 grid grid-cols-3 gap-3">
-            <PreviewStat
-              value={activePreTab === "save_the_date" ? "Save" : "Invite"}
-              label="סוג הודעה"
-            />
-            <PreviewStat value="WA" label="ערוץ" />
-            <PreviewStat
-              value={sendTiming === "scheduled" ? "מתוזמן" : "מיידי"}
-              label="שליחה"
-            />
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
@@ -969,7 +1078,7 @@ function Panel({
   icon: string;
   title: string;
   description: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <section

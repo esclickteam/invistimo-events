@@ -85,20 +85,14 @@ function createImagePreview(file: File | null) {
   return URL.createObjectURL(file);
 }
 
-function getModeTitle(mode: PreRsvpType) {
-  return mode === "save_the_date" ? "Save The Date" : "שליחת הזמנות";
-}
-
-function getModeSubtitle(mode: PreRsvpType) {
-  return mode === "save_the_date"
-    ? "שריון תאריך לפני שליחת ההזמנה"
-    : "הזמנה כללית ללא אישור הגעה";
-}
-
 function getCurrentTemplate(mode: PreRsvpType) {
   return mode === "save_the_date"
     ? DEFAULT_SAVE_THE_DATE_MESSAGE
     : DEFAULT_INVITATION_ONLY_MESSAGE;
+}
+
+function getModeTitle(mode: PreRsvpType) {
+  return mode === "save_the_date" ? "Save The Date" : "שליחת הזמנות";
 }
 
 /* ================= COMPONENT ================= */
@@ -146,10 +140,6 @@ export default function PreRsvpTab({
       if (invitationOnlyImage) URL.revokeObjectURL(invitationOnlyImage);
     };
   }, [saveTheDateImage, invitationOnlyImage]);
-
-  function handleModeChange(mode: PreRsvpType) {
-    setActiveMode(mode);
-  }
 
   function handleImageChange(file: File | null) {
     const imageUrl = createImagePreview(file);
@@ -200,7 +190,7 @@ export default function PreRsvpTab({
 
   return (
     <div className="grid grid-cols-1 gap-6 p-5 md:p-8 xl:grid-cols-[460px_1fr]">
-      {/* ================= Preview Side ================= */}
+      {/* ================= Preview Side - RIGHT IN RTL ================= */}
       <div>
         <div
           className="
@@ -248,7 +238,7 @@ export default function PreRsvpTab({
         </div>
       </div>
 
-      {/* ================= Editor Side ================= */}
+      {/* ================= Settings Side - LEFT IN RTL ================= */}
       <div className="space-y-6">
         <Panel
           icon="💌"
@@ -261,7 +251,7 @@ export default function PreRsvpTab({
               icon="💌"
               title="Save The Date"
               description="שריון תאריך לפני שליחת ההזמנה"
-              onClick={() => handleModeChange("save_the_date")}
+              onClick={() => setActiveMode("save_the_date")}
             />
 
             <SubTabButton
@@ -269,7 +259,7 @@ export default function PreRsvpTab({
               icon="✨"
               title="שליחת הזמנות"
               description="הזמנה כללית ללא אישור הגעה"
-              onClick={() => handleModeChange("invitation_only")}
+              onClick={() => setActiveMode("invitation_only")}
             />
           </div>
         </Panel>
@@ -319,7 +309,7 @@ export default function PreRsvpTab({
               ? "הגדרת הודעת Save The Date"
               : "הגדרת הודעת הזמנה"
           }
-          description="התוכן הוא תבנית WhatsApp קבועה ולכן לא ניתן לערוך את גוף ההודעה."
+          description="תבנית WhatsApp קבועה."
         >
           <div className="space-y-5">
             {activeMode === "save_the_date" && (
@@ -454,7 +444,7 @@ export default function PreRsvpTab({
                     shadow-sm
                   "
                 >
-                  🔒 תבנית WhatsApp קבועה
+                  🔒 תבנית קבועה
                 </div>
 
                 <pre
