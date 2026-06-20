@@ -333,7 +333,10 @@ export default function PreRsvpTab({
     [headerImageUrl]
   );
 
-  const previewImageUrl = currentImage || cleanHeaderImageUrl;
+  const previewImageUrl =
+  activeMode === "save_the_date"
+    ? currentImage
+    : currentImage || cleanHeaderImageUrl;
 
   const previewMessage = useMemo(() => {
     return replaceMessageVariables({
@@ -442,12 +445,17 @@ export default function PreRsvpTab({
           eventLocation: cleanString(eventLocation),
         };
 
-    const fallbackHeaderImageUrl = cleanHeaderImageUrl;
+    const fallbackHeaderImageUrl = isSaveTheDate ? "" : cleanHeaderImageUrl;
 
-    if (!currentImageFile && !fallbackHeaderImageUrl) {
-      alert("חובה להעלות תמונה או לוודא שקיימת תמונת הזמנה איכותית.");
-      return;
-    }
+if (isSaveTheDate && !currentImageFile) {
+  alert("חובה להעלות תמונה ל־Save The Date.");
+  return;
+}
+
+if (!isSaveTheDate && !currentImageFile && !fallbackHeaderImageUrl) {
+  alert("חובה להעלות תמונה או לוודא שקיימת תמונת הזמנה איכותית.");
+  return;
+}
 
     const formData = new FormData();
 
@@ -776,8 +784,10 @@ export default function PreRsvpTab({
                       </div>
 
                       <div className="mt-1 text-xs font-bold text-[#8A7A6B]">
-                        אם לא מעלים תמונה ידנית, תישלח תמונת ההזמנה המקורית.
-                      </div>
+  {activeMode === "save_the_date"
+    ? "ל־Save The Date יש להעלות תמונה ייעודית."
+    : "אם לא מעלים תמונה ידנית, תישלח תמונת ההזמנה המקורית."}
+</div>
                     </div>
                   </label>
                 )}
