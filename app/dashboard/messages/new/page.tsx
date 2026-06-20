@@ -17,6 +17,7 @@ type PreRsvpAccessMode =
   | "save_the_date_only"
   | "invitation_only"
   | "both";
+  
 
 type PreRsvpMessagesAccess = {
   enabled?: boolean;
@@ -115,6 +116,33 @@ function formatEventDate(value: any): string {
 
 function cleanString(value: unknown) {
   return String(value || "").trim();
+}
+
+function getHighQualityCloudinaryImageUrl(value: unknown) {
+  const url = cleanString(value);
+
+  if (!url) return "";
+
+  if (!url.includes("res.cloudinary.com") || !url.includes("/upload/")) {
+    return url;
+  }
+
+  const [beforeUpload, afterUpload] = url.split("/upload/");
+
+  if (!beforeUpload || !afterUpload) return url;
+
+  const cleanedAfterUpload = afterUpload
+    .replace(/^f_auto,q_auto[^/]*\//, "")
+    .replace(/^q_auto,f_auto[^/]*\//, "")
+    .replace(/^q_auto[^/]*\//, "")
+    .replace(/^f_auto[^/]*\//, "")
+    .replace(/^c_fill[^/]*\//, "")
+    .replace(/^c_fit[^/]*\//, "")
+    .replace(/^c_pad[^/]*\//, "")
+    .replace(/^w_\d+[^/]*\//, "")
+    .replace(/^h_\d+[^/]*\//, "");
+
+  return `${beforeUpload}/upload/q_100,f_png/${cleanedAfterUpload}`;
 }
 
 function normalizeCompareText(value: unknown) {
@@ -327,8 +355,13 @@ export default function NewMessagesPage() {
             eventLocation: buildEventLocationText(invitation, event),
             eventType: invitation.eventType || event?.eventType || "",
             giftCreditUrl: invitation.giftCreditUrl || event?.giftCreditUrl || "",
-            headerImageUrl:
-              invitation.previewImage || invitation.headerImageUrl || "",
+            headerImageUrl: getHighQualityCloudinaryImageUrl(
+              invitation.headerImageUrl ||
+                invitation.imageUrl ||
+                invitation.invitationImageUrl ||
+                invitation.previewImage ||
+                ""
+            ),
             lat: invitation.location?.lat ?? event?.location?.lat,
             lng: invitation.location?.lng ?? event?.location?.lng,
           });
@@ -837,7 +870,8 @@ function PreRsvpTab({
         saveTheDateTitle: isSaveTheDate ? cleanSaveTheDateTitle : "",
         message: currentMessage,
         previewMessage,
-        hasImage: Boolean(currentImageFile),
+        hasImage: Boolean(currentImageFile || meta.headerImageUrl),
+        headerImageUrl: getHighQualityCloudinaryImageUrl(meta.headerImageUrl),
       };
 
       console.log("PRE RSVP SEND PAYLOAD:", payload);
@@ -871,6 +905,7 @@ function PreRsvpTab({
 
       formData.append("message", payload.message);
       formData.append("previewMessage", payload.previewMessage);
+      formData.append("headerImageUrl", payload.headerImageUrl);
 
       if (currentImageFile) {
         formData.append("image", currentImageFile);
@@ -950,7 +985,7 @@ function PreRsvpTab({
           <PhonePreview
             title="INVISTIMO · WHATSAPP"
             message={previewMessage}
-            imageUrl={currentImage}
+            imageUrl={currentImage || meta.headerImageUrl}
           />
 
           <div className="mt-7 grid grid-cols-3 gap-3">
@@ -1140,7 +1175,8 @@ function PreRsvpTab({
                         h-48
                         w-full
                         rounded-[22px]
-                        object-cover
+                        bg-white
+                        object-contain
                         shadow-sm
                       "
                     />
@@ -1707,7 +1743,8 @@ function PhonePreview({
                   h-36
                   w-full
                   rounded-[16px]
-                  object-cover
+                  bg-white
+                  object-contain
                 "
               />
             )}

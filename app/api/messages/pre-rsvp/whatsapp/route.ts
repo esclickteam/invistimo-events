@@ -39,6 +39,46 @@ function cleanString(value: unknown) {
   return String(value || "").trim();
 }
 
+function getHighQualityCloudinaryImageUrl(value: unknown) {
+  const url = cleanString(value);
+
+  if (!url) return "";
+
+  if (!url.includes("res.cloudinary.com") || !url.includes("/upload/")) {
+    return url;
+  }
+
+  const [beforeUpload, afterUpload] = url.split("/upload/");
+
+  if (!beforeUpload || !afterUpload) return url;
+
+  const cleanedAfterUpload = afterUpload
+    .replace(/^f_auto,q_auto[^/]*\//, "")
+    .replace(/^q_auto,f_auto[^/]*\//, "")
+    .replace(/^q_auto[^/]*\//, "")
+    .replace(/^f_auto[^/]*\//, "")
+    .replace(/^c_fill[^/]*\//, "")
+    .replace(/^c_fit[^/]*\//, "")
+    .replace(/^c_pad[^/]*\//, "")
+    .replace(/^w_\d+[^/]*\//, "")
+    .replace(/^h_\d+[^/]*\//, "");
+
+  return `${beforeUpload}/upload/q_100,f_png/${cleanedAfterUpload}`;
+}
+
+function isHttpImageUrl(value: unknown) {
+  const url = cleanString(value);
+
+  if (!url) return false;
+
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" || parsed.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
 function normalizeCompareText(value: unknown) {
   return cleanString(value)
     .replace(/\s+/g, " ")
@@ -266,13 +306,16 @@ async function uploadImageToCloudinary({
   }>((resolve, reject) => {
 
     const uploadStream = cloudinary.uploader.upload_stream(
-  {
-    folder,
-    public_id: publicId,
-    resource_type: "image",
-    overwrite: false,
-  },
-  (error, result) => {
+      {
+        folder,
+        public_id: publicId,
+        resource_type: "image",
+        overwrite: false,
+        quality_analysis: true,
+        colors: true,
+        invalidate: true,
+      },
+      (error, result) => {
     if (error) {
       reject(error);
       return;
@@ -283,18 +326,19 @@ async function uploadImageToCloudinary({
       return;
     }
 
+    const highQualitySecureUrl = getHighQualityCloudinaryImageUrl(result.secure_url);
+
     resolve({
       url: result.url,
-      secureUrl: result.secure_url,
+      secureUrl: highQualitySecureUrl,
       publicId: result.public_id,
       width: result.width,
       height: result.height,
       format: result.format,
       bytes: result.bytes,
     });
-  }
-);
-    
+      }
+    );
 
     uploadStream.end(buffer);
   });
@@ -652,6 +696,9 @@ export async function POST(req: NextRequest) {
 
     const templateMessage = cleanString(formData.get("message"));
     const previewMessage = cleanString(formData.get("previewMessage"));
+    const headerImageUrlFromForm = getHighQualityCloudinaryImageUrl(
+      formData.get("headerImageUrl")
+    );
 
     const rawTemplateVariables = parseJsonObject(
       formData.get("templateVariables")
@@ -690,17 +737,27 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!imageFile) {
+    if (!imageFile && !headerImageUrlFromForm) {
       return NextResponse.json(
         {
           success: false,
-          error: "יש להעלות תמונה להודעת הוואטסאפ.",
+          error: "יש להעלות תמונה להודעת הוואטסאפ או להשתמש בתמונת ההזמנה הקיימת.",
         },
         { status: 400 }
       );
     }
 
-    if (!imageFile.type.startsWith("image/")) {
+    if (headerImageUrlFromForm && !isHttpImageUrl(headerImageUrlFromForm)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "קישור התמונה אינו תקין.",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (imageFile && !imageFile.type.startsWith("image/")) {
       return NextResponse.json(
         {
           success: false,
@@ -713,7 +770,7 @@ export async function POST(req: NextRequest) {
     const maxImageMb = 12;
     const maxImageBytes = maxImageMb * 1024 * 1024;
 
-    if (imageFile.size > maxImageBytes) {
+    if (imageFile && imageFile.size > maxImageBytes) {
       return NextResponse.json(
         {
           success: false,
@@ -734,7 +791,7 @@ export async function POST(req: NextRequest) {
     const invitation: any = await Invitation.findOne({
       _id: toObjectId(invitationId),
     })
-      .select("_id ownerId title eventDate location")
+      .select("_id ownerId title eventDate location headerImageUrl imageUrl invitationImageUrl previewImage")
       .lean();
 
     if (!invitation) {
@@ -878,18 +935,42 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const uploadResult = await uploadImageToCloudinary({
-      file: imageFile,
-      invitationId,
-      messageType,
-    });
+    const fallbackImageUrlFromInvitation = getHighQualityCloudinaryImageUrl(
+      invitation.headerImageUrl ||
+        invitation.imageUrl ||
+        invitation.invitationImageUrl ||
+        invitation.previewImage ||
+        ""
+    );
 
-    const imageUrl = uploadResult.secureUrl;
+    const uploadResult = imageFile
+      ? await uploadImageToCloudinary({
+          file: imageFile,
+          invitationId,
+          messageType,
+        })
+      : null;
+
+    const imageUrl = getHighQualityCloudinaryImageUrl(
+      uploadResult?.secureUrl || headerImageUrlFromForm || fallbackImageUrlFromInvitation
+    );
+
+    if (!imageUrl) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "לא נמצאה תמונה תקינה לשליחת הוואטסאפ.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const cloudinaryPublicId = uploadResult?.publicId || "";
 
     const whatsappPayload = buildWhatsappTemplatePayload({
       messageType,
       imageUrl,
-      cloudinaryPublicId: uploadResult.publicId,
+      cloudinaryPublicId,
       templateVariables,
       previewMessage,
       templateMessage,
@@ -996,7 +1077,7 @@ export async function POST(req: NextRequest) {
         scheduledAt,
         guestsCount: validGuests.length,
         imageUrl,
-        cloudinaryPublicId: uploadResult.publicId,
+        cloudinaryPublicId,
         templateVariables,
       });
     }
@@ -1072,7 +1153,7 @@ export async function POST(req: NextRequest) {
       queuedCount: inserted.length,
       guestsCount: validGuests.length,
       imageUrl,
-      cloudinaryPublicId: uploadResult.publicId,
+      cloudinaryPublicId,
       templateVariables,
     });
   } catch (err: any) {
