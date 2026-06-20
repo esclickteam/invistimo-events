@@ -75,6 +75,33 @@ function normalizePreviewText(value: string) {
   return value.replace(/\n{3,}/g, "\n\n").trim();
 }
 
+function getHighQualityCloudinaryImageUrl(value: unknown) {
+  const url = cleanString(value);
+
+  if (!url) return "";
+
+  if (!url.includes("res.cloudinary.com") || !url.includes("/upload/")) {
+    return url;
+  }
+
+  const [beforeUpload, afterUpload] = url.split("/upload/");
+
+  if (!beforeUpload || !afterUpload) return url;
+
+  const cleanedAfterUpload = afterUpload
+    .replace(/^f_auto,q_auto[^/]*\//, "")
+    .replace(/^q_auto,f_auto[^/]*\//, "")
+    .replace(/^q_auto[^/]*\//, "")
+    .replace(/^f_auto[^/]*\//, "")
+    .replace(/^c_fill[^/]*\//, "")
+    .replace(/^c_fit[^/]*\//, "")
+    .replace(/^c_pad[^/]*\//, "")
+    .replace(/^w_\d+[^/]*\//, "")
+    .replace(/^h_\d+[^/]*\//, "");
+
+  return `${beforeUpload}/upload/q_100,f_png/${cleanedAfterUpload}`;
+}
+
 function replaceMessageVariables({
   message,
   saveTheDateTitle,
@@ -255,6 +282,7 @@ export default function PreRsvpTab({
   invitationTitle,
   eventDate,
   eventLocation,
+  headerImageUrl,
   preRsvpMessages,
 }: PreRsvpTabProps) {
   const [activeMode, setActiveMode] = useState<PreRsvpType>("save_the_date");
@@ -283,10 +311,29 @@ export default function PreRsvpTab({
   const [saveTheDateImage, setSaveTheDateImage] = useState("");
   const [invitationOnlyImage, setInvitationOnlyImage] = useState("");
 
+  const [saveTheDateImageFile, setSaveTheDateImageFile] =
+    useState<File | null>(null);
+  const [invitationOnlyImageFile, setInvitationOnlyImageFile] =
+    useState<File | null>(null);
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const currentTemplate = getCurrentTemplate(activeMode);
 
   const currentImage =
     activeMode === "save_the_date" ? saveTheDateImage : invitationOnlyImage;
+
+  const currentImageFile =
+    activeMode === "save_the_date"
+      ? saveTheDateImageFile
+      : invitationOnlyImageFile;
+
+  const cleanHeaderImageUrl = useMemo(
+    () => getHighQualityCloudinaryImageUrl(headerImageUrl),
+    [headerImageUrl]
+  );
+
+  const previewImageUrl = currentImage || cleanHeaderImageUrl;
 
   const previewMessage = useMemo(() => {
     return replaceMessageVariables({
@@ -326,32 +373,59 @@ export default function PreRsvpTab({
 
     if (activeMode === "save_the_date") {
       if (saveTheDateImage) URL.revokeObjectURL(saveTheDateImage);
+
       setSaveTheDateImage(imageUrl);
+      setSaveTheDateImageFile(file);
       return;
     }
 
     if (invitationOnlyImage) URL.revokeObjectURL(invitationOnlyImage);
+
     setInvitationOnlyImage(imageUrl);
+    setInvitationOnlyImageFile(file);
   }
 
   function handleRemoveImage() {
     if (activeMode === "save_the_date") {
       if (saveTheDateImage) URL.revokeObjectURL(saveTheDateImage);
+
       setSaveTheDateImage("");
+      setSaveTheDateImageFile(null);
       return;
     }
 
     if (invitationOnlyImage) URL.revokeObjectURL(invitationOnlyImage);
+
     setInvitationOnlyImage("");
+    setInvitationOnlyImageFile(null);
   }
 
   async function handleSubmit() {
+    if (isSubmitting) return;
+
     if (!activeModeAvailable) {
       alert(activeModeLockedReason || "האפשרות הזו לא זמינה בחבילה הנוכחית.");
       return;
     }
 
+    const cleanInvitationId = cleanString(invitationId);
+
+    if (!cleanInvitationId) {
+      alert("לא נמצאה הזמנה פעילה לשליחה.");
+      return;
+    }
+
+    if (sendTiming === "scheduled" && (!scheduledDate || !scheduledTime)) {
+      alert("בחרי תאריך ושעה לשליחה המתוזמנת.");
+      return;
+    }
+
     const isSaveTheDate = activeMode === "save_the_date";
+
+    if (isSaveTheDate && !cleanString(saveTheDateTitle)) {
+      alert("חובה להזין כותרת ל־Save The Date.");
+      return;
+    }
 
     const templateName = isSaveTheDate
       ? "save_the_date_image_he"
@@ -359,40 +433,106 @@ export default function PreRsvpTab({
 
     const templateVariables = isSaveTheDate
       ? {
-          saveTheDateTitle: cleanString(saveTheDateTitle), // {{1}}
-          eventDate: cleanString(eventDate), // {{2}}
+          saveTheDateTitle: cleanString(saveTheDateTitle),
+          eventDate: cleanString(eventDate),
         }
       : {
-          invitationTitle: cleanString(invitationTitle), // {{1}}
-          eventDate: cleanString(eventDate), // {{2}}
-          eventLocation: cleanString(eventLocation), // {{3}}
+          invitationTitle: cleanString(invitationTitle),
+          eventDate: cleanString(eventDate),
+          eventLocation: cleanString(eventLocation),
         };
 
-    const payload = {
-      invitationId,
-      messageType: activeMode,
-      channel: "whatsapp" as const,
-      preRsvpMode: preRsvpAccess.mode,
-      sendTiming,
-      scheduledDate: sendTiming === "scheduled" ? scheduledDate : "",
-      scheduledTime: sendTiming === "scheduled" ? scheduledTime : "",
+    const fallbackHeaderImageUrl = cleanHeaderImageUrl;
 
-      templateName,
-      templateVariables,
+    if (!currentImageFile && !fallbackHeaderImageUrl) {
+      alert("חובה להעלות תמונה או לוודא שקיימת תמונת הזמנה איכותית.");
+      return;
+    }
 
-      saveTheDateTitle: isSaveTheDate ? cleanString(saveTheDateTitle) : "",
-      templateMessage: currentTemplate,
-      previewMessage,
-      imageUrl: currentImage,
-    };
+    const formData = new FormData();
 
-    console.log("PRE RSVP WHATSAPP PAYLOAD:", payload);
+    formData.append("invitationId", cleanInvitationId);
+    formData.append("messageType", activeMode);
+    formData.append("sendTiming", sendTiming);
 
-    alert(
-      sendTiming === "scheduled"
-        ? "הנתונים מוכנים לתזמון. בשלב הבא נחבר API שישמור את זה ב-ScheduledMessage."
-        : "הנתונים מוכנים לשליחה מיידית. בשלב הבא נחבר API שיכניס את זה ל-WhatsappQueue."
+    formData.append(
+      "scheduledDate",
+      sendTiming === "scheduled" ? scheduledDate : ""
     );
+    formData.append(
+      "scheduledTime",
+      sendTiming === "scheduled" ? scheduledTime : ""
+    );
+
+    formData.append("templateName", templateName);
+    formData.append("templateVariables", JSON.stringify(templateVariables));
+
+    formData.append(
+      "saveTheDateTitle",
+      isSaveTheDate ? cleanString(saveTheDateTitle) : ""
+    );
+
+    formData.append(
+      "invitationTitle",
+      isSaveTheDate ? "" : cleanString(invitationTitle)
+    );
+    formData.append("eventDate", cleanString(eventDate));
+    formData.append(
+      "eventLocation",
+      isSaveTheDate ? "" : cleanString(eventLocation)
+    );
+
+    formData.append("message", currentTemplate);
+    formData.append("previewMessage", previewMessage);
+
+    /*
+      חשוב:
+      לא שולחים blob / preview image בתור URL.
+      אם המשתמש העלה קובץ ידנית — שולחים את הקובץ המקורי.
+      אם לא העלה — שולחים headerImageUrl איכותי מההזמנה.
+    */
+    if (currentImageFile) {
+      formData.append("image", currentImageFile);
+    }
+
+    formData.append("headerImageUrl", fallbackHeaderImageUrl);
+
+    console.log("PRE RSVP WHATSAPP SUBMIT:", {
+      invitationId: cleanInvitationId,
+      messageType: activeMode,
+      templateName,
+      sendTiming,
+      hasManualImageFile: Boolean(currentImageFile),
+      headerImageUrl: fallbackHeaderImageUrl,
+      templateVariables,
+    });
+
+    try {
+      setIsSubmitting(true);
+
+      const res = await fetch("/api/messages/pre-rsvp/whatsapp", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || !data?.success) {
+        alert(data?.error || "שליחת הודעת הוואטסאפ נכשלה.");
+        return;
+      }
+
+      alert(
+        sendTiming === "scheduled"
+          ? "הודעת הוואטסאפ תוזמנה בהצלחה."
+          : "הודעת הוואטסאפ נוספה לשליחה מיידית."
+      );
+    } catch (error) {
+      console.error("PRE RSVP WHATSAPP SUBMIT ERROR:", error);
+      alert("שליחת הודעת הוואטסאפ נכשלה.");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -431,7 +571,7 @@ export default function PreRsvpTab({
           <PhonePreview
             title="INVISTIMO · WHATSAPP"
             message={previewMessage}
-            imageUrl={currentImage}
+            imageUrl={previewImageUrl}
           />
 
           <div className="mt-7 grid grid-cols-3 gap-3">
@@ -585,12 +725,12 @@ export default function PreRsvpTab({
               </label>
 
               <div className="rounded-[26px] border border-dashed border-[#D6A64F] bg-[#FFF8ED] p-4 transition hover:bg-[#FFF1D2]">
-                {currentImage ? (
+                {previewImageUrl ? (
                   <div className="space-y-3">
                     <img
-                      src={currentImage}
+                      src={previewImageUrl}
                       alt="תמונה להודעה"
-                      className="h-48 w-full rounded-[22px] object-cover shadow-sm"
+                      className="h-48 w-full rounded-[22px] object-contain bg-white shadow-sm"
                     />
 
                     <div className="flex flex-col gap-3 sm:flex-row">
@@ -636,7 +776,7 @@ export default function PreRsvpTab({
                       </div>
 
                       <div className="mt-1 text-xs font-bold text-[#8A7A6B]">
-                        התמונה תופיע מעל הטקסט בתצוגה המקדימה.
+                        אם לא מעלים תמונה ידנית, תישלח תמונת ההזמנה המקורית.
                       </div>
                     </div>
                   </label>
@@ -787,7 +927,7 @@ export default function PreRsvpTab({
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={!activeModeAvailable}
+              disabled={!activeModeAvailable || isSubmitting}
               className={`
                 w-full
                 rounded-[24px]
@@ -801,12 +941,18 @@ export default function PreRsvpTab({
                 transition
                 hover:scale-[1.01]
                 active:scale-[0.99]
-                ${!activeModeAvailable ? "cursor-not-allowed opacity-55 hover:scale-100" : ""}
+                ${
+                  !activeModeAvailable || isSubmitting
+                    ? "cursor-not-allowed opacity-55 hover:scale-100"
+                    : ""
+                }
               `}
             >
-              {sendTiming === "scheduled"
-                ? "תזמן שליחה בוואטסאפ ⏱️"
-                : "שליחה מיידית בוואטסאפ 🚀"}
+              {isSubmitting
+                ? "שולח..."
+                : sendTiming === "scheduled"
+                  ? "תזמן שליחה בוואטסאפ ⏱️"
+                  : "שליחה מיידית בוואטסאפ 🚀"}
             </button>
           </div>
         </Panel>
@@ -1090,17 +1236,17 @@ function PhonePreview({
           >
             {imageUrl && (
               <img
-  src={imageUrl}
-  alt="תמונה להודעה"
-  className="
-    mb-4
-    max-h-[360px]
-    w-full
-    rounded-[16px]
-    object-contain
-    bg-white
-  "
-/>
+                src={imageUrl}
+                alt="תמונה להודעה"
+                className="
+                  mb-4
+                  max-h-[360px]
+                  w-full
+                  rounded-[16px]
+                  object-contain
+                  bg-white
+                "
+              />
             )}
 
             <pre
