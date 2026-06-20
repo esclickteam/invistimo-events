@@ -1215,6 +1215,7 @@ export default function EmployeeLeadDetailsPage() {
             </button>
           </div>
         </section>
+        
 
         <section className="grid gap-3 sm:grid-cols-3">
           <InfoCard label="סכום עסקה" value={formatMoney(lead?.totalPrice)} />
