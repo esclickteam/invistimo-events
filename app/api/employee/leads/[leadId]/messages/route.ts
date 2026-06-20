@@ -22,6 +22,43 @@ type AuthUser = {
   name?: string;
 };
 
+type WhatsappTemplateKey = "lead_opening" | "reengagement" | "after_call";
+
+type WhatsappTemplateConfig = {
+  key: WhatsappTemplateKey;
+  label: string;
+  templateName: string;
+  fallbackText: string;
+};
+
+const WHATSAPP_TEMPLATES: Record<WhatsappTemplateKey, WhatsappTemplateConfig> = {
+  lead_opening: {
+    key: "lead_opening",
+    label: "פתיחה לליד חדש",
+    templateName: "invistimo_lead_opening_agent",
+    fallbackText:
+      "שלום, כאן {{employee_name}} מ-Invistimo 😊\n\nקיבלנו את הפרטים שהשארת לגבי השירות שלנו.\nאשמח לבדוק איתך כמה פרטים קצרים כדי להתאים לך הצעה לאירוע:\n\nמה סוג האירוע?\nמה תאריך האירוע?\nכמה רשומות/מוזמנים יש לך בערך?",
+  },
+  reengagement: {
+    key: "reengagement",
+    label: "חידוש שיחה אחרי 24 שעות",
+    templateName: "invistimo_reengagement_agent",
+    fallbackText:
+      "שלום, כאן {{employee_name}} מ-Invistimo 😊\n\nרציתי להמשיך איתך את השיחה לגבי השירותים שלנו לאירוע.\nאשמח לעזור לך בהמשך התהליך ולבדוק יחד מה הכי מתאים לך.",
+  },
+  after_call: {
+    key: "after_call",
+    label: "המשך אחרי שיחת טלפון",
+    templateName: "invistimo_after_call_agent",
+    fallbackText:
+      "שלום, כאן {{employee_name}} מ-Invistimo 😊\n\nבהמשך לשיחה שלנו, רציתי להמשיך איתך כאן לגבי השירותים שלנו לאירוע.\n\nאפשר לענות לי כאן ונמשיך בצורה מסודרת.",
+  },
+};
+
+const ALLOWED_TEMPLATE_NAMES = new Set(
+  Object.values(WHATSAPP_TEMPLATES).map((template) => template.templateName)
+);
+
 function cleanString(value: unknown) {
   return String(value || "").trim();
 }
@@ -55,6 +92,14 @@ function getWhatsappBusinessNumber() {
     process.env.WHATSAPP_FROM_NUMBER ||
     process.env.INVISTIMO_WHATSAPP_NUMBER ||
     ""
+  );
+}
+
+function getWhatsappTemplateLanguageCode() {
+  return (
+    process.env.WHATSAPP_TEMPLATE_LANGUAGE ||
+    process.env.WHATSAPP_LANGUAGE_CODE ||
+    "he"
   );
 }
 
@@ -188,6 +233,13 @@ function extractProviderMessageId(data: any) {
 }
 
 function extractProviderError(data: any) {
+  const errorCode =
+    data?.error?.code ||
+    data?.errors?.[0]?.code ||
+    data?.meta?.error?.code ||
+    data?.code ||
+    "";
+
   const errorMessage =
     data?.error?.message ||
     data?.errors?.[0]?.message ||
@@ -195,7 +247,68 @@ function extractProviderError(data: any) {
     data?.message ||
     "";
 
-  return cleanString(errorMessage);
+  const cleanCode = cleanString(errorCode);
+  const cleanMessage = cleanString(errorMessage);
+
+  if (cleanCode && cleanMessage) {
+    return `${cleanCode}: ${cleanMessage}`;
+  }
+
+  return cleanMessage || cleanCode;
+}
+
+function getReadableWhatsappError(error: unknown) {
+  const clean = cleanString(error);
+
+  if (!clean) return "שליחת WhatsApp נכשלה";
+
+  if (clean.includes("131047") || clean.toLowerCase().includes("re-engagement")) {
+    return "לא ניתן לשלוח הודעה רגילה כרגע, כי עברו יותר מ-24 שעות מאז שהלקוח ענה. יש לשלוח הודעה מוכנה מאושרת מהרשימה.";
+  }
+
+  return clean;
+}
+
+function replaceTemplateVariables(text: string, variables: Record<string, string>) {
+  return text.replace(/\{\{\s*employee_name\s*\}\}/g, variables.employee_name || "");
+}
+
+function getTemplateByRequest(params: {
+  templateKey?: unknown;
+  templateName?: unknown;
+}) {
+  const templateKey = cleanString(params.templateKey) as WhatsappTemplateKey;
+  const templateName = cleanString(params.templateName);
+
+  if (templateKey && WHATSAPP_TEMPLATES[templateKey]) {
+    return WHATSAPP_TEMPLATES[templateKey];
+  }
+
+  if (templateName && ALLOWED_TEMPLATE_NAMES.has(templateName)) {
+    return Object.values(WHATSAPP_TEMPLATES).find(
+      (template) => template.templateName === templateName
+    );
+  }
+
+  return null;
+}
+
+async function getEmployeeDisplayName(params: {
+  authUser: AuthUser | null;
+  employeeId: string;
+  bodyEmployeeName?: unknown;
+}) {
+  const fromBody = cleanString(params.bodyEmployeeName);
+  if (fromBody) return fromBody;
+
+  const fromAuth = cleanString(params.authUser?.name || params.authUser?.email);
+  if (fromAuth) return fromAuth;
+
+  const user = await User.findById(params.employeeId)
+    .select("_id name email")
+    .lean();
+
+  return cleanString((user as any)?.name || (user as any)?.email) || "נציגת השירות";
 }
 
 async function getLeadForEmployee(leadId: string, authUser: AuthUser | null) {
@@ -362,6 +475,79 @@ async function sendWhatsappTextMessage({
   };
 }
 
+async function sendWhatsappTemplateMessage({
+  to,
+  templateName,
+  employeeName,
+}: {
+  to: string;
+  templateName: string;
+  employeeName: string;
+}) {
+  const apiKey = get360DialogApiKey();
+
+  if (!apiKey) {
+    throw new Error("חסר מפתח API של 360dialog במשתני הסביבה");
+  }
+
+  const normalizedTo = normalizePhoneForWhatsapp(to);
+
+  if (!normalizedTo) {
+    throw new Error("מספר טלפון לא תקין לשליחת WhatsApp");
+  }
+
+  if (!ALLOWED_TEMPLATE_NAMES.has(templateName)) {
+    throw new Error("תבנית WhatsApp לא מאושרת במערכת");
+  }
+
+  const payload = {
+    messaging_product: "whatsapp",
+    recipient_type: "individual",
+    to: normalizedTo,
+    type: "template",
+    template: {
+      name: templateName,
+      language: {
+        code: getWhatsappTemplateLanguageCode(),
+      },
+      components: [
+        {
+          type: "body",
+          parameters: [
+            {
+              type: "text",
+              parameter_name: "employee_name",
+              text: employeeName || "נציגת השירות",
+            },
+          ],
+        },
+      ],
+    },
+  };
+
+  const response = await fetch("https://waba-v2.360dialog.io/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "D360-API-KEY": apiKey,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const providerError = extractProviderError(data);
+
+    throw new Error(providerError || "שליחת הודעת תבנית WhatsApp נכשלה");
+  }
+
+  return {
+    providerMessageId: extractProviderMessageId(data),
+    rawPayload: data,
+  };
+}
+
 export async function GET(
   req: NextRequest,
   context: { params: Promise<{ leadId: string }> }
@@ -458,20 +644,40 @@ export async function POST(
     }
 
     const body = await req.json().catch(() => null);
-    const messageText = cleanString(body?.messageText || body?.text);
+
+    const requestedTemplate = getTemplateByRequest({
+      templateKey: body?.templateKey,
+      templateName: body?.templateName,
+    });
+
+    const isTemplateSend = Boolean(requestedTemplate);
+
+    const employeeName = await getEmployeeDisplayName({
+      authUser,
+      employeeId,
+      bodyEmployeeName: body?.templateVariables?.employee_name,
+    });
+
+    const messageText = isTemplateSend
+      ? replaceTemplateVariables(requestedTemplate!.fallbackText, {
+          employee_name: employeeName,
+        })
+      : cleanString(body?.messageText || body?.text);
 
     if (!messageText) {
       return NextResponse.json(
         {
           success: false,
           error: "EMPTY_MESSAGE",
-          message: "חובה לכתוב הודעה",
+          message: isTemplateSend
+            ? "חסרים פרטים לשליחת ההודעה המוכנה"
+            : "חובה לכתוב הודעה",
         },
         { status: 400 }
       );
     }
 
-    if (messageText.length > 4000) {
+    if (!isTemplateSend && messageText.length > 4000) {
       return NextResponse.json(
         {
           success: false,
@@ -510,13 +716,28 @@ export async function POST(
       status: "pending",
       errorMessage: "",
       rawPayload: null,
+
+      templateKey: isTemplateSend ? requestedTemplate?.key : "",
+      templateName: isTemplateSend ? requestedTemplate?.templateName : "",
+      templateLabel: isTemplateSend ? requestedTemplate?.label : "",
+      templateVariables: isTemplateSend
+        ? {
+            employee_name: employeeName,
+          }
+        : undefined,
     });
 
     try {
-      const sent = await sendWhatsappTextMessage({
-        to: toPhone,
-        messageText,
-      });
+      const sent = isTemplateSend
+        ? await sendWhatsappTemplateMessage({
+            to: toPhone,
+            templateName: requestedTemplate!.templateName,
+            employeeName,
+          })
+        : await sendWhatsappTextMessage({
+            to: toPhone,
+            messageText,
+          });
 
       pendingMessage.status = "sent";
       pendingMessage.providerMessageId = sent.providerMessageId;
@@ -544,7 +765,9 @@ export async function POST(
       return NextResponse.json(
         {
           success: true,
-          message: "הודעת WhatsApp נשלחה בהצלחה",
+          message: isTemplateSend
+            ? "ההודעה המוכנה נשלחה בהצלחה"
+            : "הודעת WhatsApp נשלחה בהצלחה",
           leadMessage: savedMessage,
         },
         {
@@ -554,13 +777,21 @@ export async function POST(
         }
       );
     } catch (sendError) {
-      console.error("SEND LEAD WHATSAPP MESSAGE FAILED:", sendError);
+      console.error(
+        isTemplateSend
+          ? "SEND LEAD WHATSAPP TEMPLATE FAILED:"
+          : "SEND LEAD WHATSAPP MESSAGE FAILED:",
+        sendError
+      );
 
       pendingMessage.status = "failed";
-      pendingMessage.errorMessage =
+      pendingMessage.errorMessage = getReadableWhatsappError(
         sendError instanceof Error
           ? sendError.message
-          : "שליחת WhatsApp נכשלה";
+          : isTemplateSend
+            ? "שליחת ההודעה המוכנה נכשלה"
+            : "שליחת WhatsApp נכשלה"
+      );
 
       await pendingMessage.save();
 
@@ -573,11 +804,10 @@ export async function POST(
       return NextResponse.json(
         {
           success: false,
-          error: "WHATSAPP_SEND_FAILED",
-          message:
-            sendError instanceof Error
-              ? sendError.message
-              : "שליחת WhatsApp נכשלה",
+          error: isTemplateSend
+            ? "WHATSAPP_TEMPLATE_SEND_FAILED"
+            : "WHATSAPP_SEND_FAILED",
+          message: pendingMessage.errorMessage,
           leadMessage: failedMessage,
         },
         { status: 502 }

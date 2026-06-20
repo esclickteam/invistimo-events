@@ -82,12 +82,55 @@ type LeadMessagesResponse = {
   message?: string;
 };
 
+type WhatsappTemplateKey =
+  | "lead_opening"
+  | "reengagement"
+  | "after_call";
+
+type WhatsappTemplateOption = {
+  key: WhatsappTemplateKey;
+  label: string;
+  templateName: string;
+  description: string;
+  preview: string;
+};
+
 const LEAD_STATUS_OPTIONS = [
   { value: "new", label: "חדש" },
   { value: "contacted", label: "נוצר קשר" },
   { value: "quote_sent", label: "נשלחה הצעה" },
   { value: "converted", label: "נסגר כלקוח" },
   { value: "lost", label: "לא רלוונטי" },
+];
+
+const WHATSAPP_TEMPLATE_OPTIONS: WhatsappTemplateOption[] = [
+  {
+    key: "lead_opening",
+    label: "פתיחה לליד חדש",
+    templateName: "invistimo_lead_opening_agent",
+    description:
+      "מתאים לליד חדש שהשאיר פרטים ועדיין לא התחיל איתנו שיחה בוואטסאפ.",
+    preview:
+      "שלום, כאן {{employee_name}} מ-Invistimo 😊\n\nקיבלנו את הפרטים שהשארת לגבי השירות שלנו.\nאשמח לבדוק איתך כמה פרטים קצרים כדי להתאים לך הצעה לאירוע:\n\nמה סוג האירוע?\nמה תאריך האירוע?\nכמה רשומות/מוזמנים יש לך בערך?",
+  },
+  {
+    key: "reengagement",
+    label: "חידוש שיחה אחרי 24 שעות",
+    templateName: "invistimo_reengagement_agent",
+    description:
+      "מתאים כאשר עברו יותר מ-24 שעות מאז שהלקוח ענה ואי אפשר לשלוח הודעה רגילה.",
+    preview:
+      "שלום, כאן {{employee_name}} מ-Invistimo 😊\n\nרציתי להמשיך איתך את השיחה לגבי השירותים שלנו לאירוע.\nאשמח לעזור לך בהמשך התהליך ולבדוק יחד מה הכי מתאים לך.",
+  },
+  {
+    key: "after_call",
+    label: "המשך אחרי שיחת טלפון",
+    templateName: "invistimo_after_call_agent",
+    description:
+      "מתאים לאחר שיחה טלפונית עם הלקוח ורוצים להמשיך איתו בוואטסאפ.",
+    preview:
+      "שלום, כאן {{employee_name}} מ-Invistimo 😊\n\nבהמשך לשיחה שלנו, רציתי להמשיך איתך כאן לגבי השירותים שלנו לאירוע.\n\nאפשר לענות לי כאן ונמשיך בצורה מסודרת.",
+  },
 ];
 
 function cleanText(value: unknown) {
@@ -244,6 +287,21 @@ function getMessageStatusLabel(status?: string) {
   }
 }
 
+function getReadableWhatsappError(error?: string) {
+  const clean = cleanText(error);
+
+  if (!clean) return "";
+
+  if (
+    clean.includes("131047") ||
+    clean.toLowerCase().includes("re-engagement")
+  ) {
+    return "לא ניתן לשלוח הודעה רגילה כרגע, כי עברו יותר מ-24 שעות מאז שהלקוח ענה. בחרי הודעה מוכנה מהרשימה ושלחי אותה ללקוח.";
+  }
+
+  return clean;
+}
+
 function initials(name?: string) {
   const cleanName = cleanText(name);
 
@@ -266,6 +324,16 @@ function getAssignedStaffLabel(lead?: LeadFile | null) {
   if (typeof first === "string") return "משויך לעובד";
 
   return first.name || first.email || "עובד ללא שם";
+}
+
+function getFirstAssignedStaff(lead?: LeadFile | null) {
+  const first = Array.isArray(lead?.assignedStaffIds)
+    ? lead?.assignedStaffIds[0]
+    : null;
+
+  if (!first || typeof first === "string") return null;
+
+  return first;
 }
 
 function normalizePhoneForTel(phone?: string) {
@@ -293,7 +361,16 @@ function normalizePhoneForWhatsapp(phone?: string) {
 }
 
 function getMessageId(message: LeadMessage) {
-  return String(message._id || message.id || `${message.createdAt}-${message.messageText}`);
+  return String(
+    message._id || message.id || `${message.createdAt}-${message.messageText}`
+  );
+}
+
+function replaceTemplateVariables(text: string, employeeName: string) {
+  return text.replaceAll(
+    "{{employee_name}}",
+    employeeName || "נציגת השירות"
+  );
 }
 
 function InfoCard({
@@ -349,6 +426,9 @@ export default function EmployeeLeadDetailsPage() {
   const [messageText, setMessageText] = useState("");
   const [messagesLoading, setMessagesLoading] = useState(true);
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [sendingTemplate, setSendingTemplate] = useState(false);
+  const [selectedTemplateKey, setSelectedTemplateKey] =
+    useState<WhatsappTemplateKey>("lead_opening");
   const [messagesError, setMessagesError] = useState("");
   const [messageSuccess, setMessageSuccess] = useState("");
 
@@ -356,6 +436,30 @@ export default function EmployeeLeadDetailsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [saveMessage, setSaveMessage] = useState("");
+
+  const assignedStaff = useMemo(() => {
+    return getFirstAssignedStaff(lead);
+  }, [lead]);
+
+  const employeeName = useMemo(() => {
+    return (
+      cleanText(assignedStaff?.name) ||
+      cleanText(assignedStaff?.email) ||
+      "נציגת השירות"
+    );
+  }, [assignedStaff?.email, assignedStaff?.name]);
+
+  const selectedTemplate = useMemo(() => {
+    return (
+      WHATSAPP_TEMPLATE_OPTIONS.find(
+        (option) => option.key === selectedTemplateKey
+      ) || WHATSAPP_TEMPLATE_OPTIONS[0]
+    );
+  }, [selectedTemplateKey]);
+
+  const selectedTemplatePreview = useMemo(() => {
+    return replaceTemplateVariables(selectedTemplate.preview, employeeName);
+  }, [employeeName, selectedTemplate.preview]);
 
   const whatsappNumber = useMemo(() => {
     return normalizePhoneForWhatsapp(lead?.phone);
@@ -414,7 +518,9 @@ export default function EmployeeLeadDetailsPage() {
         cache: "no-store",
       });
 
-      const data = (await res.json().catch(() => null)) as LeadMessagesResponse | null;
+      const data = (await res.json().catch(
+        () => null
+      )) as LeadMessagesResponse | null;
 
       if (!res.ok || !data?.success) {
         throw new Error(
@@ -481,6 +587,64 @@ export default function EmployeeLeadDetailsPage() {
     }
   }
 
+  async function sendWhatsappTemplate() {
+    if (!leadId || sendingTemplate || !selectedTemplate) return;
+
+    try {
+      setSendingTemplate(true);
+      setMessagesError("");
+      setMessageSuccess("");
+
+      const res = await fetch(`/api/employee/leads/${leadId}/messages`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        cache: "no-store",
+        body: JSON.stringify({
+          templateKey: selectedTemplate.key,
+          templateName: selectedTemplate.templateName,
+          templateLabel: selectedTemplate.label,
+          templateVariables: {
+            employee_name: employeeName,
+          },
+        }),
+      });
+
+      const data = (await res.json().catch(
+        () => null
+      )) as LeadMessagesResponse | null;
+
+      if (!res.ok || !data?.success) {
+        throw new Error(
+          data?.message || data?.error || "שליחת ההודעה המוכנה נכשלה"
+        );
+      }
+
+      setMessageSuccess("ההודעה המוכנה נשלחה בהצלחה");
+
+      if (data.leadMessage) {
+        setMessages((prev) => [...prev, data.leadMessage as LeadMessage]);
+      } else {
+        await loadMessages();
+      }
+
+      await loadLead();
+    } catch (err) {
+      console.error("SEND WHATSAPP TEMPLATE FAILED:", err);
+      setMessagesError(
+        getReadableWhatsappError(
+          err instanceof Error ? err.message : "שליחת ההודעה המוכנה נכשלה"
+        )
+      );
+
+      await loadMessages();
+    } finally {
+      setSendingTemplate(false);
+    }
+  }
+
   async function sendWhatsappMessage() {
     const text = messageText.trim();
 
@@ -503,7 +667,9 @@ export default function EmployeeLeadDetailsPage() {
         }),
       });
 
-      const data = (await res.json().catch(() => null)) as LeadMessagesResponse | null;
+      const data = (await res.json().catch(
+        () => null
+      )) as LeadMessagesResponse | null;
 
       if (!res.ok || !data?.success) {
         throw new Error(
@@ -524,7 +690,9 @@ export default function EmployeeLeadDetailsPage() {
     } catch (err) {
       console.error("SEND WHATSAPP MESSAGE FAILED:", err);
       setMessagesError(
-        err instanceof Error ? err.message : "שליחת הודעת WhatsApp נכשלה"
+        getReadableWhatsappError(
+          err instanceof Error ? err.message : "שליחת הודעת WhatsApp נכשלה"
+        )
       );
 
       await loadMessages();
@@ -823,7 +991,7 @@ export default function EmployeeLeadDetailsPage() {
 
                           {message.errorMessage ? (
                             <p className="mt-2 text-xs font-black leading-5 text-red-600">
-                              {message.errorMessage}
+                              {getReadableWhatsappError(message.errorMessage)}
                             </p>
                           ) : null}
                         </div>
@@ -835,7 +1003,7 @@ export default function EmployeeLeadDetailsPage() {
             </div>
 
             {messagesError ? (
-              <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-black text-red-700">
+              <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-black leading-7 text-red-700">
                 {messagesError}
               </div>
             ) : null}
@@ -846,10 +1014,87 @@ export default function EmployeeLeadDetailsPage() {
               </div>
             ) : null}
 
+            <div className="mt-4 rounded-[1.6rem] border border-emerald-200 bg-emerald-50/50 p-4">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h3 className="text-base font-black text-emerald-950">
+                    שליחת הודעת וואטסאפ מאושרת
+                  </h3>
+                  <p className="mt-1 text-xs font-bold leading-5 text-emerald-800">
+                    בחרי הודעה מוכנה לשליחה. הודעות אלה מתאימות גם כאשר עברו
+                    יותר מ־24 שעות מאז שהלקוח ענה.
+                  </p>
+                </div>
+
+                <Pill className="border-emerald-200 bg-white text-emerald-700">
+                  תבנית מאושרת
+                </Pill>
+              </div>
+
+              <label className="mt-4 block">
+                <span className="text-xs font-black text-slate-600">
+                  בחירת הודעה מוכנה
+                </span>
+
+                <select
+                  value={selectedTemplateKey}
+                  onChange={(event) => {
+                    setSelectedTemplateKey(
+                      event.target.value as WhatsappTemplateKey
+                    );
+                    setMessageSuccess("");
+                    setMessagesError("");
+                  }}
+                  className="mt-2 h-12 w-full rounded-2xl border border-emerald-200 bg-white px-4 text-sm font-black text-slate-950 outline-none transition focus:border-emerald-400"
+                >
+                  {WHATSAPP_TEMPLATE_OPTIONS.map((option) => (
+                    <option key={option.key} value={option.key}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <div className="mt-3 rounded-2xl border border-emerald-200 bg-white p-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="text-sm font-black text-slate-900">
+                      {selectedTemplate.label}
+                    </p>
+                    <p className="mt-1 text-xs font-bold leading-5 text-slate-500">
+                      {selectedTemplate.description}
+                    </p>
+                  </div>
+
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-black text-slate-500">
+                    שם עובד: {employeeName}
+                  </span>
+                </div>
+
+                <div className="mt-3 rounded-2xl bg-slate-50 p-4">
+                  <p className="mb-2 text-xs font-black text-slate-500">
+                    תצוגה מקדימה
+                  </p>
+                  <p className="whitespace-pre-wrap text-sm font-bold leading-7 text-slate-900">
+                    {selectedTemplatePreview}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={sendWhatsappTemplate}
+                disabled={sendingTemplate}
+                className="mt-3 h-12 w-full rounded-2xl bg-emerald-600 px-5 text-sm font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {sendingTemplate ? "שולח הודעה מוכנה..." : "שליחת הודעה מוכנה"}
+              </button>
+            </div>
+
             <div className="mt-4 rounded-[1.6rem] border border-slate-200 bg-white p-4">
               <label className="block">
                 <span className="text-xs font-black text-slate-500">
-                  הודעת WhatsApp
+                  הודעה רגילה
                 </span>
 
                 <textarea
@@ -867,8 +1112,8 @@ export default function EmployeeLeadDetailsPage() {
 
               <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-xs font-bold leading-5 text-slate-500">
-                  אם זו הודעה ראשונה מחוץ לחלון 24 שעות, ייתכן ש־WhatsApp ידרוש
-                  Template מאושר.
+                  ניתן לשלוח הודעה רגילה רק לאחר שהלקוח ענה ב־WhatsApp ב־24
+                  השעות האחרונות. אם עברו יותר מ־24 שעות, השתמשי בהודעה מוכנה.
                 </p>
 
                 <button
@@ -877,7 +1122,7 @@ export default function EmployeeLeadDetailsPage() {
                   disabled={sendingMessage || !messageText.trim()}
                   className="h-11 rounded-2xl bg-green-600 px-5 text-sm font-black text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {sendingMessage ? "שולח..." : "שלח WhatsApp"}
+                  {sendingMessage ? "שולח..." : "שליחת הודעה רגילה"}
                 </button>
               </div>
             </div>
