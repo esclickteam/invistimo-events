@@ -13,6 +13,19 @@ type PaymentMode = "full" | "split";
 type AdminDiscountType = "none" | "amount" | "percent";
 type QuotePricingDisplay = "showUpsellPrices" | "packageTotalOnly";
 
+type PreRsvpUpsellMode =
+  | "save_the_date_only"
+  | "invitation_only"
+  | "both";
+
+type PreRsvpUpsellOption = {
+  mode: PreRsvpUpsellMode;
+  title: string;
+  price: number;
+  description: string;
+};
+
+
 type DetailSection = {
   title: string;
   items: string[];
@@ -297,6 +310,36 @@ const ALCOHOL_OPTIONS: { staffCount: AlcoholManagementStaffCount; title: string;
   { staffCount: 1 as const, title: "איש צוות אחד", price: 1200, maxRecords: 450, description: "מתאים עד 450 רשומות." },
   { staffCount: 2 as const, title: "2 אנשי צוות", price: 2000, minRecords: 451, description: "חובה מעל 450 רשומות." },
 ];
+
+
+
+const PRE_RSVP_UPSELL_OPTIONS: PreRsvpUpsellOption[] = [
+  {
+    mode: "save_the_date_only",
+    title: "Save The Date בלבד",
+    price: 150,
+    description: "פתיחת שליחת Save The Date בוואטסאפ בלבד.",
+  },
+  {
+    mode: "invitation_only",
+    title: "שליחת הזמנה בלבד",
+    price: 150,
+    description: "פתיחת שליחת הזמנה מוקדמת בוואטסאפ בלבד.",
+  },
+  {
+    mode: "both",
+    title: "Save The Date + הזמנה",
+    price: 230,
+    description: "פתיחת שני סוגי השליחה יחד במחיר מוזל.",
+  },
+];
+
+function getPreRsvpUpsellOption(mode: PreRsvpUpsellMode) {
+  return (
+    PRE_RSVP_UPSELL_OPTIONS.find((option) => option.mode === mode) ||
+    PRE_RSVP_UPSELL_OPTIONS[0]
+  );
+}
 
 const VENUE_SEATING_CUSTOMER_DETAILS: DetailSection[] = [
   {
@@ -811,9 +854,9 @@ const UPSELLS: UpsellItem[] = [
   {
   key: "preRsvpMessages",
   title: "Save The Date / הזמנה מוקדמת בוואטסאפ",
-  price: 79,
+  price: 150,
   description:
-    "שליחה חד־פעמית של Save The Date או הזמנה מוקדמת בוואטסאפ לפני פתיחת סבבי אישורי ההגעה.",
+    "בחירת פתיחה חד־פעמית: Save The Date בלבד, שליחת הזמנה בלבד, או שניהם יחד במחיר מוזל.",
   customerDetails: PRE_RSVP_MESSAGES_CUSTOMER_DETAILS,
   employeeDetails: PRE_RSVP_MESSAGES_EMPLOYEE_DETAILS,
 },
@@ -980,26 +1023,44 @@ function getUpsellPrice(
   venueStaff: VenueSeatingStaffCount,
   alcoholStaff: AlcoholManagementStaffCount,
   planKey: PackageKey = "easy",
+  preRsvpMode: PreRsvpUpsellMode = "save_the_date_only",
 ) {
   if (upsell.key === "venueSeating") return getVenueOption(venueStaff).price;
   if (upsell.key === "alcoholManagement") return getAlcoholOption(alcoholStaff).price;
+  if (upsell.key === "preRsvpMessages") return getPreRsvpUpsellOption(preRsvpMode).price;
+
   if (upsell.key === "creditGifts") {
     if (planKey === "smart") return 100;
     if (planKey === "easy") return 150;
     return 0;
   }
+
   return upsell.price;
 }
 
-function getUpsellTitle(upsell: UpsellItem, venueStaff: VenueSeatingStaffCount, alcoholStaff: AlcoholManagementStaffCount) {
+function getUpsellTitle(
+  upsell: UpsellItem,
+  venueStaff: VenueSeatingStaffCount,
+  alcoholStaff: AlcoholManagementStaffCount,
+  preRsvpMode: PreRsvpUpsellMode = "save_the_date_only",
+) {
   if (upsell.key === "venueSeating") return `${upsell.title} — ${getVenueOption(venueStaff).title}`;
   if (upsell.key === "alcoholManagement") return `${upsell.title} — ${getAlcoholOption(alcoholStaff).title}`;
+  if (upsell.key === "preRsvpMessages") return `${upsell.title} — ${getPreRsvpUpsellOption(preRsvpMode).title}`;
+
   return upsell.title;
 }
 
-function getUpsellDescription(upsell: UpsellItem, venueStaff: VenueSeatingStaffCount, alcoholStaff: AlcoholManagementStaffCount) {
+function getUpsellDescription(
+  upsell: UpsellItem,
+  venueStaff: VenueSeatingStaffCount,
+  alcoholStaff: AlcoholManagementStaffCount,
+  preRsvpMode: PreRsvpUpsellMode = "save_the_date_only",
+) {
   if (upsell.key === "venueSeating") return `${upsell.description} ${getVenueOption(venueStaff).description}`;
   if (upsell.key === "alcoholManagement") return `${upsell.description} ${getAlcoholOption(alcoholStaff).description}`;
+  if (upsell.key === "preRsvpMessages") return getPreRsvpUpsellOption(preRsvpMode).description;
+
   return upsell.description;
 }
 
@@ -1080,6 +1141,7 @@ function getEmployeeSectionsForUpsell(upsell: UpsellItem): DetailSection[] {
   if (upsell.key === "alcoholManagement") return DETAILED_ALCOHOL_MANAGEMENT_EMPLOYEE_DETAILS;
   if (upsell.key === "personalRepresentative") return DETAILED_PERSONAL_REP_EMPLOYEE_DETAILS;
   if (upsell.key === "suppliersBudgetSystem") return DETAILED_SUPPLIERS_BUDGET_EMPLOYEE_DETAILS;
+  if (upsell.key === "preRsvpMessages") return PRE_RSVP_MESSAGES_EMPLOYEE_DETAILS;
 
   return upsell.employeeDetails || [];
 }
@@ -1213,6 +1275,8 @@ export default function AdminSalesNewPage() {
   const [selectedPlanKey, setSelectedPlanKey] = useState<PackageKey>("smart");
   const [records, setRecords] = useState("300");
   const [selectedUpsells, setSelectedUpsells] = useState<SelectedUpsells>(() => createEmptyUpsells());
+  const [preRsvpUpsellMode, setPreRsvpUpsellMode] =
+    useState<PreRsvpUpsellMode>("save_the_date_only");
   const [venueSeatingStaffCount, setVenueSeatingStaffCount] = useState<VenueSeatingStaffCount>(2);
   const [alcoholManagementStaffCount, setAlcoholManagementStaffCount] = useState<AlcoholManagementStaffCount>(1);
   const [suppliersBudgetFree, setSuppliersBudgetFree] = useState(false);
@@ -1257,11 +1321,17 @@ export default function AdminSalesNewPage() {
     const totalWithoutSuppliers = packageCalculation.finalPrice + UPSELLS.reduce((sum, upsell) => {
       if (upsell.key === "suppliersBudgetSystem") return sum;
       if (!selectedUpsells[upsell.key]) return sum;
-      return sum + getUpsellPrice(upsell, venueSeatingStaffCount, alcoholManagementStaffCount, selectedPlanKey);
+      return sum + getUpsellPrice(
+  upsell,
+  venueSeatingStaffCount,
+  alcoholManagementStaffCount,
+  selectedPlanKey,
+  preRsvpUpsellMode,
+);
     }, 0);
 
     return totalWithoutSuppliers >= 1000;
-  }, [alcoholManagementStaffCount, packageCalculation.finalPrice, selectedPlanKey, selectedUpsells, venueSeatingStaffCount]);
+  }, [alcoholManagementStaffCount, packageCalculation.finalPrice, preRsvpUpsellMode, selectedPlanKey, selectedUpsells, venueSeatingStaffCount]);
 
   const availableUpsells = useMemo(() => {
     return UPSELLS.filter((upsell) => !upsell.availableForPlans || upsell.availableForPlans.includes(selectedPlanKey));
@@ -1302,9 +1372,15 @@ export default function AdminSalesNewPage() {
         return roundMoney(override);
       }
 
-      return getUpsellPrice(upsell, venueSeatingStaffCount, alcoholManagementStaffCount, selectedPlanKey);
+      return getUpsellPrice(
+  upsell,
+  venueSeatingStaffCount,
+  alcoholManagementStaffCount,
+  selectedPlanKey,
+  preRsvpUpsellMode,
+);
     },
-    [adminUpsellPriceOverrides, alcoholManagementStaffCount, canGiveSuppliersBudgetFree, selectedPlanKey, suppliersBudgetFree, venueSeatingStaffCount],
+    [adminUpsellPriceOverrides, alcoholManagementStaffCount, canGiveSuppliersBudgetFree, preRsvpUpsellMode, selectedPlanKey, suppliersBudgetFree, venueSeatingStaffCount],
   );
 
   const upsellsTotal = useMemo(() => {
@@ -1456,8 +1532,20 @@ export default function AdminSalesNewPage() {
         canGiveSuppliersBudgetFree;
 
       return {
-        title: getUpsellTitle(upsell, venueSeatingStaffCount, alcoholManagementStaffCount),
-        description: getUpsellDescription(upsell, venueSeatingStaffCount, alcoholManagementStaffCount),
+        title: getUpsellTitle(
+          upsell,
+          venueSeatingStaffCount,
+          alcoholManagementStaffCount,
+          preRsvpUpsellMode,
+        ),
+        description: getUpsellDescription(
+          upsell,
+          venueSeatingStaffCount,
+          alcoholManagementStaffCount,
+          preRsvpUpsellMode,
+        ),
+        mode: upsell.key === "preRsvpMessages" ? preRsvpUpsellMode : undefined,
+        preRsvpMode: upsell.key === "preRsvpMessages" ? preRsvpUpsellMode : undefined,
         customerDetails: getCustomerSectionsForUpsell(upsell),
         price: effectivePrice,
         actualPrice: effectivePrice,
@@ -1470,7 +1558,7 @@ export default function AdminSalesNewPage() {
         showFreeLabelInDocument: showUpsellPricesInDocument && givenFree,
       };
     }),
-  }), [alcoholManagementStaffCount, baseGrossAmount, canGiveSuppliersBudgetFree, eventCity, eventDate, eventName, extraRecordPrice, extraRecordsTerms, finalGrossAmount, finalPaymentTerms, packageCalculation.records, paymentDiscountAmount, paymentMode, paymentSchedule, quoteCreatedAt, quoteExpiresAt, quotePricingDisplay, selectedPlan.customerSummary, selectedPlan.includes, selectedPlan.title, selectedUpsellsList, showUpsellPricesInDocument, suppliersBudgetFree, venueSeatingStaffCount, getEffectiveUpsellPrice]);
+  }), [alcoholManagementStaffCount, baseGrossAmount, canGiveSuppliersBudgetFree, eventCity, eventDate, eventName, extraRecordPrice, extraRecordsTerms, finalGrossAmount, finalPaymentTerms, packageCalculation.records, paymentDiscountAmount, paymentMode, paymentSchedule, preRsvpUpsellMode, quoteCreatedAt, quoteExpiresAt, quotePricingDisplay, selectedPlan.customerSummary, selectedPlan.includes, selectedPlan.title, selectedUpsellsList, showUpsellPricesInDocument, suppliersBudgetFree, venueSeatingStaffCount, getEffectiveUpsellPrice]);
 
   const effectiveEventDate = eventDate || quoteCreatedAt;
   const effectiveEventCity = eventCity.trim() || "לא הוגדרה";
@@ -1520,14 +1608,32 @@ export default function AdminSalesNewPage() {
       hidePriceInDocument: !showUpsellPricesInDocument,
     },
     upsells: selectedUpsellsList.map((upsell) => {
-      const originalDynamicPrice = getUpsellPrice(upsell, venueSeatingStaffCount, alcoholManagementStaffCount, selectedPlanKey);
+      const originalDynamicPrice = getUpsellPrice(
+  upsell,
+  venueSeatingStaffCount,
+  alcoholManagementStaffCount,
+  selectedPlanKey,
+  preRsvpUpsellMode,
+);
       const dynamicPrice = getEffectiveUpsellPrice(upsell);
       const givenFree = upsell.key === "suppliersBudgetSystem" && suppliersBudgetFree && canGiveSuppliersBudgetFree;
 
       return {
         key: upsell.key,
-        title: getUpsellTitle(upsell, venueSeatingStaffCount, alcoholManagementStaffCount),
-        description: getUpsellDescription(upsell, venueSeatingStaffCount, alcoholManagementStaffCount),
+        mode: upsell.key === "preRsvpMessages" ? preRsvpUpsellMode : undefined,
+        preRsvpMode: upsell.key === "preRsvpMessages" ? preRsvpUpsellMode : undefined,
+        title: getUpsellTitle(
+          upsell,
+          venueSeatingStaffCount,
+          alcoholManagementStaffCount,
+          preRsvpUpsellMode,
+        ),
+        description: getUpsellDescription(
+          upsell,
+          venueSeatingStaffCount,
+          alcoholManagementStaffCount,
+          preRsvpUpsellMode,
+        ),
         price: dynamicPrice,
         actualPrice: dynamicPrice,
         documentPrice: showUpsellPricesInDocument ? dynamicPrice : undefined,
@@ -1564,7 +1670,7 @@ export default function AdminSalesNewPage() {
     customerDealSummary,
     cancellationTerms: CANCELLATION_TERMS,
     paymentTerms: finalPaymentTerms,
-  }), [alcoholManagementStaffCount, baseGrossAmount, canGiveSuppliersBudgetFree, clientAddress, clientEmail, clientName, clientPhone, customerDealSummary, customerIdNumber, documentType, effectiveEventCity, effectiveEventDate, effectiveEventName, effectiveVenueName, extraRecordPrice, finalGrossAmount, finalPaymentTerms, netAmount, effectivePackagePrice, getEffectiveUpsellPrice, packageCalculation.finalPrice, packageCalculation.records, paymentDiscountAmount, paymentMode, paymentSchedule, quoteCreatedAt, quoteExpiresAt, quotePricingDisplay, selectedPlan.customerSummary, selectedPlan.includes, selectedPlan.key, selectedPlan.title, selectedUpsellsList, showUpsellPricesInDocument, suppliersBudgetFree, venueSeatingStaffCount, getEffectiveUpsellPrice]);
+  }), [alcoholManagementStaffCount, baseGrossAmount, canGiveSuppliersBudgetFree, clientAddress, clientEmail, clientName, clientPhone, customerDealSummary, customerIdNumber, documentType, effectiveEventCity, effectiveEventDate, effectiveEventName, effectiveVenueName, extraRecordPrice, finalGrossAmount, finalPaymentTerms, netAmount, effectivePackagePrice, getEffectiveUpsellPrice, packageCalculation.finalPrice, packageCalculation.records, paymentDiscountAmount, paymentMode, paymentSchedule, preRsvpUpsellMode, quoteCreatedAt, quoteExpiresAt, quotePricingDisplay, selectedPlan.customerSummary, selectedPlan.includes, selectedPlan.key, selectedPlan.title, selectedUpsellsList, showUpsellPricesInDocument, suppliersBudgetFree, venueSeatingStaffCount]);
 
   const documentRequestPayload = useMemo(() => {
     if (showUpsellPricesInDocument) return documentPayload;
@@ -1650,6 +1756,23 @@ export default function AdminSalesNewPage() {
 
   function toggleUpsell(key: UpsellKey) {
     if (key === "creditGifts" && selectedPlanKey === "seating") {
+      return;
+    }
+
+    if (key === "preRsvpMessages") {
+      setSelectedUpsells((prev) => {
+        const nextSelected = !prev.preRsvpMessages;
+
+        if (!nextSelected) {
+          setPreRsvpUpsellMode("save_the_date_only");
+        }
+
+        return {
+          ...prev,
+          preRsvpMessages: nextSelected,
+        };
+      });
+
       return;
     }
 
@@ -2146,7 +2269,13 @@ export default function AdminSalesNewPage() {
                 {availableUpsells.map((upsell) => {
                   const includedInPackage = upsell.key === "creditGifts" && selectedPlanKey === "seating";
                   const selected = selectedUpsells[upsell.key] || includedInPackage;
-                  const dynamicPrice = getUpsellPrice(upsell, venueSeatingStaffCount, alcoholManagementStaffCount, selectedPlanKey);
+                  const dynamicPrice = getUpsellPrice(
+  upsell,
+  venueSeatingStaffCount,
+  alcoholManagementStaffCount,
+  selectedPlanKey,
+  preRsvpUpsellMode,
+);
                   const freeApplied = upsell.key === "suppliersBudgetSystem" && selected && suppliersBudgetFree && canGiveSuppliersBudgetFree;
 
                   return (
@@ -2155,8 +2284,8 @@ export default function AdminSalesNewPage() {
                         <label className={`flex items-start gap-3 ${includedInPackage ? "cursor-default" : "cursor-pointer"}`}>
                           <input type="checkbox" checked={selected} disabled={includedInPackage} onChange={() => toggleUpsell(upsell.key)} className="mt-1 h-4 w-4 accent-[#9b7a3c] disabled:cursor-not-allowed" />
                           <span>
-                            <span className="block text-sm font-black text-[#3f3327]">{getUpsellTitle(upsell, venueSeatingStaffCount, alcoholManagementStaffCount)}</span>
-                            <span className="mt-1 block text-xs font-semibold leading-5 text-[#7b6a58]">{getUpsellDescription(upsell, venueSeatingStaffCount, alcoholManagementStaffCount)}</span>
+                            <span className="block text-sm font-black text-[#3f3327]">{getUpsellTitle(upsell, venueSeatingStaffCount, alcoholManagementStaffCount, preRsvpUpsellMode)}</span>
+                            <span className="mt-1 block text-xs font-semibold leading-5 text-[#7b6a58]">{getUpsellDescription(upsell, venueSeatingStaffCount, alcoholManagementStaffCount, preRsvpUpsellMode)}</span>
                             {upsell.note && <span className="mt-2 block text-xs font-black leading-5 text-[#9b6a30]">{upsell.note}</span>}
                             {includedInPackage ? (
                               <span className="mt-2 inline-flex rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-black text-emerald-700 ring-1 ring-emerald-200">
@@ -2189,8 +2318,18 @@ export default function AdminSalesNewPage() {
 
                       <div className="mt-3 flex flex-wrap gap-2">
                         <button type="button" onClick={() => setDetailsModal({
-                              title: getUpsellTitle(upsell, venueSeatingStaffCount, alcoholManagementStaffCount),
-                              subtitle: getUpsellDescription(upsell, venueSeatingStaffCount, alcoholManagementStaffCount),
+                              title: getUpsellTitle(
+                                upsell,
+                                venueSeatingStaffCount,
+                                alcoholManagementStaffCount,
+                                preRsvpUpsellMode,
+                              ),
+                              subtitle: getUpsellDescription(
+                                upsell,
+                                venueSeatingStaffCount,
+                                alcoholManagementStaffCount,
+                                preRsvpUpsellMode,
+                              ),
                               price: dynamicPrice,
                               sections: getCustomerSectionsForUpsell(upsell),
                               customerSections: getCustomerSectionsForUpsell(upsell),
@@ -2205,6 +2344,41 @@ export default function AdminSalesNewPage() {
                           </label>
                         )}
                       </div>
+
+                      {upsell.key === "preRsvpMessages" && selected && (
+                        <div className="mt-4 rounded-2xl border border-[#eadfce] bg-white p-3">
+                          <p className="text-xs font-black text-[#3f3327]">בחירת סוג פתיחת הודעה מוקדמת</p>
+                          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                            {PRE_RSVP_UPSELL_OPTIONS.map((option) => {
+                              const isSelected = preRsvpUpsellMode === option.mode;
+
+                              return (
+                                <label
+                                  key={option.mode}
+                                  className={`rounded-2xl border p-3 text-xs font-bold leading-5 ${isSelected ? "border-[#b47a3b] bg-[#fff7ec]" : "border-[#eadfce] bg-[#fffdf9]"} cursor-pointer`}
+                                >
+                                  <input
+                                    type="radio"
+                                    name="preRsvpUpsellMode"
+                                    checked={isSelected}
+                                    onChange={() => {
+                                      setPreRsvpUpsellMode(option.mode);
+                                      setSelectedUpsells((prev) => ({
+                                        ...prev,
+                                        preRsvpMessages: true,
+                                      }));
+                                    }}
+                                    className="ml-2 accent-[#9b7a3c]"
+                                  />
+                                  <span className="font-black">{option.title}</span>
+                                  <span className="block">{money(option.price)}</span>
+                                  <span className="block">{option.description}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
 
                       {upsell.key === "venueSeating" && selected && (
                         <div className="mt-4 rounded-2xl border border-[#eadfce] bg-white p-3">
@@ -2275,7 +2449,7 @@ export default function AdminSalesNewPage() {
                   <div className="flex items-center justify-between text-sm font-bold text-[#5b4a3a]"><span>תוספות</span><span>{money(upsellsTotal)}</span></div>
                   {selectedUpsellsList.map((upsell) => {
                     const free = upsell.key === "suppliersBudgetSystem" && suppliersBudgetFree && canGiveSuppliersBudgetFree;
-                    return <div key={upsell.key} className="flex items-start justify-between border-t border-[#eadfce] pt-2 text-xs font-bold leading-5 text-[#8b7b68]"><span>{getUpsellTitle(upsell, venueSeatingStaffCount, alcoholManagementStaffCount)}</span><span>{free ? "ללא עלות" : money(getEffectiveUpsellPrice(upsell))}</span></div>;
+                    return <div key={upsell.key} className="flex items-start justify-between border-t border-[#eadfce] pt-2 text-xs font-bold leading-5 text-[#8b7b68]"><span>{getUpsellTitle(upsell, venueSeatingStaffCount, alcoholManagementStaffCount, preRsvpUpsellMode)}</span><span>{free ? "ללא עלות" : money(getEffectiveUpsellPrice(upsell))}</span></div>;
                   })}
                 </div>
 

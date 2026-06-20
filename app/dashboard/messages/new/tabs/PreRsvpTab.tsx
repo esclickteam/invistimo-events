@@ -4,6 +4,27 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 /* ================= TYPES ================= */
 
+type PreRsvpUpsellMode =
+  | "none"
+  | "save_the_date_only"
+  | "invitation_only"
+  | "both";
+
+type PreRsvpAccess = {
+  enabled?: boolean;
+  mode?: PreRsvpUpsellMode;
+  saveTheDateEnabled?: boolean;
+  invitationOnlyEnabled?: boolean;
+  saveTheDateSentCount?: number;
+  saveTheDateSentAt?: Date | string | null;
+  invitationOnlySentCount?: number;
+  invitationOnlySentAt?: Date | string | null;
+
+  // תאימות לאחור למבנה הישן שהיה חסימה כללית אחת
+  sentCount?: number;
+  sentAt?: Date | string | null;
+};
+
 type PreRsvpTabProps = {
   invitationId: string;
   invitationTitle: string;
@@ -14,6 +35,7 @@ type PreRsvpTabProps = {
   headerImageUrl?: string;
   lat?: number;
   lng?: number;
+  preRsvpMessages?: PreRsvpAccess | null;
 };
 
 type PreRsvpType = "save_the_date" | "invitation_only";
@@ -95,6 +117,137 @@ function getModeTitle(mode: PreRsvpType) {
   return mode === "save_the_date" ? "Save The Date" : "שליחת הזמנות";
 }
 
+function getPreRsvpAccess(preRsvpMessages?: PreRsvpAccess | null) {
+  /*
+    אם הקומפוננטה עדיין לא קיבלה הרשאות מהשרת,
+    משאירים תאימות לאחור ולא שוברים את המסך הקיים.
+    ברגע שהפרונט יעביר preRsvpMessages מה-User,
+    ההרשאות ייאכפו לפי המצב שנשמר ביוזר.
+  */
+  if (!preRsvpMessages) {
+    return {
+      enabled: true,
+      mode: "both" as PreRsvpUpsellMode,
+      saveTheDateEnabled: true,
+      invitationOnlyEnabled: true,
+      saveTheDateUsed: false,
+      invitationOnlyUsed: false,
+      legacyUsed: false,
+    };
+  }
+
+  const mode = cleanString(preRsvpMessages.mode) as PreRsvpUpsellMode;
+  const safeMode: PreRsvpUpsellMode =
+    mode === "save_the_date_only" ||
+    mode === "invitation_only" ||
+    mode === "both"
+      ? mode
+      : "none";
+
+  const enabled = Boolean(preRsvpMessages.enabled) && safeMode !== "none";
+
+  const saveTheDateEnabled = Boolean(
+    preRsvpMessages.saveTheDateEnabled ||
+      safeMode === "save_the_date_only" ||
+      safeMode === "both"
+  );
+
+  const invitationOnlyEnabled = Boolean(
+    preRsvpMessages.invitationOnlyEnabled ||
+      safeMode === "invitation_only" ||
+      safeMode === "both"
+  );
+
+  const legacyUsed =
+    Number(preRsvpMessages.sentCount || 0) >= 1 ||
+    Boolean(preRsvpMessages.sentAt);
+
+  const saveTheDateUsed =
+    Number(preRsvpMessages.saveTheDateSentCount || 0) >= 1 ||
+    Boolean(preRsvpMessages.saveTheDateSentAt);
+
+  const invitationOnlyUsed =
+    Number(preRsvpMessages.invitationOnlySentCount || 0) >= 1 ||
+    Boolean(preRsvpMessages.invitationOnlySentAt);
+
+  return {
+    enabled,
+    mode: safeMode,
+    saveTheDateEnabled: enabled && saveTheDateEnabled,
+    invitationOnlyEnabled: enabled && invitationOnlyEnabled,
+    saveTheDateUsed: legacyUsed || saveTheDateUsed,
+    invitationOnlyUsed: legacyUsed || invitationOnlyUsed,
+    legacyUsed,
+  };
+}
+
+function canUsePreRsvpMode({
+  mode,
+  access,
+}: {
+  mode: PreRsvpType;
+  access: ReturnType<typeof getPreRsvpAccess>;
+}) {
+  if (!access.enabled) return false;
+
+  if (mode === "save_the_date") {
+    return access.saveTheDateEnabled && !access.saveTheDateUsed;
+  }
+
+  return access.invitationOnlyEnabled && !access.invitationOnlyUsed;
+}
+
+function getPreRsvpLockedReason({
+  mode,
+  access,
+}: {
+  mode: PreRsvpType;
+  access: ReturnType<typeof getPreRsvpAccess>;
+}) {
+  if (!access.enabled) {
+    return "השירות לא פתוח בחבילה הנוכחית.";
+  }
+
+  if (mode === "save_the_date") {
+    if (!access.saveTheDateEnabled) {
+      return "Save The Date לא פתוח בחבילה שנבחרה.";
+    }
+
+    if (access.saveTheDateUsed) {
+      return "Save The Date כבר נשלח בפועל ולכן נעול לשימוש חוזר.";
+    }
+  }
+
+  if (mode === "invitation_only") {
+    if (!access.invitationOnlyEnabled) {
+      return "שליחת הזמנה מוקדמת לא פתוחה בחבילה שנבחרה.";
+    }
+
+    if (access.invitationOnlyUsed) {
+      return "שליחת הזמנה מוקדמת כבר נשלחה בפועל ולכן נעולה לשימוש חוזר.";
+    }
+  }
+
+  return "";
+}
+
+function getFirstAvailablePreRsvpMode(
+  access: ReturnType<typeof getPreRsvpAccess>
+): PreRsvpType {
+  if (canUsePreRsvpMode({ mode: "save_the_date", access })) {
+    return "save_the_date";
+  }
+
+  if (canUsePreRsvpMode({ mode: "invitation_only", access })) {
+    return "invitation_only";
+  }
+
+  if (access.saveTheDateEnabled) return "save_the_date";
+  if (access.invitationOnlyEnabled) return "invitation_only";
+
+  return "save_the_date";
+}
+
 /* ================= COMPONENT ================= */
 
 export default function PreRsvpTab({
@@ -102,8 +255,24 @@ export default function PreRsvpTab({
   invitationTitle,
   eventDate,
   eventLocation,
+  preRsvpMessages,
 }: PreRsvpTabProps) {
   const [activeMode, setActiveMode] = useState<PreRsvpType>("save_the_date");
+
+  const preRsvpAccess = useMemo(
+    () => getPreRsvpAccess(preRsvpMessages),
+    [preRsvpMessages]
+  );
+
+  const activeModeAvailable = useMemo(
+    () => canUsePreRsvpMode({ mode: activeMode, access: preRsvpAccess }),
+    [activeMode, preRsvpAccess]
+  );
+
+  const activeModeLockedReason = useMemo(
+    () => getPreRsvpLockedReason({ mode: activeMode, access: preRsvpAccess }),
+    [activeMode, preRsvpAccess]
+  );
 
   const [sendTiming, setSendTiming] = useState<SendTiming>("scheduled");
   const [scheduledDate, setScheduledDate] = useState("");
@@ -134,6 +303,16 @@ export default function PreRsvpTab({
     eventDate,
     eventLocation,
   ]);
+
+  useEffect(() => {
+    if (activeModeAvailable) return;
+
+    const nextMode = getFirstAvailablePreRsvpMode(preRsvpAccess);
+
+    if (nextMode !== activeMode) {
+      setActiveMode(nextMode);
+    }
+  }, [activeMode, activeModeAvailable, preRsvpAccess]);
 
   useEffect(() => {
     return () => {
@@ -167,6 +346,11 @@ export default function PreRsvpTab({
   }
 
   async function handleSubmit() {
+    if (!activeModeAvailable) {
+      alert(activeModeLockedReason || "האפשרות הזו לא זמינה בחבילה הנוכחית.");
+      return;
+    }
+
     const isSaveTheDate = activeMode === "save_the_date";
 
     const templateName = isSaveTheDate
@@ -188,6 +372,7 @@ export default function PreRsvpTab({
       invitationId,
       messageType: activeMode,
       channel: "whatsapp" as const,
+      preRsvpMode: preRsvpAccess.mode,
       sendTiming,
       scheduledDate: sendTiming === "scheduled" ? scheduledDate : "",
       scheduledTime: sendTiming === "scheduled" ? scheduledTime : "",
@@ -270,20 +455,48 @@ export default function PreRsvpTab({
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <SubTabButton
               active={activeMode === "save_the_date"}
+              disabled={
+                !canUsePreRsvpMode({
+                  mode: "save_the_date",
+                  access: preRsvpAccess,
+                })
+              }
               icon="💌"
               title="Save The Date"
-              description="שריון תאריך לפני שליחת ההזמנה"
+              description={
+                getPreRsvpLockedReason({
+                  mode: "save_the_date",
+                  access: preRsvpAccess,
+                }) || "שריון תאריך לפני שליחת ההזמנה"
+              }
               onClick={() => setActiveMode("save_the_date")}
             />
 
             <SubTabButton
               active={activeMode === "invitation_only"}
+              disabled={
+                !canUsePreRsvpMode({
+                  mode: "invitation_only",
+                  access: preRsvpAccess,
+                })
+              }
               icon="✨"
               title="שליחת הזמנות"
-              description="הזמנה כללית ללא אישור הגעה"
+              description={
+                getPreRsvpLockedReason({
+                  mode: "invitation_only",
+                  access: preRsvpAccess,
+                }) || "הזמנה כללית ללא אישור הגעה"
+              }
               onClick={() => setActiveMode("invitation_only")}
             />
           </div>
+
+          {!activeModeAvailable && activeModeLockedReason && (
+            <div className="mt-4 rounded-[24px] border border-[#E0CFB8] bg-white px-4 py-4 text-sm font-bold leading-7 text-[#8A6A3D]">
+              🔒 {activeModeLockedReason}
+            </div>
+          )}
         </Panel>
 
         <Panel
@@ -574,7 +787,8 @@ export default function PreRsvpTab({
             <button
               type="button"
               onClick={handleSubmit}
-              className="
+              disabled={!activeModeAvailable}
+              className={`
                 w-full
                 rounded-[24px]
                 bg-[#CBB78D]
@@ -587,7 +801,8 @@ export default function PreRsvpTab({
                 transition
                 hover:scale-[1.01]
                 active:scale-[0.99]
-              "
+                ${!activeModeAvailable ? "cursor-not-allowed opacity-55 hover:scale-100" : ""}
+              `}
             >
               {sendTiming === "scheduled"
                 ? "תזמן שליחה בוואטסאפ ⏱️"
@@ -658,12 +873,14 @@ function Panel({
 
 function SubTabButton({
   active,
+  disabled = false,
   icon,
   title,
   description,
   onClick,
 }: {
   active: boolean;
+  disabled?: boolean;
   icon: string;
   title: string;
   description: string;
@@ -672,6 +889,7 @@ function SubTabButton({
   return (
     <button
       type="button"
+      disabled={disabled}
       onClick={onClick}
       className={`
         rounded-[24px]
@@ -684,6 +902,7 @@ function SubTabButton({
             ? "border-[#D6A64F] bg-[#FFF1D2] shadow-[0_14px_30px_rgba(139,90,34,0.12)]"
             : "border-[#E6D8C5] bg-white hover:bg-[#FFF8ED]"
         }
+        ${disabled ? "cursor-not-allowed opacity-55 hover:bg-white" : ""}
       `}
     >
       <div className="flex items-center gap-4">

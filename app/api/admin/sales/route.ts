@@ -15,6 +15,11 @@ const COMMISSION_RATE = 0.05;
 const DEFAULT_CURRENCY = "ils";
 
 type PaymentMode = "full" | "split";
+type PreRsvpUpsellMode =
+  | "none"
+  | "save_the_date_only"
+  | "invitation_only"
+  | "both";
 
 function cleanString(value: unknown) {
   return String(value || "").trim();
@@ -111,6 +116,49 @@ function normalizePaymentMode(value: unknown): PaymentMode {
   return cleanString(value) === "full" ? "full" : "split";
 }
 
+function normalizePreRsvpUpsellMode(value: unknown): PreRsvpUpsellMode {
+  const mode = cleanString(value);
+
+  if (
+    mode === "save_the_date_only" ||
+    mode === "invitation_only" ||
+    mode === "both"
+  ) {
+    return mode;
+  }
+
+  return "none";
+}
+
+function getPreRsvpUpsellModeFromUpsell(
+  upsell: NormalizedUpsell | null,
+): PreRsvpUpsellMode {
+  if (!upsell) return "none";
+
+  return normalizePreRsvpUpsellMode(
+    upsell.mode || upsell.preRsvpMode || upsell.selectedMode,
+  );
+}
+
+function getPreRsvpUpsellDefaultPrice(mode: PreRsvpUpsellMode) {
+  if (mode === "both") return 230;
+  if (mode === "save_the_date_only" || mode === "invitation_only") return 150;
+  return 0;
+}
+
+function getPreRsvpUpsellPrice(upsell: NormalizedUpsell | null) {
+  if (!upsell) return 0;
+  if (Boolean(upsell.givenFree)) return 0;
+
+  const explicitPrice = getUpsellPrice(upsell);
+
+  if (explicitPrice > 0) {
+    return explicitPrice;
+  }
+
+  return getPreRsvpUpsellDefaultPrice(getPreRsvpUpsellModeFromUpsell(upsell));
+}
+
 
 
 type NormalizedUpsell = Record<string, unknown>;
@@ -194,6 +242,8 @@ function buildSalesUpsells(plan: string, upsells: NormalizedUpsell[]) {
   const venueSeatingPrice = getUpsellPrice(venueSeating);
   const alcoholManagementPrice = getUpsellPrice(alcoholManagement);
   const creditGiftsPrice = planHasCreditGifts(plan) ? 0 : getUpsellPrice(creditGifts);
+  const preRsvpMessagesMode = getPreRsvpUpsellModeFromUpsell(preRsvpMessages);
+  const preRsvpMessagesPrice = getPreRsvpUpsellPrice(preRsvpMessages);
 
   return {
     digitalSeating: {
@@ -230,9 +280,20 @@ function buildSalesUpsells(plan: string, upsells: NormalizedUpsell[]) {
 
     preRsvpMessages: {
       enabled: Boolean(preRsvpMessages),
-      price: getUpsellPrice(preRsvpMessages),
+      mode: preRsvpMessagesMode,
+      price: preRsvpMessagesPrice,
       givenFree: Boolean(preRsvpMessages?.givenFree),
       notes: cleanString(preRsvpMessages?.notes),
+      saveTheDateEnabled:
+        preRsvpMessagesMode === "save_the_date_only" ||
+        preRsvpMessagesMode === "both",
+      invitationOnlyEnabled:
+        preRsvpMessagesMode === "invitation_only" ||
+        preRsvpMessagesMode === "both",
+      saveTheDateSentCount: 0,
+      saveTheDateSentAt: null,
+      invitationOnlySentCount: 0,
+      invitationOnlySentAt: null,
       sentCount: 0,
       sentAt: null,
     },
@@ -840,6 +901,7 @@ export async function POST(req: NextRequest) {
     const hasCreditGifts = salesUpsells.creditGifts.enabled;
     const hasVenueSeating = salesUpsells.venueSeating.enabled;
     const hasPreRsvpMessages = salesUpsells.preRsvpMessages.enabled;
+    const preRsvpMessagesMode = salesUpsells.preRsvpMessages.mode;
     const hasAlcoholManagement = salesUpsells.alcoholManagement.enabled;
 
     if (!clientName || !clientEmail || !clientPhone || finalGrossAmount <= 0) {
@@ -974,9 +1036,16 @@ export async function POST(req: NextRequest) {
         },
         preRsvpMessages: {
           enabled: false,
+          mode: salesUpsells.preRsvpMessages.mode,
           price: salesUpsells.preRsvpMessages.price,
           givenFree: salesUpsells.preRsvpMessages.givenFree,
           notes: salesUpsells.preRsvpMessages.notes,
+          saveTheDateEnabled: false,
+          invitationOnlyEnabled: false,
+          saveTheDateSentCount: 0,
+          saveTheDateSentAt: null,
+          invitationOnlySentCount: 0,
+          invitationOnlySentAt: null,
           sentCount: 0,
           sentAt: null,
         },
@@ -1057,6 +1126,7 @@ export async function POST(req: NextRequest) {
         hasCreditGifts,
         hasVenueSeating,
         hasPreRsvpMessages,
+        preRsvpMessagesMode,
         hasSuppliersBudgetSystem,
         hasAlcoholManagement,
         salesUpsells,
@@ -1206,6 +1276,7 @@ export async function POST(req: NextRequest) {
       });
       sale.set?.("activationSnapshot.hasCreditGifts", includeCreditGifts);
       sale.set?.("activationSnapshot.hasPreRsvpMessages", hasPreRsvpMessages);
+      sale.set?.("activationSnapshot.preRsvpMessagesMode", preRsvpMessagesMode);
       sale.set?.("paidAt", now);
       sale.set?.("stripePaidAt", now);
       sale.set?.("manualPaymentReference", manualPaymentReference);

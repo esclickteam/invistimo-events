@@ -74,13 +74,24 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
     };
 
     preRsvpMessages?: {
-  enabled: boolean;
-  price: number;
-  givenFree?: boolean;
-  notes?: string;
-  sentCount?: number;
-  sentAt?: Date | null;
-};
+      enabled: boolean;
+      mode?:
+        | "none"
+        | "save_the_date_only"
+        | "invitation_only"
+        | "both";
+      price: number;
+      givenFree?: boolean;
+      notes?: string;
+      sentCount?: number;
+      sentAt?: Date | null;
+      saveTheDateEnabled?: boolean;
+      invitationOnlyEnabled?: boolean;
+      saveTheDateSentCount?: number;
+      saveTheDateSentAt?: Date | null;
+      invitationOnlySentCount?: number;
+      invitationOnlySentAt?: Date | null;
+    };
 
     suppliersBudgetSystem?: {
       enabled: boolean;
@@ -463,6 +474,13 @@ preRsvpMessages: {
     index: true,
   },
 
+  mode: {
+    type: String,
+    enum: ["none", "save_the_date_only", "invitation_only", "both"],
+    default: "none",
+    index: true,
+  },
+
   price: {
     type: Number,
     default: 0,
@@ -486,6 +504,42 @@ preRsvpMessages: {
   },
 
   sentAt: {
+    type: Date,
+    default: null,
+    index: true,
+  },
+
+  saveTheDateEnabled: {
+    type: Boolean,
+    default: false,
+    index: true,
+  },
+
+  invitationOnlyEnabled: {
+    type: Boolean,
+    default: false,
+    index: true,
+  },
+
+  saveTheDateSentCount: {
+    type: Number,
+    default: 0,
+    min: 0,
+  },
+
+  saveTheDateSentAt: {
+    type: Date,
+    default: null,
+    index: true,
+  },
+
+  invitationOnlySentCount: {
+    type: Number,
+    default: 0,
+    min: 0,
+  },
+
+  invitationOnlySentAt: {
     type: Date,
     default: null,
     index: true,
@@ -928,6 +982,37 @@ UserSchema.pre("validate", function () {
       Number(doc.planLimits?.allowedMessageRounds) === 3
   );
 
+  const currentPreRsvpModeRaw = String(
+    currentSalesUpsells.preRsvpMessages?.mode || ""
+  );
+
+  const currentPreRsvpMode = ([
+    "none",
+    "save_the_date_only",
+    "invitation_only",
+    "both",
+  ].includes(currentPreRsvpModeRaw)
+    ? currentPreRsvpModeRaw
+    : currentSalesUpsells.preRsvpMessages?.enabled
+      ? "both"
+      : "none") as
+    | "none"
+    | "save_the_date_only"
+    | "invitation_only"
+    | "both";
+
+  const preRsvpSaveTheDateEnabled = Boolean(
+    currentSalesUpsells.preRsvpMessages?.saveTheDateEnabled ||
+      currentPreRsvpMode === "save_the_date_only" ||
+      currentPreRsvpMode === "both"
+  );
+
+  const preRsvpInvitationOnlyEnabled = Boolean(
+    currentSalesUpsells.preRsvpMessages?.invitationOnlyEnabled ||
+      currentPreRsvpMode === "invitation_only" ||
+      currentPreRsvpMode === "both"
+  );
+
   doc.salesUpsells = {
     digitalSeating: {
       enabled: Boolean(
@@ -972,13 +1057,26 @@ UserSchema.pre("validate", function () {
     },
 
     preRsvpMessages: {
-  enabled: Boolean(currentSalesUpsells.preRsvpMessages?.enabled),
-  price: Number(currentSalesUpsells.preRsvpMessages?.price || 0),
-  givenFree: Boolean(currentSalesUpsells.preRsvpMessages?.givenFree),
-  notes: String(currentSalesUpsells.preRsvpMessages?.notes || ""),
-  sentCount: Number(currentSalesUpsells.preRsvpMessages?.sentCount || 0),
-  sentAt: currentSalesUpsells.preRsvpMessages?.sentAt || null,
-},
+      enabled: Boolean(currentSalesUpsells.preRsvpMessages?.enabled),
+      mode: currentPreRsvpMode,
+      price: Number(currentSalesUpsells.preRsvpMessages?.price || 0),
+      givenFree: Boolean(currentSalesUpsells.preRsvpMessages?.givenFree),
+      notes: String(currentSalesUpsells.preRsvpMessages?.notes || ""),
+      sentCount: Number(currentSalesUpsells.preRsvpMessages?.sentCount || 0),
+      sentAt: currentSalesUpsells.preRsvpMessages?.sentAt || null,
+      saveTheDateEnabled: preRsvpSaveTheDateEnabled,
+      invitationOnlyEnabled: preRsvpInvitationOnlyEnabled,
+      saveTheDateSentCount: Number(
+        currentSalesUpsells.preRsvpMessages?.saveTheDateSentCount || 0
+      ),
+      saveTheDateSentAt:
+        currentSalesUpsells.preRsvpMessages?.saveTheDateSentAt || null,
+      invitationOnlySentCount: Number(
+        currentSalesUpsells.preRsvpMessages?.invitationOnlySentCount || 0
+      ),
+      invitationOnlySentAt:
+        currentSalesUpsells.preRsvpMessages?.invitationOnlySentAt || null,
+    },
 
     suppliersBudgetSystem: {
       enabled: Boolean(currentSalesUpsells.suppliersBudgetSystem?.enabled),
@@ -1246,7 +1344,10 @@ UserSchema.index({ "salesUpsells.venueSeating.enabled": 1 });
 UserSchema.index({ "salesUpsells.personalRepresentative.enabled": 1 });
 UserSchema.index({ "salesUpsells.thirdRsvpRound.enabled": 1 });
 UserSchema.index({ "salesUpsells.preRsvpMessages.enabled": 1 });
+UserSchema.index({ "salesUpsells.preRsvpMessages.mode": 1 });
 UserSchema.index({ "salesUpsells.preRsvpMessages.sentAt": 1 });
+UserSchema.index({ "salesUpsells.preRsvpMessages.saveTheDateSentAt": 1 });
+UserSchema.index({ "salesUpsells.preRsvpMessages.invitationOnlySentAt": 1 });
 UserSchema.index({ "salesUpsells.suppliersBudgetSystem.enabled": 1 });
 UserSchema.index({ "salesUpsells.alcoholManagement.enabled": 1 });
 
