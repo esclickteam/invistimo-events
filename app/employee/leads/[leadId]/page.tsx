@@ -2,7 +2,14 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type KeyboardEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 type StaffMember = {
   _id?: string;
@@ -291,7 +298,7 @@ function getReadableWhatsappError(error?: string) {
     clean.includes("131047") ||
     clean.toLowerCase().includes("re-engagement")
   ) {
-    return "לא ניתן לשלוח הודעה רגילה כרגע, כי עברו יותר מ-24 שעות מאז שהלקוח ענה. בחרי הודעה מוכנה מהרשימה ושלחי אותה ללקוח.";
+    return "חלון השיחה ב־WhatsApp נסגר, כי עברו יותר מ־24 שעות מאז שהלקוח ענה. כדי להמשיך את השיחה, שלחי הודעה מאושרת מתוך התבניות.";
   }
 
   return clean;
@@ -487,18 +494,21 @@ export default function EmployeeLeadDetailsPage() {
     return getLeadSourceLabel(lead?.leadSource, lead?.leadProvider);
   }, [lead?.leadSource, lead?.leadProvider]);
 
-  const scrollMessagesToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
-    requestAnimationFrame(() => {
-      const container = messagesScrollRef.current;
+  const scrollMessagesToBottom = useCallback(
+    (behavior: ScrollBehavior = "smooth") => {
+      requestAnimationFrame(() => {
+        const container = messagesScrollRef.current;
 
-      if (!container) return;
+        if (!container) return;
 
-      container.scrollTo({
-        top: container.scrollHeight,
-        behavior,
+        container.scrollTo({
+          top: container.scrollHeight,
+          behavior,
+        });
       });
-    });
-  }, []);
+    },
+    []
+  );
 
   const loadLead = useCallback(async () => {
     if (!leadId) return;
@@ -810,6 +820,18 @@ export default function EmployeeLeadDetailsPage() {
     } finally {
       setSendingMessage(false);
     }
+  }
+
+  function handleMessageKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key !== "Enter") return;
+
+    if (event.shiftKey) return;
+
+    event.preventDefault();
+
+    if (sendingMessage || !messageText.trim()) return;
+
+    void sendWhatsappMessage();
   }
 
   if (loading) {
@@ -1241,6 +1263,7 @@ export default function EmployeeLeadDetailsPage() {
                           setMessageSuccess("");
                           setMessagesError("");
                         }}
+                        onKeyDown={handleMessageKeyDown}
                         rows={5}
                         placeholder="כתבי הודעה לליד..."
                         className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm font-bold leading-7 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white"
