@@ -217,7 +217,7 @@ function assertCloudinaryConfig() {
   );
 
   if (!hasCloudinaryUrl && !hasSeparateKeys) {
-    throw new Error("CLOUDINARY_NOT_CONFIGURED");
+    throw new Error("חסרה הגדרת Cloudinary בשרת.");
   }
 
   if (!hasCloudinaryUrl) {
@@ -287,7 +287,7 @@ async function uploadImageToCloudinary({
         }
 
         if (!result?.secure_url) {
-          reject(new Error("CLOUDINARY_UPLOAD_FAILED"));
+          reject(new Error("העלאת התמונה נכשלה."));
           return;
         }
 
@@ -376,26 +376,26 @@ function validateTemplateVariables({
 }) {
   if (messageType === "save_the_date") {
     if (!cleanString(variables.saveTheDateTitle)) {
-      return "MISSING_SAVE_THE_DATE_TITLE";
+      return "חסרה כותרת ל־Save The Date.";
     }
 
     if (!cleanString(variables.eventDate)) {
-      return "MISSING_EVENT_DATE";
+      return "חסר תאריך אירוע.";
     }
 
     return "";
   }
 
   if (!cleanString(variables.invitationTitle)) {
-    return "MISSING_INVITATION_TITLE";
+    return "חסר שם אירוע לשליחת ההזמנה.";
   }
 
   if (!cleanString(variables.eventDate)) {
-    return "MISSING_EVENT_DATE";
+    return "חסר תאריך אירוע.";
   }
 
   if (!cleanString(variables.eventLocation)) {
-    return "MISSING_EVENT_LOCATION";
+    return "חסר מיקום אירוע לשליחת ההזמנה.";
   }
 
   return "";
@@ -545,7 +545,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: "MISSING_INVITATION_ID",
+          error: "לא נמצאה הזמנה פעילה לשליחה.",
         },
         { status: 400 }
       );
@@ -555,7 +555,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: "INVALID_MESSAGE_TYPE",
+          error: "סוג ההודעה לא תקין.",
         },
         { status: 400 }
       );
@@ -565,7 +565,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: "INVALID_SEND_TIMING",
+          error: "סוג התזמון לא תקין.",
         },
         { status: 400 }
       );
@@ -575,7 +575,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: "MISSING_IMAGE",
+          error: "יש להעלות תמונה להודעת הוואטסאפ.",
         },
         { status: 400 }
       );
@@ -585,7 +585,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: "INVALID_IMAGE_TYPE",
+          error: "סוג הקובץ לא תקין. יש להעלות תמונה בלבד.",
         },
         { status: 400 }
       );
@@ -598,7 +598,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: `IMAGE_TOO_LARGE_MAX_${maxImageMb}MB`,
+          error: `התמונה גדולה מדי. ניתן להעלות תמונה עד ${maxImageMb}MB.`,
         },
         { status: 400 }
       );
@@ -622,7 +622,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: "INVITATION_NOT_FOUND",
+          error: "ההזמנה לא נמצאה.",
         },
         { status: 404 }
       );
@@ -634,7 +634,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: "MISSING_INVITATION_OWNER_ID",
+          error: "לא נמצא בעלים להזמנה.",
         },
         { status: 400 }
       );
@@ -656,7 +656,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: "PRE_RSVP_MESSAGES_NOT_INCLUDED_IN_PACKAGE",
+          error: "שירות Save The Date / הזמנה מוקדמת בוואטסאפ לא פתוח בחבילה שלך. ניתן לרכוש את השירות דרך נציג.",
         },
         { status: 403 }
       );
@@ -666,7 +666,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: "PRE_RSVP_MESSAGES_ALREADY_SENT",
+          error: "הודעת Save The Date / הזמנה מוקדמת כבר נשלחה בעבר ולכן לא ניתן לשלוח אותה שוב.",
         },
         { status: 403 }
       );
@@ -704,7 +704,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: "INVALID_TEMPLATE_NAME",
+          error: "שם התבנית שנשלח לא תואם לסוג ההודעה.",
         },
         { status: 400 }
       );
@@ -799,7 +799,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: "NO_VALID_GUEST_PHONES",
+          error: "לא נמצאו מספרי טלפון תקינים לשליחה בוואטסאפ.",
         },
         { status: 400 }
       );
@@ -812,7 +812,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(
           {
             success: false,
-            error: "INVALID_SCHEDULED_AT",
+            error: "תאריך או שעת השליחה המתוזמנת אינם תקינים.",
           },
           { status: 400 }
         );
@@ -871,7 +871,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         success: true,
         mode: "scheduled",
-        message: "PRE_RSVP_WHATSAPP_SCHEDULED",
+        message: "הודעת הוואטסאפ תוזמנה בהצלחה.",
         scheduleId: String(scheduledMessage._id),
         templateName,
         messageType,
@@ -943,7 +943,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       mode: "immediate",
-      message: "PRE_RSVP_WHATSAPP_QUEUED",
+      message: "הודעת הוואטסאפ נוספה לשליחה מיידית.",
       templateName,
       messageType,
       queuedCount: inserted.length,
@@ -959,7 +959,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: "DUPLICATE_WHATSAPP_QUEUE_ITEM",
+          error: "ההודעה כבר קיימת בתור השליחה.",
         },
         { status: 409 }
       );
@@ -968,7 +968,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: err?.message || "PRE_RSVP_WHATSAPP_FAILED",
+        error: err?.message || "שליחת הודעת הוואטסאפ נכשלה.",
       },
       { status: 500 }
     );
