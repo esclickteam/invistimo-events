@@ -65,10 +65,33 @@ const DEFAULT_INVITATION_ONLY_MESSAGE = `ההזמנה שלנו כבר כאן �
 function formatEventDate(value: any): string {
   if (!value) return "";
 
-  const d = new Date(value);
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+
+    if (!trimmed) return "";
+
+    const parsed = new Date(trimmed);
+
+    if (Number.isNaN(parsed.getTime())) {
+      return trimmed;
+    }
+
+    return new Intl.DateTimeFormat("he-IL", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }).format(parsed);
+  }
+
+  const d = value instanceof Date ? value : new Date(String(value));
+
   if (Number.isNaN(d.getTime())) return "";
 
-  return d.toLocaleDateString("he-IL");
+  return new Intl.DateTimeFormat("he-IL", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(d);
 }
 
 function cleanString(value: unknown) {
@@ -153,21 +176,28 @@ export default function NewMessagesPage() {
           setInvitationId(invitation._id || "");
 
           setMeta({
-            invitationTitle: invitation.title || "",
-            eventDate: formatEventDate(event?.date || invitation.eventDate),
-            eventLocation:
-              invitation.location?.address ||
-              invitation.location?.name ||
-              event?.location?.address ||
-              event?.location?.name ||
-              "",
-            eventType: event?.eventType || invitation.eventType || "",
-            giftCreditUrl: event?.giftCreditUrl || invitation.giftCreditUrl || "",
-            headerImageUrl:
-              invitation.previewImage || invitation.headerImageUrl || "",
-            lat: invitation.location?.lat ?? event?.location?.lat,
-            lng: invitation.location?.lng ?? event?.location?.lng,
-          });
+  invitationTitle: invitation.title || "",
+
+  // לוקח קודם מהמודל invitations
+  eventDate: formatEventDate(invitation.eventDate || event?.date),
+
+  // לוקח קודם מהמודל invitations
+  eventLocation:
+    [
+      invitation.location?.name || event?.location?.name,
+      invitation.location?.address || event?.location?.address,
+    ]
+      .filter(Boolean)
+      .join(", ") || "",
+
+  eventType: invitation.eventType || event?.eventType || "",
+  giftCreditUrl: invitation.giftCreditUrl || event?.giftCreditUrl || "",
+  headerImageUrl:
+    invitation.previewImage || invitation.headerImageUrl || "",
+  lat: invitation.location?.lat ?? event?.location?.lat,
+  lng: invitation.location?.lng ?? event?.location?.lng,
+});
+
         }
       } catch (err) {
         console.error("❌ Failed to load invitation data", err);
