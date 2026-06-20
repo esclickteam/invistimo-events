@@ -545,6 +545,18 @@ export default function EmployeeLeadDetailsPage() {
     void loadMessages();
   }, [loadLead, loadMessages]);
 
+  useEffect(() => {
+  if (!leadId) return;
+
+  const interval = window.setInterval(() => {
+    void loadMessages();
+  }, 3000);
+
+  return () => {
+    window.clearInterval(interval);
+  };
+}, [leadId, loadMessages]);
+
   async function saveLead() {
     if (!leadId || saving) return;
 
