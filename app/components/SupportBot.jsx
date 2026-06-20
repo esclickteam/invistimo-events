@@ -1,15 +1,84 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 
 export default function SupportBot({ onClose }) {
   const whatsappNumber = "972555039072";
+  const [openingWhatsapp, setOpeningWhatsapp] = useState(false);
 
-  const whatsappText = encodeURIComponent(
-  "היי, אשמח לקבל עזרה עם Invistimo ✨\nרוצה להבין איזו חבילה מתאימה לאירוע שלי."
-);
+  function buildWhatsappUrl(ticketNumber) {
+    const whatsappText = encodeURIComponent(
+      [
+        "היי, אשמח לקבל עזרה עם Invistimo ✨",
+        "רוצה להבין איזו חבילה מתאימה לאירוע שלי.",
+        ticketNumber ? `מספר פנייה: ${ticketNumber}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n")
+    );
 
-  const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${whatsappText}`;
+    return `https://wa.me/${whatsappNumber}?text=${whatsappText}`;
+  }
+
+  async function handleWhatsappClick() {
+    if (openingWhatsapp) return;
+
+    const whatsappWindow = window.open("about:blank", "_blank");
+
+    try {
+      setOpeningWhatsapp(true);
+
+      const res = await fetch("/api/public/support-whatsapp-lead", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+        body: JSON.stringify({
+          source: "support_widget",
+          leadSource: "website_support",
+          leadProvider: "website",
+          interestedService: "פנייה לנציג מהאתר",
+          notes:
+            "הלקוח לחץ על מעבר לוואטסאפ עם נציג מתוך חלונית העזרה באתר",
+          pageUrl: typeof window !== "undefined" ? window.location.href : "",
+          userAgent:
+            typeof navigator !== "undefined" ? navigator.userAgent : "",
+        }),
+      });
+
+      const data = await res.json().catch(() => null);
+
+      const whatsappUrl = buildWhatsappUrl(data && data.ticketNumber);
+
+      if (whatsappWindow) {
+        whatsappWindow.location.href = whatsappUrl;
+      } else {
+        window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+      }
+
+      if (typeof onClose === "function") {
+        onClose();
+      }
+    } catch (error) {
+      console.error("OPEN WHATSAPP SUPPORT LEAD ERROR:", error);
+
+      const fallbackUrl = buildWhatsappUrl();
+
+      if (whatsappWindow) {
+        whatsappWindow.location.href = fallbackUrl;
+      } else {
+        window.open(fallbackUrl, "_blank", "noopener,noreferrer");
+      }
+
+      if (typeof onClose === "function") {
+        onClose();
+      }
+    } finally {
+      setOpeningWhatsapp(false);
+    }
+  }
 
   return (
     <div
@@ -102,10 +171,10 @@ export default function SupportBot({ onClose }) {
 
           {/* 3 כפתורים בלבד */}
           <div className="space-y-3">
-            <a
-              href={whatsappUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              type="button"
+              onClick={handleWhatsappClick}
+              disabled={openingWhatsapp}
               className="
                 flex w-full items-center justify-center gap-2
                 rounded-[18px]
@@ -116,11 +185,13 @@ export default function SupportBot({ onClose }) {
                 transition
                 hover:-translate-y-0.5
                 hover:shadow-[0_20px_38px_rgba(168,111,43,0.3)]
+                disabled:cursor-not-allowed
+                disabled:opacity-70
               "
             >
               <span>💬</span>
-              מעבר לוואטסאפ עם נציג
-            </a>
+              {openingWhatsapp ? "פותח פנייה..." : "מעבר לוואטסאפ עם נציג"}
+            </button>
 
             <Link
               href="/pricing"
