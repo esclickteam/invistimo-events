@@ -86,9 +86,13 @@ export async function POST(req: NextRequest) {
     const phone = normalizeIsraeliPhone(body?.phone);
 
     const pageUrl = cleanString(body?.pageUrl);
-    const source = cleanString(body?.source) || "support_widget";
-    const leadSource = cleanString(body?.leadSource) || "website_support";
-    const leadProvider = cleanString(body?.leadProvider) || "website";
+
+    /**
+     * מקור ליד קבוע ללידים שמגיעים מהאתר
+     */
+    const source = "website";
+    const leadSource = "website";
+    const leadProvider = "support_widget";
 
     const interestedService =
       cleanString(body?.interestedService) || "פנייה לנציג מהאתר";
@@ -161,6 +165,9 @@ export async function POST(req: NextRequest) {
     const notes = [
       extraNotes ||
         "הלקוח מילא שם וטלפון בבוט התמיכה ולחץ מעבר לוואטסאפ עם נציג.",
+      "מקור ליד: אתר",
+      "טופס: בוט תמיכה באתר",
+      "פעולה: מעבר לוואטסאפ עם נציג",
       `טלפון שהוזן בבוט: ${phone}`,
       pageUrl ? `עמוד ממנו נפתחה הפנייה: ${pageUrl}` : "",
       userAgent ? `דפדפן: ${userAgent}` : "",
@@ -185,9 +192,9 @@ export async function POST(req: NextRequest) {
       interestedService,
       notes,
 
-      campaignName: "Support Widget",
-      formName: "WhatsApp Representative Button",
-      adName: "",
+      campaignName: "מהאתר",
+      formName: "בוט תמיכה באתר",
+      adName: "מעבר לוואטסאפ עם נציג",
       facebookLeadId: "",
 
       totalPrice: 0,

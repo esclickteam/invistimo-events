@@ -172,6 +172,23 @@ function getLeadSourceLabel(source?: string, provider?: string) {
     return "Make";
   }
 
+  if (
+    cleanSource === "website" ||
+    cleanSource === "website_support" ||
+    cleanProvider === "website" ||
+    cleanProvider === "support_widget"
+  ) {
+    return "אתר";
+  }
+
+  if (cleanSource) {
+    return source || "-";
+  }
+
+  if (cleanProvider) {
+    return provider || "-";
+  }
+
   return "-";
 }
 
