@@ -230,8 +230,6 @@ export async function GET(req: Request) {
       );
     }
 
-    const preRsvpMessages = normalizePreRsvpMessagesAccess(user);
-
     const ctx = resolveProducerContext(auth, user);
 
     const orFilters: any[] = [];
@@ -524,6 +522,18 @@ export async function GET(req: Request) {
     if (!finalInvitation) {
       return NextResponse.json({ success: true, invitation: null });
     }
+
+    const invitationOwnerId =
+      normalizeId(finalInvitation.ownerId) || normalizeId(finalInvitation.userId);
+
+    const ownerUser =
+      invitationOwnerId && invitationOwnerId !== userId
+        ? await User.findById(invitationOwnerId)
+            .select("salesUpsells.preRsvpMessages")
+            .lean()
+        : user;
+
+    const preRsvpMessages = normalizePreRsvpMessagesAccess(ownerUser || user);
 
     const finalInvitationId = normalizeId(finalInvitation._id);
     const finalInvitationObjectId = toObjectId(finalInvitationId);
