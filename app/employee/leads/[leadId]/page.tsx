@@ -43,8 +43,6 @@ type LeadFile = {
 
   assignedStaffIds?: Array<string | StaffMember>;
 
-  notes?: string;
-
   createdAt?: string | Date;
   updatedAt?: string | Date;
 };
@@ -433,7 +431,6 @@ export default function EmployeeLeadDetailsPage() {
 
   const [lead, setLead] = useState<LeadFile | null>(null);
   const [leadStatus, setLeadStatus] = useState("new");
-  const [notes, setNotes] = useState("");
 
   const [messages, setMessages] = useState<LeadMessage[]>([]);
   const [messageText, setMessageText] = useState("");
@@ -510,7 +507,6 @@ export default function EmployeeLeadDetailsPage() {
 
       setLead(data.lead);
       setLeadStatus(data.lead.leadStatus || "new");
-      setNotes(data.lead.notes || "");
     } catch (err) {
       console.error("LOAD EMPLOYEE LEAD FAILED:", err);
       setError(err instanceof Error ? err.message : "שגיאה בטעינת הליד");
@@ -579,21 +575,21 @@ export default function EmployeeLeadDetailsPage() {
     });
 
     eventSource.addEventListener("message", (event) => {
-  try {
-    const data = JSON.parse(event.data) as {
-      success?: boolean;
-      message?: LeadMessage;
-    };
+      try {
+        const data = JSON.parse(event.data) as {
+          success?: boolean;
+          message?: LeadMessage;
+        };
 
-    if (!data?.success || !data.message) return;
+        if (!data?.success || !data.message) return;
 
-    const nextMessage: LeadMessage = data.message;
+        const nextMessage: LeadMessage = data.message;
 
-    setMessages((prev) => upsertMessageById(prev, nextMessage));
-  } catch (err) {
-    console.error("LIVE CHAT MESSAGE PARSE ERROR:", err);
-  }
-});
+        setMessages((prev) => upsertMessageById(prev, nextMessage));
+      } catch (err) {
+        console.error("LIVE CHAT MESSAGE PARSE ERROR:", err);
+      }
+    });
 
     eventSource.addEventListener("stream_warning", (event) => {
       try {
@@ -646,7 +642,6 @@ export default function EmployeeLeadDetailsPage() {
         cache: "no-store",
         body: JSON.stringify({
           leadStatus,
-          notes,
         }),
       });
 
@@ -659,7 +654,6 @@ export default function EmployeeLeadDetailsPage() {
       if (data.lead) {
         setLead(data.lead);
         setLeadStatus(data.lead.leadStatus || "new");
-        setNotes(data.lead.notes || "");
       }
 
       setSaveMessage("הליד נשמר בהצלחה");
@@ -938,8 +932,8 @@ export default function EmployeeLeadDetailsPage() {
             <h2 className="text-2xl font-black">טיפול בליד</h2>
 
             <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
-              כאן העובד מעדכן סטטוס טיפול והערות. כל שמירה מעדכנת את תיק הלקוח
-              באדמין.
+              כאן העובד מעדכן את סטטוס הטיפול בליד. כל שמירה מעדכנת את תיק
+              הלקוח באדמין.
             </p>
 
             <div className="mt-5 space-y-4">
@@ -959,20 +953,6 @@ export default function EmployeeLeadDetailsPage() {
                     </option>
                   ))}
                 </select>
-              </label>
-
-              <label className="block">
-                <span className="text-xs font-black text-slate-500">
-                  הערות טיפול
-                </span>
-
-                <textarea
-                  value={notes}
-                  onChange={(event) => setNotes(event.target.value)}
-                  rows={9}
-                  placeholder="לדוגמה: דיברתי עם הלקוח, ביקש הצעה ל־300 רשומות, לחזור אליו בערב..."
-                  className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm font-bold leading-7 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white"
-                />
               </label>
 
               {error ? (
