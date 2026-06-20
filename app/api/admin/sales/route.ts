@@ -186,6 +186,7 @@ function buildSalesUpsells(plan: string, upsells: NormalizedUpsell[]) {
     "personalRepresentative",
   );
   const thirdRsvpRound = findUpsell(upsells, "thirdRsvpRound");
+  const preRsvpMessages = findUpsell(upsells, "preRsvpMessages");
   const suppliersBudgetSystem = findUpsell(upsells, "suppliersBudgetSystem");
   const alcoholManagement = findUpsell(upsells, "alcoholManagement");
   const creditGifts = findUpsell(upsells, "creditGifts");
@@ -225,6 +226,15 @@ function buildSalesUpsells(plan: string, upsells: NormalizedUpsell[]) {
     thirdRsvpRound: {
       enabled: Boolean(thirdRsvpRound),
       price: getUpsellPrice(thirdRsvpRound),
+    },
+
+    preRsvpMessages: {
+      enabled: Boolean(preRsvpMessages),
+      price: getUpsellPrice(preRsvpMessages),
+      givenFree: Boolean(preRsvpMessages?.givenFree),
+      notes: cleanString(preRsvpMessages?.notes),
+      sentCount: 0,
+      sentAt: null,
     },
 
     suppliersBudgetSystem: {
@@ -829,6 +839,7 @@ export async function POST(req: NextRequest) {
     const hasDigitalSeating = salesUpsells.digitalSeating.enabled;
     const hasCreditGifts = salesUpsells.creditGifts.enabled;
     const hasVenueSeating = salesUpsells.venueSeating.enabled;
+    const hasPreRsvpMessages = salesUpsells.preRsvpMessages.enabled;
     const hasAlcoholManagement = salesUpsells.alcoholManagement.enabled;
 
     if (!clientName || !clientEmail || !clientPhone || finalGrossAmount <= 0) {
@@ -961,6 +972,14 @@ export async function POST(req: NextRequest) {
           enabled: false,
           price: salesUpsells.thirdRsvpRound.price,
         },
+        preRsvpMessages: {
+          enabled: false,
+          price: salesUpsells.preRsvpMessages.price,
+          givenFree: salesUpsells.preRsvpMessages.givenFree,
+          notes: salesUpsells.preRsvpMessages.notes,
+          sentCount: 0,
+          sentAt: null,
+        },
         suppliersBudgetSystem: {
           enabled: false,
           price: salesUpsells.suppliersBudgetSystem.price,
@@ -1037,6 +1056,7 @@ export async function POST(req: NextRequest) {
         hasDigitalSeating,
         hasCreditGifts,
         hasVenueSeating,
+        hasPreRsvpMessages,
         hasSuppliersBudgetSystem,
         hasAlcoholManagement,
         salesUpsells,
@@ -1185,6 +1205,7 @@ export async function POST(req: NextRequest) {
         description: salesUpsells.creditGifts.description,
       });
       sale.set?.("activationSnapshot.hasCreditGifts", includeCreditGifts);
+      sale.set?.("activationSnapshot.hasPreRsvpMessages", hasPreRsvpMessages);
       sale.set?.("paidAt", now);
       sale.set?.("stripePaidAt", now);
       sale.set?.("manualPaymentReference", manualPaymentReference);
