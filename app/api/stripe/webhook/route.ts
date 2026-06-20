@@ -250,6 +250,77 @@ function getSaleUpsellStaffCount(sale: any, key: string, fallback = 0): number {
   return toNum(upsell.staffCount ?? upsell.count ?? upsell.quantity, fallback);
 }
 
+function getSaleUpsellNotes(sale: any, key: string): string {
+  const upsell = findSaleUpsell(sale, key);
+  return cleanString(upsell?.notes);
+}
+
+type PreRsvpMessagesMode =
+  | "none"
+  | "save_the_date_only"
+  | "invitation_only"
+  | "both";
+
+function normalizePreRsvpMessagesMode(value: unknown): PreRsvpMessagesMode {
+  const mode = cleanString(value);
+
+  if (
+    mode === "save_the_date_only" ||
+    mode === "invitation_only" ||
+    mode === "both"
+  ) {
+    return mode;
+  }
+
+  return "none";
+}
+
+function buildPreRsvpMessagesUpsell(sale: any) {
+  const upsell = findSaleUpsell(sale, "preRsvpMessages");
+  const existing = sale?.salesUpsells?.preRsvpMessages || {};
+
+  const mode = normalizePreRsvpMessagesMode(
+    existing.mode ?? upsell?.mode ?? upsell?.preRsvpMode
+  );
+
+  const enabled = Boolean(existing.enabled || upsell || mode !== "none");
+
+  const saveTheDateEnabled = Boolean(
+  existing.saveTheDateEnabled ??
+    (mode === "save_the_date_only" || mode === "both")
+);
+
+const invitationOnlyEnabled = Boolean(
+  existing.invitationOnlyEnabled ??
+    (mode === "invitation_only" || mode === "both")
+);
+
+  const price =
+    getSaleUpsellPrice(sale, "preRsvpMessages") ||
+    toNum(existing.price, 0);
+
+  return {
+    enabled,
+    mode,
+    price,
+    givenFree: Boolean(existing.givenFree ?? upsell?.givenFree),
+    notes: cleanString(existing.notes || getSaleUpsellNotes(sale, "preRsvpMessages")),
+
+    saveTheDateEnabled,
+    invitationOnlyEnabled,
+
+    saveTheDateSentCount: toNum(existing.saveTheDateSentCount, 0),
+    saveTheDateSentAt: existing.saveTheDateSentAt || null,
+
+    invitationOnlySentCount: toNum(existing.invitationOnlySentCount, 0),
+    invitationOnlySentAt: existing.invitationOnlySentAt || null,
+
+    // תאימות לאחור לקוד שכבר בדק sentCount / sentAt לפני ההפרדה לסוגי הודעות.
+    sentCount: toNum(existing.sentCount, 0),
+    sentAt: existing.sentAt || null,
+  };
+}
+
 function getSalePlan(sale: any, user: any): string {
   return cleanString(sale?.plan || user?.plan || "premium");
 }
@@ -285,6 +356,7 @@ function buildEmployeeSaleUpsells(sale: any) {
     "personalRepresentative"
   );
   const thirdRsvpRoundEnabled = hasSaleUpsell(sale, "thirdRsvpRound");
+  const preRsvpMessages = buildPreRsvpMessagesUpsell(sale);
   const suppliersBudgetSystemEnabled = hasSaleUpsell(
     sale,
     "suppliersBudgetSystem"
@@ -318,6 +390,8 @@ function buildEmployeeSaleUpsells(sale: any) {
       enabled: thirdRsvpRoundEnabled,
       price: getSaleUpsellPrice(sale, "thirdRsvpRound"),
     },
+
+    preRsvpMessages,
 
     suppliersBudgetSystem: {
       enabled: suppliersBudgetSystemEnabled,
