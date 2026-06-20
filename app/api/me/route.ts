@@ -68,6 +68,68 @@ function normalizeId(value: unknown) {
   return String(value);
 }
 
+
+function cleanString(value: unknown) {
+  return String(value || "").trim();
+}
+
+function normalizePreRsvpMessagesAccess(user: any) {
+  const preRsvpMessages = user?.salesUpsells?.preRsvpMessages || {};
+  const mode = cleanString(preRsvpMessages.mode || "none");
+
+  const saveTheDateEnabled = Boolean(
+    preRsvpMessages.saveTheDateEnabled ??
+      (mode === "save_the_date_only" || mode === "both")
+  );
+
+  const invitationOnlyEnabled = Boolean(
+    preRsvpMessages.invitationOnlyEnabled ??
+      (mode === "invitation_only" || mode === "both")
+  );
+
+  const saveTheDateSentCount = Number(
+    preRsvpMessages.saveTheDateSentCount ||
+      (mode === "save_the_date_only" ? preRsvpMessages.sentCount : 0) ||
+      0
+  );
+
+  const invitationOnlySentCount = Number(
+    preRsvpMessages.invitationOnlySentCount ||
+      (mode === "invitation_only" ? preRsvpMessages.sentCount : 0) ||
+      0
+  );
+
+  const saveTheDateSentAt =
+    preRsvpMessages.saveTheDateSentAt ||
+    (mode === "save_the_date_only" ? preRsvpMessages.sentAt : null) ||
+    null;
+
+  const invitationOnlySentAt =
+    preRsvpMessages.invitationOnlySentAt ||
+    (mode === "invitation_only" ? preRsvpMessages.sentAt : null) ||
+    null;
+
+  return {
+    enabled: Boolean(preRsvpMessages.enabled),
+    mode,
+    price: Number(preRsvpMessages.price || 0),
+    givenFree: Boolean(preRsvpMessages.givenFree),
+    notes: cleanString(preRsvpMessages.notes),
+
+    saveTheDateEnabled,
+    invitationOnlyEnabled,
+
+    saveTheDateSentCount,
+    saveTheDateSentAt,
+
+    invitationOnlySentCount,
+    invitationOnlySentAt,
+
+    sentCount: Number(preRsvpMessages.sentCount || 0),
+    sentAt: preRsvpMessages.sentAt || null,
+  };
+}
+
 function normalizeAccessModules(user: any) {
   const includeDigitalSeating =
     Boolean(user?.includeDigitalSeating) ||
@@ -693,6 +755,8 @@ export async function GET() {
 
     const currentUser = user as any;
 
+    const preRsvpMessages = normalizePreRsvpMessagesAccess(currentUser);
+
     const safeRole = (currentUser.role as UserRole) ?? "user";
 
     const staffType = (currentUser.staffType as string | null) ?? null;
@@ -1050,6 +1114,12 @@ export async function GET() {
 
           includeCreditGifts: !!currentUser.includeCreditGifts,
           creditGiftsAddonPrice: currentUser.creditGiftsAddonPrice ?? 0,
+
+          preRsvpMessages,
+          salesUpsells: {
+            ...(currentUser.salesUpsells || {}),
+            preRsvpMessages,
+          },
 
           smsPerRecord: currentUser.smsPerRecord ?? 0,
           maxMessages: currentUser.maxMessages ?? 0,
