@@ -82,10 +82,7 @@ type LeadMessagesResponse = {
   message?: string;
 };
 
-type WhatsappTemplateKey =
-  | "lead_opening"
-  | "reengagement"
-  | "after_call";
+type WhatsappTemplateKey = "lead_opening" | "reengagement" | "after_call";
 
 type WhatsappTemplateOption = {
   key: WhatsappTemplateKey;
@@ -366,6 +363,22 @@ function getMessageId(message: LeadMessage) {
   );
 }
 
+function upsertMessageById(messages: LeadMessage[], nextMessage: LeadMessage) {
+  const nextId = getMessageId(nextMessage);
+
+  if (!nextId) return messages;
+
+  const exists = messages.some((message) => getMessageId(message) === nextId);
+
+  if (exists) {
+    return messages.map((message) =>
+      getMessageId(message) === nextId ? nextMessage : message
+    );
+  }
+
+  return [...messages, nextMessage];
+}
+
 function replaceTemplateVariables(text: string, employeeName: string) {
   return text.replaceAll(
     "{{employee_name}}",
@@ -431,6 +444,8 @@ export default function EmployeeLeadDetailsPage() {
     useState<WhatsappTemplateKey>("lead_opening");
   const [messagesError, setMessagesError] = useState("");
   const [messageSuccess, setMessageSuccess] = useState("");
+  const [liveChatConnected, setLiveChatConnected] = useState(false);
+  const [liveChatError, setLiveChatError] = useState("");
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -546,16 +561,73 @@ export default function EmployeeLeadDetailsPage() {
   }, [loadLead, loadMessages]);
 
   useEffect(() => {
-  if (!leadId) return;
+    if (!leadId) return;
 
-  const interval = window.setInterval(() => {
-    void loadMessages();
-  }, 3000);
+    setLiveChatConnected(false);
+    setLiveChatError("");
 
-  return () => {
-    window.clearInterval(interval);
-  };
-}, [leadId, loadMessages]);
+    const eventSource = new EventSource(
+      `/api/employee/leads/${leadId}/messages/stream`,
+      {
+        withCredentials: true,
+      }
+    );
+
+    eventSource.addEventListener("connected", () => {
+      setLiveChatConnected(true);
+      setLiveChatError("");
+    });
+
+    eventSource.addEventListener("message", (event) => {
+  try {
+    const data = JSON.parse(event.data) as {
+      success?: boolean;
+      message?: LeadMessage;
+    };
+
+    if (!data?.success || !data.message) return;
+
+    const nextMessage: LeadMessage = data.message;
+
+    setMessages((prev) => upsertMessageById(prev, nextMessage));
+  } catch (err) {
+    console.error("LIVE CHAT MESSAGE PARSE ERROR:", err);
+  }
+});
+
+    eventSource.addEventListener("stream_warning", (event) => {
+      try {
+        const data = JSON.parse(event.data) as { message?: string };
+        setLiveChatError(data?.message || "");
+      } catch {
+        setLiveChatError("");
+      }
+    });
+
+    eventSource.addEventListener("stream_error", (event) => {
+      setLiveChatConnected(false);
+
+      try {
+        const data = JSON.parse(event.data) as { message?: string };
+        setLiveChatError(data?.message || "חיבור הצ׳אט בזמן אמת נכשל");
+      } catch {
+        setLiveChatError("חיבור הצ׳אט בזמן אמת נכשל");
+      }
+    });
+
+    eventSource.addEventListener("stream_closed", () => {
+      setLiveChatConnected(false);
+    });
+
+    eventSource.onerror = () => {
+      setLiveChatConnected(false);
+    };
+
+    return () => {
+      setLiveChatConnected(false);
+      eventSource.close();
+    };
+  }, [leadId]);
 
   async function saveLead() {
     if (!leadId || saving) return;
@@ -637,7 +709,9 @@ export default function EmployeeLeadDetailsPage() {
       setMessageSuccess("ההודעה המוכנה נשלחה בהצלחה");
 
       if (data.leadMessage) {
-        setMessages((prev) => [...prev, data.leadMessage as LeadMessage]);
+        setMessages((prev) =>
+          upsertMessageById(prev, data.leadMessage as LeadMessage)
+        );
       } else {
         await loadMessages();
       }
@@ -693,7 +767,9 @@ export default function EmployeeLeadDetailsPage() {
       setMessageSuccess("ההודעה נשלחה בהצלחה");
 
       if (data.leadMessage) {
-        setMessages((prev) => [...prev, data.leadMessage as LeadMessage]);
+        setMessages((prev) =>
+          upsertMessageById(prev, data.leadMessage as LeadMessage)
+        );
       } else {
         await loadMessages();
       }
@@ -928,20 +1004,40 @@ export default function EmployeeLeadDetailsPage() {
                 <h2 className="text-2xl font-black">צ׳אט WhatsApp</h2>
 
                 <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
-                  הודעות שנשלחות כאן נשמרות בתיק הליד. תגובות נכנסות יתווספו
-                  בשלב הבא דרך Webhook של 360dialog.
+                  הודעות שנשלחות כאן נשמרות בתיק הליד. תגובות נכנסות יופיעו
+                  בזמן אמת לאחר שה־Webhook של 360dialog שומר אותן במערכת.
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={loadMessages}
-                disabled={messagesLoading}
-                className="h-10 rounded-2xl border border-slate-200 bg-white px-4 text-xs font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {messagesLoading ? "טוען..." : "רענון צ׳אט"}
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <span
+                  className={`inline-flex h-10 items-center rounded-2xl border px-4 text-xs font-black ${
+                    liveChatConnected
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                      : "border-slate-200 bg-slate-50 text-slate-500"
+                  }`}
+                >
+                  {liveChatConnected
+                    ? "צ׳אט בזמן אמת פעיל"
+                    : "מתחבר לצ׳אט..."}
+                </span>
+
+                <button
+                  type="button"
+                  onClick={loadMessages}
+                  disabled={messagesLoading}
+                  className="h-10 rounded-2xl border border-slate-200 bg-white px-4 text-xs font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {messagesLoading ? "טוען..." : "רענון צ׳אט"}
+                </button>
+              </div>
             </div>
+
+            {liveChatError ? (
+              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs font-black leading-6 text-amber-700">
+                {liveChatError}
+              </div>
+            ) : null}
 
             <div className="mt-5 h-[360px] overflow-y-auto rounded-[1.6rem] border border-slate-200 bg-slate-50 p-4">
               {messagesLoading ? (
