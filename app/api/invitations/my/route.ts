@@ -88,6 +88,64 @@ function resolveProducerContext(auth: any, user: any) {
   };
 }
 
+
+function normalizePreRsvpMessagesAccess(user: any) {
+  const preRsvpMessages = user?.salesUpsells?.preRsvpMessages || {};
+  const mode = cleanString(preRsvpMessages.mode || "none");
+
+  const saveTheDateEnabled = Boolean(
+    preRsvpMessages.saveTheDateEnabled ??
+      (mode === "save_the_date_only" || mode === "both")
+  );
+
+  const invitationOnlyEnabled = Boolean(
+    preRsvpMessages.invitationOnlyEnabled ??
+      (mode === "invitation_only" || mode === "both")
+  );
+
+  const saveTheDateSentCount = Number(
+    preRsvpMessages.saveTheDateSentCount ||
+      (mode === "save_the_date_only" ? preRsvpMessages.sentCount : 0) ||
+      0
+  );
+
+  const invitationOnlySentCount = Number(
+    preRsvpMessages.invitationOnlySentCount ||
+      (mode === "invitation_only" ? preRsvpMessages.sentCount : 0) ||
+      0
+  );
+
+  const saveTheDateSentAt =
+    preRsvpMessages.saveTheDateSentAt ||
+    (mode === "save_the_date_only" ? preRsvpMessages.sentAt : null) ||
+    null;
+
+  const invitationOnlySentAt =
+    preRsvpMessages.invitationOnlySentAt ||
+    (mode === "invitation_only" ? preRsvpMessages.sentAt : null) ||
+    null;
+
+  return {
+    enabled: Boolean(preRsvpMessages.enabled),
+    mode,
+    price: Number(preRsvpMessages.price || 0),
+    givenFree: Boolean(preRsvpMessages.givenFree),
+    notes: cleanString(preRsvpMessages.notes),
+
+    saveTheDateEnabled,
+    invitationOnlyEnabled,
+
+    saveTheDateSentCount,
+    saveTheDateSentAt,
+
+    invitationOnlySentCount,
+    invitationOnlySentAt,
+
+    sentCount: Number(preRsvpMessages.sentCount || 0),
+    sentAt: preRsvpMessages.sentAt || null,
+  };
+}
+
 function buildInvitationResponse(invitation: any) {
   const normalizedEventId = normalizeEventId(invitation.eventId);
 
@@ -159,6 +217,8 @@ export async function GET(req: Request) {
           venueHallId
           venueClientHallId
           venueSeatingTemplateId
+
+          salesUpsells.preRsvpMessages
         `
       )
       .lean();
@@ -169,6 +229,8 @@ export async function GET(req: Request) {
         { status: 404 }
       );
     }
+
+    const preRsvpMessages = normalizePreRsvpMessagesAccess(user);
 
     const ctx = resolveProducerContext(auth, user);
 
@@ -511,7 +573,26 @@ export async function GET(req: Request) {
       success: true,
       invitation: {
         ...buildInvitationResponse(finalInvitation),
+        preRsvpMessages,
         scheduledMessages: normalizedScheduledMessages,
+      },
+      user: {
+        _id: userId,
+        role: (user as any)?.role || "",
+        staffType: (user as any)?.staffType || "",
+        preRsvpMessages,
+        salesUpsells: {
+          preRsvpMessages,
+        },
+      },
+      currentUser: {
+        _id: userId,
+        role: (user as any)?.role || "",
+        staffType: (user as any)?.staffType || "",
+        preRsvpMessages,
+        salesUpsells: {
+          preRsvpMessages,
+        },
       },
     });
   } catch (err) {

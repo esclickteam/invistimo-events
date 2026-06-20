@@ -12,6 +12,25 @@ type TabKey = "pre_rsvp" | "rsvp" | "reminder" | "thankyou";
 type PreRsvpType = "save_the_date" | "invitation_only";
 type SendTiming = "scheduled" | "immediate";
 
+type PreRsvpAccessMode =
+  | "none"
+  | "save_the_date_only"
+  | "invitation_only"
+  | "both";
+
+type PreRsvpMessagesAccess = {
+  enabled?: boolean;
+  mode?: PreRsvpAccessMode | string;
+  saveTheDateEnabled?: boolean;
+  invitationOnlyEnabled?: boolean;
+  saveTheDateSentCount?: number;
+  saveTheDateSentAt?: string | Date | null;
+  invitationOnlySentCount?: number;
+  invitationOnlySentAt?: string | Date | null;
+  sentCount?: number;
+  sentAt?: string | Date | null;
+} | null;
+
 type MessageMeta = {
   invitationTitle: string;
   eventDate: string;
@@ -164,6 +183,88 @@ function getFilePreview(file: File | null) {
   return URL.createObjectURL(file);
 }
 
+function normalizePreRsvpMode(value: unknown): PreRsvpAccessMode {
+  const mode = cleanString(value);
+
+  if (
+    mode === "save_the_date_only" ||
+    mode === "invitation_only" ||
+    mode === "both"
+  ) {
+    return mode;
+  }
+
+  return "none";
+}
+
+function hasUsedPreRsvpType(
+  access: PreRsvpMessagesAccess,
+  type: PreRsvpType
+) {
+  if (!access) return false;
+
+  if (type === "save_the_date") {
+    return (
+      Number(access.saveTheDateSentCount || 0) >= 1 ||
+      Boolean(access.saveTheDateSentAt)
+    );
+  }
+
+  return (
+    Number(access.invitationOnlySentCount || 0) >= 1 ||
+    Boolean(access.invitationOnlySentAt)
+  );
+}
+
+function canUsePreRsvpType(
+  access: PreRsvpMessagesAccess,
+  type: PreRsvpType
+) {
+  /*
+    תאימות לאחור:
+    אם ה-API עדיין לא מחזיר preRsvpMessages, לא חוסמים בפרונט.
+    החסימה הסופית עדיין חייבת להיות גם בשרת השליחה.
+  */
+  if (!access) return true;
+
+  if (!access.enabled) return false;
+
+  const mode = normalizePreRsvpMode(access.mode);
+
+  if (type === "save_the_date") {
+    const enabledByMode = mode === "save_the_date_only" || mode === "both";
+    const enabledByFlag = access.saveTheDateEnabled === true;
+
+    return (enabledByMode || enabledByFlag) && !hasUsedPreRsvpType(access, type);
+  }
+
+  const enabledByMode = mode === "invitation_only" || mode === "both";
+  const enabledByFlag = access.invitationOnlyEnabled === true;
+
+  return (enabledByMode || enabledByFlag) && !hasUsedPreRsvpType(access, type);
+}
+
+function getBlockedPreRsvpMessage(
+  access: PreRsvpMessagesAccess,
+  type: PreRsvpType
+) {
+  if (!access) return "";
+
+  if (!access.enabled) {
+    return "השירות לא פתוח בחבילה הנוכחית.";
+  }
+
+  if (hasUsedPreRsvpType(access, type)) {
+    return "השליחה הזאת כבר נוצלה וננעלה לאחר שליחה בפועל.";
+  }
+
+  if (type === "save_the_date") {
+    return "בחבילה הנוכחית פתוחה רק שליחת הזמנה מוקדמת, ללא Save The Date.";
+  }
+
+  return "בחבילה הנוכחית פתוח רק Save The Date, ללא שליחת הזמנה מוקדמת.";
+}
+
 /* ================= COMPONENT ================= */
 
 export default function NewMessagesPage() {
@@ -171,6 +272,8 @@ export default function NewMessagesPage() {
 
   const [meta, setMeta] = useState<MessageMeta>(EMPTY_META);
   const [invitationId, setInvitationId] = useState<string>("");
+  const [preRsvpMessages, setPreRsvpMessages] =
+    useState<PreRsvpMessagesAccess>(null);
 
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -197,6 +300,17 @@ export default function NewMessagesPage() {
           data?.authUser?.role ||
           invitation?.owner?.role ||
           "";
+
+        const loadedPreRsvpMessages =
+          data?.preRsvpMessages ||
+          data?.user?.salesUpsells?.preRsvpMessages ||
+          data?.currentUser?.salesUpsells?.preRsvpMessages ||
+          data?.authUser?.salesUpsells?.preRsvpMessages ||
+          invitation?.owner?.salesUpsells?.preRsvpMessages ||
+          invitation?.preRsvpMessages ||
+          null;
+
+        setPreRsvpMessages(loadedPreRsvpMessages);
 
         setIsAdmin(
           userRole === "admin" ||
@@ -502,7 +616,11 @@ export default function NewMessagesPage() {
 
           <div className="relative z-10">
             {activeTab === "pre_rsvp" && (
-              <PreRsvpTab invitationId={invitationId} meta={meta} />
+              <PreRsvpTab
+                invitationId={invitationId}
+                meta={meta}
+                preRsvpMessages={preRsvpMessages}
+              />
             )}
 
             {activeTab === "rsvp" && (
@@ -532,9 +650,11 @@ export default function NewMessagesPage() {
 function PreRsvpTab({
   invitationId,
   meta,
+  preRsvpMessages,
 }: {
   invitationId: string;
   meta: MessageMeta;
+  preRsvpMessages: PreRsvpMessagesAccess;
 }) {
   const [activePreTab, setActivePreTab] =
     useState<PreRsvpType>("save_the_date");
@@ -557,6 +677,24 @@ function PreRsvpTab({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const canUseSaveTheDate = canUsePreRsvpType(
+    preRsvpMessages,
+    "save_the_date"
+  );
+
+  const canUseInvitationOnly = canUsePreRsvpType(
+    preRsvpMessages,
+    "invitation_only"
+  );
+
+  const currentModeAllowed =
+    activePreTab === "save_the_date" ? canUseSaveTheDate : canUseInvitationOnly;
+
+  const currentBlockedMessage = getBlockedPreRsvpMessage(
+    preRsvpMessages,
+    activePreTab
+  );
+
   const currentMessage = getCurrentTemplate(activePreTab);
 
   const currentImage =
@@ -574,6 +712,21 @@ function PreRsvpTab({
       meta,
     });
   }, [currentMessage, saveTheDateTitle, meta]);
+
+  useEffect(() => {
+    if (activePreTab === "invitation_only" && !canUseInvitationOnly && canUseSaveTheDate) {
+      setActivePreTab("save_the_date");
+      return;
+    }
+
+    if (activePreTab === "save_the_date" && !canUseSaveTheDate && canUseInvitationOnly) {
+      setActivePreTab("invitation_only");
+    }
+  }, [
+    activePreTab,
+    canUseSaveTheDate,
+    canUseInvitationOnly,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -613,6 +766,11 @@ function PreRsvpTab({
   async function handleSubmit() {
     try {
       if (isSubmitting) return;
+
+      if (!currentModeAllowed) {
+        alert(currentBlockedMessage || "השליחה הזאת לא פתוחה בחבילה הנוכחית.");
+        return;
+      }
 
       const isSaveTheDate = activePreTab === "save_the_date";
 
@@ -818,20 +976,42 @@ function PreRsvpTab({
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <PreSubTabButton
               active={activePreTab === "save_the_date"}
+              disabled={!canUseSaveTheDate}
               icon="💌"
               title="Save The Date"
-              description="שריון תאריך לפני פתיחת אישורי הגעה"
-              onClick={() => setActivePreTab("save_the_date")}
+              description={
+                canUseSaveTheDate
+                  ? "שריון תאריך לפני פתיחת אישורי הגעה"
+                  : getBlockedPreRsvpMessage(preRsvpMessages, "save_the_date")
+              }
+              onClick={() => {
+                if (!canUseSaveTheDate) return;
+                setActivePreTab("save_the_date");
+              }}
             />
 
             <PreSubTabButton
               active={activePreTab === "invitation_only"}
+              disabled={!canUseInvitationOnly}
               icon="✨"
               title="שליחת הזמנות"
-              description="הזמנה כללית ללא אישור הגעה"
-              onClick={() => setActivePreTab("invitation_only")}
+              description={
+                canUseInvitationOnly
+                  ? "הזמנה כללית ללא אישור הגעה"
+                  : getBlockedPreRsvpMessage(preRsvpMessages, "invitation_only")
+              }
+              onClick={() => {
+                if (!canUseInvitationOnly) return;
+                setActivePreTab("invitation_only");
+              }}
             />
           </div>
+
+          {!currentModeAllowed && currentBlockedMessage ? (
+            <div className="mt-4 rounded-[22px] border border-[#E8D8C2] bg-white px-4 py-3 text-sm font-black text-[#8A6A3D]">
+              {currentBlockedMessage}
+            </div>
+          ) : null}
         </Panel>
 
         <Panel
@@ -1214,7 +1394,7 @@ function PreRsvpTab({
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={isSubmitting}
+              disabled={isSubmitting || !currentModeAllowed}
               className="
                 w-full
                 rounded-[24px]
@@ -1235,9 +1415,11 @@ function PreRsvpTab({
             >
               {isSubmitting
                 ? "שולח בקשה..."
-                : sendTiming === "scheduled"
-                  ? "תזמן שליחה בוואטסאפ ⏱️"
-                  : "שליחה מיידית בוואטסאפ 🚀"}
+                : !currentModeAllowed
+                  ? "השליחה הזאת לא פתוחה בחבילה"
+                  : sendTiming === "scheduled"
+                    ? "תזמן שליחה בוואטסאפ ⏱️"
+                    : "שליחה מיידית בוואטסאפ 🚀"}
             </button>
           </div>
         </Panel>
@@ -1303,12 +1485,14 @@ function Panel({
 
 function PreSubTabButton({
   active,
+  disabled = false,
   icon,
   title,
   description,
   onClick,
 }: {
   active: boolean;
+  disabled?: boolean;
   icon: string;
   title: string;
   description: string;
@@ -1317,7 +1501,8 @@ function PreSubTabButton({
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
       className={`
         rounded-[24px]
         border
@@ -1325,9 +1510,11 @@ function PreSubTabButton({
         text-right
         transition
         ${
-          active
-            ? "border-[#D6A64F] bg-[#FFF1D2] shadow-[0_14px_30px_rgba(139,90,34,0.12)]"
-            : "border-[#E6D8C5] bg-white hover:bg-[#FFF8ED]"
+          disabled
+            ? "cursor-not-allowed border-[#E6D8C5] bg-[#F3EEE8] opacity-55"
+            : active
+              ? "border-[#D6A64F] bg-[#FFF1D2] shadow-[0_14px_30px_rgba(139,90,34,0.12)]"
+              : "border-[#E6D8C5] bg-white hover:bg-[#FFF8ED]"
         }
       `}
     >
