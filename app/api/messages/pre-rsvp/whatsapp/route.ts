@@ -71,7 +71,7 @@ function getHighQualityCloudinaryImageUrl(value: unknown) {
     .replace(/^w_\d+[^/]*\//, "")
     .replace(/^h_\d+[^/]*\//, "");
 
-  return `${beforeUpload}/upload/q_100,f_png/${cleanedAfterUpload}`;
+  return `${beforeUpload}/upload/c_limit,w_2000,q_100,f_png/${cleanedAfterUpload}`;
 }
 
 function isHttpImageUrl(value: unknown) {
@@ -923,19 +923,19 @@ export async function POST(req: NextRequest) {
     }
 
     const fallbackImageUrlFromInvitation = getHighQualityCloudinaryImageUrl(
-      invitation.headerImageUrl ||
-        invitation.finalImageUrl ||
-        invitation.originalImageUrl ||
-        invitation.fullImageUrl ||
-        invitation.cloudinaryUrl ||
-        invitation.secureUrl ||
-        invitation.imageUrl ||
-        invitation.invitationImageUrl ||
-        invitation.canvasImageUrl ||
-        invitation.previewImageUrl ||
-        invitation.previewImage ||
-        ""
-    );
+  invitation.fullImageUrl ||
+    invitation.originalImageUrl ||
+    invitation.finalImageUrl ||
+    invitation.cloudinaryUrl ||
+    invitation.secureUrl ||
+    invitation.imageUrl ||
+    invitation.invitationImageUrl ||
+    invitation.canvasImageUrl ||
+    invitation.headerImageUrl ||
+    invitation.previewImageUrl ||
+    invitation.previewImage ||
+    ""
+);
 
     const uploadResult = imageFile
       ? await uploadImageToCloudinary({
