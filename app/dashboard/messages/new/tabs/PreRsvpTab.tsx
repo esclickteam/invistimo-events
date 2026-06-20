@@ -871,16 +871,17 @@ function PhonePreview({
           >
             {imageUrl && (
               <img
-                src={imageUrl}
-                alt="תמונה להודעה"
-                className="
-                  mb-4
-                  h-36
-                  w-full
-                  rounded-[16px]
-                  object-cover
-                "
-              />
+  src={imageUrl}
+  alt="תמונה להודעה"
+  className="
+    mb-4
+    max-h-[360px]
+    w-full
+    rounded-[16px]
+    object-contain
+    bg-white
+  "
+/>
             )}
 
             <pre

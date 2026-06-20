@@ -264,21 +264,21 @@ async function uploadImageToCloudinary({
     bytes?: number;
   }>((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
+  {
+    folder,
+    public_id: publicId,
+    resource_type: "image",
+    overwrite: false,
+    quality: "100",
+    format: file.type.includes("png") ? "png" : undefined,
+    transformation: [
       {
-        folder,
-        public_id: publicId,
-        resource_type: "image",
-        overwrite: false,
-        quality: "auto:good",
-        fetch_format: "auto",
-        transformation: [
-          {
-            width: 1200,
-            height: 1200,
-            crop: "limit",
-          },
-        ],
+        width: 1080,
+        height: 1920,
+        crop: "limit",
       },
+    ],
+  },
       (error, result) => {
         if (error) {
           reject(error);
@@ -590,7 +590,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const maxImageMb = 8;
+    const maxImageMb = 12;
     const maxImageBytes = maxImageMb * 1024 * 1024;
 
     if (imageFile.size > maxImageBytes) {
