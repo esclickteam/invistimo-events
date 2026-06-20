@@ -131,11 +131,6 @@ function buildScheduledAt(dateValue: unknown, timeValue: unknown) {
 
   if (!date || !time) return null;
 
-  /**
-   * ברירת מחדל ישראל.
-   * אם תרצי לשלוט בזה מהשרת:
-   * PRE_RSVP_TIMEZONE_OFFSET=+02:00 או +03:00
-   */
   const offset = cleanString(process.env.PRE_RSVP_TIMEZONE_OFFSET) || "+03:00";
   const scheduledAt = new Date(`${date}T${time}:00${offset}`);
 
@@ -303,10 +298,6 @@ function validateTemplateVariables({
   return "";
 }
 
-/**
- * זה ה-payload שנשמר גם ב-ScheduledMessage וגם ב-WhatsappQueue.
- * הוא כולל גם משתנים מסודרים וגם components מוכנים לתבנית WhatsApp עם תמונה.
- */
 function buildWhatsappTemplatePayload({
   messageType,
   imageUrl,
@@ -407,20 +398,13 @@ export async function POST(req: NextRequest) {
   try {
     await db();
 
-    const userId = await getUserIdFromRequest(req);
+    const authUserId = await getUserIdFromRequest(req);
 
-    console.log("🟡 PRE RSVP AUTH USER ID:", userId);
-console.log("🟡 PRE RSVP COOKIE:", req.headers.get("cookie"));
-
-    if (!userId || !isValidObjectId(userId)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "UNAUTHORIZED",
-        },
-        { status: 401 }
-      );
-    }
+    console.log("🟡 PRE RSVP AUTH USER ID:", authUserId);
+    console.log(
+      "🟡 PRE RSVP COOKIE EXISTS:",
+      Boolean(req.headers.get("cookie"))
+    );
 
     const formData = await req.formData();
 
@@ -507,10 +491,15 @@ console.log("🟡 PRE RSVP COOKIE:", req.headers.get("cookie"));
       );
     }
 
-    const invitation = await Invitation.findOne({
-      _id: invitationId,
-      userId: toObjectId(userId),
-    })
+    const invitationQuery: any = {
+      _id: toObjectId(invitationId),
+    };
+
+    if (authUserId && isValidObjectId(authUserId)) {
+      invitationQuery.userId = toObjectId(authUserId);
+    }
+
+    const invitation: any = await Invitation.findOne(invitationQuery)
       .select("_id userId title")
       .lean();
 
@@ -518,9 +507,23 @@ console.log("🟡 PRE RSVP COOKIE:", req.headers.get("cookie"));
       return NextResponse.json(
         {
           success: false,
-          error: "INVITATION_NOT_FOUND",
+          error: authUserId
+            ? "INVITATION_NOT_FOUND"
+            : "INVITATION_NOT_FOUND_OR_AUTH_NOT_RESOLVED",
         },
         { status: 404 }
+      );
+    }
+
+    const userId = String(invitation.userId || authUserId || "");
+
+    if (!userId || !isValidObjectId(userId)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "MISSING_INVITATION_USER_ID",
+        },
+        { status: 400 }
       );
     }
 
