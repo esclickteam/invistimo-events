@@ -87,6 +87,49 @@ function parseJsonObject(value: unknown): Record<string, any> {
   }
 }
 
+function formatEventDate(value: unknown) {
+  if (!value) return "";
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+
+    if (!trimmed) return "";
+
+    const parsed = new Date(trimmed);
+
+    if (!Number.isNaN(parsed.getTime())) {
+      return new Intl.DateTimeFormat("he-IL", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }).format(parsed);
+    }
+
+    return trimmed;
+  }
+
+  const parsed = value instanceof Date ? value : new Date(String(value));
+
+  if (Number.isNaN(parsed.getTime())) return "";
+
+  return new Intl.DateTimeFormat("he-IL", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(parsed);
+}
+
+function buildEventLocationFromInvitation(invitation: any) {
+  const locationName = cleanString(invitation?.location?.name);
+  const locationAddress = cleanString(invitation?.location?.address);
+
+  if (locationName && locationAddress) {
+    return `${locationName}, ${locationAddress}`;
+  }
+
+  return locationName || locationAddress || "";
+}
+
 function getGuestPhone(guest: any) {
   return normalizeIsraeliPhone(
     guest?.phone ||
@@ -244,24 +287,57 @@ function buildTemplateVariables({
   messageType,
   rawVariables,
   fallbackSaveTheDateTitle,
+  fallbackInvitationTitle,
+  fallbackEventDate,
+  fallbackEventLocation,
 }: {
   messageType: PreRsvpMessageType;
   rawVariables: Record<string, any>;
   fallbackSaveTheDateTitle: string;
+  fallbackInvitationTitle: string;
+  fallbackEventDate: string;
+  fallbackEventLocation: string;
 }): TemplateVariables {
   if (messageType === "save_the_date") {
     return {
+      /*
+        Save The Date:
+        {{1}} = הכותרת שהוגדרה בסייב דה דייט בלבד.
+        לא לוקחים כאן את שם האירוע מפרטי האירוע.
+      */
       saveTheDateTitle: cleanString(
         rawVariables.saveTheDateTitle || fallbackSaveTheDateTitle
       ),
-      eventDate: cleanString(rawVariables.eventDate),
+
+      /*
+        {{2}} = תאריך.
+        אם הפרונט לא שלח תאריך, השרת משלים מפרטי האירוע.
+      */
+      eventDate: cleanString(rawVariables.eventDate || fallbackEventDate),
     };
   }
 
   return {
-    invitationTitle: cleanString(rawVariables.invitationTitle),
-    eventDate: cleanString(rawVariables.eventDate),
-    eventLocation: cleanString(rawVariables.eventLocation),
+    /*
+      הזמנה:
+      {{1}} = כותרת ההזמנה מהפרונט/משתנים.
+      אם אין, אפשר להשלים משם האירוע.
+    */
+    invitationTitle: cleanString(
+      rawVariables.invitationTitle || fallbackInvitationTitle
+    ),
+
+    /*
+      {{2}} = תאריך האירוע.
+    */
+    eventDate: cleanString(rawVariables.eventDate || fallbackEventDate),
+
+    /*
+      {{3}} = מיקום האירוע.
+    */
+    eventLocation: cleanString(
+      rawVariables.eventLocation || fallbackEventLocation
+    ),
   };
 }
 
@@ -417,7 +493,17 @@ export async function POST(req: NextRequest) {
     const scheduledTime = cleanString(formData.get("scheduledTime"));
 
     const templateNameFromClient = cleanString(formData.get("templateName"));
-    const saveTheDateTitle = cleanString(formData.get("saveTheDateTitle"));
+
+    const saveTheDateTitleFromForm = cleanString(
+      formData.get("saveTheDateTitle")
+    );
+
+    const invitationTitleFromForm = cleanString(
+      formData.get("invitationTitle")
+    );
+
+    const eventDateFromForm = cleanString(formData.get("eventDate"));
+    const eventLocationFromForm = cleanString(formData.get("eventLocation"));
 
     const templateMessage = cleanString(formData.get("message"));
     const previewMessage = cleanString(formData.get("previewMessage"));
@@ -493,17 +579,17 @@ export async function POST(req: NextRequest) {
     }
 
     /*
-      חשוב:
-      במודל Invitation שלך אין userId.
-      בעל ההזמנה נשמר בשדה ownerId.
-      לכן לא מחפשים כאן לפי invitationQuery.userId.
-      קודם מוצאים את ההזמנה לפי _id, ואז לוקחים ownerId ממנה.
-    */
+      במודל Invitation אין userId.
+      בעל ההזמנה הוא ownerId.
 
+      כאן אנחנו טוענים גם את פרטי האירוע:
+      eventDate + location
+      כדי להשלים רק תאריך/מיקום אם הפרונט לא שלח אותם.
+    */
     const invitation: any = await Invitation.findOne({
       _id: toObjectId(invitationId),
     })
-      .select("_id ownerId title")
+      .select("_id ownerId title eventDate location")
       .lean();
 
     if (!invitation) {
@@ -528,6 +614,32 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const invitationTitleFromEvent = cleanString(invitation.title);
+    const eventDateFromEvent = formatEventDate(invitation.eventDate);
+    const eventLocationFromEvent = buildEventLocationFromInvitation(invitation);
+
+    /*
+      חשוב:
+      Save The Date:
+      {{1}} לא מקבל fallback מ-Invitation.title.
+      הוא חייב להיות מהכותרת של הסייב דה דייט/מהפרונט/מה-templateVariables.
+
+      רק {{2}} מקבל fallback מפרטי האירוע.
+    */
+    const fallbackSaveTheDateTitle = saveTheDateTitleFromForm;
+
+    /*
+      הזמנה:
+      כאן כן מותר להשלים כותרת משם האירוע אם הפרונט לא שלח.
+    */
+    const fallbackInvitationTitle =
+      invitationTitleFromForm || invitationTitleFromEvent;
+
+    const fallbackEventDate = eventDateFromForm || eventDateFromEvent;
+
+    const fallbackEventLocation =
+      eventLocationFromForm || eventLocationFromEvent;
+
     const templateName = getTemplateNameByType(messageType);
 
     if (templateNameFromClient && templateNameFromClient !== templateName) {
@@ -543,7 +655,27 @@ export async function POST(req: NextRequest) {
     const templateVariables = buildTemplateVariables({
       messageType,
       rawVariables: rawTemplateVariables,
-      fallbackSaveTheDateTitle: saveTheDateTitle,
+      fallbackSaveTheDateTitle,
+      fallbackInvitationTitle,
+      fallbackEventDate,
+      fallbackEventLocation,
+    });
+
+    console.log("🟢 PRE RSVP TEMPLATE VARIABLES:", {
+      messageType,
+      templateName,
+      templateVariables,
+      fallbackFromInvitation: {
+        title: invitationTitleFromEvent,
+        eventDate: eventDateFromEvent,
+        eventLocation: eventLocationFromEvent,
+      },
+      fallbackFromForm: {
+        saveTheDateTitle: saveTheDateTitleFromForm,
+        invitationTitle: invitationTitleFromForm,
+        eventDate: eventDateFromForm,
+        eventLocation: eventLocationFromForm,
+      },
     });
 
     const variablesError = validateTemplateVariables({
@@ -556,6 +688,20 @@ export async function POST(req: NextRequest) {
         {
           success: false,
           error: variablesError,
+          details: {
+            templateVariables,
+            fromInvitation: {
+              title: invitationTitleFromEvent,
+              eventDate: eventDateFromEvent,
+              eventLocation: eventLocationFromEvent,
+            },
+            fromForm: {
+              saveTheDateTitle: saveTheDateTitleFromForm,
+              invitationTitle: invitationTitleFromForm,
+              eventDate: eventDateFromForm,
+              eventLocation: eventLocationFromForm,
+            },
+          },
         },
         { status: 400 }
       );
@@ -623,11 +769,6 @@ export async function POST(req: NextRequest) {
 
       const schedulePayload = {
         invitationId: toObjectId(invitationId),
-
-        /*
-          ScheduledMessage עדיין יכול לשמור את זה בשם userId,
-          אבל הערך הנכון מגיע מ-Invitation.ownerId.
-        */
         userId: toObjectId(ownerId),
 
         channel: "whatsapp",
@@ -680,6 +821,7 @@ export async function POST(req: NextRequest) {
         guestsCount: validGuests.length,
         imageUrl,
         cloudinaryPublicId: uploadResult.publicId,
+        templateVariables,
       });
     }
 
@@ -750,6 +892,7 @@ export async function POST(req: NextRequest) {
       guestsCount: validGuests.length,
       imageUrl,
       cloudinaryPublicId: uploadResult.publicId,
+      templateVariables,
     });
   } catch (err: any) {
     console.error("❌ PRE RSVP WHATSAPP API ERROR:", err);
