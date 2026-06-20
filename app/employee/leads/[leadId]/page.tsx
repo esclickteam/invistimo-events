@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type StaffMember = {
   _id?: string;
@@ -444,6 +444,8 @@ export default function EmployeeLeadDetailsPage() {
   const [liveChatConnected, setLiveChatConnected] = useState(false);
   const [liveChatError, setLiveChatError] = useState("");
 
+  const messagesScrollRef = useRef<HTMLDivElement | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -484,6 +486,19 @@ export default function EmployeeLeadDetailsPage() {
   const sourceLabel = useMemo(() => {
     return getLeadSourceLabel(lead?.leadSource, lead?.leadProvider);
   }, [lead?.leadSource, lead?.leadProvider]);
+
+  const scrollMessagesToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
+    requestAnimationFrame(() => {
+      const container = messagesScrollRef.current;
+
+      if (!container) return;
+
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior,
+      });
+    });
+  }, []);
 
   const loadLead = useCallback(async () => {
     if (!leadId) return;
@@ -555,6 +570,18 @@ export default function EmployeeLeadDetailsPage() {
     void loadLead();
     void loadMessages();
   }, [loadLead, loadMessages]);
+
+  useEffect(() => {
+    if (!messagesLoading) {
+      scrollMessagesToBottom("auto");
+    }
+  }, [messagesLoading, scrollMessagesToBottom]);
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      scrollMessagesToBottom("smooth");
+    }
+  }, [messages.length, scrollMessagesToBottom]);
 
   useEffect(() => {
     if (!leadId) return;
@@ -710,7 +737,7 @@ export default function EmployeeLeadDetailsPage() {
         await loadMessages();
       }
 
-      await loadLead();
+      scrollMessagesToBottom("smooth");
     } catch (err) {
       console.error("SEND WHATSAPP TEMPLATE FAILED:", err);
       setMessagesError(
@@ -720,6 +747,7 @@ export default function EmployeeLeadDetailsPage() {
       );
 
       await loadMessages();
+      scrollMessagesToBottom("smooth");
     } finally {
       setSendingTemplate(false);
     }
@@ -768,7 +796,7 @@ export default function EmployeeLeadDetailsPage() {
         await loadMessages();
       }
 
-      await loadLead();
+      scrollMessagesToBottom("smooth");
     } catch (err) {
       console.error("SEND WHATSAPP MESSAGE FAILED:", err);
       setMessagesError(
@@ -778,6 +806,7 @@ export default function EmployeeLeadDetailsPage() {
       );
 
       await loadMessages();
+      scrollMessagesToBottom("smooth");
     } finally {
       setSendingMessage(false);
     }
@@ -1005,7 +1034,9 @@ export default function EmployeeLeadDetailsPage() {
 
                   <button
                     type="button"
-                    onClick={loadMessages}
+                    onClick={() => {
+                      void loadMessages();
+                    }}
                     disabled={messagesLoading}
                     className="h-10 rounded-2xl border border-slate-200 bg-white px-4 text-xs font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                   >
@@ -1033,7 +1064,10 @@ export default function EmployeeLeadDetailsPage() {
               ) : null}
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top,#ffffff_0%,#f8fafc_45%,#eef2f7_100%)] p-4 sm:p-6">
+            <div
+              ref={messagesScrollRef}
+              className="min-h-0 flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top,#ffffff_0%,#f8fafc_45%,#eef2f7_100%)] p-4 sm:p-6"
+            >
               {messagesLoading ? (
                 <div className="flex h-full items-center justify-center text-sm font-black text-slate-500">
                   טוען הודעות...
