@@ -7,6 +7,7 @@ import Invitation from "@/models/Invitation";
 import InvitationGuest from "@/models/InvitationGuest";
 import ScheduledMessage from "@/models/ScheduledMessage";
 import WhatsappQueue from "@/models/WhatsappQueue";
+import User from "@/models/User";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 
 export const runtime = "nodejs";
@@ -636,6 +637,38 @@ export async function POST(req: NextRequest) {
           error: "MISSING_INVITATION_OWNER_ID",
         },
         { status: 400 }
+      );
+    }
+
+    const ownerUser: any = await User.findById(toObjectId(ownerId))
+      .select("salesUpsells.preRsvpMessages")
+      .lean();
+
+    const preRsvpUpsell = ownerUser?.salesUpsells?.preRsvpMessages;
+
+    const hasPreRsvpAccess = Boolean(preRsvpUpsell?.enabled);
+
+    const preRsvpAlreadySent =
+      Number(preRsvpUpsell?.sentCount || 0) >= 1 ||
+      Boolean(preRsvpUpsell?.sentAt);
+
+    if (!hasPreRsvpAccess) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "PRE_RSVP_MESSAGES_NOT_INCLUDED_IN_PACKAGE",
+        },
+        { status: 403 }
+      );
+    }
+
+    if (preRsvpAlreadySent) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "PRE_RSVP_MESSAGES_ALREADY_SENT",
+        },
+        { status: 403 }
       );
     }
 
