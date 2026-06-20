@@ -582,7 +582,8 @@ async function createStripeCheckoutSession({
     throw new Error("סכום Stripe נמוך מדי או לא תקין");
   }
 
-  const successUrl = `${baseUrl}/admin/crm?payment=success&saleId=${encodeURIComponent(
+  const successUrl = `${baseUrl}/admin/sales/new?payment=success&saleId=${encodeURIComponent(
+
     saleId,
   )}&userId=${encodeURIComponent(userId)}`;
 
