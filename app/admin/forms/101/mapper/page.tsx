@@ -23,6 +23,8 @@ type FieldItem = {
   digitGap?: number;
   maxDigits?: number;
   align?: TextAlign;
+  order: number;
+  enabled: boolean;
 };
 
 type DragState = {
@@ -33,7 +35,8 @@ type DragState = {
 
 const PDF_URL = "/forms/tofes-101.pdf";
 
-const STORAGE_KEY = "invistimo_form101_original_pdf_mapper_v3";
+const STORAGE_KEY = "invistimo_form101_original_pdf_mapper_v4";
+const APPROVED_STORAGE_KEY = "invistimo_form101_original_pdf_mapper_approved_v1";
 
 const PAGE_WIDTH = 900;
 const PAGE_HEIGHT = 1280;
@@ -52,7 +55,7 @@ const SECTIONS = [
   { key: "declaration", title: "י. הצהרה וחתימה", page: 2 },
 ] as const;
 
-const INITIAL_FIELDS: FieldItem[] = [
+const INITIAL_FIELDS_RAW: Omit<FieldItem, "order" | "enabled">[] = [
   {
     key: "taxYear",
     label: "שנת מס",
@@ -925,6 +928,16 @@ const INITIAL_FIELDS: FieldItem[] = [
   },
 ];
 
+function normalizeFields(fields: Partial<FieldItem>[]) {
+  return fields.map((field, index) => ({
+    ...field,
+    order: Number(field.order || index + 1),
+    enabled: typeof field.enabled === "boolean" ? field.enabled : true,
+  })) as FieldItem[];
+}
+
+const INITIAL_FIELDS = normalizeFields(INITIAL_FIELDS_RAW);
+
 function loadFields() {
   if (typeof window === "undefined") return INITIAL_FIELDS;
 
@@ -933,10 +946,16 @@ function loadFields() {
     if (!saved) return INITIAL_FIELDS;
 
     const parsed = JSON.parse(saved);
-    return Array.isArray(parsed) ? parsed : INITIAL_FIELDS;
+    return Array.isArray(parsed) ? normalizeFields(parsed) : INITIAL_FIELDS;
   } catch {
     return INITIAL_FIELDS;
   }
+}
+
+function loadApproved() {
+  if (typeof window === "undefined") return false;
+
+  return localStorage.getItem(APPROVED_STORAGE_KEY) === "true";
 }
 
 function onlyDigits(value: unknown) {
@@ -1033,6 +1052,8 @@ function fieldToMap(field: FieldItem) {
   return {
     page: field.page,
     section: field.section,
+    order: field.order,
+    enabled: field.enabled,
     x: field.x,
     y: field.y,
     width: field.width,
@@ -1055,10 +1076,12 @@ export default function Form101MapperPage() {
   const [selectedKey, setSelectedKey] = useState("taxYear");
   const [showValues, setShowValues] = useState(true);
   const [showAllFields, setShowAllFields] = useState(false);
+  const [showDisabledFields, setShowDisabledFields] = useState(true);
   const [pdfReloadKey, setPdfReloadKey] = useState(1);
   const [globalDigitGap, setGlobalDigitGap] = useState(
     DEFAULT_GLOBAL_DIGIT_GAP
   );
+  const [templateApproved, setTemplateApproved] = useState(loadApproved);
 
   const pageSections = useMemo(
     () => SECTIONS.filter((section) => section.page === page),
@@ -1066,7 +1089,10 @@ export default function Form101MapperPage() {
   );
 
   const pageFields = useMemo(
-    () => fields.filter((field) => field.page === page),
+    () =>
+      fields
+        .filter((field) => field.page === page)
+        .sort((a, b) => a.order - b.order),
     [fields, page]
   );
 
@@ -1075,17 +1101,31 @@ export default function Form101MapperPage() {
   }, [pageFields, selectedSection]);
 
   const visibleFields = useMemo(() => {
-    if (showAllFields) return sectionFields;
+    const allowed = sectionFields.filter(
+      (field) => field.enabled || showDisabledFields
+    );
 
-    return sectionFields.filter((field) => field.key === selectedKey);
-  }, [sectionFields, selectedKey, showAllFields]);
+    if (showAllFields) return allowed;
+
+    return allowed.filter((field) => field.key === selectedKey);
+  }, [sectionFields, selectedKey, showAllFields, showDisabledFields]);
 
   const selectedField = useMemo(
     () => fields.find((field) => field.key === selectedKey) || fields[0],
     [fields, selectedKey]
   );
 
+  function markTemplateChanged() {
+    setTemplateApproved(false);
+
+    if (typeof window !== "undefined") {
+      localStorage.setItem(APPROVED_STORAGE_KEY, "false");
+    }
+  }
+
   function updateField(key: string, patch: Partial<FieldItem>) {
+    markTemplateChanged();
+
     setFields((prev) =>
       prev.map((field) => (field.key === key ? { ...field, ...patch } : field))
     );
@@ -1094,6 +1134,7 @@ export default function Form101MapperPage() {
   function updateAllDigitGaps(value: number) {
     const safeValue = Math.max(1, Number(value) || DEFAULT_GLOBAL_DIGIT_GAP);
 
+    markTemplateChanged();
     setGlobalDigitGap(safeValue);
 
     setFields((prev) =>
@@ -1105,6 +1146,43 @@ export default function Form101MapperPage() {
             }
           : field
       )
+    );
+  }
+
+  function setFieldEnabled(key: string, enabled: boolean) {
+    updateField(key, { enabled });
+  }
+
+  function updateFieldOrder(key: string, order: number) {
+    updateField(key, { order: Math.max(1, Number(order) || 1) });
+  }
+
+  function moveFieldOrder(key: string, direction: "up" | "down") {
+    const current = fields.find((field) => field.key === key);
+    if (!current) return;
+
+    const sameSection = fields
+      .filter(
+        (field) =>
+          field.page === current.page && field.section === current.section
+      )
+      .sort((a, b) => a.order - b.order);
+
+    const index = sameSection.findIndex((field) => field.key === key);
+    const swapIndex = direction === "up" ? index - 1 : index + 1;
+
+    if (swapIndex < 0 || swapIndex >= sameSection.length) return;
+
+    const other = sameSection[swapIndex];
+
+    markTemplateChanged();
+
+    setFields((prev) =>
+      prev.map((field) => {
+        if (field.key === current.key) return { ...field, order: other.order };
+        if (field.key === other.key) return { ...field, order: current.order };
+        return field;
+      })
     );
   }
 
@@ -1159,37 +1237,56 @@ export default function Form101MapperPage() {
     alert("נשמר");
   }
 
+  function approveTemplate() {
+    save();
+
+    setTemplateApproved(true);
+    localStorage.setItem(APPROVED_STORAGE_KEY, "true");
+
+    alert("התבנית אושרה");
+  }
+
   function reset() {
-    if (!confirm("לאפס מיקומים?")) return;
+    if (!confirm("לאפס מיקומים והגדרות?")) return;
 
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(APPROVED_STORAGE_KEY);
+
     setFields(INITIAL_FIELDS);
     setSelectedSection("year");
     setSelectedKey("taxYear");
     setGlobalDigitGap(DEFAULT_GLOBAL_DIGIT_GAP);
     setShowAllFields(false);
+    setTemplateApproved(false);
     setPdfReloadKey((prev) => prev + 1);
   }
 
   async function copyConst() {
-    const map = fields.reduce<Record<string, any>>((acc, field) => {
-      acc[field.key] = fieldToMap(field);
-      return acc;
-    }, {});
+    const map = fields
+      .filter((field) => field.enabled)
+      .sort((a, b) => a.order - b.order)
+      .reduce<Record<string, any>>((acc, field) => {
+        acc[field.key] = fieldToMap(field);
+        return acc;
+      }, {});
 
     await navigator.clipboard.writeText(
       `const FORM101_FIELD_MAP = ${JSON.stringify(map, null, 2)} as const;`
     );
 
-    alert("הועתק");
+    alert("הועתקו רק השדות הפעילים");
   }
 
   function addField() {
-    const key = `customField${fields.length + 1}`;
+    const sectionMaxOrder = fields
+      .filter((field) => field.page === page && field.section === selectedSection)
+      .reduce((max, field) => Math.max(max, field.order), 0);
+
+    const key = `customField${Date.now()}`;
 
     const field: FieldItem = {
       key,
-      label: `שדה חדש ${fields.length + 1}`,
+      label: `שדה חדש`,
       section: selectedSection,
       page,
       x: 100,
@@ -1200,22 +1297,37 @@ export default function Form101MapperPage() {
       sample: "",
       fontSize: 14,
       align: "right",
+      order: sectionMaxOrder + 1,
+      enabled: true,
     };
+
+    markTemplateChanged();
 
     setFields((prev) => [...prev, field]);
     setSelectedKey(key);
     setShowAllFields(false);
   }
 
-  function removeField() {
-    if (!selectedField?.key.startsWith("customField")) {
-      alert("אפשר למחוק רק שדה חדש שהוספת");
+  function deleteOrDisableField() {
+    if (!selectedField) return;
+
+    if (selectedField.key.startsWith("customField")) {
+      if (!confirm("למחוק את השדה החדש לגמרי?")) return;
+
+      markTemplateChanged();
+
+      setFields((prev) =>
+        prev.filter((field) => field.key !== selectedField.key)
+      );
+
+      setSelectedKey("taxYear");
+      setSelectedSection("year");
+      setShowAllFields(false);
+
       return;
     }
 
-    setFields((prev) => prev.filter((field) => field.key !== selectedField.key));
-    setSelectedKey("taxYear");
-    setSelectedSection("year");
+    setFieldEnabled(selectedField.key, false);
     setShowAllFields(false);
   }
 
@@ -1251,10 +1363,20 @@ export default function Form101MapperPage() {
               </h1>
 
               <p className="mt-2 text-sm font-bold text-slate-500">
-                מוצג כאן הקובץ המקורי: public/forms/tofes-101.pdf. ברירת מחדל
-                מציגה רק את השדה שבחרת. שינוי מרווח ספרות מעדכן את כל שדות
-                הספרות ביחד.
+                מוצג כאן הקובץ המקורי: public/forms/tofes-101.pdf. ניתן לשנות
+                מספר שדה, להפעיל/לכבות שדות, למחוק שדות חדשים, ולאשר תבנית לפני
+                שימוש.
               </p>
+
+              <div
+                className={`mt-3 inline-flex rounded-full px-4 py-2 text-xs font-black ${
+                  templateApproved
+                    ? "bg-emerald-50 text-emerald-700"
+                    : "bg-amber-50 text-amber-700"
+                }`}
+              >
+                {templateApproved ? "התבנית מאושרת" : "התבנית עדיין לא אושרה"}
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -1310,6 +1432,14 @@ export default function Form101MapperPage() {
                 {showValues ? "הסתר בדיקה" : "הצג בדיקה"}
               </button>
 
+              <button
+                type="button"
+                onClick={() => setShowDisabledFields((prev) => !prev)}
+                className="h-11 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black"
+              >
+                {showDisabledFields ? "הסתר שדות כבויים" : "הצג שדות כבויים"}
+              </button>
+
               <label className="flex h-11 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700">
                 <span>מרווח ספרות</span>
                 <input
@@ -1341,6 +1471,14 @@ export default function Form101MapperPage() {
 
               <button
                 type="button"
+                onClick={approveTemplate}
+                className="h-11 rounded-2xl bg-teal-600 px-5 text-sm font-black text-white"
+              >
+                אישור תבנית
+              </button>
+
+              <button
+                type="button"
                 onClick={copyConst}
                 className="h-11 rounded-2xl bg-violet-600 px-5 text-sm font-black text-white"
               >
@@ -1358,7 +1496,7 @@ export default function Form101MapperPage() {
           </div>
         </section>
 
-        <section className="grid gap-4 xl:grid-cols-[330px_1fr_390px]">
+        <section className="grid gap-4 xl:grid-cols-[330px_1fr_410px]">
           <aside className="rounded-3xl bg-white p-4 shadow-sm">
             <h2 className="text-lg font-black">סעיפים</h2>
 
@@ -1374,10 +1512,14 @@ export default function Form101MapperPage() {
                       setSelectedSection(section.key);
                       setShowAllFields(false);
 
-                      const firstField = fields.find(
-                        (field) =>
-                          field.page === page && field.section === section.key
-                      );
+                      const firstField = fields
+                        .filter(
+                          (field) =>
+                            field.page === page &&
+                            field.section === section.key &&
+                            (field.enabled || showDisabledFields)
+                        )
+                        .sort((a, b) => a.order - b.order)[0];
 
                       if (firstField) setSelectedKey(firstField.key);
                     }}
@@ -1399,40 +1541,52 @@ export default function Form101MapperPage() {
               </h3>
 
               <div className="mt-3 max-h-[560px] space-y-2 overflow-auto pr-1">
-                {sectionFields.map((field) => {
-                  const active = selectedKey === field.key;
+                {sectionFields
+                  .filter((field) => field.enabled || showDisabledFields)
+                  .map((field) => {
+                    const active = selectedKey === field.key;
 
-                  return (
-                    <button
-                      key={field.key}
-                      type="button"
-                      onClick={() => {
-                        setSelectedKey(field.key);
-                        setSelectedSection(field.section);
-                        setShowAllFields(false);
-                      }}
-                      className={`w-full rounded-2xl border px-3 py-3 text-right transition ${
-                        active
-                          ? "border-fuchsia-300 bg-fuchsia-50"
-                          : "border-slate-200 bg-white hover:bg-slate-50"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-sm font-black text-slate-800">
-                          {field.label}
-                        </span>
+                    return (
+                      <button
+                        key={field.key}
+                        type="button"
+                        onClick={() => {
+                          setSelectedKey(field.key);
+                          setSelectedSection(field.section);
+                          setShowAllFields(false);
+                        }}
+                        className={`w-full rounded-2xl border px-3 py-3 text-right transition ${
+                          active
+                            ? "border-fuchsia-300 bg-fuchsia-50"
+                            : field.enabled
+                            ? "border-slate-200 bg-white hover:bg-slate-50"
+                            : "border-rose-200 bg-rose-50 opacity-70"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-sm font-black text-slate-800">
+                            {field.order}. {field.label}
+                          </span>
 
-                        <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-500">
-                          {getFieldTypeLabel(field.type)}
-                        </span>
-                      </div>
+                          <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-500">
+                            {getFieldTypeLabel(field.type)}
+                          </span>
+                        </div>
 
-                      <div className="mt-1 text-xs font-bold text-slate-400">
-                        ערך: {field.sample || "ריק"}
-                      </div>
-                    </button>
-                  );
-                })}
+                        <div className="mt-1 text-xs font-bold text-slate-400">
+                          ערך: {field.sample || "ריק"}
+                        </div>
+
+                        <div
+                          className={`mt-1 text-xs font-black ${
+                            field.enabled ? "text-emerald-600" : "text-rose-600"
+                          }`}
+                        >
+                          {field.enabled ? "פעיל" : "כבוי"}
+                        </div>
+                      </button>
+                    );
+                  })}
               </div>
             </div>
           </aside>
@@ -1477,7 +1631,7 @@ export default function Form101MapperPage() {
                     }}
                     className={`absolute z-20 cursor-grab bg-transparent p-0 active:cursor-grabbing ${
                       selected ? "ring-2 ring-fuchsia-500" : ""
-                    }`}
+                    } ${field.enabled ? "" : "opacity-40"}`}
                     style={{
                       left: field.x,
                       top: field.y,
@@ -1489,13 +1643,15 @@ export default function Form101MapperPage() {
                       className={`relative block h-full w-full border ${
                         selected
                           ? "border-fuchsia-500 bg-fuchsia-500/10"
-                          : "border-blue-500 bg-blue-500/10"
+                          : field.enabled
+                          ? "border-blue-500 bg-blue-500/10"
+                          : "border-rose-500 bg-rose-500/10"
                       }`}
                     >
                       {renderValue(field, showValues)}
 
                       <span className="absolute -top-6 right-0 whitespace-nowrap rounded bg-slate-900 px-2 py-1 text-[10px] font-black text-white">
-                        {field.label}
+                        {field.order}. {field.label}
                       </span>
                     </span>
                   </button>
@@ -1511,7 +1667,7 @@ export default function Form101MapperPage() {
               <div className="mt-4 space-y-3">
                 <div className="rounded-2xl bg-indigo-50 p-4">
                   <p className="text-sm font-black text-indigo-700">
-                    {selectedField.label}
+                    {selectedField.order}. {selectedField.label}
                   </p>
 
                   <p className="mt-1 text-xs font-bold text-indigo-400">
@@ -1526,10 +1682,57 @@ export default function Form101MapperPage() {
                     <div className="rounded-xl bg-white px-3 py-2 text-slate-600">
                       ערך: {selectedField.sample || "ריק"}
                     </div>
+
+                    <div
+                      className={`rounded-xl bg-white px-3 py-2 ${
+                        selectedField.enabled
+                          ? "text-emerald-700"
+                          : "text-rose-700"
+                      }`}
+                    >
+                      מצב: {selectedField.enabled ? "פעיל" : "כבוי"}
+                    </div>
+
+                    <div className="rounded-xl bg-white px-3 py-2 text-slate-600">
+                      מספר: {selectedField.order}
+                    </div>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
+                  <label className="text-xs font-black text-slate-500">
+                    מספר שדה
+                    <input
+                      type="number"
+                      min={1}
+                      value={selectedField.order}
+                      onChange={(event) =>
+                        updateFieldOrder(
+                          selectedField.key,
+                          Number(event.target.value)
+                        )
+                      }
+                      className="mt-1 h-10 w-full rounded-xl border px-3 text-sm font-bold"
+                    />
+                  </label>
+
+                  <label className="text-xs font-black text-slate-500">
+                    פעיל / כבוי
+                    <select
+                      value={selectedField.enabled ? "yes" : "no"}
+                      onChange={(event) =>
+                        setFieldEnabled(
+                          selectedField.key,
+                          event.target.value === "yes"
+                        )
+                      }
+                      className="mt-1 h-10 w-full rounded-xl border px-3 text-sm font-bold"
+                    >
+                      <option value="yes">פעיל</option>
+                      <option value="no">כבוי</option>
+                    </select>
+                  </label>
+
                   <label className="text-xs font-black text-slate-500">
                     X
                     <input
@@ -1690,6 +1893,24 @@ export default function Form101MapperPage() {
                   />
                 </label>
 
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => moveFieldOrder(selectedField.key, "up")}
+                    className="rounded-xl bg-slate-100 py-2 text-sm font-black"
+                  >
+                    העלה בסדר
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => moveFieldOrder(selectedField.key, "down")}
+                    className="rounded-xl bg-slate-100 py-2 text-sm font-black"
+                  >
+                    הורד בסדר
+                  </button>
+                </div>
+
                 <div className="grid grid-cols-4 gap-2">
                   <button
                     type="button"
@@ -1721,13 +1942,25 @@ export default function Form101MapperPage() {
                   </button>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={removeField}
-                  className="w-full rounded-2xl bg-rose-50 py-3 text-sm font-black text-rose-700"
-                >
-                  מחיקת שדה חדש
-                </button>
+                {selectedField.enabled ? (
+                  <button
+                    type="button"
+                    onClick={deleteOrDisableField}
+                    className="w-full rounded-2xl bg-rose-50 py-3 text-sm font-black text-rose-700"
+                  >
+                    {selectedField.key.startsWith("customField")
+                      ? "מחיקת שדה חדש"
+                      : "כיבוי שדה"}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setFieldEnabled(selectedField.key, true)}
+                    className="w-full rounded-2xl bg-emerald-50 py-3 text-sm font-black text-emerald-700"
+                  >
+                    החזרת שדה לפעיל
+                  </button>
+                )}
               </div>
             )}
           </aside>
