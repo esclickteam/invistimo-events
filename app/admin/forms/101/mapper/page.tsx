@@ -36,7 +36,7 @@ type DragState = {
 
 const PDF_URL = "/forms/tofes-101.pdf";
 const PDF_WORKER_URL = "/pdf.worker.min.mjs";
-const STORAGE_KEY = "invistimo_form101_mapper_clean_pdf_v3";
+const STORAGE_KEY = "invistimo_form101_mapper_pdf_clean_v4";
 
 const INITIAL_FIELDS: FieldItem[] = [
   {
@@ -54,7 +54,6 @@ const INITIAL_FIELDS: FieldItem[] = [
     maxDigits: 4,
     align: "center",
   },
-
   {
     key: "employerName",
     label: "שם מעסיק",
@@ -111,7 +110,6 @@ const INITIAL_FIELDS: FieldItem[] = [
     maxDigits: 9,
     align: "left",
   },
-
   {
     key: "idNumber",
     label: "תעודת זהות",
@@ -183,7 +181,6 @@ const INITIAL_FIELDS: FieldItem[] = [
     maxDigits: 8,
     align: "left",
   },
-
   {
     key: "street",
     label: "רחוב",
@@ -240,7 +237,6 @@ const INITIAL_FIELDS: FieldItem[] = [
     maxDigits: 7,
     align: "left",
   },
-
   {
     key: "mobile",
     label: "טלפון נייד",
@@ -284,7 +280,6 @@ const INITIAL_FIELDS: FieldItem[] = [
     height: 16,
     align: "left",
   },
-
   {
     key: "genderMale",
     label: "זכר",
@@ -311,7 +306,6 @@ const INITIAL_FIELDS: FieldItem[] = [
     height: 13,
     align: "center",
   },
-
   {
     key: "maritalSingle",
     label: "רווק/ה",
@@ -377,7 +371,6 @@ const INITIAL_FIELDS: FieldItem[] = [
     height: 13,
     align: "center",
   },
-
   {
     key: "residentYes",
     label: "תושב ישראל כן",
@@ -404,7 +397,6 @@ const INITIAL_FIELDS: FieldItem[] = [
     height: 13,
     align: "center",
   },
-
   {
     key: "kibbutzYes",
     label: "קיבוץ כן",
@@ -431,7 +423,6 @@ const INITIAL_FIELDS: FieldItem[] = [
     height: 13,
     align: "center",
   },
-
   {
     key: "healthFundYes",
     label: "קופת חולים כן",
@@ -471,7 +462,6 @@ const INITIAL_FIELDS: FieldItem[] = [
     height: 16,
     align: "right",
   },
-
   {
     key: "workStartDate",
     label: "תחילת עבודה",
@@ -487,7 +477,6 @@ const INITIAL_FIELDS: FieldItem[] = [
     maxDigits: 8,
     align: "left",
   },
-
   {
     key: "incomeMonthlySalary",
     label: "משכורת חודש",
@@ -566,7 +555,6 @@ const INITIAL_FIELDS: FieldItem[] = [
     height: 13,
     align: "center",
   },
-
   {
     key: "otherNoOtherIncome",
     label: "אין הכנסות אחרות",
@@ -580,7 +568,6 @@ const INITIAL_FIELDS: FieldItem[] = [
     height: 13,
     align: "center",
   },
-
   {
     key: "page2IdNumber",
     label: "תעודת זהות עמוד 2",
@@ -739,7 +726,6 @@ const INITIAL_FIELDS: FieldItem[] = [
     height: 13,
     align: "center",
   },
-
   {
     key: "taxNoIncomeThisYear",
     label: "ט. לא הייתה הכנסה",
@@ -766,7 +752,6 @@ const INITIAL_FIELDS: FieldItem[] = [
     height: 13,
     align: "center",
   },
-
   {
     key: "signatureDate",
     label: "תאריך חתימה",
@@ -919,7 +904,7 @@ export default function Form101MapperPage() {
     width: 595,
     height: 842,
   });
-  const [zoom, setZoom] = useState(1.55);
+  const [zoom, setZoom] = useState(1.4);
   const [fields, setFields] = useState<FieldItem[]>(getSavedFields);
   const [selectedKey, setSelectedKey] = useState("taxYear");
   const [loadingPdf, setLoadingPdf] = useState(true);
@@ -940,7 +925,6 @@ export default function Form101MapperPage() {
 
   const visibleFields = useMemo(() => {
     if (showAllFields) return pageFields;
-
     return pageFields.filter((field) => field.key === selectedKey);
   }, [pageFields, selectedKey, showAllFields]);
 
@@ -1000,8 +984,17 @@ export default function Form101MapperPage() {
 
       if (!context) return;
 
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
+      const outputScale =
+        typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+
+      canvas.width = Math.floor(viewport.width * outputScale);
+      canvas.height = Math.floor(viewport.height * outputScale);
+
+      canvas.style.width = `${viewport.width}px`;
+      canvas.style.height = `${viewport.height}px`;
+
+      context.setTransform(outputScale, 0, 0, outputScale, 0, 0);
+      context.clearRect(0, 0, viewport.width, viewport.height);
 
       setPageSize({
         width: viewport.width / zoom,
@@ -1183,9 +1176,8 @@ export default function Form101MapperPage() {
               </h1>
 
               <p className="mt-2 max-w-4xl text-sm font-semibold leading-7 text-slate-500">
-                בחרי שדה מהרשימה, גררי אותו למקום המדויק על ה־PDF. כברירת מחדל
-                הערכים לא מוצגים כדי שלא יהיה בלאגן. במספרים אפשר לשלוט
-                במרווח ספרות כדי שכל ספרה תיכנס לקובייה שלה.
+                בחרי שדה מהרשימה, גררי אותו למקום המדויק. כדי לבדוק איך זה
+                יוצא בפועל, לחצי “הצג ערכי דוגמה”.
               </p>
             </div>
 
@@ -1248,14 +1240,6 @@ export default function Form101MapperPage() {
                 className="h-11 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-700"
               >
                 {showPreviewValues ? "הסתר ערכי דוגמה" : "הצג ערכי דוגמה"}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setShowLabel((prev) => !prev)}
-                className="h-11 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-700"
-              >
-                {showLabel ? "הסתר שם שדה" : "הצג שם שדה"}
               </button>
 
               <button
@@ -1352,11 +1336,9 @@ export default function Form101MapperPage() {
                       >
                         {renderFieldPreview(field, zoom, showPreviewValues)}
 
-                        {showLabel && (
-                          <span className="absolute -top-6 right-0 rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-black text-white">
-                            {field.label}
-                          </span>
-                        )}
+                        <span className="absolute -top-6 right-0 rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-black text-white">
+                          {field.label}
+                        </span>
                       </span>
                     </button>
                   );
@@ -1525,25 +1507,12 @@ export default function Form101MapperPage() {
                   </div>
 
                   <label className="block text-xs font-black text-slate-500">
-                    ערך דוגמה
+                    ערך בדיקה
                     <input
                       value={selectedField.sample}
                       onChange={(event) =>
                         updateField(selectedField.key, {
                           sample: event.target.value,
-                        })
-                      }
-                      className="mt-1 h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-bold"
-                    />
-                  </label>
-
-                  <label className="block text-xs font-black text-slate-500">
-                    שם שדה
-                    <input
-                      value={selectedField.label}
-                      onChange={(event) =>
-                        updateField(selectedField.key, {
-                          label: event.target.value,
                         })
                       }
                       className="mt-1 h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-bold"
