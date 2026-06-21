@@ -33,10 +33,11 @@ type DragState = {
 
 const PDF_URL = "/forms/tofes-101.pdf";
 
-const STORAGE_KEY = "invistimo_form101_original_pdf_mapper_v1";
+const STORAGE_KEY = "invistimo_form101_original_pdf_mapper_v3";
 
-const PAGE_WIDTH = 794;
-const PAGE_HEIGHT = 1123;
+const PAGE_WIDTH = 900;
+const PAGE_HEIGHT = 1280;
+const DEFAULT_GLOBAL_DIGIT_GAP = 13;
 
 const SECTIONS = [
   { key: "year", title: "שנת מס", page: 1 },
@@ -58,13 +59,13 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "year",
     page: 1,
     x: 344,
-    y: 106,
+    y: 120,
     width: 105,
     height: 30,
     type: "digits",
     sample: "2026",
     fontSize: 20,
-    digitGap: 23,
+    digitGap: DEFAULT_GLOBAL_DIGIT_GAP,
     maxDigits: 4,
     align: "center",
   },
@@ -75,7 +76,7 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "employer",
     page: 1,
     x: 620,
-    y: 248,
+    y: 285,
     width: 150,
     height: 24,
     type: "text",
@@ -89,7 +90,7 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "employer",
     page: 1,
     x: 430,
-    y: 248,
+    y: 285,
     width: 175,
     height: 24,
     type: "text",
@@ -103,13 +104,13 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "employer",
     page: 1,
     x: 245,
-    y: 248,
+    y: 285,
     width: 145,
     height: 24,
     type: "digits",
     sample: "0526850711",
     fontSize: 15,
-    digitGap: 13,
+    digitGap: DEFAULT_GLOBAL_DIGIT_GAP,
     maxDigits: 10,
     align: "left",
   },
@@ -119,13 +120,13 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "employer",
     page: 1,
     x: 70,
-    y: 248,
+    y: 285,
     width: 145,
     height: 24,
     type: "digits",
     sample: "905790028",
     fontSize: 15,
-    digitGap: 14,
+    digitGap: DEFAULT_GLOBAL_DIGIT_GAP,
     maxDigits: 9,
     align: "left",
   },
@@ -136,13 +137,13 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "employee",
     page: 1,
     x: 638,
-    y: 338,
+    y: 385,
     width: 125,
     height: 24,
     type: "digits",
     sample: "316576578",
     fontSize: 15,
-    digitGap: 13,
+    digitGap: DEFAULT_GLOBAL_DIGIT_GAP,
     maxDigits: 9,
     align: "left",
   },
@@ -152,7 +153,7 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "employee",
     page: 1,
     x: 520,
-    y: 338,
+    y: 385,
     width: 95,
     height: 24,
     type: "text",
@@ -166,7 +167,7 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "employee",
     page: 1,
     x: 415,
-    y: 338,
+    y: 385,
     width: 85,
     height: 24,
     type: "text",
@@ -180,13 +181,13 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "employee",
     page: 1,
     x: 298,
-    y: 338,
+    y: 385,
     width: 98,
     height: 24,
     type: "digits",
     sample: "04031997",
     fontSize: 15,
-    digitGap: 12,
+    digitGap: DEFAULT_GLOBAL_DIGIT_GAP,
     maxDigits: 8,
     align: "left",
   },
@@ -196,13 +197,13 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "employee",
     page: 1,
     x: 170,
-    y: 338,
+    y: 385,
     width: 98,
     height: 24,
     type: "digits",
     sample: "",
     fontSize: 15,
-    digitGap: 12,
+    digitGap: DEFAULT_GLOBAL_DIGIT_GAP,
     maxDigits: 8,
     align: "left",
   },
@@ -213,7 +214,7 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "employee",
     page: 1,
     x: 505,
-    y: 392,
+    y: 445,
     width: 145,
     height: 24,
     type: "text",
@@ -227,13 +228,13 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "employee",
     page: 1,
     x: 420,
-    y: 392,
+    y: 445,
     width: 60,
     height: 24,
     type: "digits",
     sample: "41",
     fontSize: 15,
-    digitGap: 16,
+    digitGap: DEFAULT_GLOBAL_DIGIT_GAP,
     maxDigits: 4,
     align: "center",
   },
@@ -243,7 +244,7 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "employee",
     page: 1,
     x: 300,
-    y: 392,
+    y: 445,
     width: 100,
     height: 24,
     type: "text",
@@ -257,13 +258,13 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "employee",
     page: 1,
     x: 200,
-    y: 392,
+    y: 445,
     width: 80,
     height: 24,
     type: "digits",
     sample: "",
     fontSize: 15,
-    digitGap: 11,
+    digitGap: DEFAULT_GLOBAL_DIGIT_GAP,
     maxDigits: 7,
     align: "left",
   },
@@ -274,13 +275,13 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "employee",
     page: 1,
     x: 330,
-    y: 446,
+    y: 505,
     width: 125,
     height: 24,
     type: "digits",
     sample: "",
     fontSize: 15,
-    digitGap: 12,
+    digitGap: DEFAULT_GLOBAL_DIGIT_GAP,
     maxDigits: 10,
     align: "left",
   },
@@ -290,13 +291,13 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "employee",
     page: 1,
     x: 165,
-    y: 446,
+    y: 505,
     width: 140,
     height: 24,
     type: "digits",
     sample: "0555039072",
     fontSize: 15,
-    digitGap: 13,
+    digitGap: DEFAULT_GLOBAL_DIGIT_GAP,
     maxDigits: 10,
     align: "left",
   },
@@ -306,7 +307,7 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "employee",
     page: 1,
     x: 80,
-    y: 492,
+    y: 558,
     width: 230,
     height: 24,
     type: "text",
@@ -321,7 +322,7 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "employee",
     page: 1,
     x: 725,
-    y: 446,
+    y: 505,
     width: 20,
     height: 20,
     type: "check",
@@ -335,7 +336,7 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "employee",
     page: 1,
     x: 725,
-    y: 474,
+    y: 535,
     width: 20,
     height: 20,
     type: "check",
@@ -349,7 +350,7 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "employee",
     page: 1,
     x: 610,
-    y: 446,
+    y: 505,
     width: 20,
     height: 20,
     type: "check",
@@ -363,7 +364,35 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "employee",
     page: 1,
     x: 610,
-    y: 474,
+    y: 535,
+    width: 20,
+    height: 20,
+    type: "check",
+    sample: "✓",
+    fontSize: 18,
+    align: "center",
+  },
+  {
+    key: "maritalDivorced",
+    label: "גרוש/ה",
+    section: "employee",
+    page: 1,
+    x: 510,
+    y: 505,
+    width: 20,
+    height: 20,
+    type: "check",
+    sample: "✓",
+    fontSize: 18,
+    align: "center",
+  },
+  {
+    key: "maritalWidowed",
+    label: "אלמן/ה",
+    section: "employee",
+    page: 1,
+    x: 510,
+    y: 535,
     width: 20,
     height: 20,
     type: "check",
@@ -377,7 +406,7 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "employee",
     page: 1,
     x: 402,
-    y: 446,
+    y: 505,
     width: 20,
     height: 20,
     type: "check",
@@ -391,7 +420,35 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "employee",
     page: 1,
     x: 402,
-    y: 474,
+    y: 535,
+    width: 20,
+    height: 20,
+    type: "check",
+    sample: "✓",
+    fontSize: 18,
+    align: "center",
+  },
+  {
+    key: "kibbutzYes",
+    label: "חבר קיבוץ/מושב כן",
+    section: "employee",
+    page: 1,
+    x: 285,
+    y: 505,
+    width: 20,
+    height: 20,
+    type: "check",
+    sample: "✓",
+    fontSize: 18,
+    align: "center",
+  },
+  {
+    key: "kibbutzNo",
+    label: "חבר קיבוץ/מושב לא",
+    section: "employee",
+    page: 1,
+    x: 285,
+    y: 535,
     width: 20,
     height: 20,
     type: "check",
@@ -405,7 +462,7 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "employee",
     page: 1,
     x: 160,
-    y: 474,
+    y: 535,
     width: 20,
     height: 20,
     type: "check",
@@ -419,7 +476,7 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "employee",
     page: 1,
     x: 70,
-    y: 474,
+    y: 535,
     width: 85,
     height: 24,
     type: "text",
@@ -429,18 +486,93 @@ const INITIAL_FIELDS: FieldItem[] = [
   },
 
   {
+    key: "child1Name",
+    label: "ילד 1 שם",
+    section: "children",
+    page: 1,
+    x: 540,
+    y: 685,
+    width: 95,
+    height: 22,
+    type: "text",
+    sample: "",
+    fontSize: 14,
+    align: "center",
+  },
+  {
+    key: "child1Id",
+    label: "ילד 1 ת.ז",
+    section: "children",
+    page: 1,
+    x: 405,
+    y: 685,
+    width: 110,
+    height: 22,
+    type: "digits",
+    sample: "",
+    fontSize: 14,
+    digitGap: DEFAULT_GLOBAL_DIGIT_GAP,
+    maxDigits: 9,
+    align: "left",
+  },
+  {
+    key: "child1BirthDate",
+    label: "ילד 1 לידה",
+    section: "children",
+    page: 1,
+    x: 285,
+    y: 685,
+    width: 100,
+    height: 22,
+    type: "digits",
+    sample: "",
+    fontSize: 14,
+    digitGap: DEFAULT_GLOBAL_DIGIT_GAP,
+    maxDigits: 8,
+    align: "left",
+  },
+  {
+    key: "child1Mark1",
+    label: "ילד 1 סימון 1",
+    section: "children",
+    page: 1,
+    x: 745,
+    y: 685,
+    width: 18,
+    height: 18,
+    type: "check",
+    sample: "✓",
+    fontSize: 16,
+    align: "center",
+  },
+  {
+    key: "child1Mark2",
+    label: "ילד 1 סימון 2",
+    section: "children",
+    page: 1,
+    x: 720,
+    y: 685,
+    width: 18,
+    height: 18,
+    type: "check",
+    sample: "✓",
+    fontSize: 16,
+    align: "center",
+  },
+
+  {
     key: "workStartDate",
     label: "תחילת עבודה",
     section: "income",
     page: 1,
     x: 95,
-    y: 620,
+    y: 710,
     width: 105,
     height: 24,
     type: "digits",
     sample: "22062026",
     fontSize: 15,
-    digitGap: 12,
+    digitGap: DEFAULT_GLOBAL_DIGIT_GAP,
     maxDigits: 8,
     align: "left",
   },
@@ -450,7 +582,7 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "income",
     page: 1,
     x: 318,
-    y: 610,
+    y: 700,
     width: 20,
     height: 20,
     type: "check",
@@ -464,7 +596,7 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "income",
     page: 1,
     x: 318,
-    y: 638,
+    y: 730,
     width: 20,
     height: 20,
     type: "check",
@@ -478,7 +610,7 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "income",
     page: 1,
     x: 318,
-    y: 666,
+    y: 760,
     width: 20,
     height: 20,
     type: "check",
@@ -492,7 +624,35 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "income",
     page: 1,
     x: 318,
-    y: 694,
+    y: 790,
+    width: 20,
+    height: 20,
+    type: "check",
+    sample: "✓",
+    fontSize: 18,
+    align: "center",
+  },
+  {
+    key: "incomeAllowance",
+    label: "קצבה",
+    section: "income",
+    page: 1,
+    x: 318,
+    y: 820,
+    width: 20,
+    height: 20,
+    type: "check",
+    sample: "✓",
+    fontSize: 18,
+    align: "center",
+  },
+  {
+    key: "incomeScholarship",
+    label: "מלגה",
+    section: "income",
+    page: 1,
+    x: 318,
+    y: 850,
     width: 20,
     height: 20,
     type: "check",
@@ -507,7 +667,21 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "otherIncome",
     page: 1,
     x: 335,
-    y: 820,
+    y: 940,
+    width: 20,
+    height: 20,
+    type: "check",
+    sample: "✓",
+    fontSize: 18,
+    align: "center",
+  },
+  {
+    key: "otherHasIncome",
+    label: "יש הכנסות אחרות",
+    section: "otherIncome",
+    page: 1,
+    x: 335,
+    y: 975,
     width: 20,
     height: 20,
     type: "check",
@@ -522,13 +696,13 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "spouse",
     page: 1,
     x: 650,
-    y: 1030,
+    y: 1180,
     width: 115,
     height: 24,
     type: "digits",
     sample: "",
     fontSize: 14,
-    digitGap: 12,
+    digitGap: DEFAULT_GLOBAL_DIGIT_GAP,
     maxDigits: 9,
     align: "left",
   },
@@ -538,7 +712,7 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "spouse",
     page: 1,
     x: 520,
-    y: 1030,
+    y: 1180,
     width: 100,
     height: 24,
     type: "text",
@@ -552,7 +726,7 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "spouse",
     page: 1,
     x: 395,
-    y: 1030,
+    y: 1180,
     width: 100,
     height: 24,
     type: "text",
@@ -567,13 +741,13 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "credits",
     page: 2,
     x: 128,
-    y: 38,
+    y: 45,
     width: 120,
     height: 24,
     type: "digits",
     sample: "316576578",
     fontSize: 15,
-    digitGap: 13,
+    digitGap: DEFAULT_GLOBAL_DIGIT_GAP,
     maxDigits: 9,
     align: "left",
   },
@@ -583,7 +757,7 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "credits",
     page: 2,
     x: 742,
-    y: 88,
+    y: 100,
     width: 20,
     height: 20,
     type: "check",
@@ -597,7 +771,7 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "credits",
     page: 2,
     x: 742,
-    y: 128,
+    y: 145,
     width: 20,
     height: 20,
     type: "check",
@@ -611,7 +785,7 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "credits",
     page: 2,
     x: 742,
-    y: 185,
+    y: 210,
     width: 20,
     height: 20,
     type: "check",
@@ -625,7 +799,63 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "credits",
     page: 2,
     x: 742,
-    y: 250,
+    y: 285,
+    width: 20,
+    height: 20,
+    type: "check",
+    sample: "✓",
+    fontSize: 18,
+    align: "center",
+  },
+  {
+    key: "creditSingleParent",
+    label: "חד הורית",
+    section: "credits",
+    page: 2,
+    x: 742,
+    y: 420,
+    width: 20,
+    height: 20,
+    type: "check",
+    sample: "✓",
+    fontSize: 18,
+    align: "center",
+  },
+  {
+    key: "creditChildrenCustody",
+    label: "ילדים בחזקתי",
+    section: "credits",
+    page: 2,
+    x: 742,
+    y: 500,
+    width: 20,
+    height: 20,
+    type: "check",
+    sample: "✓",
+    fontSize: 18,
+    align: "center",
+  },
+  {
+    key: "creditSoldier",
+    label: "חייל משוחרר",
+    section: "credits",
+    page: 2,
+    x: 742,
+    y: 845,
+    width: 20,
+    height: 20,
+    type: "check",
+    sample: "✓",
+    fontSize: 18,
+    align: "center",
+  },
+  {
+    key: "creditAcademic",
+    label: "לימודים",
+    section: "credits",
+    page: 2,
+    x: 742,
+    y: 895,
     width: 20,
     height: 20,
     type: "check",
@@ -640,7 +870,7 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "taxCoordination",
     page: 2,
     x: 742,
-    y: 850,
+    y: 970,
     width: 20,
     height: 20,
     type: "check",
@@ -654,7 +884,7 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "taxCoordination",
     page: 2,
     x: 742,
-    y: 915,
+    y: 1040,
     width: 20,
     height: 20,
     type: "check",
@@ -669,13 +899,13 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "declaration",
     page: 2,
     x: 260,
-    y: 1035,
+    y: 1180,
     width: 115,
     height: 26,
     type: "digits",
     sample: "21062026",
     fontSize: 15,
-    digitGap: 13,
+    digitGap: DEFAULT_GLOBAL_DIGIT_GAP,
     maxDigits: 8,
     align: "left",
   },
@@ -685,7 +915,7 @@ const INITIAL_FIELDS: FieldItem[] = [
     section: "declaration",
     page: 2,
     x: 80,
-    y: 1028,
+    y: 1170,
     width: 140,
     height: 42,
     type: "signature",
@@ -723,6 +953,14 @@ function alignToText(align?: TextAlign) {
   if (align === "center") return "center";
   if (align === "left") return "left";
   return "right";
+}
+
+function getFieldTypeLabel(type: FieldType) {
+  if (type === "text") return "טקסט";
+  if (type === "digits") return "ספרות / מספרים";
+  if (type === "check") return "סימון וי";
+  if (type === "signature") return "חתימה";
+  return type;
 }
 
 function renderValue(field: FieldItem, showValues: boolean) {
@@ -768,7 +1006,7 @@ function renderValue(field: FieldItem, showValues: boolean) {
           <span
             key={`${field.key}-${index}`}
             className="inline-block text-center font-semibold"
-            style={{ width: field.digitGap || 10 }}
+            style={{ width: field.digitGap || DEFAULT_GLOBAL_DIGIT_GAP }}
           >
             {digit}
           </span>
@@ -818,6 +1056,9 @@ export default function Form101MapperPage() {
   const [showValues, setShowValues] = useState(true);
   const [showAllFields, setShowAllFields] = useState(false);
   const [pdfReloadKey, setPdfReloadKey] = useState(1);
+  const [globalDigitGap, setGlobalDigitGap] = useState(
+    DEFAULT_GLOBAL_DIGIT_GAP
+  );
 
   const pageSections = useMemo(
     () => SECTIONS.filter((section) => section.page === page),
@@ -829,11 +1070,15 @@ export default function Form101MapperPage() {
     [fields, page]
   );
 
-  const visibleFields = useMemo(() => {
-    if (showAllFields) return pageFields;
-
+  const sectionFields = useMemo(() => {
     return pageFields.filter((field) => field.section === selectedSection);
-  }, [pageFields, selectedSection, showAllFields]);
+  }, [pageFields, selectedSection]);
+
+  const visibleFields = useMemo(() => {
+    if (showAllFields) return sectionFields;
+
+    return sectionFields.filter((field) => field.key === selectedKey);
+  }, [sectionFields, selectedKey, showAllFields]);
 
   const selectedField = useMemo(
     () => fields.find((field) => field.key === selectedKey) || fields[0],
@@ -843,6 +1088,23 @@ export default function Form101MapperPage() {
   function updateField(key: string, patch: Partial<FieldItem>) {
     setFields((prev) =>
       prev.map((field) => (field.key === key ? { ...field, ...patch } : field))
+    );
+  }
+
+  function updateAllDigitGaps(value: number) {
+    const safeValue = Math.max(1, Number(value) || DEFAULT_GLOBAL_DIGIT_GAP);
+
+    setGlobalDigitGap(safeValue);
+
+    setFields((prev) =>
+      prev.map((field) =>
+        field.type === "digits"
+          ? {
+              ...field,
+              digitGap: safeValue,
+            }
+          : field
+      )
     );
   }
 
@@ -904,6 +1166,8 @@ export default function Form101MapperPage() {
     setFields(INITIAL_FIELDS);
     setSelectedSection("year");
     setSelectedKey("taxYear");
+    setGlobalDigitGap(DEFAULT_GLOBAL_DIGIT_GAP);
+    setShowAllFields(false);
     setPdfReloadKey((prev) => prev + 1);
   }
 
@@ -940,6 +1204,7 @@ export default function Form101MapperPage() {
 
     setFields((prev) => [...prev, field]);
     setSelectedKey(key);
+    setShowAllFields(false);
   }
 
   function removeField() {
@@ -950,6 +1215,8 @@ export default function Form101MapperPage() {
 
     setFields((prev) => prev.filter((field) => field.key !== selectedField.key));
     setSelectedKey("taxYear");
+    setSelectedSection("year");
+    setShowAllFields(false);
   }
 
   return (
@@ -971,7 +1238,7 @@ export default function Form101MapperPage() {
       }}
       className="min-h-screen bg-slate-100 text-slate-900"
     >
-      <div className="mx-auto max-w-[1800px] space-y-4 p-4">
+      <div className="mx-auto max-w-[1900px] space-y-4 p-4">
         <section className="rounded-3xl bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
             <div>
@@ -984,8 +1251,9 @@ export default function Form101MapperPage() {
               </h1>
 
               <p className="mt-2 text-sm font-bold text-slate-500">
-                מוצג כאן הקובץ המקורי: public/forms/tofes-101.pdf. אין PDF.js,
-                אין Worker, ואין טופס מומצא.
+                מוצג כאן הקובץ המקורי: public/forms/tofes-101.pdf. ברירת מחדל
+                מציגה רק את השדה שבחרת. שינוי מרווח ספרות מעדכן את כל שדות
+                הספרות ביחד.
               </p>
             </div>
 
@@ -996,12 +1264,13 @@ export default function Form101MapperPage() {
                   setPage(1);
                   setSelectedSection("year");
                   setSelectedKey("taxYear");
+                  setShowAllFields(false);
                   setPdfReloadKey((prev) => prev + 1);
                 }}
                 className={`h-11 rounded-2xl px-5 text-sm font-black ${
                   page === 1
                     ? "bg-slate-900 text-white"
-                    : "bg-white border border-slate-200"
+                    : "border border-slate-200 bg-white"
                 }`}
               >
                 עמוד 1
@@ -1013,12 +1282,13 @@ export default function Form101MapperPage() {
                   setPage(2);
                   setSelectedSection("credits");
                   setSelectedKey("page2IdNumber");
+                  setShowAllFields(false);
                   setPdfReloadKey((prev) => prev + 1);
                 }}
                 className={`h-11 rounded-2xl px-5 text-sm font-black ${
                   page === 2
                     ? "bg-slate-900 text-white"
-                    : "bg-white border border-slate-200"
+                    : "border border-slate-200 bg-white"
                 }`}
               >
                 עמוד 2
@@ -1029,7 +1299,7 @@ export default function Form101MapperPage() {
                 onClick={() => setShowAllFields((prev) => !prev)}
                 className="h-11 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black"
               >
-                {showAllFields ? "רק סעיף נבחר" : "כל השדות"}
+                {showAllFields ? "הצג רק שדה נבחר" : "הצג כל השדות בסעיף"}
               </button>
 
               <button
@@ -1039,6 +1309,19 @@ export default function Form101MapperPage() {
               >
                 {showValues ? "הסתר בדיקה" : "הצג בדיקה"}
               </button>
+
+              <label className="flex h-11 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700">
+                <span>מרווח ספרות</span>
+                <input
+                  type="number"
+                  min={1}
+                  value={globalDigitGap}
+                  onChange={(event) =>
+                    updateAllDigitGaps(Number(event.target.value))
+                  }
+                  className="h-8 w-16 rounded-xl border border-slate-200 px-2 text-center text-sm font-black outline-none"
+                />
+              </label>
 
               <button
                 type="button"
@@ -1075,7 +1358,7 @@ export default function Form101MapperPage() {
           </div>
         </section>
 
-        <section className="grid gap-4 xl:grid-cols-[300px_1fr_380px]">
+        <section className="grid gap-4 xl:grid-cols-[330px_1fr_390px]">
           <aside className="rounded-3xl bg-white p-4 shadow-sm">
             <h2 className="text-lg font-black">סעיפים</h2>
 
@@ -1089,6 +1372,7 @@ export default function Form101MapperPage() {
                     type="button"
                     onClick={() => {
                       setSelectedSection(section.key);
+                      setShowAllFields(false);
 
                       const firstField = fields.find(
                         (field) =>
@@ -1108,12 +1392,55 @@ export default function Form101MapperPage() {
                 );
               })}
             </div>
+
+            <div className="mt-6 border-t border-slate-100 pt-4">
+              <h3 className="text-sm font-black text-slate-700">
+                שדות בסעיף הנבחר
+              </h3>
+
+              <div className="mt-3 max-h-[560px] space-y-2 overflow-auto pr-1">
+                {sectionFields.map((field) => {
+                  const active = selectedKey === field.key;
+
+                  return (
+                    <button
+                      key={field.key}
+                      type="button"
+                      onClick={() => {
+                        setSelectedKey(field.key);
+                        setSelectedSection(field.section);
+                        setShowAllFields(false);
+                      }}
+                      className={`w-full rounded-2xl border px-3 py-3 text-right transition ${
+                        active
+                          ? "border-fuchsia-300 bg-fuchsia-50"
+                          : "border-slate-200 bg-white hover:bg-slate-50"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-black text-slate-800">
+                          {field.label}
+                        </span>
+
+                        <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-500">
+                          {getFieldTypeLabel(field.type)}
+                        </span>
+                      </div>
+
+                      <div className="mt-1 text-xs font-bold text-slate-400">
+                        ערך: {field.sample || "ריק"}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </aside>
 
-          <section className="overflow-auto rounded-3xl bg-white p-4 shadow-sm">
+          <section className="overflow-auto rounded-3xl bg-white p-8 shadow-sm">
             <div
               ref={pageRef}
-              className="relative mx-auto overflow-hidden bg-white shadow-xl ring-1 ring-slate-300"
+              className="relative mx-auto overflow-hidden rounded-sm bg-white shadow-xl ring-2 ring-slate-300"
               style={{
                 width: PAGE_WIDTH,
                 height: PAGE_HEIGHT,
@@ -1125,8 +1452,9 @@ export default function Form101MapperPage() {
             >
               <iframe
                 key={`${page}-${pdfReloadKey}`}
-                src={`${PDF_URL}#toolbar=0&navpanes=0&scrollbar=0&page=${page}&view=Fit`}
+                src={`${PDF_URL}#toolbar=0&navpanes=0&scrollbar=0&page=${page}&zoom=page-fit`}
                 title="טופס 101 מקורי"
+                scrolling="no"
                 className="absolute inset-0 h-full w-full border-0"
                 style={{
                   pointerEvents: "none",
@@ -1145,6 +1473,7 @@ export default function Form101MapperPage() {
                     onClick={() => {
                       setSelectedKey(field.key);
                       setSelectedSection(field.section);
+                      setShowAllFields(false);
                     }}
                     className={`absolute z-20 cursor-grab bg-transparent p-0 active:cursor-grabbing ${
                       selected ? "ring-2 ring-fuchsia-500" : ""
@@ -1184,9 +1513,20 @@ export default function Form101MapperPage() {
                   <p className="text-sm font-black text-indigo-700">
                     {selectedField.label}
                   </p>
+
                   <p className="mt-1 text-xs font-bold text-indigo-400">
                     {selectedField.key}
                   </p>
+
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs font-black">
+                    <div className="rounded-xl bg-white px-3 py-2 text-slate-600">
+                      סוג: {getFieldTypeLabel(selectedField.type)}
+                    </div>
+
+                    <div className="rounded-xl bg-white px-3 py-2 text-slate-600">
+                      ערך: {selectedField.sample || "ריק"}
+                    </div>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -1282,12 +1622,10 @@ export default function Form101MapperPage() {
                     מרווח ספרות
                     <input
                       type="number"
-                      value={selectedField.digitGap || 0}
+                      value={selectedField.digitGap || globalDigitGap}
                       disabled={selectedField.type !== "digits"}
                       onChange={(event) =>
-                        updateField(selectedField.key, {
-                          digitGap: Number(event.target.value),
-                        })
+                        updateAllDigitGaps(Number(event.target.value))
                       }
                       className="mt-1 h-10 w-full rounded-xl border px-3 text-sm font-bold disabled:bg-slate-100"
                     />
@@ -1333,6 +1671,19 @@ export default function Form101MapperPage() {
                     onChange={(event) =>
                       updateField(selectedField.key, {
                         sample: event.target.value,
+                      })
+                    }
+                    className="mt-1 h-11 w-full rounded-xl border px-3 text-sm font-bold"
+                  />
+                </label>
+
+                <label className="block text-xs font-black text-slate-500">
+                  שם שדה
+                  <input
+                    value={selectedField.label}
+                    onChange={(event) =>
+                      updateField(selectedField.key, {
+                        label: event.target.value,
                       })
                     }
                     className="mt-1 h-11 w-full rounded-xl border px-3 text-sm font-bold"
