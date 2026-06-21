@@ -167,13 +167,8 @@ function extractUserId(authResult: any) {
     authResult.userId ||
       authResult.id ||
       authResult._id ||
-      authResult.sub ||
-      authResult.userIdFromToken ||
       authResult.user?._id ||
-      authResult.user?.id ||
-      authResult.user?.userId ||
-      authResult.user?.sub ||
-      ""
+      authResult.user?.id
   );
 }
 
@@ -184,10 +179,7 @@ function extractBusinessId(authResult: any) {
     authResult.businessId ||
       authResult.business?._id ||
       authResult.business?.id ||
-      authResult.user?.businessId ||
-      authResult.user?.business?._id ||
-      authResult.user?.business?.id ||
-      ""
+      authResult.user?.businessId
   );
 }
 
@@ -353,6 +345,97 @@ function sanitizeFilePart(value: unknown, fallback: string) {
   return cleaned;
 }
 
+function drawTextRight(
+  page: any,
+  text: unknown,
+  rightX: number,
+  y: number,
+  options: {
+    font: any;
+    size?: number;
+    maxWidth?: number;
+    minX?: number;
+  }
+) {
+  const value = clean(text);
+  if (!value) return;
+
+  const size = options.size || 11;
+  const textWidth = options.font.widthOfTextAtSize(value, size);
+  const maxWidth = options.maxWidth || textWidth;
+  const minX = options.minX ?? 0;
+  const x = Math.max(rightX - Math.min(textWidth, maxWidth), minX);
+
+  page.drawText(value, {
+    x,
+    y,
+    size,
+    font: options.font,
+    color: rgb(0, 0, 0),
+    maxWidth,
+  });
+}
+
+function drawTextBoxRight(
+  page: any,
+  text: unknown,
+  leftX: number,
+  rightX: number,
+  y: number,
+  options: {
+    font: any;
+    size?: number;
+    padding?: number;
+  }
+) {
+  const padding = options.padding ?? 4;
+  drawTextRight(page, text, rightX - padding, y, {
+    font: options.font,
+    size: options.size || 11,
+    maxWidth: Math.max(rightX - leftX - padding * 2, 10),
+    minX: leftX + padding,
+  });
+}
+
+function drawTextBoxLeft(
+  page: any,
+  text: unknown,
+  leftX: number,
+  rightX: number,
+  y: number,
+  options: {
+    font: any;
+    size?: number;
+    padding?: number;
+  }
+) {
+  const value = clean(text);
+  if (!value) return;
+
+  const padding = options.padding ?? 4;
+
+  page.drawText(value, {
+    x: leftX + padding,
+    y,
+    size: options.size || 11,
+    font: options.font,
+    color: rgb(0, 0, 0),
+    maxWidth: Math.max(rightX - leftX - padding * 2, 10),
+  });
+}
+
+function drawSmallCheck(page: any, checked: boolean, x: number, y: number, font: any) {
+  if (!checked) return;
+
+  page.drawText("✓", {
+    x,
+    y,
+    size: 10,
+    font,
+    color: rgb(0, 0, 0),
+  });
+}
+
 async function generateForm101Pdf(body: Form101Payload) {
   const templatePath = path.join(
     process.cwd(),
@@ -381,224 +464,194 @@ async function generateForm101Pdf(body: Form101Payload) {
   const page1 = pages[0];
   const page2 = pages[1];
 
-  /*
-    חשוב:
-    הקואורדינטות מותאמות לטופס PDF בגודל A4.
-    אם שדה מסוים זז קצת — משנים רק x/y של אותו שדה.
-  */
-
   /* =========================================================
      PAGE 1 — כרטיס עובד
+     מותאם לקובץ public/forms/tofes-101.pdf שהעלית
   ========================================================= */
 
-  drawCenteredText(page1, body.taxYear || new Date().getFullYear(), 260, 707, 85, {
+  drawCenteredText(page1, body.taxYear || new Date().getFullYear(), 263, 715, 70, {
     font,
-    size: 18,
+    size: 17,
   });
 
   /* א. פרטי המעסיק */
-  drawText(page1, body.employerName, 424, 616, {
+  drawTextBoxRight(page1, body.employerName, 405, 572, 619, {
     font,
     size: 13,
-    maxWidth: 120,
   });
 
-  drawText(page1, body.employerAddress, 300, 616, {
+  drawTextBoxRight(page1, body.employerAddress, 270, 405, 619, {
     font,
     size: 11,
-    maxWidth: 120,
   });
 
-  drawText(page1, body.employerPhone, 155, 616, {
-    font,
-    size: 12,
-    maxWidth: 100,
-  });
-
-  drawText(page1, body.employerFileNumber, 52, 616, {
+  drawTextBoxLeft(page1, onlyDigits(body.employerPhone), 143, 270, 619, {
     font,
     size: 13,
-    maxWidth: 95,
+  });
+
+  drawTextBoxLeft(page1, onlyDigits(body.employerFileNumber), 29, 143, 619, {
+    font,
+    size: 13,
   });
 
   /* ב. פרטי העובד/ת */
-  drawText(page1, splitId(body.idNumber), 462, 548, {
+  drawTextBoxLeft(page1, splitId(body.idNumber), 474, 572, 548, {
     font,
     size: 13,
-    maxWidth: 95,
   });
 
-  drawText(page1, body.lastName, 363, 548, {
+  drawTextBoxRight(page1, body.lastName, 346, 474, 548, {
     font,
     size: 13,
-    maxWidth: 85,
   });
 
-  drawText(page1, body.firstName, 286, 548, {
+  drawTextBoxRight(page1, body.firstName, 255, 346, 548, {
     font,
     size: 13,
-    maxWidth: 80,
   });
 
-  drawText(page1, formatDateIL(body.birthDate), 210, 548, {
+  drawCenteredText(page1, formatDateIL(body.birthDate), 168, 548, 87, {
     font,
     size: 12,
-    maxWidth: 72,
   });
 
-  drawText(page1, formatDateIL(body.immigrationDate), 133, 548, {
+  drawCenteredText(page1, formatDateIL(body.immigrationDate), 37, 548, 130, {
     font,
     size: 12,
-    maxWidth: 72,
   });
 
-  drawText(page1, body.street, 352, 510, {
+  drawTextBoxRight(page1, body.street, 374, 572, 511, {
     font,
     size: 12,
-    maxWidth: 100,
   });
 
-  drawText(page1, body.houseNumber, 292, 510, {
+  drawCenteredText(page1, body.houseNumber, 333, 511, 40, {
     font,
     size: 12,
-    maxWidth: 45,
   });
 
-  drawText(page1, body.city, 214, 510, {
+  drawTextBoxRight(page1, body.city, 245, 333, 511, {
     font,
     size: 12,
-    maxWidth: 72,
   });
 
-  drawText(page1, body.postalCode, 141, 510, {
+  drawCenteredText(page1, body.postalCode, 170, 511, 72, {
     font,
     size: 12,
-    maxWidth: 60,
   });
 
-  drawText(page1, body.mobile, 323, 465, {
+  drawTextBoxLeft(page1, onlyDigits(body.mobile), 276, 467, 466, {
     font,
     size: 13,
-    maxWidth: 100,
   });
 
-  drawText(page1, body.phone, 238, 465, {
+  drawTextBoxLeft(page1, onlyDigits(body.phone), 151, 276, 466, {
     font,
     size: 13,
-    maxWidth: 80,
   });
 
-  drawText(page1, body.email, 70, 465, {
+  drawTextBoxLeft(page1, body.email, 35, 572, 431, {
     font,
     size: 12,
-    maxWidth: 160,
   });
 
   /* מין */
-  drawCheck(page1, body.gender === "male", 535, 491, font);
-  drawCheck(page1, body.gender === "female", 535, 476, font);
+  drawSmallCheck(page1, body.gender === "male", 548, 490, font);
+  drawSmallCheck(page1, body.gender === "female", 548, 474, font);
 
   /* מצב משפחתי */
-  drawCheck(page1, body.maritalStatus === "single", 480, 491, font);
-  drawCheck(page1, body.maritalStatus === "married", 480, 476, font);
-  drawCheck(page1, body.maritalStatus === "divorced", 427, 491, font);
-  drawCheck(page1, body.maritalStatus === "widowed", 427, 476, font);
-  drawCheck(page1, body.maritalStatus === "separated", 375, 476, font);
+  drawSmallCheck(page1, body.maritalStatus === "single", 488, 490, font);
+  drawSmallCheck(page1, body.maritalStatus === "married", 488, 474, font);
+  drawSmallCheck(page1, body.maritalStatus === "divorced", 432, 490, font);
+  drawSmallCheck(page1, body.maritalStatus === "widowed", 432, 474, font);
+  drawSmallCheck(page1, body.maritalStatus === "separated", 374, 474, font);
 
   /* תושב ישראל */
-  drawCheck(page1, body.residentIsrael === "yes", 337, 490, font);
-  drawCheck(page1, body.residentIsrael === "no", 337, 475, font);
+  drawSmallCheck(page1, body.residentIsrael === "yes", 337, 490, font);
+  drawSmallCheck(page1, body.residentIsrael === "no", 337, 474, font);
 
   /* חבר קיבוץ / מושב שיתופי */
-  drawCheck(page1, body.kibbutzMember === "yes", 261, 490, font);
-  drawCheck(page1, body.kibbutzMember === "no", 261, 475, font);
+  drawSmallCheck(page1, body.kibbutzMember === "yes", 258, 490, font);
+  drawSmallCheck(page1, body.kibbutzMember === "no", 258, 474, font);
 
   /* חבר קופת חולים */
-  drawCheck(page1, body.healthFundMember === "yes", 186, 490, font);
-  drawCheck(page1, body.healthFundMember === "no", 186, 475, font);
-  drawText(page1, body.healthFundName, 92, 477, {
+  drawSmallCheck(page1, body.healthFundMember === "yes", 190, 490, font);
+  drawSmallCheck(page1, body.healthFundMember === "no", 190, 474, font);
+  drawTextBoxRight(page1, body.healthFundName, 35, 171, 454, {
     font,
     size: 12,
-    maxWidth: 80,
   });
 
-  /* ג. ילדים שמלאו להם 19 */
+  /* ג. ילדים שטרם מלאו להם 19 */
   const children = Array.isArray(body.children) ? body.children : [];
 
   children.slice(0, 10).forEach((child, index) => {
-    const y = 377 - index * 28;
+    const y = 390 - index * 28;
 
-    drawText(page1, child.name, 475, y, {
+    drawTextBoxRight(page1, child.name, 487, 548, y, {
       font,
       size: 10,
-      maxWidth: 80,
     });
 
-    drawText(page1, splitId(child.idNumber), 352, y, {
+    drawTextBoxLeft(page1, splitId(child.idNumber), 357, 487, y, {
       font,
       size: 10,
-      maxWidth: 90,
     });
 
-    drawText(page1, formatDateIL(child.birthDate), 242, y, {
+    drawCenteredText(page1, formatDateIL(child.birthDate), 255, y, 100, {
       font,
       size: 10,
-      maxWidth: 80,
     });
   });
 
-  /* ד. הכנסות ממעסיק זה */
-  drawText(page1, formatDateIL(body.workStartDate), 405, 352, {
+  /* ד. פרטים על הכנסותיי ממעביד זה */
+  drawCenteredText(page1, formatDateIL(body.workStartDate), 40, 372, 118, {
     font,
     size: 12,
-    maxWidth: 80,
   });
 
-  drawCheck(page1, Boolean(body.incomeType?.monthlySalary), 300, 383, font);
-  drawCheck(page1, Boolean(body.incomeType?.extraSalary), 300, 368, font);
-  drawCheck(page1, Boolean(body.incomeType?.partialSalary), 300, 353, font);
-  drawCheck(page1, Boolean(body.incomeType?.dailyWage), 300, 338, font);
-  drawCheck(page1, Boolean(body.incomeType?.allowance), 300, 323, font);
-  drawCheck(page1, Boolean(body.incomeType?.pension), 300, 308, font);
+  drawSmallCheck(page1, Boolean(body.incomeType?.monthlySalary), 250, 394, font);
+  drawSmallCheck(page1, Boolean(body.incomeType?.extraSalary), 250, 379, font);
+  drawSmallCheck(page1, Boolean(body.incomeType?.partialSalary), 250, 364, font);
+  drawSmallCheck(page1, Boolean(body.incomeType?.dailyWage), 250, 349, font);
+  drawSmallCheck(page1, Boolean(body.incomeType?.allowance), 250, 334, font);
+  drawSmallCheck(page1, Boolean(body.incomeType?.pension), 250, 319, font);
 
   /* ה. הכנסות אחרות */
-  drawCheck(page1, Boolean(body.otherIncome?.noOtherIncome), 536, 264, font);
-  drawCheck(page1, Boolean(body.otherIncome?.monthlySalary), 300, 247, font);
-  drawCheck(page1, Boolean(body.otherIncome?.extraSalary), 300, 232, font);
-  drawCheck(page1, Boolean(body.otherIncome?.partialSalary), 300, 217, font);
-  drawCheck(page1, Boolean(body.otherIncome?.dailyWage), 300, 202, font);
-  drawCheck(page1, Boolean(body.otherIncome?.allowance), 300, 187, font);
-  drawCheck(page1, Boolean(body.otherIncome?.scholarship), 300, 172, font);
+  drawSmallCheck(page1, Boolean(body.otherIncome?.noOtherIncome), 248, 295, font);
+  drawSmallCheck(page1, Boolean(body.otherIncome?.monthlySalary), 250, 266, font);
+  drawSmallCheck(page1, Boolean(body.otherIncome?.extraSalary), 250, 251, font);
+  drawSmallCheck(page1, Boolean(body.otherIncome?.partialSalary), 250, 236, font);
+  drawSmallCheck(page1, Boolean(body.otherIncome?.dailyWage), 250, 221, font);
+  drawSmallCheck(page1, Boolean(body.otherIncome?.allowance), 250, 206, font);
+  drawSmallCheck(page1, Boolean(body.otherIncome?.pension), 250, 191, font);
+  drawSmallCheck(page1, Boolean(body.otherIncome?.scholarship), 250, 176, font);
 
   /* ו. פרטי בן/בת זוג */
-  drawText(page1, splitId(body.spouse?.idNumber), 462, 70, {
+  drawTextBoxLeft(page1, splitId(body.spouse?.idNumber), 474, 572, 104, {
     font,
     size: 11,
-    maxWidth: 90,
   });
 
-  drawText(page1, body.spouse?.lastName, 360, 70, {
+  drawTextBoxRight(page1, body.spouse?.lastName, 346, 474, 104, {
     font,
     size: 11,
-    maxWidth: 85,
   });
 
-  drawText(page1, body.spouse?.firstName, 285, 70, {
+  drawTextBoxRight(page1, body.spouse?.firstName, 255, 346, 104, {
     font,
     size: 11,
-    maxWidth: 75,
   });
 
-  drawText(page1, formatDateIL(body.spouse?.birthDate), 205, 70, {
+  drawCenteredText(page1, formatDateIL(body.spouse?.birthDate), 168, 104, 87, {
     font,
     size: 11,
-    maxWidth: 75,
   });
 
-  drawText(page1, formatDateIL(body.spouse?.immigrationDate), 125, 70, {
+  drawCenteredText(page1, formatDateIL(body.spouse?.immigrationDate), 37, 104, 130, {
     font,
     size: 11,
-    maxWidth: 75,
   });
 
   /* =========================================================
@@ -606,100 +659,73 @@ async function generateForm101Pdf(body: Form101Payload) {
   ========================================================= */
 
   if (page2) {
+    drawTextBoxLeft(page2, splitId(body.idNumber), 105, 250, 815, {
+      font,
+      size: 12,
+    });
+
     /* ח. פטור או זיכוי ממס */
-    drawCheck(page2, Boolean(getCredit(body, "resident")), 548, 752, font);
+    drawSmallCheck(page2, Boolean(getCredit(body, "resident")), 548, 792, font);
 
-    drawCheck(page2, Boolean(getCredit(body, "disabled100")), 548, 715, font);
+    drawSmallCheck(page2, Boolean(getCredit(body, "disabled100")), 548, 765, font);
 
-    drawCheck(page2, Boolean(getCredit(body, "settlement")), 548, 668, font);
-    drawText(page2, getCredit(body, "settlementDate"), 382, 669, {
+    drawSmallCheck(page2, Boolean(getCredit(body, "settlement")), 548, 727, font);
+    drawTextBoxRight(page2, getCredit(body, "settlementDate"), 305, 430, 727, {
       font,
       size: 11,
-      maxWidth: 75,
     });
-    drawText(page2, getCredit(body, "settlementName"), 260, 669, {
-      font,
-      size: 11,
-      maxWidth: 100,
-    });
-
-    drawCheck(page2, Boolean(getCredit(body, "newImmigrant")), 548, 626, font);
-
-    drawCheck(
-      page2,
-      Boolean(getCredit(body, "spouseNoIncome")),
-      548,
-      582,
-      font
-    );
-
-    drawCheck(page2, Boolean(getCredit(body, "singleParent")), 548, 542, font);
-
-    drawCheck(
-      page2,
-      Boolean(getCredit(body, "childrenCustody")),
-      548,
-      500,
-      font
-    );
-
-    drawText(page2, getCredit(body, "childrenBornThisYear"), 375, 479, {
+    drawTextBoxRight(page2, getCredit(body, "settlementName"), 320, 515, 700, {
       font,
       size: 11,
     });
 
-    drawText(page2, getCredit(body, "childrenAgeOneToFive"), 375, 461, {
+    drawSmallCheck(page2, Boolean(getCredit(body, "newImmigrant")), 548, 681, font);
+
+    drawSmallCheck(page2, Boolean(getCredit(body, "spouseNoIncome")), 548, 632, font);
+
+    drawSmallCheck(page2, Boolean(getCredit(body, "singleParent")), 548, 603, font);
+
+    drawSmallCheck(page2, Boolean(getCredit(body, "childrenCustody")), 548, 565, font);
+
+    drawTextBoxLeft(page2, getCredit(body, "childrenBornThisYear"), 283, 340, 540, {
       font,
-      size: 11,
+      size: 10,
     });
 
-    drawText(page2, getCredit(body, "childrenAgeSixToSeventeen"), 375, 443, {
+    drawTextBoxLeft(page2, getCredit(body, "childrenAgeOneToFive"), 283, 340, 522, {
       font,
-      size: 11,
+      size: 10,
     });
 
-    drawText(page2, getCredit(body, "childrenAgeEighteen"), 375, 425, {
+    drawTextBoxLeft(page2, getCredit(body, "childrenAgeSixToSeventeen"), 283, 340, 504, {
       font,
-      size: 11,
+      size: 10,
     });
 
-    drawCheck(page2, Boolean(getCredit(body, "specialChild")), 548, 424, font);
+    drawTextBoxLeft(page2, getCredit(body, "childrenAgeEighteen"), 283, 340, 486, {
+      font,
+      size: 10,
+    });
 
-    drawCheck(page2, Boolean(getCredit(body, "alimony")), 548, 371, font);
+    drawSmallCheck(page2, Boolean(getCredit(body, "specialChild")), 548, 435, font);
 
-    drawCheck(
-      page2,
-      Boolean(getCredit(body, "childrenUnder19")),
-      548,
-      332,
-      font
-    );
+    drawSmallCheck(page2, Boolean(getCredit(body, "alimony")), 548, 407, font);
 
-    drawCheck(page2, Boolean(getCredit(body, "soldier")), 548, 288, font);
+    drawSmallCheck(page2, Boolean(getCredit(body, "childrenUnder19")), 548, 379, font);
 
-    drawCheck(page2, Boolean(getCredit(body, "academic")), 548, 248, font);
+    drawSmallCheck(page2, Boolean(getCredit(body, "soldier")), 548, 350, font);
 
-    drawCheck(page2, Boolean(getCredit(body, "diploma")), 548, 208, font);
+    drawSmallCheck(page2, Boolean(getCredit(body, "academic")), 548, 322, font);
+
+    drawSmallCheck(page2, Boolean(getCredit(body, "diploma")), 548, 295, font);
 
     /* ט. תיאום מס */
-    drawCheck(
-      page2,
-      Boolean(getCredit(body, "noIncomeThisYear")),
-      548,
-      143,
-      font
-    );
+    drawSmallCheck(page2, Boolean(getCredit(body, "noIncomeThisYear")), 548, 254, font);
 
-    drawCheck(
-      page2,
-      Boolean(getCredit(body, "hasOtherIncomeForTaxCoordination")),
-      548,
-      105,
-      font
-    );
+    drawSmallCheck(page2, Boolean(getCredit(body, "hasOtherIncomeForTaxCoordination")), 548, 222, font);
 
     /* י. הצהרה */
-    drawText(page2, formatDateIL(body.signatureDate), 395, 42, {
+    drawCenteredText(page2, formatDateIL(body.signatureDate), 150, 154, 135, {
       font,
       size: 12,
     });
@@ -708,17 +734,16 @@ async function generateForm101Pdf(body: Form101Payload) {
       pdfDoc,
       page2,
       body.signatureDataUrl,
-      190,
-      30,
-      135,
-      34
+      38,
+      146,
+      105,
+      28
     );
 
     if (!signatureDrawn) {
-      drawText(page2, body.signatureText, 205, 42, {
+      drawTextBoxRight(page2, body.signatureText, 38, 145, 154, {
         font,
-        size: 13,
-        maxWidth: 120,
+        size: 12,
       });
     }
   }
