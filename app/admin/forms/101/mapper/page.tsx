@@ -1,31 +1,38 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 
 export const dynamic = "force-dynamic";
 
-type FieldType = "text" | "digits" | "dateDigits" | "check" | "signature";
+type FieldType = "text" | "digits" | "check" | "signature";
 type TextAlign = "right" | "left" | "center";
+
+type FormPage = 1 | 2;
 
 type FieldItem = {
   key: string;
   label: string;
-  page: 1 | 2;
+  sectionKey: string;
+  page: FormPage;
   x: number;
   y: number;
+  width: number;
+  height: number;
   type: FieldType;
   sample: string;
   fontSize: number;
-  width: number;
-  height: number;
   digitGap?: number;
   maxDigits?: number;
   align?: TextAlign;
+  required?: boolean;
 };
 
-type PageSize = {
-  width: number;
-  height: number;
+type SectionItem = {
+  key: string;
+  title: string;
+  page: FormPage;
+  optional?: boolean;
+  collapsedByDefault?: boolean;
 };
 
 type DragState = {
@@ -34,751 +41,886 @@ type DragState = {
   offsetY: number;
 } | null;
 
-const PDF_URL = "/forms/tofes-101.pdf";
-const PDF_WORKER_URL = "/pdf.worker.min.mjs";
-const STORAGE_KEY = "invistimo_form101_mapper_pdf_clean_v4";
+const STORAGE_KEY = "invistimo_form101_html_template_builder_v1";
+
+const PAGE_WIDTH = 794;
+const PAGE_HEIGHT = 1123;
+
+const SECTIONS: SectionItem[] = [
+  { key: "taxYear", title: "שנת מס", page: 1 },
+  { key: "employer", title: "א. פרטי המעביד", page: 1 },
+  { key: "employee", title: "ב. פרטי העובד/ת", page: 1 },
+  {
+    key: "children",
+    title: "ג. ילדים עד גיל 19",
+    page: 1,
+    optional: true,
+    collapsedByDefault: true,
+  },
+  { key: "incomeMain", title: "ד. הכנסות ממעסיק זה", page: 1 },
+  {
+    key: "otherIncome",
+    title: "ה. הכנסות אחרות",
+    page: 1,
+    optional: true,
+    collapsedByDefault: true,
+  },
+  {
+    key: "spouse",
+    title: "ו. בן/בת זוג",
+    page: 1,
+    optional: true,
+    collapsedByDefault: true,
+  },
+  {
+    key: "changes",
+    title: "ז. שינויים במהלך השנה",
+    page: 1,
+    optional: true,
+    collapsedByDefault: true,
+  },
+  { key: "credits", title: "ח. פטור / זיכוי ממס", page: 2 },
+  {
+    key: "taxCoordination",
+    title: "ט. תיאום מס",
+    page: 2,
+    optional: true,
+    collapsedByDefault: true,
+  },
+  { key: "declaration", title: "י. הצהרה וחתימה", page: 2 },
+];
 
 const INITIAL_FIELDS: FieldItem[] = [
   {
     key: "taxYear",
     label: "שנת מס",
+    sectionKey: "taxYear",
     page: 1,
-    x: 285,
-    y: 686,
+    x: 335,
+    y: 106,
+    width: 112,
+    height: 28,
     type: "digits",
     sample: "2026",
-    fontSize: 16,
-    width: 90,
-    height: 22,
-    digitGap: 16,
+    fontSize: 20,
+    digitGap: 22,
     maxDigits: 4,
     align: "center",
+    required: true,
   },
+
   {
     key: "employerName",
     label: "שם מעסיק",
+    sectionKey: "employer",
     page: 1,
-    x: 465,
-    y: 599,
+    x: 592,
+    y: 236,
+    width: 160,
+    height: 28,
     type: "text",
     sample: "Invistimo",
-    fontSize: 13,
-    width: 120,
-    height: 18,
+    fontSize: 17,
     align: "right",
+    required: true,
   },
   {
     key: "employerAddress",
     label: "כתובת מעסיק",
+    sectionKey: "employer",
     page: 1,
-    x: 310,
-    y: 599,
+    x: 384,
+    y: 236,
+    width: 190,
+    height: 28,
     type: "text",
     sample: "העצמאות 41 קרית אתא",
-    fontSize: 11,
-    width: 150,
-    height: 18,
+    fontSize: 15,
     align: "right",
   },
   {
     key: "employerPhone",
     label: "טלפון מעסיק",
+    sectionKey: "employer",
     page: 1,
-    x: 155,
-    y: 599,
+    x: 226,
+    y: 236,
+    width: 132,
+    height: 28,
     type: "digits",
     sample: "0526850711",
-    fontSize: 13,
-    width: 100,
-    height: 18,
-    digitGap: 9,
+    fontSize: 16,
+    digitGap: 13,
     maxDigits: 10,
     align: "left",
   },
   {
     key: "employerFileNumber",
     label: "תיק ניכויים",
+    sectionKey: "employer",
     page: 1,
-    x: 47,
-    y: 599,
+    x: 62,
+    y: 236,
+    width: 132,
+    height: 28,
     type: "digits",
     sample: "905790028",
-    fontSize: 13,
-    width: 90,
-    height: 18,
-    digitGap: 9,
+    fontSize: 16,
+    digitGap: 14,
     maxDigits: 9,
     align: "left",
   },
+
   {
     key: "idNumber",
     label: "תעודת זהות",
+    sectionKey: "employee",
     page: 1,
-    x: 462,
-    y: 549,
+    x: 642,
+    y: 318,
+    width: 118,
+    height: 26,
     type: "digits",
     sample: "316576578",
-    fontSize: 12,
-    width: 95,
-    height: 16,
-    digitGap: 9,
+    fontSize: 16,
+    digitGap: 13,
     maxDigits: 9,
     align: "left",
+    required: true,
   },
   {
     key: "lastName",
     label: "שם משפחה",
+    sectionKey: "employee",
     page: 1,
-    x: 365,
-    y: 549,
+    x: 525,
+    y: 318,
+    width: 95,
+    height: 26,
     type: "text",
     sample: "עשת",
-    fontSize: 12,
-    width: 80,
-    height: 16,
+    fontSize: 16,
     align: "center",
+    required: true,
   },
   {
     key: "firstName",
     label: "שם פרטי",
+    sectionKey: "employee",
     page: 1,
-    x: 287,
-    y: 549,
+    x: 420,
+    y: 318,
+    width: 85,
+    height: 26,
     type: "text",
     sample: "הדר",
-    fontSize: 12,
-    width: 75,
-    height: 16,
+    fontSize: 16,
     align: "center",
+    required: true,
   },
   {
     key: "birthDate",
     label: "תאריך לידה",
+    sectionKey: "employee",
     page: 1,
-    x: 207,
-    y: 549,
-    type: "dateDigits",
+    x: 300,
+    y: 318,
+    width: 100,
+    height: 26,
+    type: "digits",
     sample: "04031997",
-    fontSize: 12,
-    width: 80,
-    height: 16,
-    digitGap: 8,
+    fontSize: 16,
+    digitGap: 12,
     maxDigits: 8,
     align: "left",
   },
   {
     key: "immigrationDate",
     label: "תאריך עליה",
+    sectionKey: "employee",
     page: 1,
-    x: 130,
-    y: 549,
-    type: "dateDigits",
+    x: 160,
+    y: 318,
+    width: 100,
+    height: 26,
+    type: "digits",
     sample: "",
-    fontSize: 12,
-    width: 75,
-    height: 16,
-    digitGap: 8,
+    fontSize: 16,
+    digitGap: 12,
     maxDigits: 8,
     align: "left",
   },
   {
     key: "street",
-    label: "רחוב",
+    label: "רחוב / שכונה",
+    sectionKey: "employee",
     page: 1,
-    x: 352,
-    y: 512,
+    x: 520,
+    y: 373,
+    width: 160,
+    height: 26,
     type: "text",
     sample: "העצמאות",
-    fontSize: 12,
-    width: 100,
-    height: 16,
+    fontSize: 16,
     align: "right",
   },
   {
     key: "houseNumber",
-    label: "מספר בית",
+    label: "מספר",
+    sectionKey: "employee",
     page: 1,
-    x: 292,
-    y: 512,
+    x: 440,
+    y: 373,
+    width: 55,
+    height: 26,
     type: "digits",
     sample: "41",
-    fontSize: 12,
-    width: 45,
-    height: 16,
-    digitGap: 9,
+    fontSize: 16,
+    digitGap: 16,
     maxDigits: 4,
     align: "center",
   },
   {
     key: "city",
-    label: "עיר",
+    label: "עיר / ישוב",
+    sectionKey: "employee",
     page: 1,
-    x: 214,
-    y: 512,
+    x: 315,
+    y: 373,
+    width: 105,
+    height: 26,
     type: "text",
     sample: "קרית אתא",
-    fontSize: 12,
-    width: 75,
-    height: 16,
+    fontSize: 16,
     align: "center",
   },
   {
     key: "postalCode",
     label: "מיקוד",
+    sectionKey: "employee",
     page: 1,
-    x: 140,
-    y: 512,
+    x: 205,
+    y: 373,
+    width: 88,
+    height: 26,
     type: "digits",
     sample: "",
-    fontSize: 12,
-    width: 60,
-    height: 16,
-    digitGap: 8,
+    fontSize: 16,
+    digitGap: 12,
     maxDigits: 7,
-    align: "left",
-  },
-  {
-    key: "mobile",
-    label: "טלפון נייד",
-    page: 1,
-    x: 323,
-    y: 465,
-    type: "digits",
-    sample: "0555039072",
-    fontSize: 12,
-    width: 95,
-    height: 16,
-    digitGap: 9,
-    maxDigits: 10,
     align: "left",
   },
   {
     key: "phone",
     label: "טלפון",
+    sectionKey: "employee",
     page: 1,
-    x: 238,
-    y: 465,
+    x: 342,
+    y: 422,
+    width: 120,
+    height: 26,
     type: "digits",
     sample: "",
-    fontSize: 12,
-    width: 80,
-    height: 16,
-    digitGap: 9,
+    fontSize: 16,
+    digitGap: 12,
+    maxDigits: 10,
+    align: "left",
+  },
+  {
+    key: "mobile",
+    label: "נייד",
+    sectionKey: "employee",
+    page: 1,
+    x: 165,
+    y: 422,
+    width: 140,
+    height: 26,
+    type: "digits",
+    sample: "0555039072",
+    fontSize: 16,
+    digitGap: 13,
     maxDigits: 10,
     align: "left",
   },
   {
     key: "email",
-    label: "אימייל",
+    label: "דואר אלקטרוני",
+    sectionKey: "employee",
     page: 1,
-    x: 70,
-    y: 465,
+    x: 98,
+    y: 490,
+    width: 230,
+    height: 28,
     type: "text",
     sample: "sapir@gmail.com",
-    fontSize: 12,
-    width: 160,
-    height: 16,
+    fontSize: 16,
     align: "left",
   },
+
   {
     key: "genderMale",
-    label: "זכר",
+    label: "מין: זכר",
+    sectionKey: "employee",
     page: 1,
-    x: 535,
-    y: 492,
+    x: 724,
+    y: 423,
+    width: 18,
+    height: 18,
     type: "check",
     sample: "✓",
-    fontSize: 13,
-    width: 13,
-    height: 13,
+    fontSize: 18,
     align: "center",
   },
   {
     key: "genderFemale",
-    label: "נקבה",
+    label: "מין: נקבה",
+    sectionKey: "employee",
     page: 1,
-    x: 535,
-    y: 477,
+    x: 724,
+    y: 452,
+    width: 18,
+    height: 18,
     type: "check",
     sample: "✓",
-    fontSize: 13,
-    width: 13,
-    height: 13,
+    fontSize: 18,
     align: "center",
   },
   {
     key: "maritalSingle",
     label: "רווק/ה",
+    sectionKey: "employee",
     page: 1,
-    x: 480,
-    y: 492,
+    x: 612,
+    y: 423,
+    width: 18,
+    height: 18,
     type: "check",
     sample: "✓",
-    fontSize: 13,
-    width: 13,
-    height: 13,
+    fontSize: 18,
     align: "center",
   },
   {
     key: "maritalMarried",
     label: "נשוי/אה",
+    sectionKey: "employee",
     page: 1,
-    x: 480,
-    y: 477,
+    x: 612,
+    y: 452,
+    width: 18,
+    height: 18,
     type: "check",
     sample: "✓",
-    fontSize: 13,
-    width: 13,
-    height: 13,
+    fontSize: 18,
     align: "center",
   },
   {
     key: "maritalDivorced",
     label: "גרוש/ה",
+    sectionKey: "employee",
     page: 1,
-    x: 427,
-    y: 492,
+    x: 510,
+    y: 423,
+    width: 18,
+    height: 18,
     type: "check",
     sample: "✓",
-    fontSize: 13,
-    width: 13,
-    height: 13,
+    fontSize: 18,
     align: "center",
   },
   {
     key: "maritalWidowed",
     label: "אלמן/ה",
+    sectionKey: "employee",
     page: 1,
-    x: 427,
-    y: 477,
+    x: 510,
+    y: 452,
+    width: 18,
+    height: 18,
     type: "check",
     sample: "✓",
-    fontSize: 13,
-    width: 13,
-    height: 13,
-    align: "center",
-  },
-  {
-    key: "maritalSeparated",
-    label: "פרוד/ה",
-    page: 1,
-    x: 374,
-    y: 477,
-    type: "check",
-    sample: "✓",
-    fontSize: 13,
-    width: 13,
-    height: 13,
+    fontSize: 18,
     align: "center",
   },
   {
     key: "residentYes",
     label: "תושב ישראל כן",
+    sectionKey: "employee",
     page: 1,
-    x: 337,
-    y: 492,
+    x: 408,
+    y: 423,
+    width: 18,
+    height: 18,
     type: "check",
     sample: "✓",
-    fontSize: 13,
-    width: 13,
-    height: 13,
+    fontSize: 18,
     align: "center",
   },
   {
     key: "residentNo",
     label: "תושב ישראל לא",
+    sectionKey: "employee",
     page: 1,
-    x: 337,
-    y: 477,
+    x: 408,
+    y: 452,
+    width: 18,
+    height: 18,
     type: "check",
     sample: "✓",
-    fontSize: 13,
-    width: 13,
-    height: 13,
-    align: "center",
-  },
-  {
-    key: "kibbutzYes",
-    label: "קיבוץ כן",
-    page: 1,
-    x: 261,
-    y: 492,
-    type: "check",
-    sample: "✓",
-    fontSize: 13,
-    width: 13,
-    height: 13,
-    align: "center",
-  },
-  {
-    key: "kibbutzNo",
-    label: "קיבוץ לא",
-    page: 1,
-    x: 261,
-    y: 477,
-    type: "check",
-    sample: "✓",
-    fontSize: 13,
-    width: 13,
-    height: 13,
+    fontSize: 18,
     align: "center",
   },
   {
     key: "healthFundYes",
     label: "קופת חולים כן",
+    sectionKey: "employee",
     page: 1,
-    x: 186,
-    y: 477,
+    x: 158,
+    y: 452,
+    width: 18,
+    height: 18,
     type: "check",
     sample: "✓",
-    fontSize: 13,
-    width: 13,
-    height: 13,
-    align: "center",
-  },
-  {
-    key: "healthFundNo",
-    label: "קופת חולים לא",
-    page: 1,
-    x: 186,
-    y: 492,
-    type: "check",
-    sample: "✓",
-    fontSize: 13,
-    width: 13,
-    height: 13,
+    fontSize: 18,
     align: "center",
   },
   {
     key: "healthFundName",
     label: "שם קופה",
+    sectionKey: "employee",
     page: 1,
-    x: 92,
-    y: 477,
+    x: 70,
+    y: 452,
+    width: 86,
+    height: 24,
     type: "text",
     sample: "כללית",
-    fontSize: 12,
-    width: 80,
-    height: 16,
+    fontSize: 15,
     align: "right",
   },
+
+  {
+    key: "child1Name",
+    label: "ילד 1 - שם",
+    sectionKey: "children",
+    page: 1,
+    x: 548,
+    y: 595,
+    width: 100,
+    height: 24,
+    type: "text",
+    sample: "",
+    fontSize: 14,
+    align: "center",
+  },
+  {
+    key: "child1Id",
+    label: "ילד 1 - ת.ז",
+    sectionKey: "children",
+    page: 1,
+    x: 412,
+    y: 595,
+    width: 95,
+    height: 24,
+    type: "digits",
+    sample: "",
+    fontSize: 14,
+    digitGap: 10,
+    maxDigits: 9,
+    align: "left",
+  },
+  {
+    key: "child1BirthDate",
+    label: "ילד 1 - תאריך לידה",
+    sectionKey: "children",
+    page: 1,
+    x: 290,
+    y: 595,
+    width: 90,
+    height: 24,
+    type: "digits",
+    sample: "",
+    fontSize: 14,
+    digitGap: 10,
+    maxDigits: 8,
+    align: "left",
+  },
+  {
+    key: "child1Custody",
+    label: "ילד 1 - חזקה",
+    sectionKey: "children",
+    page: 1,
+    x: 708,
+    y: 595,
+    width: 16,
+    height: 16,
+    type: "check",
+    sample: "✓",
+    fontSize: 16,
+    align: "center",
+  },
+  {
+    key: "child1Allowance",
+    label: "ילד 1 - קצבה",
+    sectionKey: "children",
+    page: 1,
+    x: 733,
+    y: 595,
+    width: 16,
+    height: 16,
+    type: "check",
+    sample: "✓",
+    fontSize: 16,
+    align: "center",
+  },
+
   {
     key: "workStartDate",
-    label: "תחילת עבודה",
+    label: "תאריך תחילת עבודה",
+    sectionKey: "incomeMain",
     page: 1,
-    x: 405,
-    y: 352,
-    type: "dateDigits",
+    x: 94,
+    y: 604,
+    width: 105,
+    height: 26,
+    type: "digits",
     sample: "22062026",
-    fontSize: 12,
-    width: 80,
-    height: 16,
-    digitGap: 8,
+    fontSize: 16,
+    digitGap: 12,
     maxDigits: 8,
     align: "left",
   },
   {
     key: "incomeMonthlySalary",
     label: "משכורת חודש",
+    sectionKey: "incomeMain",
     page: 1,
-    x: 300,
-    y: 383,
+    x: 318,
+    y: 604,
+    width: 18,
+    height: 18,
     type: "check",
     sample: "✓",
-    fontSize: 13,
-    width: 13,
-    height: 13,
+    fontSize: 18,
     align: "center",
   },
   {
     key: "incomeExtraSalary",
     label: "משרה נוספת",
+    sectionKey: "incomeMain",
     page: 1,
-    x: 300,
-    y: 368,
+    x: 318,
+    y: 632,
+    width: 18,
+    height: 18,
     type: "check",
     sample: "✓",
-    fontSize: 13,
-    width: 13,
-    height: 13,
+    fontSize: 18,
     align: "center",
   },
   {
     key: "incomePartialSalary",
     label: "משכורת חלקית",
+    sectionKey: "incomeMain",
     page: 1,
-    x: 300,
-    y: 353,
+    x: 318,
+    y: 660,
+    width: 18,
+    height: 18,
     type: "check",
     sample: "✓",
-    fontSize: 13,
-    width: 13,
-    height: 13,
+    fontSize: 18,
     align: "center",
   },
   {
     key: "incomeDailyWage",
     label: "שכר עבודה",
+    sectionKey: "incomeMain",
     page: 1,
-    x: 300,
-    y: 338,
+    x: 318,
+    y: 688,
+    width: 18,
+    height: 18,
     type: "check",
     sample: "✓",
-    fontSize: 13,
-    width: 13,
-    height: 13,
+    fontSize: 18,
     align: "center",
   },
   {
     key: "incomeAllowance",
     label: "קצבה",
+    sectionKey: "incomeMain",
     page: 1,
-    x: 300,
-    y: 323,
+    x: 318,
+    y: 716,
+    width: 18,
+    height: 18,
     type: "check",
     sample: "✓",
-    fontSize: 13,
-    width: 13,
-    height: 13,
+    fontSize: 18,
     align: "center",
   },
   {
-    key: "incomePension",
+    key: "incomeScholarship",
     label: "מלגה",
+    sectionKey: "incomeMain",
     page: 1,
-    x: 300,
-    y: 308,
+    x: 318,
+    y: 744,
+    width: 18,
+    height: 18,
     type: "check",
     sample: "✓",
-    fontSize: 13,
-    width: 13,
-    height: 13,
+    fontSize: 18,
     align: "center",
   },
+
   {
-    key: "otherNoOtherIncome",
+    key: "otherNoIncome",
     label: "אין הכנסות אחרות",
+    sectionKey: "otherIncome",
     page: 1,
-    x: 536,
-    y: 264,
+    x: 330,
+    y: 815,
+    width: 18,
+    height: 18,
     type: "check",
     sample: "✓",
-    fontSize: 13,
-    width: 13,
-    height: 13,
+    fontSize: 18,
     align: "center",
   },
   {
-    key: "page2IdNumber",
-    label: "תעודת זהות עמוד 2",
-    page: 2,
-    x: 120,
-    y: 785,
-    type: "digits",
-    sample: "316576578",
-    fontSize: 12,
+    key: "otherHasIncome",
+    label: "יש הכנסות אחרות",
+    sectionKey: "otherIncome",
+    page: 1,
+    x: 330,
+    y: 850,
+    width: 18,
+    height: 18,
+    type: "check",
+    sample: "✓",
+    fontSize: 18,
+    align: "center",
+  },
+
+  {
+    key: "spouseId",
+    label: "בן/בת זוג - ת.ז",
+    sectionKey: "spouse",
+    page: 1,
+    x: 670,
+    y: 1035,
     width: 95,
-    height: 16,
-    digitGap: 9,
+    height: 24,
+    type: "digits",
+    sample: "",
+    fontSize: 14,
+    digitGap: 10,
     maxDigits: 9,
     align: "left",
   },
   {
-    key: "creditResident",
-    label: "ח. תושב ישראל",
-    page: 2,
-    x: 548,
-    y: 752,
-    type: "check",
-    sample: "✓",
-    fontSize: 13,
-    width: 13,
-    height: 13,
+    key: "spouseLastName",
+    label: "בן/בת זוג - משפחה",
+    sectionKey: "spouse",
+    page: 1,
+    x: 520,
+    y: 1035,
+    width: 120,
+    height: 24,
+    type: "text",
+    sample: "",
+    fontSize: 14,
     align: "center",
   },
   {
-    key: "creditDisabled100",
-    label: "ח. נכה 100%",
+    key: "spouseFirstName",
+    label: "בן/בת זוג - פרטי",
+    sectionKey: "spouse",
+    page: 1,
+    x: 385,
+    y: 1035,
+    width: 110,
+    height: 24,
+    type: "text",
+    sample: "",
+    fontSize: 14,
+    align: "center",
+  },
+
+  {
+    key: "creditResident",
+    label: "תושב/ת ישראל",
+    sectionKey: "credits",
     page: 2,
-    x: 548,
-    y: 715,
+    x: 742,
+    y: 75,
+    width: 18,
+    height: 18,
     type: "check",
     sample: "✓",
-    fontSize: 13,
-    width: 13,
-    height: 13,
+    fontSize: 18,
+    align: "center",
+  },
+  {
+    key: "creditDisabled",
+    label: "נכה / עיוור",
+    sectionKey: "credits",
+    page: 2,
+    x: 742,
+    y: 112,
+    width: 18,
+    height: 18,
+    type: "check",
+    sample: "✓",
+    fontSize: 18,
     align: "center",
   },
   {
     key: "creditSettlement",
-    label: "ח. ישוב מזכה",
+    label: "ישוב מזכה",
+    sectionKey: "credits",
     page: 2,
-    x: 548,
-    y: 668,
+    x: 742,
+    y: 168,
+    width: 18,
+    height: 18,
     type: "check",
     sample: "✓",
-    fontSize: 13,
-    width: 13,
-    height: 13,
+    fontSize: 18,
     align: "center",
   },
   {
     key: "creditNewImmigrant",
-    label: "ח. עולה חדש",
+    label: "עולה חדש / חוזר",
+    sectionKey: "credits",
     page: 2,
-    x: 548,
-    y: 626,
+    x: 742,
+    y: 230,
+    width: 18,
+    height: 18,
     type: "check",
     sample: "✓",
-    fontSize: 13,
-    width: 13,
-    height: 13,
-    align: "center",
-  },
-  {
-    key: "creditSpouseNoIncome",
-    label: "ח. בן זוג ללא הכנסה",
-    page: 2,
-    x: 548,
-    y: 582,
-    type: "check",
-    sample: "✓",
-    fontSize: 13,
-    width: 13,
-    height: 13,
+    fontSize: 18,
     align: "center",
   },
   {
     key: "creditSingleParent",
-    label: "ח. חד הורית",
+    label: "הורה במשפחה חד הורית",
+    sectionKey: "credits",
     page: 2,
-    x: 548,
-    y: 542,
+    x: 742,
+    y: 340,
+    width: 18,
+    height: 18,
     type: "check",
     sample: "✓",
-    fontSize: 13,
-    width: 13,
-    height: 13,
+    fontSize: 18,
     align: "center",
   },
   {
-    key: "creditChildrenCustody",
-    label: "ח. ילדים בחזקתי",
+    key: "creditChildren",
+    label: "ילדים בחזקתי",
+    sectionKey: "credits",
     page: 2,
-    x: 548,
-    y: 500,
+    x: 742,
+    y: 420,
+    width: 18,
+    height: 18,
     type: "check",
     sample: "✓",
-    fontSize: 13,
-    width: 13,
-    height: 13,
-    align: "center",
-  },
-  {
-    key: "creditSpecialChild",
-    label: "ח. ילד נטול יכולת",
-    page: 2,
-    x: 548,
-    y: 424,
-    type: "check",
-    sample: "✓",
-    fontSize: 13,
-    width: 13,
-    height: 13,
-    align: "center",
-  },
-  {
-    key: "creditAlimony",
-    label: "ח. מזונות",
-    page: 2,
-    x: 548,
-    y: 371,
-    type: "check",
-    sample: "✓",
-    fontSize: 13,
-    width: 13,
-    height: 13,
+    fontSize: 18,
     align: "center",
   },
   {
     key: "creditSoldier",
-    label: "ח. חייל משוחרר",
+    label: "חייל/ת משוחרר/ת",
+    sectionKey: "credits",
     page: 2,
-    x: 548,
-    y: 288,
+    x: 742,
+    y: 725,
+    width: 18,
+    height: 18,
     type: "check",
     sample: "✓",
-    fontSize: 13,
-    width: 13,
-    height: 13,
+    fontSize: 18,
     align: "center",
   },
   {
     key: "creditAcademic",
-    label: "ח. אקדמי",
+    label: "תואר / לימודי מקצוע",
+    sectionKey: "credits",
     page: 2,
-    x: 548,
-    y: 248,
+    x: 742,
+    y: 770,
+    width: 18,
+    height: 18,
     type: "check",
     sample: "✓",
-    fontSize: 13,
-    width: 13,
-    height: 13,
+    fontSize: 18,
     align: "center",
   },
+
   {
-    key: "taxNoIncomeThisYear",
-    label: "ט. לא הייתה הכנסה",
+    key: "taxNoIncome",
+    label: "לא הייתה הכנסה",
+    sectionKey: "taxCoordination",
     page: 2,
-    x: 548,
-    y: 143,
+    x: 742,
+    y: 860,
+    width: 18,
+    height: 18,
     type: "check",
     sample: "✓",
-    fontSize: 13,
-    width: 13,
-    height: 13,
+    fontSize: 18,
     align: "center",
   },
   {
     key: "taxHasOtherIncome",
-    label: "ט. יש הכנסות נוספות",
+    label: "יש הכנסות נוספות",
+    sectionKey: "taxCoordination",
     page: 2,
-    x: 548,
-    y: 105,
+    x: 742,
+    y: 925,
+    width: 18,
+    height: 18,
     type: "check",
     sample: "✓",
-    fontSize: 13,
-    width: 13,
-    height: 13,
+    fontSize: 18,
     align: "center",
   },
+
   {
     key: "signatureDate",
     label: "תאריך חתימה",
+    sectionKey: "declaration",
     page: 2,
-    x: 395,
-    y: 42,
-    type: "dateDigits",
+    x: 260,
+    y: 1036,
+    width: 115,
+    height: 28,
+    type: "digits",
     sample: "21062026",
-    fontSize: 12,
-    width: 80,
-    height: 16,
-    digitGap: 8,
+    fontSize: 16,
+    digitGap: 13,
     maxDigits: 8,
     align: "left",
+    required: true,
   },
   {
     key: "signature",
     label: "חתימה",
+    sectionKey: "declaration",
     page: 2,
-    x: 190,
-    y: 30,
+    x: 80,
+    y: 1028,
+    width: 140,
+    height: 42,
     type: "signature",
     sample: "חתימה",
-    fontSize: 12,
-    width: 135,
-    height: 34,
+    fontSize: 17,
     align: "center",
+    required: true,
   },
 ];
 
@@ -790,31 +932,40 @@ function getSavedFields() {
     if (!saved) return INITIAL_FIELDS;
 
     const parsed = JSON.parse(saved);
-
-    if (!Array.isArray(parsed)) return INITIAL_FIELDS;
-
-    return parsed;
+    return Array.isArray(parsed) ? parsed : INITIAL_FIELDS;
   } catch {
     return INITIAL_FIELDS;
   }
+}
+
+function getInitialOpenSections() {
+  const result: Record<string, boolean> = {};
+
+  for (const section of SECTIONS) {
+    result[section.key] = !section.collapsedByDefault;
+  }
+
+  return result;
 }
 
 function onlyDigits(value: unknown) {
   return String(value || "").replace(/\D/g, "");
 }
 
-function renderFieldPreview(
-  field: FieldItem,
-  zoom: number,
-  showPreviewValues: boolean
-) {
+function getFieldAlignClass(align?: TextAlign) {
+  if (align === "left") return "text-left";
+  if (align === "center") return "text-center";
+  return "text-right";
+}
+
+function renderFieldValue(field: FieldItem, showPreviewValues: boolean) {
   if (!showPreviewValues) return null;
 
   if (field.type === "check") {
     return (
       <span
         className="flex h-full w-full items-center justify-center font-black leading-none text-blue-700"
-        style={{ fontSize: field.fontSize * zoom }}
+        style={{ fontSize: field.fontSize }}
       >
         ✓
       </span>
@@ -825,22 +976,21 @@ function renderFieldPreview(
     return (
       <span
         className="flex h-full w-full items-center justify-center italic text-blue-800"
-        style={{ fontSize: field.fontSize * zoom }}
+        style={{ fontSize: field.fontSize }}
       >
         {field.sample || "חתימה"}
       </span>
     );
   }
 
-  if (field.type === "digits" || field.type === "dateDigits") {
+  if (field.type === "digits") {
     const digits = onlyDigits(field.sample);
     const sliced = field.maxDigits ? digits.slice(0, field.maxDigits) : digits;
-    const chars = sliced.split("");
 
     return (
       <span
         dir="ltr"
-        className="flex h-full w-full items-center overflow-visible text-blue-900"
+        className="flex h-full w-full items-center text-blue-900"
         style={{
           justifyContent:
             field.align === "center"
@@ -848,17 +998,17 @@ function renderFieldPreview(
               : field.align === "right"
               ? "flex-end"
               : "flex-start",
-          fontSize: field.fontSize * zoom,
-          lineHeight: `${field.height * zoom}px`,
+          fontSize: field.fontSize,
+          lineHeight: `${field.height}px`,
         }}
       >
-        {chars.map((char, index) => (
+        {sliced.split("").map((digit, index) => (
           <span
             key={`${field.key}-${index}`}
-            className="inline-block text-center font-medium"
-            style={{ width: (field.digitGap || 8) * zoom }}
+            className="inline-block text-center font-semibold"
+            style={{ width: field.digitGap || 10 }}
           >
-            {char}
+            {digit}
           </span>
         ))}
       </span>
@@ -867,11 +1017,12 @@ function renderFieldPreview(
 
   return (
     <span
-      className="block h-full w-full overflow-visible whitespace-nowrap text-blue-900"
+      className={`block h-full w-full overflow-hidden whitespace-nowrap text-blue-900 ${getFieldAlignClass(
+        field.align
+      )}`}
       style={{
-        fontSize: field.fontSize * zoom,
-        lineHeight: `${field.height * zoom}px`,
-        textAlign: field.align || "right",
+        fontSize: field.fontSize,
+        lineHeight: `${field.height}px`,
       }}
     >
       {field.sample}
@@ -882,40 +1033,288 @@ function renderFieldPreview(
 function fieldToMap(field: FieldItem) {
   return {
     page: field.page,
+    sectionKey: field.sectionKey,
     x: field.x,
     y: field.y,
-    type: field.type,
-    fontSize: field.fontSize,
     width: field.width,
     height: field.height,
+    type: field.type,
+    fontSize: field.fontSize,
     digitGap: field.digitGap || null,
     maxDigits: field.maxDigits || null,
     align: field.align || "right",
+    required: Boolean(field.required),
   };
 }
 
-export default function Form101MapperPage() {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const dragStateRef = useRef<DragState>(null);
+function TemplatePageBackground({ page }: { page: FormPage }) {
+  if (page === 1) {
+    return (
+      <div className="absolute inset-0 bg-white text-black">
+        <div className="absolute right-8 top-8 text-sm font-black">0101/130</div>
+        <div className="absolute left-1/2 top-8 -translate-x-1/2 text-xs">
+          דף 1 מתוך 2
+        </div>
 
-  const [pdfDoc, setPdfDoc] = useState<any>(null);
-  const [page, setPage] = useState<1 | 2>(1);
-  const [pageSize, setPageSize] = useState<PageSize>({
-    width: 595,
-    height: 842,
-  });
-  const [zoom, setZoom] = useState(1.4);
+        <div className="absolute left-1/2 top-44 -translate-x-1/2 text-center">
+          <div className="text-[34px] font-black leading-none">כרטיס עובד</div>
+          <div className="mt-2 text-[13px] font-bold">
+            ובקשה להקלה ולתיאום מס על ידי המעביד
+          </div>
+          <div className="mt-3 text-[18px] font-black tracking-[12px]">
+            שנת המס
+          </div>
+        </div>
+
+        <div className="absolute left-8 right-8 top-[190px] rounded border border-black p-3 text-center text-[12px] leading-5">
+          טופס זה ימולא על-ידי כל עובד עם תחילת עבודתו וכן בתחילת כל שנת מס.
+          אם חל שינוי בפרטים יש להצהיר על כך תוך שבוע ימים.
+        </div>
+
+        <div className="absolute left-8 right-8 top-[285px]">
+          <div className="mb-1 text-right text-[15px] font-black">
+            א. פרטי המעביד
+          </div>
+          <div className="grid grid-cols-[1.5fr_1.2fr_1fr_1fr] border border-black text-center text-[12px]">
+            <div className="border-l border-black p-2">שם</div>
+            <div className="border-l border-black p-2">כתובת</div>
+            <div className="border-l border-black p-2">מספר טלפון</div>
+            <div className="p-2">מספר תיק ניכויים</div>
+          </div>
+        </div>
+
+        <div className="absolute left-8 right-8 top-[365px]">
+          <div className="mb-1 text-right text-[15px] font-black">
+            ב. פרטי העובד/ת
+          </div>
+          <div className="grid grid-cols-[1.1fr_1fr_1fr_1fr_1fr] border border-black text-center text-[12px]">
+            <div className="border-l border-black p-2">מספר זהות</div>
+            <div className="border-l border-black p-2">שם משפחה</div>
+            <div className="border-l border-black p-2">שם פרטי</div>
+            <div className="border-l border-black p-2">תאריך לידה</div>
+            <div className="p-2">תאריך עליה</div>
+          </div>
+
+          <div className="grid grid-cols-[1.5fr_.5fr_1fr_1fr] border-x border-b border-black text-center text-[12px]">
+            <div className="border-l border-black p-2">רחוב/שכונה</div>
+            <div className="border-l border-black p-2">מספר</div>
+            <div className="border-l border-black p-2">עיר/ישוב</div>
+            <div className="p-2">מיקוד</div>
+          </div>
+
+          <div className="grid grid-cols-[1fr_1fr_2fr] border-x border-b border-black text-center text-[12px]">
+            <div className="border-l border-black p-2">מספר טלפון</div>
+            <div className="border-l border-black p-2">מספר טלפון נייד</div>
+            <div className="p-2">כתובת דואר אלקטרוני</div>
+          </div>
+
+          <div className="grid grid-cols-5 border-x border-b border-black text-[12px]">
+            <div className="border-l border-black p-3">
+              <b>מין</b>
+              <br />
+              ☐ זכר
+              <br />
+              ☐ נקבה
+            </div>
+            <div className="border-l border-black p-3">
+              <b>מצב משפחתי</b>
+              <br />
+              ☐ רווק/ה ☐ נשוי/אה
+              <br />
+              ☐ גרוש/ה ☐ אלמן/ה
+            </div>
+            <div className="border-l border-black p-3">
+              <b>תושב ישראל</b>
+              <br />
+              ☐ כן
+              <br />
+              ☐ לא
+            </div>
+            <div className="border-l border-black p-3">
+              <b>קיבוץ / מושב</b>
+              <br />
+              ☐ כן
+              <br />
+              ☐ לא
+            </div>
+            <div className="p-3">
+              <b>קופת חולים</b>
+              <br />
+              ☐ לא
+              <br />
+              ☐ כן, שם הקופה ______
+            </div>
+          </div>
+        </div>
+
+        <div className="absolute left-8 right-8 top-[560px] grid grid-cols-[1.1fr_1fr] gap-4">
+          <div>
+            <div className="mb-1 text-right text-[15px] font-black">
+              ד. פרטים על הכנסותיי ממעביד זה
+            </div>
+            <div className="h-[170px] border border-black p-3 text-[12px] leading-6">
+              ☐ משכורת חודש
+              <br />
+              ☐ משכורת בעד משרה נוספת
+              <br />
+              ☐ משכורת חלקית
+              <br />
+              ☐ שכר עבודה
+              <br />
+              ☐ קצבה
+              <br />
+              ☐ מלגה
+              <div className="mt-2 border-t border-black pt-2">
+                תאריך תחילת העבודה בשנת המס: __ / __ / ____
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div className="mb-1 text-right text-[15px] font-black">
+              ג. פרטים על ילדיי
+            </div>
+            <div className="h-[280px] border border-black">
+              <div className="grid grid-cols-[.4fr_.4fr_1.2fr_1.2fr_1fr] border-b border-black text-center text-[11px]">
+                <div className="border-l border-black p-2">1</div>
+                <div className="border-l border-black p-2">2</div>
+                <div className="border-l border-black p-2">שם</div>
+                <div className="border-l border-black p-2">מספר זהות</div>
+                <div className="p-2">תאריך לידה</div>
+              </div>
+              {Array.from({ length: 9 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="h-[25px] border-b border-black/50"
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="absolute bottom-28 left-8 right-[420px]">
+          <div className="mb-1 text-right text-[15px] font-black">
+            ה. פרטים על הכנסות אחרות
+          </div>
+          <div className="h-[210px] border border-black p-3 text-[12px] leading-6">
+            ☐ אין לי הכנסות אחרות לרבות מלגות
+            <br />
+            ☐ יש לי הכנסות אחרות כמפורט להלן
+            <br />
+            ☐ משכורת חודש ☐ משרה נוספת ☐ שכר עבודה
+            <br />
+            ☐ קצבה ☐ מלגה ☐ מקור אחר
+          </div>
+        </div>
+
+        <div className="absolute bottom-6 left-8 right-8">
+          <div className="mb-1 text-right text-[15px] font-black">
+            ו. פרטים על בן/בת הזוג
+          </div>
+          <div className="grid grid-cols-5 border border-black text-center text-[12px]">
+            <div className="border-l border-black p-2">מספר זהות</div>
+            <div className="border-l border-black p-2">שם משפחה</div>
+            <div className="border-l border-black p-2">שם פרטי</div>
+            <div className="border-l border-black p-2">תאריך לידה</div>
+            <div className="p-2">תאריך עליה</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="absolute inset-0 bg-white text-black">
+      <div className="absolute right-8 top-8 text-sm font-black">101</div>
+      <div className="absolute right-20 top-8 text-xs">דף 2 מתוך 2</div>
+
+      <div className="absolute left-8 right-8 top-10">
+        <div className="border-b border-black pb-2 text-right text-[15px] font-black">
+          ח. אני מבקש/ת פטור או זיכוי ממס מהסיבות הבאות
+        </div>
+
+        <div className="mt-2 space-y-0 border border-black text-[12px] leading-6">
+          {[
+            "אני תושב/ת ישראל.",
+            "אני נכה 100% / עיוור/ת לצמיתות.",
+            "אני תושב/ת קבוע/ה בישוב מזכה.",
+            "אני עולה חדש/ה / תושב/ת חוזר/ת.",
+            "בגין בן/בת זוגי המתגורר/ת עימי ואין לו/לה הכנסות.",
+            "אני הורה במשפחה חד הורית.",
+            "בגין ילדיי שבחזקתי.",
+            "בגין ילדיי הפעוטים.",
+            "אני הורה יחיד לילדיי שבחזקתי.",
+            "בגין ילדיי שאינם בחזקתי ואני משתתף/ת בכלכלתם.",
+            "אני הורה לילד נטול יכולת.",
+            "בגין מזונות לבן/בת זוגי לשעבר.",
+            "מלאו לי או לבן/בת זוגי 16 שנים וטרם מלאו 18.",
+            "אני חייל/ת משוחרר/ת / שרתתי בשירות לאומי.",
+            "בגין סיום לימודים לתואר אקדמי / מקצוע.",
+          ].map((row, index) => (
+            <div key={row} className="border-b border-black px-3 py-1">
+              ☐ {index + 1}. {row}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="absolute left-8 right-8 top-[755px]">
+        <div className="mb-1 text-right text-[15px] font-black">
+          ט. אני מבקש/ת תיאום מס מהסיבות הבאות
+        </div>
+
+        <div className="border border-black p-3 text-[12px] leading-6">
+          ☐ לא היתה לי הכנסה מתחילת שנת המס הנוכחית עד לתחילת עבודתי אצל
+          מעביד זה.
+          <br />
+          ☐ יש לי הכנסות נוספות ממשכורת כמפורט להלן:
+          <div className="mt-3 grid grid-cols-5 border border-black text-center">
+            <div className="border-l border-black p-2">שם</div>
+            <div className="border-l border-black p-2">כתובת</div>
+            <div className="border-l border-black p-2">מספר תיק ניכויים</div>
+            <div className="border-l border-black p-2">הכנסה חודשית</div>
+            <div className="p-2">המס שנוכה</div>
+          </div>
+          <div className="h-[76px] border-x border-b border-black" />
+        </div>
+      </div>
+
+      <div className="absolute bottom-40 left-8 right-8">
+        <div className="mb-1 text-right text-[15px] font-black">
+          י. הצהרה
+        </div>
+        <div className="border border-black p-4 text-[13px] leading-6">
+          אני מצהיר/ה כי הפרטים שמסרתי בטופס זה הינם מלאים ונכונים. ידוע לי
+          שהשמטה או מסירת פרטים לא נכונים הינה עבירה על פקודת מס הכנסה. אני
+          מתחייב/ת להודיע למעביד על כל שינוי שיחול בפרטיי האישיים ובפרטים
+          דלעיל תוך שבוע ימים מתאריך השינוי.
+          <div className="mt-6 grid grid-cols-2 gap-12">
+            <div className="border-t border-black pt-2 text-center">תאריך</div>
+            <div className="border-t border-black pt-2 text-center">
+              חתימת המבקש/ת
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function Form101TemplateBuilderPage() {
+  const dragRef = useRef<DragState>(null);
   const [fields, setFields] = useState<FieldItem[]>(getSavedFields);
+  const [page, setPage] = useState<FormPage>(1);
+  const [selectedSectionKey, setSelectedSectionKey] = useState("taxYear");
   const [selectedKey, setSelectedKey] = useState("taxYear");
-  const [loadingPdf, setLoadingPdf] = useState(true);
   const [showAllFields, setShowAllFields] = useState(false);
-  const [showLabel, setShowLabel] = useState(true);
-  const [showPreviewValues, setShowPreviewValues] = useState(false);
-  const [error, setError] = useState("");
+  const [showPreviewValues, setShowPreviewValues] = useState(true);
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(
+    getInitialOpenSections
+  );
 
-  const pageFields = useMemo(
-    () => fields.filter((field) => field.page === page),
-    [fields, page]
+  const pageSections = useMemo(
+    () => SECTIONS.filter((section) => section.page === page),
+    [page]
   );
 
   const selectedField = useMemo(
@@ -923,98 +1322,24 @@ export default function Form101MapperPage() {
     [fields, selectedKey]
   );
 
+  const selectedSection = useMemo(
+    () =>
+      SECTIONS.find((section) => section.key === selectedSectionKey) ||
+      SECTIONS[0],
+    [selectedSectionKey]
+  );
+
+  const currentSectionFields = useMemo(() => {
+    return fields.filter(
+      (field) =>
+        field.page === page &&
+        (showAllFields || field.sectionKey === selectedSectionKey)
+    );
+  }, [fields, page, selectedSectionKey, showAllFields]);
+
   const visibleFields = useMemo(() => {
-    if (showAllFields) return pageFields;
-    return pageFields.filter((field) => field.key === selectedKey);
-  }, [pageFields, selectedKey, showAllFields]);
-
-  useEffect(() => {
-    let mounted = true;
-
-    async function loadPdf() {
-      try {
-        setLoadingPdf(true);
-        setError("");
-
-        const pdfjs = await import("pdfjs-dist");
-
-        (pdfjs as any).GlobalWorkerOptions.workerSrc = PDF_WORKER_URL;
-
-        const loaded = await (pdfjs as any).getDocument({
-          url: PDF_URL,
-          isEvalSupported: false,
-        }).promise;
-
-        if (mounted) {
-          setPdfDoc(loaded);
-        }
-      } catch (loadError) {
-        console.error("LOAD FORM 101 PDF FAILED:", loadError);
-
-        if (mounted) {
-          setError(
-            "לא הצלחתי לטעון את ה־PDF. ודאי שקיים public/forms/tofes-101.pdf וגם public/pdf.worker.min.mjs"
-          );
-        }
-      } finally {
-        if (mounted) {
-          setLoadingPdf(false);
-        }
-      }
-    }
-
-    void loadPdf();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function renderPdfPage() {
-      if (!pdfDoc || !canvasRef.current) return;
-
-      const pdfPage = await pdfDoc.getPage(page);
-      const viewport = pdfPage.getViewport({ scale: zoom });
-
-      const canvas = canvasRef.current;
-      const context = canvas.getContext("2d");
-
-      if (!context) return;
-
-      const outputScale =
-        typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
-
-      canvas.width = Math.floor(viewport.width * outputScale);
-      canvas.height = Math.floor(viewport.height * outputScale);
-
-      canvas.style.width = `${viewport.width}px`;
-      canvas.style.height = `${viewport.height}px`;
-
-      context.setTransform(outputScale, 0, 0, outputScale, 0, 0);
-      context.clearRect(0, 0, viewport.width, viewport.height);
-
-      setPageSize({
-        width: viewport.width / zoom,
-        height: viewport.height / zoom,
-      });
-
-      await pdfPage.render({
-        canvasContext: context,
-        viewport,
-      }).promise;
-
-      if (cancelled) return;
-    }
-
-    void renderPdfPage();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [pdfDoc, page, zoom]);
+    return currentSectionFields;
+  }, [currentSectionFields]);
 
   function updateField(key: string, patch: Partial<FieldItem>) {
     setFields((prev) =>
@@ -1026,49 +1351,42 @@ export default function Form101MapperPage() {
     event: React.PointerEvent<HTMLButtonElement>,
     field: FieldItem
   ) {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    const pageEl = document.getElementById("form101-template-page");
 
-    const rect = canvas.getBoundingClientRect();
+    if (!pageEl) return;
 
-    const pointerX = event.clientX - rect.left;
-    const pointerBottom = rect.bottom - event.clientY;
+    const rect = pageEl.getBoundingClientRect();
 
-    const fieldLeft = field.x * zoom;
-    const fieldBottom = field.y * zoom;
-
-    dragStateRef.current = {
+    dragRef.current = {
       key: field.key,
-      offsetX: pointerX - fieldLeft,
-      offsetY: pointerBottom - fieldBottom,
+      offsetX: event.clientX - rect.left - field.x,
+      offsetY: event.clientY - rect.top - field.y,
     };
 
     setSelectedKey(field.key);
+    setSelectedSectionKey(field.sectionKey);
     event.currentTarget.setPointerCapture(event.pointerId);
   }
 
   function moveDrag(event: React.PointerEvent<HTMLDivElement>) {
-    const dragState = dragStateRef.current;
-    const canvas = canvasRef.current;
+    const drag = dragRef.current;
+    const pageEl = document.getElementById("form101-template-page");
 
-    if (!dragState || !canvas) return;
+    if (!drag || !pageEl) return;
 
-    const rect = canvas.getBoundingClientRect();
+    const rect = pageEl.getBoundingClientRect();
 
-    const pointerX = event.clientX - rect.left;
-    const pointerBottom = rect.bottom - event.clientY;
+    const x = event.clientX - rect.left - drag.offsetX;
+    const y = event.clientY - rect.top - drag.offsetY;
 
-    const x = (pointerX - dragState.offsetX) / zoom;
-    const y = (pointerBottom - dragState.offsetY) / zoom;
-
-    updateField(dragState.key, {
-      x: Math.round(Math.max(0, Math.min(pageSize.width, x))),
-      y: Math.round(Math.max(0, Math.min(pageSize.height, y))),
+    updateField(drag.key, {
+      x: Math.round(Math.max(0, Math.min(PAGE_WIDTH, x))),
+      y: Math.round(Math.max(0, Math.min(PAGE_HEIGHT, y))),
     });
   }
 
   function stopDrag() {
-    dragStateRef.current = null;
+    dragRef.current = null;
   }
 
   function nudge(dx: number, dy: number) {
@@ -1082,7 +1400,16 @@ export default function Form101MapperPage() {
 
   function saveFields() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(fields, null, 2));
-    alert("נשמר בדפדפן");
+    alert("התבנית נשמרה בדפדפן");
+  }
+
+  function resetFields() {
+    if (!confirm("לאפס את כל השדות?")) return;
+
+    localStorage.removeItem(STORAGE_KEY);
+    setFields(INITIAL_FIELDS);
+    setSelectedKey("taxYear");
+    setSelectedSectionKey("taxYear");
   }
 
   async function copyTsConst() {
@@ -1098,44 +1425,34 @@ export default function Form101MapperPage() {
     alert("הועתק TS CONST");
   }
 
-  function reset() {
-    if (!confirm("לאפס את כל המיקומים?")) return;
-
-    localStorage.removeItem(STORAGE_KEY);
-    setFields(INITIAL_FIELDS);
-    setSelectedKey("taxYear");
-    setShowAllFields(false);
-    setShowPreviewValues(false);
-  }
-
-  function addCustomField() {
+  function addField() {
     const count = fields.length + 1;
     const key = `customField${count}`;
 
     const field: FieldItem = {
       key,
       label: `שדה חדש ${count}`,
+      sectionKey: selectedSectionKey,
       page,
-      x: 250,
-      y: 500,
+      x: 120,
+      y: 120,
+      width: 140,
+      height: 28,
       type: "text",
       sample: "",
-      fontSize: 12,
-      width: 120,
-      height: 18,
+      fontSize: 14,
       align: "right",
     };
 
     setFields((prev) => [...prev, field]);
     setSelectedKey(key);
-    setShowAllFields(false);
   }
 
   function removeSelectedField() {
     if (!selectedField) return;
 
     if (!selectedField.key.startsWith("customField")) {
-      alert("אפשר למחוק רק שדות חדשים שהוספת ידנית");
+      alert("אפשר למחוק רק שדות שהוספת ידנית");
       return;
     }
 
@@ -1156,14 +1473,14 @@ export default function Form101MapperPage() {
           return;
         }
 
-        if (event.key === "ArrowUp") nudge(0, 1);
-        if (event.key === "ArrowDown") nudge(0, -1);
+        if (event.key === "ArrowUp") nudge(0, -1);
+        if (event.key === "ArrowDown") nudge(0, 1);
         if (event.key === "ArrowRight") nudge(1, 0);
         if (event.key === "ArrowLeft") nudge(-1, 0);
       }}
       className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-sky-50 text-slate-900"
     >
-      <div className="mx-auto w-full max-w-[1800px] space-y-5 p-4 md:p-6">
+      <div className="mx-auto max-w-[1800px] space-y-5 p-5">
         <section className="rounded-[32px] border border-white/80 bg-white/95 p-5 shadow-[0_18px_60px_rgba(79,70,229,0.10)]">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
             <div>
@@ -1172,19 +1489,23 @@ export default function Form101MapperPage() {
               </div>
 
               <h1 className="mt-4 text-3xl font-black md:text-4xl">
-                מיפוי שדות על PDF
+                טופס 101 HTML חלק ונקי
               </h1>
 
               <p className="mt-2 max-w-4xl text-sm font-semibold leading-7 text-slate-500">
-                בחרי שדה מהרשימה, גררי אותו למקום המדויק. כדי לבדוק איך זה
-                יוצא בפועל, לחצי “הצג ערכי דוגמה”.
+                זה לא PDF סרוק ולא Canvas. זה טופס HTML נקי כמו ההסכמים. בחרי
+                סעיף לפי סדר הטופס, גררי שדות, מלאי ערכי בדיקה, ובמספרים שלטי
+                במרווח ספרות כדי שכל ספרה תיכנס בקובייה.
               </p>
             </div>
 
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={() => setPage(1)}
+                onClick={() => {
+                  setPage(1);
+                  setSelectedSectionKey("taxYear");
+                }}
                 className={`h-11 rounded-2xl px-5 text-sm font-black ${
                   page === 1
                     ? "bg-slate-900 text-white"
@@ -1196,7 +1517,10 @@ export default function Form101MapperPage() {
 
               <button
                 type="button"
-                onClick={() => setPage(2)}
+                onClick={() => {
+                  setPage(2);
+                  setSelectedSectionKey("credits");
+                }}
                 className={`h-11 rounded-2xl px-5 text-sm font-black ${
                   page === 2
                     ? "bg-slate-900 text-white"
@@ -1208,30 +1532,10 @@ export default function Form101MapperPage() {
 
               <button
                 type="button"
-                onClick={() => setZoom((prev) => Math.max(0.8, prev - 0.1))}
-                className="h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700"
-              >
-                -
-              </button>
-
-              <div className="flex h-11 items-center rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700">
-                זום {Math.round(zoom * 100)}%
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setZoom((prev) => Math.min(2.8, prev + 0.1))}
-                className="h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700"
-              >
-                +
-              </button>
-
-              <button
-                type="button"
                 onClick={() => setShowAllFields((prev) => !prev)}
                 className="h-11 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-700"
               >
-                {showAllFields ? "הצג רק שדה נבחר" : "הצג כל השדות"}
+                {showAllFields ? "הצג רק סעיף נבחר" : "הצג כל השדות בעמוד"}
               </button>
 
               <button
@@ -1239,12 +1543,12 @@ export default function Form101MapperPage() {
                 onClick={() => setShowPreviewValues((prev) => !prev)}
                 className="h-11 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-700"
               >
-                {showPreviewValues ? "הסתר ערכי דוגמה" : "הצג ערכי דוגמה"}
+                {showPreviewValues ? "הסתר ערכי בדיקה" : "הצג ערכי בדיקה"}
               </button>
 
               <button
                 type="button"
-                onClick={addCustomField}
+                onClick={addField}
                 className="h-11 rounded-2xl bg-sky-600 px-5 text-sm font-black text-white"
               >
                 הוספת שדה
@@ -1268,7 +1572,7 @@ export default function Form101MapperPage() {
 
               <button
                 type="button"
-                onClick={reset}
+                onClick={resetFields}
                 className="h-11 rounded-2xl bg-rose-50 px-5 text-sm font-black text-rose-700"
               >
                 איפוס
@@ -1277,326 +1581,363 @@ export default function Form101MapperPage() {
           </div>
         </section>
 
-        <section className="grid gap-5 xl:grid-cols-[1fr_420px]">
-          <div className="overflow-auto rounded-[32px] border border-white/80 bg-white p-4 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
-            {loadingPdf ? (
-              <div className="flex h-[650px] items-center justify-center">
-                <div className="text-center">
-                  <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-indigo-100 border-t-indigo-500" />
-                  <p className="mt-4 text-sm font-black text-slate-600">
-                    טוען PDF...
-                  </p>
-                </div>
-              </div>
-            ) : error ? (
-              <div className="rounded-3xl border border-rose-200 bg-rose-50 p-8 text-center">
-                <h2 className="text-xl font-black text-rose-700">
-                  שגיאה בטעינת PDF
-                </h2>
-                <p className="mt-3 text-sm font-bold text-rose-600">{error}</p>
-              </div>
-            ) : (
-              <div
-                className="relative mx-auto w-fit touch-none select-none"
-                onPointerMove={moveDrag}
-                onPointerUp={stopDrag}
-                onPointerCancel={stopDrag}
-                onPointerLeave={stopDrag}
-              >
-                <canvas
-                  ref={canvasRef}
-                  className="block border border-slate-200 bg-white shadow-xl"
-                />
+        <section className="grid gap-5 xl:grid-cols-[330px_1fr_390px]">
+          <aside className="rounded-[30px] border border-white/80 bg-white p-4 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
+            <h2 className="text-xl font-black">סעיפי הטופס</h2>
 
-                {visibleFields.map((field) => {
-                  const selected = field.key === selectedKey;
+            <div className="mt-4 space-y-2">
+              {pageSections.map((section) => {
+                const isSelected = selectedSectionKey === section.key;
+                const sectionFields = fields.filter(
+                  (field) =>
+                    field.page === page && field.sectionKey === section.key
+                );
 
-                  return (
+                return (
+                  <div key={section.key} className="rounded-2xl border">
                     <button
-                      key={field.key}
                       type="button"
-                      onPointerDown={(event) => startDrag(event, field)}
-                      onClick={() => setSelectedKey(field.key)}
-                      className={`absolute z-10 cursor-grab bg-transparent p-0 text-right active:cursor-grabbing ${
-                        selected ? "ring-2 ring-fuchsia-500" : ""
-                      }`}
-                      style={{
-                        left: field.x * zoom,
-                        bottom: field.y * zoom,
-                        width: field.width * zoom,
-                        height: field.height * zoom,
-                      }}
-                    >
-                      <span
-                        className={`relative block h-full w-full border ${
-                          selected
-                            ? "border-fuchsia-500 bg-fuchsia-500/10"
-                            : "border-blue-500 bg-blue-500/10"
-                        }`}
-                      >
-                        {renderFieldPreview(field, zoom, showPreviewValues)}
+                      onClick={() => {
+                        setSelectedSectionKey(section.key);
+                        setOpenSections((prev) => ({
+                          ...prev,
+                          [section.key]: !prev[section.key],
+                        }));
 
-                        <span className="absolute -top-6 right-0 rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-black text-white">
-                          {field.label}
-                        </span>
+                        const first = sectionFields[0];
+
+                        if (first) {
+                          setSelectedKey(first.key);
+                        }
+                      }}
+                      className={`flex w-full items-center justify-between rounded-2xl px-4 py-3 text-right text-sm font-black ${
+                        isSelected
+                          ? "bg-indigo-50 text-indigo-700"
+                          : "bg-white text-slate-700"
+                      }`}
+                    >
+                      <span>{section.title}</span>
+                      <span className="text-xs text-slate-400">
+                        {section.optional ? "אופציונלי" : "חובה"}
                       </span>
                     </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
 
-          <aside className="space-y-4">
-            <div className="rounded-[30px] border border-white/80 bg-white p-5 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
-              <h2 className="text-xl font-black">עריכת שדה</h2>
-
-              {selectedField && (
-                <div className="mt-4 space-y-3">
-                  <div className="rounded-2xl bg-indigo-50 p-4">
-                    <p className="text-sm font-black text-indigo-700">
-                      {selectedField.label}
-                    </p>
-                    <p className="mt-1 text-xs font-bold text-indigo-400">
-                      {selectedField.key}
-                    </p>
+                    {openSections[section.key] && (
+                      <div className="space-y-1 border-t border-slate-100 p-2">
+                        {sectionFields.map((field) => (
+                          <button
+                            key={field.key}
+                            type="button"
+                            onClick={() => {
+                              setSelectedSectionKey(section.key);
+                              setSelectedKey(field.key);
+                            }}
+                            className={`w-full rounded-xl px-3 py-2 text-right text-xs font-bold ${
+                              selectedKey === field.key
+                                ? "bg-violet-50 text-violet-700"
+                                : "hover:bg-slate-50"
+                            }`}
+                          >
+                            {field.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <label className="text-xs font-black text-slate-500">
-                      X
-                      <input
-                        type="number"
-                        value={selectedField.x}
-                        onChange={(event) =>
-                          updateField(selectedField.key, {
-                            x: Number(event.target.value),
-                          })
-                        }
-                        className="mt-1 h-10 w-full rounded-xl border border-slate-200 px-3 text-sm font-bold"
-                      />
-                    </label>
-
-                    <label className="text-xs font-black text-slate-500">
-                      Y
-                      <input
-                        type="number"
-                        value={selectedField.y}
-                        onChange={(event) =>
-                          updateField(selectedField.key, {
-                            y: Number(event.target.value),
-                          })
-                        }
-                        className="mt-1 h-10 w-full rounded-xl border border-slate-200 px-3 text-sm font-bold"
-                      />
-                    </label>
-
-                    <label className="text-xs font-black text-slate-500">
-                      רוחב
-                      <input
-                        type="number"
-                        value={selectedField.width}
-                        onChange={(event) =>
-                          updateField(selectedField.key, {
-                            width: Number(event.target.value),
-                          })
-                        }
-                        className="mt-1 h-10 w-full rounded-xl border border-slate-200 px-3 text-sm font-bold"
-                      />
-                    </label>
-
-                    <label className="text-xs font-black text-slate-500">
-                      גובה
-                      <input
-                        type="number"
-                        value={selectedField.height}
-                        onChange={(event) =>
-                          updateField(selectedField.key, {
-                            height: Number(event.target.value),
-                          })
-                        }
-                        className="mt-1 h-10 w-full rounded-xl border border-slate-200 px-3 text-sm font-bold"
-                      />
-                    </label>
-
-                    <label className="text-xs font-black text-slate-500">
-                      גודל פונט
-                      <input
-                        type="number"
-                        value={selectedField.fontSize}
-                        onChange={(event) =>
-                          updateField(selectedField.key, {
-                            fontSize: Number(event.target.value),
-                          })
-                        }
-                        className="mt-1 h-10 w-full rounded-xl border border-slate-200 px-3 text-sm font-bold"
-                      />
-                    </label>
-
-                    <label className="text-xs font-black text-slate-500">
-                      סוג שדה
-                      <select
-                        value={selectedField.type}
-                        onChange={(event) =>
-                          updateField(selectedField.key, {
-                            type: event.target.value as FieldType,
-                          })
-                        }
-                        className="mt-1 h-10 w-full rounded-xl border border-slate-200 px-3 text-sm font-bold"
-                      >
-                        <option value="text">טקסט</option>
-                        <option value="digits">ספרות</option>
-                        <option value="dateDigits">תאריך ספרות</option>
-                        <option value="check">וי</option>
-                        <option value="signature">חתימה</option>
-                      </select>
-                    </label>
-
-                    <label className="text-xs font-black text-slate-500">
-                      מרווח ספרות
-                      <input
-                        type="number"
-                        value={selectedField.digitGap || 0}
-                        disabled={
-                          selectedField.type !== "digits" &&
-                          selectedField.type !== "dateDigits"
-                        }
-                        onChange={(event) =>
-                          updateField(selectedField.key, {
-                            digitGap: Number(event.target.value),
-                          })
-                        }
-                        className="mt-1 h-10 w-full rounded-xl border border-slate-200 px-3 text-sm font-bold disabled:bg-slate-100 disabled:text-slate-300"
-                      />
-                    </label>
-
-                    <label className="text-xs font-black text-slate-500">
-                      מקס׳ ספרות
-                      <input
-                        type="number"
-                        value={selectedField.maxDigits || 0}
-                        disabled={
-                          selectedField.type !== "digits" &&
-                          selectedField.type !== "dateDigits"
-                        }
-                        onChange={(event) =>
-                          updateField(selectedField.key, {
-                            maxDigits: Number(event.target.value) || undefined,
-                          })
-                        }
-                        className="mt-1 h-10 w-full rounded-xl border border-slate-200 px-3 text-sm font-bold disabled:bg-slate-100 disabled:text-slate-300"
-                      />
-                    </label>
-
-                    <label className="text-xs font-black text-slate-500">
-                      יישור
-                      <select
-                        value={selectedField.align || "right"}
-                        onChange={(event) =>
-                          updateField(selectedField.key, {
-                            align: event.target.value as TextAlign,
-                          })
-                        }
-                        className="mt-1 h-10 w-full rounded-xl border border-slate-200 px-3 text-sm font-bold"
-                      >
-                        <option value="right">ימין</option>
-                        <option value="center">מרכז</option>
-                        <option value="left">שמאל</option>
-                      </select>
-                    </label>
-                  </div>
-
-                  <label className="block text-xs font-black text-slate-500">
-                    ערך בדיקה
-                    <input
-                      value={selectedField.sample}
-                      onChange={(event) =>
-                        updateField(selectedField.key, {
-                          sample: event.target.value,
-                        })
-                      }
-                      className="mt-1 h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-bold"
-                    />
-                  </label>
-
-                  <div className="grid grid-cols-4 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => nudge(0, 1)}
-                      className="rounded-xl bg-slate-100 py-2 text-sm font-black"
-                    >
-                      ↑
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => nudge(0, -1)}
-                      className="rounded-xl bg-slate-100 py-2 text-sm font-black"
-                    >
-                      ↓
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => nudge(-1, 0)}
-                      className="rounded-xl bg-slate-100 py-2 text-sm font-black"
-                    >
-                      ←
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => nudge(1, 0)}
-                      className="rounded-xl bg-slate-100 py-2 text-sm font-black"
-                    >
-                      →
-                    </button>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={removeSelectedField}
-                    className="w-full rounded-2xl bg-rose-50 py-3 text-sm font-black text-rose-700"
-                  >
-                    מחיקת שדה חדש
-                  </button>
-                </div>
-              )}
+                );
+              })}
             </div>
+          </aside>
 
-            <div className="rounded-[30px] border border-white/80 bg-white p-5 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
-              <h2 className="text-xl font-black">שדות בעמוד {page}</h2>
+          <section className="overflow-auto rounded-[30px] border border-white/80 bg-white p-5 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
+            <div
+              id="form101-template-page"
+              className="relative mx-auto overflow-hidden bg-white shadow-2xl ring-1 ring-slate-200"
+              style={{ width: PAGE_WIDTH, height: PAGE_HEIGHT }}
+              onPointerMove={moveDrag}
+              onPointerUp={stopDrag}
+              onPointerCancel={stopDrag}
+              onPointerLeave={stopDrag}
+            >
+              <TemplatePageBackground page={page} />
 
-              <div className="mt-4 max-h-[620px] space-y-2 overflow-auto pr-1">
-                {pageFields.map((field) => (
+              {visibleFields.map((field) => {
+                const selected = selectedKey === field.key;
+
+                return (
                   <button
                     key={field.key}
                     type="button"
+                    onPointerDown={(event) => startDrag(event, field)}
                     onClick={() => {
                       setSelectedKey(field.key);
-                      setShowAllFields(false);
+                      setSelectedSectionKey(field.sectionKey);
                     }}
-                    className={`w-full rounded-2xl border p-3 text-right transition ${
-                      selectedKey === field.key
-                        ? "border-indigo-300 bg-indigo-50"
-                        : "border-slate-200 bg-white hover:bg-slate-50"
+                    className={`absolute z-20 cursor-grab bg-transparent p-0 active:cursor-grabbing ${
+                      selected ? "ring-2 ring-fuchsia-500" : ""
                     }`}
+                    style={{
+                      left: field.x,
+                      top: field.y,
+                      width: field.width,
+                      height: field.height,
+                    }}
                   >
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-black text-slate-800">
-                          {field.label}
-                        </p>
-                        <p className="mt-1 text-xs font-bold text-slate-400">
-                          x:{field.x} y:{field.y}
-                        </p>
-                      </div>
+                    <span
+                      className={`relative block h-full w-full border ${
+                        selected
+                          ? "border-fuchsia-500 bg-fuchsia-500/10"
+                          : "border-blue-500 bg-blue-500/10"
+                      }`}
+                    >
+                      {renderFieldValue(field, showPreviewValues)}
 
-                      <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-500">
-                        {field.type}
+                      <span className="absolute -top-6 right-0 whitespace-nowrap rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-black text-white">
+                        {field.label}
                       </span>
-                    </div>
+                    </span>
                   </button>
-                ))}
-              </div>
+                );
+              })}
             </div>
+          </section>
+
+          <aside className="rounded-[30px] border border-white/80 bg-white p-5 shadow-[0_12px_40px_rgba(15,23,42,0.06)]">
+            <h2 className="text-xl font-black">עריכת שדה</h2>
+
+            {selectedField ? (
+              <div className="mt-4 space-y-3">
+                <div className="rounded-2xl bg-indigo-50 p-4">
+                  <p className="text-sm font-black text-indigo-700">
+                    {selectedField.label}
+                  </p>
+                  <p className="mt-1 text-xs font-bold text-indigo-400">
+                    {selectedField.key}
+                  </p>
+                  <p className="mt-1 text-xs font-bold text-slate-400">
+                    {selectedSection?.title}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="text-xs font-black text-slate-500">
+                    X
+                    <input
+                      type="number"
+                      value={selectedField.x}
+                      onChange={(event) =>
+                        updateField(selectedField.key, {
+                          x: Number(event.target.value),
+                        })
+                      }
+                      className="mt-1 h-10 w-full rounded-xl border border-slate-200 px-3 text-sm font-bold"
+                    />
+                  </label>
+
+                  <label className="text-xs font-black text-slate-500">
+                    Y
+                    <input
+                      type="number"
+                      value={selectedField.y}
+                      onChange={(event) =>
+                        updateField(selectedField.key, {
+                          y: Number(event.target.value),
+                        })
+                      }
+                      className="mt-1 h-10 w-full rounded-xl border border-slate-200 px-3 text-sm font-bold"
+                    />
+                  </label>
+
+                  <label className="text-xs font-black text-slate-500">
+                    רוחב
+                    <input
+                      type="number"
+                      value={selectedField.width}
+                      onChange={(event) =>
+                        updateField(selectedField.key, {
+                          width: Number(event.target.value),
+                        })
+                      }
+                      className="mt-1 h-10 w-full rounded-xl border border-slate-200 px-3 text-sm font-bold"
+                    />
+                  </label>
+
+                  <label className="text-xs font-black text-slate-500">
+                    גובה
+                    <input
+                      type="number"
+                      value={selectedField.height}
+                      onChange={(event) =>
+                        updateField(selectedField.key, {
+                          height: Number(event.target.value),
+                        })
+                      }
+                      className="mt-1 h-10 w-full rounded-xl border border-slate-200 px-3 text-sm font-bold"
+                    />
+                  </label>
+
+                  <label className="text-xs font-black text-slate-500">
+                    גודל פונט
+                    <input
+                      type="number"
+                      value={selectedField.fontSize}
+                      onChange={(event) =>
+                        updateField(selectedField.key, {
+                          fontSize: Number(event.target.value),
+                        })
+                      }
+                      className="mt-1 h-10 w-full rounded-xl border border-slate-200 px-3 text-sm font-bold"
+                    />
+                  </label>
+
+                  <label className="text-xs font-black text-slate-500">
+                    סוג שדה
+                    <select
+                      value={selectedField.type}
+                      onChange={(event) =>
+                        updateField(selectedField.key, {
+                          type: event.target.value as FieldType,
+                        })
+                      }
+                      className="mt-1 h-10 w-full rounded-xl border border-slate-200 px-3 text-sm font-bold"
+                    >
+                      <option value="text">טקסט</option>
+                      <option value="digits">ספרות</option>
+                      <option value="check">וי</option>
+                      <option value="signature">חתימה</option>
+                    </select>
+                  </label>
+
+                  <label className="text-xs font-black text-slate-500">
+                    מרווח ספרות
+                    <input
+                      type="number"
+                      value={selectedField.digitGap || 0}
+                      disabled={selectedField.type !== "digits"}
+                      onChange={(event) =>
+                        updateField(selectedField.key, {
+                          digitGap: Number(event.target.value),
+                        })
+                      }
+                      className="mt-1 h-10 w-full rounded-xl border border-slate-200 px-3 text-sm font-bold disabled:bg-slate-100 disabled:text-slate-300"
+                    />
+                  </label>
+
+                  <label className="text-xs font-black text-slate-500">
+                    מקס׳ ספרות
+                    <input
+                      type="number"
+                      value={selectedField.maxDigits || 0}
+                      disabled={selectedField.type !== "digits"}
+                      onChange={(event) =>
+                        updateField(selectedField.key, {
+                          maxDigits: Number(event.target.value) || undefined,
+                        })
+                      }
+                      className="mt-1 h-10 w-full rounded-xl border border-slate-200 px-3 text-sm font-bold disabled:bg-slate-100 disabled:text-slate-300"
+                    />
+                  </label>
+
+                  <label className="text-xs font-black text-slate-500">
+                    יישור
+                    <select
+                      value={selectedField.align || "right"}
+                      onChange={(event) =>
+                        updateField(selectedField.key, {
+                          align: event.target.value as TextAlign,
+                        })
+                      }
+                      className="mt-1 h-10 w-full rounded-xl border border-slate-200 px-3 text-sm font-bold"
+                    >
+                      <option value="right">ימין</option>
+                      <option value="center">מרכז</option>
+                      <option value="left">שמאל</option>
+                    </select>
+                  </label>
+
+                  <label className="text-xs font-black text-slate-500">
+                    חובה
+                    <select
+                      value={selectedField.required ? "yes" : "no"}
+                      onChange={(event) =>
+                        updateField(selectedField.key, {
+                          required: event.target.value === "yes",
+                        })
+                      }
+                      className="mt-1 h-10 w-full rounded-xl border border-slate-200 px-3 text-sm font-bold"
+                    >
+                      <option value="yes">כן</option>
+                      <option value="no">לא</option>
+                    </select>
+                  </label>
+                </div>
+
+                <label className="block text-xs font-black text-slate-500">
+                  ערך בדיקה
+                  <input
+                    value={selectedField.sample}
+                    onChange={(event) =>
+                      updateField(selectedField.key, {
+                        sample: event.target.value,
+                      })
+                    }
+                    className="mt-1 h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-bold"
+                  />
+                </label>
+
+                <label className="block text-xs font-black text-slate-500">
+                  שם שדה
+                  <input
+                    value={selectedField.label}
+                    onChange={(event) =>
+                      updateField(selectedField.key, {
+                        label: event.target.value,
+                      })
+                    }
+                    className="mt-1 h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-bold"
+                  />
+                </label>
+
+                <div className="grid grid-cols-4 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => nudge(0, -1)}
+                    className="rounded-xl bg-slate-100 py-2 text-sm font-black"
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => nudge(0, 1)}
+                    className="rounded-xl bg-slate-100 py-2 text-sm font-black"
+                  >
+                    ↓
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => nudge(-1, 0)}
+                    className="rounded-xl bg-slate-100 py-2 text-sm font-black"
+                  >
+                    ←
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => nudge(1, 0)}
+                    className="rounded-xl bg-slate-100 py-2 text-sm font-black"
+                  >
+                    →
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={removeSelectedField}
+                  className="w-full rounded-2xl bg-rose-50 py-3 text-sm font-black text-rose-700"
+                >
+                  מחיקת שדה חדש
+                </button>
+              </div>
+            ) : null}
           </aside>
         </section>
       </div>
