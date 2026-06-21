@@ -1661,7 +1661,7 @@ export default function EmployeeDocumentsModal({
                     </p>
 
                     <a
-                      href={form101OnlineUrl}
+                      href="/employee/form101"
                       target="_blank"
                       rel="noreferrer"
                       className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-sky-600 px-5 text-sm font-black text-white transition hover:bg-sky-700"
