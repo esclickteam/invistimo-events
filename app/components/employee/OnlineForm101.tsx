@@ -111,10 +111,10 @@ type Form101Data = {
 const initialForm101Data: Form101Data = {
   taxYear: new Date().getFullYear().toString(),
 
-  employerName: "",
-  employerAddress: "",
-  employerPhone: "",
-  employerFileNumber: "",
+  employerName: "בן עשת",
+  employerAddress: "העצמאות 41 קרית אתא",
+  employerPhone: "0526850711",
+  employerFileNumber: "905790028",
 
   idNumber: "",
   firstName: "",
