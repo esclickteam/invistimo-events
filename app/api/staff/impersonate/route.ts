@@ -39,6 +39,47 @@ function includesId(values: unknown, id: string) {
   return normalizeIds(values).includes(normalizedId);
 }
 
+function isSystemGeneralStaff(params: {
+  authRole: string;
+  authStaffType: string;
+  authEmployeeScope: string;
+  staffRole: string;
+  staffType: string;
+  employeeScope: string;
+  effectiveRole: string;
+  isSystemStaff?: boolean;
+}) {
+  return (
+    params.effectiveRole === "system_staff" ||
+    (params.authRole === "staff" &&
+      params.authStaffType === "general_staff" &&
+      params.authEmployeeScope === "system") ||
+    (params.staffRole === "staff" &&
+      params.staffType === "general_staff" &&
+      params.employeeScope === "system") ||
+    params.isSystemStaff === true
+  );
+}
+
+function isLimitedSystemStaff(params: {
+  authRole: string;
+  authStaffType: string;
+  authEmployeeScope: string;
+  staffRole: string;
+  staffType: string;
+  employeeScope: string;
+  wantedStaffType: "seating_staff" | "usher_staff";
+}) {
+  return (
+    (params.authRole === "staff" &&
+      params.authStaffType === params.wantedStaffType &&
+      params.authEmployeeScope === "system") ||
+    (params.staffRole === "staff" &&
+      params.staffType === params.wantedStaffType &&
+      params.employeeScope === "system")
+  );
+}
+
 export async function POST(request: NextRequest) {
   try {
     await dbConnect();
@@ -81,32 +122,46 @@ export async function POST(request: NextRequest) {
     const employeeScope = String((staffUser as any).employeeScope || "");
     const effectiveRole = String((staffUser as any).effectiveRole || "");
 
-    const isAdmin =
-      authRole === "admin" ||
-      staffRole === "admin";
+    const isAdmin = authRole === "admin" || staffRole === "admin";
 
-    const isGeneralSystemStaff =
-      effectiveRole === "system_staff" ||
-      (authRole === "staff" &&
-        authStaffType === "general_staff" &&
-        authEmployeeScope === "system") ||
-      (staffRole === "staff" &&
-        staffType === "general_staff" &&
-        employeeScope === "system") ||
-      (staffUser as any).isSystemStaff === true;
+    const isGeneralSystemStaff = isSystemGeneralStaff({
+      authRole,
+      authStaffType,
+      authEmployeeScope,
+      staffRole,
+      staffType,
+      employeeScope,
+      effectiveRole,
+      isSystemStaff: (staffUser as any).isSystemStaff === true,
+    });
 
-    const isSeatingStaff =
-      (authRole === "staff" &&
-        authStaffType === "seating_staff" &&
-        authEmployeeScope === "system") ||
-      (staffRole === "staff" &&
-        staffType === "seating_staff" &&
-        employeeScope === "system");
+    const isSeatingStaff = isLimitedSystemStaff({
+      authRole,
+      authStaffType,
+      authEmployeeScope,
+      staffRole,
+      staffType,
+      employeeScope,
+      wantedStaffType: "seating_staff",
+    });
+
+    const isUsherStaff = isLimitedSystemStaff({
+      authRole,
+      authStaffType,
+      authEmployeeScope,
+      staffRole,
+      staffType,
+      employeeScope,
+      wantedStaffType: "usher_staff",
+    });
+
+    const isLimitedStaff = isSeatingStaff || isUsherStaff;
 
     const isAllowedStaff =
       isAdmin ||
       isGeneralSystemStaff ||
-      isSeatingStaff;
+      isSeatingStaff ||
+      isUsherStaff;
 
     if (!isAllowedStaff) {
       return NextResponse.json(
@@ -144,26 +199,33 @@ export async function POST(request: NextRequest) {
     }
 
     /*
-      עובד הושבה:
+      עובד הושבה / דייל:
       מותר לו להיכנס רק ללקוחות שהוקצו אליו.
 
       תומך בשני כיוונים:
       1. אצל העובד: assignedClientIds כולל את הלקוח
       2. אצל הלקוח: assignedStaffIds כולל את העובד
     */
-    if (isSeatingStaff && !isAdmin) {
+    if (isLimitedStaff && !isAdmin) {
       const staffAssignedClientIds = (staffUser as any).assignedClientIds || [];
       const targetAssignedStaffIds = (targetUser as any).assignedStaffIds || [];
 
       const staffHasClient = includesId(staffAssignedClientIds, targetUserId);
-      const clientHasStaff = includesId(targetAssignedStaffIds, String(auth.userId));
+      const clientHasStaff = includesId(
+        targetAssignedStaffIds,
+        String(auth.userId)
+      );
 
       if (!staffHasClient && !clientHasStaff) {
         return NextResponse.json(
           {
             success: false,
-            error: "SEATING_STAFF_CLIENT_NOT_ASSIGNED",
-            message: "אין לעובד ההושבה הרשאה להיכנס ללקוח הזה",
+            error: isUsherStaff
+              ? "USHER_STAFF_CLIENT_NOT_ASSIGNED"
+              : "SEATING_STAFF_CLIENT_NOT_ASSIGNED",
+            message: isUsherStaff
+              ? "אין לדייל הרשאה להיכנס ללקוח הזה"
+              : "אין לעובד ההושבה הרשאה להיכנס ללקוח הזה",
           },
           { status: 403 }
         );
@@ -179,6 +241,9 @@ export async function POST(request: NextRequest) {
         .join(" ")
         .trim();
 
+    const originalStaffType = staffType || authStaffType || "";
+    const originalEmployeeScope = employeeScope || authEmployeeScope || "";
+
     const impersonationToken = jwt.sign(
       {
         userId: String((targetUser as any)._id),
@@ -190,8 +255,8 @@ export async function POST(request: NextRequest) {
         impersonationRole: auth.role,
 
         // מידע על העובד המקורי
-        impersonationStaffType: staffType || authStaffType || null,
-        impersonationEmployeeScope: employeeScope || authEmployeeScope || null,
+        impersonationStaffType: originalStaffType || null,
+        impersonationEmployeeScope: originalEmployeeScope || null,
       },
       process.env.JWT_SECRET,
       {
@@ -236,7 +301,15 @@ export async function POST(request: NextRequest) {
       maxAge: 60 * 60 * 2,
     });
 
-    response.cookies.set("staffOriginalType", staffType || authStaffType || "", {
+    response.cookies.set("staffOriginalType", originalStaffType, {
+      httpOnly: false,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 2,
+    });
+
+    response.cookies.set("staffOriginalScope", originalEmployeeScope, {
       httpOnly: false,
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",

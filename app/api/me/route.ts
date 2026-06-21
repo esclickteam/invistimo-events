@@ -916,10 +916,15 @@ export async function GET() {
       impersonationRole === "producer_staff" ||
       impersonationRole === "staff_producer";
 
+    const isUsherStaff =
+      safeRole === "staff" &&
+      staffType === "usher_staff" &&
+      employeeScope === "system";
+
     const isSystemStaff =
       safeRole === "staff" &&
-      staffType === "general_staff" &&
-      employeeScope === "system";
+      employeeScope === "system" &&
+      (staffType === "general_staff" || staffType === "usher_staff");
 
     const isProducerLike = isProducer || isProducerStaff;
 
@@ -1021,6 +1026,7 @@ export async function GET() {
           isProducerLike,
           isProducerStaff,
           isSystemStaff,
+          isUsherStaff,
 
           isActive: currentUser.isActive === true,
           hasPaid: currentUser.hasPaid === true,

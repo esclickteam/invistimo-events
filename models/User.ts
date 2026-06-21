@@ -17,7 +17,12 @@ export interface IUser extends Document {
 
   role: "user" | "client" | "producer" | "staff" | "admin" | "venue_owner";
 
-staffType?: "producer_staff" | "general_staff" | "seating_staff" | null;
+staffType?:
+  | "producer_staff"
+  | "general_staff"
+  | "seating_staff"
+  | "usher_staff"
+  | null;
 
 employeeScope?: "system" | "producer" | "venue" | "client" | null;
 
@@ -264,7 +269,7 @@ const UserSchema = new Schema<IUser>(
 
     staffType: {
       type: String,
-      enum: ["producer_staff", "general_staff", "seating_staff"],
+      enum: ["producer_staff", "general_staff", "seating_staff", "usher_staff"],
       default: null,
       index: true,
     },
@@ -1306,6 +1311,19 @@ if (
   בקבצי ה-API של לקוחות/התחזות/דשבורד עובד.
 */
 if (doc.role === "staff" && doc.staffType === "seating_staff") {
+  doc.employeeScope = "system";
+}
+
+/*
+  דייל / דיילת אירוע:
+  role = staff
+  staffType = usher_staff
+  employeeScope = system
+
+  חשוב:
+  זה נפרד מ-general_staff כדי שלא יקבל הרשאות של עובד כללי.
+*/
+if (doc.role === "staff" && doc.staffType === "usher_staff") {
   doc.employeeScope = "system";
 }
 

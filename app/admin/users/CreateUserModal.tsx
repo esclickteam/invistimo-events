@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 type UserRole = "user" | "producer" | "staff" | "venue_owner";
-type StaffCreateType = "system" | "seating" | "producer";
+type StaffCreateType = "system" | "seating" | "usher" | "producer";
 type PaymentStatus = "paid" | "stripe";
 type PlanKey = "plan1" | "plan2" | "plan3";
 type AddonKey = "calls" | "credit" | "seating" | "system" | "design";
@@ -443,7 +443,55 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
                   hasPaid: true,
                   isActive: true,
                 }
-              : {
+              : staffCreateType === "usher"
+                ? {
+                    name,
+                    email,
+                    role: "staff",
+
+                    // דייל / דיילת פנימי של Invistimo
+                    staffType: "usher_staff",
+                    employeeScope: "system",
+
+                    createdByAdmin: true,
+                    billingSource: "admin",
+
+                    producerId: null,
+                    createdByProducer: null,
+                    assignedProducerId: null,
+                    assignedStaffIds: [],
+                    assignedClientIds: [],
+
+                    plan: "basic",
+                    priceKey: "usher_staff_manual",
+                    packageName: "דייל",
+
+                    guests: 0,
+                    maxGuests: 0,
+                    smsLimit: 0,
+                    maxMessages: 0,
+                    allowedMessageRounds: 2,
+
+                    limits: {
+                      records: 0,
+                      allowedMessageRounds: 2,
+                    },
+
+                    billing: {
+                      price: 0,
+                      paymentStatus: "paid",
+                    },
+
+                    includeCalls: false,
+                    includeCreditGifts: false,
+                    includeDigitalSeating: false,
+                    includeEventManagement: false,
+                    includeCustomDesign: false,
+
+                    hasPaid: true,
+                    isActive: true,
+                  }
+                : {
                   name,
                   email,
                   role: "staff",
@@ -837,7 +885,7 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
       </h3>
 
       <p className="text-xs text-[#8b7b68] mt-1">
-        בחרי האם זה עובד מערכת, עובד הושבה או עובד ששייך למפיק.
+        בחרי האם זה עובד מערכת, עובד הושבה, דייל או עובד ששייך למפיק.
       </p>
     </div>
 
@@ -850,6 +898,7 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
     >
       <option value="system">עובד מערכת Invistimo</option>
       <option value="seating">עובד הושבה</option>
+      <option value="usher">דייל</option>
       <option value="producer">עובד של מפיק</option>
     </select>
 
@@ -878,7 +927,9 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
         ? "העובד ייווצר כעובד כללי של Invistimo."
         : staffCreateType === "seating"
           ? "העובד ייווצר כעובד הושבה פנימי של Invistimo. הוא יקבל גישה כמו עובד מערכת, ובהמשך יראה רק לקוחות שיוקצו אליו."
-          : "העובד ייווצר כעובד של מפיק ויחובר למפיק שבחרת."}
+          : staffCreateType === "usher"
+            ? "העובד ייווצר כדייל פנימי של Invistimo. לידים והוראות עבודה לא יוצגו לו."
+            : "העובד ייווצר כעובד של מפיק ויחובר למפיק שבחרת."}
     </div>
   </section>
 )}

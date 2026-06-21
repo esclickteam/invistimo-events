@@ -105,10 +105,17 @@ function isProducerUser(user: any) {
 }
 
 function isStaffUser(user: any) {
+  const staffType = String(user?.staffType || "").trim();
+
   return (
     user?.role === "staff" ||
     user?.role === "employee" ||
-    Boolean(user?.staffType) ||
+    [
+      "general_staff",
+      "producer_staff",
+      "seating_staff",
+      "usher_staff",
+    ].includes(staffType) ||
     Boolean(user?.employeeScope)
   );
 }
@@ -139,7 +146,9 @@ export async function GET(req: Request) {
         impersonatedBy: auth?.impersonatedBy,
         impersonationRole: auth?.impersonationRole,
         hasAuthToken: Boolean(getCookieFromReq(req, "authToken")),
-        hasImpersonationToken: Boolean(getCookieFromReq(req, "impersonationToken")),
+        hasImpersonationToken: Boolean(
+          getCookieFromReq(req, "impersonationToken")
+        ),
         staffOriginalUserId: getCookieFromReq(req, "staffOriginalUserId"),
       });
 
@@ -166,6 +175,16 @@ export async function GET(req: Request) {
             { producerAccess: true },
             { isProducer: true },
             { userType: "producer" },
+            {
+              staffType: {
+                $in: [
+                  "general_staff",
+                  "producer_staff",
+                  "seating_staff",
+                  "usher_staff",
+                ],
+              },
+            },
             { staffType: { $exists: true, $ne: "" } },
             { employeeScope: { $exists: true, $ne: "" } },
           ],
