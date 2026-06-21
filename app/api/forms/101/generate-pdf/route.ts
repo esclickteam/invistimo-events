@@ -22,6 +22,7 @@ type IncomeTypePayload = {
   dailyWage?: boolean;
   allowance?: boolean;
   pension?: boolean;
+  scholarship?: boolean;
 };
 
 type OtherIncomePayload = {
@@ -100,67 +101,1107 @@ type Form101Payload = {
   signatureDate?: string;
   signatureText?: string;
   signatureDataUrl?: string;
+
+  [key: string]: any;
 };
 
+type FieldType = "text" | "digits" | "check" | "signature";
+type TextAlign = "right" | "left" | "center";
 
-type FixedFieldSetting = {
+type FieldMapItem = {
+  page: 1 | 2;
+  section: string;
+  order: number;
+  enabled: boolean;
   isFixed?: boolean;
   fixedValue?: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  type: FieldType;
+  fontSize: number;
+  digitGap: number | null;
+  maxDigits: number | null;
+  align: TextAlign;
 };
 
-/**
- * שדות קבועים מודפסים לכל העובדים, בלי קשר למה שנשלח מהטופס בפרונט.
- * שדות שלא מופיעים כאן / isFixed=false נלקחים מהמידע שהעובד מילא.
- * אם בהמשך את מעתיקה מהמסך של המיפוי TS CONST עם isFixed/fixedValue,
- * אפשר לעדכן כאן את הערכים הקבועים לפי אותו מיפוי.
- */
-const FORM101_FIXED_FIELDS: Record<string, FixedFieldSetting> = {
-  employerName: {
-    isFixed: true,
-    fixedValue: "בן עשת",
-  },
-  employerAddress: {
-    isFixed: true,
-    fixedValue: "העצמאות 41 קרית אתא",
-  },
-  employerPhone: {
-    isFixed: true,
-    fixedValue: "0526850711",
-  },
-  employerFileNumber: {
-    isFixed: true,
-    fixedValue: "905790028",
-  },
-};
+const MAPPER_PAGE_WIDTH = 900;
+const MAPPER_PAGE_HEIGHT = 1280;
 
-function resolveFixedField(
-  key: keyof Form101Payload,
-  submittedValue: unknown
-) {
-  const setting = FORM101_FIXED_FIELDS[String(key)];
-
-  if (setting?.isFixed) {
-    return setting.fixedValue ?? "";
+const FORM101_FIELD_MAP = {
+  "taxYear": {
+    "page": 1,
+    "section": "year",
+    "order": 1,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "2026",
+    "x": 323,
+    "y": 111,
+    "width": 120,
+    "height": 30,
+    "type": "digits",
+    "fontSize": 20,
+    "digitGap": 21,
+    "maxDigits": 4,
+    "align": "center"
+  },
+  "employerName": {
+    "page": 1,
+    "section": "employer",
+    "order": 2,
+    "enabled": true,
+    "isFixed": true,
+    "fixedValue": "בן עשת",
+    "x": 603,
+    "y": 221,
+    "width": 150,
+    "height": 24,
+    "type": "text",
+    "fontSize": 16,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "employerAddress": {
+    "page": 1,
+    "section": "employer",
+    "order": 3,
+    "enabled": true,
+    "isFixed": true,
+    "fixedValue": "העצמאות 41 קרית אתא",
+    "x": 401,
+    "y": 223,
+    "width": 175,
+    "height": 24,
+    "type": "text",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "right"
+  },
+  "employerPhone": {
+    "page": 1,
+    "section": "employer",
+    "order": 4,
+    "enabled": true,
+    "isFixed": true,
+    "fixedValue": "0526850711",
+    "x": 224,
+    "y": 224,
+    "width": 98,
+    "height": 24,
+    "type": "digits",
+    "fontSize": 15,
+    "digitGap": 21,
+    "maxDigits": 10,
+    "align": "left"
+  },
+  "employerFileNumber": {
+    "page": 1,
+    "section": "employer",
+    "order": 5,
+    "enabled": true,
+    "isFixed": true,
+    "fixedValue": "05790028",
+    "x": 98,
+    "y": 226,
+    "width": 124,
+    "height": 24,
+    "type": "digits",
+    "fontSize": 15,
+    "digitGap": 21,
+    "maxDigits": 9,
+    "align": "right"
+  },
+  "idNumber": {
+    "page": 1,
+    "section": "employee",
+    "order": 6,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 631,
+    "y": 283,
+    "width": 136,
+    "height": 24,
+    "type": "digits",
+    "fontSize": 15,
+    "digitGap": 21,
+    "maxDigits": 9,
+    "align": "center"
+  },
+  "lastName": {
+    "page": 1,
+    "section": "employee",
+    "order": 7,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 504,
+    "y": 283,
+    "width": 95,
+    "height": 24,
+    "type": "text",
+    "fontSize": 15,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "firstName": {
+    "page": 1,
+    "section": "employee",
+    "order": 8,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 356,
+    "y": 282,
+    "width": 85,
+    "height": 24,
+    "type": "text",
+    "fontSize": 15,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "birthDate": {
+    "page": 1,
+    "section": "employee",
+    "order": 9,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 204,
+    "y": 284,
+    "width": 123,
+    "height": 24,
+    "type": "digits",
+    "fontSize": 15,
+    "digitGap": 21,
+    "maxDigits": 8,
+    "align": "center"
+  },
+  "immigrationDate": {
+    "page": 1,
+    "section": "employee",
+    "order": 10,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 85,
+    "y": 285,
+    "width": 120,
+    "height": 24,
+    "type": "digits",
+    "fontSize": 15,
+    "digitGap": 21,
+    "maxDigits": 8,
+    "align": "center"
+  },
+  "street": {
+    "page": 1,
+    "section": "employee",
+    "order": 11,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 607,
+    "y": 311,
+    "width": 143,
+    "height": 24,
+    "type": "text",
+    "fontSize": 15,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "houseNumber": {
+    "page": 1,
+    "section": "employee",
+    "order": 12,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 558,
+    "y": 311,
+    "width": 52,
+    "height": 24,
+    "type": "digits",
+    "fontSize": 15,
+    "digitGap": 21,
+    "maxDigits": 4,
+    "align": "center"
+  },
+  "city": {
+    "page": 1,
+    "section": "employee",
+    "order": 13,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 465,
+    "y": 311,
+    "width": 100,
+    "height": 24,
+    "type": "text",
+    "fontSize": 15,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "postalCode": {
+    "page": 1,
+    "section": "employee",
+    "order": 14,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 360,
+    "y": 312,
+    "width": 103,
+    "height": 24,
+    "type": "digits",
+    "fontSize": 15,
+    "digitGap": 21,
+    "maxDigits": 7,
+    "align": "left"
+  },
+  "phone": {
+    "page": 1,
+    "section": "employee",
+    "order": 15,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 221,
+    "y": 312,
+    "width": 30,
+    "height": 24,
+    "type": "digits",
+    "fontSize": 15,
+    "digitGap": 21,
+    "maxDigits": 10,
+    "align": "center"
+  },
+  "customField1782075538085": {
+    "page": 1,
+    "section": "employee",
+    "order": 16,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 250,
+    "y": 312,
+    "width": 76,
+    "height": 24,
+    "type": "text",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "mobile": {
+    "page": 1,
+    "section": "employee",
+    "order": 17,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 86,
+    "y": 313,
+    "width": 28,
+    "height": 24,
+    "type": "digits",
+    "fontSize": 15,
+    "digitGap": 21,
+    "maxDigits": 10,
+    "align": "left"
+  },
+  "customField1782075699673": {
+    "page": 1,
+    "section": "employee",
+    "order": 18,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 104,
+    "y": 312,
+    "width": 95,
+    "height": 24,
+    "type": "text",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "email": {
+    "page": 1,
+    "section": "employee",
+    "order": 19,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 426,
+    "y": 522,
+    "width": 230,
+    "height": 24,
+    "type": "text",
+    "fontSize": 15,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "genderMale": {
+    "page": 1,
+    "section": "employee",
+    "order": 19,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 740,
+    "y": 357,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "genderFemale": {
+    "page": 1,
+    "section": "employee",
+    "order": 20,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 740,
+    "y": 374,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "maritalSingle": {
+    "page": 1,
+    "section": "employee",
+    "order": 21,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 674,
+    "y": 355,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "maritalMarried": {
+    "page": 1,
+    "section": "employee",
+    "order": 22,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 590,
+    "y": 355,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "maritalDivorced": {
+    "page": 1,
+    "section": "employee",
+    "order": 23,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 500,
+    "y": 355,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "maritalWidowed": {
+    "page": 1,
+    "section": "employee",
+    "order": 24,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 674,
+    "y": 373,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "customField1782075946735": {
+    "page": 1,
+    "section": "employee",
+    "order": 25,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 601,
+    "y": 371,
+    "width": 29,
+    "height": 24,
+    "type": "check",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "residentYes": {
+    "page": 1,
+    "section": "employee",
+    "order": 26,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 412,
+    "y": 357,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "residentNo": {
+    "page": 1,
+    "section": "employee",
+    "order": 27,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 412,
+    "y": 374,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "kibbutzYes": {
+    "page": 1,
+    "section": "employee",
+    "order": 28,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 306,
+    "y": 356,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "kibbutzNo": {
+    "page": 1,
+    "section": "employee",
+    "order": 29,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 306,
+    "y": 374,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "healthFundYes": {
+    "page": 1,
+    "section": "employee",
+    "order": 30,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 213,
+    "y": 371,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "child1Name": {
+    "page": 1,
+    "section": "children",
+    "order": 30,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 540,
+    "y": 685,
+    "width": 95,
+    "height": 22,
+    "type": "text",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "healthFundName": {
+    "page": 1,
+    "section": "employee",
+    "order": 31,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 78,
+    "y": 371,
+    "width": 85,
+    "height": 24,
+    "type": "text",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "child1Id": {
+    "page": 1,
+    "section": "children",
+    "order": 31,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 405,
+    "y": 685,
+    "width": 110,
+    "height": 22,
+    "type": "digits",
+    "fontSize": 14,
+    "digitGap": 21,
+    "maxDigits": 9,
+    "align": "left"
+  },
+  "child1BirthDate": {
+    "page": 1,
+    "section": "children",
+    "order": 32,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 285,
+    "y": 685,
+    "width": 100,
+    "height": 22,
+    "type": "digits",
+    "fontSize": 14,
+    "digitGap": 21,
+    "maxDigits": 8,
+    "align": "left"
+  },
+  "customField1782076968515": {
+    "page": 1,
+    "section": "employee",
+    "order": 32,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 199,
+    "y": 352,
+    "width": 47,
+    "height": 24,
+    "type": "check",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "right"
+  },
+  "child1Mark1": {
+    "page": 1,
+    "section": "children",
+    "order": 33,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 745,
+    "y": 685,
+    "width": 18,
+    "height": 18,
+    "type": "check",
+    "fontSize": 16,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "child1Mark2": {
+    "page": 1,
+    "section": "children",
+    "order": 34,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 720,
+    "y": 685,
+    "width": 18,
+    "height": 18,
+    "type": "check",
+    "fontSize": 16,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "workStartDate": {
+    "page": 1,
+    "section": "income",
+    "order": 35,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 95,
+    "y": 710,
+    "width": 105,
+    "height": 24,
+    "type": "digits",
+    "fontSize": 15,
+    "digitGap": 21,
+    "maxDigits": 8,
+    "align": "left"
+  },
+  "incomeMonthlySalary": {
+    "page": 1,
+    "section": "income",
+    "order": 36,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 318,
+    "y": 700,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "incomeExtraSalary": {
+    "page": 1,
+    "section": "income",
+    "order": 37,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 318,
+    "y": 730,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "incomePartialSalary": {
+    "page": 1,
+    "section": "income",
+    "order": 38,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 318,
+    "y": 760,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "incomeDailyWage": {
+    "page": 1,
+    "section": "income",
+    "order": 39,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 318,
+    "y": 790,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "incomeAllowance": {
+    "page": 1,
+    "section": "income",
+    "order": 40,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 318,
+    "y": 820,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "incomeScholarship": {
+    "page": 1,
+    "section": "income",
+    "order": 41,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 318,
+    "y": 850,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "otherNoIncome": {
+    "page": 1,
+    "section": "otherIncome",
+    "order": 42,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 335,
+    "y": 940,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "otherHasIncome": {
+    "page": 1,
+    "section": "otherIncome",
+    "order": 43,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 335,
+    "y": 975,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "spouseId": {
+    "page": 1,
+    "section": "spouse",
+    "order": 44,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 650,
+    "y": 1180,
+    "width": 115,
+    "height": 24,
+    "type": "digits",
+    "fontSize": 14,
+    "digitGap": 21,
+    "maxDigits": 9,
+    "align": "left"
+  },
+  "spouseLastName": {
+    "page": 1,
+    "section": "spouse",
+    "order": 45,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 520,
+    "y": 1180,
+    "width": 100,
+    "height": 24,
+    "type": "text",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "spouseFirstName": {
+    "page": 1,
+    "section": "spouse",
+    "order": 46,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 395,
+    "y": 1180,
+    "width": 100,
+    "height": 24,
+    "type": "text",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "page2IdNumber": {
+    "page": 2,
+    "section": "credits",
+    "order": 47,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 128,
+    "y": 45,
+    "width": 120,
+    "height": 24,
+    "type": "digits",
+    "fontSize": 15,
+    "digitGap": 21,
+    "maxDigits": 9,
+    "align": "left"
+  },
+  "creditResident": {
+    "page": 2,
+    "section": "credits",
+    "order": 48,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 742,
+    "y": 100,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "creditDisabled": {
+    "page": 2,
+    "section": "credits",
+    "order": 49,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 742,
+    "y": 145,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "creditSettlement": {
+    "page": 2,
+    "section": "credits",
+    "order": 50,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 742,
+    "y": 210,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "creditNewImmigrant": {
+    "page": 2,
+    "section": "credits",
+    "order": 51,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 742,
+    "y": 285,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "creditSingleParent": {
+    "page": 2,
+    "section": "credits",
+    "order": 52,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 742,
+    "y": 420,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "creditChildrenCustody": {
+    "page": 2,
+    "section": "credits",
+    "order": 53,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 742,
+    "y": 500,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "creditSoldier": {
+    "page": 2,
+    "section": "credits",
+    "order": 54,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 742,
+    "y": 845,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "creditAcademic": {
+    "page": 2,
+    "section": "credits",
+    "order": 55,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 742,
+    "y": 895,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "taxNoIncome": {
+    "page": 2,
+    "section": "taxCoordination",
+    "order": 56,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 742,
+    "y": 970,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "taxHasOtherIncome": {
+    "page": 2,
+    "section": "taxCoordination",
+    "order": 57,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 742,
+    "y": 1040,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "signatureDate": {
+    "page": 2,
+    "section": "declaration",
+    "order": 58,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 260,
+    "y": 1180,
+    "width": 115,
+    "height": 26,
+    "type": "digits",
+    "fontSize": 15,
+    "digitGap": 21,
+    "maxDigits": 8,
+    "align": "left"
+  },
+  "signature": {
+    "page": 2,
+    "section": "declaration",
+    "order": 59,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 80,
+    "y": 1170,
+    "width": 140,
+    "height": 42,
+    "type": "signature",
+    "fontSize": 16,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   }
-
-  return submittedValue;
-}
-
-function applyFixedFields(body: Form101Payload): Form101Payload {
-  return {
-    ...body,
-
-    // פרטי מעסיק — קבועים לכל העובדים
-    employerName: String(resolveFixedField("employerName", body.employerName) || ""),
-    employerAddress: String(
-      resolveFixedField("employerAddress", body.employerAddress) || ""
-    ),
-    employerPhone: String(resolveFixedField("employerPhone", body.employerPhone) || ""),
-    employerFileNumber: String(
-      resolveFixedField("employerFileNumber", body.employerFileNumber) || ""
-    ),
-  };
-}
+} as const;
 
 function clean(value: unknown) {
   return String(value || "").trim();
@@ -185,6 +1226,15 @@ function formatDateIL(value?: string) {
   const yyyy = String(date.getFullYear());
 
   return `${dd}/${mm}/${yyyy}`;
+}
+
+function formatDateDigits(value?: string) {
+  const formatted = formatDateIL(value);
+  const digits = onlyDigits(formatted);
+
+  if (digits) return digits;
+
+  return onlyDigits(value);
 }
 
 function splitId(value?: string) {
@@ -274,68 +1324,6 @@ async function loadHebrewFont(pdfDoc: PDFDocument) {
   return pdfDoc.embedFont(fontBytes, { subset: true });
 }
 
-function drawText(
-  page: any,
-  text: unknown,
-  x: number,
-  y: number,
-  options: {
-    font: any;
-    size?: number;
-    maxWidth?: number;
-  }
-) {
-  const value = clean(text);
-  if (!value) return;
-
-  page.drawText(value, {
-    x,
-    y,
-    size: options.size || 11,
-    font: options.font,
-    color: rgb(0, 0, 0),
-    maxWidth: options.maxWidth,
-  });
-}
-
-function drawCenteredText(
-  page: any,
-  text: unknown,
-  x: number,
-  y: number,
-  width: number,
-  options: {
-    font: any;
-    size?: number;
-  }
-) {
-  const value = clean(text);
-  if (!value) return;
-
-  const size = options.size || 11;
-  const textWidth = options.font.widthOfTextAtSize(value, size);
-
-  page.drawText(value, {
-    x: x + Math.max((width - textWidth) / 2, 0),
-    y,
-    size,
-    font: options.font,
-    color: rgb(0, 0, 0),
-  });
-}
-
-function drawCheck(page: any, checked: boolean, x: number, y: number, font: any) {
-  if (!checked) return;
-
-  page.drawText("✓", {
-    x,
-    y,
-    size: 13,
-    font,
-    color: rgb(0, 0, 0),
-  });
-}
-
 function getCredit(body: Form101Payload, key: string) {
   return body.taxCredits?.[key];
 }
@@ -405,99 +1393,348 @@ function sanitizeFilePart(value: unknown, fallback: string) {
   return cleaned;
 }
 
-function drawTextRight(
+function getMappedRect(page: any, field: FieldMapItem) {
+  const { width: pdfWidth, height: pdfHeight } = page.getSize();
+
+  const scaleX = pdfWidth / MAPPER_PAGE_WIDTH;
+  const scaleY = pdfHeight / MAPPER_PAGE_HEIGHT;
+
+  const x = field.x * scaleX;
+  const width = field.width * scaleX;
+  const height = field.height * scaleY;
+
+  return {
+    x,
+    y: pdfHeight - (field.y + field.height) * scaleY,
+    width,
+    height,
+    scaleX,
+    scaleY,
+    fontSize: Math.max(6, field.fontSize * scaleY),
+  };
+}
+
+function getValueFromBody(body: Form101Payload, fieldKey: string): unknown {
+  const children = Array.isArray(body.children) ? body.children : [];
+
+  switch (fieldKey) {
+    case "taxYear":
+      return body.taxYear;
+
+    case "employerName":
+      return body.employerName;
+    case "employerAddress":
+      return body.employerAddress;
+    case "employerPhone":
+      return body.employerPhone;
+    case "employerFileNumber":
+      return body.employerFileNumber;
+
+    case "idNumber":
+    case "page2IdNumber":
+      return splitId(body.idNumber);
+    case "lastName":
+      return body.lastName;
+    case "firstName":
+      return body.firstName;
+    case "birthDate":
+      return formatDateDigits(body.birthDate);
+    case "immigrationDate":
+      return formatDateDigits(body.immigrationDate);
+
+    case "street":
+      return body.street;
+    case "houseNumber":
+      return body.houseNumber;
+    case "city":
+      return body.city;
+    case "postalCode":
+      return body.postalCode;
+    case "phone":
+      return onlyDigits(body.phone);
+    case "mobile":
+      return onlyDigits(body.mobile);
+    case "email":
+      return body.email;
+
+    case "genderMale":
+      return body.gender === "male";
+    case "genderFemale":
+      return body.gender === "female";
+
+    case "maritalSingle":
+      return body.maritalStatus === "single";
+    case "maritalMarried":
+      return body.maritalStatus === "married";
+    case "maritalDivorced":
+      return body.maritalStatus === "divorced";
+    case "maritalWidowed":
+      return body.maritalStatus === "widowed";
+    case "customField1782075946735":
+      return body.maritalStatus === "separated";
+
+    case "residentYes":
+      return body.residentIsrael === "yes";
+    case "residentNo":
+      return body.residentIsrael === "no";
+
+    case "kibbutzYes":
+      return body.kibbutzMember === "yes";
+    case "kibbutzNo":
+      return body.kibbutzMember === "no";
+
+    case "healthFundYes":
+      return body.healthFundMember === "yes";
+    case "customField1782076968515":
+      return body.healthFundMember === "no";
+    case "healthFundName":
+      return body.healthFundName;
+
+    case "child1Name":
+      return children[0]?.name;
+    case "child1Id":
+      return splitId(children[0]?.idNumber);
+    case "child1BirthDate":
+      return formatDateDigits(children[0]?.birthDate);
+
+    case "workStartDate":
+      return formatDateDigits(body.workStartDate);
+
+    case "incomeMonthlySalary":
+      return Boolean(body.incomeType?.monthlySalary);
+    case "incomeExtraSalary":
+      return Boolean(body.incomeType?.extraSalary);
+    case "incomePartialSalary":
+      return Boolean(body.incomeType?.partialSalary);
+    case "incomeDailyWage":
+      return Boolean(body.incomeType?.dailyWage);
+    case "incomeAllowance":
+      return Boolean(body.incomeType?.allowance);
+    case "incomeScholarship":
+      return Boolean(body.incomeType?.scholarship);
+
+    case "otherNoIncome":
+      return Boolean(body.otherIncome?.noOtherIncome);
+    case "otherHasIncome":
+      return !body.otherIncome?.noOtherIncome && Boolean(
+        body.otherIncome?.monthlySalary ||
+          body.otherIncome?.extraSalary ||
+          body.otherIncome?.partialSalary ||
+          body.otherIncome?.dailyWage ||
+          body.otherIncome?.allowance ||
+          body.otherIncome?.pension ||
+          body.otherIncome?.scholarship
+      );
+
+    case "spouseId":
+      return splitId(body.spouse?.idNumber);
+    case "spouseLastName":
+      return body.spouse?.lastName;
+    case "spouseFirstName":
+      return body.spouse?.firstName;
+
+    case "creditResident":
+      return Boolean(getCredit(body, "resident"));
+    case "creditDisabled":
+      return Boolean(getCredit(body, "disabled100"));
+    case "creditSettlement":
+      return Boolean(getCredit(body, "settlement"));
+    case "creditNewImmigrant":
+      return Boolean(getCredit(body, "newImmigrant"));
+    case "creditSingleParent":
+      return Boolean(getCredit(body, "singleParent"));
+    case "creditChildrenCustody":
+      return Boolean(getCredit(body, "childrenCustody"));
+    case "creditSoldier":
+      return Boolean(getCredit(body, "soldier"));
+    case "creditAcademic":
+      return Boolean(getCredit(body, "academic"));
+
+    case "taxNoIncome":
+      return Boolean(getCredit(body, "noIncomeThisYear"));
+    case "taxHasOtherIncome":
+      return Boolean(getCredit(body, "hasOtherIncomeForTaxCoordination"));
+
+    case "signatureDate":
+      return formatDateDigits(body.signatureDate);
+    case "signature":
+      return body.signatureDataUrl || body.signatureText;
+
+    default:
+      return body[fieldKey];
+  }
+}
+
+function getFieldValue(body: Form101Payload, fieldKey: string, field: FieldMapItem) {
+  if (field.isFixed) {
+    return field.fixedValue || "";
+  }
+
+  return getValueFromBody(body, fieldKey);
+}
+
+function hasValue(value: unknown, type: FieldType) {
+  if (type === "check") return Boolean(value);
+  return Boolean(clean(value));
+}
+
+function drawTextInRect(
   page: any,
   text: unknown,
-  rightX: number,
-  y: number,
-  options: {
-    font: any;
-    size?: number;
-    maxWidth?: number;
-    minX?: number;
-  }
+  rect: { x: number; y: number; width: number; height: number; fontSize: number },
+  field: FieldMapItem,
+  font: any
 ) {
   const value = clean(text);
   if (!value) return;
 
-  const size = options.size || 11;
-  const textWidth = options.font.widthOfTextAtSize(value, size);
-  const maxWidth = options.maxWidth || textWidth;
-  const minX = options.minX ?? 0;
-  const x = Math.max(rightX - Math.min(textWidth, maxWidth), minX);
+  const padding = 2;
+  const size = rect.fontSize;
+  const textWidth = font.widthOfTextAtSize(value, size);
+  const maxX = rect.x + rect.width - padding;
+
+  let x = rect.x + padding;
+
+  if (field.align === "center") {
+    x = rect.x + Math.max((rect.width - textWidth) / 2, padding);
+  }
+
+  if (field.align === "right") {
+    x = Math.max(maxX - textWidth, rect.x + padding);
+  }
+
+  const y = rect.y + Math.max((rect.height - size) / 2, 0) + 1;
 
   page.drawText(value, {
     x,
     y,
     size,
-    font: options.font,
+    font,
     color: rgb(0, 0, 0),
-    maxWidth,
+    maxWidth: Math.max(rect.width - padding * 2, 5),
   });
 }
 
-function drawTextBoxRight(
+function drawDigitsInRect(
   page: any,
   text: unknown,
-  leftX: number,
-  rightX: number,
-  y: number,
-  options: {
-    font: any;
-    size?: number;
-    padding?: number;
-  }
+  rect: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    scaleX: number;
+    fontSize: number;
+  },
+  field: FieldMapItem,
+  font: any
 ) {
-  const padding = options.padding ?? 4;
-  drawTextRight(page, text, rightX - padding, y, {
-    font: options.font,
-    size: options.size || 11,
-    maxWidth: Math.max(rightX - leftX - padding * 2, 10),
-    minX: leftX + padding,
+  const maxDigits = field.maxDigits || undefined;
+  const digits = onlyDigits(text).slice(0, maxDigits);
+
+  if (!digits) return;
+
+  const size = rect.fontSize;
+  const gap = Math.max(1, (field.digitGap || 10) * rect.scaleX);
+  const totalWidth = Math.max((digits.length - 1) * gap + gap, 1);
+
+  let startX = rect.x;
+
+  if (field.align === "center") {
+    startX = rect.x + Math.max((rect.width - totalWidth) / 2, 0);
+  }
+
+  if (field.align === "right") {
+    startX = rect.x + Math.max(rect.width - totalWidth, 0);
+  }
+
+  const y = rect.y + Math.max((rect.height - size) / 2, 0) + 1;
+
+  digits.split("").forEach((digit, index) => {
+    const digitWidth = font.widthOfTextAtSize(digit, size);
+
+    page.drawText(digit, {
+      x: startX + index * gap + Math.max((gap - digitWidth) / 2, 0),
+      y,
+      size,
+      font,
+      color: rgb(0, 0, 0),
+    });
   });
 }
 
-function drawTextBoxLeft(
+function drawCheckInRect(
   page: any,
-  text: unknown,
-  leftX: number,
-  rightX: number,
-  y: number,
-  options: {
-    font: any;
-    size?: number;
-    padding?: number;
-  }
+  checked: unknown,
+  rect: { x: number; y: number; width: number; height: number; fontSize: number },
+  font: any
 ) {
-  const value = clean(text);
-  if (!value) return;
-
-  const padding = options.padding ?? 4;
-
-  page.drawText(value, {
-    x: leftX + padding,
-    y,
-    size: options.size || 11,
-    font: options.font,
-    color: rgb(0, 0, 0),
-    maxWidth: Math.max(rightX - leftX - padding * 2, 10),
-  });
-}
-
-function drawSmallCheck(page: any, checked: boolean, x: number, y: number, font: any) {
   if (!checked) return;
 
-  page.drawText("✓", {
-    x,
-    y,
-    size: 10,
+  const value = "✓";
+  const size = Math.max(8, rect.fontSize);
+  const textWidth = font.widthOfTextAtSize(value, size);
+
+  page.drawText(value, {
+    x: rect.x + Math.max((rect.width - textWidth) / 2, 0),
+    y: rect.y + Math.max((rect.height - size) / 2, 0) + 1,
+    size,
     font,
     color: rgb(0, 0, 0),
   });
 }
 
+async function drawField(
+  pdfDoc: PDFDocument,
+  pages: any[],
+  fieldKey: string,
+  field: FieldMapItem,
+  body: Form101Payload,
+  font: any
+) {
+  if (!field.enabled) return;
+
+  const page = pages[field.page - 1];
+  if (!page) return;
+
+  const value = getFieldValue(body, fieldKey, field);
+
+  if (!hasValue(value, field.type)) return;
+
+  const rect = getMappedRect(page, field);
+
+  if (field.type === "signature") {
+    const signatureDrawn = await drawSignatureImage(
+      pdfDoc,
+      page,
+      body.signatureDataUrl,
+      rect.x,
+      rect.y,
+      rect.width,
+      rect.height
+    );
+
+    if (!signatureDrawn) {
+      drawTextInRect(page, body.signatureText || value, rect, field, font);
+    }
+
+    return;
+  }
+
+  if (field.type === "check") {
+    drawCheckInRect(page, value, rect, font);
+    return;
+  }
+
+  if (field.type === "digits") {
+    drawDigitsInRect(page, value, rect, field, font);
+    return;
+  }
+
+  drawTextInRect(page, value, rect, field, font);
+}
+
 async function generateForm101Pdf(body: Form101Payload) {
-  const form = applyFixedFields(body);
   const templatePath = path.join(
     process.cwd(),
     "public",
@@ -522,291 +1759,12 @@ async function generateForm101Pdf(body: Form101Payload) {
     throw new Error("INVALID_TEMPLATE_PDF");
   }
 
-  const page1 = pages[0];
-  const page2 = pages[1];
+  const fields = Object.entries(FORM101_FIELD_MAP)
+    .filter(([, field]) => field.enabled)
+    .sort(([, a], [, b]) => a.order - b.order) as [string, FieldMapItem][];
 
-  /* =========================================================
-     PAGE 1 — כרטיס עובד
-     מותאם לקובץ public/forms/tofes-101.pdf שהעלית
-  ========================================================= */
-
-  drawCenteredText(page1, form.taxYear || new Date().getFullYear(), 263, 715, 70, {
-    font,
-    size: 17,
-  });
-
-  /* א. פרטי המעסיק */
-  drawTextBoxRight(page1, form.employerName, 405, 572, 619, {
-    font,
-    size: 13,
-  });
-
-  drawTextBoxRight(page1, form.employerAddress, 270, 405, 619, {
-    font,
-    size: 11,
-  });
-
-  drawTextBoxLeft(page1, onlyDigits(form.employerPhone), 143, 270, 619, {
-    font,
-    size: 13,
-  });
-
-  drawTextBoxLeft(page1, onlyDigits(form.employerFileNumber), 29, 143, 619, {
-    font,
-    size: 13,
-  });
-
-  /* ב. פרטי העובד/ת */
-  drawTextBoxLeft(page1, splitId(form.idNumber), 474, 572, 548, {
-    font,
-    size: 13,
-  });
-
-  drawTextBoxRight(page1, form.lastName, 346, 474, 548, {
-    font,
-    size: 13,
-  });
-
-  drawTextBoxRight(page1, form.firstName, 255, 346, 548, {
-    font,
-    size: 13,
-  });
-
-  drawCenteredText(page1, formatDateIL(form.birthDate), 168, 548, 87, {
-    font,
-    size: 12,
-  });
-
-  drawCenteredText(page1, formatDateIL(form.immigrationDate), 37, 548, 130, {
-    font,
-    size: 12,
-  });
-
-  drawTextBoxRight(page1, form.street, 374, 572, 511, {
-    font,
-    size: 12,
-  });
-
-  drawCenteredText(page1, form.houseNumber, 333, 511, 40, {
-    font,
-    size: 12,
-  });
-
-  drawTextBoxRight(page1, form.city, 245, 333, 511, {
-    font,
-    size: 12,
-  });
-
-  drawCenteredText(page1, form.postalCode, 170, 511, 72, {
-    font,
-    size: 12,
-  });
-
-  drawTextBoxLeft(page1, onlyDigits(form.mobile), 276, 467, 466, {
-    font,
-    size: 13,
-  });
-
-  drawTextBoxLeft(page1, onlyDigits(form.phone), 151, 276, 466, {
-    font,
-    size: 13,
-  });
-
-  drawTextBoxLeft(page1, form.email, 35, 572, 431, {
-    font,
-    size: 12,
-  });
-
-  /* מין */
-  drawSmallCheck(page1, form.gender === "male", 548, 490, font);
-  drawSmallCheck(page1, form.gender === "female", 548, 474, font);
-
-  /* מצב משפחתי */
-  drawSmallCheck(page1, form.maritalStatus === "single", 488, 490, font);
-  drawSmallCheck(page1, form.maritalStatus === "married", 488, 474, font);
-  drawSmallCheck(page1, form.maritalStatus === "divorced", 432, 490, font);
-  drawSmallCheck(page1, form.maritalStatus === "widowed", 432, 474, font);
-  drawSmallCheck(page1, form.maritalStatus === "separated", 374, 474, font);
-
-  /* תושב ישראל */
-  drawSmallCheck(page1, form.residentIsrael === "yes", 337, 490, font);
-  drawSmallCheck(page1, form.residentIsrael === "no", 337, 474, font);
-
-  /* חבר קיבוץ / מושב שיתופי */
-  drawSmallCheck(page1, form.kibbutzMember === "yes", 258, 490, font);
-  drawSmallCheck(page1, form.kibbutzMember === "no", 258, 474, font);
-
-  /* חבר קופת חולים */
-  drawSmallCheck(page1, form.healthFundMember === "yes", 190, 490, font);
-  drawSmallCheck(page1, form.healthFundMember === "no", 190, 474, font);
-  drawTextBoxRight(page1, form.healthFundName, 35, 171, 454, {
-    font,
-    size: 12,
-  });
-
-  /* ג. ילדים שטרם מלאו להם 19 */
-  const children = Array.isArray(form.children) ? form.children : [];
-
-  children.slice(0, 10).forEach((child, index) => {
-    const y = 390 - index * 28;
-
-    drawTextBoxRight(page1, child.name, 487, 548, y, {
-      font,
-      size: 10,
-    });
-
-    drawTextBoxLeft(page1, splitId(child.idNumber), 357, 487, y, {
-      font,
-      size: 10,
-    });
-
-    drawCenteredText(page1, formatDateIL(child.birthDate), 255, y, 100, {
-      font,
-      size: 10,
-    });
-  });
-
-  /* ד. פרטים על הכנסותיי ממעביד זה */
-  drawCenteredText(page1, formatDateIL(form.workStartDate), 40, 372, 118, {
-    font,
-    size: 12,
-  });
-
-  drawSmallCheck(page1, Boolean(form.incomeType?.monthlySalary), 250, 394, font);
-  drawSmallCheck(page1, Boolean(form.incomeType?.extraSalary), 250, 379, font);
-  drawSmallCheck(page1, Boolean(form.incomeType?.partialSalary), 250, 364, font);
-  drawSmallCheck(page1, Boolean(form.incomeType?.dailyWage), 250, 349, font);
-  drawSmallCheck(page1, Boolean(form.incomeType?.allowance), 250, 334, font);
-  drawSmallCheck(page1, Boolean(form.incomeType?.pension), 250, 319, font);
-
-  /* ה. הכנסות אחרות */
-  drawSmallCheck(page1, Boolean(form.otherIncome?.noOtherIncome), 248, 295, font);
-  drawSmallCheck(page1, Boolean(form.otherIncome?.monthlySalary), 250, 266, font);
-  drawSmallCheck(page1, Boolean(form.otherIncome?.extraSalary), 250, 251, font);
-  drawSmallCheck(page1, Boolean(form.otherIncome?.partialSalary), 250, 236, font);
-  drawSmallCheck(page1, Boolean(form.otherIncome?.dailyWage), 250, 221, font);
-  drawSmallCheck(page1, Boolean(form.otherIncome?.allowance), 250, 206, font);
-  drawSmallCheck(page1, Boolean(form.otherIncome?.pension), 250, 191, font);
-  drawSmallCheck(page1, Boolean(form.otherIncome?.scholarship), 250, 176, font);
-
-  /* ו. פרטי בן/בת זוג */
-  drawTextBoxLeft(page1, splitId(form.spouse?.idNumber), 474, 572, 104, {
-    font,
-    size: 11,
-  });
-
-  drawTextBoxRight(page1, form.spouse?.lastName, 346, 474, 104, {
-    font,
-    size: 11,
-  });
-
-  drawTextBoxRight(page1, form.spouse?.firstName, 255, 346, 104, {
-    font,
-    size: 11,
-  });
-
-  drawCenteredText(page1, formatDateIL(form.spouse?.birthDate), 168, 104, 87, {
-    font,
-    size: 11,
-  });
-
-  drawCenteredText(page1, formatDateIL(form.spouse?.immigrationDate), 37, 104, 130, {
-    font,
-    size: 11,
-  });
-
-  /* =========================================================
-     PAGE 2 — זיכויים / תיאום מס / הצהרה
-  ========================================================= */
-
-  if (page2) {
-    drawTextBoxLeft(page2, splitId(form.idNumber), 105, 250, 815, {
-      font,
-      size: 12,
-    });
-
-    /* ח. פטור או זיכוי ממס */
-    drawSmallCheck(page2, Boolean(getCredit(form, "resident")), 548, 792, font);
-
-    drawSmallCheck(page2, Boolean(getCredit(form, "disabled100")), 548, 765, font);
-
-    drawSmallCheck(page2, Boolean(getCredit(form, "settlement")), 548, 727, font);
-    drawTextBoxRight(page2, getCredit(form, "settlementDate"), 305, 430, 727, {
-      font,
-      size: 11,
-    });
-    drawTextBoxRight(page2, getCredit(form, "settlementName"), 320, 515, 700, {
-      font,
-      size: 11,
-    });
-
-    drawSmallCheck(page2, Boolean(getCredit(form, "newImmigrant")), 548, 681, font);
-
-    drawSmallCheck(page2, Boolean(getCredit(form, "spouseNoIncome")), 548, 632, font);
-
-    drawSmallCheck(page2, Boolean(getCredit(form, "singleParent")), 548, 603, font);
-
-    drawSmallCheck(page2, Boolean(getCredit(form, "childrenCustody")), 548, 565, font);
-
-    drawTextBoxLeft(page2, getCredit(form, "childrenBornThisYear"), 283, 340, 540, {
-      font,
-      size: 10,
-    });
-
-    drawTextBoxLeft(page2, getCredit(form, "childrenAgeOneToFive"), 283, 340, 522, {
-      font,
-      size: 10,
-    });
-
-    drawTextBoxLeft(page2, getCredit(form, "childrenAgeSixToSeventeen"), 283, 340, 504, {
-      font,
-      size: 10,
-    });
-
-    drawTextBoxLeft(page2, getCredit(form, "childrenAgeEighteen"), 283, 340, 486, {
-      font,
-      size: 10,
-    });
-
-    drawSmallCheck(page2, Boolean(getCredit(form, "specialChild")), 548, 435, font);
-
-    drawSmallCheck(page2, Boolean(getCredit(form, "alimony")), 548, 407, font);
-
-    drawSmallCheck(page2, Boolean(getCredit(form, "childrenUnder19")), 548, 379, font);
-
-    drawSmallCheck(page2, Boolean(getCredit(form, "soldier")), 548, 350, font);
-
-    drawSmallCheck(page2, Boolean(getCredit(form, "academic")), 548, 322, font);
-
-    drawSmallCheck(page2, Boolean(getCredit(form, "diploma")), 548, 295, font);
-
-    /* ט. תיאום מס */
-    drawSmallCheck(page2, Boolean(getCredit(form, "noIncomeThisYear")), 548, 254, font);
-
-    drawSmallCheck(page2, Boolean(getCredit(form, "hasOtherIncomeForTaxCoordination")), 548, 222, font);
-
-    /* י. הצהרה */
-    drawCenteredText(page2, formatDateIL(form.signatureDate), 150, 154, 135, {
-      font,
-      size: 12,
-    });
-
-    const signatureDrawn = await drawSignatureImage(
-      pdfDoc,
-      page2,
-      form.signatureDataUrl,
-      38,
-      146,
-      105,
-      28
-    );
-
-    if (!signatureDrawn) {
-      drawTextBoxRight(page2, form.signatureText, 38, 145, 154, {
-        font,
-        size: 12,
-      });
-    }
+  for (const [fieldKey, field] of fields) {
+    await drawField(pdfDoc, pages, fieldKey, field, body, font);
   }
 
   const pdfBytes = await pdfDoc.save();
@@ -947,8 +1905,6 @@ export async function POST(req: NextRequest) {
         "Content-Type": "application/pdf",
         "Content-Disposition": `inline; filename="form-101-${taxYear}.pdf"`,
         "Cache-Control": "no-store",
-
-        // כדי שאם תרצי בהמשך לקרוא מהפרונט, יהיה לך את הנתונים גם ב-Headers
         "X-Success": "true",
         "X-Document-Id": String(document._id),
         "X-File-Url": fileUrl,
