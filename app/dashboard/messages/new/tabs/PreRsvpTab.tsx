@@ -556,6 +556,12 @@ export default function PreRsvpTab({
       const cleanEventDate = cleanString(eventDate);
       const cleanEventLocation = cleanString(eventLocation);
 
+      const finalSavedImageUrl = getHighQualityCloudinaryImageUrl(
+        isSaveTheDate ? savedSaveTheDateImageUrl : savedInvitationOnlyImageUrl
+      );
+
+      const finalHeaderImageUrl = currentImageFile ? "" : finalSavedImageUrl;
+
       if (!cleanInvitationId) {
         alert("לא נמצאה הזמנה פעילה לשליחה.");
         return;
@@ -586,7 +592,7 @@ export default function PreRsvpTab({
         return;
       }
 
-      if (!currentImageFile && !currentSavedImageUrl) {
+      if (!currentImageFile && !finalSavedImageUrl) {
         alert(
           isSaveTheDate
             ? "יש להעלות תמונה ייעודית ל־Save The Date לפני השליחה."
@@ -616,20 +622,48 @@ export default function PreRsvpTab({
       formData.append("messageType", activeMode);
       formData.append("channel", "whatsapp");
       formData.append("sendTiming", sendTiming);
-      formData.append("scheduledDate", sendTiming === "scheduled" ? scheduledDate : "");
-      formData.append("scheduledTime", sendTiming === "scheduled" ? scheduledTime : "");
+      formData.append(
+        "scheduledDate",
+        sendTiming === "scheduled" ? scheduledDate : ""
+      );
+      formData.append(
+        "scheduledTime",
+        sendTiming === "scheduled" ? scheduledTime : ""
+      );
       formData.append("templateName", templateName);
       formData.append("templateVariables", JSON.stringify(templateVariables));
-      formData.append("saveTheDateTitle", isSaveTheDate ? cleanSaveTheDateTitle : "");
-      formData.append("invitationTitle", isSaveTheDate ? "" : cleanInvitationTitle);
+      formData.append(
+        "saveTheDateTitle",
+        isSaveTheDate ? cleanSaveTheDateTitle : ""
+      );
+      formData.append(
+        "invitationTitle",
+        isSaveTheDate ? "" : cleanInvitationTitle
+      );
       formData.append("eventDate", cleanEventDate);
       formData.append("eventLocation", isSaveTheDate ? "" : cleanEventLocation);
       formData.append("message", currentTemplate);
       formData.append("previewMessage", previewMessage);
 
+      /*
+        קריטי לאיכות:
+        אם לא מעלים עכשיו קובץ חדש, שולחים לשרת את אותו URL איכותי שמוצג בפרונט.
+        זה לא משנה את Save The Date — זה רק מונע מההזמנה המוקדמת ליפול ל-preview/thumbnail.
+      */
+      formData.append("headerImageUrl", finalHeaderImageUrl);
+      formData.append("imageUrl", finalHeaderImageUrl);
+      formData.append("existingImageUrl", finalHeaderImageUrl);
+
       if (currentImageFile) {
         formData.append("image", currentImageFile);
       }
+
+      console.log("PRE RSVP SEND IMAGE:", {
+        messageType: activeMode,
+        templateName,
+        hasNewFile: Boolean(currentImageFile),
+        finalHeaderImageUrl,
+      });
 
       setIsSubmitting(true);
 
@@ -652,14 +686,16 @@ export default function PreRsvpTab({
           if (saveTheDateImage && saveTheDateImage.startsWith("blob:")) {
             URL.revokeObjectURL(saveTheDateImage);
           }
-          setSaveTheDateImage(savedImageUrl);
+          setSaveTheDateImage("");
           setSaveTheDateImageFile(null);
+          setSavedSaveTheDateImageUrl(savedImageUrl);
         } else {
           if (invitationOnlyImage && invitationOnlyImage.startsWith("blob:")) {
             URL.revokeObjectURL(invitationOnlyImage);
           }
-          setInvitationOnlyImage(savedImageUrl);
+          setInvitationOnlyImage("");
           setInvitationOnlyImageFile(null);
+          setSavedInvitationOnlyImageUrl(savedImageUrl);
         }
       }
 
@@ -1082,7 +1118,11 @@ export default function PreRsvpTab({
                 transition
                 hover:scale-[1.01]
                 active:scale-[0.99]
-                ${isSubmitting || !activeModeAvailable ? "cursor-not-allowed opacity-55 hover:scale-100" : ""}
+                ${
+                  isSubmitting || !activeModeAvailable
+                    ? "cursor-not-allowed opacity-55 hover:scale-100"
+                    : ""
+                }
               `}
             >
               {isSubmitting
@@ -1375,17 +1415,17 @@ function PhonePreview({
           >
             {imageUrl && (
               <img
-  src={imageUrl}
-  alt="תמונה להודעה"
-  className="
-    mb-4
-    max-h-[360px]
-    w-full
-    rounded-[16px]
-    object-contain
-    bg-white
-  "
-/>
+                src={imageUrl}
+                alt="תמונה להודעה"
+                className="
+                  mb-4
+                  max-h-[360px]
+                  w-full
+                  rounded-[16px]
+                  object-contain
+                  bg-white
+                "
+              />
             )}
 
             <pre

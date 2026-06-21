@@ -549,22 +549,28 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
   );
 
   const parking = getParkingSettings(publicEventPage);
+
+  const parkingName = cleanString(parking.name);
+  const parkingAddress = cleanString(parking.address);
+  const shouldShowParkingAddress =
+    Boolean(parkingAddress) && !isSameText(parkingAddress, parkingName);
+
   const parkingLocation: SafeLocation = {
-    name: parking.name,
-    address: parking.address,
+    name: parkingName,
+    address: parkingAddress,
     lat: parking.lat,
     lng: parking.lng,
   };
 
   const parkingWazeUrl =
     parking.enabled &&
-    (parking.name || parking.address || parking.lat || parking.lng)
+    (parkingName || parkingAddress || parking.lat || parking.lng)
       ? buildWazeUrl(parkingLocation)
       : "";
 
   const parkingGoogleMapsUrl =
     parking.enabled &&
-    (parking.name || parking.address || parking.lat || parking.lng)
+    (parkingName || parkingAddress || parking.lat || parking.lng)
       ? buildGoogleMapsUrl(parkingLocation)
       : "";
 
@@ -689,8 +695,8 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
             )}
 
             {parking.enabled &&
-              (parking.name ||
-                parking.address ||
+              (parkingName ||
+                parkingAddress ||
                 parking.instructions ||
                 parkingWazeUrl ||
                 parkingGoogleMapsUrl) && (
@@ -706,18 +712,17 @@ export default async function PublicEventInfoPage({ params }: PageProps) {
                     </div>
                   }
                 >
-                  {parking.name && (
+                  {parkingName && (
                     <p className="mt-3 text-base font-black text-[#3C332B]">
-                      {parking.name}
+                      {parkingName}
                     </p>
                   )}
 
-                  {parking.address &&
-                    !isSameText(parking.address, parking.name) && (
-                      <p className="mt-1 text-sm font-bold leading-7 text-[#746A61]">
-                        {parking.address}
-                      </p>
-                    )}
+                  {shouldShowParkingAddress && (
+                    <p className="mt-1 text-sm font-bold leading-7 text-[#746A61]">
+                      {parkingAddress}
+                    </p>
+                  )}
 
                   {parking.instructions && (
                     <p className="mt-4 whitespace-pre-line rounded-2xl bg-[#F8F0E7] px-4 py-3 text-sm font-bold leading-7 text-[#665A50]">

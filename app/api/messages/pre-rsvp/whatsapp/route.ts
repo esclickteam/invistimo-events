@@ -746,6 +746,12 @@ export async function POST(req: NextRequest) {
     const imageEntry = formData.get("image");
     const imageFile = imageEntry instanceof File ? imageEntry : null;
 
+    const clientExistingImageUrl = getHighQualityCloudinaryImageUrl(
+      cleanString(formData.get("headerImageUrl")) ||
+        cleanString(formData.get("imageUrl")) ||
+        cleanString(formData.get("existingImageUrl"))
+    );
+
     if (!invitationId || !isValidObjectId(invitationId)) {
       return NextResponse.json(
         {
@@ -833,9 +839,7 @@ export async function POST(req: NextRequest) {
     const invitation: any = await Invitation.findOne({
       _id: toObjectId(invitationId),
     })
-      .select(
-        "_id ownerId title eventDate location preRsvpMedia"
-      )
+      .select("_id ownerId title eventDate location preRsvpMedia")
       .lean();
 
     if (!invitation) {
@@ -967,10 +971,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const existingPreRsvpImageUrl = getPreRsvpSpecificImageUrl({
+    const existingPreRsvpImageUrlFromDb = getPreRsvpSpecificImageUrl({
       invitation,
       messageType,
     });
+
+    const existingPreRsvpImageUrl =
+      messageType === "invitation_only"
+        ? clientExistingImageUrl || existingPreRsvpImageUrlFromDb
+        : existingPreRsvpImageUrlFromDb;
 
     const existingPreRsvpPublicId = getPreRsvpSpecificPublicId({
       invitation,
@@ -1018,6 +1027,11 @@ export async function POST(req: NextRequest) {
       messageType,
       templateName,
       hasUploadedFile: Boolean(imageFile),
+      clientExistingImageUrl:
+        messageType === "invitation_only" ? clientExistingImageUrl : "",
+      usedClientExistingImage:
+        messageType === "invitation_only" &&
+        Boolean(!uploadResult && clientExistingImageUrl),
       usedExistingPreRsvpImage: Boolean(!uploadResult && existingPreRsvpImageUrl),
       finalImageUrl: imageUrl,
       cloudinaryPublicId,
