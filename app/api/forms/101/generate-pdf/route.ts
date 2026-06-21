@@ -330,26 +330,8 @@ async function drawSignatureImage(
   }
 }
 
-function getR2PublicBaseUrl() {
-  return clean(
-    process.env.R2_PUBLIC_URL ||
-      process.env.NEXT_PUBLIC_R2_PUBLIC_URL ||
-      process.env.R2_PUBLIC_BASE_URL ||
-      process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL ||
-      process.env.CLOUDFLARE_R2_PUBLIC_URL
-  ).replace(/\/+$/, "");
-}
-
-function buildR2PublicUrl(r2Key: string) {
-  const baseUrl = getR2PublicBaseUrl();
-
-  if (!baseUrl) {
-    throw new Error(
-      "R2_PUBLIC_URL_MISSING: חסר env בשם R2_PUBLIC_URL או NEXT_PUBLIC_R2_PUBLIC_URL"
-    );
-  }
-
-  return `${baseUrl}/${encodeURI(r2Key)}`;
+function buildPrivateDocumentViewUrl(r2Key: string) {
+  return `/api/employee/documents/view?key=${encodeURIComponent(r2Key)}`;
 }
 
 function sanitizeFilePart(value: unknown, fallback: string) {
@@ -831,7 +813,7 @@ export async function POST(req: NextRequest) {
       storedFileName,
     ].join("/");
 
-    const fileUrl = buildR2PublicUrl(r2Key);
+    const fileUrl = buildPrivateDocumentViewUrl(r2Key);
 
     await r2Client.send(
       new PutObjectCommand({
