@@ -42,23 +42,42 @@ export async function GET(req: Request) {
     const [producers, staff] = await Promise.all([
       User.find({ role: "producer" })
         .select("name email")
-        .sort({ name: 1 })
+        .sort({ name: 1, email: 1 })
         .lean(),
 
-      User.find({ role: "staff" })
-        .select("name email staffType assignedProducerId")
-        .sort({ name: 1 })
+      User.find({
+        role: "staff",
+        staffType: {
+          $in: ["general_staff", "producer_staff", "seating_staff"],
+        },
+      })
+        .select(
+          "name email staffType employeeScope assignedProducerId assignedClientIds isActive"
+        )
+        .sort({ name: 1, email: 1 })
         .lean(),
     ]);
 
     return NextResponse.json(
-      { success: true, producers, staff },
-      { headers: { "Cache-Control": "no-store" } }
+      {
+        success: true,
+        producers,
+        staff,
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      }
     );
   } catch (err) {
     console.error("❌ ASSIGNEES GET ERROR:", err);
+
     return NextResponse.json(
-      { success: false, error: "SERVER_ERROR" },
+      {
+        success: false,
+        error: "SERVER_ERROR",
+      },
       { status: 500 }
     );
   }

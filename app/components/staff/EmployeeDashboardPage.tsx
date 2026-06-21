@@ -91,6 +91,10 @@ type ApiUser = {
   businessId?: string | { _id?: string; id?: string };
   business?: string | { _id?: string; id?: string };
   role?: UserRole;
+  staffType?: string | null;
+  employeeScope?: string | null;
+  assignedClientIds?: string[];
+  assignedStaffIds?: string[];
   status?: UserStatus;
   isActive?: boolean;
   createdAt?: string;
@@ -128,6 +132,8 @@ type ApiEvent = {
   maxGuests?: number;
   assignedEmployeeId?: string;
   assignedStaffId?: string;
+  assignedStaffIds?: string[];
+  assignedClientIds?: string[];
   assignedTo?: string;
   assignedEmployeeName?: string;
   assignedStaffName?: string;
@@ -559,6 +565,22 @@ function normalizeUserBusinessId(user: any) {
   if (typeof businessValue === "string") return businessValue;
 
   return String(businessValue.id || businessValue._id || "");
+}
+
+function normalizeObjectIdValue(value: unknown) {
+  if (!value) return "";
+
+  if (typeof value === "string") return value.trim();
+
+  return String((value as any)?.id || (value as any)?._id || value || "").trim();
+}
+
+function normalizeObjectIdArray(values: unknown) {
+  if (!Array.isArray(values)) return [];
+
+  return values
+    .map((value) => normalizeObjectIdValue(value))
+    .filter(Boolean);
 }
 
 function normalizeEventClientId(event: ApiEvent) {
@@ -1439,6 +1461,27 @@ export default function EmployeeDashboardPage() {
   );
   const currentBusinessId = normalizeUserBusinessId(user as any);
 
+  const isCurrentUserSeatingStaff =
+    String((user as any)?.staffType || "").toLowerCase() === "seating_staff" &&
+    String((user as any)?.employeeScope || "").toLowerCase() === "system";
+
+  const currentAssignedClientIds = useMemo(() => {
+    return normalizeObjectIdArray((user as any)?.assignedClientIds);
+  }, [user]);
+
+  const currentAssignedClientIdSet = useMemo(() => {
+    return new Set(currentAssignedClientIds);
+  }, [currentAssignedClientIds]);
+
+  /*
+    עובד הושבה אמור לקבל מהשרת רק לקוחות שהוקצו אליו.
+    הפילטר הזה הוא שכבת הגנה נוספת בפרונט, למקרה שה־API מחזיר יותר מדי נתונים.
+    אם ה־AuthContext עדיין לא מחזיר assignedClientIds, לא מסתירים כאן כדי לא לשבור את הרשימה;
+    החסימה הסופית נשארת ב־/api/staff/impersonate.
+  */
+  const shouldClientSideRestrictToAssignedClients =
+    isCurrentUserSeatingStaff && currentAssignedClientIds.length > 0;
+
   const signAgreementUrl = useMemo(() => {
     const params = new URLSearchParams();
 
@@ -1865,7 +1908,14 @@ export default function EmployeeDashboardPage() {
         router.refresh();
       } catch (error) {
         console.error("ENTER CLIENT DASHBOARD FAILED:", error);
-        alert("לא הצלחנו להיכנס לדשבורד של הלקוח");
+
+        const errorMessage =
+          error instanceof Error &&
+          error.message === "SEATING_STAFF_CLIENT_NOT_ASSIGNED"
+            ? "אין לעובד ההושבה הרשאה להיכנס ללקוח הזה"
+            : "לא הצלחנו להיכנס לדשבורד של הלקוח";
+
+        alert(errorMessage);
       } finally {
         setEnteringUserId(null);
       }
@@ -1887,12 +1937,30 @@ export default function EmployeeDashboardPage() {
     loadEmployeeLeads,
   ]);
 
+  const visibleUsers = useMemo(() => {
+    if (!shouldClientSideRestrictToAssignedClients) return users;
+
+    return users.filter((currentUser) => {
+      const currentUserId = normalizeId(currentUser);
+      return currentUserId && currentAssignedClientIdSet.has(currentUserId);
+    });
+  }, [currentAssignedClientIdSet, shouldClientSideRestrictToAssignedClients, users]);
+
+  const visibleEvents = useMemo(() => {
+    if (!shouldClientSideRestrictToAssignedClients) return events;
+
+    return events.filter((event) => {
+      const clientId = normalizeEventClientId(event);
+      return clientId && currentAssignedClientIdSet.has(clientId);
+    });
+  }, [currentAssignedClientIdSet, events, shouldClientSideRestrictToAssignedClients]);
+
   const filteredUsers = useMemo(() => {
     const q = userSearch.trim().toLowerCase();
 
-    if (!q) return users;
+    if (!q) return visibleUsers;
 
-    return users.filter((currentUser) => {
+    return visibleUsers.filter((currentUser) => {
       const name = normalizeUserName(currentUser).toLowerCase();
       const email = String(currentUser.email || "").toLowerCase();
       const phone = String(currentUser.phone || "").toLowerCase();
@@ -1909,14 +1977,14 @@ export default function EmployeeDashboardPage() {
         status.includes(q)
       );
     });
-  }, [userSearch, users]);
+  }, [userSearch, visibleUsers]);
 
   const filteredEvents = useMemo(() => {
     const q = eventSearch.trim().toLowerCase();
 
-    if (!q) return events;
+    if (!q) return visibleEvents;
 
-    return events.filter((event) => {
+    return visibleEvents.filter((event) => {
       const title = normalizeEventTitle(event).toLowerCase();
       const clientName = normalizeClientName(event).toLowerCase();
       const clientPhone = normalizeClientPhone(event).toLowerCase();
@@ -1937,7 +2005,7 @@ export default function EmployeeDashboardPage() {
         careStatus.includes(q)
       );
     });
-  }, [eventSearch, events]);
+  }, [eventSearch, visibleEvents]);
 
   const filteredLeads = useMemo(() => {
     const q = leadSearch.trim().toLowerCase();
@@ -1970,34 +2038,44 @@ export default function EmployeeDashboardPage() {
   }, [employeeLeads]);
 
   const eventsNeedCheck = useMemo(() => {
-    return events.filter((event) => {
+    return visibleEvents.filter((event) => {
       const status = normalizeCareStatus(
         event.careStatus || event.supportStatus,
       );
       return status === "urgent" || status === "check";
     });
-  }, [events]);
+  }, [visibleEvents]);
 
   const unreadMessages = useMemo(() => {
-    return events.reduce((sum, event) => {
+    return visibleEvents.reduce((sum, event) => {
       return sum + Number(event.unreadMessages ?? event.unreadCount ?? 0);
     }, 0);
-  }, [events]);
+  }, [visibleEvents]);
 
   const activeUsersCount = useMemo(() => {
-    return users.filter((currentUser) => {
+    return visibleUsers.filter((currentUser) => {
       return (
         String(normalizeUserStatus(currentUser)).toLowerCase() === "active"
       );
     }).length;
-  }, [users]);
+  }, [visibleUsers]);
 
   const stats: DashboardStats = {
-    totalUsers: Number(serverStats.totalUsers ?? users.length),
-    myEvents: Number(serverStats.myEvents ?? events.length),
-    needCheck: Number(serverStats.needCheck ?? eventsNeedCheck.length),
-    unreadMessages: Number(serverStats.unreadMessages ?? unreadMessages),
-    activeUsers: Number(serverStats.activeUsers ?? activeUsersCount),
+    totalUsers: shouldClientSideRestrictToAssignedClients
+      ? visibleUsers.length
+      : Number(serverStats.totalUsers ?? visibleUsers.length),
+    myEvents: shouldClientSideRestrictToAssignedClients
+      ? visibleEvents.length
+      : Number(serverStats.myEvents ?? visibleEvents.length),
+    needCheck: shouldClientSideRestrictToAssignedClients
+      ? eventsNeedCheck.length
+      : Number(serverStats.needCheck ?? eventsNeedCheck.length),
+    unreadMessages: shouldClientSideRestrictToAssignedClients
+      ? unreadMessages
+      : Number(serverStats.unreadMessages ?? unreadMessages),
+    activeUsers: shouldClientSideRestrictToAssignedClients
+      ? activeUsersCount
+      : Number(serverStats.activeUsers ?? activeUsersCount),
   };
 
   const displayName = user?.name || user?.email?.split("@")[0] || "עובד";
