@@ -631,10 +631,7 @@ async function loadScheduledEmployeesForDate(dateKey: string) {
 async function findInvitationById(invitationId: string) {
   const objectId = toObjectId(invitationId);
 
-  const conditions: any[] = [
-    { id: invitationId },
-    { invitationId },
-  ];
+  const conditions: any[] = [{ id: invitationId }, { invitationId }];
 
   if (objectId) {
     conditions.unshift({ _id: objectId });
@@ -673,28 +670,12 @@ async function loadGuestsForInvitation(invitation: any) {
 function shouldCarryPreviousRoundTaskToNextRound(status: unknown) {
   const normalized = cleanStr(status).toLowerCase();
 
-  /*
-    מי נכנס לסבב הבא מתוך הסבב הקודם:
-
-    כן:
-    - pending/open/assigned/active/in_progress = לא נגעו בו / לא נסגר
-    - no_answer = לא ענה
-    - callback = ענה וביקש שיחזרו אליו
-    - needs_fix/wrong_number = לא ענה / דורש תיקון
-
-    לא:
-    - confirmed = מגיע
-    - declined = לא מגיע
-    - will_reply_message = ישיב בהודעה לבד
-    - completed/cancelled = נסגר / בוטל
-  */
   return [
     "pending",
     "open",
     "assigned",
     "active",
     "in_progress",
-
     "no_answer",
     "callback",
     "needs_fix",
@@ -716,10 +697,6 @@ async function loadGuestsForRound(input: {
     return hasPhone(guest) && isPendingGuest(guest);
   });
 
-  /*
-    סבב 1:
-    כל מי שבהמתנה ויש לו טלפון.
-  */
   if (input.round === 1) {
     return pendingGuestsWithPhone;
   }
@@ -728,17 +705,6 @@ async function loadGuestsForRound(input: {
 
   const previousRound = (input.round - 1) as 1 | 2;
 
-  /*
-    סבב 2 / סבב 3:
-    לא לוקחים את כל מי שבהמתנה באירוע.
-    לוקחים רק אורחים שיש להם משימה בסבב הקודם,
-    והמשימה האחרונה שלהם בסבב הקודם היא:
-    pending = לא נגעו בו,
-    no_answer,
-    callback,
-    needs_fix,
-    wrong_number.
-  */
   const previousRoundTasks = await CallTask.find({
     invitationId: invitationObjectId,
     round: previousRound,
@@ -770,12 +736,6 @@ async function loadGuestsForRound(input: {
 
     const previousTask = latestTaskByGuestId.get(guestId);
 
-    /*
-      אם אין בכלל task בסבב הקודם —
-      כן מכניסים אותו.
-      זה מכסה בדיוק את המקרה:
-      אורח עדיין בהמתנה + יש לו טלפון + לא עשו לו בכלל סבב קודם.
-    */
     if (!previousTask) return true;
 
     return shouldCarryPreviousRoundTaskToNextRound(previousTask?.status);
@@ -850,8 +810,7 @@ function serializeWorkOrder(order: any, counts?: StatusCounts) {
     inProgressTasks: Number(
       counts?.in_progress || order?.inProgressTasks || 0
     ),
-    completedTasks:
-      counts ? completed : Number(order?.completedTasks || 0),
+    completedTasks: counts ? completed : Number(order?.completedTasks || 0),
     confirmedTasks: Number(counts?.confirmed || order?.confirmedTasks || 0),
     declinedTasks: Number(counts?.declined || order?.declinedTasks || 0),
     noAnswerTasks: Number(counts?.no_answer || order?.noAnswerTasks || 0),
@@ -867,6 +826,7 @@ function serializeWorkOrder(order: any, counts?: StatusCounts) {
     cancelledTasks: Number(counts?.cancelled || order?.cancelledTasks || 0),
     unassignedTasks: Number(order?.unassignedTasks || 0),
 
+    distributionStrategy: order?.distributionStrategy || "",
     lastDistributedAt: order?.lastDistributedAt || null,
     lastReassignedAt: order?.lastReassignedAt || null,
     lastStatusSyncAt: order?.lastStatusSyncAt || null,
@@ -1008,13 +968,6 @@ async function redistributeExistingWorkOrder(input: {
             assignedAt: now,
             updatedAt: now,
           },
-          ...(currentAssigned &&
-          String(currentAssigned) !== String(assignedEmployee.employeeId)
-            ? {
-                $setOnInsert: {},
-                $currentDate: {},
-              }
-            : {}),
         }
       );
 
@@ -1030,8 +983,7 @@ async function redistributeExistingWorkOrder(input: {
             $set: {
               previousAssignedEmployeeId: currentAssigned,
               reassignedAt: now,
-              reassignedReason:
-                "redistributed_by_shift_for_round_date",
+              reassignedReason: "redistributed_by_shift_for_round_date",
             },
           }
         );
@@ -1230,6 +1182,29 @@ export async function POST(req: NextRequest) {
     }).lean();
 
     if (existingWorkOrder) {
+      const existingWorkOrderObjectId = toObjectId(
+        (existingWorkOrder as any)?._id
+      );
+
+      const existingCountsMap = existingWorkOrderObjectId
+        ? await getCountsByWorkOrderIds([existingWorkOrderObjectId])
+        : new Map<string, StatusCounts>();
+
+      if ((existingWorkOrder as any)?.distributionStrategy === "manual") {
+        return NextResponse.json({
+          success: true,
+          alreadyExists: true,
+          redistributed: false,
+          manualDistribution: true,
+          message:
+            "כבר קיימת הוראת עבודה לסבב הזה בתאריך הזה. ההוראה מחולקת ידנית ולכן העובדים לא עודכנו מחדש לפי משמרות.",
+          workOrder: serializeWorkOrder(
+            existingWorkOrder,
+            existingCountsMap.get(String((existingWorkOrder as any)?._id || ""))
+          ),
+        });
+      }
+
       const redistributedWorkOrder = await redistributeExistingWorkOrder({
         workOrder: existingWorkOrder,
         scheduledEmployees,
@@ -1272,14 +1247,13 @@ export async function POST(req: NextRequest) {
     const eventName = getEventName(invitation);
     const eventDate = getEventDate(invitation);
 
-    const configuredRoundAt =
-      body?.configuredRoundAt
-        ? new Date(body.configuredRoundAt)
-        : getConfiguredRoundAt({
-            round,
-            invitation,
-            clientUser,
-          });
+    const configuredRoundAt = body?.configuredRoundAt
+      ? new Date(body.configuredRoundAt)
+      : getConfiguredRoundAt({
+          round,
+          invitation,
+          clientUser,
+        });
 
     const validConfiguredRoundAt =
       configuredRoundAt && !Number.isNaN(configuredRoundAt.getTime())
@@ -1416,9 +1390,7 @@ export async function POST(req: NextRequest) {
           "",
         guestSide: cleanStr(guest?.side),
         guestTable:
-          cleanStr(guest?.tableName) ||
-          cleanStr(guest?.tableNumber) ||
-          "",
+          cleanStr(guest?.tableName) || cleanStr(guest?.tableNumber) || "",
 
         guestNotes: cleanStr(guest?.notes || guest?.note),
 

@@ -216,6 +216,42 @@ type ActionResponse = {
   error?: string;
 };
 
+type CallWorkOrderSummary = {
+  id?: string;
+  _id?: string;
+  title?: string;
+  clientName?: string;
+  clientEmail?: string;
+  eventName?: string;
+  round?: number;
+  status?: string;
+  workDate?: string | Date | null;
+  totalTasks?: number;
+  pendingTasks?: number;
+  inProgressTasks?: number;
+  completedTasks?: number;
+  assignedEmployeeIds?: string[];
+  distributionStrategy?: string;
+};
+
+type WorkOrdersResponse = {
+  success?: boolean;
+  workOrders?: CallWorkOrderSummary[];
+  data?: CallWorkOrderSummary[];
+  items?: CallWorkOrderSummary[];
+  error?: string;
+};
+
+type TransferModalState = {
+  open: boolean;
+  fromEmployeeId: string;
+  fromEmployeeName: string;
+  workOrderId: string;
+  toEmployeeId: string;
+  reason: string;
+};
+
+
 /* =====================================================
    HELPERS
 ===================================================== */
@@ -1047,14 +1083,24 @@ function getLastSeen(employee: EmployeeShiftMonitor) {
 
 export default function AdminShiftManagementPage() {
   const [employees, setEmployees] = useState<EmployeeShiftMonitor[]>([]);
+  const [workOrders, setWorkOrders] = useState<CallWorkOrderSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionEmployeeId, setActionEmployeeId] = useState("");
+  const [transferLoading, setTransferLoading] = useState(false);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] =
     useState<ShiftManagementFilter>("default");
   const [tick, setTick] = useState(0);
   const [lastRefreshAt, setLastRefreshAt] = useState<Date | null>(null);
+  const [transferModal, setTransferModal] = useState<TransferModalState>({
+    open: false,
+    fromEmployeeId: "",
+    fromEmployeeName: "",
+    workOrderId: "",
+    toEmployeeId: "",
+    reason: "",
+  });
 
   const fetchEmployees = useCallback(async (showLoader = false) => {
     try {
@@ -1090,9 +1136,34 @@ export default function AdminShiftManagementPage() {
     }
   }, []);
 
+  const fetchWorkOrders = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/admin/call-work-orders?limit=200&t=${Date.now()}`, {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      });
+
+      const json = (await res.json().catch(() => ({}))) as WorkOrdersResponse;
+
+      if (!res.ok || json.success === false) {
+        throw new Error(json.error || "לא הצלחתי לטעון הוראות עבודה");
+      }
+
+      const list = json.workOrders || json.data || json.items || [];
+      setWorkOrders(Array.isArray(list) ? list : []);
+    } catch (err: any) {
+      setError(err?.message || "שגיאה בטעינת הוראות עבודה");
+    }
+  }, []);
+
   useEffect(() => {
-    fetchEmployees(true);
-  }, [fetchEmployees]);
+    void fetchEmployees(true);
+    void fetchWorkOrders();
+  }, [fetchEmployees, fetchWorkOrders]);
 
   // זה מה שנותן מספרים חיים 0:01, 0:02, 0:03 ובמקביל יש סנכרון API כל שנייה.
   useEffect(() => {
@@ -1192,6 +1263,143 @@ export default function AdminShiftManagementPage() {
       alert(err?.message || "שגיאה בניתוק שיחה");
     } finally {
       setActionEmployeeId("");
+    }
+  }
+
+  function getWorkOrdersForEmployee(employeeId: string) {
+    if (!employeeId) return [];
+
+    return workOrders.filter((order) => {
+      const assigned = Array.isArray(order.assignedEmployeeIds)
+        ? order.assignedEmployeeIds.map((id) => String(id))
+        : [];
+
+      return assigned.includes(employeeId);
+    });
+  }
+
+  function getWorkOrderId(order: CallWorkOrderSummary) {
+    return String(order.id || order._id || "");
+  }
+
+  function getWorkOrderLabel(order: CallWorkOrderSummary) {
+    const title =
+      cleanString(order.title) ||
+      cleanString(order.eventName) ||
+      cleanString(order.clientName) ||
+      cleanString(order.clientEmail) ||
+      "הוראת עבודה";
+
+    const round = Number(order.round || 0);
+    const roundText = round ? `סבב ${round}` : "סבב לא ידוע";
+    const total = Number(order.totalTasks || 0);
+    const completed = Number(order.completedTasks || 0);
+
+    return `${title} · ${roundText} · ${completed}/${total}`;
+  }
+
+  function openTransferModal(employee: EmployeeShiftMonitor) {
+    const fromEmployeeId = getEmployeeId(employee);
+    const employeeOrders = getWorkOrdersForEmployee(fromEmployeeId);
+
+    if (!fromEmployeeId) return;
+
+    if (!employeeOrders.length) {
+      alert("לא נמצאו הוראות עבודה שמשויכות לעובד הזה");
+      return;
+    }
+
+    setTransferModal({
+      open: true,
+      fromEmployeeId,
+      fromEmployeeName: getEmployeeName(employee),
+      workOrderId: getWorkOrderId(employeeOrders[0]),
+      toEmployeeId: "",
+      reason: "",
+    });
+  }
+
+  function closeTransferModal() {
+    if (transferLoading) return;
+
+    setTransferModal({
+      open: false,
+      fromEmployeeId: "",
+      fromEmployeeName: "",
+      workOrderId: "",
+      toEmployeeId: "",
+      reason: "",
+    });
+  }
+
+  async function transferWorkOrder() {
+    if (transferLoading) return;
+
+    const workOrderId = cleanString(transferModal.workOrderId);
+    const fromEmployeeId = cleanString(transferModal.fromEmployeeId);
+    const toEmployeeId = cleanString(transferModal.toEmployeeId);
+
+    if (!workOrderId) {
+      alert("חובה לבחור הוראת עבודה");
+      return;
+    }
+
+    if (!fromEmployeeId) {
+      alert("חסר עובד שמעבירים ממנו");
+      return;
+    }
+
+    if (!toEmployeeId) {
+      alert("חובה לבחור עובד שאליו מעבירים");
+      return;
+    }
+
+    if (fromEmployeeId === toEmployeeId) {
+      alert("אי אפשר להעביר לאותו עובד");
+      return;
+    }
+
+    const toEmployee = employees.find((employee) => getEmployeeId(employee) === toEmployeeId);
+    const toEmployeeName = toEmployee ? getEmployeeName(toEmployee) : "העובד החדש";
+
+    const ok = window.confirm(
+      `להעביר את הוראת העבודה מ${transferModal.fromEmployeeName} אל ${toEmployeeName}?`,
+    );
+
+    if (!ok) return;
+
+    try {
+      setTransferLoading(true);
+
+      const res = await fetch(`/api/admin/call-work-orders/${workOrderId}/transfer`, {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-store",
+        },
+        body: JSON.stringify({
+          fromEmployeeId,
+          toEmployeeId,
+          reason: transferModal.reason,
+        }),
+      });
+
+      const json = (await res.json().catch(() => ({}))) as ActionResponse;
+
+      if (!res.ok || json.success === false) {
+        throw new Error(json.error || "לא הצלחתי להעביר את הוראת העבודה");
+      }
+
+      await fetchWorkOrders();
+      await fetchEmployees(false);
+      closeTransferModal();
+      alert("הוראת העבודה הועברה בהצלחה");
+    } catch (err: any) {
+      alert(err?.message || "שגיאה בהעברת הוראת עבודה");
+    } finally {
+      setTransferLoading(false);
     }
   }
 
@@ -1416,9 +1624,16 @@ export default function AdminShiftManagementPage() {
                     key={getEmployeeId(employee)}
                     employee={employee}
                     tick={tick}
-                    busy={actionEmployeeId === getEmployeeId(employee)}
+                    busy={
+                      actionEmployeeId === getEmployeeId(employee) ||
+                      transferLoading
+                    }
+                    canTransferWorkOrder={
+                      getWorkOrdersForEmployee(getEmployeeId(employee)).length > 0
+                    }
                     onEndShift={() => endEmployeeShift(employee)}
                     onHangup={() => hangupEmployeeCall(employee)}
+                    onTransferWorkOrder={() => openTransferModal(employee)}
                   />
                 ))
               )}
@@ -1426,6 +1641,29 @@ export default function AdminShiftManagementPage() {
           </table>
         </div>
       </section>
+
+      <TransferWorkOrderModal
+        open={transferModal.open}
+        loading={transferLoading}
+        fromEmployeeName={transferModal.fromEmployeeName}
+        workOrderId={transferModal.workOrderId}
+        toEmployeeId={transferModal.toEmployeeId}
+        reason={transferModal.reason}
+        workOrders={getWorkOrdersForEmployee(transferModal.fromEmployeeId)}
+        employees={employees.filter(
+          (employee) => getEmployeeId(employee) !== transferModal.fromEmployeeId,
+        )}
+        getWorkOrderId={getWorkOrderId}
+        getWorkOrderLabel={getWorkOrderLabel}
+        onClose={closeTransferModal}
+        onChange={(next) =>
+          setTransferModal((prev) => ({
+            ...prev,
+            ...next,
+          }))
+        }
+        onSubmit={transferWorkOrder}
+      />
     </div>
   );
 }
@@ -1438,14 +1676,18 @@ function LiveSoftphoneRow({
   employee,
   tick,
   busy,
+  canTransferWorkOrder,
   onEndShift,
   onHangup,
+  onTransferWorkOrder,
 }: {
   employee: EmployeeShiftMonitor;
   tick: number;
   busy: boolean;
+  canTransferWorkOrder: boolean;
   onEndShift: () => void;
   onHangup: () => void;
+  onTransferWorkOrder: () => void;
 }) {
   const status = normalizeStatus(employee);
   const meta = getStatusMeta(status);
@@ -1589,9 +1831,177 @@ function LiveSoftphoneRow({
           >
             סיים משמרת
           </button>
+
+          <button
+            type="button"
+            onClick={onTransferWorkOrder}
+            disabled={!canTransferWorkOrder || busy}
+            className={`h-9 rounded-2xl border px-3 text-xs font-black transition disabled:cursor-not-allowed disabled:opacity-40 ${
+              canTransferWorkOrder
+                ? "border-violet-100 bg-violet-50 text-violet-700 hover:bg-violet-100"
+                : "border-slate-200 bg-white text-slate-400"
+            }`}
+          >
+            העבר הוראה
+          </button>
         </div>
       </td>
     </tr>
+  );
+}
+
+/* =====================================================
+   TRANSFER MODAL
+===================================================== */
+
+function TransferWorkOrderModal({
+  open,
+  loading,
+  fromEmployeeName,
+  workOrderId,
+  toEmployeeId,
+  reason,
+  workOrders,
+  employees,
+  getWorkOrderId,
+  getWorkOrderLabel,
+  onClose,
+  onChange,
+  onSubmit,
+}: {
+  open: boolean;
+  loading: boolean;
+  fromEmployeeName: string;
+  workOrderId: string;
+  toEmployeeId: string;
+  reason: string;
+  workOrders: CallWorkOrderSummary[];
+  employees: EmployeeShiftMonitor[];
+  getWorkOrderId: (order: CallWorkOrderSummary) => string;
+  getWorkOrderLabel: (order: CallWorkOrderSummary) => string;
+  onClose: () => void;
+  onChange: (next: Partial<TransferModalState>) => void;
+  onSubmit: () => void;
+}) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm" dir="rtl">
+      <div className="w-full max-w-2xl rounded-[30px] border border-white bg-white p-5 shadow-2xl shadow-slate-950/20">
+        <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
+          <div>
+            <p className="inline-flex rounded-full bg-violet-50 px-3 py-1.5 text-xs font-black text-violet-700 ring-1 ring-violet-100">
+              אדמין בלבד
+            </p>
+            <h2 className="mt-3 text-2xl font-black text-slate-950">
+              העברת הוראת עבודה
+            </h2>
+            <p className="mt-1 text-sm font-bold text-slate-500">
+              מעביר משימות פתוחות מהעובד:{" "}
+              <span className="font-black text-slate-900">{fromEmployeeName}</span>
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={loading}
+            className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-50 text-lg font-black text-slate-500 ring-1 ring-slate-100 transition hover:bg-slate-100 disabled:opacity-40"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="mt-5 grid gap-4">
+          <label className="grid gap-2">
+            <span className="text-xs font-black text-slate-500">
+              הוראת עבודה להעברה
+            </span>
+
+            <select
+              value={workOrderId}
+              onChange={(event) => onChange({ workOrderId: event.target.value })}
+              disabled={loading}
+              className="h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-900 outline-none transition focus:border-violet-200 focus:bg-white focus:ring-4 focus:ring-violet-50 disabled:opacity-50"
+            >
+              {workOrders.map((order) => {
+                const id = getWorkOrderId(order);
+
+                return (
+                  <option key={id} value={id}>
+                    {getWorkOrderLabel(order)}
+                  </option>
+                );
+              })}
+            </select>
+          </label>
+
+          <label className="grid gap-2">
+            <span className="text-xs font-black text-slate-500">
+              להעביר לעובד
+            </span>
+
+            <select
+              value={toEmployeeId}
+              onChange={(event) => onChange({ toEmployeeId: event.target.value })}
+              disabled={loading}
+              className="h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-900 outline-none transition focus:border-violet-200 focus:bg-white focus:ring-4 focus:ring-violet-50 disabled:opacity-50"
+            >
+              <option value="">בחירת עובד</option>
+              {employees.map((employee) => {
+                const id = getEmployeeId(employee);
+
+                return (
+                  <option key={id} value={id}>
+                    {getEmployeeName(employee)} — {employee.email || getEmployeePhone(employee) || ""}
+                  </option>
+                );
+              })}
+            </select>
+          </label>
+
+          <label className="grid gap-2">
+            <span className="text-xs font-black text-slate-500">
+              סיבת העברה
+            </span>
+
+            <textarea
+              value={reason}
+              onChange={(event) => onChange({ reason: event.target.value })}
+              disabled={loading}
+              rows={3}
+              placeholder="לדוגמה: עומס, עובד לא זמין, חלוקה מחדש..."
+              className="resize-y rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-200 focus:bg-white focus:ring-4 focus:ring-violet-50 disabled:opacity-50"
+            />
+          </label>
+
+          <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4 text-xs font-bold leading-6 text-amber-800">
+            ההעברה משנה רק את העובד המטפל במשימות הפתוחות. ההוראות, האורחים,
+            הסבב, הסטטוסים וההערות נשמרים.
+          </div>
+        </div>
+
+        <div className="mt-5 flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-4">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={loading}
+            className="h-11 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-600 transition hover:bg-slate-50 disabled:opacity-40"
+          >
+            ביטול
+          </button>
+
+          <button
+            type="button"
+            onClick={onSubmit}
+            disabled={loading || !workOrderId || !toEmployeeId}
+            className="h-11 rounded-2xl bg-gradient-to-l from-indigo-500 to-violet-500 px-6 text-sm font-black text-white shadow-lg shadow-indigo-100 transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {loading ? "מעביר..." : "אישור העברה"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
