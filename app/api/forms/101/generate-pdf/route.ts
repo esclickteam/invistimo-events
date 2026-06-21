@@ -102,6 +102,66 @@ type Form101Payload = {
   signatureDataUrl?: string;
 };
 
+
+type FixedFieldSetting = {
+  isFixed?: boolean;
+  fixedValue?: string;
+};
+
+/**
+ * שדות קבועים מודפסים לכל העובדים, בלי קשר למה שנשלח מהטופס בפרונט.
+ * שדות שלא מופיעים כאן / isFixed=false נלקחים מהמידע שהעובד מילא.
+ * אם בהמשך את מעתיקה מהמסך של המיפוי TS CONST עם isFixed/fixedValue,
+ * אפשר לעדכן כאן את הערכים הקבועים לפי אותו מיפוי.
+ */
+const FORM101_FIXED_FIELDS: Record<string, FixedFieldSetting> = {
+  employerName: {
+    isFixed: true,
+    fixedValue: "בן עשת",
+  },
+  employerAddress: {
+    isFixed: true,
+    fixedValue: "העצמאות 41 קרית אתא",
+  },
+  employerPhone: {
+    isFixed: true,
+    fixedValue: "0526850711",
+  },
+  employerFileNumber: {
+    isFixed: true,
+    fixedValue: "905790028",
+  },
+};
+
+function resolveFixedField(
+  key: keyof Form101Payload,
+  submittedValue: unknown
+) {
+  const setting = FORM101_FIXED_FIELDS[String(key)];
+
+  if (setting?.isFixed) {
+    return setting.fixedValue ?? "";
+  }
+
+  return submittedValue;
+}
+
+function applyFixedFields(body: Form101Payload): Form101Payload {
+  return {
+    ...body,
+
+    // פרטי מעסיק — קבועים לכל העובדים
+    employerName: String(resolveFixedField("employerName", body.employerName) || ""),
+    employerAddress: String(
+      resolveFixedField("employerAddress", body.employerAddress) || ""
+    ),
+    employerPhone: String(resolveFixedField("employerPhone", body.employerPhone) || ""),
+    employerFileNumber: String(
+      resolveFixedField("employerFileNumber", body.employerFileNumber) || ""
+    ),
+  };
+}
+
 function clean(value: unknown) {
   return String(value || "").trim();
 }
@@ -437,6 +497,7 @@ function drawSmallCheck(page: any, checked: boolean, x: number, y: number, font:
 }
 
 async function generateForm101Pdf(body: Form101Payload) {
+  const form = applyFixedFields(body);
   const templatePath = path.join(
     process.cwd(),
     "public",
@@ -469,122 +530,122 @@ async function generateForm101Pdf(body: Form101Payload) {
      מותאם לקובץ public/forms/tofes-101.pdf שהעלית
   ========================================================= */
 
-  drawCenteredText(page1, body.taxYear || new Date().getFullYear(), 263, 715, 70, {
+  drawCenteredText(page1, form.taxYear || new Date().getFullYear(), 263, 715, 70, {
     font,
     size: 17,
   });
 
   /* א. פרטי המעסיק */
-  drawTextBoxRight(page1, body.employerName, 405, 572, 619, {
+  drawTextBoxRight(page1, form.employerName, 405, 572, 619, {
     font,
     size: 13,
   });
 
-  drawTextBoxRight(page1, body.employerAddress, 270, 405, 619, {
+  drawTextBoxRight(page1, form.employerAddress, 270, 405, 619, {
     font,
     size: 11,
   });
 
-  drawTextBoxLeft(page1, onlyDigits(body.employerPhone), 143, 270, 619, {
+  drawTextBoxLeft(page1, onlyDigits(form.employerPhone), 143, 270, 619, {
     font,
     size: 13,
   });
 
-  drawTextBoxLeft(page1, onlyDigits(body.employerFileNumber), 29, 143, 619, {
+  drawTextBoxLeft(page1, onlyDigits(form.employerFileNumber), 29, 143, 619, {
     font,
     size: 13,
   });
 
   /* ב. פרטי העובד/ת */
-  drawTextBoxLeft(page1, splitId(body.idNumber), 474, 572, 548, {
+  drawTextBoxLeft(page1, splitId(form.idNumber), 474, 572, 548, {
     font,
     size: 13,
   });
 
-  drawTextBoxRight(page1, body.lastName, 346, 474, 548, {
+  drawTextBoxRight(page1, form.lastName, 346, 474, 548, {
     font,
     size: 13,
   });
 
-  drawTextBoxRight(page1, body.firstName, 255, 346, 548, {
+  drawTextBoxRight(page1, form.firstName, 255, 346, 548, {
     font,
     size: 13,
   });
 
-  drawCenteredText(page1, formatDateIL(body.birthDate), 168, 548, 87, {
+  drawCenteredText(page1, formatDateIL(form.birthDate), 168, 548, 87, {
     font,
     size: 12,
   });
 
-  drawCenteredText(page1, formatDateIL(body.immigrationDate), 37, 548, 130, {
+  drawCenteredText(page1, formatDateIL(form.immigrationDate), 37, 548, 130, {
     font,
     size: 12,
   });
 
-  drawTextBoxRight(page1, body.street, 374, 572, 511, {
+  drawTextBoxRight(page1, form.street, 374, 572, 511, {
     font,
     size: 12,
   });
 
-  drawCenteredText(page1, body.houseNumber, 333, 511, 40, {
+  drawCenteredText(page1, form.houseNumber, 333, 511, 40, {
     font,
     size: 12,
   });
 
-  drawTextBoxRight(page1, body.city, 245, 333, 511, {
+  drawTextBoxRight(page1, form.city, 245, 333, 511, {
     font,
     size: 12,
   });
 
-  drawCenteredText(page1, body.postalCode, 170, 511, 72, {
+  drawCenteredText(page1, form.postalCode, 170, 511, 72, {
     font,
     size: 12,
   });
 
-  drawTextBoxLeft(page1, onlyDigits(body.mobile), 276, 467, 466, {
+  drawTextBoxLeft(page1, onlyDigits(form.mobile), 276, 467, 466, {
     font,
     size: 13,
   });
 
-  drawTextBoxLeft(page1, onlyDigits(body.phone), 151, 276, 466, {
+  drawTextBoxLeft(page1, onlyDigits(form.phone), 151, 276, 466, {
     font,
     size: 13,
   });
 
-  drawTextBoxLeft(page1, body.email, 35, 572, 431, {
+  drawTextBoxLeft(page1, form.email, 35, 572, 431, {
     font,
     size: 12,
   });
 
   /* מין */
-  drawSmallCheck(page1, body.gender === "male", 548, 490, font);
-  drawSmallCheck(page1, body.gender === "female", 548, 474, font);
+  drawSmallCheck(page1, form.gender === "male", 548, 490, font);
+  drawSmallCheck(page1, form.gender === "female", 548, 474, font);
 
   /* מצב משפחתי */
-  drawSmallCheck(page1, body.maritalStatus === "single", 488, 490, font);
-  drawSmallCheck(page1, body.maritalStatus === "married", 488, 474, font);
-  drawSmallCheck(page1, body.maritalStatus === "divorced", 432, 490, font);
-  drawSmallCheck(page1, body.maritalStatus === "widowed", 432, 474, font);
-  drawSmallCheck(page1, body.maritalStatus === "separated", 374, 474, font);
+  drawSmallCheck(page1, form.maritalStatus === "single", 488, 490, font);
+  drawSmallCheck(page1, form.maritalStatus === "married", 488, 474, font);
+  drawSmallCheck(page1, form.maritalStatus === "divorced", 432, 490, font);
+  drawSmallCheck(page1, form.maritalStatus === "widowed", 432, 474, font);
+  drawSmallCheck(page1, form.maritalStatus === "separated", 374, 474, font);
 
   /* תושב ישראל */
-  drawSmallCheck(page1, body.residentIsrael === "yes", 337, 490, font);
-  drawSmallCheck(page1, body.residentIsrael === "no", 337, 474, font);
+  drawSmallCheck(page1, form.residentIsrael === "yes", 337, 490, font);
+  drawSmallCheck(page1, form.residentIsrael === "no", 337, 474, font);
 
   /* חבר קיבוץ / מושב שיתופי */
-  drawSmallCheck(page1, body.kibbutzMember === "yes", 258, 490, font);
-  drawSmallCheck(page1, body.kibbutzMember === "no", 258, 474, font);
+  drawSmallCheck(page1, form.kibbutzMember === "yes", 258, 490, font);
+  drawSmallCheck(page1, form.kibbutzMember === "no", 258, 474, font);
 
   /* חבר קופת חולים */
-  drawSmallCheck(page1, body.healthFundMember === "yes", 190, 490, font);
-  drawSmallCheck(page1, body.healthFundMember === "no", 190, 474, font);
-  drawTextBoxRight(page1, body.healthFundName, 35, 171, 454, {
+  drawSmallCheck(page1, form.healthFundMember === "yes", 190, 490, font);
+  drawSmallCheck(page1, form.healthFundMember === "no", 190, 474, font);
+  drawTextBoxRight(page1, form.healthFundName, 35, 171, 454, {
     font,
     size: 12,
   });
 
   /* ג. ילדים שטרם מלאו להם 19 */
-  const children = Array.isArray(body.children) ? body.children : [];
+  const children = Array.isArray(form.children) ? form.children : [];
 
   children.slice(0, 10).forEach((child, index) => {
     const y = 390 - index * 28;
@@ -606,50 +667,50 @@ async function generateForm101Pdf(body: Form101Payload) {
   });
 
   /* ד. פרטים על הכנסותיי ממעביד זה */
-  drawCenteredText(page1, formatDateIL(body.workStartDate), 40, 372, 118, {
+  drawCenteredText(page1, formatDateIL(form.workStartDate), 40, 372, 118, {
     font,
     size: 12,
   });
 
-  drawSmallCheck(page1, Boolean(body.incomeType?.monthlySalary), 250, 394, font);
-  drawSmallCheck(page1, Boolean(body.incomeType?.extraSalary), 250, 379, font);
-  drawSmallCheck(page1, Boolean(body.incomeType?.partialSalary), 250, 364, font);
-  drawSmallCheck(page1, Boolean(body.incomeType?.dailyWage), 250, 349, font);
-  drawSmallCheck(page1, Boolean(body.incomeType?.allowance), 250, 334, font);
-  drawSmallCheck(page1, Boolean(body.incomeType?.pension), 250, 319, font);
+  drawSmallCheck(page1, Boolean(form.incomeType?.monthlySalary), 250, 394, font);
+  drawSmallCheck(page1, Boolean(form.incomeType?.extraSalary), 250, 379, font);
+  drawSmallCheck(page1, Boolean(form.incomeType?.partialSalary), 250, 364, font);
+  drawSmallCheck(page1, Boolean(form.incomeType?.dailyWage), 250, 349, font);
+  drawSmallCheck(page1, Boolean(form.incomeType?.allowance), 250, 334, font);
+  drawSmallCheck(page1, Boolean(form.incomeType?.pension), 250, 319, font);
 
   /* ה. הכנסות אחרות */
-  drawSmallCheck(page1, Boolean(body.otherIncome?.noOtherIncome), 248, 295, font);
-  drawSmallCheck(page1, Boolean(body.otherIncome?.monthlySalary), 250, 266, font);
-  drawSmallCheck(page1, Boolean(body.otherIncome?.extraSalary), 250, 251, font);
-  drawSmallCheck(page1, Boolean(body.otherIncome?.partialSalary), 250, 236, font);
-  drawSmallCheck(page1, Boolean(body.otherIncome?.dailyWage), 250, 221, font);
-  drawSmallCheck(page1, Boolean(body.otherIncome?.allowance), 250, 206, font);
-  drawSmallCheck(page1, Boolean(body.otherIncome?.pension), 250, 191, font);
-  drawSmallCheck(page1, Boolean(body.otherIncome?.scholarship), 250, 176, font);
+  drawSmallCheck(page1, Boolean(form.otherIncome?.noOtherIncome), 248, 295, font);
+  drawSmallCheck(page1, Boolean(form.otherIncome?.monthlySalary), 250, 266, font);
+  drawSmallCheck(page1, Boolean(form.otherIncome?.extraSalary), 250, 251, font);
+  drawSmallCheck(page1, Boolean(form.otherIncome?.partialSalary), 250, 236, font);
+  drawSmallCheck(page1, Boolean(form.otherIncome?.dailyWage), 250, 221, font);
+  drawSmallCheck(page1, Boolean(form.otherIncome?.allowance), 250, 206, font);
+  drawSmallCheck(page1, Boolean(form.otherIncome?.pension), 250, 191, font);
+  drawSmallCheck(page1, Boolean(form.otherIncome?.scholarship), 250, 176, font);
 
   /* ו. פרטי בן/בת זוג */
-  drawTextBoxLeft(page1, splitId(body.spouse?.idNumber), 474, 572, 104, {
+  drawTextBoxLeft(page1, splitId(form.spouse?.idNumber), 474, 572, 104, {
     font,
     size: 11,
   });
 
-  drawTextBoxRight(page1, body.spouse?.lastName, 346, 474, 104, {
+  drawTextBoxRight(page1, form.spouse?.lastName, 346, 474, 104, {
     font,
     size: 11,
   });
 
-  drawTextBoxRight(page1, body.spouse?.firstName, 255, 346, 104, {
+  drawTextBoxRight(page1, form.spouse?.firstName, 255, 346, 104, {
     font,
     size: 11,
   });
 
-  drawCenteredText(page1, formatDateIL(body.spouse?.birthDate), 168, 104, 87, {
+  drawCenteredText(page1, formatDateIL(form.spouse?.birthDate), 168, 104, 87, {
     font,
     size: 11,
   });
 
-  drawCenteredText(page1, formatDateIL(body.spouse?.immigrationDate), 37, 104, 130, {
+  drawCenteredText(page1, formatDateIL(form.spouse?.immigrationDate), 37, 104, 130, {
     font,
     size: 11,
   });
@@ -659,73 +720,73 @@ async function generateForm101Pdf(body: Form101Payload) {
   ========================================================= */
 
   if (page2) {
-    drawTextBoxLeft(page2, splitId(body.idNumber), 105, 250, 815, {
+    drawTextBoxLeft(page2, splitId(form.idNumber), 105, 250, 815, {
       font,
       size: 12,
     });
 
     /* ח. פטור או זיכוי ממס */
-    drawSmallCheck(page2, Boolean(getCredit(body, "resident")), 548, 792, font);
+    drawSmallCheck(page2, Boolean(getCredit(form, "resident")), 548, 792, font);
 
-    drawSmallCheck(page2, Boolean(getCredit(body, "disabled100")), 548, 765, font);
+    drawSmallCheck(page2, Boolean(getCredit(form, "disabled100")), 548, 765, font);
 
-    drawSmallCheck(page2, Boolean(getCredit(body, "settlement")), 548, 727, font);
-    drawTextBoxRight(page2, getCredit(body, "settlementDate"), 305, 430, 727, {
+    drawSmallCheck(page2, Boolean(getCredit(form, "settlement")), 548, 727, font);
+    drawTextBoxRight(page2, getCredit(form, "settlementDate"), 305, 430, 727, {
       font,
       size: 11,
     });
-    drawTextBoxRight(page2, getCredit(body, "settlementName"), 320, 515, 700, {
+    drawTextBoxRight(page2, getCredit(form, "settlementName"), 320, 515, 700, {
       font,
       size: 11,
     });
 
-    drawSmallCheck(page2, Boolean(getCredit(body, "newImmigrant")), 548, 681, font);
+    drawSmallCheck(page2, Boolean(getCredit(form, "newImmigrant")), 548, 681, font);
 
-    drawSmallCheck(page2, Boolean(getCredit(body, "spouseNoIncome")), 548, 632, font);
+    drawSmallCheck(page2, Boolean(getCredit(form, "spouseNoIncome")), 548, 632, font);
 
-    drawSmallCheck(page2, Boolean(getCredit(body, "singleParent")), 548, 603, font);
+    drawSmallCheck(page2, Boolean(getCredit(form, "singleParent")), 548, 603, font);
 
-    drawSmallCheck(page2, Boolean(getCredit(body, "childrenCustody")), 548, 565, font);
+    drawSmallCheck(page2, Boolean(getCredit(form, "childrenCustody")), 548, 565, font);
 
-    drawTextBoxLeft(page2, getCredit(body, "childrenBornThisYear"), 283, 340, 540, {
+    drawTextBoxLeft(page2, getCredit(form, "childrenBornThisYear"), 283, 340, 540, {
       font,
       size: 10,
     });
 
-    drawTextBoxLeft(page2, getCredit(body, "childrenAgeOneToFive"), 283, 340, 522, {
+    drawTextBoxLeft(page2, getCredit(form, "childrenAgeOneToFive"), 283, 340, 522, {
       font,
       size: 10,
     });
 
-    drawTextBoxLeft(page2, getCredit(body, "childrenAgeSixToSeventeen"), 283, 340, 504, {
+    drawTextBoxLeft(page2, getCredit(form, "childrenAgeSixToSeventeen"), 283, 340, 504, {
       font,
       size: 10,
     });
 
-    drawTextBoxLeft(page2, getCredit(body, "childrenAgeEighteen"), 283, 340, 486, {
+    drawTextBoxLeft(page2, getCredit(form, "childrenAgeEighteen"), 283, 340, 486, {
       font,
       size: 10,
     });
 
-    drawSmallCheck(page2, Boolean(getCredit(body, "specialChild")), 548, 435, font);
+    drawSmallCheck(page2, Boolean(getCredit(form, "specialChild")), 548, 435, font);
 
-    drawSmallCheck(page2, Boolean(getCredit(body, "alimony")), 548, 407, font);
+    drawSmallCheck(page2, Boolean(getCredit(form, "alimony")), 548, 407, font);
 
-    drawSmallCheck(page2, Boolean(getCredit(body, "childrenUnder19")), 548, 379, font);
+    drawSmallCheck(page2, Boolean(getCredit(form, "childrenUnder19")), 548, 379, font);
 
-    drawSmallCheck(page2, Boolean(getCredit(body, "soldier")), 548, 350, font);
+    drawSmallCheck(page2, Boolean(getCredit(form, "soldier")), 548, 350, font);
 
-    drawSmallCheck(page2, Boolean(getCredit(body, "academic")), 548, 322, font);
+    drawSmallCheck(page2, Boolean(getCredit(form, "academic")), 548, 322, font);
 
-    drawSmallCheck(page2, Boolean(getCredit(body, "diploma")), 548, 295, font);
+    drawSmallCheck(page2, Boolean(getCredit(form, "diploma")), 548, 295, font);
 
     /* ט. תיאום מס */
-    drawSmallCheck(page2, Boolean(getCredit(body, "noIncomeThisYear")), 548, 254, font);
+    drawSmallCheck(page2, Boolean(getCredit(form, "noIncomeThisYear")), 548, 254, font);
 
-    drawSmallCheck(page2, Boolean(getCredit(body, "hasOtherIncomeForTaxCoordination")), 548, 222, font);
+    drawSmallCheck(page2, Boolean(getCredit(form, "hasOtherIncomeForTaxCoordination")), 548, 222, font);
 
     /* י. הצהרה */
-    drawCenteredText(page2, formatDateIL(body.signatureDate), 150, 154, 135, {
+    drawCenteredText(page2, formatDateIL(form.signatureDate), 150, 154, 135, {
       font,
       size: 12,
     });
@@ -733,7 +794,7 @@ async function generateForm101Pdf(body: Form101Payload) {
     const signatureDrawn = await drawSignatureImage(
       pdfDoc,
       page2,
-      body.signatureDataUrl,
+      form.signatureDataUrl,
       38,
       146,
       105,
@@ -741,7 +802,7 @@ async function generateForm101Pdf(body: Form101Payload) {
     );
 
     if (!signatureDrawn) {
-      drawTextBoxRight(page2, body.signatureText, 38, 145, 154, {
+      drawTextBoxRight(page2, form.signatureText, 38, 145, 154, {
         font,
         size: 12,
       });
