@@ -20,10 +20,11 @@ const EmployeeForm101Schema = new Schema(
      * סוג המסמך:
      * form101 = טופס 101
      * idCard = תעודת זהות
+     * accountManagement = אישור ניהול חשבון
      */
     documentType: {
       type: String,
-      enum: ["form101", "idCard"],
+      enum: ["form101", "idCard", "accountManagement"],
       default: "form101",
       required: true,
       index: true,

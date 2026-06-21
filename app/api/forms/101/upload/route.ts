@@ -17,7 +17,7 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 const ALLOWED_FILE_TYPES = ["application/pdf", "image/jpeg", "image/png"];
 
-type EmployeeDocumentType = "form101" | "idCard";
+type EmployeeDocumentType = "form101" | "idCard" | "accountManagement";
 
 function extractUserId(authResult: any) {
   if (!authResult) return "";
@@ -52,6 +52,7 @@ function normalizeDocumentType(
   const raw = String(value || "").trim();
 
   if (raw === "idCard") return "idCard";
+  if (raw === "accountManagement") return "accountManagement";
   if (raw === "form101") return "form101";
 
   // ברירת מחדל לשמירה על תאימות אחורה
@@ -60,11 +61,13 @@ function normalizeDocumentType(
 
 function getDocumentFolder(documentType: EmployeeDocumentType) {
   if (documentType === "idCard") return "id-card";
+  if (documentType === "accountManagement") return "account-management";
   return "101";
 }
 
 function getDocumentLabel(documentType: EmployeeDocumentType) {
   if (documentType === "idCard") return "תעודת זהות";
+  if (documentType === "accountManagement") return "אישור ניהול חשבון";
   return "טופס 101";
 }
 
@@ -129,7 +132,7 @@ function buildExistingDocumentQuery({
   return {
     employeeId,
     taxYear,
-    documentType: "idCard",
+    documentType,
   };
 }
 
@@ -222,10 +225,7 @@ export async function POST(req: NextRequest) {
 
     const existingStatus = String((existingDocument as any)?.status || "");
 
-    if (
-      existingDocument &&
-      existingStatus !== "rejected"
-    ) {
+    if (existingDocument && existingStatus !== "rejected") {
       const label = getDocumentLabel(documentType);
 
       return NextResponse.json(
@@ -244,6 +244,10 @@ export async function POST(req: NextRequest) {
               : null,
           idCard:
             documentType === "idCard"
+              ? serializeEmployeeDocument(existingDocument)
+              : null,
+          accountManagement:
+            documentType === "accountManagement"
               ? serializeEmployeeDocument(existingDocument)
               : null,
         },
@@ -323,6 +327,8 @@ export async function POST(req: NextRequest) {
       // תאימות אחורה לקוד קיים שמצפה ל-form101
       form101: documentType === "form101" ? serialized : null,
       idCard: documentType === "idCard" ? serialized : null,
+      accountManagement:
+        documentType === "accountManagement" ? serialized : null,
     });
   } catch (error) {
     console.error("UPLOAD EMPLOYEE DOCUMENT TO R2 FAILED:", error);
@@ -332,4 +338,4 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
-}
+}formData.append("documentType", "accountManagement");

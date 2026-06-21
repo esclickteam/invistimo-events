@@ -9,7 +9,7 @@ import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type EmployeeDocumentType = "form101" | "idCard";
+type EmployeeDocumentType = "form101" | "idCard" | "accountManagement";
 
 function extractUserId(authResult: any) {
   if (!authResult) return "";
@@ -53,19 +53,23 @@ function normalizeDocumentType(value: string | null) {
 
   if (raw === "form101") return "form101";
   if (raw === "idCard") return "idCard";
+  if (raw === "accountManagement") return "accountManagement";
 
   return "";
 }
 
 function documentTypeLabel(documentType?: string) {
   if (documentType === "idCard") return "תעודת זהות";
+  if (documentType === "accountManagement") return "אישור ניהול חשבון";
   if (documentType === "form101") return "טופס 101";
 
   return "טופס 101";
 }
 
 function serializeForm(form: any, employee?: any) {
-  const documentType = String(form.documentType || "form101") as EmployeeDocumentType;
+  const documentType = String(
+    form.documentType || "form101"
+  ) as EmployeeDocumentType;
 
   return {
     _id: String(form._id),
@@ -130,6 +134,7 @@ export async function GET(req: NextRequest) {
      * חדש:
      * documentType=form101
      * documentType=idCard
+     * documentType=accountManagement
      * אם לא נשלח documentType — מחזיר את כל המסמכים.
      */
     const documentType = normalizeDocumentType(
@@ -148,6 +153,10 @@ export async function GET(req: NextRequest) {
 
     if (documentType === "idCard") {
       query.documentType = "idCard";
+    }
+
+    if (documentType === "accountManagement") {
+      query.documentType = "accountManagement";
     }
 
     /**
@@ -187,8 +196,13 @@ export async function GET(req: NextRequest) {
 
     const stats = {
       total: data.length,
-      form101: data.filter((item: any) => item.documentType === "form101").length,
-      idCard: data.filter((item: any) => item.documentType === "idCard").length,
+      form101: data.filter((item: any) => item.documentType === "form101")
+        .length,
+      idCard: data.filter((item: any) => item.documentType === "idCard")
+        .length,
+      accountManagement: data.filter(
+        (item: any) => item.documentType === "accountManagement"
+      ).length,
       uploaded: data.filter((item: any) => item.status === "uploaded").length,
       approved: data.filter((item: any) => item.status === "approved").length,
       rejected: data.filter((item: any) => item.status === "rejected").length,

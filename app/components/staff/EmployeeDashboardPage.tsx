@@ -28,7 +28,7 @@ type EventProgress =
   | string;
 
 type EmployeeDocumentStatus = "missing" | "uploaded" | "approved" | "rejected";
-type EmployeeDocumentType = "form101" | "idCard";
+type EmployeeDocumentType = "form101" | "idCard" | "accountManagement";
 
 type ApiEmployeeDocument = {
   _id?: string;
@@ -1071,14 +1071,23 @@ function LoadingPanel() {
 function getCombinedDocumentsStatus(
   form101: ApiEmployeeDocument | null,
   idCard: ApiEmployeeDocument | null,
+  accountManagement: ApiEmployeeDocument | null,
 ): EmployeeDocumentStatus {
-  if (!form101 && !idCard) return "missing";
+  if (!form101 && !idCard && !accountManagement) return "missing";
 
-  if (form101?.status === "rejected" || idCard?.status === "rejected") {
+  if (
+    form101?.status === "rejected" ||
+    idCard?.status === "rejected" ||
+    accountManagement?.status === "rejected"
+  ) {
     return "rejected";
   }
 
-  if (form101?.status === "approved" && idCard?.status === "approved") {
+  if (
+    form101?.status === "approved" &&
+    idCard?.status === "approved" &&
+    accountManagement?.status === "approved"
+  ) {
     return "approved";
   }
 
@@ -1203,6 +1212,7 @@ function isFacebookLead(lead: EmployeeLead) {
 function EmployeeFileSummaryPanel({
   form101,
   idCard,
+  accountManagement,
   agreement,
   loading,
   agreementLoading,
@@ -1212,6 +1222,7 @@ function EmployeeFileSummaryPanel({
 }: {
   form101: ApiEmployeeDocument | null;
   idCard: ApiEmployeeDocument | null;
+  accountManagement: ApiEmployeeDocument | null;
   agreement: ApiEmployeeAgreement | null;
   loading: boolean;
   agreementLoading: boolean;
@@ -1219,7 +1230,11 @@ function EmployeeFileSummaryPanel({
   onReload: () => void;
   onOpen: () => void;
 }) {
-  const combinedStatus = getCombinedDocumentsStatus(form101, idCard);
+  const combinedStatus = getCombinedDocumentsStatus(
+    form101,
+    idCard,
+    accountManagement,
+  );
   const agreementStatus = getAgreementEffectiveStatus(agreement);
   const agreementFileUrl = getAgreementFileUrl(agreement);
   const agreementDate = getAgreementDate(agreement);
@@ -1316,6 +1331,22 @@ function EmployeeFileSummaryPanel({
             />
 
             <MiniDocumentStatusCard
+              title="אישור ניהול חשבון"
+              subtitle={
+                accountManagement
+                  ? `הועלה: ${accountManagement.originalFileName || "קובץ"} · ${getUploadedDate(accountManagement)}`
+                  : "לא הועלה עדיין"
+              }
+              statusLabel={documentStatusLabel(
+                accountManagement?.status || "missing",
+              )}
+              statusClass={documentStatusClass(
+                accountManagement?.status || "missing",
+              )}
+              icon={<Icon name="file" className="h-5 w-5" />}
+            />
+
+            <MiniDocumentStatusCard
               title="הסכם עבודה"
               subtitle={
                 agreementFileUrl
@@ -1343,7 +1374,7 @@ function EmployeeFileSummaryPanel({
                   סטטוס כללי של מסמכי חובה
                 </p>
                 <p className="mt-1 text-xs font-bold leading-5 text-slate-500">
-                  טופס 101 + תעודת זהות + הסכם עבודה. כניסה מלאה נמצאת בכפתור
+                  טופס 101 + תעודת זהות + אישור ניהול חשבון + הסכם עבודה. כניסה מלאה נמצאת בכפתור
                   הקטן של תיק העובד.
                 </p>
               </div>
@@ -1381,10 +1412,14 @@ export default function EmployeeDashboardPage() {
 
   const [form101, setForm101] = useState<ApiEmployeeDocument | null>(null);
   const [idCard, setIdCard] = useState<ApiEmployeeDocument | null>(null);
+  const [accountManagement, setAccountManagement] =
+    useState<ApiEmployeeDocument | null>(null);
   const [agreement, setAgreement] = useState<ApiEmployeeAgreement | null>(null);
   const [agreementLoading, setAgreementLoading] = useState(true);
   const [form101File, setForm101File] = useState<File | null>(null);
   const [idCardFile, setIdCardFile] = useState<File | null>(null);
+  const [accountManagementFile, setAccountManagementFile] =
+    useState<File | null>(null);
   const [documentsLoading, setDocumentsLoading] = useState(true);
   const [uploadingDocumentType, setUploadingDocumentType] =
     useState<EmployeeDocumentType | null>(null);
@@ -1638,7 +1673,11 @@ export default function EmployeeDashboardPage() {
       }
 
       return (data?.document ||
-        (documentType === "form101" ? data?.form101 : data?.idCard) ||
+        (documentType === "form101"
+          ? data?.form101
+          : documentType === "idCard"
+            ? data?.idCard
+            : data?.accountManagement) ||
         null) as ApiEmployeeDocument | null;
     },
     [],
@@ -1649,23 +1688,30 @@ export default function EmployeeDashboardPage() {
       setDocumentsError("");
       setDocumentsLoading(true);
 
-      const [form101Document, idCardDocument] = await Promise.all([
-        loadEmployeeDocument("form101").catch((loadError) => {
-          console.error("LOAD FORM 101 FAILED:", loadError);
-          return null;
-        }),
-        loadEmployeeDocument("idCard").catch((loadError) => {
-          console.error("LOAD ID CARD FAILED:", loadError);
-          return null;
-        }),
-      ]);
+      const [form101Document, idCardDocument, accountManagementDocument] =
+        await Promise.all([
+          loadEmployeeDocument("form101").catch((loadError) => {
+            console.error("LOAD FORM 101 FAILED:", loadError);
+            return null;
+          }),
+          loadEmployeeDocument("idCard").catch((loadError) => {
+            console.error("LOAD ID CARD FAILED:", loadError);
+            return null;
+          }),
+          loadEmployeeDocument("accountManagement").catch((loadError) => {
+            console.error("LOAD ACCOUNT MANAGEMENT DOCUMENT FAILED:", loadError);
+            return null;
+          }),
+        ]);
 
       setForm101(form101Document);
       setIdCard(idCardDocument);
+      setAccountManagement(accountManagementDocument);
     } catch (loadError) {
       console.error("LOAD EMPLOYEE DOCUMENTS FAILED:", loadError);
       setForm101(null);
       setIdCard(null);
+      setAccountManagement(null);
       setDocumentsError(
         loadError instanceof Error
           ? loadError.message
@@ -1719,7 +1765,11 @@ export default function EmployeeDashboardPage() {
   const uploadEmployeeDocument = useCallback(
     async (documentType: EmployeeDocumentType) => {
       const selectedFile =
-        documentType === "form101" ? form101File : idCardFile;
+        documentType === "form101"
+          ? form101File
+          : documentType === "idCard"
+            ? idCardFile
+            : accountManagementFile;
 
       if (!selectedFile || uploadingDocumentType) return;
 
@@ -1744,17 +1794,25 @@ export default function EmployeeDashboardPage() {
         }
 
         const uploadedDocument = (data?.document ||
-          (documentType === "form101" ? data?.form101 : data?.idCard) ||
+          (documentType === "form101"
+            ? data?.form101
+            : documentType === "idCard"
+              ? data?.idCard
+              : data?.accountManagement) ||
           null) as ApiEmployeeDocument | null;
 
         if (documentType === "form101") {
           setForm101File(null);
           setForm101(uploadedDocument);
           alert("טופס 101 הועלה בהצלחה");
-        } else {
+        } else if (documentType === "idCard") {
           setIdCardFile(null);
           setIdCard(uploadedDocument);
           alert("תעודת זהות הועלתה בהצלחה");
+        } else {
+          setAccountManagementFile(null);
+          setAccountManagement(uploadedDocument);
+          alert("אישור ניהול חשבון הועלה בהצלחה");
         }
 
         await loadEmployeeDocuments();
@@ -1769,7 +1827,13 @@ export default function EmployeeDashboardPage() {
         setUploadingDocumentType(null);
       }
     },
-    [form101File, idCardFile, loadEmployeeDocuments, uploadingDocumentType],
+    [
+      form101File,
+      idCardFile,
+      accountManagementFile,
+      loadEmployeeDocuments,
+      uploadingDocumentType,
+    ],
   );
 
   const enterClientDashboard = useCallback(
@@ -2126,11 +2190,14 @@ export default function EmployeeDashboardPage() {
             onClose={() => setDocumentsModalOpen(false)}
             form101={form101}
             idCard={idCard}
+            accountManagement={accountManagement}
             agreement={agreement}
             form101File={form101File}
             idCardFile={idCardFile}
+            accountManagementFile={accountManagementFile}
             setForm101File={setForm101File}
             setIdCardFile={setIdCardFile}
+            setAccountManagementFile={setAccountManagementFile}
             loading={documentsLoading}
             agreementLoading={agreementLoading}
             uploadingType={uploadingDocumentType}

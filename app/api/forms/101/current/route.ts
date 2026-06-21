@@ -8,7 +8,7 @@ import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type EmployeeDocumentType = "form101" | "idCard";
+type EmployeeDocumentType = "form101" | "idCard" | "accountManagement";
 
 function extractUserId(authResult: any) {
   if (!authResult) return "";
@@ -30,6 +30,7 @@ function normalizeDocumentType(value: string | null): EmployeeDocumentType {
   const raw = String(value || "").trim();
 
   if (raw === "idCard") return "idCard";
+  if (raw === "accountManagement") return "accountManagement";
   if (raw === "form101") return "form101";
 
   return "form101";
@@ -116,7 +117,7 @@ export async function GET(req: NextRequest) {
         : {
             employeeId: employeeObjectId,
             taxYear,
-            documentType: "idCard",
+            documentType,
           };
 
     const document = await EmployeeForm101.findOne(query)
@@ -133,6 +134,8 @@ export async function GET(req: NextRequest) {
       // תאימות לקומפוננטות ישנות
       form101: documentType === "form101" ? serialized : null,
       idCard: documentType === "idCard" ? serialized : null,
+      accountManagement:
+        documentType === "accountManagement" ? serialized : null,
     });
   } catch (error) {
     console.error("GET CURRENT EMPLOYEE DOCUMENT FAILED:", error);

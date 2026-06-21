@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 type EmployeeDocumentStatus = "missing" | "uploaded" | "approved" | "rejected";
-type EmployeeDocumentType = "form101" | "idCard";
+type EmployeeDocumentType = "form101" | "idCard" | "accountManagement";
 
 type ApiEmployeeDocument = {
   _id?: string;
@@ -161,6 +161,7 @@ type DocumentsTab =
   | "form101"
   | "idCard"
   | "agreement"
+  | "accountManagement"
   | "hours"
   | "payslips";
 
@@ -171,11 +172,14 @@ type EmployeeDocumentsModalProps = {
   form101: ApiEmployeeDocument | null;
   idCard: ApiEmployeeDocument | null;
   agreement: ApiEmployeeAgreement | null;
+  accountManagement?: ApiEmployeeDocument | null;
 
   form101File: File | null;
   idCardFile: File | null;
+  accountManagementFile?: File | null;
   setForm101File: (file: File | null) => void;
   setIdCardFile: (file: File | null) => void;
+  setAccountManagementFile?: (file: File | null) => void;
 
   loading: boolean;
   agreementLoading: boolean;
@@ -683,6 +687,7 @@ function Icon({
     | "agreement"
     | "clock"
     | "payroll"
+    | "bank"
     | "open"
     | "check"
     | "refresh"
@@ -742,6 +747,21 @@ function Icon({
         <path d="M7 13h4" />
         <path d="M15 13h2" />
         <path d="M7 17h10" />
+      </svg>
+    );
+  }
+
+  if (name === "bank") {
+    return (
+      <svg {...common}>
+        <path d="M3 10h18" />
+        <path d="M5 10V8l7-4 7 4v2" />
+        <path d="M6 10v8" />
+        <path d="M10 10v8" />
+        <path d="M14 10v8" />
+        <path d="M18 10v8" />
+        <path d="M4 18h16" />
+        <path d="M3 21h18" />
       </svg>
     );
   }
@@ -1231,11 +1251,14 @@ export default function EmployeeDocumentsModal({
   form101,
   idCard,
   agreement,
+  accountManagement = null,
 
   form101File,
   idCardFile,
+  accountManagementFile = null,
   setForm101File,
   setIdCardFile,
+  setAccountManagementFile = () => undefined,
 
   loading,
   agreementLoading,
@@ -1276,6 +1299,7 @@ export default function EmployeeDocumentsModal({
 
   const form101Status = form101?.status || "missing";
   const idCardStatus = idCard?.status || "missing";
+  const accountManagementStatus = accountManagement?.status || "missing";
 
   const agreementStatus = getAgreementEffectiveStatus(agreement);
   const agreementFileUrl = getAgreementFileUrl(agreement);
@@ -1285,6 +1309,7 @@ export default function EmployeeDocumentsModal({
 
   const canUploadForm101 = canUploadDocument(form101);
   const canUploadIdCard = canUploadDocument(idCard);
+  const canUploadAccountManagement = canUploadDocument(accountManagement);
   const canEditHoursNotes = hoursStatusAllowsEditing(hoursSummary.status);
 
   const loadEmployeeHours = useCallback(
@@ -1464,6 +1489,17 @@ export default function EmployeeDocumentsModal({
         ),
       },
       {
+        id: "accountManagement" as const,
+        title: "אישור ניהול חשבון",
+        subtitle: "קובץ / תמונה",
+        icon: <Icon name="bank" className="h-5 w-5" />,
+        badge: (
+          <Badge className={documentStatusClass(accountManagementStatus)}>
+            {documentStatusLabel(accountManagementStatus)}
+          </Badge>
+        ),
+      },
+      {
         id: "agreement" as const,
         title: "הסכם עבודה",
         subtitle: "חתימה דיגיטלית",
@@ -1499,6 +1535,7 @@ export default function EmployeeDocumentsModal({
     ],
     [
       agreementStatus,
+      accountManagementStatus,
       form101Status,
       hoursSummary.status,
       idCardStatus,
@@ -1714,6 +1751,71 @@ export default function EmployeeDocumentsModal({
                     <EmptyTabState
                       title="עדיין לא נשלחה תעודת זהות"
                       subtitle="לאחר שליחת תעודת זהות, היא תופיע כאן לצפייה בלבד עם סטטוס בדיקה."
+                    />
+                  )
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === "accountManagement" && (
+            <div className="grid gap-5 lg:grid-cols-[1fr_0.9fr]">
+              <div className="rounded-[28px] border border-slate-200 bg-white p-5">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <h3 className="text-xl font-black text-slate-900">
+                      אישור ניהול חשבון
+                    </h3>
+                    <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
+                      יש לשלוח אישור ניהול חשבון בנק על שם העובד או העובדת.
+                      ניתן להעלות קובץ PDF או תמונה ברורה של האישור.
+                    </p>
+                  </div>
+
+                  <Badge className={documentStatusClass(accountManagementStatus)}>
+                    {documentStatusLabel(accountManagementStatus)}
+                  </Badge>
+                </div>
+
+                {accountManagementStatus === "rejected" && (
+                  <div className="mt-5">
+                    <RejectionBox reason={accountManagement?.rejectionReason} />
+                  </div>
+                )}
+
+                {!canUploadAccountManagement && (
+                  <div className="mt-5">
+                    <ReadonlyNotice />
+                  </div>
+                )}
+
+                {canUploadAccountManagement && (
+                  <div className="mt-5">
+                    <UploadDocumentBox
+                      documentType="accountManagement"
+                      title="שליחת אישור ניהול חשבון"
+                      description="ניתן לשלוח PDF, JPG או PNG. אחרי השליחה לא ניתן להחליף את הקובץ אלא אם הוא נדחה."
+                      selectedFile={accountManagementFile}
+                      setSelectedFile={setAccountManagementFile}
+                      uploadingType={uploadingType}
+                      onUpload={onUpload}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div>
+                {accountManagement ? (
+                  <DocumentDetailsCard
+                    title="אישור ניהול החשבון האחרון שנשלח"
+                    document={accountManagement}
+                    viewLabel="צפייה באישור ניהול חשבון"
+                  />
+                ) : (
+                  !loading && (
+                    <EmptyTabState
+                      title="עדיין לא נשלח אישור ניהול חשבון"
+                      subtitle="לאחר שליחת האישור, הוא יופיע כאן לצפייה בלבד עם סטטוס בדיקה."
                     />
                   )
                 )}

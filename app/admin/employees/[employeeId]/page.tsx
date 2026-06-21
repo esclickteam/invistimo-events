@@ -14,7 +14,12 @@ type DocumentStatus =
   | "signed"
   | string;
 
-type DocumentType = "form101" | "idCard" | "agreement" | string;
+type DocumentType =
+  | "form101"
+  | "idCard"
+  | "accountManagement"
+  | "agreement"
+  | string;
 
 type EmployeeProfile = {
   id: string;
@@ -303,6 +308,8 @@ function documentTypeLabel(type?: string) {
       return "טופס 101";
     case "idCard":
       return "תעודת זהות";
+    case "accountManagement":
+      return "אישור ניהול חשבון";
     case "agreement":
       return "הסכם עבודה";
     default:
@@ -555,6 +562,8 @@ export default function AdminEmployeeFilePage() {
 
   const form101 = documents.find((doc) => doc.documentType === "form101") || null;
   const idCard = documents.find((doc) => doc.documentType === "idCard") || null;
+  const accountManagement =
+    documents.find((doc) => doc.documentType === "accountManagement") || null;
   const agreement =
     documents.find((doc) => doc.documentType === "agreement") || null;
 
@@ -562,9 +571,10 @@ export default function AdminEmployeeFilePage() {
     () => [
       { type: "form101", doc: form101 },
       { type: "idCard", doc: idCard },
+      { type: "accountManagement", doc: accountManagement },
       { type: "agreement", doc: agreement },
     ],
-    [form101, idCard, agreement]
+    [form101, idCard, accountManagement, agreement]
   );
 
   const totalMinutes = useMemo(

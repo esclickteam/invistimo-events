@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 type EmployeeDocumentStatus = "missing" | "uploaded" | "approved" | "rejected";
-type EmployeeDocumentType = "form101" | "idCard";
+type EmployeeDocumentType = "form101" | "idCard" | "accountManagement";
 
 type EmployeeAgreementStatus = "missing" | "signed" | "approved" | "rejected";
 
@@ -147,6 +147,10 @@ function getDocumentFromResponse(data: any, documentType: EmployeeDocumentType) 
     return data.idCard || null;
   }
 
+  if (documentType === "accountManagement") {
+    return data.accountManagement || null;
+  }
+
   return null;
 }
 
@@ -204,15 +208,24 @@ function normalizeAgreementFromResponse(data: any): EmployeeAgreement | null {
 
 function getMainStatus(
   form101: EmployeeDocument | null,
-  idCard: EmployeeDocument | null
+  idCard: EmployeeDocument | null,
+  accountManagement: EmployeeDocument | null
 ): EmployeeDocumentStatus {
-  if (!form101 && !idCard) return "missing";
+  if (!form101 && !idCard && !accountManagement) return "missing";
 
-  if (form101?.status === "rejected" || idCard?.status === "rejected") {
+  if (
+    form101?.status === "rejected" ||
+    idCard?.status === "rejected" ||
+    accountManagement?.status === "rejected"
+  ) {
     return "rejected";
   }
 
-  if (form101?.status === "approved" && idCard?.status === "approved") {
+  if (
+    form101?.status === "approved" &&
+    idCard?.status === "approved" &&
+    accountManagement?.status === "approved"
+  ) {
     return "approved";
   }
 
@@ -241,6 +254,8 @@ export default function Form101Card({
 
   const [form101File, setForm101File] = useState<File | null>(null);
   const [idCardFile, setIdCardFile] = useState<File | null>(null);
+  const [accountManagementFile, setAccountManagementFile] =
+    useState<File | null>(null);
 
   const [currentForm101, setCurrentForm101] = useState<EmployeeDocument | null>(
     null
@@ -248,6 +263,8 @@ export default function Form101Card({
   const [currentIdCard, setCurrentIdCard] = useState<EmployeeDocument | null>(
     null
   );
+  const [currentAccountManagement, setCurrentAccountManagement] =
+    useState<EmployeeDocument | null>(null);
 
   const [agreement, setAgreement] = useState<EmployeeAgreement | null>(null);
   const [loadingAgreement, setLoadingAgreement] = useState(true);
@@ -259,6 +276,7 @@ export default function Form101Card({
 
   const isForm101Locked = isDocumentLocked(currentForm101);
   const isIdCardLocked = isDocumentLocked(currentIdCard);
+  const isAccountManagementLocked = isDocumentLocked(currentAccountManagement);
 
   const signAgreementUrl = useMemo(() => {
     const params = new URLSearchParams();
@@ -348,10 +366,11 @@ export default function Form101Card({
       if (!employeeId || !businessId) {
         setCurrentForm101(null);
         setCurrentIdCard(null);
+        setCurrentAccountManagement(null);
         return;
       }
 
-      const [form101, idCard] = await Promise.all([
+      const [form101, idCard, accountManagement] = await Promise.all([
         loadDocument("form101").catch((err) => {
           console.error("LOAD FORM 101 FAILED:", err);
           return null;
@@ -360,15 +379,21 @@ export default function Form101Card({
           console.error("LOAD ID CARD FAILED:", err);
           return null;
         }),
+        loadDocument("accountManagement").catch((err) => {
+          console.error("LOAD ACCOUNT MANAGEMENT FAILED:", err);
+          return null;
+        }),
       ]);
 
       setCurrentForm101(form101);
       setCurrentIdCard(idCard);
+      setCurrentAccountManagement(accountManagement);
     } catch (err) {
       console.error("LOAD EMPLOYEE DOCUMENTS FAILED:", err);
       setError(err instanceof Error ? err.message : "שגיאה בטעינת מסמכים");
       setCurrentForm101(null);
       setCurrentIdCard(null);
+      setCurrentAccountManagement(null);
     } finally {
       setLoading(false);
     }
@@ -380,11 +405,25 @@ export default function Form101Card({
 
   async function uploadDocument(documentType: EmployeeDocumentType) {
     try {
-      const selectedFile = documentType === "form101" ? form101File : idCardFile;
+      const selectedFile =
+        documentType === "form101"
+          ? form101File
+          : documentType === "idCard"
+            ? idCardFile
+            : accountManagementFile;
       const currentDocument =
-        documentType === "form101" ? currentForm101 : currentIdCard;
+        documentType === "form101"
+          ? currentForm101
+          : documentType === "idCard"
+            ? currentIdCard
+            : currentAccountManagement;
       const isLocked = isDocumentLocked(currentDocument);
-      const label = documentType === "form101" ? "טופס 101" : "תעודת זהות";
+      const label =
+        documentType === "form101"
+          ? "טופס 101"
+          : documentType === "idCard"
+            ? "תעודת זהות"
+            : "אישור ניהול חשבון";
 
       if (isLocked) {
         setError(lockedMessage(label, currentDocument?.status));
@@ -435,10 +474,14 @@ export default function Form101Card({
         setForm101File(null);
         setCurrentForm101(uploadedDocument);
         alert("טופס 101 הועלה בהצלחה");
-      } else {
+      } else if (documentType === "idCard") {
         setIdCardFile(null);
         setCurrentIdCard(uploadedDocument);
         alert("תעודת זהות הועלתה בהצלחה");
+      } else {
+        setAccountManagementFile(null);
+        setCurrentAccountManagement(uploadedDocument);
+        alert("אישור ניהול חשבון הועלה בהצלחה");
       }
 
       await loadCurrentDocuments();
@@ -460,7 +503,11 @@ export default function Form101Card({
     }
   }, [employeeId, businessId]);
 
-  const mainStatus = getMainStatus(currentForm101, currentIdCard);
+  const mainStatus = getMainStatus(
+    currentForm101,
+    currentIdCard,
+    currentAccountManagement
+  );
 
   const agreementFileUrl = getAgreementFileUrl(agreement);
   const agreementStatus: EmployeeAgreementStatus =
@@ -487,7 +534,7 @@ export default function Form101Card({
             <h2 className="text-xl font-black text-slate-950">מסמכי עובד</h2>
 
             <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-slate-500">
-              טופס 101 ותעודת זהות נשמרים במערכת וממתינים לבדיקה.
+              טופס 101, תעודת זהות ואישור ניהול חשבון נשמרים במערכת וממתינים לבדיקה.
             </p>
           </div>
 
@@ -500,7 +547,7 @@ export default function Form101Card({
           </span>
         </div>
 
-        <div className="mt-5 grid gap-4 md:grid-cols-2">
+        <div className="mt-5 grid gap-4 md:grid-cols-3">
           <div className="rounded-3xl bg-slate-50 p-4">
             <p className="text-sm font-black text-slate-900">טופס 101</p>
 
@@ -534,6 +581,26 @@ export default function Form101Card({
               )}`}
             >
               {statusLabel(currentIdCard?.status || "missing")}
+            </span>
+          </div>
+
+          <div className="rounded-3xl bg-slate-50 p-4">
+            <p className="text-sm font-black text-slate-900">
+              אישור ניהול חשבון
+            </p>
+
+            <p className="mt-2 text-sm font-semibold text-slate-500">
+              {currentAccountManagement
+                ? `הועלה: ${currentAccountManagement.originalFileName}`
+                : "עדיין לא הועלה אישור ניהול חשבון."}
+            </p>
+
+            <span
+              className={`mt-3 inline-flex rounded-full border px-3 py-1 text-xs font-black ${statusClass(
+                currentAccountManagement?.status || "missing"
+              )}`}
+            >
+              {statusLabel(currentAccountManagement?.status || "missing")}
             </span>
           </div>
         </div>
@@ -577,13 +644,13 @@ export default function Form101Card({
                 </div>
 
                 <h2 className="text-2xl font-black text-slate-950">
-                  ניהול טופס 101, תעודת זהות והסכם עבודה
+                  ניהול טופס 101, תעודת זהות, אישור ניהול חשבון והסכם עבודה
                 </h2>
 
                 <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-slate-500">
                   יש להוריד את טופס 101, למלא ולחתום, ואז להעלות אותו יחד עם
-                  צילום תעודת זהות. בנוסף ניתן לחתום על הסכם העבודה באתר.
-                  ניתן להעלות קובץ PDF, JPG או PNG.
+                  צילום תעודת זהות ואישור ניהול חשבון. בנוסף ניתן לחתום על
+                  הסכם העבודה באתר. ניתן להעלות קובץ PDF, JPG או PNG.
                 </p>
               </div>
 
@@ -712,7 +779,7 @@ export default function Form101Card({
               )}
             </div>
 
-            <div className="mt-6 grid gap-5 lg:grid-cols-2">
+            <div className="mt-6 grid gap-5 lg:grid-cols-3">
               <div className="rounded-[28px] border border-slate-200 bg-slate-50 p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -968,6 +1035,139 @@ export default function Form101Card({
                 {!currentIdCard && !loading && (
                   <div className="mt-5 rounded-3xl bg-white p-4 text-sm font-bold text-slate-500">
                     עדיין לא הועלתה תעודת זהות.
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-[28px] border border-slate-200 bg-slate-50 p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-lg font-black text-slate-950">
+                      אישור ניהול חשבון
+                    </h3>
+
+                    <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
+                      העלו אישור ניהול חשבון בנק כקובץ PDF או כתמונה.
+                    </p>
+                  </div>
+
+                  <span
+                    className={`inline-flex shrink-0 rounded-full border px-3 py-1 text-xs font-black ${statusClass(
+                      currentAccountManagement?.status || "missing"
+                    )}`}
+                  >
+                    {statusLabel(currentAccountManagement?.status || "missing")}
+                  </span>
+                </div>
+
+                <div className="mt-5 rounded-3xl border border-dashed border-slate-300 bg-white p-4">
+                  <p className="text-sm font-black text-slate-900">
+                    העלאת אישור ניהול חשבון
+                  </p>
+
+                  {isAccountManagementLocked ? (
+                    <div className="mt-4 rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm font-black leading-6 text-amber-700">
+                      {lockedMessage(
+                        "אישור ניהול חשבון",
+                        currentAccountManagement?.status
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      {currentAccountManagement?.status === "rejected" && (
+                        <div className="mt-4 rounded-3xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold leading-6 text-rose-700">
+                          אישור ניהול החשבון נדחה על ידי האדמין. ניתן להעלות
+                          קובץ מתוקן.
+                          {currentAccountManagement.rejectionReason && (
+                            <div className="mt-2">
+                              סיבה: {currentAccountManagement.rejectionReason}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      <input
+                        type="file"
+                        accept=".pdf,image/png,image/jpeg"
+                        disabled={uploadingType === "accountManagement"}
+                        onChange={(event) => {
+                          setAccountManagementFile(
+                            event.target.files?.[0] || null
+                          );
+                        }}
+                        className="mt-4 block w-full cursor-pointer rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm font-bold text-slate-700 file:ml-4 file:rounded-xl file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-sm file:font-black file:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                      />
+
+                      {accountManagementFile && (
+                        <p className="mt-2 text-xs font-bold text-slate-500">
+                          נבחר: {accountManagementFile.name} ·{" "}
+                          {formatFileSize(accountManagementFile.size)}
+                        </p>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => uploadDocument("accountManagement")}
+                        disabled={
+                          uploadingType === "accountManagement" ||
+                          !accountManagementFile
+                        }
+                        className="mt-4 h-11 rounded-2xl bg-emerald-600 px-5 text-sm font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {uploadingType === "accountManagement"
+                          ? "מעלה..."
+                          : "העלאת אישור ניהול חשבון"}
+                      </button>
+                    </>
+                  )}
+                </div>
+
+                {currentAccountManagement && (
+                  <div className="mt-5 rounded-3xl border border-slate-200 bg-white p-4">
+                    <p className="text-sm font-black text-slate-900">
+                      אישור ניהול החשבון האחרון שהועלה
+                    </p>
+
+                    <div className="mt-3 grid gap-2 text-sm font-semibold text-slate-600">
+                      <span>
+                        קובץ:{" "}
+                        <b className="text-slate-950">
+                          {currentAccountManagement.originalFileName}
+                        </b>
+                      </span>
+
+                      <span>
+                        גודל:{" "}
+                        <b className="text-slate-950">
+                          {formatFileSize(currentAccountManagement.fileSize)}
+                        </b>
+                      </span>
+
+                      <span>
+                        תאריך העלאה:{" "}
+                        <b className="text-slate-950">
+                          {formatDate(
+                            currentAccountManagement.uploadedAt ||
+                              currentAccountManagement.createdAt
+                          )}
+                        </b>
+                      </span>
+                    </div>
+
+                    <a
+                      href={currentAccountManagement.fileUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-4 inline-flex h-10 items-center justify-center rounded-2xl border border-slate-200 px-4 text-xs font-black text-slate-700 transition hover:bg-slate-50"
+                    >
+                      צפייה באישור ניהול חשבון שהועלה
+                    </a>
+                  </div>
+                )}
+
+                {!currentAccountManagement && !loading && (
+                  <div className="mt-5 rounded-3xl bg-white p-4 text-sm font-bold text-slate-500">
+                    עדיין לא הועלה אישור ניהול חשבון.
                   </div>
                 )}
               </div>

@@ -56,6 +56,7 @@ async function requireAdmin(req: NextRequest) {
 
 function documentTypeLabel(documentType?: string) {
   if (documentType === "idCard") return "תעודת זהות";
+  if (documentType === "accountManagement") return "אישור ניהול חשבון";
   if (documentType === "form101") return "טופס 101";
 
   return "מסמך עובד";
