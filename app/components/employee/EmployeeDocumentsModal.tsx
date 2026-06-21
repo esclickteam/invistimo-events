@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import OnlineForm101 from "./OnlineForm101";
 
 type EmployeeDocumentStatus = "missing" | "uploaded" | "approved" | "rejected";
 type EmployeeDocumentType = "form101" | "idCard" | "accountManagement";
@@ -192,6 +191,7 @@ type EmployeeDocumentsModalProps = {
 
   signAgreementUrl: string;
   form101DownloadUrl: string;
+  form101OnlineUrl?: string;
 
   hoursUpdates?: ApiEmployeeHoursUpdate[];
   payslips?: ApiEmployeePayslip[];
@@ -1271,6 +1271,7 @@ export default function EmployeeDocumentsModal({
 
   signAgreementUrl,
   form101DownloadUrl,
+  form101OnlineUrl = "/form-101",
 
   hoursUpdates = [],
   payslips = [],
@@ -1619,45 +1620,75 @@ export default function EmployeeDocumentsModal({
           )}
 
           {activeTab === "form101" && (
-            <div className="rounded-[28px] border border-slate-200 bg-white p-0">
-              {form101Status === "rejected" && (
-                <div className="p-5">
-                  <RejectionBox reason={form101?.rejectionReason} />
-                </div>
-              )}
-
-              {!canUploadForm101 && form101 ? (
-                <div className="grid gap-5 p-5 lg:grid-cols-[1fr_0.9fr]">
-                  <div className="rounded-[26px] border border-slate-200 bg-white p-5">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                      <div>
-                        <h3 className="text-xl font-black text-slate-900">
-                          טופס 101
-                        </h3>
-                        <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
-                          טופס 101 כבר נשלח למערכת ונשמר לצפייה בלבד.
-                        </p>
-                      </div>
-
-                      <Badge className={documentStatusClass(form101Status)}>
-                        {documentStatusLabel(form101Status)}
-                      </Badge>
-                    </div>
-
-                    <div className="mt-5">
-                      <ReadonlyNotice />
-                    </div>
+            <div className="grid gap-5 lg:grid-cols-[1fr_0.9fr]">
+              <div className="rounded-[28px] border border-slate-200 bg-white p-5">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <h3 className="text-xl font-black text-slate-900">
+                      טופס 101
+                    </h3>
+                    <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
+                      מילוי הטופס מתבצע בדף חיצוני מלא. לאחר השליחה הטופס
+                      יישמר במערכת ויופיע כאן לצפייה בלבד.
+                    </p>
                   </div>
 
+                  <Badge className={documentStatusClass(form101Status)}>
+                    {documentStatusLabel(form101Status)}
+                  </Badge>
+                </div>
+
+                {form101Status === "rejected" && (
+                  <div className="mt-5">
+                    <RejectionBox reason={form101?.rejectionReason} />
+                  </div>
+                )}
+
+                {!canUploadForm101 && (
+                  <div className="mt-5">
+                    <ReadonlyNotice text="טופס 101 כבר נשלח ונשמר במערכת. ניתן לצפות בטופס בלבד, ללא עריכה מתוך תיק העובד." />
+                  </div>
+                )}
+
+                {canUploadForm101 && (
+                  <div className="mt-5 rounded-[26px] border border-dashed border-sky-200 bg-sky-50 p-5">
+                    <p className="text-lg font-black text-slate-900">
+                      מילוי טופס 101 מקוון
+                    </p>
+                    <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
+                      לחיצה על הכפתור תפתח דף חיצוני מלא למילוי כל פרטי טופס
+                      101. אין יותר העלאת קובץ ידנית בטאב הזה.
+                    </p>
+
+                    <a
+                      href={form101OnlineUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-sky-600 px-5 text-sm font-black text-white transition hover:bg-sky-700"
+                    >
+                      <Icon name="open" className="h-4 w-4" />
+                      פתיחת טופס 101 מקוון
+                    </a>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                {form101 ? (
                   <DocumentDetailsCard
                     title="הטופס האחרון שנשלח"
                     document={form101}
                     viewLabel="צפייה בטופס"
                   />
-                </div>
-              ) : (
-                <OnlineForm101 />
-              )}
+                ) : (
+                  !loading && (
+                    <EmptyTabState
+                      title="עדיין לא נשלח טופס 101"
+                      subtitle="לאחר מילוי הטופס המקוון ושליחתו, הוא יופיע כאן לצפייה בלבד עם סטטוס בדיקה."
+                    />
+                  )
+                )}
+              </div>
             </div>
           )}
 
