@@ -557,6 +557,14 @@ export default function AdminEmployeesPage() {
             <div className="flex flex-col gap-3 xl:items-end">
               <div className="flex flex-wrap gap-3">
                 <Link
+                  href="/admin/forms/101/mapper"
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-sky-500 to-cyan-500 px-5 text-sm font-black text-white shadow-lg shadow-sky-200 transition hover:scale-[1.01]"
+                >
+                  <Icon name="template" className="h-4 w-4" />
+                  יצירת תבנית טופס 101
+                </Link>
+
+                <Link
                   href="/admin/employees/agreement-template"
                   className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-violet-500 to-indigo-500 px-5 text-sm font-black text-white shadow-lg shadow-indigo-200 transition hover:scale-[1.01]"
                 >
