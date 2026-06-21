@@ -91,6 +91,7 @@ type Form101Payload = {
 
   signatureDate?: string;
   signatureText?: string;
+  signatureDataUrl?: string;
 };
 
 function clean(value: unknown) {
@@ -217,6 +218,48 @@ function drawCheck(page: any, checked: boolean, x: number, y: number, font: any)
 
 function getCredit(body: Form101Payload, key: string) {
   return body.taxCredits?.[key];
+}
+
+
+function extractBase64DataUrl(value: unknown) {
+  const raw = clean(value);
+  if (!raw) return "";
+
+  const match = raw.match(/^data:image\/(png|jpeg|jpg);base64,(.+)$/i);
+
+  if (!match?.[2]) return "";
+
+  return match[2];
+}
+
+async function drawSignatureImage(
+  pdfDoc: PDFDocument,
+  page: any,
+  signatureDataUrl: unknown,
+  x: number,
+  y: number,
+  width: number,
+  height: number
+) {
+  const base64 = extractBase64DataUrl(signatureDataUrl);
+  if (!base64) return false;
+
+  try {
+    const imageBytes = Buffer.from(base64, "base64");
+    const image = await pdfDoc.embedPng(imageBytes);
+
+    page.drawImage(image, {
+      x,
+      y,
+      width,
+      height,
+    });
+
+    return true;
+  } catch (error) {
+    console.error("DRAW SIGNATURE IMAGE ERROR:", error);
+    return false;
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -596,11 +639,23 @@ export async function POST(req: NextRequest) {
         size: 12,
       });
 
-      drawText(page2, body.signatureText, 205, 42, {
-        font,
-        size: 13,
-        maxWidth: 120,
-      });
+      const signatureDrawn = await drawSignatureImage(
+        pdfDoc,
+        page2,
+        body.signatureDataUrl,
+        190,
+        30,
+        135,
+        34
+      );
+
+      if (!signatureDrawn) {
+        drawText(page2, body.signatureText, 205, 42, {
+          font,
+          size: 13,
+          maxWidth: 120,
+        });
+      }
     }
 
     const pdfBytes = await pdfDoc.save();

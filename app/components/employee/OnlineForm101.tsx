@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 type Gender = "male" | "female" | "";
 type YesNo = "yes" | "no" | "";
@@ -106,6 +106,7 @@ type Form101Data = {
 
   signatureDate: string;
   signatureText: string;
+  signatureDataUrl: string;
 };
 
 const initialForm101Data: Form101Data = {
@@ -202,6 +203,7 @@ const initialForm101Data: Form101Data = {
 
   signatureDate: "",
   signatureText: "",
+  signatureDataUrl: "",
 };
 
 function TextInput({
@@ -303,6 +305,170 @@ function Section({
 
       {children}
     </section>
+  );
+}
+
+
+function SignaturePad({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const drawingRef = useRef(false);
+  const lastPointRef = useRef<{ x: number; y: number } | null>(null);
+
+  function getPoint(event: React.PointerEvent<HTMLCanvasElement>) {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+
+    const rect = canvas.getBoundingClientRect();
+
+    return {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+    };
+  }
+
+  function setupCanvas(shouldRestoreImage = true) {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const ratio = window.devicePixelRatio || 1;
+
+    canvas.width = Math.max(1, Math.floor(rect.width * ratio));
+    canvas.height = Math.max(1, Math.floor(rect.height * ratio));
+
+    const context = canvas.getContext("2d");
+    if (!context) return;
+
+    context.setTransform(ratio, 0, 0, ratio, 0, 0);
+    context.lineWidth = 2.8;
+    context.lineCap = "round";
+    context.lineJoin = "round";
+    context.strokeStyle = "#0f172a";
+
+    if (shouldRestoreImage && value) {
+      const image = new Image();
+      image.onload = () => {
+        context.drawImage(image, 0, 0, rect.width, rect.height);
+      };
+      image.src = value;
+    }
+  }
+
+  useEffect(() => {
+    setupCanvas(true);
+
+    function handleResize() {
+      setupCanvas(true);
+    }
+
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function saveSignature() {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    onChange(canvas.toDataURL("image/png"));
+  }
+
+  function startDrawing(event: React.PointerEvent<HTMLCanvasElement>) {
+    event.preventDefault();
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    canvas.setPointerCapture(event.pointerId);
+
+    drawingRef.current = true;
+    lastPointRef.current = getPoint(event);
+  }
+
+  function draw(event: React.PointerEvent<HTMLCanvasElement>) {
+    if (!drawingRef.current) return;
+
+    event.preventDefault();
+
+    const canvas = canvasRef.current;
+    const context = canvas?.getContext("2d");
+    const lastPoint = lastPointRef.current;
+    const nextPoint = getPoint(event);
+
+    if (!canvas || !context || !lastPoint) return;
+
+    context.beginPath();
+    context.moveTo(lastPoint.x, lastPoint.y);
+    context.lineTo(nextPoint.x, nextPoint.y);
+    context.stroke();
+
+    lastPointRef.current = nextPoint;
+    saveSignature();
+  }
+
+  function stopDrawing(event: React.PointerEvent<HTMLCanvasElement>) {
+    if (!drawingRef.current) return;
+
+    event.preventDefault();
+
+    drawingRef.current = false;
+    lastPointRef.current = null;
+
+    saveSignature();
+  }
+
+  function clearSignature() {
+    const canvas = canvasRef.current;
+    const context = canvas?.getContext("2d");
+
+    if (!canvas || !context) return;
+
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    setupCanvas(false);
+    onChange("");
+  }
+
+  return (
+    <div className="rounded-[26px] border border-slate-200 bg-white p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <p className="text-sm font-black text-slate-700">חתימה דיגיטלית</p>
+
+        <button
+          type="button"
+          onClick={clearSignature}
+          className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-600 transition hover:bg-slate-50"
+        >
+          ניקוי חתימה
+        </button>
+      </div>
+
+      <div className="relative">
+        <canvas
+          ref={canvasRef}
+          onPointerDown={startDrawing}
+          onPointerMove={draw}
+          onPointerUp={stopDrawing}
+          onPointerCancel={stopDrawing}
+          onPointerLeave={stopDrawing}
+          className="h-48 w-full touch-none rounded-2xl border-2 border-dashed border-sky-300 bg-slate-50"
+        />
+
+        {!value && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm font-black text-sky-500">
+            לחצו כאן לחתימה
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -1010,11 +1176,19 @@ export default function OnlineForm101() {
               value={form.signatureDate}
               onChange={(value) => update("signatureDate", value)}
             />
+
             <TextInput
-              label="חתימה / שם מלא"
+              label="שם מלא לאישור"
               value={form.signatureText}
               onChange={(value) => update("signatureText", value)}
-              placeholder="שם מלא לאישור"
+              placeholder="שם מלא"
+            />
+          </div>
+
+          <div className="mt-5">
+            <SignaturePad
+              value={form.signatureDataUrl}
+              onChange={(value) => update("signatureDataUrl", value)}
             />
           </div>
         </Section>
