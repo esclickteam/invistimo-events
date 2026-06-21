@@ -32,13 +32,20 @@ type PreRsvpMessagesAccess = {
   sentAt?: string | Date | null;
 } | null;
 
+type PreRsvpMedia = {
+  saveTheDateImageUrl?: string;
+  saveTheDateImagePublicId?: string;
+  invitationOnlyImageUrl?: string;
+  invitationOnlyImagePublicId?: string;
+};
+
 type MessageMeta = {
   invitationTitle: string;
   eventDate: string;
   eventLocation: string;
   eventType?: string;
   giftCreditUrl?: string;
-  headerImageUrl?: string;
+  preRsvpMedia: PreRsvpMedia;
   lat?: number;
   lng?: number;
 };
@@ -51,7 +58,12 @@ const EMPTY_META: MessageMeta = {
   eventLocation: "",
   eventType: "",
   giftCreditUrl: "",
-  headerImageUrl: "",
+  preRsvpMedia: {
+    saveTheDateImageUrl: "",
+    saveTheDateImagePublicId: "",
+    invitationOnlyImageUrl: "",
+    invitationOnlyImagePublicId: "",
+  },
   lat: undefined,
   lng: undefined,
 };
@@ -355,13 +367,18 @@ export default function NewMessagesPage() {
             eventLocation: buildEventLocationText(invitation, event),
             eventType: invitation.eventType || event?.eventType || "",
             giftCreditUrl: invitation.giftCreditUrl || event?.giftCreditUrl || "",
-            headerImageUrl: getHighQualityCloudinaryImageUrl(
-              invitation.headerImageUrl ||
-                invitation.imageUrl ||
-                invitation.invitationImageUrl ||
-                invitation.previewImage ||
-                ""
-            ),
+            preRsvpMedia: {
+              saveTheDateImageUrl: getHighQualityCloudinaryImageUrl(
+                invitation.preRsvpMedia?.saveTheDateImageUrl || ""
+              ),
+              saveTheDateImagePublicId:
+                invitation.preRsvpMedia?.saveTheDateImagePublicId || "",
+              invitationOnlyImageUrl: getHighQualityCloudinaryImageUrl(
+                invitation.preRsvpMedia?.invitationOnlyImageUrl || ""
+              ),
+              invitationOnlyImagePublicId:
+                invitation.preRsvpMedia?.invitationOnlyImagePublicId || "",
+            },
             lat: invitation.location?.lat ?? event?.location?.lat,
             lng: invitation.location?.lng ?? event?.location?.lng,
           });
@@ -738,6 +755,14 @@ function PreRsvpTab({
       ? saveTheDateImageFile
       : invitationOnlyImageFile;
 
+  const currentSavedImageUrl = getHighQualityCloudinaryImageUrl(
+    activePreTab === "save_the_date"
+      ? meta.preRsvpMedia?.saveTheDateImageUrl
+      : meta.preRsvpMedia?.invitationOnlyImageUrl
+  );
+
+  const displayImage = currentImage || currentSavedImageUrl;
+
   const previewMessage = useMemo(() => {
     return replaceMessageVariables({
       message: currentMessage,
@@ -858,6 +883,15 @@ function PreRsvpTab({
             eventLocation: cleanEventLocation,
           };
 
+      if (!currentImageFile && !currentSavedImageUrl) {
+        alert(
+          isSaveTheDate
+            ? "יש להעלות תמונה ייעודית ל־Save The Date לפני השליחה."
+            : "יש להעלות תמונה ייעודית להזמנה מוקדמת לפני השליחה."
+        );
+        return;
+      }
+
       const payload = {
         invitationId: cleanInvitationId,
         messageType: activePreTab,
@@ -870,8 +904,7 @@ function PreRsvpTab({
         saveTheDateTitle: isSaveTheDate ? cleanSaveTheDateTitle : "",
         message: currentMessage,
         previewMessage,
-        hasImage: Boolean(currentImageFile || meta.headerImageUrl),
-        headerImageUrl: getHighQualityCloudinaryImageUrl(meta.headerImageUrl),
+        hasImage: Boolean(currentImageFile || currentSavedImageUrl),
       };
 
       console.log("PRE RSVP SEND PAYLOAD:", payload);
@@ -905,7 +938,6 @@ function PreRsvpTab({
 
       formData.append("message", payload.message);
       formData.append("previewMessage", payload.previewMessage);
-      formData.append("headerImageUrl", payload.headerImageUrl);
 
       if (currentImageFile) {
         formData.append("image", currentImageFile);
@@ -923,6 +955,24 @@ function PreRsvpTab({
 
       if (!res.ok || data?.success === false) {
         throw new Error(data?.error || "שליחת הבקשה נכשלה");
+      }
+
+      const savedImageUrl = getHighQualityCloudinaryImageUrl(data?.imageUrl || "");
+
+      if (savedImageUrl) {
+        if (activePreTab === "save_the_date") {
+          if (saveTheDateImage && saveTheDateImage.startsWith("blob:")) {
+            URL.revokeObjectURL(saveTheDateImage);
+          }
+          setSaveTheDateImage(savedImageUrl);
+          setSaveTheDateImageFile(null);
+        } else {
+          if (invitationOnlyImage && invitationOnlyImage.startsWith("blob:")) {
+            URL.revokeObjectURL(invitationOnlyImage);
+          }
+          setInvitationOnlyImage(savedImageUrl);
+          setInvitationOnlyImageFile(null);
+        }
       }
 
       alert(
@@ -985,7 +1035,7 @@ function PreRsvpTab({
           <PhonePreview
             title="INVISTIMO · WHATSAPP"
             message={previewMessage}
-            imageUrl={currentImage || meta.headerImageUrl}
+            imageUrl={displayImage}
           />
 
           <div className="mt-7 grid grid-cols-3 gap-3">
@@ -1166,10 +1216,10 @@ function PreRsvpTab({
                   hover:bg-[#FFF1D2]
                 "
               >
-                {currentImage ? (
+                {displayImage ? (
                   <div className="space-y-3">
                     <img
-                      src={currentImage}
+                      src={displayImage}
                       alt="תמונה להודעה"
                       className="
                         h-48

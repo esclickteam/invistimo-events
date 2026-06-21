@@ -345,6 +345,75 @@ async function uploadImageToCloudinary({
   });
 }
 
+function getPreRsvpSpecificImageUrl({
+  invitation,
+  messageType,
+}: {
+  invitation: any;
+  messageType: PreRsvpMessageType;
+}) {
+  if (messageType === "save_the_date") {
+    return getHighQualityCloudinaryImageUrl(
+      invitation?.preRsvpMedia?.saveTheDateImageUrl
+    );
+  }
+
+  return getHighQualityCloudinaryImageUrl(
+    invitation?.preRsvpMedia?.invitationOnlyImageUrl
+  );
+}
+
+function getPreRsvpSpecificPublicId({
+  invitation,
+  messageType,
+}: {
+  invitation: any;
+  messageType: PreRsvpMessageType;
+}) {
+  if (messageType === "save_the_date") {
+    return cleanString(invitation?.preRsvpMedia?.saveTheDateImagePublicId);
+  }
+
+  return cleanString(invitation?.preRsvpMedia?.invitationOnlyImagePublicId);
+}
+
+async function savePreRsvpMediaToInvitation({
+  invitationId,
+  messageType,
+  imageUrl,
+  publicId,
+}: {
+  invitationId: string;
+  messageType: PreRsvpMessageType;
+  imageUrl: string;
+  publicId: string;
+}) {
+  const invitationObjectId = toObjectId(invitationId);
+
+  if (!invitationObjectId) {
+    throw new Error("לא נמצא מזהה הזמנה תקין לשמירת התמונה.");
+  }
+
+  const setData: Record<string, any> = {};
+
+  if (messageType === "save_the_date") {
+    setData["preRsvpMedia.saveTheDateImageUrl"] = imageUrl;
+    setData["preRsvpMedia.saveTheDateImagePublicId"] = publicId;
+  }
+
+  if (messageType === "invitation_only") {
+    setData["preRsvpMedia.invitationOnlyImageUrl"] = imageUrl;
+    setData["preRsvpMedia.invitationOnlyImagePublicId"] = publicId;
+  }
+
+  await Invitation.updateOne(
+    { _id: invitationObjectId },
+    {
+      $set: setData,
+    }
+  );
+}
+
 function buildTemplateVariables({
   messageType,
   rawVariables,
@@ -669,9 +738,6 @@ export async function POST(req: NextRequest) {
 
     const templateMessage = cleanString(formData.get("message"));
     const previewMessage = cleanString(formData.get("previewMessage"));
-    const headerImageUrlFromForm = getHighQualityCloudinaryImageUrl(
-      formData.get("headerImageUrl")
-    );
 
     const rawTemplateVariables = parseJsonObject(
       formData.get("templateVariables")
@@ -741,27 +807,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    if (!imageFile && !headerImageUrlFromForm) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            "יש להעלות תמונה להודעת הוואטסאפ או להשתמש בתמונת ההזמנה הקיימת.",
-        },
-        { status: 400 }
-      );
-    }
-
-    if (headerImageUrlFromForm && !isHttpImageUrl(headerImageUrlFromForm)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "קישור התמונה אינו תקין.",
-        },
-        { status: 400 }
-      );
-    }
-
     if (imageFile && !imageFile.type.startsWith("image/")) {
       return NextResponse.json(
         {
@@ -789,7 +834,7 @@ export async function POST(req: NextRequest) {
       _id: toObjectId(invitationId),
     })
       .select(
-        "_id ownerId title eventDate location headerImageUrl finalImageUrl originalImageUrl fullImageUrl cloudinaryUrl secureUrl imageUrl invitationImageUrl canvasImageUrl previewImageUrl previewImage"
+        "_id ownerId title eventDate location preRsvpMedia"
       )
       .lean();
 
@@ -922,20 +967,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const fallbackImageUrlFromInvitation = getHighQualityCloudinaryImageUrl(
-      invitation.headerImageUrl ||
-        invitation.finalImageUrl ||
-        invitation.originalImageUrl ||
-        invitation.fullImageUrl ||
-        invitation.cloudinaryUrl ||
-        invitation.secureUrl ||
-        invitation.imageUrl ||
-        invitation.invitationImageUrl ||
-        invitation.canvasImageUrl ||
-        invitation.previewImageUrl ||
-        invitation.previewImage ||
-        ""
-    );
+    const existingPreRsvpImageUrl = getPreRsvpSpecificImageUrl({
+      invitation,
+      messageType,
+    });
+
+    const existingPreRsvpPublicId = getPreRsvpSpecificPublicId({
+      invitation,
+      messageType,
+    });
 
     const uploadResult = imageFile
       ? await uploadImageToCloudinary({
@@ -945,28 +985,40 @@ export async function POST(req: NextRequest) {
         })
       : null;
 
+    if (uploadResult?.secureUrl) {
+      await savePreRsvpMediaToInvitation({
+        invitationId,
+        messageType,
+        imageUrl: uploadResult.secureUrl,
+        publicId: uploadResult.publicId,
+      });
+    }
+
     const imageUrl = getHighQualityCloudinaryImageUrl(
-      uploadResult?.secureUrl ||
-        headerImageUrlFromForm ||
-        fallbackImageUrlFromInvitation
+      uploadResult?.secureUrl || existingPreRsvpImageUrl
     );
 
-    if (!imageUrl) {
+    const cloudinaryPublicId =
+      uploadResult?.publicId || existingPreRsvpPublicId || "";
+
+    if (!imageUrl || !isHttpImageUrl(imageUrl)) {
       return NextResponse.json(
         {
           success: false,
-          error: "לא נמצאה תמונה תקינה לשליחת הוואטסאפ.",
+          error:
+            messageType === "save_the_date"
+              ? "חסרה תמונה ייעודית ל־Save The Date. יש להעלות תמונה לפני השליחה."
+              : "חסרה תמונה ייעודית להזמנה מוקדמת. יש להעלות תמונה לפני השליחה.",
         },
         { status: 400 }
       );
     }
 
-    const cloudinaryPublicId = uploadResult?.publicId || "";
-
     console.log("🖼️ PRE RSVP FINAL IMAGE:", {
       messageType,
       templateName,
       hasUploadedFile: Boolean(imageFile),
+      usedExistingPreRsvpImage: Boolean(!uploadResult && existingPreRsvpImageUrl),
       finalImageUrl: imageUrl,
       cloudinaryPublicId,
     });

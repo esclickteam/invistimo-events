@@ -304,6 +304,30 @@ const InvitationSchema = new Schema(
       default: "",
     },
 
+    /* ================= PRE RSVP MEDIA ================= */
+
+preRsvpMedia: {
+  saveTheDateImageUrl: {
+    type: String,
+    default: "",
+  },
+
+  saveTheDateImagePublicId: {
+    type: String,
+    default: "",
+  },
+
+  invitationOnlyImageUrl: {
+    type: String,
+    default: "",
+  },
+
+  invitationOnlyImagePublicId: {
+    type: String,
+    default: "",
+  },
+},
+
     /* ================= SHARE ================= */
 
     shareId: {

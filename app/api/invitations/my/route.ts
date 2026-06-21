@@ -13,6 +13,7 @@ export const runtime = "nodejs";
 /* ============================================================
   Helpers
 ============================================================ */
+
 function cleanString(value: unknown) {
   return String(value || "").trim();
 }
@@ -88,7 +89,6 @@ function resolveProducerContext(auth: any, user: any) {
   };
 }
 
-
 function normalizePreRsvpMessagesAccess(user: any) {
   const preRsvpMessages = user?.salesUpsells?.preRsvpMessages || {};
   const mode = cleanString(preRsvpMessages.mode || "none");
@@ -146,6 +146,23 @@ function normalizePreRsvpMessagesAccess(user: any) {
   };
 }
 
+function normalizePreRsvpMedia(invitation: any) {
+  const preRsvpMedia = invitation?.preRsvpMedia || {};
+
+  return {
+    saveTheDateImageUrl: cleanString(preRsvpMedia.saveTheDateImageUrl),
+    saveTheDateImagePublicId: cleanString(
+      preRsvpMedia.saveTheDateImagePublicId
+    ),
+    invitationOnlyImageUrl: cleanString(
+      preRsvpMedia.invitationOnlyImageUrl
+    ),
+    invitationOnlyImagePublicId: cleanString(
+      preRsvpMedia.invitationOnlyImagePublicId
+    ),
+  };
+}
+
 function buildInvitationResponse(invitation: any) {
   const normalizedEventId = normalizeEventId(invitation.eventId);
 
@@ -170,12 +187,15 @@ function buildInvitationResponse(invitation: any) {
       : null,
 
     venueClientInvitationId: normalizeId(invitation._id),
+
+    preRsvpMedia: normalizePreRsvpMedia(invitation),
   };
 }
 
 /* ============================================================
   GET — מחזיר את ההזמנה של המשתמש
 ============================================================ */
+
 export async function GET(req: Request) {
   try {
     await db();
@@ -234,23 +254,11 @@ export async function GET(req: Request) {
 
     const orFilters: any[] = [];
 
-    /*
-      רגיל:
-      הזמנות קיימות אצלך בדרך כלל לפי ownerId.
-    */
     if (userObjectId) {
       orFilters.push({ ownerId: userObjectId });
-
-      /*
-        חשוב ללקוח אולם:
-        ההזמנה שנוצרת דרך complete/payment-success נשמרת אצלך גם לפי userId.
-      */
       orFilters.push({ userId: userObjectId });
     }
 
-    /*
-      תמיכה אם נשמרו ids כסטרינגים בקולקשן ישנה.
-    */
     if (userId) {
       orFilters.push({ ownerId: userId });
       orFilters.push({ userId });
@@ -271,9 +279,6 @@ export async function GET(req: Request) {
       orFilters.push({ userId: { $in: assignedClientObjIds } });
     }
 
-    /*
-      fallback לפי user.venueClientInvitationId אם נשמר על המשתמש.
-    */
     const venueClientInvitationId = toObjectId(
       (user as any)?.venueClientInvitationId
     );
@@ -282,9 +287,6 @@ export async function GET(req: Request) {
       orFilters.push({ _id: venueClientInvitationId });
     }
 
-    /*
-      fallback לפי user.venueClientEventId אם נשמר על המשתמש.
-    */
     const userVenueClientEventId = toObjectId((user as any)?.venueClientEventId);
 
     if (userVenueClientEventId) {
@@ -294,10 +296,6 @@ export async function GET(req: Request) {
       orFilters.push({ linkedEventId: userVenueClientEventId });
     }
 
-    /*
-      אם הדף של ההושבה שולח eventId ב-query,
-      נחפש גם לפיו.
-    */
     if (eventObjectIdFromQuery) {
       orFilters.push({ eventId: eventObjectIdFromQuery });
       orFilters.push({ venueClientEventId: eventObjectIdFromQuery });
@@ -314,11 +312,6 @@ export async function GET(req: Request) {
       $or: orFilters,
     };
 
-    /*
-      לא חובה, אבל אם ביקשנו includeVenueClient,
-      אנחנו לא מגבילים ל-ownerId בלבד.
-      זה משאיר הזמנות רגילות כמו שהן ומוסיף תמיכה בלקוח אולם.
-    */
     const invitation = await Invitation.findOne(baseQuery)
       .sort({ updatedAt: -1, createdAt: -1 })
       .populate({
@@ -335,146 +328,140 @@ export async function GET(req: Request) {
           giftCreditUrl
         `,
       })
-
       .select(`
-  _id
-  title
+        _id
+        title
 
-  eventId
-  productionEventId
-  linkedEventId
-  venueClientEventId
+        eventId
+        productionEventId
+        linkedEventId
+        venueClientEventId
 
-  previewImage
-  headerImageUrl
+        previewImage
+        headerImageUrl
+        preRsvpMedia
 
-  maxGuests
-  maxMessages
-  remainingMessages
-  shareId
+        maxGuests
+        maxMessages
+        remainingMessages
+        shareId
 
-  producerId
-  ownerId
-  userId
+        producerId
+        ownerId
+        userId
 
-  location
-  eventDate
-  eventTime
-  eventType
-  giftCreditUrl
+        location
+        eventDate
+        eventTime
+        eventType
+        giftCreditUrl
 
-  venueSource
-  venueOwnerId
-  venueHallId
-  venueHallName
-  venueAccessStatus
+        venueSource
+        venueOwnerId
+        venueHallId
+        venueHallName
+        venueAccessStatus
 
-  venueClientPackageType
-  venueClientRecordsCount
-  venueClientPaymentStatus
+        venueClientPackageType
+        venueClientRecordsCount
+        venueClientPaymentStatus
 
-  seatingEnabled
-  rsvpEnabled
-  eventManagementEnabled
+        seatingEnabled
+        rsvpEnabled
+        eventManagementEnabled
 
-  rsvpRoundSent
+        rsvpRoundSent
 
-  rsvpRound1SentAt
-  rsvpRound2SentAt
-  rsvpRound3SentAt
-  rsvpRound1sentAt
-  rsvpRound2sentAt
-  rsvpRound3sentAt
+        rsvpRound1SentAt
+        rsvpRound2SentAt
+        rsvpRound3SentAt
+        rsvpRound1sentAt
+        rsvpRound2sentAt
+        rsvpRound3sentAt
 
-  rsvpSmsRound1SentAt
-  rsvpSmsRound2SentAt
-  rsvpSmsRound3SentAt
-  rsvpSmsRound1sentAt
-  rsvpSmsRound2sentAt
-  rsvpSmsRound3sentAt
+        rsvpSmsRound1SentAt
+        rsvpSmsRound2SentAt
+        rsvpSmsRound3SentAt
+        rsvpSmsRound1sentAt
+        rsvpSmsRound2sentAt
+        rsvpSmsRound3sentAt
 
-  rsvpWhatsappRound1SentAt
-  rsvpWhatsappRound2SentAt
-  rsvpWhatsappRound3SentAt
-  rsvpWhatsappRound1sentAt
-  rsvpWhatsappRound2sentAt
-  rsvpWhatsappRound3sentAt
+        rsvpWhatsappRound1SentAt
+        rsvpWhatsappRound2SentAt
+        rsvpWhatsappRound3SentAt
+        rsvpWhatsappRound1sentAt
+        rsvpWhatsappRound2sentAt
+        rsvpWhatsappRound3sentAt
 
-  rsvpRound1ScheduledAt
-  rsvpRound2ScheduledAt
-  rsvpRound3ScheduledAt
-  rsvpRound1scheduledAt
-  rsvpRound2scheduledAt
-  rsvpRound3scheduledAt
+        rsvpRound1ScheduledAt
+        rsvpRound2ScheduledAt
+        rsvpRound3ScheduledAt
+        rsvpRound1scheduledAt
+        rsvpRound2scheduledAt
+        rsvpRound3scheduledAt
 
-  rsvpSmsRound1ScheduledAt
-  rsvpSmsRound2ScheduledAt
-  rsvpSmsRound3ScheduledAt
-  rsvpSmsRound1scheduledAt
-  rsvpSmsRound2scheduledAt
-  rsvpSmsRound3scheduledAt
+        rsvpSmsRound1ScheduledAt
+        rsvpSmsRound2ScheduledAt
+        rsvpSmsRound3ScheduledAt
+        rsvpSmsRound1scheduledAt
+        rsvpSmsRound2scheduledAt
+        rsvpSmsRound3scheduledAt
 
-  rsvpWhatsappRound1ScheduledAt
-  rsvpWhatsappRound2ScheduledAt
-  rsvpWhatsappRound3ScheduledAt
-  rsvpWhatsappRound1scheduledAt
-  rsvpWhatsappRound2scheduledAt
-  rsvpWhatsappRound3scheduledAt
+        rsvpWhatsappRound1ScheduledAt
+        rsvpWhatsappRound2ScheduledAt
+        rsvpWhatsappRound3ScheduledAt
+        rsvpWhatsappRound1scheduledAt
+        rsvpWhatsappRound2scheduledAt
+        rsvpWhatsappRound3scheduledAt
 
-  reminderSentAt
-  remindersentAt
-  reminderSmsSentAt
-  reminderSmssentAt
-  reminderWhatsappSentAt
-  reminderWhatsappsentAt
+        reminderSentAt
+        remindersentAt
+        reminderSmsSentAt
+        reminderSmssentAt
+        reminderWhatsappSentAt
+        reminderWhatsappsentAt
 
-  reminderScheduledAt
-  reminderscheduledAt
-  reminderSmsScheduledAt
-  reminderSmsscheduledAt
-  reminderWhatsappScheduledAt
-  reminderWhatsappscheduledAt
+        reminderScheduledAt
+        reminderscheduledAt
+        reminderSmsScheduledAt
+        reminderSmsscheduledAt
+        reminderWhatsappScheduledAt
+        reminderWhatsappscheduledAt
 
-  thankYouSentAt
-  thankYousentAt
-  thankyouSentAt
-  thankyousentAt
-  thankYouSmsSentAt
-  thankYouSmssentAt
-  thankyouSmsSentAt
-  thankyouSmssentAt
-  thankYouWhatsappSentAt
-  thankYouWhatsappsentAt
-  thankyouWhatsappSentAt
-  thankyouWhatsappsentAt
+        thankYouSentAt
+        thankYousentAt
+        thankyouSentAt
+        thankyousentAt
+        thankYouSmsSentAt
+        thankYouSmssentAt
+        thankyouSmsSentAt
+        thankyouSmssentAt
+        thankYouWhatsappSentAt
+        thankYouWhatsappsentAt
+        thankyouWhatsappSentAt
+        thankyouWhatsappsentAt
 
-  thankYouScheduledAt
-  thankYouscheduledAt
-  thankyouScheduledAt
-  thankyouscheduledAt
-  thankYouSmsScheduledAt
-  thankYouSmsscheduledAt
-  thankyouSmsScheduledAt
-  thankyouSmsscheduledAt
-  thankYouWhatsappScheduledAt
-  thankYouWhatsappscheduledAt
-  thankyouWhatsappScheduledAt
-  thankyouWhatsappscheduledAt
+        thankYouScheduledAt
+        thankYouscheduledAt
+        thankyouScheduledAt
+        thankyouscheduledAt
+        thankYouSmsScheduledAt
+        thankYouSmsscheduledAt
+        thankyouSmsScheduledAt
+        thankyouSmsscheduledAt
+        thankYouWhatsappScheduledAt
+        thankYouWhatsappscheduledAt
+        thankyouWhatsappScheduledAt
+        thankyouWhatsappscheduledAt
 
-  messageLocks
-  adminMessageRoundLocks
+        messageLocks
+        adminMessageRoundLocks
 
-  updatedAt
-  createdAt
-`)
-
+        updatedAt
+        createdAt
+      `)
       .lean();
 
-    /*
-      fallback נוסף ללקוח אולם:
-      אם Invitation model לא מחזיר בגלל schema/fields,
-      ניגש ישירות לקולקשן invitations.
-    */
     let rawVenueInvitation: any = null;
 
     if (!invitation && includeVenueClient && userObjectId) {
@@ -618,6 +605,7 @@ export async function GET(req: Request) {
 /* ============================================================
   POST — יצירת הזמנה
 ============================================================ */
+
 export async function POST(req: Request) {
   try {
     await db();
@@ -692,6 +680,12 @@ export async function POST(req: Request) {
           100,
         maxMessages: Number((user as any).maxMessages) || 300,
         sentSmsCount: 0,
+        preRsvpMedia: {
+          saveTheDateImageUrl: "",
+          saveTheDateImagePublicId: "",
+          invitationOnlyImageUrl: "",
+          invitationOnlyImagePublicId: "",
+        },
       });
     }
 
@@ -706,6 +700,7 @@ export async function POST(req: Request) {
           remainingMessages: invitation.remainingMessages,
           shareId: invitation.shareId,
           producerId: invitation.producerId ?? null,
+          preRsvpMedia: normalizePreRsvpMedia(invitation),
         },
       },
       { status: 201 }
