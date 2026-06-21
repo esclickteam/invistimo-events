@@ -58,6 +58,10 @@ function getHighQualityCloudinaryImageUrl(value: unknown) {
   if (!beforeUpload || !afterUpload) return url;
 
   const cleanedAfterUpload = afterUpload
+    .replace(/^q_100,f_png\//, "")
+    .replace(/^f_png,q_100\//, "")
+    .replace(/^q_100[^/]*\//, "")
+    .replace(/^f_png[^/]*\//, "")
     .replace(/^f_auto,q_auto[^/]*\//, "")
     .replace(/^q_auto,f_auto[^/]*\//, "")
     .replace(/^q_auto[^/]*\//, "")
@@ -149,7 +153,7 @@ async function uploadImageToCloudinary({
         }
 
         resolve({
-          secureUrl: getHighQualityCloudinaryImageUrl(result.secure_url),
+          secureUrl: result.secure_url,
           publicId: result.public_id,
           width: result.width,
           height: result.height,
@@ -347,7 +351,8 @@ export async function POST(req: NextRequest) {
       success: true,
       message: "התמונה נשמרה בהצלחה.",
       messageType,
-      imageUrl: uploadResult.secureUrl,
+      imageUrl: getHighQualityCloudinaryImageUrl(uploadResult.secureUrl),
+      originalImageUrl: uploadResult.secureUrl,
       publicId: uploadResult.publicId,
       width: uploadResult.width,
       height: uploadResult.height,

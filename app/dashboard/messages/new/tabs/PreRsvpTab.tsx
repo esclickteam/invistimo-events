@@ -92,6 +92,10 @@ function getHighQualityCloudinaryImageUrl(value: unknown) {
   if (!beforeUpload || !afterUpload) return url;
 
   const cleanedAfterUpload = afterUpload
+    .replace(/^q_100,f_png\//, "")
+    .replace(/^f_png,q_100\//, "")
+    .replace(/^q_100[^/]*\//, "")
+    .replace(/^f_png[^/]*\//, "")
     .replace(/^f_auto,q_auto[^/]*\//, "")
     .replace(/^q_auto,f_auto[^/]*\//, "")
     .replace(/^q_auto[^/]*\//, "")
