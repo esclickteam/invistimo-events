@@ -352,29 +352,37 @@ export async function POST(
       },
     });
 
-    const workOrderUpdate: any = {
-      $addToSet: {
-        assignedEmployeeIds: toEmployeeObjectId,
+    await CallWorkOrder.updateOne(
+  {
+    _id: workOrderObjectId,
+  },
+  {
+    $addToSet: {
+      assignedEmployeeIds: toEmployeeObjectId,
+    },
+    $set: {
+      distributionStrategy: "manual",
+      lastReassignedAt: now,
+      updatedAt: now,
+    },
+  }
+);
+
+if (remainingForOldEmployee === 0) {
+  await CallWorkOrder.updateOne(
+    {
+      _id: workOrderObjectId,
+    },
+    {
+      $pull: {
+        assignedEmployeeIds: fromEmployeeObjectId,
       },
       $set: {
-        distributionStrategy: "manual",
-        lastReassignedAt: now,
         updatedAt: now,
       },
-    };
-
-    if (remainingForOldEmployee === 0) {
-      workOrderUpdate.$pull = {
-        assignedEmployeeIds: fromEmployeeObjectId,
-      };
     }
-
-    await CallWorkOrder.updateOne(
-      {
-        _id: workOrderObjectId,
-      },
-      workOrderUpdate
-    );
+  );
+}
 
     const freshWorkOrder = await CallWorkOrder.findById(
       workOrderObjectId
