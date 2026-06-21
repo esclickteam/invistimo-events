@@ -1242,105 +1242,141 @@ export async function POST(req: Request) {
     }
 
     /* =========================
-   STAFF
-========================= */
-if (safeRole === "staff") {
-  const safeStaffType =
-    staffType === "producer_staff" ? "producer_staff" : "general_staff";
+       STAFF
+    ========================= */
+    if (safeRole === "staff") {
+      const allowedStaffTypes = [
+        "producer_staff",
+        "general_staff",
+        "seating_staff",
+        "usher_staff",
+      ];
 
-  const safeEmployeeScope =
-    safeStaffType === "producer_staff" ? "producer" : "system";
+      const requestedStaffType = normalizeString(staffType);
 
-  if (safeStaffType === "producer_staff" && !assignedProducerId) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: "ASSIGNED_PRODUCER_REQUIRED",
-      },
-      { status: 400 }
-    );
-  }
+      const safeStaffType = allowedStaffTypes.includes(requestedStaffType)
+        ? requestedStaffType
+        : "general_staff";
 
-  const user = await User.create({
-    name: safeName,
-    email: safeEmail,
-    role: "staff",
+      const safeEmployeeScope =
+        safeStaffType === "producer_staff" ? "producer" : "system";
 
-    staffType: safeStaffType,
-    employeeScope: safeEmployeeScope,
+      if (safeStaffType === "producer_staff" && !assignedProducerId) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "ASSIGNED_PRODUCER_REQUIRED",
+          },
+          { status: 400 }
+        );
+      }
 
-    assignedProducerId:
-      safeStaffType === "producer_staff" ? assignedProducerId : null,
+      const staffMeta: Record<
+        string,
+        {
+          priceKey: string;
+          packageName: string;
+        }
+      > = {
+        producer_staff: {
+          priceKey: "producer_staff_manual",
+          packageName: "עובד מפיק",
+        },
+        general_staff: {
+          priceKey: "staff_manual",
+          packageName: "עובד מערכת",
+        },
+        seating_staff: {
+          priceKey: "seating_staff_manual",
+          packageName: "עובד הושבה",
+        },
+        usher_staff: {
+          priceKey: "usher_staff_manual",
+          packageName: "דייל",
+        },
+      };
 
-    producerId: null,
-    createdByProducer: null,
-    assignedStaffIds: [],
-    assignedClientIds: [],
+      const selectedStaffMeta =
+        staffMeta[safeStaffType] || staffMeta.general_staff;
 
-    plan: "basic",
-    priceKey:
-      safeStaffType === "producer_staff"
-        ? "producer_staff_manual"
-        : "staff_manual",
-    packageName:
-      safeStaffType === "producer_staff" ? "עובד מפיק" : "עובד מערכת",
+      const user = await User.create({
+        name: safeName,
+        email: safeEmail,
+        role: "staff",
 
-    guests: 0,
-    maxGuests: 0,
-    allowedMessageRounds: 2,
+        staffType: safeStaffType,
+        employeeScope: safeEmployeeScope,
 
-    maxMessages: 0,
-    smsLimit: 0,
-    smsUsed: 0,
+        assignedProducerId:
+          safeStaffType === "producer_staff" ? assignedProducerId : null,
 
-    includeCalls: false,
-    callsRounds: 0,
-    callsAddonPrice: 0,
+        producerId: null,
+        createdByProducer: null,
+        assignedStaffIds: [],
+        assignedClientIds: [],
 
-    includeCreditGifts: false,
-    creditGiftsAddonPrice: 0,
+        plan: "basic",
+        priceKey: selectedStaffMeta.priceKey,
+        packageName: selectedStaffMeta.packageName,
 
-    includeDigitalSeating: false,
-    includeEventManagement: false,
-    includeCustomDesign: false,
+        guests: 0,
+        maxGuests: 0,
+        allowedMessageRounds: 2,
 
-    accessModules: {
-      rsvpSeating: false,
-      eventProduction: false,
-    },
+        maxMessages: 0,
+        smsLimit: 0,
+        smsUsed: 0,
 
-    planLimits: {
-      maxGuests: 0,
-      allowedMessageRounds: 2,
-      smsEnabled: false,
-      smsLimit: 0,
-      seatingEnabled: false,
-      remindersEnabled: false,
-      callsEnabled: false,
-    },
+        includeCalls: false,
+        callsRounds: 0,
+        callsAddonPrice: 0,
 
-    hasPaid: true,
-    paidAmount: 0,
-    isActive: true,
+        includeCreditGifts: false,
+        creditGiftsAddonPrice: 0,
 
-    needsPasswordSetup: true,
-    createdByAdmin: true,
-    billingSource: "admin",
-  });
+        includeDigitalSeating: false,
+        includeEventManagement: false,
+        includeCustomDesign: false,
 
-  await sendPasswordSetupMail(String(user._id));
+        accessModules: {
+          rsvpSeating: false,
+          eventProduction: false,
+        },
 
-  return NextResponse.json(
-    {
-      success: true,
-      userId: String(user._id),
-      role: "staff",
-      staffType: safeStaffType,
-      employeeScope: safeEmployeeScope,
-    },
-    { status: 201 }
-  );
-}
+        planLimits: {
+          maxGuests: 0,
+          allowedMessageRounds: 2,
+          smsEnabled: false,
+          smsLimit: 0,
+          seatingEnabled: false,
+          remindersEnabled: false,
+          callsEnabled: false,
+        },
+
+        hasPaid: true,
+        paidAmount: 0,
+        isActive: true,
+
+        needsPasswordSetup: true,
+        createdByAdmin: true,
+        billingSource: "admin",
+      });
+
+      await sendPasswordSetupMail(String(user._id));
+
+      return NextResponse.json(
+        {
+          success: true,
+          userId: String(user._id),
+          role: "staff",
+          staffType: safeStaffType,
+          employeeScope: safeEmployeeScope,
+          priceKey: selectedStaffMeta.priceKey,
+          packageName: selectedStaffMeta.packageName,
+        },
+        { status: 201 }
+      );
+    }
 
     /* =========================
        REGULAR USER
