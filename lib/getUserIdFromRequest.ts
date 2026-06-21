@@ -19,7 +19,7 @@ export type ImpersonationRole =
   | "producer"
   | "admin"
   | "producer_staff"
-  | "staff_producer" // backward compatibility
+  | "staff_producer"
   | "client"
   | "user"
   | "staff"
@@ -52,7 +52,7 @@ function getCookieFromReq(req: Request | undefined, name: string) {
       .map((c) => c.trim())
       .find((c) => c.startsWith(`${name}=`));
 
-    return match ? match.split("=").slice(1).join("=") : null;
+    return match ? decodeURIComponent(match.split("=").slice(1).join("=")) : null;
   } catch {
     return null;
   }
@@ -112,6 +112,19 @@ function normalizeImpersonationRole(raw: any): ImpersonationRole | null {
   return null;
 }
 
+function decodeJwtToken(token: string | null) {
+  try {
+    if (!token || !process.env.JWT_SECRET) return null;
+    return jwt.verify(token, process.env.JWT_SECRET) as any;
+  } catch {
+    return null;
+  }
+}
+
+function getDecodedUserId(decoded: any) {
+  return decoded?.userId || decoded?.id || decoded?._id || null;
+}
+
 async function getFreshUserAuthFields(userId: string) {
   try {
     await connectDB();
@@ -161,43 +174,79 @@ export async function getUserIdFromRequest(
       getCookieFromReq(req, "producerAuthToken") ??
       (await getCookieFromHeadersStore("producerAuthToken"));
 
-    // אין שום token
+    const staffOriginalUserId =
+      getCookieFromReq(req, "staffOriginalUserId") ??
+      (await getCookieFromHeadersStore("staffOriginalUserId"));
+
     if (!authToken && !impersonationToken && !producerAuthToken) {
       return null;
     }
 
     /* ---------------------------------
-       2) Choose active token
-       עדיפות:
-       impersonationToken -> authToken -> producerAuthToken
+       2) Decode tokens
     ---------------------------------- */
-    const activeToken = impersonationToken || authToken || producerAuthToken;
-    if (!activeToken) return null;
-
-    const decoded = jwt.verify(activeToken, process.env.JWT_SECRET) as any;
-
-    const userId = decoded.userId || decoded.id || decoded._id || null;
-    if (!userId) return null;
+    const impersonationDecoded = decodeJwtToken(impersonationToken);
+    const authDecoded = decodeJwtToken(authToken);
+    const producerDecoded = decodeJwtToken(producerAuthToken);
 
     /*
       חשוב:
-      לא מסתמכים רק על JWT, כי ייתכן שהוא נוצר לפני שהוספנו employeeScope.
-      לכן מושכים role/staffType/employeeScope מעודכן מה־DB.
+      activeDecoded הוא המשתמש הפעיל בפועל.
+      בזמן התחזות זה הלקוח.
     */
+    const activeDecoded =
+      impersonationDecoded || authDecoded || producerDecoded;
+
+    if (!activeDecoded) return null;
+
+    const userId = getDecodedUserId(activeDecoded);
+    if (!userId) return null;
+
     const freshUserAuthFields = await getFreshUserAuthFields(String(userId));
 
-    const role = freshUserAuthFields?.role ?? normalizeRole(decoded.role);
+    const role = freshUserAuthFields?.role ?? normalizeRole(activeDecoded.role);
 
     const staffType =
-      freshUserAuthFields?.staffType ?? decoded.staffType ?? null;
+      freshUserAuthFields?.staffType ?? activeDecoded.staffType ?? null;
 
     const employeeScope =
       freshUserAuthFields?.employeeScope ??
-      normalizeEmployeeScope(decoded.employeeScope);
+      normalizeEmployeeScope(activeDecoded.employeeScope);
 
     /* ---------------------------------
-       3) Header-based impersonation
-       אם את עדיין משתמשת בזה
+       3) Find original impersonator
+    ---------------------------------- */
+    const authUserId = getDecodedUserId(authDecoded);
+    const producerUserId = getDecodedUserId(producerDecoded);
+
+    const impersonatedBy =
+      activeDecoded.impersonatedBy ||
+      impersonationDecoded?.impersonatedBy ||
+      staffOriginalUserId ||
+      authUserId ||
+      producerUserId ||
+      null;
+
+    let impersonationRole =
+      normalizeImpersonationRole(activeDecoded.impersonationRole) ||
+      normalizeImpersonationRole(impersonationDecoded?.impersonationRole) ||
+      normalizeImpersonationRole(authDecoded?.role) ||
+      normalizeImpersonationRole(producerDecoded?.role);
+
+    /*
+      אם יש authToken מקורי של אדמין בזמן התחזות,
+      חייבים לשמר impersonationRole=admin כדי ש־admin routes לא ייחסמו.
+    */
+    if (authUserId) {
+      const freshOriginalAuth = await getFreshUserAuthFields(String(authUserId));
+
+      if (freshOriginalAuth?.role === "admin") {
+        impersonationRole = "admin";
+      }
+    }
+
+    /* ---------------------------------
+       4) Header-based impersonation
     ---------------------------------- */
     const impersonateUserId = req?.headers?.get("x-impersonate-user") ?? null;
 
@@ -218,12 +267,13 @@ export async function getUserIdFromRequest(
     }
 
     /* ---------------------------------
-       4) Unified impersonation detection
-       עובד גם אם אין impersonationToken נפרד,
-       אלא flags בתוך authToken
+       5) Unified impersonation detection
     ---------------------------------- */
     const isImpersonated =
-      !!impersonationToken || !!decoded.impersonated || !!decoded.impersonatedBy;
+      Boolean(impersonationToken) ||
+      Boolean(activeDecoded.impersonated) ||
+      Boolean(activeDecoded.impersonatedBy) ||
+      Boolean(staffOriginalUserId);
 
     if (isImpersonated) {
       return {
@@ -232,17 +282,13 @@ export async function getUserIdFromRequest(
         staffType,
         employeeScope,
         impersonated: true,
-        impersonatedBy: decoded.impersonatedBy
-          ? String(decoded.impersonatedBy)
-          : null,
-        impersonationRole: normalizeImpersonationRole(
-          decoded.impersonationRole
-        ),
+        impersonatedBy: impersonatedBy ? String(impersonatedBy) : null,
+        impersonationRole,
       };
     }
 
     /* ---------------------------------
-       5) Normal auth
+       6) Normal auth
     ---------------------------------- */
     return {
       userId: String(userId),
