@@ -1461,22 +1461,9 @@ export default function EmployeeDashboardPage() {
   );
   const currentBusinessId = normalizeUserBusinessId(user as any);
 
-  const currentStaffType = String((user as any)?.staffType || "").toLowerCase();
-  const currentEmployeeScope = String(
-    (user as any)?.employeeScope || "",
-  ).toLowerCase();
-
   const isCurrentUserSeatingStaff =
-    currentStaffType === "seating_staff" && currentEmployeeScope === "system";
-
-  const isCurrentUserGeneralStaff =
-    currentStaffType === "general_staff" && currentEmployeeScope === "system";
-
-  const isCurrentUserUsherStaff =
-    currentStaffType === "usher_staff" && currentEmployeeScope === "system";
-
-  const canSeeLeadsAndWorkOrders =
-    !isCurrentUserGeneralStaff && !isCurrentUserUsherStaff;
+    String((user as any)?.staffType || "").toLowerCase() === "seating_staff" &&
+    String((user as any)?.employeeScope || "").toLowerCase() === "system";
 
   const currentAssignedClientIds = useMemo(() => {
     return normalizeObjectIdArray((user as any)?.assignedClientIds);
@@ -1940,26 +1927,14 @@ export default function EmployeeDashboardPage() {
     void loadDashboard();
     void loadEmployeeDocuments();
     void loadEmployeeAgreement();
-
-    if (canSeeLeadsAndWorkOrders) {
-      void loadEmployeeWorkOrders();
-      void loadEmployeeLeads();
-    } else {
-      setWorkOrdersDashboard({
-        ...getEmptyWorkOrdersDashboardData(),
-        loading: false,
-      });
-      setEmployeeLeads([]);
-      setEmployeeLeadsLoading(false);
-      setEmployeeLeadsError("");
-    }
+    void loadEmployeeWorkOrders();
+    void loadEmployeeLeads();
   }, [
     loadDashboard,
     loadEmployeeDocuments,
     loadEmployeeAgreement,
     loadEmployeeWorkOrders,
     loadEmployeeLeads,
-    canSeeLeadsAndWorkOrders,
   ]);
 
   const visibleUsers = useMemo(() => {
@@ -2033,8 +2008,6 @@ export default function EmployeeDashboardPage() {
   }, [eventSearch, visibleEvents]);
 
   const filteredLeads = useMemo(() => {
-    if (!canSeeLeadsAndWorkOrders) return [];
-
     const q = leadSearch.trim().toLowerCase();
 
     if (!q) return employeeLeads;
@@ -2056,15 +2029,13 @@ export default function EmployeeDashboardPage() {
         status.includes(q)
       );
     });
-  }, [canSeeLeadsAndWorkOrders, employeeLeads, leadSearch]);
+  }, [employeeLeads, leadSearch]);
 
   const newLeadsCount = useMemo(() => {
-    if (!canSeeLeadsAndWorkOrders) return 0;
-
     return employeeLeads.filter((lead) => {
       return String(lead.leadStatus || "new").toLowerCase() === "new";
     }).length;
-  }, [canSeeLeadsAndWorkOrders, employeeLeads]);
+  }, [employeeLeads]);
 
   const eventsNeedCheck = useMemo(() => {
     return visibleEvents.filter((event) => {
@@ -2145,18 +2116,15 @@ export default function EmployeeDashboardPage() {
                     void loadDashboard();
                     void loadEmployeeDocuments();
                     void loadEmployeeAgreement();
-
-                    if (canSeeLeadsAndWorkOrders) {
-                      void loadEmployeeWorkOrders();
-                      void loadEmployeeLeads();
-                    }
+                    void loadEmployeeWorkOrders();
+                    void loadEmployeeLeads();
                   }}
                   disabled={
                     refreshing ||
                     documentsLoading ||
                     agreementLoading ||
-                    (canSeeLeadsAndWorkOrders &&
-                      (workOrdersDashboard.loading || employeeLeadsLoading))
+                    workOrdersDashboard.loading ||
+                    employeeLeadsLoading
                   }
                   className="inline-flex h-10 w-fit items-center justify-center gap-2 rounded-full border border-slate-200 bg-white/90 px-4 text-xs font-black text-slate-600 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
@@ -2166,8 +2134,8 @@ export default function EmployeeDashboardPage() {
                       refreshing ||
                       documentsLoading ||
                       agreementLoading ||
-                      (canSeeLeadsAndWorkOrders &&
-                        (workOrdersDashboard.loading || employeeLeadsLoading))
+                      workOrdersDashboard.loading ||
+                    employeeLeadsLoading
                         ? "animate-spin"
                         : ""
                     }`}
@@ -2185,27 +2153,23 @@ export default function EmployeeDashboardPage() {
                     המכירות שלי
                   </button>
 
-                  {canSeeLeadsAndWorkOrders ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => router.push("/employee/leads")}
-                        className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-amber-500 px-4 text-sm font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-amber-600 hover:shadow-md"
-                      >
-                        <Icon name="message" className="h-4 w-4" />
-                        הלידים שלי
-                      </button>
+                  <button
+                    type="button"
+                    onClick={() => router.push("/employee/leads")}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-amber-500 px-4 text-sm font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-amber-600 hover:shadow-md"
+                  >
+                    <Icon name="message" className="h-4 w-4" />
+                    הלידים שלי
+                  </button>
 
-                      <button
-                        type="button"
-                        onClick={() => router.push("/employee/work-orders")}
-                        className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 text-sm font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-emerald-700 hover:shadow-md"
-                      >
-                        <Icon name="phone" className="h-4 w-4" />
-                        הוראות עבודה
-                      </button>
-                    </>
-                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => router.push("/employee/work-orders")}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 text-sm font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-emerald-700 hover:shadow-md"
+                  >
+                    <Icon name="phone" className="h-4 w-4" />
+                    הוראות עבודה
+                  </button>
 
                   <button
                     type="button"
@@ -2261,43 +2225,39 @@ export default function EmployeeDashboardPage() {
                     </p>
                   </div>
 
-                  {canSeeLeadsAndWorkOrders ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => router.push("/employee/leads")}
-                        className="rounded-[24px] border border-amber-200 bg-amber-50 p-4 text-right transition hover:-translate-y-0.5 hover:bg-amber-100"
-                      >
-                        <p className="text-xs font-black text-amber-700">
-                          לידים שלי
-                        </p>
-                        <p className="mt-2 text-3xl font-black text-amber-950">
-                          {employeeLeadsLoading ? "..." : employeeLeads.length}
-                        </p>
-                        <p className="mt-1 text-[11px] font-black text-amber-700/70">
-                          {newLeadsCount} חדשים
-                        </p>
-                      </button>
+                  <button
+                    type="button"
+                    onClick={() => router.push("/employee/leads")}
+                    className="rounded-[24px] border border-amber-200 bg-amber-50 p-4 text-right transition hover:-translate-y-0.5 hover:bg-amber-100"
+                  >
+                    <p className="text-xs font-black text-amber-700">
+                      לידים שלי
+                    </p>
+                    <p className="mt-2 text-3xl font-black text-amber-950">
+                      {employeeLeadsLoading ? "..." : employeeLeads.length}
+                    </p>
+                    <p className="mt-1 text-[11px] font-black text-amber-700/70">
+                      {newLeadsCount} חדשים
+                    </p>
+                  </button>
 
-                      <button
-                        type="button"
-                        onClick={() => router.push("/employee/work-orders")}
-                        className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-4 text-right transition hover:-translate-y-0.5 hover:bg-emerald-100"
-                      >
-                        <p className="text-xs font-black text-emerald-700">
-                          שיחות שלי היום
-                        </p>
-                        <p className="mt-2 text-3xl font-black text-emerald-950">
-                          {workOrdersDashboard.loading
-                            ? "..."
-                            : workOrdersDashboard.summary.remaining}
-                        </p>
-                        <p className="mt-1 text-[11px] font-black text-emerald-700/70">
-                          מתוך {workOrdersDashboard.summary.total} שיחות
-                        </p>
-                      </button>
-                    </>
-                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => router.push("/employee/work-orders")}
+                    className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-4 text-right transition hover:-translate-y-0.5 hover:bg-emerald-100"
+                  >
+                    <p className="text-xs font-black text-emerald-700">
+                      שיחות שלי היום
+                    </p>
+                    <p className="mt-2 text-3xl font-black text-emerald-950">
+                      {workOrdersDashboard.loading
+                        ? "..."
+                        : workOrdersDashboard.summary.remaining}
+                    </p>
+                    <p className="mt-1 text-[11px] font-black text-emerald-700/70">
+                      מתוך {workOrdersDashboard.summary.total} שיחות
+                    </p>
+                  </button>
                 </div>
               </div>
             </div>
@@ -2362,21 +2322,19 @@ export default function EmployeeDashboardPage() {
                   tone="purple"
                 />
 
-                {canSeeLeadsAndWorkOrders ? (
-                  <button
-                    type="button"
-                    onClick={() => router.push("/employee/leads")}
-                    className="text-right"
-                  >
-                    <StatCard
-                      title="לידים שלי"
-                      value={employeeLeadsLoading ? "..." : employeeLeads.length}
-                      subtitle={`${newLeadsCount} לידים חדשים לטיפול`}
-                      icon={<Icon name="message" className="h-6 w-6" />}
-                      tone="amber"
-                    />
-                  </button>
-                ) : null}
+                <button
+                  type="button"
+                  onClick={() => router.push("/employee/leads")}
+                  className="text-right"
+                >
+                  <StatCard
+                    title="לידים שלי"
+                    value={employeeLeadsLoading ? "..." : employeeLeads.length}
+                    subtitle={`${newLeadsCount} לידים חדשים לטיפול`}
+                    icon={<Icon name="message" className="h-6 w-6" />}
+                    tone="amber"
+                  />
+                </button>
 
                 <StatCard
                   title="לקוחות שצריך לבדוק"
@@ -2402,31 +2360,29 @@ export default function EmployeeDashboardPage() {
                   tone="green"
                 />
 
-                {canSeeLeadsAndWorkOrders ? (
-                  <button
-                    type="button"
-                    onClick={() => router.push("/employee/work-orders")}
-                    className="text-right"
-                  >
-                    <StatCard
-                      title="הוראות עבודה"
-                      value={
-                        workOrdersDashboard.loading || employeeLeadsLoading
-                          ? "..."
-                          : workOrdersDashboard.activeWorkOrdersCount
-                      }
-                      subtitle={`נותרו ${workOrdersDashboard.summary.remaining} שיחות להיום`}
-                      icon={<Icon name="phone" className="h-6 w-6" />}
-                      tone="green"
-                    />
-                  </button>
-                ) : null}
+                <button
+                  type="button"
+                  onClick={() => router.push("/employee/work-orders")}
+                  className="text-right"
+                >
+                  <StatCard
+                    title="הוראות עבודה"
+                    value={
+                      workOrdersDashboard.loading ||
+                    employeeLeadsLoading
+                        ? "..."
+                        : workOrdersDashboard.activeWorkOrdersCount
+                    }
+                    subtitle={`נותרו ${workOrdersDashboard.summary.remaining} שיחות להיום`}
+                    icon={<Icon name="phone" className="h-6 w-6" />}
+                    tone="green"
+                  />
+                </button>
               </div>
 
-              {canSeeLeadsAndWorkOrders ? (
-                <section className="mt-6 rounded-[34px] border border-amber-200 bg-white p-5 shadow-sm sm:p-6">
-                  <SectionHeader
-                    title="הלידים שלי"
+              <section className="mt-6 rounded-[34px] border border-amber-200 bg-white p-5 shadow-sm sm:p-6">
+                <SectionHeader
+                  title="הלידים שלי"
                   subtitle="לידים שהאדמין שייך אליך לטיפול. כאן מתחיל הטיפול לפני חיבור הצ׳אט וה־WhatsApp API."
                   action={
                     <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
@@ -2570,8 +2526,7 @@ export default function EmployeeDashboardPage() {
                     })}
                   </div>
                 )}
-                </section>
-              ) : null}
+              </section>
 
               <div className="mt-6 grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
                 <section className="rounded-[34px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
