@@ -167,8 +167,13 @@ function extractUserId(authResult: any) {
     authResult.userId ||
       authResult.id ||
       authResult._id ||
+      authResult.sub ||
+      authResult.userIdFromToken ||
       authResult.user?._id ||
-      authResult.user?.id
+      authResult.user?.id ||
+      authResult.user?.userId ||
+      authResult.user?.sub ||
+      ""
   );
 }
 
@@ -179,7 +184,10 @@ function extractBusinessId(authResult: any) {
     authResult.businessId ||
       authResult.business?._id ||
       authResult.business?.id ||
-      authResult.user?.businessId
+      authResult.user?.businessId ||
+      authResult.user?.business?._id ||
+      authResult.user?.business?.id ||
+      ""
   );
 }
 
