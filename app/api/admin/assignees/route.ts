@@ -40,19 +40,65 @@ export async function GET(req: Request) {
     }
 
     const [producers, staff] = await Promise.all([
-      User.find({ role: "producer" })
-        .select("name email")
+      User.find({
+        $and: [
+          {
+            $or: [
+              { role: "producer" },
+              { producerAccess: true },
+              { isProducer: true },
+              { userType: "producer" },
+            ],
+          },
+          {
+            $or: [
+              { isActive: { $ne: false } },
+              { isActive: { $exists: false } },
+            ],
+          },
+        ],
+      })
+        .select(
+          "name email role userType producerAccess isProducer isActive"
+        )
         .sort({ name: 1, email: 1 })
         .lean(),
 
       User.find({
-        role: "staff",
-        staffType: {
-          $in: ["general_staff", "producer_staff", "seating_staff"],
-        },
+        $and: [
+          {
+            $or: [
+              { role: "staff" },
+              { role: "employee" },
+              { staffType: { $exists: true, $ne: "" } },
+              { employeeScope: { $exists: true, $ne: "" } },
+            ],
+          },
+          {
+            $or: [
+              {
+                staffType: {
+                  $in: [
+                    "general_staff",
+                    "producer_staff",
+                    "seating_staff",
+                  ],
+                },
+              },
+              { staffType: { $exists: false } },
+              { staffType: "" },
+            ],
+          },
+          {
+            $or: [
+              { isActive: { $ne: false } },
+              { isActive: { $exists: false } },
+            ],
+          },
+        ],
       })
         .select(
-          "name email staffType employeeScope assignedProducerId assignedClientIds isActive"
+          "name email role staffType employeeScope assignedProducerId assignedClientIds isActive"
         )
         .sort({ name: 1, email: 1 })
         .lean(),
