@@ -319,7 +319,7 @@ export async function POST(req: NextRequest) {
 
     const serialized = serializeEmployeeDocument(saved);
 
-    return NextResponse.json({
+        return NextResponse.json({
       success: true,
       message: `${getDocumentLabel(documentType)} הועלה בהצלחה`,
       document: serialized,
@@ -338,4 +338,4 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
-}formData.append("documentType", "accountManagement");
+}
