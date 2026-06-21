@@ -25,6 +25,8 @@ type FieldItem = {
   align?: TextAlign;
   order: number;
   enabled: boolean;
+  isFixed?: boolean;
+  fixedValue?: string;
 };
 
 type DragState = {
@@ -67,6 +69,8 @@ const INITIAL_FIELDS_RAW: Omit<FieldItem, "order" | "enabled">[] = [
     height: 30,
     type: "digits",
     sample: "2026",
+    isFixed: true,
+    fixedValue: "2026",
     fontSize: 20,
     digitGap: DEFAULT_GLOBAL_DIGIT_GAP,
     maxDigits: 4,
@@ -84,6 +88,8 @@ const INITIAL_FIELDS_RAW: Omit<FieldItem, "order" | "enabled">[] = [
     height: 24,
     type: "text",
     sample: "בן עשת",
+    isFixed: true,
+    fixedValue: "בן עשת",
     fontSize: 16,
     align: "right",
   },
@@ -98,6 +104,8 @@ const INITIAL_FIELDS_RAW: Omit<FieldItem, "order" | "enabled">[] = [
     height: 24,
     type: "text",
     sample: "העצמאות 41 קרית אתא",
+    isFixed: true,
+    fixedValue: "העצמאות 41 קרית אתא",
     fontSize: 14,
     align: "right",
   },
@@ -112,6 +120,8 @@ const INITIAL_FIELDS_RAW: Omit<FieldItem, "order" | "enabled">[] = [
     height: 24,
     type: "digits",
     sample: "0526850711",
+    isFixed: true,
+    fixedValue: "0526850711",
     fontSize: 15,
     digitGap: DEFAULT_GLOBAL_DIGIT_GAP,
     maxDigits: 10,
@@ -128,6 +138,8 @@ const INITIAL_FIELDS_RAW: Omit<FieldItem, "order" | "enabled">[] = [
     height: 24,
     type: "digits",
     sample: "905790028",
+    isFixed: true,
+    fixedValue: "905790028",
     fontSize: 15,
     digitGap: DEFAULT_GLOBAL_DIGIT_GAP,
     maxDigits: 9,
@@ -933,6 +945,8 @@ function normalizeFields(fields: Partial<FieldItem>[]) {
     ...field,
     order: Number(field.order || index + 1),
     enabled: typeof field.enabled === "boolean" ? field.enabled : true,
+    isFixed: typeof field.isFixed === "boolean" ? field.isFixed : false,
+    fixedValue: String(field.fixedValue || ""),
   })) as FieldItem[];
 }
 
@@ -985,6 +999,8 @@ function getFieldTypeLabel(type: FieldType) {
 function renderValue(field: FieldItem, showValues: boolean) {
   if (!showValues) return null;
 
+  const displayValue = field.isFixed ? field.fixedValue || field.sample : field.sample;
+
   if (field.type === "check") {
     return (
       <span
@@ -1002,13 +1018,13 @@ function renderValue(field: FieldItem, showValues: boolean) {
         className="flex h-full w-full items-center justify-center italic text-blue-800"
         style={{ fontSize: field.fontSize }}
       >
-        {field.sample || "חתימה"}
+        {displayValue || "חתימה"}
       </span>
     );
   }
 
   if (field.type === "digits") {
-    const digits = onlyDigits(field.sample);
+    const digits = onlyDigits(displayValue);
     const sliced = field.maxDigits ? digits.slice(0, field.maxDigits) : digits;
 
     return (
@@ -1043,7 +1059,7 @@ function renderValue(field: FieldItem, showValues: boolean) {
         textAlign: alignToText(field.align),
       }}
     >
-      {field.sample}
+      {displayValue}
     </span>
   );
 }
@@ -1054,6 +1070,8 @@ function fieldToMap(field: FieldItem) {
     section: field.section,
     order: field.order,
     enabled: field.enabled,
+    isFixed: Boolean(field.isFixed),
+    fixedValue: field.fixedValue || "",
     x: field.x,
     y: field.y,
     width: field.width,
@@ -1274,7 +1292,7 @@ export default function Form101MapperPage() {
       `const FORM101_FIELD_MAP = ${JSON.stringify(map, null, 2)} as const;`
     );
 
-    alert("הועתקו רק השדות הפעילים");
+    alert("הועתקו רק השדות הפעילים כולל שדות קבועים");
   }
 
   function addField() {
@@ -1299,6 +1317,8 @@ export default function Form101MapperPage() {
       align: "right",
       order: sectionMaxOrder + 1,
       enabled: true,
+      isFixed: false,
+      fixedValue: "",
     };
 
     markTemplateChanged();
@@ -1364,8 +1384,8 @@ export default function Form101MapperPage() {
 
               <p className="mt-2 text-sm font-bold text-slate-500">
                 מוצג כאן הקובץ המקורי: public/forms/tofes-101.pdf. ניתן לשנות
-                מספר שדה, להפעיל/לכבות שדות, למחוק שדות חדשים, ולאשר תבנית לפני
-                שימוש.
+                מספר שדה, להפעיל/לכבות שדות, להגדיר שדה קבוע לכל העובדים או שדה
+                שהעובד ממלא, למחוק שדות חדשים, ולאשר תבנית לפני שימוש.
               </p>
 
               <div
@@ -1574,7 +1594,7 @@ export default function Form101MapperPage() {
                         </div>
 
                         <div className="mt-1 text-xs font-bold text-slate-400">
-                          ערך: {field.sample || "ריק"}
+                          ערך: {field.isFixed ? field.fixedValue || "ריק" : field.sample || "ריק"}
                         </div>
 
                         <div
@@ -1582,7 +1602,7 @@ export default function Form101MapperPage() {
                             field.enabled ? "text-emerald-600" : "text-rose-600"
                           }`}
                         >
-                          {field.enabled ? "פעיל" : "כבוי"}
+                          {field.enabled ? "פעיל" : "כבוי"} · {field.isFixed ? "קבוע לכל העובדים" : "העובד ממלא"}
                         </div>
                       </button>
                     );
@@ -1680,7 +1700,7 @@ export default function Form101MapperPage() {
                     </div>
 
                     <div className="rounded-xl bg-white px-3 py-2 text-slate-600">
-                      ערך: {selectedField.sample || "ריק"}
+                      ערך: {selectedField.isFixed ? selectedField.fixedValue || "ריק" : selectedField.sample || "ריק"}
                     </div>
 
                     <div
@@ -1695,6 +1715,14 @@ export default function Form101MapperPage() {
 
                     <div className="rounded-xl bg-white px-3 py-2 text-slate-600">
                       מספר: {selectedField.order}
+                    </div>
+
+                    <div
+                      className={`rounded-xl bg-white px-3 py-2 ${
+                        selectedField.isFixed ? "text-indigo-700" : "text-slate-600"
+                      }`}
+                    >
+                      מילוי: {selectedField.isFixed ? "קבוע לכל העובדים" : "העובד ממלא"}
                     </div>
                   </div>
                 </div>
@@ -1730,6 +1758,26 @@ export default function Form101MapperPage() {
                     >
                       <option value="yes">פעיל</option>
                       <option value="no">כבוי</option>
+                    </select>
+                  </label>
+
+                  <label className="text-xs font-black text-slate-500">
+                    קבוע / עובד ממלא
+                    <select
+                      value={selectedField.isFixed ? "fixed" : "employee"}
+                      onChange={(event) =>
+                        updateField(selectedField.key, {
+                          isFixed: event.target.value === "fixed",
+                          fixedValue:
+                            event.target.value === "fixed"
+                              ? selectedField.fixedValue || selectedField.sample || ""
+                              : selectedField.fixedValue || "",
+                        })
+                      }
+                      className="mt-1 h-10 w-full rounded-xl border px-3 text-sm font-bold"
+                    >
+                      <option value="employee">העובד ממלא</option>
+                      <option value="fixed">קבוע לכל העובדים</option>
                     </select>
                   </label>
 
@@ -1877,6 +1925,21 @@ export default function Form101MapperPage() {
                       })
                     }
                     className="mt-1 h-11 w-full rounded-xl border px-3 text-sm font-bold"
+                  />
+                </label>
+
+                <label className="block text-xs font-black text-slate-500">
+                  ערך קבוע לכל העובדים
+                  <input
+                    value={selectedField.fixedValue || ""}
+                    disabled={!selectedField.isFixed}
+                    onChange={(event) =>
+                      updateField(selectedField.key, {
+                        fixedValue: event.target.value,
+                      })
+                    }
+                    placeholder="מופיע אוטומטית לכל העובדים"
+                    className="mt-1 h-11 w-full rounded-xl border px-3 text-sm font-bold disabled:bg-slate-100 disabled:text-slate-400"
                   />
                 </label>
 
