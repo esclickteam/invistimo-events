@@ -17,7 +17,7 @@ export interface IUser extends Document {
 
   role: "user" | "client" | "producer" | "staff" | "admin" | "venue_owner";
 
-staffType?: "producer_staff" | "general_staff" | null;
+staffType?: "producer_staff" | "general_staff" | "seating_staff" | null;
 
 employeeScope?: "system" | "producer" | "venue" | "client" | null;
 
@@ -264,7 +264,7 @@ const UserSchema = new Schema<IUser>(
 
     staffType: {
       type: String,
-      enum: ["producer_staff", "general_staff"],
+      enum: ["producer_staff", "general_staff", "seating_staff"],
       default: null,
       index: true,
     },
@@ -1291,6 +1291,21 @@ if (
   doc.staffType === "general_staff" &&
   !doc.employeeScope
 ) {
+  doc.employeeScope = "system";
+}
+
+/*
+  עובד הושבה:
+  role = staff
+  staffType = seating_staff
+  employeeScope = system
+
+  חשוב:
+  עובד הושבה מקבל אותה כניסה כמו עובד מערכת,
+  אבל בפועל צריך לסנן אותו לפי assignedClientIds
+  בקבצי ה-API של לקוחות/התחזות/דשבורד עובד.
+*/
+if (doc.role === "staff" && doc.staffType === "seating_staff") {
   doc.employeeScope = "system";
 }
 

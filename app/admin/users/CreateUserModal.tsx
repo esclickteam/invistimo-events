@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 type UserRole = "user" | "producer" | "staff" | "venue_owner";
-type StaffCreateType = "system" | "producer";
+type StaffCreateType = "system" | "seating" | "producer";
 type PaymentStatus = "paid" | "stripe";
 type PlanKey = "plan1" | "plan2" | "plan3";
 type AddonKey = "calls" | "credit" | "seating" | "system" | "design";
@@ -346,101 +346,150 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
             },
           }
         : role === "staff"
-  ? staffCreateType === "producer"
-    ? {
-        name,
-        email,
-        role: "staff",
+          ? staffCreateType === "producer"
+            ? {
+                name,
+                email,
+                role: "staff",
 
-        // עובד של מפיק
-        staffType: "producer_staff",
-        employeeScope: "producer",
+                // עובד של מפיק
+                staffType: "producer_staff",
+                employeeScope: "producer",
 
-        assignedProducerId,
-        createdByAdmin: true,
-        billingSource: "admin",
+                assignedProducerId,
+                createdByAdmin: true,
+                billingSource: "admin",
 
-        producerId: null,
-        createdByProducer: null,
-        assignedStaffIds: [],
-        assignedClientIds: [],
+                producerId: null,
+                createdByProducer: null,
+                assignedStaffIds: [],
+                assignedClientIds: [],
 
-        plan: "basic",
-        priceKey: "producer_staff_manual",
-        packageName: "עובד מפיק",
+                plan: "basic",
+                priceKey: "producer_staff_manual",
+                packageName: "עובד מפיק",
 
-        guests: 0,
-        maxGuests: 0,
-        smsLimit: 0,
-        maxMessages: 0,
-        allowedMessageRounds: 2,
+                guests: 0,
+                maxGuests: 0,
+                smsLimit: 0,
+                maxMessages: 0,
+                allowedMessageRounds: 2,
 
-        limits: {
-          records: 0,
-          allowedMessageRounds: 2,
-        },
+                limits: {
+                  records: 0,
+                  allowedMessageRounds: 2,
+                },
 
-        billing: {
-          price: 0,
-          paymentStatus: "paid",
-        },
+                billing: {
+                  price: 0,
+                  paymentStatus: "paid",
+                },
 
-        includeCalls: false,
-        includeCreditGifts: false,
-        includeDigitalSeating: false,
-        includeEventManagement: false,
-        includeCustomDesign: false,
+                includeCalls: false,
+                includeCreditGifts: false,
+                includeDigitalSeating: false,
+                includeEventManagement: false,
+                includeCustomDesign: false,
 
-        hasPaid: true,
-        isActive: true,
-      }
-    : {
-        name,
-        email,
-        role: "staff",
+                hasPaid: true,
+                isActive: true,
+              }
+            : staffCreateType === "seating"
+              ? {
+                  name,
+                  email,
+                  role: "staff",
 
-        // עובד פנימי של Invistimo
-        staffType: "general_staff",
-        employeeScope: "system",
+                  // עובד הושבה פנימי של Invistimo
+                  // מקבל גישה כמו עובד מערכת, אבל ב-API יש לסנן לפי assignedClientIds
+                  staffType: "seating_staff",
+                  employeeScope: "system",
 
-        createdByAdmin: true,
-        billingSource: "admin",
+                  createdByAdmin: true,
+                  billingSource: "admin",
 
-        producerId: null,
-        createdByProducer: null,
-        assignedProducerId: null,
-        assignedStaffIds: [],
-        assignedClientIds: [],
+                  producerId: null,
+                  createdByProducer: null,
+                  assignedProducerId: null,
+                  assignedStaffIds: [],
+                  assignedClientIds: [],
 
-        plan: "basic",
-        priceKey: "staff_manual",
-        packageName: "עובד מערכת",
+                  plan: "basic",
+                  priceKey: "seating_staff_manual",
+                  packageName: "עובד הושבה",
 
-        guests: 0,
-        maxGuests: 0,
-        smsLimit: 0,
-        maxMessages: 0,
-        allowedMessageRounds: 2,
+                  guests: 0,
+                  maxGuests: 0,
+                  smsLimit: 0,
+                  maxMessages: 0,
+                  allowedMessageRounds: 2,
 
-        limits: {
-          records: 0,
-          allowedMessageRounds: 2,
-        },
+                  limits: {
+                    records: 0,
+                    allowedMessageRounds: 2,
+                  },
 
-        billing: {
-          price: 0,
-          paymentStatus: "paid",
-        },
+                  billing: {
+                    price: 0,
+                    paymentStatus: "paid",
+                  },
 
-        includeCalls: false,
-        includeCreditGifts: false,
-        includeDigitalSeating: false,
-        includeEventManagement: false,
-        includeCustomDesign: false,
+                  includeCalls: false,
+                  includeCreditGifts: false,
+                  includeDigitalSeating: false,
+                  includeEventManagement: false,
+                  includeCustomDesign: false,
 
-        hasPaid: true,
-        isActive: true,
-      }
+                  hasPaid: true,
+                  isActive: true,
+                }
+              : {
+                  name,
+                  email,
+                  role: "staff",
+
+                  // עובד פנימי של Invistimo
+                  staffType: "general_staff",
+                  employeeScope: "system",
+
+                  createdByAdmin: true,
+                  billingSource: "admin",
+
+                  producerId: null,
+                  createdByProducer: null,
+                  assignedProducerId: null,
+                  assignedStaffIds: [],
+                  assignedClientIds: [],
+
+                  plan: "basic",
+                  priceKey: "staff_manual",
+                  packageName: "עובד מערכת",
+
+                  guests: 0,
+                  maxGuests: 0,
+                  smsLimit: 0,
+                  maxMessages: 0,
+                  allowedMessageRounds: 2,
+
+                  limits: {
+                    records: 0,
+                    allowedMessageRounds: 2,
+                  },
+
+                  billing: {
+                    price: 0,
+                    paymentStatus: "paid",
+                  },
+
+                  includeCalls: false,
+                  includeCreditGifts: false,
+                  includeDigitalSeating: false,
+                  includeEventManagement: false,
+                  includeCustomDesign: false,
+
+                  hasPaid: true,
+                  isActive: true,
+                }
 
           : role === "venue_owner"
             ? {
@@ -788,7 +837,7 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
       </h3>
 
       <p className="text-xs text-[#8b7b68] mt-1">
-        בחרי האם זה עובד פנימי של Invistimo או עובד ששייך למפיק.
+        בחרי האם זה עובד מערכת, עובד הושבה או עובד ששייך למפיק.
       </p>
     </div>
 
@@ -800,6 +849,7 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
       className="w-full h-14 rounded-2xl border border-[#eadfce] bg-white px-4 text-right text-[#4b3b2a] outline-none focus:border-[#c7a76c] focus:ring-4 focus:ring-[#c7a76c]/15"
     >
       <option value="system">עובד מערכת Invistimo</option>
+      <option value="seating">עובד הושבה</option>
       <option value="producer">עובד של מפיק</option>
     </select>
 
@@ -826,7 +876,9 @@ const [assignedProducerId, setAssignedProducerId] = useState("");
     <div className="rounded-2xl border border-[#eadfce] bg-[#fff8ed] px-4 py-3 text-sm text-[#7a5a2f] leading-6">
       {staffCreateType === "system"
         ? "העובד ייווצר כעובד כללי של Invistimo."
-        : "העובד ייווצר כעובד של מפיק ויחובר למפיק שבחרת."}
+        : staffCreateType === "seating"
+          ? "העובד ייווצר כעובד הושבה פנימי של Invistimo. הוא יקבל גישה כמו עובד מערכת, ובהמשך יראה רק לקוחות שיוקצו אליו."
+          : "העובד ייווצר כעובד של מפיק ויחובר למפיק שבחרת."}
     </div>
   </section>
 )}
