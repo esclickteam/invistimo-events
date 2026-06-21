@@ -47,6 +47,21 @@ function cleanString(value: unknown) {
   return String(value || "").trim();
 }
 
+function isCloudinaryTransformSegment(segment: string) {
+  const cleanSegment = cleanString(segment);
+
+  if (!cleanSegment) return false;
+  if (/^v\d+$/.test(cleanSegment)) return false;
+
+  const parts = cleanSegment.split(",").map((part) => part.trim()).filter(Boolean);
+
+  if (parts.length === 0) return false;
+
+  return parts.every((part) =>
+    /^(a|ar|b|bo|c|co|dpr|e|f|fl|g|h|l|o|q|r|t|u|w|x|y|z)_[^/]+$/.test(part)
+  );
+}
+
 function getHighQualityCloudinaryImageUrl(value: unknown) {
   const url = cleanString(value);
 
@@ -60,22 +75,17 @@ function getHighQualityCloudinaryImageUrl(value: unknown) {
 
   if (!beforeUpload || !afterUpload) return url;
 
-  const cleanedAfterUpload = afterUpload
-    .replace(/^q_100,f_png\//, "")
-    .replace(/^f_png,q_100\//, "")
-    .replace(/^q_100[^/]*\//, "")
-    .replace(/^f_png[^/]*\//, "")
-    .replace(/^f_auto,q_auto[^/]*\//, "")
-    .replace(/^q_auto,f_auto[^/]*\//, "")
-    .replace(/^q_auto[^/]*\//, "")
-    .replace(/^f_auto[^/]*\//, "")
-    .replace(/^c_fill[^/]*\//, "")
-    .replace(/^c_fit[^/]*\//, "")
-    .replace(/^c_pad[^/]*\//, "")
-    .replace(/^w_\d+[^/]*\//, "")
-    .replace(/^h_\d+[^/]*\//, "");
+  const parts = afterUpload.split("/").filter(Boolean);
 
-  return `${beforeUpload}/upload/q_100,f_png/${cleanedAfterUpload}`;
+  while (parts.length > 0 && isCloudinaryTransformSegment(parts[0])) {
+    parts.shift();
+  }
+
+  const cleanedAfterUpload = parts.join("/");
+
+  if (!cleanedAfterUpload) return url;
+
+  return `${beforeUpload}/upload/${cleanedAfterUpload}`;
 }
 
 function isHttpImageUrl(value: unknown) {
@@ -314,8 +324,6 @@ async function uploadImageToCloudinary({
         public_id: publicId,
         resource_type: "image",
         overwrite: false,
-        quality_analysis: true,
-        colors: true,
         invalidate: true,
       },
       (error, result) => {
@@ -331,7 +339,7 @@ async function uploadImageToCloudinary({
 
         resolve({
           url: result.url,
-          secureUrl: result.secure_url,
+          secureUrl: getHighQualityCloudinaryImageUrl(result.secure_url),
           publicId: result.public_id,
           width: result.width,
           height: result.height,

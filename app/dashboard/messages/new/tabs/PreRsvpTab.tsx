@@ -78,6 +78,26 @@ function cleanString(value: unknown) {
   return String(value || "").trim();
 }
 
+function isCloudinaryTransformSegment(segment: string) {
+  const cleanSegment = cleanString(segment);
+
+  if (!cleanSegment) return false;
+  if (/^v\d+$/.test(cleanSegment)) return false;
+
+  const parts = cleanSegment
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length === 0) return false;
+
+  return parts.every((part) =>
+    /^(a|ar|b|bo|c|co|dpr|e|f|fl|g|h|l|o|q|r|t|u|w|x|y|z)_[^/]+$/.test(
+      part
+    )
+  );
+}
+
 function getHighQualityCloudinaryImageUrl(value: unknown) {
   const url = cleanString(value);
 
@@ -91,22 +111,17 @@ function getHighQualityCloudinaryImageUrl(value: unknown) {
 
   if (!beforeUpload || !afterUpload) return url;
 
-  const cleanedAfterUpload = afterUpload
-    .replace(/^q_100,f_png\//, "")
-    .replace(/^f_png,q_100\//, "")
-    .replace(/^q_100[^/]*\//, "")
-    .replace(/^f_png[^/]*\//, "")
-    .replace(/^f_auto,q_auto[^/]*\//, "")
-    .replace(/^q_auto,f_auto[^/]*\//, "")
-    .replace(/^q_auto[^/]*\//, "")
-    .replace(/^f_auto[^/]*\//, "")
-    .replace(/^c_fill[^/]*\//, "")
-    .replace(/^c_fit[^/]*\//, "")
-    .replace(/^c_pad[^/]*\//, "")
-    .replace(/^w_\d+[^/]*\//, "")
-    .replace(/^h_\d+[^/]*\//, "");
+  const parts = afterUpload.split("/").filter(Boolean);
 
-  return `${beforeUpload}/upload/q_100,f_png/${cleanedAfterUpload}`;
+  while (parts.length > 0 && isCloudinaryTransformSegment(parts[0])) {
+    parts.shift();
+  }
+
+  const cleanedAfterUpload = parts.join("/");
+
+  if (!cleanedAfterUpload) return url;
+
+  return `${beforeUpload}/upload/${cleanedAfterUpload}`;
 }
 
 function normalizePreviewText(value: string) {
@@ -647,8 +662,9 @@ export default function PreRsvpTab({
 
       /*
         קריטי לאיכות:
-        אם לא מעלים עכשיו קובץ חדש, שולחים לשרת את אותו URL איכותי שמוצג בפרונט.
-        זה לא משנה את Save The Date — זה רק מונע מההזמנה המוקדמת ליפול ל-preview/thumbnail.
+        אם לא מעלים עכשיו קובץ חדש, שולחים לשרת את קישור המקור הנקי.
+        בלי q_auto, בלי f_auto, בלי q_100, בלי f_png, בלי w_, בלי h_,
+        בלי thumbnail ובלי preview.
       */
       formData.append("headerImageUrl", finalHeaderImageUrl);
       formData.append("imageUrl", finalHeaderImageUrl);
@@ -679,7 +695,9 @@ export default function PreRsvpTab({
         throw new Error(data?.error || "שליחת הבקשה נכשלה");
       }
 
-      const savedImageUrl = getHighQualityCloudinaryImageUrl(data?.imageUrl || "");
+      const savedImageUrl = getHighQualityCloudinaryImageUrl(
+        data?.imageUrl || ""
+      );
 
       if (savedImageUrl) {
         if (activeMode === "save_the_date") {
@@ -907,7 +925,7 @@ export default function PreRsvpTab({
                     <img
                       src={displayImage}
                       alt="תמונה להודעה"
-                      className="h-48 w-full rounded-[22px] object-cover shadow-sm"
+                      className="h-48 w-full rounded-[22px] bg-white object-contain shadow-sm"
                     />
 
                     <div className="flex flex-col gap-3 sm:flex-row">
@@ -1422,8 +1440,8 @@ function PhonePreview({
                   max-h-[360px]
                   w-full
                   rounded-[16px]
-                  object-contain
                   bg-white
+                  object-contain
                 "
               />
             )}
