@@ -325,6 +325,10 @@ export default function PreRsvpTab({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [savedSaveTheDateImageUrl, setSavedSaveTheDateImageUrl] = useState("");
+  const [savedInvitationOnlyImageUrl, setSavedInvitationOnlyImageUrl] =
+    useState("");
+
   const currentTemplate = getCurrentTemplate(activeMode);
 
   const currentImage =
@@ -337,8 +341,8 @@ export default function PreRsvpTab({
 
   const currentSavedImageUrl = getHighQualityCloudinaryImageUrl(
     activeMode === "save_the_date"
-      ? preRsvpMedia?.saveTheDateImageUrl
-      : preRsvpMedia?.invitationOnlyImageUrl
+      ? savedSaveTheDateImageUrl
+      : savedInvitationOnlyImageUrl
   );
 
   const displayImage = currentImage || currentSavedImageUrl;
@@ -360,6 +364,18 @@ export default function PreRsvpTab({
   ]);
 
   useEffect(() => {
+    setSavedSaveTheDateImageUrl(
+      getHighQualityCloudinaryImageUrl(preRsvpMedia?.saveTheDateImageUrl)
+    );
+    setSavedInvitationOnlyImageUrl(
+      getHighQualityCloudinaryImageUrl(preRsvpMedia?.invitationOnlyImageUrl)
+    );
+  }, [
+    preRsvpMedia?.saveTheDateImageUrl,
+    preRsvpMedia?.invitationOnlyImageUrl,
+  ]);
+
+  useEffect(() => {
     if (activeModeAvailable) return;
 
     const nextMode = getFirstAvailablePreRsvpMode(preRsvpAccess);
@@ -376,32 +392,147 @@ export default function PreRsvpTab({
     };
   }, [saveTheDateImage, invitationOnlyImage]);
 
-  function handleImageChange(file: File | null) {
-    const imageUrl = createImagePreview(file);
+  async function handleImageChange(file: File | null) {
+    if (!file) return;
+
+    const localPreview = createImagePreview(file);
 
     if (activeMode === "save_the_date") {
-      if (saveTheDateImage) URL.revokeObjectURL(saveTheDateImage);
-      setSaveTheDateImage(imageUrl);
+      if (saveTheDateImage && saveTheDateImage.startsWith("blob:")) {
+        URL.revokeObjectURL(saveTheDateImage);
+      }
+      setSaveTheDateImage(localPreview);
       setSaveTheDateImageFile(file);
-      return;
+    } else {
+      if (invitationOnlyImage && invitationOnlyImage.startsWith("blob:")) {
+        URL.revokeObjectURL(invitationOnlyImage);
+      }
+      setInvitationOnlyImage(localPreview);
+      setInvitationOnlyImageFile(file);
     }
 
-    if (invitationOnlyImage) URL.revokeObjectURL(invitationOnlyImage);
-    setInvitationOnlyImage(imageUrl);
-    setInvitationOnlyImageFile(file);
+    try {
+      const cleanInvitationId = cleanString(invitationId);
+
+      if (!cleanInvitationId) {
+        throw new Error("לא נמצאה הזמנה פעילה לשמירת התמונה.");
+      }
+
+      const formData = new FormData();
+
+      formData.append("invitationId", cleanInvitationId);
+      formData.append("messageType", activeMode);
+      formData.append("image", file);
+
+      const res = await fetch("/api/messages/pre-rsvp/media", {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || data?.success === false) {
+        throw new Error(data?.error || "שמירת התמונה נכשלה.");
+      }
+
+      const savedImageUrl = getHighQualityCloudinaryImageUrl(data?.imageUrl);
+
+      if (!savedImageUrl) {
+        throw new Error("התמונה נשמרה אבל לא התקבל קישור תקין.");
+      }
+
+      if (activeMode === "save_the_date") {
+        if (localPreview.startsWith("blob:")) {
+          URL.revokeObjectURL(localPreview);
+        }
+        setSaveTheDateImage("");
+        setSaveTheDateImageFile(null);
+        setSavedSaveTheDateImageUrl(savedImageUrl);
+      } else {
+        if (localPreview.startsWith("blob:")) {
+          URL.revokeObjectURL(localPreview);
+        }
+        setInvitationOnlyImage("");
+        setInvitationOnlyImageFile(null);
+        setSavedInvitationOnlyImageUrl(savedImageUrl);
+      }
+    } catch (err: any) {
+      console.error("❌ PRE RSVP IMAGE SAVE ERROR:", err);
+      alert(err?.message || "שגיאה בשמירת התמונה.");
+
+      if (activeMode === "save_the_date") {
+        if (localPreview.startsWith("blob:")) {
+          URL.revokeObjectURL(localPreview);
+        }
+        setSaveTheDateImage("");
+        setSaveTheDateImageFile(null);
+      } else {
+        if (localPreview.startsWith("blob:")) {
+          URL.revokeObjectURL(localPreview);
+        }
+        setInvitationOnlyImage("");
+        setInvitationOnlyImageFile(null);
+      }
+    }
   }
 
-  function handleRemoveImage() {
-    if (activeMode === "save_the_date") {
-      if (saveTheDateImage) URL.revokeObjectURL(saveTheDateImage);
-      setSaveTheDateImage("");
-      setSaveTheDateImageFile(null);
-      return;
-    }
+  async function handleRemoveImage() {
+    const wasSaveTheDate = activeMode === "save_the_date";
+    const previousSavedImageUrl = wasSaveTheDate
+      ? savedSaveTheDateImageUrl
+      : savedInvitationOnlyImageUrl;
 
-    if (invitationOnlyImage) URL.revokeObjectURL(invitationOnlyImage);
-    setInvitationOnlyImage("");
-    setInvitationOnlyImageFile(null);
+    try {
+      const cleanInvitationId = cleanString(invitationId);
+
+      if (!cleanInvitationId) {
+        throw new Error("לא נמצאה הזמנה פעילה להסרת התמונה.");
+      }
+
+      if (wasSaveTheDate) {
+        if (saveTheDateImage && saveTheDateImage.startsWith("blob:")) {
+          URL.revokeObjectURL(saveTheDateImage);
+        }
+        setSaveTheDateImage("");
+        setSaveTheDateImageFile(null);
+        setSavedSaveTheDateImageUrl("");
+      } else {
+        if (invitationOnlyImage && invitationOnlyImage.startsWith("blob:")) {
+          URL.revokeObjectURL(invitationOnlyImage);
+        }
+        setInvitationOnlyImage("");
+        setInvitationOnlyImageFile(null);
+        setSavedInvitationOnlyImageUrl("");
+      }
+
+      const res = await fetch("/api/messages/pre-rsvp/media", {
+        method: "DELETE",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          invitationId: cleanInvitationId,
+          messageType: activeMode,
+        }),
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || data?.success === false) {
+        throw new Error(data?.error || "הסרת התמונה נכשלה.");
+      }
+    } catch (err: any) {
+      console.error("❌ PRE RSVP IMAGE REMOVE ERROR:", err);
+      alert(err?.message || "שגיאה בהסרת התמונה.");
+
+      if (wasSaveTheDate) {
+        setSavedSaveTheDateImageUrl(previousSavedImageUrl);
+      } else {
+        setSavedInvitationOnlyImageUrl(previousSavedImageUrl);
+      }
+    }
   }
 
   async function handleSubmit() {
