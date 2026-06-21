@@ -2,567 +2,1724 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
-type Gender = "male" | "female" | "";
-type YesNo = "yes" | "no" | "";
-type MaritalStatus =
-  | "single"
-  | "married"
-  | "divorced"
-  | "widowed"
-  | "separated"
-  | "";
+type PageNumber = 1 | 2;
+type FieldType = "text" | "digits" | "check" | "signature";
+type TextAlign = "right" | "left" | "center";
 
-type Form101Data = {
-  taxYear: string;
-
-  employerName: string;
-  employerAddress: string;
-  employerPhone: string;
-  employerFileNumber: string;
-
-  idNumber: string;
-  firstName: string;
-  lastName: string;
-  birthDate: string;
-  immigrationDate: string;
-
-  street: string;
-  houseNumber: string;
-  city: string;
-  postalCode: string;
-
-  phone: string;
-  mobile: string;
-  email: string;
-
-  gender: Gender;
-  maritalStatus: MaritalStatus;
-  residentIsrael: YesNo;
-  kibbutzMember: YesNo;
-  healthFundMember: YesNo;
-  healthFundName: string;
-
-  workStartDate: string;
-
-  incomeType: {
-    monthlySalary: boolean;
-    extraSalary: boolean;
-    partialSalary: boolean;
-    dailyWage: boolean;
-    allowance: boolean;
-    pension: boolean;
-  };
-
-  otherIncome: {
-    noOtherIncome: boolean;
-    monthlySalary: boolean;
-    extraSalary: boolean;
-    partialSalary: boolean;
-    dailyWage: boolean;
-    allowance: boolean;
-    pension: boolean;
-    scholarship: boolean;
-  };
-
-  spouse: {
-    idNumber: string;
-    firstName: string;
-    lastName: string;
-    birthDate: string;
-    immigrationDate: string;
-    noIncome: boolean;
-    hasIncome: boolean;
-  };
-
-  children: {
-    name: string;
-    idNumber: string;
-    birthDate: string;
-  }[];
-
-  taxCredits: {
-    resident: boolean;
-    disabled100: boolean;
-    settlement: boolean;
-    settlementDate: string;
-    settlementName: string;
-    newImmigrant: boolean;
-    spouseNoIncome: boolean;
-    singleParent: boolean;
-    childrenCustody: boolean;
-    childrenBornThisYear: string;
-    childrenAgeOneToFive: string;
-    childrenAgeSixToSeventeen: string;
-    childrenAgeEighteen: string;
-    specialChild: boolean;
-    alimony: boolean;
-    childrenUnder19: boolean;
-    soldier: boolean;
-    academic: boolean;
-    diploma: boolean;
-    noIncomeThisYear: boolean;
-    hasOtherIncomeForTaxCoordination: boolean;
-  };
-
-  signatureDate: string;
-  signatureText: string;
-  signatureDataUrl: string;
+type FieldConfig = {
+  page: PageNumber;
+  section: string;
+  order: number;
+  enabled: boolean;
+  isFixed: boolean;
+  fixedValue: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  type: FieldType;
+  fontSize: number;
+  digitGap: number | null;
+  maxDigits: number | null;
+  align: TextAlign;
 };
 
-const initialForm101Data: Form101Data = {
-  taxYear: new Date().getFullYear().toString(),
+type FieldValue = string | boolean;
+type ValuesMap = Record<string, FieldValue>;
+type ActiveSignatureField = string | null;
 
-  employerName: "בן עשת",
-  employerAddress: "העצמאות 41 קרית אתא",
-  employerPhone: "0526850711",
-  employerFileNumber: "905790028",
+const PDF_URL = "/forms/tofes-101.pdf";
+const PAGE_WIDTH = 900;
+const PAGE_HEIGHT = 1280;
+const DRAFT_STORAGE_KEY = "invistimo_employee_form101_template_draft_v1";
 
-  idNumber: "",
-  firstName: "",
-  lastName: "",
-  birthDate: "",
-  immigrationDate: "",
-
-  street: "",
-  houseNumber: "",
-  city: "",
-  postalCode: "",
-
-  phone: "",
-  mobile: "",
-  email: "",
-
-  gender: "",
-  maritalStatus: "",
-  residentIsrael: "",
-  kibbutzMember: "",
-  healthFundMember: "",
-  healthFundName: "",
-
-  workStartDate: "",
-
-  incomeType: {
-    monthlySalary: false,
-    extraSalary: false,
-    partialSalary: false,
-    dailyWage: false,
-    allowance: false,
-    pension: false,
+const FORM101_FIELD_MAP: Record<string, FieldConfig> = {
+  "taxYear": {
+    "page": 1,
+    "section": "year",
+    "order": 1,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "2026",
+    "x": 323,
+    "y": 111,
+    "width": 120,
+    "height": 30,
+    "type": "digits",
+    "fontSize": 20,
+    "digitGap": 21,
+    "maxDigits": 4,
+    "align": "center"
   },
-
-  otherIncome: {
-    noOtherIncome: false,
-    monthlySalary: false,
-    extraSalary: false,
-    partialSalary: false,
-    dailyWage: false,
-    allowance: false,
-    pension: false,
-    scholarship: false,
+  "employerName": {
+    "page": 1,
+    "section": "employer",
+    "order": 2,
+    "enabled": true,
+    "isFixed": true,
+    "fixedValue": "בן עשת",
+    "x": 603,
+    "y": 221,
+    "width": 150,
+    "height": 24,
+    "type": "text",
+    "fontSize": 16,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
   },
-
-  spouse: {
-    idNumber: "",
-    firstName: "",
-    lastName: "",
-    birthDate: "",
-    immigrationDate: "",
-    noIncome: false,
-    hasIncome: false,
+  "employerAddress": {
+    "page": 1,
+    "section": "employer",
+    "order": 3,
+    "enabled": true,
+    "isFixed": true,
+    "fixedValue": "העצמאות 41 קרית אתא",
+    "x": 401,
+    "y": 223,
+    "width": 175,
+    "height": 24,
+    "type": "text",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "right"
   },
-
-  children: Array.from({ length: 10 }).map(() => ({
-    name: "",
-    idNumber: "",
-    birthDate: "",
-  })),
-
-  taxCredits: {
-    resident: false,
-    disabled100: false,
-    settlement: false,
-    settlementDate: "",
-    settlementName: "",
-    newImmigrant: false,
-    spouseNoIncome: false,
-    singleParent: false,
-    childrenCustody: false,
-    childrenBornThisYear: "",
-    childrenAgeOneToFive: "",
-    childrenAgeSixToSeventeen: "",
-    childrenAgeEighteen: "",
-    specialChild: false,
-    alimony: false,
-    childrenUnder19: false,
-    soldier: false,
-    academic: false,
-    diploma: false,
-    noIncomeThisYear: false,
-    hasOtherIncomeForTaxCoordination: false,
+  "employerPhone": {
+    "page": 1,
+    "section": "employer",
+    "order": 4,
+    "enabled": true,
+    "isFixed": true,
+    "fixedValue": "0526850711",
+    "x": 224,
+    "y": 224,
+    "width": 98,
+    "height": 24,
+    "type": "digits",
+    "fontSize": 15,
+    "digitGap": 21,
+    "maxDigits": 10,
+    "align": "left"
   },
-
-  signatureDate: "",
-  signatureText: "",
-  signatureDataUrl: "",
+  "employerFileNumber": {
+    "page": 1,
+    "section": "employer",
+    "order": 5,
+    "enabled": true,
+    "isFixed": true,
+    "fixedValue": "05790028",
+    "x": 98,
+    "y": 226,
+    "width": 124,
+    "height": 24,
+    "type": "digits",
+    "fontSize": 15,
+    "digitGap": 21,
+    "maxDigits": 9,
+    "align": "right"
+  },
+  "idNumber": {
+    "page": 1,
+    "section": "employee",
+    "order": 6,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 631,
+    "y": 283,
+    "width": 136,
+    "height": 24,
+    "type": "digits",
+    "fontSize": 15,
+    "digitGap": 21,
+    "maxDigits": 9,
+    "align": "center"
+  },
+  "lastName": {
+    "page": 1,
+    "section": "employee",
+    "order": 7,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 504,
+    "y": 283,
+    "width": 95,
+    "height": 24,
+    "type": "text",
+    "fontSize": 15,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "firstName": {
+    "page": 1,
+    "section": "employee",
+    "order": 8,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 356,
+    "y": 282,
+    "width": 85,
+    "height": 24,
+    "type": "text",
+    "fontSize": 15,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "birthDate": {
+    "page": 1,
+    "section": "employee",
+    "order": 9,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 204,
+    "y": 284,
+    "width": 123,
+    "height": 24,
+    "type": "digits",
+    "fontSize": 15,
+    "digitGap": 21,
+    "maxDigits": 8,
+    "align": "center"
+  },
+  "immigrationDate": {
+    "page": 1,
+    "section": "employee",
+    "order": 10,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 85,
+    "y": 285,
+    "width": 120,
+    "height": 24,
+    "type": "digits",
+    "fontSize": 15,
+    "digitGap": 21,
+    "maxDigits": 8,
+    "align": "center"
+  },
+  "street": {
+    "page": 1,
+    "section": "employee",
+    "order": 11,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 607,
+    "y": 311,
+    "width": 143,
+    "height": 24,
+    "type": "text",
+    "fontSize": 15,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "houseNumber": {
+    "page": 1,
+    "section": "employee",
+    "order": 12,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 558,
+    "y": 311,
+    "width": 52,
+    "height": 24,
+    "type": "digits",
+    "fontSize": 15,
+    "digitGap": 21,
+    "maxDigits": 4,
+    "align": "center"
+  },
+  "city": {
+    "page": 1,
+    "section": "employee",
+    "order": 13,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 465,
+    "y": 311,
+    "width": 100,
+    "height": 24,
+    "type": "text",
+    "fontSize": 15,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "postalCode": {
+    "page": 1,
+    "section": "employee",
+    "order": 14,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 360,
+    "y": 312,
+    "width": 103,
+    "height": 24,
+    "type": "digits",
+    "fontSize": 15,
+    "digitGap": 21,
+    "maxDigits": 7,
+    "align": "left"
+  },
+  "phone": {
+    "page": 1,
+    "section": "employee",
+    "order": 15,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 221,
+    "y": 312,
+    "width": 30,
+    "height": 24,
+    "type": "digits",
+    "fontSize": 15,
+    "digitGap": 21,
+    "maxDigits": 10,
+    "align": "center"
+  },
+  "customField1782075538085": {
+    "page": 1,
+    "section": "employee",
+    "order": 16,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 250,
+    "y": 312,
+    "width": 76,
+    "height": 24,
+    "type": "text",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "mobile": {
+    "page": 1,
+    "section": "employee",
+    "order": 17,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 86,
+    "y": 313,
+    "width": 28,
+    "height": 24,
+    "type": "digits",
+    "fontSize": 15,
+    "digitGap": 21,
+    "maxDigits": 10,
+    "align": "left"
+  },
+  "customField1782075699673": {
+    "page": 1,
+    "section": "employee",
+    "order": 18,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 104,
+    "y": 312,
+    "width": 95,
+    "height": 24,
+    "type": "text",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "email": {
+    "page": 1,
+    "section": "employee",
+    "order": 19,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 426,
+    "y": 522,
+    "width": 230,
+    "height": 24,
+    "type": "text",
+    "fontSize": 15,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "genderMale": {
+    "page": 1,
+    "section": "employee",
+    "order": 19,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 740,
+    "y": 357,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "genderFemale": {
+    "page": 1,
+    "section": "employee",
+    "order": 20,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 740,
+    "y": 374,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "maritalSingle": {
+    "page": 1,
+    "section": "employee",
+    "order": 21,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 674,
+    "y": 355,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "maritalMarried": {
+    "page": 1,
+    "section": "employee",
+    "order": 22,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 590,
+    "y": 355,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "maritalDivorced": {
+    "page": 1,
+    "section": "employee",
+    "order": 23,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 500,
+    "y": 355,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "maritalWidowed": {
+    "page": 1,
+    "section": "employee",
+    "order": 24,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 674,
+    "y": 373,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "customField1782075946735": {
+    "page": 1,
+    "section": "employee",
+    "order": 25,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 601,
+    "y": 371,
+    "width": 29,
+    "height": 24,
+    "type": "check",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "residentYes": {
+    "page": 1,
+    "section": "employee",
+    "order": 26,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 412,
+    "y": 357,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "residentNo": {
+    "page": 1,
+    "section": "employee",
+    "order": 27,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 412,
+    "y": 374,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "kibbutzYes": {
+    "page": 1,
+    "section": "employee",
+    "order": 28,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 306,
+    "y": 356,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "kibbutzNo": {
+    "page": 1,
+    "section": "employee",
+    "order": 29,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 306,
+    "y": 374,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "healthFundYes": {
+    "page": 1,
+    "section": "employee",
+    "order": 30,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 213,
+    "y": 371,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "child1Name": {
+    "page": 1,
+    "section": "children",
+    "order": 30,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 540,
+    "y": 685,
+    "width": 95,
+    "height": 22,
+    "type": "text",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "healthFundName": {
+    "page": 1,
+    "section": "employee",
+    "order": 31,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 78,
+    "y": 371,
+    "width": 85,
+    "height": 24,
+    "type": "text",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "child1Id": {
+    "page": 1,
+    "section": "children",
+    "order": 31,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 405,
+    "y": 685,
+    "width": 110,
+    "height": 22,
+    "type": "digits",
+    "fontSize": 14,
+    "digitGap": 21,
+    "maxDigits": 9,
+    "align": "left"
+  },
+  "child1BirthDate": {
+    "page": 1,
+    "section": "children",
+    "order": 32,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 285,
+    "y": 685,
+    "width": 100,
+    "height": 22,
+    "type": "digits",
+    "fontSize": 14,
+    "digitGap": 21,
+    "maxDigits": 8,
+    "align": "left"
+  },
+  "customField1782076968515": {
+    "page": 1,
+    "section": "employee",
+    "order": 32,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 199,
+    "y": 352,
+    "width": 47,
+    "height": 24,
+    "type": "check",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "right"
+  },
+  "child1Mark1": {
+    "page": 1,
+    "section": "children",
+    "order": 33,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 745,
+    "y": 685,
+    "width": 18,
+    "height": 18,
+    "type": "check",
+    "fontSize": 16,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "child1Mark2": {
+    "page": 1,
+    "section": "children",
+    "order": 34,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 720,
+    "y": 685,
+    "width": 18,
+    "height": 18,
+    "type": "check",
+    "fontSize": 16,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "workStartDate": {
+    "page": 1,
+    "section": "income",
+    "order": 35,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 95,
+    "y": 710,
+    "width": 105,
+    "height": 24,
+    "type": "digits",
+    "fontSize": 15,
+    "digitGap": 21,
+    "maxDigits": 8,
+    "align": "left"
+  },
+  "incomeMonthlySalary": {
+    "page": 1,
+    "section": "income",
+    "order": 36,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 318,
+    "y": 700,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "incomeExtraSalary": {
+    "page": 1,
+    "section": "income",
+    "order": 37,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 318,
+    "y": 730,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "incomePartialSalary": {
+    "page": 1,
+    "section": "income",
+    "order": 38,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 318,
+    "y": 760,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "incomeDailyWage": {
+    "page": 1,
+    "section": "income",
+    "order": 39,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 318,
+    "y": 790,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "incomeAllowance": {
+    "page": 1,
+    "section": "income",
+    "order": 40,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 318,
+    "y": 820,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "incomeScholarship": {
+    "page": 1,
+    "section": "income",
+    "order": 41,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 318,
+    "y": 850,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "otherNoIncome": {
+    "page": 1,
+    "section": "otherIncome",
+    "order": 42,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 335,
+    "y": 940,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "otherHasIncome": {
+    "page": 1,
+    "section": "otherIncome",
+    "order": 43,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 335,
+    "y": 975,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "spouseId": {
+    "page": 1,
+    "section": "spouse",
+    "order": 44,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 650,
+    "y": 1180,
+    "width": 115,
+    "height": 24,
+    "type": "digits",
+    "fontSize": 14,
+    "digitGap": 21,
+    "maxDigits": 9,
+    "align": "left"
+  },
+  "spouseLastName": {
+    "page": 1,
+    "section": "spouse",
+    "order": 45,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 520,
+    "y": 1180,
+    "width": 100,
+    "height": 24,
+    "type": "text",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "spouseFirstName": {
+    "page": 1,
+    "section": "spouse",
+    "order": 46,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 395,
+    "y": 1180,
+    "width": 100,
+    "height": 24,
+    "type": "text",
+    "fontSize": 14,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "page2IdNumber": {
+    "page": 2,
+    "section": "credits",
+    "order": 47,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 128,
+    "y": 45,
+    "width": 120,
+    "height": 24,
+    "type": "digits",
+    "fontSize": 15,
+    "digitGap": 21,
+    "maxDigits": 9,
+    "align": "left"
+  },
+  "creditResident": {
+    "page": 2,
+    "section": "credits",
+    "order": 48,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 742,
+    "y": 100,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "creditDisabled": {
+    "page": 2,
+    "section": "credits",
+    "order": 49,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 742,
+    "y": 145,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "creditSettlement": {
+    "page": 2,
+    "section": "credits",
+    "order": 50,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 742,
+    "y": 210,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "creditNewImmigrant": {
+    "page": 2,
+    "section": "credits",
+    "order": 51,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 742,
+    "y": 285,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "creditSingleParent": {
+    "page": 2,
+    "section": "credits",
+    "order": 52,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 742,
+    "y": 420,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "creditChildrenCustody": {
+    "page": 2,
+    "section": "credits",
+    "order": 53,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 742,
+    "y": 500,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "creditSoldier": {
+    "page": 2,
+    "section": "credits",
+    "order": 54,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 742,
+    "y": 845,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "creditAcademic": {
+    "page": 2,
+    "section": "credits",
+    "order": 55,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 742,
+    "y": 895,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "taxNoIncome": {
+    "page": 2,
+    "section": "taxCoordination",
+    "order": 56,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 742,
+    "y": 970,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "taxHasOtherIncome": {
+    "page": 2,
+    "section": "taxCoordination",
+    "order": 57,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 742,
+    "y": 1040,
+    "width": 20,
+    "height": 20,
+    "type": "check",
+    "fontSize": 18,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  },
+  "signatureDate": {
+    "page": 2,
+    "section": "declaration",
+    "order": 58,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 260,
+    "y": 1180,
+    "width": 115,
+    "height": 26,
+    "type": "digits",
+    "fontSize": 15,
+    "digitGap": 21,
+    "maxDigits": 8,
+    "align": "left"
+  },
+  "signature": {
+    "page": 2,
+    "section": "declaration",
+    "order": 59,
+    "enabled": true,
+    "isFixed": false,
+    "fixedValue": "",
+    "x": 80,
+    "y": 1170,
+    "width": 140,
+    "height": 42,
+    "type": "signature",
+    "fontSize": 16,
+    "digitGap": null,
+    "maxDigits": null,
+    "align": "center"
+  }
 };
 
-function TextInput({
-  label,
-  value,
-  onChange,
-  type = "text",
-  placeholder = "",
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  type?: string;
-  placeholder?: string;
-}) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-sm font-black text-slate-700">
-        {label}
-      </span>
-      <input
-        type={type}
-        value={value}
-        placeholder={placeholder}
-        onChange={(event) => onChange(event.target.value)}
-        className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-right text-sm font-bold text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
-      />
-    </label>
-  );
+const SECTION_TITLES: Record<string, string> = {
+  year: "שנת מס",
+  employer: "א. פרטי המעסיק",
+  employee: "ב. פרטי העובד/ת",
+  children: "ג. ילדים",
+  income: "ד. הכנסות ממעסיק זה",
+  otherIncome: "ה. הכנסות אחרות",
+  spouse: "ו. בן/בת זוג",
+  credits: "ח. פטור / זיכוי ממס",
+  taxCoordination: "ט. תיאום מס",
+  declaration: "י. הצהרה וחתימה",
+};
+
+const FIELD_LABELS: Record<string, string> = {
+  taxYear: "שנת מס",
+  employerName: "שם מעסיק",
+  employerAddress: "כתובת מעסיק",
+  employerPhone: "טלפון מעסיק",
+  employerFileNumber: "תיק ניכויים",
+  idNumber: "תעודת זהות",
+  lastName: "שם משפחה",
+  firstName: "שם פרטי",
+  birthDate: "תאריך לידה",
+  immigrationDate: "תאריך עלייה",
+  street: "רחוב / שכונה",
+  houseNumber: "מספר בית",
+  city: "עיר / יישוב",
+  postalCode: "מיקוד",
+  phone: "טלפון",
+  customField1782075538085: "טלפון - המשך",
+  mobile: "נייד",
+  customField1782075699673: "נייד - המשך",
+  email: "דואר אלקטרוני",
+  genderMale: "זכר",
+  genderFemale: "נקבה",
+  maritalSingle: "רווק/ה",
+  maritalMarried: "נשוי/אה",
+  maritalDivorced: "גרוש/ה",
+  maritalWidowed: "אלמן/ה",
+  customField1782075946735: "פרוד/ה",
+  residentYes: "תושב כן",
+  residentNo: "תושב לא",
+  kibbutzYes: "חבר קיבוץ/מושב כן",
+  kibbutzNo: "חבר קיבוץ/מושב לא",
+  healthFundYes: "קופת חולים כן",
+  customField1782076968515: "קופת חולים לא",
+  healthFundName: "שם קופת חולים",
+  child1Name: "ילד 1 - שם",
+  child1Id: "ילד 1 - תעודת זהות",
+  child1BirthDate: "ילד 1 - תאריך לידה",
+  child1Mark1: "ילד 1 - סימון 1",
+  child1Mark2: "ילד 1 - סימון 2",
+  workStartDate: "תחילת עבודה",
+  incomeMonthlySalary: "משכורת חודש",
+  incomeExtraSalary: "משכורת נוספת",
+  incomePartialSalary: "משכורת בעד משרה נוספת",
+  incomeDailyWage: "שכר עבודה יומי",
+  incomeAllowance: "קצבה",
+  incomeScholarship: "מלגה",
+  otherNoIncome: "אין הכנסות אחרות",
+  otherHasIncome: "יש הכנסות אחרות",
+  spouseId: "בן/בת זוג - תעודת זהות",
+  spouseLastName: "בן/בת זוג - שם משפחה",
+  spouseFirstName: "בן/בת זוג - שם פרטי",
+  page2IdNumber: "תעודת זהות עמוד 2",
+  creditResident: "תושב ישראל",
+  creditDisabled: "נכות / עיוורון",
+  creditSettlement: "ישוב מזכה",
+  creditNewImmigrant: "עולה חדש",
+  creditSingleParent: "משפחה חד הורית",
+  creditChildrenCustody: "ילדים בחזקתי",
+  creditSoldier: "חייל משוחרר / שירות לאומי",
+  creditAcademic: "לימודים אקדמיים",
+  taxNoIncome: "לא הייתה הכנסה",
+  taxHasOtherIncome: "יש הכנסות נוספות",
+  signatureDate: "תאריך חתימה",
+  signature: "חתימה",
+};
+
+const EXCLUSIVE_GROUPS: string[][] = [
+  ["genderMale", "genderFemale"],
+  ["maritalSingle", "maritalMarried", "maritalDivorced", "maritalWidowed", "customField1782075946735"],
+  ["residentYes", "residentNo"],
+  ["kibbutzYes", "kibbutzNo"],
+  ["healthFundYes", "customField1782076968515"],
+  ["otherNoIncome", "otherHasIncome"],
+  ["taxNoIncome", "taxHasOtherIncome"],
+];
+
+function clean(value: unknown) {
+  return String(value ?? "").trim();
 }
 
-function CheckboxField({
-  label,
-  checked,
-  onChange,
-}: {
-  label: React.ReactNode;
-  checked: boolean;
-  onChange: (value: boolean) => void;
-}) {
-  return (
-    <label className="flex cursor-pointer items-start gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-50">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(event) => onChange(event.target.checked)}
-        className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300"
-      />
-      <span>{label}</span>
-    </label>
-  );
+function onlyDigits(value: unknown) {
+  return clean(value).replace(/\D/g, "");
 }
 
-function RadioCard<T extends string>({
-  label,
+function getFieldLabel(key: string) {
+  return FIELD_LABELS[key] || key;
+}
+
+function getInitialValues() {
+  const next: ValuesMap = {};
+
+  Object.entries(FORM101_FIELD_MAP).forEach(([key, field]) => {
+    if (!field.enabled) return;
+
+    if (field.type === "check") {
+      next[key] = field.isFixed
+        ? field.fixedValue === "true" || field.fixedValue === "✓"
+        : false;
+      return;
+    }
+
+    next[key] = field.isFixed ? field.fixedValue || "" : "";
+  });
+
+  if (!next.taxYear) {
+    next.taxYear = new Date().getFullYear().toString();
+  }
+
+  return next;
+}
+
+function loadDraftValues() {
+  const initial = getInitialValues();
+
+  if (typeof window === "undefined") return initial;
+
+  try {
+    const saved = localStorage.getItem(DRAFT_STORAGE_KEY);
+    if (!saved) return initial;
+
+    const parsed = JSON.parse(saved) as ValuesMap;
+
+    const fixedValues = Object.fromEntries(
+      Object.entries(FORM101_FIELD_MAP)
+        .filter(([, field]) => field.isFixed)
+        .map(([key, field]) => [
+          key,
+          field.type === "check"
+            ? field.fixedValue === "true" || field.fixedValue === "✓"
+            : field.fixedValue || "",
+        ]),
+    );
+
+    return {
+      ...initial,
+      ...parsed,
+      ...fixedValues,
+    };
+  } catch {
+    return initial;
+  }
+}
+
+function getPageFields(page: PageNumber) {
+  return Object.entries(FORM101_FIELD_MAP)
+    .filter(([, field]) => field.enabled && field.page === page)
+    .sort(([, a], [, b]) => a.order - b.order);
+}
+
+function getSectionFields(section: string) {
+  return Object.entries(FORM101_FIELD_MAP)
+    .filter(([, field]) => field.enabled && field.section === section)
+    .sort(([, a], [, b]) => a.order - b.order);
+}
+
+function valueForPdf(value: FieldValue, field: FieldConfig) {
+  if (field.isFixed) return field.fixedValue || "";
+  if (field.type === "digits") return onlyDigits(value);
+  return value;
+}
+
+function buildStructuredPayload(values: ValuesMap) {
+  const fieldValue = (key: string) => values[key];
+  const text = (key: string) => clean(fieldValue(key));
+  const checked = (key: string) => Boolean(fieldValue(key));
+  const idNumber = text("idNumber");
+
+  const payload: any = {
+    taxYear: text("taxYear"),
+
+    employerName: text("employerName"),
+    employerAddress: text("employerAddress"),
+    employerPhone: text("employerPhone"),
+    employerFileNumber: text("employerFileNumber"),
+
+    idNumber,
+    firstName: text("firstName"),
+    lastName: text("lastName"),
+    birthDate: text("birthDate"),
+    immigrationDate: text("immigrationDate"),
+
+    street: text("street"),
+    houseNumber: text("houseNumber"),
+    city: text("city"),
+    postalCode: text("postalCode"),
+
+    phone: `${text("phone")}${text("customField1782075538085")}`.trim(),
+    mobile: `${text("mobile")}${text("customField1782075699673")}`.trim(),
+    email: text("email"),
+
+    gender: checked("genderMale") ? "male" : checked("genderFemale") ? "female" : "",
+    maritalStatus: checked("maritalSingle")
+      ? "single"
+      : checked("maritalMarried")
+      ? "married"
+      : checked("maritalDivorced")
+      ? "divorced"
+      : checked("maritalWidowed")
+      ? "widowed"
+      : checked("customField1782075946735")
+      ? "separated"
+      : "",
+    residentIsrael: checked("residentYes") ? "yes" : checked("residentNo") ? "no" : "",
+    kibbutzMember: checked("kibbutzYes") ? "yes" : checked("kibbutzNo") ? "no" : "",
+    healthFundMember: checked("healthFundYes") ? "yes" : checked("customField1782076968515") ? "no" : "",
+    healthFundName: text("healthFundName"),
+
+    workStartDate: text("workStartDate"),
+
+    incomeType: {
+      monthlySalary: checked("incomeMonthlySalary"),
+      extraSalary: checked("incomeExtraSalary"),
+      partialSalary: checked("incomePartialSalary"),
+      dailyWage: checked("incomeDailyWage"),
+      allowance: checked("incomeAllowance"),
+      pension: checked("incomeScholarship"),
+    },
+
+    otherIncome: {
+      noOtherIncome: checked("otherNoIncome"),
+      monthlySalary: false,
+      extraSalary: false,
+      partialSalary: false,
+      dailyWage: false,
+      allowance: false,
+      pension: false,
+      scholarship: false,
+    },
+
+    spouse: {
+      idNumber: text("spouseId"),
+      firstName: text("spouseFirstName"),
+      lastName: text("spouseLastName"),
+      birthDate: "",
+      immigrationDate: "",
+      noIncome: false,
+      hasIncome: false,
+    },
+
+    children: [
+      {
+        name: text("child1Name"),
+        idNumber: text("child1Id"),
+        birthDate: text("child1BirthDate"),
+      },
+    ],
+
+    taxCredits: {
+      resident: checked("creditResident"),
+      disabled100: checked("creditDisabled"),
+      settlement: checked("creditSettlement"),
+      settlementDate: "",
+      settlementName: "",
+      newImmigrant: checked("creditNewImmigrant"),
+      spouseNoIncome: false,
+      singleParent: checked("creditSingleParent"),
+      childrenCustody: checked("creditChildrenCustody"),
+      childrenBornThisYear: "",
+      childrenAgeOneToFive: "",
+      childrenAgeSixToSeventeen: "",
+      childrenAgeEighteen: "",
+      specialChild: false,
+      alimony: false,
+      childrenUnder19: false,
+      soldier: checked("creditSoldier"),
+      academic: checked("creditAcademic"),
+      diploma: false,
+      noIncomeThisYear: checked("taxNoIncome"),
+      hasOtherIncomeForTaxCoordination: checked("taxHasOtherIncome"),
+    },
+
+    signatureDate: text("signatureDate"),
+    signatureText: "",
+    signatureDataUrl: text("signature"),
+  };
+
+  Object.entries(FORM101_FIELD_MAP).forEach(([key, field]) => {
+    payload[key] = valueForPdf(values[key], field);
+  });
+
+  payload.formFieldValues = Object.fromEntries(
+    Object.entries(FORM101_FIELD_MAP).map(([key, field]) => [
+      key,
+      valueForPdf(values[key], field),
+    ]),
+  );
+
+  if (idNumber && !payload.page2IdNumber) {
+    payload.page2IdNumber = idNumber;
+    payload.formFieldValues.page2IdNumber = idNumber;
+  }
+
+  return payload;
+}
+
+function FieldControl({
+  fieldKey,
+  field,
   value,
   selected,
   onSelect,
-}: {
-  label: string;
-  value: T;
-  selected: T;
-  onSelect: (value: T) => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={() => onSelect(value)}
-      className={`h-11 rounded-2xl border px-4 text-sm font-black transition ${
-        selected === value
-          ? "border-sky-500 bg-sky-50 text-sky-700"
-          : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-      }`}
-    >
-      {label}
-    </button>
-  );
-}
-
-function Section({
-  title,
-  subtitle,
-  children,
-}: {
-  title: string;
-  subtitle?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="mb-5">
-        <h2 className="text-xl font-black text-slate-950">{title}</h2>
-        {subtitle && (
-          <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">
-            {subtitle}
-          </p>
-        )}
-      </div>
-
-      {children}
-    </section>
-  );
-}
-
-
-function SignaturePad({
-  value,
   onChange,
+  onOpenSignature,
+}: {
+  fieldKey: string;
+  field: FieldConfig;
+  value: FieldValue;
+  selected: boolean;
+  onSelect: () => void;
+  onChange: (value: FieldValue) => void;
+  onOpenSignature: () => void;
+}) {
+  const commonStyle: React.CSSProperties = {
+    left: field.x,
+    top: field.y,
+    width: field.width,
+    height: field.height,
+    fontSize: Math.max(10, field.fontSize),
+    textAlign: field.align,
+  };
+
+  if (field.type === "check") {
+    return (
+      <button
+        type="button"
+        disabled={field.isFixed}
+        onClick={() => {
+          onSelect();
+          if (!field.isFixed) onChange(!Boolean(value));
+        }}
+        className={`absolute z-20 flex items-center justify-center border bg-white/20 font-black text-blue-700 transition ${
+          selected ? "border-fuchsia-500 ring-2 ring-fuchsia-400" : "border-blue-400/60"
+        } ${field.isFixed ? "cursor-default opacity-80" : "cursor-pointer hover:bg-blue-50/70"}`}
+        style={commonStyle}
+        title={getFieldLabel(fieldKey)}
+      >
+        {Boolean(value) ? "✓" : ""}
+      </button>
+    );
+  }
+
+  if (field.type === "signature") {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          onSelect();
+          if (!field.isFixed) onOpenSignature();
+        }}
+        className={`absolute z-20 overflow-hidden border bg-white/30 text-center text-xs font-black transition ${
+          selected ? "border-fuchsia-500 ring-2 ring-fuchsia-400" : "border-blue-400/60"
+        }`}
+        style={commonStyle}
+        title={getFieldLabel(fieldKey)}
+      >
+        {typeof value === "string" && value.startsWith("data:image") ? (
+          <img src={value} alt="חתימה" className="h-full w-full object-contain" />
+        ) : (
+          <span className="flex h-full w-full items-center justify-center text-blue-700">
+            לחתימה
+          </span>
+        )}
+      </button>
+    );
+  }
+
+  const stringValue = clean(value);
+  const inputValue = field.type === "digits" ? onlyDigits(stringValue) : stringValue;
+
+  return (
+    <div
+      className="absolute z-20"
+      style={{ left: field.x, top: field.y, width: field.width, height: field.height }}
+    >
+      <input
+        value={inputValue}
+        disabled={field.isFixed}
+        maxLength={field.maxDigits || undefined}
+        onFocus={onSelect}
+        onClick={onSelect}
+        onChange={(event) =>
+          onChange(field.type === "digits" ? onlyDigits(event.target.value) : event.target.value)
+        }
+        className={`h-full w-full border bg-white/45 px-1 font-semibold text-blue-900 outline-none transition placeholder:text-blue-300 ${
+          selected ? "border-fuchsia-500 ring-2 ring-fuchsia-400" : "border-blue-400/60"
+        } ${field.isFixed ? "cursor-not-allowed bg-slate-100/60 text-slate-700" : "focus:bg-white/80"}`}
+        style={{
+          fontSize: Math.max(10, field.fontSize),
+          textAlign: field.align,
+          direction: field.type === "digits" ? "ltr" : "rtl",
+        }}
+        placeholder={field.isFixed ? "קבוע" : getFieldLabel(fieldKey)}
+      />
+    </div>
+  );
+}
+
+function SignatureModal({
+  value,
+  onClose,
+  onSave,
 }: {
   value: string;
-  onChange: (value: string) => void;
+  onClose: () => void;
+  onSave: (value: string) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawingRef = useRef(false);
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
 
-  function getPoint(event: React.PointerEvent<HTMLCanvasElement>) {
-    const canvas = canvasRef.current;
-    if (!canvas) return { x: 0, y: 0 };
-
-    const rect = canvas.getBoundingClientRect();
-
-    return {
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top,
-    };
-  }
-
-  function setupCanvas(shouldRestoreImage = true) {
+  function setupCanvas(restore = true) {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
     const ratio = window.devicePixelRatio || 1;
-
     canvas.width = Math.max(1, Math.floor(rect.width * ratio));
     canvas.height = Math.max(1, Math.floor(rect.height * ratio));
 
-    const context = canvas.getContext("2d");
-    if (!context) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
-    context.setTransform(ratio, 0, 0, ratio, 0, 0);
-    context.lineWidth = 2.8;
-    context.lineCap = "round";
-    context.lineJoin = "round";
-    context.strokeStyle = "#0f172a";
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    ctx.lineWidth = 2.8;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "#0f172a";
 
-    if (shouldRestoreImage && value) {
+    if (restore && value) {
       const image = new Image();
-      image.onload = () => {
-        context.drawImage(image, 0, 0, rect.width, rect.height);
-      };
+      image.onload = () => ctx.drawImage(image, 0, 0, rect.width, rect.height);
       image.src = value;
     }
   }
 
   useEffect(() => {
     setupCanvas(true);
-
-    function handleResize() {
-      setupCanvas(true);
-    }
-
-    window.addEventListener("resize", handleResize);
-
-    return () => {
-      window.removeEventListener("resize", handleResize);
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function saveSignature() {
+  function getPoint(event: React.PointerEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    onChange(canvas.toDataURL("image/png"));
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
   }
 
-  function startDrawing(event: React.PointerEvent<HTMLCanvasElement>) {
+  function start(event: React.PointerEvent<HTMLCanvasElement>) {
     event.preventDefault();
-
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    canvas.setPointerCapture(event.pointerId);
-
+    event.currentTarget.setPointerCapture(event.pointerId);
     drawingRef.current = true;
     lastPointRef.current = getPoint(event);
   }
 
   function draw(event: React.PointerEvent<HTMLCanvasElement>) {
     if (!drawingRef.current) return;
-
     event.preventDefault();
 
     const canvas = canvasRef.current;
-    const context = canvas?.getContext("2d");
-    const lastPoint = lastPointRef.current;
-    const nextPoint = getPoint(event);
+    const ctx = canvas?.getContext("2d");
+    const last = lastPointRef.current;
+    const next = getPoint(event);
+    if (!canvas || !ctx || !last) return;
 
-    if (!canvas || !context || !lastPoint) return;
-
-    context.beginPath();
-    context.moveTo(lastPoint.x, lastPoint.y);
-    context.lineTo(nextPoint.x, nextPoint.y);
-    context.stroke();
-
-    lastPointRef.current = nextPoint;
-    saveSignature();
+    ctx.beginPath();
+    ctx.moveTo(last.x, last.y);
+    ctx.lineTo(next.x, next.y);
+    ctx.stroke();
+    lastPointRef.current = next;
   }
 
-  function stopDrawing(event: React.PointerEvent<HTMLCanvasElement>) {
+  function stop(event: React.PointerEvent<HTMLCanvasElement>) {
     if (!drawingRef.current) return;
-
     event.preventDefault();
-
     drawingRef.current = false;
     lastPointRef.current = null;
-
-    saveSignature();
   }
 
-  function clearSignature() {
+  function clear() {
     const canvas = canvasRef.current;
-    const context = canvas?.getContext("2d");
-
-    if (!canvas || !context) return;
-
-    context.clearRect(0, 0, canvas.width, canvas.height);
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     setupCanvas(false);
-    onChange("");
+  }
+
+  function save() {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    onSave(canvas.toDataURL("image/png"));
   }
 
   return (
-    <div className="rounded-[26px] border border-slate-200 bg-white p-4">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <p className="text-sm font-black text-slate-700">חתימה דיגיטלית</p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
+      <div dir="rtl" className="w-full max-w-2xl rounded-[32px] bg-white p-5 shadow-2xl">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-black text-slate-950">חתימה דיגיטלית</h2>
+            <p className="mt-1 text-sm font-bold text-slate-500">חתמי בתוך המסגרת ושמרי.</p>
+          </div>
+          <button type="button" onClick={onClose} className="rounded-full bg-slate-100 px-4 py-2 text-sm font-black">
+            סגירה
+          </button>
+        </div>
 
-        <button
-          type="button"
-          onClick={clearSignature}
-          className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-600 transition hover:bg-slate-50"
-        >
-          ניקוי חתימה
-        </button>
-      </div>
-
-      <div className="relative">
         <canvas
           ref={canvasRef}
-          onPointerDown={startDrawing}
+          onPointerDown={start}
           onPointerMove={draw}
-          onPointerUp={stopDrawing}
-          onPointerCancel={stopDrawing}
-          onPointerLeave={stopDrawing}
-          className="h-48 w-full touch-none rounded-2xl border-2 border-dashed border-sky-300 bg-slate-50"
+          onPointerUp={stop}
+          onPointerCancel={stop}
+          onPointerLeave={stop}
+          className="h-60 w-full touch-none rounded-2xl border-2 border-dashed border-sky-300 bg-slate-50"
         />
 
-        {!value && (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm font-black text-sky-500">
-            לחצו כאן לחתימה
-          </div>
-        )}
+        <div className="mt-4 flex flex-wrap justify-between gap-3">
+          <button type="button" onClick={clear} className="rounded-2xl border border-slate-200 px-5 py-3 text-sm font-black">
+            ניקוי חתימה
+          </button>
+          <button type="button" onClick={save} className="rounded-2xl bg-sky-600 px-8 py-3 text-sm font-black text-white">
+            שמירת חתימה
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
 export default function OnlineForm101() {
-  const [form, setForm] = useState<Form101Data>(initialForm101Data);
+  const [values, setValues] = useState<ValuesMap>(loadDraftValues);
+  const [page, setPage] = useState<PageNumber>(1);
+  const [selectedKey, setSelectedKey] = useState<string>("idNumber");
   const [submitting, setSubmitting] = useState(false);
+  const [activeSignatureField, setActiveSignatureField] = useState<ActiveSignatureField>(null);
 
-  const employeeFullName = useMemo(() => {
-    return [form.firstName, form.lastName].filter(Boolean).join(" ").trim();
-  }, [form.firstName, form.lastName]);
+  const pageFields = useMemo(() => getPageFields(page), [page]);
 
-  function update<K extends keyof Form101Data>(
-    key: K,
-    value: Form101Data[K],
-  ) {
-    setForm((prev) => ({
-      ...prev,
-      [key]: value,
+  const sections = useMemo(() => {
+    return Array.from(new Set(pageFields.map(([, field]) => field.section))).map((section) => ({
+      key: section,
+      title: SECTION_TITLES[section] || section,
+      fields: getSectionFields(section),
     }));
+  }, [pageFields]);
+
+  const selectedField = selectedKey
+    ? FORM101_FIELD_MAP[selectedKey as keyof typeof FORM101_FIELD_MAP]
+    : null;
+
+  useEffect(() => {
+    localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(values));
+  }, [values]);
+
+  useEffect(() => {
+    const idNumber = clean(values.idNumber);
+    if (!idNumber) return;
+
+    setValues((prev) => {
+      if (prev.page2IdNumber) return prev;
+      return { ...prev, page2IdNumber: idNumber };
+    });
+  }, [values.idNumber]);
+
+  function updateValue(key: string, value: FieldValue) {
+    const field = FORM101_FIELD_MAP[key as keyof typeof FORM101_FIELD_MAP];
+    if (!field || field.isFixed) return;
+
+    setValues((prev) => {
+      const next: ValuesMap = { ...prev };
+
+      const group = EXCLUSIVE_GROUPS.find((keys) => keys.includes(key));
+      if (group && Boolean(value)) {
+        group.forEach((groupKey) => {
+          next[groupKey] = false;
+        });
+      }
+
+      next[key] = value;
+
+      if (key === "idNumber" && !next.page2IdNumber) {
+        next.page2IdNumber = value;
+      }
+
+      return next;
+    });
   }
 
-  function updateIncome(
-    key: keyof Form101Data["incomeType"],
-    value: boolean,
-  ) {
-    setForm((prev) => ({
-      ...prev,
-      incomeType: {
-        ...prev.incomeType,
-        [key]: value,
-      },
-    }));
+  function clearDraft() {
+    if (!confirm("לנקות את כל הטופס?")) return;
+    localStorage.removeItem(DRAFT_STORAGE_KEY);
+    setValues(getInitialValues());
+    setPage(1);
+    setSelectedKey("idNumber");
   }
 
-  function updateOtherIncome(
-    key: keyof Form101Data["otherIncome"],
-    value: boolean,
-  ) {
-    setForm((prev) => ({
-      ...prev,
-      otherIncome: {
-        ...prev.otherIncome,
-        [key]: value,
-      },
-    }));
-  }
-
-  function updateSpouse<K extends keyof Form101Data["spouse"]>(
-    key: K,
-    value: Form101Data["spouse"][K],
-  ) {
-    setForm((prev) => ({
-      ...prev,
-      spouse: {
-        ...prev.spouse,
-        [key]: value,
-      },
-    }));
-  }
-
-  function updateTaxCredit<K extends keyof Form101Data["taxCredits"]>(
-    key: K,
-    value: Form101Data["taxCredits"][K],
-  ) {
-    setForm((prev) => ({
-      ...prev,
-      taxCredits: {
-        ...prev.taxCredits,
-        [key]: value,
-      },
-    }));
-  }
-
-  function updateChild(
-    index: number,
-    key: keyof Form101Data["children"][number],
-    value: string,
-  ) {
-    setForm((prev) => ({
-      ...prev,
-      children: prev.children.map((child, childIndex) =>
-        childIndex === index
-          ? {
-              ...child,
-              [key]: value,
-            }
-          : child,
-      ),
-    }));
-  }
-
-  async function submitForm101(formData: Form101Data) {
+  async function submitForm101() {
     try {
       setSubmitting(true);
+
+      const payload = buildStructuredPayload(values);
 
       const response = await fetch("/api/forms/101/generate-pdf", {
         method: "POST",
@@ -570,7 +1727,7 @@ export default function OnlineForm101() {
           "Content-Type": "application/json",
         },
         credentials: "include",
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -582,7 +1739,6 @@ export default function OnlineForm101() {
 
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
-
       window.open(url, "_blank");
     } catch (error) {
       console.error("SUBMIT FORM 101 ERROR:", error);
@@ -593,628 +1749,207 @@ export default function OnlineForm101() {
   }
 
   return (
-    <div dir="rtl" className="min-h-screen bg-slate-100 px-4 py-6 text-slate-950">
-      <div className="mx-auto max-w-6xl space-y-5">
-        <div className="overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-sm">
-          <div className="bg-gradient-to-l from-sky-50 via-white to-slate-50 p-6">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-              <div>
-                <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-4 py-2 text-xs font-black text-sky-700">
-                  טופס 101 מקוון
-                </span>
-
-                <h1 className="mt-4 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
-                  מילוי טופס 101 אונליין
-                </h1>
-
-                <p className="mt-3 max-w-2xl text-sm font-semibold leading-7 text-slate-500">
-                  העובד ממלא את הפרטים כאן, והמערכת מייצרת PDF על גבי הטופס
-                  המקורי בדיוק במבנה הרשמי.
-                </p>
-              </div>
-
-              <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-                <p className="text-xs font-black text-slate-500">עובד/ת</p>
-                <p className="mt-1 text-lg font-black text-slate-950">
-                  {employeeFullName || "טרם מולא"}
-                </p>
-                <p className="mt-1 text-xs font-bold text-slate-400">
-                  שנת מס {form.taxYear}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <Section title="א. פרטי המעסיק">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <TextInput
-              label="שם המעסיק"
-              value={form.employerName}
-              onChange={(value) => update("employerName", value)}
-            />
-            <TextInput
-              label="כתובת"
-              value={form.employerAddress}
-              onChange={(value) => update("employerAddress", value)}
-            />
-            <TextInput
-              label="מספר טלפון"
-              value={form.employerPhone}
-              onChange={(value) => update("employerPhone", value)}
-            />
-            <TextInput
-              label="מספר תיק ניכויים"
-              value={form.employerFileNumber}
-              onChange={(value) => update("employerFileNumber", value)}
-            />
-          </div>
-        </Section>
-
-        <Section title="ב. פרטי העובד/ת">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-            <TextInput
-              label="מספר זהות"
-              value={form.idNumber}
-              onChange={(value) => update("idNumber", value)}
-            />
-            <TextInput
-              label="שם פרטי"
-              value={form.firstName}
-              onChange={(value) => update("firstName", value)}
-            />
-            <TextInput
-              label="שם משפחה"
-              value={form.lastName}
-              onChange={(value) => update("lastName", value)}
-            />
-            <TextInput
-              label="תאריך לידה"
-              type="date"
-              value={form.birthDate}
-              onChange={(value) => update("birthDate", value)}
-            />
-            <TextInput
-              label="תאריך עלייה"
-              type="date"
-              value={form.immigrationDate}
-              onChange={(value) => update("immigrationDate", value)}
-            />
-          </div>
-
-          <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-6">
-            <TextInput
-              label="רחוב / שכונה"
-              value={form.street}
-              onChange={(value) => update("street", value)}
-            />
-            <TextInput
-              label="מספר בית"
-              value={form.houseNumber}
-              onChange={(value) => update("houseNumber", value)}
-            />
-            <TextInput
-              label="עיר / יישוב"
-              value={form.city}
-              onChange={(value) => update("city", value)}
-            />
-            <TextInput
-              label="מיקוד"
-              value={form.postalCode}
-              onChange={(value) => update("postalCode", value)}
-            />
-            <TextInput
-              label="טלפון"
-              value={form.phone}
-              onChange={(value) => update("phone", value)}
-            />
-            <TextInput
-              label="נייד"
-              value={form.mobile}
-              onChange={(value) => update("mobile", value)}
-            />
-          </div>
-
-          <div className="mt-4">
-            <TextInput
-              label="דואר אלקטרוני"
-              value={form.email}
-              onChange={(value) => update("email", value)}
-            />
-          </div>
-
-          <div className="mt-5 grid gap-4 lg:grid-cols-4">
+    <main dir="rtl" className="min-h-screen bg-slate-100 text-slate-950">
+      <div className="mx-auto max-w-[1700px] space-y-4 p-4">
+        <section className="rounded-[32px] border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
             <div>
-              <p className="mb-2 text-sm font-black text-slate-700">מין</p>
-              <div className="grid grid-cols-2 gap-2">
-                <RadioCard
-                  label="זכר"
-                  value="male"
-                  selected={form.gender}
-                  onSelect={(value) => update("gender", value)}
-                />
-                <RadioCard
-                  label="נקבה"
-                  value="female"
-                  selected={form.gender}
-                  onSelect={(value) => update("gender", value)}
-                />
-              </div>
-            </div>
-
-            <div>
-              <p className="mb-2 text-sm font-black text-slate-700">
-                מצב משפחתי
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                <RadioCard
-                  label="רווק/ה"
-                  value="single"
-                  selected={form.maritalStatus}
-                  onSelect={(value) => update("maritalStatus", value)}
-                />
-                <RadioCard
-                  label="נשוי/אה"
-                  value="married"
-                  selected={form.maritalStatus}
-                  onSelect={(value) => update("maritalStatus", value)}
-                />
-                <RadioCard
-                  label="גרוש/ה"
-                  value="divorced"
-                  selected={form.maritalStatus}
-                  onSelect={(value) => update("maritalStatus", value)}
-                />
-                <RadioCard
-                  label="אלמן/ה"
-                  value="widowed"
-                  selected={form.maritalStatus}
-                  onSelect={(value) => update("maritalStatus", value)}
-                />
-              </div>
-            </div>
-
-            <div>
-              <p className="mb-2 text-sm font-black text-slate-700">
-                תושב/ת ישראל
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                <RadioCard
-                  label="כן"
-                  value="yes"
-                  selected={form.residentIsrael}
-                  onSelect={(value) => update("residentIsrael", value)}
-                />
-                <RadioCard
-                  label="לא"
-                  value="no"
-                  selected={form.residentIsrael}
-                  onSelect={(value) => update("residentIsrael", value)}
-                />
-              </div>
-            </div>
-
-            <div>
-              <p className="mb-2 text-sm font-black text-slate-700">
-                חבר/ת קיבוץ
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                <RadioCard
-                  label="כן"
-                  value="yes"
-                  selected={form.kibbutzMember}
-                  onSelect={(value) => update("kibbutzMember", value)}
-                />
-                <RadioCard
-                  label="לא"
-                  value="no"
-                  selected={form.kibbutzMember}
-                  onSelect={(value) => update("kibbutzMember", value)}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-5 grid gap-4 md:grid-cols-3">
-            <div>
-              <p className="mb-2 text-sm font-black text-slate-700">
-                חבר/ת קופת חולים
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                <RadioCard
-                  label="כן"
-                  value="yes"
-                  selected={form.healthFundMember}
-                  onSelect={(value) => update("healthFundMember", value)}
-                />
-                <RadioCard
-                  label="לא"
-                  value="no"
-                  selected={form.healthFundMember}
-                  onSelect={(value) => update("healthFundMember", value)}
-                />
-              </div>
-            </div>
-
-            <div className="md:col-span-2">
-              <TextInput
-                label="שם קופת חולים"
-                value={form.healthFundName}
-                onChange={(value) => update("healthFundName", value)}
-              />
-            </div>
-          </div>
-        </Section>
-
-        <Section title="ג. פרטי בן/בת זוג">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-            <TextInput
-              label="מספר זהות"
-              value={form.spouse.idNumber}
-              onChange={(value) => updateSpouse("idNumber", value)}
-            />
-            <TextInput
-              label="שם פרטי"
-              value={form.spouse.firstName}
-              onChange={(value) => updateSpouse("firstName", value)}
-            />
-            <TextInput
-              label="שם משפחה"
-              value={form.spouse.lastName}
-              onChange={(value) => updateSpouse("lastName", value)}
-            />
-            <TextInput
-              label="תאריך לידה"
-              type="date"
-              value={form.spouse.birthDate}
-              onChange={(value) => updateSpouse("birthDate", value)}
-            />
-            <TextInput
-              label="תאריך עלייה"
-              type="date"
-              value={form.spouse.immigrationDate}
-              onChange={(value) => updateSpouse("immigrationDate", value)}
-            />
-          </div>
-
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
-            <CheckboxField
-              label="אין לבן/בת הזוג הכנסה"
-              checked={form.spouse.noIncome}
-              onChange={(value) => updateSpouse("noIncome", value)}
-            />
-            <CheckboxField
-              label="יש לבן/בת הזוג הכנסה"
-              checked={form.spouse.hasIncome}
-              onChange={(value) => updateSpouse("hasIncome", value)}
-            />
-          </div>
-        </Section>
-
-        <Section title="ד. פרטים על הכנסותיי ממעסיק זה">
-          <div className="mb-4 max-w-xs">
-            <TextInput
-              label="תאריך תחילת עבודה בשנת המס"
-              type="date"
-              value={form.workStartDate}
-              onChange={(value) => update("workStartDate", value)}
-            />
-          </div>
-
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-            <CheckboxField
-              label="משכורת חודש"
-              checked={form.incomeType.monthlySalary}
-              onChange={(value) => updateIncome("monthlySalary", value)}
-            />
-            <CheckboxField
-              label="משכורת נוספת"
-              checked={form.incomeType.extraSalary}
-              onChange={(value) => updateIncome("extraSalary", value)}
-            />
-            <CheckboxField
-              label="משכורת בעד משרה נוספת"
-              checked={form.incomeType.partialSalary}
-              onChange={(value) => updateIncome("partialSalary", value)}
-            />
-            <CheckboxField
-              label="שכר עבודה יומי"
-              checked={form.incomeType.dailyWage}
-              onChange={(value) => updateIncome("dailyWage", value)}
-            />
-            <CheckboxField
-              label="קצבה"
-              checked={form.incomeType.allowance}
-              onChange={(value) => updateIncome("allowance", value)}
-            />
-            <CheckboxField
-              label="מלגה"
-              checked={form.incomeType.pension}
-              onChange={(value) => updateIncome("pension", value)}
-            />
-          </div>
-        </Section>
-
-        <Section title="ה. פרטים על הכנסות אחרות">
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-            <CheckboxField
-              label="אין לי הכנסות אחרות"
-              checked={form.otherIncome.noOtherIncome}
-              onChange={(value) => updateOtherIncome("noOtherIncome", value)}
-            />
-            <CheckboxField
-              label="משכורת חודש"
-              checked={form.otherIncome.monthlySalary}
-              onChange={(value) => updateOtherIncome("monthlySalary", value)}
-            />
-            <CheckboxField
-              label="משכורת נוספת"
-              checked={form.otherIncome.extraSalary}
-              onChange={(value) => updateOtherIncome("extraSalary", value)}
-            />
-            <CheckboxField
-              label="משכורת בעד משרה נוספת"
-              checked={form.otherIncome.partialSalary}
-              onChange={(value) => updateOtherIncome("partialSalary", value)}
-            />
-            <CheckboxField
-              label="שכר עבודה יומי"
-              checked={form.otherIncome.dailyWage}
-              onChange={(value) => updateOtherIncome("dailyWage", value)}
-            />
-            <CheckboxField
-              label="קצבה"
-              checked={form.otherIncome.allowance}
-              onChange={(value) => updateOtherIncome("allowance", value)}
-            />
-            <CheckboxField
-              label="מלגה"
-              checked={form.otherIncome.scholarship}
-              onChange={(value) => updateOtherIncome("scholarship", value)}
-            />
-          </div>
-        </Section>
-
-        <Section title="ו. פרטים על ילדים">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] border-collapse text-sm">
-              <thead>
-                <tr className="bg-slate-50">
-                  <th className="border border-slate-200 p-3 text-right">
-                    #
-                  </th>
-                  <th className="border border-slate-200 p-3 text-right">
-                    שם הילד/ה
-                  </th>
-                  <th className="border border-slate-200 p-3 text-right">
-                    מספר זהות
-                  </th>
-                  <th className="border border-slate-200 p-3 text-right">
-                    תאריך לידה
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {form.children.map((child, index) => (
-                  <tr key={index}>
-                    <td className="border border-slate-200 p-2 font-bold">
-                      {index + 1}
-                    </td>
-                    <td className="border border-slate-200 p-2">
-                      <input
-                        value={child.name}
-                        onChange={(event) =>
-                          updateChild(index, "name", event.target.value)
-                        }
-                        className="h-10 w-full rounded-xl border border-slate-200 px-3 text-right outline-none focus:border-sky-400"
-                      />
-                    </td>
-                    <td className="border border-slate-200 p-2">
-                      <input
-                        value={child.idNumber}
-                        onChange={(event) =>
-                          updateChild(index, "idNumber", event.target.value)
-                        }
-                        className="h-10 w-full rounded-xl border border-slate-200 px-3 text-right outline-none focus:border-sky-400"
-                      />
-                    </td>
-                    <td className="border border-slate-200 p-2">
-                      <input
-                        type="date"
-                        value={child.birthDate}
-                        onChange={(event) =>
-                          updateChild(index, "birthDate", event.target.value)
-                        }
-                        className="h-10 w-full rounded-xl border border-slate-200 px-3 text-right outline-none focus:border-sky-400"
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Section>
-
-        <Section title="ח. בקשה לפטור או זיכוי ממס">
-          <div className="grid gap-3 md:grid-cols-2">
-            <CheckboxField
-              label="אני תושב/ת ישראל"
-              checked={form.taxCredits.resident}
-              onChange={(value) => updateTaxCredit("resident", value)}
-            />
-            <CheckboxField
-              label="אני נכה 100% / עיוור/ת לצמיתות"
-              checked={form.taxCredits.disabled100}
-              onChange={(value) => updateTaxCredit("disabled100", value)}
-            />
-            <CheckboxField
-              label="אני תושב/ת יישוב מזכה"
-              checked={form.taxCredits.settlement}
-              onChange={(value) => updateTaxCredit("settlement", value)}
-            />
-            <CheckboxField
-              label="אני עולה חדש/ה"
-              checked={form.taxCredits.newImmigrant}
-              onChange={(value) => updateTaxCredit("newImmigrant", value)}
-            />
-            <CheckboxField
-              label="בן/בת זוג ללא הכנסה"
-              checked={form.taxCredits.spouseNoIncome}
-              onChange={(value) => updateTaxCredit("spouseNoIncome", value)}
-            />
-            <CheckboxField
-              label="הורה במשפחה חד הורית"
-              checked={form.taxCredits.singleParent}
-              onChange={(value) => updateTaxCredit("singleParent", value)}
-            />
-            <CheckboxField
-              label="ילדים בחזקתי"
-              checked={form.taxCredits.childrenCustody}
-              onChange={(value) => updateTaxCredit("childrenCustody", value)}
-            />
-            <CheckboxField
-              label="ילד עם מוגבלות"
-              checked={form.taxCredits.specialChild}
-              onChange={(value) => updateTaxCredit("specialChild", value)}
-            />
-            <CheckboxField
-              label="תשלום מזונות"
-              checked={form.taxCredits.alimony}
-              onChange={(value) => updateTaxCredit("alimony", value)}
-            />
-            <CheckboxField
-              label="חייל/ת משוחרר/ת / שירות לאומי"
-              checked={form.taxCredits.soldier}
-              onChange={(value) => updateTaxCredit("soldier", value)}
-            />
-            <CheckboxField
-              label="סיום לימודים לתואר אקדמי"
-              checked={form.taxCredits.academic}
-              onChange={(value) => updateTaxCredit("academic", value)}
-            />
-            <CheckboxField
-              label="סיום לימודי מקצוע / תעודה"
-              checked={form.taxCredits.diploma}
-              onChange={(value) => updateTaxCredit("diploma", value)}
-            />
-          </div>
-
-          <div className="mt-5 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <TextInput
-              label="שם יישוב מזכה"
-              value={form.taxCredits.settlementName}
-              onChange={(value) => updateTaxCredit("settlementName", value)}
-            />
-            <TextInput
-              label="תאריך תחילת מגורים ביישוב"
-              type="date"
-              value={form.taxCredits.settlementDate}
-              onChange={(value) => updateTaxCredit("settlementDate", value)}
-            />
-            <TextInput
-              label="ילדים שנולדו בשנת המס"
-              value={form.taxCredits.childrenBornThisYear}
-              onChange={(value) =>
-                updateTaxCredit("childrenBornThisYear", value)
-              }
-            />
-            <TextInput
-              label="ילדים בגיל 1 עד 5"
-              value={form.taxCredits.childrenAgeOneToFive}
-              onChange={(value) =>
-                updateTaxCredit("childrenAgeOneToFive", value)
-              }
-            />
-            <TextInput
-              label="ילדים בגיל 6 עד 17"
-              value={form.taxCredits.childrenAgeSixToSeventeen}
-              onChange={(value) =>
-                updateTaxCredit("childrenAgeSixToSeventeen", value)
-              }
-            />
-            <TextInput
-              label="ילדים בגיל 18"
-              value={form.taxCredits.childrenAgeEighteen}
-              onChange={(value) =>
-                updateTaxCredit("childrenAgeEighteen", value)
-              }
-            />
-          </div>
-        </Section>
-
-        <Section title="ט. תיאום מס">
-          <div className="grid gap-3 md:grid-cols-2">
-            <CheckboxField
-              label="לא הייתה לי הכנסה מתחילת שנת המס עד תחילת עבודתי"
-              checked={form.taxCredits.noIncomeThisYear}
-              onChange={(value) => updateTaxCredit("noIncomeThisYear", value)}
-            />
-            <CheckboxField
-              label="יש לי הכנסות נוספות לצורך תיאום מס"
-              checked={form.taxCredits.hasOtherIncomeForTaxCoordination}
-              onChange={(value) =>
-                updateTaxCredit("hasOtherIncomeForTaxCoordination", value)
-              }
-            />
-          </div>
-        </Section>
-
-        <Section
-          title="י. הצהרה"
-          subtitle="בלחיצה על שליחת הטופס המערכת תייצר PDF על גבי הטופס הרשמי."
-        >
-          <p className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold leading-7 text-amber-800">
-            אני מצהיר/ה כי הפרטים שמסרתי בטופס זה מלאים ונכונים. ידוע לי כי
-            מסירת פרטים לא נכונים מהווה עבירה על פקודת מס הכנסה. אני מתחייב/ת
-            להודיע למעסיק על כל שינוי בפרטים.
-          </p>
-
-          <div className="mt-5 grid gap-4 md:grid-cols-2">
-            <TextInput
-              label="תאריך חתימה"
-              type="date"
-              value={form.signatureDate}
-              onChange={(value) => update("signatureDate", value)}
-            />
-
-            <TextInput
-              label="שם מלא לאישור"
-              value={form.signatureText}
-              onChange={(value) => update("signatureText", value)}
-              placeholder="שם מלא"
-            />
-          </div>
-
-          <div className="mt-5">
-            <SignaturePad
-              value={form.signatureDataUrl}
-              onChange={(value) => update("signatureDataUrl", value)}
-            />
-          </div>
-        </Section>
-
-        <div className="sticky bottom-4 z-20 rounded-[28px] border border-slate-200 bg-white/95 p-4 shadow-2xl backdrop-blur">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm font-black text-slate-950">
-                סיום מילוי טופס 101
-              </p>
-              <p className="mt-1 text-xs font-bold text-slate-500">
-                לאחר השליחה ייפתח PDF מלא על גבי הטופס המקורי.
+              <span className="inline-flex rounded-full bg-sky-50 px-4 py-2 text-xs font-black text-sky-700">
+                טופס 101 מקוון
+              </span>
+              <h1 className="mt-3 text-3xl font-black">מילוי טופס 101 על גבי התבנית</h1>
+              <p className="mt-2 max-w-3xl text-sm font-bold leading-6 text-slate-500">
+                השדות מוצגים בדיוק על התבנית שהוגדרה באדמין. שדות קבועים מופיעים אוטומטית לכל העובדים, ושדות רגילים ניתנים למילוי.
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => submitForm101(form)}
-              disabled={submitting}
-              className="inline-flex h-12 items-center justify-center rounded-2xl bg-sky-600 px-8 text-sm font-black text-white shadow-lg transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50"
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setPage(1)}
+                className={`h-11 rounded-2xl px-5 text-sm font-black ${
+                  page === 1 ? "bg-slate-900 text-white" : "border border-slate-200 bg-white"
+                }`}
+              >
+                עמוד 1
+              </button>
+              <button
+                type="button"
+                onClick={() => setPage(2)}
+                className={`h-11 rounded-2xl px-5 text-sm font-black ${
+                  page === 2 ? "bg-slate-900 text-white" : "border border-slate-200 bg-white"
+                }`}
+              >
+                עמוד 2
+              </button>
+              <button
+                type="button"
+                onClick={clearDraft}
+                className="h-11 rounded-2xl border border-rose-200 bg-rose-50 px-5 text-sm font-black text-rose-700"
+              >
+                ניקוי טופס
+              </button>
+              <button
+                type="button"
+                onClick={submitForm101}
+                disabled={submitting}
+                className="h-11 rounded-2xl bg-sky-600 px-8 text-sm font-black text-white shadow-lg transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {submitting ? "מייצר PDF..." : "שליחת טופס ויצירת PDF"}
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section className="grid gap-4 xl:grid-cols-[320px_1fr_360px]">
+          <aside className="rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm">
+            <h2 className="text-lg font-black">ניווט שדות</h2>
+            <div className="mt-4 max-h-[calc(100vh-210px)] space-y-4 overflow-auto pr-1">
+              {sections.map((section) => (
+                <div key={section.key} className="rounded-2xl bg-slate-50 p-3">
+                  <p className="mb-2 text-sm font-black text-slate-700">{section.title}</p>
+                  <div className="space-y-2">
+                    {section.fields.map(([key, field]) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => {
+                          setPage(field.page);
+                          setSelectedKey(key);
+                        }}
+                        className={`w-full rounded-xl border px-3 py-2 text-right text-xs font-black transition ${
+                          selectedKey === key
+                            ? "border-fuchsia-300 bg-fuchsia-50 text-fuchsia-700"
+                            : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                        }`}
+                      >
+                        <span className="block">{field.order}. {getFieldLabel(key)}</span>
+                        <span className={`mt-1 block text-[10px] ${field.isFixed ? "text-indigo-600" : "text-emerald-600"}`}>
+                          {field.isFixed ? "קבוע לכל העובדים" : "העובד ממלא"}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </aside>
+
+          <section className="overflow-auto rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+            <div
+              className="relative mx-auto overflow-hidden rounded-sm bg-white shadow-xl ring-2 ring-slate-300"
+              style={{ width: PAGE_WIDTH, height: PAGE_HEIGHT }}
             >
-              {submitting ? "מייצר PDF..." : "שלח טופס וצור PDF"}
-            </button>
-          </div>
-        </div>
+              <iframe
+                src={`${PDF_URL}#toolbar=0&navpanes=0&scrollbar=0&page=${page}&zoom=page-fit`}
+                title="טופס 101"
+                scrolling="no"
+                className="absolute inset-0 h-full w-full border-0"
+                style={{ pointerEvents: "none", background: "white" }}
+              />
+
+              {pageFields.map(([key, field]) => (
+                <FieldControl
+                  key={key}
+                  fieldKey={key}
+                  field={field}
+                  value={values[key] ?? ""}
+                  selected={selectedKey === key}
+                  onSelect={() => setSelectedKey(key)}
+                  onChange={(value) => updateValue(key, value)}
+                  onOpenSignature={() => setActiveSignatureField(key)}
+                />
+              ))}
+            </div>
+          </section>
+
+          <aside className="rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm">
+            <h2 className="text-lg font-black">השדה הנבחר</h2>
+
+            {selectedField ? (
+              <div className="mt-4 space-y-3">
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <p className="text-base font-black text-slate-950">
+                    {selectedField.order}. {getFieldLabel(selectedKey)}
+                  </p>
+                  <p className="mt-1 text-xs font-bold text-slate-400">{selectedKey}</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-slate-600">
+                      {selectedField.type === "check"
+                        ? "סימון"
+                        : selectedField.type === "digits"
+                        ? "ספרות"
+                        : selectedField.type === "signature"
+                        ? "חתימה"
+                        : "טקסט"}
+                    </span>
+                    <span className={`rounded-full bg-white px-3 py-1 text-xs font-black ${selectedField.isFixed ? "text-indigo-700" : "text-emerald-700"}`}>
+                      {selectedField.isFixed ? "קבוע לכל העובדים" : "העובד ממלא"}
+                    </span>
+                  </div>
+                </div>
+
+                {selectedField.isFixed ? (
+                  <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4 text-sm font-bold text-indigo-800">
+                    זה שדה קבוע. הערך שלו יופיע לכל העובדים ולא ניתן לעריכה כאן.
+                    <div className="mt-2 rounded-xl bg-white px-3 py-2 text-slate-700">
+                      {clean(values[selectedKey]) || "ריק"}
+                    </div>
+                  </div>
+                ) : selectedField.type === "check" ? (
+                  <button
+                    type="button"
+                    onClick={() => updateValue(selectedKey, !Boolean(values[selectedKey]))}
+                    className={`w-full rounded-2xl border px-4 py-4 text-sm font-black ${
+                      Boolean(values[selectedKey])
+                        ? "border-sky-300 bg-sky-50 text-sky-700"
+                        : "border-slate-200 bg-white text-slate-600"
+                    }`}
+                  >
+                    {Boolean(values[selectedKey]) ? "מסומן ✓" : "לא מסומן"}
+                  </button>
+                ) : selectedField.type === "signature" ? (
+                  <button
+                    type="button"
+                    onClick={() => setActiveSignatureField(selectedKey)}
+                    className="w-full rounded-2xl border border-sky-200 bg-sky-50 px-4 py-4 text-sm font-black text-sky-700"
+                  >
+                    פתיחת חתימה
+                  </button>
+                ) : (
+                  <label className="block text-sm font-black text-slate-600">
+                    ערך למילוי
+                    <input
+                      value={clean(values[selectedKey])}
+                      maxLength={selectedField.maxDigits || undefined}
+                      onChange={(event) =>
+                        updateValue(
+                          selectedKey,
+                          selectedField.type === "digits" ? onlyDigits(event.target.value) : event.target.value,
+                        )
+                      }
+                      className="mt-2 h-12 w-full rounded-2xl border border-slate-200 px-4 text-right text-sm font-bold outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
+                    />
+                  </label>
+                )}
+              </div>
+            ) : (
+              <p className="mt-4 text-sm font-bold text-slate-500">לא נבחר שדה</p>
+            )}
+          </aside>
+        </section>
       </div>
-    </div>
+
+      {activeSignatureField && (
+        <SignatureModal
+          value={clean(values[activeSignatureField])}
+          onClose={() => setActiveSignatureField(null)}
+          onSave={(value) => {
+            updateValue(activeSignatureField, value);
+            setActiveSignatureField(null);
+          }}
+        />
+      )}
+    </main>
   );
 }
