@@ -21,6 +21,19 @@ const SHIFT_COLLECTION = "employeeshifts";
 const TIMEZONE = "Asia/Jerusalem";
 const AUTO_OPEN_HOUR = 8;
 
+const EMPLOYEE_WORK_ORDER_TASK_STATUSES = [
+  "pending",
+  "open",
+  "assigned",
+  "active",
+  "in_progress",
+  "no_answer",
+  "callback",
+  "will_reply_message",
+  "needs_fix",
+  "wrong_number",
+];
+
 type RoundNumber = 1 | 2 | 3;
 
 type AuthUser = {
@@ -1039,9 +1052,43 @@ export async function GET(req: NextRequest) {
     if (employeeId) {
       const objectId = toObjectId(employeeId);
 
-      if (objectId) {
-        query.assignedEmployeeIds = objectId;
+      if (!objectId) {
+        return NextResponse.json({
+          success: true,
+          count: 0,
+          workOrders: [],
+        });
       }
+
+      /*
+        חשוב:
+        לא מסננים רק לפי assignedEmployeeIds של CallWorkOrder,
+        כי אחרי העברות/חלוקות ידניות הרשימה הכללית יכולה להכיל עובדים נוספים.
+        כדי שהמודאל יציג רק הוראות של העובד שעליו לחצו,
+        מסננים לפי CallTask בפועל — משימות שיחה שמשויכות לעובד הזה.
+      */
+      const employeeWorkOrderIds = await CallTask.distinct("workOrderId", {
+        assignedToEmployeeId: objectId,
+        status: {
+          $in: EMPLOYEE_WORK_ORDER_TASK_STATUSES,
+        },
+      });
+
+      const normalizedWorkOrderIds = employeeWorkOrderIds
+        .map((id: any) => toObjectId(id))
+        .filter(Boolean) as Types.ObjectId[];
+
+      if (!normalizedWorkOrderIds.length) {
+        return NextResponse.json({
+          success: true,
+          count: 0,
+          workOrders: [],
+        });
+      }
+
+      query._id = {
+        $in: normalizedWorkOrderIds,
+      };
     }
 
     if (roundParam) {

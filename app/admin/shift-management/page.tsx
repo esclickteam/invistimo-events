@@ -1084,6 +1084,7 @@ function getLastSeen(employee: EmployeeShiftMonitor) {
 export default function AdminShiftManagementPage() {
   const [employees, setEmployees] = useState<EmployeeShiftMonitor[]>([]);
   const [workOrders, setWorkOrders] = useState<CallWorkOrderSummary[]>([]);
+  const [transferWorkOrders, setTransferWorkOrders] = useState<CallWorkOrderSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionEmployeeId, setActionEmployeeId] = useState("");
   const [transferLoading, setTransferLoading] = useState(false);
@@ -1136,33 +1137,49 @@ export default function AdminShiftManagementPage() {
     }
   }, []);
 
-  const fetchWorkOrders = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/admin/call-work-orders?limit=200&t=${Date.now()}`, {
-        method: "GET",
-        credentials: "include",
-        cache: "no-store",
-        headers: {
-          "Cache-Control": "no-store",
-        },
-      });
+  const fetchWorkOrders = useCallback(async (employeeId = "") => {
+    const params = new URLSearchParams();
 
-      const json = (await res.json().catch(() => ({}))) as WorkOrdersResponse;
+    params.set("limit", "200");
+    params.set("t", String(Date.now()));
 
-      if (!res.ok || json.success === false) {
-        throw new Error(json.error || "לא הצלחתי לטעון הוראות עבודה");
-      }
-
-      const list = json.workOrders || json.data || json.items || [];
-      setWorkOrders(Array.isArray(list) ? list : []);
-    } catch (err: any) {
-      setError(err?.message || "שגיאה בטעינת הוראות עבודה");
+    if (employeeId) {
+      params.set("employeeId", employeeId);
     }
+
+    const res = await fetch(`/api/admin/call-work-orders?${params.toString()}`, {
+      method: "GET",
+      credentials: "include",
+      cache: "no-store",
+      headers: {
+        "Cache-Control": "no-store",
+      },
+    });
+
+    const json = (await res.json().catch(() => ({}))) as WorkOrdersResponse;
+
+    if (!res.ok || json.success === false) {
+      throw new Error(json.error || "לא הצלחתי לטעון הוראות עבודה");
+    }
+
+    const list = json.workOrders || json.data || json.items || [];
+    const normalizedList = Array.isArray(list) ? list : [];
+
+    if (employeeId) {
+      setTransferWorkOrders(normalizedList);
+    } else {
+      setWorkOrders(normalizedList);
+    }
+
+    return normalizedList;
   }, []);
 
   useEffect(() => {
     void fetchEmployees(true);
-    void fetchWorkOrders();
+
+    void fetchWorkOrders().catch((err: any) => {
+      setError(err?.message || "שגיאה בטעינת הוראות עבודה");
+    });
   }, [fetchEmployees, fetchWorkOrders]);
 
   // זה מה שנותן מספרים חיים 0:01, 0:02, 0:03 ובמקביל יש סנכרון API כל שנייה.
@@ -1298,25 +1315,35 @@ export default function AdminShiftManagementPage() {
     return `${title} · ${roundText} · ${completed}/${total}`;
   }
 
-  function openTransferModal(employee: EmployeeShiftMonitor) {
+  async function openTransferModal(employee: EmployeeShiftMonitor) {
     const fromEmployeeId = getEmployeeId(employee);
-    const employeeOrders = getWorkOrdersForEmployee(fromEmployeeId);
 
-    if (!fromEmployeeId) return;
+    if (!fromEmployeeId || transferLoading) return;
 
-    if (!employeeOrders.length) {
-      alert("לא נמצאו הוראות עבודה שמשויכות לעובד הזה");
-      return;
+    try {
+      setTransferLoading(true);
+      setTransferWorkOrders([]);
+
+      const employeeOrders = await fetchWorkOrders(fromEmployeeId);
+
+      if (!employeeOrders.length) {
+        alert("לא נמצאו הוראות עבודה פתוחות לעובד הזה");
+        return;
+      }
+
+      setTransferModal({
+        open: true,
+        fromEmployeeId,
+        fromEmployeeName: getEmployeeName(employee),
+        workOrderId: getWorkOrderId(employeeOrders[0]),
+        toEmployeeId: "",
+        reason: "",
+      });
+    } catch (err: any) {
+      alert(err?.message || "שגיאה בטעינת הוראות עבודה לעובד");
+    } finally {
+      setTransferLoading(false);
     }
-
-    setTransferModal({
-      open: true,
-      fromEmployeeId,
-      fromEmployeeName: getEmployeeName(employee),
-      workOrderId: getWorkOrderId(employeeOrders[0]),
-      toEmployeeId: "",
-      reason: "",
-    });
   }
 
   function closeTransferModal() {
@@ -1330,6 +1357,8 @@ export default function AdminShiftManagementPage() {
       toEmployeeId: "",
       reason: "",
     });
+
+    setTransferWorkOrders([]);
   }
 
   async function transferWorkOrder() {
@@ -1392,7 +1421,7 @@ export default function AdminShiftManagementPage() {
         throw new Error(json.error || "לא הצלחתי להעביר את הוראת העבודה");
       }
 
-      await fetchWorkOrders();
+      await fetchWorkOrders().catch(() => []);
       await fetchEmployees(false);
       closeTransferModal();
       alert("הוראת העבודה הועברה בהצלחה");
@@ -1629,6 +1658,7 @@ export default function AdminShiftManagementPage() {
                       transferLoading
                     }
                     canTransferWorkOrder={
+                      workOrders.length === 0 ||
                       getWorkOrdersForEmployee(getEmployeeId(employee)).length > 0
                     }
                     onEndShift={() => endEmployeeShift(employee)}
@@ -1649,7 +1679,7 @@ export default function AdminShiftManagementPage() {
         workOrderId={transferModal.workOrderId}
         toEmployeeId={transferModal.toEmployeeId}
         reason={transferModal.reason}
-        workOrders={getWorkOrdersForEmployee(transferModal.fromEmployeeId)}
+        workOrders={transferWorkOrders}
         employees={employees.filter(
           (employee) => getEmployeeId(employee) !== transferModal.fromEmployeeId,
         )}
