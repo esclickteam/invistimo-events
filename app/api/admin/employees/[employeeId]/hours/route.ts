@@ -16,6 +16,12 @@ type AuthUser = {
   name?: string;
 };
 
+type WorkSession = {
+  id: string;
+  start: string;
+  end: string;
+};
+
 type DayRow = {
   id: string;
   date: string;
@@ -26,6 +32,8 @@ type DayRow = {
   scheduledEnd: string;
   actualStart: string;
   actualEnd: string;
+  workSessions: WorkSession[];
+  sessions: WorkSession[];
   totalMinutes: number;
   note: string;
   status: string;
@@ -182,17 +190,29 @@ function makeMonthDateRange(monthKey: string) {
   return { start, end };
 }
 
+function makeSessionId() {
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
 function getDaysInMonth(monthKey: string): DayRow[] {
   const { year, monthIndex } = getMonthParts(monthKey);
   const daysCount = new Date(year, monthIndex + 1, 0).getDate();
 
-  return Array.from({ length: daysCount }, (_, index) => {
+  return Array.from({ length: daysCount }, (_unused: unknown, index: number) => {
     const day = index + 1;
     const date = `${year}-${pad2(monthIndex + 1)}-${pad2(day)}`;
 
     const dayName = new Date(year, monthIndex, day).toLocaleDateString("he-IL", {
       weekday: "long",
     });
+
+    const workSessions: WorkSession[] = [
+      {
+        id: makeSessionId(),
+        start: "",
+        end: "",
+      },
+    ];
 
     return {
       id: date,
@@ -204,6 +224,8 @@ function getDaysInMonth(monthKey: string): DayRow[] {
       scheduledEnd: "",
       actualStart: "",
       actualEnd: "",
+      workSessions,
+      sessions: workSessions,
       totalMinutes: 0,
       note: "",
       status: "draft",
@@ -243,7 +265,7 @@ function formatTime(value: any) {
 }
 
 function getByPath(item: any, path: string) {
-  return path.split(".").reduce((obj, key) => {
+  return path.split(".").reduce((obj: any, key: string) => {
     if (!obj || typeof obj !== "object") return undefined;
     return obj[key];
   }, item);
@@ -277,6 +299,92 @@ function minutesBetween(startValue: any, endValue: any) {
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
 
   return Math.max(0, Math.round((end.getTime() - start.getTime()) / 60000));
+}
+
+function normalizeWorkSessions(row: any): WorkSession[] {
+  const rawSessions: any[] = Array.isArray(row?.workSessions)
+    ? row.workSessions
+    : Array.isArray(row?.sessions)
+    ? row.sessions
+    : [];
+
+  const sessions: WorkSession[] = rawSessions
+    .map((session: any): WorkSession => {
+      const start =
+        cleanStr(session?.start) ||
+        cleanStr(session?.actualStart) ||
+        formatTime(session?.startedAt) ||
+        formatTime(session?.clockInAt) ||
+        formatTime(session?.startAt) ||
+        formatTime(session?.startTime);
+
+      const end =
+        cleanStr(session?.end) ||
+        cleanStr(session?.actualEnd) ||
+        formatTime(session?.endedAt) ||
+        formatTime(session?.clockOutAt) ||
+        formatTime(session?.endAt) ||
+        formatTime(session?.endTime);
+
+      return {
+        id: cleanStr(session?.id || session?._id) || makeSessionId(),
+        start,
+        end,
+      };
+    })
+    .filter((session: WorkSession) => session.start || session.end);
+
+  if (sessions.length > 0) return sessions;
+
+  const actualStart = cleanStr(row?.actualStart);
+  const actualEnd = cleanStr(row?.actualEnd);
+
+  if (actualStart || actualEnd) {
+    return [
+      {
+        id: makeSessionId(),
+        start: actualStart,
+        end: actualEnd,
+      },
+    ];
+  }
+
+  return [
+    {
+      id: makeSessionId(),
+      start: "",
+      end: "",
+    },
+  ];
+}
+
+function calculateSessionsMinutes(sessions: WorkSession[]) {
+  return sessions.reduce((sum: number, session: WorkSession) => {
+    return sum + minutesBetween(session.start, session.end);
+  }, 0);
+}
+
+function getFirstSessionStart(sessions: WorkSession[]) {
+  return sessions.find((session: WorkSession) => session.start)?.start || "";
+}
+
+function getLastSessionEnd(sessions: WorkSession[]) {
+  const reversed = [...sessions].reverse();
+  return reversed.find((session: WorkSession) => session.end)?.end || "";
+}
+
+function withSyncedSessionFields(row: DayRow): DayRow {
+  const workSessions = normalizeWorkSessions(row);
+  const totalMinutes = calculateSessionsMinutes(workSessions);
+
+  return {
+    ...row,
+    workSessions,
+    sessions: workSessions,
+    actualStart: getFirstSessionStart(workSessions),
+    actualEnd: getLastSessionEnd(workSessions),
+    totalMinutes,
+  };
 }
 
 async function listExistingCollections() {
@@ -426,16 +534,13 @@ async function loadFromCollections(
     const results = await database
       .collection(collectionName)
       .find({
-        $and: [
-          { $or: employeeConditions },
-          { $or: dateQuery(monthKey) },
-        ],
+        $and: [{ $or: employeeConditions }, { $or: dateQuery(monthKey) }],
       })
       .limit(limit)
       .toArray();
 
     allItems.push(
-      ...results.map((item) => ({
+      ...results.map((item: any) => ({
         ...item,
         __collectionName: collectionName,
       }))
@@ -464,7 +569,7 @@ async function loadSoftphoneSessions(employeeId: string, monthKey: string) {
 }
 
 function mergeShiftsIntoRows(rows: DayRow[], shifts: any[]) {
-  const rowsMap = new Map(rows.map((row) => [row.date, row]));
+  const rowsMap = new Map(rows.map((row: DayRow) => [row.date, row]));
 
   for (const shift of shifts) {
     const dateKey = normalizeDateKey(
@@ -520,20 +625,18 @@ function mergeShiftsIntoRows(rows: DayRow[], shifts: any[]) {
     row.scheduledEnd = formatTime(scheduledEnd);
   }
 
-  return Array.from(rowsMap.values()).sort((a, b) =>
+  return Array.from(rowsMap.values()).sort((a: DayRow, b: DayRow) =>
     a.date.localeCompare(b.date)
   );
 }
 
 function mergeSoftphoneIntoRows(rows: DayRow[], sessions: any[]) {
-  const rowsMap = new Map(rows.map((row) => [row.date, row]));
+  const rowsMap = new Map(rows.map((row: DayRow) => [row.date, row]));
 
   const grouped = new Map<
     string,
     {
-      starts: Date[];
-      ends: Date[];
-      totalMinutes: number;
+      workSessions: WorkSession[];
       notes: string[];
     }
   >();
@@ -581,40 +684,23 @@ function mergeSoftphoneIntoRows(rows: DayRow[], sessions: any[]) {
 
     if (!dateKey || !rowsMap.has(dateKey)) continue;
 
+    const start = formatTime(startValue);
+    const end = formatTime(endValue);
+
+    if (!start && !end) continue;
+
     const current =
       grouped.get(dateKey) ||
       {
-        starts: [],
-        ends: [],
-        totalMinutes: 0,
+        workSessions: [],
         notes: [],
       };
 
-    const startDate = new Date(startValue);
-    const endDate = new Date(endValue);
-
-    if (startValue && !Number.isNaN(startDate.getTime())) {
-      current.starts.push(startDate);
-    }
-
-    if (endValue && !Number.isNaN(endDate.getTime())) {
-      current.ends.push(endDate);
-    }
-
-    const directMinutes = Number(
-      getValueByKeys(session, [
-        "totalMinutes",
-        "workMinutes",
-        "minutes",
-        "durationMinutes",
-        "duration",
-      ])
-    );
-
-    current.totalMinutes +=
-      Number.isFinite(directMinutes) && directMinutes > 0
-        ? Math.round(directMinutes)
-        : minutesBetween(startValue, endValue);
+    current.workSessions.push({
+      id: cleanStr(session?._id || session?.id) || makeSessionId(),
+      start,
+      end,
+    });
 
     const note = cleanStr(
       getValueByKeys(session, [
@@ -638,33 +724,60 @@ function mergeSoftphoneIntoRows(rows: DayRow[], sessions: any[]) {
     const row = rowsMap.get(dateKey);
     if (!row) continue;
 
-    const sortedStarts = data.starts.sort((a, b) => a.getTime() - b.getTime());
-    const sortedEnds = data.ends.sort((a, b) => b.getTime() - a.getTime());
+    const sortedSessions = data.workSessions.sort((a: WorkSession, b: WorkSession) =>
+      String(a.start || "99:99").localeCompare(String(b.start || "99:99"))
+    );
 
-    row.actualStart = sortedStarts[0] ? formatTime(sortedStarts[0]) : "";
-    row.actualEnd = sortedEnds[0] ? formatTime(sortedEnds[0]) : "";
-    row.totalMinutes = Math.round(data.totalMinutes);
+    const totalMinutes = calculateSessionsMinutes(sortedSessions);
+
+    row.workSessions = sortedSessions.length
+      ? sortedSessions
+      : [
+          {
+            id: makeSessionId(),
+            start: "",
+            end: "",
+          },
+        ];
+
+    row.sessions = row.workSessions;
+    row.actualStart = getFirstSessionStart(row.workSessions);
+    row.actualEnd = getLastSessionEnd(row.workSessions);
+    row.totalMinutes = totalMinutes;
 
     if (data.notes.length > 0) {
       row.note = data.notes.join(" | ");
     }
   }
 
-  return Array.from(rowsMap.values()).sort((a, b) =>
+  return Array.from(rowsMap.values()).sort((a: DayRow, b: DayRow) =>
     a.date.localeCompare(b.date)
   );
+}
+
+function sessionsSignature(sessions: WorkSession[]) {
+  return normalizeWorkSessions({ workSessions: sessions })
+    .filter((session: WorkSession) => session.start || session.end)
+    .map((session: WorkSession) => `${session.start || ""}-${session.end || ""}`)
+    .join("|");
 }
 
 function hasManualOverride(saved: any, sourceRow: DayRow) {
   if (saved?.manualOverride === true) return true;
 
-  const savedStart = cleanStr(saved?.actualStart);
-  const savedEnd = cleanStr(saved?.actualEnd);
+  const savedSessions = normalizeWorkSessions(saved);
+  const sourceSessions = normalizeWorkSessions(sourceRow);
+
+  const savedSessionSignature = sessionsSignature(savedSessions);
+  const sourceSessionSignature = sessionsSignature(sourceSessions);
+
   const savedNote = cleanStr(saved?.note);
   const savedMinutes = Number(saved?.totalMinutes);
 
-  if (savedStart && savedStart !== sourceRow.actualStart) return true;
-  if (savedEnd && savedEnd !== sourceRow.actualEnd) return true;
+  if (savedSessionSignature && savedSessionSignature !== sourceSessionSignature) {
+    return true;
+  }
+
   if (savedNote && savedNote !== sourceRow.note) return true;
 
   if (
@@ -680,8 +793,8 @@ function hasManualOverride(saved: any, sourceRow: DayRow) {
 
 function mergeApprovalIntoRows(rows: DayRow[], approval: any) {
   if (!approval?.rows || !Array.isArray(approval.rows)) {
-    return rows.map((row) => ({
-      ...row,
+    return rows.map((row: DayRow) => ({
+      ...withSyncedSessionFields(row),
       status: approval?.status || row.status,
     }));
   }
@@ -693,78 +806,89 @@ function mergeApprovalIntoRows(rows: DayRow[], approval: any) {
     if (date) savedMap.set(date, savedRow);
   }
 
-  return rows.map((row) => {
+  return rows.map((row: DayRow) => {
+    const syncedRow = withSyncedSessionFields(row);
     const saved = savedMap.get(row.date);
 
     if (!saved) {
       return {
-        ...row,
-        status: approval.status || row.status,
+        ...syncedRow,
+        status: approval.status || syncedRow.status,
       };
     }
 
-    const shouldOverride = hasManualOverride(saved, row);
+    const shouldOverride = hasManualOverride(saved, syncedRow);
 
     if (!shouldOverride) {
       return {
-        ...row,
-        status: approval.status || row.status,
+        ...syncedRow,
+        status: approval.status || syncedRow.status,
       };
     }
 
-    const actualStart =
-      "actualStart" in saved ? cleanStr(saved.actualStart) : row.actualStart;
-
-    const actualEnd =
-      "actualEnd" in saved ? cleanStr(saved.actualEnd) : row.actualEnd;
-
-    const note = "note" in saved ? cleanStr(saved.note) : row.note;
+    const workSessions = normalizeWorkSessions(saved);
+    const totalMinutesFromSessions = calculateSessionsMinutes(workSessions);
     const savedMinutes = Number(saved.totalMinutes);
 
+    const totalMinutes =
+      Number.isFinite(savedMinutes) && savedMinutes >= 0
+        ? Math.round(savedMinutes)
+        : totalMinutesFromSessions;
+
     return {
-      ...row,
-      actualStart,
-      actualEnd,
-      note,
-      totalMinutes:
-        Number.isFinite(savedMinutes) && savedMinutes >= 0
-          ? Math.round(savedMinutes)
-          : minutesBetween(actualStart, actualEnd),
-      status: approval.status || row.status,
+      ...syncedRow,
+      workSessions,
+      sessions: workSessions,
+      actualStart: getFirstSessionStart(workSessions),
+      actualEnd: getLastSessionEnd(workSessions),
+      note: "note" in saved ? cleanStr(saved.note) : syncedRow.note,
+      totalMinutes,
+      status: approval.status || syncedRow.status,
       manualOverride: true,
     };
   });
 }
 
 function sanitizeRows(rawRows: any[], sourceRows: DayRow[]): DayRow[] {
-  const sourceMap = new Map(sourceRows.map((row) => [row.date, row]));
+  const sourceMap = new Map(sourceRows.map((row: DayRow) => [row.date, row]));
 
   return rawRows
-    .filter((row) => cleanStr(row?.date))
-    .map((row) => {
+    .filter((row: any) => cleanStr(row?.date))
+    .map((row: any): DayRow => {
       const date = cleanStr(row.date);
       const source = sourceMap.get(date);
 
-      const actualStart = cleanStr(row.actualStart);
-      const actualEnd = cleanStr(row.actualEnd);
+      const workSessions = normalizeWorkSessions(row);
       const note = cleanStr(row.note);
 
       const directMinutes = Number(row.totalMinutes);
+      const calculatedMinutes = calculateSessionsMinutes(workSessions);
+
       const totalMinutes =
         Number.isFinite(directMinutes) && directMinutes >= 0
           ? Math.round(directMinutes)
-          : minutesBetween(actualStart, actualEnd);
+          : calculatedMinutes;
+
+      const actualStart = getFirstSessionStart(workSessions);
+      const actualEnd = getLastSessionEnd(workSessions);
 
       const next: DayRow = {
         id: cleanStr(row.id || date),
         date,
-        dayName: cleanStr(row.dayName),
-        isScheduled: Boolean(row.isScheduled),
-        shiftLabel: cleanStr(row.shiftLabel) || "לא משובץ",
-        scheduledStart: cleanStr(row.scheduledStart),
-        scheduledEnd: cleanStr(row.scheduledEnd),
+        dayName: cleanStr(row.dayName) || cleanStr(source?.dayName),
+        isScheduled:
+          "isScheduled" in row ? Boolean(row.isScheduled) : Boolean(source?.isScheduled),
+        shiftLabel:
+          cleanStr(row.shiftLabel) ||
+          cleanStr(source?.shiftLabel) ||
+          "לא משובץ",
+        scheduledStart:
+          cleanStr(row.scheduledStart) || cleanStr(source?.scheduledStart),
+        scheduledEnd: cleanStr(row.scheduledEnd) || cleanStr(source?.scheduledEnd),
         actualStart,
         actualEnd,
+        workSessions,
+        sessions: workSessions,
         totalMinutes,
         note,
         status: cleanStr(row.status) || "draft",
@@ -772,19 +896,22 @@ function sanitizeRows(rawRows: any[], sourceRows: DayRow[]): DayRow[] {
       };
 
       if (source) {
+        const sourceSessions = normalizeWorkSessions(source);
+
         next.manualOverride =
-          actualStart !== cleanStr(source.actualStart) ||
-          actualEnd !== cleanStr(source.actualEnd) ||
+          sessionsSignature(workSessions) !== sessionsSignature(sourceSessions) ||
           note !== cleanStr(source.note) ||
           totalMinutes !== Number(source.totalMinutes || 0);
       } else {
         next.manualOverride =
-          Boolean(actualStart || actualEnd || note) || totalMinutes > 0;
+          workSessions.some((session: WorkSession) => session.start || session.end) ||
+          Boolean(note) ||
+          totalMinutes > 0;
       }
 
       return next;
     })
-    .sort((a, b) => a.date.localeCompare(b.date));
+    .sort((a: DayRow, b: DayRow) => a.date.localeCompare(b.date));
 }
 
 function buildSummary(
@@ -793,15 +920,19 @@ function buildSummary(
   status: string,
   approval: any = {}
 ) {
-  const totalMinutes = rows.reduce(
-    (sum, row) => sum + Number(row.totalMinutes || 0),
+  const normalizedRows = rows.map((row: DayRow) => withSyncedSessionFields(row));
+
+  const totalMinutes = normalizedRows.reduce(
+    (sum: number, row: DayRow) => sum + Number(row.totalMinutes || 0),
     0
   );
 
-  const scheduledDays = rows.filter((row) => row.isScheduled).length;
+  const scheduledDays = normalizedRows.filter((row: DayRow) => row.isScheduled).length;
 
-  const workedDays = rows.filter(
-    (row) => row.actualStart || row.actualEnd || row.totalMinutes > 0
+  const workedDays = normalizedRows.filter((row: DayRow) =>
+    normalizeWorkSessions(row).some(
+      (session: WorkSession) => session.start || session.end
+    )
   ).length;
 
   return {
@@ -829,7 +960,7 @@ async function buildSyncedHours(employeeId: string, monthKey: string) {
   rows = mergeSoftphoneIntoRows(rows, sessionsResult.items);
 
   return {
-    rows,
+    rows: rows.map((row: DayRow) => withSyncedSessionFields(row)),
     debug: {
       shiftCollectionsChecked: shiftsResult.collections,
       softphoneCollectionsChecked: sessionsResult.collections,
@@ -855,7 +986,7 @@ async function buildHours(employeeId: string, monthKey: string) {
     debug: {
       ...synced.debug,
       approvalFound: Boolean(approval),
-      manualRows: rows.filter((row) => row.manualOverride).length,
+      manualRows: rows.filter((row: DayRow) => row.manualOverride).length,
     },
   };
 }
@@ -956,7 +1087,10 @@ export async function PATCH(
     }
 
     const synced = await buildSyncedHours(employeeId, monthKey);
-    const rows = sanitizeRows(Array.isArray(body.rows) ? body.rows : [], synced.rows);
+    const rows = sanitizeRows(
+      Array.isArray(body.rows) ? body.rows : [],
+      synced.rows
+    );
 
     const collection = database.collection(APPROVAL_COLLECTION);
     const objectId = toObjectId(employeeId);
@@ -972,9 +1106,15 @@ export async function PATCH(
     if (action === "save") status = existing?.status || "submitted";
 
     const totalMinutes = rows.reduce(
-      (sum, row) => sum + Number(row.totalMinutes || 0),
+      (sum: number, row: DayRow) => sum + Number(row.totalMinutes || 0),
       0
     );
+
+    const workedDays = rows.filter((row: DayRow) =>
+      normalizeWorkSessions(row).some(
+        (session: WorkSession) => session.start || session.end
+      )
+    ).length;
 
     const setDoc: any = {
       employeeId,
@@ -983,10 +1123,8 @@ export async function PATCH(
       rows,
       status,
       totalMinutes,
-      workedDays: rows.filter(
-        (row) => row.actualStart || row.actualEnd || row.totalMinutes > 0
-      ).length,
-      scheduledDays: rows.filter((row) => row.isScheduled).length,
+      workedDays,
+      scheduledDays: rows.filter((row: DayRow) => row.isScheduled).length,
       hourlyRate: Number(body.hourlyRate || 0),
       totalSalary: Number(body.totalSalary || 0),
       updatedAt: now,
@@ -1042,7 +1180,7 @@ export async function PATCH(
       debug: {
         ...synced.debug,
         approvalFound: Boolean(approval),
-        manualRows: finalRows.filter((row) => row.manualOverride).length,
+        manualRows: finalRows.filter((row: DayRow) => row.manualOverride).length,
       },
     });
   } catch (error) {

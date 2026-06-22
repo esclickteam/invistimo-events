@@ -14,6 +14,12 @@ type EmployeeProfile = {
   hourlyRate?: number;
 };
 
+type EmployeeWorkSession = {
+  id: string;
+  start: string;
+  end: string;
+};
+
 type EmployeeHoursRow = {
   id: string;
   date: string;
@@ -22,8 +28,12 @@ type EmployeeHoursRow = {
   shiftLabel: string;
   scheduledStart: string;
   scheduledEnd: string;
+
   actualStart: string;
   actualEnd: string;
+
+  workSessions: EmployeeWorkSession[];
+
   totalMinutes: number;
   note: string;
   status: string;
@@ -39,6 +49,10 @@ type EmployeeHoursSummary = {
   approvedAt?: string | null;
   rejectedAt?: string | null;
   rejectionReason?: string;
+};
+
+type SaveableEmployeeHoursRow = EmployeeHoursRow & {
+  sessions: EmployeeWorkSession[];
 };
 
 const API = {
@@ -125,6 +139,103 @@ function minutesBetween(start?: string, end?: string) {
     0,
     Math.round((endDate.getTime() - startDate.getTime()) / 60000)
   );
+}
+
+function makeSessionId() {
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function normalizeWorkSessions(row: Partial<EmployeeHoursRow> | any): EmployeeWorkSession[] {
+  const rawSessions: any[] = Array.isArray(row?.workSessions)
+    ? row.workSessions
+    : Array.isArray(row?.sessions)
+    ? row.sessions
+    : [];
+
+  const sessions: EmployeeWorkSession[] = rawSessions
+    .map((session: any): EmployeeWorkSession => ({
+      id: cleanStr(session?.id || session?._id) || makeSessionId(),
+      start: cleanStr(session?.start || session?.actualStart),
+      end: cleanStr(session?.end || session?.actualEnd),
+    }))
+    .filter((session: EmployeeWorkSession) => session.start || session.end);
+
+  if (sessions.length > 0) return sessions;
+
+  const actualStart = cleanStr(row?.actualStart);
+  const actualEnd = cleanStr(row?.actualEnd);
+
+  if (actualStart || actualEnd) {
+    return [
+      {
+        id: makeSessionId(),
+        start: actualStart,
+        end: actualEnd,
+      },
+    ];
+  }
+
+  return [
+    {
+      id: makeSessionId(),
+      start: "",
+      end: "",
+    },
+  ];
+}
+
+function calculateSessionsMinutes(sessions: EmployeeWorkSession[]) {
+  return sessions.reduce((sum: number, session: EmployeeWorkSession) => {
+    return sum + minutesBetween(session.start, session.end);
+  }, 0);
+}
+
+function getFirstSessionStart(sessions: EmployeeWorkSession[]) {
+  return sessions.find((session: EmployeeWorkSession) => session.start)?.start || "";
+}
+
+function getLastSessionEnd(sessions: EmployeeWorkSession[]) {
+  const reversed = [...sessions].reverse();
+  return reversed.find((session: EmployeeWorkSession) => session.end)?.end || "";
+}
+
+function formatWorkSessions(sessions: EmployeeWorkSession[]) {
+  const filled = sessions.filter(
+    (session: EmployeeWorkSession) => session.start || session.end
+  );
+
+  if (!filled.length) return "—";
+
+  return filled
+    .map(
+      (session: EmployeeWorkSession) =>
+        `${session.start || "--:--"}-${session.end || "--:--"}`
+    )
+    .join(", ");
+}
+
+function normalizeHoursRow(row: any): EmployeeHoursRow {
+  const workSessions = normalizeWorkSessions(row);
+  const totalMinutes = calculateSessionsMinutes(workSessions);
+
+  return {
+    id: cleanStr(row?.id || row?._id) || cleanStr(row?.date),
+    date: cleanStr(row?.date),
+    dayName: cleanStr(row?.dayName),
+    isScheduled: Boolean(row?.isScheduled),
+    shiftLabel: cleanStr(row?.shiftLabel) || "לא משובץ",
+    scheduledStart: cleanStr(row?.scheduledStart),
+    scheduledEnd: cleanStr(row?.scheduledEnd),
+
+    actualStart: getFirstSessionStart(workSessions),
+    actualEnd: getLastSessionEnd(workSessions),
+
+    workSessions,
+    totalMinutes,
+
+    note: cleanStr(row?.note),
+    status: cleanStr(row?.status) || "draft",
+  };
 }
 
 function formatWorkDuration(minutes?: number) {
@@ -347,7 +458,14 @@ export default function AdminEmployeeHoursPage() {
 
   const totalMinutes = useMemo(
     () =>
-      hoursRows.reduce((sum, row) => sum + Number(row.totalMinutes || 0), 0),
+      hoursRows.reduce((sum: number, row: EmployeeHoursRow) => {
+        const sessions =
+          row.workSessions && row.workSessions.length
+            ? row.workSessions
+            : normalizeWorkSessions(row);
+
+        return sum + calculateSessionsMinutes(sessions);
+      }, 0),
     [hoursRows]
   );
 
@@ -360,9 +478,16 @@ export default function AdminEmployeeHoursPage() {
 
   const workedDays = useMemo(
     () =>
-      hoursRows.filter(
-        (row) => row.actualStart || row.actualEnd || row.totalMinutes > 0
-      ).length,
+      hoursRows.filter((row: EmployeeHoursRow) => {
+        const sessions =
+          row.workSessions && row.workSessions.length
+            ? row.workSessions
+            : normalizeWorkSessions(row);
+
+        return sessions.some(
+          (session: EmployeeWorkSession) => session.start || session.end
+        );
+      }).length,
     [hoursRows]
   );
 
@@ -396,22 +521,7 @@ export default function AdminEmployeeHoursPage() {
       const rows = Array.isArray(data?.rows) ? data.rows : [];
       const summary = data?.summary || {};
 
-      setHoursRows(
-        rows.map((row: any) => ({
-          id: cleanStr(row.id || row._id) || cleanStr(row.date),
-          date: cleanStr(row.date),
-          dayName: cleanStr(row.dayName),
-          isScheduled: Boolean(row.isScheduled),
-          shiftLabel: cleanStr(row.shiftLabel) || "לא משובץ",
-          scheduledStart: cleanStr(row.scheduledStart),
-          scheduledEnd: cleanStr(row.scheduledEnd),
-          actualStart: cleanStr(row.actualStart),
-          actualEnd: cleanStr(row.actualEnd),
-          totalMinutes: Number(row.totalMinutes || 0),
-          note: cleanStr(row.note),
-          status: cleanStr(row.status) || "draft",
-        }))
-      );
+      setHoursRows(rows.map((row: any): EmployeeHoursRow => normalizeHoursRow(row)));
 
       setHoursSummary({
         month: cleanStr(summary.month) || month,
@@ -479,33 +589,142 @@ export default function AdminEmployeeHoursPage() {
       throw new Error(data?.error || "שגיאה בשמירת שכר שעתי");
     }
 
-    setEmployee((prev) => ({
+    setEmployee((prev: EmployeeProfile) => ({
       ...prev,
       hourlyRate: Number(data.employee?.hourlyRate || hourlyRate),
     }));
   }
 
-  function updateHourRow(
-    date: string,
-    field: "actualStart" | "actualEnd" | "note",
-    value: string
-  ) {
-    setHoursRows((prev) =>
-      prev.map((row) => {
+  function recalculateRow(row: EmployeeHoursRow): EmployeeHoursRow {
+    const workSessions =
+      row.workSessions && row.workSessions.length
+        ? row.workSessions
+        : normalizeWorkSessions(row);
+
+    const totalMinutes = calculateSessionsMinutes(workSessions);
+
+    return {
+      ...row,
+      workSessions,
+      actualStart: getFirstSessionStart(workSessions),
+      actualEnd: getLastSessionEnd(workSessions),
+      totalMinutes,
+    };
+  }
+
+  function updateHourRow(date: string, field: "note", value: string) {
+    setHoursRows((prev: EmployeeHoursRow[]) =>
+      prev.map((row: EmployeeHoursRow): EmployeeHoursRow => {
         if (row.date !== date) return row;
 
-        const next = {
+        return {
           ...row,
           [field]: value,
         };
-
-        if (field === "actualStart" || field === "actualEnd") {
-          next.totalMinutes = minutesBetween(next.actualStart, next.actualEnd);
-        }
-
-        return next;
       })
     );
+  }
+
+  function addWorkSession(date: string) {
+    setHoursRows((prev: EmployeeHoursRow[]) =>
+      prev.map((row: EmployeeHoursRow): EmployeeHoursRow => {
+        if (row.date !== date) return row;
+
+        return recalculateRow({
+          ...row,
+          workSessions: [
+            ...(row.workSessions || []),
+            {
+              id: makeSessionId(),
+              start: "",
+              end: "",
+            },
+          ],
+        });
+      })
+    );
+  }
+
+  function removeWorkSession(date: string, sessionId: string) {
+    setHoursRows((prev: EmployeeHoursRow[]) =>
+      prev.map((row: EmployeeHoursRow): EmployeeHoursRow => {
+        if (row.date !== date) return row;
+
+        const currentSessions =
+          row.workSessions && row.workSessions.length
+            ? row.workSessions
+            : normalizeWorkSessions(row);
+
+        const nextSessions = currentSessions.filter(
+          (session: EmployeeWorkSession) => session.id !== sessionId
+        );
+
+        return recalculateRow({
+          ...row,
+          workSessions:
+            nextSessions.length > 0
+              ? nextSessions
+              : [
+                  {
+                    id: makeSessionId(),
+                    start: "",
+                    end: "",
+                  },
+                ],
+        });
+      })
+    );
+  }
+
+  function updateWorkSession(
+    date: string,
+    sessionId: string,
+    field: "start" | "end",
+    value: string
+  ) {
+    setHoursRows((prev: EmployeeHoursRow[]) =>
+      prev.map((row: EmployeeHoursRow): EmployeeHoursRow => {
+        if (row.date !== date) return row;
+
+        const currentSessions =
+          row.workSessions && row.workSessions.length
+            ? row.workSessions
+            : normalizeWorkSessions(row);
+
+        return recalculateRow({
+          ...row,
+          workSessions: currentSessions.map(
+            (session: EmployeeWorkSession): EmployeeWorkSession =>
+              session.id === sessionId
+                ? {
+                    ...session,
+                    [field]: value,
+                  }
+                : session
+          ),
+        });
+      })
+    );
+  }
+
+  function buildRowsForSave(): SaveableEmployeeHoursRow[] {
+    return hoursRows.map((row: EmployeeHoursRow): SaveableEmployeeHoursRow => {
+      const workSessions =
+        row.workSessions && row.workSessions.length
+          ? row.workSessions
+          : normalizeWorkSessions(row);
+
+      const totalMinutes = calculateSessionsMinutes(workSessions);
+
+      return {
+        ...row,
+        workSessions,
+        sessions: workSessions,
+        actualStart: getFirstSessionStart(workSessions),
+        actualEnd: getLastSessionEnd(workSessions),
+        totalMinutes,
+      };
+    });
   }
 
   async function saveHours(action: "save" | "approve" | "reject" = "save") {
@@ -516,6 +735,16 @@ export default function AdminEmployeeHoursPage() {
 
       await saveHourlyRate();
 
+      const normalizedRows = buildRowsForSave();
+      const normalizedTotalMinutes = normalizedRows.reduce(
+        (sum: number, row: SaveableEmployeeHoursRow) =>
+          sum + Number(row.totalMinutes || 0),
+        0
+      );
+
+      const normalizedTotalSalary =
+        (normalizedTotalMinutes / 60) * Number(hourlyRate || 0);
+
       const response = await fetch(`/api/admin/employees/${employeeId}/hours`, {
         method: "PATCH",
         credentials: "include",
@@ -525,9 +754,10 @@ export default function AdminEmployeeHoursPage() {
         body: JSON.stringify({
           month,
           action,
-          rows: hoursRows,
+          rows: normalizedRows,
           hourlyRate,
-          totalSalary,
+          totalSalary: normalizedTotalSalary,
+          totalMinutes: normalizedTotalMinutes,
         }),
       });
 
@@ -538,7 +768,11 @@ export default function AdminEmployeeHoursPage() {
       }
 
       setHoursSummary(data.summary);
-      setHoursRows(data.rows);
+
+      const savedRows = Array.isArray(data.rows) ? data.rows : normalizedRows;
+      setHoursRows(
+        savedRows.map((row: any): EmployeeHoursRow => normalizeHoursRow(row))
+      );
 
       alert(
         action === "approve"
@@ -561,8 +795,14 @@ export default function AdminEmployeeHoursPage() {
 
   function exportExcelForAccountant() {
     const rowsHtml = hoursRows
-      .map((row) => {
-        const rowHours = Number(row.totalMinutes || 0) / 60;
+      .map((row: EmployeeHoursRow): string => {
+        const sessions =
+          row.workSessions && row.workSessions.length
+            ? row.workSessions
+            : normalizeWorkSessions(row);
+
+        const rowMinutes = calculateSessionsMinutes(sessions);
+        const rowHours = Number(rowMinutes || 0) / 60;
         const dailySalary = rowHours * hourlyRate;
 
         return `
@@ -574,9 +814,8 @@ export default function AdminEmployeeHoursPage() {
             )}</td>
             <td>${escapeHtml(row.scheduledStart || "—")}</td>
             <td>${escapeHtml(row.scheduledEnd || "—")}</td>
-            <td>${escapeHtml(row.actualStart || "—")}</td>
-            <td>${escapeHtml(row.actualEnd || "—")}</td>
-            <td>${escapeHtml(row.totalMinutes || 0)}</td>
+            <td>${escapeHtml(formatWorkSessions(sessions))}</td>
+            <td>${escapeHtml(rowMinutes)}</td>
             <td>${escapeHtml(rowHours.toFixed(2))}</td>
             <td>${escapeHtml(hourlyRate.toFixed(2))}</td>
             <td>${escapeHtml(dailySalary.toFixed(2))}</td>
@@ -663,8 +902,7 @@ export default function AdminEmployeeHoursPage() {
                 <th>שיבוץ</th>
                 <th>תחילת משמרת מתוכננת</th>
                 <th>סיום משמרת מתוכנן</th>
-                <th>כניסה בפועל</th>
-                <th>יציאה בפועל</th>
+                <th>פירוט כניסות/יציאות</th>
                 <th>סה״כ דקות</th>
                 <th>סה״כ שעות</th>
                 <th>שכר שעתי</th>
@@ -858,51 +1096,6 @@ export default function AdminEmployeeHoursPage() {
           .print-hours-table tr {
             page-break-inside: avoid !important;
           }
-
-          .print-hours-table th:nth-child(1),
-          .print-hours-table td:nth-child(1) {
-            width: 8.5% !important;
-          }
-
-          .print-hours-table th:nth-child(2),
-          .print-hours-table td:nth-child(2) {
-            width: 8% !important;
-          }
-
-          .print-hours-table th:nth-child(3),
-          .print-hours-table td:nth-child(3) {
-            width: 8.5% !important;
-          }
-
-          .print-hours-table th:nth-child(4),
-          .print-hours-table td:nth-child(4) {
-            width: 9% !important;
-          }
-
-          .print-hours-table th:nth-child(5),
-          .print-hours-table td:nth-child(5) {
-            width: 9% !important;
-          }
-
-          .print-hours-table th:nth-child(6),
-          .print-hours-table td:nth-child(6) {
-            width: 9% !important;
-          }
-
-          .print-hours-table th:nth-child(7),
-          .print-hours-table td:nth-child(7) {
-            width: 8.5% !important;
-          }
-
-          .print-hours-table th:nth-child(8),
-          .print-hours-table td:nth-child(8) {
-            width: 8.5% !important;
-          }
-
-          .print-hours-table th:nth-child(9),
-          .print-hours-table td:nth-child(9) {
-            width: 31% !important;
-          }
         }
       `}</style>
 
@@ -1031,31 +1224,38 @@ export default function AdminEmployeeHoursPage() {
                   <th>יום</th>
                   <th>שיבוץ</th>
                   <th>מתוכנן</th>
-                  <th>כניסה בפועל</th>
-                  <th>יציאה בפועל</th>
+                  <th>פירוט כניסות/יציאות</th>
                   <th>סה״כ שעות</th>
                   <th>סכום יומי</th>
+                  <th>סטטוס</th>
                   <th>הערות</th>
                 </tr>
               </thead>
 
               <tbody>
-                {hoursRows.map((row) => {
-                  const dailySalary =
-                    (Number(row.totalMinutes || 0) / 60) * hourlyRate;
+                {hoursRows.map((row: EmployeeHoursRow) => {
+                  const sessions =
+                    row.workSessions && row.workSessions.length
+                      ? row.workSessions
+                      : normalizeWorkSessions(row);
+
+                  const rowMinutes = calculateSessionsMinutes(sessions);
+                  const dailySalary = (Number(rowMinutes || 0) / 60) * hourlyRate;
 
                   return (
                     <tr key={`print-${row.date}`}>
                       <td>{formatDate(row.date)}</td>
                       <td>{row.dayName || "—"}</td>
-                      <td>{row.isScheduled ? row.shiftLabel || "משובץ" : "לא משובץ"}</td>
+                      <td>
+                        {row.isScheduled ? row.shiftLabel || "משובץ" : "לא משובץ"}
+                      </td>
                       <td>
                         {row.scheduledStart || "—"} - {row.scheduledEnd || "—"}
                       </td>
-                      <td>{row.actualStart || "—"}</td>
-                      <td>{row.actualEnd || "—"}</td>
-                      <td>{formatWorkDuration(row.totalMinutes)}</td>
+                      <td>{formatWorkSessions(sessions)}</td>
+                      <td>{formatWorkDuration(rowMinutes)}</td>
                       <td>{formatMoney(dailySalary)}</td>
+                      <td>{statusLabel(row.status)}</td>
                       <td>{row.note || ""}</td>
                     </tr>
                   );
@@ -1113,7 +1313,7 @@ export default function AdminEmployeeHoursPage() {
                   step="0.01"
                   value={employee.hourlyRate || ""}
                   onChange={(event) =>
-                    setEmployee((prev) => ({
+                    setEmployee((prev: EmployeeProfile) => ({
                       ...prev,
                       hourlyRate: Number(event.target.value || 0),
                     }))
@@ -1168,15 +1368,14 @@ export default function AdminEmployeeHoursPage() {
             </div>
 
             <div className="mt-5 overflow-x-auto rounded-[24px] border border-slate-200">
-              <table className="w-full min-w-[1250px] border-collapse text-right">
+              <table className="w-full min-w-[1350px] border-collapse text-right">
                 <thead className="bg-slate-50">
                   <tr className="text-xs text-slate-500">
                     <th className="px-4 py-3 font-black">תאריך</th>
                     <th className="px-4 py-3 font-black">יום</th>
                     <th className="px-4 py-3 font-black">שיבוץ</th>
                     <th className="px-4 py-3 font-black">מתוכנן</th>
-                    <th className="px-4 py-3 font-black">כניסה בפועל</th>
-                    <th className="px-4 py-3 font-black">יציאה בפועל</th>
+                    <th className="px-4 py-3 font-black">כניסות/יציאות בפועל</th>
                     <th className="px-4 py-3 font-black">סה״כ שעות</th>
                     <th className="px-4 py-3 font-black">סכום יומי</th>
                     <th className="px-4 py-3 font-black">הערות</th>
@@ -1187,16 +1386,22 @@ export default function AdminEmployeeHoursPage() {
                   {hoursLoading ? (
                     <tr>
                       <td
-                        colSpan={9}
+                        colSpan={8}
                         className="px-4 py-10 text-center text-sm font-black text-slate-500"
                       >
                         טוען שעות...
                       </td>
                     </tr>
                   ) : (
-                    hoursRows.map((row) => {
+                    hoursRows.map((row: EmployeeHoursRow) => {
+                      const sessions =
+                        row.workSessions && row.workSessions.length
+                          ? row.workSessions
+                          : normalizeWorkSessions(row);
+
+                      const rowMinutes = calculateSessionsMinutes(sessions);
                       const dailySalary =
-                        (Number(row.totalMinutes || 0) / 60) * hourlyRate;
+                        (Number(rowMinutes || 0) / 60) * hourlyRate;
 
                       return (
                         <tr key={row.date} className="hover:bg-emerald-50/30">
@@ -1225,38 +1430,81 @@ export default function AdminEmployeeHoursPage() {
                             {row.scheduledEnd || "—"}
                           </td>
 
-                          <td className="px-4 py-3">
-                            <input
-                              type="time"
-                              value={row.actualStart}
-                              onChange={(event) =>
-                                updateHourRow(
-                                  row.date,
-                                  "actualStart",
-                                  event.target.value
-                                )
-                              }
-                              className="h-10 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-300"
-                            />
-                          </td>
+                          <td className="px-4 py-3 align-top">
+                            <div className="space-y-2">
+                              {sessions.map(
+                                (
+                                  session: EmployeeWorkSession,
+                                  index: number
+                                ) => (
+                                  <div
+                                    key={`${row.date}-${session.id}`}
+                                    className="grid grid-cols-[1fr_1fr_auto] items-center gap-2"
+                                  >
+                                    <input
+                                      type="time"
+                                      value={session.start}
+                                      onChange={(event) =>
+                                        updateWorkSession(
+                                          row.date,
+                                          session.id,
+                                          "start",
+                                          event.target.value
+                                        )
+                                      }
+                                      className="h-10 rounded-2xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-300"
+                                    />
 
-                          <td className="px-4 py-3">
-                            <input
-                              type="time"
-                              value={row.actualEnd}
-                              onChange={(event) =>
-                                updateHourRow(
-                                  row.date,
-                                  "actualEnd",
-                                  event.target.value
+                                    <input
+                                      type="time"
+                                      value={session.end}
+                                      onChange={(event) =>
+                                        updateWorkSession(
+                                          row.date,
+                                          session.id,
+                                          "end",
+                                          event.target.value
+                                        )
+                                      }
+                                      className="h-10 rounded-2xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-300"
+                                    />
+
+                                    {sessions.length > 1 ? (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          removeWorkSession(row.date, session.id)
+                                        }
+                                        className="h-10 rounded-2xl border border-rose-200 bg-rose-50 px-3 text-xs font-black text-rose-600 transition hover:bg-rose-100"
+                                      >
+                                        מחק
+                                      </button>
+                                    ) : (
+                                      <span className="h-10 w-[54px]" />
+                                    )}
+
+                                    <div className="col-span-3 text-xs font-bold text-slate-400">
+                                      מקטע {index + 1}:{" "}
+                                      {formatWorkDuration(
+                                        minutesBetween(session.start, session.end)
+                                      )}
+                                    </div>
+                                  </div>
                                 )
-                              }
-                              className="h-10 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none focus:border-emerald-300"
-                            />
+                              )}
+
+                              <button
+                                type="button"
+                                onClick={() => addWorkSession(row.date)}
+                                className="h-9 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 text-xs font-black text-emerald-700 transition hover:bg-emerald-100"
+                              >
+                                + הוסף כניסה/יציאה
+                              </button>
+                            </div>
                           </td>
 
                           <td className="px-4 py-3 text-sm font-black text-slate-800">
-                            {formatWorkDuration(row.totalMinutes)}
+                            {formatWorkDuration(rowMinutes)}
                           </td>
 
                           <td className="px-4 py-3 text-sm font-black text-slate-800">
