@@ -294,11 +294,69 @@ function getGuestIdKey(value: unknown) {
   return id || "";
 }
 
+function getGuestNameFromGuest(guest: any) {
+  return (
+    cleanStr(guest?.fullName) ||
+    cleanStr(guest?.name) ||
+    cleanStr(guest?.guestName) ||
+    cleanStr(guest?.displayName) ||
+    ""
+  );
+}
+
+function getGuestPhoneFromGuest(guest: any) {
+  return (
+    cleanStr(guest?.phone) ||
+    cleanStr(guest?.phoneNumber) ||
+    cleanStr(guest?.mobile) ||
+    cleanStr(guest?.mobilePhone) ||
+    cleanStr(guest?.guestPhone) ||
+    cleanStr(guest?.tel) ||
+    cleanStr(guest?.telephone) ||
+    ""
+  );
+}
+
+function getGuestEmailFromGuest(guest: any) {
+  return cleanStr(guest?.email) || cleanStr(guest?.guestEmail) || "";
+}
+
+function getGuestGroupFromGuest(guest: any) {
+  return (
+    cleanStr(guest?.group) ||
+    cleanStr(guest?.groupName) ||
+    cleanStr(guest?.guestGroup) ||
+    cleanStr(guest?.groupTitle) ||
+    ""
+  );
+}
+
+function getGuestSideFromGuest(guest: any) {
+  return (
+    cleanStr(guest?.side) ||
+    cleanStr(guest?.guestSide) ||
+    cleanStr(guest?.familySide) ||
+    ""
+  );
+}
+
+function getGuestTableFromGuest(guest: any) {
+  return (
+    cleanStr(guest?.table) ||
+    cleanStr(guest?.tableNumber) ||
+    cleanStr(guest?.tableName) ||
+    cleanStr(guest?.guestTable) ||
+    cleanStr(guest?.seatTable) ||
+    ""
+  );
+}
+
 function getGuestNotesFromGuest(guest: any) {
   return (
     cleanStr(guest?.guestNotes) ||
     cleanStr(guest?.guestNote) ||
     cleanStr(guest?.notes) ||
+    cleanStr(guest?.note) ||
     ""
   );
 }
@@ -361,12 +419,6 @@ function serializeWorkOrder(
 
     invitationId: String(order?.invitationId || invitation?._id || ""),
 
-    /*
-      חדש:
-      קישור אחד ברמת האירוע לצפייה בהזמנה.
-      זה מיועד לכפתור אחד למעלה בעמוד העובד,
-      לא לכל אורח בנפרד.
-    */
     invitationShareId,
     shareId: invitationShareId,
     invitationPreviewUrl,
@@ -442,8 +494,25 @@ function serializeTask(task: any, guest?: any) {
 
   const mergedHistory = guestHistory.length ? guestHistory : taskPreviousHistory;
 
-  const guestNotes =
-    cleanStr(task?.guestNotes) || getGuestNotesFromGuest(guest) || "";
+  /*
+    חשוב:
+    כאן מסנכרנים את העובד מול האורח המעודכן.
+    כלומר אם שינית מספר טלפון ברשימת הלקוח,
+    העובד יראה את הטלפון מה־InvitationGuest ולא את ה־snapshot הישן של CallTask.
+  */
+  const syncedGuestName = getGuestNameFromGuest(guest) || cleanStr(task?.guestName);
+  const syncedGuestPhone =
+    getGuestPhoneFromGuest(guest) || cleanStr(task?.guestPhone);
+  const syncedGuestEmail =
+    getGuestEmailFromGuest(guest) || cleanStr(task?.guestEmail);
+  const syncedGuestGroup =
+    getGuestGroupFromGuest(guest) || cleanStr(task?.guestGroup);
+  const syncedGuestSide =
+    getGuestSideFromGuest(guest) || cleanStr(task?.guestSide);
+  const syncedGuestTable =
+    getGuestTableFromGuest(guest) || cleanStr(task?.guestTable);
+  const syncedGuestNotes =
+    getGuestNotesFromGuest(guest) || cleanStr(task?.guestNotes);
 
   return {
     id: String(task?._id || ""),
@@ -460,13 +529,13 @@ function serializeTask(task: any, guest?: any) {
     eventName: cleanStr(task?.eventName),
     eventDate: task?.eventDate || null,
 
-    guestName: cleanStr(task?.guestName),
-    guestPhone: cleanStr(task?.guestPhone),
-    guestEmail: cleanStr(task?.guestEmail),
-    guestGroup: cleanStr(task?.guestGroup),
-    guestSide: cleanStr(task?.guestSide),
-    guestTable: cleanStr(task?.guestTable),
-    guestNotes,
+    guestName: syncedGuestName,
+    guestPhone: syncedGuestPhone,
+    guestEmail: syncedGuestEmail,
+    guestGroup: syncedGuestGroup,
+    guestSide: syncedGuestSide,
+    guestTable: syncedGuestTable,
+    guestNotes: syncedGuestNotes,
 
     round: Number(task?.round || 1),
     sourceAudience: cleanStr(task?.sourceAudience),
@@ -803,12 +872,51 @@ async function getGuestsMapForTasks(tasks: any[]) {
 
   const objectIds = ids.map((id) => new mongoose.Types.ObjectId(id));
 
+  /*
+    חשוב:
+    חובה להביא גם phone/name/group וכו׳.
+    לפני כן הבאת רק notes/history ולכן הטלפון תמיד נשאר מה־CallTask הישן.
+  */
   const guests = await InvitationGuest.find({
     _id: {
       $in: objectIds,
     },
   })
-    .select("_id notes guestNote guestNotes callHistory")
+    .select(
+      [
+        "_id",
+        "fullName",
+        "name",
+        "guestName",
+        "displayName",
+        "phone",
+        "phoneNumber",
+        "mobile",
+        "mobilePhone",
+        "guestPhone",
+        "tel",
+        "telephone",
+        "email",
+        "guestEmail",
+        "group",
+        "groupName",
+        "guestGroup",
+        "groupTitle",
+        "side",
+        "guestSide",
+        "familySide",
+        "table",
+        "tableNumber",
+        "tableName",
+        "guestTable",
+        "seatTable",
+        "notes",
+        "note",
+        "guestNote",
+        "guestNotes",
+        "callHistory",
+      ].join(" ")
+    )
     .lean();
 
   const map = new Map<string, any>();
