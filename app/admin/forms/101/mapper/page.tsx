@@ -7,6 +7,7 @@ export const dynamic = "force-dynamic";
 type PageNumber = 1 | 2;
 type FieldType = "text" | "digits" | "check" | "signature";
 type TextAlign = "right" | "left" | "center";
+type DigitSpacingMode = "equal" | "custom";
 
 type FieldItem = {
   key: string;
@@ -21,6 +22,8 @@ type FieldItem = {
   sample: string;
   fontSize: number;
   digitGap?: number;
+  digitSpacingMode?: DigitSpacingMode;
+  digitGaps?: number[];
   maxDigits?: number;
   align?: TextAlign;
   order: number;
@@ -980,6 +983,13 @@ function normalizeFields(fields: Partial<FieldItem>[]) {
     enabled: typeof field.enabled === "boolean" ? field.enabled : true,
     isFixed: typeof field.isFixed === "boolean" ? field.isFixed : false,
     fixedValue: String(field.fixedValue || ""),
+    digitSpacingMode:
+      field.digitSpacingMode === "custom" ? "custom" : "equal",
+    digitGaps: Array.isArray(field.digitGaps)
+      ? field.digitGaps
+          .map((gap) => Math.max(1, Number(gap) || DEFAULT_GLOBAL_DIGIT_GAP))
+          .filter((gap) => Number.isFinite(gap))
+      : [],
   })) as FieldItem[];
 }
 
@@ -1019,6 +1029,49 @@ function alignToText(align?: TextAlign) {
   if (align === "center") return "center";
   if (align === "left") return "left";
   return "right";
+}
+
+
+function normalizeDigitGapsInput(value: string) {
+  return value
+    .split(/[,\s|]+/)
+    .map((item) => Number(item.trim()))
+    .filter((num) => Number.isFinite(num) && num > 0)
+    .map((num) => Math.round(num));
+}
+
+function digitGapsToInput(value?: number[]) {
+  return Array.isArray(value) && value.length ? value.join(",") : "";
+}
+
+function getDigitGapForIndex(field: FieldItem, index: number) {
+  if (
+    field.digitSpacingMode === "custom" &&
+    Array.isArray(field.digitGaps) &&
+    Number.isFinite(Number(field.digitGaps[index]))
+  ) {
+    return Math.max(1, Number(field.digitGaps[index]));
+  }
+
+  return Math.max(1, Number(field.digitGap || DEFAULT_GLOBAL_DIGIT_GAP));
+}
+
+function getDigitTotalWidth(field: FieldItem, digitsLength: number) {
+  if (digitsLength <= 0) return 0;
+
+  let total = 0;
+
+  for (let index = 0; index < digitsLength; index += 1) {
+    total += getDigitGapForIndex(field, index);
+  }
+
+  return total;
+}
+
+function justifyFromAlign(align?: TextAlign) {
+  if (align === "center") return "center";
+  if (align === "right") return "flex-end";
+  return "flex-start";
 }
 
 function getFieldTypeLabel(type: FieldType) {
@@ -1065,7 +1118,7 @@ function renderValue(field: FieldItem, showValues: boolean) {
         dir="ltr"
         className="flex h-full w-full items-center text-blue-900"
         style={{
-          justifyContent: alignToJustify(field.align),
+          justifyContent: justifyFromAlign(field.align),
           fontSize: field.fontSize,
           lineHeight: `${field.height}px`,
         }}
@@ -1074,7 +1127,7 @@ function renderValue(field: FieldItem, showValues: boolean) {
           <span
             key={`${field.key}-${index}`}
             className="inline-block text-center font-semibold"
-            style={{ width: field.digitGap || DEFAULT_GLOBAL_DIGIT_GAP }}
+            style={{ width: getDigitGapForIndex(field, index) }}
           >
             {digit}
           </span>
@@ -1113,6 +1166,8 @@ function fieldToMap(field: FieldItem) {
     type: field.type,
     fontSize: field.fontSize,
     digitGap: field.digitGap || null,
+    digitSpacingMode: field.digitSpacingMode || "equal",
+    digitGaps: Array.isArray(field.digitGaps) ? field.digitGaps : [],
     maxDigits: field.maxDigits || null,
     align: field.align || "right",
   };
@@ -1120,7 +1175,6 @@ function fieldToMap(field: FieldItem) {
 
 function fieldsToMap(fields: FieldItem[]) {
   return fields
-    .filter((field) => field.enabled)
     .sort((a, b) => a.order - b.order)
     .reduce<Record<string, any>>((acc, field) => {
       acc[field.key] = fieldToMap(field);
@@ -1158,6 +1212,15 @@ function templateFieldsToFields(templateFields: any) {
         value?.digitGap === null || value?.digitGap === undefined
           ? base?.digitGap
           : Number(value.digitGap),
+      digitSpacingMode:
+        value?.digitSpacingMode === "custom" ? "custom" : "equal",
+      digitGaps: Array.isArray(value?.digitGaps)
+        ? value.digitGaps
+            .map((gap: any) => Math.max(1, Number(gap) || DEFAULT_GLOBAL_DIGIT_GAP))
+            .filter((gap: any) => Number.isFinite(gap))
+        : Array.isArray(base?.digitGaps)
+        ? base?.digitGaps
+        : [],
       maxDigits:
         value?.maxDigits === null || value?.maxDigits === undefined
           ? base?.maxDigits
@@ -1234,9 +1297,6 @@ export default function Form101MapperPage() {
   const [showAllFields, setShowAllFields] = useState(false);
   const [showDisabledFields, setShowDisabledFields] = useState(true);
   const [pdfReloadKey, setPdfReloadKey] = useState(1);
-  const [globalDigitGap, setGlobalDigitGap] = useState(
-    DEFAULT_GLOBAL_DIGIT_GAP
-  );
   const [templateApproved, setTemplateApproved] = useState(loadApproved);
   const [templateLoading, setTemplateLoading] = useState(true);
   const [templateSaving, setTemplateSaving] = useState(false);
@@ -1329,15 +1389,14 @@ export default function Form101MapperPage() {
     );
   }
 
-  function updateAllDigitGaps(value: number) {
+  function updateSelectedDigitGap(key: string, value: number) {
     const safeValue = Math.max(1, Number(value) || DEFAULT_GLOBAL_DIGIT_GAP);
 
     markTemplateChanged();
-    setGlobalDigitGap(safeValue);
 
     setFields((prev) =>
       prev.map((field) =>
-        field.type === "digits"
+        field.key === key
           ? {
               ...field,
               digitGap: safeValue,
@@ -1345,6 +1404,22 @@ export default function Form101MapperPage() {
           : field
       )
     );
+  }
+
+  function updateSelectedDigitSpacingMode(
+    key: string,
+    value: DigitSpacingMode
+  ) {
+    updateField(key, {
+      digitSpacingMode: value,
+      digitGaps: value === "custom" ? selectedField?.digitGaps || [] : [],
+    });
+  }
+
+  function updateSelectedDigitGaps(key: string, value: string) {
+    updateField(key, {
+      digitGaps: normalizeDigitGapsInput(value),
+    });
   }
 
   function setFieldEnabled(key: string, enabled: boolean) {
@@ -1463,7 +1538,6 @@ export default function Form101MapperPage() {
     setFields(INITIAL_FIELDS);
     setSelectedSection("year");
     setSelectedKey("taxYear");
-    setGlobalDigitGap(DEFAULT_GLOBAL_DIGIT_GAP);
     setShowAllFields(false);
     setTemplateApproved(false);
     setPdfReloadKey((prev) => prev + 1);
@@ -1471,7 +1545,6 @@ export default function Form101MapperPage() {
 
   async function copyConst() {
     const map = fields
-      .filter((field) => field.enabled)
       .sort((a, b) => a.order - b.order)
       .reduce<Record<string, any>>((acc, field) => {
         acc[field.key] = fieldToMap(field);
@@ -1482,7 +1555,7 @@ export default function Form101MapperPage() {
       `const FORM101_FIELD_MAP = ${JSON.stringify(map, null, 2)} as const;`
     );
 
-    alert("הועתקו רק השדות הפעילים כולל שדות קבועים");
+    alert("הועתקו כל השדות כולל כבויים ושדות קבועים");
   }
 
   function addField() {
@@ -1654,19 +1727,6 @@ export default function Form101MapperPage() {
               >
                 {showDisabledFields ? "הסתר שדות כבויים" : "הצג שדות כבויים"}
               </button>
-
-              <label className="flex h-11 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700">
-                <span>מרווח ספרות</span>
-                <input
-                  type="number"
-                  min={1}
-                  value={globalDigitGap}
-                  onChange={(event) =>
-                    updateAllDigitGaps(Number(event.target.value))
-                  }
-                  className="h-8 w-16 rounded-xl border border-slate-200 px-2 text-center text-sm font-black outline-none"
-                />
-              </label>
 
               <button
                 type="button"
@@ -2067,16 +2127,60 @@ export default function Form101MapperPage() {
                   </label>
 
                   <label className="text-xs font-black text-slate-500">
-                    מרווח ספרות
-                    <input
-                      type="number"
-                      value={selectedField.digitGap || globalDigitGap}
+                    סוג מרווח ספרות
+                    <select
+                      value={selectedField.digitSpacingMode || "equal"}
                       disabled={selectedField.type !== "digits"}
                       onChange={(event) =>
-                        updateAllDigitGaps(Number(event.target.value))
+                        updateSelectedDigitSpacingMode(
+                          selectedField.key,
+                          event.target.value as DigitSpacingMode
+                        )
+                      }
+                      className="mt-1 h-10 w-full rounded-xl border px-3 text-sm font-bold disabled:bg-slate-100"
+                    >
+                      <option value="equal">מרווח שווה בין כל הספרות</option>
+                      <option value="custom">מרווח מותאם בין ספרות</option>
+                    </select>
+                  </label>
+
+                  <label className="text-xs font-black text-slate-500">
+                    מרווח שווה לשדה הזה בלבד
+                    <input
+                      type="number"
+                      min={1}
+                      value={selectedField.digitGap || DEFAULT_GLOBAL_DIGIT_GAP}
+                      disabled={selectedField.type !== "digits"}
+                      onChange={(event) =>
+                        updateSelectedDigitGap(
+                          selectedField.key,
+                          Number(event.target.value)
+                        )
                       }
                       className="mt-1 h-10 w-full rounded-xl border px-3 text-sm font-bold disabled:bg-slate-100"
                     />
+                  </label>
+
+                  <label className="col-span-2 text-xs font-black text-slate-500">
+                    מרווחים מותאמים בין הספרות
+                    <input
+                      value={digitGapsToInput(selectedField.digitGaps)}
+                      disabled={
+                        selectedField.type !== "digits" ||
+                        selectedField.digitSpacingMode !== "custom"
+                      }
+                      onChange={(event) =>
+                        updateSelectedDigitGaps(
+                          selectedField.key,
+                          event.target.value
+                        )
+                      }
+                      placeholder="לדוגמה: 13,13,45,13,13,13,13,13,13"
+                      className="mt-1 h-10 w-full rounded-xl border px-3 text-sm font-bold disabled:bg-slate-100"
+                    />
+                    <span className="mt-1 block text-[11px] font-bold text-slate-400">
+                      כל מספר מייצג מרווח אחרי הספרה באותו מקום. לדוגמה בטלפון: 13,13,45,13... יוצר רווח גדול אחרי 050.
+                    </span>
                   </label>
 
                   <label className="text-xs font-black text-slate-500">

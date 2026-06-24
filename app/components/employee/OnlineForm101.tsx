@@ -5,6 +5,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 type PageNumber = 1 | 2;
 type FieldType = "text" | "digits" | "check" | "signature";
 type TextAlign = "right" | "left" | "center";
+type DigitSpacingMode = "equal" | "custom";
 
 type FieldConfig = {
   page: PageNumber;
@@ -21,6 +22,8 @@ type FieldConfig = {
   type: FieldType;
   fontSize: number;
   digitGap: number | null;
+  digitSpacingMode?: DigitSpacingMode;
+  digitGaps?: number[];
   maxDigits: number | null;
   align: TextAlign;
 };
@@ -32,7 +35,8 @@ type ActiveSignatureField = string | null;
 const PDF_URL = "/forms/tofes-101.pdf";
 const PAGE_WIDTH = 900;
 const PAGE_HEIGHT = 1280;
-const DRAFT_STORAGE_KEY = "invistimo_employee_form101_template_draft_v1";
+const DRAFT_STORAGE_KEY = "invistimo_employee_form101_template_draft_v2_no_samples";
+const OLD_DRAFT_STORAGE_KEYS = ["invistimo_employee_form101_template_draft_v1"];
 
 const FORM101_FIELD_MAP: Record<string, FieldConfig> = {
   "taxYear": {
@@ -1251,6 +1255,13 @@ function normalizeTemplateFields(input: unknown) {
         field.digitGap === null || field.digitGap === undefined
           ? null
           : Math.max(1, Number(field.digitGap || 13)),
+      digitSpacingMode:
+        field.digitSpacingMode === "custom" ? "custom" : "equal",
+      digitGaps: Array.isArray(field.digitGaps)
+        ? field.digitGaps
+            .map((gap) => Math.max(1, Number(gap) || 13))
+            .filter((gap) => Number.isFinite(gap))
+        : [],
       maxDigits:
         field.maxDigits === null || field.maxDigits === undefined
           ? null
@@ -1275,15 +1286,36 @@ function getFixedValues(fieldMap: Record<string, FieldConfig>) {
   ) as ValuesMap;
 }
 
+function normalizeValueByField(value: unknown, field: FieldConfig): FieldValue {
+  if (field.type === "check") return Boolean(value);
+  if (field.type === "digits") return onlyDigits(value);
+  return clean(value);
+}
+
 function mergeValuesForTemplate(
   currentValues: ValuesMap,
   fieldMap: Record<string, FieldConfig>
 ) {
-  return {
-    ...getInitialValues(fieldMap),
-    ...currentValues,
-    ...getFixedValues(fieldMap),
-  };
+  const initial = getInitialValues(fieldMap);
+  const next: ValuesMap = { ...initial };
+
+  Object.entries(fieldMap).forEach(([key, field]) => {
+    if (!field.enabled) return;
+
+    if (field.isFixed) {
+      next[key] =
+        field.type === "check"
+          ? field.fixedValue === "true" || field.fixedValue === "✓"
+          : field.fixedValue || "";
+      return;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(currentValues, key)) {
+      next[key] = normalizeValueByField(currentValues[key], field);
+    }
+  });
+
+  return next;
 }
 
 function getInitialValues(fieldMap: Record<string, FieldConfig>) {
@@ -1315,18 +1347,16 @@ function loadDraftValues(fieldMap: Record<string, FieldConfig>) {
   if (typeof window === "undefined") return initial;
 
   try {
+    OLD_DRAFT_STORAGE_KEYS.forEach((key) => {
+      localStorage.removeItem(key);
+    });
+
     const saved = localStorage.getItem(DRAFT_STORAGE_KEY);
     if (!saved) return initial;
 
     const parsed = JSON.parse(saved) as ValuesMap;
 
-    const fixedValues = getFixedValues(fieldMap);
-
-    return {
-      ...initial,
-      ...parsed,
-      ...fixedValues,
-    };
+    return mergeValuesForTemplate(parsed, fieldMap);
   } catch {
     return initial;
   }
@@ -1470,15 +1500,16 @@ function buildStructuredPayload(values: ValuesMap, fieldMap: Record<string, Fiel
     signatureDataUrl: text("signature"),
   };
 
-  Object.entries(fieldMap).forEach(([key, field]) => {
-    payload[key] = valueForPdf(values[key], field);
-  });
+  Object.entries(fieldMap)
+    .filter(([, field]) => field.enabled)
+    .forEach(([key, field]) => {
+      payload[key] = valueForPdf(values[key], field);
+    });
 
   payload.formFieldValues = Object.fromEntries(
-    Object.entries(fieldMap).map(([key, field]) => [
-      key,
-      valueForPdf(values[key], field),
-    ]),
+    Object.entries(fieldMap)
+      .filter(([, field]) => field.enabled)
+      .map(([key, field]) => [key, valueForPdf(values[key], field)])
   );
 
   if (idNumber && !payload.page2IdNumber) {
@@ -1487,6 +1518,18 @@ function buildStructuredPayload(values: ValuesMap, fieldMap: Record<string, Fiel
   }
 
   return payload;
+}
+
+function getDigitGapForIndex(field: FieldConfig, index: number) {
+  if (
+    field.digitSpacingMode === "custom" &&
+    Array.isArray(field.digitGaps) &&
+    Number.isFinite(Number(field.digitGaps[index]))
+  ) {
+    return Math.max(1, Number(field.digitGaps[index]));
+  }
+
+  return Math.max(1, Number(field.digitGap || 13));
 }
 
 function FieldControl({
@@ -1578,7 +1621,6 @@ function FieldControl({
   if (field.type === "digits") {
     const digits = onlyDigits(inputValue);
     const sliced = field.maxDigits ? digits.slice(0, field.maxDigits) : digits;
-    const digitGap = field.digitGap || 13;
 
     return (
       <div
@@ -1610,7 +1652,7 @@ function FieldControl({
               <span
                 key={`${fieldKey}-${index}`}
                 className="inline-block text-center font-semibold"
-                style={{ width: digitGap }}
+                style={{ width: getDigitGapForIndex(field, index) }}
               >
                 {digit}
               </span>

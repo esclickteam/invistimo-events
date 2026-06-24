@@ -77,6 +77,17 @@ const Form101FieldSchema = new Schema(
       default: null,
     },
 
+    digitSpacingMode: {
+      type: String,
+      enum: ["equal", "custom"],
+      default: "equal",
+    },
+
+    digitGaps: {
+      type: [Number],
+      default: [],
+    },
+
     maxDigits: {
       type: Number,
       default: null,

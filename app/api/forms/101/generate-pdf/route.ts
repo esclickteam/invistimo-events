@@ -108,6 +108,7 @@ type Form101Payload = {
 
 type FieldType = "text" | "digits" | "check" | "signature";
 type TextAlign = "right" | "left" | "center";
+type DigitSpacingMode = "equal" | "custom";
 
 type FieldMapItem = {
   page: 1 | 2;
@@ -124,6 +125,8 @@ type FieldMapItem = {
   type: FieldType;
   fontSize: number;
   digitGap: number | null;
+  digitSpacingMode?: DigitSpacingMode;
+  digitGaps?: number[];
   maxDigits: number | null;
   align: TextAlign;
 };
@@ -1460,6 +1463,12 @@ function normalizeFieldMapItem(rawField: any): FieldMapItem | null {
       rawField.digitGap === null || rawField.digitGap === undefined
         ? null
         : Math.max(1, Number(rawField.digitGap) || 13),
+    digitSpacingMode: rawField.digitSpacingMode === "custom" ? "custom" : "equal",
+    digitGaps: Array.isArray(rawField.digitGaps)
+      ? rawField.digitGaps
+          .map((gap: any) => Math.max(1, Number(gap) || 13))
+          .filter((gap: any) => Number.isFinite(gap))
+      : [],
     maxDigits:
       rawField.maxDigits === null || rawField.maxDigits === undefined
         ? null
@@ -1789,6 +1798,18 @@ function drawTextInRect(
   });
 }
 
+function getDigitGapForIndex(field: FieldMapItem, index: number, scaleX: number) {
+  if (
+    field.digitSpacingMode === "custom" &&
+    Array.isArray(field.digitGaps) &&
+    Number.isFinite(Number(field.digitGaps[index]))
+  ) {
+    return Math.max(1, Number(field.digitGaps[index])) * scaleX;
+  }
+
+  return Math.max(1, Number(field.digitGap || 10)) * scaleX;
+}
+
 function drawDigitsInRect(
   page: any,
   text: unknown,
@@ -1809,8 +1830,13 @@ function drawDigitsInRect(
   if (!digits) return;
 
   const size = rect.fontSize;
-  const gap = Math.max(1, (field.digitGap || 10) * rect.scaleX);
-  const totalWidth = Math.max((digits.length - 1) * gap + gap, 1);
+  const gaps = digits.split("").map((_, index) =>
+    getDigitGapForIndex(field, index, rect.scaleX)
+  );
+  const totalWidth = Math.max(
+    gaps.reduce((sum, gap) => sum + gap, 0),
+    1
+  );
 
   let startX = rect.x;
 
@@ -1824,16 +1850,21 @@ function drawDigitsInRect(
 
   const y = rect.y + Math.max((rect.height - size) / 2, 0) + 1;
 
+  let cursorX = startX;
+
   digits.split("").forEach((digit, index) => {
+    const gap = gaps[index] || getDigitGapForIndex(field, index, rect.scaleX);
     const digitWidth = font.widthOfTextAtSize(digit, size);
 
     page.drawText(digit, {
-      x: startX + index * gap + Math.max((gap - digitWidth) / 2, 0),
+      x: cursorX + Math.max((gap - digitWidth) / 2, 0),
       y,
       size,
       font,
       color: rgb(0, 0, 0),
     });
+
+    cursorX += gap;
   });
 }
 

@@ -11,6 +11,7 @@ export const dynamic = "force-dynamic";
 
 type FieldType = "text" | "digits" | "check" | "signature";
 type TextAlign = "right" | "left" | "center";
+type DigitSpacingMode = "equal" | "custom";
 
 type FieldConfig = {
   page: 1 | 2;
@@ -27,6 +28,8 @@ type FieldConfig = {
   type: FieldType;
   fontSize: number;
   digitGap?: number | null;
+  digitSpacingMode?: DigitSpacingMode;
+  digitGaps?: number[];
   maxDigits?: number | null;
   align?: TextAlign;
 };
@@ -89,6 +92,18 @@ function normalizeAlign(value: unknown): TextAlign {
   return "right";
 }
 
+function normalizeDigitSpacingMode(value: unknown): DigitSpacingMode {
+  return cleanString(value) === "custom" ? "custom" : "equal";
+}
+
+function normalizeDigitGaps(value: unknown) {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((item) => Math.max(1, cleanNumber(item, 13)))
+    .filter((item) => Number.isFinite(item));
+}
+
 function normalizeType(value: unknown): FieldType {
   const raw = cleanString(value);
 
@@ -122,6 +137,8 @@ function normalizeField(field: any): FieldConfig {
       field?.digitGap === null || field?.digitGap === undefined
         ? null
         : Math.max(1, cleanNumber(field?.digitGap, 13)),
+    digitSpacingMode: normalizeDigitSpacingMode(field?.digitSpacingMode),
+    digitGaps: normalizeDigitGaps(field?.digitGaps),
     maxDigits:
       field?.maxDigits === null || field?.maxDigits === undefined
         ? null
