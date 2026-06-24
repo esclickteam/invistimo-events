@@ -34,7 +34,6 @@ type FieldItem = {
   enabled: boolean;
   isFixed?: boolean;
   fixedValue?: string;
-  rowGroupId?: string;
 };
 
 type DragState = {
@@ -54,6 +53,133 @@ const TEMPLATE_API_URL = "/api/admin/forms/101/template";
 const PAGE_WIDTH = 900;
 const PAGE_HEIGHT = 1280;
 const DEFAULT_GLOBAL_DIGIT_GAP = 13;
+
+const CHILDREN_ROW_COUNT = 13;
+const CHILDREN_FIRST_ROW_Y = 685;
+const CHILDREN_ROW_GAP = 35;
+
+const CHILDREN_ROW_FIELD_DEFS = [
+  {
+    suffix: "Mark1",
+    label: "סימון 1",
+    x: 745,
+    width: 18,
+    height: 18,
+    type: "check" as FieldType,
+    fontSize: 16,
+    align: "center" as TextAlign,
+  },
+  {
+    suffix: "Mark2",
+    label: "סימון 2",
+    x: 720,
+    width: 18,
+    height: 18,
+    type: "check" as FieldType,
+    fontSize: 16,
+    align: "center" as TextAlign,
+  },
+  {
+    suffix: "Name",
+    label: "שם",
+    x: 540,
+    width: 95,
+    height: 22,
+    type: "text" as FieldType,
+    fontSize: 14,
+    align: "center" as TextAlign,
+  },
+  {
+    suffix: "Id",
+    label: "ת.ז",
+    x: 405,
+    width: 110,
+    height: 22,
+    type: "digits" as FieldType,
+    fontSize: 14,
+    align: "left" as TextAlign,
+    maxDigits: 9,
+  },
+  {
+    suffix: "BirthDate",
+    label: "תאריך לידה",
+    x: 285,
+    width: 100,
+    height: 22,
+    type: "digits" as FieldType,
+    fontSize: 14,
+    align: "left" as TextAlign,
+    maxDigits: 8,
+  },
+] as const;
+
+function buildCanonicalChildrenFields(startOrder = 34) {
+  const rows: FieldItem[] = [];
+
+  for (let row = 1; row <= CHILDREN_ROW_COUNT; row += 1) {
+    const y = CHILDREN_FIRST_ROW_Y + (row - 1) * CHILDREN_ROW_GAP;
+
+    CHILDREN_ROW_FIELD_DEFS.forEach((definition) => {
+      rows.push({
+        key: `child${row}${definition.suffix}`,
+        label: `ילד ${row} ${definition.label}`,
+        section: "children",
+        page: 1,
+        x: definition.x,
+        y,
+        width: definition.width,
+        height: definition.height,
+        type: definition.type,
+        sample: definition.type === "check" ? "✓" : "",
+        fontSize: definition.fontSize,
+        digitGap: definition.type === "digits" ? DEFAULT_GLOBAL_DIGIT_GAP : undefined,
+        maxDigits: "maxDigits" in definition ? definition.maxDigits : undefined,
+        align: definition.align,
+        order: startOrder + rows.length,
+        enabled: true,
+        isFixed: false,
+        fixedValue: "",
+      });
+    });
+  }
+
+  return rows;
+}
+
+function replaceWithCanonicalChildrenRows(sourceFields: FieldItem[]) {
+  const sortedFields = [...sourceFields].sort((a, b) => a.order - b.order);
+  const existingChildren = sortedFields.filter((field) => field.section === "children");
+
+  const childrenStartOrder = existingChildren.length
+    ? Math.min(...existingChildren.map((field) => field.order))
+    : 34;
+
+  const beforeChildren = sortedFields.filter(
+    (field) => field.section !== "children" && field.order < childrenStartOrder
+  );
+
+  const afterChildren = sortedFields.filter(
+    (field) => field.section !== "children" && field.order >= childrenStartOrder
+  );
+
+  let nextOrder = 1;
+
+  const normalizedBefore = beforeChildren.map((field) => ({
+    ...field,
+    order: nextOrder++,
+  }));
+
+  const children = buildCanonicalChildrenFields(nextOrder);
+  nextOrder += children.length;
+
+  const normalizedAfter = afterChildren.map((field) => ({
+    ...field,
+    order: nextOrder++,
+  }));
+
+  return [...normalizedBefore, ...children, ...normalizedAfter];
+}
+
 
 const SECTIONS = [
   { key: "year", title: "שנת מס", page: 1 },
@@ -520,80 +646,7 @@ const INITIAL_FIELDS_RAW: Omit<FieldItem, "order" | "enabled">[] = [
     align: "right",
   },
 
-  {
-    key: "child1Name",
-    label: "ילד 1 שם",
-    section: "children",
-    page: 1,
-    x: 540,
-    y: 685,
-    width: 95,
-    height: 22,
-    type: "text",
-    sample: "",
-    fontSize: 14,
-    align: "center",
-  },
-  {
-    key: "child1Id",
-    label: "ילד 1 ת.ז",
-    section: "children",
-    page: 1,
-    x: 405,
-    y: 685,
-    width: 110,
-    height: 22,
-    type: "digits",
-    sample: "",
-    fontSize: 14,
-    digitGap: DEFAULT_GLOBAL_DIGIT_GAP,
-    maxDigits: 9,
-    align: "left",
-  },
-  {
-    key: "child1BirthDate",
-    label: "ילד 1 לידה",
-    section: "children",
-    page: 1,
-    x: 285,
-    y: 685,
-    width: 100,
-    height: 22,
-    type: "digits",
-    sample: "",
-    fontSize: 14,
-    digitGap: DEFAULT_GLOBAL_DIGIT_GAP,
-    maxDigits: 8,
-    align: "left",
-  },
-  {
-    key: "child1Mark1",
-    label: "ילד 1 סימון 1",
-    section: "children",
-    page: 1,
-    x: 745,
-    y: 685,
-    width: 18,
-    height: 18,
-    type: "check",
-    sample: "✓",
-    fontSize: 16,
-    align: "center",
-  },
-  {
-    key: "child1Mark2",
-    label: "ילד 1 סימון 2",
-    section: "children",
-    page: 1,
-    x: 720,
-    y: 685,
-    width: 18,
-    height: 18,
-    type: "check",
-    sample: "✓",
-    fontSize: 16,
-    align: "center",
-  },
+  ...buildCanonicalChildrenFields(),
 
   {
     key: "workStartDate",
@@ -967,7 +1020,6 @@ function normalizeFields(fields: Partial<FieldItem>[]) {
     enabled: typeof field.enabled === "boolean" ? field.enabled : true,
     isFixed: typeof field.isFixed === "boolean" ? field.isFixed : false,
     fixedValue: String(field.fixedValue || ""),
-    rowGroupId: String(field.rowGroupId || ""),
     digitSpacingMode:
       field.digitSpacingMode === "group" || field.digitSpacingMode === "custom"
         ? "group"
@@ -983,7 +1035,7 @@ function normalizeFields(fields: Partial<FieldItem>[]) {
   })) as FieldItem[];
 }
 
-const INITIAL_FIELDS = normalizeFields(INITIAL_FIELDS_RAW);
+const INITIAL_FIELDS = replaceWithCanonicalChildrenRows(normalizeFields(INITIAL_FIELDS_RAW));
 
 function loadFields() {
   if (typeof window === "undefined") return INITIAL_FIELDS;
@@ -993,7 +1045,7 @@ function loadFields() {
     if (!saved) return INITIAL_FIELDS;
 
     const parsed = JSON.parse(saved);
-    return Array.isArray(parsed) ? normalizeFields(parsed) : INITIAL_FIELDS;
+    return Array.isArray(parsed) ? replaceWithCanonicalChildrenRows(normalizeFields(parsed)) : INITIAL_FIELDS;
   } catch {
     return INITIAL_FIELDS;
   }
@@ -1007,14 +1059,6 @@ function loadApproved() {
 
 function onlyDigits(value: unknown) {
   return String(value || "").replace(/\D/g, "");
-}
-
-function createLocalId(prefix: string) {
-  if (typeof window !== "undefined" && window.crypto?.randomUUID) {
-    return `${prefix}_${window.crypto.randomUUID()}`;
-  }
-
-  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 }
 
 function alignToJustify(align?: TextAlign) {
@@ -1183,7 +1227,6 @@ function fieldToMap(field: FieldItem) {
     enabled: field.enabled,
     isFixed: Boolean(field.isFixed),
     fixedValue: field.fixedValue || "",
-    rowGroupId: field.rowGroupId || "",
     x: field.x,
     y: field.y,
     width: field.width,
@@ -1266,13 +1309,12 @@ function templateFieldsToFields(templateFields: any) {
       enabled: typeof value?.enabled === "boolean" ? value.enabled : true,
       isFixed: typeof value?.isFixed === "boolean" ? value.isFixed : false,
       fixedValue: String(value?.fixedValue || ""),
-      rowGroupId: String(value?.rowGroupId || base?.rowGroupId || ""),
     } as FieldItem;
   });
 
   if (!fromServer.length) return INITIAL_FIELDS;
 
-  return normalizeFields(fromServer).sort((a, b) => a.order - b.order);
+  return replaceWithCanonicalChildrenRows(normalizeFields(fromServer)).sort((a, b) => a.order - b.order);
 }
 
 async function loadTemplateFromServer() {
@@ -1511,7 +1553,7 @@ export default function Form101MapperPage() {
   }
 
   function parseChildFieldKey(key: string) {
-    const match = key.match(/^child(\d+)([A-Za-z0-9_]+)$/);
+    const match = key.match(/^child(\d+)(Name|Id|BirthDate|Mark1|Mark2)$/);
 
     if (!match) return null;
 
@@ -1547,47 +1589,20 @@ export default function Form101MapperPage() {
     return getChildRowFields(row, sourceFields).map((field) => field.key);
   }
 
-  function getChildFieldGroupId(field: FieldItem) {
-    if (field.section !== "children") return "";
-
+  function getDragGroupKeys(field: FieldItem) {
     const parsed = parseChildFieldKey(field.key);
 
-    if (field.rowGroupId) return field.rowGroupId;
-    if (parsed) return `child-row-${parsed.row}`;
+    if (!parsed) return [field.key];
 
-    return "";
-  }
-
-  function getChildGroupFields(field: FieldItem, sourceFields = fields) {
-    const groupId = getChildFieldGroupId(field);
-
-    if (!groupId) return [field];
-
-    return sourceFields
-      .filter(
-        (item) =>
-          item.page === field.page &&
-          item.section === field.section &&
-          getChildFieldGroupId(item) === groupId
-      )
-      .sort((a, b) => a.order - b.order);
-  }
-
-  function getDragGroupKeys(field: FieldItem) {
-    if (field.section !== "children") return [field.key];
-
-    const rowKeys = getChildGroupFields(field).map((item) => item.key);
+    const rowKeys = getChildRowKeys(parsed.row);
     return rowKeys.length ? rowKeys : [field.key];
   }
 
   function isFieldInSelectedChildRow(field: FieldItem) {
-    if (!selectedField) return false;
-    if (field.section !== "children" || selectedField.section !== "children") return false;
+    const selectedRow = getSelectedChildRowNumber();
+    if (!selectedRow) return false;
 
-    const selectedGroupId = getChildFieldGroupId(selectedField);
-    const fieldGroupId = getChildFieldGroupId(field);
-
-    return Boolean(selectedGroupId && fieldGroupId && selectedGroupId === fieldGroupId);
+    return parseChildFieldKey(field.key)?.row === selectedRow;
   }
 
   function startDrag(
@@ -1619,13 +1634,6 @@ export default function Form101MapperPage() {
 
     setSelectedKey(field.key);
     setSelectedSection(field.section);
-
-    if (field.section === "children") {
-      const rowFields = getChildGroupFields(field);
-      setShowAllFields(true);
-      setChildrenRowOrdersInput(rowFields.map((item) => String(item.order)).join(","));
-    }
-
     event.currentTarget.setPointerCapture(event.pointerId);
   }
 
@@ -1902,20 +1910,21 @@ export default function Form101MapperPage() {
   }
 
   function fillChildRowOrdersFromSelectedRow() {
-    if (!selectedField || selectedField.section !== "children") {
+    const selectedRow = getSelectedChildRowNumber();
+
+    if (!selectedRow) {
       alert("צריך לבחור שדה מתוך שורת ילד קיימת");
       return;
     }
 
-    const rowFields = getChildGroupFields(selectedField);
+    const rowFields = getChildRowFields(selectedRow);
 
     if (!rowFields.length) {
       alert("לא נמצאו שדות לשורת הילד הנבחרת");
       return;
     }
 
-    setChildrenRowOrdersInput(rowFields.map((field) => String(field.order)).join(","));
-    setShowAllFields(true);
+    setChildrenRowOrdersInput(rowFields.map((field) => field.order).join(","));
   }
 
   function duplicateSelectedChildrenRowToNext() {
@@ -1931,25 +1940,9 @@ export default function Form101MapperPage() {
       return;
     }
 
-    const sourcePage = sourceFields[0].page;
-    const sourceSection = sourceFields[0].section;
-
-    const sameSectionAndPage = sourceFields.every(
-      (field) => field.page === sourcePage && field.section === sourceSection
-    );
-
-    if (!sameSectionAndPage) {
-      alert("כל השדות בשורה חייבים להיות מאותו עמוד ומאותו סעיף");
-      return;
-    }
-
     const targetRow = getNextChildRowNumber();
     const rowGap = Math.max(1, Number(childrenRowGap) || 32);
-    const maxOrderInSameSection = fields
-      .filter((field) => field.page === sourcePage && field.section === sourceSection)
-      .reduce((max, field) => Math.max(max, field.order), 0);
-
-    const newRowGroupId = createLocalId(`children-row-${targetRow}`);
+    const maxOrder = fields.reduce((max, field) => Math.max(max, field.order), 0);
 
     const sourceSummary = sourceFields
       .map((field) => `${field.order} - ${field.label}`)
@@ -1971,11 +1964,8 @@ export default function Form101MapperPage() {
         ...sourceField,
         key,
         label: getChildFieldLabel(targetRow, suffix),
-        section: sourceSection,
-        page: sourcePage,
-        rowGroupId: newRowGroupId,
         y: sourceField.y + rowGap,
-        order: maxOrderInSameSection + index + 1,
+        order: maxOrder + index + 1,
         sample: "",
         fixedValue: "",
         isFixed: false,
@@ -1989,29 +1979,40 @@ export default function Form101MapperPage() {
 
     const firstNewField = newFields[0];
     setSelectedKey(firstNewField.key);
-    setSelectedSection(sourceSection);
-    setPage(sourcePage);
+    setSelectedSection("children");
+    setPage(firstNewField.page);
     setShowAllFields(true);
     setChildrenRowOrdersInput(newFields.map((field) => String(field.order)).join(","));
   }
 
+  function resetChildrenRowsTo13() {
+    markTemplateChanged();
+
+    setFields((prev) => replaceWithCanonicalChildrenRows(prev));
+    setPage(1);
+    setSelectedSection("children");
+    setSelectedKey("child1Mark1");
+    setShowAllFields(true);
+    setChildrenRowOrdersInput("");
+    setChildrenRowGap(CHILDREN_ROW_GAP);
+  }
+
   function deleteSelectedChildRow() {
-    if (!selectedField || selectedField.section !== "children") {
+    const selectedRow = getSelectedChildRowNumber();
+
+    if (!selectedRow) {
       alert("צריך לבחור שדה מתוך שורת ילד קיימת");
       return;
     }
 
-    const rowFields = getChildGroupFields(selectedField);
+    const rowFields = getChildRowFields(selectedRow);
 
     if (!rowFields.length) {
       alert("לא נמצאו שדות למחיקה בשורת הילד הנבחרת");
       return;
     }
 
-    const selectedRow = parseChildFieldKey(selectedField.key)?.row;
-    const rowLabel = selectedRow ? `ילד ${selectedRow}` : "השורה הנבחרת";
-
-    if (!confirm(`למחוק את כל ${rowFields.length} השדות של ${rowLabel}?`)) {
+    if (!confirm(`למחוק את כל ${rowFields.length} השדות של ילד ${selectedRow}?`)) {
       return;
     }
 
@@ -2153,19 +2154,10 @@ export default function Form101MapperPage() {
 
               <button
                 type="button"
-                onClick={() => {
-                  setPage(1);
-                  setSelectedSection("children");
-                  setSelectedKey(
-                    fields.find((field) => field.key === "child1Name")?.key ||
-                      fields.find((field) => field.section === "children")?.key ||
-                      selectedKey
-                  );
-                  setShowAllFields(true);
-                }}
+                onClick={resetChildrenRowsTo13}
                 className="h-11 rounded-2xl bg-amber-500 px-5 text-sm font-black text-white"
               >
-                שכפול שורות ילדים
+                הגדרת 13 שורות ילדים
               </button>
 
               <button
@@ -2270,16 +2262,7 @@ export default function Form101MapperPage() {
                         onClick={() => {
                           setSelectedKey(field.key);
                           setSelectedSection(field.section);
-
-                          if (field.section === "children") {
-                            const rowFields = getChildGroupFields(field);
-                            setShowAllFields(true);
-                            setChildrenRowOrdersInput(
-                              rowFields.map((item) => String(item.order)).join(",")
-                            );
-                          } else {
-                            setShowAllFields(false);
-                          }
+                          setShowAllFields(false);
                         }}
                         className={`w-full rounded-2xl border px-3 py-3 text-right transition ${
                           active
@@ -2343,7 +2326,7 @@ export default function Form101MapperPage() {
               />
 
               {visibleFields.map((field) => {
-                const selected = field.key === selectedKey || isFieldInSelectedChildRow(field);
+                const selected = field.key === selectedKey;
 
                 return (
                   <button
@@ -2353,16 +2336,7 @@ export default function Form101MapperPage() {
                     onClick={() => {
                       setSelectedKey(field.key);
                       setSelectedSection(field.section);
-
-                      if (field.section === "children") {
-                        const rowFields = getChildGroupFields(field);
-                        setShowAllFields(true);
-                        setChildrenRowOrdersInput(
-                          rowFields.map((item) => String(item.order)).join(",")
-                        );
-                      } else {
-                        setShowAllFields(false);
-                      }
+                      setShowAllFields(false);
                     }}
                     className={`absolute z-20 cursor-grab bg-transparent p-0 active:cursor-grabbing ${
                       selected ? "ring-2 ring-fuchsia-500" : ""
@@ -2445,53 +2419,19 @@ export default function Form101MapperPage() {
                 {selectedField.section === "children" && (
                   <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
                     <p className="text-sm font-black text-amber-800">
-                      שכפול וגרירת שורת ילדים
+                      13 שורות ילדים מוכנות
                     </p>
                     <p className="mt-1 text-xs font-bold leading-5 text-amber-700">
-                      מכניסים את מספרי השדות ששייכים לאותה שורה, למשל: 34,35,36,37,38.
-                      לחיצה על שכפול תיצור ילד הבא עם אותם 5 שדות. אחרי השכפול גוררים שדה אחד והשורה כולה זזה יחד.
+                      הסעיף מוגדר עכשיו קבוע עם 13 שורות. בכל שורה יש בדיוק 5 שדות לפי הסדר: סימון 1, סימון 2, שם, ת.ז, תאריך לידה. לחיצה על שדה אחד תבחר רק אותו, וגרירה שלו תזיז את כל השורה של אותו ילד יחד.
                     </p>
-
-                    <label className="mt-3 block text-xs font-black text-amber-800">
-                      מספרי השדות בשורה
-                      <input
-                        value={childrenRowOrdersInput}
-                        onChange={(event) => setChildrenRowOrdersInput(event.target.value)}
-                        placeholder="לדוגמה: 34,35,36,37,38"
-                        className="mt-1 h-11 w-full rounded-xl border border-amber-200 px-3 text-sm font-bold"
-                      />
-                    </label>
-
-                    <div className="mt-3 grid grid-cols-2 gap-3">
-                      <button
-                        type="button"
-                        onClick={fillChildRowOrdersFromSelectedRow}
-                        className="rounded-xl bg-white py-3 text-xs font-black text-amber-800 ring-1 ring-amber-200"
-                      >
-                        מלא לפי השורה הנבחרת
-                      </button>
-
-                      <label className="text-xs font-black text-amber-800">
-                        מרחק פתיחה לשורה החדשה
-                        <input
-                          type="number"
-                          min={1}
-                          value={childrenRowGap}
-                          onChange={(event) =>
-                            setChildrenRowGap(Math.max(1, Number(event.target.value) || 32))
-                          }
-                          className="mt-1 h-10 w-full rounded-xl border border-amber-200 px-3 text-sm font-bold"
-                        />
-                      </label>
-                    </div>
 
                     <div className="mt-3 grid grid-cols-2 gap-2">
                       <button
                         type="button"
-                        onClick={duplicateSelectedChildrenRowToNext}
+                        onClick={resetChildrenRowsTo13}
                         className="rounded-2xl bg-amber-600 py-3 text-sm font-black text-white"
                       >
-                        שכפל שורה לילד הבא
+                        אפס ל-13 שורות
                       </button>
 
                       <button
@@ -2502,10 +2442,6 @@ export default function Form101MapperPage() {
                         מחק שורת ילד
                       </button>
                     </div>
-
-                    <p className="mt-3 text-[11px] font-bold leading-5 text-amber-700">
-                      אחרי השכפול: בחרי כל אחד מהשדות של הילד החדש וגררי אותו — כל השדות של אותה שורה יזוזו יחד.
-                    </p>
                   </div>
                 )}
 
