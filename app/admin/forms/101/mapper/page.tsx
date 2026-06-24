@@ -40,6 +40,8 @@ type DragState = {
   key: string;
   offsetX: number;
   offsetY: number;
+  groupKeys?: string[];
+  originalPositions?: Record<string, { x: number; y: number }>;
 } | null;
 
 const PDF_URL = "/forms/tofes-101.pdf";
@@ -1315,8 +1317,6 @@ export default function Form101MapperPage() {
   const [templateApproved, setTemplateApproved] = useState(loadApproved);
   const [templateLoading, setTemplateLoading] = useState(true);
   const [templateSaving, setTemplateSaving] = useState(false);
-  const [childrenRowsCount, setChildrenRowsCount] = useState(10);
-  const [childrenRowGap, setChildrenRowGap] = useState(32);
 
   const pageSections = useMemo(
     () => SECTIONS.filter((section) => section.page === page),
@@ -1342,8 +1342,17 @@ export default function Form101MapperPage() {
 
     if (showAllFields) return allowed;
 
+    const selectedChildRow = parseChildFieldKey(selectedKey)?.row || null;
+
+    if (selectedSection === "children" && selectedChildRow) {
+      return allowed.filter((field) => {
+        const parsed = parseChildFieldKey(field.key);
+        return parsed?.row === selectedChildRow;
+      });
+    }
+
     return allowed.filter((field) => field.key === selectedKey);
-  }, [sectionFields, selectedKey, showAllFields, showDisabledFields]);
+  }, [sectionFields, selectedKey, selectedSection, showAllFields, showDisabledFields]);
 
   const selectedField = useMemo(
     () => fields.find((field) => field.key === selectedKey) || fields[0],
@@ -1503,10 +1512,24 @@ export default function Form101MapperPage() {
     const rect = pageRef.current?.getBoundingClientRect();
     if (!rect) return;
 
+    const parsedChild = parseChildFieldKey(field.key);
+    const groupFields = parsedChild
+      ? fields.filter((item) => parseChildFieldKey(item.key)?.row === parsedChild.row)
+      : [field];
+
+    const originalPositions = groupFields.reduce<
+      Record<string, { x: number; y: number }>
+    >((acc, item) => {
+      acc[item.key] = { x: item.x, y: item.y };
+      return acc;
+    }, {});
+
     dragRef.current = {
       key: field.key,
       offsetX: event.clientX - rect.left - field.x,
       offsetY: event.clientY - rect.top - field.y,
+      groupKeys: parsedChild ? groupFields.map((item) => item.key) : undefined,
+      originalPositions,
     };
 
     setSelectedKey(field.key);
@@ -1520,12 +1543,44 @@ export default function Form101MapperPage() {
 
     if (!drag || !rect) return;
 
-    const x = event.clientX - rect.left - drag.offsetX;
-    const y = event.clientY - rect.top - drag.offsetY;
+    const x = Math.round(
+      Math.max(0, Math.min(PAGE_WIDTH, event.clientX - rect.left - drag.offsetX))
+    );
+    const y = Math.round(
+      Math.max(0, Math.min(PAGE_HEIGHT, event.clientY - rect.top - drag.offsetY))
+    );
+
+    const originalSelected = drag.originalPositions?.[drag.key];
+    const groupKeys = drag.groupKeys || [];
+
+    if (groupKeys.length > 1 && originalSelected && drag.originalPositions) {
+      const dx = x - originalSelected.x;
+      const dy = y - originalSelected.y;
+      const groupSet = new Set(groupKeys);
+
+      markTemplateChanged();
+
+      setFields((prev) =>
+        prev.map((field) => {
+          if (!groupSet.has(field.key)) return field;
+
+          const original = drag.originalPositions?.[field.key];
+          if (!original) return field;
+
+          return {
+            ...field,
+            x: Math.round(Math.max(0, Math.min(PAGE_WIDTH, original.x + dx))),
+            y: Math.round(Math.max(0, Math.min(PAGE_HEIGHT, original.y + dy))),
+          };
+        })
+      );
+
+      return;
+    }
 
     updateField(drag.key, {
-      x: Math.round(Math.max(0, Math.min(PAGE_WIDTH, x))),
-      y: Math.round(Math.max(0, Math.min(PAGE_HEIGHT, y))),
+      x,
+      y,
     });
   }
 
@@ -1535,6 +1590,28 @@ export default function Form101MapperPage() {
 
   function nudge(dx: number, dy: number) {
     if (!selectedField) return;
+
+    const parsedChild = parseChildFieldKey(selectedField.key);
+
+    if (parsedChild) {
+      markTemplateChanged();
+
+      setFields((prev) =>
+        prev.map((field) => {
+          const parsed = parseChildFieldKey(field.key);
+
+          if (parsed?.row !== parsedChild.row) return field;
+
+          return {
+            ...field,
+            x: field.x + dx,
+            y: field.y + dy,
+          };
+        })
+      );
+
+      return;
+    }
 
     updateField(selectedField.key, {
       x: selectedField.x + dx,
@@ -1734,83 +1811,119 @@ export default function Form101MapperPage() {
     return parsed?.row || 1;
   }
 
-  function duplicateChildrenRows() {
-    const sourceRow = getSelectedChildRowNumber();
-    const totalRows = Math.max(1, Math.min(20, Number(childrenRowsCount) || 1));
-    const rowGap = Math.max(1, Number(childrenRowGap) || 32);
+  function getChildRowFields(row: number) {
+    return fields
+      .filter((field) => parseChildFieldKey(field.key)?.row === row)
+      .sort((a, b) => {
+        const suffixOrder: Record<string, number> = {
+          Mark1: 1,
+          Mark2: 2,
+          Name: 3,
+          Id: 4,
+          BirthDate: 5,
+        };
 
-    const sourceFields = fields
-      .filter((field) => {
-        const parsed = parseChildFieldKey(field.key);
-        return parsed?.row === sourceRow;
-      })
-      .sort((a, b) => a.order - b.order);
+        const first = parseChildFieldKey(a.key);
+        const second = parseChildFieldKey(b.key);
+
+        return (suffixOrder[first?.suffix || ""] || 99) - (suffixOrder[second?.suffix || ""] || 99);
+      });
+  }
+
+  function getAllChildRows() {
+    const rows = new Set<number>();
+
+    fields.forEach((field) => {
+      const parsed = parseChildFieldKey(field.key);
+      if (parsed?.row) rows.add(parsed.row);
+    });
+
+    return Array.from(rows).sort((a, b) => a - b);
+  }
+
+  function getNextChildRowNumber() {
+    const rows = getAllChildRows();
+    return rows.length ? Math.max(...rows) + 1 : 1;
+  }
+
+  function duplicateSelectedChildRow() {
+    const sourceRow = getSelectedChildRowNumber();
+    const sourceFields = getChildRowFields(sourceRow);
 
     if (!sourceFields.length) {
       alert("צריך לבחור שדה מתוך שורת ילד קיימת, למשל ילד 1 שם");
       return;
     }
 
-    if (!confirm(`לשכפל את שורת ילד ${sourceRow} עד ${totalRows} שורות?`)) {
+    const targetRow = getNextChildRowNumber();
+
+    if (
+      !confirm(
+        `לשכפל את כל שורת ילד ${sourceRow} לילד ${targetRow}?\n\nייווצרו כל שדות השורה: שם, ת.ז, תאריך לידה וסימוני 1/2. אחרי השכפול אפשר לגרור את כל השורה יחד למיקום הנכון.`
+      )
+    ) {
       return;
     }
+
+    const maxOrder = fields.reduce((max, field) => Math.max(max, field.order), 0);
+
+    const newFields = sourceFields.map((sourceField, index) => {
+      const parsed = parseChildFieldKey(sourceField.key);
+      const suffix = parsed?.suffix || `Field${index + 1}`;
+
+      return {
+        ...sourceField,
+        key: `child${targetRow}${suffix}`,
+        label: getChildFieldLabel(targetRow, suffix),
+        order: maxOrder + index + 1,
+        sample: "",
+        fixedValue: "",
+        isFixed: false,
+        enabled: true,
+      };
+    });
+
+    markTemplateChanged();
+
+    setFields((prev) => [...prev, ...newFields].sort((a, b) => a.order - b.order));
+
+    const firstNewField =
+      newFields.find((field) => field.key === `child${targetRow}Name`) ||
+      newFields[0];
+
+    if (firstNewField) {
+      setSelectedKey(firstNewField.key);
+      setSelectedSection(firstNewField.section);
+      setPage(firstNewField.page);
+    }
+
+    setShowAllFields(false);
+  }
+
+  function deleteSelectedChildRow() {
+    const sourceRow = getSelectedChildRowNumber();
+    const rowFields = getChildRowFields(sourceRow);
+
+    if (!rowFields.length) {
+      alert("צריך לבחור שדה מתוך שורת ילד קיימת");
+      return;
+    }
+
+    if (!confirm(`למחוק את כל שדות ילד ${sourceRow}?`)) return;
 
     markTemplateChanged();
 
     setFields((prev) => {
-      const withoutGeneratedChildren = prev.filter((field) => {
-        const parsed = parseChildFieldKey(field.key);
-
-        return !parsed;
-      });
-
-      const nextChildren: FieldItem[] = [];
-      const sourceMinOrder = sourceFields.reduce(
-        (min, field) => Math.min(min, field.order),
-        sourceFields[0]?.order || 1
-      );
-
-      for (let row = 1; row <= totalRows; row += 1) {
-        const targetRow = row;
-        const yOffset = (targetRow - sourceRow) * rowGap;
-
-        sourceFields.forEach((sourceField) => {
-          const parsed = parseChildFieldKey(sourceField.key);
-          if (!parsed) return;
-
-          const orderOffset = sourceField.order - sourceMinOrder;
-          const targetKey = `child${targetRow}${parsed.suffix}`;
-
-          nextChildren.push({
-            ...sourceField,
-            key: targetKey,
-            label: getChildFieldLabel(targetRow, parsed.suffix),
-            y: sourceField.y + yOffset,
-            order: sourceMinOrder + (targetRow - 1) * sourceFields.length + orderOffset,
-            sample: targetRow === sourceRow ? sourceField.sample : "",
-            fixedValue: "",
-            isFixed: false,
-            enabled: true,
-          });
-        });
-      }
-
-      const next = [...withoutGeneratedChildren, ...nextChildren].sort(
-        (a, b) => a.order - b.order
-      );
-
-      const firstChild = nextChildren.find((field) => field.key === `child1Name`) || nextChildren[0];
-
-      if (firstChild) {
-        setSelectedKey(firstChild.key);
-        setSelectedSection(firstChild.section);
-        setPage(firstChild.page);
-      }
-
+      const next = prev.filter((field) => parseChildFieldKey(field.key)?.row !== sourceRow);
+      selectFallbackField(next);
       return next;
     });
 
-    setShowAllFields(true);
+    setShowAllFields(false);
+  }
+
+  function duplicateChildrenRows() {
+    duplicateSelectedChildRow();
   }
 
   return (
@@ -2118,7 +2231,13 @@ export default function Form101MapperPage() {
               />
 
               {visibleFields.map((field) => {
-                const selected = field.key === selectedKey;
+                const selectedChildRow = parseChildFieldKey(selectedKey)?.row || null;
+                const currentChildRow = parseChildFieldKey(field.key)?.row || null;
+                const selected =
+                  field.key === selectedKey ||
+                  (selectedSection === "children" &&
+                    selectedChildRow !== null &&
+                    currentChildRow === selectedChildRow);
 
                 return (
                   <button
@@ -2211,50 +2330,37 @@ export default function Form101MapperPage() {
                 {selectedField.section === "children" && (
                   <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
                     <p className="text-sm font-black text-amber-800">
-                      שכפול שורת ילדים
+                      שכפול וגרירת שורת ילדים
                     </p>
                     <p className="mt-1 text-xs font-bold leading-5 text-amber-700">
-                      מסדרים שורה אחת, למשל ילד 1, ואז משכפלים את כל השדות: שם, ת.ז, תאריך לידה וסימוני 1/2 לכל השורות.
+                      בחרי שדה אחד מתוך השורה. המערכת מסמנת את כל 5 השדות של אותו ילד יחד: שם, ת.ז, תאריך לידה וסימוני 1/2. גרירה של אחד מהם מזיזה את כל השורה.
                     </p>
 
-                    <div className="mt-3 grid grid-cols-2 gap-3">
-                      <label className="text-xs font-black text-amber-800">
-                        כמה שורות ילדים בסך הכול
-                        <input
-                          type="number"
-                          min={1}
-                          max={20}
-                          value={childrenRowsCount}
-                          onChange={(event) =>
-                            setChildrenRowsCount(
-                              Math.max(1, Math.min(20, Number(event.target.value) || 1))
-                            )
-                          }
-                          className="mt-1 h-10 w-full rounded-xl border border-amber-200 px-3 text-sm font-bold"
-                        />
-                      </label>
-
-                      <label className="text-xs font-black text-amber-800">
-                        מרווח Y בין שורות
-                        <input
-                          type="number"
-                          min={1}
-                          value={childrenRowGap}
-                          onChange={(event) =>
-                            setChildrenRowGap(Math.max(1, Number(event.target.value) || 32))
-                          }
-                          className="mt-1 h-10 w-full rounded-xl border border-amber-200 px-3 text-sm font-bold"
-                        />
-                      </label>
+                    <div className="mt-3 rounded-2xl bg-white px-4 py-3 text-xs font-black text-amber-900">
+                      שורה נבחרת: ילד {getSelectedChildRowNumber()} · {getChildRowFields(getSelectedChildRowNumber()).length} שדות
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={duplicateChildrenRows}
-                      className="mt-3 w-full rounded-2xl bg-amber-600 py-3 text-sm font-black text-white"
-                    >
-                      שכפול שורת הילדים לפי ההגדרה
-                    </button>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={duplicateSelectedChildRow}
+                        className="rounded-2xl bg-amber-600 py-3 text-sm font-black text-white"
+                      >
+                        שכפל שורה לילד הבא
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={deleteSelectedChildRow}
+                        className="rounded-2xl bg-rose-600 py-3 text-sm font-black text-white"
+                      >
+                        מחק שורת ילד
+                      </button>
+                    </div>
+
+                    <p className="mt-3 text-[11px] font-bold leading-5 text-amber-700">
+                      אחרי שכפול: הילד הבא נבחר אוטומטית. גררי כל שדה מהשורה החדשה, וכל השורה תזוז יחד למיקום הנכון.
+                    </p>
                   </div>
                 )}
 
