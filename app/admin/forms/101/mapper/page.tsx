@@ -56,8 +56,8 @@ const PAGE_HEIGHT = 1280;
 const DEFAULT_GLOBAL_DIGIT_GAP = 13;
 
 const CHILDREN_ROW_COUNT = 13;
-const DEFAULT_CHILDREN_FIRST_ROW_Y = 685;
-const DEFAULT_CHILDREN_ROW_GAP = 35;
+const CHILDREN_PLACEHOLDER_X = 0;
+const CHILDREN_PLACEHOLDER_Y = 0;
 
 const CHILDREN_ROW_FIELD_DEFS = [
   {
@@ -138,33 +138,6 @@ function getChildFieldLabelBySuffix(row: number, suffix: string) {
   return definition ? `ילד ${row} ${definition.label}` : `ילד ${row}`;
 }
 
-function getDetectedChildrenRowGap(childMap: Map<string, FieldItem>) {
-  const rows = Array.from(childMap.values())
-    .map((field) => {
-      const parsed = parseChildFieldKeyOutside(field.key);
-      return parsed ? { row: parsed.row, y: field.y } : null;
-    })
-    .filter(Boolean) as Array<{ row: number; y: number }>;
-
-  const byRow = new Map<number, number>();
-
-  rows.forEach((item) => {
-    if (!byRow.has(item.row)) byRow.set(item.row, item.y);
-  });
-
-  const ordered = Array.from(byRow.entries()).sort((a, b) => a[0] - b[0]);
-  const gaps: number[] = [];
-
-  for (let index = 1; index < ordered.length; index += 1) {
-    const gap = ordered[index][1] - ordered[index - 1][1];
-    if (gap > 0 && Number.isFinite(gap)) gaps.push(gap);
-  }
-
-  if (!gaps.length) return DEFAULT_CHILDREN_ROW_GAP;
-
-  return Math.round(gaps.reduce((sum, gap) => sum + gap, 0) / gaps.length);
-}
-
 function buildDefaultChildField(
   row: number,
   suffix: ChildSuffix,
@@ -172,6 +145,7 @@ function buildDefaultChildField(
   childMap: Map<string, FieldItem>,
 ): FieldItem {
   const definition = getChildDefinition(suffix)!;
+
   const sameSuffixFields = Array.from(childMap.values())
     .map((field) => ({ field, parsed: parseChildFieldKeyOutside(field.key) }))
     .filter((item) => item.parsed?.suffix === suffix) as Array<{
@@ -183,23 +157,17 @@ function buildDefaultChildField(
     childMap.get(`1:${suffix}`) ||
     sameSuffixFields.sort((a, b) => a.parsed.row - b.parsed.row)[0]?.field;
 
-  const referenceParsed = reference
-    ? parseChildFieldKeyOutside(reference.key)
-    : null;
-  const rowGap = getDetectedChildrenRowGap(childMap);
-
-  const x = reference?.x ?? definition.x;
-  const y = reference
-    ? reference.y + (row - (referenceParsed?.row || 1)) * rowGap
-    : DEFAULT_CHILDREN_FIRST_ROW_Y + (row - 1) * DEFAULT_CHILDREN_ROW_GAP;
-
   return {
     key: `child${row}${suffix}`,
     label: getChildFieldLabelBySuffix(row, suffix),
     section: "children",
     page: 1,
-    x,
-    y,
+
+    // לא קובעים מיקום אוטומטי לשורות ילדים.
+    // זה רק ערך טכני כדי שהשדה יופיע בעורך, ואת קובעת ידנית כל שדה/שורה.
+    x: CHILDREN_PLACEHOLDER_X,
+    y: CHILDREN_PLACEHOLDER_Y,
+
     width: reference?.width ?? definition.width,
     height: reference?.height ?? definition.height,
     type: definition.type,
@@ -1552,9 +1520,7 @@ export default function Form101MapperPage() {
   const [templateLoading, setTemplateLoading] = useState(true);
   const [templateSaving, setTemplateSaving] = useState(false);
   const [childrenRowOrdersInput, setChildrenRowOrdersInput] = useState("");
-  const [childrenRowGap, setChildrenRowGap] = useState(
-    DEFAULT_CHILDREN_ROW_GAP,
-  );
+  const [childrenRowGap, setChildrenRowGap] = useState(32);
 
   const pageSections = useMemo(
     () => SECTIONS.filter((section) => section.page === page),
@@ -2628,7 +2594,7 @@ export default function Form101MapperPage() {
                 {selectedField.section === "children" && (
                   <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
                     <p className="text-sm font-black text-amber-800">
-                      13 שורות ילדים בלי נעילת מיקום
+                      13 שורות ילדים ללא מיקום אוטומטי
                     </p>
                     <p className="mt-1 text-xs font-bold leading-5 text-amber-700">
                       המערכת רק דואגת שיהיו 13 שורות עם 5 שדות בכל שורה: סימון
