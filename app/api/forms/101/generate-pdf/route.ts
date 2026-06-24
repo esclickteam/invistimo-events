@@ -1607,6 +1607,27 @@ function getMappedRect(
 
 function getValueFromBody(body: Form101Payload, fieldKey: string): unknown {
   const children = Array.isArray(body.children) ? body.children : [];
+  const childMatch = fieldKey.match(/^child(\d+)(Name|Id|BirthDate|Mark1|Mark2)$/);
+
+  if (childMatch) {
+    const childIndex = Number(childMatch[1]) - 1;
+    const suffix = childMatch[2];
+    const child = children[childIndex] || {};
+
+    if (suffix === "Name") {
+      return body.formFieldValues?.[fieldKey] ?? child.name;
+    }
+
+    if (suffix === "Id") {
+      return splitId(body.formFieldValues?.[fieldKey] ?? child.idNumber);
+    }
+
+    if (suffix === "BirthDate") {
+      return formatDateDigits(body.formFieldValues?.[fieldKey] ?? child.birthDate);
+    }
+
+    return Boolean(body.formFieldValues?.[fieldKey] ?? body[fieldKey]);
+  }
 
   switch (fieldKey) {
     case "taxYear":

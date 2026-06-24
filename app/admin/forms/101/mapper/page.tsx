@@ -1315,6 +1315,8 @@ export default function Form101MapperPage() {
   const [templateApproved, setTemplateApproved] = useState(loadApproved);
   const [templateLoading, setTemplateLoading] = useState(true);
   const [templateSaving, setTemplateSaving] = useState(false);
+  const [childrenRowsCount, setChildrenRowsCount] = useState(10);
+  const [childrenRowGap, setChildrenRowGap] = useState(32);
 
   const pageSections = useMemo(
     () => SECTIONS.filter((section) => section.page === page),
@@ -1669,6 +1671,112 @@ export default function Form101MapperPage() {
     setShowAllFields(false);
   }
 
+  function parseChildFieldKey(key: string) {
+    const match = key.match(/^child(\d+)(Name|Id|BirthDate|Mark1|Mark2)$/);
+
+    if (!match) return null;
+
+    return {
+      row: Number(match[1]),
+      suffix: match[2],
+    };
+  }
+
+  function getChildFieldLabel(row: number, suffix: string) {
+    if (suffix === "Name") return `ילד ${row} שם`;
+    if (suffix === "Id") return `ילד ${row} ת.ז`;
+    if (suffix === "BirthDate") return `ילד ${row} לידה`;
+    if (suffix === "Mark1") return `ילד ${row} סימון 1`;
+    if (suffix === "Mark2") return `ילד ${row} סימון 2`;
+
+    return `ילד ${row}`;
+  }
+
+  function getSelectedChildRowNumber() {
+    const parsed = selectedField ? parseChildFieldKey(selectedField.key) : null;
+
+    return parsed?.row || 1;
+  }
+
+  function duplicateChildrenRows() {
+    const sourceRow = getSelectedChildRowNumber();
+    const totalRows = Math.max(1, Math.min(20, Number(childrenRowsCount) || 1));
+    const rowGap = Math.max(1, Number(childrenRowGap) || 32);
+
+    const sourceFields = fields
+      .filter((field) => {
+        const parsed = parseChildFieldKey(field.key);
+        return parsed?.row === sourceRow;
+      })
+      .sort((a, b) => a.order - b.order);
+
+    if (!sourceFields.length) {
+      alert("צריך לבחור שדה מתוך שורת ילד קיימת, למשל ילד 1 שם");
+      return;
+    }
+
+    if (!confirm(`לשכפל את שורת ילד ${sourceRow} עד ${totalRows} שורות?`)) {
+      return;
+    }
+
+    markTemplateChanged();
+
+    setFields((prev) => {
+      const withoutGeneratedChildren = prev.filter((field) => {
+        const parsed = parseChildFieldKey(field.key);
+
+        return !parsed;
+      });
+
+      const nextChildren: FieldItem[] = [];
+      const sourceMinOrder = sourceFields.reduce(
+        (min, field) => Math.min(min, field.order),
+        sourceFields[0]?.order || 1
+      );
+
+      for (let row = 1; row <= totalRows; row += 1) {
+        const targetRow = row;
+        const yOffset = (targetRow - sourceRow) * rowGap;
+
+        sourceFields.forEach((sourceField) => {
+          const parsed = parseChildFieldKey(sourceField.key);
+          if (!parsed) return;
+
+          const orderOffset = sourceField.order - sourceMinOrder;
+          const targetKey = `child${targetRow}${parsed.suffix}`;
+
+          nextChildren.push({
+            ...sourceField,
+            key: targetKey,
+            label: getChildFieldLabel(targetRow, parsed.suffix),
+            y: sourceField.y + yOffset,
+            order: sourceMinOrder + (targetRow - 1) * sourceFields.length + orderOffset,
+            sample: targetRow === sourceRow ? sourceField.sample : "",
+            fixedValue: "",
+            isFixed: false,
+            enabled: true,
+          });
+        });
+      }
+
+      const next = [...withoutGeneratedChildren, ...nextChildren].sort(
+        (a, b) => a.order - b.order
+      );
+
+      const firstChild = nextChildren.find((field) => field.key === `child1Name`) || nextChildren[0];
+
+      if (firstChild) {
+        setSelectedKey(firstChild.key);
+        setSelectedSection(firstChild.section);
+        setPage(firstChild.page);
+      }
+
+      return next;
+    });
+
+    setShowAllFields(true);
+  }
+
   return (
     <main
       dir="rtl"
@@ -1789,6 +1897,23 @@ export default function Form101MapperPage() {
                 className="h-11 rounded-2xl bg-sky-600 px-5 text-sm font-black text-white"
               >
                 הוספת שדה
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setPage(1);
+                  setSelectedSection("children");
+                  setSelectedKey(
+                    fields.find((field) => field.key === "child1Name")?.key ||
+                      fields.find((field) => field.section === "children")?.key ||
+                      selectedKey
+                  );
+                  setShowAllFields(true);
+                }}
+                className="h-11 rounded-2xl bg-amber-500 px-5 text-sm font-black text-white"
+              >
+                שכפול שורות ילדים
               </button>
 
               <button
@@ -2038,6 +2163,56 @@ export default function Form101MapperPage() {
                     </div>
                   </div>
                 </div>
+
+                {selectedField.section === "children" && (
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                    <p className="text-sm font-black text-amber-800">
+                      שכפול שורת ילדים
+                    </p>
+                    <p className="mt-1 text-xs font-bold leading-5 text-amber-700">
+                      מסדרים שורה אחת, למשל ילד 1, ואז משכפלים את כל השדות: שם, ת.ז, תאריך לידה וסימוני 1/2 לכל השורות.
+                    </p>
+
+                    <div className="mt-3 grid grid-cols-2 gap-3">
+                      <label className="text-xs font-black text-amber-800">
+                        כמה שורות ילדים בסך הכול
+                        <input
+                          type="number"
+                          min={1}
+                          max={20}
+                          value={childrenRowsCount}
+                          onChange={(event) =>
+                            setChildrenRowsCount(
+                              Math.max(1, Math.min(20, Number(event.target.value) || 1))
+                            )
+                          }
+                          className="mt-1 h-10 w-full rounded-xl border border-amber-200 px-3 text-sm font-bold"
+                        />
+                      </label>
+
+                      <label className="text-xs font-black text-amber-800">
+                        מרווח Y בין שורות
+                        <input
+                          type="number"
+                          min={1}
+                          value={childrenRowGap}
+                          onChange={(event) =>
+                            setChildrenRowGap(Math.max(1, Number(event.target.value) || 32))
+                          }
+                          className="mt-1 h-10 w-full rounded-xl border border-amber-200 px-3 text-sm font-bold"
+                        />
+                      </label>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={duplicateChildrenRows}
+                      className="mt-3 w-full rounded-2xl bg-amber-600 py-3 text-sm font-black text-white"
+                    >
+                      שכפול שורת הילדים לפי ההגדרה
+                    </button>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-3">
                   <label className="text-xs font-black text-slate-500">

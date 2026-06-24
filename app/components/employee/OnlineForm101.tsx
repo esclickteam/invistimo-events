@@ -34,6 +34,11 @@ type FieldConfig = {
 
 type FieldValue = string | boolean;
 type ValuesMap = Record<string, FieldValue>;
+type ChildPayload = {
+  name?: string;
+  idNumber?: string;
+  birthDate?: string;
+};
 type ActiveSignatureField = string | null;
 
 const PDF_URL = "/forms/tofes-101.pdf";
@@ -1213,8 +1218,25 @@ function onlyDigits(value: unknown) {
   return clean(value).replace(/\D/g, "");
 }
 
+function getDynamicChildLabel(key: string) {
+  const match = key.match(/^child(\d+)(Name|Id|BirthDate|Mark1|Mark2)$/);
+
+  if (!match) return "";
+
+  const row = match[1];
+  const suffix = match[2];
+
+  if (suffix === "Name") return `ילד ${row} - שם`;
+  if (suffix === "Id") return `ילד ${row} - תעודת זהות`;
+  if (suffix === "BirthDate") return `ילד ${row} - תאריך לידה`;
+  if (suffix === "Mark1") return `ילד ${row} - סימון 1`;
+  if (suffix === "Mark2") return `ילד ${row} - סימון 2`;
+
+  return `ילד ${row}`;
+}
+
 function getFieldLabel(key: string, field?: FieldConfig | null) {
-  return field?.label || FIELD_LABELS[key] || key;
+  return field?.label || FIELD_LABELS[key] || getDynamicChildLabel(key) || key;
 }
 
 function normalizeTemplateFields(input: unknown) {
@@ -1395,6 +1417,38 @@ function valueForPdf(value: FieldValue, field: FieldConfig) {
   return value;
 }
 
+function collectChildrenPayload(values: ValuesMap, fieldMap: Record<string, FieldConfig>) {
+  const rows = new Map<number, ChildPayload>();
+
+  Object.keys(fieldMap).forEach((key) => {
+    const match = key.match(/^child(\d+)(Name|Id|BirthDate)$/);
+
+    if (!match) return;
+
+    const row = Number(match[1]);
+    const suffix = match[2];
+
+    if (!Number.isFinite(row) || row < 1) return;
+
+    const current = rows.get(row) || {};
+    const value = clean(values[key]);
+
+    if (suffix === "Name") current.name = value;
+    if (suffix === "Id") current.idNumber = value;
+    if (suffix === "BirthDate") current.birthDate = value;
+
+    rows.set(row, current);
+  });
+
+  return Array.from(rows.entries())
+    .sort(([a], [b]) => a - b)
+    .map(([, child]) => child)
+    .filter(
+      (child) =>
+        clean(child.name) || clean(child.idNumber) || clean(child.birthDate)
+    );
+}
+
 function buildStructuredPayload(values: ValuesMap, fieldMap: Record<string, FieldConfig>) {
   const fieldValue = (key: string) => values[key];
   const text = (key: string) => clean(fieldValue(key));
@@ -1478,13 +1532,7 @@ function buildStructuredPayload(values: ValuesMap, fieldMap: Record<string, Fiel
       hasIncome: false,
     },
 
-    children: [
-      {
-        name: text("child1Name"),
-        idNumber: text("child1Id"),
-        birthDate: text("child1BirthDate"),
-      },
-    ],
+    children: collectChildrenPayload(values, fieldMap),
 
     taxCredits: {
       resident: checked("creditResident"),
