@@ -108,7 +108,8 @@ type Form101Payload = {
 
 type FieldType = "text" | "digits" | "check" | "signature";
 type TextAlign = "right" | "left" | "center";
-type DigitSpacingMode = "equal" | "custom";
+type DigitSpacingMode = "equal" | "group" | "custom";
+type DigitGroupSizeMode = "auto" | "manual";
 
 type FieldMapItem = {
   page: 1 | 2;
@@ -126,7 +127,10 @@ type FieldMapItem = {
   fontSize: number;
   digitGap: number | null;
   digitSpacingMode?: DigitSpacingMode;
-  digitGaps?: number[];
+  digitGaps?: number[]; // legacy only
+  digitGroupSize?: number | null;
+  digitGroupSizeMode?: DigitGroupSizeMode;
+  digitGroupGap?: number | null;
   maxDigits: number | null;
   align: TextAlign;
 };
@@ -1463,12 +1467,24 @@ function normalizeFieldMapItem(rawField: any): FieldMapItem | null {
       rawField.digitGap === null || rawField.digitGap === undefined
         ? null
         : Math.max(1, Number(rawField.digitGap) || 13),
-    digitSpacingMode: rawField.digitSpacingMode === "custom" ? "custom" : "equal",
+    digitSpacingMode:
+      rawField.digitSpacingMode === "group" || rawField.digitSpacingMode === "custom"
+        ? "group"
+        : "equal",
     digitGaps: Array.isArray(rawField.digitGaps)
       ? rawField.digitGaps
           .map((gap: any) => Math.max(1, Number(gap) || 13))
           .filter((gap: any) => Number.isFinite(gap))
       : [],
+    digitGroupSize:
+      rawField.digitGroupSize === null || rawField.digitGroupSize === undefined
+        ? null
+        : Math.max(1, Number(rawField.digitGroupSize) || 3),
+    digitGroupSizeMode: rawField.digitGroupSizeMode === "manual" ? "manual" : "auto",
+    digitGroupGap:
+      rawField.digitGroupGap === null || rawField.digitGroupGap === undefined
+        ? null
+        : Math.max(0, Number(rawField.digitGroupGap) || 0),
     maxDigits:
       rawField.maxDigits === null || rawField.maxDigits === undefined
         ? null
@@ -1798,16 +1814,55 @@ function drawTextInRect(
   });
 }
 
-function getDigitGapForIndex(field: FieldMapItem, index: number, scaleX: number) {
+function getBaseDigitCellWidth(field: FieldMapItem, scaleX: number) {
+  return Math.max(1, Number(field.digitGap || 10)) * scaleX;
+}
+
+function getAutoDigitGroupSize(value: unknown, fallback: number) {
+  const digits = onlyDigits(value);
+
+  if (!digits) return fallback;
+
+  if (digits.startsWith("05")) return 3;
+  if (digits.startsWith("077") || digits.startsWith("073")) return 3;
+  if (digits.length === 10) return 3;
+
   if (
-    field.digitSpacingMode === "custom" &&
-    Array.isArray(field.digitGaps) &&
-    Number.isFinite(Number(field.digitGaps[index]))
+    digits.length === 9 &&
+    (digits.startsWith("02") ||
+      digits.startsWith("03") ||
+      digits.startsWith("04") ||
+      digits.startsWith("08") ||
+      digits.startsWith("09"))
   ) {
-    return Math.max(1, Number(field.digitGaps[index])) * scaleX;
+    return 2;
   }
 
-  return Math.max(1, Number(field.digitGap || 10)) * scaleX;
+  return fallback;
+}
+
+function getResolvedDigitGroupSize(field: FieldMapItem, value: unknown) {
+  const fallback = Math.max(1, Number(field.digitGroupSize || 3));
+
+  if (field.digitGroupSizeMode === "manual") {
+    return fallback;
+  }
+
+  return getAutoDigitGroupSize(value, fallback);
+}
+
+function getGroupGapAfterDigit(
+  field: FieldMapItem,
+  index: number,
+  scaleX: number,
+  value: unknown
+) {
+  if (field.digitSpacingMode !== "group") return 0;
+
+  const groupSize = getResolvedDigitGroupSize(field, value);
+  if (index !== groupSize - 1) return 0;
+
+  return Math.max(0, Number(field.digitGroupGap || 0)) * scaleX;
 }
 
 function drawDigitsInRect(
@@ -1830,11 +1885,13 @@ function drawDigitsInRect(
   if (!digits) return;
 
   const size = rect.fontSize;
-  const gaps = digits.split("").map((_, index) =>
-    getDigitGapForIndex(field, index, rect.scaleX)
-  );
+  const digitArray = digits.split("");
+  const baseCellWidth = getBaseDigitCellWidth(field, rect.scaleX);
+
   const totalWidth = Math.max(
-    gaps.reduce((sum, gap) => sum + gap, 0),
+    digitArray.reduce((sum, _digit, index) => {
+      return sum + baseCellWidth + getGroupGapAfterDigit(field, index, rect.scaleX, digits);
+    }, 0),
     1
   );
 
@@ -1852,19 +1909,18 @@ function drawDigitsInRect(
 
   let cursorX = startX;
 
-  digits.split("").forEach((digit, index) => {
-    const gap = gaps[index] || getDigitGapForIndex(field, index, rect.scaleX);
+  digitArray.forEach((digit, index) => {
     const digitWidth = font.widthOfTextAtSize(digit, size);
 
     page.drawText(digit, {
-      x: cursorX + Math.max((gap - digitWidth) / 2, 0),
+      x: cursorX + Math.max((baseCellWidth - digitWidth) / 2, 0),
       y,
       size,
       font,
       color: rgb(0, 0, 0),
     });
 
-    cursorX += gap;
+    cursorX += baseCellWidth + getGroupGapAfterDigit(field, index, rect.scaleX, digits);
   });
 }
 

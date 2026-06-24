@@ -7,7 +7,8 @@ export const dynamic = "force-dynamic";
 type PageNumber = 1 | 2;
 type FieldType = "text" | "digits" | "check" | "signature";
 type TextAlign = "right" | "left" | "center";
-type DigitSpacingMode = "equal" | "custom";
+type DigitSpacingMode = "equal" | "group" | "custom";
+type DigitGroupSizeMode = "auto" | "manual";
 
 type FieldItem = {
   key: string;
@@ -23,7 +24,10 @@ type FieldItem = {
   fontSize: number;
   digitGap?: number;
   digitSpacingMode?: DigitSpacingMode;
-  digitGaps?: number[];
+  digitGaps?: number[]; // legacy only
+  digitGroupSize?: number;
+  digitGroupSizeMode?: DigitGroupSizeMode;
+  digitGroupGap?: number;
   maxDigits?: number;
   align?: TextAlign;
   order: number;
@@ -289,67 +293,44 @@ const INITIAL_FIELDS_RAW: Omit<FieldItem, "order" | "enabled">[] = [
   },
 
   {
-    key: "phonePrefix",
-    label: "טלפון - קידומת",
+    key: "phone",
+    label: "טלפון",
     section: "employee",
     page: 1,
-    x: 330,
-    y: 505,
-    width: 38,
+    x: 230,
+    y: 313,
+    width: 150,
     height: 24,
     type: "digits",
-    sample: "04",
+    sample: "048447508",
     fontSize: 15,
     digitGap: DEFAULT_GLOBAL_DIGIT_GAP,
-    maxDigits: 3,
+    digitSpacingMode: "group",
+    digitGroupSizeMode: "auto",
+    digitGroupSize: 2,
+    digitGroupGap: 20,
+    maxDigits: 10,
     align: "center",
   },
+
   {
-    key: "phoneNumber",
-    label: "טלפון - מספר",
+    key: "mobile",
+    label: "נייד",
     section: "employee",
     page: 1,
-    x: 380,
-    y: 505,
-    width: 90,
+    x: 90,
+    y: 313,
+    width: 150,
     height: 24,
     type: "digits",
-    sample: "1234567",
+    sample: "0501234567",
     fontSize: 15,
     digitGap: DEFAULT_GLOBAL_DIGIT_GAP,
-    maxDigits: 7,
-    align: "left",
-  },
-  {
-    key: "mobilePrefix",
-    label: "נייד - קידומת",
-    section: "employee",
-    page: 1,
-    x: 165,
-    y: 505,
-    width: 38,
-    height: 24,
-    type: "digits",
-    sample: "055",
-    fontSize: 15,
-    digitGap: DEFAULT_GLOBAL_DIGIT_GAP,
-    maxDigits: 3,
-    align: "center",
-  },
-  {
-    key: "mobileNumber",
-    label: "נייד - מספר",
-    section: "employee",
-    page: 1,
-    x: 215,
-    y: 505,
-    width: 95,
-    height: 24,
-    type: "digits",
-    sample: "5039072",
-    fontSize: 15,
-    digitGap: DEFAULT_GLOBAL_DIGIT_GAP,
-    maxDigits: 7,
+    digitSpacingMode: "group",
+    digitGroupSizeMode: "auto",
+    digitGroupSize: 3,
+    digitGroupGap: 20,
+    maxDigits: 10,
     align: "left",
   },
   {
@@ -984,12 +965,17 @@ function normalizeFields(fields: Partial<FieldItem>[]) {
     isFixed: typeof field.isFixed === "boolean" ? field.isFixed : false,
     fixedValue: String(field.fixedValue || ""),
     digitSpacingMode:
-      field.digitSpacingMode === "custom" ? "custom" : "equal",
+      field.digitSpacingMode === "group" || field.digitSpacingMode === "custom"
+        ? "group"
+        : "equal",
     digitGaps: Array.isArray(field.digitGaps)
       ? field.digitGaps
           .map((gap) => Math.max(1, Number(gap) || DEFAULT_GLOBAL_DIGIT_GAP))
           .filter((gap) => Number.isFinite(gap))
       : [],
+    digitGroupSize: Math.max(1, Number(field.digitGroupSize || 3)),
+    digitGroupSizeMode: field.digitGroupSizeMode === "manual" ? "manual" : "auto",
+    digitGroupGap: Math.max(0, Number(field.digitGroupGap || 20)),
   })) as FieldItem[];
 }
 
@@ -1032,37 +1018,60 @@ function alignToText(align?: TextAlign) {
 }
 
 
-function normalizeDigitGapsInput(value: string) {
-  return value
-    .split(/[,\s|]+/)
-    .map((item) => Number(item.trim()))
-    .filter((num) => Number.isFinite(num) && num > 0)
-    .map((num) => Math.round(num));
-}
-
-function digitGapsToInput(value?: number[]) {
-  return Array.isArray(value) && value.length ? value.join(",") : "";
-}
-
-function getDigitGapForIndex(field: FieldItem, index: number) {
-  if (
-    field.digitSpacingMode === "custom" &&
-    Array.isArray(field.digitGaps) &&
-    Number.isFinite(Number(field.digitGaps[index]))
-  ) {
-    return Math.max(1, Number(field.digitGaps[index]));
-  }
-
+function getBaseDigitCellWidth(field: FieldItem) {
   return Math.max(1, Number(field.digitGap || DEFAULT_GLOBAL_DIGIT_GAP));
 }
 
-function getDigitTotalWidth(field: FieldItem, digitsLength: number) {
+function getAutoDigitGroupSize(value: unknown, fallback: number) {
+  const digits = onlyDigits(value);
+
+  if (!digits) return fallback;
+
+  if (digits.startsWith("05")) return 3;
+  if (digits.startsWith("077") || digits.startsWith("073")) return 3;
+  if (digits.length === 10) return 3;
+
+  if (
+    digits.length === 9 &&
+    (digits.startsWith("02") ||
+      digits.startsWith("03") ||
+      digits.startsWith("04") ||
+      digits.startsWith("08") ||
+      digits.startsWith("09"))
+  ) {
+    return 2;
+  }
+
+  return fallback;
+}
+
+function getResolvedDigitGroupSize(field: FieldItem, value: unknown) {
+  const fallback = Math.max(1, Number(field.digitGroupSize || 3));
+
+  if (field.digitGroupSizeMode === "manual") {
+    return fallback;
+  }
+
+  return getAutoDigitGroupSize(value, fallback);
+}
+
+function getGroupGapAfterDigit(field: FieldItem, index: number, value: unknown) {
+  if (field.digitSpacingMode !== "group") return 0;
+
+  const groupSize = getResolvedDigitGroupSize(field, value);
+  if (index !== groupSize - 1) return 0;
+
+  return Math.max(0, Number(field.digitGroupGap || 0));
+}
+
+function getDigitTotalWidth(field: FieldItem, digitsLength: number, value: unknown) {
   if (digitsLength <= 0) return 0;
 
   let total = 0;
 
   for (let index = 0; index < digitsLength; index += 1) {
-    total += getDigitGapForIndex(field, index);
+    total += getBaseDigitCellWidth(field);
+    total += getGroupGapAfterDigit(field, index, value);
   }
 
   return total;
@@ -1127,7 +1136,10 @@ function renderValue(field: FieldItem, showValues: boolean) {
           <span
             key={`${field.key}-${index}`}
             className="inline-block text-center font-semibold"
-            style={{ width: getDigitGapForIndex(field, index) }}
+            style={{
+              width: getBaseDigitCellWidth(field),
+              marginRight: getGroupGapAfterDigit(field, index, sliced),
+            }}
           >
             {digit}
           </span>
@@ -1168,6 +1180,9 @@ function fieldToMap(field: FieldItem) {
     digitGap: field.digitGap || null,
     digitSpacingMode: field.digitSpacingMode || "equal",
     digitGaps: Array.isArray(field.digitGaps) ? field.digitGaps : [],
+    digitGroupSize: field.digitGroupSize || null,
+    digitGroupSizeMode: field.digitGroupSizeMode || "auto",
+    digitGroupGap: field.digitGroupGap || null,
     maxDigits: field.maxDigits || null,
     align: field.align || "right",
   };
@@ -1213,7 +1228,9 @@ function templateFieldsToFields(templateFields: any) {
           ? base?.digitGap
           : Number(value.digitGap),
       digitSpacingMode:
-        value?.digitSpacingMode === "custom" ? "custom" : "equal",
+        value?.digitSpacingMode === "group" || value?.digitSpacingMode === "custom"
+          ? "group"
+          : "equal",
       digitGaps: Array.isArray(value?.digitGaps)
         ? value.digitGaps
             .map((gap: any) => Math.max(1, Number(gap) || DEFAULT_GLOBAL_DIGIT_GAP))
@@ -1221,6 +1238,9 @@ function templateFieldsToFields(templateFields: any) {
         : Array.isArray(base?.digitGaps)
         ? base?.digitGaps
         : [],
+      digitGroupSize: Math.max(1, Number(value?.digitGroupSize ?? base?.digitGroupSize ?? 3)),
+      digitGroupSizeMode: value?.digitGroupSizeMode === "manual" ? "manual" : "auto",
+      digitGroupGap: Math.max(0, Number(value?.digitGroupGap ?? base?.digitGroupGap ?? 20)),
       maxDigits:
         value?.maxDigits === null || value?.maxDigits === undefined
           ? base?.maxDigits
@@ -1238,12 +1258,7 @@ function templateFieldsToFields(templateFields: any) {
 
   if (!fromServer.length) return INITIAL_FIELDS;
 
-  const serverKeys = new Set(fromServer.map((field) => field.key));
-  const missingDefaults = INITIAL_FIELDS.filter((field) => !serverKeys.has(field.key));
-
-  return normalizeFields([...fromServer, ...missingDefaults]).sort(
-    (a, b) => a.order - b.order
-  );
+  return normalizeFields(fromServer).sort((a, b) => a.order - b.order);
 }
 
 async function loadTemplateFromServer() {
@@ -1412,13 +1427,33 @@ export default function Form101MapperPage() {
   ) {
     updateField(key, {
       digitSpacingMode: value,
-      digitGaps: value === "custom" ? selectedField?.digitGaps || [] : [],
     });
   }
 
-  function updateSelectedDigitGaps(key: string, value: string) {
+  function updateSelectedDigitGroupSizeMode(key: string, value: string) {
+    if (value === "auto") {
+      updateField(key, {
+        digitGroupSizeMode: "auto",
+      });
+      return;
+    }
+
     updateField(key, {
-      digitGaps: normalizeDigitGapsInput(value),
+      digitGroupSizeMode: "manual",
+      digitGroupSize: Math.max(1, Number(value) || 3),
+    });
+  }
+
+  function updateSelectedDigitGroupSize(key: string, value: number) {
+    updateField(key, {
+      digitGroupSizeMode: "manual",
+      digitGroupSize: Math.max(1, Number(value) || 3),
+    });
+  }
+
+  function updateSelectedDigitGroupGap(key: string, value: number) {
+    updateField(key, {
+      digitGroupGap: Math.max(0, Number(value) || 0),
     });
   }
 
@@ -1591,24 +1626,44 @@ export default function Form101MapperPage() {
     setShowAllFields(false);
   }
 
-  function deleteOrDisableField() {
+  function selectFallbackField(nextFields: FieldItem[]) {
+    const fallback =
+      nextFields.find((field) => field.page === page && field.enabled) ||
+      nextFields.find((field) => field.enabled) ||
+      nextFields[0];
+
+    if (!fallback) return;
+
+    setSelectedKey(fallback.key);
+    setSelectedSection(fallback.section);
+    setPage(fallback.page);
+  }
+
+  function deleteFieldPermanently() {
     if (!selectedField) return;
 
-    if (selectedField.key.startsWith("customField")) {
-      if (!confirm("למחוק את השדה החדש לגמרי?")) return;
-
-      markTemplateChanged();
-
-      setFields((prev) =>
-        prev.filter((field) => field.key !== selectedField.key)
-      );
-
-      setSelectedKey("taxYear");
-      setSelectedSection("year");
-      setShowAllFields(false);
-
+    if (
+      !confirm(
+        `למחוק את השדה "${selectedField.label}" מהתבנית?
+אפשר להחזיר רק דרך איפוס תבנית.`
+      )
+    ) {
       return;
     }
+
+    markTemplateChanged();
+
+    setFields((prev) => {
+      const next = prev.filter((field) => field.key !== selectedField.key);
+      selectFallbackField(next);
+      return next;
+    });
+
+    setShowAllFields(false);
+  }
+
+  function deleteOrDisableField() {
+    if (!selectedField) return;
 
     setFieldEnabled(selectedField.key, false);
     setShowAllFields(false);
@@ -2127,7 +2182,7 @@ export default function Form101MapperPage() {
                   </label>
 
                   <label className="text-xs font-black text-slate-500">
-                    סוג מרווח ספרות
+                    מבנה ספרות
                     <select
                       value={selectedField.digitSpacingMode || "equal"}
                       disabled={selectedField.type !== "digits"}
@@ -2140,12 +2195,12 @@ export default function Form101MapperPage() {
                       className="mt-1 h-10 w-full rounded-xl border px-3 text-sm font-bold disabled:bg-slate-100"
                     >
                       <option value="equal">מרווח שווה בין כל הספרות</option>
-                      <option value="custom">מרווח מותאם בין ספרות</option>
+                      <option value="group">קידומת + מספר עם רווח באמצע</option>
                     </select>
                   </label>
 
                   <label className="text-xs font-black text-slate-500">
-                    מרווח שווה לשדה הזה בלבד
+                    מרווח בין כל ספרה
                     <input
                       type="number"
                       min={1}
@@ -2161,27 +2216,56 @@ export default function Form101MapperPage() {
                     />
                   </label>
 
-                  <label className="col-span-2 text-xs font-black text-slate-500">
-                    מרווחים מותאמים בין הספרות
-                    <input
-                      value={digitGapsToInput(selectedField.digitGaps)}
+                  <label className="text-xs font-black text-slate-500">
+                    אורך קידומת
+                    <select
+                      value={
+                        selectedField.digitGroupSizeMode === "manual"
+                          ? String(selectedField.digitGroupSize || 3)
+                          : "auto"
+                      }
                       disabled={
                         selectedField.type !== "digits" ||
-                        selectedField.digitSpacingMode !== "custom"
+                        selectedField.digitSpacingMode !== "group"
                       }
                       onChange={(event) =>
-                        updateSelectedDigitGaps(
+                        updateSelectedDigitGroupSizeMode(
                           selectedField.key,
                           event.target.value
                         )
                       }
-                      placeholder="לדוגמה: 13,13,45,13,13,13,13,13,13"
+                      className="mt-1 h-10 w-full rounded-xl border px-3 text-sm font-bold disabled:bg-slate-100"
+                    >
+                      <option value="auto">אוטומטי לפי המספר</option>
+                      <option value="2">2 ספרות</option>
+                      <option value="3">3 ספרות</option>
+                    </select>
+                  </label>
+
+                  <label className="text-xs font-black text-slate-500">
+                    רווח אחרי הקידומת
+                    <input
+                      type="number"
+                      min={0}
+                      value={selectedField.digitGroupGap || 0}
+                      disabled={
+                        selectedField.type !== "digits" ||
+                        selectedField.digitSpacingMode !== "group"
+                      }
+                      onChange={(event) =>
+                        updateSelectedDigitGroupGap(
+                          selectedField.key,
+                          Number(event.target.value)
+                        )
+                      }
                       className="mt-1 h-10 w-full rounded-xl border px-3 text-sm font-bold disabled:bg-slate-100"
                     />
-                    <span className="mt-1 block text-[11px] font-bold text-slate-400">
-                      כל מספר מייצג מרווח אחרי הספרה באותו מקום. לדוגמה בטלפון: 13,13,45,13... יוצר רווח גדול אחרי 050.
-                    </span>
                   </label>
+
+                  <div className="col-span-2 rounded-2xl bg-sky-50 px-4 py-3 text-[11px] font-bold leading-5 text-sky-800">
+                    לטלפון/נייד: בוחרים “קידומת + מספר”. באורך קידומת אפשר לבחור אוטומטי לפי המספר: 05/073/077 או כל מספר באורך 10 = קידומת 3 ספרות, 02/03/04/08/09 באורך 9 = קידומת 2 ספרות.
+                    את הרווח אחרי הקידומת את מגדירה בעצמך, והעובד מקליד את המספר ברצף.
+                  </div>
 
                   <label className="text-xs font-black text-slate-500">
                     מקס׳ ספרות
@@ -2306,25 +2390,33 @@ export default function Form101MapperPage() {
                   </button>
                 </div>
 
-                {selectedField.enabled ? (
+                <div className="grid grid-cols-2 gap-2">
+                  {selectedField.enabled ? (
+                    <button
+                      type="button"
+                      onClick={deleteOrDisableField}
+                      className="rounded-2xl bg-rose-50 py-3 text-sm font-black text-rose-700"
+                    >
+                      כיבוי שדה
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setFieldEnabled(selectedField.key, true)}
+                      className="rounded-2xl bg-emerald-50 py-3 text-sm font-black text-emerald-700"
+                    >
+                      החזרת שדה לפעיל
+                    </button>
+                  )}
+
                   <button
                     type="button"
-                    onClick={deleteOrDisableField}
-                    className="w-full rounded-2xl bg-rose-50 py-3 text-sm font-black text-rose-700"
+                    onClick={deleteFieldPermanently}
+                    className="rounded-2xl bg-red-600 py-3 text-sm font-black text-white"
                   >
-                    {selectedField.key.startsWith("customField")
-                      ? "מחיקת שדה חדש"
-                      : "כיבוי שדה"}
+                    מחיקת שדה
                   </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setFieldEnabled(selectedField.key, true)}
-                    className="w-full rounded-2xl bg-emerald-50 py-3 text-sm font-black text-emerald-700"
-                  >
-                    החזרת שדה לפעיל
-                  </button>
-                )}
+                </div>
               </div>
             )}
           </aside>

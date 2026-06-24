@@ -79,13 +79,29 @@ const Form101FieldSchema = new Schema(
 
     digitSpacingMode: {
       type: String,
-      enum: ["equal", "custom"],
+      enum: ["equal", "group", "custom"],
       default: "equal",
     },
 
     digitGaps: {
       type: [Number],
       default: [],
+    },
+
+    digitGroupSize: {
+      type: Number,
+      default: null,
+    },
+
+    digitGroupSizeMode: {
+      type: String,
+      enum: ["auto", "manual"],
+      default: "auto",
+    },
+
+    digitGroupGap: {
+      type: Number,
+      default: null,
     },
 
     maxDigits: {

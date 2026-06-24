@@ -5,7 +5,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 type PageNumber = 1 | 2;
 type FieldType = "text" | "digits" | "check" | "signature";
 type TextAlign = "right" | "left" | "center";
-type DigitSpacingMode = "equal" | "custom";
+type DigitSpacingMode = "equal" | "group" | "custom";
+type DigitGroupSizeMode = "auto" | "manual";
 
 type FieldConfig = {
   page: PageNumber;
@@ -23,7 +24,10 @@ type FieldConfig = {
   fontSize: number;
   digitGap: number | null;
   digitSpacingMode?: DigitSpacingMode;
-  digitGaps?: number[];
+  digitGaps?: number[]; // legacy only
+  digitGroupSize?: number | null;
+  digitGroupSizeMode?: DigitGroupSizeMode;
+  digitGroupGap?: number | null;
   maxDigits: number | null;
   align: TextAlign;
 };
@@ -1256,12 +1260,23 @@ function normalizeTemplateFields(input: unknown) {
           ? null
           : Math.max(1, Number(field.digitGap || 13)),
       digitSpacingMode:
-        field.digitSpacingMode === "custom" ? "custom" : "equal",
+        field.digitSpacingMode === "group" || field.digitSpacingMode === "custom"
+          ? "group"
+          : "equal",
       digitGaps: Array.isArray(field.digitGaps)
         ? field.digitGaps
             .map((gap) => Math.max(1, Number(gap) || 13))
             .filter((gap) => Number.isFinite(gap))
         : [],
+      digitGroupSize:
+        field.digitGroupSize === null || field.digitGroupSize === undefined
+          ? null
+          : Math.max(1, Number(field.digitGroupSize || 3)),
+      digitGroupSizeMode: field.digitGroupSizeMode === "manual" ? "manual" : "auto",
+      digitGroupGap:
+        field.digitGroupGap === null || field.digitGroupGap === undefined
+          ? null
+          : Math.max(0, Number(field.digitGroupGap || 0)),
       maxDigits:
         field.maxDigits === null || field.maxDigits === undefined
           ? null
@@ -1520,16 +1535,50 @@ function buildStructuredPayload(values: ValuesMap, fieldMap: Record<string, Fiel
   return payload;
 }
 
-function getDigitGapForIndex(field: FieldConfig, index: number) {
+function getBaseDigitCellWidth(field: FieldConfig) {
+  return Math.max(1, Number(field.digitGap || 13));
+}
+
+function getAutoDigitGroupSize(value: unknown, fallback: number) {
+  const digits = onlyDigits(value);
+
+  if (!digits) return fallback;
+
+  if (digits.startsWith("05")) return 3;
+  if (digits.startsWith("077") || digits.startsWith("073")) return 3;
+  if (digits.length === 10) return 3;
+
   if (
-    field.digitSpacingMode === "custom" &&
-    Array.isArray(field.digitGaps) &&
-    Number.isFinite(Number(field.digitGaps[index]))
+    digits.length === 9 &&
+    (digits.startsWith("02") ||
+      digits.startsWith("03") ||
+      digits.startsWith("04") ||
+      digits.startsWith("08") ||
+      digits.startsWith("09"))
   ) {
-    return Math.max(1, Number(field.digitGaps[index]));
+    return 2;
   }
 
-  return Math.max(1, Number(field.digitGap || 13));
+  return fallback;
+}
+
+function getResolvedDigitGroupSize(field: FieldConfig, value: unknown) {
+  const fallback = Math.max(1, Number(field.digitGroupSize || 3));
+
+  if (field.digitGroupSizeMode === "manual") {
+    return fallback;
+  }
+
+  return getAutoDigitGroupSize(value, fallback);
+}
+
+function getGroupGapAfterDigit(field: FieldConfig, index: number, value: unknown) {
+  if (field.digitSpacingMode !== "group") return 0;
+
+  const groupSize = getResolvedDigitGroupSize(field, value);
+  if (index !== groupSize - 1) return 0;
+
+  return Math.max(0, Number(field.digitGroupGap || 0));
 }
 
 function FieldControl({
@@ -1652,7 +1701,10 @@ function FieldControl({
               <span
                 key={`${fieldKey}-${index}`}
                 className="inline-block text-center font-semibold"
-                style={{ width: getDigitGapForIndex(field, index) }}
+                style={{
+                  width: getBaseDigitCellWidth(field),
+                  marginRight: getGroupGapAfterDigit(field, index, sliced),
+                }}
               >
                 {digit}
               </span>

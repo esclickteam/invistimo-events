@@ -11,7 +11,8 @@ export const dynamic = "force-dynamic";
 
 type FieldType = "text" | "digits" | "check" | "signature";
 type TextAlign = "right" | "left" | "center";
-type DigitSpacingMode = "equal" | "custom";
+type DigitSpacingMode = "equal" | "group" | "custom";
+type DigitGroupSizeMode = "auto" | "manual";
 
 type FieldConfig = {
   page: 1 | 2;
@@ -29,7 +30,10 @@ type FieldConfig = {
   fontSize: number;
   digitGap?: number | null;
   digitSpacingMode?: DigitSpacingMode;
-  digitGaps?: number[];
+  digitGaps?: number[]; // legacy only
+  digitGroupSize?: number | null;
+  digitGroupSizeMode?: DigitGroupSizeMode;
+  digitGroupGap?: number | null;
   maxDigits?: number | null;
   align?: TextAlign;
 };
@@ -93,7 +97,9 @@ function normalizeAlign(value: unknown): TextAlign {
 }
 
 function normalizeDigitSpacingMode(value: unknown): DigitSpacingMode {
-  return cleanString(value) === "custom" ? "custom" : "equal";
+  const raw = cleanString(value);
+  if (raw === "group" || raw === "custom") return "group";
+  return "equal";
 }
 
 function normalizeDigitGaps(value: unknown) {
@@ -139,6 +145,15 @@ function normalizeField(field: any): FieldConfig {
         : Math.max(1, cleanNumber(field?.digitGap, 13)),
     digitSpacingMode: normalizeDigitSpacingMode(field?.digitSpacingMode),
     digitGaps: normalizeDigitGaps(field?.digitGaps),
+    digitGroupSize:
+      field?.digitGroupSize === null || field?.digitGroupSize === undefined
+        ? null
+        : Math.max(1, cleanNumber(field?.digitGroupSize, 3)),
+    digitGroupSizeMode: field?.digitGroupSizeMode === "manual" ? "manual" : "auto",
+    digitGroupGap:
+      field?.digitGroupGap === null || field?.digitGroupGap === undefined
+        ? null
+        : Math.max(0, cleanNumber(field?.digitGroupGap, 0)),
     maxDigits:
       field?.maxDigits === null || field?.maxDigits === undefined
         ? null
