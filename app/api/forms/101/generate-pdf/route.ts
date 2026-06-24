@@ -10,6 +10,7 @@ import { PutObjectCommand } from "@aws-sdk/client-s3";
 import db from "@/lib/db";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import EmployeeForm101 from "@/models/EmployeeForm101";
+import Form101Template from "@/models/Form101Template";
 import { r2Client, R2_BUCKET_NAME } from "@/lib/r2";
 
 export const runtime = "nodejs";
@@ -115,6 +116,7 @@ type FieldMapItem = {
   enabled: boolean;
   isFixed?: boolean;
   fixedValue?: string;
+  label?: string;
   x: number;
   y: number;
   width: number;
@@ -126,8 +128,16 @@ type FieldMapItem = {
   align: TextAlign;
 };
 
-const MAPPER_PAGE_WIDTH = 900;
-const MAPPER_PAGE_HEIGHT = 1280;
+type FieldMap = Record<string, FieldMapItem>;
+
+type Form101TemplateConfig = {
+  fields: FieldMap;
+  pageWidth: number;
+  pageHeight: number;
+};
+
+const DEFAULT_MAPPER_PAGE_WIDTH = 900;
+const DEFAULT_MAPPER_PAGE_HEIGHT = 1280;
 
 const FORM101_FIELD_MAP = {
   "taxYear": {
@@ -1393,11 +1403,167 @@ function sanitizeFilePart(value: unknown, fallback: string) {
   return cleaned;
 }
 
-function getMappedRect(page: any, field: FieldMapItem) {
+function normalizeFieldType(value: unknown): FieldType {
+  const raw = clean(value);
+
+  if (raw === "digits") return "digits";
+  if (raw === "check") return "check";
+  if (raw === "signature") return "signature";
+
+  return "text";
+}
+
+function normalizeTextAlign(value: unknown): TextAlign {
+  const raw = clean(value);
+
+  if (raw === "left") return "left";
+  if (raw === "center") return "center";
+
+  return "right";
+}
+
+function normalizeFieldMapItem(rawField: any): FieldMapItem | null {
+  if (!rawField || typeof rawField !== "object") return null;
+
+  const page = Number(rawField.page) === 2 ? 2 : 1;
+  const x = Number(rawField.x);
+  const y = Number(rawField.y);
+  const width = Number(rawField.width);
+  const height = Number(rawField.height);
+  const fontSize = Number(rawField.fontSize);
+
+  if (
+    !Number.isFinite(x) ||
+    !Number.isFinite(y) ||
+    !Number.isFinite(width) ||
+    !Number.isFinite(height)
+  ) {
+    return null;
+  }
+
+  return {
+    page,
+    section: clean(rawField.section) || "employee",
+    order: Math.max(1, Number(rawField.order) || 1),
+    enabled:
+      typeof rawField.enabled === "boolean" ? rawField.enabled : true,
+    isFixed: Boolean(rawField.isFixed),
+    fixedValue: clean(rawField.fixedValue),
+    label: clean(rawField.label),
+    x,
+    y,
+    width: Math.max(1, width),
+    height: Math.max(1, height),
+    type: normalizeFieldType(rawField.type),
+    fontSize: Math.max(6, Number.isFinite(fontSize) ? fontSize : 14),
+    digitGap:
+      rawField.digitGap === null || rawField.digitGap === undefined
+        ? null
+        : Math.max(1, Number(rawField.digitGap) || 13),
+    maxDigits:
+      rawField.maxDigits === null || rawField.maxDigits === undefined
+        ? null
+        : Math.max(1, Number(rawField.maxDigits) || 1),
+    align: normalizeTextAlign(rawField.align),
+  };
+}
+
+function normalizeFieldMap(rawFields: any): FieldMap {
+  const source =
+    rawFields instanceof Map ? Object.fromEntries(rawFields) : rawFields || {};
+
+  if (!source || typeof source !== "object") {
+    return {};
+  }
+
+  const normalized: FieldMap = {};
+
+  Object.entries(source).forEach(([key, value]) => {
+    const fieldKey = clean(key);
+    if (!fieldKey) return;
+
+    const field = normalizeFieldMapItem(value);
+    if (!field) return;
+
+    normalized[fieldKey] = field;
+  });
+
+  return normalized;
+}
+
+function fallbackTemplateConfig(): Form101TemplateConfig {
+  return {
+    fields: normalizeFieldMap(FORM101_FIELD_MAP),
+    pageWidth: DEFAULT_MAPPER_PAGE_WIDTH,
+    pageHeight: DEFAULT_MAPPER_PAGE_HEIGHT,
+  };
+}
+
+async function loadForm101TemplateConfig(): Promise<Form101TemplateConfig> {
+  const fallback = fallbackTemplateConfig();
+
+  try {
+    const template = await Form101Template.findOne({
+      name: "default",
+      isActive: true,
+    })
+      .sort({ updatedAt: -1 })
+      .lean();
+
+    const fields = normalizeFieldMap((template as any)?.fields);
+
+    if (!template || !Object.keys(fields).length) {
+      return fallback;
+    }
+
+    const pageWidth = Number((template as any).pageWidth);
+    const pageHeight = Number((template as any).pageHeight);
+
+    return {
+      fields,
+      pageWidth:
+        Number.isFinite(pageWidth) && pageWidth > 0
+          ? pageWidth
+          : DEFAULT_MAPPER_PAGE_WIDTH,
+      pageHeight:
+        Number.isFinite(pageHeight) && pageHeight > 0
+          ? pageHeight
+          : DEFAULT_MAPPER_PAGE_HEIGHT,
+    };
+  } catch (error) {
+    console.error("LOAD FORM 101 TEMPLATE CONFIG FAILED:", error);
+    return fallback;
+  }
+}
+
+function splitPhoneParts(value: unknown) {
+  const digits = onlyDigits(value);
+
+  return {
+    prefix: digits.slice(0, 3),
+    number: digits.slice(3),
+  };
+}
+
+function getMappedRect(
+  page: any,
+  field: FieldMapItem,
+  templateConfig: Form101TemplateConfig
+) {
   const { width: pdfWidth, height: pdfHeight } = page.getSize();
 
-  const scaleX = pdfWidth / MAPPER_PAGE_WIDTH;
-  const scaleY = pdfHeight / MAPPER_PAGE_HEIGHT;
+  const mapperPageWidth =
+    templateConfig.pageWidth > 0
+      ? templateConfig.pageWidth
+      : DEFAULT_MAPPER_PAGE_WIDTH;
+
+  const mapperPageHeight =
+    templateConfig.pageHeight > 0
+      ? templateConfig.pageHeight
+      : DEFAULT_MAPPER_PAGE_HEIGHT;
+
+  const scaleX = pdfWidth / mapperPageWidth;
+  const scaleY = pdfHeight / mapperPageHeight;
 
   const x = field.x * scaleX;
   const width = field.width * scaleX;
@@ -1452,8 +1618,16 @@ function getValueFromBody(body: Form101Payload, fieldKey: string): unknown {
       return body.postalCode;
     case "phone":
       return onlyDigits(body.phone);
+    case "phonePrefix":
+      return onlyDigits(body.phonePrefix || splitPhoneParts(body.phone).prefix);
+    case "phoneNumber":
+      return onlyDigits(body.phoneNumber || splitPhoneParts(body.phone).number);
     case "mobile":
       return onlyDigits(body.mobile);
+    case "mobilePrefix":
+      return onlyDigits(body.mobilePrefix || splitPhoneParts(body.mobile).prefix);
+    case "mobileNumber":
+      return onlyDigits(body.mobileNumber || splitPhoneParts(body.mobile).number);
     case "email":
       return body.email;
 
@@ -1561,7 +1735,7 @@ function getValueFromBody(body: Form101Payload, fieldKey: string): unknown {
       return body.signatureDataUrl || body.signatureText;
 
     default:
-      return body[fieldKey];
+      return body.formFieldValues?.[fieldKey] ?? body[fieldKey];
   }
 }
 
@@ -1690,7 +1864,8 @@ async function drawField(
   fieldKey: string,
   field: FieldMapItem,
   body: Form101Payload,
-  font: any
+  font: any,
+  templateConfig: Form101TemplateConfig
 ) {
   if (!field.enabled) return;
 
@@ -1701,7 +1876,7 @@ async function drawField(
 
   if (!hasValue(value, field.type)) return;
 
-  const rect = getMappedRect(page, field);
+  const rect = getMappedRect(page, field, templateConfig);
 
   if (field.type === "signature") {
     const signatureDrawn = await drawSignatureImage(
@@ -1759,12 +1934,14 @@ async function generateForm101Pdf(body: Form101Payload) {
     throw new Error("INVALID_TEMPLATE_PDF");
   }
 
-  const fields = Object.entries(FORM101_FIELD_MAP)
+  const templateConfig = await loadForm101TemplateConfig();
+
+  const fields = Object.entries(templateConfig.fields)
     .filter(([, field]) => field.enabled)
     .sort(([, a], [, b]) => a.order - b.order) as [string, FieldMapItem][];
 
   for (const [fieldKey, field] of fields) {
-    await drawField(pdfDoc, pages, fieldKey, field, body, font);
+    await drawField(pdfDoc, pages, fieldKey, field, body, font, templateConfig);
   }
 
   const pdfBytes = await pdfDoc.save();
@@ -1914,6 +2091,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("GENERATE AND SAVE FORM 101 PDF ERROR:", error);
 
+    
     const message =
       error instanceof Error ? error.message : "GENERATE_PDF_FAILED";
 

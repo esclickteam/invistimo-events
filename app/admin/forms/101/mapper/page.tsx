@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +39,7 @@ const PDF_URL = "/forms/tofes-101.pdf";
 
 const STORAGE_KEY = "invistimo_form101_original_pdf_mapper_v4";
 const APPROVED_STORAGE_KEY = "invistimo_form101_original_pdf_mapper_approved_v1";
+const TEMPLATE_API_URL = "/api/admin/forms/101/template";
 
 const PAGE_WIDTH = 900;
 const PAGE_HEIGHT = 1280;
@@ -285,35 +286,67 @@ const INITIAL_FIELDS_RAW: Omit<FieldItem, "order" | "enabled">[] = [
   },
 
   {
-    key: "phone",
-    label: "טלפון",
+    key: "phonePrefix",
+    label: "טלפון - קידומת",
     section: "employee",
     page: 1,
     x: 330,
     y: 505,
-    width: 125,
+    width: 38,
     height: 24,
     type: "digits",
-    sample: "",
+    sample: "04",
     fontSize: 15,
     digitGap: DEFAULT_GLOBAL_DIGIT_GAP,
-    maxDigits: 10,
+    maxDigits: 3,
+    align: "center",
+  },
+  {
+    key: "phoneNumber",
+    label: "טלפון - מספר",
+    section: "employee",
+    page: 1,
+    x: 380,
+    y: 505,
+    width: 90,
+    height: 24,
+    type: "digits",
+    sample: "1234567",
+    fontSize: 15,
+    digitGap: DEFAULT_GLOBAL_DIGIT_GAP,
+    maxDigits: 7,
     align: "left",
   },
   {
-    key: "mobile",
-    label: "נייד",
+    key: "mobilePrefix",
+    label: "נייד - קידומת",
     section: "employee",
     page: 1,
     x: 165,
     y: 505,
-    width: 140,
+    width: 38,
     height: 24,
     type: "digits",
-    sample: "0555039072",
+    sample: "055",
     fontSize: 15,
     digitGap: DEFAULT_GLOBAL_DIGIT_GAP,
-    maxDigits: 10,
+    maxDigits: 3,
+    align: "center",
+  },
+  {
+    key: "mobileNumber",
+    label: "נייד - מספר",
+    section: "employee",
+    page: 1,
+    x: 215,
+    y: 505,
+    width: 95,
+    height: 24,
+    type: "digits",
+    sample: "5039072",
+    fontSize: 15,
+    digitGap: DEFAULT_GLOBAL_DIGIT_GAP,
+    maxDigits: 7,
     align: "left",
   },
   {
@@ -1066,6 +1099,7 @@ function renderValue(field: FieldItem, showValues: boolean) {
 
 function fieldToMap(field: FieldItem) {
   return {
+    label: field.label,
     page: field.page,
     section: field.section,
     order: field.order,
@@ -1084,6 +1118,110 @@ function fieldToMap(field: FieldItem) {
   };
 }
 
+function fieldsToMap(fields: FieldItem[]) {
+  return fields
+    .filter((field) => field.enabled)
+    .sort((a, b) => a.order - b.order)
+    .reduce<Record<string, any>>((acc, field) => {
+      acc[field.key] = fieldToMap(field);
+      return acc;
+    }, {});
+}
+
+function templateFieldsToFields(templateFields: any) {
+  const source =
+    templateFields && typeof templateFields === "object" ? templateFields : {};
+
+  const fromServer = Object.entries(source).map(([key, value]: any, index) => {
+    const base = INITIAL_FIELDS.find((field) => field.key === key);
+
+    return {
+      key,
+      label: String(value?.label || base?.label || key),
+      section: String(value?.section || base?.section || "employee"),
+      page: Number(value?.page) === 2 ? 2 : 1,
+      x: Number(value?.x ?? base?.x ?? 0),
+      y: Number(value?.y ?? base?.y ?? 0),
+      width: Number(value?.width ?? base?.width ?? 120),
+      height: Number(value?.height ?? base?.height ?? 24),
+      type:
+        value?.type === "digits" ||
+        value?.type === "check" ||
+        value?.type === "signature"
+          ? value.type
+          : value?.type === "text"
+          ? "text"
+          : base?.type || "text",
+      sample: String(value?.sample ?? base?.sample ?? ""),
+      fontSize: Number(value?.fontSize ?? base?.fontSize ?? 14),
+      digitGap:
+        value?.digitGap === null || value?.digitGap === undefined
+          ? base?.digitGap
+          : Number(value.digitGap),
+      maxDigits:
+        value?.maxDigits === null || value?.maxDigits === undefined
+          ? base?.maxDigits
+          : Number(value.maxDigits),
+      align:
+        value?.align === "left" || value?.align === "center" || value?.align === "right"
+          ? value.align
+          : base?.align || "right",
+      order: Number(value?.order || base?.order || index + 1),
+      enabled: typeof value?.enabled === "boolean" ? value.enabled : true,
+      isFixed: typeof value?.isFixed === "boolean" ? value.isFixed : false,
+      fixedValue: String(value?.fixedValue || ""),
+    } as FieldItem;
+  });
+
+  if (!fromServer.length) return INITIAL_FIELDS;
+
+  const serverKeys = new Set(fromServer.map((field) => field.key));
+  const missingDefaults = INITIAL_FIELDS.filter((field) => !serverKeys.has(field.key));
+
+  return normalizeFields([...fromServer, ...missingDefaults]).sort(
+    (a, b) => a.order - b.order
+  );
+}
+
+async function loadTemplateFromServer() {
+  const response = await fetch(TEMPLATE_API_URL, {
+    method: "GET",
+    credentials: "include",
+    cache: "no-store",
+  });
+
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok || !data?.success) {
+    throw new Error(data?.error || "שגיאה בטעינת התבנית");
+  }
+
+  return data?.template || null;
+}
+
+async function saveTemplateToServer(fields: FieldItem[]) {
+  const response = await fetch(TEMPLATE_API_URL, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify({
+      fields: fieldsToMap(fields),
+      pageWidth: PAGE_WIDTH,
+      pageHeight: PAGE_HEIGHT,
+    }),
+  });
+
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok || !data?.success) {
+    throw new Error(data?.error || "שגיאה בשמירת התבנית");
+  }
+
+  return data?.template || null;
+}
+
 export default function Form101MapperPage() {
   const pageRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<DragState>(null);
@@ -1100,6 +1238,8 @@ export default function Form101MapperPage() {
     DEFAULT_GLOBAL_DIGIT_GAP
   );
   const [templateApproved, setTemplateApproved] = useState(loadApproved);
+  const [templateLoading, setTemplateLoading] = useState(true);
+  const [templateSaving, setTemplateSaving] = useState(false);
 
   const pageSections = useMemo(
     () => SECTIONS.filter((section) => section.page === page),
@@ -1132,6 +1272,46 @@ export default function Form101MapperPage() {
     () => fields.find((field) => field.key === selectedKey) || fields[0],
     [fields, selectedKey]
   );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function hydrateTemplate() {
+      try {
+        setTemplateLoading(true);
+
+        const template = await loadTemplateFromServer();
+        const serverFields = templateFieldsToFields(template?.fields);
+
+        if (cancelled) return;
+
+        setFields(serverFields);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(serverFields, null, 2));
+
+        const approved = Boolean(template?.approvedAt || template?.updatedAt);
+        setTemplateApproved(approved);
+        localStorage.setItem(APPROVED_STORAGE_KEY, approved ? "true" : "false");
+
+        const firstField = serverFields.find((field) => field.enabled) || serverFields[0];
+
+        if (firstField) {
+          setPage(firstField.page);
+          setSelectedSection(firstField.section);
+          setSelectedKey(firstField.key);
+        }
+      } catch (error) {
+        console.error("LOAD FORM 101 TEMPLATE ERROR:", error);
+      } finally {
+        if (!cancelled) setTemplateLoading(false);
+      }
+    }
+
+    hydrateTemplate();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function markTemplateChanged() {
     setTemplateApproved(false);
@@ -1250,18 +1430,28 @@ export default function Form101MapperPage() {
     });
   }
 
-  function save() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(fields, null, 2));
-    alert("נשמר");
+  async function save() {
+    try {
+      setTemplateSaving(true);
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(fields, null, 2));
+
+      await saveTemplateToServer(fields);
+
+      setTemplateApproved(true);
+      localStorage.setItem(APPROVED_STORAGE_KEY, "true");
+
+      alert("התבנית נשמרה ואושרה בשרת");
+    } catch (error) {
+      console.error("SAVE FORM 101 TEMPLATE ERROR:", error);
+      alert(error instanceof Error ? error.message : "שגיאה בשמירת התבנית");
+    } finally {
+      setTemplateSaving(false);
+    }
   }
 
-  function approveTemplate() {
-    save();
-
-    setTemplateApproved(true);
-    localStorage.setItem(APPROVED_STORAGE_KEY, "true");
-
-    alert("התבנית אושרה");
+  async function approveTemplate() {
+    await save();
   }
 
   function reset() {
@@ -1382,6 +1572,7 @@ export default function Form101MapperPage() {
                 מיפוי שדות על הטופס המקורי
               </h1>
 
+
               <p className="mt-2 text-sm font-bold text-slate-500">
                 מוצג כאן הקובץ המקורי: public/forms/tofes-101.pdf. ניתן לשנות
                 מספר שדה, להפעיל/לכבות שדות, להגדיר שדה קבוע לכל העובדים או שדה
@@ -1395,7 +1586,11 @@ export default function Form101MapperPage() {
                     : "bg-amber-50 text-amber-700"
                 }`}
               >
-                {templateApproved ? "התבנית מאושרת" : "התבנית עדיין לא אושרה"}
+                {templateLoading
+                  ? "טוען תבנית מהשרת..."
+                  : templateApproved
+                  ? "התבנית מאושרת"
+                  : "התבנית עדיין לא אושרה"}
               </div>
             </div>
 
@@ -1484,17 +1679,19 @@ export default function Form101MapperPage() {
               <button
                 type="button"
                 onClick={save}
-                className="h-11 rounded-2xl bg-emerald-600 px-5 text-sm font-black text-white"
+                disabled={templateSaving || templateLoading}
+                className="h-11 rounded-2xl bg-emerald-600 px-5 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-50"
               >
-                שמירה
+                {templateSaving ? "שומר..." : "שמירה"}
               </button>
 
               <button
                 type="button"
                 onClick={approveTemplate}
-                className="h-11 rounded-2xl bg-teal-600 px-5 text-sm font-black text-white"
+                disabled={templateSaving || templateLoading}
+                className="h-11 rounded-2xl bg-teal-600 px-5 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-50"
               >
-                אישור תבנית
+                {templateSaving ? "מאשר..." : "אישור תבנית"}
               </button>
 
               <button

@@ -13,6 +13,7 @@ type FieldConfig = {
   enabled: boolean;
   isFixed: boolean;
   fixedValue: string;
+  label?: string;
   x: number;
   y: number;
   width: number;
@@ -1204,14 +1205,91 @@ function onlyDigits(value: unknown) {
   return clean(value).replace(/\D/g, "");
 }
 
-function getFieldLabel(key: string) {
-  return FIELD_LABELS[key] || key;
+function getFieldLabel(key: string, field?: FieldConfig | null) {
+  return field?.label || FIELD_LABELS[key] || key;
 }
 
-function getInitialValues() {
+function normalizeTemplateFields(input: unknown) {
+  const raw =
+    input && typeof input === "object"
+      ? (input as Record<string, Partial<FieldConfig>>)
+      : {};
+
+  const normalized: Record<string, FieldConfig> = {};
+
+  Object.entries(raw).forEach(([key, field]) => {
+    if (!key || !field) return;
+
+    const page: PageNumber = Number(field.page) === 2 ? 2 : 1;
+    const type = ["text", "digits", "check", "signature"].includes(
+      String(field.type || "")
+    )
+      ? (field.type as FieldType)
+      : "text";
+
+    const align = ["right", "left", "center"].includes(
+      String(field.align || "")
+    )
+      ? (field.align as TextAlign)
+      : "right";
+
+    normalized[key] = {
+      page,
+      section: clean(field.section) || "employee",
+      order: Math.max(1, Number(field.order || 1)),
+      enabled: typeof field.enabled === "boolean" ? field.enabled : true,
+      isFixed: Boolean(field.isFixed),
+      fixedValue: clean(field.fixedValue),
+      label: clean(field.label) || FIELD_LABELS[key] || key,
+      x: Number.isFinite(Number(field.x)) ? Number(field.x) : 0,
+      y: Number.isFinite(Number(field.y)) ? Number(field.y) : 0,
+      width: Math.max(1, Number(field.width || 20)),
+      height: Math.max(1, Number(field.height || 20)),
+      type,
+      fontSize: Math.max(6, Number(field.fontSize || 14)),
+      digitGap:
+        field.digitGap === null || field.digitGap === undefined
+          ? null
+          : Math.max(1, Number(field.digitGap || 13)),
+      maxDigits:
+        field.maxDigits === null || field.maxDigits === undefined
+          ? null
+          : Math.max(1, Number(field.maxDigits || 1)),
+      align,
+    };
+  });
+
+  return Object.keys(normalized).length ? normalized : FORM101_FIELD_MAP;
+}
+
+function getFixedValues(fieldMap: Record<string, FieldConfig>) {
+  return Object.fromEntries(
+    Object.entries(fieldMap)
+      .filter(([, field]) => field.isFixed)
+      .map(([key, field]) => [
+        key,
+        field.type === "check"
+          ? field.fixedValue === "true" || field.fixedValue === "✓"
+          : field.fixedValue || "",
+      ])
+  ) as ValuesMap;
+}
+
+function mergeValuesForTemplate(
+  currentValues: ValuesMap,
+  fieldMap: Record<string, FieldConfig>
+) {
+  return {
+    ...getInitialValues(fieldMap),
+    ...currentValues,
+    ...getFixedValues(fieldMap),
+  };
+}
+
+function getInitialValues(fieldMap: Record<string, FieldConfig>) {
   const next: ValuesMap = {};
 
-  Object.entries(FORM101_FIELD_MAP).forEach(([key, field]) => {
+  Object.entries(fieldMap).forEach(([key, field]) => {
     if (!field.enabled) return;
 
     if (field.type === "check") {
@@ -1231,8 +1309,8 @@ function getInitialValues() {
   return next;
 }
 
-function loadDraftValues() {
-  const initial = getInitialValues();
+function loadDraftValues(fieldMap: Record<string, FieldConfig>) {
+  const initial = getInitialValues(fieldMap);
 
   if (typeof window === "undefined") return initial;
 
@@ -1242,16 +1320,7 @@ function loadDraftValues() {
 
     const parsed = JSON.parse(saved) as ValuesMap;
 
-    const fixedValues = Object.fromEntries(
-      Object.entries(FORM101_FIELD_MAP)
-        .filter(([, field]) => field.isFixed)
-        .map(([key, field]) => [
-          key,
-          field.type === "check"
-            ? field.fixedValue === "true" || field.fixedValue === "✓"
-            : field.fixedValue || "",
-        ]),
-    );
+    const fixedValues = getFixedValues(fieldMap);
 
     return {
       ...initial,
@@ -1263,14 +1332,14 @@ function loadDraftValues() {
   }
 }
 
-function getPageFields(page: PageNumber) {
-  return Object.entries(FORM101_FIELD_MAP)
+function getPageFields(fieldMap: Record<string, FieldConfig>, page: PageNumber) {
+  return Object.entries(fieldMap)
     .filter(([, field]) => field.enabled && field.page === page)
     .sort(([, a], [, b]) => a.order - b.order);
 }
 
-function getSectionFields(section: string) {
-  return Object.entries(FORM101_FIELD_MAP)
+function getSectionFields(fieldMap: Record<string, FieldConfig>, section: string) {
+  return Object.entries(fieldMap)
     .filter(([, field]) => field.enabled && field.section === section)
     .sort(([, a], [, b]) => a.order - b.order);
 }
@@ -1281,7 +1350,7 @@ function valueForPdf(value: FieldValue, field: FieldConfig) {
   return value;
 }
 
-function buildStructuredPayload(values: ValuesMap) {
+function buildStructuredPayload(values: ValuesMap, fieldMap: Record<string, FieldConfig>) {
   const fieldValue = (key: string) => values[key];
   const text = (key: string) => clean(fieldValue(key));
   const checked = (key: string) => Boolean(fieldValue(key));
@@ -1306,8 +1375,13 @@ function buildStructuredPayload(values: ValuesMap) {
     city: text("city"),
     postalCode: text("postalCode"),
 
-    phone: `${text("phone")}${text("customField1782075538085")}`.trim(),
-    mobile: `${text("mobile")}${text("customField1782075699673")}`.trim(),
+    phonePrefix: text("phonePrefix") || text("phone"),
+    phoneNumber: text("phoneNumber") || text("customField1782075538085"),
+    mobilePrefix: text("mobilePrefix") || text("mobile"),
+    mobileNumber: text("mobileNumber") || text("customField1782075699673"),
+
+    phone: `${text("phonePrefix") || text("phone")}${text("phoneNumber") || text("customField1782075538085")}`.trim(),
+    mobile: `${text("mobilePrefix") || text("mobile")}${text("mobileNumber") || text("customField1782075699673")}`.trim(),
     email: text("email"),
 
     gender: checked("genderMale") ? "male" : checked("genderFemale") ? "female" : "",
@@ -1396,12 +1470,12 @@ function buildStructuredPayload(values: ValuesMap) {
     signatureDataUrl: text("signature"),
   };
 
-  Object.entries(FORM101_FIELD_MAP).forEach(([key, field]) => {
+  Object.entries(fieldMap).forEach(([key, field]) => {
     payload[key] = valueForPdf(values[key], field);
   });
 
   payload.formFieldValues = Object.fromEntries(
-    Object.entries(FORM101_FIELD_MAP).map(([key, field]) => [
+    Object.entries(fieldMap).map(([key, field]) => [
       key,
       valueForPdf(values[key], field),
     ]),
@@ -1454,7 +1528,7 @@ function FieldControl({
           selected ? "border-fuchsia-500 ring-2 ring-fuchsia-400" : "border-blue-400/60"
         } ${field.isFixed ? "cursor-default opacity-80" : "cursor-pointer hover:bg-blue-50/70"}`}
         style={commonStyle}
-        title={getFieldLabel(fieldKey)}
+        title={getFieldLabel(fieldKey, field)}
       >
         {Boolean(value) ? "✓" : ""}
       </button>
@@ -1473,7 +1547,7 @@ function FieldControl({
           selected ? "border-fuchsia-500 ring-2 ring-fuchsia-400" : "border-blue-400/60"
         }`}
         style={commonStyle}
-        title={getFieldLabel(fieldKey)}
+        title={getFieldLabel(fieldKey, field)}
       >
         {typeof value === "string" && value.startsWith("data:image") ? (
           <img src={value} alt="חתימה" className="h-full w-full object-contain" />
@@ -1511,7 +1585,7 @@ function FieldControl({
           textAlign: field.align,
           direction: field.type === "digits" ? "ltr" : "rtl",
         }}
-        placeholder={field.isFixed ? "קבוע" : getFieldLabel(fieldKey)}
+        placeholder={field.isFixed ? "קבוע" : getFieldLabel(fieldKey, field)}
       />
     </div>
   );
@@ -1649,25 +1723,97 @@ function SignatureModal({
 }
 
 export default function OnlineForm101() {
-  const [values, setValues] = useState<ValuesMap>(loadDraftValues);
+  const [fieldMap, setFieldMap] = useState<Record<string, FieldConfig>>(FORM101_FIELD_MAP);
+  const [pageWidth, setPageWidth] = useState(PAGE_WIDTH);
+  const [pageHeight, setPageHeight] = useState(PAGE_HEIGHT);
+  const [loadingTemplate, setLoadingTemplate] = useState(true);
+  const [templateError, setTemplateError] = useState("");
+  const [values, setValues] = useState<ValuesMap>(() => loadDraftValues(FORM101_FIELD_MAP));
   const [page, setPage] = useState<PageNumber>(1);
   const [selectedKey, setSelectedKey] = useState<string>("idNumber");
   const [submitting, setSubmitting] = useState(false);
   const [activeSignatureField, setActiveSignatureField] = useState<ActiveSignatureField>(null);
 
-  const pageFields = useMemo(() => getPageFields(page), [page]);
+  const pageFields = useMemo(() => getPageFields(fieldMap, page), [fieldMap, page]);
 
   const sections = useMemo(() => {
     return Array.from(new Set(pageFields.map(([, field]) => field.section))).map((section) => ({
       key: section,
       title: SECTION_TITLES[section] || section,
-      fields: getSectionFields(section),
+      fields: getSectionFields(fieldMap, section),
     }));
-  }, [pageFields]);
+  }, [fieldMap, pageFields]);
 
-  const selectedField = selectedKey
-    ? FORM101_FIELD_MAP[selectedKey as keyof typeof FORM101_FIELD_MAP]
-    : null;
+  const selectedField = selectedKey ? fieldMap[selectedKey] || null : null;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadTemplate() {
+      try {
+        setLoadingTemplate(true);
+        setTemplateError("");
+
+        const response = await fetch("/api/admin/forms/101/template?public=true", {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        });
+
+        const data = await response.json().catch(() => null);
+
+        if (!response.ok || !data?.success) {
+          throw new Error(data?.error || "שגיאה בטעינת תבנית טופס 101");
+        }
+
+        const template = data.template || {};
+        const normalizedFields = normalizeTemplateFields(template.fields);
+
+        if (cancelled) return;
+
+        setFieldMap(normalizedFields);
+        setPageWidth(Math.max(1, Number(template.pageWidth || PAGE_WIDTH)));
+        setPageHeight(Math.max(1, Number(template.pageHeight || PAGE_HEIGHT)));
+
+        setValues((prev) => mergeValuesForTemplate(prev, normalizedFields));
+
+        if (!normalizedFields[selectedKey]) {
+          const firstField = Object.entries(normalizedFields)
+            .filter(([, field]) => field.enabled)
+            .sort(([, a], [, b]) => a.order - b.order)[0];
+
+          if (firstField) {
+            setSelectedKey(firstField[0]);
+            setPage(firstField[1].page);
+          }
+        }
+      } catch (error) {
+        console.error("LOAD FORM 101 TEMPLATE ERROR:", error);
+
+        if (!cancelled) {
+          setTemplateError(
+            error instanceof Error
+              ? error.message
+              : "לא הצלחתי לטעון את תבנית טופס 101"
+          );
+          setFieldMap(FORM101_FIELD_MAP);
+          setValues((prev) => mergeValuesForTemplate(prev, FORM101_FIELD_MAP));
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingTemplate(false);
+        }
+      }
+    }
+
+    loadTemplate();
+
+    return () => {
+      cancelled = true;
+    };
+    // נטען פעם אחת בכניסה לעמוד
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(values));
@@ -1684,7 +1830,7 @@ export default function OnlineForm101() {
   }, [values.idNumber]);
 
   function updateValue(key: string, value: FieldValue) {
-    const field = FORM101_FIELD_MAP[key as keyof typeof FORM101_FIELD_MAP];
+    const field = fieldMap[key];
     if (!field || field.isFixed) return;
 
     setValues((prev) => {
@@ -1710,7 +1856,7 @@ export default function OnlineForm101() {
   function clearDraft() {
     if (!confirm("לנקות את כל הטופס?")) return;
     localStorage.removeItem(DRAFT_STORAGE_KEY);
-    setValues(getInitialValues());
+    setValues(getInitialValues(fieldMap));
     setPage(1);
     setSelectedKey("idNumber");
   }
@@ -1719,7 +1865,7 @@ export default function OnlineForm101() {
     try {
       setSubmitting(true);
 
-      const payload = buildStructuredPayload(values);
+      const payload = buildStructuredPayload(values, fieldMap);
 
       const response = await fetch("/api/forms/101/generate-pdf", {
         method: "POST",
@@ -1761,7 +1907,20 @@ export default function OnlineForm101() {
               <p className="mt-2 max-w-3xl text-sm font-bold leading-6 text-slate-500">
                 השדות מוצגים בדיוק על התבנית שהוגדרה באדמין. שדות קבועים מופיעים אוטומטית לכל העובדים, ושדות רגילים ניתנים למילוי.
               </p>
+
+              {loadingTemplate && (
+                <p className="mt-2 text-sm font-black text-sky-600">
+                  טוען תבנית מאושרת...
+                </p>
+              )}
+
+              {templateError && (
+                <p className="mt-2 rounded-2xl bg-amber-50 px-4 py-2 text-sm font-black text-amber-700">
+                  {templateError} — מוצגת תבנית ברירת מחדל.
+                </p>
+              )}
             </div>
+
 
             <div className="flex flex-wrap gap-2">
               <button
@@ -1823,7 +1982,7 @@ export default function OnlineForm101() {
                             : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                         }`}
                       >
-                        <span className="block">{field.order}. {getFieldLabel(key)}</span>
+                        <span className="block">{field.order}. {getFieldLabel(key, field)}</span>
                         <span className={`mt-1 block text-[10px] ${field.isFixed ? "text-indigo-600" : "text-emerald-600"}`}>
                           {field.isFixed ? "קבוע לכל העובדים" : "העובד ממלא"}
                         </span>
@@ -1838,7 +1997,7 @@ export default function OnlineForm101() {
           <section className="overflow-auto rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
             <div
               className="relative mx-auto overflow-hidden rounded-sm bg-white shadow-xl ring-2 ring-slate-300"
-              style={{ width: PAGE_WIDTH, height: PAGE_HEIGHT }}
+              style={{ width: pageWidth, height: pageHeight }}
             >
               <iframe
                 src={`${PDF_URL}#toolbar=0&navpanes=0&scrollbar=0&page=${page}&zoom=page-fit`}
@@ -1870,7 +2029,7 @@ export default function OnlineForm101() {
               <div className="mt-4 space-y-3">
                 <div className="rounded-2xl bg-slate-50 p-4">
                   <p className="text-base font-black text-slate-950">
-                    {selectedField.order}. {getFieldLabel(selectedKey)}
+                    {selectedField.order}. {getFieldLabel(selectedKey, selectedField)}
                   </p>
                   <p className="mt-1 text-xs font-bold text-slate-400">{selectedKey}</p>
                   <div className="mt-3 flex flex-wrap gap-2">

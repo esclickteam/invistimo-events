@@ -170,6 +170,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         { status: 404 }
       );
     }
+    
 
     const serialized = serializeEmployeeDocument(updated);
 
