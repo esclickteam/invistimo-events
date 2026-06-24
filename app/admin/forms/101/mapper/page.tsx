@@ -1671,6 +1671,42 @@ export default function Form101MapperPage() {
     setShowAllFields(false);
   }
 
+  function deleteCurrentSectionPermanently() {
+    const currentSection = SECTIONS.find(
+      (section) => section.key === selectedSection && section.page === page
+    );
+
+    const sectionLabel = currentSection?.title || selectedSection;
+
+    const fieldsInSection = fields.filter(
+      (field) => field.page === page && field.section === selectedSection
+    );
+
+    if (!fieldsInSection.length) {
+      alert("אין שדות למחיקה בסעיף הנבחר");
+      return;
+    }
+
+    const confirmText = `למחוק את כל ${fieldsInSection.length} השדות בסעיף "${sectionLabel}"?
+
+הפעולה מוחקת את השדות מהתבנית. אפשר להחזיר רק דרך איפוס תבנית או הוספה מחדש.`;
+
+    if (!confirm(confirmText)) return;
+
+    markTemplateChanged();
+
+    setFields((prev) => {
+      const next = prev.filter(
+        (field) => !(field.page === page && field.section === selectedSection)
+      );
+
+      selectFallbackField(next);
+      return next;
+    });
+
+    setShowAllFields(false);
+  }
+
   function parseChildFieldKey(key: string) {
     const match = key.match(/^child(\d+)(Name|Id|BirthDate|Mark1|Mark2)$/);
 
@@ -1914,6 +1950,14 @@ export default function Form101MapperPage() {
                 className="h-11 rounded-2xl bg-amber-500 px-5 text-sm font-black text-white"
               >
                 שכפול שורות ילדים
+              </button>
+
+              <button
+                type="button"
+                onClick={deleteCurrentSectionPermanently}
+                className="h-11 rounded-2xl bg-red-600 px-5 text-sm font-black text-white"
+              >
+                מחיקת כל שדות הסעיף
               </button>
 
               <button
