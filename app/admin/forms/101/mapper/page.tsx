@@ -47,7 +47,8 @@ type DragState = {
 const PDF_URL = "/forms/tofes-101.pdf";
 
 const STORAGE_KEY = "invistimo_form101_original_pdf_mapper_v4";
-const APPROVED_STORAGE_KEY = "invistimo_form101_original_pdf_mapper_approved_v1";
+const APPROVED_STORAGE_KEY =
+  "invistimo_form101_original_pdf_mapper_approved_v1";
 const TEMPLATE_API_URL = "/api/admin/forms/101/template";
 
 const PAGE_WIDTH = 900;
@@ -55,8 +56,8 @@ const PAGE_HEIGHT = 1280;
 const DEFAULT_GLOBAL_DIGIT_GAP = 13;
 
 const CHILDREN_ROW_COUNT = 13;
-const CHILDREN_FIRST_ROW_Y = 685;
-const CHILDREN_ROW_GAP = 35;
+const DEFAULT_CHILDREN_FIRST_ROW_Y = 685;
+const DEFAULT_CHILDREN_ROW_GAP = 35;
 
 const CHILDREN_ROW_FIELD_DEFS = [
   {
@@ -113,54 +114,163 @@ const CHILDREN_ROW_FIELD_DEFS = [
   },
 ] as const;
 
-function buildCanonicalChildrenFields(startOrder = 34) {
-  const rows: FieldItem[] = [];
+type ChildSuffix = (typeof CHILDREN_ROW_FIELD_DEFS)[number]["suffix"];
 
-  for (let row = 1; row <= CHILDREN_ROW_COUNT; row += 1) {
-    const y = CHILDREN_FIRST_ROW_Y + (row - 1) * CHILDREN_ROW_GAP;
+function parseChildFieldKeyOutside(key: string) {
+  const match = key.match(/^child(\d+)(Name|Id|BirthDate|Mark1|Mark2)$/);
 
-    CHILDREN_ROW_FIELD_DEFS.forEach((definition) => {
-      rows.push({
-        key: `child${row}${definition.suffix}`,
-        label: `ילד ${row} ${definition.label}`,
-        section: "children",
-        page: 1,
-        x: definition.x,
-        y,
-        width: definition.width,
-        height: definition.height,
-        type: definition.type,
-        sample: definition.type === "check" ? "✓" : "",
-        fontSize: definition.fontSize,
-        digitGap: definition.type === "digits" ? DEFAULT_GLOBAL_DIGIT_GAP : undefined,
-        maxDigits: "maxDigits" in definition ? definition.maxDigits : undefined,
-        align: definition.align,
-        order: startOrder + rows.length,
-        enabled: true,
-        isFixed: false,
-        fixedValue: "",
-      });
-    });
-  }
+  if (!match) return null;
 
-  return rows;
+  return {
+    row: Number(match[1]),
+    suffix: match[2] as ChildSuffix,
+  };
 }
 
-function replaceWithCanonicalChildrenRows(sourceFields: FieldItem[]) {
+function getChildDefinition(suffix: string) {
+  return CHILDREN_ROW_FIELD_DEFS.find(
+    (definition) => definition.suffix === suffix,
+  );
+}
+
+function getChildFieldLabelBySuffix(row: number, suffix: string) {
+  const definition = getChildDefinition(suffix);
+  return definition ? `ילד ${row} ${definition.label}` : `ילד ${row}`;
+}
+
+function getDetectedChildrenRowGap(childMap: Map<string, FieldItem>) {
+  const rows = Array.from(childMap.values())
+    .map((field) => {
+      const parsed = parseChildFieldKeyOutside(field.key);
+      return parsed ? { row: parsed.row, y: field.y } : null;
+    })
+    .filter(Boolean) as Array<{ row: number; y: number }>;
+
+  const byRow = new Map<number, number>();
+
+  rows.forEach((item) => {
+    if (!byRow.has(item.row)) byRow.set(item.row, item.y);
+  });
+
+  const ordered = Array.from(byRow.entries()).sort((a, b) => a[0] - b[0]);
+  const gaps: number[] = [];
+
+  for (let index = 1; index < ordered.length; index += 1) {
+    const gap = ordered[index][1] - ordered[index - 1][1];
+    if (gap > 0 && Number.isFinite(gap)) gaps.push(gap);
+  }
+
+  if (!gaps.length) return DEFAULT_CHILDREN_ROW_GAP;
+
+  return Math.round(gaps.reduce((sum, gap) => sum + gap, 0) / gaps.length);
+}
+
+function buildDefaultChildField(
+  row: number,
+  suffix: ChildSuffix,
+  order: number,
+  childMap: Map<string, FieldItem>,
+): FieldItem {
+  const definition = getChildDefinition(suffix)!;
+  const sameSuffixFields = Array.from(childMap.values())
+    .map((field) => ({ field, parsed: parseChildFieldKeyOutside(field.key) }))
+    .filter((item) => item.parsed?.suffix === suffix) as Array<{
+    field: FieldItem;
+    parsed: { row: number; suffix: ChildSuffix };
+  }>;
+
+  const reference =
+    childMap.get(`1:${suffix}`) ||
+    sameSuffixFields.sort((a, b) => a.parsed.row - b.parsed.row)[0]?.field;
+
+  const referenceParsed = reference
+    ? parseChildFieldKeyOutside(reference.key)
+    : null;
+  const rowGap = getDetectedChildrenRowGap(childMap);
+
+  const x = reference?.x ?? definition.x;
+  const y = reference
+    ? reference.y + (row - (referenceParsed?.row || 1)) * rowGap
+    : DEFAULT_CHILDREN_FIRST_ROW_Y + (row - 1) * DEFAULT_CHILDREN_ROW_GAP;
+
+  return {
+    key: `child${row}${suffix}`,
+    label: getChildFieldLabelBySuffix(row, suffix),
+    section: "children",
+    page: 1,
+    x,
+    y,
+    width: reference?.width ?? definition.width,
+    height: reference?.height ?? definition.height,
+    type: definition.type,
+    sample: definition.type === "check" ? "✓" : "",
+    fontSize: reference?.fontSize ?? definition.fontSize,
+    digitGap:
+      definition.type === "digits"
+        ? (reference?.digitGap ?? DEFAULT_GLOBAL_DIGIT_GAP)
+        : undefined,
+    digitSpacingMode:
+      definition.type === "digits"
+        ? (reference?.digitSpacingMode ?? "equal")
+        : undefined,
+    digitGaps: Array.isArray(reference?.digitGaps) ? reference?.digitGaps : [],
+    digitGroupSize:
+      definition.type === "digits"
+        ? (reference?.digitGroupSize ?? 3)
+        : undefined,
+    digitGroupSizeMode:
+      definition.type === "digits"
+        ? (reference?.digitGroupSizeMode ?? "manual")
+        : undefined,
+    digitGroupGap:
+      definition.type === "digits"
+        ? (reference?.digitGroupGap ?? 0)
+        : undefined,
+    maxDigits: "maxDigits" in definition ? definition.maxDigits : undefined,
+    align: reference?.align ?? definition.align,
+    order,
+    enabled: true,
+    isFixed: false,
+    fixedValue: "",
+  };
+}
+
+function ensure13ChildrenRowsWithoutChangingExistingPositions(
+  sourceFields: FieldItem[],
+) {
   const sortedFields = [...sourceFields].sort((a, b) => a.order - b.order);
-  const existingChildren = sortedFields.filter((field) => field.section === "children");
+  const existingChildren = sortedFields.filter(
+    (field) => field.section === "children",
+  );
 
   const childrenStartOrder = existingChildren.length
     ? Math.min(...existingChildren.map((field) => field.order))
     : 34;
 
   const beforeChildren = sortedFields.filter(
-    (field) => field.section !== "children" && field.order < childrenStartOrder
+    (field) => field.section !== "children" && field.order < childrenStartOrder,
   );
 
   const afterChildren = sortedFields.filter(
-    (field) => field.section !== "children" && field.order >= childrenStartOrder
+    (field) =>
+      field.section !== "children" && field.order >= childrenStartOrder,
   );
+
+  const childMap = new Map<string, FieldItem>();
+
+  existingChildren
+    .sort((a, b) => a.order - b.order)
+    .forEach((field) => {
+      const parsed = parseChildFieldKeyOutside(field.key);
+
+      if (!parsed) return;
+      if (parsed.row < 1 || parsed.row > CHILDREN_ROW_COUNT) return;
+
+      const mapKey = `${parsed.row}:${parsed.suffix}`;
+      if (childMap.has(mapKey)) return;
+
+      childMap.set(mapKey, field);
+    });
 
   let nextOrder = 1;
 
@@ -169,8 +279,33 @@ function replaceWithCanonicalChildrenRows(sourceFields: FieldItem[]) {
     order: nextOrder++,
   }));
 
-  const children = buildCanonicalChildrenFields(nextOrder);
-  nextOrder += children.length;
+  const children: FieldItem[] = [];
+
+  for (let row = 1; row <= CHILDREN_ROW_COUNT; row += 1) {
+    CHILDREN_ROW_FIELD_DEFS.forEach((definition) => {
+      const existing = childMap.get(`${row}:${definition.suffix}`);
+
+      if (existing) {
+        children.push({
+          ...existing,
+          key: `child${row}${definition.suffix}`,
+          label: getChildFieldLabelBySuffix(row, definition.suffix),
+          section: "children",
+          page: 1,
+          order: nextOrder++,
+          enabled:
+            typeof existing.enabled === "boolean" ? existing.enabled : true,
+          isFixed: false,
+          fixedValue: "",
+        });
+        return;
+      }
+
+      children.push(
+        buildDefaultChildField(row, definition.suffix, nextOrder++, childMap),
+      );
+    });
+  }
 
   const normalizedAfter = afterChildren.map((field) => ({
     ...field,
@@ -180,6 +315,21 @@ function replaceWithCanonicalChildrenRows(sourceFields: FieldItem[]) {
   return [...normalizedBefore, ...children, ...normalizedAfter];
 }
 
+function buildInitialChildrenFields(startOrder = 34) {
+  const emptyMap = new Map<string, FieldItem>();
+  const rows: FieldItem[] = [];
+  let nextOrder = startOrder;
+
+  for (let row = 1; row <= CHILDREN_ROW_COUNT; row += 1) {
+    CHILDREN_ROW_FIELD_DEFS.forEach((definition) => {
+      rows.push(
+        buildDefaultChildField(row, definition.suffix, nextOrder++, emptyMap),
+      );
+    });
+  }
+
+  return rows;
+}
 
 const SECTIONS = [
   { key: "year", title: "שנת מס", page: 1 },
@@ -646,7 +796,7 @@ const INITIAL_FIELDS_RAW: Omit<FieldItem, "order" | "enabled">[] = [
     align: "right",
   },
 
-  ...buildCanonicalChildrenFields(),
+  ...buildInitialChildrenFields(),
 
   {
     key: "workStartDate",
@@ -1030,12 +1180,15 @@ function normalizeFields(fields: Partial<FieldItem>[]) {
           .filter((gap) => Number.isFinite(gap))
       : [],
     digitGroupSize: Math.max(1, Number(field.digitGroupSize || 3)),
-    digitGroupSizeMode: field.digitGroupSizeMode === "manual" ? "manual" : "auto",
+    digitGroupSizeMode:
+      field.digitGroupSizeMode === "manual" ? "manual" : "auto",
     digitGroupGap: Math.max(0, Number(field.digitGroupGap || 20)),
   })) as FieldItem[];
 }
 
-const INITIAL_FIELDS = replaceWithCanonicalChildrenRows(normalizeFields(INITIAL_FIELDS_RAW));
+const INITIAL_FIELDS = ensure13ChildrenRowsWithoutChangingExistingPositions(
+  normalizeFields(INITIAL_FIELDS_RAW),
+);
 
 function loadFields() {
   if (typeof window === "undefined") return INITIAL_FIELDS;
@@ -1045,7 +1198,11 @@ function loadFields() {
     if (!saved) return INITIAL_FIELDS;
 
     const parsed = JSON.parse(saved);
-    return Array.isArray(parsed) ? replaceWithCanonicalChildrenRows(normalizeFields(parsed)) : INITIAL_FIELDS;
+    return Array.isArray(parsed)
+      ? ensure13ChildrenRowsWithoutChangingExistingPositions(
+          normalizeFields(parsed),
+        )
+      : INITIAL_FIELDS;
   } catch {
     return INITIAL_FIELDS;
   }
@@ -1072,7 +1229,6 @@ function alignToText(align?: TextAlign) {
   if (align === "left") return "left";
   return "right";
 }
-
 
 function getBaseDigitCellWidth(field: FieldItem) {
   return Math.max(1, Number(field.digitGap || DEFAULT_GLOBAL_DIGIT_GAP));
@@ -1111,7 +1267,11 @@ function getResolvedDigitGroupSize(field: FieldItem, value: unknown) {
   return getAutoDigitGroupSize(value, fallback);
 }
 
-function getGroupGapAfterDigit(field: FieldItem, index: number, value: unknown) {
+function getGroupGapAfterDigit(
+  field: FieldItem,
+  index: number,
+  value: unknown,
+) {
   if (field.digitSpacingMode !== "group") return 0;
 
   const groupSize = getResolvedDigitGroupSize(field, value);
@@ -1120,7 +1280,11 @@ function getGroupGapAfterDigit(field: FieldItem, index: number, value: unknown) 
   return Math.max(0, Number(field.digitGroupGap || 0));
 }
 
-function getDigitTotalWidth(field: FieldItem, digitsLength: number, value: unknown) {
+function getDigitTotalWidth(
+  field: FieldItem,
+  digitsLength: number,
+  value: unknown,
+) {
   if (digitsLength <= 0) return 0;
 
   let total = 0;
@@ -1150,7 +1314,9 @@ function getFieldTypeLabel(type: FieldType) {
 function renderValue(field: FieldItem, showValues: boolean) {
   if (!showValues) return null;
 
-  const displayValue = field.isFixed ? field.fixedValue || field.sample : field.sample;
+  const displayValue = field.isFixed
+    ? field.fixedValue || field.sample
+    : field.sample;
 
   if (field.type === "check") {
     return (
@@ -1275,8 +1441,8 @@ function templateFieldsToFields(templateFields: any) {
         value?.type === "signature"
           ? value.type
           : value?.type === "text"
-          ? "text"
-          : base?.type || "text",
+            ? "text"
+            : base?.type || "text",
       sample: String(value?.sample ?? base?.sample ?? ""),
       fontSize: Number(value?.fontSize ?? base?.fontSize ?? 14),
       digitGap:
@@ -1284,25 +1450,37 @@ function templateFieldsToFields(templateFields: any) {
           ? base?.digitGap
           : Number(value.digitGap),
       digitSpacingMode:
-        value?.digitSpacingMode === "group" || value?.digitSpacingMode === "custom"
+        value?.digitSpacingMode === "group" ||
+        value?.digitSpacingMode === "custom"
           ? "group"
           : "equal",
       digitGaps: Array.isArray(value?.digitGaps)
         ? value.digitGaps
-            .map((gap: any) => Math.max(1, Number(gap) || DEFAULT_GLOBAL_DIGIT_GAP))
+            .map((gap: any) =>
+              Math.max(1, Number(gap) || DEFAULT_GLOBAL_DIGIT_GAP),
+            )
             .filter((gap: any) => Number.isFinite(gap))
         : Array.isArray(base?.digitGaps)
-        ? base?.digitGaps
-        : [],
-      digitGroupSize: Math.max(1, Number(value?.digitGroupSize ?? base?.digitGroupSize ?? 3)),
-      digitGroupSizeMode: value?.digitGroupSizeMode === "manual" ? "manual" : "auto",
-      digitGroupGap: Math.max(0, Number(value?.digitGroupGap ?? base?.digitGroupGap ?? 20)),
+          ? base?.digitGaps
+          : [],
+      digitGroupSize: Math.max(
+        1,
+        Number(value?.digitGroupSize ?? base?.digitGroupSize ?? 3),
+      ),
+      digitGroupSizeMode:
+        value?.digitGroupSizeMode === "manual" ? "manual" : "auto",
+      digitGroupGap: Math.max(
+        0,
+        Number(value?.digitGroupGap ?? base?.digitGroupGap ?? 20),
+      ),
       maxDigits:
         value?.maxDigits === null || value?.maxDigits === undefined
           ? base?.maxDigits
           : Number(value.maxDigits),
       align:
-        value?.align === "left" || value?.align === "center" || value?.align === "right"
+        value?.align === "left" ||
+        value?.align === "center" ||
+        value?.align === "right"
           ? value.align
           : base?.align || "right",
       order: Number(value?.order || base?.order || index + 1),
@@ -1314,7 +1492,9 @@ function templateFieldsToFields(templateFields: any) {
 
   if (!fromServer.length) return INITIAL_FIELDS;
 
-  return replaceWithCanonicalChildrenRows(normalizeFields(fromServer)).sort((a, b) => a.order - b.order);
+  return ensure13ChildrenRowsWithoutChangingExistingPositions(
+    normalizeFields(fromServer),
+  ).sort((a, b) => a.order - b.order);
 }
 
 async function loadTemplateFromServer() {
@@ -1372,11 +1552,13 @@ export default function Form101MapperPage() {
   const [templateLoading, setTemplateLoading] = useState(true);
   const [templateSaving, setTemplateSaving] = useState(false);
   const [childrenRowOrdersInput, setChildrenRowOrdersInput] = useState("");
-  const [childrenRowGap, setChildrenRowGap] = useState(32);
+  const [childrenRowGap, setChildrenRowGap] = useState(
+    DEFAULT_CHILDREN_ROW_GAP,
+  );
 
   const pageSections = useMemo(
     () => SECTIONS.filter((section) => section.page === page),
-    [page]
+    [page],
   );
 
   const pageFields = useMemo(
@@ -1384,7 +1566,7 @@ export default function Form101MapperPage() {
       fields
         .filter((field) => field.page === page)
         .sort((a, b) => a.order - b.order),
-    [fields, page]
+    [fields, page],
   );
 
   const sectionFields = useMemo(() => {
@@ -1393,7 +1575,7 @@ export default function Form101MapperPage() {
 
   const visibleFields = useMemo(() => {
     const allowed = sectionFields.filter(
-      (field) => field.enabled || showDisabledFields
+      (field) => field.enabled || showDisabledFields,
     );
 
     if (showAllFields) return allowed;
@@ -1403,7 +1585,7 @@ export default function Form101MapperPage() {
 
   const selectedField = useMemo(
     () => fields.find((field) => field.key === selectedKey) || fields[0],
-    [fields, selectedKey]
+    [fields, selectedKey],
   );
 
   useEffect(() => {
@@ -1419,13 +1601,17 @@ export default function Form101MapperPage() {
         if (cancelled) return;
 
         setFields(serverFields);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(serverFields, null, 2));
+        localStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify(serverFields, null, 2),
+        );
 
         const approved = Boolean(template?.approvedAt || template?.updatedAt);
         setTemplateApproved(approved);
         localStorage.setItem(APPROVED_STORAGE_KEY, approved ? "true" : "false");
 
-        const firstField = serverFields.find((field) => field.enabled) || serverFields[0];
+        const firstField =
+          serverFields.find((field) => field.enabled) || serverFields[0];
 
         if (firstField) {
           setPage(firstField.page);
@@ -1458,7 +1644,7 @@ export default function Form101MapperPage() {
     markTemplateChanged();
 
     setFields((prev) =>
-      prev.map((field) => (field.key === key ? { ...field, ...patch } : field))
+      prev.map((field) => (field.key === key ? { ...field, ...patch } : field)),
     );
   }
 
@@ -1474,14 +1660,14 @@ export default function Form101MapperPage() {
               ...field,
               digitGap: safeValue,
             }
-          : field
-      )
+          : field,
+      ),
     );
   }
 
   function updateSelectedDigitSpacingMode(
     key: string,
-    value: DigitSpacingMode
+    value: DigitSpacingMode,
   ) {
     updateField(key, {
       digitSpacingMode: value,
@@ -1530,7 +1716,7 @@ export default function Form101MapperPage() {
     const sameSection = fields
       .filter(
         (field) =>
-          field.page === current.page && field.section === current.section
+          field.page === current.page && field.section === current.section,
       )
       .sort((a, b) => a.order - b.order);
 
@@ -1548,7 +1734,7 @@ export default function Form101MapperPage() {
         if (field.key === current.key) return { ...field, order: other.order };
         if (field.key === other.key) return { ...field, order: current.order };
         return field;
-      })
+      }),
     );
   }
 
@@ -1607,22 +1793,21 @@ export default function Form101MapperPage() {
 
   function startDrag(
     event: React.PointerEvent<HTMLButtonElement>,
-    field: FieldItem
+    field: FieldItem,
   ) {
     const rect = pageRef.current?.getBoundingClientRect();
     if (!rect) return;
 
     const keys = getDragGroupKeys(field);
-    const originalPositions = fields.reduce<Record<string, { x: number; y: number }>>(
-      (acc, item) => {
-        if (keys.includes(item.key)) {
-          acc[item.key] = { x: item.x, y: item.y };
-        }
+    const originalPositions = fields.reduce<
+      Record<string, { x: number; y: number }>
+    >((acc, item) => {
+      if (keys.includes(item.key)) {
+        acc[item.key] = { x: item.x, y: item.y };
+      }
 
-        return acc;
-      },
-      {}
-    );
+      return acc;
+    }, {});
 
     dragRef.current = {
       key: field.key,
@@ -1658,7 +1843,7 @@ export default function Form101MapperPage() {
           x: Math.round(Math.max(0, Math.min(PAGE_WIDTH, original.x + dx))),
           y: Math.round(Math.max(0, Math.min(PAGE_HEIGHT, original.y + dy))),
         };
-      })
+      }),
     );
   }
 
@@ -1681,8 +1866,8 @@ export default function Form101MapperPage() {
               x: field.x + dx,
               y: field.y + dy,
             }
-          : field
-      )
+          : field,
+      ),
     );
   }
 
@@ -1733,7 +1918,7 @@ export default function Form101MapperPage() {
       }, {});
 
     await navigator.clipboard.writeText(
-      `const FORM101_FIELD_MAP = ${JSON.stringify(map, null, 2)} as const;`
+      `const FORM101_FIELD_MAP = ${JSON.stringify(map, null, 2)} as const;`,
     );
 
     alert("הועתקו כל השדות כולל כבויים ושדות קבועים");
@@ -1741,7 +1926,9 @@ export default function Form101MapperPage() {
 
   function addField() {
     const sectionMaxOrder = fields
-      .filter((field) => field.page === page && field.section === selectedSection)
+      .filter(
+        (field) => field.page === page && field.section === selectedSection,
+      )
       .reduce((max, field) => Math.max(max, field.order), 0);
 
     const key = `customField${Date.now()}`;
@@ -1791,7 +1978,7 @@ export default function Form101MapperPage() {
     if (
       !confirm(
         `למחוק את השדה "${selectedField.label}" מהתבנית?
-אפשר להחזיר רק דרך איפוס תבנית.`
+אפשר להחזיר רק דרך איפוס תבנית.`,
       )
     ) {
       return;
@@ -1817,13 +2004,13 @@ export default function Form101MapperPage() {
 
   function deleteCurrentSectionPermanently() {
     const currentSection = SECTIONS.find(
-      (section) => section.key === selectedSection && section.page === page
+      (section) => section.key === selectedSection && section.page === page,
     );
 
     const sectionLabel = currentSection?.title || selectedSection;
 
     const fieldsInSection = fields.filter(
-      (field) => field.page === page && field.section === selectedSection
+      (field) => field.page === page && field.section === selectedSection,
     );
 
     if (!fieldsInSection.length) {
@@ -1841,7 +2028,7 @@ export default function Form101MapperPage() {
 
     setFields((prev) => {
       const next = prev.filter(
-        (field) => !(field.page === page && field.section === selectedSection)
+        (field) => !(field.page === page && field.section === selectedSection),
       );
 
       selectFallbackField(next);
@@ -1868,7 +2055,7 @@ export default function Form101MapperPage() {
           (field) =>
             field.page === page &&
             field.section === "children" &&
-            orders.includes(field.order)
+            orders.includes(field.order),
         )
         .sort((a, b) => orders.indexOf(a.order) - orders.indexOf(b.order));
 
@@ -1889,8 +2076,10 @@ export default function Form101MapperPage() {
     if (parsed?.suffix) return parsed.suffix;
 
     if (field.label.includes("שם")) return "Name";
-    if (field.label.includes("ת.ז") || field.label.includes("זהות")) return "Id";
-    if (field.label.includes("לידה") || field.label.includes("תאריך")) return "BirthDate";
+    if (field.label.includes("ת.ז") || field.label.includes("זהות"))
+      return "Id";
+    if (field.label.includes("לידה") || field.label.includes("תאריך"))
+      return "BirthDate";
 
     if (field.type === "check") {
       return index === 3 ? "Mark1" : "Mark2";
@@ -1942,7 +2131,10 @@ export default function Form101MapperPage() {
 
     const targetRow = getNextChildRowNumber();
     const rowGap = Math.max(1, Number(childrenRowGap) || 32);
-    const maxOrder = fields.reduce((max, field) => Math.max(max, field.order), 0);
+    const maxOrder = fields.reduce(
+      (max, field) => Math.max(max, field.order),
+      0,
+    );
 
     const sourceSummary = sourceFields
       .map((field) => `${field.order} - ${field.label}`)
@@ -1950,7 +2142,7 @@ export default function Form101MapperPage() {
 
     if (
       !confirm(
-        `לשכפל את השדות הבאים לילד ${targetRow}?\n\n${sourceSummary}\n\nהשורה החדשה תיווצר ${rowGap}px מתחת, ואז אפשר לגרור אותה יחד למיקום הנכון.`
+        `לשכפל את השדות הבאים לילד ${targetRow}?\n\n${sourceSummary}\n\nהשורה החדשה תיווצר ${rowGap}px מתחת, ואז אפשר לגרור אותה יחד למיקום הנכון.`,
       )
     ) {
       return;
@@ -1975,26 +2167,31 @@ export default function Form101MapperPage() {
 
     markTemplateChanged();
 
-    setFields((prev) => [...prev, ...newFields].sort((a, b) => a.order - b.order));
+    setFields((prev) =>
+      [...prev, ...newFields].sort((a, b) => a.order - b.order),
+    );
 
     const firstNewField = newFields[0];
     setSelectedKey(firstNewField.key);
     setSelectedSection("children");
     setPage(firstNewField.page);
     setShowAllFields(true);
-    setChildrenRowOrdersInput(newFields.map((field) => String(field.order)).join(","));
+    setChildrenRowOrdersInput(
+      newFields.map((field) => String(field.order)).join(","),
+    );
   }
 
-  function resetChildrenRowsTo13() {
+  function completeChildrenRowsTo13() {
     markTemplateChanged();
 
-    setFields((prev) => replaceWithCanonicalChildrenRows(prev));
+    setFields((prev) =>
+      ensure13ChildrenRowsWithoutChangingExistingPositions(prev),
+    );
     setPage(1);
     setSelectedSection("children");
     setSelectedKey("child1Mark1");
     setShowAllFields(true);
     setChildrenRowOrdersInput("");
-    setChildrenRowGap(CHILDREN_ROW_GAP);
   }
 
   function deleteSelectedChildRow() {
@@ -2012,7 +2209,9 @@ export default function Form101MapperPage() {
       return;
     }
 
-    if (!confirm(`למחוק את כל ${rowFields.length} השדות של ילד ${selectedRow}?`)) {
+    if (
+      !confirm(`למחוק את כל ${rowFields.length} השדות של ילד ${selectedRow}?`)
+    ) {
       return;
     }
 
@@ -2028,7 +2227,6 @@ export default function Form101MapperPage() {
 
     setShowAllFields(true);
   }
-
 
   return (
     <main
@@ -2061,7 +2259,6 @@ export default function Form101MapperPage() {
                 מיפוי שדות על הטופס המקורי
               </h1>
 
-
               <p className="mt-2 text-sm font-bold text-slate-500">
                 מוצג כאן הקובץ המקורי: public/forms/tofes-101.pdf. ניתן לשנות
                 מספר שדה, להפעיל/לכבות שדות, להגדיר שדה קבוע לכל העובדים או שדה
@@ -2078,8 +2275,8 @@ export default function Form101MapperPage() {
                 {templateLoading
                   ? "טוען תבנית מהשרת..."
                   : templateApproved
-                  ? "התבנית מאושרת"
-                  : "התבנית עדיין לא אושרה"}
+                    ? "התבנית מאושרת"
+                    : "התבנית עדיין לא אושרה"}
               </div>
             </div>
 
@@ -2154,10 +2351,10 @@ export default function Form101MapperPage() {
 
               <button
                 type="button"
-                onClick={resetChildrenRowsTo13}
+                onClick={completeChildrenRowsTo13}
                 className="h-11 rounded-2xl bg-amber-500 px-5 text-sm font-black text-white"
               >
-                הגדרת 13 שורות ילדים
+                השלמת 13 שורות ילדים
               </button>
 
               <button
@@ -2226,7 +2423,7 @@ export default function Form101MapperPage() {
                           (field) =>
                             field.page === page &&
                             field.section === section.key &&
-                            (field.enabled || showDisabledFields)
+                            (field.enabled || showDisabledFields),
                         )
                         .sort((a, b) => a.order - b.order)[0];
 
@@ -2268,8 +2465,8 @@ export default function Form101MapperPage() {
                           active
                             ? "border-fuchsia-300 bg-fuchsia-50"
                             : field.enabled
-                            ? "border-slate-200 bg-white hover:bg-slate-50"
-                            : "border-rose-200 bg-rose-50 opacity-70"
+                              ? "border-slate-200 bg-white hover:bg-slate-50"
+                              : "border-rose-200 bg-rose-50 opacity-70"
                         }`}
                       >
                         <div className="flex items-center justify-between gap-2">
@@ -2283,7 +2480,10 @@ export default function Form101MapperPage() {
                         </div>
 
                         <div className="mt-1 text-xs font-bold text-slate-400">
-                          ערך: {field.isFixed ? field.fixedValue || "ריק" : field.sample || "ריק"}
+                          ערך:{" "}
+                          {field.isFixed
+                            ? field.fixedValue || "ריק"
+                            : field.sample || "ריק"}
                         </div>
 
                         <div
@@ -2291,7 +2491,8 @@ export default function Form101MapperPage() {
                             field.enabled ? "text-emerald-600" : "text-rose-600"
                           }`}
                         >
-                          {field.enabled ? "פעיל" : "כבוי"} · {field.isFixed ? "קבוע לכל העובדים" : "העובד ממלא"}
+                          {field.enabled ? "פעיל" : "כבוי"} ·{" "}
+                          {field.isFixed ? "קבוע לכל העובדים" : "העובד ממלא"}
                         </div>
                       </button>
                     );
@@ -2353,8 +2554,8 @@ export default function Form101MapperPage() {
                         selected
                           ? "border-fuchsia-500 bg-fuchsia-500/10"
                           : field.enabled
-                          ? "border-blue-500 bg-blue-500/10"
-                          : "border-rose-500 bg-rose-500/10"
+                            ? "border-blue-500 bg-blue-500/10"
+                            : "border-rose-500 bg-rose-500/10"
                       }`}
                     >
                       {renderValue(field, showValues)}
@@ -2389,7 +2590,10 @@ export default function Form101MapperPage() {
                     </div>
 
                     <div className="rounded-xl bg-white px-3 py-2 text-slate-600">
-                      ערך: {selectedField.isFixed ? selectedField.fixedValue || "ריק" : selectedField.sample || "ריק"}
+                      ערך:{" "}
+                      {selectedField.isFixed
+                        ? selectedField.fixedValue || "ריק"
+                        : selectedField.sample || "ריק"}
                     </div>
 
                     <div
@@ -2408,10 +2612,15 @@ export default function Form101MapperPage() {
 
                     <div
                       className={`rounded-xl bg-white px-3 py-2 ${
-                        selectedField.isFixed ? "text-indigo-700" : "text-slate-600"
+                        selectedField.isFixed
+                          ? "text-indigo-700"
+                          : "text-slate-600"
                       }`}
                     >
-                      מילוי: {selectedField.isFixed ? "קבוע לכל העובדים" : "העובד ממלא"}
+                      מילוי:{" "}
+                      {selectedField.isFixed
+                        ? "קבוע לכל העובדים"
+                        : "העובד ממלא"}
                     </div>
                   </div>
                 </div>
@@ -2419,19 +2628,22 @@ export default function Form101MapperPage() {
                 {selectedField.section === "children" && (
                   <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
                     <p className="text-sm font-black text-amber-800">
-                      13 שורות ילדים מוכנות
+                      13 שורות ילדים בלי נעילת מיקום
                     </p>
                     <p className="mt-1 text-xs font-bold leading-5 text-amber-700">
-                      הסעיף מוגדר עכשיו קבוע עם 13 שורות. בכל שורה יש בדיוק 5 שדות לפי הסדר: סימון 1, סימון 2, שם, ת.ז, תאריך לידה. לחיצה על שדה אחד תבחר רק אותו, וגרירה שלו תזיז את כל השורה של אותו ילד יחד.
+                      המערכת רק דואגת שיהיו 13 שורות עם 5 שדות בכל שורה: סימון
+                      1, סימון 2, שם, ת.ז, תאריך לידה. היא לא מאפסת מיקומים שכבר
+                      הגדרת ולא מאפסת מרווחי ספרות. כל שורה אפשר למקם ידנית,
+                      וגרירה של שדה מתוך שורת ילד מזיזה את כל השורה יחד.
                     </p>
 
                     <div className="mt-3 grid grid-cols-2 gap-2">
                       <button
                         type="button"
-                        onClick={resetChildrenRowsTo13}
+                        onClick={completeChildrenRowsTo13}
                         className="rounded-2xl bg-amber-600 py-3 text-sm font-black text-white"
                       >
-                        אפס ל-13 שורות
+                        השלם ל-13 שורות
                       </button>
 
                       <button
@@ -2455,7 +2667,7 @@ export default function Form101MapperPage() {
                       onChange={(event) =>
                         updateFieldOrder(
                           selectedField.key,
-                          Number(event.target.value)
+                          Number(event.target.value),
                         )
                       }
                       className="mt-1 h-10 w-full rounded-xl border px-3 text-sm font-bold"
@@ -2469,7 +2681,7 @@ export default function Form101MapperPage() {
                       onChange={(event) =>
                         setFieldEnabled(
                           selectedField.key,
-                          event.target.value === "yes"
+                          event.target.value === "yes",
                         )
                       }
                       className="mt-1 h-10 w-full rounded-xl border px-3 text-sm font-bold"
@@ -2488,7 +2700,9 @@ export default function Form101MapperPage() {
                           isFixed: event.target.value === "fixed",
                           fixedValue:
                             event.target.value === "fixed"
-                              ? selectedField.fixedValue || selectedField.sample || ""
+                              ? selectedField.fixedValue ||
+                                selectedField.sample ||
+                                ""
                               : selectedField.fixedValue || "",
                         })
                       }
@@ -2595,7 +2809,7 @@ export default function Form101MapperPage() {
                       onChange={(event) =>
                         updateSelectedDigitSpacingMode(
                           selectedField.key,
-                          event.target.value as DigitSpacingMode
+                          event.target.value as DigitSpacingMode,
                         )
                       }
                       className="mt-1 h-10 w-full rounded-xl border px-3 text-sm font-bold disabled:bg-slate-100"
@@ -2615,7 +2829,7 @@ export default function Form101MapperPage() {
                       onChange={(event) =>
                         updateSelectedDigitGap(
                           selectedField.key,
-                          Number(event.target.value)
+                          Number(event.target.value),
                         )
                       }
                       className="mt-1 h-10 w-full rounded-xl border px-3 text-sm font-bold disabled:bg-slate-100"
@@ -2637,7 +2851,7 @@ export default function Form101MapperPage() {
                       onChange={(event) =>
                         updateSelectedDigitGroupSizeMode(
                           selectedField.key,
-                          event.target.value
+                          event.target.value,
                         )
                       }
                       className="mt-1 h-10 w-full rounded-xl border px-3 text-sm font-bold disabled:bg-slate-100"
@@ -2661,7 +2875,7 @@ export default function Form101MapperPage() {
                       onChange={(event) =>
                         updateSelectedDigitGroupGap(
                           selectedField.key,
-                          Number(event.target.value)
+                          Number(event.target.value),
                         )
                       }
                       className="mt-1 h-10 w-full rounded-xl border px-3 text-sm font-bold disabled:bg-slate-100"
@@ -2669,8 +2883,10 @@ export default function Form101MapperPage() {
                   </label>
 
                   <div className="col-span-2 rounded-2xl bg-sky-50 px-4 py-3 text-[11px] font-bold leading-5 text-sky-800">
-                    לטלפון/נייד: בוחרים “קידומת + מספר”. באורך קידומת אפשר לבחור אוטומטי לפי המספר: 05/073/077 או כל מספר באורך 10 = קידומת 3 ספרות, 02/03/04/08/09 באורך 9 = קידומת 2 ספרות.
-                    את הרווח אחרי הקידומת את מגדירה בעצמך, והעובד מקליד את המספר ברצף.
+                    לטלפון/נייד: בוחרים “קידומת + מספר”. באורך קידומת אפשר לבחור
+                    אוטומטי לפי המספר: 05/073/077 או כל מספר באורך 10 = קידומת 3
+                    ספרות, 02/03/04/08/09 באורך 9 = קידומת 2 ספרות. את הרווח
+                    אחרי הקידומת את מגדירה בעצמך, והעובד מקליד את המספר ברצף.
                   </div>
 
                   <label className="text-xs font-black text-slate-500">
